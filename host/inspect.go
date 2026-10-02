@@ -51,7 +51,7 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 	if err != nil {
 		return err
 	}
-	changes := a.newCommandChanges(cmd, recipe, ChangeServiceOptions{Origin: "inspect", Format: a.FormatFlag, TargetLocale: model.LocaleID(a.TargetLang)})
+	changes := a.newCommandChanges(cmd, recipe, ChangeServiceOptions{Origin: "inspect", Format: a.FormatFlag, TargetLocale: model.LocaleID(a.TargetLang), SourceLocale: model.LocaleID(a.SourceLang)})
 	src := inspectSources{changes: changes, editions: a.projectEditions(recipe), comments: a.newCommentDocs(recipe)}
 
 	streaming := outFormat == "jsonl"
@@ -129,7 +129,7 @@ func (a *App) inspectDocument(ctx context.Context, cmd Command, src inspectSourc
 			return err
 		}
 		defer cleanup()
-		if svc, err = a.changeService(ctx, cmd, ChangeServiceOptions{Origin: "inspect", Root: filepath.Dir(path), Format: a.FormatFlag, TargetLocale: model.LocaleID(a.TargetLang)}); err != nil {
+		if svc, err = a.changeService(ctx, cmd, ChangeServiceOptions{Origin: "inspect", Root: filepath.Dir(path), Format: a.FormatFlag, TargetLocale: model.LocaleID(a.TargetLang), SourceLocale: model.LocaleID(a.SourceLang)}); err != nil {
 			return err
 		}
 		doc, label = filepath.Base(path), StdinName
@@ -245,21 +245,26 @@ func commentRef(changes *commandChanges, file string) string {
 
 // projectEditions returns, for a document of the project at recipe, the
 // editions the recipe declares for it in files of their own, so a read lists
-// each translation beside the source. The recipe's content is resolved on the
-// first call. Outside a project, and for a document the recipe does not claim,
-// it returns none.
+// each translation beside the source. Each document is resolved on its own,
+// as the change service resolves a source reference, so no read expands the
+// whole recipe. Outside a project, and for a document the recipe does not
+// claim, it returns none.
 func (a *App) projectEditions(recipe string) func(doc string) []model.EditionKey {
 	if recipe == "" {
 		return func(string) []model.EditionKey { return nil }
 	}
-	load := a.projectIndex(recipe)
+	layout := a.lazyProjectLayout(recipe)
 	return func(doc string) []model.EditionKey {
-		ix := load()
-		if ix == nil {
+		l := layout()
+		if l == nil {
+			return nil
+		}
+		rf, ok := l.sourceFile(doc)
+		if !ok {
 			return nil
 		}
 		var out []model.EditionKey
-		for loc := range ix.targets[doc] {
+		for loc := range l.editionUnits(rf) {
 			out = append(out, model.EditionKey{Locale: loc})
 		}
 		slices.SortFunc(out, func(x, y model.EditionKey) int { return strings.Compare(string(x.Locale), string(y.Locale)) })
@@ -267,20 +272,16 @@ func (a *App) projectEditions(recipe string) func(doc string) []model.EditionKey
 	}
 }
 
-// projectIndex returns what the recipe at recipe declares, by
-// project-relative path, resolving it on the first call; nil when the recipe
+// lazyProjectLayout returns the change layout of the project at recipe, as
+// the command line reads it, built on the first call; nil when the recipe
 // does not load.
-func (a *App) projectIndex(recipe string) func() *projectChangeIndex {
-	return sync.OnceValue(func() *projectChangeIndex {
-		layout, err := a.newProjectLayout(recipe, a.FormatFlag, "")
+func (a *App) lazyProjectLayout(recipe string) func() *projectChangeLayout {
+	return sync.OnceValue(func() *projectChangeLayout {
+		l, err := a.newProjectLayout(ChangeServiceOptions{Project: recipe, Format: a.FormatFlag, SourceLocale: model.LocaleID(a.SourceLang)})
 		if err != nil {
 			return nil
 		}
-		ix, err := layout.load()
-		if err != nil {
-			return nil
-		}
-		return ix
+		return l
 	})
 }
 

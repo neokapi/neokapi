@@ -140,7 +140,10 @@ func (s *Service) Describe(ctx context.Context, q DescribeRequest) (*Description
 		}
 		sess, err := s.open(ctx, q.Doc)
 		if err != nil {
-			return nil, asError(err)
+			if e := asError(err); e != nil {
+				return nil, e
+			}
+			return nil, err
 		}
 		in := sess.Info()
 		info = &in

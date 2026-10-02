@@ -45,7 +45,6 @@ func (a *App) ReviewBlockAt(ctx context.Context, recipe string, at change.Ref) (
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
 	}
-	root := filepath.Dir(recipe)
 	sourceLang := ResolveSourceLocale("", proj.Defaults.SourceLanguage)
 	edition := at.Edition.Canonical()
 	if isLanguageEdition(edition, sourceLang) {
@@ -56,7 +55,7 @@ func (a *App) ReviewBlockAt(ctx context.Context, recipe string, at change.Ref) (
 			Message: "the review queue holds a block's translations by language; " + at.EditionText() + " names a tone or a channel"}
 	}
 
-	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: "review"})
+	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: "review", SourceLocale: model.LocaleID(sourceLang)})
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +89,7 @@ func (a *App) ReviewBlockAt(ctx context.Context, recipe string, at change.Ref) (
 
 	unit := ReviewUnitRef{File: filepath.FromSlash(out.Ref.Doc), Key: out.Ref.Block, Locale: sourceLang}
 	if !out.Ref.Edition.IsZero() {
-		if unit, err = a.reviewTargetUnit(proj, root, out.Ref); err != nil {
+		if unit, err = a.reviewTargetUnit(proj, recipe, out.Ref); err != nil {
 			return nil, err
 		}
 	}
@@ -104,18 +103,16 @@ func (a *App) ReviewBlockAt(ctx context.Context, recipe string, at change.Ref) (
 
 // reviewTargetUnit is the review-queue address of a translation: the file the
 // recipe writes the edition of ref's document to, and the locale it is
-// declared under.
-func (a *App) reviewTargetUnit(proj *project.KapiProject, root string, ref change.Ref) (ReviewUnitRef, error) {
-	units, err := a.UnitsFromProject(proj, root, "")
-	if err != nil {
-		return ReviewUnitRef{}, fmt.Errorf("resolve content: %w", err)
-	}
+// declared under. ref's document is a source file, which resolves on its own.
+func (a *App) reviewTargetUnit(proj *project.KapiProject, recipe string, ref change.Ref) (ReviewUnitRef, error) {
+	pctx := project.NewProjectContext(proj, recipe)
 	want := model.NormalizeLocale(ref.Edition.Locale)
-	for _, u := range units {
-		if relativeToRoot(root, u.SourcePath) != ref.Doc || model.NormalizeLocale(model.LocaleID(u.Locale)) != want {
-			continue
+	if rf, ok := claimedSource(a.FormatReg, pctx, ref.Doc); ok {
+		for _, u := range a.unitsOfFile(proj, pctx.ProjectDir, rf, "") {
+			if model.NormalizeLocale(model.LocaleID(u.Locale)) == want {
+				return ReviewUnitRef{File: u.DisplayPath, Key: ref.Block, Locale: u.Locale}, nil
+			}
 		}
-		return ReviewUnitRef{File: u.DisplayPath, Key: ref.Block, Locale: u.Locale}, nil
 	}
 	return ReviewUnitRef{}, &change.Error{Code: change.CodeNotFound, Field: "at/edition",
 		Message: fmt.Sprintf("the project declares no %s translation of %s", ref.EditionText(), ref.Doc)}

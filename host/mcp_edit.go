@@ -137,11 +137,14 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"of one block with at, the ref read_blocks reports, and carries if_match, the rev you read. set_content replaces " +
 			"the text (keep the <x id=\"…\"/> placeholders; with if_match \"absent\" and an edition it creates that translation), " +
 			"replace_text changes part of it by find, by start and end, or by range, and remove_edition drops a translation. " +
-			"describe_format says which operations a format supports. The change set lands whole or not at all: an edition " +
+			"describe_format says which operations a format supports. A refused change set writes nothing: an edition " +
 			"that moved since you read it is refused as stale with its current revision and text, an edit that drops, " +
 			"invents or unbalances an inline code or flattens a plural is refused as guard, and every other operation reports " +
-			"not_applied, with nothing written. Each refusal carries a code and the field at fault: re-read, fix the operation " +
-			"and resend. mode preview computes and checks the change set and returns a diff per document without writing. " +
+			"not_applied. Each refusal carries a code and the field at fault: re-read, fix the operation and resend. Status " +
+			"partial means some of it landed: a write interrupted after some documents were written (docs says which), or " +
+			"a decision or store operation refused after the content was written, which carries its error. Re-read the " +
+			"documents before you send more. mode preview computes and checks the change set and returns a diff per " +
+			"document without writing. " +
 			"A source edit lists the translations it made stale under invalidates. Every operation is recorded as yours, " +
 			"the calling agent's, in this server's session. Writing a term, a content-memory pair or a recipe field and " +
 			"deciding a review are a person's: those operations are refused as not_permitted. Record a term rule as a " +
@@ -187,13 +190,17 @@ func mcpChangeActor(req *mcp.CallToolRequest) change.Actor {
 
 // mcpChangeService builds the change service for the project one MCP call
 // names, and returns the recipe it resolved ("" outside a project, where the
-// service edits the documents under the server's working directory).
+// service edits the documents under the server's working directory). The
+// service reads the documents in that project's source language, so an
+// edition in any other language is a translation, whichever project the
+// server started in or answered last.
 func (a *App) mcpChangeService(ctx context.Context, project string) (*change.Service, string, error) {
 	recipe, err := a.ResolveMCPCallProject(project)
 	if err != nil {
 		return nil, "", err
 	}
-	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: mcpChangeOrigin})
+	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: mcpChangeOrigin,
+		SourceLocale: model.LocaleID(a.mcpCallSourceLocale(recipe))})
 	if err != nil {
 		return nil, "", err
 	}
@@ -228,6 +235,9 @@ func (a *App) describeFormatMCP(ctx context.Context, in describeFormatInput) (*m
 	d, err := svc.Describe(ctx, change.DescribeRequest{Format: in.Format, Doc: in.Doc})
 	if err != nil {
 		return changeError(err)
+	}
+	if d == nil {
+		return nil, errors.New("describe_format found no description")
 	}
 	return jsonToolResult(d, false)
 }
@@ -285,14 +295,20 @@ func splitProjectArg(args json.RawMessage) (string, []byte, *change.Error) {
 	return project, body, nil
 }
 
-// appliedWording is the wording each applied content operation wrote, in
-// placeholder text, by the document it was sent to, so noteAgentEdits can
-// count the forms a suggestion prefers. A replace_text wrote only its
-// replacements, and set_content its whole text.
+// appliedWording is the wording each applied content operation wrote into a
+// document's own edition, in placeholder text, by the document as the result
+// names it, so noteAgentEdits can count the forms a suggestion prefers at the
+// document's point. A replace_text wrote only its replacements, and
+// set_content its whole text. A translation is left out: a suggestion's
+// preferred form is wording in the source language.
 func appliedWording(set change.Set, res *change.Result) map[string][]string {
 	out := map[string][]string{}
 	for i, op := range set.Ops {
 		if i >= len(res.Ops) || res.Ops[i].Status != change.OpApplied {
+			continue
+		}
+		at := res.Ops[i].At
+		if at == nil || !at.Edition.IsZero() {
 			continue
 		}
 		var texts []string
@@ -310,7 +326,7 @@ func appliedWording(set change.Set, res *change.Result) map[string][]string {
 			}
 		}
 		if len(texts) > 0 {
-			out[op.At.Doc] = append(out[op.At.Doc], texts...)
+			out[at.Doc] = append(out[at.Doc], texts...)
 		}
 	}
 	return out
@@ -319,7 +335,7 @@ func appliedWording(set change.Set, res *change.Result) map[string][]string {
 // changeError is the tool result of a refusal the change service returned as
 // an error, or the error itself when it is not one of the contract's.
 func changeError(err error) (*mcp.CallToolResult, error) {
-	if ce, ok := errors.AsType[*change.Error](err); ok {
+	if ce, ok := errors.AsType[*change.Error](err); ok && ce != nil {
 		return changeRefusal(ce)
 	}
 	return nil, err

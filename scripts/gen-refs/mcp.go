@@ -71,10 +71,15 @@ type MCPParam struct {
 // collectMCPDataset enumerates the widest server surface and labels every tool
 // with the set that serves it, or the flag that adds it.
 func collectMCPDataset(now string) (MCPDataset, error) {
+	// A tool two sets list is labelled with the first, in the order help
+	// prints the sets: apply_edits is a writing tool the review set also
+	// serves.
 	setOf := map[string]string{}
 	for _, set := range cli.MCPToolSetNames() {
 		for _, name := range cli.MCPToolSetTools(set) {
-			setOf[name] = set
+			if _, ok := setOf[name]; !ok {
+				setOf[name] = set
+			}
 		}
 	}
 	byName := map[string]MCPTool{}

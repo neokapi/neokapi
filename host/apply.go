@@ -39,7 +39,7 @@ type changeEntry struct {
 	File        string `json:"file,omitempty"`
 	ID          string `json:"id,omitempty" jsonschema:"the block id; for kind=comment the comment's id as check_file reports it, such as func/Parse"`
 	ContentHash string `json:"content_hash,omitempty"`
-	Text        string `json:"text,omitempty" jsonschema:"the new wording: for kind=content the block text with the inline placeholders extract_content shows; for kind=comment the comment's prose without comment markers"`
+	Text        string `json:"text,omitempty" jsonschema:"the new wording: for kind=content the block text with the inline placeholders kapi inspect shows; for kind=comment the comment's prose without comment markers"`
 
 	// comment
 	CommentSHA256 string            `json:"comment_sha256,omitempty" jsonschema:"for kind=comment: the comment_sha256 check_file reports for the comment; an edit to a comment whose bytes differ is refused as changed"`
@@ -169,7 +169,7 @@ func validateChangeSet(entries []changeEntry) error {
 			case e.File == "":
 				return fmt.Errorf("content entry %d for block %q has no \"file\"", i+1, e.ID)
 			case e.ID == "" && e.ContentHash == "":
-				return fmt.Errorf("content entry %d in %s names no block: give the block's \"id\" and \"content_hash\" as kapi inspect or extract_content prints them", i+1, e.File)
+				return fmt.Errorf("content entry %d in %s names no block: give the block's \"id\" and \"content_hash\" as kapi inspect prints them", i+1, e.File)
 			}
 			ref := blockRef{file: e.File, field: "id", value: e.ID}
 			if e.ID == "" {

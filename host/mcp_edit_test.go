@@ -2,6 +2,7 @@ package host
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,10 +61,14 @@ type mcpPage struct {
 	Format string `json:"format"`
 	Next   string `json:"next"`
 	Blocks []struct {
-		Ref  map[string]string `json:"ref"`
-		Rev  string            `json:"rev"`
-		Text string            `json:"text"`
-		Ops  []string          `json:"ops"`
+		Ref      map[string]string `json:"ref"`
+		Rev      string            `json:"rev"`
+		Text     string            `json:"text"`
+		Ops      []string          `json:"ops"`
+		Editions map[string]struct {
+			Rev  string `json:"rev"`
+			Text string `json:"text"`
+		} `json:"editions"`
 	} `json:"blocks"`
 }
 
@@ -299,7 +304,7 @@ func TestMCPApplyEdits_RefusalsWriteNothing(t *testing.T) {
 			name: "a block the document does not hold",
 			args: func(t *testing.T, s *mcp.ClientSession) map[string]any {
 				return map[string]any{"ops": []any{map[string]any{"op": "set_content",
-					"at": map[string]any{"doc": "doc.md", "block": "no-such-block"}, "if_match": "*", "text": "After"}}}
+					"at": map[string]any{"doc": "doc.md", "block": "no-such-block"}, "if_match": "r:0000000000000000", "text": "After"}}}
 			},
 			code: change.CodeNotFound,
 		},
@@ -620,4 +625,194 @@ func TestMCPApplyEdits_AProjectThatIsNotThereIsAnErrorResult(t *testing.T) {
 		}
 	}
 	assert.Contains(t, text.String(), nowhere)
+}
+
+// languageProject writes a project of one JSON file per language, the source
+// in source and a translation in each of targets, and returns its recipe.
+// files holds each file's body by language.
+func languageProject(t *testing.T, source string, targets []string, files map[string]string) string {
+	t.Helper()
+	root := t.TempDir()
+	recipe := fmt.Sprintf("version: v1\nname: %s-project\ndefaults:\n  source_language: %s\n  target_languages: [%s]\n"+
+		"collections:\n  - name: app\n    content:\n      - path: %s.json\n        target: \"{lang}.json\"\n",
+		source, source, strings.Join(targets, ", "), source)
+	require.NoError(t, os.WriteFile(filepath.Join(root, project.RecipeFileName), []byte(recipe), 0o644))
+	for lang, body := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(root, lang+".json"), []byte(body), 0o644))
+	}
+	return filepath.Join(root, project.RecipeFileName)
+}
+
+func readFileIn(t *testing.T, root, name string) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(root, name))
+	require.NoError(t, err)
+	return string(b)
+}
+
+// One server serves several projects, and each call reads and writes the
+// project it resolves in that project's source language. An edition in any
+// other language is a translation, whichever project the server started in
+// and whichever project a review queue read last, so an edit to it lands in
+// the translation's file and leaves the source file as it was.
+func TestMCPApplyEdits_EachProjectInItsOwnSourceLanguage(t *testing.T) {
+	const (
+		apple = `{"a":"Apple"}`
+		pomme = `{"a":"Pomme"}`
+	)
+	tests := []struct {
+		name string
+		// startInA starts the server in project A.
+		startInA bool
+		// queueB reads project B's review queue before the edit.
+		queueB bool
+		// call is the project the edit is sent to: a, b or c.
+		call string
+		doc  string
+		// edition is the translation the edit addresses, which lives in
+		// edited; source is the source file, which holds sourceBody.
+		edition, edited, source, sourceBody string
+		wording, before                     string
+	}{
+		{
+			name: "a project translated into the start project's source language", startInA: true,
+			call: "b", doc: "fr.json", edition: "en", edited: "en.json", source: "fr.json", sourceBody: pomme,
+			wording: "Green apple", before: "Apple",
+		},
+		{
+			name: "the start project after another project's review queue", startInA: true, queueB: true,
+			call: "a", doc: "en.json", edition: "fr", edited: "fr.json", source: "en.json", sourceBody: apple,
+			wording: "Pomme verte", before: "Pomme",
+		},
+		{
+			name: "a project after another project's review queue, with no start project", queueB: true,
+			call: "c", doc: "en.json", edition: "fr", edited: "fr.json", source: "en.json", sourceBody: apple,
+			wording: "Pomme verte", before: "Pomme",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(project.NoProjectEnvVar, "1")
+			app := &App{Encoding: "UTF-8"}
+			app.InitRegistries()
+			recipes := map[string]string{
+				"a": languageProject(t, "en", []string{"fr"}, map[string]string{"en": apple, "fr": pomme}),
+				"b": languageProject(t, "fr", []string{"en"}, map[string]string{"fr": pomme, "en": apple}),
+				"c": languageProject(t, "en", []string{"fr"}, map[string]string{"en": apple, "fr": pomme}),
+			}
+			if tc.startInA {
+				require.NoError(t, app.ResolveMCPProject(projectCommand(t.Context(), "mcp", recipes["a"])))
+			}
+			if tc.queueB {
+				_, err := app.ReviewQueue(t.Context(), recipes["b"], "", ReviewQueueOptions{})
+				require.NoError(t, err)
+			}
+			session := editSession(t, app, "language-test")
+			named := recipes[tc.call]
+			if tc.startInA && tc.call == "a" {
+				named = ""
+			}
+			root := filepath.Dir(recipes[tc.call])
+
+			var page mcpPage
+			isErr, body := callEditTool(t, session, "read_blocks", map[string]any{"doc": tc.doc, "editions": []string{tc.edition}, "project": named}, &page)
+			require.False(t, isErr, body)
+			require.Len(t, page.Blocks, 1, body)
+			ed, ok := page.Blocks[0].Editions[tc.edition]
+			require.True(t, ok, "the read shows the %s translation: %s", tc.edition, body)
+			assert.Equal(t, tc.before, ed.Text)
+
+			var res mcpResult
+			isErr, body = callEditTool(t, session, "apply_edits", map[string]any{"project": named, "ops": []any{map[string]any{
+				"op": "set_content", "at": map[string]any{"doc": tc.doc, "block": "a", "edition": tc.edition}, "if_match": ed.Rev, "text": tc.wording,
+			}}}, &res)
+			require.False(t, isErr, body)
+			assert.Equal(t, "applied", res.Status, body)
+			assert.Equal(t, tc.sourceBody, readFileIn(t, root, tc.source), "the source file is left as it was")
+			assert.Contains(t, readFileIn(t, root, tc.edited), tc.wording, "the edit lands in the translation's file")
+		})
+	}
+}
+
+// The change service writes no code comment, so a read or an edit of a
+// source file whose comments kapi checks is refused as unsupported under the
+// comment capability, and writes nothing.
+func TestMCPEditTools_ACodeCommentIsRefusedByName(t *testing.T) {
+	app := newToolboxApp(t)
+	dir := t.TempDir()
+	outsideAProject(t, dir)
+	const src = "package demo\n\n// Parse reads the input.\nfunc Parse() {}\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "demo.go"), []byte(src), 0o600))
+	session := editSession(t, app, "edit-test")
+
+	var read mcpResult
+	isErr, body := callEditTool(t, session, "read_blocks", map[string]any{"doc": "demo.go"}, &read)
+	assert.True(t, isErr, body)
+	require.NotNil(t, read.Error, body)
+	assert.Equal(t, change.CodeUnsupported, read.Error.Code)
+	assert.Equal(t, "comment", read.Error.Capability)
+
+	var res mcpResult
+	isErr, body = callEditTool(t, session, "apply_edits", map[string]any{"ops": []any{map[string]any{
+		"op": "set_content", "at": map[string]any{"doc": "demo.go", "block": "func/Parse"}, "if_match": "r:0000000000000000",
+		"text": "Parse reads the whole input.",
+	}}}, &res)
+	assert.True(t, isErr, body)
+	assert.Equal(t, "refused", res.Status, body)
+	require.Len(t, res.Ops, 1, body)
+	require.NotNil(t, res.Ops[0].Error, body)
+	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
+	assert.Equal(t, "comment", res.Ops[0].Error.Capability)
+	assert.Equal(t, src, readFileIn(t, dir, "demo.go"))
+}
+
+// A pre-review carries its score: a decide with outcome advise that gives
+// none is refused before anything is written, the content edit beside it
+// included.
+func TestMCPApplyEdits_APreReviewCarriesItsScore(t *testing.T) {
+	t.Setenv(project.NoProjectEnvVar, "1")
+	app := &App{Encoding: "UTF-8"}
+	app.InitRegistries()
+	recipe := languageProject(t, "en", []string{"fr"}, map[string]string{"en": `{"a":"Apple"}`, "fr": `{"a":"Pomme"}`})
+	session := editSession(t, app, "review-agent")
+
+	var page mcpPage
+	isErr, body := callEditTool(t, session, "read_blocks", map[string]any{"doc": "en.json", "editions": []string{"fr"}, "project": recipe}, &page)
+	require.False(t, isErr, body)
+	require.Len(t, page.Blocks, 1, body)
+	ed := page.Blocks[0].Editions["fr"]
+	at := map[string]any{"doc": "en.json", "block": "a", "edition": "fr"}
+	var res mcpResult
+	isErr, body = callEditTool(t, session, "apply_edits", map[string]any{"project": recipe, "ops": []any{
+		map[string]any{"op": "set_content", "at": at, "if_match": ed.Rev, "text": "Pomme verte"},
+		map[string]any{"op": "decide", "at": at, "if_match": ed.Rev, "outcome": "advise", "reasons": []string{"reads well"}},
+	}}, &res)
+	assert.True(t, isErr, body)
+	assert.Equal(t, "refused", res.Status, body)
+	require.Len(t, res.Ops, 2, body)
+	require.NotNil(t, res.Ops[1].Error, body)
+	assert.Equal(t, change.CodeInvalid, res.Ops[1].Error.Code)
+	assert.Equal(t, "score", res.Ops[1].Error.Field)
+	assert.Equal(t, `{"a":"Pomme"}`, readFileIn(t, filepath.Dir(recipe), "fr.json"), "nothing is written")
+}
+
+// appliedWording counts the wording an agent wrote into a document's own
+// edition, under the document as the result names it, so a document sent as
+// ./x and as x counts once, and a translation's wording counts against no
+// rule of the source.
+func TestAppliedWording_KeysByTheCanonicalDocument(t *testing.T) {
+	text := func(s string) *string { return &s }
+	set := change.Set{Ops: []change.Op{
+		{Kind: change.KindSetContent, At: change.Ref{Doc: "./docs/a.md", Block: "p1"}, Body: &change.SetContent{Text: text("Use the app")}},
+		{Kind: change.KindReplaceText, At: change.Ref{Doc: "docs/a.md", Block: "p2"}, Body: &change.ReplaceText{Edits: []change.TextEdit{{Text: "use"}}}},
+		{Kind: change.KindSetContent, At: change.Ref{Doc: "docs/fr/a.md", Block: "p1"}, Body: &change.SetContent{Text: text("Utilisez l'app")}},
+		{Kind: change.KindSetContent, At: change.Ref{Doc: "docs/a.md", Block: "p3"}, Body: &change.SetContent{Text: text("refused")}},
+	}}
+	res := &change.Result{Ops: []change.OpResult{
+		{Status: change.OpApplied, At: &change.Ref{Doc: "docs/a.md", Block: "p1"}},
+		{Status: change.OpApplied, At: &change.Ref{Doc: "docs/a.md", Block: "p2"}},
+		{Status: change.OpApplied, At: &change.Ref{Doc: "docs/a.md", Block: "p1", Edition: editionKey(t, "fr")}},
+		{Status: change.OpRefused, At: &change.Ref{Doc: "docs/a.md", Block: "p3"}},
+	}}
+	assert.Equal(t, map[string][]string{"docs/a.md": {"Use the app", "use"}}, appliedWording(set, res))
 }

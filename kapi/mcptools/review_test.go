@@ -110,6 +110,25 @@ func TestHandleReviewBlock(t *testing.T) {
 	require.Error(t, err, "the project declares no de translation")
 }
 
+// review_block reads a project in that project's source language, whatever
+// language another project's call left the App in: after a call that
+// resolved a project written in Norwegian, this project's Norwegian
+// translation is still reviewed as a translation.
+func TestHandleReviewBlock_InTheProjectsOwnSourceLanguage(t *testing.T) {
+	root := writeMCPReviewProject(t)
+	a := testApp()
+	a.SourceLang = "nb"
+	proj := filepath.Join(root, "kapi.yaml")
+
+	at := BlockRef{Doc: "en.json", Block: "a", Edition: "nb"}
+	_, out, err := handleReviewBlock(t.Context(), a, ReviewBlockInput{Project: proj, At: at})
+	require.NoError(t, err)
+	assert.Equal(t, at, out.Ref)
+	require.NotNil(t, out.Unit)
+	assert.Equal(t, "Eple", out.Unit.Target)
+	assert.Equal(t, readRev(t, a, proj, "en.json", "a", "nb"), out.Rev)
+}
+
 // readRev is the revision the change service reads for one edition of a
 // block.
 func readRev(t *testing.T, a *cli.App, proj, doc, block, edition string) string {
@@ -190,10 +209,12 @@ func call(t *testing.T, s *mcp.ClientSession, name string, args map[string]any, 
 // The score lands on the unit under the agent's name, and the unit stays in
 // the queue for a person. An agent's establish is refused, and a pre-review
 // of wording that moved since the read is refused as stale; neither records
-// anything.
+// anything. A server serving the review set alone (`kapi mcp --tools review`)
+// carries the whole loop.
 func TestPreReviewIsAnAdviseThroughApplyEdits(t *testing.T) {
 	root := writeMCPReviewProject(t)
 	a := testApp()
+	a.MCPSurface = cli.MCPSurface{Sets: map[string]bool{host.MCPSetReview: true}}
 	proj := filepath.Join(root, "kapi.yaml")
 	session := reviewSession(t, a, "review-agent")
 

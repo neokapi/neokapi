@@ -664,6 +664,19 @@ func TestService_Describe(t *testing.T) {
 	assert.Equal(t, map[string][]string{"link:hyperlink": {"href"}}, d.Ops.SetAttribute, "the capability table plugs in through one function")
 }
 
+// A document the home cannot open for a reason that is no refusal is an
+// error from Describe, never an empty description.
+func TestService_DescribeReportsAFailedOpen(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First")}})
+	h.openErr = errors.New("the disk is gone")
+	d, err := newMemService(h).Describe(context.Background(), change.DescribeRequest{Doc: "a"})
+	require.Error(t, err)
+	assert.Nil(t, d)
+	var ce *change.Error
+	assert.NotErrorAs(t, err, &ce, "a failure that is no refusal is no *change.Error")
+	assert.Contains(t, err.Error(), "the disk is gone")
+}
+
 func TestService_ReadsShowEditionsAndStaleness(t *testing.T) {
 	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First", "nb", "Første", "de", "Erste")}})
 	var authRev string

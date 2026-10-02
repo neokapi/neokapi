@@ -28,18 +28,24 @@ func TestParseMCPToolSets(t *testing.T) {
 	assert.Contains(t, err.Error(), "writing, content, translation, review, all", "the refusal lists the sets")
 }
 
-// No tool sits in two sets: `--tools content` and `--tools writing` are
-// different decisions, and a tool in both would make one of them a lie.
-func TestMCPToolSetsDoNotOverlap(t *testing.T) {
-	seen := map[string]string{}
+// Each set serves every tool it lists, whichever other sets are named: a tool
+// two sets list (apply_edits, in writing and review) is served when either
+// is, and removed only when neither is.
+func TestMCPToolSetsServeEveryToolTheyList(t *testing.T) {
+	isolateCheckExecution(t)
+	all, _ := listSurface(t, nil)
 	for set, tools := range mcpToolSets {
-		for _, tool := range tools {
-			if other, dup := seen[tool]; dup {
-				t.Errorf("%s is in both %s and %s", tool, other, set)
+		t.Run(set, func(t *testing.T) {
+			served, _ := listSurface(t, map[string]bool{set: true})
+			for _, tool := range tools {
+				if slices.Contains(all, tool) {
+					assert.Contains(t, served, tool, "--tools %s serves %s", set, tool)
+				}
 			}
-			seen[tool] = set
-		}
+		})
 	}
+	served, _ := listSurface(t, map[string]bool{MCPSetContent: true})
+	assert.NotContains(t, served, "apply_edits", "a tool no named set lists is removed")
 }
 
 // listSurface lists the tools and resource templates a server built with the
@@ -100,8 +106,8 @@ func TestMCPWritingSetServesTheEditContract(t *testing.T) {
 	writing := MCPToolSetTools(MCPSetWriting)
 	for _, name := range []string{"read_blocks", "apply_edits", "describe_format"} {
 		assert.Contains(t, writing, name)
-		assert.NotContains(t, MCPToolSetTools(MCPSetContent), name, "a tool sits in one set")
+		assert.NotContains(t, MCPToolSetTools(MCPSetContent), name)
 	}
-	assert.Equal(t, []string{"review_queue", "review_block"}, MCPToolSetTools(MCPSetReview),
-		"an agent records a pre-review through apply_edits, so the review set only reads")
+	assert.Equal(t, []string{"review_queue", "review_block", "apply_edits"}, MCPToolSetTools(MCPSetReview),
+		"an agent records a pre-review through apply_edits, so the review set serves it")
 }

@@ -177,19 +177,20 @@ func (a *App) mcpProjectContext(explicit string) (*project.ProjectContext, error
 // mcpCallSourceLocale is the source language one MCP call reads content in: the
 // `defaults.source_language` of the recipe it resolved, with a source language
 // named when the server started still winning, the way an explicit
-// --source-lang wins on the command line.
+// --source-lang wins on the command line. A call that resolved no project
+// reads in the named language, else DefaultSourceLang.
 //
-// The App's own SourceLocale answers for the recipe the server started in and
-// for a call that resolved no project at all. It cannot answer for the others:
-// one server serves several projects, two calls run at once, and a field on the
-// App would hold whichever project answered last.
+// The App's own SourceLang cannot answer for a call, the start project's
+// included: one server serves several projects, two calls run at once, and a
+// host function that resolves a project (the review queue, a recorded
+// pre-review) leaves that project's language in the field.
 //
 // A recipe that will not load falls back to the App's language. The call is
 // about to load the same recipe for its voice, terms and formats, and fails
 // there with the error a reader can act on.
 func (a *App) mcpCallSourceLocale(recipe string) string {
-	if recipe == "" || recipe == a.mcpRecipePath {
-		return a.SourceLocale()
+	if recipe == "" {
+		return ResolveSourceLocale(a.mcpNamedSourceLang, "")
 	}
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {

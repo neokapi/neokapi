@@ -29,16 +29,17 @@ const (
 	MCPSetContent = "content"
 	// MCPSetTranslation runs the loop that fills target languages.
 	MCPSetTranslation = "translation"
-	// MCPSetReview is the review queue and the review picture of one block.
-	// An agent records its pre-review through apply_edits.
+	// MCPSetReview is the review queue, the review picture of one block, and
+	// apply_edits, which records an agent's pre-review as a decide operation.
 	MCPSetReview = "review"
 	// MCPSetAll is every set.
 	MCPSetAll = "all"
 )
 
-// mcpToolSets names the tools in each set. A tool on no list is served
-// whatever sets are named: the widened registry and flow surfaces and a
-// plugin's own tools, which their own flags and installation decide.
+// mcpToolSets names the tools in each set. A tool may sit in more than one
+// set, and is served when any set that lists it is named. A tool on no list
+// is served whatever sets are named: the widened registry and flow surfaces
+// and a plugin's own tools, which their own flags and installation decide.
 var mcpToolSets = map[string][]string{
 	MCPSetWriting: {
 		"context_read", "context_search", "context_observe", "context_correct",
@@ -50,7 +51,7 @@ var mcpToolSets = map[string][]string{
 		"detect_format", "redact",
 	},
 	MCPSetTranslation: {"translate", "up", "up_plan", "stats"},
-	MCPSetReview:      {"review_queue", "review_block"},
+	MCPSetReview:      {"review_queue", "review_block", "apply_edits"},
 }
 
 // mcpResourceSet is the set the context:// resources belong to.
@@ -63,6 +64,7 @@ func MCPToolSetNames() []string {
 }
 
 // MCPToolSetTools returns the tools one set serves, nil for an unknown name.
+// A tool another set also lists is among them.
 func MCPToolSetTools(set string) []string {
 	return slices.Clone(mcpToolSets[set])
 }
@@ -105,16 +107,30 @@ func AllMCPToolSets() map[string]bool {
 	return sets
 }
 
-// pruneMCPToolSets removes from the server every tool and resource whose set
-// is not selected. A nil selection serves every set, for a caller that builds
-// a server without going through `kapi mcp`.
+// pruneMCPToolSets removes from the server every tool that no selected set
+// lists, and the resources when their set is not selected. A nil selection
+// serves every set, for a caller that builds a server without going through
+// `kapi mcp`.
 func pruneMCPToolSets(server *mcp.Server, selected map[string]bool) {
 	if selected == nil {
 		return
 	}
+	served := map[string]bool{}
 	for set, tools := range mcpToolSets {
-		if !selected[set] {
-			server.RemoveTools(tools...)
+		if selected[set] {
+			for _, tool := range tools {
+				served[tool] = true
+			}
+		}
+	}
+	for set, tools := range mcpToolSets {
+		if selected[set] {
+			continue
+		}
+		for _, tool := range tools {
+			if !served[tool] {
+				server.RemoveTools(tool)
+			}
 		}
 	}
 	if !selected[mcpResourceSet] {

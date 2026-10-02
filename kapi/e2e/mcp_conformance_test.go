@@ -27,6 +27,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -430,6 +431,12 @@ func TestMCPConformanceDefaultIsTheWritingSet(t *testing.T) {
 	assert.Contains(t, byName, "up")
 	assert.Contains(t, byName, "apply_edits")
 	assert.NotContains(t, byName, "check_text", "content is its own set")
+
+	// The review set carries apply_edits, through which an agent records its
+	// pre-review, and nothing else of the writing set.
+	review, rctx := startMCPServer(t, "--tools", "review")
+	byName = listTools(t, rctx, review)
+	assert.ElementsMatch(t, []string{"review_queue", "review_block", "apply_edits"}, slices.Collect(maps.Keys(byName)))
 }
 
 func TestMCPConformanceToolSurface(t *testing.T) {

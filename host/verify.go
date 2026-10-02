@@ -1203,41 +1203,48 @@ func (a *App) UnitsFromProject(proj *project.KapiProject, root string, localeFil
 
 	var units []VerifyUnit
 	for _, rf := range resolved {
-		// A file read for its comments alone has no target to pair it with.
-		if rf.Item == nil || rf.Item.Target == "" || rf.CommentsOnly() {
-			continue
-		}
-		locales := rf.Item.ResolvedTargetLanguages(nil, proj.Defaults)
-		for _, loc := range locales {
-			if localeFilter != "" && string(loc) != localeFilter {
-				continue
-			}
-			targetPath := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root, proj.Defaults.LocaleFormat)
-			rel, relErr := filepath.Rel(root, targetPath)
-			if relErr != nil {
-				rel = targetPath
-			}
-			// Inside a convergence run the pass's own output is a draft, not a
-			// delivery: grade the draft where one exists, the delivered file
-			// where none does (host/convergedrafts.go). DisplayPath keeps naming
-			// the destination, which is what a reader is being told about.
-			targetPath = a.draftedTargetPath(string(loc), targetPath)
-			srcFormat, srcCfg, tgtFormat, tgtCfg := unitFormatBinding(proj, rf, targetPath)
-			units = append(units, VerifyUnit{
-				SourcePath:   rf.Path,
-				TargetPath:   targetPath,
-				Locale:       string(loc),
-				Collection:   rf.Collection,
-				DisplayPath:  rel,
-				ProjectRoot:  root,
-				SourceFormat: srcFormat,
-				SourceConfig: srcCfg,
-				TargetFormat: tgtFormat,
-				TargetConfig: tgtCfg,
-			})
-		}
+		units = append(units, a.unitsOfFile(proj, root, rf, localeFilter)...)
 	}
 	return units, nil
+}
+
+// unitsOfFile pairs one source file the recipe resolved with its target file
+// in each language its item declares, or in localeFilter alone when it is set.
+func (a *App) unitsOfFile(proj *project.KapiProject, root string, rf project.ResolvedFile, localeFilter string) []VerifyUnit {
+	// A file read for its comments alone has no target to pair it with.
+	if rf.Item == nil || rf.Item.Target == "" || rf.CommentsOnly() {
+		return nil
+	}
+	var units []VerifyUnit
+	for _, loc := range rf.Item.ResolvedTargetLanguages(nil, proj.Defaults) {
+		if localeFilter != "" && string(loc) != localeFilter {
+			continue
+		}
+		targetPath := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root, proj.Defaults.LocaleFormat)
+		rel, relErr := filepath.Rel(root, targetPath)
+		if relErr != nil {
+			rel = targetPath
+		}
+		// Inside a convergence run the pass's own output is a draft, not a
+		// delivery: grade the draft where one exists, the delivered file
+		// where none does (host/convergedrafts.go). DisplayPath keeps naming
+		// the destination, which is what a reader is being told about.
+		targetPath = a.draftedTargetPath(string(loc), targetPath)
+		srcFormat, srcCfg, tgtFormat, tgtCfg := unitFormatBinding(proj, rf, targetPath)
+		units = append(units, VerifyUnit{
+			SourcePath:   rf.Path,
+			TargetPath:   targetPath,
+			Locale:       string(loc),
+			Collection:   rf.Collection,
+			DisplayPath:  rel,
+			ProjectRoot:  root,
+			SourceFormat: srcFormat,
+			SourceConfig: srcCfg,
+			TargetFormat: tgtFormat,
+			TargetConfig: tgtCfg,
+		})
+	}
+	return units
 }
 
 // SourceUnitsFromProject expands the project's content to one unit per declared
