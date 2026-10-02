@@ -386,7 +386,9 @@ stream ends without it (`io.ErrUnexpectedEOF`, a truncated run), and fails the
 run when `error` is set. A plugin may send `ProcessComplete` before step 6, as
 okapi-bridge does once its pipeline has written the document; kapi accepts that
 completion when its own processed-part stream ends, waiting no longer than the
-run's context allows.
+run's context allows. After a successful completion, kapi discards any
+processed part it still holds once the plugin has returned from `Process`,
+because the document is already written.
 
 A **read-only** run omits both the output reference and the output locale: kapi
 closes its send side immediately after the header, and the plugin streams blocks

@@ -372,6 +372,13 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 				}
 				msg := protoconvert.PartToProto(part)
 				if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Part{Part: msg}}); err != nil {
+					if errors.Is(err, io.EOF) {
+						// The daemon has ended the stream, and its final
+						// status arrives on Recv. Consume the rest of the
+						// input so the caller can finish.
+						sendErr <- discardParts(ctx, parts)
+						return
+					}
 					sendErr <- fmt.Errorf("send part: %w", err)
 					return
 				}
@@ -407,8 +414,10 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 	// A daemon may complete before the host closes its input: okapi-bridge
 	// sends ProcessComplete once its pipeline has written the document, which
 	// can precede the last structural parts the host sends. Completion then
-	// waits for the sender to finish the input, bounded by ctx. A stream that
-	// ended without completion has already returned io.ErrUnexpectedEOF above.
+	// waits for the sender to finish the input, bounded by ctx; a Part sent
+	// after the daemon ended the stream is discarded, since the document is
+	// already written. A stream that ended without completion has already
+	// returned io.ErrUnexpectedEOF above.
 	select {
 	case err := <-sendErr:
 		if err != nil {
@@ -424,6 +433,21 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 		}
 	}
 	return nil
+}
+
+// discardParts receives the rest of parts without sending them, returning nil
+// once the channel closes or ctx's error if ctx ends first.
+func discardParts(ctx context.Context, parts <-chan *model.Part) error {
+	for {
+		select {
+		case _, ok := <-parts:
+			if !ok {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 // absOrSelf returns the absolute version of p, or p unchanged on error.

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -156,6 +157,82 @@ func TestDaemonWriterAcceptsCompletionBeforeInputCloses(t *testing.T) {
 
 	require.NoError(t, <-done)
 	require.Equal(t, "written", out.String())
+}
+
+// Once the daemon has completed and ended the stream, a Part the host still
+// sends has nowhere to go. The writer discards it and keeps the output the
+// daemon returned.
+func TestDaemonWriterDiscardsPartsAfterCompletion(t *testing.T) {
+	completed := make(chan struct{})
+	pool, plugin := processTestPool(t, func(stream pb.BridgeService_ProcessServer) error {
+		if _, err := stream.Recv(); err != nil {
+			return err
+		}
+		defer close(completed)
+		return stream.Send(&pb.ProcessResponse{
+			Response: &pb.ProcessResponse_Complete{Complete: &pb.ProcessComplete{Output: []byte("written")}},
+		})
+	})
+	writer := newDaemonWriter(pool, plugin, "test-format")
+	writer.SetOriginalContent([]byte("original"))
+	var out bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&out))
+	parts := make(chan *model.Part)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- writer.Write(ctx, parts) }()
+
+	parts <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("b1", "text")}
+	<-completed
+	for i := range 5 {
+		time.Sleep(20 * time.Millisecond)
+		select {
+		case parts <- &model.Part{Type: model.PartData, Resource: &model.Data{ID: "tail" + strconv.Itoa(i)}}:
+		case err := <-done:
+			t.Fatalf("writer failed on a part sent after completion: %v", err)
+		}
+	}
+	close(parts)
+
+	require.NoError(t, <-done)
+	require.Equal(t, "written", out.String())
+}
+
+// A daemon that ends the stream with a failure while the host is still sending
+// fails the write, even though the writer stops sending at that point.
+func TestDaemonWriterReportsFailureAfterSendsStop(t *testing.T) {
+	pool, plugin := processTestPool(t, func(stream pb.BridgeService_ProcessServer) error {
+		if _, err := stream.Recv(); err != nil {
+			return err
+		}
+		return status.Error(codes.Internal, "pipeline failed")
+	})
+	writer := newDaemonWriter(pool, plugin, "test-format")
+	writer.SetOriginalContent([]byte("original"))
+	parts := make(chan *model.Part)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- writer.Write(ctx, parts) }()
+
+	parts <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("b1", "text")}
+	var err error
+	finished := false
+	for i := 0; i < 5 && !finished; i++ {
+		time.Sleep(20 * time.Millisecond)
+		select {
+		case parts <- &model.Part{Type: model.PartData, Resource: &model.Data{ID: "tail" + strconv.Itoa(i)}}:
+		case err = <-done:
+			finished = true
+		}
+	}
+	if !finished {
+		close(parts)
+		err = <-done
+	}
+	require.Error(t, err)
+	require.Equal(t, codes.Internal, status.Code(err))
 }
 
 // After completion the wait for the input is bounded by the caller's context.
