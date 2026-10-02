@@ -332,10 +332,9 @@ correct order. Attach the collected runs to a block with
 
 ### Reconstructing Markup in a Writer
 
-The writer walks the run sequence and emits each run's content: literal text for
-`TextRun`s, the captured `Data` for inline-code runs. The framework provides
-`model.RenderRunsWithData` for exactly this, the canonical rendering path the
-HTML, XML, and Markdown writers all use:
+The writer walks the run sequence and emits each run's content: the text of a
+`TextRun`, and the captured `Data` of an inline-code run. The framework provides
+`model.RenderRunsWithData`, which emits both verbatim:
 
 ```go
 func (w *Writer) renderRuns(buf *strings.Builder, runs []model.Run) {
@@ -345,10 +344,22 @@ func (w *Writer) renderRuns(buf *strings.Builder, runs []model.Run) {
 }
 ```
 
-This approach guarantees **perfect roundtrip fidelity**: the writer doesn't
-need to understand the markup format. It just replays whatever `Data` the
-reader stored. An `<a href="/help" class="nav">` tag roundtrips as exactly
-that string, attributes and all.
+Replaying `Data` is what keeps inline markup faithful: an
+`<a href="/help" class="nav">` tag roundtrips as exactly that string,
+attributes and all, without the writer understanding it.
+
+A `TextRun`, though, holds text. A translation, an edit made through
+`kapi apply`, `ksed` or MCP `apply_edits`, and a pseudo-translation all write
+text runs, and a `<` or `&` in one is a character, because inline codes travel
+as their own runs. A writer for a format with markup or escapes therefore
+encodes text runs on both the target and the source path. Encode only what
+would read back as markup, so the text your reader left in a run keeps its
+bytes when nobody edited it: the HTML writer escapes a `<` that would open a
+tag and an `&` that would begin a character reference, and the Markdown writer
+backslash-escapes raw HTML, autolinks, references and inline links. Two sweeps
+in `core/formats/escape_symmetry_test.go` hold every text format to this:
+`TestEscapeSymmetryOnModify` writes a corpus of characters into a translated
+value, and `TestEscapeSymmetryOnSourceEdit` writes it into an edited source.
 
 ### Choosing Target vs Source Content
 

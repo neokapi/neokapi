@@ -28,14 +28,22 @@ kapi inspect report.docx --jsonl
 
 Two fields anchor an edit:
 
-- **`text`** renders inline codes (links, bold spans, placeholders) as
-  `<x id="…"/>` tokens. **Keep every token, unchanged, in your edited text.**
-  They are the markup the round-trip reconstructs. A placeholder is
-  `<x id="1/"/>`; a paired span opens with `<x id="1"/>` and closes with
-  `<x id="/1"/>`. Reorder or drop one and the edit is rejected (see §3).
+- **`text`** renders inline codes (links, bold spans, placeholders, and a
+  character reference such as `&amp;` in HTML) as `<x id="…"/>` tokens.
+  **Keep every token, unchanged, in your edited text.** They are the markup the
+  round-trip reconstructs. A placeholder is `<x id="1/"/>`; a paired span opens
+  with `<x id="1"/>` and closes with `<x id="/1"/>`. Reorder or drop one and the
+  edit is rejected (see §3). Everything else is text: kapi escapes it for the
+  file's format, so a `<b>` or `&amp;` you type is written as those characters,
+  never as markup. Bold spans and links stay as the source has them.
 - **`content_hash`** is the block's canonical identity (a hash of its plain
   source text, not of the placeholder `text`). Send it back with the edit so
   kapi can tell the block is still the one you read.
+
+`inspect` (and MCP `extract_content`) read a file with the same reader `apply`
+writes it back through, so every `id` and `content_hash` they print is one
+`apply` resolves. An HTML image's `alt` or a link's `title` is a block of its
+own.
 
 ## 2. Write the edits
 
@@ -55,7 +63,7 @@ kapi inspect report.docx --jsonl > blocks.jsonl
 # You rewrite the "text" of each changed block (keeping the <x id="…"/> tags) and
 # write those content entries to edits.jsonl — there is no command for it; you
 # are the writer. Then:
-kapi apply edits.jsonl --diff          # preview the content changes, write nothing
+kapi apply edits.jsonl --diff          # preview the content changes per block id, write nothing
 kapi apply edits.jsonl                  # apply in place
 kapi apply edits.jsonl --in-place=.bak  # apply, keeping a .bak of each file
 ```

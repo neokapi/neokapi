@@ -50,7 +50,7 @@ The assistant drives the loop through structured calls: `extract_content` to rea
 kapi inspect guide.md --jsonl        # one JSON object per line
 ```
 
-Two fields anchor an edit: **`text`** renders inline codes as `<x id="…"/>` tokens; keep every token in your edited text (a placeholder is `<x id="1/"/>`, a paired span opens with `<x id="1"/>` and closes with `<x id="/1"/>`). **`content_hash`** is the block's identity; send it back so kapi can tell the block is still the one you read.
+Two fields anchor an edit: **`text`** renders inline codes as `<x id="…"/>` tokens; keep every token in your edited text (a placeholder is `<x id="1/"/>`, a paired span opens with `<x id="1"/>` and closes with `<x id="/1"/>`). A character reference the source spells out, such as `&amp;` in HTML, is a token too. Everything else in `text` is text: kapi escapes it for the file's format, so a `<b>` or `&amp;` you type is written as those characters. **`content_hash`** is the block's identity; send it back so kapi can tell the block is still the one you read. `inspect` reads a file with the same reader `apply` writes it back through, so every `id` and `content_hash` it prints is one `apply` resolves.
 
 **Edit, then apply.** Produce one `content` entry per changed block; `kapi apply` is the one write verb:
 
@@ -68,7 +68,7 @@ Two fields anchor an edit: **`text`** renders inline codes as `<x id="…"/>` to
 kapi inspect guide.md --jsonl > blocks.jsonl
 # rewrite the "text" of the blocks you want changed (keeping every <x id="…"/>
 # token) and save them as content entries to edits.jsonl (you do this; no command)
-kapi apply edits.jsonl --diff             # preview as a unified diff, write nothing
+kapi apply edits.jsonl --diff             # preview as a unified diff per block id, write nothing
 kapi apply edits.jsonl                    # apply in place
 kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak
 ```
