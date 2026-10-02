@@ -3,6 +3,7 @@ package model
 import (
 	"html"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -236,10 +237,10 @@ func alignRunes(a, b []rune) []int {
 	// bm[j:], stored row-major in one slice.
 	w := len(bm) + 1
 	lcs := make([]int32, (len(am)+1)*w)
-	for i := len(am) - 1; i >= 0; i-- {
-		for j := len(bm) - 1; j >= 0; j-- {
+	for i, ai := range slices.Backward(am) {
+		for j, bj := range slices.Backward(bm) {
 			switch {
-			case am[i] == bm[j]:
+			case ai == bj:
 				lcs[i*w+j] = lcs[(i+1)*w+j+1] + 1
 			case lcs[(i+1)*w+j] >= lcs[i*w+j+1]:
 				lcs[i*w+j] = lcs[(i+1)*w+j]
