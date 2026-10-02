@@ -83,6 +83,12 @@ type ModifyProbe struct {
 	// Skip names characters the probed position cannot carry, mapped to the
 	// reason. A skipped case is reported, never silently dropped.
 	Skip map[rune]string
+	// EditSource probes the monolingual edit path instead of the translation
+	// path: the block's source is rewritten and the writer is given no
+	// locale, which is how `kapi apply`, `ksed` and the MCP apply_edits tool
+	// write a document back. A writer that escapes a translated value but
+	// replays an edited source raw lets the edit inject markup.
+	EditSource bool
 }
 
 // Run executes the probe over the whole corpus as one subtest per character.
@@ -129,14 +135,20 @@ func (p ModifyProbe) runCase(t *testing.T, c EscapeCase) {
 		if !ok || !block.Translatable {
 			continue
 		}
-		block.SetTargetText(locale, want)
+		if p.EditSource {
+			block.SetSourceText(want)
+		} else {
+			block.SetTargetText(locale, want)
+		}
 		mutated++
 	}
 	if mutated == 0 {
 		t.Fatalf("%s: source produced no translatable block", p.Format)
 	}
 
-	writer.SetLocale(locale)
+	if !p.EditSource {
+		writer.SetLocale(locale)
+	}
 	out, writeErr := spec.WriteParts(writer, parts, p.Source)
 
 	rejected := p.Rejects != nil && p.Rejects(c.R)

@@ -2060,7 +2060,7 @@ func (w *Writer) blockText(block *model.Block) string {
 	if runs == nil {
 		return ""
 	}
-	return RenderBlockContent(block, runs)
+	return finishBlockContent(block, renderInlineText(block, runs))
 }
 
 // RenderBlockContent renders a block's content (the given run sequence —
@@ -2071,7 +2071,144 @@ func (w *Writer) blockText(block *model.Block) string {
 // function so reader and writer can never disagree about untranslated
 // output.
 func RenderBlockContent(block *model.Block, runs []model.Run) string {
-	rendered := model.RenderRunsWithData(runs)
+	return finishBlockContent(block, model.RenderRunsWithData(runs))
+}
+
+// renderInlineText renders runs as RenderRunsWithData does, escaping the text
+// a tool put into a block so it reads back as text. A text run of inline
+// Markdown holds either what the reader left as text, which is the document's
+// own Markdown, or wording an edit or a translation put there, which is text:
+// inline codes travel as their own runs. CommonMark passes raw HTML through to
+// the page, so a '<' that would open a tag, a comment or an autolink, an '&'
+// that would begin a character reference, and a '[' that would open an inline
+// link or image are backslash-escaped. The reader turns every one of those
+// constructs into an inline code, so it never leaves one in a text run, and a
+// block nobody edited keeps its bytes.
+//
+// Text inside a code span is literal, as is the content of a code block, a
+// math block, front matter and the raw HTML the HTML subfilter reads; none of
+// it is escaped.
+func renderInlineText(block *model.Block, runs []model.Run) string {
+	switch block.Type {
+	case "front-matter", "code-block", "math", "html-block", "html-text", "html-attr":
+		return model.RenderRunsWithData(runs)
+	}
+	if block.SemanticRole() == model.RoleCode {
+		return model.RenderRunsWithData(runs)
+	}
+	var b strings.Builder
+	var at []int
+	codeDepth := 0
+	writeInlineRuns(&b, &at, &codeDepth, runs)
+	if len(at) == 0 {
+		return b.String()
+	}
+	out := b.String()
+	var esc strings.Builder
+	esc.Grow(len(out) + len(at))
+	prev := 0
+	for _, i := range at {
+		if !opensInlineMarkup(out[i:]) || backslashEscaped(out, i) {
+			continue
+		}
+		esc.WriteString(out[prev:i])
+		esc.WriteByte('\\')
+		prev = i
+	}
+	esc.WriteString(out[prev:])
+	return esc.String()
+}
+
+// writeInlineRuns renders runs as RenderRunsWithData does and records the
+// offset of every '<', '&' and '[' a text run outside a code span contributed.
+func writeInlineRuns(b *strings.Builder, at *[]int, codeDepth *int, runs []model.Run) {
+	for _, r := range runs {
+		switch r.Kind() {
+		case model.RunKindText:
+			t := r.Text.Text
+			if *codeDepth == 0 {
+				for i := range len(t) {
+					if t[i] == '<' || t[i] == '&' || t[i] == '[' {
+						*at = append(*at, b.Len()+i)
+					}
+				}
+			}
+			b.WriteString(t)
+		case model.RunKindPh:
+			b.WriteString(r.Ph.Data)
+		case model.RunKindPcOpen:
+			if r.PcOpen.Type == "fmt:code" {
+				*codeDepth++
+			}
+			b.WriteString(r.PcOpen.Data)
+		case model.RunKindPcClose:
+			if r.PcClose.Type == "fmt:code" && *codeDepth > 0 {
+				*codeDepth--
+			}
+			b.WriteString(r.PcClose.Data)
+		case model.RunKindSub:
+			b.WriteString(r.Sub.Ref)
+		case model.RunKindPlural:
+			if form, ok := r.Plural.Forms[model.PluralOther]; ok {
+				writeInlineRuns(b, at, codeDepth, form)
+				continue
+			}
+			for _, form := range r.Plural.Forms {
+				writeInlineRuns(b, at, codeDepth, form)
+				break
+			}
+		case model.RunKindSelect:
+			if form, ok := r.Select.Cases["other"]; ok {
+				writeInlineRuns(b, at, codeDepth, form)
+				continue
+			}
+			for _, form := range r.Select.Cases {
+				writeInlineRuns(b, at, codeDepth, form)
+				break
+			}
+		}
+	}
+}
+
+// inlineMarkupRE matches, at the start of a string, the inline constructs
+// CommonMark reads from '<', '&' or '[': raw HTML (an open or closing tag, a
+// comment, a processing instruction, a declaration, a CDATA section; spec
+// 6.6), a URI or email autolink (6.5), an entity or numeric character
+// reference (2.5), and a complete inline link, whose destination and optional
+// title are closed by ')' (6.3). Brackets that open no link, such as "[1]" or
+// a link left unclosed, stay as they are.
+var inlineMarkupRE = regexp.MustCompile(`^(?:` +
+	`<[A-Za-z][A-Za-z0-9-]*(?:\s+[A-Za-z_:][A-Za-z0-9_.:-]*(?:\s*=\s*(?:[^"'=<>` + "`" + `\x00-\x20]+|'[^']*'|"[^"]*"))?)*\s*/?>` +
+	`|</[A-Za-z][A-Za-z0-9-]*\s*>` +
+	`|<!--(?:>|->|[\s\S]*?-->)` +
+	`|<\?[\s\S]*?\?>` +
+	`|<![A-Za-z][^>]*>` +
+	`|<!\[CDATA\[[\s\S]*?\]\]>` +
+	`|<[A-Za-z][A-Za-z0-9.+-]{1,31}:[^<>\x00-\x20]*>` +
+	`|<[A-Za-z0-9.!#$%&'*+/=?^_` + "`" + `{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*>` +
+	`|&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6});` +
+	`|\[[^\[\]]*\]\(\s*(?:<[^<>\n]*>|[^\s()<>]*(?:\([^\s()]*\)[^\s()<>]*)*)(?:\s+(?:"[^"]*"|'[^']*'|\([^()]*\)))?\s*\)` +
+	`)`)
+
+// opensInlineMarkup reports whether s begins with a construct inlineMarkupRE
+// names.
+func opensInlineMarkup(s string) bool {
+	return inlineMarkupRE.MatchString(s)
+}
+
+// backslashEscaped reports whether the byte at i is already escaped: preceded
+// by an odd number of backslashes.
+func backslashEscaped(s string, i int) bool {
+	n := 0
+	for j := i - 1; j >= 0 && s[j] == '\\'; j-- {
+		n++
+	}
+	return n%2 == 1
+}
+
+// finishBlockContent applies the block-level spelling the skeleton splice
+// needs to a block's rendered runs.
+func finishBlockContent(block *model.Block, rendered string) string {
 	if block.Type == "front-matter" {
 		// The skeleton carries `key: ` and the newline only; the value —
 		// including any quoting — is the block's responsibility. An

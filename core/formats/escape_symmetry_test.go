@@ -19,6 +19,20 @@ import (
 // untouched value is written back as its original bytes, so the escape path is
 // never exercised until a tool changes the text.
 func TestEscapeSymmetryOnModify(t *testing.T) {
+	runEscapeSweep(t, false)
+}
+
+// TestEscapeSymmetryOnSourceEdit runs the same sweep over the monolingual
+// edit path: the source is rewritten and the writer is given no locale, which
+// is how `kapi apply`, `ksed` and the MCP apply_edits tool write a document
+// back. An edit's text is text, so a `<` or `&` in it must come back out of
+// the reader as the character it was, never as markup.
+func TestEscapeSymmetryOnSourceEdit(t *testing.T) {
+	runEscapeSweep(t, true)
+}
+
+func runEscapeSweep(t *testing.T, editSource bool) {
+	t.Helper()
 	reg := registry.NewFormatRegistry()
 	RegisterAll(reg)
 
@@ -40,9 +54,10 @@ func TestEscapeSymmetryOnModify(t *testing.T) {
 					}
 					return w
 				},
-				Source:  []byte(tc.source),
-				Rejects: tc.rejects,
-				Skip:    tc.skip,
+				Source:     []byte(tc.source),
+				Rejects:    tc.rejects,
+				Skip:       tc.skip,
+				EditSource: editSource,
 			}
 			probe.Run(t)
 		})
