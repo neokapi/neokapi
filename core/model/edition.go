@@ -198,6 +198,25 @@ func (b *Block) SetEdition(k EditionKey, e Edition) {
 	b.Targets[key] = &Target{Runs: e.Runs, Status: TargetStatus(e.Status), Origin: e.Origin, Score: e.Score}
 }
 
+// SetEditionStatus sets the status of edition k and changes nothing else: the
+// runs, the origin, the score and the source as read (SourceAsRead) stay as
+// they are. It reports whether the block holds k, and a block that does not
+// hold it is left unchanged. A status stamp on the edition the block was read
+// in goes through here: SetEdition on that edition writes its runs and its
+// origin as well.
+func (b *Block) SetEditionStatus(k EditionKey, s Status) bool {
+	if b.holdsSource(k) {
+		b.SourceStatus = SourceStatus(s)
+		return true
+	}
+	t := b.Targets[k.Canonical()]
+	if t == nil {
+		return false
+	}
+	t.Status = TargetStatus(s)
+	return true
+}
+
 // sameRuns reports whether a and b are one slice: both nil, both empty, or the
 // same elements of the same backing array.
 func sameRuns(a, b []Run) bool {
@@ -238,6 +257,44 @@ func (b *Block) Editions() []EditionKey {
 	}
 	slices.SortFunc(rest, func(a, c EditionKey) int { return strings.Compare(keyText(a), keyText(c)) })
 	return append(out, slices.Compact(rest)...)
+}
+
+// EachEdition yields every edition the block holds with its key, for use as a
+// range function: the edition it was read in first, under the key EditionKeyOf
+// returns for the zero key, then the others in no particular order, each under
+// its canonical key. No other edition is yielded under the first one's key.
+// It reads the storage once, sorts nothing and allocates nothing, so a loop
+// over the editions of many blocks ranges over it rather than over Editions.
+//
+// A target filed under a key that is not canonical is yielded under its
+// canonical form unless a target is filed under that form too, in which case
+// the canonical one is the edition and the other is skipped.
+func (b *Block) EachEdition(yield func(EditionKey, Edition) bool) {
+	src := b.sourceKey()
+	e := Edition{Runs: b.Source, Status: Status(b.SourceStatus)}
+	if o, ok := b.SourceOrigin(); ok && o != nil {
+		e.Origin = *o
+	}
+	if !yield(src, e) {
+		return
+	}
+	for k, t := range b.Targets {
+		if t == nil {
+			continue
+		}
+		ck := k.Canonical()
+		// The zero key always names the edition yielded first, and so does the
+		// source language while no same-language target holds it.
+		if ck.IsZero() || ck == src {
+			continue
+		}
+		if ck != k && b.Targets[ck] != nil {
+			continue
+		}
+		if !yield(ck, Edition{Runs: t.Runs, Status: Status(t.Status), Origin: t.Origin, Score: t.Score}) {
+			return
+		}
+	}
 }
 
 // Authoritative returns the key of the block's authoritative edition under p:
