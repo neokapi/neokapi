@@ -361,8 +361,11 @@ func (r *applyRun) plan(ctx context.Context, p *docPlan) {
 			continue
 		}
 		switch op.Kind {
-		case KindInsertBlock, KindNative:
-			// No format declares either yet; supports refused them above.
+		case KindNative:
+			// No format declares one yet; supports refused it above.
+			continue
+		case KindInsertBlock, KindDeleteBlock:
+			r.planStructural(p, i)
 			continue
 		}
 		place := p.sess.Place(op.At.Edition)
@@ -397,6 +400,7 @@ func (r *applyRun) plan(ctx context.Context, p *docPlan) {
 		}
 		p.byKey[key] = append(p.byKey[key], i)
 	}
+	r.conflicts(p)
 }
 
 // EditionKeyResolver is implemented by a session that can translate the key
@@ -409,7 +413,7 @@ type EditionKeyResolver interface {
 // stage prepares every document.
 func (r *applyRun) stage(ctx context.Context) error {
 	for _, p := range r.plans {
-		if len(p.byKey) == 0 {
+		if len(p.byKey) == 0 && len(p.structural) == 0 {
 			continue
 		}
 		staged, err := p.sess.Stage(ctx, p.want, p)
@@ -787,6 +791,12 @@ func (r *applyRun) invalidate(p *docPlan) {
 	for _, i := range p.ops {
 		res := &r.res.Ops[i]
 		if res.Status != OpApplied || !r.authoritative(p, i) {
+			continue
+		}
+		if k := r.set.Ops[i].Kind; k == KindInsertBlock || k == KindDeleteBlock {
+			// A block added or removed leaves no translation on an older
+			// basis: a new block has none yet, and a removed one takes its
+			// translations with it.
 			continue
 		}
 		for _, k := range p.info.Derived {

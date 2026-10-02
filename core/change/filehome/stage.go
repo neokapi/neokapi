@@ -88,6 +88,15 @@ func (st *staged) run(ctx context.Context) error {
 			}
 		}
 	}
+	// A change set that adds or removes blocks has the format write those
+	// first (structure.go); the pass below then reads the result.
+	s.overlay = nil
+	defer func() { s.overlay = nil }()
+	if st.want.Structural {
+		if err := st.restructure(ctx); err != nil {
+			return err
+		}
+	}
 	editions, ix, err := s.joinEditions(ctx, st.want.Editions)
 	if err != nil {
 		return err
@@ -137,12 +146,24 @@ func (st *staged) run(ctx context.Context) error {
 		_ = own.tmp.Discard()
 		own.tmp, own.after, own.diff = nil, own.before, nil
 	}
+	if data, ok := s.overlay[overlayKey(source{path: s.doc.Path, entry: s.doc.Entry})]; ok && own.tmp == nil {
+		// Blocks added or removed are the whole change to the file: the
+		// bytes the format wrote for them are what lands.
+		if own.tmp, own.after, own.diff, err = st.writeBytes(ctx, s.doc.Path, s.ownSource(), data); err != nil {
+			return err
+		}
+	}
 
 	for i, je := range editions {
 		digest := before[je.file.Path]
 		f := &stagedFile{ref: je.file.Ref, edition: &je.key, path: je.file.Path, before: digest, after: digest}
 		st.files = append(st.files, f)
 		if len(changed[i]) == 0 {
+			if data, ok := s.overlay[je.file.Path]; ok {
+				if f.tmp, f.after, f.diff, err = st.writeBytes(ctx, je.file.Path, je.src, data); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		if err := st.writeEdition(ctx, f, je, ix, changed[i]); err != nil {
@@ -280,12 +301,21 @@ func (st *staged) write(ctx context.Context, path string, src source, produce fu
 	after := digestOf(h)
 	edited := member.Bytes()
 	return tmp, after, func() string {
-		before, berr := src.entryBytes()
+		before, berr := source{path: src.path, entry: src.entry}.entryBytes()
 		if berr != nil {
 			return ""
 		}
 		return textDiff(before, edited, st.label(path)+"!"+src.entry)
 	}, nil
+}
+
+// writeBytes stages data as the new content of the file at path, src being
+// the file or archive member data replaces.
+func (st *staged) writeBytes(ctx context.Context, path string, src source, data []byte) (*atomicfile.Staged, string, func() string, error) {
+	return st.write(ctx, path, src, func(out io.Writer) error {
+		_, err := out.Write(data)
+		return err
+	})
 }
 
 // label names a file in a diff: its reference.

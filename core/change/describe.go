@@ -61,12 +61,12 @@ func BaseOps(f FormatFacts) []Kind {
 	return base
 }
 
-// DescribeFormat describes what ApplyBlock does for a format: the operations
-// its round trip carries (BaseOps) and the ones its writer declares
-// (FormatFacts.Edit), through FormatOps. A writer that declares nothing
-// synthesizes no new code and writes no attribute, so set_attribute and mark
-// are refused; annotate, unannotate and the structural operations are refused
-// too.
+// DescribeFormat describes what a format takes: the operations its round trip
+// carries (BaseOps) and the ones its writer declares (FormatFacts.Edit),
+// through FormatOps. A writer that declares nothing synthesizes no new code,
+// writes no attribute and adds or removes no block, so set_attribute, mark,
+// insert_block and delete_block are refused; annotate and unannotate are
+// refused too.
 func DescribeFormat(f FormatFacts) Description {
 	editions := EditionsPerFile
 	if f.Interchange {

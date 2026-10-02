@@ -35,6 +35,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage/filelock"
 )
@@ -106,6 +107,9 @@ type session struct {
 	doc      Doc
 	caps     change.Capabilities
 	keyJoins map[model.EditionKey]keyJoin
+	// overlay holds, while a stage runs, the files a structural edit
+	// rewrote, by path: every pass of the stage reads them from here.
+	overlay map[string][]byte
 }
 
 func (s *session) Info() change.DocInfo {
@@ -162,7 +166,42 @@ func (s *session) editionFile(k model.EditionKey) (EditionFile, bool) {
 	return f, true
 }
 
-func (s *session) ownSource() source { return source{path: s.doc.Path, entry: s.doc.Entry} }
+func (s *session) ownSource() source {
+	return s.fileSource(source{path: s.doc.Path, entry: s.doc.Entry})
+}
+
+// fileSource is src as the stage reads it: from the overlay when a
+// structural edit rewrote it.
+func (s *session) fileSource(src source) source {
+	if data, ok := s.overlay[overlayKey(src)]; ok {
+		return src.with(data)
+	}
+	return src
+}
+
+// overlayKey names a file, or an archive member, in the overlay.
+func overlayKey(src source) string {
+	if src.entry != "" {
+		return src.path + "!" + src.entry
+	}
+	return src.path
+}
+
+// Structural lists the structural operations the document's writer writes.
+func (s *session) Structural() []change.Kind {
+	if s.doc.Format.NewWriter == nil {
+		return nil
+	}
+	w, err := s.doc.Format.NewWriter()
+	if err != nil {
+		return nil
+	}
+	var out []change.Kind
+	for _, op := range format.StructuralOps(w) {
+		out = append(out, change.Kind(op))
+	}
+	return out
+}
 
 // readPass is a read of src in format f, as this document is read.
 func (s *session) readPass(src source, f Binding, fn func(*model.Block) error) pass {
