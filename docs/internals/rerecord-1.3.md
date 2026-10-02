@@ -250,6 +250,21 @@ Per video:
 3. Dispatch the docs builds for `/next/` and production as in
    [regenerating docs assets](regenerating-docs-assets.md).
 
+## Lab evidence
+
+The decisions lesson (`/lab/decisions-and-change`) shows native evidence and
+the commit it was recorded from, which is a branch commit until it is
+re-recorded on `main`. From the release commit, with the build above:
+
+```bash
+node samples/context-lifecycle/run.mjs --binary bin/kapi --output web/src/components/Lab/KapiLessonLifecycleEvidence.json
+vp fmt web/src/components/Lab/KapiLessonLifecycleEvidence.json
+```
+
+Check that `sourceDirty` is `false`, that every step's action exits 0, and that
+the six checks exit 0, 0, 3, 3, 3, 0 as in the previous recording, then commit
+the file.
+
 ## Norwegian narration
 
 The English narration changed in these demos: `01`, `05`, `08`, `10`, `11`,

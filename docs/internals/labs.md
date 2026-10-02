@@ -44,6 +44,8 @@ node samples/context-lifecycle/run.mjs --binary bin/kapi --output web/src/compon
 
 The runner records the binary, fixture and runner hashes, the source revision,
 commands and results. It uses disposable project and workspace directories.
+Record from a commit on `main`, since the lesson shows the source revision and
+a squash merge leaves a branch commit out of `main`.
 Do not replace a failed native result with invented evidence. The audience and
 authoring lessons reuse the evidence associated with `/content-lab` and
 `/authoring-lab`; their own runners define regeneration.

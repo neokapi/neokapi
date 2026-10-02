@@ -26,6 +26,10 @@ To replace the lesson's recorded evidence after inspecting the result:
 node samples/context-lifecycle/run.mjs --binary bin/kapi --output web/src/components/Lab/KapiLessonLifecycleEvidence.json
 ```
 
+The lesson shows the commit the recording was made from. Record it from a
+commit on `main`: pull requests are squash-merged, so a branch commit is absent
+from `main` once its change lands.
+
 The browser displays the recorded steps and runs no native command. The fixture
 covers wording governance and stops before any translation approval. Context
 search records term usage counts and the document and block where each
