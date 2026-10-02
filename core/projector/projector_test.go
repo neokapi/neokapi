@@ -274,3 +274,48 @@ func TestEmbeddedLayoutAppliesWithoutALog(t *testing.T) {
 	_, err = p.Rebuild(t.Context())
 	require.Error(t, err, "a store with no log has nothing to rebuild from")
 }
+
+// A project removed from the workspace starts again with an empty context
+// (workspace.Forget). The log keeps the operations from before the removal,
+// and neither a store that starts from nothing nor a rebuild applies them.
+func TestAForgottenProjectStartsAfresh(t *testing.T) {
+	ctx := t.Context()
+	ws, err := workspace.OpenLocal(ctx, t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = ws.Close() })
+	bind := func() (*projector.Projector, *projectdb.DB) {
+		root := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
+		contextDB, err := ws.Context(ctx, key)
+		require.NoError(t, err)
+		db, err := projectdb.Open(ctx, project.LayoutAt(root), projectdb.WithWorkspace(projectdb.Stores{
+			Context: contextDB, Graph: ws.Registry(),
+		}))
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = db.Close() })
+		p, err := projector.ForProject(ws, key, db)
+		require.NoError(t, err)
+		require.NoError(t, p.CatchUp(ctx))
+		return p, db
+	}
+	has := func(db *projectdb.DB, id string) bool {
+		_, ok, err := db.Terms().GetConcept(ctx, id)
+		require.NoError(t, err)
+		return ok
+	}
+
+	p, db := bind()
+	require.NoError(t, p.Terms().AddConcept(ctx, concept("before", "Quickcast", model.TermPreferred)))
+	require.True(t, has(db, "before"))
+	require.NoError(t, db.Close())
+	require.NoError(t, ws.Forget(ctx, key))
+
+	p, db = bind()
+	assert.False(t, has(db, "before"), "the store starts after the removal")
+	require.NoError(t, p.Terms().AddConcept(ctx, concept("after", "Slowcast", model.TermPreferred)))
+
+	_, err = p.Rebuild(ctx)
+	require.NoError(t, err)
+	assert.False(t, has(db, "before"), "a rebuild starts after the removal too")
+	assert.True(t, has(db, "after"), "and replays what came after it")
+}
