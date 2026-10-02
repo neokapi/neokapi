@@ -2,6 +2,7 @@ package filehome_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -111,4 +112,47 @@ func TestService_ReadEachReadsTheWholeDocument(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 3, stopped, "ErrStop ends the read")
+}
+
+// A home calls PrepareLocks before it opens a lock file, which a commit does
+// and a read never does, so a host creates the directory its locks live in
+// only when a change lands.
+func TestFileHome_PreparesTheLockDirectoryOnlyToCommit(t *testing.T) {
+	ctx := context.Background()
+	text := "Hi"
+	setOf := func(rev string) change.Set {
+		return change.Set{Mode: change.ModeApply, Gate: change.GateEnforce, Ops: []change.Op{{
+			Kind: change.KindSetContent, At: change.Ref{Doc: "a.json", Block: "greeting"}, IfMatch: rev,
+			Body: &change.SetContent{Text: &text},
+		}}}
+	}
+	locks := filepath.Join(t.TempDir(), "work", "locks")
+	prepared := 0
+	f := newFixture(t, map[string]string{"a.json": `{"greeting": "Hello"}` + "\n"}, filehome.Options{
+		LockDir:      locks,
+		PrepareLocks: func() error { prepared++; return nil },
+	})
+
+	page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "a.json"})
+	require.NoError(t, err)
+	require.Len(t, page.Blocks, 1)
+	_, err = f.svc.ReadEach(ctx, change.ReadRequest{Doc: "a.json"}, func(*model.Block, change.BlockRead) error { return nil })
+	require.NoError(t, err)
+	assert.Zero(t, prepared, "a read takes no lock")
+	assert.NoDirExists(t, locks, "a read creates no lock directory")
+
+	res, err := f.svc.Apply(ctx, setOf(page.Blocks[0].Rev), person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status)
+	assert.Positive(t, prepared, "a commit prepares the lock directory before it locks")
+	assert.DirExists(t, locks)
+
+	f = newFixture(t, map[string]string{"a.json": `{"greeting": "Hello"}` + "\n"}, filehome.Options{
+		PrepareLocks: func() error { return errors.New("no room for locks") },
+	})
+	page, err = f.svc.Read(ctx, change.ReadRequest{Doc: "a.json"})
+	require.NoError(t, err)
+	_, err = f.svc.Apply(ctx, setOf(page.Blocks[0].Rev), person)
+	require.ErrorContains(t, err, "no room for locks", "a lock directory the host cannot prepare stops the commit")
+	assert.Contains(t, f.read(t, "a.json"), "Hello", "nothing is written")
 }
