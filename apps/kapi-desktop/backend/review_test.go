@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/memory"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -190,6 +191,39 @@ func TestGetReviewUnit_DirectoryMirrorTarget(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Net 30 days", d.Source)
 	assert.Equal(t, "صافي 30 يومًا", d.Target)
+}
+
+// TestGetReviewUnit_ScoresTheBestMemoryMatch guards the content memory row of
+// the unit detail: the lookup reads the unit's source, so a unit whose source
+// the project's content memory holds scores 100 and one it lacks scores 0.
+func TestGetReviewUnit_ScoresTheBestMemoryMatch(t *testing.T) {
+	app := NewApp()
+	tab, _ := newReviewProject(t, app)
+	db, err := app.projectStore(app.getOpenProject(tab.ID))
+	require.NoError(t, err)
+	require.NoError(t, db.Memory().Add(t.Context(), memory.Entry{
+		ID:          "farewell",
+		HintSrcLang: "en-US",
+		Variants: map[model.LocaleID][]model.Run{
+			"en-US": {{Text: &model.TextRun{Text: "Goodbye"}}},
+			"fr-FR": {{Text: &model.TextRun{Text: "Au revoir"}}},
+		},
+	}))
+
+	tests := []struct {
+		key  string
+		want int
+	}{
+		{key: "farewell", want: 100},
+		{key: "greeting", want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			d, err := app.GetReviewUnit(tab.ID, "fr-FR", filepath.Join("locales", "fr-FR.json"), tt.key)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, d.MemoryScore)
+		})
+	}
 }
 
 func TestGetReviewUnit_NotFound(t *testing.T) {
