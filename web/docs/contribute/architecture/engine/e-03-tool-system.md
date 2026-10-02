@@ -258,7 +258,10 @@ Cardinality, together with the `target-language` entry in `Requires` and
 for a monolingual one that requires or accepts `target-language` or names a
 `DefaultLocale`. A tool with no declared cardinality takes one.
 `search-replace` and `xml-validation` accept it, because they work on the
-source and, when the run names one, on that target as well. `kapi exec <tool>`
+source and, when the run names one, on that target as well. That target is one
+the input carries, as a bilingual file does. A monolingual input carries none,
+so `kapi exec case-transform app.json --target-lang fr` writes the transformed
+source to `fr/app.json`, over any file already there. `kapi exec <tool>`
 declares `--target-lang` from this answer, so a tool that works on the source
 alone, such as `redact` or `encoding-detect`, offers none.
 `TestToolsDeclareTheTargetLanguageTheyRead` in `core/tools` holds the

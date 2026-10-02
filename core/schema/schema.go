@@ -247,8 +247,11 @@ const (
 
 	// AcceptsTargetLanguage: a monolingual tool that works on one target
 	// language when the run names one, and on the source alone when it names
-	// none. search-replace and case-transform rewrite the named target beside
-	// the source; xml-validation checks it.
+	// none. The target is one the input carries, as a bilingual file does:
+	// search-replace and case-transform can rewrite it beside the source, and
+	// xml-validation checks it. A monolingual input carries no target, so a
+	// writer's run with a target language puts the transformed source at that
+	// language's output path, over any file already there.
 	AcceptsTargetLanguage = "target-language"
 
 	// AcceptsSourceLanguage: a monolingual tool whose result depends on the
