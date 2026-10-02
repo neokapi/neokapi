@@ -66,29 +66,54 @@ official SQLite WebAssembly build, `@sqlite.org/sqlite-wasm`.
   a transaction or open rows and then waits for a second session on the same
   pool from the same goroutine. The block store's iterators read a page at a
   time and release the connection before yielding, so a caller may write while
-  it iterates. `make test-stores-oneconn` runs the store suites natively with
-  every pool held to one connection to find such code without a browser; a call
-  that waits 20 seconds for the pool there panics with every goroutine's stack.
+  it iterates. A failed `COMMIT` is rolled back, as the native driver does, so
+  the pool's one connection never stays inside a transaction.
+  `make test-stores-oneconn` runs the store suites natively with every pool held
+  to one connection and WAL off, to find such code without a browser: a call
+  that waits 20 seconds for the pool panics with every goroutine's stack, and a
+  read on one pool beside a write the same code holds on another waits out the
+  busy timeout and fails with `database is locked`, which the browser reports at
+  once. CI runs it beside `make test-wasm-stores`, and on push runs the host
+  suite the same way (`make test-host-oneconn`).
 - **Database files belong to the driver.** The page's file system never sees a
   database, so code that asks whether one exists, removes, renames or lists them
   calls `storage.Exists`, `storage.Remove`, `storage.Rename`, `storage.List` and
   `storage.RemoveAll` rather than `os`. A database's directory still has to
   exist in the engine's file system, as it does natively.
+- **A database file a page adds.** A SQLite file in the engine's file system
+  (one a reader uploads, say) is read into memory the first time a store opens
+  its path, through `sqlite3_deserialize`, and writes go to the copy in memory.
+  The namespace answers for such files too, and `storage.Remove` deletes the
+  file with the database, so a removed database stays removed. A
+  file that is not a database fails to open with `file is not a database`, as
+  it does natively; one with an unflushed write-ahead log beside it fails with a
+  message that says so.
+- **Row batches.** A query's rows cross 256 at a time, or about 1 MiB at a
+  time when they are large.
 - **Word search.** The module carries SQLite's built-in FTS5 tokenizers and no
   ICU, so `storage.FTSWordTokenizer` is `unicode61`.
 - **The asset.** `sqlite3.wasm` is served beside the engine binary, where
   `make web-wasm-cli` stages it (with `sqlite3.wasm.gz`) from the pinned
   package, and the boot prefers the precompressed copy.
   `bootKapiRuntime(wasmExecUrl, wasmUrl, { sqliteWasmUrl })` takes another
-  location. It adds about 0.4 MB gzipped to the engine, and the bundled
-  JavaScript about 0.18 MB.
+  location. Measured with gzip -9, the asset is about 0.40 MB and the bundled
+  JavaScript (the module's glue and the bridge, minified) about 0.07 MB.
 - **The lab project.** The read-only annotators behind `labInspectAnnotated`
-  look terms up in a project the engine creates at `/.lab/project` on first use.
-  Its terms are the bundle in `kapi/cmd/kapi-wasm-cli/fixtures/terms.json`,
-  imported through the projector, so they are operations in the workspace log
-  as they would be natively. Commands typed in a lab resolve stores as natively:
-  inside a project they use the project's, and outside one the standalone store
-  a flag or the working directory names.
+  look terms up in a project the engine creates at `/.lab/project` on first use,
+  and opens again if a reset closed it. Its terms are the bundle in
+  `kapi/cmd/kapi-wasm-cli/fixtures/terms.json`, imported through the projector,
+  so they are operations in the workspace log as they would be natively.
+  Commands typed in a lab resolve stores as natively: inside a project they use
+  the project's, and outside one the standalone store a flag or the working
+  directory names.
+- **Starting a directory over.** `kapiReset(dir)` forgets every project at or
+  below `dir` in the workspace (`App.ForgetProjectsUnder`, which closes its
+  stores and calls `workspace.Forget`), then removes every database there
+  outside the workspace's own. A project seeded there again begins with an
+  empty context, because the projector replays only what the log holds after a
+  project's latest removal. `KapiRuntime.reset(dir)` calls it and then clears
+  the directory's files; the playground's Reset button and the terminal's `rm`
+  (through `KapiRuntime.removeDatabase`) use them.
 - **Tested in Node.** `make test-wasm-stores` runs the store suites under
   `GOOS=js` in Node over the same bridge (`scripts/wasm-stores/`). A test that
   needs a git subprocess, a database planted as a file on disk, or preemption
@@ -141,6 +166,7 @@ the Command Reference cannot claim a verb runs in the lab when it does not.
 | Browser database driver + profile + namespace | `core/storage/driver_js.go`, `core/storage/sqlitejs_js.go` |
 | Store suites under `GOOS=js` | `scripts/wasm-stores/`, `make test-wasm-stores` |
 | Lab project for the annotators | `kapi/cmd/kapi-wasm-cli/labproject.go` |
+| Starting a directory over (`kapiReset`) | `kapi/cmd/kapi-wasm-cli/reset.go`, `App.ForgetProjectsUnder` in `host/projectstore.go` |
 | Reverse-bridge capability types | `packages/engine/src/capabilities.ts` |
 | Payload types (ContentTree, runs) | `@neokapi/contract-types` (generated) |
 

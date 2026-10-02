@@ -182,11 +182,8 @@ constructs the one it wants and hands it to the executor:
 - `sqlitestore.New(path)` / `sqlitestore.NewFromDB(db, …)`
   (`core/blockstore/sqlitestore`): the SQLite-backed store, in a kapi project the
   block-cache tables of `.kapi/work/store.db`. The default for kapi projects.
-  Full ACID, persistent across runs.
-- `NewPersistentMemoryStore()`: a memory store that advertises `Persistent` and
-  whose `Close` is a no-op, so it survives repeated open and close across
-  commands in one process. It stands in for the SQLite cache on the wasm build,
-  where SQLite is unavailable.
+  Full ACID, persistent across runs. The browser build runs the same store on
+  SQLite's WebAssembly build.
 - `NewFormatReaderStore(factory)`: wraps a `format.DataFormatReader` factory as
   a read-only store. Useful for ad-hoc CLI flows (`kapi translate -i
   file.xliff`): RandomAccess=true, Writable=false. Its `PutOverlay` returns

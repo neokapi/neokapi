@@ -325,6 +325,10 @@ the store has not yet seen, in the order the log received them, and moves the
 store's cursor (`projector_cursor`) past them. A write another process made, or
 an operation merged in from another machine, is applied by the next write, and
 a projector opening a store applies whatever the log holds beyond the cursor.
+`Workspace.Forget` records a `project.forget` operation when it removes a
+project's context store, and a store that has applied nothing starts after the
+project's latest one, so a project registered again begins with an empty
+context. A rebuild starts there too.
 
 Each step carries its rows with every timestamp the store would take from the
 clock filled in from the operation's instant, and a write that would leave the
@@ -605,9 +609,11 @@ memory and nothing outlives the tab. Two rules follow for every store, natively
 too. No correctness rule depends on a reader running beside a writer, and no
 code holds a transaction or open rows on a pool and then waits for a second
 session on the same pool; `make test-stores-oneconn` runs the store suites
-natively with every pool held to one connection to keep it so. A database file
-belongs to its driver, so code asks `storage.Exists`, `storage.Remove`,
-`storage.Rename` and `storage.List` about one rather than the file system. FTS5
+natively with every pool held to one connection and WAL off to keep it so. A
+database file belongs to its driver, so code asks `storage.Exists`,
+`storage.Remove`, `storage.Rename` and `storage.List` about one rather than the
+file system. A SQLite file the page's file system holds is read into memory the
+first time a store opens its path. FTS5
 word search uses `unicode61` there, the module having no ICU tokenizer.
 `make test-wasm-stores` runs the store suites under `GOOS=js` over the same
 driver. The [WASM Engine ABI](../../implementation/surfaces/wasm-engine-abi.md)
