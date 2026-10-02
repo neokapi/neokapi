@@ -100,6 +100,64 @@ func unwritableAttr(caps Capabilities, typ, name string) *Error {
 		Message: msg + ". An attribute the format reads as content, such as a title or an alt text, is changed by editing that content"}
 }
 
+// isLinkTarget reports whether attribute name holds a URL the reader of a
+// document follows or loads: a link's target (href, in any namespace, such as
+// xlink:href) or the source of an image (src).
+func isLinkTarget(name string) bool {
+	if i := strings.LastIndexByte(name, ':'); i >= 0 {
+		name = name[i+1:]
+	}
+	return strings.EqualFold(name, model.AttrHref) || strings.EqualFold(name, model.AttrSrc)
+}
+
+// unsafeURLScheme returns the scheme of a URL that runs code where the
+// document is read: javascript:, vbscript:, or data: holding anything but an
+// image. The URL is read as a browser reads it: leading and trailing control
+// characters and spaces are skipped, a tab or a line break inside it is
+// ignored, and the scheme's case does not matter.
+func unsafeURLScheme(value string) (string, bool) {
+	url := strings.Map(func(r rune) rune {
+		if r == '\t' || r == '\n' || r == '\r' {
+			return -1
+		}
+		return r
+	}, strings.TrimFunc(value, func(r rune) bool { return r <= ' ' }))
+	colon := strings.IndexByte(url, ':')
+	if colon <= 0 {
+		return "", false
+	}
+	scheme := strings.ToLower(url[:colon])
+	for i, c := range scheme {
+		letter := c >= 'a' && c <= 'z'
+		if !letter && (i == 0 || !(c >= '0' && c <= '9' || c == '+' || c == '-' || c == '.')) {
+			return "", false
+		}
+	}
+	switch scheme {
+	case "javascript", "vbscript":
+		return scheme, true
+	case "data":
+		media := strings.ToLower(strings.TrimLeft(url[colon+1:], " "))
+		return scheme, !strings.HasPrefix(media, "image/")
+	}
+	return "", false
+}
+
+// checkLinkTarget refuses a value for a link-target attribute whose URL would
+// run code where the document is read. A code that already holds such a value
+// is read, kept and written as it is; only a value an operation writes is
+// checked.
+func checkLinkTarget(name, value, field string) *Error {
+	if !isLinkTarget(name) {
+		return nil
+	}
+	if scheme, unsafe := unsafeURLScheme(value); unsafe {
+		return &Error{Code: CodeInvalid, Field: field,
+			Message: fmt.Sprintf("the %s attribute cannot be set to a %s: URL, which runs code where the document is read; give an http, https, mailto or relative URL, or an image as a data: URL", name, scheme)}
+	}
+	return nil
+}
+
 // setAttribute applies set_attribute: every occurrence of the code in the
 // edition takes the new value, spelled by the format's writer.
 func (w *workset) setAttribute(op Op, body *SetAttribute, res *OpResult) *Error {
@@ -120,6 +178,9 @@ func (w *workset) setAttribute(op Op, body *SetAttribute, res *OpResult) *Error 
 		typ := codeType(r)
 		if !caps.Declared.CanWrite(typ, body.Name) {
 			return unwritableAttr(caps, typ, body.Name)
+		}
+		if err := checkLinkTarget(body.Name, body.Value, "value"); err != nil {
+			return err
 		}
 		if v, ok := codeAttrs(r)[body.Name]; ok && v == body.Value {
 			continue
@@ -155,13 +216,17 @@ func (w *workset) setAttribute(op Op, body *SetAttribute, res *OpResult) *Error 
 }
 
 // checkNewCodeAttrs refuses an attribute a new code of type typ may not
-// carry: the ones the format writes for the type, and no others.
+// carry: the ones the format writes for the type, and no others, and a link
+// target whose URL would run code where the document is read.
 func checkNewCodeAttrs(caps Capabilities, typ string, attrs map[string]string, field string) *Error {
 	for _, name := range sortedKeys(attrs) {
 		if !caps.Declared.CanWrite(typ, name) {
 			e := unwritableAttr(caps, typ, name)
 			e.Field = field
 			return e
+		}
+		if err := checkLinkTarget(name, attrs[name], field); err != nil {
+			return err
 		}
 	}
 	return nil
