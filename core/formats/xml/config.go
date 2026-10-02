@@ -938,6 +938,41 @@ func (c *Config) parentIDAttr(local, nsURI, parentName string) string {
 }
 
 // isTranslatableAttribute checks whether the attribute is translatable for the given element.
+// namesAttribute reports whether a rule of the configuration reads an
+// attribute: a condition tests it, a rule makes it translatable, writable or
+// an id, or the id of an element or its child is taken from it. key is the
+// attribute as the reader keys it ("xml:lang", "<namespace URI>:<local>", or
+// the local name), local its local name; a rule naming either reads it.
+func (c *Config) namesAttribute(key, local string) bool {
+	named := func(name string) bool { return name != "" && (name == key || name == local) }
+	conditions := func(cs []Condition) bool {
+		return slices.ContainsFunc(cs, func(cond Condition) bool { return named(cond.Attribute) })
+	}
+	if slices.ContainsFunc(c.TranslatableAttributes, named) || slices.ContainsFunc(c.IDAttributeNames, named) {
+		return true
+	}
+	for _, r := range c.ElementRules {
+		if r == nil {
+			continue
+		}
+		if (r.Condition != nil && named(r.Condition.Attribute)) || conditions(r.Conditions) ||
+			slices.ContainsFunc(r.IDAttributes, named) || named(r.ParentIDAttr) {
+			return true
+		}
+		for name, tac := range r.TranslatableAttributes {
+			if named(name) || (tac != nil && conditions(tac.Conditions)) {
+				return true
+			}
+		}
+	}
+	for _, r := range c.AttributeRules {
+		if r != nil && (r.Matches(key) || r.Matches(local)) {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *Config) isTranslatableAttribute(elemName, attrName string, allAttrs map[string]string) bool {
 	// Check element-level translatable attributes
 	for _, r := range c.ElementRules {

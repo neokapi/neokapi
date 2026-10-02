@@ -1567,7 +1567,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 				ID:    id,
 				Type:  "fmt:" + t.Name.Local,
 				Data:  data,
-				Attrs: inlineTagAttrs(data),
+				Attrs: s.inlineCodeAttrs(t, data),
 			}})
 			frame.spanID = s.spanCounter
 		}
@@ -1670,7 +1670,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 			for _, v := range slices.Backward(parent.runs) {
 				if v.PcOpen != nil && v.PcOpen.ID == spanID {
 					v.PcOpen.Data = injectInlineAttrRefs(v.PcOpen.Data, inlineRefs)
-					v.PcOpen.Attrs = inlineTagAttrs(v.PcOpen.Data)
+					v.PcOpen.Attrs = s.inlineCodeAttrs(t, v.PcOpen.Data)
 					break
 				}
 			}
