@@ -11,6 +11,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/av"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/imageops"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -434,7 +435,14 @@ func (t *MediaRefineTool) refine(ctx context.Context, b *model.Block, all []*mod
 	// Flag for review when the LLM disagrees with the original guess — the
 	// least-verified tier.
 	if refined != original {
-		b.SetSourceText(refined)
+		// The refinement rewrites the whole recognized text, so no overlay on
+		// it can follow; it is an edit of the source like any other.
+		rewrite := change.Op{Kind: change.KindSetContent, At: change.Ref{Block: b.ID}, IfMatch: change.AnyRevision,
+			Body: &change.SetContent{Runs: []model.Run{model.TextR(refined)}, Overlays: change.OverlayRebase{Drop: true}}}
+		env := change.BlockEnv{Actor: change.Actor{Kind: change.ActorTool, Name: t.ToolName}, Guards: change.Report}
+		if r := change.ApplyBlock(b, []change.Op{rewrite}, env)[0]; r.Status == change.OpRefused {
+			return fmt.Errorf("media-refine: block %q: %w", b.ID, r.Error)
+		}
 		setProp(b, PropNeedsReview, "llm-rewrite")
 	}
 	// Record provenance: a multimodal LLM re-read the recognized source. Mark the

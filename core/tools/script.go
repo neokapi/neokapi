@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"strconv"
 
 	"github.com/dop251/goja"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
@@ -165,6 +167,7 @@ func (s *ScriptTool) runScript(part *model.Part) ([]*model.Part, error) {
 	_ = s.vm.Set("part", jsObj)
 
 	var emitted []*model.Part
+	var writeErr error
 	skipped := false
 	emitCalled := false
 
@@ -175,7 +178,10 @@ func (s *ScriptTool) runScript(part *model.Part) ([]*model.Part, error) {
 			return goja.Undefined()
 		}
 		obj := arg.ToObject(s.vm)
-		emittedPart := jsToPartUpdate(s.vm, obj, part, s.allowsSourceMutation())
+		emittedPart, err := jsToPartUpdate(s.vm, obj, part, s.allowsSourceMutation())
+		if err != nil && writeErr == nil {
+			writeErr = err
+		}
 		emitted = append(emitted, emittedPart)
 		return goja.Undefined()
 	})
@@ -215,13 +221,20 @@ func (s *ScriptTool) runScript(part *model.Part) ([]*model.Part, error) {
 				case goja.IsUndefined(ret):
 					// Pass-through: handled by the !emitCalled branch below.
 				default:
-					emitted = append(emitted, s.returnedParts(ret, part)...)
+					parts, err := s.returnedParts(ret, part)
+					if err != nil && writeErr == nil {
+						writeErr = err
+					}
+					emitted = append(emitted, parts...)
 					emitCalled = true
 				}
 			}
 		}
 	}
 
+	if writeErr != nil {
+		return nil, writeErr
+	}
 	if skipped {
 		return nil, nil
 	}
@@ -234,10 +247,11 @@ func (s *ScriptTool) runScript(part *model.Part) ([]*model.Part, error) {
 // returnedParts converts a process() return value into emitted parts, applying
 // any edits back onto the original Part. The value may be a single part object
 // or an array of them.
-func (s *ScriptTool) returnedParts(v goja.Value, original *model.Part) []*model.Part {
+func (s *ScriptTool) returnedParts(v goja.Value, original *model.Part) ([]*model.Part, error) {
 	obj := v.ToObject(s.vm)
 	if obj.ClassName() != "Array" {
-		return []*model.Part{jsToPartUpdate(s.vm, obj, original, s.allowsSourceMutation())}
+		p, err := jsToPartUpdate(s.vm, obj, original, s.allowsSourceMutation())
+		return []*model.Part{p}, err
 	}
 	var out []*model.Part
 	length := 0
@@ -249,9 +263,13 @@ func (s *ScriptTool) returnedParts(v goja.Value, original *model.Part) []*model.
 		if el == nil || goja.IsUndefined(el) || goja.IsNull(el) {
 			continue
 		}
-		out = append(out, jsToPartUpdate(s.vm, el.ToObject(s.vm), original, s.allowsSourceMutation()))
+		p, err := jsToPartUpdate(s.vm, el.ToObject(s.vm), original, s.allowsSourceMutation())
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, p)
 	}
-	return out
+	return out, nil
 }
 
 // partTypeString returns a JS-friendly string for a PartType.
@@ -320,23 +338,30 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 	return obj
 }
 
-// jsToPartUpdate reads back modified data from the JS object and applies
-// changes to a clone of the original Part. Only block text changes are applied.
-func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, allowSourceMutation bool) *model.Part {
+// jsToPartUpdate reads back modified data from the JS object and applies the
+// changed text to the original Part's block. The script sees text, so the
+// block it hands back is turned into operations by change.Diff, and only the
+// editions whose text the script changed are written: a target it left alone
+// keeps its inline codes. The operations apply through change.ApplyBlock as
+// the script tool.
+func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, allowSourceMutation bool) (*model.Part, error) {
 	if original.Type != model.PartBlock {
-		return original
+		return original, nil
 	}
 
 	block, ok := original.Resource.(*model.Block)
 	if !ok {
-		return original
+		return original, nil
 	}
 
 	blockVal := obj.Get("block")
 	if blockVal == nil || goja.IsUndefined(blockVal) || goja.IsNull(blockVal) {
-		return original
+		return original, nil
 	}
 	jsBlock := blockVal.ToObject(vm)
+
+	after := &model.Block{ID: block.ID, Name: block.Name, Unit: block.Unit, SourceLocale: block.SourceLocale,
+		Source: block.Source, Targets: maps.Clone(block.Targets)}
 
 	// Check if source text was modified.
 	sourceVal := jsBlock.Get("source")
@@ -349,7 +374,7 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 						// Source is read-only unless the script opts in; otherwise
 						// its source edits are ignored (immutability contract).
 						if allowSourceMutation && text != block.SourceText() {
-							block.EditSourceText(text)
+							after.Source = []model.Run{model.TextR(text)}
 						}
 					}
 				}
@@ -367,7 +392,11 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 					if segMap, ok := segs[0].(map[string]any); ok {
 						if contentMap, ok := segMap["content"].(map[string]any); ok {
 							if text, ok := contentMap["text"].(string); ok {
-								block.SetTargetText(model.LocaleID(locale), text)
+								loc := model.LocaleID(locale)
+								if block.Target(loc) != nil && text == block.TargetText(loc) {
+									continue
+								}
+								after.SetTargetVariant(model.Variant(loc), &model.Target{Runs: []model.Run{model.TextR(text)}})
 							}
 						}
 					}
@@ -376,5 +405,15 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 		}
 	}
 
-	return original
+	ops := change.Diff(block, after)
+	if len(ops) == 0 {
+		return original, nil
+	}
+	env := change.BlockEnv{Actor: change.Actor{Kind: change.ActorTool, Name: "script"}, Guards: change.Report}
+	for _, r := range change.ApplyBlock(block, ops, env) {
+		if r.Status == change.OpRefused {
+			return original, fmt.Errorf("block %q: %s refused: %w", block.ID, r.Op, r.Error)
+		}
+	}
+	return original, nil
 }
