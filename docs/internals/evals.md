@@ -335,3 +335,68 @@ Three things that comparison has to get right, and each was wrong first:
 
 The corpus is the okapi-testdata tree the parity harness already downloads. It
 matters that it was collected by another project for another purpose.
+
+## What the commit check costs
+
+```bash
+go test -tags fts5 -run '^$' -bench BenchmarkCommitCheck -benchtime 5x ./host/
+```
+
+The change service runs the host's commit check on every edition a change set
+changes, before it writes ([S-03](../../web/docs/contribute/architecture/surfaces/s-03-agent-surfaces.md#governance-at-commit)).
+`BenchmarkCommitCheck` (`host/commitcheck_cost_test.go`) measures it on this
+repository's own documentation: every Markdown and MDX file under `web/docs`,
+408 documents and 13,804 translatable blocks, copied into a scratch project with
+a context read in. Four change sets append a word to each block they name:
+
+- **paragraph**: one block;
+- **document**: every block of the largest document, `reference/project-file.mdx`
+  (510 blocks);
+- **translations**: the Norwegian translation of each of those 510 blocks;
+- **docs sweep**: every block of every document.
+
+A warm run keeps one App, as Kapi Desktop and the MCP server do. A cold run
+starts each change set on a new App, as one `kapi apply` does.
+
+Two governances were measured. The default is the Tidewatch sample's context
+(`samples/tidewatch-docs/context`: one voice with two constraints, five
+concepts). The second is this project's own: the 67 concepts and 141 terms of
+the dogfood terms store and the documentation voice with its 17 prohibited
+patterns, read from the context checkpoint on `refs/kapi/context` into a
+directory of the same shape and passed with `KAPI_COMMIT_COST_CONTEXT`.
+
+Per change set, on an Apple M1 Max shared with other builds (load average
+25 to 73 during the runs), the faster of two runs of five:
+
+| Change set | Editions | Sample, warm | Sample, cold | Dogfood, warm | Dogfood, cold |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| paragraph | 1 | 3.0 ms | 5.5 ms | 10.8 ms | 18.3 ms |
+| document | 510 | 44 ms | 46 ms | 167 ms | 175 ms |
+| translations | 510 | 38 ms | 46 ms | 140 ms | 156 ms |
+| docs sweep | 13,804 | 1.38 s | 1.29 s | 4.85 s | 5.93 s |
+
+Two costs add up:
+
+- **Resolution, once per change set.** The check loads the recipe, opens the
+  project's stores, resolves the voice and the terms at each point and reads
+  the context log for suggested and widened rules, and it resolves the
+  governance fingerprint. On a one-paragraph edit that is most of the cost, and
+  a new App adds 2 ms to 8 ms for opening the stores.
+- **The analyzers, per edition.** About 0.09 ms under the sample's governance
+  and 0.33 ms under the project's own, mostly the terms analyzer locating every
+  concept in the text and the voice's prohibited patterns, so the cost follows
+  the size of the governance. Each analyzer runs over each block in a goroutine
+  of its own (`RunCheckTool`), and the hand-off is a visible share of a large
+  change set. A sweep allocates about 40 KB per edition under the sample and
+  225 KB under the project's own.
+
+Resolution is shared wherever it can be. `governFile` resolves a file's point
+once for both of its halves and both of its points, because each resolution
+reads the project's ignore rules from disk, and documents that sit under one
+governance resolve its fingerprint once. Without the two, the dogfood sweep
+took 11.6 s warm.
+
+A one-paragraph edit costs milliseconds, small beside the model call that
+usually produced it. A sweep over every block of the docs takes seconds, which
+is the shape of a flow rather than an agent's edit, and a flow checks once per
+document.
