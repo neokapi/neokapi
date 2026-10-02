@@ -9,17 +9,29 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/structrec"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	yamlv3 "gopkg.in/yaml.v3"
 )
 
+// inspectRecord is the part of a `kapi inspect` record these tests read.
+type inspectRecord struct {
+	Ref struct {
+		Doc   string `json:"doc" yaml:"doc"`
+		Block string `json:"block" yaml:"block"`
+	} `json:"ref" yaml:"ref"`
+	Rev   string `json:"rev" yaml:"rev"`
+	Text  string `json:"text" yaml:"text"`
+	Role  string `json:"role" yaml:"role"`
+	Level int    `json:"level" yaml:"level"`
+}
+
 // runInspectFixture writes content to a temp file of the given name and runs
 // `kapi inspect` over it, returning captured stdout.
 func runInspectFixture(t *testing.T, name, content string, args ...string) string {
 	t.Helper()
+	t.Setenv("KAPI_NO_PROJECT", "1")
 	app := newAppForTest(t)
 	path := filepath.Join(t.TempDir(), name)
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
@@ -39,20 +51,21 @@ func runInspectFixture(t *testing.T, name, content string, args ...string) strin
 	return out.String()
 }
 
-func TestInspect_AnchoredBlocks(t *testing.T) {
+// Each record carries the reference an edit copies into "at" and the
+// revision it sends as if_match.
+func TestInspect_RecordsCarryReferencesAndRevisions(t *testing.T) {
 	out := runInspectFixture(t, "en.json", `{"greeting":"Hello","farewell":"Bye"}`)
 
-	var blocks []structrec.Record
+	var blocks []inspectRecord
 	require.NoError(t, json.Unmarshal([]byte(out), &blocks))
 	require.Len(t, blocks, 2)
-
+	keys := map[string]string{}
 	for _, b := range blocks {
-		require.NotEmpty(t, b.Text)
-		// The anchor is the content hash of the block's text: stable and
-		// reproducible, so an agent can retrieve and write back to it.
-		assert.Equal(t, model.ComputeContentHash(b.Text), b.ContentHash)
-		assert.NotEmpty(t, b.ID)
+		assert.True(t, strings.HasSuffix(b.Ref.Doc, "en.json"), b.Ref.Doc)
+		assert.Regexp(t, `^r:[0-9a-f]{16}$`, b.Rev)
+		keys[b.Ref.Block] = b.Text
 	}
+	assert.Equal(t, map[string]string{"greeting": "Hello", "farewell": "Bye"}, keys)
 }
 
 func TestInspect_JSONLStreamsOnePerLine(t *testing.T) {
@@ -61,24 +74,26 @@ func TestInspect_JSONLStreamsOnePerLine(t *testing.T) {
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	require.Len(t, lines, 3, "three blocks => three JSONL lines")
 	for _, ln := range lines {
-		var b structrec.Record
+		var b inspectRecord
 		require.NoError(t, json.Unmarshal([]byte(ln), &b), "each line is a JSON object")
-		assert.NotEmpty(t, b.ContentHash)
+		assert.NotEmpty(t, b.Rev)
 		assert.NotEmpty(t, b.Text)
 	}
 }
 
 // TestInspect_YAMLSequence pins inspect to the shared format axis: YAML is
-// requested the same way as for every other command, not with a private flag.
+// requested the same way as for every other command, not with a private flag,
+// and carries the same record.
 func TestInspect_YAMLSequence(t *testing.T) {
 	out := runInspectFixture(t, "en.json", `{"greeting":"Hello","farewell":"Bye"}`, "--output-format", "yaml")
 
-	var blocks []structrec.Record
-	require.NoError(t, yamlv3.Unmarshal([]byte(out), &blocks))
+	var blocks []inspectRecord
+	require.NoError(t, yamlv3.Unmarshal([]byte(out), &blocks), out)
 	require.Len(t, blocks, 2)
 	for _, b := range blocks {
 		assert.NotEmpty(t, b.Text)
-		assert.Equal(t, model.ComputeContentHash(b.Text), b.ContentHash)
+		assert.Regexp(t, `^r:[0-9a-f]{16}$`, b.Rev)
+		assert.NotEmpty(t, b.Ref.Block)
 	}
 }
 
@@ -86,10 +101,10 @@ func TestInspect_YAMLSequence(t *testing.T) {
 func TestInspect_StructuralRole(t *testing.T) {
 	out := runInspectFixture(t, "page.md", "# Title\n\nA paragraph.\n")
 
-	var blocks []structrec.Record
+	var blocks []inspectRecord
 	require.NoError(t, json.Unmarshal([]byte(out), &blocks))
 
-	var heading *structrec.Record
+	var heading *inspectRecord
 	for i := range blocks {
 		if blocks[i].Text == "Title" {
 			heading = &blocks[i]
@@ -97,11 +112,13 @@ func TestInspect_StructuralRole(t *testing.T) {
 	}
 	require.NotNil(t, heading, "heading block not found")
 	assert.Equal(t, model.RoleHeading, heading.Role)
+	assert.Equal(t, 1, heading.Level)
 }
 
-// Number is a 1-based counter that increments across all input files, and File
-// records which input each block came from — the output contract for piping.
-func TestInspect_NumberAndFileAcrossFiles(t *testing.T) {
+// A read of several files names each block's document in its reference: the
+// path a change set names it by.
+func TestInspect_ReferencesNameTheirFile(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
 	app := newAppForTest(t)
 	dir := t.TempDir()
 	a := filepath.Join(dir, "a.json")
@@ -116,17 +133,12 @@ func TestInspect_NumberAndFileAcrossFiles(t *testing.T) {
 	cmd.SetArgs([]string{a, b})
 	require.NoError(t, cmd.Execute())
 
-	var blocks []structrec.Record
+	var blocks []inspectRecord
 	require.NoError(t, json.Unmarshal(out.Bytes(), &blocks))
 	require.Len(t, blocks, 3)
-
-	for i, blk := range blocks {
-		assert.Equal(t, i+1, blk.Number, "Number is a global 1-based counter across files")
-		assert.NotEmpty(t, blk.File, "every record carries its source file")
-	}
-	assert.Equal(t, DisplayName(a), blocks[0].File)
-	assert.Equal(t, DisplayName(b), blocks[1].File)
-	assert.Equal(t, DisplayName(b), blocks[2].File)
+	assert.Equal(t, filepath.ToSlash(a), blocks[0].Ref.Doc)
+	assert.Equal(t, filepath.ToSlash(b), blocks[1].Ref.Doc)
+	assert.Equal(t, filepath.ToSlash(b), blocks[2].Ref.Doc)
 }
 
 func TestInspect_ProjectRendersBlocksPerFormat(t *testing.T) {

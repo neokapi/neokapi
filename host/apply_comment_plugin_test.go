@@ -2,7 +2,6 @@ package host
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -108,24 +107,11 @@ func pluginCommentEntry(t *testing.T, a *App, file, id, text string) map[string]
 	return nil
 }
 
-// applyWith runs kapi apply through a over entries written as a change-set.
+// applyWith runs a's comment write path over entries, as kapi apply does for a
+// comment change set in a file.
 func applyWith(t *testing.T, a *App, entries ...map[string]any) (applyOutput, error) {
 	t.Helper()
-	var lines []string
-	for _, e := range entries {
-		b, err := json.Marshal(e)
-		require.NoError(t, err)
-		lines = append(lines, string(b))
-	}
-	path := filepath.Join(t.TempDir(), "changeset.jsonl")
-	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
-	cmd := NewEnvCommand(t.Context(), "apply")
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	err := a.RunApply(cmd, path, false, "", true)
-	var out applyOutput
-	require.NoError(t, json.Unmarshal(stdout.Bytes(), &out), stdout.String()+stderr.String())
+	out, _, err := runCommentEntries(t, a, NewEnvCommand(t.Context(), "apply"), false, entries...)
 	return out, err
 }
 

@@ -201,7 +201,7 @@ func TestApplyThenCheck_ReplacementReachesTheFinding(t *testing.T) {
 
 	decisions := filepath.Join(root, "decisions.jsonl")
 	require.NoError(t, os.WriteFile(decisions,
-		[]byte(`{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}`+"\n"), 0o644))
+		[]byte(`{"op":"term","action":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}`+"\n"), 0o644))
 
 	a := processOnlyApp(t)
 	applyOut, err := runCLI(t, NewApplyCmd(a), decisions, "--project", recipe)

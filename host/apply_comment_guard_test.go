@@ -163,22 +163,10 @@ func TestCommentEditGuard(t *testing.T) {
 	})
 }
 
-// runApplyChangeSetRaw runs kapi apply over entries and returns the error
-// without reading a report, for a change-set rejected before any output.
+// runApplyChangeSetRaw runs the comment write path over entries and returns
+// the error without reading a report, for entries refused before any output.
 func runApplyChangeSetRaw(t *testing.T, entries ...map[string]any) (string, string, error) {
 	t.Helper()
-	var lines []string
-	for _, e := range entries {
-		b, err := json.Marshal(e)
-		require.NoError(t, err)
-		lines = append(lines, string(b))
-	}
-	path := t.TempDir() + "/changeset.jsonl"
-	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
-	cmd := NewEnvCommand(t.Context(), "apply")
-	var stdout, stderr strings.Builder
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	err := (&App{SourceLang: "en"}).RunApply(cmd, path, false, "", true)
-	return stdout.String(), stderr.String(), err
+	_, output, err := runApplyChangeSet(t, NewEnvCommand(t.Context(), "apply"), false, entries...)
+	return output, "", err
 }

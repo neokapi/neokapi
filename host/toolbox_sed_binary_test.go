@@ -30,14 +30,13 @@ func TestSedRefusesBinaryAtTerminal(t *testing.T) {
 	app := newToolboxApp(t)
 	prog, err := ParseSedProgram([]string{"s/colour/color/g"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
 	doc := copyFixtureDocx(t)
 
 	var runErr error
 	var stderr string
 	stdout, _ := captureStdout(t, func() error {
 		stderr, runErr = captureStderr(t, func() error {
-			return app.RunSed(context.Background(), []string{doc}, tool, SedOptions{})
+			return app.RunSed(context.Background(), NewEnvCommand(context.Background(), "sed"), []string{doc}, prog, SedOptions{})
 		})
 		return nil
 	})
@@ -62,11 +61,10 @@ func TestSedWritesBinaryWhenRedirected(t *testing.T) {
 	app := newToolboxApp(t)
 	prog, err := ParseSedProgram([]string{"s/colour/color/g"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
 	doc := copyFixtureDocx(t)
 
 	stdout, runErr := captureStdout(t, func() error {
-		return app.RunSed(context.Background(), []string{doc}, tool, SedOptions{})
+		return app.RunSed(context.Background(), NewEnvCommand(context.Background(), "sed"), []string{doc}, prog, SedOptions{})
 	})
 	require.NoError(t, runErr)
 	require.NotEmpty(t, stdout)
@@ -79,11 +77,10 @@ func TestSedForceWritesBinaryAtTerminal(t *testing.T) {
 	app := newToolboxApp(t)
 	prog, err := ParseSedProgram([]string{"s/colour/color/g"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
 	doc := copyFixtureDocx(t)
 
 	stdout, runErr := captureStdout(t, func() error {
-		return app.RunSed(context.Background(), []string{doc}, tool, SedOptions{Force: true})
+		return app.RunSed(context.Background(), NewEnvCommand(context.Background(), "sed"), []string{doc}, prog, SedOptions{Force: true})
 	})
 	require.NoError(t, runErr)
 	require.NotEmpty(t, stdout)
@@ -96,11 +93,10 @@ func TestSedTextAtTerminalIsUnaffected(t *testing.T) {
 	app := newToolboxApp(t)
 	prog, err := ParseSedProgram([]string{"s/colour/color/g"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
 
 	doc := writeToolboxFile(t, t.TempDir(), "guide.md", "The colour is bold.\n")
 	stdout, runErr := captureStdout(t, func() error {
-		return app.RunSed(context.Background(), []string{doc}, tool, SedOptions{})
+		return app.RunSed(context.Background(), NewEnvCommand(context.Background(), "sed"), []string{doc}, prog, SedOptions{})
 	})
 	require.NoError(t, runErr)
 	assert.Contains(t, stdout, "color")
@@ -115,11 +111,10 @@ func TestSedInPlaceUnaffectedByGuard(t *testing.T) {
 	app := newToolboxApp(t)
 	prog, err := ParseSedProgram([]string{"s/colour/color/g"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
 	doc := copyFixtureDocx(t)
 
 	stdout, runErr := captureStdout(t, func() error {
-		return app.RunSed(context.Background(), []string{doc}, tool, SedOptions{InPlace: true})
+		return app.RunSed(context.Background(), NewEnvCommand(context.Background(), "sed"), []string{doc}, prog, SedOptions{InPlace: true})
 	})
 	require.NoError(t, runErr)
 	assert.Empty(t, stdout)

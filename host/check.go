@@ -173,15 +173,6 @@ func writeFindingsCounts(w io.Writer, s check.Summary) {
 	fmt.Fprintf(w, "%d failing, %d reported · score %d/100\n", s.Failing, s.Reporting, s.Score)
 }
 
-// diagnosticOutcome names what a diagnostic does to a check: "fails" or
-// "reports".
-func diagnosticOutcome(d check.Diagnostic) string {
-	if d.Fails {
-		return "fails"
-	}
-	return "reports"
-}
-
 // writeDidNotRun writes the sentence that names why a check did not run. The
 // causes share an exit code, so the sentence is what tells a broken checker
 // from an empty scope.

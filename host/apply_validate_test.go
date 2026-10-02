@@ -1,8 +1,6 @@
 package host
 
 import (
-	"bytes"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -65,7 +63,7 @@ func TestApplyRefusesContentEntriesThatNameNoBlockOrCollide(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		for _, surface := range []string{"kapi apply", "apply_edits"} {
+		for _, surface := range []string{"apply_edits"} {
 			t.Run(tt.name+"/"+surface, func(t *testing.T) {
 				app := newToolboxApp(t)
 				dir := t.TempDir()
@@ -77,26 +75,8 @@ func TestApplyRefusesContentEntriesThatNameNoBlockOrCollide(t *testing.T) {
 					entries[i] = e
 				}
 
-				var err error
-				if surface == "kapi apply" {
-					body, merr := json.Marshal(entries)
-					require.NoError(t, merr)
-					changeset := filepath.Join(dir, "edits.json")
-					require.NoError(t, os.WriteFile(changeset, body, 0o600))
-					cmd := NewEnvCommand(t.Context(), "apply")
-					var stdout, stderr bytes.Buffer
-					cmd.SetOut(&stdout)
-					cmd.SetErr(&stderr)
-					err = app.RunApply(cmd, changeset, false, "", true)
-					if tt.refusal != "" {
-						require.Error(t, err)
-						assert.Equal(t, ExitUsage, ExitCode(cmd, err), "a malformed change-set is a usage error")
-						assert.Empty(t, stdout.String(), "nothing was applied, so there is no report")
-					}
-				} else {
-					_, _, err = app.applyEditsMCP(t.Context(), contextop.Actor{Kind: contextop.ActorAgent, Name: "test", Session: "s1"},
-						applyEditsInput{Changeset: entries})
-				}
+				_, _, err := app.applyEditsMCP(t.Context(), contextop.Actor{Kind: contextop.ActorAgent, Name: "test", Session: "s1"},
+					applyEditsInput{Changeset: entries})
 
 				got, rerr := os.ReadFile(file)
 				require.NoError(t, rerr)

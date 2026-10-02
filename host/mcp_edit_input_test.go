@@ -60,25 +60,3 @@ func TestApplyEditsMCPContentWordingField(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `{"title":"After","keep":"Unchanged"}`, string(after))
 }
-
-func TestApplyCLIRejectsVoiceWordingFieldBeforeEditing(t *testing.T) {
-	app := newToolboxApp(t)
-	file := filepath.Join(t.TempDir(), "page.json")
-	const source = `{"title":"Before","keep":"Unchanged"}`
-	require.NoError(t, os.WriteFile(file, []byte(source), 0o600))
-	entries := []changeEntry{
-		{Kind: kindContent, File: file, ContentHash: model.ComputeContentHash("Before"), Text: "After"},
-		{Kind: kindContent, File: file, Replacement: "Wrong field"},
-	}
-	body, err := json.Marshal(entries)
-	require.NoError(t, err)
-	changeset := filepath.Join(t.TempDir(), "edits.json")
-	require.NoError(t, os.WriteFile(changeset, body, 0o600))
-	err = app.RunApply(NewEnvCommand(t.Context(), "apply"), changeset, false, "", true)
-	require.ErrorContains(t, err, "content entry 2")
-	require.ErrorContains(t, err, `"text"`)
-	after, err := os.ReadFile(file)
-	require.NoError(t, err)
-	assert.Equal(t, source, string(after))
-	assert.NoError(t, validateChangeSet([]changeEntry{{Kind: kindTerm, Replacement: "Preferred term"}}))
-}

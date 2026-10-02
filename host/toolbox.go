@@ -178,18 +178,11 @@ func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, 
 	return a.streamBlocks(ctx, path, false, "", fn)
 }
 
-// StreamEditableBlocks streams path's blocks as EditDocument reads them, so
-// every block id, text and content hash it yields is the one `kapi apply`
-// resolves. It backs `kapi inspect` and `kapi apply --diff`: the reads an edit
-// is addressed from.
-func (a *App) StreamEditableBlocks(ctx context.Context, path string, fn func(index int, b *model.Block) error) (string, error) {
-	return a.streamBlocks(ctx, path, true, "", fn)
-}
-
-// StreamEditableBlocksAs is StreamEditableBlocks in the format fmtRef names
-// (a preset included), as EditDocumentAs edits it. An empty fmtRef resolves
-// the format as StreamEditableBlocks does. MCP extract_content reads through
-// it and apply_edits writes through EditDocumentAs with the same ref.
+// StreamEditableBlocksAs streams path's blocks in the format fmtRef names (a
+// preset included) as EditDocumentAs reads them, so every block id, text and
+// content hash it yields is one EditDocumentAs resolves. An empty fmtRef
+// resolves the format from --format or detection. MCP extract_content reads
+// through it and apply_edits writes through EditDocumentAs with the same ref.
 func (a *App) StreamEditableBlocksAs(ctx context.Context, path, fmtRef string, fn func(index int, b *model.Block) error) (string, error) {
 	return a.streamBlocks(ctx, path, true, fmtRef, fn)
 }
@@ -222,7 +215,7 @@ func (a *App) openEditReader(path string, content io.ReadSeeker, fmtRef string) 
 	return name, reader, nil
 }
 
-// WireEditReader gives reader the skeleton store EditDocument gives the same
+// WireEditReader gives reader the skeleton store EditDocumentAs gives the same
 // format's reader before writing it back. Some readers model a document
 // differently while they keep a skeleton: the HTML reader turns character
 // references into inline codes and numbers an inline element's attributes
@@ -310,18 +303,14 @@ func (a *App) streamBlocks(ctx context.Context, path string, editable bool, fmtR
 	return fmtName, nil
 }
 
-// EditDocument reads path, applies the tool to every part, then writes the
-// reconstructed document — in place (with optional backup) or to out. The
-// skeleton store is wired between reader and writer so structure-preserving
-// formats (e.g. .docx) round-trip byte-for-byte while only the edited text
-// changes. writeLocale
-// selects which locale the writer emits ("" = source / monolingual round-trip).
-func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, writeLocale model.LocaleID, inPlace bool, backupSuffix string, out io.Writer) error {
-	return a.EditDocumentAs(ctx, path, "", t, writeLocale, inPlace, backupSuffix, out)
-}
-
-// EditDocumentAs is EditDocument in the format fmtRef names (a preset
-// included); an empty fmtRef resolves the format as EditDocument does.
+// EditDocumentAs reads path in the format fmtRef names (a preset included;
+// empty resolves it from --format or detection), applies the tool to every
+// part, then writes the reconstructed document: in place (with an optional
+// backup) or to out. The skeleton store is wired between reader and writer so
+// structure-preserving formats (e.g. .docx) round-trip byte for byte while
+// only the edited text changes. writeLocale selects which locale the writer
+// emits ("" = source / monolingual round-trip). MCP apply_edits writes through
+// it.
 func (a *App) EditDocumentAs(ctx context.Context, path, fmtRef string, t *tool.BaseTool, writeLocale model.LocaleID, inPlace bool, backupSuffix string, out io.Writer) error {
 	// A `container!entry` locator edits one inner file; a bare container path edits
 	// every eligible entry. Both repack through the container binding (AD-026 §6) —

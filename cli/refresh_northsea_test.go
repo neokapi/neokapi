@@ -156,8 +156,8 @@ func TestRefresh_NorthseaDrift(t *testing.T) {
 	// rules are terms, so the voice profile has no part in it.
 	changeset := filepath.Join(root, "refresh.jsonl")
 	require.NoError(t, os.WriteFile(changeset, []byte(
-		`{"kind":"term","op":"upsert","term":"Tideguard","locale":"en-GB","status":"preferred"}`+"\n"+
-			`{"kind":"term","op":"upsert","term":"Tidewatch","locale":"en-GB","status":"deprecated","replacement":"Tideguard"}`+"\n"), 0o644))
+		`{"op":"term","action":"upsert","term":"Tideguard","locale":"en-GB","status":"preferred"}`+"\n"+
+			`{"op":"term","action":"upsert","term":"Tidewatch","locale":"en-GB","status":"deprecated","replacement":"Tideguard"}`+"\n"), 0o644))
 
 	applyOut, err := runCLI(t, NewApplyCmd(a), changeset, "--project", recipe)
 	require.NoError(t, err, applyOut)

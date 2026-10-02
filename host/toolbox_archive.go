@@ -17,10 +17,10 @@ import (
 )
 
 // streamEntryBlocks reads a single archive entry (addressed by a `container!entry`
-// locator) and streams its Blocks — the read backbone for kcat/kgrep/inspect on
+// locator) and streams its Blocks — the read backbone for kcat and kgrep on
 // one inner file. Only that entry is read (random-access for ZIP, scan for TAR);
 // the whole archive is never loaded. editable reads the entry as editBytes
-// does (see StreamEditableBlocks).
+// does (see StreamEditableBlocksAs).
 func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, editable bool, fmtRef string, fn func(index int, b *model.Block) error) (string, error) {
 	content, _, err := container.OpenEntry(loc.Archive, loc.Entry)
 	if err != nil {
@@ -73,7 +73,7 @@ func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, editable 
 }
 
 // editBytes runs the tool over an in-memory document and returns the rewritten
-// bytes. It mirrors EditDocument's reader→tool→writer pipeline (skeleton wired
+// bytes. It mirrors EditDocumentAs's reader→tool→writer pipeline (skeleton wired
 // for byte-faithful round-trip) but on bytes, so it can drive a single archive
 // entry. Returns an error if the format has no writer.
 func (a *App) editBytes(ctx context.Context, name string, content []byte, t *tool.BaseTool, writeLocale model.LocaleID) ([]byte, error) {

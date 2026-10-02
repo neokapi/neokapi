@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/filehome"
+	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -58,6 +60,13 @@ type ChangeServiceOptions struct {
 	// for a format whose reader has to be told it (a PO catalog's msgstr).
 	// Changes takes it from --target-lang.
 	TargetLocale model.LocaleID
+	// AnyPath, outside a project, resolves a reference that leaves Root as a
+	// path on the file system relative to Root, as a command line names the
+	// files it is given. Without it such a reference is refused.
+	AnyPath bool
+	// BackupSuffix keeps a copy of each file a change replaces, beside it
+	// with the suffix appended (kapi apply and ksed -i.bak).
+	BackupSuffix string
 }
 
 // Changes builds the change service for the project cmd names, or for the
@@ -110,7 +119,7 @@ func (a *App) changeService(ctx context.Context, cmd Command, opts ChangeService
 			}
 			dir = wd
 		}
-		layout = &dirChangeLayout{app: a, root: dir, format: opts.Format, target: opts.TargetLocale}
+		layout = &dirChangeLayout{app: a, root: dir, format: opts.Format, target: opts.TargetLocale, anywhere: opts.AnyPath}
 		// Every kapi process of this user finds the same lock files for a
 		// document outside a project, whatever its temporary directory.
 		lockDir = filepath.Join(DataDir(), "locks")
@@ -119,7 +128,7 @@ func (a *App) changeService(ctx context.Context, cmd Command, opts ChangeService
 	if origin == "" {
 		origin = "apply"
 	}
-	home := filehome.New(layout, filehome.Options{LockDir: lockDir})
+	home := filehome.New(layout, filehome.Options{LockDir: lockDir, BackupSuffix: opts.BackupSuffix})
 	svcOpts := []change.Option{
 		change.WithOrigin(origin),
 		change.WithAssets(&changeAssets{app: a, recipe: opts.Project}),
@@ -236,10 +245,16 @@ type dirChangeLayout struct {
 	root   string
 	format string
 	target model.LocaleID
+	// anywhere resolves a reference that leaves root as a path on the file
+	// system (ChangeServiceOptions.AnyPath).
+	anywhere bool
 }
 
 func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, error) {
 	ref, path, entry, err := filehome.ResolvePath(l.root, doc)
+	if err != nil && l.anywhere {
+		ref, path, entry, err = resolveAnywhere(l.root, doc, err)
+	}
 	if err != nil {
 		return filehome.Doc{}, err
 	}
@@ -261,7 +276,8 @@ func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, e
 }
 
 // detectChangeFormat detects the format of a file, or of an archive member,
-// as the toolbox does.
+// as the toolbox does: a file no format claims is read as plain text unless
+// its bytes are binary.
 func (a *App) detectChangeFormat(path, entry string) (string, error) {
 	if entry != "" {
 		return filehome.DetectFormat(a.FormatReg, path, entry)
@@ -271,9 +287,9 @@ func (a *App) detectChangeFormat(path, entry string) (string, error) {
 		return "", err
 	}
 	defer f.Close()
-	name, ok := a.explicitOrDetected(path, f)
-	if !ok {
-		return "", &change.Error{Code: change.CodeUnsupported, Capability: "format", Message: "no format reads " + filepath.Base(path)}
+	name, err := a.resolveFormatFrom(path, f)
+	if err != nil {
+		return "", &change.Error{Code: change.CodeUnsupported, Capability: "format", Message: filepath.Base(path) + ": " + err.Error()}
 	}
 	return name, nil
 }
@@ -467,6 +483,41 @@ func (l *projectChangeLayout) editionDoc(_ context.Context, ix *projectChangeInd
 	k := model.EditionKey{Locale: t.locale}
 	d.Edition = &k
 	return d, nil
+}
+
+// resolveAnywhere resolves doc, a path relative to root that leads out of
+// it, for a command line outside a project. cause is the refusal
+// filehome.ResolvePath gave; anything but a reference that left root is
+// returned as it was. The file's own directory becomes the root the path is
+// resolved under, and the reference keeps the spelling doc gave, cleaned.
+func resolveAnywhere(root, doc string, cause error) (ref, path, entry string, err error) {
+	var ce *change.Error
+	if !errors.As(cause, &ce) || ce.Code != change.CodeInvalid || doc == "" {
+		return "", "", "", cause
+	}
+	file, member := doc, ""
+	for i := range len(doc) {
+		if doc[i] == '!' && i+1 < len(doc) && container.IsContainerPath(doc[:i]) {
+			file, member = doc[:i], doc[i+1:]
+			break
+		}
+	}
+	abs := filepath.Clean(filepath.FromSlash(file))
+	if !filepath.IsAbs(abs) {
+		abs = filepath.Join(root, abs)
+	}
+	inner := filepath.Base(abs)
+	if member != "" {
+		inner += "!" + member
+	}
+	if _, path, entry, err = filehome.ResolvePath(filepath.Dir(abs), inner); err != nil {
+		return "", "", "", err
+	}
+	ref = filepath.ToSlash(filepath.Clean(filepath.FromSlash(file)))
+	if entry != "" {
+		ref += "!" + entry
+	}
+	return ref, path, entry, nil
 }
 
 // cleanRef is a reference as a project-relative, slash-separated path.

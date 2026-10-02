@@ -2,7 +2,6 @@ package host
 
 import (
 	"archive/zip"
-	"bytes"
 	"context"
 	"io"
 	"os"
@@ -91,7 +90,7 @@ func TestStreamBlocksEntryLocator(t *testing.T) {
 	assert.ElementsMatch(t, []string{"Hello", "World"}, texts)
 }
 
-func TestEditArchiveAllInPlace(t *testing.T) {
+func TestSedArchiveInPlace(t *testing.T) {
 	app := newToolboxApp(t)
 	dir := t.TempDir()
 	bin := []byte("\x00\x01world-bytes")
@@ -103,9 +102,7 @@ func TestEditArchiveAllInPlace(t *testing.T) {
 
 	prog, err := ParseSedProgram([]string{"s/world/MOON/g"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
-
-	require.NoError(t, app.EditDocument(context.Background(), path, tool, "", true, "", nil))
+	require.NoError(t, app.RunSed(context.Background(), sedCommand(), []string{path}, prog, SedOptions{InPlace: true}))
 
 	assert.Contains(t, string(zipEntry(t, path, "m.json")), "Hello MOON")
 	assert.Contains(t, string(zipEntry(t, path, "r.md")), "Title MOON")
@@ -113,7 +110,7 @@ func TestEditArchiveAllInPlace(t *testing.T) {
 	assert.Equal(t, bin, zipEntry(t, path, "data.bin"))
 }
 
-func TestEditArchiveEntryInPlaceLeavesOthers(t *testing.T) {
+func TestSedArchiveMemberInPlaceLeavesOthers(t *testing.T) {
 	app := newToolboxApp(t)
 	dir := t.TempDir()
 	path := writeTestZip(t, dir, map[string][]byte{
@@ -123,16 +120,14 @@ func TestEditArchiveEntryInPlaceLeavesOthers(t *testing.T) {
 
 	prog, err := ParseSedProgram([]string{"s/world/STAR/g"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
-
-	require.NoError(t, app.EditDocument(context.Background(), path+"!r.md", tool, "", true, "", nil))
+	require.NoError(t, app.RunSed(context.Background(), sedCommand(), []string{path + "!r.md"}, prog, SedOptions{InPlace: true}))
 
 	assert.Contains(t, string(zipEntry(t, path, "r.md")), "Title STAR")
 	// The other entry is untouched.
 	assert.Contains(t, string(zipEntry(t, path, "m.json")), "keep world")
 }
 
-func TestEditArchiveAllToStdout(t *testing.T) {
+func TestSedArchiveToStdout(t *testing.T) {
 	app := newToolboxApp(t)
 	dir := t.TempDir()
 	path := writeTestZip(t, dir, map[string][]byte{
@@ -141,14 +136,14 @@ func TestEditArchiveAllToStdout(t *testing.T) {
 
 	prog, err := ParseSedProgram([]string{"s/world/SUN/g"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
-
-	var buf bytes.Buffer
-	require.NoError(t, app.EditDocument(context.Background(), path, tool, "", false, "", &buf))
+	stdout, err := captureStdout(t, func() error {
+		return app.RunSed(context.Background(), sedCommand(), []string{path}, prog, SedOptions{})
+	})
+	require.NoError(t, err)
 
 	// Output is a valid repacked archive with the edit applied.
 	out := filepath.Join(dir, "out.zip")
-	require.NoError(t, os.WriteFile(out, buf.Bytes(), 0o644))
+	require.NoError(t, os.WriteFile(out, []byte(stdout), 0o644))
 	assert.Contains(t, string(zipEntry(t, out, "m.json")), "Hello SUN")
 	// Source archive untouched (stdout mode).
 	assert.Contains(t, string(zipEntry(t, path, "m.json")), "Hello world")

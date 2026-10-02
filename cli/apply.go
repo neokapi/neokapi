@@ -1,114 +1,114 @@
 package cli
 
 import (
-	"errors"
+	"fmt"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/spf13/cobra"
 )
 
-// NewApplyCmd builds `kapi apply`: the one write verb, the write sibling of
-// `kapi inspect`. It reads a typed change-set and lands every entry — content
-// edits through the byte-faithful format round-trip (drift- and inline-code
-// guarded), asset edits into the project's store. No AI provider is involved:
-// Claude authored the changes; apply enforces the guardrails and writes them.
+// NewApplyCmd builds `kapi apply`: the machine path for changing content. It
+// reads a kapi.change/v1 change set and hands it to the change service, which
+// applies every operation or none. No AI provider is involved: the sender
+// wrote the change, and apply checks and lands it.
 func NewApplyCmd(a *App) *cobra.Command {
 	var (
-		diff        bool
+		dryRun      bool
 		asJSON      bool
+		schema      bool
+		printOps    bool
+		gate        string
 		inPlaceFlag *InPlaceFlag
 	)
 	cmd := &cobra.Command{
 		Use:     "apply [flags] [CHANGESET]",
-		Short:   "Apply a typed change-set (content + asset edits): the one write verb",
+		Short:   "Apply a change set: content edits, review decisions, terms and recipe fields",
 		GroupID: "work",
-		Long: `Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is
-one reviewed change: a content edit, an asset edit (term, content-memory pair,
-recipe field), or a review outcome (kind:"review"). Content edits
-land through the same byte-faithful round-trip the engine's writers use (structure and
-inline codes preserved), drift-guarded by content_hash. An edit that drops,
-invents or duplicates an inline code, crosses or unbalances paired codes, or
-changes a block holding a plural or select construct is refused as
-guard_failed and leaves the block as it was. A content entry whose id, or
-content_hash when it gives no id, matches no block of its file is reported as
-not_found and writes nothing. A block the file marks as not editable, such as
-a code block, keeps its text, and an entry that changes it is reported as
-not_editable. A term or content-memory pair is
-written to the project's store and recorded in its context history, a recipe
-field is written to kapi.yaml, and a review outcome is recorded as unit state
-in the project store. Each entry is recorded as the person or agent the
-environment names (see 'kapi help growing-context'). Term, content-memory and recipe
-entries are a person's decisions: run from an agent's shell they are refused,
-and the agent records a suggestion with 'kapi context observe' instead.
+		Long: `Apply a change set, the write sibling of 'kapi inspect'. A change set is
+kapi.change/v1: one JSON object with its operations under "ops", JSONL with the
+envelope fields on the first line and one operation per line, or a JSON array of
+operations. It is read from CHANGESET or, with no argument or "-", from standard
+input. 'kapi apply --schema' prints its JSON Schema.
 
-A content memory pair (kind:"memory") is recycle leverage for future translation. It does not
-establish a unit. To establish a translated unit, use a kind:"review" entry
-addressed by its file/id/locale (as 'kapi status --review' lists it); the
-decision is recorded in the project's decision ledger and is bound to the
-translation's content hash, so a later edit drops the unit back to translated.
-Only a person records a review decision: run from an agent's shell, the entry
-is refused unless KAPI_ACTOR=person says a person is at the keyboard. Recording
-it is durable at once, and 'kapi context push' shares it when the project
-declares a context backend.
+Each content operation names what it changes in "at" ({"doc", "block",
+"edition"}, the "ref" kapi inspect prints for a block) and the revision it read
+in "if_match" (the block's "rev"). set_content gives an edition new content, in
+the placeholder text a read shows or as runs, and with "if_match": "absent"
+creates an edition. replace_text changes text inside an edition by find, by
+code-point offsets or by run positions, and keeps the inline codes and plurals
+around it. An operation whose edition moved since it was read is refused as
+stale with the current content. An edit that would drop, invent or unbalance an
+inline code, or flatten a plural or select, is refused as guard. When any
+operation is refused, nothing in the change set is written.
 
-A comment edit (kind:"comment") rewrites one code comment, addressed by its file
-and the id 'kapi check' reports for it, such as func/Parse, in Go and in the
-languages a comment plugin reads (TypeScript, TSX and JavaScript among them).
-Its text is the comment's prose without comment markers. It carries the comment_sha256 that
-'kapi check --json' reports for the comment, or the prose as read in
-current_text, and a comment that changed since is refused. Every byte outside
-the comment stays as it is, the result must parse, and the language's formatter
-must agree. Running that formatter runs code the project controls, so kapi asks
-once per project, in a terminal, and records the answer. A directive, a
-generated file's comment, and text that drops or adds a code block or reference
-are refused with a reason and write nothing. Each written file is checked again over what changed, and the
-findings are reported beside the edit.
+decide records a review decision on the revision a person read. term, memory
+and recipe write a term, a content-memory pair or a recipe field into the
+project, after the content they refer to. kapi apply records every change as
+the person or agent the environment names (see 'kapi help growing-context').
+A decision other than advise, a term, a content-memory pair and a recipe field
+are a person's: run from an agent's shell they are refused.
 
-The change-set is JSONL (one entry per line), read from CHANGESET or, with no
-argument or "-", from standard input. Content entries name their own file, so
-apply writes those files in place; --diff previews content and comment changes,
-lists each asset entry as a preview or with the refusal its actor gets, and
-writes nothing. A content entry that gives neither id nor content_hash, or two
-content entries that edit one block differently, make the change-set
-malformed: apply refuses it before writing anything and exits 2. Otherwise
-entries land one at a time: an entry already written stays when a later one is
-stale, refused, not found or fails, and apply then exits non-zero. Re-running
-the corrected change-set skips what is already in place. No AI provider is
-required.`,
-		Example: `  kapi inspect report.docx --jsonl | edit-the-text | kapi apply
-  kapi apply changeset.jsonl
-  kapi apply changeset.jsonl --diff
-  kapi status --review --json | approve-units | kapi apply
-  kapi apply changeset.jsonl --in-place=.bak
-  echo '{"kind":"comment","file":"parse.go","id":"func/Parse","lines":{"first":3,"last":4},"comment_sha256":"<from kapi check --json>","text":"Parse reads the input."}' | kapi apply`,
+A code comment is a block of its source file, keyed as 'kapi check' and 'kapi
+inspect' report it (func/Parse), in Go and in the languages a comment plugin
+reads. set_content rewrites it with its new prose in "text", without comment
+markers, and "if_match" is the comment's "rev" from kapi inspect. Every byte
+outside the comment stays as it is, the result must parse, and the language's
+formatter must agree; what was written is checked again and its findings are
+reported. Running that formatter runs code the project controls, so kapi asks
+once per project, in a terminal, and records the answer. A change set edits
+code comments or documents, never both.
+
+--dry-run computes and checks the change set, writes nothing, and prints a diff
+per document. --gate report lands a change whose findings would otherwise
+refuse it, for a person who has read them. --json prints the result
+(kapi.change-result/v1). --print-ops prints the change set as decoded, with its
+defaults filled in, and applies nothing.
+
+Exit status: 0 when the change set applied or previewed; 2 when it does not
+decode or contradicts itself; 3 when an operation was refused, and nothing was
+written, or the change landed in part; 5 when a backend did not answer.`,
+		Example: `  kapi inspect docs/guide.md --jsonl | write-the-edits | kapi apply
+  kapi apply change.json
+  kapi apply change.json --dry-run
+  kapi apply change.json --json
+  echo '{"ops":[{"op":"replace_text","at":{"doc":"docs/guide.md","block":"install/p"},"if_match":"<rev from kapi inspect>","edits":[{"find":"colour","text":"color"}]}]}' | kapi apply
+  ksed 's/colour/color/g' docs/guide.md --print-ops | kapi apply
+  kapi apply --schema`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			inPlace := cmd.Flags().Changed("in-place")
-			if inPlace && diff {
-				return errors.New("--diff previews changes without writing; it cannot be combined with -i/--in-place")
+			if schema {
+				return RunApplySchema(cmd.OutOrStdout())
 			}
-			backupSuffix := ""
-			if inPlace {
-				backupSuffix = inPlaceFlag.Suffix
+			opts := ApplyOptions{DryRun: dryRun, JSON: asJSON, PrintOps: printOps}
+			switch gate {
+			case "":
+			case string(change.GateEnforce), string(change.GateReport):
+				opts.Gate = change.Gate(gate)
+			default:
+				return fmt.Errorf("--gate: %q is not a gate; use enforce or report", gate)
+			}
+			if cmd.Flags().Changed("in-place") {
+				opts.BackupSuffix = inPlaceFlag.Suffix
 			}
 			path := ""
 			if len(args) == 1 {
 				path = args[0]
 			}
-			return a.RunApply(cmd, path, diff, backupSuffix, asJSON)
+			return a.RunApply(cmd, path, opts)
 		},
 	}
 	f := cmd.Flags()
-	f.BoolVar(&diff, "diff", false, "preview content and comment changes as a unified diff, list asset entries, and write nothing")
-	f.BoolVar(&asJSON, "json", false, "print the apply report as JSON")
-	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format for content files (default: auto-detect)")
-	a.AddSourceLangFlag(f)
+	f.BoolVar(&dryRun, "dry-run", false, "compute and check the change set, print a diff per document, and write nothing")
+	f.StringVar(&gate, "gate", "", "what a failing finding the change introduces does: enforce (refuse it, the default) or report (land it with its findings; a person's choice)")
+	f.BoolVar(&asJSON, "json", false, "print the result as JSON (kapi.change-result/v1)")
+	f.BoolVar(&schema, "schema", false, "print the JSON Schema of a change set and exit")
+	f.BoolVar(&printOps, "print-ops", false, "print the change set as decoded, with its defaults filled in, and apply nothing")
+	f.StringVarP(&a.FormatFlag, "format", "f", "", "format of every document the change set names (default: what the recipe binds, else auto-detect)")
 	a.AddEncodingFlag(f, "", "input/output encoding")
-	inPlaceFlag = RegisterInPlace(f, "keep a backup of edited content files with --in-place=.bak")
-	// Asset entries are written into the project's committed sources, so apply
-	// is a project verb and names its project the way every other one does.
-	// Resolving only by walking up from the cwd made it unusable from anywhere
-	// but inside the tree — and unusable at all under the isolation contract,
-	// where discovery is off.
+	inPlaceFlag = RegisterInPlace(f, "keep a copy of each file the change set replaces, with the SUFFIX given (--in-place=.bak)")
+	// Asset operations are written into the project's committed sources, so
+	// apply is a project verb and names its project the way every other one
+	// does.
 	AddProjectFlag(cmd)
 	return cmd
 }

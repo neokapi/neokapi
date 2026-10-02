@@ -193,8 +193,10 @@ func TestInspect_PlaceholderOnlyBlockIsEmitted(t *testing.T) {
 	require.NoError(t, json.Unmarshal(out.Bytes(), &recs))
 	ids := make([]string, 0, len(recs))
 	for _, r := range recs {
-		if k, ok := r["id"].(string); ok {
-			ids = append(ids, k)
+		if ref, ok := r["ref"].(map[string]any); ok {
+			if k, ok := ref["block"].(string); ok {
+				ids = append(ids, k)
+			}
 		}
 	}
 	assert.Len(t, recs, 2, "both blocks must be reported: %s", out.String())

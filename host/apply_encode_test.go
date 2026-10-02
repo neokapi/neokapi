@@ -1,7 +1,6 @@
 package host
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -11,30 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 )
-
-// applyViaCLI applies a change-set the way `kapi apply` does.
-func applyViaCLI(t *testing.T, app *App, entries []map[string]any) applyOutput {
-	t.Helper()
-	var lines bytes.Buffer
-	for _, e := range entries {
-		b, err := json.Marshal(e)
-		require.NoError(t, err)
-		lines.Write(b)
-		lines.WriteByte('\n')
-	}
-	changeset := filepath.Join(t.TempDir(), "edits.jsonl")
-	require.NoError(t, os.WriteFile(changeset, lines.Bytes(), 0o600))
-	cmd := NewEnvCommand(t.Context(), "apply")
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	_ = app.RunApply(cmd, changeset, false, "", true)
-	var out applyOutput
-	require.NoError(t, json.Unmarshal(stdout.Bytes(), &out), "stdout: %s stderr: %s", stdout.String(), stderr.String())
-	return out
-}
 
 // applyViaMCP applies a change-set the way the MCP apply_edits tool does.
 func applyViaMCP(t *testing.T, app *App, entries []map[string]any) applyEditsMCPOutput {
@@ -102,13 +80,17 @@ func TestApply_WritesEditedWordingAsText(t *testing.T) {
 					"content_hash": model.ComputeContentHash("Hello world"), "text": payload,
 				}}
 
-				var applied []string
 				if surface == "kapi apply" {
-					applied = applyViaCLI(t, app, entries).Content.Applied
+					noProject(t)
+					recs := inspectJSONL(t, app, path)
+					require.Len(t, recs, 1)
+					body := changeSetOf(t, map[string]any{"op": "set_content", "at": recs[0].Ref, "if_match": recs[0].Rev, "text": payload})
+					res, err := applyJSON(t, app, NewEnvCommand(t.Context(), "apply"), body, ApplyOptions{})
+					require.NoError(t, err)
+					assert.Equal(t, change.OpApplied, res.Ops[0].Status)
 				} else {
-					applied = applyViaMCP(t, app, entries).Applied
+					assert.Len(t, applyViaMCP(t, app, entries).Applied, 1)
 				}
-				assert.Len(t, applied, 1)
 				got, err := os.ReadFile(path)
 				require.NoError(t, err)
 				assert.Equal(t, tc.want, string(got))

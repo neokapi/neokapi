@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"go/format"
 	"os"
 	"path/filepath"
@@ -25,26 +26,49 @@ const repairGo = "package demo\n\nimport \"io\"\n\n// Parse reads the the input 
 
 const repairedParse = "Parse reads the input from an [io.Reader].\n\nIt stops at the end."
 
-// runApplyChangeSet runs kapi apply over entries written as a change-set. A
-// report is read from standard output unless diff is set, and the output is
-// returned beside it.
+// runApplyChangeSet runs the comment write path kapi apply routes a comment
+// change set to over entries, as a person at a command line whose change set
+// is in a file. With diff set nothing is written, and each file's diff and
+// outcome are printed. The output is returned beside the outcome.
 func runApplyChangeSet(t *testing.T, cmd *EnvCommand, diff bool, entries ...map[string]any) (applyOutput, string, error) {
 	t.Helper()
-	var lines []string
+	return runCommentEntries(t, &App{SourceLang: "en"}, cmd, diff, entries...)
+}
+
+// runCommentEntries runs a's comment write path over entries, as
+// runApplyChangeSet does. A malformed entry is refused before anything runs,
+// and an edit that was refused, did not run, or left a check that did not
+// pass returns the gate's exit code.
+func runCommentEntries(t *testing.T, a *App, cmd *EnvCommand, diff bool, entries ...map[string]any) (applyOutput, string, error) {
+	t.Helper()
+	var parsed []changeEntry
 	for _, e := range entries {
 		b, err := json.Marshal(e)
 		require.NoError(t, err)
-		lines = append(lines, string(b))
+		var ce changeEntry
+		require.NoError(t, json.Unmarshal(b, &ce))
+		parsed = append(parsed, ce)
 	}
-	path := filepath.Join(t.TempDir(), "changeset.jsonl")
-	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
 	var stdout, stderr bytes.Buffer
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
-	err := (&App{SourceLang: "en"}).RunApply(cmd, path, diff, "", !diff)
-	var out applyOutput
-	if !diff {
-		require.NoError(t, json.Unmarshal(stdout.Bytes(), &out), stdout.String())
+	if err := validateChangeSet(parsed); err != nil {
+		return applyOutput{}, "", WithExitCode(ExitUsage, err)
+	}
+	out := applyOutput{Comments: a.applyComments(cmd.Context(), cmd, parsed, diff, "", a.applyFormatterTrust(cmd, false), "")}
+	if diff {
+		for _, f := range out.Comments {
+			fmt.Fprint(&stdout, f.Diff)
+		}
+		for _, f := range out.Comments {
+			for _, e := range f.Edits {
+				fmt.Fprintf(&stderr, "comment %s %s: %s (%s: %s)\n", f.File, e.ID, e.Status, e.Reason, e.Detail)
+			}
+		}
+	}
+	var err error
+	if !out.ok() {
+		err = WithExitCode(ExitGate, ErrSilentExit)
 	}
 	return out, stdout.String() + stderr.String(), err
 }

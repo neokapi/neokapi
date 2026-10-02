@@ -65,17 +65,32 @@ func compassCopy(t *testing.T) (recipe, root string) {
 // fields the journey's change-set is built from.
 type reviewQueue struct {
 	Pending []struct {
-		Locale string `json:"locale"`
-		File   string `json:"file"`
-		Key    string `json:"key"`
-		Target string `json:"target"`
+		Locale   string `json:"locale"`
+		File     string `json:"file"`
+		Relative string `json:"relative"`
+		Key      string `json:"key"`
+		Target   string `json:"target"`
 	} `json:"pending"`
 }
 
+// inspectedEdition is what `kapi inspect --jsonl` prints about a block's
+// editions, narrowed to what a decision names.
+type inspectedEdition struct {
+	Ref struct {
+		Doc   string `json:"doc"`
+		Block string `json:"block"`
+	} `json:"ref"`
+	Editions map[string]struct {
+		Rev string `json:"rev"`
+	} `json:"editions"`
+}
+
 // approveLocale performs one of the journey's review round-trips: read the
-// review queue, turn the units this reviewer accepts into a change-set, and
-// apply it. `accept` is the reviewer's judgement: the README's Dutch step
-// declines what the offline stub drafted, the Norwegian step takes everything.
+// review queue, read the revision of each translation it lists with `kapi
+// inspect` from the project's root, turn the units this reviewer accepts into
+// decide operations bound to those revisions, and apply them. `accept` is the
+// reviewer's judgement: the README's Dutch step declines what the offline stub
+// drafted, the Norwegian step takes everything.
 func approveLocale(t *testing.T, a *App, recipe, root, locale string, accept func(target string) bool) int {
 	t.Helper()
 
@@ -84,27 +99,49 @@ func approveLocale(t *testing.T, a *App, recipe, root, locale string, accept fun
 	var queue reviewQueue
 	require.NoError(t, json.Unmarshal([]byte(statusOut), &queue), "review queue must be JSON: %s", statusOut)
 
-	var lines []string
+	// kapi inspect finds the project from the working directory.
+	t.Chdir(root)
+	t.Setenv("KAPI_NO_PROJECT", "")
+	revs := map[string]string{}
+	inspected := map[string]bool{}
+	var ops []map[string]any
 	for _, item := range queue.Pending {
 		if item.Locale != locale || !accept(item.Target) {
 			continue
 		}
-		line, merr := json.Marshal(map[string]string{
-			"kind": "review", "op": "add", "file": item.File,
-			"id": item.Key, "locale": item.Locale, "status": "established",
+		if !inspected[item.Relative] {
+			inspected[item.Relative] = true
+			out, ierr := runCLI(t, NewInspectCmd(a), item.Relative, "--jsonl")
+			require.NoError(t, ierr, out)
+			for line := range strings.SplitSeq(strings.TrimSpace(out), "\n") {
+				var rec inspectedEdition
+				if json.Unmarshal([]byte(line), &rec) != nil {
+					continue
+				}
+				for loc, ed := range rec.Editions {
+					revs[rec.Ref.Doc+"\x00"+rec.Ref.Block+"\x00"+loc] = ed.Rev
+				}
+			}
+		}
+		rev := revs[item.Relative+"\x00"+item.Key+"\x00"+item.Locale]
+		require.NotEmpty(t, rev, "kapi inspect lists the %s edition of %s in %s", item.Locale, item.Key, item.Relative)
+		ops = append(ops, map[string]any{
+			"op": "decide", "outcome": "establish", "if_match": rev,
+			"at": map[string]string{"doc": item.Relative, "block": item.Key, "edition": item.Locale},
 		})
-		require.NoError(t, merr)
-		lines = append(lines, string(line))
 	}
-	require.NotEmpty(t, lines, "the journey's %s review has units to accept", locale)
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	require.NotEmpty(t, ops, "the journey's %s review has units to accept", locale)
 
-	changeset := filepath.Join(root, locale+"-review.jsonl")
-	require.NoError(t, os.WriteFile(changeset, []byte(strings.Join(lines, "\n")+"\n"), 0o644))
+	body, err := json.Marshal(map[string]any{"ops": ops})
+	require.NoError(t, err)
+	changeset := filepath.Join(t.TempDir(), locale+"-review.json")
+	require.NoError(t, os.WriteFile(changeset, body, 0o644))
 
 	applyOut, err := runCLI(t, NewApplyCmd(a), changeset, "--project", recipe)
 	require.NoError(t, err, applyOut)
-	assert.NotContains(t, applyOut, "error", applyOut)
-	return len(lines)
+	assert.Contains(t, applyOut, "change set applied", applyOut)
+	return len(ops)
 }
 
 // surfaces is what the three commands say about one locale, read back to back.

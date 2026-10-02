@@ -16,7 +16,6 @@ func TestSedRecursiveEditsTree(t *testing.T) {
 	app := newToolboxApp(t)
 	prog, err := ParseSedProgram([]string{"s/colour/color/g"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
 
 	dir := t.TempDir()
 	docs := filepath.Join(dir, "docs")
@@ -24,7 +23,7 @@ func TestSedRecursiveEditsTree(t *testing.T) {
 	top := writeToolboxFile(t, docs, "index.md", "The colour is bold.\n")
 	nested := writeToolboxFile(t, filepath.Join(docs, "guide"), "intro.md", "Another colour here.\n")
 
-	require.NoError(t, app.RunSed(context.Background(), []string{docs}, tool,
+	require.NoError(t, app.RunSed(context.Background(), NewEnvCommand(context.Background(), "sed"), []string{docs}, prog,
 		SedOptions{InPlace: true, Recursive: true}))
 
 	for _, p := range []string{top, nested} {
@@ -42,7 +41,6 @@ func TestSedWithoutRecursiveSkipsDirectory(t *testing.T) {
 	app := newToolboxApp(t)
 	prog, err := ParseSedProgram([]string{"s/colour/color/g"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
 
 	dir := t.TempDir()
 	docs := filepath.Join(dir, "docs")
@@ -50,7 +48,7 @@ func TestSedWithoutRecursiveSkipsDirectory(t *testing.T) {
 	untouched := writeToolboxFile(t, docs, "index.md", "The colour is bold.\n")
 
 	stderr, err := captureStderr(t, func() error {
-		return app.RunSed(context.Background(), []string{docs}, tool, SedOptions{InPlace: true})
+		return app.RunSed(context.Background(), NewEnvCommand(context.Background(), "sed"), []string{docs}, prog, SedOptions{InPlace: true})
 	})
 	require.Error(t, err)
 	assert.Equal(t, ExitUsage, ExitCode(nil, err))
@@ -68,7 +66,6 @@ func TestSedRecursiveSkipsBinaryFile(t *testing.T) {
 	app := newToolboxApp(t)
 	prog, err := ParseSedProgram([]string{"s/colour/color/g"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
 
 	dir := t.TempDir()
 	docs := filepath.Join(dir, "docs")
@@ -78,7 +75,7 @@ func TestSedRecursiveSkipsBinaryFile(t *testing.T) {
 	require.NoError(t, os.WriteFile(blob, fakeDMG, 0o644))
 
 	stderr, err := captureStderr(t, func() error {
-		return app.RunSed(context.Background(), []string{docs}, tool,
+		return app.RunSed(context.Background(), NewEnvCommand(context.Background(), "sed"), []string{docs}, prog,
 			SedOptions{InPlace: true, Recursive: true})
 	})
 	require.Error(t, err)
