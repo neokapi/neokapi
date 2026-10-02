@@ -55,9 +55,18 @@ func checkUnit(block *model.Block, loc model.LocaleID) error {
 	if hasTarget {
 		segs = append(segs, writtenTargetSegs(block, loc)...)
 	}
+	// Which codes a unit knows does not depend on the segment, so one index
+	// serves every segment. Runs that rebuild as markup are writable; runs
+	// that do not are writable only while the segment's IR still describes
+	// them, since the IR is then written as read (segmentInlines).
+	codes := blockCodes(block, nil)
 	for i := range segs {
-		if _, err := segmentInlines(&segs[i], blockCodes(block, &segs[i])); err != nil {
-			return fmt.Errorf("xliff2 writer: unit %q: %w", block.ID, err)
+		s := &segs[i]
+		if _, ok := inlinesFromRuns(s.Runs, codes); ok {
+			continue
+		}
+		if s.Content == nil || !irMatchesRuns(s.Content, s.Runs) {
+			return fmt.Errorf("xliff2 writer: unit %q: %w", block.ID, ErrCodesUnwritable)
 		}
 	}
 	return nil
