@@ -82,8 +82,9 @@ func (h *Home) Open(ctx context.Context, doc string) (change.Session, error) {
 
 // session is one document open in the file home.
 type session struct {
-	h   *Home
-	doc Doc
+	h        *Home
+	doc      Doc
+	keyJoins map[model.EditionKey]keyJoin
 }
 
 func (s *session) Info() change.DocInfo {
@@ -161,13 +162,35 @@ func (s *session) Read(ctx context.Context, want change.Want, fn func(*model.Blo
 
 // DocumentBlockKey translates the key of a block in edition k's own file into
 // the key of the document block it holds the edition of.
+// The join is read once per edition and kept for the session.
 func (s *session) DocumentBlockKey(ctx context.Context, k model.EditionKey, key string) (string, bool, error) {
-	editions, ix, err := s.joinEditions(ctx, []model.EditionKey{k})
-	if err != nil || len(editions) == 0 {
-		return "", false, err
+	j, ok := s.keyJoins[k.Canonical()]
+	if !ok {
+		editions, ix, err := s.joinEditions(ctx, []model.EditionKey{k})
+		if err != nil {
+			return "", false, err
+		}
+		j = keyJoin{ix: ix}
+		if len(editions) > 0 {
+			j.je = editions[0]
+		}
+		if s.keyJoins == nil {
+			s.keyJoins = map[model.EditionKey]keyJoin{}
+		}
+		s.keyJoins[k.Canonical()] = j
 	}
-	got, ok := editions[0].documentKey(ix, key)
-	return got, ok, nil
+	if j.je == nil {
+		return "", false, nil
+	}
+	got, found := j.je.documentKey(j.ix, key)
+	return got, found, nil
+}
+
+// keyJoin is an edition's file joined to the document, for translating the
+// keys that file reads with.
+type keyJoin struct {
+	je *joinedEdition
+	ix *blockIndex
 }
 
 func (s *session) Stage(ctx context.Context, want change.Want, e change.Editor) (change.Staged, error) {

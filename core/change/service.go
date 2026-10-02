@@ -137,6 +137,9 @@ type applyRun struct {
 	staged  map[*docPlan]Staged
 	assets  []int
 	refused int
+	// viaFile marks the operations sent to the file of one edition of a
+	// document, whose block keys are the keys that file reads with.
+	viaFile map[int]bool
 }
 
 func (r *applyRun) refuse(i int, err *Error) {
@@ -159,7 +162,7 @@ func (s *Service) Apply(ctx context.Context, set Set, actor Actor) (*Result, err
 	// the change set as it was sent.
 	work := set
 	work.Ops = slices.Clone(set.Ops)
-	r := &applyRun{s: s, sent: &set, set: &work, actor: actor, byDoc: map[string]*docPlan{}, staged: map[*docPlan]Staged{}, refused: -1,
+	r := &applyRun{s: s, sent: &set, set: &work, actor: actor, byDoc: map[string]*docPlan{}, staged: map[*docPlan]Staged{}, refused: -1, viaFile: map[int]bool{},
 		res: &Result{Schema: ResultSchemaID, Ops: make([]OpResult, len(set.Ops)), Docs: []DocResult{}}}
 	for i, op := range set.Ops {
 		r.res.Ops[i] = OpResult{I: i, Op: op.Kind, At: refOf(op)}
@@ -301,6 +304,7 @@ func (r *applyRun) route(ctx context.Context) error {
 					continue
 				}
 				op.At.Doc = info.Doc
+				r.viaFile[i] = true
 			}
 			p.ops = append(p.ops, i)
 		}
@@ -346,7 +350,7 @@ func (r *applyRun) plan(ctx context.Context, p *docPlan) {
 			}
 		}
 		key := op.At.Block
-		if resolver != nil && place.Kind == PlaceOwnFile {
+		if resolver != nil && r.viaFile[i] && place.Kind == PlaceOwnFile {
 			// A block named by its key in the edition's own file, as a person
 			// who opened that file reads it.
 			if k, ok, err := resolver.DocumentBlockKey(ctx, op.At.Edition, key); err == nil && ok {

@@ -44,8 +44,8 @@ func (s source) entryBytes() ([]byte, error) {
 
 // pass is one read of a document through its format, with or without a write.
 type pass struct {
-	src      source
-	format   Binding
+	src    source
+	format Binding
 	locale model.LocaleID
 	// encoding is the encoding the reader reads in.
 	encoding string
