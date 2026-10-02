@@ -56,9 +56,14 @@ reads. set_content rewrites it with its new prose in "text", without comment
 markers, and "if_match" is the comment's "rev" from kapi inspect. Every byte
 outside the comment stays as it is, the result must parse, and the language's
 formatter must agree; what was written is checked again and its findings are
-reported. Running that formatter runs code the project controls, so kapi asks
-once per project, in a terminal, and records the answer. A change set edits
-code comments or documents, never both.
+reported, and a failing one exits 3 unless --gate report is given. Running that
+formatter runs code the project controls, so kapi asks once per project, in a
+terminal, and records the answer. A change set edits code comments or
+documents, never both.
+
+Inside a project a document is named by its project-relative path. A file
+outside the project is named by its absolute path, as kapi inspect names it, and
+a change set that edits one edits nothing in the project.
 
 --dry-run computes and checks the change set, writes nothing, and prints a diff
 per document. --gate report lands a change whose findings would otherwise
@@ -68,7 +73,8 @@ defaults filled in, and applies nothing.
 
 Exit status: 0 when the change set applied or previewed; 2 when it does not
 decode or contradicts itself; 3 when an operation was refused, and nothing was
-written, or the change landed in part; 5 when a backend did not answer.`,
+written, when the change landed in part, or when the check of a written code
+comment failed; 5 when a backend did not answer.`,
 		Example: `  kapi inspect docs/guide.md --jsonl | write-the-edits | kapi apply
   kapi apply change.json
   kapi apply change.json --dry-run
@@ -87,7 +93,7 @@ written, or the change landed in part; 5 when a backend did not answer.`,
 			case string(change.GateEnforce), string(change.GateReport):
 				opts.Gate = change.Gate(gate)
 			default:
-				return fmt.Errorf("--gate: %q is not a gate; use enforce or report", gate)
+				return WithExitCode(ExitUsage, fmt.Errorf("--gate: %q is not a gate; use enforce or report", gate))
 			}
 			if cmd.Flags().Changed("in-place") {
 				opts.BackupSuffix = inPlaceFlag.Suffix

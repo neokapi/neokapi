@@ -108,9 +108,9 @@ func pluginCommentEntry(t *testing.T, a *App, file, id, text string) map[string]
 	return nil
 }
 
-// applyWith runs a's comment write path over entries, as kapi apply does for a
-// comment change set in a file.
-func applyWith(t *testing.T, a *App, entries ...map[string]any) (applyOutput, error) {
+// applyWith runs kapi apply's comment branch over entries, as for a comment
+// change set in a file (runCommentEntries).
+func applyWith(t *testing.T, a *App, entries ...map[string]any) (commentRun, error) {
 	t.Helper()
 	out, _, err := runCommentEntries(t, a, NewEnvCommand(t.Context(), "apply"), false, entries...)
 	return out, err

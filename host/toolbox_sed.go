@@ -1,6 +1,7 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -112,9 +113,14 @@ type SedOptions struct {
 // RunSed applies a sed program to each file args name. ksed compiles its
 // substitutions into replace_text operations, each carrying the revision of
 // the edition it read as if_match, and applies them through the change
-// service, which writes the file through its format. A file is edited in
-// place with -i; otherwise the change is applied to a private copy and the
-// edited document is written to standard output, and the file stays as it is.
+// service, which writes the file through its format. A file of the project
+// discovery finds is a document of that project: named by its
+// project-relative path, read with the format the recipe binds and locked as
+// kapi apply locks it, so the change set --print-ops prints is the one kapi
+// apply applies. Any other file is read with the format detection finds, a
+// file no format claims as plain text. A file is edited in place with -i;
+// otherwise the change is applied to a private copy and the edited document
+// is written to standard output, and the file stays as it is.
 func (a *App) RunSed(ctx context.Context, cmd Command, args []string, prog sedProgram, opts SedOptions) error {
 	hadError := false
 	files, err := expandInputs(args, opts.Recursive, func(path string, err error) {
@@ -129,7 +135,18 @@ func (a *App) RunSed(ctx context.Context, cmd Command, args []string, prog sedPr
 	if err != nil {
 		return err
 	}
-	run := &sedRun{app: a, cmd: cmd, prog: prog, opts: opts, actor: changeActorOf(resolved.Actor)}
+	recipe, err := ResolveProjectPath(cmd)
+	if err != nil {
+		return err
+	}
+	base := ChangeServiceOptions{Origin: "ksed", Format: a.FormatFlag, TargetLocale: opts.Target, PlainText: true}
+	run := &sedRun{app: a, cmd: cmd, prog: prog, opts: opts, actor: changeActorOf(resolved.Actor), changes: a.newCommandChanges(cmd, recipe, base)}
+	run.backup = run.changes
+	if opts.BackupSuffix != "" {
+		withBackup := base
+		withBackup.BackupSuffix = opts.BackupSuffix
+		run.backup = a.newCommandChanges(cmd, recipe, withBackup)
+	}
 	for _, file := range files {
 		err := run.file(ctx, file)
 		if err != nil {
@@ -172,28 +189,12 @@ type sedRun struct {
 	prog  sedProgram
 	opts  SedOptions
 	actor change.Actor
-	// dir is the service for files named on the command line, outside any
-	// project.
-	dir *change.Service
+	// changes holds the services ksed reads and writes files through, built
+	// once for the run; backup holds those that keep a copy of each file they
+	// replace (-i.bak), and is changes when no backup is asked for.
+	changes, backup *commandChanges
 	// printed collects the operations --print-ops prints.
 	printed []change.Op
-}
-
-// service builds the change service ksed reads and writes files through:
-// outside any project, references from the working directory, or from root
-// when it is set, with backup keeping a copy of each file it replaces.
-func (r *sedRun) service(ctx context.Context, root, backup string) (*change.Service, error) {
-	opts := ChangeServiceOptions{Origin: "ksed", Format: r.app.FormatFlag, TargetLocale: r.opts.Target, BackupSuffix: backup}
-	if root == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-		opts.Root, opts.AnyPath = wd, true
-	} else {
-		opts.Root = root
-	}
-	return r.app.changeService(ctx, r.cmd, opts)
 }
 
 // file runs the program over one file argument: a file, an archive, one
@@ -217,8 +218,15 @@ func (r *sedRun) docs(file string) ([]string, error) {
 	return []string{file}, nil
 }
 
+// stdinService is the service over the private directory a copy of standard
+// input is read from.
+func (r *sedRun) stdinService(ctx context.Context, dir string) (*change.Service, error) {
+	return r.app.changeService(ctx, r.cmd, ChangeServiceOptions{Origin: "ksed", Root: dir, Format: r.app.FormatFlag, TargetLocale: r.opts.Target, PlainText: true})
+}
+
 // print compiles the operations the program makes on a file and keeps them
-// for --print-ops.
+// for --print-ops. A file whose operations do not all compile contributes
+// none.
 func (r *sedRun) print(ctx context.Context, file string) error {
 	if file == StdinName {
 		path, cleanup, err := stdinDocument(ctx)
@@ -226,100 +234,131 @@ func (r *sedRun) print(ctx context.Context, file string) error {
 			return err
 		}
 		defer cleanup()
-		svc, err := r.service(ctx, filepath.Dir(path), "")
+		svc, err := r.stdinService(ctx, filepath.Dir(path))
 		if err != nil {
 			return err
 		}
 		ops, err := r.compile(ctx, svc, filepath.Base(path))
+		if err != nil {
+			return err
+		}
 		for i := range ops {
 			ops[i].At.Doc = StdinName
 		}
 		r.printed = append(r.printed, ops...)
-		return err
+		return nil
 	}
 	docs, err := r.docs(file)
 	if err != nil {
 		return err
 	}
-	if r.dir == nil {
-		if r.dir, err = r.service(ctx, "", ""); err != nil {
+	var all []change.Op
+	for _, path := range docs {
+		svc, ref, err := r.changes.For(ctx, path)
+		if err != nil {
+			return err
+		}
+		ops, err := r.compile(ctx, svc, ref)
+		if err != nil {
+			return err
+		}
+		all = append(all, ops...)
+	}
+	r.printed = append(r.printed, all...)
+	return nil
+}
+
+// sedArchiveCompiled, when set, is called once ksed -i has compiled the
+// operations on every member of an archive and before it checks any. A test
+// changes a member there, as another writer would.
+var sedArchiveCompiled func(archive string)
+
+// sedEdit is the operations the program makes on one document, to apply
+// through the service that read it.
+type sedEdit struct {
+	svc *change.Service
+	doc string
+	ops []change.Op
+}
+
+// inPlace edits a file where it lies. An archive's members are edited each in
+// a change set of its own, since one change set writes one archive through one
+// document; every member's change is computed and checked before any is
+// written, so a member that is refused leaves the archive as it was, and the
+// archive is copied once, when a backup is asked for and a member changes.
+func (r *sedRun) inPlace(ctx context.Context, file string) error {
+	if file == StdinName {
+		return errors.New("in-place editing requires a file argument")
+	}
+	if !isContainer(file) {
+		svc, doc, err := r.backup.For(ctx, file)
+		if err != nil {
+			return err
+		}
+		ops, err := r.compile(ctx, svc, doc)
+		if err != nil || len(ops) == 0 {
+			return err
+		}
+		return r.apply(ctx, sedEdit{svc: svc, doc: doc, ops: ops}, change.ModeApply)
+	}
+	docs, err := r.docs(file)
+	if err != nil {
+		return err
+	}
+	var edits []sedEdit
+	for _, path := range docs {
+		svc, doc, err := r.changes.For(ctx, path)
+		if err != nil {
+			return err
+		}
+		ops, err := r.compile(ctx, svc, doc)
+		if err != nil {
+			return err
+		}
+		if len(ops) > 0 {
+			edits = append(edits, sedEdit{svc: svc, doc: doc, ops: ops})
+		}
+	}
+	if len(edits) == 0 {
+		return nil
+	}
+	if sedArchiveCompiled != nil {
+		sedArchiveCompiled(file)
+	}
+	for _, e := range edits {
+		if err := r.apply(ctx, e, change.ModePreview); err != nil {
 			return err
 		}
 	}
-	for _, path := range docs {
-		ops, err := r.compile(ctx, r.dir, r.ref(path))
-		r.printed = append(r.printed, ops...)
-		if err != nil {
+	if r.opts.BackupSuffix != "" {
+		if err := copyFile(file, file+r.opts.BackupSuffix); err != nil {
+			return fmt.Errorf("write backup: %w", err)
+		}
+	}
+	for _, e := range edits {
+		if err := r.apply(ctx, e, change.ModeApply); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// ref is the reference of a file argument in the working-directory service.
-func (r *sedRun) ref(path string) string {
-	file, member := path, ""
-	if loc, ok := parseEntryLocator(path); ok {
-		file, member = loc.Archive, loc.Entry
-	}
-	abs, err := filepath.Abs(file)
-	if err != nil {
-		return path
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return path
-	}
-	return withMember(relRef(wd, abs), member)
-}
-
-// inPlace edits a file where it lies. An archive is copied once before its
-// first member is edited, when a backup is asked for, and each member is
-// edited in a change set of its own.
-func (r *sedRun) inPlace(ctx context.Context, file string) error {
-	if file == StdinName {
-		return errors.New("in-place editing requires a file argument")
-	}
-	if isContainer(file) {
-		docs, err := r.docs(file)
-		if err != nil {
-			return err
-		}
-		if r.opts.BackupSuffix != "" {
-			if err := copyFile(file, file+r.opts.BackupSuffix); err != nil {
-				return fmt.Errorf("write backup: %w", err)
-			}
-		}
-		svc, err := r.service(ctx, "", "")
-		if err != nil {
-			return err
-		}
-		for _, path := range docs {
-			if err := r.apply(ctx, svc, r.ref(path)); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	svc, err := r.service(ctx, "", r.opts.BackupSuffix)
-	if err != nil {
-		return err
-	}
-	return r.apply(ctx, svc, r.ref(file))
-}
-
-// toStdout applies the program to a private copy of the document a file
-// argument names (the member itself for container!entry, the whole archive
-// for an archive) and writes the edited copy to standard output.
+// toStdout applies the program to a private copy of the file a file argument
+// names, the whole archive for an archive or one of its members, read exactly
+// as the file itself is read, and writes the edited document to standard
+// output: the member itself for container!entry, else the copy. The file
+// stays as it is, and nothing is written when an edit is refused.
 func (r *sedRun) toStdout(ctx context.Context, file string) error {
 	dir, err := os.MkdirTemp("", "ksed-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(dir)
-	var copyPath string
-	switch loc, member := parseEntryLocator(file); {
-	case file == StdinName:
+	var (
+		copyPath, member string
+		edits            []sedEdit
+	)
+	if file == StdinName {
 		data, rerr := readContent(ctx, StdinName)
 		if rerr != nil {
 			return rerr
@@ -327,40 +366,67 @@ func (r *sedRun) toStdout(ctx context.Context, file string) error {
 		// The copy has no extension, so its format is the one --format names
 		// or detection finds in its content, as it is for a pipe.
 		copyPath = filepath.Join(dir, "stdin")
-		err = os.WriteFile(copyPath, data, 0o600)
-	case member:
-		content, _, oerr := container.OpenEntry(loc.Archive, loc.Entry)
-		if oerr != nil {
-			return fmt.Errorf("%s!%s: %w", loc.Archive, loc.Entry, oerr)
-		}
-		copyPath = filepath.Join(dir, filepath.Base(filepath.FromSlash(loc.Entry)))
-		err = os.WriteFile(copyPath, content, 0o600)
-	default:
-		copyPath = filepath.Join(dir, filepath.Base(file))
-		err = copyFile(file, copyPath)
-	}
-	if err != nil {
-		return err
-	}
-	svc, err := r.service(ctx, dir, "")
-	if err != nil {
-		return err
-	}
-	docs, err := r.docs(copyPath)
-	if err != nil {
-		return err
-	}
-	for _, path := range docs {
-		ref, rerr := filepath.Rel(dir, strings.SplitN(path, "!", 2)[0])
-		if rerr != nil {
-			return rerr
-		}
-		if loc, ok := parseEntryLocator(path); ok {
-			ref += "!" + loc.Entry
-		}
-		if err := r.apply(ctx, svc, filepath.ToSlash(ref)); err != nil {
+		if err := os.WriteFile(copyPath, data, 0o600); err != nil {
 			return err
 		}
+		svc, serr := r.stdinService(ctx, dir)
+		if serr != nil {
+			return serr
+		}
+		ops, cerr := r.compile(ctx, svc, "stdin")
+		if cerr != nil {
+			return cerr
+		}
+		edits = append(edits, sedEdit{svc: svc, doc: "stdin", ops: ops})
+	} else {
+		var real string
+		real, member = splitLocator(file)
+		copyPath = filepath.Join(dir, filepath.Base(real))
+		if err := copyFile(real, copyPath); err != nil {
+			return err
+		}
+		docs, derr := r.docs(file)
+		if derr != nil {
+			return derr
+		}
+		svc, serr := r.changes.copyService(ctx, file, copyPath, filepath.Join(dir, "locks"))
+		if serr != nil {
+			return serr
+		}
+		for _, path := range docs {
+			_, doc, ferr := r.changes.For(ctx, path)
+			if ferr != nil {
+				return ferr
+			}
+			ops, cerr := r.compile(ctx, svc, doc)
+			if cerr != nil {
+				return cerr
+			}
+			edits = append(edits, sedEdit{svc: svc, doc: doc, ops: ops})
+		}
+	}
+	for _, e := range edits {
+		if len(e.ops) == 0 {
+			continue
+		}
+		if err := r.apply(ctx, e, change.ModeApply); err != nil {
+			return err
+		}
+	}
+	var in io.Reader
+	if member != "" {
+		data, _, oerr := container.OpenEntry(copyPath, member)
+		if oerr != nil {
+			return fmt.Errorf("%s: %w", file, oerr)
+		}
+		in = bytes.NewReader(data)
+	} else {
+		f, oerr := os.Open(copyPath)
+		if oerr != nil {
+			return oerr
+		}
+		defer f.Close()
+		in = f
 	}
 	// One guard per document: each is judged on its own opening bytes, and a
 	// file that streams to the terminal must not license the next one.
@@ -368,35 +434,26 @@ func (r *sedRun) toStdout(ctx context.Context, file string) error {
 	if !r.opts.Force {
 		out, flush = r.app.guardedStdout()
 	}
-	in, err := os.Open(copyPath)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
 	if _, err := io.Copy(out, in); err != nil {
 		return err
 	}
 	return flush()
 }
 
-// apply compiles the program's operations on doc and applies them as one
-// change set. A refused operation is an error naming why; nothing in the
-// document is written then.
-func (r *sedRun) apply(ctx context.Context, svc *change.Service, doc string) error {
-	ops, err := r.compile(ctx, svc, doc)
-	if err != nil || len(ops) == 0 {
-		return err
-	}
-	set := change.Set{Schema: change.SchemaID, Mode: change.ModeApply, Gate: change.GateEnforce, Ops: ops}
-	res, err := svc.Apply(ctx, set, r.actor)
+// apply applies one document's operations as one change set in mode. A
+// refused operation is an error naming why; nothing in the document is
+// written then.
+func (r *sedRun) apply(ctx context.Context, e sedEdit, mode change.Mode) error {
+	set := change.Set{Schema: change.SchemaID, Mode: mode, Gate: change.GateEnforce, Ops: e.ops}
+	res, err := e.svc.Apply(ctx, set, r.actor)
 	if err != nil {
 		return err
 	}
 	switch res.Status {
-	case change.SetApplied:
+	case change.SetApplied, change.SetPreviewed:
 		return nil
 	case change.SetPartial:
-		return fmt.Errorf("the edit of %s landed in part", doc)
+		return fmt.Errorf("the edit of %s landed in part", e.doc)
 	}
 	for _, op := range res.Ops {
 		if op.Status == change.OpRefused && op.Error != nil {
@@ -407,25 +464,41 @@ func (r *sedRun) apply(ctx context.Context, svc *change.Service, doc string) err
 			return fmt.Errorf("block%s: %w", at, op.Error)
 		}
 	}
-	return fmt.Errorf("the edit of %s was refused", doc)
+	return fmt.Errorf("the edit of %s was refused", e.doc)
 }
 
 // compile reads doc through svc and returns the operations the program makes
-// on it: for each block whose edition (the document's own, or --target's)
-// the substitutions change, one replace_text per substitution that matched,
-// with the edition's revision as if_match.
+// on it: for each block whose edition the substitutions change, one
+// replace_text per substitution that matched, with the edition's revision as
+// if_match. The edition is the one --target names, else the one the read was
+// opened on: the document's own, or the translation a translation's file
+// holds. A block is addressed by the key a read reports, or, where another
+// block of the document reports the same key, by the id the reader gave it,
+// which the service resolves too and which names one block.
 func (r *sedRun) compile(ctx context.Context, svc *change.Service, doc string) ([]change.Op, error) {
-	var key model.EditionKey
+	var target model.EditionKey
 	if r.opts.Target != "" {
-		key = model.EditionKey{Locale: r.opts.Target}.Canonical()
+		target = model.EditionKey{Locale: r.opts.Target}.Canonical()
 	}
-	var ops []change.Op
+	type blockOps struct {
+		key, id string
+		ops     []change.Op
+	}
+	var (
+		edited []blockOps
+		seen   = map[string]int{}
+	)
 	_, err := svc.ReadEach(ctx, change.ReadRequest{Doc: doc}, func(b *model.Block, read change.BlockRead) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+		seen[read.Ref.Block]++
 		if !b.Translatable {
 			return nil
+		}
+		key := read.Ref.Edition
+		if r.opts.Target != "" {
+			key = target
 		}
 		ed, ok := b.Edition(key)
 		if !ok {
@@ -435,14 +508,28 @@ func (r *sedRun) compile(ctx context.Context, svc *change.Service, doc string) (
 		if b.IsSourceEdition(key) {
 			at.Edition = model.EditionKey{}
 		}
-		blockOps, err := r.prog.ops(at, model.EditionRevision(b, key), ed.Runs)
+		ops, err := r.prog.ops(at, model.EditionRevision(b, key), ed.Runs)
 		if err != nil {
 			return fmt.Errorf("block %s: %w", at.Block, err)
 		}
-		ops = append(ops, blockOps...)
+		if len(ops) > 0 {
+			edited = append(edited, blockOps{key: read.Ref.Block, id: b.ID, ops: ops})
+		}
 		return nil
 	})
-	return ops, err
+	if err != nil {
+		return nil, err
+	}
+	var out []change.Op
+	for _, e := range edited {
+		if seen[e.key] > 1 && e.id != "" && seen[e.id] == 0 {
+			for i := range e.ops {
+				e.ops[i].At.Block = e.id
+			}
+		}
+		out = append(out, e.ops...)
+	}
+	return out, nil
 }
 
 // --- sed s/// program ---------------------------------------------------------

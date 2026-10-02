@@ -42,7 +42,15 @@ applies exactly what was printed.
 By default the edited document is written to standard output (like sed) and the
 file stays as it is; use -i to edit files in place, optionally keeping a backup
 (-i.bak). Edits apply to the source text unless --target LOCALE selects the
-translation a bilingual file holds.
+translation a bilingual file holds. An archive is edited all or nothing: when
+the edit of one member is refused, no member is written.
+
+Inside a kapi project (the one found from the working directory, or the one
+KAPI_PROJECT names), a file of the project is read and written as kapi apply
+reads it: named by its project-relative path, with the format the recipe binds,
+and a translation's file as that translation of its source. Any other file is
+read with the format detection finds, and a file no format claims is read as
+plain text.
 
 Editing a binary document (.docx, .idml, .epub, …) writes a binary document, so
 when standard output is a terminal that is refused rather than streamed at it.
@@ -102,7 +110,7 @@ With no FILE, or when FILE is "-", standard input is read.`,
 	f.StringVar(&targetLoc, "target", "", "edit the translation for LOCALE a bilingual file holds instead of the source")
 	f.BoolVar(&force, "force", false, "write an edited binary document (.docx, .idml, …) to the terminal anyway")
 	f.BoolVar(&printOps, "print-ops", false, "print the change set the substitutions compile to (kapi.change/v1) and change nothing")
-	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format (default: auto-detect by extension/content)")
+	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format (default: what the recipe binds, else auto-detect by extension/content)")
 	a.AddSourceLangFlag(f)
 	a.AddEncodingFlag(f, "", "input/output encoding")
 

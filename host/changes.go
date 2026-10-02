@@ -67,6 +67,10 @@ type ChangeServiceOptions struct {
 	// BackupSuffix keeps a copy of each file a change replaces, beside it
 	// with the suffix appended (kapi apply and ksed -i.bak).
 	BackupSuffix string
+	// PlainText reads a file no format claims as plain text unless its bytes
+	// are binary, as the toolbox reads one (ksed). Without it such a file is
+	// refused: no format reads it.
+	PlainText bool
 }
 
 // Changes builds the change service for the project cmd names, or for the
@@ -87,53 +91,75 @@ func (a *App) ChangeService(ctx context.Context, opts ChangeServiceOptions) (*ch
 // changeService builds the service; cmd names its project for the hooks that
 // resolve one from a command.
 func (a *App) changeService(ctx context.Context, cmd Command, opts ChangeServiceOptions) (*change.Service, error) {
+	h, err := a.changeHome(opts)
+	if err != nil {
+		return nil, err
+	}
+	return a.serviceOver(ctx, cmd, opts, h)
+}
+
+// changeHome is where a change service finds and writes documents: the layout
+// that locates them, the directory their lock files live in, what prepares
+// that directory before the first lock, and the root of the project (empty
+// outside one).
+type changeHome struct {
+	layout  filehome.Layout
+	lockDir string
+	prepare func() error
+	root    string
+}
+
+// changeHome builds the home opts describes.
+func (a *App) changeHome(opts ChangeServiceOptions) (changeHome, error) {
 	a.InitRegistries()
-	var (
-		layout  filehome.Layout
-		lockDir string
-		root    string
-	)
 	if opts.Project != "" {
 		pl, err := a.newProjectLayout(opts.Project, opts.Format, opts.TargetLocale)
 		if err != nil {
-			return nil, err
+			return changeHome{}, err
 		}
-		layout = pl
+		pl.plainText = opts.PlainText
 		l, err := project.LayoutFor(opts.Project)
 		if err != nil {
-			return nil, err
+			return changeHome{}, err
 		}
 		// The lock files live in .kapi/work, which the layout's ignore rule
-		// keeps out of a commit; the rule is written with the directory.
-		if err := project.EnsureLayout(l); err != nil {
-			return nil, err
+		// keeps out of a commit. The directory and the rule are written when a
+		// change first takes a lock, so a read leaves the project as it was.
+		return changeHome{
+			layout:  pl,
+			lockDir: filepath.Join(l.WorkDir(), "locks"),
+			prepare: sync.OnceValue(func() error { return project.EnsureLayout(l) }),
+			root:    l.Root,
+		}, nil
+	}
+	dir := opts.Root
+	if dir == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return changeHome{}, err
 		}
-		lockDir = filepath.Join(l.WorkDir(), "locks")
-		root = l.Root
-	} else {
-		dir := opts.Root
-		if dir == "" {
-			wd, err := os.Getwd()
-			if err != nil {
-				return nil, err
-			}
-			dir = wd
-		}
-		layout = &dirChangeLayout{app: a, root: dir, format: opts.Format, target: opts.TargetLocale, anywhere: opts.AnyPath}
+		dir = wd
+	}
+	return changeHome{
+		layout: &dirChangeLayout{app: a, root: dir, format: opts.Format, target: opts.TargetLocale, anywhere: opts.AnyPath, plainText: opts.PlainText},
 		// Every kapi process of this user finds the same lock files for a
 		// document outside a project, whatever its temporary directory.
-		lockDir = filepath.Join(DataDir(), "locks")
-	}
+		lockDir: filepath.Join(DataDir(), "locks"),
+	}, nil
+}
+
+// serviceOver builds the change service that edits the documents of h.
+func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOptions, h changeHome) (*change.Service, error) {
 	origin := opts.Origin
 	if origin == "" {
 		origin = "apply"
 	}
-	home := filehome.New(layout, filehome.Options{LockDir: lockDir, BackupSuffix: opts.BackupSuffix})
+	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: h.prepare, BackupSuffix: opts.BackupSuffix})
 	svcOpts := []change.Option{
 		change.WithOrigin(origin),
 		change.WithAssets(&changeAssets{app: a, recipe: opts.Project}),
 	}
-	check, err := a.changeCommitCheck(cmd, opts.Project)
+	check, err := a.changeCommitCheck(changeHookCommand(ctx, cmd, opts.Project), opts.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -147,14 +173,14 @@ func (a *App) changeService(ctx context.Context, cmd Command, opts ChangeService
 	if policy != nil {
 		svcOpts = append(svcOpts, change.WithPolicy(policy))
 	}
-	recorder, err := a.changeRecorder(ctx, root)
+	recorder, err := a.changeRecorder(ctx, h.root)
 	if err != nil {
 		return nil, err
 	}
 	if recorder != nil {
 		svcOpts = append(svcOpts, change.WithRecorder(recorder))
 	}
-	states, err := a.changeEditionStates(ctx, root)
+	states, err := a.changeEditionStates(ctx, h.root)
 	if err != nil {
 		return nil, err
 	}
@@ -162,6 +188,30 @@ func (a *App) changeService(ctx context.Context, cmd Command, opts ChangeService
 		svcOpts = append(svcOpts, change.WithEditionStates(states))
 	}
 	return change.NewService(filehome.Formats{Registry: a.FormatReg}, change.OneHome(home), svcOpts...), nil
+}
+
+// changeHookCommand is the command the hooks that resolve a project from a
+// command are given: cmd for a service of the project at recipe, which cmd
+// names, and a command that resolves no project for a service outside one,
+// so discovery from the working directory never puts an edit made outside a
+// project under the governance of a project it happens to sit in. That
+// command keeps the --source-lang cmd was given, the language the commit
+// check reads a document outside a project in.
+func changeHookCommand(ctx context.Context, cmd Command, recipe string) Command {
+	switch {
+	case recipe == "":
+		d := detachedCommand(ctx, "change")
+		if cmd != nil {
+			if f := cmd.Flags().Lookup(sourceLangFlag); f != nil && f.Changed {
+				d.Flags().String(sourceLangFlag, "", "")
+				_ = d.Flags().Set(sourceLangFlag, f.Value.String())
+			}
+		}
+		return d
+	case cmd == nil:
+		return projectCommand(ctx, "change", recipe)
+	}
+	return cmd
 }
 
 // projectCommand is a command that names the project at recipe with -p, for
@@ -220,13 +270,31 @@ func (a *App) formatBinding(name string, cfg map[string]any, enc string) filehom
 	}
 }
 
-// editionsOf says how a format holds editions.
+// editionsOf says how a format holds editions. A file of a translation
+// interchange format (XLIFF, PO, TMX, Qt Linguist) keeps each translation
+// beside its source, and so does a multilingual string catalog, which holds
+// every language in one file; a file of any other format holds one edition.
 func (a *App) editionsOf(name string) change.Editions {
-	if info := a.FormatReg.FormatInfo(registry.FormatID(preset.ParseFormatRef(name).RegistryName())); info != nil && info.Interchange {
+	info := a.FormatReg.FormatInfo(registry.FormatID(preset.ParseFormatRef(name).RegistryName()))
+	switch {
+	case info == nil:
+	case info.Interchange, info.Family == registry.FamilyBilingualInterchange, slices.Contains(multilingualCatalogs, string(info.Name)):
 		return change.EditionsInFile
 	}
 	return change.EditionsPerFile
 }
+
+// interchange reports whether name is a translation interchange format (XLIFF,
+// PO, TMX), as its writer declares.
+func (a *App) interchange(name string) bool {
+	info := a.FormatReg.FormatInfo(registry.FormatID(preset.ParseFormatRef(name).RegistryName()))
+	return info != nil && info.Interchange
+}
+
+// multilingualCatalogs are the string-catalog formats whose one file holds
+// every language, each read as an edition of the source string (an Xcode
+// string catalog).
+var multilingualCatalogs = []string{"xcstrings"}
 
 // targetOf is the language a file of format name holds a translation in:
 // target for a bilingual format, nothing for any other.
@@ -248,6 +316,9 @@ type dirChangeLayout struct {
 	// anywhere resolves a reference that leaves root as a path on the file
 	// system (ChangeServiceOptions.AnyPath).
 	anywhere bool
+	// plainText reads a file no format claims as plain text
+	// (ChangeServiceOptions.PlainText).
+	plainText bool
 }
 
 func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, error) {
@@ -260,7 +331,7 @@ func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, e
 	}
 	name := l.format
 	if name == "" {
-		if name, err = l.app.detectChangeFormat(path, entry); err != nil {
+		if name, err = l.app.detectChangeFormat(path, entry, l.plainText); err != nil {
 			return filehome.Doc{}, err
 		}
 	}
@@ -276,9 +347,11 @@ func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, e
 }
 
 // detectChangeFormat detects the format of a file, or of an archive member,
-// as the toolbox does: a file no format claims is read as plain text unless
-// its bytes are binary.
-func (a *App) detectChangeFormat(path, entry string) (string, error) {
+// by its name and then its content, as the toolbox detects one, so a format
+// that claims no extension (a Qt Linguist catalog) is found by what the file
+// holds. With plainText, a file no format claims is read as plain text unless
+// its bytes are binary, as the toolbox reads one; without it, it is refused.
+func (a *App) detectChangeFormat(path, entry string, plainText bool) (string, error) {
 	if entry != "" {
 		return filehome.DetectFormat(a.FormatReg, path, entry)
 	}
@@ -287,11 +360,16 @@ func (a *App) detectChangeFormat(path, entry string) (string, error) {
 		return "", err
 	}
 	defer f.Close()
-	name, err := a.resolveFormatFrom(path, f)
-	if err != nil {
-		return "", &change.Error{Code: change.CodeUnsupported, Capability: "format", Message: filepath.Base(path) + ": " + err.Error()}
+	if name, err := a.FormatReg.Detector().Detect(path, f, ""); err == nil && name != "" {
+		return name, nil
 	}
-	return name, nil
+	if !plainText {
+		return "", &change.Error{Code: change.CodeUnsupported, Capability: "format", Message: "no format reads " + filepath.Base(path)}
+	}
+	if a.binaryStream(f) {
+		return "", &change.Error{Code: change.CodeUnsupported, Capability: "format", Message: filepath.Base(path) + ": " + errBinaryInput().Error()}
+	}
+	return FallbackFormat, nil
 }
 
 // projectChangeLayout serves the documents of a project.
@@ -304,6 +382,9 @@ type projectChangeLayout struct {
 	source model.LocaleID
 	target model.LocaleID
 	enc    string
+	// plainText reads a file the recipe does not claim and no format reads
+	// as plain text (ChangeServiceOptions.PlainText).
+	plainText bool
 
 	once  sync.Once
 	index *projectChangeIndex
@@ -396,7 +477,7 @@ func (l *projectChangeLayout) Locate(ctx context.Context, doc string) (filehome.
 		// member's format.
 		name := l.format
 		if name == "" {
-			if name, err = l.app.detectChangeFormat(path, entry); err != nil {
+			if name, err = l.app.detectChangeFormat(path, entry, l.plainText); err != nil {
 				return filehome.Doc{}, err
 			}
 		}
@@ -414,7 +495,7 @@ func (l *projectChangeLayout) Locate(ctx context.Context, doc string) (filehome.
 	name := l.format
 	if name == "" {
 		if name = l.pctx.DetectFormat(l.app.FormatReg, path); name == "" {
-			if name, err = l.app.detectChangeFormat(path, ""); err != nil {
+			if name, err = l.app.detectChangeFormat(path, "", l.plainText); err != nil {
 				return filehome.Doc{}, err
 			}
 		}
@@ -449,6 +530,11 @@ func (l *projectChangeLayout) sourceDoc(ix *projectChangeIndex, ref string, rf p
 		SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target),
 	}
 	targets := ix.targets[ref]
+	if len(targets) > 0 && d.Editions == change.EditionsInFile && !l.app.interchange(name) {
+		// A Qt Linguist or string-catalog source whose translations the
+		// recipe writes to files of their own keeps them there.
+		d.Editions, d.TargetLocale = change.EditionsPerFile, ""
+	}
 	d.EditionFile = func(k model.EditionKey) (filehome.EditionFile, bool) {
 		if k.Tone != "" || k.Channel != "" {
 			return filehome.EditionFile{}, false

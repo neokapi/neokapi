@@ -67,10 +67,11 @@ func installedFormatterProject(t *testing.T) (file, marker, bin string) {
 	return file, marker, bin
 }
 
-// applyWithInput runs a's comment write path over entries, as kapi apply does
-// for a comment change set in a file, with stdin as the command's standard
-// input, and returns the report and what the command wrote to standard error.
-func applyWithInput(t *testing.T, a *App, stdin string, entries ...map[string]any) (applyOutput, string, error) {
+// applyWithInput runs kapi apply's comment branch over entries, as for a
+// comment change set in a file (runCommentEntries), with stdin as the
+// command's standard input, and returns what it did and what the command
+// wrote.
+func applyWithInput(t *testing.T, a *App, stdin string, entries ...map[string]any) (commentRun, string, error) {
 	t.Helper()
 	cmd := NewEnvCommand(t.Context(), "apply")
 	cmd.SetIn(strings.NewReader(stdin))

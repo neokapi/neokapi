@@ -9,8 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/registry"
 )
@@ -38,18 +40,84 @@ func commentRevision(fp string) string {
 	return "r:" + fp[:16]
 }
 
-// commentDoc reports whether path is a source file whose comments are what
-// kapi edits in it: no format reads the file, and a comment reader reads its
-// language, or would once the plugin that reads it is installed.
-func (a *App) commentDoc(path string) bool {
-	if _, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true}); err == nil {
+// commentDocs tells which files are source files whose comments are what kapi
+// edits in them: a comment reader reads the file's language, or would once
+// the plugin that reads it is installed, and no format reads the file. A
+// format reads it when --format names one, when the project binds the file to
+// one, or when detection finds one by the file's extension or its content, as
+// it finds a Qt Linguist catalog in a .ts file, an extension TypeScript
+// shares.
+type commentDocs struct {
+	app  *App
+	root string
+	// index is the recipe's content, resolved on first use; nil outside a
+	// project.
+	index func() *projectChangeIndex
+}
+
+// newCommentDocs tells comment documents for the project at recipe, "" none.
+func (a *App) newCommentDocs(recipe string) *commentDocs {
+	c := &commentDocs{app: a}
+	if recipe != "" {
+		c.root = filepath.Dir(recipe)
+		c.index = a.projectIndex(recipe)
+	}
+	return c
+}
+
+// is reports whether the file at path is a comment document.
+func (c *commentDocs) is(path string) bool {
+	a := c.app
+	if a.FormatFlag != "" || path == StdinName {
 		return false
 	}
-	if _, ok := a.commentProviderFor(path); ok {
-		return true
+	if _, member := parseEntryLocator(path); member {
+		return false
 	}
-	_, plugin := commentPluginHintFor(path)
-	return plugin
+	if _, ok := a.commentProviderFor(path); !ok {
+		if _, plugin := commentPluginHintFor(path); !plugin {
+			return false
+		}
+	}
+	return !a.formatReads(path) && !c.bound(path)
+}
+
+// bound reports whether the project binds the file at path to a format: a
+// source the recipe claims for its content, or the file of one of its
+// translations. A file declared for its comments alone is not bound.
+func (c *commentDocs) bound(path string) bool {
+	if c.index == nil {
+		return false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(c.root, abs)
+	if err != nil || !filepath.IsLocal(rel) {
+		return false
+	}
+	ix := c.index()
+	if ix == nil {
+		return false
+	}
+	rel = filepath.ToSlash(rel)
+	_, source := ix.sources[rel]
+	_, target := ix.byTarget[rel]
+	return source || target
+}
+
+// formatReads reports whether detection finds a format for the file at path,
+// by its extension or, when the file can be opened, by its content.
+func (a *App) formatReads(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		_, derr := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
+		return derr == nil
+	}
+	defer f.Close()
+	_, ok := a.explicitOrDetected(path, f)
+	return ok
 }
 
 // docPath is the file a document reference names, under root.
@@ -62,22 +130,33 @@ func docPath(root, doc string) string {
 }
 
 // commentSet reports whether set edits code comments. A set whose operations
-// address both comments and documents is refused.
-func (a *App) commentSet(set change.Set, root string) (bool, error) {
+// address both comments and documents is refused, and so is one that edits
+// comments and writes to the project's stores (a term, a content-memory pair,
+// the recipe).
+func (a *App) commentSet(set change.Set, root string, comments *commentDocs) (bool, error) {
 	a.InitRegistries()
-	comments, docs := 0, 0
+	var onComments, onDocs, other []change.Kind
 	for _, op := range set.Ops {
-		if at := op.At.Doc; at != "" && a.commentDoc(docPath(root, at)) {
-			comments++
-			continue
+		switch at := op.At.Doc; {
+		case at == "":
+			other = append(other, op.Kind)
+		case comments.is(docPath(root, at)):
+			onComments = append(onComments, op.Kind)
+		default:
+			onDocs = append(onDocs, op.Kind)
 		}
-		docs++
 	}
-	if comments > 0 && docs > 0 {
+	switch {
+	case len(onComments) == 0:
+		return false, nil
+	case len(onDocs) > 0:
 		return false, errors.New("apply: this change set edits code comments and documents; " +
 			"a comment is rewritten through its language's comment layer and a document through its format, so send each in a change set of its own")
+	case len(other) > 0:
+		return false, fmt.Errorf("apply: this change set edits code comments and also holds a %s operation; "+
+			"a change set that rewrites comments holds only their set_content operations, so send the %s operation in a change set of its own", other[0], other[0])
 	}
-	return comments > 0, nil
+	return true, nil
 }
 
 // locatedComment is a comment as a read of its file found it.
@@ -136,8 +215,11 @@ type commentOp struct {
 // applyCommentSet applies a change set whose every operation rewrites a code
 // comment. It refuses the whole set, writing nothing, when an operation is
 // malformed, names a comment that changed since it was read, or would be
-// refused by the rewrite; otherwise it previews or writes every comment.
-func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, root, backup string, trust *formatterTrust) (*change.Result, error) {
+// refused by the rewrite; otherwise it previews or writes every comment. It
+// returns the result, and what the comment path's last run did in each file:
+// the preview's outcomes when the set was refused or previewed, the write's
+// when it ran, none when the set was refused before the comment path ran.
+func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, root, backup string, trust *formatterTrust) (*change.Result, []commentFileResult, error) {
 	res := &change.Result{Schema: change.ResultSchemaID, Ops: make([]change.OpResult, len(set.Ops)), Docs: []change.DocResult{}}
 	for i, op := range set.Ops {
 		at := op.At
@@ -153,7 +235,7 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 
 	formats, err := a.newCheckFormats(cmd)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var ops []commentOp
 	seen := map[string]int{}
@@ -209,7 +291,7 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 		ops = append(ops, commentOp{i: i, path: path, entry: e})
 	}
 	if refused >= 0 {
-		return finishCommentSet(res, refused), nil
+		return finishCommentSet(res, refused), nil, nil
 	}
 
 	entries := make([]changeEntry, len(ops))
@@ -224,13 +306,13 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 		if e := byOp[o.i]; e != nil && (e.Status == commentRefused || (e.Status == commentNotRun && e.Reason != reasonPreview)) {
 			cerr, ioErr := commentError(*e)
 			if ioErr != nil {
-				return nil, ioErr
+				return nil, preview, ioErr
 			}
 			refuse(o.i, cerr)
 		}
 	}
 	if refused >= 0 {
-		return finishCommentSet(res, refused), nil
+		return finishCommentSet(res, refused), preview, nil
 	}
 	if set.Mode == change.ModePreview {
 		for _, o := range ops {
@@ -243,7 +325,7 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 			res.Docs = append(res.Docs, commentDocResult(root, f, located[f.File].digest, false))
 		}
 		res.Status = change.SetPreviewed
-		return res, nil
+		return res, preview, nil
 	}
 
 	results := a.applyComments(ctx, cmd, entries, false, backup, trust, "")
@@ -283,11 +365,43 @@ func (a *App) applyCommentSet(ctx context.Context, cmd Command, set change.Set, 
 	case refused >= 0 && written:
 		res.Status = change.SetPartial
 	case refused >= 0:
-		return finishCommentSet(res, refused), nil
+		return finishCommentSet(res, refused), results, nil
 	default:
 		res.Status = change.SetApplied
 	}
-	return res, nil
+	return res, results, nil
+}
+
+// applyCommentChange is kapi apply's comment branch: it applies a comment
+// change set under the execution trust the command grants the project's
+// formatter, asking at a terminal unless the change set came from standard
+// input, which leaves no one to answer.
+func (a *App) applyCommentChange(cmd Command, set change.Set, root, backup string, fromStdin bool) (*change.Result, []commentFileResult, error) {
+	trust := a.applyFormatterTrust(cmd, fromStdin)
+	return a.applyCommentSet(cmd.Context(), cmd, set, root, backup, trust)
+}
+
+// commentSetExit is the exit kapi apply returns for a comment change set's
+// result. A written comment is checked once it is written, scoped to the
+// change, and under the enforcing gate a failing finding there, or a check
+// that could not run, sends the caller back to fix the prose, as a refusal
+// does. Any other result exits as a change set does.
+func commentSetExit(set change.Set, res *change.Result) error {
+	if set.Gate != change.GateReport && failsAfterWrite(res) {
+		return WithExitCode(ExitGate, ErrSilentExit)
+	}
+	return changeResultExit(res)
+}
+
+// failsAfterWrite reports whether the check of a written document found a
+// failing finding.
+func failsAfterWrite(res *change.Result) bool {
+	for _, d := range res.Docs {
+		if d.Written && slices.ContainsFunc(d.Findings, func(f change.Finding) bool { return f.Fails }) {
+			return true
+		}
+	}
+	return false
 }
 
 // finishCommentSet marks every operation not refused as held back by the
@@ -344,6 +458,14 @@ func commentDocResult(root string, f commentFileResult, before string, apply boo
 			for _, x := range f.Check.Findings {
 				d.Findings = append(d.Findings, change.Finding{Rule: x.Rule, Message: x.Message, Fails: x.Fails, Suggested: x.Suggested})
 			}
+			// A check that read nothing is never a pass.
+			if f.Check.Verdict == check.VerdictDidNotRun {
+				why := "the check of the written change read nothing"
+				if len(f.Check.DidNotRun) > 0 {
+					why += ": " + strings.Join(f.Check.DidNotRun, "; ")
+				}
+				d.Findings = append(d.Findings, change.Finding{Rule: "check.did-not-run", Message: why, Fails: true})
+			}
 		}
 	}
 	if f.CheckError != "" {
@@ -379,8 +501,12 @@ func commentError(e commentEdit) (*change.Error, error) {
 		return &change.Error{Code: change.CodeNotFound, Field: "at/block", Message: msg}, nil
 	case string(comment.RefusedChanged), string(comment.RefusedStale):
 		return &change.Error{Code: change.CodeStale, Field: "if_match", Message: msg}, nil
-	case reasonDuplicate, string(comment.RefusedText), string(comment.RefusedTerminator):
-		return &change.Error{Code: change.CodeInvalid, Field: "text", Message: msg}, nil
+	case reasonDuplicate:
+		return &change.Error{Code: change.CodeInvalid, Field: "at/block", Message: msg}, nil
+	case string(comment.RefusedText), string(comment.RefusedTerminator):
+		// Text the comment cannot hold, or that would end it early: the
+		// content needs fixing, as for a guard.
+		return &change.Error{Code: change.CodeGuard, Field: "text", Message: msg}, nil
 	case string(comment.RefusedStructure):
 		return &change.Error{Code: change.CodeGuard, Subcode: change.SubcodeStructureLost, Field: "text", Message: msg}, nil
 	case string(comment.RefusedLayout), string(comment.RefusedDeprecation), string(comment.RefusedAttachment),

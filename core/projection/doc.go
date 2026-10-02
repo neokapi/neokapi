@@ -27,7 +27,7 @@
 // Part stream once and produces a tree of [RenderNode] — a format-neutral render
 // model carrying roles, inline runs, table topology (rows/cells/spans), list
 // nesting, and geometry. [ProjectBlock] is the block-first primitive: it
-// projects a single block to a fragment, so `kapi inspect --project`, the
+// projects a single block to a fragment, so `kapi inspect --render`, the
 // convert-lab Blocks tab, and per-block preview all reuse the same logic that
 // whole-document serialization uses. [WalkInline] is the shared inline decoder
 // the per-format serializers build on, so each maps the canonical run

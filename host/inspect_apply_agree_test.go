@@ -189,7 +189,7 @@ func TestInspectPrintsReadRecords(t *testing.T) {
 	assert.Empty(t, rec.Hash, "the content hash is not an edit's precondition")
 }
 
-// `kapi inspect --project` renders a block in another format. A character
+// `kapi inspect --render` renders a block in another format. A character
 // reference the HTML reader keeps as an inline code is a character there, and
 // each format spells it its own way.
 func TestInspectProjectsCharacterReferences(t *testing.T) {

@@ -246,11 +246,12 @@ func proseP3Sourcecode(t *testing.T, language string) {
 		file := rewriteProject(t, f, nil)
 		refusedAs(t, a, file, pluginCommentEntry(t, a, file, f.lineID, "eslint-disable-next-line no-console"), string(comment.RefusedDirective))
 
-		byLines := rewriteProject(t, f, nil)
-		refusedAs(t, a, byLines, map[string]any{
-			"kind": "comment", "file": byLines, "id": "comment/eslint", "text": "Nothing to see.",
-			"lines": fmtpkg.LineRange{First: 1, Last: 1}, "comment_sha256": staleFingerprint,
-		}, string(comment.RefusedDirective))
+		// A directive is no block kapi reads, so a reference to one names
+		// nothing.
+		directive := rewriteProject(t, f, nil)
+		refusedAs(t, a, directive, map[string]any{
+			"kind": "comment", "file": directive, "id": "comment/eslint", "text": "Nothing to see.",
+		}, string(comment.RefusedUnknown))
 	})
 
 	t.Run("every comment in this repository rewrites to its own bytes", func(t *testing.T) {

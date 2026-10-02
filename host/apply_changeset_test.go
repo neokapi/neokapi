@@ -148,21 +148,22 @@ func TestApply_RefusesAChangeSetThatDoesNotDecode(t *testing.T) {
 func TestApply_RefusesTheRetiredEntryShape(t *testing.T) {
 	noProject(t)
 	t.Chdir(t.TempDir())
-	for name, tc := range map[string]struct{ body, want string }{
-		"content":       {`{"kind":"content","file":"en.json","id":"tu1","content_hash":"abc","text":"Hi"}`, `"op": "set_content"`},
-		"content array": {`[{"kind":"content","file":"en.json","id":"tu1","content_hash":"abc","text":"Hi"}]`, `"op": "set_content"`},
-		"term":          {`{"kind":"term","op":"upsert","term":"leverage","status":"forbidden"}`, `"op": "term", "action": "upsert"`},
-		"review":        {`{"kind":"review","file":"en.json","id":"greeting","locale":"nb"}`, `"op": "decide"`},
-		"comment":       {`{"kind":"comment","file":"p.go","id":"func/Parse","text":"x"}`, `"block": "func/Parse"`},
-		"voice":         {`{"kind":"voice","term":"leverage"}`, "word rules are terms"},
+	for name, tc := range map[string]struct{ body, want, carried string }{
+		"content":       {`{"kind":"content","file":"en.json","id":"tu1","content_hash":"abc","text":"Hi"}`, `"op": "set_content"`, `"file", "id" and "content_hash"`},
+		"content array": {`[{"kind":"content","file":"en.json","id":"tu1","content_hash":"abc","text":"Hi"}]`, `"op": "set_content"`, `"file", "id" and "content_hash"`},
+		"term":          {`{"kind":"term","op":"upsert","term":"leverage","status":"forbidden"}`, `"op": "term", "action": "upsert"`, `"op", "term" and "status"`},
+		"review":        {`{"kind":"review","file":"en.json","id":"greeting","locale":"nb"}`, `"op": "decide"`, `"file", "id", "locale" and "status"`},
+		"comment":       {`{"kind":"comment","file":"p.go","id":"func/Parse","text":"x"}`, `"block": "func/Parse"`, `"file", "id" and "comment_sha256"`},
+		"voice":         {`{"kind":"voice","term":"leverage"}`, "word rules are terms", ""},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, _, err := runApply(t, newToolboxApp(t), NewEnvCommand(t.Context(), "apply"), tc.body, ApplyOptions{})
 			require.Error(t, err)
 			assert.Equal(t, ExitUsage, ExitCode(nil, err))
 			assert.Contains(t, err.Error(), tc.want)
-			if name != "voice" {
+			if tc.carried != "" {
 				assert.Contains(t, err.Error(), "retired entry shape")
+				assert.Contains(t, err.Error(), "entry with "+tc.carried, "the message names what that kind of entry carried")
 			}
 		})
 	}
@@ -355,4 +356,33 @@ func TestApply_ResolvesAPathOutsideTheWorkingDirectory(t *testing.T) {
 	assert.Equal(t, change.SetApplied, res.Status)
 	got, _ := os.ReadFile(file)
 	assert.JSONEq(t, `{"a":"Hi"}`, string(got))
+}
+
+// A change set resent after it landed writes nothing: its revisions moved, so
+// each operation is refused stale with the text the block now holds, which
+// already reads as the change set wrote it.
+func TestApply_ReplayIsRefusedStale(t *testing.T) {
+	noProject(t)
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.WriteFile("en.json", []byte(`{"a":"Hello"}`), 0o644))
+	app := newToolboxApp(t)
+	rec := recordOf(t, inspectJSONL(t, app, "en.json"), "a")
+	for _, op := range []map[string]any{
+		{"op": "set_content", "at": rec.Ref, "if_match": rec.Rev, "text": "Hi"},
+		{"op": "replace_text", "at": rec.Ref, "if_match": rec.Rev, "edits": []map[string]any{{"find": "Hello", "text": "Hi"}}},
+	} {
+		require.NoError(t, os.WriteFile("en.json", []byte(`{"a":"Hello"}`), 0o644))
+		body := changeSetOf(t, op)
+		res, err := applyJSON(t, app, NewEnvCommand(t.Context(), "apply"), body, ApplyOptions{})
+		require.NoError(t, err)
+		require.Equal(t, change.SetApplied, res.Status)
+
+		res, err = applyJSON(t, app, NewEnvCommand(t.Context(), "apply"), body, ApplyOptions{})
+		assert.Equal(t, ExitGate, ExitCode(nil, err), op["op"])
+		require.NotNil(t, res.Ops[0].Error)
+		assert.Equal(t, change.CodeStale, res.Ops[0].Error.Code)
+		require.NotNil(t, res.Ops[0].Current)
+		assert.Equal(t, "Hi", res.Ops[0].Current.Text)
+		assert.JSONEq(t, `{"a":"Hi"}`, fileText(t, "en.json"))
+	}
 }

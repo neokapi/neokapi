@@ -1,7 +1,7 @@
 // Package structdoc provides the structural conversion writers for JSON and
 // YAML: a document (DocLang, Markdown, HTML, docx, …) is serialized as an array
-// of structural block records — the same shape as `kapi inspect` — rather than a
-// key→value catalog. This is what `kapi convert <doc> --to json|yaml` produces.
+// of structural block records (core/structrec) rather than a key→value
+// catalog. This is what `kapi convert <doc> --to json|yaml` produces.
 //
 // It is deliberately distinct from the catalog json/yaml writers
 // (core/formats/json, core/formats/yaml), which remain the i18n round-trip

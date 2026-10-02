@@ -10,7 +10,7 @@ import (
 
 // FragmentMarkdown renders a single projection RenderNode (e.g. from
 // projection.ProjectBlock) to a Markdown fragment — no document scaffold. It is
-// the per-block projection serializer behind `kapi inspect --project md` and the
+// the per-block projection serializer behind `kapi inspect --render md` and the
 // convert-lab Blocks tab: the render AST the document writer emits, one node at
 // a time.
 func FragmentMarkdown(node *projection.RenderNode) string {

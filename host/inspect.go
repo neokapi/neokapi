@@ -36,7 +36,7 @@ type inspectRecord struct {
 // RunInspect prints a read record for each block of the files args name. It
 // reads through the change service, the read kapi apply writes through, so
 // every reference and revision it prints is one kapi apply resolves.
-func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFormat string, project []string) error {
+func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFormat string, render []string) error {
 	hadError := false
 	report := func(path string, err error) {
 		hadError = true
@@ -52,7 +52,7 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 		return err
 	}
 	changes := a.newCommandChanges(cmd, recipe, ChangeServiceOptions{Origin: "inspect", Format: a.FormatFlag, TargetLocale: model.LocaleID(a.TargetLang)})
-	editions := a.projectEditions(recipe)
+	src := inspectSources{changes: changes, editions: a.projectEditions(recipe), comments: a.newCommentDocs(recipe)}
 
 	streaming := outFormat == "jsonl"
 	enc := json.NewEncoder(cmd.OutOrStdout())
@@ -79,7 +79,7 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 			}
 		}
 		for _, doc := range docs {
-			ferr := a.inspectDocument(ctx, cmd, changes, editions, doc, project, emit)
+			ferr := a.inspectDocument(ctx, cmd, src, doc, render, emit)
 			if errors.Is(ferr, context.Canceled) {
 				return ferr
 			}
@@ -107,10 +107,19 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 	return nil
 }
 
+// inspectSources is what a kapi inspect run reads files through: the change
+// services, the editions the project declares for each of its documents, and
+// which files are read for their comments.
+type inspectSources struct {
+	changes  *commandChanges
+	editions func(doc string) []model.EditionKey
+	comments *commentDocs
+}
+
 // inspectDocument reads one document, or one archive member, and emits a
-// record for each block that holds content.
-func (a *App) inspectDocument(ctx context.Context, cmd Command, changes *commandChanges, editions func(string) []model.EditionKey,
-	file string, project []string, emit func(inspectRecord) error) error {
+// record for each block that holds content, with its rendering in each format
+// render names.
+func (a *App) inspectDocument(ctx context.Context, cmd Command, src inspectSources, file string, render []string, emit func(inspectRecord) error) error {
 	svc, doc, label := (*change.Service)(nil), "", ""
 	var want []model.EditionKey
 	switch {
@@ -124,18 +133,16 @@ func (a *App) inspectDocument(ctx context.Context, cmd Command, changes *command
 			return err
 		}
 		doc, label = filepath.Base(path), StdinName
-	case a.FormatFlag == "" && a.commentDoc(file):
-		return a.inspectComments(cmd, changes, file, emit)
+	case src.comments.is(file):
+		return a.inspectComments(cmd, src.changes, file, emit)
 	default:
-		var (
-			err     error
-			project bool
-		)
-		if svc, doc, project, err = changes.forFile(ctx, file); err != nil {
+		cs, ref, project, err := src.changes.forFile(ctx, file)
+		if err != nil {
 			return err
 		}
+		svc, doc = cs.svc, ref
 		if project {
-			want = editions(doc)
+			want = src.editions(doc)
 		}
 	}
 	_, err := svc.ReadEach(ctx, change.ReadRequest{Doc: doc, Editions: want}, func(b *model.Block, r change.BlockRead) error {
@@ -154,9 +161,9 @@ func (a *App) inspectDocument(ctx context.Context, cmd Command, changes *command
 		if s, ok := b.Structure(); ok {
 			rec.Role, rec.Level = s.Role, s.Level
 		}
-		if len(project) > 0 {
-			rec.Projected = make(map[string]string, len(project))
-			for _, p := range project {
+		if len(render) > 0 {
+			rec.Projected = make(map[string]string, len(render))
+			for _, p := range render {
 				if frag, ok := formats.RenderBlockFragment(b, p); ok {
 					rec.Projected[p] = frag
 				}
@@ -216,8 +223,8 @@ func (a *App) inspectComments(cmd Command, changes *commandChanges, file string,
 }
 
 // commentRef is the document reference of a source file, as kapi apply
-// resolves one: project-relative inside the project, else from the working
-// directory.
+// resolves one: project-relative inside the project, its absolute path for a
+// file outside the project, else from the working directory.
 func commentRef(changes *commandChanges, file string) string {
 	abs, err := filepath.Abs(file)
 	if err != nil {
@@ -227,6 +234,7 @@ func commentRef(changes *commandChanges, file string) string {
 		if rel, rerr := filepath.Rel(filepath.Dir(changes.recipe), abs); rerr == nil && filepath.IsLocal(rel) {
 			return filepath.ToSlash(rel)
 		}
+		return filepath.ToSlash(abs)
 	}
 	wd, err := os.Getwd()
 	if err != nil {
@@ -244,17 +252,7 @@ func (a *App) projectEditions(recipe string) func(doc string) []model.EditionKey
 	if recipe == "" {
 		return func(string) []model.EditionKey { return nil }
 	}
-	load := sync.OnceValue(func() *projectChangeIndex {
-		layout, err := a.newProjectLayout(recipe, a.FormatFlag, "")
-		if err != nil {
-			return nil
-		}
-		ix, err := layout.load()
-		if err != nil {
-			return nil
-		}
-		return ix
-	})
+	load := a.projectIndex(recipe)
 	return func(doc string) []model.EditionKey {
 		ix := load()
 		if ix == nil {
@@ -267,6 +265,23 @@ func (a *App) projectEditions(recipe string) func(doc string) []model.EditionKey
 		slices.SortFunc(out, func(x, y model.EditionKey) int { return strings.Compare(string(x.Locale), string(y.Locale)) })
 		return out
 	}
+}
+
+// projectIndex returns what the recipe at recipe declares, by
+// project-relative path, resolving it on the first call; nil when the recipe
+// does not load.
+func (a *App) projectIndex(recipe string) func() *projectChangeIndex {
+	return sync.OnceValue(func() *projectChangeIndex {
+		layout, err := a.newProjectLayout(recipe, a.FormatFlag, "")
+		if err != nil {
+			return nil
+		}
+		ix, err := layout.load()
+		if err != nil {
+			return nil
+		}
+		return ix
+	})
 }
 
 // marshalRecords renders records as an indented JSON array, or as a YAML

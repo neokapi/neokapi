@@ -9,7 +9,7 @@ import (
 
 // FragmentAsciidoc renders a single projection RenderNode (e.g. from
 // projection.ProjectBlock) to an AsciiDoc fragment — no document scaffold. It is
-// the per-block projection serializer behind `kapi inspect --project asciidoc`
+// the per-block projection serializer behind `kapi inspect --render asciidoc`
 // and the convert-lab Blocks tab.
 func FragmentAsciidoc(node *projection.RenderNode) string {
 	if node == nil {

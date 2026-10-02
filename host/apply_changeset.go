@@ -45,8 +45,9 @@ func RunApplySchema(w io.Writer) error {
 // command line stamps the actor: a person, or the agent session the
 // environment names. It exits 0 when the change set applied or previewed, 2
 // when it does not decode or contradicts itself, 3 when an operation was
-// refused (nothing is written) or the change landed in part, and 5 when a
-// backend did not answer.
+// refused (nothing is written), the change landed in part, or, under the
+// enforcing gate, the check of a code comment it wrote found a failing
+// finding, and 5 when a backend did not answer.
 func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 	ctx := cmd.Context()
 	data, err := readContent(ctx, path)
@@ -91,21 +92,32 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		return err
 	}
 
-	comments, err := a.commentSet(set, root)
+	comments, err := a.commentSet(set, root, a.newCommentDocs(recipe))
+	if err != nil {
+		return WithExitCode(ExitUsage, err)
+	}
+	// A document named by its absolute path outside the project is a file
+	// kapi inspect read outside it, edited as a file outside any project is.
+	outside, err := outsideProject(set, recipe)
 	if err != nil {
 		return WithExitCode(ExitUsage, err)
 	}
 	var res *change.Result
 	if comments {
-		trust := a.applyFormatterTrust(cmd, path == "" || path == StdinName)
-		res, err = a.applyCommentSet(ctx, cmd, set, root, opts.BackupSuffix, trust)
+		res, _, err = a.applyCommentChange(cmd, set, root, opts.BackupSuffix, path == "" || path == StdinName)
 	} else {
-		var svc *change.Service
-		svc, err = a.changeService(ctx, cmd, ChangeServiceOptions{
+		svcOpts := ChangeServiceOptions{
 			Project: recipe, Origin: "apply", Format: a.FormatFlag,
 			AnyPath: recipe == "", BackupSuffix: opts.BackupSuffix,
 			TargetLocale: targetLocaleOf(set, a.changeSourceLocale(recipe)),
-		})
+		}
+		if outside {
+			// Resolved from the project's root, under which none of the files
+			// lies, so each keeps its absolute path in the result.
+			svcOpts.Project, svcOpts.Root, svcOpts.AnyPath = "", root, true
+		}
+		var svc *change.Service
+		svc, err = a.changeService(ctx, cmd, svcOpts)
 		if err != nil {
 			return err
 		}
@@ -130,7 +142,48 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		}
 		printChangeResult(cmd.ErrOrStderr(), res)
 	}
+	if comments {
+		return commentSetExit(set, res)
+	}
 	return changeResultExit(res)
+}
+
+// outsideProject reports whether a change set applied in the project at
+// recipe edits files outside it: every document it names is an absolute path
+// outside the project's root, as kapi inspect names a file it read outside
+// the project. A change set that edits such a file and a document of the
+// project, or writes to the project's stores, is refused.
+func outsideProject(set change.Set, recipe string) (bool, error) {
+	if recipe == "" {
+		return false, nil
+	}
+	root := filepath.Dir(recipe)
+	var outside, inside []string
+	for _, op := range set.Ops {
+		doc, _ := splitLocator(op.At.Doc)
+		switch {
+		case op.At.Doc == "":
+			inside = append(inside, string(op.Kind)+" operation")
+		case filepath.IsAbs(filepath.FromSlash(doc)) && !under(root, filepath.FromSlash(doc)):
+			outside = append(outside, op.At.Doc)
+		default:
+			inside = append(inside, op.At.Doc)
+		}
+	}
+	switch {
+	case len(outside) == 0:
+		return false, nil
+	case len(inside) > 0:
+		return false, fmt.Errorf("apply: this change set edits %s, outside the project at %s, and %s of the project; "+
+			"send the edits of files outside the project in a change set of their own", outside[0], root, inside[0])
+	}
+	return true, nil
+}
+
+// under reports whether path lies inside root.
+func under(root, path string) bool {
+	rel, err := filepath.Rel(root, filepath.Clean(path))
+	return err == nil && filepath.IsLocal(rel)
 }
 
 // targetLocaleOf is the one language a change set's operations name as an
@@ -358,21 +411,37 @@ func retiredChangeShape(data []byte) error {
 	if kind == string(retiredVoiceKind) {
 		return errRetiredVoiceKind
 	}
-	instead := map[string]string{
-		"content": `{"op": "set_content", "at": {"doc": "docs/guide.md", "block": "<block key>"}, "if_match": "<rev>", "text": "..."}, ` +
-			`or replace_text with "edits": [{"find": "...", "text": "..."}]`,
-		"comment": `{"op": "set_content", "at": {"doc": "parse.go", "block": "func/Parse"}, "if_match": "<rev>", "text": "..."}`,
-		"review":  `{"op": "decide", "at": {"doc": "docs/guide.md", "block": "<block key>", "edition": "fr"}, "if_match": "<rev>", "outcome": "establish"}`,
-		"term":    `{"op": "term", "action": "upsert", "term": "...", "status": "preferred", "replaces": "..."}`,
-		"memory":  `{"op": "memory", "action": "add", "from": {"edition": "en", "text": "..."}, "to": {"edition": "fr", "text": "..."}}`,
-		"recipe":  `{"op": "recipe", "path": "...", "value": ...}`,
-	}[kind]
-	if instead == "" {
-		instead = `{"op": "set_content", "at": {"doc": "...", "block": "..."}, "if_match": "<rev>", "text": "..."}`
+	shape, ok := retiredShapes[kind]
+	if !ok {
+		shape = retiredShape{
+			fields:  `"file", "id" and "content_hash"`,
+			instead: `{"op": "set_content", "at": {"doc": "...", "block": "..."}, "if_match": "<rev>", "text": "..."}`,
+		}
 	}
-	return fmt.Errorf(`apply: this change set uses the retired entry shape (a "kind": %q entry with "file", "id" and "content_hash"); `+
+	return fmt.Errorf(`apply: this change set uses the retired entry shape (a "kind": %q entry with %s); `+
 		`kapi apply reads kapi.change/v1, whose operations name what they change with "op" and "at" and the revision they read with "if_match", `+
-		`as kapi inspect prints them. Write this entry as %s; kapi apply --schema prints the whole contract`, kind, instead)
+		`as kapi inspect prints them. Write this entry as %s; kapi apply --schema prints the whole contract`, kind, shape.fields, shape.instead)
+}
+
+// retiredShape is what an entry of the retired shape carried, and the
+// operation that takes its place.
+type retiredShape struct{ fields, instead string }
+
+// retiredShapes describes each kind of the retired entry shape.
+var retiredShapes = map[string]retiredShape{
+	"content": {`"file", "id" and "content_hash"`,
+		`{"op": "set_content", "at": {"doc": "docs/guide.md", "block": "<block key>"}, "if_match": "<rev>", "text": "..."}, ` +
+			`or replace_text with "edits": [{"find": "...", "text": "..."}]`},
+	"comment": {`"file", "id" and "comment_sha256"`,
+		`{"op": "set_content", "at": {"doc": "parse.go", "block": "func/Parse"}, "if_match": "<rev>", "text": "..."}`},
+	"review": {`"file", "id", "locale" and "status"`,
+		`{"op": "decide", "at": {"doc": "docs/guide.md", "block": "<block key>", "edition": "fr"}, "if_match": "<rev>", "outcome": "establish"}`},
+	"term": {`"op", "term" and "status"`,
+		`{"op": "term", "action": "upsert", "term": "...", "status": "preferred", "replaces": "..."}`},
+	"memory": {`"op", "source" and "target"`,
+		`{"op": "memory", "action": "add", "from": {"edition": "en", "text": "..."}, "to": {"edition": "fr", "text": "..."}}`},
+	"recipe": {`"op", "path" and "value"`,
+		`{"op": "recipe", "path": "...", "value": ...}`},
 }
 
 // retiredKind finds the kind of the first entry when data is in the retired

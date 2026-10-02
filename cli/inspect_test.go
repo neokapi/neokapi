@@ -141,8 +141,8 @@ func TestInspect_ReferencesNameTheirFile(t *testing.T) {
 	assert.Equal(t, filepath.ToSlash(b), blocks[2].Ref.Doc)
 }
 
-func TestInspect_ProjectRendersBlocksPerFormat(t *testing.T) {
-	out := runInspectFixture(t, "doc.md", "# Title\n\nSome **bold** text.\n", "--project", "html,markdown")
+func TestInspect_RenderRendersBlocksPerFormat(t *testing.T) {
+	out := runInspectFixture(t, "doc.md", "# Title\n\nSome **bold** text.\n", "--render", "html,markdown")
 
 	var recs []map[string]any
 	require.NoError(t, json.Unmarshal([]byte(out), &recs))
@@ -164,10 +164,10 @@ func TestInspect_ProjectRendersBlocksPerFormat(t *testing.T) {
 	assert.Equal(t, "Some **bold** text.", proj["markdown"])
 }
 
-func TestInspect_ProjectRejectsUnknownFormat(t *testing.T) {
+func TestInspect_RenderRejectsUnknownFormat(t *testing.T) {
 	app := newAppForTest(t)
 	cmd := NewInspectCmd(app)
-	cmd.SetArgs([]string{"--project", "pdf", "-"})
+	cmd.SetArgs([]string{"--render", "pdf", "-"})
 	cmd.SetIn(strings.NewReader("x"))
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})

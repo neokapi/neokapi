@@ -23,8 +23,8 @@ import (
 // spelling for.
 func NewInspectCmd(a *App) *cobra.Command {
 	var (
-		jsonl   bool
-		project []string
+		jsonl  bool
+		render []string
 	)
 	cmd := &cobra.Command{
 		Use:     "inspect [flags] [FILE...]",
@@ -43,18 +43,20 @@ apply:
               its attributes, and the attributes an edit may change
   structures  each plural or select, with the path to each branch and the
               branch's text
-  editions    the block's other editions, each with its revision, text and
-              status
+  editions    the block's other editions, each with its revision and text,
+              and the status the file records for it where it keeps one
   ops         the operations the block accepts
   role, level the block's structural role (heading, list-item, table-cell,
               …) and nesting level
 
-Inside a project a file is named by its project-relative path and read with
-the format and configuration the recipe binds, and each declared translation
-is listed among the editions. A bilingual file whose reader has to be told the
-language of the translation it holds, such as a PO catalog, lists it with
---target-lang. A source file whose comments are what kapi edits in it lists
-each comment, keyed as kapi check reports it (func/Parse).
+Inside a project (the one -p names, or the one found from the working
+directory) a file is named by its project-relative path and read with the
+format and configuration the recipe binds, and each declared translation is
+listed among the editions. A file outside the project is named by its absolute
+path. A bilingual file whose reader has to be told the language of the
+translation it holds, such as a PO catalog, lists it with --target-lang. A
+source file whose comments are what kapi edits in it lists each comment, keyed
+as kapi check reports it (func/Parse).
 
 Prints a JSON array by default; --output-format yaml emits a YAML sequence, and
 --jsonl streams one JSON object per line (JSONL) for piping into a script.
@@ -65,7 +67,8 @@ FILE "-" reads standard input.`,
 		Example: `  kapi inspect report.docx
   kapi inspect --jsonl 'docs/**/*.md' | jq '{ref, rev}'
   kapi inspect --output-format yaml report.dclg.xml
-  kapi inspect report.docx --project html,markdown   # each block rendered per format
+  kapi inspect report.docx --render html,markdown   # each block rendered per format
+  kapi inspect -p site/kapi.yaml site/docs/guide.md
   cat page.html | kapi inspect -f html`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -80,19 +83,20 @@ FILE "-" reads standard input.`,
 				outFormat = "yaml"
 			}
 			supported := formats.BlockFragmentFormats()
-			for _, p := range project {
+			for _, p := range render {
 				if !slices.Contains(supported, p) {
-					return fmt.Errorf("--project: unsupported format %q (supported: %v)", p, supported)
+					return WithExitCode(ExitUsage, fmt.Errorf("--render: unsupported format %q (supported: %v)", p, supported))
 				}
 			}
-			return a.RunInspect(cmd.Context(), cmd, args, outFormat, project)
+			return a.RunInspect(cmd.Context(), cmd, args, outFormat, render)
 		},
 	}
 	f := cmd.Flags()
 	f.BoolVar(&jsonl, "jsonl", false, "stream one JSON object per line (JSONL) instead of a JSON array")
-	f.StringSliceVar(&project, "project", nil, "also render each block to these target formats (html, markdown, asciidoc) under \"projected\"")
+	f.StringSliceVar(&render, "render", nil, "also render each block to these formats (html, markdown, asciidoc) under \"projected\"")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: what the recipe binds, else auto-detect by extension/content)")
 	a.AddTargetLangFlag(f)
 	a.AddEncodingFlag(f, "", "input encoding")
+	AddProjectFlag(cmd)
 	return cmd
 }
