@@ -27,8 +27,8 @@ export default function KapiProjectLesson(): React.ReactElement {
         </li>
       </ol>
       <p>
-        <strong>Live browser execution.</strong> The content-memory sample supplies stored wording.
-        Its reuse does not need a model. Browser project storage supports this extraction and merge
+        <strong>Live browser execution.</strong> The content-memory sample supplies stored wording,
+        and reusing it needs no model. Browser project storage supports this extraction and merge
         exercise; a native workspace is needed for the complete context graph and operation history.
       </p>
       <LabLaunch

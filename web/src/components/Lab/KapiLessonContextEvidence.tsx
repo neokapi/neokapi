@@ -44,8 +44,8 @@ export default function KapiLessonContextEvidence(): React.ReactElement {
     <>
       <p>
         <strong>Recorded native execution.</strong> These answers came from the same fixture with
-        different audience coordinates. Changing this selector retrieves a recorded answer; it does
-        not query a browser context graph.
+        different audience coordinates. Changing this selector retrieves an answer recorded from the
+        native run.
       </p>
       <div className={styles.controls}>
         <label>

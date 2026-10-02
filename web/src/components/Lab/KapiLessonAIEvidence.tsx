@@ -126,8 +126,8 @@ export default function KapiLessonAIEvidence({
       </p>
       <p>
         <a href={authoringHref}>Inspect full sessions and reproduction details</a>. These examples
-        have no independent quality scores and do not establish that one model or delivery method is
-        generally better.
+        carry no independent quality scores. Ranking models or delivery methods in general needs
+        repeated, independently assessed runs.
       </p>
       <a download="authoring-evidence.json" href={downloadHref}>
         Download the recorded authoring evidence

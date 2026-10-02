@@ -44,8 +44,8 @@ export default function DecisionsAndChangeLesson(): React.ReactElement {
       </p>
       <p>
         The source-only native run refreshes the project context graph without AI. The search
-        returns actual term occurrences with document and block identities. This recording does not
-        execute a translation approval. Follow{" "}
+        returns actual term occurrences with document and block identities. The recording stops
+        before any translation approval. Follow{" "}
         <Link to="/kapi/recipes/review-and-approve">Review and approve</Link> for an actual review
         queue, and <Link to="/kapi/convergence">the kapi loop</Link> for how pending and stale
         content is handled. Target-language drift is pending work; release coverage is an explicit

@@ -36,7 +36,7 @@ export default function StructureLabPage(): React.ReactElement {
           </>
         }
       >
-        <LabLaunch description="Open the workspace, then run the sample to load the engine and PDF reader. The first run downloads these assets. This browser experiment uses the Go engine with a browser PDF bridge.">
+        <LabLaunch description="Open the workspace, then run the sample to load the browser build of the engine and its PDF reader. The first run downloads both.">
           <PdfExplorer samples={samples} />
         </LabLaunch>
       </LabPageShell>

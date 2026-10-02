@@ -33,7 +33,7 @@ const explanations: Record<string, string> = {
   "Before observation":
     "The fixture has no observed wording rule. The native source-only run reads its content and records a fresh context projection.",
   Suggested:
-    "The context answer includes a suggestion with its operation id and preferred wording. A suggestion reports and does not fail a check.",
+    "The context answer includes a suggestion with its operation id and preferred wording. A suggestion reports and never fails a check.",
   Established:
     "Keeping the observation writes preferred and forbidden terms. Inspect the operation that links the decision to the observation.",
   "Source edited":

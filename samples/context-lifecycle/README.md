@@ -26,8 +26,10 @@ To replace the lesson's recorded evidence after inspecting the result:
 node samples/context-lifecycle/run.mjs --binary bin/kapi --output web/src/components/Lab/KapiLessonLifecycleEvidence.json
 ```
 
-The browser displays the recorded steps. It does not execute native commands.
-The fixture demonstrates wording governance; it does not record translation
-approvals. Context search records term usage counts and the document and block where each occurrence was found. Source freshness becomes stale after the fixture edit and fresh after the next native run. Context answers retain
-the engine's own coverage notes. Reversal may retain the preferred term while
-removing the forbidden variants; inspect the actual answer and log.
+The browser displays the recorded steps and runs no native command. The fixture
+covers wording governance and stops before any translation approval. Context
+search records term usage counts and the document and block where each
+occurrence was found. Source freshness becomes stale after the fixture edit and
+fresh after the next native run. Context answers retain the engine's own
+coverage notes. Reversal may retain the preferred term while removing the
+forbidden variants; inspect the actual answer and log.

@@ -88,7 +88,8 @@ export default function LabsOverviewPage(): React.ReactElement {
               <dt>AI and media</dt>
               <dd>
                 Execution labels distinguish recorded model output, illustrative demo providers and
-                browser model bridges. A demo response demonstrates processing, not model quality.
+                browser model bridges. A demo response shows the processing path; model quality
+                needs a real provider.
               </dd>
             </div>
           </dl>

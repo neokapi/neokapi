@@ -90,8 +90,9 @@ function RepresentingContent(): React.ReactElement {
         <p>
           Use the raw source and block view together. The MessageFormat reader extracts separate
           blocks for plural branches. The KBF example below also demonstrates a plural represented
-          inside a Run. Similar rendered text can have different representations. A visible token is
-          not evidence that the reader assigned it a placeholder kind.
+          inside a Run. Similar rendered text can have different representations. Check the run kind
+          to confirm that the reader assigned a placeholder; a visible token alone is insufficient
+          evidence.
         </p>
         <details>
           <summary>Examine more of the model</summary>
@@ -153,9 +154,9 @@ function EditingWithFidelity(): React.ReactElement {
       </LabLaunch>
       <Evidence>
         <p>
-          A diff provides evidence for this input, transformation, and writer. Preservation of
-          structure, preservation of untouched bytes, and visual similarity are different
-          properties. Inspect each property before making a fidelity claim.
+          A diff provides evidence for this input, transformation and writer. Structural
+          preservation and byte preservation of untouched content are separate properties, and
+          visual similarity is a third. Inspect each one before making a fidelity claim.
         </p>
         <p>
           The browser preview is an interpretation of the content model. For an office document,
@@ -223,14 +224,14 @@ function ToolsAndAnnotations(): React.ReactElement {
       </LabLaunch>
       <Evidence>
         <p>
-          Tools have different effects: they can create targets, transform content, or attach
-          findings and other stand-off state. Compare the selected step's input and output to
-          determine its actual effect. An empty finding list does not mean every possible check ran.
+          A tool can create targets or transform content, and it can attach findings and other
+          stand-off state. Compare the selected step's input and output to determine its actual
+          effect. An empty finding list reports only on the checks that ran.
         </p>
         <p>
           The flow transports Parts, including information beyond text blocks. Inspect the source
-          and sink when assessing preservation; block text alone cannot establish that the whole
-          document survived processing.
+          and sink when assessing preservation, because the whole document includes more than its
+          block text.
         </p>
       </Evidence>
       <Transfer>
@@ -281,7 +282,7 @@ function Segmentation(): React.ReactElement {
           <summary>Reference boundaries for the default sample</summary>
           <p>
             This authored reference follows conventional sentence punctuation. It is a teaching
-            reference for this passage, not a measured accuracy score.
+            reference for this passage and carries no measured accuracy score.
           </p>
           <ol>
             <li>Dr. Smith paid $3.50 for the U.S. edition on Jan. 5, 2024.</li>
@@ -297,12 +298,13 @@ function Segmentation(): React.ReactElement {
         </details>
         <p>
           Agreement measures consistency between engines. Accuracy requires a justified reference. A
-          segmentation overlay marks spans on the existing runs; it does not require rewriting the
-          source into separate blocks.
+          segmentation overlay marks spans on the existing runs and leaves the source blocks as they
+          are.
         </p>
         <p>
-          Some optional learned engines produce spans through browser adapters. Their comparison
-          does not establish parity with a native plugin or its performance.
+          Some optional learned engines produce spans through browser adapters. Their results
+          describe the browser build only; parity with a native plugin and its performance need a
+          native run.
         </p>
       </Evidence>
       <Transfer>
@@ -366,8 +368,8 @@ function ComposingFlows(): React.ReactElement {
           </p>
           <p>
             The recorded trace selector replays native executions. Compare their worker activity
-            with the live browser trace. A recording supplies evidence about its recorded run;
-            changing the canvas does not rerun that recording.
+            with the live browser trace. A recording supplies evidence about its recorded run only;
+            changes to the canvas take effect in live runs.
           </p>
         </details>
       </Evidence>
@@ -416,9 +418,10 @@ function ChecksAndCoverage(): React.ReactElement {
       </LabLaunch>
       <Evidence>
         <p>
-          A verdict describes the configured checks. Coverage describes which checks ran, skipped,
-          or were unavailable. Missing semantic coverage cannot be inferred from a clean set of
-          literal findings. Keep these conclusions separate from format fidelity.
+          A verdict describes the configured checks. Coverage records which checks ran and which
+          were skipped or unavailable. A clean set of literal findings covers the literal rules
+          only, so semantic coverage needs evidence of its own. Keep these conclusions separate from
+          format fidelity.
         </p>
         <p>
           The <Link to="/content-lab">recorded content context case study</Link> provides inputs,

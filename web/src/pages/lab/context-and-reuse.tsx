@@ -32,14 +32,14 @@ export default function ContextAndReuseLesson(): React.ReactElement {
       </LabLaunch>
       <h2>Connect context to reuse</h2>
       <p>
-        The previous lesson reused supplied content-memory entries. This fixture demonstrates how
-        kapi resolves guidance and terms at a content location. It does not measure content-memory
-        retrieval or expose a live graph traversal.
+        The previous lesson reused supplied content-memory entries. This fixture shows how kapi
+        resolves guidance and terms at a content location. Content-memory retrieval and a live graph
+        traversal fall outside it.
       </p>
       <p>
         A native context graph connects content with applicable guidance and recorded decisions.
-        Resolving those relationships does not require a model. Generation and semantic checks can
-        use the resulting context in a later step.
+        Resolving those relationships needs no model. Generation and semantic checks can use the
+        resulting context in a later step.
       </p>
       <h2>Transfer</h2>
       <p>

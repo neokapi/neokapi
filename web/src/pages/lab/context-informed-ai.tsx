@@ -42,14 +42,14 @@ export default function ContextInformedAILesson(): React.ReactElement {
       </LabLaunch>
       <h2>Evaluate the evidence</h2>
       <p>
-        Different wording is an observation, not a quality score. Check factual claims against the
-        source, then assess whether the document meets its audience's needs. A passing literal check
-        cannot establish either property.
+        Different wording is an observation; a quality score needs its own assessment. Check factual
+        claims against the source, then assess whether the document meets its audience's needs. A
+        passing literal check establishes neither property.
       </p>
       <p>
         The browser demonstration provider produces illustrative output for some playground
-        commands. That output establishes how a flow runs, not how well an AI model writes. The
-        recorded documents above are actual model outputs with a separate execution history.
+        commands. That output shows how a flow runs. The recorded documents above are actual model
+        outputs with a separate execution history, and only they show how a model writes.
       </p>
       <h2>Transfer</h2>
       <p>

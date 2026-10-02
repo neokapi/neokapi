@@ -10,24 +10,26 @@ workspaces are listed as electives.
 ## Experiments and evidence
 
 Keep instructions and prediction questions visible before an experiment loads.
-Wrap expensive components in `LabLaunch`, so visiting a lesson does not start
-its engine or download its evidence. The component loads on launch; its own
-controls govern subsequent runs. Closing an experiment unmounts its controls;
-the shared browser runtime can remain active for another lesson.
+Wrap expensive components in `LabLaunch`, so a lesson starts its engine and
+downloads its evidence only after the reader launches it. The component loads
+on launch, and its own controls start later runs. Closing an experiment
+unmounts its controls; the shared browser runtime can remain active for another
+lesson.
 
 Label execution where the learner sees the result:
 
 - Browser experiments run supported engine operations or the specified browser
-  model bridge. A deterministic demo provider demonstrates processing behaviour,
-  not model quality.
+  model bridge. A deterministic demo provider shows processing behaviour; model
+  quality needs a real provider.
 - Recorded experiments display the original inputs and outputs. A selector
   chooses a recorded case rather than executing a modified input.
 - Authored references, such as segmentation boundaries, identify their
   interpretation and must not be presented as measured results.
 
-Keep preservation and check coverage separate. An unchanged preview does not
-prove byte preservation; a passing check does not establish that a semantic
-analyzer ran. Retain errors and coverage limits in evidence views.
+Keep preservation and check coverage separate. Byte preservation needs a diff
+of the written file, and an unchanged preview is insufficient. Whether a
+semantic analyzer ran shows in the check report's coverage, beyond its verdict.
+Retain errors and coverage limits in evidence views.
 
 ## Reproduction
 
@@ -65,6 +67,5 @@ Run the production build and the development server sequentially: both use
 route and locale state. The source locale stays strict; incomplete target
 translations remain warnings.
 
-The harness currently contains no walkthrough recordings of these website lab
-pages. Changes to shared components also used by recorded surfaces must be
+The harness has no walkthrough recordings of these website lab pages. Changes to shared components also used by recorded surfaces must be
 checked against the harness inventory and the documentation-asset runbook.
