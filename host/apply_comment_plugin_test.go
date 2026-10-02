@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment"
 	fmtpkg "github.com/neokapi/neokapi/core/format"
@@ -149,6 +150,20 @@ func TestPluginCommentRewrite(t *testing.T) {
 		want := strings.Replace(rewriteTS, "the the", "the", 1)
 		assertUnchanged(t, file, want)
 		assert.Equal(t, want, string(runOxfmt(t, file, []byte(want))), "oxfmt agrees with the written file")
+	})
+
+	t.Run("kapi apply rewrites a TypeScript comment by the revision kapi inspect reads", func(t *testing.T) {
+		a := tsRewriteApp(t, nil)
+		file := tsProject(t, nil)
+		noProject(t)
+		t.Chdir(filepath.Dir(file))
+		rec := recordOf(t, inspectJSONL(t, a, "parse.ts"), "func/parse")
+		assert.Equal(t, "Parses the the input.", rec.Text)
+		body := changeSetOf(t, map[string]any{"op": "set_content", "at": rec.Ref, "if_match": rec.Rev, "text": "Parses the input."})
+		res, err := applyJSON(t, a, NewEnvCommand(t.Context(), "apply"), body, ApplyOptions{})
+		require.NoError(t, err)
+		require.Equal(t, change.OpApplied, res.Ops[0].Status, "%+v", res.Ops[0].Error)
+		assertUnchanged(t, file, strings.Replace(rewriteTS, "the the", "the", 1))
 	})
 
 	t.Run("a JSDoc block keeps its layout", func(t *testing.T) {
