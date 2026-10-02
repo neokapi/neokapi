@@ -1705,7 +1705,7 @@ func blockSourceText(b *model.Block) string {
 // blockProperties returns notable properties of a Block.
 func blockProperties(b *model.Block) map[string]string {
 	props := make(map[string]string)
-	if n := countInlineCodeRuns(b.Source); n > 0 {
+	if n := countInlineCodeRuns(b.SourceRuns()); n > 0 {
 		props["inline_codes"] = strconv.Itoa(n)
 	}
 	for _, loc := range b.TargetLocales() {
