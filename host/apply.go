@@ -20,7 +20,7 @@ import (
 
 // changeKind discriminates a change-set entry. `apply` is the single write verb:
 // every deliberate, reviewed change Claude proposes — a content edit or an asset
-// edit (term, content memory pair, voice rule, recipe field) — is one typed entry,
+// edit (term, content memory pair, recipe field) — is one typed entry,
 // so "is this change reviewed?" has one answer for everything and the backing
 // stores are written by exactly one code path.
 type changeKind string
@@ -273,7 +273,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 func validateContentWording(entries []changeEntry) error {
 	for i, e := range entries {
 		if e.Kind == kindContent && e.Replacement != "" {
-			return fmt.Errorf("content entry %d for block %q: put the new wording in \"text\"; \"replacement\" belongs to voice rules", i+1, e.ID)
+			return fmt.Errorf("content entry %d for block %q: put the new wording in \"text\"; \"replacement\" belongs to term entries", i+1, e.ID)
 		}
 		if e.Kind != kindComment {
 			continue
@@ -284,7 +284,7 @@ func validateContentWording(entries []changeEntry) error {
 		case e.ID == "":
 			return fmt.Errorf("comment entry %d in %s has no \"id\"; use the comment's id as kapi check reports it", i+1, e.File)
 		case e.Replacement != "":
-			return fmt.Errorf("comment entry %d for %q: put the new prose in \"text\"; \"replacement\" belongs to voice rules", i+1, e.ID)
+			return fmt.Errorf("comment entry %d for %q: put the new prose in \"text\"; \"replacement\" belongs to term entries", i+1, e.ID)
 		case e.ContentHash != "":
 			return fmt.Errorf("comment entry %d for %q: a comment is guarded by the \"comment_sha256\" kapi check reports, not by \"content_hash\"", i+1, e.ID)
 		case e.CommentSHA256 == "" && e.CurrentText == nil:

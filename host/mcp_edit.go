@@ -21,7 +21,8 @@ func init() {
 }
 
 // applyEditsInput is a typed change-set: the same shape `kapi apply` consumes.
-// Each entry is a content edit or an asset edit (term/tm/brand/recipe).
+// Each entry is a content or comment edit, or an asset edit (term, memory,
+// recipe).
 type applyEditsInput struct {
 	Changeset []changeEntry `json:"changeset" jsonschema:"the typed change-set entries to apply"`
 	Project   string        `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
@@ -50,9 +51,11 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 		Name: "apply_edits",
 		Description: "Apply a typed change-set: the one write verb. For document wording, each entry " +
 			"uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and " +
-			"hashes with extract_content. The replacement field is for voice rules. Content edits land through the " +
-			"byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); " +
-			"asset edits (terms entry, content memory pair, voice rule) are written to the project's stores and " +
+			"hashes with extract_content. The replacement field belongs to term entries. Content edits land through the " +
+			"byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash). " +
+			"An edit that drops, invents or duplicates an inline code, crosses or unbalances paired codes, or changes " +
+			"a block holding a plural or select construct is refused as guard_failed and leaves the block as it was. " +
+			"Asset edits (a term, a content memory pair) are written to the project's stores and " +
 			"recorded in its context history, and a recipe field is written to kapi.yaml. No AI provider is used. Read the " +
 			"context://<project-relative-path> resource before editing content, then run check_file on " +
 			"each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, " +
