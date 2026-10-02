@@ -109,7 +109,7 @@ type assetResult struct {
 	Kind   changeKind `json:"kind"`
 	Op     string     `json:"op,omitempty"`
 	Target string     `json:"target,omitempty"`
-	Status string     `json:"status"` // applied | skipped | error
+	Status string     `json:"status"` // applied | skipped | preview | error
 	Detail string     `json:"detail,omitempty"`
 }
 
@@ -183,9 +183,17 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		case kindComment:
 			comments = append(comments, e)
 		case kindTerm, kindMemory, kindRecipe:
+			if diff {
+				out.Assets = append(out.Assets, previewAssetResult(e))
+				continue
+			}
 			res := a.applyRecordedAssetEntry(ctx, cmd, e)
 			out.Assets = append(out.Assets, res)
 		case kindReview:
+			if diff {
+				out.Assets = append(out.Assets, previewAssetResult(e))
+				continue
+			}
 			res := a.applyReviewEntry(ctx, cmd, e)
 			out.Assets = append(out.Assets, res)
 		case "":
@@ -248,6 +256,9 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 				printCommentResults(cmd.ErrOrStderr(), out.Comments)
 			}
 		}
+	}
+	if diff && !asJSON {
+		printAssetResults(cmd.ErrOrStderr(), out.Assets)
 	}
 
 	if asJSON {
@@ -428,7 +439,14 @@ func printApplyReport(w io.Writer, out *applyOutput) {
 		}
 		fmt.Fprintln(w)
 	}
-	for _, ar := range out.Assets {
+	printAssetResults(w, out.Assets)
+	printCommentResults(w, out.Comments)
+}
+
+// printAssetResults writes one line per asset entry: its kind, what it names,
+// and its outcome.
+func printAssetResults(w io.Writer, assets []assetResult) {
+	for _, ar := range assets {
 		target := ar.Target
 		if target == "" {
 			target = string(ar.Kind)
@@ -439,7 +457,21 @@ func printApplyReport(w io.Writer, out *applyOutput) {
 		}
 		fmt.Fprintln(w)
 	}
-	printCommentResults(w, out.Comments)
+}
+
+// previewAssetResult lists an asset entry under --diff, which writes nothing:
+// the entry is named with what it would change and is not applied.
+func previewAssetResult(e changeEntry) assetResult {
+	target := e.Term
+	switch e.Kind {
+	case kindMemory:
+		target = e.Source
+	case kindRecipe:
+		target = e.Path
+	case kindReview:
+		target = e.ID
+	}
+	return assetResult{Kind: e.Kind, Op: e.Op, Target: target, Status: "preview", Detail: "--diff shows the entry and writes nothing"}
 }
 
 // retiredVoiceKind is the change kind that added a word rule to a voice

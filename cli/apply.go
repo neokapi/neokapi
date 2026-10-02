@@ -58,11 +58,11 @@ findings are reported beside the edit.
 
 The change-set is JSONL (one entry per line), read from CHANGESET or, with no
 argument or "-", from standard input. Content entries name their own file, so
-apply writes those files in place; --diff previews content and comment changes
-and writes nothing. Entries land one at a time: an entry already written stays
-when a later one is stale, refused or fails, and apply then exits non-zero.
-Re-running the corrected change-set skips what is already in place. No AI
-provider is required.`,
+apply writes those files in place; --diff previews content and comment changes,
+lists each asset entry as a preview, and writes nothing. Entries land one at a
+time: an entry already written stays when a later one is stale, refused or
+fails, and apply then exits non-zero. Re-running the corrected change-set skips
+what is already in place. No AI provider is required.`,
 		Example: `  kapi inspect report.docx --jsonl | edit-the-text | kapi apply
   kapi apply changeset.jsonl
   kapi apply changeset.jsonl --diff
@@ -87,7 +87,7 @@ provider is required.`,
 		},
 	}
 	f := cmd.Flags()
-	f.BoolVar(&diff, "diff", false, "preview content and comment changes as a unified diff and write nothing")
+	f.BoolVar(&diff, "diff", false, "preview content and comment changes as a unified diff, list asset entries, and write nothing")
 	f.BoolVar(&asJSON, "json", false, "print the apply report as JSON")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format for content files (default: auto-detect)")
 	a.AddSourceLangFlag(f)
