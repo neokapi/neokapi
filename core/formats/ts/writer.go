@@ -191,6 +191,13 @@ func (w *Writer) writeFromSkeleton() error {
 	if err := w.skeletonStore.Flush(); err != nil {
 		return fmt.Errorf("ts writer: flush skeleton: %w", err)
 	}
+	// Every message is checked before the first byte is written, so a
+	// message the writer cannot write refuses the document whole.
+	for _, block := range w.allBlocks {
+		if err := w.checkNumerusForms(block); err != nil {
+			return err
+		}
+	}
 	return w.replaySkeleton(func(i int) *model.Block {
 		if i < 0 || i >= len(w.allBlocks) {
 			return nil
@@ -353,6 +360,9 @@ func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
 				// ` variants="no"`) so the round-trip preserves the
 				// `<translation>\n<numerusform variants="no">…</numerusform>\n</translation>`
 				// shape okapi's pipeline produces.
+				if err := w.checkNumerusForms(block); err != nil {
+					return err
+				}
 				formRuns := w.numerusFormRuns(block, targetLocale)
 				var attrs []string
 				if joined := block.Properties["_numerusform_attrs"]; joined != "" {
@@ -790,6 +800,23 @@ func (w *Writer) runsToXMLEscapeApos(runs []model.Run) string {
 // target so a file declaring a non-matching `<TS language>` still
 // passes its existing forms through unchanged.
 func (w *Writer) numerusFormRuns(block *model.Block, locale model.LocaleID) [][]model.Run {
+	runs, ov := numerusTarget(block, locale)
+	if len(runs) == 0 {
+		return nil
+	}
+	if ov == nil || len(ov.Spans) == 0 {
+		return [][]model.Run{runs}
+	}
+	forms := make([][]model.Run, len(ov.Spans))
+	for i, span := range ov.Spans {
+		forms[i] = span.Range.ExtractRuns(runs)
+	}
+	return forms
+}
+
+// numerusTarget returns the target runs numerusFormRuns carves into forms,
+// and the segmentation that carves them.
+func numerusTarget(block *model.Block, locale model.LocaleID) ([]model.Run, *model.Overlay) {
 	runs := block.TargetRuns(locale)
 	key := model.Variant(locale)
 	if len(runs) == 0 {
@@ -802,17 +829,45 @@ func (w *Writer) numerusFormRuns(block *model.Block, locale model.LocaleID) [][]
 		}
 	}
 	if len(runs) == 0 {
+		return nil, nil
+	}
+	return runs, block.SegmentationFor(&key)
+}
+
+// errNumerusFormsLost refuses a write that cannot place a numerus message's
+// translation into its forms.
+var errNumerusFormsLost = errors.New("its plural forms no longer line up with its translation")
+
+// checkNumerusForms refuses a numerus message whose forms the writer cannot
+// recover. The forms are spans over the translation's runs; an edit written as
+// one text (edit text has no form boundaries) can merge runs across a
+// boundary, and cutting the new runs at the old spans would move words from
+// one plural form into another. The message is refused instead, and each form
+// is edited on its own.
+func (w *Writer) checkNumerusForms(block *model.Block) error {
+	if block.Properties["numerus"] != "yes" {
 		return nil
 	}
-	ov := block.SegmentationFor(&key)
-	if ov == nil || len(ov.Spans) == 0 {
-		return [][]model.Run{runs}
+	locale := model.LocaleID(w.headerProps["language"])
+	if w.Locale != "" {
+		locale = w.Locale
 	}
-	forms := make([][]model.Run, len(ov.Spans))
-	for i, span := range ov.Spans {
-		forms[i] = span.Range.ExtractRuns(runs)
+	runs, ov := numerusTarget(block, locale)
+	if ov == nil || len(ov.Spans) < 2 {
+		return nil
 	}
-	return forms
+	at := 0
+	for _, span := range ov.Spans {
+		r := span.Range
+		if r.Start.Run != at || r.Start.Offset != 0 || r.End.Offset != 0 || r.End.Run < at {
+			return fmt.Errorf("ts writer: message %q: %w", block.Name, errNumerusFormsLost)
+		}
+		at = r.End.Run
+	}
+	if at != len(runs) {
+		return fmt.Errorf("ts writer: message %q: %w", block.Name, errNumerusFormsLost)
+	}
+	return nil
 }
 
 func writeTSRunsXML(buf *strings.Builder, runs []model.Run, escapeApos bool) {
