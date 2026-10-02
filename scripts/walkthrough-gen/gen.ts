@@ -299,7 +299,7 @@ function embedTypesModule(): string {
 import type { KapiFile } from "@neokapi/kapi-playground";
 
 export interface WalkthroughEmbedStep {
-  /** A runnable kapi command, e.g. "kapi word-count messages.json". */
+  /** A runnable kapi command, e.g. "kapi stats messages.json". */
   command: string;
   /** Optional one-line explanation shown beside the step. */
   narration?: string;
