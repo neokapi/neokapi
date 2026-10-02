@@ -138,6 +138,11 @@
                 "type": "array",
                 "items": { "type": "string", "enum": ["read", "write", "generative", "interchange"] }
               },
+              "writable_attrs": {
+                "type": "object",
+                "additionalProperties": { "type": "array", "items": { "type": "string" } }
+              },
+              "synthesizes": { "type": "array", "items": { "type": "string" } },
               "schema": { "type": "string" }
             }
           }

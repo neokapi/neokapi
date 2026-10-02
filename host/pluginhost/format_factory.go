@@ -49,16 +49,18 @@ func RegisterModeCFormats(host *Host, pool *DaemonPool, reg *registry.FormatRegi
 		// and detection by extension/MIME works) — even when no factory
 		// is registered yet.
 		reg.RegisterFormatInfo(formatID, registry.FormatInfo{
-			Name:        formatID,
-			DisplayName: f.DisplayName,
-			MimeTypes:   sig.MIMETypes,
-			Extensions:  sig.Extensions,
-			Source:      plugin.Name(),
-			HasReader:   f.HasCapability("read"),
-			HasWriter:   f.HasCapability("write"),
-			Generative:  f.HasCapability("generative"),
-			Interchange: f.HasCapability("interchange"),
-			Family:      pluginFamily(f.Family),
+			Name:          formatID,
+			DisplayName:   f.DisplayName,
+			MimeTypes:     sig.MIMETypes,
+			Extensions:    sig.Extensions,
+			Source:        plugin.Name(),
+			HasReader:     f.HasCapability("read"),
+			HasWriter:     f.HasCapability("write"),
+			Generative:    f.HasCapability("generative"),
+			Interchange:   f.HasCapability("interchange"),
+			Family:        pluginFamily(f.Family),
+			WritableAttrs: f.WritableAttrs,
+			Synthesizes:   f.Synthesizes,
 		})
 		reg.SetFormatSource(formatID, plugin.Name())
 

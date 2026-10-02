@@ -138,8 +138,17 @@ type FormatInfo struct {
 	// the cached manifest for plugin formats. It is the ceiling a recipe
 	// narrows, never the floor it raises.
 	InlineAnnotations []string `json:"inline_annotations,omitempty"`
-	Source            string   `json:"source"`   // SourceBuiltIn or plugin name
-	Priority          int      `json:"priority"` // higher = preferred when multiple formats match
+	// EditCapabilities is what the writer can write beyond replaying what its
+	// reader read: the attributes of a code set_attribute may change, the
+	// vocabulary types mark may create, and its structural and native
+	// operations. Declarative, like Generative: probed once from the writer's
+	// AttrWriter, CodeSynthesizer, StructuralWriter and NativeEditor
+	// capabilities at registration for built-ins, and read from the cached
+	// manifest for plugin formats. The change service applies those
+	// operations only where this declares them.
+	format.EditCapabilities
+	Source   string `json:"source"`   // SourceBuiltIn or plugin name
+	Priority int    `json:"priority"` // higher = preferred when multiple formats match
 }
 
 // computeEditable derives the Editable flag from the format's capabilities: a
@@ -287,6 +296,9 @@ func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFacto
 		if aw, ok := w.(format.InlineAnnotationWriter); ok {
 			info.InlineAnnotations = aw.InlineAnnotations()
 		}
+		// What the writer can write beyond its skeleton: attributes, new
+		// codes, structural and native operations.
+		info.EditCapabilities = format.ProbeEditCapabilities(w)
 	}
 }
 
@@ -386,6 +398,11 @@ func (r *FormatRegistry) RegisterFormatInfo(name FormatID, info FormatInfo) {
 	if info.Family != "" {
 		existing.Family = info.Family
 	}
+	// A plugin declares what its writer can write beyond its skeleton in the
+	// cached manifest, like generative.
+	if !info.EditCapabilities.IsZero() {
+		existing.EditCapabilities = info.EditCapabilities.Clone()
+	}
 
 	// Register detection signature so bridge/plugin formats participate in
 	// DetectByExtension and DetectByMIME from metadata scan time, before
@@ -459,6 +476,7 @@ func (r *FormatRegistry) FormatInfos() []FormatInfo {
 			cp.Source = SourceBuiltIn
 		}
 		cp.computeEditable()
+		cp.EditCapabilities = info.EditCapabilities.Clone()
 		result = append(result, cp)
 	}
 
@@ -481,6 +499,7 @@ func (r *FormatRegistry) FormatInfo(name FormatID) *FormatInfo {
 		cp.Source = SourceBuiltIn
 	}
 	cp.computeEditable()
+	cp.EditCapabilities = info.EditCapabilities.Clone()
 	return &cp
 }
 
