@@ -255,3 +255,32 @@ func TestEditPlan_TextEditsApplyAsReplaceText(t *testing.T) {
 	_, err = source.Ops(b)
 	require.Error(t, err)
 }
+
+// A plan built as a struct literal can key a target by any spelling of its
+// language. Ops reads the maps by the canonical spelling, so fr-fr replaces
+// the fr-FR target with what the plan holds for it, rather than with nothing,
+// and two spellings of one edition are refused.
+func TestEditPlan_NonCanonicalKeysNameTheirEdition(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SetTargetText("fr-FR", "Bonjour")
+	p := tool.EditPlan{Targets: map[model.VariantKey][]model.Run{{Locale: "fr-fr"}: {model.TextR("Salut")}}}
+
+	ops, err := p.Ops(b)
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	body, ok := ops[0].Body.(*change.SetContent)
+	require.True(t, ok)
+	assert.Equal(t, "Salut", model.RunsText(body.Runs))
+	for _, r := range change.ApplyBlock(b, ops, change.BlockEnv{Actor: change.Actor{Kind: change.ActorTool, Name: "probe"}}) {
+		require.Equal(t, change.OpApplied, r.Status, "%+v", r.Error)
+	}
+	assert.Equal(t, "Salut", b.TargetText("fr-FR"))
+
+	two := tool.EditPlan{Targets: map[model.VariantKey][]model.Run{
+		{Locale: "fr-fr"}: {model.TextR("Salut")},
+		{Locale: "fr_FR"}: {model.TextR("Coucou")},
+	}}
+	_, err = two.Ops(b)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "two spellings")
+}

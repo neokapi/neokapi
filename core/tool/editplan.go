@@ -146,13 +146,23 @@ func (p *EditPlan) Ops(block *model.Block) ([]change.Op, error) {
 	if p.NewRuns == nil && len(p.Edits) > 0 {
 		return nil, errors.New("edit plan has Edits but no NewRuns")
 	}
-	if len(p.TextEdits[model.VariantKey{}]) > 0 && (p.ReplaceAll != nil || p.NewRuns != nil) {
+	// A key is looked up by its canonical spelling, so the maps are read under
+	// it: a target keyed fr-fr is the fr-FR target.
+	targets, err := canonicalKeys(p.Targets)
+	if err != nil {
+		return nil, err
+	}
+	textEdits, err := canonicalKeys(p.TextEdits)
+	if err != nil {
+		return nil, err
+	}
+	if len(textEdits[model.VariantKey{}]) > 0 && (p.ReplaceAll != nil || p.NewRuns != nil) {
 		return nil, errors.New("edit plan rewrites the source both in place (TextEdits) and whole (NewRuns or ReplaceAll)")
 	}
 	at := func(key model.EditionKey) change.Ref { return change.Ref{Block: block.ID, Edition: key} }
 	replaceText := func(key model.EditionKey) []change.Op {
 		var out []change.Op
-		for _, pass := range p.TextEdits[key] {
+		for _, pass := range textEdits[key] {
 			out = append(out, change.Op{Kind: change.KindReplaceText, At: at(key), IfMatch: change.AnyRevision,
 				Body: &change.ReplaceText{Edits: pass}})
 		}
@@ -176,12 +186,12 @@ func (p *EditPlan) Ops(block *model.Block) ([]change.Op, error) {
 	}
 	ops = append(ops, replaceText(model.EditionKey{})...)
 	var keys []model.VariantKey
-	for key := range p.Targets {
-		keys = append(keys, key.Canonical())
+	for key := range targets {
+		keys = append(keys, key)
 	}
-	for key := range p.TextEdits {
-		if !key.IsZero() && !slices.Contains(keys, key.Canonical()) {
-			keys = append(keys, key.Canonical())
+	for key := range textEdits {
+		if !key.IsZero() && !slices.Contains(keys, key) {
+			keys = append(keys, key)
 		}
 	}
 	slices.SortFunc(keys, func(a, b model.VariantKey) int {
@@ -193,8 +203,8 @@ func (p *EditPlan) Ops(block *model.Block) ([]change.Op, error) {
 		if block.IsSourceEdition(key) {
 			return nil, sourceLanguageTarget(block, key)
 		}
-		runs, replaced := p.Targets[key]
-		if len(p.TextEdits[key]) > 0 {
+		runs, replaced := targets[key]
+		if len(textEdits[key]) > 0 {
 			if replaced {
 				text, _ := key.MarshalText()
 				return nil, fmt.Errorf("edit plan rewrites the target in %s both in place (TextEdits) and whole (Targets)", text)
@@ -209,6 +219,21 @@ func (p *EditPlan) Ops(block *model.Block) ([]change.Op, error) {
 			Body: &change.SetContent{Runs: runs}})
 	}
 	return ops, nil
+}
+
+// canonicalKeys returns m keyed by each key's canonical spelling. Two keys
+// that spell one edition are an error: the plan would say two things about it.
+func canonicalKeys[V any](m map[model.VariantKey]V) (map[model.VariantKey]V, error) {
+	out := make(map[model.VariantKey]V, len(m))
+	for key, v := range m {
+		c := key.Canonical()
+		if _, dup := out[c]; dup {
+			text, _ := c.MarshalText()
+			return nil, fmt.Errorf("edit plan names the edition %s under two spellings", text)
+		}
+		out[c] = v
+	}
+	return out, nil
 }
 
 // applyEditPlan is the framework applier for a transform (AD-006): it vaults
