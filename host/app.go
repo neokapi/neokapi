@@ -304,7 +304,7 @@ func (a *App) AddProcessingFlags(cmd Command) {
 	cmd.Flags().StringVarP(&a.FormatFlag, "format", "f", "", "override input format detection")
 	a.AddEncodingFlag(cmd.Flags(), "e", "input file encoding")
 	a.AddSourceLangFlag(cmd.Flags())
-	cmd.Flags().StringVar(&a.TargetLang, "target-lang", "", "target language (e.g. fr, de-DE)")
+	a.AddTargetLangFlag(cmd.Flags())
 }
 
 // InitRegistries populates FormatReg, SchemaReg, and ToolReg with every

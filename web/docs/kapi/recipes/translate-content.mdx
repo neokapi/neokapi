@@ -61,6 +61,8 @@ kapi translate -i src/locales/en.json --target-lang fr -o src/locales/fr.json
 kapi translate -i guide.md --target-lang de        # documents work the same way
 ```
 
+`--target-lang` takes one language tag, and kapi refuses a list such as `fr,de` before it reads anything. For several languages, run the command once per language, or declare the languages in a project and run `kapi up`.
+
 The default engine is an LLM; `kapi models setup` detects what you already have (a Claude Code sign-in, an API key in the environment, or a local Ollama model) and saves it as the default ([Choose a translation model](/kapi/recipes/choose-a-translation-provider)).
 
 </TabItem>
