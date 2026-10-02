@@ -234,9 +234,12 @@ same-language edition with a tone or a channel is an edition of its own. A
 bilingual file whose two languages are one (an XLIFF file from en-US to en-US)
 holds a target under the source language; that key then reaches the target, and
 the zero key alone reaches the source. Keys are canonical wherever they address
-an edition, so `nb_NO` and `nb-NO` name one. Code that changes content reads and
-writes through these accessors, so the storage behind them (`Source` and
-`Targets` today) can change without touching it.
+an edition, so `nb_NO` and `nb-NO` name one. `SetEdition` with new runs for the
+edition the block was read in is an edit, and the block keeps the source as read
+(`SourceAsRead`); `SetEdition` with the runs `Edition` returned changes only the
+status and origin. Code that changes content reads and writes through these
+accessors, so the storage behind them (`Source` and `Targets` today) can change
+without touching it.
 
 `model.EditionRevision(block, k)` names an edition's content: `r:` and 16 hex
 digits of the SHA-256 of the edition key and its runs as canonical JSON. Status,
