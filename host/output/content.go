@@ -13,6 +13,9 @@ type AddEntry struct {
 	Target  string `json:"target,omitempty"`
 	Files   int    `json:"files"`
 	Skipped bool   `json:"skipped,omitempty"`
+	// Updated is set when the pattern was already tracked and the add gave
+	// its entry the target it lacked.
+	Updated bool `json:"updated,omitempty"`
 }
 
 // AddOutput is the result of `kapi add`.
@@ -28,6 +31,8 @@ func (o AddOutput) FormatText(w io.Writer) error {
 			target = " → " + e.Target
 		}
 		switch {
+		case e.Updated:
+			fmt.Fprintf(w, "Set target for %s%s: %d file(s)\n", e.Pattern, target, e.Files)
 		case e.Skipped:
 			fmt.Fprintf(w, "Already tracked: %s\n", e.Pattern)
 		case e.Format != "":

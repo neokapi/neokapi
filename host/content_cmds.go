@@ -242,6 +242,71 @@ func ContentTracks(proj *coreproj.KapiProject, pattern string) bool {
 	return false
 }
 
+// SetTrackedTarget applies `kapi add --target` to the entry that already
+// tracks exactly pattern, a bare entry or an item of a named collection. It
+// sets the target when the entry declares none and reports whether the recipe
+// changed; asking again for the target the entry already has changes nothing.
+// An entry that declares a different target is refused rather than repointed,
+// as CollectionForAdd refuses a different channel, and so is a pattern several
+// entries track, where no one entry is the one meant.
+func SetTrackedTarget(proj *coreproj.KapiProject, recipePath, pattern, target string) (bool, error) {
+	type entry struct {
+		target *string
+		coll   *coreproj.Collection
+	}
+	var entries []entry
+	for i := range proj.Collections {
+		c := &proj.Collections[i]
+		if c.IsBareEntry() {
+			if c.Path == pattern {
+				entries = append(entries, entry{&c.Target, c})
+			}
+			continue
+		}
+		for j := range c.Content {
+			if coreproj.JoinBase(c.Base, c.Content[j].Path) == pattern {
+				entries = append(entries, entry{&c.Content[j].Target, c})
+			}
+		}
+	}
+	recipe := filepath.Base(recipePath)
+	switch len(entries) {
+	case 0:
+		return false, fmt.Errorf("%s is not tracked in %s", pattern, recipe)
+	case 1:
+	default:
+		return false, fmt.Errorf("%s is tracked by %d entries in %s. Set the target in the recipe on the one that should carry it", pattern, len(entries), recipe)
+	}
+	e := entries[0]
+	switch *e.target {
+	case target:
+		return false, nil
+	case "":
+		*e.target = target
+		return true, nil
+	}
+	if e.coll.IsBareEntry() {
+		return false, fmt.Errorf("%s is already tracked with target %q. To change it, edit that target in %s, or run 'kapi rm %s' and add it again with --target",
+			pattern, *e.target, recipe, pattern)
+	}
+	return false, fmt.Errorf("%s is already tracked in collection %q with target %q. To change it, edit that target in %s",
+		pattern, e.coll.Name, *e.target, recipe)
+}
+
+// ClaimingEntry reports the first of files (project-relative) that an entry
+// already in the recipe claims, and that entry's pattern. A file belongs to the
+// first entry in recipe order whose pattern matches it, so an entry added after
+// that one never governs the file, and a --target given with it would never
+// apply.
+func ClaimingEntry(proj *coreproj.KapiProject, files []string) (file, pattern string, ok bool) {
+	for _, f := range files {
+		if item, _, claimed := proj.ItemForPath(filepath.ToSlash(f)); claimed {
+			return f, item.Path, true
+		}
+	}
+	return "", "", false
+}
+
 // RmPattern removes a top-level bare content entry matching the pattern, or
 // (if none matches) adds the pattern to the exclude list. Items nested inside
 // named collections are not touched (they survive as part of the collection).

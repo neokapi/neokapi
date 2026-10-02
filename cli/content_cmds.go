@@ -34,6 +34,10 @@ path tokens ({path}, {name}, {ext}), or a directory to mirror into. Without one
 a flow that writes has nowhere of its own to write, so give it here rather than
 by hand-editing the recipe. A target that lands back inside the pattern it
 comes from is refused: the collection would re-track its own output as source.
+On a pattern the project already tracks, --target sets the target its entry
+lacks. An entry that already declares another target is left as it is, and so
+is a file an earlier entry claims; both are refused with the recipe change to
+make instead.
 
   kapi add "src/**/*.html"
   kapi add "locales/*.json" --format json
@@ -72,7 +76,25 @@ comes from is refused: the collection would re-track its own output as source.
 			var result output.AddOutput
 			for _, pattern := range args {
 				if ContentTracks(proj, pattern) {
-					result.Added = append(result.Added, output.AddEntry{Pattern: pattern, Skipped: true})
+					if target == "" {
+						result.Added = append(result.Added, output.AddEntry{Pattern: pattern, Skipped: true})
+						continue
+					}
+					// --target on a tracked pattern is about that entry: set
+					// the target it lacks, or say why it cannot.
+					matches, gerr := coreproj.ExpandGlob(root, pattern)
+					if gerr != nil {
+						return fmt.Errorf("pattern %q cannot be expanded: %w", pattern, gerr)
+					}
+					if bad, feeds := targetFeedsItsOwnCollection(pattern, target, probeLocale(proj), matches); feeds {
+						return fmt.Errorf("--target %q puts %s back inside the pattern %q, so the collection would re-track its own output as source and double on every run. Point the target outside the collection",
+							target, bad, pattern)
+					}
+					changed, terr := SetTrackedTarget(proj, recipePath, pattern, target)
+					if terr != nil {
+						return terr
+					}
+					result.Added = append(result.Added, output.AddEntry{Pattern: pattern, Target: target, Files: len(matches), Skipped: !changed, Updated: changed})
 					continue
 				}
 				fmtName := format
@@ -94,6 +116,12 @@ comes from is refused: the collection would re-track its own output as source.
 				if bad, feeds := targetFeedsItsOwnCollection(pattern, target, probeLocale(proj), matches); feeds {
 					return fmt.Errorf("--target %q puts %s back inside the pattern %q, so the collection would re-track its own output as source and double on every run. Point the target outside the collection",
 						target, bad, pattern)
+				}
+				if target != "" {
+					if file, by, claimed := ClaimingEntry(proj, matches); claimed {
+						return fmt.Errorf("%s is already tracked by %q, which claims it first, so a target given with %q would never apply to it. Set the target on %q in %s instead",
+							file, by, pattern, by, filepath.Base(recipePath))
+					}
 				}
 				var spec *coreproj.FormatSpec
 				if fmtName != "" {

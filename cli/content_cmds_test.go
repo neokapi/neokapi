@@ -172,6 +172,94 @@ collections: []
 	assert.NotContains(t, string(raw), "docs/**/*.md", "a refused add writes nothing")
 }
 
+// --target on a pattern the project already tracks is a request about that
+// entry, never one to drop. It sets the target an entry has none of, and
+// refuses, with how to change it, where the entry already declares a
+// different one or where an earlier entry claims the files, since the
+// project would keep writing them where that entry says.
+func TestAdd_TargetOnATrackedPattern(t *testing.T) {
+	const target = "{lang}/{name}.{ext}"
+	tests := []struct {
+		name        string
+		collections string
+		pattern     string
+		wantErr     []string // substrings of the refusal; empty: accepted
+		wantOut     string
+		wantTarget  func(*coreproj.KapiProject) string
+	}{
+		{
+			name:        "a bare entry with no target gets the target",
+			collections: "  - path: guide.md\n",
+			pattern:     "guide.md",
+			wantOut:     "Set target for guide.md → " + target,
+			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[0].Target },
+		},
+		{
+			name:        "an item in a named collection with no target gets the target",
+			collections: "  - name: docs\n    content:\n      - path: guide.md\n",
+			pattern:     "guide.md",
+			wantOut:     "Set target for guide.md → " + target,
+			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[0].Content[0].Target },
+		},
+		{
+			name:        "the same target again is already tracked",
+			collections: "  - path: guide.md\n    target: '" + target + "'\n",
+			pattern:     "guide.md",
+			wantOut:     "Already tracked: guide.md",
+			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[0].Target },
+		},
+		{
+			name:        "a different target is refused",
+			collections: "  - path: guide.md\n    target: 'out/{lang}/{name}.{ext}'\n",
+			pattern:     "guide.md",
+			wantErr:     []string{"guide.md", "out/{lang}/{name}.{ext}", "kapi rm guide.md"},
+			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[0].Target },
+		},
+		{
+			name:        "files an earlier glob claims are refused",
+			collections: "  - path: '*.md'\n",
+			pattern:     "guide.md",
+			wantErr:     []string{"guide.md", "*.md", "claims"},
+			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[0].Target },
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			a := processOnlyApp(t)
+			real, err := filepath.EvalSymlinks(t.TempDir())
+			require.NoError(t, err)
+			recipe := filepath.Join(real, "kapi.yaml")
+			initial := "version: v1\nname: Tracked\ndefaults:\n  source_language: en\n  target_languages:\n    - fr\ncollections:\n" + tc.collections
+			require.NoError(t, os.WriteFile(recipe, []byte(initial), 0o644))
+			require.NoError(t, os.WriteFile(filepath.Join(real, "guide.md"), []byte("# Guide\n"), 0o644))
+
+			cmd := NewAddCmd(a)
+			cmd.SetArgs([]string{tc.pattern, "--target", target, "--project", recipe})
+			var out bytes.Buffer
+			cmd.SetOut(&out)
+			cmd.SetErr(&out)
+			err = cmd.Execute()
+
+			proj, lerr := coreproj.Load(recipe)
+			require.NoError(t, lerr)
+			if len(tc.wantErr) > 0 {
+				require.Error(t, err)
+				for _, s := range tc.wantErr {
+					assert.Contains(t, err.Error(), s)
+				}
+				raw, rerr := os.ReadFile(recipe)
+				require.NoError(t, rerr)
+				assert.Equal(t, initial, string(raw), "a refused add writes nothing")
+				return
+			}
+			require.NoError(t, err)
+			assert.Contains(t, out.String(), tc.wantOut)
+			assert.Equal(t, target, tc.wantTarget(proj))
+			assert.Len(t, proj.Collections, 1, "no second entry for the same files")
+		})
+	}
+}
+
 // TestCoreKapi_RefusesRecipeRequiringUnregisteredPlugin proves the boundary
 // gate from the core side: a recipe that declares `requires: bowrain` (as a
 // server-connected project does) is refused by plain kapi, where the bowrain

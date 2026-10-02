@@ -159,6 +159,8 @@ var (
 	CollectionForAdd             = host.CollectionForAdd
 	CollectionRelativePath       = host.CollectionRelativePath
 	ContentTracks                = host.ContentTracks
+	SetTrackedTarget             = host.SetTrackedTarget
+	ClaimingEntry                = host.ClaimingEntry
 	DeduplicateVersionedFormats  = host.DeduplicateVersionedFormats
 	DescriptionWidth             = host.DescriptionWidth
 	DiagnosePlugin               = host.DiagnosePlugin
