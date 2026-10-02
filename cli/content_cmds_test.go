@@ -239,8 +239,8 @@ func TestAdd_TargetOnATrackedPattern(t *testing.T) {
 			args:        []string{"*.md"},
 			wantOut: []string{
 				"Added *.md (markdown) → " + target + ": 1 file(s)",
-				"  b.md is tracked first by b.md, whose target applies to it",
-				"  guide.md is tracked first by guide.md, whose target applies to it",
+				"  b.md is tracked first by b.md, so this target does not apply to it",
+				"  guide.md is tracked first by guide.md, so this target does not apply to it",
 			},
 			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[2].Target },
 			wantEntries: 3,
@@ -252,7 +252,7 @@ func TestAdd_TargetOnATrackedPattern(t *testing.T) {
 			args:        []string{"*.md"},
 			wantOut: []string{
 				"Set target for *.md → " + target + ": 1 file(s)",
-				"  b.md is tracked first by b.md, whose target applies to it",
+				"  b.md is tracked first by b.md, so this target does not apply to it",
 			},
 			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[2].Target },
 			wantEntries: 3,

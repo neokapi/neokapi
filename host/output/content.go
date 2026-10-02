@@ -52,7 +52,7 @@ func (o AddOutput) FormatText(w io.Writer) error {
 			fmt.Fprintf(w, "Added %s%s: %d file(s)\n", e.Pattern, target, e.Files)
 		}
 		for _, c := range e.ClaimedElsewhere {
-			fmt.Fprintf(w, "  %s is tracked first by %s, whose target applies to it\n", c.File, c.Entry)
+			fmt.Fprintf(w, "  %s is tracked first by %s, so this target does not apply to it\n", c.File, c.Entry)
 		}
 	}
 	return nil
