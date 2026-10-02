@@ -70,19 +70,29 @@ type Binding struct {
 	Name string
 	// NewReader returns a reader configured for the document.
 	NewReader func() (format.DataFormatReader, error)
-	// NewWriter returns a writer configured for the document, or an error
-	// when the format has no writer.
+	// NewWriter returns a writer configured for the document, its output
+	// encoding included, or an error when the format has no writer.
 	NewWriter func() (format.DataFormatWriter, error)
 }
 
-// RegistryBinding binds format name to its reader and writer in reg, with no
-// configuration beyond the defaults.
-func RegistryBinding(reg *registry.FormatRegistry, name string) Binding {
+// RegistryBinding binds format name to its reader and writer in reg, with the
+// defaults' configuration, writing in encoding (empty is the writer's
+// default).
+func RegistryBinding(reg *registry.FormatRegistry, name, encoding string) Binding {
 	id := registry.FormatID(name)
 	return Binding{
 		Name:      name,
 		NewReader: func() (format.DataFormatReader, error) { return reg.NewReader(id) },
-		NewWriter: func() (format.DataFormatWriter, error) { return reg.NewWriter(id) },
+		NewWriter: func() (format.DataFormatWriter, error) {
+			w, err := reg.NewWriter(id)
+			if err != nil {
+				return nil, err
+			}
+			if encoding != "" {
+				w.SetEncoding(encoding)
+			}
+			return w, nil
+		},
 	}
 }
 
@@ -101,6 +111,9 @@ type DirLayout struct {
 	// Format, when set, names the format of every document instead of
 	// detecting it.
 	Format string
+	// Encoding is the encoding documents are read and written in; empty is
+	// UTF-8.
+	Encoding string
 }
 
 // Locate resolves doc under the root.
@@ -116,7 +129,8 @@ func (l DirLayout) Locate(_ context.Context, doc string) (Doc, error) {
 			return Doc{}, err
 		}
 	}
-	d := Doc{Ref: ref, Path: path, Entry: entry, Format: RegistryBinding(l.Formats, name), SourceLocale: l.SourceLocale, Editions: change.EditionsPerFile}
+	d := Doc{Ref: ref, Path: path, Entry: entry, Format: RegistryBinding(l.Formats, name, l.Encoding),
+		SourceLocale: l.SourceLocale, Encoding: l.Encoding, Editions: change.EditionsPerFile}
 	if info := l.Formats.FormatInfo(registry.FormatID(name)); info != nil && info.Interchange {
 		d.Editions = change.EditionsInFile
 	}

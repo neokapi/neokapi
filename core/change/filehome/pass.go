@@ -46,7 +46,8 @@ func (s source) entryBytes() ([]byte, error) {
 type pass struct {
 	src      source
 	format   Binding
-	locale   model.LocaleID
+	locale model.LocaleID
+	// encoding is the encoding the reader reads in.
 	encoding string
 	// fn sees every block, in document order. Returning change.ErrStop ends a
 	// read early.
@@ -139,7 +140,8 @@ func (p pass) run(ctx context.Context) (err error) {
 	if p.out == nil {
 		return p.read(ctx, reader, writer, doc)
 	}
-	writer.SetEncoding(p.encoding)
+	// The binding configured the writer's encoding with the rest of its
+	// output options; only the locale it writes is the pass's.
 	writer.SetLocale(p.writeLocale)
 	if format.IsStreamingReader(reader) && format.IsStreamingWriter(writer) && original == nil {
 		return p.stream(ctx, reader, writer, doc)
