@@ -182,17 +182,27 @@ func IsDocumentKey(s string) bool {
 	return true
 }
 
+// mintDocs keys the documents nothing claimed. A key derived from a path can
+// already belong to a document in this read: one first read at that path and
+// since renamed keeps the key the old path minted. The new document then takes
+// the next free ordinal, so two documents never share a key.
 func mintDocs(out []DocResult, units []DocUnit) {
-	seen := map[string]int{}
+	taken := map[string]bool{}
+	for _, r := range out {
+		if r.Key != "" {
+			taken[r.Key] = true
+		}
+	}
 	for i := range out {
 		if out[i].Key != "" {
 			continue
 		}
-		key := DocumentKeyFor(units[i].Path)
-		seen[key]++
-		if n := seen[key]; n > 1 {
-			key += "-" + strconv.Itoa(n)
+		base := DocumentKeyFor(units[i].Path)
+		key := base
+		for n := 2; taken[key]; n++ {
+			key = base + "-" + strconv.Itoa(n)
 		}
+		taken[key] = true
 		out[i].Key, out[i].Kind = key, New
 	}
 }

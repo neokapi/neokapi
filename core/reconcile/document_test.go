@@ -132,3 +132,21 @@ func TestDocuments_EmptyDocumentDoesNotMatchOnContent(t *testing.T) {
 	got := reconcile.Documents([]reconcile.Document{{Path: "docs/empty.md"}}, prior)
 	assert.Equal(t, reconcile.New, got[0].Kind)
 }
+
+// TestDocuments_MintSkipsAKeyAnotherDocumentHolds: a document first read at a
+// path keeps the key that path minted after it moves. A new file created at
+// the old path would mint the same key, and two documents would then share
+// it; the new one takes the next free ordinal instead.
+func TestDocuments_MintSkipsAKeyAnotherDocumentHolds(t *testing.T) {
+	held := reconcile.DocumentKeyFor("docs/intro.md")
+	prior := []reconcile.DocUnit{docPrior(held, doc3("guides/intro.md", "Alpha", "Bravo"))}
+
+	got := reconcile.Documents([]reconcile.Document{
+		doc3("docs/intro.md", "Something", "Else"),
+		doc3("guides/intro.md", "Alpha", "Bravo"),
+	}, prior)
+	require.Len(t, got, 2)
+	assert.Equal(t, held, got[1].Key, "the moved document keeps its key")
+	assert.Equal(t, reconcile.New, got[0].Kind)
+	assert.Equal(t, held+"-2", got[0].Key, "the new file at the old path takes the next ordinal")
+}
