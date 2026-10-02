@@ -287,7 +287,7 @@ export class Origin {
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
             /**
-             * human | memory | mt | ai | ocr | asr
+             * human | agent | memory | mt | ai | ocr | asr
              * @member
              * @type {string | undefined}
              */
