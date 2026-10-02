@@ -36,6 +36,11 @@ import (
 // The matrix is the deliverable: it is what turns two known-broken formats into a
 // closed class, and it fails for any future writer that reintroduces the shortcut
 // without a witness of the text as read.
+//
+// Its fixtures are plain text. The operations matrix in opsmatrix_test.go drives
+// the same round trip over fixtures with inline codes, attributes, plurals and
+// targets, for every format whose reader and writer share a skeleton, and
+// asserts every byte the edit did not touch.
 
 // sourceEditCase is one row of the matrix.
 type sourceEditCase struct {
