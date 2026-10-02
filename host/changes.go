@@ -154,7 +154,10 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 	if origin == "" {
 		origin = "apply"
 	}
-	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: h.prepare, BackupSuffix: opts.BackupSuffix})
+	// The recorder opens before the home takes its first lock, after the
+	// lock directory is prepared.
+	recorder := a.changeRecorder(ctx, h.root)
+	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: recorder.before(h.prepare), BackupSuffix: opts.BackupSuffix})
 	svcOpts := []change.Option{
 		change.WithOrigin(origin),
 		change.WithAssets(&changeAssets{app: a, recipe: opts.Project}),
@@ -173,18 +176,10 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 	if policy != nil {
 		svcOpts = append(svcOpts, change.WithPolicy(policy))
 	}
-	recorder, err := a.changeRecorder(ctx, h.root)
-	if err != nil {
-		return nil, err
-	}
 	if recorder != nil {
 		svcOpts = append(svcOpts, change.WithRecorder(recorder))
 	}
-	states, err := a.changeEditionStates(ctx, h.root)
-	if err != nil {
-		return nil, err
-	}
-	if states != nil {
+	if states := a.changeEditionStates(h.root); states != nil {
 		svcOpts = append(svcOpts, change.WithEditionStates(states))
 	}
 	return change.NewService(filehome.Formats{Registry: a.FormatReg}, change.OneHome(home), svcOpts...), nil
