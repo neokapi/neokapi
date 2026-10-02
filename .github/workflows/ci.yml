@@ -1370,6 +1370,8 @@ jobs:
         run: make check-module-boundaries
       - name: Assert only the projector writes the context stores
         run: make check-projection-writes
+      - name: Assert a document reaches a file only where the edit guard lists it
+        run: make check-edit-writes
 
   # ── Build (runs in parallel with test/lint) ───────────────────────────────
   build:

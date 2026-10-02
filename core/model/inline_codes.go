@@ -95,6 +95,13 @@ func pairedCodesKeepShape(a, b []Run) bool {
 	return pairedCodesBalanced(b)
 }
 
+// PairedCodesKeepShape reports whether the paired codes of runs are as well
+// formed as those of reference, in one run scope: nested when the reference's
+// nest, balanced otherwise.
+func PairedCodesKeepShape(reference, runs []Run) bool {
+	return pairedCodesKeepShape(reference, runs)
+}
+
 // InlineCodesPreserved reports whether b faithfully preserves a's inline codes:
 // each scope retains its code multiset, and its paired codes stay nested when
 // the source's nest (balanced otherwise). Plural and select constructs retain

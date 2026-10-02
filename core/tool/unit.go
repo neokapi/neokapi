@@ -135,7 +135,8 @@ func sourceUnits(b *model.Block, layer string) iter.Seq[Unit] {
 // non-ignorable unit was left unwritten, nothing is committed — so a tool that
 // can only translate some segments leaves the target untouched for a later
 // stage, exactly as per-segment content-memory leverage requires.
-func targetUnits(b *model.Block, loc model.LocaleID, layer string) iter.Seq[WritableUnit] {
+func targetUnits(v *blockView, loc model.LocaleID, layer string) iter.Seq[WritableUnit] {
+	b := v.b
 	return func(yield func(WritableUnit) bool) {
 		seg := b.SegmentationLayerFor(nil, layer)
 		if seg == nil || len(seg.Spans) == 0 {
@@ -147,7 +148,7 @@ func targetUnits(b *model.Block, loc model.LocaleID, layer string) iter.Seq[Writ
 				return
 			}
 			if u.written {
-				b.SetTargetRuns(loc, u.outRuns)
+				v.SetTargetRuns(loc, u.outRuns)
 			}
 			return
 		}
@@ -179,7 +180,7 @@ func targetUnits(b *model.Block, loc model.LocaleID, layer string) iter.Seq[Writ
 				return // a non-ignorable unit was not written: commit nothing
 			}
 		}
-		b.SetTargetRuns(loc, assembled)
+		v.SetTargetRuns(loc, assembled)
 	}
 }
 

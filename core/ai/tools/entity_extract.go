@@ -342,7 +342,12 @@ func (t *AIEntityExtractTool) processBatched(ctx context.Context, in <-chan *mod
 			if ents, ok := nerResults[globalIdx]; ok {
 				nerEnts = ents
 			}
-			t.attachAnnotationsFromBatch(tool.NewBlockViewWithContext(ctx, entry.block), nerEnts, llmResult, entry.blockID)
+			if err := tool.WriteAs(ctx, entry.block, t.ToolName, func(v tool.VariantView) error {
+				t.attachAnnotationsFromBatch(v, nerEnts, llmResult, entry.blockID)
+				return nil
+			}); err != nil {
+				return err
+			}
 		}
 		entryOffset += len(batch)
 	}

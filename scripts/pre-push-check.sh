@@ -102,6 +102,10 @@ run_check "Comment coverage" make check-comment-coverage
 # guard, which type-checks them, notices one that bypasses the projector.
 run_check "Only the projector writes the context stores" make check-projection-writes
 
+# Ungated: a writer can be pointed at a file in any module, and only this
+# guard, which type-checks them, notices a new place a document reaches disk.
+run_check "A document reaches a file only where the edit guard lists it" make check-edit-writes
+
 # Ungated: a walk selector dies in the app, not in the recorder that names it,
 # so gating this on the recorder's own path would never fire. ~2s.
 run_check "Walk selectors still exist" ./scripts/check-walk-selectors.sh

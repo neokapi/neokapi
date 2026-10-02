@@ -2,9 +2,11 @@ package tool
 
 import (
 	"context"
+	"fmt"
 	"iter"
 	"maps"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -186,15 +188,125 @@ type TargetWriter interface {
 // blockView is the single concrete view; the handler field's parameter type
 // (BlockView / VariantView) narrows which methods a tool can call. There is no
 // source-write view: a Transform handler is a read-only producer and the
-// framework applier mutates the block directly (AD-006).
+// framework applier rewrites the source (AD-006).
+//
+// Every content write a view makes, a target and its provenance, and every
+// overlay write, is an operation applied at once through change.ApplyBlock,
+// the one function that changes a block's content. Applying at once keeps
+// read-your-writes: a handler that sets a target and then stamps it sees the
+// target it set. The view applies as the tool, with guard violations landing
+// as findings (a tool's draft meets the ship gates later). An operation the
+// applier refuses is a defect in the tool: the view keeps the first refusal,
+// and the dispatcher returns it as the handler's error (see Refusal).
 type blockView struct {
 	ctx     context.Context
 	b       *model.Block
+	tool    string
 	dropped bool
+	err     error
 }
 
 func newBlockView(ctx context.Context, b *model.Block) *blockView {
 	return &blockView{ctx: ctx, b: b}
+}
+
+// newToolView is a view a tool's dispatched handler writes through as the
+// named tool.
+func newToolView(ctx context.Context, b *model.Block, toolName string) *blockView {
+	return &blockView{ctx: ctx, b: b, tool: toolName}
+}
+
+// Refusal returns the first write the view's applier refused, or nil. The
+// dispatcher returns it for a handler it runs; a tool that overrides Process
+// and writes through a view it built checks it itself, or uses WriteAs.
+func Refusal(v BlockView) error {
+	if bv, ok := v.(*blockView); ok {
+		return bv.err
+	}
+	return nil
+}
+
+// WriteAs runs fn over a view of b that writes as the named tool, and returns
+// fn's error or else the first write the view's applier refused. A tool that
+// overrides Process writes a block through it, so its writes take the path a
+// dispatched handler's take.
+func WriteAs(ctx context.Context, b *model.Block, toolName string, fn func(VariantView) error) error {
+	v := newToolView(ctx, b, toolName)
+	if err := fn(v); err != nil {
+		return err
+	}
+	if v.err != nil {
+		return fmt.Errorf("tool %q: %w", toolName, v.err)
+	}
+	return nil
+}
+
+// apply applies operations to the view's block as the view's tool.
+func (v *blockView) apply(ops ...change.Op) {
+	if v.err != nil {
+		return
+	}
+	env := change.BlockEnv{Actor: change.Actor{Kind: change.ActorTool, Name: v.tool}, Guards: change.Report}
+	for _, r := range change.ApplyBlock(v.b, ops, env) {
+		if r.Status == change.OpRefused {
+			v.err = fmt.Errorf("block %q: %s %s refused: %w", v.b.ID, r.Op, editionText(r.At), r.Error)
+			return
+		}
+	}
+}
+
+// editionText names the edition an operation result addresses, for messages.
+func editionText(at *change.Ref) string {
+	if at == nil || at.Edition.IsZero() {
+		return "on the source"
+	}
+	return "on " + at.EditionText()
+}
+
+// ref addresses one edition of the view's block.
+func (v *blockView) ref(key model.EditionKey) change.Ref {
+	return change.Ref{Block: v.b.ID, Edition: key}
+}
+
+// variantRef addresses the edition an overlay's variant names: the source when
+// nil.
+func (v *blockView) variantRef(variant *model.VariantKey) change.Ref {
+	if variant == nil {
+		return v.ref(model.EditionKey{})
+	}
+	return v.ref(*variant)
+}
+
+// setRuns replaces a target's runs, creating the target when absent.
+func (v *blockView) setRuns(key model.EditionKey, runs []model.Run, more ...change.Op) {
+	if v.err != nil {
+		return
+	}
+	if v.b.IsSourceEdition(key) {
+		v.err = sourceLanguageTarget(v.b, key)
+		return
+	}
+	if runs == nil {
+		runs = []model.Run{}
+	}
+	op := change.Op{Kind: change.KindSetContent, At: v.ref(key), IfMatch: change.AnyRevision, Body: &change.SetContent{Runs: runs}}
+	v.apply(append([]change.Op{op}, more...)...)
+}
+
+// sourceLanguageTarget is the refusal of a target write whose key reaches the
+// edition the block was read in: a target in the source language on a block
+// that holds none. A block holds such a target when a bilingual file names one
+// language twice, and a tool writes it then; creating one would replace the
+// source.
+func sourceLanguageTarget(b *model.Block, key model.EditionKey) error {
+	text, _ := key.MarshalText()
+	return fmt.Errorf("block %q: a target in %s, the block's source language, would replace the source; the block holds no target in that language", b.ID, text)
+}
+
+// provenance is the operation that records how the tool produced an edition.
+func (v *blockView) provenance(key model.EditionKey, status model.TargetStatus, origin model.Origin, score *float64) change.Op {
+	return change.Op{Kind: change.KindProvenance, At: v.ref(key),
+		Body: &change.Provenance{Status: model.Status(status), Origin: origin, Score: score}}
 }
 
 // NewBlockView and NewVariantView build an explicit view over a Block at the
@@ -260,20 +372,34 @@ func (v *blockView) SegmentationLayerFor(variant *model.VariantKey, layer string
 	return v.b.SegmentationLayerFor(variant, layer)
 }
 func (v *blockView) SetSegmentation(variant *model.VariantKey, spans []model.Span) {
-	v.b.SetSegmentation(variant, spans)
+	v.SetSegmentationLayer(variant, model.LayerPrimary, spans)
 }
 func (v *blockView) SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span) {
-	v.b.SetSegmentationLayer(variant, layer, spans)
+	v.apply(change.Op{Kind: change.KindAnnotate, At: v.variantRef(variant),
+		Body: &change.Annotate{Type: string(model.OverlaySegmentation), Layer: layer, Spans: spans, Replace: true}})
 }
-func (v *blockView) AddOverlay(o model.Overlay)                       { v.b.Overlays = append(v.b.Overlays, o) }
-func (v *blockView) AddOverlaySpan(t model.OverlayType, s model.Span) { v.b.AddOverlaySpan(t, s) }
+func (v *blockView) AddOverlay(o model.Overlay) {
+	spans := o.Spans
+	if spans == nil {
+		spans = []model.Span{}
+	}
+	v.apply(change.Op{Kind: change.KindAnnotate, At: v.variantRef(o.Variant),
+		Body: &change.Annotate{Type: string(o.Type), Layer: o.Layer, Spans: spans}})
+}
+func (v *blockView) AddOverlaySpan(t model.OverlayType, s model.Span) {
+	v.apply(change.Op{Kind: change.KindAnnotate, At: v.ref(model.EditionKey{}),
+		Body: &change.Annotate{Type: string(t), Spans: []model.Span{s}}})
+}
 func (v *blockView) OverlaySpans(t model.OverlayType) []model.Span {
 	if f := v.b.OverlayOf(t); f != nil {
 		return f.Spans
 	}
 	return nil
 }
-func (v *blockView) RemoveOverlay(t model.OverlayType)         { v.b.RemoveOverlay(t) }
+func (v *blockView) RemoveOverlay(t model.OverlayType) {
+	v.apply(change.Op{Kind: change.KindUnannotate, At: v.ref(model.EditionKey{}),
+		Body: &change.Unannotate{Type: string(t), All: true}})
+}
 func (v *blockView) AddAltTranslation(a *model.AltTranslation) { v.b.AddAltTranslation(a) }
 func (v *blockView) AddNote(n *model.NoteAnnotation)           { v.b.AddNote(n) }
 func (v *blockView) AppendAltUnder(key string, a *model.AltTranslation) {
@@ -309,22 +435,55 @@ func (v *blockView) result(part *model.Part) *model.Part {
 	return part
 }
 
-// Target writes (VariantView).
-func (v *blockView) SetTarget(loc model.LocaleID, t *model.Target) { v.b.SetTarget(loc, t) }
-func (v *blockView) SetTargetVariant(key model.VariantKey, t *model.Target) {
-	v.b.SetTargetVariant(key, t)
+// Target writes (VariantView). Each is a set_content, remove_edition or
+// provenance operation on the edition a locale or variant key names.
+func (v *blockView) SetTarget(loc model.LocaleID, t *model.Target) {
+	v.SetTargetVariant(model.Variant(loc), t)
 }
-func (v *blockView) SetTargetRuns(loc model.LocaleID, runs []model.Run) { v.b.SetTargetRuns(loc, runs) }
-func (v *blockView) SetTargetText(loc model.LocaleID, text string)      { v.b.SetTargetText(loc, text) }
+func (v *blockView) SetTargetVariant(key model.VariantKey, t *model.Target) {
+	if t == nil {
+		v.removeEdition(key)
+		return
+	}
+	score := t.Score
+	v.setRuns(key, t.Runs, v.provenance(key, t.Status, t.Origin, &score))
+}
+func (v *blockView) SetTargetRuns(loc model.LocaleID, runs []model.Run) {
+	v.setRuns(model.Variant(loc), runs)
+}
+func (v *blockView) SetTargetText(loc model.LocaleID, text string) {
+	v.setRuns(model.Variant(loc), []model.Run{{Text: &model.TextRun{Text: text}}})
+}
 func (v *blockView) StampTargetProvenance(loc model.LocaleID, status model.TargetStatus, origin model.Origin) {
-	v.b.StampTargetProvenance(loc, status, origin)
+	key := model.Variant(loc)
+	if v.b.IsSourceEdition(key) {
+		return // no target holds the key; the source takes no target status
+	}
+	v.apply(v.provenance(key, status, origin, nil))
 }
 func (v *blockView) TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit] {
-	return targetUnits(v.b, loc, layer)
+	return targetUnits(v, loc, layer)
 }
-func (v *blockView) RemoveTarget(loc model.LocaleID) { delete(v.b.Targets, model.Variant(loc)) }
+func (v *blockView) RemoveTarget(loc model.LocaleID) { v.removeEdition(model.Variant(loc)) }
 func (v *blockView) ClearTargets() {
-	v.b.Targets = make(map[model.VariantKey]*model.Target)
+	var ops []change.Op
+	for _, key := range v.b.Editions() {
+		if v.b.IsSourceEdition(key) {
+			continue
+		}
+		ops = append(ops, change.Op{Kind: change.KindRemoveEdition, At: v.ref(key), IfMatch: change.AnyRevision, Body: &change.RemoveEdition{}})
+	}
+	if len(ops) > 0 {
+		v.apply(ops...)
+	}
+}
+
+// removeEdition removes a derived edition. The source has no target to remove.
+func (v *blockView) removeEdition(key model.EditionKey) {
+	if v.b.IsSourceEdition(key) {
+		return
+	}
+	v.apply(change.Op{Kind: change.KindRemoveEdition, At: v.ref(key), IfMatch: change.AnyRevision, Body: &change.RemoveEdition{}})
 }
 
 // Compile-time checks that blockView satisfies every view tier.

@@ -212,8 +212,9 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 
 // applyPseudo runs the deterministic pseudo-translation on a block
 // part. Factored out so SessionProcess can call it after checking
-// the overlay cache.
-func applyPseudo(part *model.Part, conf *PseudoConfig) (*model.Part, error) {
+// the overlay cache. It writes through a tool view, as the dispatched
+// handler does.
+func applyPseudo(ctx context.Context, part *model.Part, conf *PseudoConfig) (*model.Part, error) {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
 		return part, nil
@@ -225,21 +226,25 @@ func applyPseudo(part *model.Part, conf *PseudoConfig) (*model.Part, error) {
 	if len(runs) == 0 {
 		return part, nil
 	}
-	if shouldWalkRuns(runs, conf) {
-		// Pseudo-translate text runs in place, leaving paired
-		// codes and placeholders untouched (inline markup is
-		// protected).
-		targetRuns := pseudoTranslateRuns(runs, conf)
-		block.SetTargetRuns(conf.TargetLocale, targetRuns)
-	} else {
-		sourceText := block.SourceText()
-		if sourceText == "" {
-			return part, nil
+	err := tool.WriteAs(ctx, block, conf.ToolName(), func(v tool.VariantView) error {
+		if shouldWalkRuns(runs, conf) {
+			// Pseudo-translate text runs in place, leaving paired
+			// codes and placeholders untouched (inline markup is
+			// protected).
+			v.SetTargetRuns(conf.TargetLocale, pseudoTranslateRuns(runs, conf))
+		} else {
+			sourceText := v.SourceText()
+			if sourceText == "" {
+				return nil
+			}
+			v.SetTargetText(conf.TargetLocale, pseudoTranslate(sourceText, conf))
 		}
-		pseudoText := pseudoTranslate(sourceText, conf)
-		block.SetTargetText(conf.TargetLocale, pseudoText)
+		v.StampTargetProvenance(conf.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: conf.ToolName()})
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	block.StampTargetProvenance(conf.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: conf.ToolName()})
 	return part, nil
 }
 
@@ -286,11 +291,11 @@ func (t *PseudoTranslateTool) processOne(
 	block, ok := part.Resource.(*model.Block)
 	if !ok || block == nil || !block.Translatable {
 		// Pass through unchanged.
-		_, err := applyPseudo(part, t.cfg)
+		_, err := applyPseudo(ctx, part, t.cfg)
 		return err
 	}
 	if block.ID == "" {
-		_, err := applyPseudo(part, t.cfg)
+		_, err := applyPseudo(ctx, part, t.cfg)
 		return err
 	}
 	// Key overlays globally-unique per source file (falls back to the raw id for
@@ -305,14 +310,16 @@ func (t *PseudoTranslateTool) processOne(
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached pseudoCache
 			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Target != "" && cached.Config == configFP {
-				block.SetTargetText(t.cfg.TargetLocale, cached.Target)
-				block.StampTargetProvenance(t.cfg.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: t.cfg.ToolName()})
-				return nil
+				return tool.WriteAs(ctx, block, t.cfg.ToolName(), func(v tool.VariantView) error {
+					v.SetTargetText(t.cfg.TargetLocale, cached.Target)
+					v.StampTargetProvenance(t.cfg.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: t.cfg.ToolName()})
+					return nil
+				})
 			}
 		}
 	}
 
-	if _, err := applyPseudo(part, t.cfg); err != nil {
+	if _, err := applyPseudo(ctx, part, t.cfg); err != nil {
 		return err
 	}
 

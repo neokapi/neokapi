@@ -182,6 +182,23 @@ func TestSedApplyRunsMultiCmd(t *testing.T) {
 	assert.Equal(t, "Hi <1>ugly</1> earth", sigRuns(got))
 }
 
+// The regular expression reports byte offsets and a text edit counts code
+// points, so a match after non-ASCII text lands on the text it matched.
+func TestSedApplyRunsAfterNonASCIIText(t *testing.T) {
+	prog, err := ParseSedProgram([]string{"s/ugly/pen/g"})
+	require.NoError(t, err)
+	runs := []model.Run{
+		{Text: &model.TextRun{Text: "Blåbær "}},
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: "b"}},
+		{Text: &model.TextRun{Text: "ugly"}},
+		{PcClose: &model.PcCloseRun{ID: "1", Type: "b"}},
+		{Text: &model.TextRun{Text: " æøå ugly"}},
+	}
+	got, changed := prog.applyRuns(runs)
+	assert.True(t, changed)
+	assert.Equal(t, "Blåbær <1>pen</1> æøå pen", sigRuns(got))
+}
+
 // TestSedToolPreservesCodesSource exercises the wired Transform producer via
 // the dispatch applier: editing source keeps inline codes instead of
 // flattening the block.

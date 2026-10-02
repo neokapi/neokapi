@@ -13,6 +13,7 @@ use (
 	./scripts/commentcoverage
 	./scripts/contexteval
 	./scripts/contract-audit
+	./scripts/editguard
 	./scripts/emdashcheck
 	./scripts/gen-contract-types
 	./scripts/gen-refs

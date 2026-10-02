@@ -1,11 +1,7 @@
 package store
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
@@ -17,30 +13,23 @@ import (
 var ErrBlockChanged = errors.New("block changed since it was read")
 
 // TargetRevision identifies one locale's target on a block as a reader sees
-// it: the block's source, and that locale's target runs and status. A single
-// write names the revision it read, and lands only while the block still has it
-// (see BlockStore.UpdateBlock). A locale with no target has a revision too, so
-// two first translations of one block cannot overwrite each other.
+// it: the edition revision of that target (model.RunsRevision), a function of
+// the target's content alone. A single write names the revision it read, and
+// lands only while the target still has it (see BlockStore.UpdateBlock). A
+// locale with no target reads as model.AbsentRevision, so two first
+// translations of one block cannot overwrite each other.
+//
+// The source and the target's status are not part of it: a fix to the source
+// wording does not refuse a translator's save, and a review decision binds to
+// the revision it saw rather than moving it. The same token is valid wherever
+// the content is held, a project file as well as a stream row.
 func TargetRevision(sb *venue.StoredBlock, locale model.LocaleID) string {
-	var (
-		contentHash string
-		runs        []model.Run
-		status      model.TargetStatus
-	)
-	if sb != nil {
-		contentHash = sb.ContentHash
-		if sb.Block != nil {
-			runs = sb.Block.TargetRuns(locale)
-			if t := sb.Block.Target(locale); t != nil {
-				status = t.Status
-			}
-		}
+	if sb == nil || sb.Block == nil {
+		return model.AbsentRevision
 	}
-	runsJSON, err := json.Marshal(runs)
-	if err != nil {
-		runsJSON = fmt.Append(nil, runs)
+	t := sb.Block.Target(locale)
+	if t == nil {
+		return model.AbsentRevision
 	}
-	h := sha256.New()
-	fmt.Fprintf(h, "%s\x00%s\x00%s\x00%s", contentHash, locale, runsJSON, status)
-	return hex.EncodeToString(h.Sum(nil))[:16]
+	return model.RunsRevision(model.Variant(locale), t.Runs)
 }

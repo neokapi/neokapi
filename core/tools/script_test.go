@@ -90,6 +90,31 @@ func TestScriptModifyTargetText(t *testing.T) {
 	assert.Equal(t, "Bonjour", resultBlock.TargetText("fr"))
 }
 
+// The script sees text. A target it hands back unchanged keeps its inline
+// codes; only the edition whose text it changed is written.
+func TestScriptWritesOnlyTheEditionsItChanged(t *testing.T) {
+	t.Parallel()
+	code := `
+		if (part.type === "block") {
+			part.block.targets["de"] = [{content: {text: "Hallo Welt"}}];
+			emit(part);
+		}
+	`
+	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: code})
+
+	block := model.NewBlock("tu1", "Hello world")
+	frRuns := []model.Run{model.TextR("Bonjour "), model.PcOpenR(model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}),
+		model.TextR("monde"), model.PcCloseR(model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"})}
+	block.SetTarget("fr", &model.Target{Runs: frRuns, Status: model.TargetStatusEstablished})
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+
+	out := result.Resource.(*model.Block)
+	assert.Equal(t, "Hallo Welt", out.TargetText("de"))
+	assert.Len(t, out.TargetRuns("fr"), 4, "the untouched target keeps its codes")
+	assert.Equal(t, "<b>", out.TargetRuns("fr")[1].PcOpen.Data)
+	assert.Equal(t, model.TargetStatusEstablished, out.Target("fr").Status)
+}
+
 func TestScriptModifySourceTextInPlace(t *testing.T) {
 	t.Parallel()
 	// In-place edits to source text must round-trip, not only whole-array

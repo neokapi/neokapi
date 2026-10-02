@@ -128,6 +128,28 @@ func TestMediaRefine_RewritesLowConfidence(t *testing.T) {
 	assert.Empty(t, high.Properties[PropNeedsReview])
 }
 
+// A refinement rewrites the whole recognized text through the change applier:
+// the source is an edit (the block keeps what it was read with), and no
+// overlay is left pointing into text that is gone.
+func TestMediaRefine_RewriteIsAnEditThatDropsStaleOverlays(t *testing.T) {
+	mock := aiprovider.NewMockProvider()
+	mock.ChatFunc = func(_ context.Context, _ []aiprovider.Message) (*aiprovider.ChatResponse, error) {
+		return &aiprovider.ChatResponse{Content: "fixed"}, nil
+	}
+	tool := newToolWithRaster(t, mock)
+	low := ocrBlock("tu1", "corrupted txt from the scan", 0.40)
+	low.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "scan", Range: model.RangeAnchor(low.Source, 23, 27)})
+	runRefine(t, tool, []*model.Block{low})
+
+	assert.Equal(t, "fixed", low.SourceText())
+	read, edited := low.SourceAsRead()
+	assert.True(t, edited)
+	assert.Equal(t, "corrupted txt from the scan", model.RunsText(read))
+	assert.Nil(t, low.OverlayOf(model.OverlayTerm), "the span into the old text is gone")
+	_, ok := low.OverlaysInBounds(nil, low.Source)
+	assert.True(t, ok)
+}
+
 func TestMediaRefine_RefusalKeepsOriginal(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	mock.ChatFunc = func(_ context.Context, _ []aiprovider.Message) (*aiprovider.ChatResponse, error) {

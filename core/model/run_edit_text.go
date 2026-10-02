@@ -203,7 +203,7 @@ func ParseRunsEditText(text string, sourceRuns []Run) []Run {
 		last = loc[1]
 	}
 	appendSegment(last, len(text))
-	return out
+	return carryNoTranslate(out, sourceRuns)
 }
 
 // maxAlignCells bounds the table alignRunes builds for the part of two texts

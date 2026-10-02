@@ -1,8 +1,13 @@
 package tool
 
 import (
+	"errors"
 	"fmt"
+	"maps"
+	"slices"
+	"strings"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -34,7 +39,9 @@ import (
 //
 // Targets replaces target content per variant (e.g. unredact restoring
 // originals into translated targets, a case conversion applied to a target).
-// Variant metadata (status, provenance) is preserved; only the runs change.
+// A replaced target whose wording changes becomes a draft, because nobody has
+// read what the tool wrote, and keeps the origin that names who produced it
+// (change.Consequences).
 type EditPlan struct {
 	// NewRuns is the rewritten source for a structured transform; nil means no
 	// source rewrite.
@@ -65,12 +72,13 @@ func (p *EditPlan) SetTarget(loc model.LocaleID, runs []model.Run) {
 }
 
 // SetTargetVariant records a target-run replacement for a variant key,
-// allocating the map on first use.
+// allocating the map on first use. The key is kept canonical, so two
+// spellings of one locale name one replacement.
 func (p *EditPlan) SetTargetVariant(key model.VariantKey, runs []model.Run) {
 	if p.Targets == nil {
 		p.Targets = make(map[model.VariantKey][]model.Run)
 	}
-	p.Targets[key] = runs
+	p.Targets[key.Canonical()] = runs
 }
 
 // Secret is one vaulted original produced by a recoverable transformer: the
@@ -102,21 +110,69 @@ func FullSpanEdit(oldRuns, newRuns []model.Run) []model.RunEdit {
 	}}
 }
 
-// applyEditPlan is the framework applier — the single place a transform
-// mutates a Block (AD-006). Order is fail-closed: secrets are vaulted first
-// (a rewrite never lands without its recovery record), then the source rewrite
-// is applied and surviving overlays rebased, then targets are replaced, and
-// finally every surviving source overlay span is asserted in-bounds. A source
-// rewrite is an edit (model.Block.EditSourceRuns), so the block keeps the
-// source it was read with and its writer can encode the new wording.
-func applyEditPlan(toolName string, v *blockView, block *model.Block, plan EditPlan, vault func(BlockView, []Secret) error) error {
-	if plan.ReplaceAll != nil && (plan.NewRuns != nil || len(plan.Edits) > 0) {
-		return fmt.Errorf("transform tool %q: edit plan sets both ReplaceAll and NewRuns/Edits: a rewrite is either structured or opaque, never both", toolName)
+// Ops compiles the plan into the operations that apply it to block: a
+// set_content on the source for a rewrite, and one per replaced target in the
+// order of their keys. A structured rewrite carries its Edits, so the
+// source's overlays follow it; an opaque one drops them. Every operation
+// writes whatever the edition holds ("*"): the plan was made from the block in
+// hand.
+func (p *EditPlan) Ops(block *model.Block) ([]change.Op, error) {
+	if p.ReplaceAll != nil && (p.NewRuns != nil || len(p.Edits) > 0) {
+		return nil, errors.New("edit plan sets both ReplaceAll and NewRuns/Edits: a rewrite is either structured or opaque, never both")
 	}
-	if plan.NewRuns == nil && len(plan.Edits) > 0 {
-		return fmt.Errorf("transform tool %q: edit plan has Edits but no NewRuns", toolName)
+	if p.NewRuns == nil && len(p.Edits) > 0 {
+		return nil, errors.New("edit plan has Edits but no NewRuns")
 	}
+	at := func(key model.EditionKey) change.Ref { return change.Ref{Block: block.ID, Edition: key} }
+	var ops []change.Op
+	switch {
+	case p.ReplaceAll != nil:
+		ops = append(ops, change.Op{Kind: change.KindSetContent, At: at(model.EditionKey{}), IfMatch: change.AnyRevision,
+			Body: &change.SetContent{Runs: []model.Run{{Text: &model.TextRun{Text: *p.ReplaceAll}}}, Overlays: change.OverlayRebase{Drop: true}}})
+	case p.NewRuns != nil:
+		if len(p.Edits) == 0 && model.RunsText(block.Source) != model.RunsText(p.NewRuns) {
+			return nil, fmt.Errorf("the plan changes the source text of block %q without a mapping. Return Edits for a structured rewrite or ReplaceAll for an opaque one", block.ID)
+		}
+		edits := p.Edits
+		if edits == nil {
+			edits = []model.RunEdit{}
+		}
+		ops = append(ops, change.Op{Kind: change.KindSetContent, At: at(model.EditionKey{}), IfMatch: change.AnyRevision,
+			Body: &change.SetContent{Runs: p.NewRuns, Overlays: change.OverlayRebase{Edits: edits}}})
+	}
+	keys := slices.Collect(maps.Keys(p.Targets))
+	slices.SortFunc(keys, func(a, b model.VariantKey) int {
+		at, _ := a.Canonical().MarshalText()
+		bt, _ := b.Canonical().MarshalText()
+		return strings.Compare(string(at), string(bt))
+	})
+	for _, key := range keys {
+		if block.IsSourceEdition(key) {
+			return nil, sourceLanguageTarget(block, key)
+		}
+		runs := p.Targets[key]
+		if runs == nil {
+			runs = []model.Run{}
+		}
+		ops = append(ops, change.Op{Kind: change.KindSetContent, At: at(key.Canonical()), IfMatch: change.AnyRevision,
+			Body: &change.SetContent{Runs: runs}})
+	}
+	return ops, nil
+}
 
+// applyEditPlan is the framework applier for a transform (AD-006): it vaults
+// the plan's secrets, then applies the plan's operations (Ops) through
+// change.ApplyBlock, the one function that changes a block's content. Order
+// is fail-closed: a rewrite never lands without its recovery record. The
+// source rewrite is an edit, so the block keeps the source it was read with
+// and its writer can encode the new wording; the source's overlays follow a
+// structured rewrite and every one left is in bounds; a target whose wording
+// the plan changes becomes a draft and keeps its origin.
+func applyEditPlan(toolName string, v *blockView, block *model.Block, plan EditPlan, vault func(BlockView, []Secret) error) error {
+	ops, err := plan.Ops(block)
+	if err != nil {
+		return fmt.Errorf("transform tool %q: %w", toolName, err)
+	}
 	if len(plan.Secrets) > 0 {
 		if vault == nil {
 			return fmt.Errorf("transform tool %q produced %d secrets but set no VaultSecrets sink: a recoverable transform must vault its originals", toolName, len(plan.Secrets))
@@ -125,44 +181,14 @@ func applyEditPlan(toolName string, v *blockView, block *model.Block, plan EditP
 			return fmt.Errorf("transform tool %q: vault secrets: %w", toolName, err)
 		}
 	}
-
-	rewrote := false
-	switch {
-	case plan.ReplaceAll != nil:
-		block.EditSourceText(*plan.ReplaceAll)
-		model.DropSourceOverlays(block)
-		rewrote = true
-	case plan.NewRuns != nil:
-		old := block.Source
-		if len(plan.Edits) == 0 && model.RunsText(old) != model.RunsText(plan.NewRuns) {
-			return fmt.Errorf("transform tool %q changed the source text of block %q without a mapping. Return Edits for a structured rewrite or ReplaceAll for an opaque one", toolName, block.ID)
-		}
-		block.EditSourceRuns(plan.NewRuns)
-		model.RemapOverlays(block, old, plan.Edits)
-		rewrote = true
+	if len(ops) == 0 {
+		return nil
 	}
-
-	for key, runs := range plan.Targets {
-		setTargetVariantRuns(block, key, runs)
-	}
-
-	if rewrote {
-		if bad, ok := block.SourceOverlaysInBounds(); !ok {
-			return fmt.Errorf("transform tool %q rewrote the source of block %q but its edit plan left source overlay %q anchored out of bounds: the Edits do not describe the rewrite", toolName, block.ID, bad)
+	env := change.BlockEnv{Actor: change.Actor{Kind: change.ActorTool, Name: toolName}, Guards: change.Report}
+	for _, r := range change.ApplyBlock(block, ops, env) {
+		if r.Status == change.OpRefused {
+			return fmt.Errorf("transform tool %q: block %q: %s %s refused: %w", toolName, block.ID, r.Op, editionText(r.At), r.Error)
 		}
 	}
 	return nil
-}
-
-// setTargetVariantRuns replaces a target variant's runs, preserving existing
-// variant metadata (status, provenance) when the variant already exists.
-func setTargetVariantRuns(b *model.Block, key model.VariantKey, runs []model.Run) {
-	if b.Targets == nil {
-		b.Targets = make(map[model.VariantKey]*model.Target)
-	}
-	if t, ok := b.Targets[key]; ok && t != nil {
-		t.Runs = runs
-		return
-	}
-	b.Targets[key] = &model.Target{Runs: runs}
 }

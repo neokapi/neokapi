@@ -230,7 +230,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 		return nil
 	}
 	if block.ID == "" {
-		return t.translate(tool.NewVariantViewWithContext(ctx, block)) //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
+		return tool.WriteAs(ctx, block, t.ToolName, t.translate)
 	}
 	// Key overlays globally-unique per source file (falls back to the raw id for
 	// ad-hoc single-document runs) so multi-file projects don't collide.
@@ -240,19 +240,25 @@ func (t *MTTranslateTool) sessionHandleBlock(
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached blockstore.TargetOverlay
 			if err := json.Unmarshal(sc.Payload, &cached); err == nil && t.ReusesStoredTarget(ctx, block, cached) {
-				if len(cached.Runs) > 0 {
-					block.SetTargetRuns(t.targetLocale, cached.Runs)
-				} else {
-					block.SetTargetText(t.targetLocale, cached.TargetText())
+				err := tool.WriteAs(ctx, block, t.ToolName, func(v tool.VariantView) error {
+					if len(cached.Runs) > 0 {
+						v.SetTargetRuns(t.targetLocale, cached.Runs)
+					} else {
+						v.SetTargetText(t.targetLocale, cached.TargetText())
+					}
+					v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
+					return nil
+				})
+				if err != nil {
+					return err
 				}
-				block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
 				t.reused.Add(1)
 				return nil
 			}
 		}
 	}
 
-	if err := t.translate(tool.NewVariantViewWithContext(ctx, block)); err != nil { //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
+	if err := tool.WriteAs(ctx, block, t.ToolName, t.translate); err != nil {
 		return err
 	}
 

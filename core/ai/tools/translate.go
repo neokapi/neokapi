@@ -112,15 +112,23 @@ func (t *AITranslateTool) ReusesStoredTarget(ctx context.Context, b *model.Block
 
 // applyStored puts a stored target on the block and counts the reuse. The
 // provenance is the AI producer's, because that is who made the translation;
-// the status is the draft rung every producer stamps.
-func (t *AITranslateTool) applyStored(block *model.Block, stored blockstore.TargetOverlay) {
-	if len(stored.Runs) > 0 {
-		block.SetTargetRuns(t.targetLocale, stored.Runs)
-	} else {
-		block.SetTargetText(t.targetLocale, stored.TargetText())
+// the status is the draft rung every producer stamps. A stored target the
+// applier refuses is not served.
+func (t *AITranslateTool) applyStored(ctx context.Context, block *model.Block, stored blockstore.TargetOverlay) error {
+	err := tool.WriteAs(ctx, block, t.ToolName, func(v tool.VariantView) error {
+		if len(stored.Runs) > 0 {
+			v.SetTargetRuns(t.targetLocale, stored.Runs)
+		} else {
+			v.SetTargetText(t.targetLocale, stored.TargetText())
+		}
+		v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
+		return nil
+	})
+	if err != nil {
+		return err
 	}
-	block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
 	t.reused.Add(1)
+	return nil
 }
 
 // leavesProducedAlone reports that this tool has nothing to do with a block an
@@ -587,7 +595,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 		return nil
 	}
 	if block.ID == "" {
-		return t.translate(tool.NewVariantViewWithContext(ctx, block)) //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
+		return tool.WriteAs(ctx, block, t.ToolName, t.translate)
 	}
 	// Key overlays globally-unique per source file (falls back to the raw id for
 	// ad-hoc single-document runs) so multi-file projects don't collide.
@@ -608,14 +616,13 @@ func (t *AITranslateTool) sessionHandleBlock(
 	if randomAccess && !t.leavesProducedAlone(block) {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached blockstore.TargetOverlay
-			if err := json.Unmarshal(sc.Payload, &cached); err == nil && t.ReusesStoredTarget(ctx, block, cached) {
-				t.applyStored(block, cached)
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && t.ReusesStoredTarget(ctx, block, cached) && t.applyStored(ctx, block, cached) == nil {
 				return nil
 			}
 		}
 	}
 
-	if err := t.translate(tool.NewVariantViewWithContext(ctx, block)); err != nil { //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
+	if err := tool.WriteAs(ctx, block, t.ToolName, t.translate); err != nil {
 		return err
 	}
 
@@ -688,8 +695,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 				if caps.RandomAccess && t.contextPolicy != ContextNeighbours && !t.leavesProducedAlone(block) {
 					if sc, err := sess.GetOverlay(overlayKind, blockstore.OverlayKey(ctx, block.ID, block.SourceText())); err == nil && len(sc.Payload) > 0 {
 						var cached blockstore.TargetOverlay
-						if err := json.Unmarshal(sc.Payload, &cached); err == nil && t.ReusesStoredTarget(ctx, block, cached) {
-							t.applyStored(block, cached)
+						if err := json.Unmarshal(sc.Payload, &cached); err == nil && t.ReusesStoredTarget(ctx, block, cached) && t.applyStored(ctx, block, cached) == nil {
 							select {
 							case out <- part:
 							case <-ctx.Done():
@@ -1351,7 +1357,7 @@ func (t *AITranslateTool) packBatches(entries []blockEntry) [][]blockEntry {
 // Falls back to individual translation for any missing entries.
 func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEntry) error {
 	if len(entries) == 1 {
-		return t.translate(tool.NewVariantViewWithContext(ctx, entries[0].block)) //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
+		return tool.WriteAs(ctx, entries[0].block, t.ToolName, t.translate)
 	}
 
 	texts := make([]string, len(entries))
@@ -1466,24 +1472,29 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	for i, entry := range entries {
 		text, ok := translations[i]
 		if !ok || text == "" {
-			if err := t.translate(tool.NewVariantViewWithContext(ctx, entry.block)); err != nil { //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
+			if err := tool.WriteAs(ctx, entry.block, t.ToolName, t.translate); err != nil {
 				return err
 			}
 			continue
 		}
 
-		ev := tool.NewVariantViewWithContext(ctx, entry.block)
-		if entry.hasInlineCodes {
-			targetRuns := model.ParseRunsPlaceholderText(text, entry.sourceRuns)
-			ev.SetTargetRuns(t.targetLocale, targetRuns)
-		} else {
-			ev.SetTargetText(t.targetLocale, text)
-		}
-		t.annotateTranslation(ev, &aiprovider.TranslateResponse{
-			Translation: text,
-			Confidence:  0.85,
-			Model:       resp.Model,
+		err := tool.WriteAs(ctx, entry.block, t.ToolName, func(ev tool.VariantView) error {
+			if entry.hasInlineCodes {
+				targetRuns := model.ParseRunsPlaceholderText(text, entry.sourceRuns)
+				ev.SetTargetRuns(t.targetLocale, targetRuns)
+			} else {
+				ev.SetTargetText(t.targetLocale, text)
+			}
+			t.annotateTranslation(ev, &aiprovider.TranslateResponse{
+				Translation: text,
+				Confidence:  0.85,
+				Model:       resp.Model,
+			})
+			return nil
 		})
+		if err != nil {
+			return err
+		}
 		t.blockIndex.Add(1)
 		t.emitProgress(true, "")
 	}

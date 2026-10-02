@@ -375,7 +375,7 @@ func TestImmutabilityGuard(t *testing.T) {
 		assert.Equal(t, 6, s)
 		assert.Equal(t, 11, e)
 	})
-	t.Run("plan target replacement preserves variant metadata", func(t *testing.T) {
+	t.Run("plan target replacement makes the target a draft and keeps its origin", func(t *testing.T) {
 		bt := &tool.BaseTool{ToolName: "tgt-xform"}
 		bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 			var plan tool.EditPlan
@@ -383,9 +383,12 @@ func TestImmutabilityGuard(t *testing.T) {
 			return plan, nil
 		}
 		b := mkBlock()
-		b.SetTarget("fr", model.NewTarget([]model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}, model.TargetStatusTranslated))
+		tgt := model.NewTarget([]model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}, model.TargetStatusTranslated)
+		tgt.Origin = model.Origin{Kind: model.OriginHuman}
+		b.SetTarget("fr", tgt)
 		require.NoError(t, run(bt, b))
 		assert.Equal(t, "BONJOUR", b.TargetText("fr"))
-		assert.Equal(t, model.TargetStatusTranslated, b.Target("fr").Status)
+		assert.Equal(t, model.TargetStatusDraft, b.Target("fr").Status, "nobody has read the wording the tool wrote")
+		assert.Equal(t, model.OriginHuman, b.Target("fr").Origin.Kind)
 	})
 }

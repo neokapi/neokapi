@@ -225,6 +225,25 @@ proposals**, of which there may be many per variant, each scored. Accumulated
 history across runs and review trails are a persistence concern, outside the
 content model.
 
+The source and every target are **editions** of the block, and one set of
+accessors reaches each by its key (`EditionKey`, the same type as `VariantKey`):
+`Edition(k)`, `SetEdition(k, e)`, `RemoveEdition(k)`, `Editions()` and
+`Authoritative(policy)`, the edition every other one is derived from. The zero
+key and the source language name the edition `Source` holds, and a
+same-language edition with a tone or a channel is an edition of its own. A
+bilingual file whose two languages are one (an XLIFF file from en-US to en-US)
+holds a target under the source language; that key then reaches the target, and
+the zero key alone reaches the source. Keys are canonical wherever they address
+an edition, so `nb_NO` and `nb-NO` name one. Code that changes content reads and
+writes through these accessors, so the storage behind them (`Source` and
+`Targets` today) can change without touching it.
+
+`model.EditionRevision(block, k)` names an edition's content: `r:` and 16 hex
+digits of the SHA-256 of the edition key and its runs as canonical JSON. Status,
+origin and the other editions are left out, so a review decision moves no
+revision. A change made against a read names the revision it read and lands only
+while the edition still has it.
+
 #### Content-addressable identity
 
 ```go
@@ -268,11 +287,19 @@ because they differ in shape and lifecycle:
   content: segmentation, terms, entities, term candidates, findings,
   source-to-target alignment. Each `Span` carries a run `Range` (its position),
   optional string `Props`, and an optional typed payload `Value`. Because ranges
-  anchor to runs, a source rewrite shifts them. A transforming tool's edit plan is
-  a structured span-to-replacement map, so the framework applier rebases the
-  survivors onto the new runs with `model.RemapOverlays`: spans overlapping an
-  edit are dropped, the rest shift to follow it. An opaque whole-block rewrite has
-  no mapping and drops them.
+  anchor to runs, a rewrite of an edition shifts the spans on that edition, the
+  source's and each target's alike. Every content write goes through the one
+  applier (`change.ApplyBlock`, [E-03](../engine/e-03-tool-system.md)), which
+  rebases the spans on the edition it rewrites with `model.RemapOverlays`: a span
+  overlapping an edit is dropped, the rest shift to follow it, and every span
+  left must resolve in the new runs. A segmentation layer is the edition's whole
+  segment list, which bilingual writers read as such, so it is kept or dropped
+  whole: the segment holding an edit grows or shrinks with it, and an edit across
+  a segment boundary drops the layer. An inline code has no width in the text,
+  so a carried boundary keeps its place among the codes beside it, and a code
+  that ended a segment still ends it. A transforming tool's edit plan supplies
+  the edits; without them the applier uses the one region the old and new text
+  differ in, and an opaque whole-block rewrite drops the edition's overlays.
 - **Annotations** are *block-scoped*: a keyed map of typed payloads describing the
   block as a whole: alt-translations, notes, analysis results, format round-trip
   state, and the block's anchor and role facets. A source rewrite does not

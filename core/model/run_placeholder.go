@@ -93,7 +93,8 @@ type runLookupKey struct {
 //
 // Text segments between placeholders become TextRuns. An unknown
 // placeholder (no source match) produces a minimal Ph run so the
-// output stays well-formed.
+// output stays well-formed. Text that matches text the source marked
+// TextRun.NoTranslate keeps the mark (see carryNoTranslate).
 func ParseRunsPlaceholderText(text string, sourceRuns []Run) []Run {
 	lookup := make(map[runLookupKey]Run, len(sourceRuns))
 	indexRunsForLookup(lookup, sourceRuns)
@@ -122,7 +123,7 @@ func ParseRunsPlaceholderText(text string, sourceRuns []Run) []Run {
 	if lastEnd < len(text) {
 		appendText(text[lastEnd:])
 	}
-	return out
+	return carryNoTranslate(out, sourceRuns)
 }
 
 func indexRunsForLookup(lookup map[runLookupKey]Run, runs []Run) {

@@ -246,7 +246,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-comment-coverage check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-comment-coverage check-edit-writes check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) --no-print-directory kapi-desktop-lint
 	@$(MAKE) --no-print-directory harness-check
@@ -905,6 +905,14 @@ APACHE_MODULES := . host cli kapi apps/kapi-desktop
 check-projection-writes: i18n-catalogs ## Guard: only the projector writes a project's context stores
 	@$(GO) run ./scripts/projectionguard -self-test
 	@$(GO) run ./scripts/projectionguard
+
+# A format writer pointed at a file writes a whole document to disk. The guard
+# type-checks every module that writes documents and reports each such call
+# outside the format packages and the places scripts/editguard lists with what
+# each writes, and proves itself on fixtures first.
+check-edit-writes: i18n-catalogs ## Guard: a document reaches a file only where scripts/editguard lists it
+	@$(GO) run ./scripts/editguard -self-test
+	@$(GO) run ./scripts/editguard
 
 check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + Apache modules link no AGPL
 	@bad=$$(cd apps/kapi-desktop && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \
@@ -3268,7 +3276,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         parity-sandbox parity-test parity-publish parity-clean regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-comment-coverage check-projection-writes check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-comment-coverage check-projection-writes check-edit-writes check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \
