@@ -2949,6 +2949,16 @@ stage-sourcecode-plugin: build-sourcecode-plugin
 import-dogfood-context: build ## Pull the repository's context from refs/kapi/context into the isolated store the gates use
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi context pull -p $(CURDIR)/kapi.yaml
 
+# The commit check's cost on web/docs (docs/internals/evals.md): once in a
+# scratch project under the Tidewatch sample's context, then in place under
+# this repository's recipe and the context import-dogfood-context pulled.
+# host's TestMain clears KAPI_DATA_DIR, so the data root travels under a name
+# of the benchmark's own.
+bench-commit-check: import-dogfood-context ## Measure the commit check on web/docs under the sample's governance and the repository's own
+	cd host && $(GOTEST) -run '^$$' -bench BenchmarkCommitCheck -benchtime 5x -count 2 .
+	cd host && KAPI_COMMIT_COST_RECIPE=$(CURDIR)/kapi.yaml KAPI_COMMIT_COST_DATA_DIR=$(KAPI_ISO_DIR)/data/kapi \
+		$(GOTEST) -run '^$$' -bench BenchmarkCommitCheck -benchtime 5x -count 2 .
+
 check-governed-prose: build stage-sourcecode-plugin import-dogfood-context ## Gate: the collections holding distribution prose pass `kapi check`
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'packaging/nfpm.yaml' \
 		-p $(CURDIR)/kapi.yaml
@@ -3367,7 +3377,7 @@ help: ## Show this help
         publish-cdn-images publish-cdn-bowrain-images publish-cdn-all \
         fetch-corpus publish-corpus corpus-sweep \
         generate-format-docs generate-reference-docs check-reference-docs check-reference-prose generate-reference-pages \
-        import-dogfood-context \
+        import-dogfood-context bench-commit-check \
         generate-contract-types check-contract-types \
         generate-translatability check-translatability \
         generate-docs-palette check-docs-palette \
