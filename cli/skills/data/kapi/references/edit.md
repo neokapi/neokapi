@@ -63,7 +63,8 @@ document is named by its project-relative path, and a file outside the project
 by its absolute path, so run both in the same project: from inside it, or with
 the same `-p`. Over MCP, `read_blocks` reports each block's `ref` and `rev`,
 and `apply_edits` takes them back as the `at` and `if_match` of a
-`kapi.change/v1` operation; pass both calls the same project. An HTML image's
+`kapi.change/v1` operation; pass both calls the same project.
+`describe_format` lists the operations a format takes. An HTML image's
 `alt` or a link's `title` is a block of its own.
 
 ## 2. Write the edits
@@ -89,7 +90,9 @@ matches more than once), by code-point `start` and `end`, or by run positions in
 (the envelope fields on the first line, one operation per line) or a JSON array
 of operations. `kapi apply --schema` prints the whole contract.
 
-Then apply it. `kapi apply` reads the change set from a file or from stdin:
+Then apply it. Over MCP, send the change set to `apply_edits`, which returns
+the same result `kapi apply --json` prints and reports a refused set as an
+error. `kapi apply` reads the change set from a file or from stdin:
 
 ```bash
 kapi inspect report.docx --jsonl > blocks.jsonl

@@ -160,6 +160,13 @@ translation (`establish` or `reject`) and on source wording (`establish` with
 no edition); a decision binds to the revision it names, and one whose
 translation changed since it was read is refused as `stale`.
 
+Over MCP, each `review_queue` row carries the `ref` a decision names, and
+`review_block` reads it with the `rev` of the edition under review. An
+assistant pre-reviews with `apply_edits`: a `decide` operation at that `ref`,
+`if_match` the `rev`, outcome `advise`, a `score` from 0 to 100 and its
+`reasons`. The person working the queue reads it beside the unit; an
+assistant's `establish` or `reject` is refused as `not_permitted`.
+
 The unit state lands in the project store and counts the unit as `established`,
 so the next `kapi up` sees it shipped. `kapi check --ship` is the opt-in release
 bar: it runs the project's voice, terminology and rule-based gates plus the
