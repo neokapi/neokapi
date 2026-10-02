@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -50,13 +51,23 @@ func git(t *testing.T, dir string, args ...string) string {
 	return string(out)
 }
 
+// requireGit skips a test that drives git where git cannot run: js/wasm starts
+// no process, and a machine may have no git.
+func requireGit(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "js" {
+		t.Skip("git subprocess: js/wasm cannot start a process")
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+}
+
 // TestGitRemoteConformance runs the suite against a bare repository in a
 // temporary directory, each handle a clone of it with a branch of its own
 // commits, which is what a machine's checkout of a project is.
 func TestGitRemoteConformance(t *testing.T) {
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git is not installed")
-	}
+	requireGit(t)
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
 	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
 	workspacetest.RunRemoteConformance(t, func(t *testing.T) func(t *testing.T) workspace.Remote {
@@ -81,9 +92,7 @@ func TestGitRemoteConformance(t *testing.T) {
 }
 
 func TestGitRemoteReportsAnUnreachableRepository(t *testing.T) {
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git is not installed")
-	}
+	requireGit(t)
 	root := t.TempDir()
 	git(t, root, "init", "--quiet", root)
 	git(t, root, "remote", "add", "origin", filepath.Join(root, "missing.git"))
