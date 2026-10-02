@@ -236,7 +236,11 @@ holds a target under the source language; that key then reaches the target, and
 the zero key alone reaches the source. Keys are canonical wherever they address
 an edition, so `nb_NO` and `nb-NO` name one. Code that changes content reads and
 writes through these accessors, so the storage behind them (`Source` and
-`Targets` today) can change without touching it.
+`Targets` today) can change without touching it. `SetEdition` on the edition a
+block was read in is an edit, which `SourceAsRead` reports to the writer, so a
+reader building a block, or a decoder restoring one from a wire form, sets that
+edition with `SetSourceRuns` and each target with `SetTargetVariant`, which
+files a target under its own key even when that key names the source language.
 
 `model.EditionRevision(block, k)` names an edition's content: `r:` and 16 hex
 digits of the SHA-256 of the edition key and its runs as canonical JSON. Status,
