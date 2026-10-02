@@ -163,13 +163,17 @@ kapi status                                       # nl: blocked: review
 kapi status --ship --emit site/ship.json          # nb, de offered (AI); nl withheld
 ```
 
-Review is a change-set, and the review queue is already in the shape of one. This
-approves the Dutch a person wrote and leaves what the stub drafted:
+Review is a change set. The review queue names each unit's source document
+(`relative`), block (`key`) and language, which is what a `decide` operation
+addresses. `"if_match": "*"` binds each decision to the wording that stands when
+it lands; a reviewer who read each translation sends the revision `kapi inspect`
+showed for it instead. This approves the Dutch a person wrote and leaves what
+the stub drafted:
 
 ```bash
 kapi status --review --json --jq '.pending[]
   | select(.locale == "nl" and (.target | startswith("⟦") | not))
-  | {kind: "review", op: "add", file, id: .key, locale, status: "established"}' > dutch.json
+  | {op: "decide", at: {doc: .relative, block: .key, edition: .locale}, if_match: "*", outcome: "establish"}' > dutch.json
 kapi apply dutch.json                             # each decision lands in the record, attributable
 kapi status --ship --emit site/ship.json          # Dutch is offered now, marked AI
 ```
@@ -179,7 +183,7 @@ Finish Norwegian and its marker comes off:
 ```bash
 kapi status --review --json --jq '.pending[]
   | select(.locale == "nb")
-  | {kind: "review", op: "add", file, id: .key, locale, status: "established"}' > norwegian.json
+  | {op: "decide", at: {doc: .relative, block: .key, edition: .locale}, if_match: "*", outcome: "establish"}' > norwegian.json
 kapi apply norwegian.json
 kapi status --ship --emit site/ship.json          # nb: established
 ```

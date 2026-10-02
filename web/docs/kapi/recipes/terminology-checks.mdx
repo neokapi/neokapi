@@ -31,7 +31,7 @@ kapi keeps terms in a [terms bundle](/reference/serialization/terms) (`terms.jso
 
 **Context → Terms** is where that list lives:
 
-1. **Bring in the list.** Import the CSV from the CLI (`kapi terms import`, below) or land entries through `kapi apply`; both write the project's terms store. The view lists terms by language pair and domain, ready to browse and search.
+1. **Bring in the list.** Import the CSV from the CLI (`kapi terms import`, below) or land `term` operations through `kapi apply`; both write the project's terms store. The view lists terms by language pair and domain, ready to browse and search.
 2. **Spot-check a term.** Look up an entry to confirm the approved target before a full pass, and open its occurrences to see where the project uses it.
 3. **Enforce it.** With the terms store in the project, term findings surface in the **Checks** view, in the terminology gate of `check --ship`, and against each unit in the [Review queue](/kapi/recipes/review-and-approve): the same drift, caught wherever you look.
 

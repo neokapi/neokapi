@@ -68,7 +68,7 @@ kapi status --review     # the worklist: translated units awaiting a person
 kapi check --ship        # enforce the gates: the pre-release bar, exit 3 when unmet
 ```
 
-`kapi up` needs a translation provider for LLM translation; see [Choose a translation model](/kapi/recipes/choose-a-translation-provider). Approve reviewed units with `kapi apply` (`kind:"review"`); see [Review & approve](/kapi/recipes/review-and-approve).
+`kapi up` needs a translation provider for LLM translation; see [Choose a translation model](/kapi/recipes/choose-a-translation-provider). Approve reviewed units with a `decide` operation through `kapi apply`; see [Review & approve](/kapi/recipes/review-and-approve).
 
 </TabItem>
 </Tabs>

@@ -109,7 +109,9 @@ note describes each rule.
   German file of an English page, shows that edition as each block's own, with
   the document's own edition among the others, so a reference copied from it
   edits the German. A page ends with a cursor; a cursor into a document that
-  changed since is refused as `stale`.
+  changed since is refused as `stale`. `ReadEach` reads every block of a
+  document in one pass and hands each to a callback beside the block it was
+  read from, for a command line that streams a whole document.
 - **`Apply`** applies a change set in two phases. It asks the policy about
   every operation, groups the operations by document, and opens each document
   in its home. It then prepares every document: the home reads it, the
@@ -190,7 +192,9 @@ stream, the document is never held whole. The home reports what the
 document's writer declares: an in-process writer's declaration, with the writer
 spelling a changed attribute or a new code itself
 (`change.WriterCapabilities`), or a plugin format's manifest declaration,
-whose writer spells them when it writes (`change.DeclaredCapabilities`). The implementation note
+whose writer spells them when it writes (`change.DeclaredCapabilities`). A home
+given a backup suffix copies each file a commit replaces beside it, under the
+lock, from the bytes the change was applied to. The implementation note
 [The file home](../../implementation/engine/file-home.md) has the details.
 
 ### Hooks
@@ -215,14 +219,29 @@ reference the way the recipe does: a source file is read with the format and
 configuration its content item binds, the file of a translation is that edition
 of its source, joined by key, then by translation-invariant address, then by
 position, and a translation with no file yet is written from the source's
-skeleton. Decisions and asset operations land through the functions the review
-queue and `kapi apply` use, a decision bound to the wording the change set
-landed rather than to a later read of the file. The hooks each plug in at one
-function of the host: the commit check is `App.CommitCheck`, which holds a
+skeleton. Outside a project a reference is a path under the working
+directory, read with the format detection finds, and a file no format claims is
+read as plain text unless its bytes are binary. Decisions and asset operations
+land through the host's review-queue and asset functions, a decision bound to
+the wording the change set landed rather than to a later read of the file; on
+an edition with no content in its home, such as a parked locale's draft, the
+decision binds to the draft the project store holds. The hooks each plug in at
+one function of the host: the commit check is `App.CommitCheck`, which holds a
 service outside a project to hygiene alone; the policy is `ChangePolicy`; the
 recorder is `App.EditRecorder`, inside a project; and a read takes a derived
 edition's basis from the project's block history, where the most recent
 recorded change to the edition left the content it holds.
+
+On the command line, `kapi apply` hands a decoded change set to the service,
+`kapi inspect` prints the service's read records, and `ksed` compiles its
+substitutions into `replace_text` operations and applies them through it
+([S-01](../surfaces/s-01-kapi-cli.md)). They build the service for the project
+the command names, for the files under its root, and over the working directory
+otherwise, where a reference may lead out of it as a path on a command line
+does. A `set_content` on a code comment, in a source file only the comment
+layer reads, goes through the comment write path, which keeps its own
+guarantees: the file is read again before it is written, the result must parse,
+and the language's formatter must agree.
 
 ### Results and errors
 

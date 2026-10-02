@@ -9,7 +9,7 @@ scenes:
     duration_budget_seconds: 40
     fixtures: []
     smoke_contract:
-      - kapi apply edits.jsonl --diff
+      - kapi apply edits.jsonl --dry-run
       - kapi apply edits.jsonl
 ---
 

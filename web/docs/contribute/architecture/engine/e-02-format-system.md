@@ -819,8 +819,10 @@ this repository writes one. `TestProseP4_typescript`, `TestProseP4_tsx` and
 `TestProseP4_javascript` rewrite each form with exact bytes, with the plugin
 reading the result and oxfmt agreeing with the file.
 
-`kapi apply` and MCP `apply_edits` reach the rewrite through a `comment` entry,
-addressed by file and the id a check reports. A check gives each finding on a
+`kapi apply` reaches the rewrite through a `set_content` operation on the
+comment's block, addressed by file and the id a check reports, its `if_match`
+the comment's revision (`r:` and the first sixteen hex digits of the
+fingerprint); MCP `apply_edits` takes a `comment` entry. A check gives each finding on a
 comment `location.comment_sha256`, the SHA-256 of the comment's bytes
 (`comment.Fingerprint`), and the entry carries it back as the guard: a comment
 whose bytes differ is refused as changed, and one that only moved to other

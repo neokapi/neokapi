@@ -18,6 +18,11 @@ Since then 1.3 changed what several of them show:
   `kapi context push`; `defaults.translate_after` replaces
   `defaults.source_gate`.
 - `kapi init` proposes collections and writes an MCP entry and one short skill.
+- `kapi apply` reads a kapi.change/v1 change set: a term is
+  `{"op":"term","action":"upsert",...}`, a recipe field `{"op":"recipe",...}`,
+  and a review decision `{"op":"decide",...}` naming the unit's document,
+  block and language. `kapi inspect` prints each block's reference and
+  revision, and `ksed` writes through the same contract.
 - Kapi Desktop opens on the workspace, carries the context digest and a
   Learned section in the Context hub, and its review surface has one human rung.
 
@@ -91,10 +96,10 @@ answer ends with (#2989).
 
 | # | Demo | Publishes as | Embedded on | Infrastructure | What changed |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `s0-northsea-checks` | `monolingual-governance` | `kapi/recipes/keep-source-on-brand.mdx` | none | `kapi check --strict` is `kapi check`; findings read FAILS/REPORTS; the sample's voice patterns moved into `constraints:`, so no configuration warnings print |
+| 1 | `s0-northsea-checks` | `monolingual-governance` | `kapi/recipes/keep-source-on-brand.mdx` | none | `kapi check --strict` is `kapi check`; findings read FAILS/REPORTS; the sample's voice patterns moved into `constraints:`, so no configuration warnings print; the `dock` decision is a `term` operation, and `kapi apply` closes with `change set applied: 1 applied` |
 | 2 | `05-ai-checks-guardrail` | `kapi-checks-guardrail` | `framework/checks/rule-checks.md` | none | the findings table reads FAILS, not CRITICAL/MAJOR |
 | 3 | `kapi-bilingual-workflow` | `bilingual-workflow` | `kapi/bilingual-workflow.mdx` | none | output of the July take; commands unchanged |
-| 4 | `09-toolbox-find-replace` | `toolbox-explainer` | `toolbox/overview.mdx` | none | commands and output unchanged; re-recorded for the September template |
+| 4 | `09-toolbox-find-replace` | `toolbox-explainer` | `toolbox/overview.mdx` | none | commands and output unchanged; re-recorded for the September template. `ksed` now applies its substitutions as change-set operations, and the demo's commands print the same output and leave the same bytes in all three files as before |
 | 5 | `kapi-desktop-projects` | `kapi-desktop-projects` | `kapi/desktop/tour.mdx`, `kapi/desktop/recipes/author-a-project-visually.mdx` | desktop recorder (wbridge, no server) | the app opens on the workspace; project home carries the context digest |
 | 6 | `kapi-desktop-flows` | `kapi-desktop-flows` | `kapi/desktop/tour.mdx`, `kapi/desktop/recipes/build-a-flow-visually.mdx` | desktop recorder | earlier Toolbox and home |
 | 7 | `kapi-desktop-config` | `kapi-desktop-config` | `kapi/desktop/tour.mdx`, `kapi/desktop/recipes/store-ai-credentials.mdx` | desktop recorder | earlier settings layout |
@@ -161,13 +166,17 @@ proposal; embedding it is a page edit after the asset is on the CDN.
 | # | Demo | Publishes as | Would fit on | Infrastructure | What changed |
 | --- | --- | --- | --- | --- | --- |
 | 18 | `s0-northsea-context` | `monolingual-context` | `kapi/context.mdx` | none | nothing in the script; the import reports the word rules it moved into terms, and each context answer ends with the #2989 recording guidance |
-| 19 | `10-cli-points-and-voice` | `cli-points-and-voice` | `kapi/projects.mdx` | none | the fixture's voice file sits under `context/`, like the samples', and `setup:` reads it with `kapi context import ./context`; the voice guide is asked for by path (`kapi voice guide partner/index.md`), and holds the portal's register and no terms |
-| 20 | `11-cli-terms-and-queue` | `cli-terms-and-queue` | `kapi/recipes/terminology-checks.mdx` | none | reads the same `context/` as row 19; the narration counts the four French rows it approves (it said twenty) |
+| 19 | `10-cli-points-and-voice` | `cli-points-and-voice` | `kapi/projects.mdx` | none | the fixture's voice file sits under `context/`, like the samples', and `setup:` reads it with `kapi context import ./context`; the voice guide is asked for by path (`kapi voice guide partner/index.md`), and holds the portal's register and no terms; the brand coordinate is a `recipe` operation |
+| 20 | `11-cli-terms-and-queue` | `cli-terms-and-queue` | `kapi/recipes/terminology-checks.mdx` | none | reads the same `context/` as row 19; the narration counts the four French rows it approves (it said twenty); the `--jq` filter writes one `decide` operation per row, and the narration says the queue names what a decision addresses |
 | 21 | `audience-constraints` | `audience-constraints` | `kapi/recipes/content-governance-for-ai.mdx` | none | rewritten for the screen: text output in place of several hundred lines of JSON, `ksed` edits in place of `node -e`, and one `--jq` line for the findings' provenance; the sample's `emotion: reassuring` became `warm`, which removes a configuration warning |
 | 22 | `s1-compass-converge` | `multilingual-converge` | `kapi/convergence.mdx` | none | the `ship.json` narration names Dutch's `not_governed` note |
-| 23 | `s1-compass-ship-gate` | `multilingual-ship-states` | `kapi/recipes/ship-gates-and-ci.mdx` | none | the first highlight lands on `parked` and `withheld`; nothing on screen said `blocked` |
+| 23 | `s1-compass-ship-gate` | `multilingual-ship-states` | `kapi/recipes/ship-gates-and-ci.mdx` | none | the first highlight lands on `parked` and `withheld`; nothing on screen said `blocked`; the two `--jq` filters write `decide` operations |
 | 24 | `s2-tidewatch-build-output` | `docs-site-convergence` | `kapi/recipes/translate-content.mdx` | none | nothing in the script |
 | 25 | `s2-tidewatch-ci` | `docs-coverage-in-ci` | `kapi/convergence-in-ci.mdx` | none | the finding that reports is on the integration page, which names the retired word where it explains `mooring_id`; the comment and narration said the API reference |
+
+Rows 1, 19, 20 and 23 were changed after the dry runs above, when `kapi apply`
+moved to kapi.change/v1: their apply steps now write operations. Dry-run those
+four against a build of the release commit before recording them.
 
 To take all eight in one call:
 

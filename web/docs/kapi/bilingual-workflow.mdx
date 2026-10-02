@@ -81,7 +81,7 @@ The content memory participates on both sides of the round-trip:
 Both are on by default; `--no-memory` and `--no-memory-update` disable them. Absorb is
 **recycle leverage** and never a review decision: whether a reviewer *approved* a
 target is a separate, content-hash-bound fact recorded in the project
-[state store](/kapi/project-store) by `kapi apply` (`kind:"review"`); the
+[state store](/kapi/project-store) by a `decide` operation through `kapi apply`; the
 content memory holds none of it.
 
 Run the engine behind the round-trip yourself: pick the bilingual XLIFF sample,

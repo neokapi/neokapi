@@ -250,7 +250,7 @@ leaves each contested suggestion for later, naming the other side.
 
 ### Keeping writes through the existing appliers
 
-`kapi apply` is the one write verb, and its asset entries write the project's
+`kapi apply` is the one write verb, and its asset operations write the project's
 terms store or content memory ([C-08](c-08-terms.md),
 [C-09](c-09-content-memory.md)). A word rule is a term, so keeping one writes a
 concept, marked advisory when the rule is. Keeping a
@@ -271,9 +271,10 @@ carrying the rows the decision wrote, whose origin names the operation it
 carries out. The context operations fold into statuses; the store operations
 replay into the stores.
 
-`kapi apply` records one `edit` operation for each term or content-memory entry
-it applies, established from the start and attributed to the person who ran the
-command. The transport stamps the actor and an entry has no field for one: `kapi
+`kapi apply` records one `edit` operation for each term or content-memory
+operation it applies, established from the start and attributed to the person
+who ran the command. The transport stamps the actor and a change set has no
+field for one: `kapi
 apply` stamps the actor the environment names, as every `kapi context` command
 does, and `apply_edits` stamps the calling agent and the server's session. The
 policy refuses a term, content-memory or recipe entry from an agent before

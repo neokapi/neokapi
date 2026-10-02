@@ -26,18 +26,19 @@ const config: WalkthroughEmbedConfig = {
     {
       path: "review.jsonl",
       content:
-        '{"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"established"}\n{"kind":"review","file":"messages.fr.json","id":"farewell","locale":"fr","status":"established"}\n{"kind":"review","file":"messages.fr.json","id":"items.cart","locale":"fr","status":"established"}\n',
+        '{"op":"decide","at":{"doc":"messages.json","block":"greeting","edition":"fr"},"if_match":"r:1a83287c7ed96132","outcome":"establish"}\n{"op":"decide","at":{"doc":"messages.json","block":"farewell","edition":"fr"},"if_match":"r:4bd26660d12e70bf","outcome":"establish"}\n{"op":"decide","at":{"doc":"messages.json","block":"items.cart","edition":"fr"},"if_match":"r:5d8eff15e7ca8118","outcome":"establish"}\n',
     },
   ],
   steps: [
     {
       command: "kapi status --review",
       narration:
-        "List translated units awaiting approval, addressed by file, id and locale for a review change-set.",
+        "List translated units awaiting approval, each with the source document, block and language a decision names.",
     },
     {
       command: "kapi apply review.jsonl",
-      narration: "apply records each review decision, bound to the translation's content hash.",
+      narration:
+        "apply records each review decision, bound to the revision of the translation it names.",
     },
     {
       command: "kapi status",

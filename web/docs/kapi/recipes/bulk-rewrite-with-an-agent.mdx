@@ -32,12 +32,12 @@ State the change once, over the whole set:
 
 The assistant runs the loop at scale:
 
-1. `kapi inspect --jsonl` over the set: one record per block, with `id`, `content_hash`, and the text (inline codes as `<x id="…"/>` placeholders).
+1. `kapi inspect --jsonl` over the set: one record per block, with its reference (`ref`), its revision (`rev`), and the text (inline codes as `<x id="…"/>` placeholders).
 2. It rewrites only the blocks that mention the term, judgment calls included ("Acme Sync's engine" → "the Acme Flow engine"), which is why this is an agent job rather than a `sed` job.
-3. `kapi apply` lands the change-set; any block whose hash drifted since the read is left unchanged and reported, so a concurrent edit can't be clobbered.
+3. `kapi apply` lands the change set. Each operation carries the revision it read, so a block someone changed since the read refuses the change set with its current text, and a concurrent edit can't be clobbered.
 4. `kapi check --forbid "Acme Sync"` proves completion: exit 0 means the sweep is done.
 
-Make the retired term a permanent [term](/kapi/recipes/keep-source-on-brand) in the same change-set, and the old name can never quietly return.
+Make the retired term a permanent [term](/kapi/recipes/keep-source-on-brand), and the old name can never quietly return. Recording a term is your decision, so the assistant suggests it and you keep it, or you add the `term` operation to the change set you apply.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -46,14 +46,14 @@ The same loop with you (or a script) as the writer:
 
 ```bash
 kapi inspect docs/**/*.md report.docx --jsonl > blocks.jsonl
-# rewrite the matching blocks' "text" into edits.jsonl (content entries)
-# carrying each block's id + content_hash; keep the <x id="…"/> tags
-kapi apply edits.jsonl --diff            # preview the whole sweep as one diff
-kapi apply edits.jsonl --in-place=.bak   # land it, keeping backups
+# write a replace_text or set_content operation per matching block to
+# edits.json, with the block's ref and rev; keep the <x id="…"/> tags
+kapi apply edits.json --dry-run          # preview the whole sweep, one diff per document
+kapi apply edits.json --in-place=.bak    # land it, keeping backups
 kapi check docs/**/*.md --forbid "Acme Sync"   # prove it's done
 ```
 
-For pure term substitution with zero judgment involved, `kapi voice rewrite` does it deterministically from the terms a voice file carries: no agent, no model. The change-set shape and the round-trip guards are in [Edit content](/kapi/recipes/rewrite-content).
+For pure term substitution with zero judgment involved, `ksed -i 's/Acme Sync/Acme Flow/g'` or `kapi voice rewrite` does it deterministically: no agent, no model. The change set's shape and what refuses an edit are in [Edit content](/kapi/recipes/rewrite-content).
 
 </TabItem>
 </Tabs>

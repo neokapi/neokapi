@@ -7,16 +7,16 @@
 # harness. (This walkthrough also has no <id>.md prompt file yet.)
 #
 # Surface note (2026-07): the former top-level `kapi rewrite` verb is gone.
-# Editing is the inspect → apply pipeline: `kapi inspect` emits one anchored
-# record per block (text + content_hash + role), the edit is authored against
-# those anchors (by you, or by an AI with the blocks as context), and
-# `kapi apply` lands it through the byte-faithful round-trip —
-# drift-guarded by content_hash, previewable with --diff. No AI provider is
-# required by either command.
+# Editing is the inspect → apply pipeline: `kapi inspect` emits one record per
+# block (its reference, its revision, its text and role), the edit is authored
+# against those references (by you, or by an AI with the blocks as context), and
+# `kapi apply` lands it through the byte-faithful round-trip, refused when a
+# block changed since it was read, previewable with --dry-run. No AI provider
+# is required by either command.
 #
-# The edits.jsonl content hashes below are real: they anchor the two body
-# paragraphs of release-notes.md exactly as `kapi inspect --jsonl` reports
-# them. Editing release-notes.md invalidates them by design (drift guard).
+# The edits.jsonl revisions below are real: they are the revisions of the two
+# body paragraphs of release-notes.md exactly as `kapi inspect --jsonl` reports
+# them. Editing release-notes.md makes them stale, by design.
 #
 # Wasm note: `kapi apply` runs in the browser embed; `kapi inspect` and
 # `kapi check` are not wired into the wasm build, so those steps are
@@ -39,29 +39,29 @@ files:
       Bug fixes utilize the new sync engine to resolve conflicts.
   - path: edits.jsonl
     content: |
-      {"kind":"content","file":"release-notes.md","id":"tu3","content_hash":"7216da8380519e37fc04ad5723a5049bd8c3c9219dfb17820bec8b1089e68c5b","text":"This release adds a faster editor."}
-      {"kind":"content","file":"release-notes.md","id":"tu4","content_hash":"40595e5937457a195231467a018a632154fa96c40f4680a26594cad24b6056ea","text":"Bug fixes use the new sync engine to resolve conflicts."}
+      {"op":"set_content","at":{"doc":"release-notes.md","block":"lumen-notes-2-4/highlights/p"},"if_match":"r:a42e8621c0015f4c","text":"This release adds a faster editor."}
+      {"op":"replace_text","at":{"doc":"release-notes.md","block":"lumen-notes-2-4/highlights/p#2"},"if_match":"r:b5f92f83d33abab6","edits":[{"find":"utilize","text":"use"}]}
 
 steps:
   - comment: Inspect the file so an edit can target the right blocks
   - command: kapi inspect release-notes.md --jsonl
     narration: >-
-      One anchored record per content block — the text, a stable content
-      hash, and its structural role — so an instruction, a person, or an AI
+      One record per content block: its reference, the revision of its text,
+      the text and its structural role, so an instruction, a person, or an AI
       can address exactly the blocks to change.
     offline: false
-  - comment: Author the change as a typed change-set, then preview it as a diff
-  - command: kapi apply edits.jsonl --diff
+  - comment: Author the change as a change set, then preview it as a diff
+  - command: kapi apply edits.jsonl --dry-run
     narration: >-
-      apply is the one write verb, the sibling of inspect. Each entry is one
-      reviewed change, bound to its block's content hash — if the file drifted,
-      the entry refuses to land. --diff previews and writes nothing.
+      apply is the sibling of inspect. Each operation is one reviewed change,
+      bound to the revision of the block it read; if the block changed since,
+      the change set refuses to land. --dry-run previews and writes nothing.
   - comment: Apply in place once the diff looks right
   - command: kapi apply edits.jsonl
     narration: >-
-      The same change-set writes the text back through the byte-faithful
-      round-trip — format, structure, and inline codes preserved; only the
-      leaf text changes.
+      The same change set writes the text back through the byte-faithful
+      round-trip. Format, structure and inline codes are preserved, and only
+      the leaf text changes.
   - comment: Verify the result with a check
   - command: kapi check release-notes.md
     narration: >-

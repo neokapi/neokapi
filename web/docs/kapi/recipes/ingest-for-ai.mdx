@@ -10,7 +10,7 @@ import TabItem from "@theme/TabItem";
 
 # Feed content to your AI
 
-**Goal:** turn any document (Word, PDF, JSON, Markdown, HTML) into a stream of clean, anchored content blocks an AI assistant or RAG pipeline can read without knowing anything about the source format. No translation is involved. Every block carries a stable `content_hash` anchor (a retrieval key derived from the block's text rather than its position) so an edit produced later can be written back to the same block with the surrounding markup intact. Concepts: [Content model](/framework/content-model), [Checks](/framework/checks).
+**Goal:** turn any document (Word, PDF, JSON, Markdown, HTML) into a stream of clean, anchored content blocks an AI assistant or RAG pipeline can read without knowing anything about the source format. No translation is involved. Every block carries a reference (`ref`: its document and its key) and the revision of its text (`rev`), so an edit produced later can be written back to the same block with the surrounding markup intact, and refused if the block changed in between. Concepts: [Content model](/framework/content-model), [Checks](/framework/checks).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -41,29 +41,29 @@ You describe the outcome ("read the contract and flag every clause that mentions
 kapi stats --json report.docx docs/*.md | jq '.total.words'
 ```
 
-**Extract blocks with anchors.** `kapi inspect` emits one record per block: the plain `text`, a stable `content_hash`, the structural `role`, the nesting `level`. The format collapses: a Word document, a JSON catalog, and a Markdown page all yield the same record shape. `--jsonl` streams one object per line for pipelines; `-f` declares the format when detection is ambiguous:
+**Extract blocks with anchors.** `kapi inspect` emits one record per block: the block's `ref` and `rev`, the `text` with inline codes as `<x id="…"/>` placeholders, the structural `role` and the nesting `level`. The format collapses: a Word document, a JSON catalog, and a Markdown page all yield the same record shape. `--jsonl` streams one object per line for pipelines; `-f` declares the format when detection is ambiguous:
 
 ```bash
 kapi inspect --jsonl report.docx docs/*.md | \
-  jq -c '{hash: .content_hash, role: .role, text: .text}'
+  jq -c '{doc: .ref.doc, block: .ref.block, role: .role, text: .text}'
 cat page.html | kapi inspect -f html --jsonl
 ```
 
-**Write back; check any time.** `kapi apply` lands an assistant's edits on the original blocks by anchor; `kapi check` returns findings a program can act on (exit `0` pass, `3` gate tripped, `--no-fail` for fix-loops):
+**Write back; check any time.** `kapi apply` lands an assistant's edits on the original blocks by reference; `kapi check` returns findings a program can act on (exit `0` pass, `3` gate tripped, `--no-fail` for fix-loops):
 
 ```bash
-kapi apply edits.jsonl --diff             # review before writing
+kapi apply edits.json --dry-run           # review before writing
 kapi check report.docx --max-chars 300 --forbid "TODO"
 ```
 
-An edit that drifted (the file changed since you read it) or would corrupt an inline code is rejected rather than written; [Edit content](/kapi/recipes/rewrite-content) documents the entry shape and the guards.
+An edit to a block that changed since you read it, or that would corrupt an inline code, is refused rather than written; [Edit content](/kapi/recipes/rewrite-content) documents the change set's shape and what refuses an edit.
 
 </TabItem>
 </Tabs>
 
 ## In a project
 
-In a [kapi project](/kapi/get-started/first-project), `kapi stats`, `kapi inspect`, and `kapi check` with no file argument survey every source the recipe declares, and the same `content_hash` anchors stay stable across runs, so an assistant indexing your project can retrieve and rewrite the same blocks over time.
+In a [kapi project](/kapi/get-started/first-project), `kapi stats`, `kapi inspect`, and `kapi check` with no file argument survey every source the recipe declares. A block's reference is its project-relative path and its key, which stays the same across runs while the block is there, so an assistant indexing your project can retrieve and rewrite the same blocks over time.
 
 ## Further reading
 

@@ -97,20 +97,21 @@ so rather than guessing.
 
 `extract`/`merge` are the **bilingual** round trip: source out, target back.
 There is a parallel **monolingual** round trip on the same content model for
-source-language work: `kapi inspect` reads a file into anchored blocks and
-`kapi apply` writes a typed change-set of reviewed edits back through the
-byte-faithful round trip ([S-03](../surfaces/s-03-agent-surfaces.md)).
+source-language work: `kapi inspect` reads a file into blocks, each with its
+reference and revision, and `kapi apply` writes a change set of reviewed edits
+back through the byte-faithful round trip
+([E-09](../engine/e-09-the-change-contract.md), [S-03](../surfaces/s-03-agent-surfaces.md)).
 
 The pairs share the engine (a format reader and writer
-([E-02](../engine/e-02-format-system.md)), the block content hash as identity,
-the skeleton store for faithful reconstruction) but they answer different
+([E-02](../engine/e-02-format-system.md)), the skeleton store for faithful
+reconstruction) but they answer different
 questions and stay separate verbs:
 
-- `kapi apply` lands a **reviewed** change-set (a content fix, or an edit to a
-  term, a memory pair, a voice rule, a recipe field) behind a `content_hash`
-  drift guard and an inline-code fidelity guard, exiting on the gate code when
-  an edit is stale so a fix loop re-inspects. It never touches a target locale
-  and never absorbs into the memory as a side effect.
+- `kapi apply` lands a **reviewed** change set (a content fix, a decision, or
+  an edit to a term, a memory pair, a recipe field) whole or not at all, each
+  edit guarded by the revision it read and by the inline-code fidelity guard,
+  exiting on the gate code when an edit is stale so a fix loop reads again. It
+  never absorbs into the memory as a side effect.
 - `kapi merge` applies a **translator's returned targets** and, by default,
   absorbs every accepted target into the content memory. That accretion is what
   merge is for; it is governed by the conflict policy and stale-segment

@@ -76,10 +76,10 @@ provider-free:
 
 - **Edit the source directly** and re-check, which is natural while you are still
   drafting.
-- **Route the fix through `kapi apply`** as a `content` entry, when you want the
-  edit guarded by the faithful round-trip and the drift/inline-code checks, or
-  when the fix travels alongside an asset change (below). See [edit.md](edit.md)
-  for the content-entry shape and the guards.
+- **Route the fix through `kapi apply`** as a `replace_text` or `set_content`
+  operation, when you want the edit guarded by the faithful round-trip, the
+  revision you read and the inline-code checks. See [edit.md](edit.md) for the
+  change set's shape and what refuses an edit.
 
 Iterate until the gate is green. A clean check, not a written file, is the finish
 line.
@@ -88,29 +88,30 @@ line.
 
 When a check flags a term, the durable fix is usually two changes: correct **this
 draft**, and record the rule so **future** drafts are checked against it.
-Correct the draft with a content entry through `kapi apply`, then record the
-change you made:
+Correct the draft through `kapi apply`, with the block's `ref` and `rev` from
+`kapi inspect draft.md --jsonl`, then record the change you made:
 
-```jsonl
-{"kind":"content","file":"draft.md","id":"p4","content_hash":"a1b2…","text":"Open the dashboard."}
+```json
+{"ops": [{"op": "replace_text", "at": {"doc": "draft.md", "block": "setup/p#2"}, "if_match": "r:a1b2c3d4e5f60718",
+          "edits": [{"find": "control panel", "text": "dashboard"}]}]}
 ```
 
 ```bash
-kapi apply changeset.jsonl
+kapi apply change.json
 kapi context correct "control panel" "dashboard" --seen-in draft.md --suggest
 ```
 
-- The **content** entry rewrites the block through the faithful round-trip.
+- The **content** operation rewrites the block through the faithful round-trip.
 - The **correction** records what you changed and, with `--suggest`, the rule it
   implies. `kapi check` reports the rule as a suggestion and fails nothing on
   it until a person keeps it with `kapi context keep`, which writes it into the
   project's terms store.
 
-Writing a term into the store directly is a person's decision. A `term` entry
-in a `kapi apply` change-set does that, so from your shell it is refused; when
-the person has decided, they run `kapi apply` on it themselves. The asset kinds
-`kapi apply` accepts (`term`, `memory`, `recipe`) and their fields are
-summarized in [edit.md](edit.md), and a word rule is detailed in
-[voice.md](voice.md).
+Writing a term into the store directly is a person's decision. A `term`
+operation in a `kapi apply` change set does that, so from your shell it is
+refused, and the change set with it; when the person has decided, they run
+`kapi apply` on it themselves. The asset operations `kapi apply` accepts
+(`term`, `memory`, `recipe`) are summarized in [edit.md](edit.md), and a word
+rule is detailed in [voice.md](voice.md).
 
 After applying, run `kapi check draft.md --json` again to check the draft.

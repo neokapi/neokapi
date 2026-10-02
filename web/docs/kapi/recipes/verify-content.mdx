@@ -510,15 +510,27 @@ kapi check --diff-against HEAD
   FAILS    voice.style  internal/parse/parse.go:func/Parse L5-7  Prohibited pattern: Say use rather than utilize.
 ```
 
-Write the new prose for that comment as a `comment` entry, with the id, lines
-and `comment_sha256` from the finding in `kapi check --diff-against HEAD --json`:
+A comment is a block of its source file. `kapi inspect` lists each comment of
+the file with its prose and the revision an edit sends as `if_match`, which is
+`r:` and the first sixteen hex digits of the finding's `comment_sha256`:
 
-```json title="edits.jsonl"
-{"kind":"comment","file":"internal/parse/parse.go","id":"func/Parse","lines":{"first":5,"last":7},"comment_sha256":"8d65ce744d4fe688bd8c64ca408fa32ccde8d0ae979b33ce9936f61993b8f26b","text":"Parse reads the input from an [io.Reader] and helps callers use the result.\n\nIt stops at the end."}
+```bash
+kapi inspect internal/parse/parse.go --jsonl
+```
+
+```json
+{"ref":{"doc":"internal/parse/parse.go","block":"func/Parse"},"rev":"r:8d65ce744d4fe688","text":"Parse reads the input from an [io.Reader] and helps callers utilize the result.\n\nIt stops at the end.","ops":["set_content"],"role":"comment"}
+```
+
+Write the new prose as a `set_content` operation on that block:
+
+```json title="edits.json"
+{"ops": [{"op": "set_content", "at": {"doc": "internal/parse/parse.go", "block": "func/Parse"}, "if_match": "r:8d65ce744d4fe688",
+          "text": "Parse reads the input from an [io.Reader] and helps callers use the result.\n\nIt stops at the end."}]}
 ```
 
 ```bash
-kapi apply edits.jsonl
+kapi apply edits.json
 ```
 
 `text` is the comment's prose without the `//` markers. Keep the comment's code
@@ -528,25 +540,24 @@ own indentation, wraps a paragraph that is too wide, and writes a doc comment
 as gofmt does.
 
 kapi writes the edit only when the file still parses and gofmt agrees with it.
-It refuses the edit with a reason when the comment's bytes no longer match
-`comment_sha256`, because someone changed it after the check, when the text
-drops or adds a code block, reference or list item, or when the id names a
-directive, a generated file's comment or a `/* */` comment. A refused edit
-leaves the file untouched, and `kapi apply` exits `3`. A comment that only moved,
-because code above it changed, keeps its fingerprint, and kapi writes the edit
-at its new lines. Without a fingerprint, pass the prose you read in
-`current_text`. An entry with neither is rejected before anything is written.
+It refuses the edit with a reason when the comment no longer has the revision
+you read, because someone changed it after you read it, when the text drops or
+adds a code block, reference or list item, or when the id names a directive, a
+generated file's comment or a `/* */` comment. A refused edit leaves the file
+untouched, and `kapi apply` exits `3`. A comment that only moved, because code
+above it changed, keeps its revision, and kapi writes the edit at its new
+lines. A change set edits code comments or documents, never both.
 
-After writing, `kapi apply` checks what changed and reports it beside the edit:
+After writing, `kapi apply` checks what changed and reports the check's
+findings beside the edit, in its JSON result under the document:
 
 ```text
-comment internal/parse/parse.go func/Parse: written (lines 5-7)
-check internal/parse/parse.go: passed, 0 finding(s)
+wrote internal/parse/parse.go
+change set applied: 1 applied
 ```
 
 A finding in that check is one the new prose still holds. Send another edit for
-it, then run `kapi check --diff-against HEAD` again before you finish. The MCP
-`apply_edits` tool takes the same entries and returns the same check.
+it, then run `kapi check --diff-against HEAD` again before you finish.
 
 The same key checks the comments in YAML files, in XML-based files, such as
 [Android string resources](/reference/formats/androidxml),

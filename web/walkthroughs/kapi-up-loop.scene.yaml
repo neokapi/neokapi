@@ -66,9 +66,9 @@ embed:
         }
     - path: review.jsonl
       content: |
-        {"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"established"}
-        {"kind":"review","file":"messages.fr.json","id":"farewell","locale":"fr","status":"established"}
-        {"kind":"review","file":"messages.fr.json","id":"items.cart","locale":"fr","status":"established"}
+        {"op":"decide","at":{"doc":"messages.json","block":"greeting","edition":"fr"},"if_match":"r:1a83287c7ed96132","outcome":"establish"}
+        {"op":"decide","at":{"doc":"messages.json","block":"farewell","edition":"fr"},"if_match":"r:4bd26660d12e70bf","outcome":"establish"}
+        {"op":"decide","at":{"doc":"messages.json","block":"items.cart","edition":"fr"},"if_match":"r:5d8eff15e7ca8118","outcome":"establish"}
 
 tape:
   width: 1000
@@ -165,9 +165,9 @@ files:
             - tool: recycle
   - path: review.jsonl
     content: |
-      {"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"established"}
-      {"kind":"review","file":"messages.fr.json","id":"farewell","locale":"fr","status":"established"}
-      {"kind":"review","file":"messages.fr.json","id":"items.cart","locale":"fr","status":"established"}
+      {"op":"decide","at":{"doc":"messages.json","block":"greeting","edition":"fr"},"if_match":"r:1a83287c7ed96132","outcome":"establish"}
+      {"op":"decide","at":{"doc":"messages.json","block":"farewell","edition":"fr"},"if_match":"r:4bd26660d12e70bf","outcome":"establish"}
+      {"op":"decide","at":{"doc":"messages.json","block":"items.cart","edition":"fr"},"if_match":"r:5d8eff15e7ca8118","outcome":"establish"}
 
 steps:
   - comment: The ship gate wants translated 100% and established 100%. A machine can meet the first; only a person can meet the second.
@@ -181,7 +181,7 @@ steps:
     narration: up fills all French targets from content memory, then parks the locale awaiting human review. The command exits zero.
     offline: false
   - command: kapi status --review
-    narration: List translated units awaiting approval, addressed by file, id and locale for a review change-set.
+    narration: List translated units awaiting approval, each with the source document, block and language a decision names.
     # offline:true — runs live in the embed against the pre-produced project.
     # smoke:false — needs the multi-file project seeded; W7 runs commands in
     # isolation (same policy as kapi-review-and-approve).
@@ -192,7 +192,7 @@ steps:
     offline: false
   - comment: A person reads the three translations and records the decisions.
   - command: kapi apply review.jsonl
-    narration: apply records each review decision, bound to the translation's content hash.
+    narration: apply records each review decision, bound to the revision of the translation it names.
     offline: true
     smoke: false
   - command: kapi check --ship

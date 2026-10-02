@@ -67,30 +67,33 @@ kapi voice guide                          # the voice to follow (no flag inside 
 kapi terms lookup "dashboard" -t en    # the approved term
 ```
 
-Fix what the check flags (edit the source directly, or route the fix through `kapi apply` when you want the round-trip and drift guards; see [Edit content](/kapi/recipes/rewrite-content)) and re-check until green.
+Fix what the check flags (edit the source directly, or route the fix through `kapi apply` when you want the round-trip and its guards; see [Edit content](/kapi/recipes/rewrite-content)) and re-check until green.
 
 </TabItem>
 </Tabs>
 
 ## Close the loop: fix the content and the rule together
 
-When a check flags a term, the durable fix is two changes: correct **this draft** and record the rule so **future** drafts are checked against it. Both are typed entries in one `kapi apply` change-set (requires a [kapi project](/kapi/get-started/first-project)), written through the single write verb:
+When a check flags a term, the durable fix is two changes: correct **this draft** and record the rule so **future** drafts are checked against it. Both are operations in one `kapi apply` change set (requires a [kapi project](/kapi/get-started/first-project)), with the block's `ref` and `rev` from `kapi inspect draft.md --jsonl`:
 
-```jsonl
-{"kind":"content","file":"draft.md","id":"p4","content_hash":"a1b2…","text":"Open the dashboard."}
-{"kind":"term","op":"upsert","term":"dashboard","locale":"en","status":"preferred","replaces":"control panel"}
+```json
+{"ops": [
+  {"op": "replace_text", "at": {"doc": "draft.md", "block": "setup/p#2"}, "if_match": "r:a1b2c3d4e5f60718",
+   "edits": [{"find": "control panel", "text": "dashboard"}]},
+  {"op": "term", "action": "upsert", "term": "dashboard", "locale": "en", "status": "preferred", "replaces": "control panel"}
+]}
 ```
 
 ```bash
-kapi apply changeset.jsonl
+kapi apply change.json
 ```
 
-The **content** entry rewrites the block through the faithful round-trip, drift-guarded by `content_hash`; the **term** entry is written into the [project store](/kapi/project-store)'s terms tables and recorded as a decision, so `kapi context log` names the new term and the next `kapi check` enforces it. Each entry lands on its own: when one is stale or refused, the others are still written, and `kapi apply` reports which and exits non-zero. Re-running the corrected change-set is safe, because an edit already in place is skipped. `apply` also accepts `memory` and `recipe` asset entries; see [Keep source on brand](/kapi/recipes/keep-source-on-brand) for a `term` entry that adds a word rule.
+The **content** operation rewrites the block through the faithful round-trip, refused if the block changed since you read it; the **term** operation, applied after it, is written into the [project store](/kapi/project-store)'s terms tables and recorded as a decision, so `kapi context log` names the new term and the next `kapi check` enforces it. The change set lands whole or not at all: when an operation is refused, nothing is written, and `kapi apply` names the refusal and exits non-zero. Resending a change set that landed is safe, because an operation already in place reports `unchanged`. `apply` also accepts `memory` and `recipe` operations; see [Keep source on brand](/kapi/recipes/keep-source-on-brand) for a `term` operation that adds a word rule.
 
-Writing a rule directly is your decision, so an assistant's `term`, `memory` and `recipe` entries are refused, whether it runs `kapi apply` from its shell or sends the change-set through MCP. The assistant applies the content entry and records the rule as a suggestion with `kapi context correct --suggest`, which you keep with `kapi context keep` ([Growing context](/kapi/context-decisions)).
+Writing a rule directly is your decision, so an assistant's `term`, `memory` and `recipe` operations are refused, and the change set that holds them, whether it runs `kapi apply` from its shell or sends the change set through MCP. The assistant applies the content operation on its own and records the rule as a suggestion with `kapi context correct --suggest`, which you keep with `kapi context keep` ([Growing context](/kapi/context-decisions)).
 
 ## Next
 
-- [Edit content](/kapi/recipes/rewrite-content): the edit-existing loop and the full `content`-entry shape with its guards.
-- [Keep source on brand](/kapi/recipes/keep-source-on-brand): the voice check and the term entry that adds a word rule.
+- [Edit content](/kapi/recipes/rewrite-content): the edit-existing loop, the change set's shape, and what refuses an edit.
+- [Keep source on brand](/kapi/recipes/keep-source-on-brand): the voice check and the term operation that adds a word rule.
 - [Checks](/framework/checks): the `kapi.check/v2` report model and the gate exit codes.

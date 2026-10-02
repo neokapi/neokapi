@@ -22,7 +22,7 @@ The content memory is the project's **recycle** corpus: a pool of source→targe
 pairs reused to pre-fill and leverage future work. It is not the carrier of unit
 state. Whether a person established a particular target lives in the
 unit-state record ([C-04](c-04-unit-state-and-decisions.md)). Adding a pair to
-the memory (`kapi apply` with `kind:"memory"`) is recycle leverage; it does not
+the memory (a `memory` operation through `kapi apply`) is recycle leverage; it does not
 promote a unit to *reviewed*.
 
 The corpus also holds each block's **version chain**: the answers approved for

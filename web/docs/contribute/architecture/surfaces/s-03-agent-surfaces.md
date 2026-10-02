@@ -2,8 +2,8 @@
 id: s-03-agent-surfaces
 sidebar_position: 3
 title: "S-03: Agent surfaces: MCP and skills"
-description: "An AI assistant reaches kapi two ways: a shipped Agent Skill that drives the CLI, and a curated MCP server for non-CLI clients. Content and asset edits land through one write verb, kapi apply, whose typed change-set carries them through a single reviewed path; review decisions have verbs of their own on both surfaces."
-keywords: [neokapi, architecture decision, agent skill, SKILL.md, MCP, model context protocol, kapi apply, change-set, hooks, progressive disclosure]
+description: "An AI assistant reaches kapi two ways: a shipped Agent Skill that drives the CLI, and a curated MCP server for non-CLI clients. On the command line, content and asset edits land through kapi apply as a kapi.change/v1 change set, applied whole or not at all by the change service; review decisions have verbs of their own on both surfaces."
+keywords: [neokapi, architecture decision, agent skill, SKILL.md, MCP, model context protocol, kapi apply, change set, hooks, progressive disclosure]
 ---
 
 import { CycleDiagram } from "@neokapi/docs-shared";
@@ -20,10 +20,11 @@ it. The **MCP server**
 (`kapi mcp`) serves clients that call tools rather than shell out, exposing a
 deliberately curated set plus the `context://` resource space. Both converge on
 the same asymmetry: **the assistant writes the content; kapi supplies the
-context, applies edits through format-aware writers, and runs configured checks.** Content and
-asset edits land through one write verb, `kapi apply`, as a typed JSONL
-change-set, which is also the MCP `apply_edits` tool. A review decision has
-its own verbs on both surfaces, sharing the host's decision path.
+context, applies edits through format-aware writers, and runs configured checks.** On the
+command line, content and asset edits land through `kapi apply` as a
+kapi.change/v1 change set ([E-09](../engine/e-09-the-change-contract.md)), and
+MCP clients send edits with `apply_edits`. A review decision has its own verbs
+on both surfaces, sharing the host's decision path.
 
 ## Context
 
@@ -91,7 +92,7 @@ context discovery. Both record suggestions for review
 ([C-11](../context/c-11-context-operations.md)). During initial discovery, the
 assistant proposes context from the user's material. During a refresh, it
 compares new material with existing context and proposes changes. The user can
-keep individual suggestions or approve a prepared change-set with
+keep individual suggestions or approve a prepared change set with
 `kapi apply refresh.jsonl`.
 
 The `i18n` concern is itself a tree. `references/i18n.md` detects the stack and
@@ -289,13 +290,15 @@ These are the assistant-integration hooks. They are unrelated to a recipe's
   caption="The edit loop: the assistant supplies the words; kapi reads, applies and checks the content. Findings guide revisions, while unsupported guidance remains for review."
 />
 
-**Editing existing content.** `kapi inspect` is the read leg: it parses any
-editable format into one record per block, carrying the text with inline codes
-rendered as `<x id="…"/>` placeholders so an edit can round-trip, the block's
-structural role and nesting level, a stable `id`, and a `content_hash`, the
-canonical block identity ([F-03](../foundations/f-03-identity.md)). The
-assistant rewrites the text and returns a typed change-set; `kapi apply` writes
-it.
+**Editing existing content.** `kapi inspect` is the read leg: it reads any
+format through the change service into one read record per block: the block's
+reference (`ref`: document, block key and edition) and the revision of its text
+(`rev`), the text with inline codes rendered as `<x id="…"/>` placeholders so an
+edit can round-trip, each code with the attributes an edit may change, its
+plurals and selects with the path to each branch, its other editions, the
+operations it accepts, and its structural role and nesting level. The assistant
+rewrites the text and returns a change set whose operations copy `ref` into
+`at` and `rev` into `if_match`; `kapi apply` writes it.
 
 **Creating new content.** With no frozen source, the assistant authors in a
 *generative* format, one whose writer can produce a document from the content
@@ -326,58 +329,61 @@ combined with `context_path`. A bound-context failure is an operation error.
 
 ### `kapi apply`, the write verb for content and assets
 
-Every deliberate, reviewed change to content or to an asset is one typed JSONL
-entry discriminated by `kind`, and every one lands through `kapi apply`:
+Every deliberate, reviewed change to content or to an asset is an operation of
+a kapi.change/v1 change set, and on the command line every one lands through
+`kapi apply`, which hands the set to the change service
+([E-09](../engine/e-09-the-change-contract.md)):
 
-| `kind` | What it edits | How it lands |
+| Operation | What it edits | How it lands |
 | --- | --- | --- |
-| `content` | a block's text in a named `file` | byte-faithful round-trip, drift- and inline-code guarded |
-| `comment` | one comment's prose in a named `file`, pinned by `comment_sha256` | the same round-trip, through the collection that governs comments |
+| `set_content`, `replace_text` | an edition of a block, named by `at` and guarded by the revision read in `if_match` | the file home's byte-faithful round-trip, refused when the edition moved or an inline code or plural would be lost |
+| `set_content` on a code comment | one comment's prose in a source file, keyed as `kapi check` reports it, its revision taken from the comment's fingerprint | the comment write path: the file must still parse and the language's formatter must agree, and what was written is checked again |
+| `decide` | a review outcome on the edition revision a person read | the decision ledger ([C-04](../context/c-04-unit-state-and-decisions.md)) |
 | `term` | a term, including every word rule (`advisory`, `competitor`) | the terms tables of the project store, with a context operation recorded |
 | `memory` | a content-memory pair | the memory tables of the project store, with a context operation recorded |
-| `review` | a unit's review outcome | appended to the decision ledger ([C-04](../context/c-04-unit-state-and-decisions.md)) |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load and save |
 
-Two properties make this one verb rather than six.
+Three properties make this one verb.
+
+**A change set lands whole or not at all.** The service applies every content
+operation in memory and stages every document before it writes one; when any
+operation is refused, nothing is written, the refused operation names its error
+code, and every other operation reports `not_applied`. Decisions and asset
+operations land after the content they refer to. A change set edits code
+comments or documents, never both, because a comment is rewritten through its
+language's comment layer rather than a format's writer.
+
+**An edit carries its own guards.** Each content operation names the revision
+it read; if the edition moved since, the operation is refused `stale` with the
+current revision and text, so the sender can rebase without another read. An
+edit that drops, invents, or unbalances an inline code is refused `guard`, and
+so is flat text in place of a plural or select, whose branches an edit reaches
+by `path`. A reference to no document or block is `not_found`; a block the
+format reads as not translatable, such as a code block, lists no operations and
+refuses an edit `unsupported`. A refusal exits 3 so the fix loop re-reads and
+retries; a change set that does not decode exits 2. An operation whose content
+the edition already holds reports `unchanged`, so resending is safe.
 
 **An asset edit writes the project's store and records what it did.** The edit
-lands in the terms store or the content memory, and the same
-call appends a context operation carrying the actor and the evidence
+lands in the terms store or the content memory, and the same call appends a
+context operation carrying the actor and the evidence
 ([C-11](../context/c-11-context-operations.md)). Each store therefore has
-exactly one writer, `kapi context log` is the uniform review surface for every
-kind, and the operation is idempotent, so re-running a partly-applied change-set
-is safe. Entries of kind `recipe` update `kapi.yaml` in the checkout.
+exactly one writer, and `kapi context log` is the uniform review surface for
+every kind. The command line stamps the actor its environment names; a change
+set has no field that could name another.
 
-**A content edit carries its own guards.** Each `content` entry pins a
-`content_hash`; if the block drifted since it was inspected, the edit is *stale*
-and skipped. An edit that drops, invents, or unbalances an inline code is
-*rejected* by the fidelity guard rather than written as broken markup, and so
-is any change to a block holding a plural or select construct, because the flat
-edit text cannot carry its branches. An entry whose `id`, or `content_hash`
-when it gives no `id`, matches no block of its file is *not found* and writes
-nothing. A block the format reads as not translatable, such as a code block, is
-listed by `kapi inspect` and keeps its text: an entry that changes it is *not
-editable*, and one that repeats its text is skipped. Each of these outcomes
-exits non-zero so the fix loop re-inspects and retries. An entry that names no
-block (neither `id` nor `content_hash`), or two entries that edit one block
-differently, make the change-set malformed, and it is refused before anything
-is written.
-
-A mixed change-set (a content fix plus the `term` entry that justifies it) is
-applied entry by entry, with no transaction spanning it. Asset entries are
-written in change-set order as they are read; each named file is then rewritten
-in its own round-trip, one file after another, and comment edits come last. A
-write that succeeded stays when a later entry is stale, refused or fails. The
-report lists each outcome, and a stale, refused or failed entry makes the run
-exit non-zero. Re-running the corrected change-set is safe, because a content edit
-already in place is skipped and an asset operation is idempotent.
+`kapi apply --dry-run` computes and checks a change set and prints a diff per
+document without writing. `--print-ops` echoes the decoded set, and
+`ksed --print-ops` prints the change set a substitution compiles to, so the
+path a person takes and the path an agent takes share one format.
 
 A review decision belongs to a person, so no MCP tool records one. An agent
 pre-reviews: `pre_review_unit` stores a score from 0 to 100 and its reasons on
 a queued unit, bound to the translation it judged and recorded with the
 agent's identity, and the person working the queue reads it beside the unit.
-A person's decision reaches the decision ledger through the desktop, `kapi
-apply` with a `review` entry run as a person, or a hosted review session.
+A person's decision reaches the decision ledger through the desktop, a
+`decide` operation through `kapi apply` run as a person, or a hosted review
+session.
 
 ### Governance at commit
 
@@ -625,10 +631,9 @@ between revising content and troubleshooting the command.
   it, so the first hour needs no install step and no hand-written JSON.
 - Progressive disclosure keeps the router cheap and loads detail only on a match.
 - The attended loops call no provider: the assistant writes, kapi round-trips,
-  drift-checks, and gates.
-- One write verb covers content and asset edits, a partly applied change-set
-  can be re-run until every entry has landed, and `git diff` is the uniform
-  review surface for all of it.
+  refuses an edit whose block moved since it was read, and gates.
+- One write verb covers content and asset edits, a change set lands whole or not
+  at all, and `git diff` is the uniform review surface for all of it.
 - Tool sets mean the agent-facing tool list is a reviewed decision per kind of
   work, and a writing session reads a handful of descriptions rather than every
   tool; the code-execution exclusion is a test, so widening the surface can
@@ -655,12 +660,12 @@ between revising content and troubleshooting the command.
 - [S-04: Toolbox utilities](s-04-toolbox.md): the format-aware utilities a skill reaches for; `kapi apply` is the deliberate, reviewed sibling of `ksed`'s regex substitution
 - [S-07: The review model](s-07-context-centric-review.md): the object `review_unit` returns whole
 - [C-11: Context operations](../context/c-11-context-operations.md): the operations the write tools record, and the policy that decides who may record which
-- [F-03: Identity](../foundations/f-03-identity.md): the `content_hash` a change-set pins as its drift anchor
+- [E-09: The change contract](../engine/e-09-the-change-contract.md): the operations, revisions, results and error codes `kapi apply` speaks
 - [E-02: The format system](../engine/e-02-format-system.md): the writer capabilities behind `editable` / `round_trip` / `generative`
 - [E-06: Execution trust](../engine/e-06-execution-trust.md): why code-executing tools stay off the agent surface
-- [C-04: Unit state and decisions](../context/c-04-unit-state-and-decisions.md): what a `review` entry records
+- [C-04: Unit state and decisions](../context/c-04-unit-state-and-decisions.md): what a `decide` operation records
 - [C-06: Context retrieval](../context/c-06-retrieval.md): the two questions, and why one is a resource
-- [C-07: Voice profiles](../context/c-07-voice-profiles.md): the profile a `voice` entry edits
+- [C-07: Voice profiles](../context/c-07-voice-profiles.md): the voice an assistant writes in
 - [M-01: Bilingual interop](../multilingual/m-01-bilingual-interop.md): the `extract`/`merge` round-trip that `inspect`/`apply` mirror on the monolingual side
 - [A-01: Testing and documentation](../assurance/a-01-testing-and-documentation.md): the eval band the skill and MCP measurements belong to
 - [MCP reference](/reference/mcp): the generated tool and resource surface

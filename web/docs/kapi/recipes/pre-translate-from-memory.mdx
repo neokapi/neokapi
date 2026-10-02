@@ -31,7 +31,7 @@ Ask for the leverage pass:
 
 > Import `project.memory.json` into the project's content memory, pre-translate the French catalog from it, and tell me what's left.
 
-The assistant runs `kapi memory import`, then `recycle`, and reports the residue (the blocks with no match) so you decide what goes to a model or a vendor. Approved sentence pairs it encounters along the way can be banked for the future with a `kind:"memory"` change-set entry through `kapi apply`.
+The assistant runs `kapi memory import`, then `recycle`, and reports the residue (the blocks with no match) so you decide what goes to a model or a vendor. Approved sentence pairs it encounters along the way can be banked for the future with a `memory` operation through `kapi apply`, which you apply, since writing the content memory is a person's decision.
 
 </TabItem>
 <TabItem value="cli" label="CLI">

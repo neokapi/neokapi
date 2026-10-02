@@ -14,31 +14,37 @@ substitution expresses the change.
 
 ## 1. Read the blocks
 
-`kapi inspect` parses any format into one record per content block, carrying the
-text, the block's structural role, a stable `id`, and a `content_hash`:
+`kapi inspect` reads any format into one record per content block:
 
 ```bash
 kapi inspect report.docx --jsonl
 ```
 
 ```json
-{"file":"report.docx","number":1,"id":"p1","content_hash":"a1b2c3…","role":"heading","level":1,"text":"Quarterly summary"}
-{"file":"report.docx","number":2,"id":"p2","content_hash":"d4e5f6…","role":"body","text":"Revenue rose, see the <x id=\"1/\"/> dashboard."}
+{"ref":{"doc":"report.docx","block":"word/document.xml/p"},"rev":"r:3f9a1c0e7b2d4a55","text":"Quarterly summary","ops":["set_content","replace_text"],"role":"heading","level":1}
+{"ref":{"doc":"report.docx","block":"word/document.xml/p#2"},"rev":"r:0d71f30c75e4a087","text":"Revenue rose, see the <x id=\"1\"/>dashboard<x id=\"/1\"/>.","codes":{"1":{"kind":"paired","type":"link:hyperlink","attrs":{"href":"https://example.com/dash"}}},"ops":["set_content","replace_text"]}
 ```
 
-Two fields anchor an edit:
+Three fields anchor an edit:
 
+- **`ref`** names the block: its document, its key, and, for a translation, its
+  edition. Copy it into the operation's `at`.
+- **`rev`** is the revision of the text you read, covering its inline codes and
+  their attributes. Send it back as `if_match` so kapi can tell the block is
+  still what you read.
 - **`text`** renders inline codes (links, bold spans, placeholders) as
   `<x id="…"/>` tokens. **Keep every token, unchanged, in your edited text.**
   They are the markup the round-trip reconstructs. A placeholder is
   `<x id="1/"/>`; a paired span opens with `<x id="1"/>` and closes with
-  `<x id="/1"/>`. Reorder or drop one and the edit is rejected (see §3). A
+  `<x id="/1"/>`. `codes` lists each one with its type and attributes. A
   character reference the source spells out (`&amp;`, `&rsquo;` in HTML) shows
-  as its character, and you can keep, move or drop it like any other
-  character; one you keep keeps its spelling in the file.
-- **`content_hash`** is the block's canonical identity (a hash of its plain
-  source text, not of the placeholder `text`). Send it back with the edit so
-  kapi can tell the block is still the one you read.
+  as its character; keep each one where it is, and it keeps its spelling in the
+  file.
+
+`ops` lists the operations the block accepts; a block with none, such as a
+Markdown code block (`role` is `code`), keeps its text. `structures` lists each
+plural or select with the path to each of its branches. Inside a project,
+`editions` lists each translation with its own `rev`.
 
 Everything else in `text` is text, and kapi encodes it for the file's format.
 In HTML a `<` or `&` you type is written as a character reference. Markdown,
@@ -48,72 +54,72 @@ passthrough. Syntax the block already holds stays as you keep it, and syntax
 you add (a tag, a link, an expression, an `import` line, a macro) is escaped so
 it reads as the characters you typed.
 
-`inspect` (and MCP `extract_content`) read a file in the same format and with
-the same reader `apply` (and `apply_edits`) write it back through, so every
-`id` and `content_hash` they print is one `apply` resolves. Over MCP, pass both
-calls the same project. An HTML image's `alt` or a link's `title` is a block of
-its own.
+`inspect` reads a file with the same reader `apply` writes it back through, so
+every `ref` and `rev` it prints is one `apply` resolves. Inside a project a
+document is named by its project-relative path, so run both from the same
+project. An HTML image's `alt` or a link's `title` is a block of its own.
 
 ## 2. Write the edits
 
-Produce one `content` entry per block you changed, as JSONL with one entry per
-line, naming the block's `file`, `id`, the `content_hash` you saw, and your new
-`text`:
+Write a change set (kapi.change/v1) with one operation per block you changed.
+`set_content` gives the block new text; `replace_text` changes text inside it
+and keeps everything around it:
 
 ```json
-{"kind":"content","file":"report.docx","id":"p2","content_hash":"d4e5f6…","text":"Revenue climbed; see the <x id=\"1/\"/> dashboard."}
+{"note": "Tighten the summary",
+ "ops": [
+  {"op": "set_content", "at": {"doc": "report.docx", "block": "word/document.xml/p#2"}, "if_match": "r:0d71f30c75e4a087",
+   "text": "Revenue climbed; see the <x id=\"1\"/>dashboard<x id=\"/1\"/>."},
+  {"op": "replace_text", "at": {"doc": "report.docx", "block": "word/document.xml/p"}, "if_match": "r:3f9a1c0e7b2d4a55",
+   "edits": [{"find": "Quarterly", "text": "Third-quarter"}]}
+ ]}
 ```
 
-Then apply it. `kapi apply` is the one write verb. It reads the change-set from
-a file, an argument, or stdin, and writes each named file in place:
+A `replace_text` edit names its text by `find` (with `occurrence` when it
+matches more than once), by code-point `start` and `end`, or by run positions in
+`range`. To edit one branch of a plural, give the edit the branch's `path` from
+`structures`, such as `[1, {"plural": "one"}]`. A change set can also be JSONL
+(the envelope fields on the first line, one operation per line) or a JSON array
+of operations. `kapi apply --schema` prints the whole contract.
+
+Then apply it. `kapi apply` reads the change set from a file or from stdin:
 
 ```bash
 kapi inspect report.docx --jsonl > blocks.jsonl
-# You rewrite the "text" of each changed block (keeping the <x id="…"/> tags) and
-# write those content entries to edits.jsonl — there is no command for it; you
-# are the writer. Then:
-kapi apply edits.jsonl --diff          # preview the content changes per block id, write nothing
-kapi apply edits.jsonl                  # apply in place
-kapi apply edits.jsonl --in-place=.bak  # apply, keeping a .bak of each file
+# You write the change set from the blocks you rewrite; there is no command
+# for it, you are the writer. Then:
+kapi apply edits.json --dry-run          # check it and print a diff per document, write nothing
+kapi apply edits.json                    # apply it
+kapi apply edits.json --in-place=.bak    # apply, keeping a .bak of each file it replaces
+kapi apply edits.json --json             # print the result (kapi.change-result/v1)
 ```
 
-`kapi apply` is the sole write verb, covering every case (one file or many,
-content alone or content mixed with asset edits; see
-[Mixed change-sets](#mixed-change-sets)). kapi never sends content to a model to
-rewrite it; you write the new text and `kapi apply` round-trips it back.
+kapi never sends content to a model to rewrite it; you write the new text and
+`kapi apply` round-trips it back.
 
-## 3. The two guards
+## 3. What refuses an edit
 
-`apply` writes a block only when both guards pass; a blocked edit leaves that
-block untouched and is reported, so nothing is silently corrupted:
+`apply` writes a change set only when every operation in it holds. When one is
+refused, nothing in the change set is written, the refused operation carries an
+`error` with a `code`, and every other operation reports `not_applied`:
 
-- **Drift guard.** If a block's current `content_hash` no longer matches the one
-  in your entry, the source changed since you inspected it. The edit is marked
-  **stale** and skipped.
-- **Inline-code guard.** If your edited `text` drops, invents, duplicates, or
-  unbalances an `<x id="…"/>` token, the edit is **rejected** rather than written
-  back with broken markup. A character reference shown as its character is
-  text, so the guard does not hold it. A block that holds a plural or select
-  construct shows one form of it in `text`, and flat text cannot carry its other
-  branches, so any changed `text` for that block is **rejected** too. Leave such
-  a block out of the change-set.
+- **`stale`**: the block's revision is no longer the `if_match` you sent; the
+  file changed since you read it. The result carries the block's `current`
+  revision and text, so rebase your edit on it and resend.
+- **`guard`**: your edited `text` drops, invents, duplicates or unbalances an
+  `<x id="…"/>` token (`codes_changed`), or replaces a block holding a plural or
+  select with flat text (`structure_lost`). Edit a branch with `path` instead.
+- **`not_found`**: the `ref` names no document or block, or a `find` matches
+  nothing. Re-read the file.
+- **`ambiguous`**: a `find` matches more than once. Add `occurrence`.
+- **`unsupported`**: the block or format takes no such operation, such as a
+  Markdown code block, which `inspect` lists with no `ops`.
 
-An entry whose `id`, or `content_hash` when it gives no `id`, matches no block
-of its file is reported as **not found** (`not_found` in `--json`, as
-`file:id`) and writes nothing. The block may have been removed or renamed since
-you inspected, or the id may be mistyped.
-
-`kapi inspect` also lists blocks the file marks as not editable, such as a
-Markdown code block (its `role` is `code`). Such a block keeps its text: an
-entry that changes it is reported as **not editable** (`not_editable` in
-`--json`), and an entry that repeats its text is a no-op. Leave those blocks out
-of the change-set.
-
-Each of these outcomes exits on the **gate code (3)**, distinct from an operational
-error. Treat it as a signal to **re-inspect the affected blocks and retry** with
-fresh hashes, the same loop a failing check drives. `apply` is idempotent: an
-entry whose text already matches the block is a no-op, so re-running a partly
-applied change-set is safe.
+A refusal exits **3**, distinct from an operational error: re-read the affected
+blocks and resend with fresh revisions, the same loop a failing check drives. A
+change set that does not decode exits **2**. An operation whose text the block
+already holds reports `unchanged`, so resending a change set that landed is
+safe.
 
 ### Refused for its wording or its sender
 
@@ -148,51 +154,51 @@ project release gates.
 
 ## Repair a comment finding
 
-Repair a finding on a code comment, such as `func/Parse` in a Go file, with a
-`comment` entry. Do not edit the file around the comment. The entry names the
-`file`, the comment's `id`, and the `lines` and `comment_sha256` from the finding
-in `kapi check --json`, and `text` holds the new prose without comment markers:
-
-```json
-{"kind":"comment","file":"internal/parse/parse.go","id":"func/Parse","lines":{"first":5,"last":7},"comment_sha256":"<location.comment_sha256 from the finding>","text":"Parse reads the input.\n\nIt stops at the end."}
-```
+A code comment, such as `func/Parse` in a Go file, is a block of its source
+file. `kapi inspect` lists each comment with its prose as `text` and its `rev`:
 
 ```bash
-kapi apply edits.jsonl
+kapi inspect internal/parse/parse.go --jsonl
 ```
+
+Repair it with `set_content` on that block, the new prose in `text` without
+comment markers. Do not edit the file around the comment:
+
+```json
+{"ops": [{"op": "set_content", "at": {"doc": "internal/parse/parse.go", "block": "func/Parse"},
+          "if_match": "r:8d65ce744d4fe688", "text": "Parse reads the input.\n\nIt stops at the end."}]}
+```
+
+A comment's revision is `r:` and the first sixteen hex digits of the
+`location.comment_sha256` that `kapi check --json` reports for it, so you can
+also build it from the finding you are fixing.
 
 - Keep the comment's code blocks, `[references]`, list items and any
   `Deprecated:` paragraph. Dropping or adding one refuses the edit.
-- Copy `comment_sha256` from the finding you are fixing. A comment someone
-  changed after the check is refused as `changed`: check again and write the
-  edit against what it now says. A comment that only moved keeps its
-  fingerprint and is still written. Without a fingerprint, pass the prose you
-  read in `current_text`; an entry with neither is rejected.
-- A refused edit writes nothing, reports a `reason` and `detail`, and exits on
-  the gate code (3). Directives, generated files, the cgo preamble and example
-  output are refused.
+- A comment someone changed after you read it is refused as `stale`, with its
+  current revision and prose: write the edit against what it now says. A
+  comment that only moved keeps its revision and is still written.
+- A change set edits code comments or documents, never both: send each in a
+  change set of its own.
+- A refused edit writes nothing and exits 3. Directives, generated files, the
+  cgo preamble and example output are refused.
 - For a `/* */` comment, leave out `/*`, `*/` and the ` * ` that opens each
   line. kapi writes the text back in the comment's own layout. Text holding
-  `*/` is refused as `terminator`, because the comment would end there:
-  reword it.
+  `*/` is refused, because the comment would end there: reword it.
 - A TypeScript, TSX or JavaScript comment is written when the sourcecode plugin
   is installed, the project configures oxfmt or prettier, and the user trusts
   the project's formatter, which runs code the project controls. Without the
-  plugin the edit reports `did-not-run` with the reason `no-reader`. Without a
-  formatter that runs on the file, or without that trust, the reason is
-  `formatter`. None of these writes anything. The trust is execution trust: the
-  user answers the prompt `kapi apply` shows in a terminal, once per formatter
-  configuration. MCP `apply_edits` never runs a project's formatter, so a
-  TypeScript, TSX or JavaScript comment edit sent through it reports
-  `formatter`: give the change-set to the user to apply with `kapi apply`. Report
-  a `formatter` result to the user rather than setting `KAPI_TRUST_EXEC` or
-  answering the prompt yourself. Keep JSDoc tags such as `@param` and every `{@link}`: dropping one
-  refuses the edit.
-- The result carries a check scoped to what was written. If it reports a
-  finding, send another edit for it. Then check the whole change
+  plugin, without a formatter that runs on the file, or without that trust, the
+  edit is refused as `unsupported` and nothing is written. The trust is
+  execution trust: the user answers the prompt `kapi apply` shows in a
+  terminal, once per formatter configuration. MCP `apply_edits` never runs a
+  project's formatter: give the change set to the user to apply with
+  `kapi apply`. Report such a refusal to the user rather than setting
+  `KAPI_TRUST_EXEC` or answering the prompt yourself. Keep JSDoc tags such as
+  `@param` and every `{@link}`: dropping one refuses the edit.
+- The result carries the findings of a check scoped to what was written. If it
+  reports one, send another edit for it. Then check the whole change
   (`kapi check --diff-against <base>` or `--staged`) before you report done.
-
-MCP `apply_edits` takes the same entries and returns the same check.
 
 ## Which formats can I edit?
 
@@ -215,27 +221,28 @@ editable. To translate it, extract to a bilingual format and merge (see
 Binary formats can be **edited in place but not authored from scratch**; to
 create new content, author in a generative format (see [create.md](create.md)).
 
-## Mixed change-sets
+## Mixed change sets
 
-A `content` edit and the asset change that justifies it (a `term` entry) can
-travel in **one `kapi apply`**. Every reviewed
-change, content or asset, is one typed entry routed through the single write
-verb. Each entry lands on its own, with no transaction across the change-set:
-when one is stale or refused, the others are still written, so re-inspect,
-fix that entry and re-run.
+A content edit and the term that justifies it can travel in **one change set**.
+The content lands first, the term after it, and when any operation is refused
+neither is written:
 
-```jsonl
-{"kind":"content","file":"draft.md","id":"p4","content_hash":"a1b2…","text":"Open the dashboard."}
-{"kind":"term","op":"upsert","term":"dashboard","locale":"en","status":"preferred","replaces":"control panel"}
+```json
+{"ops": [
+  {"op": "replace_text", "at": {"doc": "draft.md", "block": "intro/p"}, "if_match": "r:5e10a2b3c4d5e6f7",
+   "edits": [{"find": "control panel", "text": "dashboard"}]},
+  {"op": "term", "action": "upsert", "term": "dashboard", "locale": "en", "status": "preferred", "replaces": "control panel"}
+]}
 ```
 
-A term entry can also carry `"do_not_translate": true` to keep a name verbatim
-in every language, or `false` to clear that. An entry that omits it leaves the
-flag as it is.
+A term operation can also carry `"do_not_translate": true` to keep a name
+verbatim in every language, or `false` to clear that. One that omits it leaves
+the flag as it is.
 
-A `term`, `memory` or `recipe` entry writes the project's context or its recipe
-directly, which is a person's decision. kapi records each entry as whoever runs
-the command, so run from your shell those entries are refused while the
-content entries land. Record the rule as a suggestion instead
-([create.md → close the loop](create.md)), and leave the change-set for the
-person to apply. For a word rule specifically, see [voice.md](voice.md).
+A `term`, `memory` or `recipe` operation writes the project's context or its
+recipe directly, which is a person's decision, and so is a `decide` other than
+`advise`. kapi records each operation as whoever runs the command, so run from
+your shell such an operation is refused, and the change set with it. Send your
+content edits on their own, record the rule as a suggestion instead
+([create.md → close the loop](create.md)), and leave the term for the person to
+apply. For a word rule specifically, see [voice.md](voice.md).
