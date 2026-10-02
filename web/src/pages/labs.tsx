@@ -1,10 +1,18 @@
 import React from "react";
 import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
+import useBrokenLinks from "@docusaurus/useBrokenLinks";
 import { LAB_ELECTIVES, LAB_LESSONS, LAB_MODES, lessonPath } from "../components/Lab/curriculum";
 import styles from "../components/Lab/curriculum.module.css";
 
+// The navbar and every lesson's breadcrumb link to these section ids. They sit
+// on plain <section> elements, which the build's anchor check does not see
+// unless they are registered here.
+const SECTION_ANCHORS = ["framework", "kapi", "electives"] as const;
+
 export default function LabsOverviewPage(): React.ReactElement {
+  const brokenLinks = useBrokenLinks();
+  for (const anchor of SECTION_ANCHORS) brokenLinks.collectAnchor(anchor);
   return (
     <Layout
       title="Labs"
