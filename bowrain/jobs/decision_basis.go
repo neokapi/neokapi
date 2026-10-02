@@ -157,9 +157,9 @@ func (l decisionLedger) needsDraft(sb *venue.StoredBlock, locale model.LocaleID)
 	if current == "" {
 		return false
 	}
-	src := sb.Block.EditionKeyOf(model.EditionKey{})
+	auth := sb.Block.Authoritative(model.AuthorityPolicy{})
 	for key, t := range sb.Block.EachEdition {
-		if key.Locale != locale || key == src {
+		if key.Locale != locale || key == auth {
 			continue
 		}
 		if len(t.Runs) == 0 || model.RunsText(t.Runs) == "" {

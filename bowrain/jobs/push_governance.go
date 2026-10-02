@@ -331,9 +331,9 @@ func (g *pushGovernor) indexRows(itemName string, rows []*venue.StoredBlock) {
 			continue
 		}
 		g.priorSource[row.ID] = blockSourceHash(row)
-		src := row.Block.EditionKeyOf(model.EditionKey{})
+		auth := row.Block.Authoritative(model.AuthorityPolicy{})
 		for key, target := range row.Block.EachEdition {
-			if key == src {
+			if key == auth {
 				continue
 			}
 			ref := platstore.TargetRef{BlockID: row.ID, Locale: string(key.Locale)}
@@ -388,9 +388,9 @@ func (g *pushGovernor) withdrawsAny(staged []stagedGroup, decisions []venue.Unit
 				continue
 			}
 			blockID := g.rowFor(b)
-			src := b.EditionKeyOf(model.EditionKey{})
+			auth := b.Authoritative(model.AuthorityPolicy{})
 			for key, target := range b.EachEdition {
-				if key == src {
+				if key == auth {
 					continue
 				}
 				if g.withdrawsEstablished(blockID, b, string(key.Locale), target) {
@@ -546,9 +546,9 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 				continue
 			}
 			blockID := g.rowFor(b)
-			src := b.EditionKeyOf(model.EditionKey{})
+			auth := b.Authoritative(model.AuthorityPolicy{})
 			for key, target := range b.EachEdition {
-				if key == src {
+				if key == auth {
 					continue
 				}
 				status := model.TargetStatus(target.Status)
@@ -777,9 +777,9 @@ func (g *pushGovernor) indexPushedTargets(staged []stagedGroup) {
 			if blockID == "" {
 				continue
 			}
-			src := b.EditionKeyOf(model.EditionKey{})
+			auth := b.Authoritative(model.AuthorityPolicy{})
 			for key, target := range b.EachEdition {
-				if key == src {
+				if key == auth {
 					continue
 				}
 				ref := platstore.TargetRef{BlockID: blockID, Locale: string(key.Locale)}
@@ -859,9 +859,9 @@ func carriesVerdict(staged []stagedGroup, decisions []venue.UnitDecision) bool {
 			if b == nil {
 				continue
 			}
-			src := b.EditionKeyOf(model.EditionKey{})
+			auth := b.Authoritative(model.AuthorityPolicy{})
 			for key, target := range b.EachEdition {
-				if key != src && model.TargetStatus(target.Status).Rank() > model.TargetStatusTranslated.Rank() {
+				if key != auth && model.TargetStatus(target.Status).Rank() > model.TargetStatusTranslated.Rank() {
 					return true
 				}
 			}
@@ -884,9 +884,9 @@ func verdictLocales(staged []stagedGroup, decisions []venue.UnitDecision) []stri
 			if b == nil {
 				continue
 			}
-			src := b.EditionKeyOf(model.EditionKey{})
+			auth := b.Authoritative(model.AuthorityPolicy{})
 			for key, target := range b.EachEdition {
-				if key != src && model.TargetStatus(target.Status).Rank() > model.TargetStatusTranslated.Rank() {
+				if key != auth && model.TargetStatus(target.Status).Rank() > model.TargetStatusTranslated.Rank() {
 					set[string(key.Locale)] = true
 				}
 			}

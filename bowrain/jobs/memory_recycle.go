@@ -149,9 +149,9 @@ func hasLocaleTarget(b *model.Block, locale model.LocaleID) bool {
 	if b == nil {
 		return false
 	}
-	src := b.EditionKeyOf(model.EditionKey{})
+	auth := b.Authoritative(model.AuthorityPolicy{})
 	for key, t := range b.EachEdition {
-		if key.Locale != locale || key == src {
+		if key.Locale != locale || key == auth {
 			continue
 		}
 		if len(t.Runs) > 0 && model.RunsText(t.Runs) != "" {
@@ -169,9 +169,9 @@ func localeTargetRuns(b *model.Block, locale model.LocaleID) []model.Run {
 		return nil
 	}
 	var variant []model.Run
-	src := b.EditionKeyOf(model.EditionKey{})
+	auth := b.Authoritative(model.AuthorityPolicy{})
 	for key, t := range b.EachEdition {
-		if key.Locale != locale || key == src || len(t.Runs) == 0 {
+		if key.Locale != locale || key == auth || len(t.Runs) == 0 {
 			continue
 		}
 		if isLanguageEdition(key) {
