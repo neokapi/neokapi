@@ -188,16 +188,34 @@ the `kapi.change-result/v1` result. A refusal with no operation to attach it to
 (a change set that does not decode, a read the service refuses) is an error
 result carrying `schema`, `status: "refused"` and `error`. After a change set
 lands, the handler collects the wording each applied `set_content` and
-`replace_text` wrote, per document, and passes it to `noteAgentEdits`
-(`host/contextusage.go`).
+`replace_text` wrote into a document's own edition, under the canonical
+reference the result names, and passes it to `noteAgentEdits`
+(`host/contextusage.go`). A translation's wording is left out, because a
+suggestion's preferred form is source-language wording.
 
 Each call builds the change service for its project (`mcpChangeService`): the
 recipe the `project` argument resolves, else the one the server started with,
 else none, and then the documents are those under the server's working
-directory. `review_block` reads the block through the same service to report
-the canonical reference and the revision of the edition under review, then
-answers with `ReviewUnitWithContext`, addressing the unit by the file the recipe
-writes that edition to.
+directory. The service takes the call's source language from
+`mcpCallSourceLocale`, which loads the recipe and ranks it against the language
+named when the server started, so `App.SourceLang`, which every host function
+that resolves a project rewrites, plays no part. Building the service reads the
+recipe and writes nothing: a reference to a source file resolves through
+`ProjectContext.ResolvePaths` alone, the content patterns are expanded only for
+a reference that names no source file (the file of a translation), and the
+project's state directory is created at the first commit. `review_block` reads
+the block through the same service, in the project's own source language, to
+report the canonical reference and the revision of the edition under review,
+then answers with `ReviewUnitWithContext`, addressing the unit by the file the
+recipe writes that edition to.
+
+An advise lands through `RecordAIReviews`, under `agent/<client>`. It needs a
+score, and one the review queue has no unit for is refused as `not_found` once
+the content beside it was written, which makes the change set `partial`.
+
+The tool sets are `mcpToolSets` in `host/mcp_sets.go`. `pruneMCPToolSets`
+removes each tool that no selected set lists, so `apply_edits`, which the
+writing and review sets both list, is served when either is.
 
 ## The surface is a contract
 

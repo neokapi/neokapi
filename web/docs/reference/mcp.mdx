@@ -174,7 +174,8 @@ and check what it changed.
 
 <McpToolList surface="translation" />
 
-**review** is the review queue and the review picture of one block:
+**review** is the review queue and the review picture of one block, with
+`apply_edits` from the writing set, which records a pre-review:
 
 <McpToolList surface="review" />
 
@@ -406,7 +407,12 @@ operation sends as `if_match`. `text` holds the content with inline codes as
 placeholder stands for, and `structures` lists the branches of a plural or a
 select with the `path` that reaches each. Pass `next` back as `cursor` for the
 following page. Inside a project, `doc` is a path relative to the project's
-root, and the file of a translation reads that edition of its source.
+root, and the file of a translation reads that edition of its source. The
+format is the one the project's recipe binds to the file, or the one kapi
+detects, and `apply_edits` writes the file in the same format. A source code
+file whose comments kapi checks is refused as `unsupported` with the
+capability `comment`: edit a comment in the file itself, then run
+`check_file` on it.
 
 <McpToolParams name="read_blocks" />
 
@@ -442,16 +448,20 @@ refuses is refused as `unsupported` and writes nothing.
 }
 ```
 
-A change set lands whole or not at all. An edition that changed since it was
+A refused change set writes nothing. An edition that changed since it was
 read is refused as `stale`, and the refusal carries its current revision and
 text, so the assistant can rebase without another read. An edit that drops,
 invents or unbalances an inline code, or flattens a plural or select, is
 refused as `guard`. A reference that names no block is `not_found`, and a block
 the format reads as not translatable, such as a code block, is `unsupported`.
 Every other operation of a refused change set reports `not_applied`, and the
-result is an error. `mode: "preview"` computes the result and a diff per
-document and writes nothing. A source edit lists the translations it made stale
-under `invalidates`.
+result is an error. The status `partial` is an error too: some of the change
+set landed. Either a write stopped after some files were written, and `docs`
+names them, or the content was written and a decision recorded after it was
+refused, and that operation carries the error. The assistant reads the
+documents again before it sends more. `mode: "preview"` computes the result
+and a diff per document and writes nothing. A source edit lists the
+translations it made stale under `invalidates`.
 
 `apply_edits` sends every change set as the calling agent in the server's
 session; a change set has no field that names its sender. Writing a term, a
@@ -460,8 +470,8 @@ change set holding a `term`, `memory` or `recipe` operation is refused as
 `not_permitted` and writes nothing. The assistant records a term rule as a
 suggestion with `context_observe`, or with `context_correct` for wording it
 changed, and a person keeps it. A review decision is a person's too: an
-assistant's `decide` takes only the outcome `advise`. A person sends the same
-operations with `kapi apply` in a terminal.
+assistant's `decide` takes only the outcome `advise`, with the score it gives.
+A person sends the same operations with `kapi apply` in a terminal.
 
 ### describe_format
 

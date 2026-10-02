@@ -529,12 +529,14 @@ none:
 | `writing` | the `context://` resources, `context_read`, `context_search`, `context_observe`, `context_correct`, `context_withdraw`, `context_session_summary`, `check_file`, `read_blocks`, `apply_edits`, `describe_format` |
 | `content` | `check_text`, `voice_check`, `voice_rewrite`, `term-check`, `detect_format`, `redact` |
 | `translation` | `translate`, `up`, `up_plan`, `stats` |
-| `review` | `review_queue`, `review_block` |
+| `review` | `review_queue`, `review_block`, `apply_edits` |
 | `all` | every set |
 
-The sets are one table in `host/mcp_sets.go`. Every factory registers its
-tools, and the server then removes whatever the selected sets leave out; the
-surface snapshot fails when a tool belongs to no set. A name that is not a set
+The sets are one table in `host/mcp_sets.go`, and a tool may sit in more than
+one: `apply_edits` is in the review set too, because an agent records its
+pre-review through it. Every factory registers its tools, and the server then
+removes each tool that no selected set lists; the surface snapshot fails when a
+tool belongs to no set. A name that is not a set
 fails startup with the list. `kapi init` writes `--tools writing,translation`
 into the MCP entry of a project that declares target languages. The writing
 set holds the edit contract, so an agent in a project `kapi init` wired
@@ -584,11 +586,20 @@ project:
 
 The read and the write go through one service and one reader for a document,
 so a reference and a revision `read_blocks` reports are the ones `apply_edits`
-resolves. A change set lands whole or not at all. A refused or partial change
-set is an error result carrying the same structured result, so a client that
-reads only `isError` still learns that nothing, or not everything, landed.
-The results are written with HTML escaping off, so the placeholders a block's
-text holds reach the agent as written.
+resolves. The service reads each project in that project's source language,
+resolved for the call from its recipe and any language the server was started
+with, so an edition is a translation whichever project the server started in
+or answered last. A refused change set writes nothing; a partial one landed in
+part, after an interrupted write or a decision refused once the content was
+written. Either is an error result carrying the same structured result, so a
+client that reads only `isError` still learns that nothing, or not
+everything, landed. The results are written with HTML escaping off, so the
+placeholders a block's text holds reach the agent as written.
+
+Code comments are written by the comment entries of `kapi apply`, outside the
+change service. A read or an edit of a source code file kapi reads for its
+comments is refused as `unsupported` with the capability `comment`, and an
+agent edits the comment in the file and runs `check_file` on it.
 
 The transport stamps the actor: every change set `apply_edits` applies is the
 calling agent's, named by its `initialize` name, in the server's session. The
