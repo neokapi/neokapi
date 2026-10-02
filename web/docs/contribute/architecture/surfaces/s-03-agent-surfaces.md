@@ -397,7 +397,9 @@ and the voice's pattern rules and constraints. A translation meets the
 placeholder check against the authoritative edition and the term rules for its
 language. Only deterministic analyzers run. Each edition is checked alone, so
 the rules that read a whole document (a voice's required patterns) and the
-model-backed analyzers run in `kapi check`.
+model-backed analyzers run in `kapi check`. Each call resolves the project,
+its source language and its governance for itself, so one long-lived host
+checks change sets for several projects at once.
 
 The check reports findings on each edition before and after the change, and
 the service refuses a change set as `gate_failed` only for a failing finding
@@ -406,14 +408,21 @@ the edit and lands with it, so a typo fix in a paragraph with an old term
 violation is written. Findings carry `fails` and `suggested` as the check
 report does: an advisory rule, and a suggested rule nobody has kept, report
 and never refuse. A source edit is held to the source analyzers alone; the
-translations it leaves behind are pending work for the loop.
+translations it leaves behind are pending work for the loop. Before the
+change, a translation is checked against the source it was written against,
+so a change set that edits a source and its translation together is held to
+the rules the new source demands. An edition the change set removed, alone or
+with its deleted block, has nothing after the change and introduces nothing.
 
 The check returns the governance fingerprint it resolved, and the record
-stores it. The fingerprint is the one the staleness gate recomputes for a
-document and a language (`profile.GovernanceContext` over the voice and the
-term rules there), so a later reader can tell whether the governance an edit
-was made under still holds. A change set whose editions sit under several
-governance contexts carries one fingerprint over theirs.
+stores it. Each document and language the change set touches sits under the
+governance the staleness gate recomputes a fingerprint for
+(`profile.GovernanceContext` over the voice and the term rules there), so a
+later reader can tell whether the governance an edit was made under still
+holds. A change set under one governance carries its fingerprint. One under
+several carries `tool.OverlayConfigFingerprint` over their distinct
+fingerprints in sorted order, which a reader recomputes from the documents and
+languages of the record's transitions.
 
 `ChangePolicy` extends the context policy
 ([C-11](../context/c-11-context-operations.md)) to the operations of a change
@@ -425,6 +434,10 @@ change content and may pre-review (`decide` with `advise`). Its `term`,
 what to do instead: record a suggestion, ask a person, or read the edition and
 send its revision. A tool in a flow may choose `report`, because its drafts
 meet the ship gates later, and only a tool records how it produced an edition.
+A tool decides only with `advise`, as an agent does; a pull or a merge that
+carries a person's decision sends it as that person. The transport names the
+sender, and a sender of any other kind, or of none, is refused every
+operation.
 
 ### Format editability is declarative
 

@@ -127,9 +127,9 @@ findings, so do not try to override one.
 
 An agent's change is refused as `not_permitted` when it writes a term, a
 content-memory pair or the recipe (record a suggestion instead), records a
-review decision other than a pre-review, or writes without the revision it
-read. The refusal names what to do instead. Both refusals exit on the gate
-code (3).
+review decision other than a pre-review, or sends `if_match: "*"` in place of
+the revision it read. The refusal names what to do instead. Both refusals exit
+on the gate code (3).
 
 ## 4. Verify
 
