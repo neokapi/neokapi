@@ -268,6 +268,29 @@ func (b *BaseTool) hasBlockHandler() bool {
 	return b.Annotate != nil || b.Produce != nil || b.Transform != nil
 }
 
+// handlesPart reports whether dispatch runs a tool-supplied handler for a Part
+// of type t. dispatch returns a Part it does not handle unchanged.
+func (b *BaseTool) handlesPart(t model.PartType) bool {
+	switch t {
+	case model.PartBlock:
+		return b.hasBlockHandler()
+	case model.PartData:
+		return b.HandleDataFn != nil
+	case model.PartMedia:
+		return b.HandleMediaFn != nil
+	case model.PartLayerStart:
+		return b.HandleLayerStartFn != nil
+	case model.PartLayerEnd:
+		return b.HandleLayerEndFn != nil
+	case model.PartGroupStart:
+		return b.HandleGroupStartFn != nil
+	case model.PartGroupEnd:
+		return b.HandleGroupEndFn != nil
+	default:
+		return false
+	}
+}
+
 func (b *BaseTool) dispatch(ctx context.Context, part *model.Part) (*model.Part, error) {
 	switch part.Type {
 	case model.PartBlock:

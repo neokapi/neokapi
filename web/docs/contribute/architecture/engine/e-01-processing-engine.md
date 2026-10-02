@@ -102,7 +102,7 @@ its `SessionProcess`:
 <PipelineDiagram
   stages={[
     { label: "Input" },
-    { label: "Dispatcher", sub: "seq numbers · N admitted", role: "annotate" },
+    { label: "Dispatcher", sub: "seq numbers · N blocks admitted", role: "annotate" },
     {
       role: "translate",
       parallelLabel: "fixed pool · N workers",
@@ -113,21 +113,24 @@ its `SessionProcess`:
   ]}
 />
 
-The dispatcher numbers every incoming Part and admits at most N Parts whose
-results have not yet reached the output. A Part keeps its place in that window
+The dispatcher numbers every incoming Part and admits at most N blocks whose
+results have not yet reached the output. A block keeps its place in that window
 from admission until it is emitted, so a slow first block stops the dispatcher
 reading further input even when later blocks have finished, and downstream
-backpressure reaches the input. Reassembly holds at most N results in a ring and
-emits them in input order, so downstream tools see the same Part ordering
-whichever worker finished first. A dropped Part advances the sequence and emits
-nothing.
+backpressure reaches the input. Non-Block Parts count against a separate window
+of 4N, so N blocks stay in flight when a reader puts Data or Group Parts between
+them. Reassembly holds the admitted Parts in a ring and emits them in input
+order, so downstream tools see the same Part ordering whichever worker finished
+first. A dropped Part advances the sequence and emits nothing.
 
-The inner tool handles a non-Block Part (Data, Media, Layer) after every earlier
-block handler has finished and before any later block starts, so a handler that
-updates layer or group state never runs beside a block handler that reads it.
-Block handlers must be safe to call concurrently for distinct blocks and must
-observe the context they receive: on an error or cancellation the wrapper
-cancels its workers and joins them before it returns.
+When the inner tool sets a handler for a non-Block Part (Data, Media, Layer,
+Group), that handler runs after every earlier block handler has finished and
+before any later block starts, so a handler that updates layer or group state
+never runs beside a block handler that reads it. A non-Block Part with no
+handler passes through in order without that wait. Block handlers must be safe
+to call concurrently for distinct blocks and must observe the context they
+receive: on an error or cancellation the wrapper cancels its workers and joins
+them before it returns.
 
 Auto-parallelism is a **tool** property. Each tool declares
 `ToolMeta.DefaultParallelBlocks` ([E-03](e-03-tool-system.md)); the runner takes
@@ -163,7 +166,7 @@ Each execution surface has its own concurrency control:
 
 | Layer             | Scope                  | Control                                 | Order                        |
 | ----------------- | ---------------------- | --------------------------------------- | ---------------------------- |
-| ParallelBlockTool | Blocks within one tool | N workers, at most N admitted Parts     | Strict Part order            |
+| ParallelBlockTool | Blocks within one tool | N workers, at most N admitted blocks    | Strict Part order            |
 | BatchExecutor     | Multiple files         | FileConcurrency semaphore               | File order preserved         |
 | Executor          | Multiple documents     | MaxConcurrency semaphore                | Document order preserved     |
 | TappingTool       | Observation            | Input and output interceptor goroutines | Sequential per tool boundary |
@@ -371,8 +374,9 @@ as follows:
   model.
 - Tool authors do not manage goroutines; the executor handles lifecycle, and
   `ParallelBlockTool` supplies intra-tool parallelism without any concurrency
-  code in the tool. A slow block holds back at most N admitted Parts, so a
-  parallel stage stays bounded when its workers finish out of order.
+  code in the tool. A slow block holds back at most N admitted blocks and 4N
+  other Parts, so a parallel stage stays bounded when its workers finish out of
+  order.
 - `StreamingCollector` enables real-time observation of pipeline output without
   modifying the Part stream or adding buffering stages.
 - Flow tracing enables post-hoc debugging and visualization, helping users

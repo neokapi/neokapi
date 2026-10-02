@@ -93,6 +93,111 @@ func TestParallelBlockTool_NonBlockHandlersAreBarriers(t *testing.T) {
 	})
 }
 
+// A reader may put a Data or Group Part between every pair of blocks (PO puts
+// Data between entries, CSV wraps each row in a group). When the inner tool
+// has no handler for those Parts they pass through in order without waiting
+// for earlier blocks, so the blocks around them still run concurrently.
+func TestParallelBlockTool_UnhandledNonBlockPartsDoNotSerialize(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const concurrency = 4
+		release := make(chan struct{})
+		var running, peak atomic.Int32
+		inner := &tool.BaseTool{
+			ToolName: "blocks-only",
+			Annotate: func(tool.BlockView) error {
+				n := running.Add(1)
+				for {
+					p := peak.Load()
+					if n <= p || peak.CompareAndSwap(p, n) {
+						break
+					}
+				}
+				<-release
+				running.Add(-1)
+				return nil
+			},
+		}
+		var parts []*model.Part
+		for i := range concurrency {
+			id := strconv.Itoa(i)
+			parts = append(parts,
+				&model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: "g" + id}},
+				makeBlock(id, "content"),
+				&model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: "g" + id}},
+				makeData("d"+id),
+			)
+		}
+		in := make(chan *model.Part, len(parts))
+		for _, p := range parts {
+			in <- p
+		}
+		close(in)
+		out := make(chan *model.Part, len(parts))
+		done := make(chan error, 1)
+		go func() {
+			done <- tool.NewParallelBlockTool(inner, concurrency).Process(t.Context(), in, out)
+			close(out)
+		}()
+
+		synctest.Wait()
+		assert.Equal(t, int32(concurrency), peak.Load(), "pass-through Parts must not wait for earlier blocks")
+		close(release)
+		require.NoError(t, <-done)
+		got := collectParts(out)
+		require.Len(t, got, len(parts))
+		for i, p := range got {
+			assert.Same(t, parts[i], p, "part %d out of order", i)
+		}
+	})
+}
+
+// Pass-through Parts have their own window, so a stalled block still stops the
+// stage reading input after a bounded number of them.
+func TestParallelBlockTool_BoundedPassThroughLookahead(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const concurrency = 4
+		const count = 1000
+		release := make(chan struct{})
+		inner := &tool.BaseTool{
+			ToolName: "stalled-block",
+			Annotate: func(tool.BlockView) error {
+				<-release
+				return nil
+			},
+		}
+		in := make(chan *model.Part)
+		out := make(chan *model.Part, count+1)
+		var consumed atomic.Int32
+		go func() {
+			defer close(in)
+			in <- makeBlock("b0", "content")
+			consumed.Add(1)
+			for i := range count {
+				in <- makeData(strconv.Itoa(i))
+				consumed.Add(1)
+			}
+		}()
+		done := make(chan error, 1)
+		go func() {
+			done <- tool.NewParallelBlockTool(inner, concurrency).Process(t.Context(), in, out)
+			close(out)
+		}()
+
+		synctest.Wait()
+		got := consumed.Load()
+		assert.Greater(t, got, int32(concurrency), "pass-through Parts must not take block slots")
+		assert.LessOrEqual(t, got, int32(5*concurrency), "a stalled block must backpressure input")
+		close(release)
+		require.NoError(t, <-done)
+		parts := collectParts(out)
+		require.Len(t, parts, count+1)
+		assert.Equal(t, "b0", parts[0].Resource.ResourceID())
+		for i, p := range parts[1:] {
+			assert.Equal(t, strconv.Itoa(i), p.Resource.ResourceID())
+		}
+	})
+}
+
 func TestParallelBlockTool_JoinsWorkersBeforeReturn(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		started := make(chan struct{})
