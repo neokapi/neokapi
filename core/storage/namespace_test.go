@@ -93,6 +93,70 @@ func TestNamespace(t *testing.T) {
 	assert.Empty(t, listed, "a directory that does not exist holds no databases")
 }
 
+// copyFixture writes testdata/wal-mode.db to path: a database the sqlite3
+// shell wrote in WAL mode, holding one row in table t.
+func copyFixture(t *testing.T, path string) {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("testdata", "wal-mode.db"))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o644))
+}
+
+// TestNamespace_ADatabaseFileOpensWithItsRows: a database file a store did not
+// write (one a person added to the browser's file system, say) is a database
+// every driver opens with its rows. The browser driver reads it into memory
+// on the first open; removing the database deletes the file too, so it does
+// not come back.
+func TestNamespace_ADatabaseFileOpensWithItsRows(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "added.db")
+	copyFixture(t, path)
+
+	held, err := storage.Exists(path)
+	require.NoError(t, err)
+	assert.True(t, held)
+	listed, err := storage.List(dir)
+	require.NoError(t, err)
+	assert.Equal(t, []string{path}, listed)
+
+	assert.Equal(t, []string{"from a file"}, readDB(t, path))
+	writeDB(t, path, "written here")
+	assert.Equal(t, []string{"from a file", "written here"}, readDB(t, path))
+
+	moved := filepath.Join(dir, "moved.db")
+	require.NoError(t, storage.Rename(path, moved))
+	held, err = storage.Exists(path)
+	require.NoError(t, err)
+	assert.False(t, held, "the renamed database's file went with it")
+	assert.Equal(t, []string{"from a file", "written here"}, readDB(t, moved))
+
+	require.NoError(t, storage.Remove(moved))
+	held, err = storage.Exists(moved)
+	require.NoError(t, err)
+	assert.False(t, held)
+	_, err = os.Stat(moved)
+	assert.ErrorIs(t, err, os.ErrNotExist, "removing the database deletes its file")
+
+	// A file renamed before any store opened it moves too.
+	copyFixture(t, path)
+	require.NoError(t, storage.Rename(path, moved))
+	assert.Equal(t, []string{"from a file"}, readDB(t, moved))
+}
+
+// TestNamespace_AFileThatIsNotADatabaseFailsToOpen: every driver refuses a
+// file that is not a SQLite database rather than opening an empty one in its
+// place.
+func TestNamespace_AFileThatIsNotADatabaseFailsToOpen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "notes.db")
+	require.NoError(t, os.WriteFile(path, []byte("these are notes, not a database\n"), 0o644))
+	db, err := storage.Open(path)
+	if err == nil {
+		_, err = db.ExecContext(t.Context(), `CREATE TABLE t (v TEXT)`)
+		_ = db.Close()
+	}
+	require.ErrorContains(t, err, "file is not a database")
+}
+
 // TestNamespace_RelativePathsResolveAgainstTheWorkingDirectory: a database a
 // command names relative to where it runs is the same database by either
 // spelling.

@@ -60,7 +60,11 @@ export interface SQLiteBridge {
    * when a statement's arguments do not fit.
    */
   io: Uint8Array;
-  /** Rows written by the last `next`: uint32 row count, uint32 done, values. */
+  /**
+   * Rows written by the last `next`: uint32 row count, uint32 done, values.
+   * A batch ends at `max` rows or once it passes about 1 MiB, whichever
+   * comes first, so large rows cross a few at a time.
+   */
   rows: Uint8Array;
   open(name: string): number | SQLiteFailure;
   close(conn: number): number | SQLiteFailure;
@@ -76,6 +80,12 @@ export interface SQLiteBridge {
   reset(stmt: number): number;
   finalize(stmt: number): number;
   exists(name: string): boolean;
+  /**
+   * Holds `data`, the bytes of a database file, under `name`. Go calls it
+   * the first time a connection opens a name whose file the page's file
+   * system holds. A name already held keeps its database.
+   */
+  load(name: string, data: Uint8Array): number | SQLiteFailure;
   remove(name: string): number | SQLiteFailure;
   rename(from: string, to: string): number | SQLiteFailure;
   list(dir: string): string[];
@@ -229,8 +239,13 @@ export function createSQLiteBridge(sqlite3: Sqlite3Static): SQLiteBridge {
   };
 
   // A growable writer for the packed row buffer. The first eight bytes are
-  // the header: rows written, and whether the statement is exhausted.
-  let rowBuf = new Uint8Array(1 << 16);
+  // the header: rows written, and whether the statement is exhausted. A batch
+  // stops once it passes BATCH_BYTES, so the buffer stays near that size; a
+  // single row larger than that grows it, and the next batch starts again
+  // from a small one.
+  const ROW_BUF_BYTES = 1 << 16;
+  const BATCH_BYTES = 1 << 20;
+  let rowBuf = new Uint8Array(ROW_BUF_BYTES);
   let rowView = new DataView(rowBuf.buffer);
   let rowLen = 8;
   const grow = (n: number) => {
@@ -443,11 +458,15 @@ export function createSQLiteBridge(sqlite3: Sqlite3Static): SQLiteBridge {
     next(sid, max) {
       const s = stmts.get(sid);
       if (!s) return { err: "sqlite bridge: statement is closed", code: capi.SQLITE_MISUSE };
+      if (rowBuf.length > 2 * BATCH_BYTES) {
+        rowBuf = new Uint8Array(ROW_BUF_BYTES);
+        rowView = new DataView(rowBuf.buffer);
+      }
       rowLen = 8;
       let rows = 0;
       let done = 0;
       try {
-        for (; rows < max; rows++) {
+        for (; rows < max && rowLen < BATCH_BYTES; rows++) {
           const rc = x.sqlite3_step(s.ptr);
           if (rc === SQLITE_DONE) {
             done = 1;
@@ -510,6 +529,48 @@ export function createSQLiteBridge(sqlite3: Sqlite3Static): SQLiteBridge {
     },
 
     exists: (name) => files.has(name),
+
+    load(name, data) {
+      if (files.has(name)) return 0;
+      // sqlite3_deserialize opens the bytes as a database private to one
+      // connection; VACUUM INTO then copies it to the shared name, as rename
+      // does. The name's own connection, opened first, keeps the copy alive.
+      let tmp = 0;
+      try {
+        files.set(name, { pin: openDb(name), open: 0 });
+        tmp = openDb(":memory:");
+        const p = wasm.alloc(data.length) as number;
+        const heap = wasm.heap8u();
+        heap.set(data, p);
+        // A file written in WAL mode says so in bytes 18 and 19 of its
+        // header. memdb keeps no log, so it reads the database in rollback
+        // mode, which the bytes then say instead.
+        if (heap[p + 18] === 2) heap[p + 18] = 1;
+        if (heap[p + 19] === 2) heap[p + 19] = 1;
+        // SQLite owns the copy from here, and frees it on failure too.
+        let rc = capi.sqlite3_deserialize(
+          tmp,
+          "main",
+          p,
+          data.length,
+          data.length,
+          capi.SQLITE_DESERIALIZE_FREEONCLOSE | capi.SQLITE_DESERIALIZE_RESIZEABLE,
+        );
+        if (!rc)
+          rc = capi.sqlite3_exec(tmp, `VACUUM INTO '${name.replaceAll("'", "''")}'`, 0, 0, 0);
+        if (rc) {
+          const failure = dbFail(tmp, rc);
+          removeFile(name);
+          return failure;
+        }
+        return 0;
+      } catch (e) {
+        removeFile(name);
+        return fail(e);
+      } finally {
+        if (tmp) capi.sqlite3_close_v2(tmp);
+      }
+    },
 
     remove: (name) => removeFile(name),
 

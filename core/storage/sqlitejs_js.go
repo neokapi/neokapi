@@ -41,11 +41,16 @@ const (
 	tagBlob  = 4
 )
 
-// rowsPerCall is how many rows one bridge call steps.
+// rowsPerCall is the most rows one bridge call steps. The bridge also ends a
+// batch once it passes about 1 MiB, so large rows cross a few at a time.
 const rowsPerCall = 256
 
-// sqliteCantOpen is SQLite's SQLITE_CANTOPEN result code.
-const sqliteCantOpen = 14
+// SQLite's result codes for a database that cannot be opened and a file that
+// is not a database.
+const (
+	sqliteCantOpen = 14
+	sqliteNotADB   = 26
+)
 
 // errNoBridge reports a host that started Go without installing the bridge.
 var errNoBridge = errors.New("storage: the SQLite bridge (globalThis.__kapiSQL) is not installed; " +
@@ -207,6 +212,9 @@ func (jsDriver) Open(dsn string) (driver.Conn, error) {
 	if strings.HasPrefix(name, "/") {
 		if info, err := os.Stat(filepath.Dir(name)); err != nil || !info.IsDir() {
 			return nil, &jsError{code: sqliteCantOpen, msg: "unable to open database file"}
+		}
+		if err := readFileIn(name); err != nil {
+			return nil, err
 		}
 	}
 	bridge.mu.Lock()
@@ -417,8 +425,17 @@ func (c *jsConn) CheckNamedValue(nv *driver.NamedValue) error {
 
 type jsTx struct{ c *jsConn }
 
+// Commit runs COMMIT, and ROLLBACK when COMMIT fails, as mattn/go-sqlite3
+// does. SQLite keeps the transaction open after a failed COMMIT (SQLITE_BUSY
+// while another connection reads the database), but database/sql treats the
+// transaction as over and returns the connection to the pool. Left open, it
+// would hold the pool's only connection inside a transaction nothing commits:
+// every later Begin would fail and every later write would join it.
 func (t jsTx) Commit() error {
 	_, err := t.c.exec("COMMIT")
+	if err != nil {
+		_, _ = t.c.exec("ROLLBACK")
+	}
 	return err
 }
 
@@ -559,7 +576,9 @@ func (r *jsRows) fill() error {
 		return err
 	}
 	n := res.Int()
-	if cap(r.buf) < n {
+	// A batch is about 1 MiB at most, unless one row is larger; a buffer
+	// grown for such a row is not kept for the batches after it.
+	if cap(r.buf) < n || cap(r.buf) > max(4*n, 2<<20) {
 		r.buf = make([]byte, n)
 	}
 	r.buf = r.buf[:n]
