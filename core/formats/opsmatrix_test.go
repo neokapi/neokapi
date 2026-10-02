@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats"
@@ -581,9 +582,11 @@ func (fx opsFixture) replaceText(t *testing.T, op matrixOp, input []byte) opOutc
 // host/toolbox_sed.go (NewSedTool, sedCmd.editRuns) does it: every match in
 // the runs' text becomes a text edit, applied through model.ApplyTextEdits so
 // the codes around it are kept; runs holding a plural or select have no
-// linear text, so their whole text is replaced as one run. ksed has no
-// inline-code guard. A framework test cannot import host, so this is a copy
-// of ksed's sequence; a change there has to be made here too.
+// linear text, so their whole text is replaced as one run. A match is found
+// at a byte offset and a text edit counts code points, so each match is
+// converted before it becomes an edit. ksed has no inline-code guard. A
+// framework test cannot import host, so this is a copy of ksed's sequence; a
+// change there has to be made here too.
 func ksedTarget(runs []model.Run, sub substitution) ([]model.Run, bool) {
 	if model.HasStructuredRuns(runs) {
 		text := model.RunsText(runs)
@@ -594,6 +597,12 @@ func ksedTarget(runs []model.Run, sub substitution) ([]model.Run, bool) {
 		return []model.Run{{Text: &model.TextRun{Text: out}}}, true
 	}
 	text := model.RunsText(runs)
+	byteAt, runeAt := 0, 0
+	toRunes := func(b int) int {
+		runeAt += utf8.RuneCountInString(text[byteAt:b])
+		byteAt = b
+		return runeAt
+	}
 	var edits []model.TextEdit
 	for at := 0; ; {
 		i := strings.Index(text[at:], sub.from)
@@ -601,8 +610,8 @@ func ksedTarget(runs []model.Run, sub substitution) ([]model.Run, bool) {
 			break
 		}
 		start := at + i
-		edits = append(edits, model.TextEdit{Start: start, End: start + len(sub.from), Replacement: sub.to})
 		at = start + len(sub.from)
+		edits = append(edits, model.TextEdit{Start: toRunes(start), End: toRunes(at), Replacement: sub.to})
 	}
 	if len(edits) == 0 {
 		return runs, false
