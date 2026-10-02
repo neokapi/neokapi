@@ -115,15 +115,19 @@ type assetResult struct {
 
 // applyOutput is the JSON-first report of an apply pass. Content outcomes are
 // bucketed by block (applied/skipped/stale/guard_failed); asset outcomes list
-// one result per entry. stale or guard_failed content, or an asset error, means
-// the change-set did not fully land and the command exits non-zero so a fix
-// loop re-inspects and retries.
+// one result per entry. stale or guard_failed content, a file whose round-trip
+// failed, or an asset error, means the change-set did not fully land and the
+// command exits non-zero so a fix loop re-inspects and retries.
 type applyOutput struct {
 	Content struct {
 		Applied     []string `json:"applied,omitempty"`
 		Skipped     []string `json:"skipped,omitempty"`
 		Stale       []string `json:"stale,omitempty"`
 		GuardFailed []string `json:"guard_failed,omitempty"`
+		// Failed names each content file whose round-trip did not complete,
+		// with the reason, such as a file that could not be read. Its edits
+		// are not counted as applied.
+		Failed []string `json:"failed,omitempty"`
 	} `json:"content"`
 	Assets []assetResult `json:"assets,omitempty"`
 	// Comments holds each file's comment edits, the diff they made and the
@@ -138,7 +142,7 @@ func (o *applyOutput) ok() bool {
 			return false
 		}
 	}
-	return len(o.Content.Stale) == 0 && len(o.Content.GuardFailed) == 0 && !o.assetErr()
+	return len(o.Content.Stale) == 0 && len(o.Content.GuardFailed) == 0 && len(o.Content.Failed) == 0 && !o.assetErr()
 }
 
 func (o *applyOutput) assetErr() bool {
@@ -206,20 +210,19 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		report := &coretools.ApplyReport{}
 		byID, byHash := buildEditMaps(byFile[file])
 		t := coretools.NewApplyEditsTool(byID, byHash, report)
+		var derr error
 		if diff {
-			if _, derr := a.rewriteDiffFile(ctx, file, t, diffOut); derr != nil {
-				if errors.Is(derr, context.Canceled) {
-					return derr
-				}
-				fmt.Fprintf(cmd.ErrOrStderr(), "apply: %s: %v\n", DisplayName(file), derr)
-			}
+			_, derr = a.rewriteDiffFile(ctx, file, t, diffOut)
 		} else {
-			if derr := a.EditDocument(ctx, file, t, "", true, backupSuffix, cmd.OutOrStdout()); derr != nil {
-				if errors.Is(derr, context.Canceled) {
-					return derr
-				}
-				fmt.Fprintf(cmd.ErrOrStderr(), "apply: %s: %v\n", DisplayName(file), derr)
+			derr = a.EditDocument(ctx, file, t, "", true, backupSuffix, cmd.OutOrStdout())
+		}
+		if derr != nil {
+			if errors.Is(derr, context.Canceled) {
+				return derr
 			}
+			fmt.Fprintf(cmd.ErrOrStderr(), "apply: %s: %v\n", DisplayName(file), derr)
+			out.Content.Failed = append(out.Content.Failed, fmt.Sprintf("%s: %v", DisplayName(file), derr))
+			continue
 		}
 		out.Content.Applied = append(out.Content.Applied, report.Applied...)
 		out.Content.Skipped = append(out.Content.Skipped, report.Skipped...)
