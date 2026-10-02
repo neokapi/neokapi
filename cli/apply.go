@@ -28,7 +28,9 @@ land through the same byte-faithful round-trip the engine's writers use (structu
 inline codes preserved), drift-guarded by content_hash. An edit that drops,
 invents or duplicates an inline code, crosses or unbalances paired codes, or
 changes a block holding a plural or select construct is refused as
-guard_failed and leaves the block as it was. A term or content-memory pair is
+guard_failed and leaves the block as it was. A content entry whose id, or
+content_hash when it gives no id, matches no block of its file is reported as
+not_found and writes nothing. A term or content-memory pair is
 written to the project's store and recorded in its context history, a recipe
 field is written to kapi.yaml, and a review outcome is recorded as unit state
 in the project store.
@@ -60,8 +62,8 @@ The change-set is JSONL (one entry per line), read from CHANGESET or, with no
 argument or "-", from standard input. Content entries name their own file, so
 apply writes those files in place; --diff previews content and comment changes,
 lists each asset entry as a preview, and writes nothing. Entries land one at a
-time: an entry already written stays when a later one is stale, refused or
-fails, and apply then exits non-zero. Re-running the corrected change-set skips
+time: an entry already written stays when a later one is stale, refused, not
+found or fails, and apply then exits non-zero. Re-running the corrected change-set skips
 what is already in place. No AI provider is required.`,
 		Example: `  kapi inspect report.docx --jsonl | edit-the-text | kapi apply
   kapi apply changeset.jsonl

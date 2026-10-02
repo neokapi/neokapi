@@ -29,19 +29,21 @@ type applyEditsInput struct {
 }
 
 // applyEditsMCPOutput reports the per-block content outcome and per-entry asset
-// outcomes; OK is false when any edit drifted (stale) or was rejected by the
+// outcomes; OK is false when any edit drifted (stale), was rejected by the
 // fidelity guard (guard_failed: the edit would corrupt an inline code or
-// flatten plural/select branches), the same buckets `kapi apply --json`
-// reports, signalling the caller to re-inspect and retry. Comments
-// holds each file's comment edits and the check of what they wrote, and OK is
-// false when one was refused, did not run, or left that check not passing.
+// flatten plural/select branches) or matched no block (not_found), the same
+// buckets `kapi apply --json` reports, signalling the caller to re-inspect and
+// retry. Comments holds each file's comment edits and the check of what they
+// wrote, and OK is false when one was refused, did not run, or left that check
+// not passing.
 type applyEditsMCPOutput struct {
-	OK      bool          `json:"ok"`
-	Applied []string      `json:"applied,omitempty"`
-	Skipped []string      `json:"skipped,omitempty"`
-	Stale   []string      `json:"stale,omitempty"`
-	Guard   []string      `json:"guard_failed,omitempty"`
-	Assets  []assetResult `json:"assets,omitempty"`
+	OK       bool          `json:"ok"`
+	Applied  []string      `json:"applied,omitempty"`
+	Skipped  []string      `json:"skipped,omitempty"`
+	Stale    []string      `json:"stale,omitempty"`
+	Guard    []string      `json:"guard_failed,omitempty"`
+	NotFound []string      `json:"not_found,omitempty" jsonschema:"content entries whose id, or content_hash for an entry without an id, matched no block of the file, as file:id or file:content_hash:<hash>; nothing was written for them, so read the file again with extract_content"`
+	Assets   []assetResult `json:"assets,omitempty"`
 
 	Comments []commentFileResult `json:"comments,omitempty"`
 }
@@ -55,6 +57,8 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash). " +
 			"An edit that drops, invents or duplicates an inline code, crosses or unbalances paired codes, or changes " +
 			"a block holding a plural or select construct is refused as guard_failed and leaves the block as it was. " +
+			"An entry whose id, or content_hash when it gives no id, matches no block of its file is listed in not_found " +
+			"and writes nothing. Stale, guard_failed and not_found each make ok false: read the file again and resend. " +
 			"Asset edits (a term, a content memory pair) are written to the project's stores and " +
 			"recorded in its context history, and a recipe field is written to kapi.yaml. No AI provider is used. Read the " +
 			"context://<project-relative-path> resource before editing content, then run check_file on " +
@@ -148,6 +152,7 @@ func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in apply
 		out.Content.Skipped = append(out.Content.Skipped, report.Skipped...)
 		out.Content.Stale = append(out.Content.Stale, report.Stale...)
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
+		out.Content.NotFound = append(out.Content.NotFound, notFoundIn(file, report)...)
 	}
 	a.noteAgentEdits(ctx, recipe, actor, edited)
 	if len(comments) > 0 {
@@ -163,6 +168,7 @@ func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in apply
 		Skipped:  out.Content.Skipped,
 		Stale:    out.Content.Stale,
 		Guard:    out.Content.GuardFailed,
+		NotFound: out.Content.NotFound,
 		Assets:   out.Assets,
 		Comments: out.Comments,
 	}, nil

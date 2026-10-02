@@ -249,7 +249,10 @@ for the codes.
 For `apply_edits`, content entries put new wording in `text`; `replacement` is
 a voice-rule field. A nonempty `replacement` on a content entry is rejected
 before applying the change-set. The input field descriptions state this
-distinction without changing field names or types.
+distinction without changing field names or types. The result lists in
+`not_found` each content entry whose `id`, or `content_hash` when it gives no
+`id`, matches no block of its file, and such an entry makes `ok` false; `kapi
+apply --json` reports the same bucket under `content` and exits 3.
 
 An entry also takes two optional fields, `actor` and `evidence`. An asset entry
 (a term, a voice rule, a content-memory pair) is a decision about the project's

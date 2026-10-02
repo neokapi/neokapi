@@ -353,8 +353,10 @@ is safe. Entries of kind `recipe` update `kapi.yaml` in the checkout.
 and skipped. An edit that drops, invents, or unbalances an inline code is
 *rejected* by the fidelity guard rather than written as broken markup, and so
 is any change to a block holding a plural or select construct, because the flat
-edit text cannot carry its branches. Either outcome exits non-zero so the fix
-loop re-inspects and retries.
+edit text cannot carry its branches. An entry whose `id`, or `content_hash`
+when it gives no `id`, matches no block of its file is *not found* and writes
+nothing. Each of these outcomes exits non-zero so the fix loop re-inspects and
+retries.
 
 A mixed change-set (a content fix plus the `term` entry that justifies it) is
 applied entry by entry, with no transaction spanning it. Asset entries are

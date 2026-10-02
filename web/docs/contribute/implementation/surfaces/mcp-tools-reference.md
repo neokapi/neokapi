@@ -167,12 +167,15 @@ read it rather than a prose copy.
 | A curated framework tool | `host.frameworkToolOutput`: target translations, rewritten source, properties, overlays, and annotations for the one processed block |
 
 `apply_edits` reports `ok` alongside the per-block outcome (`applied`,
-`skipped`, `stale`, `guard_failed`) and a per-entry asset result. `ok` is false
-when an edit drifted or was rejected, which is the caller's signal to re-read
-the block and retry rather than to force the write. An edit is rejected as
-`guard_failed` when it drops, invents or duplicates an inline code, crosses or
-unbalances paired codes, or changes a block holding a plural or select
-construct.
+`skipped`, `stale`, `guard_failed`, `not_found`) and a per-entry asset result.
+`ok` is false when an edit drifted, was rejected or matched no block, which is
+the caller's signal to re-read the block and retry rather than to force the
+write. An edit is rejected as `guard_failed` when it drops, invents or
+duplicates an inline code, crosses or unbalances paired codes, or changes a
+block holding a plural or select construct. `not_found` names each content
+entry whose `id`, or `content_hash` when it gives no `id`, matches no block of
+its file, as `file:id` or `file:content_hash:<hash>`; nothing is written for
+it.
 
 A content entry uses `kind: "content"`, `file`, the extracted block `id` and
 `content_hash`, and `text` for its new wording. `replacement` belongs to term

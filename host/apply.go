@@ -114,16 +114,21 @@ type assetResult struct {
 }
 
 // applyOutput is the JSON-first report of an apply pass. Content outcomes are
-// bucketed by block (applied/skipped/stale/guard_failed); asset outcomes list
-// one result per entry. stale or guard_failed content, a file whose round-trip
-// failed, or an asset error, means the change-set did not fully land and the
-// command exits non-zero so a fix loop re-inspects and retries.
+// bucketed by block (applied/skipped/stale/guard_failed/not_found); asset
+// outcomes list one result per entry. stale, guard_failed or not_found content,
+// a file whose round-trip failed, or an asset error, means the change-set did
+// not fully land and the command exits non-zero so a fix loop re-inspects and
+// retries.
 type applyOutput struct {
 	Content struct {
 		Applied     []string `json:"applied,omitempty"`
 		Skipped     []string `json:"skipped,omitempty"`
 		Stale       []string `json:"stale,omitempty"`
 		GuardFailed []string `json:"guard_failed,omitempty"`
+		// NotFound names each content entry whose id, or content_hash for an
+		// entry without an id, matched no editable block of its file, as
+		// file:id or file:content_hash:<hash>. Nothing was written for it.
+		NotFound []string `json:"not_found,omitempty"`
 		// Failed names each content file whose round-trip did not complete,
 		// with the reason, such as a file that could not be read. Its edits
 		// are not counted as applied.
@@ -142,7 +147,8 @@ func (o *applyOutput) ok() bool {
 			return false
 		}
 	}
-	return len(o.Content.Stale) == 0 && len(o.Content.GuardFailed) == 0 && len(o.Content.Failed) == 0 && !o.assetErr()
+	c := o.Content
+	return len(c.Stale) == 0 && len(c.GuardFailed) == 0 && len(c.NotFound) == 0 && len(c.Failed) == 0 && !o.assetErr()
 }
 
 func (o *applyOutput) assetErr() bool {
@@ -236,6 +242,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		out.Content.Skipped = append(out.Content.Skipped, report.Skipped...)
 		out.Content.Stale = append(out.Content.Stale, report.Stale...)
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
+		out.Content.NotFound = append(out.Content.NotFound, notFoundIn(file, report)...)
 		if texts := appliedTexts(byFile[file], report.Applied); !diff && len(texts) > 0 {
 			edited[file] = texts
 		}
@@ -258,6 +265,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		}
 	}
 	if diff && !asJSON {
+		printNotFound(cmd.ErrOrStderr(), out.Content.NotFound)
 		printAssetResults(cmd.ErrOrStderr(), out.Assets)
 	}
 
@@ -272,9 +280,9 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 	}
 
 	if !out.ok() {
-		// A drift / guard miss or asset error means work remains: exit on the
-		// gate code so a fix loop re-inspects and retries, distinct from an
-		// operational failure.
+		// Drift, a guard miss, an edit that matched no block or an asset error
+		// means work remains: exit on the gate code so a fix loop re-inspects
+		// and retries, distinct from an operational failure.
 		return WithExitCode(ExitGate, ErrSilentExit)
 	}
 	return nil
@@ -320,6 +328,18 @@ func buildEditMaps(entries []changeEntry) (byID, byHash map[string]coretools.Edi
 		}
 	}
 	return byID, byHash
+}
+
+// notFoundIn names each edit of one file's pass that matched no editable block,
+// as the entry's file and the id (or content_hash) it gave, so a change-set
+// spanning files says which file the reference missed in.
+func notFoundIn(file string, report *coretools.ApplyReport) []string {
+	missing := report.NotFound()
+	out := make([]string, 0, len(missing))
+	for _, key := range missing {
+		out = append(out, file+":"+key)
+	}
+	return out
 }
 
 // readChangeSet reads a JSONL change-set from path (or stdin when path is empty
@@ -429,7 +449,7 @@ func (a *App) rewriteDiffFile(ctx context.Context, file string, t *tool.BaseTool
 // printApplyReport writes a short human summary of the apply outcome.
 func printApplyReport(w io.Writer, out *applyOutput) {
 	c := out.Content
-	if n := len(c.Applied) + len(c.Skipped) + len(c.Stale) + len(c.GuardFailed); n > 0 {
+	if n := len(c.Applied) + len(c.Skipped) + len(c.Stale) + len(c.GuardFailed) + len(c.NotFound); n > 0 {
 		fmt.Fprintf(w, "content: %d applied, %d unchanged", len(c.Applied), len(c.Skipped))
 		if len(c.Stale) > 0 {
 			fmt.Fprintf(w, ", %d stale (source drifted, re-inspect)", len(c.Stale))
@@ -437,10 +457,22 @@ func printApplyReport(w io.Writer, out *applyOutput) {
 		if len(c.GuardFailed) > 0 {
 			fmt.Fprintf(w, ", %d rejected (would corrupt inline codes or flatten plural/select branches)", len(c.GuardFailed))
 		}
+		if len(c.NotFound) > 0 {
+			fmt.Fprintf(w, ", %d not found (no block has that id or content_hash, re-inspect)", len(c.NotFound))
+		}
 		fmt.Fprintln(w)
 	}
+	printNotFound(w, c.NotFound)
 	printAssetResults(w, out.Assets)
 	printCommentResults(w, out.Comments)
+}
+
+// printNotFound names each content entry that matched no block, one per line,
+// so a person sees which reference to correct.
+func printNotFound(w io.Writer, notFound []string) {
+	for _, ref := range notFound {
+		fmt.Fprintf(w, "content %s: not found\n", ref)
+	}
 }
 
 // printAssetResults writes one line per asset entry: its kind, what it names,

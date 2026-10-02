@@ -122,6 +122,63 @@ func TestApplyEdits_NoEntryPassesThrough(t *testing.T) {
 	assert.Equal(t, before, model.RunsPlaceholderText(b.Source))
 }
 
+// An edit whose id, or for an edit given without one whose content hash, names
+// no editable block changed nothing, and the report says so instead of letting
+// the pass read as clean.
+func TestApplyEdits_EditMatchingNoBlockIsNotFound(t *testing.T) {
+	b, cur, hash := blockWithCode("p1")
+	untranslatable := &model.Block{
+		ID:     "code1",
+		Source: []model.Run{{Text: &model.TextRun{Text: "fmt.Println()"}}},
+	}
+	tests := []struct {
+		name   string
+		byID   map[string]Edit
+		byHash map[string]Edit
+		want   []string
+		ok     bool
+	}{
+		{
+			name: "every edit matched a block",
+			byID: map[string]Edit{"p1": {Text: cur, ContentHash: hash}},
+			ok:   true,
+		},
+		{
+			name: "an id no block has",
+			byID: map[string]Edit{"p1": {Text: cur}, "p9": {Text: "x"}},
+			want: []string{"p9"},
+		},
+		{
+			name:   "a content hash no block has",
+			byHash: map[string]Edit{"feedface": {Text: "x", ContentHash: "feedface"}},
+			want:   []string{NotFoundHashPrefix + "feedface"},
+		},
+		{
+			name:   "an edit matched by content hash",
+			byHash: map[string]Edit{hash: {Text: cur, ContentHash: hash}},
+			ok:     true,
+		},
+		{
+			name: "an id naming a block that is not editable",
+			byID: map[string]Edit{"code1": {Text: "x"}},
+			want: []string{"code1"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			report := &ApplyReport{}
+			tl := NewApplyEditsTool(tt.byID, tt.byHash, report)
+			blk := *b
+			applyOne(t, tl, &blk)
+			code := *untranslatable
+			applyOne(t, tl, &code)
+
+			assert.Equal(t, tt.want, report.NotFound())
+			assert.Equal(t, tt.ok, report.OK())
+		})
+	}
+}
+
 func TestApplyEdits_RejectsFlattenedBranches(t *testing.T) {
 	for _, source := range []model.Run{
 		model.PluralR(model.PluralRun{Pivot: "count", Forms: map[model.PluralForm][]model.Run{

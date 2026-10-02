@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"slices"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -21,15 +22,21 @@ type Edit struct {
 
 // ApplyReport records the per-block outcome of an apply-edits pass so the
 // caller (the `kapi apply` command, the MCP tool) can report it and decide the
-// exit code: a Stale or GuardFailed entry means the change-set could not be
-// fully applied and the caller should re-inspect and retry, while Applied and
-// Skipped are success outcomes. Block IDs are recorded in each bucket.
+// exit code: a Stale or GuardFailed entry, or an edit NotFound lists, means the
+// change-set could not be fully applied and the caller should re-inspect and
+// retry, while Applied and Skipped are success outcomes. Block IDs are recorded
+// in each bucket.
 type ApplyReport struct {
 	mu          sync.Mutex
 	Applied     []string // block source rewritten to the supplied text
 	Skipped     []string // already in the desired state (idempotent no-op)
 	Stale       []string // content_hash no longer matches — source drifted
 	GuardFailed []string // edit would drop or unbalance an inline code, or flatten plural/select branches; rejected
+
+	// The edits the pass was given and the ones a block of the file matched,
+	// by key. NotFound is the difference once the pass is over.
+	wantIDs, wantHashes       map[string]bool
+	matchedIDs, matchedHashes map[string]bool
 }
 
 func (r *ApplyReport) record(bucket *[]string, id string) {
@@ -38,9 +45,68 @@ func (r *ApplyReport) record(bucket *[]string, id string) {
 	r.mu.Unlock()
 }
 
-// OK reports whether every edit landed cleanly — no drift and no rejected
-// edits. The command maps !OK to a non-zero exit so a fix loop re-inspects.
+// expect notes the edits a pass is given, so NotFound can name the ones no
+// block matched.
+func (r *ApplyReport) expect(byID, byHash map[string]Edit) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.wantIDs, r.wantHashes = map[string]bool{}, map[string]bool{}
+	r.matchedIDs, r.matchedHashes = map[string]bool{}, map[string]bool{}
+	for id := range byID {
+		r.wantIDs[id] = true
+	}
+	for h := range byHash {
+		r.wantHashes[h] = true
+	}
+}
+
+// matchID and matchHash note that a block matched the edit given under key.
+func (r *ApplyReport) matchID(id string) {
+	r.mu.Lock()
+	r.matchedIDs[id] = true
+	r.mu.Unlock()
+}
+
+func (r *ApplyReport) matchHash(hash string) {
+	r.mu.Lock()
+	r.matchedHashes[hash] = true
+	r.mu.Unlock()
+}
+
+// NotFoundHashPrefix marks a NotFound entry that names an edit by the content
+// hash it was given, for an edit given without a block id.
+const NotFoundHashPrefix = "content_hash:"
+
+// NotFound lists the edits no editable block of the file matched, once the
+// pass is over: the block id of an edit given one, else NotFoundHashPrefix and
+// the content hash it named. Such an edit changed nothing. Its block may have
+// been removed or renamed since the caller read the file, or the id or hash may
+// be mistyped, so the caller reads the file again. The list is sorted.
+func (r *ApplyReport) NotFound() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var out []string
+	for id := range r.wantIDs {
+		if !r.matchedIDs[id] {
+			out = append(out, id)
+		}
+	}
+	for h := range r.wantHashes {
+		if !r.matchedHashes[h] {
+			out = append(out, NotFoundHashPrefix+h)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// OK reports whether every edit landed cleanly: no drift, no rejected edit and
+// no edit that matched no block. The command maps !OK to a non-zero exit so a
+// fix loop re-inspects.
 func (r *ApplyReport) OK() bool {
+	if len(r.NotFound()) > 0 {
+		return false
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return len(r.Stale) == 0 && len(r.GuardFailed) == 0
@@ -52,7 +118,8 @@ func (r *ApplyReport) OK() bool {
 // change-set by ID (falling back to content hash), drift-guards against the
 // canonical block identity, reconstructs the runs from the edit text,
 // and rejects any edit that would corrupt the block's inline codes. Blocks with
-// no edit pass through unchanged.
+// no edit pass through unchanged, and report.NotFound lists each edit no
+// editable block matched once the pass is over.
 //
 // It depends only on core/model + core/tool — no providers/ai — so the
 // caller-supplied edit loop carries no LLM dependency. It returns a
@@ -63,6 +130,7 @@ func NewApplyEditsTool(byID, byHash map[string]Edit, report *ApplyReport) *tool.
 		ToolName:        "apply-edits",
 		ToolDescription: "Applies caller-supplied content edits to a file's blocks, preserving structure and inline codes",
 	}
+	report.expect(byID, byHash)
 
 	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		var plan tool.EditPlan
@@ -73,12 +141,15 @@ func NewApplyEditsTool(byID, byHash map[string]Edit, report *ApplyReport) *tool.
 		e, ok := byID[v.ID()]
 		oldRuns := v.SourceRuns()
 		canonHash := model.ComputeContentHash(v.SourceText())
-		if !ok {
+		if ok {
+			report.matchID(v.ID())
+		} else {
 			// Fall back to matching by canonical content hash (the block's ID may
 			// not be stable across re-parses for some formats; its identity is).
 			if e, ok = byHash[canonHash]; !ok {
 				return plan, nil // no edit targets this block — pass through
 			}
+			report.matchHash(canonHash)
 		}
 
 		// Idempotent no-op: the block is already in the desired state. Checked

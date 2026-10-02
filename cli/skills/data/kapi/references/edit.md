@@ -98,7 +98,12 @@ block untouched and is reported, so nothing is silently corrupted:
   branches, so any changed `text` for that block is **rejected** too. Leave such
   a block out of the change-set.
 
-Either outcome exits on the **gate code (3)**, distinct from an operational
+An entry whose `id`, or `content_hash` when it gives no `id`, matches no block
+of its file is reported as **not found** (`not_found` in `--json`, as
+`file:id`) and writes nothing. The block may have been removed or renamed since
+you inspected, or the id may be mistyped.
+
+Each of these outcomes exits on the **gate code (3)**, distinct from an operational
 error. Treat it as a signal to **re-inspect the affected blocks and retry** with
 fresh hashes, the same loop a failing check drives. `apply` is idempotent: an
 entry whose text already matches the block is a no-op, so re-running a partly
