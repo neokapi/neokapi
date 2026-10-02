@@ -273,8 +273,8 @@ path derives the chain in its own way:
   as one chain.
 - The built-in flow path checks data flow and transformer placement, then
   orders the tool nodes by their canvas X position (`orderedToolNodes`).
-- The project flow runner builds one tool per step, in step order, and cannot
-  build a `parallel:` step.
+- The project flow runner builds one tool per step, in step order, and refuses
+  a flow holding a `parallel:` step before it builds any.
 - A Go caller that fills `Flow.Tools` supplies the order itself.
 
 No path schedules branches concurrently or joins their results, so a flow meant

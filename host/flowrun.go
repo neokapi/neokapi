@@ -524,6 +524,11 @@ func (a *App) buildProjectFlowTools(cmd Command, flowName string, spec *flow.Ste
 	if len(spec.SourceTransforms) > 0 {
 		return nil, nil, fmt.Errorf("flow %q uses the removed source_transforms stage (AD-006): list transformers as ordered steps", flowName)
 	}
+	// A parallel: step is parsed with the recipe but no host runs one, so the
+	// flow is refused here, before any step is built or any file is read.
+	if err := flow.CheckSequential(spec.Steps); err != nil {
+		return nil, nil, fmt.Errorf("flow %q: %w", flowName, err)
+	}
 	// Transformer placement gate (AD-006) over the compiled steps graph —
 	// unconditional at load, like the built-in flow path. The gate sees each
 	// node's preset-merged config (defaults.tools), so a preset that enables

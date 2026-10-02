@@ -3,6 +3,7 @@ package flow
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/registry"
 )
@@ -53,6 +54,32 @@ func CheckRenamedTools(steps []FlowStep) error {
 		if err := CheckRenamedTools(step.Parallel); err != nil {
 			return fmt.Errorf("step[%d].parallel: %w", i, err)
 		}
+	}
+	return nil
+}
+
+// CheckSequential reports the first step that holds a parallel: list. Every
+// host runs a flow as an ordered tool chain, one step after another, so a flow
+// with such a step cannot run. The error names the step by its position and
+// lists the tools its branches hold.
+func CheckSequential(steps []FlowStep) error {
+	for i, step := range steps {
+		if len(step.Parallel) == 0 {
+			continue
+		}
+		names := make([]string, 0, len(step.Parallel))
+		for _, branch := range step.Parallel {
+			switch {
+			case branch.Tool != "":
+				names = append(names, branch.Tool)
+			case branch.Label != "":
+				names = append(names, branch.Label)
+			default:
+				names = append(names, "a step with no tool")
+			}
+		}
+		return fmt.Errorf("step[%d] holds a parallel: list (%s), and flow steps run in order, one after another: list those tools as ordered steps",
+			i, strings.Join(names, ", "))
 	}
 	return nil
 }

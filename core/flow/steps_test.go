@@ -193,3 +193,35 @@ func filterEdges(edges []FlowEdge, source, target string) []FlowEdge {
 	}
 	return result
 }
+
+func TestCheckSequential(t *testing.T) {
+	tests := []struct {
+		name  string
+		steps []FlowStep
+		want  string
+	}{
+		{
+			name:  "ordered steps",
+			steps: []FlowStep{{Tool: "recycle"}, {Tool: "translate"}, {Tool: "qa"}},
+		},
+		{
+			name: "a parallel step names its position and its tools",
+			steps: []FlowStep{
+				{Tool: "translate"},
+				{Parallel: []FlowStep{{Tool: "qa"}, {Label: "Count"}}},
+			},
+			want: "step[1] holds a parallel: list (qa, Count), and flow steps run in order",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := CheckSequential(tt.steps)
+			if tt.want == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
+}
