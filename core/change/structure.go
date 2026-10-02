@@ -93,7 +93,7 @@ func (r *applyRun) planInsert(p *docPlan, i int, body *InsertBlock) bool {
 		r.refuse(i, &Error{Code: CodeInvalid, Field: "name", Message: fmt.Sprintf("the new block %s cannot sit beside itself", name)})
 		return false
 	}
-	runs, err := p.buildInsert(i, body)
+	runs, err := p.buildInsert(body)
 	if err != nil {
 		r.refuse(i, err)
 		return false
@@ -138,7 +138,7 @@ func (r *applyRun) planInsert(p *docPlan, i int, body *InsertBlock) bool {
 // buildInsert applies an insert_block's editions to an empty block under the
 // rules every content operation obeys, and returns the content of each: the
 // document's own edition under the zero key, each other under its key.
-func (p *docPlan) buildInsert(i int, body *InsertBlock) (map[model.EditionKey][]model.Run, *Error) {
+func (p *docPlan) buildInsert(body *InsertBlock) (map[model.EditionKey][]model.Run, *Error) {
 	nb := &model.Block{ID: "new", Name: body.Name, SourceLocale: p.info.SourceLocale, Translatable: true, Properties: map[string]string{}}
 	var ops []Op
 	var keys []model.EditionKey
@@ -162,10 +162,15 @@ func (p *docPlan) buildInsert(i int, body *InsertBlock) (map[model.EditionKey][]
 	out := map[model.EditionKey][]model.Run{}
 	for _, k := range keys {
 		ed, _ := nb.Edition(k)
+		at := k
 		if nb.IsSourceEdition(k) {
-			k = model.EditionKey{}
+			at = model.EditionKey{}
 		}
-		out[k.Canonical()] = ed.Runs
+		if _, dup := out[at.Canonical()]; dup {
+			return nil, &Error{Code: CodeInvalid, Field: "editions/" + keyText(k),
+				Message: fmt.Sprintf("editions names edition %s twice", editionLabel(nb, k))}
+		}
+		out[at.Canonical()] = ed.Runs
 	}
 	return out, nil
 }

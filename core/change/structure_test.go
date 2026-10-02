@@ -149,6 +149,12 @@ func TestService_InsertBlock(t *testing.T) {
 		assert.Equal(t, "editions/fr", err.Field)
 	})
 
+	t.Run("the own edition named twice is invalid", func(t *testing.T) {
+		svc := newMemService(newHome())
+		res := applySet(t, svc, svcPerson, insertOp("c", "x", "n", map[string]string{"": "N", "en": "M"}))
+		assert.Equal(t, "editions/en", requireRefused(t, res.Ops[0], change.CodeInvalid).Field)
+	})
+
 	t.Run("a block with no name is invalid", func(t *testing.T) {
 		svc := newMemService(newHome())
 		res := applySet(t, svc, svcPerson, insertOp("c", "x", "", map[string]string{"en": "N"}))
