@@ -2,6 +2,7 @@ package host
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,6 +17,10 @@ func TestChangePolicy(t *testing.T) {
 	person := change.Actor{Kind: change.ActorPerson, Name: "asgeir"}
 	agent := change.Actor{Kind: change.ActorAgent, Name: "claude", Session: "s_01"}
 	flow := change.Actor{Kind: change.ActorTool, Name: "tool:converge"}
+	// unnamed is the sender of a surface that stamped none; robot is a kind
+	// the contract does not define.
+	unnamed := change.Actor{}
+	robot := change.Actor{Kind: "robot", Name: "r2"}
 
 	at := change.Ref{Doc: "docs/guide.md", Block: "p", Edition: model.EditionKey{Locale: "fr"}}
 	text := "Nous utilisons le gadget."
@@ -58,6 +63,11 @@ func TestChangePolicy(t *testing.T) {
 		{"an agent may not reject", agent, enforce, decide(change.OutcomeReject), "outcome"},
 		{"an agent may not withdraw a decision", agent, enforce, decide(change.OutcomeWithdraw), "outcome"},
 		{"a person establishes", person, enforce, decide(change.OutcomeEstablish), ""},
+		{"a person rejects", person, enforce, decide(change.OutcomeReject), ""},
+		{"a tool in a flow pre-reviews", flow, nil, decide(change.OutcomeAdvise), ""},
+		{"a tool in a flow may not establish", flow, nil, decide(change.OutcomeEstablish), "outcome"},
+		{"a tool in a flow may not reject", flow, nil, decide(change.OutcomeReject), "outcome"},
+		{"a tool in a flow may not withdraw a decision", flow, nil, decide(change.OutcomeWithdraw), "outcome"},
 		{"an agent may not write a term", agent, enforce, term, "op"},
 		{"an agent may not write a memory pair", agent, enforce, memory, "op"},
 		{"an agent may not change the recipe", agent, enforce, recipe, "op"},
@@ -80,6 +90,32 @@ func TestChangePolicy(t *testing.T) {
 			assert.Equal(t, tc.field, err.Field)
 			assert.NotEmpty(t, err.Message)
 		})
+	}
+
+	// A sender the surface did not name, or named with a kind the contract
+	// does not define, is refused everything a person may do, so a surface
+	// that forgets to stamp its sender fails closed.
+	for _, sender := range []change.Actor{unnamed, robot} {
+		for _, tc := range []struct {
+			name string
+			set  *change.Set
+			op   change.Op
+		}{
+			{"change content", enforce, content},
+			{"choose gate report", report, content},
+			{"write blindly", enforce, blind},
+			{"establish", enforce, decide(change.OutcomeEstablish)},
+			{"pre-review", enforce, decide(change.OutcomeAdvise)},
+			{"write a term", enforce, term},
+			{"record provenance", nil, provenance},
+		} {
+			t.Run(fmt.Sprintf("a sender of kind %q may not %s", sender.Kind, tc.name), func(t *testing.T) {
+				err := ChangePolicy{}.Permit(sender, tc.set, tc.op)
+				require.NotNil(t, err)
+				assert.Equal(t, change.CodeNotPermitted, err.Code)
+				assert.Contains(t, err.Message, fmt.Sprintf("kind %q", sender.Kind))
+			})
+		}
 	}
 }
 

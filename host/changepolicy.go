@@ -28,7 +28,12 @@ import (
 //
 // A tool in a flow may choose report: its drafts land as drafts and meet the
 // ship gates later. Only a tool records provenance, the in-process operation
-// that says how a tool produced an edition.
+// that says how a tool produced an edition. A tool, like an agent, decides
+// only with advise; a surface that carries a person's decision (a pull, a
+// merge) sends it as that person.
+//
+// The surface that carries a change set names its sender. A sender of any
+// other kind, or of none, is refused every operation.
 type ChangePolicy struct {
 	// Context decides the transitions the asset operations stand for. Nil is
 	// contextop.PersonDecides, the policy in force.
@@ -39,6 +44,15 @@ var _ change.Policy = ChangePolicy{}
 
 // Permit implements change.Policy.
 func (p ChangePolicy) Permit(actor change.Actor, set *change.Set, op change.Op) *change.Error {
+	switch actor.Kind {
+	case change.ActorPerson, change.ActorAgent, change.ActorTool:
+	default:
+		return &change.Error{
+			Code: change.CodeNotPermitted,
+			Message: fmt.Sprintf("a sender of kind %q may not send a change set: the surface that carries it "+
+				"names a person, an agent or a tool in a flow as its sender", actor.Kind),
+		}
+	}
 	if set != nil && set.Gate == change.GateReport && actor.Kind == change.ActorAgent {
 		return notPermitted("gate", actor, "choose gate report",
 			"an edit lands over the findings it introduces only when a person overrides them; fix the wording, or ask a person")
@@ -52,9 +66,9 @@ func (p ChangePolicy) Permit(actor change.Actor, set *change.Set, op change.Op) 
 		return p.asset(actor, op.Kind)
 	case change.KindDecide:
 		d, _ := op.Body.(*change.Decide)
-		if actor.Kind == change.ActorAgent && (d == nil || d.Outcome != change.OutcomeAdvise) {
+		if actor.Kind != change.ActorPerson && (d == nil || d.Outcome != change.OutcomeAdvise) {
 			return notPermitted("outcome", actor, "decide "+outcomeOf(d),
-				"a review decision is a person's; an agent records its pre-review with outcome advise")
+				"a review decision is a person's; record a pre-review with outcome advise")
 		}
 	case change.KindProvenance:
 		if actor.Kind != change.ActorTool {
