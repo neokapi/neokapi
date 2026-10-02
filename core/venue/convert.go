@@ -43,35 +43,39 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 	// block property, symmetric with how a Target's status rides in its segment
 	// properties — keeping the round-trip lossless without a wire-shape change.
 	// Copy-on-write so we never mutate the caller's Properties map.
-	if b.SourceStatus != "" {
+	auth := b.Authoritative(model.AuthorityPolicy{})
+	src, _ := b.Edition(auth)
+	if src.Status != "" {
 		props := make(map[string]string, len(b.Properties)+1)
 		maps.Copy(props, b.Properties)
-		props[propSourceStatus] = string(b.SourceStatus)
+		props[propSourceStatus] = string(src.Status)
 		sb.Properties = props
 	}
 
-	// Source content — the flat run sequence rides as a single wire segment.
-	if len(b.Source) > 0 {
-		sb.Source = []*contentv1.SegmentMessage{runsToSegment("", b.Source)}
+	// Source content: the authoritative edition's flat run sequence rides as a
+	// single wire segment.
+	if len(src.Runs) > 0 {
+		sb.Source = []*contentv1.SegmentMessage{runsToSegment("", src.Runs)}
 	}
 
-	// Targets per variant. The variant key serializes to its text form
-	// (locale-only is the common case, e.g. "fr-FR"); the run sequence rides
-	// as a single wire segment carrying any target status/origin/score in
-	// segment properties so the round-trip is lossless.
-	if len(b.Targets) > 0 {
-		sb.Targets = make(map[string]*pb.SyncSegmentList, len(b.Targets))
-		for key, target := range b.Targets {
-			if target == nil {
-				continue
-			}
-			keyText, err := key.MarshalText()
-			if err != nil {
-				continue
-			}
-			sb.Targets[string(keyText)] = &pb.SyncSegmentList{
-				Segments: []*contentv1.SegmentMessage{targetToSegment(target)},
-			}
+	// Every other edition rides as a target. The edition key serializes to its
+	// text form (locale-only is the common case, e.g. "fr-FR"); the run
+	// sequence rides as a single wire segment carrying any status/origin/score
+	// in segment properties so the round-trip is lossless.
+	for _, key := range b.Editions() {
+		if key == auth {
+			continue
+		}
+		keyText, err := key.MarshalText()
+		if err != nil {
+			continue
+		}
+		e, _ := b.Edition(key)
+		if sb.Targets == nil {
+			sb.Targets = make(map[string]*pb.SyncSegmentList)
+		}
+		sb.Targets[string(keyText)] = &pb.SyncSegmentList{
+			Segments: []*contentv1.SegmentMessage{targetToSegment(e)},
 		}
 	}
 
@@ -142,6 +146,10 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 	// Restore the source authoring state from its reserved property and strip the
 	// key so it never leaks back out as a real block property. Copy-on-write so we
 	// don't mutate the proto's Properties map.
+	//
+	// The status is stored as a reader stores what it read: SetEdition records
+	// a write to the authoritative edition as an edit of it, and a status that
+	// arrives with the block is part of the block as read.
 	if status, ok := sb.Properties[propSourceStatus]; ok {
 		b.SourceStatus = model.SourceStatus(status)
 		props := make(map[string]string, len(sb.Properties))
@@ -157,36 +165,37 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 		b.Properties = props
 	}
 
-	// Source content — concatenate the runs of every wire segment back into the
-	// block's flat run sequence.
+	// Source content: concatenate the runs of every wire segment back into the
+	// flat run sequence of the edition the block was read in.
+	var srcRuns []model.Run
 	for _, seg := range sb.Source {
-		b.Source = append(b.Source, protoconvert.ProtoToRuns(seg.Runs)...)
+		srcRuns = append(srcRuns, protoconvert.ProtoToRuns(seg.Runs)...)
 	}
+	b.SetSourceRuns(srcRuns)
 
 	// If no structured source but source_text is set, create a simple run.
-	if len(b.Source) == 0 && sb.SourceText != "" {
+	if len(srcRuns) == 0 && sb.SourceText != "" {
 		b.SetSourceText(sb.SourceText)
 	}
 
-	// Targets — one Target per variant, runs concatenated from the wire
+	// Targets: one Target per variant, runs concatenated from the wire
 	// segments, status/origin/score restored from the first segment's props.
-	if len(sb.Targets) > 0 {
-		b.Targets = make(map[model.VariantKey]*model.Target, len(sb.Targets))
-		for keyText, list := range sb.Targets {
-			var key model.VariantKey
-			if err := key.UnmarshalText([]byte(keyText)); err != nil {
-				continue
-			}
-			var runs []model.Run
-			var first *contentv1.SegmentMessage
-			for _, seg := range list.Segments {
-				if first == nil {
-					first = seg
-				}
-				runs = append(runs, protoconvert.ProtoToRuns(seg.Runs)...)
-			}
-			b.Targets[key] = segmentToTarget(runs, first)
+	// Each is stored as a target whatever its key, so a target filed under the
+	// source language stays a target.
+	for keyText, list := range sb.Targets {
+		var key model.VariantKey
+		if err := key.UnmarshalText([]byte(keyText)); err != nil {
+			continue
 		}
+		var runs []model.Run
+		var first *contentv1.SegmentMessage
+		for _, seg := range list.Segments {
+			if first == nil {
+				first = seg
+			}
+			runs = append(runs, protoconvert.ProtoToRuns(seg.Runs)...)
+		}
+		b.SetTargetVariant(key, segmentToTarget(runs, first))
 	}
 
 	// Annotations.
@@ -264,10 +273,10 @@ const (
 	propOriginCtxFP  = "__origin_context_fingerprint"
 )
 
-// targetToSegment encodes a committed Target as a single wire segment,
+// targetToSegment encodes a derived edition as a single wire segment,
 // stashing status/origin/score in segment properties so the protocol shape
 // stays unchanged while the round-trip remains lossless.
-func targetToSegment(t *model.Target) *contentv1.SegmentMessage {
+func targetToSegment(t model.Edition) *contentv1.SegmentMessage {
 	props := map[string]string{}
 	if t.Status != "" {
 		props[propTargetStatus] = string(t.Status)

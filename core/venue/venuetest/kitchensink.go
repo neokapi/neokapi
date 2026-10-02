@@ -90,7 +90,7 @@ func KitchenSinkBlock() *model.Block {
 	}
 
 	// Source: one run of every kind (Text, Ph, PcOpen, PcClose, Sub, Plural, Select).
-	b.Source = []model.Run{
+	b.SetSourceRuns([]model.Run{
 		{Text: &model.TextRun{Text: "Hello "}},
 		{Ph: &model.PlaceholderRun{ID: "v1", Type: "var", Data: "{name}", Equiv: "name", Attrs: map[string]string{"k": "v"}}},
 		{PcOpen: &model.PcOpenRun{ID: "b1", Type: "element", Data: "<b>", Equiv: "b"}},
@@ -105,7 +105,7 @@ func KitchenSinkBlock() *model.Block {
 			"female": {{Text: &model.TextRun{Text: "elle"}}},
 			"other":  {{Text: &model.TextRun{Text: "iel"}}},
 		}}},
-	}
+	})
 
 	// Targets: two variants; fully-populated provenance on the first.
 	b.SetTargetVariant(frVariant, &model.Target{
