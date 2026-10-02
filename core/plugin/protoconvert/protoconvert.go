@@ -628,7 +628,7 @@ func segSpanID(seg *model.Overlay, i int) string {
 // the span id so the reverse conversion can rebuild the segmentation overlay.
 // An unsegmented block emits a single "s1" segment.
 func sourceSegProtos(b *model.Block) []*pb.SegmentMessage {
-	if len(b.Source) == 0 {
+	if src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{})); len(src.Runs) == 0 {
 		return nil
 	}
 	seg := b.SourceSegmentation()
@@ -722,27 +722,25 @@ func ProtoToBlock(msg *pb.BlockMessage) *model.Block {
 	if msg == nil {
 		return nil
 	}
-	b := &model.Block{
-		ID:                 msg.Id,
-		Name:               msg.Name,
-		Type:               msg.Type,
-		MimeType:           msg.MimeType,
-		Translatable:       msg.Translatable,
-		Properties:         msg.Properties,
-		Targets:            make(map[model.VariantKey]*model.Target),
-		DisplayHint:        ProtoToDisplayHint(msg.DisplayHint),
-		Skeleton:           ProtoToSkeleton(msg.Skeleton),
-		PreserveWhitespace: msg.PreserveWhitespace,
-		IsReferent:         msg.IsReferent,
+	// The source segments are the edition the block was read in; the block
+	// starts with an empty target map and properties map, as NewRunsBlock
+	// makes them.
+	srcRuns, srcSpans := segProtosToRunsAndSpans(msg.Source)
+	b := model.NewRunsBlock(msg.Id, srcRuns)
+	b.Name = msg.Name
+	b.Type = msg.Type
+	b.MimeType = msg.MimeType
+	b.Translatable = msg.Translatable
+	if msg.Properties != nil {
+		b.Properties = msg.Properties
 	}
+	b.DisplayHint = ProtoToDisplayHint(msg.DisplayHint)
+	b.Skeleton = ProtoToSkeleton(msg.Skeleton)
+	b.PreserveWhitespace = msg.PreserveWhitespace
+	b.IsReferent = msg.IsReferent
 	for k, v := range ProtoToAnnotations(msg.Annotations) {
 		b.SetAnno(k, v)
 	}
-	if b.Properties == nil {
-		b.Properties = make(map[string]string)
-	}
-	srcRuns, srcSpans := segProtosToRunsAndSpans(msg.Source)
-	b.Source = srcRuns
 	if len(srcSpans) > 0 {
 		b.SetSegmentation(nil, srcSpans)
 	}
@@ -1033,17 +1031,14 @@ func ContentBlockToPart(cb *pb.ContentBlock) *model.Part {
 
 	// Source content
 	srcRuns, srcSpans := segProtosToRunsAndSpans(cb.Source)
-	block.Source = srcRuns
+	block.SetSourceRuns(srcRuns)
 	if len(srcSpans) > 0 {
 		block.SetSegmentation(nil, srcSpans)
 	}
 
 	// Target content
-	if len(cb.Targets) > 0 {
-		block.Targets = make(map[model.VariantKey]*model.Target)
-		for _, te := range cb.Targets {
-			applyTargetSegProtos(block, model.LocaleID(te.Locale), te.Segments)
-		}
+	for _, te := range cb.Targets {
+		applyTargetSegProtos(block, model.LocaleID(te.Locale), te.Segments)
 	}
 
 	// Properties
