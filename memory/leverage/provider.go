@@ -112,7 +112,7 @@ func (p *Provider) Lookup(ctx context.Context, req corememory.Request) (corememo
 		// hand: the content being translated, and the content the matched
 		// answer was approved for. A caller sees a score and a target, and
 		// could never work it out.
-		out.Edit = edit.Classify(m.Entry.VariantText(req.Source), model.FlattenRuns(req.Block.Source))
+		out.Edit = edit.Classify(m.Entry.VariantText(req.Source), model.FlattenRuns(req.Block.SourceRuns()))
 	} else {
 		// The flattened path has no source to compare against — the corpus was
 		// asked by text and answers with a target — so it cannot classify, and

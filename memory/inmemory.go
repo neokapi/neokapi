@@ -188,7 +188,7 @@ func (tm *InMemoryStore) Lookup(_ context.Context, source *model.Block, sourceLo
 		return nil, nil
 	}
 	opts = ApplyDefaults(opts)
-	runs := source.Source
+	runs := source.SourceRuns()
 	if len(runs) == 0 {
 		return nil, nil
 	}
