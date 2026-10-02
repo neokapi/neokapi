@@ -177,13 +177,13 @@ const (
 	CategoryPipeline       = "pipeline"        // composite / sub-pipeline
 )
 
-// TagL10n marks a tool that works on content in other languages (translate,
-// content memory recycling, the bilingual quality checks, pseudo-translation,
-// target management). It is a freeform Tag on ToolMeta, orthogonal to
-// Category, and its value is published in the tool metadata the reference
-// data and the MCP surface carry. Generic, format-aware tools (search-replace,
-// case-transform, segmentation, …) carry no such tag.
-const TagL10n = "l10n"
+// TagLanguages marks a tool that works on content in other languages
+// (translate, content memory recycling, the bilingual quality checks,
+// pseudo-translation, target management). It is a freeform Tag on ToolMeta,
+// orthogonal to Category, and its value is published in the tool metadata the
+// reference data and the MCP surface carry. Generic, format-aware tools
+// (search-replace, case-transform, segmentation, …) carry no such tag.
+const TagLanguages = "languages"
 
 // bridgeCategoryAliases maps the okapi-bridge category vocabulary onto the
 // canonical set above. The bridge classifies steps with its own labels

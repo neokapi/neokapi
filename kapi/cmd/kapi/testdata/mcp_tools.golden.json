@@ -858,7 +858,7 @@
         ],
         "tags": [
           "quality",
-          "l10n"
+          "languages"
         ]
       },
       "type": "object"
@@ -1106,7 +1106,7 @@
         ],
         "tags": [
           "translation",
-          "l10n"
+          "languages"
         ],
         "writesOutput": true
       },

@@ -97,22 +97,22 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("qa", func() tool.Tool {
 		return NewRuleCheckTool(NewRuleCheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewRuleCheckConfig(model.LocaleEnglish), toolMeta("qa", "Quality Check", schema.CategoryQuality,
-		withTags("quality", schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayCheck)))))
+		withTags("quality", schema.TagLanguages), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayCheck)))))
 
 	reg.RegisterWithSchema("dnt-check", func() tool.Tool {
 		return NewDNTCheckTool(NewDNTCheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewDNTCheckConfig(model.LocaleEnglish), toolMeta("dnt-check", "Do-Not-Translate Check", schema.CategoryQuality,
-		withTags("quality", schema.TagL10n), withAliases("dnt"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayCheck)))))
+		withTags("quality", schema.TagLanguages), withAliases("dnt"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayCheck)))))
 
 	reg.RegisterWithSchema("placeholder-check", func() tool.Tool {
 		return NewPlaceholderCheckTool(NewPlaceholderCheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewPlaceholderCheckConfig(model.LocaleEnglish), toolMeta("placeholder-check", "Placeholder Check", schema.CategoryQuality,
-		withTags("quality", schema.TagL10n), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayCheck)))))
+		withTags("quality", schema.TagLanguages), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayCheck)))))
 
 	reg.RegisterWithSchema("term-check", func() tool.Tool {
 		return NewTermCheckTool(&TermCheckConfig{TargetLocale: model.LocaleEnglish})
 	}, toolSchema(&TermCheckConfig{}, toolMeta("term-check", "Terminology Check", schema.CategoryQuality,
-		withTags("quality", schema.TagL10n), withRequires("target-language", schema.RequiresTerms), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(srcF(model.OverlayTerm)), withSideEffects(schema.SideEffectTermsRead))))
+		withTags("quality", schema.TagLanguages), withRequires("target-language", schema.RequiresTerms), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(srcF(model.OverlayTerm)), withSideEffects(schema.SideEffectTermsRead))))
 
 	// xml-validation checks the source, and with checkTarget the target the run
 	// names. Accepting the target language is what gives `kapi exec
@@ -127,7 +127,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("pseudo-translate", func() tool.Tool {
 		return NewPseudoTranslateTool(&PseudoConfig{Prefix: "\u2592 ", Suffix: " \u2592", TargetLocale: "qps"})
 	}, toolSchema(&PseudoConfig{Prefix: "\u2592 ", Suffix: " \u2592"}, toolMeta("pseudo-translate", "Pseudo Translate", schema.CategoryTranslation,
-		withTags("translation", schema.TagL10n), withAliases("pseudo"), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withDefaultLocale(model.LocaleID("qps")), withProduces(tgtF(schema.PortTarget)))))
+		withTags("translation", schema.TagLanguages), withAliases("pseudo"), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withDefaultLocale(model.LocaleID("qps")), withProduces(tgtF(schema.PortTarget)))))
 
 	// search-replace, case-transform, inline-codes-remove and external-command
 	// rewrite the source, and the target the run names when their target scope
@@ -152,7 +152,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("translate-after", func() tool.Tool {
 		return NewTranslateAfterTool(model.DefaultTranslateAfter)
 	}, toolSchema(&TranslateAfterConfig{Level: string(model.DefaultTranslateAfter)}, toolMeta("translate-after", "Translate After", schema.CategoryTranslation,
-		withTags(schema.TagL10n), withCardinality(schema.Monolingual))))
+		withTags(schema.TagLanguages), withCardinality(schema.Monolingual))))
 
 	RegisterSegmentation(reg)
 
@@ -163,12 +163,12 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("create-target", func() tool.Tool {
 		return NewCreateTargetTool(NewCreateTargetConfig(""))
 	}, toolSchema(NewCreateTargetConfig(""), toolMeta("create-target", "Create Target", schema.CategoryTextProcessing,
-		withTags(schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(tgtF(schema.PortTarget)))))
+		withTags(schema.TagLanguages), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withProduces(tgtF(schema.PortTarget)))))
 
 	reg.RegisterWithSchema("remove-target", func() tool.Tool {
 		return NewRemoveTargetTool(NewRemoveTargetConfig(""))
 	}, toolSchema(NewRemoveTargetConfig(""), toolMeta("remove-target", "Remove Target", schema.CategoryTextProcessing,
-		withTags(schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual))))
+		withTags(schema.TagLanguages), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual))))
 
 	reg.RegisterWithSchema("inline-codes-remove", func() tool.Tool {
 		return NewInlineCodesRemoveTool(NewInlineCodesRemoveConfig(""))
@@ -191,7 +191,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		return NewWhitespaceCorrectTool(NewWhitespaceCorrectConfig(model.LocaleEnglish))
 	}, toolSchema(&WhitespaceCorrectConfig{NormalizeSpaces: true, MatchSourceWhitespace: true, RemoveZeroWidthChars: true, CorrectFullStop: true, CorrectComma: true, CorrectExclamation: true, CorrectQuestion: true, IncludeVerticalWS: true, IncludeHorizontalWS: true},
 		toolMeta("whitespace-correct", "Whitespace Correct", schema.CategoryTextProcessing,
-			withTags("text-processing", schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual))))
+			withTags("text-processing", schema.TagLanguages), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual))))
 
 	// tag-protect marks spans for the steps downstream (an MT connector that must
 	// keep them). Like properties-set, its whole output is a block annotation no
@@ -218,12 +218,12 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("recycle", func() tool.Tool {
 		return NewMemoryLeverageTool(&MemoryLeverageConfig{FuzzyThreshold: 70, Memory: corememory.NullProvider{}})
 	}, toolSchema(&MemoryLeverageConfig{FuzzyThreshold: 70}, toolMeta("recycle", "Recycle", schema.CategoryTranslation,
-		withTags("translation", schema.TagL10n), withWritesOutput(), withRequires("target-language", schema.RequiresMemory), withCardinality(schema.Bilingual), withConsumes(optF(srcF(model.OverlaySegmentation))), withProduces(srcF(model.AnnoMemoryMatch), srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)), withSideEffects(schema.SideEffectMemoryRead))))
+		withTags("translation", schema.TagLanguages), withWritesOutput(), withRequires("target-language", schema.RequiresMemory), withCardinality(schema.Bilingual), withConsumes(optF(srcF(model.OverlaySegmentation))), withProduces(srcF(model.AnnoMemoryMatch), srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)), withSideEffects(schema.SideEffectMemoryRead))))
 
 	reg.RegisterWithSchema("diff-leverage", func() tool.Tool {
 		return NewDiffLeverageTool(&DiffLeverageConfig{CaseSensitive: true, PreviousTexts: map[string]PreviousBlock{}})
 	}, toolSchema(&DiffLeverageConfig{CaseSensitive: true}, toolMeta("diff-leverage", "Diff Leverage", schema.CategoryTranslation,
-		withTags("translation", schema.TagL10n), withWritesOutput(), withCardinality(schema.Bilingual), withProduces(srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)))))
+		withTags("translation", schema.TagLanguages), withWritesOutput(), withCardinality(schema.Bilingual), withProduces(srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)))))
 
 	// ── Convert ─────────────────────────────────────────────────────
 

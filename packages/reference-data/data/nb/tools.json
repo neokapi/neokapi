@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T07:01:01Z",
+  "generatedAt": "2026-10-02T07:58:14Z",
   "kind": "tool",
   "entries": [
     {
@@ -959,7 +959,7 @@
       "description": "Opprett målsegmentbeholdere for en språkkode, eventuelt fylt med kildeteksten.",
       "category": "text-processing",
       "tags": [
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language"
@@ -977,7 +977,7 @@
           "category": "text-processing",
           "displayName": "Opprett mål",
           "tags": [
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language"
@@ -1067,7 +1067,7 @@
       "category": "translation",
       "tags": [
         "translation",
-        "l10n"
+        "languages"
       ],
       "cardinality": "bilingual",
       "produces": [
@@ -1084,7 +1084,7 @@
           "displayName": "Diff-utnyttelse",
           "tags": [
             "translation",
-            "l10n"
+            "languages"
           ],
           "cardinality": "bilingual",
           "produces": [
@@ -1158,7 +1158,7 @@
       "category": "quality",
       "tags": [
         "quality",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language"
@@ -1183,7 +1183,7 @@
           "displayName": "Ikke-oversett-sjekk",
           "tags": [
             "quality",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language"
@@ -1717,7 +1717,7 @@
       "category": "quality",
       "tags": [
         "quality",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language"
@@ -1739,7 +1739,7 @@
           "displayName": "Plassholdersjekk",
           "tags": [
             "quality",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language"
@@ -1881,7 +1881,7 @@
       "category": "translation",
       "tags": [
         "translation",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language"
@@ -1903,7 +1903,7 @@
           "displayName": "Pseudooversett",
           "tags": [
             "translation",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language"
@@ -1993,7 +1993,7 @@
       "category": "quality",
       "tags": [
         "quality",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language",
@@ -2022,7 +2022,7 @@
           "description": "Kontroller oversettelseskvalitet med deterministiske regler eller en LLM (velg med --mode)",
           "tags": [
             "quality",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language",
@@ -2704,7 +2704,7 @@
       "category": "translation",
       "tags": [
         "translation",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language",
@@ -2732,7 +2732,7 @@
           "displayName": "Gjenbruk",
           "tags": [
             "translation",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language",
@@ -3053,7 +3053,7 @@
       "description": "Fjern målsegmenter fra blokker, etter språkkode eller etter valgte tekst-enhets-ID-er.",
       "category": "text-processing",
       "tags": [
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language"
@@ -3068,7 +3068,7 @@
           "category": "text-processing",
           "displayName": "Fjern mål",
           "tags": [
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language"
@@ -3999,7 +3999,7 @@
       "category": "quality",
       "tags": [
         "quality",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language",
@@ -4025,7 +4025,7 @@
           "displayName": "Terminologikontroll",
           "tags": [
             "quality",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language",
@@ -4092,7 +4092,7 @@
       "category": "translation",
       "tags": [
         "translation",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language",
@@ -4118,7 +4118,7 @@
           "description": "Oversett innhold med en LLM eller maskinoversettelses­leverandør (velg en motor, deretter en leverandør)",
           "tags": [
             "translation",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language",
@@ -4448,7 +4448,7 @@
       "displayName": "Translate After",
       "category": "translation",
       "tags": [
-        "l10n"
+        "languages"
       ],
       "cardinality": "monolingual",
       "schema": {
@@ -4460,7 +4460,7 @@
           "category": "translation",
           "displayName": "Translate After",
           "tags": [
-            "l10n"
+            "languages"
           ],
           "cardinality": "monolingual"
         },
@@ -4613,7 +4613,7 @@
       "category": "text-processing",
       "tags": [
         "text-processing",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language"
@@ -4629,7 +4629,7 @@
           "displayName": "Hvitromskorreksjon",
           "tags": [
             "text-processing",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language"

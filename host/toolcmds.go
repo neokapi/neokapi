@@ -33,7 +33,7 @@ func AllKBF(paths []string) bool {
 }
 
 // HasTag reports whether a tool's freeform Tags include want (e.g.
-// schema.TagL10n).
+// schema.TagLanguages).
 func HasTag(tags []string, want string) bool {
 	return slices.Contains(tags, want)
 }
