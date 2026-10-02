@@ -252,9 +252,7 @@ func (u unclassified) Lookup(ctx context.Context, req corememory.Request) (corem
 }
 
 func blockOf(text string) *model.Block {
-	return &model.Block{
-		ID:           "b",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
-	}
+	b := &model.Block{ID: "b", Translatable: true}
+	b.SetSourceText(text)
+	return b
 }
