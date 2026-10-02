@@ -22,21 +22,16 @@ const (
 	StructuralDeleteBlock = "delete_block"
 )
 
-// StructuralWriter is implemented by a writer that can add a block to a
+// StructureEditor is implemented by a writer that can add a block to a
 // document or remove one with its shell. Structural lists the operations it
-// supports, StructuralInsertBlock and StructuralDeleteBlock.
-type StructuralWriter interface {
-	Structural() []string
-}
-
-// StructureEditor is implemented by a writer that writes the structural edits
-// it declares. EditStructure returns doc, a whole document in the writer's
-// format, with each edit made in order: an edit sees the document the edits
-// before it left. Every byte outside the shells it adds or removes stays as it
-// was. It returns a *StructureError naming the edit it could not make, and
-// then nothing of the result is used.
+// writes under its configuration, StructuralInsertBlock and
+// StructuralDeleteBlock. EditStructure returns doc, a whole document in the
+// writer's format, with each edit made in order: an edit sees the document the
+// edits before it left. Every byte outside the shells it adds or removes stays
+// as it was. It returns a *StructureError naming the edit it could not make,
+// and then nothing of the result is used.
 type StructureEditor interface {
-	StructuralWriter
+	Structural() []string
 	EditStructure(doc []byte, edits []StructuralEdit) ([]byte, error)
 }
 

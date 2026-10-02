@@ -21,7 +21,7 @@ import (
 
 // The structural cells of the operations matrix prove insert_block and
 // delete_block for every format whose writer declares them
-// (format.StructuralWriter), through the path every surface takes: the change
+// (format.StructureEditor), through the path every surface takes: the change
 // service over the file home. Each cell applies a change set to a catalog and
 // asserts
 //

@@ -489,7 +489,7 @@ it, changes the document's structure, and only the format knows what that
 markup is. In a key-value catalog it is small: a block's shell is its key and
 the value beside it.
 
-A writer that can write such an edit declares it. `StructuralWriter.Structural`
+A writer that can write such an edit declares it. `StructureEditor.Structural`
 lists the operations it writes, `insert_block` and `delete_block`, and
 `StructureEditor.EditStructure` makes them: given a whole document and the
 edits in order, it returns the document with a new key and value beside a

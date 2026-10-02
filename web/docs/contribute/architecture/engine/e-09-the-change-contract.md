@@ -150,8 +150,8 @@ on an edition with no home is refused as `unsupported`.
 writer replays a skeleton with a slot for every block its reader read and none
 for a new one, so these two are written by the format: the service hands them
 to the home, and the format's writer writes the shell of each block added or
-removed. A writer declares the operations it writes with
-`format.StructuralWriter` and writes them through `format.StructureEditor`.
+removed. A writer declares the operations it writes and writes them through
+`format.StructureEditor`.
 `Describe` reports them where a writer declares them, and every other format
 refuses them as `unsupported`. The JSON, YAML and ARB writers declare both: in
 a key-value catalog a block's shell is its key and the value beside it. A
