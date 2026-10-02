@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
@@ -184,6 +185,48 @@ func TestAdjacentMarksCloseBeforeTheNextOpens(t *testing.T) {
 	overlay := back.OverlayOf(model.OverlayTerm)
 	require.NotNil(t, overlay)
 	assert.Len(t, overlay.Spans, 2, "two spans stay two")
+}
+
+// A precise edit to one segment joins its text to the next segment's in one
+// run, so a later segment's runs no longer start where the block's do, and a
+// term the edit carried can start partway into a run. Each mark is still drawn
+// around the term it names.
+func TestTermMarksFollowAnEditToAnEarlierSegment(t *testing.T) {
+	t.Parallel()
+	block := readOneBlock(t, `<?xml version="1.0"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en">
+  <file id="f1"><unit id="u1">
+    <segment id="s1"><source>First.</source></segment>
+    <segment id="s2"><source>Run <ph id="1"/>kapi<ph id="2"/> now.</source></segment>
+    <segment id="s3"><source>Install the kapi CLI.</source></segment>
+  </unit></file>
+</xliff>`)
+	// Runs: 0 "First.", 1 "Run ", 2 ph, 3 "kapi", 4 ph, 5 " now.",
+	// 6 "Install the kapi CLI.".
+	markTerm(t, block, "t0", "", 3, 4)
+	block.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.SpanAnchor(
+		model.RunPos{Run: 6, Offset: 12}, model.RunPos{Run: 6, Offset: 16})})
+
+	find := "First"
+	res := change.ApplyBlock(block, []change.Op{{
+		Kind: change.KindReplaceText, At: change.Ref{Block: block.ID}, IfMatch: change.AnyRevision,
+		Body: &change.ReplaceText{Edits: []change.TextEdit{{Find: &find, Text: "Begin"}}},
+	}}, change.BlockEnv{Actor: change.Actor{Kind: change.ActorTool, Name: "test"}})
+	require.Equal(t, change.OpApplied, res[0].Status)
+	require.Len(t, block.Source, 5, "the edit joined the text runs on both segment boundaries")
+
+	out := writeBlocks(t, block)
+	assert.Contains(t, out, `<source>Begin.</source>`)
+	assert.Contains(t, out, `Run <ph id="1"/><sm id="t0" type="term"/>kapi<em startRef="t0"/><ph id="2"/> now.`)
+	assert.Contains(t, out, `Install the <sm id="t1" type="term"/>kapi<em startRef="t1"/> CLI.`)
+
+	back := readOneBlock(t, out)
+	overlay := back.OverlayOf(model.OverlayTerm)
+	require.NotNil(t, overlay)
+	require.Len(t, overlay.Spans, 2)
+	for _, sp := range overlay.Spans {
+		assert.Equal(t, "kapi", model.RunsText(sp.Range.ExtractRuns(back.Source)), sp.ID)
+	}
 }
 
 // A block with no term overlay writes exactly what it wrote before the feature

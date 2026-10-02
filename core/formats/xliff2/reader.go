@@ -535,7 +535,10 @@ func parseMrkAttrs(el *etree.Element) MrkAttrs {
 }
 
 // markSpan is one annotation marker located in RUN coordinates: the half-open
-// span [Start, End) of the block's run sequence its content occupies.
+// span [Start, End) of its segment's run sequence that its content occupies. A
+// marker read from a file starts and ends on run boundaries. One the writer
+// draws can start or end partway into a text run, once an edit has joined the
+// runs the marker once bounded.
 //
 // The marker itself contributes no run — an <mrk> wraps content rather than
 // being content, which is why the model carries it stand-off rather than as a
@@ -543,8 +546,8 @@ func parseMrkAttrs(el *etree.Element) MrkAttrs {
 // where it sat is the only way its metadata survives the downconversion.
 type markSpan struct {
 	Attrs MrkAttrs
-	Start int
-	End   int
+	Start model.RunPos
+	End   model.RunPos
 }
 
 // inlinesToRunsWithMarks downconverts the xliff2 Inline IR to the framework's
@@ -624,12 +627,12 @@ func (w *markWalker) walk(inls []Inline) {
 			// recorded so the metadata survives as a stand-off span.
 			start := len(w.runs)
 			w.walk(in.Mrk.Children)
-			w.marks = append(w.marks, markSpan{Attrs: in.Mrk.MrkAttrs, Start: start, End: len(w.runs)})
+			w.marks = append(w.marks, markSpan{Attrs: in.Mrk.MrkAttrs, Start: model.RunPos{Run: start}, End: model.RunPos{Run: len(w.runs)}})
 		case in.Sm != nil:
-			w.open[in.Sm.ID] = markSpan{Attrs: in.Sm.MrkAttrs, Start: len(w.runs)}
+			w.open[in.Sm.ID] = markSpan{Attrs: in.Sm.MrkAttrs, Start: model.RunPos{Run: len(w.runs)}}
 		case in.Em != nil:
 			if m, ok := w.open[in.Em.StartRef]; ok {
-				m.End = len(w.runs)
+				m.End = model.RunPos{Run: len(w.runs)}
 				w.marks = append(w.marks, m)
 				delete(w.open, in.Em.StartRef)
 			}

@@ -172,7 +172,7 @@ func applyMarkOverlays(block *model.Block, variant *model.VariantKey, segs []seg
 	cursor := 0
 	for _, sg := range segs {
 		for _, m := range sg.Marks {
-			if m.End < m.Start {
+			if m.End.Run < m.Start.Run {
 				continue
 			}
 			span := markToSpan(m, cursor)
@@ -205,8 +205,8 @@ func markToSpan(m markSpan, offset int) model.Span {
 	span := model.Span{
 		ID: m.Attrs.ID,
 		Range: model.SpanAnchor(
-			model.RunPos{Run: m.Start + offset},
-			model.RunPos{Run: m.End + offset},
+			model.RunPos{Run: m.Start.Run + offset, Offset: m.Start.Offset},
+			model.RunPos{Run: m.End.Run + offset, Offset: m.End.Offset},
 		),
 	}
 	props := map[string]string{}
@@ -274,16 +274,17 @@ func sourceSegsFromBlock(block *model.Block) []seg {
 		srcIR = ir.Source
 	}
 	segs := segsFromOverlay(block.Source, overlay, srcIR)
-	return withTermMarks(segs, block.OverlayOf(model.OverlayTerm))
+	return withTermMarks(segs, block.Source, block.OverlayOf(model.OverlayTerm))
 }
 
 // withTermMarks hands each segment the term spans that fall inside it, so the
-// writer can draw them without needing the block in scope.
-func withTermMarks(segs []seg, overlay *model.Overlay) []seg {
+// writer can draw them without needing the block in scope. runs is the
+// sequence the spans anchor to, which segs divide.
+func withTermMarks(segs []seg, runs []model.Run, overlay *model.Overlay) []seg {
 	if overlay == nil || len(overlay.Spans) == 0 {
 		return segs
 	}
-	placed, unplaced := marksForSegments(segs, overlay.Spans)
+	placed, unplaced := marksForSegments(segs, runs, overlay.Spans)
 	for i := range segs {
 		segs[i].Marks = placed[i]
 	}
