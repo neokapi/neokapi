@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -87,13 +88,13 @@ func TestApplyEditsMCPStampsTheCallingAgent(t *testing.T) {
 
 // toolErrorText is the text a failed tool call returned.
 func toolErrorText(res *mcp.CallToolResult) string {
-	var out string
+	var out strings.Builder
 	for _, c := range res.Content {
 		if text, ok := c.(*mcp.TextContent); ok {
-			out += text.Text
+			out.WriteString(text.Text)
 		}
 	}
-	return out
+	return out.String()
 }
 
 // `kapi apply` stamps the actor the environment names, and an entry has no
