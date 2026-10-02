@@ -130,18 +130,58 @@ func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
             return tool.EditPlan{}, nil // pass through
         }
         conf := t.Cfg.(*CaseTransformConfig)
+        convert := unicode.ToUpper
+        if conf.Mode == CaseLower {
+            convert = unicode.ToLower
+        }
         var plan tool.EditPlan
         if conf.ApplySource {
-            converted := transformCase(v.SourceText(), conf.Mode)
-            if converted != v.SourceText() {
-                plan.ReplaceAll = &converted // opaque whole-source rewrite
-            }
+            // The zero key is the source.
+            plan.AddTextEdits(model.VariantKey{}, caseEdits(v.SourceRuns(), convert))
         }
         return plan, nil
     }
     return t
 }
+
+// caseEdits returns one in-place edit for each run of characters convert
+// changes. An edit never spans an inline code, so each code stays between the
+// same two characters, and each edit keeps the length of the text it replaces,
+// so every overlay span keeps the characters it covered.
+func caseEdits(runs []model.Run, convert func(rune) rune) []change.TextEdit {
+    var edits []change.TextEdit
+    at := 0 // code points of text before the current character
+    for _, r := range runs {
+        if r.Text == nil {
+            continue // a code, a plural or a select: no edit spans it
+        }
+        start, changed := -1, []rune(nil)
+        flush := func() {
+            if start >= 0 {
+                s, e := start, at
+                edits = append(edits, change.TextEdit{Start: &s, End: &e, Text: string(changed)})
+                start, changed = -1, nil
+            }
+        }
+        for _, c := range r.Text.Text {
+            if u := convert(c); u != c {
+                if start < 0 {
+                    start = at
+                }
+                changed = append(changed, u)
+            } else {
+                flush()
+            }
+            at++
+        }
+        flush()
+    }
+    return edits
+}
 ```
+
+The case-transform tool in `core/tools` works the same way and also edits the
+text of each plural form and select case.
 
 When a tool needs full control of the loop, for example to accumulate state
 across many Parts or to emit more Parts than it consumes, it can implement

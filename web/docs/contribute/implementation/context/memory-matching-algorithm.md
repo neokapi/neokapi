@@ -77,6 +77,8 @@ type Match struct {
 }
 ```
 
+`memory.ComputeEntityAdaptations` pairs the entry's entities with the entities the block's entity overlay locates (`memory.ExtractEntityAnnotations`, or `ExtractSegmentEntityAnnotations` for a segment's lookup), type by type and in text order: the block's in the order its spans start, a span inside a plural or select at the run that holds it, and the entry's in the order its source variant holds each placeholder (else its value), whatever order the store returns them in. An adaptation is kept only when `memory.LocateEntity` finds the entity in the stored target: placeholder runs with its id, or else exactly one occurrence of the stored value with no letter, digit or mark joined to either end. `memory.AdaptEntities` substitutes there, locating every adaptation in the target as stored so one substitution never feeds the next; a placeholder takes the new value as its data.
+
 The `recycle` tool ([E-03](/contribute/architecture/engine/e-03-tool-system)) applies adaptations automatically; translators receive pre-adapted targets with correct entity values.
 
 ## Version chains

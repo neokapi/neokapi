@@ -307,6 +307,148 @@ func TestMemory_LookupMemory_MatchesTheRequestText(t *testing.T) {
 	}
 }
 
+// TestMemory_LookupMemory_AdaptsTheRequestEntity guards the entity half of the
+// lookup: each entity the request names is located on the lookup block by an
+// entity overlay span over its placeholder run, and the stores read that
+// overlay, so a generalized match adapts the stored entity to the requested
+// one. The span was anchored by byte offsets into text that skips placeholders,
+// which put it on the text after the placeholder, and the stores read the
+// block's annotations map, which held none.
+func TestMemory_LookupMemory_AdaptsTheRequestEntity(t *testing.T) {
+	app := newTestApp(t)
+	handle := openTestMemory(t, app)
+	require.NoError(t, app.AddMemoryEntry(handle, AddMemoryEntryRequest{
+		Variants: map[string]VariantInputDTO{
+			"en-US": {Text: "Contact Acme for support"},
+			"fr-FR": {Text: "Contactez Acme pour le support"},
+		},
+		HintSrcLang: "en-US",
+	}))
+	entries := app.SearchMemoryEntries(handle, "", "", "", 0, 10)
+	require.Len(t, entries.Entries, 1)
+	annotated, err := app.AnnotateEntities(handle, AnnotateEntitiesRequest{
+		EntryIDs: []string{entries.Entries[0].ID},
+		Patterns: []EntityPatternRequest{{Text: "Acme", EntityType: "entity:organization"}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, annotated.EntriesUpdated)
+
+	got := app.LookupMemory(handle, LookupMemoryRequest{
+		Text:         "Contact Globex for support",
+		Entities:     []EntityAnnotationDTO{{Text: "Globex", Type: "entity:organization", Start: 8, End: 14}},
+		SourceLocale: "en-US",
+		TargetLocale: "fr-FR",
+		MinScore:     0.5,
+	})
+	require.Len(t, got, 1)
+	require.Len(t, got[0].EntityAdaptations, 1, "the stored entity is adapted to the requested one")
+	a := got[0].EntityAdaptations[0]
+	assert.Equal(t, "Acme", a.StoredValue)
+	assert.Equal(t, "Globex", a.CurrentValue)
+	assert.Equal(t, "entity:organization", a.Type)
+}
+
+// TestMemory_AnnotateEntities_PairsAnEntityAcrossVariants holds one entity to
+// one placeholder id in every variant, whatever order a translation puts the
+// entities in, so a lookup adapts each stored entity to the one the request
+// names in its place.
+func TestMemory_AnnotateEntities_PairsAnEntityAcrossVariants(t *testing.T) {
+	app := newTestApp(t)
+	handle := openTestMemory(t, app)
+	require.NoError(t, app.AddMemoryEntry(handle, AddMemoryEntryRequest{
+		Variants: map[string]VariantInputDTO{
+			"en-US": {Text: "Ask Acme or Initech."},
+			"fr-FR": {Text: "Demandez à Initech ou Acme."},
+		},
+		HintSrcLang: "en-US",
+	}))
+	entries := app.SearchMemoryEntries(handle, "", "", "", 0, 10)
+	require.Len(t, entries.Entries, 1)
+	_, err := app.AnnotateEntities(handle, AnnotateEntitiesRequest{
+		EntryIDs: []string{entries.Entries[0].ID},
+		Patterns: []EntityPatternRequest{
+			{Text: "Acme", EntityType: "entity:organization", CaseSensitive: true},
+			{Text: "Initech", EntityType: "entity:organization", CaseSensitive: true},
+		},
+	})
+	require.NoError(t, err)
+
+	got := app.GetMemoryEntry(handle, entries.Entries[0].ID)
+	require.NotNil(t, got)
+	for _, em := range got.Entities {
+		assert.Equal(t, em.Values["en-US"].Text, em.Values["fr-FR"].Text, "%s pairs one entity in both variants", em.PlaceholderID)
+	}
+
+	matches := app.LookupMemory(handle, LookupMemoryRequest{
+		Text: "Ask Globex or Hooli.",
+		Entities: []EntityAnnotationDTO{
+			{Text: "Globex", Type: "entity:organization", Start: 4, End: 10},
+			{Text: "Hooli", Type: "entity:organization", Start: 14, End: 19},
+		},
+		SourceLocale: "en-US",
+		TargetLocale: "fr-FR",
+		MinScore:     0.5,
+	})
+	require.Len(t, matches, 1)
+	adapted := map[string]string{}
+	for _, a := range matches[0].EntityAdaptations {
+		adapted[a.StoredValue] = a.CurrentValue
+	}
+	assert.Equal(t, map[string]string{"Acme": "Globex", "Initech": "Hooli"}, adapted)
+}
+
+// TestLookupBlock_AnchorsEachEntityToItsPlaceholder holds the overlay span of
+// every entity to the placeholder run the entity became, wherever it sits and
+// whatever the text before it is written in. Offsets count code points.
+func TestLookupBlock_AnchorsEachEntityToItsPlaceholder(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		entities []EntityAnnotationDTO
+		want     []string
+	}{
+		{
+			name:     "one entity",
+			text:     "Contact Acme for support",
+			entities: []EntityAnnotationDTO{{Text: "Acme", Type: "entity:organization", Start: 8, End: 12}},
+			want:     []string{"Acme"},
+		},
+		{
+			name: "two entities after text that is not ASCII",
+			text: "Kontakt för Acme och Globex idag",
+			entities: []EntityAnnotationDTO{
+				{Text: "Globex", Type: "entity:organization", Start: 21, End: 27},
+				{Text: "Acme", Type: "entity:organization", Start: 12, End: 16},
+			},
+			want: []string{"Acme", "Globex"},
+		},
+		{
+			name: "an entity that overlaps an earlier one is left out",
+			text: "Contact Acme Corp now",
+			entities: []EntityAnnotationDTO{
+				{Text: "Acme Corp", Type: "entity:organization", Start: 8, End: 17},
+				{Text: "Corp", Type: "entity:organization", Start: 13, End: 17},
+			},
+			want: []string{"Acme Corp"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := lookupBlock(tt.text, tt.entities)
+			overlay := b.OverlayOf(model.OverlayEntity)
+			require.NotNil(t, overlay)
+			require.Len(t, overlay.Spans, len(tt.want))
+			for i, sp := range overlay.Spans {
+				covered := sp.Range.ExtractRuns(b.SourceRuns())
+				require.Len(t, covered, 1, "the span covers the placeholder run and nothing else")
+				require.NotNil(t, covered[0].Ph)
+				assert.Equal(t, tt.want[i], covered[0].Ph.Data)
+				assert.Equal(t, tt.want[i], sp.Value.(*model.EntityAnnotation).Text)
+			}
+		})
+	}
+}
+
 func TestMemory_DeleteEntry(t *testing.T) {
 	app := newTestApp(t)
 	handle := openTestMemory(t, app)

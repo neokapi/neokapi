@@ -86,7 +86,7 @@ func TestRemapOverlays_RebasesADerivedEdition(t *testing.T) {
 	b.SetTargetRuns("fr", newFr)
 	dropped := model.RemapOverlays(b, &fr, oldFr, newFr, []model.RunEdit{{Start: 0, End: 7, NewLen: 5}})
 
-	assert.Equal(t, 1, dropped, "the term over the replaced word is dropped")
+	assert.Equal(t, 0, dropped)
 	var frTerms *model.Overlay
 	for i := range b.Overlays {
 		if b.Overlays[i].Type == model.OverlayTerm && !b.Overlays[i].OnSource() {
@@ -94,8 +94,9 @@ func TestRemapOverlays_RebasesADerivedEdition(t *testing.T) {
 		}
 	}
 	require.NotNil(t, frTerms)
-	require.Len(t, frTerms.Spans, 1)
-	assert.Equal(t, "monde", model.RunsText(frTerms.Spans[0].Range.ExtractRuns(newFr)))
+	require.Len(t, frTerms.Spans, 2)
+	assert.Equal(t, "Salut", model.RunsText(frTerms.Spans[0].Range.ExtractRuns(newFr)), "the term over the replaced word covers its replacement")
+	assert.Equal(t, "monde", model.RunsText(frTerms.Spans[1].Range.ExtractRuns(newFr)))
 	assert.Equal(t, "world", termSpanText(t, b, "w"), "the source overlay is untouched")
 	_, ok := b.OverlaysInBounds(&fr, newFr)
 	assert.True(t, ok)
@@ -403,4 +404,89 @@ func TestAnchor_InBounds(t *testing.T) {
 	assert.False(t, model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 6}).InBounds(runs), "offset past the run text")
 	assert.False(t, model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 2}).InBounds(runs), "run index past end")
 	assert.False(t, model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 0}).InBounds(runs), "start past end")
+}
+
+// A span follows the text it covers. An edit inside it, or one that replaces
+// all of its text, keeps it over the new text; an edit across one of its
+// boundaries keeps it over the part of its text the edit left; it goes only
+// when the edits delete everything it covered. A quality finding states
+// something about the exact text under it, so an edit there drops it.
+func TestRemapOverlays_ASpanFollowsAnEditToItsText(t *testing.T) {
+	const old = "Grind the coffee beans now"
+	tests := []struct {
+		name  string
+		typ   model.OverlayType
+		span  [2]int // over old
+		edits []model.RunEdit
+		next  string
+		want  string // "" when the span is dropped
+	}{
+		{"an edit inside the span", model.OverlayTerm, [2]int{10, 22},
+			[]model.RunEdit{{Start: 17, End: 22, NewLen: 7}}, "Grind the coffee grounds now", "coffee grounds"},
+		{"an edit replacing all of its text", "xliff2:mrk", [2]int{10, 16},
+			[]model.RunEdit{{Start: 10, End: 16, NewLen: 3}}, "Grind the tea beans now", "tea"},
+		{"an edit at its start", model.OverlayEntity, [2]int{10, 22},
+			[]model.RunEdit{{Start: 10, End: 16, NewLen: 3}}, "Grind the tea beans now", "tea beans"},
+		{"an edit across its start", model.OverlayTerm, [2]int{10, 22},
+			[]model.RunEdit{{Start: 6, End: 16, NewLen: 5}}, "Grind a tea beans now", " beans"},
+		{"an edit across its end", model.OverlayTerm, [2]int{6, 16},
+			[]model.RunEdit{{Start: 10, End: 22, NewLen: 3}}, "Grind the tea now", "the "},
+		{"a case conversion across its end", model.OverlayTerm, [2]int{6, 13},
+			[]model.RunEdit{{Start: 10, End: 16, NewLen: 6}}, "Grind the COFFEE beans now", "the COF"},
+		{"an insertion at its start goes before it", model.OverlayTerm, [2]int{10, 16},
+			[]model.RunEdit{{Start: 10, End: 10, NewLen: 4}}, "Grind the hot coffee beans now", "coffee"},
+		{"an insertion at its end goes after it", model.OverlayTerm, [2]int{10, 16},
+			[]model.RunEdit{{Start: 16, End: 16, NewLen: 1}}, "Grind the coffees beans now", "coffee"},
+		{"an edit deleting all of its text", model.OverlayTerm, [2]int{10, 17},
+			[]model.RunEdit{{Start: 10, End: 17, NewLen: 0}}, "Grind the beans now", ""},
+		{"an edit replacing its text from outside", model.OverlayTerm, [2]int{10, 16},
+			[]model.RunEdit{{Start: 6, End: 16, NewLen: 3}}, "Grind tea beans now", ""},
+		{"a finding under an edit", model.OverlayCheck, [2]int{10, 22},
+			[]model.RunEdit{{Start: 17, End: 22, NewLen: 7}}, "Grind the coffee grounds now", ""},
+		{"a finding after an edit", model.OverlayCheck, [2]int{17, 22},
+			[]model.RunEdit{{Start: 0, End: 5, NewLen: 4}}, "Brew the coffee beans now", "beans"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := model.NewBlock("b1", old)
+			before := b.Source
+			b.Overlays = []model.Overlay{{Type: tt.typ, Spans: []model.Span{{ID: "x", Range: model.RangeAnchor(before, tt.span[0], tt.span[1])}}}}
+			b.SetSourceText(tt.next)
+
+			dropped := model.RemapOverlays(b, nil, before, b.Source, tt.edits)
+
+			sp := b.OverlaySpan(tt.typ, "x")
+			if tt.want == "" {
+				assert.Equal(t, 1, dropped)
+				assert.Nil(t, sp)
+				return
+			}
+			assert.Equal(t, 0, dropped)
+			require.NotNil(t, sp)
+			assert.Equal(t, tt.want, model.RunsText(sp.Range.ExtractRuns(b.Source)))
+		})
+	}
+}
+
+// One edit per changed character, the shape a conversion edit by edit takes,
+// keeps every span over the characters it changed.
+func TestRemapOverlays_KeepsSpansAcrossManyEdits(t *testing.T) {
+	const old = "grind the coffee"
+	b := model.NewBlock("b1", old)
+	before := b.Source
+	b.Overlays = []model.Overlay{{Type: model.OverlayTerm, Spans: []model.Span{
+		{ID: "the", Range: model.RangeAnchor(before, 6, 9)},
+		{ID: "coffee", Range: model.RangeAnchor(before, 10, 16)},
+	}}}
+	var edits []model.RunEdit
+	for i, r := range old {
+		if r != ' ' {
+			edits = append(edits, model.RunEdit{Start: i, End: i + 1, NewLen: 1})
+		}
+	}
+	b.SetSourceText("GRIND THE COFFEE")
+
+	assert.Equal(t, 0, model.RemapOverlays(b, nil, before, b.Source, edits))
+	assert.Equal(t, "THE", termSpanText(t, b, "the"))
+	assert.Equal(t, "COFFEE", termSpanText(t, b, "coffee"))
 }

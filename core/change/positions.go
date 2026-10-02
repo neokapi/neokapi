@@ -3,6 +3,7 @@ package change
 import (
 	"fmt"
 	"maps"
+	"sort"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -25,10 +26,97 @@ import (
 // resolveSelection resolves a selection in seq to code-point offsets of its
 // own text.
 func resolveSelection(seq []model.Run, sel Selection, path model.RunPath, field string) (start, end int, err *Error) {
-	text := []rune(model.SequenceText(seq))
+	return indexSequence(seq).resolve(sel, path, field)
+}
+
+// seqIndex answers position questions about one run sequence in logarithmic
+// time, so an operation with many edits in one sequence reads the sequence
+// once rather than once per edit.
+type seqIndex struct {
+	seq  []model.Run
+	text []rune // the sequence's own text (model.SequenceText)
+	// own[i] is the own-text offset at the start of run i, and flat[i] the
+	// offset in the flattened text (model.RunsText), in which a plural or
+	// select has the width of its other branch. Both end with the total.
+	own, flat []int
+}
+
+func indexSequence(seq []model.Run) *seqIndex {
+	ix := &seqIndex{seq: seq, own: make([]int, len(seq)+1), flat: make([]int, len(seq)+1)}
+	for i, r := range seq {
+		w, fw := 0, 0
+		switch {
+		case r.Text != nil:
+			n := len(ix.text)
+			ix.text = append(ix.text, []rune(r.Text.Text)...)
+			w = len(ix.text) - n
+			fw = w
+		case r.Plural != nil || r.Select != nil:
+			fw = utf8.RuneCountInString(model.RunsText(seq[i : i+1]))
+		}
+		ix.own[i+1] = ix.own[i] + w
+		ix.flat[i+1] = ix.flat[i] + fw
+	}
+	return ix
+}
+
+// posAt is the run position of a code-point offset into the sequence's own
+// text, with RangeAnchor's attribution: a boundary at the end of a text run is
+// the start of the run after it.
+func (ix *seqIndex) posAt(offset int) model.RunPos {
+	if offset <= 0 {
+		return model.RunPos{}
+	}
+	// The first run whose end reaches offset is a text run holding it, since a
+	// run with no width cannot be the first to reach an offset past zero.
+	i := sort.Search(len(ix.seq), func(i int) bool { return ix.own[i+1] >= offset })
+	if i == len(ix.seq) {
+		return model.RunPos{Run: len(ix.seq)}
+	}
+	if offset < ix.own[i+1] {
+		return model.RunPos{Run: i, Offset: offset - ix.own[i]}
+	}
+	return model.RunPos{Run: i + 1}
+}
+
+// ownOffset is the code-point offset into the sequence's own text of a run
+// position.
+func (ix *seqIndex) ownOffset(p model.RunPos) int {
+	switch {
+	case p.Run < 0:
+		return 0
+	case p.Run >= len(ix.seq):
+		return ix.own[len(ix.seq)]
+	case ix.seq[p.Run].Text != nil:
+		return ix.own[p.Run] + p.Offset
+	}
+	return ix.own[p.Run]
+}
+
+// flatAt is the offset in the flattened text of an offset into the own text.
+// Several plurals and selects can sit at one own-text offset, each with the
+// width of its branch in the flattened text; after says whether the offset
+// lies after them or before them.
+func (ix *seqIndex) flatAt(own int, after bool) int {
+	n := len(ix.seq)
+	i := sort.SearchInts(ix.own, own) // the first run boundary at or past own
+	if i > n || ix.own[i] > own {
+		// own lies inside text run i-1.
+		return ix.flat[i-1] + own - ix.own[i-1]
+	}
+	if after {
+		i = sort.SearchInts(ix.own, own+1) - 1 // the last boundary at own
+	}
+	return ix.flat[i]
+}
+
+// resolve resolves a selection to code-point offsets of the sequence's own
+// text.
+func (ix *seqIndex) resolve(sel Selection, path model.RunPath, field string) (start, end int, err *Error) {
+	seq, text := ix.seq, ix.text
 	switch {
 	case sel.Find != nil:
-		start, end, err = resolveFind(seq, text, *sel.Find, sel.Occurrence, path, field)
+		start, end, err = ix.resolveFind(*sel.Find, sel.Occurrence, path, field)
 	case sel.Start != nil:
 		start, end = *sel.Start, *sel.End
 		if start < 0 || end < start || end > len(text) {
@@ -47,22 +135,23 @@ func resolveSelection(seq []model.Run, sel Selection, path model.RunPath, field 
 					Message: fmt.Sprintf("the range covers the %s at run %d; edit one of its branches with path", seq[i].Kind(), i)}
 			}
 		}
-		start, end = ownOffset(seq, sel.Range.Start), ownOffset(seq, sel.Range.End)
+		start, end = ix.ownOffset(sel.Range.Start), ix.ownOffset(sel.Range.End)
 	default:
 		return 0, 0, &Error{Code: CodeInvalid, Field: field, Message: "names its text by exactly one of find, start and end, or range"}
 	}
 	if err != nil {
 		return 0, 0, err
 	}
-	if j, ok := structureInside(seq, start, end); ok {
+	if j, ok := ix.structureInside(start, end); ok {
 		return 0, 0, &Error{Code: CodeGuard, Subcode: SubcodeStructureLost, Field: field,
 			Message: fmt.Sprintf("the text spans the %s at run %d; edit one of its branches with path", seq[j].Kind(), j)}
 	}
 	return start, end, nil
 }
 
-// resolveFind finds the occurrence-th match of find in text.
-func resolveFind(seq []model.Run, text []rune, find string, occurrence int, path model.RunPath, field string) (int, int, *Error) {
+// resolveFind finds the occurrence-th match of find in the sequence's text.
+func (ix *seqIndex) resolveFind(find string, occurrence int, path model.RunPath, field string) (int, int, *Error) {
+	text := ix.text
 	needle := []rune(find)
 	var matches []int
 	for i := 0; i+len(needle) <= len(text); {
@@ -80,7 +169,7 @@ func resolveFind(seq []model.Run, text []rune, find string, occurrence int, path
 		e := &Error{Code: CodeAmbiguous, Field: field + "/find",
 			Message: fmt.Sprintf("%q matches %d times; send occurrence to choose one", find, len(matches))}
 		for n, at := range matches {
-			r := Resolved{Path: path, Start: posAt(seq, at), End: posAt(seq, at+len(needle))}
+			r := Resolved{Path: path, Start: ix.posAt(at), End: ix.posAt(at + len(needle))}
 			e.Candidates = append(e.Candidates, Candidate{Occurrence: n + 1, At: &r, Text: around(text, at, at+len(needle))})
 		}
 		return 0, 0, e
@@ -136,30 +225,17 @@ func posAt(seq []model.Run, offset int) model.RunPos {
 	return model.RunPos{Run: len(seq)}
 }
 
-// ownOffset is the code-point offset into seq's own text of a run position.
-func ownOffset(seq []model.Run, p model.RunPos) int {
-	off := 0
-	for i := 0; i < p.Run && i < len(seq); i++ {
-		if seq[i].Text != nil {
-			off += utf8.RuneCountInString(seq[i].Text.Text)
-		}
+// structureInside reports a plural or select of the sequence that lies
+// strictly inside [start, end) of its own text, which an edit there would
+// delete.
+func (ix *seqIndex) structureInside(start, end int) (int, bool) {
+	if end-start < 2 {
+		return 0, false
 	}
-	if p.Run < len(seq) && seq[p.Run].Text != nil {
-		off += p.Offset
-	}
-	return off
-}
-
-// structureInside reports a plural or select of seq that lies strictly inside
-// [start, end) of its own text, which an edit there would delete.
-func structureInside(seq []model.Run, start, end int) (int, bool) {
-	off := 0
-	for i, r := range seq {
-		if r.Text != nil {
-			off += utf8.RuneCountInString(r.Text.Text)
-			continue
-		}
-		if (r.Plural != nil || r.Select != nil) && start < off && off < end {
+	// Runs whose start lies strictly inside the range.
+	from := sort.SearchInts(ix.own, start+1)
+	for i := from; i < len(ix.seq) && ix.own[i] < end; i++ {
+		if r := ix.seq[i]; r.Plural != nil || r.Select != nil {
 			return i, true
 		}
 	}

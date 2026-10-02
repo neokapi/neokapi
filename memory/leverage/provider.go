@@ -17,7 +17,6 @@ package leverage
 import (
 	"context"
 	"math"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/edit"
 	corememory "github.com/neokapi/neokapi/core/memory"
@@ -151,31 +150,12 @@ func (p *Provider) PriorVersion(ctx context.Context, req corememory.VersionReque
 	return corememory.Version{Source: src, Target: tgt}, true
 }
 
-// ApplyEntityAdaptations substitutes entity values in a target Run sequence
-// based on the adaptations computed during matching, returning a new Run
-// sequence; the input runs are not mutated. Text is substituted inside TextRun
-// only — Ph/PcOpen/PcClose payloads are passed through unchanged, so inline
-// codes and placeholders survive the retargeting. An empty adaptation set (the
-// common case: no entity annotations, or a plain match) returns the runs
-// unchanged.
+// ApplyEntityAdaptations returns target with each adaptation computed during
+// matching substituted where the target holds the entity exactly: its
+// placeholder run, or the one whole-word occurrence of the stored value
+// (memory.AdaptEntities). An adaptation the target does not locate is skipped,
+// so text that only contains the stored value is never rewritten. Inline codes
+// and structure pass through; the input runs are not mutated.
 func ApplyEntityAdaptations(target []model.Run, adaptations []memory.EntityAdaptation) []model.Run {
-	if len(target) == 0 || len(adaptations) == 0 {
-		return target
-	}
-	out := make([]model.Run, len(target))
-	copy(out, target)
-	for _, adapt := range adaptations {
-		for i := range out {
-			if out[i].Text == nil {
-				continue
-			}
-			if strings.Contains(out[i].Text.Text, adapt.StoredValue) {
-				newRun := *out[i].Text
-				newRun.Text = strings.Replace(newRun.Text, adapt.StoredValue, adapt.CurrentValue, 1)
-				out[i] = model.Run{Text: &newRun}
-				break
-			}
-		}
-	}
-	return out
+	return memory.AdaptEntities(target, adaptations)
 }

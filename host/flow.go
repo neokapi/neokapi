@@ -1804,6 +1804,9 @@ func (a *App) openTerms(cmd ...Command) (sqlterms.Store, func(), error) {
 	if sel.Path == "" {
 		return nil, noop, nil
 	}
+	if err := requireNamedTermsStore(cmd[0], sel); err != nil {
+		return nil, nil, err
+	}
 	if !sel.Explicit {
 		if held, _ := storage.Exists(sel.Path); !held {
 			// A standalone store the recipe names but nothing has created yet.
@@ -2094,6 +2097,38 @@ func (a *App) ResolveTermsStore(cmd Command, point project.GovernancePoint) (Sto
 	return StoreSelection{Root: root, Profile: rc.Profile}, nil
 }
 
+// requireNamedTermsStore refuses a terms store the caller named with
+// --termstore that does not exist. A run that read no vocabulary from a store
+// it was told to read would report every term as kept.
+func requireNamedTermsStore(cmd Command, sel StoreSelection) error {
+	if !sel.Explicit || sel.Path == "" {
+		return nil
+	}
+	held, err := storage.Exists(sel.Path)
+	if err != nil {
+		return fmt.Errorf("open terms %q: %w", sel.Path, err)
+	}
+	if held {
+		return nil
+	}
+	given := sel.Path
+	if cmd != nil {
+		if v, _ := cmd.Flags().GetString("termstore"); v != "" {
+			given = v
+		}
+	}
+	return missingTermsStore(given)
+}
+
+// missingTermsStore is the error for a terms store that does not exist, named
+// as the caller gave it, with the command that creates it.
+func missingTermsStore(given string) error {
+	if strings.ContainsAny(given, "/\\") || strings.HasSuffix(given, ".db") {
+		return fmt.Errorf("terms store %q does not exist; import terms into it with `kapi terms import <file> --file %s`", given, given)
+	}
+	return fmt.Errorf("terms store %q does not exist; import terms into it with `kapi terms import <file> --name %s`, or list the named stores with `kapi terms list`", given, given)
+}
+
 // governedTermsPath returns the file behind the terms store a resolved
 // governance names, or "" when the project's own terms govern.
 //
@@ -2205,6 +2240,9 @@ func (a *App) storeConcepts(cmd Command, point project.GovernancePoint) ([]sqlte
 			return nil, "", fmt.Errorf("list terms concepts: %w", err)
 		}
 		return concepts, sel.Profile, nil
+	}
+	if err := requireNamedTermsStore(cmd, sel); err != nil {
+		return nil, "", err
 	}
 	if sel.Path != "" {
 		if held, _ := storage.Exists(sel.Path); held {

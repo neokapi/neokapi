@@ -222,6 +222,10 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	if err != nil {
 		return nil, check.Report{}, err
 	}
+	// A translation's term rules are derived from the language the call's
+	// project writes its source in, not the language of the project the
+	// server started in.
+	vocab.sourceLocale = opts.sourceLocale
 	g, err := a.governFile(ctx, voice, vocab, in.File, opts.here())
 	if err != nil {
 		return nil, check.Report{}, err

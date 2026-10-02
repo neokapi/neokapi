@@ -3,7 +3,7 @@ package tools
 import (
 	"errors"
 	"fmt"
-	"strings"
+	"unicode"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -81,26 +81,59 @@ func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
 		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() {
 			targets = []model.LocaleID{conf.TargetLocale}
 		}
-		plan, err := textPlan(v, conf.ApplySource, targets, func(s string) (string, error) {
-			return transformCase(s, conf.Mode), nil
-		})
-		if err != nil {
-			return tool.EditPlan{}, fmt.Errorf("case-transform: %w", err)
-		}
+		plan, _ := textPlan(v, conf.ApplySource, targets, caseEdits(conf.Mode))
 		return plan, nil
 	}
 	return t
 }
 
-func transformCase(text string, mode CaseMode) string {
+// caseEdits is the case conversion's pass: one edit for each run of
+// characters the conversion changes, ending where an inline code sits so the
+// code stays between the same two characters. unicode.ToUpper, ToLower and
+// ToTitle map one code point to one, so the edits change no position and every
+// overlay span keeps the characters it covered.
+func caseEdits(mode CaseMode) textPass {
+	var convert func(rune) rune
 	switch mode {
 	case CaseUpper:
-		return strings.ToUpper(text)
+		convert = unicode.ToUpper
 	case CaseLower:
-		return strings.ToLower(text)
+		convert = unicode.ToLower
 	case CaseTitle:
-		return strings.ToTitle(text)
+		convert = unicode.ToTitle
 	default:
-		return text
+		return textPass{matches: func(textSeq) []textMatch { return nil }}
 	}
+	return textPass{matches: func(ts textSeq) []textMatch {
+		var out []textMatch
+		start := -1
+		var changed []rune
+		flush := func(end int) {
+			if start < 0 {
+				return
+			}
+			out = append(out, textMatch{start: start, end: end,
+				edits: []model.TextEdit{{Start: start, End: end, Replacement: string(changed)}}})
+			start, changed = -1, changed[:0]
+		}
+		ci := 0
+		for i, r := range ts.text {
+			for ; ci < len(ts.codes) && ts.codes[ci].at <= i; ci++ {
+				if ts.codes[ci].at == i {
+					flush(i)
+				}
+			}
+			c := convert(r)
+			if c == r {
+				flush(i)
+				continue
+			}
+			if start < 0 {
+				start = i
+			}
+			changed = append(changed, c)
+		}
+		flush(len(ts.text))
+		return out
+	}}
 }

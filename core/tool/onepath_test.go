@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -209,4 +210,77 @@ func TestView_OverlayWritesKeepWholeSpans(t *testing.T) {
 	err := dispatch(t, bt, b)
 	require.Error(t, err, "a span outside the content is refused")
 	assert.Nil(t, b.OverlaySpan(model.OverlayEntity, "e2"))
+}
+
+// In-place text edits compile to one replace_text per pass, in order, so the
+// second pass reads the text the first left; the codes stay, and a target
+// rewritten in place and whole at once is refused.
+func TestEditPlan_TextEditsApplyAsReplaceText(t *testing.T) {
+	coded := []model.Run{
+		model.TextR("Click "),
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}},
+		model.TextR("Save"),
+		{PcClose: &model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"}},
+		model.TextR(" now"),
+	}
+	edit := func(start, end int, text string) change.TextEdit {
+		return change.TextEdit{Start: &start, End: &end, Text: text}
+	}
+	b := model.NewBlock("b1", "x")
+	b.SetSourceRuns(coded)
+	b.SetTargetRuns("fr", coded)
+	bt := &tool.BaseTool{ToolName: "probe"}
+	bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+		var p tool.EditPlan
+		p.AddTextEdits(model.VariantKey{}, []change.TextEdit{edit(0, 5, "Press")})
+		p.AddTextEdits(model.VariantKey{}, []change.TextEdit{edit(11, 14, "later")})
+		p.AddTextEdits(model.Variant("fr"), []change.TextEdit{edit(6, 10, "Keep")})
+		p.AddTextEdits(model.Variant("fr"), nil)
+		return p, nil
+	}
+	require.NoError(t, dispatch(t, bt, b))
+	assert.Equal(t, `Press <x id="1"/>Save<x id="/1"/> later`, model.RunsPlaceholderText(b.SourceRuns()))
+	assert.Equal(t, `Click <x id="1"/>Keep<x id="/1"/> now`, model.RunsPlaceholderText(b.TargetRuns("fr")))
+
+	var both tool.EditPlan
+	both.SetTarget("fr", []model.Run{model.TextR("Salut")})
+	both.AddTextEdits(model.Variant("fr"), []change.TextEdit{edit(0, 1, "c")})
+	_, err := both.Ops(b)
+	require.Error(t, err)
+
+	var source tool.EditPlan
+	text := "Salut"
+	source.ReplaceAll = &text
+	source.AddTextEdits(model.VariantKey{}, []change.TextEdit{edit(0, 1, "c")})
+	_, err = source.Ops(b)
+	require.Error(t, err)
+}
+
+// A plan built as a struct literal can key a target by any spelling of its
+// language. Ops reads the maps by the canonical spelling, so fr-fr replaces
+// the fr-FR target with what the plan holds for it, rather than with nothing,
+// and two spellings of one edition are refused.
+func TestEditPlan_NonCanonicalKeysNameTheirEdition(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SetTargetText("fr-FR", "Bonjour")
+	p := tool.EditPlan{Targets: map[model.VariantKey][]model.Run{{Locale: "fr-fr"}: {model.TextR("Salut")}}}
+
+	ops, err := p.Ops(b)
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	body, ok := ops[0].Body.(*change.SetContent)
+	require.True(t, ok)
+	assert.Equal(t, "Salut", model.RunsText(body.Runs))
+	for _, r := range change.ApplyBlock(b, ops, change.BlockEnv{Actor: change.Actor{Kind: change.ActorTool, Name: "probe"}}) {
+		require.Equal(t, change.OpApplied, r.Status, "%+v", r.Error)
+	}
+	assert.Equal(t, "Salut", b.TargetText("fr-FR"))
+
+	two := tool.EditPlan{Targets: map[model.VariantKey][]model.Run{
+		{Locale: "fr-fr"}: {model.TextR("Salut")},
+		{Locale: "fr_FR"}: {model.TextR("Coucou")},
+	}}
+	_, err = two.Ops(b)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "two spellings")
 }

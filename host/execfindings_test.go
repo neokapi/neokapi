@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -66,15 +67,15 @@ func TestProducesFindingsFollowsTheIOContract(t *testing.T) {
 	for _, name := range []string{"dnt-check", "placeholder-check", "qa", "term-check", "xml-validation"} {
 		assert.True(t, ProducesFindings(reg.Schema(registry.ToolID(name))),
 			"%q produces check findings, so an exec run must report them", name)
-		assert.NotNil(t, NewFindingsCollectorFor(reg.Schema(registry.ToolID(name))),
+		assert.NotNil(t, NewFindingsCollectorFor(reg.Schema(registry.ToolID(name)), ""),
 			"%q must get a findings collector", name)
 	}
 	for _, name := range []string{"pseudo-translate", "case-transform", "search-replace", "create-target"} {
 		assert.False(t, ProducesFindings(reg.Schema(registry.ToolID(name))),
 			"%q writes content, not findings", name)
-		assert.Nil(t, NewFindingsCollectorFor(reg.Schema(registry.ToolID(name))))
+		assert.Nil(t, NewFindingsCollectorFor(reg.Schema(registry.ToolID(name)), ""))
 	}
-	assert.Nil(t, NewFindingsCollectorFor(nil), "a tool with no schema gets no collector")
+	assert.Nil(t, NewFindingsCollectorFor(nil, ""), "a tool with no schema gets no collector")
 	assert.False(t, ProducesFindings(&schema.ComponentSchema{}))
 }
 
@@ -169,4 +170,51 @@ func TestFindingsReportCarriesNoVerdict(t *testing.T) {
 	// The fields a consumer of `kapi check --output-format json` already reads.
 	assert.Contains(t, decoded, "findings")
 	assert.Contains(t, decoded, "summary")
+}
+
+// term-check records its violations as block properties rather than under the
+// findings annotation. An exec run reads them through the mapping `kapi check`
+// uses, so `kapi exec term-check` reports what the trace shows: a violation of
+// a rule fails, and one of an advisory rule reports.
+func TestFindingsCollectorReportsTermCheckViolations(t *testing.T) {
+	cfg := &coretools.TermCheckConfig{
+		SourceLocale: "en",
+		TargetLocale: "fr",
+		TermRules: []profile.TermRule{
+			{Term: "dashboard", Replacement: "tableau de bord"},
+			{Term: "sign in", Replacement: "se connecter", Advisory: true},
+		},
+	}
+	b := &model.Block{ID: "login", Translatable: true}
+	b.SetSourceText("Open the dashboard to sign in.")
+	b.SetTargetText("fr", "Ouvrez le panneau pour vous identifier.")
+	require.NoError(t, RunCheckTool(context.Background(), coretools.NewTermCheckTool(cfg), b))
+	require.NotEmpty(t, b.Properties[coretools.PropTermCheckErrors], "the tool recorded the violation")
+
+	c := &findingsCollector{}
+	require.NoError(t, c.Collect(context.Background(), &flow.Item{
+		Input: &model.RawDocument{URI: "login.xlf"},
+	}, []*model.Part{{Type: model.PartBlock, Resource: b}}))
+	res, err := c.Result()
+	require.NoError(t, err)
+	report := res.Data.(findingsReport)
+
+	require.Len(t, report.Findings, 2)
+	byFails := map[bool]check.Diagnostic{}
+	for _, d := range report.Findings {
+		assert.Equal(t, "term-check.terminology", d.Rule, "the rule id names the tool that was run")
+		assert.Equal(t, "login.xlf", d.Location.File)
+		assert.Equal(t, "login", d.Location.Block)
+		byFails[d.Fails] = d
+	}
+	assert.Contains(t, byFails[true].Message, `"dashboard"`)
+	assert.Contains(t, byFails[true].Message, `"tableau de bord"`)
+	assert.Contains(t, byFails[false].Message, `"sign in"`, "an advisory rule reports")
+	assert.Equal(t, 1, report.Summary.Failing)
+	assert.Equal(t, 1, report.Summary.Reporting)
+
+	var buf bytes.Buffer
+	report.FormatTable(&buf)
+	assert.NotContains(t, buf.String(), "No findings.")
+	assert.Contains(t, buf.String(), "1 failing, 1 reported")
 }

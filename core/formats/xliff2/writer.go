@@ -759,8 +759,9 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 		// the original id-less `<segment>` verbatim would diverge).
 
 		if srcEl := segEl.SelectElement("source"); srcEl != nil && modelSrc != nil {
-			if !segmentMatchesDOM(srcEl, modelSrc) {
-				replaceInlineChildren(srcEl, modelSrc)
+			codes := blockCodes(block, modelSrc)
+			if !segmentMatchesDOM(srcEl, modelSrc, codes) {
+				replaceInlineChildren(srcEl, modelSrc, codes)
 				patched = true
 			}
 		}
@@ -796,10 +797,10 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 				} else {
 					segEl.AddChild(tgtEl)
 				}
-				replaceInlineChildren(tgtEl, modelTgt)
+				replaceInlineChildren(tgtEl, modelTgt, blockCodes(block, modelTgt))
 				patched = true
-			} else if !segmentMatchesDOM(tgtEl, modelTgt) {
-				replaceInlineChildren(tgtEl, modelTgt)
+			} else if codes := blockCodes(block, modelTgt); !segmentMatchesDOM(tgtEl, modelTgt, codes) {
+				replaceInlineChildren(tgtEl, modelTgt, codes)
 				patched = true
 			}
 			// xml:space="preserve" is significant for XLIFF white-
@@ -1237,63 +1238,24 @@ func walkXliff2El(el *etree.Element, f func(*etree.Element)) {
 	}
 }
 
-// segmentMatchesDOM reports whether the seg's content matches what's
-// already in the DOM element. The comparison uses the segment's inline IR
-// when it is **fresh** (its text content agrees with seg.Runs); otherwise
-// falls back to text-only comparison via seg.Runs. Self-detecting freshness
-// removes the caller-contract footgun where a tool modifies seg.Runs but
-// leaves a stale IR behind — we'd otherwise silently skip patching.
-func segmentMatchesDOM(domEl *etree.Element, s *seg) bool {
+// segmentMatchesDOM reports whether the DOM element already holds what the
+// writer would write for the segment: the inline IR segmentBody gives it,
+// markers drawn from the overlays included, or for a segment with no IR its
+// text. A segment an edit or an annotation changed therefore differs, and is
+// patched, on this path as on every other.
+func segmentMatchesDOM(domEl *etree.Element, s *seg, codes codeIndex) bool {
 	if s == nil {
 		return true
 	}
-	if ir := freshInlineIR(s); ir != nil {
-		return inlinesEqual(ir.Inlines, parseInlines(domEl))
+	if inls, _, ok := segmentBody(s, codes); ok {
+		return inlinesEqual(inls, parseInlines(domEl))
 	}
 	return domElementText(domEl) == runsFlatText(s.Runs)
 }
 
-// freshInlineIR returns the segment's inline IR Content when it is fresh —
-// i.e., its concatenated text equals the segment's Runs' concatenated text.
-// Returns nil when no IR is attached or when it has been invalidated by a
-// Run-side modification.
-func freshInlineIR(s *seg) *Content {
-	if s == nil || s.Content == nil {
-		return nil
-	}
-	if inlinesFlatText(s.Content.Inlines) != runsFlatText(s.Runs) {
-		return nil
-	}
-	return s.Content
-}
-
-// inlinesFlatText returns the concatenated text content of an Inline
-// tree, recursing into pc/mrk children. Placeholder elements (ph/sc/
-// ec/sm/em) and code-point markers contribute nothing — they're
-// position-stable across modifications and don't carry comparable text.
-func inlinesFlatText(inls []Inline) string {
-	var sb strings.Builder
-	collectInlineText(&sb, inls)
-	return sb.String()
-}
-
-func collectInlineText(sb *strings.Builder, inls []Inline) {
-	for _, in := range inls {
-		switch {
-		case in.Text != nil:
-			sb.WriteString(in.Text.Content)
-		case in.Pc != nil:
-			collectInlineText(sb, in.Pc.Children)
-		case in.Mrk != nil:
-			collectInlineText(sb, in.Mrk.Children)
-		}
-	}
-}
-
 // runsFlatText returns the concatenated text content of a Run sequence,
-// counting only TextRun nodes. Used as the freshness ground truth for
-// SegmentInlineAnnotation: tools that modify text-bearing Runs change
-// this output, signaling that the annotation is stale.
+// counting only TextRun nodes: what a segment with no inline IR is compared
+// to the document by.
 func runsFlatText(runs []model.Run) string {
 	var sb strings.Builder
 	for _, r := range runs {
@@ -1359,15 +1321,15 @@ func collectText(sb *strings.Builder, el *etree.Element) {
 	}
 }
 
-// replaceInlineChildren wipes the element's children and re-renders
-// them from the segment's content. Prefers the fresh IR (preserves
-// inline-code attribute fidelity); falls back to the Runs' text when
-// the IR is stale or absent (loses inline attributes on the patched
-// segment but keeps text correct).
-func replaceInlineChildren(el *etree.Element, s *seg) {
+// replaceInlineChildren wipes the element's children and re-renders them
+// from the segment's inline IR (segmentBody), which keeps the inline codes'
+// attributes and the markers; it falls back to the runs' text for runs no
+// XLIFF 2 markup expresses. codes are the attributes the document gave the
+// unit's codes.
+func replaceInlineChildren(el *etree.Element, s *seg, codes codeIndex) {
 	el.Child = nil
-	if ir := freshInlineIR(s); ir != nil {
-		renderInlinesInto(el, ir.Inlines)
+	if inls, _, ok := segmentBody(s, codes); ok {
+		renderInlinesInto(el, inls)
 		return
 	}
 	el.SetText(model.RenderRunsWithData(s.Runs))
@@ -1549,7 +1511,7 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		}
 
 		srcEl := segEl.CreateElement("source")
-		w.writeSegmentInline(srcEl, srcSeg)
+		w.writeSegmentInline(srcEl, srcSeg, blockCodes(block, srcSeg))
 
 		// Pair the target segment: by id when ids are present (the
 		// segmented case carries overlay span ids), else positionally
@@ -1564,6 +1526,12 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 					break
 				}
 			}
+			// A translation with no segmentation, such as one a tool wrote
+			// for the unit, is one text, and the unit's first segment takes
+			// it, as on the skeleton path (renderTargetRef).
+			if tgt == nil && i == 0 && len(tgtSegs) == 1 && tgtSegs[0].ID == "" {
+				tgt = &tgtSegs[0]
+			}
 		} else if i < len(tgtSegs) {
 			tgt = &tgtSegs[i]
 		}
@@ -1572,7 +1540,7 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		// unmatched prefill segments don't produce empty <target>s.
 		if tgt != nil && (byID || len(tgt.Runs) > 0 || tgt.Content != nil) {
 			tgtEl := segEl.CreateElement("target")
-			w.writeSegmentInline(tgtEl, tgt)
+			w.writeSegmentInline(tgtEl, tgt, blockCodes(block, tgt))
 			// Surface the target's lifecycle status as the segment state, so a
 			// produced XLIFF reports where each unit stands. Scratch-build path
 			// only (this function is never called on the byte-exact round-trip
@@ -1586,20 +1554,18 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 	}
 }
 
-// writeSegmentInline writes the segment's body into el using the
-// fresh per-segment Inline IR when available, falling back to the
-// segment's Run text otherwise. See freshInlineIR for staleness
-// detection.
-func (w *Writer) writeSegmentInline(el *etree.Element, s *seg) {
+// writeSegmentInline writes the segment's body into el from its inline IR
+// (segmentBody), falling back to the segment's run text for a segment that
+// has none. codes are the attributes the document gave the unit's codes.
+func (w *Writer) writeSegmentInline(el *etree.Element, s *seg, codes codeIndex) {
 	if s == nil {
 		return
 	}
-	if ir := freshInlineIR(s); ir != nil {
-		// Marks are spliced here rather than stored on the IR: the IR is the
-		// document's own inline structure, and a term span is a conclusion
-		// about it. Drawing at emit time keeps a re-read from finding marks
-		// the source file never carried.
-		inls, unplaced := spliceMarks(ir.Inlines, s.Runs, s.Marks)
+	// Marks are spliced at emit time rather than stored on the IR: the IR is
+	// the document's own inline structure, and a term span is a conclusion
+	// about it. Drawing at emit time keeps a re-read from finding marks the
+	// source file never carried.
+	if inls, unplaced, ok := segmentBody(s, codes); ok {
 		// A mark this segmentation cannot carry is recorded, never dropped
 		// quietly: the caller reads UnplacedTermMarks to say what was not
 		// drawn and why.

@@ -210,8 +210,9 @@ func TestTermsExportJSON(t *testing.T) {
 
 // TestTermCheckWithTerms exercises terminology checks on a pseudo-translated
 // file. Steps: pseudo-translate → term-check with terms.
-// The pseudo-translated output will not use correct French terminology, so
-// term-check flags violations and exits non-zero (a check gate, not a failure).
+// The pseudo-translated output does not use the approved French terms, so
+// term-check reports the violations. `kapi exec` reports and exits 0; the gate
+// that exits non-zero is `kapi check`.
 func TestTermCheckWithTerms(t *testing.T) {
 	tb := importedTerms(t)
 	tmp := t.TempDir()
@@ -223,16 +224,26 @@ func TestTermCheckWithTerms(t *testing.T) {
 		"--target-lang", "fr")
 	assert.FileExists(t, pseudoOut)
 
-	// Step 2: term-check against the terms store — exercises flag parsing,
-	// terms loading and processing. It runs as an informational check pass
-	// (exit 0; no stdout), so a clean run is the assertion. term-check is not
-	// in the curated TopLevelTools tier, so it executes via `kapi exec`.
-	// The store selector is --termstore (#1505): --terms is a different flag,
-	// the boolean gate on `exec dnt-check`.
-	kapi(t, "exec", "term-check", pseudoOut,
+	// Step 2: term-check against the terms store. The pseudo-translated file
+	// holds the translation alone, so the source file is named and the
+	// translation paired with --target. term-check is not in the curated
+	// TopLevelTools tier, so it executes via `kapi exec`, which reports the
+	// violations and exits 0. The store selector is --termstore (#1505):
+	// --terms is a different flag, the boolean gate on `exec dnt-check`.
+	out := kapi(t, "exec", "term-check", filepath.Join(testdata, "messages_en.json"),
+		"--target", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
 		"--termstore", tb)
+	assert.Contains(t, out, "term-check.terminology", "the pseudo text keeps none of the approved terms")
+
+	// The translation alone holds no source to compare: the run says so.
+	alone := kapi(t, "exec", "term-check", pseudoOut,
+		"--source-lang", "en",
+		"--target-lang", "fr",
+		"--termstore", tb)
+	assert.Contains(t, alone, "Did not run")
+	assert.Contains(t, alone, "--target")
 }
 
 // TestRuleCheckWithoutTerms verifies that qa works standalone for
@@ -358,12 +369,15 @@ func TestFullPipeline(t *testing.T) {
 		"--target-lang", "fr")
 	assert.FileExists(t, checkOutput)
 
-	// Step 3: Terminology checks against the terms (informational, exit 0, no
-	// stdout). Executes via `kapi exec` (not a curated top-level verb).
-	kapi(t, "exec", "term-check", pseudoOut,
+	// Step 3: Terminology checks against the terms, the source paired with
+	// its pseudo translation. Executes via `kapi exec` (not a curated
+	// top-level verb), which reports and exits 0.
+	out := kapi(t, "exec", "term-check", filepath.Join(testdata, "messages_en.json"),
+		"--target", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
 		"--termstore", tb)
+	assert.Contains(t, out, "term-check.terminology")
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

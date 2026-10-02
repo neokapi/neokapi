@@ -1,5 +1,7 @@
 package model
 
+import "sort"
+
 // Overlay rebasing for content rewrites (AD-002 / AD-006). Overlays anchor to
 // the runs of one edition: the edition Source holds (Variant nil) or a derived
 // one (Variant set). A rewrite of that edition's runs normally invalidates
@@ -37,10 +39,13 @@ func (o *Overlay) onEdition(edition *VariantKey) bool {
 // the edits applied to the flattened text. edition nil is the edition Source
 // holds. It returns the number of spans dropped.
 //
-// A range span that overlaps an edit is dropped: its content changed, so it
-// can no longer anchor cleanly. One lying entirely outside every edit is
-// shifted by the cumulative length delta of the edits before it and
-// re-anchored to newRuns. A range span inside a plural or select branch (its
+// A range span follows the text it covers (remapRangeSpan): an edit inside it
+// grows or shrinks it, an edit that replaces all of its text leaves it over the
+// replacement, an edit across one of its boundaries leaves it over the part of
+// its text the edit kept, and an edit before it shifts it. It is dropped only
+// when the edits delete everything it covered. A quality finding
+// (OverlayCheck) states something about the exact text it covers, so an edit
+// that overlaps it drops it. A range span inside a plural or select branch (its
 // anchor has a Path) is kept when the branch it points into is unchanged and
 // dropped otherwise. A block anchor is kept; a run anchor is kept while a run
 // with its id is still at its path; a form anchor is kept while its branch
@@ -77,6 +82,7 @@ func RemapOverlays(b *Block, edition *VariantKey, oldRuns, newRuns []Run, edits 
 		}
 		if bs == nil {
 			bs = newBoundaries(oldRuns, newRuns)
+			bs.edits = newEditIndex(edits)
 		}
 		if o.Type == OverlaySegmentation {
 			spans, ok := remapPartition(o.Spans, bs, edits)
@@ -88,7 +94,7 @@ func RemapOverlays(b *Block, edition *VariantKey, oldRuns, newRuns []Run, edits 
 		} else {
 			kept := make([]Span, 0, len(o.Spans))
 			for _, s := range o.Spans {
-				ns, ok := remapSpan(s, bs, edits)
+				ns, ok := remapSpan(s, bs, edits, o.Type == OverlayCheck)
 				if !ok {
 					dropped++
 					continue
@@ -165,7 +171,7 @@ func remapPartition(spans []Span, bs *boundaries, edits []RunEdit) ([]Span, bool
 	out := make([]Span, 0, len(spans))
 	for i, s := range spans {
 		if !pos[i].ok {
-			ns, ok := remapSpan(s, bs, edits)
+			ns, ok := remapSpan(s, bs, edits, false)
 			if !ok {
 				return nil, false
 			}
@@ -202,8 +208,10 @@ func isRangeKind(k AnchorKind) bool {
 	return k != AnchorBlock && k != AnchorRun && k != AnchorForm
 }
 
-// remapSpan carries one span across a rewrite of the runs it anchors to.
-func remapSpan(s Span, bs *boundaries, edits []RunEdit) (Span, bool) {
+// remapSpan carries one span across a rewrite of the runs it anchors to. A
+// range span marked exact is dropped when an edit overlaps it (see
+// RemapOverlays).
+func remapSpan(s Span, bs *boundaries, edits []RunEdit, exact bool) (Span, bool) {
 	oldRuns, newRuns := bs.oldRuns, bs.newRuns
 	a := s.Range
 	switch a.Kind {
@@ -247,40 +255,122 @@ func remapSpan(s Span, bs *boundaries, edits []RunEdit) (Span, bool) {
 		}
 		return Span{}, false
 	}
-	return remapRangeSpan(s, bs, edits)
+	if exact {
+		return remapExactSpan(s, bs, edits)
+	}
+	return remapRangeSpan(s, bs)
 }
 
-// remapRangeSpan projects a top-level range span from oldRuns to the
-// flattened-text rune span it covers, drops it if it overlaps any edit, and
-// otherwise shifts it by the cumulative delta of edits before it and
-// re-anchors it to newRuns. Edits are ascending and non-overlapping, so a
-// surviving span has every edit entirely before its start or entirely after
-// its end, so both endpoints carry the same delta.
+// remapRangeSpan carries a top-level range span across the edits by moving
+// each of its boundaries with the text beside it (editIndex.boundary): an edit
+// inside the span grows or shrinks it, an edit that replaces all of its text
+// leaves it over the replacement, and an edit across one of its boundaries
+// leaves it over the part of its text the edit kept. This is the rule
+// model.ApplyTextEdits keeps a paired code by, so a marker and a code over the
+// same text stay together. The span is dropped when nothing it covered is left.
 //
-// A shifted span that does not fit the new flattening is dropped rather than
-// clamped: the edits then do not describe the rewrite (the position lookup
-// would silently pin the span to the end), and a missing span is honest while
-// a misplaced one is corrupt.
-func remapRangeSpan(s Span, bs *boundaries, edits []RunEdit) (Span, bool) {
+// A span that does not fit the new flattening is dropped rather than clamped:
+// the edits then do not describe the rewrite (the position lookup would
+// silently pin the span to the end), and a missing span is honest while a
+// misplaced one is corrupt.
+func remapRangeSpan(s Span, bs *boundaries) (Span, bool) {
 	start, end := s.Range.TextSpan(bs.oldRuns)
-	delta := 0
+	var ns, ne int
+	if start == end {
+		// An empty span marks a point: it moves with the text before it, and
+		// goes with an edit that replaces the text around it.
+		if bs.edits.inside(start) {
+			return Span{}, false
+		}
+		ns = bs.edits.boundary(start, true)
+		ne = ns
+	} else {
+		ns, ne = bs.edits.boundary(start, true), bs.edits.boundary(end, false)
+		if ne <= ns {
+			return Span{}, false // the edits deleted everything it covered
+		}
+	}
+	if newLen := runsFlatLen(bs.newRuns); ns < 0 || ne > newLen {
+		return Span{}, false // the edits do not describe the rewrite
+	}
+	ns2 := s
+	ns2.Range = SpanAnchor(bs.carry(s.Range.Start, ns), bs.carry(s.Range.End, ne))
+	if !ns2.Range.Resolves(bs.newRuns) {
+		return Span{}, false // an end falls inside a plural or select
+	}
+	return ns2, true
+}
+
+// remapExactSpan carries a span that states something about the exact text it
+// covers: it is dropped when an edit overlaps that text, and otherwise shifted
+// by the edits before it.
+func remapExactSpan(s Span, bs *boundaries, edits []RunEdit) (Span, bool) {
+	start, end := s.Range.TextSpan(bs.oldRuns)
 	for _, e := range edits {
 		if e.Start < end && start < e.End {
 			return Span{}, false // overlaps the edit
 		}
-		if e.End <= start {
-			delta += e.NewLen - (e.End - e.Start)
+	}
+	return remapRangeSpan(s, bs)
+}
+
+// editIndex answers where a boundary moves across a set of edits in
+// logarithmic time, so carrying every span of a long block with many edits
+// stays linear in the block.
+type editIndex struct {
+	edits []RunEdit
+	// delta[i] is the length change of edits[:i].
+	delta []int
+}
+
+func newEditIndex(edits []RunEdit) editIndex {
+	ix := editIndex{edits: edits, delta: make([]int, len(edits)+1)}
+	for i, e := range edits {
+		ix.delta[i+1] = ix.delta[i] + e.NewLen - (e.End - e.Start)
+	}
+	return ix
+}
+
+// boundary maps a span boundary at offset p of the old text to the new text.
+// start says the boundary opens the span; otherwise it closes it.
+//
+// An edit before p shifts it. Text inserted at p goes outside the span: before
+// a start, after an end. A boundary strictly inside an edit stays at the same
+// offset into the edit's text when the edit keeps its length (a case
+// conversion), and otherwise moves to the side of the replacement that keeps
+// the replacement out of the span: a start to its end, an end to its start.
+// An edit starting at a start, or ending at an end, therefore lies inside the
+// span.
+func (ix editIndex) boundary(p int, start bool) int {
+	edits := ix.edits
+	i := sort.Search(len(edits), func(i int) bool { return edits[i].End >= p })
+	d := ix.delta[i]
+	for ; i < len(edits) && edits[i].End == p; i++ {
+		if edits[i].Start == p && !start {
+			break // an insertion at an end lies after it
+		}
+		d += edits[i].NewLen - (edits[i].End - edits[i].Start)
+	}
+	if i < len(edits) && edits[i].Start < p && p < edits[i].End {
+		e := edits[i]
+		switch {
+		case e.NewLen == e.End-e.Start:
+			return p + d
+		case start:
+			return e.Start + d + e.NewLen
+		default:
+			return e.Start + d
 		}
 	}
-	if newLen := runsFlatLen(bs.newRuns); start+delta < 0 || end+delta > newLen {
-		return Span{}, false // the edits do not describe the rewrite
-	}
-	ns := s
-	ns.Range = SpanAnchor(bs.carry(s.Range.Start, start+delta), bs.carry(s.Range.End, end+delta))
-	if !ns.Range.Resolves(bs.newRuns) {
-		return Span{}, false // an end falls inside a plural or select
-	}
-	return ns, true
+	return p + d
+}
+
+// inside reports whether p lies strictly inside an edit that changes the
+// length of its text.
+func (ix editIndex) inside(p int) bool {
+	edits := ix.edits
+	i := sort.Search(len(edits), func(i int) bool { return edits[i].End > p })
+	return i < len(edits) && edits[i].Start < p && edits[i].NewLen != edits[i].End-edits[i].Start
 }
 
 // boundaries carries range boundaries from a run sequence to its rewrite. The
@@ -292,6 +382,8 @@ type boundaries struct {
 	// newCode holds, for each run of oldRuns, the index in newRuns of the code
 	// it became, or -1 for a text run or a code the rewrite removed.
 	newCode []int
+	// edits says where a boundary's text offset moves.
+	edits editIndex
 }
 
 // newBoundaries pairs the codes of oldRuns with those of newRuns in order:

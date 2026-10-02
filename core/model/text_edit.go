@@ -124,6 +124,8 @@ func ApplyTextEdits(runs []Run, edits []TextEdit) []Run {
 	newText = append(newText, old[cursor:]...)
 	newNT = append(newNT, oldNT[cursor:]...)
 
+	ix := newTextEditIndex(edits)
+
 	// A placement inserts a code into newText at newPos; seq keeps the original
 	// document order stable when several codes land on one position.
 	type placement struct {
@@ -150,8 +152,8 @@ func ApplyTextEdits(runs []Run, edits []TextEdit) []Run {
 			delete(openAt, c.run.PcClose.ID)
 			paired[oi], paired[i] = true, true
 			op := codes[oi]
-			newOpen := mapEditedPos(edits, op.pos, biasRight)
-			newClose := mapEditedPos(edits, c.pos, biasLeft)
+			newOpen := ix.mapPos(op.pos, biasRight)
+			newClose := ix.mapPos(c.pos, biasLeft)
 			switch {
 			case newClose > newOpen:
 				// Span still covers text: keep both halves, balanced.
@@ -174,10 +176,10 @@ func ApplyTextEdits(runs []Run, edits []TextEdit) []Run {
 		if paired[i] {
 			continue
 		}
-		if editStrictlyContains(edits, c.pos) && runDeletable(c.run) {
+		if ix.strictlyInside(c.pos) && runDeletable(c.run) {
 			continue // sat in deleted text and may go with it
 		}
-		places = append(places, placement{mapEditedPos(edits, c.pos, biasLeft), c.runIdx, c.run})
+		places = append(places, placement{ix.mapPos(c.pos, biasLeft), c.runIdx, c.run})
 	}
 
 	sort.SliceStable(places, func(a, b int) bool {
@@ -238,38 +240,45 @@ const (
 	biasRight
 )
 
-// mapEditedPos maps a code-point position in the original text to the
-// corresponding position in the edited text.
-func mapEditedPos(edits []TextEdit, p, bias int) int {
-	delta := 0
-	for _, e := range edits {
-		n := utf8.RuneCountInString(e.Replacement)
-		if p >= e.End {
-			delta += n - (e.End - e.Start)
-			continue
-		}
-		if p <= e.Start {
-			break
-		}
-		// e.Start < p < e.End: strictly inside a replaced range.
-		newStart := e.Start + delta
+// textEditIndex maps positions across a sorted, non-overlapping set of edits
+// in logarithmic time, so a block with many codes and many edits is rewritten
+// in time linear in its length.
+type textEditIndex struct {
+	edits []TextEdit
+	n     []int // the code points of each replacement
+	delta []int // delta[i] is the length change of edits[:i]
+}
+
+func newTextEditIndex(edits []TextEdit) textEditIndex {
+	ix := textEditIndex{edits: edits, n: make([]int, len(edits)), delta: make([]int, len(edits)+1)}
+	for i, e := range edits {
+		ix.n[i] = utf8.RuneCountInString(e.Replacement)
+		ix.delta[i+1] = ix.delta[i] + ix.n[i] - (e.End - e.Start)
+	}
+	return ix
+}
+
+// mapPos maps a code-point position in the original text to the
+// corresponding position in the edited text. A position at an edit's end, an
+// insertion's included, follows the edit; one at an edit's start precedes it.
+func (ix textEditIndex) mapPos(p, bias int) int {
+	i := sort.Search(len(ix.edits), func(i int) bool { return ix.edits[i].End > p })
+	if i < len(ix.edits) && ix.edits[i].Start < p {
+		// Strictly inside a replaced range.
+		newStart := ix.edits[i].Start + ix.delta[i]
 		if bias == biasLeft {
 			return newStart
 		}
-		return newStart + n
+		return newStart + ix.n[i]
 	}
-	return p + delta
+	return p + ix.delta[i]
 }
 
-// editStrictlyContains reports whether p lies strictly inside some replaced
-// range (boundary positions do not count).
-func editStrictlyContains(edits []TextEdit, p int) bool {
-	for _, e := range edits {
-		if p > e.Start && p < e.End {
-			return true
-		}
-	}
-	return false
+// strictlyInside reports whether p lies strictly inside some replaced range
+// (boundary positions do not count).
+func (ix textEditIndex) strictlyInside(p int) bool {
+	i := sort.Search(len(ix.edits), func(i int) bool { return ix.edits[i].End > p })
+	return i < len(ix.edits) && ix.edits[i].Start < p
 }
 
 // runDeletable reports whether an inline-code run may be removed when the text

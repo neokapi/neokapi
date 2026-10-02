@@ -337,7 +337,7 @@ func (tm *PostgresStore) LookupSegment(ctx context.Context, source *model.Block,
 	plainKey := fw.NormalizeText(model.FlattenRuns(runs))
 	structKey := fw.NormalizeText(model.RunsStructuralText(runs))
 	generalKey := fw.NormalizeText(model.RunsGeneralizedText(runs))
-	entityAnnotations := fw.ExtractEntityAnnotations(source)
+	entityAnnotations := fw.ExtractSegmentEntityAnnotations(source, segmentIdx)
 	return tm.tieredLookup(ctx, plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts)
 }
 

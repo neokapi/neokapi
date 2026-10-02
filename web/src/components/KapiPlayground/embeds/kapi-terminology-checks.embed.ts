@@ -39,9 +39,9 @@ const config: WalkthroughEmbedConfig = {
     },
     {
       command:
-        "kapi exec term-check pseudo_fr.json --source-lang en --target-lang fr --termstore terms.db",
+        "kapi exec term-check messages_en.json --target pseudo_fr.json --source-lang en --target-lang fr --termstore terms.db",
       narration:
-        "Report target segments that violate the imported terminology. In a project the same check runs after each up pass and contributes to the ship gate.",
+        "Pair the source with its translation and report the target segments that violate the imported terminology. In a project the same check runs after each up pass and contributes to the ship gate.",
     },
   ],
 };

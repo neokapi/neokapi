@@ -235,8 +235,9 @@ direction is supplied at the call site. `MatchType` ranges from
 corresponding fuzzy variants, down to `fuzzy`. `Entry` helpers:
 `Variant(locale)`, `VariantText(locale)`, `VariantStructural(locale)`,
 `VariantGeneralized(locale)`. The `EntityAdaptations` field on a match lists
-each substitution with its position so consumers can apply adaptations
-precisely.
+each substitution the stored target can take, and `memory.AdaptEntities`
+applies them where the target holds each entity: its placeholder run, or the
+one whole-word occurrence of its value.
 
 ### Example
 

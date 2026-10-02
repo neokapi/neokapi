@@ -241,8 +241,9 @@ collections:
   each finding and each `execution.contexts` entry carries the `point` it was
   checked at.
 - **Terms**: import terms into the project terms store
-  (`kapi terms import terms.csv -s en -t fr`); `kapi exec term-check <file>` and
-  the translation flow then enforce it with no `--termstore` flag. Rules without
+  (`kapi terms import terms.csv -s en -t fr`); `kapi check --ship` and the
+  translation flow then enforce it with no `--termstore` flag, and `kapi exec
+  term-check` reports against it. Rules without
   a store go under a flow step's `term_rules:` (one `term`, its `replacement`,
   `advisory: true` for a rule that only reports, optionally a `concept_id`),
   the same shape as every word rule, including the `terms:` a voice file

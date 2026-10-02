@@ -791,8 +791,10 @@ type makes the wrong writes unrepresentable.
   the only tools that rewrite `Block.Source`, and they never do so directly. A
   transformer is a read-only **edit producer**: it inspects the block and returns
   an *edit plan*: a set of structured `model.RunEdit`s (a span → replacement
-  map), any originals to vault (recoverable transformers such as redaction), or
-  an opaque whole-block replacement for rewrites with no derivable mapping. A
+  map), in-place text edits that keep the inline codes, structure and run flags
+  they leave alone (a substitution, a case conversion), any originals to vault
+  (recoverable transformers such as redaction), or an opaque whole-block
+  replacement for rewrites with no derivable mapping. A
   single framework-owned **applier** vaults any secrets first, then compiles the
   plan into change operations (`EditPlan.Ops`) and applies them through
   `change.ApplyBlock`, which applies the edits, **rebases** the surviving

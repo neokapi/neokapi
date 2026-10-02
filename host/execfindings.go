@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
+	coretools "github.com/neokapi/neokapi/core/tools"
 )
 
 // A check tool writes its verdict into a stand-off annotation, never into the
@@ -63,12 +65,16 @@ func ProducesFindings(s *schema.ComponentSchema) bool {
 // NewFindingsCollectorFor returns a collector factory for a tool that produces
 // check findings, or nil for a tool that does not. Callers pass it as
 // ToolRunConfig.NewCollector; a tool with a bespoke entry in CollectorFactories
-// keeps that one.
-func NewFindingsCollectorFor(s *schema.ComponentSchema) func() flow.Collector {
+// keeps that one. targetLang is the language the run checks translations in.
+func NewFindingsCollectorFor(s *schema.ComponentSchema, targetLang string) func() flow.Collector {
 	if !ProducesFindings(s) {
 		return nil
 	}
-	return func() flow.Collector { return &findingsCollector{} }
+	c := findingsCollector{target: model.LocaleID(targetLang)}
+	if ReadsTargets(s) && s.ToolMeta != nil {
+		c.readsTarget = s.ToolMeta.ID
+	}
+	return func() flow.Collector { return &findingsCollector{target: c.target, readsTarget: c.readsTarget} }
 }
 
 // findingsCollector accumulates the findings every processed block carries, over
@@ -78,6 +84,14 @@ type findingsCollector struct {
 	mu     sync.Mutex
 	diags  []check.Diagnostic
 	blocks int
+	// target is the language the run checks translations in, and
+	// readsTarget names the tool when it compares a block's source with its
+	// translation in that language; translated counts the blocks that hold
+	// one. A run of such a tool over blocks that hold none (a translation
+	// kept in a file of its own, read without its source) compared nothing.
+	target      model.LocaleID
+	readsTarget string
+	translated  int
 }
 
 // Collect reads the findings off each block in one document's output parts.
@@ -87,7 +101,7 @@ func (c *findingsCollector) Collect(_ context.Context, item *flow.Item, parts []
 		file = DisplayName(item.Input.URI)
 	}
 	var diags []check.Diagnostic
-	blocks := 0
+	blocks, translated := 0, 0
 	for _, p := range parts {
 		if p == nil || p.Type != model.PartBlock {
 			continue
@@ -97,6 +111,9 @@ func (c *findingsCollector) Collect(_ context.Context, item *flow.Item, parts []
 			continue
 		}
 		blocks++
+		if c.readsTarget != "" && b.HasTarget(c.target) {
+			translated++
+		}
 		loc := check.Location{File: file, Block: blockKey(b)}
 		// clear=false: the blocks may still be on their way to a writer, and a
 		// reporting read must not consume what the content carries.
@@ -113,10 +130,17 @@ func (c *findingsCollector) Collect(_ context.Context, item *flow.Item, parts []
 				diags = append(diags, check.DiagnosticFrom(f, model.AnnoVoice, loc))
 			}
 		}
+		// term-check records its violations as block properties, which
+		// `kapi check` and the ship gate map through termCheckFindings. The
+		// family is the tool's name, as for every finding an exec run reports.
+		for _, f := range termCheckFindings(b) {
+			diags = append(diags, check.DiagnosticFrom(f, string(coretools.TermCheck), loc))
+		}
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.blocks += blocks
+	c.translated += translated
 	c.diags = append(c.diags, diags...)
 	return nil
 }
@@ -131,6 +155,15 @@ func (c *findingsCollector) Result() (flow.CollectorResult, error) {
 	// pass or fail. A run over no block is did_not_run all the same: that is
 	// coverage.
 	report := check.BuildReport(check.Target{Kind: "file", Blocks: c.blocks}, c.diags)
+	if c.readsTarget != "" && c.blocks > 0 && c.translated == 0 && len(c.diags) == 0 {
+		lang := string(c.target)
+		if lang == "" {
+			lang = "target-language"
+		}
+		report.Verdict, report.Pass = check.VerdictDidNotRun, false
+		report.DidNotRunCause = check.CauseContentNotChecked
+		report.DidNotRun = []string{fmt.Sprintf("no block holds a %s translation for %s to compare with its source; name the source file and pass its translation with --target <file>, or run it on a file that holds both, such as XLIFF", lang, c.readsTarget)}
+	}
 	return flow.CollectorResult{Name: "findings", Data: newFindingsReport(report)}, nil
 }
 
@@ -176,6 +209,9 @@ func newFindingsReport(r check.Report) findingsReport {
 func (r findingsReport) FormatTable(w io.Writer) {
 	if r.DidNotRunCause != "" {
 		writeDidNotRun(w, r.DidNotRunCause)
+		for _, reason := range r.DidNotRun {
+			fmt.Fprintf(w, "  %s\n", reason)
+		}
 		return
 	}
 	renderFindingsTable(w, r.Findings)

@@ -34,7 +34,8 @@ func (w *Writer) patchedSource(block *model.Block, original []byte) (patched, as
 	if original != nil {
 		doc = string(original)
 	}
-	patched, ok = patchCodes(doc, read, block.Source)
+	src, _ := block.Edition(model.EditionKey{})
+	patched, ok = patchCodes(doc, read, src.Runs)
 	return patched, asRead, ok
 }
 

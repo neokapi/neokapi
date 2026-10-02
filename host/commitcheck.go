@@ -357,11 +357,11 @@ func (p *commitPass) blocks(changes []change.EditionChange, sources map[blockRef
 		b := analysisBlock(ch.Block, key)
 		if p.target {
 			if j, ok := sources[blockRef{ch.Ref.Doc, ch.Ref.Block}]; ok && before {
-				b.Source = changes[j].Before
+				b.SetSourceRuns(changes[j].Before)
 			}
 			b.SetTargetRuns(p.locale, runs)
 		} else {
-			b.Source = runs
+			b.SetSourceRuns(runs)
 		}
 		blocks = append(blocks, b)
 		owners.byKey[key] = i
@@ -382,7 +382,8 @@ func analysisBlock(from *model.Block, key string) *model.Block {
 	b.Translatable = from.Translatable
 	b.SourceLocale = from.SourceLocale
 	b.PreserveWhitespace = from.PreserveWhitespace
-	b.Source = from.Source
+	src, _ := from.Edition(model.EditionKey{})
+	b.SetSourceRuns(src.Runs)
 	if len(from.Properties) > 0 {
 		b.Properties = make(map[string]string, len(from.Properties))
 		for k, v := range from.Properties {

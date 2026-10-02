@@ -2,8 +2,10 @@ package model
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -253,4 +255,25 @@ func TestApplyTextEdits_KeepsAPluralInPlace(t *testing.T) {
 	assert.Equal(t, "You own ", got[0].Text.Text)
 	assert.Same(t, plural.Plural, got[1].Plural)
 	assert.Equal(t, " now", got[2].Text.Text)
+}
+
+// ApplyTextEdits places each code with a lookup into the edits rather than a
+// walk over them, so a long sequence with a code and an edit per word is
+// rewritten in time linear in its length.
+func TestApplyTextEdits_ManyCodesAndEditsScale(t *testing.T) {
+	const words = 60_000
+	runs := make([]Run, 0, 2*words)
+	var edits []TextEdit
+	at := 0
+	for i := range words {
+		runs = append(runs, TextR("word "), PhR(PlaceholderRun{ID: strconv.Itoa(i), Type: "code:variable"}))
+		edits = append(edits, TextEdit{Start: at, End: at + 4, Replacement: "WORD"})
+		at += 5
+	}
+
+	start := time.Now()
+	out := ApplyTextEdits(runs, edits)
+	assert.Less(t, time.Since(start), 5*time.Second)
+	assert.Equal(t, strings.Repeat("WORD ", words), RunsText(out))
+	assert.Len(t, out, 2*words, "every code is kept after its word")
 }

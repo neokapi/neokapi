@@ -118,7 +118,7 @@ turns a check that did not run into a pass.`,
 	f.Bool("ship", false, "project gate mode: run the project's bound gates (voice, terminology, rule-based checks) plus its ship/source coverage gates; exit non-zero when unmet: the pre-release bar")
 	AddGateFlag(cmd)
 	f.String("locale", "", "with --ship: scope the target-side gates to a single target locale (e.g. fr)")
-	f.String("termstore", "", "with --ship: named terms or terms-store path for the terminology gate (defaults to the project terms store)")
+	f.String("termstore", "", "named terms or terms-store path the terminology checks read (defaults to the project terms store)")
 
 	cmd.MarkFlagsMutuallyExclusive("ship", "target")
 	cmd.MarkFlagsMutuallyExclusive("diff-file", "diff-against", "staged", "diff-range")

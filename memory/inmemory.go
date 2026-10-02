@@ -215,7 +215,7 @@ func (tm *InMemoryStore) LookupSegment(_ context.Context, source *model.Block, s
 	plainKey := NormalizeText(model.FlattenRuns(runs))
 	structKey := NormalizeText(model.RunsStructuralText(runs))
 	generalKey := NormalizeText(model.RunsGeneralizedText(runs))
-	entityAnnotations := ExtractEntityAnnotations(source)
+	entityAnnotations := ExtractSegmentEntityAnnotations(source, segmentIdx)
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts), nil
@@ -884,61 +884,6 @@ func LimitResults(matches []Match, max int) []Match {
 		return matches[:max]
 	}
 	return matches
-}
-
-// ExtractEntityAnnotations pulls EntityAnnotation instances from a Block's
-// annotations map.
-func ExtractEntityAnnotations(block *model.Block) []*model.EntityAnnotation {
-	if block == nil {
-		return nil
-	}
-	var entities []*model.EntityAnnotation
-	for _, ann := range block.Annos() {
-		if ea, ok := ann.(*model.EntityAnnotation); ok {
-			entities = append(entities, ea)
-		}
-	}
-	return entities
-}
-
-// ComputeEntityAdaptations computes how to adapt entity values from a stored
-// content-memory entry's target variant to match the current source content.
-// sourceLocale is the locale of currentEntities; targetLocale is the variant
-// whose entity values should be rewritten.
-func ComputeEntityAdaptations(entry Entry, sourceLocale, targetLocale model.LocaleID, currentEntities []*model.EntityAnnotation) []EntityAdaptation {
-	if len(entry.Entities) == 0 || len(currentEntities) == 0 {
-		return nil
-	}
-	typeQueues := make(map[model.EntityType][]*model.EntityAnnotation)
-	for _, ea := range currentEntities {
-		typeQueues[ea.Type] = append(typeQueues[ea.Type], ea)
-	}
-	typeIdx := make(map[model.EntityType]int)
-	var adaptations []EntityAdaptation
-	for _, em := range entry.Entities {
-		queue := typeQueues[em.Type]
-		idx := typeIdx[em.Type]
-		if idx >= len(queue) {
-			continue
-		}
-		current := queue[idx]
-		typeIdx[em.Type] = idx + 1
-		tv, ok := em.Values[targetLocale]
-		if !ok {
-			continue
-		}
-		if tv.Text == current.Text {
-			continue
-		}
-		adaptations = append(adaptations, EntityAdaptation{
-			PlaceholderID: em.PlaceholderID,
-			Type:          em.Type,
-			StoredValue:   tv.Text,
-			CurrentValue:  current.Text,
-			TargetPos:     model.TextRange{Start: tv.Start, End: tv.End},
-		})
-	}
-	return adaptations
 }
 
 // NormalizeText normalizes text for comparison by applying Unicode NFC

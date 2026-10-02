@@ -121,6 +121,9 @@ func (w *workset) setAttribute(op Op, body *SetAttribute, res *OpResult) *Error 
 		if !caps.Declared.CanWrite(typ, body.Name) {
 			return unwritableAttr(caps, typ, body.Name)
 		}
+		if err := attrRunsCode(body.Name, body.Value, codeAttrs(withAttr(r, body.Name, body.Value)), "name", "value"); err != nil {
+			return err
+		}
 		if v, ok := codeAttrs(r)[body.Name]; ok && v == body.Value {
 			continue
 		}
@@ -155,13 +158,17 @@ func (w *workset) setAttribute(op Op, body *SetAttribute, res *OpResult) *Error 
 }
 
 // checkNewCodeAttrs refuses an attribute a new code of type typ may not
-// carry: the ones the format writes for the type, and no others.
+// carry: the ones the format writes for the type, and no others, and a value
+// that would run code where the document is read (attrRunsCode).
 func checkNewCodeAttrs(caps Capabilities, typ string, attrs map[string]string, field string) *Error {
 	for _, name := range sortedKeys(attrs) {
 		if !caps.Declared.CanWrite(typ, name) {
 			e := unwritableAttr(caps, typ, name)
 			e.Field = field
 			return e
+		}
+		if err := attrRunsCode(name, attrs[name], attrs, field, field); err != nil {
+			return err
 		}
 	}
 	return nil

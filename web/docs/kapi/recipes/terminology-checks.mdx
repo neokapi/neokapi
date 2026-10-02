@@ -53,11 +53,18 @@ Import once into a named terms store, verify, then check deliveries:
 kapi terms import terms.csv --name product-terms \
   --format csv --header -s en -t fr                 # once; persists across sessions
 kapi terms lookup "log in" --name product-terms -s en -t fr
-kapi exec term-check messages_fr.json \
+kapi exec term-check messages.json --target messages_fr.json \
   --source-lang en --target-lang fr --termstore product-terms
 ```
 
-The `term-check` tool flags targets that don't use the approved equivalent for a source term ("code secret" where the terms store says "mot de passe") and exits non-zero on violations, so it doubles as a CI gate. Scale with globs and `-j 4`; keep the terms store current with re-imports (concepts merge) and `kapi terms export` for vendor kits. Flags: [`kapi terms`](/reference/commands/terms), [`kapi exec term-check`](/reference/commands/exec-term-check).
+The `term-check` tool flags targets that don't use the approved equivalent for a source term ("code secret" where the terms store says "mot de passe"). It compares each source string with its translation, so name the source file and pass the translation with `--target`; a file that holds both languages, such as XLIFF, needs no `--target`, and over such files `kapi exec` takes globs and `-j 4`. `kapi exec` reports the findings and exits 0 whatever it finds. To fail a CI job on them, check the same pair with `kapi check`, which exits 3 while a finding fails (see [Ship gates and CI](/kapi/recipes/ship-gates-and-ci)):
+
+```bash
+kapi check messages.json --target messages_fr.json \
+  --target-lang fr --termstore product-terms
+```
+
+Keep the terms store current with re-imports (concepts merge) and `kapi terms export` for vendor kits. Flags: [`kapi terms`](/reference/commands/terms), [`kapi exec term-check`](/reference/commands/exec-term-check), [`kapi check`](/reference/commands/check).
 
 A source term counts in its plural and other regular forms, so "Alerts" uses the term "alert", while a longer word built on it, such as "workflow" for "flow", does not. A translation passes when it contains the approved term, any admitted term for the concept, or a word built around one of them ("kaiplassene" contains "kaiplass"). A form that changes the word, such as the Norwegian plural "varsler" for "varsel", passes once the term lists it as a form. `kapi terms validate` lists the translated terms that have no forms yet, and `kapi terms expand` proposes them for you to review before committing.
 

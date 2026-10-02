@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -821,20 +822,7 @@ func (a *App) LookupMemory(handle string, req LookupMemoryRequest) []MemoryMatch
 		return nil
 	}
 
-	runs := buildRunsWithEntities(req.Text, req.Entities)
-	block := &model.Block{ID: "lookup", Translatable: true}
-	block.SetSourceRuns(runs)
-	for i, ea := range req.Entities {
-		block.AddOverlaySpan(model.OverlayEntity, model.Span{
-			ID:    fmt.Sprintf("entity:%d", i),
-			Range: model.RangeAnchorForBytes(block.SourceRuns(), ea.Start, ea.End),
-			Value: &model.EntityAnnotation{
-				Text:   ea.Text,
-				Type:   model.EntityType(ea.Type),
-				Source: model.ExtractionSourceManual,
-			},
-		})
-	}
+	block := lookupBlock(req.Text, req.Entities)
 
 	opts := memory.LookupOptions{
 		MinScore:   req.MinScore,
@@ -873,25 +861,72 @@ func (a *App) LookupMemory(handle string, req LookupMemoryRequest) []MemoryMatch
 	return result
 }
 
-// buildRunsWithEntities builds a Run sequence from plain text + entity
-// annotations. Entity ranges become PlaceholderRuns; the surrounding
-// text is split into TextRuns.
-func buildRunsWithEntities(text string, entities []EntityAnnotationDTO) []model.Run {
-	if len(entities) == 0 {
-		if text == "" {
-			return nil
-		}
-		return []model.Run{{Text: &model.TextRun{Text: text}}}
+// lookupBlock is the block a content-memory lookup matches: text as its
+// source, with each entity a placeholder run (buildRunsWithEntities) located by
+// an entity overlay span over that run, which is where the stores read the
+// entities they adapt (memory.ExtractEntityAnnotations).
+func lookupBlock(text string, entities []EntityAnnotationDTO) *model.Block {
+	runs, placed := buildRunsWithEntities(text, entities)
+	block := &model.Block{ID: "lookup", Translatable: true}
+	block.SetSourceRuns(runs)
+	for i, p := range placed {
+		block.AddOverlaySpan(model.OverlayEntity, model.Span{
+			ID:    fmt.Sprintf("entity:%d", i),
+			Range: model.SpanAnchor(model.RunPos{Run: p.run}, model.RunPos{Run: p.run + 1}),
+			Value: &model.EntityAnnotation{
+				Text:   p.entity.Text,
+				Type:   model.EntityType(p.entity.Type),
+				Source: model.ExtractionSourceManual,
+			},
+		})
 	}
+	return block
+}
 
-	sorted := make([]EntityAnnotationDTO, len(entities))
-	copy(sorted, entities)
-	slices.SortFunc(sorted, func(a, b EntityAnnotationDTO) int {
-		return cmp.Compare(a.Start, b.Start)
-	})
+// placedEntity is an entity buildRunsWithEntities turned into a placeholder
+// run, and the index of that run.
+type placedEntity struct {
+	run    int
+	entity EntityAnnotationDTO
+}
+
+// buildRunsWithEntities builds a Run sequence from plain text + entity
+// annotations. Entity ranges, counted in code points of text, become
+// PlaceholderRuns; the surrounding text is split into TextRuns. It returns
+// each entity it placed with the index of its run, in text order; an entity
+// that overlaps an earlier one or falls outside the text is left out. The
+// placeholders are numbered e1, e2, … in text order.
+func buildRunsWithEntities(text string, entities []EntityAnnotationDTO) ([]model.Run, []placedEntity) {
+	spans := make([]entitySpan, len(entities))
+	for i, ea := range entities {
+		spans[i] = entitySpan{entity: ea}
+	}
+	slices.SortStableFunc(spans, func(a, b entitySpan) int { return cmp.Compare(a.entity.Start, b.entity.Start) })
+	for i := range spans {
+		spans[i].id = fmt.Sprintf("e%d", i+1)
+	}
+	return placeEntities(text, spans)
+}
+
+// entitySpan is an entity to place and the id its placeholder takes.
+type entitySpan struct {
+	entity EntityAnnotationDTO
+	id     string
+}
+
+// placeEntities places spans, sorted by start, as buildRunsWithEntities
+// describes, each placeholder taking its span's id.
+func placeEntities(text string, spans []entitySpan) ([]model.Run, []placedEntity) {
+	if len(spans) == 0 {
+		if text == "" {
+			return nil, nil
+		}
+		return []model.Run{{Text: &model.TextRun{Text: text}}}, nil
+	}
 
 	runes := []rune(text)
 	var runs []model.Run
+	var placed []placedEntity
 	pos := 0
 	appendText := func(s string) {
 		if s == "" {
@@ -900,15 +935,17 @@ func buildRunsWithEntities(text string, entities []EntityAnnotationDTO) []model.
 		runs = append(runs, model.Run{Text: &model.TextRun{Text: s}})
 	}
 
-	for i, ea := range sorted {
+	for _, sp := range spans {
+		ea := sp.entity
 		if ea.Start < pos || ea.Start >= len(runes) || ea.End > len(runes) {
 			continue
 		}
 		if ea.Start > pos {
 			appendText(string(runes[pos:ea.Start]))
 		}
+		placed = append(placed, placedEntity{run: len(runs), entity: ea})
 		runs = append(runs, model.Run{Ph: &model.PlaceholderRun{
-			ID:   fmt.Sprintf("e%d", i+1),
+			ID:   sp.id,
 			Type: ea.Type,
 			Data: ea.Text,
 		}})
@@ -917,7 +954,7 @@ func buildRunsWithEntities(text string, entities []EntityAnnotationDTO) []model.
 	if pos < len(runes) {
 		appendText(string(runes[pos:]))
 	}
-	return runs
+	return runs, placed
 }
 
 // --- Facets ---
@@ -1169,10 +1206,11 @@ func rebuildRunsWithEntities(runs []model.Run, patterns []EntityPatternRequest) 
 		end        int
 		entityType string
 		text       string
+		pattern    int
 	}
 	runes := []rune(text)
 	var hits []entityHit
-	for _, p := range patterns {
+	for pi, p := range patterns {
 		patLen := len([]rune(p.Text))
 		for _, pos := range findPatternOccurrences(text, p.Text, p.CaseSensitive) {
 			actualText := string(runes[pos : pos+patLen])
@@ -1181,6 +1219,7 @@ func rebuildRunsWithEntities(runs []model.Run, patterns []EntityPatternRequest) 
 				end:        pos + patLen,
 				entityType: p.EntityType,
 				text:       actualText,
+				pattern:    pi,
 			})
 		}
 	}
@@ -1194,16 +1233,28 @@ func rebuildRunsWithEntities(runs []model.Run, patterns []EntityPatternRequest) 
 		}
 	}
 
-	dtos := make([]EntityAnnotationDTO, len(filtered))
+	// Each pattern names one entity in every variant, so a placeholder takes
+	// its id from the pattern and the occurrence (e1 for the first match of
+	// the first pattern, e1.2 for its second), whatever order a translation
+	// puts the entities in. buildEntityMappingsFromVariantRuns pairs the
+	// variants' values by that id.
+	spans := make([]entitySpan, len(filtered))
+	seen := make(map[int]int)
 	for i, h := range filtered {
-		dtos[i] = EntityAnnotationDTO{
+		seen[h.pattern]++
+		id := fmt.Sprintf("e%d", h.pattern+1)
+		if n := seen[h.pattern]; n > 1 {
+			id = fmt.Sprintf("e%d.%d", h.pattern+1, n)
+		}
+		spans[i] = entitySpan{id: id, entity: EntityAnnotationDTO{
 			Text:  h.text,
 			Type:  h.entityType,
 			Start: h.start,
 			End:   h.end,
-		}
+		}}
 	}
-	return buildRunsWithEntities(text, dtos), len(filtered)
+	newRuns, _ := placeEntities(text, spans)
+	return newRuns, len(filtered)
 }
 
 // findPatternOccurrences returns rune positions of all non-overlapping occurrences.
@@ -1248,8 +1299,8 @@ func buildEntityMappingsFromVariantRuns(variants map[model.LocaleID][]model.Run)
 	}
 	byKey := make(map[entKey]*memory.EntityMapping)
 	var order []entKey
-	for loc, runs := range variants {
-		for _, r := range runs {
+	for _, loc := range slices.Sorted(maps.Keys(variants)) {
+		for _, r := range variants[loc] {
 			if r.Ph == nil || !model.IsEntityTypeString(r.Ph.Type) {
 				continue
 			}

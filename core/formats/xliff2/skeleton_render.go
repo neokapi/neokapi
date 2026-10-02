@@ -79,7 +79,7 @@ func checkUnit(block *model.Block, loc model.LocaleID) error {
 // one anonymous segment.
 func writtenSourceSegs(block *model.Block) []seg {
 	if !tiles(block.SourceSegmentation(), block.Source) {
-		return withTermMarks([]seg{{Runs: block.Source}}, block.Source, block.OverlayOf(model.OverlayTerm))
+		return withMarks([]seg{{Runs: block.Source}}, block.Source, block, nil)
 	}
 	return sourceSegsFromBlock(block)
 }
@@ -88,7 +88,7 @@ func writtenSourceSegs(block *model.Block) []seg {
 func writtenTargetSegs(block *model.Block, loc model.LocaleID) []seg {
 	key := model.Variant(loc)
 	if runs := block.TargetRuns(loc); !tiles(block.SegmentationFor(&key), runs) {
-		return []seg{{Runs: runs}}
+		return withMarks([]seg{{Runs: runs}}, runs, block, &key)
 	}
 	return targetSegsFromBlock(block, loc)
 }
@@ -192,19 +192,12 @@ func segmentXML(s *seg, codes codeIndex) (string, error) {
 // with ErrCodesUnwritable, since writing their text alone would drop every
 // code.
 func segmentInlines(s *seg, codes codeIndex) ([]Inline, error) {
-	var inls []Inline
-	switch {
-	case s.Content != nil && irMatchesRuns(s.Content, s.Runs):
-		inls = s.Content.Inlines
-	default:
-		rebuilt, ok := inlinesFromRuns(s.Runs, codes)
-		if !ok {
-			return nil, ErrCodesUnwritable
-		}
-		inls = rebuilt
+	codes.native = true // the skeleton was read from this document
+	inls, _, ok := segmentBody(s, codes)
+	if !ok {
+		return nil, ErrCodesUnwritable
 	}
-	spliced, _ := spliceMarks(inls, s.Runs, s.Marks)
-	return spliced, nil
+	return inls, nil
 }
 
 // irMatchesRuns reports whether ir still describes runs: the same text with the
@@ -221,6 +214,9 @@ type codeIndex struct {
 	sc map[string]CodeAttrs // paired <sc> by id
 	ec map[string]CodeAttrs // paired <ec> by startRef
 	ph map[string]Inline    // <ph>, and isolated <sc>/<ec>, by id
+	// native says the unit was read from XLIFF 2, so a segment it holds with
+	// no IR of its own is written as markup rebuilt from its runs.
+	native bool
 }
 
 // blockCodes indexes the codes of every segment IR the block carries, those of
@@ -232,6 +228,7 @@ func blockCodes(block *model.Block, s *seg) codeIndex {
 		ix.add(s.Content.Inlines)
 	}
 	if ir := unitSegmentsIR(block); ir != nil {
+		ix.native = true
 		for _, c := range ir.Source {
 			ix.add(c.Inlines)
 		}

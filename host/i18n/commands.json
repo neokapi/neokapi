@@ -129,7 +129,7 @@
               "usage": "locale of the --target file (e.g. de)"
             },
             "termstore": {
-              "usage": "with --ship: named terms or terms-store path for the terminology gate (defaults to the project terms store)"
+              "usage": "named terms or terms-store path the terminology checks read (defaults to the project terms store)"
             },
             "validate": {
               "usage": "reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the Report; strict also makes a major structure/encoding problem fail)"
@@ -864,6 +864,9 @@
               "strict": {
                 "usage": "alias for --fail-on-unknown"
               },
+              "target": {
+                "usage": "the translation of the one source file named, in --target-lang, to check it against (a file that holds both, such as XLIFF, needs none)"
+              },
               "target-lang": {
                 "usage": "target language (e.g. fr, de-DE); one per run"
               },
@@ -1239,6 +1242,9 @@
               },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
+              },
+              "target": {
+                "usage": "the translation of the one source file named, in --target-lang, to check it against (a file that holds both, such as XLIFF, needs none)"
               },
               "target-lang": {
                 "usage": "target language (e.g. fr, de-DE); one per run"
@@ -2040,6 +2046,9 @@
               },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
+              },
+              "target": {
+                "usage": "the translation of the one source file named, in --target-lang, to check it against (a file that holds both, such as XLIFF, needs none)"
               },
               "target-lang": {
                 "usage": "target language (e.g. fr, de-DE); one per run"
