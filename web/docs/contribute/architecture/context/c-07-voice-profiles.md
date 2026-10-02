@@ -191,6 +191,14 @@ check, the model-backed `voice-check`, and the comment limits under
 `style.comments`, which fail only when the profile sets `style.comments.fails:
 true`.
 
+An edit meets the same rules before it is written. The commit check of the
+change service holds each changed source-language edition to the voice in
+force at its point: the prohibited patterns, the shared constraints and the
+comment limits, with `Fails` and `Suggested` as above
+([S-03](../surfaces/s-03-agent-surfaces.md#governance-at-commit)). It reads one
+edition at a time, so the required patterns, which hold over a whole document,
+and the model-backed checks run in `kapi check` alone.
+
 `profile.CalculateScore` rolls findings up per dimension using the weights in
 `core/check.Weight`: a failing finding weighs 25, a reported one 1, a suggested
 one 0. Each dimension starts at 100 and is reduced by its penalty, clamped at
