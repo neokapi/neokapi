@@ -149,11 +149,12 @@ func hasLocaleTarget(b *model.Block, locale model.LocaleID) bool {
 	if b == nil {
 		return false
 	}
-	for _, key := range b.Editions() {
-		if key.Locale != locale || b.IsSourceEdition(key) {
+	src := b.EditionKeyOf(model.EditionKey{})
+	for key, t := range b.EachEdition {
+		if key.Locale != locale || key == src {
 			continue
 		}
-		if t, _ := b.Edition(key); len(t.Runs) > 0 && model.RunsText(t.Runs) != "" {
+		if len(t.Runs) > 0 && model.RunsText(t.Runs) != "" {
 			return true
 		}
 	}
@@ -167,15 +168,26 @@ func localeTargetRuns(b *model.Block, locale model.LocaleID) []model.Run {
 	if b == nil {
 		return nil
 	}
-	for _, key := range b.Editions() {
-		if key.Locale != locale || b.IsSourceEdition(key) {
+	var variant []model.Run
+	src := b.EditionKeyOf(model.EditionKey{})
+	for key, t := range b.EachEdition {
+		if key.Locale != locale || key == src || len(t.Runs) == 0 {
 			continue
 		}
-		if t, _ := b.Edition(key); len(t.Runs) > 0 {
+		if isLanguageEdition(key) {
 			return t.Runs
 		}
+		if variant == nil {
+			variant = t.Runs
+		}
 	}
-	return nil
+	return variant
+}
+
+// isLanguageEdition reports whether key names a language's own edition, with
+// no tone and no channel.
+func isLanguageEdition(key model.EditionKey) bool {
+	return key.Tone == "" && key.Channel == ""
 }
 
 // memoryEntryID derives a deterministic, content-addressed entry ID from the

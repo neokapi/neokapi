@@ -314,7 +314,9 @@ func (g *pushGovernor) loadPriorRows(
 
 // indexRows records one item's rows under every name the payload may use for
 // them, the rung each of their targets holds, and the pairing each holds: the
-// translation's hash and the source's.
+// translation's hash and the source's. The maps are keyed by language, so a
+// language's own edition fills its entry and a tone or channel variant fills
+// it only when the row holds no such edition.
 func (g *pushGovernor) indexRows(itemName string, rows []*venue.StoredBlock) {
 	for _, row := range rows {
 		if row == nil || row.ID == "" {
@@ -329,12 +331,15 @@ func (g *pushGovernor) indexRows(itemName string, rows []*venue.StoredBlock) {
 			continue
 		}
 		g.priorSource[row.ID] = blockSourceHash(row)
-		for _, key := range row.Block.Editions() {
-			if row.Block.IsSourceEdition(key) {
+		src := row.Block.EditionKeyOf(model.EditionKey{})
+		for key, target := range row.Block.EachEdition {
+			if key == src {
 				continue
 			}
-			target, _ := row.Block.Edition(key)
 			ref := platstore.TargetRef{BlockID: row.ID, Locale: string(key.Locale)}
+			if _, filled := g.priorHash[ref]; filled && !isLanguageEdition(key) {
+				continue
+			}
 			g.priorStatus[ref] = model.TargetStatus(target.Status)
 			g.priorHash[ref] = state.TargetHash(model.RunsText(target.Runs))
 		}
@@ -383,11 +388,11 @@ func (g *pushGovernor) withdrawsAny(staged []stagedGroup, decisions []venue.Unit
 				continue
 			}
 			blockID := g.rowFor(b)
-			for _, key := range b.Editions() {
-				if b.IsSourceEdition(key) {
+			src := b.EditionKeyOf(model.EditionKey{})
+			for key, target := range b.EachEdition {
+				if key == src {
 					continue
 				}
-				target, _ := b.Edition(key)
 				if g.withdrawsEstablished(blockID, b, string(key.Locale), target) {
 					return true
 				}
@@ -541,11 +546,11 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 				continue
 			}
 			blockID := g.rowFor(b)
-			for _, key := range b.Editions() {
-				if b.IsSourceEdition(key) {
+			src := b.EditionKeyOf(model.EditionKey{})
+			for key, target := range b.EachEdition {
+				if key == src {
 					continue
 				}
-				target, _ := b.Edition(key)
 				status := model.TargetStatus(target.Status)
 				locale := string(key.Locale)
 				prior := g.priorStatus[platstore.TargetRef{BlockID: blockID, Locale: locale}]
@@ -763,7 +768,8 @@ func (g *pushGovernor) rejectionsToRedraft(held, written []venue.UnitDecision) [
 }
 
 // indexPushedTargets records the hash of each translation the push writes over a
-// target the venue already holds.
+// target the venue already holds, a language's own edition before its tone and
+// channel variants, as indexRows does.
 func (g *pushGovernor) indexPushedTargets(staged []stagedGroup) {
 	for _, group := range staged {
 		for _, b := range group.Blocks {
@@ -771,12 +777,15 @@ func (g *pushGovernor) indexPushedTargets(staged []stagedGroup) {
 			if blockID == "" {
 				continue
 			}
-			for _, key := range b.Editions() {
-				if b.IsSourceEdition(key) {
+			src := b.EditionKeyOf(model.EditionKey{})
+			for key, target := range b.EachEdition {
+				if key == src {
 					continue
 				}
-				target, _ := b.Edition(key)
 				ref := platstore.TargetRef{BlockID: blockID, Locale: string(key.Locale)}
+				if _, filled := g.pushedHash[ref]; filled && !isLanguageEdition(key) {
+					continue
+				}
 				g.pushedHash[ref] = state.TargetHash(model.RunsText(target.Runs))
 			}
 		}
@@ -850,11 +859,9 @@ func carriesVerdict(staged []stagedGroup, decisions []venue.UnitDecision) bool {
 			if b == nil {
 				continue
 			}
-			for _, key := range b.Editions() {
-				if b.IsSourceEdition(key) {
-					continue
-				}
-				if target, _ := b.Edition(key); model.TargetStatus(target.Status).Rank() > model.TargetStatusTranslated.Rank() {
+			src := b.EditionKeyOf(model.EditionKey{})
+			for key, target := range b.EachEdition {
+				if key != src && model.TargetStatus(target.Status).Rank() > model.TargetStatusTranslated.Rank() {
 					return true
 				}
 			}
@@ -877,11 +884,9 @@ func verdictLocales(staged []stagedGroup, decisions []venue.UnitDecision) []stri
 			if b == nil {
 				continue
 			}
-			for _, key := range b.Editions() {
-				if b.IsSourceEdition(key) {
-					continue
-				}
-				if target, _ := b.Edition(key); model.TargetStatus(target.Status).Rank() > model.TargetStatusTranslated.Rank() {
+			src := b.EditionKeyOf(model.EditionKey{})
+			for key, target := range b.EachEdition {
+				if key != src && model.TargetStatus(target.Status).Rank() > model.TargetStatusTranslated.Rank() {
 					set[string(key.Locale)] = true
 				}
 			}

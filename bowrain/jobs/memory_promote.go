@@ -97,7 +97,9 @@ func PromoteDecisionsToMemory(
 			if d.TargetHash != "" && state.TargetHash(targetText) != d.TargetHash {
 				continue
 			}
-			src, _ := sb.Block.Edition(model.EditionKey{})
+			// A memory pair runs from the edition every translation is made
+			// from to the translation.
+			src, _ := sb.Block.Edition(sb.Block.Authoritative(model.AuthorityPolicy{}))
 			sourceRuns := src.Runs
 			if len(sourceRuns) == 0 || model.RunsText(sourceRuns) == "" {
 				continue

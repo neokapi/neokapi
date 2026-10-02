@@ -257,12 +257,9 @@ func blockTargetLocales(b *venue.StoredBlock) (locales, approved []string) {
 	}
 	best := map[model.LocaleID]model.TargetStatus{}
 	var order []model.LocaleID
-	for _, key := range b.Editions() {
-		if b.IsSourceEdition(key) {
-			continue
-		}
-		t, _ := b.Edition(key)
-		if len(t.Runs) == 0 {
+	src := b.EditionKeyOf(model.EditionKey{})
+	for key, t := range b.EachEdition {
+		if key == src || len(t.Runs) == 0 {
 			continue
 		}
 		status := model.TargetStatus(t.Status)

@@ -157,11 +157,11 @@ func (l decisionLedger) needsDraft(sb *venue.StoredBlock, locale model.LocaleID)
 	if current == "" {
 		return false
 	}
-	for _, key := range sb.Block.Editions() {
-		if key.Locale != locale || sb.Block.IsSourceEdition(key) {
+	src := sb.Block.EditionKeyOf(model.EditionKey{})
+	for key, t := range sb.Block.EachEdition {
+		if key.Locale != locale || key == src {
 			continue
 		}
-		t, _ := sb.Block.Edition(key)
 		if len(t.Runs) == 0 || model.RunsText(t.Runs) == "" {
 			continue
 		}
