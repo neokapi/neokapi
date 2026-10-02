@@ -63,14 +63,19 @@ func TestWritebackPreservesArgumentsAndEditsBranches(t *testing.T) {
 					var output bytes.Buffer
 					require.NoError(t, writer.SetOutputWriter(&output))
 					parts := make(chan *model.Part, 16)
+					readDone := make(chan error, 1)
 					feed := func() {
+						var readErr error
+						defer func() { readDone <- readErr }()
 						defer close(parts)
 						defer reader.Close()
 						if streaming {
 							defer store.CloseWrite()
 						}
 						for result := range reader.Read(ctx) {
-							assert.NoError(t, result.Error)
+							if result.Error != nil && readErr == nil {
+								readErr = result.Error
+							}
 							if result.Part == nil {
 								continue
 							}
@@ -96,7 +101,9 @@ func TestWritebackPreservesArgumentsAndEditsBranches(t *testing.T) {
 					} else {
 						feed()
 					}
-					require.NoError(t, writer.Write(ctx, parts))
+					writeErr := writer.Write(ctx, parts)
+					require.NoError(t, <-readDone)
+					require.NoError(t, writeErr)
 					require.NoError(t, writer.Close())
 					want := tc.edited
 					if mode == "unchanged" {
