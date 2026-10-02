@@ -51,7 +51,7 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 	if err != nil {
 		return err
 	}
-	changes := a.newCommandChanges(cmd, recipe, ChangeServiceOptions{Origin: "inspect", Format: a.FormatFlag})
+	changes := a.newCommandChanges(cmd, recipe, ChangeServiceOptions{Origin: "inspect", Format: a.FormatFlag, TargetLocale: model.LocaleID(a.TargetLang)})
 	editions := a.projectEditions(recipe)
 
 	streaming := outFormat == "jsonl"
@@ -120,7 +120,7 @@ func (a *App) inspectDocument(ctx context.Context, cmd Command, changes *command
 			return err
 		}
 		defer cleanup()
-		if svc, err = a.changeService(ctx, cmd, ChangeServiceOptions{Origin: "inspect", Root: filepath.Dir(path), Format: a.FormatFlag}); err != nil {
+		if svc, err = a.changeService(ctx, cmd, ChangeServiceOptions{Origin: "inspect", Root: filepath.Dir(path), Format: a.FormatFlag, TargetLocale: model.LocaleID(a.TargetLang)}); err != nil {
 			return err
 		}
 		doc, label = filepath.Base(path), StdinName

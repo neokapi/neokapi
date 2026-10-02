@@ -51,8 +51,10 @@ apply:
 
 Inside a project a file is named by its project-relative path and read with
 the format and configuration the recipe binds, and each declared translation
-is listed among the editions. A source file whose comments are what kapi edits
-in it lists each comment, keyed as kapi check reports it (func/Parse).
+is listed among the editions. A bilingual file whose reader has to be told the
+language of the translation it holds, such as a PO catalog, lists it with
+--target-lang. A source file whose comments are what kapi edits in it lists
+each comment, keyed as kapi check reports it (func/Parse).
 
 Prints a JSON array by default; --output-format yaml emits a YAML sequence, and
 --jsonl streams one JSON object per line (JSONL) for piping into a script.
@@ -90,6 +92,7 @@ FILE "-" reads standard input.`,
 	f.BoolVar(&jsonl, "jsonl", false, "stream one JSON object per line (JSONL) instead of a JSON array")
 	f.StringSliceVar(&project, "project", nil, "also render each block to these target formats (html, markdown, asciidoc) under \"projected\"")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: what the recipe binds, else auto-detect by extension/content)")
+	a.AddTargetLangFlag(f)
 	a.AddEncodingFlag(f, "", "input encoding")
 	return cmd
 }

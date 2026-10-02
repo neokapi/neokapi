@@ -39,7 +39,9 @@ code-point offsets or by run positions, and keeps the inline codes and plurals
 around it. An operation whose edition moved since it was read is refused as
 stale with the current content. An edit that would drop, invent or unbalance an
 inline code, or flatten a plural or select, is refused as guard. When any
-operation is refused, nothing in the change set is written.
+operation is refused, nothing in the change set is written. An operation on the
+translation a bilingual file (XLIFF, PO) holds names its language as the
+edition, and a PO catalog is read in the one language the change set names.
 
 decide records a review decision on the revision a person read. term, memory
 and recipe write a term, a content-memory pair or a recipe field into the

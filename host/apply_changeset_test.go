@@ -301,6 +301,43 @@ func TestApply_GateOverridesTheChangeSet(t *testing.T) {
 	assert.Contains(t, stdout, `"gate": "report"`)
 }
 
+// A PO catalog's msgstr reads as a translation only in the language its reader
+// is told. kapi inspect --target-lang lists it as an edition, and kapi apply
+// reads the catalog in the one language the change set's operations name, so
+// an edit of that edition lands in the msgstr.
+func TestApply_EditsTheTranslationAPOCatalogHolds(t *testing.T) {
+	noProject(t)
+	t.Chdir(t.TempDir())
+	const po = "msgid \"\"\nmsgstr \"\"\n\"Language: fr\\n\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\nmsgid \"Hello world\"\nmsgstr \"Bonjour le monde\"\n"
+	require.NoError(t, os.WriteFile("fr.po", []byte(po), 0o644))
+	app := newToolboxApp(t)
+
+	app.TargetLang = "fr"
+	cmd := NewEnvCommand(t.Context(), "inspect")
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	require.NoError(t, app.RunInspect(t.Context(), cmd, []string{"fr.po"}, "jsonl", nil), stderr.String())
+	var rec struct {
+		Ref      change.Ref                    `json:"ref"`
+		Editions map[string]change.EditionRead `json:"editions"`
+	}
+	require.NoError(t, json.Unmarshal(bytes.TrimSpace(stdout.Bytes()), &rec), stdout.String())
+	fr, ok := rec.Editions["fr"]
+	require.True(t, ok, "the msgstr is listed as the fr edition: %s", stdout.String())
+	assert.Equal(t, "Bonjour le monde", fr.Text)
+
+	app.TargetLang = ""
+	body := changeSetOf(t, map[string]any{"op": "replace_text", "at": map[string]any{"doc": "fr.po", "block": rec.Ref.Block, "edition": "fr"},
+		"if_match": fr.Rev, "edits": []map[string]any{{"find": "Bonjour", "text": "Salut"}}})
+	res, err := applyJSON(t, app, NewEnvCommand(t.Context(), "apply"), body, ApplyOptions{})
+	require.NoError(t, err)
+	require.Equal(t, change.OpApplied, res.Ops[0].Status, "%+v", res.Ops[0].Error)
+	got, _ := os.ReadFile("fr.po")
+	assert.Contains(t, string(got), `msgstr "Salut le monde"`)
+	assert.Contains(t, string(got), `msgid "Hello world"`)
+}
+
 // Outside a project a reference is a path from the working directory, and it
 // may lead out of it, as the files a command line names do.
 func TestApply_ResolvesAPathOutsideTheWorkingDirectory(t *testing.T) {

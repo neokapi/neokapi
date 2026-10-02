@@ -5719,6 +5719,11 @@
           "usage": "gjengi også hver blokk i disse målformatene (html, markdown, asciidoc) under \"projected\"",
           "default": "[]",
           "type": "stringSlice"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE); one per run",
+          "type": "string"
         }
       ],
       "examples": [

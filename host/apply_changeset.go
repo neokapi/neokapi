@@ -12,6 +12,8 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/changeschema"
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 )
 
 // ApplyOptions are the flags of one kapi apply run.
@@ -102,6 +104,7 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		svc, err = a.changeService(ctx, cmd, ChangeServiceOptions{
 			Project: recipe, Origin: "apply", Format: a.FormatFlag,
 			AnyPath: recipe == "", BackupSuffix: opts.BackupSuffix,
+			TargetLocale: targetLocaleOf(set, a.changeSourceLocale(recipe)),
 		})
 		if err != nil {
 			return err
@@ -128,6 +131,36 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		printChangeResult(cmd.ErrOrStderr(), res)
 	}
 	return changeResultExit(res)
+}
+
+// targetLocaleOf is the one language a change set's operations name as an
+// edition other than source, or "" when they name none or several. A
+// bilingual file whose reader has to be told the language of the translation
+// it holds (a PO catalog's msgstr) is read in that language.
+func targetLocaleOf(set change.Set, source model.LocaleID) model.LocaleID {
+	var loc model.LocaleID
+	for _, op := range set.Ops {
+		l := model.NormalizeLocale(op.At.Edition.Locale)
+		if l == "" || l == model.NormalizeLocale(source) {
+			continue
+		}
+		if loc != "" && loc != l {
+			return ""
+		}
+		loc = l
+	}
+	return loc
+}
+
+// changeSourceLocale is the language the documents of the project at recipe
+// are written in, or the command line's outside a project.
+func (a *App) changeSourceLocale(recipe string) model.LocaleID {
+	if recipe != "" {
+		if proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true}); err == nil {
+			return model.LocaleID(ResolveSourceLocale(a.SourceLang, proj.Defaults.SourceLanguage))
+		}
+	}
+	return model.LocaleID(a.SourceLocale())
 }
 
 // changeActorOf is the change service's actor for a context actor.

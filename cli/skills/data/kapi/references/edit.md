@@ -44,7 +44,10 @@ Three fields anchor an edit:
 `ops` lists the operations the block accepts; a block with none, such as a
 Markdown code block (`role` is `code`), keeps its text. `structures` lists each
 plural or select with the path to each of its branches. Inside a project,
-`editions` lists each translation with its own `rev`.
+`editions` lists each translation with its own `rev`; a bilingual file lists
+the translation it holds, and a PO catalog lists it once you name its language
+(`kapi inspect fr.po --target-lang fr`). An operation on a translation names its
+language in `at.edition`.
 
 Everything else in `text` is text, and kapi encodes it for the file's format.
 In HTML a `<` or `&` you type is written as a character reference. Markdown,
