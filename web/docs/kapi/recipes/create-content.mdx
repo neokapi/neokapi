@@ -74,7 +74,7 @@ Fix what the check flags (edit the source directly, or route the fix through `ka
 
 ## Close the loop: fix the content and the rule together
 
-When a check flags a term, the durable fix is two changes: correct **this draft** and record the rule so **future** drafts are checked against it. Both are typed entries in one `kapi apply` change-set (requires a [kapi project](/kapi/get-started/first-project)), landing atomically through the single write verb:
+When a check flags a term, the durable fix is two changes: correct **this draft** and record the rule so **future** drafts are checked against it. Both are typed entries in one `kapi apply` change-set (requires a [kapi project](/kapi/get-started/first-project)), written through the single write verb:
 
 ```jsonl
 {"kind":"content","file":"draft.md","id":"p4","content_hash":"a1b2…","text":"Open the dashboard."}
@@ -85,7 +85,7 @@ When a check flags a term, the durable fix is two changes: correct **this draft*
 kapi apply changeset.jsonl
 ```
 
-The **content** entry rewrites the block through the faithful round-trip, drift-guarded by `content_hash`; the **term** entry is written into the [project store](/kapi/project-store)'s terms tables and recorded as a decision, so `kapi context log` names the new term and the next `kapi check` enforces it. `apply` is idempotent, and also accepts `memory`, `voice`, and `recipe` asset kinds; see [Keep source on brand](/kapi/recipes/keep-source-on-brand) for the `voice` entry.
+The **content** entry rewrites the block through the faithful round-trip, drift-guarded by `content_hash`; the **term** entry is written into the [project store](/kapi/project-store)'s terms tables and recorded as a decision, so `kapi context log` names the new term and the next `kapi check` enforces it. Each entry lands on its own: when one is stale or refused, the others are still written, and `kapi apply` reports which and exits non-zero. Re-running the corrected change-set is safe, because an edit already in place is skipped. `apply` also accepts `memory` and `recipe` asset entries; see [Keep source on brand](/kapi/recipes/keep-source-on-brand) for a `term` entry that adds a word rule.
 
 ## Next
 

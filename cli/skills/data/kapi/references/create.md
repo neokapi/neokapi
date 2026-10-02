@@ -88,8 +88,10 @@ line.
 
 When a check flags a term, the durable fix is usually two changes: correct **this
 draft**, and record the rule so **future** drafts are checked against it. Both
-are typed entries in **one** `kapi apply` change-set, and they land atomically:
-content and asset through the single write verb:
+are typed entries in **one** `kapi apply` change-set, written through the
+single write verb. Each entry lands on its own: when one is stale or refused,
+the others are still written and apply exits non-zero, so fix that entry and
+re-run the change-set (an edit already in place is skipped):
 
 ```jsonl
 {"kind":"content","file":"draft.md","id":"p4","content_hash":"a1b2…","text":"Open the dashboard."}

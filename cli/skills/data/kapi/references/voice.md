@@ -164,8 +164,9 @@ lost. Re-run the check to confirm the score improved.
 
 A recurring off-voice term is better fixed at the source: add a term so every
 future draft is checked against it. That is just another `kind` in the
-**same** `kapi apply` change-set: the content fix and the rule that justifies it
-land together, atomically:
+**same** `kapi apply` change-set, the content fix beside the rule that
+justifies it. Each entry lands on its own, so if one is refused, fix it and
+re-run the change-set:
 
 ```jsonl
 {"kind":"content","file":"blog-post.md","id":"p2","content_hash":"b74d…","text":"We use our infrastructure."}
