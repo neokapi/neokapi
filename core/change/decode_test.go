@@ -149,6 +149,12 @@ func decodeCases() []decodeCase {
 		{name: "no operations", object: true, pointer: "/ops", in: `{"note":"nothing"}`},
 		{name: "ops in the envelope line and after it", pointer: "/ops", in: `{"ops":[]}` + "\n" + `{"op":"unannotate",` + at + `,"type":"note","id":"n1"}`},
 		{name: "a wrong type", object: true, pointer: "/ops/0/edits/0/start", in: envelope(`{"op":"replace_text",` + at + `,"if_match":"*","edits":[{"start":"0","end":1,"text":"b"}]}`)},
+		{name: "an unknown field in a path step", object: true, pointer: "/ops/0/edits/0/path/1", in: envelope(`{"op":"replace_text",` + at + `,"if_match":"*","edits":[{"path":[1,{"plural":"one","zz":1}],"find":"a","text":"b"}]}`)},
+		{name: "an explicit plural selector", object: true, in: envelope(`{"op":"set_content",` + at + `,"if_match":"*","path":[0,{"plural":"=0"}],"runs":[{"text":"none"}]}`)},
+		{name: "a path step naming no plural form", object: true, pointer: "/ops/0/edits/0/path/1/plural", in: envelope(`{"op":"replace_text",` + at + `,"if_match":"*","edits":[{"path":[1,{"plural":"onee"}],"find":"a","text":"b"}]}`)},
+		{name: "a plural form that is not a plural category", object: true, pointer: "/ops/0/runs/0/plural/forms/onee", in: envelope(`{"op":"set_content",` + at + `,"if_match":"*","runs":[{"plural":{"pivot":"n","forms":{"onee":[{"text":"a"}],"other":[{"text":"b"}]}}}]}`)},
+		{name: "an edition named twice on delete_block", object: true, pointer: "/ops/0/if_match/nb_NO", semantic: true, in: envelope(`{"op":"delete_block","at":{"doc":"a","block":"b"},"if_match":{"nb-NO":"` + rev + `","nb_NO":"` + rev + `"}}`)},
+		{name: "an edition named twice on insert_block", object: true, pointer: "/ops/0/editions/nb_NO", semantic: true, in: envelope(`{"op":"insert_block","doc":"a","after":"p1","editions":{"nb-NO":{"text":"Hei"},"nb_NO":{"text":"Hallo"}}}`)},
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -284,7 +285,7 @@ func decodeOp(raw json.RawMessage, ptr string) (Op, *Error) {
 	return op, nil
 }
 
-func checkIfMatch(shape ifMatchShape, v, ptr string) *Error {
+func checkIfMatch(shape IfMatchRule, v, ptr string) *Error {
 	switch shape {
 	case ifMatchRequired:
 		if v == model.AbsentRevision || v == AnyRevision || validRevision(v) {
@@ -369,6 +370,9 @@ func validateBody(op Op, ptr string) *Error {
 			if err := validateContent(b.Editions[k], at); err != nil {
 				return err
 			}
+			if _, dup := canon[keyText(key)]; dup {
+				return invalidAt(at, "names edition %s a second time", keyText(key))
+			}
 			canon[keyText(key)] = b.Editions[k]
 		}
 		b.Editions = canon
@@ -385,6 +389,9 @@ func validateBody(op Op, ptr string) *Error {
 			}
 			if !validRevision(b.IfMatch[k]) {
 				return invalidAt(at, "%q is not a revision (r: and 16 hex digits)", b.IfMatch[k])
+			}
+			if _, dup := canon[keyText(key)]; dup {
+				return invalidAt(at, "names edition %s a second time", keyText(key))
 			}
 			canon[keyText(key)] = b.IfMatch[k]
 		}
@@ -489,8 +496,60 @@ func decodeRef(raw json.RawMessage, ptr string) (Ref, *Error) {
 var (
 	rawMessageType = reflect.TypeFor[json.RawMessage]()
 	runType        = reflect.TypeFor[model.Run]()
+	pathStepType   = reflect.TypeFor[model.RunPathStep]()
 	unmarshalerTyp = reflect.TypeFor[json.Unmarshaler]()
 )
+
+// checkPathStepJSON checks one step of a run path: an index, or an object
+// naming exactly one plural form or select case.
+func checkPathStepJSON(raw json.RawMessage, ptr string) *Error {
+	if len(raw) > 0 && raw[0] != '{' {
+		var i int
+		if err := json.Unmarshal(raw, &i); err != nil {
+			return invalidAt(ptr, "a path step is a run index or an object naming a plural form or a select case")
+		}
+		return nil
+	}
+	obj, err := objectAt(raw, ptr)
+	if err != nil {
+		return err
+	}
+	if len(obj) != 1 {
+		return invalidAt(ptr, "a path step names exactly one of plural and select; this one has %d fields", len(obj))
+	}
+	for _, k := range sortedKeys(obj) {
+		var name string
+		if json.Unmarshal(obj[k], &name) != nil {
+			return invalidAt(ptr+"/"+escapePointer(k), "must be a string")
+		}
+		switch k {
+		case "plural":
+			if !validPluralForm(name) {
+				return invalidAt(ptr+"/plural", "plural form %q; one of zero, one, two, few, many, other, or =N", name)
+			}
+		case "select":
+			if name == "" {
+				return invalidAt(ptr+"/select", "names no select case")
+			}
+		default:
+			return invalidAt(ptr+"/"+escapePointer(k), "unknown field %q; a path step takes plural or select", k)
+		}
+	}
+	return nil
+}
+
+// explicitPluralRe is an explicit ICU value selector: =0, =1, =2.5.
+var explicitPluralRe = regexp.MustCompile(`^=[0-9]+(\.[0-9]+)?$`)
+
+// validPluralForm reports whether name is a CLDR plural category or an
+// explicit ICU value selector.
+func validPluralForm(name string) bool {
+	switch model.PluralForm(name) {
+	case model.PluralZero, model.PluralOne, model.PluralTwo, model.PluralFew, model.PluralMany, model.PluralOther:
+		return true
+	}
+	return explicitPluralRe.MatchString(name)
+}
 
 // decodeValue decodes raw into v strictly, naming ptr in any error.
 func decodeValue(raw json.RawMessage, v reflect.Value, ptr string) *Error {
@@ -502,6 +561,11 @@ func decodeValue(raw json.RawMessage, v reflect.Value, ptr string) *Error {
 	}
 	if bytes.Equal(raw, []byte("null")) {
 		return invalidAt(ptr, "null is not a value here; leave the field out")
+	}
+	if t == pathStepType {
+		if err := checkPathStepJSON(raw, ptr); err != nil {
+			return err
+		}
 	}
 	if t == runType {
 		if err := checkRunJSON(raw, ptr); err != nil {
@@ -700,6 +764,9 @@ func checkRunJSON(raw json.RawMessage, ptr string) *Error {
 		}
 		for _, name := range sortedKeys(forms) {
 			fat := at + "/" + branchKey + "/" + escapePointer(name)
+			if kind == "plural" && !validPluralForm(name) {
+				return invalidAt(fat, "plural form %q; one of zero, one, two, few, many, other, or =N", name)
+			}
 			var items []json.RawMessage
 			if err := json.Unmarshal(forms[name], &items); err != nil {
 				return invalidAt(fat, "must be an array of runs")

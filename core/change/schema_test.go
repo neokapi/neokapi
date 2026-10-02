@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/change/changeschema"
 )
 
 var update = flag.Bool("update", false, "rewrite the schema golden file")
@@ -20,7 +21,7 @@ var update = flag.Bool("update", false, "rewrite the schema golden file")
 // The schema is generated from the Go types and pinned: a change to it is a
 // change to the contract, and shows up in review as a change to this file.
 func TestSchemaGolden(t *testing.T) {
-	got := change.Schema()
+	got := changeschema.Schema()
 	path := filepath.Join("testdata", "schema.golden.json")
 	if *update {
 		require.NoError(t, os.WriteFile(path, append(got, '\n'), 0o644))
@@ -46,7 +47,7 @@ func TestSchema_EachOperationIsAClosedOneOfMember(t *testing.T) {
 			} `json:"items"`
 		} `json:"properties"`
 	}
-	require.NoError(t, json.Unmarshal(change.Schema(), &s))
+	require.NoError(t, json.Unmarshal(changeschema.Schema(), &s))
 	members := s.Properties["ops"].Items.OneOf
 	var kinds []string
 	for _, m := range members {
@@ -66,7 +67,7 @@ func TestSchema_EachOperationIsAClosedOneOfMember(t *testing.T) {
 func resolvedSchema(t *testing.T) *jsonschema.Resolved {
 	t.Helper()
 	var s jsonschema.Schema
-	require.NoError(t, json.Unmarshal(change.Schema(), &s))
+	require.NoError(t, json.Unmarshal(changeschema.Schema(), &s))
 	rs, err := s.Resolve(nil)
 	require.NoError(t, err)
 	return rs

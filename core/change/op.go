@@ -304,33 +304,27 @@ func (*Memory) opKind() Kind        { return KindMemory }
 func (*Recipe) opKind() Kind        { return KindRecipe }
 func (*Provenance) opKind() Kind    { return KindProvenance }
 
-// atShape is what an operation's address looks like on the wire.
-type atShape int
-
+// The short names the spec table and the decoder use for each Address and
+// IfMatchRule.
 const (
-	atNone    atShape = iota // no address
-	atEdition                // "at": {doc, block, edition?}
-	atBlock                  // "at": {doc, block}, no edition
-	atDoc                    // "doc": "…"
-)
+	atNone    = AddressNone
+	atEdition = AddressEdition
+	atBlock   = AddressBlock
+	atDoc     = AddressDoc
 
-// ifMatchShape is what an operation's if_match looks like on the wire.
-type ifMatchShape int
-
-const (
-	ifMatchNone     ifMatchShape = iota // not allowed
-	ifMatchRequired                     // a revision, "absent" or "*"; required
-	ifMatchOptional                     // a revision; optional
-	ifMatchDigest                       // a document digest; required
-	ifMatchBody                         // the body carries it (delete_block)
+	ifMatchNone     = IfMatchNone
+	ifMatchRequired = IfMatchRequired
+	ifMatchOptional = IfMatchOptional
+	ifMatchDigest   = IfMatchDigest
+	ifMatchBody     = IfMatchInBody
 )
 
 // opSpec is the wire shape of one operation kind.
 type opSpec struct {
 	kind    Kind
 	newBody func() Body
-	at      atShape
-	ifMatch ifMatchShape
+	at      Address
+	ifMatch IfMatchRule
 	basis   bool
 	public  bool
 	// summary describes the operation in the schema.
@@ -368,6 +362,62 @@ var specs = []opSpec{
 		"Set one recipe field through its allowlist."},
 	{KindProvenance, func() Body { return &Provenance{} }, atEdition, ifMatchNone, false, false,
 		"Record how a tool produced an edition."},
+}
+
+// Address is how an operation names what it changes on the wire.
+type Address int
+
+const (
+	// AddressNone: the operation names no document (an asset operation).
+	AddressNone Address = iota
+	// AddressEdition: "at" is {doc, block, edition?}.
+	AddressEdition
+	// AddressBlock: "at" is {doc, block}, with no edition.
+	AddressBlock
+	// AddressDoc: "doc" names the document.
+	AddressDoc
+)
+
+// IfMatchRule is what an operation's if_match is on the wire.
+type IfMatchRule int
+
+const (
+	// IfMatchNone: the operation takes no if_match.
+	IfMatchNone IfMatchRule = iota
+	// IfMatchRequired: a revision, "absent" or "*", required.
+	IfMatchRequired
+	// IfMatchOptional: a revision, optional.
+	IfMatchOptional
+	// IfMatchDigest: a document digest, required.
+	IfMatchDigest
+	// IfMatchInBody: the body carries the revisions (delete_block).
+	IfMatchInBody
+)
+
+// OperationSpec describes one operation of the contract, for a transport that
+// publishes its shape (the JSON Schema in changeschema).
+type OperationSpec struct {
+	Kind    Kind
+	Summary string
+	Address Address
+	IfMatch IfMatchRule
+	// Basis says the operation records the basis of a derived edition.
+	Basis bool
+	// Body is a new, empty body of the operation's type.
+	Body Body
+}
+
+// Operations describes the operations a change set may carry, in the order
+// Kinds lists them.
+func Operations() []OperationSpec {
+	out := make([]OperationSpec, 0, len(specs))
+	for _, s := range specs {
+		if !s.public {
+			continue
+		}
+		out = append(out, OperationSpec{Kind: s.kind, Summary: s.summary, Address: s.at, IfMatch: s.ifMatch, Basis: s.basis, Body: s.newBody()})
+	}
+	return out
 }
 
 func specOf(k Kind) (opSpec, bool) {

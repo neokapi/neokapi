@@ -16,7 +16,8 @@
 //     HTTP statuses (errors.go);
 //   - strict decoding: an unknown field or operation is refused as invalid
 //     with the JSON pointer of what was wrong (Decode);
-//   - the JSON Schema of a change set, generated from the Go types (Schema);
+//   - a description of each operation (Operations), from which package
+//     changeschema generates the JSON Schema of a change set;
 //   - ApplyBlock, which applies content operations to one block in memory
 //     under the rules every content operation obeys: text is a form of runs
 //     parsed against a reference code set, inline codes keep their editing

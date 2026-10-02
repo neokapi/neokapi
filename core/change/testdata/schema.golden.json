@@ -901,14 +901,21 @@
             "properties": {
               "plural": {
                 "type": "string",
-                "description": "a plural form",
-                "enum": [
-                  "zero",
-                  "one",
-                  "two",
-                  "few",
-                  "many",
-                  "other"
+                "description": "a plural form: zero, one, two, few, many, other, or =N",
+                "anyOf": [
+                  {
+                    "enum": [
+                      "zero",
+                      "one",
+                      "two",
+                      "few",
+                      "many",
+                      "other"
+                    ]
+                  },
+                  {
+                    "pattern": "^=[0-9]+(\\.[0-9]+)?$"
+                  }
                 ]
               }
             },
@@ -1193,6 +1200,25 @@
                     "items": {
                       "$ref": "#/$defs/run"
                     }
+                  },
+                  "propertyNames": {
+                    "type": "string",
+                    "description": "a plural form: zero, one, two, few, many, other, or =N",
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "zero",
+                          "one",
+                          "two",
+                          "few",
+                          "many",
+                          "other"
+                        ]
+                      },
+                      {
+                        "pattern": "^=[0-9]+(\\.[0-9]+)?$"
+                      }
+                    ]
                   }
                 }
               },
