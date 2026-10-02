@@ -57,7 +57,7 @@ func projectionTable(name string) bool {
 	case strings.HasPrefix(name, "tm_"), strings.HasPrefix(name, "tb_"):
 		return !strings.HasSuffix(name, "_migrations")
 	case name == "voice_profiles", name == "voice_profile_versions", name == "unit_decision",
-		name == "document_adoption", name == "block_history":
+		name == "document_adoption", name == "block_history", name == "block_history_op":
 		return true
 	}
 	return false

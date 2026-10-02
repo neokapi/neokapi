@@ -93,10 +93,11 @@ func TestACheckpointOfALongHistoryIsMadeOfBlobsThatFit(t *testing.T) {
 // column, in key order: a comparison of 150,000 rows that costs a scan.
 func historyDigest(t *testing.T, db *projectdb.DB) (int, string) {
 	t.Helper()
-	rows, err := db.Raw().QueryContext(t.Context(), `SELECT op || '|' || address || '|' || doc || '|' || block || '|' ||
-    key || '|' || edition || '|' || before || '|' || after || '|' || basis || '|' || content_hash || '|' ||
-    context_hash || '|' || actor || '|' || actor_name || '|' || session || '|' || origin || '|' || at
-  FROM block_history ORDER BY doc, block, edition, address`)
+	rows, err := db.Raw().QueryContext(t.Context(), `SELECT h.op || '|' || COALESCE(o.address, '') || '|' || h.doc || '|' ||
+    h.block || '|' || h.key || '|' || h.edition || '|' || h.before || '|' || h.after || '|' || h.basis || '|' ||
+    h.content_hash || '|' || h.context_hash || '|' || h.actor || '|' || h.actor_name || '|' || h.session || '|' ||
+    h.origin || '|' || h.at
+  FROM block_history h LEFT JOIN block_history_op o ON o.op = h.op ORDER BY h.doc, h.block, h.edition, h.op`)
 	require.NoError(t, err)
 	defer func() { _ = rows.Close() }()
 	h := sha256.New()

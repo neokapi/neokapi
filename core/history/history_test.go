@@ -3,6 +3,7 @@ package history_test
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,11 +98,11 @@ func TestReadsAnswerMostRecentFirst(t *testing.T) {
 	assert.Empty(t, head)
 }
 
-// TestARowIsKeyedByItsOperationsAddress: two logs that recorded one edit under
-// different ids keep the older id once they merge. The row the newer id
-// projected is the row the older one rewrites, so the store ends with the
-// rows a rebuild from the merged log writes.
-func TestARowIsKeyedByItsOperationsAddress(t *testing.T) {
+// TestAnOperationTakesThePlaceOfOneHoldingItsAddress: two logs that recorded
+// one edit under different ids keep the older id once they merge. The older
+// one's rows take the place of the rows the newer id projected, so the store
+// ends with the rows a rebuild from the merged log writes.
+func TestAnOperationTakesThePlaceOfOneHoldingItsAddress(t *testing.T) {
 	s := openStore(t)
 	ctx := t.Context()
 	newer := history.Row{Op: "op9", Address: "edit:x", Doc: "d-1", Block: "p#1", Edition: "nb",
@@ -138,12 +139,11 @@ func TestReachedAsksTheIndexRatherThanTheDocument(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, map[history.Reach]string{{Block: "p#7", Edition: "nb", Rev: "r:50.7"}: "a049"}, reached)
 
-	plan := history.ReachedPlan(t, s)
-	assert.Contains(t, plan, "SEARCH h USING INDEX block_history_reached (doc=? AND block=? AND edition=? AND after=?)",
-		"each revision is a search of the index on the revision it names: %q", plan)
-	for _, step := range plan {
-		assert.NotContains(t, step, "SCAN h", "no lookup walks the document's history")
-	}
+	plan := strings.Join(history.ReachedPlan(t, s), "\n")
+	assert.Regexp(t, `SEARCH h USING (COVERING )?INDEX block_history_reached \(doc=\? AND block=\? AND edition=\? AND after=\?\)`, plan,
+		"each revision is a search of the index on the revision it names")
+	assert.NotContains(t, plan, "SCAN h", "no lookup walks the document's history")
+	assert.NotContains(t, plan, "SCAN o")
 }
 
 func TestPriorsCarryTheMostRecentIdentityEvidence(t *testing.T) {

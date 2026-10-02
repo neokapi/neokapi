@@ -120,4 +120,15 @@ func TestMeasureEditRecording(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, report.Failed)
 	t.Logf("rebuild of %d edits (%d rows) in %s", report.Operations[projector.KindEdit], 2*transitions, time.Since(start))
+
+	start = time.Now()
+	cp, err := p.Checkpoint(ctx)
+	require.NoError(t, err)
+	t.Logf("checkpoint in %s: the file %.1f MB, %d parts", time.Since(start), float64(cp.Bytes)/1e6, cp.Parts)
+	start = time.Now()
+	report, err = p.Rebuild(ctx)
+	require.NoError(t, err)
+	require.Empty(t, report.Failed)
+	require.Equal(t, cp.Through, report.Checkpoint)
+	t.Logf("rebuild from the checkpoint in %s", time.Since(start))
 }

@@ -81,17 +81,20 @@ var migrations = []storage.Migration{{
 	Version:     1,
 	Description: "block history",
 	// One row per edition an edit changed. The document, the block, the
-	// edition and the operation's content address identify it, and the key in
-	// that order is also the index every read of one edition's history walks.
-	// The address rather than the id, because two logs that recorded one edit
-	// under different ids keep the older id once they merge: the row the
-	// newer id projected is then the row the older one rewrites, as a rebuild
-	// writes it. block_history_reached answers which operation left an
-	// edition at a revision without reading the rest of the document.
+	// edition and the operation identify it, and the key in that order is also
+	// the index every read of one edition's history walks.
+	// block_history_reached answers which operation left an edition at a
+	// revision without reading the rest of the document.
+	//
+	// block_history_op holds one row per operation: its content address, which
+	// every log holding the operation agrees on, and its document. Two logs
+	// that recorded one edit under different ids keep the older id once they
+	// merge, and the operation that arrives for an address another operation
+	// holds takes its rows' place, as a rebuild from the merged log writes
+	// them.
 	SQL: `
 CREATE TABLE IF NOT EXISTS block_history (
     op           TEXT NOT NULL,
-    address      TEXT NOT NULL,
     doc          TEXT NOT NULL,
     block        TEXT NOT NULL,
     key          TEXT NOT NULL DEFAULT '',
@@ -106,10 +109,15 @@ CREATE TABLE IF NOT EXISTS block_history (
     session      TEXT NOT NULL DEFAULT '',
     origin       TEXT NOT NULL DEFAULT '',
     at           TEXT NOT NULL,
-    PRIMARY KEY (doc, block, edition, address)
+    PRIMARY KEY (doc, block, edition, op)
 );
 CREATE INDEX IF NOT EXISTS block_history_doc ON block_history(doc, op);
-CREATE INDEX IF NOT EXISTS block_history_reached ON block_history(doc, block, edition, after, op);`,
+CREATE INDEX IF NOT EXISTS block_history_reached ON block_history(doc, block, edition, after, op);
+CREATE TABLE IF NOT EXISTS block_history_op (
+    op      TEXT NOT NULL PRIMARY KEY,
+    address TEXT NOT NULL UNIQUE,
+    doc     TEXT NOT NULL
+);`,
 }}
 
 // Open binds the block history to a context database, creating its table.
@@ -127,11 +135,12 @@ func Open(db *storage.DB) (*Store, error) {
 // which sorts lexically in time order.
 const timeLayout = "2006-01-02T15:04:05.000000000Z"
 
-// Put writes rows in one transaction. A row the store already holds, by its
-// document, block, edition and operation address, is overwritten with the
-// arriving one: the same operation applied again writes the same values, and
-// the operation a merge kept in place of one with the same address writes its
-// own id, moment and origin over the one it replaced.
+// Put writes rows in one transaction, each operation's rows after its
+// address. An operation that arrives for an address another operation holds
+// takes that operation's place: its rows are removed, which is what a merge
+// that kept the older of two ids for one edit leaves a rebuild to write. A row
+// the store already holds, by its document, block, edition and operation, is
+// written again with the arriving values.
 func (s *Store) Put(ctx context.Context, rows []Row) error {
 	if len(rows) == 0 {
 		return nil
@@ -142,11 +151,11 @@ func (s *Store) Put(ctx context.Context, rows []Row) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 	stmt, err := tx.PrepareContext(ctx, `
-INSERT INTO block_history (op, address, doc, block, key, edition, before, after, basis,
+INSERT INTO block_history (op, doc, block, key, edition, before, after, basis,
     content_hash, context_hash, actor, actor_name, session, origin, at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(doc, block, edition, address) DO UPDATE SET
-    op = excluded.op, key = excluded.key, before = excluded.before, after = excluded.after,
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(doc, block, edition, op) DO UPDATE SET
+    key = excluded.key, before = excluded.before, after = excluded.after,
     basis = excluded.basis, content_hash = excluded.content_hash, context_hash = excluded.context_hash,
     actor = excluded.actor, actor_name = excluded.actor_name, session = excluded.session,
     origin = excluded.origin, at = excluded.at`)
@@ -154,9 +163,16 @@ ON CONFLICT(doc, block, edition, address) DO UPDATE SET
 		return fmt.Errorf("history: put: %w", err)
 	}
 	defer func() { _ = stmt.Close() }()
+	op := ""
 	for _, r := range rows {
+		if r.Op != op {
+			if err := putOp(ctx, tx, r); err != nil {
+				return err
+			}
+			op = r.Op
+		}
 		if _, err := stmt.ExecContext(ctx,
-			r.Op, r.Address, r.Doc, r.Block, r.Key, r.Edition, r.Before, r.After, r.Basis,
+			r.Op, r.Doc, r.Block, r.Key, r.Edition, r.Before, r.After, r.Basis,
 			r.ContentHash, r.ContextHash, r.Actor, r.ActorName, r.Session, r.Origin,
 			r.At.UTC().Format(timeLayout)); err != nil {
 			return fmt.Errorf("history: put %s %s@%s: %w", r.Doc, r.Block, r.Edition, err)
@@ -168,14 +184,44 @@ ON CONFLICT(doc, block, edition, address) DO UPDATE SET
 	return nil
 }
 
-const columns = `op, address, doc, block, key, edition, before, after, basis, content_hash, context_hash,
-    actor, actor_name, session, origin, at`
+// putOp records the operation a row belongs to under its address, removing
+// the rows of another operation that held the address.
+func putOp(ctx context.Context, tx *storage.Tx, r Row) error {
+	if r.Address == "" {
+		return fmt.Errorf("history: put %s: the operation has no address", r.Op)
+	}
+	var held, doc string
+	switch err := tx.QueryRowContext(ctx, `SELECT op, doc FROM block_history_op WHERE address = ?`, r.Address).Scan(&held, &doc); {
+	case errors.Is(err, sql.ErrNoRows):
+	case err != nil:
+		return fmt.Errorf("history: put %s: %w", r.Op, err)
+	case held != r.Op:
+		if _, err := tx.ExecContext(ctx, `DELETE FROM block_history WHERE doc = ? AND op = ?`, doc, held); err != nil {
+			return fmt.Errorf("history: replace %s: %w", held, err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM block_history_op WHERE op = ?`, held); err != nil {
+			return fmt.Errorf("history: replace %s: %w", held, err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO block_history_op (op, address, doc) VALUES (?, ?, ?)
+ON CONFLICT(op) DO NOTHING`, r.Op, r.Address, r.Doc); err != nil {
+		return fmt.Errorf("history: put %s: %w", r.Op, err)
+	}
+	return nil
+}
+
+const columns = `h.op, COALESCE(o.address, ''), h.doc, h.block, h.key, h.edition, h.before, h.after, h.basis,
+    h.content_hash, h.context_hash, h.actor, h.actor_name, h.session, h.origin, h.at`
+
+// from is the rows read with columns: the history with each operation's
+// address.
+const from = ` FROM block_history h LEFT JOIN block_history_op o ON o.op = h.op`
 
 // Edition returns the recorded changes to one edition of one block, most
 // recent first.
 func (s *Store) Edition(ctx context.Context, doc, block, edition string) ([]Row, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+columns+` FROM block_history
-WHERE doc = ? AND block = ? AND edition = ? ORDER BY op DESC`, doc, block, edition)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+columns+from+`
+WHERE h.doc = ? AND h.block = ? AND h.edition = ? ORDER BY h.op DESC`, doc, block, edition)
 	if err != nil {
 		return nil, fmt.Errorf("history: read %s %s@%s: %w", doc, block, edition, err)
 	}
@@ -186,8 +232,8 @@ WHERE doc = ? AND block = ? AND edition = ? ORDER BY op DESC`, doc, block, editi
 // block: who last wrote it, when, and through which surface. found is false
 // when nothing has been recorded for it.
 func (s *Store) LastWrite(ctx context.Context, doc, block, edition string) (row Row, found bool, err error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+columns+` FROM block_history
-WHERE doc = ? AND block = ? AND edition = ? ORDER BY op DESC LIMIT 1`, doc, block, edition)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+columns+from+`
+WHERE h.doc = ? AND h.block = ? AND h.edition = ? ORDER BY h.op DESC LIMIT 1`, doc, block, edition)
 	if err != nil {
 		return Row{}, false, fmt.Errorf("history: read %s %s@%s: %w", doc, block, edition, err)
 	}
@@ -200,8 +246,8 @@ WHERE doc = ? AND block = ? AND edition = ? ORDER BY op DESC LIMIT 1`, doc, bloc
 
 // Document returns every recorded change in one document, most recent first.
 func (s *Store) Document(ctx context.Context, doc string) ([]Row, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+columns+` FROM block_history
-WHERE doc = ? ORDER BY op DESC, block, edition`, doc)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+columns+from+`
+WHERE h.doc = ? ORDER BY h.op DESC, h.block, h.edition`, doc)
 	if err != nil {
 		return nil, fmt.Errorf("history: read %s: %w", doc, err)
 	}
@@ -284,7 +330,7 @@ func (s *Store) Reached(ctx context.Context, doc string, revs []Reach) (map[Reac
 // up in one document (?2).
 const reachedQuery = `
 SELECT json_extract(w.value, '$.b'), json_extract(w.value, '$.e'), json_extract(w.value, '$.r'),
-       (SELECT h.address FROM block_history h
+       (SELECT o.address FROM block_history h JOIN block_history_op o ON o.op = h.op
          WHERE h.doc = ?2
            AND h.block = json_extract(w.value, '$.b')
            AND h.edition = json_extract(w.value, '$.e')
