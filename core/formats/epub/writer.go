@@ -154,6 +154,7 @@ func isSubfilteredLayer(layer *model.Layer) bool {
 // where generating from the content model is the only option and is correct.
 func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts <-chan *model.Part) (string, error) {
 	var childParts []*model.Part
+	var endLayer *model.Layer
 	for {
 		select {
 		case <-ctx.Done():
@@ -163,7 +164,8 @@ func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts 
 				return "", fmt.Errorf("unexpected end of parts stream in child layer %s", layer.ID)
 			}
 			if part.Type == model.PartLayerEnd {
-				if endLayer, ok := part.Resource.(*model.Layer); ok && endLayer.ID == layer.ID {
+				if l, ok := part.Resource.(*model.Layer); ok && l.ID == layer.ID {
+					endLayer = l
 					goto collected
 				}
 			}
@@ -172,6 +174,19 @@ func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts 
 	}
 
 collected:
+	// An item the reader read with a skeleton of its own is replayed through
+	// that skeleton: the reader records it on the layer once the item is read,
+	// so the layer that closes the item carries it.
+	if skel, ok := memberSkeletonOf(endLayer); ok {
+		out, replayed, err := w.replayMember(ctx, layer, skel, childParts)
+		if err != nil {
+			return "", err
+		}
+		if replayed {
+			return out, nil
+		}
+	}
+
 	// Preferred path: splice into the entry's original bytes.
 	if orig, ok := w.sourceEntry(layer.Properties["entry"]); ok {
 		childBlocks := make([]*model.Block, 0, len(childParts))
@@ -495,6 +510,13 @@ func replaceXHTMLText(content []byte, blocks []*model.Block, locale model.Locale
 		targetText := block.SourceText()
 		if !locale.IsEmpty() && block.HasTarget(locale) {
 			targetText = block.TargetText(locale)
+		}
+		// A block that still says what it said keeps its bytes: a splice
+		// writes the block's flattened text into its element's first text
+		// span and drops the rest, which an unchanged block has no reason to
+		// pay.
+		if targetText == asRead {
+			continue
 		}
 		replacements[strings.TrimSpace(asRead)] = targetText
 	}
