@@ -227,16 +227,21 @@ content model.
 
 The source and every target are **editions** of the block, and one set of
 accessors reaches each by its key (`EditionKey`, the same type as `VariantKey`):
-`Edition(k)`, `SetEdition(k, e)`, `RemoveEdition(k)`, `Editions()` and
-`Authoritative(policy)`, the edition every other one is derived from. The zero
-key and the source language name the edition `Source` holds, and a
-same-language edition with a tone or a channel is an edition of its own. A
-bilingual file whose two languages are one (an XLIFF file from en-US to en-US)
-holds a target under the source language; that key then reaches the target, and
-the zero key alone reaches the source. Keys are canonical wherever they address
-an edition, so `nb_NO` and `nb-NO` name one. Code that changes content reads and
-writes through these accessors, so the storage behind them (`Source` and
-`Targets` today) can change without touching it.
+`Edition(k)`, `SetEdition(k, e)`, `SetEditionStatus(k, s)`, `RemoveEdition(k)`,
+`Editions()`, `EachEdition` and `Authoritative(policy)`, the edition every other
+one is derived from. The zero key and the source language name the edition
+`Source` holds, and a same-language edition with a tone or a channel is an
+edition of its own. A bilingual file whose two languages are one (an XLIFF file
+from en-US to en-US) holds a target under the source language; that key then
+reaches the target, and the zero key alone reaches the source. Keys are
+canonical wherever they address an edition, so `nb_NO` and `nb-NO` name one.
+`SetEdition` on the edition a block was read in is an edit, and the block keeps
+the source as read (`SourceAsRead`); a status stamp goes through
+`SetEditionStatus`, which changes the status alone. `Editions()` lists the keys
+in a stable order, and `EachEdition` visits every edition once without sorting,
+the one the block was read in first, for loops over many blocks. Code that
+changes content reads and writes through these accessors, so the storage behind
+them (`Source` and `Targets` today) can change without touching it.
 
 `model.EditionRevision(block, k)` names an edition's content: `r:` and 16 hex
 digits of the SHA-256 of the edition key and its runs as canonical JSON. Status,

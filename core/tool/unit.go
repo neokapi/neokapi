@@ -102,10 +102,11 @@ func (u *unit) SetTargetRuns(_ model.LocaleID, runs []model.Run) {
 // Block.SourceSegmentCount).
 func sourceUnits(b *model.Block, layer string) iter.Seq[Unit] {
 	return func(yield func(Unit) bool) {
+		src := authoritative(b).Runs
 		seg := b.SegmentationLayerFor(nil, layer)
 		if seg == nil || len(seg.Spans) == 0 {
-			if len(b.Source) > 0 {
-				yield(&unit{b: b, idx: 0, layer: layer, src: b.Source})
+			if len(src) > 0 {
+				yield(&unit{b: b, idx: 0, layer: layer, src: src})
 			}
 			return
 		}
@@ -117,7 +118,7 @@ func sourceUnits(b *model.Block, layer string) iter.Seq[Unit] {
 				idx:       i,
 				rng:       &rng,
 				layer:     layer,
-				src:       rng.ExtractRuns(b.Source),
+				src:       rng.ExtractRuns(src),
 				ignorable: span.Ignorable(),
 			}
 			if !yield(u) {
@@ -138,12 +139,13 @@ func sourceUnits(b *model.Block, layer string) iter.Seq[Unit] {
 func targetUnits(v *blockView, loc model.LocaleID, layer string) iter.Seq[WritableUnit] {
 	b := v.b
 	return func(yield func(WritableUnit) bool) {
+		src := authoritative(b).Runs
 		seg := b.SegmentationLayerFor(nil, layer)
 		if seg == nil || len(seg.Spans) == 0 {
-			if len(b.Source) == 0 {
+			if len(src) == 0 {
 				return
 			}
-			u := &unit{b: b, idx: 0, layer: layer, src: b.Source}
+			u := &unit{b: b, idx: 0, layer: layer, src: src}
 			if !yield(u) {
 				return
 			}
@@ -161,7 +163,7 @@ func targetUnits(v *blockView, loc model.LocaleID, layer string) iter.Seq[Writab
 				idx:       i,
 				rng:       &rng,
 				layer:     layer,
-				src:       rng.ExtractRuns(b.Source),
+				src:       rng.ExtractRuns(src),
 				ignorable: span.Ignorable(),
 			}
 			units[i] = u

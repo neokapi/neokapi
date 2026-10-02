@@ -65,11 +65,7 @@ func seedShipStateProject(t *testing.T, cs *bstore.PostgresStore) string {
 	b1.SetTargetText("es", "Hola mundo")
 	b1.SetTargetText("it", "Ciao mondo")
 
-	b2 := &model.Block{
-		ID:           "b2",
-		Translatable: true,
-		Source:       []model.Run{textRun("Hello "), phRun()},
-	}
+	b2 := model.NewRunsBlock("b2", []model.Run{textRun("Hello "), phRun()})
 	b2.SetTargetRuns("fr", []model.Run{textRun("Bonjour "), phRun()})
 	b2.StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	b2.SetTargetRuns("de", []model.Run{textRun("Hallo "), phRun()})
@@ -563,7 +559,7 @@ func TestApplyShipStates_GovernedTermsWithNoResultWithhold(t *testing.T) {
 	require.NoError(t, cs.StoreItem(ctx, proj.ID, "main", &platstore.Item{
 		Name: "a.json", Format: "json", ItemType: "file", CollectionID: "col-a",
 	}))
-	b := &model.Block{ID: "code", Translatable: true, Source: []model.Run{textRun("Hello "), phRun()}}
+	b := model.NewRunsBlock("code", []model.Run{textRun("Hello "), phRun()})
 	b.SetTargetRuns("fr", []model.Run{phRun()})
 	require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "a.json", []*model.Block{b}))
 

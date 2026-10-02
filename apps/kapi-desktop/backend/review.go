@@ -316,7 +316,8 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	// not a new content memory API.
 	tm := a.reviewMemoryFor(ctx, op, root)
 	if tm != nil {
-		lookup := &model.Block{ID: "review-lookup", Translatable: true, Source: b.SourceRuns()}
+		lookup := &model.Block{ID: "review-lookup", Translatable: true}
+		lookup.SetSourceRuns(b.SourceRuns())
 		matches, lerr := tm.Lookup(ctx, lookup, model.LocaleID(sourceLang), loc,
 			memory.LookupOptions{MinScore: 0.5, MaxResults: 1})
 		if lerr == nil && len(matches) > 0 {

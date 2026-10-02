@@ -62,12 +62,7 @@ func runToolSpec(t *testing.T, spec ToolSpec) {
 // text — the universal fixture used by Phase C's bridge-only stability
 // runs.
 func newSampleBlock(id, text string) *model.Part {
-	return &model.Part{
-		Type: model.PartBlock,
-		Resource: &model.Block{
-			ID:           id,
-			Translatable: true,
-			Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
-		},
-	}
+	b := &model.Block{ID: id, Translatable: true}
+	b.SetSourceText(text)
+	return &model.Part{Type: model.PartBlock, Resource: b}
 }

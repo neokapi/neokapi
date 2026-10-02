@@ -50,7 +50,7 @@ func TestCrossTenantProjectIDOR(t *testing.T) {
 	require.NoError(t, s.ContentStore.CreateProject(ctx, &platstore.Project{
 		ID: "victim-proj", Name: "Victim", DefaultSourceLanguage: "en", WorkspaceID: "test-ws",
 	}))
-	blk := &model.Block{ID: "vb", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "secret"}}}}
+	blk := model.NewBlock("vb", "secret")
 	require.NoError(t, s.ContentStore.StoreBlocks(ctx, "victim-proj", "main", []*model.Block{blk}))
 
 	t.Run("read via foreign workspace slug is 404", func(t *testing.T) {

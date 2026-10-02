@@ -70,7 +70,7 @@ const estimateNote = "Source readiness is evaluated against defaults.translate_a
 
 // EstimateConvergence computes the side-effect-free pre-flight estimate for a
 // project's convergence run. It loads the project's source blocks once, holds
-// them by SourceStatus against the project's translate_after level, and for the ready source
+// them by source status against the project's translate_after level, and for the ready source
 // estimates per-locale pending/content memory/AI work. tm may be nil (no content-memory leverage: every
 // pending unit reads as AI work). It never writes to the store and never calls
 // an AI provider. tb is the workspace terms: a match that breaks one of its

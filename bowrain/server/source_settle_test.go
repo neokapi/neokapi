@@ -55,11 +55,22 @@ func storeSourceItem(t *testing.T, cs *sqlitestore.SQLiteStore, projectID, item 
 	}))
 	var blocks []*model.Block
 	for _, sb := range blks {
-		b := &model.Block{ID: sb.id, Translatable: true, SourceStatus: sb.status}
-		b.SetSourceText(sb.text)
+		b := model.NewBlock(sb.id, sb.text)
+		setSourceStatus(b, sb.status)
 		blocks = append(blocks, b)
 	}
 	require.NoError(t, cs.StoreBlocksForItem(t.Context(), projectID, "main", item, blocks))
+}
+
+// setSourceStatus stamps the status of b's authoritative edition.
+func setSourceStatus(b *model.Block, status model.SourceStatus) {
+	b.SetEditionStatus(b.Authoritative(model.AuthorityPolicy{}), model.Status(status))
+}
+
+// sourceStatusOf reads the status of b's authoritative edition.
+func sourceStatusOf(b *model.Block) model.SourceStatus {
+	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
+	return model.SourceStatus(src.Status)
 }
 
 // storeSourceBlock upserts one translatable source block as its own item.
@@ -77,8 +88,8 @@ func mkProject(t *testing.T, cs *sqlitestore.SQLiteStore, id string, props map[s
 	}))
 }
 
-// TestSourceStatus_RoundTripsThroughStore proves the ContentStore now persists a
-// block's SourceStatus (folded into properties) — the prerequisite for the gate.
+// TestSourceStatus_RoundTripsThroughStore proves the ContentStore persists a
+// block's source status (folded into properties), the prerequisite for the gate.
 func TestSourceStatus_RoundTripsThroughStore(t *testing.T) {
 	_, cs, _ := sourceFirstHarness(t)
 	mkProject(t, cs, "p", nil)
@@ -87,7 +98,7 @@ func TestSourceStatus_RoundTripsThroughStore(t *testing.T) {
 	got, err := cs.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: "p", Stream: "main"})
 	require.NoError(t, err)
 	require.Len(t, got, 1)
-	assert.Equal(t, model.SourceStatusWritten, got[0].Block.SourceStatus)
+	assert.Equal(t, model.SourceStatusWritten, sourceStatusOf(got[0].Block))
 	// The reserved key must not leak back as an ordinary property.
 	_, leaked := got[0].Block.Properties[platstore.PropSourceStatus]
 	assert.False(t, leaked, "the folded status key must be stripped on read")
@@ -202,7 +213,7 @@ func settledStatusByID(t *testing.T, cs *sqlitestore.SQLiteStore, projectID stri
 		if key == "" {
 			key = sb.Block.ID
 		}
-		out[key] = sb.Block.SourceStatus
+		out[key] = sourceStatusOf(sb.Block)
 	}
 	return out
 }
@@ -216,7 +227,7 @@ func approveBlocks(t *testing.T, cs *sqlitestore.SQLiteStore, projectID string) 
 	require.NoError(t, err)
 	var blocks []*model.Block
 	for _, sb := range got {
-		sb.Block.SourceStatus = model.SourceStatusEstablished
+		setSourceStatus(sb.Block, model.SourceStatusEstablished)
 		blocks = append(blocks, sb.Block)
 	}
 	require.NoError(t, cs.StoreBlocks(t.Context(), projectID, "main", blocks))

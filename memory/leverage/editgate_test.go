@@ -43,11 +43,9 @@ func providerWith(t *testing.T, source, target string) *leverage.Provider {
 }
 
 func blockOf(text string) *model.Block {
-	return &model.Block{
-		ID:           "b",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
-	}
+	b := &model.Block{ID: "b", Translatable: true}
+	b.SetSourceText(text)
+	return b
 }
 
 func TestLookupBlockClassifiesTheEdit(t *testing.T) {

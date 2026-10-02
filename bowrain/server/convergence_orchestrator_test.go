@@ -461,22 +461,10 @@ func TestCountFailingBlocks(t *testing.T) {
 	// error-severity finding); a clean block and a non-translatable block do not
 	// count (F6).
 	fr := model.LocaleFrench
-	dropped := &model.Block{
-		ID:           "b1",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: "Hello "}}, {Ph: &model.PlaceholderRun{ID: "1", Disp: "{name}"}}},
-		Targets: map[model.VariantKey]*model.Target{
-			model.Variant(fr): {Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
-		},
-	}
-	clean := &model.Block{
-		ID:           "b2",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: "Yes"}}},
-		Targets: map[model.VariantKey]*model.Target{
-			model.Variant(fr): {Runs: []model.Run{{Text: &model.TextRun{Text: "Oui"}}}},
-		},
-	}
+	dropped := model.NewRunsBlock("b1", []model.Run{{Text: &model.TextRun{Text: "Hello "}}, {Ph: &model.PlaceholderRun{ID: "1", Disp: "{name}"}}})
+	dropped.SetEdition(model.Variant(fr), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}})
+	clean := model.NewBlock("b2", "Yes")
+	clean.SetEdition(model.Variant(fr), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "Oui"}}}})
 	nonTranslatable := &model.Block{ID: "b3", Translatable: false}
 
 	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "checks.db"))
@@ -497,15 +485,9 @@ func TestCountFailingBlocks_AllLocalesInOneWalk(t *testing.T) {
 	fr, de := model.LocaleFrench, model.LocaleID("de")
 	// Drops the placeholder in French, keeps it in German.
 	src := []model.Run{{Text: &model.TextRun{Text: "Hello "}}, {Ph: &model.PlaceholderRun{ID: "1", Disp: "{name}"}}}
-	b := &model.Block{
-		ID:           "b1",
-		Translatable: true,
-		Source:       src,
-		Targets: map[model.VariantKey]*model.Target{
-			model.Variant(fr): {Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
-			model.Variant(de): {Runs: []model.Run{{Text: &model.TextRun{Text: "Hallo "}}, {Ph: &model.PlaceholderRun{ID: "1", Disp: "{name}"}}}},
-		},
-	}
+	b := model.NewRunsBlock("b1", src)
+	b.SetEdition(model.Variant(fr), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}})
+	b.SetEdition(model.Variant(de), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "Hallo "}}, {Ph: &model.PlaceholderRun{ID: "1", Disp: "{name}"}}}})
 
 	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "checks.db"))
 	require.NoError(t, err)
@@ -522,19 +504,9 @@ func TestCountFailingBlocks_AllLocalesInOneWalk(t *testing.T) {
 // Coverage is derived from the blocks themselves, for every locale at once.
 func TestBlockCoverage_CountsTranslatablesPerLocale(t *testing.T) {
 	fr, de := model.LocaleFrench, model.LocaleID("de")
-	translated := &model.Block{
-		ID:           "b1",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: "Yes"}}},
-		Targets: map[model.VariantKey]*model.Target{
-			model.Variant(fr): {Runs: []model.Run{{Text: &model.TextRun{Text: "Oui"}}}},
-		},
-	}
-	untranslated := &model.Block{
-		ID:           "b2",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: "No"}}},
-	}
+	translated := model.NewBlock("b1", "Yes")
+	translated.SetEdition(model.Variant(fr), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "Oui"}}}})
+	untranslated := model.NewBlock("b2", "No")
 	nonTranslatable := &model.Block{ID: "b3", Translatable: false}
 
 	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "coverage.db"))

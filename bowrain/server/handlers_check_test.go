@@ -19,19 +19,14 @@ import (
 func TestRunChecksOnBlock_MapsFindingsToWireShape(t *testing.T) {
 	// Source has a non-deletable break placeholder; the target drops it AND
 	// introduces a double space.
-	block := &model.Block{
-		ID:           "b1",
-		Translatable: true,
-		Source: []model.Run{
-			{Text: &model.TextRun{Text: "Hello"}},
-			{Ph: &model.PlaceholderRun{
-				ID: "1", Type: "struct:break", Data: "<br/>",
-				Constraints: &model.RunConstraints{Deletable: false},
-			}},
-			{Text: &model.TextRun{Text: "world"}},
-		},
-		Properties: map[string]string{},
-	}
+	block := model.NewRunsBlock("b1", []model.Run{
+		{Text: &model.TextRun{Text: "Hello"}},
+		{Ph: &model.PlaceholderRun{
+			ID: "1", Type: "struct:break", Data: "<br/>",
+			Constraints: &model.RunConstraints{Deletable: false},
+		}},
+		{Text: &model.TextRun{Text: "world"}},
+	})
 	block.SetTargetText(model.LocaleFrench, "Bonjour  le monde")
 
 	issues, err := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})

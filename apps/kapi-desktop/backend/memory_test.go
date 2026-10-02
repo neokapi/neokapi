@@ -262,6 +262,51 @@ func TestMemory_ResolveEntityConcepts(t *testing.T) {
 	assert.Equal(t, "concept-widget", got.Entities[0].ConceptID)
 }
 
+// TestMemory_LookupMemory_MatchesTheRequestText guards the source the lookup
+// block carries: the request text, with each entity turned into a placeholder
+// run. A lookup block without that source matches nothing.
+func TestMemory_LookupMemory_MatchesTheRequestText(t *testing.T) {
+	app := newTestApp(t)
+	handle := openTestMemory(t, app)
+	require.NoError(t, app.AddMemoryEntry(handle, AddMemoryEntryRequest{
+		Variants: map[string]VariantInputDTO{
+			"en-US": {Text: "Contact Acme for support"},
+			"fr-FR": {Text: "Contactez Acme pour le support"},
+		},
+		HintSrcLang: "en-US",
+	}))
+
+	tests := []struct {
+		name      string
+		entities  []EntityAnnotationDTO
+		wantExact bool
+	}{
+		{name: "plain text matches exactly", wantExact: true},
+		{
+			name:     "an entity placeholder still finds the entry",
+			entities: []EntityAnnotationDTO{{Text: "Acme", Type: "entity:organization", Start: 8, End: 12}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := app.LookupMemory(handle, LookupMemoryRequest{
+				Text:         "Contact Acme for support",
+				Entities:     tt.entities,
+				SourceLocale: "en-US",
+				TargetLocale: "fr-FR",
+				MinScore:     0.5,
+			})
+			require.Len(t, got, 1)
+			assert.Equal(t, "Contactez Acme pour le support", got[0].Entry.Variants["fr-FR"].Text)
+			if tt.wantExact {
+				assert.InDelta(t, 1.0, got[0].Score, 1e-9)
+			} else {
+				assert.Less(t, got[0].Score, 1.0, "the placeholder changes the structure, so the match is not exact")
+			}
+		})
+	}
+}
+
 func TestMemory_DeleteEntry(t *testing.T) {
 	app := newTestApp(t)
 	handle := openTestMemory(t, app)

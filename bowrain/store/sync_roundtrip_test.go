@@ -75,7 +75,9 @@ func TestSyncOverlayFullChainRoundTrip(t *testing.T) {
 	assert.Equal(t, "monde", ta.TargetTerms[0].Text)
 
 	// Core content the store persists also survives the chain.
-	assert.Equal(t, orig.Source, pulled.Source, "source runs (incl. every kind) survive the chain")
+	origSrc, _ := orig.Edition(model.EditionKey{})
+	pulledSrc, _ := pulled.Edition(model.EditionKey{})
+	assert.Equal(t, origSrc.Runs, pulledSrc.Runs, "source runs (incl. every kind) survive the chain")
 	assert.Equal(t, orig.Properties, pulled.Properties, "properties survive the chain")
 	assert.Equal(t, orig.TargetText(model.LocaleFrench), pulled.TargetText(model.LocaleFrench), "fr target survives")
 	assert.Equal(t, orig.TargetText(model.LocaleGerman), pulled.TargetText(model.LocaleGerman), "de target survives")

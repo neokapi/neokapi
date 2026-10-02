@@ -1704,12 +1704,13 @@ func enrichBlockEntities(bi *BlockInfoResponse, block *model.Block) {
 	if f == nil {
 		return
 	}
+	src, _ := block.Edition(model.EditionKey{})
 	for _, span := range f.Spans {
 		a, ok := span.Value.(*model.EntityAnnotation)
 		if !ok {
 			continue
 		}
-		start, end := span.Range.ByteSpan(block.Source)
+		start, end := span.Range.ByteSpan(src.Runs)
 		bi.Entities = append(bi.Entities, EntityInfoResponse{
 			Key:    span.ID,
 			Text:   a.Text,

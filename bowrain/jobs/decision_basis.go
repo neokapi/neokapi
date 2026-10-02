@@ -157,8 +157,12 @@ func (l decisionLedger) needsDraft(sb *venue.StoredBlock, locale model.LocaleID)
 	if current == "" {
 		return false
 	}
-	for key, t := range sb.Block.Targets {
-		if key.Locale != locale || t == nil || len(t.Runs) == 0 || model.RunsText(t.Runs) == "" {
+	auth := sb.Block.Authoritative(model.AuthorityPolicy{})
+	for key, t := range sb.Block.EachEdition {
+		if key.Locale != locale || key == auth {
+			continue
+		}
+		if len(t.Runs) == 0 || model.RunsText(t.Runs) == "" {
 			continue
 		}
 		d, ok := l.record(sb, key)

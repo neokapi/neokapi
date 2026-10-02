@@ -252,24 +252,26 @@ func (c *classAcc) class() ReachClass {
 // row for a target the moment one is queued — so an empty one is skipped rather
 // than counted as work a change would invalidate.
 func blockTargetLocales(b *venue.StoredBlock) (locales, approved []string) {
-	if b == nil || b.Block == nil || len(b.Targets) == 0 {
+	if b == nil || b.Block == nil {
 		return nil, nil
 	}
 	best := map[model.LocaleID]model.TargetStatus{}
 	var order []model.LocaleID
-	for key, t := range b.Targets {
-		if t == nil || len(t.Runs) == 0 {
+	auth := b.Authoritative(model.AuthorityPolicy{})
+	for key, t := range b.EachEdition {
+		if key == auth || len(t.Runs) == 0 {
 			continue
 		}
+		status := model.TargetStatus(t.Status)
 		if _, ok := best[key.Locale]; !ok {
 			order = append(order, key.Locale)
-			best[key.Locale] = t.Status
+			best[key.Locale] = status
 			continue
 		}
 		// Several variants of one locale: the highest rung wins, so a locale
 		// counts as approved when any variant of it has been reviewed.
-		if t.Status.Rank() > best[key.Locale].Rank() {
-			best[key.Locale] = t.Status
+		if status.Rank() > best[key.Locale].Rank() {
+			best[key.Locale] = status
 		}
 	}
 	slices.Sort(order)

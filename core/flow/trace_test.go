@@ -561,6 +561,36 @@ func TestSnapshotOverlaysAndAnnotations(t *testing.T) {
 	assert.Contains(t, keys, model.AnnoNote)
 }
 
+// A block read from an en-US to en-US file holds a target under its source
+// language. Its snapshot shows the source as the source, the target among the
+// targets, and an overlay on the target over the target's text; an overlay on
+// an edition the block does not hold covers nothing.
+func TestSnapshotSameLanguageTarget(t *testing.T) {
+	block := model.NewBlock("b1", "colour source")
+	block.SourceLocale = "en-US"
+	block.SetTargetVariant(model.Variant("en-US"), &model.Target{Runs: []model.Run{model.TextR("colour target")}})
+	enUS, de := model.Variant("en-US"), model.Variant("de")
+	block.Overlays = append(block.Overlays,
+		model.Overlay{Type: model.OverlayTerm, Variant: &enUS, Spans: []model.Span{{ID: "t1", Range: model.SpanAnchor(model.RunPos{Run: 0, Offset: 7}, model.RunPos{Run: 0, Offset: 13})}}},
+		model.Overlay{Type: model.OverlayEntity, Variant: &de, Spans: []model.Span{{ID: "e1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 6})}}},
+	)
+
+	rec := flow.NewTraceRecorder()
+	rec.SnapshotPart(&model.Part{Type: model.PartBlock, Resource: block}, "", "initial")
+	snap := rec.Snapshots()["b1"].Initial
+	assert.Equal(t, "colour source", snap.SourceText)
+	assert.Equal(t, "colour target", snap.TargetText)
+	require.NotNil(t, snap.Detail)
+	require.Contains(t, snap.Detail.Targets, "en-US")
+	assert.Equal(t, "colour target", model.RunsText(snap.Detail.Targets["en-US"]))
+
+	require.Len(t, snap.Detail.Overlays, 2)
+	assert.Equal(t, "en-US", snap.Detail.Overlays[0].Side)
+	assert.Equal(t, "target", snap.Detail.Overlays[0].Spans[0].Text)
+	assert.Equal(t, "de", snap.Detail.Overlays[1].Side)
+	assert.Empty(t, snap.Detail.Overlays[1].Spans[0].Text)
+}
+
 // TestTraceRecorderLimits pins the budget contract: the first MaxParts parts
 // are traced whole, later parts leave no snapshot and no event, MaxEvents cuts
 // the event list, and Truncated says whether anything was dropped.

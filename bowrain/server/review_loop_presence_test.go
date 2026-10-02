@@ -20,7 +20,7 @@ func TestTargetPendingReview_PlaceholderOnlyTargetIsPending(t *testing.T) {
 		ID: "1", Type: "jsx:element", Data: "{p.price}", Equiv: "p.price",
 	}}
 
-	b := &model.Block{ID: "price", Translatable: true, Source: []model.Run{phRun}}
+	b := model.NewRunsBlock("price", []model.Run{phRun})
 	b.SetTargetRuns("fr", []model.Run{phRun})
 	assert.True(t, targetPendingReview(b, "fr"),
 		"a placeholder-only target is produced content and must reach the review queue")

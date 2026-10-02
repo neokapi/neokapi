@@ -20,13 +20,16 @@ import (
 // pool), so a target reaches the same columns whichever door it came through.
 type Execer = storage.Execer
 
-// SyncBlockOverlays writes a block's targets and annotations into the
-// kind-specific overlay tables (translations, annotations), keyed for
-// access-pattern-specific indexes (#403 / #405).
+// SyncBlockOverlays writes a block's translations (every edition other than
+// the one the block was read in) and its annotations into the kind-specific
+// overlay tables (translations, annotations), keyed for
+// access-pattern-specific indexes (#403 / #405). Each translation is filed
+// under its canonical key. A target filed under the zero key is not an edition
+// (that key names the edition the block was read in) and is not written.
 //
-// UPSERT semantics — partial maps only update the variants/kinds
-// provided. Unspecified entries are left intact. This matches how
-// editors and single-locale translators naturally operate.
+// UPSERT semantics: a block carrying some variants/kinds only updates
+// those. Unspecified entries are left intact. This matches how editors
+// and single-locale translators naturally operate.
 //
 // dialect: "pg" | "sqlite".
 func SyncBlockOverlays(
@@ -34,25 +37,31 @@ func SyncBlockOverlays(
 	ex Execer,
 	dialect string,
 	projectID, stream, blockID string,
-	targets map[model.VariantKey]*model.Target,
-	annotations map[string]model.Payload,
+	b *model.Block,
 	now time.Time,
 ) error {
-	for key, target := range targets {
-		if target == nil {
+	src := b.EditionKeyOf(model.EditionKey{})
+	for key, e := range b.EachEdition {
+		if key == src {
 			continue
 		}
-		if err := UpsertBlockTarget(ctx, ex, dialect, projectID, stream, blockID, key, target, nil, now); err != nil {
+		if err := UpsertBlockTarget(ctx, ex, dialect, projectID, stream, blockID, key, TargetRow(e), nil, now); err != nil {
 			return err
 		}
 	}
 
-	for key, ann := range annotations {
+	for key, ann := range b.AnnoMap() {
 		if err := UpsertBlockAnnotation(ctx, ex, dialect, projectID, stream, blockID, key, ann, now); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// TargetRow returns edition e in the shape the translations table stores in
+// target_json.
+func TargetRow(e model.Edition) *model.Target {
+	return &model.Target{Runs: e.Runs, Status: model.TargetStatus(e.Status), Origin: e.Origin, Score: e.Score}
 }
 
 // UpsertBlockAnnotation writes one (block, key) annotation row. It is the ONLY

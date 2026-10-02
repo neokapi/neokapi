@@ -822,15 +822,12 @@ func (a *App) LookupMemory(handle string, req LookupMemoryRequest) []MemoryMatch
 	}
 
 	runs := buildRunsWithEntities(req.Text, req.Entities)
-	block := &model.Block{
-		ID:           "lookup",
-		Translatable: true,
-		Source:       runs,
-	}
+	block := &model.Block{ID: "lookup", Translatable: true}
+	block.SetSourceRuns(runs)
 	for i, ea := range req.Entities {
 		block.AddOverlaySpan(model.OverlayEntity, model.Span{
 			ID:    fmt.Sprintf("entity:%d", i),
-			Range: model.RangeAnchorForBytes(block.Source, ea.Start, ea.End),
+			Range: model.RangeAnchorForBytes(block.SourceRuns(), ea.Start, ea.End),
 			Value: &model.EntityAnnotation{
 				Text:   ea.Text,
 				Type:   model.EntityType(ea.Type),

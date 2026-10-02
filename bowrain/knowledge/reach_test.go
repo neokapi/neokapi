@@ -19,10 +19,7 @@ import (
 // withTarget attaches a committed translation to a block so the reach split can
 // count the work a change would pull back or invalidate.
 func withTarget(b *venue.StoredBlock, locale model.LocaleID, text string, status model.TargetStatus) *venue.StoredBlock {
-	if b.Targets == nil {
-		b.Targets = map[model.VariantKey]*model.Target{}
-	}
-	b.Targets[model.Variant(locale)] = model.NewTarget([]model.Run{model.TextR(text)}, status)
+	b.SetEdition(model.Variant(locale), model.Edition{Runs: []model.Run{model.TextR(text)}, Status: model.Status(status)})
 	return b
 }
 
@@ -178,11 +175,13 @@ func TestReach_SurvivesTheStoredSummary(t *testing.T) {
 // translation, so nothing counts it as work a change would invalidate.
 func TestBlockTargetLocales_SkipsEmptyAndCollapsesVariants(t *testing.T) {
 	b := srcBlock("b1", "g.md", "en-US", "text")
-	b.Targets = map[model.VariantKey]*model.Target{
-		model.Variant("nb"):              model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusDraft),
-		{Locale: "nb", Channel: "email"}: model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusEstablished),
-		model.Variant("de"):              model.NewTarget(nil, model.TargetStatusDraft),
-		{Locale: "fr", Tone: "formal"}:   model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusEstablished),
+	for key, e := range map[model.EditionKey]model.Edition{
+		model.Variant("nb"):              {Runs: []model.Run{model.TextR("t")}, Status: model.Status(model.TargetStatusDraft)},
+		{Locale: "nb", Channel: "email"}: {Runs: []model.Run{model.TextR("t")}, Status: model.Status(model.TargetStatusEstablished)},
+		model.Variant("de"):              {Status: model.Status(model.TargetStatusDraft)},
+		{Locale: "fr", Tone: "formal"}:   {Runs: []model.Run{model.TextR("t")}, Status: model.Status(model.TargetStatusEstablished)},
+	} {
+		b.SetEdition(key, e)
 	}
 
 	locales, approved := blockTargetLocales(b)

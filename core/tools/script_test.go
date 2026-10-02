@@ -137,6 +137,50 @@ func TestScriptModifySourceTextInPlace(t *testing.T) {
 	assert.Equal(t, "HELLO WORLD", resultBlock.SourceText())
 }
 
+// A script that edits the source of a block holding a target under its source
+// language (an en-US to en-US file) changes the source alone: the target stays
+// a target with its status.
+func TestScriptSourceEditKeepsASameLanguageTarget(t *testing.T) {
+	t.Parallel()
+	code := `
+		if (part.type === "block") {
+			part.block.source[0].content.text = part.block.source[0].content.text.toUpperCase();
+			emit(part);
+		}
+	`
+	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: code, AllowSourceMutation: true})
+
+	block := model.NewBlock("tu1", "colour source")
+	block.SourceLocale = "en-US"
+	block.SetTargetVariant(model.Variant("en-US"), &model.Target{Runs: []model.Run{model.TextR("colour target")}, Status: model.TargetStatusEstablished})
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+
+	out := result.Resource.(*model.Block)
+	assert.Equal(t, "COLOUR SOURCE", out.SourceText())
+	assert.Equal(t, "colour target", out.TargetText("en-US"))
+	assert.Equal(t, model.TargetStatusEstablished, out.Target("en-US").Status)
+}
+
+// A target filed under a key that is not canonical (nb_NO) is listed by
+// Editions under its canonical key, which Edition may not reach. The block the
+// script's result is compared with never holds that edition as an empty
+// target, which would write one beside it. The script hands back no targets,
+// so only that comparison block can add one.
+func TestScriptWritesNoEditionItCannotRead(t *testing.T) {
+	t.Parallel()
+	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: `part.block.targets = {}; emit(part);`, AllowSourceMutation: true})
+
+	block := model.NewBlock("tu1", "Hello")
+	block.SourceLocale = "en-US"
+	block.Targets[model.VariantKey{Locale: "nb_NO"}] = &model.Target{Runs: []model.Run{model.TextR("Hei")}}
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+
+	out := result.Resource.(*model.Block)
+	assert.Equal(t, "Hello", out.SourceText())
+	assert.Equal(t, []model.LocaleID{"nb_NO"}, out.TargetLocales(), "no edition is added beside the one the block holds")
+	assert.Equal(t, "Hei", model.RunsText(out.Targets[model.VariantKey{Locale: "nb_NO"}].Runs))
+}
+
 func TestScriptFunctionFormReturnEmits(t *testing.T) {
 	t.Parallel()
 	// A process(part) function is detected and called per Part; returning the

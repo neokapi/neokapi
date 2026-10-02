@@ -345,7 +345,7 @@ func tableParts(origin map[[2]int]*model.Block, covered map[[2]int]bool, minRow,
 					// accounts for this position, so emit no cell here.
 					continue
 				}
-				b = &model.Block{ID: fmt.Sprintf("%sc%d", rid, col), Targets: map[model.VariantKey]*model.Target{}}
+				b = &model.Block{ID: fmt.Sprintf("%sc%d", rid, col)}
 			}
 			b.Type = "table-cell"
 			b.SetSemanticRole(role, 0)

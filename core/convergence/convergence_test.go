@@ -33,6 +33,20 @@ func TestSourceState_PresenceBaselineAndCommitted(t *testing.T) {
 	assert.Empty(t, convergence.SourceState(model.NewBlock("e", "  ")), "empty source is below every rung")
 }
 
+// The source state is the authoritative edition's. A target filed under the
+// source language (an en-US to en-US file) is a target, so its status and its
+// emptiness say nothing about the source.
+func TestSourceState_ReadsTheAuthoritativeEdition(t *testing.T) {
+	b := model.NewBlock("a", "")
+	b.SourceLocale = "en-US"
+	b.SetTargetVariant(model.Variant("en-US"), &model.Target{Runs: []model.Run{model.TextR("Apple")}, Status: model.TargetStatusEstablished})
+	assert.Empty(t, convergence.SourceState(b), "an empty source is below every rung")
+
+	b.SetSourceText("Apple")
+	b.SourceStatus = model.SourceStatusWritten
+	assert.Equal(t, string(model.SourceStatusWritten), convergence.SourceState(b))
+}
+
 func TestPreview_TrimsAndCollapses(t *testing.T) {
 	assert.Equal(t, "a b c", convergence.Preview("  a   b\nc  "))
 	long := convergence.Preview(string(make([]byte, 100)))

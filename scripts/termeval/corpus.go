@@ -138,7 +138,7 @@ func readCatalog(path string) (map[string][]model.Run, error) {
 			continue
 		}
 		if b, ok := res.Part.Resource.(*model.Block); ok && b.Translatable {
-			out[b.Name] = b.Source
+			out[b.Name] = b.SourceRuns()
 		}
 	}
 	return out, readErr

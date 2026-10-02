@@ -60,12 +60,14 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 	var key string
 	updated, err := s.ContentStore.UpdateBlock(c.Request().Context(), projectID, streamParam(c), blockID, func(sb *venue.StoredBlock) error {
 		block := sb.Block
+		// The span is anchored in the edition the block was read in.
+		src, _ := block.Edition(model.EditionKey{})
 		// Find next entity index and add a positional entity overlay span.
 		idx := nextOverlaySpanIndex(block, model.OverlayEntity, "entity:")
 		key = fmt.Sprintf("entity:%d", idx)
 		block.AddOverlaySpan(model.OverlayEntity, model.Span{
 			ID:    key,
-			Range: model.RangeAnchorForBytes(block.Source, req.Start, req.End),
+			Range: model.RangeAnchorForBytes(src.Runs, req.Start, req.End),
 			Value: &model.EntityAnnotation{
 				Text:   req.Text,
 				Type:   model.EntityType(req.Type),

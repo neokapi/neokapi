@@ -74,7 +74,8 @@ func LoadCorrectionsCorpus(path string) (CorrectionsCorpus, error) {
 // voiceVocabFlags reports whether the word-rule check raises any finding on
 // text under the rules: the real checker the loop's promoted rules feed.
 func voiceVocabFlags(rules coreprofile.TermRuleSet, text string) bool {
-	b := &model.Block{ID: "c", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}
+	b := &model.Block{ID: "c", Translatable: true}
+	b.SetSourceText(text)
 	if err := coretools.NewVoiceVocabCheckTool(nil, nil).Holding(rules).Annotate(tool.NewBlockView(b)); err != nil {
 		return false
 	}

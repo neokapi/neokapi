@@ -348,7 +348,7 @@ func (v *blockView) Identity() *model.BlockIdentity { return v.b.Identity }
 func (v *blockView) ChainUnit() string              { return v.b.ChainUnit() }
 func (v *blockView) PreserveWhitespace() bool       { return v.b.PreserveWhitespace }
 
-func (v *blockView) SourceRuns() []model.Run             { return v.b.Source }
+func (v *blockView) SourceRuns() []model.Run             { return authoritative(v.b).Runs }
 func (v *blockView) SourceText() string                  { return v.b.SourceText() }
 func (v *blockView) WordCount() int                      { return v.b.WordCount() }
 func (v *blockView) SourceSegmentation() *model.Overlay  { return v.b.SourceSegmentation() }
@@ -421,8 +421,29 @@ func (v *blockView) SetProperty(key, value string) {
 }
 func (v *blockView) Property(key string) string { return v.b.Properties[key] }
 
-func (v *blockView) SourceStatus() model.SourceStatus     { return v.b.SourceStatus }
-func (v *blockView) SetSourceStatus(s model.SourceStatus) { v.b.SourceStatus = s }
+func (v *blockView) SourceStatus() model.SourceStatus {
+	return model.SourceStatus(authoritative(v.b).Status)
+}
+
+// SetSourceStatus stamps the authoritative edition's status and changes
+// nothing else. It goes through SetEditionStatus because SetEdition on that
+// edition is an edit: it records the source as read and rewrites the
+// source-origin annotation, and a status stamp is neither. The zero key names
+// the edition the view reads the source from (see authoritative).
+func (v *blockView) SetSourceStatus(s model.SourceStatus) {
+	v.b.SetEditionStatus(model.EditionKey{}, model.Status(s))
+}
+
+// authoritative returns the block's authoritative edition under the empty
+// policy, the edition the block was read in: the edition a source read, a
+// source rewrite and segmentation with no variant address. It is the edition
+// b.Authoritative(model.AuthorityPolicy{}) returns, reached by the zero key,
+// which names it without resolving a locale; every tool reads the source
+// through here for every block.
+func authoritative(b *model.Block) model.Edition {
+	e, _ := b.Edition(model.EditionKey{})
+	return e
+}
 
 func (v *blockView) Drop() { v.dropped = true }
 

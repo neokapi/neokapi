@@ -95,7 +95,8 @@ type Report struct {
 // calibrated cases).
 func runCase(c Case) (cats []string, score int, err error) {
 	loc := model.LocaleID(c.TargetLang)
-	b := &model.Block{ID: c.ID, Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: c.Source}}}}
+	b := &model.Block{ID: c.ID, Translatable: true}
+	b.SetSourceText(c.Source)
 	if c.Target != "" {
 		tool.NewVariantView(b).SetTargetText(loc, c.Target)
 	}

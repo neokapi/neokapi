@@ -332,7 +332,8 @@ func snapshotFromPart(part *model.Part) PartSnapshot {
 			// Display flattening: placeholders contribute their visible {equiv}
 			// (a redaction placeholder reads "[REDACTED:Org]", not nothing), so a
 			// trace inspector shows what a translator would see.
-			srcText := model.FlattenRuns(block.Source)
+			src, _ := block.Edition(block.Authoritative(model.AuthorityPolicy{}))
+			srcText := model.FlattenRuns(src.Runs)
 			snap.SourceText = srcText
 			// Get target text from the first locale found.
 			for _, loc := range block.TargetLocales() {
@@ -355,9 +356,9 @@ func snapshotFromPart(part *model.Part) PartSnapshot {
 				Properties:   block.Properties,
 				HasSkeleton:  block.Skeleton != nil,
 			}
-			if len(block.Targets) > 0 {
-				detail.Targets = make(map[string][]model.Run, len(block.Targets))
-				for _, loc := range block.TargetLocales() {
+			if locs := block.TargetLocales(); len(locs) > 0 {
+				detail.Targets = make(map[string][]model.Run, len(locs))
+				for _, loc := range locs {
 					detail.Targets[string(loc)] = block.TargetRuns(loc)
 				}
 			}
@@ -416,20 +417,19 @@ func snapshotOverlays(b *model.Block) []OverlaySnapshot {
 	if len(b.Overlays) == 0 {
 		return nil
 	}
+	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
 	out := make([]OverlaySnapshot, 0, len(b.Overlays))
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
 		side := "source"
-		runs := b.Source
+		runs := src.Runs
 		if o.Variant != nil {
 			if key, err := o.Variant.MarshalText(); err == nil {
 				side = string(key)
 			}
-			if t := b.Targets[*o.Variant]; t != nil {
-				runs = t.Runs
-			} else {
-				runs = nil
-			}
+			// An overlay on an edition the block does not hold covers nothing.
+			e, _ := b.Edition(*o.Variant)
+			runs = e.Runs
 		}
 		text := model.RunsText(runs)
 		os := OverlaySnapshot{Type: string(o.Type), Side: side, Layer: o.Layer}

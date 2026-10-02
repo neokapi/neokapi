@@ -22,7 +22,7 @@ func TestPhase4_CompactArchives(t *testing.T) {
 	ctx := t.Context()
 	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-comp", Name: "Comp", DefaultSourceLanguage: "en"}))
 
-	blk := &model.Block{ID: "bc", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "x"}}}}
+	blk := model.NewBlock("bc", "x")
 	for _, v := range []string{"a", "b", "c"} {
 		blk.SetTargetText(fr, v)
 		require.NoError(t, cs.StoreBlocks(ctx, "p-comp", "main", []*model.Block{blk}))

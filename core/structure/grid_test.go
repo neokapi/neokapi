@@ -136,6 +136,33 @@ func TestSpreadsheetGridToTables(t *testing.T) {
 	assert.Equal(t, 2, dataCells)
 }
 
+// A gap in the grid becomes an empty placeholder cell: one empty edition, the
+// table-cell role, and room for a writer to add a target to it.
+func TestSpreadsheetGridToTables_GapIsAnEmptyCell(t *testing.T) {
+	parts := []*model.Part{
+		blockPart(gridBlock("cA1", "Name", "A1", "", 0, 0)),
+		blockPart(gridBlock("cB1", "City", "B1", "", 1, 0)),
+		blockPart(gridBlock("cA2", "Ada", "A2", "", 0, 1)),
+	}
+	counter := 0
+	out := SpreadsheetGridToTables(parts, &counter)
+
+	var gap *model.Block
+	for _, p := range out {
+		if b, ok := p.Resource.(*model.Block); ok && p.Type == model.PartBlock && strings.HasSuffix(b.ID, "r1c1") {
+			gap = b
+		}
+	}
+	require.NotNil(t, gap, "the missing B2 cell is emitted as a placeholder")
+	assert.Equal(t, model.RoleTableCell, gap.SemanticRole())
+	assert.Equal(t, []model.EditionKey{{}}, gap.Editions())
+	src, ok := gap.Edition(model.EditionKey{})
+	require.True(t, ok)
+	assert.Empty(t, src.Runs)
+	gap.SetTargetText("fr", "Ville")
+	assert.Equal(t, "Ville", gap.TargetText("fr"))
+}
+
 func TestSpreadsheetGridToTables_PassthroughWithoutGrid(t *testing.T) {
 	// No cell-grid blocks → stream returned unchanged (non-spreadsheet exports
 	// are unaffected).

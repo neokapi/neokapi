@@ -27,7 +27,7 @@ func TestPhase4_RevertBatch(t *testing.T) {
 	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-rev", Name: "Rev", DefaultSourceLanguage: "en"}))
 
 	mk := func(id, src string) *model.Block {
-		return &model.Block{ID: id, Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: src}}}}
+		return model.NewBlock(id, src)
 	}
 
 	// Initial state (correlation c0): two blocks translated.
@@ -75,7 +75,7 @@ func TestPhase4_RevertBatchClearsAdded(t *testing.T) {
 	ctx := t.Context()
 	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-rev2", Name: "Rev2", DefaultSourceLanguage: "en"}))
 
-	b := &model.Block{ID: "bx", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "hi"}}}}
+	b := model.NewBlock("bx", "hi")
 	b.SetTargetText(fr, "added-in-batch")
 	ctxB := bstore.WithChangeContext(ctx, bstore.ChangeContext{Actor: "u", CorrelationID: "ADD1"})
 	require.NoError(t, cs.StoreBlocks(ctxB, "p-rev2", "main", []*model.Block{b}))
@@ -104,7 +104,7 @@ func TestPhase4_RestoreToVersion(t *testing.T) {
 	ctx := t.Context()
 	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-pit", Name: "PIT", DefaultSourceLanguage: "en"}))
 
-	blk := &model.Block{ID: "bp", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "hi"}}}}
+	blk := model.NewBlock("bp", "hi")
 	blk.SetTargetText(fr, "v1")
 	require.NoError(t, cs.StoreBlocks(ctx, "p-pit", "main", []*model.Block{blk}))
 

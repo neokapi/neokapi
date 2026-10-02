@@ -130,7 +130,7 @@ func (p *EditPlan) Ops(block *model.Block) ([]change.Op, error) {
 		ops = append(ops, change.Op{Kind: change.KindSetContent, At: at(model.EditionKey{}), IfMatch: change.AnyRevision,
 			Body: &change.SetContent{Runs: []model.Run{{Text: &model.TextRun{Text: *p.ReplaceAll}}}, Overlays: change.OverlayRebase{Drop: true}}})
 	case p.NewRuns != nil:
-		if len(p.Edits) == 0 && model.RunsText(block.Source) != model.RunsText(p.NewRuns) {
+		if len(p.Edits) == 0 && model.RunsText(authoritative(block).Runs) != model.RunsText(p.NewRuns) {
 			return nil, fmt.Errorf("the plan changes the source text of block %q without a mapping. Return Edits for a structured rewrite or ReplaceAll for an opaque one", block.ID)
 		}
 		edits := p.Edits

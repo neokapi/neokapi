@@ -106,7 +106,7 @@ func TestTMLeverageToolPlaceholderIntegrity(t *testing.T) {
 			})
 
 			block := model.NewBlock("tu1", "")
-			block.Source = tc.source
+			block.SetSourceRuns(tc.source)
 			result := runTool(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 			rb := result.Resource.(*model.Block)
 

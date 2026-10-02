@@ -37,28 +37,31 @@ func TranslateAfterFor(proj *Project) model.TranslateAfterLevel {
 	return level
 }
 
-// PropsForStore returns the block's Properties augmented with its SourceStatus
-// under the reserved PropSourceStatus key, ready to serialize into the store's
-// properties JSON. It never mutates the block's own map (copy-on-write). A block
-// with no committed SourceStatus returns its Properties unchanged, so the common
-// case carries no extra key.
+// PropsForStore returns the block's Properties augmented with the status of its
+// authoritative edition, under the reserved PropSourceStatus key, ready to
+// serialize into the store's properties JSON. It never mutates the block's own
+// map (copy-on-write). A block whose source carries no committed status returns
+// its Properties unchanged, so the common case carries no extra key.
 func PropsForStore(b *model.Block) map[string]string {
-	if b == nil || b.SourceStatus == "" {
-		if b == nil {
-			return nil
-		}
+	if b == nil {
+		return nil
+	}
+	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
+	if src.Status == "" {
 		return b.Properties
 	}
 	props := make(map[string]string, len(b.Properties)+1)
 	maps.Copy(props, b.Properties)
-	props[PropSourceStatus] = string(b.SourceStatus)
+	props[PropSourceStatus] = string(src.Status)
 	return props
 }
 
 // ApplySourceStatusFromProps lifts the reserved PropSourceStatus key out of a
-// block's freshly-scanned Properties onto Block.SourceStatus and strips it, so
-// the status never leaks back out as an ordinary property. It is the read-side
-// counterpart of PropsForStore.
+// block's freshly-scanned Properties onto the status of its authoritative
+// edition, and strips it, so the status never leaks back out as an ordinary
+// property. It is the read-side counterpart of PropsForStore. The status is
+// part of the block as stored, so it is set alone: the source content and its
+// origin stay as the scan produced them.
 func ApplySourceStatusFromProps(b *model.Block) {
 	if b == nil || b.Properties == nil {
 		return
@@ -67,7 +70,7 @@ func ApplySourceStatusFromProps(b *model.Block) {
 	if !ok {
 		return
 	}
-	b.SourceStatus = model.SourceStatus(status)
+	b.SetEditionStatus(b.Authoritative(model.AuthorityPolicy{}), model.Status(status))
 	delete(b.Properties, PropSourceStatus)
 	if len(b.Properties) == 0 {
 		b.Properties = nil

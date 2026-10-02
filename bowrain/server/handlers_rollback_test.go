@@ -25,7 +25,7 @@ func TestPhase4_RollbackBlock(t *testing.T) {
 
 	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-rb", Name: "RB", DefaultSourceLanguage: "en"}))
 
-	blk := &model.Block{ID: "b-rb", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "hello"}}}}
+	blk := model.NewBlock("b-rb", "hello")
 	blk.SetTargetText(fr, "bonjour-v1")
 	require.NoError(t, cs.StoreBlocks(ctx, "p-rb", "main", []*model.Block{blk}))
 	blk.SetTargetText(fr, "bonjour-v2")
@@ -73,7 +73,7 @@ func TestPhase4T1_HistoryAttribution(t *testing.T) {
 	cs := s.ContentStore
 	ctx := t.Context()
 	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-attr", Name: "Attr", DefaultSourceLanguage: "en", WorkspaceID: "test-ws"}))
-	blk := &model.Block{ID: "b-attr", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "hello"}}}}
+	blk := model.NewBlock("b-attr", "hello")
 	require.NoError(t, cs.StoreBlocks(ctx, "p-attr", "main", []*model.Block{blk}))
 
 	code := do(t, s, http.MethodPut, "/api/v1/test/p-attr/blocks/main/b-attr", ownerToken, `{"target_locale":"fr","text":"bonjour"}`)

@@ -167,6 +167,52 @@ func TestBuildContentTree_SegmentOverlayAndTargets(t *testing.T) {
 	assert.Equal(t, "Bonjour", b.Targets["fr"][0].Text.Text)
 }
 
+// A block read from an en-US to en-US file holds a target under its source
+// language. The view shows the source as the source and the target among the
+// targets, and an overlay on that target reads the target's text.
+func TestBuildContentTree_SameLanguageTarget(t *testing.T) {
+	b := model.NewBlock("b1", "colour source")
+	b.SourceLocale = "en-US"
+	b.SetTargetVariant(model.Variant("en-US"), &model.Target{Runs: []model.Run{model.TextR("colour target")}, Status: model.TargetStatusTranslated})
+	enUS := model.Variant("en-US")
+	missing := model.Variant("de")
+	b.Overlays = append(b.Overlays,
+		model.Overlay{Type: model.OverlayTerm, Variant: &enUS, Spans: []model.Span{{ID: "t1", Range: model.SpanAnchor(model.RunPos{Run: 0, Offset: 7}, model.RunPos{Run: 0, Offset: 13})}}},
+		model.Overlay{Type: model.OverlayEntity, Variant: &missing, Spans: []model.Span{{ID: "e1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 6})}}},
+	)
+
+	tree := BuildContentTree([]*model.Part{blockPart(b)}, "xliff")
+	require.Len(t, tree.Root, 1)
+	n := tree.Root[0]
+	require.Len(t, n.Source, 1)
+	assert.Equal(t, "colour source", n.Source[0].Text.Text)
+	require.Contains(t, n.Targets, "en-US")
+	assert.Equal(t, "colour target", n.Targets["en-US"][0].Text.Text)
+	require.Contains(t, n.TargetMeta, "en-US")
+	assert.Equal(t, string(model.TargetStatusTranslated), n.TargetMeta["en-US"].Status)
+
+	require.Len(t, n.Overlays, 2)
+	assert.Equal(t, "en-US", n.Overlays[0].Side)
+	assert.Equal(t, "target", n.Overlays[0].Spans[0].Text)
+	assert.Equal(t, "de", n.Overlays[1].Side)
+	assert.Equal(t, "colour", n.Overlays[1].Spans[0].Text, "an overlay on an edition the block does not hold reads the source")
+}
+
+// A target filed under a key that is not canonical (nb_NO) is listed by
+// Editions under its canonical key, which Edition may not reach. The view never
+// shows such an edition as an empty target.
+func TestBuildContentTree_UnreachableEditionIsNotShownEmpty(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en-US"
+	b.Targets[model.VariantKey{Locale: "nb_NO"}] = &model.Target{Runs: []model.Run{model.TextR("Hei")}}
+
+	tree := BuildContentTree([]*model.Part{blockPart(b)}, "json")
+	require.Len(t, tree.Root, 1)
+	for label, runs := range tree.Root[0].Targets {
+		assert.Equal(t, "Hei", model.RunsText(runs), "target %s", label)
+	}
+}
+
 func TestBuildContentTree_SingleSegmentHasNoOverlay(t *testing.T) {
 	// A single-segment block carries no meaningful boundary overlay.
 	tree := BuildContentTree([]*model.Part{blockPart(model.NewBlock("b", "just text"))}, "json")

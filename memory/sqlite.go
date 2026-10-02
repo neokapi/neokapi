@@ -837,7 +837,7 @@ func (tm *SQLiteStore) Lookup(ctx context.Context, source *model.Block, sourceLo
 	}
 
 	opts = ApplyDefaults(opts)
-	runs := source.Source
+	runs := source.SourceRuns()
 	if len(runs) == 0 {
 		return nil, nil
 	}

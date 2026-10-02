@@ -180,13 +180,11 @@ func TestInMemoryMemory_LookupSegment_ExactMatchOnSpecificSegment(t *testing.T) 
 
 	// Two-segment source block mirroring a post-segmentation state: a flat
 	// run sequence with a stand-off segmentation overlay marking the boundaries.
-	block := &model.Block{
-		ID: "u1",
-		Source: []model.Run{
-			{Text: &model.TextRun{Text: "Save the file."}},
-			{Text: &model.TextRun{Text: "It was successful."}},
-		},
-	}
+	block := &model.Block{ID: "u1"}
+	block.SetSourceRuns([]model.Run{
+		{Text: &model.TextRun{Text: "Save the file."}},
+		{Text: &model.TextRun{Text: "It was successful."}},
+	})
 	block.SetSegmentation(nil, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
@@ -208,10 +206,8 @@ func TestInMemoryMemory_LookupSegment_ExactMatchOnSpecificSegment(t *testing.T) 
 func TestInMemoryMemory_LookupSegment_OutOfRange(t *testing.T) {
 	tm := memory.NewInMemoryStore()
 	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "hi", "salut", "hallo")))
-	block := &model.Block{
-		ID:     "u1",
-		Source: []model.Run{{Text: &model.TextRun{Text: "hi"}}},
-	}
+	block := &model.Block{ID: "u1"}
+	block.SetSourceText("hi")
 	matches, err := tm.LookupSegment(context.Background(), block, 5, "en", "fr", memory.DefaultLookupOptions())
 	require.NoError(t, err)
 	assert.Empty(t, matches)

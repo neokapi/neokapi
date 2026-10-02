@@ -104,11 +104,9 @@ func (f *writerFixture) pushFixture(t *testing.T, ctx context.Context, p fixture
 				CollectionID: collID,
 			}))
 		}
-		byDocument[eb.Document] = append(byDocument[eb.Document], &model.Block{
-			ID:           eb.Block.ID,
-			Translatable: eb.Block.Translatable,
-			Source:       eb.Block.Source,
-		})
+		blk := model.NewRunsBlock(eb.Block.ID, eb.Block.Source)
+		blk.Translatable = eb.Block.Translatable
+		byDocument[eb.Document] = append(byDocument[eb.Document], blk)
 	}
 	for _, doc := range order {
 		require.NoError(t, f.content.StoreBlocksForItem(ctx, proj.ID, writerStream, doc, byDocument[doc]))

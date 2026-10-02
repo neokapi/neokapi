@@ -433,18 +433,26 @@ func blockNode(b *model.Block) *ContentNode {
 			n.Relations = append(n.Relations, RelationView{Type: e.Type, Target: e.Target})
 		}
 	}
-	if len(b.Targets) > 0 {
-		n.Targets = make(map[string][]model.Run, len(b.Targets))
-		n.TargetMeta = make(map[string]*TargetMeta, len(b.Targets))
-		for _, key := range sortedVariantKeys(b.Targets) {
-			t := b.Targets[key]
-			if t == nil {
-				continue
-			}
-			label := variantLabel(key)
-			n.Targets[label] = t.Runs
-			n.TargetMeta[label] = targetMeta(key, t)
+	// Every edition but the authoritative one is a target, in the order of
+	// its text form so the serialized view is deterministic. Editions can list
+	// a key that Edition does not reach (a target stored under a non-canonical
+	// key); the view leaves that edition out rather than show it empty.
+	auth := b.Authoritative(model.AuthorityPolicy{})
+	for _, key := range b.Editions() {
+		if key == auth {
+			continue
 		}
+		e, ok := b.Edition(key)
+		if !ok {
+			continue
+		}
+		if n.Targets == nil {
+			n.Targets = make(map[string][]model.Run)
+			n.TargetMeta = make(map[string]*TargetMeta)
+		}
+		label := variantLabel(key)
+		n.Targets[label] = e.Runs
+		n.TargetMeta[label] = targetMeta(key, e)
 	}
 	return n
 }
@@ -459,20 +467,9 @@ func variantLabel(k model.VariantKey) string {
 	return string(b)
 }
 
-// sortedVariantKeys returns the target variant keys in a stable order so the
-// serialized view is deterministic.
-func sortedVariantKeys(targets map[model.VariantKey]*model.Target) []model.VariantKey {
-	keys := make([]model.VariantKey, 0, len(targets))
-	for k := range targets {
-		keys = append(keys, k)
-	}
-	sort.Slice(keys, func(i, j int) bool { return variantLabel(keys[i]) < variantLabel(keys[j]) })
-	return keys
-}
-
-func targetMeta(key model.VariantKey, t *model.Target) *TargetMeta {
-	m := &TargetMeta{Status: string(t.Status), Score: t.Score, Tone: key.Tone, Channel: key.Channel}
-	if o := t.Origin; o != (model.Origin{}) {
+func targetMeta(key model.EditionKey, e model.Edition) *TargetMeta {
+	m := &TargetMeta{Status: string(e.Status), Score: e.Score, Tone: key.Tone, Channel: key.Channel}
+	if o := e.Origin; o != (model.Origin{}) {
 		m.Origin = &OriginView{
 			Kind:               o.Kind,
 			Engine:             o.Engine,
@@ -493,17 +490,18 @@ func overlayViews(b *model.Block) []OverlayView {
 	if len(b.Overlays) == 0 {
 		return nil
 	}
+	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
 	out := make([]OverlayView, 0, len(b.Overlays))
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
 		// Overlays are positional by construction; block-scoped annotations are
 		// rendered separately by annotationViews via AnnoMap.
 		side := "source"
-		runs := b.Source
+		runs := src.Runs
 		if o.Variant != nil {
 			side = variantLabel(*o.Variant)
-			if t := b.Targets[*o.Variant]; t != nil {
-				runs = t.Runs
+			if e, ok := b.Edition(*o.Variant); ok {
+				runs = e.Runs
 			}
 		}
 		spans := make([]OverlaySpanView, 0, len(o.Spans))

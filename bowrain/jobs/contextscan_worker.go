@@ -734,11 +734,7 @@ func extractContextScanTerms(ctx context.Context, prov aiprovider.LLMProvider, c
 	chunks := chunkRunes(corpusText, contextScanTermChunkRunes, contextScanMaxTermChunks)
 	parts := make([]*model.Part, 0, len(chunks))
 	for i, chunk := range chunks {
-		block := &model.Block{
-			ID:           fmt.Sprintf("contextscan-corpus-%d", i),
-			Translatable: true,
-			Source:       []model.Run{{Text: &model.TextRun{Text: chunk}}},
-		}
+		block := model.NewBlock(fmt.Sprintf("contextscan-corpus-%d", i), chunk)
 		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: block})
 	}
 

@@ -130,11 +130,12 @@ func renderSegmentRuns(buf *strings.Builder, runs []model.Run) {
 // renderBlockTargets concatenates target locales' rendered text in
 // locale-sorted order so the field is order-independent.
 func renderBlockTargets(b *model.Block) string {
-	if len(b.Targets) == 0 {
+	locales := b.TargetLocales()
+	if len(locales) == 0 {
 		return ""
 	}
-	parts := make([]string, 0, len(b.Targets))
-	for _, locale := range b.TargetLocales() {
+	parts := make([]string, 0, len(locales))
+	for _, locale := range locales {
 		var buf strings.Builder
 		buf.WriteString(string(locale))
 		buf.WriteByte('=')

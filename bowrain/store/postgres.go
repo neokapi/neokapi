@@ -1142,7 +1142,8 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 			continue
 		}
 
-		sourceJSON, err := json.Marshal(b.Source)
+		src, _ := b.Edition(model.EditionKey{})
+		sourceJSON, err := json.Marshal(src.Runs)
 		if err != nil {
 			return fmt.Errorf("marshal source for block %s: %w", internalID, err)
 		}
@@ -1190,13 +1191,13 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 		}
 
 		// Write targets + annotations into the kind-specific tables.
-		if err := SyncBlockOverlays(ctx, tx, "pg", projectID, stream, internalID, b.Targets, b.AnnoMap(), now); err != nil {
+		if err := SyncBlockOverlays(ctx, tx, "pg", projectID, stream, internalID, b, now); err != nil {
 			return err
 		}
 
 		// Record content history for changed targets so prior content can be
 		// restored (per-edit rollback). Uses the pre-upsert text captured above.
-		if err := recordTargetHistoryPg(ctx, tx, projectID, stream, internalID, oldTargetText[internalID], b.Targets, now); err != nil {
+		if err := recordTargetHistoryPg(ctx, tx, projectID, stream, internalID, oldTargetText[internalID], b, now); err != nil {
 			return err
 		}
 
@@ -1204,7 +1205,11 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 			if err := logChange(ctx, tx, projectID, stream, internalID, "source_added", "", identity.ContentHash); err != nil {
 				return fmt.Errorf("log change for block %s: %w", internalID, err)
 			}
-			for key := range b.Targets {
+			srcKey := b.EditionKeyOf(model.EditionKey{})
+			for key := range b.EachEdition {
+				if key == srcKey {
+					continue
+				}
 				variant := VariantKeyText(key)
 				if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", variant, ""); err != nil {
 					return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
@@ -1235,8 +1240,9 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 			// nobody touched. recordTargetHistoryPg already asks this question
 			// of the same snapshot, a few lines above.
 			prevText := oldTargetText[internalID]
-			for key, nt := range b.Targets {
-				if nt == nil {
+			srcKey := b.EditionKeyOf(model.EditionKey{})
+			for key, nt := range b.EachEdition {
+				if key == srcKey {
 					continue
 				}
 				variant := VariantKeyText(key)
@@ -1910,7 +1916,10 @@ func scanItemPg(row scanner) (*platstore.Item, error) {
 
 func scanStoredBlockPg(row scanner) (*venue.StoredBlock, error) {
 	var sb venue.StoredBlock
-	sb.Block = &model.Block{}
+	// Translations and annotations are hydrated separately by HydrateOverlays
+	// after all rows are scanned (see GetBlock and GetBlocks). The block starts
+	// with none.
+	sb.Block = model.NewRunsBlock("", nil)
 	var sourceJSON, propsJSON, overlaysJSON string
 
 	err := row.Scan(
@@ -1921,9 +1930,7 @@ func scanStoredBlockPg(row scanner) (*venue.StoredBlock, error) {
 		return nil, fmt.Errorf("scan block: %w", err)
 	}
 
-	if err := json.Unmarshal([]byte(sourceJSON), &sb.Block.Source); err != nil {
-		sb.Block.Source = nil
-	}
+	sb.Block.SetSourceRuns(UnmarshalSourceRuns(sourceJSON))
 	if err := json.Unmarshal([]byte(propsJSON), &sb.Block.Properties); err != nil {
 		sb.Block.Properties = make(map[string]string)
 	}
@@ -1940,16 +1947,22 @@ func scanStoredBlockPg(row scanner) (*venue.StoredBlock, error) {
 	// onto the block is what makes a pull round-trip the identity rather than
 	// hand back a block whose key would be re-derived from its name.
 	sb.Block.Unit = sb.SourceID
-	// Targets + Annotations are hydrated separately via hydrateOverlays
-	// after all rows are scanned — see GetBlock / GetBlocks. Leave
-	// empty here.
-	sb.Block.Targets = make(map[model.VariantKey]*model.Target)
 	return &sb, nil
 }
 
-// hydrateOverlays populates Targets + Annotations on the supplied
-// blocks from the kind-specific tables. Single round trip per table,
-// not per-block. Safe for empty input.
+// UnmarshalSourceRuns decodes a block row's source_json column. A column that
+// does not decode reads as a block with no source content.
+func UnmarshalSourceRuns(sourceJSON string) []model.Run {
+	var runs []model.Run
+	if err := json.Unmarshal([]byte(sourceJSON), &runs); err != nil {
+		return nil
+	}
+	return runs
+}
+
+// HydrateOverlays adds the translations (as editions) and annotations of
+// the supplied freshly scanned blocks from the kind-specific tables.
+// Single round trip per table, not per-block. Safe for empty input.
 func HydrateOverlays(
 	ctx context.Context,
 	db Querier,
@@ -1981,8 +1994,20 @@ func HydrateOverlays(
 			return fmt.Errorf("hydrate overlays: %w", err)
 		}
 		for id, locs := range targets {
-			if sb := byID[id]; sb != nil {
-				sb.Block.Targets = locs
+			sb := byID[id]
+			if sb == nil {
+				continue
+			}
+			for key, t := range locs {
+				// A row filed under no language names no translation: that
+				// key reaches the edition the block was read in, which the
+				// block row holds.
+				if t == nil || sb.Block.IsSourceEdition(key) {
+					continue
+				}
+				// The decoded row is filed as it was read, the way a reader
+				// files a target, so a large hydrate copies nothing.
+				sb.Block.SetTargetVariant(key, t)
 			}
 		}
 		for id, anns := range annotations {

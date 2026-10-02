@@ -587,13 +587,9 @@ func (a *App) cacheBlocks(projectID, itemName string, blocks []BlockInfo) {
 
 // blockInfoToBlock converts a BlockInfo (from server) to a model.Block for local storage.
 func blockInfoToBlock(bi BlockInfo) *model.Block {
-	b := &model.Block{
-		ID:           bi.ID,
-		Translatable: bi.Translatable,
-		Properties:   bi.Properties,
-		Targets:      make(map[model.VariantKey]*model.Target),
-	}
-	b.SetSourceRuns(runInfosToRuns(bi.SourceRuns))
+	b := model.NewRunsBlock(bi.ID, runInfosToRuns(bi.SourceRuns))
+	b.Translatable = bi.Translatable
+	b.Properties = bi.Properties
 	for locale, runs := range bi.TargetRuns {
 		b.SetTargetRuns(model.LocaleID(locale), runInfosToRuns(runs))
 	}

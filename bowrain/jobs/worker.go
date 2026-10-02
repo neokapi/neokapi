@@ -853,11 +853,10 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 
 		// Store this chunk's translations before its progress is recorded, so
 		// done_blocks never claims more than the overlay table holds and a
-		// resumed attempt cannot skip a block it never wrote. Targets land in
-		// the `translations` overlay table via StoreBlocks — no separate overlay
-		// write is needed: `ContentStore.StoreBlocks` extracts
-		// `block.Targets[locale]` and upserts to the translations table
-		// directly.
+		// resumed attempt cannot skip a block it never wrote. Translations land
+		// in the `translations` overlay table via StoreBlocks, which upserts
+		// every edition of a block other than the one it was read in, so no
+		// separate overlay write is needed.
 		blocks := partsToBlocks(outParts)
 		if len(blocks) > 0 {
 			blocks, err = writeBackDrafts(ctx, deps.ContentStore, job.ProjectID, jobStream, unitByBlockID, blocks)
@@ -1021,7 +1020,10 @@ func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob)
 func estimateTokens(blocks []*venue.StoredBlock) int {
 	totalChars := 0
 	for _, sb := range blocks {
-		if sb.Block != nil && len(sb.Block.Source) > 0 {
+		if sb.Block == nil {
+			continue
+		}
+		if src, _ := sb.Block.Edition(sb.Block.Authoritative(model.AuthorityPolicy{})); len(src.Runs) > 0 {
 			totalChars += len(sb.Block.SourceText()) * 2 // source + target estimate
 		}
 	}
@@ -1130,8 +1132,8 @@ func gateBlocksBySource(blocks []*venue.StoredBlock, gate model.TranslateAfterLe
 		if sb == nil || sb.Block == nil {
 			continue
 		}
-		status := sb.Block.SourceStatus
-		if !sb.Block.Translatable || status == model.SourceStatusNew || gate.AdmitsBlock(sb.Block) {
+		src, _ := sb.Block.Edition(sb.Block.Authoritative(model.AuthorityPolicy{}))
+		if !sb.Block.Translatable || src.Status == model.Status(model.SourceStatusNew) || gate.AdmitsBlock(sb.Block) {
 			kept = append(kept, sb)
 		}
 	}

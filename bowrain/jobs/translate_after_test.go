@@ -10,8 +10,11 @@ import (
 )
 
 func blk(id string, translatable bool, status model.SourceStatus) *venue.StoredBlock {
-	b := &model.Block{ID: id, Translatable: translatable, SourceStatus: status}
-	b.SetSourceText("text")
+	b := &model.Block{ID: id, Translatable: translatable}
+	b.SetEdition(model.EditionKey{}, model.Edition{
+		Runs:   []model.Run{{Text: &model.TextRun{Text: "text"}}},
+		Status: model.Status(status),
+	})
 	return &venue.StoredBlock{Block: b}
 }
 

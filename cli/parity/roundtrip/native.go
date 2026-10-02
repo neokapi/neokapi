@@ -354,7 +354,7 @@ func (e *NativeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 // unit-only-source blocks (translate="no"-style flows) we leave the
 // model untouched.
 func seedIgnorableTargetsFromSource(b *model.Block, tgt model.LocaleID) {
-	if b == nil || len(b.Source) == 0 {
+	if b == nil || len(b.SourceRuns()) == 0 {
 		return
 	}
 	target := b.Target(tgt)

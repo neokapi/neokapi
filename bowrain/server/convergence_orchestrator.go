@@ -375,7 +375,7 @@ func (o *convergenceOrchestrator) awaitPushApplies(ctx context.Context, run *bst
 
 // runSettleSource is the server run's source-first phase (epic 019): it settles
 // the source once at the start of a run — before any target locale is produced —
-// stamps each source block's SourceStatus, and reports how many blocks remain
+// stamps each source block's source status, and reports how many blocks remain
 // below the translate_after level. It emits a settle_source stage event so a surface can show the
 // run "settling your source" and records the blocked-on-source count on the run
 // row so the UI can render "N segments need source review" without a second
@@ -480,7 +480,7 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	})
 
 	// Source-first phase (epic 019): settle the source ONCE before any target
-	// locale is produced, stamp each block's SourceStatus, and record how many
+	// locale is produced, stamp each block's source status, and record how many
 	// blocks are held below the translate_after level. The hold itself is enforced per block in
 	// produceFunc (a partially-ready item translates only its ready blocks) and
 	// terminates the run with source_not_ready when a locale has nothing

@@ -96,7 +96,7 @@ func (e *BridgeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 			// daemon's applier fires and its own COPY_ALL materializes the
 			// ignorable — i.e. drive okapi's COPY_ALL the way okapi does,
 			// rather than trying to reconstruct ignorables Go can't see.
-			if forceSrc && b.Target(tgt) == nil && (len(b.Source) > 0 || len(b.Targets) > 0) {
+			if forceSrc && b.Target(tgt) == nil && (len(b.SourceRuns()) > 0 || len(b.TargetLocales()) > 0) {
 				b.SetTargetRuns(tgt, nil)
 			}
 		},

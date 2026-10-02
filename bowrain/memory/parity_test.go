@@ -209,11 +209,11 @@ func TestMemoryParity_SQLiteVsPostgres(t *testing.T) {
 			name:   "structural-exact-coded-query",
 			target: "nb",
 			lookup: func(tm memory.Store) ([]memory.Match, error) {
-				block := &model.Block{Source: []model.Run{
+				block := model.NewRunsBlock("", []model.Run{
 					{PcOpen: &model.PcOpenRun{ID: "m0", Data: "**"}},
 					{Text: &model.TextRun{Text: "Install"}},
 					{PcClose: &model.PcCloseRun{ID: "m0", Data: "**"}},
-				}}
+				})
 				return tm.Lookup(ctx, block, "en", "nb", opts)
 			},
 		},

@@ -157,7 +157,7 @@ func TestSourceProposal_ProposeApproveDemotesEveryLocale(t *testing.T) {
 	require.NotNil(t, sb.Block.Target("de"), "the de translation is kept too, so the fan-out reaches ALL locales")
 	assert.Equal(t, "Farbwähler", sb.Block.TargetText("de"))
 	assert.Equal(t, model.TargetStatusTranslated, sb.Block.Target("de").Status)
-	assert.Equal(t, model.SourceStatusNew, sb.Block.SourceStatus, "the changed source re-settles on the next pass")
+	assert.Equal(t, model.SourceStatusNew, sourceStatusOf(sb.Block), "the changed source re-settles on the next pass")
 
 	// The ledger grades the kept translation against the source the project holds
 	// now: the fr approval's basis names wording that is gone.

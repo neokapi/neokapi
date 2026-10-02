@@ -197,7 +197,7 @@ func TestShipGateEvents_NotCheckedTermsPublishFailAndNeverPass(t *testing.T) {
 		Name: "en.json", Format: "json", ItemType: "file",
 	}))
 	codeOnly := func() *model.Block {
-		b := &model.Block{ID: "code", Translatable: true, Source: []model.Run{textRun("Hello "), phRun()}}
+		b := model.NewRunsBlock("code", []model.Run{textRun("Hello "), phRun()})
 		b.SetTargetRuns("fr", []model.Run{phRun()})
 		return b
 	}
