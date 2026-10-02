@@ -435,6 +435,11 @@ func (st *staged) Commit(context.Context) error {
 		if f.tmp == nil {
 			continue
 		}
+		if st.s.h.backup != "" && f.before != "" {
+			if err := backUp(f.path, st.s.h.backup); err != nil {
+				return err
+			}
+		}
 		err := f.tmp.Commit()
 		f.tmp = nil
 		if err != nil {
@@ -443,6 +448,30 @@ func (st *staged) Commit(context.Context) error {
 		f.written = true
 	}
 	return nil
+}
+
+// backUp copies the file at path beside it, with suffix appended to its name
+// and its mode kept. It is called under the commit lock, once the file is
+// known to hold what the stage read.
+func backUp(path, suffix string) error {
+	in, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	info, err := in.Stat()
+	if err != nil {
+		return err
+	}
+	out, err := os.OpenFile(path+suffix, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode().Perm())
+	if err != nil {
+		return fmt.Errorf("write backup: %w", err)
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
+		return fmt.Errorf("write backup: %w", err)
+	}
+	return out.Close()
 }
 
 func (st *staged) Release() error {

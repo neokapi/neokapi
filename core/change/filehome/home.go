@@ -43,6 +43,7 @@ type Home struct {
 	layout       Layout
 	lockDir      string
 	beforeSettle func(doc string)
+	backup       string
 }
 
 // Options configures a Home.
@@ -53,6 +54,10 @@ type Options struct {
 	// before its commit lock is taken. A test sets it to force two writers to
 	// stage against the same content before either commits.
 	BeforeSettle func(doc string)
+	// BackupSuffix, when set, keeps a copy of each file a commit replaces,
+	// beside it with the suffix appended. The copy is written under the
+	// commit lock from the bytes the change was applied to.
+	BackupSuffix string
 }
 
 // DefaultLockDir is where lock files go when the caller names no directory: a
@@ -69,7 +74,7 @@ func New(layout Layout, opts Options) *Home {
 	if dir == "" {
 		dir = DefaultLockDir()
 	}
-	return &Home{layout: layout, lockDir: dir, beforeSettle: opts.BeforeSettle}
+	return &Home{layout: layout, lockDir: dir, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix}
 }
 
 // Name is "file".
