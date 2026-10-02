@@ -203,6 +203,7 @@ var (
 	NewConvergeRenderer          = host.NewConvergeRenderer
 	NewEnvCommand                = host.NewEnvCommand
 	NewFindingsCollectorFor      = host.NewFindingsCollectorFor
+	ReadsTargets                 = host.ReadsTargets
 	RecipeConfigGet              = host.RecipeConfigGet
 	RecipeConfigSet              = host.RecipeConfigSet
 	RecipeExists                 = host.RecipeExists

@@ -134,8 +134,8 @@ through their own `--memory` and `--termstore` flags:
 
 ```bash
 kapi exec recycle messages.json --target-lang fr --memory corporate-en-fr
-kapi exec term-check messages_fr.json --source-lang en --target-lang fr \
-  --termstore product-terms
+kapi exec term-check messages.json --target messages_fr.json \
+  --source-lang en --target-lang fr --termstore product-terms
 ```
 
 `--terms` is a different flag on a different tool: the boolean gate on

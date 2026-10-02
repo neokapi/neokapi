@@ -100,7 +100,7 @@ kapi exec term-check i18n/ --target-lang fr --termstore terms/fr.db   # terminol
 
 `term-check` flags targets that diverge from an approved term, for example a product name that must stay untranslated. (`kapi exec qa --check-terminology` folds the project terms store into the check pass instead of running a separate command.)
 
-Findings can fail your build. A common CI pattern is `extract → translate → qa`, exiting non-zero on any category you gate on.
+`kapi exec` reports what a check finds and exits 0 whatever it finds, so a run never fails a build on its own. The command that fails one is `kapi check`, which exits 3 while a finding fails; see [Ship gates and CI](/kapi/recipes/ship-gates-and-ci).
 
 ## Content memory leverage
 
@@ -121,7 +121,7 @@ Pass `--memory <name-or-path>` to `kapi exec recycle` to draw on a specific cont
 
 ## Terminology consistency
 
-For apps with a large product vocabulary, keep terms rendered consistently with a terms store. Import the term list into a named store, then gate translations with `kapi exec term-check` so any target that diverges from an approved term is flagged:
+For apps with a large product vocabulary, keep terms rendered consistently with a terms store. Import the term list into a named store, then check translations with `kapi exec term-check` so any target that diverges from an approved term is flagged:
 
 ```bash
 kapi terms import product-terms.csv -s en -t fr --name product-terms

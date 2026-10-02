@@ -18,7 +18,6 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/storage"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/terms"
@@ -1510,12 +1509,8 @@ func (a *App) namedTermsStore(cmd Command) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	held, err := storage.Exists(sel.Path)
-	if err != nil {
-		return false, fmt.Errorf("open terms %q: %w", sel.Path, err)
-	}
-	if !held {
-		return false, fmt.Errorf("terms store %q does not exist", DisplayName(sel.Path))
+	if err := requireNamedTermsStore(cmd, sel); err != nil {
+		return false, err
 	}
 	return true, nil
 }

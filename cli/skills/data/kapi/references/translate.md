@@ -35,7 +35,7 @@ Run these as written; don't guess flags. When in doubt, `kapi <cmd> --help`.
 kapi extract --target-lang fr                  # → out/<name>.en-to-fr.xliff (comma-separate for several locales)
 kapi merge -i out/*.xliff                       # XLIFF/PO come via -i (repeatable); only a .kpz may be positional
 kapi check --ship --json                              # the gate: voice + terminology + rule-based checks in one shot (prefer this)
-kapi exec term-check ./locales/fr.json --target-lang fr   # file is POSITIONAL; there is no --source/--target
+kapi exec term-check ./locales/en.json --target ./locales/fr.json --target-lang fr   # source POSITIONAL, its translation via --target; reports, exits 0
 kapi terms lookup "board" -t fr              # approved wording; terms uses -s/-t, not --*-lang
 kapi voice guide                                # the voice to follow (no flag inside a project)
 ```
@@ -69,13 +69,15 @@ it back, and treat the task as unfinished until kapi confirms the result:
 ```bash
 kapi merge -i out/*.xliff            # write translations back into the target files + content memory
 kapi check --ship --json                   # in a project: voice + terminology + rule-based checks in one gate
-kapi exec term-check ./locales/fr.json --termstore <store>   # one-off, no project: name the terms store
+kapi check ./locales/en.json --target ./locales/fr.json --target-lang fr --termstore <store>   # one-off, no project: name the terms store
 ```
 
 `kapi check --ship` is the gate inside a project: read its findings, fix them, and re-run
-until it passes. For a one-off file with no project, `kapi exec term-check` (plus the
-checks in `kapi run translate-qa`) plays the same role. Either way, a clean result, not a
-written file, is the finish line.
+until it passes. For a one-off file with no project, `kapi check <source> --target
+<translation>` plays the same role: it exits 3 while a finding fails. `kapi exec
+term-check` reports the same terminology findings and exits 0 whatever it finds, so a
+clean exit from it proves nothing. Either way, a clean result, not a written file, is
+the finish line.
 
 ## Or have kapi call a provider (unattended / CI)
 
@@ -165,7 +167,7 @@ for it; ordinary target drift never blocks.
 ```bash
 kapi terms import terms.csv --format csv -s en -t fr --local   # also: json, tbx
 kapi terms lookup "checkout" -s en -t fr --json
-kapi exec term-check ./locales/fr.json --json                            # flag wrong/missing terms
+kapi exec term-check ./locales/en.json --target ./locales/fr.json --target-lang fr --json   # flag wrong/missing terms (reports; kapi check gates)
 kapi terms occurrences "checkout"                                        # where the term (or a concept id) is used in the extracted content
 kapi terms validate                                                      # structural errors; target terms with no forms
 kapi terms expand --dry-run                                              # propose each target term's forms (plural, definite...)

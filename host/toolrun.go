@@ -87,7 +87,11 @@ type ToolRunConfig struct {
 	TargetLang    string
 	// Pack: when the input is a .kpz workspace, auto-eject the transform to
 	// the .kpz (the --pack flag); otherwise the cache is left dirty.
-	Pack           bool
+	Pack bool
+	// TargetFile pairs the one file Files names with its translation in
+	// TargetLang, for a tool that reads targets (ReadsTargets): each block
+	// carries the translation the file holds for it (runToolOnPair).
+	TargetFile     string
 	TracePath      string // write flow trace JSON to this file
 	ParallelBlocks int    // fan out block processing across N goroutines (0 = off)
 	NewTool        func() (tool.Tool, error)
@@ -98,6 +102,9 @@ type ToolRunConfig struct {
 // RunToolOnFiles processes each file through a single-tool flow and
 // aggregates results via the collector. Files are processed in parallel.
 func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
+	if cfg.TargetFile != "" {
+		return a.runToolOnPair(ctx, cfg)
+	}
 	// A tool run on a single .kpz transforms the workspace IN PLACE; output
 	// files come later from `kapi merge`.
 	if kpzWorkspaceInput(cfg.Files) {

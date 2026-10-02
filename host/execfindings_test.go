@@ -67,15 +67,15 @@ func TestProducesFindingsFollowsTheIOContract(t *testing.T) {
 	for _, name := range []string{"dnt-check", "placeholder-check", "qa", "term-check", "xml-validation"} {
 		assert.True(t, ProducesFindings(reg.Schema(registry.ToolID(name))),
 			"%q produces check findings, so an exec run must report them", name)
-		assert.NotNil(t, NewFindingsCollectorFor(reg.Schema(registry.ToolID(name))),
+		assert.NotNil(t, NewFindingsCollectorFor(reg.Schema(registry.ToolID(name)), ""),
 			"%q must get a findings collector", name)
 	}
 	for _, name := range []string{"pseudo-translate", "case-transform", "search-replace", "create-target"} {
 		assert.False(t, ProducesFindings(reg.Schema(registry.ToolID(name))),
 			"%q writes content, not findings", name)
-		assert.Nil(t, NewFindingsCollectorFor(reg.Schema(registry.ToolID(name))))
+		assert.Nil(t, NewFindingsCollectorFor(reg.Schema(registry.ToolID(name)), ""))
 	}
-	assert.Nil(t, NewFindingsCollectorFor(nil), "a tool with no schema gets no collector")
+	assert.Nil(t, NewFindingsCollectorFor(nil, ""), "a tool with no schema gets no collector")
 	assert.False(t, ProducesFindings(&schema.ComponentSchema{}))
 }
 

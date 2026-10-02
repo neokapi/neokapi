@@ -99,6 +99,10 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	// never works on a target offers none. --source-lang is an input flag,
 	// because the format reader takes the source language on every run.
 	takesTarget := ToolSchema.ToolMeta.TakesTargetLanguage()
+	// A check that compares a block's source with its translation, and writes
+	// no file, can pair one source file with a translation kept in a file of
+	// its own (--target), as `kapi check --target` does.
+	pairsTarget := takesTarget && !info.WritesOutput && ReadsTargets(ToolSchema)
 
 	short := info.Description
 	if short == "" {
@@ -244,7 +248,7 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 			// run; without this a `kapi exec <check>` run annotated the blocks in
 			// memory, exited 0, and printed nothing (#1476). A bespoke entry in
 			// CollectorFactories still wins.
-			collector := NewFindingsCollectorFor(ToolSchema)
+			collector := NewFindingsCollectorFor(ToolSchema, effectiveLang)
 			// voice-infer produces a profile rather than findings, and one for
 			// the whole corpus rather than one per file, so it collects its own
 			// way. See host/voiceinfer.go.
@@ -278,6 +282,9 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 			if p, _ := cmd.Flags().GetBool("pack"); p {
 				rc.Pack = true
 			}
+			if pairsTarget {
+				rc.TargetFile, _ = cmd.Flags().GetString("target")
+			}
 
 			if !jsonOut && isatty.IsTerminal(os.Stderr.Fd()) {
 				rc.AfterTool = func() {
@@ -309,6 +316,11 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 		cmd.Flags().String("output-dir", "", "write outputs under DIR (default: rewrite each input in place)")
 	}
 	RegisterSchemaFlags(cmd, ToolSchema)
+	if pairsTarget && cmd.Flags().Lookup("target") == nil {
+		cmd.Flags().String("target", "", "the translation of the one source file named, in --target-lang, to check it against (a file that holds both, such as XLIFF, needs none)")
+	} else {
+		pairsTarget = false
+	}
 	if ToolSchema.ToolMeta != nil {
 		for _, req := range ToolSchema.ToolMeta.Requires {
 			switch req {
