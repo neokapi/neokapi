@@ -3114,7 +3114,11 @@ web-wasm-cli: web-pdfium-wasm web-sqlite-wasm i18n-catalogs ## Build the in-brow
 # re-running `docs-dev` rebuilds automatically, instead of silently serving an
 # old binary (which surfaced as missing exports / unsegmented output). Force a
 # rebuild anytime with `make web-wasm-demo web-wasm-cli`.
-WASM_SRC_DIRS := core cli kapi providers memory terms cmd
+#
+# sqlite3.wasm is checked on its own: it changes with the pinned package (a
+# lockfile bump, no Go change), and the staged copy has to match the JavaScript
+# glue the docs bundle from that package.
+WASM_SRC_DIRS := core cli kapi host providers memory terms voice cmd
 docs-wasm:
 	@if [ -f $(WASM_DEMO_DIR)/kapi.wasm ] && [ -f $(WASM_DEMO_DIR)/kapi-cli.wasm.gz ] && \
 	   [ -z "$$(find $(WASM_SRC_DIRS) -name '*.go' -newer $(WASM_DEMO_DIR)/kapi-cli.wasm.gz 2>/dev/null | head -1)" ]; then \
@@ -3122,6 +3126,10 @@ docs-wasm:
 	else \
 		echo "  staging in-browser wasm (missing or engine sources changed)…"; \
 		$(MAKE) web-wasm-demo web-wasm-cli; \
+	fi
+	@if [ -f "$(SQLITE_WASM_SRC)" ] && ! cmp -s "$(SQLITE_WASM_SRC)" $(WASM_DEMO_DIR)/sqlite3.wasm; then \
+		echo "  staging sqlite3.wasm (missing or the package changed)…"; \
+		$(MAKE) --no-print-directory web-sqlite-wasm; \
 	fi
 
 docs-verify-snippets: web-wasm-cli ## Verify every RunnableSnippet + scene smoke_contract runs green in wasm
