@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,6 +32,15 @@ type branchRepo struct {
 	storeDB string // the store, .kapi/work/store.db
 }
 
+// skipWithoutGit skips a test whose fixture is a git repository on a build
+// that cannot start the git subprocess (js/wasm starts no processes).
+func skipWithoutGit(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "js" {
+		t.Skip("git subprocess: js/wasm cannot start a process")
+	}
+}
+
 func (r *branchRepo) git(args ...string) {
 	r.t.Helper()
 	cmd := exec.Command("git", args...)
@@ -45,6 +55,7 @@ func (r *branchRepo) git(args ...string) {
 // wrong view visible as both a stray shard and a pruned one.
 func newBranchRepo(t *testing.T) *branchRepo {
 	t.Helper()
+	skipWithoutGit(t)
 	root := t.TempDir()
 	r := &branchRepo{
 		t:       t,

@@ -13,7 +13,7 @@ scenes:
       - messages_en.json
     smoke_contract:
       - kapi memory import project.memory.json
-      - kapi exec recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr
+      - kapi exec recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr --memory memory.db
 ---
 
 ## Story

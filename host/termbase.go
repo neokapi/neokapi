@@ -20,9 +20,6 @@ import (
 // exists.
 func (a *App) OpenTermsSQLite(cmd Command) (terms.Terminology, string, func(), error) {
 	noop := func() {}
-	if a.TermsBackend != nil {
-		return a.TermsBackend, "(in-memory)", noop, nil
-	}
 	sel, err := a.ResolveTermsCmdStore(cmd)
 	if err != nil {
 		return nil, "", noop, err

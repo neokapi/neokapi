@@ -2,7 +2,7 @@
 // persistent content memories and terms stores. It handles connection
 // management, WAL mode, and common pragmas.
 //
-// Two SQLite backends are selected at compile time by the cgo build tag:
+// Three SQLite backends are selected at compile time, and every build has one:
 //
 //   - cgo builds (the default on macOS/Linux dev builds) use the native
 //     github.com/mattn/go-sqlite3 driver and the statically linked FTS5 ICU
@@ -12,10 +12,16 @@
 //     modernc.org/sqlite driver (see driver_nocgo.go). modernc ships only the
 //     built-in FTS5 tokenizers, so FTS5 word-search tables use
 //     tokenize='unicode61'.
+//   - the browser build (GOOS=js) uses the official SQLite WebAssembly build,
+//     reached synchronously through a JavaScript bridge the host installs
+//     before Go starts (see driver_js.go). Its databases live in the module's
+//     memory, one connection per file, and FTS5 word search uses
+//     tokenize='unicode61'.
 //
-// The driver name (sqliteDriver), DSN builder (sqliteDSN), and word-search
-// tokenizer (FTSWordTokenizer) all come from the build-specific driver_*.go
-// file.
+// The driver name (sqliteDriver), DSN builder (sqliteDSN), word-search
+// tokenizer (FTSWordTokenizer) and the driver's Profile all come from the
+// build-specific driver_*.go file. A database file belongs to the driver too:
+// Exists, Remove, Rename and List answer for it (namespace.go).
 //
 // Cross-build .db caveat: an FTS5 word-search table is created with whichever
 // tokenizer the building binary supports. A content memory/terms .db whose FTS table was
@@ -28,7 +34,6 @@ package storage
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -133,13 +138,6 @@ type pathLocks struct {
 	m  map[string]*sync.Mutex
 }
 
-// ErrNoSQLite marks a build with no file-backed SQLite driver at all (the
-// browser build). Callers whose feature is OPTIONAL in the browser — status
-// reading the decision store, for instance — match it with errors.Is and
-// degrade to their empty state instead of failing a command that otherwise
-// works.
-var ErrNoSQLite = errors.New("a file-backed SQLite database is not available in the browser build")
-
 func (p *pathLocks) get(path string) *sync.Mutex {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -185,11 +183,7 @@ func Open(dbPath string) (*DB, error) {
 // OpenWith opens a SQLite database with the shared pragmas and the given write
 // discipline. Open is OpenWith with the zero Options.
 func OpenWith(dbPath string, opts Options) (*DB, error) {
-	// Builds without a SQLite driver (wasm) report why before database/sql can
-	// blame a missing import.
-	if err := driverUnavailable(); err != nil {
-		return nil, fmt.Errorf("open database %s: %w", dbPath, err)
-	}
+	profile := DriverProfile()
 	if !isMemoryDSN(dbPath) {
 		l := openLocks.get(dbPath)
 		l.Lock()
@@ -211,16 +205,19 @@ func OpenWith(dbPath string, opts Options) (*DB, error) {
 	// handle is held to one connection for a different reason: query_only is a
 	// per-connection pragma with no DSN spelling in either driver, so one
 	// connection is what makes it govern every statement the handle issues.
+	// A driver whose profile allows one connection per file gets one, kept
+	// open for the life of the pool.
 	switch {
-	case isMemoryDSN(dbPath), opts.ReadOnly:
+	case isMemoryDSN(dbPath), opts.ReadOnly, profile.MaxConns <= 1:
 		db.SetMaxOpenConns(1)
+		db.SetMaxIdleConns(1)
 	default:
-		db.SetMaxOpenConns(25)
+		db.SetMaxOpenConns(profile.MaxConns)
 		db.SetMaxIdleConns(5)
 		db.SetConnMaxLifetime(30 * time.Minute)
 	}
 
-	if err := applyPragmasRetry(db, opts); err != nil {
+	if err := applyPragmasRetry(db, opts, profile); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("apply pragmas: %w", err)
 	}
@@ -229,7 +226,7 @@ func OpenWith(dbPath string, opts Options) (*DB, error) {
 	if opts.SerializeWrites {
 		wrapped.gate = newWriteGate()
 	}
-	if opts.CrossProcessWrites && !opts.ReadOnly && !isMemoryDSN(dbPath) {
+	if opts.CrossProcessWrites && profile.CrossProcessLock && !opts.ReadOnly && !isMemoryDSN(dbPath) {
 		lock, lerr := newFileLock(dbPath)
 		if lerr != nil {
 			db.Close()
@@ -248,12 +245,12 @@ func OpenWith(dbPath string, opts Options) (*DB, error) {
 // bounded retry, not the busy handler, is what absorbs it. First-creation
 // migrations complete in at most seconds; anything still locked after the
 // window is a real fault and surfaces as the error.
-func applyPragmasRetry(db *sql.DB, opts Options) error {
+func applyPragmasRetry(db *sql.DB, opts Options, profile Profile) error {
 	const window = 15 * time.Second
 	delay := 10 * time.Millisecond
 	deadline := time.Now().Add(window)
 	for {
-		err := applyPragmas(db, opts)
+		err := applyPragmas(db, opts, profile)
 		if err == nil || !isBusyErr(err) || time.Now().After(deadline) {
 			return err
 		}
@@ -313,17 +310,22 @@ func isMemoryDSN(dbPath string) bool {
 // wal_autocheckpoint pragmas are database-level (persisted in the DB header /
 // shared across connections), so running them once is sufficient; they are
 // repeated here mainly to switch the journal mode on first open under the cgo
-// driver. Both the mattn (cgo) and modernc (no-cgo) drivers honour these PRAGMA
-// statements via Exec.
-func applyPragmas(db *sql.DB, opts Options) error {
+// driver. Every driver honours these PRAGMA statements via Exec.
+//
+// The driver's profile decides two of them: a driver without WAL keeps its own
+// journal mode, and the busy timeout is the driver's (see busyTimeoutMS), since
+// waiting for a lock helps only where another thread or process can release it
+// meanwhile.
+func applyPragmas(db *sql.DB, opts Options, profile Profile) error {
+	busy := fmt.Sprintf("PRAGMA busy_timeout=%d", busyTimeoutMS)
 	if opts.ReadOnly {
 		// No journal_mode switch: it is a write, and the whole point of this
 		// handle is that the database's directory may refuse one. query_only
 		// then makes the refusal explicit at the first write rather than at
 		// whatever the filesystem happens to allow.
 		for _, p := range []string{
-			"PRAGMA busy_timeout=5000",
-			"PRAGMA cache_size=-131072",
+			busy,
+			"PRAGMA cache_size=" + cacheSize,
 			"PRAGMA temp_store=MEMORY",
 			"PRAGMA query_only=ON",
 		} {
@@ -333,19 +335,20 @@ func applyPragmas(db *sql.DB, opts Options) error {
 		}
 		return nil
 	}
-	pragmas := []string{
-		// busy_timeout first: subsequent statements (notably the journal_mode=WAL
-		// switch, which needs a write lock) then wait for a busy database instead
-		// of failing immediately. The DSN sets this per connection too; this is
-		// belt-and-suspenders for the connection applyPragmas runs on.
-		"PRAGMA busy_timeout=5000",
-		"PRAGMA journal_mode=WAL",
+	// busy_timeout first: subsequent statements (notably the journal_mode=WAL
+	// switch, which needs a write lock) then wait for a busy database instead
+	// of failing immediately. The DSN sets this per connection too; this is
+	// belt-and-suspenders for the connection applyPragmas runs on.
+	pragmas := []string{busy}
+	if profile.WAL {
+		pragmas = append(pragmas, "PRAGMA journal_mode=WAL", "PRAGMA wal_autocheckpoint=10000")
+	}
+	pragmas = append(pragmas,
 		"PRAGMA synchronous=NORMAL",
 		"PRAGMA foreign_keys=ON",
-		"PRAGMA cache_size=-131072",
-		"PRAGMA wal_autocheckpoint=10000",
+		"PRAGMA cache_size="+cacheSize,
 		"PRAGMA temp_store=MEMORY",
-	}
+	)
 	for _, p := range pragmas {
 		if _, err := db.Exec(p); err != nil { //nolint:noctx // startup pragmas
 			return fmt.Errorf("execute %s: %w", p, err)

@@ -2,12 +2,12 @@
 # full schema. Regenerate with:
 #   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-terminology-pretranslation
 #
-# The wasm build pre-seeds an in-memory content memory and terms store from the
-# native bundles it embeds (kapi/cmd/kapi-wasm-cli/fixtures/{memory,terms}.json);
-# the inline files below provide the source catalogue and a visible copy of that
-# same content memory. The three-step pipeline — content-memory leverage,
-# pseudo-translate the misses, term-check — all run offline against those real
-# in-memory backends.
+# The inline files below provide the source catalogue and the committed
+# content-memory bundle. `memory import` loads the bundle into a content memory,
+# `memory.db` beside it, which `recycle --memory` leverages. The three steps
+# (content-memory leverage, pseudo-translating the misses, term-check) run
+# offline, in the browser embed as in a terminal: the browser build runs the
+# same SQLite stores.
 
 id: kapi-terminology-pretranslation
 scene: terms-pretranslation
@@ -78,7 +78,7 @@ steps:
   - command: kapi memory import project.memory.json
     narration: Load the committed content-memory bundle for reuse before translation.
   - comment: Step 1 — leverage content memory
-  - command: kapi exec recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr
+  - command: kapi exec recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr --memory memory.db
     narration: recycle is the first step of up's default flow. Exact and fuzzy matches fill from the content memory; the rest stay untranslated.
   - comment: Step 2 — pseudo-translate the remaining misses
   - command: kapi pseudo-translate step1_tm.json -o step2_translated.json

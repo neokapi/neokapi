@@ -2,7 +2,6 @@ package host
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path"
 	"path/filepath"
@@ -51,9 +50,6 @@ func ProjectScope(proj *project.KapiProject) contextgraph.Scope {
 // same work for an embedding host that holds a project store but not an App.
 func (a *App) MaterializeContextGraph(ctx context.Context, root string, proj *project.KapiProject) (int, error) {
 	g, err := a.ProjectGraph(ctx, root)
-	if errors.Is(err, ErrNoProjectGraph) {
-		return 0, nil
-	}
 	if err != nil {
 		return 0, err
 	}
@@ -68,8 +64,7 @@ func (a *App) MaterializeContextGraph(ctx context.Context, root string, proj *pr
 // project store. It is the reuse seam for an embedding host that drives
 // extraction directly and holds a project store but not an App (the desktop's
 // Re-extract), so the graph can stay in step with the block cache on that
-// surface the same way `kapi up` keeps it in step. A store with no file-backed
-// SQLite driver (the browser's JSON sidecar) has no graph tables and is a no-op.
+// surface the same way `kapi up` keeps it in step. A closed store is a no-op.
 //
 // The rows land wherever the store's graph pool is: the workspace database for
 // a project bound to a workspace, the checkout's own projection otherwise.

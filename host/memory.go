@@ -30,9 +30,6 @@ import (
 // closing it would take those with it. Standalone stores close as before.
 func (a *App) OpenMemorySQLite(cmd Command) (memory.Store, string, func(), error) {
 	noop := func() {}
-	if a.MemoryBackend != nil {
-		return a.MemoryBackend, "(in-memory)", noop, nil
-	}
 	sel, err := a.ResolveMemoryStore(cmd)
 	if err != nil {
 		return nil, "", noop, err

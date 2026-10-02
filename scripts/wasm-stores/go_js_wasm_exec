@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# go test -exec target for GOOS=js: runs the test binary in Node over the
+# browser engine's SQLite driver (run.ts). Go's own go_js_wasm_exec, with the
+# SQLite bridge installed before the binary starts.
+DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# V8's default stack is too small for some suites, as Go's runner notes.
+exec node --stack-size=8192 --experimental-strip-types --no-warnings=ExperimentalWarning "$DIR/run.ts" "$@"

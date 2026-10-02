@@ -22,6 +22,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve as pathResolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createMemFS } from "./memfs.ts";
+import { installSQLiteBridge, loadSQLite } from "../../packages/engine/src/sqlite.ts";
 import { parseCommand } from "../../packages/kapi-playground/src/argv.ts";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -388,6 +389,10 @@ async function bootWasm(wasmExecPath: string, wasmPath: string): Promise<void> {
   const wasmExecSrc = readFileSync(wasmExecPath, "utf8");
   new Function(wasmExecSrc)();
 
+  // The engine's stores run on SQLite through the bridge @neokapi/engine
+  // installs on a page before Go starts.
+  installSQLiteBridge(await loadSQLite());
+
   const Go = (globalThis as any).Go;
   if (!Go) throw new Error("wasm_exec.js did not define globalThis.Go");
 
@@ -461,13 +466,13 @@ function resetCwd(sandboxDir: string): void {
 
 // ── Skip patterns: commands unsupported by the browser-safe wasm subset ───────
 //
-// The wasm build omits subprocess plugins, native SQLite, and complex
-// fixture directories. Such commands are skip-listed rather than failed so
-// CI stays honest about what the wasm actually covers.
+// The wasm build omits subprocess plugins and complex fixture directories.
+// Such commands are skip-listed rather than failed so CI stays honest about
+// what the wasm actually covers. Its stores are SQLite, as natively, so a
+// command naming a `.db` store runs.
 
 const WASM_UNSUPPORTED = [
   /bilingual-project/,
-  /\.db\b/,
   // "fixtures/" path prefix — walkthroughs use a real fixtures dir that
   // only exists when running the native binary. Works with or without a
   // leading slash: `fixtures/foo` or `/fixtures/foo`.

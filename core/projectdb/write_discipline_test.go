@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -80,6 +81,9 @@ func unitState(i int) state.UnitState {
 func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 	if testing.Short() {
 		t.Skip("contention regression: seconds of deliberate lock pressure")
+	}
+	if runtime.GOOS == "js" {
+		t.Skip("preemption: four writers run flat out until a deadline, and js/wasm has one thread and no preemption, so the deadline lands only when a writer blocks")
 	}
 	db := openStore(t, newLayout(t))
 	mem := db.Memory()
@@ -411,10 +415,13 @@ func TestProjectStore_OpensWithImmediateTransactions(t *testing.T) {
 	require.Error(t, err, "the project store's transaction did not take its write lock at BEGIN")
 	assert.True(t, isBusy(err) || isCtxErr(err), "unexpected failure: %v", err)
 
-	// And the lock it holds is a WAL write lock, not an exclusive database
-	// lock: a reader on the other handle is unaffected.
-	var n int
-	require.NoError(t, other.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM store_meta`).Scan(&n))
+	// And under WAL the lock it holds is a write lock, not an exclusive
+	// database lock: a reader on the other handle is unaffected. A driver
+	// without WAL keeps readers out while a writer holds its lock.
+	if storage.DriverProfile().WAL {
+		var n int
+		require.NoError(t, other.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM store_meta`).Scan(&n))
+	}
 }
 
 // Compile-time reminder that projectdb.DB is the handle these properties belong

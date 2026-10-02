@@ -24,7 +24,7 @@ const SettingSavedFilters = "saved-filters"
 const settingKeyPrefix = "setting."
 
 // Setting reads one project setting. ok is false when it was never written.
-// Returns ErrNoStore on a build with no file-backed store.
+// Returns ErrNoStore once the handle is closed.
 func (d *DB) Setting(ctx context.Context, name string) (value string, ok bool, err error) {
 	value, ok, err = d.ContextMeta(ctx, settingKeyPrefix+name)
 	if err != nil {

@@ -13,6 +13,7 @@ import (
 	"maps"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/html/charset"
@@ -309,7 +310,24 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 }
 
 func newSessionID(hash string, t time.Time) string {
-	return fmt.Sprintf("tmx-%s-%d", hash[:16], t.UnixNano())
+	return fmt.Sprintf("tmx-%s-%d", hash[:16], sessionStamp(t))
+}
+
+// lastSessionStamp is the newest stamp newSessionID has minted in this process.
+var lastSessionStamp atomic.Int64
+
+// sessionStamp returns t in nanoseconds, moved past the last stamp this
+// process minted. Two imports of one file in one tick of a coarse clock (the
+// browser's ticks in milliseconds) would otherwise mint one id for two
+// sessions.
+func sessionStamp(t time.Time) int64 {
+	for {
+		last := lastSessionStamp.Load()
+		n := max(t.UnixNano(), last+1)
+		if lastSessionStamp.CompareAndSwap(last, n) {
+			return n
+		}
+	}
 }
 
 func scopedTUID(originKey, tuid string, index int, sessionID string) string {

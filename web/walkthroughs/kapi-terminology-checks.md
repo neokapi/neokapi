@@ -11,6 +11,7 @@ scenes:
       - terms.json
       - messages_en.json
     smoke_contract:
+      - kapi terms import terms.json
       - kapi terms stats
       - kapi terms lookup password -s en -t fr
       - kapi terms search encrypt -s en
@@ -25,9 +26,10 @@ identify violations in a target file.
 
 ## Scene 1: terms-checks (terminal)
 
-Inspect the pre-seeded terms store's statistics, look up a term and search for
-related concepts. Run `kapi pseudo-translate`, then `kapi exec term-check ...`
-to inspect the resulting findings.
+Import the terms bundle into a terms store, inspect the store's statistics,
+look up a term and search for related concepts. Run `kapi pseudo-translate`,
+then `kapi exec term-check ... --termstore terms.db` to inspect the resulting
+findings.
 
 ## Closing
 

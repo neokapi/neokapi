@@ -26,7 +26,7 @@ const config: WalkthroughEmbedConfig = {
     },
     {
       command:
-        "kapi exec recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr",
+        "kapi exec recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr --memory memory.db",
       narration:
         "recycle is the first step of up's default flow. Exact and fuzzy matches fill from the content memory; the rest stay untranslated.",
     },

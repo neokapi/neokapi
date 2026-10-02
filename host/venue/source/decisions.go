@@ -33,8 +33,8 @@ func (c *BowrainSourceConnector) workingStore(ctx context.Context) (*state.WorkS
 // bindRefsToStore ties this project's recorded positions to the store they were
 // consumed into, dropping them when that store has been replaced.
 //
-// Best-effort: a connector with no App, a build with no file-backed store, and
-// a store that will not open all leave the positions where they are. None of
+// Best-effort: a connector with no App and a store that will not open both
+// leave the positions where they are. None of
 // them is evidence that the store changed, and replaying a change feed on a
 // guess would be a full re-pull on every contact.
 func (c *BowrainSourceConnector) bindRefsToStore(ctx context.Context) {

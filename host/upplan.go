@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/memory"
@@ -294,31 +295,28 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// and more expensive — run than reality warrants, off a figure that looks
 	// authoritative. A wrong number here costs real money.
 	//
-	// The os.Stat guard below draws the distinction this family needs and it is
-	// load-bearing, not decoration: past the stat the store exists, so a failure
-	// to open it can only mean it exists and cannot be read — exactly the case
-	// that must not read as "no memory". An ABSENT store is a different fact: it
-	// says the project holds no content memory here yet, which prices the work
-	// as translating from scratch.
+	// The storage.Exists guard below draws the distinction this family needs:
+	// past it the store exists, so a failure to open it can only mean it exists
+	// and cannot be read — exactly the case that must not read as "no memory".
+	// An ABSENT store is a different fact: it says the project holds no content
+	// memory here yet, which prices the work as translating from scratch.
 	//
-	// It stats the store rather than opening it and asking, because opening
+	// It asks whether the store exists rather than opening it, because opening
 	// CREATES it: the handle runs every subsystem's migrations at open. A plan
 	// that left a `.kapi/work/store.db` behind would be a dry run with a side effect,
 	// and the next `up` would find a store it did not write.
 	// The decisions the project already holds are read under the same guard, and
 	// for the same reason: a unit whose basis no longer matches its source is
-	// work the plan owes the reader. Read out of the store on its own axis, not
-	// inside the memory branch — an injected MemoryBackend says where leverage
-	// comes from, and says nothing about whether the project has decisions.
-	// An absent store yields an empty index: no decisions, so nothing is stale,
-	// and no artifact has been absorbed, so the corpus has not finished being
-	// taught and a produced unit is not judged by it.
-	basis := upPlanBasis{memory: a.MemoryBackend, root: root, projectPath: projectPath}
+	// work the plan owes the reader. An absent store yields an empty index: no
+	// decisions, so nothing is stale, and no artifact has been absorbed, so the
+	// corpus has not finished being taught and a produced unit is not judged by
+	// it.
+	basis := upPlanBasis{root: root, projectPath: projectPath}
 	layout, lerr := project.LayoutFor(projectPath)
 	if lerr != nil {
 		return UpPlanOutput{}, fmt.Errorf("resolve project layout for %s: %w", projectPath, lerr)
 	}
-	if _, statErr := os.Stat(layout.StorePath()); statErr == nil {
+	if held, _ := storage.Exists(layout.StorePath()); held {
 		db, derr := a.ProjectDB(ctx, layout.Root)
 		if derr != nil {
 			return UpPlanOutput{}, fmt.Errorf("open project store at %s: %w. The plan's "+
@@ -326,10 +324,8 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 				"the work and overstate the spend; fix or remove the store before planning",
 				layout.StorePath(), derr)
 		}
-		if basis.memory == nil {
-			if m := projector.MemoryView(db); m != nil {
-				basis.memory = m
-			}
+		if m := projector.MemoryView(db); m != nil {
+			basis.memory = m
 		}
 		if idx, rerr := a.loadReviewedCorrections(ctx, proj, layout.Root); rerr == nil {
 			basis.reviewed = idx

@@ -1,4 +1,4 @@
-//go:build !cgo && !wasm
+//go:build !cgo && !js
 
 package storage
 
@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	// Pure-Go SQLite (no C compiler required). Used for CGO_ENABLED=0 builds
-	// (the wasm build and bare `go build`/`go test` without a C toolchain),
+	// (bare `go build`/`go test` without a C toolchain),
 	// where mattn/go-sqlite3 registers no driver. Released binaries are all cgo
 	// (see driver_cgo.go). modernc ships only the built-in FTS5 tokenizers, so
 	// no ICU tokenizer is available here (see FTSWordTokenizer below).
@@ -16,9 +16,23 @@ import (
 // sqliteDriver is the database/sql driver name registered by modernc.org/sqlite.
 const sqliteDriver = "sqlite"
 
-// driverUnavailable reports nil: this build registers a SQLite driver. Only the
-// wasm build has none (see driver_wasm.go).
-func driverUnavailable() error { return nil }
+// driverProfile is what the pure-Go SQLite gives a store: the same as the
+// native C build (see driver_cgo.go).
+var driverProfile = Profile{
+	Driver:           "modernc.org/sqlite",
+	MaxConns:         25,
+	WAL:              true,
+	CrossProcessLock: fileLockSupported,
+	Durable:          true,
+}
+
+// busyTimeoutMS is how long a connection waits for another connection's lock:
+// another thread or process can release it meanwhile.
+const busyTimeoutMS = 5000
+
+// cacheSize is the page cache per connection, in the PRAGMA's negative-KiB
+// spelling: 128 MiB.
+const cacheSize = "-131072"
 
 // FTSWordTokenizer is the FTS5 tokenizer used for word-based search tables
 // under no-cgo builds. modernc.org/sqlite ships only the FTS5 tokenizers built

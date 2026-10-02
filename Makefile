@@ -377,6 +377,26 @@ check-wasm: i18n-catalogs ## Compile-check the in-browser CLI for js/wasm (the d
 	@GOOS=js GOARCH=wasm $(GO) build -o /dev/null ./cmd/kapi-wasm
 	@echo "✓ js/wasm builds (kapi-wasm-cli, kapi-wasm)"
 
+# The store suites: every package whose state is SQL behind core/storage. Each
+# build's driver declares a profile (core/storage/profile.go), and the browser's
+# holds a pool to one connection, so the suites run two more ways beside
+# `make test`: natively with every pool held to one connection, which finds the
+# code that holds a transaction and waits for a second session on the same pool
+# without a browser, and under GOOS=js in Node over the browser's own driver
+# (@sqlite.org/sqlite-wasm through packages/engine/src/sqlite.ts; needs
+# `vp install`). A test skipped under js names its reason: a git subprocess, a
+# file the browser driver keeps out of the file system, or preemption js/wasm
+# does not have.
+STORE_PKGS := ./core/storage/ ./core/workspace/... ./core/projector/ ./core/projectdb/ \
+	./core/state/ ./core/blockstore/... ./memory/... ./terms/... ./voice/... ./host/storage/...
+
+test-stores-oneconn: i18n-catalogs ## Run the store suites natively with every pool held to one connection
+	$(GO) test -tags "fts5,storage_oneconn" -count=1 -timeout 15m $(STORE_PKGS)
+
+test-wasm-stores: i18n-catalogs ## Run the store suites under GOOS=js in Node over the browser's SQLite driver
+	@test -f node_modules/@sqlite.org/sqlite-wasm/package.json || { echo "error: @sqlite.org/sqlite-wasm missing; run 'vp install'"; exit 1; }
+	GOOS=js GOARCH=wasm $(GO) test -exec "$(CURDIR)/scripts/wasm-stores/go_js_wasm_exec" -count=1 -timeout 20m $(STORE_PKGS)
+
 test-parallel: ## Run all tests in parallel
 	@$(MAKE) --no-print-directory _fw-test & $(MAKE) -C bowrain test & wait
 
@@ -3052,7 +3072,25 @@ web-pdfium-wasm: ## Stage @embedpdf/pdfium wasm → web/static/wasm/pdfium.wasm
 		echo "  warning: $(PDFIUM_WASM_SRC) not found — run 'vp install'; browser PDF disabled"; \
 	fi
 
-web-wasm-cli: web-pdfium-wasm i18n-catalogs ## Build the in-browser kapi CLI (wasm) → web/static/wasm/kapi-cli.wasm
+# Stage SQLite's own wasm (@sqlite.org/sqlite-wasm) beside the engine: the
+# engine's stores run on it, and @neokapi/engine loads it from beside the engine
+# binary (precompressed, like kapi-cli.wasm.gz). The JavaScript half is bundled
+# from the same pinned package, so the two are always one SQLite release.
+# Requires `vp install`; warns when absent like the PDFium staging above, since
+# the Go-only CI job that builds the engine has no node_modules and the docs job
+# stages it after installing them.
+SQLITE_WASM_SRC := node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3.wasm
+web-sqlite-wasm: ## Stage @sqlite.org/sqlite-wasm's sqlite3.wasm (+ .gz) → web/static/wasm/
+	@mkdir -p $(WASM_DEMO_DIR)
+	@if [ -f "$(SQLITE_WASM_SRC)" ]; then \
+		cp "$(SQLITE_WASM_SRC)" $(WASM_DEMO_DIR)/sqlite3.wasm; \
+		gzip -9 -f -k -c $(WASM_DEMO_DIR)/sqlite3.wasm > $(WASM_DEMO_DIR)/sqlite3.wasm.gz; \
+		ls -lh $(WASM_DEMO_DIR)/sqlite3.wasm.gz | awk '{print "  staged",$$NF,$$5}'; \
+	else \
+		echo "  warning: $(SQLITE_WASM_SRC) not found; run 'vp install' (the browser engine cannot open its stores without it)"; \
+	fi
+
+web-wasm-cli: web-pdfium-wasm web-sqlite-wasm i18n-catalogs ## Build the in-browser kapi CLI (wasm) → web/static/wasm/kapi-cli.wasm
 	@mkdir -p $(WASM_DEMO_DIR)
 	cd kapi && GOOS=js GOARCH=wasm $(GO) build -o $(CURDIR)/$(WASM_DEMO_DIR)/kapi-cli.wasm ./cmd/kapi-wasm-cli
 	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
@@ -3319,7 +3357,8 @@ help: ## Show this help
         generate-translatability check-translatability \
         generate-docs-palette check-docs-palette \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
-        kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke \
+        kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke web-sqlite-wasm \
+        test-stores-oneconn test-wasm-stores \
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
         emails-frontend-deps emails-extract \
         landing-frontend-deps landing-extract \

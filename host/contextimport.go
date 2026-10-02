@@ -283,8 +283,8 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 
 	for _, src := range sources {
 		if !storeHolds(db, src.kind) {
-			// A build with no file-backed store for this subsystem (the browser
-			// build) has nothing to read into.
+			// A store with no subsystem of this kind bound has nothing to read
+			// into.
 			res.Unchanged++
 			continue
 		}

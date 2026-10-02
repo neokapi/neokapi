@@ -377,10 +377,10 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 	writer = writer.With(projector.Origin{By: "absorb"})
 	tm := writer.Memory()
 	if tm == nil || a.FormatReg == nil {
-		// No file-backed content memory in this build (the browser build), or no
-		// format registry to read the documents with — the same posture the seed
-		// phase takes: nothing to project into, and no stamp recorded, so the
-		// record absorbs the first time a real store is there.
+		// No content memory bound, or no format registry to read the documents
+		// with — the same posture the seed phase takes: nothing to project
+		// into, and no stamp recorded, so the record absorbs the first time a
+		// store is there.
 		return res, nil
 	}
 

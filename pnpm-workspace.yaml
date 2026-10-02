@@ -88,6 +88,11 @@ packageManagerRegistries:
 # vite-plus's own build diverge and the TS2321/TS2769 overflow above returns.
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@0.3.3
+  # The official SQLite WebAssembly build the browser engine's database driver
+  # runs on (packages/engine/src/sqlite.ts, core/storage/driver_js.go). Pinned
+  # exactly: the Go driver, the JavaScript bridge and the sqlite3.wasm staged
+  # beside the engine (make web-wasm-cli) must be one SQLite release.
+  "@sqlite.org/sqlite-wasm": 3.53.4-build1
 
 # Cross-workspace version pins (was the root package.json npm "overrides").
 overrides:

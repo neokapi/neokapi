@@ -1,5 +1,3 @@
-//go:build !wasm
-
 package sqlitestore_test
 
 import (
@@ -14,6 +12,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -89,6 +88,11 @@ func TestRollbackKeepsWritesInAutocommitMode(t *testing.T) {
 
 // TestUncommittedWritesAreInvisibleToAnotherSession holds the transactional
 // mode to read isolation.
+//
+// Where the driver holds a pool to one connection (the browser), a second
+// session cannot open while the first holds that connection: it waits, and
+// what it sees once the first ends is what the first committed. The writer
+// rolls back here, so the waiting reader must find nothing.
 func TestUncommittedWritesAreInvisibleToAnotherSession(t *testing.T) {
 	s := newStore(t, false)
 	ctx := context.Background()
@@ -96,6 +100,33 @@ func TestUncommittedWritesAreInvisibleToAnotherSession(t *testing.T) {
 	writer, err := s.Begin(ctx)
 	require.NoError(t, err)
 	require.NoError(t, writer.PutBlock("ui", block("inflight", true)))
+
+	if storage.DriverProfile().MaxConns == 1 {
+		read := make(chan error, 1)
+		go func() {
+			reader, err := s.Begin(ctx)
+			if err != nil {
+				read <- err
+				return
+			}
+			defer reader.Close()
+			_, err = reader.GetBlock("inflight")
+			read <- err
+		}()
+		select {
+		case err := <-read:
+			t.Fatalf("a second session ran beside the transaction holding the only connection (err=%v)", err)
+		case <-time.After(50 * time.Millisecond):
+		}
+		require.NoError(t, writer.Rollback())
+		select {
+		case err := <-read:
+			require.ErrorIs(t, err, blockstore.ErrNotFound)
+		case <-time.After(5 * time.Second):
+			t.Fatal("the second session never opened after the first ended")
+		}
+		return
+	}
 
 	// A reader opened on the same store must not see the open transaction's
 	// write; SQLite in WAL mode serves it the last committed snapshot.
@@ -398,6 +429,60 @@ func TestBlocksIterationStopsOnBreak(t *testing.T) {
 
 	// The session is still usable after an abandoned iteration.
 	assert.Equal(t, 3, countBlocks(t, sess, blockstore.BlockFilter{}))
+}
+
+// TestIterationLeavesTheSessionUsable: a caller may read and write through an
+// autocommit session while iterating it, across many pages, and a limit holds
+// across page boundaries. Open rows would otherwise hold a pool connection the
+// write needs, which on a one-connection pool (the browser's driver) waits
+// forever.
+func TestIterationLeavesTheSessionUsable(t *testing.T) {
+	s := newStore(t, true)
+	ctx := context.Background()
+	sess, err := s.Begin(ctx)
+	require.NoError(t, err)
+	defer sess.Close()
+
+	const total = 600 // more than two pages
+	for i := range total {
+		require.NoError(t, sess.PutBlock("ui", block(fmt.Sprintf("h%04d", i), true)))
+	}
+
+	seen := 0
+	for b, err := range sess.Blocks(blockstore.BlockFilter{}) {
+		require.NoError(t, err)
+		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
+			Kind: "targets/nb", BlockHash: b.Hash, Payload: []byte(`{"t":"x"}`),
+		}))
+		_, err = sess.GetBlock(b.Hash)
+		require.NoError(t, err)
+		seen++
+	}
+	assert.Equal(t, total, seen, "every block is visited once across pages")
+
+	overlays := 0
+	for ov, err := range sess.ListOverlays("targets/nb") {
+		require.NoError(t, err)
+		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
+			Kind: "targets/fr", BlockHash: ov.BlockHash, Payload: []byte(`{"t":"y"}`),
+		}))
+		overlays++
+	}
+	assert.Equal(t, total, overlays)
+
+	all := 0
+	for _, err := range allOverlays(t, sess) {
+		require.NoError(t, err)
+		all++
+	}
+	assert.Equal(t, 2*total, all, "both kinds, each once, in kind then hash order")
+
+	limited := 0
+	for _, err := range sess.Blocks(blockstore.BlockFilter{Limit: 300}) {
+		require.NoError(t, err)
+		limited++
+	}
+	assert.Equal(t, 300, limited, "a limit holds across a page boundary")
 }
 
 func TestListOverlaysIsScopedByKind(t *testing.T) {

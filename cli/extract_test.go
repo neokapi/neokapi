@@ -142,9 +142,13 @@ func TestExtractMergeKpzInterchangeRoundTrip(t *testing.T) {
 	writeJSONSource(t, real, "src/locales/en/messages.json",
 		`{"greeting": "Hello, world."}`)
 
-	// content memory with an exact match for the source text so extract pre-fills a target.
-	tm := memory.NewInMemoryStore()
-	require.NoError(t, tm.Add(t.Context(), memory.Entry{
+	// content memory with an exact match for the source text so extract
+	// pre-fills a target: the project's own, written through the projector.
+	ea := newExtractApp(t)
+	t.Cleanup(ea.Shutdown)
+	writer, err := ea.Projector(t.Context(), real)
+	require.NoError(t, err)
+	require.NoError(t, writer.Memory().Add(t.Context(), memory.Entry{
 		ID:          "tm-greeting",
 		HintSrcLang: "en-US",
 		Variants: map[model.LocaleID][]model.Run{
@@ -154,8 +158,6 @@ func TestExtractMergeKpzInterchangeRoundTrip(t *testing.T) {
 	}))
 
 	// Extract --format kpz.
-	ea := newExtractApp(t)
-	ea.MemoryBackend = tm
 	ecmd := NewExtractCmd(ea, ExtractCmdOptions{})
 	var eout bytes.Buffer
 	ecmd.SetOut(&eout)
@@ -176,7 +178,7 @@ func TestExtractMergeKpzInterchangeRoundTrip(t *testing.T) {
 
 	// Merge the interchange .kpz back.
 	ma := newExtractApp(t)
-	ma.MemoryBackend = tm
+	t.Cleanup(ma.Shutdown)
 	mcmd := NewMergeCmd(ma, MergeCmdOptions{})
 	var mout bytes.Buffer
 	mcmd.SetOut(&mout)

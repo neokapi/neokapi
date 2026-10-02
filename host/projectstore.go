@@ -16,7 +16,6 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/projector"
-	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/storage/graph"
 )
@@ -203,23 +202,13 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	// only the deadline and cancellation are dropped.
 	openCtx := context.WithoutCancel(ctxOrBackground(ctx))
 
-	var opts []projectdb.Option
 	stores, bound, err := s.bindWorkspace(openCtx, abs)
-	switch {
-	case err == nil:
-		opts = append(opts, projectdb.WithWorkspace(stores))
-		s.bound[abs] = bound
-	case errors.Is(err, storage.ErrNoSQLite):
-		// The browser build has no file-backed SQLite driver and no user data
-		// directory, so there is no workspace to reach and no need of one: it
-		// holds one project and nothing outlives the tab. The project opens in
-		// the embedded layout, with its context tables beside its projection,
-		// which core/projectdb degrades to a JSON sidecar from there.
-	default:
+	if err != nil {
 		return nil, err
 	}
+	s.bound[abs] = bound
 
-	db, err := projectdb.Open(openCtx, projectLayoutAt(abs), opts...)
+	db, err := projectdb.Open(openCtx, projectLayoutAt(abs), projectdb.WithWorkspace(stores))
 	if err != nil {
 		return nil, err
 	}
@@ -303,8 +292,8 @@ type boundProject struct {
 // it applies then whatever the log holds that the store has not yet seen:
 // writes another process made, or operations merged in from another machine.
 //
-// A store with no workspace behind it (the browser build) gets a projector
-// with no log, which applies each write directly.
+// A store whose workspace opened read-only gets a projector with no log, which
+// applies each write directly.
 func (a *App) Projector(ctx context.Context, root string) (*projector.Projector, error) {
 	if _, err := a.ProjectDB(ctx, root); err != nil {
 		return nil, err
@@ -382,11 +371,6 @@ func recipeSourceLanguage(recipePath string) model.LocaleID {
 	return head.Defaults.SourceLanguage
 }
 
-// ErrNoProjectGraph reports that this build cannot hold a property graph,
-// because it has no file-backed SQLite driver. It wraps storage.ErrNoSQLite, so
-// a caller that already distinguishes the browser build needs no new check.
-var ErrNoProjectGraph = fmt.Errorf("project graph: %w", storage.ErrNoSQLite)
-
 // ProjectGraph returns the property graph this project's context-graph rows are
 // written into: the `graph_nodes` / `graph_edges` tables of the WORKSPACE
 // database, migrated under their own `graph` ledger (AD-039).
@@ -403,16 +387,13 @@ var ErrNoProjectGraph = fmt.Errorf("project graph: %w", storage.ErrNoSQLite)
 // Edges key on durable identity (a block's content key, a unit key), never on a
 // reader's positional id, so a re-parse that renumbers a document leaves the
 // graph intact.
-//
-// On a build with no file-backed SQLite driver the store degrades to the JSON
-// sidecar and there are no graph tables: this returns ErrNoProjectGraph.
 func (a *App) ProjectGraph(ctx context.Context, root string) (*graph.SQLiteGraphStore, error) {
 	db, err := a.ProjectDB(ctx, root)
 	if err != nil {
 		return nil, err
 	}
 	if db.Graph() == nil {
-		return nil, ErrNoProjectGraph
+		return nil, errors.New("project graph: the project store is closed")
 	}
 	s := a.ensureProjectStores()
 	s.mu.Lock()

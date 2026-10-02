@@ -39,10 +39,10 @@
 //
 // # Without a log
 //
-// A store opened in the embedded layout, with no workspace behind it, has no
-// log to record into. The projector then applies each write directly, which
-// keeps a test and the browser build working and gives them nothing to
-// rebuild from.
+// A store opened in the embedded layout, with no workspace behind it, or under
+// a workspace opened read-only, has no log to record into. The projector then
+// applies each write directly, which keeps a test working and gives it nothing
+// to rebuild from.
 package projector
 
 import (

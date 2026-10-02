@@ -37,8 +37,7 @@ type Cache struct {
 	ProjectID string `json:"project_id,omitempty"`
 
 	// StoreID names the project store whose consumption the positions below
-	// describe. Empty in a cache written before the two were tied together, and
-	// in one belonging to a build with no file-backed store.
+	// describe. Empty in a cache written before the two were tied together.
 	StoreID string `json:"store_id,omitempty"`
 
 	// ObservedAt is when the destination was last reached. Reporting only: no
@@ -225,8 +224,8 @@ func (c *Cache) Consume(stream string, cursor int64) {
 // the venue published, neither of which the store holds, so a new store says
 // nothing about them.
 //
-// An empty storeID binds nothing. A build with no file-backed store has no file
-// to identify, and reading that silence as a different store would replay the
+// An empty storeID binds nothing. A caller that could not identify its store
+// passes one, and reading that silence as a different store would replay the
 // feed on every pull.
 func (c *Cache) BindStore(storeID string) {
 	if c == nil || storeID == "" {

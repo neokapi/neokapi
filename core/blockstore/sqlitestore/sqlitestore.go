@@ -1,5 +1,3 @@
-//go:build !wasm
-
 // Package sqlitestore provides the SQLite-backed implementation of the
 // blockstore.Store interface. It is split out of core/blockstore so the
 // interface package (and its importers such as core/flow) stay free of the
@@ -157,53 +155,90 @@ func (s *cacheSession) q() interface {
 
 func (s *cacheSession) Capabilities() blockstore.Capabilities { return s.store.Capabilities() }
 
+// pageSize is how many rows one page of an iteration reads. A page is read
+// whole and its rows closed before any of it is yielded, so a caller may use the
+// session between items, reading or writing. In autocommit mode the session's
+// statements run on the pool, and open rows would hold one of its connections
+// while the caller asked for another: on a pool held to one connection (the
+// browser's driver, see storage.DriverProfile) that is a wait that never ends.
+// Memory stays bounded by the page, not the store.
+const pageSize = 256
+
 func (s *cacheSession) Blocks(filter blockstore.BlockFilter) iter.Seq2[*blockstore.Block, error] {
 	return func(yield func(*blockstore.Block, error) bool) {
 		if s.done {
 			yield(nil, blockstore.ErrClosed)
 			return
 		}
-		q := strings.Builder{}
-		q.WriteString(`SELECT payload FROM blocks WHERE 1=1`)
+		where := strings.Builder{}
 		args := []any{}
 		if filter.Collection != "" {
-			q.WriteString(` AND collection = ?`)
+			where.WriteString(` AND collection = ?`)
 			args = append(args, filter.Collection)
 		}
 		if filter.Translatable != nil {
-			q.WriteString(` AND translatable = ?`)
+			where.WriteString(` AND translatable = ?`)
 			args = append(args, boolInt(*filter.Translatable))
 		}
-		q.WriteString(` ORDER BY hash`)
-		if filter.Limit > 0 {
-			q.WriteString(` LIMIT ?`)
-			args = append(args, filter.Limit)
-		}
-		rows, err := s.q().QueryContext(s.ctx, q.String(), args...)
-		if err != nil {
-			yield(nil, fmt.Errorf("blockstore: query blocks: %w", err))
-			return
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var payload []byte
-			if err := rows.Scan(&payload); err != nil {
-				yield(nil, fmt.Errorf("blockstore: scan block: %w", err))
+		query := `SELECT hash, payload FROM blocks WHERE hash > ?` + where.String() + ` ORDER BY hash LIMIT ?`
+		after, remaining := "", filter.Limit
+		for {
+			limit := pageSize
+			if filter.Limit > 0 {
+				if remaining == 0 {
+					return
+				}
+				limit = min(limit, remaining)
+			}
+			page, err := s.blockPage(query, append([]any{after}, append(args, limit)...))
+			if err != nil {
+				yield(nil, err)
 				return
 			}
-			var b blockstore.Block
-			if err := json.Unmarshal(payload, &b); err != nil {
-				yield(nil, fmt.Errorf("blockstore: decode block: %w", err))
+			for _, row := range page {
+				var b blockstore.Block
+				if err := json.Unmarshal(row.payload, &b); err != nil {
+					yield(nil, fmt.Errorf("blockstore: decode block: %w", err))
+					return
+				}
+				if !yield(&b, nil) {
+					return
+				}
+			}
+			if len(page) < limit {
 				return
 			}
-			if !yield(&b, nil) {
-				return
-			}
-		}
-		if err := rows.Err(); err != nil {
-			yield(nil, fmt.Errorf("blockstore: iterate blocks: %w", err))
+			after = page[len(page)-1].hash
+			remaining -= len(page)
 		}
 	}
+}
+
+// blockRow is one row of a block page: its key and its encoded block.
+type blockRow struct {
+	hash    string
+	payload []byte
+}
+
+// blockPage reads one page of blocks and closes its rows.
+func (s *cacheSession) blockPage(query string, args []any) ([]blockRow, error) {
+	rows, err := s.q().QueryContext(s.ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("blockstore: query blocks: %w", err)
+	}
+	defer rows.Close()
+	var page []blockRow
+	for rows.Next() {
+		var row blockRow
+		if err := rows.Scan(&row.hash, &row.payload); err != nil {
+			return nil, fmt.Errorf("blockstore: scan block: %w", err)
+		}
+		page = append(page, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("blockstore: iterate blocks: %w", err)
+	}
+	return page, nil
 }
 
 func (s *cacheSession) GetBlock(hash string) (*blockstore.Block, error) {
@@ -358,65 +393,67 @@ func (s *cacheSession) PutOverlay(sc blockstore.Overlay) error {
 
 func (s *cacheSession) ListOverlays(kind string) iter.Seq2[blockstore.Overlay, error] {
 	kind = blockstore.CanonicalOverlayKind(kind)
+	return s.overlays(`WHERE kind = ? AND block_hash > ? ORDER BY block_hash LIMIT ?`,
+		func(after blockstore.Overlay) []any { return []any{kind, after.BlockHash} },
+		"list overlays")
+}
+
+func (s *cacheSession) AllOverlays() iter.Seq2[blockstore.Overlay, error] {
+	return s.overlays(`WHERE (kind, block_hash) > (?, ?) ORDER BY kind, block_hash LIMIT ?`,
+		func(after blockstore.Overlay) []any { return []any{after.Kind, after.BlockHash} },
+		"list all overlays")
+}
+
+// overlays iterates overlays a page at a time (see pageSize). tail is the
+// query's clause after FROM, ending in `LIMIT ?`; keys gives the arguments
+// that resume after the last overlay of the previous page, the zero overlay
+// for the first.
+func (s *cacheSession) overlays(tail string, keys func(after blockstore.Overlay) []any, what string) iter.Seq2[blockstore.Overlay, error] {
 	return func(yield func(blockstore.Overlay, error) bool) {
 		if s.done {
 			yield(blockstore.Overlay{}, blockstore.ErrClosed)
 			return
 		}
-		rows, err := s.q().QueryContext(s.ctx, `
-			SELECT kind, block_hash, payload, updated_at
-			FROM overlays WHERE kind = ? ORDER BY block_hash
-		`, kind)
-		if err != nil {
-			yield(blockstore.Overlay{}, fmt.Errorf("blockstore: list overlays: %w", err))
-			return
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var sc blockstore.Overlay
-			if err := rows.Scan(&sc.Kind, &sc.BlockHash, &sc.Payload, &sc.UpdatedAt); err != nil {
-				yield(blockstore.Overlay{}, fmt.Errorf("blockstore: scan overlay: %w", err))
+		query := `SELECT kind, block_hash, payload, updated_at FROM overlays ` + tail
+		var after blockstore.Overlay
+		for {
+			page, err := s.overlayPage(query, append(keys(after), pageSize), what)
+			if err != nil {
+				yield(blockstore.Overlay{}, err)
 				return
 			}
-			if !yield(sc, nil) {
+			for _, ov := range page {
+				if !yield(ov, nil) {
+					return
+				}
+			}
+			if len(page) < pageSize {
 				return
 			}
-		}
-		if err := rows.Err(); err != nil {
-			yield(blockstore.Overlay{}, fmt.Errorf("blockstore: iterate overlays: %w", err))
+			after = page[len(page)-1]
 		}
 	}
 }
 
-func (s *cacheSession) AllOverlays() iter.Seq2[blockstore.Overlay, error] {
-	return func(yield func(blockstore.Overlay, error) bool) {
-		if s.done {
-			yield(blockstore.Overlay{}, blockstore.ErrClosed)
-			return
-		}
-		rows, err := s.q().QueryContext(s.ctx, `
-			SELECT kind, block_hash, payload, updated_at
-			FROM overlays ORDER BY kind, block_hash
-		`)
-		if err != nil {
-			yield(blockstore.Overlay{}, fmt.Errorf("blockstore: list all overlays: %w", err))
-			return
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var sc blockstore.Overlay
-			if err := rows.Scan(&sc.Kind, &sc.BlockHash, &sc.Payload, &sc.UpdatedAt); err != nil {
-				yield(blockstore.Overlay{}, fmt.Errorf("blockstore: scan overlay: %w", err))
-				return
-			}
-			if !yield(sc, nil) {
-				return
-			}
-		}
-		if err := rows.Err(); err != nil {
-			yield(blockstore.Overlay{}, fmt.Errorf("blockstore: iterate overlays: %w", err))
-		}
+// overlayPage reads one page of overlays and closes its rows.
+func (s *cacheSession) overlayPage(query string, args []any, what string) ([]blockstore.Overlay, error) {
+	rows, err := s.q().QueryContext(s.ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("blockstore: %s: %w", what, err)
 	}
+	defer rows.Close()
+	var page []blockstore.Overlay
+	for rows.Next() {
+		var sc blockstore.Overlay
+		if err := rows.Scan(&sc.Kind, &sc.BlockHash, &sc.Payload, &sc.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("blockstore: scan overlay: %w", err)
+		}
+		page = append(page, sc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("blockstore: iterate overlays: %w", err)
+	}
+	return page, nil
 }
 
 func (s *cacheSession) Commit() error {

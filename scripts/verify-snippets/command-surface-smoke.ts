@@ -18,6 +18,7 @@ import { resolve as pathResolve, join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runInThisContext } from "node:vm";
 import { createMemFS } from "./memfs.ts";
+import { installSQLiteBridge, loadSQLite } from "../../packages/engine/src/sqlite.ts";
 import { LOOSE_SAMPLES } from "../../packages/kapi-playground/src/samples.ts";
 import { CLI_EXAMPLES } from "../../packages/kapi-playground/src/cliExamples.ts";
 import { parseCommand } from "../../packages/kapi-playground/src/argv.ts";
@@ -44,6 +45,9 @@ const mem = createMemFS({
 (globalThis as any).process = Object.assign({}, process, mem.process, { env: process.env });
 
 runInThisContext(readFileSync(join(wasmDir, "wasm_exec.js"), "utf8"));
+// The engine's stores run on SQLite through the bridge @neokapi/engine
+// installs on a page before Go starts.
+installSQLiteBridge(await loadSQLite());
 const Go = (globalThis as any).Go;
 const go = new Go();
 // Mirror the browser exactly: @neokapi/engine boots with CLICOLOR_FORCE=1 so
@@ -289,13 +293,12 @@ ok("`kapi check` runs the default checkset", check.code === 0, check.out.trim().
 const brand = await run("voice", "guide", "--pack", "technical-docs");
 ok("`kapi voice guide --pack` works offline", brand.code === 0, brand.out.trim().slice(0, 160));
 
-// Installing a profile writes to the SQLite brand store, which the browser has
-// no driver for. The failure must say so rather than blame a missing Go import
-// ("unknown driver \"sqlite\" (forgotten import?)").
+// Installing a profile writes to a SQLite voice store, which the browser holds
+// in SQLite's WebAssembly build like every other store.
 const brandStore = await run("voice", "pack", "technical-docs");
 ok(
-  "`kapi voice pack` reports the missing SQLite driver honestly",
-  brandStore.code !== 0 && /not available in the browser build/.test(brandStore.out),
+  "`kapi voice pack` installs into the voice store",
+  brandStore.code === 0 && /created voice profile/.test(brandStore.out),
   brandStore.out.trim().slice(0, 240),
 );
 

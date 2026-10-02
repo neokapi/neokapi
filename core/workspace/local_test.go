@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/core/workspace/workspacetest"
 )
@@ -30,8 +31,14 @@ func TestLocalBackendLayout(t *testing.T) {
 	_, err = b.Project(ctx, "prj_abc")
 	require.NoError(t, err)
 
-	assert.FileExists(t, filepath.Join(root, workspace.RegistryFileName))
-	assert.FileExists(t, filepath.Join(root, workspace.ProjectsDirName, "prj_abc.db"))
+	for _, path := range []string{
+		filepath.Join(root, workspace.RegistryFileName),
+		filepath.Join(root, workspace.ProjectsDirName, "prj_abc.db"),
+	} {
+		held, err := storage.Exists(path)
+		require.NoError(t, err)
+		assert.True(t, held, "%s holds a database", path)
+	}
 	assert.Equal(t, filepath.Join(root, workspace.RegistryFileName), b.RegistryPath())
 	assert.Equal(t, filepath.Join(root, workspace.ProjectsDirName, "prj_abc.db"), b.ProjectPath("prj_abc"))
 }
@@ -141,6 +148,9 @@ func TestCloudSyncedWorkspaceIsRefused(t *testing.T) {
 func TestWorkspaceReadsFromAWriteRestrictedDirectory(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("directory permissions do not restrict the owner on Windows")
+	}
+	if runtime.GOOS == "js" {
+		t.Skip("file-system artefact: a directory's permissions do not reach the databases the browser driver keeps in memory")
 	}
 	if os.Geteuid() == 0 {
 		t.Skip("root writes a read-only directory anyway")

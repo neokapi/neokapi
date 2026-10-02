@@ -8,10 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -62,13 +60,6 @@ type WorkStore struct {
 	// in and applied from (core/projector). A store with no journal, which is
 	// the embedded layout a test opens, writes its ledger directly.
 	journal Journal
-
-	// mem is the browser fallback: the wasm build has no file-backed SQLite
-	// (storage.ErrNoSQLite), yet the review loop must still work in the lab.
-	// The ledger and the view live in process memory and persist to a JSON
-	// sidecar next to where the database would sit. nil on every build with a
-	// real driver.
-	mem *memWork
 }
 
 var workMigrations = []storage.Migration{{
@@ -210,9 +201,6 @@ func OpenWork(ctx context.Context, dbPath, committedPath string) (*WorkStore, er
 	}
 	db, err := storage.Open(dbPath)
 	if err != nil {
-		if errors.Is(err, storage.ErrNoSQLite) {
-			return OpenWorkSidecar(ctx, strings.TrimSuffix(dbPath, filepath.Ext(dbPath))+".json", committedPath)
-		}
 		return nil, fmt.Errorf("state: open work store: %w", err)
 	}
 	if err := storage.Migrate(db, "state", workMigrations); err != nil {
@@ -271,25 +259,6 @@ func OpenLedger(_ context.Context, db *storage.DB) (*WorkStore, error) {
 		return nil, fmt.Errorf("state: migrate work store: %w", err)
 	}
 	return newStore(db, ""), nil
-}
-
-// OpenWorkSidecar opens the JSON-sidecar store at sidecarPath: the browser
-// build's ledger, and the only form it takes where there is no file-backed
-// SQLite driver. Callers on a build with a driver reach it only to read a
-// sidecar some earlier browser session wrote.
-func OpenWorkSidecar(ctx context.Context, sidecarPath, committedPath string) (*WorkStore, error) {
-	if err := os.MkdirAll(filepath.Dir(sidecarPath), 0o755); err != nil {
-		return nil, fmt.Errorf("state: work dir: %w", err)
-	}
-	w := newStore(nil, committedPath)
-	w.mem = newMemWork(sidecarPath)
-	if err := w.mem.load(w.now()); err != nil {
-		return nil, err
-	}
-	if err := w.start(ctx); err != nil {
-		return nil, err
-	}
-	return w, nil
 }
 
 func newStore(db *storage.DB, committedPath string) *WorkStore {
@@ -375,7 +344,7 @@ func (w *WorkStore) clock() time.Time {
 }
 
 func (w *WorkStore) Close() error {
-	if w.mem != nil || !w.ownsDB {
+	if !w.ownsDB {
 		return nil
 	}
 	return w.db.Close()
@@ -384,9 +353,6 @@ func (w *WorkStore) Close() error {
 // registerCheckout records which record directory a view id stands for, so the
 // table is readable by someone looking at a project store from outside.
 func (w *WorkStore) registerCheckout(ctx context.Context) error {
-	if w.mem != nil {
-		return nil
-	}
 	abs, err := filepath.Abs(w.committed)
 	if err != nil {
 		abs = w.committed
@@ -453,30 +419,6 @@ func (w *WorkStore) Import(ctx context.Context) error {
 // last-writer-wins rule a venue pull follows, and it is what keeps a
 // colleague's earlier line from displacing a decision made here since.
 func (w *WorkStore) importUnits(ctx context.Context, units []UnitState) error {
-	if w.mem != nil {
-		keep := map[Key]memViewRow{}
-		for k, r := range w.mem.view {
-			if !r.Exported {
-				keep[k] = r
-			}
-		}
-		w.mem.view = map[Key]memViewRow{}
-		now := w.clock()
-		for _, u := range units {
-			if w.arrivalStands(ctx, u) {
-				if err := w.mem.record(u, u.Decision.By, OriginImport, false, entryTimeText(now), false); err != nil {
-					return err
-				}
-			}
-			w.mem.view[u.Key()] = memViewRow{
-				Scope: u.Scope, Unit: u.Unit, Variant: u.Variant,
-				ContentHash: u.ContentHash, TargetHash: u.TargetHash, Exported: true,
-			}
-		}
-		maps.Copy(w.mem.view, keep)
-		return w.mem.persist()
-	}
-
 	keep, err := w.unexportedRows(ctx)
 	if err != nil {
 		return err
@@ -640,21 +582,8 @@ func (w *WorkStore) append(ctx context.Context, u UnitState, actor string, origi
 	}
 	stamp := w.clock()
 
-	if w.journal != nil && w.mem == nil {
+	if w.journal != nil {
 		return w.appendJournaled(ctx, u, actor, origin, revoked, stamp)
-	}
-
-	if w.mem != nil {
-		if rerr := w.mem.record(u, actor, origin, revoked, entryTimeText(stamp), true); rerr != nil {
-			return rerr
-		}
-		if !revoked {
-			w.mem.view[u.Key()] = memViewRow{
-				Scope: u.Scope, Unit: u.Unit, Variant: u.Variant,
-				ContentHash: u.ContentHash, TargetHash: u.TargetHash,
-			}
-		}
-		return w.mem.persist()
 	}
 
 	id, err := Address(u, actor, revoked)
@@ -750,10 +679,6 @@ ON CONFLICT(checkout, scope, unit, variant) DO UPDATE SET
 // does not carry stop answering here without being erased from the record of
 // what was decided.
 func (w *WorkStore) ClearView(ctx context.Context) error {
-	if w.mem != nil {
-		w.mem.view = map[Key]memViewRow{}
-		return w.mem.persist()
-	}
 	if _, err := w.db.ExecContext(ctx,
 		`DELETE FROM unit_view WHERE checkout = ?`, w.checkout); err != nil {
 		return fmt.Errorf("state: clear checkout view: %w", err)
@@ -762,10 +687,6 @@ func (w *WorkStore) ClearView(ctx context.Context) error {
 }
 
 func (w *WorkStore) dropView(ctx context.Context, k Key) error {
-	if w.mem != nil {
-		delete(w.mem.view, k)
-		return w.mem.persist()
-	}
 	variant, _ := k.Variant.MarshalText()
 	_, err := w.db.ExecContext(ctx,
 		`DELETE FROM unit_view WHERE checkout = ? AND scope = ? AND unit = ? AND variant = ?`,
@@ -778,13 +699,6 @@ func (w *WorkStore) dropView(ctx context.Context, k Key) error {
 
 // pairingOf returns the pairing a unit has in this checkout.
 func (w *WorkStore) pairingOf(ctx context.Context, k Key) (Pairing, bool, error) {
-	if w.mem != nil {
-		r, ok := w.mem.view[k]
-		if !ok {
-			return Pairing{}, false, nil
-		}
-		return r.pairing(), true, nil
-	}
 	variant, _ := k.Variant.MarshalText()
 	p := Pairing{Key: k}
 	err := w.db.QueryRowContext(ctx, `
@@ -803,9 +717,6 @@ SELECT content_hash, target_hash FROM unit_view
 // applies returns the record in force at a pairing: the most recent entry
 // recorded for it, unless that entry withdraws.
 func (w *WorkStore) applies(ctx context.Context, p Pairing) (UnitState, bool) {
-	if w.mem != nil {
-		return w.mem.applies(p)
-	}
 	variant, _ := p.Key.Variant.MarshalText()
 	var payload string
 	var revoked int
@@ -863,16 +774,6 @@ func (w *WorkStore) All(ctx context.Context) ([]UnitState, error) {
 // machine or nowhere, so the ledger is the only reading of "what this project
 // has decided" that does not need a working tree in hand.
 func (w *WorkStore) Ledger(ctx context.Context) ([]UnitState, error) {
-	if w.mem != nil {
-		out := make([]UnitState, 0, len(w.mem.latest))
-		for p := range w.mem.latest {
-			if u, ok := w.mem.applies(p); ok {
-				out = append(out, u)
-			}
-		}
-		sortUnits(out)
-		return out, nil
-	}
 	const query = `
 WITH latest AS (
   SELECT scope, unit, variant, payload, revoked,
@@ -910,18 +811,6 @@ func (w *WorkStore) Priors(ctx context.Context, scope string) ([]UnitState, erro
 // resolveView answers this checkout's view against the ledger. scope limits it
 // to one document; empty takes the whole view.
 func (w *WorkStore) resolveView(ctx context.Context, scope string) ([]UnitState, error) {
-	if w.mem != nil {
-		out := make([]UnitState, 0, len(w.mem.view))
-		for _, r := range w.mem.rows() {
-			if scope != "" && r.Scope != scope {
-				continue
-			}
-			if u, ok := w.mem.applies(r.pairing()); ok {
-				out = append(out, u)
-			}
-		}
-		return out, nil
-	}
 	// The window function picks each pairing's most recent entry once, over the
 	// whole ledger, rather than asking the same question again for every unit
 	// in the view.
@@ -952,21 +841,6 @@ SELECT l.payload
 // It is the unit's decision history, which the ledger keeps because nothing is
 // ever rewritten.
 func (w *WorkStore) Entries(ctx context.Context, k Key) ([]Entry, error) {
-	if w.mem != nil {
-		var out []Entry
-		for _, e := range slices.Backward(w.mem.entries) {
-			if e.State.Key() != k {
-				continue
-			}
-			stamp, _ := time.Parse(entryTimeLayout, e.Recorded)
-			out = append(out, Entry{
-				ID: e.ID, State: e.State, Actor: e.Actor,
-				Origin: e.Origin, Recorded: stamp, Revoked: e.Revoked,
-			})
-		}
-		sort.SliceStable(out, func(i, j int) bool { return out[i].Recorded.After(out[j].Recorded) })
-		return out, nil
-	}
 	variant, _ := k.Variant.MarshalText()
 	rows, err := w.db.QueryContext(ctx, `
 SELECT id, actor, origin, recorded_at, revoked, payload FROM unit_decision
@@ -1015,12 +889,6 @@ func scanUnits(rows *sql.Rows) ([]UnitState, error) {
 // readMeta reads one of this store's own stamps. ok is false when the key was
 // never written.
 func (w *WorkStore) readMeta(ctx context.Context, key string) (value string, ok bool, err error) {
-	if w.mem != nil {
-		if w.mem.committed == "" {
-			return "", false, nil
-		}
-		return w.mem.committed, true, nil
-	}
 	err = w.db.QueryRowContext(ctx, `SELECT value FROM state_meta WHERE key = ?`, key).Scan(&value)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", false, nil
@@ -1034,10 +902,6 @@ func (w *WorkStore) readMeta(ctx context.Context, key string) (value string, ok 
 // stampCommitted records the digest of the shards this checkout's view now
 // projects.
 func (w *WorkStore) stampCommitted(ctx context.Context, digest string) error {
-	if w.mem != nil {
-		w.mem.committed = digest
-		return w.mem.persist()
-	}
 	_, err := w.db.ExecContext(ctx, `
 INSERT INTO state_meta (key, value) VALUES (?, ?)
 ON CONFLICT(key) DO UPDATE SET value = excluded.value`, metaCommittedDigest(w.checkout), digest)
@@ -1155,13 +1019,6 @@ func (w *WorkStore) PersistRecords(ctx context.Context) error { return w.Commit(
 // view, so a later import rebuilds the view from them rather than treating them
 // as work recorded since.
 func (w *WorkStore) markExported(ctx context.Context) error {
-	if w.mem != nil {
-		for k, r := range w.mem.view {
-			r.Exported = true
-			w.mem.view[k] = r
-		}
-		return w.mem.persist()
-	}
 	_, err := w.db.ExecContext(ctx,
 		`UPDATE unit_view SET exported = 1 WHERE checkout = ? AND exported = 0`, w.checkout)
 	if err != nil {
@@ -1184,9 +1041,6 @@ func (w *WorkStore) restamp(ctx context.Context) error {
 // needs them: a durable key, the path it was last seen at, and the content
 // hashes it held there.
 func (w *WorkStore) Documents(ctx context.Context) ([]reconcile.DocUnit, error) {
-	if w.mem != nil {
-		return w.mem.documents(), nil
-	}
 	rows, err := w.db.QueryContext(ctx,
 		`SELECT key, path, content FROM document WHERE checkout = ? ORDER BY key`, w.checkout)
 	if err != nil {
@@ -1265,11 +1119,6 @@ func (w *WorkStore) AdoptDocuments(ctx context.Context, current []reconcile.DocU
 			return nil, perr
 		}
 	}
-	if w.mem != nil {
-		if perr := w.mem.persist(); perr != nil {
-			return nil, perr
-		}
-	}
 	return out, nil
 }
 
@@ -1321,10 +1170,6 @@ func (w *WorkStore) rekeyScope(ctx context.Context, from, to string) error {
 // what it held. The key is its durable identity; the path is only its address,
 // and moves without it.
 func (w *WorkStore) putDocument(ctx context.Context, key, path string, content []string) error {
-	if w.mem != nil {
-		w.mem.docs[key] = memDoc{Path: path, Content: content}
-		return nil
-	}
 	encoded, err := json.Marshal(content)
 	if err != nil {
 		return fmt.Errorf("state: encode document %q content: %w", key, err)
@@ -1342,13 +1187,6 @@ ON CONFLICT(checkout, key) DO UPDATE SET path = excluded.path, content = exclude
 // DocumentPaths returns the documents this checkout knows as key to current
 // path.
 func (w *WorkStore) DocumentPaths(ctx context.Context) (map[string]string, error) {
-	if w.mem != nil {
-		out := make(map[string]string, len(w.mem.docs))
-		for key, d := range w.mem.docs {
-			out[key] = d.Path
-		}
-		return out, nil
-	}
 	rows, err := w.db.QueryContext(ctx,
 		`SELECT key, path FROM document WHERE checkout = ? ORDER BY key`, w.checkout)
 	if err != nil {
@@ -1375,9 +1213,6 @@ func (w *WorkStore) DocumentPaths(ctx context.Context) (map[string]string, error
 // was staged and never committed has no other copy, and the ledger is where it
 // belongs now.
 func (w *WorkStore) carryLegacyRows(ctx context.Context) error {
-	if w.mem != nil {
-		return nil
-	}
 	tx, err := w.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("state: carry pre-ledger rows: %w", err)

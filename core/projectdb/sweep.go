@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/storage"
 )
 
 // Predecessor state directories are folded forward here, by two rules.
@@ -138,10 +139,6 @@ func sweepPredecessors(ctx context.Context, layout project.Layout, into *DB) {
 	// are named after the database file that no longer exists.
 	_ = os.Remove(oldBlockStorePath(layout) + ".kapiversion")
 	_ = os.Remove(oldBlockStorePath(layout) + ".sources.json")
-	// The browser build's predecessor sidecar, and the partial write its
-	// atomic-rename persist can leave behind.
-	_ = os.Remove(oldWorkSidecarPath(layout))
-	_ = os.Remove(oldWorkSidecarPath(layout) + ".tmp")
 	// The work directory itself is NOT removed: `.kapi/work/` held only
 	// `state.db` in the four-file layout, but is the current layout's home for
 	// everything machine-local.
@@ -183,9 +180,9 @@ func currentRedactionDir(layout project.Layout) string {
 	return filepath.Join(layout.CacheDir(), project.RedactionDirName)
 }
 
-// retireFlatProjections deletes the flat layout's derived state: the store, its
-// browser-build sidecar, and whatever is left of the cache root once the
-// redaction sidecars have been moved out of it by the caller. Every one of them
+// retireFlatProjections deletes the flat layout's derived state: the store and
+// whatever is left of the cache root once the redaction sidecars have been
+// moved out of it by the caller. Every one of them
 // rebuilds from a committed source. A decision staged in the flat store does
 // not, and is not carried across: this runs before any store is open, and
 // opening the old one to read it would mean two pools on two schemas that are
@@ -196,9 +193,6 @@ func currentRedactionDir(layout project.Layout) string {
 // an exception carved out here.
 func retireFlatProjections(layout project.Layout) {
 	removeDatabase(filepath.Join(layout.StateDir, project.StoreFileName))
-	sidecar := filepath.Join(layout.StateDir, project.StoreSidecarFileName)
-	_ = os.Remove(sidecar)
-	_ = os.Remove(sidecar + ".tmp")
 
 	// Entry by entry rather than RemoveAll, so a redaction sidecar the move
 	// left behind is not deleted by the cleanup that follows it.
@@ -231,20 +225,11 @@ func oldWorkStorePath(layout project.Layout) string {
 }
 
 // removeDatabase deletes a SQLite database and the WAL sidecars that outlive an
-// unclean close. Leaving `-wal` behind a deleted database is how a later opener
-// finds a journal for a file that is not there.
+// unclean close, through the driver that holds it (storage.Remove). Leaving
+// `-wal` behind a deleted database is how a later opener finds a journal for a
+// file that is not there.
 func removeDatabase(path string) {
-	for _, suffix := range []string{"", "-wal", "-shm"} {
-		_ = os.Remove(path + suffix)
-	}
-}
-
-// oldWorkSidecarPath is where the predecessor working store put its JSON
-// sidecar on a build with no SQLite driver: beside the database it stood in
-// for, named for it.
-func oldWorkSidecarPath(layout project.Layout) string {
-	db := oldWorkStorePath(layout)
-	return strings.TrimSuffix(db, filepath.Ext(db)) + ".json"
+	_ = storage.Remove(path)
 }
 
 // moveDirContents moves every entry of src into dst and removes src once it is
@@ -328,28 +313,15 @@ func carryStagedForward(ctx context.Context, layout project.Layout, into *DB) {
 	}
 }
 
-// openPredecessorWork opens whichever predecessor working store this build left
-// behind — the database, or the browser build's sidecar — without creating one
-// that was not there.
+// openPredecessorWork opens the predecessor working store this build left
+// behind, without creating one that was not there.
 func openPredecessorWork(ctx context.Context, layout project.Layout) (*state.WorkStore, bool) {
-	if exists(oldWorkStorePath(layout)) {
-		w, err := state.OpenWork(ctx, oldWorkStorePath(layout), layout.Export().UnitStateDir())
-		if err != nil {
-			return nil, false
-		}
-		return w, true
+	if held, err := storage.Exists(oldWorkStorePath(layout)); err != nil || !held {
+		return nil, false
 	}
-	if sidecar := oldWorkSidecarPath(layout); exists(sidecar) {
-		w, err := state.OpenWorkSidecar(ctx, sidecar, layout.Export().UnitStateDir())
-		if err != nil {
-			return nil, false
-		}
-		return w, true
+	w, err := state.OpenWork(ctx, oldWorkStorePath(layout), layout.Export().UnitStateDir())
+	if err != nil {
+		return nil, false
 	}
-	return nil, false
-}
-
-func exists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && !info.IsDir()
+	return w, true
 }

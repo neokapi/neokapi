@@ -3,6 +3,7 @@ package projectdb_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,6 +46,17 @@ func oldWorkStorePath(layout project.Layout) string {
 	return filepath.Join(layout.WorkDir(), "state.db")
 }
 
+// skipPlantedDatabases skips a test that plants a predecessor layout's
+// databases as files on disk, where the browser build's driver never holds a
+// database: its databases live in memory and nothing it reads was ever one of
+// those files.
+func skipPlantedDatabases(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "js" {
+		t.Skip("file-system artefact: the test plants databases as files on disk, which the browser driver never holds")
+	}
+}
+
 // predecessorFiles lists everything the four-file layout left in a state
 // directory, plus the two spellings the vocabulary sweep retired before it.
 func predecessorFiles(layout project.Layout) []string {
@@ -71,6 +83,7 @@ func predecessorFiles(layout project.Layout) []string {
 // already written for real, and is left alone here.
 func writePredecessorLayout(t *testing.T, layout project.Layout) {
 	t.Helper()
+	skipPlantedDatabases(t)
 	require.NoError(t, os.MkdirAll(flatCacheDir(layout), 0o755))
 	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
 	for _, path := range predecessorFiles(layout) {
@@ -131,29 +144,6 @@ func TestSweep_CarriesStagedDecisionsForward(t *testing.T) {
 	assertPredecessorsGone(t, layout)
 }
 
-// The browser build's predecessor is a JSON sidecar beside the database it
-// stood in for. Same contract: staged decisions come across, the file goes.
-func TestSweep_CarriesStagedDecisionsFromSidecar(t *testing.T) {
-	layout := newLayout(t)
-	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
-
-	sidecar := filepath.Join(layout.WorkDir(), "state.json")
-	old, err := state.OpenWorkSidecar(t.Context(), sidecar, layout.Export().UnitStateDir())
-	require.NoError(t, err)
-	require.NoError(t, old.Put(t.Context(), unit("u-sidecar", "d-intro", "Staged in the browser")))
-	require.NoError(t, old.Close())
-	require.FileExists(t, sidecar)
-
-	db := openStore(t, layout)
-
-	staged, err := db.Work().Staged(t.Context())
-	require.NoError(t, err)
-	require.Len(t, staged, 1)
-	assert.Equal(t, "u-sidecar", staged[0].Unit)
-
-	assert.NoFileExists(t, sidecar)
-}
-
 // No predecessor is the ordinary case, and the common one after the first
 // open: the sweep must be a no-op that costs a few stats.
 func TestSweep_NoPredecessorIsNoOp(t *testing.T) {
@@ -203,6 +193,7 @@ func TestSweep_LeavesUnrecognisedWorkDirContents(t *testing.T) {
 // open: the alternative is a project that cannot be used because of a file
 // about to be deleted.
 func TestSweep_UnreadablePredecessorDoesNotFailOpen(t *testing.T) {
+	skipPlantedDatabases(t)
 	layout := newLayout(t)
 	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
 	require.NoError(t, os.WriteFile(oldWorkStorePath(layout), []byte("this is not a database"), 0o644))
@@ -324,13 +315,13 @@ func TestFold_RedactionSidecarCollisionKeepsBothCopies(t *testing.T) {
 // The flat store and cache are projections under a path nothing reads any
 // more. They go; nothing is carried out of them.
 func TestFold_RetiresFlatStoreAndCache(t *testing.T) {
+	skipPlantedDatabases(t)
 	layout := newLayout(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(flatCacheDir(layout), "extractions"), 0o755))
 	for _, path := range []string{
 		flatStorePath(layout),
 		flatStorePath(layout) + "-wal",
 		flatStorePath(layout) + "-shm",
-		filepath.Join(layout.StateDir, "store.json"),
 		filepath.Join(flatCacheDir(layout), "extractions", "b-1.json"),
 	} {
 		require.NoError(t, os.WriteFile(path, []byte("flat"), 0o644))
@@ -342,7 +333,6 @@ func TestFold_RetiresFlatStoreAndCache(t *testing.T) {
 		flatStorePath(layout),
 		flatStorePath(layout) + "-wal",
 		flatStorePath(layout) + "-shm",
-		filepath.Join(layout.StateDir, "store.json"),
 	} {
 		assert.NoFileExists(t, path)
 	}

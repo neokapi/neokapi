@@ -107,13 +107,9 @@ func newInterchangeRecipe(sourceLang, targetLang string) *project.KapiProject {
 	return r
 }
 
-// projectBlocks returns the project's block cache for writing: the injected
-// BlocksBackend when the build supplies one (the browser has no file-backed
-// store), otherwise db's transactional handle. Nil means neither exists.
+// projectBlocks returns the project's block cache for writing: db's
+// transactional handle.
 func (a *App) projectBlocks(db *projectdb.DB) blockstore.Store {
-	if a.BlocksBackend != nil {
-		return a.BlocksBackend
-	}
 	return db.Blocks()
 }
 
@@ -121,9 +117,6 @@ func (a *App) projectBlocks(db *projectdb.DB) blockstore.Store {
 // hold the write permit for a whole session: db's autocommit handle stands in
 // for the transactional one.
 func (a *App) projectBlocksAutocommit(db *projectdb.DB) blockstore.Store {
-	if a.BlocksBackend != nil {
-		return a.BlocksBackend
-	}
 	return db.BlocksAutocommit()
 }
 
@@ -137,9 +130,6 @@ func (a *App) projectBlocksAutocommit(db *projectdb.DB) blockstore.Store {
 // already-done per-block work (SessionTools hydrate from the cached
 // overlays) — the resume story for projects, with no extra CLI surface.
 func (a *App) openProjectBlockStore(ctx context.Context) blockstore.Store {
-	if a.BlocksBackend != nil {
-		return a.BlocksBackend // injected: the browser build has no file-backed store
-	}
 	if a.ProjectContext == nil || a.ProjectContext.ProjectDir == "" {
 		return nil
 	}

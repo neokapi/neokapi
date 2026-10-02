@@ -30,6 +30,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/flowdef"
 	"github.com/neokapi/neokapi/host/output"
@@ -1804,7 +1805,7 @@ func (a *App) openTerms(cmd ...Command) (sqlterms.Store, func(), error) {
 		return nil, noop, nil
 	}
 	if !sel.Explicit {
-		if _, statErr := os.Stat(sel.Path); statErr != nil {
+		if held, _ := storage.Exists(sel.Path); !held {
 			// A standalone store the recipe names but nothing has created yet.
 			return nil, noop, nil
 		}
@@ -1832,16 +1833,6 @@ func (a *App) OpenToolMemory(cmd Command) (corememory.Provider, func(), error) {
 		return nil, noop, nil
 	}
 	memoryValue, _ := cmd.Flags().GetString("memory")
-
-	// A pre-seeded in-memory backend (the wasm build, or any host that sets
-	// a.MemoryBackend) is the authoritative content memory and the only one that works without
-	// the SQLite driver — prefer it over any on-disk project path. The native
-	// CLI never sets a.MemoryBackend, so this only takes effect in the browser/seed
-	// case; the on-disk resolution below is unchanged for the native binary.
-	// An explicit --memory path still wins (handled in the switch).
-	if memoryValue == "" && a.MemoryBackend != nil {
-		return leverage.NewProvider(a.MemoryBackend), noop, nil
-	}
 
 	var memoryPath string
 	switch {

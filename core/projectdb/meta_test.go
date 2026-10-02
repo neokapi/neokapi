@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/storage"
 )
 
 // A store's identity is minted once and stands for the life of the file, so a
@@ -40,9 +41,7 @@ func TestInstanceID_StableForAFileAndFreshForANewOne(t *testing.T) {
 
 	require.NoError(t, reopened.Close())
 	require.NoError(t, db.Close())
-	for _, suffix := range []string{"", "-wal", "-shm"} {
-		_ = os.Remove(layout.StorePath() + suffix)
-	}
+	require.NoError(t, storage.Remove(layout.StorePath()))
 
 	rebuilt := openStore(t, layout)
 	minted, err := rebuilt.InstanceID(t.Context())

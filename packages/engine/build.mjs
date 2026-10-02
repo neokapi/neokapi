@@ -18,6 +18,7 @@ const entryPoints = [
   "src/abi.ts",
   "src/capabilities.ts",
   "src/globals.ts",
+  "src/sqlite.ts",
 ];
 
 // Rewrites ./foo.ts → ./foo.js in relative imports so the emitted JS resolves at

@@ -1,5 +1,3 @@
-//go:build !wasm
-
 package sqlitestore_test
 
 import (

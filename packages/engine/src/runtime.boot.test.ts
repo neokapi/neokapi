@@ -5,6 +5,14 @@ vi.mock("./memfs.ts", () => ({
   createMemFS: () => ({ fs: {}, process: {}, vol: {} }),
 }));
 
+// SQLite is loaded and bridged beside the engine; these tests are about the
+// engine's own boot, so the bridge is a stand-in.
+const sqlite = vi.hoisted(() => ({
+  loadSQLite: vi.fn(async () => ({})),
+  installSQLiteBridge: vi.fn(),
+}));
+vi.mock("./sqlite.ts", () => sqlite);
+
 const originalProcess = (globalThis as Record<string, unknown>).process;
 const originalFS = (globalThis as Record<string, unknown>).fs;
 const wasmBytes = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]);
@@ -32,6 +40,8 @@ function loaded() {
 
 beforeEach(() => {
   vi.resetModules();
+  sqlite.loadSQLite.mockClear();
+  sqlite.installSQLiteBridge.mockClear();
   vi.stubGlobal("DecompressionStream", undefined);
   vi.stubGlobal(
     "fetch",
@@ -49,6 +59,51 @@ afterEach(() => {
   (globalThis as Record<string, unknown>).fs = originalFS;
   delete globalThis.__kapiCliReady;
   vi.unstubAllGlobals();
+});
+
+describe("engine boot", () => {
+  it("loads SQLite beside the engine and bridges it before Go starts", async () => {
+    let bridgedBeforeRun = false;
+    vi.stubGlobal(
+      "Go",
+      class {
+        importObject = {};
+        env = {};
+        async run() {
+          bridgedBeforeRun = sqlite.installSQLiteBridge.mock.calls.length === 1;
+          globalThis.__kapiCliReady?.();
+          await new Promise(() => {});
+        }
+      },
+    );
+    const { bootKapiRuntime } = await import("./runtime.ts");
+    const booted = bootKapiRuntime("/wasm_exec.js", "/assets/kapi-cli.wasm");
+    loaded();
+    await booted;
+    expect(sqlite.loadSQLite).toHaveBeenCalledWith({ wasmUrl: "/assets/sqlite3.wasm" });
+    expect(bridgedBeforeRun).toBe(true);
+  });
+
+  it("takes the SQLite asset from where the host says it is", async () => {
+    const { bootKapiRuntime } = await import("./runtime.ts");
+    const booted = bootKapiRuntime("/wasm_exec.js", "/engine.wasm", {
+      sqliteWasmUrl: "https://cdn.example.test/sqlite3.wasm",
+    });
+    loaded();
+    await booted;
+    expect(sqlite.loadSQLite).toHaveBeenCalledWith({
+      wasmUrl: "https://cdn.example.test/sqlite3.wasm",
+    });
+  });
+
+  it("fails boot when SQLite does not load, and boots on a retry", async () => {
+    sqlite.loadSQLite.mockRejectedValueOnce(new Error("sqlite3.wasm 404"));
+    const { bootKapiRuntime } = await import("./runtime.ts");
+    const failed = bootKapiRuntime("/wasm_exec.js", "/engine.wasm");
+    loaded();
+    await expect(failed).rejects.toThrow("sqlite3.wasm 404");
+    await expect(bootKapiRuntime("/wasm_exec.js", "/engine.wasm")).resolves.toBeDefined();
+  });
 });
 
 describe("engine boot retries", () => {

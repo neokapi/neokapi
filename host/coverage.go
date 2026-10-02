@@ -451,9 +451,6 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 	if root == "" {
 		return idx, nil
 	}
-	// No driver-absence special case here: the browser build's store degrades
-	// to a JSON-sidecar working set inside the handle, so status answers there
-	// with whatever decisions that build recorded rather than with none.
 	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return idx, err

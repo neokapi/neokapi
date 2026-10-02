@@ -180,9 +180,7 @@ func (a *App) RunExtract(cmd Command) error {
 
 	var tm memory.ContentMemory
 	if !noMemory {
-		if a.MemoryBackend != nil {
-			tm = a.MemoryBackend
-		} else if db, derr := a.ProjectDB(cmd.Context(), layout.Root); derr != nil {
+		if db, derr := a.ProjectDB(cmd.Context(), layout.Root); derr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: extract: open project store: %v (continuing with no content memory)\n", derr)
 		} else if mem := projector.MemoryView(db); mem != nil {
 			tm = mem
@@ -1019,9 +1017,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: extract: open project store: %v "+
 			"(continuing with no leverage: the packages will report zero recycling and no vocabulary)\n", derr)
 	}
-	if !noMemory && a.MemoryBackend != nil {
-		mem = a.MemoryBackend
-	} else if !noMemory && db != nil && db.Memory() != nil {
+	if !noMemory && db != nil && db.Memory() != nil {
 		mem = projector.MemoryView(db)
 	}
 	if db != nil && db.Terms() != nil {

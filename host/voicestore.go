@@ -101,7 +101,7 @@ func (a *App) VoiceLookupStore(cmd Command) (coreprofile.Store, func(), error) {
 }
 
 // ProjectVoiceStore returns the voice store on a project's shared pool, or nil
-// where this build has no file-backed SQLite driver. The handle belongs to the
+// where the project store binds none. The handle belongs to the
 // pool, so the release function is a no-op; it is returned anyway so callers
 // read the same at both ends of ResolveVoiceStore.
 func (a *App) ProjectVoiceStore(ctx context.Context, root string) (coreprofile.Store, func(), error) {

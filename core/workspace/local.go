@@ -186,10 +186,8 @@ func (b *LocalBackend) Forget(_ context.Context, key ProjectKey) error {
 		}
 	}
 	path := b.ProjectPath(key)
-	for _, suffix := range []string{"", "-wal", "-shm"} {
-		if err := os.Remove(path + suffix); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("workspace: remove %s: %w", path+suffix, err)
-		}
+	if err := storage.Remove(path); err != nil {
+		return fmt.Errorf("workspace: remove %s: %w", path, err)
 	}
 	return nil
 }
@@ -218,7 +216,10 @@ func (b *LocalBackend) open(_ context.Context, dir, path string) (*storage.DB, e
 	// The directory will not take a write. A workspace that is not there at all
 	// has nothing to read, and saying so is more useful than reporting a
 	// missing database file.
-	if _, statErr := os.Stat(path); statErr != nil {
+	if held, statErr := storage.Exists(path); statErr != nil || !held {
+		if statErr == nil {
+			statErr = os.ErrNotExist
+		}
 		return nil, fmt.Errorf(
 			"workspace: %s cannot be created and %s is not there to read: %w", dir, path, statErr)
 	}

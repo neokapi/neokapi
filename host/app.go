@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
-	"github.com/neokapi/neokapi/core/blockstore"
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
 	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
@@ -25,8 +24,6 @@ import (
 	clii18n "github.com/neokapi/neokapi/host/i18n"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/host/pluginhost"
-	"github.com/neokapi/neokapi/memory"
-	"github.com/neokapi/neokapi/terms"
 )
 
 // App holds shared CLI state that is initialized during PersistentPreRun.
@@ -69,23 +66,6 @@ type App struct {
 	// libraries publish, unlike wall-clocking the process from outside, which
 	// mostly measures binary start-up.
 	ConvTiming bool
-
-	// MemoryBackend, when non-nil, is returned by OpenMemorySQLite instead of
-	// opening a SQLite database. Used by the WASM browser build to inject
-	// a pre-seeded InMemoryStore so the tm / extract commands work without cgo.
-	MemoryBackend memory.Store
-
-	// TermsBackend, when non-nil, is returned by OpenTermsSQLite instead
-	// of opening a SQLite database. Used by the WASM browser build to
-	// inject a pre-seeded InMemoryStore so terms / term-check work
-	// without cgo.
-	TermsBackend terms.Terminology
-
-	// BlocksBackend, when non-nil, is the project's block cache, in place of
-	// the one inside `.kapi/work/store.db`. The browser build injects a
-	// process-lifetime in-memory store, since it has no file-backed SQLite:
-	// what the lab extracts in one command is what the next one searches.
-	BlocksBackend blockstore.Store
 
 	// Credentials is the shared credential store for AI provider keys.
 	Credentials *credentials.Store
