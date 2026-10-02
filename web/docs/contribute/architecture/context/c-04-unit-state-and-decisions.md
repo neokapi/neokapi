@@ -173,8 +173,8 @@ each answers from its own view of it. Committing a binary database as the
 reviewable record would be hostile to review (opaque, conflict-prone) and would
 defeat exchange, so the shards stay text.
 
-In the browser, where there is no SQLite, the ledger and the view persist to a
-JSON sidecar, `.kapi/work/store.json`; the model is unchanged.
+The browser build keeps the ledger and the view in the same tables, on its
+SQLite WebAssembly driver ([C-03](c-03-context-store-and-graph.md)).
 
 ### Who may record what is policy
 

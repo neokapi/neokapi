@@ -589,19 +589,29 @@ rollup across projects.
 
 ### Browser and wasm
 
-There is no SQLite in the browser build. The model is unchanged and the backends
-differ: in-memory content memory and terms, a path-keyed in-memory block store,
-and a decision ledger that persists to a JSON sidecar, `.kapi/work/store.json`.
-Operations that genuinely need a database report `projectdb.ErrNoStore`, which
-callers whose feature is optional there match and degrade on. The same sources
-rebuild it, and the same graph relations hold.
+The browser build runs the same stores. `core/storage` has a driver for every
+build, and the browser's (`core/storage/driver_js.go`) runs the SQL on the
+official SQLite WebAssembly build, reached through a bridge the page installs
+before the engine starts. The workspace, its operation log, the projector, the
+content memory, the terms store, the voice store, the decision ledger, the
+context graph and the block cache are the native code there, a lab's writes
+are operations in the log, and the projector is their one writer. The workspace
+sits under the engine's data root, `/.kapi-data`.
 
-There is no workspace there either, and no need of one: the browser holds one
-project and nothing outlives the tab. So the browser build keeps the **embedded
-layout**, and the host layer says so rather than failing: a workspace that
-cannot be opened because this build has no file-backed SQLite driver
-(`storage.ErrNoSQLite`) is not an error, and the project opens with its context
-tables beside its projection.
+The driver declares what it gives a store in a profile
+(`storage.DriverProfile`): one connection per file, no WAL, no lock another
+process honours, and no durability, since the databases live in the module's
+memory and nothing outlives the tab. Two rules follow for every store, natively
+too. No correctness rule depends on a reader running beside a writer, and no
+code holds a transaction or open rows on a pool and then waits for a second
+session on the same pool; `make test-stores-oneconn` runs the store suites
+natively with every pool held to one connection to keep it so. A database file
+belongs to its driver, so code asks `storage.Exists`, `storage.Remove`,
+`storage.Rename` and `storage.List` about one rather than the file system. FTS5
+word search uses `unicode61` there, the module having no ICU tokenizer.
+`make test-wasm-stores` runs the store suites under `GOOS=js` over the same
+driver. The [WASM Engine ABI](../../implementation/surfaces/wasm-engine-abi.md)
+note has the mechanics.
 
 ### Where the workspace lives
 
