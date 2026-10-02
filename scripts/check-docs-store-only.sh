@@ -94,9 +94,6 @@ ALLOWLIST=(
   # SKILL.md tells an agent that reading a checkout's context files is the
   # person's to do.
   "cli/skills/data/kapi/SKILL.md"
-  # The edit-model design lists what the git working tree holds, the
-  # import-only context files among it.
-  "docs/internals/edit-model.md"
   # The platform's CLI docs describe the same artifact layout for the same
   # reason the framework's reference does.
   "bowrain/web/docs/docs/cli/overview.md"

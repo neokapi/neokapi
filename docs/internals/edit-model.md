@@ -731,7 +731,7 @@ content-addressed blobs and the log (codex-design §3).
 
 | Home on main (edit-paths §1) | Holds today | End state |
 | --- | --- | --- |
-| H1 working tree (git) | sources, delivered targets, `kapi.yaml`, import-only context files, decision shards | the file home; git authoritative for text, branches and merges; shards stay an import format |
+| H1 working tree (git) | sources, delivered targets, `kapi.yaml`, context exports that only an import reads, decision shards | the file home; git authoritative for text, branches and merges; shards stay an import format |
 | H2 `.kapi/work/store.db` | block cache, overlays, stamps, **and the only copy of parked drafts** (`host/storedtargets.go:14-27`) | a cache; parked drafts move to the workspace home |
 | H3 workspace (`workspace.db`, project stores) | the log; terms, memory, voice, rules and decisions as projections | the same, plus `content.edit`, `document.adopt`, the history view and the workspace home |
 | H4 context backends (git ref, file, S3) | the log, exchanged | unchanged; `content.edit` segments travel with the rest |
