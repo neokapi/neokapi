@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800" role="img" aria-labelledby="title desc">
+  <title id="title">Content edits and the workspace store, today and in the end state</title>
+  <desc id="desc">Today four write mechanisms put text into four places and the workspace log records only context and decisions. In the end state every surface sends one change set to one service, which commits text to its home and records a content.edit operation in the same log.</desc>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="m" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <style>
+    .box{fill:#f6f8fa;stroke:#57606a;stroke-width:1.2}
+    .acc{fill:#ddf4ff;stroke:#0969da;stroke-width:1.4}
+    .log{fill:#fff8c5;stroke:#9a6700;stroke-width:1.4}
+    .warn{fill:#ffebe9;stroke:#cf222e;stroke-width:1.2}
+    .cache{fill:none;stroke:#57606a;stroke-width:1.2;stroke-dasharray:4 3}
+    .t{font:13px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:#1f2328}
+    .b{font:600 13px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:#1f2328}
+    .h{font:600 17px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:#1f2328}
+    .c{font:600 12px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:#57606a;letter-spacing:.04em}
+    .s{font:12px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:#57606a}
+    .a{stroke:#57606a;stroke-width:1.4;fill:none}
+    .d{stroke-dasharray:5 4}
+    .m{fill:#57606a}
+    .rule{stroke:#d0d7de;stroke-width:1}
+    @media (prefers-color-scheme: dark){
+      .box{fill:#161b22;stroke:#8b949e}
+      .acc{fill:#0c2d6b;stroke:#58a6ff}
+      .log{fill:#3b2e0a;stroke:#d29922}
+      .warn{fill:#3c1618;stroke:#f85149}
+      .cache{stroke:#8b949e}
+      .t,.b,.h{fill:#e6edf3}
+      .c,.s{fill:#8b949e}
+      .a{stroke:#8b949e}
+      .m{fill:#8b949e}
+      .rule{stroke:#30363d}
+    }
+  </style>
+
+  <!-- ===================== TODAY ===================== -->
+  <text class="h" x="20" y="28">Today (main at b0358cfb1)</text>
+  <text class="c" x="20" y="54">WHO EDITS</text>
+  <text class="c" x="300" y="54">HOW IT IS WRITTEN</text>
+  <text class="c" x="600" y="54">WHERE THE TEXT ENDS UP</text>
+  <text class="c" x="925" y="54">WORKSPACE LOG (OUTSIDE GIT)</text>
+
+  <rect class="box" x="20" y="66" width="240" height="34" rx="5"/>
+  <text class="t" x="32" y="88">kapi apply, MCP apply_edits, ksed</text>
+  <rect class="box" x="20" y="108" width="240" height="34" rx="5"/>
+  <text class="t" x="32" y="130">Kapi Desktop (3 plain-text methods)</text>
+  <rect class="box" x="20" y="150" width="240" height="34" rx="5"/>
+  <text class="t" x="32" y="172">Flows, kapi up, merge, pull</text>
+  <rect class="box" x="20" y="192" width="240" height="34" rx="5"/>
+  <text class="t" x="32" y="214">Bowrain REST, MCP, desktop outbox</text>
+  <rect class="box" x="20" y="234" width="240" height="34" rx="5"/>
+  <text class="t" x="32" y="256">Browser labs (kapiRun on memfs)</text>
+
+  <rect class="box" x="300" y="66" width="250" height="34" rx="5"/>
+  <text class="t" x="312" y="88">EditDocument (truncates in place)</text>
+  <rect class="box" x="300" y="108" width="250" height="34" rx="5"/>
+  <text class="t" x="312" y="130">Desktop rewriteFile</text>
+  <rect class="box" x="300" y="150" width="250" height="34" rx="5"/>
+  <text class="t" x="312" y="172">Flow, merge and pull writers</text>
+  <rect class="box" x="300" y="192" width="250" height="34" rx="5"/>
+  <text class="t" x="312" y="214">Bowrain UpdateBlock (row lock)</text>
+  <rect class="warn" x="300" y="234" width="250" height="34" rx="5"/>
+  <text class="t" x="312" y="256">In-memory store forks, no log</text>
+
+  <rect class="box" x="600" y="66" width="280" height="50" rx="5"/>
+  <text class="b" x="612" y="86">Working tree (git)</text>
+  <text class="s" x="612" y="104">sources, delivered targets</text>
+  <rect class="warn" x="600" y="126" width="280" height="50" rx="5"/>
+  <text class="b" x="612" y="146">.kapi/work/store.db (a cache)</text>
+  <text class="s" x="612" y="164">also the only copy of parked drafts</text>
+  <rect class="box" x="600" y="186" width="280" height="50" rx="5"/>
+  <text class="b" x="612" y="206">Bowrain rows</text>
+  <text class="s" x="612" y="224">block_history, change_log per stream</text>
+  <rect class="box" x="600" y="246" width="280" height="40" rx="5"/>
+  <text class="b" x="612" y="271">Browser tab memory</text>
+
+  <rect class="log" x="925" y="66" width="255" height="220" rx="6"/>
+  <text class="t" x="940" y="92">terms.write, memory.write</text>
+  <text class="t" x="940" y="114">voice.write, rules.write</text>
+  <text class="t" x="940" y="136">context.* lifecycle</text>
+  <text class="t" x="940" y="158">unit.record: decisions, plus</text>
+  <text class="t" x="940" y="176">decision-less basis records</text>
+  <text class="b" x="940" y="210">No content edits</text>
+  <text class="s" x="940" y="252">shared through git ref, file, S3</text>
+  <text class="s" x="940" y="270">Bowrain never sees this log</text>
+
+  <path class="a" d="M260,83 H296" marker-end="url(#arr)"/>
+  <path class="a" d="M260,125 H296" marker-end="url(#arr)"/>
+  <path class="a" d="M260,167 H296" marker-end="url(#arr)"/>
+  <path class="a" d="M260,209 H296" marker-end="url(#arr)"/>
+  <path class="a" d="M260,251 H296" marker-end="url(#arr)"/>
+  <path class="a" d="M550,83 H596" marker-end="url(#arr)"/>
+  <path class="a" d="M550,125 C575,125 575,95 596,95" marker-end="url(#arr)"/>
+  <path class="a" d="M550,167 C575,167 575,100 596,100" marker-end="url(#arr)"/>
+  <path class="a" d="M550,170 C575,170 575,151 596,151" marker-end="url(#arr)"/>
+  <path class="a" d="M550,209 H596" marker-end="url(#arr)"/>
+  <path class="a" d="M550,251 C575,251 575,266 596,266" marker-end="url(#arr)"/>
+  <text class="s" x="560" y="300">Four write mechanisms, nine ways to address a block, six kinds of precondition (most paths have none).</text>
+
+  <line class="rule" x1="20" y1="330" x2="1180" y2="330"/>
+
+  <!-- ===================== END STATE ===================== -->
+  <text class="h" x="20" y="366">End state</text>
+  <text class="c" x="20" y="392">WHO EDITS</text>
+  <text class="c" x="300" y="392">ONE CONTRACT, ONE SERVICE</text>
+  <text class="c" x="600" y="392">WHERE EACH EDITION'S TEXT LIVES</text>
+  <text class="c" x="925" y="392">WORKSPACE LOG (OUTSIDE GIT)</text>
+
+  <rect class="box" x="20" y="404" width="240" height="34" rx="5"/>
+  <text class="t" x="32" y="426">ksed, translate, merge, up</text>
+  <rect class="box" x="20" y="446" width="240" height="34" rx="5"/>
+  <text class="t" x="32" y="468">kapi apply (JSON, JSONL)</text>
+  <rect class="box" x="20" y="488" width="240" height="34" rx="5"/>
+  <text class="t" x="32" y="510">MCP apply_edits</text>
+  <rect class="box" x="20" y="530" width="240" height="34" rx="5"/>
+  <text class="t" x="32" y="552">Kapi Desktop</text>
+  <rect class="box" x="20" y="572" width="240" height="34" rx="5"/>
+  <text class="t" x="32" y="594">Browser ABI kapiApply</text>
+  <rect class="box" x="20" y="614" width="240" height="34" rx="5"/>
+  <text class="t" x="32" y="636">Bowrain web editor, server MCP</text>
+  <rect class="box" x="20" y="656" width="240" height="34" rx="5"/>
+  <text class="t" x="32" y="678">Tools in flows, through views</text>
+
+  <rect class="acc" x="300" y="404" width="250" height="286" rx="6"/>
+  <text class="b" x="314" y="430">kapi.change/v1 change set</text>
+  <text class="s" x="314" y="450">ops addressed {doc, block, edition}</text>
+  <text class="s" x="314" y="468">each with if_match</text>
+  <line class="rule" x1="314" y1="484" x2="536" y2="484"/>
+  <text class="b" x="314" y="508">core/change service</text>
+  <text class="t" x="314" y="532">ApplyBlock: the one mutator</text>
+  <text class="t" x="314" y="556">commit check: governance</text>
+  <text class="t" x="314" y="580">actor policy</text>
+  <text class="t" x="314" y="604">prepare all, then commit</text>
+  <text class="s" x="314" y="640">Apache framework module;</text>
+  <text class="s" x="314" y="658">Bowrain links it without host</text>
+
+  <rect class="box" x="600" y="404" width="280" height="64" rx="5"/>
+  <text class="b" x="612" y="426">File home</text>
+  <text class="s" x="612" y="444">working tree in git, browser memfs</text>
+  <text class="s" x="612" y="460">git keeps text, branches, merges</text>
+  <rect class="box" x="600" y="480" width="280" height="64" rx="5"/>
+  <text class="b" x="612" y="502">Workspace home (no file)</text>
+  <text class="s" x="612" y="520">parked drafts, app and browser</text>
+  <text class="s" x="612" y="536">documents: log plus blobs</text>
+  <rect class="box" x="600" y="556" width="280" height="64" rx="5"/>
+  <text class="b" x="612" y="578">Stream home</text>
+  <text class="s" x="612" y="596">Bowrain rows per stream</text>
+  <text class="s" x="612" y="612">block_history is its projection</text>
+  <rect class="cache" x="600" y="632" width="280" height="58" rx="5"/>
+  <text class="b" x="612" y="654">.kapi/work (a cache)</text>
+  <text class="s" x="612" y="672">rebuilt from the homes and the log</text>
+
+  <rect class="log" x="925" y="404" width="255" height="286" rx="6"/>
+  <text class="b" x="940" y="430">content.edit</text>
+  <text class="s" x="940" y="448">every applied change: actor,</text>
+  <text class="s" x="940" y="464">revisions before and after,</text>
+  <text class="s" x="940" y="480">basis, governance fingerprint</text>
+  <text class="t" x="940" y="508">decision.record (decisions only)</text>
+  <text class="t" x="940" y="530">document.adopt (identity)</text>
+  <text class="t" x="940" y="552">terms, memory, voice, rules</text>
+  <text class="t" x="940" y="574">context.* lifecycle</text>
+  <text class="s" x="940" y="620">shared through git ref, file, S3;</text>
+  <text class="s" x="940" y="638">after 1.3.0 also a Bowrain remote</text>
+
+  <path class="a" d="M260,421 C280,421 280,520 296,520" marker-end="url(#arr)"/>
+  <path class="a" d="M260,463 C280,463 280,530 296,530" marker-end="url(#arr)"/>
+  <path class="a" d="M260,505 C280,505 280,540 296,540" marker-end="url(#arr)"/>
+  <path class="a" d="M260,547 H296" marker-end="url(#arr)"/>
+  <path class="a" d="M260,589 C280,589 280,555 296,555" marker-end="url(#arr)"/>
+  <path class="a" d="M260,631 C280,631 280,565 296,565" marker-end="url(#arr)"/>
+  <path class="a" d="M260,673 C280,673 280,575 296,575" marker-end="url(#arr)"/>
+  <path class="a" d="M550,520 C575,520 575,436 596,436" marker-end="url(#arr)"/>
+  <path class="a" d="M550,530 C575,530 575,512 596,512" marker-end="url(#arr)"/>
+  <path class="a" d="M550,540 C575,540 575,588 596,588" marker-end="url(#arr)"/>
+  <path class="a" d="M880,436 C900,436 905,448 921,448" marker-end="url(#arr)"/>
+  <path class="a" d="M880,512 H921" marker-end="url(#arr)"/>
+  <path class="a" d="M921,520 H884" marker-end="url(#arr)"/>
+  <path class="a" d="M880,588 C900,588 905,470 921,470" marker-end="url(#arr)"/>
+  <text class="s" x="600" y="722">Text is committed at its home first; the content.edit record follows.</text>
+  <text class="s" x="600" y="740">The log never decides which text wins, and files are never rebuilt from it.</text>
+  <text class="s" x="600" y="758">Where there is no file, the log and its blobs are the home.</text>
+</svg>
