@@ -831,7 +831,7 @@ func (a *App) ApplyCheckFix(tabID, filePath, blockID, field, original, replaceme
 			applyErr = fmt.Errorf("the original text %q is no longer present in block %q (it may already be fixed)", original, blockID)
 			return
 		}
-		b.SetSourceText(strings.Replace(text, original, replacement, 1))
+		b.EditSourceText(strings.Replace(text, original, replacement, 1))
 		applied = true
 	}
 

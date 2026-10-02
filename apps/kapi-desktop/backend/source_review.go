@@ -165,7 +165,7 @@ func (a *App) UpdateSourceText(tabID, file, key, text string) ([]string, error) 
 			applyErr = fmt.Errorf("manual edit needed (formatted content): unit %q has inline markup or multiple runs, so a plain-text rewrite could corrupt it", key)
 			return
 		}
-		b.SetSourceText(text)
+		b.EditSourceText(text)
 		applied = true
 	}
 	if err := a.rewriteFile(ctx, rf.Path, fmtName, sourceLang, pctx, rf.Item, rewrite); err != nil {

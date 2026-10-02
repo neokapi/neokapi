@@ -582,7 +582,7 @@ func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 			applyErr = fmt.Errorf("manual edit needed (formatted content): unit %q has inline markup or multiple runs, so a plain-text rewrite could corrupt it", key)
 			return
 		}
-		b.SetSourceText(text)
+		b.EditSourceText(text)
 		applied = true
 	}
 	if err := a.rewriteFile(ctx, tgtPath, fmtName, sourceLang, pctx, rf.Item, transform); err != nil {

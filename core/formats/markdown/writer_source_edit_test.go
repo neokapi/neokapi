@@ -22,7 +22,14 @@ import (
 // shape `kapi inspect` shows), and writes it back with no locale.
 func editMarkdownSource(t *testing.T, doc, from, to string) string {
 	t.Helper()
-	reader, writer := markdown.NewReader(), markdown.NewWriter()
+	return editConfiguredMarkdownSource(t, markdown.NewReader(), doc, from, to)
+}
+
+// editConfiguredMarkdownSource is editMarkdownSource with a reader the caller
+// configured.
+func editConfiguredMarkdownSource(t *testing.T, reader *markdown.Reader, doc, from, to string) string {
+	t.Helper()
+	writer := markdown.NewWriter()
 	store, err := format.NewWiredSkeleton(reader, writer)
 	require.NoError(t, err)
 	require.NotNil(t, store)
@@ -182,6 +189,19 @@ func TestWriter_EditedSourceAddsNoMarkup(t *testing.T) {
 			assert.Contains(t, page, "<p>Next paragraph.</p>", "the edit swallowed the rest of the document: %q", out)
 		})
 	}
+}
+
+// An edited front matter value is quoted when it would not stand as a YAML
+// plain scalar, as a translated one is, so the edit cannot add a key: the
+// line break folds inside the quotes.
+func TestWriter_EditedFrontMatterValueIsQuoted(t *testing.T) {
+	const doc = "---\ntitle: Hello\n---\n\nBody\n"
+
+	reader := markdown.NewReader()
+	reader.MarkdownConfig().TranslateFrontMatter = true
+	out := editConfiguredMarkdownSource(t, reader, doc, "Hello", "Hi: there\nevil: true")
+
+	assert.Equal(t, "---\ntitle: \"Hi: there\nevil: true\"\n---\n\nBody\n", out)
 }
 
 // A block nobody edited is written as it was read, whatever its text holds: a
