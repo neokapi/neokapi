@@ -46,7 +46,7 @@ type blockIndex struct {
 // pairs on.
 func (s *session) indexDocument(ctx context.Context) (*blockIndex, error) {
 	ix := &blockIndex{}
-	err := s.readPass(s.ownSource(), s.doc.Format, func(b *model.Block) error {
+	err := s.ownPass(func(b *model.Block) error {
 		ix.keys = append(ix.keys, change.BlockKey(b))
 		ix.names = append(ix.names, b.Name)
 		ix.ids = append(ix.ids, b.ID)

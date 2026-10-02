@@ -90,6 +90,9 @@ type Place struct {
 	// File is the edition's own file, as a document reference, for
 	// PlaceOwnFile.
 	File string
+	// Why says, for PlaceNone, why the edition has no home, as a refusal
+	// reports it.
+	Why string
 }
 
 // PlaceKind says where an edition lives.
@@ -174,6 +177,9 @@ type StagedFile struct {
 	// change leaves as it was.
 	Before string
 	After  string
+	// Written says Commit put the file's new content in place. A commit an
+	// I/O error interrupted leaves some files written and others not.
+	Written bool
 }
 
 // Staged is a change held ready to commit.
@@ -183,19 +189,27 @@ type Staged interface {
 	// Diff renders what the change writes, for a person reading a preview,
 	// as a unified diff; empty when the home renders none.
 	Diff() string
-	// LockKey orders the commit locks of several staged documents, so two
-	// change sets that each write two documents take their locks in one
-	// order and cannot deadlock.
-	LockKey() string
-	// Settle takes the home's commit lock and makes sure the staged change
-	// still applies to the head. When the head moved since the stage, the
-	// home applies the editor to the head as it now stands, once. A refused
-	// operation in that pass returns ErrRefused; a head that keeps moving
-	// returns an *Error with CodeDocChanged.
+	// LockKeys names the commit locks the change needs, sorted: for the file
+	// home, one per file it reads or writes. The service takes the locks of
+	// every staged document of a change set in the order of their keys, so
+	// two change sets take the locks they share in one order and cannot
+	// deadlock, and it refuses a change set two of whose documents need one
+	// lock, which is one file named twice.
+	LockKeys() []string
+	// Lock takes the commit lock key names, blocking until it holds it or
+	// ctx ends.
+	Lock(ctx context.Context, key string) error
+	// Settle makes sure the staged change still applies to the head, with
+	// every lock LockKeys names held; it takes any the caller has not. When
+	// the head moved since the stage, the home applies the editor to the head
+	// as it now stands, once. A refused operation in that pass returns
+	// ErrRefused; a head that keeps moving returns an *Error with
+	// CodeDocChanged.
 	Settle(ctx context.Context) error
 	// Commit makes the staged change the head. Settle must have succeeded.
+	// After an error, Files reports which files were written.
 	Commit(ctx context.Context) error
-	// Release drops the commit lock and any staged data. It is safe after
+	// Release drops the commit locks and any staged data. It is safe after
 	// Commit, without Settle, and more than once.
 	Release() error
 }

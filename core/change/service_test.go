@@ -26,9 +26,16 @@ type memHome struct {
 	docs map[string]*memDoc
 	// openErr, when set, is what opening any document returns.
 	openErr error
+	// beforeSettle, when set, is called once a document is staged and
+	// before its commit lock is taken.
+	beforeSettle func(doc string)
+	// failCommit, when set, is the document whose commit fails.
+	failCommit string
 }
 
 type memDoc struct {
+	// commit is the document's commit lock.
+	commit sync.Mutex
 	head   int
 	blocks []memBlock
 }
@@ -139,6 +146,12 @@ func (s *memSession) Place(model.EditionKey) change.Place {
 	return change.Place{Kind: change.PlaceInDocument}
 }
 
+func (s *memSession) headOf() int {
+	s.h.mu.Lock()
+	defer s.h.mu.Unlock()
+	return s.h.docs[s.doc].head
+}
+
 func (s *memSession) current() ([]*model.Block, int) {
 	s.h.mu.Lock()
 	defer s.h.mu.Unlock()
@@ -176,6 +189,7 @@ type memStaged struct {
 	blocks  []*model.Block
 	changed bool
 	locked  bool
+	written bool
 }
 
 func (st *memStaged) run() error {
@@ -198,38 +212,59 @@ func (st *memStaged) Files() []change.StagedFile {
 	if st.changed {
 		after = fmt.Sprintf("head:%d", st.head+1)
 	}
-	return []change.StagedFile{{File: st.s.doc, Before: before, After: after}}
+	return []change.StagedFile{{File: st.s.doc, Before: before, After: after, Written: st.written}}
 }
 
-func (st *memStaged) Diff() string    { return "" }
-func (st *memStaged) LockKey() string { return st.s.doc }
+func (st *memStaged) Diff() string        { return "" }
+func (st *memStaged) LockKeys() []string  { return []string{st.s.doc} }
+func (st *memStaged) doc() *memDoc        { return st.s.h.docs[st.s.doc] }
+func (st *memStaged) headNow() (head int) { return st.s.headOf() }
 
-func (st *memStaged) Settle(context.Context) error {
-	st.s.h.mu.Lock()
-	st.locked = true
-	if st.s.h.docs[st.s.doc].head == st.head {
+func (st *memStaged) Lock(_ context.Context, key string) error {
+	if st.locked {
 		return nil
 	}
-	st.s.h.mu.Unlock()
-	err := st.run()
-	st.s.h.mu.Lock()
-	return err
+	if key != st.s.doc {
+		return fmt.Errorf("no lock %s", key)
+	}
+	if hook := st.s.h.beforeSettle; hook != nil {
+		hook(st.s.doc)
+	}
+	st.doc().commit.Lock()
+	st.locked = true
+	return nil
+}
+
+func (st *memStaged) Settle(ctx context.Context) error {
+	if err := st.Lock(ctx, st.s.doc); err != nil {
+		return err
+	}
+	if st.headNow() == st.head {
+		return nil
+	}
+	return st.run()
 }
 
 func (st *memStaged) Commit(context.Context) error {
 	if !st.changed {
 		return nil
 	}
-	d := st.s.h.docs[st.s.doc]
+	if st.s.h.failCommit == st.s.doc {
+		return errors.New("disk full")
+	}
+	st.s.h.mu.Lock()
+	defer st.s.h.mu.Unlock()
+	d := st.doc()
 	d.blocks = capture(st.blocks)
 	d.head++
+	st.written = true
 	return nil
 }
 
 func (st *memStaged) Release() error {
 	if st.locked {
 		st.locked = false
-		st.s.h.mu.Unlock()
+		st.doc().commit.Unlock()
 	}
 	return nil
 }
@@ -281,10 +316,11 @@ func TestService_Conformance(t *testing.T) {
 			"b": {textBlock("three", "Third")},
 		})
 		return changetest.Env{
-			Service:  newMemService(h),
-			DocA:     "a",
-			DocB:     "b",
-			Snapshot: func(t *testing.T, doc string) []byte { return []byte(h.snapshot(doc)) },
+			Service:         newMemService(h),
+			DocA:            "a",
+			DocB:            "b",
+			Snapshot:        func(t *testing.T, doc string) []byte { return []byte(h.snapshot(doc)) },
+			SetBeforeSettle: func(fn func(string)) { h.beforeSettle = fn },
 		}
 	})
 }
@@ -445,6 +481,8 @@ func TestService_RecordsWhatLanded(t *testing.T) {
 type memAssets struct {
 	prepared, applied []string
 	refuse            string
+	// during, when set, is called as each operation is applied.
+	during func()
 }
 
 func (a *memAssets) Prepare(_ context.Context, _ change.Actor, op change.Op, target *change.DecisionTarget) *change.Error {
@@ -456,9 +494,12 @@ func (a *memAssets) Prepare(_ context.Context, _ change.Actor, op change.Op, tar
 }
 
 func (a *memAssets) Apply(_ context.Context, _ change.Actor, _ *change.Set, op change.Op, target *change.DecisionTarget) (change.OpStatus, *change.Error) {
+	if a.during != nil {
+		a.during()
+	}
 	switch body := op.Body.(type) {
 	case *change.Decide:
-		a.applied = append(a.applied, fmt.Sprintf("decide %s %s@%s %s", body.Outcome, target.Ref.Block, target.Ref.EditionText(), target.Rev))
+		a.applied = append(a.applied, fmt.Sprintf("decide %s %s@%s %s %q on %q", body.Outcome, target.Ref.Block, target.Ref.EditionText(), target.Rev, target.Text, target.SourceText))
 	case *change.Term:
 		a.applied = append(a.applied, "term "+body.Term)
 	}
@@ -480,7 +521,7 @@ func TestService_DecisionsAndAssetsFollowTheContent(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 	after := res.Ops[1].After
-	assert.Equal(t, []string{"term handbook", "decide establish one@nb " + after}, assets.applied,
+	assert.Equal(t, []string{"term handbook", `decide establish one@nb ` + after + ` "Innledende" on "First"`}, assets.applied,
 		"assets apply in the order of the change set, after the content, and a decision binds to the content that landed")
 	assert.Equal(t, change.OpApplied, res.Ops[2].Status)
 	assert.Equal(t, after, res.Ops[2].After)
@@ -626,4 +667,187 @@ type editionStates func(b *model.Block, k model.EditionKey) (change.EditionState
 
 func (f editionStates) EditionState(_ context.Context, _ change.DocInfo, b *model.Block, k model.EditionKey) (change.EditionState, bool) {
 	return f(b, k)
+}
+
+// TestService_EachOperationReportsItsOwnOutcome pins that a refusal on one
+// block leaves the operations on another block of the document to report
+// what they would have done (not_applied, blocked by the refusal), and that
+// an operation held back by a refusal on its own block is not_applied, never
+// a block that is not there.
+func TestService_EachOperationReportsItsOwnOutcome(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First"), textBlock("two", "Second")}})
+	svc := newMemService(h, change.WithAssets(&memAssets{}))
+	one := readBlock(t, svc, "a", "one")
+	two := readBlock(t, svc, "a", "two")
+	stale := "r:0000000000000000"
+
+	tests := []struct {
+		name string
+		ops  []change.Op
+	}{
+		{"a stale edit before a valid one on another block", []change.Op{edit(one.Ref, stale, "x"), edit(two.Ref, two.Rev, "y")}},
+		{"a stale decision before an edit of its block", []change.Op{
+			{Kind: change.KindDecide, At: two.Ref, IfMatch: stale, Body: &change.Decide{Outcome: change.OutcomeEstablish}},
+			edit(two.Ref, two.Rev, "y"),
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			before := h.snapshot("a")
+			res, err := svc.Apply(context.Background(), change.Set{Ops: tc.ops}, svcPerson)
+			require.NoError(t, err)
+			require.Equal(t, change.SetRefused, res.Status)
+			require.NotNil(t, res.Ops[0].Error)
+			assert.Equal(t, change.CodeStale, res.Ops[0].Error.Code)
+			assert.Equal(t, change.OpNotApplied, res.Ops[1].Status, "%+v", res.Ops[1].Error)
+			require.NotNil(t, res.Ops[1].BlockedBy)
+			assert.Equal(t, 0, *res.Ops[1].BlockedBy)
+			assert.Equal(t, before, h.snapshot("a"))
+		})
+	}
+}
+
+// TestService_OneBlockAddressedByTwoKeys pins that two operations naming one
+// block by two of the keys it answers to (its name and its id) both reach it.
+func TestService_OneBlockAddressedByTwoKeys(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First", "nb", "Første")}})
+	svc := newMemService(h)
+	b := readBlock(t, svc, "a", "one")
+	byID := b.Ref
+	byID.Block = "tu1"
+	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{
+		edit(b.Ref, b.Rev, "Initial"),
+		edit(atEdition(byID, "nb"), b.Editions["nb"].Rev, "Innledende"),
+	}}, svcPerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	got := readBlock(t, svc, "a", "one")
+	assert.Equal(t, "Initial", got.Text)
+	assert.Equal(t, "Innledende", got.Editions["nb"].Text)
+}
+
+// TestService_TheCommitCheckSeesThePassThatCommits pins that when the home
+// applies a change set again at commit, because the document moved, the
+// commit check runs over that second pass: an operation that writes
+// whatever is there (if_match *) can introduce a finding the first pass did
+// not have, and that pass is the one that lands.
+func TestService_TheCommitCheckSeesThePassThatCommits(t *testing.T) {
+	tests := []struct {
+		name   string
+		gate   change.Gate
+		status change.SetStatus
+	}{
+		{"enforce refuses it", change.GateEnforce, change.SetRefused},
+		{"report lands it with the finding", change.GateReport, change.SetApplied},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "Clean text")}})
+			check := &wordCheck{word: "utilize"}
+			svc := newMemService(h, change.WithCommitCheck(check))
+			b := readBlock(t, svc, "a", "one")
+			h.beforeSettle = func(string) {
+				h.beforeSettle = nil
+				// Another writer lands first; the edit below applies again
+				// to what it wrote.
+				h.mu.Lock()
+				h.docs["a"].blocks[0].editions[model.EditionKey{}] = []model.Run{model.TextR("Clean utiltext")}
+				h.docs["a"].head++
+				h.mu.Unlock()
+			}
+			find := "text"
+			res, err := svc.Apply(context.Background(), change.Set{Gate: tc.gate, Ops: []change.Op{{
+				Kind: change.KindReplaceText, At: b.Ref, IfMatch: change.AnyRevision,
+				Body: &change.ReplaceText{Edits: []change.TextEdit{{Find: &find, Text: "ize"}}},
+			}}}, svcPerson)
+			require.NoError(t, err)
+			require.Len(t, check.seen, 2, "the check runs over the first pass and again over the pass that commits")
+			assert.Equal(t, "Clean ize", model.RunsText(check.seen[0][0].After))
+			assert.Equal(t, "Clean utilize", model.RunsText(check.seen[1][0].After))
+			require.Equal(t, tc.status, res.Status, "%+v", res.Ops)
+			require.Len(t, res.Ops[0].Findings, 1, "the finding of the pass that commits is reported")
+			assert.Equal(t, "avoid utilize", res.Ops[0].Findings[0].Message)
+			if tc.status == change.SetRefused {
+				assert.Equal(t, change.CodeGateFailed, res.Ops[0].Error.Code)
+				assert.Equal(t, "Clean utiltext", readBlock(t, svc, "a", "one").Text, "nothing is written")
+			} else {
+				assert.Equal(t, "Clean utilize", readBlock(t, svc, "a", "one").Text)
+			}
+		})
+	}
+}
+
+// TestService_APartialCommitReportsWhatLanded pins what an I/O error during
+// the final commits reports: partial, with the documents that landed written
+// and their operations applied, the rest not_applied, the decisions and
+// assets not_applied because the content they bind to did not all land, and
+// a record of what did.
+func TestService_APartialCommitReportsWhatLanded(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{
+		"a": {textBlock("one", "First", "nb", "Første")},
+		"b": {textBlock("two", "Second")},
+	})
+	h.failCommit = "b"
+	rec := &memRecorder{}
+	assets := &memAssets{}
+	svc := newMemService(h, change.WithRecorder(rec), change.WithAssets(assets))
+	one := readBlock(t, svc, "a", "one")
+	two := readBlock(t, svc, "b", "two")
+
+	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{
+		edit(one.Ref, one.Rev, "Initial"),
+		edit(two.Ref, two.Rev, "Next"),
+		{Kind: change.KindDecide, At: atEdition(one.Ref, "nb"), IfMatch: one.Editions["nb"].Rev, Body: &change.Decide{Outcome: change.OutcomeEstablish}},
+		{Kind: change.KindTerm, Body: &change.Term{Action: "upsert", Term: "handbook"}},
+	}}, svcPerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetPartial, res.Status, "%+v", res.Ops)
+	assert.Equal(t, change.OpApplied, res.Ops[0].Status)
+	assert.Equal(t, change.OpNotApplied, res.Ops[1].Status)
+	assert.Equal(t, change.OpNotApplied, res.Ops[2].Status, "a decision waits for content that all landed")
+	assert.Equal(t, change.OpNotApplied, res.Ops[3].Status, "so does an asset")
+	assert.Empty(t, assets.applied)
+	written := map[string]bool{}
+	for _, d := range res.Docs {
+		written[d.Doc] = d.Written
+	}
+	assert.Equal(t, map[string]bool{"a": true, "b": false}, written)
+	require.Len(t, rec.records, 1, "what landed is recorded")
+	require.Len(t, rec.records[0].Transitions, 1)
+	assert.Equal(t, "a", rec.records[0].Transitions[0].Ref.Doc)
+	require.NotNil(t, res.Record)
+
+	t.Run("a failure before anything landed is an error", func(t *testing.T) {
+		h.failCommit = "a"
+		cur := readBlock(t, svc, "a", "one")
+		_, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{edit(cur.Ref, cur.Rev, "Again")}}, svcPerson)
+		require.Error(t, err)
+	})
+}
+
+// TestService_DecisionsAreAppliedUnderTheCommitLock pins that the service
+// holds a document's commit lock until the decisions on it are applied, so
+// no other writer's content can land between the commit and the decision.
+func TestService_DecisionsAreAppliedUnderTheCommitLock(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First", "nb", "Første")}})
+	var heldDuringDecision bool
+	assets := &memAssets{during: func() {
+		if h.docs["a"].commit.TryLock() {
+			h.docs["a"].commit.Unlock()
+			return
+		}
+		heldDuringDecision = true
+	}}
+	svc := newMemService(h, change.WithAssets(assets))
+	b := readBlock(t, svc, "a", "one")
+	nb := b.Editions["nb"]
+	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{
+		edit(atEdition(b.Ref, "nb"), nb.Rev, "Innledende"),
+		{Kind: change.KindDecide, At: atEdition(b.Ref, "nb"), IfMatch: nb.Rev, Body: &change.Decide{Outcome: change.OutcomeEstablish}},
+	}}, svcPerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.True(t, heldDuringDecision, "the commit lock is held while the decision is applied")
+	assert.True(t, h.docs["a"].commit.TryLock(), "and released once the change set is done")
+	h.docs["a"].commit.Unlock()
 }

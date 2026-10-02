@@ -41,6 +41,10 @@ type docPlan struct {
 	results []OpResult
 	want    Want
 
+	// passes counts the passes a home has made over the document, so the
+	// service can tell when Settle applied the change again.
+	passes int
+
 	// What one pass found. Begin resets it.
 	seen      map[string]int
 	first     map[string]Candidate
@@ -60,6 +64,7 @@ const candidateLimit = 3
 const candidateKeyLimit = 64
 
 func (p *docPlan) Begin() {
+	p.passes++
 	p.seen = map[string]int{}
 	p.first = map[string]Candidate{}
 	p.changes = nil
@@ -80,17 +85,22 @@ func (p *docPlan) Begin() {
 	}
 }
 
-// match returns the key b is addressed by and the operations addressed to it.
-func (p *docPlan) match(b *model.Block) (string, []int) {
+// match returns the keys b answers to that operations address, and the
+// operations addressed to it by any of them, in the order of the change set.
+// A block is addressed by its durable key, its name or its id, and two
+// operations may name it by different ones.
+func (p *docPlan) match(b *model.Block) (keys []string, ops []int) {
 	for _, k := range []string{b.Unit, b.Name, b.ID} {
-		if k == "" {
+		if k == "" || slices.Contains(keys, k) {
 			continue
 		}
-		if ops, ok := p.byKey[k]; ok {
-			return k, ops
+		if o, ok := p.byKey[k]; ok {
+			keys = append(keys, k)
+			ops = append(ops, o...)
 		}
 	}
-	return "", nil
+	slices.Sort(ops)
+	return keys, slices.Compact(ops)
 }
 
 func (p *docPlan) refuse(i int, err *Error) {
@@ -100,22 +110,38 @@ func (p *docPlan) refuse(i int, err *Error) {
 }
 
 func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
-	key, ops := p.match(b)
+	keys, ops := p.match(b)
 	if ops == nil {
 		p.observe(b)
 		return nil, nil
 	}
-	p.seen[key]++
-	if p.seen[key] > 1 {
-		cands := []Candidate{p.first[key], candidateOf(b)}
-		for _, i := range ops {
+	// A key a second block answers to is ambiguous: the operations that name
+	// it are refused, and those that name this block by another key apply.
+	var ambiguous []string
+	for _, k := range keys {
+		p.seen[k]++
+		if p.seen[k] == 1 {
+			p.first[k] = candidateOf(b)
+			continue
+		}
+		ambiguous = append(ambiguous, k)
+		cands := []Candidate{p.first[k], candidateOf(b)}
+		for _, i := range p.byKey[k] {
 			p.results[i] = OpResult{I: i, Op: p.set.Ops[i].Kind, At: p.results[i].At}
 			p.refuse(i, &Error{Code: CodeAmbiguous, Field: "at/block", Candidates: cands,
-				Message: fmt.Sprintf("%s holds more than one block keyed %q", p.info.Doc, key)})
+				Message: fmt.Sprintf("%s holds more than one block keyed %q", p.info.Doc, k)})
 		}
-		return nil, nil
 	}
-	p.first[key] = candidateOf(b)
+	if len(ambiguous) > 0 {
+		ops = slices.DeleteFunc(ops, func(i int) bool { return p.results[i].Status == OpRefused })
+		if len(ops) == 0 {
+			return nil, nil
+		}
+	}
+	// A refusal on another block of the document leaves this block's
+	// operations to apply, so each reports its own outcome; a refusal on this
+	// block holds the rest of its operations.
+	key := BlockKey(b)
 
 	var content []Op
 	var contentIdx, decides []int
@@ -160,7 +186,8 @@ func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
 			}
 		}
 	}
-	if p.refused {
+	if p.refusedAny(ops) {
+		p.hold(b, ops)
 		return nil, nil
 	}
 
@@ -196,7 +223,8 @@ func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
 			p.refused = true
 		}
 	}
-	if p.refused {
+	if p.refusedAny(ops) {
+		p.hold(b, ops)
 		return nil, nil
 	}
 
@@ -251,7 +279,9 @@ func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
 			role = RoleAuthoritative
 		}
 		rev := model.EditionRevision(b, op.At.Edition)
-		p.decisions[i] = &DecisionTarget{Doc: p.info, Ref: *p.results[i].At, Place: p.sess.Place(op.At.Edition), Rev: rev, Role: role}
+		ed, _ := b.Edition(op.At.Edition)
+		p.decisions[i] = &DecisionTarget{Doc: p.info, Ref: *p.results[i].At, Place: p.sess.Place(op.At.Edition), Rev: rev,
+			Text: model.RunsText(ed.Runs), SourceText: b.SourceText(), Role: role}
 		// The decision lands once the content has; until then it stands as
 		// one that would.
 		p.results[i].Status = OpApplied
@@ -259,6 +289,22 @@ func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
 		p.results[i].After = rev
 	}
 	return changed, nil
+}
+
+// refusedAny reports whether an operation of ops was refused.
+func (p *docPlan) refusedAny(ops []int) bool {
+	return slices.ContainsFunc(ops, func(i int) bool { return p.results[i].Status == OpRefused })
+}
+
+// hold marks the operations of ops that have no outcome yet as not applied:
+// another operation on the block was refused, and with it the change set.
+func (p *docPlan) hold(b *model.Block, ops []int) {
+	for _, i := range ops {
+		if p.results[i].Status == "" {
+			p.results[i].Status = OpNotApplied
+			p.results[i].At = p.canonical(b, p.set.Ops[i].At.Edition)
+		}
+	}
 }
 
 // observe looks at a block no operation addresses, for the near keys a

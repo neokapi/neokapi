@@ -29,11 +29,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 
 	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/storage/filelock"
 )
 
 // Home is the file home.
@@ -53,8 +55,10 @@ type Options struct {
 	BeforeSettle func(doc string)
 }
 
-// DefaultLockDir is where lock files go for documents outside a project: a
-// directory under the temporary directory, one per user.
+// DefaultLockDir is where lock files go when the caller names no directory: a
+// directory under the temporary directory, one per user, created with mode
+// 0700. The kapi host names one in the project's .kapi directory, or in its
+// data directory outside a project.
 func DefaultLockDir() string {
 	return filepath.Join(os.TempDir(), "kapi-locks-"+strconv.Itoa(os.Getuid()))
 }
@@ -108,7 +112,15 @@ func (s *session) own(k model.EditionKey) bool {
 }
 
 func (s *session) Place(k model.EditionKey) change.Place {
-	if s.own(k) || s.doc.Editions == change.EditionsInFile {
+	if s.own(k) {
+		return change.Place{Kind: change.PlaceInDocument}
+	}
+	if s.doc.Editions == change.EditionsInFile {
+		// A bilingual file keys its translations by language alone.
+		if k.Tone != "" || k.Channel != "" {
+			return change.Place{Kind: change.PlaceNone,
+				Why: fmt.Sprintf("the %s format keeps one translation per language, and an edition with a tone or a channel has no place in %s", s.doc.Format.Name, s.doc.Ref)}
+		}
 		return change.Place{Kind: change.PlaceInDocument}
 	}
 	if f, ok := s.editionFile(k); ok {
@@ -139,6 +151,18 @@ func (s *session) readPass(src source, f Binding, fn func(*model.Block) error) p
 	return pass{src: src, format: f, locale: s.doc.SourceLocale, encoding: s.doc.Encoding, fn: fn}
 }
 
+// ownPass is a pass over the document's own file: a bilingual file is read
+// with the language of the translation it holds, where the layout knows it,
+// so the reader models that translation and the writer writes it.
+func (s *session) ownPass(fn func(*model.Block) error) pass {
+	p := s.readPass(s.ownSource(), s.doc.Format, fn)
+	if s.doc.Editions == change.EditionsInFile {
+		p.target = s.doc.TargetLocale
+		p.writeLocale = s.doc.TargetLocale
+	}
+	return p
+}
+
 func (s *session) Read(ctx context.Context, want change.Want, fn func(*model.Block) error) (string, error) {
 	head, err := hashFile(s.doc.Path)
 	if err != nil {
@@ -152,7 +176,7 @@ func (s *session) Read(ctx context.Context, want change.Want, fn func(*model.Blo
 		return "", err
 	}
 	i := 0
-	err = s.readPass(s.ownSource(), s.doc.Format, func(b *model.Block) error {
+	err = s.ownPass(func(b *model.Block) error {
 		join(editions, i, b)
 		i++
 		return fn(b)
@@ -206,7 +230,7 @@ func (s *session) Close() error { return nil }
 
 // lockPath is the lock file that orders the writers of the file at path: one
 // per file, named for the file it guards with any symlink resolved, so two
-// links to one file share it.
+// links to one file share it. It names the file and creates nothing.
 func (h *Home) lockPath(path string) (string, error) {
 	target, _, _, err := atomicfile.Resolve(path)
 	if err != nil {
@@ -216,11 +240,38 @@ func (h *Home) lockPath(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(h.lockDir, 0o755); err != nil {
-		return "", fmt.Errorf("create the lock directory: %w", err)
-	}
 	sum := sha256.Sum256([]byte(abs))
 	return filepath.Join(h.lockDir, hex.EncodeToString(sum[:16])+".lock"), nil
+}
+
+// openLock opens the lock file at path, creating the lock directory, which
+// belongs to this user alone, when it is not there.
+func (h *Home) openLock(path string) (*filelock.Lock, error) {
+	if err := ensureLockDir(h.lockDir); err != nil {
+		return nil, err
+	}
+	return filelock.Open(path)
+}
+
+// ensureLockDir creates dir with mode 0700 and refuses one this user cannot
+// hold alone: a link, or a directory others may write. A lock directory
+// under a temporary directory other users share could otherwise be made in
+// advance by one of them, and the lock files opened there redirected.
+func ensureLockDir(dir string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("create the lock directory: %w", err)
+	}
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return fmt.Errorf("create the lock directory: %w", err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("the lock directory %s is not a directory", dir)
+	}
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0o022 != 0 {
+		return fmt.Errorf("the lock directory %s can be written by other users; remove it, or name a lock directory of your own", dir)
+	}
+	return nil
 }
 
 // hashFile is the digest of the file at path, or "" when there is none.

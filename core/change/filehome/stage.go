@@ -33,7 +33,10 @@ type staged struct {
 	want  change.Want
 	e     change.Editor
 	files []*stagedFile
-	locks []*filelock.Lock
+	// keys are the lock files of the files the stage reads or changes,
+	// sorted; held are the locks taken on them.
+	keys []string
+	held map[string]*filelock.Lock
 	// settled says the commit locks are held and every staged file applies
 	// to the file as it stands.
 	settled bool
@@ -50,6 +53,8 @@ type stagedFile struct {
 	before string
 	after  string
 	tmp    *atomicfile.Staged
+	// written says Commit renamed the staged file into place.
+	written bool
 	// diff renders the change for a preview.
 	diff func() string
 }
@@ -71,15 +76,21 @@ func (st *staged) run(ctx context.Context) error {
 	own.after = own.before
 	st.files = []*stagedFile{own}
 
-	editions, _, err := s.joinEditions(ctx, st.want.Editions)
+	// Each edition's file is hashed before the join reads it, as the
+	// document's own file is: a writer that commits between the hash and the
+	// read leaves the file at another digest than the one recorded, and
+	// Settle reads it again under the lock.
+	before := map[string]string{}
+	for _, k := range st.want.Editions {
+		if f, ok := s.editionFile(k); ok {
+			if before[f.Path], err = hashFile(f.Path); err != nil {
+				return err
+			}
+		}
+	}
+	editions, ix, err := s.joinEditions(ctx, st.want.Editions)
 	if err != nil {
 		return err
-	}
-	digests := make([]string, len(editions))
-	for i, je := range editions {
-		if digests[i], err = hashFile(je.src.path); err != nil {
-			return err
-		}
 	}
 
 	// What the editor changed in each joined edition, by document block index.
@@ -107,13 +118,14 @@ func (st *staged) run(ctx context.Context) error {
 	}
 
 	st.e.Begin()
-	src := s.ownSource()
 	if st.want.Own {
-		own.tmp, own.after, own.diff, err = st.write(ctx, s.doc.Path, src, func(out io.Writer) error {
-			return pass{src: src, format: s.doc.Format, locale: s.doc.SourceLocale, encoding: s.doc.Encoding, fn: edit, out: out}.run(ctx)
+		own.tmp, own.after, own.diff, err = st.write(ctx, s.doc.Path, s.ownSource(), func(out io.Writer) error {
+			p := s.ownPass(edit)
+			p.out = out
+			return p.run(ctx)
 		})
 	} else {
-		err = s.readPass(src, s.doc.Format, edit).run(ctx)
+		err = s.ownPass(edit).run(ctx)
 	}
 	if err != nil {
 		return err
@@ -127,39 +139,64 @@ func (st *staged) run(ctx context.Context) error {
 	}
 
 	for i, je := range editions {
-		f := &stagedFile{ref: je.file.Ref, edition: &je.key, path: je.file.Path, before: digests[i], after: digests[i]}
+		digest := before[je.file.Path]
+		f := &stagedFile{ref: je.file.Ref, edition: &je.key, path: je.file.Path, before: digest, after: digest}
 		st.files = append(st.files, f)
 		if len(changed[i]) == 0 {
 			continue
 		}
-		if err := st.writeEdition(ctx, f, je, changed[i]); err != nil {
+		if err := st.writeEdition(ctx, f, je, ix, changed[i]); err != nil {
 			return err
 		}
 	}
+	return st.lockKeys()
+}
+
+// lockKeys names the lock file of every file the stage reads or changes.
+func (st *staged) lockKeys() error {
+	st.keys = st.keys[:0]
+	for _, f := range st.files {
+		p, err := st.s.h.lockPath(f.path)
+		if err != nil {
+			return err
+		}
+		if !slices.Contains(st.keys, p) {
+			st.keys = append(st.keys, p)
+		}
+	}
+	slices.Sort(st.keys)
 	return nil
 }
 
 // writeEdition stages the file of a joined edition with the runs the editor
-// gave it. A file that exists and holds a block for every changed one is
-// edited through its own skeleton; otherwise it is materialized from the
-// document's skeleton, every edition the file held kept as content, as kapi
+// gave it. A file that exists is edited through its own skeleton, so every
+// byte of it outside the changed blocks stays, and each changed block must
+// have a partner there; a write that would need a block the file does not
+// hold is refused, because adding one means rewriting the file. A file that
+// does not exist yet is materialized from the document's skeleton, as kapi
 // merge writes a target file.
-func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdition, changed map[int][]model.Run) error {
+func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdition, ix *blockIndex, changed map[int][]model.Run) error {
 	s := st.s
-	inPlace := je.exists
-	byTarget := map[int][]model.Run{}
-	for si, runs := range changed {
-		ti, ok := je.match[si]
-		if !ok {
-			inPlace = false
-			break
+	if je.exists {
+		byTarget := map[int][]model.Run{}
+		var unpaired []string
+		for si, runs := range changed {
+			ti, ok := je.match[si]
+			if !ok {
+				unpaired = append(unpaired, ix.keys[si])
+				continue
+			}
+			byTarget[ti] = runs
 		}
-		byTarget[ti] = runs
-	}
-	var err error
-	if inPlace {
+		if len(unpaired) > 0 {
+			slices.Sort(unpaired)
+			return &change.Error{Code: change.CodeUnsupported, Capability: "edition", Field: "at/block",
+				Message: fmt.Sprintf("%s holds no block that pairs with %s of %s, and an edition is written only into a block its file already holds; add the block to %s first",
+					je.file.Ref, blockList(unpaired), s.doc.Ref, je.file.Ref)}
+		}
 		src := je.src
 		ti := 0
+		var err error
 		f.tmp, f.after, f.diff, err = st.write(ctx, je.file.Path, src, func(out io.Writer) error {
 			return pass{src: src, format: je.file.Format, locale: s.doc.SourceLocale, encoding: s.doc.Encoding, out: out,
 				fn: func(b *model.Block) error {
@@ -174,23 +211,14 @@ func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdi
 		})
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(je.file.Path), 0o755); err != nil {
-		return err
-	}
 	src := s.ownSource()
 	si := 0
+	var err error
 	f.tmp, f.after, f.diff, err = st.write(ctx, je.file.Path, source{path: je.file.Path}, func(out io.Writer) error {
 		return pass{src: src, format: s.doc.Format, locale: s.doc.SourceLocale, encoding: s.doc.Encoding, out: out,
 			writeLocale: je.key.Locale, writerSource: src,
 			fn: func(b *model.Block) error {
-				runs, ok := changed[si]
-				if !ok {
-					if ti, held := je.match[si]; held {
-						ed, _ := je.blocks[ti].Edition(model.EditionKey{})
-						runs, ok = ed.Runs, true
-					}
-				}
-				if ok {
+				if runs, ok := changed[si]; ok {
 					b.SetEdition(je.key, model.Edition{Runs: runs})
 				}
 				si++
@@ -200,14 +228,28 @@ func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdi
 	return err
 }
 
+// blockList names up to three blocks in a message.
+func blockList(keys []string) string {
+	const shown = 3
+	if len(keys) == 1 {
+		return "block " + keys[0]
+	}
+	if len(keys) <= shown {
+		return "blocks " + strings.Join(keys, ", ")
+	}
+	return fmt.Sprintf("blocks %s and %d more", strings.Join(keys[:shown], ", "), len(keys)-shown)
+}
+
 // write stages what produce writes as the new content of the file at path:
 // for a plain file, the bytes themselves; for an archive member, the member,
 // spliced into a copy of the archive with every other member as it was. It
-// returns the staged file, its digest, and a renderer of the change.
+// returns the staged file, its digest, and a renderer of the change. A file
+// whose directory does not exist yet, such as a translation written for the
+// first time, has the directory created when it commits, never before.
 func (st *staged) write(ctx context.Context, path string, src source, produce func(io.Writer) error) (*atomicfile.Staged, string, func() string, error) {
 	h := sha256.New()
 	if src.entry == "" {
-		tmp, err := atomicfile.Stage(path, func(w io.Writer) error {
+		tmp, err := atomicfile.StageWithParents(path, func(w io.Writer) error {
 			bw := bufio.NewWriterSize(io.MultiWriter(w, h), 64*1024)
 			if err := produce(bw); err != nil {
 				return err
@@ -270,7 +312,7 @@ func sameEntry(a, b string) bool {
 func (st *staged) Files() []change.StagedFile {
 	out := make([]change.StagedFile, 0, len(st.files))
 	for _, f := range st.files {
-		out = append(out, change.StagedFile{File: f.ref, Edition: f.edition, Before: f.before, After: f.after})
+		out = append(out, change.StagedFile{File: f.ref, Edition: f.edition, Before: f.before, After: f.after, Written: f.written})
 	}
 	return out
 }
@@ -285,24 +327,54 @@ func (st *staged) Diff() string {
 	return b.String()
 }
 
-func (st *staged) LockKey() string {
-	p, err := st.s.h.lockPath(st.s.doc.Path)
-	if err != nil {
-		return st.s.doc.Path
+// LockKeys are the lock files of the files the stage reads or changes.
+func (st *staged) LockKeys() []string { return slices.Clone(st.keys) }
+
+// Lock takes the lock on the lock file key. The first lock a stage takes is
+// preceded by Options.BeforeSettle.
+func (st *staged) Lock(ctx context.Context, key string) error {
+	if _, ok := st.held[key]; ok {
+		return nil
 	}
-	return p
+	if !slices.Contains(st.keys, key) {
+		return fmt.Errorf("lock %s: the change to %s takes no such lock", key, st.s.doc.Ref)
+	}
+	if len(st.held) == 0 && st.s.h.beforeSettle != nil {
+		st.s.h.beforeSettle(st.s.doc.Ref)
+	}
+	l, err := st.s.h.openLock(key)
+	if err != nil {
+		return err
+	}
+	if err := l.Lock(ctx); err != nil {
+		_ = l.Close()
+		return err
+	}
+	if st.held == nil {
+		st.held = map[string]*filelock.Lock{}
+	}
+	st.held[key] = l
+	return nil
 }
 
-// Settle takes the lock of every file the stage changes, in path order, and
-// checks each still has the digest the stage read. When one moved, the
+// lockAll takes every lock the stage needs that it does not hold, in key
+// order.
+func (st *staged) lockAll(ctx context.Context) error {
+	for _, k := range st.keys {
+		if err := st.Lock(ctx, k); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Settle checks, with the lock of every file the stage touches held, that
+// each file still has the digest the stage read. When one moved, the
 // document and its editions are read again under the locks and the editor
 // applied once more; a file that moves during that pass as well (an editor
 // saving outside kapi, which takes no lock) is doc_changed.
 func (st *staged) Settle(ctx context.Context) error {
-	if st.s.h.beforeSettle != nil {
-		st.s.h.beforeSettle(st.s.doc.Ref)
-	}
-	if err := st.lock(ctx); err != nil {
+	if err := st.lockAll(ctx); err != nil {
 		return err
 	}
 	moved, err := st.moved()
@@ -316,6 +388,9 @@ func (st *staged) Settle(ctx context.Context) error {
 	if err := st.run(ctx); err != nil {
 		return err
 	}
+	if err := st.lockAll(ctx); err != nil {
+		return err
+	}
 	if moved, err = st.moved(); err != nil {
 		return err
 	}
@@ -327,45 +402,12 @@ func (st *staged) Settle(ctx context.Context) error {
 	return nil
 }
 
-// lock takes the lock of every file the stage reads or changes, in the order
-// of their lock files.
-func (st *staged) lock(ctx context.Context) error {
-	if len(st.locks) > 0 {
-		return nil
-	}
-	var paths []string
-	for _, f := range st.files {
-		p, err := st.s.h.lockPath(f.path)
-		if err != nil {
-			return err
-		}
-		if !slices.Contains(paths, p) {
-			paths = append(paths, p)
-		}
-	}
-	slices.Sort(paths)
-	for _, p := range paths {
-		l, err := filelock.Open(p)
-		if err != nil {
-			st.unlock()
-			return err
-		}
-		if err := l.Lock(ctx); err != nil {
-			_ = l.Close()
-			st.unlock()
-			return err
-		}
-		st.locks = append(st.locks, l)
-	}
-	return nil
-}
-
 func (st *staged) unlock() {
-	for _, l := range st.locks {
+	for _, l := range st.held {
 		l.Unlock()
 		_ = l.Close()
 	}
-	st.locks = nil
+	st.held = nil
 }
 
 // moved returns the first file whose digest is no longer the one the stage
@@ -383,6 +425,8 @@ func (st *staged) moved() (*stagedFile, error) {
 	return nil, nil
 }
 
+// Commit renames each staged file onto its target. An error leaves the files
+// renamed before it written, which Files reports.
 func (st *staged) Commit(context.Context) error {
 	if !st.settled {
 		return fmt.Errorf("commit %s: the change was not settled", st.s.doc.Ref)
@@ -391,10 +435,12 @@ func (st *staged) Commit(context.Context) error {
 		if f.tmp == nil {
 			continue
 		}
-		if err := f.tmp.Commit(); err != nil {
+		err := f.tmp.Commit()
+		f.tmp = nil
+		if err != nil {
 			return err
 		}
-		f.tmp = nil
+		f.written = true
 	}
 	return nil
 }

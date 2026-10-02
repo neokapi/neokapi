@@ -282,3 +282,88 @@ func TestFileHome_ADocumentThatMovedOnceIsAppliedAgain(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `{"title": "Hi", "body": "Saved"}`, string(body), "the edit lands on what the person saved")
 }
+
+// TestFileHome_AnExistingEditionFileIsNeverWrittenAfresh pins that an edition
+// is written into a file that exists through that file's own skeleton, and
+// that an edit needing a block the file does not hold is refused: writing it
+// would mean rewriting the file from the document's skeleton, and whatever
+// only that file holds (an editor's comment, a section of its own) would be
+// gone.
+func TestFileHome_AnExistingEditionFileIsNeverWrittenAfresh(t *testing.T) {
+	german := "<!-- Redaktion: bitte nicht entfernen -->\n\n# Installieren\n\nA auf Deutsch.\n\nB auf Deutsch.\n\n## Nur Deutsch\n\nX auf Deutsch.\n"
+	f := newTargetFixture(t, map[string]string{
+		"guide.md":    "# Install\n\nA.\n\nB.\n\nC.\n",
+		"de/guide.md": german,
+	})
+	ctx := context.Background()
+	de := mustEdition(t, "de")
+	page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "guide.md", Editions: []model.EditionKey{de}})
+	require.NoError(t, err)
+	var unpaired, paired change.BlockRead
+	for _, b := range page.Blocks {
+		switch b.Text {
+		case "C.":
+			unpaired = b
+		case "A.":
+			paired = b
+		}
+	}
+	require.NotContains(t, unpaired.Editions, "de", "the German file holds no block for C.")
+	require.Contains(t, paired.Editions, "de")
+	at := unpaired.Ref
+	at.Edition = de
+
+	res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(at, model.AbsentRevision, "C auf Deutsch.")}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
+	require.NotNil(t, res.Ops[0].Error)
+	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
+	assert.Contains(t, res.Ops[0].Error.Message, unpaired.Ref.Block)
+	assert.Empty(t, res.Ops[0].After, "a refused operation reports no revision it would have made")
+	assert.Equal(t, german, f.read(t, "de/guide.md"), "nothing is written")
+
+	at = paired.Ref
+	at.Edition = de
+	res, err = f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(at, paired.Editions["de"].Rev, "A, neu auf Deutsch.")}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.Equal(t, strings.Replace(german, "A auf Deutsch.", "A, neu auf Deutsch.", 1), f.read(t, "de/guide.md"),
+		"an edit of a block the file holds keeps every other byte, the comment and the German-only section included")
+}
+
+// TestFileHome_ThePreviewOfANewTranslationCreatesNoDirectory pins that the
+// directory a translation's first file needs is created when the file is
+// committed, so a preview, and a change set refused once staged, leave the
+// tree as it was.
+func TestFileHome_ThePreviewOfANewTranslationCreatesNoDirectory(t *testing.T) {
+	f := newTargetFixture(t, map[string]string{
+		"guide.json": `{"title": "Welcome", "body": "Read this first"}` + "\n",
+	})
+	ctx := context.Background()
+	page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "guide.json"})
+	require.NoError(t, err)
+	title := page.Blocks[0]
+	at := title.Ref
+	at.Edition = mustEdition(t, "fr")
+	create := setOp(at, model.AbsentRevision, "Bienvenue")
+
+	res, err := f.svc.Apply(ctx, change.Set{Mode: change.ModePreview, Ops: []change.Op{create}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetPreviewed, res.Status, "%+v", res.Ops)
+	assert.NoDirExists(t, filepath.Join(f.dir, "fr"), "a preview writes nothing")
+
+	// The term is refused after the French file was staged: this service
+	// keeps no terms.
+	res, err = f.svc.Apply(ctx, change.Set{Ops: []change.Op{create, {Kind: change.KindTerm, Body: &change.Term{Action: "upsert", Term: "Welcome"}}}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
+	assert.NoDirExists(t, filepath.Join(f.dir, "fr"), "a refusal writes nothing")
+	entries, err := os.ReadDir(f.dir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1, "no staged file is left behind")
+
+	res, err = f.svc.Apply(ctx, change.Set{Ops: []change.Op{create}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.FileExists(t, filepath.Join(f.dir, "fr", "guide.json"))
+}

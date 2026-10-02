@@ -124,10 +124,31 @@ func TestChangeService_ATranslationIsAnEditionOfItsSource(t *testing.T) {
 		assert.Equal(t, "Führe das Installationsprogramm aus.", p.Editions["de"].Text)
 	})
 
-	t.Run("the German file addressed directly echoes the canonical reference", func(t *testing.T) {
+	t.Run("a read of the German file shows the German edition, and its reference edits it", func(t *testing.T) {
 		page, err := svc.Read(ctx, change.ReadRequest{Doc: "i18n/de/guide.md"})
 		require.NoError(t, err)
 		assert.Equal(t, "docs/guide.md", page.Doc)
+		p := blockWith(t, page, "Führe das Installationsprogramm aus.")
+		assert.Equal(t, "de", p.Ref.EditionText(), "the reference names the German edition")
+		require.Contains(t, p.Editions, "en", "the document's own edition is listed among the others")
+		assert.Equal(t, "Run the installer.", p.Editions["en"].Text)
+
+		res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{setTo(p.Ref, p.Rev, "Führe das neue Installationsprogramm aus.")}}, changePerson)
+		require.NoError(t, err)
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+		assert.Equal(t, "# Installieren\n\nFühre das neue Installationsprogramm aus.\n", readFile(t, recipe, "i18n/de/guide.md"))
+		assert.Equal(t, source, readFile(t, recipe, "docs/guide.md"), "copying the reference and revision of the German read edits the German")
+
+		// A filter by the key the German file reads the block with finds it.
+		page, err = svc.Read(ctx, change.ReadRequest{Doc: "i18n/de/guide.md", Blocks: []string{"installieren/p"}})
+		require.NoError(t, err)
+		require.Len(t, page.Blocks, 1)
+		assert.Equal(t, p.Ref.Block, page.Blocks[0].Ref.Block)
+	})
+
+	t.Run("the German file addressed directly echoes the canonical reference", func(t *testing.T) {
+		page, err := svc.Read(ctx, change.ReadRequest{Doc: "docs/guide.md", Editions: []model.EditionKey{editionKey(t, "de")}})
+		require.NoError(t, err)
 		p := blockWith(t, page, "Run the installer.")
 		de := p.Editions["de"]
 

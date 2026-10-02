@@ -42,6 +42,11 @@ type Doc struct {
 	Encoding string
 	// Editions says how the format holds editions.
 	Editions change.Editions
+	// TargetLocale is, for a bilingual file, the language of the translation
+	// it holds, where a reader has to be told it: a PO catalog's msgstr reads
+	// as a translation only when its language is given. Empty leaves the
+	// reader to find what the file declares.
+	TargetLocale model.LocaleID
 	// Edition is set when the reference named the file of one edition of Ref,
 	// and is that edition.
 	Edition *model.EditionKey
@@ -114,6 +119,9 @@ type DirLayout struct {
 	// Encoding is the encoding documents are read and written in; empty is
 	// UTF-8.
 	Encoding string
+	// TargetLocale is the language of the translation a bilingual document
+	// holds (Doc.TargetLocale).
+	TargetLocale model.LocaleID
 }
 
 // Locate resolves doc under the root.
@@ -133,6 +141,7 @@ func (l DirLayout) Locate(_ context.Context, doc string) (Doc, error) {
 		SourceLocale: l.SourceLocale, Encoding: l.Encoding, Editions: change.EditionsPerFile}
 	if info := l.Formats.FormatInfo(registry.FormatID(name)); info != nil && info.Interchange {
 		d.Editions = change.EditionsInFile
+		d.TargetLocale = l.TargetLocale
 	}
 	return d, nil
 }

@@ -47,6 +47,9 @@ type pass struct {
 	src    source
 	format Binding
 	locale model.LocaleID
+	// target is the language of the translation a bilingual file holds, for
+	// a reader that has to be told it; empty for any other file.
+	target model.LocaleID
 	// encoding is the encoding the reader reads in.
 	encoding string
 	// fn sees every block, in document order. Returning change.ErrStop ends a
@@ -106,7 +109,7 @@ func (p pass) run(ctx context.Context) (err error) {
 		}
 	}
 
-	doc := &model.RawDocument{URI: p.src.String(), SourceLocale: p.locale, Encoding: p.encoding}
+	doc := &model.RawDocument{URI: p.src.String(), SourceLocale: p.locale, TargetLocale: p.target, Encoding: p.encoding}
 	var file *os.File
 	switch {
 	case p.src.entry != "":
@@ -200,7 +203,7 @@ func (p pass) read(ctx context.Context, reader format.DataFormatReader, writer f
 		if b == nil || p.fn == nil {
 			continue
 		}
-		if err := p.fn(b); err != nil {
+		if err := p.visit(b); err != nil {
 			if errors.Is(err, change.ErrStop) {
 				return nil
 			}
@@ -253,7 +256,7 @@ func (p pass) stream(ctx context.Context, reader format.DataFormatReader, writer
 				continue
 			}
 			if b := blockOf(res.Part); b != nil && p.fn != nil {
-				if err := p.fn(b); err != nil {
+				if err := p.visit(b); err != nil {
 					readErr = err
 					return
 				}
@@ -304,7 +307,7 @@ func (p pass) buffered(ctx context.Context, reader format.DataFormatReader, writ
 			continue
 		}
 		if b := blockOf(res.Part); b != nil && p.fn != nil {
-			if err := p.fn(b); err != nil {
+			if err := p.visit(b); err != nil {
 				reader.Close()
 				return err
 			}
@@ -327,6 +330,17 @@ func (p pass) buffered(ctx context.Context, reader format.DataFormatReader, writ
 		return fmt.Errorf("close %s: %w", p.src, err)
 	}
 	return nil
+}
+
+// visit hands fn a block the reader produced. A block the reader left with
+// no language is given the document's, as every block of a project is read
+// in its source language, so its own edition answers to that language as
+// well as to the empty edition key.
+func (p pass) visit(b *model.Block) error {
+	if b.SourceLocale == "" {
+		b.SourceLocale = p.locale
+	}
+	return p.fn(b)
 }
 
 // blockOf is the block a part carries, or nil.

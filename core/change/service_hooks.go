@@ -31,6 +31,13 @@ type DecisionTarget struct {
 	// Rev is the edition's revision once the change set's content landed:
 	// the content the decision is about.
 	Rev string
+	// Text is the edition's plain text at Rev, and SourceText the plain text
+	// of the document's own edition beside it: the pairing a decision is
+	// recorded against. A host binds the decision to these, which the
+	// service read under the commit lock, and never to a later read of the
+	// file.
+	Text       string
+	SourceText string
 	// Role is the edition's role in its block.
 	Role Role
 }

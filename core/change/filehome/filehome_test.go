@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -64,14 +65,20 @@ var person = change.Actor{Kind: change.ActorPerson, Name: "tester"}
 
 func TestFileHome_Conformance(t *testing.T) {
 	changetest.Run(t, func(t *testing.T) changetest.Env {
+		var hook func(string)
 		f := newFixture(t, map[string]string{
 			"a.json": `{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}` + "\n",
 			"b.json": `{"title": "Welcome"}` + "\n",
-		})
+		}, filehome.Options{BeforeSettle: func(doc string) {
+			if hook != nil {
+				hook(doc)
+			}
+		}})
 		return changetest.Env{
-			Service: f.svc,
-			DocA:    "a.json",
-			DocB:    "b.json",
+			SetBeforeSettle: func(fn func(string)) { hook = fn },
+			Service:         f.svc,
+			DocA:            "a.json",
+			DocB:            "b.json",
 			Snapshot: func(t *testing.T, doc string) []byte {
 				return []byte(f.read(t, doc))
 			},
@@ -207,4 +214,58 @@ func mustEdition(t *testing.T, s string) model.EditionKey {
 	k, err := model.ParseEditionKey(s)
 	require.NoError(t, err)
 	return k
+}
+
+// TestFileHome_KeepsItsLockDirectoryToItsUser pins that the home creates the
+// lock directory with mode 0700 and refuses one another user could have made
+// in advance under a shared temporary directory: a directory others may write
+// to, or a link, either of which could redirect the lock files it opens.
+func TestFileHome_KeepsItsLockDirectoryToItsUser(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("mode bits do not describe who may write a directory on Windows")
+	}
+	tests := []struct {
+		name    string
+		lockDir func(t *testing.T, base string) string
+		refused bool
+	}{
+		{name: "one it creates", lockDir: func(t *testing.T, base string) string { return filepath.Join(base, "kapi-locks") }},
+		{name: "one others may write", refused: true, lockDir: func(t *testing.T, base string) string {
+			dir := filepath.Join(base, "kapi-locks")
+			require.NoError(t, os.Mkdir(dir, 0o700))
+			require.NoError(t, os.Chmod(dir, 0o777))
+			return dir
+		}},
+		{name: "a link to a directory", refused: true, lockDir: func(t *testing.T, base string) string {
+			real := filepath.Join(base, "elsewhere")
+			require.NoError(t, os.Mkdir(real, 0o700))
+			link := filepath.Join(base, "kapi-locks")
+			if err := os.Symlink(real, link); err != nil {
+				t.Skipf("symlinks: %v", err)
+			}
+			return link
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := tc.lockDir(t, t.TempDir())
+			body := `{"greeting": "Hello there"}` + "\n"
+			f := newFixture(t, map[string]string{"a.json": body}, filehome.Options{LockDir: dir})
+			ctx := context.Background()
+			page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "a.json"})
+			require.NoError(t, err)
+			b := page.Blocks[0]
+			res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(b.Ref, b.Rev, "Hello")}}, person)
+			if tc.refused {
+				require.Error(t, err)
+				assert.Equal(t, body, f.read(t, "a.json"), "nothing is written")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+			info, err := os.Lstat(dir)
+			require.NoError(t, err)
+			assert.Equal(t, os.FileMode(0o700), info.Mode().Perm())
+		})
+	}
 }

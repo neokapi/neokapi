@@ -4,7 +4,8 @@
 // keeps the text.
 //
 // A home's test builds an Env (a service over the home, two documents it
-// holds, and a way to see what the home holds) and calls Run.
+// holds, a way to see what the home holds, and a point between a stage and
+// its commit where the suite runs a second sender) and calls Run.
 package changetest
 
 import (
@@ -31,6 +32,11 @@ type Env struct {
 	// Mode returns the file mode a document has, for a home that keeps
 	// files. Nil skips the check that a write keeps it.
 	Mode func(t *testing.T, doc string) os.FileMode
+	// SetBeforeSettle installs fn, which the home calls once a document of a
+	// change set is staged and before its commit lock is taken; nil removes
+	// it. The suite runs a second sender there, between the first one's
+	// stage and its commit. Nil skips the cases that interleave two senders.
+	SetBeforeSettle func(fn func(doc string))
 }
 
 // person is the actor every change set of the suite is sent as.
@@ -46,7 +52,9 @@ func Run(t *testing.T, newEnv func(t *testing.T) Env) {
 		{"an edit lands and reads back", editLands},
 		{"a replayed change set is stale, carries the current content and writes nothing", staleWritesNothing},
 		{"edits to different blocks commute", differentBlocksCommute},
+		{"an edit that lands between another's stage and commit is kept", interleavedEditsCommute},
 		{"a refusal in one document leaves every document as it was", allOrNothingAcrossDocuments},
+		{"a refusal found at commit leaves every document as it was", refusalAtCommit},
 		{"a preview writes nothing", previewWritesNothing},
 		{"a block no document holds is not found and nothing is written", missingBlock},
 		{"the same edition said again is unchanged", unchangedIsIdempotent},
@@ -147,6 +155,64 @@ func differentBlocksCommute(t *testing.T, env Env) {
 	require.Equal(t, change.SetApplied, r2.Status, "%+v", r2.Ops)
 	assert.Equal(t, one.Text+" one", textOf(t, env, env.DocA, one.Ref.Block))
 	assert.Equal(t, two.Text+" two", textOf(t, env, env.DocA, two.Ref.Block))
+}
+
+// interleave makes the home run second, once, after the next change set is
+// staged and before it takes its commit lock, and reports whether it ran.
+func interleave(t *testing.T, env Env, second func()) *bool {
+	t.Helper()
+	if env.SetBeforeSettle == nil {
+		t.Skip("the home has no point between a stage and its commit to hold a sender at")
+	}
+	ran := new(bool)
+	env.SetBeforeSettle(func(string) {
+		if *ran {
+			return
+		}
+		*ran = true
+		env.SetBeforeSettle(nil)
+		second()
+	})
+	t.Cleanup(func() { env.SetBeforeSettle(nil) })
+	return ran
+}
+
+func interleavedEditsCommute(t *testing.T, env Env) {
+	bs := editable(t, env, env.DocA, 2)
+	one, two := bs[0], bs[1]
+	var second *change.Result
+	ran := interleave(t, env, func() {
+		second = apply(t, env, change.Set{Ops: []change.Op{setText(two, two.Rev, two.Text+" two")}})
+	})
+	// The first sender stages against the content both read; the second
+	// lands before it commits.
+	first := apply(t, env, change.Set{Ops: []change.Op{setText(one, one.Rev, one.Text+" one")}})
+	require.True(t, *ran, "the second sender ran between the first one's stage and commit")
+	require.Equal(t, change.SetApplied, second.Status, "%+v", second.Ops)
+	require.Equal(t, change.SetApplied, first.Status, "%+v", first.Ops)
+	assert.Equal(t, one.Text+" one", textOf(t, env, env.DocA, one.Ref.Block))
+	assert.Equal(t, two.Text+" two", textOf(t, env, env.DocA, two.Ref.Block), "the edit that landed first is kept")
+}
+
+func refusalAtCommit(t *testing.T, env Env) {
+	a := editable(t, env, env.DocA, 1)[0]
+	b := editable(t, env, env.DocB, 1)[0]
+	beforeA := env.Snapshot(t, env.DocA)
+	ran := interleave(t, env, func() {
+		res := apply(t, env, change.Set{Ops: []change.Op{setText(b, b.Rev, b.Text+" first")}})
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	})
+	res := apply(t, env, change.Set{Ops: []change.Op{
+		setText(a, a.Rev, a.Text+" lands only with the other"),
+		setText(b, b.Rev, b.Text+" second"),
+	}})
+	require.True(t, *ran)
+	require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
+	require.NotNil(t, res.Ops[1].Error)
+	assert.Equal(t, change.CodeStale, res.Ops[1].Error.Code, "the edit the other sender overtook is stale")
+	assert.Equal(t, change.OpNotApplied, res.Ops[0].Status)
+	assert.Equal(t, beforeA, env.Snapshot(t, env.DocA), "the document whose edit still applied is unchanged")
+	assert.Equal(t, b.Text+" first", textOf(t, env, env.DocB, b.Ref.Block))
 }
 
 func allOrNothingAcrossDocuments(t *testing.T, env Env) {

@@ -133,14 +133,24 @@ func (s *Service) Read(ctx context.Context, q ReadRequest) (*Page, error) {
 			want.Editions = append(want.Editions, k.Canonical())
 		}
 	}
-	want.Blocks = q.Blocks
+	blocks := slices.Clone(q.Blocks)
+	if resolver, ok := sess.(EditionKeyResolver); ok && info.Edition != nil && sess.Place(*info.Edition).Kind == PlaceOwnFile {
+		// A block named by its key in the edition's own file, as a person who
+		// opened that file reads it.
+		for i, key := range blocks {
+			if k, found, rerr := resolver.DocumentBlockKey(ctx, *info.Edition, key); rerr == nil && found {
+				blocks[i] = k
+			}
+		}
+	}
+	want.Blocks = blocks
 
 	page := &Page{Doc: info.Doc, Home: h.Name(), Format: info.Format, Blocks: []BlockRead{}}
 	index := 0
 	more := false
 	head, err := sess.Read(ctx, want, func(b *model.Block) error {
-		if len(q.Blocks) > 0 && !slices.ContainsFunc([]string{b.Unit, b.Name, b.ID}, func(k string) bool {
-			return k != "" && slices.Contains(q.Blocks, k)
+		if len(blocks) > 0 && !slices.ContainsFunc([]string{b.Unit, b.Name, b.ID}, func(k string) bool {
+			return k != "" && slices.Contains(blocks, k)
 		}) {
 			return nil
 		}
@@ -181,20 +191,42 @@ func (s *Service) homeFor(doc string) (Home, error) {
 	return s.homes.For(doc)
 }
 
-// readBlock is b as a read shows it.
+// readBlock is b as a read shows it. The block's reference, revision and text
+// are those of the edition the read was opened on: the document's own, or,
+// for a read of the file one edition lives in, that edition, so a person who
+// opened the German file and copies a reference edits the German. Every other
+// edition the block holds is listed among its editions, the document's own
+// included.
 func (s *Service) readBlock(ctx context.Context, info DocInfo, desc Description, b *model.Block, editions []model.EditionKey) BlockRead {
-	own, _ := b.Edition(model.EditionKey{})
+	var primary model.EditionKey
+	if info.Edition != nil {
+		primary = info.Edition.Canonical()
+	}
+	ed, _ := b.Edition(primary)
+	ref := Ref{Doc: info.Doc, Block: BlockKey(b)}
+	if !b.IsSourceEdition(primary) {
+		ref.Edition = primary
+	}
 	out := BlockRead{
-		Ref:  Ref{Doc: info.Doc, Block: BlockKey(b)},
-		Rev:  model.EditionRevision(b, model.EditionKey{}),
-		Text: model.RunsEditText(own.Runs),
+		Ref:  ref,
+		Rev:  model.EditionRevision(b, primary),
+		Text: model.RunsEditText(ed.Runs),
 		Ops:  desc.blockOps(b.Translatable),
 	}
-	out.Codes = codesOf(own.Runs, desc)
-	out.Structures = structuresOf(own.Runs)
+	out.Codes = codesOf(ed.Runs, desc)
+	out.Structures = structuresOf(ed.Runs)
 	authRev := model.EditionRevision(b, b.Authoritative(model.AuthorityPolicy{}))
+	primaryKey := b.EditionKeyOf(primary)
 	for _, k := range b.Editions() {
+		if b.EditionKeyOf(k) == primaryKey {
+			continue
+		}
 		if b.IsSourceEdition(k) {
+			own, _ := b.Edition(k)
+			if out.Editions == nil {
+				out.Editions = map[string]EditionRead{}
+			}
+			out.Editions[keyText(b.EditionKeyOf(k))] = EditionRead{Rev: model.EditionRevision(b, k), Text: model.RunsEditText(own.Runs), Status: string(own.Status)}
 			continue
 		}
 		ed, _ := b.Edition(k)
