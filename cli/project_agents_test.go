@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -113,6 +114,49 @@ func TestInitCmd_rerunWiresAnExistingProject(t *testing.T) {
 	assert.Contains(t, out, "already initialized")
 	_, err = os.Stat(filepath.Join(dir, ".mcp.json"))
 	require.NoError(t, err, "running init on a project that has a recipe wires it")
+}
+
+// The MCP entry kapi init writes serves the structured edit path, with or
+// without target languages: extract_content reads a file's blocks and
+// apply_edits writes them back.
+func TestInitCmd_mcpEntryServesTheEditPath(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "a source-only project"},
+		{name: "a project with target languages", args: []string{"--target-locale", "fr"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			runInit(t, dir, tt.args...)
+
+			raw, err := os.ReadFile(filepath.Join(dir, ".mcp.json"))
+			require.NoError(t, err)
+			var doc struct {
+				Servers map[string]struct {
+					Args []string `json:"args"`
+				} `json:"mcpServers"`
+			}
+			require.NoError(t, json.Unmarshal(raw, &doc))
+			args := doc.Servers["kapi"].Args
+			var named []string
+			for i, arg := range args {
+				if arg == "--tools" && i+1 < len(args) {
+					named = append(named, args[i+1])
+				}
+			}
+			sets, err := host.ParseMCPToolSets(named)
+			require.NoError(t, err)
+			var served []string
+			for set := range sets {
+				served = append(served, host.MCPToolSetTools(set)...)
+			}
+			assert.Contains(t, served, "extract_content")
+			assert.Contains(t, served, "apply_edits")
+		})
+	}
 }
 
 // A project that declares target languages gets the translation tools in its

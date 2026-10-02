@@ -449,8 +449,8 @@ none:
 
 | Set | Serves |
 | --- | --- |
-| `writing` | the `context://` resources, `context_read`, `context_search`, `context_observe`, `context_correct`, `context_withdraw`, `context_session_summary`, `check_file` |
-| `content` | `check_text`, `voice_check`, `voice_rewrite`, `term-check`, `extract_content`, `detect_format`, `apply_edits`, `redact` |
+| `writing` | the `context://` resources, `context_read`, `context_search`, `context_observe`, `context_correct`, `context_withdraw`, `context_session_summary`, `check_file`, `extract_content`, `apply_edits` |
+| `content` | `check_text`, `voice_check`, `voice_rewrite`, `term-check`, `detect_format`, `redact` |
 | `translation` | `translate`, `up`, `up_plan`, `stats` |
 | `review` | `review_queue`, `review_unit`, `pre_review_unit` |
 | `all` | every set |
@@ -459,7 +459,12 @@ The sets are one table in `host/mcp_sets.go`. Every factory registers its
 tools, and the server then removes whatever the selected sets leave out; the
 surface snapshot fails when a tool belongs to no set. A name that is not a set
 fails startup with the list. `kapi init` writes `--tools writing,translation`
-into the MCP entry of a project that declares target languages. The listing
+into the MCP entry of a project that declares target languages. The writing
+set holds the structured edit path, `extract_content` to read a file's blocks
+and `apply_edits` to write them back, so an agent in a project `kapi init`
+wired reaches it whichever sets the entry names. `apply_edits` declares each
+comment file's check as an object, because `check_file` in the same set
+declares the `kapi.check/v2` report in full. The listing
 helpers and `pseudo_translate` sit behind `--all-tools`, the flow-running verbs
 behind `--all-flows`, and `--all` serves every set and both. `list_flows`
 lists what `kapi flows` lists for the call's project and `run_flow` resolves

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/contextop"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -48,9 +50,33 @@ type applyEditsMCPOutput struct {
 	Comments []commentFileResult `json:"comments,omitempty"`
 }
 
+// applyEditsOutputSchema is apply_edits' result schema with each comment
+// file's check declared as an object. That check is a kapi.check/v2 report,
+// which check_file's output schema spells out in full beside it in the writing
+// set; inferring it here as well would double the size of a tool every writing
+// session is offered.
+var applyEditsOutputSchema = sync.OnceValue(func() *jsonschema.Schema {
+	s, err := jsonschema.For[applyEditsMCPOutput](nil)
+	if err != nil {
+		panic(fmt.Sprintf("apply_edits output schema: %v", err))
+	}
+	if comments := s.Properties["comments"]; comments != nil && comments.Items != nil {
+		if held := comments.Items.Properties["check"]; held != nil {
+			comments.Items.Properties["check"] = &jsonschema.Schema{
+				Type:  held.Type,
+				Types: held.Types,
+				Description: "the kapi.check/v2 report of what the file's edits changed, " +
+					"in the shape check_file returns; absent when nothing was written",
+			}
+		}
+	}
+	return s
+})
+
 func registerEditMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
-		Name: "apply_edits",
+		Name:         "apply_edits",
+		OutputSchema: applyEditsOutputSchema(),
 		Description: "Apply a typed change-set: the one write verb. For document wording, each entry " +
 			"uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and " +
 			"hashes with extract_content. The replacement field belongs to term entries. Content edits land through the " +

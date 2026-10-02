@@ -200,6 +200,8 @@ func printMintedID(cmd *cobra.Command, res *InitResult) {
 // MCPToolSets returns the `kapi mcp --tools` sets kapi init writes into a
 // project's MCP entry: the default writing set alone, which needs no flag, or
 // the writing and translation sets when the recipe declares target languages.
+// Either way the agent reaches the structured edit path, which the writing set
+// holds (host/mcp_sets.go).
 func MCPToolSets(targetLanguages []string) []string {
 	if len(targetLanguages) == 0 {
 		return nil
