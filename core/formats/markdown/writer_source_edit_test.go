@@ -17,8 +17,9 @@ import (
 )
 
 // editMarkdownSource reads doc through the skeleton round-trip `kapi apply`,
-// `ksed` and MCP apply_edits use, rewrites the source of the block whose plain
-// text is from to the placeholder text to, and writes it back with no locale.
+// `ksed` and MCP apply_edits use, edits the source of the block whose plain
+// text is from to the edit text to (inline codes as <x id="…"/> tokens, the
+// shape `kapi inspect` shows), and writes it back with no locale.
 func editMarkdownSource(t *testing.T, doc, from, to string) string {
 	t.Helper()
 	reader, writer := markdown.NewReader(), markdown.NewWriter()
@@ -35,7 +36,7 @@ func editMarkdownSource(t *testing.T, doc, from, to string) string {
 		if !ok || !b.Translatable || model.RunsText(b.Source) != from {
 			continue
 		}
-		b.SetSourceRuns(model.ParseRunsPlaceholderText(to, b.Source))
+		b.EditSourceRuns(model.ParseRunsEditText(to, b.Source))
 		edited++
 	}
 	require.Equal(t, 1, edited, "exactly one block reads %q", from)
@@ -123,6 +124,22 @@ func TestWriter_EditedSourceTextIsText(t *testing.T) {
 			wantOut:  "Use \\<b> for bold\n",
 			wantPage: "<p>Use &lt;b&gt; for bold</p>",
 		},
+		{
+			name:     "markup the block held as text is kept",
+			doc:      "See [1] and \\<b> here\n",
+			from:     "See [1] and \\<b> here",
+			to:       `See [1] and \<b> there`,
+			wantOut:  "See [1] and \\<b> there\n",
+			wantPage: "<p>See [1] and &lt;b&gt; there</p>",
+		},
+		{
+			name:     "a character reference the block held reads as its character",
+			doc:      "Fish &amp; chips\n",
+			from:     "Fish  chips",
+			to:       "Fish & fries",
+			wantOut:  "Fish &amp; fries\n",
+			wantPage: "<p>Fish &amp; fries</p>",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -133,16 +150,49 @@ func TestWriter_EditedSourceTextIsText(t *testing.T) {
 	}
 }
 
-// The escape only touches what the reader would have read as markup, and the
-// reader turns every such construct into an inline code, so text it left as
-// text keeps its bytes: a '<' that opens no tag, an unterminated tag, an
-// ampersand that is no reference, brackets that are no link, and emphasis
-// characters.
+// CommonMark reads HTML blocks from an incomplete tag at the start of a line,
+// link reference definitions from a line that begins with a bracket, and links
+// whose text nests or escapes brackets. An edit that spells any of them must
+// still reach the page as text: no element, no comment, no link.
+func TestWriter_EditedSourceAddsNoMarkup(t *testing.T) {
+	const doc = "# Title\n\nHello world\n\nNext paragraph.\n"
+	payloads := []string{
+		"<div onmouseover=alert(1) x",
+		"<iframe src=javascript:alert(1) ",
+		"a\n<div onclick=alert(1)",
+		"<script",
+		"<textarea",
+		"<!-- hidden",
+		"<?php x",
+		"<![CDATA[x",
+		"[x]: javascript:alert(1)\nclick [x]",
+		"click [a [b] c](javascript:alert(1))",
+		`click [a\]b](javascript:alert(1))`,
+		"click [x][y]\n\n[y]: javascript:alert(1)",
+		"![a](javascript:alert(1))",
+		"<javascript:alert(1)>",
+	}
+	for _, payload := range payloads {
+		t.Run(payload, func(t *testing.T) {
+			out := editMarkdownSource(t, doc, "Hello world", payload)
+			page := renderPage(t, out)
+			for _, live := range []string{"<div", "<iframe", "<script", "<textarea", "<!--", "<?", "<![CDATA", "<a ", "<img"} {
+				assert.NotContains(t, page, live, "output: %q", out)
+			}
+			assert.Contains(t, page, "<p>Next paragraph.</p>", "the edit swallowed the rest of the document: %q", out)
+		})
+	}
+}
+
+// A block nobody edited is written as it was read, whatever its text holds: a
+// '<' that opens no tag, an unterminated tag, an ampersand that is no
+// reference, brackets that are no link, and emphasis characters.
 func TestWriter_EditKeepsUntouchedMarkdownByteExact(t *testing.T) {
 	const doc = "a < b and I <3 you\n\n" +
 		"x <y and z\n\n" +
 		"AT&T and Q&A\n\n" +
 		"2 * 3 and [1] and a_b_c\n\n" +
+		"Ax\\<zB and \\[1] and \\*not\\*\n\n" +
 		"Edit me\n"
 
 	out := editMarkdownSource(t, doc, "Edit me", "Edited")

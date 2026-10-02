@@ -1,10 +1,18 @@
 package formats
 
 import (
+	"html"
+	"regexp"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/format/spec"
 	"github.com/neokapi/neokapi/core/format/spectest"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/xmlesc"
 )
@@ -58,6 +66,7 @@ func runEscapeSweep(t *testing.T, editSource bool) {
 				Rejects:    tc.rejects,
 				Skip:       tc.skip,
 				EditSource: editSource,
+				TextOf:     tc.textOf,
 			}
 			probe.Run(t)
 		})
@@ -72,6 +81,9 @@ type escapeSweepEntry struct {
 	source  string
 	rejects func(rune) bool
 	skip    map[rune]string
+	// textOf reads a block back as the text a reader of the document sees;
+	// nil reads the runs as they render.
+	textOf func([]model.Run) string
 }
 
 func escapeSweepFormats() []escapeSweepEntry {
@@ -116,7 +128,7 @@ func escapeSweepFormats() []escapeSweepEntry {
 		},
 		{id: "csv", source: "id,text\n1,Hello\n"},
 		{id: "tsv", source: "id\ttext\n1\tHello\n"},
-		{id: "markdown", source: "Hello\n"},
+		{id: "markdown", source: "Hello\n", textOf: commonMarkText},
 		{id: "plaintext", source: "Hello\n", skip: lineOriented},
 		{id: "po", source: "msgid \"Hello\"\nmsgstr \"\"\n"},
 		{id: "androidxml", source: "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n    <string name=\"greeting\">Hello</string>\n</resources>\n"},
@@ -133,7 +145,7 @@ func escapeSweepFormats() []escapeSweepEntry {
 		{id: "xliff", source: xliffSource, rejects: notRepresentableInXML},
 		{id: "xliff2", source: xliff2Source, rejects: notRepresentableInXML},
 		{id: "asciidoc", source: "Hello\n"},
-		{id: "mdx", source: "Hello\n"},
+		{id: "mdx", source: "Hello\n", textOf: commonMarkText},
 		{
 			id:      "messageformat",
 			source:  "Hello\n",
@@ -228,3 +240,124 @@ const xliff2Source = `<?xml version="1.0" encoding="UTF-8"?>
   </file>
 </xliff>
 `
+
+// commonMarkText reads Markdown text runs as CommonMark shows them: a
+// backslash before ASCII punctuation is the punctuation, and a character
+// reference is its character.
+func commonMarkText(runs []model.Run) string {
+	src := model.RenderRunsWithData(runs)
+	var b strings.Builder
+	for i := 0; i < len(src); i++ {
+		c := src[i]
+		switch {
+		case c == '\\' && i+1 < len(src) && strings.IndexByte("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~", src[i+1]) >= 0:
+			b.WriteByte(src[i+1])
+			i++
+		case c == '&':
+			if m := charRefRE.FindString(src[i:]); m != "" {
+				b.WriteString(html.UnescapeString(m))
+				i += len(m) - 1
+				continue
+			}
+			b.WriteByte(c)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+var charRefRE = regexp.MustCompile(`^&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6});`)
+
+// asciidocText reads AsciiDoc text runs back with the character references the
+// writer escapes markup with decoded. A reference an author or an edit
+// spells is AsciiDoc source the processor passes to the page as is, so it
+// stays as written.
+func asciidocText(runs []model.Run) string {
+	return asciidocEscapes.Replace(model.RenderRunsWithData(runs))
+}
+
+var asciidocEscapes = strings.NewReplacer("&#43;", "+", "&#91;", "[", "&#123;", "{", "&#60;", "<")
+
+// TestEditedWordingReadsBackAsText edits a block of each format whose text
+// can spell markup with wording that spells some, and reads the written
+// document back. The wording must come back as text: no inline code beyond a
+// character reference, and the characters typed. A writer that left the
+// markup live hands the reader a tag, a link or a macro, which it reads as an
+// inline code. Markup a reader does not model (an MDX expression, an
+// AsciiDoc passthrough) reads back as text either way; the format's own
+// writer tests check how it is written.
+func TestEditedWordingReadsBackAsText(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	RegisterAll(reg)
+
+	payloads := []string{
+		"Hello <script>alert(1)</script> & goodbye",
+		"<div onmouseover=alert(1) x",
+		"a\n<div onclick=alert(1)",
+		"<!-- hidden",
+		"[x]: javascript:alert(1)\nclick [x]",
+		"click [a [b] c](javascript:alert(1))",
+		"see <https://evil.example/> and ![i](javascript:alert(1))",
+		"x {process.exit(1)} <Danger/>",
+		"x +++<b>raw</b>+++ y pass:[<img src=x onerror=alert(1)>]",
+		"go link:javascript:alert(1)[here] and <<sec,there>>",
+		"Fish &amp; chips &lt;3 and a \"quote\" 'too'",
+	}
+	formats := []struct {
+		id     string
+		source string
+		textOf func([]model.Run) string
+	}{
+		{id: "html", source: "<html><body><p>Hello</p></body></html>\n", textOf: model.RunsEditText},
+		{id: "markdown", source: "Hello\n", textOf: commonMarkText},
+		{id: "mdx", source: "Hello\n", textOf: commonMarkText},
+		{id: "asciidoc", source: "Hello\n", textOf: asciidocText},
+	}
+	space := regexp.MustCompile(`\s+`)
+	for _, f := range formats {
+		for _, payload := range payloads {
+			t.Run(f.id+"/"+payload, func(t *testing.T) {
+				reader, err := reg.NewReader(registry.FormatID(f.id))
+				require.NoError(t, err)
+				writer, err := reg.NewWriter(registry.FormatID(f.id))
+				require.NoError(t, err)
+				store, err := format.NewWiredSkeleton(reader, writer)
+				require.NoError(t, err)
+				if store != nil {
+					defer store.Close()
+				}
+				parts, err := spec.ReadParts(reader, []byte(f.source))
+				require.NoError(t, err)
+				for _, p := range parts {
+					if b, ok := p.Resource.(*model.Block); ok && b.Translatable {
+						b.EditSourceRuns(model.ParseRunsEditText(payload, b.Source))
+					}
+				}
+				out, err := spec.WriteParts(writer, parts, []byte(f.source))
+				require.NoError(t, err)
+
+				newReader, err := reg.NewReader(registry.FormatID(f.id))
+				require.NoError(t, err)
+				reparsed, err := spec.ReadParts(newReader, out)
+				require.NoError(t, err)
+				var texts []string
+				for _, p := range reparsed {
+					b, ok := p.Resource.(*model.Block)
+					if !ok || !b.Translatable {
+						continue
+					}
+					for _, r := range b.Source {
+						if r.Text != nil {
+							continue
+						}
+						_, isRef := model.CharacterReference(r.Ph)
+						assert.True(t, isRef, "the edit came back as markup %+v\noutput: %q", r, out)
+					}
+					texts = append(texts, space.ReplaceAllString(f.textOf(b.Source), " "))
+				}
+				assert.Contains(t, texts, space.ReplaceAllString(payload, " "), "output: %q", out)
+			})
+		}
+	}
+}

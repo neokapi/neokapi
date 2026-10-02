@@ -89,6 +89,10 @@ type ModifyProbe struct {
 	// write a document back. A writer that escapes a translated value but
 	// replays an edited source raw lets the edit inject markup.
 	EditSource bool
+	// TextOf reads a block's runs back as the text a reader of the document
+	// sees, for a format whose text runs keep its own escapes (a Markdown
+	// backslash). Nil reads them as model.RenderRunsWithData renders them.
+	TextOf func(runs []model.Run) string
 }
 
 // Run executes the probe over the whole corpus as one subtest per character.
@@ -136,7 +140,7 @@ func (p ModifyProbe) runCase(t *testing.T, c EscapeCase) {
 			continue
 		}
 		if p.EditSource {
-			block.SetSourceText(want)
+			block.EditSourceText(want)
 		} else {
 			block.SetTargetText(locale, want)
 		}
@@ -183,10 +187,15 @@ func (p ModifyProbe) runCase(t *testing.T, c EscapeCase) {
 		// RenderRunsWithData, not RunsText: a reader may model part of the
 		// value as an inline placeholder (an Android `%s`, an ICU argument),
 		// and the text-only view drops that run's data. The value survived as
-		// long as the writer's own rendering function reproduces it.
-		got = append(got, model.RenderRunsWithData(block.Source))
+		// long as the writer's own rendering function reproduces it, read as
+		// the format's text when TextOf says how.
+		textOf := p.TextOf
+		if textOf == nil {
+			textOf = model.RenderRunsWithData
+		}
+		got = append(got, textOf(block.Source))
 		for key := range block.Targets {
-			got = append(got, model.RenderRunsWithData(block.TargetVariant(key).Runs))
+			got = append(got, textOf(block.TargetVariant(key).Runs))
 		}
 	}
 	if slices.Contains(got, want) {

@@ -2055,12 +2055,23 @@ func blockquoteMarkerPrefix(line string) string {
 // Mirrors okapi MarkdownFilter, whose TextUnit content carries only the
 // LFs between lines while its skeleton-driven writer re-emits the
 // per-line prefix.
+//
+// A translation is rendered by renderInlineText. A source an edit rewrote is
+// rendered by renderEditedSource, which escapes the markup the edit added; a
+// source nobody edited is written as it was read.
 func (w *Writer) blockText(block *model.Block) string {
-	runs := w.blockRuns(block)
-	if runs == nil {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		if runs := block.TargetRuns(w.Locale); len(runs) > 0 {
+			return finishBlockContent(block, renderInlineText(block, runs))
+		}
+	}
+	if len(block.Source) == 0 {
 		return ""
 	}
-	return finishBlockContent(block, renderInlineText(block, runs))
+	if read, edited := block.SourceAsRead(); edited {
+		return finishBlockContent(block, renderEditedSource(block, read))
+	}
+	return finishBlockContent(block, model.RenderRunsWithData(block.Source))
 }
 
 // RenderBlockContent renders a block's content (the given run sequence —
@@ -2074,16 +2085,14 @@ func RenderBlockContent(block *model.Block, runs []model.Run) string {
 	return finishBlockContent(block, model.RenderRunsWithData(runs))
 }
 
-// renderInlineText renders runs as RenderRunsWithData does, escaping the text
-// a tool put into a block so it reads back as text. A text run of inline
-// Markdown holds either what the reader left as text, which is the document's
-// own Markdown, or wording an edit or a translation put there, which is text:
-// inline codes travel as their own runs. CommonMark passes raw HTML through to
-// the page, so a '<' that would open a tag, a comment or an autolink, an '&'
-// that would begin a character reference, and a '[' that would open an inline
-// link or image are backslash-escaped. The reader turns every one of those
-// constructs into an inline code, so it never leaves one in a text run, and a
-// block nobody edited keeps its bytes.
+// renderInlineText renders a translation's runs as RenderRunsWithData does,
+// escaping the complete inline constructs CommonMark would read from its text:
+// raw HTML, an autolink, a character reference and a complete inline link or
+// image. A translation is text, and inline codes travel as their own runs. The
+// reader turns every such construct into an inline code, so a translation
+// that copies the source's text keeps its bytes. An edited source is rendered
+// by renderEditedSource instead, which also has the block as read to compare
+// with.
 //
 // Text inside a code span is literal, as is the content of a code block, a
 // math block, front matter and the raw HTML the HTML subfilter reads; none of
@@ -2099,7 +2108,26 @@ func renderInlineText(block *model.Block, runs []model.Run) string {
 	var b strings.Builder
 	var at []int
 	codeDepth := 0
-	writeInlineRuns(&b, &at, &codeDepth, runs)
+	model.RenderRunsWith(&b, runs, &model.RunRenderer{
+		Text: func(b *strings.Builder, t string) {
+			if codeDepth == 0 {
+				for i := range len(t) {
+					if t[i] == '<' || t[i] == '&' || t[i] == '[' {
+						at = append(at, b.Len()+i)
+					}
+				}
+			}
+			b.WriteString(t)
+		},
+		Code: func(r model.Run) {
+			switch opens, closes := codeSpanRun(r); {
+			case opens:
+				codeDepth++
+			case closes && codeDepth > 0:
+				codeDepth--
+			}
+		},
+	})
 	if len(at) == 0 {
 		return b.String()
 	}
@@ -2117,57 +2145,6 @@ func renderInlineText(block *model.Block, runs []model.Run) string {
 	}
 	esc.WriteString(out[prev:])
 	return esc.String()
-}
-
-// writeInlineRuns renders runs as RenderRunsWithData does and records the
-// offset of every '<', '&' and '[' a text run outside a code span contributed.
-func writeInlineRuns(b *strings.Builder, at *[]int, codeDepth *int, runs []model.Run) {
-	for _, r := range runs {
-		switch r.Kind() {
-		case model.RunKindText:
-			t := r.Text.Text
-			if *codeDepth == 0 {
-				for i := range len(t) {
-					if t[i] == '<' || t[i] == '&' || t[i] == '[' {
-						*at = append(*at, b.Len()+i)
-					}
-				}
-			}
-			b.WriteString(t)
-		case model.RunKindPh:
-			b.WriteString(r.Ph.Data)
-		case model.RunKindPcOpen:
-			if r.PcOpen.Type == "fmt:code" {
-				*codeDepth++
-			}
-			b.WriteString(r.PcOpen.Data)
-		case model.RunKindPcClose:
-			if r.PcClose.Type == "fmt:code" && *codeDepth > 0 {
-				*codeDepth--
-			}
-			b.WriteString(r.PcClose.Data)
-		case model.RunKindSub:
-			b.WriteString(r.Sub.Ref)
-		case model.RunKindPlural:
-			if form, ok := r.Plural.Forms[model.PluralOther]; ok {
-				writeInlineRuns(b, at, codeDepth, form)
-				continue
-			}
-			for _, form := range r.Plural.Forms {
-				writeInlineRuns(b, at, codeDepth, form)
-				break
-			}
-		case model.RunKindSelect:
-			if form, ok := r.Select.Cases["other"]; ok {
-				writeInlineRuns(b, at, codeDepth, form)
-				continue
-			}
-			for _, form := range r.Select.Cases {
-				writeInlineRuns(b, at, codeDepth, form)
-				break
-			}
-		}
-	}
 }
 
 // inlineMarkupRE matches, at the start of a string, the inline constructs
@@ -2216,7 +2193,8 @@ func finishBlockContent(block *model.Block, rendered string) string {
 		// untranslated round-trip stays byte-exact whatever the source
 		// spelling; quoting is restored (or added when needed) otherwise.
 		quote := block.Properties[BlockPropFrontMatterQuote]
-		if quote == "" && rendered == model.RenderRunsWithData(block.Source) {
+		read, _ := block.SourceAsRead()
+		if quote == "" && rendered == model.RenderRunsWithData(read) {
 			return rendered
 		}
 		return frontMatterScalar(rendered, quote)
