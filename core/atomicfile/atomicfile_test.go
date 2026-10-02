@@ -217,3 +217,45 @@ func TestStage(t *testing.T) {
 		assert.Empty(t, entries)
 	})
 }
+
+// TestStageWithParents pins that a file staged for a directory that does not
+// exist yet waits in the nearest directory that does, so a staged file that is
+// discarded leaves no directory behind, and that Commit creates the
+// directories and puts the file in place.
+func TestStageWithParents(t *testing.T) {
+	write := func(w io.Writer) error {
+		_, err := io.WriteString(w, "body")
+		return err
+	}
+
+	t.Run("a discarded file leaves no directory", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "fr", "docs", "guide.md")
+		s, err := atomicfile.StageWithParents(path, write)
+		require.NoError(t, err)
+		assert.NoDirExists(t, filepath.Join(dir, "fr"))
+		require.NoError(t, s.Discard())
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		assert.Empty(t, entries)
+	})
+
+	t.Run("a commit creates the directories", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "fr", "docs", "guide.md")
+		s, err := atomicfile.StageWithParents(path, write)
+		require.NoError(t, err)
+		require.NoError(t, s.Commit())
+		body, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, "body", string(body))
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		assert.Len(t, entries, 1, "only the new directory, no staged file")
+	})
+
+	t.Run("Stage keeps refusing a missing directory", func(t *testing.T) {
+		_, err := atomicfile.Stage(filepath.Join(t.TempDir(), "missing", "file.txt"), write)
+		require.ErrorIs(t, err, os.ErrNotExist)
+	})
+}

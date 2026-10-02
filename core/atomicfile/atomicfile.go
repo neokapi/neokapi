@@ -26,6 +26,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"slices"
 )
 
 // newFileMode is the mode a file that does not exist yet is created with. It is
@@ -94,21 +95,45 @@ type Staged struct {
 	target string
 	name   string
 	done   bool
+	// mkdir are the directories the destination needs that do not exist,
+	// outermost first. Commit creates them; until then the temporary file
+	// waits in the nearest directory that does exist.
+	mkdir []string
 }
 
 // Stage writes what write produces to a temporary file beside the file a
 // write to path should land on (Resolve), with the mode that file has, and
 // returns it staged. An error from write, or from creating the temporary file,
-// leaves nothing behind.
+// leaves nothing behind. The destination's directory must exist.
 func Stage(path string, write func(io.Writer) error) (*Staged, error) {
+	return stage(path, write, false)
+}
+
+// StageWithParents is Stage for a destination whose directory may not exist
+// yet. The temporary file is written in the nearest directory that does, and
+// Commit creates the rest, so a staged file that is discarded leaves no
+// directory behind.
+func StageWithParents(path string, write func(io.Writer) error) (*Staged, error) {
+	return stage(path, write, true)
+}
+
+func stage(path string, write func(io.Writer) error, parents bool) (*Staged, error) {
 	target, mode, exists, err := Resolve(path)
 	if err != nil {
 		return nil, err
 	}
-	tmp, err := createTemp(filepath.Dir(target), filepath.Base(target), mode)
+	dir := filepath.Dir(target)
+	var mkdir []string
+	if parents {
+		if dir, mkdir, err = existingDir(dir); err != nil {
+			return nil, &Error{Op: "create a temporary file beside", Path: target, Err: err}
+		}
+	}
+	tmp, err := createTemp(dir, filepath.Base(target), mode)
 	if err != nil {
 		return nil, &Error{Op: "create a temporary file beside", Path: target, Err: err}
 	}
+
 	name := tmp.Name()
 	werr := write(tmp)
 	cerr := tmp.Close()
@@ -123,7 +148,31 @@ func Stage(path string, write func(io.Writer) error) (*Staged, error) {
 		_ = os.Remove(name)
 		return nil, err
 	}
-	return &Staged{target: target, name: name}, nil
+	return &Staged{target: target, name: name, mkdir: mkdir}, nil
+}
+
+// existingDir returns the nearest directory at or above dir that exists, and
+// the directories below it down to dir that do not, outermost first.
+func existingDir(dir string) (string, []string, error) {
+	var missing []string
+	for {
+		info, err := os.Stat(dir)
+		switch {
+		case err == nil && info.IsDir():
+			slices.Reverse(missing)
+			return dir, missing, nil
+		case err == nil:
+			return "", nil, fmt.Errorf("%s is not a directory", dir)
+		case !errors.Is(err, fs.ErrNotExist):
+			return "", nil, err
+		}
+		missing = append(missing, dir)
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", nil, err
+		}
+		dir = parent
+	}
 }
 
 // Target is the file Commit replaces: the path the replacement was staged
@@ -133,15 +182,31 @@ func (s *Staged) Target() string { return s.target }
 // Name is the temporary file that holds the staged bytes.
 func (s *Staged) Name() string { return s.name }
 
-// Commit renames the staged file onto its target. A failed rename removes
-// the staged file and leaves the target as it was.
+// Commit renames the staged file onto its target, creating the directories
+// the target needs first. A failed rename removes the staged file and the
+// directories Commit created, and leaves the target as it was.
 func (s *Staged) Commit() error {
 	if s.done {
 		return &Error{Op: "replace", Path: s.target, Err: errors.New("the staged file was already committed or discarded")}
 	}
 	s.done = true
-	if err := os.Rename(s.name, s.target); err != nil {
+	var made []string
+	undo := func() {
 		_ = os.Remove(s.name)
+		for _, dir := range slices.Backward(made) {
+			_ = os.Remove(dir)
+		}
+	}
+	for _, dir := range s.mkdir {
+		if err := os.Mkdir(dir, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
+			undo()
+			return &Error{Op: "create the directory of", Path: s.target, Err: err}
+		} else if err == nil {
+			made = append(made, dir)
+		}
+	}
+	if err := os.Rename(s.name, s.target); err != nil {
+		undo()
 		return &Error{Op: "replace", Path: s.target, Err: err}
 	}
 	return nil
