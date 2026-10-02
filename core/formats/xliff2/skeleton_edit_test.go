@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/internal/testutil"
@@ -369,4 +370,36 @@ func TestSkeletonPathRefusesCodesItCannotWrite(t *testing.T) {
 	out, err := skeletonWrite(t, inlineCodesDoc, crossing, nil)
 	require.ErrorIs(t, err, xliff2.ErrCodesUnwritable)
 	assert.Empty(t, out, "a refused write writes nothing")
+}
+
+// The skeleton path draws term marks by position too. A precise edit to the
+// first segment joins its text to the second's, and the second segment's text
+// to the third's, in one run each; both marks still land around their terms.
+func TestSkeletonPathDrawsTermMarksAfterAnEdit(t *testing.T) {
+	doc := `<?xml version="1.0"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en">
+  <file id="f1"><unit id="u1">
+    <segment id="s1"><source>First.</source></segment>
+    <segment id="s2"><source>Run <ph id="1"/>kapi<ph id="2"/> now.</source></segment>
+    <segment id="s3"><source>Install the kapi CLI.</source></segment>
+  </unit></file>
+</xliff>`
+	out := skeletonEdit(t, doc, func(block *model.Block) {
+		// Runs: 0 "First.", 1 "Run ", 2 ph, 3 "kapi", 4 ph, 5 " now.",
+		// 6 "Install the kapi CLI.".
+		block.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t0", Range: model.SpanAnchor(
+			model.RunPos{Run: 3}, model.RunPos{Run: 4})})
+		block.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.SpanAnchor(
+			model.RunPos{Run: 6, Offset: 12}, model.RunPos{Run: 6, Offset: 16})})
+		find := "First"
+		res := change.ApplyBlock(block, []change.Op{{
+			Kind: change.KindReplaceText, At: change.Ref{Block: block.ID}, IfMatch: change.AnyRevision,
+			Body: &change.ReplaceText{Edits: []change.TextEdit{{Find: &find, Text: "Begin"}}},
+		}}, change.BlockEnv{Actor: change.Actor{Kind: change.ActorTool, Name: "test"}})
+		require.Equal(t, change.OpApplied, res[0].Status)
+	})
+
+	assert.Contains(t, out, `<segment id="s1"><source>Begin.</source></segment>`)
+	assert.Contains(t, out, `<source>Run <ph id="1"/><sm id="t0" type="term"/>kapi<em startRef="t0"/><ph id="2"/> now.</source>`)
+	assert.Contains(t, out, `<source>Install the <sm id="t1" type="term"/>kapi<em startRef="t1"/> CLI.</source>`)
 }

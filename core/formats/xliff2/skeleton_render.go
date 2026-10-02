@@ -79,7 +79,7 @@ func checkUnit(block *model.Block, loc model.LocaleID) error {
 // one anonymous segment.
 func writtenSourceSegs(block *model.Block) []seg {
 	if !tiles(block.SourceSegmentation(), block.Source) {
-		return withTermMarks([]seg{{Runs: block.Source}}, block.OverlayOf(model.OverlayTerm))
+		return withTermMarks([]seg{{Runs: block.Source}}, block.Source, block.OverlayOf(model.OverlayTerm))
 	}
 	return sourceSegsFromBlock(block)
 }
@@ -203,7 +203,7 @@ func segmentInlines(s *seg, codes codeIndex) ([]Inline, error) {
 		}
 		inls = rebuilt
 	}
-	spliced, _ := spliceMarks(inls, s.Marks)
+	spliced, _ := spliceMarks(inls, s.Runs, s.Marks)
 	return spliced, nil
 }
 
