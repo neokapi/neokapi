@@ -301,6 +301,41 @@ the LLM check. A profile saying `active_voice: true` scores dense passive prose
 100/100 offline, and a reader who does not know which mechanism a rule uses
 cannot tell a clean document from an unchecked one.
 
+## Reconciling a read against the block history
+
+```bash
+KAPI_MEASURE_RECONCILE=1 go test -tags fts5 ./host -run TestMeasureReconcileOnRead -v
+```
+
+The edit model (`docs/internals/edit-model.md`, section 3.5) proposed running
+`reconcile.Blocks` on every local read, against priors from the block history
+and cached per document revision, so a block's key survives a sibling insertion
+locally the way it does on a push. The condition was a cost under 10% of read
+time.
+
+The harness reads the repository's documentation (`web/docs`: 408 files and
+13,703 blocks, with the mdx reader the dogfood recipe uses), gives every block a
+recorded change in `block_history`, and times each part over five passes.
+Measured on 2 October 2026 on an M-series laptop; three runs agreed within a
+percentage point.
+
+| Per pass over the corpus | Time | Share of the read |
+| --- | ---: | ---: |
+| read with the mdx reader | 190 ms | |
+| priors from `block_history` (`history.Priors`) | 48 ms | 25% |
+| `reconcile.Blocks` | 25 ms | 13% |
+| the history head, which a cache hit still reads | 8 ms | 4% |
+
+A read at a new revision pays for the priors and the reconciliation: 38% of the
+read. Reconciliation alone is 13%, over the bar even with the priors free. A
+cache hit costs 4%, but every read after an edit is at a new revision, so the
+agent's read, edit and read loop gains least from the cache.
+
+Reads therefore keep the keys the format reports. Every `content.edit`
+transition and every `block_history` row carries the block's key, content hash
+and context hash, the signals `core/reconcile` matches on, so a later pass can
+re-attach history after a reorder and pay the cost once.
+
 ## Comparing against other tools
 
 ```bash
