@@ -329,12 +329,13 @@ func (g *pushGovernor) indexRows(itemName string, rows []*venue.StoredBlock) {
 			continue
 		}
 		g.priorSource[row.ID] = blockSourceHash(row)
-		for key, target := range row.Block.Targets {
-			if target == nil {
+		for _, key := range row.Block.Editions() {
+			if row.Block.IsSourceEdition(key) {
 				continue
 			}
+			target, _ := row.Block.Edition(key)
 			ref := platstore.TargetRef{BlockID: row.ID, Locale: string(key.Locale)}
-			g.priorStatus[ref] = target.Status
+			g.priorStatus[ref] = model.TargetStatus(target.Status)
 			g.priorHash[ref] = state.TargetHash(model.RunsText(target.Runs))
 		}
 	}
@@ -346,12 +347,12 @@ func (g *pushGovernor) indexRows(itemName string, rows []*venue.StoredBlock) {
 // A pushed target that changes the translation or arrives with a moved source
 // is an edit, and the web's editor lowers an edited target without asking
 // anybody, so the worker does too.
-func (g *pushGovernor) withdrawsEstablished(blockID string, b *model.Block, locale string, target *model.Target) bool {
-	if blockID == "" || target == nil {
+func (g *pushGovernor) withdrawsEstablished(blockID string, b *model.Block, locale string, target model.Edition) bool {
+	if blockID == "" {
 		return false
 	}
 	ref := platstore.TargetRef{BlockID: blockID, Locale: locale}
-	if g.priorStatus[ref] != model.TargetStatusEstablished || target.Status.Rank() >= model.TargetStatusEstablished.Rank() {
+	if g.priorStatus[ref] != model.TargetStatusEstablished || model.TargetStatus(target.Status).Rank() >= model.TargetStatusEstablished.Rank() {
 		return false
 	}
 	return g.priorHash[ref] == state.TargetHash(model.RunsText(target.Runs)) &&
@@ -382,7 +383,11 @@ func (g *pushGovernor) withdrawsAny(staged []stagedGroup, decisions []venue.Unit
 				continue
 			}
 			blockID := g.rowFor(b)
-			for key, target := range b.Targets {
+			for _, key := range b.Editions() {
+				if b.IsSourceEdition(key) {
+					continue
+				}
+				target, _ := b.Edition(key)
 				if g.withdrawsEstablished(blockID, b, string(key.Locale), target) {
 					return true
 				}
@@ -536,26 +541,29 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 				continue
 			}
 			blockID := g.rowFor(b)
-			for key, target := range b.Targets {
-				if target == nil {
+			for _, key := range b.Editions() {
+				if b.IsSourceEdition(key) {
 					continue
 				}
+				target, _ := b.Edition(key)
+				status := model.TargetStatus(target.Status)
 				locale := string(key.Locale)
 				prior := g.priorStatus[platstore.TargetRef{BlockID: blockID, Locale: locale}]
 				if g.withdrawsEstablished(blockID, b, locale, target) {
 					allowed, reason := g.allowWithdrawal(locale)
 					if allowed {
-						g.noteAccepted(blockID, group.ItemName, b.Name, locale, prior, target.Status)
+						g.noteAccepted(blockID, group.ItemName, b.Name, locale, prior, status)
 						continue
 					}
 					g.refuseWithdrawal(group.ItemName, b.Name, variantText(key), locale, reason)
-					target.Status = prior
+					target.Status = model.Status(prior)
+					b.SetEdition(key, target)
 					continue
 				}
-				if target.Status.Rank() <= model.TargetStatusTranslated.Rank() {
+				if status.Rank() <= model.TargetStatusTranslated.Rank() {
 					continue
 				}
-				if target.Status.Rank() <= prior.Rank() {
+				if status.Rank() <= prior.Rank() {
 					// The venue already holds this rung, or a higher one. The
 					// push claims nothing new, so there is nothing to judge,
 					// and judging it would let a pusher without review
@@ -564,11 +572,12 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 				}
 				allowed, reason := g.allow(blockID, locale, venue.VerdictApproval, true)
 				if allowed {
-					g.noteAccepted(blockID, group.ItemName, b.Name, locale, prior, target.Status)
+					g.noteAccepted(blockID, group.ItemName, b.Name, locale, prior, status)
 					continue
 				}
 				g.noteUnit(group.ItemName, b.Name, variantText(key), reason)
-				target.Status = refusedRung(target, prior)
+				target.Status = model.Status(refusedRung(target.Runs, prior))
+				b.SetEdition(key, target)
 			}
 		}
 	}
@@ -580,9 +589,9 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 //
 // Never lower than the venue's own. A refusal withholds what the push asked
 // for; it does not undo what somebody with the right to decide already did.
-func refusedRung(target *model.Target, prior model.TargetStatus) model.TargetStatus {
+func refusedRung(runs []model.Run, prior model.TargetStatus) model.TargetStatus {
 	landing := model.TargetStatusTranslated
-	if model.RunsText(target.Runs) == "" {
+	if model.RunsText(runs) == "" {
 		landing = model.TargetStatusDraft
 	}
 	if prior.Rank() > landing.Rank() {
@@ -762,10 +771,11 @@ func (g *pushGovernor) indexPushedTargets(staged []stagedGroup) {
 			if blockID == "" {
 				continue
 			}
-			for key, target := range b.Targets {
-				if target == nil {
+			for _, key := range b.Editions() {
+				if b.IsSourceEdition(key) {
 					continue
 				}
+				target, _ := b.Edition(key)
 				ref := platstore.TargetRef{BlockID: blockID, Locale: string(key.Locale)}
 				g.pushedHash[ref] = state.TargetHash(model.RunsText(target.Runs))
 			}
@@ -840,8 +850,11 @@ func carriesVerdict(staged []stagedGroup, decisions []venue.UnitDecision) bool {
 			if b == nil {
 				continue
 			}
-			for _, target := range b.Targets {
-				if target != nil && target.Status.Rank() > model.TargetStatusTranslated.Rank() {
+			for _, key := range b.Editions() {
+				if b.IsSourceEdition(key) {
+					continue
+				}
+				if target, _ := b.Edition(key); model.TargetStatus(target.Status).Rank() > model.TargetStatusTranslated.Rank() {
 					return true
 				}
 			}
@@ -864,8 +877,11 @@ func verdictLocales(staged []stagedGroup, decisions []venue.UnitDecision) []stri
 			if b == nil {
 				continue
 			}
-			for key, target := range b.Targets {
-				if target != nil && target.Status.Rank() > model.TargetStatusTranslated.Rank() {
+			for _, key := range b.Editions() {
+				if b.IsSourceEdition(key) {
+					continue
+				}
+				if target, _ := b.Edition(key); model.TargetStatus(target.Status).Rank() > model.TargetStatusTranslated.Rank() {
 					set[string(key.Locale)] = true
 				}
 			}

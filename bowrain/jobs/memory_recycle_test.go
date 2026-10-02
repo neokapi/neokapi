@@ -69,14 +69,44 @@ func TestRecycleBlocks_SkipsAlreadyTranslated(t *testing.T) {
 	seedMemoryEntry(t, tm, "Hello", "Bonjour")
 
 	done := storedBlock("b1", "Hello")
-	done.Block.Targets = map[model.VariantKey]*model.Target{
-		model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Salut"}}}},
-	}
+	done.Block.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "Salut"}}}})
 	res, err := recycleBlocks(ctx, tm, []*venue.StoredBlock{done}, "en", "fr", 1.0, nil, nil)
 	require.NoError(t, err)
 	assert.Zero(t, res.memoryCount)
 	assert.Empty(t, res.filled)
 	assert.Empty(t, res.remainder, "an already-translated block is excluded from both buckets")
+}
+
+// The locale helpers read the translations a block carries, never the edition
+// it was read in, and take a locale's own edition before its tone and channel
+// variants. Each lookup repeats so that an order-dependent choice shows.
+func TestLocaleTargetHelpers(t *testing.T) {
+	text := func(s string) []model.Run { return []model.Run{{Text: &model.TextRun{Text: s}}} }
+	b := storedBlock("b1", "Save").Block
+	b.SetEdition(model.Variant("fr"), model.Edition{Runs: text("Enregistrer")})
+	b.SetEdition(model.EditionKey{Locale: "fr", Tone: "formal"}, model.Edition{Runs: text("Veuillez enregistrer")})
+	b.SetEdition(model.EditionKey{Locale: "fr", Channel: "short"}, model.Edition{Runs: text("Enreg.")})
+	b.SetEdition(model.EditionKey{Locale: "de", Tone: "formal"}, model.Edition{Runs: text("Speichern Sie")})
+
+	tests := []struct {
+		name   string
+		locale model.LocaleID
+		has    bool
+		want   string
+	}{
+		{"the locale's own edition", "fr", true, "Enregistrer"},
+		{"a locale held only as a variant", "de", true, "Speichern Sie"},
+		{"the language the block was read in", "en", false, ""},
+		{"a locale the block lacks", "nb", false, ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			for range 32 {
+				assert.Equal(t, tc.has, hasLocaleTarget(b, tc.locale))
+				assert.Equal(t, tc.want, model.RunsText(localeTargetRuns(b, tc.locale)))
+			}
+		})
+	}
 }
 
 // TestPromoteDecisionsToMemory pins the corpus's one door in: an approval
@@ -92,9 +122,7 @@ func TestPromoteDecisionsToMemory(t *testing.T) {
 	require.NoError(t, deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Promote"}))
 
 	b := model.NewBlock("greeting", "Hello")
-	b.Targets = map[model.VariantKey]*model.Target{
-		model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
-	}
+	b.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}})
 	require.NoError(t, deps.ContentStore.StoreBlocksForItem(ctx, projectID, "main", "en.json", []*model.Block{b}))
 
 	approval := venue.UnitDecision{

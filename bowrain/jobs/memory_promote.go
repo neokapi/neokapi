@@ -97,7 +97,8 @@ func PromoteDecisionsToMemory(
 			if d.TargetHash != "" && state.TargetHash(targetText) != d.TargetHash {
 				continue
 			}
-			sourceRuns := sb.Block.Source
+			src, _ := sb.Block.Edition(model.EditionKey{})
+			sourceRuns := src.Runs
 			if len(sourceRuns) == 0 || model.RunsText(sourceRuns) == "" {
 				continue
 			}

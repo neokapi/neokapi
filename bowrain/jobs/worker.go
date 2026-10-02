@@ -1021,7 +1021,10 @@ func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob)
 func estimateTokens(blocks []*venue.StoredBlock) int {
 	totalChars := 0
 	for _, sb := range blocks {
-		if sb.Block != nil && len(sb.Block.Source) > 0 {
+		if sb.Block == nil {
+			continue
+		}
+		if src, _ := sb.Block.Edition(model.EditionKey{}); len(src.Runs) > 0 {
 			totalChars += len(sb.Block.SourceText()) * 2 // source + target estimate
 		}
 	}
@@ -1130,8 +1133,8 @@ func gateBlocksBySource(blocks []*venue.StoredBlock, gate model.TranslateAfterLe
 		if sb == nil || sb.Block == nil {
 			continue
 		}
-		status := sb.Block.SourceStatus
-		if !sb.Block.Translatable || status == model.SourceStatusNew || gate.AdmitsBlock(sb.Block) {
+		src, _ := sb.Block.Edition(model.EditionKey{})
+		if !sb.Block.Translatable || src.Status == model.Status(model.SourceStatusNew) || gate.AdmitsBlock(sb.Block) {
 			kept = append(kept, sb)
 		}
 	}

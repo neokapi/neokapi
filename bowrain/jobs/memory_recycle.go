@@ -149,28 +149,29 @@ func hasLocaleTarget(b *model.Block, locale model.LocaleID) bool {
 	if b == nil {
 		return false
 	}
-	for key, t := range b.Targets {
-		if key.Locale != locale || t == nil {
+	for _, key := range b.Editions() {
+		if key.Locale != locale || b.IsSourceEdition(key) {
 			continue
 		}
-		if len(t.Runs) > 0 && model.RunsText(t.Runs) != "" {
+		if t, _ := b.Edition(key); len(t.Runs) > 0 && model.RunsText(t.Runs) != "" {
 			return true
 		}
 	}
 	return false
 }
 
-// localeTargetRuns returns the target runs for a locale (first matching
-// variant), or nil when the block has no target for it.
+// localeTargetRuns returns the target runs for a locale, or nil when the block
+// has no target for it. The locale's own edition comes before its tone and
+// channel variants.
 func localeTargetRuns(b *model.Block, locale model.LocaleID) []model.Run {
 	if b == nil {
 		return nil
 	}
-	for key, t := range b.Targets {
-		if key.Locale != locale || t == nil {
+	for _, key := range b.Editions() {
+		if key.Locale != locale || b.IsSourceEdition(key) {
 			continue
 		}
-		if len(t.Runs) > 0 {
+		if t, _ := b.Edition(key); len(t.Runs) > 0 {
 			return t.Runs
 		}
 	}

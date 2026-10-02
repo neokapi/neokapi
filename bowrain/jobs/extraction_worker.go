@@ -410,6 +410,9 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 		if !ok {
 			continue
 		}
+		// Term-candidate and entity spans are anchored in the edition the
+		// block was read in.
+		src, _ := block.Edition(model.EditionKey{})
 
 		// Term candidates (overlay spans).
 		if f := block.OverlayOf(model.OverlayTermCandidate); f != nil {
@@ -425,7 +428,7 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 				}
 
 				data, _ := json.Marshal(a)
-				ps, pe := span.Range.ByteSpan(block.Source)
+				ps, pe := span.Range.ByteSpan(src.Runs)
 				occ, _ := json.Marshal([]map[string]any{{
 					"block_id": block.ID,
 					"start":    ps,
@@ -458,7 +461,7 @@ func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps,
 				}
 
 				data, _ := json.Marshal(a)
-				ps, pe := span.Range.ByteSpan(block.Source)
+				ps, pe := span.Range.ByteSpan(src.Runs)
 				occ, _ := json.Marshal([]map[string]any{{
 					"block_id": block.ID,
 					"start":    ps,
