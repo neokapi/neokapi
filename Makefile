@@ -385,9 +385,9 @@ check-wasm: i18n-catalogs ## Compile-check the in-browser CLI for js/wasm (the d
 # a second session on the same pool, or reads on one pool beside a write it
 # holds on another, and under GOOS=js in Node over the browser's own driver
 # (@sqlite.org/sqlite-wasm through packages/engine/src/sqlite.ts; needs
-# `vp install`). A test skipped under js names its reason: a git subprocess, a
-# file the browser driver keeps out of the file system, or preemption js/wasm
-# does not have.
+# `vp install`). A test skipped under js names its reason: a git subprocess,
+# directory permissions that never reach a database held in memory, or
+# preemption js/wasm does not have.
 STORE_PKGS := ./core/storage/ ./core/workspace/... ./core/projector/ ./core/projectdb/ \
 	./core/state/ ./core/blockstore/... ./memory/... ./terms/... ./voice/... ./host/storage/...
 

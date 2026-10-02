@@ -116,8 +116,8 @@ official SQLite WebAssembly build, `@sqlite.org/sqlite-wasm`.
   (through `KapiRuntime.removeDatabase`) use them.
 - **Tested in Node.** `make test-wasm-stores` runs the store suites under
   `GOOS=js` in Node over the same bridge (`scripts/wasm-stores/`). A test that
-  needs a git subprocess, a database planted as a file on disk, or preemption
-  skips there and names which.
+  needs a git subprocess, directory permissions that reach a database, or
+  preemption skips there and names which.
 
 ## Command surface
 

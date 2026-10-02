@@ -3,7 +3,6 @@ package projectdb_test
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/storage"
 )
 
 // The two predecessor layouts, spelled here as the test's own fixtures. The
@@ -46,17 +46,6 @@ func oldWorkStorePath(layout project.Layout) string {
 	return filepath.Join(layout.WorkDir(), "state.db")
 }
 
-// skipPlantedDatabases skips a test that plants a predecessor layout's
-// databases as files on disk, where the browser build's driver never holds a
-// database: its databases live in memory and nothing it reads was ever one of
-// those files.
-func skipPlantedDatabases(t *testing.T) {
-	t.Helper()
-	if runtime.GOOS == "js" {
-		t.Skip("file-system artefact: the test plants databases as files on disk, which the browser driver never holds")
-	}
-}
-
 // predecessorFiles lists everything the four-file layout left in a state
 // directory, plus the two spellings the vocabulary sweep retired before it.
 func predecessorFiles(layout project.Layout) []string {
@@ -83,7 +72,6 @@ func predecessorFiles(layout project.Layout) []string {
 // already written for real, and is left alone here.
 func writePredecessorLayout(t *testing.T, layout project.Layout) {
 	t.Helper()
-	skipPlantedDatabases(t)
 	require.NoError(t, os.MkdirAll(flatCacheDir(layout), 0o755))
 	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
 	for _, path := range predecessorFiles(layout) {
@@ -193,7 +181,6 @@ func TestSweep_LeavesUnrecognisedWorkDirContents(t *testing.T) {
 // open: the alternative is a project that cannot be used because of a file
 // about to be deleted.
 func TestSweep_UnreadablePredecessorDoesNotFailOpen(t *testing.T) {
-	skipPlantedDatabases(t)
 	layout := newLayout(t)
 	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
 	require.NoError(t, os.WriteFile(oldWorkStorePath(layout), []byte("this is not a database"), 0o644))
@@ -315,7 +302,6 @@ func TestFold_RedactionSidecarCollisionKeepsBothCopies(t *testing.T) {
 // The flat store and cache are projections under a path nothing reads any
 // more. They go; nothing is carried out of them.
 func TestFold_RetiresFlatStoreAndCache(t *testing.T) {
-	skipPlantedDatabases(t)
 	layout := newLayout(t)
 	require.NoError(t, os.MkdirAll(filepath.Join(flatCacheDir(layout), "extractions"), 0o755))
 	for _, path := range []string{
@@ -337,7 +323,9 @@ func TestFold_RetiresFlatStoreAndCache(t *testing.T) {
 		assert.NoFileExists(t, path)
 	}
 	assert.NoDirExists(t, flatCacheDir(layout))
-	assert.FileExists(t, layout.StorePath(), "the live store is the one under work/")
+	held, err := storage.Exists(layout.StorePath())
+	require.NoError(t, err)
+	assert.True(t, held, "the live store is the one under work/")
 }
 
 // The second open must find nothing to do. A fold that ran twice on a project
