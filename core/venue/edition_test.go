@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/model"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 )
 
 // A block read from an en-US to en-US file holds a target under its source
@@ -40,4 +41,28 @@ func TestBlockRoundTrip_SameLanguageTarget(t *testing.T) {
 	assert.Equal(t, model.OriginHuman, tgt.Origin.Kind)
 	_, edited := got.SourceAsRead()
 	assert.False(t, edited, "a decoded block holds its source as read")
+}
+
+// A target filed under a key that is not canonical (nb_NO) is listed by
+// Editions under its canonical key, which Edition may not reach. The encoder
+// never sends such an edition as an empty target, which a receiver would store
+// in place of the translation.
+func TestBlockToProto_UnreachableEditionIsNotSentEmpty(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en-US"
+	b.Targets[model.VariantKey{Locale: "nb_NO"}] = &model.Target{Runs: []model.Run{model.TextR("Hei")}}
+	b.SetTargetVariant(model.Variant("fr-FR"), &model.Target{Runs: []model.Run{model.TextR("Bonjour")}})
+
+	sb := BlockToProto(b, "item")
+
+	require.Contains(t, sb.Targets, "fr-FR")
+	for key, list := range sb.Targets {
+		require.Len(t, list.Segments, 1, key)
+		assert.NotEmpty(t, list.Segments[0].Runs, "target %s goes out empty", key)
+	}
+	if list, ok := sb.Targets["nb-NO"]; ok {
+		got, err := ProtoToBlock(&pb.SyncBlock{Targets: map[string]*pb.SyncSegmentList{"nb-NO": list}})
+		require.NoError(t, err)
+		assert.Equal(t, "Hei", got.TargetText("nb-NO"))
+	}
 }

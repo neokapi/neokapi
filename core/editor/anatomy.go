@@ -434,17 +434,22 @@ func blockNode(b *model.Block) *ContentNode {
 		}
 	}
 	// Every edition but the authoritative one is a target, in the order of
-	// its text form so the serialized view is deterministic.
+	// its text form so the serialized view is deterministic. Editions can list
+	// a key that Edition does not reach (a target stored under a non-canonical
+	// key); the view leaves that edition out rather than show it empty.
 	auth := b.Authoritative(model.AuthorityPolicy{})
 	for _, key := range b.Editions() {
 		if key == auth {
+			continue
+		}
+		e, ok := b.Edition(key)
+		if !ok {
 			continue
 		}
 		if n.Targets == nil {
 			n.Targets = make(map[string][]model.Run)
 			n.TargetMeta = make(map[string]*TargetMeta)
 		}
-		e, _ := b.Edition(key)
 		label := variantLabel(key)
 		n.Targets[label] = e.Runs
 		n.TargetMeta[label] = targetMeta(key, e)

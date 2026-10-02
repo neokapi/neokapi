@@ -361,11 +361,17 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 
 	// after starts as a copy of block's content: the authoritative edition as
 	// the edition it was read in, and every other edition as a target, so a
-	// target filed under the source language stays a target.
+	// target filed under the source language stays a target. Editions can list
+	// a key that Edition does not reach (a target stored under a non-canonical
+	// key). Diff sees no such edition on block, so the copy leaves it out too;
+	// an empty copy would read as a new edition to write.
 	after := &model.Block{ID: block.ID, Name: block.Name, Unit: block.Unit, SourceLocale: block.SourceLocale}
 	authKey := block.Authoritative(model.AuthorityPolicy{})
 	for _, k := range block.Editions() {
-		e, _ := block.Edition(k)
+		e, ok := block.Edition(k)
+		if !ok {
+			continue
+		}
 		if k == authKey {
 			after.SetSourceRuns(e.Runs)
 			continue

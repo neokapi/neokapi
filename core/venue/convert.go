@@ -61,16 +61,22 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 	// Every other edition rides as a target. The edition key serializes to its
 	// text form (locale-only is the common case, e.g. "fr-FR"); the run
 	// sequence rides as a single wire segment carrying any status/origin/score
-	// in segment properties so the round-trip is lossless.
+	// in segment properties so the round-trip is lossless. Editions can list a
+	// key that Edition does not reach (a target stored under a non-canonical
+	// key); that edition is left out, because an empty target would replace
+	// the translation the receiver holds.
 	for _, key := range b.Editions() {
 		if key == auth {
+			continue
+		}
+		e, ok := b.Edition(key)
+		if !ok {
 			continue
 		}
 		keyText, err := key.MarshalText()
 		if err != nil {
 			continue
 		}
-		e, _ := b.Edition(key)
 		if sb.Targets == nil {
 			sb.Targets = make(map[string]*pb.SyncSegmentList)
 		}
