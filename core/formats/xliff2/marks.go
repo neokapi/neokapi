@@ -34,9 +34,10 @@ func (w *Writer) InlineAnnotations() []string {
 	return []string{string(model.OverlayTerm)}
 }
 
-// marksForSegments distributes a block's term spans across the segments they
-// fall in, rebased to each segment's own run positions. runs is the sequence
-// the spans anchor to, which segs divide in order.
+// marksForSegments distributes an edition's marker spans across the segments
+// they fall in, rebased to each segment's own run positions, each written with
+// the attributes attrs gives it. runs is the sequence the spans anchor to,
+// which segs divide in order.
 //
 // Segments and spans are matched by position (textPos), never by run index: an
 // edit that joins the text on either side of a segment boundary into one run
@@ -48,7 +49,7 @@ func (w *Writer) InlineAnnotations() []string {
 // translator is handed, and a marker that only closes in the following one is a
 // trap for every tool downstream. Saying so is the honest answer; drawing half
 // a pair is not.
-func marksForSegments(segs []seg, runs []model.Run, spans []model.Span) (placed [][]markSpan, unplaced []model.Span) {
+func marksForSegments(segs []seg, runs []model.Run, spans []model.Span, attrs func(model.Span) MrkAttrs) (placed [][]markSpan, unplaced []model.Span) {
 	placed = make([][]markSpan, len(segs))
 	bounds := make([][2]textPos, len(segs))
 	var cursor textPos
@@ -80,11 +81,7 @@ func marksForSegments(segs []seg, runs []model.Run, spans []model.Span) (placed 
 			ls, okStart := runPosAt(local, start.minus(b[0]))
 			le, okEnd := runPosAt(local, end.minus(b[0]))
 			if okStart && okEnd {
-				placed[i] = append(placed[i], markSpan{
-					Attrs: MrkAttrs{ID: sp.ID, Type: termMarkType, Ref: sp.Props["concept_id"]},
-					Start: ls,
-					End:   le,
-				})
+				placed[i] = append(placed[i], markSpan{Attrs: attrs(sp), Start: ls, End: le})
 				seated = true
 			}
 			break
@@ -94,6 +91,72 @@ func marksForSegments(segs []seg, runs []model.Run, spans []model.Span) (placed 
 		}
 	}
 	return placed, unplaced
+}
+
+// termAttrs is how a term span is written: as a term marker with the span's
+// id, and the attributes the file gave it when it came from one.
+func termAttrs(sp model.Span) MrkAttrs {
+	return MrkAttrs{ID: sp.ID, Type: termMarkType, Ref: termRef(sp), Value: sp.Props["value"], Translate: sp.Props["translate"]}
+}
+
+// termRef is the concept a term span points back at: the ref the file gave its
+// marker, which the reader keeps in the span's ref prop, else the concept a
+// term annotator recorded on it.
+func termRef(sp model.Span) string {
+	if ref := sp.Props["ref"]; ref != "" {
+		return ref
+	}
+	if id := sp.Props["concept_id"]; id != "" {
+		return id
+	}
+	if ta, ok := sp.Value.(*model.TermAnnotation); ok && ta != nil {
+		return ta.ConceptID
+	}
+	return ""
+}
+
+// markerAttrs is how a span of the OverlayMrk overlay is written: as the
+// marker the reader read it from, with the type and attributes it declared.
+func markerAttrs(sp model.Span) MrkAttrs {
+	return MrkAttrs{ID: sp.ID, Type: sp.Props["type"], Ref: sp.Props["ref"], Value: sp.Props["value"], Translate: sp.Props["translate"]}
+}
+
+// editedInlines rebuilds the inline IR of a segment an edit changed from its
+// runs, each code with the attributes the document gave it (codes), and draws
+// the segment's marks into it: its term marks, and the other markers the
+// document carried, which the stale IR held and the runs do not. unplaced are
+// the term marks it could not draw. ok is false when no XLIFF 2 markup
+// expresses the runs.
+func editedInlines(s *seg, codes codeIndex) (inls []Inline, unplaced []markSpan, ok bool) {
+	rebuilt, ok := inlinesFromRuns(s.Runs, codes)
+	if !ok {
+		return nil, nil, false
+	}
+	marks := make([]markSpan, 0, len(s.Marks)+len(s.OtherMarks))
+	marks = append(append(marks, s.Marks...), s.OtherMarks...)
+	inls, missed := spliceMarks(rebuilt, s.Runs, marks)
+	for _, m := range missed {
+		if m.Attrs.Type == termMarkType {
+			unplaced = append(unplaced, m)
+		}
+	}
+	return inls, unplaced, true
+}
+
+// segmentBody returns the inline IR a write without a skeleton gives a segment
+// read from XLIFF 2: its own IR while that still holds the runs' text, with the
+// term marks drawn from the overlay, and the IR rebuilt from the runs once an
+// edit made it stale (editedInlines). ok is false when the segment has no IR,
+// or no XLIFF 2 markup expresses its edited runs.
+func segmentBody(s *seg, codes codeIndex) (inls []Inline, unplaced []markSpan, ok bool) {
+	if ir := freshInlineIR(s); ir != nil {
+		inls, unplaced = spliceMarks(withoutTermMarkers(ir.Inlines), s.Runs, s.Marks)
+		return inls, unplaced, true
+	}
+	if s.Content == nil {
+		return nil, nil, false
+	}
+	return editedInlines(s, codes)
 }
 
 // textPos is a boundary in a segment's content, measured in what an edit's run

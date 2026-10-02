@@ -760,7 +760,7 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 
 		if srcEl := segEl.SelectElement("source"); srcEl != nil && modelSrc != nil {
 			if !segmentMatchesDOM(srcEl, modelSrc) {
-				replaceInlineChildren(srcEl, modelSrc)
+				replaceInlineChildren(srcEl, modelSrc, blockCodes(block, modelSrc))
 				patched = true
 			}
 		}
@@ -796,10 +796,10 @@ func patchUnit(unitEl *etree.Element, block *model.Block, targetLang model.Local
 				} else {
 					segEl.AddChild(tgtEl)
 				}
-				replaceInlineChildren(tgtEl, modelTgt)
+				replaceInlineChildren(tgtEl, modelTgt, blockCodes(block, modelTgt))
 				patched = true
 			} else if !segmentMatchesDOM(tgtEl, modelTgt) {
-				replaceInlineChildren(tgtEl, modelTgt)
+				replaceInlineChildren(tgtEl, modelTgt, blockCodes(block, modelTgt))
 				patched = true
 			}
 			// xml:space="preserve" is significant for XLIFF white-
@@ -1359,15 +1359,14 @@ func collectText(sb *strings.Builder, el *etree.Element) {
 	}
 }
 
-// replaceInlineChildren wipes the element's children and re-renders
-// them from the segment's content. Prefers the fresh IR (preserves
-// inline-code attribute fidelity); falls back to the Runs' text when
-// the IR is stale or absent (loses inline attributes on the patched
-// segment but keeps text correct).
-func replaceInlineChildren(el *etree.Element, s *seg) {
+// replaceInlineChildren wipes the element's children and re-renders them
+// from the segment's inline IR (segmentBody), which keeps the inline codes'
+// attributes and the markers; it falls back to the runs' text for a segment
+// with no IR. codes are the attributes the document gave the unit's codes.
+func replaceInlineChildren(el *etree.Element, s *seg, codes codeIndex) {
 	el.Child = nil
-	if ir := freshInlineIR(s); ir != nil {
-		renderInlinesInto(el, ir.Inlines)
+	if inls, _, ok := segmentBody(s, codes); ok {
+		renderInlinesInto(el, inls)
 		return
 	}
 	el.SetText(model.RenderRunsWithData(s.Runs))
@@ -1549,7 +1548,7 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		}
 
 		srcEl := segEl.CreateElement("source")
-		w.writeSegmentInline(srcEl, srcSeg)
+		w.writeSegmentInline(srcEl, srcSeg, blockCodes(block, srcSeg))
 
 		// Pair the target segment: by id when ids are present (the
 		// segmented case carries overlay span ids), else positionally
@@ -1572,7 +1571,7 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		// unmatched prefill segments don't produce empty <target>s.
 		if tgt != nil && (byID || len(tgt.Runs) > 0 || tgt.Content != nil) {
 			tgtEl := segEl.CreateElement("target")
-			w.writeSegmentInline(tgtEl, tgt)
+			w.writeSegmentInline(tgtEl, tgt, blockCodes(block, tgt))
 			// Surface the target's lifecycle status as the segment state, so a
 			// produced XLIFF reports where each unit stands. Scratch-build path
 			// only (this function is never called on the byte-exact round-trip
@@ -1586,21 +1585,18 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 	}
 }
 
-// writeSegmentInline writes the segment's body into el using the
-// fresh per-segment Inline IR when available, falling back to the
-// segment's Run text otherwise. See freshInlineIR for staleness
-// detection.
-func (w *Writer) writeSegmentInline(el *etree.Element, s *seg) {
+// writeSegmentInline writes the segment's body into el from its inline IR
+// (segmentBody), falling back to the segment's run text for a segment that
+// has none. codes are the attributes the document gave the unit's codes.
+func (w *Writer) writeSegmentInline(el *etree.Element, s *seg, codes codeIndex) {
 	if s == nil {
 		return
 	}
-	if ir := freshInlineIR(s); ir != nil {
-		// Marks are spliced here rather than stored on the IR: the IR is the
-		// document's own inline structure, and a term span is a conclusion
-		// about it. Drawing at emit time keeps a re-read from finding marks
-		// the source file never carried. The term markers the file did carry
-		// are term spans too, so they are drawn from the overlay with the rest.
-		inls, unplaced := spliceMarks(withoutTermMarkers(ir.Inlines), s.Runs, s.Marks)
+	// Marks are spliced at emit time rather than stored on the IR: the IR is
+	// the document's own inline structure, and a term span is a conclusion
+	// about it. Drawing at emit time keeps a re-read from finding marks the
+	// source file never carried.
+	if inls, unplaced, ok := segmentBody(s, codes); ok {
 		// A mark this segmentation cannot carry is recorded, never dropped
 		// quietly: the caller reads UnplacedTermMarks to say what was not
 		// drawn and why.

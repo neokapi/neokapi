@@ -39,8 +39,14 @@ type seg struct {
 	ID   string
 	Runs []model.Run
 	// Marks are the annotation markers this segment carried, in run
-	// coordinates local to Runs.
+	// coordinates local to Runs. On the way out they are the term marks the
+	// writer draws.
 	Marks []markSpan
+	// OtherMarks are the markers other than terms the edition's OverlayMrk
+	// overlay holds, in the same coordinates. The writer draws them where it
+	// rebuilds the segment from its runs; a segment written from its own IR
+	// carries them as read.
+	OtherMarks []markSpan
 	// UnplacedMarks are term spans this segmentation cannot carry — one
 	// straddling two segments. The writer reports them rather than drawing
 	// half of a pair.
@@ -274,22 +280,29 @@ func sourceSegsFromBlock(block *model.Block) []seg {
 		srcIR = ir.Source
 	}
 	segs := segsFromOverlay(block.Source, overlay, srcIR)
-	return withTermMarks(segs, block.Source, block.OverlayOf(model.OverlayTerm))
+	return withMarks(segs, block.Source, block, nil)
 }
 
-// withTermMarks hands each segment the term spans that fall inside it, so the
-// writer can draw them without needing the block in scope. runs is the
-// sequence the spans anchor to, which segs divide.
-func withTermMarks(segs []seg, runs []model.Run, overlay *model.Overlay) []seg {
-	if overlay == nil || len(overlay.Spans) == 0 {
-		return segs
+// withMarks hands each segment the marker spans of an edition (variant names
+// it, nil for the source) that fall inside it, so the writer can draw them
+// without needing the block in scope: the term spans as Marks, and the other
+// markers the file carried as OtherMarks. runs is the sequence the spans
+// anchor to, which segs divide.
+func withMarks(segs []seg, runs []model.Run, block *model.Block, variant *model.VariantKey) []seg {
+	if overlay := overlayOn(block, model.OverlayTerm, variant); overlay != nil && len(overlay.Spans) > 0 {
+		placed, unplaced := marksForSegments(segs, runs, overlay.Spans, termAttrs)
+		for i := range segs {
+			segs[i].Marks = placed[i]
+		}
+		if len(unplaced) > 0 && len(segs) > 0 {
+			segs[0].UnplacedMarks = unplaced
+		}
 	}
-	placed, unplaced := marksForSegments(segs, runs, overlay.Spans)
-	for i := range segs {
-		segs[i].Marks = placed[i]
-	}
-	if len(unplaced) > 0 && len(segs) > 0 {
-		segs[0].UnplacedMarks = unplaced
+	if overlay := overlayOn(block, OverlayMrk, variant); overlay != nil && len(overlay.Spans) > 0 {
+		placed, _ := marksForSegments(segs, runs, overlay.Spans, markerAttrs)
+		for i := range segs {
+			segs[i].OtherMarks = placed[i]
+		}
 	}
 	return segs
 }
@@ -307,7 +320,7 @@ func targetSegsFromBlock(block *model.Block, loc model.LocaleID) []seg {
 	if ir != nil {
 		tgtIR = ir.Target[loc]
 	}
-	return withTermMarks(segsFromOverlay(runs, overlay, tgtIR), runs, overlayOn(block, model.OverlayTerm, &key))
+	return withMarks(segsFromOverlay(runs, overlay, tgtIR), runs, block, &key)
 }
 
 // overlayOn returns the overlay of type t on the edition variant names, the

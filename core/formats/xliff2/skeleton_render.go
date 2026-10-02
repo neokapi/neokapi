@@ -79,7 +79,7 @@ func checkUnit(block *model.Block, loc model.LocaleID) error {
 // one anonymous segment.
 func writtenSourceSegs(block *model.Block) []seg {
 	if !tiles(block.SourceSegmentation(), block.Source) {
-		return withTermMarks([]seg{{Runs: block.Source}}, block.Source, block.OverlayOf(model.OverlayTerm))
+		return withMarks([]seg{{Runs: block.Source}}, block.Source, block, nil)
 	}
 	return sourceSegsFromBlock(block)
 }
@@ -88,7 +88,7 @@ func writtenSourceSegs(block *model.Block) []seg {
 func writtenTargetSegs(block *model.Block, loc model.LocaleID) []seg {
 	key := model.Variant(loc)
 	if runs := block.TargetRuns(loc); !tiles(block.SegmentationFor(&key), runs) {
-		return withTermMarks([]seg{{Runs: runs}}, runs, overlayOn(block, model.OverlayTerm, &key))
+		return withMarks([]seg{{Runs: runs}}, runs, block, &key)
 	}
 	return targetSegsFromBlock(block, loc)
 }
@@ -192,21 +192,17 @@ func segmentXML(s *seg, codes codeIndex) (string, error) {
 // with ErrCodesUnwritable, since writing their text alone would drop every
 // code.
 func segmentInlines(s *seg, codes codeIndex) ([]Inline, error) {
-	var inls []Inline
-	switch {
-	case s.Content != nil && irMatchesRuns(s.Content, s.Runs):
-		// The term markers the document carried are term spans, which
-		// spliceMarks draws below.
-		inls = withoutTermMarkers(s.Content.Inlines)
-	default:
-		rebuilt, ok := inlinesFromRuns(s.Runs, codes)
-		if !ok {
-			return nil, ErrCodesUnwritable
-		}
-		inls = rebuilt
+	if s.Content != nil && irMatchesRuns(s.Content, s.Runs) {
+		// The term markers the document carried are term spans, drawn from
+		// the overlay with the rest; every other marker is written as read.
+		spliced, _ := spliceMarks(withoutTermMarkers(s.Content.Inlines), s.Runs, s.Marks)
+		return spliced, nil
 	}
-	spliced, _ := spliceMarks(inls, s.Runs, s.Marks)
-	return spliced, nil
+	inls, _, ok := editedInlines(s, codes)
+	if !ok {
+		return nil, ErrCodesUnwritable
+	}
+	return inls, nil
 }
 
 // irMatchesRuns reports whether ir still describes runs: the same text with the
