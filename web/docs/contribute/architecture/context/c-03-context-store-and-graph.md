@@ -407,10 +407,11 @@ matches, so a branch switch moves no record.
 
 The service that applies change sets (`core/change`) hands each one to a
 `change.Recorder` once the homes committed; `host.App.EditRecorder` is the
-project's, and records through `Projector.RecordEdit`. A person's or an agent's
-edit keeps the runs around each change and the change set as sent, in blobs the
-operation names; a tool's edit keeps the revisions and hashes only, because the
-file holds the text and a flow writes thousands of them. The operation is
+project's, and records every document of a change set through one
+`Projector.RecordEdits` call. A person's or an agent's edit keeps the runs
+around each change and the change set as sent, in blobs the operation names; a
+tool's edit keeps the revisions and hashes only, because the file holds the
+text and a flow writes thousands of them. The operation is
 addressed by the document, the actor and each transition with the operation it
 extends, the one that left the edition at the revision the transition starts
 from, so recording one edit twice is one operation while the same change made

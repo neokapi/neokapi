@@ -140,15 +140,18 @@ edit whose JSON passes 32 KiB moves into a blob, and the payload becomes
 `edit:<project>:` followed by the hex SHA-256 over the project, the document
 key, the actor and, for each transition, its block, key, edition, revisions,
 basis and the `block_history` operation that last left the edition at the
-`before` revision (`history.Store.Reached`). `Projector.RecordEdit` reads those
-operations after catching up, under the projector's lock.
+`before` revision (`history.Store.Reached`). `Projector.RecordEdits` reads
+those operations after catching up, under the projector's lock, and records
+every edit it is given in one write to the log and one catch-up;
+`RecordEdit` is the same call for one edit. Within one call, an edit that
+extends an earlier one in the call names that edit's address instead.
 
 The projector writes one `block_history` row per transition, with the operation
 id and the operation's own instant, so a rebuild writes the same rows:
 
 | Column | Holds |
 | --- | --- |
-| `op`, `doc`, `block`, `edition` | the primary key: the operation, the document key, the block as read, the edition key |
+| `doc`, `block`, `edition`, `op` | the primary key, in the order the per-edition reads walk it: the document key, the block as read, the edition key, the operation |
 | `key` | the durable key reconciliation assigned, where there is one |
 | `before`, `after`, `basis` | edition revisions, `absent` for an edition created or removed |
 | `content_hash`, `context_hash` | the block's identity signals after the change |
@@ -159,7 +162,8 @@ id and the operation's own instant, so a rebuild writes the same rows:
 Runs of consecutive `content.edit` operations are written in one transaction,
 live and in a rebuild. Operation ids sort by time, so "most recent" is
 `ORDER BY op DESC`, and SQLite's `MAX()` with bare columns gives the latest row
-per block for `history.Store.Priors` in one statement.
+per block for `history.Store.Priors` in one statement. A second index,
+`(doc, op)`, serves the reads of a whole document.
 
 `Rebuild` deletes every row of the projection tables, skipping the FTS5 shadow
 tables (emptying the virtual table empties them), resets their `sqlite_sequence`
@@ -184,6 +188,10 @@ Measured in process on an M-series laptop, 16 goroutine writers
 | 13 000 decisions read in as one import | 0.7 s |
 | rebuild of those 13 000 decisions from the log | 0.3 s |
 | checkpoint of them (10.6 MB) / rebuild from the checkpoint | 0.3 s / 0.4 s |
+| a convergence pass of edits: 400 `content.edit` operations, 75 200 hash-only transitions | 22.2 MB carried by the operations and their blobs; 3.4 to 14 s, under a machine load average of 60 to 70 |
+| the same pass recorded in one `RecordEdits` call, over a history holding the first | 3.1 to 11 s |
+| after both passes | `workspace.db` 17.7 MB, the context store 70.4 MB (150 400 `block_history` rows) |
+| rebuild of the 800 edits | 4.1 to 13.6 s |
 
 The projector adds about a millisecond to a single write. The tail under 16
 writers belongs to the content memory's row-by-row FTS5 maintenance described
