@@ -369,8 +369,8 @@ func leverageBlock(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 		ID:           v.ID(),
 		Translatable: true,
 		SourceLocale: v.SourceLocale(),
-		Source:       v.SourceRuns(),
 	}
+	block.SetSourceRuns(v.SourceRuns())
 	for key, payload := range v.Annotations() {
 		block.SetAnno(key, payload)
 	}

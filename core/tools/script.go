@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"strconv"
 
@@ -360,8 +359,19 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 	}
 	jsBlock := blockVal.ToObject(vm)
 
-	after := &model.Block{ID: block.ID, Name: block.Name, Unit: block.Unit, SourceLocale: block.SourceLocale,
-		Source: block.Source, Targets: maps.Clone(block.Targets)}
+	// after starts as a copy of block's content: the authoritative edition as
+	// the edition it was read in, and every other edition as a target, so a
+	// target filed under the source language stays a target.
+	after := &model.Block{ID: block.ID, Name: block.Name, Unit: block.Unit, SourceLocale: block.SourceLocale}
+	authKey := block.Authoritative(model.AuthorityPolicy{})
+	for _, k := range block.Editions() {
+		e, _ := block.Edition(k)
+		if k == authKey {
+			after.SetSourceRuns(e.Runs)
+			continue
+		}
+		after.SetTargetVariant(k, &model.Target{Runs: e.Runs, Status: model.TargetStatus(e.Status), Origin: e.Origin, Score: e.Score})
+	}
 
 	// Check if source text was modified.
 	sourceVal := jsBlock.Get("source")
@@ -374,7 +384,7 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 						// Source is read-only unless the script opts in; otherwise
 						// its source edits are ignored (immutability contract).
 						if allowSourceMutation && text != block.SourceText() {
-							after.Source = []model.Run{model.TextR(text)}
+							after.SetEdition(authKey, model.Edition{Runs: []model.Run{model.TextR(text)}})
 						}
 					}
 				}
