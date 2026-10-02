@@ -1470,26 +1470,15 @@ func (a *App) verifyTerminology(cmd Command, proj *project.KapiProject, units []
 			if b.Properties[coretools.PropTermCheckPassed] == "false" {
 				gate.Pass = false
 			}
-			for _, v := range []struct {
-				prop  string
-				fails bool
-			}{
-				{coretools.PropTermCheckErrors, true},
-				{coretools.PropTermCheckWarnings, false},
-			} {
-				for m := range strings.SplitSeq(b.Properties[v.prop], "; ") {
-					if strings.TrimSpace(m) == "" {
-						continue
-					}
-					gate.Findings = append(gate.Findings, verifyFinding{
-						Gate:       gateTerms,
-						File:       u.DisplayPath,
-						Locale:     u.Locale,
-						Fails:      v.fails,
-						Message:    m,
-						Suggestion: "use the term rule's required translation",
-					})
-				}
+			for _, f := range termCheckFindings(b) {
+				gate.Findings = append(gate.Findings, verifyFinding{
+					Gate:       gateTerms,
+					File:       u.DisplayPath,
+					Locale:     u.Locale,
+					Fails:      f.Fails,
+					Message:    f.Message,
+					Suggestion: "use the term rule's required translation",
+				})
 			}
 		}
 		canaries, uncheckable := coretools.TermCheckCanaries(cfg)
@@ -1519,13 +1508,22 @@ func (a *App) verifyTerminology(cmd Command, proj *project.KapiProject, units []
 }
 
 // termCheckFindings reads the violations the term-check tool recorded on a
-// block's properties.
+// block's properties. The tool sorts them into two properties: a violation of
+// a rule fails, and a violation of an advisory rule reports. `kapi check`, the
+// ship gate and an exec run of term-check all map them through here, so the
+// three agree about what a violation is and whether it fails.
 func termCheckFindings(b *model.Block) []check.Finding {
 	var out []check.Finding
-	for _, prop := range []string{coretools.PropTermCheckErrors, coretools.PropTermCheckWarnings} {
-		for m := range strings.SplitSeq(b.Properties[prop], "; ") {
+	for _, v := range []struct {
+		prop  string
+		fails bool
+	}{
+		{coretools.PropTermCheckErrors, true},
+		{coretools.PropTermCheckWarnings, false},
+	} {
+		for m := range strings.SplitSeq(b.Properties[v.prop], "; ") {
 			if strings.TrimSpace(m) != "" {
-				out = append(out, check.Finding{Category: "terminology", Message: m})
+				out = append(out, check.Finding{Category: "terminology", Fails: v.fails, Message: m})
 			}
 		}
 	}

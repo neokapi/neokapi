@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
+	coretools "github.com/neokapi/neokapi/core/tools"
 )
 
 // A check tool writes its verdict into a stand-off annotation, never into the
@@ -112,6 +113,12 @@ func (c *findingsCollector) Collect(_ context.Context, item *flow.Item, parts []
 			for _, f := range ann.Findings {
 				diags = append(diags, check.DiagnosticFrom(f, model.AnnoVoice, loc))
 			}
+		}
+		// term-check records its violations as block properties, which
+		// `kapi check` and the ship gate map through termCheckFindings. The
+		// family is the tool's name, as for every finding an exec run reports.
+		for _, f := range termCheckFindings(b) {
+			diags = append(diags, check.DiagnosticFrom(f, string(coretools.TermCheck), loc))
 		}
 	}
 	c.mu.Lock()

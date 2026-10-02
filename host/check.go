@@ -1092,8 +1092,8 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 	// The project's term rules for the target language, the rules the ship
 	// terminology gate holds the same translation to. term-check records its
 	// violations as block properties rather than findings, so they are mapped
-	// here: a violation of a rule fails the check as it fails the gate, and a
-	// violation of an advisory rule reports.
+	// here (termCheckFindings): a violation of a rule fails the check as it
+	// fails the gate, and a violation of an advisory rule reports.
 	if len(termRules) > 0 {
 		start = time.Now()
 		before := len(diags)
@@ -1103,20 +1103,8 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 			if err := RunCheckTool(ctx, tc, b); err != nil {
 				return nil, fmt.Errorf("terminology check %s (%s): %w", DisplayName(file), loc, err)
 			}
-			for _, v := range []struct {
-				prop  string
-				fails bool
-			}{
-				{coretools.PropTermCheckErrors, true},
-				{coretools.PropTermCheckWarnings, false},
-			} {
-				for m := range strings.SplitSeq(b.Properties[v.prop], "; ") {
-					if strings.TrimSpace(m) == "" {
-						continue
-					}
-					f := check.Finding{Category: "terminology", Fails: v.fails, Message: m}
-					diags = append(diags, check.DiagnosticFrom(f, "terms", check.Location{File: DisplayName(file), Block: blockKey(b)}))
-				}
+			for _, f := range termCheckFindings(b) {
+				diags = append(diags, check.DiagnosticFrom(f, "terms", check.Location{File: DisplayName(file), Block: blockKey(b)}))
 			}
 		}
 		if err := execution.probed("terms.target", file, len(diags)-before, start, true, func() (check.CanaryOutcome, error) {
