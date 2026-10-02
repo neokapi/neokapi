@@ -1,18 +1,13 @@
 import React from "react";
 import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
-import useBrokenLinks from "@docusaurus/useBrokenLinks";
+import { AnchoredSection } from "../components/Lab/AnchoredSection";
 import { LAB_ELECTIVES, LAB_LESSONS, LAB_MODES, lessonPath } from "../components/Lab/curriculum";
 import styles from "../components/Lab/curriculum.module.css";
 
-// The navbar and every lesson's breadcrumb link to these section ids. They sit
-// on plain <section> elements, which the build's anchor check does not see
-// unless they are registered here.
-const SECTION_ANCHORS = ["framework", "kapi", "electives"] as const;
-
+// The navbar and every lesson's breadcrumb link to the framework, kapi and
+// electives sections by id, so those sections are AnchoredSections.
 export default function LabsOverviewPage(): React.ReactElement {
-  const brokenLinks = useBrokenLinks();
-  for (const anchor of SECTION_ANCHORS) brokenLinks.collectAnchor(anchor);
   return (
     <Layout
       title="Labs"
@@ -36,7 +31,7 @@ export default function LabsOverviewPage(): React.ReactElement {
           </Link>
         </header>
         {(["framework", "kapi"] as const).map((stage) => (
-          <section
+          <AnchoredSection
             className={styles.stage}
             id={stage}
             key={stage}
@@ -73,7 +68,7 @@ export default function LabsOverviewPage(): React.ReactElement {
                 </li>
               ))}
             </ol>
-          </section>
+          </AnchoredSection>
         ))}
         <section className={styles.stage} aria-labelledby="execution-heading">
           <h2 id="execution-heading">Know what is running</h2>
@@ -102,7 +97,11 @@ export default function LabsOverviewPage(): React.ReactElement {
             </div>
           </dl>
         </section>
-        <section className={styles.stage} id="electives" aria-labelledby="electives-heading">
+        <AnchoredSection
+          className={styles.stage}
+          id="electives"
+          aria-labelledby="electives-heading"
+        >
           <h2 id="electives-heading">Electives and workspaces</h2>
           <p>
             Apply the core concepts to additional formats and media, or explore without the lesson
@@ -123,7 +122,7 @@ export default function LabsOverviewPage(): React.ReactElement {
               browser filesystem.
             </li>
           </ul>
-        </section>
+        </AnchoredSection>
       </main>
     </Layout>
   );
