@@ -166,18 +166,14 @@ func (b *Block) Edition(k EditionKey) (Edition, bool) {
 }
 
 // SetEdition stores e as edition k, creating the edition when the block does
-// not hold it. Writing new runs to the edition the block was read in is an
-// edit (EditSourceRuns), so the block keeps the content its reader produced;
-// handing back the runs the edition holds (Edition, then SetEdition with a new
-// status) writes its status and origin and edits nothing. Its origin is the
-// block's source-origin annotation, removed when e.Origin is zero, and e.Score
-// is not kept. An existing derived edition is updated in place, so a *Target a
-// caller holds sees the change.
+// not hold it. Writing the edition the block was read in is an edit
+// (EditSourceRuns), so the block keeps the content its reader produced; its
+// origin is the block's source-origin annotation, removed when e.Origin is
+// zero, and e.Score is not kept. An existing derived edition is updated in
+// place, so a *Target a caller holds sees the change.
 func (b *Block) SetEdition(k EditionKey, e Edition) {
 	if b.holdsSource(k) {
-		if !sameRuns(b.Source, e.Runs) {
-			b.EditSourceRuns(e.Runs)
-		}
+		b.EditSourceRuns(e.Runs)
 		b.SourceStatus = SourceStatus(e.Status)
 		if e.Origin == (Origin{}) {
 			b.DelAnno(AnnoSourceOrigin)
@@ -215,15 +211,6 @@ func (b *Block) SetEditionStatus(k EditionKey, s Status) bool {
 	}
 	t.Status = TargetStatus(s)
 	return true
-}
-
-// sameRuns reports whether a and b are one slice: both nil, both empty, or the
-// same elements of the same backing array.
-func sameRuns(a, b []Run) bool {
-	if len(a) != len(b) || (a == nil) != (b == nil) {
-		return false
-	}
-	return len(a) == 0 || &a[0] == &b[0]
 }
 
 // RemoveEdition removes edition k and reports whether the block held it. The

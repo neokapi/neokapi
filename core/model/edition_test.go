@@ -88,23 +88,6 @@ func TestBlockSetEdition(t *testing.T) {
 		assert.True(t, edited)
 		assert.Equal(t, "Hello", model.RunsText(read))
 	})
-	t.Run("a status written with the runs the edition holds edits nothing", func(t *testing.T) {
-		b := editionBlock()
-		src, _ := b.Edition(model.EditionKey{})
-		src.Status = model.Status(model.SourceStatusWritten)
-		b.SetEdition(model.EditionKey{}, src)
-		assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
-		read, edited := b.SourceAsRead()
-		assert.False(t, edited)
-		assert.Equal(t, "Hello", model.RunsText(read))
-
-		// A reader that replaces the content afterwards finds nothing kept
-		// from before it.
-		b.SetSourceRuns([]model.Run{model.TextR("Hello again")})
-		read, edited = b.SourceAsRead()
-		assert.False(t, edited, "the status write kept no earlier content as read")
-		assert.Equal(t, "Hello again", model.RunsText(read))
-	})
 	t.Run("an existing derived edition is updated in place", func(t *testing.T) {
 		b := editionBlock()
 		held := b.Target("fr")
