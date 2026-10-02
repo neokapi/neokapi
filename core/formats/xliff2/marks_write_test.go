@@ -29,6 +29,23 @@ func writeBlocks(t *testing.T, blocks ...*model.Block) string {
 	return buf.String()
 }
 
+// writeBlocksIn is writeBlocks with the target language set, so the writer
+// writes each block's target in loc.
+func writeBlocksIn(t *testing.T, loc model.LocaleID, blocks ...*model.Block) string {
+	t.Helper()
+	parts := make([]*model.Part, 0, len(blocks))
+	for _, b := range blocks {
+		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
+	}
+	var buf bytes.Buffer
+	w := xliff2.NewWriter()
+	w.SetLocale(loc)
+	require.NoError(t, w.SetOutputWriter(&buf))
+	require.NoError(t, w.Write(t.Context(), testutil.PartsToChannel(parts)))
+	require.NoError(t, w.Close())
+	return buf.String()
+}
+
 // markTerm puts a term overlay span over the half-open run range [from, to).
 func markTerm(t *testing.T, b *model.Block, id, conceptID string, from, to int) {
 	t.Helper()
@@ -261,4 +278,58 @@ func stripMarkers(s string) string {
 		}
 	}
 	return s
+}
+
+// A term marker the file carried arrives as a term overlay span, and the
+// segment's inline IR keeps the marker as read. A write without a skeleton
+// drew it from both, so `coffee` came out wrapped twice. The overlay is what
+// says a span is a term, so the mark is drawn from it alone, once, and the
+// other markers the IR holds are written as read.
+func TestTermMarkTheFileCarriedIsDrawnOnce(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		source string
+	}{
+		{"an mrk", `Grind the <mrk id="m1" type="term" ref="#c1">coffee</mrk> <mrk id="m2" type="comment" value="x">daily</mrk> now`},
+		{"an sm and em pair", `Grind the <sm id="m1" type="term" ref="#c1"/>coffee<em startRef="m1"/> <mrk id="m2" type="comment" value="x">daily</mrk> now`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			block := readOneBlock(t, `<?xml version="1.0"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en">
+  <file id="f1"><unit id="u1"><segment>
+    <source>`+tc.source+`</source>
+  </segment></unit></file>
+</xliff>`)
+			require.NotNil(t, block.OverlayOf(model.OverlayTerm))
+
+			out := writeBlocks(t, block)
+			assert.Equal(t, 1, strings.Count(out, `id="m1"`), "the term is drawn once: %s", out)
+			assert.Equal(t, 1, strings.Count(out, `type="term"`), "the term is drawn once: %s", out)
+			assert.Contains(t, out, `<mrk id="m2" type="comment" value="x">daily</mrk>`, "the other markers are written as read")
+
+			back := readOneBlock(t, out)
+			overlay := back.OverlayOf(model.OverlayTerm)
+			require.NotNil(t, overlay)
+			require.Len(t, overlay.Spans, 1, "a re-read finds one term span")
+			assert.Equal(t, "coffee", model.RunsText(overlay.Spans[0].Range.ExtractRuns(back.SourceRuns())))
+		})
+	}
+}
+
+// A target's own term markers are term spans on the target, and are drawn
+// from that overlay as the source's are: once, and kept.
+func TestTargetTermMarkTheFileCarriedIsDrawnOnce(t *testing.T) {
+	t.Parallel()
+	block := readOneBlock(t, `<?xml version="1.0"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+  <file id="f1"><unit id="u1"><segment>
+    <source>Grind the <mrk id="m1" type="term">coffee</mrk> now</source>
+    <target>Moulez le <mrk id="m1" type="term">café</mrk> maintenant</target>
+  </segment></unit></file>
+</xliff>`)
+	out := writeBlocksIn(t, model.LocaleFrench, block)
+	assert.Equal(t, 2, strings.Count(out, `type="term"`), "one term mark on each side: %s", out)
+	assert.Contains(t, out, `Moulez le <sm id="m1" type="term"/>café<em startRef="m1"/> maintenant`)
 }

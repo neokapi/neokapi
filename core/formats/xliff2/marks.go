@@ -81,7 +81,7 @@ func marksForSegments(segs []seg, runs []model.Run, spans []model.Span) (placed 
 			le, okEnd := runPosAt(local, end.minus(b[0]))
 			if okStart && okEnd {
 				placed[i] = append(placed[i], markSpan{
-					Attrs: MrkAttrs{ID: sp.ID, Type: "term", Ref: sp.Props["concept_id"]},
+					Attrs: MrkAttrs{ID: sp.ID, Type: termMarkType, Ref: sp.Props["concept_id"]},
 					Start: ls,
 					End:   le,
 				})
@@ -156,6 +156,68 @@ func runPosAt(runs []model.Run, tp textPos) (model.RunPos, bool) {
 		return model.RunPos{Run: len(runs)}, true
 	}
 	return model.RunPos{}, false
+}
+
+// termMarkType is the XLIFF 2 marker type a term carries.
+const termMarkType = "term"
+
+// withoutTermMarkers returns inls without the term markers the document
+// carried: each <mrk type="term"> gives way to its content, and each
+// <sm type="term"> is left out with the <em> that closes it. The reader records
+// every one of them as a term overlay span, and the writer draws term marks
+// from the overlay alone (spliceMarks), so a mark the file carried is written
+// once, and a span an edit removed or moved is written as the model holds it.
+// Every other node is kept.
+func withoutTermMarkers(inls []Inline) []Inline {
+	opened := map[string]bool{}
+	Walk(inls, func(in *Inline) bool {
+		if in.Sm != nil && in.Sm.Type == termMarkType {
+			opened[in.Sm.ID] = true
+		}
+		return true
+	})
+	var strip func([]Inline) ([]Inline, bool)
+	strip = func(inls []Inline) ([]Inline, bool) {
+		out := make([]Inline, 0, len(inls))
+		changed := false
+		for _, in := range inls {
+			switch {
+			case in.Mrk != nil && in.Mrk.Type == termMarkType:
+				children, _ := strip(in.Mrk.Children)
+				out = append(out, children...)
+				changed = true
+			case in.Sm != nil && in.Sm.Type == termMarkType,
+				in.Em != nil && opened[in.Em.StartRef]:
+				changed = true
+			case in.Mrk != nil:
+				children, c := strip(in.Mrk.Children)
+				if c {
+					m := *in.Mrk
+					m.Children = children
+					in = Inline{Mrk: &m}
+					changed = true
+				}
+				out = append(out, in)
+			case in.Pc != nil:
+				children, c := strip(in.Pc.Children)
+				if c {
+					pc := *in.Pc
+					pc.Children = children
+					in = Inline{Pc: &pc}
+					changed = true
+				}
+				out = append(out, in)
+			default:
+				out = append(out, in)
+			}
+		}
+		return out, changed
+	}
+	out, changed := strip(inls)
+	if !changed {
+		return inls
+	}
+	return out
 }
 
 // spliceMarks returns inls with an <sm>/<em> pair bounding each mark, plus any

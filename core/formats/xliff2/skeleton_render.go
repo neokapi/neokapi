@@ -88,7 +88,7 @@ func writtenSourceSegs(block *model.Block) []seg {
 func writtenTargetSegs(block *model.Block, loc model.LocaleID) []seg {
 	key := model.Variant(loc)
 	if runs := block.TargetRuns(loc); !tiles(block.SegmentationFor(&key), runs) {
-		return []seg{{Runs: runs}}
+		return withTermMarks([]seg{{Runs: runs}}, runs, overlayOn(block, model.OverlayTerm, &key))
 	}
 	return targetSegsFromBlock(block, loc)
 }
@@ -195,7 +195,9 @@ func segmentInlines(s *seg, codes codeIndex) ([]Inline, error) {
 	var inls []Inline
 	switch {
 	case s.Content != nil && irMatchesRuns(s.Content, s.Runs):
-		inls = s.Content.Inlines
+		// The term markers the document carried are term spans, which
+		// spliceMarks draws below.
+		inls = withoutTermMarkers(s.Content.Inlines)
 	default:
 		rebuilt, ok := inlinesFromRuns(s.Runs, codes)
 		if !ok {

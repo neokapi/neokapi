@@ -176,7 +176,7 @@ func applyMarkOverlays(block *model.Block, variant *model.VariantKey, segs []seg
 				continue
 			}
 			span := markToSpan(m, cursor)
-			if m.Attrs.Type == "term" {
+			if m.Attrs.Type == termMarkType {
 				term = append(term, span)
 				continue
 			}
@@ -307,7 +307,22 @@ func targetSegsFromBlock(block *model.Block, loc model.LocaleID) []seg {
 	if ir != nil {
 		tgtIR = ir.Target[loc]
 	}
-	return segsFromOverlay(runs, overlay, tgtIR)
+	return withTermMarks(segsFromOverlay(runs, overlay, tgtIR), runs, overlayOn(block, model.OverlayTerm, &key))
+}
+
+// overlayOn returns the overlay of type t on the edition variant names, the
+// source for nil, or nil when the block has none.
+func overlayOn(block *model.Block, t model.OverlayType, variant *model.VariantKey) *model.Overlay {
+	for i := range block.Overlays {
+		o := &block.Overlays[i]
+		if o.Type != t || (o.Variant == nil) != (variant == nil) {
+			continue
+		}
+		if variant == nil || o.Variant.Canonical() == variant.Canonical() {
+			return o
+		}
+	}
+	return nil
 }
 
 // segsFromOverlay turns a flat run sequence plus an optional segmentation

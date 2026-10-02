@@ -1598,8 +1598,9 @@ func (w *Writer) writeSegmentInline(el *etree.Element, s *seg) {
 		// Marks are spliced here rather than stored on the IR: the IR is the
 		// document's own inline structure, and a term span is a conclusion
 		// about it. Drawing at emit time keeps a re-read from finding marks
-		// the source file never carried.
-		inls, unplaced := spliceMarks(ir.Inlines, s.Runs, s.Marks)
+		// the source file never carried. The term markers the file did carry
+		// are term spans too, so they are drawn from the overlay with the rest.
+		inls, unplaced := spliceMarks(withoutTermMarkers(ir.Inlines), s.Runs, s.Marks)
 		// A mark this segmentation cannot carry is recorded, never dropped
 		// quietly: the caller reads UnplacedTermMarks to say what was not
 		// drawn and why.
