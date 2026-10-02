@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yuin/goldmark/ast"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -135,10 +136,75 @@ func TestSynthesizeCode(t *testing.T) {
 		{"an unbalanced bracket", site("link:hyperlink", "", "a ] b", "", map[string]string{"href": "x"}), "bracket"},
 		{"a title", site("link:hyperlink", "", "a", "", map[string]string{"href": "x", "title": "t"}), "no title"},
 		{"no href", site("link:hyperlink", "", "a", "", nil), "needs an href"},
+		{"a link after a bang", site("link:hyperlink", "Wow!", "great", " stuff", map[string]string{"href": "x"}), "image"},
+		{"a backslash before a link", site("link:hyperlink", `foo\`, "bar", " here", map[string]string{"href": "x"}), "backslash"},
+		{"a backslash before bold", site("fmt:bold", `foo\`, "bar", " here", nil), "backslash"},
+		{"a backslash ending the range", site("fmt:bold", "", `foo\`, " bar", nil), "backslash"},
+		{"a backslash ending a link's text", site("link:hyperlink", "", `foo\`, " bar", map[string]string{"href": "x"}), "backslash"},
+		{"a delimiter the text holds pairs first", site("fmt:italic", "Rated *five", "stars", " by cooks", nil), "would not read"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, _, err := w.SynthesizeCode(tc.site)
 			assert.ErrorContains(t, err, tc.want)
+		})
+	}
+
+	// Markup the text around it does not disturb is written, including
+	// beside an escaped character and around codes of the text's own.
+	span := []model.Run{
+		model.PcOpenR(model.PcOpenRun{ID: "1", Type: "fmt:code", Data: "`"}), model.TextR("x"),
+		model.PcCloseR(model.PcCloseRun{ID: "1", Type: "fmt:code", Data: "`"}),
+	}
+	for _, tc := range []struct {
+		name string
+		site format.CodeSite
+	}{
+		{"a link after an escaped bang", site("link:hyperlink", `Wow\!`, "great", "", map[string]string{"href": "x"})},
+		{"bold after an escaped backslash", site("fmt:bold", `foo\\ `, "bar", "", nil)},
+		{"bold around a code span", format.CodeSite{Type: "fmt:bold", Block: para, Before: []model.Run{model.TextR("Run ")}, Inner: span, After: []model.Run{model.TextR(" now")}}},
+		{"a link around bold", format.CodeSite{Type: "link:hyperlink", Attrs: map[string]string{"href": "x"}, Block: para, Inner: []model.Run{
+			model.PcOpenR(model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "**"}), model.TextR("x"),
+			model.PcCloseR(model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "**"})}}},
+		{"text that would open a list on its own line", site("fmt:bold", "- ", "item", "", nil)},
+		{"a literal star that closes nothing", site("fmt:italic", "Rated *five ", "stars", " by cooks", nil)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, err := w.SynthesizeCode(tc.site)
+			assert.NoError(t, err)
+		})
+	}
+}
+
+// readsBack is the proof under the named checks: parsed in place, markup the
+// text around it would turn into something else is refused even with no check
+// naming the cause, and markup that reads back as the code over the range
+// passes.
+func TestReadsBack(t *testing.T) {
+	isLink := func(n ast.Node) bool { l, ok := n.(*ast.Link); return ok && string(l.Destination) == "u" }
+	isBold := func(n ast.Node) bool { em, ok := n.(*ast.Emphasis); return ok && em.Level == 2 }
+	for _, tc := range []struct {
+		name                 string
+		before, inner, after string
+		open, closing        string
+		isCode               func(ast.Node) bool
+		ok                   bool
+	}{
+		{"a link after a bang reads as an image", "Wow!", "great", " stuff", "[", "](u)", isLink, false},
+		{"a backslash escapes a link's bracket", `foo\`, "bar", " here", "[", "](u)", isLink, false},
+		{"a backslash escapes a bold opener", `foo\`, "bar", " here", "**", "**", isBold, false},
+		{"a backslash escapes a bold closer", "Path ", `foo\`, " bar", "**", "**", isBold, false},
+		{"a closer that pairs with an earlier opener", "Rated **five", "stars", " by", "**", "**", isBold, false},
+		{"bold over the range", "We ", "pick", " daily", "**", "**", isBold, true},
+		{"a link over the range", "See ", "the guide", ".", "[", "](u)", isLink, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			site := format.CodeSite{Before: []model.Run{model.TextR(tc.before)}, Inner: []model.Run{model.TextR(tc.inner)}, After: []model.Run{model.TextR(tc.after)}}
+			err := readsBack(site, tc.open, tc.closing, tc.isCode)
+			if tc.ok {
+				assert.NoError(t, err)
+				return
+			}
+			assert.Error(t, err)
 		})
 	}
 }

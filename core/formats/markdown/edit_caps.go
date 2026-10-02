@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -161,7 +162,7 @@ func spellLinkDestination(value string, angle bool) (string, error) {
 // reader's extensions, reads from `[x](dest)`.
 func parsedDestination(dest string) (string, bool) {
 	src := []byte("[x](" + dest + ")")
-	doc := goldmark.New(goldmark.WithExtensions(extension.GFM)).Parser().Parse(text.NewReader(src))
+	doc := parseMarkdown(src)
 	var got string
 	found := false
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -174,10 +175,13 @@ func parsedDestination(dest string) (string, bool) {
 	return got, found
 }
 
-// synthesizedDelims are the delimiters the writer writes for new emphasis.
-var synthesizedDelims = map[string]struct{ subType, delim string }{
-	"fmt:bold":   {"md:strong", "**"},
-	"fmt:italic": {"md:emphasis", "*"},
+// synthesizedEmphasis maps the emphasis types the writer writes as a new code
+// to the subtype the reader gives them. The delimiters are the format's own
+// projection of the vocabulary (mdInlineTag), which the cross-format export
+// writes too.
+var synthesizedEmphasis = map[string]string{
+	"fmt:bold":   "md:strong",
+	"fmt:italic": "md:emphasis",
 }
 
 // Synthesizes lists the vocabulary types the writer writes as a new code.
@@ -188,8 +192,11 @@ func (w *Writer) Synthesizes() []string {
 // SynthesizeCode writes a new `**…**`, `*…*` or `[…](href)` pair as the reader
 // would read it back. A block whose text is literal (a code block, front
 // matter, math, raw HTML) and text inside a code span take no new code; a link
-// goes neither inside nor around another link or image; and emphasis goes only
-// where CommonMark reads its delimiters as opening and closing it.
+// goes neither inside nor around another link or image, nor after a '!' that
+// would make it an image; no markup goes where a backslash in the text would
+// escape it; and the markup is parsed in place, with the text around it, and
+// written only where CommonMark reads it back as the code over exactly the
+// range (readsBack).
 func (w *Writer) SynthesizeCode(site format.CodeSite) (open, closing model.Run, err error) {
 	if b := site.Block; b != nil {
 		switch b.Type {
@@ -211,16 +218,24 @@ func (w *Writer) SynthesizeCode(site format.CodeSite) (open, closing model.Run, 
 		Cloneable:   info.Constraints.Cloneable,
 		Reorderable: info.Constraints.Reorderable,
 	}
-	if d, ok := synthesizedDelims[site.Type]; ok {
+	if subType, ok := synthesizedEmphasis[site.Type]; ok {
 		if len(site.Attrs) > 0 {
 			return open, closing, fmt.Errorf("a new %s code takes no attributes", site.Type)
 		}
 		if err := emphasisFlanks(site); err != nil {
 			return open, closing, err
 		}
-		open = model.Run{PcOpen: &model.PcOpenRun{Type: site.Type, SubType: d.subType, Data: d.delim,
+		delims := mdInlineTag[site.Type]
+		level := len(delims[0])
+		if err := readsBack(site, delims[0], delims[1], func(n ast.Node) bool {
+			em, ok := n.(*ast.Emphasis)
+			return ok && em.Level == level
+		}); err != nil {
+			return open, closing, err
+		}
+		open = model.Run{PcOpen: &model.PcOpenRun{Type: site.Type, SubType: subType, Data: delims[0],
 			Disp: info.Display.Open, Equiv: info.Equiv, Constraints: constraints}}
-		closing = model.Run{PcClose: &model.PcCloseRun{Type: site.Type, SubType: d.subType, Data: d.delim, Equiv: info.Equiv}}
+		closing = model.Run{PcClose: &model.PcCloseRun{Type: site.Type, SubType: subType, Data: delims[1], Equiv: info.Equiv}}
 		return open, closing, nil
 	}
 	if site.Type != "link:hyperlink" {
@@ -254,6 +269,26 @@ func (w *Writer) SynthesizeCode(site format.CodeSite) (open, closing model.Run, 
 	if err != nil {
 		return open, closing, err
 	}
+	// In a table cell a pipe is spelled `\|`, which the reader reads back as
+	// the pipe (cellDestination).
+	readDest := func(d []byte) string { return string(d) }
+	if b := site.Block; b != nil && (b.SemanticRole() == model.RoleTableCell || b.SemanticRole() == model.RoleTableHeader) {
+		dest = escapeCellPipes(dest)
+		readDest = func(d []byte) string { return strings.ReplaceAll(string(d), `\|`, "|") }
+	}
+	before := model.RenderRunsWithData(site.Before)
+	if strings.HasSuffix(before, "!") && !backslashEscaped(before, len(before)-1) {
+		return open, closing, errors.New("a '!' right before a link makes it an image; mark the text from a later character or include the '!'")
+	}
+	if err := backslashBeside(site); err != nil {
+		return open, closing, err
+	}
+	if err := readsBack(site, "[", "]("+dest+")", func(n ast.Node) bool {
+		l, ok := n.(*ast.Link)
+		return ok && readDest(l.Destination) == href
+	}); err != nil {
+		return open, closing, err
+	}
 	var attrs map[string]string
 	if href != "" {
 		attrs = map[string]string{model.AttrHref: href}
@@ -282,6 +317,9 @@ func emphasisFlanks(site format.CodeSite) error {
 	if after == "" {
 		next = ' '
 	}
+	if err := backslashBeside(site); err != nil {
+		return err
+	}
 	switch {
 	case inner == "":
 		return errors.New("emphasis needs text to wrap")
@@ -295,6 +333,128 @@ func emphasisFlanks(site format.CodeSite) error {
 		return errors.New("emphasis in Markdown does not close between punctuation and a word character; widen the mark to the whole word")
 	}
 	return nil
+}
+
+// backslashBeside reports, as an error with the reason, a backslash that
+// would escape the new code's markup. The reader keeps the document's own
+// spelling in text runs, so a backslash the text ends in is written just
+// before the opening or the closing markup, and CommonMark reads the
+// character after an odd run of backslashes as text.
+func backslashBeside(site format.CodeSite) error {
+	if before := model.RenderRunsWithData(site.Before); backslashEscaped(before, len(before)) {
+		return errors.New("the text before the range ends in a backslash, which would escape the new code's opening markup; mark the text from a later character")
+	}
+	if inner := model.RenderRunsWithData(site.Inner); backslashEscaped(inner, len(inner)) {
+		return errors.New("the range ends in a backslash, which would escape the new code's closing markup; mark the text without it")
+	}
+	return nil
+}
+
+// readsBack parses the block's text with the new code's markup in place, as
+// the reader parses it, and reports, as an error with the reason, a place
+// where the markup would not read back as the new code: where its delimiters
+// would read as text or pair with others, where the code would hold more or
+// less than the range, or where the markup would change how anything else in
+// the block reads. isCode picks the node the new code reads as. The checks
+// before it name the common causes; this one is the proof that the markup
+// reads back as the code.
+func readsBack(site format.CodeSite, open, closing string, isCode func(ast.Node) bool) error {
+	// The text is parsed after a word and a space, which open no block
+	// construct and read like the start of a line to the inline parser, so
+	// text that would start a list or a heading on a line of its own still
+	// parses as the paragraph it is in the document.
+	const lead = "x "
+	before := lead + model.RenderRunsWithData(site.Before)
+	inner := model.RenderRunsWithData(site.Inner)
+	after := model.RenderRunsWithData(site.After)
+	src := []byte(before + open + inner + closing + after)
+	was := mdNodeCounts(parseMarkdown([]byte(before + inner + after)))
+	doc := parseMarkdown(src)
+	now := mdNodeCounts(doc)
+
+	innerStart := len(before) + len(open)
+	innerEnd := innerStart + len(inner)
+	markupStart, markupEnd := len(before), innerEnd+len(closing)
+	var code ast.Node
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering || code != nil || !isCode(n) {
+			return ast.WalkContinue, nil
+		}
+		inside := true
+		_ = ast.Walk(n, func(c ast.Node, entering bool) (ast.WalkStatus, error) {
+			if t, ok := c.(*ast.Text); ok && entering && (t.Segment.Start < innerStart || t.Segment.Stop > innerEnd) {
+				inside = false
+				return ast.WalkStop, nil
+			}
+			return ast.WalkContinue, nil
+		})
+		if inside {
+			code = n
+			return ast.WalkStop, nil
+		}
+		return ast.WalkContinue, nil
+	})
+	if code == nil {
+		return errors.New("CommonMark would not read the new markup as the code here; it would pair with other markup or read as text")
+	}
+	// Every piece of text from the opening markup to the end of the closing
+	// markup is the range's own text, inside the new code: a delimiter left
+	// over as text, or range text outside the code, reads back differently.
+	var stray error
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		t, ok := n.(*ast.Text)
+		if !entering || !ok || t.Segment.Stop <= markupStart || t.Segment.Start >= markupEnd {
+			return ast.WalkContinue, nil
+		}
+		if t.Segment.Start < innerStart || t.Segment.Stop > innerEnd || !hasAncestor(t, code) {
+			stray = errors.New("CommonMark would read part of the new markup as text, or leave text of the range outside the code")
+			return ast.WalkStop, nil
+		}
+		return ast.WalkContinue, nil
+	})
+	if stray != nil {
+		return stray
+	}
+	was[mdNodeKey(code)]++
+	if !maps.Equal(was, now) {
+		return errors.New("the new markup would change how other markup in the block reads")
+	}
+	return nil
+}
+
+// parseMarkdown parses src with the reader's parser and extensions.
+func parseMarkdown(src []byte) ast.Node {
+	return goldmark.New(goldmark.WithExtensions(extension.GFM)).Parser().Parse(text.NewReader(src))
+}
+
+// mdNodeCounts counts the nodes of a parsed document by kind, emphasis by its
+// level, leaving out text, which delimiters split differently wherever they
+// sit.
+func mdNodeCounts(doc ast.Node) map[string]int {
+	out := map[string]int{}
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering && n.Kind() != ast.KindText && n.Kind() != ast.KindString {
+			out[mdNodeKey(n)]++
+		}
+		return ast.WalkContinue, nil
+	})
+	return out
+}
+
+func mdNodeKey(n ast.Node) string {
+	if em, ok := n.(*ast.Emphasis); ok {
+		return n.Kind().String() + strconv.Itoa(em.Level)
+	}
+	return n.Kind().String()
+}
+
+func hasAncestor(n, ancestor ast.Node) bool {
+	for p := n.Parent(); p != nil; p = p.Parent() {
+		if p == ancestor {
+			return true
+		}
+	}
+	return false
 }
 
 // mdPunct is CommonMark's Unicode punctuation character: punctuation or a
