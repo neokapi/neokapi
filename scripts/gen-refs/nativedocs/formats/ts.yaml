@@ -22,6 +22,8 @@ limitations:
   - The format is not auto-detected by the `.ts` file extension (it conflicts with TypeScript); detection relies on sniffing the `<TS>` root element or an explicit format declaration.
   - Non-XML bytes (`<byte value="…"/>` elements) are surfaced as inline placeholder runs and preserved through exchange; they are not decoded to their raw character equivalents on read.
   - There are no configurable parameters; behaviour follows the default contract.
+  - Each `<numerusform>` of a plural message is written from its own part of the translation. A translation that no longer divides into the forms, such as an edit that joins two forms or one translation written for the whole message over forms that hold text, is refused and the document is left unwritten.
+  - A plural message's forms that were empty when read are written empty, so a translation written for such a message does not reach the file.
 processingNotes:
   - One translatable block per `<message>`; context and message structure round-trip as skeleton.
   - Plural messages carry one `<numerusform>` per locale plural form.

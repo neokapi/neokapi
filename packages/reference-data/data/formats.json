@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T16:26:57Z",
+  "generatedAt": "2026-10-02T16:38:27Z",
   "kind": "format",
   "entries": [
     {
@@ -3548,7 +3548,9 @@
         "limitations": [
           "The format is not auto-detected by the `.ts` file extension (it conflicts with TypeScript); detection relies on sniffing the `\u003cTS\u003e` root element or an explicit format declaration.",
           "Non-XML bytes (`\u003cbyte value=\"…\"/\u003e` elements) are surfaced as inline placeholder runs and preserved through exchange; they are not decoded to their raw character equivalents on read.",
-          "There are no configurable parameters; behaviour follows the default contract."
+          "There are no configurable parameters; behaviour follows the default contract.",
+          "Each `\u003cnumerusform\u003e` of a plural message is written from its own part of the translation. A translation that no longer divides into the forms, such as an edit that joins two forms or one translation written for the whole message over forms that hold text, is refused and the document is left unwritten.",
+          "A plural message's forms that were empty when read are written empty, so a translation written for such a message does not reach the file."
         ],
         "processingNotes": [
           "One translatable block per `\u003cmessage\u003e`; context and message structure round-trip as skeleton.",
@@ -4640,7 +4642,7 @@
         }
       },
       "doc": {
-        "overview": "XLIFF 2.x is the modern OASIS XML interchange standard for bilingual\ncontent. It replaces the 1.2 element soup with an explicit\n`\u003cunit\u003e`/`\u003csegment\u003e` structure, file-scoped notes, a small set of inline tag\nelements (`ph`, `pc`, `sc`/`ec`, `mrk`), and per-segment translation states.\nThe reader accepts the 2.0, 2.1, and 2.2 namespaces as one compatible family.\n\nThe reader emits one block per translatable unit and reads its inline\nelements as inline codes. A segment nothing edited is written with its own\nbytes, so unmodified content round-trips byte-for-byte, and an edited one\nkeeps each code with the attributes the document gave it; the annotation\nmarkers (`\u003cmrk\u003e`, `\u003csm\u003e`/`\u003cem\u003e`) an edited segment held are dropped. A unit\nof several segments is written segment by segment. An edit that joins two\nof its segments into one text is refused and the document is left\nunwritten, so no words move from one segment into another. A translation\nwritten as one text for a whole unit goes into the unit's first segment.\nThe writer can emit any 2.x version: by default it preserves the input\ndocument's version on round-trip and falls back to 2.2 for content\nextracted from a non-XLIFF source. This mirrors Okapi's XLIFF 2 filter.\n",
+        "overview": "XLIFF 2.x is the modern OASIS XML interchange standard for bilingual\ncontent. It replaces the 1.2 element soup with an explicit\n`\u003cunit\u003e`/`\u003csegment\u003e` structure, file-scoped notes, a small set of inline tag\nelements (`ph`, `pc`, `sc`/`ec`, `mrk`), and per-segment translation states.\nThe reader accepts the 2.0, 2.1, and 2.2 namespaces as one compatible family.\n\nThe reader emits one block per translatable unit and reads its inline\nelements as inline codes. A segment nothing edited is written with its own\nbytes, so unmodified content round-trips byte-for-byte, and an edited one\nkeeps each code with the attributes the document gave it; the annotation\nmarkers (`\u003cmrk\u003e`, `\u003csm\u003e`/`\u003cem\u003e`) an edited segment held are dropped. A unit\nof several segments is written segment by segment. Content that no longer\ndivides into the segments it was read with, such as an edit that joins two\nsegments or one translation written for a unit translated segment by\nsegment, is refused and the document is left unwritten, so no words move\nfrom one segment into another. A translation written as one text for a unit\nread with no translation goes into the unit's first segment.\nThe writer can emit any 2.x version: by default it preserves the input\ndocument's version on round-trip and falls back to 2.2 for content\nextracted from a non-XLIFF source. This mirrors Okapi's XLIFF 2 filter.\n",
         "parameters": {
           "codeFinderRules": {
             "description": "Regular-expression patterns that match inline codes in content.",
@@ -4693,7 +4695,7 @@
         },
         "processingNotes": [
           "One block is emitted per translatable unit; inline elements become inline codes, and an unedited segment is written with its own bytes.",
-          "An edit that joins the segments of a unit into one text, or leaves inline codes no XLIFF 2 markup can express, is refused and the document is not written.",
+          "Content that no longer divides into the segments a unit was read with, or inline codes no XLIFF 2 markup can express, are refused and the document is not written.",
           "The 2.0, 2.1, and 2.2 namespaces are accepted as a compatible family on read."
         ],
         "examples": [
