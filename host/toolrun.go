@@ -301,6 +301,12 @@ func (a *App) resolveRunOutputPath(cfg ToolRunConfig, filePath, commonDir string
 		outputPath = filePath
 	case cfg.OutputTemplate != "":
 		outputPath = expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
+	case cfg.TargetLang == "":
+		// The default layout places a target-language file by swapping the
+		// source locale in the input path for the target's. A run that names
+		// no target language rewrites the input's own content (search-replace
+		// over the source, redact), so the input is the file it updates.
+		outputPath = filePath
 	default: // cfg.DefaultLayout
 		// Project mode: a matched content-item target (the one core resolver)
 		// wins over the locale-swap heuristic, so tool runs honour the recipe's
