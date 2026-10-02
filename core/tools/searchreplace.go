@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -124,13 +125,11 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 		if applyTarget && !conf.TargetLocale.IsEmpty() {
 			targets = []model.LocaleID{conf.TargetLocale}
 		}
-		plan, err := textPlan(v, applySource, targets, func(s string) (string, error) {
-			return applyReplacements(s, compiled, replaceAll), nil
-		})
-		if err != nil {
-			return tool.EditPlan{}, fmt.Errorf("search-replace: %w", err)
+		passes := make([]textRewrite, len(compiled))
+		for i, pair := range compiled {
+			passes[i] = pair.edits(replaceAll)
 		}
-		return plan, nil
+		return textPlan(v, applySource, targets, passes...), nil
 	}
 	return t
 }
@@ -190,27 +189,71 @@ func buildEffectivePairs(conf *SearchReplaceConfig) []ReplacePair {
 	return pairs
 }
 
-// applyReplacements applies all precompiled replacement pairs to the given
-// text. If replaceAll is false, only the first match is replaced.
-func applyReplacements(text string, pairs []compiledPair, replaceAll bool) string {
-	result := text
-	for _, pair := range pairs {
-		if pair.re != nil {
-			if replaceAll {
-				result = pair.re.ReplaceAllString(result, pair.replace)
-			} else {
-				loc := pair.re.FindStringIndex(result)
-				if loc != nil {
-					result = result[:loc[0]] + pair.re.ReplaceAllString(result[loc[0]:loc[1]], pair.replace) + result[loc[1]:]
-				}
+// edits is the pair's pass: the edits that replace its matches in a text, every
+// match when all is set and the first otherwise. Matches do not overlap, and a
+// regular expression's replacement expands its groups ($1, ${name}) as
+// regexp.Expand does.
+func (p compiledPair) edits(all bool) textRewrite {
+	return func(text string) []model.TextEdit {
+		var matches [][]int
+		switch {
+		case p.re != nil && all:
+			matches = p.re.FindAllStringSubmatchIndex(text, -1)
+		case p.re != nil:
+			if m := p.re.FindStringSubmatchIndex(text); m != nil {
+				matches = [][]int{m}
 			}
-		} else {
-			if replaceAll {
-				result = strings.ReplaceAll(result, pair.search, pair.replace)
-			} else {
-				result = strings.Replace(result, pair.search, pair.replace, 1)
+		default:
+			matches = literalMatches(text, p.search, all)
+		}
+		if len(matches) == 0 {
+			return nil
+		}
+		edits := make([]model.TextEdit, 0, len(matches))
+		// The matches are byte offsets; a text edit counts code points.
+		byteAt, runeAt := 0, 0
+		toRunes := func(b int) int {
+			runeAt += utf8.RuneCountInString(text[byteAt:b])
+			byteAt = b
+			return runeAt
+		}
+		for _, m := range matches {
+			replacement := p.replace
+			if p.re != nil {
+				replacement = string(p.re.ExpandString(nil, p.replace, text, m))
 			}
+			start := toRunes(m[0])
+			end := toRunes(m[1])
+			edits = append(edits, model.TextEdit{Start: start, End: end, Replacement: replacement})
+		}
+		return edits
+	}
+}
+
+// literalMatches returns the byte ranges of search in text, left to right and
+// not overlapping: every one when all is set, the first otherwise. An empty
+// search matches at the start and after each character, as strings.Replace
+// treats it.
+func literalMatches(text, search string, all bool) [][]int {
+	var out [][]int
+	for from := 0; from <= len(text); {
+		i := strings.Index(text[from:], search)
+		if i < 0 {
+			break
+		}
+		start := from + i
+		out = append(out, []int{start, start + len(search)})
+		if !all {
+			break
+		}
+		from = start + len(search)
+		if search == "" {
+			if from == len(text) {
+				break
+			}
+			_, size := utf8.DecodeRuneInString(text[from:])
+			from += size
 		}
 	}
-	return result
+	return out
 }

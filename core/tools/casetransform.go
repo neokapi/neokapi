@@ -3,7 +3,7 @@ package tools
 import (
 	"errors"
 	"fmt"
-	"strings"
+	"unicode"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -81,26 +81,36 @@ func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
 		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() {
 			targets = []model.LocaleID{conf.TargetLocale}
 		}
-		plan, err := textPlan(v, conf.ApplySource, targets, func(s string) (string, error) {
-			return transformCase(s, conf.Mode), nil
-		})
-		if err != nil {
-			return tool.EditPlan{}, fmt.Errorf("case-transform: %w", err)
-		}
-		return plan, nil
+		return textPlan(v, conf.ApplySource, targets, caseEdits(conf.Mode)), nil
 	}
 	return t
 }
 
-func transformCase(text string, mode CaseMode) string {
+// caseEdits is the case conversion's pass: one edit for each character the
+// conversion changes. strings.ToUpper, ToLower and ToTitle map character by
+// character, so the edits change no position, and an inline code between two
+// characters stays between them.
+func caseEdits(mode CaseMode) textRewrite {
+	var convert func(rune) rune
 	switch mode {
 	case CaseUpper:
-		return strings.ToUpper(text)
+		convert = unicode.ToUpper
 	case CaseLower:
-		return strings.ToLower(text)
+		convert = unicode.ToLower
 	case CaseTitle:
-		return strings.ToTitle(text)
+		convert = unicode.ToTitle
 	default:
-		return text
+		return func(string) []model.TextEdit { return nil }
+	}
+	return func(text string) []model.TextEdit {
+		var edits []model.TextEdit
+		i := 0
+		for _, r := range text {
+			if c := convert(r); c != r {
+				edits = append(edits, model.TextEdit{Start: i, End: i + 1, Replacement: string(c)})
+			}
+			i++
+		}
+		return edits
 	}
 }

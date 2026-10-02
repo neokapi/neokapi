@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -209,4 +210,48 @@ func TestView_OverlayWritesKeepWholeSpans(t *testing.T) {
 	err := dispatch(t, bt, b)
 	require.Error(t, err, "a span outside the content is refused")
 	assert.Nil(t, b.OverlaySpan(model.OverlayEntity, "e2"))
+}
+
+// In-place text edits compile to one replace_text per pass, in order, so the
+// second pass reads the text the first left; the codes stay, and a target
+// rewritten in place and whole at once is refused.
+func TestEditPlan_TextEditsApplyAsReplaceText(t *testing.T) {
+	coded := []model.Run{
+		model.TextR("Click "),
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}},
+		model.TextR("Save"),
+		{PcClose: &model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"}},
+		model.TextR(" now"),
+	}
+	edit := func(start, end int, text string) change.TextEdit {
+		return change.TextEdit{Start: &start, End: &end, Text: text}
+	}
+	b := model.NewBlock("b1", "x")
+	b.SetSourceRuns(coded)
+	b.SetTargetRuns("fr", coded)
+	bt := &tool.BaseTool{ToolName: "probe"}
+	bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+		var p tool.EditPlan
+		p.AddTextEdits(model.VariantKey{}, []change.TextEdit{edit(0, 5, "Press")})
+		p.AddTextEdits(model.VariantKey{}, []change.TextEdit{edit(11, 14, "later")})
+		p.AddTextEdits(model.Variant("fr"), []change.TextEdit{edit(6, 10, "Keep")})
+		p.AddTextEdits(model.Variant("fr"), nil)
+		return p, nil
+	}
+	require.NoError(t, dispatch(t, bt, b))
+	assert.Equal(t, `Press <x id="1"/>Save<x id="/1"/> later`, model.RunsPlaceholderText(b.SourceRuns()))
+	assert.Equal(t, `Click <x id="1"/>Keep<x id="/1"/> now`, model.RunsPlaceholderText(b.TargetRuns("fr")))
+
+	var both tool.EditPlan
+	both.SetTarget("fr", []model.Run{model.TextR("Salut")})
+	both.AddTextEdits(model.Variant("fr"), []change.TextEdit{edit(0, 1, "c")})
+	_, err := both.Ops(b)
+	require.Error(t, err)
+
+	var source tool.EditPlan
+	text := "Salut"
+	source.ReplaceAll = &text
+	source.AddTextEdits(model.VariantKey{}, []change.TextEdit{edit(0, 1, "c")})
+	_, err = source.Ops(b)
+	require.Error(t, err)
 }

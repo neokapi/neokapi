@@ -67,7 +67,7 @@ Positions in `replace_text` are code points of the text of the sequence a `path`
 
 ## Tools write through it
 
-A tool's view (`core/tool/view.go`) applies each target write, provenance stamp and overlay write as an operation at once, through `ApplyBlock`, as the tool, with guard violations landing as findings. Applying at once keeps read-your-writes: a handler that sets a new target and stamps it finds the target it set. A write the applier refuses becomes the handler's error. A tool that overrides `Process` writes through `tool.WriteAs`, which returns the same refusal, and a `Transform` returns an `EditPlan` whose `Ops` compile to `set_content` operations on the source and each replaced target.
+A tool's view (`core/tool/view.go`) applies each target write, provenance stamp and overlay write as an operation at once, through `ApplyBlock`, as the tool, with guard violations landing as findings. Applying at once keeps read-your-writes: a handler that sets a new target and stamps it finds the target it set. A write the applier refuses becomes the handler's error. A tool that overrides `Process` writes through `tool.WriteAs`, which returns the same refusal, and a `Transform` returns an `EditPlan` whose `Ops` compile to `set_content` operations on the source and each replaced target, and to a `replace_text` for each pass of in-place text edits (`EditPlan.TextEdits`), which keeps the edition's inline codes, structure and run flags. search-replace and case-transform edit this way.
 
 ## The service and its homes
 

@@ -132,10 +132,16 @@ func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
         conf := t.Cfg.(*CaseTransformConfig)
         var plan tool.EditPlan
         if conf.ApplySource {
-            converted := transformCase(v.SourceText(), conf.Mode)
-            if converted != v.SourceText() {
-                plan.ReplaceAll = &converted // opaque whole-source rewrite
+            // One in-place edit per character the conversion changes, so the
+            // inline codes between the characters stay where they are.
+            var edits []change.TextEdit
+            for i, r := range []rune(model.SequenceText(v.SourceRuns())) {
+                if c := convertCase(r, conf.Mode); c != r {
+                    start, end := i, i+1
+                    edits = append(edits, change.TextEdit{Start: &start, End: &end, Text: string(c)})
+                }
             }
+            plan.AddTextEdits(model.VariantKey{}, edits) // the zero key is the source
         }
         return plan, nil
     }
