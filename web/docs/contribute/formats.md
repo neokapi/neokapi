@@ -147,7 +147,11 @@ A writer that can add a block to a document, or remove one with its markup,
 implements `format.StructureEditor`: `Structural()` lists `insert_block` and
 `delete_block`, and `EditStructure(doc, edits)` returns the document with each
 edit made and every other byte as it was. It suits a format whose block shell
-is small, such as a catalog's key and value. Each declaration needs passing
+is small, such as a catalog's key and value. `Structural()` answers for the
+writer's configuration: under one that makes other markup part of a block's
+shell, such as a note read from the member beside it, it lists nothing. A new
+block goes where the reader would look for its key, and a comment the reader
+reads as a block's note goes with the block. Each declaration needs passing
 cells in the structural operations matrix
 (`core/formats/opsmatrix_structural_test.go`), and the
 [format system](/contribute/architecture/engine/e-02-format-system) describes

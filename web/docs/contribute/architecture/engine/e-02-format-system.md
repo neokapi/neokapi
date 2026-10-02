@@ -501,21 +501,39 @@ edit and why: the key is held already, the block is not there, or the format
 has no way to write it there. `format.StructuralOps` reports what a writer
 declares and writes; the change service ([E-09](e-09-the-change-contract.md))
 reads it for a built-in writer, so describing a format and applying a change
-set agree, and a plugin format declares none.
+set agree, and a plugin format declares none. A writer answers `Structural` for
+its own configuration: where a document's configuration makes more than the key
+and its value part of a block's shell, describing that document reports neither
+operation and applying one is refused.
+
+A new block goes where a reader would look for its key path. Readers name a
+value in a nested object and one under a flat dotted key the same way
+(`nav.checkout`), so the writer puts the new key in the deepest object or
+mapping that the start of its key path names, beside its anchor or last there,
+and builds the objects or mappings the path names that the document lacks. An
+object that already names values by flat dotted keys takes the rest of the
+path as one key. An anchor outside that object is refused.
 
 The JSON, YAML and ARB writers declare both operations:
 
-- JSON adds a member beside another in the same object, with the indentation,
-  line breaks and colon spacing the object already uses, and removes one with
-  the comma before or after it. A value in an array is named by its position
-  and is never added or removed.
-- YAML adds a line at the indentation of the key beside it, after every line of
-  that key's value, and removes a key's lines. Comment lines are never added or
-  removed; only a comment on a removed key's own line goes with it. A key in a
-  flow mapping, on a sequence item's dash line, reached through an alias, or
-  holding an anchor is refused. A new value is written plain where it reads
-  back as the same string and double-quoted otherwise, and removing a mapping's
-  last key leaves it `{}`.
+- JSON adds a member with the indentation, line breaks and colon spacing the
+  object already uses, and a built object follows the same layout one step
+  deeper. It removes a member with the comma before or after it and a comment
+  that ends on the member's own line. A value in an array is named by its
+  position and is never added or removed. A configuration that reads a block's
+  note, id or metadata from the members beside it (`noteRules`, `idRules`,
+  `useIdStack`, `genericMetaRules`, `maxwidthRules`) declares neither
+  operation, and under `useFullKeyPath` a name such as `/nav/home` is read as
+  the key path it spells.
+- YAML adds a line at the indentation of the mapping's keys, after every line
+  of the anchor's value, or above the comment directly over the key it goes
+  before. It removes a key's lines with that comment, which the reader reads as
+  the block's note, and leaves every other comment where it is. A key in a flow
+  mapping, on a sequence item's dash line, reached through an alias, holding an
+  anchor, or inside a node with an anchor is refused. A new key or value is
+  written plain where YAML 1.2 and YAML 1.1 parsers both read it back as the
+  same string, and double-quoted otherwise (`yes`, `off`, `1:20`), and
+  removing a mapping's last key leaves it `{}`, after the tag it carries.
 - ARB keeps a message's `@` metadata beside it: a message added after another
   goes after that message's metadata, one added before goes before metadata
   that precedes it, and a removed message takes its metadata with it. An id

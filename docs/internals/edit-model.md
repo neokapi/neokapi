@@ -171,7 +171,7 @@ existing content, `if_match` (section 4).
 | `annotate` | `type`, `id?`, `anchor?` (a `model.Anchor`), `value` | Bowrain notes and entities routes, desktop notes, tool overlay writes | stand-off always; inline where the format declares it (`core/registry/format.go:133-140`) |
 | `unannotate` | `type`, `id` | Bowrain note delete, `RemoveOverlay` | as `annotate` |
 | `insert_block` | `doc`, `after` or `before` (a block key), `name?`, `editions` (edition key to `text` or `runs`) | nothing on main can do this | structural, per format |
-| `delete_block` | `at` without an edition; `if_match` as a map from edition to revision | nothing on main can do this; dropping a Part leaves an empty shell (codex-design D6, observed) | structural, per format |
+| `delete_block` | `at` without an edition; `if_match` as a map from edition to revision, naming at least the block's own edition; every edition goes with the block | nothing on main can do this; dropping a Part leaves an empty shell (codex-design D6, observed) | structural, per format |
 | `native` | `doc`, `if_match` (the document digest), `name`, `args` validated by the format's JSON Schema | codex's `docx.append_paragraph`, `append_table`, `append_image`, `replace_image` (r1 §1.6) | the format lists the operation and its schema |
 
 **Decision and asset operations** share the envelope and the result.
@@ -283,6 +283,13 @@ Example 6 is the case codex got wrong: its `create_variant` took plain text and 
 collapsed paired markup (r1 §5.3, critic C7). Example 7 is the case main gets wrong today:
 `kapi apply` flattens a plural block to plain text, deletes its variable and reports
 `applied` (main-model P1, observed; `core/tools/applyedits.go:101-109`).
+
+Example 10 names the revision of the catalog's own edition only. `if_match` for `delete_block`
+must name the own edition (a map without it is `invalid`, as an omitted precondition is, section
+4.2), and every edition it names is checked (`stale` when moved or absent). The key leaves every
+translation file too, named or not, since those translations have no source left. The new key in
+the first operation goes in the object its key path names (`nav`), and with neither `after` nor
+`before` it goes last there; a missing object on the path is created.
 
 ### 2.4 Rules every content operation obeys
 

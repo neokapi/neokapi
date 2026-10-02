@@ -133,7 +133,8 @@ note describes each rule.
   `delete_block` among it where the writer can add and remove blocks. For a
   document the declaration is the one its home reports for the document's
   writer (`DocInfo.Capabilities`), which `ApplyBlock` applies every operation
-  with. `WithDescriber` replaces `DescribeFormat`, and that one function is what
+  with, less the structural operations its home cannot write there.
+  `WithDescriber` replaces `DescribeFormat`, and that one function is what
   `Describe` reports, what a read lists per block, and what `Apply` refuses
   outside of.
 
@@ -153,21 +154,27 @@ removed. A writer declares the operations it writes with
 `format.StructuralWriter` and writes them through `format.StructureEditor`.
 `Describe` reports them where a writer declares them, and every other format
 refuses them as `unsupported`. The JSON, YAML and ARB writers declare both: in
-a key-value catalog a block's shell is its key and the value beside it.
+a key-value catalog a block's shell is its key and the value beside it. A
+writer's declaration can depend on its configuration, so describing a document
+reports the operations its home can write in that document
+(`StructuralSession`), and a read's per-block operations and `Apply` follow
+the same list.
 
 - `delete_block` addresses a block and carries `if_match` as a map from
-  edition to revision, naming every edition the block holds: its own, and each
-  translation in a file of its own. An edition the map leaves out or names at
-  another revision is `stale`, with the edition as it stands, and so is an
-  edition the map names and the block lacks. The block goes with every
-  edition.
+  edition to revision. The map names the block's own edition, and may name any
+  other edition its sender read. A map without the own edition is `invalid`;
+  an edition named at another revision is `stale`, with the edition as it
+  stands, and so is an edition the map names and the block lacks. The block
+  goes with every edition it holds, its own and each translation in a file of
+  its own, whether the map names it or not.
 - `insert_block` names the document, the new block's key (`name`), the key it
-  goes `after` or `before` (with neither it goes last), and the content of each
-  edition. The document's own edition is required, and any other must live in
-  a file of its own. A key a block already answers to is `stale`, a neighbour
-  no block answers to is `not_found`, and the content obeys the rules of every
-  content operation: a new block has no inline codes to name, so text with a
-  code placeholder is a `guard` refusal.
+  goes `after` or `before`, and the content of each edition. The new block goes
+  in the object or mapping its key path names, beside its anchor or, with
+  neither, last there. The document's own edition is required, and any other
+  must live in a file of its own. A key a block already answers to is `stale`,
+  a neighbour no block answers to is `not_found`, and the content obeys the
+  rules of every content operation: a new block has no inline codes to name,
+  so text with a code placeholder is a `guard` refusal.
 
 Operations apply in order, and each sees what the ones before it left: a block
 can go beside one an earlier operation added, and a block is replaced in its
