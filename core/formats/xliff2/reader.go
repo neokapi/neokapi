@@ -548,7 +548,24 @@ type markSpan struct {
 	Attrs MrkAttrs
 	Start model.RunPos
 	End   model.RunPos
+	// Half says the marker is one half of an <sm>/<em> pair whose other half
+	// lies outside the sequence: a pair split across segments. Start and End
+	// are then both where that half sits.
+	Half markHalf
 }
+
+// markHalf says which part of a marker pair a markSpan stands for.
+type markHalf uint8
+
+const (
+	// wholeMark is a marker with both ends in the sequence.
+	wholeMark markHalf = iota
+	// startHalf is an <sm> whose <em> is not in the sequence.
+	startHalf
+	// endHalf is an <em> whose <sm> is not in the sequence; its Attrs carry
+	// the id the <em> names.
+	endHalf
+)
 
 // inlinesToRunsWithMarks downconverts the xliff2 Inline IR to the framework's
 // generic model.Run sequence, and reports where each annotation marker sat in
@@ -559,11 +576,21 @@ type markSpan struct {
 // must not be lost anyway: they carry a decision about specific characters (this
 // is a term, this must not be translated), and the model has somewhere to put
 // such a decision. So they come back as positions rather than as runs.
+//
+// An <sm> whose <em> is not in the sequence, and an <em> whose <sm> is not,
+// come back as halves (markHalf): a pair split across segments, which the
+// reader joins into one span over the unit (applyMarkOverlays). A half with no
+// partner anywhere marks nothing.
 func inlinesToRunsWithMarks(inls []Inline) ([]model.Run, []markSpan) {
 	w := &markWalker{open: map[string]markSpan{}}
 	w.walk(inls)
-	// An <sm> whose <em> never arrived marks nothing: an unterminated span has
-	// no end to anchor, and inventing one puts a span where the file did not.
+	for _, id := range w.openOrder {
+		if m, ok := w.open[id]; ok {
+			m.End, m.Half = m.Start, startHalf
+			w.marks = append(w.marks, m)
+			delete(w.open, id)
+		}
+	}
 	return w.runs, w.marks
 }
 
@@ -573,9 +600,10 @@ func inlinesToRunsWithMarks(inls []Inline) ([]model.Run, []markSpan) {
 // paired code — so a walk that could not pair them would drop exactly the case
 // they exist to express.
 type markWalker struct {
-	runs  []model.Run
-	marks []markSpan
-	open  map[string]markSpan
+	runs      []model.Run
+	marks     []markSpan
+	open      map[string]markSpan
+	openOrder []string // the ids of <sm> elements, in document order
 }
 
 func (w *markWalker) walk(inls []Inline) {
@@ -648,12 +676,16 @@ func (w *markWalker) walk(inls []Inline) {
 			w.marks = append(w.marks, markSpan{Attrs: in.Mrk.MrkAttrs, Start: model.RunPos{Run: start}, End: model.RunPos{Run: len(w.runs)}})
 		case in.Sm != nil:
 			w.open[in.Sm.ID] = markSpan{Attrs: in.Sm.MrkAttrs, Start: model.RunPos{Run: len(w.runs)}}
+			w.openOrder = append(w.openOrder, in.Sm.ID)
 		case in.Em != nil:
+			at := model.RunPos{Run: len(w.runs)}
 			if m, ok := w.open[in.Em.StartRef]; ok {
-				m.End = model.RunPos{Run: len(w.runs)}
+				m.End = at
 				w.marks = append(w.marks, m)
 				delete(w.open, in.Em.StartRef)
+				continue
 			}
+			w.marks = append(w.marks, markSpan{Attrs: MrkAttrs{ID: in.Em.StartRef}, Start: at, End: at, Half: endHalf})
 		}
 	}
 }

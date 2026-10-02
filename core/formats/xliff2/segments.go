@@ -1,6 +1,8 @@
 package xliff2
 
 import (
+	"slices"
+
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -51,8 +53,13 @@ type seg struct {
 	// straddling two segments. The writer reports them rather than drawing
 	// half of a pair.
 	UnplacedMarks []model.Span
-	Ignorable     bool
-	Content       *Content // full inline IR for this segment's body
+	// StripHalves names the pairs split across segments whose halves the IR
+	// holds and the writer does not write as read: those it draws from the
+	// overlays, and those whose span is gone while a segment holding one of
+	// their halves is rebuilt, which would leave the other half alone.
+	StripHalves map[string]bool
+	Ignorable   bool
+	Content     *Content // full inline IR for this segment's body
 }
 
 // UnitSegmentsAnnotation carries the per-segment inline IR for a unit's
@@ -175,22 +182,48 @@ const OverlayMrk model.OverlayType = "xliff2:mrk"
 // cursor walk buildSegmentSpans does over the same segments.
 func applyMarkOverlays(block *model.Block, variant *model.VariantKey, segs []seg) {
 	var term, other []model.Span
+	add := func(m markSpan, span model.Span) {
+		if m.Attrs.Type == termMarkType {
+			term = append(term, span)
+			return
+		}
+		if span.Props == nil {
+			span.Props = map[string]string{}
+		}
+		span.Props["type"] = m.Attrs.Type
+		other = append(other, span)
+	}
+	// An <sm> in one segment whose <em> is in a later one is one span over
+	// the unit: the halves are paired in document order.
+	type half struct {
+		m      markSpan
+		offset int
+	}
+	var opens []half
 	cursor := 0
 	for _, sg := range segs {
 		for _, m := range sg.Marks {
+			switch m.Half {
+			case startHalf:
+				opens = append(opens, half{m, cursor})
+				continue
+			case endHalf:
+				for i, o := range opens {
+					if o.m.Attrs.ID != m.Attrs.ID {
+						continue
+					}
+					span := markToSpan(o.m, o.offset)
+					span.Range.End = model.RunPos{Run: m.End.Run + cursor, Offset: m.End.Offset}
+					add(o.m, span)
+					opens = slices.Delete(opens, i, i+1)
+					break
+				}
+				continue
+			}
 			if m.End.Run < m.Start.Run {
 				continue
 			}
-			span := markToSpan(m, cursor)
-			if m.Attrs.Type == termMarkType {
-				term = append(term, span)
-				continue
-			}
-			if span.Props == nil {
-				span.Props = map[string]string{}
-			}
-			span.Props["type"] = m.Attrs.Type
-			other = append(other, span)
+			add(m, markToSpan(m, cursor))
 		}
 		cursor += len(sg.Runs)
 	}
@@ -304,7 +337,50 @@ func withMarks(segs []seg, runs []model.Run, block *model.Block, variant *model.
 			segs[i].OtherMarks = placed[i]
 		}
 	}
+	splitPairs(segs)
 	return segs
+}
+
+// splitPairs decides, for each marker pair the segments' IR holds split across
+// segments, whether the writer writes its halves as read. A pair the overlays
+// still hold is drawn from them, so the halves the IR holds are taken out. A
+// pair the overlays no longer hold is written as read while every segment
+// holding one of its halves is written from its IR, and taken out of all of
+// them when one is rebuilt from its runs, so a half is never left without the
+// other.
+func splitPairs(segs []seg) {
+	drawn := map[string]bool{}
+	for _, s := range segs {
+		for _, m := range s.drawnMarks() {
+			drawn[m.Attrs.ID] = true
+		}
+	}
+	held := map[string][]int{} // the segments holding a half of each pair
+	for i, s := range segs {
+		if s.Content == nil {
+			continue
+		}
+		for _, h := range irHalves(s.Content.Inlines) {
+			held[h.Attrs.ID] = append(held[h.Attrs.ID], i)
+		}
+	}
+	for id, at := range held {
+		strip := drawn[id]
+		for _, i := range at {
+			if !irMatchesRuns(segs[i].Content, segs[i].Runs) {
+				strip = true
+			}
+		}
+		if !strip {
+			continue
+		}
+		for _, i := range at {
+			if segs[i].StripHalves == nil {
+				segs[i].StripHalves = map[string]bool{}
+			}
+			segs[i].StripHalves[id] = true
+		}
+	}
 }
 
 // targetSegsFromBlock reconstructs the target seg list for a locale.

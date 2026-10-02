@@ -331,5 +331,5 @@ func TestTargetTermMarkTheFileCarriedIsDrawnOnce(t *testing.T) {
 </xliff>`)
 	out := writeBlocksIn(t, model.LocaleFrench, block)
 	assert.Equal(t, 2, strings.Count(out, `type="term"`), "one term mark on each side: %s", out)
-	assert.Contains(t, out, `Moulez le <sm id="m1" type="term"/>café<em startRef="m1"/> maintenant`)
+	assert.Contains(t, out, `Moulez le <mrk id="m1" type="term">café</mrk> maintenant`, "written as the file wrote it")
 }

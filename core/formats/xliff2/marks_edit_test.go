@@ -108,11 +108,12 @@ func TestTermMarkRefComesFromTheSpan(t *testing.T) {
 	block := readOneBlock(t, `<?xml version="1.0"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en">
   <file id="f1"><unit id="u1"><segment>
-    <source>Install the <mrk id="m1" type="term" ref="#c1">kapi</mrk> CLI</source>
+    <source>Grind the <mrk id="m1" type="term" ref="#c1">kapi</mrk> CLI</source>
   </segment></unit></file>
 </xliff>`)
+	brew(t, block) // the segment is rebuilt from its runs, the mark from its span
 	out := writeBlocks(t, block)
-	assert.Contains(t, out, `<sm id="m1" type="term" ref="#c1"/>kapi<em startRef="m1"/>`)
+	assert.Contains(t, out, `Brew the <mrk id="m1" type="term" ref="#c1">kapi</mrk> CLI`)
 
 	annotated := readOneBlock(t, `<?xml version="1.0"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en">

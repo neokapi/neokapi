@@ -192,13 +192,8 @@ func segmentXML(s *seg, codes codeIndex) (string, error) {
 // with ErrCodesUnwritable, since writing their text alone would drop every
 // code.
 func segmentInlines(s *seg, codes codeIndex) ([]Inline, error) {
-	if s.Content != nil && irMatchesRuns(s.Content, s.Runs) {
-		// The term markers the document carried are term spans, drawn from
-		// the overlay with the rest; every other marker is written as read.
-		spliced, _ := spliceMarks(withoutTermMarkers(s.Content.Inlines), s.Runs, s.Marks)
-		return spliced, nil
-	}
-	inls, _, ok := editedInlines(s, codes)
+	codes.native = true // the skeleton was read from this document
+	inls, _, ok := segmentBody(s, codes)
 	if !ok {
 		return nil, ErrCodesUnwritable
 	}
@@ -219,6 +214,9 @@ type codeIndex struct {
 	sc map[string]CodeAttrs // paired <sc> by id
 	ec map[string]CodeAttrs // paired <ec> by startRef
 	ph map[string]Inline    // <ph>, and isolated <sc>/<ec>, by id
+	// native says the unit was read from XLIFF 2, so a segment it holds with
+	// no IR of its own is written as markup rebuilt from its runs.
+	native bool
 }
 
 // blockCodes indexes the codes of every segment IR the block carries, those of
@@ -230,6 +228,7 @@ func blockCodes(block *model.Block, s *seg) codeIndex {
 		ix.add(s.Content.Inlines)
 	}
 	if ir := unitSegmentsIR(block); ir != nil {
+		ix.native = true
 		for _, c := range ir.Source {
 			ix.add(c.Inlines)
 		}
