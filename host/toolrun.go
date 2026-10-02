@@ -110,7 +110,7 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 				return nil, nil, terr
 			}
 			return []tool.Tool{t}, nil, nil
-		}, cfg.TargetLang, a.toolDefaultLocale(cfg.ToolName), cfg.Pack)
+		}, cfg.TargetLang, a.toolDefaultLocale(cfg.ToolName), a.toolIsMonolingual(cfg.ToolName), cfg.Pack)
 	}
 	if IsKpzPath(cfg.OutputTemplate) {
 		return errKpzCreateWithExtract

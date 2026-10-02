@@ -71,9 +71,10 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string) error {
 				return errKpzTransformOutput
 			}
 			doPack, _ := cmd.Flags().GetBool("pack")
+			// An ad-hoc flow needs a target language on a plain file too.
 			return a.transformKpzInPlace(ctx, inputPaths[0], flowName, func() ([]tool.Tool, func(), error) {
 				return a.buildFlowTools(flowName, inputPaths[0], cmd)
-			}, a.TargetLang, "", doPack)
+			}, a.TargetLang, "", false, doPack)
 		}
 		if a.TargetLang == "" {
 			// Check tool registry for a default locale (e.g., pseudo-translate → "qps").
