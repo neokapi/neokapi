@@ -48,7 +48,8 @@ The projection stays in the checkout at `.kapi/work/store.db`
 | `tb_*` | `terms/` | context |
 | `tm_*` | `memory/` | context |
 | `voice_*` | `voice/` | context |
-| `unit_decision`, `unit_view`, `document`, `checkout`, `state_meta` | `core/state` | context |
+| `unit_decision`, `unit_view`, `document`, `document_adoption`, `checkout`, `state_meta` | `core/state` | context |
+| `block_history` | `core/history` | context |
 | `projector_cursor` | `core/projector` | context |
 | `graph_nodes`, `graph_edges` | `host/storage/graph` | workspace |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace |
@@ -66,12 +67,13 @@ widened nothing pays nothing for the table.
 `core/projectdb` opens both project pools and hands each subsystem its handle.
 Callers name a capability rather than a file: `Blocks()` and
 `BlocksAutocommit()` come from the projection, and `Memory()`, `Terms()`,
-`Voice()`, `Work()` and `Raw()` from the context store.
+`Voice()`, `Work()`, `History()` and `Raw()` from the context store.
 
 ## The projector
 
 `core/projector` is the only writer of `tb_*`, `tm_*`, `voice_profiles`,
-`voice_profile_versions`, `unit_decision` and `workspace_rules`
+`voice_profile_versions`, `unit_decision`, `document_adoption`, `block_history`
+and `workspace_rules`
 ([C-03](../../architecture/context/c-03-context-store-and-graph.md#the-stores-are-projections-of-the-log)).
 A write is two transactions under one in-process mutex per context store: the
 operation into `workspace_ops` (and its steps into `workspace_blobs` when they
@@ -89,10 +91,75 @@ consecutive operations during a rebuild, goes through `ReplayWithStream`: the
 same rows as `AddWithStream`, one transaction, and the two FTS5 tables rebuilt
 once afterwards.
 
-A ledger entry is one `unit.record` operation, addressed
-`unit:<project>:<entry id>`; runs of them, which an import produces by the
+A ledger entry is one `decision.record` operation, addressed
+`decision:<project>:<entry id>`; runs of them, which an import produces by the
 thousand, are applied in one transaction by `state.ApplyEntries`, live and in a
 rebuild.
+
+A document adoption is one `document.adopt` operation whose step carries a
+`state.Adoption` (key, path, digest, the content hash of each block), addressed
+`adopt:<project>:` followed by the hex SHA-256 over the key, the path and the
+digest joined by NUL. The digest is `sha256:` followed by the SHA-256 over the
+content hashes joined by newlines. `state.ApplyAdoptions` keeps one
+`document_adoption` row per key: the path, digest and content of the adoption
+with the latest moment (ties broken by the greater digest, then the greater
+path) and the earliest moment as `first_at`, so the rows are the same whatever
+order the operations are applied in.
+
+An applied edit is one `content.edit` operation per document. Its payload is the
+`projector.Edit` itself rather than a list of steps:
+
+```json
+{
+  "doc": {"key": "d-7f3c0a91e4b2d6f8", "path": "docs/guide.md"},
+  "home": "file",
+  "actor": {"kind": "agent", "name": "claude", "session": "s_01"},
+  "origin": {"by": "apply"},
+  "fingerprint": "gov_4b2",
+  "note": "Point the guide link at the handbook",
+  "doc_before": "sha256:5e1c…", "doc_after": "sha256:a07d…",
+  "transitions": [
+    {"block": "install/p", "key": "u-3f9a1c0e7b2d4a55", "edition": "fr",
+     "before": "r:3f9a1c0e7b2d4a55", "after": "r:c41e92d07a8b1f30", "basis": "r:9d0e…",
+     "content_hash": "…", "context_hash": "…",
+     "runs_before": "blob:sha256:…", "runs_after": "blob:sha256:…"}
+  ],
+  "overridden": [{"rule": "terms.vocabulary", "message": "…", "fails": true}],
+  "change_set": "blob:sha256:…",
+  "blobs": ["sha256:…", "sha256:…", "sha256:…"]
+}
+```
+
+`runs_before` and `runs_after` name blobs holding `model.CanonicalRunsJSON` of
+the edition, the bytes `model.RunsRevision` is computed over; a tool's edit
+leaves them and `change_set` out. `blobs` lists every blob the payload names,
+because `workspace.BlobRefs` reads a payload's top-level `blob` and `blobs` and
+nothing deeper, and those are the blobs a push writes and a pull fetches. An
+edit whose JSON passes 32 KiB moves into a blob, and the payload becomes
+`{"blob": …, "blobs": […]}` with the same list. The operation's address is
+`edit:<project>:` followed by the hex SHA-256 over the project, the document
+key, the actor and, for each transition, its block, key, edition, revisions,
+basis and the `block_history` operation that last left the edition at the
+`before` revision (`history.Store.Reached`). `Projector.RecordEdit` reads those
+operations after catching up, under the projector's lock.
+
+The projector writes one `block_history` row per transition, with the operation
+id and the operation's own instant, so a rebuild writes the same rows:
+
+| Column | Holds |
+| --- | --- |
+| `op`, `doc`, `block`, `edition` | the primary key: the operation, the document key, the block as read, the edition key |
+| `key` | the durable key reconciliation assigned, where there is one |
+| `before`, `after`, `basis` | edition revisions, `absent` for an edition created or removed |
+| `content_hash`, `context_hash` | the block's identity signals after the change |
+| `actor`, `actor_name`, `session` | person, agent, tool, or empty for a change made outside kapi |
+| `origin` | `apply`, `desktop`, `flow:<name>`, `merge`, `pull` or `observed` |
+| `at` | the operation's instant, RFC 3339 with nanoseconds in UTC |
+
+Runs of consecutive `content.edit` operations are written in one transaction,
+live and in a rebuild. Operation ids sort by time, so "most recent" is
+`ORDER BY op DESC`, and SQLite's `MAX()` with bare columns gives the latest row
+per block for `history.Store.Priors` in one statement.
 
 `Rebuild` deletes every row of the projection tables, skipping the FTS5 shadow
 tables (emptying the virtual table empties them), resets their `sqlite_sequence`

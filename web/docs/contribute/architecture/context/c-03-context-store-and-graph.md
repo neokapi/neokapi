@@ -19,8 +19,9 @@ it, so it belongs beside the tree it describes and a second checkout of the same
 project keeps one of its own.
 
 The **context store** lives in a **workspace**, outside every checkout: the
-terms, the voice profiles, the content memory, the unit decision ledger
-([C-04](c-04-unit-state-and-decisions.md)), and the project's settings: team
+terms, the voice profiles, the content memory, the decision ledger and the
+document adoptions ([C-04](c-04-unit-state-and-decisions.md)), the block
+history of every recorded edit, and the project's settings: team
 choices about the project that are neither content nor governance, such as the
 saved filters a team shares (`projectdb.Setting`). It is authored rather than derived,
 written a little at a time, and true wherever the project is checked out. Two
@@ -32,8 +33,9 @@ The workspace also holds what spans projects: the **project registry**, the
 the **operation log**.
 
 Every change to a project's terms, voice profiles, content memory and decision
-ledger, and to the rules widened to the whole workspace, is an operation in that
-log carrying the rows it wrote. Those stores are **projections** of the log:
+ledger, every document adoption and every applied edit, and every change to the
+rules widened to the whole workspace, is an operation in that log carrying the
+rows it wrote. Those stores are **projections** of the log:
 `core/projector` is their only writer, and `kapi context rebuild` empties them
 and replays the log into the same rows, starting from the latest checkpoint.
 
@@ -160,7 +162,9 @@ by id (`workspace.Merge`) and hands them to the projector: a catch-up when every
 merged operation sorts after the ones applied, a rebuild in id order when one
 sorts before. A **push** writes the project's operations the remote is not
 known to hold as new segments, with the blobs they name, and a checkpoint once
-the remote has gained `CheckpointEvery` operations since its last. A first pull
+the remote has gained `CheckpointEvery` operations since its last. An operation
+names its blobs in its payload's top-level `blob` field and `blobs` list
+(`workspace.BlobRefs`), so an edit's kept runs travel with it. A first pull
 into a log that holds nothing of the project starts from the newest checkpoint
 whose segment list covers every operation up to it, and still merges every
 segment, so the history travels. The kinds `projector.LocalKinds` names never
@@ -208,8 +212,9 @@ until the project is opened somewhere else.
 | content memory | `memory/` ([C-09](c-09-content-memory.md)) | context | the operation log, through `core/projector` |
 | voice profiles | `voice/` ([C-07](c-07-voice-profiles.md)) | context | the operation log, through `core/projector` |
 | `projector_cursor` | `core/projector` | context | the position of the last operation applied |
-| unit decision ledger | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | context | the operation log, through `core/projector` |
-| one view of the ledger per checkout | `core/state` | context | the checkout's files |
+| decision ledger, document adoptions | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | context | the operation log, through `core/projector` |
+| one view of the ledger and of the documents read, per checkout | `core/state` | context | the checkout's files |
+| block history | `core/history` | context | the operation log, through `core/projector` |
 | `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | workspace | the rows above, plus the recipe |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace | what has been opened |
 | `workspace_ops` | `core/workspace` | workspace | its own log |
@@ -223,8 +228,8 @@ evolves without replaying anyone else's migrations, whichever pool it binds to.
 `core/projectdb` opens both project pools and hands each subsystem its handle.
 Callers name a capability rather than a file: `Blocks()` and
 `BlocksAutocommit()` come from the projection, `Memory()`, `Terms()`, `Voice()`,
-`Work()` and `Raw()` from the context store, and nothing above has to know which
-is which. The table-by-table layout is in
+`Work()`, `History()` and `Raw()` from the context store, and nothing above has
+to know which is which. The table-by-table layout is in
 [Note: Workspace storage](../../implementation/context/workspace-storage.md).
 
 ### Opening without a workspace
@@ -303,9 +308,9 @@ files, source and target, so deleting it costs a re-extraction and nothing else.
 
 The **context store** holds the project's terms ([C-08](c-08-terms.md)), its
 voice profiles ([C-07](c-07-voice-profiles.md)), its content memory
-([C-09](c-09-content-memory.md)) and its decision ledger
-([C-04](c-04-unit-state-and-decisions.md)), each a projection of the
-workspace's operation log, described below. No read path opens a file in the
+([C-09](c-09-content-memory.md)), its decision ledger and document adoptions
+([C-04](c-04-unit-state-and-decisions.md)) and its block history, each a
+projection of the workspace's operation log, described below. No read path opens a file in the
 checkout to answer for any of them. A checkout may carry a terms bundle or a
 voice profile a person authored under `.kapi/`; `kapi context import` is the one
 command that reads them ([C-11](c-11-context-operations.md)). The store moves between
@@ -348,10 +353,15 @@ which keeps a dogfood-sized log (16,000 entries, 1,000 concepts) to about three
 seconds.
 
 The decision ledger records through the same projector: `state.WorkStore`
-takes a journal (`projector.Units`), and each entry is a `unit.record`
+takes a journal (`projector.Decisions`), and each entry is a `decision.record`
 operation addressed by the entry's own content address, so a decision recorded
 twice is one operation ([C-04](c-04-unit-state-and-decisions.md#the-ledger-is-a-projection-of-the-operation-log)).
-Each checkout's view of the ledger stays a reading of its files.
+Each document a checkout resolves is a `document.adopt` operation carrying its
+key, its path and what it held, which every other checkout of the project
+consults before minting a key of its own
+([C-04](c-04-unit-state-and-decisions.md#document-keys-are-recorded-in-the-log)).
+Each checkout's view of the ledger, and its own list of the documents it has
+read, stay readings of its files.
 
 A **checkpoint** keeps a rebuild short. `Projector.Checkpoint`, behind
 `kapi context rebuild --checkpoint`, writes every projection table as it stands
@@ -370,13 +380,47 @@ reads from the projection and record every write. Code that only reads takes a
 view (`projector.TermsView`, `MemoryView`, `VoiceView`) whose writes are
 refused. `make check-projection-writes` type-checks the Apache modules and
 fails on a store write, or a store handed to an interface that can write it,
-anywhere outside the projector. A write method reached through a type that
+anywhere outside the projector, `history.Store.Put` among them. A write method
+reached through a type that
 embeds the store counts as a direct call, so a method a projector store leaves
 to its embedded store is caught too. The guard also reads the store packages:
 an exported method that writes the database must be in its list of writes or
 in its list of writes the log does not project (a search-index rebuild, the
 workspace's project registry). The few functions that open a store a person
 named on the command line are listed with the reason.
+
+### Edits are recorded as content.edit {#edits-are-recorded-as-content-edit}
+
+Text lives in its home: the file in a checkout. What happened to it lives in
+the log. Every applied change set is a `content.edit` operation per document it
+changed, recorded after the home committed, and the projector writes it into
+the **block history** (`core/history`, the `block_history` table): one row per
+edition the edit changed, with the edition revisions before and after, the
+basis a derived edition was made from, the block's key, content hash and
+context hash, who made the change (person, agent or tool, with a name and a
+session) and through which surface (`apply`, `desktop`, `flow:<name>`,
+`merge`, `pull`, `observed`). `history.Store.LastWrite` answers who last wrote
+an edition, for every writer; `Edition` and `Document` read the changes back,
+most recent first. The file stays the only copy of its text and the log keeps
+facts about it, keyed by revisions that hold on every branch where the content
+matches, so a branch switch moves no record.
+
+The service that applies change sets (`core/change`) hands each one to a
+`change.Recorder` once the homes committed; `host.App.EditRecorder` is the
+project's, and records through `Projector.RecordEdit`. A person's or an agent's
+edit keeps the runs around each change and the change set as sent, in blobs the
+operation names; a tool's edit keeps the revisions and hashes only, because the
+file holds the text and a flow writes thousands of them. The operation is
+addressed by the document, the actor and each transition with the operation it
+extends, the one that left the edition at the revision the transition starts
+from, so recording one edit twice is one operation while the same change made
+again after an undo is another.
+
+The identity evidence on every transition is what lets history re-attach after
+a reorder. A read reports the keys the format gives: on the repository's own
+documentation, fetching the priors and running `reconcile.Blocks` on a read at a
+new revision measured 38% of the read, over the 10% the edit model allowed
+(`docs/internals/evals.md`).
 
 ### Deleting derived data {#kapiwork-is-free-to-delete}
 
@@ -386,8 +430,8 @@ exception: it contains withheld originals that are neither committed nor sent
 to a service. Deleting it loses those values ([C-10](c-10-redaction.md)).
 
 The context store has a separate lifetime in the workspace. Deleting
-`<DataDir>/workspaces/` removes the terms, voice profiles, content memory and
-decisions of every local project that no backend holds. Push each project to
+`<DataDir>/workspaces/` removes the terms, voice profiles, content memory,
+decisions and block history of every local project that no backend holds. Push each project to
 its backend, or write it to a transfer file with `kapi context export`, before
 deleting the workspace.
 
@@ -671,8 +715,8 @@ sets `$KAPI_DATA_DIR` as part of the isolation contract.
 - **A machine's context is one directory.** Backing up
   `<DataDir>/workspaces/default/` backs up every project's authored context, and
   `kapi context export` writes one project's as one file. Deleting
-  it costs every project's terms, voice profiles, content memory and
-  decisions.
+  it costs every project's terms, voice profiles, content memory, decisions
+  and block history.
 
 ## See also
 
