@@ -1562,10 +1562,12 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 		if parent != nil && parent.hasRuns && !parent.isExcluded {
 			s.spanCounter++
 			id := strconv.Itoa(s.spanCounter)
+			data := s.startTagBytes(t, tokOffset, contentStart)
 			parent.runs = append(parent.runs, model.Run{PcOpen: &model.PcOpenRun{
-				ID:   id,
-				Type: "fmt:" + t.Name.Local,
-				Data: s.startTagBytes(t, tokOffset, contentStart),
+				ID:    id,
+				Type:  "fmt:" + t.Name.Local,
+				Data:  data,
+				Attrs: inlineTagAttrs(data),
 			}})
 			frame.spanID = s.spanCounter
 		}
@@ -1668,6 +1670,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 			for _, v := range slices.Backward(parent.runs) {
 				if v.PcOpen != nil && v.PcOpen.ID == spanID {
 					v.PcOpen.Data = injectInlineAttrRefs(v.PcOpen.Data, inlineRefs)
+					v.PcOpen.Attrs = inlineTagAttrs(v.PcOpen.Data)
 					break
 				}
 			}
