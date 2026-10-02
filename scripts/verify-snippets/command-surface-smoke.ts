@@ -301,6 +301,61 @@ ok(
   brandStore.code === 0 && /created voice profile/.test(brandStore.out),
   brandStore.out.trim().slice(0, 240),
 );
+// A standalone store is consulted only once it is there, and only the driver
+// can say so: the page's file system never sees a database.
+const installed = await run("voice", "guide", "--profile", "technical-documentation");
+ok(
+  "`kapi voice guide --profile` reads the installed profile from the voice store",
+  installed.code === 0 && installed.out.includes("Voice Guide: Technical Documentation"),
+  installed.out.trim().slice(0, 240),
+);
+
+// A tool that needs terms reads the rules from the store --termstore names.
+// The trace carries the finding: the source says "dashboard" and the target
+// lacks the preferred French term.
+mem.vol.mkdirp("/termstore");
+mem.process.chdir("/termstore");
+mem.vol.writeFile(
+  "/termstore/terms.json",
+  enc.encode(
+    JSON.stringify({
+      schemaVersion: "1.0",
+      kind: "kapi-terms",
+      concepts: [
+        {
+          id: "term:en:dashboard",
+          terms: [
+            { text: "dashboard", locale: "en", status: "approved" },
+            { text: "tableau de bord", locale: "fr", status: "preferred" },
+          ],
+        },
+      ],
+    }),
+  ),
+);
+mem.vol.writeFile(
+  "/termstore/login.xlf",
+  enc.encode(
+    '<?xml version="1.0" encoding="UTF-8"?>\n<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">\n' +
+      '<file original="messages" source-language="en" target-language="fr" datatype="plaintext"><body>\n' +
+      '<trans-unit id="login_title"><source>Log in to your dashboard</source><target>Connectez-vous à votre panneau</target></trans-unit>\n' +
+      "</body></file></xliff>\n",
+  ),
+);
+const imported = await run("terms", "import", "terms.json");
+ok("`kapi terms import` creates ./terms.db", imported.code === 0, imported.out.trim().slice(0, 160));
+const termCheck = await run(
+  "exec", "term-check", "login.xlf", "--source-lang", "en", "--target-lang", "fr",
+  "--termstore", "terms.db", "--trace", "/termstore/trace.json",
+);
+const trace = termCheck.code === 0 ? dec.decode(mem.vol.readFile("/termstore/trace.json")) : "";
+ok(
+  "`kapi exec term-check --termstore` applies the store's rules",
+  trace.includes('required translation \\"tableau de bord\\" missing'),
+  termCheck.out.trim().slice(0, 240),
+);
+
+mem.process.chdir("/project");
 
 // The checkout MessageFormat fixtures in the lab samples: read, check and write
 // each one with the inspector options the labs use.

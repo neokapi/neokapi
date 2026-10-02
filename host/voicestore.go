@@ -3,10 +3,10 @@ package host
 import (
 	"context"
 	"fmt"
-	"os"
 
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/storage"
 )
 
 // ResolveVoiceStore picks the voice store a `voice: profile: <name>` binding is
@@ -90,7 +90,9 @@ func (a *App) VoiceLookupStore(cmd Command) (coreprofile.Store, func(), error) {
 	if sel.InProject() {
 		return a.ProjectVoiceStore(CmdContext(cmd), sel.Root)
 	}
-	if _, statErr := os.Stat(sel.Path); statErr != nil {
+	// The driver answers for the file: in the browser a database lives in
+	// SQLite's memory, where os.Stat never sees it.
+	if held, _ := storage.Exists(sel.Path); !held {
 		return nil, noop, nil
 	}
 	store, err := openVoiceStoreAt(sel.Path)

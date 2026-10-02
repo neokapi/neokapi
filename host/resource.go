@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/core/storage"
 )
 
 // ResourceInfo describes a named resource (terms or content memory) in KAPI_HOME.
@@ -96,32 +98,30 @@ func resolveNamedResource(kind, name string) (string, error) {
 // Linux but ~/Library/Application Support/kapi/<kind>/ on macOS. Unlike the
 // app-config file there is no legacy fallback location here — a named store is
 // only ever resolved under ConfigDir.
+//
+// The storage driver lists the databases, because in the browser they live in
+// SQLite's memory, where os.ReadDir never sees them. Size and Modified come
+// from the file when there is one, and are zero otherwise.
 func ListNamedResources(kind string) ([]ResourceInfo, error) {
-	dir := filepath.Join(ConfigDir(), kind)
-	entries, err := os.ReadDir(dir)
+	dir, err := filepath.Abs(filepath.Join(ConfigDir(), kind))
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("read directory %s: %w", dir, err)
+		return nil, fmt.Errorf("resolve %s directory: %w", kind, err)
+	}
+	paths, err := storage.List(dir)
+	if err != nil {
+		return nil, err
 	}
 
 	var resources []ResourceInfo
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".db") {
+	for _, p := range paths {
+		if filepath.Dir(p) != dir || !strings.HasSuffix(p, ".db") {
 			continue
 		}
-		info, err := e.Info()
-		if err != nil {
-			continue
+		r := ResourceInfo{Name: strings.TrimSuffix(filepath.Base(p), ".db"), Path: p}
+		if info, err := os.Stat(p); err == nil {
+			r.Size, r.Modified = info.Size(), info.ModTime()
 		}
-		name := strings.TrimSuffix(e.Name(), ".db")
-		resources = append(resources, ResourceInfo{
-			Name:     name,
-			Path:     filepath.Join(dir, e.Name()),
-			Size:     info.Size(),
-			Modified: info.ModTime(),
-		})
+		resources = append(resources, r)
 	}
 	return resources, nil
 }

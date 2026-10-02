@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore/exporter"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
 )
@@ -250,7 +251,7 @@ func countPackableSources(layout project.Layout) int {
 // a side effect. An unreadable store counts as nothing rather than failing, so
 // the rest of the report still answers.
 func (a *App) countProjectStore(ctx context.Context, layout project.Layout) (blocks, overlays, entries, concepts int) {
-	if !fileExists(layout.StorePath()) {
+	if held, _ := storage.Exists(layout.StorePath()); !held {
 		return 0, 0, 0, 0
 	}
 	db, err := a.ProjectDB(ctx, layout.Root)

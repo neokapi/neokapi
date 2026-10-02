@@ -2199,7 +2199,7 @@ func (a *App) storeConcepts(cmd Command, point project.GovernancePoint) ([]sqlte
 		return concepts, sel.Profile, nil
 	}
 	if sel.Path != "" {
-		if _, statErr := os.Stat(sel.Path); statErr == nil {
+		if held, _ := storage.Exists(sel.Path); held {
 			tb, err := sqlterms.NewSQLiteStore(sel.Path)
 			if err != nil {
 				return nil, "", fmt.Errorf("open terms %q: %w", sel.Path, err)
