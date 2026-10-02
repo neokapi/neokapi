@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/icu"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -117,12 +121,20 @@ func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
 	return []byte(text), nil
 }
 
-// checkPattern refuses a value that is not a MessageFormat pattern.
+// checkPattern refuses a value that would not read back as written.
 //
-// Inline argument runs are rendered with their original tokens before parsing.
-// A malformed target is rejected before its bytes reach the output.
+// Text runs are quoted on the way out (see spellPattern), so what can still
+// break a line is a placeholder's data. A branch value is parsed where it sits,
+// as the body of a branch, so a value that closes its branch early or quotes
+// away the closing brace is refused before its bytes reach the output.
 func checkPattern(block *model.Block, text string) error {
-	if _, err := parse(text); err != nil {
+	var err error
+	if inBranch(block) {
+		err = checkBranchBody(text)
+	} else {
+		_, err = parse(text)
+	}
+	if err != nil {
 		name := block.ID
 		if block.Name != "" {
 			name = fmt.Sprintf("%s (%s)", block.ID, block.Name)
@@ -130,6 +142,29 @@ func checkPattern(block *model.Block, text string) error {
 		return fmt.Errorf("messageformat writer: block %s is not a valid pattern: %w", name, err)
 	}
 	return nil
+}
+
+// branchOpen opens a select with one branch. A value parsed inside it is read
+// with the context a branch body has in the line: # is the number, and a brace
+// or an apostrophe at the end meets the brace that closes the branch.
+const branchOpen = "{x, select, other {"
+
+// checkBranchBody reports whether body parses as exactly one branch body.
+func checkBranchBody(body string) error {
+	nodes, err := parse(branchOpen + body + "}}")
+	if err != nil {
+		return err
+	}
+	if len(nodes) != 1 || len(nodes[0].Branches) != 1 || nodes[0].Branches[0].End != len(branchOpen)+len(body) {
+		return errors.New("the value closes its branch before it ends")
+	}
+	return nil
+}
+
+// inBranch reports whether the reader took the block from a plural, select or
+// selectordinal branch, which it records as the block's branch path.
+func inBranch(block *model.Block) bool {
+	return block.Properties[propPath] != ""
 }
 
 func (w *Writer) writePart(part *model.Part) error {
@@ -163,16 +198,77 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	return err
 }
 
-// getBlockText returns the appropriate text from a block, preferring target
-// text when a locale is set.
+// getBlockText returns the MessageFormat source for a block, preferring the
+// target when a locale is set. A value that still reads as it did is written
+// as the bytes it was read from; any other value is spelled from its runs.
 func (w *Writer) getBlockText(block *model.Block) string {
 	runs := block.Source
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		runs = block.Target(w.Locale).Runs
 	}
-	text := model.RenderRunsWithData(runs)
-	if raw, ok := format.VerbatimFor(block, "messageformat.raw", text); ok {
+	if raw, ok := format.VerbatimFor(block, "messageformat.raw", model.RenderRunsWithData(runs)); ok {
 		return raw
 	}
-	return text
+	return spellPattern(runs, inBranch(block))
+}
+
+// spellPattern writes runs as MessageFormat source, the inverse of the reader.
+//
+// The reader decodes ICU quoting, so a text run holds literal text and is
+// quoted again here (icu.QuoteLiteral). Adjacent text runs are quoted as one
+// string, because what an apostrophe means depends on the character after it.
+// A placeholder or code run is written as the syntax it was read from. A plural
+// or select run contributes one form, as model.RenderRunsWithData does.
+func spellPattern(runs []model.Run, inBranch bool) string {
+	var out, text strings.Builder
+	flush := func() {
+		if text.Len() > 0 {
+			out.WriteString(icu.QuoteLiteral(text.String(), inBranch))
+			text.Reset()
+		}
+	}
+	var walk func([]model.Run)
+	walk = func(runs []model.Run) {
+		for _, r := range runs {
+			switch r.Kind() {
+			case model.RunKindText:
+				text.WriteString(r.Text.Text)
+			case model.RunKindPlural, model.RunKindSelect:
+				walk(oneForm(r))
+			case model.RunKindPh, model.RunKindPcOpen, model.RunKindPcClose, model.RunKindSub:
+				flush()
+				out.WriteString(model.RenderRunsWithData([]model.Run{r}))
+			}
+		}
+	}
+	walk(runs)
+	flush()
+	return out.String()
+}
+
+// pluralForms orders a plural run's forms for oneForm.
+var pluralForms = []model.PluralForm{
+	model.PluralOther, model.PluralZero, model.PluralOne,
+	model.PluralTwo, model.PluralFew, model.PluralMany,
+}
+
+// oneForm returns the form of a plural or select run that stands for the whole
+// run in flat text: "other" when present, otherwise the first form present.
+func oneForm(r model.Run) []model.Run {
+	switch {
+	case r.Plural != nil:
+		for _, f := range pluralForms {
+			if form, ok := r.Plural.Forms[f]; ok {
+				return form
+			}
+		}
+	case r.Select != nil:
+		if form, ok := r.Select.Cases["other"]; ok {
+			return form
+		}
+		if keys := slices.Sorted(maps.Keys(r.Select.Cases)); len(keys) > 0 {
+			return r.Select.Cases[keys[0]]
+		}
+	}
+	return nil
 }

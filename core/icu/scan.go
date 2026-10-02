@@ -69,6 +69,54 @@ func Unquote(span string) string {
 	return strings.ReplaceAll(inner, "''", "'")
 }
 
+// QuoteLiteral spells text as MessageFormat literal text, the inverse of what
+// Parse does to it: the parser reads the result back as text equal to text.
+// inBranch reports that the text sits inside a plural, select or selectordinal
+// branch, where # stands for the number and is quoted along with the braces.
+//
+// Each run of syntax characters becomes one quoted span, and an apostrophe
+// that touches the run is doubled inside it. Any other apostrophe is doubled
+// only where the character after it would open a quote. An apostrophe that
+// ends text is always doubled, so the result stays text whatever syntax a
+// caller writes after it: an argument, a #, or the brace that closes a branch.
+func QuoteLiteral(text string, inBranch bool) string {
+	syntax := func(c byte) bool {
+		return c == '{' || c == '}' || (inBranch && c == '#')
+	}
+	if !strings.ContainsAny(text, "'{}#") {
+		return text
+	}
+	var b strings.Builder
+	b.Grow(len(text) + 8)
+	for i := 0; i < len(text); {
+		c := text[i]
+		switch {
+		case syntax(c):
+			b.WriteByte('\'')
+			for i < len(text) && (syntax(text[i]) || text[i] == '\'') {
+				if text[i] == '\'' {
+					b.WriteString("''")
+				} else {
+					b.WriteByte(text[i])
+				}
+				i++
+			}
+			b.WriteByte('\'')
+		case c == '\'':
+			if i+1 == len(text) || text[i+1] == '\'' || strings.IndexByte(quoteOpeners, text[i+1]) >= 0 {
+				b.WriteString("''")
+			} else {
+				b.WriteByte('\'')
+			}
+			i++
+		default:
+			b.WriteByte(c)
+			i++
+		}
+	}
+	return b.String()
+}
+
 // MatchBrace returns the index of the '}' that closes the '{' at start,
 // counting nested braces and stepping over quoted literal text. ok is false
 // when s[start] is not '{', or when the group is never closed.

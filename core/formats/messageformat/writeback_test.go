@@ -164,6 +164,11 @@ func TestWritebackPreservesArgumentsAndEditsBranches(t *testing.T) {
 			input:  "  Hello  \n  Hello {name}  \n",
 			edited: "  HELLO  \n  HELLO {name}  \n",
 		},
+		{
+			name:   "quoted braces",
+			input:  "{count, plural, one {'{'one'}'} other {#}}\n",
+			edited: "{count, plural, one {'{'ONE'}'} other {#}}\n",
+		},
 	}
 	for _, tc := range cases {
 		for _, mode := range []string{"unchanged", "source", "target"} {
@@ -215,4 +220,138 @@ func TestBranchContentExcludesEdgeWhitespace(t *testing.T) {
 	line := blocksByPath(t, "  Hello {name}  \n")
 	require.Contains(t, line, "")
 	assert.Equal(t, []string{`text "Hello "`, `ph "{name}"`}, spell(line[""].Source))
+}
+
+// TestWritebackEscapesEditedText writes targets whose text carries characters
+// that are MessageFormat syntax, and reads the written file back: each block
+// must come back as the runs that were written, and every other branch of the
+// line must be untouched.
+func TestWritebackEscapesEditedText(t *testing.T) {
+	text := func(s string) model.Run { return model.TextR(s) }
+	arg := func(s string) model.Run {
+		return model.PhR(model.PlaceholderRun{Type: "icu:argument", ID: "p1", Data: s, Disp: s})
+	}
+	hash := model.PhR(model.PlaceholderRun{Type: "icu:number", ID: "h1", Data: "#", Disp: "#"})
+
+	const plural = "{count, plural, one {The {item} is here} other {# articles}}\n"
+	cases := []struct {
+		name    string
+		input   string
+		targets map[string][]model.Run // by branch path
+		want    string
+	}{
+		{
+			name:    "elision before an argument",
+			input:   plural,
+			targets: map[string][]model.Run{"count.one": {text("L'"), arg("{item}"), text(" est là")}},
+			want:    "{count, plural, one {L''{item} est là} other {# articles}}\n",
+		},
+		{
+			name:  "elision in both branches",
+			input: plural,
+			targets: map[string][]model.Run{
+				"count.one":   {text("L'"), arg("{item}"), text(" est là")},
+				"count.other": {text("L'"), hash, text(" est là")},
+			},
+			want: "{count, plural, one {L''{item} est là} other {L''# est là}}\n",
+		},
+		{
+			name:    "apostrophe in prose",
+			input:   plural,
+			targets: map[string][]model.Run{"count.other": {text("C'est "), hash}},
+			want:    "{count, plural, one {The {item} is here} other {C'est #}}\n",
+		},
+		{
+			name:    "doubled apostrophe",
+			input:   "{n, select, a {It''s} other {x}}\n",
+			targets: map[string][]model.Run{"n.a": {text("a''b")}},
+			want:    "{n, select, a {a'''b} other {x}}\n",
+		},
+		{
+			name:    "apostrophe ending a branch",
+			input:   "{n, select, a {students} other {x}}\n",
+			targets: map[string][]model.Run{"n.a": {text("élèves'")}},
+			want:    "{n, select, a {élèves''} other {x}}\n",
+		},
+		{
+			name:    "literal braces",
+			input:   "{count, plural, one {'{'one'}'} other {#}}\n",
+			targets: map[string][]model.Run{"count.one": {text("{un}")}},
+			want:    "{count, plural, one {'{'un'}'} other {#}}\n",
+		},
+		{
+			name:    "braces beside an apostrophe",
+			input:   "{n, select, a {x} other {y}}\n",
+			targets: map[string][]model.Run{"n.a": {text("{'s} '{")}},
+			want:    "{n, select, a {'{'''s'}' '''{'} other {y}}\n",
+		},
+		{
+			name:    "number sign in a branch",
+			input:   "{count, plural, other {# items}}\n",
+			targets: map[string][]model.Run{"count.other": {hash, text(" articles, lot #1")}},
+			want:    "{count, plural, other {# articles, lot '#'1}}\n",
+		},
+		{
+			name:    "number sign outside a picker",
+			input:   "Issue {n}\n",
+			targets: map[string][]model.Run{"": {text("Ticket #"), arg("{n}")}},
+			want:    "Ticket #{n}\n",
+		},
+		{
+			name:    "elision on a line without a picker",
+			input:   "The {item} is here\n",
+			targets: map[string][]model.Run{"": {text("L'"), arg("{item}"), text(" est là")}},
+			want:    "L''{item} est là\n",
+		},
+		{
+			name:    "text runs written apart",
+			input:   "{n, select, a {x} other {y}}\n",
+			targets: map[string][]model.Run{"n.a": {text("{"), text("'s")}},
+			want:    "{n, select, a {'{'''s} other {y}}\n",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			eachMode(t, func(t *testing.T, streaming bool) {
+				got, err := writeBack(t, tc.input, streaming, "fr", func(block *model.Block) {
+					if runs, ok := tc.targets[block.Properties["path"]]; ok {
+						block.SetTargetRuns("fr", runs)
+					}
+				})
+				require.NoError(t, err)
+				assert.Equal(t, tc.want, got)
+
+				source := blocksByPath(t, tc.input)
+				reread := blocksByPath(t, got)
+				require.Len(t, reread, len(source), "the written line has the branches the source has")
+				for path, block := range source {
+					require.Contains(t, reread, path)
+					want := block.Source
+					if runs, ok := tc.targets[path]; ok {
+						want = runs
+					}
+					assert.Equal(t, spell(want), spell(reread[path].Source), "branch %q", path)
+				}
+			})
+		})
+	}
+}
+
+// TestWritebackRefusesSyntaxThatBreaksTheLine covers a placeholder whose data
+// would end the branch it is written into: the slot is checked where it sits in
+// the line, so the writer refuses it instead of writing a file that reads back
+// with a branch missing.
+func TestWritebackRefusesSyntaxThatBreaksTheLine(t *testing.T) {
+	eachMode(t, func(t *testing.T, streaming bool) {
+		_, err := writeBack(t, "{n, select, a {x {name}} other {y}}\n", streaming, "fr", func(block *model.Block) {
+			if block.Properties["path"] == "n.a" {
+				block.SetTargetRuns("fr", []model.Run{
+					model.TextR("x "),
+					model.PhR(model.PlaceholderRun{Type: "icu:argument", ID: "p1", Data: "'{", Disp: "{name}"}),
+				})
+			}
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "is not a valid pattern")
+	})
 }
