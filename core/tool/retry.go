@@ -2,10 +2,12 @@ package tool
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -27,7 +29,8 @@ func DefaultRetryConfig() RetryConfig {
 }
 
 // RetryTool wraps a tool and retries its block processing on transient errors.
-// Non-block parts pass through without retry.
+// Non-block parts and tools with custom stream processing run once. Retried
+// handlers must be idempotent: retries do not undo writes or external effects.
 type RetryTool struct {
 	inner  Tool
 	config RetryConfig
@@ -35,6 +38,9 @@ type RetryTool struct {
 
 // NewRetryTool creates a RetryTool wrapping inner with the given retry config.
 func NewRetryTool(inner Tool, config RetryConfig) *RetryTool {
+	if config.MaxRetries < 0 {
+		config.MaxRetries = 0
+	}
 	if config.BackoffFactor < 1 {
 		config.BackoffFactor = 1
 	}
@@ -48,12 +54,14 @@ func (t *RetryTool) SetConfig(c ToolConfig) error { return t.inner.SetConfig(c) 
 
 // Process wraps the inner tool's Process. If the inner tool is a BaseTool with
 // a capability-typed block handler, retries are applied per-block by wrapping
-// that handler. Otherwise the entire Process call is retried on error.
+// that handler on a private copy. Custom stream processors run once: their
+// input channels cannot be rewound and their outputs may already be observed.
 func (t *RetryTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	bt, ok := t.inner.(*BaseTool)
 	if !ok {
-		return t.retryProcess(ctx, in, out)
+		return t.inner.Process(ctx, in, out)
 	}
+	local := *bt
 
 	// Wrap whichever block handler the inner tool set with retry logic. The
 	// handler's capability type is preserved (so the immutability surface is
@@ -61,19 +69,17 @@ func (t *RetryTool) Process(ctx context.Context, in <-chan *model.Part, out chan
 	switch {
 	case bt.Annotate != nil:
 		orig := bt.Annotate
-		bt.Annotate = func(v BlockView) error {
+		local.Annotate = func(v BlockView) error {
 			return t.retryAttempt(ctx, func() error { return orig(v) })
 		}
-		defer func() { bt.Annotate = orig }()
 	case bt.Produce != nil:
 		orig := bt.Produce
-		bt.Produce = func(v VariantView) error {
+		local.Produce = func(v VariantView) error {
 			return t.retryAttempt(ctx, func() error { return orig(v) })
 		}
-		defer func() { bt.Produce = orig }()
 	case bt.Transform != nil:
 		orig := bt.Transform
-		bt.Transform = func(v BlockView) (EditPlan, error) {
+		local.Transform = func(v BlockView) (EditPlan, error) {
 			var plan EditPlan
 			err := t.retryAttempt(ctx, func() error {
 				var attemptErr error
@@ -82,13 +88,25 @@ func (t *RetryTool) Process(ctx context.Context, in <-chan *model.Part, out chan
 			})
 			return plan, err
 		}
-		defer func() { bt.Transform = orig }()
 	default:
-		// No block handler: retry the entire Process.
-		return t.retryProcess(ctx, in, out)
+		return t.inner.Process(ctx, in, out)
 	}
 
-	return t.inner.Process(ctx, in, out)
+	return local.Process(ctx, in, out)
+}
+
+// SessionProcess preserves the inner tool's session contract. Session tools
+// own their replay and transaction semantics, so their stream runs once.
+func (t *RetryTool) SessionProcess(
+	ctx context.Context,
+	sess blockstore.Session,
+	in <-chan *model.Part,
+	out chan<- *model.Part,
+) error {
+	if inner, ok := t.inner.(SessionTool); ok {
+		return inner.SessionProcess(ctx, sess, in, out)
+	}
+	return t.Process(ctx, in, out)
 }
 
 // retryAttempt runs fn under the configured backoff/retry policy: it retries
@@ -97,6 +115,9 @@ func (t *RetryTool) retryAttempt(ctx context.Context, fn func() error) error {
 	var lastErr error
 	backoff := t.config.InitialBackoff
 	for attempt := 0; attempt <= t.config.MaxRetries; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if attempt > 0 {
 			timer := time.NewTimer(backoff)
 			select {
@@ -119,40 +140,10 @@ func (t *RetryTool) retryAttempt(ctx context.Context, fn func() error) error {
 	return fmt.Errorf("after %d retries: %w", t.config.MaxRetries, lastErr)
 }
 
-// retryProcess retries the entire Process call on error.
-func (t *RetryTool) retryProcess(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
-	// For non-BaseTool, we can only retry the entire stream.
-	// This is a best-effort approach — buffering is needed.
-	var lastErr error
-	backoff := t.config.InitialBackoff
-
-	for attempt := 0; attempt <= t.config.MaxRetries; attempt++ {
-		if attempt > 0 {
-			timer := time.NewTimer(backoff)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return ctx.Err()
-			case <-timer.C:
-			}
-			backoff = time.Duration(float64(backoff) * t.config.BackoffFactor)
-		}
-
-		err := t.inner.Process(ctx, in, out)
-		if err == nil {
-			return nil
-		}
-
-		if !t.isRetryable(err) {
-			return err
-		}
-		lastErr = err
-	}
-
-	return fmt.Errorf("after %d retries: %w", t.config.MaxRetries, lastErr)
-}
-
 func (t *RetryTool) isRetryable(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
 	if len(t.config.RetryableErrors) == 0 {
 		return true // retry all errors when no filter specified
 	}
@@ -165,4 +156,7 @@ func (t *RetryTool) isRetryable(err error) bool {
 	return false
 }
 
-var _ Tool = (*RetryTool)(nil)
+var (
+	_ Tool        = (*RetryTool)(nil)
+	_ SessionTool = (*RetryTool)(nil)
+)
