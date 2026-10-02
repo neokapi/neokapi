@@ -6,10 +6,10 @@
     "0000": {
       "ProductVersion": "0.0.0-dev",
       "CompanyName": "neokapi",
-      "FileDescription": "Bowrain - AI-native translation editor",
+      "FileDescription": "Bowrain",
       "LegalCopyright": "© 2025-2026 neokapi",
       "ProductName": "Bowrain",
-      "Comments": "AI-native translation editor"
+      "Comments": "Desktop client for a team's shared context graph, with offline editing"
     }
   }
 }
