@@ -428,17 +428,19 @@ func (v *blockView) SourceStatus() model.SourceStatus {
 // SetSourceStatus stamps the authoritative edition's status and keeps its
 // content and origin as they are.
 func (v *blockView) SetSourceStatus(s model.SourceStatus) {
-	k := v.b.Authoritative(model.AuthorityPolicy{})
-	e, _ := v.b.Edition(k)
+	e := authoritative(v.b)
 	e.Status = model.Status(s)
-	v.b.SetEdition(k, e)
+	v.b.SetEdition(model.EditionKey{}, e)
 }
 
-// authoritative returns the block's authoritative edition: the edition it was
-// read in, which a source read, a source rewrite and segmentation with no
-// variant address.
+// authoritative returns the block's authoritative edition under the empty
+// policy, the edition the block was read in: the edition a source read, a
+// source rewrite and segmentation with no variant address. It is the edition
+// b.Authoritative(model.AuthorityPolicy{}) returns, reached by the zero key,
+// which names it without resolving a locale; every tool reads the source
+// through here for every block.
 func authoritative(b *model.Block) model.Edition {
-	e, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
+	e, _ := b.Edition(model.EditionKey{})
 	return e
 }
 
