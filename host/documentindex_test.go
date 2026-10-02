@@ -99,6 +99,33 @@ func TestARenamedDocumentKeepsItsApprovals(t *testing.T) {
 	assert.Equal(t, "reviewer", got.Decision.By)
 }
 
+// TestASecondCheckoutNamesADocumentAsTheProjectDoes: one checkout follows a
+// file through a rename and keeps its key. A second checkout of the project,
+// made after the rename, has extracted nothing; it reads the key the first
+// recorded rather than the one the new path derives to, so a decision filed by
+// either answers in both.
+func TestASecondCheckoutNamesADocumentAsTheProjectDoes(t *testing.T) {
+	a, root, recipe := renameProject(t)
+	a.SetWorkspaceRoot(filepath.Join(t.TempDir(), "workspace"))
+	before := filepath.Join(root, "src", "guides", "intro.en.json")
+	require.NoError(t, os.WriteFile(before, []byte(`{"greeting":"Hello world"}`), 0o644))
+	extractOnce(t, a, recipe)
+	after := filepath.Join(root, "src", "intro.en.json")
+	require.NoError(t, os.Rename(before, after))
+	extractOnce(t, a, recipe)
+	docs, err := a.DocumentIndex(t.Context(), root)
+	require.NoError(t, err)
+	key := docs.Scope(root, after)
+	require.Equal(t, reconcile.DocumentKeyFor("src/guides/intro.en.json"), key, "the first checkout kept the key")
+
+	_, second, _ := renameProject(t)
+	require.NoError(t, os.WriteFile(filepath.Join(second, "src", "intro.en.json"), []byte(`{"greeting":"Hello world"}`), 0o644))
+	docs, err = a.DocumentIndex(t.Context(), second)
+	require.NoError(t, err)
+	assert.Equal(t, key, docs.Scope(second, filepath.Join(second, "src", "intro.en.json")),
+		"the second checkout names the document by the project's key, not its new path")
+}
+
 // TestDocumentScopeDerivesTheKeyBeforeAnythingIsExtracted: a project whose store
 // holds no identities names each file by the key its path derives to, which is
 // the key the next extraction mints for it. Answering with the path instead made
@@ -117,4 +144,15 @@ func TestDocumentScopeDerivesTheKeyBeforeAnythingIsExtracted(t *testing.T) {
 	assert.Equal(t, want, DocumentIndex{}.Scope(root, path),
 		"and the zero index answers the same way")
 	assert.True(t, reconcile.IsDocumentKey(want))
+}
+
+// TestAMintedKeyHasNoAddressAlias: a record filed under an address answers
+// under the key the address derives to, and a record filed under a key has
+// no other spelling, the ordinal a second document at one path is minted
+// with included.
+func TestAMintedKeyHasNoAddressAlias(t *testing.T) {
+	key := reconcile.DocumentKeyFor("docs/intro.md")
+	assert.Equal(t, []string{key}, scopeAliases("docs/intro.md"))
+	assert.Empty(t, scopeAliases(key))
+	assert.Empty(t, scopeAliases(key+"-2"), "a minted key is a key, not an address")
 }

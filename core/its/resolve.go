@@ -24,6 +24,12 @@ func NewResolver(rs *RuleSet) *Resolver {
 	return &Resolver{rules: rs}
 }
 
+// MentionsAttribute reports whether a rule the resolver applies may read an
+// attribute with local name local (RuleSet.MentionsAttribute).
+func (r *Resolver) MentionsAttribute(local string) bool {
+	return r != nil && r.rules.MentionsAttribute(local)
+}
+
 // Resolved is the per-element decision for every supported data
 // category. Fields stay at zero (Unset / "") when no rule applied —
 // callers inherit from the parent in that case.

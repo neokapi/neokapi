@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -63,6 +64,12 @@ type BlockEnv struct {
 	// Vocabulary resolves a code's editing constraints when the code carries
 	// none of its own. Nil is model.DefaultVocabulary.
 	Vocabulary *model.VocabularyRegistry
+	// Format is what the writer of the block's format can write beyond what
+	// its reader read: the attributes set_attribute may change and the
+	// vocabulary types mark, and a new code in a runs payload, may create.
+	// The zero value declares nothing, and those operations are refused as
+	// unsupported.
+	Format Capabilities
 	// Now is the clock that stamps a person's or an agent's edit. Nil is
 	// time.Now.
 	Now func() time.Time
@@ -80,10 +87,13 @@ type BlockEnv struct {
 // not_applied with BlockedBy naming the first refusal.
 //
 // ApplyBlock applies set_content, replace_text, remove_edition, annotate,
-// unannotate and the in-process provenance operation. set_attribute, mark,
-// insert_block, delete_block and native need a capability a format declares,
-// and are refused as unsupported here. decide and the asset operations are
-// applied by the change service, not to a block, and are refused as invalid.
+// unannotate and the in-process provenance operation. set_attribute, mark and
+// a new code in a runs payload apply where env.Format declares the attribute
+// or the vocabulary type, and are refused as unsupported elsewhere.
+// insert_block, delete_block and native need a capability of the document
+// rather than the block, and are refused as unsupported here. decide and the
+// asset operations are applied by the change service, not to a block, and are
+// refused as invalid.
 // The document and block an operation's At names are the caller's to route;
 // ApplyBlock reads only the edition.
 func ApplyBlock(b *model.Block, ops []Op, env BlockEnv) []OpResult {
@@ -155,9 +165,22 @@ func (w *workset) admit(op Op) *Error {
 		return errorf(CodeInvalid, "%s operation has a %T body", op.Kind, op.Body)
 	}
 	switch op.Kind {
-	case KindSetAttribute, KindMark, KindInsertBlock, KindDeleteBlock, KindNative:
+	case KindInsertBlock, KindDeleteBlock, KindNative:
 		return &Error{Code: CodeUnsupported, Capability: string(op.Kind),
 			Message: fmt.Sprintf("%s needs a capability the format declares; no format declares it for a block in memory", op.Kind)}
+	case KindSetAttribute:
+		if len(w.env.Format.Declared.WritableAttrs) == 0 {
+			return &Error{Code: CodeUnsupported, Capability: string(op.Kind),
+				Message: w.env.Format.formatName() + " writes no attribute of an inline code"}
+		}
+	case KindMark:
+		if body, ok := op.Body.(*Mark); ok && !w.env.Format.Declared.CanSynthesize(body.Type) {
+			msg := w.env.Format.formatName() + " writes no new inline code"
+			if types := w.env.Format.Declared.Synthesizes; len(types) > 0 {
+				msg = fmt.Sprintf("%s cannot write a new %s code; it writes %s", w.env.Format.formatName(), body.Type, strings.Join(types, ", "))
+			}
+			return &Error{Code: CodeUnsupported, Capability: string(op.Kind), Field: "type", Message: msg}
+		}
 	case KindDecide, KindTerm, KindMemory, KindRecipe:
 		return errorf(CodeInvalid, "%s is applied by the change service, not to a block", op.Kind)
 	case KindProvenance:
@@ -241,6 +264,10 @@ func (w *workset) apply(op Op, res *OpResult) *Error {
 		return w.setContent(op, body, res)
 	case *ReplaceText:
 		return w.replaceText(op, body, res)
+	case *SetAttribute:
+		return w.setAttribute(op, body, res)
+	case *Mark:
+		return w.mark(op, body, res)
 	case *RemoveEdition:
 		return w.removeEdition(op, res)
 	case *Annotate:
@@ -510,7 +537,7 @@ func (w *workset) setContent(op Op, body *SetContent, res *OpResult) *Error {
 		parsed := model.ParseRunsEditText(*body.Text, ref)
 		seq, findings, err = resolveTextCodes(parsed, ref, restorable, w.env.Guards == Report)
 	} else {
-		seq, findings, err = reconcileRuns(body.Runs, ref, restorable, w.env.Guards == Report)
+		seq, findings, err = reconcileRuns(body.Runs, ref, restorable, w.env.Guards == Report, w.synthEnv())
 	}
 	if err != nil {
 		return err

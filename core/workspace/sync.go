@@ -81,9 +81,10 @@ type Applier interface {
 	// includes the operations of the segments named, and reports the last
 	// operation it includes.
 	Checkpoint(ctx context.Context, segments []string) (data []byte, through string, err error)
-	// CheckpointMark reads which operation a checkpoint file stands at and the
-	// segments it includes.
-	CheckpointMark(data []byte) (through string, segments []string, err error)
+	// CheckpointMark reads which operation a checkpoint file stands at, the
+	// segments it includes, and the blobs of this workspace it names, which
+	// travel with it.
+	CheckpointMark(data []byte) (through string, segments, blobs []string, err error)
 	// InstallCheckpoint records a checkpoint file in the log, as of the
 	// operations the log holds now, so the next rebuild starts from it.
 	InstallCheckpoint(ctx context.Context, data []byte) error
@@ -366,18 +367,27 @@ func DecodeSegment(data []byte, project ProjectKey) ([]Op, error) {
 }
 
 // BlobRefs returns the blobs an operation names. An operation names a blob in
-// its payload's top-level "blob" field.
+// its payload's top-level "blob" field, and every further blob it depends on
+// (one the first blob names, the runs a recorded edit keeps) in its top-level
+// "blobs" list, so a push carries each and a pull fetches each.
 func BlobRefs(op Op) []string {
-	if len(op.Payload) == 0 || !bytes.Contains(op.Payload, []byte(`"blob"`)) {
+	if len(op.Payload) == 0 || !bytes.Contains(op.Payload, []byte(`"blob`)) {
 		return nil
 	}
 	var body struct {
-		Blob string `json:"blob"`
+		Blob  string   `json:"blob"`
+		Blobs []string `json:"blobs"`
 	}
-	if json.Unmarshal(op.Payload, &body) != nil || !validBlobAddress(body.Blob) {
+	if json.Unmarshal(op.Payload, &body) != nil {
 		return nil
 	}
-	return []string{body.Blob}
+	var out []string
+	for _, ref := range append([]string{body.Blob}, body.Blobs...) {
+		if validBlobAddress(ref) && !slices.Contains(out, ref) {
+			out = append(out, ref)
+		}
+	}
+	return out
 }
 
 // Fetch reaches the remote, reads the segments this workspace has not seen,
@@ -643,7 +653,7 @@ func (s *Sync) firstPull(ctx context.Context, db *storage.DB, names []string, se
 		if err != nil {
 			return err
 		}
-		through, included, err := s.applier.CheckpointMark(data)
+		through, included, blobs, err := s.applier.CheckpointMark(data)
 		if err != nil {
 			return err
 		}
@@ -670,6 +680,13 @@ func (s *Sync) firstPull(ctx context.Context, db *storage.DB, names []string, se
 				}
 			}
 			after = append(after, seg)
+		}
+		// The checkpoint's own blobs come first: without them it cannot be
+		// loaded, and the pull replays everything instead.
+		for _, ref := range blobs {
+			if err := s.fetchBlob(ctx, ref); err != nil {
+				return fmt.Errorf("workspace: checkpoint %s names blob %s: %w", ShortOpID(through), ref, err)
+			}
 		}
 		var ops []Op
 		for _, seg := range before {
@@ -738,24 +755,30 @@ func (s *Sync) markApplied(ctx context.Context, db *storage.DB, segs []fetched) 
 func (s *Sync) fetchBlobs(ctx context.Context, ops []Op) error {
 	for _, op := range ops {
 		for _, ref := range BlobRefs(op) {
-			if _, err := s.w.Blob(ctx, ref); err == nil {
-				continue
-			} else if !errors.Is(err, ErrNoBlob) {
-				return err
-			}
-			data, err := s.remote.Get(ctx, BlobObjectName(ref))
-			if err != nil {
+			if err := s.fetchBlob(ctx, ref); err != nil {
 				return fmt.Errorf("workspace: %s %s names blob %s: %w", op.Kind, ShortOpID(op.ID), ref, err)
-			}
-			if BlobAddress(data) != ref {
-				return fmt.Errorf("workspace: blob %s on the remote does not hold the bytes its name says", ref)
-			}
-			if _, err := s.w.PutBlob(ctx, data); err != nil {
-				return err
 			}
 		}
 	}
 	return nil
+}
+
+// fetchBlob reads one blob from the remote, unless the workspace holds it.
+func (s *Sync) fetchBlob(ctx context.Context, ref string) error {
+	if _, err := s.w.Blob(ctx, ref); err == nil {
+		return nil
+	} else if !errors.Is(err, ErrNoBlob) {
+		return err
+	}
+	data, err := s.remote.Get(ctx, BlobObjectName(ref))
+	if err != nil {
+		return err
+	}
+	if BlobAddress(data) != ref {
+		return fmt.Errorf("workspace: blob %s on the remote does not hold the bytes its name says", ref)
+	}
+	_, err = s.w.PutBlob(ctx, data)
+	return err
 }
 
 // Push writes the project's operations the remote does not hold as new
@@ -883,6 +906,35 @@ func (s *Sync) maybeCheckpoint(ctx context.Context, db *storage.DB, names []stri
 	data, through, err := s.applier.Checkpoint(ctx, applied)
 	if err != nil || through == "" || through <= since {
 		return err
+	}
+	// The blobs the checkpoint names go first, so a remote never shows a
+	// checkpoint whose parts are not there yet.
+	_, _, blobs, err := s.applier.CheckpointMark(data)
+	if err != nil {
+		return err
+	}
+	var objs []Object
+	if len(blobs) > 0 {
+		held, err := s.remote.List(ctx, RemoteBlobDir)
+		if err != nil {
+			return err
+		}
+		for _, ref := range blobs {
+			name := BlobObjectName(ref)
+			if slices.Contains(held, name) {
+				continue
+			}
+			part, err := s.w.Blob(ctx, ref)
+			if err != nil {
+				return fmt.Errorf("workspace: checkpoint %s names blob %s: %w", ShortOpID(through), ref, err)
+			}
+			objs = append(objs, Object{Name: name, Data: part})
+		}
+	}
+	if len(objs) > 0 {
+		if err := s.remote.Put(ctx, objs...); err != nil {
+			return err
+		}
 	}
 	if err := s.remote.Put(ctx, Object{Name: CheckpointName(through), Data: data}); err != nil &&
 		!errors.Is(err, ErrObjectExists) {

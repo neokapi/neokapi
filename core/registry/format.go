@@ -138,8 +138,17 @@ type FormatInfo struct {
 	// the cached manifest for plugin formats. It is the ceiling a recipe
 	// narrows, never the floor it raises.
 	InlineAnnotations []string `json:"inline_annotations,omitempty"`
-	Source            string   `json:"source"`   // SourceBuiltIn or plugin name
-	Priority          int      `json:"priority"` // higher = preferred when multiple formats match
+	// EditCapabilities is what the registered writer can write beyond
+	// replaying what its reader read: the attributes of a code set_attribute
+	// may change, the vocabulary types mark may create, and its structural and
+	// native operations. Declarative, like Generative: probed once from a
+	// built-in writer's AttrWriter, CodeSynthesizer, StructuralWriter and
+	// NativeEditor capabilities when it is registered, and set from the cached
+	// manifest by SetEditCapabilities when a plugin's writer is. The change
+	// service applies those operations only where this declares them.
+	EditCapabilities format.EditCapabilities `json:"edit_capabilities,omitzero"`
+	Source           string                  `json:"source"`   // SourceBuiltIn or plugin name
+	Priority         int                     `json:"priority"` // higher = preferred when multiple formats match
 }
 
 // computeEditable derives the Editable flag from the format's capabilities: a
@@ -287,7 +296,26 @@ func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFacto
 		if aw, ok := w.(format.InlineAnnotationWriter); ok {
 			info.InlineAnnotations = aw.InlineAnnotations()
 		}
+		// What the writer can write beyond its skeleton: attributes, new
+		// codes, structural and native operations.
+		info.EditCapabilities = format.ProbeEditCapabilities(w)
+		return
 	}
+	// A plugin's writer replaces whatever writer the format had, so a
+	// built-in's declaration no longer describes it. The plugin's own
+	// declaration follows from its manifest (SetEditCapabilities).
+	info.EditCapabilities = format.EditCapabilities{}
+}
+
+// SetEditCapabilities records what the format's registered writer can write
+// beyond its skeleton, replacing any earlier declaration, an empty one
+// included. The plugin host calls it with a plugin format's manifest
+// declaration once it registers the plugin's writer; a built-in writer's
+// declaration is probed by RegisterWriter.
+func (r *FormatRegistry) SetEditCapabilities(name FormatID, caps format.EditCapabilities) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.getOrCreateInfo(name).EditCapabilities = caps.Clone()
 }
 
 // SetFormatFamily records the content shape a format carries. Built-ins call it
@@ -386,6 +414,8 @@ func (r *FormatRegistry) RegisterFormatInfo(name FormatID, info FormatInfo) {
 	if info.Family != "" {
 		existing.Family = info.Family
 	}
+	// EditCapabilities describe the registered writer, so they are set with
+	// it (RegisterWriter, SetEditCapabilities), never from metadata alone.
 
 	// Register detection signature so bridge/plugin formats participate in
 	// DetectByExtension and DetectByMIME from metadata scan time, before
@@ -459,6 +489,7 @@ func (r *FormatRegistry) FormatInfos() []FormatInfo {
 			cp.Source = SourceBuiltIn
 		}
 		cp.computeEditable()
+		cp.EditCapabilities = info.EditCapabilities.Clone()
 		result = append(result, cp)
 	}
 
@@ -481,6 +512,7 @@ func (r *FormatRegistry) FormatInfo(name FormatID) *FormatInfo {
 		cp.Source = SourceBuiltIn
 	}
 	cp.computeEditable()
+	cp.EditCapabilities = info.EditCapabilities.Clone()
 	return &cp
 }
 

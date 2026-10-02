@@ -457,6 +457,21 @@ type Format struct {
 	// (round-trips / merges into its own original file only). See AD-005.
 	Capabilities []string `json:"capabilities,omitempty"`
 
+	// WritableAttrs maps an inline code type (a vocabulary type such as
+	// "link:hyperlink", or "*" for every type) to the attributes the format's
+	// writer writes when a set_attribute operation changes them ("*" for every
+	// attribute the code's markup spells). The plugin's writer receives the
+	// code with the new value among its attributes and spells it in the
+	// document. Empty declares none, and set_attribute is refused.
+	WritableAttrs map[string][]string `json:"writable_attrs,omitempty"`
+
+	// Synthesizes lists the vocabulary types (such as "fmt:bold") the
+	// format's writer can write as a new paired code, for a mark operation or
+	// a new code in a runs payload. The plugin's writer receives the new code
+	// with its type and attributes and no native data, and spells it. Empty
+	// declares none.
+	Synthesizes []string `json:"synthesizes,omitempty"`
+
 	// Schema is the path (relative to the plugin dir) to the format's
 	// parameter JSON Schema, if any.
 	Schema string `json:"schema,omitempty"`

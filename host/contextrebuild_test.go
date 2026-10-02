@@ -26,7 +26,7 @@ func projectionRows(t *testing.T, app *App, db *projectdb.DB) map[string][]strin
 	ctx := t.Context()
 	raw := db.Raw()
 	rows, err := raw.QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND sql NOT LIKE 'CREATE VIRTUAL%'
-		AND (name LIKE 'tm\_%' ESCAPE '\' OR name LIKE 'tb\_%' ESCAPE '\' OR name IN ('voice_profiles', 'voice_profile_versions', 'unit_decision', 'unit_view'))`)
+		AND (name LIKE 'tm\_%' ESCAPE '\' OR name LIKE 'tb\_%' ESCAPE '\' OR name IN ('voice_profiles', 'voice_profile_versions', 'unit_decision', 'unit_view', 'document_adoption', 'block_history', 'block_history_op'))`)
 	require.NoError(t, err)
 	var tables []string
 	for rows.Next() {
@@ -171,7 +171,7 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, res.Failed)
 	assert.Positive(t, res.Operations["terms.write"])
-	assert.Positive(t, res.Operations["unit.record"])
+	assert.Positive(t, res.Operations["decision.record"])
 	assert.NotEmpty(t, res.Checkpoint, "a checkpoint is written after the rebuild")
 
 	assert.Equal(t, before, projectionRows(t, app, db), "the rebuilt stores are the ones the writes left")
@@ -188,4 +188,22 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, res.Checkpoint, again.From, "the rebuild starts from the checkpoint")
 	assert.Equal(t, before, projectionRows(t, app, db), "and lands on the rows the writes left")
+}
+
+// TestARebuildSaysWhatItLeftOut: the kinds line up however long their names,
+// and operations of a retired kind are reported with what reads their rows in
+// again.
+func TestARebuildSaysWhatItLeftOut(t *testing.T) {
+	var out strings.Builder
+	require.NoError(t, ContextRebuild{
+		Operations: map[string]int{"decision.record": 12, "content.edit": 3, "terms.write": 1},
+		Retired:    map[string]int{"unit.record": 7},
+		Seconds:    1.5,
+	}.FormatText(&out))
+	assert.Equal(t, "Rebuilt the project's stores from 16 operations in 1.5s.\n"+
+		"  content.edit    3\n"+
+		"  decision.record 12\n"+
+		"  terms.write     1\n"+
+		"Left out 7 operations of kind unit.record, which this kapi no longer applies, so the rows they wrote are not in the stores."+
+		" kapi context import reads the project's decisions in again from its shards.\n", out.String())
 }

@@ -111,6 +111,12 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 			if part.Type == model.PartBlock {
 				if b, ok := part.Resource.(*model.Block); ok {
+					// The package's text sits in XHTML and XML members, so
+					// text XML 1.0 cannot carry is refused before a byte is
+					// written.
+					if err := format.CheckXMLBlock("epub", b); err != nil {
+						return err
+					}
 					blocks[b.ID] = b
 				}
 			}
@@ -167,6 +173,11 @@ func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts 
 				if l, ok := part.Resource.(*model.Layer); ok && l.ID == layer.ID {
 					endLayer = l
 					goto collected
+				}
+			}
+			if b, ok := part.Resource.(*model.Block); ok && part.Type == model.PartBlock {
+				if err := format.CheckXMLBlock("epub", b); err != nil {
+					return "", err
 				}
 			}
 			childParts = append(childParts, part)

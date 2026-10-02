@@ -1165,14 +1165,22 @@ func (w *Writer) openOriginal() (*zip.Reader, func(), error) {
 
 // Write consumes Parts and writes the reconstructed OpenXML document.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
-	// Collect all blocks keyed by ID
+	// Collect all blocks keyed by ID. The package's text sits in XML parts,
+	// so text XML 1.0 cannot carry is refused before a byte is written.
 	blocks := make(map[string]*model.Block)
+	var unwritable error
 	for part := range parts {
 		if part.Type == model.PartBlock {
 			if b, ok := part.Resource.(*model.Block); ok {
 				blocks[b.ID] = b
+				if unwritable == nil {
+					unwritable = format.CheckXMLBlock("openxml", b)
+				}
 			}
 		}
+	}
+	if unwritable != nil {
+		return unwritable
 	}
 	w.setBlocks(blocks)
 	defer w.setBlocks(nil)

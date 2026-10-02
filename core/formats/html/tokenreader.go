@@ -536,6 +536,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					block := buildBlockWithEntities(blockID, text)
 					block.Name = s.structuralName(s.textStep())
 					block.PreserveWhitespace = true
+					markInteractiveAncestor(block, s.interactiveAncestor())
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 				} else {
 					s.dropPendingWS()
@@ -555,6 +556,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					s.store.WriteRef(blockID)
 					block := buildBlockWithEntities(blockID, body)
 					block.Name = s.structuralName(s.textStep())
+					markInteractiveAncestor(block, s.interactiveAncestor())
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 					s.lastTextBlock = block
 					s.lastTextBlockEntries = s.store.EntriesWritten()
@@ -1115,6 +1117,7 @@ leafClosed:
 			Properties:         extractBlockPropsFromToken(attrs),
 		}
 		setStructuralRole(block, tag, func(key string) string { return getTokenAttr(attrs, key) })
+		markInteractiveAncestor(block, s.interactiveAncestor())
 		s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}
 

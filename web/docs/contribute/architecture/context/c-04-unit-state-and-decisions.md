@@ -106,19 +106,67 @@ moves its moment forward so it answers once more.
 In a workspace, every ledger write is an operation in the workspace's log
 before it is a row ([C-03](c-03-context-store-and-graph.md#the-stores-are-projections-of-the-log)).
 `state.WorkStore` records through a journal the host binds when it opens the
-project store (`WorkStore.SetJournal`, implemented by `projector.Units`): each
-entry becomes one `unit.record` operation carrying the record, the actor, the
-origin and the moment, and the projector writes the row with
-`state.ApplyEntries`. The operation's content address is `unit:<project>:<entry
-id>`, so the entry's own address carries over: one decision recorded twice, on
-one machine or on two whose logs are merged, is one operation. A re-assertion of
-an older entry is a new event and carries no address.
+project store (`WorkStore.SetJournal`, implemented by `projector.Decisions`):
+each entry, a decision or the basis a convergence pass recorded for its own
+output, becomes one `decision.record` operation carrying the record, the actor,
+the origin and the moment, and the projector writes the row with
+`state.ApplyEntries`. The operation's content address is
+`decision:<project>:<entry id>`, so the entry's own address carries over: one
+decision recorded twice, on one machine or on two whose logs are merged, is one
+operation. A re-assertion of an older entry is a new event and carries no
+address.
 
 `kapi context rebuild` therefore rebuilds the ledger with the other stores, and
 a second machine that merges the log receives the decisions with it. Each
 checkout's view stays out of the log: it is a reading of that checkout's files,
 written by the store beside the journal. The embedded layout a test opens has
 no log, and its store writes the ledger directly.
+
+A change to the text itself is a separate record. An edit that reaches the
+edit recorder is a `content.edit` operation, projected into the block history,
+which answers who changed an edition, from which revision to which and through
+which surface
+([C-03](c-03-context-store-and-graph.md#edits-are-recorded-as-content-edit)). A
+decision says a person stands behind a pairing; the block history says how the
+text in that pairing came to be. The ledger also holds entries that carry no
+decision: the basis a convergence pass records for its own output, Kapi
+Desktop's record of a person's edit, the AI pre-review a convergence report
+keeps, the governing fingerprint a seed writes and the verdicts a source venue
+clears. Each is a `decision.record` operation like a decision.
+
+### Document keys are recorded in the log
+
+A decision is filed under its document's key, so every checkout of a project
+has to give a document the same key. Each one a checkout resolves is a
+`document.adopt` operation (`state.Adoption`, recorded through the same
+journal): the key, the path the document was read at, the content hash of each
+block it held there, a digest over those hashes, and the id of the adoption the
+key held before (`Prev`). Its id (`state.AdoptionID`) is the SHA-256 over the
+key, the path, the digest and that previous id, and its content address is
+`adopt:<project>:` followed by the id, so two checkouts that see one document
+move from one state to the same path and content record it once, and a
+document that returns to a path or a content it held before is adopted again. A
+checkout records an adoption only when the project does not hold it yet: a key
+never adopted, or one now read at another path or with other content.
+
+The projector writes `document_adoption`, one row per key: where it was most
+recently read, what it held there, the adoption's id and when the key was
+first adopted, the same rows whatever order the operations arrive in.
+`WorkStore.AdoptDocuments` matches a read against the documents this checkout
+has read first, so a checkout keeps the keys it has, and then against the
+project's adoptions (`WorkStore.AdoptedDocuments`), the earliest adopted first.
+A checkout reading a document for the first time therefore takes the key the
+project already uses, at the path another checkout recorded or by what the file
+holds, before it mints one from the path. A key derived from a path that
+another document already holds, one that moved away from that path, is taken
+whether or not that document is in the read, and the new document gets the
+next ordinal (`d-…-2`). `host.DocumentIndex` answers a path the checkout has
+not resolved from the same adoptions, so a fresh checkout names a renamed
+document correctly before its first extraction.
+
+Two checkouts that mint different keys for one document before either's log
+reaches the other keep both: each prefers the key it holds, and the decisions
+filed under each stay with it.
 
 ### Applicability is a lookup
 
@@ -138,8 +186,8 @@ available if their source and target pairing appears again.
 No separate publish or commit step is required.
 
 The log is the source of the decisions, and the shards under `.kapi/state/`
-are one input to it: an import records each line it takes as a `unit.record`
-operation. Decisions move between machines as operations, through a context
+are one input to it: an import records each line it takes as a
+`decision.record` operation. Decisions move between machines as operations, through a context
 backend or a transfer file ([C-03](c-03-context-store-and-graph.md)).
 
 **Import.** `kapi context import` reads the shards into the ledger, and a
@@ -203,7 +251,8 @@ The document's identity is a **durable key**, not its path. When extraction
 reads a document, the checkout's view records what the document held as well as
 where it lives (`project.DocumentAdopter`, implemented by the project pool), and
 `WorkStore.AdoptDocuments` matches each read against the documents the project
-already knows, moving the decisions filed under an address onto the identity.
+already knows, moving the decisions filed under an address onto the identity
+([document keys are recorded in the log](#document-keys-are-recorded-in-the-log)).
 A run resolves the scope of every decision it records or reads through one
 `host.DocumentIndex`, read once from the store. A file that moves keeps its
 approvals. The path is the document's *address*: it is what a decision is scoped
@@ -564,8 +613,12 @@ re-exports the core types through aliases so downstream code sees one import.
   `RecordDiff` for writing the shards, `Import` and `CommittedDigest` for
   reading them,
   `ClearView` for emptying this checkout's view while every entry stands,
-  `Documents` and `AdoptDocuments` for document identity, and `SetPolicy` for
-  who may record what).
+  `Documents`, `AdoptDocuments` and `AdoptedDocuments` for document identity,
+  and `SetPolicy` for who may record what), and `Adoption`, the document
+  adoption the log carries.
+- **Edits and decisions are two records.** `core/history` holds the block
+  history `content.edit` operations project to; the ledger holds what was
+  decided about a pairing ([C-03](c-03-context-store-and-graph.md)).
 - **A backup reads the ledger, a snapshot reads the view.** `Ledger` answers
   with the entry in force at every pairing, whichever checkout recorded it, and
   `OpenLedger` reaches it with no checkout in hand. That is what

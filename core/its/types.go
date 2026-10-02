@@ -1,5 +1,7 @@
 package its
 
+import "strings"
+
 // NamespaceURI is the W3C ITS 2.0 namespace. Authors typically bind
 // the `its:` prefix to it, but the prefix is arbitrary — only the
 // namespace URI is normative.
@@ -196,6 +198,40 @@ type RuleSet struct {
 // IsEmpty reports whether the rule set has any rules.
 func (rs *RuleSet) IsEmpty() bool {
 	return rs == nil || len(rs.Rules) == 0
+}
+
+// MentionsAttribute reports whether a rule of the set may read an attribute
+// with local name local: its selector selects the attribute or tests it in a
+// predicate, or one of its pointers names it. A rule that reads an attribute
+// may decide differently once the attribute's value changes. A wildcard
+// attribute step and a pointer naming `@*` read every attribute.
+func (rs *RuleSet) MentionsAttribute(local string) bool {
+	if rs == nil {
+		return false
+	}
+	names := func(n NameMatch) bool { return n.Local == local || n.Local == "*" }
+	for i := range rs.Rules {
+		r := &rs.Rules[i]
+		if r.Selector != nil {
+			for _, alt := range r.Selector.Alternates {
+				if alt.Attribute != nil && names(*alt.Attribute) {
+					return true
+				}
+				for _, p := range alt.Predicates {
+					if (p.Kind == PredAttrEquals || p.Kind == PredAttrExists) && names(p.AttrName) {
+						return true
+					}
+				}
+			}
+		}
+		for _, ptr := range []string{r.LocNotePointer, r.LocNoteRefPointer, r.TermInfoRefPtr,
+			r.DomainPointer, r.ExternalResourceRefPointer, r.IDValuePointer} {
+			if strings.Contains(ptr, "@") && (strings.Contains(ptr, local) || strings.Contains(ptr, "@*")) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Append adds rules from `other` to the end of this set. Used to

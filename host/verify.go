@@ -1576,7 +1576,7 @@ func (r *unitTermRules) forUnit(u VerifyUnit) ([]coreprofile.TermRule, error) {
 		}
 		r.declared = &declared
 	}
-	rules, err := r.app.gateTermRules(r.cmd, *r.declared, u.Locale, point)
+	rules, err := r.app.gateTermRules(r.cmd, *r.declared, r.app.SourceLocale(), u.Locale, point)
 	if err != nil {
 		return nil, err
 	}

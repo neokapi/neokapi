@@ -301,6 +301,41 @@ the LLM check. A profile saying `active_voice: true` scores dense passive prose
 100/100 offline, and a reader who does not know which mechanism a rule uses
 cannot tell a clean document from an unchecked one.
 
+## Reconciling a read against the block history
+
+```bash
+KAPI_MEASURE_RECONCILE=1 go test -tags fts5 ./host -run TestMeasureReconcileOnRead -v
+```
+
+The edit model (`docs/internals/edit-model.md`, section 3.5) proposed running
+`reconcile.Blocks` on every local read, against priors from the block history
+and cached per document revision, so a block's key survives a sibling insertion
+locally the way it does on a push. The condition was a cost under 10% of read
+time.
+
+The harness reads the repository's documentation (`web/docs`: 408 files and
+13,703 blocks, with the mdx reader the dogfood recipe uses), gives every block a
+recorded change in `block_history`, and times each part over five passes.
+Measured on 2 October 2026 on an M-series laptop; three runs agreed within a
+percentage point.
+
+| Per pass over the corpus | Time | Share of the read |
+| --- | ---: | ---: |
+| read with the mdx reader | 190 ms | |
+| priors from `block_history` (`history.Priors`) | 48 ms | 25% |
+| `reconcile.Blocks` | 25 ms | 13% |
+| the history head, which a cache hit still reads | 8 ms | 4% |
+
+A read at a new revision pays for the priors and the reconciliation: 38% of the
+read. Reconciliation alone is 13%, over the bar even with the priors free. A
+cache hit costs 4%, but every read after an edit is at a new revision, so the
+agent's read, edit and read loop gains least from the cache.
+
+Reads therefore keep the keys the format reports. Every `content.edit`
+transition and every `block_history` row carries the block's key, content hash
+and context hash, the signals `core/reconcile` matches on, so a later pass can
+re-attach history after a reorder and pay the cost once.
+
 ## Comparing against other tools
 
 ```bash
@@ -335,3 +370,75 @@ Three things that comparison has to get right, and each was wrong first:
 
 The corpus is the okapi-testdata tree the parity harness already downloads. It
 matters that it was collected by another project for another purpose.
+
+## What the commit check costs
+
+```bash
+make bench-commit-check
+```
+
+The change service runs the host's commit check on every edition a change set
+changes, before it writes ([S-03](../../web/docs/contribute/architecture/surfaces/s-03-agent-surfaces.md#governance-at-commit)).
+`BenchmarkCommitCheck` (`host/commitcheck_cost_test.go`) measures it on this
+repository's own documentation: every Markdown and MDX file under `web/docs`,
+408 documents and 13,804 translatable blocks. Four change sets append a word
+to each block they name:
+
+- **paragraph**: one block;
+- **document**: every block of the largest document, `reference/project-file.mdx`
+  (510 blocks);
+- **translations**: the Norwegian translation of each of those 510 blocks;
+- **docs sweep**: every block of every document.
+
+A warm run keeps one App, as Kapi Desktop and the MCP server do. A cold run
+starts each change set on a new App, as one `kapi apply` does.
+
+`make bench-commit-check` measures two governances. The first copies the
+documentation into a scratch project with the Tidewatch sample's context
+(`samples/tidewatch-docs/context`: one voice with two constraints, five
+concepts). The second checks the documentation in place under this
+repository's `kapi.yaml`, with the context `make import-dogfood-context` pulls
+from `refs/kapi/context` into the isolated data root: the project's terms, its
+context log, and the documentation voice at the points the docs collections
+declare. The benchmark reads that root from `KAPI_COMMIT_COST_DATA_DIR`,
+because the host package's tests clear `KAPI_DATA_DIR`.
+
+Per change set, on an Apple M1 Max, the faster of two runs of five. Other
+agents' builds shared the machine (load average 9 to 32 during the runs), so
+the figures are upper bounds, and a cold run that beats its warm run shows the
+noise:
+
+| Change set | Editions | Sample, warm | Sample, cold | Dogfood, warm | Dogfood, cold |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| paragraph | 1 | 2.1 ms | 4.2 ms | 16.5 ms | 19.0 ms |
+| document | 510 | 39 ms | 39 ms | 169 ms | 127 ms |
+| translations | 510 | 31 ms | 36 ms | 209 ms | 340 ms |
+| docs sweep | 13,804 | 1.21 s | 1.48 s | 5.98 s | 4.46 s |
+
+Two costs add up:
+
+- **Resolution, once per change set.** The check loads the recipe once,
+  opens the project's stores, resolves the voice and the terms at each point,
+  reads the context log for suggested and widened rules, and resolves the
+  governance fingerprint. On a one-paragraph edit that is most of the cost. It
+  grows with the project's context: the dogfood project, with a larger terms
+  store and a context log of thousands of operations, pays several times what
+  the sample does. A new App adds 2 ms to 3 ms for opening the stores.
+- **The analyzers, per edition.** About 0.08 ms under the sample's governance
+  and 0.25 ms to 0.4 ms under the project's own, mostly the terms analyzer
+  locating every concept in the text and the voice's prohibited patterns, so
+  the cost follows the size of the governance. Each analyzer runs over each
+  block in a goroutine of its own (`RunCheckTool`), and the hand-off is a
+  visible share of a large change set. A sweep allocates about 41 KB per
+  edition under the sample and 139 KB under the project's own.
+
+Resolution is shared wherever it can be. `governFile` resolves a file's point
+once for both of its halves and both of its points, because each resolution
+reads the project's ignore rules from disk; documents that sit under one
+governance resolve its fingerprint once; and a translation pass resolves its
+term rules once for both sides of the change.
+
+A one-paragraph edit costs milliseconds, small beside the model call that
+usually produced it. A sweep over every block of the docs takes seconds, which
+is the shape of a flow rather than an agent's edit, and a flow checks once per
+document.

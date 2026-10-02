@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -186,6 +187,24 @@ CREATE TABLE document (
     PRIMARY KEY (checkout, key)
 );
 CREATE INDEX IF NOT EXISTS document_at_path ON document(checkout, path);`,
+}, {
+	Version:     7,
+	Description: "document adoptions",
+	// The key each document has across every checkout of the project, written
+	// from the document.adopt operations in the workspace's log (adoption.go).
+	// One row per key: where it was most recently read, what it held there,
+	// the id of that adoption (AdoptionID), and when it was first adopted.
+	SQL: `
+CREATE TABLE IF NOT EXISTS document_adoption (
+    key      TEXT NOT NULL PRIMARY KEY,
+    id       TEXT NOT NULL DEFAULT '',
+    path     TEXT NOT NULL,
+    digest   TEXT NOT NULL DEFAULT '',
+    content  TEXT NOT NULL DEFAULT '[]',
+    first_at TEXT NOT NULL,
+    at       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS document_adoption_path ON document_adoption(path);`,
 }}
 
 // metaCommittedDigest keys the digest of the shards a checkout's view was
@@ -1080,6 +1099,13 @@ func (w *WorkStore) Documents(ctx context.Context) ([]reconcile.DocUnit, error) 
 // second, so a file that moved keeps its key, and the decisions filed under its
 // old address move onto that key.
 //
+// The documents this checkout knows come first, so a checkout keeps the keys
+// it has. After them come the adoptions every checkout of the project recorded
+// (AdoptedDocuments), so a checkout that has not seen a document finds the key
+// the project already uses for it, at the path another checkout read it or by
+// what it holds, before it mints one. Each resolution the project does not hold
+// yet is recorded as an adoption.
+//
 // current is what was just read, in any order. The returned map is keyed by
 // DocUnit.Path.
 func (w *WorkStore) AdoptDocuments(ctx context.Context, current []reconcile.DocUnit) (map[string]string, error) {
@@ -1087,7 +1113,21 @@ func (w *WorkStore) AdoptDocuments(ctx context.Context, current []reconcile.DocU
 	if err != nil {
 		return nil, err
 	}
-	resolved := reconcile.DocumentUnits(current, prior)
+	held, err := w.adoptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	known := make(map[string]bool, len(prior))
+	for _, u := range prior {
+		known[u.Key] = true
+	}
+	candidates := slices.Clone(prior)
+	for _, a := range held {
+		if !known[a.Key] {
+			candidates = append(candidates, a.DocUnit)
+		}
+	}
+	resolved := reconcile.DocumentUnits(current, candidates)
 
 	// Where each key used to live, so a key resolved at a new path can carry
 	// the decisions filed under the old one.
@@ -1118,6 +1158,9 @@ func (w *WorkStore) AdoptDocuments(ctx context.Context, current []reconcile.DocU
 		if perr := w.putDocument(ctx, r.Key, r.Path, content); perr != nil {
 			return nil, perr
 		}
+	}
+	if rerr := w.recordAdoptions(ctx, held, resolved, current); rerr != nil {
+		return nil, rerr
 	}
 	return out, nil
 }

@@ -33,12 +33,13 @@ func declaredTermRules(proj *project.KapiProject, root string) (coreprofile.Reci
 	return declared, nil
 }
 
-// gateTermRules returns the rules a translation into locale is held to at a
-// point: the rules the terms bound there give for the language, and the rules
-// the recipe declares for it. Where both have a rule for one term, the
-// recipe's holds, as it does for the step that declares it.
-func (a *App) gateTermRules(cmd Command, declared coreprofile.RecipeTermRules, locale string, point project.GovernancePoint) ([]coreprofile.TermRule, error) {
-	stored, err := a.ResolveTermRulesFor(cmd, locale, point)
+// gateTermRules returns the rules a translation into locale of content written
+// in source is held to at a point: the rules the terms bound there give for the
+// language pair, and the rules the recipe declares for the language. Where both
+// have a rule for one term, the recipe's holds, as it does for the step that
+// declares it.
+func (a *App) gateTermRules(cmd Command, declared coreprofile.RecipeTermRules, source, locale string, point project.GovernancePoint) ([]coreprofile.TermRule, error) {
+	stored, err := a.resolveTermRules(cmd, source, locale, point)
 	if err != nil {
 		return nil, err
 	}
@@ -46,14 +47,15 @@ func (a *App) gateTermRules(cmd Command, declared coreprofile.RecipeTermRules, l
 }
 
 // GateTermRules is gateTermRules for one call, reading the recipe's rules from
-// proj, whose recipe sits in root. It is what an embedded surface asks when it
-// checks one translation the way the gate does.
+// proj, whose recipe sits in root, for content in the App's source language.
+// It is what an embedded surface asks when it checks one translation the way
+// the gate does.
 func (a *App) GateTermRules(cmd Command, proj *project.KapiProject, root, locale string, point project.GovernancePoint) ([]coreprofile.TermRule, error) {
 	declared, err := declaredTermRules(proj, root)
 	if err != nil {
 		return nil, err
 	}
-	return a.gateTermRules(cmd, declared, locale, point)
+	return a.gateTermRules(cmd, declared, a.SourceLocale(), locale, point)
 }
 
 // declaredTermRulesWhere names where the recipe declares term rules, for a

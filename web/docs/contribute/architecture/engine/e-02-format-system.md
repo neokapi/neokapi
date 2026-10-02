@@ -162,7 +162,8 @@ callers:
    `formats` capability each plugin's `manifest.json` declares, read from disk
    during discovery without launching a subprocess. The manifest seeds the
    format's metadata (name, extensions, MIME types, the `generative` and
-   `interchange` capabilities); the reader and writer factories dial the
+   `interchange` capabilities, and the attributes and code types its writer
+   writes); the reader and writer factories dial the
    plugin's Mode-C daemon on demand ([E-05](e-05-plugin-system.md)). A plugin
    format with the same name as a built-in overrides it, because installing a
    plugin for a format is an explicit signal to prefer it; two plugins claiming
@@ -386,6 +387,90 @@ inside an element whose partner sits outside.
 
 A span a segmentation cannot carry, one straddling two `<segment>` elements,
 is recorded on the writer (`UnplacedTermMarks`) rather than half-drawn.
+
+### Edits a writer can write
+
+A same-format writer replays its skeleton and writes the text of the blocks an
+edit changed. Some edits change more than text: the target of a link, or a new
+bold span over words that had none. The [change
+contract](/contribute/implementation/engine/change-applier) carries them as
+`set_attribute`, `mark` and a new code in a `runs` payload, and a format accepts
+each one only where its writer declares it. Four declared writer capabilities
+say what a writer can write beyond its skeleton, in `core/format/editcaps.go`:
+
+| Interface | Declares | Used by |
+| --- | --- | --- |
+| `AttrWriter` | `WritableAttrs()`: per code type, the attributes whose value the writer writes | `set_attribute` |
+| `CodeSynthesizer` | `Synthesizes()`: the vocabulary types the writer writes as a new paired code | `mark`, a new code in `runs` |
+| `StructuralWriter` | `Structural()`: `insert_block`, `delete_block` | the structural operations |
+| `NativeEditor` | `NativeOps()`: format-specific operations and their argument schemas | `native` |
+
+The registry records them on `FormatInfo.EditCapabilities`, which describes the
+format's registered writer. A built-in writer's declaration is probed once when
+it is registered, the way `Generative` and `InlineAnnotations` are. A plugin
+format declares `writable_attrs` and `synthesizes` in its manifest entry, read
+during discovery without launching the plugin, and the plugin host records them
+when it registers the plugin's writer. A plugin that replaces a built-in
+format's writer replaces its declaration with them, an empty one included.
+
+`AttrWriter.WriteAttr` spells a new value into the code's native data, escaped
+for where it sits, updates the code's attributes to match what the reader would
+read, and returns the same runs in the same order. `CodeSynthesizer` returns both
+halves of a new code as the format's reader would read them back, native data,
+subtype, display and constraints included. The change applier calls them when it
+applies the operation (`change.WriterCapabilities` hands it the writer), so the
+block holds the bytes it is written with, and every write path, skeleton replay
+included, writes them. A plugin's writer runs outside the process: the code it
+receives carries the new value among its attributes, or a new code carries its
+type and attributes and no data, and the plugin's writer spells it.
+
+Each declaration also refuses what it cannot write, with the reason in the
+refusal:
+
+| Format | Writes | Refuses, with a reason |
+| --- | --- | --- |
+| HTML | `href` of `link:hyperlink`, `src` of `media:image`; new `fmt:bold` and `fmt:italic` in the elements the format's projection of the vocabulary names (`<strong>`, `<em>`), and new `link:hyperlink` (`<a href>`) | a title or alt text, which the reader surfaces as a block of its own; a new code in an attribute value, the document title or a textarea; a link inside or around a link or a button, whether that element is a code of the block or markup the block sits inside |
+| Markdown | the destination of an inline link or image; new `**…**`, `*…*` and `[…](href)` | a reference link, whose destination is in a definition other links may share; an autolink; a title, which is text of the block; a link after a `!`, which would read as an image; markup a backslash in the text would escape; emphasis CommonMark would not read as emphasis, such as one starting with a space; a new code in a code span or a literal block |
+| XML | any attribute an inline element's code records (`*` for every type and attribute) | an attribute the element does not spell, since the format has no schema to say which it may carry; a namespace declaration; an attribute the reader surfaces as a block; an attribute the reader reads as an instruction |
+
+The XML reader records on an inline element's code the attributes
+`set_attribute` can change, so a read shows them. It leaves out the attributes
+whose value decides how the document reads: `xml:lang`, `xml:space` and the
+other `xml:` attributes, the ITS attributes, and any attribute a rule of the
+reader's configuration or of the document's ITS rules selects, tests or points
+at. A change to one of those would change what the next read extracts.
+
+The Markdown writer parses a new code's markup in place, with the text around
+it, using the reader's parser, and writes the code only where it reads back as
+that code over exactly the range and leaves every other piece of markup in the
+block reading as before. The refusals above give the common causes a reason of
+their own, and the parse refuses any other. In a table cell a link's
+destination spells a pipe as `\|`, and the reader reads it without the
+backslash, so a destination set with a pipe reads back as set.
+
+An edit that changes a block's codes and leaves its text as read (a
+`set_attribute`, a `mark`) is written by the HTML writer as a patch of the
+block's own bytes: each changed code's markup is replaced, each new code is
+inserted where it sits in the text, and the line breaks, indentation and
+characters the reader normalized or the encoding pass would respell keep the
+document's spelling.
+
+The operations matrix proves every declaration. `TestCapabilityMatrix`
+(`core/formats/opsmatrix_capabilities_test.go`) reads a fixture, applies the
+operation through the change applier with the writer's capabilities, writes
+the document through the same writer, and asserts that the output is the input
+with exactly the cell's change, spelled and escaped as the cell names it, and
+that every block reads back as the operation left it. Each `mark` cell also runs
+as a `set_content` naming the new code in a runs payload. Refusal cells assert
+the reason and an unchanged document. `TestCapabilityMatrixCoversEveryDeclaration`
+fails the build when a built-in writer declares an attribute, a type, a
+structural or a native operation that no cell proves. A wildcard attribute
+declaration counts as proven only with passing cells on two attributes and a
+cell that refuses one.
+
+`change.FormatOps` builds the change service's description of a format from
+the operations its round trip carries and these declarations; an operation
+nothing declares is `null`, and refused as `unsupported`.
 
 **Skeletons are typed per format.** A `SkeletonStore` carries an `OriginFormat`
 stamp, and `format.WireSkeleton(store, reader, writer)` connects a reader's
@@ -878,6 +963,9 @@ readers implement `SubfilterAware` and declare patterns in their config.
    (`core/formats/register.go`).
 7. If the format can host embedded content, implement `SubfilterAware` and accept
    `Subfilters []SubfilterMapping` in the config.
+8. If the writer can write a changed attribute or a new inline code, implement
+   `AttrWriter` or `CodeSynthesizer` and add the cells that prove each
+   declaration to the operations matrix.
 
 See [Implementing Formats](/contribute/implementation/engine/implementing-formats) for a
 walkthrough, and

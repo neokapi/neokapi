@@ -34,8 +34,10 @@ func (s syncer) Apply(ctx context.Context, rebuild bool) error {
 }
 
 // Checkpoint writes the project's projections as a checkpoint file for a
-// remote. It records nothing in the log, and it leaves out the rules the
-// project widened to the workspace, which stay on this machine.
+// remote, with the parts of its larger tables stored as blobs of this
+// workspace (CheckpointMark names them, and a push carries them). It records
+// nothing in the log, and it leaves out the rules the project widened to the
+// workspace, which stay on this machine.
 func (s syncer) Checkpoint(ctx context.Context, segments []string) ([]byte, string, error) {
 	p := s.p
 	if p.log == nil {
@@ -65,6 +67,9 @@ func (s syncer) Checkpoint(ctx context.Context, segments []string) ([]byte, stri
 		return nil, "", err
 	}
 	tables = slices.DeleteFunc(tables, func(t kpz.TableDoc) bool { return t.Table == rulesTable })
+	if tables, mark.Parts, err = p.storeParts(ctx, tables); err != nil {
+		return nil, "", err
+	}
 	pkg := &kpz.Package{
 		Kind:       kpz.KindCheckpoint,
 		Created:    time.Now().UTC().Format(time.RFC3339),
@@ -78,13 +83,14 @@ func (s syncer) Checkpoint(ctx context.Context, segments []string) ([]byte, stri
 	return data, mark.Through, nil
 }
 
-// CheckpointMark reads where a checkpoint file stands.
-func (s syncer) CheckpointMark(data []byte) (string, []string, error) {
+// CheckpointMark reads where a checkpoint file stands, and the blobs holding
+// the parts of its tables.
+func (s syncer) CheckpointMark(data []byte) (string, []string, []string, error) {
 	pkg, err := s.p.readCheckpoint(data)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
-	return pkg.Checkpoint.Through, pkg.Checkpoint.Segments, nil
+	return pkg.Checkpoint.Through, pkg.Checkpoint.Segments, partBlobs(pkg.Checkpoint.Parts), nil
 }
 
 // InstallCheckpoint keeps a checkpoint file read from a remote and records
@@ -112,7 +118,8 @@ func (s syncer) InstallCheckpoint(ctx context.Context, data []byte) error {
 		return fmt.Errorf("projector: store checkpoint: %w", err)
 	}
 	body, err := json.Marshal(checkpointPayload{
-		Blob: address, Through: pkg.Checkpoint.Through, Seq: seq, Operations: pkg.Checkpoint.Operations,
+		Blob: address, Blobs: partBlobs(pkg.Checkpoint.Parts), Through: pkg.Checkpoint.Through,
+		Seq: seq, Operations: pkg.Checkpoint.Operations,
 	})
 	if err != nil {
 		return err

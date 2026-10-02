@@ -1,16 +1,21 @@
 package kpz
 
 // A checkpoint is a project's projections as of one operation in the
-// workspace's log: the terms store, the content memory, the voice profiles and
-// the decision ledger, each a table of rows exactly as the store holds them,
-// plus the rules the project widened to the workspace. core/projector writes
-// one and reads it back, so a rebuild loads the latest checkpoint and replays
-// only the operations after it.
+// workspace's log: the terms store, the content memory, the voice profiles,
+// the decision ledger, the document adoptions and the block history, each a
+// table of rows exactly as the store holds them, plus the rules the project
+// widened to the workspace. core/projector writes one and reads it back, so a
+// rebuild loads the latest checkpoint and replays only the operations after
+// it.
 //
 // The rows travel as the store holds them rather than as the authored bundles
 // a context package carries, because a rebuild has to land on the rows the
 // writes left, timestamps and archived versions included. The member names the
 // table it restores.
+//
+// A table too large to carry in the package travels in parts (Parts): blobs
+// of the workspace that holds the checkpoint, each a run of the table's rows,
+// so no file a checkpoint is made of grows with the project's history.
 
 // ProjectionDir is the archive directory holding a checkpoint's tables.
 const ProjectionDir = "projection/"
@@ -39,4 +44,16 @@ type CheckpointMark struct {
 	// A first pull starts from the checkpoint only when every other segment
 	// holds operations after Through alone.
 	Segments []string `json:"segments,omitempty"`
+	// Parts names the blobs holding the rows of the tables too large to carry
+	// in the package, in the order they load.
+	Parts []CheckpointPart `json:"parts,omitempty"`
+}
+
+// CheckpointPart is one run of a checkpoint table's rows, kept in a blob.
+type CheckpointPart struct {
+	// Table is the store table the rows belong to.
+	Table string `json:"table"`
+	// Blob is the address of the blob holding the rows, as JSON Lines in the
+	// form TableDoc.Data takes.
+	Blob string `json:"blob"`
 }

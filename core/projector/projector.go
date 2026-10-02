@@ -2,9 +2,11 @@
 //
 // Every change to a project's context is an operation in the workspace's log
 // (core/workspace), and the log carries what the change wrote. The terms
-// store, the content memory, the voice profiles and the rules widened to the
-// whole workspace are projections of that log: what retrieval and checks read,
-// written by the projector alone, and rebuildable from the log at any time.
+// store, the content memory, the voice profiles, the rules widened to the
+// whole workspace, the decision ledger, the document adoptions and the block
+// history are projections of that log: what retrieval, checks and review
+// read, written by the projector alone, and rebuildable from the log at any
+// time.
 //
 // A write goes through here in two steps under one lock. The projector records
 // an operation carrying the rows the write puts or removes, and then applies
@@ -19,6 +21,10 @@
 // [KindMemory], [KindVoice] or [KindRules]. Its payload is the list of steps
 // the write made, in order: concepts put and deleted, content-memory entries
 // put and deleted, profiles created and updated, rules widened and narrowed.
+// A decision is one [KindDecision] operation and a document adoption one
+// [KindAdopt], each carrying its entry as a step and addressed by its content.
+// An applied edit is one [KindEdit] operation per document, whose payload is
+// the [Edit] itself rather than steps.
 // A payload larger than [BlobThreshold] goes into a content-addressed blob the
 // operation names, which is where an imported bundle or a convergence run's
 // batch of approved wording ends up.
@@ -32,8 +38,10 @@
 //
 // Callers do not build operations. [Projector.Terms], [Projector.Memory] and
 // [Projector.Voice] hand out the store a caller already knows, with reads
-// answered by the projection and writes recorded and applied here, and
-// [Projector.Rules] is the rule store core/contextop widens into. A
+// answered by the projection and writes recorded and applied here,
+// [Projector.Rules] is the rule store core/contextop widens into,
+// [Projector.Decisions] is the journal the decision ledger records through,
+// and [Projector.RecordEdit] records an applied edit. A
 // [Projector.Batch] collects the writes of one pass (an import, a convergence
 // run's absorbed record) into one operation per subsystem.
 //
@@ -54,6 +62,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/core/history"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/workspace"
@@ -72,19 +81,27 @@ const (
 	KindVoice = "voice.write"
 	// KindRules widens rules to the whole workspace and narrows them again.
 	KindRules = "rules.write"
-	// KindUnit records one entry in the unit decision ledger (core/state).
-	// Its content address is the entry's, so a decision recorded twice, here
-	// or on another machine, is one operation.
-	KindUnit = "unit.record"
+	// KindDecision records one entry in the decision ledger (core/state). Its
+	// content address is the entry's, so a decision recorded twice, here or on
+	// another machine, is one operation.
+	KindDecision = "decision.record"
+	// KindAdopt records the key a document has, where it was read and what it
+	// held there (state.Adoption), so every checkout of the project resolves
+	// one key per document.
+	KindAdopt = "document.adopt"
+	// KindEdit records one applied change to one document's content: who made
+	// it, through which surface, and each edition it changed (Edit). The
+	// projector writes it into the block history (core/history).
+	KindEdit = "content.edit"
 )
 
 // Kinds is every kind the projector applies.
-var Kinds = []string{KindTerms, KindMemory, KindVoice, KindRules, KindUnit}
+var Kinds = []string{KindTerms, KindMemory, KindVoice, KindRules, KindDecision, KindAdopt, KindEdit}
 
 // projects reports whether an operation kind is one the projector applies.
 func projects(kind string) bool {
 	switch kind {
-	case KindTerms, KindMemory, KindVoice, KindRules, KindUnit:
+	case KindTerms, KindMemory, KindVoice, KindRules, KindDecision, KindAdopt, KindEdit:
 		return true
 	}
 	return false
@@ -140,15 +157,16 @@ type Stores struct {
 	// Raw is the context database the stores live in. The projector keeps its
 	// position in the log there, and a rebuild empties the projection tables
 	// in it.
-	Raw    *storage.DB
-	Terms  *terms.SQLiteStore
-	Memory *memory.SQLiteStore
-	Voice  *voice.SQLiteStore
+	Raw     *storage.DB
+	Terms   *terms.SQLiteStore
+	Memory  *memory.SQLiteStore
+	Voice   *voice.SQLiteStore
+	History *history.Store
 }
 
 // ProjectStores are the projections a project store holds.
 func ProjectStores(db *projectdb.DB) Stores {
-	return Stores{Raw: db.Raw(), Terms: db.Terms(), Memory: db.Memory(), Voice: db.Voice()}
+	return Stores{Raw: db.Raw(), Terms: db.Terms(), Memory: db.Memory(), Voice: db.Voice(), History: db.History()}
 }
 
 // ContextStores binds the projections to a project's context database straight
@@ -168,7 +186,11 @@ func ContextStores(raw *storage.DB) (Stores, error) {
 	if err != nil {
 		return Stores{}, fmt.Errorf("projector: bind the voice store: %w", err)
 	}
-	return Stores{Raw: raw, Terms: tb, Memory: tm, Voice: vc}, nil
+	hs, err := history.Open(raw)
+	if err != nil {
+		return Stores{}, fmt.Errorf("projector: bind the block history: %w", err)
+	}
+	return Stores{Raw: raw, Terms: tb, Memory: tm, Voice: vc, History: hs}, nil
 }
 
 // locks holds one mutex per context store, keyed by the store's pool, so every
@@ -240,11 +262,13 @@ type payload struct {
 	Blob string `json:"blob,omitempty"`
 }
 
-// pending is one operation a write is about to record: its kind, its steps,
-// and the content address it is recorded under, if any.
+// pending is one operation a write is about to record: its kind, its steps
+// (or, for a content.edit, its edit), and the content address it is recorded
+// under, if any.
 type pending struct {
 	kind    string
 	steps   []step
+	edit    *Edit
 	address string
 }
 
@@ -410,8 +434,8 @@ func (p *Projector) CatchUp(ctx context.Context) error {
 
 // catchUpLocked applies the operations after the store's cursor, in the order
 // the log received them, and moves the cursor past them. mine holds the steps
-// of operations this call recorded, which are applied from memory rather than
-// read back.
+// (or the edit) of operations this call recorded, which are applied from
+// memory rather than read back.
 func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) error {
 	cursor, err := p.cursor(ctx)
 	if err != nil {
@@ -433,17 +457,27 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 	last := start
 	foreignBulk, stale := false, false
 	// Ledger entries arrive one operation each, and an import brings thousands,
-	// so a run of them is applied in one transaction.
-	var units []step
-	unitsMine := false
-	flushUnits := func() {
-		if len(units) == 0 {
-			return
+	// so a run of them is applied in one transaction. A run of edits is written
+	// into the block history the same way.
+	var (
+		units     []step
+		unitsMine bool
+		edits     []history.Row
+		editsMine bool
+	)
+	flush := func() {
+		if len(units) > 0 {
+			if _, aerr := p.applySteps(ctx, KindDecision, units); aerr != nil && unitsMine && first == nil {
+				first = aerr
+			}
+			units, unitsMine = nil, false
 		}
-		if _, aerr := p.applySteps(ctx, KindUnit, units); aerr != nil && unitsMine && first == nil {
-			first = aerr
+		if len(edits) > 0 {
+			if aerr := p.applyEditRows(ctx, edits); aerr != nil && editsMine && first == nil {
+				first = aerr
+			}
+			edits, editsMine = nil, false
 		}
-		units, unitsMine = nil, false
 	}
 	for _, op := range ops {
 		last = op.Seq
@@ -451,6 +485,23 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 			continue
 		}
 		own, isMine := mine[op.ID]
+		if op.Kind == KindEdit {
+			var e Edit
+			if isMine && own.edit != nil {
+				e = *own.edit
+			} else {
+				var derr error
+				if e, derr = p.decodeEdit(ctx, op); derr != nil {
+					continue
+				}
+			}
+			if len(units) > 0 {
+				flush()
+			}
+			edits = append(edits, editRows(op.ID, opAddress(op), op.At, e)...)
+			editsMine = editsMine || isMine
+			continue
+		}
 		steps := own.steps
 		if !isMine {
 			var derr error
@@ -461,19 +512,22 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 			}
 			foreignBulk = foreignBulk || bulkMemory(op.Kind, steps)
 		}
-		if op.Kind == KindUnit {
+		if op.Kind == KindDecision {
+			if len(edits) > 0 {
+				flush()
+			}
 			units = append(units, steps...)
 			unitsMine = unitsMine || isMine
 			continue
 		}
-		flushUnits()
+		flush()
 		replayed, aerr := p.applySteps(ctx, op.Kind, steps)
 		if aerr != nil && isMine && first == nil {
 			first = aerr
 		}
 		stale = stale || replayed
 	}
-	flushUnits()
+	flush()
 	// A writer that asked for a bulk write rebuilds the indexes itself; one
 	// that another process made is this catch-up's to finish.
 	if foreignBulk || stale {

@@ -196,10 +196,10 @@ func (a *testApplier) Checkpoint(_ context.Context, segments []string) ([]byte, 
 	return data, a.through, err
 }
 
-func (a *testApplier) CheckpointMark(data []byte) (string, []string, error) {
+func (a *testApplier) CheckpointMark(data []byte) (string, []string, []string, error) {
 	var m testMark
 	err := json.Unmarshal(data, &m)
-	return m.Through, m.Segments, err
+	return m.Through, m.Segments, nil, err
 }
 
 func (a *testApplier) InstallCheckpoint(_ context.Context, data []byte) error {

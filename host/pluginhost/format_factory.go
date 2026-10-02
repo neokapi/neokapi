@@ -82,6 +82,13 @@ func RegisterModeCFormats(host *Host, pool *DaemonPool, reg *registry.FormatRegi
 			reg.RegisterWriter(formatID, func() format.DataFormatWriter {
 				return newDaemonWriter(pool, pluginRef, fmtName)
 			})
+			// The plugin's writer is the format's writer now, so its
+			// manifest says what the format can write beyond its skeleton,
+			// even when it declares nothing a built-in it replaces did.
+			reg.SetEditCapabilities(formatID, format.EditCapabilities{
+				WritableAttrs: f.WritableAttrs,
+				Synthesizes:   f.Synthesizes,
+			})
 		}
 	}
 }

@@ -23,14 +23,18 @@
 //     parsed against a reference code set, inline codes keep their editing
 //     constraints, plural and select structure is kept, run flags survive,
 //     and overlays on the edited edition follow the edit;
+//   - Capabilities, what a format's writer declares it can write beyond what
+//     its reader read (the attributes set_attribute may change, the types
+//     mark may create), with the writer that spells them, and FormatOps,
+//     which builds the table a format publishes from those declarations;
 //   - Consequences, which says what an applied edit does to an edition's
 //     status and origin;
 //   - Diff, which turns a pair of blocks into the operations that make one
 //     into the other, so a path that arrives with a whole new block goes
 //     through the same rules as a typed operation.
 //
-// The package imports core/model and nothing above it: no host, no CLI, no
-// surface. Every surface (the CLI, MCP, Kapi Desktop, the browser build, tools
+// The package imports core/model and core/format and nothing above them: no
+// host, no CLI, no surface. Every surface (the CLI, MCP, Kapi Desktop, the browser build, tools
 // in flows and the Bowrain server) can build on it, and core/tool does, so a
 // tool's view writes through ApplyBlock.
 package change

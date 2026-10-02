@@ -128,20 +128,28 @@ func resolveTextCodes(parsed, ref, restorable []model.Run, report bool) ([]model
 // that names its data, which only an in-process caller can send, is kept as it
 // is.
 //
-// A new code with no data needs the format to spell it, which no format here
-// does, so it is refused as unsupported. Under report it is kept as sent, with
-// no native form, and named in a finding: a translation that names a
-// placeholder the source lacks lands, and the placeholder checks flag it.
-func reconcileRuns(runs, ref, restorable []model.Run, report bool) ([]model.Run, []Finding, *Error) {
+// A new paired code with no data, of a vocabulary type the format declares it
+// can write (caps), is spelled by the format's writer for where it sits, with
+// the attributes the format writes for the type. Any other new code with no
+// data has no native form, so it is refused as unsupported. Under report it is
+// kept as sent, with no native form, and named in a finding: a translation
+// that names a placeholder the source lacks lands, and the placeholder checks
+// flag it.
+func reconcileRuns(runs, ref, restorable []model.Run, report bool, se synthEnv) ([]model.Run, []Finding, *Error) {
 	if spelled(runs) {
 		return runs, nil, nil
 	}
-	rc := reconciler{refIdx: map[codeKey]model.Run{}, restIdx: map[codeKey]model.Run{}, report: report}
+	rc := reconciler{refIdx: map[codeKey]model.Run{}, restIdx: map[codeKey]model.Run{}, report: report, caps: se.caps, pending: map[string]bool{}}
 	indexCodes(ref, rc.refIdx)
 	indexCodes(restorable, rc.restIdx)
 	out, err := rc.seq(runs)
 	if err != nil {
 		return nil, nil, err
+	}
+	if len(rc.pending) > 0 {
+		if out, err = synthesizeCodes(se, out, rc.pending); err != nil {
+			return nil, nil, err
+		}
 	}
 	return out, rc.findings, nil
 }
@@ -152,9 +160,19 @@ type reconciler struct {
 	refIdx, restIdx map[codeKey]model.Run
 	report          bool
 	findings        []Finding
+	// caps is what the format can write; pending are the ids of the new
+	// paired codes it will spell. opened are the ids of the new codes that
+	// open in the sequence being reconciled: each plural form and select case
+	// is a sequence of its own, so a new code may open once in each.
+	caps    Capabilities
+	pending map[string]bool
+	opened  map[string]bool
 }
 
 func (rc *reconciler) seq(runs []model.Run) ([]model.Run, *Error) {
+	outer := rc.opened
+	rc.opened = map[string]bool{}
+	defer func() { rc.opened = outer }()
 	out := make([]model.Run, len(runs))
 	for i, r := range runs {
 		if !r.Valid() {
@@ -193,6 +211,12 @@ func (rc *reconciler) seq(runs []model.Run) ([]model.Run, *Error) {
 		}
 		held, ok := lookupCode(k, rc.refIdx, rc.restIdx)
 		if !ok {
+			if synth, err := rc.newCode(r); err != nil {
+				return nil, err
+			} else if synth {
+				out[i] = r
+				continue
+			}
 			kind := "new code"
 			if typ := codeType(r); typ != "" {
 				kind = "new " + typ + " code"
@@ -213,6 +237,28 @@ func (rc *reconciler) seq(runs []model.Run) ([]model.Run, *Error) {
 		out[i] = filled
 	}
 	return out, nil
+}
+
+// newCode reports whether a code the reference does not hold is a new paired
+// code the format writes: the opening half of one of a type it synthesizes,
+// with attributes it writes for the type, or the closing half of one whose
+// opening half came first.
+func (rc *reconciler) newCode(r model.Run) (bool, *Error) {
+	switch {
+	case r.PcOpen != nil && r.PcOpen.Type != "" && rc.caps.Declared.CanSynthesize(r.PcOpen.Type):
+		if rc.opened[r.PcOpen.ID] {
+			return false, &Error{Code: CodeInvalid, Field: "runs", Message: fmt.Sprintf(`the new code <x id="%s"/> opens twice`, r.PcOpen.ID)}
+		}
+		if err := checkNewCodeAttrs(rc.caps, r.PcOpen.Type, r.PcOpen.Attrs, "runs"); err != nil {
+			return false, err
+		}
+		rc.opened[r.PcOpen.ID] = true
+		rc.pending[r.PcOpen.ID] = true
+		return true, nil
+	case r.PcClose != nil && rc.pending[r.PcClose.ID]:
+		return true, nil
+	}
+	return false, nil
 }
 
 // sameCodeKeys reports whether two flat sequences hold the codes of the same

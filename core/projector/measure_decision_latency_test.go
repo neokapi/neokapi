@@ -22,7 +22,7 @@ func TestMeasureDecisionLatency(t *testing.T) {
 	p, _, db := open(t)
 	ctx := t.Context()
 	work := db.Work()
-	work.SetJournal(p.Units())
+	work.SetJournal(p.Decisions())
 	seed := make([]state.JournalEntry, 0, 13000)
 	for i := range 13000 {
 		u := state.UnitState{
@@ -33,7 +33,7 @@ func TestMeasureDecisionLatency(t *testing.T) {
 		require.NoError(t, err)
 		seed = append(seed, state.JournalEntry{ID: id, State: u, Origin: state.OriginImport, Recorded: time.Now().UTC()})
 	}
-	require.NoError(t, p.Units().RecordEntries(ctx, seed))
+	require.NoError(t, p.Decisions().RecordEntries(ctx, seed))
 
 	const writers, each = 16, 40
 	var (

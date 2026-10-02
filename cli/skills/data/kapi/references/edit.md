@@ -115,6 +115,22 @@ fresh hashes, the same loop a failing check drives. `apply` is idempotent: an
 entry whose text already matches the block is a no-op, so re-running a partly
 applied change-set is safe.
 
+### Refused for its wording or its sender
+
+Before an edit is written, kapi holds the edited text to the voice and terms in
+force where the file sits, with the deterministic rules `kapi check` runs. An
+edit is refused as `gate_failed`, with the findings, only for a failing finding
+it introduces. A finding the block already had is reported and does not block
+the edit, and an advisory or suggested rule only reports. Rewrite the wording a
+finding names and send the edit again. Only a person can land an edit over its
+findings, so do not try to override one.
+
+An agent's change is refused as `not_permitted` when it writes a term, a
+content-memory pair or the recipe (record a suggestion instead), records a
+review decision other than a pre-review, or sends `if_match: "*"` in place of
+the revision it read. The refusal names what to do instead. Both refusals exit
+on the gate code (3).
+
 ## 4. Verify
 
 Check the file you edited. In a project, its applicable voice and terms resolve

@@ -12,15 +12,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func isolateCheckExecution(t *testing.T) {
-	t.Helper()
-	dir := t.TempDir()
-	t.Setenv("KAPI_NO_PROJECT", "1")
-	t.Setenv("KAPI_CONFIG_DIR", filepath.Join(dir, "config"))
-	t.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
-	t.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
-	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
-	t.Setenv("KAPI_PLUGINS_DIR", filepath.Join(dir, "plugins"))
+// isolateCheckExecution points a test or a benchmark at throwaway
+// configuration, cache and plugin directories, and switches discovery off.
+// The data root needs nothing here: TestMain clears KAPI_DATA_DIR, so the
+// binary's own temporary root answers (host.DataDir).
+func isolateCheckExecution(tb testing.TB) {
+	tb.Helper()
+	dir := tb.TempDir()
+	tb.Setenv("KAPI_NO_PROJECT", "1")
+	tb.Setenv("KAPI_CONFIG_DIR", filepath.Join(dir, "config"))
+	tb.Setenv("XDG_DATA_HOME", filepath.Join(dir, "data"))
+	tb.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
+	tb.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
+	tb.Setenv("KAPI_PLUGINS_DIR", filepath.Join(dir, "plugins"))
 }
 
 func executionCommand(t *testing.T) *EnvCommand {

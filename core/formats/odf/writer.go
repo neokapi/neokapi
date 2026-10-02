@@ -62,14 +62,23 @@ func (w *Writer) SetSourcePath(path string) {
 
 // Write consumes Parts and writes the reconstructed ODF document.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
-	// Collect all blocks keyed by ID
+	// Collect all blocks keyed by ID. The document's text sits in XML
+	// members, so text XML 1.0 cannot carry is refused before a byte is
+	// written.
 	blocks := make(map[string]*model.Block)
+	var unwritable error
 	for part := range parts {
 		if part.Type == model.PartBlock {
 			if b, ok := part.Resource.(*model.Block); ok {
 				blocks[b.ID] = b
+				if unwritable == nil {
+					unwritable = format.CheckXMLBlock("odf", b)
+				}
 			}
 		}
+	}
+	if unwritable != nil {
+		return unwritable
 	}
 
 	// Resolve the source archive: prefer re-opening from the path (no

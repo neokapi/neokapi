@@ -242,7 +242,7 @@ func (s *projectStores) bindProjector(ctx context.Context, abs string, db *proje
 		return p, nil
 	}
 	if work := db.Work(); work != nil {
-		work.SetJournal(p.Units())
+		work.SetJournal(p.Decisions())
 	}
 	if err := p.CatchUp(ctx); err != nil {
 		return nil, fmt.Errorf("apply the context log to the project store: %w", err)

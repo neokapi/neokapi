@@ -162,7 +162,9 @@ manifest kind:
 
 A fifth profile, the checkpoint (`kapi-checkpoint`), is internal: a project's
 projection tables as of one operation, which a rebuild and a first pull start
-from rather than replaying every operation before it.
+from rather than replaying every operation before it. A table too large to
+carry in the archive travels in parts, blobs its manifest names, which sit
+under `blobs/` in a context profile beside the blobs the log names.
 
 These profiles are exchange archives. Open or merge their contents before
 working on them.

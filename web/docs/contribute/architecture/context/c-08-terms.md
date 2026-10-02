@@ -347,6 +347,14 @@ They therefore agree about which languages terms govern, and a language that
 only the recipe's rules answer for is governed. A rule fails the gate unless it
 is marked `advisory`, whichever source declared it.
 
+The commit check of the change service asks it too, before an edit is written
+([S-03](../surfaces/s-03-agent-surfaces.md#governance-at-commit)). A changed
+translation is held to the rules `gateTermRules` gives for its language, and a
+changed source edition to the terms analyzer `kapi check` runs. The check
+compares the edition before and after the change, so an edit is refused only
+for a failing violation it introduces, and an advisory or suggested rule
+reports without refusing it.
+
 A venue holds its compliance predicate and its drafts to the same rules. A push
 carries the recipe's rules as a recipe-owned setting
 ([C-01](c-01-project-model.md)), and the venue merges them with the concepts in

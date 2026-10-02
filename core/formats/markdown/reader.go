@@ -3539,9 +3539,27 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCoun
 
 	b.AddPcOpen(id, "link:hyperlink", "md:link", "[", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
-	b.SetLastAttrs(linkImageAttrs(model.AttrHref, n.Destination, n.Title, nil))
+	b.SetLastAttrs(linkImageAttrs(model.AttrHref, cellDestination(n, n.Destination), n.Title, nil))
 	r.buildCodedRuns(b, n, source, idCounter)
 	r.addLinkCloseRuns(b, n, id, "link:hyperlink", "md:link", subTypeLinkTitle, 1, info.Equiv, source, idCounter)
+}
+
+// cellDestination is the destination of an inline link or image as GFM reads
+// it: in a table cell, where `\|` is how the row spells a pipe, the backslash
+// is not part of it. Goldmark's Destination keeps the document's spelling
+// (escapes included) and is what the reader records elsewhere; in a cell it
+// keeps the pipe's backslash too, which the writer adds back when it writes
+// the cell (escapeCellPipes).
+func cellDestination(n ast.Node, dest []byte) []byte {
+	if !bytes.Contains(dest, []byte(`\|`)) {
+		return dest
+	}
+	for p := n.Parent(); p != nil; p = p.Parent() {
+		if p.Kind() == east.KindTableCell {
+			return bytes.ReplaceAll(dest, []byte(`\|`), []byte("|"))
+		}
+	}
+	return dest
 }
 
 // addLinkCloseRuns appends the runs that close an inline link or image after
@@ -3658,7 +3676,7 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 
 	b.AddPcOpen(id, "media:image", "md:image", "!["+alt, info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
-	b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, []byte(alt)))
+	b.SetLastAttrs(linkImageAttrs(model.AttrSrc, cellDestination(n, n.Destination), n.Title, []byte(alt)))
 	if r.cfg.TranslateImageAlt() {
 		r.buildCodedRuns(b, n, source, idCounter)
 	}

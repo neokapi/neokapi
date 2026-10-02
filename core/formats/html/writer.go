@@ -280,6 +280,14 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 						// value early.
 						text = encodeAttrValue(text, quote, "&quot;")
 					default:
+						if patched, asRead, ok := w.patchedSource(block, original); ok {
+							// The edit changed codes and no text: the
+							// block's own bytes with the code changes, and
+							// the whitespace trimmed after it, as unedited.
+							text = w.substituteBlockRefs(patched, blocks)
+							lastRefRendered = asRead
+							break
+						}
 						text = w.substituteBlockRefs(text, blocks)
 						text = htmlEncodeBlockText(text, block)
 					}

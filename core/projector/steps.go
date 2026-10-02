@@ -47,8 +47,11 @@ type step struct {
 	WidenRules  []workspace.Rule `json:"widen_rules,omitempty"`
 	NarrowRules []string         `json:"narrow_rules,omitempty"`
 
-	// unit.record
+	// decision.record
 	Entries []state.JournalEntry `json:"entries,omitempty"`
+
+	// document.adopt
+	Adoptions []state.Adoption `json:"adoptions,omitempty"`
 }
 
 // stamp fills every timestamp the store would take from the clock with the
@@ -108,6 +111,11 @@ func (s *step) stamp(at time.Time) {
 			s.WidenRules[i].At = at
 		}
 	}
+	for i := range s.Adoptions {
+		if s.Adoptions[i].At.IsZero() {
+			s.Adoptions[i].At = at
+		}
+	}
 }
 
 // entries reads the step's content-memory entries back as the store's own.
@@ -145,13 +153,13 @@ func sessionStep(sessions []memory.ImportSession) step {
 // search indexes left behind (memory.SQLiteStore.ReplayWithStream). replayed
 // reports it, and the caller rebuilds the indexes once.
 func (p *Projector) applySteps(ctx context.Context, kind string, steps []step) (replayed bool, err error) {
-	if kind == KindUnit {
+	if kind == KindDecision {
 		// Ledger entries are applied together, one transaction for the run.
 		var entries []state.JournalEntry
 		for _, s := range steps {
 			entries = append(entries, s.Entries...)
 		}
-		return false, p.applyStep(ctx, KindUnit, step{Entries: entries})
+		return false, p.applyStep(ctx, KindDecision, step{Entries: entries})
 	}
 	for i := 0; i < len(steps); {
 		if kind == KindMemory {
@@ -210,11 +218,16 @@ func (p *Projector) applyStep(ctx context.Context, kind string, s step) error {
 		return p.applyVoice(ctx, s)
 	case KindRules:
 		return p.applyRules(ctx, s)
-	case KindUnit:
+	case KindDecision:
 		if p.st.Raw == nil {
 			return errNoSubsystem
 		}
 		return state.ApplyEntries(ctx, p.st.Raw, s.Entries)
+	case KindAdopt:
+		if p.st.Raw == nil {
+			return errNoSubsystem
+		}
+		return state.ApplyAdoptions(ctx, p.st.Raw, s.Adoptions)
 	}
 	return fmt.Errorf("projector: %q is not an operation kind the projector applies", kind)
 }

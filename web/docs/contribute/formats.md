@@ -369,12 +369,49 @@ compares the edited runs with the runs as read: markup an `AddedSyntax` finds
 that the block already held, spelled the same, stays, and markup the edit adds
 is escaped.
 
-Three sweeps in `core/formats/escape_symmetry_test.go` hold the text formats to
+Three sweeps in `core/formats/escape_symmetry_test.go` hold the formats to
 this. `TestEscapeSymmetryOnModify` writes a corpus of characters into a
 translated value, `TestEscapeSymmetryOnSourceEdit` writes it into an edited
 source, and `TestEditedWordingReadsBackAsText` edits each markup format with
 wording that spells tags, links, expressions and macros, and reads the result
-back as text.
+back as text. The first two cover every format whose reader and writer share a
+skeleton, the ZIP containers included; `TestEscapeSweepCoversEverySkeletonPair`
+fails when a format gains a skeleton pair outside them.
+
+### Attributes and New Codes a Writer Can Write
+
+Replaying `Data` keeps a code as it was read. A writer that can also write a
+changed attribute of a code, or a new code around text, declares it, and the
+change contract's `set_attribute`, `mark` and new codes in a `runs` payload
+reach the format only where it does:
+
+```go
+// AttrWriter: the attributes a set_attribute may change, per code type.
+func (w *Writer) WritableAttrs() map[string][]string {
+    return map[string][]string{"link:hyperlink": {model.AttrHref}}
+}
+
+// Spell the new value into the code's Data, escaped for where it sits, and
+// update its Attrs as the reader would read them back. Return the same runs
+// in the same order.
+func (w *Writer) WriteAttr(seq []model.Run, at int, name, value string) ([]model.Run, error)
+
+// CodeSynthesizer: the vocabulary types the writer writes as a new code.
+func (w *Writer) Synthesizes() []string { return []string{"fmt:bold"} }
+
+// Return both halves of a new code as the reader would read them, or an
+// error whose message says why the format cannot write one at site.
+func (w *Writer) SynthesizeCode(site format.CodeSite) (open, close model.Run, err error)
+```
+
+The change applier calls these when it applies the operation, so the block
+already holds the bytes the writer writes. Refuse what the format cannot carry
+with a reason a caller can act on: the Markdown writer refuses a reference
+link's destination because the definition elsewhere may serve other links.
+Each declaration needs a cell in the operations matrix
+(`core/formats/opsmatrix_capabilities_test.go`) that writes it and reads it
+back; the build fails on a declaration without one. [E-02](/contribute/architecture/engine/e-02-format-system#edits-a-writer-can-write)
+lists what each format declares.
 
 ### Choosing Target vs Source Content
 
