@@ -3,6 +3,7 @@ package xliff2
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -194,8 +195,10 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 }
 
-// writeFromSkeleton reads skeleton entries and fills in block content.
-// (Legacy skeleton path; not exercised by the new DOM writer.)
+// writeFromSkeleton reads skeleton entries and fills in block content. Each
+// <source> and <target> reference arrives paired with the element's bytes and
+// the markup the reader rendered for it; a segment that still renders the same
+// is written with those bytes, and an edited one with its new rendering.
 func (w *Writer) writeFromSkeleton() error {
 	if err := w.skeletonStore.Flush(); err != nil {
 		return fmt.Errorf("xliff2 writer: flush skeleton: %w", err)
@@ -227,6 +230,9 @@ func (w *Writer) writeFromSkeleton() error {
 		}
 	}
 
+	// rendered and original are the pair the reader recorded for the next ref.
+	var rendered, original []byte
+	paired := false
 	for {
 		entry, err := w.skeletonStore.Next()
 		if errors.Is(err, io.EOF) {
@@ -240,8 +246,12 @@ func (w *Writer) writeFromSkeleton() error {
 			if _, err := w.Output.Write(entry.Data); err != nil {
 				return err
 			}
+		case format.SkeletonOriginal:
+			rendered, original, paired = format.DecodeSkeletonPair(entry.Data)
 		case format.SkeletonRef:
-			blockIdx, segIdx, elemType, indent, ok := decodeSkelRef(string(entry.Data))
+			wasPaired := paired
+			paired = false
+			blockIdx, segIdx, elemType, segID, indent, ok := decodeSkelRef(string(entry.Data))
 			if !ok {
 				continue
 			}
@@ -260,15 +270,14 @@ func (w *Writer) writeFromSkeleton() error {
 			}
 			block := blocks[blockIdx]
 
-			var text string
+			var body string
 			switch elemType {
 			case elemSource:
-				text = block.SourceText()
+				body = renderSourceRef(block, segIdx, segID)
 			case elemTarget:
-				if block.HasTarget(targetLang) {
-					text = block.TargetText(targetLang)
-				} else {
-					text = block.SourceText()
+				var ok bool
+				if body, ok = renderTargetRef(block, targetLang, segIdx, segID); !ok {
+					body = renderSourceRef(block, segIdx, segID)
 				}
 			case elemTargetInject:
 				// The source carries no <target> here. One is written only when
@@ -277,11 +286,11 @@ func (w *Writer) writeFromSkeleton() error {
 				// unit whose translation is one text for several segments gets
 				// one <target>, on the segment that holds it, rather than the
 				// same text repeated down the unit.
-				if !injecting || !block.HasTarget(targetLang) {
+				if !injecting {
 					continue
 				}
-				segs := targetSegsFromBlock(block, targetLang)
-				if segIdx < 0 || segIdx >= len(segs) {
+				tgt, ok := renderTargetRef(block, targetLang, segIdx, segID)
+				if !ok || tgt == "" {
 					continue
 				}
 				// The indent is the document's own bytes and goes out as it came
@@ -289,8 +298,7 @@ func (w *Writer) writeFromSkeleton() error {
 				if _, err := io.WriteString(w.Output, indent+"<target>"); err != nil {
 					return err
 				}
-				body := xmlesc.Text(model.FlattenRuns(segs[segIdx].Runs))
-				if err := writeBytesCREscape(w.Output, []byte(body)); err != nil {
+				if err := writeBytesCREscape(w.Output, []byte(tgt)); err != nil {
 					return err
 				}
 				if _, err := io.WriteString(w.Output, "</target>"); err != nil {
@@ -298,7 +306,13 @@ func (w *Writer) writeFromSkeleton() error {
 				}
 				continue
 			}
-			if err := writeBytesCREscape(w.Output, []byte(xmlesc.Text(text))); err != nil {
+			if wasPaired && body == string(rendered) {
+				if _, err := w.Output.Write(original); err != nil {
+					return err
+				}
+				continue
+			}
+			if err := writeBytesCREscape(w.Output, []byte(body)); err != nil {
 				return err
 			}
 		}
@@ -310,28 +324,24 @@ func (w *Writer) writeFromSkeleton() error {
 // cannot parse is skipped rather than guessed at: the skeleton's own text still
 // carries the document, so an unreadable ref costs one substitution and not the
 // file.
-func decodeSkelRef(refID string) (blockIdx, segIdx int, elemType, indent string, ok bool) {
-	idxStr, rest, ok := strings.Cut(refID, ":")
-	if !ok {
-		return 0, 0, "", "", false
+func decodeSkelRef(refID string) (blockIdx, segIdx int, elemType, segID, indent string, ok bool) {
+	fields := strings.SplitN(refID, ":", 5)
+	if len(fields) != 5 {
+		return 0, 0, "", "", "", false
 	}
-	segStr, rest, ok := strings.Cut(rest, ":")
-	if !ok {
-		return 0, 0, "", "", false
-	}
-	elemType, indent, ok = strings.Cut(rest, ":")
-	if !ok {
-		return 0, 0, "", "", false
-	}
-	blockIdx, err := strconv.Atoi(idxStr)
+	blockIdx, err := strconv.Atoi(fields[0])
 	if err != nil {
-		return 0, 0, "", "", false
+		return 0, 0, "", "", "", false
 	}
-	segIdx, err = strconv.Atoi(segStr)
+	segIdx, err = strconv.Atoi(fields[1])
 	if err != nil {
-		return 0, 0, "", "", false
+		return 0, 0, "", "", "", false
 	}
-	return blockIdx, segIdx, elemType, indent, true
+	id, err := hex.DecodeString(fields[3])
+	if err != nil {
+		return 0, 0, "", "", "", false
+	}
+	return blockIdx, segIdx, fields[2], string(id), fields[4], true
 }
 
 // flush serializes the captured stream to XLIFF 2.x XML. When the
