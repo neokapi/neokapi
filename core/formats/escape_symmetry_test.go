@@ -44,7 +44,7 @@ func runEscapeSweep(t *testing.T, editSource bool) {
 	reg := registry.NewFormatRegistry()
 	RegisterAll(reg)
 
-	for _, tc := range escapeSweepFormats() {
+	for _, tc := range append(escapeSweepFormats(), containerSweepFormats(t)...) {
 		t.Run(tc.id, func(t *testing.T) {
 			probe := spectest.ModifyProbe{
 				Format: tc.id,
