@@ -200,5 +200,20 @@ travel in **one `kapi apply`**. Every reviewed
 change, content or asset, is one typed entry routed through the single write
 verb. Each entry lands on its own, with no transaction across the change-set:
 when one is stale or refused, the others are still written, so re-inspect,
-fix that entry and re-run. See [create.md → close the loop](create.md) for the asset entry shapes;
-for a word rule specifically, [voice.md](voice.md).
+fix that entry and re-run.
+
+```jsonl
+{"kind":"content","file":"draft.md","id":"p4","content_hash":"a1b2…","text":"Open the dashboard."}
+{"kind":"term","op":"upsert","term":"dashboard","locale":"en","status":"preferred","replaces":"control panel"}
+```
+
+A term entry can also carry `"do_not_translate": true` to keep a name verbatim
+in every language, or `false` to clear that. An entry that omits it leaves the
+flag as it is.
+
+A `term`, `memory` or `recipe` entry writes the project's context or its recipe
+directly, which is a person's decision. kapi records each entry as whoever runs
+the command, so run from your shell those entries are refused while the
+content entries land. Record the rule as a suggestion instead
+([create.md → close the loop](create.md)), and leave the change-set for the
+person to apply. For a word rule specifically, see [voice.md](voice.md).

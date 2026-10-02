@@ -118,7 +118,7 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 		{Kind: kindMemory, Op: "add", Source: "Cancel", Target: "Avbryt", SourceLocale: "en", TargetLocale: "nb"},
 		{Kind: kindTerm, Term: "leverage", Replacement: "use", Locale: "en", Status: "forbidden", Advisory: true},
 	} {
-		res := app.applyRecordedAssetEntry(ctx, cmd, e)
+		res := app.applyRecordedAssetEntry(ctx, cmd, personApplies, e)
 		require.Equal(t, "applied", res.Status, "%s: %s", e.Kind, res.Detail)
 	}
 	seedVoiceProfile(t, app, cmd)
@@ -181,7 +181,7 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 	// from the checkpoint and lands on the same rows.
 	require.NoError(t, st.Put(ctx, decide("farewell", "Ha det bra", "asgeir")))
 	require.NoError(t, st.Delete(ctx, state.Key{Scope: "doc", Unit: "greeting", Variant: model.Variant("nb")}))
-	res2 := app.applyRecordedAssetEntry(ctx, cmd, changeEntry{Kind: kindMemory, Op: "add", Source: "Open", Target: "Åpne", SourceLocale: "en", TargetLocale: "nb"})
+	res2 := app.applyRecordedAssetEntry(ctx, cmd, personApplies, changeEntry{Kind: kindMemory, Op: "add", Source: "Open", Target: "Åpne", SourceLocale: "en", TargetLocale: "nb"})
 	require.Equal(t, "applied", res2.Status, res2.Detail)
 	before = projectionRows(t, app, db)
 	again, err := app.RebuildProjectContext(ctx, recipeOf(root), false)

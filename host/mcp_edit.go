@@ -59,8 +59,10 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"a block holding a plural or select construct is refused as guard_failed and leaves the block as it was. " +
 			"An entry whose id, or content_hash when it gives no id, matches no block of its file is listed in not_found " +
 			"and writes nothing. Stale, guard_failed and not_found each make ok false: read the file again and resend. " +
-			"Asset edits (a term, a content memory pair) are written to the project's stores and " +
-			"recorded in its context history, and a recipe field is written to kapi.yaml. No AI provider is used. Read the " +
+			"Every entry is recorded as yours, the calling agent's, in this server's session. Writing a term, a content memory " +
+			"pair or a recipe field directly is a person's decision, so those entries are refused with a reason and write nothing: " +
+			"record a term rule as a suggestion with context_observe, or context_correct for wording you changed, and a person keeps it. " +
+			"No AI provider is used. Read the " +
 			"context://<project-relative-path> resource before editing content, then run check_file on " +
 			"each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, " +
 			"id and lines (as check_file reports them, such as func/Parse), comment_sha256 (the fingerprint check_file reports " +
@@ -113,6 +115,8 @@ func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in apply
 	if err != nil {
 		return nil, applyEditsMCPOutput{}, err
 	}
+	// Every entry is the calling agent's, in the server's session.
+	who := changeActor{Actor: actor, Note: "applied with apply_edits"}
 
 	for _, e := range in.Changeset {
 		switch e.Kind {
@@ -127,7 +131,7 @@ func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in apply
 		case kindComment:
 			comments = append(comments, e)
 		case kindTerm, kindMemory, kindRecipe:
-			out.Assets = append(out.Assets, a.applyRecordedAssetEntry(ctx, cmd, e))
+			out.Assets = append(out.Assets, a.applyRecordedAssetEntry(ctx, cmd, who, e))
 		case "":
 			return nil, applyEditsMCPOutput{}, errors.New("change-set entry has no \"kind\"")
 		case retiredVoiceKind:
@@ -154,7 +158,7 @@ func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in apply
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
 		out.Content.NotFound = append(out.Content.NotFound, notFoundIn(file, report)...)
 	}
-	a.noteAgentEdits(ctx, recipe, actor, edited)
+	a.noteAgentEdits(ctx, recipe, who.Actor, edited)
 	if len(comments) > 0 {
 		// The check of a written comment resolves governance from the call's
 		// project, as check_file does, and reads the file in that project's

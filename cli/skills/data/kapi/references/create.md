@@ -87,34 +87,30 @@ line.
 ## Close the loop: fix the content and the rule together
 
 When a check flags a term, the durable fix is usually two changes: correct **this
-draft**, and record the rule so **future** drafts are checked against it. Both
-are typed entries in **one** `kapi apply` change-set, written through the
-single write verb. Each entry lands on its own: when one is stale or refused,
-the others are still written and apply exits non-zero, so fix that entry and
-re-run the change-set (an edit already in place is skipped):
+draft**, and record the rule so **future** drafts are checked against it.
+Correct the draft with a content entry through `kapi apply`, then record the
+change you made:
 
 ```jsonl
 {"kind":"content","file":"draft.md","id":"p4","content_hash":"a1b2…","text":"Open the dashboard."}
-{"kind":"term","op":"upsert","term":"dashboard","locale":"en","status":"preferred","replaces":"control panel"}
 ```
-
-A term entry can also carry `"do_not_translate": true` to keep a name verbatim
-in every language, or `false` to clear that. An entry that omits it leaves the
-flag as it is.
 
 ```bash
 kapi apply changeset.jsonl
+kapi context correct "control panel" "dashboard" --seen-in draft.md --suggest
 ```
 
 - The **content** entry rewrites the block through the faithful round-trip.
-- The **term** entry upserts the term itself into the project's terms store and
-  records the change, so `kapi context log` carries the one new term and the
-  next `kapi check draft.md` enforces it.
+- The **correction** records what you changed and, with `--suggest`, the rule it
+  implies. `kapi check` reports the rule as a suggestion and fails nothing on
+  it until a person keeps it with `kapi context keep`, which writes it into the
+  project's terms store.
 
-The asset kinds `kapi apply` accepts (`term`, `memory`, `recipe`) and
-their fields are summarized in [edit.md](edit.md); a word rule is a `term`
-entry, detailed in [voice.md](voice.md). Asset entries require a kapi project, because
-the stores they write belong to one.
+Writing a term into the store directly is a person's decision. A `term` entry
+in a `kapi apply` change-set does that, so from your shell it is refused; when
+the person has decided, they run `kapi apply` on it themselves. The asset kinds
+`kapi apply` accepts (`term`, `memory`, `recipe`) and their fields are
+summarized in [edit.md](edit.md), and a word rule is detailed in
+[voice.md](voice.md).
 
-After applying, run `kapi check draft.md --json` again to check the draft against
-the new rule.
+After applying, run `kapi check draft.md --json` again to check the draft.

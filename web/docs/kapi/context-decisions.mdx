@@ -302,7 +302,11 @@ appear in the same log:
   applied with `kapi apply`
 ```
 
-Asset changes applied by a person are established immediately.
+Asset changes applied by a person are established immediately. An agent's
+term, content-memory and recipe entries are refused, whether it sends them
+through the MCP `apply_edits` tool or runs `kapi apply` from its shell, because
+writing a rule directly is a person's decision. The agent records the rule as a
+suggestion with `kapi context observe` instead, and a person keeps it.
 `kapi context import` also establishes context directly and records one
 `import` operation per file.
 

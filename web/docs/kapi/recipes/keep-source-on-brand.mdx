@@ -75,7 +75,7 @@ An edit whose content hash drifted, or that would corrupt an inline code, is lef
 {"kind":"term","op":"upsert","term":"leverage","locale":"en","status":"forbidden","replacement":"use"}
 ```
 
-The `term` entry lands in the project's terms, so the next check enforces it (requires a kapi project). A use of the term then fails; add `"advisory":true` to have it report instead, or `"competitor":true` for a competitor's name.
+The `term` entry lands in the project's terms, so the next check enforces it (requires a kapi project). A use of the term then fails; add `"advisory":true` to have it report instead, or `"competitor":true` for a competitor's name. Run it yourself: an assistant's `term` entry is refused, and the assistant records the rule as a suggestion for you to keep instead.
 
 </TabItem>
 </Tabs>

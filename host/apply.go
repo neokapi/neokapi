@@ -93,12 +93,6 @@ type changeEntry struct {
 	Path  string          `json:"path,omitempty"`
 	Value json.RawMessage `json:"value,omitempty"`
 
-	// Actor is who wrote this entry, recorded on the context operation the
-	// entry produces (core/contextop). Omitted reads as a person, which is what
-	// someone running `kapi apply` is. An agent naming itself here is refused
-	// for an asset entry, because applying one is a decision and only a person
-	// makes those; an agent proposes instead.
-	Actor *contextop.Actor `json:"actor,omitempty" jsonschema:"who is making this change; omit unless you are an agent recording on someone's behalf"`
 	// Evidence is where the wording behind an asset entry was seen, recorded on
 	// the operation so the decision can be argued with later.
 	Evidence []contextop.Evidence `json:"evidence,omitempty" jsonschema:"for asset entries: where the wording behind this decision was seen"`
@@ -169,6 +163,13 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 	if err := validateContentWording(entries); err != nil {
 		return err
 	}
+	// The command line stamps whoever the environment names: a person, or the
+	// agent session an agent host's shell carries.
+	resolved, err := a.commandActor()
+	if err != nil {
+		return err
+	}
+	who := changeActor{Actor: resolved.Actor, Note: resolved.NoteWith("applied with `kapi apply`")}
 
 	var out applyOutput
 
@@ -193,14 +194,14 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 				out.Assets = append(out.Assets, previewAssetResult(e))
 				continue
 			}
-			res := a.applyRecordedAssetEntry(ctx, cmd, e)
+			res := a.applyRecordedAssetEntry(ctx, cmd, who, e)
 			out.Assets = append(out.Assets, res)
 		case kindReview:
 			if diff {
 				out.Assets = append(out.Assets, previewAssetResult(e))
 				continue
 			}
-			res := a.applyReviewEntry(ctx, cmd, e)
+			res := a.applyReviewEntry(ctx, cmd, who, e)
 			out.Assets = append(out.Assets, res)
 		case "":
 			return errors.New("apply: change-set entry has no \"kind\"")
@@ -248,10 +249,8 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		}
 	}
 	if len(edited) > 0 {
-		if resolved, rerr := a.commandActor(); rerr == nil {
-			recipe, _ := ResolveProjectPath(cmd)
-			a.noteAgentEdits(ctx, recipe, resolved.Actor, edited)
-		}
+		recipe, _ := ResolveProjectPath(cmd)
+		a.noteAgentEdits(ctx, recipe, who.Actor, edited)
 	}
 	if len(comments) > 0 {
 		out.Comments = a.applyComments(ctx, cmd, comments, diff, backupSuffix, a.applyFormatterTrust(cmd, path == "" || path == StdinName), "")
@@ -494,16 +493,7 @@ func printAssetResults(w io.Writer, assets []assetResult) {
 // previewAssetResult lists an asset entry under --diff, which writes nothing:
 // the entry is named with what it would change and is not applied.
 func previewAssetResult(e changeEntry) assetResult {
-	target := e.Term
-	switch e.Kind {
-	case kindMemory:
-		target = e.Source
-	case kindRecipe:
-		target = e.Path
-	case kindReview:
-		target = e.ID
-	}
-	return assetResult{Kind: e.Kind, Op: e.Op, Target: target, Status: "preview", Detail: "--diff shows the entry and writes nothing"}
+	return assetResult{Kind: e.Kind, Op: e.Op, Target: assetTarget(e), Status: "preview", Detail: "--diff shows the entry and writes nothing"}
 }
 
 // retiredVoiceKind is the change kind that added a word rule to a voice

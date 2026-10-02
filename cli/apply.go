@@ -33,7 +33,10 @@ content_hash when it gives no id, matches no block of its file is reported as
 not_found and writes nothing. A term or content-memory pair is
 written to the project's store and recorded in its context history, a recipe
 field is written to kapi.yaml, and a review outcome is recorded as unit state
-in the project store.
+in the project store. Each entry is recorded as the person or agent the
+environment names (see 'kapi help growing-context'). Term, content-memory and recipe
+entries are a person's decisions: run from an agent's shell they are refused,
+and the agent records a suggestion with 'kapi context observe' instead.
 
 A content memory pair (kind:"memory") is recycle leverage for future translation. It does not
 establish a unit. To establish a translated unit, use a kind:"review" entry

@@ -9,28 +9,6 @@
           "items": {
             "additionalProperties": false,
             "properties": {
-              "actor": {
-                "additionalProperties": false,
-                "description": "who is making this change; omit unless you are an agent recording on someone's behalf",
-                "properties": {
-                  "kind": {
-                    "type": "string"
-                  },
-                  "name": {
-                    "type": "string"
-                  },
-                  "session": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "kind"
-                ],
-                "type": [
-                  "null",
-                  "object"
-                ]
-              },
               "advisory": {
                 "description": "for kind=term with a discouraged status: a use reports without failing a check",
                 "type": "boolean"
