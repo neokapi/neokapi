@@ -661,6 +661,12 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 		return decisionOutcome(changed, err)
 	}
 	decided := &decidedContent{source: target.SourceText, target: target.Text}
+	if target.Rev == model.AbsentRevision {
+		// The edition has no content in its home: a parked draft the project
+		// store holds and no file carries yet. The decision binds to that
+		// draft, as the review queue lists it.
+		decided = nil
+	}
 	file := target.Place.File
 	if file == "" {
 		file = target.Doc.Doc
@@ -669,7 +675,10 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 	ref := ReviewUnitRef{File: filepath.FromSlash(file), Key: target.Ref.Block, Locale: locale}
 	switch body.Outcome {
 	case change.OutcomeAdvise:
-		review := state.AIReview{Model: actor.Name, At: nowRFC3339(), TargetHash: targetHash(decided.target)}
+		review := state.AIReview{Model: actor.Name, At: nowRFC3339()}
+		if decided != nil {
+			review.TargetHash = targetHash(decided.target)
+		}
 		if body.Score != nil {
 			review.Score = *body.Score
 		}
