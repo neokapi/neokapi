@@ -3,6 +3,7 @@ package xliff2
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -15,7 +16,6 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
-	"github.com/neokapi/neokapi/core/xmlesc"
 )
 
 // FileNotePropertyKey is the layer.Properties key used to surface a
@@ -605,6 +605,23 @@ func (w *markWalker) walk(inls []Inline) {
 				Type:  in.Pc.Type,
 				Equiv: in.Pc.EquivEnd,
 			}})
+		case in.Sc != nil && in.Sc.Isolated != "yes":
+			// A start code whose end code is in the unit opens a pair, the way
+			// a <bpt> does in XLIFF 1.2. The pair is named by the start code's
+			// id, which its <ec startRef> repeats.
+			w.runs = append(w.runs, model.Run{PcOpen: &model.PcOpenRun{
+				ID:      in.Sc.ID,
+				Type:    in.Sc.Type,
+				SubType: in.Sc.SubType,
+				Equiv:   in.Sc.Equiv,
+				Disp:    in.Sc.Disp,
+			}})
+		case in.Ec != nil && in.Ec.StartRef != "":
+			w.runs = append(w.runs, model.Run{PcClose: &model.PcCloseRun{
+				ID:    in.Ec.StartRef,
+				Type:  in.Ec.Type,
+				Equiv: in.Ec.Equiv,
+			}})
 		case in.Sc != nil:
 			w.runs = append(w.runs, model.Run{Ph: &model.PlaceholderRun{
 				ID:      in.Sc.ID,
@@ -614,6 +631,7 @@ func (w *markWalker) walk(inls []Inline) {
 				Disp:    in.Sc.Disp,
 			}})
 		case in.Ec != nil:
+			// An isolated end code has an id of its own and no startRef.
 			w.runs = append(w.runs, model.Run{Ph: &model.PlaceholderRun{
 				ID:      in.Ec.ID,
 				Type:    in.Ec.Type,
@@ -865,6 +883,14 @@ type elemPos struct {
 	// hand-written one would. Empty for a document that is not pretty-printed,
 	// and for every elemType but elemTargetInject.
 	indent string
+	// segID is the id of the segment the position belongs to, as the block's
+	// segmentation records it.
+	segID string
+	// original is the element's inner content as the document spells it, and
+	// rendered the markup the writer produces for that content while nothing
+	// has edited it. Both are set for elemSource and elemTarget only; the
+	// skeleton pairs them so an untouched segment is written as it was read.
+	original, rendered string
 }
 
 // xliff2StreamState holds the mutable state for streaming XLIFF 2.x parsing.
@@ -911,27 +937,28 @@ type xliff2StreamState struct {
 	// Per-segment bookkeeping for the target the source may not carry.
 	// segSourceEnd is the offset just past `</source>` (-1 before one is seen),
 	// segIndent the whitespace that preceded `<source>`, segHadTarget whether a
-	// `<target>` followed, and segIdx the segment's position in its unit.
+	// `<target>` followed, segIdx the segment's position in its unit, and
+	// segSID the id the segment's source was recorded under.
 	segSourceEnd int
 	segIndent    string
 	segHadTarget bool
 	segIdx       int
+	segSID       string
 	// rootTagEnd is the offset of the `>` closing the `<xliff>` start tag, where
 	// a trgLang is inserted when the document declares none.
 	rootTagEnd int
 
 	// Accumulators
-	sourceInnerXML strings.Builder
-	targetInnerXML strings.Builder
-	noteBuilder    strings.Builder
-	sourceDepth    int
-	targetDepth    int
+	noteBuilder strings.Builder
 
 	// Current unit data
 	sourceSegs []seg
 	targets    map[model.LocaleID][]seg
 	notes      []string
 	states     []string
+	// unitPosStart is the index in elemPositions of the current unit's first
+	// position.
+	unitPosStart int
 }
 
 // parentTranslate returns the effective `translate` flag inherited
@@ -975,13 +1002,8 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 		case xml.EndElement:
 			s.handleEndElement(t)
 		case xml.CharData:
-			text := string(t)
 			if s.inNote {
-				s.noteBuilder.WriteString(text)
-			} else if s.inSource {
-				s.sourceInnerXML.WriteString(text)
-			} else if s.inTarget {
-				s.targetInnerXML.WriteString(text)
+				s.noteBuilder.WriteString(string(t))
 			}
 		}
 	}
@@ -1057,6 +1079,7 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 		s.unitName = ""
 		s.unitTranslate = ""
 		s.segIdx = -1
+		s.unitPosStart = len(s.elemPositions)
 		s.sourceSegs = nil
 		s.targets = make(map[model.LocaleID][]seg)
 		s.notes = nil
@@ -1102,57 +1125,15 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 			}
 		}
 	case "source":
-		if s.inSegment {
+		if s.inSegment && !s.inSource && !s.inTarget {
 			s.inSource = true
-			s.sourceDepth = 0
-			s.sourceInnerXML.Reset()
 			s.elemStartOff = s.decoder.InputOffset()
 		}
 	case "target":
-		if s.inSegment {
+		if s.inSegment && !s.inSource && !s.inTarget {
 			s.inTarget = true
-			s.targetDepth = 0
-			s.targetInnerXML.Reset()
 			s.elemStartOff = s.decoder.InputOffset()
 		}
-	default:
-		s.writeNestedStartTag(t)
-	}
-}
-
-func (s *xliff2StreamState) writeNestedStartTag(t xml.StartElement) {
-	if s.inSource {
-		s.sourceDepth++
-		s.sourceInnerXML.WriteString("<")
-		s.sourceInnerXML.WriteString(t.Name.Local)
-		for _, a := range t.Attr {
-			s.sourceInnerXML.WriteString(" ")
-			if a.Name.Space != "" {
-				s.sourceInnerXML.WriteString(a.Name.Space)
-				s.sourceInnerXML.WriteString(":")
-			}
-			s.sourceInnerXML.WriteString(a.Name.Local)
-			s.sourceInnerXML.WriteString(`="`)
-			s.sourceInnerXML.WriteString(xmlesc.Attr(a.Value))
-			s.sourceInnerXML.WriteString(`"`)
-		}
-		s.sourceInnerXML.WriteString(">")
-	} else if s.inTarget {
-		s.targetDepth++
-		s.targetInnerXML.WriteString("<")
-		s.targetInnerXML.WriteString(t.Name.Local)
-		for _, a := range t.Attr {
-			s.targetInnerXML.WriteString(" ")
-			if a.Name.Space != "" {
-				s.targetInnerXML.WriteString(a.Name.Space)
-				s.targetInnerXML.WriteString(":")
-			}
-			s.targetInnerXML.WriteString(a.Name.Local)
-			s.targetInnerXML.WriteString(`="`)
-			s.targetInnerXML.WriteString(xmlesc.Attr(a.Value))
-			s.targetInnerXML.WriteString(`"`)
-		}
-		s.targetInnerXML.WriteString(">")
 	}
 }
 
@@ -1199,6 +1180,7 @@ func (s *xliff2StreamState) handleEndElement(t xml.EndElement) {
 				segIdx:      s.segIdx,
 				elemType:    elemTargetInject,
 				indent:      s.segIndent,
+				segID:       s.segSID,
 			})
 		}
 		s.inSegment = false
@@ -1209,18 +1191,6 @@ func (s *xliff2StreamState) handleEndElement(t xml.EndElement) {
 	case "target":
 		if s.inTarget {
 			s.finishTarget()
-		}
-	default:
-		if s.inSource && s.sourceDepth > 0 {
-			s.sourceDepth--
-			s.sourceInnerXML.WriteString("</")
-			s.sourceInnerXML.WriteString(t.Name.Local)
-			s.sourceInnerXML.WriteString(">")
-		} else if s.inTarget && s.targetDepth > 0 {
-			s.targetDepth--
-			s.targetInnerXML.WriteString("</")
-			s.targetInnerXML.WriteString(t.Name.Local)
-			s.targetInnerXML.WriteString(">")
 		}
 	}
 }
@@ -1256,6 +1226,19 @@ func (s *xliff2StreamState) emitUnit() {
 		tgtSegs = segs
 	}
 	applySegmentsToBlock(block, s.sourceSegs, tgtSegs, trgLang)
+	// Each element's skeleton reference is paired with the markup the writer
+	// renders for the block as read, so a segment nothing edits is written with
+	// the document's own bytes. A segment the read itself cannot render leaves
+	// the pairing empty, and the writer reports it when it renders the segment.
+	for i := s.unitPosStart; i < len(s.elemPositions); i++ {
+		ep := &s.elemPositions[i]
+		switch ep.elemType {
+		case elemSource:
+			ep.rendered, _ = renderSourceRef(block, ep.segIdx, ep.segID)
+		case elemTarget:
+			ep.rendered, _, _ = renderTargetRef(block, trgLang, ep.segIdx, ep.segID)
+		}
+	}
 	s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
 	s.blockCount++
 	s.inUnit = false
@@ -1265,25 +1248,59 @@ func (s *xliff2StreamState) finishSource() {
 	endOff := s.decoder.InputOffset()
 	closeTag := "</source>"
 	endPos := max(int(endOff)-len(closeTag), 0)
+	sid := s.segID
+	if sid == "" {
+		sid = fmt.Sprintf("s%d", len(s.sourceSegs)+1)
+	}
+	inner := s.innerContent(endPos)
 	s.elemPositions = append(s.elemPositions, elemPos{
 		startOffset: int(s.elemStartOff),
 		endOffset:   endPos,
 		blockIdx:    s.blockCount,
 		segIdx:      s.segIdx,
 		elemType:    elemSource,
+		segID:       sid,
+		original:    inner,
 	})
 	s.segSourceEnd = int(endOff)
 	s.segIndent = s.indentBefore(int(s.elemStartOff))
-	sid := s.segID
-	if sid == "" {
-		sid = fmt.Sprintf("s%d", len(s.sourceSegs)+1)
-	}
-	sourceText := strings.TrimSpace(s.sourceInnerXML.String())
-	s.sourceSegs = append(s.sourceSegs, seg{
-		ID:   sid,
-		Runs: []model.Run{{Text: &model.TextRun{Text: sourceText}}},
-	})
+	s.segSID = sid
+	s.sourceSegs = append(s.sourceSegs, inlineSeg(sid, inner))
 	s.inSource = false
+}
+
+// innerContent returns the document's bytes between the current element's
+// start tag and the end tag that begins at endPos.
+func (s *xliff2StreamState) innerContent(endPos int) string {
+	start := int(s.elemStartOff)
+	if start < 0 || start > endPos || endPos > len(s.rawText) {
+		return ""
+	}
+	return s.rawText[start:endPos]
+}
+
+// inlineSeg builds the segment record for one <source> or <target> from the
+// element's inner markup, through the same inline parse the DOM path uses: its
+// codes become runs and its full inline structure rides on the segment as IR.
+func inlineSeg(id, inner string) seg {
+	inls := parseInlineMarkup(inner)
+	runs, marks := inlinesToRunsWithMarks(inls)
+	return seg{ID: id, Runs: runs, Marks: marks, Content: &Content{Inlines: inls}}
+}
+
+// parseInlineMarkup parses the inner markup of a <source> or <target>. Markup
+// that does not parse is kept as one text node, so its characters still reach
+// the block and the skeleton pairing still writes the element as read.
+func parseInlineMarkup(inner string) []Inline {
+	doc := etree.NewDocument()
+	doc.ReadSettings.Permissive = true
+	if err := doc.ReadFromString("<inline>" + inner + "</inline>"); err != nil || doc.Root() == nil {
+		if inner == "" {
+			return nil
+		}
+		return []Inline{{Text: &Text{Content: inner}}}
+	}
+	return parseInlines(doc.Root())
 }
 
 // indentBefore returns the whitespace run that precedes the start tag whose
@@ -1312,27 +1329,42 @@ func (s *xliff2StreamState) finishTarget() {
 	endOff := s.decoder.InputOffset()
 	closeTag := "</target>"
 	endPos := max(int(endOff)-len(closeTag), 0)
+	sid := s.segID
+	if sid == "" {
+		sid = fmt.Sprintf("s%d", len(s.sourceSegs))
+	}
+	inner := s.innerContent(endPos)
 	s.elemPositions = append(s.elemPositions, elemPos{
 		startOffset: int(s.elemStartOff),
 		endOffset:   endPos,
 		blockIdx:    s.blockCount,
 		segIdx:      s.segIdx,
 		elemType:    elemTarget,
+		segID:       sid,
+		original:    inner,
 	})
 	s.segHadTarget = true
-	targetText := strings.TrimSpace(s.targetInnerXML.String())
 	tl := model.LocaleID(s.trgLang)
-	if targetText != "" && !tl.IsEmpty() {
-		sid := s.segID
-		if sid == "" {
-			sid = fmt.Sprintf("s%d", len(s.sourceSegs))
-		}
-		s.targets[tl] = append(s.targets[tl], seg{
-			ID:   sid,
-			Runs: []model.Run{{Text: &model.TextRun{Text: targetText}}},
-		})
+	if tgt := inlineSeg(sid, inner); hasTargetContent(tgt.Content.Inlines) && !tl.IsEmpty() {
+		s.targets[tl] = append(s.targets[tl], tgt)
 	}
 	s.inTarget = false
+}
+
+// hasTargetContent reports whether a <target> holds a translation: an inline
+// code, or text that is not only whitespace. An empty or blank <target> is a
+// slot with nothing in it yet.
+func hasTargetContent(inls []Inline) bool {
+	for _, in := range inls {
+		if in.Text != nil {
+			if strings.TrimSpace(in.Text.Content) != "" {
+				return true
+			}
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 func (s *xliff2StreamState) buildSkeleton() {
@@ -1355,6 +1387,9 @@ func (s *xliff2StreamState) buildSkeleton() {
 		if ep.startOffset > skelPos {
 			s.reader.skelText(s.rawText[skelPos:ep.startOffset])
 		}
+		if (ep.elemType == elemSource || ep.elemType == elemTarget) && s.reader.skeletonStore != nil {
+			s.reader.skeletonStore.WriteOriginal([]byte(ep.rendered), []byte(ep.original))
+		}
 		s.reader.skelRef(encodeSkelRef(ep))
 		skelPos = ep.endOffset
 	}
@@ -1365,11 +1400,12 @@ func (s *xliff2StreamState) buildSkeleton() {
 }
 
 // encodeSkelRef spells one skeleton reference: block index, segment index,
-// element kind, and — for an injected target — the leading whitespace it is
-// written with. The whitespace is last because it is the only field that may be
-// empty or hold anything but digits and letters, and it never holds a colon.
+// element kind, the segment's id in hex, and the leading whitespace an injected
+// target is written with. A segment id may hold a colon, so it is hex-encoded.
+// The whitespace is last because it is the only field that may be empty or
+// hold anything but digits and letters, and it never holds a colon.
 func encodeSkelRef(ep elemPos) string {
-	return fmt.Sprintf("%d:%d:%s:%s", ep.blockIdx, ep.segIdx, ep.elemType, ep.indent)
+	return fmt.Sprintf("%d:%d:%s:%s:%s", ep.blockIdx, ep.segIdx, ep.elemType, hex.EncodeToString([]byte(ep.segID)), ep.indent)
 }
 
 // Reader-side skeleton helpers (used only in streaming mode).

@@ -151,11 +151,13 @@ parameters:
       requires both a non-empty `pattern` and a non-empty `format`.
     values: "Array of `{pattern, format}` objects (default empty)"
   escapeForwardSlashes:
-    description: Escape forward slashes in JSON output.
+    description: Escape forward slashes in the values a write changes.
     help: |
-      When enabled (the default), forward slashes are written as `\/` in the
-      output JSON, matching the conservative escaping some JSON producers use.
-      Disable it to emit bare `/` characters.
+      When enabled (the default), forward slashes in a value that an edit or
+      a translation changed are written as `\/`, matching the conservative
+      escaping some JSON producers use. A value written back unchanged keeps
+      the spelling the document gave it. Disable the option to write bare `/`
+      characters.
     values: "`true` / `false` (default `true`)"
   useCodeFinder:
     description: Enable pattern-based inline-code detection.

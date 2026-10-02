@@ -8,6 +8,8 @@ package model
 // rewrite the runs they describe, so segmentation is opt-in, multi-layer, and
 // reversible (dropping the overlay restores the unsegmented content).
 
+import "unicode/utf8"
+
 // OverlayType names a kind of positional, run-anchored stand-off
 // interpretation. Built-in content overlays have stable constants below;
 // formats and plugins may use any string for their own run-anchored state.
@@ -99,6 +101,42 @@ func offsetInBounds(runs []Run, idx, off int) bool {
 		return off <= len([]rune(r.Text.Text))
 	}
 	return off == 0 // inline-code / non-text run carries offset 0
+}
+
+// SpansTile reports whether spans divide runs into consecutive pieces, the
+// way a segmentation that still describes its runs divides them: each span is
+// a range over the top-level runs that is in bounds, the first starts at the
+// beginning, each next one starts where the one before it ended, and the last
+// ends past the last run. A boundary may fall inside a text run, as one does
+// after a rewrite that joined two segments' text runs and rebased the spans
+// (RemapOverlays). The end of a text run and the start of the run after it are
+// one boundary however a span spells it. Spans that tile give back every run
+// exactly once, in order, when each is extracted with Anchor.ExtractRuns.
+//
+// An empty list tiles only runs that hold nothing.
+func SpansTile(spans []Span, runs []Run) bool {
+	at := canonicalRunPos(runs, RunPos{})
+	for _, s := range spans {
+		r := s.Range
+		if !isRangeKind(r.Kind) || len(r.Path) > 0 || !r.InBounds(runs) {
+			return false
+		}
+		start, end := canonicalRunPos(runs, r.Start), canonicalRunPos(runs, r.End)
+		if start != at || end.Run < start.Run || (end.Run == start.Run && end.Offset < start.Offset) {
+			return false
+		}
+		at = end
+	}
+	return at == RunPos{Run: len(runs)}
+}
+
+// canonicalRunPos spells an in-bounds boundary one way: a position at the end
+// of a text run is the start of the run after it.
+func canonicalRunPos(runs []Run, p RunPos) RunPos {
+	for p.Run < len(runs) && runs[p.Run].Text != nil && p.Offset == utf8.RuneCountInString(runs[p.Run].Text.Text) {
+		p = RunPos{Run: p.Run + 1}
+	}
+	return p
 }
 
 // runFlatLen returns the rune width a single run contributes to the text-only

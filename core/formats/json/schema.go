@@ -142,7 +142,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Type:        "boolean",
 				Title:       "Escape forward slashes",
 				Default:     true,
-				Description: "Escape forward slashes in output JSON (\\/).",
+				Description: "Escape forward slashes (\\/) in the values a write changes.",
 			}),
 			"subfilters": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",

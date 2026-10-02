@@ -191,6 +191,16 @@ func (w *Writer) writeFromSkeleton() error {
 	if err := w.skeletonStore.Flush(); err != nil {
 		return fmt.Errorf("ts writer: flush skeleton: %w", err)
 	}
+	// Every message is checked before the first byte is written, so a
+	// message the writer cannot write refuses the document whole.
+	for _, block := range w.allBlocks {
+		if block.Properties["numerus"] != "yes" {
+			continue
+		}
+		if _, err := numerusForms(block, w.targetLocale()); err != nil {
+			return err
+		}
+	}
 	return w.replaySkeleton(func(i int) *model.Block {
 		if i < 0 || i >= len(w.allBlocks) {
 			return nil
@@ -203,12 +213,7 @@ func (w *Writer) writeFromSkeleton() error {
 // ref via blockAt (a whole-slice index in buffered mode, or an on-demand pull in
 // streaming mode). Shared by writeFromSkeleton (buffered) and streamWrite.
 func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
-	// Determine target locale
-	language := w.headerProps["language"]
-	targetLocale := model.LocaleID(language)
-	if w.Locale != "" {
-		targetLocale = w.Locale
-	}
+	targetLocale := w.targetLocale()
 
 	firstText := true
 	// pendingText buffers the most recent SkeletonText chunk so we can
@@ -353,33 +358,21 @@ func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
 				// ` variants="no"`) so the round-trip preserves the
 				// `<translation>\n<numerusform variants="no">…</numerusform>\n</translation>`
 				// shape okapi's pipeline produces.
-				formRuns := w.numerusFormRuns(block, targetLocale)
-				var attrs []string
-				if joined := block.Properties["_numerusform_attrs"]; joined != "" {
-					attrs = strings.Split(joined, "\x1f")
+				formRuns, ferr := numerusForms(block, targetLocale)
+				if ferr != nil {
+					return ferr
 				}
 				// `_numerusform_nonempty` carries the originally-empty
 				// per-form flags so we can preserve `<numerusform></numerusform>`
 				// rather than replace it with a pseudo-translated source
-				// copy. Without this an `applyPseudoToBlock` upstream
-				// fills the block's target with pseudo(source) and we'd
-				// emit that for every form — okapi's per-form TextUnit
-				// flow has nothing to modify when both source and target
-				// are empty.
-				var nonemptyFlags []string
-				if raw := block.Properties["_numerusform_nonempty"]; raw != "" {
-					nonemptyFlags = strings.Split(raw, ",")
-				}
-				// `_numerusform_prefixes` are the source's verbatim
-				// inter-form character data (typically newline +
-				// indentation) so we re-emit `\n            <numerusform>`
-				// pairs that match the original layout. Falls back to
-				// the document's prevailing line break when prefixes
-				// are absent (e.g. for blocks built outside the reader).
-				var prefixes []string
-				if raw := block.Properties["_numerusform_prefixes"]; raw != "" {
-					prefixes = strings.Split(raw, "\x1f")
-				}
+				// copy (numerusLayout.keptEmpty). `_numerusform_prefixes`
+				// are the source's verbatim inter-form character data
+				// (typically newline + indentation) so we re-emit
+				// `\n            <numerusform>` pairs that match the
+				// original layout. Falls back to the document's prevailing
+				// line break when prefixes are absent (e.g. for blocks built
+				// outside the reader).
+				layout := numerusLayoutOf(block)
 				trailingWS := block.Properties["_numerusform_trailing_ws"]
 				lineBreak := block.Properties["_line_break"]
 				if lineBreak == "" {
@@ -392,33 +385,20 @@ func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
 				// segment count when it falls back to source-as-base
 				// (one source segment → one pseudo'd target segment),
 				// which would otherwise drop the empty forms.
-				formCount := len(formRuns)
-				if n := len(prefixes); n > formCount {
-					formCount = n
-				}
-				if n := len(nonemptyFlags); n > formCount {
-					formCount = n
-				}
-				if n := len(attrs); n > formCount {
-					formCount = n
-				}
+				formCount := max(len(formRuns), layout.count())
 				var b strings.Builder
 				for i := range formCount {
-					if i < len(prefixes) {
-						b.WriteString(prefixes[i])
+					if i < len(layout.prefixes) {
+						b.WriteString(layout.prefixes[i])
 					} else {
 						b.WriteString(lineBreak)
 					}
 					b.WriteString("<numerusform")
-					if i < len(attrs) {
-						b.WriteString(attrs[i])
+					if i < len(layout.attrs) {
+						b.WriteString(layout.attrs[i])
 					}
 					b.WriteByte('>')
-					if i < len(nonemptyFlags) && nonemptyFlags[i] == "0" {
-						// Original form was empty — preserve the empty
-						// shape instead of substituting in a
-						// pseudo-translated source clone.
-					} else if i < len(formRuns) && len(formRuns[i]) > 0 {
+					if !layout.keptEmpty(i) && i < len(formRuns) && len(formRuns[i]) > 0 {
 						b.WriteString(w.runsToXMLEscapeApos(formRuns[i]))
 					}
 					b.WriteString("</numerusform>")
@@ -707,7 +687,10 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 		// pipeline reaches every form. Fall back to the legacy
 		// `numerusform:<i>` properties for blocks built outside the
 		// reader (tests, programmatic construction).
-		formRuns := w.numerusFormRuns(block, targetLocale)
+		formRuns, err := numerusForms(block, targetLocale)
+		if err != nil {
+			return err
+		}
 		if len(formRuns) > 0 {
 			for _, runs := range formRuns {
 				form := w.runsToXML(runs)
@@ -775,21 +758,102 @@ func (w *Writer) runsToXMLEscapeApos(runs []model.Run) string {
 	return buf.String()
 }
 
-// numerusFormRuns reconstructs the per-numerusform Run slices for a
-// numerus block. The reader stores the plural forms as one flat target
-// Run sequence plus a target-side SEGMENTATION OVERLAY whose spans
-// (ordered by their `numerus-form` index) carve out each form. The
-// writer extracts each span's runs via Range.ExtractRuns so it can emit
-// one `<numerusform>` per form. When no segmentation overlay is present
-// (e.g. a block built outside the reader, or whose forms were collapsed
-// to a single target run by a downstream step), the whole target run
-// sequence is returned as a single form so existing content still
-// round-trips.
+// numerusLayout is what the reader recorded about a numerus message's
+// `<numerusform>` elements, from the block's private properties: the
+// character data before each form, each form's attribute string, and which
+// forms were empty when read.
+type numerusLayout struct {
+	prefixes []string
+	attrs    []string
+	nonempty []string
+}
+
+func numerusLayoutOf(block *model.Block) numerusLayout {
+	var l numerusLayout
+	if joined := block.Properties["_numerusform_attrs"]; joined != "" {
+		l.attrs = strings.Split(joined, "\x1f")
+	}
+	if raw := block.Properties["_numerusform_nonempty"]; raw != "" {
+		l.nonempty = strings.Split(raw, ",")
+	}
+	if raw := block.Properties["_numerusform_prefixes"]; raw != "" {
+		l.prefixes = strings.Split(raw, "\x1f")
+	}
+	return l
+}
+
+// count returns how many forms the message was read with, or 0 for a block
+// built outside the reader.
+func (l numerusLayout) count() int {
+	return max(len(l.prefixes), len(l.nonempty), len(l.attrs))
+}
+
+// keptEmpty reports whether form i was empty when read. The writer writes such
+// a form empty whatever the translation holds: Okapi's TsFilter extracts an
+// empty `<numerusform>` as a text unit with no target content, so a
+// pseudo-translation has nothing to modify there.
+func (l numerusLayout) keptEmpty(i int) bool {
+	return i < len(l.nonempty) && l.nonempty[i] == "0"
+}
+
+// ErrNumerusFormsLost is the writer's refusal of a numerus message whose
+// translation it cannot place into the message's plural forms.
+var ErrNumerusFormsLost = errors.New("its plural forms no longer line up with its translation")
+
+// numerusForms returns what each `<numerusform>` of a numerus message's
+// translation holds, one entry per form.
 //
-// When the requested locale has no target, falls back to any present
-// target so a file declaring a non-matching `<TS language>` still
-// passes its existing forms through unchanged.
-func (w *Writer) numerusFormRuns(block *model.Block, locale model.LocaleID) [][]model.Run {
+// The reader keeps the forms as one target run sequence and a target
+// segmentation with one span per form (ordered by `numerus-form`), so while
+// the spans tile the runs (model.SpansTile), each form holds its span's runs.
+// A boundary between two forms can fall inside a text run: a tool's edit joins
+// the forms' text runs and rebases the spans onto the joined run. A message
+// with one form holds its whole translation.
+//
+// A message of several forms whose translation no longer carries one span per
+// form, tiling its runs, gives the writer no way to tell which words belong to
+// which form: an edit that rebuilt the runs, or a rebase that dropped the
+// spans, looks the same as a tool's translation of the message as a whole.
+// Cutting the runs at old spans would move words from one form into another,
+// and writing the whole translation into every form would repeat an edit's
+// forms in each, so the message is refused with ErrNumerusFormsLost. The
+// exception is a message whose forms were all empty when read: those forms
+// are written empty, so the runs are never used.
+//
+// When the requested locale has no target, any present target is used, so a
+// file declaring a non-matching `<TS language>` still passes its existing
+// forms through unchanged.
+func numerusForms(block *model.Block, locale model.LocaleID) ([][]model.Run, error) {
+	runs, ov := numerusTarget(block, locale)
+	if len(runs) == 0 {
+		return nil, nil
+	}
+	layout := numerusLayoutOf(block)
+	count := layout.count()
+	if ov != nil {
+		count = max(count, len(ov.Spans))
+	}
+	if count <= 1 {
+		return [][]model.Run{runs}, nil
+	}
+	if ov == nil || !model.SpansTile(ov.Spans, runs) || (layout.count() > 0 && len(ov.Spans) != layout.count()) {
+		for i := range count {
+			if !layout.keptEmpty(i) {
+				return nil, fmt.Errorf("ts writer: message %q: %w", block.Name, ErrNumerusFormsLost)
+			}
+		}
+		return make([][]model.Run, count), nil
+	}
+	forms := make([][]model.Run, len(ov.Spans))
+	for i, span := range ov.Spans {
+		forms[i] = span.Range.ExtractRuns(runs)
+	}
+	return forms, nil
+}
+
+// numerusTarget returns the target runs numerusForms divides into forms, and
+// the segmentation that divides them.
+func numerusTarget(block *model.Block, locale model.LocaleID) ([]model.Run, *model.Overlay) {
 	runs := block.TargetRuns(locale)
 	key := model.Variant(locale)
 	if len(runs) == 0 {
@@ -802,17 +866,18 @@ func (w *Writer) numerusFormRuns(block *model.Block, locale model.LocaleID) [][]
 		}
 	}
 	if len(runs) == 0 {
-		return nil
+		return nil, nil
 	}
-	ov := block.SegmentationFor(&key)
-	if ov == nil || len(ov.Spans) == 0 {
-		return [][]model.Run{runs}
+	return runs, block.SegmentationFor(&key)
+}
+
+// targetLocale returns the locale whose translation the writer writes: the
+// writer's locale, or the `<TS language>` the document declares.
+func (w *Writer) targetLocale() model.LocaleID {
+	if w.Locale != "" {
+		return w.Locale
 	}
-	forms := make([][]model.Run, len(ov.Spans))
-	for i, span := range ov.Spans {
-		forms[i] = span.Range.ExtractRuns(runs)
-	}
-	return forms
+	return model.LocaleID(w.headerProps["language"])
 }
 
 func writeTSRunsXML(buf *strings.Builder, runs []model.Run, escapeApos bool) {

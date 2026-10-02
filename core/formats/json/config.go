@@ -49,7 +49,9 @@ type Config struct {
 	// UseLeadingSlashOnKeyPath prepends / to full key paths. Defaults to true.
 	UseLeadingSlashOnKeyPath bool
 
-	// EscapeForwardSlashes escapes / as \/ in JSON output. Defaults to true.
+	// EscapeForwardSlashes escapes / as \/ in the values the writer encodes.
+	// Defaults to true. On the skeleton path a value the write left as read
+	// is replayed with its own bytes, so only changed values are encoded.
 	EscapeForwardSlashes bool
 
 	// Subfilters maps JSON key path patterns to format names for embedded content.

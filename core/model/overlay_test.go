@@ -355,6 +355,61 @@ func TestSpanIgnorable(t *testing.T) {
 	assert.False(t, Span{Props: map[string]string{SpanPropIgnorable: "false"}}.Ignorable())
 }
 
+// TestSpansTile covers the check the bilingual writers make before they cut a
+// translation at its segment or plural-form spans.
+func TestSpansTile(t *testing.T) {
+	// Two segments, "Épices. " and "Puis <ph/> cela.", as a reader records
+	// them (whole runs) and as a rebase leaves them once an edit joined the
+	// two text runs at the boundary (inside one run, in code points).
+	read := []Run{tx("Épices. "), tx("Puis "), ph("1"), tx(" cela.")}
+	joined := []Run{tx("Épices. Puis "), ph("1"), tx(" cela.")}
+	span := func(sr, so, er, eo int) Span {
+		return Span{Range: SpanAnchor(RunPos{Run: sr, Offset: so}, RunPos{Run: er, Offset: eo})}
+	}
+	cases := []struct {
+		name  string
+		runs  []Run
+		spans []Span
+		want  bool
+	}{
+		{name: "whole runs", runs: read, spans: []Span{span(0, 0, 1, 0), span(1, 0, 4, 0)}, want: true},
+		{name: "a boundary inside a text run", runs: joined, spans: []Span{span(0, 0, 0, 8), span(0, 8, 3, 0)}, want: true},
+		{
+			name:  "the end of a run and the start of the next are one boundary",
+			runs:  read,
+			spans: []Span{span(0, 0, 0, 8), span(1, 0, 3, 6)},
+			want:  true,
+		},
+		{name: "a gap", runs: joined, spans: []Span{span(0, 0, 0, 7), span(0, 8, 3, 0)}},
+		{name: "an overlap", runs: joined, spans: []Span{span(0, 0, 0, 9), span(0, 8, 3, 0)}},
+		{
+			name:  "a trailing code left past the last span",
+			runs:  []Run{tx("Épices. Puis cela."), ph("1")},
+			spans: []Span{span(0, 0, 0, 8), span(0, 8, 1, 0)},
+		},
+		{name: "a span past the runs", runs: joined, spans: []Span{span(0, 0, 1, 0), span(1, 0, 4, 0)}},
+		{
+			name:  "a span inside a plural branch",
+			runs:  read,
+			spans: []Span{{Range: Anchor{Kind: AnchorRange, Path: RunPath{{Kind: StepIndex}}, End: RunPos{Run: 4}}}},
+		},
+		{name: "no spans over content", runs: read},
+		{name: "no spans over nothing", want: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, SpansTile(tc.spans, tc.runs))
+		})
+	}
+
+	// Spans that tile give back every run once.
+	var got []Run
+	for _, s := range []Span{span(0, 0, 0, 8), span(0, 8, 3, 0)} {
+		got = append(got, s.Range.ExtractRuns(joined)...)
+	}
+	assert.Equal(t, RunsEditText(joined), RunsEditText(got))
+}
+
 func TestOverlayOnSource(t *testing.T) {
 	var nilOverlay *Overlay
 	assert.True(t, nilOverlay.OnSource())

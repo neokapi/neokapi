@@ -1690,7 +1690,7 @@
         },
         "escapeForwardSlashes": {
           "title": "Escape forward slashes",
-          "description": "Escape forward slashes in output JSON (\\/)."
+          "description": "Escape forward slashes (\\/) in the values a write changes."
         },
         "exceptions": {
           "title": "Key exception pattern",

@@ -1100,6 +1100,8 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 		return
 	}
 
+	memberStore := r.wireMemberSkeleton(subReader)
+
 	// Open sub-reader and emit its parts
 	subDoc := &model.RawDocument{
 		URI:          entryName,
@@ -1152,7 +1154,7 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 	subReader.Close()
 
 	// Emit child layer end
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layerWithMemberSkeleton(childLayer, memberStore)})
 }
 
 func (r *Reader) skelPartStart(partPath string) {

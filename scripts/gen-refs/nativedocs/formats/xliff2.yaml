@@ -11,8 +11,17 @@ overview: |
   elements (`ph`, `pc`, `sc`/`ec`, `mrk`), and per-segment translation states.
   The reader accepts the 2.0, 2.1, and 2.2 namespaces as one compatible family.
 
-  The reader emits one block per translatable unit and preserves inline
-  markup as raw inner XML so unmodified content round-trips byte-for-byte.
+  The reader emits one block per translatable unit and reads its inline
+  elements as inline codes. A segment nothing edited is written with its own
+  bytes, so unmodified content round-trips byte-for-byte, and an edited one
+  keeps each code with the attributes the document gave it; the annotation
+  markers (`<mrk>`, `<sm>`/`<em>`) an edited segment held are dropped. A unit
+  of several segments is written segment by segment. Content that no longer
+  divides into the segments it was read with, such as an edit that joins two
+  segments or one translation written for a unit translated segment by
+  segment, is refused and the document is left unwritten, so no words move
+  from one segment into another. A translation written as one text for a unit
+  read with no translation goes into the unit's first segment.
   The writer can emit any 2.x version: by default it preserves the input
   document's version on round-trip and falls back to 2.2 for content
   extracted from a non-XLIFF source. This mirrors Okapi's XLIFF 2 filter.
@@ -82,7 +91,8 @@ parameters:
       - property: useCodeFinder
         condition: must be enabled for the rules to take effect
 processingNotes:
-  - One block is emitted per translatable unit; inline markup is preserved as raw inner XML for byte-faithful round-trips.
+  - One block is emitted per translatable unit; inline elements become inline codes, and an unedited segment is written with its own bytes.
+  - Content that no longer divides into the segments a unit was read with, or inline codes no XLIFF 2 markup can express, are refused and the document is not written.
   - The 2.0, 2.1, and 2.2 namespaces are accepted as a compatible family on read.
 examples:
   - title: Force XLIFF 2.0 output

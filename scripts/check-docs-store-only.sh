@@ -99,6 +99,9 @@ ALLOWLIST=(
   "bowrain/web/docs/docs/cli/overview.md"
   "bowrain/web/docs/docs/cli/project-model.md"
   "bowrain/web/docs/docs/cli/commands/init.md"
+  # The edit-model design lists what each home holds; the working tree holds
+  # import-only context files, which it names as the import format they are.
+  "docs/internals/edit-model.md"
 )
 
 allowed() {
