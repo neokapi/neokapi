@@ -69,8 +69,8 @@ func roundtripNative(t *testing.T, input string) string {
 // okapi: XLIFF2FilterTest#handleInvalidCodeTypes
 func TestRead_HandleInvalidCodeTypes(t *testing.T) {
 	// The native reader uses encoding/xml which is lenient with unknown attributes.
-	// An invalid type attribute on <ph> is not rejected — the element is parsed
-	// as raw inner XML. Verify that extraction succeeds and produces text.
+	// An invalid type attribute on <ph> is not rejected; the element is read as
+	// an inline code. Verify that extraction succeeds and produces text.
 	xliff := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
   <file id="f1">
@@ -333,8 +333,8 @@ func TestRead_Ignoreable(t *testing.T) {
 
 // okapi: XLIFF2FilterTest#testInline
 func TestRead_Inline(t *testing.T) {
-	// The native reader treats inline elements (ph, pc, sc/ec, mrk) as raw inner XML.
-	// Verify that the source text preserves the inline markup as text.
+	// The native reader reads inline elements (ph, pc, sc/ec, mrk) as inline
+	// codes. Verify that the text around them is extracted.
 	xliff := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
   <file id="f1">

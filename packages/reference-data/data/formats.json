@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T09:08:09Z",
+  "generatedAt": "2026-10-02T15:09:51Z",
   "kind": "format",
   "entries": [
     {
@@ -462,7 +462,7 @@
         }
       },
       "doc": {
-        "overview": "The **AsciiDoc** format reads `.adoc` / `.asciidoc` documents, the\nlightweight prose markup language used widely for technical documentation.\nThe reader extracts the logical, translatable content and preserves\neverything else byte-for-byte.\n\nHeadings (the document title `=` and section headings `==`…`======`),\nparagraphs, list items (ordered and unordered, with nesting), block titles\n(`.Title`), admonition text (`NOTE:`, `TIP:`, `WARNING:`, …), and table cells\neach become blocks carrying a normalized structural role (heading, paragraph,\nlist-item, caption, table-cell). Tables are reconstructed as table / table-row\ngroups so cell geometry stays intact. Inline markup is linearized into\ncanonical inline-code runs: `*bold*`, `_italic_`, `` `mono` ``, `^super^` /\n`~sub~`, URL and `link:` macros, attribute references `{name}`, and cross\nreferences `\u003c\u003cid,text\u003e\u003e`. The visible text stays translatable; the markup never\nleaks into it.\n\nVerbatim blocks (listing/literal/source/passthrough), comments, attribute\nentries, and the document header are non-translatable and round-trip as\nskeleton: an untouched document is reproduced byte-for-byte, and only changed\nvalues are spliced back in.\n",
+        "overview": "The **AsciiDoc** format reads `.adoc` / `.asciidoc` documents, the\nlightweight prose markup language used widely for technical documentation.\nThe reader extracts the logical, translatable content and preserves\neverything else byte-for-byte.\n\nHeadings (the document title `=` and section headings `==`…`======`),\nparagraphs, list items (ordered and unordered, with nesting), block titles\n(`.Title`), admonition text (`NOTE:`, `TIP:`, `WARNING:`, …), and table cells\neach become blocks carrying a normalized structural role (heading, paragraph,\nlist-item, caption, table-cell). Tables are reconstructed as table / table-row\ngroups so cell geometry stays intact. Inline markup is linearized into\ncanonical inline-code runs: `*bold*`, `_italic_`, `` `mono` ``, `^super^` /\n`~sub~`, URL and `link:` macros, inline `image:` macros, attribute references\n`{name}`, and cross references `\u003c\u003cid,text\u003e\u003e`. The visible text, an image's alt\ntext included, stays translatable; the markup never leaks into it. A block\nmacro such as `image::` or `include::` stays in the skeleton, and a block\nimage's alt text becomes a block of its own.\n\nVerbatim blocks (listing/literal/source/passthrough), comments, attribute\nentries, and the document header are non-translatable and round-trip as\nskeleton: an untouched document is reproduced byte-for-byte, and only changed\nvalues are spliced back in.\n",
         "parameters": {
           "extractBlockTitles": {
             "description": "Extract AsciiDoc block titles (`.Title`) as translatable blocks.",
@@ -478,7 +478,8 @@
         "processingNotes": [
           "Headings carry their level on Properties[\"level\"] (the count of `=`), so the structure survives translation and cross-format export.",
           "Tables are reconstructed as table / table-row groups; header cells carry the table-header role, body cells the table-cell role.",
-          "Inline markup (bold/italic/mono/super/sub, links, attribute references, cross references) is protected as inline-code runs and must not be translated.",
+          "Inline markup (bold/italic/mono/super/sub, links, inline images, attribute references, cross references) is protected as inline-code runs and must not be translated.",
+          "Block macros (`image::`, `include::`, …) are skeleton; the alt text of a block image is extracted as its own block.",
           "Output is byte-faithful: an unchanged document round-trips exactly; only modified block values are rewritten. Verbatim blocks, comments, attribute entries, and the document header are preserved as skeleton."
         ],
         "examples": [
@@ -4638,7 +4639,7 @@
         }
       },
       "doc": {
-        "overview": "XLIFF 2.x is the modern OASIS XML interchange standard for bilingual\ncontent. It replaces the 1.2 element soup with an explicit\n`\u003cunit\u003e`/`\u003csegment\u003e` structure, file-scoped notes, a small set of inline tag\nelements (`ph`, `pc`, `sc`/`ec`, `mrk`), and per-segment translation states.\nThe reader accepts the 2.0, 2.1, and 2.2 namespaces as one compatible family.\n\nThe reader emits one block per translatable unit and preserves inline\nmarkup as raw inner XML so unmodified content round-trips byte-for-byte.\nThe writer can emit any 2.x version: by default it preserves the input\ndocument's version on round-trip and falls back to 2.2 for content\nextracted from a non-XLIFF source. This mirrors Okapi's XLIFF 2 filter.\n",
+        "overview": "XLIFF 2.x is the modern OASIS XML interchange standard for bilingual\ncontent. It replaces the 1.2 element soup with an explicit\n`\u003cunit\u003e`/`\u003csegment\u003e` structure, file-scoped notes, a small set of inline tag\nelements (`ph`, `pc`, `sc`/`ec`, `mrk`), and per-segment translation states.\nThe reader accepts the 2.0, 2.1, and 2.2 namespaces as one compatible family.\n\nThe reader emits one block per translatable unit and reads its inline\nelements as inline codes. A segment nothing edited is written with its own\nbytes, so unmodified content round-trips byte-for-byte, and an edited one\nkeeps each code with the attributes the document gave it.\nThe writer can emit any 2.x version: by default it preserves the input\ndocument's version on round-trip and falls back to 2.2 for content\nextracted from a non-XLIFF source. This mirrors Okapi's XLIFF 2 filter.\n",
         "parameters": {
           "codeFinderRules": {
             "description": "Regular-expression patterns that match inline codes in content.",
@@ -4690,7 +4691,7 @@
           }
         },
         "processingNotes": [
-          "One block is emitted per translatable unit; inline markup is preserved as raw inner XML for byte-faithful round-trips.",
+          "One block is emitted per translatable unit; inline elements become inline codes, and an unedited segment is written with its own bytes.",
           "The 2.0, 2.1, and 2.2 namespaces are accepted as a compatible family on read."
         ],
         "examples": [

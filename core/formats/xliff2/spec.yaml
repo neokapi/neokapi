@@ -33,9 +33,9 @@ description: |
   OASIS XLIFF 2.x (Localization Interchange File Format) — the modern
   XLIFF dialect with explicit unit/segment structure, file-scoped
   notes, inline tag elements (ph/pc/sc/ec/mrk), and per-segment
-  translation states. The reader treats inline markup as raw inner XML
-  to preserve roundtrip fidelity; the writer accepts version overrides
-  across the 2.0/2.1/2.2 family.
+  translation states. The reader reads inline elements as inline codes,
+  and an unedited segment is written with its own bytes; the writer
+  accepts version overrides across the 2.0/2.1/2.2 family.
 
 config:
   # ── Extraction settings ───────────────────────────────────────────
@@ -262,10 +262,9 @@ features:
     description: |
       XLIFF 2.x inline elements — `<ph>` (placeholder), `<pc>` (paired
       code), `<sc>`/`<ec>` (start/end codes), `<mrk>` (marker) — are
-      preserved alongside the surrounding text. The native reader
-      currently captures them as raw inner XML; richer Span modeling
-      is tracked separately. Surrounding text segments still extract
-      verbatim.
+      preserved alongside the surrounding text. The native reader reads
+      them as inline codes (a paired `<sc>`/`<ec>` as one pair), and
+      the surrounding text extracts verbatim.
     spec_refs:
       - "XLIFF 2.1 §4.2.3.2 ph / §4.2.3.3 pc / §4.2.3.4 sc / §4.2.3.5 ec / §4.2.3.6 mrk"
     examples:
