@@ -516,8 +516,8 @@ who reached it. An agent or a model never records one: `ApplyReviewDecisionAs`
 refuses an `agent/…` or `ai/…` identity (`state.IsAgentIdentity`), and `kapi
 apply` refuses a review entry when the command runs as an agent. An agent
 pre-reviews instead: it stores a score and its reasons on the unit
-(`state.AIReview`, the MCP `pre_review_unit` tool, the desktop pre-review),
-bound to the translation it judged, and the person reviewing reads it in the
+(`state.AIReview`, a `decide` operation with outcome `advise` sent through MCP
+`apply_edits`, the desktop pre-review), bound to the translation it judged, and the person reviewing reads it in the
 queue. Its judgement never counts as a person's.
 
 An `AIReview` is a third thing again: an advisory annotation carrying a score

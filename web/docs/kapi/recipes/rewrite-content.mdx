@@ -39,7 +39,7 @@ With kapi wired as an [MCP server](/reference/mcp) or through the [Agent Skill](
 
 > Simplify the setup section of `guide.md`: shorter sentences, same meaning, keep every link.
 
-The assistant drives the loop through structured calls: `extract_content` to read blocks, `apply_edits` to write the change-set back, `check_file` to confirm the gate. The assistant is the writer; kapi enforces the round-trip, drift-checks each edit by `content_hash`, and rejects an edit that would corrupt inline markup. No model is called for the write itself.
+The assistant drives the loop through structured calls: `read_blocks` to read blocks, `apply_edits` to write the change set back, `check_file` to confirm the gate. The assistant is the writer; kapi enforces the round-trip, refuses an edit to a block that changed since the assistant read it, and rejects an edit that would corrupt inline markup. No model is called for the write itself.
 
 </TabItem>
 <TabItem value="cli" label="CLI">

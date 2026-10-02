@@ -31,8 +31,9 @@ Only the recipe row can ask, because it is the only one with a person present an
 a legitimate reason to say yes. The rest have a fixed answer, so they do not ask.
 
 A comment edit's project formatter is decided the same way, at the edit that
-would run it: `kapi apply` asks once per formatter configuration and remembers,
-and MCP `apply_edits` never runs it.
+would run it: `kapi apply` asks once per formatter configuration and remembers.
+Comment edits run through `kapi apply` alone, so the MCP surface starts no
+formatter.
 
 ## Context
 
@@ -180,12 +181,10 @@ entry that is not an absolute path removed, so a program the formatter looks up
 is never found relative to the project.
 
 `kapi apply` resolves the question in the recipe arm's order, and asks only when
-the change-set did not arrive on standard input. MCP `apply_edits` never runs a
-project's formatter, whatever is recorded, so its row in the table above holds
-for formatters too. An agent that may write files can write the configuration
-a formatter loads, and nobody is present to ask. The edit reports did-not-run
-with the reason `formatter`, and a person applies it with `kapi apply` in a
-terminal. A decision is recorded only by answering that prompt.
+the change-set did not arrive on standard input. The MCP surface writes no code
+comment, so its row in the table above holds for formatters too: an agent that
+may write files can write the configuration a formatter loads, and nobody is
+present to ask. A decision is recorded only by answering that prompt.
 
 ## Consequences
 

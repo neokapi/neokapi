@@ -264,6 +264,10 @@ failing finding, or a check that read nothing, exits 3. The comment path runs
 neither the commit check nor the recorder: the check runs after the write, and
 nothing records a comment edit.
 
+The MCP tools `read_blocks`, `apply_edits` and `describe_format` build the
+service for each call's project and send every change set as the calling agent
+([S-03](../surfaces/s-03-agent-surfaces.md)).
+
 ### Results and errors
 
 A result has a status (`applied`, `refused`, `previewed`, or `partial` when an
@@ -303,3 +307,4 @@ without another read. A resource bound `core/safeio` reports is
 - [E-03: Tool system](e-03-tool-system.md)
 - [The change applier](../../implementation/engine/change-applier.md)
 - [The file home](../../implementation/engine/file-home.md)
+- [S-03: Agent surfaces](../surfaces/s-03-agent-surfaces.md)

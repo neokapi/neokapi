@@ -243,7 +243,7 @@ Per video:
 | `s2-tidewatch-ci` | the jq line prints `established 77%` for nb and `established 0%` for nl; the check passes with one REPORTS, on `docs/integrating.md` (`mooring`) |
 | `bowrain-desktop-automations` | Run now starts a run that appears at the top of the table; the row settles with a per-language summary; the dashboard's "Review pending translations" link opens the review session |
 | `bowrain-cli-getting-started` | `kapi init` prints `collections (proposed from the files here...)` with `src/locales/en.json`; `kapi status` shows the `content` and `governance` lines; `kapi up` prints the venue first; `src/locales/fr.json` arrives |
-| `08-mcp-tools` | the session calls `pre_review_unit`, not an approval; the queue artifact still lists the unit, now with `aiScore` |
+| `08-mcp-tools` | the session reads the unit with `review_block` and sends `apply_edits` a `decide` with outcome `advise`, not an approval; the queue artifact still lists the unit, now with `aiScore` |
 | `kapi-desktop-review` | the unit shows one human action (Approve) and no sign-off control; the history layer reads "Already approved" |
 | `kapi-desktop-explorer` | the Context hub opens on Learned; the walk then opens Terms, then Content Memory |
 | desktop and web demos | the recorder log reports no inert crop and no selector that matched nothing |

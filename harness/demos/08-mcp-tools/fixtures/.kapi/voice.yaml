@@ -2,7 +2,7 @@
 #
 # `kapi.yaml` binds it to the `taskly` profile, so it is what the site sits
 # under: the guidance a drafting run is handed, the rules `kapi check` scores
-# against, and the voice `review_unit` returns beside a unit awaiting a person.
+# against, and the voice `review_block` returns beside a unit awaiting a person.
 name: Taskly
 description: >-
   Taskly writes for a small team with too much in flight. Say what the product

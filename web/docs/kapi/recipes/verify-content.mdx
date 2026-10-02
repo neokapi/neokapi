@@ -35,7 +35,7 @@ With [kapi connected](/kapi/get-started/use-with-claude), ask for the outcome:
 
 > Go through `docs/` and fix anything that fails our content rules.
 
-The assistant runs the loop itself: `check_file` returns the Report (stable rule ids, block locations), it rewrites the flagged blocks, lands them with `apply_edits` (content-hash guarded, structure preserved), and re-checks until the gate is green. Because rule ids are stable across runs, it can tell a fixed finding from a new one, and stops when the Report is clean.
+The assistant runs the loop itself: `check_file` returns the Report (stable rule ids, block locations), it rewrites the flagged blocks, lands them with `apply_edits` (guarded by the revision it read, structure preserved), and re-checks until the gate is green. Because rule ids are stable across runs, it can tell a fixed finding from a new one, and stops when the Report is clean.
 
 </TabItem>
 <TabItem value="cli" label="CLI">

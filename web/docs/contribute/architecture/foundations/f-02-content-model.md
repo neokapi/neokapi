@@ -667,7 +667,7 @@ a memory index) is a projection computed on demand.
 | `RunsStructuralText` | `Click {1}here{/1} for info` | Memory matching, structural tier |
 | `RunsGeneralizedText` | structural + entity placeholders | Memory matching, generalized tier |
 | `RunsPlaceholderText` | `<x id="1"/>here<x id="/1"/>` | Prompts where tag preservation is critical |
-| `RunsEditText` | `Fish & <x id="1"/>chips<x id="/1"/>` | The edit loop: `kapi inspect`, `kapi apply`, MCP `extract_content` and `apply_edits` |
+| `RunsEditText` | `Fish & <x id="1"/>chips<x id="/1"/>` | The edit loop: `kapi inspect`, `kapi apply`, MCP `read_blocks` and `apply_edits` |
 | `RunsSemanticHTML` | `<a href="…">here</a>` | Providers and prompts that expect HTML |
 | `flattenRuns` (TypeScript) | `Click {=m1}here{/=m1}` | ICU runtime and the React i18n re-attach |
 | `runsToCoded` (TypeScript) | private-use-area marker text + span info | The visual editor's styled chips |
