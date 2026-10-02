@@ -245,7 +245,7 @@ func TestSkeletonPathWritesEachSegment(t *testing.T) {
 			edit: func(b *model.Block) {
 				old := b.Source
 				b.EditSourceRuns(replaceInEditText(b.Source, "utilize", "use"))
-				model.RemapOverlays(b, old, []model.RunEdit{{
+				model.RemapOverlays(b, nil, old, b.Source, []model.RunEdit{{
 					Start: 0, End: len([]rune(model.RunsText(old))), NewLen: len([]rune(model.RunsText(b.Source))),
 				}})
 			},
