@@ -26,6 +26,10 @@ import (
 // message.
 const propLine = model.AdvisoryPropertyPrefix + "line"
 
+// propPath records the branch a block was read from as a dot-delimited path
+// (e.g. "count.one"). A block read from a line without a picker has none.
+const propPath = "path"
+
 // Reader implements DataFormatReader for ICU MessageFormat files.
 // Input is treated as one MessageFormat pattern per line, or the whole file
 // as a single pattern.
@@ -222,26 +226,22 @@ func (r *Reader) emitLine(ctx context.Context, ch chan<- model.PartResult, conte
 		return true
 	}
 
-	// Extract translatable segments from this pattern.
+	// Extract translatable segments from this pattern. A line without a picker
+	// is one segment whose slot is the whole line.
 	segments := extractSegments(pl.nodes, "")
-
-	if r.skeletonStore != nil && len(segments) == 1 && !icu.HasPicker(pl.nodes) {
-		// Simple case: one block per line, use skeleton ref. A single segment is
-		// a branchless leaf, so there is no framing prose to surface and the raw
-		// line is not preserved in the skeleton — leave this path untouched.
-		*blockCounter++
-		blockID := fmt.Sprintf("tu%d", *blockCounter)
-		r.skelRef(blockID)
-		r.skelText(lineEnding)
-
-		block := r.createBlock(blockID, segments[0], pl, &names)
-		format.RecordVerbatim(block, "messageformat.raw", pl.raw, model.RenderRunsWithData(block.Source))
-		return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	picker := icu.HasPicker(pl.nodes)
+	if len(segments) == 1 && !picker {
+		segments[0].start, segments[0].end = 0, len(pl.raw)
+	}
+	for i := range segments {
+		segments[i].trim(pl.raw)
 	}
 
 	if r.skeletonStore != nil {
-		// Keep picker syntax in the skeleton and bind every leaf branch to its
-		// block, so edits reach the corresponding branch during writeback.
+		// Keep the line in the skeleton and bind each segment's slot to its
+		// block, so an edit reaches the line or branch it was read from. The
+		// picker syntax and the whitespace at the edges of each slot stay in
+		// the skeleton.
 		if !emitFrames() {
 			return false
 		}
@@ -322,11 +322,11 @@ func (r *Reader) createBlock(id string, seg segment, pl parsedLine, names *model
 		return r.createBlockWithRuns(id, name, seg, branchNodes)
 	}
 
-	block := model.NewBlock(id, seg.text)
+	block := model.NewBlock(id, seg.trimmedText())
 	block.Name = name
 	block.Properties[propLine] = strconv.Itoa(pl.lineNum)
 	if seg.path != "" {
-		block.Properties["path"] = seg.path
+		block.Properties[propPath] = seg.path
 	}
 	return block
 }
@@ -363,13 +363,13 @@ func (r *Reader) createBlockWithRuns(id, name string, seg segment, nodes []node)
 	block := &model.Block{
 		ID:           id,
 		Translatable: true,
-		Source:       runs,
+		Source:       seg.trimRuns(runs),
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 		Name:         name,
 	}
 	if seg.path != "" {
-		block.Properties["path"] = seg.path
+		block.Properties[propPath] = seg.path
 	}
 	return block
 }
