@@ -155,9 +155,10 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 	//
 	// The status is stored as a reader stores what it read: SetEdition records
 	// a write to the authoritative edition as an edit of it, and a status that
-	// arrives with the block is part of the block as read.
+	// arrives with the block is part of the block as read, so it goes through
+	// SetEditionStatus, which changes the status alone.
 	if status, ok := sb.Properties[propSourceStatus]; ok {
-		b.SourceStatus = model.SourceStatus(status)
+		b.SetEditionStatus(model.EditionKey{}, model.Status(status))
 		props := make(map[string]string, len(sb.Properties))
 		for k, v := range sb.Properties {
 			if k == propSourceStatus {

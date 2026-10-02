@@ -67,7 +67,6 @@ func KitchenSinkBlock() *model.Block {
 		MimeType:           "text/plain",
 		Translatable:       true,
 		SourceLocale:       model.LocaleEnglish,
-		SourceStatus:       model.SourceStatusWritten,
 		PreserveWhitespace: true,
 		IsReferent:         true,
 		Properties:         map[string]string{"context": "homepage", "max": "80"},
@@ -88,6 +87,8 @@ func KitchenSinkBlock() *model.Block {
 			SyncedAt:    time.Date(2026, 7, 19, 10, 30, 0, 0, time.UTC),
 		},
 	}
+
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusWritten))
 
 	// Source: one run of every kind (Text, Ph, PcOpen, PcClose, Sub, Plural, Select).
 	b.SetSourceRuns([]model.Run{
