@@ -14,7 +14,12 @@ overview: |
   The reader emits one block per translatable unit and reads its inline
   elements as inline codes. A segment nothing edited is written with its own
   bytes, so unmodified content round-trips byte-for-byte, and an edited one
-  keeps each code with the attributes the document gave it.
+  keeps each code with the attributes the document gave it; the annotation
+  markers (`<mrk>`, `<sm>`/`<em>`) an edited segment held are dropped. A unit
+  of several segments is written segment by segment. An edit that joins two
+  of its segments into one text is refused and the document is left
+  unwritten, so no words move from one segment into another. A translation
+  written as one text for a whole unit goes into the unit's first segment.
   The writer can emit any 2.x version: by default it preserves the input
   document's version on round-trip and falls back to 2.2 for content
   extracted from a non-XLIFF source. This mirrors Okapi's XLIFF 2 filter.
@@ -85,6 +90,7 @@ parameters:
         condition: must be enabled for the rules to take effect
 processingNotes:
   - One block is emitted per translatable unit; inline elements become inline codes, and an unedited segment is written with its own bytes.
+  - An edit that joins the segments of a unit into one text, or leaves inline codes no XLIFF 2 markup can express, is refused and the document is not written.
   - The 2.0, 2.1, and 2.2 namespaces are accepted as a compatible family on read.
 examples:
   - title: Force XLIFF 2.0 output
