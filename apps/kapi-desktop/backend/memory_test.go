@@ -348,6 +348,55 @@ func TestMemory_LookupMemory_AdaptsTheRequestEntity(t *testing.T) {
 	assert.Equal(t, "entity:organization", a.Type)
 }
 
+// TestMemory_AnnotateEntities_PairsAnEntityAcrossVariants holds one entity to
+// one placeholder id in every variant, whatever order a translation puts the
+// entities in, so a lookup adapts each stored entity to the one the request
+// names in its place.
+func TestMemory_AnnotateEntities_PairsAnEntityAcrossVariants(t *testing.T) {
+	app := newTestApp(t)
+	handle := openTestMemory(t, app)
+	require.NoError(t, app.AddMemoryEntry(handle, AddMemoryEntryRequest{
+		Variants: map[string]VariantInputDTO{
+			"en-US": {Text: "Ask Acme or Initech."},
+			"fr-FR": {Text: "Demandez à Initech ou Acme."},
+		},
+		HintSrcLang: "en-US",
+	}))
+	entries := app.SearchMemoryEntries(handle, "", "", "", 0, 10)
+	require.Len(t, entries.Entries, 1)
+	_, err := app.AnnotateEntities(handle, AnnotateEntitiesRequest{
+		EntryIDs: []string{entries.Entries[0].ID},
+		Patterns: []EntityPatternRequest{
+			{Text: "Acme", EntityType: "entity:organization", CaseSensitive: true},
+			{Text: "Initech", EntityType: "entity:organization", CaseSensitive: true},
+		},
+	})
+	require.NoError(t, err)
+
+	got := app.GetMemoryEntry(handle, entries.Entries[0].ID)
+	require.NotNil(t, got)
+	for _, em := range got.Entities {
+		assert.Equal(t, em.Values["en-US"].Text, em.Values["fr-FR"].Text, "%s pairs one entity in both variants", em.PlaceholderID)
+	}
+
+	matches := app.LookupMemory(handle, LookupMemoryRequest{
+		Text: "Ask Globex or Hooli.",
+		Entities: []EntityAnnotationDTO{
+			{Text: "Globex", Type: "entity:organization", Start: 4, End: 10},
+			{Text: "Hooli", Type: "entity:organization", Start: 14, End: 19},
+		},
+		SourceLocale: "en-US",
+		TargetLocale: "fr-FR",
+		MinScore:     0.5,
+	})
+	require.Len(t, matches, 1)
+	adapted := map[string]string{}
+	for _, a := range matches[0].EntityAdaptations {
+		adapted[a.StoredValue] = a.CurrentValue
+	}
+	assert.Equal(t, map[string]string{"Acme": "Globex", "Initech": "Hooli"}, adapted)
+}
+
 // TestLookupBlock_AnchorsEachEntityToItsPlaceholder holds the overlay span of
 // every entity to the placeholder run the entity became, wherever it sits and
 // whatever the text before it is written in. Offsets count code points.

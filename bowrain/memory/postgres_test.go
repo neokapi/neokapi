@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	corememory "github.com/neokapi/neokapi/core/memory"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/leverage"
 
 	pgmemory "github.com/neokapi/neokapi/bowrain/memory"
 	storage "github.com/neokapi/neokapi/bowrain/storage"
@@ -222,5 +224,100 @@ func TestPostgresMemory_LookupAdaptsTheEntityTheBlockLocates(t *testing.T) {
 	assert.Equal(t, memory.MatchGeneralizedExact, matches[0].MatchType)
 	require.Len(t, matches[0].EntityAdaptations, 1, "the stored entity is adapted to the one the block carries")
 	assert.Equal(t, "Acme", matches[0].EntityAdaptations[0].StoredValue)
+	assert.Equal(t, "Globex", matches[0].EntityAdaptations[0].CurrentValue)
+}
+
+// Leverage adapts the entity at its placeholder, and the town named after the
+// company keeps its name.
+func TestPostgresMemory_LeverageAdaptsOnlyTheEntity(t *testing.T) {
+	tm := openTestPostgresMemory(t)
+	org := func(id, text string) model.Run {
+		return model.Run{Ph: &model.PlaceholderRun{ID: id, Type: string(model.EntityOrganization), Data: text}}
+	}
+	txt := func(s string) model.Run { return model.Run{Text: &model.TextRun{Text: s}} }
+	require.NoError(t, tm.Add(t.Context(), memory.Entry{
+		ID: "acme",
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {txt("Contact "), org("e1", "Acme"), txt(" in Acmeville.")},
+			"fr": {txt("Contactez "), org("e1", "Acme"), txt(" à Acmeville.")},
+		},
+		HintSrcLang: "en",
+		Entities: []memory.EntityMapping{{PlaceholderID: "e1", Type: model.EntityOrganization,
+			Values: map[model.LocaleID]memory.EntityValue{"en": {Text: "Acme"}, "fr": {Text: "Acme"}}}},
+	}))
+	b := &model.Block{ID: "lookup", Translatable: true}
+	b.SetSourceRuns([]model.Run{txt("Contact "), org("e1", "Globex"), txt(" in Acmeville.")})
+	b.AddOverlaySpan(model.OverlayEntity, model.Span{ID: "entity:0",
+		Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2}),
+		Value: &model.EntityAnnotation{Text: "Globex", Type: model.EntityOrganization}})
+	got, ok := leverage.NewProvider(tm).Lookup(t.Context(), corememory.Request{Block: b, Source: "en", Target: "fr", MinScore: 50})
+	require.True(t, ok)
+	want := []model.Run{txt("Contactez "), org("e1", "Globex"), txt(" à Acmeville.")}
+	assert.Equal(t, string(model.CanonicalRunsJSON(want)), string(model.CanonicalRunsJSON(got.TargetRuns)))
+}
+
+// Stored entities pair with the block's in the order they sit in the stored
+// source; the store reads them back by id, where e10 sorts before e2. A
+// segment's lookup pairs with that segment's entities.
+func TestPostgresMemory_EntitiesPairInTextOrderAndBySegment(t *testing.T) {
+	tm := openTestPostgresMemory(t)
+	org := func(id, text string) model.Run {
+		return model.Run{Ph: &model.PlaceholderRun{ID: id, Type: string(model.EntityOrganization), Data: text}}
+	}
+	txt := func(s string) model.Run { return model.Run{Text: &model.TextRun{Text: s}} }
+	mapping := func(id, v string) memory.EntityMapping {
+		return memory.EntityMapping{PlaceholderID: id, Type: model.EntityOrganization,
+			Values: map[model.LocaleID]memory.EntityValue{"en": {Text: v}, "fr": {Text: v}}}
+	}
+	locate := func(b *model.Block) {
+		for i, r := range b.Source {
+			if r.Ph != nil {
+				b.AddOverlaySpan(model.OverlayEntity, model.Span{ID: "entity:" + r.Ph.ID,
+					Range: model.SpanAnchor(model.RunPos{Run: i}, model.RunPos{Run: i + 1}),
+					Value: &model.EntityAnnotation{Text: r.Ph.Data, Type: model.EntityOrganization}})
+			}
+		}
+	}
+	require.NoError(t, tm.Add(t.Context(), memory.Entry{
+		ID: "pair",
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {txt("Ask "), org("e2", "Acme"), txt(" or "), org("e10", "Initech"), txt(".")},
+			"fr": {txt("Demandez à "), org("e2", "Acme"), txt(" ou "), org("e10", "Initech"), txt(".")},
+		},
+		HintSrcLang: "en",
+		Entities:    []memory.EntityMapping{mapping("e2", "Acme"), mapping("e10", "Initech")},
+	}))
+	b := &model.Block{ID: "lookup", Translatable: true}
+	b.SetSourceRuns([]model.Run{txt("Ask "), org("e1", "Globex"), txt(" or "), org("e2", "Hooli"), txt(".")})
+	locate(b)
+	matches, err := tm.Lookup(t.Context(), b, "en", "fr", memory.LookupOptions{MinScore: 0.5})
+	require.NoError(t, err)
+	require.NotEmpty(t, matches)
+	got := map[string]string{}
+	for _, a := range matches[0].EntityAdaptations {
+		got[a.StoredValue] = a.CurrentValue
+	}
+	assert.Equal(t, map[string]string{"Acme": "Globex", "Initech": "Hooli"}, got)
+
+	require.NoError(t, tm.Add(t.Context(), memory.Entry{
+		ID: "ask",
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {txt("Tell "), org("e1", "Initech"), txt(" now.")},
+			"fr": {txt("Dites à "), org("e1", "Initech"), txt(" maintenant.")},
+		},
+		HintSrcLang: "en",
+		Entities:    []memory.EntityMapping{mapping("e1", "Initech")},
+	}))
+	seg := &model.Block{ID: "two", Translatable: true}
+	seg.SetSourceRuns([]model.Run{txt("Contact "), org("e1", "Acme"), txt(" today. "), txt("Tell "), org("e2", "Globex"), txt(" now.")})
+	locate(seg)
+	seg.SetSegmentation(nil, []model.Span{
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 3})},
+		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 3}, model.RunPos{Run: 6})},
+	})
+	matches, err = tm.LookupSegment(t.Context(), seg, 1, "en", "fr", memory.LookupOptions{MinScore: 0.5})
+	require.NoError(t, err)
+	require.NotEmpty(t, matches)
+	require.Len(t, matches[0].EntityAdaptations, 1)
 	assert.Equal(t, "Globex", matches[0].EntityAdaptations[0].CurrentValue)
 }

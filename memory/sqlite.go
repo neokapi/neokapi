@@ -864,9 +864,7 @@ func (tm *SQLiteStore) LookupSegment(ctx context.Context, source *model.Block, s
 	plainKey := NormalizeText(model.FlattenRuns(runs))
 	structKey := NormalizeText(model.RunsStructuralText(runs))
 	generalKey := NormalizeText(model.RunsGeneralizedText(runs))
-	// Entity annotations carry block-level context; keep them so the
-	// generalized (entity-aware) tier still works inside a segment.
-	entityAnnotations := ExtractEntityAnnotations(source)
+	entityAnnotations := ExtractSegmentEntityAnnotations(source, segmentIdx)
 	return tm.tieredLookup(ctx, plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts)
 }
 

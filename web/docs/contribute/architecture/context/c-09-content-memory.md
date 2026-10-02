@@ -176,8 +176,14 @@ disagree on their markup-token sets.
 
 When a generalized match is found, the result carries adaptation information that
 substitutes entity values from the current source into the stored target. The
-`recycle` tool applies these automatically, so what arrives is a pre-adapted
-target with the correct values already in place.
+stored entities pair with the block's type by type, in the order they sit in the
+stored source and in the block (a segment's lookup pairs with that segment's
+entities). An entity is adapted only where the stored target holds it exactly:
+as its placeholder run, or as the one occurrence of its value that stands as a
+whole word. A target that holds the value twice, or only inside a longer word,
+keeps it, and the match carries no adaptation for it. The `recycle` tool applies
+these automatically, so what arrives is a pre-adapted target with the correct
+values already in place.
 
 ### Where an answer was approved
 
