@@ -17,6 +17,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/formats/ts"
+	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
@@ -86,9 +88,10 @@ type opsFixture struct {
 	target model.LocaleID
 	// config configures reader and writer.
 	config map[string]any
-	// normalized lists the ZIP members whose bytes the writer regenerates on
-	// every write, so the comparison for them is the read back alone.
-	normalized []string
+	// normalized names the ZIP members whose bytes the writer regenerates on
+	// every write, with the reason; the comparison for them is the read back
+	// alone.
+	normalized map[string]string
 	// respelled lists what the writer spells its own way on every write, with
 	// the reason. The document a cell must produce is the input with each one
 	// respelled, so a declaration the writer stops needing fails the cell.
@@ -96,10 +99,17 @@ type opsFixture struct {
 	// refuse names, per operation key, the blocks (by id) the edit path must
 	// refuse, with the reason.
 	refuse map[string]map[string]string
-	// refused names, per operation key, the cells this fixture refuses whole,
-	// with the reason: the path applies nothing and writes the document
-	// unchanged, or the writer refuses the document and writes nothing.
-	refused map[string]string
+	// refused names, per operation key, the cells this fixture refuses whole.
+	refused map[string]refusal
+}
+
+// refusal is a cell a fixture refuses whole, with the reason. err is the error
+// the writer refuses the document with, matched with errors.Is, and the writer
+// writes nothing; a nil err means the edit path applies nothing and the
+// document is written unchanged.
+type refusal struct {
+	reason string
+	err    error
 }
 
 // id names the row in subtest names and messages.
@@ -128,8 +138,8 @@ func (op matrixOp) want(tmpl string) string {
 
 // matrixOps is every operation the matrix drives. replace_text is the one
 // operation every surface performs today: a word substitution, sent as edit
-// text through `kapi apply` for a source and through the structured target
-// path `ksed --target` takes for a translation.
+// text through `kapi apply` for a source, and applied to a translation's runs
+// the way `ksed --target` applies it (ksedTarget).
 var matrixOps = []matrixOp{
 	{name: "replace_text", edition: sourceEdition, sub: sourceWord},
 	{name: "replace_text", edition: targetEdition, sub: targetWord},
@@ -162,9 +172,10 @@ func opsMatrix() []opsFixture {
 		{format: "odf", template: "odf.tmpl"},
 		{
 			format: "openxml", template: "openxml.tmpl",
-			// word/document.xml is re-serialized from the skeleton on every
-			// write (see containerMemberNormalised in sourceedit_test.go).
-			normalized: []string{"word/document.xml"},
+			normalized: map[string]string{
+				"word/document.xml": "the writer re-serializes the document part from the skeleton on every write " +
+					"(see containerMemberNormalised in sourceedit_test.go)",
+			},
 		},
 		{
 			format: "plaintext", template: "plaintext.txt.tmpl",
@@ -192,10 +203,14 @@ func opsMatrix() []opsFixture {
 		{format: "ts", template: "ts.ts.tmpl", target: "fr", respelled: tsPrologue},
 		{
 			format: "ts", name: "numerus", template: "ts-numerus.ts.tmpl", target: "fr", respelled: tsPrologue,
-			refused: map[string]string{
-				"replace_text@target": "edit text carries no plural-form boundaries, so the writer refuses a numerus " +
-					"message whose forms no longer line up with its runs rather than move words between forms; " +
-					"the contract edits one form by path (section 2.4, rule 3)",
+			refused: map[string]refusal{
+				"replace_text@target": {
+					reason: "ksed rebuilds the translation's runs through ApplyTextEdits, which joins the text either " +
+						"side of a plural-form boundary, so the forms no longer line up with the runs; the writer " +
+						"refuses the message rather than move words between forms, and the contract edits one form " +
+						"by path (section 2.4, rule 3)",
+					err: ts.ErrNumerusFormsLost,
+				},
 			},
 		},
 		{format: "tsv", template: "tsv.tsv.tmpl"},
@@ -215,6 +230,24 @@ func opsMatrix() []opsFixture {
 			},
 		},
 		{format: "xliff2", template: "xliff2.xlf.tmpl", target: "fr"},
+		{
+			format: "xliff2", name: "segments", template: "xliff2-segments.xlf.tmpl", target: "fr",
+			refused: map[string]refusal{
+				"replace_text@source": {
+					reason: "edit text carries no segment boundaries and the apply path drops the source " +
+						"segmentation of a block it edits, so the unit no longer divides into its segments; the " +
+						"writer refuses it rather than write the whole unit into its first segment (section 2.4, " +
+						"rule 3)",
+					err: xliff2.ErrSegmentsLost,
+				},
+				"replace_text@target": {
+					reason: "ksed rebuilds the translation's runs through ApplyTextEdits, which joins the text " +
+						"either side of a segment boundary, so the target segmentation no longer tiles the runs; " +
+						"the writer refuses the unit rather than move words between segments (section 2.4, rule 3)",
+					err: xliff2.ErrSegmentsLost,
+				},
+			},
+		},
 		{format: "xml", template: "xml.xml.tmpl"},
 		{format: "yaml", template: "yaml.yaml.tmpl"},
 	}
@@ -391,7 +424,9 @@ func (fx opsFixture) readEditable(t *testing.T, data []byte, locale model.Locale
 // editDocument is host.EditDocument's sequence: the reader wired to the
 // writer's skeleton store, every part through tl, the parts written with the
 // original bytes bound and writeLocale active. It returns what the writer
-// wrote and the error it refused the write with, if it did.
+// wrote and the error it refused the write with, if it did. A framework test
+// cannot import host, so this is a copy of that sequence; a change to
+// host.EditDocument has to be made here too.
 func (fx opsFixture) editDocument(t *testing.T, input []byte, readLocale, writeLocale model.LocaleID, tl *tool.BaseTool) ([]byte, error) {
 	t.Helper()
 	ctx := context.Background()
@@ -487,7 +522,8 @@ func (fx opsFixture) run(t *testing.T, op matrixOp, input []byte) opOutcome {
 // as inspect reads them, each block whose text holds the word gets an edit with
 // the word replaced and the content hash it was read with, and the apply-edits
 // tool writes them with its drift and inline-code guards. A target edit is the
-// structured path `ksed --target` takes, held to the same inline-code guard.
+// substitution `ksed --target` applies to the translation's runs (ksedTarget),
+// which has no guard of its own.
 func (fx opsFixture) replaceText(t *testing.T, op matrixOp, input []byte) opOutcome {
 	t.Helper()
 	readLoc, writeLoc := fx.locales(op)
@@ -520,18 +556,13 @@ func (fx opsFixture) replaceText(t *testing.T, op matrixOp, input []byte) opOutc
 		tl := &tool.BaseTool{ToolName: "opsmatrix-target"}
 		tl.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 			var plan tool.EditPlan
-			e, ok := edits[v.ID()]
-			if !ok || !v.HasTarget(writeLoc) {
+			if _, ok := edits[v.ID()]; !ok || !v.HasTarget(writeLoc) {
 				return plan, nil
 			}
-			old := v.TargetRuns(writeLoc)
-			runs := model.ParseRunsEditText(e.Text, old)
-			if !model.EditKeepsInlineCodes(old, runs) {
-				res.refused = append(res.refused, v.ID())
-				return plan, nil
+			if runs, changed := ksedTarget(v.TargetRuns(writeLoc), op.sub); changed {
+				plan.SetTarget(writeLoc, runs)
+				res.applied = append(res.applied, v.ID())
 			}
-			plan.SetTarget(writeLoc, runs)
-			res.applied = append(res.applied, v.ID())
 			return plan, nil
 		}
 		res.out, res.writeErr = fx.editDocument(t, input, readLoc, writeLoc, tl)
@@ -544,6 +575,39 @@ func (fx opsFixture) replaceText(t *testing.T, op matrixOp, input []byte) opOutc
 		}
 	}
 	return res
+}
+
+// ksedTarget is the substitution `ksed --target` applies to a translation, as
+// host/toolbox_sed.go (NewSedTool, sedCmd.editRuns) does it: every match in
+// the runs' text becomes a text edit, applied through model.ApplyTextEdits so
+// the codes around it are kept; runs holding a plural or select have no
+// linear text, so their whole text is replaced as one run. ksed has no
+// inline-code guard. A framework test cannot import host, so this is a copy
+// of ksed's sequence; a change there has to be made here too.
+func ksedTarget(runs []model.Run, sub substitution) ([]model.Run, bool) {
+	if model.HasStructuredRuns(runs) {
+		text := model.RunsText(runs)
+		out := strings.ReplaceAll(text, sub.from, sub.to)
+		if out == text {
+			return runs, false
+		}
+		return []model.Run{{Text: &model.TextRun{Text: out}}}, true
+	}
+	text := model.RunsText(runs)
+	var edits []model.TextEdit
+	for at := 0; ; {
+		i := strings.Index(text[at:], sub.from)
+		if i < 0 {
+			break
+		}
+		start := at + i
+		edits = append(edits, model.TextEdit{Start: start, End: start + len(sub.from), Replacement: sub.to})
+		at = start + len(sub.from)
+	}
+	if len(edits) == 0 {
+		return runs, false
+	}
+	return model.ApplyTextEdits(runs, edits), true
 }
 
 // describeBlocks lists blocks for a failure message.
@@ -581,16 +645,19 @@ func TestOperationsMatrix(t *testing.T) {
 				doc := fx.render(t, &op)
 				res := fx.run(t, op, doc.input)
 
-				if reason, refused := fx.refused[op.key()]; refused {
-					if res.writeErr != nil {
+				if r, refused := fx.refused[op.key()]; refused {
+					if r.err != nil {
+						require.ErrorIs(t, res.writeErr, r.err,
+							"%s is declared refused by the writer (%s); remove the declaration once the cell passes", cell, r.reason)
 						assert.Empty(t, res.out, "%s: a refused write writes nothing", cell)
 						return
 					}
+					require.NoError(t, res.writeErr, "%s: the writer refused the document", cell)
 					assert.Empty(t, res.applied,
 						"%s is declared refused (%s) but the operation applied and was written; "+
-							"remove the declaration once the cell passes", cell, reason)
+							"remove the declaration once the cell passes", cell, r.reason)
 					assert.Equal(t, string(doc.input), string(res.out),
-						"%s is declared refused (%s): the document must be written unchanged", cell, reason)
+						"%s is declared refused (%s): the document must be written unchanged", cell, r.reason)
 					return
 				}
 				require.NoError(t, res.writeErr, "%s: the writer refused the document", cell)
@@ -641,7 +708,7 @@ func (fx opsFixture) assertBytes(t *testing.T, cell string, doc opsDocument, out
 	for name, want := range doc.members {
 		member, ok := got[name]
 		require.True(t, ok, "%s: member %s is missing from the output", cell, name)
-		if slices.Contains(fx.normalized, name) {
+		if _, ok := fx.normalized[name]; ok {
 			continue
 		}
 		assert.Equal(t, string(want), string(member),
@@ -715,13 +782,19 @@ func TestOperationsMatrixCoversEverySkeletonPair(t *testing.T) {
 			assert.Contains(t, input, r.from, "%s: respelling %q names bytes the input does not hold", fx.id(), r.from)
 			assert.NotEmpty(t, r.reason, "%s: respelling %q gives no reason", fx.id(), r.from)
 		}
+		for member, reason := range fx.normalized {
+			if assert.NotNil(t, doc.members, "%s: normalized members name a text document", fx.id()) {
+				assert.Contains(t, doc.members, member, "%s: normalized member %q is not in the container", fx.id(), member)
+			}
+			assert.NotEmpty(t, reason, "%s: normalized member %q gives no reason", fx.id(), member)
+		}
 		keys := map[string]bool{}
 		for _, op := range cellsOf(fx) {
 			keys[op.key()] = true
 		}
-		for key, reason := range fx.refused {
+		for key, r := range fx.refused {
 			assert.True(t, keys[key], "%s: refused cell %q names no operation of the fixture", fx.id(), key)
-			assert.NotEmpty(t, reason, "%s: refused cell %q gives no reason", fx.id(), key)
+			assert.NotEmpty(t, r.reason, "%s: refused cell %q gives no reason", fx.id(), key)
 		}
 		for key := range fx.refuse {
 			assert.True(t, keys[key], "%s: refusals for %q name no operation of the fixture", fx.id(), key)
