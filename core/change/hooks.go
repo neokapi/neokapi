@@ -19,10 +19,14 @@ type EditionChange struct {
 	// Key is the block's durable key where reconciliation assigned one.
 	Key string
 	// Before and After are the edition's runs around the change; Before is
-	// nil when the change set created the edition.
+	// nil when the change set created the edition, and After is nil when it
+	// removed it.
 	Before []model.Run
 	After  []model.Run
 	// BeforeRev and AfterRev are the edition revisions around the change.
+	// AfterRev is model.AbsentRevision when the change set removed the
+	// edition, by remove_edition or by deleting its block, and BeforeRev when
+	// it created one.
 	BeforeRev string
 	AfterRev  string
 	// Basis is the authoritative edition's revision a derived edition was

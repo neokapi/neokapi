@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -49,37 +50,44 @@ var _ change.CommitCheck = (*commitCheck)(nil)
 // placeholder check against the block's authoritative edition and the term
 // rules for its language. An edition the change set created has no findings
 // before, and one it removed has none after.
+//
+// A call resolves the project, its source language and its governance for
+// itself and writes none of them to the App, so one App checks change sets
+// for several projects, two at a time.
 func (c *commitCheck) Check(ctx context.Context, changes []change.EditionChange) ([]change.CheckOutcome, string, error) {
 	a := c.app
 	a.InitRegistries()
-	a.applyProjectSourceLang(c.cmd)
-	recipe, err := ResolveProjectPath(c.cmd)
+	in, err := a.resolveCommitProject(c.cmd)
 	if err != nil {
 		return nil, "", err
 	}
-	root := ""
-	if recipe != "" {
-		root = filepath.Dir(recipe)
-	}
-
-	res, err := a.newCommitResolution(ctx, c.cmd)
+	res, err := a.newCommitResolution(ctx, c.cmd, in)
 	if err != nil {
 		return nil, "", err
 	}
 	defer res.close()
 
-	outcomes := make([]change.CheckOutcome, len(changes))
-	passes, err := c.plan(root, res.opts.source(a), changes)
+	passes, err := c.plan(in, changes)
 	if err != nil {
 		return nil, "", err
 	}
+	sources := sourceChanges(changes)
+	outcomes := make([]change.CheckOutcome, len(changes))
 	for _, p := range passes {
+		// Both sides of a translation are held to the term rules in force
+		// now, which the pass resolves once.
+		var rules []profile.TermRule
+		if p.target {
+			if rules, err = res.vocab.rulesFor(p.file, string(p.locale)); err != nil {
+				return nil, "", err
+			}
+		}
 		for _, before := range []bool{true, false} {
-			blocks, owners := p.blocks(changes, before)
+			blocks, owners := p.blocks(changes, sources, before)
 			if len(blocks) == 0 {
 				continue
 			}
-			diags, err := c.run(ctx, res, p, blocks)
+			diags, err := c.run(ctx, res, p, rules, blocks)
 			if err != nil {
 				return nil, "", err
 			}
@@ -96,28 +104,81 @@ func (c *commitCheck) Check(ctx context.Context, changes []change.EditionChange)
 		}
 	}
 
-	fingerprint, err := c.fingerprint(recipe, root, passes)
+	fingerprint, err := c.fingerprint(in, res, passes)
 	if err != nil {
 		return nil, "", err
 	}
 	return outcomes, fingerprint, nil
 }
 
+// commitProject is the project one commit check resolves from its command:
+// the recipe, the directory it sits in, the recipe loaded, and the language
+// the project's content is written in. The recipe is empty outside a project.
+type commitProject struct {
+	recipe string
+	root   string
+	proj   *project.KapiProject
+	source string
+}
+
+// resolveCommitProject resolves the project cmd names, loading its recipe
+// once for everything the check resolves from it.
+func (a *App) resolveCommitProject(cmd Command) (commitProject, error) {
+	recipe, err := ResolveProjectPath(cmd)
+	if err != nil {
+		return commitProject{}, err
+	}
+	in := commitProject{recipe: recipe}
+	if recipe != "" {
+		in.root = filepath.Dir(recipe)
+		in.proj, err = project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
+		if err != nil {
+			return commitProject{}, fmt.Errorf("load project %s: %w", DisplayName(recipe), err)
+		}
+	}
+	in.source = a.commitSourceLocale(cmd, in.proj)
+	return in, nil
+}
+
+// commitSourceLocale is the language a commit check reads the project's
+// content in, in ResolveSourceLocale's order: a --source-lang cmd carries, or
+// the one named when the MCP server started; then the recipe's
+// defaults.source_language; then DefaultSourceLang.
+//
+// The App's SourceLang is neither read nor written. Kapi Desktop and the MCP
+// server keep one App for several projects and run calls at once, and the
+// field holds the language of whichever project resolved one last
+// (mcpCallSourceLocale reads an MCP call's language the same way). A term
+// lookup matches the locale exactly, so content read in another project's
+// language would be held to none of its terms.
+func (a *App) commitSourceLocale(cmd Command, proj *project.KapiProject) string {
+	named := a.mcpNamedSourceLang
+	if cmd != nil {
+		if f := cmd.Flags().Lookup(sourceLangFlag); f != nil && f.Changed {
+			named = f.Value.String()
+		}
+	}
+	var recipe model.LocaleID
+	if proj != nil {
+		recipe = proj.Defaults.SourceLanguage
+	}
+	return ResolveSourceLocale(named, recipe)
+}
+
 // newCommitResolution resolves what the commit check holds editions to: the
-// voice and the terms the project cmd resolves binds at each point, whatever
-// flags cmd carries, read in the project's source language. It keeps no
-// execution record, so the analyzers run without their canaries.
-func (a *App) newCommitResolution(ctx context.Context, cmd Command) (*checkResolution, error) {
-	voice, err := a.newProjectCheckVoice(ctx, cmd, nil)
+// voice and the terms the project binds at each point, whatever flags cmd
+// carries, read in the project's source language. It keeps no execution
+// record, so the analyzers run without their canaries.
+func (a *App) newCommitResolution(ctx context.Context, cmd Command, in commitProject) (*checkResolution, error) {
+	voice, err := a.checkVoiceAt(cmd, nil, in.recipe, in.proj, func(root string) (profile.Store, func(), error) {
+		return a.ProjectVoiceStore(ctx, root)
+	})
 	if err != nil {
 		return nil, err
 	}
-	vocab, err := a.newCheckTerms(cmd)
-	if err != nil {
-		voice.close()
-		return nil, err
-	}
-	opts := checkRunOptions{sourceLocale: a.SourceLocale(), editionsOnly: true}
+	vocab := a.checkTermsAt(cmd, in.recipe, in.proj)
+	vocab.sourceLocale = in.source
+	opts := checkRunOptions{sourceLocale: in.source, editionsOnly: true}
 	return &checkResolution{voice: voice, vocab: vocab, opts: opts}, nil
 }
 
@@ -127,8 +188,6 @@ func (a *App) newCommitResolution(ctx context.Context, cmd Command) (*checkResol
 type commitPass struct {
 	// file is where the document sits, which picks its governance point.
 	file string
-	// rel is file relative to the project root, empty outside a project.
-	rel string
 	// locale is the language of the editions: the source language for the
 	// source analyzers, a target language for the translation analyzers.
 	locale model.LocaleID
@@ -140,22 +199,22 @@ type commitPass struct {
 
 // plan groups the changes into passes, in the order their documents first
 // appear.
-func (c *commitCheck) plan(root, sourceLang string, changes []change.EditionChange) ([]*commitPass, error) {
+func (c *commitCheck) plan(in commitProject, changes []change.EditionChange) ([]*commitPass, error) {
 	var passes []*commitPass
 	byKey := map[string]*commitPass{}
 	for i, ch := range changes {
-		file, rel, err := commitDocFile(root, ch.Ref.Doc)
+		file, err := commitDocFile(in.root, ch.Ref.Doc)
 		if err != nil {
 			return nil, err
 		}
-		target, locale := editionLanguage(ch, sourceLang)
+		target, locale := editionLanguage(ch, in.source)
 		key := file + "\x00" + string(locale)
 		if !target {
 			key = file + "\x00"
 		}
 		p := byKey[key]
 		if p == nil {
-			p = &commitPass{file: file, rel: rel, locale: locale, target: target}
+			p = &commitPass{file: file, locale: locale, target: target}
 			byKey[key] = p
 			passes = append(passes, p)
 		}
@@ -166,22 +225,18 @@ func (c *commitCheck) plan(root, sourceLang string, changes []change.EditionChan
 
 // commitDocFile resolves a document reference to the file whose point governs
 // it. A member of an archive (container!entry) sits where its container sits.
-func commitDocFile(root, doc string) (file, rel string, err error) {
+func commitDocFile(root, doc string) (string, error) {
 	if doc == "" {
-		return "", "", errors.New("a changed edition names no document")
+		return "", errors.New("a changed edition names no document")
 	}
 	path, _, _ := strings.Cut(doc, "!")
-	if filepath.IsAbs(path) {
-		file = path
-	} else if root != "" {
-		file = filepath.Join(root, filepath.FromSlash(path))
-	} else if file, err = filepath.Abs(filepath.FromSlash(path)); err != nil {
-		return "", "", err
+	switch {
+	case filepath.IsAbs(path):
+		return path, nil
+	case root != "":
+		return filepath.Join(root, filepath.FromSlash(path)), nil
 	}
-	if root != "" {
-		rel, _ = projectRelPath(root, file)
-	}
-	return file, rel, nil
+	return filepath.Abs(filepath.FromSlash(path))
 }
 
 // editionLanguage says whether a changed edition is a translation, and the
@@ -214,6 +269,38 @@ func authoritative(ch change.EditionChange) bool {
 	return ch.Block != nil && ch.Block.IsSourceEdition(ch.Ref.Edition)
 }
 
+// removed reports whether the change set removed the edition, which leaves
+// nothing after the change to check: remove_edition, or delete_block taking
+// the edition with its block. The service says so with an AfterRev of
+// model.AbsentRevision. A change that carries no revisions says it with no
+// runs after the change, on a derived edition or in a block that is gone. The
+// authoritative edition of a block that still exists cannot be removed, and
+// one with no runs was emptied, which the hygiene analyzer holds it to.
+func removed(ch change.EditionChange) bool {
+	switch {
+	case ch.AfterRev == model.AbsentRevision:
+		return true
+	case len(ch.After) > 0:
+		return false
+	}
+	return ch.Block == nil || !authoritative(ch)
+}
+
+// blockRef names one block of one document.
+type blockRef struct{ doc, block string }
+
+// sourceChanges maps each block whose authoritative edition the change set
+// changed to that change.
+func sourceChanges(changes []change.EditionChange) map[blockRef]int {
+	out := map[blockRef]int{}
+	for i, ch := range changes {
+		if authoritative(ch) {
+			out[blockRef{ch.Ref.Doc, ch.Ref.Block}] = i
+		}
+	}
+	return out
+}
+
 // commitOwners maps the key of each analysis block to the change it stands
 // for.
 type commitOwners struct {
@@ -234,7 +321,12 @@ func (o commitOwners) of(block string) []int {
 // blocks builds one analysis block per change of the pass that holds the
 // edition on that side of the change. Each is keyed by its change's index, so
 // a diagnostic names the change it was found on.
-func (p *commitPass) blocks(changes []change.EditionChange, before bool) ([]*model.Block, commitOwners) {
+//
+// A translation is checked against the authoritative edition beside it on the
+// same side: after the change, the block's; before it, the authoritative
+// edition as it stood, which sources gives when the change set changed that
+// too.
+func (p *commitPass) blocks(changes []change.EditionChange, sources map[blockRef]int, before bool) ([]*model.Block, commitOwners) {
 	owners := commitOwners{byKey: map[string]int{}}
 	var blocks []*model.Block
 	for _, i := range p.changes {
@@ -246,15 +338,15 @@ func (p *commitPass) blocks(changes []change.EditionChange, before bool) ([]*mod
 				// The change set created the edition.
 				continue
 			}
-		} else if len(runs) == 0 && !authoritative(ch) {
-			// The change set removed a derived edition. The authoritative
-			// edition is never removed, so an empty one was emptied, which
-			// the hygiene analyzer holds it to.
+		} else if removed(ch) {
 			continue
 		}
 		key := fmt.Sprintf("edition-%d", i)
 		b := analysisBlock(ch.Block, key)
 		if p.target {
+			if j, ok := sources[blockRef{ch.Ref.Doc, ch.Ref.Block}]; ok && before {
+				b.Source = changes[j].Before
+			}
 			b.SetTargetRuns(p.locale, runs)
 		} else {
 			b.Source = runs
@@ -296,15 +388,12 @@ func analysisBlock(from *model.Block, key string) *model.Block {
 // findings on when it cannot annotate (runVoiceVocabOnBlock reads it).
 const voiceVocabFindingsProp = "voice-vocab-findings"
 
-// run runs a pass's analyzers over its analysis blocks.
-func (c *commitCheck) run(ctx context.Context, res *checkResolution, p *commitPass, blocks []*model.Block) ([]check.Diagnostic, error) {
+// run runs a pass's analyzers over its analysis blocks. rules are the term
+// rules a translation pass holds its editions to.
+func (c *commitCheck) run(ctx context.Context, res *checkResolution, p *commitPass, rules []profile.TermRule, blocks []*model.Block) ([]check.Diagnostic, error) {
 	a := c.app
 	if !p.target {
 		return a.checkBlocks(ctx, res, p.file, blocks)
-	}
-	rules, err := res.vocab.rulesFor(p.file, string(p.locale))
-	if err != nil {
-		return nil, err
 	}
 	return a.collectBilingualDiagnostics(ctx, blocks, p.file, p.locale, nil, rules, res.opts)
 }
@@ -317,25 +406,26 @@ func commitFinding(d check.Diagnostic, at change.Ref) change.Finding {
 }
 
 // fingerprint is the governance fingerprint of the editions the passes
-// checked: the one the staleness gate recomputes for a document and a
-// language (contextFingerprints), the voice guide and the term rules in force
-// there. A change set whose editions sit under one governance has that
-// fingerprint; one spanning several has a fingerprint over theirs, in sorted
-// order. Ungoverned editions add nothing, and a change set none of whose
-// editions are governed has none.
-func (c *commitCheck) fingerprint(recipe, root string, passes []*commitPass) (string, error) {
-	if recipe == "" {
+// checked. Each pass sits at one point, its document's, in one language, and
+// the governance there has the fingerprint the staleness gate recomputes for
+// that document and language (contextFingerprints): the voice guide and the
+// term rules in force. The voice is read from the store the editions were
+// checked under.
+//
+// A change set whose passes share one fingerprint has it. One whose passes
+// sit under several, such as a source edit beside its translation or edits to
+// documents at two points, has tool.OverlayConfigFingerprint over the distinct
+// fingerprints in sorted order, which a reader of the record recomputes from
+// the documents and languages of its transitions. Ungoverned editions add
+// nothing, and a change set none of whose editions are governed has none.
+func (c *commitCheck) fingerprint(in commitProject, res *checkResolution, passes []*commitPass) (string, error) {
+	if in.proj == nil {
 		return "", nil
 	}
-	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
-	if err != nil {
-		return "", fmt.Errorf("load project for the governance fingerprint: %w", err)
+	current := &contextFingerprints{
+		app: c.app, cmd: c.cmd, proj: in.proj, root: in.root, store: res.voice.store,
+		cache: map[string]governingContext{}, source: in.source,
 	}
-	current, err := newContextFingerprints(c.app, c.cmd, proj, root)
-	if err != nil {
-		return "", err
-	}
-	defer current.close()
 	// The voice and the terms at a point follow from the profile and the
 	// channel governing it, as the check's own resolvers assume, so documents
 	// at one governance resolve it once.
@@ -343,8 +433,8 @@ func (c *commitCheck) fingerprint(recipe, root string, passes []*commitPass) (st
 	resolved := map[governed]string{}
 	var fps []string
 	for _, p := range passes {
-		point := c.app.GovernancePointFor("", p.rel)
-		rc, err := c.app.ResolveGovernanceAtPoint(c.cmd, proj, point)
+		point := c.app.governancePointForFile(in.root, p.file)
+		rc, err := c.app.ResolveGovernanceAtPoint(c.cmd, in.proj, point)
 		if err != nil {
 			return "", err
 		}

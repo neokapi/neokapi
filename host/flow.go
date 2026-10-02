@@ -2127,6 +2127,14 @@ func (a *App) ResolveTermRules(cmd Command, targetLang string) ([]coreprofile.Te
 // enforces each brand's vocabulary over its own content. The zero point is the
 // project-wide resolution.
 func (a *App) ResolveTermRulesFor(cmd Command, targetLang string, point project.GovernancePoint) ([]coreprofile.TermRule, error) {
+	return a.resolveTermRules(cmd, a.SourceLocale(), targetLang, point)
+}
+
+// resolveTermRules is ResolveTermRulesFor for content written in source, for a
+// caller that resolved the source language of its own project rather than
+// reading the App's, which a long-lived App holds for whichever project
+// resolved one last.
+func (a *App) resolveTermRules(cmd Command, source, targetLang string, point project.GovernancePoint) ([]coreprofile.TermRule, error) {
 	concepts, err := a.projectConcepts(cmd, point)
 	if err != nil || len(concepts) == 0 {
 		return nil, err
@@ -2141,7 +2149,7 @@ func (a *App) ResolveTermRulesFor(cmd Command, targetLang string, point project.
 	// replacement, and its admitted and approved terms as accepted renderings. A
 	// do-not-translate concept is answered by the source term alone, including in
 	// a locale the store has never heard of, such as the pseudo locale.
-	return sqlterms.RulesFromConcepts(concepts, model.LocaleID(a.SourceLocale()), target), nil
+	return sqlterms.RulesFromConcepts(concepts, model.LocaleID(source), target), nil
 }
 
 // projectConcepts loads the terms concepts governing a point, for the

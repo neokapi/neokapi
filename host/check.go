@@ -1420,26 +1420,27 @@ func (a *App) newCheckVoice(cmd Command, warnings *voiceWarnings) (*checkVoice, 
 	})
 }
 
-// newProjectCheckVoice builds the resolver that answers with the voice the
-// project cmd resolves binds at each point, read from the project's own store,
-// whatever flags cmd carries. Outside a project it answers none.
-func (a *App) newProjectCheckVoice(ctx context.Context, cmd Command, warnings *voiceWarnings) (*checkVoice, error) {
-	return a.projectCheckVoice(cmd, warnings, func(root string) (profile.Store, func(), error) {
-		return a.ProjectVoiceStore(ctx, root)
-	})
-}
-
 // projectCheckVoice builds the resolver for the project cmd resolves, with the
 // voice store open returns for the project's root.
 func (a *App) projectCheckVoice(cmd Command, warnings *voiceWarnings, open func(root string) (profile.Store, func(), error)) (*checkVoice, error) {
-	v := &checkVoice{app: a, cmd: cmd, cache: map[string]checkedVoice{}, warnings: warnings}
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
-		return v, err
+		return &checkVoice{app: a, cmd: cmd, cache: map[string]checkedVoice{}, warnings: warnings}, err
 	}
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
 		return nil, fmt.Errorf("load project for voice: %w", lerr)
+	}
+	return a.checkVoiceAt(cmd, warnings, projectPath, proj, open)
+}
+
+// checkVoiceAt builds the resolver for proj, the project whose recipe is
+// projectPath, with the voice store open returns for the project's root. An
+// empty projectPath is no project, and the resolver answers none.
+func (a *App) checkVoiceAt(cmd Command, warnings *voiceWarnings, projectPath string, proj *project.KapiProject, open func(root string) (profile.Store, func(), error)) (*checkVoice, error) {
+	v := &checkVoice{app: a, cmd: cmd, cache: map[string]checkedVoice{}, warnings: warnings}
+	if projectPath == "" {
+		return v, nil
 	}
 	store, release, serr := open(filepath.Dir(projectPath))
 	if serr != nil {
@@ -1474,26 +1475,40 @@ type checkTerms struct {
 	recipe string
 	// declared is the recipe's own term rules, read on first use.
 	declared *profile.RecipeTermRules
+	// sourceLocale is the language the project's content is written in, which
+	// a translation's term rules are derived from. Empty is the App's
+	// (SourceLocale), which a command-line run resolves once for the whole
+	// invocation.
+	sourceLocale string
 }
 
 // newCheckTerms builds the resolver for one run. Outside a project there is no
 // decided vocabulary, and the resolver answers nil for every file.
 func (a *App) newCheckTerms(cmd Command) (*checkTerms, error) {
-	t := &checkTerms{app: a, cmd: cmd, cache: map[string]terms.Terminology{}}
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
-		return t, err
+		return &checkTerms{app: a, cmd: cmd, cache: map[string]terms.Terminology{}}, err
 	}
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
 		return nil, fmt.Errorf("load project for terms: %w", lerr)
+	}
+	return a.checkTermsAt(cmd, projectPath, proj), nil
+}
+
+// checkTermsAt builds the resolver for proj, the project whose recipe is
+// projectPath. An empty projectPath is no project.
+func (a *App) checkTermsAt(cmd Command, projectPath string, proj *project.KapiProject) *checkTerms {
+	t := &checkTerms{app: a, cmd: cmd, cache: map[string]terms.Terminology{}}
+	if projectPath == "" {
+		return t
 	}
 	t.proj, t.root, t.recipe = proj, filepath.Dir(projectPath), projectPath
 	// A candidate is advice, and advice is not worth failing a check to
 	// produce: a workspace a sandbox cannot open, or a log this build cannot
 	// read, leaves the run with the vocabulary the project's own stores carry.
 	t.rules, _ = a.newContextRules(cmd, projectPath)
-	return t, nil
+	return t
 }
 
 // contextAt is what the project's context operations add at a point.
@@ -1541,7 +1556,8 @@ func (a *App) projectTermsAt(ctx context.Context, cmd Command, point project.Gov
 // rulesFor returns the term rules a translation of file into target is held to:
 // the rules the terms bound at the file's point give for that language, and the
 // term rules the recipe declares for it, as the ship gate resolves them
-// (gateTermRules). Outside a project there are none.
+// (gateTermRules), for content in the resolver's source language. Outside a
+// project there are none.
 func (t *checkTerms) rulesFor(file, target string) ([]profile.TermRule, error) {
 	if t == nil || t.proj == nil {
 		return nil, nil
@@ -1553,7 +1569,11 @@ func (t *checkTerms) rulesFor(file, target string) ([]profile.TermRule, error) {
 		}
 		t.declared = &declared
 	}
-	return t.app.gateTermRules(t.cmd, *t.declared, target, t.app.governancePointForFile(t.root, file))
+	source := t.sourceLocale
+	if source == "" {
+		source = t.app.SourceLocale()
+	}
+	return t.app.gateTermRules(t.cmd, *t.declared, source, target, t.app.governancePointForFile(t.root, file))
 }
 
 // forFile returns the vocabulary governing one file, or nil when nothing binds

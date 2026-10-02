@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -101,12 +102,87 @@ func newCommitFixture(t *testing.T) commitFixture {
 }
 
 // command is the command a change set arrives on, in the fixture's project.
-func (f commitFixture) command(t *testing.T) Command {
+func (f commitFixture) command(t *testing.T) *EnvCommand {
+	t.Helper()
+	return projectCommand(t, f.recipe)
+}
+
+// projectCommand is the command a change set arrives on, in the project of
+// recipe.
+func projectCommand(t *testing.T, recipe string) *EnvCommand {
 	t.Helper()
 	cmd := NewEnvCommand(t.Context(), "apply")
 	AddProjectFlag(cmd)
-	require.NoError(t, cmd.Flags().Set("project", f.recipe))
+	require.NoError(t, cmd.Flags().Set("project", recipe))
 	return cmd
+}
+
+// norskVoice is a Norwegian project's voice. The word rule it carries moves
+// into the project's terms in Norwegian when the context is read: "benytte"
+// fails.
+const norskVoice = `name: Norsk
+terms:
+  - term: benytte
+    replacement: bruke
+`
+
+// norskRecipe is a project whose content is written in Norwegian and
+// translated into English.
+const norskRecipe = `version: v1
+id: %s
+name: norsk
+defaults:
+  source_language: nb
+  target_languages: [en]
+collections:
+  - name: docs
+    content:
+      - path: "docs/*.md"
+        target: "docs/{lang}/*.md"
+`
+
+// norskTerms holds the concept "knapp", which an English translation renders
+// as "button".
+const norskTerms = `{
+  "schemaVersion": "1.0",
+  "kind": "kapi-terms",
+  "concepts": [
+    {
+      "id": "c-knapp",
+      "terms": [
+        { "text": "knapp", "locale": "nb", "status": "preferred" },
+        { "text": "button", "locale": "en", "status": "preferred" }
+      ]
+    }
+  ]
+}
+`
+
+// newNorskProject is a project written in Norwegian, with its context read
+// in. It returns the recipe.
+func newNorskProject(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	recipe := filepath.Join(root, project.RecipeFileName)
+	require.NoError(t, os.WriteFile(recipe, []byte(strings.Replace(norskRecipe, "%s", projectIDFor("norsk"+t.Name()), 1)), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "docs"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "guide.md"), []byte("# Veiledning\n\nVelg knapp nummer to.\n"), 0o644))
+	voice := layoutVoicePath(t, root)
+	require.NoError(t, os.WriteFile(voice, []byte(norskVoice), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(voice), "terms.json"), []byte(norskTerms), 0o644))
+	readProjectContext(t, root)
+	return recipe
+}
+
+// norskBlock is a paragraph of the Norwegian project's guide, with an English
+// translation when en is set.
+func norskBlock(source, en string) *model.Block {
+	b := &model.Block{ID: "p1", Translatable: true, SourceLocale: "nb",
+		Source: []model.Run{{Text: &model.TextRun{Text: source}}}}
+	if en != "" {
+		b.SetTargetRuns("en", []model.Run{{Text: &model.TextRun{Text: en}}})
+	}
+	return b
 }
 
 // paragraph reads the guide's paragraph block, with its source set to source
@@ -332,7 +408,9 @@ func TestCommitCheck_LeavesDocumentRulesToKapiCheck(t *testing.T) {
 		assert.NotContains(t, finding.Message, "handbook", "a document rule ran at commit: %+v", finding)
 	}
 
-	res, err := f.app.newCommitResolution(t.Context(), f.command(t))
+	in, err := f.app.resolveCommitProject(f.command(t))
+	require.NoError(t, err)
+	res, err := f.app.newCommitResolution(t.Context(), f.command(t), in)
 	require.NoError(t, err)
 	defer res.close()
 	res.opts.editionsOnly = false
@@ -421,4 +499,251 @@ func TestCommitCheck_OutsideAProjectHoldsHygieneAlone(t *testing.T) {
 	assert.Empty(t, fingerprint)
 	assert.Equal(t, []string{"hygiene.empty"}, rules(change.Introduced(outcomes[0])))
 	assert.Empty(t, outcomes[0].Before, "no terms govern the word outside a project")
+}
+
+// One App checks change sets for projects written in different languages, as
+// Kapi Desktop and the MCP server do. Each project's content is read in its
+// own language, whichever project the App checked before, so each is held to
+// its own terms, and the English project's fingerprint is the one its
+// staleness gate recomputes.
+func TestCommitCheck_ReadsEachProjectInItsOwnLanguage(t *testing.T) {
+	f := newCommitFixture(t)
+	norsk := newNorskProject(t)
+
+	// The fingerprint each project's staleness gate recomputes for its guide,
+	// on an App that resolved that project's language.
+	fingerprintOf := func(recipe string, source string) string {
+		a := &App{SourceLang: source}
+		a.InitRegistries()
+		defer a.Shutdown()
+		proj, err := project.Load(recipe)
+		require.NoError(t, err)
+		current, err := newContextFingerprints(a, projectCommand(t, recipe), proj, filepath.Dir(recipe))
+		require.NoError(t, err)
+		defer current.close()
+		g, err := current.at(a.GovernancePointFor("", "docs/guide.md"), source)
+		require.NoError(t, err)
+		require.NotEmpty(t, g.fingerprint)
+		return g.fingerprint
+	}
+	want := map[string]string{f.recipe: fingerprintOf(f.recipe, "en"), norsk: fingerprintOf(norsk, "nb")}
+
+	english := func(t *testing.T) change.EditionChange {
+		return edit(t, f.paragraph(t, "We use the widget every day.", ""), "", "We utilize the widget every day.")
+	}
+	norwegian := func(t *testing.T) change.EditionChange {
+		return edit(t, norskBlock("Vi bruker widgeten hver dag.", ""), "", "Vi vil benytte widgeten hver dag.")
+	}
+	translation := func(t *testing.T) change.EditionChange {
+		return edit(t, norskBlock("Velg knapp nummer to.", "Choose button number two."), "en", "Choose item number two.")
+	}
+
+	app := &App{}
+	app.InitRegistries()
+	t.Cleanup(app.Shutdown)
+	steps := []struct {
+		name   string
+		recipe string
+		change func(*testing.T) change.EditionChange
+		// introduced is the rule of the failing finding the edit introduces.
+		introduced string
+		// source says the edit is to a source-language edition, whose
+		// fingerprint is the guide's in the project's language.
+		source bool
+	}{
+		{"a Norwegian edit meets the Norwegian terms", norsk, norwegian, "terms.vocabulary", true},
+		{"an English edit meets the English terms after a Norwegian check", f.recipe, english, "terms.vocabulary", true},
+		{"a translation of Norwegian meets the rules derived from Norwegian", norsk, translation, "terms.terminology", false},
+		{"an English edit meets the English terms after a Norwegian translation", f.recipe, english, "terms.vocabulary", true},
+	}
+	for _, step := range steps {
+		t.Run(step.name, func(t *testing.T) {
+			outcomes, fingerprint, err := app.CommitCheck(projectCommand(t, step.recipe)).Check(t.Context(), []change.EditionChange{step.change(t)})
+			require.NoError(t, err)
+			assert.Equal(t, []string{step.introduced}, rules(change.Introduced(outcomes[0])), "%+v", outcomes[0])
+			if step.source {
+				assert.Equal(t, want[step.recipe], fingerprint, "the fingerprint of the project's source-language governance")
+			}
+		})
+	}
+	assert.Empty(t, app.SourceLang, "a commit check writes no source language on the App")
+}
+
+// Change sets for two projects checked at once on one App are each read in
+// their own project's language. Run under -race, the calls share no state.
+func TestCommitCheck_ChecksTwoProjectsAtOnce(t *testing.T) {
+	f := newCommitFixture(t)
+	norsk := newNorskProject(t)
+	app := &App{}
+	app.InitRegistries()
+	t.Cleanup(app.Shutdown)
+
+	type call struct {
+		recipe string
+		change change.EditionChange
+	}
+	var calls []call
+	for range 4 {
+		calls = append(calls,
+			call{f.recipe, edit(t, f.paragraph(t, "We use the widget every day.", ""), "", "We utilize the widget every day.")},
+			call{norsk, edit(t, norskBlock("Vi bruker widgeten hver dag.", ""), "", "Vi vil benytte widgeten hver dag.")})
+	}
+	introduced := make([][]string, len(calls))
+	errs := make([]error, len(calls))
+	var wg sync.WaitGroup
+	for i, c := range calls {
+		cmd := projectCommand(t, c.recipe)
+		wg.Go(func() {
+			outcomes, _, err := app.CommitCheck(cmd).Check(t.Context(), []change.EditionChange{c.change})
+			errs[i] = err
+			if err == nil {
+				introduced[i] = rules(change.Introduced(outcomes[0]))
+			}
+		})
+	}
+	wg.Wait()
+	for i := range calls {
+		require.NoError(t, errs[i])
+		assert.Equal(t, []string{"terms.vocabulary"}, introduced[i], "call %d, %s", i, calls[i].recipe)
+	}
+}
+
+// Deleting a block removes its editions with it, so there is nothing after
+// the change to hold to the rules, and the deletion introduces nothing, even
+// of a block whose wording broke one. The service says an edition was removed
+// with an AfterRev of absent; a change that carries no revisions says it with
+// no block after the change.
+func TestCommitCheck_DeletingABlockIntroducesNothing(t *testing.T) {
+	f := newCommitFixture(t)
+	b := f.paragraph(t, "We utilize the widget every day.", "Nous utilisons le truc.")
+	fr := model.EditionKey{Locale: "fr"}
+	srcRef := change.Ref{Doc: "docs/guide.md", Block: blockKey(b)}
+	frRef := change.Ref{Doc: "docs/guide.md", Block: blockKey(b), Edition: fr}
+	src, _ := b.Edition(model.EditionKey{})
+	tgt, _ := b.Edition(fr)
+	cases := []struct {
+		name    string
+		changes []change.EditionChange
+	}{
+		{"as the service reports it", []change.EditionChange{
+			{Ref: srcRef, Role: change.RoleAuthoritative, Before: src.Runs, BeforeRev: model.EditionRevision(b, model.EditionKey{}),
+				AfterRev: model.AbsentRevision, Block: b},
+			{Ref: frRef, Role: change.RoleDerived, Before: tgt.Runs, BeforeRev: model.EditionRevision(b, fr),
+				AfterRev: model.AbsentRevision, Block: b},
+		}},
+		{"with no revisions and no block after", []change.EditionChange{
+			{Ref: srcRef, Role: change.RoleAuthoritative, Before: src.Runs},
+			{Ref: frRef, Role: change.RoleDerived, Before: tgt.Runs},
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			outcomes, _, err := f.app.CommitCheck(f.command(t)).Check(t.Context(), tc.changes)
+			require.NoError(t, err)
+			require.Len(t, outcomes, 2)
+			assert.Equal(t, []string{"terms.vocabulary"}, rules(outcomes[0].Before), "the source broke a rule before it was deleted")
+			assert.Equal(t, []string{"terms.terminology"}, rules(outcomes[1].Before), "the translation broke a rule before it was deleted")
+			for _, o := range outcomes {
+				assert.Empty(t, o.After)
+				assert.Empty(t, change.Introduced(o))
+			}
+		})
+	}
+}
+
+// A change set that edits a source and its translation together holds the
+// translation, before the change, to the source it was written against. A
+// rule the new source demands and the new translation misses is introduced by
+// the change set, although the old translation lacked the rendering too: the
+// old source never asked for it.
+func TestCommitCheck_HoldsATranslationToTheSourceItWasWrittenAgainst(t *testing.T) {
+	f := newCommitFixture(t)
+	b := f.paragraph(t, "We use the tool every day.", "Nous utilisons l'outil chaque jour.")
+	source := edit(t, b, "", "We use the widget every day.")
+	fr := edit(t, b, "fr", "Nous utilisons le truc chaque jour.")
+	outcomes, _, err := f.app.CommitCheck(f.command(t)).Check(t.Context(), []change.EditionChange{source, fr})
+	require.NoError(t, err)
+	require.Len(t, outcomes, 2)
+	assert.Empty(t, change.Introduced(outcomes[0]))
+	assert.Empty(t, outcomes[1].Before, "the old translation met the rules of the old source")
+	assert.Equal(t, []string{"terms.terminology"}, rules(change.Introduced(outcomes[1])))
+}
+
+// The fingerprint is taken under the governance the editions were checked
+// under: the project's own voice store, whatever store the command names for
+// `kapi voice`.
+func TestCommitCheck_FingerprintsUnderTheProjectVoiceStore(t *testing.T) {
+	f := newCommitFixture(t)
+	proj, err := project.Load(f.recipe)
+	require.NoError(t, err)
+	current, err := newContextFingerprints(f.app, f.command(t), proj, f.root)
+	require.NoError(t, err)
+	want, err := current.at(f.app.GovernancePointFor("", "docs/guide.md"), "en")
+	current.close()
+	require.NoError(t, err)
+	require.NotEmpty(t, want.profileID, "the project's voice governs the guide")
+
+	cmd := f.command(t)
+	cmd.Flags().String("file", "", "")
+	require.NoError(t, cmd.Flags().Set("file", filepath.Join(t.TempDir(), "voice.db")))
+	ch := edit(t, f.paragraph(t, "We use the widget every day.", ""), "", "We use the widget each day.")
+	_, got, err := f.app.CommitCheck(cmd).Check(t.Context(), []change.EditionChange{ch})
+	require.NoError(t, err)
+	assert.Equal(t, want.fingerprint, got)
+}
+
+// channelRecipe binds the landing profile's voice to the web collection; the
+// rest of the project sits at the project's own voice.
+const channelRecipe = `version: v1
+id: %s
+name: channels
+defaults:
+  source_language: en
+profiles:
+  landing:
+    channels: [web]
+collections:
+  - name: web
+    channel: landing/web
+    content:
+      - path: "web/*.md"
+`
+
+// A file the project's ignore rules leave out sits at the project's default
+// point, which is where the analyzers hold its edits, and its fingerprint is
+// the governance there rather than at the collection that would claim it.
+func TestCommitCheck_FingerprintsAnIgnoredFileAtTheDefaultPoint(t *testing.T) {
+	isolateCheckExecution(t)
+	root := t.TempDir()
+	recipe := filepath.Join(root, project.RecipeFileName)
+	require.NoError(t, os.WriteFile(recipe, []byte(strings.Replace(channelRecipe, "%s", projectIDFor("channels"+t.Name()), 1)), 0o644))
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte("name: House\ntone:\n  formality: neutral\n"), 0o644))
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root, "landing"), []byte(commitVoice), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".kapiignore"), []byte("web/drafts.md\n"), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "web"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "web", "drafts.md"), []byte("We use the widget.\n"), 0o644))
+	readProjectContext(t, root)
+
+	app := &App{}
+	app.InitRegistries()
+	t.Cleanup(app.Shutdown)
+	cmd := projectCommand(t, recipe)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	current, err := newContextFingerprints(app, cmd, proj, root)
+	require.NoError(t, err)
+	atDefault, err := current.at(app.GovernancePointFor("", ""), "en")
+	require.NoError(t, err)
+	atCollection, err := current.at(app.GovernancePointFor("", "web/drafts.md"), "en")
+	require.NoError(t, err)
+	current.close()
+	require.NotEqual(t, atDefault.fingerprint, atCollection.fingerprint, "the collection's voice differs from the project's")
+
+	b := &model.Block{ID: "p1", Translatable: true, SourceLocale: "en", Source: []model.Run{{Text: &model.TextRun{Text: "We use the widget."}}}}
+	ch := edit(t, b, "", "We simply use the widget.")
+	ch.Ref.Doc = "web/drafts.md"
+	outcomes, got, err := app.CommitCheck(cmd).Check(t.Context(), []change.EditionChange{ch})
+	require.NoError(t, err)
+	assert.Equal(t, atDefault.fingerprint, got)
+	assert.Empty(t, change.Introduced(outcomes[0]), "the landing voice's pattern holds at the collection, not at the default point")
 }

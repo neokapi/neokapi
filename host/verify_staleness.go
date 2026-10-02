@@ -235,6 +235,9 @@ type contextFingerprints struct {
 	store   coreprofile.Store
 	release func()
 	cache   map[string]governingContext
+	// source is the language the project's content is written in, which the
+	// term rules are derived from. Empty is the App's (SourceLocale).
+	source string
 }
 
 func newContextFingerprints(a *App, cmd Command, proj *project.KapiProject, root string) (*contextFingerprints, error) {
@@ -272,7 +275,11 @@ func (c *contextFingerprints) at(point project.GovernancePoint, locale string) (
 	if !found {
 		p = nil
 	}
-	rules, err := c.app.ResolveTermRulesFor(c.cmd, locale, point)
+	source := c.source
+	if source == "" {
+		source = c.app.SourceLocale()
+	}
+	rules, err := c.app.resolveTermRules(c.cmd, source, locale, point)
 	if err != nil {
 		return governingContext{}, err
 	}
