@@ -78,9 +78,9 @@ a `manifest.json` is a plugin; a symlink counts, which is what makes the system
 roots work: a package manager stages the plugin inside its own package prefix
 and links it into the shared root (Homebrew links
 `/opt/homebrew/share/kapi/plugins/<plugin>` to the formula's keg).
-First-match-wins on plugin name. Two different plugins declaring the same
-capability is an error: kapi prints both manifests and refuses to dispatch the
-conflicting capability. A consolidated dispatch cache at
+First-match-wins on plugin name. Two or more different plugins declaring the
+same capability is an error: kapi names the providers and dispatches that
+capability to none of them. A consolidated dispatch cache at
 `$XDG_CACHE_HOME/kapi/plugins-cache.json` skips manifest parsing when no
 discovery root has changed.
 

@@ -186,6 +186,23 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 	}
 	h.plugins = dedup
 
+	// Keep ownership claims even after removing a conflicting route. Otherwise
+	// a third provider can register the same capability after the first two
+	// have cancelled each other out.
+	type capabilityKey struct {
+		kind string
+		name string
+	}
+	owners := map[capabilityKey]*Plugin{}
+	claim := func(kind, name string, plugin *Plugin) *Plugin {
+		key := capabilityKey{kind: kind, name: name}
+		if owner := owners[key]; owner != nil {
+			return owner
+		}
+		owners[key] = plugin
+		return nil
+	}
+
 	for _, p := range dedup {
 		// A retired plugin stays in the list (for surfacing + prune) but is
 		// inert: it contributes nothing to any dispatch table, so kapi never
@@ -197,40 +214,55 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 			continue
 		}
 		for _, c := range p.Manifest.Capabilities.Commands {
-			if existing, ok := h.commandDispatch[c.Name]; ok {
-				conflicts(fmt.Sprintf("command %q is provided by plugins %q and %q, and neither will dispatch until one is removed", c.Name, existing.Plugin.Name(), p.Name()))
+			if existing := claim("command", c.Name, p); existing != nil {
+				conflicts(fmt.Sprintf(
+					"command %q is provided by plugins %q and %q, and neither will dispatch until one is removed",
+					c.Name, existing.Name(), p.Name(),
+				))
 				delete(h.commandDispatch, c.Name)
 				continue
 			}
 			h.commandDispatch[c.Name] = &CommandRoute{Plugin: p, Command: c}
 		}
 		for _, t := range p.Manifest.Capabilities.MCPTools {
-			if existing, ok := h.mcpDispatch[t.Name]; ok {
-				conflicts(fmt.Sprintf("MCP tool %q is provided by plugins %q and %q, and neither will dispatch until one is removed", t.Name, existing.Plugin.Name(), p.Name()))
+			if existing := claim("MCP tool", t.Name, p); existing != nil {
+				conflicts(fmt.Sprintf(
+					"MCP tool %q is provided by plugins %q and %q, and neither will dispatch until one is removed",
+					t.Name, existing.Name(), p.Name(),
+				))
 				delete(h.mcpDispatch, t.Name)
 				continue
 			}
 			h.mcpDispatch[t.Name] = &MCPRoute{Plugin: p, Tool: t}
 		}
 		for _, f := range p.Manifest.Capabilities.Formats {
-			if existing, ok := h.formatDispatch[f.Name]; ok {
-				conflicts(fmt.Sprintf("format %q is provided by plugins %q and %q, and neither will dispatch until one is removed", f.Name, existing.Plugin.Name(), p.Name()))
+			if existing := claim("format", f.Name, p); existing != nil {
+				conflicts(fmt.Sprintf(
+					"format %q is provided by plugins %q and %q, and neither will dispatch until one is removed",
+					f.Name, existing.Name(), p.Name(),
+				))
 				delete(h.formatDispatch, f.Name)
 				continue
 			}
 			h.formatDispatch[f.Name] = &FormatRoute{Plugin: p, Format: f}
 		}
 		for _, s := range p.Manifest.Capabilities.Segmenters {
-			if existing, ok := h.segmenterDispatch[s.Name]; ok {
-				conflicts(fmt.Sprintf("segmenter %q is provided by plugins %q and %q, and neither will dispatch until one is removed", s.Name, existing.Plugin.Name(), p.Name()))
+			if existing := claim("segmenter", s.Name, p); existing != nil {
+				conflicts(fmt.Sprintf(
+					"segmenter %q is provided by plugins %q and %q, and neither will dispatch until one is removed",
+					s.Name, existing.Name(), p.Name(),
+				))
 				delete(h.segmenterDispatch, s.Name)
 				continue
 			}
 			h.segmenterDispatch[s.Name] = &SegmenterRoute{Plugin: p, Segmenter: s}
 		}
 		for _, c := range p.Manifest.Capabilities.Comments {
-			if existing, ok := h.commentDispatch[c.Language]; ok {
-				conflicts(fmt.Sprintf("comments in %q are read by plugins %q and %q, and neither will be used until one is removed", c.Language, existing.Plugin.Name(), p.Name()))
+			if existing := claim("comments", c.Language, p); existing != nil {
+				conflicts(fmt.Sprintf(
+					"comments in %q are read by plugins %q and %q, and neither will be used until one is removed",
+					c.Language, existing.Name(), p.Name(),
+				))
 				delete(h.commentDispatch, c.Language)
 				continue
 			}
@@ -246,8 +278,11 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 			if ns.Prefix == "" {
 				continue
 			}
-			if existing, ok := h.configNS[ns.Prefix]; ok {
-				conflicts(fmt.Sprintf("config namespace %q is claimed by plugins %q and %q, and neither will resolve until one is removed", ns.Prefix, existing.Plugin.Name(), p.Name()))
+			if existing := claim("config namespace", ns.Prefix, p); existing != nil {
+				conflicts(fmt.Sprintf(
+					"config namespace %q is claimed by plugins %q and %q, and neither will resolve until one is removed",
+					ns.Prefix, existing.Name(), p.Name(),
+				))
 				delete(h.configNS, ns.Prefix)
 				continue
 			}

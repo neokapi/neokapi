@@ -132,17 +132,27 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 	ch := make(chan model.PartResult, 64)
 	go func() {
 		defer close(ch)
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		emit := func(result model.PartResult) bool {
+			select {
+			case ch <- result:
+				return true
+			case <-ctx.Done():
+				return false
+			}
+		}
 
 		client, err := r.pool.Acquire(ctx, r.plugin)
 		if err != nil {
-			ch <- model.PartResult{Error: fmt.Errorf("acquire daemon for plugin %q: %w", r.plugin.Name(), err)}
+			emit(model.PartResult{Error: fmt.Errorf("acquire daemon for plugin %q: %w", r.plugin.Name(), err)})
 			return
 		}
 		bridgeClient := pb.NewBridgeServiceClient(client.Conn)
 
 		stream, err := bridgeClient.Process(ctx)
 		if err != nil {
-			ch <- model.PartResult{Error: fmt.Errorf("process: %w", err)}
+			emit(model.PartResult{Error: fmt.Errorf("process: %w", err)})
 			return
 		}
 
@@ -166,7 +176,7 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 			header.Input = &pb.ContentRef{Location: &pb.ContentRef_Inline{Inline: r.content}}
 		}
 		if err := stream.Send(&pb.ProcessRequest{Request: &pb.ProcessRequest_Header{Header: header}}); err != nil {
-			ch <- model.PartResult{Error: fmt.Errorf("send header: %w", err)}
+			emit(model.PartResult{Error: fmt.Errorf("send header: %w", err)})
 			return
 		}
 		// Read-only mode: signal we have nothing more to send so the
@@ -177,46 +187,35 @@ func (r *daemonReader) Read(ctx context.Context) <-chan model.PartResult {
 			resp, err := stream.Recv()
 			if err != nil {
 				if errors.Is(err, io.EOF) {
-					return
+					err = io.ErrUnexpectedEOF
 				}
-				ch <- model.PartResult{Error: fmt.Errorf("recv: %w", err)}
+				emit(model.PartResult{Error: fmt.Errorf("recv before process completion: %w", err)})
 				return
 			}
 			switch m := resp.Response.(type) {
 			case *pb.ProcessResponse_Part:
-				select {
-				case ch <- model.PartResult{Part: protoconvert.ProtoToPart(m.Part)}:
-				case <-ctx.Done():
-					// The consumer cancelled and has stopped draining; a
-					// further send would block forever. The cancellation is
-					// already observable via ctx, so just unwind.
+				if !emit(model.PartResult{Part: protoconvert.ProtoToPart(m.Part)}) {
 					return
 				}
 			case *pb.ProcessResponse_PartBatch:
 				for _, p := range m.PartBatch.Parts {
-					select {
-					case ch <- model.PartResult{Part: protoconvert.ProtoToPart(p)}:
-					case <-ctx.Done():
+					if !emit(model.PartResult{Part: protoconvert.ProtoToPart(p)}) {
 						return
 					}
 				}
 			case *pb.ProcessResponse_ContentBatch:
 				for _, cb := range m.ContentBatch.Blocks {
-					select {
-					case ch <- model.PartResult{Part: protoconvert.ContentBlockToPart(cb)}:
-					case <-ctx.Done():
+					if !emit(model.PartResult{Part: protoconvert.ContentBlockToPart(cb)}) {
 						return
 					}
 				}
 			case *pb.ProcessResponse_ReadDone:
-				// Continue: a ProcessComplete (or stream EOF) follows.
+				// ReadDone ends the read phase; ProcessComplete ends the RPC.
 			case *pb.ProcessResponse_Complete:
 				if m.Complete.Error != "" {
-					// The daemon reports failures in-band as a plain string. Wrap
-					// it in a gRPC status so callers can inspect it the same way
-					// they would a transport-level recv error (status.Code etc.);
-					// the proto carries no code, so Internal is the honest default.
-					ch <- model.PartResult{Error: status.Errorf(codes.Internal, "daemon: %s", m.Complete.Error)}
+					// In-band errors have no status code; expose Internal just as
+					// transport errors expose their gRPC status to callers.
+					emit(model.PartResult{Error: status.Errorf(codes.Internal, "daemon: %s", m.Complete.Error)})
 				}
 				return
 			}
@@ -231,9 +230,10 @@ func (r *daemonReader) Close() error { return nil }
 
 // daemonWriter implements format.DataFormatWriter by routing parts
 // through a Mode-C daemon's BridgeService.Process RPC in read-write
-// mode (header carries OutputRef). The writer buffers the stream of
-// parts in-memory for the duration of one document because the proto
-// expects a single Process call to drive both phases.
+// mode (header carries OutputRef). It sends processed parts concurrently with
+// receiving source parts, preserving transport backpressure without buffering
+// the document's part stream. Inline source and output bytes remain whole
+// document payloads in the protocol.
 type daemonWriter struct {
 	format.BaseFormatWriter
 
@@ -353,7 +353,15 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 	// because the Write contract is "consume processed parts and emit
 	// the document". The processed parts we send are the targets.
 	sendErr := make(chan error, 1)
+	sendDone := make(chan struct{})
+	defer func() {
+		cancel()
+		// The sender may still be reading a Part while converting it. Return
+		// ownership to the caller only after that goroutine has stopped.
+		<-sendDone
+	}()
 	go func() {
+		defer close(sendDone)
 		defer func() { _ = stream.CloseSend() }()
 		for {
 			select {
@@ -380,9 +388,9 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 		resp, err := stream.Recv()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				break
+				err = io.ErrUnexpectedEOF
 			}
-			return fmt.Errorf("recv: %w", err)
+			return fmt.Errorf("recv before process completion: %w", err)
 		}
 		if c, ok := resp.Response.(*pb.ProcessResponse_Complete); ok {
 			if c.Complete.Error != "" {
@@ -396,8 +404,18 @@ func (w *daemonWriter) Write(ctx context.Context, parts <-chan *model.Part) erro
 		// final ProcessComplete in writer mode.
 	}
 
-	if err := <-sendErr; err != nil {
-		return err
+	// A daemon may complete before the host closes its input: okapi-bridge
+	// sends ProcessComplete once its pipeline has written the document, which
+	// can precede the last structural parts the host sends. Completion then
+	// waits for the sender to finish the input, bounded by ctx. A stream that
+	// ended without completion has already returned io.ErrUnexpectedEOF above.
+	select {
+	case err := <-sendErr:
+		if err != nil {
+			return err
+		}
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 
 	if outputPath == "" && w.outWriter != nil && len(output) > 0 {
