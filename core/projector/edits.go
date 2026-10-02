@@ -106,63 +106,115 @@ func BlobAddress(ref string) (string, bool) {
 
 // RecordEdit records an applied edit to one document as a content.edit
 // operation and writes it into the block history, and returns the
-// operation's id.
+// operation's id. It is RecordEdits for one edit.
+func (p *Projector) RecordEdit(ctx context.Context, e Edit) (string, error) {
+	ids, err := p.RecordEdits(ctx, []Edit{e})
+	if len(ids) == 0 {
+		return "", err
+	}
+	return ids[0], err
+}
+
+// RecordEdits records applied edits, one content.edit operation each, in one
+// write to the log, writes them into the block history, and returns the
+// operations' ids in order. A change set that touched several documents, or a
+// flow's pass over a collection, records its documents together.
 //
-// The operation is addressed by the document, the actor and each transition,
+// Each operation is addressed by the document, the actor and each transition,
 // with the operation that left the edition at the revision the transition
 // starts from. Recording one edit twice (a retry, two processes noticing one
 // change made outside kapi) is therefore one operation, while the same change
 // made again after it was undone extends a later operation and is another.
+// Within one call, an edit that extends an earlier one in the same call is
+// chained to that edit's address. A call that changes one edition more than
+// once therefore records the later changes again when it is retried after it
+// landed; a change set changes each edition once, and a flow records each
+// document once per pass.
 //
 // A store with no log (the embedded layout) has no blob store and nothing to
-// address against: the record is written straight into the history, hash-only,
-// under an id minted here.
-func (p *Projector) RecordEdit(ctx context.Context, e Edit) (string, error) {
-	if e.Doc.Key == "" {
-		return "", errors.New("projector: an edit names no document")
+// address against: the records are written straight into the history,
+// hash-only, under ids minted here.
+func (p *Projector) RecordEdits(ctx context.Context, edits []Edit) ([]string, error) {
+	for _, e := range edits {
+		if e.Doc.Key == "" {
+			return nil, errors.New("projector: an edit names no document")
+		}
+		if len(e.Transitions) == 0 {
+			return nil, errors.New("projector: an edit with no transitions records nothing")
+		}
 	}
-	if len(e.Transitions) == 0 {
-		return "", errors.New("projector: an edit with no transitions records nothing")
+	if len(edits) == 0 {
+		return nil, nil
+	}
+	// The blobs are named on copies, so the caller's edits stay as given.
+	edits = slices.Clone(edits)
+	for i := range edits {
+		edits[i].Transitions = slices.Clone(edits[i].Transitions)
+		edits[i].Blobs = slices.Clone(edits[i].Blobs)
 	}
 	hs := p.st.History
 	if hs == nil {
-		return "", errNoSubsystem
+		return nil, errNoSubsystem
 	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.log != nil {
-		if err := p.catchUpLocked(ctx, nil); err != nil {
-			return "", err
-		}
-	}
 	now := time.Now().UTC()
 	if p.log == nil {
-		latest, err := hs.DocumentHead(ctx, e.Doc.Key)
-		if err != nil {
-			return "", err
+		ids := make([]string, 0, len(edits))
+		var latest string
+		for _, e := range edits {
+			head, err := hs.DocumentHead(ctx, e.Doc.Key)
+			if err != nil {
+				return ids, err
+			}
+			id := workspace.NewOpID(now, max(latest, head))
+			if err := hs.Put(ctx, editRows(id, now, e)); err != nil {
+				return ids, err
+			}
+			ids, latest = append(ids, id), id
 		}
-		id := workspace.NewOpID(now, latest)
-		return id, hs.Put(ctx, editRows(id, now, e))
+		return ids, nil
 	}
-	reached, err := hs.Reached(ctx, e.Doc.Key)
-	if err != nil {
-		return "", err
+	if err := p.catchUpLocked(ctx, nil); err != nil {
+		return nil, err
 	}
 
-	if err := p.storeEditBlobs(ctx, &e); err != nil {
-		return "", err
+	reached := map[string]map[history.Reach]string{}
+	ops := make([]workspace.Op, 0, len(edits))
+	for i := range edits {
+		e := &edits[i]
+		doc, ok := reached[e.Doc.Key]
+		if !ok {
+			var err error
+			if doc, err = hs.Reached(ctx, e.Doc.Key); err != nil {
+				return nil, err
+			}
+			reached[e.Doc.Key] = doc
+		}
+		if err := p.storeEditBlobs(ctx, e); err != nil {
+			return nil, err
+		}
+		op, err := p.encodeEdit(ctx, *e, now)
+		if err != nil {
+			return nil, err
+		}
+		op.Address = editAddress(p.key, *e, doc)
+		for _, t := range e.Transitions {
+			doc[history.Reach{Block: t.Block, Edition: t.Edition, Rev: t.After}] = op.Address
+		}
+		ops = append(ops, op)
 	}
-	op, err := p.encodeEdit(ctx, e, now)
+	written, err := p.log.Record(ctx, ops...)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	op.Address = editAddress(p.key, e, reached)
-	written, err := p.log.Record(ctx, op)
-	if err != nil {
-		return "", err
+	ids := make([]string, len(written))
+	mine := make(map[string]pending, len(written))
+	for i, op := range written {
+		ids[i] = op.ID
+		mine[op.ID] = pending{kind: KindEdit, edit: &edits[i]}
 	}
-	id := written[0].ID
-	return id, p.catchUpLocked(ctx, map[string]pending{id: {kind: KindEdit, edit: &e}})
+	return ids, p.catchUpLocked(ctx, mine)
 }
 
 // storeEditBlobs moves the runs and the change set an edit keeps into blobs,

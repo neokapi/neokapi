@@ -45,8 +45,8 @@ type editRecorder struct {
 var _ change.Recorder = (*editRecorder)(nil)
 
 // Record records rec, one operation per document it changed, in the order the
-// record lists them, and returns the id of the first. The others name the
-// same change set.
+// record lists them and in one write to the log, and returns the id of the
+// first. The others name the same change set.
 func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, error) {
 	keepRuns := rec.Actor.Kind == change.ActorPerson || rec.Actor.Kind == change.ActorAgent
 	var setJSON []byte
@@ -80,7 +80,7 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 	}
 
 	docs := r.app.documentIndexOrEmpty(ctx, r.root)
-	var first string
+	var edits []projector.Edit
 	for _, doc := range order {
 		transitions := byDoc[doc]
 		if len(transitions) == 0 {
@@ -104,15 +104,16 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 		for _, t := range transitions {
 			e.Transitions = append(e.Transitions, editTransition(t, keepRuns))
 		}
-		id, err := r.p.RecordEdit(ctx, e)
-		if err != nil {
-			return first, fmt.Errorf("record edit of %s: %w", doc, err)
-		}
-		if first == "" {
-			first = id
-		}
+		edits = append(edits, e)
 	}
-	return first, nil
+	if len(edits) == 0 {
+		return "", nil
+	}
+	ids, err := r.p.RecordEdits(ctx, edits)
+	if err != nil {
+		return "", fmt.Errorf("record edit: %w", err)
+	}
+	return ids[0], nil
 }
 
 // editTransition renders one recorded transition. Its identity evidence comes

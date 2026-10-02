@@ -172,6 +172,46 @@ func TestRecordingOneEditTwiceIsOneOperation(t *testing.T) {
 	assert.Equal(t, third, rows[0].Op, "the most recent write answers who last wrote it")
 }
 
+func TestRecordEditsRecordsAPassTogether(t *testing.T) {
+	p, ws, db := open(t)
+	ctx := t.Context()
+	edits := []projector.Edit{
+		agentEdit("d-guide", "install/p", "A", "B"),
+		agentEdit("d-guide", "install/p", "B", "A"),
+		agentEdit("d-guide", "install/p", "A", "B"),
+		flowEdit("d-other", 3, 0),
+	}
+	ids, err := p.RecordEdits(ctx, edits)
+	require.NoError(t, err)
+	require.Len(t, ids, 4)
+	assert.Len(t, uniq(ids), 4, "an undo and a redo in one call are operations of their own")
+	assert.Empty(t, edits[0].Transitions[0].RunsAfter, "the caller's edits are left as given")
+	assert.Empty(t, edits[0].Blobs)
+	rows, err := db.History().Edition(ctx, "d-guide", "install/p", "en")
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+	assert.Equal(t, ids[2], rows[0].Op)
+
+	// A pass touches each document once; recording it again records nothing.
+	pass := []projector.Edit{flowEdit("d-a", 5, 0), flowEdit("d-b", 5, 0), agentEdit("d-c", "p", "x", "y")}
+	first, err := p.RecordEdits(ctx, pass)
+	require.NoError(t, err)
+	again, err := p.RecordEdits(ctx, pass)
+	require.NoError(t, err)
+	assert.Equal(t, first, again, "recording the same pass again records nothing new")
+	ops, err := ws.Select(ctx, workspace.OpQuery{KindPrefix: projector.KindEdit})
+	require.NoError(t, err)
+	assert.Len(t, ops, 7)
+}
+
+func uniq(ids []string) map[string]bool {
+	out := map[string]bool{}
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out
+}
+
 func TestALargeEditMovesToABlob(t *testing.T) {
 	p, ws, db := open(t)
 	ctx := t.Context()

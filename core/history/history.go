@@ -76,9 +76,10 @@ type Store struct {
 var migrations = []storage.Migration{{
 	Version:     1,
 	Description: "block history",
-	// One row per edition an edit changed. The operation, the document, the
-	// block and the edition identify it, so applying an operation again, live
-	// or in a rebuild, writes nothing new.
+	// One row per edition an edit changed. The document, the block, the
+	// edition and the operation identify it, so applying an operation again,
+	// live or in a rebuild, writes nothing new, and the key in that order is
+	// also the index every read of one edition's history walks.
 	SQL: `
 CREATE TABLE IF NOT EXISTS block_history (
     op           TEXT NOT NULL,
@@ -96,9 +97,8 @@ CREATE TABLE IF NOT EXISTS block_history (
     session      TEXT NOT NULL DEFAULT '',
     origin       TEXT NOT NULL DEFAULT '',
     at           TEXT NOT NULL,
-    PRIMARY KEY (op, doc, block, edition)
+    PRIMARY KEY (doc, block, edition, op)
 );
-CREATE INDEX IF NOT EXISTS block_history_edition ON block_history(doc, block, edition, op);
 CREATE INDEX IF NOT EXISTS block_history_doc ON block_history(doc, op);`,
 }}
 
@@ -133,7 +133,7 @@ func (s *Store) Put(ctx context.Context, rows []Row) error {
 INSERT INTO block_history (op, doc, block, key, edition, before, after, basis,
     content_hash, context_hash, actor, actor_name, session, origin, at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(op, doc, block, edition) DO NOTHING`,
+ON CONFLICT(doc, block, edition, op) DO NOTHING`,
 			r.Op, r.Doc, r.Block, r.Key, r.Edition, r.Before, r.After, r.Basis,
 			r.ContentHash, r.ContextHash, r.Actor, r.ActorName, r.Session, r.Origin,
 			r.At.UTC().Format(timeLayout)); err != nil {
