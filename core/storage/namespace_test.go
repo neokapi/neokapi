@@ -135,7 +135,7 @@ func TestNamespace_ADatabaseFileOpensWithItsRows(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, held)
 	_, err = os.Stat(moved)
-	assert.ErrorIs(t, err, os.ErrNotExist, "removing the database deletes its file")
+	require.ErrorIs(t, err, os.ErrNotExist, "removing the database deletes its file")
 
 	// A file renamed before any store opened it moves too.
 	copyFixture(t, path)
