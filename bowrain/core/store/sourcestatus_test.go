@@ -5,11 +5,12 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPropsForStore_RoundTrip(t *testing.T) {
 	b := &model.Block{Properties: map[string]string{"k": "v"}}
-	b.SetEdition(model.EditionKey{}, model.Edition{Status: model.Status(model.SourceStatusWritten)})
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusWritten))
 	props := PropsForStore(b)
 	assert.Equal(t, "v", props["k"], "existing properties are preserved")
 	assert.Equal(t, "written", props[PropSourceStatus], "the status is folded in")
@@ -20,12 +21,19 @@ func TestPropsForStore_RoundTrip(t *testing.T) {
 	// Read side: lift it back onto the block and strip the reserved key.
 	scanned := model.NewBlock("b1", "Hello")
 	scanned.Properties = map[string]string{"k": "v", PropSourceStatus: "established"}
+	// An origin annotation this process could not decode is kept as it was
+	// read, like every other annotation.
+	origin := &model.RawAnnotation{Kind: model.AnnoSourceOrigin, Body: []byte(`{"kind":`)}
+	scanned.SetAnno(model.AnnoSourceOrigin, origin)
 	ApplySourceStatusFromProps(scanned)
 	src, _ := scanned.Edition(model.EditionKey{})
 	assert.Equal(t, model.Status(model.SourceStatusEstablished), src.Status)
 	_, stillThere := scanned.Properties[PropSourceStatus]
 	assert.False(t, stillThere, "the reserved key is stripped on read")
 	assert.Equal(t, "v", scanned.Properties["k"])
+	kept, ok := scanned.Anno(model.AnnoSourceOrigin)
+	require.True(t, ok, "lifting the status leaves the source origin alone")
+	assert.Same(t, origin, kept)
 	// Lifting the status leaves the content alone: the block still reads as
 	// its reader produced it.
 	runs, edited := scanned.SourceAsRead()
