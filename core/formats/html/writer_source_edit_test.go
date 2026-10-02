@@ -14,9 +14,9 @@ import (
 )
 
 // editSource reads doc through the skeleton round-trip `kapi apply`, `ksed`
-// and MCP apply_edits use, rewrites the source of the block whose plain text is
-// from to the placeholder text to (inline codes as <x id="…"/> tokens, the
-// shape `kapi inspect` shows), and writes the document back with no locale.
+// and MCP apply_edits use, edits the block whose plain text or edit text is
+// from to the edit text to (inline codes as <x id="…"/> tokens, the shape
+// `kapi inspect` shows), and writes the document back with no locale.
 func editSource(t *testing.T, doc, from, to string) string {
 	t.Helper()
 	reader, writer := htmlfmt.NewReader(), htmlfmt.NewWriter()
@@ -30,10 +30,10 @@ func editSource(t *testing.T, doc, from, to string) string {
 	edited := 0
 	for _, p := range parts {
 		b, ok := p.Resource.(*model.Block)
-		if !ok || !b.Translatable || model.RunsText(b.Source) != from {
+		if !ok || !b.Translatable || (model.RunsText(b.Source) != from && model.RunsEditText(b.Source) != from) {
 			continue
 		}
-		b.SetSourceRuns(model.ParseRunsPlaceholderText(to, b.Source))
+		b.EditSourceRuns(model.ParseRunsEditText(to, b.Source))
 		edited++
 	}
 	require.Equal(t, 1, edited, "exactly one block reads %q", from)
@@ -76,7 +76,7 @@ func TestWriter_EditedSourceTextIsText(t *testing.T) {
 			doc:      `<html><body><p>Hello world</p></body></html>`,
 			from:     "Hello world",
 			to:       "Hello <script>alert(1)</script> & goodbye",
-			wantOut:  `<p>Hello &lt;script>alert(1)&lt;/script> & goodbye</p>`,
+			wantOut:  `<p>Hello &lt;script>alert(1)&lt;/script> &amp; goodbye</p>`,
 			readBack: "Hello <script>alert(1)</script> & goodbye",
 		},
 		{
@@ -100,7 +100,7 @@ func TestWriter_EditedSourceTextIsText(t *testing.T) {
 			doc:      `<html><head><meta charset="utf-8"><title>Pricing</title></head><body><p>x</p></body></html>`,
 			from:     "Pricing",
 			to:       "x</title><script>alert(1)</script>",
-			wantOut:  `<title>x&lt;/title><script>alert(1)</script></title>`,
+			wantOut:  `<title>x&lt;/title>&lt;script>alert(1)&lt;/script></title>`,
 			readBack: "x</title><script>alert(1)</script>",
 		},
 		{
@@ -135,6 +135,30 @@ func TestWriter_EditedSourceTextIsText(t *testing.T) {
 			wantOut:  `alt="a &amp;amp; b&#34; onerror=&#34;x"`,
 			readBack: `a &amp; b" onerror="x`,
 		},
+		{
+			name:     "references the edit kept keep their spelling",
+			doc:      `<html><body><p>Don&rsquo;t pay&nbsp;more &mdash; it&#39;s &copy; 2026</p></body></html>`,
+			from:     "Don\u2019t pay\u00a0more \u2014 it's \u00a9 2026",
+			to:       "Don\u2019t pay\u00a0less \u2014 it's \u00a9 2027 & <b>",
+			wantOut:  `<p>Don&rsquo;t pay&nbsp;less &mdash; it&#39;s &copy; 2027 &amp; &lt;b></p>`,
+			readBack: "Don\u2019t pay\u00a0less \u2014 it's \u00a9 2027 & <b>",
+		},
+		{
+			name:     "a rewrite that drops every reference",
+			doc:      `<html><body><p>Fish &amp; chips &lt;3</p></body></html>`,
+			from:     "Fish & chips <3",
+			to:       "Pay less today.",
+			wantOut:  `<p>Pay less today.</p>`,
+			readBack: "Pay less today.",
+		},
+		{
+			name:     "a textarea's text",
+			doc:      `<html><body><form><textarea name="t">Type here</textarea></form></body></html>`,
+			from:     "Type here",
+			to:       "x</textarea><script>alert(1)</script>",
+			wantOut:  `<textarea name="t">x&lt;/textarea>&lt;script>alert(1)&lt;/script></textarea>`,
+			readBack: "x</textarea><script>alert(1)</script>",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -147,10 +171,15 @@ func TestWriter_EditedSourceTextIsText(t *testing.T) {
 
 // Encoding an edit must leave every block nobody edited byte-for-byte as the
 // source spelled it, including text HTML tolerates unescaped: a bare
-// ampersand, a '<' that opens no tag, a reference without its semicolon, and
-// tag-like text inside the title, which the parser reads as text.
+// ampersand, a '<' that opens no tag, a reference without its semicolon,
+// tag-like text inside a title, a textarea or an xmp element, which the
+// parser reads as text, and an attribute value whose legacy reference the
+// attribute rules leave undecoded.
 func TestWriter_EditKeepsUntouchedBlocksByteExact(t *testing.T) {
-	const doc = `<html><head><meta charset="utf-8"><title>a <b> c & d</title></head><body>` +
+	const doc = `<html><head><meta charset="utf-8"><title>a <b> c & d &copy 2020</title></head><body>` +
+		`<form><textarea name="t">Type <b>here</b> & go</textarea></form>` +
+		`<div><xmp>raw <b>x</b> &amp; y</xmp></div>` +
+		`<p title="a&copy=2 and R&D">Text with a <a href="/x" title="q&notit; done">link</a> here.</p>` +
 		`<p>Q&A and AT&T</p>` +
 		`<p>a < b and I <3 you</p>` +
 		`<p>&copy 2020 &amp; more &#60x</p>` +

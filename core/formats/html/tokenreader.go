@@ -2235,14 +2235,7 @@ func hasNonWhitespace(s string) bool {
 // inline placeholder runs so they survive pseudo-translation as
 // opaque codes (rather than getting their letters substituted to
 // `&ĺţ;` etc.).
-var htmlEntityRE = regexp.MustCompile(htmlEntityPattern)
-
-// htmlEntityPrefixRE matches the same reference at the start of a string. The
-// writer escapes an '&' from a text run exactly when it would start one, the
-// inverse of the peeling above.
-var htmlEntityPrefixRE = regexp.MustCompile(`^` + htmlEntityPattern)
-
-const htmlEntityPattern = `&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-9A-Fa-f]+);`
+var htmlEntityRE = regexp.MustCompile(`&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-9A-Fa-f]+);`)
 
 // buildBlockWithEntities wraps NewBlock so bare-text blocks (the
 // processTokenStream top-level path) get the same entity peeling as

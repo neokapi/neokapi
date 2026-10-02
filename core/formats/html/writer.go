@@ -443,8 +443,8 @@ func scanTagName(s string, i int) string {
 // encoding for the quoting the source gave the value: any `"` becomes
 // `&#34;` (matching okapi's HtmlEncoder NUMERIC_SINGLE_QUOTES default),
 // a `'` inside a single-quoted value becomes `&#39;`, and an unquoted
-// value that needs quoting gets it (see encodeAttrValue). An `&` that would
-// be read as a character reference was escaped when the block was rendered.
+// value that needs quoting gets it (see encodeAttrValue). An edited value's
+// `&` was escaped when the block was rendered (renderSourceRuns).
 func (w *Writer) substituteBlockRefs(s string, blocks map[string]*model.Block) string {
 	const sentinel = "\x00BLOCK:"
 	if !strings.Contains(s, sentinel) {
@@ -489,8 +489,8 @@ func (w *Writer) substituteBlockRefs(s string, blocks map[string]*model.Block) s
 // (whitespace, a quote, '=', '<', '>' or '`'), or an empty one, is wrapped in
 // double quotes; the value the reader left never carries one, so an untouched
 // value keeps its bytes. '<' and '>' are text inside quotes, and the block's
-// rendering has already escaped every '&' a parser would read as a character
-// reference.
+// rendering has already escaped every '&' of an edited value
+// (renderSourceRuns).
 func encodeAttrValue(v string, quote byte, dq string) string {
 	switch quote {
 	case '"':
@@ -826,151 +826,41 @@ func writeEscapedHTMLText(b *strings.Builder, s string) {
 }
 
 // renderSourceRuns renders a block's source as markup. Inline codes re-emit
-// the markup the reader captured. A text run holds either what the reader left
-// as text, which is the document's own bytes, or wording a tool put there
-// (`kapi apply`, `ksed`, MCP apply_edits), which is text: inline codes travel
-// as their own runs, so a '<' or '&' in a text run is a character. Only the
-// characters that would read back as markup or as a character reference are
-// escaped, and the reader never leaves one of those in a text run (a tag or a
-// reference becomes a code), so a block nobody edited keeps its bytes.
+// the markup the reader captured. A block nobody edited is written as it was
+// read: its text runs hold the document's own bytes, including the bare
+// ampersands, the '<' that opens no tag and the tag-like text inside a title
+// or a textarea that HTML reads as text.
+//
+// A block an edit rewrote (`kapi apply`, `ksed`, MCP apply_edits; see
+// model.Block.SourceAsRead) holds wording, which is text: inline codes
+// travel as their own runs, so every '<' and '&' in a text run is a
+// character, and each is written as a reference. Element content, a title and
+// a textarea decode references, so the page shows the character typed. An
+// attribute value has its '&' escaped here and its quotes by encodeAttrValue.
 //
 // A non-translatable content block (a <noscript> fallback, a JSON data island)
 // carries its markup verbatim in one run and is written back as it was read.
 func (w *Writer) renderSourceRuns(block *model.Block) string {
-	if !block.Translatable {
+	if _, edited := block.SourceAsRead(); !edited || !block.Translatable {
 		return model.RenderRunsWithData(block.Source)
 	}
+	escaper := htmlTextEscaper
+	if block.IsReferent {
+		escaper = htmlAttrTextEscaper
+	}
 	var b strings.Builder
-	var at []int
-	writeSourceRuns(&b, &at, block.Source)
-	if len(at) == 0 {
-		return b.String()
-	}
-	return escapeSourceText(b.String(), at, sourceTextPosition(block))
-}
-
-// textPosition is where a block's text sits in the document, which decides
-// what can end it or turn it into markup.
-type textPosition int
-
-const (
-	inElement   textPosition = iota // element content: '<' opens a tag
-	inTitle                         // <title> content: only `</title` ends it
-	inAttribute                     // an attribute value, which the reader decoded
-)
-
-func sourceTextPosition(b *model.Block) textPosition {
-	switch {
-	case b.IsReferent:
-		return inAttribute
-	case b.Type == "title":
-		return inTitle
-	}
-	return inElement
-}
-
-// writeSourceRuns renders runs as RenderRunsWithData does and records the
-// offset of every '<' and '&' a text run contributed, so the escape pass can
-// judge each by the bytes that follow it in the output, codes included.
-func writeSourceRuns(b *strings.Builder, at *[]int, runs []model.Run) {
-	for _, r := range runs {
-		switch r.Kind() {
-		case model.RunKindText:
-			t := r.Text.Text
-			for i := range len(t) {
-				if t[i] == '<' || t[i] == '&' {
-					*at = append(*at, b.Len()+i)
-				}
-			}
-			b.WriteString(t)
-		case model.RunKindPh:
-			b.WriteString(r.Ph.Data)
-		case model.RunKindPcOpen:
-			b.WriteString(r.PcOpen.Data)
-		case model.RunKindPcClose:
-			b.WriteString(r.PcClose.Data)
-		case model.RunKindSub:
-			b.WriteString(r.Sub.Ref)
-		case model.RunKindPlural:
-			if form, ok := r.Plural.Forms[model.PluralOther]; ok {
-				writeSourceRuns(b, at, form)
-				continue
-			}
-			for _, form := range r.Plural.Forms {
-				writeSourceRuns(b, at, form)
-				break
-			}
-		case model.RunKindSelect:
-			if form, ok := r.Select.Cases["other"]; ok {
-				writeSourceRuns(b, at, form)
-				continue
-			}
-			for _, form := range r.Select.Cases {
-				writeSourceRuns(b, at, form)
-				break
-			}
-		}
-	}
-}
-
-// escapeSourceText escapes the text-run characters at the given offsets of
-// out that would otherwise read back as markup or as a character reference.
-func escapeSourceText(out string, at []int, pos textPosition) string {
-	var b strings.Builder
-	b.Grow(len(out) + 4*len(at))
-	prev := 0
-	for _, i := range at {
-		var esc string
-		switch {
-		case out[i] == '<' && opensMarkup(out[i+1:], pos):
-			esc = "&lt;"
-		case out[i] == '&' && beginsReference(out[i:], pos):
-			esc = "&amp;"
-		default:
-			continue
-		}
-		b.WriteString(out[prev:i])
-		b.WriteString(esc)
-		prev = i + 1
-	}
-	b.WriteString(out[prev:])
+	model.RenderRunsWith(&b, block.Source, &model.RunRenderer{
+		Text: func(b *strings.Builder, text string) { _, _ = escaper.WriteString(b, text) },
+	})
 	return b.String()
 }
 
-// opensMarkup reports whether a '<' followed by rest starts markup: in element
-// content a tag, an end tag, a comment or a declaration (HTML5 §13.2.5.6); in a
-// title only the end tag that closes it; in a quoted attribute value nothing.
-func opensMarkup(rest string, pos textPosition) bool {
-	switch pos {
-	case inAttribute:
-		return false
-	case inTitle:
-		return len(rest) >= len("/title") && strings.EqualFold(rest[:len("/title")], "/title")
-	}
-	if rest == "" {
-		return false
-	}
-	c := rest[0]
-	return c == '/' || c == '!' || c == '?' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
-}
+// htmlTextEscaper encodes an edit's text for element content.
+var htmlTextEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;")
 
-// beginsReference reports whether an '&' at the start of s would be read as a
-// character reference. Text in element content or a title is held as the
-// document spelled it, with every complete reference peeled into a code, so
-// it is escaped by that same pattern and anything the reader left as text
-// stays as it was. An attribute value was decoded when it was read, so any
-// '&' a parser would decode is escaped, a legacy reference written without
-// its semicolon included.
-func beginsReference(s string, pos textPosition) bool {
-	if pos == inAttribute {
-		seg := s
-		if j := strings.IndexByte(s[1:], '&'); j >= 0 {
-			seg = s[:j+1]
-		}
-		return html.UnescapeString(seg) != seg
-	}
-	return htmlEntityPrefixRE.MatchString(s)
-}
+// htmlAttrTextEscaper encodes an edit's text for an attribute value, before
+// encodeAttrValue encodes it for the value's quoting.
+var htmlAttrTextEscaper = strings.NewReplacer("&", "&amp;")
 
 // setAttr sets an attribute value on an HTML node, adding it if not present.
 func setAttr(n *html.Node, key, val string) {
