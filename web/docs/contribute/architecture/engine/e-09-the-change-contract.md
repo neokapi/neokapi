@@ -129,10 +129,11 @@ note describes each rule.
   `FormatOps` the operations the format's round trip carries (`set_content` in
   either form, `replace_text`, and `remove_edition` where the format holds its
   editions in one file) and what its writer declares
-  ([E-02](e-02-format-system.md#edits-a-writer-can-write)). For a document the
-  declaration is the one its home reports for the document's writer
-  (`DocInfo.Capabilities`), which `ApplyBlock` applies every operation with.
-  `WithDescriber` replaces `DescribeFormat`, and that one function is what
+  ([E-02](e-02-format-system.md#edits-a-writer-can-write)), `insert_block` and
+  `delete_block` among it where the writer can add and remove blocks. For a
+  document the declaration is the one its home reports for the document's
+  writer (`DocInfo.Capabilities`), which `ApplyBlock` applies every operation
+  with. `WithDescriber` replaces `DescribeFormat`, and that one function is what
   `Describe` reports, what a read lists per block, and what `Apply` refuses
   outside of.
 
@@ -141,6 +142,47 @@ file holds), in a file of its own (a project's target file), or nowhere (a
 monolingual document outside a project, or an edition with a tone or a channel
 in a bilingual file, which keeps one translation per language). An operation
 on an edition with no home is refused as `unsupported`.
+
+### Adding and removing blocks
+
+`insert_block` and `delete_block` change which blocks a document holds. A
+writer replays a skeleton with a slot for every block its reader read and none
+for a new one, so these two are written by the format: the service hands them
+to the home, and the format's writer writes the shell of each block added or
+removed. A writer declares the operations it writes with
+`format.StructuralWriter` and writes them through `format.StructureEditor`.
+`Describe` reports them where a writer declares them, and every other format
+refuses them as `unsupported`. The JSON, YAML and ARB writers declare both: in
+a key-value catalog a block's shell is its key and the value beside it.
+
+- `delete_block` addresses a block and carries `if_match` as a map from
+  edition to revision, naming every edition the block holds: its own, and each
+  translation in a file of its own. An edition the map leaves out or names at
+  another revision is `stale`, with the edition as it stands, and so is an
+  edition the map names and the block lacks. The block goes with every
+  edition.
+- `insert_block` names the document, the new block's key (`name`), the key it
+  goes `after` or `before` (with neither it goes last), and the content of each
+  edition. The document's own edition is required, and any other must live in
+  a file of its own. A key a block already answers to is `stale`, a neighbour
+  no block answers to is `not_found`, and the content obeys the rules of every
+  content operation: a new block has no inline codes to name, so text with a
+  code placeholder is a `guard` refusal.
+
+Operations apply in order, and each sees what the ones before it left: a block
+can go beside one an earlier operation added, and a block is replaced in its
+place by adding the new one beside it and then removing the old. An operation
+that changes the content of a block the change set adds or removes is refused
+as `invalid`; a new block's content travels in its `editions`.
+
+A home writes the structural edits first and then applies the rest of the
+change set to what the writer wrote. A new block's content is therefore what
+the format reads back (an ICU argument in an ARB message reads as the
+protected code it is), and the result's `after` is the revision a later read
+reports. A new block the format reads differently from its content, or does
+not read at all, and a removed block it still reads, are refused as
+`unsupported`. The commit check sees each new edition as created, and the
+record holds every edition added or removed.
 
 ### Homes
 
@@ -187,14 +229,18 @@ refused as `stale`, and a file that moves during that second pass as well is
 An edition kept in a file of its own is written through that file's skeleton,
 and an edit that needs a block the file does not hold is refused, so the file
 is never rewritten from the document; a file that does not exist yet is
-written from the document's skeleton. Where the reader and the writer both
-stream, the document is never held whole. The home reports what the
-document's writer declares: an in-process writer's declaration, with the writer
-spelling a changed attribute or a new code itself
-(`change.WriterCapabilities`), or a plugin format's manifest declaration,
-whose writer spells them when it writes (`change.DeclaredCapabilities`). A home
-given a backup suffix copies each file a commit replaces beside it, under the
-lock, from the bytes the change was applied to. The implementation note
+written from the document's skeleton. A change set that adds or removes
+blocks has the format's writer write those edits into the document's file and
+into the file of each edition the blocks hold or name, keeping them in memory
+until the commit, and the stage's pass reads the result. Where the reader and
+the writer both stream and no block is added or removed, the document is never
+held whole. The home reports what the document's writer declares: an
+in-process writer's declaration, with the writer spelling a changed attribute
+or a new code itself (`change.WriterCapabilities`), or a plugin format's
+manifest declaration, whose writer spells them when it writes
+(`change.DeclaredCapabilities`). A home given a backup suffix copies each file
+a commit replaces beside it, under the lock, from the bytes the change was
+applied to. The implementation note
 [The file home](../../implementation/engine/file-home.md) has the details.
 
 ### Hooks

@@ -480,6 +480,47 @@ centrally, not left to each call site. A cross-format conversion therefore never
 feeds a foreign skeleton into the target writer; that writer takes the generative
 content-model route every writer shares.
 
+### Blocks a writer can add and remove
+
+A skeleton has a slot for every block the reader read and none for a block
+nobody read, so replaying it can change a block's content and nothing more.
+Adding a block to a document, or removing one together with the markup around
+it, changes the document's structure, and only the format knows what that
+markup is. In a key-value catalog it is small: a block's shell is its key and
+the value beside it.
+
+A writer that can write such an edit declares it. `StructuralWriter.Structural`
+lists the operations it writes, `insert_block` and `delete_block`, and
+`StructureEditor.EditStructure` makes them: given a whole document and the
+edits in order, it returns the document with a new key and value beside a
+named block (or last), or a block's key and value removed with the separator
+that kept it from its neighbours, and every other byte as it was. It names a
+block by the key its reader gives it and finds a block it read by what the
+reader recorded on it. An edit it cannot make is a `StructureError` naming the
+edit and why: the key is held already, the block is not there, or the format
+has no way to write it there. `format.StructuralOps` reports what a writer
+declares and writes; the change service ([E-09](e-09-the-change-contract.md))
+reads it for a built-in writer, so describing a format and applying a change
+set agree, and a plugin format declares none.
+
+The JSON, YAML and ARB writers declare both operations:
+
+- JSON adds a member beside another in the same object, with the indentation,
+  line breaks and colon spacing the object already uses, and removes one with
+  the comma before or after it. A value in an array is named by its position
+  and is never added or removed.
+- YAML adds a line at the indentation of the key beside it, after every line of
+  that key's value, and removes a key's lines. Comment lines are never added or
+  removed; only a comment on a removed key's own line goes with it. A key in a
+  flow mapping, on a sequence item's dash line, reached through an alias, or
+  holding an anchor is refused. A new value is written plain where it reads
+  back as the same string and double-quoted otherwise, and removing a mapping's
+  last key leaves it `{}`.
+- ARB keeps a message's `@` metadata beside it: a message added after another
+  goes after that message's metadata, one added before goes before metadata
+  that precedes it, and a removed message takes its metadata with it. An id
+  starting with `@` is refused.
+
 ### Reader output policy: three destinations
 
 The skeleton is not the only home for non-translatable content. A reader
@@ -969,6 +1010,10 @@ readers implement `SubfilterAware` and declare patterns in their config.
 8. If the writer can write a changed attribute or a new inline code, implement
    `AttrWriter` or `CodeSynthesizer` and add the cells that prove each
    declaration to the operations matrix.
+9. If a block's shell is small enough to write on its own, as a catalog's key
+   and value are, implement `StructureEditor` and add the format's cells to the
+   structural operations matrix (`core/formats/opsmatrix_structural_test.go`),
+   which fails while a declaration has no passing cell.
 
 See [Implementing Formats](/contribute/implementation/engine/implementing-formats) for a
 walkthrough, and
