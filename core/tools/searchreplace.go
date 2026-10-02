@@ -125,11 +125,13 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 		if applyTarget && !conf.TargetLocale.IsEmpty() {
 			targets = []model.LocaleID{conf.TargetLocale}
 		}
-		passes := make([]textRewrite, len(compiled))
+		passes := make([]textPass, len(compiled))
 		for i, pair := range compiled {
-			passes[i] = pair.edits(replaceAll)
+			passes[i] = pair.pass(replaceAll)
 		}
-		return textPlan(v, applySource, targets, passes...), nil
+		plan, skipped := textPlan(v, applySource, targets, passes...)
+		reportSkipped(v, "search-replace", skipped)
+		return plan, nil
 	}
 	return t
 }
@@ -189,45 +191,77 @@ func buildEffectivePairs(conf *SearchReplaceConfig) []ReplacePair {
 	return pairs
 }
 
-// edits is the pair's pass: the edits that replace its matches in a text, every
-// match when all is set and the first otherwise. Matches do not overlap, and a
+// pass is the pair's pass: it replaces every match in an edition when all is
+// set, and otherwise the first in reading order. Matches do not overlap, and a
 // regular expression's replacement expands its groups ($1, ${name}) as
 // regexp.Expand does.
-func (p compiledPair) edits(all bool) textRewrite {
-	return func(text string) []model.TextEdit {
-		var matches [][]int
-		switch {
-		case p.re != nil && all:
-			matches = p.re.FindAllStringSubmatchIndex(text, -1)
-		case p.re != nil:
-			if m := p.re.FindStringSubmatchIndex(text); m != nil {
-				matches = [][]int{m}
-			}
-		default:
-			matches = literalMatches(text, p.search, all)
-		}
-		if len(matches) == 0 {
-			return nil
-		}
-		edits := make([]model.TextEdit, 0, len(matches))
-		// The matches are byte offsets; a text edit counts code points.
-		byteAt, runeAt := 0, 0
-		toRunes := func(b int) int {
-			runeAt += utf8.RuneCountInString(text[byteAt:b])
-			byteAt = b
-			return runeAt
-		}
-		for _, m := range matches {
-			replacement := p.replace
-			if p.re != nil {
-				replacement = string(p.re.ExpandString(nil, p.replace, text, m))
-			}
-			start := toRunes(m[0])
-			end := toRunes(m[1])
-			edits = append(edits, model.TextEdit{Start: start, End: end, Replacement: replacement})
-		}
-		return edits
+func (p compiledPair) pass(all bool) textPass {
+	return textPass{first: !all, matches: func(ts textSeq) []textMatch {
+		return replaceMatches(ts, p.re, p.search, p.replace)
+	}}
+}
+
+// replaceMatches turns every match of re, or of the literal search when re is
+// nil, in a sequence's own text into the edits that replace it.
+//
+// A match that runs across a plural or select would delete it, so it is
+// skipped and reported. A standalone code inside a match (a placeholder, a line
+// break) is kept, before the replacement text, where model.ApplyTextEdits
+// keeps a code that may not be deleted: the match is cut where the code sits,
+// the replacement goes in the last piece and the other pieces are deleted. A paired code follows the text it wraps (model.ApplyTextEdits): it
+// stays while any of its text is left, and goes with a match that replaces
+// all of it.
+func replaceMatches(ts textSeq, re *regexp.Regexp, search, replace string) []textMatch {
+	text := string(ts.text)
+	var matches [][]int
+	if re != nil {
+		matches = re.FindAllStringSubmatchIndex(text, -1)
+	} else {
+		matches = literalMatches(text, search, true)
 	}
+	if len(matches) == 0 {
+		return nil
+	}
+	out := make([]textMatch, 0, len(matches))
+	// The matches are byte offsets; a text edit counts code points.
+	byteAt, runeAt := 0, 0
+	toRunes := func(b int) int {
+		runeAt += utf8.RuneCountInString(text[byteAt:b])
+		byteAt = b
+		return runeAt
+	}
+	ci := 0
+	for _, m := range matches {
+		replacement := replace
+		if re != nil {
+			replacement = string(re.ExpandString(nil, replace, text, m))
+		}
+		start := toRunes(m[0])
+		end := toRunes(m[1])
+		if ts.structureInside(start, end) {
+			out = append(out, textMatch{start: start, end: end,
+				skip: "the match runs across a plural or select; edit its branches"})
+			continue
+		}
+		for ci < len(ts.codes) && ts.codes[ci].at <= start {
+			ci++
+		}
+		// The pieces before the last are deleted and the last takes the
+		// replacement, so each code at a cut sits before it.
+		edits := []model.TextEdit{{Start: start, End: end}}
+		for ; ci < len(ts.codes) && ts.codes[ci].at < end; ci++ {
+			at := ts.codes[ci].at
+			last := &edits[len(edits)-1]
+			if ts.codes[ci].kind != standaloneCode || at == last.Start {
+				continue
+			}
+			edits = append(edits, model.TextEdit{Start: at, End: last.End})
+			edits[len(edits)-2].End = at
+		}
+		edits[len(edits)-1].Replacement = replacement
+		out = append(out, textMatch{start: start, end: end, edits: edits})
+	}
+	return out
 }
 
 // literalMatches returns the byte ranges of search in text, left to right and

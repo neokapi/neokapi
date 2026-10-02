@@ -81,16 +81,18 @@ func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
 		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() {
 			targets = []model.LocaleID{conf.TargetLocale}
 		}
-		return textPlan(v, conf.ApplySource, targets, caseEdits(conf.Mode)), nil
+		plan, _ := textPlan(v, conf.ApplySource, targets, caseEdits(conf.Mode))
+		return plan, nil
 	}
 	return t
 }
 
-// caseEdits is the case conversion's pass: one edit for each character the
-// conversion changes. strings.ToUpper, ToLower and ToTitle map character by
-// character, so the edits change no position, and an inline code between two
-// characters stays between them.
-func caseEdits(mode CaseMode) textRewrite {
+// caseEdits is the case conversion's pass: one edit for each run of
+// characters the conversion changes, ending where an inline code sits so the
+// code stays between the same two characters. unicode.ToUpper, ToLower and
+// ToTitle map one code point to one, so the edits change no position and every
+// overlay span keeps the characters it covered.
+func caseEdits(mode CaseMode) textPass {
 	var convert func(rune) rune
 	switch mode {
 	case CaseUpper:
@@ -100,17 +102,38 @@ func caseEdits(mode CaseMode) textRewrite {
 	case CaseTitle:
 		convert = unicode.ToTitle
 	default:
-		return func(string) []model.TextEdit { return nil }
+		return textPass{matches: func(textSeq) []textMatch { return nil }}
 	}
-	return func(text string) []model.TextEdit {
-		var edits []model.TextEdit
-		i := 0
-		for _, r := range text {
-			if c := convert(r); c != r {
-				edits = append(edits, model.TextEdit{Start: i, End: i + 1, Replacement: string(c)})
+	return textPass{matches: func(ts textSeq) []textMatch {
+		var out []textMatch
+		start := -1
+		var changed []rune
+		flush := func(end int) {
+			if start < 0 {
+				return
 			}
-			i++
+			out = append(out, textMatch{start: start, end: end,
+				edits: []model.TextEdit{{Start: start, End: end, Replacement: string(changed)}}})
+			start, changed = -1, changed[:0]
 		}
-		return edits
-	}
+		ci := 0
+		for i, r := range ts.text {
+			for ; ci < len(ts.codes) && ts.codes[ci].at <= i; ci++ {
+				if ts.codes[ci].at == i {
+					flush(i)
+				}
+			}
+			c := convert(r)
+			if c == r {
+				flush(i)
+				continue
+			}
+			if start < 0 {
+				start = i
+			}
+			changed = append(changed, c)
+		}
+		flush(len(ts.text))
+		return out
+	}}
 }
