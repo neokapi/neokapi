@@ -161,12 +161,18 @@ type reconciler struct {
 	report          bool
 	findings        []Finding
 	// caps is what the format can write; pending are the ids of the new
-	// paired codes it will spell.
+	// paired codes it will spell. opened are the ids of the new codes that
+	// open in the sequence being reconciled: each plural form and select case
+	// is a sequence of its own, so a new code may open once in each.
 	caps    Capabilities
 	pending map[string]bool
+	opened  map[string]bool
 }
 
 func (rc *reconciler) seq(runs []model.Run) ([]model.Run, *Error) {
+	outer := rc.opened
+	rc.opened = map[string]bool{}
+	defer func() { rc.opened = outer }()
 	out := make([]model.Run, len(runs))
 	for i, r := range runs {
 		if !r.Valid() {
@@ -240,12 +246,13 @@ func (rc *reconciler) seq(runs []model.Run) ([]model.Run, *Error) {
 func (rc *reconciler) newCode(r model.Run) (bool, *Error) {
 	switch {
 	case r.PcOpen != nil && r.PcOpen.Type != "" && rc.caps.Declared.CanSynthesize(r.PcOpen.Type):
-		if rc.pending[r.PcOpen.ID] {
+		if rc.opened[r.PcOpen.ID] {
 			return false, &Error{Code: CodeInvalid, Field: "runs", Message: fmt.Sprintf(`the new code <x id="%s"/> opens twice`, r.PcOpen.ID)}
 		}
 		if err := checkNewCodeAttrs(rc.caps, r.PcOpen.Type, r.PcOpen.Attrs, "runs"); err != nil {
 			return false, err
 		}
+		rc.opened[r.PcOpen.ID] = true
 		rc.pending[r.PcOpen.ID] = true
 		return true, nil
 	case r.PcClose != nil && rc.pending[r.PcClose.ID]:

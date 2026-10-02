@@ -131,6 +131,12 @@ func (w *workset) setAttribute(op Op, body *SetAttribute, res *OpResult) *Error 
 				return &Error{Code: CodeUnsupported, Capability: string(KindSetAttribute), Field: "code",
 					Message: fmt.Sprintf("%s cannot write the %s attribute of code %s: %v", caps.formatName(), body.Name, body.Code, err)}
 			}
+			// The later occurrences were found by their index, so a writer
+			// that adds or removes runs would move them.
+			if len(out) != len(seq) {
+				return &Error{Code: CodeUnsupported, Capability: string(KindSetAttribute), Field: "code",
+					Message: fmt.Sprintf("%s's writer changed the number of runs while writing the %s attribute of code %s", caps.formatName(), body.Name, body.Code)}
+			}
 			edited = out
 		} else {
 			edited = slices.Clone(seq)

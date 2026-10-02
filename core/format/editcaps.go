@@ -42,10 +42,12 @@ type AttrWriter interface {
 	// value: the code's attributes record the value, and its native data spell
 	// it, escaped for the place it is written. seq[at] is the code's opening
 	// half or its placeholder; the writer may respell other runs of seq that
-	// hold part of the code's markup, such as the closing half. WriteAttr
-	// copies what it changes and leaves seq as it was. It returns an error
-	// whose message gives the reason when this code cannot carry the change,
-	// such as a link whose target is defined elsewhere in the document.
+	// hold part of the code's markup, such as the closing half, and returns a
+	// sequence of the same runs in the same order, so its length is seq's.
+	// WriteAttr copies what it changes and leaves seq as it was. It returns an
+	// error whose message gives the reason when this code cannot carry the
+	// change, such as a link whose target is defined elsewhere in the
+	// document.
 	WriteAttr(seq []model.Run, at int, name, value string) ([]model.Run, error)
 }
 

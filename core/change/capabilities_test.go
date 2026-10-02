@@ -2,6 +2,7 @@ package change_test
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,6 +22,18 @@ func htmlCaps() change.Capabilities { return change.WriterCapabilities("html", h
 func withFormat(env change.BlockEnv, caps change.Capabilities) change.BlockEnv {
 	env.Format = caps
 	return env
+}
+
+// growingAttrWriter writes an attribute by appending a run, which the
+// AttrWriter contract does not allow: it moves every run after the code.
+type growingAttrWriter struct{}
+
+func (growingAttrWriter) WritableAttrs() map[string][]string {
+	return map[string][]string{"link:hyperlink": {"href"}}
+}
+
+func (growingAttrWriter) WriteAttr(seq []model.Run, _ int, _, _ string) ([]model.Run, error) {
+	return append(slices.Clone(seq), model.TextR("!")), nil
 }
 
 func setAttr(edition, ifMatch, code, name, value string) change.Op {
@@ -100,6 +113,16 @@ func TestApplyBlock_SetAttribute(t *testing.T) {
 			assert.Equal(t, was, model.RunsEditText(b.Source), "nothing is written")
 		})
 	}
+
+	t.Run("a writer that changes the number of runs", func(t *testing.T) {
+		b := guideBlock()
+		was := model.RunsEditText(b.Source)
+		caps := change.Capabilities{Format: "grows", Attrs: growingAttrWriter{},
+			Declared: format.EditCapabilities{WritableAttrs: map[string][]string{"link:hyperlink": {"href"}}}}
+		err := requireRefused(t, apply(t, b, withFormat(person, caps), setAttr("", sourceRev(b), "1", "href", "x"))[0], change.CodeUnsupported)
+		assert.Contains(t, err.Message, "number of runs")
+		assert.Equal(t, was, model.RunsEditText(b.Source), "nothing is written")
+	})
 
 	t.Run("a writer outside the process spells it when it writes", func(t *testing.T) {
 		b := guideBlock()
@@ -256,6 +279,26 @@ func TestApplyBlock_NewCodesInRuns(t *testing.T) {
 	err = requireRefused(t, apply(t, b, env, setRuns("", sourceRev(b),
 		payload(model.PcOpenRun{ID: "7", Type: "link:hyperlink", Attrs: map[string]string{"href": "x", "title": "y"}})))[0], change.CodeUnsupported)
 	assert.Contains(t, err.Message, "title")
+
+	// Each plural form is a sequence of its own, so a new code opens once
+	// in each; twice in one sequence is refused.
+	bold := func(text string) []model.Run {
+		return []model.Run{model.PcOpenR(model.PcOpenRun{ID: "9", Type: "fmt:bold"}), model.TextR(text), model.PcCloseR(model.PcCloseRun{ID: "9", Type: "fmt:bold"})}
+	}
+	plural := []model.Run{model.TextR("You have "), {Plural: &model.PluralRun{Pivot: "n", Forms: map[model.PluralForm][]model.Run{
+		model.PluralOne: bold("one item"), model.PluralOther: bold("many items"),
+	}}}, model.TextR(".")}
+	b = model.NewBlock("b", "You have items.")
+	requireApplied(t, apply(t, b, env, setRuns("", sourceRev(b), plural)))
+	for _, form := range []model.PluralForm{model.PluralOne, model.PluralOther} {
+		runs := b.Source[1].Plural.Forms[form]
+		assert.Equal(t, "<strong>", runs[0].PcOpen.Data, "the %s form holds the new code", form)
+		assert.Equal(t, "</strong>", runs[2].PcClose.Data)
+	}
+
+	b = model.NewBlock("b", "Twice.")
+	err = requireRefused(t, apply(t, b, env, setRuns("", sourceRev(b), append(bold("a"), bold("b")...)))[0], change.CodeInvalid)
+	assert.Contains(t, err.Message, "opens twice")
 }
 
 // stripData returns a code as a wire payload names it: by id, with no data.
