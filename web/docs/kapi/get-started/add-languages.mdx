@@ -54,6 +54,11 @@ back inside the pattern it comes from, which would make the collection re-track
 its own output as source, and a pattern whose entry already declares a
 different target, which you change in the recipe.
 
+A file belongs to the first entry in the recipe whose pattern matches it, so a
+target applies to the files its entry claims. `kapi add` counts those, names
+each other file with the entry that claims it, and refuses a pattern whose
+every file an earlier entry claims.
+
 Then catch up, inspect, and gate:
 
 ```bash

@@ -66,7 +66,7 @@ func New(number int, id, text, role string, level int) Record {
 //
 // Text is the edit text (model.RunsEditText): inline codes appear as
 // <x id="…"/> tokens and character references as their characters, so the
-// read leg is symmetric with the write-back leg — an agent that reads a record
+// read leg is symmetric with the write-back leg: an agent that reads a record
 // and edits its Text can round-trip the edit without dropping a link, bold
 // span, or placeholder.
 //

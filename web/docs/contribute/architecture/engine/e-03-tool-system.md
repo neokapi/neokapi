@@ -750,7 +750,11 @@ type makes the wrong writes unrepresentable.
   tool code holds no source setter, a transformer cannot corrupt run-anchoring or
   leak a secret; an opaque whole-block replacement drops the overlays it cannot
   rebase. Recoverable transformers keep the original in a block annotation or a
-  sidecar vault and restore it on the way out.
+  sidecar vault and restore it on the way out. The applier replaces a source
+  through `Block.EditSourceRuns`, which keeps the source the reader produced, so
+  a writer can tell a rewritten block from an untouched one
+  (`Block.SourceAsRead`): it writes an untouched block as it was read and
+  encodes the new wording of a rewritten one for its format.
 
 The read views hand back the block's live run slices, which Go cannot make deeply
 immutable without copying. So a **backstop** in `BaseTool`'s block dispatch

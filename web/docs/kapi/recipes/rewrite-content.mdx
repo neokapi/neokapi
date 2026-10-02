@@ -50,7 +50,9 @@ The assistant drives the loop through structured calls: `extract_content` to rea
 kapi inspect guide.md --jsonl        # one JSON object per line
 ```
 
-Two fields anchor an edit: **`text`** renders inline codes as `<x id="…"/>` tokens; keep every token in your edited text (a placeholder is `<x id="1/"/>`, a paired span opens with `<x id="1"/>` and closes with `<x id="/1"/>`). A character reference the source spells out, such as `&amp;` in HTML, is a token too. Everything else in `text` is text: kapi escapes it for the file's format, so a `<b>` or `&amp;` you type is written as those characters. **`content_hash`** is the block's identity; send it back so kapi can tell the block is still the one you read. `inspect` reads a file with the same reader `apply` writes it back through, so every `id` and `content_hash` it prints is one `apply` resolves.
+Two fields anchor an edit: **`text`** renders inline codes as `<x id="…"/>` tokens; keep every token in your edited text (a placeholder is `<x id="1/"/>`, a paired span opens with `<x id="1"/>` and closes with `<x id="/1"/>`). A character reference the source spells out, such as `&amp;` in HTML, shows as its character; keep, move or drop it like any other character, and one you keep keeps its spelling. **`content_hash`** is the block's identity; send it back so kapi can tell the block is still the one you read. `inspect` reads a file in the same format and with the same reader `apply` writes it back through, so every `id` and `content_hash` it prints is one `apply` resolves.
+
+Everything else in `text` is text, and kapi encodes it for the file's format: in HTML a `<` or `&` you type is written as a character reference. Markdown, MDX and AsciiDoc keep some of their own syntax in `text`, such as a backslash escape, an MDX `{expression}` or an AsciiDoc `+++` passthrough. Syntax the block already holds stays as you keep it, and syntax you add (a tag, a link, an expression, an `import` line, a macro) is escaped so the page shows the characters you typed.
 
 **Edit, then apply.** Produce one `content` entry per changed block; `kapi apply` is the one write verb:
 

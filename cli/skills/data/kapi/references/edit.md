@@ -28,22 +28,31 @@ kapi inspect report.docx --jsonl
 
 Two fields anchor an edit:
 
-- **`text`** renders inline codes (links, bold spans, placeholders, and a
-  character reference such as `&amp;` in HTML) as `<x id="…"/>` tokens.
-  **Keep every token, unchanged, in your edited text.** They are the markup the
-  round-trip reconstructs. A placeholder is `<x id="1/"/>`; a paired span opens
-  with `<x id="1"/>` and closes with `<x id="/1"/>`. Reorder or drop one and the
-  edit is rejected (see §3). Everything else is text: kapi escapes it for the
-  file's format, so a `<b>` or `&amp;` you type is written as those characters,
-  never as markup. Bold spans and links stay as the source has them.
+- **`text`** renders inline codes (links, bold spans, placeholders) as
+  `<x id="…"/>` tokens. **Keep every token, unchanged, in your edited text.**
+  They are the markup the round-trip reconstructs. A placeholder is
+  `<x id="1/"/>`; a paired span opens with `<x id="1"/>` and closes with
+  `<x id="/1"/>`. Reorder or drop one and the edit is rejected (see §3). A
+  character reference the source spells out (`&amp;`, `&rsquo;` in HTML) shows
+  as its character, and you can keep, move or drop it like any other
+  character; one you keep keeps its spelling in the file.
 - **`content_hash`** is the block's canonical identity (a hash of its plain
   source text, not of the placeholder `text`). Send it back with the edit so
   kapi can tell the block is still the one you read.
 
-`inspect` (and MCP `extract_content`) read a file with the same reader `apply`
-writes it back through, so every `id` and `content_hash` they print is one
-`apply` resolves. An HTML image's `alt` or a link's `title` is a block of its
-own.
+Everything else in `text` is text, and kapi encodes it for the file's format.
+In HTML a `<` or `&` you type is written as a character reference. Markdown,
+MDX and AsciiDoc keep some of their own syntax in `text`: a backslash escape, a
+bracket that opens no link, an MDX `{expression}`, an AsciiDoc `+++`
+passthrough. Syntax the block already holds stays as you keep it, and syntax
+you add (a tag, a link, an expression, an `import` line, a macro) is escaped so
+it reads as the characters you typed.
+
+`inspect` (and MCP `extract_content`) read a file in the same format and with
+the same reader `apply` (and `apply_edits`) write it back through, so every
+`id` and `content_hash` they print is one `apply` resolves. Over MCP, pass both
+calls the same project. An HTML image's `alt` or a link's `title` is a block of
+its own.
 
 ## 2. Write the edits
 
@@ -83,7 +92,8 @@ block untouched and is reported, so nothing is silently corrupted:
   **stale** and skipped.
 - **Inline-code guard.** If your edited `text` drops, invents, duplicates, or
   unbalances an `<x id="…"/>` token, the edit is **rejected** rather than written
-  back with broken markup.
+  back with broken markup. A character reference shown as its character is
+  text, so the guard does not hold it.
 
 Either outcome exits on the **gate code (3)**, distinct from an operational
 error. Treat it as a signal to **re-inspect the affected blocks and retry** with
