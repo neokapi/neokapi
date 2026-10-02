@@ -11,7 +11,10 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/core/reconcile"
+	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -178,4 +181,132 @@ func TestRecorderWritesOneOperationPerDocument(t *testing.T) {
 	assert.Equal(t, outro.ChangeSet, intro.ChangeSet, "both name the one change set")
 	assert.Len(t, intro.Overridden, 2)
 	assert.Len(t, outro.Overridden, 1, "a finding placed in another document stays with it")
+}
+
+// TestRecorderKeepsTheResultOfAWriteToTheWorkspaceHome: the log is the
+// workspace home, so a write there keeps the edition it leaves whoever made
+// it, a tool included. A document the change addresses by its key, as one in
+// the workspace home is, is recorded under that key.
+func TestRecorderKeepsTheResultOfAWriteToTheWorkspaceHome(t *testing.T) {
+	a, root, rec := recorderProject(t)
+	ctx := t.Context()
+	key := reconcile.DocumentKeyFor("parked/intro")
+	_, err := rec.Record(ctx, change.Record{
+		Actor: change.Actor{Kind: change.ActorTool, Name: "translate"}, Origin: "flow:up",
+		Docs:        []change.DocResult{{Doc: key, Home: "workspace", Written: true}},
+		Transitions: greetingEdit(key),
+	})
+	require.NoError(t, err)
+
+	ops := editOps(t, a, root)
+	require.Len(t, ops, 1)
+	var e projector.Edit
+	require.NoError(t, json.Unmarshal(ops[0].Payload, &e))
+	assert.Equal(t, projector.EditDoc{Key: key}, e.Doc, "a key is kept as it is")
+	require.Len(t, e.Transitions, 2)
+	for _, tr := range e.Transitions {
+		assert.NotEmpty(t, tr.RunsAfter, "%s: the result is kept", tr.Edition)
+		assert.Empty(t, tr.RunsBefore, "%s: a tool's record keeps nothing before", tr.Edition)
+	}
+	assert.Empty(t, e.ChangeSet)
+}
+
+// redactingProject is recorderProject whose recipe declares redaction with
+// the detectors given, and a rules file that withholds a product name.
+func redactingProject(t *testing.T, detectors ...string) (*App, string, change.Recorder) {
+	t.Helper()
+	a, root, _ := recorderProject(t)
+	recipe := filepath.Join(root, project.RecipeFileName)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Redaction = &project.RedactionSpec{Enabled: true, Rules: "redaction.yaml", Detectors: detectors}
+	require.NoError(t, project.Save(recipe, proj))
+	rules := &redaction.RulesFile{Rules: []redaction.Rule{{Term: "Falcon", Category: "product"}}}
+	require.NoError(t, rules.Save(filepath.Join(root, "redaction.yaml")))
+	rec, err := a.EditRecorder(t.Context(), root)
+	require.NoError(t, err)
+	return a, root, rec
+}
+
+// falconEdit is an agent's change to the greeting that names the withheld
+// product before and after, and in its note.
+func falconEdit(doc string) change.Record {
+	b := &model.Block{ID: "greeting", Name: "greeting", SourceLocale: "en", Source: textRuns("Falcon ships today")}
+	en, _ := model.ParseEditionKey("en")
+	return change.Record{
+		Actor: change.Actor{Kind: change.ActorAgent, Name: "claude"}, Origin: "apply",
+		Set:  &change.Set{Schema: change.SchemaID, Note: "Say when Falcon ships"},
+		Docs: []change.DocResult{{Doc: doc, Home: "file", Written: true}},
+		Transitions: []change.Transition{{
+			Ref:  change.Ref{Doc: doc, Block: "greeting"},
+			Role: change.RoleAuthoritative, Before: textRuns("Falcon is coming"), After: textRuns("Falcon ships today"),
+			BeforeRev: model.RunsRevision(en, textRuns("Falcon is coming")), AfterRev: model.RunsRevision(en, textRuns("Falcon ships today")),
+			Block: b,
+		}},
+	}
+}
+
+// boundWorkspace is the workspace the project rooted at root records into.
+func boundWorkspace(t *testing.T, a *App, root string) *workspace.Workspace {
+	t.Helper()
+	ws := a.ensureProjectStores()
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+	return ws.bound[mustAbs(t, root)].ws
+}
+
+// TestRecorderKeepsWithheldValuesOutOfTheRecord: a project that declares
+// redaction records an agent's edit with the withheld value replaced in the
+// runs it keeps and in its note, keeps the original in the project vault, and
+// leaves the change set out. Nothing the operation or its blobs hold names
+// the value.
+func TestRecorderKeepsWithheldValuesOutOfTheRecord(t *testing.T) {
+	a, root, rec := redactingProject(t, "rules")
+	ctx := t.Context()
+	_, err := rec.Record(ctx, falconEdit("src/intro.en.json"))
+	require.NoError(t, err)
+
+	ops := editOps(t, a, root)
+	require.Len(t, ops, 1)
+	assert.NotContains(t, string(ops[0].Payload), "Falcon")
+	var e projector.Edit
+	require.NoError(t, json.Unmarshal(ops[0].Payload, &e))
+	assert.Empty(t, e.ChangeSet, "the change set as sent is left out")
+	assert.Equal(t, "Say when [REDACTED:Product] ships", e.Note)
+	require.Len(t, e.Transitions, 1)
+	tr := e.Transitions[0]
+	require.NotEmpty(t, tr.RunsBefore)
+	require.NotEmpty(t, tr.RunsAfter)
+
+	ws := boundWorkspace(t, a, root)
+	refs := workspace.BlobRefs(ops[0])
+	require.Len(t, refs, 2)
+	for _, ref := range refs {
+		blob, err := ws.Blob(ctx, ref)
+		require.NoError(t, err)
+		assert.NotContains(t, string(blob), "Falcon", "blob %s", ref)
+		assert.Contains(t, string(blob), "REDACTED", "the kept runs hold the placeholder")
+	}
+
+	vault, err := os.ReadFile(project.LayoutAt(root).RedactionVaultPath())
+	require.NoError(t, err)
+	assert.Contains(t, string(vault), "Falcon", "the original is kept in the project vault")
+}
+
+// TestRecorderUnderEntityDetectionKeepsNoRuns: entity detection needs the
+// annotations of a read, which the runs of a record do not carry, so a
+// project that detects entities records revisions and hashes only.
+func TestRecorderUnderEntityDetectionKeepsNoRuns(t *testing.T) {
+	a, root, rec := redactingProject(t, "rules", "entities")
+	_, err := rec.Record(t.Context(), falconEdit("src/intro.en.json"))
+	require.NoError(t, err)
+	ops := editOps(t, a, root)
+	require.Len(t, ops, 1)
+	assert.NotContains(t, string(ops[0].Payload), "Falcon")
+	assert.Empty(t, workspace.BlobRefs(ops[0]), "nothing kept, nothing in a blob")
+	var e projector.Edit
+	require.NoError(t, json.Unmarshal(ops[0].Payload, &e))
+	assert.Empty(t, e.Note)
+	require.Len(t, e.Transitions, 1)
+	assert.Empty(t, e.Transitions[0].RunsBefore+e.Transitions[0].RunsAfter)
 }

@@ -145,3 +145,14 @@ func TestDocumentScopeDerivesTheKeyBeforeAnythingIsExtracted(t *testing.T) {
 		"and the zero index answers the same way")
 	assert.True(t, reconcile.IsDocumentKey(want))
 }
+
+// TestAMintedKeyHasNoAddressAlias: a record filed under an address answers
+// under the key the address derives to, and a record filed under a key has
+// no other spelling, the ordinal a second document at one path is minted
+// with included.
+func TestAMintedKeyHasNoAddressAlias(t *testing.T) {
+	key := reconcile.DocumentKeyFor("docs/intro.md")
+	assert.Equal(t, []string{key}, scopeAliases("docs/intro.md"))
+	assert.Empty(t, scopeAliases(key))
+	assert.Empty(t, scopeAliases(key+"-2"), "a minted key is a key, not an address")
+}
