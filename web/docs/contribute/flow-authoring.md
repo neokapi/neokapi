@@ -101,9 +101,12 @@ steps:
 
 Each tool runs in its own goroutine, so the checks work on different Parts at
 the same time. Within one tool, `--parallel-blocks` (or a recipe's
-`parallel_blocks`) spreads blocks across workers. The steps parser also accepts
-a `parallel:` block, but no runner executes one: `kapi run` stops with an
-error before processing a flow that contains it.
+`parallel_blocks`) spreads blocks across workers for a tool built as a plain
+`tool.BaseTool` with a block handler. The AI and MT tools keep their own
+processing, described in
+[Parallel block processing](architecture/engine/e-01-processing-engine#parallel-block-processing).
+The steps parser also accepts a `parallel:` block, but no runner executes one:
+`kapi run` stops with an error before processing a flow that contains it.
 
 ## Transformers
 

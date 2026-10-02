@@ -138,8 +138,12 @@ the maximum across the flow's tools and wraps every tool at that width. A
 project may pin its own value, and `--parallel-blocks N` overrides both
 (`--parallel-blocks 1` disables the wrapper). The tools that declare a default
 are the LLM-backed ones, so an ordinary rules-only flow runs sequentially with
-no configuration. The wrapper parallelizes a typed block handler only, so a
-declared default leaves a tool that overrides `Process` sequential.
+no configuration. The wrapper parallelizes the typed block handler of a plain
+`*tool.BaseTool` only. The LLM-backed and MT tools embed `BaseTool` in types of
+their own, so the wrapper runs each of them through its own `Process`, where AI
+translation and entity extraction have their own batching and concurrency
+settings. A declared default therefore widens the plain `BaseTool` steps that
+share a flow with an LLM-backed tool.
 
 ### Batch executor
 
