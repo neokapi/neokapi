@@ -3,8 +3,8 @@ package storage
 import (
 	"context"
 	"fmt"
-	"os"
-	"sync"
+
+	"github.com/neokapi/neokapi/core/storage/filelock"
 )
 
 // The write gate orders the writers of one process. Nothing orders the writers
@@ -29,14 +29,15 @@ import (
 // It is advisory and same-machine, which is all it needs to be: it guards a
 // SQLite file, and a SQLite file is already unusable across a network
 // filesystem. A platform with no implementation leaves the lock a no-op and
-// falls back to what SQLite does on its own.
+// falls back to what SQLite does on its own. The lock itself is package
+// filelock, which the change service's file home takes as well.
 
-// fileLock is a cross-process advisory lock on one database file. The zero
-// value is a lock that does nothing, which is what a handle opened without
-// Options.CrossProcessWrites gets.
+// fileLock is a cross-process advisory lock on one database file
+// (filelock.Lock on a lock file beside it). The nil value is a lock that does
+// nothing, which is what a handle opened without Options.CrossProcessWrites
+// gets.
 type fileLock struct {
-	mu   sync.Mutex
-	file *os.File
+	lock *filelock.Lock
 }
 
 // lockSuffix names the lock file beside the database. A file of its own rather
@@ -46,44 +47,24 @@ type fileLock struct {
 const lockSuffix = ".lock"
 
 // newFileLock opens (creating it if absent) the lock file beside dbPath.
-//
-// A lock that cannot be created is reported: a caller that asked for
-// cross-process ordering and silently did not get it would be told the
-// measurement holds when it does not.
 func newFileLock(dbPath string) (*fileLock, error) {
-	if !fileLockSupported {
-		return nil, nil
-	}
-	f, err := os.OpenFile(dbPath+lockSuffix, os.O_RDWR|os.O_CREATE, 0o666)
+	l, err := filelock.Open(dbPath + lockSuffix)
 	if err != nil {
 		return nil, fmt.Errorf("open write lock for %s: %w", dbPath, err)
 	}
-	return &fileLock{file: f}, nil
+	if l == nil {
+		return nil, nil
+	}
+	return &fileLock{lock: l}, nil
 }
 
 // acquire blocks until this process holds the lock, or ctx is done.
-//
-// The kernel wait is not cancellable, so cancellation is honoured before the
-// wait begins and again when it ends. That is enough: the lock is held for the
-// length of one write transaction, and a caller whose context expired during
-// someone else's transaction learns so on the next line rather than the
-// previous one.
 func (l *fileLock) acquire(ctx context.Context) error {
-	if l == nil || l.file == nil {
+	if l == nil {
 		return nil
 	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	l.mu.Lock()
-	if err := lockFile(l.file); err != nil {
-		l.mu.Unlock()
-		return fmt.Errorf("take the write lock on %s: %w", l.file.Name(), err)
-	}
-	if err := ctx.Err(); err != nil {
-		_ = unlockFile(l.file)
-		l.mu.Unlock()
-		return err
+	if err := l.lock.Lock(ctx); err != nil {
+		return fmt.Errorf("take the write lock: %w", err)
 	}
 	return nil
 }
@@ -91,19 +72,16 @@ func (l *fileLock) acquire(ctx context.Context) error {
 // release gives the lock back. Safe on a nil lock, so every call site is
 // written once.
 func (l *fileLock) release() {
-	if l == nil || l.file == nil {
+	if l == nil {
 		return
 	}
-	_ = unlockFile(l.file)
-	l.mu.Unlock()
+	l.lock.Unlock()
 }
 
 // close releases the descriptor. The lock itself goes with it.
 func (l *fileLock) close() error {
-	if l == nil || l.file == nil {
+	if l == nil {
 		return nil
 	}
-	f := l.file
-	l.file = nil
-	return f.Close()
+	return l.lock.Close()
 }

@@ -151,3 +151,69 @@ func TestResolve(t *testing.T) {
 	assert.Equal(t, absent, got)
 	assert.False(t, exists)
 }
+
+func TestStage(t *testing.T) {
+	write := func(body string) func(io.Writer) error {
+		return func(w io.Writer) error {
+			_, err := io.WriteString(w, body)
+			return err
+		}
+	}
+
+	t.Run("the target keeps its bytes until Commit", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "file.txt")
+		require.NoError(t, os.WriteFile(path, []byte("old"), 0o640))
+
+		s, err := atomicfile.Stage(path, write("new"))
+		require.NoError(t, err)
+		body, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, "old", string(body), "staging writes beside the file")
+		staged, err := os.ReadFile(s.Name())
+		require.NoError(t, err)
+		assert.Equal(t, "new", string(staged))
+
+		require.NoError(t, s.Commit())
+		body, err = os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, "new", string(body))
+		info, err := os.Stat(path)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o640), info.Mode().Perm(), "the file keeps its mode")
+		require.NoError(t, s.Discard(), "discarding a committed file does nothing")
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		assert.Len(t, entries, 1)
+	})
+
+	t.Run("Discard leaves the target as it was", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "file.txt")
+		require.NoError(t, os.WriteFile(path, []byte("old"), 0o644))
+
+		s, err := atomicfile.Stage(path, write("new"))
+		require.NoError(t, err)
+		require.NoError(t, s.Discard())
+		require.NoError(t, s.Discard())
+		body, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, "old", string(body))
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		assert.Len(t, entries, 1, "the temporary file is gone")
+		assert.Error(t, s.Commit(), "a discarded stage cannot be committed")
+	})
+
+	t.Run("a failed write stages nothing", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "file.txt")
+		fail := errors.New("the writer failed")
+		s, err := atomicfile.Stage(path, func(io.Writer) error { return fail })
+		require.ErrorIs(t, err, fail)
+		assert.Nil(t, s)
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+		assert.Empty(t, entries)
+	})
+}

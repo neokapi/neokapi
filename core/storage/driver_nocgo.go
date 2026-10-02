@@ -5,6 +5,8 @@ package storage
 import (
 	"strings"
 
+	"github.com/neokapi/neokapi/core/storage/filelock"
+
 	// Pure-Go SQLite (no C compiler required). Used for CGO_ENABLED=0 builds
 	// (bare `go build`/`go test` without a C toolchain),
 	// where mattn/go-sqlite3 registers no driver. Released binaries are all cgo
@@ -22,7 +24,7 @@ var driverProfile = Profile{
 	Driver:           "modernc.org/sqlite",
 	MaxConns:         25,
 	WAL:              true,
-	CrossProcessLock: fileLockSupported,
+	CrossProcessLock: filelock.Supported,
 	Durable:          true,
 }
 

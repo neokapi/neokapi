@@ -1,6 +1,6 @@
 //go:build unix
 
-package storage
+package filelock
 
 import (
 	"os"
@@ -8,14 +8,14 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// fileLockSupported reports that this platform has a blocking advisory lock.
-const fileLockSupported = true
+// Supported reports that this platform has a blocking advisory lock.
+const Supported = true
 
 // lockFile takes an exclusive flock(2), blocking until it is held.
 //
 // EINTR is retried: a blocking flock is interruptible by a signal, and Go's
 // runtime delivers signals to whichever thread it likes, so a preemption during
-// the wait would otherwise surface as a failed write.
+// the wait would otherwise surface as a failed lock.
 func lockFile(f *os.File) error {
 	for {
 		err := unix.Flock(int(f.Fd()), unix.LOCK_EX)

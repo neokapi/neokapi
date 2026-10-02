@@ -5,6 +5,8 @@ package storage
 import (
 	"strings"
 
+	"github.com/neokapi/neokapi/core/storage/filelock"
+
 	// Native C SQLite via CGo — significantly faster than the pure-Go
 	// transpilation for scan-heavy workloads (facet queries, FTS5, bulk
 	// imports on large Memories). Requires a C compiler at build time. Pairs with
@@ -22,7 +24,7 @@ var driverProfile = Profile{
 	Driver:           "mattn/go-sqlite3",
 	MaxConns:         25,
 	WAL:              true,
-	CrossProcessLock: fileLockSupported,
+	CrossProcessLock: filelock.Supported,
 	Durable:          true,
 }
 

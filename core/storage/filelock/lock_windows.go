@@ -1,6 +1,6 @@
 //go:build windows
 
-package storage
+package filelock
 
 import (
 	"os"
@@ -8,12 +8,12 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// fileLockSupported reports that this platform has a blocking advisory lock.
-const fileLockSupported = true
+// Supported reports that this platform has a blocking advisory lock.
+const Supported = true
 
 // lockFile takes an exclusive LockFileEx over the whole file, blocking until it
 // is held. Without LOCKFILE_FAIL_IMMEDIATELY the call waits, which is the
-// property the gate is after.
+// property a waiting lock holder relies on.
 func lockFile(f *os.File) error {
 	return windows.LockFileEx(
 		windows.Handle(f.Fd()),
