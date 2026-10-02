@@ -135,7 +135,7 @@ func decodeEnvelope(obj map[string]json.RawMessage, set *Set) *Error {
 		Note         string     `json:"note,omitempty"`
 		Evidence     []Evidence `json:"evidence,omitempty"`
 	}
-	fields := maps2(obj, "ops")
+	fields := without(obj, "ops")
 	var e envelope
 	if err := decodeStruct(fields, reflect.ValueOf(&e).Elem(), ""); err != nil {
 		return err
@@ -214,7 +214,7 @@ func decodeOp(raw json.RawMessage, ptr string) (Op, *Error) {
 	}
 	for _, k := range sortedKeys(obj) {
 		if !known[k] {
-			return Op{}, invalidAt(ptr+"/"+escapePointer(k), "unknown field %q; %s takes %s", k, kind, strings.Join(sortedSet(known), ", "))
+			return Op{}, invalidAt(ptr+"/"+escapePointer(k), "unknown field %q; %s takes %s", k, kind, strings.Join(sortedKeys(known), ", "))
 		}
 	}
 
@@ -275,7 +275,7 @@ func decodeOp(raw json.RawMessage, ptr string) (Op, *Error) {
 		op.Basis = v
 	}
 
-	if err := decodeStruct(maps2(obj, sortedSet(common)...), bodyV, ptr); err != nil {
+	if err := decodeStruct(without(obj, sortedKeys(common)...), bodyV, ptr); err != nil {
 		return Op{}, err
 	}
 	if err := validateBody(op, ptr); err != nil {
@@ -728,12 +728,8 @@ func sortedKeys[V any](m map[string]V) []string {
 	return keys
 }
 
-func sortedSet(m map[string]bool) []string {
-	return sortedKeys(m)
-}
-
-// maps2 returns obj without the given keys.
-func maps2(obj map[string]json.RawMessage, drop ...string) map[string]json.RawMessage {
+// without returns obj with the given keys left out.
+func without(obj map[string]json.RawMessage, drop ...string) map[string]json.RawMessage {
 	out := make(map[string]json.RawMessage, len(obj))
 	for k, v := range obj {
 		if !slices.Contains(drop, k) {
