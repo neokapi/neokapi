@@ -227,6 +227,49 @@ func TestALargeEditMovesToABlob(t *testing.T) {
 	assert.Len(t, rows, 400)
 }
 
+// TestADocumentReturningToAnEarlierStateIsAdoptedAgain: a document read with
+// one content, then another, then the first again (a revert, a branch
+// switch) is adopted three times, and the project's row follows it back. A
+// fourth read of the same state records nothing.
+func TestADocumentReturningToAnEarlierStateIsAdoptedAgain(t *testing.T) {
+	p, ws, db := open(t)
+	ctx := t.Context()
+	work := db.Work()
+	work.SetJournal(p.Decisions())
+	adopt := func(content ...string) {
+		t.Helper()
+		_, err := work.AdoptDocuments(ctx, []reconcile.DocUnit{{Path: "docs/a.md", Content: content}})
+		require.NoError(t, err)
+	}
+	adopted := func() []string {
+		t.Helper()
+		docs, err := work.AdoptedDocuments(ctx)
+		require.NoError(t, err)
+		require.Len(t, docs, 1)
+		return docs[0].Content
+	}
+	adoptOps := func() int {
+		t.Helper()
+		ops, err := ws.Select(ctx, workspace.OpQuery{KindPrefix: projector.KindAdopt})
+		require.NoError(t, err)
+		return len(ops)
+	}
+
+	adopt("a1", "a2")
+	adopt("b1", "b2")
+	assert.Equal(t, []string{"b1", "b2"}, adopted())
+	adopt("a1", "a2")
+	assert.Equal(t, []string{"a1", "a2"}, adopted(), "the row follows the document back")
+	assert.Equal(t, 3, adoptOps())
+	adopt("a1", "a2")
+	assert.Equal(t, 3, adoptOps(), "a state the project holds adopts nothing")
+
+	before := snapshot(t, ws, db)["document_adoption"]
+	_, err := p.Rebuild(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, before, snapshot(t, ws, db)["document_adoption"])
+}
+
 func TestEditsDecisionsAndAdoptionsAreDistinctKinds(t *testing.T) {
 	p, ws, db := open(t)
 	ctx := t.Context()
@@ -414,9 +457,12 @@ func TestARecordMergedUnderAnOlderIdLeavesTheRowsARebuildWrites(t *testing.T) {
 	idTo, err := to.RecordEdit(ctx, e)
 	require.NoError(t, err)
 	require.Less(t, idFrom, idTo)
-	// Another edit, so the pulled segment holds an operation the log lacks.
-	_, err = from.RecordEdit(ctx, flowEdit("d-b", 2, 0))
+	// Another edit, so the pulled segment holds an operation the log lacks,
+	// later than every operation the log holds.
+	time.Sleep(2 * time.Millisecond)
+	idOther, err := from.RecordEdit(ctx, flowEdit("d-b", 2, 0))
 	require.NoError(t, err)
+	require.Less(t, idTo, idOther)
 
 	opts := workspace.SyncOptions{LocalKinds: projector.LocalKinds}
 	_, err = fromWS.NewSync(remote, key, from.Syncer(), opts).Push(ctx)

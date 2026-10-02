@@ -193,10 +193,11 @@ CREATE INDEX IF NOT EXISTS document_at_path ON document(checkout, path);`,
 	// The key each document has across every checkout of the project, written
 	// from the document.adopt operations in the workspace's log (adoption.go).
 	// One row per key: where it was most recently read, what it held there,
-	// and when it was first adopted.
+	// the id of that adoption (AdoptionID), and when it was first adopted.
 	SQL: `
 CREATE TABLE IF NOT EXISTS document_adoption (
     key      TEXT NOT NULL PRIMARY KEY,
+    id       TEXT NOT NULL DEFAULT '',
     path     TEXT NOT NULL,
     digest   TEXT NOT NULL DEFAULT '',
     content  TEXT NOT NULL DEFAULT '[]',

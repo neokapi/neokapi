@@ -435,8 +435,8 @@ func StandaloneTerms(tb *terms.SQLiteStore) *Terms {
 // (state.WorkStore.SetJournal). Each entry is one decision.record operation,
 // addressed by the entry's own content address, so recording one decision
 // twice, here or on another machine, is one operation. Each document adoption
-// is one document.adopt operation, addressed by the key, the path and the
-// content it adopts.
+// is one document.adopt operation, addressed by its id (state.AdoptionID): the
+// key, the path and the content it adopts, and the adoption it follows.
 func (p *Projector) Decisions() state.Journal { return decisionJournal{p} }
 
 type decisionJournal struct{ p *Projector }
@@ -463,7 +463,7 @@ func (j decisionJournal) RecordAdoptions(ctx context.Context, adoptions []state.
 		writes = append(writes, pending{
 			kind:    KindAdopt,
 			steps:   []step{{Adoptions: []state.Adoption{a}}},
-			address: "adopt:" + string(j.p.key) + ":" + digestOf(a.Key, a.Path, a.Digest),
+			address: "adopt:" + string(j.p.key) + ":" + state.AdoptionID(a),
 		})
 	}
 	return j.p.commit(ctx, writes)
