@@ -17,10 +17,10 @@ import (
 //   - Ph: <x id="ID/"/>
 //   - Sub: <x id="sub:ID"/>
 //
-// Plural/select runs are rendered by concatenating their 'other'
-// form (or the first form present), so LLMs see flat text — the
-// structured construct is reassembled from the source when the
-// response is parsed.
+// Plural/select runs contribute their 'other' form (or one present form).
+// This projection loses branch structure; ParseRunsPlaceholderText cannot
+// reconstruct it. A faithful edit must use InlineCodesPreserved to reject a
+// flattened replacement of structured content.
 func RunsPlaceholderText(runs []Run) string {
 	if len(runs) == 0 {
 		return ""

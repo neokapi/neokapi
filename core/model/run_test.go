@@ -82,6 +82,18 @@ func TestRunRejectsBadShapes(t *testing.T) {
 	require.Error(t, r.UnmarshalJSON([]byte(`{"text":"x","ph":{"id":"1","type":"t","data":"d","equiv":"e"}}`)))
 }
 
+func TestRunMarshalRejectsInvalidUnion(t *testing.T) {
+	invalid := Run{Text: &TextRun{Text: "visible"}, Ph: &PlaceholderRun{ID: "lost"}}
+	for _, r := range []Run{
+		{},
+		invalid,
+		PluralR(PluralRun{Pivot: "n", Forms: map[PluralForm][]Run{PluralOther: {invalid}}}),
+	} {
+		_, err := json.Marshal(r)
+		require.Error(t, err)
+	}
+}
+
 func TestFlattenRuns(t *testing.T) {
 	runs := []Run{
 		{Text: &TextRun{Text: "Files "}},

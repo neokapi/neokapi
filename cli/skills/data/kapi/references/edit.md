@@ -75,7 +75,10 @@ block untouched and is reported, so nothing is silently corrupted:
   **stale** and skipped.
 - **Inline-code guard.** If your edited `text` drops, invents, duplicates, or
   unbalances an `<x id="…"/>` token, the edit is **rejected** rather than written
-  back with broken markup.
+  back with broken markup. A block that holds a plural or select construct shows
+  one form of it in `text`, and flat text cannot carry its other branches, so any
+  changed `text` for that block is **rejected** too. Leave such a block out of
+  the change-set.
 
 Either outcome exits on the **gate code (3)**, distinct from an operational
 error. Treat it as a signal to **re-inspect the affected blocks and retry** with

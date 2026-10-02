@@ -378,6 +378,9 @@ func (r *Run) UnmarshalJSON(data []byte) error {
 // Go output matches the TypeScript mirror (@neokapi/kapi-format) and the
 // content hash stays implementation-independent.
 func (r Run) MarshalJSON() ([]byte, error) {
+	if !r.Valid() {
+		return nil, errors.New("model: run must have exactly one discriminator")
+	}
 	switch r.Kind() {
 	case "":
 		return nil, errors.New("model: run has no discriminator")

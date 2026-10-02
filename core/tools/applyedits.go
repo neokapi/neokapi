@@ -28,7 +28,7 @@ type ApplyReport struct {
 	Applied     []string // block source rewritten to the supplied text
 	Skipped     []string // already in the desired state (idempotent no-op)
 	Stale       []string // content_hash no longer matches — source drifted
-	GuardFailed []string // edit would drop/unbalance an inline code — rejected
+	GuardFailed []string // edit would drop or unbalance an inline code, or flatten plural/select branches; rejected
 }
 
 func (r *ApplyReport) record(bucket *[]string, id string) {
@@ -98,19 +98,9 @@ func NewApplyEditsTool(byID, byHash map[string]Edit, report *ApplyReport) *tool.
 
 		newRuns := model.ParseRunsPlaceholderText(e.Text, oldRuns)
 
-		if model.HasStructuredRuns(oldRuns) {
-			// Plural/select runs have no linear text mapping: replace the whole
-			// source opaquely with the rewritten plain text (the applier drops the
-			// stale source overlays).
-			plain := model.RunsText(newRuns)
-			plan.ReplaceAll = &plain
-			report.record(&report.Applied, v.ID())
-			return plan, nil
-		}
-
 		// Faithfulness guard: apply only when every inline code survives exactly
-		// and the paired codes stay balanced; otherwise leave the source
-		// unchanged rather than write malformed markup.
+		// and the paired codes stay nested. Flat placeholder text cannot express
+		// plural/select branches, so a changed structured block is refused here.
 		if !model.InlineCodesPreserved(oldRuns, newRuns) {
 			report.record(&report.GuardFailed, v.ID())
 			return plan, nil

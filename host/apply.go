@@ -418,7 +418,7 @@ func printApplyReport(w io.Writer, out *applyOutput) {
 			fmt.Fprintf(w, ", %d stale (source drifted, re-inspect)", len(c.Stale))
 		}
 		if len(c.GuardFailed) > 0 {
-			fmt.Fprintf(w, ", %d rejected (would corrupt inline codes)", len(c.GuardFailed))
+			fmt.Fprintf(w, ", %d rejected (would corrupt inline codes or flatten plural/select branches)", len(c.GuardFailed))
 		}
 		fmt.Fprintln(w)
 	}
