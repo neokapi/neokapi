@@ -87,7 +87,7 @@ func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, target
 	// wherever the package is merged. Say so now rather than at merge time in
 	// someone else's checkout.
 	if !kpz.IsLocalOutTemplate(outLayout) {
-		return fmt.Errorf("extract: --out %q must be relative to the merge directory (e.g. 'l10n/{lang}/{name}.{ext}'). A workspace records this layout for whoever merges it; pass an absolute destination to `kapi merge -o` instead", outLayout)
+		return fmt.Errorf("extract: --out %q must be relative to the merge directory (e.g. 'translated/{lang}/{name}.{ext}'). A workspace records this layout for whoever merges it; pass an absolute destination to `kapi merge -o` instead", outLayout)
 	}
 
 	recipe := newWorkspaceRecipe(a.SourceLocale(), splitLocales(targetLang), outLayout)

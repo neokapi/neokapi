@@ -15,11 +15,11 @@ func NewStatusCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "status",
 		GroupID: "work",
-		Short:   "Show per-locale translation coverage and ship-gate standing",
-		Long: `Show, per target locale, how much of the project's tracked content is
-translated and whether it clears its ship gate, a derived dashboard, like
-git status. Coverage is recomputed from the content × target files on every run;
-nothing is tracked as state.
+		Short:   "Show source readiness and per-language coverage against the ship gates",
+		Long: `Show how far the project's source content has progressed and, per target
+locale, how much of it is translated and whether it clears its ship gate: a
+derived dashboard, like git status. Coverage is recomputed from the content ×
+target files on every run; nothing is tracked as state.
 
 This is the informational counterpart to 'kapi check --ship' (the quality gate). It
 never fails: a locale that is behind is reported as pending rather than as an error.

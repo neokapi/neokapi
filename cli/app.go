@@ -31,18 +31,19 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 }
 
 // Porcelain comes first: "Work:" holds the everyday project verbs
-// (init, add, up, status, apply, check), "Translate:" the flow-backed
-// produce verbs (translate, pseudo-translate — guardrailed built-in flows,
-// not raw tools), and "Assets:" the standing resources (memory, terms,
-// voice, models, credentials). "Advanced:" collects the plumbing (run,
-// flows, exec, tools, extract, merge, pack/unpack/info, inspect, stats,
-// formats, plugin, config, hook, mcp). Standard commands (version, update,
-// completion) stay ungrouped under cobra's "Additional Commands:". Raw
-// registry tools render no root group at all — they live under `kapi exec`.
+// (init, add, up, status, apply, check), "Languages:" the verbs that produce
+// content in other languages for ad-hoc files (translate, pseudo-translate:
+// guardrailed built-in flows rather than raw tools), and "Assets:" the
+// standing resources (memory, terms, voice, models, credentials).
+// "Advanced:" collects the plumbing (run, flows, exec, tools, extract, merge,
+// pack/unpack/info, inspect, stats, formats, plugin, config, hook, mcp).
+// Standard commands (version, update, completion) stay ungrouped under
+// cobra's "Additional Commands:". Raw registry tools render no root group at
+// all: they live under `kapi exec`.
 func AddCommandGroups(a *App, cmd *cobra.Command) {
 	cmd.AddGroup(
 		&cobra.Group{ID: "work", Title: "Work:"},
-		&cobra.Group{ID: "translate", Title: "Translate:"},
+		&cobra.Group{ID: "languages", Title: "Languages:"},
 		&cobra.Group{ID: "assets", Title: "Assets:"},
 		&cobra.Group{ID: "advanced", Title: "Advanced:"},
 	)
