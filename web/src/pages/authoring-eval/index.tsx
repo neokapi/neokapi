@@ -272,7 +272,7 @@ function CorpusSection(): ReactElement {
           <div style={s.bignum}>{c.plants}</div>
           <div style={s.sub}>
             {Object.entries(c.plantsByMechanism)
-              .sort(([left], [right]) => left.localeCompare(right))
+              .sort()
               .map(([k, v]) => `${v} ${k}`)
               .join(" · ")}
           </div>
@@ -366,7 +366,7 @@ function CheckSection({ a }: { a: CheckAccuracy }): ReactElement {
               </thead>
               <tbody>
                 {Object.entries(a.byMechanism)
-                  .sort(([left], [right]) => left.localeCompare(right))
+                  .sort()
                   .map(([k, m]) => (
                     <tr key={k} style={{ borderTop: "1px solid var(--ifm-color-emphasis-200)" }}>
                       <td>
