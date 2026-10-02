@@ -121,7 +121,7 @@ func TestHandleExtractContentAddressesWhatApplyEditsWrites(t *testing.T) {
 	}{
 		{name: "an image's alt text", read: "chart", text: "Bar chart", want: `alt="Bar chart"`},
 		{name: "the paragraph after the image", read: `<x id="1/"/> Prices rose.`, text: `<x id="1/"/> Prices fell.`, want: "> Prices fell.</p>"},
-		{name: "a paragraph with a character reference", read: `Fish <x id="1/"/> chips`, text: `Fish <x id="1/"/> fries`, want: "<p>Fish &amp; fries</p>"},
+		{name: "a paragraph with a character reference", read: `Fish & chips`, text: `Fish & fries`, want: "<p>Fish &amp; fries</p>"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -150,6 +150,37 @@ func TestHandleExtractContentAddressesWhatApplyEditsWrites(t *testing.T) {
 			assert.Contains(t, string(got), tc.want)
 		})
 	}
+}
+
+// A format extract_content is told to read a file in is the format the edit
+// is written in: apply_edits resolves the format for a file through the same
+// host function (host.App.MCPEditFormat) and writes with EditDocumentAs.
+func TestHandleExtractContentReadsInTheFormatTheEditWrites(t *testing.T) {
+	t.Setenv(project.NoProjectEnvVar, "1")
+	a := testApp()
+	path := filepath.Join(t.TempDir(), "notes.txt")
+	require.NoError(t, os.WriteFile(path, []byte("# Notes\n\nRead the [guide](https://example.com/g).\n"), 0o600))
+
+	_, out, err := handleExtractContent(t.Context(), a, ExtractContentInput{Path: path, Format: "markdown"})
+	require.NoError(t, err)
+	require.Equal(t, "markdown", out.Format)
+	var block *BlockEntry
+	for i := range out.Blocks {
+		if out.Blocks[i].SourceText == `Read the <x id="1"/>guide<x id="/1"/>.` {
+			block = &out.Blocks[i]
+		}
+	}
+	require.NotNil(t, block, "extract_content reads the file as markdown: %+v", out.Blocks)
+
+	report := &tools.ApplyReport{}
+	edit := tools.Edit{Text: `Open the <x id="1"/>guide<x id="/1"/>.`, ContentHash: block.ContentHash}
+	tl := tools.NewApplyEditsTool(map[string]tools.Edit{block.ID: edit}, nil, report)
+	require.NoError(t, a.EditDocumentAs(t.Context(), path, a.MCPEditFormat("", path, "markdown"), tl, "", true, "", nil))
+
+	assert.Equal(t, []string{block.ID}, report.Applied)
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "# Notes\n\nOpen the [guide](https://example.com/g).\n", string(got))
 }
 
 // Outside a project, list_flows lists the composed built-in flows `kapi flows`

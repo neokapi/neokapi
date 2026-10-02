@@ -12,7 +12,7 @@ import (
 
 // init registers the write leg of the edit loop on the shared MCP stdio server:
 // apply_edits (the one write verb). It pairs with the read leg, extract_content
-// (which emits each block's content_hash + placeholder-rendered text), and
+// (which emits each block's content_hash and edit text), and
 // check_file, so a non-Claude MCP client runs the same author → check → fix loop
 // the CLI skill drives — the client supplies the edits, kapi enforces the
 // faithful round-trip and is the checker. No second model is involved.
@@ -70,6 +70,23 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 	})
 }
 
+// MCPEditFormat names the format one MCP call reads and writes path in:
+// format when the call gives one (a preset included), else the format the
+// call's project detects for path from its allowed plugin sources and
+// detection priorities, else "" so the edit detects it from the file.
+// extract_content and apply_edits both resolve through it, so the block ids
+// and content hashes one reports are the ones the other writes.
+func (a *App) MCPEditFormat(explicitProject, path, format string) string {
+	if format != "" {
+		return format
+	}
+	pctx, err := a.mcpProjectContext(explicitProject)
+	if err != nil || pctx == nil {
+		return ""
+	}
+	return pctx.DetectFormat(a.FormatReg, path)
+}
+
 func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 	if err := validateContentWording(in.Changeset); err != nil {
 		return nil, applyEditsMCPOutput{}, err
@@ -116,7 +133,7 @@ func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in apply
 		report := &coretools.ApplyReport{}
 		byID, byHash := buildEditMaps(byFile[file])
 		t := coretools.NewApplyEditsTool(byID, byHash, report)
-		if derr := a.EditDocument(ctx, file, t, "", true, "", nil); derr != nil {
+		if derr := a.EditDocumentAs(ctx, file, a.MCPEditFormat(in.Project, file, ""), t, "", true, "", nil); derr != nil {
 			return nil, applyEditsMCPOutput{}, fmt.Errorf("%s: %w", DisplayName(file), derr)
 		}
 		out.Content.Applied = append(out.Content.Applied, report.Applied...)

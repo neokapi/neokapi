@@ -21,26 +21,28 @@ import (
 // one inner file. Only that entry is read (random-access for ZIP, scan for TAR);
 // the whole archive is never loaded. editable reads the entry as editBytes
 // does (see StreamEditableBlocks).
-func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, editable bool, fn func(index int, b *model.Block) error) (string, error) {
+func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, editable bool, fmtRef string, fn func(index int, b *model.Block) error) (string, error) {
 	content, _, err := container.OpenEntry(loc.Archive, loc.Entry)
 	if err != nil {
 		return "", fmt.Errorf("%s!%s: %w", loc.Archive, loc.Entry, err)
 	}
-	fmtName, err := a.ResolveFormatName(loc.Entry, content)
+	fmtName, reader, err := a.openEditReader(loc.Entry, bytes.NewReader(content), fmtRef)
 	if err != nil {
-		return "", fmt.Errorf("%s!%s: %w", loc.Archive, loc.Entry, err)
+		return fmtName, fmt.Errorf("%s!%s: %w", loc.Archive, loc.Entry, err)
 	}
-	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
-	if err != nil {
-		return fmtName, fmt.Errorf("no reader for format %q: %w", fmtName, err)
-	}
-	defer reader.Close()
+	// The reader closes before the skeleton store it writes into (see
+	// streamBlocks).
+	release := func() {}
+	defer func() {
+		reader.Close()
+		release()
+	}()
 	if editable {
-		release, werr := a.WireEditReader(reader, fmtName)
+		r, werr := a.WireEditReader(reader, fmtName)
 		if werr != nil {
 			return fmtName, fmt.Errorf("%s!%s: %w", loc.Archive, loc.Entry, werr)
 		}
-		defer release()
+		release = r
 	}
 
 	doc := &model.RawDocument{
