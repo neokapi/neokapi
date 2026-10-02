@@ -1,0 +1,1252 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "kapi.change/v1"
+    },
+    "mode": {
+      "type": "string",
+      "description": "apply (the default), or preview: compute and check, write nothing",
+      "enum": [
+        "apply",
+        "preview"
+      ]
+    },
+    "gate": {
+      "type": "string",
+      "description": "enforce (the default): a failing finding the change introduces refuses it; report: the change lands with its findings",
+      "enum": [
+        "enforce",
+        "report"
+      ]
+    },
+    "require_basis": {
+      "type": "boolean",
+      "description": "refuse a derived-edition write whose authoritative edition moved since it was read"
+    },
+    "note": {
+      "type": "string",
+      "description": "one line a person reads in history and review"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "a project-relative file"
+          },
+          "unit": {
+            "type": "string",
+            "description": "the block key inside the file"
+          },
+          "quote": {
+            "type": "string",
+            "description": "the text the wording was seen in"
+          },
+          "url": {
+            "type": "string",
+            "description": "a web page the wording was seen on"
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "where the wording behind the change was seen"
+    },
+    "ops": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "set_content"
+              },
+              "at": {
+                "$ref": "#/$defs/ref"
+              },
+              "if_match": {
+                "type": "string",
+                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
+              },
+              "basis": {
+                "type": "string",
+                "description": "for a derived edition: the revision of the authoritative edition the content was made from",
+                "pattern": "^r:[0-9a-f]{16}$"
+              },
+              "text": {
+                "type": "string",
+                "description": "the content with inline codes as the \u003cx id=\"…\"/\u003e placeholders a read shows"
+              },
+              "runs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/run"
+                },
+                "description": "the content as runs; a code carries type and attributes and never data"
+              },
+              "path": {
+                "$ref": "#/$defs/path",
+                "description": "a plural form or select case to replace instead of the whole edition, for example [1, {\"plural\": \"one\"}]"
+              }
+            },
+            "description": "Replace an edition's content with text (placeholder form) or runs. With if_match \"absent\" it creates the edition.",
+            "required": [
+              "op",
+              "at",
+              "if_match"
+            ],
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "text"
+                ]
+              },
+              {
+                "required": [
+                  "runs"
+                ]
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "replace_text"
+              },
+              "at": {
+                "$ref": "#/$defs/ref"
+              },
+              "if_match": {
+                "type": "string",
+                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
+              },
+              "edits": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "$ref": "#/$defs/path",
+                      "description": "a plural form or select case the text is in, for example [1, {\"plural\": \"one\"}]"
+                    },
+                    "find": {
+                      "type": "string",
+                      "description": "literal text to match"
+                    },
+                    "occurrence": {
+                      "type": "integer",
+                      "description": "which match of find, counting from 1; omitted requires exactly one match"
+                    },
+                    "start": {
+                      "type": "integer",
+                      "description": "start offset in Unicode code points of the text; inline codes have zero width"
+                    },
+                    "end": {
+                      "type": "integer",
+                      "description": "end offset, exclusive"
+                    },
+                    "range": {
+                      "type": "object",
+                      "properties": {
+                        "start": {
+                          "type": "object",
+                          "properties": {
+                            "run": {
+                              "type": "integer"
+                            },
+                            "offset": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "run"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "end": {
+                          "type": "object",
+                          "properties": {
+                            "run": {
+                              "type": "integer"
+                            },
+                            "offset": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "run"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "description": "a span between run positions",
+                      "required": [
+                        "start",
+                        "end"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "text": {
+                      "type": "string",
+                      "description": "the replacement text"
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
+                  "additionalProperties": false,
+                  "oneOf": [
+                    {
+                      "required": [
+                        "find"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "start",
+                        "end"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "range"
+                      ]
+                    }
+                  ]
+                },
+                "description": "the replacements, each naming its text by find, by start and end, or by range",
+                "minItems": 1
+              }
+            },
+            "description": "Change text inside an edition by find, by code-point offsets or by run positions, keeping inline codes and structure.",
+            "required": [
+              "op",
+              "at",
+              "if_match",
+              "edits"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "set_attribute"
+              },
+              "at": {
+                "$ref": "#/$defs/ref"
+              },
+              "if_match": {
+                "type": "string",
+                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
+              },
+              "code": {
+                "type": "string",
+                "description": "the code's id, as the placeholder \u003cx id=\"1\"/\u003e shows it"
+              },
+              "name": {
+                "type": "string",
+                "description": "the attribute, such as href, src, alt or title, where the format declares it writable"
+              },
+              "value": {
+                "type": "string",
+                "description": "the new value"
+              }
+            },
+            "description": "Change a writable attribute of an inline code, such as a link's href.",
+            "required": [
+              "op",
+              "at",
+              "if_match",
+              "code",
+              "name",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "mark"
+              },
+              "at": {
+                "$ref": "#/$defs/ref"
+              },
+              "if_match": {
+                "type": "string",
+                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
+              },
+              "range": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "$ref": "#/$defs/path",
+                    "description": "a plural form or select case the text is in, for example [1, {\"plural\": \"one\"}]"
+                  },
+                  "find": {
+                    "type": "string",
+                    "description": "literal text to match"
+                  },
+                  "occurrence": {
+                    "type": "integer",
+                    "description": "which match of find, counting from 1; omitted requires exactly one match"
+                  },
+                  "start": {
+                    "type": "integer",
+                    "description": "start offset in Unicode code points of the text; inline codes have zero width"
+                  },
+                  "end": {
+                    "type": "integer",
+                    "description": "end offset, exclusive"
+                  },
+                  "range": {
+                    "type": "object",
+                    "properties": {
+                      "start": {
+                        "type": "object",
+                        "properties": {
+                          "run": {
+                            "type": "integer"
+                          },
+                          "offset": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "run"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "end": {
+                        "type": "object",
+                        "properties": {
+                          "run": {
+                            "type": "integer"
+                          },
+                          "offset": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "run"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "description": "a span between run positions",
+                    "required": [
+                      "start",
+                      "end"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "description": "the text to mark",
+                "additionalProperties": false,
+                "oneOf": [
+                  {
+                    "required": [
+                      "find"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "start",
+                      "end"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "range"
+                    ]
+                  }
+                ]
+              },
+              "type": {
+                "type": "string",
+                "description": "a vocabulary type such as fmt:bold or link:hyperlink"
+              },
+              "attrs": {
+                "type": "object",
+                "description": "the new code's attributes, such as href",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Wrap text in a new paired code of a vocabulary type, such as fmt:bold.",
+            "required": [
+              "op",
+              "at",
+              "if_match",
+              "range",
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "remove_edition"
+              },
+              "at": {
+                "$ref": "#/$defs/ref"
+              },
+              "if_match": {
+                "type": "string",
+                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
+              }
+            },
+            "description": "Remove one edition of a block.",
+            "required": [
+              "op",
+              "at",
+              "if_match"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "annotate"
+              },
+              "at": {
+                "$ref": "#/$defs/ref"
+              },
+              "if_match": {
+                "type": "string",
+                "description": "the revision of the edition you read the anchor against",
+                "pattern": "^r:[0-9a-f]{16}$"
+              },
+              "type": {
+                "type": "string",
+                "description": "the annotation type, such as note, entity or term"
+              },
+              "id": {
+                "type": "string",
+                "description": "the annotation's id; omitted mints one and the result names it"
+              },
+              "anchor": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "block",
+                      "run",
+                      "range",
+                      "form"
+                    ]
+                  },
+                  "path": {
+                    "$ref": "#/$defs/path"
+                  },
+                  "runId": {
+                    "type": "string"
+                  },
+                  "start": {
+                    "type": "object",
+                    "properties": {
+                      "run": {
+                        "type": "integer"
+                      },
+                      "offset": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "run"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "end": {
+                    "type": "object",
+                    "properties": {
+                      "run": {
+                        "type": "integer"
+                      },
+                      "offset": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "run"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "key": {
+                    "type": "string"
+                  }
+                },
+                "description": "where in the edition it applies; omitted is the whole block",
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              },
+              "value": {
+                "description": "the annotation's payload"
+              }
+            },
+            "description": "Add a stand-off annotation to an edition, or replace the one with the same type and id.",
+            "required": [
+              "op",
+              "at",
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "unannotate"
+              },
+              "at": {
+                "$ref": "#/$defs/ref"
+              },
+              "type": {
+                "type": "string",
+                "description": "the annotation type"
+              },
+              "id": {
+                "type": "string",
+                "description": "the annotation's id"
+              }
+            },
+            "description": "Remove an annotation by type and id.",
+            "required": [
+              "op",
+              "at",
+              "type",
+              "id"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "insert_block"
+              },
+              "doc": {
+                "type": "string",
+                "description": "the document"
+              },
+              "after": {
+                "type": "string",
+                "description": "the key of the block the new one follows"
+              },
+              "before": {
+                "type": "string",
+                "description": "the key of the block the new one precedes"
+              },
+              "name": {
+                "type": "string",
+                "description": "the new block's key, where the format names blocks by key"
+              },
+              "editions": {
+                "type": "object",
+                "description": "the new block's content per edition key",
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "description": "the content with inline codes as the \u003cx id=\"…\"/\u003e placeholders a read shows"
+                    },
+                    "runs": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/run"
+                      },
+                      "description": "the content as runs; a code carries type and attributes and never data"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "oneOf": [
+                    {
+                      "required": [
+                        "text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "runs"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Add a block to a document, after or before a block key.",
+            "required": [
+              "op",
+              "doc",
+              "editions"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "delete_block"
+              },
+              "at": {
+                "$ref": "#/$defs/block"
+              },
+              "if_match": {
+                "type": "object",
+                "description": "the revision read of each edition of the block, by edition key",
+                "additionalProperties": {
+                  "type": "string",
+                  "pattern": "^r:[0-9a-f]{16}$"
+                }
+              }
+            },
+            "description": "Remove a block from a document.",
+            "required": [
+              "op",
+              "at",
+              "if_match"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "native"
+              },
+              "doc": {
+                "type": "string",
+                "description": "the document"
+              },
+              "if_match": {
+                "type": "string",
+                "description": "the digest of the document you read",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "name": {
+                "type": "string",
+                "description": "the operation, such as docx.append_paragraph"
+              },
+              "args": {
+                "description": "the arguments, as the format's schema for the operation describes them"
+              }
+            },
+            "description": "A format-specific operation, guarded by the document digest.",
+            "required": [
+              "op",
+              "doc",
+              "if_match",
+              "name",
+              "args"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "decide"
+              },
+              "at": {
+                "$ref": "#/$defs/ref"
+              },
+              "if_match": {
+                "type": "string",
+                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
+              },
+              "outcome": {
+                "type": "string",
+                "description": "establish, reject, withdraw, or advise (an agent's pre-review)",
+                "enum": [
+                  "establish",
+                  "reject",
+                  "withdraw",
+                  "advise"
+                ]
+              },
+              "score": {
+                "type": "integer",
+                "description": "a score from 0 to 100",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "why"
+              }
+            },
+            "description": "Record a review decision on the edition revision read. An agent sends only advise.",
+            "required": [
+              "op",
+              "at",
+              "if_match",
+              "outcome"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "term"
+              },
+              "action": {
+                "type": "string",
+                "description": "upsert or delete",
+                "enum": [
+                  "upsert",
+                  "delete"
+                ]
+              },
+              "term": {
+                "type": "string",
+                "description": "the term"
+              },
+              "locale": {
+                "type": "string",
+                "description": "the term's language; omitted is the project's source language"
+              },
+              "status": {
+                "type": "string",
+                "description": "preferred, admitted, deprecated or forbidden"
+              },
+              "replacement": {
+                "type": "string",
+                "description": "the wording to use instead of a discouraged term"
+              },
+              "replaces": {
+                "type": "string",
+                "description": "a term this one replaces"
+              },
+              "do_not_translate": {
+                "type": "boolean",
+                "description": "true keeps the term verbatim in every language, false clears that"
+              },
+              "advisory": {
+                "type": "boolean",
+                "description": "a use of a discouraged term reports without failing a check"
+              },
+              "competitor": {
+                "type": "boolean",
+                "description": "the term is a competitor's name"
+              }
+            },
+            "description": "Write or delete a term in the terms store.",
+            "required": [
+              "op",
+              "action",
+              "term"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "memory"
+              },
+              "action": {
+                "type": "string",
+                "description": "add or delete",
+                "enum": [
+                  "add",
+                  "delete"
+                ]
+              },
+              "from": {
+                "type": "object",
+                "properties": {
+                  "edition": {
+                    "type": "string",
+                    "description": "the edition key of this side"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "the text"
+                  }
+                },
+                "description": "the side the pair translates from",
+                "required": [
+                  "edition",
+                  "text"
+                ],
+                "additionalProperties": false
+              },
+              "to": {
+                "type": "object",
+                "properties": {
+                  "edition": {
+                    "type": "string",
+                    "description": "the edition key of this side"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "the text"
+                  }
+                },
+                "description": "the side the pair translates to",
+                "required": [
+                  "edition",
+                  "text"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "description": "Add or delete a content-memory pair.",
+            "required": [
+              "op",
+              "action",
+              "from",
+              "to"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "recipe"
+              },
+              "path": {
+                "type": "string",
+                "description": "the recipe field, as a dotted path"
+              },
+              "value": {
+                "description": "the new value"
+              }
+            },
+            "description": "Set one recipe field through its allowlist.",
+            "required": [
+              "op",
+              "path",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "description": "the operations, applied in order",
+      "minItems": 1
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "block": {
+      "type": "object",
+      "properties": {
+        "doc": {
+          "type": "string",
+          "description": "the document: a project-relative path, container!entry for an archive member, or a workspace document key"
+        },
+        "block": {
+          "type": "string",
+          "description": "the block key a read reports"
+        }
+      },
+      "description": "a block of a document",
+      "required": [
+        "doc",
+        "block"
+      ],
+      "additionalProperties": false
+    },
+    "path": {
+      "type": "array",
+      "items": {
+        "description": "a run index, {\"plural\": form} or {\"select\": case}",
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 0
+          },
+          {
+            "type": "object",
+            "properties": {
+              "plural": {
+                "type": "string",
+                "description": "a plural form",
+                "enum": [
+                  "zero",
+                  "one",
+                  "two",
+                  "few",
+                  "many",
+                  "other"
+                ]
+              }
+            },
+            "required": [
+              "plural"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "select": {
+                "type": "string",
+                "description": "a select case"
+              }
+            },
+            "required": [
+              "select"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "description": "a walk into a plural or select: a run index, then the form or case, repeated"
+    },
+    "ref": {
+      "type": "object",
+      "properties": {
+        "doc": {
+          "type": "string",
+          "description": "the document: a project-relative path, container!entry for an archive member, or a workspace document key"
+        },
+        "block": {
+          "type": "string",
+          "description": "the block key a read reports"
+        },
+        "edition": {
+          "type": "string",
+          "description": "the edition: a language tag with optional ;tone= and ;channel=, for example fr or en;channel=short; omitted is the document's own edition"
+        }
+      },
+      "description": "an edition of a block in a document",
+      "required": [
+        "doc",
+        "block"
+      ],
+      "additionalProperties": false
+    },
+    "run": {
+      "description": "one run of content: text, or an inline code named by its id, type and attributes (never its native data), or a plural or select whose branches are runs",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "text"
+            },
+            "noTranslate": {
+              "type": "boolean",
+              "description": "the text is not for translation, such as a command in a code span"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ph": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "the code's id, as the placeholder \u003cx id=\"…\"/\u003e shows it"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "the vocabulary type, such as fmt:bold or link:hyperlink"
+                },
+                "subType": {
+                  "type": "string",
+                  "description": "the format's own type"
+                },
+                "data": {
+                  "type": "string",
+                  "description": "always empty: a code's native form stays with the format, which spells a new code from its type",
+                  "const": ""
+                },
+                "equiv": {
+                  "type": "string",
+                  "description": "the code's text equivalent"
+                },
+                "disp": {
+                  "type": "string",
+                  "description": "what an editor shows for the code"
+                },
+                "attrs": {
+                  "type": "object",
+                  "description": "the code's attributes, such as href",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "constraints": {
+                  "type": "object",
+                  "properties": {
+                    "deletable": {
+                      "type": "boolean"
+                    },
+                    "cloneable": {
+                      "type": "boolean"
+                    },
+                    "reorderable": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "ph"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "pcOpen": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "the code's id, as the placeholder \u003cx id=\"…\"/\u003e shows it"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "the vocabulary type, such as fmt:bold or link:hyperlink"
+                },
+                "subType": {
+                  "type": "string",
+                  "description": "the format's own type"
+                },
+                "data": {
+                  "type": "string",
+                  "description": "always empty: a code's native form stays with the format, which spells a new code from its type",
+                  "const": ""
+                },
+                "equiv": {
+                  "type": "string",
+                  "description": "the code's text equivalent"
+                },
+                "disp": {
+                  "type": "string",
+                  "description": "what an editor shows for the code"
+                },
+                "attrs": {
+                  "type": "object",
+                  "description": "the code's attributes, such as href",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "constraints": {
+                  "type": "object",
+                  "properties": {
+                    "deletable": {
+                      "type": "boolean"
+                    },
+                    "cloneable": {
+                      "type": "boolean"
+                    },
+                    "reorderable": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "pcOpen"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "pcClose": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "the code's id, as the placeholder \u003cx id=\"…\"/\u003e shows it"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "the vocabulary type, such as fmt:bold or link:hyperlink"
+                },
+                "subType": {
+                  "type": "string",
+                  "description": "the format's own type"
+                },
+                "data": {
+                  "type": "string",
+                  "description": "always empty: a code's native form stays with the format, which spells a new code from its type",
+                  "const": ""
+                },
+                "equiv": {
+                  "type": "string",
+                  "description": "the code's text equivalent"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "pcClose"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sub": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "the code's id, as the placeholder \u003cx id=\"…\"/\u003e shows it"
+                },
+                "ref": {
+                  "type": "string",
+                  "description": "the subblock the reference points at"
+                },
+                "equiv": {
+                  "type": "string",
+                  "description": "the code's text equivalent"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "sub"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "plural": {
+              "type": "object",
+              "properties": {
+                "pivot": {
+                  "type": "string",
+                  "description": "the variable the branches choose by"
+                },
+                "forms": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/run"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "pivot",
+                "forms"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "plural"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "select": {
+              "type": "object",
+              "properties": {
+                "pivot": {
+                  "type": "string",
+                  "description": "the variable the branches choose by"
+                },
+                "cases": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/run"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "pivot",
+                "cases"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "select"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "title": "kapi.change/v1",
+  "description": "A change set: ordered operations that change content, review decisions and context assets, each guarded by the revision its sender read.",
+  "required": [
+    "ops"
+  ],
+  "additionalProperties": false
+}

@@ -53,6 +53,37 @@ func BenchmarkBaseTool_Process(b *testing.B) {
 	}
 }
 
+// BenchmarkProduce_TargetWrite measures a Produce handler that writes a target
+// with inline codes and stamps it, the write every translating tool makes per
+// block.
+func BenchmarkProduce_TargetWrite(b *testing.B) {
+	b.ReportAllocs()
+	runs := []model.Run{
+		model.TextR("Read the "),
+		model.PcOpenR(model.PcOpenRun{ID: "1", Type: "link:hyperlink", Data: `<a href="https://example.com/guide">`, Attrs: map[string]string{"href": "https://example.com/guide"}}),
+		model.TextR("shop guide"),
+		model.PcCloseR(model.PcCloseRun{ID: "1", Type: "link:hyperlink", Data: "</a>"}),
+		model.TextR(" before you "),
+		model.PcOpenR(model.PcOpenRun{ID: "2", Type: "fmt:bold", Data: "<b>"}),
+		model.TextR("order"),
+		model.PcCloseR(model.PcCloseRun{ID: "2", Type: "fmt:bold", Data: "</b>"}),
+		model.TextR("."),
+	}
+	t := &tool.BaseTool{ToolName: "bench"}
+	t.Produce = func(v tool.VariantView) error {
+		v.SetTargetRuns("fr", v.SourceRuns())
+		v.StampTargetProvenance("fr", model.TargetStatusDraft, model.Origin{Tool: "bench"})
+		return nil
+	}
+	ctx := context.Background()
+	for b.Loop() {
+		blk := model.NewRunsBlock("tu1", runs)
+		if _, err := t.ApplyContext(ctx, &model.Part{Type: model.PartBlock, Resource: blk}); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 // BenchmarkParallelBlockTool measures the ParallelBlockTool with 4-way
 // concurrency processing 1000 blocks that each do a lightweight transform.
 func BenchmarkParallelBlockTool(b *testing.B) {

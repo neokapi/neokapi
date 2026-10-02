@@ -338,15 +338,21 @@ func (b *BaseTool) runAnnotate(ctx context.Context, part *model.Part) (*model.Pa
 	if block == nil {
 		return part, nil
 	}
-	v := newBlockView(ctx, block)
+	v := newToolView(ctx, block, b.ToolName)
 	if !immutabilityCheckEnabled(ctx) {
 		if err := b.Annotate(v); err != nil {
+			return nil, err
+		}
+		if err := b.refused(v); err != nil {
 			return nil, err
 		}
 		return v.result(part), nil
 	}
 	srcBefore, tgtBefore := blockSourceSig(block), blockTargetsSig(block)
 	if err := b.Annotate(v); err != nil {
+		return nil, err
+	}
+	if err := b.refused(v); err != nil {
 		return nil, err
 	}
 	if blockSourceSig(block) != srcBefore {
@@ -364,15 +370,21 @@ func (b *BaseTool) runProduce(ctx context.Context, part *model.Part) (*model.Par
 	if block == nil {
 		return part, nil
 	}
-	v := newBlockView(ctx, block)
+	v := newToolView(ctx, block, b.ToolName)
 	if !immutabilityCheckEnabled(ctx) {
 		if err := b.Produce(v); err != nil {
+			return nil, err
+		}
+		if err := b.refused(v); err != nil {
 			return nil, err
 		}
 		return v.result(part), nil
 	}
 	srcBefore := blockSourceSig(block)
 	if err := b.Produce(v); err != nil {
+		return nil, err
+	}
+	if err := b.refused(v); err != nil {
 		return nil, err
 	}
 	if blockSourceSig(block) != srcBefore {
@@ -391,7 +403,7 @@ func (b *BaseTool) runTransform(ctx context.Context, part *model.Part) (*model.P
 	if block == nil {
 		return part, nil
 	}
-	v := newBlockView(ctx, block)
+	v := newToolView(ctx, block, b.ToolName)
 	enforce := immutabilityCheckEnabled(ctx)
 	var srcBefore, tgtBefore uint64
 	if enforce {
@@ -416,6 +428,15 @@ func (b *BaseTool) runTransform(ctx context.Context, part *model.Part) (*model.P
 		return nil, err
 	}
 	return v.result(part), nil
+}
+
+// refused returns the write the handler's view could not apply, as the
+// handler's error.
+func (b *BaseTool) refused(v *blockView) error {
+	if v.err != nil {
+		return fmt.Errorf("tool %q: %w", b.ToolName, v.err)
+	}
+	return nil
 }
 
 // blockSourceSig is a cheap content signature of a Block's source runs,

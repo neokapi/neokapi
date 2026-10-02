@@ -120,7 +120,7 @@ func (s TargetStatus) Rank() int {
 // pilot shadowed a stream. So it is recorded at production time or approximated
 // forever.
 type Origin struct {
-	Kind      string `json:"kind,omitempty"`      // human | memory | mt | ai | ocr | asr
+	Kind      string `json:"kind,omitempty"`      // human | agent | memory | mt | ai | ocr | asr
 	Engine    string `json:"engine,omitempty"`    // MT/AI/OCR/ASR engine name
 	Tool      string `json:"tool,omitempty"`      // tool id that produced it
 	Reference string `json:"reference,omitempty"` // batch id, content-memory entry, etc.
@@ -162,7 +162,10 @@ type Origin struct {
 // without parsing the Engine string. The original recognizer's engine is
 // preserved in Origin.Engine; the refining tool/provider lives in Tool/Reference.
 const (
-	OriginHuman      = "human"
+	OriginHuman = "human"
+	// OriginAgent is content an agent wrote through kapi's agent surfaces: an
+	// AI working for a person, named in Engine, its session in Reference.
+	OriginAgent      = "agent"
 	OriginMemory     = "memory"
 	OriginMT         = "mt"
 	OriginAI         = "ai"
