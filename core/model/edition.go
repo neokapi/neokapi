@@ -97,21 +97,39 @@ func keyText(k EditionKey) string {
 	return string(b)
 }
 
-// sourceKey is the key of the edition Source holds.
-func (b *Block) sourceKey() EditionKey {
+// sourceLanguageKey is the key that names the block's source language, with
+// no tone and no channel.
+func (b *Block) sourceLanguageKey() EditionKey {
 	return EditionKey{Locale: NormalizeLocale(b.SourceLocale)}
 }
 
+// holdsSameLanguageTarget reports whether the block holds a target filed under
+// its source language with no tone and no channel: the target of a bilingual
+// file whose two languages are one, such as an XLIFF file from en-US to en-US
+// or a PO catalogue in its source language.
+func (b *Block) holdsSameLanguageTarget() bool {
+	return b.SourceLocale != "" && b.Targets[b.sourceLanguageKey()] != nil
+}
+
+// sourceKey is the key of the edition Source holds: its language, or the zero
+// key when a same-language target holds that key.
+func (b *Block) sourceKey() EditionKey {
+	if b.holdsSameLanguageTarget() {
+		return EditionKey{}
+	}
+	return b.sourceLanguageKey()
+}
+
 // holdsSource reports whether k names the edition Source holds: the zero key,
-// which is the document's own edition, or the block's source language with no
-// tone and no channel. A same-language edition with a tone or a channel is an
-// edition of its own.
+// which is always the document's own edition, or the block's source language
+// with no tone and no channel, unless a same-language target holds that key.
+// A same-language edition with a tone or a channel is an edition of its own.
 func (b *Block) holdsSource(k EditionKey) bool {
 	if k.IsZero() {
 		return true
 	}
 	return k.Tone == "" && k.Channel == "" && b.SourceLocale != "" &&
-		NormalizeLocale(k.Locale) == NormalizeLocale(b.SourceLocale)
+		NormalizeLocale(k.Locale) == NormalizeLocale(b.SourceLocale) && !b.holdsSameLanguageTarget()
 }
 
 // IsSourceEdition reports whether k reaches the edition Source holds. Overlays
@@ -191,9 +209,9 @@ func (b *Block) RemoveEdition(k EditionKey) bool {
 }
 
 // Editions returns the keys of every edition the block holds: the edition it
-// was read in first, then the others in the order of their text form. A
-// target filed under the key of the edition Source holds is reached through
-// that key as the source, so it is not listed twice.
+// was read in first, then the others in the order of their text form. When a
+// same-language target holds the key of the source language, the edition the
+// block was read in is listed by the zero key.
 func (b *Block) Editions() []EditionKey {
 	src := b.sourceKey()
 	out := make([]EditionKey, 0, 1+len(b.Targets))
@@ -211,11 +229,12 @@ func (b *Block) Editions() []EditionKey {
 
 // Authoritative returns the key of the block's authoritative edition under p:
 // the edition p names when the block holds it as an edition of its own, and
-// otherwise the edition the block was read in.
+// otherwise the edition the block was read in. A policy that names the source
+// language names the edition the block was read in, whatever else holds that
+// language.
 func (b *Block) Authoritative(p AuthorityPolicy) EditionKey {
-	if p.Locale != "" {
-		k := Variant(p.Locale)
-		if !b.holdsSource(k) && b.Targets[k] != nil {
+	if p.Locale != "" && NormalizeLocale(p.Locale) != NormalizeLocale(b.SourceLocale) {
+		if k := Variant(p.Locale); b.Targets[k] != nil {
 			return k
 		}
 	}

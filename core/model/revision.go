@@ -42,7 +42,8 @@ func RunsRevision(k EditionKey, runs []Run) string {
 // EditionRevision returns the revision of edition k of b, or AbsentRevision
 // when b does not hold it. Every key that reaches the edition gives the same
 // revision: the zero key and the source language both name the edition the
-// block was read in.
+// block was read in, unless a same-language target holds the source language,
+// and then the zero key alone names it (Block.EditionKeyOf).
 func EditionRevision(b *Block, k EditionKey) string {
 	e, ok := b.Edition(k)
 	if !ok {

@@ -124,6 +124,39 @@ func TestBlockRemoveEditionAndEditions(t *testing.T) {
 	assert.Equal(t, []model.EditionKey{{Locale: "en"}, {Locale: "en", Channel: "short"}}, b.Editions())
 }
 
+// A bilingual file whose two languages are one (an XLIFF file from en-US to
+// en-US, a PO catalogue in its source language) holds a target under the key
+// of the source language. That key then reaches the target, and the zero key
+// alone reaches the edition the block was read in, so neither hides the
+// other and a write to one never lands in the other.
+func TestBlockEdition_ASameLanguageTargetKeepsItsKey(t *testing.T) {
+	b := model.NewBlock("b1", "colour source")
+	b.SourceLocale = "en-US"
+	b.SourceStatus = model.SourceStatusWritten
+	b.SetTarget("en-US", &model.Target{Runs: []model.Run{model.TextR("colour target")}, Status: model.TargetStatusEstablished})
+
+	assert.Equal(t, []model.EditionKey{{}, {Locale: "en-US"}}, b.Editions())
+	tgt, ok := b.Edition(model.Variant("en-US"))
+	require.True(t, ok)
+	assert.Equal(t, "colour target", model.RunsText(tgt.Runs))
+	src, ok := b.Edition(model.EditionKey{})
+	require.True(t, ok)
+	assert.Equal(t, "colour source", model.RunsText(src.Runs))
+	assert.False(t, b.IsSourceEdition(model.Variant("en-US")))
+	assert.Equal(t, model.EditionKey{}, b.Authoritative(model.AuthorityPolicy{}))
+	assert.Equal(t, model.EditionKey{}, b.Authoritative(model.AuthorityPolicy{Locale: "en-US"}), "the source language names the edition the block was read in")
+	assert.NotEqual(t, model.EditionRevision(b, model.EditionKey{}), model.EditionRevision(b, model.Variant("en-US")))
+
+	b.SetEdition(model.Variant("en-US"), model.Edition{Runs: []model.Run{model.TextR("color target")}, Status: "draft"})
+	assert.Equal(t, "color target", b.TargetText("en-US"))
+	assert.Equal(t, "colour source", b.SourceText())
+	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
+
+	assert.True(t, b.RemoveEdition(model.Variant("en-US")))
+	assert.Equal(t, "colour source", b.SourceText())
+	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}}, b.Editions(), "with no such target the source language reaches the source again")
+}
+
 func TestBlockAuthoritative(t *testing.T) {
 	b := editionBlock()
 	assert.Equal(t, model.EditionKey{Locale: "en"}, b.Authoritative(model.AuthorityPolicy{}))
