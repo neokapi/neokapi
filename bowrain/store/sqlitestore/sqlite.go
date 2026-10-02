@@ -966,7 +966,7 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 		// Record target history before overwriting. The snapshot is kept for the
 		// change log below, which asks the same question of the same targets.
 		var oldTargets map[model.VariantKey]*model.Target
-		if !isNew && len(b.Editions()) > 1 {
+		if !isNew && carriesTranslation(b) {
 			loaded, loadErr := loadExistingTargets(ctx, tx, projectID, itemName, internalID)
 			if loadErr == nil && loaded != nil {
 				oldTargets = loaded
@@ -1039,8 +1039,9 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 				return fmt.Errorf("log change for block %s: %w", internalID, err)
 			}
 			// Log target additions for new blocks that already have translations.
-			for _, key := range b.Editions() {
-				if b.IsSourceEdition(key) {
+			srcKey := b.EditionKeyOf(model.EditionKey{})
+			for key := range b.EachEdition {
+				if key == srcKey {
 					continue
 				}
 				variant := bstore.VariantKeyText(key)
@@ -1073,11 +1074,11 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 			// recordTargetHistory asked this question of the same snapshot
 			// above; this reuses it rather than loading it twice.
 			prev := existingLocales[internalID]
-			for _, key := range b.Editions() {
-				if b.IsSourceEdition(key) {
+			srcKey := b.EditionKeyOf(model.EditionKey{})
+			for key, nt := range b.EachEdition {
+				if key == srcKey {
 					continue
 				}
-				nt, _ := b.Edition(key)
 				variant := bstore.VariantKeyText(key)
 				_, had := prev[variant]
 				if had && oldTargets != nil {
@@ -1717,8 +1718,8 @@ func scanProject(row scanner) (*platstore.Project, error) {
 
 func scanStoredBlock(row scanner) (*venue.StoredBlock, error) {
 	var sb venue.StoredBlock
-	// Targets + Annotations are hydrated via bstore.HydrateOverlays after the
-	// caller has scanned all rows. The block starts with none.
+	// Translations and annotations are hydrated by bstore.HydrateOverlays after
+	// the caller has scanned all rows. The block starts with none.
 	sb.Block = model.NewRunsBlock("", nil)
 	var translatable int
 	var sourceJSON, propsJSON, overlaysJSON, storedStr, updatedStr string

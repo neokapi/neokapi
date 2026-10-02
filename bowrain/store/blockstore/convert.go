@@ -48,17 +48,21 @@ func toKBF(sb *venue.StoredBlock) *kbf.Block {
 	if b.Hash == "" && sb.Identity != nil {
 		b.Hash = sb.Identity.ContentHash
 	}
-	if keys := sb.Editions(); len(keys) > 1 {
-		b.Targets = make(map[kbf.LocaleID][]kbf.Run, len(keys)-1)
-		for _, key := range keys {
-			// A tone or channel variant shares its language's slot; the
-			// language's own edition sorts first and keeps it.
-			if _, taken := b.Targets[string(key.Locale)]; taken || sb.IsSourceEdition(key) {
-				continue
-			}
-			target, _ := sb.Edition(key)
-			b.Targets[string(key.Locale)] = append([]model.Run(nil), target.Runs...)
+	srcKey := sb.EditionKeyOf(model.EditionKey{})
+	for key, target := range sb.EachEdition {
+		if key == srcKey {
+			continue
 		}
+		// A tone or channel variant shares its language's slot, which the
+		// language's own edition keeps whenever the block holds it.
+		slot := string(key.Locale)
+		if _, taken := b.Targets[slot]; taken && (key.Tone != "" || key.Channel != "") {
+			continue
+		}
+		if b.Targets == nil {
+			b.Targets = make(map[kbf.LocaleID][]kbf.Run)
+		}
+		b.Targets[slot] = append([]model.Run(nil), target.Runs...)
 	}
 	return b
 }

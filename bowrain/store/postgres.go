@@ -1205,8 +1205,9 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 			if err := logChange(ctx, tx, projectID, stream, internalID, "source_added", "", identity.ContentHash); err != nil {
 				return fmt.Errorf("log change for block %s: %w", internalID, err)
 			}
-			for _, key := range b.Editions() {
-				if b.IsSourceEdition(key) {
+			srcKey := b.EditionKeyOf(model.EditionKey{})
+			for key := range b.EachEdition {
+				if key == srcKey {
 					continue
 				}
 				variant := VariantKeyText(key)
@@ -1239,11 +1240,11 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 			// nobody touched. recordTargetHistoryPg already asks this question
 			// of the same snapshot, a few lines above.
 			prevText := oldTargetText[internalID]
-			for _, key := range b.Editions() {
-				if b.IsSourceEdition(key) {
+			srcKey := b.EditionKeyOf(model.EditionKey{})
+			for key, nt := range b.EachEdition {
+				if key == srcKey {
 					continue
 				}
-				nt, _ := b.Edition(key)
 				variant := VariantKeyText(key)
 				_, had := existing.locales[variant]
 				if had && model.RunsText(nt.Runs) == prevText[variant] {
@@ -1915,9 +1916,9 @@ func scanItemPg(row scanner) (*platstore.Item, error) {
 
 func scanStoredBlockPg(row scanner) (*venue.StoredBlock, error) {
 	var sb venue.StoredBlock
-	// Targets + Annotations are hydrated separately via HydrateOverlays after
-	// all rows are scanned — see GetBlock / GetBlocks. The block starts with
-	// none.
+	// Translations and annotations are hydrated separately by HydrateOverlays
+	// after all rows are scanned (see GetBlock and GetBlocks). The block starts
+	// with none.
 	sb.Block = model.NewRunsBlock("", nil)
 	var sourceJSON, propsJSON, overlaysJSON string
 
@@ -2001,10 +2002,12 @@ func HydrateOverlays(
 				// A row filed under no language names no translation: that
 				// key reaches the edition the block was read in, which the
 				// block row holds.
-				if sb.Block.IsSourceEdition(key) {
+				if t == nil || sb.Block.IsSourceEdition(key) {
 					continue
 				}
-				sb.Block.SetEdition(key, model.Edition{Runs: t.Runs, Status: model.Status(t.Status), Origin: t.Origin, Score: t.Score})
+				// The decoded row is filed as it was read, the way a reader
+				// files a target, so a large hydrate copies nothing.
+				sb.Block.SetTargetVariant(key, t)
 			}
 		}
 		for id, anns := range annotations {

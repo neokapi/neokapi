@@ -69,15 +69,27 @@ func recordBlockHistory(ctx context.Context, tx *sql.Tx, projectID, stream, bloc
 	return err
 }
 
+// carriesTranslation reports whether b holds an edition besides the one it was
+// read in.
+func carriesTranslation(b *model.Block) bool {
+	src := b.EditionKeyOf(model.EditionKey{})
+	for key := range b.EachEdition {
+		if key != src {
+			return true
+		}
+	}
+	return false
+}
+
 // recordTargetHistory checks each translation b carries (every edition other
 // than the one it was read in) against oldTargets and records history entries
 // for the ones that changed.
 func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream string, blockID string, oldTargets map[model.VariantKey]*model.Target, b *model.Block) error {
-	for _, key := range b.Editions() {
-		if b.IsSourceEdition(key) {
+	src := b.EditionKeyOf(model.EditionKey{})
+	for key, newTarget := range b.EachEdition {
+		if key == src {
 			continue
 		}
-		newTarget, _ := b.Edition(key)
 		newText := model.RunsText(newTarget.Runs)
 		newCoded := targetRunsJSON(newTarget.Runs)
 

@@ -23,9 +23,11 @@ type Execer = storage.Execer
 // SyncBlockOverlays writes a block's translations (every edition other than
 // the one the block was read in) and its annotations into the kind-specific
 // overlay tables (translations, annotations), keyed for
-// access-pattern-specific indexes (#403 / #405).
+// access-pattern-specific indexes (#403 / #405). Each translation is filed
+// under its canonical key. A target filed under the zero key is not an edition
+// (that key names the edition the block was read in) and is not written.
 //
-// UPSERT semantics — a block carrying some variants/kinds only updates
+// UPSERT semantics: a block carrying some variants/kinds only updates
 // those. Unspecified entries are left intact. This matches how editors
 // and single-locale translators naturally operate.
 //
@@ -38,11 +40,12 @@ func SyncBlockOverlays(
 	b *model.Block,
 	now time.Time,
 ) error {
-	for _, key := range b.Editions() {
-		if b.IsSourceEdition(key) {
+	src := b.EditionKeyOf(model.EditionKey{})
+	for key, e := range b.EachEdition {
+		if key == src {
 			continue
 		}
-		if err := UpsertBlockTarget(ctx, ex, dialect, projectID, stream, blockID, key, EditionTarget(b, key), nil, now); err != nil {
+		if err := UpsertBlockTarget(ctx, ex, dialect, projectID, stream, blockID, key, TargetRow(e), nil, now); err != nil {
 			return err
 		}
 	}
@@ -55,13 +58,9 @@ func SyncBlockOverlays(
 	return nil
 }
 
-// EditionTarget returns edition key of b in the shape the translations table
-// stores in target_json, or nil when b holds no such edition.
-func EditionTarget(b *model.Block, key model.EditionKey) *model.Target {
-	e, ok := b.Edition(key)
-	if !ok {
-		return nil
-	}
+// TargetRow returns edition e in the shape the translations table stores in
+// target_json.
+func TargetRow(e model.Edition) *model.Target {
 	return &model.Target{Runs: e.Runs, Status: model.TargetStatus(e.Status), Origin: e.Origin, Score: e.Score}
 }
 

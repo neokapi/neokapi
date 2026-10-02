@@ -60,11 +60,11 @@ func sqlListTranslationTextByBlocks(dialect string, nblocks int) string {
 // required reverts or revert content older than the selected version.
 func recordTargetHistoryPg(ctx context.Context, tx Runner, projectID, stream, blockID string, oldText map[string]string, b *model.Block, now time.Time) error {
 	cc := ChangeContextFromContext(ctx)
-	for _, key := range b.Editions() {
-		if b.IsSourceEdition(key) {
+	src := b.EditionKeyOf(model.EditionKey{})
+	for key, nt := range b.EachEdition {
+		if key == src {
 			continue
 		}
-		nt, _ := b.Edition(key)
 		variant := VariantKeyText(key)
 		newText := model.RunsText(nt.Runs)
 		prev := oldText[variant]
