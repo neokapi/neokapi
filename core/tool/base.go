@@ -3,7 +3,6 @@ package tool
 import (
 	"context"
 	"fmt"
-	"hash"
 	"hash/fnv"
 	"reflect"
 	"strings"
@@ -453,14 +452,13 @@ func blockSourceSig(b *model.Block) uint64 {
 // does not depend on map order.
 func blockTargetsSig(b *model.Block) uint64 {
 	auth := b.Authoritative(model.AuthorityPolicy{})
-	var h hash.Hash64
+	h := fnv.New64a()
+	derived := false
 	for _, k := range b.Editions() {
 		if k == auth {
 			continue
 		}
-		if h == nil {
-			h = fnv.New64a()
-		}
+		derived = true
 		e, _ := b.Edition(k)
 		mt, _ := k.MarshalText()
 		_, _ = h.Write(mt)
@@ -470,7 +468,7 @@ func blockTargetsSig(b *model.Block) uint64 {
 		_, _ = h.Write([]byte(e.Status))
 		_, _ = h.Write([]byte{1})
 	}
-	if h == nil {
+	if !derived {
 		return 0
 	}
 	return h.Sum64()
