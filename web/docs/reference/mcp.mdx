@@ -174,7 +174,7 @@ and check what it changed.
 
 <McpToolList surface="translation" />
 
-**review** is the review queue and its decisions:
+**review** is the review queue and the review picture of one block:
 
 <McpToolList surface="review" />
 
@@ -284,22 +284,25 @@ than resolves: an assistant told the terms moved asks again before continuing,
 because the wording it had settled on was chosen against a context that has
 since changed.
 
-### "Extract the content from this file"
+### "Show me the content of this file"
 
 > Show me the translatable strings in `messages.json`
 
-The assistant calls `extract_content`, parses the file, and returns each
-translatable block with its ID, content hash, source text (inline codes as
-`<x id="…"/>` placeholders), and word count.
+The assistant calls `read_blocks` with the document's path and returns a page
+of blocks: each block's reference and revision, its text with inline codes as
+`<x id="…"/>` placeholders, the codes and their attributes, and the operations
+the block accepts.
 
 ### "Edit the content, then check it"
 
 > Tighten the intro paragraph in `report.docx`, keeping it on brand
 
-The assistant reads the blocks with `extract_content`, rewrites the text itself
-(no second model), sends the change back through `apply_edits` (the
-byte-faithful round-trip, drift- and inline-code-guarded), then calls
-`check_file` to confirm the gate passes, looping until it does.
+The assistant reads the blocks with `read_blocks`, rewrites the text itself
+(no second model), and sends a change set through `apply_edits`: one
+`replace_text` or `set_content` operation per block, addressed by the `ref` the
+read reported and guarded by its `rev`. kapi writes it through the format's
+writer, keeping the document's structure and inline codes, then the assistant
+calls `check_file` to confirm the gate passes, looping until it does.
 
 ### "Catch the project up"
 
@@ -316,21 +319,22 @@ shippable or parks for a human.
 
 > Show me the French units waiting for review, and pre-review them for me
 
-The assistant calls `review_queue`, reads each candidate with `review_unit`,
-and records a pre-review with `pre_review_unit`: a score from 0 to 100 and its
-reasons. The pre-review is bound to the translation's content hash and
+The assistant calls `review_queue`, reads each candidate with `review_block`
+using the `ref` its row carries, and records a pre-review through
+`apply_edits`: a `decide` operation at that `ref`, with `if_match` set to the
+`rev` `review_block` returned, outcome `advise`, a score from 0 to 100 and its
+reasons. The pre-review is bound to the wording the assistant read and
 recorded under the identity `agent/<client>`, so a later edit drops it. It
 decides nothing: the unit stays in the queue until a person approves or
-rejects it.
+rejects it, and an assistant's `establish` is refused.
 
 `review_queue` returns one queue across the project's languages. Each row
 carries `language` and, when that language is the project's source, `isSource:
 true` and a `status` on the authoring ladder; `languages` counts the pending
 units per language, so an assistant can narrow with the `language` argument to
-one that has work. `review_unit` reads a source-language unit the same way it
+one that has work. `review_block` reads a source-language unit the same way it
 reads a translation, from the source file, and returns its point and
-neighbourhood with no target half. The three decision tools record
-target-language decisions.
+neighbourhood with no target half.
 
 ## Tool reference
 
@@ -392,64 +396,80 @@ Keeping, dropping, reverting and widening are reserved for people through the
 CLI or desktop and are excluded from the MCP tools. See
 [Growing context](/kapi/context-decisions).
 
-### extract_content
+### read_blocks
 
-<McpToolParams name="extract_content" />
+Read a document's blocks, a page at a time. Each block carries `ref`, the
+reference an operation names (`doc`, `block` and, for a translation,
+`edition`), and `rev`, the revision of the edition the read showed, which an
+operation sends as `if_match`. `text` holds the content with inline codes as
+`<x id="…"/>` placeholders, which an edit keeps; `codes` names what each
+placeholder stands for, and `structures` lists the branches of a plural or a
+select with the `path` that reaches each. Pass `next` back as `cursor` for the
+following page. Inside a project, `doc` is a path relative to the project's
+root, and the file of a translation reads that edition of its source.
+
+<McpToolParams name="read_blocks" />
 
 ### apply_edits
 
-The write verb for content. One entry of the change-set is one deliberate
-change to a document's wording or to a code comment.
+The write verb. `apply_edits` takes a `kapi.change/v1` change set, the contract
+every kapi surface sends ([E-09](/contribute/architecture/engine/e-09-the-change-contract)),
+plus the per-call `project`.
 
 <McpToolParams name="apply_edits" />
 
-Each change-set entry carries a `kind`. Content edits address a block by file,
-`id`, and `content_hash`, the drift guard: if the block's source has changed
-since it was read, the edit is refused rather than applied to different text.
-An entry with neither `id` nor `content_hash`, or two entries that edit one
-block differently, are refused before anything is written.
+| Operation | What it changes |
+| --- | --- |
+| `set_content` | an edition's whole text, keeping its placeholders; with `if_match: "absent"` and an `edition`, it creates that translation |
+| `replace_text` | part of the text, named by `find`, by `start` and `end`, or by `range` |
+| `remove_edition` | drops a translation, where the format keeps translations in one file |
+| `decide` | a pre-review: outcome `advise`, with a score and reasons |
 
-The result lists each block under its outcome: `applied`, `skipped` when the
-block already says that, `stale`, `guard_failed` when the edit would drop or
-unbalance an inline code or flatten a plural or select construct,
-`not_editable` when the block is one the format reads as not translatable, such
-as a code block, and `not_found` when the entry's `id` or `content_hash` matches
-no block of its file. Any of the last four makes `ok` false: read the file again
-with `extract_content` and resend.
+`describe_format` lists what each format supports; an operation the format
+refuses is refused as `unsupported` and writes nothing.
 
-A comment edit addresses one code comment by `file` and the `id` that
-`check_file` reports, is guarded by the `comment_sha256` reported with it, and
-carries the comment's prose in `text`. kapi keeps every byte outside the
-comment, and writes a `/* */` comment in the layout it already has. It refuses
-the edit with a reason when the comment has changed since the check, the text
-drops or adds a code block or reference, the text holds `*/` inside a `/* */`
-comment, the result would not parse, or the formatter would rewrite it. A
-comment in a language whose formatter is not installed, or does not format the
-file, is not written, and the edit reports that it did not run. A formatter runs
-code its project controls, such as its configuration and plugins, and an agent
-that may write files can write that configuration, so `apply_edits` never runs
-one. Such an edit reports that it did not run, with the reason `formatter`; a
-person applies it with `kapi apply` in a terminal, where the formatter runs
-under execution trust. A Go comment is held to `go/format` inside the kapi
-binary, so a Go edit starts no formatter process. Each written file's result carries a check scoped to what was written.
-
-| `kind`    | What the entry changes                           |
-| --------- | ------------------------------------------------ |
-| `content` | A block's text, through the faithful writer      |
-| `comment` | A code comment's prose, keeping every other byte |
-
-`apply_edits` records every entry as the calling agent in the server's session.
-Writing a term, a content memory pair or a field of `kapi.yaml` directly is a
-person's decision, so a `term`, `memory` or `recipe` entry is refused with a
-reason and writes nothing. The agent records a term rule as a suggestion with
-`context_observe`, or with `context_correct` for wording it changed, and a
-person keeps it. A review decision is a person's too, and an agent records a
-pre-review with `pre_review_unit`. A person writes these entries with `kapi
-apply` in a terminal:
-
-```bash
-kapi apply <<<'{"ops":[{"op":"memory","action":"add","from":{"edition":"en","text":"Save"},"to":{"edition":"nb","text":"Lagre"}}]}'
+```json
+{
+  "note": "Name the handbook",
+  "ops": [
+    {
+      "op": "replace_text",
+      "at": { "doc": "docs/guide.html", "block": "p" },
+      "if_match": "r:3f9a1c0e7b2d4a55",
+      "edits": [{ "find": "shop guide", "text": "handbook" }]
+    }
+  ]
+}
 ```
+
+A change set lands whole or not at all. An edition that changed since it was
+read is refused as `stale`, and the refusal carries its current revision and
+text, so the assistant can rebase without another read. An edit that drops,
+invents or unbalances an inline code, or flattens a plural or select, is
+refused as `guard`. A reference that names no block is `not_found`, and a block
+the format reads as not translatable, such as a code block, is `unsupported`.
+Every other operation of a refused change set reports `not_applied`, and the
+result is an error. `mode: "preview"` computes the result and a diff per
+document and writes nothing. A source edit lists the translations it made stale
+under `invalidates`.
+
+`apply_edits` sends every change set as the calling agent in the server's
+session; a change set has no field that names its sender. Writing a term, a
+content-memory pair or a field of `kapi.yaml` is a person's decision, so a
+change set holding a `term`, `memory` or `recipe` operation is refused as
+`not_permitted` and writes nothing. The assistant records a term rule as a
+suggestion with `context_observe`, or with `context_correct` for wording it
+changed, and a person keeps it. A review decision is a person's too: an
+assistant's `decide` takes only the outcome `advise`. A person sends the same
+operations with `kapi apply` in a terminal.
+
+### describe_format
+
+What `apply_edits` can do in a format: whether the format keeps a document's
+translations in one file (`in-file`) or one per file (`one-per-file`), and for
+each operation what it accepts, or `null` where the format refuses it.
+
+<McpToolParams name="describe_format" />
 
 ### check_file
 
@@ -489,8 +509,8 @@ down when the session ends.
 :::note
 Most tools here are rule-based and need no API key: `context_search`,
 `check_text`, `check_file`, `voice_check`, `voice_rewrite`, `stats`,
-`extract_content`, `apply_edits`, the context write tools and the review verbs
-all run offline. The
+`read_blocks`, `apply_edits`, `describe_format`, the context write tools and
+the review tools all run offline. The
 ones that reach a language model (`translate`, and `up` when there is work the
 content memory cannot cover) need a provider credential, which they read from
 the same credential store the CLI uses (`kapi credentials add`).

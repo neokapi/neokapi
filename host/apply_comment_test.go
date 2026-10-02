@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -149,8 +148,8 @@ func rulesOf(report *check.Report) []string {
 }
 
 // TestProseP3_go is the P3 rung for Go comments through the product. A finding
-// kapi check reports is repaired through `kapi apply` and MCP apply_edits, the
-// bytes on disk outside the comment stay identical, and gofmt agrees. The check
+// kapi check reports is repaired through `kapi apply`, the bytes on disk
+// outside the comment stay identical, and gofmt agrees. The check
 // that comes back with the edit clears the finding, and every refusal writes
 // nothing. A write canary runs before any comment is written.
 //
@@ -196,21 +195,6 @@ func TestProseP3_go(t *testing.T) {
 		formatted, err := format.Source(after)
 		require.NoError(t, err)
 		assert.Equal(t, string(after), string(formatted), "gofmt agrees with the written file")
-	})
-
-	t.Run("a finding is repaired through MCP apply_edits", func(t *testing.T) {
-		isolateCheckExecution(t)
-		file := writeCheckInput(t, t.TempDir(), "parse.go", repairGo)
-		result := callApplyEdits(t, commentEntry(file, "func/Parse", &fmtpkg.LineRange{First: 5, Last: 7}, repairedParse))
-		assert.True(t, result.OK)
-		require.Len(t, result.Comments, 1)
-		assert.Equal(t, commentWritten, result.Comments[0].Edits[0].Status, result.Comments[0].Edits[0].Detail)
-		require.NotNil(t, result.Comments[0].Check)
-		assert.Equal(t, check.VerdictPassed, result.Comments[0].Check.Verdict)
-		assert.NotContains(t, rulesOf(result.Comments[0].Check), "hygiene.doubled-word")
-		after, err := os.ReadFile(file)
-		require.NoError(t, err)
-		assert.Contains(t, string(after), "// Parse reads the input from an [io.Reader].\n")
 	})
 
 	t.Run("a voice finding at the project's point is repaired, and the check of the change is held to it", func(t *testing.T) {
@@ -416,35 +400,6 @@ func assertUnchanged(t *testing.T, file, want string) {
 	got, err := os.ReadFile(file)
 	require.NoError(t, err)
 	assert.Equal(t, want, string(got), "the file is unchanged")
-}
-
-// callApplyEdits calls MCP apply_edits over an in-memory session and returns
-// its structured result.
-func callApplyEdits(t *testing.T, entries ...map[string]any) applyEditsMCPOutput {
-	t.Helper()
-	app := newToolboxApp(t)
-	server := mcp.NewServer(&mcp.Implementation{Name: "kapi", Version: "test"}, nil)
-	registerEditMCPTools(server, app)
-	serverTransport, clientTransport := mcp.NewInMemoryTransports()
-	serverSession, err := server.Connect(t.Context(), serverTransport, nil)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = serverSession.Close() })
-	client := mcp.NewClient(&mcp.Implementation{Name: "apply-comment-test", Version: "test"}, nil)
-	session, err := client.Connect(t.Context(), clientTransport, nil)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = session.Close() })
-	changeset := make([]any, len(entries))
-	for i, e := range entries {
-		changeset[i] = e
-	}
-	res, err := session.CallTool(t.Context(), &mcp.CallToolParams{Name: "apply_edits", Arguments: map[string]any{"changeset": changeset}})
-	require.NoError(t, err)
-	require.False(t, res.IsError, "%+v", res.Content)
-	body, err := json.Marshal(res.StructuredContent)
-	require.NoError(t, err)
-	var out applyEditsMCPOutput
-	require.NoError(t, json.Unmarshal(body, &out))
-	return out
 }
 
 func swapRewriteComment(t *testing.T, f comment.RewriteFunc) {

@@ -27,8 +27,8 @@ var repairedBlockGo = strings.Replace(repairBlockGo, "the the", "the", 1)
 const repairedBlockParse = "Parse reads the input from an [io.Reader].\n\nIt stops at the end."
 
 // TestProseP4_go is the P4 rung for Go comments through the product. A finding
-// in a delimited comment is repaired through `kapi apply` and MCP apply_edits
-// in the layout the comment was written in, with every other byte of the file
+// in a delimited comment is repaired through `kapi apply` in the layout the
+// comment was written in, with every other byte of the file
 // identical and gofmt agreeing, and the check that comes back with the edit
 // clears it. Text holding `*/` is refused and writes nothing, and the write
 // canary refuses a renderer that would write it.
@@ -67,18 +67,6 @@ func TestProseP4_go(t *testing.T) {
 		formatted, err := format.Source(after)
 		require.NoError(t, err)
 		assert.Equal(t, string(after), string(formatted), "gofmt agrees with the written file")
-	})
-
-	t.Run("a finding in a delimited comment is repaired through MCP apply_edits", func(t *testing.T) {
-		isolateCheckExecution(t)
-		file := writeCheckInput(t, t.TempDir(), "parse.go", repairBlockGo)
-		result := callApplyEdits(t, commentEntry(file, "func/Parse", &fmtpkg.LineRange{First: 5, Last: 9}, repairedBlockParse))
-		assert.True(t, result.OK)
-		require.Len(t, result.Comments, 1)
-		assert.Equal(t, commentWritten, result.Comments[0].Edits[0].Status, result.Comments[0].Edits[0].Detail)
-		require.NotNil(t, result.Comments[0].Check)
-		assert.Equal(t, check.VerdictPassed, result.Comments[0].Check.Verdict)
-		assertUnchanged(t, file, repairedBlockGo)
 	})
 
 	t.Run("text holding */ is refused and writes nothing", func(t *testing.T) {

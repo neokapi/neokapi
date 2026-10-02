@@ -253,25 +253,31 @@ return them in the same report, and the `check_report_warnings` golden in
 `cli/contract_golden_test.go` pins the shape. See [Checks](/framework/checks)
 for the codes.
 
-For `apply_edits`, content entries put new wording in `text`; `replacement` is
-a voice-rule field. A nonempty `replacement` on a content entry is rejected
-before applying the change-set. The input field descriptions state this
-distinction without changing field names or types. A content entry that gives
-neither `id` nor `content_hash`, or two content entries that edit one block
-differently, are refused the same way. The result lists in `not_found` each content entry whose `id`, or
-`content_hash` when it gives no `id`, matches no block of its file, and in
-`not_editable` each block an entry changed that its file marks as not editable,
-such as a code block. Either makes `ok` false.
+The edit tools carry the change contract
+([E-09](/contribute/architecture/engine/e-09-the-change-contract)), and their
+names and schemas are a documented break of this surface. `read_blocks` reads
+a document's blocks with the `ref` and `rev` each operation names, and
+`review_block` reads one block's review picture with the `ref` and `rev` of the
+edition under review; together they cover what `extract_content` and
+`review_unit` read. `apply_edits` takes a `kapi.change/v1` change set: its input
+schema is the change-set schema, which the snapshot records in full, with the
+per-call `project` added. Its result is a `kapi.change-result/v1` document, an
+error result when the change set is refused or lands only in part.
+`describe_format` reports what each operation supports in a format. A
+pre-review is a `decide` operation with outcome `advise` sent through
+`apply_edits`, where `pre_review_unit` recorded one. `review_queue` rows carry
+the `ref` that `review_block` takes.
 
-An entry also takes an optional `evidence` field. An asset entry (a term, a
-content-memory pair, a recipe field) is a decision about the project. Applying a
-term or a content-memory pair records one `edit` operation in that project's
-history, established from the start, and `evidence` says where the wording
-behind it was seen: a file (`path`, `unit`, `quote`) or a web page (`url`).
-An entry takes no actor: `apply_edits` records every entry
-as the calling agent in the server's session, so the context policy refuses its
-term, content-memory and recipe entries, and `kapi apply` records each
-operation as the person or agent its environment names. See
+A person sends the same change sets with `kapi apply` (see
+[Change sets](#change-sets-kapi-apply)). A change set takes an optional
+`evidence` field. A term or a content-memory pair is a decision about the
+project: applying one records one `edit` operation in that project's history,
+established from the start, and `evidence` says where the wording behind it was
+seen: a file (`path`, `unit`, `quote`) or a web page (`url`). A change set
+takes no actor: `apply_edits` sends every change set as the calling agent in
+the server's session, so the context policy refuses its term, content-memory
+and recipe operations, and `kapi apply` records the person or agent its
+environment names. See
 [Growing context](/kapi/context-decisions).
 
 Four tools record and read a project's context history: `context_observe`,

@@ -396,6 +396,8 @@ var evalMCPToolKinds = map[string]string{
 	"check_file":              evalKindCheck,
 	"check_text":              evalKindCheck,
 	"apply_edits":             evalKindWrite,
+	"read_blocks":             evalKindOther,
+	"describe_format":         evalKindOther,
 	"edit_file":               evalKindWrite,
 }
 

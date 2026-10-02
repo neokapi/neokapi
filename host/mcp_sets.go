@@ -19,16 +19,18 @@ import (
 const (
 	// MCPSetWriting is what an assistant writing in the project needs: the
 	// context:// resources, the context tools that ask and record,
-	// check_file, and the structured edit path (extract_content reads a
-	// file's blocks, apply_edits writes them back through the faithful
-	// round-trip). It is the set served when none is named.
+	// check_file, and the edit contract (read_blocks reads a document's
+	// blocks, apply_edits sends the change service a change set, and
+	// describe_format says what a format supports). It is the set served when
+	// none is named.
 	MCPSetWriting = "writing"
 	// MCPSetContent works on content directly: checks on text, voice
 	// rewrites, format detection and redaction.
 	MCPSetContent = "content"
 	// MCPSetTranslation runs the loop that fills target languages.
 	MCPSetTranslation = "translation"
-	// MCPSetReview is the review queue and an agent's pre-review of a unit.
+	// MCPSetReview is the review queue and the review picture of one block.
+	// An agent records its pre-review through apply_edits.
 	MCPSetReview = "review"
 	// MCPSetAll is every set.
 	MCPSetAll = "all"
@@ -41,14 +43,14 @@ var mcpToolSets = map[string][]string{
 	MCPSetWriting: {
 		"context_read", "context_search", "context_observe", "context_correct",
 		"context_withdraw", "context_session_summary", "check_file",
-		"extract_content", "apply_edits",
+		"read_blocks", "apply_edits", "describe_format",
 	},
 	MCPSetContent: {
 		"check_text", "voice_check", "voice_rewrite", "term-check",
 		"detect_format", "redact",
 	},
 	MCPSetTranslation: {"translate", "up", "up_plan", "stats"},
-	MCPSetReview:      {"review_queue", "review_unit", "pre_review_unit"},
+	MCPSetReview:      {"review_queue", "review_block"},
 }
 
 // mcpResourceSet is the set the context:// resources belong to.

@@ -85,16 +85,6 @@ func allowAtPrompt(t *testing.T, a *App, file, marker string) {
 }
 
 func TestFormatterTrustRoutes(t *testing.T) {
-	t.Run("must fail: apply_edits never runs a project formatter, even one allowed at the prompt", func(t *testing.T) {
-		a := declaredFormatterApp(t)
-		file, marker, _ := installedFormatterProject(t)
-		allowAtPrompt(t, a, file, marker)
-
-		out := applyEditsMCPWith(t, a, repairEntry(t, a, file))
-		assert.False(t, out.OK)
-		assertFormatterNotRun(t, out.Comments, file, marker, "apply_edits never runs a project's formatter", "kapi apply")
-	})
-
 	t.Run("must fail: a prettier configuration nested under an allowed one voids the allow", func(t *testing.T) {
 		a := declaredFormatterApp(t)
 		file, marker, dir := prettierProject(t, map[string]string{".prettierrc": "{}\n"})

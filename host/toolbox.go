@@ -178,15 +178,6 @@ func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, 
 	return a.streamBlocks(ctx, path, false, "", fn)
 }
 
-// StreamEditableBlocksAs streams path's blocks in the format fmtRef names (a
-// preset included) as EditDocumentAs reads them, so every block id, text and
-// content hash it yields is one EditDocumentAs resolves. An empty fmtRef
-// resolves the format from --format or detection. MCP extract_content reads
-// through it and apply_edits writes through EditDocumentAs with the same ref.
-func (a *App) StreamEditableBlocksAs(ctx context.Context, path, fmtRef string, fn func(index int, b *model.Block) error) (string, error) {
-	return a.streamBlocks(ctx, path, true, fmtRef, fn)
-}
-
 // openEditReader builds the reader for a document and names its format:
 // fmtRef when given, else the --format flag, with a preset either names
 // applied to the reader, and otherwise the format detection finds in content.

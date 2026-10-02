@@ -1,207 +1,354 @@
 package host
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/change/changeschema"
 	"github.com/neokapi/neokapi/core/contextop"
-	coretools "github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/core/model"
 )
 
-// init registers the write leg of the edit loop on the shared MCP stdio server:
-// apply_edits (the one write verb). It pairs with the read leg, extract_content
-// (which emits each block's content_hash and edit text), and
-// check_file, so a non-Claude MCP client runs the same author → check → fix loop
-// the CLI skill drives — the client supplies the edits, kapi enforces the
-// faithful round-trip and is the checker. No second model is involved.
+// The edit tools of the MCP surface: read_blocks reads a document's blocks
+// through the change service, apply_edits sends it a kapi.change/v1 change
+// set, and describe_format says what a format supports. They are the agent's
+// half of the one edit contract: `kapi inspect` and `kapi apply` are the
+// command line's, over the same service, so a reference or a revision one
+// reports is one the other takes.
+//
+// The transport stamps the actor. Every change set apply_edits sends is the
+// calling agent's, named by the client's initialize name, in this server's
+// session; nothing in a change set can name another sender.
 func init() {
 	RegisterMCPToolFactory(registerEditMCPTools)
 }
 
-// applyEditsInput is a typed change-set: the same shape `kapi apply` consumes.
-// Each entry is a content or comment edit, or an asset edit (term, memory,
-// recipe).
-type applyEditsInput struct {
-	Changeset []changeEntry `json:"changeset" jsonschema:"the typed change-set entries to apply"`
-	Project   string        `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+// mcpChangeOrigin names the MCP surface in the record of a change.
+const mcpChangeOrigin = "mcp"
+
+// mcpProjectArg is the description of the per-call project argument the edit
+// tools take, as every project-scoped tool does.
+const mcpProjectArg = "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
+
+// readBlocksInput names the blocks a read_blocks call returns.
+type readBlocksInput struct {
+	Doc      string   `json:"doc" jsonschema:"the document: a path inside the project, relative to its root or absolute, or outside a project a path under the server's working directory; container!entry names an archive member; the file of a translation reads that edition of its source"`
+	Blocks   []string `json:"blocks,omitempty" jsonschema:"only these blocks, by the block key a read reports; empty reads every block"`
+	Editions []string `json:"editions,omitempty" jsonschema:"translations kept in files of their own to show beside each block, such as fr or de; the editions the document holds itself are always shown"`
+	Cursor   string   `json:"cursor,omitempty" jsonschema:"continue a read: the next value of the page before"`
+	Limit    int      `json:"limit,omitempty" jsonschema:"the most blocks a page holds (default 100, at most 1000)"`
+	Project  string   `json:"project,omitempty"`
 }
 
-// applyEditsMCPOutput reports the per-block content outcome and per-entry asset
-// outcomes; OK is false when any edit drifted (stale), was rejected by the
-// fidelity guard (guard_failed: the edit would corrupt an inline code or
-// flatten plural/select branches), changed a block that is not editable
-// (not_editable) or matched no block (not_found), the same buckets `kapi apply
-// --json` reports, signalling the caller to re-inspect and retry. Comments
-// holds each file's comment edits and the check of what they wrote, and OK is
-// false when one was refused, did not run, or left that check not passing.
-type applyEditsMCPOutput struct {
-	OK      bool     `json:"ok"`
-	Applied []string `json:"applied,omitempty"`
-	Skipped []string `json:"skipped,omitempty"`
-	Stale   []string `json:"stale,omitempty"`
-	Guard   []string `json:"guard_failed,omitempty"`
-	// NotEditable holds only ids extract_content does not list, since it
-	// lists translatable blocks alone; kapi inspect lists every block.
-	NotEditable []string      `json:"not_editable,omitempty" jsonschema:"blocks an entry changed that the file marks as content an edit does not change, such as a code block; each keeps its text"`
-	NotFound    []string      `json:"not_found,omitempty" jsonschema:"content entries whose id, or content_hash for an entry without an id, matched no block of the file, as file:id or file:content_hash:<hash>; nothing was written for them, so read the file again with extract_content"`
-	Assets      []assetResult `json:"assets,omitempty"`
-
-	Comments []commentFileResult `json:"comments,omitempty"`
+// describeFormatInput names the format a describe_format call describes.
+type describeFormatInput struct {
+	Format  string `json:"format,omitempty" jsonschema:"a format name, such as html, markdown or po"`
+	Doc     string `json:"doc,omitempty" jsonschema:"a document, to describe the format kapi reads it in; give this or format"`
+	Project string `json:"project,omitempty"`
 }
 
-// applyEditsOutputSchema is apply_edits' result schema with each comment
-// file's check declared as an object. That check is a kapi.check/v2 report,
-// which check_file's output schema spells out in full beside it in the writing
-// set; inferring it here as well would double the size of a tool every writing
-// session is offered.
-var applyEditsOutputSchema = sync.OnceValue(func() *jsonschema.Schema {
-	s, err := jsonschema.For[applyEditsMCPOutput](nil)
-	if err != nil {
-		panic(fmt.Sprintf("apply_edits output schema: %v", err))
+// readBlocksOutputSchema declares read_blocks' result. A block's codes,
+// structures and editions are objects whose fields the tool description
+// names; inferring them from the Go types would spell out the run model
+// twice in a tool every writing session is offered.
+var readBlocksOutputSchema = json.RawMessage(`{"type":"object","properties":{` +
+	`"doc":{"type":"string","description":"the document, as references name it"},` +
+	`"home":{"type":"string","description":"where the document's text lives: file"},` +
+	`"format":{"type":"string"},` +
+	`"head":{"type":"string","description":"the digest of the document the page was read from"},` +
+	`"blocks":{"type":"array","items":{"type":"object","properties":{` +
+	`"ref":{"type":"object","description":"the reference to copy into an operation's at"},` +
+	`"rev":{"type":"string","description":"the revision to send as if_match"},` +
+	`"text":{"type":"string","description":"the content, inline codes as <x id=\"…\"/> placeholders"},` +
+	`"codes":{"type":"object","description":"each inline code by the id its placeholder shows: kind, type, attributes and the attributes set_attribute can change"},` +
+	`"structures":{"type":"array","description":"each plural or select, with the path that reaches it and the text of each branch"},` +
+	`"editions":{"type":"object","description":"the block's other editions by key: rev, text, status, basis and stale"},` +
+	`"ops":{"type":"array","items":{"type":"string"},"description":"the operations the block accepts"}}}},` +
+	`"next":{"type":"string","description":"the cursor of the next page; absent on the last"}}}`)
+
+// applyEditsOutputSchema declares apply_edits' result, a
+// kapi.change-result/v1 document.
+var applyEditsOutputSchema = json.RawMessage(`{"type":"object","properties":{` +
+	`"schema":{"type":"string","const":"kapi.change-result/v1"},` +
+	`"status":{"type":"string","enum":["applied","refused","previewed","partial"],"description":"refused writes nothing; partial names the documents that landed"},` +
+	`"record":{"description":"the id of the recorded edit, when one was recorded"},` +
+	`"docs":{"type":"array","items":{"type":"object"},"description":"each document: written, the digests before and after, the findings, and in a preview the diff"},` +
+	`"ops":{"type":"array","items":{"type":"object"},"description":"each operation by index: status, the revisions before and after, the positions it resolved, the translations it made stale (invalidates), and on a refusal the error and, when stale, the current revision and text"},` +
+	`"error":{"type":"object","description":"why the change set could not be read, with the JSON pointer of what is wrong"}}}`)
+
+// describeFormatOutputSchema declares describe_format's result.
+var describeFormatOutputSchema = json.RawMessage(`{"type":"object","properties":{` +
+	`"format":{"type":"string"},` +
+	`"editions":{"type":"string","enum":["in-file","one-per-file"],"description":"whether the format keeps a document's editions in one file"},` +
+	`"ops":{"type":"object","description":"each content operation with what the format supports of it, or null where it refuses the operation as unsupported"},` +
+	`"native":{"type":"array","items":{"type":"object"},"description":"the format's own operations"}}}`)
+
+// applyEditsInputSchema is the change-set schema with one more property, the
+// per-call project, which the tool reads and removes before decoding the
+// change set.
+var applyEditsInputSchema = sync.OnceValue(func() *jsonschema.Schema {
+	var s jsonschema.Schema
+	if err := json.Unmarshal(changeschema.Schema(), &s); err != nil {
+		panic(fmt.Sprintf("apply_edits input schema: %v", err))
 	}
-	if comments := s.Properties["comments"]; comments != nil && comments.Items != nil {
-		if held := comments.Items.Properties["check"]; held != nil {
-			comments.Items.Properties["check"] = &jsonschema.Schema{
-				Type:  held.Type,
-				Types: held.Types,
-				Description: "the kapi.check/v2 report of what the file's edits changed, " +
-					"in the shape check_file returns; absent when nothing was written",
-			}
-		}
+	s.Properties["project"] = &jsonschema.Schema{Type: "string", Description: mcpProjectArg}
+	if len(s.PropertyOrder) > 0 {
+		s.PropertyOrder = append(s.PropertyOrder, "project")
 	}
-	return s
+	return &s
 })
 
 func registerEditMCPTools(server *mcp.Server, a *App) {
+	readSchema, err := jsonschema.For[readBlocksInput](nil)
+	if err != nil {
+		panic(fmt.Sprintf("read_blocks input schema: %v", err))
+	}
+	readSchema.Properties["project"].Description = mcpProjectArg
 	mcp.AddTool(server, &mcp.Tool{
+		Name:         "read_blocks",
+		InputSchema:  readSchema,
+		OutputSchema: readBlocksOutputSchema,
+		Description: "Read a document's blocks, a page at a time: the read leg of apply_edits. Each block carries ref " +
+			"(doc, block and edition) to copy into an operation's at, rev to send as its if_match, and text with inline " +
+			"codes as <x id=\"…\"/> placeholders, which an edit keeps. codes lists each code by the id its placeholder shows, " +
+			"with its type and attributes; structures lists each plural or select with the path that reaches a branch and " +
+			"the branch's text; editions lists the block's translations with their revision, text and status; ops lists the " +
+			"operations the block accepts. A page holds up to limit blocks: pass next back as cursor for the following page. " +
+			"A cursor from a document that changed since is refused as stale; read it again from the start. Reads the " +
+			"document as apply_edits writes it, through the format and configuration the project binds.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, in readBlocksInput) (*mcp.CallToolResult, any, error) {
+		res, err := a.readBlocksMCP(ctx, in)
+		return res, nil, err
+	})
+
+	server.AddTool(&mcp.Tool{
 		Name:         "apply_edits",
-		OutputSchema: applyEditsOutputSchema(),
-		Description: "Apply a typed change-set: the one write verb. For document wording, each entry " +
-			"uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and " +
-			"hashes with extract_content. The replacement field belongs to term entries. Content edits land through the " +
-			"byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash). " +
-			"An edit that drops, invents or duplicates an inline code, crosses or unbalances paired codes, or changes " +
-			"a block holding a plural or select construct is refused as guard_failed and leaves the block as it was. " +
-			"An entry whose id, or content_hash when it gives no id, matches no block of its file is listed in not_found " +
-			"and writes nothing. Stale, guard_failed, not_editable and not_found each make ok false: read the file again and resend. " +
-			"Every entry is recorded as yours, the calling agent's, in this server's session. Writing a term, a content memory " +
-			"pair or a recipe field directly is a person's decision, so those entries are refused with a reason and write nothing: " +
-			"record a term rule as a suggestion with context_observe, or context_correct for wording you changed, and a person keeps it. " +
-			"No AI provider is used. Read the " +
-			"context://<project-relative-path> resource before editing content, then run check_file on " +
-			"each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, " +
-			"id and lines (as check_file reports them, such as func/Parse), comment_sha256 (the fingerprint check_file reports " +
-			"for the comment; a comment whose bytes differ is refused as changed, and current_text may carry the prose as " +
-			"read instead) and " +
-			"text (the comment's prose without comment markers, or a /* */ comment's delimiters and the * opening each line). " +
-			"Every byte outside the comment is kept, a /* */ comment keeps its layout, the result must " +
-			"parse and the language's formatter must agree; a directive, a generated file's comment, a changed comment, " +
-			"text holding */ in a /* */ comment and text that drops a code block or reference are refused with a reason and write nothing. " +
-			"A comment in a language whose plugin or formatter is not installed, or whose formatter does not format the file, did not run and is not written. " +
-			"A project's formatter runs code that project controls, and an agent that can write files can write the configuration it loads, so apply_edits never runs it: " +
-			"such a comment did not run, with the reason formatter, and a person applies it with kapi apply in a terminal. " +
-			"Each written file's result carries a check scoped to the change.",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
-		return a.applyEditsMCP(ctx, mcpAgentActor(req), in)
+		InputSchema:  applyEditsInputSchema(),
+		OutputSchema: applyEditsOutputSchema,
+		Description: "Apply a kapi.change/v1 change set: the one write verb. Each content operation addresses one edition " +
+			"of one block with at, the ref read_blocks reports, and carries if_match, the rev you read. set_content replaces " +
+			"the text (keep the <x id=\"…\"/> placeholders; with if_match \"absent\" and an edition it creates that translation), " +
+			"replace_text changes part of it by find, by start and end, or by range, and remove_edition drops a translation. " +
+			"describe_format says which operations a format supports. The change set lands whole or not at all: an edition " +
+			"that moved since you read it is refused as stale with its current revision and text, an edit that drops, " +
+			"invents or unbalances an inline code or flattens a plural is refused as guard, and every other operation reports " +
+			"not_applied, with nothing written. Each refusal carries a code and the field at fault: re-read, fix the operation " +
+			"and resend. mode preview computes and checks the change set and returns a diff per document without writing. " +
+			"A source edit lists the translations it made stale under invalidates. Every operation is recorded as yours, " +
+			"the calling agent's, in this server's session. Writing a term, a content-memory pair or a recipe field and " +
+			"deciding a review are a person's: those operations are refused as not_permitted. Record a term rule as a " +
+			"suggestion with context_observe, or context_correct for wording you changed, and record a pre-review as decide " +
+			"with outcome advise, a score from 0 to 100 and your reasons, at the ref and rev review_block reports. " +
+			"Run check_file on each changed file afterwards.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		res, err := a.applyEditsMCP(ctx, mcpChangeActor(req), req.Params.Arguments)
+		if err != nil {
+			// A failure is the tool's error result, as the typed tools report
+			// one, rather than a protocol error.
+			res = &mcp.CallToolResult{}
+			res.SetError(err)
+		}
+		return res, nil
+	})
+
+	describeSchema, err := jsonschema.For[describeFormatInput](nil)
+	if err != nil {
+		panic(fmt.Sprintf("describe_format input schema: %v", err))
+	}
+	describeSchema.Properties["project"].Description = mcpProjectArg
+	mcp.AddTool(server, &mcp.Tool{
+		Name:         "describe_format",
+		InputSchema:  describeSchema,
+		OutputSchema: describeFormatOutputSchema,
+		Description: "Say what apply_edits can do in a format: whether the format keeps a document's translations in one " +
+			"file or one per file, and for each content operation what it accepts (the content forms of set_content, the " +
+			"code types a writer can create, the attributes set_attribute can change per code type), or null where the " +
+			"format refuses the operation as unsupported. Name a format, or a document to describe the format kapi reads " +
+			"it in.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, in describeFormatInput) (*mcp.CallToolResult, any, error) {
+		res, err := a.describeFormatMCP(ctx, in)
+		return res, nil, err
 	})
 }
 
-// MCPEditFormat names the format one MCP call reads and writes path in:
-// format when the call gives one (a preset included), else the format the
-// call's project detects for path from its allowed plugin sources and
-// detection priorities, else "" so the edit detects it from the file.
-// extract_content and apply_edits both resolve through it, so the block ids
-// and content hashes one reports are the ones the other writes.
-func (a *App) MCPEditFormat(explicitProject, path, format string) string {
-	if format != "" {
-		return format
-	}
-	pctx, err := a.mcpProjectContext(explicitProject)
-	if err != nil || pctx == nil {
-		return ""
-	}
-	return pctx.DetectFormat(a.FormatReg, path)
+// mcpChangeActor is the calling agent, in this server's session: the sender
+// of every change set apply_edits applies.
+func mcpChangeActor(req *mcp.CallToolRequest) change.Actor {
+	return change.Actor{Kind: change.ActorAgent, Name: mcpClientName(req), Session: MCPSessionID()}
 }
 
-func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
-	if err := validateChangeSet(in.Changeset); err != nil {
-		return nil, applyEditsMCPOutput{}, err
-	}
-	var out applyOutput
-
-	byFile := map[string][]changeEntry{}
-	var fileOrder []string
-	var comments []changeEntry
-	// The asset appliers resolve their store from this command's project: the
-	// one the call named, else the one the server started in. A term or a
-	// content-memory pair is written into that project's store rather than into
-	// whichever project the server's working directory happens to sit in.
-	cmd, recipe, err := a.mcpCallCommand(ctx, "apply-edits", in.Project)
+// mcpChangeService builds the change service for the project one MCP call
+// names, and returns the recipe it resolved ("" outside a project, where the
+// service edits the documents under the server's working directory).
+func (a *App) mcpChangeService(ctx context.Context, project string) (*change.Service, string, error) {
+	recipe, err := a.ResolveMCPCallProject(project)
 	if err != nil {
-		return nil, applyEditsMCPOutput{}, err
+		return nil, "", err
 	}
-	// Every entry is the calling agent's, in the server's session.
-	who := changeActor{Actor: actor, Note: "applied with apply_edits"}
+	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: mcpChangeOrigin})
+	if err != nil {
+		return nil, "", err
+	}
+	return svc, recipe, nil
+}
 
-	for _, e := range in.Changeset {
-		switch e.Kind {
-		case kindContent:
-			if _, seen := byFile[e.File]; !seen {
-				fileOrder = append(fileOrder, e.File)
+func (a *App) readBlocksMCP(ctx context.Context, in readBlocksInput) (*mcp.CallToolResult, error) {
+	editions := make([]model.EditionKey, 0, len(in.Editions))
+	for _, e := range in.Editions {
+		k, err := model.ParseEditionKey(e)
+		if err != nil {
+			return changeRefusal(&change.Error{Code: change.CodeInvalid, Field: "editions", Message: err.Error()})
+		}
+		editions = append(editions, k)
+	}
+	svc, _, err := a.mcpChangeService(ctx, in.Project)
+	if err != nil {
+		return nil, err
+	}
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: in.Doc, Blocks: in.Blocks, Editions: editions, Cursor: in.Cursor, Limit: in.Limit})
+	if err != nil {
+		return changeError(err)
+	}
+	return jsonToolResult(page, false)
+}
+
+func (a *App) describeFormatMCP(ctx context.Context, in describeFormatInput) (*mcp.CallToolResult, error) {
+	svc, _, err := a.mcpChangeService(ctx, in.Project)
+	if err != nil {
+		return nil, err
+	}
+	d, err := svc.Describe(ctx, change.DescribeRequest{Format: in.Format, Doc: in.Doc})
+	if err != nil {
+		return changeError(err)
+	}
+	return jsonToolResult(d, false)
+}
+
+// applyEditsMCP decodes the change set the call carries, applies it as actor
+// through the change service of the call's project, and returns the result.
+// A refused or partial change set is an error result carrying the same
+// structured result, so a client that reads only isError still learns that
+// the change did not land.
+func (a *App) applyEditsMCP(ctx context.Context, actor change.Actor, args json.RawMessage) (*mcp.CallToolResult, error) {
+	project, body, cerr := splitProjectArg(args)
+	if cerr != nil {
+		return changeRefusal(cerr)
+	}
+	set, err := change.Decode(bytes.NewReader(body))
+	if err != nil {
+		return changeError(err)
+	}
+	svc, recipe, err := a.mcpChangeService(ctx, project)
+	if err != nil {
+		return nil, err
+	}
+	res, err := svc.Apply(ctx, set, actor)
+	if err != nil {
+		return changeError(err)
+	}
+	if res.Status == change.SetApplied || res.Status == change.SetPartial {
+		a.noteAgentEdits(ctx, recipe, contextop.Actor{Kind: contextop.ActorKind(actor.Kind), Name: actor.Name, Session: actor.Session},
+			appliedWording(set, res))
+	}
+	return jsonToolResult(res, res.Status == change.SetRefused || res.Status == change.SetPartial)
+}
+
+// splitProjectArg takes the project argument out of a call's arguments and
+// returns the rest, the change set, as JSON.
+func splitProjectArg(args json.RawMessage) (string, []byte, *change.Error) {
+	if len(bytes.TrimSpace(args)) == 0 {
+		return "", nil, &change.Error{Code: change.CodeInvalid, Message: "the call carries no change set; send the envelope with its ops"}
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(args, &fields); err != nil {
+		return "", nil, &change.Error{Code: change.CodeInvalid, Message: "the arguments are not a change set: " + err.Error()}
+	}
+	var project string
+	if raw, ok := fields["project"]; ok {
+		if err := json.Unmarshal(raw, &project); err != nil {
+			return "", nil, &change.Error{Code: change.CodeInvalid, Pointer: "/project", Message: "project is a path"}
+		}
+		delete(fields, "project")
+	}
+	body, err := json.Marshal(fields)
+	if err != nil {
+		return "", nil, &change.Error{Code: change.CodeInvalid, Message: err.Error()}
+	}
+	return project, body, nil
+}
+
+// appliedWording is the wording each applied content operation wrote, in
+// placeholder text, by the document it was sent to, so noteAgentEdits can
+// count the forms a suggestion prefers. A replace_text wrote only its
+// replacements, and set_content its whole text.
+func appliedWording(set change.Set, res *change.Result) map[string][]string {
+	out := map[string][]string{}
+	for i, op := range set.Ops {
+		if i >= len(res.Ops) || res.Ops[i].Status != change.OpApplied {
+			continue
+		}
+		var texts []string
+		switch body := op.Body.(type) {
+		case *change.SetContent:
+			switch {
+			case body.Text != nil:
+				texts = append(texts, *body.Text)
+			case body.Runs != nil:
+				texts = append(texts, model.RunsEditText(body.Runs))
 			}
-			byFile[e.File] = append(byFile[e.File], e)
-		case kindComment:
-			comments = append(comments, e)
-		case kindTerm, kindMemory, kindRecipe:
-			out.Assets = append(out.Assets, a.applyRecordedAssetEntry(ctx, cmd, who, e))
-		case "":
-			return nil, applyEditsMCPOutput{}, errors.New("change-set entry has no \"kind\"")
-		case retiredVoiceKind:
-			return nil, applyEditsMCPOutput{}, errRetiredVoiceKind
-		default:
-			return nil, applyEditsMCPOutput{}, fmt.Errorf("unknown change kind %q", e.Kind)
+		case *change.ReplaceText:
+			for _, e := range body.Edits {
+				texts = append(texts, e.Text)
+			}
+		}
+		if len(texts) > 0 {
+			out[op.At.Doc] = append(out[op.At.Doc], texts...)
 		}
 	}
+	return out
+}
 
-	edited := map[string][]string{}
-	for _, file := range fileOrder {
-		report := &coretools.ApplyReport{}
-		byID, byHash := buildEditMaps(byFile[file])
-		t := coretools.NewApplyEditsTool(byID, byHash, report)
-		if derr := a.EditDocumentAs(ctx, file, a.MCPEditFormat(in.Project, file, ""), t, "", true, "", nil); derr != nil {
-			return nil, applyEditsMCPOutput{}, fmt.Errorf("%s: %w", DisplayName(file), derr)
-		}
-		out.Content.Applied = append(out.Content.Applied, report.Applied...)
-		if texts := appliedTexts(byFile[file], report.Applied); len(texts) > 0 {
-			edited[file] = texts
-		}
-		out.Content.Skipped = append(out.Content.Skipped, report.Skipped...)
-		out.Content.Stale = append(out.Content.Stale, report.Stale...)
-		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
-		out.Content.NotEditable = append(out.Content.NotEditable, report.NotEditable...)
-		out.Content.NotFound = append(out.Content.NotFound, notFoundIn(file, report)...)
+// changeError is the tool result of a refusal the change service returned as
+// an error, or the error itself when it is not one of the contract's.
+func changeError(err error) (*mcp.CallToolResult, error) {
+	if ce, ok := errors.AsType[*change.Error](err); ok {
+		return changeRefusal(ce)
 	}
-	a.noteAgentEdits(ctx, recipe, who.Actor, edited)
-	if len(comments) > 0 {
-		// The check of a written comment resolves governance from the call's
-		// project, as check_file does, and reads the file in that project's
-		// source language.
-		out.Comments = a.applyComments(ctx, cmd, comments, false, "", mcpFormatterTrust(), a.mcpCallSourceLocale(recipe))
-	}
+	return nil, err
+}
 
-	return nil, applyEditsMCPOutput{
-		OK:          out.ok(),
-		Applied:     out.Content.Applied,
-		Skipped:     out.Content.Skipped,
-		Stale:       out.Content.Stale,
-		Guard:       out.Content.GuardFailed,
-		NotEditable: out.Content.NotEditable,
-		NotFound:    out.Content.NotFound,
-		Assets:      out.Assets,
-		Comments:    out.Comments,
+// changeRefusal is an error result naming the refusal, as the structured
+// result and as its text.
+func changeRefusal(e *change.Error) (*mcp.CallToolResult, error) {
+	return jsonToolResult(struct {
+		Schema string        `json:"schema"`
+		Status string        `json:"status"`
+		Error  *change.Error `json:"error"`
+	}{Schema: change.ResultSchemaID, Status: string(change.SetRefused), Error: e}, true)
+}
+
+// jsonToolResult is a tool result carrying v as its structured content and as
+// its text. HTML escaping is off, so the placeholders a block's text holds
+// read as written rather than as < escapes.
+func jsonToolResult(v any, isError bool) (*mcp.CallToolResult, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, fmt.Errorf("encode the result: %w", err)
+	}
+	raw := strings.TrimRight(buf.String(), "\n")
+	return &mcp.CallToolResult{
+		Content:           []mcp.Content{&mcp.TextContent{Text: raw}},
+		StructuredContent: json.RawMessage(raw),
+		IsError:           isError,
 	}, nil
 }

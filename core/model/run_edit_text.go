@@ -9,7 +9,7 @@ import (
 )
 
 // The edit text is the form a block takes in the edit loop: what `kapi
-// inspect` and MCP extract_content show, and what `kapi apply` and MCP
+// inspect` and MCP read_blocks show, and what `kapi apply` and MCP
 // apply_edits take back. It is RunsPlaceholderText with one difference: a
 // placeholder that stands for characters, a character reference such as
 // `&amp;` or `&rsquo;`, is shown as those characters. The HTML and Markdown

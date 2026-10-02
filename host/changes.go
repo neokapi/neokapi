@@ -756,7 +756,7 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 	ref := ReviewUnitRef{File: filepath.FromSlash(file), Key: target.Ref.Block, Locale: locale}
 	switch body.Outcome {
 	case change.OutcomeAdvise:
-		review := state.AIReview{Model: actor.Name, At: nowRFC3339()}
+		review := state.AIReview{Model: reviewerName(actor), At: nowRFC3339()}
 		if decided != nil {
 			review.TargetHash = targetHash(decided.target)
 		}
@@ -779,6 +779,19 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", "", decided)
 		return decisionOutcome(changed, err)
 	}
+}
+
+// reviewerName is the name a pre-review is recorded under, which the review
+// queue shows beside its score: agent/<client> for an agent, and the sender's
+// own name for anyone else.
+func reviewerName(actor change.Actor) string {
+	if actor.Kind != change.ActorAgent {
+		return actor.Name
+	}
+	if actor.Name == "" {
+		return "agent"
+	}
+	return "agent/" + actor.Name
 }
 
 func decisionOutcome(changed bool, err error) (change.OpStatus, *change.Error) {

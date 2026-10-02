@@ -1,11 +1,15 @@
 package mcptools
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,6 +52,8 @@ func TestHandleReviewQueue(t *testing.T) {
 	require.Len(t, out.Pending, 2)
 	assert.Equal(t, "nb", out.Pending[0].Locale)
 	assert.Equal(t, "app", out.Pending[0].Collection)
+	assert.Equal(t, BlockRef{Doc: "en.json", Block: "a", Edition: "nb"}, out.Pending[0].Ref,
+		"a row carries the reference review_block reads it by: the source document and the translation's edition")
 
 	// Locale filter — no de units exist.
 	_, out, err = handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj, Locale: "de"})
@@ -71,7 +77,10 @@ func TestHandleReviewQueue_NoProject(t *testing.T) {
 	assert.Contains(t, err.Error(), "no kapi project")
 }
 
-func TestHandleReviewUnit(t *testing.T) {
+// review_block reads a queue row by the reference the row carries, and
+// reports the revision of the edition under review: the one read_blocks
+// reports for the same translation.
+func TestHandleReviewBlock(t *testing.T) {
 	root := writeMCPReviewProject(t)
 	a := testApp()
 	proj := filepath.Join(root, "kapi.yaml")
@@ -80,39 +89,57 @@ func TestHandleReviewUnit(t *testing.T) {
 	require.NoError(t, err)
 	item := queue.Pending[0]
 
-	_, out, err := handleReviewUnit(t.Context(), a, ReviewUnitInput{
-		Project: proj, Locale: item.Locale, File: item.File, Key: item.Key,
-	})
+	_, out, err := handleReviewBlock(t.Context(), a, ReviewBlockInput{Project: proj, At: item.Ref})
 	require.NoError(t, err)
 	require.NotNil(t, out.Unit)
+	assert.Equal(t, item.Ref, out.Ref)
 	assert.Equal(t, "translated", out.Unit.Status)
-	assert.NotEmpty(t, out.Unit.Source)
-	assert.NotEmpty(t, out.Unit.Target)
+	assert.Equal(t, "Apple", out.Unit.Source)
+	assert.Equal(t, "Eple", out.Unit.Target)
+	assert.Equal(t, readRev(t, a, proj, "en.json", "a", "nb"), out.Rev)
 
-	_, _, err = handleReviewUnit(t.Context(), a, ReviewUnitInput{
-		Project: proj, Locale: item.Locale, File: item.File, Key: "missing",
-	})
+	// The file of the translation names the same edition.
+	_, byFile, err := handleReviewBlock(t.Context(), a, ReviewBlockInput{Project: proj, At: BlockRef{Doc: "nb.json", Block: "a"}})
+	require.NoError(t, err)
+	assert.Equal(t, out.Ref, byFile.Ref)
+	assert.Equal(t, out.Rev, byFile.Rev)
+
+	_, _, err = handleReviewBlock(t.Context(), a, ReviewBlockInput{Project: proj, At: BlockRef{Doc: "en.json", Block: "missing", Edition: "nb"}})
 	require.Error(t, err)
+	_, _, err = handleReviewBlock(t.Context(), a, ReviewBlockInput{Project: proj, At: BlockRef{Doc: "en.json", Block: "a", Edition: "de"}})
+	require.Error(t, err, "the project declares no de translation")
 }
 
-// TestHandleReviewUnit_CarriesTheContext holds the bar for the agent surface:
+// readRev is the revision the change service reads for one edition of a
+// block.
+func readRev(t *testing.T, a *cli.App, proj, doc, block, edition string) string {
+	t.Helper()
+	svc, err := a.ChangeService(t.Context(), host.ChangeServiceOptions{Project: proj})
+	require.NoError(t, err)
+	k, err := model.ParseEditionKey(edition)
+	require.NoError(t, err)
+	page, err := svc.Read(t.Context(), change.ReadRequest{Doc: doc, Blocks: []string{block}, Editions: []model.EditionKey{k}})
+	require.NoError(t, err)
+	require.Len(t, page.Blocks, 1)
+	ed, ok := page.Blocks[0].Editions[edition]
+	require.True(t, ok, "%+v", page.Blocks[0].Editions)
+	return ed.Rev
+}
+
+// TestHandleReviewBlock_CarriesTheContext holds the bar for the agent surface:
 // an agent asked to judge a translation is handed at least what the model that
 // produced it was handed.
-func TestHandleReviewUnit_CarriesTheContext(t *testing.T) {
+func TestHandleReviewBlock_CarriesTheContext(t *testing.T) {
 	root := writeMCPReviewProject(t)
 	a := testApp()
 	proj := filepath.Join(root, "kapi.yaml")
 
-	_, queue, err := handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj})
-	require.NoError(t, err)
-	require.Len(t, queue.Pending, 2)
-
-	_, out, err := handleReviewUnit(t.Context(), a, ReviewUnitInput{
-		Project: proj, Locale: "nb", File: "nb.json", Key: "a",
+	_, out, err := handleReviewBlock(t.Context(), a, ReviewBlockInput{
+		Project: proj, At: BlockRef{Doc: "en.json", Block: "a", Edition: "nb"},
 	})
 	require.NoError(t, err)
 	require.NotNil(t, out.Unit)
-	require.NotNil(t, out.Unit.Context, "review_unit answers with the review model")
+	require.NotNil(t, out.Unit.Context, "review_block answers with the review model")
 
 	rc := out.Unit.Context
 	assert.Equal(t, "app", rc.Point.Collection)
@@ -127,31 +154,92 @@ func TestHandleReviewUnit_CarriesTheContext(t *testing.T) {
 	assert.Equal(t, "Banana", rc.Neighbourhood.After[0].Source[0].Text.Text)
 }
 
-// TestHandlePreReview_AnnotatesWithoutDeciding: an agent's pre-review records
-// a score on the unit and leaves it in the queue for a person.
-func TestHandlePreReview_AnnotatesWithoutDeciding(t *testing.T) {
+// reviewSession connects a client named client to a server carrying every
+// kapi MCP tool, the review set and apply_edits among them.
+func reviewSession(t *testing.T, a *cli.App, client string) *mcp.ClientSession {
+	t.Helper()
+	server := mcp.NewServer(&mcp.Implementation{Name: "kapi", Version: "test"}, nil)
+	cli.ApplyMCPToolFactories(server, a)
+	serverTransport, clientTransport := mcp.NewInMemoryTransports()
+	serverSession, err := server.Connect(t.Context(), serverTransport, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = serverSession.Close() })
+	c := mcp.NewClient(&mcp.Implementation{Name: client, Version: "test"}, nil)
+	session, err := c.Connect(t.Context(), clientTransport, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = session.Close() })
+	return session
+}
+
+// call calls one tool and decodes its structured result into out, returning
+// whether the tool reported an error.
+func call(t *testing.T, s *mcp.ClientSession, name string, args map[string]any, out any) bool {
+	t.Helper()
+	res, err := s.CallTool(t.Context(), &mcp.CallToolParams{Name: name, Arguments: args})
+	require.NoError(t, err)
+	if out != nil && res.StructuredContent != nil {
+		body, err := json.Marshal(res.StructuredContent)
+		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(body, out), string(body))
+	}
+	return res.IsError
+}
+
+// An agent records its pre-review through apply_edits: a decide operation
+// with outcome advise, at the reference and revision review_block reported.
+// The score lands on the unit under the agent's name, and the unit stays in
+// the queue for a person. An agent's establish is refused, and a pre-review
+// of wording that moved since the read is refused as stale; neither records
+// anything.
+func TestPreReviewIsAnAdviseThroughApplyEdits(t *testing.T) {
 	root := writeMCPReviewProject(t)
 	a := testApp()
 	proj := filepath.Join(root, "kapi.yaml")
+	session := reviewSession(t, a, "review-agent")
 
-	_, queue, err := handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj})
-	require.NoError(t, err)
+	var queue ReviewQueueOutput
+	require.False(t, call(t, session, "review_queue", map[string]any{"project": proj}, &queue))
 	require.Len(t, queue.Pending, 2)
 	first := queue.Pending[0]
 
-	_, out, err := handlePreReview(t.Context(), a, PreReviewInput{
-		Project: proj, Locale: first.Locale, File: first.File, Key: first.Key,
-		Score: 72, Reasons: []PreReviewReason{{Severity: "minor", Message: "reads stiffly", Suggestion: "Eplet"}},
-	}, "agent/claude-code")
-	require.NoError(t, err)
-	assert.True(t, out.Recorded)
-	assert.Equal(t, "agent/claude-code", out.By)
+	var picture ReviewBlockOutput
+	require.False(t, call(t, session, "review_block", map[string]any{"project": proj, "at": first.Ref}, &picture))
 
-	// The unit stays in the queue for a person, carrying the score.
-	_, queue, err = handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj})
-	require.NoError(t, err)
+	type result struct {
+		Status string `json:"status"`
+		Ops    []struct {
+			Status string        `json:"status"`
+			Error  *change.Error `json:"error"`
+		} `json:"ops"`
+	}
+	decide := func(outcome, rev string) map[string]any {
+		return map[string]any{"project": proj, "ops": []any{map[string]any{
+			"op": "decide", "at": picture.Ref, "if_match": rev, "outcome": outcome,
+			"score": 72, "reasons": []string{"reads stiffly"},
+		}}}
+	}
+
+	var refused result
+	assert.True(t, call(t, session, "apply_edits", decide("establish", picture.Rev), &refused))
+	require.Len(t, refused.Ops, 1)
+	require.NotNil(t, refused.Ops[0].Error)
+	assert.Equal(t, change.CodeNotPermitted, refused.Ops[0].Error.Code, "an agent never decides")
+
+	var stale result
+	assert.True(t, call(t, session, "apply_edits", decide("advise", "r:0000000000000000"), &stale))
+	require.Len(t, stale.Ops, 1)
+	require.NotNil(t, stale.Ops[0].Error)
+	assert.Equal(t, change.CodeStale, stale.Ops[0].Error.Code, "a pre-review binds to the wording that was read")
+
+	var advised result
+	require.False(t, call(t, session, "apply_edits", decide("advise", picture.Rev), &advised))
+	assert.Equal(t, "applied", advised.Status)
+
+	// The unit stays in the queue for a person, carrying the score under the
+	// agent's name.
+	require.False(t, call(t, session, "review_queue", map[string]any{"project": proj}, &queue))
 	require.Equal(t, 2, queue.Total, "a pre-review decides nothing")
-	var scored *cli.ReviewQueueItem
+	var scored *ReviewQueueRow
 	for i := range queue.Pending {
 		if queue.Pending[i].Key == first.Key {
 			scored = &queue.Pending[i]
@@ -160,11 +248,7 @@ func TestHandlePreReview_AnnotatesWithoutDeciding(t *testing.T) {
 	require.NotNil(t, scored)
 	require.NotNil(t, scored.AIScore)
 	assert.Equal(t, 72, *scored.AIScore)
-
-	_, _, err = handlePreReview(t.Context(), a, PreReviewInput{
-		Project: proj, Locale: first.Locale, File: first.File, Key: first.Key, Score: 101,
-	}, "agent")
-	require.Error(t, err, "a score outside 0-100 is refused")
+	assert.Equal(t, "agent/review-agent", scored.AIModel)
 }
 
 // writeMCPTranslateAfterProject scaffolds a project whose translate_after asks for a
@@ -211,6 +295,8 @@ func TestHandleReviewQueue_ListsSourceUnitsAndFiltersByLanguage(t *testing.T) {
 	assert.True(t, out.Pending[0].IsSource, "the source rows lead the queue")
 	assert.Equal(t, "en", out.Pending[0].Language)
 	assert.Equal(t, "en.json", out.Pending[0].File)
+	assert.Equal(t, BlockRef{Doc: "en.json", Block: out.Pending[0].Key}, out.Pending[0].Ref,
+		"a source row's reference names no edition")
 
 	_, out, err = handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj, Language: "en"})
 	require.NoError(t, err)
@@ -264,30 +350,32 @@ collections:
 	}
 }
 
-// review_unit answers for a source-language unit: the wording, its rung on the
-// authoring ladder, and the point governing it.
-func TestHandleReviewUnit_AcceptsASourceLanguageUnit(t *testing.T) {
+// review_block answers for a source-language block: the wording, its rung on
+// the authoring ladder, and the point governing it. The edition of the
+// project's source language names the source too.
+func TestHandleReviewBlock_AcceptsASourceLanguageBlock(t *testing.T) {
 	root := writeMCPTranslateAfterProject(t)
 	a := testApp()
 	proj := filepath.Join(root, "kapi.yaml")
 
-	_, out, err := handleReviewUnit(t.Context(), a, ReviewUnitInput{
-		Project: proj, Locale: "en", File: "en.json", Key: "a",
-	})
-	require.NoError(t, err)
-	require.NotNil(t, out.Unit)
-	assert.True(t, out.Unit.IsSource)
-	assert.Equal(t, "en", out.Unit.Language)
-	assert.Equal(t, "Apple", out.Unit.Source)
-	assert.Empty(t, out.Unit.Target)
-	assert.Equal(t, "written", out.Unit.Status)
-	require.NotNil(t, out.Unit.Context)
-	assert.Equal(t, "en.json", out.Unit.Context.Point.Path)
-	assert.True(t, out.Unit.Context.Point.IsSource)
-	assert.Equal(t, "a", out.Unit.Context.Neighbourhood.Key)
-}
-
-func TestAgentIdentity_Fallback(t *testing.T) {
-	// No session (nil request) → the bare "agent" identity.
-	assert.Equal(t, "agent", agentIdentity(nil))
+	for _, edition := range []string{"", "en"} {
+		t.Run("edition "+edition, func(t *testing.T) {
+			_, out, err := handleReviewBlock(t.Context(), a, ReviewBlockInput{
+				Project: proj, At: BlockRef{Doc: "en.json", Block: "a", Edition: edition},
+			})
+			require.NoError(t, err)
+			assert.Equal(t, BlockRef{Doc: "en.json", Block: "a"}, out.Ref)
+			assert.Regexp(t, `^r:[0-9a-f]{16}$`, out.Rev)
+			require.NotNil(t, out.Unit)
+			assert.True(t, out.Unit.IsSource)
+			assert.Equal(t, "en", out.Unit.Language)
+			assert.Equal(t, "Apple", out.Unit.Source)
+			assert.Empty(t, out.Unit.Target)
+			assert.Equal(t, "written", out.Unit.Status)
+			require.NotNil(t, out.Unit.Context)
+			assert.Equal(t, "en.json", out.Unit.Context.Point.Path)
+			assert.True(t, out.Unit.Context.Point.IsSource)
+			assert.Equal(t, "a", out.Unit.Context.Neighbourhood.Key)
+		})
+	}
 }

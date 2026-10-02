@@ -198,7 +198,7 @@ func TestReviewQueue_CleanSourceListsTheSourceLanguageBesideTargets(t *testing.T
 	}, queue.Languages, "the source leads at zero; the targets are queue-driven")
 }
 
-// review_unit and the desktop read one unit through ReviewUnitWithContext. A
+// review_block and the desktop read one unit through ReviewUnitWithContext. A
 // source-language unit is answered from its source file, with the authoring
 // rung and the point that governs it.
 func TestReviewUnit_AnswersASourceLanguageUnit(t *testing.T) {

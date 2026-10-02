@@ -110,7 +110,7 @@ func actorRefusal(who changeActor, e changeEntry) (assetResult, bool) {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: assetTarget(e)}
 	if e.Kind == kindReview {
 		if who.Actor.Kind == contextop.ActorAgent {
-			return errResult(res, "review: an agent records a pre-review (the pre_review_unit tool), never a decision; a person establishes a unit"), true
+			return errResult(res, "review: an agent records a pre-review (a decide operation with outcome advise), never a decision; a person establishes a unit"), true
 		}
 		return assetResult{}, false
 	}

@@ -28,12 +28,13 @@ func NewMCPCmd(a *App, implName string) *cobra.Command {
   writing       (default) context_read and the context:// resources,
                 context_search, the recording tools (context_observe,
                 context_correct, context_withdraw), context_session_summary,
-                check_file, and extract_content and apply_edits, which read a
-                file's blocks and write edits back with its structure kept
+                check_file, and read_blocks, apply_edits and describe_format,
+                which read a document's blocks, write change sets back with
+                its structure kept, and say what a format supports
   content       check_text, voice_check, voice_rewrite, term-check,
                 detect_format, redact
   translation   translate, up, up_plan, stats
-  review        review_queue, review_unit, pre_review_unit
+  review        review_queue, review_block
   all           every set
 
 Two flags add what no set holds, for debugging:

@@ -73,20 +73,14 @@ func listSurface(t *testing.T, sets map[string]bool) ([]string, []string) {
 func TestMCPToolSetsGateTheSurface(t *testing.T) {
 	isolateCheckExecution(t)
 
-	// extract_content is registered by the kapi binary's own factories
-	// (kapi/mcptools), so a host-only server serves the rest of the set.
+	// The host registers every tool of the writing set, so a host-only server
+	// serves the whole set.
 	all, _ := listSurface(t, nil)
 	tools, templates := listSurface(t, map[string]bool{MCPSetWriting: true})
 	slices.Sort(tools)
-	var want []string
-	for _, name := range MCPToolSetTools(MCPSetWriting) {
-		if slices.Contains(all, name) {
-			want = append(want, name)
-		}
-	}
+	want := MCPToolSetTools(MCPSetWriting)
 	slices.Sort(want)
 	assert.Equal(t, want, tools, "the writing set serves its tools and no other")
-	assert.Contains(t, tools, "apply_edits", "the writing set serves the structured edit path")
 	assert.ElementsMatch(t, []string{contextLocationTemplate, contextProfileTemplate}, templates)
 
 	tools, templates = listSurface(t, map[string]bool{MCPSetTranslation: true})
@@ -98,29 +92,16 @@ func TestMCPToolSetsGateTheSurface(t *testing.T) {
 	assert.Contains(t, all, "check_file")
 }
 
-// The default surface reaches the structured edit path: extract_content reads
-// a file's blocks and apply_edits writes them back. An agent in a project kapi
-// init wired, which names no set or adds only translation, has both.
-func TestMCPWritingSetServesTheEditPath(t *testing.T) {
+// The default surface reaches the edit contract: read_blocks reads a
+// document's blocks, apply_edits sends a change set, and describe_format says
+// what a format supports. An agent in a project kapi init wired, which names
+// no set or adds only translation, has all three.
+func TestMCPWritingSetServesTheEditContract(t *testing.T) {
 	writing := MCPToolSetTools(MCPSetWriting)
-	for _, name := range []string{"extract_content", "apply_edits"} {
+	for _, name := range []string{"read_blocks", "apply_edits", "describe_format"} {
 		assert.Contains(t, writing, name)
 		assert.NotContains(t, MCPToolSetTools(MCPSetContent), name, "a tool sits in one set")
 	}
-}
-
-// apply_edits declares each comment file's check as an object rather than
-// repeating the kapi.check/v2 report schema check_file already declares in the
-// same set, which would double the size of a tool every writing session reads.
-func TestApplyEditsOutputSchemaLeavesTheCheckToCheckFile(t *testing.T) {
-	s := applyEditsOutputSchema()
-	comments := s.Properties["comments"]
-	require.NotNil(t, comments)
-	require.NotNil(t, comments.Items)
-	held := comments.Items.Properties["check"]
-	require.NotNil(t, held)
-	assert.Empty(t, held.Properties, "the report's fields are check_file's to declare")
-	assert.Contains(t, held.Description, "check_file")
-	assert.Contains(t, s.Properties, "not_found", "the rest of the result is declared as inferred")
-	assert.Contains(t, comments.Items.Properties, "edits")
+	assert.Equal(t, []string{"review_queue", "review_block"}, MCPToolSetTools(MCPSetReview),
+		"an agent records a pre-review through apply_edits, so the review set only reads")
 }
