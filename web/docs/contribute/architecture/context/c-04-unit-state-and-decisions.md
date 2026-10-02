@@ -122,12 +122,17 @@ checkout's view stays out of the log: it is a reading of that checkout's files,
 written by the store beside the journal. The embedded layout a test opens has
 no log, and its store writes the ledger directly.
 
-A change to the text itself is a separate record. Every applied edit is a
-`content.edit` operation, projected into the block history, which answers who
-changed an edition, from which revision to which and through which surface
+A change to the text itself is a separate record. An edit that reaches the
+edit recorder is a `content.edit` operation, projected into the block history,
+which answers who changed an edition, from which revision to which and through
+which surface
 ([C-03](c-03-context-store-and-graph.md#edits-are-recorded-as-content-edit)). A
 decision says a person stands behind a pairing; the block history says how the
-text in that pairing came to be.
+text in that pairing came to be. The ledger also holds entries that carry no
+decision: the basis a convergence pass records for its own output, Kapi
+Desktop's record of a person's edit, the AI pre-review a convergence report
+keeps, the governing fingerprint a seed writes and the verdicts a source venue
+clears. Each is a `decision.record` operation like a decision.
 
 ### Document keys are recorded in the log
 
@@ -135,22 +140,27 @@ A decision is filed under its document's key, so every checkout of a project
 has to give a document the same key. Each one a checkout resolves is a
 `document.adopt` operation (`state.Adoption`, recorded through the same
 journal): the key, the path the document was read at, the content hash of each
-block it held there, and a digest over those hashes. Its content address is
-`adopt:<project>:` followed by the SHA-256 over the key, the path and the
-digest, so two checkouts adopting one document at one path with one content
-record it once. A checkout records an adoption only when the project does not
-hold it yet: a key never adopted, or one now read at another path or with other
-content.
+block it held there, a digest over those hashes, and the id of the adoption the
+key held before (`Prev`). Its id (`state.AdoptionID`) is the SHA-256 over the
+key, the path, the digest and that previous id, and its content address is
+`adopt:<project>:` followed by the id, so two checkouts that see one document
+move from one state to the same path and content record it once, and a
+document that returns to a path or a content it held before is adopted again. A
+checkout records an adoption only when the project does not hold it yet: a key
+never adopted, or one now read at another path or with other content.
 
 The projector writes `document_adoption`, one row per key: where it was most
-recently read, what it held there and when it was first adopted, the same rows
-whatever order the operations arrive in. `WorkStore.AdoptDocuments` matches a
-read against the documents this checkout has read first, so a checkout keeps the
-keys it has, and then against the project's adoptions
-(`WorkStore.AdoptedDocuments`), the earliest adopted first. A checkout reading a
-document for the first time therefore takes the key the project already uses,
-at the path another checkout recorded or by what the file holds, before it
-mints one from the path. `host.DocumentIndex` answers a path the checkout has
+recently read, what it held there, the adoption's id and when the key was
+first adopted, the same rows whatever order the operations arrive in.
+`WorkStore.AdoptDocuments` matches a read against the documents this checkout
+has read first, so a checkout keeps the keys it has, and then against the
+project's adoptions (`WorkStore.AdoptedDocuments`), the earliest adopted first.
+A checkout reading a document for the first time therefore takes the key the
+project already uses, at the path another checkout recorded or by what the file
+holds, before it mints one from the path. A key derived from a path that
+another document already holds, one that moved away from that path, is taken
+whether or not that document is in the read, and the new document gets the
+next ordinal (`d-…-2`). `host.DocumentIndex` answers a path the checkout has
 not resolved from the same adoptions, so a fresh checkout names a renamed
 document correctly before its first extraction.
 

@@ -49,7 +49,7 @@ The projection stays in the checkout at `.kapi/work/store.db`
 | `tm_*` | `memory/` | context |
 | `voice_*` | `voice/` | context |
 | `unit_decision`, `unit_view`, `document`, `document_adoption`, `checkout`, `state_meta` | `core/state` | context |
-| `block_history` | `core/history` | context |
+| `block_history`, `block_history_op` | `core/history` | context |
 | `projector_cursor` | `core/projector` | context |
 | `graph_nodes`, `graph_edges` | `host/storage/graph` | workspace |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace |
@@ -72,8 +72,8 @@ Callers name a capability rather than a file: `Blocks()` and
 ## The projector
 
 `core/projector` is the only writer of `tb_*`, `tm_*`, `voice_profiles`,
-`voice_profile_versions`, `unit_decision`, `document_adoption`, `block_history`
-and `workspace_rules`
+`voice_profile_versions`, `unit_decision`, `document_adoption`,
+`block_history`, `block_history_op` and `workspace_rules`
 ([C-03](../../architecture/context/c-03-context-store-and-graph.md#the-stores-are-projections-of-the-log)).
 A write is two transactions under one in-process mutex per context store: the
 operation into `workspace_ops` (and its steps into `workspace_blobs` when they
@@ -97,14 +97,17 @@ thousand, are applied in one transaction by `state.ApplyEntries`, live and in a
 rebuild.
 
 A document adoption is one `document.adopt` operation whose step carries a
-`state.Adoption` (key, path, digest, the content hash of each block), addressed
-`adopt:<project>:` followed by the hex SHA-256 over the key, the path and the
-digest joined by NUL. The digest is `sha256:` followed by the SHA-256 over the
-content hashes joined by newlines. `state.ApplyAdoptions` keeps one
-`document_adoption` row per key: the path, digest and content of the adoption
-with the latest moment (ties broken by the greater digest, then the greater
-path) and the earliest moment as `first_at`, so the rows are the same whatever
-order the operations are applied in.
+`state.Adoption` (key, path, digest, the content hash of each block, and
+`prev`, the id of the adoption the key held), addressed `adopt:<project>:`
+followed by its id, `state.AdoptionID`: the hex SHA-256 over the key, the path,
+the digest and `prev` joined by NUL. The digest is `sha256:` followed by the
+SHA-256 over the content hashes joined by newlines. `state.ApplyAdoptions`
+keeps one `document_adoption` row per key: the id, path, digest and content of
+the adoption with the latest moment (ties broken by the greater digest, then
+the greater path, then the greater id) and the earliest moment as `first_at`,
+so the rows are the same whatever order the operations are applied in. The
+next adoption of the key names the row's id as its `prev`, which is what makes
+a return to an earlier path or content an adoption of its own.
 
 An applied edit is one `content.edit` operation per document. Its payload is the
 `projector.Edit` itself rather than a list of steps:
@@ -132,17 +135,25 @@ An applied edit is one `content.edit` operation per document. Its payload is the
 
 `runs_before` and `runs_after` name blobs holding `model.CanonicalRunsJSON` of
 the edition, the bytes `model.RunsRevision` is computed over; a tool's edit
-leaves them and `change_set` out. `blobs` lists every blob the payload names,
+leaves them and `change_set` out, except that a write to the workspace home
+(`"home": "workspace"`) keeps `runs_after` whoever made it. Under a declared
+redaction policy, `host.App.EditRecorder` redacts the runs and the note with
+the project's rules before they are stored, each run sequence as the source of
+a block named `edit:<doc>#<block>@<edition>:<revision>` so the project vault
+keeps its originals under the content they came from, and leaves `change_set`
+out; a policy with the `entities` detector keeps no runs and no note. `blobs`
+lists every blob the payload names,
 because `workspace.BlobRefs` reads a payload's top-level `blob` and `blobs` and
 nothing deeper, and those are the blobs a push writes and a pull fetches. An
 edit whose JSON passes 32 KiB moves into a blob, and the payload becomes
 `{"blob": …, "blobs": […]}` with the same list. The operation's address is
 `edit:<project>:` followed by the hex SHA-256 over the project, the document
 key, the actor and, for each transition, its block, key, edition, revisions,
-basis and the `block_history` operation that last left the edition at the
-`before` revision (`history.Store.Reached`). `Projector.RecordEdits` reads
-those operations after catching up, under the projector's lock, and records
-every edit it is given in one write to the log and one catch-up;
+basis and the address of the operation that last left the edition at the
+`before` revision (`history.Store.Reached`). `Projector.RecordEdits` looks
+those addresses up after catching up, under the projector's lock, one
+`(block, edition, before)` at a time through the `block_history_reached` index,
+and records every edit it is given in one write to the log and one catch-up;
 `RecordEdit` is the same call for one edit. Within one call, an edit that
 extends an earlier one in the call names that edit's address instead.
 
@@ -159,11 +170,24 @@ id and the operation's own instant, so a rebuild writes the same rows:
 | `origin` | `apply`, `desktop`, `flow:<name>`, `merge`, `pull` or `observed` |
 | `at` | the operation's instant, RFC 3339 with nanoseconds in UTC |
 
+The projector also writes one `block_history_op` row per operation: its id
+(the primary key), its content address (unique) and its document, so the
+address is stored once per operation rather than on each of its rows. An
+operation that arrives for an address another operation holds takes its place,
+the other's rows and its `block_history_op` row removed first: that is the
+operation a merge kept in place of a held one with the same address (the older
+id, `workspace.LocalBackend.Record`), and the rows it leaves are the rows a
+rebuild from the merged log writes.
+
 Runs of consecutive `content.edit` operations are written in one transaction,
-live and in a rebuild. Operation ids sort by time, so "most recent" is
+live and in a rebuild, with one prepared statement. A row that arrives for a
+key the table holds is written again with the arriving values, so the same
+operation applied twice writes the same rows. Operation ids sort by time, so "most recent" is
 `ORDER BY op DESC`, and SQLite's `MAX()` with bare columns gives the latest row
 per block for `history.Store.Priors` in one statement. A second index,
-`(doc, op)`, serves the reads of a whole document.
+`(doc, op)`, serves the reads of a whole document, and a third,
+`block_history_reached` on `(doc, block, edition, after, op)`, the address
+lookups of a recording.
 
 `Rebuild` deletes every row of the projection tables, skipping the FTS5 shadow
 tables (emptying the virtual table empties them), resets their `sqlite_sequence`
@@ -173,7 +197,17 @@ stands it loads the checkpoint's tables first and replays only the operations
 the log received after it. A checkpoint's tables are JSON Lines, one object per
 row with each cell tagged by its SQLite type (`{"i": 1}`, `{"s": "x"}`,
 `{"b": "<base64>"}`), and carry the `rowid` of every table whose rows are not
-numbered by an INTEGER PRIMARY KEY.
+numbered by an INTEGER PRIMARY KEY. A table whose lines pass 1 MiB is cut, at
+line boundaries, into parts of at most 16 MiB, each stored as a blob and named
+in the checkpoint's manifest (`kpz.CheckpointMark.Parts`, table and blob, in
+load order) and in the `checkpoint.write` payload's `blobs`. A table that only
+grows is cut at the same lines each time, so successive checkpoints share its
+earlier parts. `workspace.Applier.CheckpointMark` reports the parts, and
+`workspace.Sync` writes them to `blobs/` before the checkpoint on a push and
+fetches them before installing it on a first pull. A rebuild that cannot load
+a checkpoint empties the tables again, replays the whole log and reports the
+checkpoint under `Failed`; one that meets operations of a kind in
+`projector.RetiredKinds` counts them under `Retired`.
 
 Measured in process on an M-series laptop, 16 goroutine writers
 (`KAPI_MEASURE_OPLOG=1 go test -tags fts5 ./core/projector -run Measure -v`):
@@ -188,10 +222,11 @@ Measured in process on an M-series laptop, 16 goroutine writers
 | 13 000 decisions read in as one import | 0.7 s |
 | rebuild of those 13 000 decisions from the log | 0.3 s |
 | checkpoint of them (10.6 MB) / rebuild from the checkpoint | 0.3 s / 0.4 s |
-| a convergence pass of edits: 400 `content.edit` operations, 75 200 hash-only transitions | 22.2 MB carried by the operations and their blobs; 3.4 to 14 s, under a machine load average of 60 to 70 |
-| the same pass recorded in one `RecordEdits` call, over a history holding the first | 3.1 to 11 s |
-| after both passes | `workspace.db` 17.7 MB, the context store 70.4 MB (150 400 `block_history` rows) |
-| rebuild of the 800 edits | 4.1 to 13.6 s |
+| a convergence pass of edits: 400 `content.edit` operations, 75 200 hash-only transitions, a document at a time | 22.2 MB carried by the operations and their blobs; 2.0 s (0.027 ms a transition), under a machine load average of about 18 |
+| the same pass recorded in one `RecordEdits` call, over a history holding the first | 1.8 s |
+| after both passes | `workspace.db` 17.7 MB, the context store 85.8 MB (150 400 `block_history` rows) |
+| rebuild of the 800 edits | 2.2 s |
+| checkpoint after both passes / rebuild from it | 4.3 s, a 0.2 MB file and 6 parts / 4.1 s |
 
 The projector adds about a millisecond to a single write. The tail under 16
 writers belongs to the content memory's row-by-row FTS5 maintenance described

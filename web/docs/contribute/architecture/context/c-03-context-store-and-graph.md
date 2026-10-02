@@ -33,7 +33,7 @@ The workspace also holds what spans projects: the **project registry**, the
 the **operation log**.
 
 Every change to a project's terms, voice profiles, content memory and decision
-ledger, every document adoption and every applied edit, and every change to the
+ledger, every document adoption and every recorded edit, and every change to the
 rules widened to the whole workspace, is an operation in that log carrying the
 rows it wrote. Those stores are **projections** of the log:
 `core/projector` is their only writer, and `kapi context rebuild` empties them
@@ -368,11 +368,25 @@ A **checkpoint** keeps a rebuild short. `Projector.Checkpoint`, behind
 (rows, their rowids and the AUTOINCREMENT numbering), with the project's widened
 rules, into a `.kpz` of kind `kapi-checkpoint`, stores it as a blob and records
 a `checkpoint.write` operation naming it and the last operation it includes. A
+table whose rows run past 1 MiB, the block history above all, travels in parts
+instead: blobs of at most 16 MiB the checkpoint names (`kpz.CheckpointPart`),
+so no file a checkpoint is made of grows with the project's history. A push
+writes the parts to the remote's `blobs/` before the checkpoint, and a first
+pull fetches them before it installs the checkpoint. A
 rebuild loads the newest checkpoint that still stands and replays only the
 operations after it. A checkpoint stops standing when the log receives, after
 it was taken, an operation whose id sorts before its last one, which is what a
 merge of an older operation from another machine does; the rebuild then falls
-back to an earlier checkpoint or to the whole log.
+back to an earlier checkpoint or to the whole log. A checkpoint that cannot be
+loaded, a part of it missing, costs a replay of the whole log, and the rebuild
+reports it.
+
+A log written before an operation kind was retired still holds operations of
+that kind, because the project resets data rather than migrating it. A rebuild
+leaves them out and counts them (`RebuildReport.Retired`, from
+`projector.RetiredKinds`), and `kapi context rebuild` says how many it left
+out: `unit.record`, the ledger's entries before they were `decision.record`,
+is one, and `kapi context import` reads the decisions in again from the shards.
 
 Callers reach the stores through the projector: `App.Projector` in host hands
 out `projector.Terms`, `projector.Memory` and `projector.Voice`, which answer
@@ -392,36 +406,55 @@ named on the command line are listed with the reason.
 ### Edits are recorded as content.edit {#edits-are-recorded-as-content-edit}
 
 Text lives in its home: the file in a checkout. What happened to it lives in
-the log. Every applied change set is a `content.edit` operation per document it
-changed, recorded after the home committed, and the projector writes it into
-the **block history** (`core/history`, the `block_history` table): one row per
-edition the edit changed, with the edition revisions before and after, the
-basis a derived edition was made from, the block's key, content hash and
-context hash, who made the change (person, agent or tool, with a name and a
-session) and through which surface (`apply`, `desktop`, `flow:<name>`,
-`merge`, `pull`, `observed`). `history.Store.LastWrite` answers who last wrote
-an edition, for every writer; `Edition` and `Document` read the changes back,
-most recent first. The file stays the only copy of its text and the log keeps
-facts about it, keyed by revisions that hold on every branch where the content
-matches, so a branch switch moves no record.
+the log. An applied edit is a `content.edit` operation per document it
+changed, and the projector writes it into the **block history**
+(`core/history`, the `block_history` table): one row per edition the edit
+changed, with the edition revisions before and after, the basis a derived
+edition was made from, the block's key, content hash and context hash, who made
+the change (person, agent or tool, with a name and a session) and through which
+surface (`apply`, `desktop`, `flow:<name>`, `merge`, `pull`, `observed`).
+`history.Store.LastWrite` answers who last wrote an edition, among the writes
+recorded this way; `Edition` and `Document` read the changes back, most recent
+first. The file stays the only copy of its text and the log keeps facts about
+it, keyed by revisions that hold on every branch where the content matches, so
+a branch switch moves no record.
 
-The service that applies change sets (`core/change`) hands each one to a
-`change.Recorder` once the homes committed; `host.App.EditRecorder` is the
-project's, and records every document of a change set through one
-`Projector.RecordEdits` call. A person's or an agent's edit keeps the runs
-around each change and the change set as sent, in blobs the operation names; a
-tool's edit keeps the revisions and hashes only, because the file holds the
-text and a flow writes thousands of them. The operation is
-addressed by the document, the actor and each transition with the operation it
-extends, the one that left the edition at the revision the transition starts
-from, so recording one edit twice is one operation while the same change made
-again after an undo is another.
+`core/change` defines the hook an applier of change sets calls once the homes
+committed (`change.Recorder`), and `host.App.EditRecorder` is the project's
+recorder: it records every document of a change set through one
+`Projector.RecordEdits` call. The writers that record a change to content any
+other way are the loop's basis records and Kapi Desktop's edits, which go
+through the decision ledger as `decision.record`
+([C-04](c-04-unit-state-and-decisions.md#the-ledger-is-a-projection-of-the-operation-log)),
+so the block history answers for the writes that reach the recorder.
+
+A person's or an agent's edit keeps the runs around each change and the change
+set as sent, in blobs the operation names; a tool's edit keeps the revisions
+and hashes only, because the file holds the text and a flow writes thousands of
+them. A write to the workspace home keeps the edition it leaves, whoever made
+it, because the log is that home. A project that declares redaction
+([C-10](c-10-redaction.md)) keeps no withheld value in a record: the recorder
+redacts the runs it keeps and the note with the project's rules, the originals
+going to the project vault, and leaves the change set out. A policy that
+detects entities needs a read's entity annotations, which a record's runs do
+not carry, so under one a record keeps revisions and hashes only.
+
+An operation is addressed by the document, the actor and each transition with
+the address of the operation it extends, the one that most recently left the
+edition at the revision the transition starts from (`history.Store.Reached`,
+which looks up only those revisions). Every log holding an operation agrees on
+its address, so one edit recorded twice, by a retry or by two machines noticing
+one change made outside kapi, is one operation, and so is every change that
+extends it, while the same change made again after an undo is another. The
+history keeps each operation's address beside its rows (`block_history_op`):
+when two logs that recorded one edit under different ids merge, the log keeps
+the older id, and its rows take the place of the ones the newer id projected,
+as a rebuild writes them.
 
 The identity evidence on every transition is what lets history re-attach after
-a reorder. A read reports the keys the format gives: on the repository's own
-documentation, fetching the priors and running `reconcile.Blocks` on a read at a
-new revision measured 38% of the read, over the 10% the edit model allowed
-(`docs/internals/evals.md`).
+a reorder. A read reports the keys the format gives, and reconciliation against
+the history's priors (`history.Store.Priors`, `reconcile.Blocks`) finds a
+recorded block among siblings whose positions moved.
 
 ### Deleting derived data {#kapiwork-is-free-to-delete}
 
