@@ -95,7 +95,7 @@ describe("FlowDiagramView", () => {
     expect(screen.queryByText("2 steps")).not.toBeInTheDocument();
   });
 
-  it("renders a parallel group with every branch and no branch editing", () => {
+  it("draws a loaded parallel group as invalid, with the runtime's refusal and no fix", () => {
     render(
       <FlowDiagramView
         flow={{
@@ -109,6 +109,11 @@ describe("FlowDiagramView", () => {
     );
     expect(screen.getByText("Quality Check")).toBeInTheDocument();
     expect(screen.getByText("Word Count")).toBeInTheDocument();
+    const refusal =
+      "step[1] holds a parallel: list (qa, word-count), and flow steps run in order, one after another: list those tools as ordered steps";
+    expect(screen.getByTestId("flow-sequence-error")).toHaveTextContent(refusal);
+    expect(screen.getByTestId("parallel-group-error")).toHaveTextContent(refusal);
+    expect(screen.queryByTestId("list-in-order")).not.toBeInTheDocument();
     expect(screen.queryByText("Add branch")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Remove tool")).not.toBeInTheDocument();
   });

@@ -17,7 +17,7 @@ export interface AddStepPickerProps {
   onAdd: (toolName: string) => void;
   /** Injected in tests and stories to open the dialog without a click. */
   defaultOpen?: boolean;
-  /** Trigger label; defaults to "Add step". Reused as "Add branch" / "Add parallel group". */
+  /** Trigger label; defaults to "Add step". */
   label?: string;
   /** A distinct test id for the trigger button, when several pickers coexist. */
   triggerTestId?: string;

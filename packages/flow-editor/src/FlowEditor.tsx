@@ -17,7 +17,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./flowEditor.css";
-import { Plus, GitBranch, Lock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Lock, ChevronLeft, ChevronRight, ListOrdered } from "lucide-react";
 import { DotEdge } from "./edges/DotEdge";
 
 import type { FlowEditorProps, FlowSpec, FlowStep, FlowBinding, ToolInfo, IOPort } from "./types";
@@ -29,17 +29,21 @@ import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 import { FlowLegend } from "./FlowLegend";
 import { FlowToolbar } from "./FlowToolbar";
-import { ParallelSuggestionBanner } from "./ParallelSuggestionBanner";
 import { ComposeAction } from "./ComposeAction";
 import { StepConfigPanel } from "./StepConfigPanel";
 import {
   cn,
+  Alert,
+  AlertDescription,
   Button,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   SimpleTooltip,
+  listBranchesInOrder,
+  parallelStepError,
+  sequenceIssues,
 } from "@neokapi/ui-primitives";
 import {
   serpentineGraph,
@@ -61,7 +65,6 @@ import {
 import { computeUnmet, slotContext, type SlotContext } from "./ioGraph";
 import { computePlacement, type PlacementDiagnostic } from "./placement";
 import { hasRedactionWrap, wrapWithRedaction, unwrapRedaction } from "./redactionWrap";
-import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
 import { TracePanel } from "./TracePanel";
 import { RunInspectorPanel } from "./RunInspectorPanel";
 import { EndpointInspectorPanel } from "./EndpointInspectorPanel";
@@ -130,7 +133,6 @@ export function FlowEditor({
   const { readOnly = false, endpointsReadOnly } = access ?? {};
   const { panel: lessonPanel, collapsed: lessonCollapsed, focusRequest } = lesson ?? {};
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
   const [dismissedTemplates, setDismissedTemplates] = useState(false);
   // The right overlay (config / run inspector / endpoint inspector) can be
   // docked away to a thin edge tab so the flow gets the full canvas width; the
@@ -144,18 +146,9 @@ export function FlowEditor({
   // (insert between two stations), cleared when the dialog closes (the global
   // Add button appends).
   const insertIndexRef = useRef<number | null>(null);
-  // Branch-add mode: when a parallel route's "+ Add branch" opens the dialog,
-  // this holds the route's step index, and the picked tool becomes a new branch
-  // of that route instead of a top-level step. Cleared on close / after add.
-  const branchTargetRef = useRef<number | null>(null);
   // The slot the Add dialog is targeting, kept in state (not just the ref) so the
-  // palette can show what data is available there and rank tools by fit. A route's
-  // branches share the upstream before the route, so branch-add uses the route's
-  // own step index as the slot.
+  // palette can show what data is available there and rank tools by fit.
   const [addSlot, setAddSlot] = useState<number | null>(null);
-  // True while the Add dialog is adding a branch to an existing route, where the
-  // flow-level compose actions (new route, protect) don't apply.
-  const [addBranchMode, setAddBranchMode] = useState(false);
 
   // Run review: the trace from running THIS flow plays back on the canvas.
   // The cursor windows the (editor-remapped) events; a selected node shows the
@@ -248,11 +241,11 @@ export function FlowEditor({
     return m;
   }, [tools]);
 
-  // Analyze flow for parallelization opportunities.
-  const suggestions = useMemo(
-    () => (readOnly || dismissedSuggestions ? [] : suggestParallelGroups(flow, toolMap)),
-    [flow, toolMap, readOnly, dismissedSuggestions],
-  );
+  // Steps run in order, one after another: the runtime refuses a step holding
+  // a parallel: list. The editor creates none, and a flow loaded with one is
+  // shown as invalid with the runtime's refusal (the first is what a run
+  // reports) until its tools are listed as ordered steps.
+  const sequence = useMemo(() => sequenceIssues(flow.steps), [flow.steps]);
 
   // Topology key: only changes when the graph structure changes (tools added/removed/reordered),
   // NOT when config changes. This prevents the graph from resetting on every config edit.
@@ -300,7 +293,6 @@ export function FlowEditor({
 
   // Refs for per-node handlers -- break the circular dependency with enrichedNodes.
   const removeNodeRef = useRef<(nodeId: string) => void>(() => {});
-  const addBranchRef = useRef<(nodeId: string) => void>(() => {});
   const removeBranchRef = useRef<(nodeId: string, branchIndex: number) => void>(() => {});
 
   // React Flow instance — used to fit view after adding tools.
@@ -376,11 +368,15 @@ export function FlowEditor({
       if (!readOnly && n.type === "tool") {
         extra.onRemove = () => removeNodeRef.current(n.id);
       }
+      if (n.type === "parallel" && typeof n.data.stepIndex === "number") {
+        const step = flow.steps[n.data.stepIndex];
+        const refusal = step ? parallelStepError(step, n.data.stepIndex) : null;
+        if (refusal) extra.invalid = refusal;
+      }
       if (!readOnly && n.type === "parallel") {
         extra.onRemove = () => removeNodeRef.current(n.id);
         extra.onSelectBranch = (branchIndex: number) =>
           setSelectedNodeId(`${n.id}::b${branchIndex}`);
-        extra.onAddBranch = () => addBranchRef.current(n.id);
         extra.onRemoveBranch = (branchIndex: number) => removeBranchRef.current(n.id, branchIndex);
       }
       // A lesson step pointing at this node draws a highlight ring (a branch
@@ -394,6 +390,7 @@ export function FlowEditor({
     });
   }, [
     initial.nodes,
+    flow.steps,
     nodeStats,
     activeNodes,
     spans,
@@ -558,8 +555,6 @@ export function FlowEditor({
           ...e.data,
           onInsert: () => {
             insertIndexRef.current = slot;
-            branchTargetRef.current = null;
-            setAddBranchMode(false);
             setAddSlot(slot);
             setAddOpen(true);
           },
@@ -718,21 +713,6 @@ export function FlowEditor({
   const handleAddTool = useCallback(
     (toolName: string) => {
       if (readOnly) return;
-      // Branch-add mode: the tool becomes a new branch of the targeted route
-      // (parallel group) instead of a top-level step.
-      const branchTarget = branchTargetRef.current;
-      branchTargetRef.current = null;
-      if (branchTarget !== null) {
-        const steps = flow.steps.map((s, i) =>
-          i === branchTarget && s.parallel
-            ? { ...s, parallel: [...s.parallel, { tool: toolName }] }
-            : s,
-        );
-        onChange({ ...flow, steps });
-        setAddOpen(false);
-        setAddSlot(null);
-        return;
-      }
       // An edge's "+" pins the insertion slot; the Add button appends.
       const at = Math.min(insertIndexRef.current ?? flow.steps.length, flow.steps.length);
       insertIndexRef.current = null;
@@ -755,37 +735,8 @@ export function FlowEditor({
     [flow, onChange, readOnly],
   );
 
-  // Insert an empty parallel route at the current slot — a control you fill with
-  // branches (and remove) in place. Picked from the Add panel's compose actions.
-  const handleAddRoute = useCallback(() => {
-    if (readOnly) return;
-    const at = Math.min(insertIndexRef.current ?? flow.steps.length, flow.steps.length);
-    insertIndexRef.current = null;
-    branchTargetRef.current = null;
-    setAddSlot(null);
-    const steps = [...flow.steps];
-    steps.splice(at, 0, { tool: "", parallel: [] });
-    onChange({ ...flow, steps });
-    setAddOpen(false);
-  }, [flow, onChange, readOnly]);
-
-  // Route branch handlers (driven via refs from enrichedNodes).
-  const handleAddBranch = useCallback(
-    (nodeId: string) => {
-      if (readOnly) return;
-      const node = nodes.find((n) => n.id === nodeId);
-      const loc = resolveStepLocation(node?.data as NodeStepData | undefined);
-      if (!loc) return;
-      branchTargetRef.current = loc.index;
-      insertIndexRef.current = null;
-      setAddBranchMode(true);
-      setAddSlot(loc.index);
-      setAddOpen(true);
-    },
-    [nodes, readOnly],
-  );
-  addBranchRef.current = handleAddBranch;
-
+  // A loaded parallel group's branches can be removed one at a time (driven via
+  // a ref from enrichedNodes); no branch is ever added.
   const handleRemoveBranch = useCallback(
     (nodeId: string, branchIndex: number) => {
       if (readOnly) return;
@@ -843,38 +794,6 @@ export function FlowEditor({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [readOnly, selectedNodeId, handleRemoveSelected]);
-
-  // Parallelize: convert sequential steps at given indices into a single parallel step.
-  const handleParallelize = useCallback(
-    (suggestion: ParallelSuggestion) => {
-      if (readOnly) return;
-      const indices = new Set(suggestion.stepIndices);
-      const parallelBranches: FlowStep[] = [];
-      const newSteps: FlowStep[] = [];
-      let inserted = false;
-
-      for (let i = 0; i < flow.steps.length; i++) {
-        if (indices.has(i)) {
-          parallelBranches.push(flow.steps[i]);
-          if (!inserted) {
-            // Insert the parallel group at the position of the first branch.
-            newSteps.push({ tool: "", parallel: parallelBranches });
-            inserted = true;
-          }
-        } else {
-          newSteps.push(flow.steps[i]);
-        }
-      }
-      // Update the parallel reference (it was pushed before all branches were added).
-      if (inserted) {
-        const pStep = newSteps.find((s) => s.parallel === parallelBranches);
-        if (pStep) pStep.parallel = [...parallelBranches];
-      }
-
-      onChange({ ...flow, steps: newSteps });
-    },
-    [flow, onChange, readOnly],
-  );
 
   // Handle drag-and-drop from palette
   const handleDrop = useCallback(
@@ -1134,7 +1053,7 @@ export function FlowEditor({
           <FlowToolbar
             stepCount={flow.steps.length}
             onRun={onRun}
-            runDisabled={runDisabled}
+            runDisabled={runDisabled || sequence.length > 0}
             running={running}
             flow={flow}
             redacted={hasRedactionWrap(flow)}
@@ -1149,13 +1068,26 @@ export function FlowEditor({
           />
         )}
 
-        {/* Parallelization suggestion banner */}
-        {suggestions.length > 0 && (
-          <ParallelSuggestionBanner
-            suggestion={suggestions[0]}
-            onParallelize={handleParallelize}
-            onDismiss={() => setDismissedSuggestions(true)}
-          />
+        {/* A flow loaded with a parallel group does not run: the runtime's
+            refusal, and the fix it names. */}
+        {sequence.length > 0 && (
+          <div className="shrink-0 border-b border-border px-3 py-2">
+            <Alert variant="destructive" data-testid="flow-sequence-error">
+              <AlertDescription className="text-xs">{sequence[0].message}</AlertDescription>
+            </Alert>
+            {!readOnly && (
+              <Button
+                variant="outline"
+                size="xs"
+                className="mt-2"
+                onClick={() => onChange({ ...flow, steps: listBranchesInOrder(flow.steps) })}
+                data-testid="list-in-order"
+              >
+                <ListOrdered size={12} />
+                {t("List as ordered steps")}
+              </Button>
+            )}
+          </div>
         )}
 
         {/* Graph canvas */}
@@ -1219,8 +1151,6 @@ export function FlowEditor({
                     size="sm"
                     onClick={() => {
                       insertIndexRef.current = null;
-                      branchTargetRef.current = null;
-                      setAddBranchMode(false);
                       setAddSlot(flow.steps.length);
                       setAddOpen(true);
                     }}
@@ -1325,7 +1255,7 @@ export function FlowEditor({
       )}
 
       {/* Browse-and-add — a modal so the canvas stays full-width. You pick a tool
-          from the list, or a compose action (a parallel route, or protect). */}
+          from the list, or the protect compose action. */}
       {!readOnly && (
         <Dialog
           open={addOpen}
@@ -1333,48 +1263,30 @@ export function FlowEditor({
             setAddOpen(open);
             if (!open) {
               insertIndexRef.current = null;
-              branchTargetRef.current = null;
-              setAddBranchMode(false);
               setAddSlot(null);
             }
           }}
         >
           <DialogContent className="max-w-md gap-0 overflow-hidden p-0">
             <DialogHeader className="px-4 pb-2 pt-4">
-              <DialogTitle className="text-sm">
-                {addBranchMode ? t("Add a parallel branch") : t("Add")}
-              </DialogTitle>
+              <DialogTitle className="text-sm">{t("Add")}</DialogTitle>
             </DialogHeader>
-            {/* Compose actions sit above the tool list as first-class "Add"
-                choices — not for a branch pick (a route can't nest as a branch,
-                and protect is flow-level). */}
-            {!addBranchMode && (
+            {/* Protect sits above the tool list as a first-class "Add" choice. */}
+            {!hasRedactionWrap(flow) && (
               <div className="flex flex-col border-b border-border">
                 <ComposeAction
-                  icon={
-                    <GitBranch size={14} className="mt-0.5 shrink-0 text-[oklch(0.62_0.15_300)]" />
-                  }
-                  title={t("Run tools in parallel")}
+                  icon={<Lock size={14} className="mt-0.5 shrink-0 text-[oklch(0.6_0.2_15)]" />}
+                  title={t("Protect sensitive content")}
                   description={t(
-                    "Adds a route: a node whose tools all run on the same input. Add branches to it after.",
+                    "Wraps the flow with redact … unredact: sensitive spans are replaced with placeholders before the tools run and restored at the end.",
                   )}
-                  onClick={handleAddRoute}
+                  onClick={() => {
+                    onChange(wrapWithRedaction(flow));
+                    insertIndexRef.current = null;
+                    setAddSlot(null);
+                    setAddOpen(false);
+                  }}
                 />
-                {!hasRedactionWrap(flow) && (
-                  <ComposeAction
-                    icon={<Lock size={14} className="mt-0.5 shrink-0 text-[oklch(0.6_0.2_15)]" />}
-                    title={t("Protect sensitive content")}
-                    description={t(
-                      "Wraps the flow with redact … unredact: sensitive spans are replaced with placeholders before the tools run and restored at the end.",
-                    )}
-                    onClick={() => {
-                      onChange(wrapWithRedaction(flow));
-                      insertIndexRef.current = null;
-                      setAddSlot(null);
-                      setAddOpen(false);
-                    }}
-                  />
-                )}
               </div>
             )}
             <div className="h-[55vh]">

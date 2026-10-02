@@ -15,9 +15,8 @@ export interface FlowTemplate {
   name: string;
   description: string;
   category: ToolCategory;
-  /** Number of sequential + parallel steps (for complexity indicator). */
+  /** Number of steps (for the complexity indicator). Steps run in order. */
   stepCount: number;
-  hasParallel: boolean;
   spec: FlowSpec;
 }
 
@@ -32,7 +31,6 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     },
     category: "translation",
     stepCount: 2,
-    hasParallel: false,
     spec: {
       steps: [
         {
@@ -60,7 +58,6 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     },
     category: "translation",
     stepCount: 2,
-    hasParallel: false,
     spec: {
       steps: [
         {
@@ -88,7 +85,6 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     },
     category: "quality",
     stepCount: 2,
-    hasParallel: false,
     spec: {
       steps: [
         {
@@ -107,18 +103,15 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     },
   },
   {
-    id: "parallel-qa",
+    id: "translate-checks",
     get name() {
-      return t("Translate + Parallel Checks", "flow template name");
+      return t("Translate + Checks", "flow template name");
     },
     get description() {
-      return t(
-        "Translate, then run rule-based and brand checks in parallel for faster validation.",
-      );
+      return t("Translate, then run rule-based and brand checks and count the words.");
     },
     category: "quality",
     stepCount: 4,
-    hasParallel: true,
     spec: {
       steps: [
         {
@@ -128,21 +121,16 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
           },
         },
         {
-          tool: "",
-          parallel: [
-            {
-              tool: "qa",
-              get label() {
-                return t("Quality Check", "flow step label");
-              },
-            },
-            {
-              tool: "voice-vocab-check",
-              get label() {
-                return t("Brand Check", "flow step label");
-              },
-            },
-          ],
+          tool: "qa",
+          get label() {
+            return t("Quality Check", "flow step label");
+          },
+        },
+        {
+          tool: "voice-vocab-check",
+          get label() {
+            return t("Brand Check", "flow step label");
+          },
         },
         {
           tool: "word-count",
@@ -160,12 +148,11 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     },
     get description() {
       return t(
-        "Complete workflow: content-memory leverage, AI translate, parallel rule-based and brand checks, word count.",
+        "Complete workflow: content-memory leverage, AI translate, rule-based and brand checks, word count.",
       );
     },
     category: "pipeline",
     stepCount: 5,
-    hasParallel: true,
     spec: {
       steps: [
         {
@@ -181,21 +168,16 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
           },
         },
         {
-          tool: "",
-          parallel: [
-            {
-              tool: "qa",
-              get label() {
-                return t("Quality Check", "flow step label");
-              },
-            },
-            {
-              tool: "voice-vocab-check",
-              get label() {
-                return t("Brand Check", "flow step label");
-              },
-            },
-          ],
+          tool: "qa",
+          get label() {
+            return t("Quality Check", "flow step label");
+          },
+        },
+        {
+          tool: "voice-vocab-check",
+          get label() {
+            return t("Brand Check", "flow step label");
+          },
         },
         {
           tool: "word-count",
@@ -216,25 +198,19 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     },
     category: "analysis",
     stepCount: 2,
-    hasParallel: true,
     spec: {
       steps: [
         {
-          tool: "",
-          parallel: [
-            {
-              tool: "entity-extract",
-              get label() {
-                return t("Entities", "flow step label");
-              },
-            },
-            {
-              tool: "term-lookup",
-              get label() {
-                return t("Terminology", "flow step label");
-              },
-            },
-          ],
+          tool: "entity-extract",
+          get label() {
+            return t("Entities", "flow step label");
+          },
+        },
+        {
+          tool: "term-lookup",
+          get label() {
+            return t("Terminology", "flow step label");
+          },
         },
       ],
     },

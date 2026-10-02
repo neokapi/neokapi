@@ -81,12 +81,7 @@ describe("FlowPage", () => {
   });
 
   it("opens on the step editor with a Steps / Diagram switch, and no Run view before a run", async () => {
-    renderPage({
-      steps: [
-        { tool: "translate" },
-        { tool: "", parallel: [{ tool: "qa" }, { tool: "word-count" }] },
-      ],
-    });
+    renderPage({ steps: [{ tool: "translate" }, { tool: "qa" }, { tool: "word-count" }] });
     // The linear flow editor renders a Run button in its header.
     expect(screen.getByLabelText("Run flow")).toBeInTheDocument();
     expect(pressed("flow-view-steps")).toBe(true);
@@ -96,21 +91,37 @@ describe("FlowPage", () => {
     expect(getLastTrace).not.toHaveBeenCalled();
   });
 
-  it("shows the flow as a read-only diagram, parallel branches included", async () => {
-    renderPage({
-      steps: [
-        { tool: "translate" },
-        { tool: "", parallel: [{ tool: "qa" }, { tool: "word-count" }] },
-      ],
-    });
+  it("shows the flow as a read-only diagram", async () => {
+    renderPage({ steps: [{ tool: "translate" }, { tool: "qa" }, { tool: "word-count" }] });
     await userEvent.click(screen.getByTestId("flow-view-diagram"));
     expect(screen.getByTestId("flow-diagram-view")).toBeInTheDocument();
     expect(screen.getByText("translate")).toBeInTheDocument();
     expect(screen.getByText("qa")).toBeInTheDocument();
     expect(screen.getByText("word-count")).toBeInTheDocument();
     expect(screen.queryByLabelText("Add tool")).not.toBeInTheDocument();
-    expect(screen.queryByText("Add branch")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Remove tool")).not.toBeInTheDocument();
+  });
+
+  // Flow steps run in order: the runtime refuses a parallel: list, so a flow
+  // loaded with one is shown invalid in both views, with the same refusal, and
+  // does not run.
+  it("shows a loaded parallel group as invalid in both views", async () => {
+    const refusal =
+      "step[1] holds a parallel: list (qa, word-count), and flow steps run in order, one after another: list those tools as ordered steps";
+    renderPage({
+      steps: [
+        { tool: "translate" },
+        { tool: "", parallel: [{ tool: "qa" }, { tool: "word-count" }] },
+      ],
+    });
+    expect(screen.getByTestId("parallel-group-error")).toHaveTextContent(refusal);
+    expect(screen.getByLabelText("Run flow")).toBeDisabled();
+    expect(screen.queryByTestId("add-parallel-group")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("add-branch")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("flow-view-diagram"));
+    expect(screen.getByTestId("flow-sequence-error")).toHaveTextContent(refusal);
+    expect(screen.queryByText("Add branch")).not.toBeInTheDocument();
   });
 
   it("replays the retained run of this flow in the Run view, naming its file", async () => {

@@ -90,7 +90,7 @@ describe("ProjectFlowsEditor editing", () => {
     expect(screen.queryByTestId("flow-view-run")).not.toBeInTheDocument();
   });
 
-  it("shows the flow as a read-only diagram, parallel branches included", async () => {
+  it("shows the flow as a read-only diagram, its parallel group included", async () => {
     const { user, spies } = setup();
     await user.click(await screen.findByText("Translate and review"));
     await screen.findByTestId("linear-flow-editor");
@@ -108,29 +108,31 @@ describe("ProjectFlowsEditor editing", () => {
     expect(await screen.findByTestId("parallel-group")).toBeInTheDocument();
   });
 
-  it("opens a project flow with its parallel group and saves an added branch", async () => {
+  // Flow steps run in order: the runtime refuses a parallel: list, so a flow
+  // whose saved graph holds one shows the group invalid, with the same
+  // refusal, and offers no branch to add.
+  it("opens a project flow with a parallel group as invalid and saves it listed in order", async () => {
     const { user, spies } = setup();
     await user.click(await screen.findByText("Translate and review"));
     const group = await screen.findByTestId("parallel-group");
     expect(within(group).getAllByTestId("step-row")).toHaveLength(2);
+    expect(within(group).getByTestId("parallel-group-error")).toHaveTextContent(
+      "step[1] holds a parallel: list (qa, term-check), and flow steps run in order, one after another: list those tools as ordered steps",
+    );
+    expect(within(group).queryByTestId("add-branch")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("add-parallel-group")).not.toBeInTheDocument();
     expect(screen.getByTestId("flow-save-state")).toHaveTextContent("Saved");
 
-    await user.click(within(group).getByTestId("add-branch"));
-    await user.click(screen.getByRole("button", { name: /Pseudo Translate/ }));
-    expect(within(group).getAllByTestId("step-row")).toHaveLength(3);
+    await user.click(within(group).getByTestId("list-in-order"));
+    expect(screen.queryByTestId("parallel-group")).not.toBeInTheDocument();
 
     await waitFor(() => expect(spies.update).toHaveBeenCalledTimes(1));
     const [, , id, def] = spies.update.mock.calls[0];
     expect(id).toBe("flow-review");
-    expect(def.nodes.map((n) => n.name)).toEqual([
-      "translate",
-      "qa",
-      "term-check",
-      "pseudo-translate",
-    ]);
-    // Three branches share the second row of the persisted graph.
-    const rows = new Set(def.nodes.slice(1).map((n) => n.position.y));
-    expect(rows.size).toBe(1);
+    expect(def.nodes.map((n) => n.name)).toEqual(["translate", "qa", "term-check"]);
+    // Each step has a row of its own in the persisted graph.
+    const rows = new Set(def.nodes.map((n) => n.position.y));
+    expect(rows.size).toBe(3);
     await waitFor(() => expect(screen.getByTestId("flow-save-state")).toHaveTextContent("Saved"));
   });
 

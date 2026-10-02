@@ -47,7 +47,7 @@ const meta: Meta<typeof FlowsOver> = {
 export default meta;
 type Story = StoryObj<typeof FlowsOver>;
 
-/** The list: two built-in flows and a project flow with a parallel group. */
+/** The list: two built-in flows and a project flow whose saved graph holds a parallel group. */
 export const List: Story = { args: {} };
 
 export const ListDark: Story = { args: {}, globals: { theme: "dark" } };
@@ -75,7 +75,11 @@ function Pane(props: React.ComponentProps<typeof ProjectFlowPane>) {
   );
 }
 
-/** A project flow open for editing, with a parallel group and an edit saved. */
+/**
+ * A project flow open for editing. Its saved graph holds a parallel group,
+ * which the runtime refuses (steps run in order), so the group shows that
+ * refusal and "List as ordered steps".
+ */
 export const Editor: StoryObj<typeof Pane> = {
   render: (args) => <Pane {...args} />,
   args: {
@@ -92,7 +96,7 @@ export const EditorDark: StoryObj<typeof Pane> = {
   globals: { theme: "dark" },
 };
 
-/** The same flow as its read-only diagram, the fan-out drawn as branches. */
+/** The same flow as its read-only diagram, the parallel group drawn invalid. */
 export const EditorDiagram: StoryObj<typeof Pane> = {
   ...Editor,
   args: { ...Editor.args, defaultView: "diagram" },

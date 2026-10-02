@@ -30,7 +30,8 @@ const FLOW: FlowSpec = {
   steps: [
     { tool: "recycle" },
     { tool: "translate", config: { provider: "anthropic" } },
-    { tool: "", parallel: [{ tool: "qa" }, { tool: "word-count" }] },
+    { tool: "qa" },
+    { tool: "word-count" },
   ],
 };
 

@@ -7,6 +7,11 @@
 // host's API types and no node-canvas package, so kapi and bowrain can share
 // one editor. The header carries the same outcome line and step-chip strip a
 // flow card shows, so the card and the editor read as one thing.
+//
+// Steps run in order, one after another, so the editor adds steps and nothing
+// that fans out. A flow loaded with a `parallel:` group shows the group as
+// invalid (ParallelGroupRow) and cannot be run from here until its tools are
+// listed as ordered steps.
 
 import { useState, type ReactNode } from "react";
 import { ArrowRight, Check, Pencil, Play, Star, X } from "lucide-react";
@@ -22,6 +27,7 @@ import type { FlowSpec, FlowStep, FlowTool } from "./types";
 import { StepRow } from "./StepRow";
 import { AddStepPicker } from "./AddStepPicker";
 import { ParallelGroupRow } from "./ParallelGroupRow";
+import { listBranchesInOrder, sequenceIssues } from "./sequence";
 
 /** A step's label for the chip strip: its own label, else the tool's name. */
 function stepLabel(step: FlowStep, tools: FlowTool[]): string {
@@ -90,19 +96,14 @@ export function LinearFlowEditor({
   };
   const setStep = (i: number, next: FlowStep) =>
     setSteps(steps.map((s, j) => (j === i ? next : s)));
-  const addParallelGroup = (toolName: string) =>
-    setSteps([...steps, { tool: "", parallel: [{ tool: toolName }] }]);
+  const listInOrder = (i: number) => setSteps(listBranchesInOrder(steps, i));
+  // The runtime refuses a flow with a parallel group, so it is not run from here.
+  const issues = sequenceIssues(steps);
 
-  /** The add-step / add-parallel-group affordances, shown in both empty and list footers. */
+  /** The add-step affordance, shown in both empty and list footers. */
   const addControls = (
     <div className="flex flex-wrap gap-2">
       <AddStepPicker tools={tools} onAdd={addStep} />
-      <AddStepPicker
-        tools={tools}
-        onAdd={addParallelGroup}
-        label={t("Add parallel group")}
-        triggerTestId="add-parallel-group"
-      />
     </div>
   );
 
@@ -182,7 +183,8 @@ export function LinearFlowEditor({
             <Button
               size="sm"
               onClick={onRun}
-              disabled={runDisabled}
+              disabled={runDisabled || issues.length > 0}
+              title={issues[0]?.message}
               aria-label={t("Run flow")}
               data-testid="flow-run"
             >
@@ -240,6 +242,7 @@ export function LinearFlowEditor({
                     host={host}
                     readOnly={readOnly}
                     onChange={(next) => setStep(i, next)}
+                    onListInOrder={() => listInOrder(i)}
                     onRemove={() => removeStep(i)}
                     onMoveUp={() => move(i, -1)}
                     onMoveDown={() => move(i, 1)}
