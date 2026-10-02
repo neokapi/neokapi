@@ -2,6 +2,7 @@ package change_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -423,6 +424,16 @@ func TestApplyBlock_Basis(t *testing.T) {
 	op = setText("", src, "Read.")
 	op.Basis = src
 	assert.Equal(t, "basis", requireRefused(t, apply(t, b, person, op)[0], change.CodeInvalid).Field)
+
+	// A derived edition written after the authoritative edition changed in
+	// the same set is made against the changed one, which is its basis.
+	b = guideBlock()
+	res = apply(t, b, person,
+		replace("", sourceRev(b), find("shop guide", "handbook")),
+		setText("nb", editionRev(b, "nb"), `Les <x id="1"/>håndboka<x id="/1"/> før du <x id="2"/>bestiller<x id="/2"/>.`))
+	requireApplied(t, res)
+	assert.Equal(t, res[0].After, res[1].Basis)
+	assert.Equal(t, sourceRev(b), res[1].Basis)
 }
 
 // An edit to the authoritative edition names the derived editions it leaves
@@ -544,6 +555,98 @@ func TestApplyBlock_AnnotateAndUnannotate(t *testing.T) {
 	requireRefused(t, apply(t, b, person, unannotate("note-1"))[0], change.CodeNotFound)
 }
 
+// A detector that anchors over the flattened text reads a plural through its
+// other branch, so a span it finds there ends inside the plural, where no run
+// position reaches. A tool's write (Report) leaves such a span out with a
+// finding; a segmentation layer holding one is not written at all, because
+// the writers read a layer as the whole segment list. Under Enforce the span
+// is refused, and a span outside the content is refused either way.
+func TestApplyBlock_SpansThatEndInsideAPlural(t *testing.T) {
+	annotate := func(typ string, spans ...model.Span) change.Op {
+		return change.Op{Kind: change.KindAnnotate, At: ref(""), Body: &change.Annotate{Type: typ, Spans: spans, Replace: typ == string(model.OverlaySegmentation)}}
+	}
+	runs := pluralRuns()
+	text := model.RunsText(runs)                                            // "You have  items in your basket."
+	inside := model.Span{ID: "e1", Range: model.RangeAnchor(runs, 10, 15)}  // "items"
+	outside := model.Span{ID: "e2", Range: model.RangeAnchor(runs, 24, 30)} // "basket"
+	require.Equal(t, "items", string([]rune(text)[10:15]))
+	require.Equal(t, "basket", string([]rune(text)[24:30]))
+	require.False(t, inside.Range.Resolves(runs))
+
+	b := model.NewRunsBlock("p", pluralRuns())
+	res := apply(t, b, tool, annotate("entity", inside, outside))
+	requireApplied(t, res)
+	require.Len(t, res[0].Findings, 1)
+	assert.Contains(t, res[0].Findings[0].Message, `"e1"`)
+	assert.Nil(t, b.OverlaySpan(model.OverlayEntity, "e1"))
+	assert.NotNil(t, b.OverlaySpan(model.OverlayEntity, "e2"))
+
+	b = model.NewRunsBlock("p", pluralRuns())
+	b.SetSegmentation(nil, []model.Span{{ID: "s1", Range: model.RangeAnchor(runs, 0, len([]rune(text)))}})
+	res = apply(t, b, tool, annotate(string(model.OverlaySegmentation),
+		model.Span{ID: "s1", Range: model.RangeAnchor(runs, 0, 12)}, model.Span{ID: "s2", Range: model.RangeAnchor(runs, 12, 31)}))
+	assert.Equal(t, change.OpUnchanged, res[0].Status)
+	require.Len(t, res[0].Findings, 1)
+	require.NotNil(t, b.SourceSegmentation())
+	assert.Len(t, b.SourceSegmentation().Spans, 1, "the layer the block held is left as it was")
+
+	b = model.NewRunsBlock("p", pluralRuns())
+	err := requireRefused(t, apply(t, b, person, annotate("entity", inside))[0], change.CodeGuard)
+	assert.Equal(t, change.SubcodeBadPosition, err.Subcode)
+	beyond := model.Span{ID: "e3", Range: model.SpanAnchor(model.RunPos{Run: 2}, model.RunPos{Run: 2, Offset: 99})}
+	requireRefused(t, apply(t, b, tool, annotate("entity", beyond))[0], change.CodeGuard)
+}
+
+// A code the reference does not hold and no native form spells is new: no
+// format here can write it, so a sender's change is refused as unsupported. A
+// tool's change lands with the code kept as sent and a finding, because a
+// translation that names a placeholder the source lacks is for the checks to
+// flag, not a reason to fail the flow.
+func TestApplyBlock_NewCodes(t *testing.T) {
+	invented := []model.Run{model.TextR("Les "), model.PhR(model.PlaceholderRun{ID: "9"})}
+
+	b := guideBlock()
+	err := requireRefused(t, apply(t, b, agent, setRuns("nb", editionRev(b, "nb"), invented))[0], change.CodeUnsupported)
+	assert.Equal(t, "synthesize:ph", err.Capability)
+	assert.NotContains(t, err.Message, "  ")
+
+	res := apply(t, b, tool, setRuns("nb", "*", invented))
+	requireApplied(t, res)
+	assert.Equal(t, "Les {9}", shape(b.TargetRuns("nb")))
+	var named bool
+	for _, f := range res[0].Findings {
+		named = named || strings.Contains(f.Message, `<x id="9/"/>`)
+	}
+	assert.True(t, named, "the finding names the code: %+v", res[0].Findings)
+
+	b = guideBlock()
+	requireRefused(t, apply(t, b, agent, setText("nb", editionRev(b, "nb"), `Les <x id="9/"/>`))[0], change.CodeGuard)
+	res = apply(t, b, tool, setText("nb", "*", `Les <x id="9/"/>`))
+	requireApplied(t, res)
+	assert.NotEmpty(t, res[0].Findings)
+}
+
+// A subblock reference is a code like any other: a payload names it by id and
+// takes it from the reference. A new one, or one that names another ref, is
+// refused, so a payload cannot point a block at content it never held.
+func TestApplyBlock_SubblockReferences(t *testing.T) {
+	sub := model.Run{Sub: &model.SubRun{ID: "s1", Ref: "tu-alt"}}
+	b := model.NewRunsBlock("p", []model.Run{model.TextR("See "), sub})
+	b.SourceLocale = "en"
+	strict := agent
+
+	inject := []model.Run{model.TextR("Hello "), {Sub: &model.SubRun{ID: "9", Ref: "secret-block"}}}
+	requireRefused(t, apply(t, b, strict, setRuns("", sourceRev(b), inject))[0], change.CodeUnsupported)
+
+	retarget := []model.Run{model.TextR("See "), {Sub: &model.SubRun{ID: "s1", Ref: "secret-block"}}}
+	requireRefused(t, apply(t, b, strict, setRuns("", sourceRev(b), retarget))[0], change.CodeUnsupported)
+	assert.Equal(t, "tu-alt", b.Source[1].Sub.Ref)
+
+	byID := []model.Run{model.TextR("Read "), {Sub: &model.SubRun{ID: "s1"}}}
+	requireApplied(t, apply(t, b, strict, setRuns("", sourceRev(b), byID)))
+	assert.Equal(t, "tu-alt", b.Source[1].Sub.Ref, "the reference gives the sub its ref")
+}
+
 func TestApplyBlock_OperationsAppliedElsewhere(t *testing.T) {
 	b := guideBlock()
 	for _, op := range []change.Op{
@@ -569,4 +672,11 @@ func TestApplyBlock_ProvenanceIsAToolsOwn(t *testing.T) {
 	missing := stamp
 	missing.At = ref("de")
 	assert.Equal(t, change.OpUnchanged, apply(t, b, tool, missing)[0].Status, "an edition that does not exist has nothing to stamp")
+
+	for _, at := range []string{"", "en"} {
+		onSource := stamp
+		onSource.At = ref(at)
+		requireRefused(t, apply(t, b, tool, onSource)[0], change.CodeInvalid)
+	}
+	assert.Equal(t, model.SourceStatus(""), b.SourceStatus, "no target status reaches the source")
 }

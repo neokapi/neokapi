@@ -39,7 +39,9 @@ import (
 //
 // Targets replaces target content per variant (e.g. unredact restoring
 // originals into translated targets, a case conversion applied to a target).
-// Variant metadata (status, provenance) is preserved; only the runs change.
+// A replaced target whose wording changes becomes a draft, because nobody has
+// read what the tool wrote, and keeps the origin that names who produced it
+// (change.Consequences).
 type EditPlan struct {
 	// NewRuns is the rewritten source for a structured transform; nil means no
 	// source rewrite.
@@ -145,6 +147,9 @@ func (p *EditPlan) Ops(block *model.Block) ([]change.Op, error) {
 		return strings.Compare(string(at), string(bt))
 	})
 	for _, key := range keys {
+		if block.IsSourceEdition(key) {
+			return nil, sourceLanguageTarget(block, key)
+		}
 		runs := p.Targets[key]
 		if runs == nil {
 			runs = []model.Run{}
@@ -161,8 +166,8 @@ func (p *EditPlan) Ops(block *model.Block) ([]change.Op, error) {
 // is fail-closed: a rewrite never lands without its recovery record. The
 // source rewrite is an edit, so the block keeps the source it was read with
 // and its writer can encode the new wording; the source's overlays follow a
-// structured rewrite and every one left is in bounds; a replaced target keeps
-// its status and provenance.
+// structured rewrite and every one left is in bounds; a target whose wording
+// the plan changes becomes a draft and keeps its origin.
 func applyEditPlan(toolName string, v *blockView, block *model.Block, plan EditPlan, vault func(BlockView, []Secret) error) error {
 	ops, err := plan.Ops(block)
 	if err != nil {

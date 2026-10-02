@@ -37,19 +37,27 @@ func TestView_ReadsItsOwnWrites(t *testing.T) {
 	assert.Equal(t, "probe", tg.Origin.Tool)
 }
 
-// A tool's write keeps the target's status and provenance; its provenance
+// A tool that rewrites a target makes it a draft, since nobody has read its
+// wording, and keeps the origin that names who translated it; its provenance
 // stamp is how the tool records what it produced.
-func TestView_TargetWritesKeepProvenance(t *testing.T) {
+func TestView_TargetWritesTakeTheToolConsequence(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	b.SetTarget("fr", &model.Target{Runs: []model.Run{model.TextR("Salut")}, Status: model.TargetStatusEstablished, Origin: model.Origin{Kind: model.OriginHuman}})
 	bt := &tool.BaseTool{ToolName: "case"}
+	bt.Produce = func(v tool.VariantView) error {
+		v.SetTargetText("fr", "Salut")
+		return nil
+	}
+	require.NoError(t, dispatch(t, bt, b))
+	assert.Equal(t, model.TargetStatusEstablished, b.Target("fr").Status, "a write that changes nothing keeps the approval")
+
 	bt.Produce = func(v tool.VariantView) error {
 		v.SetTargetText("fr", "SALUT")
 		return nil
 	}
 	require.NoError(t, dispatch(t, bt, b))
 	assert.Equal(t, "SALUT", b.TargetText("fr"))
-	assert.Equal(t, model.TargetStatusEstablished, b.Target("fr").Status)
+	assert.Equal(t, model.TargetStatusDraft, b.Target("fr").Status)
 	assert.Equal(t, model.OriginHuman, b.Target("fr").Origin.Kind)
 
 	bt.Produce = func(v tool.VariantView) error {
@@ -111,6 +119,67 @@ func TestEditPlan_TargetOverlaysFollowAndKeysAreCanonical(t *testing.T) {
 	assert.Equal(t, "Hei", b.TargetText("nb-NO"))
 	_, raw := b.Targets[model.VariantKey{Locale: "nb_NO"}]
 	assert.False(t, raw, "no target is filed under the spelling the plan used")
+}
+
+// A bilingual file whose two languages are one holds a target in the source
+// language. A tool's target writes reach that target, through a plan or a
+// view, and never the source; its status stays on the target ladder. A block
+// with no such target refuses a target write in the source language rather
+// than replace the source with it.
+func TestTargetWrites_SameLanguageTarget(t *testing.T) {
+	sameLanguage := func() *model.Block {
+		b := model.NewBlock("b1", "colour source")
+		b.SourceLocale = "en-US"
+		b.SourceStatus = model.SourceStatusWritten
+		b.SetTarget("en-US", &model.Target{Runs: []model.Run{model.TextR("colour target")}, Status: model.TargetStatusEstablished})
+		return b
+	}
+
+	b := sameLanguage()
+	bt := &tool.BaseTool{ToolName: "spell"}
+	bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
+		var p tool.EditPlan
+		p.SetTarget("en-US", []model.Run{model.TextR("color target")})
+		return p, nil
+	}
+	require.NoError(t, dispatch(t, bt, b))
+	assert.Equal(t, "colour source", b.SourceText())
+	assert.Equal(t, "color target", b.TargetText("en-US"))
+	assert.Equal(t, []model.EditionKey{{}, {Locale: "en-US"}}, b.Editions())
+
+	b = sameLanguage()
+	err := tool.WriteAs(context.Background(), b, "pseudo", func(v tool.VariantView) error {
+		v.SetTargetText("en-US", "[colour]")
+		v.StampTargetProvenance("en-US", model.TargetStatusDraft, model.Origin{Tool: "pseudo"})
+		return nil
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "colour source", b.SourceText())
+	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
+	assert.Equal(t, "[colour]", b.TargetText("en-US"))
+	assert.Equal(t, model.TargetStatusDraft, b.Target("en-US").Status)
+
+	b = model.NewBlock("b2", "colour source")
+	b.SourceLocale = "en"
+	b.SourceStatus = model.SourceStatusWritten
+	err = tool.WriteAs(context.Background(), b, "pseudo", func(v tool.VariantView) error {
+		v.SetTargetText("en", "[colour]")
+		v.StampTargetProvenance("en", model.TargetStatusDraft, model.Origin{Tool: "pseudo"})
+		return nil
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "source language")
+	assert.Equal(t, "colour source", b.SourceText())
+	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
+	_, hasOrigin := b.SourceOrigin()
+	assert.False(t, hasOrigin, "no tool origin reaches the source")
+
+	err = tool.WriteAs(context.Background(), b, "pseudo", func(v tool.VariantView) error {
+		v.StampTargetProvenance("en", model.TargetStatusDraft, model.Origin{Tool: "pseudo"})
+		return nil
+	})
+	require.NoError(t, err, "a stamp on a target the block lacks does nothing")
+	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
 }
 
 // Overlay writes go through the applier too, and keep every field of a span.

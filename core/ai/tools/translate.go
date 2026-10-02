@@ -616,8 +616,8 @@ func (t *AITranslateTool) sessionHandleBlock(
 	if randomAccess && !t.leavesProducedAlone(block) {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached blockstore.TargetOverlay
-			if err := json.Unmarshal(sc.Payload, &cached); err == nil && t.ReusesStoredTarget(ctx, block, cached) {
-				return t.applyStored(ctx, block, cached)
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && t.ReusesStoredTarget(ctx, block, cached) && t.applyStored(ctx, block, cached) == nil {
+				return nil
 			}
 		}
 	}

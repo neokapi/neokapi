@@ -139,21 +139,25 @@ func branchEdited(runs []model.Run) []model.Run {
 func upper(s string) string { return strings.ToUpper(s) }
 
 // variants are the whole-block changes a path can arrive with.
+//
+// keepsCodes marks a change that drops, repeats and moves no code the
+// editing constraints protect, which a person's change may make.
 var variants = []struct {
-	name   string
-	change func(t *testing.T, b *model.Block)
+	name       string
+	keepsCodes bool
+	change     func(t *testing.T, b *model.Block)
 }{
-	{"the source's first word edited", func(t *testing.T, b *model.Block) { b.Source = firstWordEdited(b.Source) }},
-	{"the source as one plain text", func(t *testing.T, b *model.Block) { b.Source = []model.Run{model.TextR("All new.")} }},
-	{"a deletable span dropped from the source", func(t *testing.T, b *model.Block) { b.Source = withoutFirstDeletableSpan(b.Source) }},
-	{"a plural branch edited", func(t *testing.T, b *model.Block) { b.Source = branchEdited(b.Source) }},
-	{"a translation created from the source", func(t *testing.T, b *model.Block) {
+	{"the source's first word edited", true, func(t *testing.T, b *model.Block) { b.Source = firstWordEdited(b.Source) }},
+	{"the source as one plain text", false, func(t *testing.T, b *model.Block) { b.Source = []model.Run{model.TextR("All new.")} }},
+	{"a deletable span dropped from the source", true, func(t *testing.T, b *model.Block) { b.Source = withoutFirstDeletableSpan(b.Source) }},
+	{"a plural branch edited", true, func(t *testing.T, b *model.Block) { b.Source = branchEdited(b.Source) }},
+	{"a translation created from the source", true, func(t *testing.T, b *model.Block) {
 		b.SetTargetRuns("de", mapText(copyRuns(t, b.Source), upper))
 	}},
-	{"a channel edition created", func(t *testing.T, b *model.Block) {
+	{"a channel edition created", false, func(t *testing.T, b *model.Block) {
 		b.SetTargetVariant(model.EditionKey{Locale: "en", Channel: "short"}, &model.Target{Runs: []model.Run{model.TextR("Short.")}})
 	}},
-	{"every translation edited", func(t *testing.T, b *model.Block) {
+	{"every translation edited", true, func(t *testing.T, b *model.Block) {
 		for _, tg := range b.Targets {
 			tg.Runs = mapText(tg.Runs, func(s string) string {
 				return strings.Map(func(r rune) rune {
@@ -165,8 +169,8 @@ var variants = []struct {
 			})
 		}
 	}},
-	{"every translation removed", func(t *testing.T, b *model.Block) { b.Targets = nil }},
-	{"a translation edited and the source edited", func(t *testing.T, b *model.Block) {
+	{"every translation removed", true, func(t *testing.T, b *model.Block) { b.Targets = nil }},
+	{"a translation edited and the source edited", false, func(t *testing.T, b *model.Block) {
 		b.Source = firstWordEdited(b.Source)
 		b.SetTargetRuns("de", []model.Run{model.TextR("Neu.")})
 	}},
@@ -251,6 +255,67 @@ func TestDiff_ApplyingTheDiffYieldsTheChangedBlock(t *testing.T) {
 			})
 		}
 	}
+}
+
+// An editor that saves a whole block is a person, whose change applies under
+// Enforce: a guard violation refuses it. Diff's operations for a change that
+// keeps every protected code apply under Enforce, so Diff drops, repeats and
+// moves no code the change itself kept.
+func TestDiff_APersonsChangeAppliesUnderEnforce(t *testing.T) {
+	for name, base := range diffFixtures(t) {
+		for _, v := range variants {
+			if !v.keepsCodes {
+				continue
+			}
+			t.Run(name+"/"+v.name, func(t *testing.T) {
+				before := copyBlock(t, base)
+				after := copyBlock(t, base)
+				v.change(t, after)
+
+				res := change.ApplyBlock(before, change.Diff(before, after), person)
+				for _, r := range res {
+					require.Contains(t, []change.OpStatus{change.OpApplied, change.OpUnchanged}, r.Status, "%s: %+v", r.Op, r.Error)
+					assert.Empty(t, r.Findings)
+				}
+				assert.Equal(t, editions(after), editions(before))
+			})
+		}
+	}
+}
+
+// A same-language target pairs with the same-language target on the other
+// block, never with the source: editing it is an edit of the target, dropping
+// it removes the target, and a block that gains one where the source holds
+// the language is refused rather than written over the source.
+func TestDiff_SameLanguageTarget(t *testing.T) {
+	sameLanguage := func() *model.Block {
+		b := model.NewBlock("b1", "colour source")
+		b.SourceLocale = "en-US"
+		b.SetTarget("en-US", &model.Target{Runs: []model.Run{model.TextR("colour target")}})
+		return b
+	}
+	before, after := sameLanguage(), sameLanguage()
+	after.Target("en-US").Runs = []model.Run{model.TextR("color target")}
+	ops := change.Diff(before, after)
+	require.Len(t, ops, 1)
+	assert.Equal(t, model.Variant("en-US"), ops[0].At.Edition)
+	requireApplied(t, change.ApplyBlock(before, ops, tool))
+	assert.Equal(t, "colour source", before.SourceText())
+	assert.Equal(t, "color target", before.TargetText("en-US"))
+
+	before, after = sameLanguage(), sameLanguage()
+	after.Targets = nil
+	requireApplied(t, change.ApplyBlock(before, change.Diff(before, after), tool))
+	assert.Equal(t, "colour source", before.SourceText())
+	assert.Nil(t, before.Target("en-US"))
+
+	before = model.NewBlock("b1", "colour source")
+	before.SourceLocale = "en-US"
+	after = sameLanguage()
+	res := change.ApplyBlock(before, change.Diff(before, after), tool)
+	require.NotEmpty(t, res)
+	assert.Equal(t, change.OpRefused, res[0].Status)
+	assert.Equal(t, "colour source", before.SourceText())
 }
 
 // The operations Diff writes are a change set a transport can carry: they

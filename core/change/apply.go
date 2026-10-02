@@ -55,9 +55,10 @@ type BlockEnv struct {
 	RequireBasis bool
 	// Preview computes every result and changes nothing.
 	Preview bool
-	// Guards is what an inline-code guard violation does. A tool in a flow
-	// applies with Report: its drafts meet the ship gates later, as its
-	// governance findings do.
+	// Guards is what an inline-code guard violation does, and with it a code
+	// the reference does not hold and an overlay span that ends inside a
+	// plural or select. A tool in a flow applies with Report: its drafts meet
+	// the ship gates later, as its governance findings do.
 	Guards Disposition
 	// Vocabulary resolves a code's editing constraints when the code carries
 	// none of its own. Nil is model.DefaultVocabulary.
@@ -430,7 +431,7 @@ func (w *workset) rewrite(st *edState, newRuns []model.Run, rebase OverlayRebase
 		st.overlaysChanged = true
 	}
 	role := w.role(st)
-	c := Consequences(w.env.Actor, role, st.ed, w.now())
+	c := Consequences(w.env.Actor, role, st.ed, !st.present, w.now())
 	st.ed = model.Edition{Runs: newRuns, Status: c.Status, Origin: c.Origin, Score: st.ed.Score}
 	st.present, st.content, st.removed = true, true, false
 	res.Before = st.startRevision()
@@ -500,22 +501,22 @@ func (w *workset) setContent(op Op, body *SetContent, res *OpResult) *Error {
 	}
 
 	var seq []model.Run
+	var findings []Finding
+	var err *Error
 	if body.Text != nil {
 		if model.HasStructuredRuns(ref) {
 			return guardf(SubcodeStructureLost, "edition %s holds a plural or select; replace one branch with path, or the whole structure with runs", w.label(st))
 		}
 		parsed := model.ParseRunsEditText(*body.Text, ref)
-		var err *Error
-		if seq, err = resolveTextCodes(parsed, ref, restorable); err != nil {
-			return err
-		}
+		seq, findings, err = resolveTextCodes(parsed, ref, restorable, w.env.Guards == Report)
 	} else {
-		var err *Error
-		if seq, err = reconcileRuns(body.Runs, ref, restorable); err != nil {
-			return err
-		}
+		seq, findings, err = reconcileRuns(body.Runs, ref, restorable, w.env.Guards == Report)
 	}
-	if err := w.checkCodes(ref, seq, restorable, res); err != nil {
+	if err != nil {
+		return err
+	}
+	res.Findings = append(res.Findings, findings...)
+	if err = w.checkCodes(ref, seq, restorable, res); err != nil {
 		return err
 	}
 
@@ -529,7 +530,13 @@ func (w *workset) setContent(op Op, body *SetContent, res *OpResult) *Error {
 	if role == RoleDerived {
 		res.Basis = op.Basis
 		if res.Basis == "" {
-			res.Basis = w.state(w.auth).startRevision()
+			// The derived edition is made against the authoritative edition as
+			// the operations before this one left it.
+			auth := w.state(w.auth)
+			res.Basis = auth.startRevision()
+			if auth.content {
+				res.Basis = auth.revision()
+			}
 		}
 	}
 	if st.present && sameRuns(cur, newRuns) {
@@ -665,7 +672,15 @@ func (w *workset) annotate(op Op, body *Annotate, res *OpResult) *Error {
 		anchor = *body.Anchor
 	}
 	if !anchor.Resolves(st.ed.Runs) {
-		return &Error{Code: CodeGuard, Subcode: SubcodeBadPosition, Field: "anchor", Message: "the anchor does not resolve in edition " + w.label(st)}
+		msg := "the anchor does not resolve in edition " + w.label(st)
+		if w.env.Guards == Report && endsInsideStructure(anchor, st.ed.Runs) {
+			res.Before = st.revision()
+			res.After = res.Before
+			res.Status = OpUnchanged
+			res.Findings = append(res.Findings, Finding{Rule: "guard." + string(SubcodeBadPosition), Message: msg + "; the annotation is not written"})
+			return nil
+		}
+		return &Error{Code: CodeGuard, Subcode: SubcodeBadPosition, Field: "anchor", Message: msg}
 	}
 	var value model.Payload
 	if len(body.Value) > 0 {
@@ -714,31 +729,68 @@ func (w *workset) annotate(op Op, body *Annotate, res *OpResult) *Error {
 
 // writeSpans writes the whole spans of an in-process annotate to the
 // edition's overlay of the type and layer.
+//
+// A span must resolve in the edition. A detector that anchors over the
+// flattened text (model.RunsText, which reads a plural or select through its
+// other branch) can place an end inside that structure, where no run position
+// reaches. Under Report such a span is left out and named among the findings,
+// and the spans that resolve are written; a segmentation layer, which the
+// bilingual writers read as the edition's whole segment list, is written whole
+// or not at all. Any other span that does not resolve, and every one under
+// Enforce, refuses the operation.
 func (w *workset) writeSpans(st *edState, body *Annotate, res *OpResult) *Error {
+	spans := body.Spans
+	var skipped []model.Span
 	for i, s := range body.Spans {
-		if !s.Range.Resolves(st.ed.Runs) {
+		if s.Range.Resolves(st.ed.Runs) {
+			continue
+		}
+		if w.env.Guards != Report || !endsInsideStructure(s.Range, st.ed.Runs) {
 			return &Error{Code: CodeGuard, Subcode: SubcodeBadPosition, Field: "spans/" + strconv.Itoa(i),
 				Message: fmt.Sprintf("the %s span %q does not resolve in edition %s", body.Type, s.ID, w.label(st))}
 		}
+		skipped = append(skipped, s)
 	}
 	res.Before = st.revision()
 	res.After = res.Before
+	if len(skipped) > 0 {
+		if model.OverlayType(body.Type) == model.OverlaySegmentation {
+			res.Status = OpUnchanged
+			res.Findings = append(res.Findings, Finding{Rule: "guard." + string(SubcodeBadPosition),
+				Message: fmt.Sprintf("the segmentation span %q does not resolve in edition %s; a segmentation layer is written whole, so none of its %d spans is written", skipped[0].ID, w.label(st), len(body.Spans))})
+			return nil
+		}
+		spans = make([]model.Span, 0, len(body.Spans)-len(skipped))
+		for _, s := range body.Spans {
+			if s.Range.Resolves(st.ed.Runs) {
+				spans = append(spans, s)
+			}
+		}
+		for _, s := range skipped {
+			res.Findings = append(res.Findings, Finding{Rule: "guard." + string(SubcodeBadPosition),
+				Message: fmt.Sprintf("the %s span %q does not resolve in edition %s and is not written", body.Type, s.ID, w.label(st))})
+		}
+		if len(spans) == 0 && !body.Replace {
+			res.Status = OpUnchanged
+			return nil
+		}
+	}
 	res.Status = OpApplied
 	typ := model.OverlayType(body.Type)
 	oi := slices.IndexFunc(st.overlays, func(o model.Overlay) bool { return o.Type == typ && o.Layer == body.Layer })
 	switch {
-	case body.Replace && len(body.Spans) == 0:
+	case body.Replace && len(spans) == 0:
 		if oi < 0 {
 			res.Status = OpUnchanged
 			return nil
 		}
 		st.overlays = slices.Delete(st.overlays, oi, oi+1)
 	case oi < 0:
-		st.overlays = append(st.overlays, model.Overlay{Type: typ, Variant: st.slot, Layer: body.Layer, Spans: slices.Clone(body.Spans)})
+		st.overlays = append(st.overlays, model.Overlay{Type: typ, Variant: st.slot, Layer: body.Layer, Spans: slices.Clone(spans)})
 	case body.Replace:
-		st.overlays[oi].Spans = slices.Clone(body.Spans)
+		st.overlays[oi].Spans = slices.Clone(spans)
 	default:
-		st.overlays[oi].Spans = append(st.overlays[oi].Spans, body.Spans...)
+		st.overlays[oi].Spans = append(st.overlays[oi].Spans, spans...)
 	}
 	st.overlaysChanged = true
 	return nil
@@ -784,9 +836,15 @@ func (w *workset) unannotate(op Op, body *Unannotate, res *OpResult) *Error {
 	return &Error{Code: CodeNotFound, Field: "id", Message: fmt.Sprintf("edition %s has no %s annotation %q", w.label(st), body.Type, body.ID)}
 }
 
-// provenance applies the in-process provenance operation.
+// provenance applies the in-process provenance operation. It records how a
+// tool produced a derived edition, on the target ladder, so it never reaches
+// the edition the block was read in.
 func (w *workset) provenance(op Op, body *Provenance, res *OpResult) *Error {
 	st := w.state(op.At.Edition)
+	if st.slot == nil {
+		return &Error{Code: CodeInvalid, Field: "at/edition",
+			Message: fmt.Sprintf("provenance records how a tool produced a derived edition; edition %s is the one the block was read in", w.label(st))}
+	}
 	rev := st.revision()
 	res.Before, res.After = rev, rev
 	if !st.present {

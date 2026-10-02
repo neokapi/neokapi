@@ -824,9 +824,12 @@ rebase that left an overlay dangling is rejected; that check is unconditional.
 A handler's view applies its writes the same way. Each target write, provenance
 stamp and overlay write is an operation applied at once through
 `change.ApplyBlock`, as the tool, so a handler reads what it wrote: a new target
-it stamps keeps the stamp. A tool's write keeps the target's status and
-provenance, and the tool records what it produced with its stamp. A write the
-applier refuses is the handler's error. The contract the operations follow is
+it stamps keeps the stamp. A tool's write that changes a target's wording makes
+the target a draft, since nobody has read what the tool wrote, and keeps the
+origin that names who produced it; a tool records what it produced itself with
+its stamp. A target write in the block's source language reaches a target the
+block holds in that language, and is refused when the block holds none, so it
+never replaces the source. A write the applier refuses is the handler's error. The contract the operations follow is
 in [the change applier note](../../implementation/engine/change-applier.md).
 
 A tool that genuinely needs

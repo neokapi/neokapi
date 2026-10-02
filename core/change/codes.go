@@ -85,13 +85,15 @@ func lookupCode(k codeKey, ref, restorable map[codeKey]model.Run) (model.Run, bo
 
 // resolveTextCodes checks the codes of runs parsed from text. A code the
 // reference holds came back whole from the parse; one only the authoritative
-// edition holds is taken from it; one neither holds is refused.
-func resolveTextCodes(parsed, ref, restorable []model.Run) ([]model.Run, *Error) {
+// edition holds is taken from it. One neither holds is refused, or under
+// report kept as the parse made it and named in a finding.
+func resolveTextCodes(parsed, ref, restorable []model.Run, report bool) ([]model.Run, []Finding, *Error) {
 	refIdx := map[codeKey]model.Run{}
 	indexCodes(ref, refIdx)
 	restIdx := map[codeKey]model.Run{}
 	indexCodes(restorable, restIdx)
 	out := make([]model.Run, len(parsed))
+	var findings []Finding
 	for i, r := range parsed {
 		k, ok := keyOf(r)
 		if !ok {
@@ -106,31 +108,53 @@ func resolveTextCodes(parsed, ref, restorable []model.Run) ([]model.Run, *Error)
 			out[i] = back
 			continue
 		}
-		return nil, &Error{Code: CodeGuard, Subcode: SubcodeCodesChanged, Field: "text", Found: k.String(),
-			Message: fmt.Sprintf("the text names %s, a code this edition does not hold", k)}
+		msg := fmt.Sprintf("the text names %s, a code this edition does not hold", k)
+		if report {
+			out[i] = r
+			findings = append(findings, Finding{Rule: "guard." + string(SubcodeCodesChanged), Message: msg + "; it is kept with no native form", Fails: true})
+			continue
+		}
+		return nil, nil, &Error{Code: CodeGuard, Subcode: SubcodeCodesChanged, Field: "text", Found: k.String(), Message: msg}
 	}
-	return out, nil
+	return out, findings, nil
 }
 
 // reconcileRuns gives each code of a runs payload its native form. A code
 // that names no data takes it from the code of the same id in the reference,
 // and must agree with that code's type and attributes: an attribute changes
 // through set_attribute, so a payload that changes one is refused rather than
-// written as the old native form. A code that names its data, which only an
-// in-process caller can send, is kept as it is. A new code with no data needs
-// the format to spell it, which is refused here.
-func reconcileRuns(runs, ref, restorable []model.Run) ([]model.Run, *Error) {
+// written as the old native form. A subblock reference is looked up by its id
+// the same way, and a ref it names must be the one the reference holds. A code
+// that names its data, which only an in-process caller can send, is kept as it
+// is.
+//
+// A new code with no data needs the format to spell it, which no format here
+// does, so it is refused as unsupported. Under report it is kept as sent, with
+// no native form, and named in a finding: a translation that names a
+// placeholder the source lacks lands, and the placeholder checks flag it.
+func reconcileRuns(runs, ref, restorable []model.Run, report bool) ([]model.Run, []Finding, *Error) {
 	if spelled(runs) {
-		return runs, nil
+		return runs, nil, nil
 	}
-	refIdx := map[codeKey]model.Run{}
-	indexCodes(ref, refIdx)
-	restIdx := map[codeKey]model.Run{}
-	indexCodes(restorable, restIdx)
-	return reconcileSeq(runs, refIdx, restIdx)
+	rc := reconciler{refIdx: map[codeKey]model.Run{}, restIdx: map[codeKey]model.Run{}, report: report}
+	indexCodes(ref, rc.refIdx)
+	indexCodes(restorable, rc.restIdx)
+	out, err := rc.seq(runs)
+	if err != nil {
+		return nil, nil, err
+	}
+	return out, rc.findings, nil
 }
 
-func reconcileSeq(runs []model.Run, refIdx, restIdx map[codeKey]model.Run) ([]model.Run, *Error) {
+// reconciler carries the indexes and the disposition reconcileRuns works
+// with, and the findings it makes.
+type reconciler struct {
+	refIdx, restIdx map[codeKey]model.Run
+	report          bool
+	findings        []Finding
+}
+
+func (rc *reconciler) seq(runs []model.Run) ([]model.Run, *Error) {
 	out := make([]model.Run, len(runs))
 	for i, r := range runs {
 		if !r.Valid() {
@@ -141,7 +165,7 @@ func reconcileSeq(runs []model.Run, refIdx, restIdx map[codeKey]model.Run) ([]mo
 			p := *r.Plural
 			p.Forms = make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
 			for k, form := range r.Plural.Forms {
-				next, err := reconcileSeq(form, refIdx, restIdx)
+				next, err := rc.seq(form)
 				if err != nil {
 					return nil, err
 				}
@@ -153,7 +177,7 @@ func reconcileSeq(runs []model.Run, refIdx, restIdx map[codeKey]model.Run) ([]mo
 			s := *r.Select
 			s.Cases = make(map[string][]model.Run, len(r.Select.Cases))
 			for k, c := range r.Select.Cases {
-				next, err := reconcileSeq(c, refIdx, restIdx)
+				next, err := rc.seq(c)
 				if err != nil {
 					return nil, err
 				}
@@ -167,11 +191,20 @@ func reconcileSeq(runs []model.Run, refIdx, restIdx map[codeKey]model.Run) ([]mo
 			out[i] = r
 			continue
 		}
-		held, ok := lookupCode(k, refIdx, restIdx)
+		held, ok := lookupCode(k, rc.refIdx, rc.restIdx)
 		if !ok {
-			typ := codeType(r)
-			return nil, &Error{Code: CodeUnsupported, Capability: "synthesize:" + typ, Field: "runs",
-				Message: fmt.Sprintf("%s is a new %s code; no format here can write a new code yet", k, typ)}
+			kind := "new code"
+			if typ := codeType(r); typ != "" {
+				kind = "new " + typ + " code"
+			}
+			if rc.report {
+				out[i] = r
+				rc.findings = append(rc.findings, Finding{Rule: "guard." + string(SubcodeCodesChanged),
+					Message: fmt.Sprintf("the content names %s, a %s the reference does not hold; it is kept with no native form", k, kind), Fails: true})
+				continue
+			}
+			return nil, &Error{Code: CodeUnsupported, Capability: "synthesize:" + codeKindName(r), Field: "runs",
+				Message: fmt.Sprintf("%s is a %s; no format here can write a new code yet", k, kind)}
 		}
 		filled, err := fillCode(r, held)
 		if err != nil {
@@ -271,6 +304,8 @@ func fillCode(r, held model.Run) (model.Run, *Error) {
 	return held, nil
 }
 
+// codeData is a code's native data. A subblock reference has none of its own:
+// its ref names another block, and a reference that holds the code gives it.
 func codeData(r model.Run) string {
 	switch {
 	case r.Ph != nil:
@@ -279,8 +314,6 @@ func codeData(r model.Run) string {
 		return r.PcOpen.Data
 	case r.PcClose != nil:
 		return r.PcClose.Data
-	case r.Sub != nil:
-		return r.Sub.Ref
 	}
 	return ""
 }
@@ -293,6 +326,14 @@ func codeType(r model.Run) string {
 		return r.PcOpen.Type
 	case r.PcClose != nil:
 		return r.PcClose.Type
+	}
+	return string(r.Kind())
+}
+
+// codeKindName is a code's type, or its run kind when it names no type.
+func codeKindName(r model.Run) string {
+	if typ := codeType(r); typ != "" {
+		return typ
 	}
 	return string(r.Kind())
 }

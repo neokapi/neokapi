@@ -24,11 +24,17 @@ import (
 // block are not operations. The operations address the block by its durable
 // key, or its name, or its id; the caller names the document.
 func Diff(before, after *model.Block) []Op {
-	keys := before.Editions()
-	for _, k := range after.Editions() {
-		k = before.EditionKeyOf(k)
-		if !slices.Contains(keys, k) {
-			keys = append(keys, k)
+	// The edition each block was read in pairs with the other's through the
+	// zero key, which every reader of a block reaches; every other edition
+	// pairs by its key. A derived edition is looked up as one, so a key that
+	// names a same-language target on one block and the source language on
+	// the other pairs the target with nothing.
+	keys := []model.EditionKey{{}}
+	for _, b := range []*model.Block{before, after} {
+		for _, k := range b.Editions() {
+			if !b.IsSourceEdition(k) && !slices.Contains(keys, k) {
+				keys = append(keys, k)
+			}
 		}
 	}
 	authKey := before.EditionKeyOf(before.Authoritative(model.AuthorityPolicy{}))
@@ -37,11 +43,11 @@ func Diff(before, after *model.Block) []Op {
 
 	var ops []Op
 	for _, k := range keys {
-		was, inBefore := before.Edition(k)
-		now, inAfter := after.Edition(k)
-		at := Ref{Block: block, Edition: refEdition(before, k)}
+		was, inBefore := derivedOrSource(before, k)
+		now, inAfter := derivedOrSource(after, k)
+		at := Ref{Block: block, Edition: k}
 		var restorable []model.Run
-		if k != authKey {
+		if before.EditionKeyOf(k) != authKey {
 			restorable = auth.Runs
 		}
 		switch {
@@ -64,13 +70,14 @@ func Diff(before, after *model.Block) []Op {
 	return ops
 }
 
-// refEdition is the key a Ref names edition k by: the zero key for the edition
-// the block was read in, which every reader of the block reaches.
-func refEdition(b *model.Block, k model.EditionKey) model.EditionKey {
-	if b.IsSourceEdition(k) {
-		return model.EditionKey{}
+// derivedOrSource returns the edition the zero key reaches on b, or, for any
+// other key, the derived edition b holds under it. A key that reaches b's
+// source is not a derived edition b holds.
+func derivedOrSource(b *model.Block, k model.EditionKey) (model.Edition, bool) {
+	if !k.IsZero() && b.IsSourceEdition(k) {
+		return model.Edition{}, false
 	}
-	return k
+	return b.Edition(k)
 }
 
 // blockKey is the key a Ref names a block by: its durable key, else its name,
@@ -173,7 +180,8 @@ func wireSeq(runs []model.Run, refIdx, restIdx map[codeKey]model.Run) []model.Ru
 }
 
 // withoutData returns a copy of a code with its native data left out. A
-// subblock reference keeps its ref, which is what names it.
+// subblock reference has no data and is returned as it is; its ref is the one
+// the reference holds.
 func withoutData(r model.Run) model.Run {
 	switch {
 	case r.Ph != nil:

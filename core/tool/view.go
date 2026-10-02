@@ -277,13 +277,30 @@ func (v *blockView) variantRef(variant *model.VariantKey) change.Ref {
 	return v.ref(*variant)
 }
 
-// setRuns replaces an edition's runs, creating it when absent.
+// setRuns replaces a target's runs, creating the target when absent.
 func (v *blockView) setRuns(key model.EditionKey, runs []model.Run, more ...change.Op) {
+	if v.err != nil {
+		return
+	}
+	if v.b.IsSourceEdition(key) {
+		v.err = sourceLanguageTarget(v.b, key)
+		return
+	}
 	if runs == nil {
 		runs = []model.Run{}
 	}
 	op := change.Op{Kind: change.KindSetContent, At: v.ref(key), IfMatch: change.AnyRevision, Body: &change.SetContent{Runs: runs}}
 	v.apply(append([]change.Op{op}, more...)...)
+}
+
+// sourceLanguageTarget is the refusal of a target write whose key reaches the
+// edition the block was read in: a target in the source language on a block
+// that holds none. A block holds such a target when a bilingual file names one
+// language twice, and a tool writes it then; creating one would replace the
+// source.
+func sourceLanguageTarget(b *model.Block, key model.EditionKey) error {
+	text, _ := key.MarshalText()
+	return fmt.Errorf("block %q: a target in %s, the block's source language, would replace the source; the block holds no target in that language", b.ID, text)
 }
 
 // provenance is the operation that records how the tool produced an edition.
@@ -438,7 +455,11 @@ func (v *blockView) SetTargetText(loc model.LocaleID, text string) {
 	v.setRuns(model.Variant(loc), []model.Run{{Text: &model.TextRun{Text: text}}})
 }
 func (v *blockView) StampTargetProvenance(loc model.LocaleID, status model.TargetStatus, origin model.Origin) {
-	v.apply(v.provenance(model.Variant(loc), status, origin, nil))
+	key := model.Variant(loc)
+	if v.b.IsSourceEdition(key) {
+		return // no target holds the key; the source takes no target status
+	}
+	v.apply(v.provenance(key, status, origin, nil))
 }
 func (v *blockView) TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit] {
 	return targetUnits(v, loc, layer)

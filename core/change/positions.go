@@ -166,6 +166,38 @@ func structureInside(seq []model.Run, start, end int) (int, bool) {
 	return 0, false
 }
 
+// endsInsideStructure reports whether a range anchor that does not resolve
+// fails only because an end falls inside a plural or select of the sequence
+// it addresses: the run there is the structure, at an offset within the width
+// model.RunsText gives it. RangeAnchor makes such an anchor for an offset in
+// the text of a structure's other branch, which detectors read.
+func endsInsideStructure(a model.Anchor, runs []model.Run) bool {
+	if a.Kind == model.AnchorBlock || a.Kind == model.AnchorRun || a.Kind == model.AnchorForm {
+		return false
+	}
+	seq, ok := model.ResolveRunPath(runs, a.Path)
+	if !ok || a.End.Run < a.Start.Run {
+		return false
+	}
+	inside := false
+	for _, p := range []model.RunPos{a.Start, a.End} {
+		if p.Run < 0 || p.Run > len(seq) {
+			return false
+		}
+		if p.Run < len(seq) && (seq[p.Run].Plural != nil || seq[p.Run].Select != nil) && p.Offset > 0 {
+			if p.Offset > utf8.RuneCountInString(model.RunsText(seq[p.Run:p.Run+1])) {
+				return false
+			}
+			inside = true
+			continue
+		}
+		if !model.SpanAnchor(p, p).InBounds(seq) {
+			return false
+		}
+	}
+	return inside
+}
+
 // diffEdits describes the change from old to new as the one region their
 // flattened texts differ in, in the RunEdit coordinates overlays anchor by.
 func diffEdits(old, new []model.Run) []model.RunEdit {
