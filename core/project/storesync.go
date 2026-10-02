@@ -247,11 +247,12 @@ func ExtractToBlockStore(
 			// Key the block globally-unique per (source file, in-file id) so
 			// blocks from different files/collections don't collide in the
 			// hash-keyed store.
+			src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
 			kb := &kbf.Block{
 				ID:           b.ID,
 				Hash:         BlockStoreHash(rf.Relative, b.ID, b.SourceText()),
 				Translatable: b.Translatable,
-				Source:       b.Source,
+				Source:       src.Runs,
 			}
 			// The source file the block came from. It is what makes a stored
 			// block placeable — an occurrence names the document it was found

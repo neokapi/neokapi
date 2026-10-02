@@ -331,11 +331,12 @@ func plainBlockSourceText(b *blockstore.Block) string {
 	return sb.String()
 }
 
-// plainSourceText extracts the flat text from a model.Block's source runs
-// (what format readers produce).
+// plainSourceText extracts the flat text of a model.Block's authoritative
+// edition (the source runs format readers produce).
 func plainSourceText(b *model.Block) string {
 	if b == nil {
 		return ""
 	}
-	return model.RunsText(b.Source)
+	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
+	return model.RunsText(src.Runs)
 }
