@@ -93,6 +93,33 @@ func TestAFreshCheckoutTakesTheKeyTheProjectUses(t *testing.T) {
 	}
 }
 
+// TestANewFileAtAMovedDocumentsOldPathTakesAKeyOfItsOwn: one checkout follows
+// a document from docs/intro.md to guides/intro.md, so the key docs/intro.md
+// minted belongs to it. A fresh checkout reading only a new file at
+// docs/intro.md (another branch, a partial read) mints a key of its own, and
+// the project's adoption of the moved document stands for every checkout
+// after it.
+func TestANewFileAtAMovedDocumentsOldPathTakesAKeyOfItsOwn(t *testing.T) {
+	ctx := t.Context()
+	p := newSharedProject(t)
+	first := p.checkout("first")
+	keys, err := first.AdoptDocuments(ctx, []reconcile.DocUnit{{Path: "docs/intro.md", Content: []string{"h1", "h2", "h3"}}})
+	require.NoError(t, err)
+	moved := keys["docs/intro.md"]
+	keys, err = first.AdoptDocuments(ctx, []reconcile.DocUnit{{Path: "guides/intro.md", Content: []string{"h1", "h2", "h3"}}})
+	require.NoError(t, err)
+	require.Equal(t, moved, keys["guides/intro.md"])
+
+	keys, err = p.checkout("fresh").AdoptDocuments(ctx, []reconcile.DocUnit{{Path: "docs/intro.md", Content: []string{"x1", "x2"}}})
+	require.NoError(t, err)
+	assert.NotEqual(t, moved, keys["docs/intro.md"], "a new document takes a key no other document holds")
+	assert.True(t, reconcile.IsDocumentKey(keys["docs/intro.md"]))
+
+	keys, err = p.checkout("third").AdoptDocuments(ctx, []reconcile.DocUnit{{Path: "guides/intro.md", Content: []string{"h1", "h2", "h3"}}})
+	require.NoError(t, err)
+	assert.Equal(t, moved, keys["guides/intro.md"], "the project's key for the moved document stands")
+}
+
 func TestADecisionAnswersInEveryCheckoutOfTheDocument(t *testing.T) {
 	ctx := t.Context()
 	p := newSharedProject(t)

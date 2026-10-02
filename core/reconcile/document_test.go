@@ -150,3 +150,44 @@ func TestDocuments_MintSkipsAKeyAnotherDocumentHolds(t *testing.T) {
 	assert.Equal(t, reconcile.New, got[0].Kind)
 	assert.Equal(t, held+"-2", got[0].Key, "the new file at the old path takes the next ordinal")
 }
+
+// TestDocuments_MintSkipsAKeyAPriorHolds: the moved document need not be in
+// the read. A checkout reading only a new file at the old path still finds
+// the key taken by a prior document and mints the next ordinal.
+func TestDocuments_MintSkipsAKeyAPriorHolds(t *testing.T) {
+	held := reconcile.DocumentKeyFor("docs/intro.md")
+	prior := []reconcile.DocUnit{docPrior(held, doc3("guides/intro.md", "Alpha", "Bravo"))}
+
+	got := reconcile.Documents([]reconcile.Document{doc3("docs/intro.md", "Something", "Else")}, prior)
+	require.Len(t, got, 1)
+	assert.Equal(t, reconcile.New, got[0].Kind)
+	assert.Equal(t, held+"-2", got[0].Key, "the new file takes the next ordinal, not the moved document's key")
+	assert.True(t, reconcile.IsDocumentKey(got[0].Key), "a minted key reads as a key")
+}
+
+func TestIsDocumentKey(t *testing.T) {
+	key := reconcile.DocumentKeyFor("docs/intro.md")
+	tests := []struct {
+		in   string
+		want bool
+	}{
+		{key, true},
+		{key + "-2", true},
+		{key + "-17", true},
+		{key + "-1", false},
+		{key + "-0", false},
+		{key + "-02", false},
+		{key + "-", false},
+		{key + "-x", false},
+		{key + "2", false},
+		{"d-notes.md", false},
+		{"d-ABCDEF0123456789", false},
+		{"docs/intro.md", false},
+		{"", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.in, func(t *testing.T) {
+			assert.Equal(t, tc.want, reconcile.IsDocumentKey(tc.in))
+		})
+	}
+}

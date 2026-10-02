@@ -150,7 +150,7 @@ func DocumentUnits(current []DocUnit, prior []DocUnit) []DocResult {
 		}
 	}
 
-	mintDocs(out, units)
+	mintDocs(out, units, prior)
 	return out
 }
 
@@ -168,26 +168,40 @@ func DocumentKeyFor(path string) string {
 }
 
 // IsDocumentKey reports whether a string is already a document key rather than
-// the address of a document. It matches the exact shape DocumentKeyFor mints, so
-// a file that happens to be called `d-notes.md` is an address.
+// the address of a document. It matches the exact shapes a key is minted in,
+// DocumentKeyFor's and that key with the ordinal mintDocs adds ("-2", "-3"),
+// so a file that happens to be called `d-notes.md` is an address.
 func IsDocumentKey(s string) bool {
-	if len(s) != len("d-")+16 || !strings.HasPrefix(s, "d-") {
+	if len(s) < len("d-")+16 || !strings.HasPrefix(s, "d-") {
 		return false
 	}
-	for _, r := range s[2:] {
+	for _, r := range s[2:18] {
 		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
 			return false
 		}
 	}
-	return true
+	rest := s[18:]
+	if rest == "" {
+		return true
+	}
+	ordinal, ok := strings.CutPrefix(rest, "-")
+	if !ok || ordinal == "" || ordinal[0] == '0' {
+		return false
+	}
+	n, err := strconv.Atoi(ordinal)
+	return err == nil && n >= 2 && strconv.Itoa(n) == ordinal
 }
 
 // mintDocs keys the documents nothing claimed. A key derived from a path can
-// already belong to a document in this read: one first read at that path and
-// since renamed keeps the key the old path minted. The new document then takes
-// the next free ordinal, so two documents never share a key.
-func mintDocs(out []DocResult, units []DocUnit) {
+// already belong to another document: one first read at that path and since
+// renamed keeps the key the old path minted, whether or not this read holds
+// it. The new document then takes the next free ordinal, so two documents
+// never share a key.
+func mintDocs(out []DocResult, units []DocUnit, prior []DocUnit) {
 	taken := map[string]bool{}
+	for _, p := range prior {
+		taken[p.Key] = true
+	}
 	for _, r := range out {
 		if r.Key != "" {
 			taken[r.Key] = true
