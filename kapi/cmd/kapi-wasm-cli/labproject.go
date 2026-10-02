@@ -13,6 +13,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -60,24 +61,30 @@ defaults:
 // natively. It is created on first use rather than at boot: a page that never
 // asks for a term overlay pays nothing for it.
 var labTerms struct {
-	once  sync.Once
-	store terms.Store
-	err   error
+	mu sync.Mutex
+	// db is the lab project's store once its terms are imported. A reset of
+	// the page's directories (kapiReset) can close it, and a failed open
+	// leaves it nil; either way the next overlay opens the project again.
+	db *projectdb.DB
 }
 
 // labTermsStore returns the lab project's terms store, creating and seeding
-// the project on first use. A project that will not open is reported once.
+// the project when it is not open.
 func labTermsStore(ctx context.Context) (terms.Store, error) {
-	labTerms.once.Do(func() {
-		labTerms.store, labTerms.err = openLabProject(ctx)
-		if labTerms.err != nil {
-			fmt.Fprintln(os.Stderr, "kapi: term overlay:", labTerms.err)
+	labTerms.mu.Lock()
+	defer labTerms.mu.Unlock()
+	if labTerms.db == nil || labTerms.db.Raw() == nil {
+		db, err := openLabProject(ctx)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "kapi: term overlay:", err)
+			return nil, err
 		}
-	})
-	return labTerms.store, labTerms.err
+		labTerms.db = db
+	}
+	return projector.TermsView(labTerms.db), nil
 }
 
-func openLabProject(ctx context.Context) (terms.Store, error) {
+func openLabProject(ctx context.Context) (*projectdb.DB, error) {
 	if err := os.MkdirAll(labProjectDir, 0o755); err != nil {
 		return nil, fmt.Errorf("lab project: %w", err)
 	}
@@ -96,5 +103,5 @@ func openLabProject(ctx context.Context) (terms.Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("lab project: %w", err)
 	}
-	return projector.TermsView(db), nil
+	return db, nil
 }

@@ -261,16 +261,15 @@ export default function KapiEmbed({
       },
       reset: (resetSeed?: string[]) => {
         if (!runtime) return;
-        const cwd = runtime.cwd();
-        try {
-          for (const name of runtime.vol.readdir(cwd)) {
-            runtime.vol.remove(cwd.replace(/\/$/, "") + "/" + name);
-          }
-        } catch {
-          /* nothing to clear */
-        }
-        ensureSeed(runtime, resetSeed);
-        bump();
+        // The projects in the directory, their stores and the databases there
+        // go with the files, so a reseeded walkthrough starts as a fresh page.
+        void runtime
+          .reset(runtime.cwd())
+          .catch((e: unknown) => console.warn("kapi: reset:", e))
+          .finally(() => {
+            ensureSeed(runtime, resetSeed);
+            bump();
+          });
       },
       snapshot: (): SessionState | null => {
         if (!runtime) return null;

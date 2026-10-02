@@ -355,6 +355,30 @@ ok(
   termCheck.out.trim().slice(0, 240),
 );
 
+// A walkthrough's Reset starts its directory over (KapiRuntime.reset): the
+// project there is forgotten with its context, and its databases go with its
+// files, so the same project seeded again holds nothing.
+const resetRecipe =
+  "version: v1\nname: reset-demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\n";
+mem.vol.mkdirp("/reset-demo");
+mem.process.chdir("/reset-demo");
+mem.vol.writeFile("/reset-demo/kapi.yaml", enc.encode(resetRecipe));
+mem.vol.writeFile("/reset-demo/terms.json", mem.vol.readFile("/termstore/terms.json"));
+await run("terms", "import", "terms.json");
+await run("terms", "import", "terms.json", "--termstore", "standalone.db");
+const before = await run("terms", "stats");
+ok("a project's terms import lands in its store", /Concepts:\s+1\b/.test(before.out), before.out.trim().slice(0, 160));
+const resetFailure = await (globalThis as any).kapiReset("/reset-demo");
+ok("kapiReset starts the directory over", resetFailure === null, String(resetFailure));
+for (const name of mem.vol.readdir("/reset-demo")) mem.vol.remove(`/reset-demo/${name}`);
+ok(
+  "kapiReset leaves no database in the directory",
+  (globalThis as any).__kapiSQL.list("/reset-demo").length === 0,
+  JSON.stringify((globalThis as any).__kapiSQL.list("/reset-demo")),
+);
+mem.vol.writeFile("/reset-demo/kapi.yaml", enc.encode(resetRecipe));
+const after = await run("terms", "stats");
+ok("the project seeded again starts with no terms", /Concepts:\s+0\b/.test(after.out), after.out.trim().slice(0, 160));
 mem.process.chdir("/project");
 
 // The checkout MessageFormat fixtures in the lab samples: read, check and write

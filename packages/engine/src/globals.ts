@@ -52,6 +52,13 @@ declare global {
   /** KBF spec operations (JSON string in → JSON string out). Synchronous. */
   // eslint-disable-next-line no-var
   var kbf: ((reqJSON: string) => string) | undefined;
+  /**
+   * Start a directory over: forget the projects at or below it in the
+   * workspace and delete its databases. Resolves to null, or to an error
+   * message. The host clears the directory's files itself.
+   */
+  // eslint-disable-next-line no-var
+  var kapiReset: ((dir: string) => Promise<string | null>) | undefined;
   /** ABI descriptor for feature detection; absent on pre-ABI builds. */
   // eslint-disable-next-line no-var
   var kapiEngineABI: (() => EngineABI) | undefined;

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"gopkg.in/yaml.v3"
@@ -478,6 +479,60 @@ func (a *App) CloseProjectDB(root string) error {
 		return nil
 	}
 	return db.Close()
+}
+
+// ForgetProjectsUnder closes the store of every project this App holds at or
+// below dir and forgets each one in its workspace (workspace.Forget), so kapi
+// run there again registers the project afresh with an empty context. It is
+// for a host whose projects come and go inside one process and that is about
+// to clear their directory: the browser playground's reset, where the files
+// go with the page's file system and the databases with the driver.
+//
+// As with CloseProjectDB, nothing may be using the stores.
+func (a *App) ForgetProjectsUnder(ctx context.Context, dir string) error {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return fmt.Errorf("project store: resolve %q: %w", dir, err)
+	}
+	s := a.projectStores
+	if s == nil {
+		return nil
+	}
+	type held struct {
+		db    *projectdb.DB
+		bound boundProject
+	}
+	var gone []held
+	s.mu.Lock()
+	for root, db := range s.dbs {
+		if !pathWithin(root, abs) {
+			continue
+		}
+		gone = append(gone, held{db: db, bound: s.bound[root]})
+		delete(s.dbs, root)
+		delete(s.projectors, root)
+		delete(s.bound, root)
+	}
+	s.mu.Unlock()
+
+	var errs []error
+	for _, g := range gone {
+		errs = append(errs, g.db.Close())
+		if ws := g.bound.ws; ws != nil && !ws.Describe().ReadOnly && g.bound.key != "" {
+			errs = append(errs, ws.Forget(ctx, g.bound.key))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// pathWithin reports whether path is dir or lies below it. Both are absolute
+// and clean.
+func pathWithin(path, dir string) bool {
+	if path == dir {
+		return true
+	}
+	rel, err := filepath.Rel(dir, path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // closeProjectStores releases every store this App opened. Called by Shutdown;

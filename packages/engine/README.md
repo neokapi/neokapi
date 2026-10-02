@@ -14,8 +14,9 @@ The package owns:
 - **`KapiRuntime`** — the facade over the engine's global function set:
   `run` (any browser-safe kapi CLI command), `preview`, `inspect`,
   `inspectAnnotated`, `kbf`, `segment`, `segmentEngines`, `runWithTrace`,
-  plus the in-memory volume (`vol`), `cwd`/`chdir`, and `setSinks` for
-  stdout/stderr routing.
+  `reset` (start a directory over, its projects, databases and files) and
+  `removeDatabase`, plus the in-memory volume (`vol`), `cwd`/`chdir`, and
+  `setSinks` for stdout/stderr routing.
 - **Versioned ABI** — `engineABI()` reads the engine's `kapiEngineABI()`
   descriptor (`{abi, version, functions}`) for feature detection;
   `hasEngineFunction(name)` probes individual entry points (with a fallback

@@ -95,6 +95,7 @@ var engineExports = []struct {
 	{"labSegment", labSegment},
 	{"labSegmentEngines", labSegmentEngines},
 	{"kbf", kbfDispatch},
+	{"kapiReset", kapiReset},
 }
 
 // registerEngineABI installs every engine entry point plus the additive

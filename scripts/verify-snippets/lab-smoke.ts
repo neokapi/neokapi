@@ -207,5 +207,23 @@ ok(
   JSON.stringify(termSpans).slice(0, 200),
 );
 
+// A reset of the directory holding the lab project (a terminal at `/` pressing
+// Reset) forgets it; the next overlay opens and seeds it again.
+const labReset = await (globalThis as any).kapiReset("/.lab");
+ok("kapiReset forgets the lab project", labReset === null, String(labReset));
+const reannotated: any = await (globalThis as any).labInspectAnnotated(
+  "/project/terms.json",
+  JSON.stringify({ term: true, brand: false, qa: false, segment: false }),
+);
+const reannotatedBlocks: any[] = [];
+const recollect = (n: any) => { if (n.kind === "block") reannotatedBlocks.push(n); (n.children ?? []).forEach(recollect); };
+JSON.parse(reannotated.json ?? "{}").root?.forEach(recollect);
+const reSpans = reannotatedBlocks.flatMap((b) => (b.overlays ?? []).filter((o: any) => o.type === "term").flatMap((o: any) => o.spans ?? []));
+ok(
+  "term overlay works again after the lab project was reset",
+  reSpans.some((s: any) => s.props?.term === "dashboard" && s.props?.target === "tableau de bord"),
+  JSON.stringify(reSpans).slice(0, 200),
+);
+
 console.log(failures === 0 ? "\nALL LAB SMOKE CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

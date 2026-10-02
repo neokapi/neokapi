@@ -141,6 +141,19 @@ export interface KapiRuntime {
    * or ["run", "translate-qa", "-i", "/p/in.json", "-o", "/p/out.json"].
    */
   runWithTrace(argv: string[]): Promise<TraceRunResult>;
+  /**
+   * Start `dir` over as a fresh page would find it: forget the projects at
+   * or below it, with their stores and context, and remove its databases,
+   * then remove its files. Databases live in SQLite's memory, so removing
+   * the files alone would leave them. An engine without the `kapiReset`
+   * entry point removes the files only.
+   */
+  reset(dir: string): Promise<void>;
+  /**
+   * Remove the database held at the absolute `path`, as `rm` removes a file.
+   * Answers false when no database is held there. Throws when one is open.
+   */
+  removeDatabase(path: string): boolean;
   cwd(): string;
   chdir(dir: string): void;
   /** Point the live stdout/stderr sinks at a destination (the active terminal). */
@@ -381,6 +394,26 @@ export function makeRuntime(mem: MemFS): KapiRuntime {
       } catch {
         return { code, trace: null };
       }
+    },
+    reset: async (dir: string): Promise<void> => {
+      const fn = globalThis.kapiReset;
+      if (typeof fn === "function") {
+        const failure = await fn(dir);
+        if (failure) throw new Error(failure);
+      }
+      const base = dir.replace(/\/$/, "");
+      try {
+        for (const name of mem.vol.readdir(dir)) mem.vol.remove(`${base}/${name}`);
+      } catch {
+        /* nothing to clear */
+      }
+    },
+    removeDatabase: (path: string): boolean => {
+      const sql = globalThis.__kapiSQL;
+      if (!sql?.exists(path)) return false;
+      const res = sql.remove(path);
+      if (typeof res === "object") throw new Error(res.err);
+      return true;
     },
     cwd: () => mem.vol.cwd(),
     chdir: (dir: string) => mem.process.chdir(dir),
