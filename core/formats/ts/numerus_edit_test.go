@@ -118,15 +118,17 @@ func pseudoTranslate(t *testing.T) func(*model.Block) {
 
 // A numerus message holds its plural forms as spans over one translation: one
 // target segmentation span per `<numerusform>`. The writer writes each form
-// from its span while the spans tile the translation's runs, and every form
-// from the whole translation when the translation has no segmentation (one
-// translation of the message, as a tool writes one from the source).
+// from its span while the spans tile the translation's runs, and a one-form
+// message from its whole translation.
 //
-// When the spans no longer tile the runs, nothing says which words belong to
-// which form. Cutting the new runs at the old spans moved words between forms
-// ("Nous utilisons %n articleNous utilisons " in the first form), so the writer
-// refuses that message before it writes any byte. It refuses only when the
-// translation would be written: a message whose forms were all empty when
+// When a message of several forms has no span per form tiling its runs,
+// nothing says which words belong to which form: a tool's translation of the
+// whole message and an edit whose spans were dropped look the same. Cutting
+// the new runs at the old spans moved words between forms ("Nous utilisons %n
+// articleNous utilisons " in the first form), and writing the whole
+// translation into every form would repeat an edit's forms in each, so the
+// writer refuses that message before it writes any byte. It refuses only when
+// the translation would be written: a message whose forms were all empty when
 // read, as lupdate writes them, is written empty whatever a tool put in its
 // translation, so translating or pseudo-translating such a file writes the
 // file.
@@ -201,13 +203,18 @@ func TestNumerusFormsAreWrittenOrRefused(t *testing.T) {
 			refused: true,
 		},
 		{
-			name: "a translation with no form boundaries fills every form",
-			doc:  numerusDoc,
+			// The same shape as an edit whose rebase dropped the spans, which
+			// would repeat the edited forms in every form.
+			name:    "a translation with no form boundaries over filled forms",
+			doc:     numerusDoc,
+			edit:    translateWhole,
+			refused: true,
+		},
+		{
+			name: "a translation with no form boundaries over forms read empty",
+			doc:  lupdateDoc,
 			edit: translateWhole,
-			want: strings.NewReplacer(
-				"Nous employons %n articles", "Nous utilisons %n article(s)",
-				"Nous employons %n article", "Nous utilisons %n article(s)",
-			).Replace(numerusDoc),
+			want: lupdateDoc,
 		},
 		{
 			name: "a tool's translation over forms read empty",

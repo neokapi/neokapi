@@ -30,24 +30,26 @@ var ErrSegmentsLost = errors.New("its segments no longer line up with its conten
 var ErrCodesUnwritable = errors.New("its inline codes cannot be written as XLIFF 2 markup")
 
 // checkUnit refuses, before the writer writes any byte, a unit it cannot write
-// whole. A source read as several segments must still divide into them:
-// producers never write a source, so a source whose segmentation no longer
-// tiles its runs is an edit that merged segments. A target read as several
-// segments that still carries a segmentation must still tile it, for the same
-// reason. A target with no segmentation is one text for the unit, which the
-// unit's first segment takes (see renderTargetRef). Every segment the write
-// renders from its runs must be expressible as XLIFF 2 markup.
+// whole. Content read as several segments must still divide into them: a
+// segmentation that no longer tiles the runs, or none at all, is what an edit
+// that merged segments leaves, and on a translation it looks the same as a
+// tool's translation of the whole unit. Either way the writer cannot tell
+// which words belong to which segment. A translation of a unit that was read
+// with at most one translated segment carries no such boundaries, and the
+// unit's first segment takes it whole (see renderTargetRef). Every segment
+// the write renders from its runs must be expressible as XLIFF 2 markup.
 func checkUnit(block *model.Block, loc model.LocaleID) error {
+	divides := func(ov *model.Overlay, runs int) bool {
+		return ov != nil && len(ov.Spans) > 0 && tiles(ov, runs)
+	}
 	ir := unitSegmentsIR(block)
-	if ir != nil && len(ir.Source) > 1 {
-		if ov := block.SourceSegmentation(); ov == nil || len(ov.Spans) == 0 || !tiles(ov, len(block.Source)) {
-			return fmt.Errorf("xliff2 writer: unit %q: the source: %w", block.ID, ErrSegmentsLost)
-		}
+	if ir != nil && len(ir.Source) > 1 && !divides(block.SourceSegmentation(), len(block.Source)) {
+		return fmt.Errorf("xliff2 writer: unit %q: the source: %w", block.ID, ErrSegmentsLost)
 	}
 	hasTarget := !loc.IsEmpty() && block.HasTarget(loc)
 	if hasTarget && ir != nil && len(ir.Target[loc]) > 1 {
 		key := model.Variant(loc)
-		if !tiles(block.SegmentationFor(&key), len(block.TargetRuns(loc))) {
+		if !divides(block.SegmentationFor(&key), len(block.TargetRuns(loc))) {
 			return fmt.Errorf("xliff2 writer: unit %q: the target: %w", block.ID, ErrSegmentsLost)
 		}
 	}
@@ -103,7 +105,9 @@ func renderSourceRef(block *model.Block, segIdx int, segID string) (string, erro
 // renderTargetRef renders the target, in loc, of the segment a skeleton
 // reference names: empty when the target holds nothing for that segment. ok is
 // false when the block holds no target in loc at all. A target with no
-// segmentation is one text for the unit, and the unit's first segment takes it.
+// segmentation is one text for the unit, and the unit's first segment takes
+// it; checkUnit has refused one that replaced a translation read segment by
+// segment.
 func renderTargetRef(block *model.Block, loc model.LocaleID, segIdx int, segID string) (body string, ok bool, err error) {
 	if loc.IsEmpty() || !block.HasTarget(loc) {
 		return "", false, nil

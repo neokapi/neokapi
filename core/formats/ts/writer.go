@@ -805,17 +805,18 @@ var ErrNumerusFormsLost = errors.New("its plural forms no longer line up with it
 //
 // The reader keeps the forms as one target run sequence and a target
 // segmentation with one span per form (ordered by `numerus-form`), so while
-// the spans tile the runs, each form holds its span's runs. A translation with
-// no segmentation has no form boundaries: it is one translation of the
-// message, as a tool writes one from the source, and every form holds it. A
-// message with one form holds its whole translation.
+// the spans tile the runs, each form holds its span's runs. A message with one
+// form holds its whole translation.
 //
-// A segmentation that no longer tiles the runs with one span per form gives
-// the writer no way to tell which words belong to which form, and cutting the
-// runs at the old spans would move words from one form into another. The
-// message is refused with ErrNumerusFormsLost instead. The exception is a
-// message whose forms were all empty when read: those forms are written
-// empty, so the runs are never used.
+// A message of several forms whose translation no longer carries one span per
+// form, tiling its runs, gives the writer no way to tell which words belong to
+// which form: an edit that rebuilt the runs, or a rebase that dropped the
+// spans, looks the same as a tool's translation of the message as a whole.
+// Cutting the runs at old spans would move words from one form into another,
+// and writing the whole translation into every form would repeat an edit's
+// forms in each, so the message is refused with ErrNumerusFormsLost. The
+// exception is a message whose forms were all empty when read: those forms
+// are written empty, so the runs are never used.
 //
 // When the requested locale has no target, any present target is used, so a
 // file declaring a non-matching `<TS language>` still passes its existing
@@ -833,14 +834,7 @@ func numerusForms(block *model.Block, locale model.LocaleID) ([][]model.Run, err
 	if count <= 1 {
 		return [][]model.Run{runs}, nil
 	}
-	if ov == nil || len(ov.Spans) == 0 {
-		forms := make([][]model.Run, count)
-		for i := range forms {
-			forms[i] = runs
-		}
-		return forms, nil
-	}
-	if !spansTile(ov.Spans, len(runs)) || (layout.count() > 0 && len(ov.Spans) != layout.count()) {
+	if ov == nil || !spansTile(ov.Spans, len(runs)) || (layout.count() > 0 && len(ov.Spans) != layout.count()) {
 		for i := range count {
 			if !layout.keptEmpty(i) {
 				return nil, fmt.Errorf("ts writer: message %q: %w", block.Name, ErrNumerusFormsLost)

@@ -173,6 +173,30 @@ const multiSegmentDoc = `<?xml version="1.0" encoding="UTF-8"?>
   </file>
 </xliff>`
 
+const untranslatedSegmentsDoc = `<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+  <file id="f1">
+    <unit id="u1">
+      <segment id="a">
+        <source>First we use this. </source>
+      </segment>
+      <segment id="b">
+        <source>Then that.</source>
+      </segment>
+    </unit>
+  </file>
+</xliff>`
+
+// translateUnit writes text as the fr translation of the whole unit, with no
+// segmentation, as a tool that translates a unit at once leaves it.
+func translateUnit(text string) func(*model.Block) {
+	return func(b *model.Block) {
+		b.SetTargetText("fr", text)
+		key := model.Variant("fr")
+		b.SetSegmentation(&key, nil)
+	}
+}
+
 // replaceInRuns rewrites a word inside each text run, keeping the run
 // structure, and with it the segment boundaries.
 func replaceInRuns(runs []model.Run, from, to string) []model.Run {
@@ -196,11 +220,13 @@ func replaceInRuns(runs []model.Run, from, to string) []model.Run {
 // rebuilds merge two segments, the segmentation no longer describes them, and
 // writing the unit would move words between segments or leave a source with
 // no translation beside it. The writer refuses that document before it writes
-// a byte. A translation a tool writes as one text for the unit, with no
-// segmentation, is the unit's translation, and the first segment takes it.
+// a byte, and refuses a translation with no segmentation over one read segment
+// by segment, which looks the same. A unit read with no translation has no
+// boundaries to lose, and its first segment takes a translation of the unit.
 func TestSkeletonPathWritesEachSegment(t *testing.T) {
 	tests := []struct {
 		name    string
+		doc     string // multiSegmentDoc when empty
 		edit    func(*model.Block)
 		want    string
 		refused error
@@ -243,21 +269,27 @@ func TestSkeletonPathWritesEachSegment(t *testing.T) {
 			want: strings.Replace(multiSegmentDoc, "nous employons", "nous utilisons", 1),
 		},
 		{
-			name: "a translation written as one text for the unit",
-			edit: func(b *model.Block) {
-				b.SetTargetText("fr", "Tout en un.")
-				key := model.Variant("fr")
-				b.SetSegmentation(&key, nil)
-			},
-			want: strings.NewReplacer(
-				`<target>D'abord nous employons <pc id="1">ceci</pc>. </target>`, `<target>Tout en un.</target>`,
-				`<target>Puis <ph id="2"/> cela.</target>`, `<target></target>`,
-			).Replace(multiSegmentDoc),
+			// The same shape as an edit whose rebase dropped the segmentation.
+			name:    "a translation with no segmentation over one read segment by segment",
+			edit:    translateUnit("Tout en un."),
+			refused: xliff2.ErrSegmentsLost,
+		},
+		{
+			name: "a translation of a unit read with no translation",
+			doc:  untranslatedSegmentsDoc,
+			edit: translateUnit("Tout en un."),
+			want: strings.Replace(untranslatedSegmentsDoc,
+				"<source>First we use this. </source>",
+				"<source>First we use this. </source>\n        <target>Tout en un.</target>", 1),
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			out, err := skeletonWrite(t, multiSegmentDoc, tc.edit, nil)
+			doc := tc.doc
+			if doc == "" {
+				doc = multiSegmentDoc
+			}
+			out, err := skeletonWrite(t, doc, tc.edit, nil)
 			if tc.refused != nil {
 				require.ErrorIs(t, err, tc.refused)
 				assert.Empty(t, out, "a refused write writes nothing")
