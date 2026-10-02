@@ -295,9 +295,13 @@ because they differ in shape and lifecycle:
   anchor to runs, a rewrite of an edition shifts the spans on that edition, the
   source's and each target's alike. Every content write goes through the one
   applier (`change.ApplyBlock`, [E-03](../engine/e-03-tool-system.md)), which
-  rebases the spans on the edition it rewrites with `model.RemapOverlays`: a span
-  overlapping an edit is dropped, the rest shift to follow it, and every span
-  left must resolve in the new runs. A segmentation layer is the edition's whole
+  rebases the spans on the edition it rewrites with `model.RemapOverlays`. A span
+  follows the text it covers: an edit inside it grows or shrinks it, an edit
+  that replaces all of its text leaves it over the replacement, an edit across
+  one of its boundaries leaves it over the text the edit kept, and it is dropped
+  only when the edits delete everything it covered. A finding states something
+  about the exact text under it, so an edit there drops it. Every span left must
+  resolve in the new runs. A segmentation layer is the edition's whole
   segment list, which bilingual writers read as such, so it is kept or dropped
   whole: the segment holding an edit grows or shrinks with it, and an edit across
   a segment boundary drops the layer. An inline code has no width in the text,

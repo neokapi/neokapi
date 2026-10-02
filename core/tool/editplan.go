@@ -20,8 +20,8 @@ import (
 //   - Structured: NewRuns holds the rewritten source and Edits the
 //     span→replacement mapping (in the flattened-text rune coordinate space of
 //     the OLD runs). The applier rebases the surviving run-anchored source
-//     overlays across the rewrite (model.RemapOverlays): spans overlapping an
-//     edit are dropped, the rest follow the text. NewRuns with no Edits is a
+//     overlays across the rewrite (model.RemapOverlays): each span follows
+//     the text it covers. NewRuns with no Edits is a
 //     structure-only rewrite — runs added, removed, or reclassified without
 //     changing the text flattening — and the applier verifies the flattening is
 //     unchanged before re-anchoring.
