@@ -78,11 +78,8 @@ func segmentFor(segs []seg, segIdx int, segID string) *seg {
 			}
 		}
 	}
-	if len(segs) == 1 && segs[0].ID == "" {
-		if segIdx == 0 {
-			return &segs[0]
-		}
-		return nil
+	if len(segs) == 1 && segs[0].ID == "" && segIdx == 0 {
+		return &segs[0]
 	}
 	return nil
 }
