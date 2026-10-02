@@ -206,10 +206,10 @@ func opsMatrix() []opsFixture {
 			format: "ts", name: "numerus", template: "ts-numerus.ts.tmpl", target: "fr", respelled: tsPrologue,
 			refused: map[string]refusal{
 				"replace_text@target": {
-					reason: "ksed rebuilds the translation's runs through ApplyTextEdits, which joins the text either " +
-						"side of a plural-form boundary, so the forms no longer line up with the runs; the writer " +
-						"refuses the message rather than move words between forms, and the contract edits one form " +
-						"by path (section 2.4, rule 3)",
+					reason: "the word is in both forms, and the tool write path rebases the translation's overlays " +
+						"over the one region the old and new text differ in, which here spans the plural-form " +
+						"boundary, so the form segmentation is dropped; the writer refuses the message rather than " +
+						"move words between forms, and the contract edits one form by path (section 2.4, rule 3)",
 					err: ts.ErrNumerusFormsLost,
 				},
 			},
@@ -239,12 +239,6 @@ func opsMatrix() []opsFixture {
 						"segmentation of a block it edits, so the unit no longer divides into its segments; the " +
 						"writer refuses it rather than write the whole unit into its first segment (section 2.4, " +
 						"rule 3)",
-					err: xliff2.ErrSegmentsLost,
-				},
-				"replace_text@target": {
-					reason: "ksed rebuilds the translation's runs through ApplyTextEdits, which joins the text " +
-						"either side of a segment boundary, so the target segmentation no longer tiles the runs; " +
-						"the writer refuses the unit rather than move words between segments (section 2.4, rule 3)",
 					err: xliff2.ErrSegmentsLost,
 				},
 			},

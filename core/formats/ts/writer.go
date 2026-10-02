@@ -805,8 +805,10 @@ var ErrNumerusFormsLost = errors.New("its plural forms no longer line up with it
 //
 // The reader keeps the forms as one target run sequence and a target
 // segmentation with one span per form (ordered by `numerus-form`), so while
-// the spans tile the runs, each form holds its span's runs. A message with one
-// form holds its whole translation.
+// the spans tile the runs (model.SpansTile), each form holds its span's runs.
+// A boundary between two forms can fall inside a text run: a tool's edit joins
+// the forms' text runs and rebases the spans onto the joined run. A message
+// with one form holds its whole translation.
 //
 // A message of several forms whose translation no longer carries one span per
 // form, tiling its runs, gives the writer no way to tell which words belong to
@@ -834,7 +836,7 @@ func numerusForms(block *model.Block, locale model.LocaleID) ([][]model.Run, err
 	if count <= 1 {
 		return [][]model.Run{runs}, nil
 	}
-	if ov == nil || !spansTile(ov.Spans, len(runs)) || (layout.count() > 0 && len(ov.Spans) != layout.count()) {
+	if ov == nil || !model.SpansTile(ov.Spans, runs) || (layout.count() > 0 && len(ov.Spans) != layout.count()) {
 		for i := range count {
 			if !layout.keptEmpty(i) {
 				return nil, fmt.Errorf("ts writer: message %q: %w", block.Name, ErrNumerusFormsLost)
@@ -847,20 +849,6 @@ func numerusForms(block *model.Block, locale model.LocaleID) ([][]model.Run, err
 		forms[i] = span.Range.ExtractRuns(runs)
 	}
 	return forms, nil
-}
-
-// spansTile reports whether spans cover runs whole runs at a time, in order,
-// from the first run to the last, with no gap and no overlap.
-func spansTile(spans []model.Span, runs int) bool {
-	at := 0
-	for _, span := range spans {
-		r := span.Range
-		if r.Start.Run != at || r.Start.Offset != 0 || r.End.Offset != 0 || r.End.Run < at {
-			return false
-		}
-		at = r.End.Run
-	}
-	return at == runs
 }
 
 // numerusTarget returns the target runs numerusForms divides into forms, and

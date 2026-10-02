@@ -39,17 +39,17 @@ var ErrCodesUnwritable = errors.New("its inline codes cannot be written as XLIFF
 // unit's first segment takes it whole (see renderTargetRef). Every segment
 // the write renders from its runs must be expressible as XLIFF 2 markup.
 func checkUnit(block *model.Block, loc model.LocaleID) error {
-	divides := func(ov *model.Overlay, runs int) bool {
+	divides := func(ov *model.Overlay, runs []model.Run) bool {
 		return ov != nil && len(ov.Spans) > 0 && tiles(ov, runs)
 	}
 	ir := unitSegmentsIR(block)
-	if ir != nil && len(ir.Source) > 1 && !divides(block.SourceSegmentation(), len(block.Source)) {
+	if ir != nil && len(ir.Source) > 1 && !divides(block.SourceSegmentation(), block.Source) {
 		return fmt.Errorf("xliff2 writer: unit %q: the source: %w", block.ID, ErrSegmentsLost)
 	}
 	hasTarget := !loc.IsEmpty() && block.HasTarget(loc)
 	if hasTarget && ir != nil && len(ir.Target[loc]) > 1 {
 		key := model.Variant(loc)
-		if !divides(block.SegmentationFor(&key), len(block.TargetRuns(loc))) {
+		if !divides(block.SegmentationFor(&key), block.TargetRuns(loc)) {
 			return fmt.Errorf("xliff2 writer: unit %q: the target: %w", block.ID, ErrSegmentsLost)
 		}
 	}
@@ -78,7 +78,7 @@ func checkUnit(block *model.Block, loc model.LocaleID) error {
 // segmentation's segments while it tiles the runs, and otherwise the runs as
 // one anonymous segment.
 func writtenSourceSegs(block *model.Block) []seg {
-	if !tiles(block.SourceSegmentation(), len(block.Source)) {
+	if !tiles(block.SourceSegmentation(), block.Source) {
 		return withTermMarks([]seg{{Runs: block.Source}}, block.OverlayOf(model.OverlayTerm))
 	}
 	return sourceSegsFromBlock(block)
@@ -87,7 +87,7 @@ func writtenSourceSegs(block *model.Block) []seg {
 // writtenTargetSegs is writtenSourceSegs for the target in loc.
 func writtenTargetSegs(block *model.Block, loc model.LocaleID) []seg {
 	key := model.Variant(loc)
-	if runs := block.TargetRuns(loc); !tiles(block.SegmentationFor(&key), len(runs)) {
+	if runs := block.TargetRuns(loc); !tiles(block.SegmentationFor(&key), runs) {
 		return []seg{{Runs: runs}}
 	}
 	return targetSegsFromBlock(block, loc)
@@ -135,23 +135,17 @@ func refSegmentID(block *model.Block, segIdx int, segID string) string {
 }
 
 // tiles reports whether a segmentation still describes runs: its spans cover
-// them end to end, each starting where the last ended, on run boundaries. An
-// edit that rewrote the runs can leave spans that no longer do, because the
-// edit text carries no segment boundaries; such runs are written as one
-// segment rather than cut where the stale spans fall.
-func tiles(o *model.Overlay, n int) bool {
+// them end to end, each starting where the last ended (model.SpansTile). A
+// boundary can fall inside a text run once an edit has joined two segments'
+// text and rebased the spans onto it. An edit that rewrote the runs without
+// rebasing them can leave spans that no longer tile, because the edit text
+// carries no segment boundaries; such runs are written as one segment rather
+// than cut where the stale spans fall.
+func tiles(o *model.Overlay, runs []model.Run) bool {
 	if o == nil || len(o.Spans) == 0 {
 		return true
 	}
-	at := 0
-	for _, sp := range o.Spans {
-		r := sp.Range
-		if r.Start.Run != at || r.Start.Offset != 0 || r.End.Offset != 0 || r.End.Run < at {
-			return false
-		}
-		at = r.End.Run
-	}
-	return at == n
+	return model.SpansTile(o.Spans, runs)
 }
 
 // segmentFor picks the segment a skeleton reference names: the one carrying its
