@@ -30,7 +30,7 @@ afterEach(() => {
 });
 const assets = { wasmExecUrl: "/wasm/wasm_exec.js", wasmUrl: "/wasm/kapi-cli.wasm" };
 
-describe("Course content launch", () => {
+describe("Content lab launch", () => {
   it("starts the engine with one explicit launch and no second Run gate", () => {
     render(
       <LabLaunch>

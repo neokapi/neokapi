@@ -52,7 +52,7 @@ deploy serving a stale binary.
   kapi/
     wasm/<git-sha>/{kapi-cli.wasm, kapi-cli.wasm.gz, kapi.wasm, pdfium.wasm, wasm_exec.js}
     models/vision/<version>/{ppocrv5_det.onnx, ppocrv5_rec.onnx, ppocrv5_dict.txt, ppdoclayoutv3.onnx}
-    icu/<icu-version>/icu_capi.wasm    # ICU4X (segmentation lesson), served application/wasm
+    icu/<icu-version>/icu_capi.wasm    # ICU4X (segmentation lab), served application/wasm
     img/...              # screenshots referenced by ThemedImage
     video/...            # .webm + .jpg posters, mirroring web/static/video/
   bowrain/

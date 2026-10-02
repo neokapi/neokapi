@@ -444,8 +444,7 @@ export default function ProjectExplorer({
       </p>
       <p style={{ fontSize: "0.85rem", opacity: 0.8, marginTop: "0.4rem" }}>
         Native kapi keeps working state and durable context in its workspace. Review decisions are
-        bound to the content reviewed. The later decision lesson inspects that native operation
-        history.
+        bound to the content reviewed.
       </p>
 
       <GateOverlay

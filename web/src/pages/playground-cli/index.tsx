@@ -1,6 +1,5 @@
 import React from "react";
 import Layout from "@theme/Layout";
-import Link from "@docusaurus/Link";
 import KapiPlaygroundExplorer from "@site/src/components/KapiPlayground/KapiPlaygroundExplorer";
 import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 
@@ -12,13 +11,7 @@ export default function CliPlaygroundPage(): React.ReactElement {
     >
       <LabPageShell
         title="CLI playground"
-        lede={
-          <>
-            Open a sample and run its suggested command. The terminal uses the browser build of kapi
-            with an in-memory filesystem. Follow the <Link to="/labs">labs learning path</Link> for
-            guided exercises.
-          </>
-        }
+        lede="Open a sample and run its suggested command. The terminal uses the browser build of kapi with an in-memory filesystem."
       >
         <p>
           Supported file and project operations run locally in your browser. The full workspace

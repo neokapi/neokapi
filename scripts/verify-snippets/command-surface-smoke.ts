@@ -299,8 +299,9 @@ ok(
   brandStore.out.trim().slice(0, 240),
 );
 
-// Guided framework course: exercise the same shared fixtures and inspector options.
-console.log("command-surface-smoke: framework course fixtures");
+// The checkout MessageFormat fixtures in the lab samples: read, check and write
+// each one with the inspector options the labs use.
+console.log("command-surface-smoke: checkout fixtures");
 for (const id of ["checkout-messageformat", "checkout-checks"]) {
   const sample = SAMPLES.find((entry) => entry.id === id)!;
   const path = `/project/${sample.filename}`;

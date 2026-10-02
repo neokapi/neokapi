@@ -1,6 +1,5 @@
 import React from "react";
 import Layout from "@theme/Layout";
-import Link from "@docusaurus/Link";
 import { FlowBuilderRunner } from "@site/src/components/Lab/FlowBuilderRunner";
 import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 import { LabLaunch } from "@site/src/components/Lab/LabLaunch";
@@ -11,12 +10,7 @@ export default function LabPage(): React.ReactElement {
       <LabPageShell
         title="Flow workspace"
         maxWidthClassName="max-w-[1500px]"
-        lede={
-          <>
-            Select a scenario, inspect its tools, and run the flow on a sample. For a guided
-            introduction, follow the <Link to="/labs">labs learning path</Link>.
-          </>
-        }
+        lede="Select a scenario, inspect its tools, and run the flow on a sample."
       >
         <p>
           Live runs use the browser build of kapi. Ordinary AI provider selections use deterministic
