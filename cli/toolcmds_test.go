@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"io"
 	"slices"
 	"testing"
 
@@ -138,9 +139,9 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 	assert.Positive(t, internal, "the internal set must not be empty — it is a real distinction")
 }
 
-// The old localization/analysis help-group routing retired with the curated
-// tier: exec children render in one flat list, and the localization group is
-// owned by the flow-backed porcelain verbs (see kapicmds.go).
+// Exec children render in one flat list with no help group of their own; the
+// root's Languages group holds the flow-backed porcelain verbs (translate,
+// pseudo-translate; see porcelain_flows.go).
 
 // TestRecycleAlias proves the tm-leverage → recycle rename is complete: the
 // canonical command is `recycle` and the old spelling is gone (hard cutover —
@@ -270,16 +271,95 @@ func TestDefaultParallelBlocks_NonAITools(t *testing.T) {
 	assert.Equal(t, 0, info.DefaultParallelBlocks)
 }
 
+// AddCommand accepts any GroupID and cobra only panics on an undefined one at
+// Execute time, so the registered set is asserted directly.
 func TestAddCommandGroupsRegistersGroups(t *testing.T) {
 	root := &cobra.Command{Use: "test"}
-	app := &App{}
-	AddCommandGroups(app, root)
+	AddCommandGroups(&App{}, root)
 
-	groupIDs := []string{"work", "assets", "localization", "analysis", "advanced"}
-	for _, id := range groupIDs {
-		cmd := &cobra.Command{Use: "test-" + id, GroupID: id}
-		assert.NotPanics(t, func() {
-			root.AddCommand(cmd)
-		}, "group %q should be registered", id)
+	var ids, titles []string
+	for _, g := range root.Groups() {
+		ids = append(ids, g.ID)
+		titles = append(titles, g.Title)
 	}
+	assert.Equal(t, []string{"work", "languages", "assets", "advanced"}, ids)
+	assert.Equal(t, []string{"Work:", "Languages:", "Assets:", "Advanced:"}, titles)
+}
+
+// The language flags on `kapi exec <tool>` follow the tool's locale contract
+// (schema.ToolMeta.TakesTargetLanguage / TakesSourceLanguage), so a tool that
+// works on the source alone offers neither, and one that reads a target offers
+// --target-lang.
+func TestExecLanguageFlagsFollowTheToolsLocaleContract(t *testing.T) {
+	app := newTestApp()
+	tools := execChildren(t, app)
+
+	for name, cmd := range tools {
+		meta := app.ToolReg.Schema(registry.ToolID(name)).ToolMeta
+		assert.Equal(t, meta.TakesTargetLanguage(), cmd.Flags().Lookup("target-lang") != nil,
+			"`exec %s` declares --target-lang exactly when the tool takes a target language", name)
+		assert.Equal(t, meta.TakesSourceLanguage(), cmd.Flags().Lookup("source-lang") != nil,
+			"`exec %s` declares --source-lang exactly when the source language reaches the tool", name)
+	}
+
+	for _, c := range []struct {
+		tool                   string
+		targetLang, sourceLang bool
+	}{
+		// Tools that work on the source alone and whose result the source
+		// language does not change.
+		{"encoding-detect", false, false},
+		{"redact", false, false},
+		{"unredact", false, false},
+		{"script", false, false},
+		{"translate-after", false, false},
+		{"voice-check", false, false},
+		{"voice-infer", false, false},
+		{"term-extract", false, false},
+		{"entity-extract", false, false},
+		{"media-refine", false, false},
+		// Monolingual tools that also work on the target the run names.
+		{"search-replace", true, true},
+		{"case-transform", true, true},
+		{"inline-codes-remove", true, true},
+		{"external-command", true, true},
+		{"xml-validation", true, false},
+		{"segmentation", true, true},
+		// Bilingual tools.
+		{"translate", true, true},
+		{"qa", true, true},
+		{"term-check", true, true},
+		{"recycle", true, true},
+		{"pseudo-translate", true, true},
+	} {
+		cmd := tools[c.tool]
+		require.NotNil(t, cmd, "expected `exec %s`", c.tool)
+		assert.Equal(t, c.targetLang, cmd.Flags().Lookup("target-lang") != nil, "`exec %s` --target-lang", c.tool)
+		assert.Equal(t, c.sourceLang, cmd.Flags().Lookup("source-lang") != nil, "`exec %s` --source-lang", c.tool)
+	}
+
+	// Passing a language the tool does not take fails with the reason.
+	root := &cobra.Command{Use: "kapi", SilenceUsage: true, SilenceErrors: true}
+	AddCommandGroups(app, root)
+	root.AddCommand(NewToolCommands(newTestApp())...)
+	root.SetOut(io.Discard)
+	root.SetErr(io.Discard)
+	root.SetArgs([]string{"exec", "redact", "notes.md", "--target-lang", "fr"})
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown flag: --target-lang")
+	assert.Contains(t, err.Error(), "`kapi exec redact` takes no target language")
+	root.SetArgs([]string{"exec", "encoding-detect", "notes.md", "--source-lang=de"})
+	err = root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "`kapi exec encoding-detect` takes no source language")
+
+	// A writer that takes no target language has no {lang} to lay its output
+	// out by, and its help says so.
+	redactOut := tools["redact"].Flags().Lookup("output")
+	require.NotNil(t, redactOut)
+	assert.NotContains(t, redactOut.Usage, "{lang}")
+	searchOut := tools["search-replace"].Flags().Lookup("output")
+	require.NotNil(t, searchOut)
+	assert.Contains(t, searchOut.Usage, "{lang}")
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/core/registry"
@@ -94,6 +95,12 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	ToolSchema := entry.Schema
 	var formatMaps []string
 
+	// The language flags follow the tool's locale contract (E-03): a tool
+	// that never works on a target offers no --target-lang, and one whose run
+	// the source language does not reach offers no --source-lang.
+	takesTarget := ToolSchema.ToolMeta.TakesTargetLanguage()
+	takesSource := ToolSchema.ToolMeta.TakesSourceLanguage()
+
 	short := info.Description
 	if short == "" {
 		short = info.DisplayName
@@ -130,6 +137,9 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				switch {
 				case outputTmpl != "":
 					// Explicit -o template wins.
+				case outputDir != "" && !takesTarget:
+					// No target language to lay out by: the files land in DIR.
+					outputTmpl = filepath.Clean(outputDir) + string(filepath.Separator)
 				case outputDir != "":
 					// Root outputs under DIR using a locale-dir layout
 					// (DIR/{lang}/<file>), mirroring tsc/babel --out-dir.
@@ -149,7 +159,10 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				}
 			}
 
-			effectiveLang := a.TargetLang
+			var effectiveLang string
+			if takesTarget {
+				effectiveLang = a.TargetLang
+			}
 			if effectiveLang == "" && info.DefaultLocale != "" {
 				effectiveLang = string(info.DefaultLocale)
 			}
@@ -276,7 +289,13 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 			return a.RunToolOnFiles(cmd.Context(), rc)
 		},
 	}
-	a.AddProcessingFlags(cmd)
+	a.AddInputFlags(cmd)
+	if takesSource {
+		a.AddSourceLangFlag(cmd.Flags())
+	}
+	if takesTarget {
+		a.AddTargetLangFlag(cmd.Flags())
+	}
 	cmd.Flags().StringArrayVarP(&formatMaps, "map", "m", nil, "map glob pattern to format (e.g. '*.docx=okf_openxml:test')")
 	cmd.Flags().Bool("json", false, "output results as JSON")
 	cmd.Flags().IntP("concurrency", "j", 0, "max parallel files (0 = auto)")
@@ -285,9 +304,13 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	cmd.Flags().Bool("no-warn", false, "suppress warnings for skipped files")
 	cmd.Flags().BoolP("progress", "p", false, "show progress bar")
 	cmd.Flags().Bool("pack", false, "when transforming a .kpz, also eject the result to the .kpz (auto-pack)")
-	if info.WritesOutput {
+	switch {
+	case info.WritesOutput && takesTarget:
 		cmd.Flags().StringP("output", "o", "", "output path template (variables: {dir}, {name}, {ext}, {lang})")
 		cmd.Flags().String("output-dir", "", "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)")
+	case info.WritesOutput:
+		cmd.Flags().StringP("output", "o", "", "output path template (variables: {dir}, {name}, {ext})")
+		cmd.Flags().String("output-dir", "", "write outputs under DIR (default: rewrite each input in place)")
 	}
 	RegisterSchemaFlags(cmd, ToolSchema)
 	if ToolSchema.ToolMeta != nil {
@@ -304,5 +327,23 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	}
 	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
+	cmd.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
+		return explainLanguageFlagError(c, err, takesSource, takesTarget)
+	})
 	return cmd
+}
+
+// explainLanguageFlagError says why a language flag is missing from a tool's
+// command when a run passes one: a script written for a bilingual tool, or for
+// the flag set every tool command once shared, would otherwise read cobra's
+// bare "unknown flag" as a typo.
+func explainLanguageFlagError(c *cobra.Command, err error, takesSource, takesTarget bool) error {
+	msg := err.Error()
+	switch {
+	case !takesTarget && strings.HasPrefix(msg, "unknown flag: --target-lang"):
+		return fmt.Errorf("%w: `%s` takes no target language", err, c.CommandPath())
+	case !takesSource && strings.HasPrefix(msg, "unknown flag: --source-lang"):
+		return fmt.Errorf("%w: `%s` takes no source language", err, c.CommandPath())
+	}
+	return err
 }

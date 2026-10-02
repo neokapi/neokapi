@@ -89,8 +89,6 @@ var ToolExamples = map[string]string{
   kapi exec qa app.xliff --target-lang de --json`,
 	"term-check": `  kapi exec term-check app.xliff --source-lang en --target-lang fr
   kapi exec term-check messages.json --source-lang en --target-lang fr`,
-	"voice-vocab-check": `  kapi exec voice-vocab-check docs/index.md
-  kapi exec voice-vocab-check messages.json --source-lang en`,
 
 	// ── Translation ─────────────────────────────────────────────────────
 	"pseudo-translate": `  kapi pseudo-translate messages.json -o messages.pseudo.json
@@ -102,8 +100,8 @@ var ToolExamples = map[string]string{
   kapi exec recycle messages.json --target-lang de`,
 
 	// ── Text Processing ─────────────────────────────────────────────────
-	"search-replace": `  kapi exec search-replace messages.json --find "foo" --replace "bar"
-  kapi exec search-replace page.html --find "colour" --replace "color"`,
+	// search-replace carries no example: it takes its pairs from a flow step's
+	// `pairs:` config, and no flag sets them.
 	"case-transform": `  kapi exec case-transform messages.json --mode upper
   kapi exec case-transform messages.json --mode lower`,
 	"segmentation": `  kapi exec segmentation messages.json
@@ -112,8 +110,8 @@ var ToolExamples = map[string]string{
 	// ── AI Quality ───────────────────────────────────────────────────────
 	"review": `  kapi exec review app.xliff --target-lang fr
   kapi exec review messages.json --target-lang de`,
-	"voice-check": `  kapi exec voice-check messages.json --target-lang fr
-  kapi exec voice-check app.xliff --target-lang de`,
+	"voice-check": `  kapi exec voice-check messages.json
+  kapi exec voice-check page.html --provider anthropic`,
 
 	// ── AI Analysis ───────────────────────────────────────────────────────
 	"term-extract": `  kapi exec term-extract messages.json
