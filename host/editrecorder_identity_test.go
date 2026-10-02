@@ -86,9 +86,10 @@ func blockWithText(t *testing.T, blocks []*model.Block, text string) *model.Bloc
 // TestRecordedIdentityReattachesHistoryAfterASiblingInsertion: a read keeps
 // the keys the format reports, and a positional name moves when a paragraph
 // is inserted above it. The identity evidence every record carries is what a
-// later pass re-attaches history with: reconciling the new read against the
-// block history's priors finds the edited paragraph under the key it was
-// recorded with.
+// later pass re-attaches history with: reconciling the whole new read against
+// the block history's priors finds each recorded paragraph under the key it
+// was recorded with, among siblings whose positions all moved, and reports the
+// inserted paragraph as new.
 func TestRecordedIdentityReattachesHistoryAfterASiblingInsertion(t *testing.T) {
 	const edited = "The edited paragraph."
 	tests := []struct {
@@ -111,25 +112,40 @@ func TestRecordedIdentityReattachesHistoryAfterASiblingInsertion(t *testing.T) {
 			a, root, rec := recorderProject(t)
 			a.FormatReg = appWithFormats().FormatReg
 			ctx := t.Context()
-			target := blockWithText(t, readBytes(t, a, tc.format, tc.doc, tc.before(t)), edited)
+			read := readBytes(t, a, tc.format, tc.doc, tc.before(t))
+			first, target := blockWithText(t, read, "First paragraph."), blockWithText(t, read, edited)
 			en, _ := model.ParseEditionKey("en")
+			// The record names every paragraph of the document: the one an
+			// agent rewrote, and the one it first wrote.
 			_, err := rec.Record(ctx, change.Record{
 				Actor: change.Actor{Kind: change.ActorAgent, Name: "claude"}, Origin: "apply",
 				Docs: []change.DocResult{{Doc: tc.doc, Home: "file", Written: true}},
-				Transitions: []change.Transition{{
-					Ref:       change.Ref{Doc: tc.doc, Block: target.ID},
-					Role:      change.RoleAuthoritative,
-					Before:    textRuns("The old paragraph."),
-					After:     target.Source,
-					BeforeRev: model.RunsRevision(en, textRuns("The old paragraph.")),
-					AfterRev:  model.RunsRevision(en, target.Source),
-					Block:     target,
-				}},
+				Transitions: []change.Transition{
+					{
+						Ref:       change.Ref{Doc: tc.doc, Block: first.ID},
+						Role:      change.RoleAuthoritative,
+						After:     first.Source,
+						BeforeRev: model.AbsentRevision,
+						AfterRev:  model.RunsRevision(en, first.Source),
+						Block:     first,
+					},
+					{
+						Ref:       change.Ref{Doc: tc.doc, Block: target.ID},
+						Role:      change.RoleAuthoritative,
+						Before:    textRuns("The old paragraph."),
+						After:     target.Source,
+						BeforeRev: model.RunsRevision(en, textRuns("The old paragraph.")),
+						AfterRev:  model.RunsRevision(en, target.Source),
+						Block:     target,
+					},
+				},
 			})
 			require.NoError(t, err)
 
-			moved := blockWithText(t, readBytes(t, a, tc.format, tc.doc, tc.after(t)), edited)
-			require.NotEqual(t, target.ID, moved.ID, "the format names the paragraph by its position")
+			after := readBytes(t, a, tc.format, tc.doc, tc.after(t))
+			inserted := blockWithText(t, after, "Inserted above.")
+			require.NotEqual(t, target.ID, blockWithText(t, after, edited).ID, "the format names the paragraph by its position")
+			require.NotEqual(t, first.ID, blockWithText(t, after, "First paragraph.").ID)
 
 			docs, err := a.DocumentIndex(ctx, root)
 			require.NoError(t, err)
@@ -138,10 +154,20 @@ func TestRecordedIdentityReattachesHistoryAfterASiblingInsertion(t *testing.T) {
 			require.NoError(t, err)
 			priors, err := db.History().Priors(ctx, key)
 			require.NoError(t, err)
-			require.NotEmpty(t, priors)
-			results := reconcile.Blocks(key, []*model.Block{moved}, priors)
-			assert.Equal(t, target.ID, results[0].Key, "history re-attaches to the paragraph it was recorded against")
-			assert.NotEqual(t, reconcile.New, results[0].Kind)
+			require.Len(t, priors, 2)
+			results := reconcile.Blocks(key, after, priors)
+			require.Len(t, results, len(after))
+			got := map[string]reconcile.Result{}
+			for i, b := range after {
+				got[b.SourceText()] = results[i]
+			}
+			assert.Equal(t, target.ID, got[edited].Key, "the rewritten paragraph re-attaches to the key it was recorded against")
+			assert.NotEqual(t, reconcile.New, got[edited].Kind)
+			assert.Equal(t, first.ID, got["First paragraph."].Key, "and so does its sibling")
+			assert.NotEqual(t, reconcile.New, got["First paragraph."].Kind)
+			assert.Equal(t, reconcile.New, got[inserted.SourceText()].Kind, "the inserted paragraph is new")
+			assert.NotContains(t, []string{first.ID, target.ID}, got[inserted.SourceText()].Key,
+				"the inserted paragraph takes neither recorded key")
 		})
 	}
 }
