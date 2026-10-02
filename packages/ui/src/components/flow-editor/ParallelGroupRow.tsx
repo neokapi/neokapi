@@ -5,7 +5,8 @@
 // group as invalid, with the refusal the runtime gives, and offers to list its
 // tools as ordered steps in its place. Until then the group's branches stay
 // readable and can be configured or removed, and the group as a whole moves
-// and is removed like any other step.
+// and is removed like any other step. Removing its last branch removes the
+// group, which then holds nothing to run or to list in order.
 
 import {
   AlertCircle,
@@ -16,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
+import { cn } from "../../lib/utils";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -61,21 +63,28 @@ export function ParallelGroupRow({
   const refusal = parallelStepError(step, index);
 
   const setBranches = (next: FlowStep[]) => onChange?.({ ...step, parallel: next });
-  const removeBranch = (bi: number) => setBranches(branches.filter((_, j) => j !== bi));
+  const removeBranch = (bi: number) => {
+    const next = branches.filter((_, j) => j !== bi);
+    if (next.length === 0) onRemove?.();
+    else setBranches(next);
+  };
   const setBranchConfig = (bi: number, config: Record<string, unknown>) =>
     setBranches(branches.map((b, j) => (j === bi ? { ...b, config } : b)));
 
   return (
     <li
-      className="rounded-lg border border-dashed border-destructive/60"
+      className={cn(
+        "rounded-lg border border-dashed",
+        refusal ? "border-destructive/60" : "border-border",
+      )}
       data-testid="parallel-group"
-      data-invalid="true"
+      data-invalid={refusal ? "true" : undefined}
     >
       <div className="flex items-start gap-2 p-2">
         <span className="mt-1 text-muted-foreground/50" aria-hidden="true">
           <GripVertical className="size-4" />
         </span>
-        <AlertCircle className="mt-1 size-4 shrink-0 text-destructive" />
+        {refusal && <AlertCircle className="mt-1 size-4 shrink-0 text-destructive" />}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-foreground">

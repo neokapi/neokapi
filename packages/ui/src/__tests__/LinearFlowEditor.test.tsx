@@ -213,6 +213,26 @@ describe("LinearFlowEditor and parallel groups", () => {
     });
   });
 
+  it("removes the group with its last branch", async () => {
+    const { onChange } = renderEditor({
+      flow: { steps: [{ tool: "recycle" }, { tool: "", parallel: [{ tool: "qa" }] }] },
+    });
+    const rows = within(screen.getByTestId("parallel-branches")).getAllByTestId("step-row");
+    await userEvent.click(within(rows[0]).getByLabelText(/^Remove /));
+    expect(onChange).toHaveBeenCalledWith({ steps: [{ tool: "recycle" }] });
+  });
+
+  it("draws a loaded empty group as the runtime treats it, with no refusal", () => {
+    renderEditor({
+      flow: { steps: [{ tool: "recycle" }, { tool: "", parallel: [] }] },
+      onRun: vi.fn(),
+    });
+    const group = screen.getByTestId("parallel-group");
+    expect(group.getAttribute("data-invalid")).toBeNull();
+    expect(within(group).queryByRole("alert")).toBeNull();
+    expect(within(group).getByLabelText("Remove parallel group")).toBeTruthy();
+  });
+
   it("removes the whole group", async () => {
     const { onChange } = renderEditor({ flow: grouped });
     await userEvent.click(screen.getByLabelText("Remove parallel group"));
