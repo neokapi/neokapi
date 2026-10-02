@@ -144,3 +144,18 @@ func TestInspectAddressesTheBlocksApplyWrites(t *testing.T) {
 		})
 	}
 }
+
+// The streamed form spells a record the way the array form does: a
+// placeholder token keeps its angle brackets rather than encoding/json's
+// HTML-safe escapes for '<', '>' and '&'.
+func TestInspectJSONLKeepsAngleBracketsReadable(t *testing.T) {
+	app := newToolboxApp(t)
+	path := filepath.Join(t.TempDir(), "page.html")
+	require.NoError(t, os.WriteFile(path, []byte(pricingPage), 0o600))
+
+	out, _ := inspectRecords(t, app, path)
+
+	assert.Contains(t, out, `<x id=\"1\"/>terms of service<x id=\"/1\"/>`)
+	assert.NotContains(t, out, `\`+"u003c")
+	assert.NotContains(t, out, `\`+"u0026")
+}

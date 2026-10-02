@@ -26,6 +26,9 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 
 	streaming := outFormat == "jsonl"
 	enc := json.NewEncoder(cmd.OutOrStdout())
+	// The same spelling as the array form (structrec.MarshalJSONArray): the
+	// <x id="…"/> tokens in a record's text stay readable.
+	enc.SetEscapeHTML(false)
 	var recs []structrec.Record // accumulated for the array (json/yaml) forms
 	n := 0
 
