@@ -253,7 +253,9 @@ func (r *recordRedaction) apply(ctx context.Context, edits []projector.Edit) err
 		if len(*runs) == 0 {
 			return
 		}
-		blocks = append(blocks, &model.Block{ID: id, Translatable: true, Source: slices.Clone(*runs)})
+		b := &model.Block{ID: id, Translatable: true}
+		b.SetSourceRuns(slices.Clone(*runs))
+		blocks = append(blocks, b)
 		sinks = append(sinks, runs)
 	}
 	notes := make([][]model.Run, len(edits))
@@ -277,7 +279,8 @@ func (r *recordRedaction) apply(ctx context.Context, edits []projector.Edit) err
 		return err
 	}
 	for i, b := range blocks {
-		*sinks[i] = b.Source
+		src, _ := b.Edition(model.EditionKey{})
+		*sinks[i] = src.Runs
 	}
 	for i := range edits {
 		if notes[i] != nil {
