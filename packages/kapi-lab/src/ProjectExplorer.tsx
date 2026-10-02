@@ -44,7 +44,7 @@ export const FLOWS: FlowDef[] = [
   },
   {
     id: "translate-exact",
-    label: "translate-exact: content-memory leverage (100% only)",
+    label: "translate-exact: exact content-memory matches only",
     yaml: `  translate-exact:
     steps:
       - tool: recycle
