@@ -190,6 +190,9 @@ func (b *BaseTool) Process(ctx context.Context, in <-chan *model.Part, out chan<
 			if err != nil {
 				return err
 			}
+			if result == nil {
+				continue
+			}
 			select {
 			case out <- result:
 			case <-ctx.Done():

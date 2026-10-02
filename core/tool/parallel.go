@@ -1,7 +1,6 @@
 package tool
 
 import (
-	"container/heap"
 	"context"
 	"fmt"
 	"runtime/debug"
@@ -65,162 +64,147 @@ type sequencedPart struct {
 	err  error
 }
 
-// orderedBuffer is a min-heap that emits parts in sequence order.
-type orderedBuffer []sequencedPart
-
-func (h orderedBuffer) Len() int           { return len(h) }
-func (h orderedBuffer) Less(i, j int) bool { return h[i].seq < h[j].seq }
-func (h orderedBuffer) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-func (h *orderedBuffer) Push(x any)        { *h = append(*h, x.(sequencedPart)) }
-func (h *orderedBuffer) Pop() any {
-	old := *h
-	n := len(old)
-	item := old[n-1]
-	*h = old[:n-1]
-	return item
+// orderedPart is one slot in the bounded reassembly window. A nil part with
+// ready set represents a dropped part and still advances the sequence.
+type orderedPart struct {
+	part  *model.Part
+	ready bool
 }
 
-// Process fans out Block parts to worker goroutines while preserving order.
-// Non-Block parts are processed by the inner tool's Process method directly.
+// Process runs independent block handlers on a fixed worker pool. The number
+// of parts admitted but not yet emitted is bounded by concurrency, including
+// completed results waiting behind a slower block. Downstream backpressure
+// therefore reaches the input even when workers finish out of order.
 //
-// The algorithm:
-//  1. Assign monotonic sequence numbers to all incoming Parts.
-//  2. Block Parts go to a worker pool; non-Block Parts go directly to a results channel.
-//  3. A reassembly goroutine collects results and emits them in sequence order
-//     using a min-heap buffer.
+// Non-block handlers run between groups of completed block handlers, so layer
+// and group state can be updated safely. Block handlers must be safe to call
+// concurrently for distinct blocks and must honor their view's context.
+// Process joins every worker before returning, including on error.
 func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
-	// If concurrency is 1 or the inner tool isn't a BaseTool with a per-block
-	// handler, fall back to the inner tool's sequential processing.
 	baseTool, isBase := p.inner.(*BaseTool)
 	if p.concurrency <= 1 || !isBase || !baseTool.hasBlockHandler() {
 		return p.inner.Process(ctx, in, out)
 	}
-	// The fan-out path routes blocks through handleBlock directly (bypassing
-	// the inner tool's Process), so enforce the exactly-one-handler contract
-	// here the same way Process does.
 	if err := baseTool.ValidateHandlers(); err != nil {
 		return err
 	}
 
-	// Own a cancellable child context so that any early return (worker error
-	// or downstream cancel) unblocks the dispatcher and in-flight workers
-	// parked on the results channel, instead of leaking them until some
-	// external cancel arrives.
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	jobs := make(chan sequencedPart)
+	results := make(chan sequencedPart, p.concurrency)
+	window := make(chan struct{}, p.concurrency)
+	done := make(chan struct{})
+	defer func() {
+		cancel()
+		<-done
+	}()
 
-	// results channel carries sequenced parts from workers and passthrough.
-	results := make(chan sequencedPart, p.concurrency*2)
+	var workers sync.WaitGroup
+	var active sync.WaitGroup
+	for range p.concurrency {
+		workers.Go(func() {
+			for job := range jobs {
+				if ctx.Err() == nil {
+					job.part, job.err = recoverHandle(p.inner.Name(), func() (*model.Part, error) {
+						return baseTool.handleBlock(ctx, job.part)
+					})
+					select {
+					case results <- job:
+					case <-ctx.Done():
+					}
+				}
+				active.Done()
+			}
+		})
+	}
 
-	// Worker semaphore for block processing.
-	sem := make(chan struct{}, p.concurrency)
-
-	var wg sync.WaitGroup
-	var seq uint64
-	var dispatchErr error
-
-	// Dispatcher goroutine: reads input, dispatches blocks to workers.
 	go func() {
 		defer func() {
-			// Wait for all workers to complete before closing results.
-			wg.Wait()
+			close(jobs)
+			workers.Wait()
 			close(results)
+			close(done)
 		}()
 
-		for {
+		for seq := uint64(0); ; seq++ {
+			// Keep this permit until ordered emission, rather than releasing it
+			// when a worker finishes. Acquire before reading to bound lookahead.
+			select {
+			case window <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
+			var part *model.Part
 			select {
 			case <-ctx.Done():
-				dispatchErr = ctx.Err()
 				return
-			case part, ok := <-in:
+			case next, ok := <-in:
 				if !ok {
 					return
 				}
-				currentSeq := seq
-				seq++
+				part = next
+			}
 
-				if part.Type == model.PartBlock {
-					// Acquire semaphore slot (backpressure).
-					select {
-					case sem <- struct{}{}:
-					case <-ctx.Done():
-						dispatchErr = ctx.Err()
-						return
-					}
-
-					wg.Go(func() {
-						defer func() { <-sem }() // release slot
-						// Route through the dispatcher so the tool's typed
-						// handler (and the immutability backstop) applies; each
-						// worker handles a distinct block, so no shared state.
-						result, err := recoverHandle(p.inner.Name(), func() (*model.Part, error) {
-							return baseTool.handleBlock(ctx, part)
-						})
-						select {
-						case results <- sequencedPart{seq: currentSeq, part: result, err: err}:
-						case <-ctx.Done():
-						}
-					})
-				} else {
-					// Non-Block: dispatch to inner tool's handler, then send result.
-					result, err := recoverHandle(p.inner.Name(), func() (*model.Part, error) {
-						return baseTool.dispatch(ctx, part)
-					})
-					select {
-					case results <- sequencedPart{seq: currentSeq, part: result, err: err}:
-					case <-ctx.Done():
-						dispatchErr = ctx.Err()
-						return
-					}
+			if part.Type == model.PartBlock {
+				active.Add(1)
+				select {
+				case jobs <- sequencedPart{seq: seq, part: part}:
+				case <-ctx.Done():
+					active.Done()
+					return
 				}
+				continue
+			}
+
+			// Structural handlers may change state read by block handlers.
+			// Finish the preceding group before invoking the next handler.
+			active.Wait()
+			if ctx.Err() != nil {
+				return
+			}
+			result, err := recoverHandle(p.inner.Name(), func() (*model.Part, error) {
+				return baseTool.dispatch(ctx, part)
+			})
+			select {
+			case results <- sequencedPart{seq: seq, part: result, err: err}:
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
 
-	// Reassembly: collect results and emit in order.
-	var buf orderedBuffer
-	heap.Init(&buf)
+	// An admitted part owns its slot until emission, so modulo indexing
+	// cannot overwrite another pending result. Clear emitted slots promptly
+	// to avoid retaining their blocks while upstream is idle.
+	pending := make([]orderedPart, p.concurrency)
 	var nextSeq uint64
-
-	for sp := range results {
-		if sp.err != nil {
-			return sp.err
-		}
-
-		heap.Push(&buf, sp)
-
-		// Emit all consecutive parts starting from nextSeq.
-		for buf.Len() > 0 && buf[0].seq == nextSeq {
-			item, ok := heap.Pop(&buf).(sequencedPart)
-			if !ok {
-				continue
-			}
-			select {
-			case out <- item.part:
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-			nextSeq++
-		}
-	}
-
-	// Drain any remaining items (shouldn't happen if everything is correct).
-	for buf.Len() > 0 {
-		item, ok := heap.Pop(&buf).(sequencedPart)
-		if !ok {
-			continue
-		}
-		if item.err != nil {
-			return item.err
-		}
+	for {
 		select {
-		case out <- item.part:
 		case <-ctx.Done():
 			return ctx.Err()
+		case result, ok := <-results:
+			if !ok {
+				return ctx.Err()
+			}
+			if result.err != nil {
+				return result.err
+			}
+			pending[result.seq%uint64(len(pending))] = orderedPart{part: result.part, ready: true}
+			for pending[nextSeq%uint64(len(pending))].ready {
+				slot := &pending[nextSeq%uint64(len(pending))]
+				if slot.part != nil {
+					select {
+					case out <- slot.part:
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+				}
+				*slot = orderedPart{}
+				nextSeq++
+				<-window
+			}
 		}
 	}
-
-	return dispatchErr
 }
 
 // SessionProcess hands the session to the inner tool.
