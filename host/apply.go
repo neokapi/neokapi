@@ -165,8 +165,10 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 	if err != nil {
 		return err
 	}
-	if err := validateContentWording(entries); err != nil {
-		return err
+	if err := validateChangeSet(entries); err != nil {
+		// A change-set that contradicts itself is a malformed invocation, and
+		// nothing has been written.
+		return WithExitCode(ExitUsage, err)
 	}
 	// The command line stamps whoever the environment names: a person, or the
 	// agent session an agent host's shell carries.
@@ -185,9 +187,6 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 	for _, e := range entries {
 		switch e.Kind {
 		case kindContent:
-			if e.File == "" {
-				return fmt.Errorf("apply: content entry for block %q has no \"file\"", e.ID)
-			}
 			if _, seen := byFile[e.File]; !seen {
 				fileOrder = append(fileOrder, e.File)
 			}
@@ -294,11 +293,38 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 	return nil
 }
 
-// Validate wording fields before either surface starts applying the change-set.
-func validateContentWording(entries []changeEntry) error {
+// validateChangeSet refuses a change-set whose content or comment entries are
+// malformed or contradict each other, before either surface applies any of it.
+// A content entry names its file and its block, by id or, without one, by
+// content_hash: an entry naming no block would match nothing and change
+// nothing. Two content entries for one block that ask for different things
+// would leave only one of them applied, so they are refused too; two identical
+// entries are one edit.
+func validateChangeSet(entries []changeEntry) error {
+	type blockRef struct{ file, field, value string }
+	firstFor := map[blockRef]int{}
 	for i, e := range entries {
-		if e.Kind == kindContent && e.Replacement != "" {
-			return fmt.Errorf("content entry %d for block %q: put the new wording in \"text\"; \"replacement\" belongs to term entries", i+1, e.ID)
+		if e.Kind == kindContent {
+			switch {
+			case e.Replacement != "":
+				return fmt.Errorf("content entry %d for block %q: put the new wording in \"text\"; \"replacement\" belongs to term entries", i+1, e.ID)
+			case e.File == "":
+				return fmt.Errorf("content entry %d for block %q has no \"file\"", i+1, e.ID)
+			case e.ID == "" && e.ContentHash == "":
+				return fmt.Errorf("content entry %d in %s names no block: give the block's \"id\" and \"content_hash\" as kapi inspect or extract_content prints them", i+1, e.File)
+			}
+			ref := blockRef{file: e.File, field: "id", value: e.ID}
+			if e.ID == "" {
+				ref = blockRef{file: e.File, field: "content_hash", value: e.ContentHash}
+			}
+			if j, seen := firstFor[ref]; seen {
+				if prev := entries[j]; prev.Text != e.Text || prev.ContentHash != e.ContentHash {
+					return fmt.Errorf("content entries %d and %d both edit the block with %s %q in %s, differently; send one entry per block", j+1, i+1, ref.field, ref.value, e.File)
+				}
+				continue
+			}
+			firstFor[ref] = i
+			continue
 		}
 		if e.Kind != kindComment {
 			continue

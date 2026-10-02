@@ -128,7 +128,7 @@ func (a *App) MCPEditFormat(explicitProject, path, format string) string {
 }
 
 func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
-	if err := validateContentWording(in.Changeset); err != nil {
+	if err := validateChangeSet(in.Changeset); err != nil {
 		return nil, applyEditsMCPOutput{}, err
 	}
 	var out applyOutput
@@ -150,9 +150,6 @@ func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in apply
 	for _, e := range in.Changeset {
 		switch e.Kind {
 		case kindContent:
-			if e.File == "" {
-				return nil, applyEditsMCPOutput{}, fmt.Errorf("content entry for block %q has no \"file\"", e.ID)
-			}
 			if _, seen := byFile[e.File]; !seen {
 				fileOrder = append(fileOrder, e.File)
 			}
