@@ -24,16 +24,16 @@ import (
 // document, and after that apply the decisions and asset operations, which
 // bind to the content that landed, and record the change.
 type Service struct {
-	formats  Formats
-	homes    Homes
-	check    CommitCheck
-	policy   Policy
-	recorder Recorder
-	assets   Assets
-	states   EditionStates
-	caps     Capabilities
-	origin   string
-	now      func() time.Time
+	formats   Formats
+	homes     Homes
+	check     CommitCheck
+	policy    Policy
+	recorder  Recorder
+	assets    Assets
+	states    EditionStates
+	describer Describer
+	origin    string
+	now       func() time.Time
 }
 
 // Option configures a Service.
@@ -59,9 +59,9 @@ func WithAssets(a Assets) Option { return func(s *Service) { s.assets = a } }
 // derived edition.
 func WithEditionStates(e EditionStates) Option { return func(s *Service) { s.states = e } }
 
-// WithCapabilities replaces DefaultCapabilities as what decides a format's
+// WithDescriber replaces DescribeFormat as what decides a format's
 // operations.
-func WithCapabilities(c Capabilities) Option { return func(s *Service) { s.caps = c } }
+func WithDescriber(d Describer) Option { return func(s *Service) { s.describer = d } }
 
 // WithOrigin names the surface that applies change sets through the service
 // (apply, desktop, flow:<name>, merge, pull), for the record.
@@ -73,12 +73,12 @@ func WithClock(now func() time.Time) Option { return func(s *Service) { s.now = 
 // NewService returns a service over homes. formats answers what the service
 // knows about a format, for Describe and for the operations a read lists.
 func NewService(formats Formats, homes Homes, opts ...Option) *Service {
-	s := &Service{formats: formats, homes: homes, caps: DefaultCapabilities, origin: "apply"}
+	s := &Service{formats: formats, homes: homes, describer: DescribeFormat, origin: "apply"}
 	for _, o := range opts {
 		o(s)
 	}
-	if s.caps == nil {
-		s.caps = DefaultCapabilities
+	if s.describer == nil {
+		s.describer = DescribeFormat
 	}
 	if s.now == nil {
 		s.now = func() time.Time { return time.Now().UTC() }

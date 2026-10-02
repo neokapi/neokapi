@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"slices"
+
+	"github.com/neokapi/neokapi/core/format"
 )
 
 // FormatFacts is what the service knows about a format: what the registry
@@ -22,6 +24,9 @@ type FormatFacts struct {
 	// InlineAnnotations are the annotation types the writer draws into the
 	// document.
 	InlineAnnotations []string
+	// Edit is what the format's writer declares it can write beyond what its
+	// reader read (registry.FormatInfo.EditCapabilities).
+	Edit format.EditCapabilities
 }
 
 // Formats answers what the service knows about a format, by name.
@@ -29,46 +34,10 @@ type Formats interface {
 	Facts(name string) (FormatFacts, bool)
 }
 
-// Description says what a format supports: which operations, and how. A nil
-// entry in Ops is an operation the format refuses with unsupported.
-type Description struct {
-	Format string `json:"format"`
-	// Editions is in-file for a format that holds every edition in one file
-	// and one-per-file for the others.
-	Editions Editions `json:"editions"`
-	// Ops is every operation of the contract that addresses a document's
-	// content, with what the format supports of it, or null.
-	Ops map[Kind]*OpCapability `json:"ops"`
-	// Native lists the format's own operations.
-	Native []NativeOp `json:"native"`
-}
-
-// OpCapability says how a format supports one operation. The fields that do
-// not apply to the operation are empty.
-type OpCapability struct {
-	// Forms are the content forms set_content takes: text, runs.
-	Forms []string `json:"forms,omitempty"`
-	// NewCodes are the code types a writer can synthesize, for set_content
-	// in runs form and for mark.
-	NewCodes []string `json:"new_codes,omitempty"`
-	// Attributes, for set_attribute, maps a code type to the attributes the
-	// writer can write.
-	Attributes map[string][]string `json:"attributes,omitempty"`
-	// Types, for mark, are the code types it can wrap text in; for annotate,
-	// the annotation types the writer draws into the document.
-	Types []string `json:"types,omitempty"`
-}
-
-// NativeOp is a format's own operation with the JSON Schema of its arguments.
-type NativeOp struct {
-	Name   string `json:"name"`
-	Schema []byte `json:"schema,omitempty"`
-}
-
-// Capabilities says what a format supports. It is the one function that
-// decides it: Describe reports it, Read lists each block's operations from it,
-// and Apply refuses an operation it leaves out.
-type Capabilities func(FormatFacts) Description
+// Describer says what a format supports. It is the one function that decides
+// it: Describe reports it, Read lists each block's operations from it, and
+// Apply refuses an operation it leaves out.
+type Describer func(FormatFacts) Description
 
 // contentKinds are the operations a format's capabilities decide, in the
 // order the contract lists them.
@@ -77,40 +46,51 @@ var contentKinds = []Kind{
 	KindAnnotate, KindUnannotate, KindInsertBlock, KindDeleteBlock,
 }
 
-// DefaultCapabilities describes what ApplyBlock does for any format kapi can
-// write back: set_content in either form, replace_text, and remove_edition
-// where the format holds editions in one file. A writer synthesizes no new
-// code, writes no attribute and holds no stand-off annotation here, so
-// set_attribute, mark, annotate, unannotate and the structural operations are
-// refused. A format kapi cannot write back supports nothing.
-func DefaultCapabilities(f FormatFacts) Description {
-	d := Description{Format: f.Name, Editions: EditionsPerFile, Ops: map[Kind]*OpCapability{}, Native: []NativeOp{}}
-	if f.Interchange {
-		d.Editions = EditionsInFile
-	}
-	for _, k := range contentKinds {
-		d.Ops[k] = nil
-	}
+// BaseOps are the operations a format's round trip carries without a writer
+// capability, for any format kapi can write back: set_content in either form,
+// replace_text, and remove_edition where the format holds editions in one
+// file. A format kapi cannot write back carries none.
+func BaseOps(f FormatFacts) []Kind {
 	if !f.Editable && !f.Interchange {
-		return d
+		return nil
 	}
-	d.Ops[KindSetContent] = &OpCapability{Forms: []string{"text", "runs"}, NewCodes: []string{}}
-	d.Ops[KindReplaceText] = &OpCapability{}
+	base := []Kind{KindSetContent, KindReplaceText}
 	if f.Interchange {
-		d.Ops[KindRemoveEdition] = &OpCapability{}
+		base = append(base, KindRemoveEdition)
 	}
-	return d
+	return base
+}
+
+// DescribeFormat describes what ApplyBlock does for a format: the operations
+// its round trip carries (BaseOps) and the ones its writer declares
+// (FormatFacts.Edit), through FormatOps. A writer that declares nothing
+// synthesizes no new code and writes no attribute, so set_attribute and mark
+// are refused; annotate, unannotate and the structural operations are refused
+// too.
+func DescribeFormat(f FormatFacts) Description {
+	editions := EditionsPerFile
+	if f.Interchange {
+		editions = EditionsInFile
+	}
+	return FormatOps(FormatDecl{
+		Format:            f.Name,
+		Editions:          editions,
+		Base:              BaseOps(f),
+		InlineAnnotations: f.InlineAnnotations,
+		Edit:              f.Edit,
+	})
 }
 
 // supports reports whether d supports op, and the refusal when it does not.
 func (d Description) supports(op Op) *Error {
-	if _, ok := d.Ops[op.Kind]; !ok {
+	content, ok := d.Ops.supports(op.Kind)
+	if !content {
 		// decide, provenance and the asset operations are not a format's to
 		// decide.
 		if op.Kind != KindNative {
 			return nil
 		}
-		if slices.ContainsFunc(d.Native, func(n NativeOp) bool {
+		if slices.ContainsFunc(d.Native, func(n format.NativeOp) bool {
 			body, _ := op.Body.(*Native)
 			return body != nil && n.Name == body.Name
 		}) {
@@ -119,7 +99,7 @@ func (d Description) supports(op Op) *Error {
 		return &Error{Code: CodeUnsupported, Capability: string(KindNative),
 			Message: fmt.Sprintf("the %s format has no native operations", d.Format)}
 	}
-	if d.Ops[op.Kind] == nil {
+	if !ok {
 		return &Error{Code: CodeUnsupported, Capability: string(op.Kind),
 			Message: fmt.Sprintf("the %s format does not support %s; describe the format to see what it supports", d.Format, op.Kind)}
 	}
@@ -134,7 +114,7 @@ func (d Description) blockOps(editable bool) []Kind {
 		return out
 	}
 	for _, k := range contentKinds {
-		if k == KindInsertBlock || d.Ops[k] == nil {
+		if _, ok := d.Ops.supports(k); k == KindInsertBlock || !ok {
 			continue
 		}
 		out = append(out, k)
@@ -167,14 +147,18 @@ func (s *Service) Describe(ctx context.Context, q DescribeRequest) (*Description
 		_ = sess.Close()
 		name = in.Format
 	}
+	if info != nil {
+		if _, ok := s.facts(name); !ok {
+			return nil, &Error{Code: CodeNotFound, Field: "format", Message: fmt.Sprintf("no format is named %q", name)}
+		}
+		d := s.describe(*info)
+		return &d, nil
+	}
 	facts, ok := s.facts(name)
 	if !ok {
 		return nil, &Error{Code: CodeNotFound, Field: "format", Message: fmt.Sprintf("no format is named %q", name)}
 	}
-	d := s.caps(facts)
-	if info != nil && info.Editions != "" {
-		d.Editions = info.Editions
-	}
+	d := s.describer(facts)
 	return &d, nil
 }
 
@@ -186,13 +170,17 @@ func (s *Service) facts(name string) (FormatFacts, bool) {
 	return s.formats.Facts(name)
 }
 
-// describe is the description of the format of an open document.
+// describe is the description of the format of an open document. What its
+// writer declares is what the home reports for the document
+// (DocInfo.Capabilities), the declaration ApplyBlock applies its operations
+// with, so a description never offers an operation the write would refuse.
 func (s *Service) describe(info DocInfo) Description {
 	facts, ok := s.facts(info.Format)
 	if !ok {
 		facts = FormatFacts{Name: info.Format}
 	}
-	d := s.caps(facts)
+	facts.Edit = info.Capabilities.Declared
+	d := s.describer(facts)
 	if info.Editions != "" {
 		d.Editions = info.Editions
 	}

@@ -352,6 +352,7 @@ func (p *docPlan) env(preview bool) BlockEnv {
 		RequireBasis: p.set.RequireBasis,
 		Preview:      preview,
 		Guards:       guards,
+		Format:       p.info.Capabilities,
 		Now:          p.svc.now,
 	}
 }

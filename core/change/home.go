@@ -46,19 +46,6 @@ type oneHome struct{ h Home }
 
 func (o oneHome) For(string) (Home, error) { return o.h, nil }
 
-// Editions says how a format holds a document's editions.
-type Editions string
-
-const (
-	// EditionsInFile: one file holds every edition, as a bilingual
-	// interchange file (PO, XLIFF, TMX, xcstrings) does.
-	EditionsInFile Editions = "in-file"
-	// EditionsPerFile: a file holds one edition, and each other edition of
-	// the document lives in a file of its own, as a project's target files
-	// do.
-	EditionsPerFile Editions = "one-per-file"
-)
-
 // DocInfo describes a document open in its home.
 type DocInfo struct {
 	// Doc is the document's canonical reference. A reference sent in another
@@ -80,6 +67,12 @@ type DocInfo struct {
 	// own and exist, so a change to the document's own edition can name them
 	// among the editions it leaves on an older basis.
 	Derived []model.EditionKey
+	// Capabilities is what the document's writer can write beyond what its
+	// reader read (WriterCapabilities, or DeclaredCapabilities for a writer
+	// outside the process). The service applies every operation on the
+	// document with it (BlockEnv.Format) and describes the document's format
+	// by its declaration. The zero value declares nothing.
+	Capabilities Capabilities
 }
 
 // Place is where an edition of a document lives.

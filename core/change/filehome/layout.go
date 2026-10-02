@@ -78,6 +78,46 @@ type Binding struct {
 	// NewWriter returns a writer configured for the document, its output
 	// encoding included, or an error when the format has no writer.
 	NewWriter func() (format.DataFormatWriter, error)
+	// Declared, when set, is what a writer outside this process declares it
+	// can write (a plugin format's manifest): the change service applies
+	// set_attribute, mark and new codes where it declares them, and the
+	// plugin's writer spells them when it writes. Nil probes the writer
+	// NewWriter returns, which then spells them itself.
+	Declared *format.EditCapabilities
+}
+
+// Capabilities is what the binding's writer can write beyond what its reader
+// read, as the change service applies operations with it: the declaration of
+// a writer outside the process (Declared), or what the writer NewWriter
+// returns declares, with that writer spelling it. A binding with no writer
+// declares nothing.
+func (b Binding) Capabilities() change.Capabilities {
+	if b.Declared != nil {
+		return change.DeclaredCapabilities(b.Name, *b.Declared)
+	}
+	if b.NewWriter == nil {
+		return change.Capabilities{Format: b.Name}
+	}
+	w, err := b.NewWriter()
+	if err != nil || w == nil {
+		return change.Capabilities{Format: b.Name}
+	}
+	return change.WriterCapabilities(b.Name, w)
+}
+
+// PluginDeclared returns what reg records a plugin format's writer declares,
+// for Binding.Declared, or nil for a built-in format, whose writer is probed
+// in process.
+func PluginDeclared(reg *registry.FormatRegistry, name string) *format.EditCapabilities {
+	if reg == nil {
+		return nil
+	}
+	info := reg.FormatInfo(registry.FormatID(name))
+	if info == nil || info.Source == "" || info.Source == registry.SourceBuiltIn {
+		return nil
+	}
+	declared := info.EditCapabilities.Clone()
+	return &declared
 }
 
 // RegistryBinding binds format name to its reader and writer in reg, with the
@@ -87,6 +127,7 @@ func RegistryBinding(reg *registry.FormatRegistry, name, encoding string) Bindin
 	id := registry.FormatID(name)
 	return Binding{
 		Name:      name,
+		Declared:  PluginDeclared(reg, name),
 		NewReader: func() (format.DataFormatReader, error) { return reg.NewReader(id) },
 		NewWriter: func() (format.DataFormatWriter, error) {
 			w, err := reg.NewWriter(id)
@@ -249,5 +290,6 @@ func (f Formats) Facts(name string) (change.FormatFacts, bool) {
 		Interchange:       info.Interchange,
 		RoundTrip:         info.RoundTrip,
 		InlineAnnotations: info.InlineAnnotations,
+		Edit:              info.EditCapabilities,
 	}, true
 }

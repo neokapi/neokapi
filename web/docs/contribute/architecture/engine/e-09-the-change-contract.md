@@ -123,12 +123,16 @@ note describes each rule.
   time, since that pass is the one that lands. It then commits each document
   and, with the locks still held, applies the decisions and asset operations,
   which bind to the content that landed, and records the change.
-- **`Describe`** says what a format supports. `DefaultCapabilities` reports
-  what `ApplyBlock` does for a format kapi can write back (`set_content` in
+- **`Describe`** says what a format supports. `DescribeFormat` hands
+  `FormatOps` the operations the format's round trip carries (`set_content` in
   either form, `replace_text`, and `remove_edition` where the format holds its
-  editions in one file). `WithCapabilities` replaces it with a table, and that
-  one function is what `Describe` reports, what a read lists per block, and what
-  `Apply` refuses outside of.
+  editions in one file) and what its writer declares
+  ([E-02](e-02-format-system.md#edits-a-writer-can-write)). For a document the
+  declaration is the one its home reports for the document's writer
+  (`DocInfo.Capabilities`), which `ApplyBlock` applies every operation with.
+  `WithDescriber` replaces `DescribeFormat`, and that one function is what
+  `Describe` reports, what a read lists per block, and what `Apply` refuses
+  outside of.
 
 A document's edition lives in the document (its own edition, or one a bilingual
 file holds), in a file of its own (a project's target file), or nowhere (a
@@ -182,7 +186,11 @@ An edition kept in a file of its own is written through that file's skeleton,
 and an edit that needs a block the file does not hold is refused, so the file
 is never rewritten from the document; a file that does not exist yet is
 written from the document's skeleton. Where the reader and the writer both
-stream, the document is never held whole. The implementation note
+stream, the document is never held whole. The home reports what the
+document's writer declares: an in-process writer's declaration, with the writer
+spelling a changed attribute or a new code itself
+(`change.WriterCapabilities`), or a plugin format's manifest declaration,
+whose writer spells them when it writes (`change.DeclaredCapabilities`). The implementation note
 [The file home](../../implementation/engine/file-home.md) has the details.
 
 ### Hooks
@@ -209,8 +217,12 @@ of its source, joined by key, then by translation-invariant address, then by
 position, and a translation with no file yet is written from the source's
 skeleton. Decisions and asset operations land through the functions the review
 queue and `kapi apply` use, a decision bound to the wording the change set
-landed rather than to a later read of the file. The commit check, the policy
-and the recorder each plug in at one function of the host.
+landed rather than to a later read of the file. The hooks each plug in at one
+function of the host: the commit check is `App.CommitCheck`, which holds a
+service outside a project to hygiene alone; the policy is `ChangePolicy`; the
+recorder is `App.EditRecorder`, inside a project; and a read takes a derived
+edition's basis from the project's block history, where the most recent
+recorded change to the edition left the content it holds.
 
 ### Results and errors
 

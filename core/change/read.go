@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -254,11 +255,23 @@ func (s *Service) readBlock(ctx context.Context, info DocInfo, desc Description,
 // the structures rather than here.
 func codesOf(runs []model.Run, desc Description) map[string]CodeRead {
 	out := map[string]CodeRead{}
-	writable := func(typ string) []string {
-		if c := desc.Ops[KindSetAttribute]; c != nil {
-			return c.Attributes[typ]
+	declared := format.EditCapabilities{WritableAttrs: desc.Ops.SetAttribute}
+	// writable lists the attributes set_attribute may change on a code: what
+	// the format declares for its type, and, where it declares every
+	// attribute (format.AnyAttr), each one the code holds.
+	writable := func(typ string, attrs map[string]string) []string {
+		w := declared.Writable(typ)
+		if !slices.Contains(w, format.AnyAttr) {
+			return w
 		}
-		return nil
+		w = slices.DeleteFunc(w, func(n string) bool { return n == format.AnyAttr })
+		for n := range attrs {
+			if !slices.Contains(w, n) {
+				w = append(w, n)
+			}
+		}
+		slices.Sort(w)
+		return w
 	}
 	var walk func([]model.Run)
 	walk = func(rs []model.Run) {
@@ -266,9 +279,9 @@ func codesOf(runs []model.Run, desc Description) map[string]CodeRead {
 			switch {
 			case r.Text != nil, r.PcClose != nil:
 			case r.PcOpen != nil:
-				out[r.PcOpen.ID] = CodeRead{Kind: "paired", Type: r.PcOpen.Type, Attrs: r.PcOpen.Attrs, Writable: writable(r.PcOpen.Type)}
+				out[r.PcOpen.ID] = CodeRead{Kind: "paired", Type: r.PcOpen.Type, Attrs: r.PcOpen.Attrs, Writable: writable(r.PcOpen.Type, r.PcOpen.Attrs)}
 			case r.Ph != nil:
-				out[r.Ph.ID+"/"] = CodeRead{Kind: "placeholder", Type: r.Ph.Type, Attrs: r.Ph.Attrs, Writable: writable(r.Ph.Type)}
+				out[r.Ph.ID+"/"] = CodeRead{Kind: "placeholder", Type: r.Ph.Type, Attrs: r.Ph.Attrs, Writable: writable(r.Ph.Type, r.Ph.Attrs)}
 			case r.Sub != nil:
 				out["sub:"+r.Sub.ID] = CodeRead{Kind: "subblock", Attrs: map[string]string{"ref": r.Sub.Ref}}
 			case r.Plural != nil:

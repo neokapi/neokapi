@@ -2,6 +2,7 @@ package change_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -409,6 +410,27 @@ func TestService_CommitCheck(t *testing.T) {
 		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 	})
 
+	t.Run("a removed edition reaches the check with nothing after it", func(t *testing.T) {
+		h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "Please utilize the form", "nb", "Vennligst bruk skjemaet")}})
+		check := &wordCheck{word: "utilize"}
+		svc := newMemService(h, change.WithCommitCheck(check))
+		b := readBlock(t, svc, "a", "one")
+		nb := b.Editions["nb"]
+		res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{
+			{Kind: change.KindRemoveEdition, At: atEdition(b.Ref, "nb"), IfMatch: nb.Rev, Body: &change.RemoveEdition{}},
+		}}, svcPerson)
+		require.NoError(t, err)
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+		require.Len(t, check.seen, 1)
+		require.Len(t, check.seen[0], 1)
+		removed := check.seen[0][0]
+		assert.Equal(t, change.RoleDerived, removed.Role)
+		assert.Equal(t, nb.Rev, removed.BeforeRev)
+		assert.Equal(t, model.AbsentRevision, removed.AfterRev, "a removed edition is absent after the change")
+		assert.Nil(t, removed.After)
+		assert.Equal(t, "Vennligst bruk skjemaet", model.RunsText(removed.Before))
+	})
+
 	t.Run("a person's report gate lands the edit and records the override", func(t *testing.T) {
 		h := newHome()
 		rec := &memRecorder{}
@@ -618,27 +640,28 @@ func TestService_Describe(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "memory", d.Format)
 	assert.Equal(t, change.EditionsInFile, d.Editions)
-	require.NotNil(t, d.Ops[change.KindSetContent])
-	assert.Equal(t, []string{"text", "runs"}, d.Ops[change.KindSetContent].Forms)
-	assert.NotNil(t, d.Ops[change.KindReplaceText])
-	assert.NotNil(t, d.Ops[change.KindRemoveEdition], "a format that holds editions in one file removes one")
-	assert.Nil(t, d.Ops[change.KindSetAttribute])
-	assert.Nil(t, d.Ops[change.KindMark])
-	assert.Contains(t, d.Ops, change.KindInsertBlock, "every operation is listed, null when refused")
+	require.NotNil(t, d.Ops.SetContent)
+	assert.Equal(t, []string{"text", "runs"}, d.Ops.SetContent.Forms)
+	assert.NotNil(t, d.Ops.ReplaceText)
+	assert.NotNil(t, d.Ops.RemoveEdition, "a format that holds editions in one file removes one")
+	assert.Nil(t, d.Ops.SetAttribute)
+	assert.Nil(t, d.Ops.Mark)
+	js, err := json.Marshal(d)
+	require.NoError(t, err)
+	assert.Contains(t, string(js), `"insert_block":null`, "every operation is listed, null when refused")
 
 	_, err = svc.Describe(ctx, change.DescribeRequest{Format: "nonesuch"})
 	var ce *change.Error
 	require.ErrorAs(t, err, &ce)
 	assert.Equal(t, change.CodeNotFound, ce.Code)
 
-	plugged := newMemService(newMemHome(nil), change.WithCapabilities(func(f change.FormatFacts) change.Description {
-		d := change.DefaultCapabilities(f)
-		d.Ops[change.KindSetAttribute] = &change.OpCapability{Attributes: map[string][]string{"link:hyperlink": {"href"}}}
-		return d
+	plugged := newMemService(newMemHome(nil), change.WithDescriber(func(f change.FormatFacts) change.Description {
+		f.Edit.WritableAttrs = map[string][]string{"link:hyperlink": {"href"}}
+		return change.DescribeFormat(f)
 	}))
 	d, err = plugged.Describe(ctx, change.DescribeRequest{Format: "memory"})
 	require.NoError(t, err)
-	require.NotNil(t, d.Ops[change.KindSetAttribute], "the capability table plugs in through one function")
+	assert.Equal(t, map[string][]string{"link:hyperlink": {"href"}}, d.Ops.SetAttribute, "the capability table plugs in through one function")
 }
 
 func TestService_ReadsShowEditionsAndStaleness(t *testing.T) {

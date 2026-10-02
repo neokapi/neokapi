@@ -104,12 +104,12 @@ func newCommitFixture(t *testing.T) commitFixture {
 // command is the command a change set arrives on, in the fixture's project.
 func (f commitFixture) command(t *testing.T) *EnvCommand {
 	t.Helper()
-	return projectCommand(t, f.recipe)
+	return commitCommand(t, f.recipe)
 }
 
-// projectCommand is the command a change set arrives on, in the project of
+// commitCommand is the command a change set arrives on, in the project of
 // recipe.
-func projectCommand(t *testing.T, recipe string) *EnvCommand {
+func commitCommand(t *testing.T, recipe string) *EnvCommand {
 	t.Helper()
 	cmd := NewEnvCommand(t.Context(), "apply")
 	AddProjectFlag(cmd)
@@ -518,7 +518,7 @@ func TestCommitCheck_ReadsEachProjectInItsOwnLanguage(t *testing.T) {
 		defer a.Shutdown()
 		proj, err := project.Load(recipe)
 		require.NoError(t, err)
-		current, err := newContextFingerprints(a, projectCommand(t, recipe), proj, filepath.Dir(recipe))
+		current, err := newContextFingerprints(a, commitCommand(t, recipe), proj, filepath.Dir(recipe))
 		require.NoError(t, err)
 		defer current.close()
 		g, err := current.at(a.GovernancePointFor("", "docs/guide.md"), source)
@@ -558,7 +558,7 @@ func TestCommitCheck_ReadsEachProjectInItsOwnLanguage(t *testing.T) {
 	}
 	for _, step := range steps {
 		t.Run(step.name, func(t *testing.T) {
-			outcomes, fingerprint, err := app.CommitCheck(projectCommand(t, step.recipe)).Check(t.Context(), []change.EditionChange{step.change(t)})
+			outcomes, fingerprint, err := app.CommitCheck(commitCommand(t, step.recipe)).Check(t.Context(), []change.EditionChange{step.change(t)})
 			require.NoError(t, err)
 			assert.Equal(t, []string{step.introduced}, rules(change.Introduced(outcomes[0])), "%+v", outcomes[0])
 			if step.source {
@@ -592,7 +592,7 @@ func TestCommitCheck_ChecksTwoProjectsAtOnce(t *testing.T) {
 	errs := make([]error, len(calls))
 	var wg sync.WaitGroup
 	for i, c := range calls {
-		cmd := projectCommand(t, c.recipe)
+		cmd := commitCommand(t, c.recipe)
 		wg.Go(func() {
 			outcomes, _, err := app.CommitCheck(cmd).Check(t.Context(), []change.EditionChange{c.change})
 			errs[i] = err
@@ -727,7 +727,7 @@ func TestCommitCheck_FingerprintsAnIgnoredFileAtTheDefaultPoint(t *testing.T) {
 	app := &App{}
 	app.InitRegistries()
 	t.Cleanup(app.Shutdown)
-	cmd := projectCommand(t, recipe)
+	cmd := commitCommand(t, recipe)
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	current, err := newContextFingerprints(app, cmd, proj, root)

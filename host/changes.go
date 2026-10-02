@@ -124,7 +124,7 @@ func (a *App) changeService(ctx context.Context, cmd Command, opts ChangeService
 		change.WithOrigin(origin),
 		change.WithAssets(&changeAssets{app: a, recipe: opts.Project}),
 	}
-	check, err := a.changeCommitCheck(cmd)
+	check, err := a.changeCommitCheck(cmd, opts.Project)
 	if err != nil {
 		return nil, err
 	}
@@ -144,6 +144,13 @@ func (a *App) changeService(ctx context.Context, cmd Command, opts ChangeService
 	}
 	if recorder != nil {
 		svcOpts = append(svcOpts, change.WithRecorder(recorder))
+	}
+	states, err := a.changeEditionStates(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+	if states != nil {
+		svcOpts = append(svcOpts, change.WithEditionStates(states))
 	}
 	return change.NewService(filehome.Formats{Registry: a.FormatReg}, change.OneHome(home), svcOpts...), nil
 }
@@ -170,7 +177,8 @@ func (a *App) formatBinding(name string, cfg map[string]any, enc string) filehom
 	registryName := ref.RegistryName()
 	id := registry.FormatID(registryName)
 	return filehome.Binding{
-		Name: registryName,
+		Name:     registryName,
+		Declared: filehome.PluginDeclared(a.FormatReg, registryName),
 		NewReader: func() (format.DataFormatReader, error) {
 			var r format.DataFormatReader
 			var err error

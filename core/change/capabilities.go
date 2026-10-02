@@ -57,13 +57,16 @@ func (c Capabilities) formatName() string {
 	return c.Format
 }
 
-// Editions says where a format keeps the editions of a block.
+// Editions says how a format holds a document's editions.
 type Editions string
 
 const (
-	// EditionsPerFile: one edition per file, the monolingual formats.
+	// EditionsPerFile: a file holds one edition, and each other edition of
+	// the document lives in a file of its own, as a project's target files
+	// do: the monolingual formats.
 	EditionsPerFile Editions = "one-per-file"
-	// EditionsInFile: every edition in one file (PO, XLIFF, TMX, xcstrings).
+	// EditionsInFile: one file holds every edition, as a bilingual
+	// interchange file (PO, XLIFF, TMX, xcstrings) does.
 	EditionsInFile Editions = "in-file"
 )
 
@@ -108,6 +111,32 @@ type OpTable struct {
 	Unannotate    *Supported          `json:"unannotate"`
 	InsertBlock   *Supported          `json:"insert_block"`
 	DeleteBlock   *Supported          `json:"delete_block"`
+}
+
+// supports reports whether k is an operation the table decides (content), and
+// whether the format supports it (ok).
+func (t OpTable) supports(k Kind) (content, ok bool) {
+	switch k {
+	case KindSetContent:
+		return true, t.SetContent != nil
+	case KindReplaceText:
+		return true, t.ReplaceText != nil
+	case KindSetAttribute:
+		return true, len(t.SetAttribute) > 0
+	case KindMark:
+		return true, t.Mark != nil
+	case KindRemoveEdition:
+		return true, t.RemoveEdition != nil
+	case KindAnnotate:
+		return true, t.Annotate != nil
+	case KindUnannotate:
+		return true, t.Unannotate != nil
+	case KindInsertBlock:
+		return true, t.InsertBlock != nil
+	case KindDeleteBlock:
+		return true, t.DeleteBlock != nil
+	}
+	return false, false
 }
 
 // Supported marks an operation a format supports with nothing to qualify it.

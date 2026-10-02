@@ -37,6 +37,9 @@ func (a *App) CommitCheck(cmd Command) change.CommitCheck {
 type commitCheck struct {
 	app *App
 	cmd Command
+	// outside says the check governs documents outside any project, whatever
+	// project cmd would resolve: hygiene alone, in the language cmd names.
+	outside bool
 }
 
 var _ change.CommitCheck = (*commitCheck)(nil)
@@ -57,7 +60,7 @@ var _ change.CommitCheck = (*commitCheck)(nil)
 func (c *commitCheck) Check(ctx context.Context, changes []change.EditionChange) ([]change.CheckOutcome, string, error) {
 	a := c.app
 	a.InitRegistries()
-	in, err := a.resolveCommitProject(c.cmd)
+	in, err := c.project()
 	if err != nil {
 		return nil, "", err
 	}
@@ -119,6 +122,15 @@ type commitProject struct {
 	root   string
 	proj   *project.KapiProject
 	source string
+}
+
+// project is the project the check governs: none for a check built outside
+// one, else the project its command names.
+func (c *commitCheck) project() (commitProject, error) {
+	if c.outside {
+		return commitProject{source: c.app.commitSourceLocale(c.cmd, nil)}, nil
+	}
+	return c.app.resolveCommitProject(c.cmd)
 }
 
 // resolveCommitProject resolves the project cmd names, loading its recipe

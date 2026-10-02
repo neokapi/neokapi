@@ -81,13 +81,14 @@ func (h *Home) Open(ctx context.Context, doc string) (change.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &session{h: h, doc: d}, nil
+	return &session{h: h, doc: d, caps: d.Format.Capabilities()}, nil
 }
 
 // session is one document open in the file home.
 type session struct {
 	h        *Home
 	doc      Doc
+	caps     change.Capabilities
 	keyJoins map[model.EditionKey]keyJoin
 }
 
@@ -99,6 +100,7 @@ func (s *session) Info() change.DocInfo {
 		Editions:     s.doc.Editions,
 		Edition:      s.doc.Edition,
 		Derived:      s.doc.Derived,
+		Capabilities: s.caps,
 	}
 }
 
