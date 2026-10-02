@@ -262,7 +262,8 @@ An entry also takes an optional `evidence` field. An asset entry (a term, a
 content-memory pair, a recipe field) is a decision about the project. Applying a
 term or a content-memory pair records one `edit` operation in that project's
 history, established from the start, and `evidence` says where the wording
-behind it was seen. An entry takes no actor: `apply_edits` records every entry
+behind it was seen: a file (`path`, `unit`, `quote`) or a web page (`url`).
+An entry takes no actor: `apply_edits` records every entry
 as the calling agent in the server's session, so the context policy refuses its
 term, content-memory and recipe entries, and `kapi apply` records the person or
 agent its environment names. See [Growing context](/kapi/context-decisions).

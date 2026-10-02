@@ -60,6 +60,7 @@ file, never editing a list.
 | [E-06](engine/e-06-execution-trust.md) | Execution trust | the exec class, per-project consent keyed to the approved argv |
 | [E-07](engine/e-07-model-providers.md) | Model and translation providers | the model provider interface, machine-translation backends, credentials |
 | [E-08](engine/e-08-document-structure-tiers.md) | Document structure tiers | tagged structure versus geometric reconstruction, the native and browser readers |
+| [E-09](engine/e-09-the-change-contract.md) | The change contract | the change set, revisions and preconditions, the change service, homes and the file home, the commit hooks |
 
 ## C: Context
 

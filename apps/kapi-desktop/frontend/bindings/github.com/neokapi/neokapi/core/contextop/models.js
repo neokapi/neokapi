@@ -125,6 +125,14 @@ export class Evidence {
              */
             this["quote"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * URL is a web page the subject was seen on.
+             * @member
+             * @type {string | undefined}
+             */
+            this["url"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

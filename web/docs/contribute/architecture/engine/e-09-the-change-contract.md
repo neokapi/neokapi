@@ -1,0 +1,265 @@
+---
+id: e-09-the-change-contract
+sidebar_position: 9
+title: "E-09: The change contract"
+description: "Every change to content, to a review decision or to a context asset is an operation in one change set, kapi.change/v1, applied by one service in core/change through the home that holds the document's text."
+keywords: [neokapi, architecture decision, core/change, change set, kapi.change/v1, if_match, edition revision, change service, file home, commit check]
+---
+
+# E-09: The change contract
+
+## Summary
+
+Content changes in one way. A caller describes the change as a **change set**
+(`kapi.change/v1`): an envelope of ordered operations, each addressed to one
+edition of one block of one document and each naming the revision of that
+edition its sender read. One service in the framework, `core/change`, applies
+it. The service reads each document through the **home** that holds its text,
+applies the operations in memory with `change.ApplyBlock`, checks what changed,
+and commits every document or none. A file in a working tree is one home; the
+file home commits by renaming a staged file onto the document under an advisory
+lock, and applies the change again when the file moved since it was read.
+
+The service lives below every surface. It imports `core/model` and
+`core/safeio` and nothing above them, so the CLI, the agent tools, Kapi Desktop
+and an application that embeds the engine all build the same service and differ
+only in the home and the hooks they give it.
+
+## Context
+
+A change to content has to answer the same questions wherever it comes from:
+which block it means, whether that block still says what the sender read,
+whether the result keeps the inline codes and structure the format needs, what
+the change does to the edition's status, and whether governance allows it. A
+document that changes in two places at once has to end with both changes or
+with a clear refusal, and never with one change silently replaced by the other.
+
+The engine reads documents into blocks whose editions hold runs
+([F-02](../foundations/f-02-content-model.md)) and writes them back through
+format writers that replay a skeleton ([E-02](e-02-format-system.md)). Tools in
+flows change blocks through their views ([E-03](e-03-tool-system.md)). The
+change contract puts both on one footing: a tool's write and a person's edit
+are the same operations, applied by the same function, under the same rules.
+
+## Decision
+
+### The change set
+
+A change set has an envelope and operations.
+
+| Field | Meaning |
+| --- | --- |
+| `schema` | `kapi.change/v1` |
+| `mode` | `apply` (the default) or `preview`, which computes and checks everything, writes nothing, and returns a diff per document |
+| `gate` | `enforce` (the default) or `report`: what a failing governance finding the change introduces does |
+| `require_basis` | refuse a write to a derived edition whose authoritative edition moved since the sender read it |
+| `note`, `evidence` | what a person reads in history, and where the wording behind the change was seen |
+| `ops` | the operations, applied in order |
+
+The content operations are `set_content`, `replace_text`, `set_attribute`,
+`mark`, `remove_edition`, `annotate`, `unannotate`, `insert_block`,
+`delete_block` and `native`. `decide` records a review decision, and `term`,
+`memory` and `recipe` change the project's terms store, content memory and
+recipe. The envelope carries no actor: the transport that delivers a change set
+says who sent it.
+
+`change.Decode` reads a change set strictly: an unknown field or operation is
+refused with the JSON pointer of what was wrong. `changeschema.Schema` is the
+JSON Schema generated from the same Go types. The note
+[The change applier](../../implementation/engine/change-applier.md) covers the
+types, the decoder and the schema.
+
+### Addressing and revisions
+
+An operation addresses `{doc, block, edition}`. `doc` is a project-relative
+path, `container!entry` for an archive member, or another home's document key.
+`block` is the key a read reports: the durable key where reconciliation
+assigned one, else the name the format gives the block, else the reader's id
+(`change.BlockKey`). `edition` is an edition key such as `fr` or
+`en;channel=short`; empty means the document's own edition.
+
+An operation that changes existing content carries `if_match`, the revision of
+the edition its sender read. `model.EditionRevision` hashes the edition key and
+its runs, codes and their attributes included, and nothing else, so the same
+token holds in every home. `absent` creates an edition, and `*` writes whatever
+is there. Every `if_match` is checked against the content as it stood when the
+change set began, so a sender never computes an intermediate revision.
+
+### The applier
+
+`change.ApplyBlock` applies content operations to one block in memory and
+returns one result per operation. It enforces the rules every content operation
+obeys: placeholder text is parsed against a reference code set, inline codes
+keep their editing constraints, plural and select structure is kept, run flags
+survive, and overlays follow the edit on every edition. `change.Consequences`
+says what an applied edit does to an edition's status and origin, and
+`change.Diff` turns two blocks into the operations between them. The applier
+note describes each rule.
+
+### The service
+
+`change.NewService(formats, homes, options…)` builds the service.
+
+- **`Read`** reads a page of a document's blocks. Each block carries the
+  reference to copy into an operation, the revision to send as `if_match`, the
+  content as placeholder text, its inline codes with their attributes and the
+  attributes `set_attribute` can write, its plurals and selects with the path to
+  each branch, its other editions with their status and staleness, and the
+  operations it accepts. A read of the file one edition lives in, such as the
+  German file of an English page, shows that edition as each block's own, with
+  the document's own edition among the others, so a reference copied from it
+  edits the German. A page ends with a cursor; a cursor into a document that
+  changed since is refused as `stale`.
+- **`Apply`** applies a change set in two phases. It asks the policy about
+  every operation, groups the operations by document, and opens each document
+  in its home. It then prepares every document: the home reads it, the
+  service's editor applies the operations addressed to each block, and the
+  home stages the result. The service refuses an edition the staged file does
+  not change, because the format has no place for it there, and runs the
+  commit check over every changed edition. If any operation of any document is
+  refused, nothing is written: the refused operations say why and every other
+  one is `not_applied`. Otherwise the service takes the commit locks, settles
+  each document, and checks again any document its home applied a second
+  time, since that pass is the one that lands. It then commits each document
+  and, with the locks still held, applies the decisions and asset operations,
+  which bind to the content that landed, and records the change.
+- **`Describe`** says what a format supports. `DescribeFormat` hands
+  `FormatOps` the operations the format's round trip carries (`set_content` in
+  either form, `replace_text`, and `remove_edition` where the format holds its
+  editions in one file) and what its writer declares
+  ([E-02](e-02-format-system.md#edits-a-writer-can-write)). For a document the
+  declaration is the one its home reports for the document's writer
+  (`DocInfo.Capabilities`), which `ApplyBlock` applies every operation with.
+  `WithDescriber` replaces `DescribeFormat`, and that one function is what
+  `Describe` reports, what a read lists per block, and what `Apply` refuses
+  outside of.
+
+A document's edition lives in the document (its own edition, or one a bilingual
+file holds), in a file of its own (a project's target file), or nowhere (a
+monolingual document outside a project, or an edition with a tone or a channel
+in a bilingual file, which keeps one translation per language). An operation
+on an edition with no home is refused as `unsupported`.
+
+### Homes
+
+A home holds the text of documents and decides when two writers conflict.
+
+```go
+type Home interface {
+	Name() string
+	Open(ctx context.Context, doc string) (Session, error)
+}
+```
+
+A session reads the document at its head, stages a change by running the
+service's editor over its blocks, and hands back a staged change that names the
+commit locks it needs, settles (makes sure the change still applies with those
+locks held), commits and releases. A home that reads a document whole streams
+every block past the editor; one that keeps rows looks up only the blocks the
+change names. The service takes the locks of every document of a change set in
+one order, by their keys, so two change sets take the locks they share in that
+order and wait for each other without deadlock. A change set that names one
+file through two documents, such as two members of one archive or a file and a
+link to it, is refused as `invalid`, because each document would stage the
+whole file from what it read.
+
+`changetest.Run` is the conformance suite every home passes: an edit lands and
+reads back, a replayed change set is stale and carries the current content
+while writing nothing, edits to different blocks commute, also when one lands
+between the other's stage and commit, a refusal in one document leaves every
+document as it was, whether it is found at the stage or at the commit, a
+preview writes nothing, a missing block is not found, the same content said
+again is unchanged, and a file keeps its mode.
+
+**The file home** (`core/change/filehome`) keeps each document as a file. A
+stage reads the document through its format's reader with the writer's
+skeleton store wired, and writes the result through the same format's writer
+into a temporary file beside the document with the document's mode. Every file
+a stage reads is hashed before it is read. A commit takes the advisory lock
+(`core/storage/filelock`) of each file, hashes the files again, and renames the
+staged files onto them when each is still what the stage read. When one moved,
+the home reads them again under the locks, applies the change once more and
+renames that result; an operation whose `if_match` the new content breaks is
+refused as `stale`, and a file that moves during that second pass as well is
+`doc_changed`. Two processes that edit different blocks of one file both land.
+An edition kept in a file of its own is written through that file's skeleton,
+and an edit that needs a block the file does not hold is refused, so the file
+is never rewritten from the document; a file that does not exist yet is
+written from the document's skeleton. Where the reader and the writer both
+stream, the document is never held whole. The home reports what the
+document's writer declares: an in-process writer's declaration, with the writer
+spelling a changed attribute or a new code itself
+(`change.WriterCapabilities`), or a plugin format's manifest declaration,
+whose writer spells them when it writes (`change.DeclaredCapabilities`). The implementation note
+[The file home](../../implementation/engine/file-home.md) has the details.
+
+### Hooks
+
+The service calls five hooks a host supplies. Each is optional.
+
+| Hook | Called | Without one |
+| --- | --- | --- |
+| `Policy` | for every operation, before anything is read | every operation is permitted |
+| `CommitCheck` | over the changed editions, before anything is written; it returns findings before and after, and the governance fingerprint it used | nothing is checked |
+| `Assets` | to prepare `decide`, `term`, `memory` and `recipe` before anything is written, and to apply them after the content landed | those operations are refused as `unsupported` |
+| `Recorder` | after the homes committed, with the transitions and the fingerprint | nothing is recorded |
+| `EditionStates` | by a read, for the status and basis of a derived edition | a read shows the status the document holds and no basis |
+
+The service refuses a change only for a failing finding it introduces
+(`change.Introduced`). Under `report` the change lands with its findings, and a
+person's overridden findings go to the record.
+
+The kapi host builds the service for a surface with `App.Changes` and
+`App.ChangeService`. Inside a project the file home's layout resolves a
+reference the way the recipe does: a source file is read with the format and
+configuration its content item binds, the file of a translation is that edition
+of its source, joined by key, then by translation-invariant address, then by
+position, and a translation with no file yet is written from the source's
+skeleton. Decisions and asset operations land through the functions the review
+queue and `kapi apply` use, a decision bound to the wording the change set
+landed rather than to a later read of the file. The hooks each plug in at one
+function of the host: the commit check is `App.CommitCheck`, which holds a
+service outside a project to hygiene alone; the policy is `ChangePolicy`; the
+recorder is `App.EditRecorder`, inside a project; and a read takes a derived
+edition's basis from the project's block history, where the most recent
+recorded change to the edition left the content it holds.
+
+### Results and errors
+
+A result has a status (`applied`, `refused`, `previewed`, or `partial` when an
+I/O error stopped the final renames after some files landed), a record id, one
+entry per file written or read with its digests before and after and whether it
+was written, and one result per operation with its revisions, the positions it
+resolved, the derived editions it left on an older basis (`invalidates`), and
+on a refusal an error from a closed set of codes, each mapped once to an exit
+code and an HTTP status. In a `partial` result the operations on the files that
+were not written are `not_applied`, and so are the decisions and asset
+operations, which wait for content that all landed; the record holds what did.
+A `stale` refusal carries the edition as it stands, so the sender can rebase
+without another read. A resource bound `core/safeio` reports is
+`budget_exceeded`.
+
+## Consequences
+
+- A sender always learns whether its change landed and, when it did not, which
+  of a few things to do next: retarget, re-read and resend, fix the content, or
+  ask a person.
+- Concurrent kapi writers of one file lose nothing: each file a change reads
+  is hashed before the read and again under the lock. The lock orders kapi's
+  own processes; an editor that saves between the re-hash and the rename
+  remains a conflict the next read sees.
+- An operation reported `applied` reached the file. One the format has no
+  place for in that file is refused.
+- A change set is all or nothing across documents up to the final renames.
+  Records follow the commit, so a record that fails to write leaves content
+  that the next read finds and records as observed.
+- A surface that adds a write path adds a home or a hook, and the contract, the
+  applier and the rules stay one.
+
+## Related
+
+- [F-02: The content model](../foundations/f-02-content-model.md)
+- [E-02: Format system](e-02-format-system.md)
+- [E-03: Tool system](e-03-tool-system.md)
+- [The change applier](../../implementation/engine/change-applier.md)
+- [The file home](../../implementation/engine/file-home.md)

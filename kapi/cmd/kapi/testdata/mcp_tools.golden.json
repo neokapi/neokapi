@@ -51,6 +51,9 @@
                     },
                     "unit": {
                       "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
                     }
                   },
                   "type": "object"

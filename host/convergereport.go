@@ -154,6 +154,15 @@ func (a *App) ApplyReviewDecision(ctx context.Context, projectPath, sourceLang s
 // identity is refused (state.IsAgentIdentity): an agent pre-reviews, and its
 // judgement never counts as a person's.
 func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note, by string) (bool, error) {
+	return a.applyReviewDecision(ctx, projectPath, sourceLang, ref, decision, note, by, nil)
+}
+
+// applyReviewDecision is ApplyReviewDecisionAs. decided, when set, is the
+// pairing the decision is about as its caller holds it, such as the content a
+// change set landed under the commit lock; the decision binds to it rather
+// than to what the files say when they are read here. Nil reads it from the
+// files.
+func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note, by string, decided *decidedContent) (bool, error) {
 	if state.IsAgentIdentity(by) {
 		return false, fmt.Errorf("%s cannot record a review decision: an agent records a pre-review (score and reasons), and a person decides", by)
 	}
@@ -194,8 +203,11 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 			if !b.Translatable || blockKey(b) != ref.Key {
 				continue
 			}
-			target := b.TargetText(loc)
-			if status != model.TargetStatusDraft && strings.TrimSpace(target) == "" {
+			content := decidedContent{source: b.SourceText(), target: b.TargetText(loc)}
+			if decided != nil {
+				content = *decided
+			}
+			if status != model.TargetStatusDraft && strings.TrimSpace(content.target) == "" {
 				return false, fmt.Errorf("unit %s has no %s translation to approve", ref.Key, ref.Locale)
 			}
 			// What governs the unit where the decider is deciding it: the voice
@@ -215,7 +227,7 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 			// tells one page's `p` from another's. The review queue's display
 			// path is the target file, which no other party names anything by.
 			return a.recordDecisionState(ctx, proj, root, a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath), blockKey(b), loc,
-				decidedContent{source: b.SourceText(), target: target}, governing, status, decision, note, by)
+				content, governing, status, decision, note, by)
 		}
 	}
 	return false, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
@@ -338,7 +350,8 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 // RecordAIReviews stores advisory AI pre-review annotations for units of one
 // (file, locale) review scope in the project state store: for each unit key in
 // reviews, the annotation is bound to the content hash of the unit's CURRENT
-// translation (re-read from the target file), so a later edit invalidates it.
+// translation (re-read from the target file), or to the TargetHash the review
+// already carries, so a later edit invalidates it.
 // Annotations never move a unit on the ladder — any existing decision, origin,
 // and status ride along untouched. It returns the number of units annotated;
 // unit keys that no longer resolve are skipped (content moved on), not errors.
@@ -391,7 +404,11 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 			if !ok {
 				continue
 			}
-			rev.TargetHash = targetHash(b.TargetText(loc))
+			// A caller that holds the translation it judged binds the
+			// annotation to it; otherwise it binds to the file's.
+			if rev.TargetHash == "" {
+				rev.TargetHash = targetHash(b.TargetText(loc))
+			}
 			if rev.At == "" {
 				rev.At = nowRFC3339()
 			}

@@ -308,6 +308,8 @@ type Evidence struct {
 	Unit string `json:"unit,omitempty"`
 	// Quote is the text the subject was seen in.
 	Quote string `json:"quote,omitempty"`
+	// URL is a web page the subject was seen on.
+	URL string `json:"url,omitempty"`
 }
 
 // Basis is the governance in force when the operation was recorded. A rule

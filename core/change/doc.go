@@ -31,7 +31,12 @@
 //     status and origin;
 //   - Diff, which turns a pair of blocks into the operations that make one
 //     into the other, so a path that arrives with a whole new block goes
-//     through the same rules as a typed operation.
+//     through the same rules as a typed operation;
+//   - the Service, which reads documents in their homes, applies a change set
+//     to every document it names or to none, and describes what a format
+//     supports (DescribeFormat), with the hooks a host plugs in: the commit
+//     check, the policy, the recorder, the asset operations and the editions'
+//     states.
 //
 // The package imports core/model and core/format and nothing above them: no
 // host, no CLI, no surface. Every surface (the CLI, MCP, Kapi Desktop, the browser build, tools
