@@ -21,9 +21,14 @@ type DocumentIndex struct {
 	byPath map[string]string
 }
 
-// DocumentIndex reads the project's document identities. A project with no
-// store, or a build with none, yields the zero index rather than an error —
-// resolving a decision's scope must not be the thing that fails a run.
+// DocumentIndex reads the project's document identities: the documents this
+// checkout has resolved, and for a path it has not, the key the project's
+// recorded adoptions give it (state.WorkStore.AdoptedDocuments), the earliest
+// adopted first. A fresh checkout therefore names a document the way every
+// other checkout of the project does before it has extracted anything. A
+// project with no store, or a build with none, yields the zero index rather
+// than an error — resolving a decision's scope must not be the thing that
+// fails a run.
 func (a *App) DocumentIndex(ctx context.Context, root string) (DocumentIndex, error) {
 	if root == "" {
 		return DocumentIndex{}, nil
@@ -40,14 +45,32 @@ func (a *App) DocumentIndex(ctx context.Context, root string) (DocumentIndex, er
 	if err != nil {
 		return DocumentIndex{}, err
 	}
-	if len(docs) == 0 {
+	adopted, err := work.AdoptedDocuments(ctx)
+	if err != nil {
+		return DocumentIndex{}, err
+	}
+	if len(docs) == 0 && len(adopted) == 0 {
 		return DocumentIndex{}, nil
 	}
-	byPath := make(map[string]string, len(docs))
+	byPath := make(map[string]string, len(docs)+len(adopted))
 	for _, d := range docs {
 		byPath[d.Path] = d.Key
 	}
+	for _, d := range adopted {
+		if _, known := byPath[d.Path]; !known {
+			byPath[d.Path] = d.Key
+		}
+	}
 	return DocumentIndex{byPath: byPath}, nil
+}
+
+// Key is the key of the document at a project-relative path: the one the
+// project resolved for it, or the one its path derives to.
+func (d DocumentIndex) Key(rel string) string {
+	if key, ok := d.byPath[rel]; ok && key != "" {
+		return key
+	}
+	return reconcile.DocumentKeyFor(rel)
 }
 
 // documentIndexOrEmpty resolves the index and swallows a store failure, for the
