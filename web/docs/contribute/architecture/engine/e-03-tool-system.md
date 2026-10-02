@@ -79,8 +79,8 @@ whichever capability-typed handler is set (and other Part types to their
 `Handle*Fn`), and passes unhandled Part types through unchanged. Concrete tools
 embed `BaseTool` and set only the handlers they need. A tool that needs the full
 stream (batching, 1→N fan-out, cross-block state) overrides `Process` directly;
-it may reuse a typed handler over a held block via `tool.NewBlockView` /
-`tool.NewVariantView`.
+it writes a held block through `tool.WriteAs`, which hands a typed handler a
+view of the block and returns any write the view could not apply.
 
 The caller owns both channels. A tool observes `ctx` on every receive and send,
 returns once its input is exhausted or the context is cancelled, joins any
@@ -786,17 +786,19 @@ type makes the wrong writes unrepresentable.
   segmenter) set `Annotate`. `BlockView` exposes no source or target setter, so
   they *cannot* mutate content; they emit overlays, annotations, and properties.
 - **Target-producing** tools (`translate`, `recycle`, `create-target`) set
-  `Produce` and write `Block.Targets`; source stays read-only.
+  `Produce` and write targets; source stays read-only.
 - **Transformers** (redaction, normalization, case and encoding conversion) are
   the only tools that rewrite `Block.Source`, and they never do so directly. A
   transformer is a read-only **edit producer**: it inspects the block and returns
   an *edit plan*: a set of structured `model.RunEdit`s (a span → replacement
   map), any originals to vault (recoverable transformers such as redaction), or
   an opaque whole-block replacement for rewrites with no derivable mapping. A
-  single framework-owned **applier** is the one place that mutates the block: it
-  applies the edits, **rebases** the surviving run-anchored overlays once
-  (`model.RemapOverlays`) so segmentation, terms, and entities follow the
-  rewrite, vaults any secrets, and bounds-checks the result, all atomically. Because
+  single framework-owned **applier** vaults any secrets first, then compiles the
+  plan into change operations (`EditPlan.Ops`) and applies them through
+  `change.ApplyBlock`, which applies the edits, **rebases** the surviving
+  run-anchored overlays of the rewritten edition once (`model.RemapOverlays`) so
+  segmentation, terms, and entities follow the rewrite, and bounds-checks the
+  result, all atomically. Because
   tool code holds no source setter, a transformer cannot corrupt run-anchoring or
   leak a secret; an opaque whole-block replacement drops the overlays it cannot
   rebase. Recoverable transformers keep the original in a block annotation or a
@@ -814,10 +816,20 @@ those aliased slices. Hashing every block twice per handler is dev and test
 tooling, not production work, so it is **off unless a caller asks for it**: an
 executor opts a whole run in with `flow.WithImmutabilityCheck`, any dispatch path
 opts in per context with `tool.WithImmutabilityCheck`, and the tool, tools, and
-flow test suites turn it on for every test. The applier likewise asserts that
-every *surviving* source overlay span still anchors **in bounds** against the
-rewritten runs (`Block.SourceOverlaysInBounds`), so a rebase that left an overlay
-dangling is rejected; that check is unconditional. A tool that genuinely needs
+flow test suites turn it on for every test. `change.ApplyBlock` likewise asserts
+that every *surviving* overlay span on an edition it rewrites still resolves
+**in bounds** against the new runs, on the source and on every target, so a
+rebase that left an overlay dangling is rejected; that check is unconditional.
+
+A handler's view applies its writes the same way. Each target write, provenance
+stamp and overlay write is an operation applied at once through
+`change.ApplyBlock`, as the tool, so a handler reads what it wrote: a new target
+it stamps keeps the stamp. A tool's write keeps the target's status and
+provenance, and the tool records what it produced with its stamp. A write the
+applier refuses is the handler's error. The contract the operations follow is
+in [the change applier note](../../implementation/engine/change-applier.md).
+
+A tool that genuinely needs
 the maximal surface (`script`, which runs arbitrary JavaScript) overrides
 `Process` instead and self-gates source mutation behind its own flag.
 
