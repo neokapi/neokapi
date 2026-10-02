@@ -1007,9 +1007,9 @@ type blockEntry struct {
 // channel in their original order.
 func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	// 1. Drain input into a slice.
-	var parts []*model.Part
-	for part := range in {
-		parts = append(parts, part)
+	parts, err := tool.ReadAll(ctx, in)
+	if err != nil {
+		return err
 	}
 
 	// 2. Identify translatable blocks.

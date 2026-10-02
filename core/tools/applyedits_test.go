@@ -121,3 +121,24 @@ func TestApplyEdits_NoEntryPassesThrough(t *testing.T) {
 	assert.Empty(t, report.Skipped)
 	assert.Equal(t, before, model.RunsPlaceholderText(b.Source))
 }
+
+func TestApplyEdits_RejectsFlattenedBranches(t *testing.T) {
+	for _, source := range []model.Run{
+		model.PluralR(model.PluralRun{Pivot: "count", Forms: map[model.PluralForm][]model.Run{
+			model.PluralOne: {model.TextR("one item")}, model.PluralOther: {model.TextR("many items")},
+		}}),
+		model.SelectR(model.SelectRun{Pivot: "kind", Cases: map[string][]model.Run{
+			"other": {model.TextR("items")}, "special": {model.TextR("special items")},
+		}}),
+	} {
+		t.Run(string(source.Kind()), func(t *testing.T) {
+			block := model.NewBlock("p1", "")
+			block.Source = []model.Run{source}
+			report := &ApplyReport{}
+			applyOne(t, NewApplyEditsTool(map[string]Edit{"p1": {Text: "new wording"}}, nil, report), block)
+			assert.Equal(t, []string{"p1"}, report.GuardFailed)
+			assert.Empty(t, report.Applied)
+			assert.Equal(t, []model.Run{source}, block.Source)
+		})
+	}
+}

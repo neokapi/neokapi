@@ -17,7 +17,10 @@ type Tool interface {
 
 	// Process reads Parts from the input channel, processes them,
 	// and writes results to the output channel. Process blocks until
-	// input is exhausted or context is canceled.
+	// input is exhausted or context is canceled. Receives and sends must
+	// observe ctx. The caller owns both channels and closes the output after
+	// Process returns; a tool must join its workers before returning and
+	// leave channel closure to the caller. Dropped parts emit nothing.
 	Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error
 
 	// Config returns the current configuration.

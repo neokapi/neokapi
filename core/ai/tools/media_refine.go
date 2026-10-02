@@ -337,16 +337,18 @@ func NewMediaRefineFromConfig(config map[string]any, _ string) (tool.Tool, error
 // Process buffers the page's parts, refines the gated blocks against the source
 // raster, then emits every part in its original order.
 func (t *MediaRefineTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
-	var parts []*model.Part
+	parts, err := tool.ReadAll(ctx, in)
+	if err != nil {
+		return err
+	}
 	src := t.src
-	for p := range in {
+	for _, p := range parts {
 		// Pick up a page raster from the stream if no explicit source is set.
 		if src.Path == "" && len(src.Data) == 0 && p.Type == model.PartMedia {
 			if m, ok := p.Resource.(*model.Media); ok && m.Properties[vision.PageRasterProperty] == "page" {
 				src = MediaRef{Path: m.URI, Data: m.Data, MimeType: m.MimeType}
 			}
 		}
-		parts = append(parts, p)
 	}
 
 	blocks := blockResources(parts)

@@ -161,8 +161,6 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 func NewReader() *Reader {
 	cfg := &Config{}
 	cfg.Reset()
-	vocab := model.NewVocabularyRegistry()
-	_ = vocab.LoadDefaults()
 	return &Reader{
 		FormatName:        "markdown",
 		FormatDisplayName: "Markdown",
@@ -170,7 +168,7 @@ func NewReader() *Reader {
 		FormatExtensions:  []string{".md", ".markdown"},
 		Cfg:               cfg,
 		cfg:               cfg,
-		vocab:             vocab,
+		vocab:             model.DefaultVocabulary(),
 	}
 }
 

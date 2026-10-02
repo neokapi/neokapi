@@ -2,8 +2,10 @@ package flow
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -156,4 +158,45 @@ func TestInterceptTool_ForwardsEveryPartAndInnerError(t *testing.T) {
 	assert.Equal(t, []string{"a", "b", "c"}, seenIn)
 	assert.Equal(t, []string{"a", "b", "c"}, seenOut)
 	assert.Equal(t, []string{"a", "b", "c"}, forwarded)
+}
+
+func TestInterceptTool_StopsWithIdleInput(t *testing.T) {
+	for _, stop := range []string{"cancel", "inner error"} {
+		t.Run(stop, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				in := make(chan *model.Part)
+				out := make(chan *model.Part)
+				done := make(chan error, 1)
+				innerErr := errors.New("initialization failed")
+				go func() {
+					done <- interceptTool(ctx, in, out, nil, nil,
+						func(innerIn <-chan *model.Part, _ chan<- *model.Part) error {
+							if stop == "inner error" {
+								return innerErr
+							}
+							for range innerIn {
+							}
+							return nil
+						})
+				}()
+				synctest.Wait()
+				cancel()
+				synctest.Wait()
+				select {
+				case err := <-done:
+					if stop == "inner error" {
+						require.ErrorIs(t, err, innerErr)
+					} else {
+						require.ErrorIs(t, err, context.Canceled)
+					}
+				case <-time.After(time.Second):
+					t.Error("wrapper is waiting for input after it stopped")
+					close(in)
+					<-done
+				}
+			})
+		})
+	}
 }

@@ -29,7 +29,9 @@ type applyEditsInput struct {
 
 // applyEditsMCPOutput reports the per-block content outcome and per-entry asset
 // outcomes; OK is false when any edit drifted (stale) or was rejected by the
-// inline-code guard, signalling the caller to re-inspect and retry. Comments
+// fidelity guard (guard_failed: the edit would corrupt an inline code or
+// flatten plural/select branches), the same buckets `kapi apply --json`
+// reports, signalling the caller to re-inspect and retry. Comments
 // holds each file's comment edits and the check of what they wrote, and OK is
 // false when one was refused, did not run, or left that check not passing.
 type applyEditsMCPOutput struct {

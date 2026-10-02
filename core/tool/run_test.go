@@ -71,3 +71,23 @@ func TestRunOnParts_EmptyInput(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, result)
 }
+
+func TestReadAll(t *testing.T) {
+	parts := []*model.Part{makeBlock("a", "one"), makeData("d"), makeBlock("b", "two")}
+	in := make(chan *model.Part, len(parts))
+	for _, p := range parts {
+		in <- p
+	}
+	close(in)
+	got, err := tool.ReadAll(t.Context(), in)
+	require.NoError(t, err)
+	assert.Equal(t, parts, got)
+}
+
+func TestReadAll_CancelIdleInput(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	got, err := tool.ReadAll(ctx, make(chan *model.Part))
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, got)
+}

@@ -96,17 +96,16 @@ A [check](/framework/checks) such as `qa` is just a read-only step: it
 attaches findings to each block as annotations rather than rewriting content, so
 it typically sits last and a CI gate reads its result.
 
-A step can also fan out. A `parallel:` block runs several tools on the same
-stream concurrently, each on its own branch:
+Steps run one after another, each tool reading what the step before it
+emitted, so several checks are listed in order:
 
 ```yaml
 steps:
   - tool: create-target
     config: { copySource: true }
-  - parallel:
-      - tool: qa
-      - tool: term-check
-      - tool: xml-validation
+  - tool: qa
+  - tool: term-check
+  - tool: xml-validation
 ```
 
 ### Transformers
@@ -157,14 +156,11 @@ type FlowDefinition struct {
 }
 ```
 
-The graph is what the visual flow editor reads and writes, and it is the form
-that survives to execution. Compilation from steps to graph is mechanical:
-`StepsToGraph` creates a tool node for each step (chained by edges) and a fan-out
-for each `parallel:` block. A `parallel:` block becomes several tool nodes all
-connected from the previous node; the step after it connects from every branch
-endpoint (fan-in). Cycles are rejected; the executor runs nodes in topological
-order. The flow's ends (where content enters and leaves) are bindings rather
-than nodes, covered next.
+The graph is what the visual flow editor reads and writes. Compilation from
+steps to graph is mechanical: `StepsToGraph` creates a tool node for each step,
+chained by edges. Cycles are rejected, and kapi runs the tool nodes as one
+ordered chain, each tool's output feeding the next. The flow's ends (where
+content enters and leaves) are bindings rather than nodes, covered next.
 
 Because both forms compile to the same graph, the steps you write by hand and
 the graph you build in the editor are interchangeable: a hand-written flow opens

@@ -53,11 +53,8 @@ var okapiSubTypeMap = map[string]string{
 // with existing flow definitions; internally it reclassifies the Type
 // field on inline-code runs (Ph / PcOpen / PcClose).
 func NewSpanClassifyTool(cfg *SpanClassifyConfig) *SpanClassifyTool {
-	vocab := model.NewVocabularyRegistry()
-	_ = vocab.LoadDefaults()
-
 	t := &SpanClassifyTool{
-		vocab: vocab,
+		vocab: model.DefaultVocabulary(),
 	}
 	t.ToolName = "span-classify"
 	t.ToolDescription = "Reclassifies code:markup inline-code runs into semantic vocabulary types"

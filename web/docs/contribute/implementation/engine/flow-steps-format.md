@@ -24,7 +24,7 @@ type FlowStep struct {
     Tool     string         `yaml:"tool,omitempty"`     // tool name
     Config   map[string]any `yaml:"config,omitempty"`   // tool parameters
     Label    string         `yaml:"label,omitempty"`    // display label
-    Parallel []FlowStep     `yaml:"parallel,omitempty"` // fan-out branches
+    Parallel []FlowStep     `yaml:"parallel,omitempty"` // branches (definition model only)
 }
 ```
 
@@ -59,11 +59,20 @@ flow build/load gate and emits these diagnostics:
 `StepsToGraph(spec)` generates:
 
 1. Tool nodes from `steps`, chained sequentially
-2. Parallel branches for `parallel:` blocks (tee from previous, join at next)
+2. For a `parallel:` block, one node per branch at the same X position, each
+   with an edge from the previous step's node, and an edge from every branch to
+   the next step's node
 
 Auto-assigned IDs follow `tool-N` pattern. Positions auto-layout left-to-right.
 The graph is tool nodes only; the flow's source and sink are bindings resolved
 at run time ([E-04](../../architecture/engine/e-04-flows-and-io-binding.md)), not nodes.
+
+A `parallel:` block exists in the definition model only. Every host runs a flow
+as an ordered tool chain
+([E-01](../../architecture/engine/e-01-processing-engine.md#flow-definitions)):
+the engine service refuses a definition with fan-out or merge edges, and the
+project flow runner builds one tool per step and fails on a `parallel:` step.
+Write a flow meant to run as ordered steps.
 
 ## Examples
 
@@ -74,16 +83,6 @@ steps:
   - tool: recycle
     config: { fuzzyThreshold: 75 }
   - tool: translate
-  - tool: qa
-```
-
-### Fan-out
-
-```yaml
-steps:
-  - parallel:
-      - tool: translate
-      - tool: term-check
   - tool: qa
 ```
 

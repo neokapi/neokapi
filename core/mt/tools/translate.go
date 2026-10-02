@@ -104,14 +104,11 @@ type MTTranslateConfig struct {
 
 // NewMTTranslateTool creates a new MT translation tool.
 func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTranslateTool {
-	vocab := model.NewVocabularyRegistry()
-	_ = vocab.LoadDefaults()
-
 	t := &MTTranslateTool{
 		provider:     p,
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
-		vocab:        vocab,
+		vocab:        model.DefaultVocabulary(),
 	}
 	name := cfg.ToolName
 	if name == "" {

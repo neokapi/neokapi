@@ -484,7 +484,18 @@ func (t *VoiceInferTool) Process(ctx context.Context, in <-chan *model.Part, out
 	// memory bounded on arbitrarily large inputs.
 	corpusByteCap := 4 * t.opts.withDefaults().MaxCorpusChars
 	var corpus strings.Builder
-	for part := range in {
+read:
+	for {
+		var part *model.Part
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case next, ok := <-in:
+			if !ok {
+				break read
+			}
+			part = next
+		}
 		if corpus.Len() < corpusByteCap && part.Type == model.PartBlock {
 			if block, ok := part.Resource.(*model.Block); ok && block != nil {
 				if text := strings.TrimSpace(block.SourceText()); text != "" {

@@ -157,8 +157,6 @@ func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
 // NewReader creates a new HTML reader.
 func NewReader() *Reader {
 	cfg := &Config{}
-	vocab := model.NewVocabularyRegistry()
-	_ = vocab.LoadDefaults()
 	return &Reader{
 		FormatName:        "html",
 		FormatDisplayName: "HTML",
@@ -166,7 +164,7 @@ func NewReader() *Reader {
 		FormatExtensions:  []string{".html", ".htm", ".xhtml"},
 		Cfg:               cfg,
 		cfg:               cfg,
-		vocab:             vocab,
+		vocab:             model.DefaultVocabulary(),
 	}
 }
 
