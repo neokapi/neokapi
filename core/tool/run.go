@@ -6,6 +6,25 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
+// ReadAll receives Parts from in until the channel closes and returns them in
+// the order received. It returns ctx's error when ctx ends first, so a tool
+// that buffers its whole input before working on it still stops on
+// cancellation while upstream is idle.
+func ReadAll(ctx context.Context, in <-chan *model.Part) ([]*model.Part, error) {
+	var parts []*model.Part
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case part, ok := <-in:
+			if !ok {
+				return parts, nil
+			}
+			parts = append(parts, part)
+		}
+	}
+}
+
 // RunOnParts drives a tool synchronously over an in-memory slice of parts and
 // collects the results. It is the buffered, single-shot counterpart to
 // Tool.Process for callers that already hold every part in memory (editor

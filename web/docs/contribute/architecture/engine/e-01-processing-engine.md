@@ -171,9 +171,12 @@ Each execution surface has its own concurrency control:
 | Executor          | Multiple documents     | MaxConcurrency semaphore                | Document order preserved     |
 | TappingTool       | Observation            | Input and output interceptor goroutines | Sequential per tool boundary |
 
-The channel capacities and each parallel stage's window bound the Parts in
-flight inside one tool chain. A run's working set also depends on what surrounds
-the chain: `Execute` collects each document's output Parts, `BatchExecutor`
+The channel capacities and each parallel stage's windows bound the Parts in
+flight inside one tool chain, except inside a tool that buffers its input. AI
+translation and entity extraction in their batched mode, and media refine, read
+a whole document's Parts before they emit any; the layer processor holds one
+child layer at a time. A run's working set also depends on what surrounds the
+chain: `Execute` collects each document's output Parts, `BatchExecutor`
 takes pre-read Part slices and returns output slices, and a file run feeds its
 reader concurrently only when the reader is a streaming reader and no pre-read
 content is supplied, with a streaming skeleton only when the writer streams too.
