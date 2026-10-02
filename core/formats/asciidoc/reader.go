@@ -85,6 +85,12 @@ var (
 	reQuoteDelim   = regexp.MustCompile(`^_{4,}[ \t]*$`)
 	reOpenDelim    = regexp.MustCompile(`^--[ \t]*$`)
 
+	// reBlockMacro matches a block macro on a line of its own:
+	// `name::target[attributes]`, such as `image::sunset.jpg[Sunset,300]` or
+	// `include::chapter.adoc[]`. Group 1 is the name, group 3 the attribute
+	// list.
+	reBlockMacro = regexp.MustCompile(`^([A-Za-z][A-Za-z0-9_-]*)::(\S*?)\[(.*)\][ \t]*$`)
+
 	// reCellSpec matches an AsciiDoc table cell SPAN spec preceding a `|`:
 	// `N+` (colspan N), `.M+` (rowspan M), `N.M+` (both). Alignment/style/repeat
 	// operators are not parsed here.
@@ -308,6 +314,9 @@ func (r *Reader) processBlock(ctx context.Context, ch chan<- model.PartResult, l
 	case reUList.MatchString(text), reOList.MatchString(text):
 		return r.processList(ctx, ch, lines, i)
 
+	case reBlockMacro.MatchString(text):
+		return r.emitBlockMacro(ctx, ch, line, i)
+
 	case text[0] == ' ' || text[0] == '\t':
 		// A line whose first character is whitespace is an AsciiDoc literal
 		// paragraph (verbatim) — surface it as non-translatable content, not prose.
@@ -370,6 +379,48 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	r.emitBlock(ctx, ch, contentStart, contentStart, contentEnd,
 		r.sectionPath("p"), "paragraph", model.RoleParagraph, 0, nil)
 	return i
+}
+
+// emitBlockMacro emits a block macro line. Its target and attributes are
+// markup and stay in the skeleton; the alternative text of an image macro is
+// content and becomes a block of its own, as an HTML img's alt does.
+func (r *Reader) emitBlockMacro(ctx context.Context, ch chan<- model.PartResult, line srcLine, i int) int {
+	m := reBlockMacro.FindStringSubmatchIndex(line.text)
+	if line.text[m[2]:m[3]] == "image" {
+		if start, end, ok := macroAltText(line.text, m[6], m[7]); ok {
+			r.emitBlock(ctx, ch, line.start, line.start+start, line.start+end,
+				r.sectionPath("image", "alt"), "alt", "", 0, nil)
+			return i + 1
+		}
+	}
+	r.emitData(ctx, ch, "block-macro", string(r.source[line.start:line.end]))
+	return i + 1
+}
+
+// macroAltText locates the alternative text of an image macro: the first
+// positional attribute of the list text[start:end], without the quotes when
+// it is quoted. ok is false when the list starts with a named attribute or
+// holds no text.
+func macroAltText(text string, start, end int) (int, int, bool) {
+	attrs := text[start:end]
+	if strings.HasPrefix(attrs, `"`) {
+		closing := strings.IndexByte(attrs[1:], '"')
+		if closing <= 0 {
+			return 0, 0, false
+		}
+		return start + 1, start + 1 + closing, true
+	}
+	n := len(attrs)
+	if comma := strings.IndexByte(attrs, ','); comma >= 0 {
+		n = comma
+	}
+	alt := attrs[:n]
+	if strings.TrimSpace(alt) == "" || strings.Contains(alt, "=") {
+		return 0, 0, false
+	}
+	lead := len(alt) - len(strings.TrimLeft(alt, " \t"))
+	trail := len(alt) - len(strings.TrimRight(alt, " \t"))
+	return start + lead, start + n - trail, true
 }
 
 // emitIndentedLiteral collects a contiguous run of leading-whitespace lines into
