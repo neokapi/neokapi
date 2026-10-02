@@ -99,58 +99,6 @@ type assetResult struct {
 	Detail string     `json:"detail,omitempty"`
 }
 
-// applyOutput is the JSON-first report of an apply pass. Content outcomes are
-// bucketed by block (applied/skipped/stale/guard_failed/not_editable/
-// not_found); asset outcomes list one result per entry. stale, guard_failed,
-// not_editable or not_found content, a file whose round-trip failed, or an
-// asset error, means the change-set did not fully land and the command exits
-// non-zero so a fix loop re-inspects and retries.
-type applyOutput struct {
-	Content struct {
-		Applied     []string `json:"applied,omitempty"`
-		Skipped     []string `json:"skipped,omitempty"`
-		Stale       []string `json:"stale,omitempty"`
-		GuardFailed []string `json:"guard_failed,omitempty"`
-		// NotEditable names each block an entry changed that its file marks as
-		// content an edit does not change, such as a code block. The block
-		// keeps its text.
-		NotEditable []string `json:"not_editable,omitempty"`
-		// NotFound names each content entry whose id, or content_hash for an
-		// entry without an id, matched no block of its file, as file:id or
-		// file:content_hash:<hash>. Nothing was written for it.
-		NotFound []string `json:"not_found,omitempty"`
-		// Failed names each content file whose round-trip did not complete,
-		// with the reason, such as a file that could not be read. Its edits
-		// are not counted as applied.
-		Failed []string `json:"failed,omitempty"`
-	} `json:"content"`
-	Assets []assetResult `json:"assets,omitempty"`
-	// Comments holds each file's comment edits, the diff they made and the
-	// check of it. A refused edit, an edit that did not run, or a check that
-	// did not pass means the change-set did not fully land.
-	Comments []commentFileResult `json:"comments,omitempty"`
-}
-
-func (o *applyOutput) ok() bool {
-	for _, c := range o.Comments {
-		if !c.ok() {
-			return false
-		}
-	}
-	c := o.Content
-	return len(c.Stale) == 0 && len(c.GuardFailed) == 0 && len(c.NotEditable) == 0 && len(c.NotFound) == 0 &&
-		len(c.Failed) == 0 && !o.assetErr()
-}
-
-func (o *applyOutput) assetErr() bool {
-	for _, a := range o.Assets {
-		if a.Status == "error" {
-			return true
-		}
-	}
-	return false
-}
-
 // validateChangeSet refuses a change-set whose content or comment entries are
 // malformed or contradict each other, before either surface applies any of it.
 // A content entry names its file and its block, by id or, without one, by
@@ -218,18 +166,6 @@ func buildEditMaps(entries []changeEntry) (byID, byHash map[string]coretools.Edi
 		}
 	}
 	return byID, byHash
-}
-
-// notFoundIn names each edit of one file's pass that matched no editable block,
-// as the entry's file and the id (or content_hash) it gave, so a change-set
-// spanning files says which file the reference missed in.
-func notFoundIn(file string, report *coretools.ApplyReport) []string {
-	missing := report.NotFound()
-	out := make([]string, 0, len(missing))
-	for _, key := range missing {
-		out = append(out, file+":"+key)
-	}
-	return out
 }
 
 // retiredVoiceKind is the change kind that added a word rule to a voice

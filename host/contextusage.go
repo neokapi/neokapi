@@ -239,17 +239,6 @@ func (a *App) countProjectUsage(ctx context.Context, cmd Command, recipe string,
 	a.recordContextUsage(ctx, recipe, usage)
 }
 
-// appliedTexts are the new wordings of the entries an edit applied.
-func appliedTexts(entries []changeEntry, applied []string) []string {
-	var out []string
-	for _, e := range entries {
-		if e.ID != "" && slices.Contains(applied, e.ID) {
-			out = append(out, e.Text)
-		}
-	}
-	return out
-}
-
 // applyActor is who records that an agent's edit followed a suggestion: the
 // apply that wrote it.
 var applyActor = contextop.Actor{Kind: contextop.ActorTool, Name: "apply"}

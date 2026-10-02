@@ -74,20 +74,6 @@ type commentFileResult struct {
 	CheckError string `json:"check_error,omitempty"`
 }
 
-// ok reports whether every edit was written or left unchanged, and the check
-// of what was written passed.
-func (r commentFileResult) ok() bool {
-	for _, e := range r.Edits {
-		if e.Status == commentRefused || (e.Status == commentNotRun && e.Reason != reasonPreview) {
-			return false
-		}
-	}
-	if r.CheckError != "" {
-		return false
-	}
-	return r.Check == nil || r.Check.Verdict == check.VerdictPassed
-}
-
 // applyComments applies a change-set's comment entries, one file at a time.
 //
 // A language's write canary runs before the first comment of that language is

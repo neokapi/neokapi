@@ -20,7 +20,7 @@ import (
 // locator) and streams its Blocks — the read backbone for kcat and kgrep on
 // one inner file. Only that entry is read (random-access for ZIP, scan for TAR);
 // the whole archive is never loaded. editable reads the entry as editBytes
-// does (see StreamEditableBlocksAs).
+// does.
 func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, editable bool, fmtRef string, fn func(index int, b *model.Block) error) (string, error) {
 	content, _, err := container.OpenEntry(loc.Archive, loc.Entry)
 	if err != nil {
