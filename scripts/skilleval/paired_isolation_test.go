@@ -39,11 +39,11 @@ func TestPairedCLIWrapperPreservesArgumentsAndBindsFixture(t *testing.T) {
 	require.NoError(t, pairedToolPath(PairedLaunch{
 		StateDir: state, Workspace: workspace, Condition: "skill-cli", KapiBin: binary,
 	}))
-	cmd := exec.Command(filepath.Join(state, "bin", "kapi"), "inspect", "page with spaces.json", "--project", "html")
+	cmd := exec.Command(filepath.Join(state, "bin", "kapi"), "inspect", "page with spaces.json", "--render", "html")
 	cmd.Env = []string{"KAPI_NO_PROJECT=1", "KAPI_PROJECT=/unrelated/kapi.yaml"}
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(workspace, "kapi.yaml")+"\n\ninspect\npage with spaces.json\n--project\nhtml\n", string(output))
+	assert.Equal(t, filepath.Join(workspace, "kapi.yaml")+"\n\ninspect\npage with spaces.json\n--render\nhtml\n", string(output))
 }
 
 func TestPairedCLIWrapperWithBuiltKapi(t *testing.T) {
@@ -79,9 +79,11 @@ func TestPairedCLIWrapperWithBuiltKapi(t *testing.T) {
 	for _, line := range lines {
 		var block map[string]any
 		require.NoError(t, json.Unmarshal([]byte(line), &block))
-		assert.NotEmpty(t, block["content_hash"])
-		block["kind"] = "content"
-		change, err := json.Marshal(block)
+		assert.NotEmpty(t, block["ref"])
+		assert.NotEmpty(t, block["rev"])
+		// Each block's own text, guarded by the revision the read printed:
+		// an operation that changes nothing.
+		change, err := json.Marshal(map[string]any{"op": "set_content", "at": block["ref"], "if_match": block["rev"], "text": block["text"]})
 		require.NoError(t, err)
 		changes.Write(change)
 		changes.WriteByte('\n')

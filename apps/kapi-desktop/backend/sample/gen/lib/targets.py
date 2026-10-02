@@ -219,12 +219,20 @@ def approvals(review_path, out_path):
     for u in pending:
         if u.get("source") == u.get("target"):
             continue
+        # A unit the source document does not hold (a target's text node with
+        # no source partner) translates nothing; a decision names a block of
+        # the source, so there is none to make.
+        if not (u.get("source") or "").strip():
+            continue
         src = u.get("relative", "")
         if src in held:
             held[src] += 1
             continue
-        rows.append({"kind": "review", "file": u["file"], "id": u["key"],
-                     "locale": u["locale"], "status": "established"})
+        # A person's decision on the translation the loop produced, taken as
+        # it stands: the review queue names no revision to send.
+        rows.append({"op": "decide",
+                     "at": {"doc": u["file"], "block": u["key"], "edition": u["locale"]},
+                     "if_match": "*", "outcome": "establish"})
 
     missed = [src for src, n in held.items() if n == 0]
     if missed:
