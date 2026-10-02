@@ -26,7 +26,7 @@ func projectionRows(t *testing.T, app *App, db *projectdb.DB) map[string][]strin
 	ctx := t.Context()
 	raw := db.Raw()
 	rows, err := raw.QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND sql NOT LIKE 'CREATE VIRTUAL%'
-		AND (name LIKE 'tm\_%' ESCAPE '\' OR name LIKE 'tb\_%' ESCAPE '\' OR name IN ('voice_profiles', 'voice_profile_versions', 'unit_decision', 'unit_view'))`)
+		AND (name LIKE 'tm\_%' ESCAPE '\' OR name LIKE 'tb\_%' ESCAPE '\' OR name IN ('voice_profiles', 'voice_profile_versions', 'unit_decision', 'unit_view', 'document_adoption', 'block_history'))`)
 	require.NoError(t, err)
 	var tables []string
 	for rows.Next() {
@@ -171,7 +171,7 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, res.Failed)
 	assert.Positive(t, res.Operations["terms.write"])
-	assert.Positive(t, res.Operations["unit.record"])
+	assert.Positive(t, res.Operations["decision.record"])
 	assert.NotEmpty(t, res.Checkpoint, "a checkpoint is written after the rebuild")
 
 	assert.Equal(t, before, projectionRows(t, app, db), "the rebuilt stores are the ones the writes left")

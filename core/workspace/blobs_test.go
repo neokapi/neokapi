@@ -43,3 +43,24 @@ func TestBlobIsBounded(t *testing.T) {
 	_, err = b.Blob(ctx, huge)
 	require.ErrorIs(t, err, ErrBlobTooLarge)
 }
+
+func TestBlobRefsReadsTheBlobAndTheBlobsAPayloadNames(t *testing.T) {
+	a, b, c := BlobAddress([]byte("a")), BlobAddress([]byte("b")), BlobAddress([]byte("c"))
+	tests := []struct {
+		name    string
+		payload string
+		want    []string
+	}{
+		{name: "no payload", payload: ``, want: nil},
+		{name: "no blob", payload: `{"steps":[]}`, want: nil},
+		{name: "one blob", payload: `{"blob":"` + a + `"}`, want: []string{a}},
+		{name: "the blobs a record keeps", payload: `{"doc":{"key":"d"},"blobs":["` + b + `","` + c + `"]}`, want: []string{b, c}},
+		{name: "a blob and the blobs it names, once each", payload: `{"blob":"` + a + `","blobs":["` + b + `","` + a + `"]}`, want: []string{a, b}},
+		{name: "not an address", payload: `{"blob":"x","blobs":["sha256:zz"]}`, want: nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, BlobRefs(Op{Payload: []byte(tc.payload)}))
+		})
+	}
+}

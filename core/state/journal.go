@@ -16,9 +16,11 @@ import (
 // the ledger, and a log merged from another machine brings its decisions.
 //
 // RecordEntries returns once the log holds the entries and they are applied to
-// the ledger, which the journal does through ApplyEntries.
+// the ledger, which the journal does through ApplyEntries. RecordAdoptions
+// does the same for document adoptions, through ApplyAdoptions.
 type Journal interface {
 	RecordEntries(ctx context.Context, entries []JournalEntry) error
+	RecordAdoptions(ctx context.Context, adoptions []Adoption) error
 }
 
 // JournalEntry is one ledger write, as the log carries it.

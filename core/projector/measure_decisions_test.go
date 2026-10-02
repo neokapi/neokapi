@@ -34,7 +34,7 @@ func TestMeasureDecisionRebuild(t *testing.T) {
 		entries = append(entries, state.JournalEntry{ID: id, State: u, Actor: "reviewer", Origin: state.OriginImport, Recorded: now})
 	}
 	start := time.Now()
-	require.NoError(t, p.Units().RecordEntries(ctx, entries))
+	require.NoError(t, p.Decisions().RecordEntries(ctx, entries))
 	t.Logf("recorded %d decisions as one import in %s", n, time.Since(start))
 
 	start = time.Now()

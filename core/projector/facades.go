@@ -2,6 +2,8 @@ package projector
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -429,26 +431,52 @@ func StandaloneTerms(tb *terms.SQLiteStore) *Terms {
 	return (&Projector{st: Stores{Terms: tb}, lock: &sync.Mutex{}}).Terms()
 }
 
-// Units is the journal the unit decision ledger records through
-// (state.WorkStore.SetJournal): each entry is one operation, addressed by the
-// entry's own content address, so recording one decision twice, here or on
-// another machine, is one operation.
-func (p *Projector) Units() state.Journal { return unitJournal{p} }
+// Decisions is the journal the decision ledger records through
+// (state.WorkStore.SetJournal). Each entry is one decision.record operation,
+// addressed by the entry's own content address, so recording one decision
+// twice, here or on another machine, is one operation. Each document adoption
+// is one document.adopt operation, addressed by the key, the path and the
+// content it adopts.
+func (p *Projector) Decisions() state.Journal { return decisionJournal{p} }
 
-type unitJournal struct{ p *Projector }
+type decisionJournal struct{ p *Projector }
 
-func (j unitJournal) RecordEntries(ctx context.Context, entries []state.JournalEntry) error {
+func (j decisionJournal) RecordEntries(ctx context.Context, entries []state.JournalEntry) error {
 	writes := make([]pending, 0, len(entries))
 	for _, e := range entries {
-		w := pending{kind: KindUnit, steps: []step{{Entries: []state.JournalEntry{e}}}}
+		w := pending{kind: KindDecision, steps: []step{{Entries: []state.JournalEntry{e}}}}
 		if !e.Held {
 			// A re-assertion of an old entry is a new event; a first recording
 			// is the entry itself. The project is in the address because two
-			// projects reaching one decision about their own units hold it
+			// projects reaching one decision about their own blocks hold it
 			// once each.
-			w.address = "unit:" + string(j.p.key) + ":" + e.ID
+			w.address = "decision:" + string(j.p.key) + ":" + e.ID
 		}
 		writes = append(writes, w)
 	}
 	return j.p.commit(ctx, writes)
+}
+
+func (j decisionJournal) RecordAdoptions(ctx context.Context, adoptions []state.Adoption) error {
+	writes := make([]pending, 0, len(adoptions))
+	for _, a := range adoptions {
+		writes = append(writes, pending{
+			kind:    KindAdopt,
+			steps:   []step{{Adoptions: []state.Adoption{a}}},
+			address: "adopt:" + string(j.p.key) + ":" + digestOf(a.Key, a.Path, a.Digest),
+		})
+	}
+	return j.p.commit(ctx, writes)
+}
+
+// digestOf is the hex SHA-256 over strings joined by NUL.
+func digestOf(parts ...string) string {
+	h := sha256.New()
+	for i, s := range parts {
+		if i > 0 {
+			h.Write([]byte{0})
+		}
+		h.Write([]byte(s))
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }

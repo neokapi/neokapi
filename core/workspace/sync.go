@@ -366,18 +366,27 @@ func DecodeSegment(data []byte, project ProjectKey) ([]Op, error) {
 }
 
 // BlobRefs returns the blobs an operation names. An operation names a blob in
-// its payload's top-level "blob" field.
+// its payload's top-level "blob" field, and every further blob it depends on
+// (one the first blob names, the runs a recorded edit keeps) in its top-level
+// "blobs" list, so a push carries each and a pull fetches each.
 func BlobRefs(op Op) []string {
-	if len(op.Payload) == 0 || !bytes.Contains(op.Payload, []byte(`"blob"`)) {
+	if len(op.Payload) == 0 || !bytes.Contains(op.Payload, []byte(`"blob`)) {
 		return nil
 	}
 	var body struct {
-		Blob string `json:"blob"`
+		Blob  string   `json:"blob"`
+		Blobs []string `json:"blobs"`
 	}
-	if json.Unmarshal(op.Payload, &body) != nil || !validBlobAddress(body.Blob) {
+	if json.Unmarshal(op.Payload, &body) != nil {
 		return nil
 	}
-	return []string{body.Blob}
+	var out []string
+	for _, ref := range append([]string{body.Blob}, body.Blobs...) {
+		if validBlobAddress(ref) && !slices.Contains(out, ref) {
+			out = append(out, ref)
+		}
+	}
+	return out
 }
 
 // Fetch reaches the remote, reads the segments this workspace has not seen,

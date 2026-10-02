@@ -57,6 +57,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/history"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/state"
@@ -146,6 +147,7 @@ type DB struct {
 	blocks     blockstore.Store
 	blocksAuto blockstore.Store
 	work       *state.WorkStore
+	history    *history.Store
 }
 
 // Open opens (creating it if absent) the project's projection at
@@ -230,7 +232,11 @@ func (d *DB) bind(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("projectdb: bind working store: %w", err)
 	}
-	d.memory, d.terms, d.voice, d.blocks, d.blocksAuto, d.work = mem, tb, vc, blocks, auto, work
+	hs, err := history.Open(d.context)
+	if err != nil {
+		return fmt.Errorf("projectdb: bind block history: %w", err)
+	}
+	d.memory, d.terms, d.voice, d.blocks, d.blocksAuto, d.work, d.history = mem, tb, vc, blocks, auto, work, hs
 	return nil
 }
 
@@ -291,6 +297,11 @@ func (d *DB) BlocksAutocommit() blockstore.Store { return d.blocksAuto }
 
 // Work returns the unit working set, or nil once the handle is closed.
 func (d *DB) Work() *state.WorkStore { return d.work }
+
+// History returns the project's block history (core/history), in the context
+// store. It is nil on a build with no file-backed SQLite driver. The projector
+// writes it; everything else reads.
+func (d *DB) History() *history.Store { return d.history }
 
 // Join runs fn on one connection that sees both of the project's databases: the
 // projection as `main` and the context store as `context` (ContextSchema). It

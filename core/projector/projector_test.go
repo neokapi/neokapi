@@ -128,7 +128,8 @@ func snapshot(t *testing.T, ws *workspace.Workspace, db *projectdb.DB) map[strin
 	ctx := t.Context()
 	raw := db.Raw()
 	rows, err := raw.QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND sql NOT LIKE 'CREATE VIRTUAL%'
-		AND (name LIKE 'tm\_%' ESCAPE '\' OR name LIKE 'tb\_%' ESCAPE '\' OR name IN ('voice_profiles', 'voice_profile_versions'))`)
+		AND (name LIKE 'tm\_%' ESCAPE '\' OR name LIKE 'tb\_%' ESCAPE '\' OR name IN ('voice_profiles', 'voice_profile_versions',
+			'unit_decision', 'document_adoption', 'block_history'))`)
 	require.NoError(t, err)
 	var tables []string
 	for rows.Next() {
