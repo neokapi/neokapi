@@ -175,52 +175,115 @@ collections: []
 // --target on a pattern the project already tracks is a request about that
 // entry, never one to drop. It sets the target an entry has none of, and
 // refuses, with how to change it, where the entry already declares a
-// different one or where an earlier entry claims the files, since the
-// project would keep writing them where that entry says.
+// different one. A file belongs to the first entry in the recipe whose
+// pattern matches it, so the target applies to the files the entry claims:
+// the add counts those, names the rest with the entry that claims each, and
+// refuses an entry that would claim none.
 func TestAdd_TargetOnATrackedPattern(t *testing.T) {
 	const target = "{lang}/{name}.{ext}"
 	tests := []struct {
 		name        string
 		collections string
-		pattern     string
+		files       []string // files beside the recipe; guide.md when empty
+		args        []string // the add's arguments before --target
+		target      string   // --target; the const target when empty
 		wantErr     []string // substrings of the refusal; empty: accepted
-		wantOut     string
+		wantOut     []string // lines the output carries
 		wantTarget  func(*coreproj.KapiProject) string
+		wantTo      string // the target stored; target when empty
+		wantEntries int    // collections after the add; 1 when zero
 	}{
 		{
 			name:        "a bare entry with no target gets the target",
 			collections: "  - path: guide.md\n",
-			pattern:     "guide.md",
-			wantOut:     "Set target for guide.md → " + target,
+			args:        []string{"guide.md"},
+			wantOut:     []string{"Set target for guide.md → " + target + ": 1 file(s)"},
 			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[0].Target },
 		},
 		{
 			name:        "an item in a named collection with no target gets the target",
 			collections: "  - name: docs\n    content:\n      - path: guide.md\n",
-			pattern:     "guide.md",
-			wantOut:     "Set target for guide.md → " + target,
+			args:        []string{"guide.md"},
+			wantOut:     []string{"Set target for guide.md → " + target + ": 1 file(s)"},
 			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[0].Content[0].Target },
 		},
 		{
 			name:        "the same target again is already tracked",
 			collections: "  - path: guide.md\n    target: '" + target + "'\n",
-			pattern:     "guide.md",
-			wantOut:     "Already tracked: guide.md",
+			args:        []string{"guide.md"},
+			wantOut:     []string{"Already tracked: guide.md"},
 			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[0].Target },
 		},
 		{
 			name:        "a different target is refused",
 			collections: "  - path: guide.md\n    target: 'out/{lang}/{name}.{ext}'\n",
-			pattern:     "guide.md",
+			args:        []string{"guide.md"},
 			wantErr:     []string{"guide.md", "out/{lang}/{name}.{ext}", "kapi rm guide.md"},
-			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[0].Target },
 		},
 		{
-			name:        "files an earlier glob claims are refused",
+			name:        "a new pattern whose files an earlier glob claims is refused",
 			collections: "  - path: '*.md'\n",
-			pattern:     "guide.md",
-			wantErr:     []string{"guide.md", "*.md", "claims"},
-			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[0].Target },
+			args:        []string{"guide.md"},
+			wantErr:     []string{`"guide.md"`, `tracked first by "*.md"`, `kapi add "*.md" --target`},
+		},
+		{
+			name:        "a tracked pattern whose files an earlier glob claims is refused",
+			collections: "  - path: '*.md'\n  - path: guide.md\n",
+			args:        []string{"guide.md"},
+			wantErr:     []string{`"guide.md"`, `tracked first by "*.md"`},
+		},
+		{
+			name:        "a new glob over files earlier entries claim takes the rest",
+			collections: "  - path: b.md\n  - path: guide.md\n",
+			files:       []string{"b.md", "guide.md", "c.md"},
+			args:        []string{"*.md"},
+			wantOut: []string{
+				"Added *.md (markdown) → " + target + ": 1 file(s)",
+				"  b.md is tracked first by b.md, whose target applies to it",
+				"  guide.md is tracked first by guide.md, whose target applies to it",
+			},
+			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[2].Target },
+			wantEntries: 3,
+		},
+		{
+			name:        "a tracked glob behind earlier entries counts what it claims",
+			collections: "  - path: b.md\n  - path: guide.md\n  - path: '*.md'\n",
+			files:       []string{"b.md", "guide.md", "c.md"},
+			args:        []string{"*.md"},
+			wantOut: []string{
+				"Set target for *.md → " + target + ": 1 file(s)",
+				"  b.md is tracked first by b.md, whose target applies to it",
+			},
+			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[2].Target },
+			wantEntries: 3,
+		},
+		{
+			name:        "a target under a collection's base is kept relative to it",
+			collections: "  - name: site\n    base: site\n    content:\n      - path: docs/*.md\n",
+			files:       []string{"site/docs/a.md"},
+			args:        []string{"site/docs/*.md"},
+			target:      "site/out/{lang}/{name}.{ext}",
+			wantOut:     []string{"Set target for site/docs/*.md → site/out/{lang}/{name}.{ext}: 1 file(s)"},
+			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[0].Content[0].Target },
+			wantTo:      "out/{lang}/{name}.{ext}",
+		},
+		{
+			name:        "a new item under a collection's base keeps its target relative to it",
+			collections: "  - name: site\n    base: site\n    content:\n      - path: docs/*.md\n",
+			files:       []string{"site/docs/a.md", "site/blog/b.md"},
+			args:        []string{"site/blog/*.md", "--name", "site"},
+			target:      "site/out/{lang}/{name}.{ext}",
+			wantOut:     []string{"Added site/blog/*.md (markdown) → site/out/{lang}/{name}.{ext}: 1 file(s)"},
+			wantTarget:  func(p *coreproj.KapiProject) string { return p.Collections[0].Content[1].Target },
+			wantTo:      "out/{lang}/{name}.{ext}",
+		},
+		{
+			name:        "a target outside a collection's base is refused",
+			collections: "  - name: site\n    base: site\n    content:\n      - path: docs/*.md\n",
+			files:       []string{"site/docs/a.md"},
+			args:        []string{"site/docs/*.md"},
+			target:      "out/{lang}/{name}.{ext}",
+			wantErr:     []string{`"site"`, `"out/{lang}/{name}.{ext}"`, "site/"},
 		},
 	}
 	for _, tc := range tests {
@@ -231,17 +294,26 @@ func TestAdd_TargetOnATrackedPattern(t *testing.T) {
 			recipe := filepath.Join(real, "kapi.yaml")
 			initial := "version: v1\nname: Tracked\ndefaults:\n  source_language: en\n  target_languages:\n    - fr\ncollections:\n" + tc.collections
 			require.NoError(t, os.WriteFile(recipe, []byte(initial), 0o644))
-			require.NoError(t, os.WriteFile(filepath.Join(real, "guide.md"), []byte("# Guide\n"), 0o644))
+			files := tc.files
+			if len(files) == 0 {
+				files = []string{"guide.md"}
+			}
+			for _, f := range files {
+				require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(real, f)), 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(real, f), []byte("# Doc\n"), 0o644))
+			}
+			give := tc.target
+			if give == "" {
+				give = target
+			}
 
 			cmd := NewAddCmd(a)
-			cmd.SetArgs([]string{tc.pattern, "--target", target, "--project", recipe})
+			cmd.SetArgs(append(append([]string{}, tc.args...), "--target", give, "--project", recipe))
 			var out bytes.Buffer
 			cmd.SetOut(&out)
 			cmd.SetErr(&out)
 			err = cmd.Execute()
 
-			proj, lerr := coreproj.Load(recipe)
-			require.NoError(t, lerr)
 			if len(tc.wantErr) > 0 {
 				require.Error(t, err)
 				for _, s := range tc.wantErr {
@@ -253,9 +325,21 @@ func TestAdd_TargetOnATrackedPattern(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Contains(t, out.String(), tc.wantOut)
-			assert.Equal(t, target, tc.wantTarget(proj))
-			assert.Len(t, proj.Collections, 1, "no second entry for the same files")
+			for _, line := range tc.wantOut {
+				assert.Contains(t, out.String(), line+"\n")
+			}
+			proj, lerr := coreproj.Load(recipe)
+			require.NoError(t, lerr)
+			want := tc.wantTo
+			if want == "" {
+				want = give
+			}
+			assert.Equal(t, want, tc.wantTarget(proj))
+			entries := tc.wantEntries
+			if entries == 0 {
+				entries = 1
+			}
+			assert.Len(t, proj.Collections, entries)
 		})
 	}
 }

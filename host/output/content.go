@@ -16,6 +16,17 @@ type AddEntry struct {
 	// Updated is set when the pattern was already tracked and the add gave
 	// its entry the target it lacked.
 	Updated bool `json:"updated,omitempty"`
+	// ClaimedElsewhere lists the files the pattern matches that an earlier
+	// entry claims, so the target given with it does not apply to them. Files
+	// counts only the rest.
+	ClaimedElsewhere []AddClaim `json:"claimed_elsewhere,omitempty"`
+}
+
+// AddClaim is a file an added pattern matches and the entry that claims it
+// first.
+type AddClaim struct {
+	File  string `json:"file"`
+	Entry string `json:"entry"`
 }
 
 // AddOutput is the result of `kapi add`.
@@ -39,6 +50,9 @@ func (o AddOutput) FormatText(w io.Writer) error {
 			fmt.Fprintf(w, "Added %s (%s)%s: %d file(s)\n", e.Pattern, e.Format, target, e.Files)
 		default:
 			fmt.Fprintf(w, "Added %s%s: %d file(s)\n", e.Pattern, target, e.Files)
+		}
+		for _, c := range e.ClaimedElsewhere {
+			fmt.Fprintf(w, "  %s is tracked first by %s, whose target applies to it\n", c.File, c.Entry)
 		}
 	}
 	return nil

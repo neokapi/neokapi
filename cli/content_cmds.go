@@ -35,9 +35,13 @@ a flow that writes has nowhere of its own to write, so give it here rather than
 by hand-editing the recipe. A target that lands back inside the pattern it
 comes from is refused: the collection would re-track its own output as source.
 On a pattern the project already tracks, --target sets the target its entry
-lacks. An entry that already declares another target is left as it is, and so
-is a file an earlier entry claims; both are refused with the recipe change to
-make instead.
+lacks; an entry that already declares another target is refused, with the
+recipe change to make instead. A file belongs to the first entry in the recipe
+whose pattern matches it, so a target applies to the files its entry claims.
+The output names each other file and the entry that claims it, and a pattern
+an earlier entry claims every file of is refused. Under a named collection with
+a base, the target is given from the project root and kept relative to the
+base.
 
   kapi add "src/**/*.html"
   kapi add "locales/*.json" --format json
@@ -90,11 +94,15 @@ make instead.
 						return fmt.Errorf("--target %q puts %s back inside the pattern %q, so the collection would re-track its own output as source and double on every run. Point the target outside the collection",
 							target, bad, pattern)
 					}
-					changed, terr := SetTrackedTarget(proj, recipePath, pattern, target)
+					changed, coll, terr := SetTrackedTarget(proj, recipePath, pattern, target)
 					if terr != nil {
 						return terr
 					}
-					result.Added = append(result.Added, output.AddEntry{Pattern: pattern, Target: target, Files: len(matches), Skipped: !changed, Updated: changed})
+					own, elsewhere := EntryClaims(proj, coll, pattern, matches)
+					if len(matches) > 0 && own == 0 {
+						return ErrTargetClaimsNothing(pattern, target, recipePath, elsewhere)
+					}
+					result.Added = append(result.Added, output.AddEntry{Pattern: pattern, Target: target, Files: own, Skipped: !changed, Updated: changed, ClaimedElsewhere: elsewhere})
 					continue
 				}
 				fmtName := format
@@ -117,16 +125,11 @@ make instead.
 					return fmt.Errorf("--target %q puts %s back inside the pattern %q, so the collection would re-track its own output as source and double on every run. Point the target outside the collection",
 						target, bad, pattern)
 				}
-				if target != "" {
-					if file, by, claimed := ClaimingEntry(proj, matches); claimed {
-						return fmt.Errorf("%s is already tracked by %q, which claims it first, so a target given with %q would never apply to it. Set the target on %q in %s instead",
-							file, by, pattern, by, filepath.Base(recipePath))
-					}
-				}
 				var spec *coreproj.FormatSpec
 				if fmtName != "" {
 					spec = &coreproj.FormatSpec{Name: fmtName}
 				}
+				coll := len(proj.Collections)
 				if collection == nil {
 					proj.Collections = append(proj.Collections, coreproj.Collection{Path: pattern, Format: spec, Target: target})
 				} else {
@@ -134,9 +137,28 @@ make instead.
 					if berr != nil {
 						return berr
 					}
-					collection.Content = append(collection.Content, coreproj.ContentItem{Path: itemPath, Format: spec, Target: target})
+					itemTarget, terr := CollectionRelativeTarget(collection, target)
+					if terr != nil {
+						return terr
+					}
+					collection.Content = append(collection.Content, coreproj.ContentItem{Path: itemPath, Format: spec, Target: itemTarget})
+					for i := range proj.Collections {
+						if &proj.Collections[i] == collection {
+							coll = i
+						}
+					}
 				}
-				result.Added = append(result.Added, output.AddEntry{Pattern: pattern, Format: fmtName, Target: target, Files: len(matches)})
+				entry := output.AddEntry{Pattern: pattern, Format: fmtName, Target: target, Files: len(matches)}
+				if target != "" {
+					// A file an entry earlier in the recipe claims keeps that
+					// entry's target, so the target applies to the rest.
+					own, elsewhere := EntryClaims(proj, coll, pattern, matches)
+					if len(matches) > 0 && own == 0 {
+						return ErrTargetClaimsNothing(pattern, target, recipePath, elsewhere)
+					}
+					entry.Files, entry.ClaimedElsewhere = own, elsewhere
+				}
+				result.Added = append(result.Added, entry)
 			}
 			if err := coreproj.Save(recipePath, proj); err != nil {
 				return fmt.Errorf("save recipe: %w", err)
