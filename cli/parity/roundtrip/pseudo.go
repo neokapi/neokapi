@@ -93,7 +93,7 @@ func applyPseudoToBlockOpts(b *model.Block, spec PseudoSpec, forceSourceBase boo
 	tgt := model.LocaleID(spec.TgtLocale())
 
 	// Decide the base side. baseLocale == "" means "base on the source".
-	baseFromSource := forceSourceBase && len(b.Source) > 0
+	baseFromSource := forceSourceBase && len(b.SourceRuns()) > 0
 	var baseLocale model.LocaleID
 	if !baseFromSource {
 		baseLocale = pickPseudoBase(b, tgt)
@@ -237,20 +237,21 @@ func applyPseudoToBlockOpts(b *model.Block, spec PseudoSpec, forceSourceBase boo
 // props, runs, ignorable flag, inline IR); without one the whole source
 // is a single anonymous segment.
 func sourceBaseSegs(b *model.Block) []baseSeg {
-	if len(b.Source) == 0 {
+	src := b.SourceRuns()
+	if len(src) == 0 {
 		return nil
 	}
 	srcIR := unitSourceIR(b)
 	overlay := b.SourceSegmentation()
 	if overlay == nil || len(overlay.Spans) == 0 {
-		return []baseSeg{{runs: b.Source}}
+		return []baseSeg{{runs: src}}
 	}
 	out := make([]baseSeg, 0, len(overlay.Spans))
 	for _, sp := range overlay.Spans {
 		bs := baseSeg{
 			id:        sp.ID,
 			props:     sp.Props,
-			runs:      sp.Range.ExtractRuns(b.Source),
+			runs:      sp.Range.ExtractRuns(src),
 			ignorable: sp.Ignorable(),
 		}
 		if srcIR != nil {
