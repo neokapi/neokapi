@@ -195,14 +195,14 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 			comments = append(comments, e)
 		case kindTerm, kindMemory, kindRecipe:
 			if diff {
-				out.Assets = append(out.Assets, previewAssetResult(e))
+				out.Assets = append(out.Assets, previewAssetResult(who, e))
 				continue
 			}
 			res := a.applyRecordedAssetEntry(ctx, cmd, who, e)
 			out.Assets = append(out.Assets, res)
 		case kindReview:
 			if diff {
-				out.Assets = append(out.Assets, previewAssetResult(e))
+				out.Assets = append(out.Assets, previewAssetResult(who, e))
 				continue
 			}
 			res := a.applyReviewEntry(ctx, cmd, who, e)
@@ -526,9 +526,13 @@ func printAssetResults(w io.Writer, assets []assetResult) {
 	}
 }
 
-// previewAssetResult lists an asset entry under --diff, which writes nothing:
-// the entry is named with what it would change and is not applied.
-func previewAssetResult(e changeEntry) assetResult {
+// previewAssetResult lists an asset or review entry under --diff, which writes
+// nothing: the entry is named with what it would change and is not applied.
+// An entry its actor may not make gets the refusal the write would give.
+func previewAssetResult(who changeActor, e changeEntry) assetResult {
+	if refusal, refused := actorRefusal(who, e); refused {
+		return refusal
+	}
 	return assetResult{Kind: e.Kind, Op: e.Op, Target: assetTarget(e), Status: "preview", Detail: "--diff shows the entry and writes nothing"}
 }
 

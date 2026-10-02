@@ -168,3 +168,56 @@ func TestApplyCLIStampsTheEnvironmentsActor(t *testing.T) {
 		})
 	}
 }
+
+// `kapi apply --diff` writes nothing, and it shows each asset and review entry
+// as the write would treat it: a person's entry as a preview, an agent's entry
+// with the refusal the write gives, so the preview exits as the write would.
+func TestApplyDiffPreviewsTheActorsRefusal(t *testing.T) {
+	entries := []struct {
+		kind   string
+		line   string
+		refuse string
+	}{
+		{kind: "term", line: `{"kind":"term","op":"upsert","term":"leverage","replacement":"use","locale":"en","status":"forbidden"}`, refuse: "agent claude/s9 may not edit"},
+		{kind: "memory", line: `{"kind":"memory","op":"add","source":"Save","target":"Lagre","source_locale":"en","target_locale":"nb"}`, refuse: "agent claude/s9 may not edit"},
+		{kind: "recipe", line: `{"kind":"recipe","op":"set","path":"defaults.coordinates.brand","value":"kapi"}`, refuse: "ask a person to change kapi.yaml"},
+		{kind: "review", line: `{"kind":"review","file":"en.json","id":"greeting","locale":"nb"}`, refuse: "an agent records a pre-review"},
+	}
+	for _, entry := range entries {
+		for _, agent := range []bool{false, true} {
+			name := entry.kind + "/a person"
+			if agent {
+				name = entry.kind + "/an agent's shell"
+			}
+			t.Run(name, func(t *testing.T) {
+				if agent {
+					t.Setenv(EnvActor, "agent")
+					t.Setenv(EnvAgentName, "claude")
+					t.Setenv(EnvAgentSession, "s9")
+				}
+				app := newToolboxApp(t)
+				changeset := filepath.Join(t.TempDir(), "edits.jsonl")
+				require.NoError(t, os.WriteFile(changeset, []byte(entry.line+"\n"), 0o600))
+
+				cmd := NewEnvCommand(t.Context(), "apply")
+				var stdout, stderr bytes.Buffer
+				cmd.SetOut(&stdout)
+				cmd.SetErr(&stderr)
+				err := app.RunApply(cmd, changeset, true, "", true)
+
+				var out applyOutput
+				require.NoError(t, json.Unmarshal(stdout.Bytes(), &out), stdout.String())
+				require.Len(t, out.Assets, 1)
+				if !agent {
+					require.NoError(t, err)
+					assert.Equal(t, "preview", out.Assets[0].Status)
+					return
+				}
+				require.Error(t, err)
+				assert.Equal(t, ExitGate, ExitCode(cmd, err))
+				assert.Equal(t, "error", out.Assets[0].Status)
+				assert.Contains(t, out.Assets[0].Detail, entry.refuse)
+			})
+		}
+	}
+}

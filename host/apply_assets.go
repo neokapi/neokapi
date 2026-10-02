@@ -83,15 +83,11 @@ type changeActor struct {
 // an agent's entry is refused here rather than after the store has moved; an
 // agent records an observation or a correction instead, which a person keeps.
 func (a *App) applyRecordedAssetEntry(ctx context.Context, cmd Command, who changeActor, e changeEntry) assetResult {
-	subject, records := assetSubject(e)
-	if err := contextop.PersonDecides(contextop.Transition{
-		Actor:   who.Actor,
-		Kind:    contextop.KindEdit,
-		Subject: subject.Kind,
-	}); err != nil {
-		return errResult(assetResult{Kind: e.Kind, Op: e.Op, Target: assetTarget(e)}, err.Error()+"; "+agentAssetRoute(e.Kind))
+	if refusal, refused := actorRefusal(who, e); refused {
+		return refusal
 	}
 
+	subject, records := assetSubject(e)
 	res := a.applyAssetEntry(ctx, cmd, e)
 	if !records || res.Status != "applied" {
 		return res
@@ -102,6 +98,31 @@ func (a *App) applyRecordedAssetEntry(ctx context.Context, cmd Command, who chan
 		res.Detail = strings.TrimSpace(res.Detail + "; not recorded in the context history: " + err.Error())
 	}
 	return res
+}
+
+// actorRefusal is the result an asset or review entry gets when its actor may
+// not make it, and whether the actor is refused. Writing a term, a content
+// memory pair or a recipe field directly is a person's decision under the
+// context policy, and so is establishing a unit. Applying an entry and
+// previewing it with --diff both ask here, so a preview shows the refusal the
+// write would give.
+func actorRefusal(who changeActor, e changeEntry) (assetResult, bool) {
+	res := assetResult{Kind: e.Kind, Op: e.Op, Target: assetTarget(e)}
+	if e.Kind == kindReview {
+		if who.Actor.Kind == contextop.ActorAgent {
+			return errResult(res, "review: an agent records a pre-review (the pre_review_unit tool), never a decision; a person establishes a unit"), true
+		}
+		return assetResult{}, false
+	}
+	subject, _ := assetSubject(e)
+	if err := contextop.PersonDecides(contextop.Transition{
+		Actor:   who.Actor,
+		Kind:    contextop.KindEdit,
+		Subject: subject.Kind,
+	}); err != nil {
+		return errResult(res, err.Error()+"; "+agentAssetRoute(e.Kind)), true
+	}
+	return assetResult{}, false
 }
 
 // assetSubject reads an asset entry as the context subject it decides, and
@@ -307,8 +328,8 @@ func (a *App) applyReviewEntry(ctx context.Context, cmd Command, who changeActor
 	if strings.TrimSpace(e.File) == "" || strings.TrimSpace(e.ID) == "" || strings.TrimSpace(e.Locale) == "" {
 		return errResult(res, "review: file, id, and locale are required (as listed by `kapi status --review`)")
 	}
-	if who.Actor.Kind == contextop.ActorAgent {
-		return errResult(res, "review: an agent records a pre-review (the pre_review_unit tool), never a decision; a person establishes a unit")
+	if refusal, refused := actorRefusal(who, e); refused {
+		return refusal
 	}
 	recipePath, _, err := a.resolveProjectRoot(cmd)
 	if err != nil {
