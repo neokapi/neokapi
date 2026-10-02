@@ -80,9 +80,10 @@ steps:
 
 This creates a three-step pipeline: create the target, clean up placeholder text, then run quality checks.
 
-## Parallel blocks for fan-out
+## Steps run in order
 
-Use `parallel:` to run multiple tools concurrently on the same stream of Parts. Each branch receives a copy of the input and produces independent output:
+A flow runs its steps as one ordered chain: each tool reads the Parts the step
+before it emitted. To run several checks, list them one after another:
 
 ```yaml
 steps:
@@ -90,16 +91,19 @@ steps:
     config:
       copySource: true
 
-  - parallel:
-      - tool: qa
-        label: Quality checks
-      - tool: term-check
-        label: Terminology checks
-      - tool: xml-validation
-        label: XML validation
+  - tool: qa
+    label: Quality checks
+  - tool: term-check
+    label: Terminology checks
+  - tool: xml-validation
+    label: XML validation
 ```
 
-All three check tools run at the same time, each in its own goroutine.
+Each tool runs in its own goroutine, so the checks work on different Parts at
+the same time. Within one tool, `--parallel-blocks` (or a recipe's
+`parallel_blocks`) spreads blocks across workers. The steps parser also accepts
+a `parallel:` block, but no runner executes one: `kapi run` stops with an
+error before processing a flow that contains it.
 
 ## Transformers
 
@@ -145,13 +149,12 @@ the immutability model and the producer/applier split.
 The `StepsToGraph()` function transforms a `StepsSpec` into `FlowNode` and `FlowEdge` slices:
 
 1. Each sequential step becomes a **tool** node, chained by edges
-2. A `parallel:` block creates multiple tool nodes, all connected from the previous node (fan-out)
-3. After a parallel block, subsequent steps connect from all branch endpoints (fan-in)
+2. A `parallel:` block creates multiple tool nodes, all connected from the previous node, and the step after it connects from every branch; this shape exists in the definition only and cannot run
 
 The graph is tool nodes only. The flow's source and sink are bindings supplied at
 run time ([E-04](architecture/engine/e-04-flows-and-io-binding)), not nodes in the graph.
 
-The resulting graph is what the `Executor` runs: each node becomes a goroutine connected by buffered channels.
+The host builds the ordered tool chain from the steps, and the `Executor` runs it: each tool becomes a goroutine connected to the next by a buffered channel.
 
 ## Example flows
 
@@ -186,9 +189,9 @@ kapi run my-translate -i input.xliff --target-lang fr
 kapi run my-translate -i input.xliff --target-lang de
 ```
 
-### Fan-out analysis
+### Checks after pseudo-translation
 
-Run multiple analysis tools in parallel after pseudo-translation:
+Run analysis tools over pseudo-translated output:
 
 ```yaml
 steps:
@@ -196,16 +199,15 @@ steps:
     config:
       expansionPercent: 30
 
-  - parallel:
-      - tool: term-check
-      - tool: qa
-        config:
-          checkAbsoluteMaxCharLength: true
-          absoluteMaxCharLength: 200
+  - tool: term-check
+  - tool: qa
+    config:
+      checkAbsoluteMaxCharLength: true
+      absoluteMaxCharLength: 200
 ```
 
 ```bash
-kapi run fan-out -i input.json --target-lang qps
+kapi run pseudo-checks -i input.json --target-lang qps
 ```
 
 ### Script filtering

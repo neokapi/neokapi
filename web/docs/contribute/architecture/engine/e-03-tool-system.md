@@ -82,6 +82,24 @@ stream (batching, 1→N fan-out, cross-block state) overrides `Process` directly
 it may reuse a typed handler over a held block via `tool.NewBlockView` /
 `tool.NewVariantView`.
 
+The caller owns both channels. A tool observes `ctx` on every receive and send,
+returns once its input is exhausted or the context is cancelled, joins any
+goroutine it started before returning, and leaves closing the output to the
+caller. A block handler that calls `Drop()` on its view, or a `Handle*Fn` that
+returns nil, removes that Part from the stream, and nothing is emitted in its
+place.
+
+`tool.RetryTool` retries a `BaseTool`'s capability-typed block handler, with
+backoff, on the errors its configuration names as retryable (every error when
+it names none). It wraps the handler on a private copy of the `BaseTool`, so
+the caller's tool keeps its own handlers, and a retried handler must be
+idempotent: a retry keeps the block writes and external effects of the attempt
+before it. A tool that overrides `Process`, or sets no typed block handler,
+runs once, since its input channel cannot be rewound and its earlier output may
+already be downstream. Cancellation and deadline errors return at once, and
+`SessionProcess` passes to a wrapped `SessionTool`, which owns any retry inside
+its session.
+
 ### SessionTool extension
 
 The channel-based `Tool.Process` is a forward-only transform. Some tools need
@@ -109,9 +127,10 @@ Lifecycle is owned by the executor, not the tool:
 1. At flow start the executor opens a `blockstore.Session` against the project's
    declared store backend ([C-01](../context/c-01-project-model.md)).
 2. For each tool the executor calls `SessionProcess` when the tool implements
-   `SessionTool`, otherwise the plain streaming `Process`. Hybrid implementations
-   are allowed: `SessionProcess` can read from `in`, enrich via the session, and
-   emit to `out`.
+   `SessionTool` and the store reports itself persistent, otherwise the plain
+   streaming `Process`, which is what every tool gets over an ephemeral store.
+   Hybrid implementations are allowed: `SessionProcess` can read from `in`,
+   enrich via the session, and emit to `out`.
 3. The executor commits the session on success or rolls back on error. Tools must
    not call `Commit` or `Rollback` themselves.
 
@@ -674,8 +693,9 @@ and quality one `qa` tool, with the backend chosen by `--provider`
 
 ### Flow steps format
 
-Flows are authored as a YAML step list, compiled to the internal graph by the
-executor ([E-01](e-01-processing-engine.md)):
+Flows are authored as a YAML step list. The parser compiles the list to the
+definition graph, and the host builds the ordered tool chain that runs
+([E-01](e-01-processing-engine.md#flow-definitions)):
 
 > A flow's source and sink are context-resolved bindings
 > ([E-04](e-04-flows-and-io-binding.md)), not fields of the flow document; the
@@ -695,13 +715,13 @@ spec:
       config:
         provider: anthropic
     - tool: qa
-    - parallel:
-        - tool: term-check
-        - tool: xml-validation
+    - tool: term-check
+    - tool: xml-validation
 ```
 
-Steps are sequential by default; `parallel:` blocks provide fan-out. The `script`
-step lets authors drop in custom JavaScript when no existing tool fits.
+Steps run in the order listed. The definition parser also accepts a `parallel:`
+block, which no host path runs as concurrent branches. The `script` step lets
+authors drop in custom JavaScript when no existing tool fits.
 
 ### Mutable streaming model
 
@@ -719,6 +739,13 @@ trade-off:
 Document-level immutability is achieved by external storage layers that version
 entire Block states. Within a single pipeline execution, mutable streaming is the
 right trade-off.
+
+Stages pass the same Block from one to the next, so sending a Part on a channel
+hands responsibility for its Block to the receiver: a handler finishes its
+writes before the Part is emitted and leaves the Block alone afterwards.
+`ParallelBlockTool` relies on this, since each of its workers holds a distinct
+Block. A caller that sends one Block to several concurrent receivers, as
+`tool.Tee` does, has to add its own coordination.
 
 #### Content immutability by capability
 

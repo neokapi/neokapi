@@ -623,18 +623,10 @@ flows:
         label: "Translate" # display label (optional)
 ```
 
-Steps can also define parallel branches:
-
-```yaml
-flows:
-  parallel-qa:
-    steps:
-      - parallel:
-          - tool: qa
-          - tool: qa
-            config:
-              provider: anthropic
-```
+The steps run in the order listed, each tool reading what the step before it
+emitted. A step holding a `parallel:` list of tools is parsed but cannot run:
+`kapi run` stops with an error before processing the flow. List those tools as
+ordered steps instead.
 
 ### Flow files
 

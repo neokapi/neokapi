@@ -76,8 +76,8 @@ I/O sits outside the flow, leaving three concepts, each with exactly one job:
   Part stream: `Annotate`, `Produce`, or `Transform`
   ([E-03](e-03-tool-system.md)). A tool runs on its own; it needs no flow.
 - **Flow**: a named, reusable **composition** of tools. A flow carries the
-  ordering, the branching (`parallel:`, tee, batch), and the per-tool
-  configuration, and nothing else. It is *the recipe*.
+  ordering and the per-tool configuration, and nothing else. It is *the
+  recipe*.
 - **Binding**: the ends. Where content enters (source) and where results leave
   (sink). A binding belongs to neither the tool nor the flow; it is supplied by
   the invocation and the project.
@@ -88,8 +88,12 @@ Invoke a single tool directly as a tool command. Use a flow to compose tools;
 - **Configuration**: a flow pins each tool's settings, so it is a *configured*
   recipe (`recycle{fuzzy:75}` → `translate{provider:anthropic}` → `qa`), not
   merely an ordered set of tool names.
-- **Topology**: a flow is a DAG. `parallel:` fan-out, tee, and batch are graph
-  shapes a sequence cannot express.
+- **Order**: a flow runs as a linear chain of tools, each feeding the next.
+  Its definition is stored as nodes and edges, and the steps parser accepts
+  `parallel:` branches, but every host path runs an ordered tool list: the
+  engine service refuses fan-out and merge joins, and the CLI and project
+  runners build one tool after another
+  ([E-01](e-01-processing-engine.md#flow-definitions)).
 - **Identity and reuse**: a flow has a name and a source (built-in, user,
   project). A project's `flows:` block is its vocabulary of named operations,
   versioned with the recipe and shared like any other artifact. A project with
@@ -447,7 +451,7 @@ and a remote provider substitutes its own API write-back.
   (§7), which reuse the `store` binding for resumable state. The byte-exact
   whole-artifact repack is the file-only specialization.
 - The flow noun means *composition*: with I/O at the edges, a flow carries
-  configuration, topology, identity, and phase structure. A single tool stays a
+  configuration, order, identity, and phase structure. A single tool stays a
   tool.
 - One scheme vocabulary spans the CLI locator, the flow document, and the tool
   resolver, so a binding reads the same wherever it appears. Bare paths keep the
