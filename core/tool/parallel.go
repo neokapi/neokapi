@@ -62,9 +62,9 @@ func recoverHandle(name string, fn func() (*model.Part, error)) (result *model.P
 
 // nonBlockWindowPerBlock sizes the window for admitted non-block Parts as a
 // multiple of the block window. Readers put a few structural Parts between
-// consecutive blocks (PO a Data Part per entry, CSV a group start and end per
-// row), and each of them waits in the ring until the blocks before it are
-// emitted. A window of this many per block keeps every worker busy across
+// consecutive blocks (PO a Data Part for an entry's comments or references,
+// CSV a group start and end around each row), and each of them waits in the
+// ring until the blocks before it are emitted. A window of this many per block keeps every worker busy across
 // such a stream while still bounding what the stage holds.
 const nonBlockWindowPerBlock = 4
 
