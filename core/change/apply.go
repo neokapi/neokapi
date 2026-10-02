@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -585,27 +586,31 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 	type pathEdit struct {
 		i          int
 		start, end int
-		span       Resolved
 		text       string
 	}
 	groups := map[string][]pathEdit{}
 	paths := map[string]model.RunPath{}
+	index := map[string]*seqIndex{}
 	res.Resolved = make([]Resolved, len(body.Edits))
 	for i, e := range body.Edits {
 		field := "edits/" + strconv.Itoa(i)
-		seq, ok := model.ResolveRunPath(cur, e.Path)
+		key := pathText(e.Path)
+		ix, ok := index[key]
 		if !ok {
-			return &Error{Code: CodeNotFound, Field: field + "/path", Message: fmt.Sprintf("path %s reaches no plural form or select case", pathText(e.Path))}
+			seq, found := model.ResolveRunPath(cur, e.Path)
+			if !found {
+				return &Error{Code: CodeNotFound, Field: field + "/path", Message: fmt.Sprintf("path %s reaches no plural form or select case", pathText(e.Path))}
+			}
+			ix = indexSequence(seq)
+			index[key] = ix
 		}
-		start, end, err := resolveSelection(seq, e.Selection, e.Path, field)
+		start, end, err := ix.resolve(e.Selection, e.Path, field)
 		if err != nil {
 			return err
 		}
-		span := Resolved{Path: e.Path, Start: posAt(seq, start), End: posAt(seq, end)}
-		res.Resolved[i] = span
-		key := pathText(e.Path)
+		res.Resolved[i] = Resolved{Path: e.Path, Start: ix.posAt(start), End: ix.posAt(end)}
 		paths[key] = e.Path
-		groups[key] = append(groups[key], pathEdit{i: i, start: start, end: end, span: span, text: e.Text})
+		groups[key] = append(groups[key], pathEdit{i: i, start: start, end: end, text: e.Text})
 	}
 
 	// Edit the deepest sequences first: an edit at one level can renumber the
@@ -613,7 +618,10 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 	keys := sortedKeys(groups)
 	slices.SortStableFunc(keys, func(a, b string) int { return len(paths[b]) - len(paths[a]) })
 	next := cur
-	var topEdits []model.RunEdit
+	var flatEdits []model.RunEdit
+	// The new flattened width of each top-level plural or select a branch
+	// edit changed, by its index in cur.
+	touched := map[int]int{}
 	for _, key := range keys {
 		edits := groups[key]
 		slices.SortStableFunc(edits, func(a, b pathEdit) int { return a.start - b.start })
@@ -631,16 +639,40 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 		}
 		edited := model.ApplyTextEdits(seq, textEdits)
 		if len(path) == 0 {
-			next = edited
+			ix := index[key]
 			for _, e := range edits {
-				s, en := model.SpanAnchor(e.span.Start, e.span.End).TextSpan(cur)
-				topEdits = append(topEdits, model.RunEdit{Start: s, End: en, NewLen: len([]rune(e.text))})
+				n := utf8.RuneCountInString(e.text)
+				if e.start == e.end {
+					// Text inserted where a plural or select sits goes before it.
+					at := ix.flatAt(e.start, false)
+					flatEdits = append(flatEdits, model.RunEdit{Start: at, End: at, NewLen: n})
+					continue
+				}
+				// A replacement keeps a structure at its start before it and one
+				// at its end after it, as model.ApplyTextEdits places them.
+				flatEdits = append(flatEdits, model.RunEdit{Start: ix.flatAt(e.start, true), End: ix.flatAt(e.end, false), NewLen: n})
 			}
+			next = edited
 			continue
 		}
 		var ok bool
 		if next, ok = replaceAtPath(next, path, edited); !ok {
 			return &Error{Code: CodeNotFound, Field: "edits", Message: fmt.Sprintf("path %s reaches no plural form or select case", key)}
+		}
+		// Branches are edited before the top level, so the structure is still
+		// at the index the path names.
+		t := path[0].Index
+		touched[t] = utf8.RuneCountInString(model.RunsText(next[t : t+1]))
+	}
+	// An edit in a branch changes the flattened text over the whole structure
+	// it is in, which the top-level edits leave whole.
+	if len(touched) > 0 {
+		ix := index[pathText(nil)]
+		if ix == nil {
+			ix = indexSequence(cur)
+		}
+		for t, width := range touched {
+			flatEdits = append(flatEdits, model.RunEdit{Start: ix.flat[t], End: ix.flat[t+1], NewLen: width})
 		}
 	}
 	if err := w.checkCodes(cur, next, nil, res); err != nil {
@@ -650,14 +682,16 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 		res.Before, res.After, res.Status = st.startRevision(), st.revision(), OpUnchanged
 		return nil
 	}
-	rebase := OverlayRebase{}
-	if len(keys) == 1 && keys[0] == pathText(nil) {
-		rebase.Edits = topEdits
-		if rebase.Edits == nil {
-			rebase.Edits = []model.RunEdit{}
+	slices.SortFunc(flatEdits, func(a, b model.RunEdit) int {
+		if a.Start != b.Start {
+			return a.Start - b.Start
 		}
+		return a.End - b.End
+	})
+	if flatEdits == nil {
+		flatEdits = []model.RunEdit{}
 	}
-	return w.rewrite(st, next, rebase, res)
+	return w.rewrite(st, next, OverlayRebase{Edits: flatEdits}, res)
 }
 
 // removeEdition applies remove_edition.
