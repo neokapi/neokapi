@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -19,6 +20,9 @@ type ContextRebuild struct {
 	// Failed lists the operations the stores refused, as they refused them
 	// when they were first written.
 	Failed []string `json:"failed,omitempty"`
+	// Retired counts, by kind, the operations of a kind kapi no longer
+	// applies, which the rebuild left out (projector.RetiredKinds).
+	Retired map[string]int `json:"retired,omitempty"`
 	// Seconds is how long the rebuild took.
 	Seconds float64 `json:"seconds"`
 	// From is the last operation of the checkpoint the rebuild started from,
@@ -46,13 +50,32 @@ func (r ContextRebuild) FormatText(w io.Writer) error {
 		pluralUnit(total, "operation", "operations"), from, r.Seconds); err != nil {
 		return err
 	}
+	width := 0
 	for _, kind := range kinds {
-		if _, err := fmt.Fprintf(w, "  %-13s %d\n", kind, r.Operations[kind]); err != nil {
+		width = max(width, len(kind))
+	}
+	for _, kind := range kinds {
+		if _, err := fmt.Fprintf(w, "  %-*s %d\n", width, kind, r.Operations[kind]); err != nil {
 			return err
 		}
 	}
 	for _, f := range r.Failed {
 		if _, err := fmt.Fprintf(w, "  refused: %s\n", f); err != nil {
+			return err
+		}
+	}
+	retired := make([]string, 0, len(r.Retired))
+	for kind := range r.Retired {
+		retired = append(retired, kind)
+	}
+	sort.Strings(retired)
+	for _, kind := range retired {
+		hint := ""
+		if projector.RetiredKinds[kind] == projector.KindDecision {
+			hint = " kapi context import reads the project's decisions in again from its shards."
+		}
+		if _, err := fmt.Fprintf(w, "Left out %s of kind %s, which this kapi no longer applies, so the rows they wrote are not in the stores.%s\n",
+			pluralUnit(r.Retired[kind], "operation", "operations"), kind, hint); err != nil {
 			return err
 		}
 	}
@@ -89,7 +112,7 @@ func (a *App) RebuildProjectContext(ctx context.Context, projectPath string, che
 	}
 	start := time.Now()
 	report, err := w.Rebuild(ctx)
-	res.Operations, res.Failed, res.From = report.Operations, report.Failed, report.Checkpoint
+	res.Operations, res.Failed, res.From, res.Retired = report.Operations, report.Failed, report.Checkpoint, report.Retired
 	res.Seconds = time.Since(start).Seconds()
 	if err != nil || !checkpoint {
 		return res, err

@@ -189,3 +189,21 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 	assert.Equal(t, res.Checkpoint, again.From, "the rebuild starts from the checkpoint")
 	assert.Equal(t, before, projectionRows(t, app, db), "and lands on the rows the writes left")
 }
+
+// TestARebuildSaysWhatItLeftOut: the kinds line up however long their names,
+// and operations of a retired kind are reported with what reads their rows in
+// again.
+func TestARebuildSaysWhatItLeftOut(t *testing.T) {
+	var out strings.Builder
+	require.NoError(t, ContextRebuild{
+		Operations: map[string]int{"decision.record": 12, "content.edit": 3, "terms.write": 1},
+		Retired:    map[string]int{"unit.record": 7},
+		Seconds:    1.5,
+	}.FormatText(&out))
+	assert.Equal(t, "Rebuilt the project's stores from 16 operations in 1.5s.\n"+
+		"  content.edit    3\n"+
+		"  decision.record 12\n"+
+		"  terms.write     1\n"+
+		"Left out 7 operations of kind unit.record, which this kapi no longer applies, so the rows they wrote are not in the stores."+
+		" kapi context import reads the project's decisions in again from its shards.\n", out.String())
+}

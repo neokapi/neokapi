@@ -270,6 +270,27 @@ func TestADocumentReturningToAnEarlierStateIsAdoptedAgain(t *testing.T) {
 	assert.Equal(t, before, snapshot(t, ws, db)["document_adoption"])
 }
 
+// TestARebuildReportsTheOperationsOfARetiredKind: a log written before the
+// ledger's entries became decision.record still holds unit.record operations.
+// A rebuild applies nothing from them and says how many it left out.
+func TestARebuildReportsTheOperationsOfARetiredKind(t *testing.T) {
+	p, ws, _ := open(t)
+	ctx := t.Context()
+	_, err := ws.Record(ctx,
+		workspace.Op{Project: key, Kind: "unit.record", Payload: []byte(`{"steps":[{"entries":[]}]}`)},
+		workspace.Op{Project: key, Kind: "unit.record", Payload: []byte(`{"steps":[{"entries":[]}]}`)},
+	)
+	require.NoError(t, err)
+	_, err = p.RecordEdit(ctx, flowEdit("d-a", 1, 0))
+	require.NoError(t, err)
+
+	report, err := p.Rebuild(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]int{"unit.record": 2}, report.Retired)
+	assert.Equal(t, map[string]int{projector.KindEdit: 1}, report.Operations)
+	assert.Equal(t, projector.KindDecision, projector.RetiredKinds["unit.record"])
+}
+
 func TestEditsDecisionsAndAdoptionsAreDistinctKinds(t *testing.T) {
 	p, ws, db := open(t)
 	ctx := t.Context()

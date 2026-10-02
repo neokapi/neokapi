@@ -22,6 +22,19 @@ type RebuildReport struct {
 	// Checkpoint is the last operation of the checkpoint the rebuild started
 	// from, empty when it replayed the whole log.
 	Checkpoint string `json:"checkpoint,omitempty"`
+	// Retired counts, by kind, the operations of a kind the projector no
+	// longer applies (RetiredKinds), which the rebuild left out.
+	Retired map[string]int `json:"retired,omitempty"`
+}
+
+// RetiredKinds are the operation kinds the projector once applied and no
+// longer does, each with the kind that took its place. The standing decision
+// is to reset data rather than migrate it, so a log written before a kind was
+// retired still holds its operations; a rebuild leaves them out and reports
+// them, so a store that lost rows to the reset says so.
+var RetiredKinds = map[string]string{
+	// The decision ledger's entries, recorded as decision.record since.
+	"unit.record": KindDecision,
 }
 
 // Total is the number of operations the rebuild applied.
@@ -151,6 +164,12 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 	}
 	for _, op := range ops {
 		if !projects(op.Kind) {
+			if _, retired := RetiredKinds[op.Kind]; retired {
+				if report.Retired == nil {
+					report.Retired = map[string]int{}
+				}
+				report.Retired[op.Kind]++
+			}
 			continue
 		}
 		report.Operations[op.Kind]++
