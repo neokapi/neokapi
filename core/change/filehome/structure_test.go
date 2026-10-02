@@ -240,6 +240,23 @@ func TestFileHome_AStructuralEditIsMadeAgainWhenTheFileMoves(t *testing.T) {
 	assert.Equal(t, "{\n  \"a\": \"A\",\n  \"n\": \"N\",\n  \"b\": \"B2\"\n}\n", f.read(t, "en.json"), "both changes land")
 }
 
+func TestFileHome_ARemovalIsStaleWhenTheBlockMovesBeforeTheCommit(t *testing.T) {
+	var f *fixture
+	saved := false
+	f = newFixture(t, map[string]string{"en.json": "{\n  \"a\": \"A\",\n  \"b\": \"B\"\n}\n"}, filehome.Options{BeforeSettle: func(string) {
+		if saved {
+			return
+		}
+		saved = true
+		require.NoError(t, os.WriteFile(filepath.Join(f.dir, "en.json"), []byte("{\n  \"a\": \"A\",\n  \"b\": \"B2\"\n}\n"), 0o640))
+	}})
+	res := f.apply(t, deleteAt("en.json", "b", map[string]string{"en": f.block(t, "en.json", "b").Rev}))
+	require.Equal(t, change.SetRefused, res.Status)
+	assert.Equal(t, change.CodeStale, res.Ops[0].Error.Code, "the block another writer changed is not removed")
+	assert.Equal(t, "B2", res.Ops[0].Current.Text)
+	assert.Equal(t, "{\n  \"a\": \"A\",\n  \"b\": \"B2\"\n}\n", f.read(t, "en.json"))
+}
+
 func TestFileHome_StructureReachesTheFilesOfEditions(t *testing.T) {
 	const en = "{\n  \"a\": \"A\",\n  \"b\": \"B\"\n}\n"
 	const de = "{\n  \"a\": \"Ah\",\n  \"b\": \"Be\"\n}\n"
