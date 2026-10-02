@@ -55,6 +55,46 @@ func TestView_SetSourceStatusKeepsTheContent(t *testing.T) {
 	assert.Equal(t, "Hello", model.RunsText(runs))
 }
 
+// SetSourceStatus changes the status and nothing else on the block: the
+// source-origin annotation stays the value it was, whatever its type, and the
+// block records no copy of its source as read, so content a reader sets
+// afterwards is still the source as read.
+func TestView_SetSourceStatusTouchesOnlyTheStatus(t *testing.T) {
+	origin := &model.Origin{Kind: model.OriginHuman, Tool: "editor"}
+	raw := &model.RawAnnotation{Kind: model.AnnoSourceOrigin, Body: []byte(`{"kind":`)}
+	tests := []struct {
+		name string
+		anno model.Payload
+	}{
+		{"origin", origin},
+		{"undecoded origin", raw},
+		{"no origin", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := model.NewBlock("b1", "Hello")
+			if tt.anno != nil {
+				b.SetAnno(model.AnnoSourceOrigin, tt.anno)
+			}
+
+			tool.NewBlockView(b).SetSourceStatus(model.SourceStatusEstablished)
+
+			assert.Equal(t, model.SourceStatusEstablished, b.SourceStatus)
+			got, ok := b.Anno(model.AnnoSourceOrigin)
+			if tt.anno == nil {
+				assert.False(t, ok)
+			} else {
+				require.True(t, ok)
+				assert.Same(t, tt.anno, got)
+			}
+			b.SetSourceRuns([]model.Run{model.TextR("Hello again")})
+			runs, edited := b.SourceAsRead()
+			assert.False(t, edited, "a status stamp records no source as read")
+			assert.Equal(t, "Hello again", model.RunsText(runs))
+		})
+	}
+}
+
 // The immutability backstop sees an in-place change to every edition: a target
 // filed under the source language is a target, and the source is the source.
 func TestWithImmutabilityCheck_SameLanguageTarget(t *testing.T) {

@@ -297,6 +297,46 @@ func TestSourceReadiness_StampsTheAuthoritativeEdition(t *testing.T) {
 	}
 }
 
+// The settle stamps the source status and nothing else: the source-origin
+// annotation stays the value it was, whatever its type, and the block records
+// no copy of its source as read, so content a reader sets afterwards is still
+// the source as read.
+func TestSourceReadiness_StampTouchesOnlyTheStatus(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		anno model.Payload
+	}{
+		{"origin", &model.Origin{Kind: model.OriginHuman, Tool: "editor"}},
+		{"undecoded origin", &model.RawAnnotation{Kind: model.AnnoSourceOrigin, Body: []byte(`{"kind":`)}},
+		{"no origin", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			block := model.NewBlock("b1", "The colour of the button.")
+			block.SourceLocale = "en-US"
+			if tc.anno != nil {
+				block.SetAnno(model.AnnoSourceOrigin, tc.anno)
+			}
+
+			check.SettleSourceStatus(t.Context(), block)
+
+			assert.Equal(t, model.SourceStatusWritten, block.SourceStatus)
+			got, ok := block.Anno(model.AnnoSourceOrigin)
+			if tc.anno == nil {
+				assert.False(t, ok)
+			} else {
+				require.True(t, ok)
+				assert.Same(t, tc.anno, got)
+			}
+			block.SetSourceRuns([]model.Run{model.TextR("The colour of the link.")})
+			runs, edited := block.SourceAsRead()
+			assert.False(t, edited, "a status stamp records no source as read")
+			assert.Equal(t, "The colour of the link.", model.RunsText(runs))
+		})
+	}
+}
+
 // The settle's emptiness guard is the shared run-aware presence predicate
 // (model.RunsHaveContent), so a block whose only run is a placeholder is
 // written source that can clear the gate.

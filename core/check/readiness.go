@@ -28,14 +28,15 @@ func SettleSourceStatus(ctx context.Context, b *model.Block) {
 
 	// The emptiness guard is the shared run-aware presence predicate, so a
 	// block that is only a placeholder is settled too.
-	k := b.Authoritative(model.AuthorityPolicy{})
-	src, _ := b.Edition(k)
+	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
 	if !model.RunsHaveContent(src.Runs) {
 		return
 	}
-	if s := model.SourceStatus(src.Status); s != model.SourceStatusEstablished && s != model.SourceStatusWritten {
-		src.Status = model.Status(model.SourceStatusWritten)
-		b.SetEdition(k, src)
+	// The stamp writes the field: SetEdition on the authoritative edition is
+	// an edit, which records the source as read and rewrites the source-origin
+	// annotation, and a status stamp is neither.
+	if model.SourceStatus(src.Status) != model.SourceStatusEstablished {
+		b.SourceStatus = model.SourceStatusWritten
 	}
 	b.SetSourceFailing(hasFailingSourceFinding(tool.NewBlockViewWithContext(ctx, b)))
 }

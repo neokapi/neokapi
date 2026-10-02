@@ -425,12 +425,12 @@ func (v *blockView) SourceStatus() model.SourceStatus {
 	return model.SourceStatus(authoritative(v.b).Status)
 }
 
-// SetSourceStatus stamps the authoritative edition's status and keeps its
-// content and origin as they are.
+// SetSourceStatus stamps the authoritative edition's status and changes
+// nothing else. It writes the field because SetEdition on that edition is an
+// edit: it records the source as read and rewrites the source-origin
+// annotation, and a status stamp is neither.
 func (v *blockView) SetSourceStatus(s model.SourceStatus) {
-	e := authoritative(v.b)
-	e.Status = model.Status(s)
-	v.b.SetEdition(model.EditionKey{}, e)
+	v.b.SourceStatus = s
 }
 
 // authoritative returns the block's authoritative edition under the empty
