@@ -75,7 +75,12 @@ func TestLayouts(t *testing.T) {
 		{"insert before the only member", `{"a": "A"}`,
 			func(d *Doc) []byte { return d.InsertBefore(d.Find("a")[0], `"z"`, `"Z"`) }, `{"z": "Z", "a": "A"}`},
 		{"append to an empty nested object keeps its indentation", "{\n  \"o\": {}\n}",
-			func(d *Doc) []byte { return d.Append(d.Root.Members[0].valueObject(d), `"k"`, `"v"`) }, "{\n  \"o\": {\n    \"k\": \"v\"\n  }\n}"},
+			func(d *Doc) []byte { return d.Append(d.ObjectsAt("o")[0], `"k"`, `"v"`) }, "{\n  \"o\": {\n    \"k\": \"v\"\n  }\n}"},
+		{"a nested object on lines of its own, one step deeper per level", "{\r\n\t\"a\": \"A\"\r\n}",
+			func(d *Doc) []byte { return d.Append(d.Root, `"b"`, d.Nest(d.Root, []string{`"c"`, `"d"`}, `"D"`)) },
+			"{\r\n\t\"a\": \"A\",\r\n\t\"b\": {\r\n\t\t\"c\": {\r\n\t\t\t\"d\": \"D\"\r\n\t\t}\r\n\t}\r\n}"},
+		{"a nested object in an object on one line", `{"a":"A"}`,
+			func(d *Doc) []byte { return d.Append(d.Root, `"b"`, d.Nest(d.Root, []string{`"c"`}, `"C"`)) }, `{"a":"A","b":{"c":"C"}}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -84,12 +89,13 @@ func TestLayouts(t *testing.T) {
 	}
 }
 
-// valueObject is the object m's value is.
-func (m *Member) valueObject(d *Doc) *Object {
-	for _, x := range d.members {
-		if x.Object.open == m.valStart {
-			return x.Object
-		}
-	}
-	return &Object{Path: m.Path, open: m.valStart, close: m.valEnd}
+func TestObjectsAtAndDottedKeys(t *testing.T) {
+	d := parse(t, `{"nav": {"home": "H"}, "flat.key": "F", "l": [{"c": "z"}]}`)
+	require.Len(t, d.ObjectsAt(""), 1)
+	assert.Same(t, d.Root, d.ObjectsAt("")[0])
+	require.Len(t, d.ObjectsAt("nav"), 1)
+	assert.Len(t, d.ObjectsAt("l[0]"), 1)
+	assert.Empty(t, d.ObjectsAt("nav.home"))
+	assert.True(t, d.Root.DottedKeys())
+	assert.False(t, d.ObjectsAt("nav")[0].DottedKeys())
 }

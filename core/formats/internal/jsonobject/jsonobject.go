@@ -49,13 +49,17 @@ type Token struct {
 // Doc is a document read into its objects and their members.
 type Doc struct {
 	toks []Token
-	// at[i] is the offset of token i's Raw in the document.
-	at []int
+	// source is the document the tokens spell; at[i] is the offset of token
+	// i's Raw in it.
+	source string
+	at     []int
 	// Root is the top-level object, nil when the document holds another
 	// value.
 	Root *Object
-	// members lists every member of every object, in document order.
+	// members lists every member of every object, and objects every object,
+	// in document order.
 	members []*Member
+	objects []*Object
 }
 
 // Object is one object of the document.
@@ -82,7 +86,7 @@ type Member struct {
 // Parse reads toks, the tokens of src, into a Doc. The tokens must spell src
 // exactly, and form one value.
 func Parse(src []byte, toks []Token) (*Doc, error) {
-	d := &Doc{toks: toks, at: make([]int, len(toks))}
+	d := &Doc{toks: toks, source: string(src), at: make([]int, len(toks))}
 	off := 0
 	for i, t := range toks {
 		off += len(t.Prefix)
@@ -136,6 +140,7 @@ func (p *parser) value(i int, path string) (int, error) {
 func (p *parser) object(i int, path string) (*Object, error) {
 	toks := p.d.toks
 	o := &Object{Path: path, open: i}
+	p.d.objects = append(p.d.objects, o)
 	i++
 	for i < len(toks) {
 		switch toks[i].Kind {
@@ -213,6 +218,30 @@ func (d *Doc) Find(path string) []*Member {
 	return out
 }
 
+// ObjectsAt returns the objects whose key path is path: the top-level object
+// for "", an object inside an array as the reader names it (list[0]).
+func (d *Doc) ObjectsAt(path string) []*Object {
+	var out []*Object
+	for _, o := range d.objects {
+		if o.Path == path {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
+// DottedKeys reports whether a key of one of o's members holds a dot: the
+// object names some values by flat key paths ("nav.home") rather than by
+// objects inside it.
+func (o *Object) DottedKeys() bool {
+	for _, m := range o.Members {
+		if strings.Contains(m.Key, ".") {
+			return true
+		}
+	}
+	return false
+}
+
 // Member returns the member of o with key, or nil.
 func (o *Object) Member(key string) *Member {
 	for _, m := range o.Members {
@@ -257,15 +286,8 @@ func (d *Doc) start(i int) int       { return d.at[i] }
 func (d *Doc) end(i int) int         { return d.at[i] + len(d.toks[i].Raw) }
 func (d *Doc) prefixStart(i int) int { return d.at[i] - len(d.toks[i].Prefix) }
 
-// src rebuilds the document.
-func (d *Doc) src() string {
-	var b strings.Builder
-	for _, t := range d.toks {
-		b.WriteString(t.Prefix)
-		b.WriteString(t.Raw)
-	}
-	return b.String()
-}
+// src is the document.
+func (d *Doc) src() string { return d.source }
 
 // splice is a change to the document: the bytes [from, to) replaced by text.
 type splice struct {
@@ -304,16 +326,21 @@ func (d *Doc) lineStart(i int) int {
 }
 
 // Delete returns the document without m: its key, its value, and the
-// separator that kept it apart from its neighbours. Comments stay; the
-// indentation of m's line goes with it.
+// separator that kept it apart from its neighbours. When m starts its line,
+// the line's indentation and a comment after m on that line go with it; every
+// other comment stays.
 func (d *Doc) Delete(m *Member) []byte {
+	ownLine := d.lineStart(m.key) >= 0
 	from := d.lineStart(m.key)
-	if from < 0 {
+	if !ownLine {
 		from = d.prefixStart(m.key)
 	}
 	if m.comma >= 0 {
 		to := d.end(m.comma)
-		if d.lineStart(m.key) < 0 && m.Prev() == nil {
+		if ownLine {
+			to = d.sameLineEnd(m.comma)
+		}
+		if !ownLine && m.Prev() == nil {
 			// The first member on the brace's line: the space after the
 			// brace stays, and the separator before the next member goes.
 			from = d.start(m.key)
@@ -323,13 +350,17 @@ func (d *Doc) Delete(m *Member) []byte {
 		}
 		return d.apply(splice{from: from, to: to})
 	}
+	to := d.end(m.valEnd)
+	if ownLine {
+		to = d.sameLineEnd(m.valEnd)
+	}
 	if prev := m.Prev(); prev != nil && prev.comma >= 0 {
 		return d.apply(
 			splice{from: d.start(prev.comma), to: d.end(prev.comma)},
-			splice{from: from, to: d.end(m.valEnd)},
+			splice{from: from, to: to},
 		)
 	}
-	return d.apply(splice{from: from, to: d.end(m.valEnd)})
+	return d.apply(splice{from: from, to: to})
 }
 
 // spelling is how the members of m's object are laid out: the separator
@@ -381,7 +412,7 @@ func leadingSpace(s string) string {
 
 // sameLineEnd is the offset where the line after token i's own bytes ends
 // before its line break, when what follows the token on that line is a
-// comment; otherwise the end of the token.
+// comment that ends there; otherwise the end of the token.
 func (d *Doc) sameLineEnd(i int) int {
 	end := d.end(i)
 	if i+1 >= len(d.toks) {
@@ -392,10 +423,34 @@ func (d *Doc) sameLineEnd(i int) int {
 		return end
 	}
 	line = strings.TrimSuffix(line, "\r")
-	if strings.TrimSpace(line) == "" {
+	if !endsOnLine(strings.TrimSpace(line)) {
 		return end
 	}
 	return end + len(line)
+}
+
+// endsOnLine reports whether s, the text after a token on its line, is one or
+// more comments that all end on that line: a /* */ comment that runs on to
+// the next line is not.
+func endsOnLine(s string) bool {
+	if s == "" {
+		return false
+	}
+	for s != "" {
+		switch {
+		case strings.HasPrefix(s, "//"):
+			return true
+		case strings.HasPrefix(s, "/*"):
+			end := strings.Index(s[2:], "*/")
+			if end < 0 {
+				return false
+			}
+			s = strings.TrimSpace(s[2+end+2:])
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // member spells a new member in anchor's layout.
@@ -456,6 +511,63 @@ func (d *Doc) Append(o *Object, keyRaw, valueRaw string) []byte {
 		inner = ""
 	}
 	return d.apply(splice{from: from, to: to, text: inner + "\n" + base + "  " + keyRaw + ": " + valueRaw + "\n" + base})
+}
+
+// Nest spells an object that holds keysRaw inside one another, the last
+// holding valueRaw, as the value of a new member of o: on lines of their own,
+// each level indented one step further, where o's members sit on lines of
+// their own, and on one line otherwise. keysRaw are the keys as the format
+// spells them.
+func (d *Doc) Nest(o *Object, keysRaw []string, valueRaw string) string {
+	eol, indent, step, multiline := d.layout(o)
+	afterColon := " "
+	if len(o.Members) > 0 {
+		_, _, afterColon = d.spelling(o.Members[0])
+	}
+	var b strings.Builder
+	var nest func(level int)
+	nest = func(level int) {
+		b.WriteString("{")
+		if multiline {
+			b.WriteString(eol + indent + strings.Repeat(step, level+1))
+		}
+		b.WriteString(keysRaw[level] + ":" + afterColon)
+		if level+1 < len(keysRaw) {
+			nest(level + 1)
+		} else {
+			b.WriteString(valueRaw)
+		}
+		if multiline {
+			b.WriteString(eol + indent + strings.Repeat(step, level))
+		}
+		b.WriteString("}")
+	}
+	nest(0)
+	return b.String()
+}
+
+// layout is how o's members sit: the line break, the indentation of a
+// member's line and the step one level of nesting adds, and whether members
+// are on lines of their own. An empty object takes the layout Append writes.
+func (d *Doc) layout(o *Object) (eol, indent, step string, multiline bool) {
+	base := d.indentOf(o.open)
+	eol, indent, step = "\n", base+"  ", "  "
+	if len(o.Members) == 0 {
+		return eol, indent, step, true
+	}
+	p := d.toks[o.Members[0].key].Prefix
+	nl := strings.LastIndexByte(p, '\n')
+	if nl < 0 {
+		return eol, "", "", false
+	}
+	if nl > 0 && p[nl-1] == '\r' {
+		eol = "\r\n"
+	}
+	indent = leadingSpace(p[nl+1:])
+	if rest, ok := strings.CutPrefix(indent, base); ok && rest != "" {
+		step = rest
+	}
+	return eol, indent, step, true
 }
 
 // indentOf is the indentation of the line token i sits on.

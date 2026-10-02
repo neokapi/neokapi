@@ -120,7 +120,7 @@ func TestFileHome_AddsAndRemovesKeysOfACatalog(t *testing.T) {
 			order: []string{"nav.home", "nav.cart", "nav.checkout"},
 		},
 		{
-			name: "a YAML key added and one removed keep every comment", file: "en.yaml",
+			name: "a YAML key added, and one removed with the comment above it", file: "en.yaml",
 			before: "# Navigation\nnav:\n  # The home link\n  home: Home\n  # Remove after 2.0\n  legacy: Old # unused\n  cart: Cart\n",
 			ops: func(f *fixture) []change.Op {
 				return []change.Op{
@@ -128,7 +128,7 @@ func TestFileHome_AddsAndRemovesKeysOfACatalog(t *testing.T) {
 					deleteAt("en.yaml", "nav.legacy", map[string]string{"en": f.block(t, "en.yaml", "nav.legacy").Rev}),
 				}
 			},
-			after: "# Navigation\nnav:\n  # The home link\n  home: Home\n  checkout: \"Checkout: now\"\n  # Remove after 2.0\n  cart: Cart\n",
+			after: "# Navigation\nnav:\n  # The home link\n  home: Home\n  checkout: \"Checkout: now\"\n  cart: Cart\n",
 			order: []string{"nav.home", "nav.checkout", "nav.cart"},
 		},
 		{
@@ -311,9 +311,22 @@ func TestFileHome_StructureReachesTheFilesOfEditions(t *testing.T) {
 			"app.yaml":    "en:\n  a: A\n  b: B\n",
 			"de/app.yaml": "de:\n  a: Ah\n  b: Be\n",
 		})
-		res := f.apply(t, insertAt("app.yaml", "en.a", "en.n", map[string]string{"en": "New", "de": "Neu"}))
+		res := f.apply(t, insertAt("app.yaml", "en.a", "en.c", map[string]string{"en": "New", "de": "Neu"}))
 		requireApplied(t, res)
-		assert.Equal(t, "en:\n  a: A\n  n: New\n  b: B\n", f.read(t, "app.yaml"))
-		assert.Equal(t, "de:\n  a: Ah\n  n: Neu\n  b: Be\n", f.read(t, "de/app.yaml"))
+		assert.Equal(t, "en:\n  a: A\n  c: New\n  b: B\n", f.read(t, "app.yaml"))
+		assert.Equal(t, "de:\n  a: Ah\n  c: Neu\n  b: Be\n", f.read(t, "de/app.yaml"))
+	})
+
+	t.Run("a new block with no anchor goes last in the mapping its key names, in every file", func(t *testing.T) {
+		f := newPresentFixture(t, map[string]string{
+			"app.yaml":    "en:\n  nav:\n    home: Home\n  title: Store\n",
+			"de/app.yaml": "de:\n  nav:\n    home: Start\n  title: Laden\n",
+		})
+		res := f.apply(t,
+			insertAt("app.yaml", "", "en.nav.checkout", map[string]string{"en": "Checkout", "de": "Kasse"}),
+			insertAt("app.yaml", "", "en.account.title", map[string]string{"en": "Account", "de": "Konto"}))
+		requireApplied(t, res)
+		assert.Equal(t, "en:\n  nav:\n    home: Home\n    checkout: Checkout\n  title: Store\n  account:\n    title: Account\n", f.read(t, "app.yaml"))
+		assert.Equal(t, "de:\n  nav:\n    home: Start\n    checkout: Kasse\n  title: Laden\n  account:\n    title: Konto\n", f.read(t, "de/app.yaml"))
 	})
 }

@@ -133,6 +133,48 @@ func TestEditStructure(t *testing.T) {
 			edits: []format.StructuralEdit{del("list[0].t"), insAfter("list[0].u", "list[0].v", "V")},
 			want:  "{\"list\": [{\"u\": \"U\", \"v\": \"V\"}]}",
 		},
+		{
+			name:  "insert with no anchor goes last in the object its key path names",
+			doc:   nested,
+			edits: []format.StructuralEdit{{Op: format.StructuralInsertBlock, Key: "nav.checkout", Value: "Checkout"}},
+			want:  "{\n  \"nav\": {\n    \"home\": \"Home\",\n    \"cart\": \"Cart\",\n    \"legacy\": \"Old\",\n    \"checkout\": \"Checkout\"\n  },\n  \"count\": 42\n}\n",
+		},
+		{
+			name:  "insert builds the objects its key path names and the document lacks",
+			doc:   nested,
+			edits: []format.StructuralEdit{{Op: format.StructuralInsertBlock, Key: "account.profile.title", Value: "Profile"}},
+			want:  "{\n  \"nav\": {\n    \"home\": \"Home\",\n    \"cart\": \"Cart\",\n    \"legacy\": \"Old\"\n  },\n  \"count\": 42,\n  \"account\": {\n    \"profile\": {\n      \"title\": \"Profile\"\n    }\n  }\n}\n",
+		},
+		{
+			name:  "insert beside an anchor builds an object in the anchor's object",
+			doc:   nested,
+			edits: []format.StructuralEdit{insAfter("nav.home", "nav.sub.item", "Item")},
+			want:  "{\n  \"nav\": {\n    \"home\": \"Home\",\n    \"sub\": {\n      \"item\": \"Item\"\n    },\n    \"cart\": \"Cart\",\n    \"legacy\": \"Old\"\n  },\n  \"count\": 42\n}\n",
+		},
+		{
+			name:  "an object built in compact JSON stays on the line",
+			doc:   `{"a": {"b": "B"}}`,
+			edits: []format.StructuralEdit{{Op: format.StructuralInsertBlock, Key: "a.c.d", Value: "D"}},
+			want:  `{"a": {"b": "B", "c": {"d": "D"}}}`,
+		},
+		{
+			name:  "an object that names values by flat key paths takes a flat key",
+			doc:   "{\n  \"nav.home\": \"Home\",\n  \"nav.cart\": \"Cart\"\n}\n",
+			edits: []format.StructuralEdit{{Op: format.StructuralInsertBlock, Key: "nav.checkout", Value: "Checkout"}, insAfter("nav.home", "nav.top", "Top")},
+			want:  "{\n  \"nav.home\": \"Home\",\n  \"nav.top\": \"Top\",\n  \"nav.cart\": \"Cart\",\n  \"nav.checkout\": \"Checkout\"\n}\n",
+		},
+		{
+			name:  "delete takes a comment on the member's own line",
+			doc:   "{\n  \"a\": \"A\", // about a\n  \"b\": \"B\", // about b\n  \"c\": \"C\" // about c\n}",
+			edits: []format.StructuralEdit{del("b"), del("c")},
+			want:  "{\n  \"a\": \"A\" // about a\n}",
+		},
+		{
+			name:  "a block comment that runs on to the next line stays whole",
+			doc:   "{\n  \"a\": \"A\", /* about\n  b */\n  \"b\": \"B\"\n}",
+			edits: []format.StructuralEdit{insAfter("a", "n", "N")},
+			want:  "{\n  \"a\": \"A\",\n  \"n\": \"N\", /* about\n  b */\n  \"b\": \"B\"\n}",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -154,6 +196,10 @@ func TestEditStructureRefuses(t *testing.T) {
 		{"a number sits at the key", format.StructuralEdit{Op: format.StructuralInsertBlock, Key: "count", Value: "x"}, format.StructureExists},
 		{"the anchor is missing", insAfter("nav.nope", "nav.x", "x"), format.StructureNotFound},
 		{"the new key is not in the anchor's object", insAfter("nav.cart", "footer.x", "x"), format.StructureUnsupported},
+		{"the new key's object is inside the anchor's", insAfter("count", "nav.checkout", "x"), format.StructureUnsupported},
+		{"a text value sits where an object would go", format.StructuralEdit{Op: format.StructuralInsertBlock, Key: "nav.cart.x", Value: "x"}, format.StructureExists},
+		{"an array sits where an object would go", format.StructuralEdit{Op: format.StructuralInsertBlock, Key: "list.x", Value: "x"}, format.StructureExists},
+		{"a new value in an array", format.StructuralEdit{Op: format.StructuralInsertBlock, Key: "list[2]", Value: "x"}, format.StructureUnsupported},
 		{"an array item", del("list[0]"), format.StructureUnsupported},
 		{"no text value", del("count"), format.StructureUnsupported},
 		{"a key written twice", del("dup"), format.StructureUnsupported},
@@ -179,4 +225,40 @@ func TestEditStructureNamesTheEditItCannotMake(t *testing.T) {
 
 func TestWriterDeclaresStructure(t *testing.T) {
 	assert.Equal(t, []string{format.StructuralDeleteBlock, format.StructuralInsertBlock}, format.StructuralOps(NewWriter()))
+}
+
+// A configuration that reads a block's note, id or metadata from the members
+// beside it makes those members part of the block's shell, so the writer
+// declares no structural operation under it and refuses one.
+func TestWriterDeclaresNoStructureWhenSiblingsDescribeABlock(t *testing.T) {
+	for name, set := range map[string]func(*Config){
+		"noteRules":        func(c *Config) { c.NoteRules = "^description$" },
+		"idRules":          func(c *Config) { c.IDRules = "^id$" },
+		"useIdStack":       func(c *Config) { c.UseIDStack = true },
+		"genericMetaRules": func(c *Config) { c.GenericMetaRules = "^meta$" },
+		"maxwidthRules":    func(c *Config) { c.MaxwidthRules = "^max$" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			w := NewWriter()
+			set(w.Config())
+			assert.Empty(t, format.StructuralOps(w))
+			_, err := w.EditStructure([]byte(`{"a": "A"}`), []format.StructuralEdit{del("a")})
+			var se *format.StructureError
+			require.ErrorAs(t, err, &se)
+			assert.Equal(t, format.StructureUnsupported, se.Reason)
+		})
+	}
+}
+
+// Under a configuration that names blocks by full key path (/nav/home), the
+// writer reads a block's name as the key path it spells.
+func TestEditStructureReadsFullKeyPathNames(t *testing.T) {
+	w := NewWriter()
+	w.Config().UseFullKeyPath = true
+	got, err := w.EditStructure([]byte("{\n  \"nav\": {\n    \"home\": \"Home\"\n  }\n}"), []format.StructuralEdit{
+		{Op: format.StructuralInsertBlock, Key: "/nav/checkout", Value: "Checkout"},
+		insBefore("/nav/home", "/nav/top", "Top"),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "{\n  \"nav\": {\n    \"top\": \"Top\",\n    \"home\": \"Home\",\n    \"checkout\": \"Checkout\"\n  }\n}", string(got))
 }

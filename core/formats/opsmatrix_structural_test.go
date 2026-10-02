@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,6 +30,9 @@ import (
 //   - the blocks read back, in order: each new block where the change set put
 //     it, holding the content given, and every other block at the revision it
 //     was read with;
+//   - the notes the format's reader gives each block (a YAML comment, ARB
+//     metadata): every other block keeps its own, and a new block has none,
+//     except where a cell names the notes the reader's rules give it;
 //   - the refusals: the code, and a document left as it was.
 //
 // TestStructuralMatrixCoversEveryDeclaration holds every declaration to its
@@ -55,6 +59,10 @@ type structuralCell struct {
 	order []string
 	// added maps each new block to the content it was given.
 	added map[string]string
+	// notes maps a block to the notes the reader gives it after the change,
+	// joined by "|", where they are not what they were before (a new block's
+	// were none).
+	notes map[string]string
 	// refused is the code the first operation is refused with; the
 	// document then stays as it was.
 	refused change.Code
@@ -130,6 +138,24 @@ func structuralMatrix() []structuralRow {
 				added: map[string]string{"footer": "Terms/Privacy \"2026\""},
 			},
 			{
+				name: "insert_block with no anchor goes last in the object its key path names",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(json, "", "nav.checkout", "Checkout")}
+				},
+				want:  "{\n  \"nav\": {\n    \"home\": \"Home\",\n    \"cart\": \"Cart\",\n    \"legacy\": \"Old link\",\n    \"checkout\": \"Checkout\"\n  },\n  \"title\": \"Welcome to the {shop}\",\n  \"list\": [\"kept\", \"as written\"],\n  \"count\": 42\n}\n",
+				order: []string{"nav.home", "nav.cart", "nav.legacy", "nav.checkout", "title", "list[0]", "list[1]"},
+				added: map[string]string{"nav.checkout": "Checkout"},
+			},
+			{
+				name: "insert_block builds the objects its key path names and the document lacks",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(json, "nav.home", "nav.account.title", "Account")}
+				},
+				want:  "{\n  \"nav\": {\n    \"home\": \"Home\",\n    \"account\": {\n      \"title\": \"Account\"\n    },\n    \"cart\": \"Cart\",\n    \"legacy\": \"Old link\"\n  },\n  \"title\": \"Welcome to the {shop}\",\n  \"list\": [\"kept\", \"as written\"],\n  \"count\": 42\n}\n",
+				order: []string{"nav.home", "nav.account.title", "nav.cart", "nav.legacy", "title", "list[0]", "list[1]"},
+				added: map[string]string{"nav.account.title": "Account"},
+			},
+			{
 				name: "insert_block in order, each beside the one before",
 				ops: func(func(string) map[string]string) []change.Op {
 					return []change.Op{ins(json, "title", "a", "A"), ins(json, "a", "b", "B")}
@@ -184,8 +210,55 @@ func structuralMatrix() []structuralRow {
 				refused: change.CodeNotFound,
 			},
 			{
+				name: "insert_block refuses an anchor outside the object its key path names",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(json, "title", "nav.checkout", "Checkout")}
+				},
+				refused: change.CodeUnsupported,
+			},
+			{
 				name:    "delete_block refuses a revision that moved",
 				ops:     func(func(string) map[string]string) []change.Op { return []change.Op{del(json, "nav.cart", staleRev)} },
+				refused: change.CodeStale,
+			},
+		}},
+		{format: "json", file: json, template: "catalog-flat.json.tmpl", cells: []structuralCell{
+			{
+				name: "insert_block with no anchor goes last under a flat key where the object names values by flat key paths",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(json, "", "nav.checkout", "Checkout")}
+				},
+				want:  "{\n  \"nav.home\": \"Home\",\n  \"nav.cart\": \"Cart\",\n  \"title\": \"Welcome\",\n  \"nav.checkout\": \"Checkout\"\n}\n",
+				order: []string{"nav.home", "nav.cart", "title", "nav.checkout"},
+				added: map[string]string{"nav.checkout": "Checkout"},
+			},
+			{
+				name: "insert_block after a flat key",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(json, "nav.home", "nav.top", "Top")}
+				},
+				want:  "{\n  \"nav.home\": \"Home\",\n  \"nav.top\": \"Top\",\n  \"nav.cart\": \"Cart\",\n  \"title\": \"Welcome\"\n}\n",
+				order: []string{"nav.home", "nav.top", "nav.cart", "title"},
+				added: map[string]string{"nav.top": "Top"},
+			},
+			{
+				name: "delete_block of a flat key",
+				ops: func(rev func(string) map[string]string) []change.Op {
+					return []change.Op{del(json, "nav.cart", rev("nav.cart"))}
+				},
+				want:  "{\n  \"nav.home\": \"Home\",\n  \"title\": \"Welcome\"\n}\n",
+				order: []string{"nav.home", "title"},
+			},
+			{
+				name: "insert_block refuses a flat key a block holds",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(json, "", "nav.home", "Again")}
+				},
+				refused: change.CodeStale,
+			},
+			{
+				name:    "delete_block refuses a revision that moved",
+				ops:     func(func(string) map[string]string) []change.Op { return []change.Op{del(json, "nav.home", staleRev)} },
 				refused: change.CodeStale,
 			},
 		}},
@@ -200,13 +273,53 @@ func structuralMatrix() []structuralRow {
 				added: map[string]string{"nav.checkout": "Checkout"},
 			},
 			{
-				name: "insert_block before a key, comment lines staying where they are",
+				name: "insert_block before a key goes above the comment that is that key's note",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{insBefore(yml, "nav.legacy", "nav.help", "Help")}
+				},
+				want:  "# Store strings\nnav:\n  # The home link\n  home: Home\n  cart: Cart # shown in the header\n  help: Help\n  # Remove after 2.0\n  legacy: Old link\nhelp: |\n  Read the guide\n  before you order.\nfooter: \"Footer\"\n",
+				order: []string{"nav.home", "nav.cart", "nav.help", "nav.legacy", "help", "footer"},
+				added: map[string]string{"nav.help": "Help"},
+			},
+			{
+				// The reader gives a mapping's comment to the first block in
+				// it, so a block added first takes it from the one it goes
+				// before; that block keeps its own.
+				name: "insert_block before the first key of a mapping takes the mapping's comment",
 				ops: func(func(string) map[string]string) []change.Op {
 					return []change.Op{insBefore(yml, "nav.home", "nav.top", "Top")}
 				},
-				want:  "# Store strings\nnav:\n  # The home link\n  top: Top\n  home: Home\n  cart: Cart # shown in the header\n  # Remove after 2.0\n  legacy: Old link\nhelp: |\n  Read the guide\n  before you order.\nfooter: \"Footer\"\n",
+				want:  "# Store strings\nnav:\n  top: Top\n  # The home link\n  home: Home\n  cart: Cart # shown in the header\n  # Remove after 2.0\n  legacy: Old link\nhelp: |\n  Read the guide\n  before you order.\nfooter: \"Footer\"\n",
 				order: []string{"nav.top", "nav.home", "nav.cart", "nav.legacy", "help", "footer"},
 				added: map[string]string{"nav.top": "Top"},
+				notes: map[string]string{"nav.top": "Store strings", "nav.home": "The home link"},
+			},
+			{
+				name: "insert_block with no anchor goes last in the mapping its key path names",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(yml, "", "nav.checkout", "Checkout")}
+				},
+				want:  "# Store strings\nnav:\n  # The home link\n  home: Home\n  cart: Cart # shown in the header\n  # Remove after 2.0\n  legacy: Old link\n  checkout: Checkout\nhelp: |\n  Read the guide\n  before you order.\nfooter: \"Footer\"\n",
+				order: []string{"nav.home", "nav.cart", "nav.legacy", "nav.checkout", "help", "footer"},
+				added: map[string]string{"nav.checkout": "Checkout"},
+			},
+			{
+				name: "insert_block builds the mappings its key path names and the document lacks",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(yml, "", "account.title", "Account")}
+				},
+				want:  "# Store strings\nnav:\n  # The home link\n  home: Home\n  cart: Cart # shown in the header\n  # Remove after 2.0\n  legacy: Old link\nhelp: |\n  Read the guide\n  before you order.\nfooter: \"Footer\"\naccount:\n  title: Account\n",
+				order: []string{"nav.home", "nav.cart", "nav.legacy", "help", "footer", "account.title"},
+				added: map[string]string{"account.title": "Account"},
+			},
+			{
+				name: "insert_block quotes a key and a value YAML 1.1 reads as booleans",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(yml, "nav.cart", "nav.yes", "Yes")}
+				},
+				want:  "# Store strings\nnav:\n  # The home link\n  home: Home\n  cart: Cart # shown in the header\n  \"yes\": \"Yes\"\n  # Remove after 2.0\n  legacy: Old link\nhelp: |\n  Read the guide\n  before you order.\nfooter: \"Footer\"\n",
+				order: []string{"nav.home", "nav.cart", "nav.yes", "nav.legacy", "help", "footer"},
+				added: map[string]string{"nav.yes": "Yes"},
 			},
 			{
 				name:  "insert_block after a value of several lines",
@@ -225,11 +338,11 @@ func structuralMatrix() []structuralRow {
 				added: map[string]string{"extra": "Yes: really"},
 			},
 			{
-				name: "delete_block keeps the comment above the key",
+				name: "delete_block removes the comment above the key, which is the block's note",
 				ops: func(rev func(string) map[string]string) []change.Op {
 					return []change.Op{del(yml, "nav.legacy", rev("nav.legacy"))}
 				},
-				want:  "# Store strings\nnav:\n  # The home link\n  home: Home\n  cart: Cart # shown in the header\n  # Remove after 2.0\nhelp: |\n  Read the guide\n  before you order.\nfooter: \"Footer\"\n",
+				want:  "# Store strings\nnav:\n  # The home link\n  home: Home\n  cart: Cart # shown in the header\nhelp: |\n  Read the guide\n  before you order.\nfooter: \"Footer\"\n",
 				order: []string{"nav.home", "nav.cart", "help", "footer"},
 			},
 			{
@@ -261,8 +374,55 @@ func structuralMatrix() []structuralRow {
 				refused: change.CodeInvalid,
 			},
 			{
+				name: "insert_block refuses an anchor outside the mapping its key path names",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(yml, "footer", "nav.checkout", "Checkout")}
+				},
+				refused: change.CodeUnsupported,
+			},
+			{
 				name:    "delete_block refuses a revision that moved",
 				ops:     func(func(string) map[string]string) []change.Op { return []change.Op{del(yml, "help", staleRev)} },
+				refused: change.CodeStale,
+			},
+		}},
+		{format: "yaml", file: yml, template: "catalog-locale.yaml.tmpl", cells: []structuralCell{
+			{
+				name: "insert_block with no anchor goes last in the mapping under the language key",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(yml, "", "en.nav.checkout", "Checkout")}
+				},
+				want:  "en:\n  nav:\n    # The home link\n    home: Home\n    cart: Cart\n    checkout: Checkout\n  title: Store\n",
+				order: []string{"en.nav.home", "en.nav.cart", "en.nav.checkout", "en.title"},
+				added: map[string]string{"en.nav.checkout": "Checkout"},
+			},
+			{
+				name: "insert_block builds a mapping under the language key",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(yml, "", "en.account.title", "Account")}
+				},
+				want:  "en:\n  nav:\n    # The home link\n    home: Home\n    cart: Cart\n  title: Store\n  account:\n    title: Account\n",
+				order: []string{"en.nav.home", "en.nav.cart", "en.title", "en.account.title"},
+				added: map[string]string{"en.account.title": "Account"},
+			},
+			{
+				name: "delete_block of a nested key removes the comment above it",
+				ops: func(rev func(string) map[string]string) []change.Op {
+					return []change.Op{del(yml, "en.nav.home", rev("en.nav.home"))}
+				},
+				want:  "en:\n  nav:\n    cart: Cart\n  title: Store\n",
+				order: []string{"en.nav.cart", "en.title"},
+			},
+			{
+				name: "insert_block refuses a key a block holds",
+				ops: func(func(string) map[string]string) []change.Op {
+					return []change.Op{ins(yml, "", "en.title", "Again")}
+				},
+				refused: change.CodeStale,
+			},
+			{
+				name:    "delete_block refuses a revision that moved",
+				ops:     func(func(string) map[string]string) []change.Op { return []change.Op{del(yml, "en.title", staleRev)} },
 				refused: change.CodeStale,
 			},
 		}},
@@ -338,6 +498,21 @@ func structuralService(t *testing.T, dir string, reg *registry.FormatRegistry, n
 	return change.NewService(filehome.Formats{Registry: reg}, change.OneHome(home))
 }
 
+// readNotes reads data as the format's reader does and returns each block's
+// notes, joined by "|".
+func readNotes(t *testing.T, name registry.FormatID, data []byte) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	for _, b := range (opsFixture{format: name}).readEditable(t, data, "") {
+		var texts []string
+		for _, n := range b.Notes() {
+			texts = append(texts, n.Text)
+		}
+		out[b.Name] = strings.Join(texts, "|")
+	}
+	return out
+}
+
 // readAll reads every block of doc, in order.
 func readAllBlocks(t *testing.T, svc *change.Service, doc string) []change.BlockRead {
 	t.Helper()
@@ -353,7 +528,7 @@ func TestStructuralMatrix(t *testing.T) {
 		input, err := os.ReadFile(filepath.Join(opsMatrixDir, "structural", row.template))
 		require.NoError(t, err)
 		for _, cell := range row.cells {
-			t.Run(string(row.format)+"/"+cell.name, func(t *testing.T) {
+			t.Run(string(row.format)+"/"+row.template+"/"+cell.name, func(t *testing.T) {
 				dir := t.TempDir()
 				path := filepath.Join(dir, row.file)
 				require.NoError(t, os.WriteFile(path, input, 0o644))
@@ -388,6 +563,19 @@ func TestStructuralMatrix(t *testing.T) {
 				native := map[string]string{}
 				for _, b := range (opsFixture{format: row.format}).readEditable(t, out, "") {
 					native[b.Name] = model.RenderRunsWithData(b.Source)
+				}
+				// The notes the reader gives each block: every block keeps its
+				// own, and a new one has none, but where the cell says.
+				notesBefore, notesAfter := readNotes(t, row.format, input), readNotes(t, row.format, out)
+				for name, got := range notesAfter {
+					want, named := cell.notes[name]
+					if !named {
+						want = notesBefore[name]
+						if _, isNew := cell.added[name]; isNew {
+							want = ""
+						}
+					}
+					assert.Equal(t, want, got, "the notes of block %s", name)
 				}
 				after := readAllBlocks(t, svc, row.file)
 				var order []string
@@ -431,21 +619,26 @@ func TestStructuralMatrixCoversEveryDeclaration(t *testing.T) {
 		}
 	}
 	rows := map[registry.FormatID]bool{}
+	proved, refused := map[registry.FormatID]map[string]bool{}, map[registry.FormatID]map[string]bool{}
 	for _, row := range structuralMatrix() {
 		rows[row.format] = true
 		require.Contains(t, declared, row.format, "%s has structural cells and declares no structural operation", row.format)
-		proved, refused := map[string]bool{}, map[string]bool{}
+		if proved[row.format] == nil {
+			proved[row.format], refused[row.format] = map[string]bool{}, map[string]bool{}
+		}
 		for _, c := range row.cells {
 			require.NotEmpty(t, c.op(), "%s: cell %q names no structural operation", row.format, c.name)
 			if c.refused != "" {
-				refused[c.op()] = true
+				refused[row.format][c.op()] = true
 			} else {
-				proved[c.op()] = true
+				proved[row.format][c.op()] = true
 			}
 		}
-		for _, op := range declared[row.format] {
-			assert.True(t, proved[op], "%s declares %s and no cell proves it", row.format, op)
-			assert.True(t, refused[op], "%s declares %s and no cell holds it to a refusal", row.format, op)
+	}
+	for name := range rows {
+		for _, op := range declared[name] {
+			assert.True(t, proved[name][op], "%s declares %s and no cell proves it", name, op)
+			assert.True(t, refused[name][op], "%s declares %s and no cell holds it to a refusal", name, op)
 		}
 	}
 	for name := range declared {
