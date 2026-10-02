@@ -1,6 +1,8 @@
 package xliff2
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/beevik/etree"
@@ -15,36 +17,108 @@ import (
 // that still renders the same, and writes the rendering for one that an edit
 // changed.
 
-// renderSourceRef renders the source of the segment a skeleton reference names.
-func renderSourceRef(block *model.Block, segIdx int, segID string) string {
-	segs := sourceSegsFromBlock(block)
-	if !tiles(block.SourceSegmentation(), len(block.Source)) {
-		segs = withTermMarks([]seg{{Runs: block.Source}}, block.OverlayOf(model.OverlayTerm))
+// ErrSegmentsLost is the writer's refusal of a unit read with several
+// segments whose content no longer divides into them: an edit rewrote the
+// runs, and the segmentation that said where each segment ends no longer
+// describes them. Writing such a unit would move words from one segment into
+// another, or leave a source with no translation beside it.
+var ErrSegmentsLost = errors.New("its segments no longer line up with its content")
+
+// ErrCodesUnwritable is the writer's refusal of a segment whose inline codes
+// no XLIFF 2 markup can express: a code pair that closes out of order or never
+// closes, or a run kind the reader never produces.
+var ErrCodesUnwritable = errors.New("its inline codes cannot be written as XLIFF 2 markup")
+
+// checkUnit refuses, before the writer writes any byte, a unit it cannot write
+// whole. A source read as several segments must still divide into them:
+// producers never write a source, so a source whose segmentation no longer
+// tiles its runs is an edit that merged segments. A target read as several
+// segments that still carries a segmentation must still tile it, for the same
+// reason. A target with no segmentation is one text for the unit, which the
+// unit's first segment takes (see renderTargetRef). Every segment the write
+// renders from its runs must be expressible as XLIFF 2 markup.
+func checkUnit(block *model.Block, loc model.LocaleID) error {
+	ir := unitSegmentsIR(block)
+	if ir != nil && len(ir.Source) > 1 {
+		if ov := block.SourceSegmentation(); ov == nil || len(ov.Spans) == 0 || !tiles(ov, len(block.Source)) {
+			return fmt.Errorf("xliff2 writer: unit %q: the source: %w", block.ID, ErrSegmentsLost)
+		}
 	}
-	s := segmentFor(segs, segIdx, segID)
+	hasTarget := !loc.IsEmpty() && block.HasTarget(loc)
+	if hasTarget && ir != nil && len(ir.Target[loc]) > 1 {
+		key := model.Variant(loc)
+		if !tiles(block.SegmentationFor(&key), len(block.TargetRuns(loc))) {
+			return fmt.Errorf("xliff2 writer: unit %q: the target: %w", block.ID, ErrSegmentsLost)
+		}
+	}
+	segs := writtenSourceSegs(block)
+	if hasTarget {
+		segs = append(segs, writtenTargetSegs(block, loc)...)
+	}
+	for i := range segs {
+		if _, err := segmentInlines(&segs[i], blockCodes(block, &segs[i])); err != nil {
+			return fmt.Errorf("xliff2 writer: unit %q: %w", block.ID, err)
+		}
+	}
+	return nil
+}
+
+// writtenSourceSegs returns the source segments the writer writes: the
+// segmentation's segments while it tiles the runs, and otherwise the runs as
+// one anonymous segment.
+func writtenSourceSegs(block *model.Block) []seg {
+	if !tiles(block.SourceSegmentation(), len(block.Source)) {
+		return withTermMarks([]seg{{Runs: block.Source}}, block.OverlayOf(model.OverlayTerm))
+	}
+	return sourceSegsFromBlock(block)
+}
+
+// writtenTargetSegs is writtenSourceSegs for the target in loc.
+func writtenTargetSegs(block *model.Block, loc model.LocaleID) []seg {
+	key := model.Variant(loc)
+	if runs := block.TargetRuns(loc); !tiles(block.SegmentationFor(&key), len(runs)) {
+		return []seg{{Runs: runs}}
+	}
+	return targetSegsFromBlock(block, loc)
+}
+
+// renderSourceRef renders the source of the segment a skeleton reference names.
+func renderSourceRef(block *model.Block, segIdx int, segID string) (string, error) {
+	s := segmentFor(writtenSourceSegs(block), segIdx, refSegmentID(block, segIdx, segID))
 	if s == nil {
-		return ""
+		return "", nil
 	}
 	return segmentXML(s, blockCodes(block, s))
 }
 
 // renderTargetRef renders the target, in loc, of the segment a skeleton
 // reference names: empty when the target holds nothing for that segment. ok is
-// false when the block holds no target in loc at all.
-func renderTargetRef(block *model.Block, loc model.LocaleID, segIdx int, segID string) (string, bool) {
+// false when the block holds no target in loc at all. A target with no
+// segmentation is one text for the unit, and the unit's first segment takes it.
+func renderTargetRef(block *model.Block, loc model.LocaleID, segIdx int, segID string) (body string, ok bool, err error) {
 	if loc.IsEmpty() || !block.HasTarget(loc) {
-		return "", false
+		return "", false, nil
 	}
-	segs := targetSegsFromBlock(block, loc)
-	key := model.Variant(loc)
-	if runs := block.TargetRuns(loc); !tiles(block.SegmentationFor(&key), len(runs)) {
-		segs = []seg{{Runs: runs}}
-	}
-	s := segmentFor(segs, segIdx, segID)
+	s := segmentFor(writtenTargetSegs(block, loc), segIdx, refSegmentID(block, segIdx, segID))
 	if s == nil {
-		return "", true
+		return "", true, nil
 	}
-	return segmentXML(s, blockCodes(block, s)), true
+	body, err = segmentXML(s, blockCodes(block, s))
+	return body, true, err
+}
+
+// refSegmentID returns the id of the segment a skeleton reference names. A
+// reference spelled without one, as skeletons an earlier build persisted spell
+// it, names its segment by position: segIdx counts the unit's <segment>
+// elements, which the source segmentation lists in order.
+func refSegmentID(block *model.Block, segIdx int, segID string) string {
+	if segID != "" {
+		return segID
+	}
+	if ov := block.SourceSegmentation(); ov != nil && segIdx >= 0 && segIdx < len(ov.Spans) {
+		return ov.Spans[segIdx].ID
+	}
+	return ""
 }
 
 // tiles reports whether a segmentation still describes runs: its spans cover
@@ -68,8 +142,10 @@ func tiles(o *model.Overlay, n int) bool {
 }
 
 // segmentFor picks the segment a skeleton reference names: the one carrying its
-// id. Runs no segmentation describes, such as a source an edit rewrote whole,
-// form one anonymous segment, which the unit's first <segment> takes in full.
+// id. Runs no segmentation describes, such as the source of a one-segment unit
+// an edit rewrote whole or a translation a tool wrote as one text for the
+// unit, form one anonymous segment, which the unit's first <segment> takes in
+// full.
 func segmentFor(segs []seg, segIdx int, segID string) *seg {
 	if segID != "" {
 		for i := range segs {
@@ -86,8 +162,11 @@ func segmentFor(segs []seg, segIdx int, segID string) *seg {
 
 // segmentXML serializes a segment's body as inline markup. Text escapes only
 // the characters XML requires, as xmlesc.Text does.
-func segmentXML(s *seg, codes codeIndex) string {
-	inls := segmentInlines(s, codes)
+func segmentXML(s *seg, codes codeIndex) (string, error) {
+	inls, err := segmentInlines(s, codes)
+	if err != nil {
+		return "", err
+	}
 	root := etree.NewElement("inline")
 	renderInlinesInto(root, inls)
 	var b strings.Builder
@@ -95,16 +174,17 @@ func segmentXML(s *seg, codes codeIndex) string {
 	for _, tok := range root.Child {
 		tok.WriteTo(&b, settings)
 	}
-	return b.String()
+	return b.String(), nil
 }
 
 // segmentInlines returns the inline IR a segment is written with. While the
 // segment's runs still say what its IR says, the IR is the document's own
 // structure and is written as read. Once the runs have been edited, the IR is
 // rebuilt from them: the text from the runs, and each code with the attributes
-// the document gave it. Runs that no XLIFF 2 markup can express are written
-// as their text.
-func segmentInlines(s *seg, codes codeIndex) []Inline {
+// the document gave it. Runs that no XLIFF 2 markup can express are refused
+// with ErrCodesUnwritable, since writing their text alone would drop every
+// code.
+func segmentInlines(s *seg, codes codeIndex) ([]Inline, error) {
 	var inls []Inline
 	switch {
 	case s.Content != nil && irMatchesRuns(s.Content, s.Runs):
@@ -112,12 +192,12 @@ func segmentInlines(s *seg, codes codeIndex) []Inline {
 	default:
 		rebuilt, ok := inlinesFromRuns(s.Runs, codes)
 		if !ok {
-			return []Inline{{Text: &Text{Content: model.RenderRunsWithData(s.Runs)}}}
+			return nil, ErrCodesUnwritable
 		}
 		inls = rebuilt
 	}
 	spliced, _ := spliceMarks(inls, s.Marks)
-	return spliced
+	return spliced, nil
 }
 
 // irMatchesRuns reports whether ir still describes runs: the same text with the

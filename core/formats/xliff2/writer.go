@@ -230,6 +230,14 @@ func (w *Writer) writeFromSkeleton() error {
 		}
 	}
 
+	// Every unit is checked before the first byte is written, so a unit the
+	// writer cannot write refuses the document whole.
+	for _, b := range blocks {
+		if err := checkUnit(b, targetLang); err != nil {
+			return err
+		}
+	}
+
 	// rendered and original are the pair the reader recorded for the next ref.
 	var rendered, original []byte
 	paired := false
@@ -271,13 +279,14 @@ func (w *Writer) writeFromSkeleton() error {
 			block := blocks[blockIdx]
 
 			var body string
+			var rerr error
 			switch elemType {
 			case elemSource:
-				body = renderSourceRef(block, segIdx, segID)
+				body, rerr = renderSourceRef(block, segIdx, segID)
 			case elemTarget:
 				var ok bool
-				if body, ok = renderTargetRef(block, targetLang, segIdx, segID); !ok {
-					body = renderSourceRef(block, segIdx, segID)
+				if body, ok, rerr = renderTargetRef(block, targetLang, segIdx, segID); !ok {
+					body, rerr = renderSourceRef(block, segIdx, segID)
 				}
 			case elemTargetInject:
 				// The source carries no <target> here. One is written only when
@@ -289,7 +298,10 @@ func (w *Writer) writeFromSkeleton() error {
 				if !injecting {
 					continue
 				}
-				tgt, ok := renderTargetRef(block, targetLang, segIdx, segID)
+				tgt, ok, terr := renderTargetRef(block, targetLang, segIdx, segID)
+				if terr != nil {
+					return fmt.Errorf("xliff2 writer: unit %q: %w", block.ID, terr)
+				}
 				if !ok || tgt == "" {
 					continue
 				}
@@ -305,6 +317,9 @@ func (w *Writer) writeFromSkeleton() error {
 					return err
 				}
 				continue
+			}
+			if rerr != nil {
+				return fmt.Errorf("xliff2 writer: unit %q: %w", block.ID, rerr)
 			}
 			if wasPaired && body == string(rendered) {
 				if _, err := w.Output.Write(original); err != nil {
@@ -324,9 +339,18 @@ func (w *Writer) writeFromSkeleton() error {
 // cannot parse is skipped rather than guessed at: the skeleton's own text still
 // carries the document, so an unreadable ref costs one substitution and not the
 // file.
+//
+// Skeletons outlive the build that wrote them (`kapi extract` reuses them, and
+// `kapi merge` and a skeleton-only `.kpz` replay them), so the four-field form
+// an earlier build spelled, with no segment id, is read too. Its segment is
+// named by position (refSegmentID).
 func decodeSkelRef(refID string) (blockIdx, segIdx int, elemType, segID, indent string, ok bool) {
 	fields := strings.SplitN(refID, ":", 5)
-	if len(fields) != 5 {
+	switch len(fields) {
+	case 4:
+		fields = []string{fields[0], fields[1], fields[2], "", fields[3]}
+	case 5:
+	default:
 		return 0, 0, "", "", "", false
 	}
 	blockIdx, err := strconv.Atoi(fields[0])

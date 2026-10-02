@@ -1228,14 +1228,15 @@ func (s *xliff2StreamState) emitUnit() {
 	applySegmentsToBlock(block, s.sourceSegs, tgtSegs, trgLang)
 	// Each element's skeleton reference is paired with the markup the writer
 	// renders for the block as read, so a segment nothing edits is written with
-	// the document's own bytes.
+	// the document's own bytes. A segment the read itself cannot render leaves
+	// the pairing empty, and the writer reports it when it renders the segment.
 	for i := s.unitPosStart; i < len(s.elemPositions); i++ {
 		ep := &s.elemPositions[i]
 		switch ep.elemType {
 		case elemSource:
-			ep.rendered = renderSourceRef(block, ep.segIdx, ep.segID)
+			ep.rendered, _ = renderSourceRef(block, ep.segIdx, ep.segID)
 		case elemTarget:
-			ep.rendered, _ = renderTargetRef(block, trgLang, ep.segIdx, ep.segID)
+			ep.rendered, _, _ = renderTargetRef(block, trgLang, ep.segIdx, ep.segID)
 		}
 	}
 	s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})

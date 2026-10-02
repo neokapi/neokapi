@@ -2,6 +2,8 @@ package xliff2_test
 
 import (
 	"bytes"
+	"errors"
+	"io"
 	"strings"
 	"testing"
 
@@ -18,6 +20,16 @@ import (
 // and `ksed` drive a same-format round trip.
 func skeletonEdit(t *testing.T, input string, edit func(*model.Block)) string {
 	t.Helper()
+	out, err := skeletonWrite(t, input, edit, nil)
+	require.NoError(t, err)
+	return out
+}
+
+// skeletonWrite is skeletonEdit returning the writer's error, with the
+// skeleton the reader recorded passed through replay before the writer reads
+// it, when replay is set.
+func skeletonWrite(t *testing.T, input string, edit func(*model.Block), replay func(*testing.T, *format.SkeletonStore) *format.SkeletonStore) (string, error) {
+	t.Helper()
 	ctx := t.Context()
 
 	reader := xliff2.NewReader()
@@ -26,7 +38,6 @@ func skeletonEdit(t *testing.T, input string, edit func(*model.Block)) string {
 	require.NoError(t, err)
 	defer store.Close()
 	reader.SetSkeletonStore(store)
-	writer.SetSkeletonStore(store)
 
 	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
 	parts := testutil.CollectParts(t, reader.Read(ctx))
@@ -37,11 +48,16 @@ func skeletonEdit(t *testing.T, input string, edit func(*model.Block)) string {
 		}
 	}
 
+	if replay != nil {
+		writer.SetSkeletonStore(replay(t, store))
+	} else {
+		writer.SetSkeletonStore(store)
+	}
 	var buf bytes.Buffer
 	require.NoError(t, writer.SetOutputWriter(&buf))
-	require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts)))
+	werr := writer.Write(ctx, testutil.PartsToChannel(parts))
 	require.NoError(t, writer.Close())
-	return buf.String()
+	return buf.String(), werr
 }
 
 // replaceInEditText rewrites a word in an edition's edit text and parses it
@@ -157,60 +173,168 @@ const multiSegmentDoc = `<?xml version="1.0" encoding="UTF-8"?>
   </file>
 </xliff>`
 
+// replaceInRuns rewrites a word inside each text run, keeping the run
+// structure, and with it the segment boundaries.
+func replaceInRuns(runs []model.Run, from, to string) []model.Run {
+	out := make([]model.Run, len(runs))
+	copy(out, runs)
+	for i := range out {
+		if out[i].Text != nil {
+			txt := *out[i].Text
+			txt.Text = strings.ReplaceAll(txt.Text, from, to)
+			out[i].Text = &txt
+		}
+	}
+	return out
+}
+
 // TestSkeletonPathWritesEachSegment covers units of several segments. Each
 // segment is written from its own runs; the skeleton path used to write the
-// whole unit's text into every segment. An edit through edit text carries no
-// segment boundaries, so an edited unit whose segmentation no longer describes
-// its runs keeps all of its content, written into the first segment.
+// whole unit's text into every segment.
+//
+// An edit through edit text carries no segment boundaries. When the runs it
+// rebuilds merge two segments, the segmentation no longer describes them, and
+// writing the unit would move words between segments or leave a source with
+// no translation beside it. The writer refuses that document before it writes
+// a byte. A translation a tool writes as one text for the unit, with no
+// segmentation, is the unit's translation, and the first segment takes it.
 func TestSkeletonPathWritesEachSegment(t *testing.T) {
 	tests := []struct {
-		name string
-		edit func(*model.Block)
-		want string
+		name    string
+		edit    func(*model.Block)
+		want    string
+		refused error
 	}{
 		{
 			name: "untouched",
 			want: multiSegmentDoc,
 		},
 		{
-			name: "a source edit",
-			edit: editSource("utilize", "use"),
-			want: strings.NewReplacer(
-				`<source>First we utilize <pc id="1">this</pc>. </source>`,
-				`<source>First we use <pc id="1">this</pc>. Then <ph id="2"/> that.</source>`,
-				`<source>Then <ph id="2"/> that.</source>`, `<source></source>`,
-			).Replace(multiSegmentDoc),
+			name:    "a source edit that merges the segments",
+			edit:    editSource("utilize", "use"),
+			refused: xliff2.ErrSegmentsLost,
 		},
 		{
-			name: "a target edit",
-			edit: editTarget("fr", "employons", "utilisons"),
-			want: strings.NewReplacer(
-				`<target>D'abord nous employons <pc id="1">ceci</pc>. </target>`,
-				`<target>D'abord nous utilisons <pc id="1">ceci</pc>. Puis <ph id="2"/> cela.</target>`,
-				`<target>Puis <ph id="2"/> cela.</target>`, `<target></target>`,
-			).Replace(multiSegmentDoc),
+			name: "a source edit that merges the segments, with the overlays rebased",
+			edit: func(b *model.Block) {
+				old := b.Source
+				b.EditSourceRuns(replaceInEditText(b.Source, "utilize", "use"))
+				model.RemapOverlays(b, old, []model.RunEdit{{
+					Start: 0, End: len([]rune(model.RunsText(old))), NewLen: len([]rune(model.RunsText(b.Source))),
+				}})
+			},
+			refused: xliff2.ErrSegmentsLost,
+		},
+		{
+			name:    "a target edit that merges the segments",
+			edit:    editTarget("fr", "employons", "utilisons"),
+			refused: xliff2.ErrSegmentsLost,
+		},
+		{
+			name: "a source replaced segment by segment",
+			edit: func(b *model.Block) { b.EditSourceRuns(replaceInRuns(b.Source, "utilize", "use")) },
+			want: strings.Replace(multiSegmentDoc, "we utilize", "we use", 1),
 		},
 		{
 			name: "a target replaced segment by segment",
 			edit: func(b *model.Block) {
-				runs := b.TargetRuns("fr")
-				out := make([]model.Run, len(runs))
-				copy(out, runs)
-				for i := range out {
-					if out[i].Text != nil {
-						txt := *out[i].Text
-						txt.Text = strings.ReplaceAll(txt.Text, "employons", "utilisons")
-						out[i].Text = &txt
-					}
-				}
-				b.SetTargetRuns("fr", out)
+				b.SetTargetRuns("fr", replaceInRuns(b.TargetRuns("fr"), "employons", "utilisons"))
 			},
 			want: strings.Replace(multiSegmentDoc, "nous employons", "nous utilisons", 1),
+		},
+		{
+			name: "a translation written as one text for the unit",
+			edit: func(b *model.Block) {
+				b.SetTargetText("fr", "Tout en un.")
+				key := model.Variant("fr")
+				b.SetSegmentation(&key, nil)
+			},
+			want: strings.NewReplacer(
+				`<target>D'abord nous employons <pc id="1">ceci</pc>. </target>`, `<target>Tout en un.</target>`,
+				`<target>Puis <ph id="2"/> cela.</target>`, `<target></target>`,
+			).Replace(multiSegmentDoc),
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, skeletonEdit(t, multiSegmentDoc, tc.edit))
+			out, err := skeletonWrite(t, multiSegmentDoc, tc.edit, nil)
+			if tc.refused != nil {
+				require.ErrorIs(t, err, tc.refused)
+				assert.Empty(t, out, "a refused write writes nothing")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, out)
 		})
 	}
+}
+
+// legacySkeleton copies a skeleton the way a build before segment ids spelled
+// it: each reference as block:segment:element:indent, and no pairing of an
+// element with its bytes.
+func legacySkeleton(t *testing.T, store *format.SkeletonStore) *format.SkeletonStore {
+	t.Helper()
+	require.NoError(t, store.Flush())
+	out := format.NewMemorySkeletonStore()
+	for {
+		entry, err := store.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		require.NoError(t, err)
+		switch entry.Type {
+		case format.SkeletonText:
+			out.WriteText(entry.Data)
+		case format.SkeletonRef:
+			f := strings.SplitN(string(entry.Data), ":", 5)
+			require.Len(t, f, 5, "ref %q", entry.Data)
+			out.WriteRef(f[0] + ":" + f[1] + ":" + f[2] + ":" + f[4])
+		case format.SkeletonOriginal:
+		default:
+			t.Fatalf("unexpected skeleton entry type %d", entry.Type)
+		}
+	}
+	return out
+}
+
+// TestSkeletonPathReadsReferencesWithoutSegmentIDs is the regression for
+// skeletons persisted by an earlier build. Their references carry no segment
+// id; the writer skipped every one, and each <source> and <target> was written
+// empty with no error. They name their segment by position.
+func TestSkeletonPathReadsReferencesWithoutSegmentIDs(t *testing.T) {
+	for _, doc := range []struct{ name, input string }{
+		{"one segment per unit", inlineCodesDoc},
+		{"several segments in a unit", multiSegmentDoc},
+	} {
+		t.Run(doc.name, func(t *testing.T) {
+			out, err := skeletonWrite(t, doc.input, nil, legacySkeleton)
+			require.NoError(t, err)
+			assert.Equal(t, doc.input, out)
+		})
+	}
+}
+
+// TestSkeletonPathRefusesCodesItCannotWrite pins the writer's refusal of runs
+// no XLIFF 2 markup expresses, such as two code pairs that cross. Writing such
+// a segment as its text would drop both codes.
+func TestSkeletonPathRefusesCodesItCannotWrite(t *testing.T) {
+	crossing := func(b *model.Block) {
+		if b.ID != "u3" {
+			return
+		}
+		b.EditSourceRuns([]model.Run{
+			{Text: &model.TextRun{Text: "See "}},
+			{PcOpen: &model.PcOpenRun{ID: "1"}},
+			{Text: &model.TextRun{Text: "alpha "}},
+			{PcOpen: &model.PcOpenRun{ID: "9"}},
+			{Text: &model.TextRun{Text: "and"}},
+			{PcClose: &model.PcCloseRun{ID: "1"}},
+			{Text: &model.TextRun{Text: " beta"}},
+			{PcClose: &model.PcCloseRun{ID: "9"}},
+			{Text: &model.TextRun{Text: " here"}},
+		})
+	}
+	out, err := skeletonWrite(t, inlineCodesDoc, crossing, nil)
+	require.ErrorIs(t, err, xliff2.ErrCodesUnwritable)
+	assert.Empty(t, out, "a refused write writes nothing")
 }
