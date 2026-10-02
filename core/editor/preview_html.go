@@ -83,8 +83,9 @@ func writeHTMLDataPreview(buf *strings.Builder, data *model.Data) {
 // expanding inline codes to their original markup.
 // Exported for use by format reader PreviewBuilder implementations.
 func RenderBlockContentHTML(block *model.Block) string {
-	if len(block.Source) == 0 {
+	src, _ := block.Edition(block.Authoritative(model.AuthorityPolicy{}))
+	if len(src.Runs) == 0 {
 		return ""
 	}
-	return model.RenderRunsWithData(block.Source)
+	return model.RenderRunsWithData(src.Runs)
 }
