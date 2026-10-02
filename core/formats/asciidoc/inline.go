@@ -26,6 +26,7 @@ import (
 //   ^super^    -> fmt:superscript     (paired, unconstrained)
 //   ~sub~      -> fmt:subscript       (paired, unconstrained)
 //   https://x[text] / link:t[text] -> link:hyperlink (paired)
+//   image:t[alt] -> media:image  (paired around the alt text; standalone without one)
 //   {attr}     -> code:variable       (standalone placeholder)
 //   <<id,text>> -> code:markup around the visible text (paired)
 //   <<id>>     -> code:markup         (standalone placeholder)
@@ -39,6 +40,11 @@ var (
 	reMono      = regexp.MustCompile("^`([^`\\n]+)`")
 	reSuper     = regexp.MustCompile(`^\^([^\^\s\n]+)\^`)
 	reSub       = regexp.MustCompile(`^~([^~\s\n]+)~`)
+
+	// reImageMacro matches an inline image macro, image:target[attributes];
+	// the block form image::target[…] has a second colon and is read as a
+	// block macro.
+	reImageMacro = regexp.MustCompile(`^image:[^:\[\s\]][^\[\s\]]*\[[^\]\n]*\]`)
 )
 
 // parseInline returns the canonical Run sequence for a span of AsciiDoc inline
@@ -112,6 +118,12 @@ func tryConstruct(b *runBuilder, text string, i int, id *int) int {
 		}
 	}
 
+	// Inline image macro image:target[alt]: the target is markup, the alt
+	// text is content.
+	if adv := tryImageMacro(b, text, i, id); adv > 0 {
+		return adv
+	}
+
 	// Constrained formatting: *bold*, _italic_, `mono`.
 	if adv := tryConstrainedPair(b, text, i, id, reBold, "*", "fmt:bold"); adv > 0 {
 		return adv
@@ -132,6 +144,37 @@ func tryConstruct(b *runBuilder, text string, i int, id *int) int {
 	}
 
 	return 0
+}
+
+// tryImageMacro matches an inline image macro at text[i]. Its alternative
+// text becomes content between the macro's opening and closing markup, as a
+// link's text does; a macro with no alt text is one placeholder. The macro
+// must not continue a word, so `myimage:x[y]` stays text.
+func tryImageMacro(b *runBuilder, text string, i int, id *int) int {
+	m := reImageMacro.FindString(text[i:])
+	if m == "" {
+		return 0
+	}
+	if i > 0 {
+		if r, _ := utf8.DecodeLastRuneInString(text[:i]); isWordRune(r) {
+			return 0
+		}
+	}
+	open := strings.IndexByte(m, '[')
+	target := m[len("image:"):open]
+	*id++
+	codeID := strconv.Itoa(*id)
+	start, end, ok := macroAltText(m, open+1, len(m)-1)
+	if !ok {
+		b.AddPh(codeID, "media:image", "asciidoc:image", m, "")
+		b.SetLastAttrs(map[string]string{model.AttrSrc: target})
+		return len(m)
+	}
+	b.AddPcOpen(codeID, "media:image", "asciidoc:image", m[:start], "")
+	b.SetLastAttrs(map[string]string{model.AttrSrc: target})
+	b.AddText(m[start:end])
+	b.AddPcClose(codeID, "media:image", "asciidoc:image", m[end:])
+	return len(m)
 }
 
 // tryConstrainedPair matches an AsciiDoc constrained inline-format pair. The

@@ -57,6 +57,42 @@ func TestBlockMacro_ImageAltTextIsTheOnlyContent(t *testing.T) {
 	}
 }
 
+// An inline image macro reads the same way: its target is markup and its alt
+// text is content, so an edit to the paragraph reaches the alt text and leaves
+// the image path as written.
+func TestInlineImageMacro(t *testing.T) {
+	tests := []struct {
+		name, doc, from, to, want string
+	}{
+		{
+			name: "the alt text is content",
+			doc:  "= T\n\nSee image:sunset.png[Sunset photo,40] here.\n",
+			from: `See <x id="1"/>Sunset photo<x id="/1"/> here.`,
+			to:   `See <x id="1"/>Dusk photo<x id="/1"/> now.`,
+			want: "= T\n\nSee image:sunset.png[Dusk photo,40] now.\n",
+		},
+		{
+			name: "an image with no alt text is one code",
+			doc:  "= T\n\nSee image:sunset.png[] here.\n",
+			from: `See <x id="1/"/> here.`,
+			to:   `See <x id="1/"/> now.`,
+			want: "= T\n\nSee image:sunset.png[] now.\n",
+		},
+		{
+			name: "a word ending in image: is text",
+			doc:  "= T\n\nAn myimage:x.png[y] word.\n",
+			from: "An myimage:x.png[y] word.",
+			to:   "An myimage:x.png[y] words.",
+			want: "= T\n\nAn myimage:x.png[y] words.\n",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, editAsciidocSource(t, tc.doc, tc.from, tc.to))
+		})
+	}
+}
+
 func TestBlockMacro_EditReachesOnlyTheAltText(t *testing.T) {
 	tests := []struct {
 		name, doc, from, to, want string
