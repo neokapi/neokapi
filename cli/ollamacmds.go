@@ -94,7 +94,7 @@ func newOllamaPullCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "pull <model>",
 		Short: "Download a model onto the Ollama server",
-		Long: "Install a model so kapi can translate with it locally. <model> is any Ollama model\n" +
+		Long: "Install a model for kapi's AI tools to run locally. <model> is any Ollama model\n" +
 			"reference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\n" +
 			"model already present is a no-op.",
 		Args: cobra.ExactArgs(1),

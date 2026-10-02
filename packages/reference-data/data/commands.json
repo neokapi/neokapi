@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T07:49:31Z",
+  "generatedAt": "2026-10-02T07:54:17Z",
   "commands": [
     {
       "id": "add",
@@ -1467,7 +1467,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -1592,7 +1592,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -1724,7 +1724,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -2205,7 +2205,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -2349,7 +2349,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -2713,7 +2713,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -3050,7 +3050,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -3240,7 +3240,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -3490,7 +3490,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -3630,7 +3630,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -3893,7 +3893,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -4061,7 +4061,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -4512,7 +4512,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -5148,7 +5148,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -6570,7 +6570,7 @@
       ],
       "use": "pull \u003cmodel\u003e",
       "short": "Download a model onto the Ollama server",
-      "long": "Install a model so kapi can translate with it locally. \u003cmodel\u003e is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
+      "long": "Install a model for kapi's AI tools to run locally. \u003cmodel\u003e is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
       "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false
@@ -6609,7 +6609,7 @@
       ],
       "use": "pull \u003cmodel\u003e",
       "short": "Download a model (Ollama model, or a plugin asset)",
-      "long": "Install a model so kapi can translate with it. A bare reference defaults to an\nOllama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled into the local Ollama\nruntime. A plugin model id (e.g. sat-3l-sm), a plugin name, or plugin/model fetches\nthat plugin's host-owned asset instead.",
+      "long": "Install a model for kapi's AI and machine-learning tools to use. A bare\nreference defaults to an Ollama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled\ninto the local Ollama runtime. A plugin model id (e.g. sat-3l-sm), a plugin name,\nor plugin/model fetches that plugin's host-owned asset instead.",
       "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false

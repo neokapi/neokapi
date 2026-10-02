@@ -673,7 +673,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -732,7 +732,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "overwrite": {
                 "usage": "Overwrite the existing target if one already exists"
@@ -797,7 +797,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1030,7 +1030,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1101,7 +1101,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1280,7 +1280,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1448,7 +1448,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1541,7 +1541,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1662,7 +1662,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1734,7 +1734,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1861,7 +1861,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1945,7 +1945,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "overwrite-segmentation": {
                 "usage": "Re-segment already-segmented blocks replacing previous segmentation"
@@ -2168,7 +2168,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -2476,7 +2476,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -2765,7 +2765,7 @@
         "ksed": {
           "short": "Stream-edit the text/content inside files (use ksed)"
         },
-        "long": "kapi parses any format into one content model, edits and checks the content\ninside it, and writes it back faithfully. It holds a project's context, such as\nits terms and its voice, and applies it to every edit and check. The same model\nserves format conversion and translation into other languages.",
+        "long": "kapi parses any format into one content model, edits and checks the content\ninside it, and writes it back faithfully. It holds a project's context, such as\nits terms and its voice, which its checks and AI tools apply. The same model\nserves format conversion and translation into other languages.",
         "ls": {
           "flags": {
             "color": {
@@ -3145,7 +3145,7 @@
             },
             "long": "Detect, inspect, and feed the local Ollama runtime kapi uses to run its AI\ntools on-device (GPU-accelerated). Ollama itself is a one-time install from\nhttps://ollama.com; kapi drives the rest: `kapi models ollama pull \u003cmodel\u003e` installs\na model, and `kapi translate --provider ollama --model \u003cmodel\u003e` uses it.",
             "pull": {
-              "long": "Install a model so kapi can translate with it locally. \u003cmodel\u003e is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
+              "long": "Install a model for kapi's AI tools to run locally. \u003cmodel\u003e is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
               "short": "Download a model onto the Ollama server"
             },
             "short": "Manage the local Ollama runtime for on-device AI tools",
@@ -3158,7 +3158,7 @@
             "short": "Remove a model (Ollama model, or a cached plugin asset)"
           },
           "pull": {
-            "long": "Install a model so kapi can translate with it. A bare reference defaults to an\nOllama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled into the local Ollama\nruntime. A plugin model id (e.g. sat-3l-sm), a plugin name, or plugin/model fetches\nthat plugin's host-owned asset instead.",
+            "long": "Install a model for kapi's AI and machine-learning tools to use. A bare\nreference defaults to an Ollama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled\ninto the local Ollama runtime. A plugin model id (e.g. sat-3l-sm), a plugin name,\nor plugin/model fetches that plugin's host-owned asset instead.",
             "short": "Download a model (Ollama model, or a plugin asset)"
           },
           "setup": {

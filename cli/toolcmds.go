@@ -303,7 +303,7 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	switch {
 	case info.WritesOutput && takesTarget:
 		cmd.Flags().StringP("output", "o", "", "output path template (variables: {dir}, {name}, {ext}, {lang})")
-		cmd.Flags().String("output-dir", "", "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)")
+		cmd.Flags().String("output-dir", "", "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)")
 	case info.WritesOutput:
 		cmd.Flags().StringP("output", "o", "", "output path template (variables: {dir}, {name}, {ext})")
 		cmd.Flags().String("output-dir", "", "write outputs under DIR (default: rewrite each input in place)")

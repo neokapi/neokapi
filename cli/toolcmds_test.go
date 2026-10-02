@@ -356,4 +356,12 @@ func TestExecLanguageFlagsFollowTheToolsLocaleContract(t *testing.T) {
 	searchOut := tools["search-replace"].Flags().Lookup("output")
 	require.NotNil(t, searchOut)
 	assert.Contains(t, searchOut.Usage, "{lang}")
+
+	// A writer that takes an optional target rewrites its input when the run
+	// names none (resolveRunOutputPath), and its --output-dir help says so
+	// beside the locale-layout default it uses with a target.
+	searchDir := tools["search-replace"].Flags().Lookup("output-dir")
+	require.NotNil(t, searchDir)
+	assert.Contains(t, searchDir.Usage, "mirroring its locale layout")
+	assert.Contains(t, searchDir.Usage, "with no target language, the input itself")
 }
