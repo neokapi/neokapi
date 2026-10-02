@@ -64,3 +64,33 @@ func TestChangeService_AddsAndRemovesKeysAcrossACatalogsTranslations(t *testing.
 	require.NoError(t, err)
 	assert.Equal(t, change.CodeInvalid, res.Ops[0].Error.Code, "a block is added through the source catalog: %s", res.Ops[0].Error.Message)
 }
+
+// A JSON catalog configured to read a block's note from the member beside it
+// (noteRules, as a Chrome extension's messages.json is read) makes that member
+// part of the block's shell. Its writer adds and removes no blocks, so
+// describing the document reports neither operation and a removal is refused.
+func TestChangeService_RefusesStructureWhereNotesAreReadFromBesideABlock(t *testing.T) {
+	const catalog = "{\n  \"greeting\": {\n    \"message\": \"Hello\",\n    \"description\": \"Shown on the home page\"\n  },\n  \"cart\": {\n    \"message\": \"Cart\"\n  }\n}\n"
+	item := project.ContentItem{Path: "locales/en.json", Format: &project.FormatSpec{Name: "json", Config: map[string]any{"noteRules": "^description$"}}}
+	a, recipe := changeProject(t, item, map[string]string{"locales/en.json": catalog})
+	svc := changeService(t, a, recipe)
+	ctx := context.Background()
+
+	d, err := svc.Describe(ctx, change.DescribeRequest{Doc: "locales/en.json"})
+	require.NoError(t, err)
+	assert.Nil(t, d.Ops[change.KindInsertBlock])
+	assert.Nil(t, d.Ops[change.KindDeleteBlock])
+
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "locales/en.json"})
+	require.NoError(t, err)
+	require.NotEmpty(t, page.Blocks)
+	b := page.Blocks[0]
+	assert.NotContains(t, b.Ops, change.KindDeleteBlock)
+	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{{
+		Kind: change.KindDeleteBlock, At: b.Ref, Body: &change.DeleteBlock{IfMatch: map[string]string{"en": b.Rev}},
+	}}}, changePerson)
+	require.NoError(t, err)
+	require.NotNil(t, res.Ops[0].Error)
+	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code, res.Ops[0].Error.Message)
+	assert.Equal(t, catalog, readFile(t, recipe, "locales/en.json"))
+}

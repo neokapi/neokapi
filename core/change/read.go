@@ -139,7 +139,7 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 	}
 	defer sess.Close()
 	info := sess.Info()
-	desc := s.describe(info)
+	desc := s.describe(sess)
 
 	editions := slices.Clone(q.Editions)
 	if info.Edition != nil {

@@ -97,6 +97,12 @@ type Description struct {
 	Editions Editions          `json:"editions"`
 	Ops      OpTable           `json:"ops"`
 	Native   []format.NativeOp `json:"native"`
+
+	// doc is the document a description of an open document describes, and
+	// narrowed the operations its format supports and its home cannot write
+	// there.
+	doc      string
+	narrowed []Kind
 }
 
 // OpTable lists, per content operation, what a format supports; nil is
@@ -111,6 +117,16 @@ type OpTable struct {
 	Unannotate    *Supported          `json:"unannotate"`
 	InsertBlock   *Supported          `json:"insert_block"`
 	DeleteBlock   *Supported          `json:"delete_block"`
+}
+
+// drop marks the structural operation k unsupported.
+func (t *OpTable) drop(k Kind) {
+	switch k {
+	case KindInsertBlock:
+		t.InsertBlock = nil
+	case KindDeleteBlock:
+		t.DeleteBlock = nil
+	}
 }
 
 // supports reports whether k is an operation the table decides (content), and

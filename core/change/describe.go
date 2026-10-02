@@ -100,6 +100,10 @@ func (d Description) supports(op Op) *Error {
 			Message: fmt.Sprintf("the %s format has no native operations", d.Format)}
 	}
 	if !ok {
+		if slices.Contains(d.narrowed, op.Kind) {
+			return &Error{Code: CodeUnsupported, Capability: string(op.Kind),
+				Message: fmt.Sprintf("%s takes no %s: its home, or the %s writer as configured for it, cannot write one there; describe the document to see what it supports", d.doc, op.Kind, d.Format)}
+		}
 		return &Error{Code: CodeUnsupported, Capability: string(op.Kind),
 			Message: fmt.Sprintf("the %s format does not support %s; describe the format to see what it supports", d.Format, op.Kind)}
 	}
@@ -133,7 +137,6 @@ type DescribeRequest struct {
 // the document named.
 func (s *Service) Describe(ctx context.Context, q DescribeRequest) (*Description, error) {
 	name := q.Format
-	var info *DocInfo
 	if name == "" {
 		if q.Doc == "" {
 			return nil, &Error{Code: CodeInvalid, Field: "format", Message: "name a format or a document to describe"}
@@ -145,16 +148,11 @@ func (s *Service) Describe(ctx context.Context, q DescribeRequest) (*Description
 			}
 			return nil, err
 		}
-		in := sess.Info()
-		info = &in
-		_ = sess.Close()
-		name = in.Format
-	}
-	if info != nil {
-		if _, ok := s.facts(name); !ok {
-			return nil, &Error{Code: CodeNotFound, Field: "format", Message: fmt.Sprintf("no format is named %q", name)}
+		defer sess.Close()
+		if _, ok := s.facts(sess.Info().Format); !ok {
+			return nil, &Error{Code: CodeNotFound, Field: "format", Message: fmt.Sprintf("no format is named %q", sess.Info().Format)}
 		}
-		d := s.describe(*info)
+		d := s.describe(sess)
 		return &d, nil
 	}
 	facts, ok := s.facts(name)
@@ -173,11 +171,14 @@ func (s *Service) facts(name string) (FormatFacts, bool) {
 	return s.formats.Facts(name)
 }
 
-// describe is the description of the format of an open document. What its
-// writer declares is what the home reports for the document
-// (DocInfo.Capabilities), the declaration ApplyBlock applies its operations
-// with, so a description never offers an operation the write would refuse.
-func (s *Service) describe(info DocInfo) Description {
+// describe is the description of an open document. What its writer declares
+// is what the home reports for the document (DocInfo.Capabilities), the
+// declaration ApplyBlock applies its operations with, and insert_block and
+// delete_block are offered only where the document's home can write them in
+// this document (StructuralSession), so a description never offers an
+// operation the write would refuse.
+func (s *Service) describe(sess Session) Description {
+	info := sess.Info()
 	facts, ok := s.facts(info.Format)
 	if !ok {
 		facts = FormatFacts{Name: info.Format}
@@ -186,6 +187,16 @@ func (s *Service) describe(info DocInfo) Description {
 	d := s.describer(facts)
 	if info.Editions != "" {
 		d.Editions = info.Editions
+	}
+	var can []Kind
+	if ss, ok := sess.(StructuralSession); ok {
+		can = ss.Structural()
+	}
+	for _, k := range []Kind{KindInsertBlock, KindDeleteBlock} {
+		if _, ok := d.Ops.supports(k); ok && !slices.Contains(can, k) {
+			d.Ops.drop(k)
+			d.doc, d.narrowed = info.Doc, append(d.narrowed, k)
+		}
 	}
 	return d
 }

@@ -315,7 +315,7 @@ func (r *applyRun) route(ctx context.Context) error {
 		p := r.byDoc[info.Doc]
 		if p == nil {
 			p = &docPlan{svc: r.s, set: r.set, actor: r.actor, home: h, sess: sess, info: info,
-				desc: r.s.describe(info), byKey: map[string][]int{}, results: r.res.Ops}
+				desc: r.s.describe(sess), byKey: map[string][]int{}, results: r.res.Ops}
 			r.byDoc[info.Doc] = p
 			r.plans = append(r.plans, p)
 		} else {

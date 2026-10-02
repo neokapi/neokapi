@@ -284,6 +284,35 @@ func TestService_StructureNeedsAHomeThatWritesIt(t *testing.T) {
 	assert.Equal(t, string(change.KindInsertBlock), requireRefused(t, res.Ops[0], change.CodeUnsupported).Capability)
 }
 
+// A document whose home writes fewer structural operations than its format
+// declares, such as a catalog whose writer is configured to read notes from
+// the members beside a block, is described, read and applied by what the
+// home writes there.
+func TestService_DescribesADocumentByWhatItsHomeWrites(t *testing.T) {
+	ctx := context.Background()
+	h := newKVHome(textBlock("x", "X"))
+	h.writes = []change.Kind{}
+	svc := newMemService(h)
+
+	d, err := svc.Describe(ctx, change.DescribeRequest{Format: "memory-kv"})
+	require.NoError(t, err)
+	assert.NotNil(t, d.Ops[change.KindInsertBlock], "the format declares it")
+
+	d, err = svc.Describe(ctx, change.DescribeRequest{Doc: "c"})
+	require.NoError(t, err)
+	assert.Nil(t, d.Ops[change.KindInsertBlock])
+	assert.Nil(t, d.Ops[change.KindDeleteBlock])
+	assert.NotNil(t, d.Ops[change.KindSetContent])
+
+	b := readBlock(t, svc, "c", "x")
+	assert.NotContains(t, b.Ops, change.KindDeleteBlock)
+
+	res := applySet(t, svc, svcPerson, deleteOp("c", "x", map[string]string{"en": b.Rev}))
+	err2 := requireRefused(t, res.Ops[0], change.CodeUnsupported)
+	assert.Equal(t, string(change.KindDeleteBlock), err2.Capability)
+	assert.Contains(t, err2.Message, "describe the document")
+}
+
 func TestService_StructureReachesTheDocumentOrIsRefused(t *testing.T) {
 	t.Run("a new block the home did not write", func(t *testing.T) {
 		h := newKVHome(textBlock("x", "X"))

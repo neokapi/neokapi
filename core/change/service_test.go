@@ -34,9 +34,11 @@ type memHome struct {
 	failCommit string
 	// kv makes every document a monolingual key-value catalog whose home
 	// adds and removes blocks (structure_test.go); restructure, when set,
-	// replaces how the home writes structural edits.
+	// replaces how the home writes structural edits; writes, when set, are
+	// the only structural operations the home writes.
 	kv          bool
 	restructure func(blocks []*model.Block, e change.StructuralEdit) ([]*model.Block, *change.Error)
+	writes      []change.Kind
 }
 
 type memDoc struct {
@@ -164,6 +166,9 @@ func (s *memSession) Place(k model.EditionKey) change.Place {
 func (s *memSession) Structural() []change.Kind {
 	if !s.h.kv {
 		return nil
+	}
+	if s.h.writes != nil {
+		return s.h.writes
 	}
 	return []change.Kind{change.KindInsertBlock, change.KindDeleteBlock}
 }
