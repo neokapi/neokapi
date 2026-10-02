@@ -18,11 +18,13 @@ import (
 // The tool sets `kapi mcp --tools` takes.
 const (
 	// MCPSetWriting is what an assistant writing in the project needs: the
-	// context:// resources, the context tools that ask and record, and
-	// check_file. It is the set served when none is named.
+	// context:// resources, the context tools that ask and record,
+	// check_file, and the structured edit path (extract_content reads a
+	// file's blocks, apply_edits writes them back through the faithful
+	// round-trip). It is the set served when none is named.
 	MCPSetWriting = "writing"
-	// MCPSetContent works on content directly: checks on text, voice rewrites,
-	// extraction and the write verb.
+	// MCPSetContent works on content directly: checks on text, voice
+	// rewrites, format detection and redaction.
 	MCPSetContent = "content"
 	// MCPSetTranslation runs the loop that fills target languages.
 	MCPSetTranslation = "translation"
@@ -39,10 +41,11 @@ var mcpToolSets = map[string][]string{
 	MCPSetWriting: {
 		"context_read", "context_search", "context_observe", "context_correct",
 		"context_withdraw", "context_session_summary", "check_file",
+		"extract_content", "apply_edits",
 	},
 	MCPSetContent: {
 		"check_text", "voice_check", "voice_rewrite", "term-check",
-		"extract_content", "detect_format", "apply_edits", "redact",
+		"detect_format", "redact",
 	},
 	MCPSetTranslation: {"translate", "up", "up_plan", "stats"},
 	MCPSetReview:      {"review_queue", "review_unit", "pre_review_unit"},

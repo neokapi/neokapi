@@ -6,4 +6,6 @@ export { AddStepPicker } from "./AddStepPicker";
 export type { AddStepPickerProps } from "./AddStepPicker";
 export { ParallelGroupRow } from "./ParallelGroupRow";
 export type { ParallelGroupRowProps } from "./ParallelGroupRow";
+export { parallelStepError, sequenceIssues, listBranchesInOrder } from "./sequence";
+export type { SequenceStep, SequenceIssue } from "./sequence";
 export type { FlowSpec, FlowStep, FlowTool } from "./types";

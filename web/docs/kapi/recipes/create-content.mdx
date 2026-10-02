@@ -87,6 +87,8 @@ kapi apply changeset.jsonl
 
 The **content** entry rewrites the block through the faithful round-trip, drift-guarded by `content_hash`; the **term** entry is written into the [project store](/kapi/project-store)'s terms tables and recorded as a decision, so `kapi context log` names the new term and the next `kapi check` enforces it. Each entry lands on its own: when one is stale or refused, the others are still written, and `kapi apply` reports which and exits non-zero. Re-running the corrected change-set is safe, because an edit already in place is skipped. `apply` also accepts `memory` and `recipe` asset entries; see [Keep source on brand](/kapi/recipes/keep-source-on-brand) for a `term` entry that adds a word rule.
 
+Writing a rule directly is your decision, so an assistant's `term`, `memory` and `recipe` entries are refused, whether it runs `kapi apply` from its shell or sends the change-set through MCP. The assistant applies the content entry and records the rule as a suggestion with `kapi context correct --suggest`, which you keep with `kapi context keep` ([Growing context](/kapi/context-decisions)).
+
 ## Next
 
 - [Edit content](/kapi/recipes/rewrite-content): the edit-existing loop and the full `content`-entry shape with its guards.

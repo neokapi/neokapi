@@ -122,6 +122,93 @@ func TestApplyEdits_NoEntryPassesThrough(t *testing.T) {
 	assert.Equal(t, before, model.RunsPlaceholderText(b.Source))
 }
 
+// An edit whose id, or for an edit given without one whose content hash, names
+// no block changed nothing, and the report says so instead of letting
+// the pass read as clean.
+func TestApplyEdits_EditMatchingNoBlockIsNotFound(t *testing.T) {
+	b, cur, hash := blockWithCode("p1")
+	untranslatable := &model.Block{
+		ID:     "code1",
+		Source: []model.Run{{Text: &model.TextRun{Text: "fmt.Println()"}}},
+	}
+	tests := []struct {
+		name   string
+		byID   map[string]Edit
+		byHash map[string]Edit
+		want   []string
+		ok     bool
+	}{
+		{
+			name: "every edit matched a block",
+			byID: map[string]Edit{"p1": {Text: cur, ContentHash: hash}},
+			ok:   true,
+		},
+		{
+			name: "an id no block has",
+			byID: map[string]Edit{"p1": {Text: cur}, "p9": {Text: "x"}},
+			want: []string{"p9"},
+		},
+		{
+			name:   "a content hash no block has",
+			byHash: map[string]Edit{"feedface": {Text: "x", ContentHash: "feedface"}},
+			want:   []string{NotFoundHashPrefix + "feedface"},
+		},
+		{
+			name:   "an edit matched by content hash",
+			byHash: map[string]Edit{hash: {Text: cur, ContentHash: hash}},
+			ok:     true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			report := &ApplyReport{}
+			tl := NewApplyEditsTool(tt.byID, tt.byHash, report)
+			blk := *b
+			applyOne(t, tl, &blk)
+			code := *untranslatable
+			applyOne(t, tl, &code)
+
+			assert.Equal(t, tt.want, report.NotFound())
+			assert.Equal(t, tt.ok, report.OK())
+		})
+	}
+}
+
+// A block that is not translatable, such as a code block, is found by its id or
+// its content hash like any other. An edit giving its text as it is reads as
+// already applied; an edit changing it leaves the block as it was and is
+// reported as not editable, which keeps the pass from reading as clean.
+func TestApplyEdits_BlockThatIsNotEditable(t *testing.T) {
+	const code = "fmt.Println()"
+	hash := model.ComputeContentHash(code)
+	tests := []struct {
+		name        string
+		byID        map[string]Edit
+		byHash      map[string]Edit
+		skipped     []string
+		notEditable []string
+	}{
+		{name: "its id with its text", byID: map[string]Edit{"code1": {Text: code, ContentHash: hash}}, skipped: []string{"code1"}},
+		{name: "its content hash with its text", byHash: map[string]Edit{hash: {Text: code, ContentHash: hash}}, skipped: []string{"code1"}},
+		{name: "its id with a changed text", byID: map[string]Edit{"code1": {Text: "fmt.Print()", ContentHash: hash}}, notEditable: []string{"code1"}},
+		{name: "its content hash with a changed text", byHash: map[string]Edit{hash: {Text: "fmt.Print()"}}, notEditable: []string{"code1"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			blk := &model.Block{ID: "code1", Source: []model.Run{{Text: &model.TextRun{Text: code}}}}
+			report := &ApplyReport{}
+			applyOne(t, NewApplyEditsTool(tt.byID, tt.byHash, report), blk)
+
+			assert.Empty(t, report.NotFound(), "the edit found its block")
+			assert.Equal(t, tt.skipped, report.Skipped)
+			assert.Equal(t, tt.notEditable, report.NotEditable)
+			assert.Empty(t, report.Applied)
+			assert.Equal(t, code, blk.SourceText(), "the block keeps its text")
+			assert.Equal(t, tt.notEditable == nil, report.OK())
+		})
+	}
+}
+
 func TestApplyEdits_RejectsFlattenedBranches(t *testing.T) {
 	for _, source := range []model.Run{
 		model.PluralR(model.PluralRun{Pivot: "count", Forms: map[model.PluralForm][]model.Run{

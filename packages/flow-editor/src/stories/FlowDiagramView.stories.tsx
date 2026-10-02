@@ -7,7 +7,9 @@ const LINEAR: FlowSpec = {
   steps: [{ tool: "recycle" }, { tool: "translate" }, { tool: "qa" }, { tool: "word-count" }],
 };
 
-const FAN_OUT: FlowSpec = {
+// A flow loaded with a parallel group. Steps run in order, so the diagram
+// draws the group invalid, with the refusal the runtime gives.
+const LOADED_GROUP: FlowSpec = {
   steps: [
     { tool: "translate" },
     { tool: "", parallel: [{ tool: "qa" }, { tool: "word-count" }, { tool: "term-check" }] },
@@ -30,7 +32,7 @@ const meta: Meta<typeof FlowDiagramView> = {
     docs: {
       description: {
         component:
-          "The read-only diagram of a flow. Authoring happens in the linear step editor; the canvas draws the same steps with per-branch fan-out, the typed IO contract and its diagnostics on every node, and, with a recorded run loaded, the replay.",
+          "The read-only diagram of a flow. Authoring happens in the linear step editor; the canvas draws the same steps in order, the typed IO contract and its diagnostics on every node, and, with a recorded run loaded, the replay. A loaded parallel group is drawn invalid, with the refusal the runtime gives.",
       },
     },
   },
@@ -51,9 +53,9 @@ export const Linear: Story = {
   args: { flow: LINEAR },
 };
 
-export const ParallelFanOut: Story = {
-  name: "Parallel fan-out",
-  args: { flow: FAN_OUT },
+export const LoadedParallelGroup: Story = {
+  name: "Loaded parallel group (invalid)",
+  args: { flow: LOADED_GROUP },
 };
 
 export const UnmetInput: Story = {
@@ -82,10 +84,10 @@ export const LinearDark: Story = {
   args: { flow: LINEAR },
 };
 
-export const ParallelFanOutDark: Story = {
-  name: "Parallel fan-out (dark)",
+export const LoadedParallelGroupDark: Story = {
+  name: "Loaded parallel group (invalid, dark)",
   globals: { theme: "dark" },
-  args: { flow: FAN_OUT },
+  args: { flow: LOADED_GROUP },
 };
 
 export const WithRunDark: Story = {

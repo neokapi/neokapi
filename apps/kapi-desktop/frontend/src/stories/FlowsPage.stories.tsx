@@ -21,13 +21,8 @@ const SAMPLE_FLOWS: Record<string, FlowSpec> = {
     steps: [
       { tool: "recycle", label: "Memory Leverage" },
       { tool: "translate", label: "AI Translate" },
-      {
-        tool: "",
-        parallel: [
-          { tool: "qa", label: "Quality Check" },
-          { tool: "voice-vocab-check", label: "Brand Check" },
-        ],
-      },
+      { tool: "qa", label: "Quality Check" },
+      { tool: "voice-vocab-check", label: "Brand Check" },
       { tool: "word-count", label: "Word Count" },
     ],
   },

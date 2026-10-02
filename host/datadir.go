@@ -2,11 +2,13 @@ package host
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 // kapi keeps two per-user roots apart. ConfigDir (host/resource.go) holds what
@@ -71,11 +73,102 @@ func underTest() bool {
 	return strings.HasSuffix(base, ".test") || strings.HasSuffix(base, ".test.exe")
 }
 
+// testDataDirPrefix begins the name of a test binary's data root under the
+// system temporary directory. The process id follows it.
+const testDataDirPrefix = "kapi-test-data-"
+
+// sweepTestDataDirsOnce runs the sweep the first time a test binary resolves
+// its data root, before anything has been written there.
+var sweepTestDataDirsOnce sync.Once
+
 // testDataDir is the data root a test binary gets: one directory per process,
 // under the system temporary directory, so two packages running in parallel do
 // not share a workspace and neither reaches the developer's.
+//
+// The first call sweeps the roots dead test binaries left behind, so a run
+// does not add to them without bound: a root holds every workspace its
+// binary's tests opened, often hundreds of megabytes, and a binary that is
+// killed, or whose package has no TestMain calling RemoveTestDataDir, leaves
+// its root behind.
 func testDataDir() string {
-	return filepath.Join(os.TempDir(), fmt.Sprintf("kapi-test-data-%d", os.Getpid()))
+	sweepTestDataDirsOnce.Do(func() {
+		sweepTestDataDirs(os.TempDir(), os.Getpid(), processAlive, processStart)
+	})
+	return testDataRoot(os.TempDir(), os.Getpid())
+}
+
+// testDataRoot names the data root of the test binary with this process id.
+func testDataRoot(tmp string, pid int) string {
+	return filepath.Join(tmp, testDataDirPrefix+strconv.Itoa(pid))
+}
+
+// RemoveTestDataDir removes the data root this test binary was given, once its
+// tests have run. A package's TestMain calls it through devenvtest.Main, so a
+// test run leaves nothing behind under the system temporary directory. Outside
+// a test binary it does nothing.
+func RemoveTestDataDir() {
+	if !underTest() {
+		return
+	}
+	_ = os.RemoveAll(testDataRoot(os.TempDir(), os.Getpid()))
+}
+
+// processStartSlack is how much earlier than its process's start a data root
+// may have been last written and still count as that process's, which absorbs
+// the clock's resolution.
+const processStartSlack = 2 * time.Second
+
+// sweepTestDataDirs removes from tmp the data root of every test binary that is
+// no longer running, and returns the names it removed. alive answers whether a
+// process id is running, and started when it started, where the platform says.
+//
+// The root named for self is removed as well. The sweep runs before this
+// process has resolved its own root, so a directory already carrying its id
+// was left by an earlier process that had the same id, and its workspaces
+// would otherwise leak into this run's tests.
+//
+// A root whose process is running is kept, unless that process started after
+// the root was last written: a binary writes its root after it starts, so such
+// a process took the id over from the binary that wrote the root, which has
+// exited. Where the platform gives no start time, a root whose id another
+// process has taken is kept until that process ends.
+func sweepTestDataDirs(tmp string, self int, alive func(int) bool, started func(int) (time.Time, bool)) []string {
+	entries, err := os.ReadDir(tmp)
+	if err != nil {
+		return nil
+	}
+	var removed []string
+	for _, e := range entries {
+		rest, ok := strings.CutPrefix(e.Name(), testDataDirPrefix)
+		if !ok || !e.IsDir() {
+			continue
+		}
+		pid, err := strconv.Atoi(rest)
+		if err != nil || pid <= 0 || strconv.Itoa(pid) != rest {
+			continue
+		}
+		if pid != self && alive(pid) && !reusedID(e, pid, started) {
+			continue
+		}
+		if os.RemoveAll(filepath.Join(tmp, e.Name())) == nil {
+			removed = append(removed, e.Name())
+		}
+	}
+	return removed
+}
+
+// reusedID reports whether the running process with this id started after the
+// data root e was last written, so that it cannot be the binary that wrote it.
+func reusedID(e os.DirEntry, pid int, started func(int) (time.Time, bool)) bool {
+	at, ok := started(pid)
+	if !ok {
+		return false
+	}
+	info, err := e.Info()
+	if err != nil {
+		return false
+	}
+	return info.ModTime().Before(at.Add(-processStartSlack))
 }
 
 // dataDir is DataDir with its two environment seams injected, so the platform

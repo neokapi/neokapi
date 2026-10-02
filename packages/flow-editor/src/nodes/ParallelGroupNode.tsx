@@ -1,13 +1,15 @@
-// ParallelGroupNode — a parallel step ("route") rendered as ONE composite node
-// with its branch tools listed inside, a single input and a single output. This
-// keeps the graph readable: a parallel group occupies a single slot in the
-// layout instead of fanning out into branch nodes with crossing merge edges.
-// Clicking a branch row selects that branch for configuration. The node is a
-// lightweight control you drop in and remove: empty it invites its first branch,
-// and every branch (and the route itself) can be removed in place.
+// ParallelGroupNode — a step holding a `parallel:` list, which the runtime
+// refuses: flow steps run in order, one after another. The editor creates no
+// such step; a flow loaded with one draws it as ONE composite node with its
+// branch tools listed inside, marked invalid with the runtime's refusal, so the
+// reader sees what the flow holds and why it does not run. Clicking a branch
+// row selects that branch for configuration, and every branch (and the group
+// itself) can be removed in place. The editor's banner lists the group's tools
+// as ordered steps.
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { GitBranch, X, AlertCircle, Plus } from "lucide-react";
+import { GitBranch, X, AlertCircle } from "lucide-react";
+import { t } from "@neokapi/i18n-react/runtime";
 import { cn, SimpleTooltip } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
 import { PortChip } from "./PortChip";
@@ -15,6 +17,7 @@ import type { ParallelBranch } from "../conversion";
 import type { IOPort } from "../types";
 
 const PARALLEL_COLOR = "oklch(0.62 0.15 300)";
+const INVALID_COLOR = "var(--destructive)";
 
 export function ParallelGroupNode({ data, selected }: NodeProps) {
   const branches = (data.branches as ParallelBranch[] | undefined) ?? [];
@@ -22,13 +25,15 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
   const outPosition = (data.outPosition as Position) ?? Position.Right;
   const onSelectBranch = data.onSelectBranch as ((index: number) => void) | undefined;
   const onRemove = data.onRemove as (() => void) | undefined;
-  const onAddBranch = data.onAddBranch as (() => void) | undefined;
   const onRemoveBranch = data.onRemoveBranch as ((index: number) => void) | undefined;
   const selectedBranch = data.selectedBranch as number | undefined;
   const unmet = data.unmet as string[] | undefined;
   // A guided lesson step is pointing at this group (FlowEditor focusRequest).
   const lessonFocus = !!data.lessonFocus;
+  // The runtime's refusal for this step, set whenever the group holds branches.
+  const invalid = data.invalid as string | undefined;
   const empty = branches.length === 0;
+  const frame = invalid ? INVALID_COLOR : PARALLEL_COLOR;
 
   // Handles sit at the group's own center; the serpentine layout center-aligns
   // every node in a row on a shared lane, so this still lines up with the
@@ -36,16 +41,17 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
   const handleStyle = {
     width: 8,
     height: 8,
-    background: PARALLEL_COLOR,
+    background: frame,
     border: "2px solid var(--card)",
   } as const;
 
   return (
     <div
       className="group/par relative flex w-[220px] flex-col rounded-lg bg-card overflow-visible"
+      data-invalid={invalid ? "true" : undefined}
       style={{
-        border: selected ? `2px solid ${PARALLEL_COLOR}` : "2px solid var(--border)",
-        borderStyle: empty ? "dashed" : "solid",
+        border: selected || invalid ? `2px solid ${frame}` : "2px solid var(--border)",
+        borderStyle: "dashed",
         boxShadow: lessonFocus
           ? `0 0 0 3px var(--primary), 0 0 18px 2px color-mix(in oklch, var(--primary) 45%, transparent), 0 4px 12px oklch(0 0 0 / 0.3)`
           : selected
@@ -57,23 +63,24 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
 
       {/* Header */}
       <div className="flex items-center gap-1 px-3 pt-2">
-        <GitBranch size={11} style={{ color: PARALLEL_COLOR }} />
-        <span
-          className="text-[9px] font-bold uppercase tracking-wider"
-          style={{ color: PARALLEL_COLOR }}
-        >
-          Parallel
+        {invalid ? (
+          <AlertCircle size={11} style={{ color: frame }} />
+        ) : (
+          <GitBranch size={11} style={{ color: frame }} />
+        )}
+        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: frame }}>
+          {t("Parallel group")}
         </span>
         <span className="ml-auto text-[8px] font-medium text-muted-foreground">
-          {empty ? "route" : `${branches.length} branches`}
+          {t("{count} tools", { count: branches.length })}
         </span>
       </div>
 
-      {/* Empty route: invite the first branch. */}
-      {empty && (
-        <div className="px-3 pb-1 pt-1">
-          <p className="text-[9px] leading-snug text-muted-foreground">
-            Tools added here run in parallel on the same input.
+      {/* The runtime's refusal: steps run in order. */}
+      {invalid && (
+        <div className="px-3 pb-1 pt-1" role="alert" data-testid="parallel-group-error">
+          <p className="text-[9px] leading-snug" style={{ color: frame }}>
+            {invalid}
           </p>
         </div>
       )}
@@ -127,7 +134,7 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
                   ))}
                 </button>
                 {onRemoveBranch && (
-                  <SimpleTooltip content="Remove this branch">
+                  <SimpleTooltip content={t("Remove this branch")}>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -147,25 +154,6 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
         </div>
       )}
 
-      {/* Add-branch affordance — the route's own "+", same gesture as the edge. */}
-      {onAddBranch && (
-        <div className={cn("px-2", empty ? "pb-2 pt-0.5" : "pb-2")}>
-          <SimpleTooltip content="Add a tool that runs in parallel here">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddBranch();
-              }}
-              className="nodrag flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-border py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
-            >
-              <Plus size={11} />
-              Add branch
-            </button>
-          </SimpleTooltip>
-        </div>
-      )}
-
       {unmet && unmet.length > 0 && (
         <SimpleTooltip content={`Needs upstream: ${unmet.join(", ")}`}>
           <div
@@ -181,7 +169,7 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
       <Handle type="source" position={outPosition} style={handleStyle} />
 
       {onRemove && (
-        <SimpleTooltip content="Remove parallel route (Delete)">
+        <SimpleTooltip content={t("Remove parallel group (Delete)")}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -192,7 +180,7 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
               "flex items-center justify-center cursor-pointer z-[2] transition-opacity duration-150",
               selected ? "opacity-100" : "opacity-0 group-hover/par:opacity-100",
             )}
-            aria-label="Remove parallel route"
+            aria-label={t("Remove parallel group")}
           >
             <X size={10} className="text-muted-foreground" />
           </button>

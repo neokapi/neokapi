@@ -271,7 +271,7 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 
 	a2 := &App{}
 	a2.InitRegistries()
-	res := a2.applyReviewEntry(context.Background(), NewEnvCommand(context.Background(), "apply"), changeEntry{
+	res := a2.applyReviewEntry(context.Background(), NewEnvCommand(context.Background(), "apply"), personApplies, changeEntry{
 		Kind: kindReview, File: item.File, ID: item.Key, Locale: item.Locale, Status: "established",
 	})
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
@@ -282,7 +282,7 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 	assert.Equal(t, 50, nb.Pct["established"], "a kind:review apply promotes via the state store")
 
 	// Idempotent: re-applying the same decision is a no-op.
-	res2 := a2.applyReviewEntry(context.Background(), NewEnvCommand(context.Background(), "apply"), changeEntry{
+	res2 := a2.applyReviewEntry(context.Background(), NewEnvCommand(context.Background(), "apply"), personApplies, changeEntry{
 		Kind: kindReview, File: item.File, ID: item.Key, Locale: item.Locale, Status: "established",
 	})
 	assert.Equal(t, "skipped", res2.Status)

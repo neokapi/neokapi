@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -197,4 +198,72 @@ func TestInspectProjectsCharacterReferences(t *testing.T) {
 		"html":     "<p>Fish &amp; chips &lt;3</p>",
 		"asciidoc": "Fish & chips <3",
 	}, rec.Projected)
+}
+
+// Every block `kapi inspect` lists is one `kapi apply` resolves, the code block
+// of a Markdown file included, which the file marks as content an edit does not
+// change. Sent back as it was read, each record is a no-op, so the inspect and
+// apply loop settles. A changed text for the code block is reported as
+// not_editable, leaves the file as it was, and exits on the gate code.
+func TestApplyResolvesEveryBlockInspectLists(t *testing.T) {
+	const doc = "# Guide\n\nRun the tool.\n\n```go\nfmt.Println(\"hi\")\n```\n"
+	tests := []struct {
+		name     string
+		codeText func(read string) string
+		changed  bool
+	}{
+		{name: "every record sent back as read", codeText: func(read string) string { return read }},
+		{name: "the code block's text changed", codeText: func(string) string { return `fmt.Println("bye")` }, changed: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newToolboxApp(t)
+			path := filepath.Join(t.TempDir(), "doc.md")
+			require.NoError(t, os.WriteFile(path, []byte(doc), 0o600))
+
+			_, recs := inspectRecords(t, app, path)
+			var entries []changeEntry
+			var ids []string
+			codeID := ""
+			for _, rec := range recs {
+				text := rec.Text
+				if rec.Role == "code" {
+					codeID = rec.ID
+					text = tt.codeText(rec.Text)
+				}
+				ids = append(ids, rec.ID)
+				entries = append(entries, changeEntry{Kind: kindContent, File: rec.File, ID: rec.ID, ContentHash: rec.ContentHash, Text: text})
+			}
+			require.NotEmpty(t, codeID, "kapi inspect lists the code block: %+v", recs)
+
+			body, err := json.Marshal(entries)
+			require.NoError(t, err)
+			changeset := filepath.Join(t.TempDir(), "edits.json")
+			require.NoError(t, os.WriteFile(changeset, body, 0o600))
+			cmd := NewEnvCommand(t.Context(), "apply")
+			var stdout, stderr bytes.Buffer
+			cmd.SetOut(&stdout)
+			cmd.SetErr(&stderr)
+			err = app.RunApply(cmd, changeset, false, "", true)
+
+			var out applyOutput
+			require.NoError(t, json.Unmarshal(stdout.Bytes(), &out), stdout.String())
+			assert.Empty(t, out.Content.NotFound, "every id inspect printed resolves")
+			assert.Empty(t, out.Content.Applied)
+			got, rerr := os.ReadFile(path)
+			require.NoError(t, rerr)
+			assert.Equal(t, doc, string(got), "the file is as it was")
+
+			if !tt.changed {
+				require.NoError(t, err, "the loop settles: %s", stderr.String())
+				assert.ElementsMatch(t, ids, out.Content.Skipped)
+				assert.Empty(t, out.Content.NotEditable)
+				return
+			}
+			require.Error(t, err)
+			assert.Equal(t, ExitGate, ExitCode(cmd, err))
+			assert.Equal(t, []string{codeID}, out.Content.NotEditable)
+			assert.ElementsMatch(t, slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return id == codeID }), out.Content.Skipped)
+		})
+	}
 }

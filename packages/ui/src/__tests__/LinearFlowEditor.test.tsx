@@ -156,75 +156,92 @@ describe("LinearFlowEditor", () => {
   });
 });
 
-describe("LinearFlowEditor parallel groups", () => {
-  it("appends a parallel group seeded with the picked tool", async () => {
-    const { onChange } = renderEditor();
-    await userEvent.click(screen.getByTestId("add-parallel-group"));
-    const toolButtons = await screen.findAllByTestId("add-step-tool");
-    await userEvent.click(toolButtons.find((b) => b.textContent?.includes("Quality Check"))!);
+// The runtime refuses a step holding a parallel: list (core/flow
+// CheckSequential), so the editor creates none and shows a loaded one as
+// invalid, with the same refusal.
+const GROUP_REFUSAL =
+  "step[1] holds a parallel: list (qa, translate), and flow steps run in order, one after another: list those tools as ordered steps";
+
+describe("LinearFlowEditor and parallel groups", () => {
+  const grouped: FlowSpec = {
+    steps: [{ tool: "recycle" }, { tool: "", parallel: [{ tool: "qa" }, { tool: "translate" }] }],
+  };
+
+  it("offers no way to add a parallel group or a branch", () => {
+    renderEditor({ flow: grouped });
+    expect(screen.getByTestId("add-step")).toBeTruthy();
+    expect(screen.queryByTestId("add-parallel-group")).toBeNull();
+    expect(screen.queryByTestId("add-branch")).toBeNull();
+  });
+
+  it("shows a loaded group as invalid with the runtime's refusal", () => {
+    renderEditor({ flow: grouped, onRun: vi.fn() });
+    const group = screen.getByTestId("parallel-group");
+    expect(group.getAttribute("data-invalid")).toBe("true");
+    expect(within(group).getByRole("alert").textContent).toBe(GROUP_REFUSAL);
+    expect((screen.getByTestId("flow-run") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("runs a flow whose steps run in order", () => {
+    renderEditor({ onRun: vi.fn() });
+    expect((screen.getByTestId("flow-run") as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("lists a group's tools as ordered steps in its place", async () => {
+    const { onChange } = renderEditor({
+      flow: { steps: [...grouped.steps, { tool: "recycle" }] },
+    });
+    await userEvent.click(screen.getByTestId("list-in-order"));
     expect(onChange).toHaveBeenCalledWith({
-      steps: [{ tool: "recycle" }, { tool: "translate" }, { tool: "", parallel: [{ tool: "qa" }] }],
+      steps: [{ tool: "recycle" }, { tool: "qa" }, { tool: "translate" }, { tool: "recycle" }],
     });
   });
 
-  it("renders a parallel group with a branch row per branch", () => {
-    renderEditor({
-      flow: { steps: [{ tool: "", parallel: [{ tool: "qa" }, { tool: "translate" }] }] },
-    });
-    expect(screen.getByTestId("parallel-group")).toBeTruthy();
+  it("renders a group with a branch row per branch", () => {
+    renderEditor({ flow: grouped });
     const branches = screen.getByTestId("parallel-branches");
     expect(within(branches).getAllByTestId("step-row")).toHaveLength(2);
-    // A branch has no reorder controls (parallel branches are unordered).
     expect(within(branches).queryByLabelText("Move up")).toBeNull();
   });
 
-  it("adds a branch to a group", async () => {
-    const onChange = vi.fn();
-    render(
-      <LinearFlowEditor
-        flowName="f"
-        flow={{ steps: [{ tool: "", parallel: [{ tool: "qa" }] }] }}
-        tools={TOOLS}
-        onChange={onChange}
-      />,
-    );
-    await userEvent.click(screen.getByTestId("add-branch"));
-    const toolButtons = await screen.findAllByTestId("add-step-tool");
-    await userEvent.click(toolButtons.find((b) => b.textContent?.includes("Translate"))!);
+  it("removes a branch from a group", async () => {
+    const { onChange } = renderEditor({ flow: grouped });
+    const rows = within(screen.getByTestId("parallel-branches")).getAllByTestId("step-row");
+    await userEvent.click(within(rows[0]).getByLabelText(/^Remove /));
     expect(onChange).toHaveBeenCalledWith({
-      steps: [{ tool: "", parallel: [{ tool: "qa" }, { tool: "translate" }] }],
+      steps: [{ tool: "recycle" }, { tool: "", parallel: [{ tool: "translate" }] }],
     });
   });
 
-  it("removes a branch from a group", async () => {
-    const onChange = vi.fn();
-    render(
-      <LinearFlowEditor
-        flowName="f"
-        flow={{ steps: [{ tool: "", parallel: [{ tool: "qa" }, { tool: "translate" }] }] }}
-        tools={TOOLS}
-        onChange={onChange}
-      />,
-    );
-    const branches = screen.getByTestId("parallel-branches");
-    const rows = within(branches).getAllByTestId("step-row");
-    await userEvent.click(within(rows[0]).getByLabelText(/^Remove /));
-    expect(onChange).toHaveBeenCalledWith({
-      steps: [{ tool: "", parallel: [{ tool: "translate" }] }],
+  it("removes the group with its last branch", async () => {
+    const { onChange } = renderEditor({
+      flow: { steps: [{ tool: "recycle" }, { tool: "", parallel: [{ tool: "qa" }] }] },
     });
+    const rows = within(screen.getByTestId("parallel-branches")).getAllByTestId("step-row");
+    await userEvent.click(within(rows[0]).getByLabelText(/^Remove /));
+    expect(onChange).toHaveBeenCalledWith({ steps: [{ tool: "recycle" }] });
+  });
+
+  it("draws a loaded empty group as the runtime treats it, with no refusal", () => {
+    renderEditor({
+      flow: { steps: [{ tool: "recycle" }, { tool: "", parallel: [] }] },
+      onRun: vi.fn(),
+    });
+    const group = screen.getByTestId("parallel-group");
+    expect(group.getAttribute("data-invalid")).toBeNull();
+    expect(within(group).queryByRole("alert")).toBeNull();
+    expect(within(group).getByLabelText("Remove parallel group")).toBeTruthy();
   });
 
   it("removes the whole group", async () => {
-    const onChange = vi.fn();
-    render(
-      <LinearFlowEditor
-        flowName="f"
-        flow={{ steps: [{ tool: "recycle" }, { tool: "", parallel: [{ tool: "qa" }] }] }}
-        tools={TOOLS}
-        onChange={onChange}
-      />,
-    );
+    const { onChange } = renderEditor({ flow: grouped });
     await userEvent.click(screen.getByLabelText("Remove parallel group"));
     expect(onChange).toHaveBeenCalledWith({ steps: [{ tool: "recycle" }] });
+  });
+
+  it("shows the refusal and no fix when read-only", () => {
+    renderEditor({ flow: grouped, readOnly: true });
+    expect(screen.getByRole("alert").textContent).toBe(GROUP_REFUSAL);
+    expect(screen.queryByTestId("list-in-order")).toBeNull();
   });
 });

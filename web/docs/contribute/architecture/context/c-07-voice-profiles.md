@@ -388,8 +388,8 @@ change-set, alongside the content fix that justifies it:
 
 The entry writes the concept into the project's terms store. `advisory` makes a
 use of the term report without failing, and `competitor` records the term as a
-competitor's name. The context policy refuses an entry that names an agent as its
-actor before anything is written. A change-set has no `voice` kind; an entry
+competitor's name. The context policy refuses the entry before anything is
+written when an agent applies it, through `apply_edits` or from an agent's shell. A change-set has no `voice` kind; an entry
 that uses one is refused with a message that gives the `term` form.
 
 A rule somebody notices while working is a term rule.

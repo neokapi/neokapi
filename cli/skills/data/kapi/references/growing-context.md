@@ -265,22 +265,19 @@ an `@AGENTS.md` line.
 Materialize the terminology seed, now that the project exists:
 
 ```bash
-# preferred: term entries write the project's terms store and record a
-# context operation for each, so `kapi context log` carries the decision
-kapi apply terms.jsonl
+# preferred: each term is a suggestion with its evidence, in `kapi context log`
+kapi context observe --term dashboard --instead-of "control panel" --seen-in docs/guide.md
 # bulk path for a handed-over term list (csv, tsv, json, tbx, bundle):
 kapi terms import terms.csv -s en -t fr --header
 kapi terms import vocab.csv -s en --monolingual --header
 ```
 
-```jsonl
-{"kind":"term","op":"upsert","term":"dashboard","locale":"en","status":"preferred"}
-{"kind":"term","op":"upsert","term":"control panel","locale":"en","status":"deprecated","replacement":"dashboard"}
-```
-
-The `apply` route records each term as a decision the user can read back and
-undo; a bulk `terms import` writes the store without recording one. Then verify
-the whole thing locally:
+The user keeps the suggestions they agree with (`kapi context keep --session
+<id>` keeps one run's). A person who has already decided can instead write the
+terms as `term` entries and run `kapi apply` on them, which records each as
+their decision; from your shell `kapi apply` refuses a `term` entry. A bulk
+`terms import` writes the store without recording a decision. Then verify the
+whole thing locally:
 
 ```bash
 kapi up                      # reconcile the graph and the content
@@ -452,15 +449,17 @@ below are how it changes, and `kapi context log` is how the user reads it back.
 | What moved | Route | What the user reviews |
 | --- | --- | --- |
 | A surface appeared | `kapi add <pattern> --name <collection> --channel <profile/channel>` | the `kapi.yaml` diff |
-| A term, a name, a rename, a word to avoid | `kapi context observe --term`, or a `kapi apply` entry, `kind:"term"` | the suggestion with its evidence, in `kapi context log` |
-| A brand or mode axis moved | `kapi apply` entry, `kind:"recipe"`, `path` `defaults.coordinates.<axis>` (or a collection's `coordinates`) and `value` | the `kapi.yaml` diff |
+| A term, a name, a rename, a word to avoid | `kapi context observe --term`; a `kapi apply` entry, `kind:"term"`, for the user to apply | the suggestion with its evidence, in `kapi context log` |
+| A brand or mode axis moved | a `kapi apply` entry, `kind:"recipe"`, `path` `defaults.coordinates.<axis>` (or a collection's `coordinates`) and `value`, for the user to apply | the `kapi.yaml` diff |
 | Tone, style, `examples` | an edit to the profile YAML | the file diff |
 
 Two routes for the same two kinds, and the difference is who decides.
 `kapi context observe --term` records a suggestion the user keeps, each carrying
-the file it came from; a `kapi apply` change-set lands what the user has already
-approved, atomically. Reach for the first when you are reading material and
-suggesting what it implies, and for the second when the decisions are already
+the file it came from. A `kapi apply` change-set lands what the user has already
+decided, recorded as theirs, so the user runs it: kapi records each entry as
+whoever runs the command, and from your shell it refuses `term` and `recipe`
+entries. Reach for the first when you are reading material and suggesting what
+it implies, and draft the second for the user when the decisions are already
 made. Every word rule is a term, so they go in one change-set file:
 
 ```jsonl

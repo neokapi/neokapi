@@ -402,17 +402,20 @@ func listTools(t *testing.T, ctx context.Context, session *mcp.ClientSession) ma
 }
 
 // TestMCPConformanceDefaultIsTheWritingSet: a server started with no --tools
-// serves the writing set and the context:// resources, and nothing else.
+// serves the writing set and the context:// resources, and nothing else. The
+// set holds the structured edit path, so an agent in a project kapi init wired
+// reads blocks with extract_content and writes them with apply_edits.
 func TestMCPConformanceDefaultIsTheWritingSet(t *testing.T) {
 	session, ctx := startMCPServer(t)
 	byName := listTools(t, ctx, session)
 	for _, name := range []string{
 		"context_read", "context_search", "context_observe", "context_correct",
 		"context_withdraw", "context_session_summary", "check_file",
+		"extract_content", "apply_edits",
 	} {
 		assert.Contains(t, byName, name)
 	}
-	assert.Len(t, byName, 7, "the writing set and no other tool")
+	assert.Len(t, byName, 9, "the writing set and no other tool")
 
 	var templates []string
 	for tmpl, err := range session.ResourceTemplates(ctx, nil) {
@@ -424,7 +427,8 @@ func TestMCPConformanceDefaultIsTheWritingSet(t *testing.T) {
 	widened, wctx := startMCPServer(t, "--tools", "writing,translation")
 	byName = listTools(t, wctx, widened)
 	assert.Contains(t, byName, "up")
-	assert.NotContains(t, byName, "apply_edits", "content is its own set")
+	assert.Contains(t, byName, "apply_edits")
+	assert.NotContains(t, byName, "check_text", "content is its own set")
 }
 
 func TestMCPConformanceToolSurface(t *testing.T) {

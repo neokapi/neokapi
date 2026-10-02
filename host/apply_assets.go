@@ -54,50 +54,75 @@ func (a *App) applyAssetEntry(ctx context.Context, cmd Command, e changeEntry) a
 	}
 }
 
+// changeActor is who a change-set is applied as, and the note each operation
+// it records carries.
+//
+// The transport stamps it, never the change-set: `kapi apply` resolves the
+// person or agent the environment names (commandActor), and apply_edits is
+// always the calling agent in the server's session (mcpAgentActor). An entry
+// has no field that could claim a person's rights for an agent.
+type changeActor struct {
+	Actor contextop.Actor
+	Note  string
+}
+
 // applyRecordedAssetEntry lands an asset change and records it in the project's
 // context history.
 //
-// An asset entry states a decision about the project's vocabulary or its
-// content memory, so it belongs in the same history as every other such
+// An asset entry states a decision about the project's vocabulary, its content
+// memory or its recipe, so it belongs in the same history as every other such
 // decision: `kapi context log` shows what `kapi apply` did beside what an agent
 // suggested and what a person kept. The operation is recorded as an edit, which
-// is established the moment it lands, because a person ran the command.
+// is established the moment it lands, because a person applied it.
 //
 // Every surface that applies a change-set comes through here, so an asset edit
 // is in the log whichever one made it.
 //
-// The policy is put first, before anything is written. An agent that names
-// itself in an entry's `actor` is refused here rather than after the store has
-// already moved.
-func (a *App) applyRecordedAssetEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
-	actor := contextop.Actor{Kind: contextop.ActorPerson}
-	if e.Actor != nil {
-		actor = *e.Actor
-		if actor.Kind == "" {
-			actor.Kind = contextop.ActorPerson
-		}
-	}
-	subject, records := assetSubject(e)
-	if e.Kind != kindRecipe {
-		if err := contextop.PersonDecides(contextop.Transition{
-			Actor:   actor,
-			Kind:    contextop.KindEdit,
-			Subject: subject.Kind,
-		}); err != nil {
-			return errResult(assetResult{Kind: e.Kind, Op: e.Op, Target: e.Term}, err.Error())
-		}
+// The context policy is put first, before anything is written. Writing a rule,
+// a content memory pair or a recipe field directly is a person's decision, so
+// an agent's entry is refused here rather than after the store has moved; an
+// agent records an observation or a correction instead, which a person keeps.
+func (a *App) applyRecordedAssetEntry(ctx context.Context, cmd Command, who changeActor, e changeEntry) assetResult {
+	if refusal, refused := actorRefusal(who, e); refused {
+		return refusal
 	}
 
+	subject, records := assetSubject(e)
 	res := a.applyAssetEntry(ctx, cmd, e)
 	if !records || res.Status != "applied" {
 		return res
 	}
-	if err := a.recordAppliedAsset(ctx, cmd, actor, subject, e.Evidence); err != nil {
+	if err := a.recordAppliedAsset(ctx, cmd, who, subject, e.Evidence); err != nil {
 		// The decision is in the store; only its history is missing. Say so on
 		// the result rather than failing a write that already happened.
 		res.Detail = strings.TrimSpace(res.Detail + "; not recorded in the context history: " + err.Error())
 	}
 	return res
+}
+
+// actorRefusal is the result an asset or review entry gets when its actor may
+// not make it, and whether the actor is refused. Writing a term, a content
+// memory pair or a recipe field directly is a person's decision under the
+// context policy, and so is establishing a unit. Applying an entry and
+// previewing it with --diff both ask here, so a preview shows the refusal the
+// write would give.
+func actorRefusal(who changeActor, e changeEntry) (assetResult, bool) {
+	res := assetResult{Kind: e.Kind, Op: e.Op, Target: assetTarget(e)}
+	if e.Kind == kindReview {
+		if who.Actor.Kind == contextop.ActorAgent {
+			return errResult(res, "review: an agent records a pre-review (the pre_review_unit tool), never a decision; a person establishes a unit"), true
+		}
+		return assetResult{}, false
+	}
+	subject, _ := assetSubject(e)
+	if err := contextop.PersonDecides(contextop.Transition{
+		Actor:   who.Actor,
+		Kind:    contextop.KindEdit,
+		Subject: subject.Kind,
+	}); err != nil {
+		return errResult(res, err.Error()+"; "+agentAssetRoute(e.Kind)), true
+	}
+	return assetResult{}, false
 }
 
 // assetSubject reads an asset entry as the context subject it decides, and
@@ -123,10 +148,32 @@ func assetSubject(e changeEntry) (contextop.Subject, bool) {
 	return contextop.Subject{}, false
 }
 
+// agentAssetRoute is what an actor refused an asset entry does instead.
+func agentAssetRoute(kind changeKind) string {
+	if kind == kindRecipe {
+		return "ask a person to change kapi.yaml"
+	}
+	return "record the rule as a suggestion with context_observe or `kapi context observe` " +
+		"(context_correct or `kapi context correct` for wording you changed), and a person keeps it"
+}
+
+// assetTarget is what an asset entry names, for the line its result prints.
+func assetTarget(e changeEntry) string {
+	switch e.Kind {
+	case kindMemory:
+		return e.Source
+	case kindRecipe:
+		return e.Path
+	case kindReview:
+		return e.ID
+	}
+	return e.Term
+}
+
 // recordAppliedAsset writes the operation an applied asset entry produced: one
-// edit, established from the start, because the person who ran the command
-// wrote the rule directly.
-func (a *App) recordAppliedAsset(ctx context.Context, cmd Command, actor contextop.Actor, subject contextop.Subject, evidence []contextop.Evidence) error {
+// edit, established from the start, because the person who applied it wrote
+// the rule directly.
+func (a *App) recordAppliedAsset(ctx context.Context, cmd Command, who changeActor, subject contextop.Subject, evidence []contextop.Evidence) error {
 	recipePath, err := ResolveProjectPath(cmd)
 	if err != nil || recipePath == "" {
 		return err
@@ -136,11 +183,11 @@ func (a *App) recordAppliedAsset(ctx context.Context, cmd Command, actor context
 		return err
 	}
 	_, err = s.ledger.Append(ctx, s.stamp(contextop.Record{
-		Actor:    actor,
+		Actor:    who.Actor,
 		Kind:     contextop.KindEdit,
 		Subject:  subject,
 		Evidence: evidence,
-		Note:     "applied with `kapi apply`",
+		Note:     who.Note,
 	}, evidence))
 	return err
 }
@@ -273,7 +320,7 @@ func termIndex(c *terms.Concept, text string, locale model.LocaleID) int {
 // must be "established", the one rung a person's decision reaches. This is
 // distinct from a `kind:"memory"` entry: a content memory correction is recycle
 // leverage, not a review decision.
-func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
+func (a *App) applyReviewEntry(ctx context.Context, cmd Command, who changeActor, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.ID}
 	if e.Op != "" && e.Op != "add" {
 		return errResult(res, fmt.Sprintf("review: unsupported op %q (want \"add\")", e.Op))
@@ -281,10 +328,8 @@ func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) 
 	if strings.TrimSpace(e.File) == "" || strings.TrimSpace(e.ID) == "" || strings.TrimSpace(e.Locale) == "" {
 		return errResult(res, "review: file, id, and locale are required (as listed by `kapi status --review`)")
 	}
-	if who, err := a.commandActor(); err != nil {
-		return errResult(res, err.Error())
-	} else if who.Actor.Kind == contextop.ActorAgent {
-		return errResult(res, "review: an agent records a pre-review (the pre_review_unit tool), never a decision; a person establishes a unit")
+	if refusal, refused := actorRefusal(who, e); refused {
+		return refusal
 	}
 	recipePath, _, err := a.resolveProjectRoot(cmd)
 	if err != nil {

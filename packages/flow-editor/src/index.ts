@@ -27,7 +27,6 @@ export { getSystemEffects } from "./sideEffects";
 export type { SystemEffect, SystemDirection } from "./sideEffects";
 export type { PortTypeStyle, PortFamily, FamilyStyle } from "./portTypes";
 export { FlowLegend } from "./FlowLegend";
-export { suggestParallelGroups, isCategoryParallelizable } from "./parallelChecker";
 export { TraceTimeline } from "./TraceTimeline";
 export { PreviewPanel } from "./PreviewPanel";
 export type { PreviewResult } from "./PreviewPanel";
@@ -60,7 +59,6 @@ export type {
   NodeTraceStats,
   TraceNode,
 } from "./traceTypes";
-export type { ParallelSuggestion } from "./parallelChecker";
 export type {
   FlowEditorProps,
   FlowRunControl,

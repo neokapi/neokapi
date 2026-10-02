@@ -273,8 +273,12 @@ replay into the stores.
 
 `kapi apply` records one `edit` operation for each term or content-memory entry
 it applies, established from the start and attributed to the person who ran the
-command. An entry naming an agent as its actor is refused by the policy before
-anything is written.
+command. The transport stamps the actor and an entry has no field for one: `kapi
+apply` stamps the actor the environment names, as every `kapi context` command
+does, and `apply_edits` stamps the calling agent and the server's session. The
+policy refuses a term, content-memory or recipe entry from an agent before
+anything is written, so an agent records an observation or a correction
+instead.
 
 ### Reading a checkout's context files is an operation too
 

@@ -12,7 +12,7 @@
         <key>CFBundleVersion</key>
         <string>0.0.0-dev</string>
         <key>CFBundleGetInfoString</key>
-        <string>AI-native translation editor</string>
+        <string>Desktop client for a team's shared context graph, with offline editing</string>
         <key>CFBundleShortVersionString</key>
         <string>0.0.0-dev</string>
         <key>CFBundleIconFile</key>

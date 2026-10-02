@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
+
+// The runtime refuses a step holding a parallel: list, and the editor creates
+// none. A flow loaded with one still has to be drawn, so the reader sees the
+// group the refusal names: these cover how such a step converts.
 import { stepsToGraph, graphToSteps } from "../conversion";
-import { suggestParallelGroups } from "../parallelChecker";
-import type { FlowSpec, ToolInfo } from "../types";
+import type { FlowSpec } from "../types";
 
 describe("stepsToGraph with parallel branches", () => {
   it("creates a single composite node for a parallel step", () => {
@@ -153,89 +156,5 @@ describe("graphToSteps with parallel branches", () => {
     expect(result.steps[0].config).toEqual({ provider: "anthropic" });
     expect(result.steps[1].parallel).toBeDefined();
     expect(result.steps[1].parallel).toHaveLength(2);
-  });
-});
-
-describe("suggestParallelGroups", () => {
-  const makeToolMap = (...tools: Array<[string, string]>): Map<string, ToolInfo> =>
-    new Map(
-      tools.map(([name, category]) => [
-        name,
-        { name, description: "", category, has_schema: false },
-      ]),
-    );
-
-  it("suggests parallelizing adjacent validate + enrich tools", () => {
-    const spec: FlowSpec = {
-      steps: [{ tool: "translate" }, { tool: "qa" }, { tool: "voice-check" }],
-    };
-    const toolMap = makeToolMap(
-      ["translate", "translate"],
-      ["qa", "validate"],
-      ["voice-check", "validate"],
-    );
-
-    const suggestions = suggestParallelGroups(spec, toolMap);
-    expect(suggestions).toHaveLength(1);
-    expect(suggestions[0].stepIndices).toEqual([1, 2]);
-    expect(suggestions[0].toolNames).toEqual(["qa", "voice-check"]);
-  });
-
-  it("does not suggest parallelizing mutating tools", () => {
-    const spec: FlowSpec = {
-      steps: [{ tool: "translate" }, { tool: "pseudo-translate" }],
-    };
-    const toolMap = makeToolMap(["translate", "translate"], ["pseudo-translate", "translate"]);
-
-    const suggestions = suggestParallelGroups(spec, toolMap);
-    expect(suggestions).toHaveLength(0);
-  });
-
-  it("does not suggest for a single tool", () => {
-    const spec: FlowSpec = { steps: [{ tool: "qa" }] };
-    const toolMap = makeToolMap(["qa", "validate"]);
-
-    const suggestions = suggestParallelGroups(spec, toolMap);
-    expect(suggestions).toHaveLength(0);
-  });
-
-  it("suggests enrich + validate mixed groups", () => {
-    const spec: FlowSpec = {
-      steps: [{ tool: "entity-extract" }, { tool: "qa" }, { tool: "term-lookup" }],
-    };
-    const toolMap = makeToolMap(
-      ["entity-extract", "enrich"],
-      ["qa", "validate"],
-      ["term-lookup", "enrich"],
-    );
-
-    const suggestions = suggestParallelGroups(spec, toolMap);
-    expect(suggestions).toHaveLength(1);
-    expect(suggestions[0].stepIndices).toEqual([0, 1, 2]);
-  });
-
-  it("skips steps that are already parallel", () => {
-    const spec: FlowSpec = {
-      steps: [
-        {
-          tool: "",
-          parallel: [{ tool: "qa" }, { tool: "voice-check" }],
-        },
-        { tool: "term-lookup" },
-      ],
-    };
-    const toolMap = makeToolMap(
-      ["qa", "validate"],
-      ["voice-check", "validate"],
-      ["term-lookup", "enrich"],
-    );
-
-    const suggestions = suggestParallelGroups(spec, toolMap);
-    expect(suggestions).toHaveLength(0); // single tool after parallel, nothing to group
-  });
-
-  it("returns empty for an empty flow", () => {
-    const suggestions = suggestParallelGroups({ steps: [] }, new Map());
-    expect(suggestions).toHaveLength(0);
   });
 });

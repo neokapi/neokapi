@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/contextop"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -29,34 +31,67 @@ type applyEditsInput struct {
 }
 
 // applyEditsMCPOutput reports the per-block content outcome and per-entry asset
-// outcomes; OK is false when any edit drifted (stale) or was rejected by the
+// outcomes; OK is false when any edit drifted (stale), was rejected by the
 // fidelity guard (guard_failed: the edit would corrupt an inline code or
-// flatten plural/select branches), the same buckets `kapi apply --json`
-// reports, signalling the caller to re-inspect and retry. Comments
+// flatten plural/select branches), changed a block that is not editable
+// (not_editable) or matched no block (not_found), the same buckets `kapi apply
+// --json` reports, signalling the caller to re-inspect and retry. Comments
 // holds each file's comment edits and the check of what they wrote, and OK is
 // false when one was refused, did not run, or left that check not passing.
 type applyEditsMCPOutput struct {
-	OK      bool          `json:"ok"`
-	Applied []string      `json:"applied,omitempty"`
-	Skipped []string      `json:"skipped,omitempty"`
-	Stale   []string      `json:"stale,omitempty"`
-	Guard   []string      `json:"guard_failed,omitempty"`
-	Assets  []assetResult `json:"assets,omitempty"`
+	OK      bool     `json:"ok"`
+	Applied []string `json:"applied,omitempty"`
+	Skipped []string `json:"skipped,omitempty"`
+	Stale   []string `json:"stale,omitempty"`
+	Guard   []string `json:"guard_failed,omitempty"`
+	// NotEditable holds only ids extract_content does not list, since it
+	// lists translatable blocks alone; kapi inspect lists every block.
+	NotEditable []string      `json:"not_editable,omitempty" jsonschema:"blocks an entry changed that the file marks as content an edit does not change, such as a code block; each keeps its text"`
+	NotFound    []string      `json:"not_found,omitempty" jsonschema:"content entries whose id, or content_hash for an entry without an id, matched no block of the file, as file:id or file:content_hash:<hash>; nothing was written for them, so read the file again with extract_content"`
+	Assets      []assetResult `json:"assets,omitempty"`
 
 	Comments []commentFileResult `json:"comments,omitempty"`
 }
 
+// applyEditsOutputSchema is apply_edits' result schema with each comment
+// file's check declared as an object. That check is a kapi.check/v2 report,
+// which check_file's output schema spells out in full beside it in the writing
+// set; inferring it here as well would double the size of a tool every writing
+// session is offered.
+var applyEditsOutputSchema = sync.OnceValue(func() *jsonschema.Schema {
+	s, err := jsonschema.For[applyEditsMCPOutput](nil)
+	if err != nil {
+		panic(fmt.Sprintf("apply_edits output schema: %v", err))
+	}
+	if comments := s.Properties["comments"]; comments != nil && comments.Items != nil {
+		if held := comments.Items.Properties["check"]; held != nil {
+			comments.Items.Properties["check"] = &jsonschema.Schema{
+				Type:  held.Type,
+				Types: held.Types,
+				Description: "the kapi.check/v2 report of what the file's edits changed, " +
+					"in the shape check_file returns; absent when nothing was written",
+			}
+		}
+	}
+	return s
+})
+
 func registerEditMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
-		Name: "apply_edits",
+		Name:         "apply_edits",
+		OutputSchema: applyEditsOutputSchema(),
 		Description: "Apply a typed change-set: the one write verb. For document wording, each entry " +
 			"uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and " +
 			"hashes with extract_content. The replacement field belongs to term entries. Content edits land through the " +
 			"byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash). " +
 			"An edit that drops, invents or duplicates an inline code, crosses or unbalances paired codes, or changes " +
 			"a block holding a plural or select construct is refused as guard_failed and leaves the block as it was. " +
-			"Asset edits (a term, a content memory pair) are written to the project's stores and " +
-			"recorded in its context history, and a recipe field is written to kapi.yaml. No AI provider is used. Read the " +
+			"An entry whose id, or content_hash when it gives no id, matches no block of its file is listed in not_found " +
+			"and writes nothing. Stale, guard_failed, not_editable and not_found each make ok false: read the file again and resend. " +
+			"Every entry is recorded as yours, the calling agent's, in this server's session. Writing a term, a content memory " +
+			"pair or a recipe field directly is a person's decision, so those entries are refused with a reason and write nothing: " +
+			"record a term rule as a suggestion with context_observe, or context_correct for wording you changed, and a person keeps it. " +
+			"No AI provider is used. Read the " +
 			"context://<project-relative-path> resource before editing content, then run check_file on " +
 			"each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, " +
 			"id and lines (as check_file reports them, such as func/Parse), comment_sha256 (the fingerprint check_file reports " +
@@ -93,7 +128,7 @@ func (a *App) MCPEditFormat(explicitProject, path, format string) string {
 }
 
 func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
-	if err := validateContentWording(in.Changeset); err != nil {
+	if err := validateChangeSet(in.Changeset); err != nil {
 		return nil, applyEditsMCPOutput{}, err
 	}
 	var out applyOutput
@@ -109,13 +144,12 @@ func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in apply
 	if err != nil {
 		return nil, applyEditsMCPOutput{}, err
 	}
+	// Every entry is the calling agent's, in the server's session.
+	who := changeActor{Actor: actor, Note: "applied with apply_edits"}
 
 	for _, e := range in.Changeset {
 		switch e.Kind {
 		case kindContent:
-			if e.File == "" {
-				return nil, applyEditsMCPOutput{}, fmt.Errorf("content entry for block %q has no \"file\"", e.ID)
-			}
 			if _, seen := byFile[e.File]; !seen {
 				fileOrder = append(fileOrder, e.File)
 			}
@@ -123,7 +157,7 @@ func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in apply
 		case kindComment:
 			comments = append(comments, e)
 		case kindTerm, kindMemory, kindRecipe:
-			out.Assets = append(out.Assets, a.applyRecordedAssetEntry(ctx, cmd, e))
+			out.Assets = append(out.Assets, a.applyRecordedAssetEntry(ctx, cmd, who, e))
 		case "":
 			return nil, applyEditsMCPOutput{}, errors.New("change-set entry has no \"kind\"")
 		case retiredVoiceKind:
@@ -148,8 +182,10 @@ func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in apply
 		out.Content.Skipped = append(out.Content.Skipped, report.Skipped...)
 		out.Content.Stale = append(out.Content.Stale, report.Stale...)
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
+		out.Content.NotEditable = append(out.Content.NotEditable, report.NotEditable...)
+		out.Content.NotFound = append(out.Content.NotFound, notFoundIn(file, report)...)
 	}
-	a.noteAgentEdits(ctx, recipe, actor, edited)
+	a.noteAgentEdits(ctx, recipe, who.Actor, edited)
 	if len(comments) > 0 {
 		// The check of a written comment resolves governance from the call's
 		// project, as check_file does, and reads the file in that project's
@@ -158,12 +194,14 @@ func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in apply
 	}
 
 	return nil, applyEditsMCPOutput{
-		OK:       out.ok(),
-		Applied:  out.Content.Applied,
-		Skipped:  out.Content.Skipped,
-		Stale:    out.Content.Stale,
-		Guard:    out.Content.GuardFailed,
-		Assets:   out.Assets,
-		Comments: out.Comments,
+		OK:          out.ok(),
+		Applied:     out.Content.Applied,
+		Skipped:     out.Content.Skipped,
+		Stale:       out.Content.Stale,
+		Guard:       out.Content.GuardFailed,
+		NotEditable: out.Content.NotEditable,
+		NotFound:    out.Content.NotFound,
+		Assets:      out.Assets,
+		Comments:    out.Comments,
 	}, nil
 }

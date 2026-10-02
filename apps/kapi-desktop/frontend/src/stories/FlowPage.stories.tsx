@@ -188,12 +188,17 @@ export const EditedSinceRun: Story = {
   },
 };
 
-export const ParallelFlow: Story = {
-  name: "Parallel group (switch to Diagram)",
+/**
+ * A flow loaded with a parallel group. Steps run in order, so both views show
+ * the group invalid with the refusal the runtime gives, and Run is disabled
+ * until "List as ordered steps" puts its tools in its place.
+ */
+export const LoadedParallelGroup: Story = {
+  name: "Loaded parallel group (invalid)",
   args: {
     flowName: "translate-and-check",
     flow: {
-      description: "Translate, then check and count in parallel.",
+      description: "Translate, then check and count.",
       steps: [
         { tool: "translate", config: { provider: "anthropic" } },
         { tool: "", parallel: [{ tool: "qa" }, { tool: "word-count" }] },

@@ -138,12 +138,16 @@ export const StepWithOptions: Story = {
   },
 };
 
-/** A flow that fans out: a parallel group runs its branches at the same time. */
-export const WithParallelGroup: Story = {
+/**
+ * A flow loaded with a parallel group. Steps run in order, so the group shows
+ * the refusal the runtime gives, Run is disabled, and "List as ordered steps"
+ * puts its tools in its place.
+ */
+export const LoadedParallelGroup: Story = {
   args: {
     flowName: "translate-and-check",
     flow: {
-      description: "Translate, then check quality and voice at the same time.",
+      description: "Translate, then check quality and voice.",
       steps: [
         { tool: "recycle" },
         { tool: "translate" },
@@ -151,6 +155,7 @@ export const WithParallelGroup: Story = {
       ],
     },
     onGetSchema: getSchema,
+    onRun: fn(),
   },
 };
 
@@ -163,7 +168,8 @@ export const ReadOnly: Story = {
       steps: [
         { tool: "recycle" },
         { tool: "translate" },
-        { tool: "", parallel: [{ tool: "qa" }, { tool: "voice-vocab-check" }] },
+        { tool: "qa" },
+        { tool: "voice-vocab-check" },
       ],
     },
     readOnly: true,

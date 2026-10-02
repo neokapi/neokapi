@@ -93,12 +93,6 @@ type changeEntry struct {
 	Path  string          `json:"path,omitempty"`
 	Value json.RawMessage `json:"value,omitempty"`
 
-	// Actor is who wrote this entry, recorded on the context operation the
-	// entry produces (core/contextop). Omitted reads as a person, which is what
-	// someone running `kapi apply` is. An agent naming itself here is refused
-	// for an asset entry, because applying one is a decision and only a person
-	// makes those; an agent proposes instead.
-	Actor *contextop.Actor `json:"actor,omitempty" jsonschema:"who is making this change; omit unless you are an agent recording on someone's behalf"`
 	// Evidence is where the wording behind an asset entry was seen, recorded on
 	// the operation so the decision can be argued with later.
 	Evidence []contextop.Evidence `json:"evidence,omitempty" jsonschema:"for asset entries: where the wording behind this decision was seen"`
@@ -114,16 +108,25 @@ type assetResult struct {
 }
 
 // applyOutput is the JSON-first report of an apply pass. Content outcomes are
-// bucketed by block (applied/skipped/stale/guard_failed); asset outcomes list
-// one result per entry. stale or guard_failed content, a file whose round-trip
-// failed, or an asset error, means the change-set did not fully land and the
-// command exits non-zero so a fix loop re-inspects and retries.
+// bucketed by block (applied/skipped/stale/guard_failed/not_editable/
+// not_found); asset outcomes list one result per entry. stale, guard_failed,
+// not_editable or not_found content, a file whose round-trip failed, or an
+// asset error, means the change-set did not fully land and the command exits
+// non-zero so a fix loop re-inspects and retries.
 type applyOutput struct {
 	Content struct {
 		Applied     []string `json:"applied,omitempty"`
 		Skipped     []string `json:"skipped,omitempty"`
 		Stale       []string `json:"stale,omitempty"`
 		GuardFailed []string `json:"guard_failed,omitempty"`
+		// NotEditable names each block an entry changed that its file marks as
+		// content an edit does not change, such as a code block. The block
+		// keeps its text.
+		NotEditable []string `json:"not_editable,omitempty"`
+		// NotFound names each content entry whose id, or content_hash for an
+		// entry without an id, matched no block of its file, as file:id or
+		// file:content_hash:<hash>. Nothing was written for it.
+		NotFound []string `json:"not_found,omitempty"`
 		// Failed names each content file whose round-trip did not complete,
 		// with the reason, such as a file that could not be read. Its edits
 		// are not counted as applied.
@@ -142,7 +145,9 @@ func (o *applyOutput) ok() bool {
 			return false
 		}
 	}
-	return len(o.Content.Stale) == 0 && len(o.Content.GuardFailed) == 0 && len(o.Content.Failed) == 0 && !o.assetErr()
+	c := o.Content
+	return len(c.Stale) == 0 && len(c.GuardFailed) == 0 && len(c.NotEditable) == 0 && len(c.NotFound) == 0 &&
+		len(c.Failed) == 0 && !o.assetErr()
 }
 
 func (o *applyOutput) assetErr() bool {
@@ -160,9 +165,18 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 	if err != nil {
 		return err
 	}
-	if err := validateContentWording(entries); err != nil {
+	if err := validateChangeSet(entries); err != nil {
+		// A change-set that contradicts itself is a malformed invocation, and
+		// nothing has been written.
+		return WithExitCode(ExitUsage, err)
+	}
+	// The command line stamps whoever the environment names: a person, or the
+	// agent session an agent host's shell carries.
+	resolved, err := a.commandActor()
+	if err != nil {
 		return err
 	}
+	who := changeActor{Actor: resolved.Actor, Note: resolved.NoteWith("applied with `kapi apply`")}
 
 	var out applyOutput
 
@@ -173,9 +187,6 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 	for _, e := range entries {
 		switch e.Kind {
 		case kindContent:
-			if e.File == "" {
-				return fmt.Errorf("apply: content entry for block %q has no \"file\"", e.ID)
-			}
 			if _, seen := byFile[e.File]; !seen {
 				fileOrder = append(fileOrder, e.File)
 			}
@@ -184,17 +195,17 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 			comments = append(comments, e)
 		case kindTerm, kindMemory, kindRecipe:
 			if diff {
-				out.Assets = append(out.Assets, previewAssetResult(e))
+				out.Assets = append(out.Assets, previewAssetResult(who, e))
 				continue
 			}
-			res := a.applyRecordedAssetEntry(ctx, cmd, e)
+			res := a.applyRecordedAssetEntry(ctx, cmd, who, e)
 			out.Assets = append(out.Assets, res)
 		case kindReview:
 			if diff {
-				out.Assets = append(out.Assets, previewAssetResult(e))
+				out.Assets = append(out.Assets, previewAssetResult(who, e))
 				continue
 			}
-			res := a.applyReviewEntry(ctx, cmd, e)
+			res := a.applyReviewEntry(ctx, cmd, who, e)
 			out.Assets = append(out.Assets, res)
 		case "":
 			return errors.New("apply: change-set entry has no \"kind\"")
@@ -236,15 +247,15 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		out.Content.Skipped = append(out.Content.Skipped, report.Skipped...)
 		out.Content.Stale = append(out.Content.Stale, report.Stale...)
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
+		out.Content.NotEditable = append(out.Content.NotEditable, report.NotEditable...)
+		out.Content.NotFound = append(out.Content.NotFound, notFoundIn(file, report)...)
 		if texts := appliedTexts(byFile[file], report.Applied); !diff && len(texts) > 0 {
 			edited[file] = texts
 		}
 	}
 	if len(edited) > 0 {
-		if resolved, rerr := a.commandActor(); rerr == nil {
-			recipe, _ := ResolveProjectPath(cmd)
-			a.noteAgentEdits(ctx, recipe, resolved.Actor, edited)
-		}
+		recipe, _ := ResolveProjectPath(cmd)
+		a.noteAgentEdits(ctx, recipe, who.Actor, edited)
 	}
 	if len(comments) > 0 {
 		out.Comments = a.applyComments(ctx, cmd, comments, diff, backupSuffix, a.applyFormatterTrust(cmd, path == "" || path == StdinName), "")
@@ -258,6 +269,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		}
 	}
 	if diff && !asJSON {
+		printNotFound(cmd.ErrOrStderr(), out.Content.NotFound)
 		printAssetResults(cmd.ErrOrStderr(), out.Assets)
 	}
 
@@ -272,19 +284,47 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 	}
 
 	if !out.ok() {
-		// A drift / guard miss or asset error means work remains: exit on the
-		// gate code so a fix loop re-inspects and retries, distinct from an
-		// operational failure.
+		// Drift, a guard miss, a change to a block that is not editable, an
+		// edit that matched no block or an asset error means work remains:
+		// exit on the gate code so a fix loop re-inspects and retries,
+		// distinct from an operational failure.
 		return WithExitCode(ExitGate, ErrSilentExit)
 	}
 	return nil
 }
 
-// Validate wording fields before either surface starts applying the change-set.
-func validateContentWording(entries []changeEntry) error {
+// validateChangeSet refuses a change-set whose content or comment entries are
+// malformed or contradict each other, before either surface applies any of it.
+// A content entry names its file and its block, by id or, without one, by
+// content_hash: an entry naming no block would match nothing and change
+// nothing. Two content entries for one block that ask for different things
+// would leave only one of them applied, so they are refused too; two identical
+// entries are one edit.
+func validateChangeSet(entries []changeEntry) error {
+	type blockRef struct{ file, field, value string }
+	firstFor := map[blockRef]int{}
 	for i, e := range entries {
-		if e.Kind == kindContent && e.Replacement != "" {
-			return fmt.Errorf("content entry %d for block %q: put the new wording in \"text\"; \"replacement\" belongs to term entries", i+1, e.ID)
+		if e.Kind == kindContent {
+			switch {
+			case e.Replacement != "":
+				return fmt.Errorf("content entry %d for block %q: put the new wording in \"text\"; \"replacement\" belongs to term entries", i+1, e.ID)
+			case e.File == "":
+				return fmt.Errorf("content entry %d for block %q has no \"file\"", i+1, e.ID)
+			case e.ID == "" && e.ContentHash == "":
+				return fmt.Errorf("content entry %d in %s names no block: give the block's \"id\" and \"content_hash\" as kapi inspect or extract_content prints them", i+1, e.File)
+			}
+			ref := blockRef{file: e.File, field: "id", value: e.ID}
+			if e.ID == "" {
+				ref = blockRef{file: e.File, field: "content_hash", value: e.ContentHash}
+			}
+			if j, seen := firstFor[ref]; seen {
+				if prev := entries[j]; prev.Text != e.Text || prev.ContentHash != e.ContentHash {
+					return fmt.Errorf("content entries %d and %d both edit the block with %s %q in %s, differently; send one entry per block", j+1, i+1, ref.field, ref.value, e.File)
+				}
+				continue
+			}
+			firstFor[ref] = i
+			continue
 		}
 		if e.Kind != kindComment {
 			continue
@@ -320,6 +360,18 @@ func buildEditMaps(entries []changeEntry) (byID, byHash map[string]coretools.Edi
 		}
 	}
 	return byID, byHash
+}
+
+// notFoundIn names each edit of one file's pass that matched no editable block,
+// as the entry's file and the id (or content_hash) it gave, so a change-set
+// spanning files says which file the reference missed in.
+func notFoundIn(file string, report *coretools.ApplyReport) []string {
+	missing := report.NotFound()
+	out := make([]string, 0, len(missing))
+	for _, key := range missing {
+		out = append(out, file+":"+key)
+	}
+	return out
 }
 
 // readChangeSet reads a JSONL change-set from path (or stdin when path is empty
@@ -429,7 +481,7 @@ func (a *App) rewriteDiffFile(ctx context.Context, file string, t *tool.BaseTool
 // printApplyReport writes a short human summary of the apply outcome.
 func printApplyReport(w io.Writer, out *applyOutput) {
 	c := out.Content
-	if n := len(c.Applied) + len(c.Skipped) + len(c.Stale) + len(c.GuardFailed); n > 0 {
+	if n := len(c.Applied) + len(c.Skipped) + len(c.Stale) + len(c.GuardFailed) + len(c.NotEditable) + len(c.NotFound); n > 0 {
 		fmt.Fprintf(w, "content: %d applied, %d unchanged", len(c.Applied), len(c.Skipped))
 		if len(c.Stale) > 0 {
 			fmt.Fprintf(w, ", %d stale (source drifted, re-inspect)", len(c.Stale))
@@ -437,10 +489,25 @@ func printApplyReport(w io.Writer, out *applyOutput) {
 		if len(c.GuardFailed) > 0 {
 			fmt.Fprintf(w, ", %d rejected (would corrupt inline codes or flatten plural/select branches)", len(c.GuardFailed))
 		}
+		if len(c.NotEditable) > 0 {
+			fmt.Fprintf(w, ", %d not editable (the file marks the block as content an edit does not change, such as code)", len(c.NotEditable))
+		}
+		if len(c.NotFound) > 0 {
+			fmt.Fprintf(w, ", %d not found (no block has that id or content_hash, re-inspect)", len(c.NotFound))
+		}
 		fmt.Fprintln(w)
 	}
+	printNotFound(w, c.NotFound)
 	printAssetResults(w, out.Assets)
 	printCommentResults(w, out.Comments)
+}
+
+// printNotFound names each content entry that matched no block, one per line,
+// so a person sees which reference to correct.
+func printNotFound(w io.Writer, notFound []string) {
+	for _, ref := range notFound {
+		fmt.Fprintf(w, "content %s: not found\n", ref)
+	}
 }
 
 // printAssetResults writes one line per asset entry: its kind, what it names,
@@ -459,19 +526,14 @@ func printAssetResults(w io.Writer, assets []assetResult) {
 	}
 }
 
-// previewAssetResult lists an asset entry under --diff, which writes nothing:
-// the entry is named with what it would change and is not applied.
-func previewAssetResult(e changeEntry) assetResult {
-	target := e.Term
-	switch e.Kind {
-	case kindMemory:
-		target = e.Source
-	case kindRecipe:
-		target = e.Path
-	case kindReview:
-		target = e.ID
+// previewAssetResult lists an asset or review entry under --diff, which writes
+// nothing: the entry is named with what it would change and is not applied.
+// An entry its actor may not make gets the refusal the write would give.
+func previewAssetResult(who changeActor, e changeEntry) assetResult {
+	if refusal, refused := actorRefusal(who, e); refused {
+		return refusal
 	}
-	return assetResult{Kind: e.Kind, Op: e.Op, Target: target, Status: "preview", Detail: "--diff shows the entry and writes nothing"}
+	return assetResult{Kind: e.Kind, Op: e.Op, Target: assetTarget(e), Status: "preview", Detail: "--diff shows the entry and writes nothing"}
 }
 
 // retiredVoiceKind is the change kind that added a word rule to a voice

@@ -618,7 +618,13 @@ Windows                   %LocalAppData%\kapi
 Inside a `go test` binary the resolution is different: unless `$KAPI_DATA_DIR`
 names a root outright, the answer is a directory of that process's own under the
 system temporary directory. A test that opened a project would otherwise write
-into the developer's own context and read it back on the next run. A released
+into the developer's own context and read it back on the next run. The first
+resolution in a test binary removes the roots of test binaries that are no
+longer running. A root is named by its process id, and on macOS, where ids wrap
+at 99999, a root last written before the process now holding its id started
+is removed as well. A package whose `TestMain` runs through
+`devenvtest.Main(m, host.RemoveTestDataDir)` removes its own root when its tests
+finish, so test runs do not accumulate them. A released
 binary is not a test binary, which is why every in-repo surface that launches one
 sets `$KAPI_DATA_DIR` as part of the isolation contract.
 

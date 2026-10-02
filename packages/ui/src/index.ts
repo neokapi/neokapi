@@ -557,12 +557,17 @@ export {
   StepRow,
   AddStepPicker,
   ParallelGroupRow,
+  parallelStepError,
+  sequenceIssues,
+  listBranchesInOrder,
 } from "./components/flow-editor";
 export type {
   LinearFlowEditorProps,
   StepRowProps,
   AddStepPickerProps,
   ParallelGroupRowProps,
+  SequenceStep,
+  SequenceIssue,
   FlowSpec as LinearFlowSpec,
   FlowStep as LinearFlowStep,
   FlowTool as LinearFlowTool,

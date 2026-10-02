@@ -17,20 +17,13 @@ describe("FLOW_TEMPLATES", () => {
     }
   });
 
-  it("templates with hasParallel=true contain parallel steps", () => {
-    const parallel = FLOW_TEMPLATES.filter((t) => t.hasParallel);
-    expect(parallel.length).toBeGreaterThan(0);
-    for (const t of parallel) {
-      const hasParallelStep = t.spec.steps.some((s) => s.parallel && s.parallel.length > 0);
-      expect(hasParallelStep).toBe(true);
-    }
-  });
-
-  it("templates without hasParallel have only sequential steps", () => {
-    const sequential = FLOW_TEMPLATES.filter((t) => !t.hasParallel);
-    for (const t of sequential) {
+  // Flow steps run in order; the runtime refuses a parallel: list, so no
+  // template offers one.
+  it("every template's steps run in order", () => {
+    for (const t of FLOW_TEMPLATES) {
       for (const s of t.spec.steps) {
         expect(s.parallel).toBeUndefined();
+        expect(s.tool).toBeTruthy();
       }
     }
   });
@@ -39,9 +32,9 @@ describe("FLOW_TEMPLATES", () => {
     for (const t of FLOW_TEMPLATES) {
       const { nodes, edges } = stepsToGraph(t.spec);
       // Step nodes only (a flow owns no I/O); every template has at least one
-      // step. A step node is a single tool or a parallel group.
+      // step, and every step node is a single tool.
       expect(nodes.length).toBeGreaterThanOrEqual(1);
-      expect(nodes.every((n) => n.type === "tool" || n.type === "parallel")).toBe(true);
+      expect(nodes.every((n) => n.type === "tool")).toBe(true);
       // All edges reference existing node IDs
       const nodeIds = new Set(nodes.map((n) => n.id));
       for (const e of edges) {
@@ -53,15 +46,7 @@ describe("FLOW_TEMPLATES", () => {
 
   it("stepCount matches actual step count", () => {
     for (const t of FLOW_TEMPLATES) {
-      let count = 0;
-      for (const s of t.spec.steps) {
-        if (s.parallel && s.parallel.length > 0) {
-          count += s.parallel.length;
-        } else {
-          count++;
-        }
-      }
-      expect(count).toBe(t.stepCount);
+      expect(t.spec.steps.length).toBe(t.stepCount);
     }
   });
 

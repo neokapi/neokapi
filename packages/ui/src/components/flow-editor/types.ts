@@ -7,13 +7,16 @@
 // The editor depends on no host's API types.
 
 export interface FlowStep {
-  /** The tool the step runs; empty on a parallel group, which fans out to `parallel`. */
+  /** The tool the step runs; empty on a parallel group. */
   tool: string;
   /** The step's inline options, merged over the tool's defaults. */
   config?: Record<string, unknown>;
   /** An override label for the step; defaults to the tool's name. */
   label?: string;
-  /** Fan-out: run these branches in parallel instead of a single tool. */
+  /**
+   * A `parallel:` list a loaded flow may carry. The runtime refuses it, because
+   * steps run in order; the editor shows it as invalid and creates none.
+   */
   parallel?: FlowStep[];
 }
 

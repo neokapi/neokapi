@@ -28,10 +28,17 @@ land through the same byte-faithful round-trip the engine's writers use (structu
 inline codes preserved), drift-guarded by content_hash. An edit that drops,
 invents or duplicates an inline code, crosses or unbalances paired codes, or
 changes a block holding a plural or select construct is refused as
-guard_failed and leaves the block as it was. A term or content-memory pair is
+guard_failed and leaves the block as it was. A content entry whose id, or
+content_hash when it gives no id, matches no block of its file is reported as
+not_found and writes nothing. A block the file marks as not editable, such as
+a code block, keeps its text, and an entry that changes it is reported as
+not_editable. A term or content-memory pair is
 written to the project's store and recorded in its context history, a recipe
 field is written to kapi.yaml, and a review outcome is recorded as unit state
-in the project store.
+in the project store. Each entry is recorded as the person or agent the
+environment names (see 'kapi help growing-context'). Term, content-memory and recipe
+entries are a person's decisions: run from an agent's shell they are refused,
+and the agent records a suggestion with 'kapi context observe' instead.
 
 A content memory pair (kind:"memory") is recycle leverage for future translation. It does not
 establish a unit. To establish a translated unit, use a kind:"review" entry
@@ -59,10 +66,14 @@ findings are reported beside the edit.
 The change-set is JSONL (one entry per line), read from CHANGESET or, with no
 argument or "-", from standard input. Content entries name their own file, so
 apply writes those files in place; --diff previews content and comment changes,
-lists each asset entry as a preview, and writes nothing. Entries land one at a
-time: an entry already written stays when a later one is stale, refused or
-fails, and apply then exits non-zero. Re-running the corrected change-set skips
-what is already in place. No AI provider is required.`,
+lists each asset entry as a preview or with the refusal its actor gets, and
+writes nothing. A content entry that gives neither id nor content_hash, or two
+content entries that edit one block differently, make the change-set
+malformed: apply refuses it before writing anything and exits 2. Otherwise
+entries land one at a time: an entry already written stays when a later one is
+stale, refused, not found or fails, and apply then exits non-zero. Re-running
+the corrected change-set skips what is already in place. No AI provider is
+required.`,
 		Example: `  kapi inspect report.docx --jsonl | edit-the-text | kapi apply
   kapi apply changeset.jsonl
   kapi apply changeset.jsonl --diff

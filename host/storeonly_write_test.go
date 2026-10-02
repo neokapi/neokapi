@@ -154,7 +154,7 @@ func TestApply_LandsInTheStoreAndIsRecorded(t *testing.T) {
 		{Kind: kindMemory, Op: "add", Source: "Save", Target: "Enregistrer", SourceLocale: "en", TargetLocale: "fr"},
 		{Kind: kindTerm, Term: "utilise", Replacement: "use", Locale: "en", Status: "forbidden"},
 	} {
-		res := a.applyRecordedAssetEntry(ctx, cmd, e)
+		res := a.applyRecordedAssetEntry(ctx, cmd, personApplies, e)
 		require.Equal(t, "applied", res.Status, "kind %s detail: %s", e.Kind, res.Detail)
 		assert.NotContains(t, res.Detail, "not recorded", "the change is on the record")
 	}

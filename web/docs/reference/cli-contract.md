@@ -249,15 +249,23 @@ for the codes.
 For `apply_edits`, content entries put new wording in `text`; `replacement` is
 a voice-rule field. A nonempty `replacement` on a content entry is rejected
 before applying the change-set. The input field descriptions state this
-distinction without changing field names or types.
+distinction without changing field names or types. A content entry that gives
+neither `id` nor `content_hash`, or two content entries that edit one block
+differently, are refused the same way, and `kapi apply` exits 2 for any of
+these. The result lists in `not_found` each content entry whose `id`, or
+`content_hash` when it gives no `id`, matches no block of its file, and in
+`not_editable` each block an entry changed that its file marks as not editable,
+such as a code block. Either makes `ok` false; `kapi apply --json` reports the
+same buckets under `content` and exits 3.
 
-An entry also takes two optional fields, `actor` and `evidence`. An asset entry
-(a term, a voice rule, a content-memory pair) is a decision about the project's
-context. Applying a term or a content-memory pair records one `edit` operation
-in that project's history, established from the start, and these fields say who
-made it and where the wording behind it was seen. Asset entries default to the person role when `actor` is omitted. An entry
-that explicitly names an agent is refused by the context policy. See
-[Growing context](/kapi/context-decisions).
+An entry also takes an optional `evidence` field. An asset entry (a term, a
+content-memory pair, a recipe field) is a decision about the project. Applying a
+term or a content-memory pair records one `edit` operation in that project's
+history, established from the start, and `evidence` says where the wording
+behind it was seen. An entry takes no actor: `apply_edits` records every entry
+as the calling agent in the server's session, so the context policy refuses its
+term, content-memory and recipe entries, and `kapi apply` records the person or
+agent its environment names. See [Growing context](/kapi/context-decisions).
 
 Four tools record and read a project's context history: `context_observe`,
 `context_correct`, `context_withdraw` and `context_session_summary`. Each wraps

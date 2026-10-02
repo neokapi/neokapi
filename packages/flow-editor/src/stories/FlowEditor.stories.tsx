@@ -271,20 +271,23 @@ export const MultiStep: Story = {
   },
 };
 
-// A parallel "route" — a compose node you drop in from the Add panel and fill:
-// its branch tools all run on the same input. Stateful so adding a branch (via
-// the route's "+ Add branch"), removing a branch, and inserting/removing the
-// route itself all work live. Starts with one empty route (the compact "drop it
-// in, then fill it" state) between two ordinary steps.
-export const ParallelRoute: Story = {
-  name: "Parallel route (compose + edit live)",
+// A flow loaded with a parallel group. Steps run in order, so the editor shows
+// the group invalid with the refusal the runtime gives and disables Run.
+// Stateful, so "List as ordered steps" puts the group's tools in its place
+// live, and removing a branch or the group works too.
+export const LoadedParallelGroup: Story = {
+  name: "Loaded parallel group (invalid, fix live)",
   render: (args) => {
     const [flow, setFlow] = useState<FlowSpec>({
-      steps: [{ tool: "translate" }, { tool: "", parallel: [] }, { tool: "word-count" }],
+      steps: [
+        { tool: "translate" },
+        { tool: "", parallel: [{ tool: "qa" }, { tool: "voice-vocab-check" }] },
+        { tool: "word-count" },
+      ],
     });
     return <FlowEditor {...args} flow={flow} onChange={setFlow} />;
   },
-  args: { tools },
+  args: { tools, run: { onRun: () => {} } },
 };
 
 // A lesson focus (host-driven focusRequest): the requested node is selected
@@ -482,52 +485,14 @@ export const WithConfiguration: Story = {
   },
 };
 
-export const ParallelBranches: Story = {
-  args: {
-    flow: {
-      steps: [
-        { tool: "translate", label: "Translate" },
-        {
-          tool: "",
-          parallel: [
-            { tool: "qa", label: "Quality Check" },
-            { tool: "voice-vocab-check", label: "Brand Check" },
-          ],
-        },
-        { tool: "word-count", label: "Word Count" },
-      ],
-    },
-    tools,
-  },
-};
-
-export const ThreeWayParallel: Story = {
-  args: {
-    flow: {
-      steps: [
-        { tool: "recycle", label: "Memory Lookup" },
-        {
-          tool: "",
-          parallel: [
-            { tool: "qa", label: "Checks" },
-            { tool: "voice-vocab-check", label: "Brand" },
-            { tool: "entity-extract", label: "Entities" },
-          ],
-        },
-      ],
-    },
-    tools,
-  },
-};
-
 /**
- * A tall parallel group (6 branches) followed by a wrap. Guards that the
- * carriage-return wrap edge clears the group instead of cutting through it —
- * row spacing grows with the tallest node so the wrap's mid-gap sweep stays
- * below the parallel (see centerAlignRows).
+ * A loaded parallel group with six branches, followed by a wrap. Guards that
+ * the carriage-return wrap edge clears the tall group instead of cutting
+ * through it: row spacing grows with the tallest node so the wrap's mid-gap
+ * sweep stays below the group (see centerAlignRows).
  */
 export const ManyBranchParallel: Story = {
-  name: "Many-Branch Parallel (wrap clearance)",
+  name: "Loaded many-branch group (wrap clearance)",
   args: {
     flow: {
       steps: [
@@ -543,21 +508,6 @@ export const ManyBranchParallel: Story = {
             { tool: "translate", label: "Back-translate" },
           ],
         },
-      ],
-    },
-    tools,
-  },
-};
-
-export const ParallelizationSuggestion: Story = {
-  name: "Parallelization Suggestion",
-  args: {
-    flow: {
-      steps: [
-        { tool: "translate" },
-        { tool: "qa" },
-        { tool: "voice-vocab-check" },
-        { tool: "word-count" },
       ],
     },
     tools,

@@ -162,28 +162,32 @@ lost. Re-run the check to confirm the score improved.
 
 ### Fix the rule, not just the draft
 
-A recurring off-voice term is better fixed at the source: add a term so every
-future draft is checked against it. That is just another `kind` in the
-**same** `kapi apply` change-set, the content fix beside the rule that
-justifies it. Each entry lands on its own, so if one is refused, fix it and
-re-run the change-set:
+A recurring off-voice term is better fixed at the source: a term rule checks
+every future draft against it. Fix the draft through `kapi apply`, then record
+the change you made, with the rule it implies as a suggestion:
 
 ```jsonl
 {"kind":"content","file":"blog-post.md","id":"p2","content_hash":"b74d…","text":"We use our infrastructure."}
-{"kind":"term","op":"upsert","term":"utilize","locale":"en","status":"forbidden","replacement":"use"}
 ```
 
 ```bash
 kapi apply changeset.jsonl
+kapi context correct utilize use --seen-in blog-post.md --suggest
 ```
 
-The `term` entry is written into the project's terms, and the change is
-recorded, so `kapi context log` carries the one new rule and the next
-`kapi check` enforces it. Add `"advisory":true` for a rule that reports
-without failing, or `"competitor":true` for a competitor's name. The entry
-requires a kapi project. A change-set has no `voice` kind; `kapi apply` refuses
-one and names the `term` form. (An approved term is a `term` entry too; see
-[create.md](create.md).)
+`kapi context log` carries the suggestion, and `kapi check` reports it without
+failing until a person keeps it. A person who has decided writes the rule
+directly with a `term` entry in their own `kapi apply` change-set:
+
+```jsonl
+{"kind":"term","op":"upsert","term":"utilize","locale":"en","status":"forbidden","replacement":"use"}
+```
+
+From your shell that entry is refused, because writing a rule directly is a
+person's decision. Add `"advisory":true` for a rule that reports without
+failing, or `"competitor":true` for a competitor's name. The entry requires a
+kapi project. A change-set has no `voice` kind; `kapi apply` refuses one and
+names the `term` form.
 
 ### Offline term substitution
 

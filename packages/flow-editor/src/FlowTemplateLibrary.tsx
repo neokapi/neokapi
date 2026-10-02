@@ -1,13 +1,11 @@
 import React, { useState, useMemo } from "react";
 import { t } from "@neokapi/i18n-react/runtime";
-import { GitBranch, Layers } from "lucide-react";
+import { Layers } from "lucide-react";
 import {
   Button,
-  SimpleTooltip,
   Card,
   CardHeader,
   CardTitle,
-  CardAction,
   CardDescription,
   CardFooter,
   Markdown,
@@ -143,15 +141,6 @@ function TemplateCard({
           <Icon size={14} style={{ color: catStyle.color }} />
           <span>{template.name}</span>
         </CardTitle>
-        {template.hasParallel && (
-          <CardAction>
-            <SimpleTooltip content="Includes parallel steps">
-              <span>
-                <GitBranch size={12} className="text-accent-foreground" />
-              </span>
-            </SimpleTooltip>
-          </CardAction>
-        )}
         <CardDescription>
           <Markdown inline>{template.description}</Markdown>
         </CardDescription>

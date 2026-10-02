@@ -376,7 +376,7 @@ func TestApplyAssetEntriesRecordOperations(t *testing.T) {
 	cmd := executionCommand(t)
 	cmd.Flags().String(projectFlagName, recipeOf(root), "")
 
-	applied := app.applyRecordedAssetEntry(t.Context(), cmd, changeEntry{
+	applied := app.applyRecordedAssetEntry(t.Context(), cmd, personApplies, changeEntry{
 		Kind: kindTerm, Op: "upsert", Term: "utilise", Replacement: "use", Locale: "en",
 		Status:   "forbidden",
 		Evidence: []contextop.Evidence{{Path: "config/app.yaml"}},
@@ -397,7 +397,7 @@ func TestApplyAssetEntriesRecordOperations(t *testing.T) {
 	assert.Equal(t, []contextop.Evidence{{Path: "config/app.yaml"}}, edit.Evidence)
 
 	// Re-applying the same entry is a no-op, and records nothing a second time.
-	again := app.applyRecordedAssetEntry(t.Context(), cmd, changeEntry{
+	again := app.applyRecordedAssetEntry(t.Context(), cmd, personApplies, changeEntry{
 		Kind: kindTerm, Op: "upsert", Term: "utilise", Replacement: "use", Locale: "en", Status: "forbidden",
 	})
 	assert.Equal(t, "skipped", again.Status)
@@ -405,16 +405,32 @@ func TestApplyAssetEntriesRecordOperations(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, log.Operations, 1, "an entry that changed nothing decides nothing")
 
-	// An agent naming itself on an asset entry is refused before anything is
-	// written, because applying one is a decision.
-	refused := app.applyRecordedAssetEntry(t.Context(), cmd, changeEntry{
+	// An asset entry an agent applies is refused before anything is written,
+	// because applying one is a decision.
+	refused := app.applyRecordedAssetEntry(t.Context(), cmd, changeActor{Actor: agentIn("s1")}, changeEntry{
 		Kind: kindTerm, Term: "leverage", Replacement: "use", Locale: "en", Status: "forbidden",
-		Actor: &contextop.Actor{Kind: contextop.ActorAgent, Name: "claude", Session: "s1"},
 	})
 	assert.Equal(t, "error", refused.Status)
 	assert.Contains(t, refused.Detail, "may not edit")
-	assert.NoFileExists(t, filepath.Join(root, ".kapi", "terms.json"),
-		"the refusal came before anything moved")
+	assert.NotContains(t, projectTerms(t, app, root), "leverage", "the refusal came before anything moved")
+}
+
+// projectTerms lists the terms the project's terms store holds.
+func projectTerms(t *testing.T, app *App, root string) []string {
+	t.Helper()
+	w, err := app.Projector(t.Context(), root)
+	require.NoError(t, err)
+	tb := w.Terms()
+	require.NotNil(t, tb)
+	concepts, err := tb.Concepts(t.Context())
+	require.NoError(t, err)
+	var out []string
+	for _, c := range concepts {
+		for _, term := range c.Terms {
+			out = append(out, term.Text)
+		}
+	}
+	return out
 }
 
 // TestContextLogFilters covers the narrowing `kapi context log` offers.

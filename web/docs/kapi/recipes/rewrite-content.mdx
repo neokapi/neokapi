@@ -91,7 +91,11 @@ kapi check guide.md --max-chars 500 --forbid "utilize"
 - **Drift guard.** A block whose current `content_hash` no longer matches your entry changed since you inspected it; the edit is marked **stale** and skipped.
 - **Inline-code guard.** An edited `text` that drops, invents, duplicates, or unbalances an `<x id="…"/>` token is **rejected** rather than written back with broken markup. A block holding a plural or select construct shows one form of it in `text`; flat text cannot carry the other branches, so a changed `text` for that block is **rejected** as well.
 
-Either outcome exits on the gate code (`3`), distinct from an operational error; re-inspect the affected blocks and retry with fresh hashes. `apply` is idempotent, and the same change-set can carry asset edits (an approved term, a voice rule; see [Create content](/kapi/recipes/create-content)) or a `kind:"review"` entry ([The kapi loop](/kapi/convergence#review-the-state-record)): one write verb, different `kind`s.
+An entry whose `id`, or `content_hash` when it gives no `id`, matches no block of its file is reported as **not found** and writes nothing; the block may have been removed or renamed since you inspected it.
+
+`kapi inspect` also lists blocks the file marks as not editable, such as a Markdown code block (`role` `code`). Such a block keeps its text: an entry that changes it is reported as **not editable**, and an entry that repeats its text is a no-op.
+
+Each of these outcomes exits on the gate code (`3`), distinct from an operational error; re-inspect the affected blocks and retry with fresh hashes. A change-set with a content entry that gives neither `id` nor `content_hash`, or with two entries that edit one block differently, is refused before anything is written, with exit code `2`. `apply` is idempotent, and the same change-set can carry asset edits (an approved term or a content memory pair; see [Create content](/kapi/recipes/create-content)) or a `kind:"review"` entry ([The kapi loop](/kapi/convergence#review-the-state-record)): one write verb, different `kind`s.
 
 ## What "faithfully" means
 
