@@ -481,10 +481,10 @@ jobs:
           retention-days: 1
 
   # The store suites (core/storage, the workspace, the projector, the project
-  # store, the ledger, the block cache, content memory, terms, voice and the
-  # context graph) under GOOS=js in Node, over the browser engine's own SQLite
-  # driver: the Go half in core/storage, the JavaScript half in
-  # packages/engine/src/sqlite.ts. The suites themselves run in seconds; the
+  # store, the ledger, the block history, the block cache, content memory,
+  # terms, voice and the context graph) under GOOS=js in Node, over the browser
+  # engine's own SQLite driver: the Go half in core/storage, the JavaScript half
+  # in packages/engine/src/sqlite.ts. The suites themselves run in seconds; the
   # compile dominates. The same suites then run natively with every pool held
   # to one connection, as the browser's driver holds it, which names code that
   # holds a session and asks the same pool for another instead of hanging. On

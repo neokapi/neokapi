@@ -389,7 +389,7 @@ check-wasm: i18n-catalogs ## Compile-check the in-browser CLI for js/wasm (the d
 # directory permissions that never reach a database held in memory, or
 # preemption js/wasm does not have.
 STORE_PKGS := ./core/storage/ ./core/workspace/... ./core/projector/ ./core/projectdb/ \
-	./core/state/ ./core/blockstore/... ./memory/... ./terms/... ./voice/... ./host/storage/...
+	./core/state/ ./core/history/ ./core/blockstore/... ./memory/... ./terms/... ./voice/... ./host/storage/...
 
 test-stores-oneconn: i18n-catalogs ## Run the store suites natively with every pool held to one connection and WAL off
 	$(GO) test -tags "fts5,storage_oneconn" -count=1 -timeout 15m $(STORE_PKGS)
