@@ -52,12 +52,20 @@ type DocResult struct {
 	Doc string `json:"doc"`
 	// Home is where the document's text lives: file, workspace or
 	// stream:<id>.
-	Home    string `json:"home,omitempty"`
+	Home string `json:"home,omitempty"`
+	// File is the file the entry is about when it is not the document itself:
+	// the file of one edition of the document, which Edition names.
+	File    string `json:"file,omitempty"`
+	Edition string `json:"edition,omitempty"`
 	Written bool   `json:"written"`
-	// Before and After are the document digests around the change.
+	// Before and After are the file digests around the change. Before is
+	// empty for a file the change creates; After is null when nothing was
+	// written.
 	Before   string    `json:"before,omitempty"`
 	After    *string   `json:"after"`
 	Findings []Finding `json:"findings,omitempty"`
+	// Diff, in a preview, is what the change would write, as a unified diff.
+	Diff string `json:"diff,omitempty"`
 }
 
 // Finding is one thing a check of the changed content found.
