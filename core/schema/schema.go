@@ -252,7 +252,9 @@ const (
 	AcceptsTargetLanguage = "target-language"
 
 	// AcceptsSourceLanguage: a monolingual tool whose result depends on the
-	// language of the source text, as segmentation picks its rules by it.
+	// language of the source text, as segmentation picks its rules by it. The
+	// declaration describes the tool. Every run has a source language
+	// whatever the tool declares, because the format reader takes one.
 	AcceptsSourceLanguage = "source-language"
 )
 
@@ -270,27 +272,6 @@ func (m *ToolMeta) TakesTargetLanguage() bool {
 	switch m.Cardinality {
 	case Monolingual:
 		return m.DefaultLocale != "" || m.declares(RequiresTargetLanguage)
-	default: // Bilingual, Multilingual, or undeclared
-		return true
-	}
-}
-
-// TakesSourceLanguage reports whether the source language changes what a run
-// of the tool does, which decides whether a surface offers one (`kapi exec
-// <tool>` declares --source-lang only then). The source language reaches a
-// tool in three ways: a bilingual or multilingual tool pairs it with the
-// target, a monolingual one declares it in Requires or Accepts, and a tool
-// that writes a target-language file takes its default path from the input's
-// by swapping the source locale for the target's (locales/en/app.json →
-// locales/fr/app.json). An undeclared cardinality and a nil meta take it, as
-// with TakesTargetLanguage.
-func (m *ToolMeta) TakesSourceLanguage() bool {
-	if m == nil {
-		return true
-	}
-	switch m.Cardinality {
-	case Monolingual:
-		return m.declares(RequiresSourceLanguage) || (m.WritesOutput && m.TakesTargetLanguage())
 	default: // Bilingual, Multilingual, or undeclared
 		return true
 	}

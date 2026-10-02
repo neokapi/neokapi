@@ -252,21 +252,24 @@ Cardinality describes **how many** locales a tool needs. **Which** locales are
 provided at runtime by the runner or flow configuration, never hardcoded in the
 tool.
 
-Cardinality, together with the language entries in `Requires` and `Accepts`,
-also decides which languages a run can name for the tool.
+Cardinality, together with the `target-language` entry in `Requires` and
+`Accepts`, also decides whether a run can name a target language for the tool.
 `ToolMeta.TakesTargetLanguage` holds for a bilingual or multilingual tool, and
 for a monolingual one that requires or accepts `target-language` or names a
-`DefaultLocale`. `search-replace` and `xml-validation` accept it, because they
-work on the source and, when the run names one, on that target as well.
-`ToolMeta.TakesSourceLanguage` holds for a bilingual or multilingual tool, for
-a monolingual one that requires or accepts `source-language` (segmentation
-picks its rules by it), and for a monolingual writer that takes a target, since
-its default output path swaps the source locale for the target's. A tool with
-no declared cardinality takes both. `kapi exec <tool>` declares `--target-lang`
-and `--source-lang` from these two answers, so a tool that works on the source
-alone, such as `redact` or `encoding-detect`, offers neither.
+`DefaultLocale`. A tool with no declared cardinality takes one.
+`search-replace` and `xml-validation` accept it, because they work on the
+source and, when the run names one, on that target as well. `kapi exec <tool>`
+declares `--target-lang` from this answer, so a tool that works on the source
+alone, such as `redact` or `encoding-detect`, offers none.
 `TestToolsDeclareTheTargetLanguageTheyRead` in `core/tools` holds the
 declarations to what each tool's config factory reads.
+
+Every `kapi exec` command offers `--source-lang` beside `--format` and
+`--encoding`, because every run passes the source language to the format
+reader. The reader labels each block with it, and picks by it the source
+variant of a multilingual file that names none. A monolingual tool whose result
+also depends on the source language, as segmentation picks its rules by it,
+declares `source-language` in `Accepts`.
 
 #### Uniform locale access
 

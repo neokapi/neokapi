@@ -301,19 +301,21 @@ func (a *App) T() i18n.Translator {
 }
 
 // AddProcessingFlags adds file-processing flags to a command: the input flags
-// and both language flags. A flow-running command takes both because a flow
-// may hold any tool.
+// and --target-lang. A flow-running command takes a target language because a
+// flow may hold any tool.
 func (a *App) AddProcessingFlags(cmd Command) {
 	a.AddInputFlags(cmd)
-	a.AddSourceLangFlag(cmd.Flags())
 	a.AddTargetLangFlag(cmd.Flags())
 }
 
-// AddInputFlags adds the flags that say how to read the input files:
-// --format and --encoding.
+// AddInputFlags adds the flags that say how to read the input files: --format,
+// --encoding and --source-lang. Every run passes the source language to the
+// format reader, which labels each block with it and, for a multilingual file
+// that names no source, picks the source variant by it.
 func (a *App) AddInputFlags(cmd Command) {
 	cmd.Flags().StringVarP(&a.FormatFlag, "format", "f", "", "override input format detection")
 	a.AddEncodingFlag(cmd.Flags(), "e", "input file encoding")
+	a.AddSourceLangFlag(cmd.Flags())
 }
 
 // AddTargetLangFlag registers --target-lang on f, bound to the App's target

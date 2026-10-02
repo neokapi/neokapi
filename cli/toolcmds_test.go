@@ -286,10 +286,10 @@ func TestAddCommandGroupsRegistersGroups(t *testing.T) {
 	assert.Equal(t, []string{"Work:", "Languages:", "Assets:", "Advanced:"}, titles)
 }
 
-// The language flags on `kapi exec <tool>` follow the tool's locale contract
-// (schema.ToolMeta.TakesTargetLanguage / TakesSourceLanguage), so a tool that
-// works on the source alone offers neither, and one that reads a target offers
-// --target-lang.
+// --target-lang on `kapi exec <tool>` follows the tool's locale contract
+// (schema.ToolMeta.TakesTargetLanguage), so a tool that works on the source
+// alone offers none, and one that reads a target offers it. Every tool offers
+// --source-lang, because every run passes it to the format reader.
 func TestExecLanguageFlagsFollowTheToolsLocaleContract(t *testing.T) {
 	app := newTestApp()
 	tools := execChildren(t, app)
@@ -298,44 +298,42 @@ func TestExecLanguageFlagsFollowTheToolsLocaleContract(t *testing.T) {
 		meta := app.ToolReg.Schema(registry.ToolID(name)).ToolMeta
 		assert.Equal(t, meta.TakesTargetLanguage(), cmd.Flags().Lookup("target-lang") != nil,
 			"`exec %s` declares --target-lang exactly when the tool takes a target language", name)
-		assert.Equal(t, meta.TakesSourceLanguage(), cmd.Flags().Lookup("source-lang") != nil,
-			"`exec %s` declares --source-lang exactly when the source language reaches the tool", name)
+		assert.NotNil(t, cmd.Flags().Lookup("source-lang"),
+			"`exec %s` declares --source-lang: the reader labels the input with it", name)
 	}
 
 	for _, c := range []struct {
-		tool                   string
-		targetLang, sourceLang bool
+		tool       string
+		targetLang bool
 	}{
-		// Tools that work on the source alone and whose result the source
-		// language does not change.
-		{"encoding-detect", false, false},
-		{"redact", false, false},
-		{"unredact", false, false},
-		{"script", false, false},
-		{"translate-after", false, false},
-		{"voice-check", false, false},
-		{"voice-infer", false, false},
-		{"term-extract", false, false},
-		{"entity-extract", false, false},
-		{"media-refine", false, false},
+		// Tools that work on the source alone.
+		{"encoding-detect", false},
+		{"redact", false},
+		{"unredact", false},
+		{"script", false},
+		{"translate-after", false},
+		{"voice-check", false},
+		{"voice-infer", false},
+		{"term-extract", false},
+		{"entity-extract", false},
+		{"media-refine", false},
 		// Monolingual tools that also work on the target the run names.
-		{"search-replace", true, true},
-		{"case-transform", true, true},
-		{"inline-codes-remove", true, true},
-		{"external-command", true, true},
-		{"xml-validation", true, false},
-		{"segmentation", true, true},
+		{"search-replace", true},
+		{"case-transform", true},
+		{"inline-codes-remove", true},
+		{"external-command", true},
+		{"xml-validation", true},
+		{"segmentation", true},
 		// Bilingual tools.
-		{"translate", true, true},
-		{"qa", true, true},
-		{"term-check", true, true},
-		{"recycle", true, true},
-		{"pseudo-translate", true, true},
+		{"translate", true},
+		{"qa", true},
+		{"term-check", true},
+		{"recycle", true},
+		{"pseudo-translate", true},
 	} {
 		cmd := tools[c.tool]
 		require.NotNil(t, cmd, "expected `exec %s`", c.tool)
 		assert.Equal(t, c.targetLang, cmd.Flags().Lookup("target-lang") != nil, "`exec %s` --target-lang", c.tool)
-		assert.Equal(t, c.sourceLang, cmd.Flags().Lookup("source-lang") != nil, "`exec %s` --source-lang", c.tool)
 	}
 
 	// Passing a language the tool does not take fails with the reason.
@@ -349,10 +347,6 @@ func TestExecLanguageFlagsFollowTheToolsLocaleContract(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown flag: --target-lang")
 	assert.Contains(t, err.Error(), "`kapi exec redact` takes no target language")
-	root.SetArgs([]string{"exec", "encoding-detect", "notes.md", "--source-lang=de"})
-	err = root.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "`kapi exec encoding-detect` takes no source language")
 
 	// A writer that takes no target language has no {lang} to lay its output
 	// out by, and its help says so.

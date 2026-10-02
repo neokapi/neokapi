@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T07:01:01Z",
+  "generatedAt": "2026-10-02T07:49:31Z",
   "commands": [
     {
       "id": "add",
@@ -1958,6 +1958,11 @@
           "type": "bool"
         },
         {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
+          "type": "string"
+        },
+        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
@@ -2093,6 +2098,11 @@
           "name": "provider",
           "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))",
           "default": "anthropic",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -2500,6 +2510,11 @@
           "name": "provider",
           "usage": "Multimodal AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))",
           "default": "anthropic",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -3388,6 +3403,11 @@
           "type": "string"
         },
         {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
+          "type": "string"
+        },
+        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
@@ -3771,6 +3791,11 @@
           "name": "source",
           "usage": "Script source mode (inline, file)",
           "default": "inline",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -4352,6 +4377,11 @@
           "type": "string"
         },
         {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
+          "type": "string"
+        },
+        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
@@ -4632,6 +4662,11 @@
           "type": "bool"
         },
         {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
+          "type": "string"
+        },
+        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
@@ -4729,6 +4764,11 @@
           "usage": "show progress bar",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
+          "type": "string"
         },
         {
           "name": "strict",
@@ -4842,6 +4882,11 @@
           "name": "provider",
           "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))",
           "default": "anthropic",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -4971,6 +5016,11 @@
           "name": "provider",
           "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))",
           "default": "anthropic",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
         },
         {
@@ -5257,6 +5307,11 @@
           "usage": "show progress bar",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
+          "type": "string"
         },
         {
           "name": "strict",

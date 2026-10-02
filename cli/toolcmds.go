@@ -95,11 +95,10 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	ToolSchema := entry.Schema
 	var formatMaps []string
 
-	// The language flags follow the tool's locale contract (E-03): a tool
-	// that never works on a target offers no --target-lang, and one whose run
-	// the source language does not reach offers no --source-lang.
+	// --target-lang follows the tool's locale contract (E-03): a tool that
+	// never works on a target offers none. --source-lang is an input flag,
+	// because the format reader takes the source language on every run.
 	takesTarget := ToolSchema.ToolMeta.TakesTargetLanguage()
-	takesSource := ToolSchema.ToolMeta.TakesSourceLanguage()
 
 	short := info.Description
 	if short == "" {
@@ -290,9 +289,6 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 		},
 	}
 	a.AddInputFlags(cmd)
-	if takesSource {
-		a.AddSourceLangFlag(cmd.Flags())
-	}
 	if takesTarget {
 		a.AddTargetLangFlag(cmd.Flags())
 	}
@@ -328,22 +324,17 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
 	cmd.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
-		return explainLanguageFlagError(c, err, takesSource, takesTarget)
+		return explainTargetLangFlagError(c, err, takesTarget)
 	})
 	return cmd
 }
 
-// explainLanguageFlagError says why a language flag is missing from a tool's
-// command when a run passes one: a script written for a bilingual tool, or for
-// the flag set every tool command once shared, would otherwise read cobra's
-// bare "unknown flag" as a typo.
-func explainLanguageFlagError(c *cobra.Command, err error, takesSource, takesTarget bool) error {
-	msg := err.Error()
-	switch {
-	case !takesTarget && strings.HasPrefix(msg, "unknown flag: --target-lang"):
+// explainTargetLangFlagError says why --target-lang is missing from a tool's
+// command when a run passes it: a script written for a bilingual tool would
+// otherwise read cobra's bare "unknown flag" as a typo.
+func explainTargetLangFlagError(c *cobra.Command, err error, takesTarget bool) error {
+	if !takesTarget && strings.HasPrefix(err.Error(), "unknown flag: --target-lang") {
 		return fmt.Errorf("%w: `%s` takes no target language", err, c.CommandPath())
-	case !takesSource && strings.HasPrefix(msg, "unknown flag: --source-lang"):
-		return fmt.Errorf("%w: `%s` takes no source language", err, c.CommandPath())
 	}
 	return err
 }

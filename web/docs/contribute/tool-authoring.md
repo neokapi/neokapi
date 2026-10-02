@@ -313,11 +313,11 @@ steps:
 The run's `--target-lang` reaches the tool through the config factory's
 `targetLang` argument, so the step declares no locale of its own.
 
-`kapi exec` offers `--target-lang` and `--source-lang` from the tool's locale
-contract. `wrap-text` declares no `Cardinality`, so it is treated as bilingual
-and takes both. A tool that works on the source alone declares
-`Cardinality: schema.Monolingual` and the command offers neither language. A
-monolingual tool that also works on a target when the run names one adds
-`Accepts: []string{schema.AcceptsTargetLanguage}`, and one whose result depends
-on the source language adds `schema.AcceptsSourceLanguage`. See
+`kapi exec` offers `--target-lang` from the tool's locale contract, and
+`--source-lang` on every tool. `wrap-text` declares no `Cardinality`, so it is
+treated as bilingual and takes a target language. A tool that works on the
+source alone declares `Cardinality: schema.Monolingual`, and its command offers
+no `--target-lang`. A monolingual tool that also works on a target when the run
+names one adds `Accepts: []string{schema.AcceptsTargetLanguage}`, and one whose
+result depends on the source language adds `schema.AcceptsSourceLanguage`. See
 [E-03: locale cardinality](/contribute/architecture/engine/e-03-tool-system#locale-cardinality).

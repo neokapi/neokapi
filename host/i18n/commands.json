@@ -908,6 +908,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "source-lang": {
+                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
+              },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
               },
@@ -975,6 +978,9 @@
               },
               "provider": {
                 "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
+              },
+              "source-lang": {
+                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
               },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
@@ -1177,6 +1183,9 @@
               },
               "provider": {
                 "usage": "Multimodal AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
+              },
+              "source-lang": {
+                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
               },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
@@ -1611,6 +1620,9 @@
               "rules-path": {
                 "usage": "Path to a redaction rules YAML file"
               },
+              "source-lang": {
+                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
+              },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
               },
@@ -1800,6 +1812,9 @@
               },
               "source": {
                 "usage": "Script source mode (inline, file)"
+              },
+              "source-lang": {
+                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
               },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
@@ -2086,6 +2101,9 @@
               "provider": {
                 "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
               },
+              "source-lang": {
+                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
+              },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
               },
@@ -2220,6 +2238,9 @@
               "progress": {
                 "usage": "show progress bar"
               },
+              "source-lang": {
+                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
+              },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
               },
@@ -2266,6 +2287,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "source-lang": {
+                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
               },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
@@ -2323,6 +2347,9 @@
               },
               "provider": {
                 "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
+              },
+              "source-lang": {
+                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
               },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
@@ -2385,6 +2412,9 @@
               },
               "provider": {
                 "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))"
+              },
+              "source-lang": {
+                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
               },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
@@ -2524,6 +2554,9 @@
               },
               "progress": {
                 "usage": "show progress bar"
+              },
+              "source-lang": {
+                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
               },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
