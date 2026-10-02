@@ -3,11 +3,14 @@ package model
 import (
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
-// TextEdit replaces the half-open byte range [Start,End) of a run sequence's
-// flattened text (RunsText) with Replacement. Edits passed to ApplyTextEdits
-// must be sorted by Start and non-overlapping.
+// TextEdit replaces the half-open range [Start, End) of a run sequence's own
+// text (SequenceText) with Replacement. Offsets count Unicode code points, the
+// unit the wire, the TypeScript mirror and Anchor share; a detector that
+// reports byte offsets converts them with RangeAnchorForBytes. Edits passed to
+// ApplyTextEdits must be sorted by Start and non-overlapping.
 type TextEdit struct {
 	Start       int
 	End         int
@@ -15,9 +18,8 @@ type TextEdit struct {
 }
 
 // HasStructuredRuns reports whether a run sequence contains plural or select
-// runs. Their flattened text comes from nested forms, so a byte offset into the
-// flattening does not map back to a single position — ApplyTextEdits supports
-// only flat sequences, and callers should guard with this.
+// runs. Their text lives in nested forms that a position in the sequence's own
+// text does not reach; an edit inside one addresses the form by its RunPath.
 func HasStructuredRuns(runs []Run) bool {
 	for _, r := range runs {
 		if r.Plural != nil || r.Select != nil {
@@ -27,10 +29,24 @@ func HasStructuredRuns(runs []Run) bool {
 	return false
 }
 
-// ApplyTextEdits rewrites a flat run sequence by applying byte-range edits to
-// its flattened text, then repositioning the inline codes that survive. Edits
-// must be sorted by Start and be non-overlapping; malformed input returns the
-// runs unchanged.
+// SequenceText returns the text a run sequence holds itself: the text of its
+// text runs, in order. Every other run, a plural or a select included, has
+// zero width. For a sequence with no plural or select it equals RunsText;
+// TextEdit offsets index it.
+func SequenceText(runs []Run) string {
+	var b strings.Builder
+	for _, r := range runs {
+		if r.Text != nil {
+			b.WriteString(r.Text.Text)
+		}
+	}
+	return b.String()
+}
+
+// ApplyTextEdits rewrites a run sequence by applying code-point edits to its
+// own text (SequenceText), then repositioning the inline codes that survive.
+// Edits must be sorted by Start and be non-overlapping; malformed input returns
+// the runs unchanged.
 //
 // Inline-code preservation follows the vocabulary editing constraints carried
 // on each code (RunConstraints.Deletable, resolved from the span vocabulary
@@ -46,48 +62,67 @@ func HasStructuredRuns(runs []Run) bool {
 //   - A standalone code (Ph/Sub) that falls strictly inside a replaced range is
 //     removed when deletable and kept (at the range boundary) when not — so a
 //     line break, a variable, or a subblock reference survives an edit that
-//     deletes the text around it.
+//     deletes the text around it. A plural or a select is a standalone code
+//     that is never deletable.
 //   - Codes outside every edited range are shifted but otherwise untouched. Text
 //     inside a span is editable and the span follows it; text replacing a span's
 //     whole content keeps the span around the new text.
 //
-// Only flat sequences are supported (no plural/select); guard with
-// HasStructuredRuns.
+// Run flags survive. Text the edits leave alone keeps its TextRun.NoTranslate,
+// and rebuilt text runs split where the flag changes. Replacement text is
+// marked NoTranslate when every code point it replaces was; an insertion that
+// replaces nothing is marked when the code points on both sides of it are.
 func ApplyTextEdits(runs []Run, edits []TextEdit) []Run {
 	if len(edits) == 0 {
 		return runs
 	}
-	text := RunsText(runs)
 
-	// Build the edited text, rejecting overlapping or out-of-range edits.
-	var nb strings.Builder
-	cursor := 0
-	for _, e := range edits {
-		if e.Start < cursor || e.End < e.Start || e.End > len(text) {
-			return runs
-		}
-		nb.WriteString(text[cursor:e.Start])
-		nb.WriteString(e.Replacement)
-		cursor = e.End
-	}
-	nb.WriteString(text[cursor:])
-	newText := nb.String()
-
-	// Gather inline-code runs with their byte position and original index.
+	// The sequence's own text as code points, each with its run's flag, and
+	// the inline-code runs with their code-point position and original index.
 	type codeAt struct {
 		pos    int
 		runIdx int
 		run    Run
 	}
-	var codes []codeAt
-	pos := 0
+	var (
+		old   []rune
+		oldNT []bool
+		codes []codeAt
+	)
 	for i, r := range runs {
-		if r.Text != nil {
-			pos += len(r.Text.Text)
+		if r.Text == nil {
+			codes = append(codes, codeAt{pos: len(old), runIdx: i, run: r})
 			continue
 		}
-		codes = append(codes, codeAt{pos: pos, runIdx: i, run: r})
+		for _, c := range r.Text.Text {
+			old = append(old, c)
+			oldNT = append(oldNT, r.Text.NoTranslate)
+		}
 	}
+
+	// Reject overlapping or out-of-range edits, then build the edited text.
+	cursor := 0
+	for _, e := range edits {
+		if e.Start < cursor || e.End < e.Start || e.End > len(old) {
+			return runs
+		}
+		cursor = e.End
+	}
+	newText := make([]rune, 0, len(old))
+	newNT := make([]bool, 0, len(old))
+	cursor = 0
+	for _, e := range edits {
+		newText = append(newText, old[cursor:e.Start]...)
+		newNT = append(newNT, oldNT[cursor:e.Start]...)
+		flag := replacementNoTranslate(oldNT, e.Start, e.End)
+		for _, c := range e.Replacement {
+			newText = append(newText, c)
+			newNT = append(newNT, flag)
+		}
+		cursor = e.End
+	}
+	newText = append(newText, old[cursor:]...)
+	newNT = append(newNT, oldNT[cursor:]...)
 
 	// A placement inserts a code into newText at newPos; seq keeps the original
 	// document order stable when several codes land on one position.
@@ -99,7 +134,8 @@ func ApplyTextEdits(runs []Run, edits []TextEdit) []Run {
 	var places []placement
 
 	// Pair PcOpen with its PcClose by ID and resolve each as a span; anything
-	// left over (placeholders, subs, unbalanced halves) is handled standalone.
+	// left over (placeholders, subs, structures, unbalanced halves) is handled
+	// standalone.
 	openAt := make(map[string]int, len(codes))
 	paired := make([]bool, len(codes))
 	for i, c := range codes {
@@ -132,7 +168,8 @@ func ApplyTextEdits(runs []Run, edits []TextEdit) []Run {
 		}
 	}
 
-	// Standalone codes: placeholders, subs, and any unbalanced pc halves.
+	// Standalone codes: placeholders, subs, structures, and any unbalanced pc
+	// halves.
 	for i, c := range codes {
 		if paired[i] {
 			continue
@@ -153,16 +190,42 @@ func ApplyTextEdits(runs []Run, edits []TextEdit) []Run {
 	out := make([]Run, 0, len(runs)+len(places))
 	tc := 0
 	for _, pl := range places {
-		if pl.newPos > tc {
-			out = append(out, Run{Text: &TextRun{Text: newText[tc:pl.newPos]}})
-		}
+		out = appendFlaggedText(out, newText[tc:pl.newPos], newNT[tc:pl.newPos])
 		out = append(out, pl.run)
 		tc = pl.newPos
 	}
-	if tc < len(newText) {
-		out = append(out, Run{Text: &TextRun{Text: newText[tc:]}})
-	}
+	out = appendFlaggedText(out, newText[tc:], newNT[tc:])
 	return mergeAdjacentRuns(out)
+}
+
+// replacementNoTranslate reports whether text replacing [start, end) of a
+// sequence whose code points carry the flags nt is itself marked NoTranslate:
+// when every replaced code point was, or, for an insertion, when the code
+// points on both sides of it are.
+func replacementNoTranslate(nt []bool, start, end int) bool {
+	if start < end {
+		for _, f := range nt[start:end] {
+			if !f {
+				return false
+			}
+		}
+		return true
+	}
+	return start > 0 && start < len(nt) && nt[start-1] && nt[start]
+}
+
+// appendFlaggedText appends text as text runs, starting a new run wherever the
+// NoTranslate flag changes.
+func appendFlaggedText(out []Run, text []rune, nt []bool) []Run {
+	for i := 0; i < len(text); {
+		j := i + 1
+		for j < len(text) && nt[j] == nt[i] {
+			j++
+		}
+		out = append(out, Run{Text: &TextRun{Text: string(text[i:j]), NoTranslate: nt[i]}})
+		i = j
+	}
+	return out
 }
 
 // Position bias for a code that falls strictly inside a replaced range:
@@ -175,13 +238,14 @@ const (
 	biasRight
 )
 
-// mapEditedPos maps a byte position in the original flattened text to the
+// mapEditedPos maps a code-point position in the original text to the
 // corresponding position in the edited text.
 func mapEditedPos(edits []TextEdit, p, bias int) int {
 	delta := 0
 	for _, e := range edits {
+		n := utf8.RuneCountInString(e.Replacement)
 		if p >= e.End {
-			delta += len(e.Replacement) - (e.End - e.Start)
+			delta += n - (e.End - e.Start)
 			continue
 		}
 		if p <= e.Start {
@@ -192,7 +256,7 @@ func mapEditedPos(edits []TextEdit, p, bias int) int {
 		if bias == biasLeft {
 			return newStart
 		}
-		return newStart + len(e.Replacement)
+		return newStart + n
 	}
 	return p + delta
 }
@@ -211,7 +275,8 @@ func editStrictlyContains(edits []TextEdit, p int) bool {
 // runDeletable reports whether an inline-code run may be removed when the text
 // it applies to is edited away. It reads the run's own RunConstraints when set,
 // otherwise resolves the default from the vocabulary by semantic type. Sub runs
-// reference a subblock and are never deletable; text runs are not codes.
+// reference a subblock and are never deletable, nor is a plural or a select;
+// text runs are not codes.
 func runDeletable(r Run) bool {
 	switch {
 	case r.Ph != nil:
@@ -235,15 +300,18 @@ func vocabDeletable(typeName string) bool {
 	return false
 }
 
-// mergeAdjacentRuns coalesces consecutive text runs (which an edit can produce
-// where a replacement abuts untouched text) into one, allocating fresh TextRun
-// values so the caller's input is never mutated in place.
+// mergeAdjacentRuns coalesces consecutive text runs with the same NoTranslate
+// flag (which an edit can produce where a replacement abuts untouched text)
+// into one, allocating fresh TextRun values so the caller's input is never
+// mutated in place.
 func mergeAdjacentRuns(runs []Run) []Run {
 	out := make([]Run, 0, len(runs))
 	for _, r := range runs {
-		if r.Text != nil && len(out) > 0 && out[len(out)-1].Text != nil {
-			out[len(out)-1].Text = &TextRun{Text: out[len(out)-1].Text.Text + r.Text.Text}
-			continue
+		if r.Text != nil && len(out) > 0 {
+			if last := out[len(out)-1].Text; last != nil && last.NoTranslate == r.Text.NoTranslate {
+				out[len(out)-1].Text = &TextRun{Text: last.Text + r.Text.Text, NoTranslate: last.NoTranslate}
+				continue
+			}
 		}
 		out = append(out, r)
 	}

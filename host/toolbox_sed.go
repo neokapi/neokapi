@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
@@ -207,9 +208,18 @@ func (c sedCmd) editRuns(runs []model.Run) []model.Run {
 	}
 	src := []byte(text)
 	edits := make([]model.TextEdit, 0, len(matches))
+	// The matches are byte offsets; a text edit counts code points.
+	byteAt, runeAt := 0, 0
+	toRunes := func(b int) int {
+		runeAt += utf8.RuneCount(src[byteAt:b])
+		byteAt = b
+		return runeAt
+	}
 	for _, m := range matches {
 		repl := c.re.Expand(nil, []byte(c.repl), src, m)
-		edits = append(edits, model.TextEdit{Start: m[0], End: m[1], Replacement: string(repl)})
+		start := toRunes(m[0])
+		end := toRunes(m[1])
+		edits = append(edits, model.TextEdit{Start: start, End: end, Replacement: string(repl)})
 	}
 	return model.ApplyTextEdits(runs, edits)
 }

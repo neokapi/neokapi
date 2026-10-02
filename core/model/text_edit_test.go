@@ -174,3 +174,83 @@ func TestRunDeletable(t *testing.T) {
 	assert.False(t, runDeletable(Run{Sub: &SubRun{ID: "1", Ref: "b"}}))
 	assert.False(t, runDeletable(Run{Text: &TextRun{Text: "t"}}))
 }
+
+// flagged renders runs with do-not-translate text in brackets, so a test sees
+// both the codes and which text carries the flag.
+func flagged(runs []Run) string {
+	var b strings.Builder
+	for _, r := range runs {
+		if r.Text != nil && r.Text.NoTranslate {
+			fmt.Fprintf(&b, "[%s]", r.Text.Text)
+			continue
+		}
+		b.WriteString(sig([]Run{r}))
+	}
+	return b.String()
+}
+
+// kapiCheckSpan is "Run `kapi check` in CI." as the Markdown reader builds it: the
+// code span's content is marked do-not-translate.
+func kapiCheckSpan() []Run {
+	return []Run{
+		{Text: &TextRun{Text: "Run "}},
+		{PcOpen: &PcOpenRun{ID: "1", Type: "fmt:code", Data: "`"}},
+		{Text: &TextRun{Text: "kapi check", NoTranslate: true}},
+		{PcClose: &PcCloseRun{ID: "1", Type: "fmt:code", Data: "`"}},
+		{Text: &TextRun{Text: " in CI."}},
+	}
+}
+
+func TestApplyTextEdits_KeepsNoTranslate(t *testing.T) {
+	tests := []struct {
+		name  string
+		runs  []Run
+		edits []TextEdit
+		want  string
+	}{
+		{"an edit outside the flagged text leaves it flagged", kapiCheckSpan(),
+			[]TextEdit{{Start: 0, End: 3, Replacement: "Execute"}}, "Execute <1>[kapi check]</1> in CI."},
+		{"text replacing only flagged text is flagged", kapiCheckSpan(),
+			[]TextEdit{{Start: 9, End: 14, Replacement: "verify"}}, "Run <1>[kapi verify]</1> in CI."},
+		{"text replacing flagged and plain text is plain", kapiCheckSpan(),
+			[]TextEdit{{Start: 9, End: 17, Replacement: "x"}}, "Run <1>[kapi ]</1>x CI."},
+		{"an insertion inside flagged text is flagged", kapiCheckSpan(),
+			[]TextEdit{{Start: 8, End: 8, Replacement: "-cli"}}, "Run <1>[kapi-cli check]</1> in CI."},
+		{"an insertion at the edge of flagged text is plain", kapiCheckSpan(),
+			[]TextEdit{{Start: 14, End: 14, Replacement: " --ship"}}, "Run <1>[kapi check] --ship</1> in CI."},
+		{"a flag boundary inside one run splits it",
+			[]Run{{Text: &TextRun{Text: "use "}}, {Text: &TextRun{Text: "npm", NoTranslate: true}}, {Text: &TextRun{Text: " now"}}},
+			[]TextEdit{{Start: 0, End: 3, Replacement: "Use"}}, "Use [npm] now"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, flagged(ApplyTextEdits(tc.runs, tc.edits)))
+		})
+	}
+}
+
+// Offsets count code points, so an edit after non-ASCII text lands where a
+// reader counts it.
+func TestApplyTextEdits_CountsCodePoints(t *testing.T) {
+	runs := []Run{
+		{Text: &TextRun{Text: "Blåbær "}},
+		{PcOpen: &PcOpenRun{ID: "1", Type: "fmt:bold"}},
+		{Text: &TextRun{Text: "syltetøy"}},
+		{PcClose: &PcCloseRun{ID: "1", Type: "fmt:bold"}},
+	}
+	got := ApplyTextEdits(runs, []TextEdit{{Start: 7, End: 15, Replacement: "jam"}})
+	assert.Equal(t, "Blåbær <1>jam</1>", sig(got))
+}
+
+// A plural is a zero-width code the edit keeps, so text around it can be
+// edited by position in the sequence's own text.
+func TestApplyTextEdits_KeepsAPluralInPlace(t *testing.T) {
+	plural := Run{Plural: &PluralRun{Pivot: "n", Forms: map[PluralForm][]Run{PluralOther: {{Text: &TextRun{Text: "items"}}}}}}
+	runs := []Run{{Text: &TextRun{Text: "You have "}}, plural, {Text: &TextRun{Text: " now"}}}
+	assert.Equal(t, "You have  now", SequenceText(runs))
+	got := ApplyTextEdits(runs, []TextEdit{{Start: 4, End: 8, Replacement: "own"}})
+	assert.Len(t, got, 3)
+	assert.Equal(t, "You own ", got[0].Text.Text)
+	assert.Same(t, plural.Plural, got[1].Plural)
+	assert.Equal(t, " now", got[2].Text.Text)
+}
