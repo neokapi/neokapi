@@ -124,6 +124,17 @@ func capabilityMatrix() []capFixture {
 					refused: change.CodeUnsupported, reason: "inside another link"},
 				{name: "the document title holds no markup", block: "Fresh ingredients", mark: &capMark{find: "Fresh", typ: "fmt:bold"},
 					refused: change.CodeUnsupported, reason: "holds no markup"},
+				// A paragraph wrapped over lines, with a quote and a bare
+				// ampersand: a change to its codes keeps the line breaks,
+				// the indentation and the characters as the document
+				// spells them.
+				{name: "href in a wrapped paragraph", block: "Order the", attrType: "link:hyperlink",
+					attr: attr("1", "href", "https://example.com/box?week=2"),
+					from: `href="https://example.com/box"`, to: `href="https://example.com/box?week=2"`},
+				{name: "bold in a wrapped paragraph", block: "Order the", mark: &capMark{find: "Friday", typ: "fmt:bold"},
+					from: `before Friday,`, to: `before <strong>Friday</strong>,`},
+				{name: "a link inside a link the markup holds", block: "Big title", mark: &capMark{find: "Big", typ: "link:hyperlink", attrs: map[string]string{"href": "https://x.example/"}},
+					refused: change.CodeUnsupported, reason: "sits inside an <a> element"},
 			},
 		},
 		{
@@ -152,6 +163,18 @@ func capabilityMatrix() []capFixture {
 					refused: change.CodeUnsupported, reason: "space"},
 				{name: "a link inside a link", block: "We use the", mark: &capMark{find: "ingredients", typ: "link:hyperlink", attrs: map[string]string{"href": "https://x.example/"}},
 					refused: change.CodeUnsupported, reason: "another link"},
+				// Characters beside the new markup that change how it
+				// reads: a '!' makes a link an image, a backslash escapes
+				// a delimiter, and a '*' the text holds pairs with a new
+				// one before the new pair can.
+				{name: "a link after a '!'", block: "Wow!great", mark: &capMark{find: "great", typ: "link:hyperlink", attrs: map[string]string{"href": "https://x.example/"}},
+					refused: change.CodeUnsupported, reason: "image"},
+				{name: "a backslash before the range", block: "Wow!great", mark: &capMark{find: "spices", typ: "fmt:bold"},
+					refused: change.CodeUnsupported, reason: "backslash"},
+				{name: "a range ending in a backslash", block: "Wow!great", mark: &capMark{find: `C:\spices\`, typ: "fmt:italic"},
+					refused: change.CodeUnsupported, reason: "backslash"},
+				{name: "a delimiter the text holds pairs first", block: "Wow!great", mark: &capMark{find: "stars", typ: "fmt:italic"},
+					refused: change.CodeUnsupported, reason: "would not read"},
 			},
 		},
 		{
@@ -167,6 +190,13 @@ func capabilityMatrix() []capFixture {
 					attr: attr("2", "title", "Guide"), refused: change.CodeUnsupported, reason: "spells no title"},
 				{name: "a namespace declaration", block: "See ", attrType: format.AnyCodeType,
 					attr: attr("3", "xmlns:x", "urn:y"), refused: change.CodeUnsupported, reason: "namespace declaration"},
+				// Attributes the reader reads as instructions: its:translate
+				// decides whether the text is translatable, xml:lang its
+				// language.
+				{name: "an ITS attribute", block: "Pick ", attrType: format.AnyCodeType,
+					attr: attr("4", "its:translate", "no"), refused: change.CodeUnsupported, reason: "instruction"},
+				{name: "an xml: attribute", block: "Pick ", attrType: format.AnyCodeType,
+					attr: attr("4", "xml:lang", "fr"), refused: change.CodeUnsupported, reason: "instruction"},
 			},
 		},
 	}
@@ -378,10 +408,15 @@ func renumberCodes(runs []model.Run) []model.Run {
 	return out
 }
 
+// wildcardClaim is the declaration of every attribute of every code type.
+var wildcardClaim = "set_attribute " + format.AnyCodeType + "." + format.AnyAttr
+
 // TestCapabilityMatrixCoversEveryDeclaration keeps the declarations honest:
 // every attribute and vocabulary type a built-in writer declares has a cell
 // that proves it, every structural or native operation a writer declares has
-// one too, and every cell proves something its format declares.
+// one too, and every cell proves something its format declares. A wildcard
+// attribute declaration claims more than one cell can show, so it counts as
+// proven only with passing cells on two attributes and a cell refusing one.
 func TestCapabilityMatrixCoversEveryDeclaration(t *testing.T) {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
@@ -394,16 +429,27 @@ func TestCapabilityMatrixCoversEveryDeclaration(t *testing.T) {
 		if proven[cf.fx.format] == nil {
 			proven[cf.fx.format] = map[string]bool{}
 		}
+		wildcardAttrs, attrRefusals := map[string]bool{}, 0
 		for _, c := range cf.cells {
 			assert.NotEqual(t, c.attr == nil, c.mark == nil, "%s/%s: a cell has one operation", cf.fx.format, c.name)
 			if c.refused != "" {
 				assert.NotEmpty(t, c.reason, "%s/%s: a refusal names its reason", cf.fx.format, c.name)
+				if c.attr != nil {
+					attrRefusals++
+				}
 				continue
 			}
 			assert.NotEmpty(t, c.from, "%s/%s: a cell names the bytes it changes", cf.fx.format, c.name)
 			for _, claim := range c.claims() {
 				proven[cf.fx.format][claim] = true
 			}
+			if c.attr != nil && c.attrType == format.AnyCodeType {
+				wildcardAttrs[c.attr.Name] = true
+			}
+		}
+		if proven[cf.fx.format][wildcardClaim] {
+			assert.True(t, len(wildcardAttrs) >= 2 && attrRefusals > 0,
+				"%s: a wildcard attribute declaration needs passing cells on two attributes and a refusal cell", cf.fx.format)
 		}
 		declared := declaredClaims(info.EditCapabilities)
 		for claim := range proven[cf.fx.format] {
