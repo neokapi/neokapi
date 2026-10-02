@@ -1,4 +1,6 @@
-import React, { Suspense } from "react";
+import React from "react";
+import { ChunkSafeSuspense } from "../ChunkErrorBoundary";
+import { lazyWithRetry } from "../../lib/chunkReload";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
 
@@ -10,6 +12,8 @@ import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
 
 const Loading = (): React.ReactElement => (
   <div
+    role="status"
+    aria-live="polite"
     style={{
       padding: "1rem",
       color: "var(--ifm-color-emphasis-500)",
@@ -20,7 +24,7 @@ const Loading = (): React.ReactElement => (
   </div>
 );
 
-const LazyKbf = React.lazy(async () => {
+const LazyKbf = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.KbfExplorer };
 });
@@ -38,9 +42,9 @@ export function KbfExplorer(props: KbfExplorerProps): React.ReactElement {
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
           return (
-            <Suspense fallback={<Loading />}>
+            <ChunkSafeSuspense fallback={<Loading />}>
               <LazyKbf assets={assets} {...props} />
-            </Suspense>
+            </ChunkSafeSuspense>
           );
         }
         return <Inner />;

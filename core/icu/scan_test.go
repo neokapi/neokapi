@@ -1,7 +1,9 @@
 package icu_test
 
 import (
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -118,4 +120,72 @@ func TestUnquote(t *testing.T) {
 			assert.Equal(t, tt.want, icu.Unquote(tt.in))
 		})
 	}
+}
+
+func TestQuoteLiteral(t *testing.T) {
+	tests := []struct {
+		name     string
+		in       string
+		inBranch bool
+		want     string
+	}{
+		{name: "plain text", in: "Hello", want: "Hello"},
+		{name: "apostrophe in prose", in: "C'est ici", want: "C'est ici"},
+		{name: "apostrophe ending text", in: "élèves'", want: "élèves''"},
+		{name: "two apostrophes", in: "a''b", want: "a'''b"},
+		{name: "braces", in: "{un}", want: "'{'un'}'"},
+		{name: "a run of braces is one span", in: "{}", want: "'{}'"},
+		{name: "apostrophe beside a brace", in: "{'s", want: "'{'''s"},
+		{name: "apostrophe before a brace", in: "l'{", want: "l'''{'"},
+		{name: "apostrophe before a pipe", in: "a'|b", want: "a''|b"},
+		{name: "number sign in a branch", in: "lot #1", inBranch: true, want: "lot '#'1"},
+		{name: "number sign outside a branch", in: "lot #1", want: "lot #1"},
+		{name: "apostrophe before a number sign outside a branch", in: "a'#", want: "a''#"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, icu.QuoteLiteral(tt.in, tt.inBranch))
+		})
+	}
+}
+
+// FuzzQuoteLiteral checks that the parser reads QuoteLiteral's spelling back as
+// the text it was given, at the top of a message and inside a branch, with an
+// argument written straight after it.
+func FuzzQuoteLiteral(f *testing.F) {
+	for _, seed := range []string{
+		"", "Hello", "L'", "L'{", "it's", "a''b", "'", "''", "'''", "{", "}", "{}", "#",
+		"'#'", "'{'", "{'s} '{", "a'|b", "lot #1", "ä'{ö}'#",
+	} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, text string) {
+		if !utf8.ValidString(text) {
+			t.Skip("the parser reads invalid UTF-8 as U+FFFD; text runs are always valid")
+		}
+		readsBack := func(t *testing.T, nodes []icu.Node) {
+			t.Helper()
+			require.NotEmpty(t, nodes)
+			var got strings.Builder
+			for i, n := range nodes {
+				if i == len(nodes)-1 {
+					require.Equal(t, icu.NodeArg, n.Type, "the argument after the text survives")
+					continue
+				}
+				require.Equal(t, icu.NodeText, n.Type)
+				got.WriteString(n.Text)
+			}
+			assert.Equal(t, text, got.String())
+		}
+
+		top, err := icu.Parse(icu.QuoteLiteral(text, false) + "{x}")
+		require.NoError(t, err)
+		readsBack(t, top)
+
+		branch, err := icu.Parse("{n, plural, other {" + icu.QuoteLiteral(text, true) + "{x}}}")
+		require.NoError(t, err)
+		require.Len(t, branch, 1)
+		require.Len(t, branch[0].Branches, 1)
+		readsBack(t, branch[0].Branches[0].Body)
+	})
 }

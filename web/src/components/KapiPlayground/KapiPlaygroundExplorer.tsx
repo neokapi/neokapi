@@ -1,8 +1,11 @@
-import React, { Suspense } from "react";
+import React from "react";
+import { ChunkSafeSuspense } from "../ChunkErrorBoundary";
+import { lazyWithRetry } from "../../lib/chunkReload";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import { FileText, FolderGit2, Play } from "lucide-react";
 import { useKapiPlaygroundConfig } from "./config";
 import { installBrowserTranslateBridge } from "../../lib/browserTranslate";
+import { PlaygroundDialog } from "./PlaygroundDialog";
 import "./explorer.css";
 
 // The consolidated CLI playground: a full-bleed in-browser kapi terminal beside
@@ -14,7 +17,7 @@ import "./explorer.css";
 // Selecting a sample seeds the in-memory FS and stages a suggested command at
 // the prompt. The heavy kit (xterm + wasm) is one async chunk, loaded once.
 
-const LazyExplorer = React.lazy(async () => {
+const LazyExplorer = lazyWithRetry(async () => {
   const { KapiEmbed, LOOSE_SAMPLES, PROJECT_SAMPLES } = await import("@neokapi/kapi-playground");
   type KapiEmbedHandle = import("@neokapi/kapi-playground").KapiEmbedHandle;
   type LooseSample = import("@neokapi/kapi-playground").LooseSample;
@@ -24,8 +27,12 @@ const LazyExplorer = React.lazy(async () => {
     const cfg = useKapiPlaygroundConfig();
     const embedRef = React.useRef<KapiEmbedHandle>(null);
     const [activeId, setActiveId] = React.useState<string>(`loose:${LOOSE_SAMPLES[0].id}`);
+    const [pickerOpen, setPickerOpen] = React.useState(
+      () => !window.matchMedia("(max-width: 900px)").matches,
+    );
+    const pickerId = React.useId();
 
-    // Install the on-device Translator bridge so `kapi mt-translate --provider
+    // Install the on-device Translator bridge so `kapi exec mt-translate --provider
     // browser` works in the terminal where the browser supports it (free; no
     // model load until a translation runs).
     React.useEffect(() => {
@@ -34,6 +41,7 @@ const LazyExplorer = React.lazy(async () => {
 
     const loadLoose = React.useCallback((s: LooseSample) => {
       setActiveId(`loose:${s.id}`);
+      if (window.matchMedia("(max-width: 900px)").matches) setPickerOpen(false);
       embedRef.current?.openWith({
         files: [s.file],
         cmd: s.suggested,
@@ -44,6 +52,7 @@ const LazyExplorer = React.lazy(async () => {
 
     const loadProject = React.useCallback((s: ProjectSample) => {
       setActiveId(`project:${s.id}`);
+      if (window.matchMedia("(max-width: 900px)").matches) setPickerOpen(false);
       embedRef.current?.openWith({
         files: s.files,
         binaryFiles:
@@ -57,8 +66,27 @@ const LazyExplorer = React.lazy(async () => {
     }, []);
 
     return (
-      <div className="kapi-pgx">
-        <aside className="kapi-pgx__picker" aria-label="Sample picker">
+      <div className={`kapi-pgx${pickerOpen ? "" : " kapi-pgx--picker-closed"}`}>
+        <div className="kapi-pgx__controls">
+          <button
+            type="button"
+            className="button button--secondary button--sm"
+            aria-expanded={pickerOpen}
+            aria-controls={pickerId}
+            onClick={() => setPickerOpen((value) => !value)}
+          >
+            {pickerOpen ? "Hide samples" : "Choose a sample"}
+          </button>
+          <span>
+            Select a sample or upload files in the Files pane. Press Enter to run a command.
+          </span>
+        </div>
+        <aside
+          id={pickerId}
+          className="kapi-pgx__picker"
+          aria-label="Sample picker"
+          hidden={!pickerOpen}
+        >
           <section className="kapi-pgx__group kapi-pgx__group--loose">
             <h2 className="kapi-pgx__group-title">
               <FileText size={15} aria-hidden="true" />
@@ -127,6 +155,7 @@ const LazyExplorer = React.lazy(async () => {
             files={[LOOSE_SAMPLES[0].file]}
             cmd={LOOSE_SAMPLES[0].suggested}
             autoRun={false}
+            bootOnMount
             showToolbar={false}
             fill
           />
@@ -140,12 +169,20 @@ const LazyExplorer = React.lazy(async () => {
 
 export default function KapiPlaygroundExplorer(): React.ReactElement {
   return (
-    <BrowserOnly fallback={<p>Loading the in-browser terminal…</p>}>
-      {() => (
-        <Suspense fallback={<p>Loading the in-browser terminal…</p>}>
-          <LazyExplorer />
-        </Suspense>
-      )}
-    </BrowserOnly>
+    <PlaygroundDialog>
+      <BrowserOnly fallback={<p role="status">Loading the in-browser terminal…</p>}>
+        {() => (
+          <ChunkSafeSuspense
+            fallback={
+              <p role="status" aria-live="polite">
+                Loading the in-browser terminal…
+              </p>
+            }
+          >
+            <LazyExplorer />
+          </ChunkSafeSuspense>
+        )}
+      </BrowserOnly>
+    </PlaygroundDialog>
   );
 }

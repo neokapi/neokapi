@@ -273,11 +273,15 @@ func TestConvention_HelpTextUsesCurrentVocabulary(t *testing.T) {
 // the real command tree: registry tools mount under `kapi exec <tool>` (there
 // is no `kapi qa`), so an example that names the bare verb resolves to no
 // subcommand and would print a command the user cannot run. `translate` and
-// `pseudo-translate` are the exception — they own top-level commands.
+// `pseudo-translate` are the exception — they own top-level commands. Each
+// example's flags must parse on the command it resolves to, so an example
+// cannot pass a flag the tool does not take (a --target-lang to a tool that
+// works on the source alone).
 func TestConvention_ToolExamplesResolveInCommandTree(t *testing.T) {
 	app := &App{SourceLang: "en"}
 	app.InitRegistries()
 	root := &cobra.Command{Use: "kapi"}
+	AddPersistentFlags(app, root)
 	AddCommandGroups(app, root)
 	root.AddCommand(KapiCommandSet(app)...)
 
@@ -289,10 +293,12 @@ func TestConvention_ToolExamplesResolveInCommandTree(t *testing.T) {
 			}
 			require.Truef(t, strings.HasPrefix(line, "kapi "), "example must start with 'kapi ': %q", line)
 			args := strings.Fields(strings.TrimPrefix(line, "kapi "))
-			cmd, _, err := root.Find(args)
+			cmd, rest, err := root.Find(args)
 			require.NoErrorf(t, err, "tool %q example %q", tool, line)
 			assert.NotSamef(t, root, cmd,
 				"tool %q example resolves to no subcommand — a registry tool needs the `kapi exec` prefix: %q", tool, line)
+			assert.NoErrorf(t, cmd.ParseFlags(rest),
+				"tool %q example passes a flag `%s` does not declare: %q", tool, cmd.CommandPath(), line)
 		}
 	}
 }

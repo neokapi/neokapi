@@ -8,7 +8,8 @@ import (
 )
 
 // Edit is one caller-supplied content edit in a change-set: the new block text
-// (with inline codes rendered as <x id="…"/> placeholders, exactly as
+// in edit text form (model.RunsEditText: inline codes as <x id="…"/>
+// placeholders and character references as their characters, exactly as
 // `kapi inspect` emits them) and, optionally, the content hash the caller saw
 // when it read the block. The hash is the drift anchor — if it no longer
 // matches the block's current canonical identity, the source changed since the
@@ -28,7 +29,7 @@ type ApplyReport struct {
 	Applied     []string // block source rewritten to the supplied text
 	Skipped     []string // already in the desired state (idempotent no-op)
 	Stale       []string // content_hash no longer matches — source drifted
-	GuardFailed []string // edit would drop/unbalance an inline code — rejected
+	GuardFailed []string // edit would drop or unbalance an inline code, or flatten plural/select branches; rejected
 }
 
 func (r *ApplyReport) record(bucket *[]string, id string) {
@@ -49,7 +50,7 @@ func (r *ApplyReport) OK() bool {
 // rewrites each translatable Block to caller-supplied text, faithfully — the
 // provider-free sibling of the AI rewrite tool. It looks each block up in the
 // change-set by ID (falling back to content hash), drift-guards against the
-// canonical block identity, reconstructs the runs from the placeholder text,
+// canonical block identity, reconstructs the runs from the edit text,
 // and rejects any edit that would corrupt the block's inline codes. Blocks with
 // no edit pass through unchanged.
 //
@@ -80,11 +81,12 @@ func NewApplyEditsTool(byID, byHash map[string]Edit, report *ApplyReport) *tool.
 			}
 		}
 
-		oldText := model.RunsPlaceholderText(oldRuns)
 		// Idempotent no-op: the block is already in the desired state. Checked
 		// before the drift guard so re-running a fully-applied change-set stays a
-		// no-op instead of tripping on the now-changed content hash.
-		if e.Text == oldText {
+		// no-op instead of tripping on the now-changed content hash. A text
+		// written with every code as a token, character references included,
+		// reads the block the same way.
+		if e.Text == model.RunsEditText(oldRuns) || e.Text == model.RunsPlaceholderText(oldRuns) {
 			report.record(&report.Skipped, v.ID())
 			return plan, nil
 		}
@@ -96,22 +98,14 @@ func NewApplyEditsTool(byID, byHash map[string]Edit, report *ApplyReport) *tool.
 			return plan, nil
 		}
 
-		newRuns := model.ParseRunsPlaceholderText(e.Text, oldRuns)
-
-		if model.HasStructuredRuns(oldRuns) {
-			// Plural/select runs have no linear text mapping: replace the whole
-			// source opaquely with the rewritten plain text (the applier drops the
-			// stale source overlays).
-			plain := model.RunsText(newRuns)
-			plan.ReplaceAll = &plain
-			report.record(&report.Applied, v.ID())
-			return plan, nil
-		}
+		newRuns := model.ParseRunsEditText(e.Text, oldRuns)
 
 		// Faithfulness guard: apply only when every inline code survives exactly
-		// and the paired codes stay balanced; otherwise leave the source
-		// unchanged rather than write malformed markup.
-		if !model.InlineCodesPreserved(oldRuns, newRuns) {
+		// and the paired codes stay nested. Flat placeholder text cannot express
+		// plural/select branches, so a changed structured block is refused here.
+		// A character reference is a character in the edit text, so an edit may
+		// drop or move one.
+		if !model.EditKeepsInlineCodes(oldRuns, newRuns) {
 			report.record(&report.GuardFailed, v.ID())
 			return plan, nil
 		}

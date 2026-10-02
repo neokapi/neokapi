@@ -35,14 +35,16 @@ export interface FlowDef {
 export const FLOWS: FlowDef[] = [
   {
     id: "translate",
-    label: "translate: content-memory leverage (exact + fuzzy)",
+    label: "translate: content-memory matches at 75% or higher",
     yaml: `  translate:
     steps:
-      - tool: recycle`,
+      - tool: recycle
+        config:
+          fillTargetThreshold: 75`,
   },
   {
     id: "translate-exact",
-    label: "translate-exact: content-memory leverage (100% only)",
+    label: "translate-exact: exact content-memory matches only",
     yaml: `  translate-exact:
     steps:
       - tool: recycle
@@ -66,7 +68,7 @@ export function targetGlob(filename: string): string {
   return `out/{lang}/${base}${ext}`;
 }
 
-// The committed recipe: source/target languages, the content glob to localize,
+// The committed recipe: source/target languages, the content pattern to process,
 // and every declared flow. This is the config-as-code a `kapi init` scaffolds
 // and you edit once.
 export function recipeFor(sample: WorkspaceSample): string {
@@ -76,9 +78,12 @@ defaults:
   source_language: en
   target_languages: [${TARGETS.join(", ")}]
 collections:
-  - path: ${sample.filename}
-    format: ${formatFor(sample.filename)}
-    target: "${targetGlob(sample.filename)}"
+  - name: content
+    content:
+      - path: ${sample.filename}
+        format:
+          name: ${formatFor(sample.filename)}
+        target: "${targetGlob(sample.filename)}"
 flows:
 ${FLOWS.map((f) => f.yaml).join("\n")}
 `;
@@ -89,7 +94,7 @@ ${FLOWS.map((f) => f.yaml).join("\n")}
 // plus a .kapi/ state dir (the persistent project store + content memory) —
 // and runs the project lifecycle in WASM: import the project content memory → extract → run a declared
 // translate flow (recycle, process-only, commits real fr targets to the
-// store) → merge (materialize the localized file). The translation is genuine
+// store) → merge (write the target-language file). The translation is genuine
 // content-memory leverage — no LLM, no network — so the merged output is a real fr file,
 // never a pseudo/qps test artifact. It is the multi-file, team/server
 // counterpart to the single-file .kpz workspace (AD-026 / AD-025 §5). In the
@@ -103,8 +108,23 @@ export default function ProjectExplorer({
   const gate = useRunGate(runtime);
   const [sampleId, setSampleId] = useState(() => workspaceSampleById(defaultSampleId ?? "json").id);
   const sample: WorkspaceSample = useMemo(() => workspaceSampleById(sampleId), [sampleId]);
+  const [sourceText, setSourceText] = useState(() => new TextDecoder().decode(sample.bytes()));
+  const [commandOutput, setCommandOutput] = useState("");
+  useEffect(() => {
+    setSourceText(new TextDecoder().decode(sample.bytes()));
+  }, [sample]);
   const [flowId, setFlowId] = useState<string>(FLOWS[0].id);
-  const recipe = useMemo(() => recipeFor(sample), [sample]);
+  const sourceRevision = useMemo(() => {
+    let hash = 2166136261;
+    for (const character of sourceText) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+    return (hash >>> 0).toString(36);
+  }, [sourceText]);
+  // Separate source variants keep an earlier output from appearing as a new result.
+  const sourceFilename = `${flowId}-${sourceRevision}-${sample.filename}`;
+  const recipe = useMemo(
+    () => recipeFor({ ...sample, filename: sourceFilename }),
+    [sample, sourceFilename],
+  );
 
   const [done, setDone] = useState<Set<StepName>>(new Set());
   const [busy, setBusy] = useState<StepName | null>(null);
@@ -116,14 +136,14 @@ export default function ProjectExplorer({
   const [output, setOutput] = useState<string | null>(null);
 
   // Per-sample project dir (distinct so explorers/samples don't collide).
-  const dir = `proj-${sampleId}`;
+  const dir = `proj-${sampleId}-${flowId}`;
   const absDir = `/project/${dir}`;
   const recipePath = `${absDir}/kapi.yaml`;
-  const srcPath = `${absDir}/${sample.filename}`;
+  const srcPath = `${absDir}/${sourceFilename}`;
   const memoryPath = `${absDir}/project.memory.json`;
   const outPath = useCallback(
-    (lang: Target) => `${absDir}/out/${lang}/${sample.filename}`,
-    [absDir, sample.filename],
+    (lang: Target) => `${absDir}/out/${lang}/${sourceFilename}`,
+    [absDir, sourceFilename],
   );
 
   const reset = useCallback(() => {
@@ -132,12 +152,13 @@ export default function ProjectExplorer({
     setMerged([]);
     setOutput(null);
     setViewLocale(TARGETS[0]);
+    setCommandOutput("");
   }, []);
 
   // Reset when the sample or flow changes — a new flow means a fresh lifecycle.
   useEffect(() => {
     reset();
-  }, [sampleId, flowId, reset]);
+  }, [sampleId, flowId, sourceText, reset]);
 
   // Read the merged output for the inspected locale (text or a binary note).
   const readMerged = useCallback(
@@ -146,7 +167,7 @@ export default function ProjectExplorer({
         const bytes = runtime.readBytes(outPath(lang));
         setOutput(
           bytes
-            ? `✓ produced ${sample.filename}: ${bytes.length} bytes, valid OOXML zip: ${
+            ? `✓ produced ${sample.filename}: ${bytes.length} bytes, ZIP signature present: ${
                 bytes[0] === 0x50 && bytes[1] === 0x4b
               }`
             : `(no ${lang} output, this flow left ${lang} untranslated)`,
@@ -180,7 +201,10 @@ export default function ProjectExplorer({
         if (step === "extract") {
           runtime.mkdir(dir);
           runtime.writeFile(`${dir}/kapi.yaml`, recipe);
-          runtime.writeFile(`${dir}/${sample.filename}`, sample.bytes());
+          runtime.writeFile(
+            `${dir}/${sourceFilename}`,
+            sample.binary ? sample.bytes() : sourceText,
+          );
           runtime.writeFile(`${dir}/project.memory.json`, sample.memory);
           const memoryCode = await runtime.run(["memory", "import", memoryPath]);
           if (memoryCode !== 0) {
@@ -198,7 +222,8 @@ export default function ProjectExplorer({
           // merge replays the stored translations onto each source.
           merge: ["merge", "-p", recipePath],
         };
-        const code = await runtime.run(argv[step]);
+        const { code, output: captured } = await runtime.runCapture(argv[step]);
+        setCommandOutput(captured);
         if (code !== 0) {
           setErr(`\`kapi ${argv[step].join(" ")}\` exited ${code}`);
           return;
@@ -215,7 +240,20 @@ export default function ProjectExplorer({
         setBusy(null);
       }
     },
-    [runtime, sample, dir, recipe, recipePath, srcPath, memoryPath, flowId, outPath, readMerged],
+    [
+      runtime,
+      sample,
+      dir,
+      recipe,
+      recipePath,
+      srcPath,
+      memoryPath,
+      flowId,
+      sourceText,
+      sourceFilename,
+      outPath,
+      readMerged,
+    ],
   );
 
   const stepEnabled = (i: number): boolean => {
@@ -283,11 +321,36 @@ export default function ProjectExplorer({
 
       <div className={s.panel}>
         <div className={s.card}>
+          <label className={s.cardTitle} htmlFor="project-source">
+            Source: {sample.filename}
+          </label>
+          {sample.binary ? (
+            <p>
+              This binary document is supplied with matching content memory. Inspect the recorded
+              command output and the merged file below.
+            </p>
+          ) : (
+            <textarea
+              id="project-source"
+              aria-label="Project source"
+              value={sourceText}
+              disabled={!!busy}
+              onChange={(event) => setSourceText(event.target.value)}
+              rows={9}
+              style={{ width: "100%", fontFamily: "var(--ifm-font-family-monospace)" }}
+            />
+          )}
+          <details>
+            <summary>Supplied content memory</summary>
+            <CodeView text={sample.memory} lang="json" lineNumbers={false} maxHeight="18rem" />
+          </details>
+        </div>
+        <div className={s.card}>
           <div className={s.cardTitle}>kapi.yaml (the recipe, committed config)</div>
           <CodeView text={recipe} lang="yaml" lineNumbers={false} maxHeight="18rem" />
         </div>
 
-        <div className={s.card}>
+        <div className={s.card} style={{ gridColumn: "1 / -1" }}>
           <div className={s.cardTitle}>Project state</div>
           <div className={s.kv}>
             <span className={s.kvKey}>recipe</span>
@@ -303,7 +366,9 @@ export default function ProjectExplorer({
                   ? done.has("merge")
                     ? "store committed · files written"
                     : "store committed · not yet merged"
-                  : "empty store"}
+                  : done.has("extract")
+                    ? "source extracted"
+                    : "not extracted"}
               </span>
             </span>
           </div>
@@ -348,7 +413,7 @@ export default function ProjectExplorer({
           </div>
           {!done.has("merge") && (
             <div className={s.binaryNote}>
-              Run all three steps to materialize the localized files from the project store.
+              Run all three steps to write target-language files from the project store.
             </div>
           )}
           {done.has("merge") &&
@@ -366,19 +431,20 @@ export default function ProjectExplorer({
         </div>
       </div>
 
+      {commandOutput ? (
+        <details open>
+          <summary>Last command output</summary>
+          <CodeView text={commandOutput} lineNumbers={false} maxHeight="18rem" />
+        </details>
+      ) : null}
       <p style={{ fontSize: "0.85rem", opacity: 0.8, marginTop: "0.6rem" }}>
-        A <strong>project</strong> keeps config in a committed <code>kapi.yaml</code> recipe and its
-        working state in a <code>.kapi/</code> dir, built for teams and servers. A run is{" "}
-        <strong>process-only</strong>: it commits to the project store, then <code>merge</code>{" "}
-        writes the files. A <strong>.kpz workspace</strong> folds the same content + work into one
-        portable file, built for ad-hoc, single-file hand-off. Same engine underneath.
+        A project declares its inputs and flows in a recipe. A process-only run stores target
+        content; merge writes the target files. This browser exercise uses an in-memory block store,
+        which survives between these commands but resets when the browser runtime reloads.
       </p>
       <p style={{ fontSize: "0.85rem", opacity: 0.8, marginTop: "0.4rem" }}>
-        The <code>.kapi/work/store.db</code> store is <strong>regenerable</strong>: delete it and a
-        re-run rebuilds it from what you committed. The one thing it can&rsquo;t rebuild is your{" "}
-        <strong>authored decisions</strong>: approving a translation lands in{" "}
-        <code>.kapi/state/</code>, one JSONL shard per document, which you keep in git alongside
-        your sources.
+        Native kapi keeps working state and durable context in its workspace. Review decisions are
+        bound to the content reviewed.
       </p>
 
       <GateOverlay

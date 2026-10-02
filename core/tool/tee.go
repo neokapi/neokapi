@@ -16,7 +16,17 @@ func Tee(ctx context.Context, in <-chan *model.Part, outs ...chan<- *model.Part)
 			close(out)
 		}
 	}()
-	for part := range in {
+	for {
+		var part *model.Part
+		select {
+		case <-ctx.Done():
+			return
+		case next, ok := <-in:
+			if !ok {
+				return
+			}
+			part = next
+		}
 		for _, out := range outs {
 			select {
 			case out <- part:

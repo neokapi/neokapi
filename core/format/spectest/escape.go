@@ -83,6 +83,16 @@ type ModifyProbe struct {
 	// Skip names characters the probed position cannot carry, mapped to the
 	// reason. A skipped case is reported, never silently dropped.
 	Skip map[rune]string
+	// EditSource probes the monolingual edit path instead of the translation
+	// path: the block's source is rewritten and the writer is given no
+	// locale, which is how `kapi apply`, `ksed` and the MCP apply_edits tool
+	// write a document back. A writer that escapes a translated value but
+	// replays an edited source raw lets the edit inject markup.
+	EditSource bool
+	// TextOf reads a block's runs back as the text a reader of the document
+	// sees, for a format whose text runs keep its own escapes (a Markdown
+	// backslash). Nil reads them as model.RenderRunsWithData renders them.
+	TextOf func(runs []model.Run) string
 }
 
 // Run executes the probe over the whole corpus as one subtest per character.
@@ -129,14 +139,20 @@ func (p ModifyProbe) runCase(t *testing.T, c EscapeCase) {
 		if !ok || !block.Translatable {
 			continue
 		}
-		block.SetTargetText(locale, want)
+		if p.EditSource {
+			block.EditSourceText(want)
+		} else {
+			block.SetTargetText(locale, want)
+		}
 		mutated++
 	}
 	if mutated == 0 {
 		t.Fatalf("%s: source produced no translatable block", p.Format)
 	}
 
-	writer.SetLocale(locale)
+	if !p.EditSource {
+		writer.SetLocale(locale)
+	}
 	out, writeErr := spec.WriteParts(writer, parts, p.Source)
 
 	rejected := p.Rejects != nil && p.Rejects(c.R)
@@ -171,10 +187,15 @@ func (p ModifyProbe) runCase(t *testing.T, c EscapeCase) {
 		// RenderRunsWithData, not RunsText: a reader may model part of the
 		// value as an inline placeholder (an Android `%s`, an ICU argument),
 		// and the text-only view drops that run's data. The value survived as
-		// long as the writer's own rendering function reproduces it.
-		got = append(got, model.RenderRunsWithData(block.Source))
+		// long as the writer's own rendering function reproduces it, read as
+		// the format's text when TextOf says how.
+		textOf := p.TextOf
+		if textOf == nil {
+			textOf = model.RenderRunsWithData
+		}
+		got = append(got, textOf(block.Source))
 		for key := range block.Targets {
-			got = append(got, model.RenderRunsWithData(block.TargetVariant(key).Runs))
+			got = append(got, textOf(block.TargetVariant(key).Runs))
 		}
 	}
 	if slices.Contains(got, want) {

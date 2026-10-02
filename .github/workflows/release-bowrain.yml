@@ -1173,7 +1173,7 @@ jobs:
 
             url "https://github.com/neokapi/neokapi/releases/download/bowrain-v#{version}/bowrain-#{version}-macOS-arm64.dmg"
             name "Bowrain"
-            desc "AI-native translation editor"
+            desc "Desktop client for a team's shared context graph, with offline editing"
             homepage "https://github.com/neokapi/neokapi"
 
           ${CONFLICTS}  depends_on formula: "neokapi/tap/${DEP}"

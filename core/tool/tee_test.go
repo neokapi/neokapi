@@ -3,6 +3,7 @@ package tool
 import (
 	"context"
 	"testing"
+	"testing/synctest"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -91,4 +92,29 @@ func TestTee_CancelUnblocksBlockedSend(t *testing.T) {
 
 	_, ok := <-out
 	assert.False(t, ok, "output must be closed after cancellation")
+}
+
+func TestTee_CancelUnblocksIdleInput(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		in := make(chan *model.Part)
+		out := make(chan *model.Part)
+		done := make(chan struct{})
+		go func() {
+			Tee(ctx, in, out)
+			close(done)
+		}()
+		synctest.Wait()
+		cancel()
+		synctest.Wait()
+		select {
+		case <-done:
+		default:
+			t.Error("Tee is waiting for input after cancellation")
+			close(in)
+			<-done
+		}
+		_, ok := <-out
+		assert.False(t, ok)
+	})
 }

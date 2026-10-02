@@ -1,6 +1,7 @@
 import React from "react";
 import Layout from "@theme/Layout";
 import { SegmentationLab } from "@site/src/components/Lab";
+import { LabLaunch } from "@site/src/components/Lab/LabLaunch";
 import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 
 // One consolidated Segmentation lab: every engine neokapi exposes — rule-based
@@ -12,11 +13,11 @@ import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 export default function SegmentationLabPage(): React.ReactElement {
   return (
     <Layout
-      title="Segmentation Lab"
+      title="Segmentation lab"
       description="Before text can be translated well it has to be split into sentences correctly — knowing that “Dr.” or “$3.50” isn't a sentence break. Compare how neokapi's segmentation methods handle the tricky cases on your own text, in your browser."
     >
       <LabPageShell
-        title="Segmentation Lab"
+        title="Segmentation lab"
         lede={
           <>
             Splitting text into sentences sounds trivial until &ldquo;Dr.&rdquo; or
@@ -25,7 +26,9 @@ export default function SegmentationLabPage(): React.ReactElement {
           </>
         }
       >
-        <SegmentationLab />
+        <LabLaunch description="The default comparison needs no AI model. Learned engines are optional and download their assets when selected and run.">
+          <SegmentationLab />
+        </LabLaunch>
       </LabPageShell>
     </Layout>
   );

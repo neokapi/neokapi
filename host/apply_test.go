@@ -1,7 +1,9 @@
 package host
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -147,4 +149,42 @@ func TestBuildEditMaps_IDAndHash(t *testing.T) {
 	assert.Equal(t, coretools.Edit{Text: "b", ContentHash: "h2"}, byHash["h2"])
 	_, hasH2InID := byID["h2"]
 	assert.False(t, hasH2InID, "an id-less entry must not be keyed by id")
+}
+
+// A content file whose round-trip fails is reported as failed and keeps the
+// change-set from passing, while the files that could be written are written.
+func TestApplyReportsAFileItCouldNotRewrite(t *testing.T) {
+	app := newToolboxApp(t)
+	dir := t.TempDir()
+	good := filepath.Join(dir, "en.json")
+	missing := filepath.Join(dir, "missing.json")
+	require.NoError(t, os.WriteFile(good, []byte(`{"greeting":"Hello world"}`), 0o644))
+
+	hash := model.ComputeContentHash("Hello world")
+	body, err := json.Marshal([]changeEntry{
+		{Kind: kindContent, File: missing, ContentHash: hash, Text: "Hi planet"},
+		{Kind: kindContent, File: good, ContentHash: hash, Text: "Hi planet"},
+	})
+	require.NoError(t, err)
+	changeset := filepath.Join(dir, "edits.json")
+	require.NoError(t, os.WriteFile(changeset, body, 0o644))
+
+	cmd := NewEnvCommand(t.Context(), "apply")
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	err = app.RunApply(cmd, changeset, false, "", true)
+	require.Error(t, err)
+	assert.Equal(t, ExitGate, ExitCode(cmd, err))
+
+	var out applyOutput
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &out))
+	require.Len(t, out.Content.Failed, 1)
+	assert.Contains(t, out.Content.Failed[0], "missing.json")
+	assert.Len(t, out.Content.Applied, 1)
+	assert.Contains(t, stderr.String(), "missing.json")
+
+	got, err := os.ReadFile(good)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"greeting":"Hi planet"}`, string(got))
 }

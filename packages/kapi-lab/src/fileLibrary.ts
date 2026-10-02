@@ -34,7 +34,7 @@ export interface FileLibrary {
   /** Add a bundled sample by id; returns its path, or null if unknown/present. */
   addSample(id: string): string | null;
   /** Add or overwrite a file; returns its path. Overwrites bump changedAt. */
-  addFile(name: string, bytes: Uint8Array, origin?: FileOrigin): string;
+  addFile(this: void, name: string, bytes: Uint8Array, origin?: FileOrigin): string;
   /** Add uploaded browser File objects; returns their paths. */
   upload(files: FileList | File[]): Promise<string[]>;
   /** Record a pipeline output at an absolute or relative path. */

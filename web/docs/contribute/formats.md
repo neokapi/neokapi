@@ -332,10 +332,9 @@ correct order. Attach the collected runs to a block with
 
 ### Reconstructing Markup in a Writer
 
-The writer walks the run sequence and emits each run's content: literal text for
-`TextRun`s, the captured `Data` for inline-code runs. The framework provides
-`model.RenderRunsWithData` for exactly this, the canonical rendering path the
-HTML, XML, and Markdown writers all use:
+The writer walks the run sequence and emits each run's content: the text of a
+`TextRun`, and the captured `Data` of an inline-code run. The framework provides
+`model.RenderRunsWithData`, which emits both verbatim:
 
 ```go
 func (w *Writer) renderRuns(buf *strings.Builder, runs []model.Run) {
@@ -345,10 +344,37 @@ func (w *Writer) renderRuns(buf *strings.Builder, runs []model.Run) {
 }
 ```
 
-This approach guarantees **perfect roundtrip fidelity**: the writer doesn't
-need to understand the markup format. It just replays whatever `Data` the
-reader stored. An `<a href="/help" class="nav">` tag roundtrips as exactly
-that string, attributes and all.
+Replaying `Data` is what keeps inline markup faithful: an
+`<a href="/help" class="nav">` tag roundtrips as exactly that string,
+attributes and all, without the writer understanding it.
+
+A `TextRun` written by a translation, a pseudo-translation, or an edit made
+through `kapi apply`, `ksed` or MCP `apply_edits` holds text: inline codes
+travel as their own runs, so a `<` or `&` in one is a character. A writer for a
+format with markup or escapes encodes those runs. A block an edit rewrote says
+so: tools replace a source through `model.Block.EditSourceRuns`, and
+`Block.SourceAsRead` returns the source the reader produced and whether the
+current one differs. Write a block no edit changed as it was read, so the
+document keeps its bytes, and encode an edited one. `model.RenderRunsWith` is
+the run walk `RenderRunsWithData` uses, with a hook that writes each text run
+in your format's spelling; the HTML writer uses it to write every `<` and `&`
+of an edited block as a reference.
+
+Some readers leave syntax they do not model in text runs: the Markdown reader
+keeps backslash escapes and brackets that open no link, the MDX reader keeps
+expressions, the AsciiDoc reader keeps passthroughs and macros. Such a run is
+the document's own markup until an edit rewrites it, and then the writer cannot
+tell markup from wording by the characters alone. `format.RenderEditedRuns`
+compares the edited runs with the runs as read: markup an `AddedSyntax` finds
+that the block already held, spelled the same, stays, and markup the edit adds
+is escaped.
+
+Three sweeps in `core/formats/escape_symmetry_test.go` hold the text formats to
+this. `TestEscapeSymmetryOnModify` writes a corpus of characters into a
+translated value, `TestEscapeSymmetryOnSourceEdit` writes it into an edited
+source, and `TestEditedWordingReadsBackAsText` edits each markup format with
+wording that spells tags, links, expressions and macros, and reads the result
+back as text.
 
 ### Choosing Target vs Source Content
 

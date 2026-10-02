@@ -3,6 +3,7 @@ import Layout from "@theme/Layout";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import { VisionExplorer } from "@site/src/components/Lab";
+import { LabLaunch } from "@site/src/components/Lab/LabLaunch";
 import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 import { readCdnConfig, cdnEnabled, cdnHref } from "@neokapi/docs-shared";
 
@@ -44,23 +45,23 @@ export default function VisionLabPage(): React.ReactElement {
     : sameOriginBase;
   return (
     <Layout
-      title="Vision Lab"
-      description="Pull the text out of an image or scan — and see where every line sits on the page — so it can be searched, translated, or rebuilt in another language. Runs privately in your browser."
+      title="Vision lab"
+      description="Inspect text recognition and page layout in images using models running in your browser."
     >
       <LabPageShell
-        title="Vision Lab"
+        title="Vision lab"
         lede={
           <>
-            Drop in an image — or a document with a picture in it — and neokapi reads the text
-            inside it, keeping track of where each line sits and how the page is laid out (headings,
-            paragraphs, tables, figures). The result isn&rsquo;t just a wall of text: it&rsquo;s
-            structured content you can search, translate, and place back, the same way you would
-            with any document. Everything runs in your browser, so nothing you upload leaves your
-            device.
+            Inspect the text and positions recovered from a sample image. Compare the recognized
+            words with the image, then examine the detected page regions. This experiment runs
+            recognition models through browser bridges. Native kapi uses plugins to include these
+            operations in a processing flow.
           </>
         }
       >
-        <VisionExplorer samples={samples} modelBase={modelBase} />
+        <LabLaunch description="Open the image workspace to load the sample. Run recognition to download its models; layout analysis loads additional models when selected. Processing stays on your device.">
+          <VisionExplorer samples={samples} modelBase={modelBase} />
+        </LabLaunch>
       </LabPageShell>
     </Layout>
   );

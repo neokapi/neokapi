@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T23:51:56Z",
+  "generatedAt": "2026-10-02T09:28:01Z",
   "commands": [
     {
       "id": "add",
@@ -8,7 +8,7 @@
       ],
       "use": "add \u003cpattern\u003e [pattern...]",
       "short": "Legg til filmønstre i prosjektets innhold",
-      "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\nBy default each pattern becomes a bare entry, which the project's default point\ngoverns. --name puts them in a named collection instead, and --channel binds\nthat collection to a point in the context space (profile/channel), so a surface\nis governed by the voice that suits it rather than by the project default.\nAdding to a name that already exists extends that collection.\n\n--target declares where a translated file goes: a template over {lang} and the\npath tokens ({path}, {name}, {ext}), or a directory to mirror into. Without one\na flow that writes has nowhere of its own to write, so give it here rather than\nby hand-editing the recipe. A target that lands back inside the pattern it\ncomes from is refused: the collection would re-track its own output as source.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"\n  kapi add \"docs/**/*.md\" --target \"translated/{lang}/{path}.md\"\n  kapi add \"support/**/*.md\" --name northsea-support --channel northsea/docs",
+      "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\nBy default each pattern becomes a bare entry, which the project's default point\ngoverns. --name puts them in a named collection instead, and --channel binds\nthat collection to a point in the context space (profile/channel), so a surface\nis governed by the voice that suits it rather than by the project default.\nAdding to a name that already exists extends that collection.\n\n--target declares where a translated file goes: a template over {lang} and the\npath tokens ({path}, {name}, {ext}), or a directory to mirror into. Without one\na flow that writes has nowhere of its own to write, so give it here rather than\nby hand-editing the recipe. A target that lands back inside the pattern it\ncomes from is refused: the collection would re-track its own output as source.\nOn a pattern the project already tracks, --target sets the target its entry\nlacks; an entry that already declares another target is refused, with the\nrecipe change to make instead. A file belongs to the first entry in the recipe\nwhose pattern matches it, so a target applies to the files its entry claims.\nThe output names each other file and the entry that claims it, and a pattern\nan earlier entry claims every file of is refused. Under a named collection with\na base, the target is given from the project root and kept relative to the\nbase.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"\n  kapi add \"docs/**/*.md\" --target \"translated/{lang}/{path}.md\"\n  kapi add \"support/**/*.md\" --name northsea-support --channel northsea/docs",
       "groupID": "work",
       "flags": [
         {
@@ -1969,11 +1969,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "skriv flyt-sporing som JSON til fil (for flytvisualisering)",
           "type": "string"
@@ -2115,11 +2110,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -2532,11 +2522,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "threshold",
@@ -3429,11 +3414,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "skriv flyt-sporing som JSON til fil (for flytsvisualisering)",
           "type": "string"
@@ -3825,11 +3805,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "skriv flyt-sporing som JSON til fil (for flytvisualisering)",
           "type": "string"
@@ -3985,10 +3960,6 @@
           "usage": "skriv flyt-spor som JSON til fil (for flytvisualisering)",
           "type": "string"
         }
-      ],
-      "examples": [
-        "kapi exec search-replace messages.json --find \"foo\" --replace \"bar\"",
-        "kapi exec search-replace page.html --find \"colour\" --replace \"color\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -4417,11 +4388,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "skriv flyt-sporing som JSON til fil (for flytvisualisering)",
           "type": "string"
@@ -4707,11 +4673,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
@@ -4814,11 +4775,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -4940,19 +4896,14 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "skriv flyt-sporing som JSON til fil (for flytsvisualisering)",
           "type": "string"
         }
       ],
       "examples": [
-        "kapi exec voice-check messages.json --target-lang fr",
-        "kapi exec voice-check app.xliff --target-lang de"
+        "kapi exec voice-check messages.json",
+        "kapi exec voice-check page.html --provider anthropic"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -5077,11 +5028,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -7042,7 +6988,7 @@
       "use": "pseudo-translate [files...]",
       "short": "Pseudooversett filer for å teste beredskapen for en språkkode, uten behov for AI-nøkler",
       "long": "Kjør den innebygde pseudooversett-flyten: utvid hver streng med\nspråkkode-formede aksenter og lengdeutfylling slik at avskjæring, sammensetting og\nfeil med hardkodede strenger dukker opp før noen ekte oversettelse kjøpes. Kjører\nhelt offline, uten AI-leverandør eller nøkler.\n\nBruk det som pre-flight-kontroll; når brukergrensesnittet holder, produserer 'kapi translate' (ad\nhoc) eller 'kapi up' (prosjekt) de ekte oversettelsene.",
-      "groupID": "translate",
+      "groupID": "languages",
       "flags": [
         {
           "name": "api-key",
@@ -8204,7 +8150,7 @@
       "use": "translate [files...]",
       "short": "Oversett filer med sikkerhetsnett: gjenbruk av content memory, AI-oversettelse og deretter kontroller",
       "long": "Oversett filer gjennom den innebygde oversettelsesflyten: gjenbruk et bundet content memory først (ingen operasjon uten ett), oversett resten med den konfigurerte AI-leverandøren, og kjør deretter de deterministiske kontrollene (plasshodere, inline-koder, uoversatt tekst) over det som ble produsert.\n\nDette er den sikrede stavemåten: den samme tre-trinns flyten 'kapi up' looper over et prosjekt, brukt på ad hoc-filer. Det rå oversettelsesverktøyet (ingen Memory-pass, ingen kontroller) er fortsatt tilgjengelig som 'kapi exec translate'. For å holde et helt prosjekt oppdatert, bruk 'kapi up'.",
-      "groupID": "translate",
+      "groupID": "languages",
       "flags": [
         {
           "name": "api-key",

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T15:37:40Z",
+  "generatedAt": "2026-10-02T10:11:59Z",
   "commands": [
     {
       "id": "add",
@@ -8,7 +8,7 @@
       ],
       "use": "add \u003cpattern\u003e [pattern...]",
       "short": "Add file patterns to the project's content",
-      "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\nBy default each pattern becomes a bare entry, which the project's default point\ngoverns. --name puts them in a named collection instead, and --channel binds\nthat collection to a point in the context space (profile/channel), so a surface\nis governed by the voice that suits it rather than by the project default.\nAdding to a name that already exists extends that collection.\n\n--target declares where a translated file goes: a template over {lang} and the\npath tokens ({path}, {name}, {ext}), or a directory to mirror into. Without one\na flow that writes has nowhere of its own to write, so give it here rather than\nby hand-editing the recipe. A target that lands back inside the pattern it\ncomes from is refused: the collection would re-track its own output as source.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"\n  kapi add \"docs/**/*.md\" --target \"translated/{lang}/{path}.md\"\n  kapi add \"support/**/*.md\" --name northsea-support --channel northsea/docs",
+      "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\nBy default each pattern becomes a bare entry, which the project's default point\ngoverns. --name puts them in a named collection instead, and --channel binds\nthat collection to a point in the context space (profile/channel), so a surface\nis governed by the voice that suits it rather than by the project default.\nAdding to a name that already exists extends that collection.\n\n--target declares where a translated file goes: a template over {lang} and the\npath tokens ({path}, {name}, {ext}), or a directory to mirror into. Without one\na flow that writes has nowhere of its own to write, so give it here rather than\nby hand-editing the recipe. A target that lands back inside the pattern it\ncomes from is refused: the collection would re-track its own output as source.\nOn a pattern the project already tracks, --target sets the target its entry\nlacks; an entry that already declares another target is refused, with the\nrecipe change to make instead. A file belongs to the first entry in the recipe\nwhose pattern matches it, so a target applies to the files its entry claims.\nThe output names each other file and the entry that claims it, and a pattern\nan earlier entry claims every file of is refused. Under a named collection with\na base, the target is given from the project root and kept relative to the\nbase.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"\n  kapi add \"docs/**/*.md\" --target \"translated/{lang}/{path}.md\"\n  kapi add \"support/**/*.md\" --name northsea-support --channel northsea/docs",
       "groupID": "work",
       "flags": [
         {
@@ -78,12 +78,12 @@
       ],
       "use": "apply [flags] [CHANGESET]",
       "short": "Apply a typed change-set (content + asset edits): the one write verb",
-      "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change: a content edit, an asset edit (term, content-memory pair,\nvoice rule, recipe field), or a review outcome (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review outcome is recorded as unit state in the project store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation. It does not\nestablish a unit. To establish a translated unit, use a kind:\"review\" entry\naddressed by its file/id/locale (as 'kapi status --review' lists it); the\ndecision is recorded in the project's decision ledger and is bound to the\ntranslation's content hash, so a later edit drops the unit back to translated.\nOnly a person records a review decision: run from an agent's shell, the entry\nis refused unless KAPI_ACTOR=person says a person is at the keyboard. Recording\nit is durable at once, and 'kapi context push' shares it when the project\ndeclares a context backend.\n\nA comment edit (kind:\"comment\") rewrites one code comment, addressed by its file\nand the id 'kapi check' reports for it, such as func/Parse, in Go and in the\nlanguages a comment plugin reads (TypeScript, TSX and JavaScript among them).\nIts text is the comment's prose without comment markers. It carries the comment_sha256 that\n'kapi check --json' reports for the comment, or the prose as read in\ncurrent_text, and a comment that changed since is refused. Every byte outside\nthe comment stays as it is, the result must parse, and the language's formatter\nmust agree. Running that formatter runs code the project controls, so kapi asks\nonce per project, in a terminal, and records the answer. A directive, a\ngenerated file's comment, and text that drops or adds a code block or reference\nare refused with a reason and write nothing. Each written file is checked again over what changed, and the\nfindings are reported beside the edit.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews content and comment changes\nand writes nothing. No AI provider is required.",
+      "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change: a content edit, an asset edit (term, content-memory pair,\nrecipe field), or a review outcome (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash. An edit that drops,\ninvents or duplicates an inline code, crosses or unbalances paired codes, or\nchanges a block holding a plural or select construct is refused as\nguard_failed and leaves the block as it was. A term or content-memory pair is\nwritten to the project's store and recorded in its context history, a recipe\nfield is written to kapi.yaml, and a review outcome is recorded as unit state\nin the project store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation. It does not\nestablish a unit. To establish a translated unit, use a kind:\"review\" entry\naddressed by its file/id/locale (as 'kapi status --review' lists it); the\ndecision is recorded in the project's decision ledger and is bound to the\ntranslation's content hash, so a later edit drops the unit back to translated.\nOnly a person records a review decision: run from an agent's shell, the entry\nis refused unless KAPI_ACTOR=person says a person is at the keyboard. Recording\nit is durable at once, and 'kapi context push' shares it when the project\ndeclares a context backend.\n\nA comment edit (kind:\"comment\") rewrites one code comment, addressed by its file\nand the id 'kapi check' reports for it, such as func/Parse, in Go and in the\nlanguages a comment plugin reads (TypeScript, TSX and JavaScript among them).\nIts text is the comment's prose without comment markers. It carries the comment_sha256 that\n'kapi check --json' reports for the comment, or the prose as read in\ncurrent_text, and a comment that changed since is refused. Every byte outside\nthe comment stays as it is, the result must parse, and the language's formatter\nmust agree. Running that formatter runs code the project controls, so kapi asks\nonce per project, in a terminal, and records the answer. A directive, a\ngenerated file's comment, and text that drops or adds a code block or reference\nare refused with a reason and write nothing. Each written file is checked again over what changed, and the\nfindings are reported beside the edit.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews content and comment changes,\nlists each asset entry as a preview, and writes nothing. Entries land one at a\ntime: an entry already written stays when a later one is stale, refused or\nfails, and apply then exits non-zero. Re-running the corrected change-set skips\nwhat is already in place. No AI provider is required.",
       "groupID": "work",
       "flags": [
         {
           "name": "diff",
-          "usage": "preview content and comment changes as a unified diff and write nothing",
+          "usage": "preview content and comment changes as a unified diff, list asset entries, and write nothing",
           "default": "false",
           "type": "bool"
         },
@@ -1467,7 +1467,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -1502,7 +1502,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -1592,7 +1592,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -1633,7 +1633,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -1724,7 +1724,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -1759,7 +1759,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -1866,7 +1866,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -1967,11 +1967,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -2117,11 +2112,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
@@ -2215,7 +2205,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -2256,7 +2246,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -2359,7 +2349,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -2400,7 +2390,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -2489,12 +2479,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext})",
           "type": "string"
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR (default: rewrite each input in place)",
           "type": "string"
         },
         {
@@ -2532,11 +2522,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "threshold",
@@ -2645,7 +2630,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -2728,7 +2713,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -2775,7 +2760,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -3065,7 +3050,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -3117,7 +3102,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -3255,7 +3240,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -3290,7 +3275,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -3380,12 +3365,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext})",
           "type": "string"
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR (default: rewrite each input in place)",
           "type": "string"
         },
         {
@@ -3427,11 +3412,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -3510,7 +3490,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -3551,7 +3531,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -3650,7 +3630,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -3691,7 +3671,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -3775,12 +3755,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext})",
           "type": "string"
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR (default: rewrite each input in place)",
           "type": "string"
         },
         {
@@ -3823,11 +3803,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -3918,7 +3893,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -3977,7 +3952,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -3985,10 +3960,6 @@
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
         }
-      ],
-      "examples": [
-        "kapi exec search-replace messages.json --find \"foo\" --replace \"bar\"",
-        "kapi exec search-replace page.html --find \"colour\" --replace \"color\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -4090,7 +4061,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -4159,7 +4130,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -4285,7 +4256,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -4417,11 +4388,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
@@ -4546,7 +4512,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -4599,7 +4565,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -4707,11 +4673,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
@@ -4777,12 +4738,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext})",
           "type": "string"
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR (default: rewrite each input in place)",
           "type": "string"
         },
         {
@@ -4814,11 +4775,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -4940,19 +4896,14 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
         }
       ],
       "examples": [
-        "kapi exec voice-check messages.json --target-lang fr",
-        "kapi exec voice-check app.xliff --target-lang de"
+        "kapi exec voice-check messages.json",
+        "kapi exec voice-check page.html --provider anthropic"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -5079,11 +5030,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
@@ -5202,7 +5148,7 @@
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)",
           "type": "string"
         },
         {
@@ -5243,7 +5189,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -5375,7 +5321,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -6567,8 +6513,8 @@
         "ollama"
       ],
       "use": "ollama",
-      "short": "Manage the local Ollama runtime for on-device translation",
-      "long": "Detect, inspect, and feed the local Ollama runtime kapi uses for on-device\n(GPU-accelerated) translation. Ollama itself is a one-time install from\nhttps://ollama.com; kapi drives the rest: `kapi models ollama pull \u003cmodel\u003e` installs\na model, and `kapi translate --provider ollama --model \u003cmodel\u003e` uses it.",
+      "short": "Manage the local Ollama runtime for on-device AI tools",
+      "long": "Detect, inspect, and feed the local Ollama runtime kapi uses to run its AI\ntools on-device (GPU-accelerated). Ollama itself is a one-time install from\nhttps://ollama.com; kapi drives the rest: `kapi models ollama pull \u003cmodel\u003e` installs\na model, and `kapi translate --provider ollama --model \u003cmodel\u003e` uses it.",
       "flags": [
         {
           "name": "url",
@@ -6624,7 +6570,7 @@
       ],
       "use": "pull \u003cmodel\u003e",
       "short": "Download a model onto the Ollama server",
-      "long": "Install a model so kapi can translate with it locally. \u003cmodel\u003e is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
+      "long": "Install a model for kapi's AI tools to run locally. \u003cmodel\u003e is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
       "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false
@@ -6663,7 +6609,7 @@
       ],
       "use": "pull \u003cmodel\u003e",
       "short": "Download a model (Ollama model, or a plugin asset)",
-      "long": "Install a model so kapi can translate with it. A bare reference defaults to an\nOllama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled into the local Ollama\nruntime. A plugin model id (e.g. sat-3l-sm), a plugin name, or plugin/model fetches\nthat plugin's host-owned asset instead.",
+      "long": "Install a model for kapi's AI and machine-learning tools to use. A bare\nreference defaults to an Ollama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled\ninto the local Ollama runtime. A plugin model id (e.g. sat-3l-sm), a plugin name,\nor plugin/model fetches that plugin's host-owned asset instead.",
       "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false
@@ -7042,7 +6988,7 @@
       "use": "pseudo-translate [files...]",
       "short": "Pseudo-translate files to test locale readiness, with no AI keys needed",
       "long": "Run the built-in pseudo-translate flow: expand every string with\nlocale-shaped accents and length padding so truncation, concatenation, and\nhardcoded-string bugs surface before any real translation is bought. Runs\nentirely offline, with no AI provider or keys required.\n\nUse it as the pre-flight check; when the UI holds up, 'kapi translate' (ad\nhoc) or 'kapi up' (project) produce the real translations.",
-      "groupID": "translate",
+      "groupID": "languages",
       "flags": [
         {
           "name": "api-key",
@@ -7171,7 +7117,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -7379,7 +7325,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -7446,8 +7392,8 @@
         "status"
       ],
       "use": "status",
-      "short": "Show per-locale translation coverage and ship-gate standing",
-      "long": "Show, per target locale, how much of the project's tracked content is\ntranslated and whether it clears its ship gate, a derived dashboard, like\ngit status. Coverage is recomputed from the content × target files on every run;\nnothing is tracked as state.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality gate). It\nnever fails: a locale that is behind is reported as pending rather than as an error.\nTarget-language drift is normal, expected work rather than a build break.",
+      "short": "Show source readiness and per-language coverage against the ship gates",
+      "long": "Show how far the project's source content has progressed and, per target\nlocale, how much of it is translated and whether it clears its ship gate: a\nderived dashboard, like git status. Coverage is recomputed from the content ×\ntarget files on every run; nothing is tracked as state.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality gate). It\nnever fails: a locale that is behind is reported as pending rather than as an error.\nTarget-language drift is normal, expected work rather than a build break.",
       "groupID": "work",
       "flags": [
         {
@@ -8204,7 +8150,7 @@
       "use": "translate [files...]",
       "short": "Translate files with guardrails: content memory reuse, AI translate, then checks",
       "long": "Translate files through the built-in translate flow: leverage a bound\ncontent memory first (a no-op without one), translate the rest with the\nconfigured AI provider, then run the deterministic checks (placeholders,\ninline tags, untranslated text) over what was produced.\n\nThis is the guardrailed spelling: the same three-step flow 'kapi up' loops\nover a project, applied to ad-hoc files. The raw translate tool (no Memory pass,\nno checks) stays available as 'kapi exec translate'. To bring a whole project\nup to date, use 'kapi up'.",
-      "groupID": "translate",
+      "groupID": "languages",
       "flags": [
         {
           "name": "api-key",
@@ -8333,7 +8279,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -8599,7 +8545,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestLocaleOutputPath covers the default (no -o / no --output-dir) output path
@@ -81,4 +82,31 @@ func TestExpandOutputPathDirPlaceholder(t *testing.T) {
 	outDir := filepath.Join(tmp, "build")
 	got = expandOutputPath(filepath.Join(outDir, "{lang}")+string(filepath.Separator), input, commonDir, "de")
 	assert.Equal(t, filepath.Join(outDir, "de", "messages.json"), got)
+}
+
+// TestResolveRunOutputPath_NoTargetLanguageRewritesTheInput: the default
+// layout swaps the source locale in the input path for the target's, so it
+// needs a target. A run that names none (a tool that works on the source alone,
+// such as redact or search-replace over the source) updates the input file
+// itself, wherever its path names the source locale.
+func TestResolveRunOutputPath_NoTargetLanguageRewritesTheInput(t *testing.T) {
+	a := &App{}
+	tmp := t.TempDir()
+	for _, rel := range []string{
+		"messages.json",
+		filepath.Join("locales", "en", "app.json"),
+		"app.en.json",
+	} {
+		input := filepath.Join(tmp, rel)
+		got, produces, err := a.resolveRunOutputPath(ToolRunConfig{DefaultLayout: true}, input, "")
+		require.NoError(t, err)
+		assert.True(t, produces)
+		assert.Equal(t, input, got, "a run with no target language rewrites %s in place", rel)
+	}
+
+	// With a target the locale layout applies as before.
+	input := filepath.Join(tmp, "locales", "en", "app.json")
+	got, _, err := a.resolveRunOutputPath(ToolRunConfig{DefaultLayout: true, TargetLang: "fr"}, input, "")
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(tmp, "locales", "fr", "app.json"), got)
 }

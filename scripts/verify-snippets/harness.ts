@@ -67,7 +67,7 @@ const FIXTURES: Record<string, string> = {
     <a href="/docs">Read the documentation</a>
   </body>
 </html>`,
-  "README.md": `# Project Title\n\nThanks for trying **kapi**.\n\n## Getting started\n\n- Install the CLI\n- Run \`kapi word-count README.md\`\n`,
+  "README.md": `# Project Title\n\nThanks for trying **kapi**.\n\n## Getting started\n\n- Install the CLI\n- Run \`kapi stats README.md\`\n`,
   "app.properties": `# Application strings\napp.title = Welcome aboard\napp.greeting = Hello, World!\napp.farewell = See you tomorrow\ncart.empty = Your cart is empty\n`,
   "strings.xml": `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n  <string name="app_name">Welcome aboard</string>\n  <string name="greeting">Hello, World!</string>\n  <string name="farewell">See you tomorrow</string>\n  <string name="cart_empty">Your cart is empty</string>\n</resources>\n`,
   "Localizable.xcstrings": JSON.stringify(

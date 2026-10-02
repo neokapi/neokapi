@@ -162,10 +162,14 @@ func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
 // blockText renders a block's content for the byte-exact skeleton path: the
 // target runs for the active locale when present, otherwise the source runs,
 // with inline markup spliced back via RenderRunsWithData (the run's captured
-// source Data).
+// source Data). A source an edit rewrote has the markup the edit added
+// escaped (see editSyntax), so its wording reads as text.
 func (w *Writer) blockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		return model.RenderRunsWithData(block.TargetRuns(w.Locale))
+	}
+	if read, edited := block.SourceAsRead(); edited {
+		return format.RenderEditedRuns(block.Source, read, editSyntax)
 	}
 	return model.RenderRunsWithData(block.Source)
 }

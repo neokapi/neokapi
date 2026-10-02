@@ -72,7 +72,7 @@ describe("ProjectExplorer helpers", () => {
 
   it("renders a recipe for a binary (Office) sample as openxml", () => {
     const recipe = recipeFor(workspaceSampleById("docx"));
-    expect(recipe).toContain("format: openxml");
+    expect(recipe).toMatch(/format:\s*\n\s+name: openxml/);
     expect(recipe).toContain("path: welcome.docx");
   });
 });

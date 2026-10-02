@@ -4,6 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import type { KapiRuntime } from "./runtime";
 import { parseArgv } from "./argv";
+import { TERMINAL_HELP as HELP } from "./cliExamples";
 
 function longestCommonPrefix(items: string[]): string {
   if (items.length === 0) return "";
@@ -20,24 +21,6 @@ function join(dir: string, name: string): string {
 }
 
 const BUILTINS = ["help", "clear", "ls", "cd", "cat", "pwd", "rm", "kapi"];
-
-const HELP = [
-  "kapi — the localization toolkit, running right here in your browser.",
-  "",
-  "  kapi <command> …   run a kapi command (e.g. kapi formats list)",
-  "  <command> …        the leading 'kapi' is optional",
-  "  Tab                complete commands, flags, and filenames",
-  "",
-  "Shell builtins (run in the browser, not kapi):",
-  "  ls [dir]   pwd   cd <dir>   cat <file>   rm <file>   clear   help",
-  "",
-  "Try:",
-  "  kapi formats list",
-  "  kapi word-count messages.json",
-  "  kapi pseudo-translate messages.json -o out.json",
-  "  kapi word-count messages.json --json          # colored JSON",
-  "  kapi word-count messages.json --jq '.total_source_words'",
-].join("\n");
 
 // Small async sleep used to animate command "typing".
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));

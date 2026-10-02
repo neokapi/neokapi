@@ -20,7 +20,7 @@ import (
 
 // changeKind discriminates a change-set entry. `apply` is the single write verb:
 // every deliberate, reviewed change Claude proposes — a content edit or an asset
-// edit (term, content memory pair, voice rule, recipe field) — is one typed entry,
+// edit (term, content memory pair, recipe field) — is one typed entry,
 // so "is this change reviewed?" has one answer for everything and the backing
 // stores are written by exactly one code path.
 type changeKind string
@@ -109,21 +109,25 @@ type assetResult struct {
 	Kind   changeKind `json:"kind"`
 	Op     string     `json:"op,omitempty"`
 	Target string     `json:"target,omitempty"`
-	Status string     `json:"status"` // applied | skipped | error
+	Status string     `json:"status"` // applied | skipped | preview | error
 	Detail string     `json:"detail,omitempty"`
 }
 
 // applyOutput is the JSON-first report of an apply pass. Content outcomes are
 // bucketed by block (applied/skipped/stale/guard_failed); asset outcomes list
-// one result per entry. stale or guard_failed content, or an asset error, means
-// the change-set did not fully land and the command exits non-zero so a fix
-// loop re-inspects and retries.
+// one result per entry. stale or guard_failed content, a file whose round-trip
+// failed, or an asset error, means the change-set did not fully land and the
+// command exits non-zero so a fix loop re-inspects and retries.
 type applyOutput struct {
 	Content struct {
 		Applied     []string `json:"applied,omitempty"`
 		Skipped     []string `json:"skipped,omitempty"`
 		Stale       []string `json:"stale,omitempty"`
 		GuardFailed []string `json:"guard_failed,omitempty"`
+		// Failed names each content file whose round-trip did not complete,
+		// with the reason, such as a file that could not be read. Its edits
+		// are not counted as applied.
+		Failed []string `json:"failed,omitempty"`
 	} `json:"content"`
 	Assets []assetResult `json:"assets,omitempty"`
 	// Comments holds each file's comment edits, the diff they made and the
@@ -138,7 +142,7 @@ func (o *applyOutput) ok() bool {
 			return false
 		}
 	}
-	return len(o.Content.Stale) == 0 && len(o.Content.GuardFailed) == 0 && !o.assetErr()
+	return len(o.Content.Stale) == 0 && len(o.Content.GuardFailed) == 0 && len(o.Content.Failed) == 0 && !o.assetErr()
 }
 
 func (o *applyOutput) assetErr() bool {
@@ -179,9 +183,17 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		case kindComment:
 			comments = append(comments, e)
 		case kindTerm, kindMemory, kindRecipe:
+			if diff {
+				out.Assets = append(out.Assets, previewAssetResult(e))
+				continue
+			}
 			res := a.applyRecordedAssetEntry(ctx, cmd, e)
 			out.Assets = append(out.Assets, res)
 		case kindReview:
+			if diff {
+				out.Assets = append(out.Assets, previewAssetResult(e))
+				continue
+			}
 			res := a.applyReviewEntry(ctx, cmd, e)
 			out.Assets = append(out.Assets, res)
 		case "":
@@ -206,20 +218,19 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		report := &coretools.ApplyReport{}
 		byID, byHash := buildEditMaps(byFile[file])
 		t := coretools.NewApplyEditsTool(byID, byHash, report)
+		var derr error
 		if diff {
-			if _, derr := a.rewriteDiffFile(ctx, file, t, diffOut); derr != nil {
-				if errors.Is(derr, context.Canceled) {
-					return derr
-				}
-				fmt.Fprintf(cmd.ErrOrStderr(), "apply: %s: %v\n", DisplayName(file), derr)
-			}
+			_, derr = a.rewriteDiffFile(ctx, file, t, diffOut)
 		} else {
-			if derr := a.EditDocument(ctx, file, t, "", true, backupSuffix, cmd.OutOrStdout()); derr != nil {
-				if errors.Is(derr, context.Canceled) {
-					return derr
-				}
-				fmt.Fprintf(cmd.ErrOrStderr(), "apply: %s: %v\n", DisplayName(file), derr)
+			derr = a.EditDocument(ctx, file, t, "", true, backupSuffix, cmd.OutOrStdout())
+		}
+		if derr != nil {
+			if errors.Is(derr, context.Canceled) {
+				return derr
 			}
+			fmt.Fprintf(cmd.ErrOrStderr(), "apply: %s: %v\n", DisplayName(file), derr)
+			out.Content.Failed = append(out.Content.Failed, fmt.Sprintf("%s: %v", DisplayName(file), derr))
+			continue
 		}
 		out.Content.Applied = append(out.Content.Applied, report.Applied...)
 		out.Content.Skipped = append(out.Content.Skipped, report.Skipped...)
@@ -246,6 +257,9 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 			}
 		}
 	}
+	if diff && !asJSON {
+		printAssetResults(cmd.ErrOrStderr(), out.Assets)
+	}
 
 	if asJSON {
 		enc := json.NewEncoder(cmd.OutOrStdout())
@@ -270,7 +284,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 func validateContentWording(entries []changeEntry) error {
 	for i, e := range entries {
 		if e.Kind == kindContent && e.Replacement != "" {
-			return fmt.Errorf("content entry %d for block %q: put the new wording in \"text\"; \"replacement\" belongs to voice rules", i+1, e.ID)
+			return fmt.Errorf("content entry %d for block %q: put the new wording in \"text\"; \"replacement\" belongs to term entries", i+1, e.ID)
 		}
 		if e.Kind != kindComment {
 			continue
@@ -281,7 +295,7 @@ func validateContentWording(entries []changeEntry) error {
 		case e.ID == "":
 			return fmt.Errorf("comment entry %d in %s has no \"id\"; use the comment's id as kapi check reports it", i+1, e.File)
 		case e.Replacement != "":
-			return fmt.Errorf("comment entry %d for %q: put the new prose in \"text\"; \"replacement\" belongs to voice rules", i+1, e.ID)
+			return fmt.Errorf("comment entry %d for %q: put the new prose in \"text\"; \"replacement\" belongs to term entries", i+1, e.ID)
 		case e.ContentHash != "":
 			return fmt.Errorf("comment entry %d for %q: a comment is guarded by the \"comment_sha256\" kapi check reports, not by \"content_hash\"", i+1, e.ID)
 		case e.CommentSHA256 == "" && e.CurrentText == nil:
@@ -372,28 +386,31 @@ func readChangeSet(ctx context.Context, path string) ([]changeEntry, error) {
 // rewriteDiffFile prints the per-block unified diff for one file and returns the
 // number of changed blocks. The block source is rewritten in memory only (the
 // applier's plan is applied to the streamed block); nothing is written to disk.
-// It backs `kapi apply --diff`.
+// It backs `kapi apply --diff`, and reads the file as the write does, so it
+// previews exactly the blocks the write would change. Each hunk is labelled
+// with the block id a change-set entry names, and shows the block as edit
+// text, the form `kapi inspect` prints and an entry's text is written in.
 func (a *App) rewriteDiffFile(ctx context.Context, file string, t *tool.BaseTool, out io.Writer) (int, error) {
 	changed := 0
 	label := DisplayName(file)
-	_, err := a.StreamBlocks(ctx, file, func(index int, b *model.Block) error {
+	_, err := a.StreamEditableBlocks(ctx, file, func(_ int, b *model.Block) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		before := model.RunsText(b.Source)
+		before := model.RunsEditText(b.Source)
 		part := &model.Part{Type: model.PartBlock, Resource: b}
 		if _, aerr := t.ApplyContext(ctx, part); aerr != nil {
 			return aerr
 		}
-		after := model.RunsText(b.Source)
+		after := model.RunsEditText(b.Source)
 		if before == after {
 			return nil
 		}
 		diff := difflib.UnifiedDiff{
 			A:        difflib.SplitLines(before),
 			B:        difflib.SplitLines(after),
-			FromFile: fmt.Sprintf("%s:%d (before)", label, index),
-			ToFile:   fmt.Sprintf("%s:%d (after)", label, index),
+			FromFile: fmt.Sprintf("%s:%s (before)", label, b.ID),
+			ToFile:   fmt.Sprintf("%s:%s (after)", label, b.ID),
 			Context:  3,
 		}
 		text, derr := difflib.GetUnifiedDiffString(diff)
@@ -418,11 +435,18 @@ func printApplyReport(w io.Writer, out *applyOutput) {
 			fmt.Fprintf(w, ", %d stale (source drifted, re-inspect)", len(c.Stale))
 		}
 		if len(c.GuardFailed) > 0 {
-			fmt.Fprintf(w, ", %d rejected (would corrupt inline codes)", len(c.GuardFailed))
+			fmt.Fprintf(w, ", %d rejected (would corrupt inline codes or flatten plural/select branches)", len(c.GuardFailed))
 		}
 		fmt.Fprintln(w)
 	}
-	for _, ar := range out.Assets {
+	printAssetResults(w, out.Assets)
+	printCommentResults(w, out.Comments)
+}
+
+// printAssetResults writes one line per asset entry: its kind, what it names,
+// and its outcome.
+func printAssetResults(w io.Writer, assets []assetResult) {
+	for _, ar := range assets {
 		target := ar.Target
 		if target == "" {
 			target = string(ar.Kind)
@@ -433,7 +457,21 @@ func printApplyReport(w io.Writer, out *applyOutput) {
 		}
 		fmt.Fprintln(w)
 	}
-	printCommentResults(w, out.Comments)
+}
+
+// previewAssetResult lists an asset entry under --diff, which writes nothing:
+// the entry is named with what it would change and is not applied.
+func previewAssetResult(e changeEntry) assetResult {
+	target := e.Term
+	switch e.Kind {
+	case kindMemory:
+		target = e.Source
+	case kindRecipe:
+		target = e.Path
+	case kindReview:
+		target = e.ID
+	}
+	return assetResult{Kind: e.Kind, Op: e.Op, Target: target, Status: "preview", Detail: "--diff shows the entry and writes nothing"}
 }
 
 // retiredVoiceKind is the change kind that added a word rule to a voice

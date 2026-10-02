@@ -63,6 +63,8 @@ export interface ContentLabProps {
   sampleIds?: string[];
   /** Fill the host height (app-like) instead of the inline result frame. */
   fill?: boolean;
+  /** Start on mount when an outer launch control already obtained user intent. */
+  autoStart?: boolean;
 }
 
 export default function ContentLab({
@@ -73,9 +75,10 @@ export default function ContentLab({
   defaultSampleId,
   sampleIds,
   fill,
+  autoStart = false,
 }: ContentLabProps): React.ReactElement {
-  const runtime = useLabRuntime(assets, { autoBoot: false });
-  const gate = useRunGate(runtime);
+  const runtime = useLabRuntime(assets, { autoBoot: autoStart });
+  const gate = useRunGate(runtime, { autoArm: autoStart });
 
   const offered = useMemo(() => {
     const all = lessons ?? CONTENT_LESSONS;
@@ -131,9 +134,9 @@ export default function ContentLab({
   // the spec (not object identity) so it doesn't loop on every render.
   const specKey = JSON.stringify(lesson.spec);
   const filePath = file?.path;
-  const { ready, inspect, inspectAnnotated, trace, writeFile, readBytes } = runtime;
+  const { inspect, inspectAnnotated, trace, writeFile, readBytes } = runtime;
   useEffect(() => {
-    if (!ready || !file) return;
+    if (!gate.ready || !file) return;
     let cancelled = false;
     void (async () => {
       setBusy(true);
@@ -182,7 +185,7 @@ export default function ContentLab({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, filePath, specKey]);
+  }, [gate.ready, filePath, specKey]);
 
   const showPicker = offered.length > 1;
   const isDiff = !!lesson.spec.run?.diff;

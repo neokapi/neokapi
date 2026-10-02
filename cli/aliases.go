@@ -159,6 +159,10 @@ var (
 	CollectionForAdd             = host.CollectionForAdd
 	CollectionRelativePath       = host.CollectionRelativePath
 	ContentTracks                = host.ContentTracks
+	SetTrackedTarget             = host.SetTrackedTarget
+	CollectionRelativeTarget     = host.CollectionRelativeTarget
+	EntryClaims                  = host.EntryClaims
+	ErrTargetClaimsNothing       = host.ErrTargetClaimsNothing
 	DeduplicateVersionedFormats  = host.DeduplicateVersionedFormats
 	DescriptionWidth             = host.DescriptionWidth
 	DiagnosePlugin               = host.DiagnosePlugin

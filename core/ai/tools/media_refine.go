@@ -311,6 +311,10 @@ func MediaRefineSchema() *schema.ComponentSchema {
 		Description: "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
 		Tags:        []string{"ai-powered", "vision"},
 		Requires:    []string{schema.RequiresCredentials},
+		// It re-reads the source media and rewrites the source text it was
+		// extracted to, so a run works on the source alone and a flow runs it
+		// once rather than once per target language.
+		Cardinality: schema.Monolingual,
 		SideEffects: []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 		// The refined lines replace the OCR/ASR source text, so the exec run needs
 		// an -o — without it it paid for the LLM calls and wrote nothing (#1476).
@@ -337,16 +341,18 @@ func NewMediaRefineFromConfig(config map[string]any, _ string) (tool.Tool, error
 // Process buffers the page's parts, refines the gated blocks against the source
 // raster, then emits every part in its original order.
 func (t *MediaRefineTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
-	var parts []*model.Part
+	parts, err := tool.ReadAll(ctx, in)
+	if err != nil {
+		return err
+	}
 	src := t.src
-	for p := range in {
+	for _, p := range parts {
 		// Pick up a page raster from the stream if no explicit source is set.
 		if src.Path == "" && len(src.Data) == 0 && p.Type == model.PartMedia {
 			if m, ok := p.Resource.(*model.Media); ok && m.Properties[vision.PageRasterProperty] == "page" {
 				src = MediaRef{Path: m.URI, Data: m.Data, MimeType: m.MimeType}
 			}
 		}
-		parts = append(parts, p)
 	}
 
 	blocks := blockResources(parts)

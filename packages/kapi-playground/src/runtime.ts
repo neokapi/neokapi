@@ -23,13 +23,18 @@ let booting: Promise<KapiRuntime> | null = null;
  * non-PDF use is unaffected.
  */
 export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<KapiRuntime> {
-  booting ??= bootEngineRuntime(wasmExecUrl, wasmUrl).then((rt) => {
-    try {
-      installPdfiumBridge(wasmUrl.replace(/[^/]*$/, "pdfium.wasm"));
-    } catch {
-      /* bridge is best-effort; PDF inspection will surface a clear error */
-    }
-    return rt;
-  });
+  booting ??= bootEngineRuntime(wasmExecUrl, wasmUrl)
+    .then((rt) => {
+      try {
+        installPdfiumBridge(wasmUrl.replace(/[^/]*$/, "pdfium.wasm"));
+      } catch {
+        /* bridge is best-effort; PDF inspection will surface a clear error */
+      }
+      return rt;
+    })
+    .catch((error: unknown) => {
+      booting = null;
+      throw error;
+    });
   return booting;
 }

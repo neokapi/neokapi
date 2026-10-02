@@ -106,7 +106,9 @@ func FullSpanEdit(oldRuns, newRuns []model.Run) []model.RunEdit {
 // mutates a Block (AD-006). Order is fail-closed: secrets are vaulted first
 // (a rewrite never lands without its recovery record), then the source rewrite
 // is applied and surviving overlays rebased, then targets are replaced, and
-// finally every surviving source overlay span is asserted in-bounds.
+// finally every surviving source overlay span is asserted in-bounds. A source
+// rewrite is an edit (model.Block.EditSourceRuns), so the block keeps the
+// source it was read with and its writer can encode the new wording.
 func applyEditPlan(toolName string, v *blockView, block *model.Block, plan EditPlan, vault func(BlockView, []Secret) error) error {
 	if plan.ReplaceAll != nil && (plan.NewRuns != nil || len(plan.Edits) > 0) {
 		return fmt.Errorf("transform tool %q: edit plan sets both ReplaceAll and NewRuns/Edits: a rewrite is either structured or opaque, never both", toolName)
@@ -127,7 +129,7 @@ func applyEditPlan(toolName string, v *blockView, block *model.Block, plan EditP
 	rewrote := false
 	switch {
 	case plan.ReplaceAll != nil:
-		block.SetSourceText(*plan.ReplaceAll)
+		block.EditSourceText(*plan.ReplaceAll)
 		model.DropSourceOverlays(block)
 		rewrote = true
 	case plan.NewRuns != nil:
@@ -135,7 +137,7 @@ func applyEditPlan(toolName string, v *blockView, block *model.Block, plan EditP
 		if len(plan.Edits) == 0 && model.RunsText(old) != model.RunsText(plan.NewRuns) {
 			return fmt.Errorf("transform tool %q changed the source text of block %q without a mapping. Return Edits for a structured rewrite or ReplaceAll for an opaque one", toolName, block.ID)
 		}
-		block.SetSourceRuns(plan.NewRuns)
+		block.EditSourceRuns(plan.NewRuns)
 		model.RemapOverlays(block, old, plan.Edits)
 		rewrote = true
 	}

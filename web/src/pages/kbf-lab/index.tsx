@@ -1,6 +1,7 @@
 import React from "react";
 import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
+import { LabLaunch } from "@site/src/components/Lab/LabLaunch";
 import KbfAnatomy from "@site/src/components/Lab/KbfAnatomy";
 import { KbfExplorer } from "@site/src/components/Lab/KbfExplorer";
 import { LabPageShell, LabFootnote } from "@site/src/components/Lab/LabPageShell";
@@ -62,7 +63,9 @@ export default function KbfLabPage(): React.ReactElement {
             <code>.overlays.jsonl</code> annotation overlay anchor by anchor. Nothing is mocked;
             this is the code the CLI runs.
           </p>
-          <KbfExplorer defaultSampleId="full" />
+          <LabLaunch>
+            <KbfExplorer defaultSampleId="full" />
+          </LabLaunch>
         </section>
 
         <LabFootnote>

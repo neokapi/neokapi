@@ -161,6 +161,26 @@ fmt.Println("hello, world")
 </xliff>
 `,
   },
+  {
+    id: "checkout-messageformat",
+    label: "checkout.mf",
+    filename: "checkout.mf",
+    blurb: "Checkout messages with a named placeholder and plural branches.",
+    content: `Hello, {name}!
+{count, plural, =0 {Your cart is empty} one {# item is ready for checkout} other {# items are ready for checkout}}
+Review your order before continuing.
+`,
+  },
+  {
+    id: "checkout-checks",
+    label: "checkout-checks.mf",
+    filename: "checkout-checks.mf",
+    blurb: "The checkout messages with a repeated word and a double space for the hygiene checks.",
+    content: `Hello, {name}!
+{count, plural, =0 {Your cart is empty} one {# item is ready for checkout} other {# items are ready for checkout}}
+Review your your order  before continuing.
+`,
+  },
 ];
 
 export function sampleById(id: string): LabSample | undefined {

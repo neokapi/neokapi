@@ -9,12 +9,9 @@
 package mcptools
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -52,7 +49,7 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "extract_content",
-		Description: "Parse a file into translatable content blocks: each block's id, content_hash, source text (inline codes rendered as <x id=\"…\"/> placeholders), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply).",
+		Description: "Parse a file into its content blocks: each block's id, content_hash, source text (inline codes rendered as <x id=\"…\"/> placeholders, character references as their characters), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply). Both read the file in the same format, so pass the same project.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ExtractContentInput) (*mcp.CallToolResult, ExtractContentOutput, error) {
 		return handleExtractContent(ctx, a, input)
 	})
@@ -109,7 +106,7 @@ type DetectFormatOutput struct {
 
 type ExtractContentInput struct {
 	Path       string `json:"path" jsonschema:"File path to extract content from"`
-	Format     string `json:"format,omitempty" jsonschema:"Override format detection"`
+	Format     string `json:"format,omitempty" jsonschema:"Override format detection. apply_edits detects the format through the project, so a block read in another format may not be one it can write"`
 	SourceLang string `json:"source_lang,omitempty" jsonschema:"Source language (default: en)"`
 	Project    string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in); its declared formats scope detection"`
 }
@@ -120,8 +117,9 @@ type BlockEntry struct {
 	// normalized source text) — the drift anchor to send back in an apply_edits
 	// content entry.
 	ContentHash string `json:"content_hash"`
-	// SourceText renders inline codes as <x id="…"/> placeholders so an edit can
-	// round-trip without dropping a link, span, or placeholder.
+	// SourceText is the block's edit text: inline codes as <x id="…"/>
+	// placeholders, so an edit can round-trip without dropping a link, span or
+	// placeholder, and character references as their characters.
 	SourceText string `json:"source_text"`
 	WordCount  int    `json:"word_count"`
 }
@@ -242,39 +240,31 @@ func handleDetectFormat(a *cli.App, input DetectFormatInput) (*mcp.CallToolResul
 }
 
 func handleExtractContent(ctx context.Context, a *cli.App, input ExtractContentInput) (*mcp.CallToolResult, ExtractContentOutput, error) {
-	projectPath, err := a.ResolveMCPCallProject(input.Project)
-	if err != nil {
+	if _, err := a.ResolveMCPCallProject(input.Project); err != nil {
 		return nil, ExtractContentOutput{}, err
 	}
-	fmtName, reader, err := openReader(ctx, a, input.Path, input.Format, input.SourceLang, projectPath)
-	if err != nil {
-		return nil, ExtractContentOutput{}, err
-	}
-	defer reader.Close()
-
+	// Read as apply_edits writes: the same format resolution and the same
+	// wired reader, so every id and content hash reported here is one
+	// apply_edits resolves.
+	fmtRef := a.MCPEditFormat(input.Project, input.Path, input.Format)
 	var blocks []BlockEntry
 	var totalWords int
-	for result := range reader.Read(ctx) {
-		if result.Error != nil {
-			return nil, ExtractContentOutput{}, fmt.Errorf("read error: %w", result.Error)
+	fmtName, err := a.StreamEditableBlocksAs(ctx, input.Path, fmtRef, func(_ int, blk *model.Block) error {
+		if !blk.Translatable {
+			return nil
 		}
-		if result.Part.Type == model.PartBlock {
-			blk, ok := result.Part.Resource.(*model.Block)
-			if !ok {
-				continue
-			}
-			if !blk.Translatable {
-				continue
-			}
-			wc := blk.WordCount()
-			blocks = append(blocks, BlockEntry{
-				ID:          blk.ID,
-				ContentHash: model.ComputeContentHash(blk.SourceText()),
-				SourceText:  model.RunsPlaceholderText(blk.Source),
-				WordCount:   wc,
-			})
-			totalWords += wc
-		}
+		wc := blk.WordCount()
+		blocks = append(blocks, BlockEntry{
+			ID:          blk.ID,
+			ContentHash: model.ComputeContentHash(blk.SourceText()),
+			SourceText:  model.RunsEditText(blk.Source),
+			WordCount:   wc,
+		})
+		totalWords += wc
+		return nil
+	})
+	if err != nil {
+		return nil, ExtractContentOutput{}, fmt.Errorf("read %s: %w", input.Path, err)
 	}
 
 	return nil, ExtractContentOutput{
@@ -490,59 +480,6 @@ func handlePseudoTranslate(ctx context.Context, a *cli.App, input PseudoTranslat
 }
 
 // --- Shared helpers ---
-
-// openReader detects the format, creates a reader, and opens the document.
-// Caller must call reader.Close().
-func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLang, projectPath string) (string, format.DataFormatReader, error) {
-	fmtName := formatOverride
-	if fmtName == "" {
-		// Use project-scoped detection when a project file is specified.
-		if projectPath != "" {
-			proj, err := a.LoadProjectInteractive(ctx, projectPath, cli.LoadProjectInteractiveOptions{
-				AssumeYes: a.AssumeYes,
-			})
-			if err == nil {
-				pctx := project.NewProjectContext(proj, projectPath)
-				fmtName = pctx.DetectFormat(a.FormatReg, path)
-			}
-		}
-		if fmtName == "" {
-			detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
-			if err != nil {
-				return "", nil, fmt.Errorf("unable to detect format: %w", err)
-			}
-			fmtName = string(detected)
-		}
-	}
-
-	reader, _, err := a.NewConfiguredReader(fmtName)
-	if err != nil {
-		return "", nil, err
-	}
-
-	srcLang := sourceLang
-	if srcLang == "" {
-		srcLang = "en"
-	}
-
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return "", nil, fmt.Errorf("read input: %w", err)
-	}
-
-	doc := &model.RawDocument{
-		URI:          path,
-		SourceLocale: model.LocaleID(srcLang),
-		Encoding:     "UTF-8",
-		Reader:       io.NopCloser(bytes.NewReader(content)),
-	}
-
-	if err := reader.Open(ctx, doc); err != nil {
-		return "", nil, fmt.Errorf("open document: %w", err)
-	}
-
-	return fmtName, reader, nil
-}
 
 // executeFlow runs a built-in flow on a file and writes the result. The tool
 // chain is assembled by the host so the AD-006 placement gate, data-flow

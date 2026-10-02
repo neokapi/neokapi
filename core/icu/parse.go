@@ -39,6 +39,9 @@ type Node struct {
 
 // Branch represents one branch in a plural/select pattern.
 type Branch struct {
+	// Start and End delimit the branch body in the original UTF-8 pattern, excluding braces.
+	Start   int
+	End     int
 	Keyword string // e.g., "one", "other", "=0", "male", "female"
 	Body    []Node // The parsed content of this branch
 }
@@ -283,6 +286,7 @@ func (p *parser) parsePluralOrSelect(argName, argType string, depth int) (Node, 
 		}
 		p.pos += size
 
+		bodyStart := p.pos
 		body, err := p.parsePattern(depth+1, true)
 		if err != nil {
 			return Node{}, fmt.Errorf("in %s branch '%s': %w", argType, keyword, err)
@@ -291,6 +295,8 @@ func (p *parser) parsePluralOrSelect(argName, argType string, depth int) (Node, 
 		n.Branches = append(n.Branches, Branch{
 			Keyword: keyword,
 			Body:    body,
+			Start:   bodyStart,
+			End:     p.pos - 1,
 		})
 	}
 

@@ -306,11 +306,12 @@ tool surface refuse these tools outright. See
 
 ## Tool registration invariants
 
-Three properties of a built-in tool's registration are asserted over the populated registry, in `core/tools/registration_invariants_test.go`, because each one fails silently when it is left to review:
+Four properties of a built-in tool's registration are asserted over the populated registry, in `core/tools/registration_invariants_test.go`, because each one fails silently when it is left to review:
 
 - **A tool that declares settable schema fields registers a config factory.** Without one, `NewToolWithConfig` calls the zero-arg factory and discards the step's `config:` map without a word, and the tool's documented parameters do nothing.
 - **A bilingual tool's target locale comes from the run.** `--target-lang` outranks any locale written into a step's config, so one flow serves every locale it is run for. A factory that pins a locale leaves the tool processing content the run never asked for, and reporting success.
 - **A CLI-visible tool that rewrites content declares `writesOutput`.** `kapi exec` grows `-o` / `--output-dir` only for tools that do; without it an exec run rewrites the content in memory, exits 0, and writes nothing.
+- **A monolingual tool declares the target language it reads, and only that.** `kapi exec` offers `--target-lang` to a bilingual tool and to a monolingual one whose `ToolMeta` accepts or requires `target-language`. A monolingual tool whose config factory reads the run's target language without declaring it has a target scope nobody can reach from the command line; one that declares it without reading it offers a flag that does nothing.
 
 Withholding a tool from the CLI is a separate decision, declared with `internal: true` on its `ToolMeta` and never expressed by omitting a config factory, which would make a forgotten tool indistinguishable from one deliberately withheld. An internal tool is still configurable: a flow may name it as a step.
 

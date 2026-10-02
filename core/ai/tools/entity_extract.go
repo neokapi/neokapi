@@ -272,9 +272,9 @@ type extractionEntry struct {
 
 func (t *AIEntityExtractTool) processBatched(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	// 1. Drain input.
-	var parts []*model.Part
-	for part := range in {
-		parts = append(parts, part)
+	parts, err := tool.ReadAll(ctx, in)
+	if err != nil {
+		return err
 	}
 
 	// 2. Identify blocks with text.

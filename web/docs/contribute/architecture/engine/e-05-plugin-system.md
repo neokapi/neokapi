@@ -133,8 +133,9 @@ the plugin inside its own package prefix and links it into the shared root: a
 Homebrew formula stages `share/kapi/plugins/<plugin>` in its keg, and `brew link`
 publishes it at `/opt/homebrew/share/kapi/plugins/<plugin>`, so a name-only or
 link-skipping scan would find nothing there. First match wins on plugin name.
-Conflicting capabilities between two different plugins are an error: kapi prints
-both manifests and refuses to dispatch the conflicting capability.
+A capability that two or more different plugins declare is an error: kapi names
+the providers and dispatches that capability to none of them, however many
+declare it.
 `KAPI_PLUGINS_DIR_ONLY` restricts discovery to the first root, which is how an
 in-repo kapi stays isolated from the developer's installed plugins.
 `kapi plugin install` then writes into that root, and refuses when it is empty.

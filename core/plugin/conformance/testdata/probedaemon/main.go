@@ -24,6 +24,8 @@
 //	PROBE_LEAK_SOCKET=1     exit without unlinking the socket
 //	PROBE_SEGMENT_ERROR=1   answer Segment with an error string
 //	PROBE_COMMENTS_MISS=1   answer LocateComments with no comment
+//	PROBE_NO_COMPLETE=1     end Process after ReadDone without completion
+//	PROBE_PROCESS_ERROR=1   report a ProcessComplete error after emitting blocks
 //	PROBE_BLOCKS=n          blocks the Process RPC returns (default: input lines)
 //	PROBE_UNKNOWN_VERB_OK=1 exit 0 on an unrecognised verb
 //	PROBE_ANY_COMMAND_OK=1  exit 0 for any `command <name>`
@@ -240,8 +242,15 @@ func (b *bridge) Process(stream pb.BridgeService_ProcessServer) error {
 	}); err != nil {
 		return err
 	}
+	if on("PROBE_NO_COMPLETE") {
+		return nil
+	}
+	complete := &pb.ProcessComplete{}
+	if on("PROBE_PROCESS_ERROR") {
+		complete.Error = "injected document failure"
+	}
 	return stream.Send(&pb.ProcessResponse{
-		Response: &pb.ProcessResponse_Complete{Complete: &pb.ProcessComplete{}},
+		Response: &pb.ProcessResponse_Complete{Complete: complete},
 	})
 }
 

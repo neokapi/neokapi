@@ -46,7 +46,7 @@ else
     RUN_ALL=false
     # Compare against what's on remote main
     BASE=$(git merge-base HEAD origin/main 2>/dev/null || echo "HEAD~1")
-    CHANGED=$(git diff --name-only "$BASE"...HEAD 2>/dev/null; git diff --name-only 2>/dev/null)
+    CHANGED=$(git diff --name-only "$BASE"...HEAD 2>/dev/null; git diff --name-only 2>/dev/null; git diff --cached --name-only 2>/dev/null)
     CHANGED=$(echo "$CHANGED" | sort -u)
 
     if [ -z "$CHANGED" ]; then

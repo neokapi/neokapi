@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-27T15:37:40Z",
+  "generatedAt": "2026-10-02T09:41:52Z",
   "tools": [
     {
       "name": "apply_edits",
-      "description": "Apply a typed change-set: the one write verb. For document wording, each entry uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and hashes with extract_content. The replacement field is for voice rules. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule) are written to the project's stores and recorded in its context history, and a recipe field is written to kapi.yaml. No AI provider is used. Read the context://\u003cproject-relative-path\u003e resource before editing content, then run check_file on each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, id and lines (as check_file reports them, such as func/Parse), comment_sha256 (the fingerprint check_file reports for the comment; a comment whose bytes differ is refused as changed, and current_text may carry the prose as read instead) and text (the comment's prose without comment markers, or a /* */ comment's delimiters and the * opening each line). Every byte outside the comment is kept, a /* */ comment keeps its layout, the result must parse and the language's formatter must agree; a directive, a generated file's comment, a changed comment, text holding */ in a /* */ comment and text that drops a code block or reference are refused with a reason and write nothing. A comment in a language whose plugin or formatter is not installed, or whose formatter does not format the file, did not run and is not written. A project's formatter runs code that project controls, and an agent that can write files can write the configuration it loads, so apply_edits never runs it: such a comment did not run, with the reason formatter, and a person applies it with kapi apply in a terminal. Each written file's result carries a check scoped to the change.",
+      "description": "Apply a typed change-set: the one write verb. For document wording, each entry uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and hashes with extract_content. The replacement field belongs to term entries. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash). An edit that drops, invents or duplicates an inline code, crosses or unbalances paired codes, or changes a block holding a plural or select construct is refused as guard_failed and leaves the block as it was. Asset edits (a term, a content memory pair) are written to the project's stores and recorded in its context history, and a recipe field is written to kapi.yaml. No AI provider is used. Read the context://\u003cproject-relative-path\u003e resource before editing content, then run check_file on each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, id and lines (as check_file reports them, such as func/Parse), comment_sha256 (the fingerprint check_file reports for the comment; a comment whose bytes differ is refused as changed, and current_text may carry the prose as read instead) and text (the comment's prose without comment markers, or a /* */ comment's delimiters and the * opening each line). Every byte outside the comment is kept, a /* */ comment keeps its layout, the result must parse and the language's formatter must agree; a directive, a generated file's comment, a changed comment, text holding */ in a /* */ comment and text that drops a code block or reference are refused with a reason and write nothing. A comment in a language whose plugin or formatter is not installed, or whose formatter does not format the file, did not run and is not written. A project's formatter runs code that project controls, and an agent that can write files can write the configuration it loads, so apply_edits never runs it: such a comment did not run, with the reason formatter, and a person applies it with kapi apply in a terminal. Each written file's result carries a check scoped to the change.",
       "surface": "content",
       "params": [
         {
@@ -691,7 +691,7 @@
     },
     {
       "name": "extract_content",
-      "description": "Parse a file into translatable content blocks: each block's id, content_hash, source text (inline codes rendered as \u003cx id=\"…\"/\u003e placeholders), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply).",
+      "description": "Parse a file into its content blocks: each block's id, content_hash, source text (inline codes rendered as \u003cx id=\"…\"/\u003e placeholders, character references as their characters), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply). Both read the file in the same format, so pass the same project.",
       "surface": "content",
       "params": [
         {
@@ -704,7 +704,7 @@
           "name": "format",
           "type": "string",
           "required": false,
-          "description": "Override format detection"
+          "description": "Override format detection. apply_edits detects the format through the project, so a block read in another format may not be one it can write"
         },
         {
           "name": "project",

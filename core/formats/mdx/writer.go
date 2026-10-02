@@ -152,10 +152,22 @@ func (w *Writer) writeFromParts(blocks []*model.Block, data []*model.Data, out i
 // markdown reader via BlockPropLinePrefix) have that prefix re-inserted
 // after every "\n" so blockquotes and indented continuations retain their
 // original line shape — identical to the markdown writer's behaviour.
+//
+// A source an edit rewrote has the markup the edit added escaped (see
+// editSyntax), so an edit's wording reaches the page as text and never as JSX,
+// an expression or an import.
 func (w *Writer) blockText(block *model.Block) string {
 	runs := w.blockRuns(block)
 	if runs == nil {
 		return ""
+	}
+	usesSource := w.Locale.IsEmpty() || !block.HasTarget(w.Locale) || len(block.TargetRuns(w.Locale)) == 0
+	if read, edited := block.SourceAsRead(); usesSource && edited {
+		rendered := markdown.RenderEditedSource(block, read, editSyntax)
+		if block.Properties[BlockPropVerbatim] != "" {
+			return rendered
+		}
+		return markdown.FinishBlockContent(block, rendered)
 	}
 	if block.Properties[BlockPropVerbatim] != "" {
 		return model.RenderRunsWithData(runs)

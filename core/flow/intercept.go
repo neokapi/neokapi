@@ -24,16 +24,19 @@ type partHook func(*model.Part)
 //
 // Neither interceptor outlives the call, whatever the inner tool does:
 //
-//   - The input interceptor stops forwarding on context cancellation or once run
-//     returns (stop), since a tool that has returned no longer reads its input.
+//   - The input interceptor stops receiving and forwarding on context
+//     cancellation or once run returns (stop), since a tool that has returned
+//     no longer reads its input. An idle upstream therefore cannot hold it.
 //   - The output interceptor keeps consuming the inner tool's output after
 //     cancellation — discarding rather than forwarding — so an inner tool whose
 //     sends are not guarded by ctx still completes its send and returns instead
 //     of parking on a channel nobody reads. Wrappers accept arbitrary tools,
 //     including plugin tools whose Process this package does not control.
 //
-// Both are joined before returning. Cancellation that stopped forwarding
-// surfaces as the context error when the inner tool reports none itself.
+// Both are joined before returning. A canceled context surfaces as the context
+// error when the inner tool reports none itself: the input interceptor may have
+// closed the inner input early, so a nil from the inner tool cannot be read as
+// a complete run.
 func interceptTool(
 	ctx context.Context,
 	in <-chan *model.Part,
@@ -54,7 +57,19 @@ func interceptTool(
 	go func() {
 		defer interceptors.Done()
 		defer close(innerIn)
-		for part := range in {
+		for {
+			var part *model.Part
+			select {
+			case <-ctx.Done():
+				return
+			case <-stop:
+				return
+			case next, ok := <-in:
+				if !ok {
+					return
+				}
+				part = next
+			}
 			if onIn != nil {
 				onIn(part)
 			}
@@ -96,5 +111,8 @@ func interceptTool(
 	if err != nil {
 		return err
 	}
-	return forwardErr
+	if forwardErr != nil {
+		return forwardErr
+	}
+	return ctx.Err()
 }

@@ -9,9 +9,8 @@ import (
 // NewApplyCmd builds `kapi apply`: the one write verb, the write sibling of
 // `kapi inspect`. It reads a typed change-set and lands every entry — content
 // edits through the byte-faithful format round-trip (drift- and inline-code
-// guarded), asset edits into their committed source artifact followed by the
-// existing compile into the gitignored cache. No AI provider is involved: Claude
-// authored the changes; apply enforces the guardrails and writes them.
+// guarded), asset edits into the project's store. No AI provider is involved:
+// Claude authored the changes; apply enforces the guardrails and writes them.
 func NewApplyCmd(a *App) *cobra.Command {
 	var (
 		diff        bool
@@ -24,11 +23,15 @@ func NewApplyCmd(a *App) *cobra.Command {
 		GroupID: "work",
 		Long: `Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is
 one reviewed change: a content edit, an asset edit (term, content-memory pair,
-voice rule, recipe field), or a review outcome (kind:"review"). Content edits
+recipe field), or a review outcome (kind:"review"). Content edits
 land through the same byte-faithful round-trip the engine's writers use (structure and
-inline codes preserved), drift-guarded by content_hash; asset edits are written
-into their committed source artifact and the existing import compiles them into
-the cache; a review outcome is recorded as unit state in the project store.
+inline codes preserved), drift-guarded by content_hash. An edit that drops,
+invents or duplicates an inline code, crosses or unbalances paired codes, or
+changes a block holding a plural or select construct is refused as
+guard_failed and leaves the block as it was. A term or content-memory pair is
+written to the project's store and recorded in its context history, a recipe
+field is written to kapi.yaml, and a review outcome is recorded as unit state
+in the project store.
 
 A content memory pair (kind:"memory") is recycle leverage for future translation. It does not
 establish a unit. To establish a translated unit, use a kind:"review" entry
@@ -55,8 +58,11 @@ findings are reported beside the edit.
 
 The change-set is JSONL (one entry per line), read from CHANGESET or, with no
 argument or "-", from standard input. Content entries name their own file, so
-apply writes those files in place; --diff previews content and comment changes
-and writes nothing. No AI provider is required.`,
+apply writes those files in place; --diff previews content and comment changes,
+lists each asset entry as a preview, and writes nothing. Entries land one at a
+time: an entry already written stays when a later one is stale, refused or
+fails, and apply then exits non-zero. Re-running the corrected change-set skips
+what is already in place. No AI provider is required.`,
 		Example: `  kapi inspect report.docx --jsonl | edit-the-text | kapi apply
   kapi apply changeset.jsonl
   kapi apply changeset.jsonl --diff
@@ -81,7 +87,7 @@ and writes nothing. No AI provider is required.`,
 		},
 	}
 	f := cmd.Flags()
-	f.BoolVar(&diff, "diff", false, "preview content and comment changes as a unified diff and write nothing")
+	f.BoolVar(&diff, "diff", false, "preview content and comment changes as a unified diff, list asset entries, and write nothing")
 	f.BoolVar(&asJSON, "json", false, "print the apply report as JSON")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format for content files (default: auto-detect)")
 	a.AddSourceLangFlag(f)

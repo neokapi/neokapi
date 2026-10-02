@@ -50,7 +50,9 @@ The assistant drives the loop through structured calls: `extract_content` to rea
 kapi inspect guide.md --jsonl        # one JSON object per line
 ```
 
-Two fields anchor an edit: **`text`** renders inline codes as `<x id="…"/>` tokens; keep every token in your edited text (a placeholder is `<x id="1/"/>`, a paired span opens with `<x id="1"/>` and closes with `<x id="/1"/>`). **`content_hash`** is the block's identity; send it back so kapi can tell the block is still the one you read.
+Two fields anchor an edit: **`text`** renders inline codes as `<x id="…"/>` tokens; keep every token in your edited text (a placeholder is `<x id="1/"/>`, a paired span opens with `<x id="1"/>` and closes with `<x id="/1"/>`). A character reference the source spells out, such as `&amp;` in HTML, shows as its character; keep, move or drop it like any other character, and one you keep keeps its spelling. **`content_hash`** is the block's identity; send it back so kapi can tell the block is still the one you read. `inspect` reads a file in the same format and with the same reader `apply` writes it back through, so every `id` and `content_hash` it prints is one `apply` resolves.
+
+Everything else in `text` is text, and kapi encodes it for the file's format: in HTML a `<` or `&` you type is written as a character reference. Markdown, MDX and AsciiDoc keep some of their own syntax in `text`, such as a backslash escape, an MDX `{expression}` or an AsciiDoc `+++` passthrough. Syntax the block already holds stays as you keep it, and syntax you add (a tag, a link, an expression, an `import` line, a macro) is escaped so the page shows the characters you typed.
 
 **Edit, then apply.** Produce one `content` entry per changed block; `kapi apply` is the one write verb:
 
@@ -68,7 +70,7 @@ Two fields anchor an edit: **`text`** renders inline codes as `<x id="…"/>` to
 kapi inspect guide.md --jsonl > blocks.jsonl
 # rewrite the "text" of the blocks you want changed (keeping every <x id="…"/>
 # token) and save them as content entries to edits.jsonl (you do this; no command)
-kapi apply edits.jsonl --diff             # preview as a unified diff, write nothing
+kapi apply edits.jsonl --diff             # preview as a unified diff per block id, write nothing
 kapi apply edits.jsonl                    # apply in place
 kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak
 ```
@@ -87,7 +89,7 @@ kapi check guide.md --max-chars 500 --forbid "utilize"
 `apply` writes a block only when both guards pass; a blocked edit leaves that block untouched and is reported, so nothing is silently corrupted:
 
 - **Drift guard.** A block whose current `content_hash` no longer matches your entry changed since you inspected it; the edit is marked **stale** and skipped.
-- **Inline-code guard.** An edited `text` that drops, invents, duplicates, or unbalances an `<x id="…"/>` token is **rejected** rather than written back with broken markup.
+- **Inline-code guard.** An edited `text` that drops, invents, duplicates, or unbalances an `<x id="…"/>` token is **rejected** rather than written back with broken markup. A block holding a plural or select construct shows one form of it in `text`; flat text cannot carry the other branches, so a changed `text` for that block is **rejected** as well.
 
 Either outcome exits on the gate code (`3`), distinct from an operational error; re-inspect the affected blocks and retry with fresh hashes. `apply` is idempotent, and the same change-set can carry asset edits (an approved term, a voice rule; see [Create content](/kapi/recipes/create-content)) or a `kind:"review"` entry ([The kapi loop](/kapi/convergence#review-the-state-record)): one write verb, different `kind`s.
 

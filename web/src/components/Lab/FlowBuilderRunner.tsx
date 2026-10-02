@@ -1,4 +1,6 @@
-import React, { Suspense } from "react";
+import React from "react";
+import { ChunkSafeSuspense } from "../ChunkErrorBoundary";
+import { lazyWithRetry } from "../../lib/chunkReload";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
@@ -11,12 +13,16 @@ import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
 // later-added explorer does not have to edit Lab/index.tsx.
 
 const Loading = (): React.ReactElement => (
-  <div style={{ padding: "1rem", color: "var(--ifm-color-emphasis-500)", fontStyle: "italic" }}>
+  <div
+    role="status"
+    aria-live="polite"
+    style={{ padding: "1rem", color: "var(--ifm-color-emphasis-500)", fontStyle: "italic" }}
+  >
     Loading the interactive lab…
   </div>
 );
 
-const LazyFlowBuilderRunner = React.lazy(async () => {
+const LazyFlowBuilderRunner = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.FlowBuilderRunner };
 });
@@ -79,9 +85,9 @@ export function FlowBuilderRunner({
               }))
             : undefined;
           return (
-            <Suspense fallback={<Loading />}>
+            <ChunkSafeSuspense fallback={<Loading />}>
               <LazyFlowBuilderRunner assets={assets} recordedTraces={recordedTraces} {...props} />
-            </Suspense>
+            </ChunkSafeSuspense>
           );
         }
         return <Inner />;

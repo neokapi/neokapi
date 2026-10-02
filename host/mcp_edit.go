@@ -12,7 +12,7 @@ import (
 
 // init registers the write leg of the edit loop on the shared MCP stdio server:
 // apply_edits (the one write verb). It pairs with the read leg, extract_content
-// (which emits each block's content_hash + placeholder-rendered text), and
+// (which emits each block's content_hash and edit text), and
 // check_file, so a non-Claude MCP client runs the same author → check → fix loop
 // the CLI skill drives — the client supplies the edits, kapi enforces the
 // faithful round-trip and is the checker. No second model is involved.
@@ -21,7 +21,8 @@ func init() {
 }
 
 // applyEditsInput is a typed change-set: the same shape `kapi apply` consumes.
-// Each entry is a content edit or an asset edit (term/tm/brand/recipe).
+// Each entry is a content or comment edit, or an asset edit (term, memory,
+// recipe).
 type applyEditsInput struct {
 	Changeset []changeEntry `json:"changeset" jsonschema:"the typed change-set entries to apply"`
 	Project   string        `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
@@ -29,7 +30,9 @@ type applyEditsInput struct {
 
 // applyEditsMCPOutput reports the per-block content outcome and per-entry asset
 // outcomes; OK is false when any edit drifted (stale) or was rejected by the
-// inline-code guard, signalling the caller to re-inspect and retry. Comments
+// fidelity guard (guard_failed: the edit would corrupt an inline code or
+// flatten plural/select branches), the same buckets `kapi apply --json`
+// reports, signalling the caller to re-inspect and retry. Comments
 // holds each file's comment edits and the check of what they wrote, and OK is
 // false when one was refused, did not run, or left that check not passing.
 type applyEditsMCPOutput struct {
@@ -48,9 +51,11 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 		Name: "apply_edits",
 		Description: "Apply a typed change-set: the one write verb. For document wording, each entry " +
 			"uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and " +
-			"hashes with extract_content. The replacement field is for voice rules. Content edits land through the " +
-			"byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); " +
-			"asset edits (terms entry, content memory pair, voice rule) are written to the project's stores and " +
+			"hashes with extract_content. The replacement field belongs to term entries. Content edits land through the " +
+			"byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash). " +
+			"An edit that drops, invents or duplicates an inline code, crosses or unbalances paired codes, or changes " +
+			"a block holding a plural or select construct is refused as guard_failed and leaves the block as it was. " +
+			"Asset edits (a term, a content memory pair) are written to the project's stores and " +
 			"recorded in its context history, and a recipe field is written to kapi.yaml. No AI provider is used. Read the " +
 			"context://<project-relative-path> resource before editing content, then run check_file on " +
 			"each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, " +
@@ -68,6 +73,23 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 		return a.applyEditsMCP(ctx, mcpAgentActor(req), in)
 	})
+}
+
+// MCPEditFormat names the format one MCP call reads and writes path in:
+// format when the call gives one (a preset included), else the format the
+// call's project detects for path from its allowed plugin sources and
+// detection priorities, else "" so the edit detects it from the file.
+// extract_content and apply_edits both resolve through it, so the block ids
+// and content hashes one reports are the ones the other writes.
+func (a *App) MCPEditFormat(explicitProject, path, format string) string {
+	if format != "" {
+		return format
+	}
+	pctx, err := a.mcpProjectContext(explicitProject)
+	if err != nil || pctx == nil {
+		return ""
+	}
+	return pctx.DetectFormat(a.FormatReg, path)
 }
 
 func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
@@ -116,7 +138,7 @@ func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in apply
 		report := &coretools.ApplyReport{}
 		byID, byHash := buildEditMaps(byFile[file])
 		t := coretools.NewApplyEditsTool(byID, byHash, report)
-		if derr := a.EditDocument(ctx, file, t, "", true, "", nil); derr != nil {
+		if derr := a.EditDocumentAs(ctx, file, a.MCPEditFormat(in.Project, file, ""), t, "", true, "", nil); derr != nil {
 			return nil, applyEditsMCPOutput{}, fmt.Errorf("%s: %w", DisplayName(file), derr)
 		}
 		out.Content.Applied = append(out.Content.Applied, report.Applied...)

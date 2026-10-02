@@ -169,11 +169,14 @@ read it rather than a prose copy.
 `apply_edits` reports `ok` alongside the per-block outcome (`applied`,
 `skipped`, `stale`, `guard_failed`) and a per-entry asset result. `ok` is false
 when an edit drifted or was rejected, which is the caller's signal to re-read
-the block and retry rather than to force the write.
+the block and retry rather than to force the write. An edit is rejected as
+`guard_failed` when it drops, invents or duplicates an inline code, crosses or
+unbalances paired codes, or changes a block holding a plural or select
+construct.
 
 A content entry uses `kind: "content"`, `file`, the extracted block `id` and
-`content_hash`, and `text` for its new wording. `replacement` belongs to voice
-rules. Both the CLI and MCP reject content entries carrying a nonempty
+`content_hash`, and `text` for its new wording. `replacement` belongs to term
+entries. Both the CLI and MCP reject content entries carrying a nonempty
 `replacement` before applying any entry, with an error identifying the expected
 `text` field.
 

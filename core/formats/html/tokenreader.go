@@ -1114,6 +1114,7 @@ leafClosed:
 			Targets:            make(map[model.VariantKey]*model.Target),
 			Properties:         extractBlockPropsFromToken(attrs),
 		}
+		setStructuralRole(block, tag, func(key string) string { return getTokenAttr(attrs, key) })
 		s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}
 

@@ -380,6 +380,16 @@ One `Process` stream handles a full document:
 6. **kapi closes its send side** to signal no more processed parts.
 7. **The plugin sends `ProcessComplete`** with an output path or inline bytes.
 
+`ProcessComplete` ends every `Process` stream, a failed one included, which
+carries its reason in the `error` field. kapi fails a read or a write whose
+stream ends without it (`io.ErrUnexpectedEOF`, a truncated run), and fails the
+run when `error` is set. A plugin may send `ProcessComplete` before step 6, as
+okapi-bridge does once its pipeline has written the document; kapi accepts that
+completion when its own processed-part stream ends, waiting no longer than the
+run's context allows. After a successful completion, kapi discards any
+processed part it still holds once the plugin has returned from `Process`,
+because the document is already written.
+
 A **read-only** run omits both the output reference and the output locale: kapi
 closes its send side immediately after the header, and the plugin streams blocks
 without a writer.
@@ -662,6 +672,10 @@ conformance.Suite{
 }
 ```
 
+The format probe passes only when the stream ends in a `ProcessComplete` with
+no `error`, the same condition the host applies (see
+[Process lifecycle](#process-lifecycle)).
+
 `Suite` also carries `Env` (extra environment for every spawned process),
 `Only` / `Skip` (check IDs or group names), and `Logf` (a trace line per check).
 `Only` restricts which checks are *reported*; it does not disable the suite's own
@@ -704,7 +718,8 @@ specification and its examples cannot drift apart:
   speaks the whole protocol and carries environment switches making it violate
   one rule at a time (no handshake, non-JSON handshake, missing socket field,
   relative socket, unregistered service, permissive socket, missing `Shutdown`,
-  ignored SIGTERM, leaked socket). Every negative path in the suite is verified
+  ignored SIGTERM, leaked socket, a `Process` stream that ends without
+  `ProcessComplete` or with an `error` in it). Every negative path in the suite is verified
   against a real subprocess rather than a mock.
 
 Out of tree, [neokapi/okapi-bridge](https://github.com/neokapi/okapi-bridge) is

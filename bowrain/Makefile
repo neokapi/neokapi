@@ -502,7 +502,8 @@ test-images: ## Print the container images the bowrain suites start
 	@$(GO) run ./testutil/testimage/list
 
 pull-test-images: ## Fetch those images so no test pulls one mid-run
-	@$(GO) run ./testutil/testimage/list | while read -r img; do \
+	@images="$$($(GO) run ./testutil/testimage/list)" || exit $$?; \
+	printf '%s\n' "$$images" | while read -r img; do \
 		echo "docker pull $$img"; \
 		docker pull --quiet "$$img" >/dev/null || exit 1; \
 	done

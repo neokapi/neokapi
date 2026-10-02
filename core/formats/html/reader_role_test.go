@@ -5,6 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	htmlfmt "github.com/neokapi/neokapi/core/formats/html"
 	mdfmt "github.com/neokapi/neokapi/core/formats/markdown"
 	"github.com/neokapi/neokapi/core/internal/testutil"
@@ -50,6 +53,53 @@ func TestHTMLReaderPopulatesSemanticRole(t *testing.T) {
 	}
 	if r, _ := roleOf("Item one"); r != model.RoleListItem {
 		t.Errorf("li → role=%q, want %q", r, model.RoleListItem)
+	}
+}
+
+// `kapi inspect` reads a document the way the edit path does, which for HTML
+// is the byte-faithful tokenizer, so a leaf element's role and heading level
+// come out the same whichever engine read it.
+func TestHTMLReaderRolesMatchAcrossEngines(t *testing.T) {
+	const src = `<html><body>` +
+		`<h2>Title</h2>` +
+		`<p>Para</p>` +
+		`<ul><li>Item one</li></ul>` +
+		`<table><tr><th>Head</th><td colspan="2">Cell</td></tr></table>` +
+		`</body></html>`
+	tests := []struct {
+		text    string
+		role    string
+		level   int
+		colSpan int
+	}{
+		{text: "Title", role: model.RoleHeading, level: 2},
+		{text: "Para", role: model.RoleParagraph},
+		{text: "Item one", role: model.RoleListItem},
+		{text: "Head", role: model.RoleTableHeader},
+		{text: "Cell", role: model.RoleTableCell, colSpan: 2},
+	}
+	for _, mode := range htmlModes() {
+		t.Run(mode.name, func(t *testing.T) {
+			ctx := t.Context()
+			reader := mode.newRead(t)
+			require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(src, model.LocaleEnglish)))
+			defer reader.Close()
+			blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+			for _, tc := range tests {
+				var got *model.StructureAnnotation
+				for _, b := range blocks {
+					if strings.TrimSpace(b.SourceText()) == tc.text {
+						got, _ = b.Structure()
+					}
+				}
+				require.NotNil(t, got, "%s carries a structure annotation", tc.text)
+				assert.Equal(t, tc.role, got.Role, tc.text)
+				assert.Equal(t, tc.level, got.Level, tc.text)
+				if tc.colSpan > 0 {
+					assert.Equal(t, tc.colSpan, got.ColSpan, tc.text)
+				}
+			}
+		})
 	}
 }
 

@@ -70,6 +70,18 @@ func (Provider) Render(name string, src []byte, c layer.Comment, text string, op
 	if err != nil {
 		return nil, err
 	}
+	// With no requested reflow, an identity edit preserves the exact marker
+	// spacing. Free-standing comments can use both "//\t" and "// \t" for
+	// indented examples; their prose alone does not encode that distinction.
+	if opts.Width <= 0 {
+		original, err := (Provider{}).Prose(src, c)
+		if err != nil {
+			return nil, err
+		}
+		if original == text {
+			return bytes.Clone(src[c.Start:c.End]), nil
+		}
+	}
 	lineStart := bytes.LastIndexByte(src[:c.Start], '\n') + 1
 	indent := string(src[lineStart:c.Start])
 	if strings.TrimLeft(indent, " \t") != "" {

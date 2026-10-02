@@ -511,7 +511,7 @@ declined item into a later change-set "for consistency".
 ## 4. Apply, converge, verify
 
 ```bash
-kapi apply refresh.jsonl         # terms + voice rules land atomically
+kapi apply refresh.jsonl         # each term lands; re-run after fixing a refused entry
 kapi up                          # reconcile the graph and re-extract the sources
 kapi check --ship --json         # the refreshed gates
 ```

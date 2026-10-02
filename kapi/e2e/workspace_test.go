@@ -164,6 +164,23 @@ func TestKpzMultiLocaleAccumulates(t *testing.T) {
 	assert.FileExists(t, filepath.Join(dir, "l10n", "qps", "app.json"))
 }
 
+// TestKpzSourceOnlyToolNeedsNoTarget verifies a tool that works on the source
+// alone runs on a workspace extracted with no target language. Its exec
+// command offers no --target-lang, so the transform must not ask for one.
+func TestKpzSourceOnlyToolNeedsNoTarget(t *testing.T) {
+	dir := t.TempDir()
+	src := writeWS(t, dir, "messages.json", `{"greeting":"Hello, write to someone@example.com"}`)
+	work := filepath.Join(dir, "work.kpz")
+	kapi(t, "extract", src, "-o", work)
+
+	out := kapi(t, "exec", "redact", work)
+	assert.Contains(t, out, "no target locales")
+
+	out, err := kapiAllowFail(t, "exec", "qa", work)
+	require.Error(t, err, "a bilingual tool still needs a target language")
+	assert.Contains(t, out, "--target-lang is required")
+}
+
 // TestKpzRecipeRemembersOutput verifies the recipe (locales + out layout)
 // travels with the .kpz, so `merge` needs no flags.
 //

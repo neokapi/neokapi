@@ -212,6 +212,10 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 	// against. lastRefResolved separates "rendered to the empty string" from
 	// "no ref has been replayed yet".
 	lastRefRendered, lastRefResolved := "", false
+	// lastTextByte is the final byte of the skeleton text written before the
+	// current entry. Before an attribute value's ref it is the value's opening
+	// quote, or '=' when the source left the value unquoted.
+	var lastTextByte byte
 	for {
 		entry, err := store.Next()
 		if errors.Is(err, io.EOF) {
@@ -225,10 +229,15 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		if entry.Type != format.SkeletonOriginal && entry.Type != format.SkeletonRef {
 			pendingOriginal, pendingRendered = nil, nil
 		}
+		quote := lastTextByte
+		lastTextByte = 0
 		switch entry.Type {
 		case format.SkeletonText, format.SkeletonInserted:
 			if _, err := w.Output.Write(entry.Data); err != nil {
 				return err
+			}
+			if n := len(entry.Data); n > 0 {
+				lastTextByte = entry.Data[n-1]
 			}
 		case format.SkeletonOriginal:
 			rendered, original, ok := format.DecodeSkeletonPair(entry.Data)
@@ -260,9 +269,17 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 					// inline tag belongs in the replayed span — but the
 					// encoding pass does not run, because the original bytes
 					// are already the document's own.
-					if original != nil && text == string(expected) {
+					switch {
+					case original != nil && text == string(expected):
 						text = w.substituteBlockRefs(string(original), blocks)
-					} else {
+					case block.IsReferent:
+						// An attribute value holds no markup, so every quote
+						// in it is text. htmlEncodeBlockText's span tracking
+						// would read a '<' in the value as the start of a tag
+						// and leave the quotes after it unescaped, ending the
+						// value early.
+						text = encodeAttrValue(text, quote, "&quot;")
+					default:
 						text = w.substituteBlockRefs(text, blocks)
 						text = htmlEncodeBlockText(text, block)
 					}
@@ -422,11 +439,12 @@ func scanTagName(s string, i int) string {
 // placeholder Data as opaque.
 //
 // rewriteInlineTagWithRefs always positions sentinels inside HTML
-// attribute values (i.e. between the opening and closing `"` of an
-// attribute), so the substituted text needs HTML-attribute-value
-// encoding: any `"` in the translated text becomes `&#34;` (matching
-// okapi's HtmlEncoder NUMERIC_SINGLE_QUOTES default), and bare `&`
-// not introducing an existing entity becomes `&amp;`.
+// attribute values, so the substituted text needs attribute-value
+// encoding for the quoting the source gave the value: any `"` becomes
+// `&#34;` (matching okapi's HtmlEncoder NUMERIC_SINGLE_QUOTES default),
+// a `'` inside a single-quoted value becomes `&#39;`, and an unquoted
+// value that needs quoting gets it (see encodeAttrValue). An edited value's
+// `&` was escaped when the block was rendered (renderSourceRuns).
 func (w *Writer) substituteBlockRefs(s string, blocks map[string]*model.Block) string {
 	const sentinel = "\x00BLOCK:"
 	if !strings.Contains(s, sentinel) {
@@ -450,22 +468,40 @@ func (w *Writer) substituteBlockRefs(s string, blocks map[string]*model.Block) s
 		}
 		blockID := before
 		if blk, ok := blocks[blockID]; ok {
-			b.WriteString(encodeForAttributeValue(w.getBlockText(blk)))
+			var quote byte
+			if i > 0 {
+				quote = s[i-1]
+			}
+			b.WriteString(encodeAttrValue(w.getBlockText(blk), quote, "&#34;"))
 		}
 		s = after
 	}
 }
 
-// encodeForAttributeValue escapes a substituted-into-attribute-value
-// string so it remains parseable inside `attr="…"`. Only `"` is escaped
-// (not `<`, `>`, or `&`) — okapi's HtmlEncoder default NUMERIC_SINGLE_QUOTES
-// quote mode emits `&#34;` for embedded double-quotes in attribute
-// values and leaves the rest intact, matching how the source is read.
-func encodeForAttributeValue(s string) string {
-	if !strings.ContainsAny(s, `"`) {
-		return s
+// encodeAttrValue makes a rendered attribute value safe in the position the
+// source gave it. quote is the byte before the value: the opening double or
+// single quote of a quoted value, any other byte for an unquoted one.
+//
+// A double quote is spelled dq (okapi writes `&quot;` in a block element's
+// attribute and `&#34;` in an inline one's). A single quote is escaped only
+// inside single quotes, so an apostrophe in a double-quoted value keeps its
+// bytes. An unquoted value carrying a character that would end it
+// (whitespace, a quote, '=', '<', '>' or '`'), or an empty one, is wrapped in
+// double quotes; the value the reader left never carries one, so an untouched
+// value keeps its bytes. '<' and '>' are text inside quotes, and the block's
+// rendering has already escaped every '&' of an edited value
+// (renderSourceRuns).
+func encodeAttrValue(v string, quote byte, dq string) string {
+	switch quote {
+	case '"':
+		return strings.ReplaceAll(v, `"`, dq)
+	case '\'':
+		return strings.ReplaceAll(strings.ReplaceAll(v, `"`, dq), "'", "&#39;")
 	}
-	return strings.ReplaceAll(s, `"`, "&#34;")
+	if v != "" && !strings.ContainsAny(v, " \t\n\f\r\"'=<>`") {
+		return v
+	}
+	return `"` + strings.ReplaceAll(v, `"`, dq) + `"`
 }
 
 // writeReparse re-parses the original HTML, patches translations, and renders.
@@ -607,19 +643,19 @@ func (v *writerVisitor) onContentBlock(blockID string, n *html.Node, role, body 
 
 func (v *writerVisitor) onTextBlock(blockID string, n *html.Node) {
 	if block, ok := v.blocks[blockID]; ok {
-		n.Data = v.writer.getBlockText(block)
+		n.Data = v.writer.getBlockValue(block)
 	}
 }
 
 func (v *writerVisitor) onAttributeBlock(blockID string, n *html.Node, attrKey string) {
 	if block, ok := v.blocks[blockID]; ok {
-		setAttr(n, attrKey, v.writer.getBlockText(block))
+		setAttr(n, attrKey, v.writer.getBlockValue(block))
 	}
 }
 
 func (v *writerVisitor) onMetaBlock(blockID string, n *html.Node) {
 	if block, ok := v.blocks[blockID]; ok {
-		setAttr(n, "content", v.writer.getBlockText(block))
+		setAttr(n, "content", v.writer.getBlockValue(block))
 	}
 }
 
@@ -689,7 +725,9 @@ var attrBlockTypes = map[string]bool{
 	"value":       true,
 }
 
-// getBlockText returns the text content to write for a block.
+// getBlockText returns a block's content as HTML markup to splice into the
+// document: the target for the writer's locale when the block has one,
+// otherwise the source.
 func (w *Writer) getBlockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		text := w.renderTargetRuns(block, w.Locale)
@@ -699,6 +737,19 @@ func (w *Writer) getBlockText(block *model.Block) string {
 		return text
 	}
 	return w.renderSourceRuns(block)
+}
+
+// getBlockValue returns the same content unescaped, for a DOM text node or
+// attribute that html.Render escapes itself.
+func (w *Writer) getBlockValue(block *model.Block) string {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		text := model.RenderRunsWithData(block.TargetRuns(w.Locale))
+		if attrBlockTypes[block.Type] {
+			text = collapseWhitespace(text)
+		}
+		return text
+	}
+	return model.RenderRunsWithData(block.Source)
 }
 
 // renderTargetRuns reconstructs the full text from a block's target
@@ -774,9 +825,42 @@ func writeEscapedHTMLText(b *strings.Builder, s string) {
 	}
 }
 
+// renderSourceRuns renders a block's source as markup. Inline codes re-emit
+// the markup the reader captured. A block nobody edited is written as it was
+// read: its text runs hold the document's own bytes, including the bare
+// ampersands, the '<' that opens no tag and the tag-like text inside a title
+// or a textarea that HTML reads as text.
+//
+// A block an edit rewrote (`kapi apply`, `ksed`, MCP apply_edits; see
+// model.Block.SourceAsRead) holds wording, which is text: inline codes
+// travel as their own runs, so every '<' and '&' in a text run is a
+// character, and each is written as a reference. Element content, a title and
+// a textarea decode references, so the page shows the character typed. An
+// attribute value has its '&' escaped here and its quotes by encodeAttrValue.
+//
+// A non-translatable content block (a <noscript> fallback, a JSON data island)
+// carries its markup verbatim in one run and is written back as it was read.
 func (w *Writer) renderSourceRuns(block *model.Block) string {
-	return model.RenderRunsWithData(block.Source)
+	if _, edited := block.SourceAsRead(); !edited || !block.Translatable {
+		return model.RenderRunsWithData(block.Source)
+	}
+	escaper := htmlTextEscaper
+	if block.IsReferent {
+		escaper = htmlAttrTextEscaper
+	}
+	var b strings.Builder
+	model.RenderRunsWith(&b, block.Source, &model.RunRenderer{
+		Text: func(b *strings.Builder, text string) { _, _ = escaper.WriteString(b, text) },
+	})
+	return b.String()
 }
+
+// htmlTextEscaper encodes an edit's text for element content.
+var htmlTextEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;")
+
+// htmlAttrTextEscaper encodes an edit's text for an attribute value, before
+// encodeAttrValue encodes it for the value's quoting.
+var htmlAttrTextEscaper = strings.NewReplacer("&", "&amp;")
 
 // setAttr sets an attribute value on an HTML node, adding it if not present.
 func setAttr(n *html.Node, key, val string) {

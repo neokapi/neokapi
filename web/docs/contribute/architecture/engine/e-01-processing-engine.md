@@ -15,12 +15,11 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 Content is processed by a channel-based streaming pipeline. Each tool runs in
 its own goroutine; tools are connected by buffered channels that provide
 automatic backpressure. An `errgroup.Group` coordinates errors and propagates
-context cancellation. Four independent concurrency layers (intra-tool block
-parallelism, batch file concurrency, document-level concurrency, and streaming
-observation) compose without interference. Flows are declared as either a
-graph of nodes and edges or a sequential list of steps (with explicit
-`parallel:` blocks for fan-out), both compiled to the same executable
-representation.
+context cancellation. Block parallelism within a tool, file and document
+concurrency, and streaming observation each have their own control. A flow is
+declared as a graph of nodes and edges or as a list of steps, and it runs as an
+ordered chain of tools: the host that loads a definition derives that order,
+and a parallel stage inside the chain admits a bounded number of Parts.
 
 ## Context
 
@@ -94,37 +93,57 @@ off unless a caller asks for it.
 ### Parallel block processing
 
 For IO-bound tools (LLM translation, remote checks), sequential per-part
-processing underutilizes throughput. `tool.ParallelBlockTool` wraps any tool to
-fan out Block processing across N goroutines while preserving strict Part
-ordering:
+processing underutilizes throughput. `tool.ParallelBlockTool` runs the block
+handler of a `*tool.BaseTool` on a fixed pool of N workers while preserving
+strict Part order. A wrapped tool of another concrete type, or one with no typed
+block handler, runs through its own `Process`, and a wrapped `SessionTool` keeps
+its `SessionProcess`:
 
 <PipelineDiagram
   stages={[
     { label: "Input" },
-    { label: "Dispatcher", sub: "seq numbers", role: "annotate" },
+    { label: "Dispatcher", sub: "seq numbers · N blocks admitted", role: "annotate" },
     {
       role: "translate",
-      parallelLabel: "fan-out · N goroutines (semaphore-bounded)",
+      parallelLabel: "fixed pool · N workers",
       lanes: [{ label: "Worker 1" }, { label: "Worker 2" }, { label: "Worker N" }],
     },
-    { label: "Reassembly", sub: "min-heap · in order", role: "annotate" },
+    { label: "Reassembly", sub: "bounded ring · in order", role: "annotate" },
     { label: "Output" },
   ]}
 />
 
-The dispatcher assigns monotonic sequence numbers to all incoming Parts. Block
-Parts are dispatched to a semaphore-bounded worker pool; non-Block Parts (Data,
-Media, Layer) pass through the inner tool sequentially. A min-heap reassembly
-buffer collects results and emits them in strict sequence order, so downstream
-tools see the same Part ordering regardless of which worker finished first.
+The dispatcher numbers every incoming Part and admits at most N blocks whose
+results have not yet reached the output. A block keeps its place in that window
+from admission until it is emitted, so a slow first block stops the dispatcher
+reading further input even when later blocks have finished, and downstream
+backpressure reaches the input. Non-Block Parts count against a separate window
+of 4N, so N blocks stay in flight when a reader puts Data or Group Parts between
+them. Reassembly holds the admitted Parts in a ring and emits them in input
+order, so downstream tools see the same Part ordering whichever worker finished
+first. A dropped Part advances the sequence and emits nothing.
+
+When the inner tool sets a handler for a non-Block Part (Data, Media, Layer,
+Group), that handler runs after every earlier block handler has finished and
+before any later block starts, so a handler that updates layer or group state
+never runs beside a block handler that reads it. A non-Block Part with no
+handler passes through in order without that wait. Block handlers must be safe
+to call concurrently for distinct blocks and must observe the context they
+receive: on an error or cancellation the wrapper cancels its workers and joins
+them before it returns.
 
 Auto-parallelism is a **tool** property. Each tool declares
 `ToolMeta.DefaultParallelBlocks` ([E-03](e-03-tool-system.md)); the runner takes
 the maximum across the flow's tools and wraps every tool at that width. A
 project may pin its own value, and `--parallel-blocks N` overrides both
 (`--parallel-blocks 1` disables the wrapper). The tools that declare a default
-today are the LLM-backed ones, so an ordinary rules-only flow runs sequentially
-with no configuration.
+are the LLM-backed ones, so an ordinary rules-only flow runs sequentially with
+no configuration. The wrapper parallelizes the typed block handler of a plain
+`*tool.BaseTool` only. The LLM-backed and MT tools embed `BaseTool` in types of
+their own, so the wrapper runs each of them through its own `Process`, where AI
+translation and entity extraction have their own batching and concurrency
+settings. A declared default therefore widens the plain `BaseTool` steps that
+share a flow with an LLM-backed tool.
 
 ### Batch executor
 
@@ -147,14 +166,26 @@ thread-safe aggregation across files.
 
 ### Concurrency layering
 
-Four independent concurrency layers compose without interference:
+Each execution surface has its own concurrency control:
 
-| Layer             | Scope                  | Control                     | Order                    |
-| ----------------- | ---------------------- | --------------------------- | ------------------------ |
-| ParallelBlockTool | Blocks within one tool | N goroutines per tool       | Strict Part order        |
-| BatchExecutor     | Multiple files         | FileConcurrency semaphore   | File order preserved     |
-| Executor          | Multiple documents     | MaxConcurrency semaphore    | Document order preserved |
-| TappingTool       | Observation            | Inline (no extra goroutine) | Sequential               |
+| Layer             | Scope                  | Control                                 | Order                        |
+| ----------------- | ---------------------- | --------------------------------------- | ---------------------------- |
+| ParallelBlockTool | Blocks within one tool | N workers, at most N admitted blocks    | Strict Part order            |
+| BatchExecutor     | Multiple files         | FileConcurrency semaphore               | File order preserved         |
+| Executor          | Multiple documents     | MaxConcurrency semaphore                | Document order preserved     |
+| TappingTool       | Observation            | Input and output interceptor goroutines | Sequential per tool boundary |
+
+The channel capacities and each parallel stage's windows bound the Parts in
+flight inside one tool chain, except inside a tool that buffers its input. AI
+translation and entity extraction in their batched mode, and media refine, read
+a whole document's Parts before they emit any; the layer processor holds one
+child layer at a time. A run's working set also depends on what surrounds the
+chain: `Execute` collects each document's output Parts, `BatchExecutor`
+takes pre-read Part slices and returns output slices, and a file run feeds its
+reader concurrently only when the reader is a streaming reader and no pre-read
+content is supplied, with a streaming skeleton only when the writer streams too.
+The bounds count Parts, so a single large Block or a retained skeleton can still
+dominate memory.
 
 ### Collectors and streaming collectors
 
@@ -167,7 +198,12 @@ thread-safe since multiple documents may complete concurrently.
 observation without adding a pipeline stage. `TappingTool` wraps a tool and its
 streaming collector: output Parts are intercepted and passed to `Observe()`
 synchronously before forwarding downstream. This enables real-time metrics
-without buffering the entire result set.
+without buffering the entire result set. The metrics, tracing and tapping
+wrappers share one interceptor: its input side stops waiting for input once the
+context is cancelled or the inner tool returns, its output side keeps draining
+the inner tool so a send the inner tool does not guard still completes, and
+both are joined before the wrapper returns. A cancelled context surfaces as the
+context error when the inner tool reports none.
 
 ### Flow tracing and visualization
 
@@ -205,7 +241,9 @@ thousands of Parts it moves.
 `flow.FlowDefinition` is a JSON/YAML-serializable struct that captures a flow
 graph (nodes + edges) and the tool configurations needed to reconstruct a
 runnable flow. This separates the declarative description of a flow from its
-runtime execution.
+runtime execution. The runtime `flow.Flow` is narrower than the graph: it holds
+an ordered `[]tool.Tool` and connects each tool to the next, so a host turns a
+definition into that order before anything runs.
 
 Each `FlowNode` has:
 
@@ -226,8 +264,21 @@ Each `FlowNode` has:
 > composition; a single tool is invoked directly, not wrapped in a one-tool flow.
 
 Each `FlowEdge` connects a source node to a target node. `TopologicalOrder()`
-computes the execution order using Kahn's algorithm, returning an error if a
-cycle is detected, so invalid flow graphs never reach the runtime executor.
+orders the nodes with Kahn's algorithm and reports a cycle as an error;
+`Validate()` checks node identifiers, node types and edge endpoints. Each host
+path derives the chain in its own way:
+
+- The engine service (`kapi engine serve`) refuses a definition in which a node
+  has more than one incoming or outgoing edge, then runs the topological order
+  as one chain.
+- The built-in flow path checks data flow and transformer placement, then
+  orders the tool nodes by their canvas X position (`orderedToolNodes`).
+- The project flow runner builds one tool per step, in step order, and refuses
+  a flow holding a `parallel:` step before it builds any.
+- A Go caller that fills `Flow.Tools` supplies the order itself.
+
+No path schedules branches concurrently or joins their results, so a flow meant
+to run is a linear chain.
 
 The built-in flow catalog is a product concern and lives in the host module
 (`host/flowdef.BuiltInFlows`), not in the engine. It covers translation with
@@ -266,9 +317,11 @@ spec:
     - tool: qa
 ```
 
-Steps are sequential by default. `parallel:` blocks provide fan-out. The parser
-auto-detects the shape (steps vs graph) and compiles steps to nodes and edges.
-Both produce the same runnable executor.
+Steps run in the order listed. The parser auto-detects the shape (steps vs
+graph), and `StepsToGraph` compiles steps to a chain of nodes and edges. It also
+accepts a `parallel:` block and compiles it to several nodes fed from the same
+predecessor; that shape exists in the definition model only, and none of the
+host paths above executes it as concurrent branches.
 
 The steps carry only the composition. A flow's source and sink are bindings
 resolved at invocation (file, the project store, a `.kpz`, interchange, or none;
@@ -276,11 +329,18 @@ resolved at invocation (file, the project store, a `.kpz`, interchange, or none;
 
 ### Fan-out and batching
 
-`tool.Tee()` copies parts to N output channels, enabling fan-out topologies where
-one node feeds multiple parallel branches. The `batch` tool collects blocks into
-configurable batches before forwarding, which suits batch-capable remote APIs and
-LLM prompts that benefit from multiple inputs per request
-([M-05](../multilingual/m-05-prompts-and-batching.md)).
+`tool.Tee()` is a channel helper for a Go caller: it forwards the same Part
+pointer to every output channel, takes backpressure from each receiver, and
+closes every output once its input closes or its context is cancelled. The
+executor never wires it from graph edges. A caller that uses it owns the
+branches' lifecycle, and concurrent receivers share each mutable Block, so they
+must coordinate access to it.
+
+The `batch` tool is a stage in a linear chain. It holds blocks until it has the
+configured number, then forwards them one by one; a non-block Part passes
+through at once, ahead of any blocks it holds. Grouping blocks into one request
+for batch-capable remote APIs and LLM prompts happens inside the tools that call
+them ([M-05](../multilingual/m-05-prompts-and-batching.md)).
 
 ### Script step
 
@@ -321,17 +381,20 @@ as follows:
   model.
 - Tool authors do not manage goroutines; the executor handles lifecycle, and
   `ParallelBlockTool` supplies intra-tool parallelism without any concurrency
-  code in the tool.
+  code in the tool. A slow block holds back at most N admitted blocks and 4N
+  other Parts, so a parallel stage stays bounded when its workers finish out of
+  order.
 - `StreamingCollector` enables real-time observation of pipeline output without
   modifying the Part stream or adding buffering stages.
 - Flow tracing enables post-hoc debugging and visualization, helping users
   understand tool behaviour and identify bottlenecks.
-- `TopologicalOrder` validation catches cycles before runtime, giving fast
-  feedback during flow authoring.
+- A host that orders a definition with `TopologicalOrder` reports a cycle before
+  it builds any tool.
 - JSON and YAML serialization supports import/export and version control of flow
   configurations.
 - Steps-based YAML makes flow authoring accessible without Go; the visual editor
-  and the YAML stay in sync because both compile to the same graph.
+  and the YAML share one graph representation, and what runs is the ordered
+  chain a host derives from it.
 
 ## Related
 

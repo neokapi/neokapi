@@ -378,6 +378,9 @@ func (r *Run) UnmarshalJSON(data []byte) error {
 // Go output matches the TypeScript mirror (@neokapi/kapi-format) and the
 // content hash stays implementation-independent.
 func (r Run) MarshalJSON() ([]byte, error) {
+	if !r.Valid() {
+		return nil, errors.New("model: run must have exactly one discriminator")
+	}
 	switch r.Kind() {
 	case "":
 		return nil, errors.New("model: run has no discriminator")
@@ -494,39 +497,65 @@ func FlattenRuns(runs []Run) string {
 // XML, and markdown writers all use this helper.
 func RenderRunsWithData(runs []Run) string {
 	var b strings.Builder
-	renderRunsDataTo(&b, runs)
+	RenderRunsWith(&b, runs, nil)
 	return b.String()
 }
 
-func renderRunsDataTo(buf *strings.Builder, runs []Run) {
+// RunRenderer receives the runs RenderRunsWith writes. Text writes a text
+// run's text to b in whatever spelling the caller's format needs. Code is told
+// about each inline code just before its bytes are written, so a writer can
+// track context such as an open code span; it may be nil.
+type RunRenderer struct {
+	Text func(b *strings.Builder, text string)
+	Code func(r Run)
+}
+
+// RenderRunsWith renders runs as RenderRunsWithData does, handing each text
+// run to with.Text, and is the walk RenderRunsWithData itself uses. A writer
+// that encodes a block's text for its format renders through it, so the two
+// cannot disagree about which runs are written, which branch of a plural or
+// select is taken, or what a run kind added later contributes. A nil with, or
+// a nil Text, writes text verbatim.
+func RenderRunsWith(b *strings.Builder, runs []Run, with *RunRenderer) {
 	for _, r := range runs {
-		switch r.Kind() {
+		kind := r.Kind()
+		switch kind {
+		case RunKindPh, RunKindPcOpen, RunKindPcClose, RunKindSub:
+			if with != nil && with.Code != nil {
+				with.Code(r)
+			}
+		}
+		switch kind {
 		case RunKindText:
-			buf.WriteString(r.Text.Text)
+			if with != nil && with.Text != nil {
+				with.Text(b, r.Text.Text)
+			} else {
+				b.WriteString(r.Text.Text)
+			}
 		case RunKindPh:
-			buf.WriteString(r.Ph.Data)
+			b.WriteString(r.Ph.Data)
 		case RunKindPcOpen:
-			buf.WriteString(r.PcOpen.Data)
+			b.WriteString(r.PcOpen.Data)
 		case RunKindPcClose:
-			buf.WriteString(r.PcClose.Data)
+			b.WriteString(r.PcClose.Data)
 		case RunKindSub:
-			buf.WriteString(r.Sub.Ref)
+			b.WriteString(r.Sub.Ref)
 		case RunKindPlural:
 			if form, ok := r.Plural.Forms[PluralOther]; ok {
-				renderRunsDataTo(buf, form)
+				RenderRunsWith(b, form, with)
 				continue
 			}
 			for _, form := range r.Plural.Forms {
-				renderRunsDataTo(buf, form)
+				RenderRunsWith(b, form, with)
 				break
 			}
 		case RunKindSelect:
 			if form, ok := r.Select.Cases["other"]; ok {
-				renderRunsDataTo(buf, form)
+				RenderRunsWith(b, form, with)
 				continue
 			}
 			for _, form := range r.Select.Cases {
-				renderRunsDataTo(buf, form)
+				RenderRunsWith(b, form, with)
 				break
 			}
 		}

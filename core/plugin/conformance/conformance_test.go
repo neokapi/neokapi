@@ -1015,6 +1015,28 @@ func TestModeCFormatProbe(t *testing.T) {
 		assert.Contains(t, res.Detail, "want at least 5")
 	})
 
+	for _, tc := range []struct {
+		name   string
+		env    string
+		detail string
+	}{
+		{name: "missing completion", env: "PROBE_NO_COMPLETE", detail: "unexpected EOF"},
+		{name: "failed completion", env: "PROBE_PROCESS_ERROR", detail: "injected document failure"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(tc.env, "1")
+			s := suite(probeDir(t, nil))
+			s.FormatProbe = &conformance.FormatProbe{
+				Format: "probefmt",
+				Input:  []byte("one valid block before failure\n"),
+			}
+			rep := run(t, s)
+			res := requireStatus(t, rep, "modeC.format-probe", conformance.Fail)
+			assert.Contains(t, res.Detail, tc.detail)
+			assert.False(t, rep.OK())
+		})
+	}
+
 	t.Run("undeclared format", func(t *testing.T) {
 		s := suite(probeDir(t, nil))
 		s.FormatProbe = &conformance.FormatProbe{Format: "nope", Input: []byte("x")}

@@ -351,12 +351,19 @@ is safe. Entries of kind `recipe` update `kapi.yaml` in the checkout.
 **A content edit carries its own guards.** Each `content` entry pins a
 `content_hash`; if the block drifted since it was inspected, the edit is *stale*
 and skipped. An edit that drops, invents, or unbalances an inline code is
-*rejected* by the fidelity guard rather than written as broken markup. Either
-outcome exits non-zero so the fix loop re-inspects and retries.
+*rejected* by the fidelity guard rather than written as broken markup, and so
+is any change to a block holding a plural or select construct, because the flat
+edit text cannot carry its branches. Either outcome exits non-zero so the fix
+loop re-inspects and retries.
 
-A mixed change-set (a content fix plus the `term` entry that justifies
-it) lands atomically, so the draft and the rule that governs future drafts move
-together.
+A mixed change-set (a content fix plus the `term` entry that justifies it) is
+applied entry by entry, with no transaction spanning it. Asset entries are
+written in change-set order as they are read; each named file is then rewritten
+in its own round-trip, one file after another, and comment edits come last. A
+write that succeeded stays when a later entry is stale, refused or fails. The
+report lists each outcome, and a stale, refused or failed entry makes the run
+exit non-zero. Re-running the corrected change-set is safe, because a content edit
+already in place is skipped and an asset operation is idempotent.
 
 A review decision belongs to a person, so no MCP tool records one. An agent
 pre-reviews: `pre_review_unit` stores a score from 0 to 100 and its reasons on
@@ -547,8 +554,9 @@ between revising content and troubleshooting the command.
 - Progressive disclosure keeps the router cheap and loads detail only on a match.
 - The attended loops call no provider: the assistant writes, kapi round-trips,
   drift-checks, and gates.
-- One write verb covers content and asset edits, a mixed change-set lands
-  atomically, and `git diff` is the uniform review surface for all of it.
+- One write verb covers content and asset edits, a partly applied change-set
+  can be re-run until every entry has landed, and `git diff` is the uniform
+  review surface for all of it.
 - Tool sets mean the agent-facing tool list is a reviewed decision per kind of
   work, and a writing session reads a handful of descriptions rather than every
   tool; the code-execution exclusion is a test, so widening the surface can

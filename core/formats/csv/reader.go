@@ -709,6 +709,9 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			r.skelText(rc.suffix)
 
 			block.Name = r.cellName(rowAddr, colName, rowNum)
+			// The same role the reader gives a cell without a skeleton, so
+			// `kapi inspect`, which reads as the edit path does, reports it.
+			block.SetSemanticRole(model.RoleTableCell, 0)
 			block.Properties["column"] = strconv.Itoa(colIdx)
 			block.Properties["row"] = strconv.Itoa(rowNum)
 			if rc.prefix == "\"" {

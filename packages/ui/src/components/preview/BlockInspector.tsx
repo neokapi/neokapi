@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/colla
 import { Separator } from "../ui/separator";
 import { runPosOf, runsPlainText } from "./anchor";
 import RunSequence from "./RunSequence";
+import { runSummary } from "./runSummary";
 import type { AnnotationView, ContentNode, OverlayView, Run, TargetMeta } from "./types";
 
 export interface BlockInspectorProps {
@@ -82,7 +83,7 @@ export default function BlockInspector({
         {node.type && <span className="text-[0.7rem] text-muted-foreground">{node.type}</span>}
         {!open && (
           <DirectionalText locale={node.sourceLocale} className="truncate text-muted-foreground">
-            {runsPlainText(node.source) || "(structure)"}
+            {runSummary(node.source) || "(structure)"}
           </DirectionalText>
         )}
         <span className="ml-auto flex items-center gap-1.5">

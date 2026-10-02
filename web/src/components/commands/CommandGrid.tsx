@@ -18,7 +18,7 @@ interface Props {
 const OTHER_GROUP = "other";
 const GROUP_LABELS: Record<string, string> = {
   work: t("Work", "command group heading"),
-  translate: t("Translate", "command group heading"),
+  languages: t("Languages", "command group heading"),
   assets: t("Assets", "command group heading"),
   advanced: t("Advanced", "command group heading"),
   [OTHER_GROUP]: t("Other", "command group heading"),

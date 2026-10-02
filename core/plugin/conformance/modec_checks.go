@@ -590,6 +590,8 @@ func checkModeCFormatProbe(ctx context.Context, r *runner) (Status, string, erro
 	if !declaresFormat(r, probe.Format) {
 		return Fail, fmt.Sprintf("probe names format %q, which the manifest does not declare", probe.Format), nil
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	conn, err := r.dial(ctx)
 	if err != nil {
 		return Skip, "the connection is not READY (see modeC.grpc-ready)", nil
@@ -636,7 +638,7 @@ func checkModeCFormatProbe(ctx context.Context, r *runner) (Status, string, erro
 	for {
 		resp, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
-			break
+			err = io.ErrUnexpectedEOF
 		}
 		if err != nil {
 			detail := fmt.Sprintf("reading %q via format %q failed after %d block(s): %v",
@@ -647,7 +649,11 @@ func checkModeCFormatProbe(ctx context.Context, r *runner) (Status, string, erro
 			return Fail, detail, err
 		}
 		blocks += countBlocks(resp)
-		if _, done := resp.Response.(*pb.ProcessResponse_Complete); done {
+		if complete, done := resp.Response.(*pb.ProcessResponse_Complete); done {
+			if complete.Complete.GetError() != "" {
+				err := status.Error(codes.Internal, complete.Complete.GetError())
+				return Fail, fmt.Sprintf("format %q failed after %d block(s): %v", probe.Format, blocks, err), err
+			}
 			break
 		}
 	}

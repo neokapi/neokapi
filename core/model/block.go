@@ -84,6 +84,13 @@ type Block struct {
 	// map, and the map stays for all of it.
 	structure *StructureAnnotation
 	geometry  *GeometryAnnotation
+
+	// readSource is the source the reader produced, kept by the first edit
+	// (EditSourceRuns, EditSourceText). A writer compares the two to tell
+	// the document's own spelling from wording an edit supplied. It belongs
+	// to this process: no wire form, store or hash carries it.
+	readSource []Run
+	sourceKept bool
 }
 
 // ResourceID returns the Block's unique identifier.
@@ -175,6 +182,35 @@ func (b *Block) TargetRuns(locale LocaleID) []Run {
 
 // SetSourceRuns replaces the Block's source content.
 func (b *Block) SetSourceRuns(runs []Run) { b.Source = runs }
+
+// EditSourceRuns replaces the source with an edit: wording a tool, an agent
+// or a person supplied for a block that was read from a document. The first
+// edit keeps the source the reader produced, which SourceAsRead returns, so a
+// writer can encode the edit's wording for its format and still write every
+// unedited block exactly as it was read. A reader building a block uses
+// SetSourceRuns instead.
+func (b *Block) EditSourceRuns(runs []Run) {
+	if !b.sourceKept {
+		b.readSource, b.sourceKept = b.Source, true
+	}
+	b.Source = runs
+}
+
+// EditSourceText is EditSourceRuns for an edit that is a single text run.
+func (b *Block) EditSourceText(text string) {
+	b.EditSourceRuns([]Run{{Text: &TextRun{Text: text}}})
+}
+
+// SourceAsRead returns the source the reader produced for this block and
+// reports whether an edit has changed it since: whether the current source
+// renders to different bytes than the source as read. A block no edit has
+// touched returns its current source and false.
+func (b *Block) SourceAsRead() (runs []Run, edited bool) {
+	if !b.sourceKept {
+		return b.Source, false
+	}
+	return b.readSource, RenderRunsWithData(b.readSource) != RenderRunsWithData(b.Source)
+}
 
 // SetTargetRuns sets the target runs for a locale, preserving any existing
 // status/provenance on that variant's Target.

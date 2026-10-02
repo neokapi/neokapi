@@ -321,8 +321,8 @@ deduplicated before OCR, so a static shot is read once. An engine that is not
 installed is skipped, so the reader degrades rather than failing.
 
 The browser labs extend the same way: the same models, only the runtime differs
-(WebAssembly instead of native). The Vision Lab runs the detection, recognition
-and layout models in-page; the Audio and Video lab transcribes a clip and, for
+(WebAssembly instead of native). The vision lab runs the detection, recognition
+and layout models in-page; the audio and video lab transcribes a clip and, for
 video, demuxes it in the browser into an audio track and sampled frames before
 running the same two engines. Nothing is mocked: a lab that showed a stub would
 be demonstrating the plumbing rather than the capability.

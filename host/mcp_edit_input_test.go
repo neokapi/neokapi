@@ -39,7 +39,7 @@ func TestApplyEditsMCPContentWordingField(t *testing.T) {
 	body, err := json.Marshal(bad)
 	require.NoError(t, err)
 	assert.Contains(t, string(body), "put the new wording")
-	assert.Contains(t, string(body), "voice rules")
+	assert.Contains(t, string(body), "term entries")
 	unchanged, err := os.ReadFile(file)
 	require.NoError(t, err)
 	assert.Equal(t, source, string(unchanged))

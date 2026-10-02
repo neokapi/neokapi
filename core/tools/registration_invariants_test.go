@@ -11,6 +11,7 @@ import (
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/core/tools"
 )
@@ -216,4 +217,62 @@ func TestContentRewritingCLIToolsDeclareWritesOutput(t *testing.T) {
 			name, c.Capability(), name)
 	}
 	assert.Greater(t, checked, 5, "the invariant should be covering the content-rewriting built-ins")
+}
+
+// INVARIANT 5 — a CLI-visible tool that works on the run's target language
+// declares that it takes one, and a monolingual tool that declares it does.
+//
+// `kapi exec` offers --target-lang only to a tool whose ToolMeta says it takes
+// a target (schema.ToolMeta.TakesTargetLanguage): a bilingual tool, or a
+// monolingual one that accepts or requires the target language. A monolingual
+// tool whose config factory reads the run's target language but declares
+// neither would have its target scope (search-replace's target, xml-validation's
+// checkTarget) unreachable from the command line; one that declares it but
+// never reads it would offer a flag that does nothing.
+//
+// The run's language is observed the way invariant 3 observes it: build the
+// tool for a run targeting `nb` and look for a locale field holding `nb`.
+func TestToolsDeclareTheTargetLanguageTheyRead(t *testing.T) {
+	const runLocale = model.LocaleID("nb")
+	reg := builtInRegistry(t)
+	checked := 0
+	for _, entry := range reg.CLITools() {
+		name := entry.Info.Name
+		meta := entry.Schema.ToolMeta
+		tl, err := reg.NewToolWithConfig(name, nil, string(runLocale))
+		if err != nil {
+			continue // needs config to build at all (external-command); see invariant 3
+		}
+		cfg, ok := tl.(interface{ Config() tool.ToolConfig })
+		if !ok || cfg.Config() == nil {
+			continue
+		}
+		v := reflect.ValueOf(cfg.Config())
+		if v.Kind() == reflect.Pointer {
+			v = v.Elem()
+		}
+		if v.Kind() != reflect.Struct {
+			continue
+		}
+		readsRunTarget := false
+		for _, f := range v.Fields() {
+			if f.Type() == reflect.TypeFor[model.LocaleID]() && model.LocaleID(f.String()) == runLocale {
+				readsRunTarget = true
+			}
+		}
+		checked++
+		if readsRunTarget {
+			assert.True(t, meta.TakesTargetLanguage(),
+				"tool %q reads the run's target language, so its ToolMeta must say it takes one "+
+					"(withAccepts(schema.AcceptsTargetLanguage) for a monolingual tool): `kapi exec %s` "+
+					"offers no --target-lang otherwise", name, name)
+			continue
+		}
+		if meta != nil && meta.Cardinality == schema.Monolingual {
+			assert.False(t, meta.TakesTargetLanguage(),
+				"monolingual tool %q declares a target language it never reads: `kapi exec %s "+
+					"--target-lang` would do nothing", name, name)
+		}
+	}
+	assert.Greater(t, checked, 10, "the invariant should be covering the configurable built-ins")
 }
