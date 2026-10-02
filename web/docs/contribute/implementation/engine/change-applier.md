@@ -69,6 +69,10 @@ Positions in `replace_text` are code points of the text of the sequence a `path`
 
 A tool's view (`core/tool/view.go`) applies each target write, provenance stamp and overlay write as an operation at once, through `ApplyBlock`, as the tool, with guard violations landing as findings. Applying at once keeps read-your-writes: a handler that sets a new target and stamps it finds the target it set. A write the applier refuses becomes the handler's error. A tool that overrides `Process` writes through `tool.WriteAs`, which returns the same refusal, and a `Transform` returns an `EditPlan` whose `Ops` compile to `set_content` operations on the source and each replaced target.
 
+## The service and its homes
+
+`ApplyBlock` changes one block in memory. The change service in the same package (`change.NewService`) applies a whole change set to documents: it reads each document through the home that holds it, runs `ApplyBlock` on the blocks the operations address, checks the result, and commits every document or none. `decide` and the asset operations reach the host's stores through the service's `Assets` hook, after the content they refer to. [E-09](../../architecture/engine/e-09-the-change-contract.md) describes the service, and [The file home](file-home.md) the home that keeps documents as files.
+
 ## The edit guard
 
 `scripts/editguard` type-checks every module and reports each call that points a format writer at a file (`SetOutput(path string) error`) outside the format packages and the places it lists, each with what it writes. `make check-edit-writes` runs it in `make lint`, `make pre-push` and CI.
