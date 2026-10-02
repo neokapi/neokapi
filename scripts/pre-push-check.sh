@@ -177,12 +177,14 @@ if matches '^core/' '^host/' '^cli/' '^kapi/' '^go\.work' '^go\.(mod|sum)$' '/go
 fi
 
 # The store suites under GOOS=js in Node, over the browser engine's own SQLite
-# driver (core/storage/driver_js.go with packages/engine/src/sqlite.ts). The
-# same gate as the CI `test-wasm-stores` job; the suites run in seconds once
-# compiled. Needs `vp install` for @sqlite.org/sqlite-wasm.
+# driver (core/storage/driver_js.go with packages/engine/src/sqlite.ts), then
+# natively with every pool held to one connection. The same gate as the CI
+# `test-wasm-stores` job; the suites run in seconds once compiled. Needs
+# `vp install` for @sqlite.org/sqlite-wasm.
 if matches '^core/(storage|workspace|projector|projectdb|state|blockstore)/' '^(memory|terms|voice)/' '^host/storage/' \
     '^packages/engine/src/sqlite\.ts$' '^scripts/wasm-stores/' '^pnpm-(lock|workspace)\.yaml$'; then
     run_check "Store suites (js/wasm)" make test-wasm-stores
+    run_check "Store suites (one connection per pool)" make test-stores-oneconn
 fi
 
 # ── go mod tidy drift check ───────────────────────────────────────────────

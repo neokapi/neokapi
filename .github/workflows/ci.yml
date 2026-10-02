@@ -485,9 +485,13 @@ jobs:
   # context graph) under GOOS=js in Node, over the browser engine's own SQLite
   # driver: the Go half in core/storage, the JavaScript half in
   # packages/engine/src/sqlite.ts. The suites themselves run in seconds; the
-  # compile dominates.
+  # compile dominates. The same suites then run natively with every pool held
+  # to one connection, as the browser's driver holds it, which names code that
+  # holds a session and asks the same pool for another instead of hanging. On
+  # push the host suite runs that way too, since host is where commands compose
+  # stores.
   test-wasm-stores:
-    name: Test (store suites, js/wasm)
+    name: Test (store suites, js/wasm and one connection)
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.wasm_stores == 'true'
@@ -497,6 +501,11 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
       - name: Run the store suites over the browser's SQLite driver
         run: make test-wasm-stores
+      - name: Run the store suites with one connection per pool
+        run: make test-stores-oneconn
+      - name: Run the host suite with one connection per pool
+        if: github.event_name == 'push'
+        run: make test-host-oneconn
 
   test-platform:
     name: Test (platform)

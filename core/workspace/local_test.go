@@ -152,6 +152,9 @@ func TestWorkspaceReadsFromAWriteRestrictedDirectory(t *testing.T) {
 	if runtime.GOOS == "js" {
 		t.Skip("file-system artefact: a directory's permissions do not reach the databases the browser driver keeps in memory")
 	}
+	if !storage.DriverProfile().WAL {
+		t.Skip("a sealed directory refuses the write-ahead log's files at open; without WAL the open succeeds and the refusal comes at the first write")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("root writes a read-only directory anyway")
 	}

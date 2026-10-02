@@ -38,16 +38,21 @@ type Profile struct {
 
 // DriverProfile returns the profile of this build's driver.
 //
-// A build with the storage_oneconn tag holds every pool to one connection,
-// whatever the driver allows. It is a test mode: running the store suites
-// natively under it finds the code that holds a transaction or open rows and
-// waits for a second session on the same pool, which hangs the browser build,
-// without a browser. A call that waits that long for the pool panics with
-// every goroutine's stack rather than leaving the test binary to its timeout.
+// A build with the storage_oneconn tag holds every pool to one connection and
+// runs databases without WAL, as the browser's driver does, whatever the native
+// driver allows. It is a test mode. Running the suites natively under it finds,
+// without a browser, the code that holds a transaction or open rows and waits
+// for a second session on the same pool (a call that waits 20 seconds for the
+// pool panics with every goroutine's stack rather than leaving the test binary
+// to its timeout), and the code that reads on one pool while it holds a write
+// on another, or commits while it holds rows open on another, which WAL
+// allows. Without WAL that second call waits for the busy timeout and fails
+// with "database is locked", as it fails at once in the browser.
 func DriverProfile() Profile {
 	p := driverProfile
 	if singleConnection {
 		p.MaxConns = 1
+		p.WAL = false
 	}
 	return p
 }

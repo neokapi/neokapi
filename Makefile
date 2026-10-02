@@ -380,9 +380,10 @@ check-wasm: i18n-catalogs ## Compile-check the in-browser CLI for js/wasm (the d
 # The store suites: every package whose state is SQL behind core/storage. Each
 # build's driver declares a profile (core/storage/profile.go), and the browser's
 # holds a pool to one connection, so the suites run two more ways beside
-# `make test`: natively with every pool held to one connection, which finds the
-# code that holds a transaction and waits for a second session on the same pool
-# without a browser, and under GOOS=js in Node over the browser's own driver
+# `make test`: natively with every pool held to one connection and WAL off,
+# which finds without a browser the code that holds a transaction and waits for
+# a second session on the same pool, or reads on one pool beside a write it
+# holds on another, and under GOOS=js in Node over the browser's own driver
 # (@sqlite.org/sqlite-wasm through packages/engine/src/sqlite.ts; needs
 # `vp install`). A test skipped under js names its reason: a git subprocess, a
 # file the browser driver keeps out of the file system, or preemption js/wasm
@@ -390,8 +391,14 @@ check-wasm: i18n-catalogs ## Compile-check the in-browser CLI for js/wasm (the d
 STORE_PKGS := ./core/storage/ ./core/workspace/... ./core/projector/ ./core/projectdb/ \
 	./core/state/ ./core/blockstore/... ./memory/... ./terms/... ./voice/... ./host/storage/...
 
-test-stores-oneconn: i18n-catalogs ## Run the store suites natively with every pool held to one connection
+test-stores-oneconn: i18n-catalogs ## Run the store suites natively with every pool held to one connection and WAL off
 	$(GO) test -tags "fts5,storage_oneconn" -count=1 -timeout 15m $(STORE_PKGS)
+
+# host is where commands compose stores, so a command that holds a session and
+# asks the same pool for another (a lab that freezes in the browser) shows up
+# here and not in the store suites. A few minutes; CI runs it on push.
+test-host-oneconn: i18n-catalogs ## Run the host suite natively with every pool held to one connection and WAL off
+	cd host && $(GO) test -tags "fts5,storage_oneconn" -count=1 -timeout 20m ./...
 
 test-wasm-stores: i18n-catalogs ## Run the store suites under GOOS=js in Node over the browser's SQLite driver
 	@test -f node_modules/@sqlite.org/sqlite-wasm/package.json || { echo "error: @sqlite.org/sqlite-wasm missing; run 'vp install'"; exit 1; }
@@ -3358,7 +3365,7 @@ help: ## Show this help
         generate-docs-palette check-docs-palette \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
         kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke web-sqlite-wasm \
-        test-stores-oneconn test-wasm-stores \
+        test-stores-oneconn test-host-oneconn test-wasm-stores \
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
         emails-frontend-deps emails-extract \
         landing-frontend-deps landing-extract \
