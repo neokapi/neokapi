@@ -57,7 +57,9 @@ type Canary struct {
 
 // CanaryBlock builds a translatable source block holding text.
 func CanaryBlock(text string) *model.Block {
-	return &model.Block{ID: "canary", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}
+	b := &model.Block{ID: "canary", Translatable: true}
+	b.SetSourceText(text)
+	return b
 }
 
 // Probe gives each canary to run, which must evaluate the block with the same

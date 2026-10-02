@@ -28,11 +28,14 @@ func SettleSourceStatus(ctx context.Context, b *model.Block) {
 
 	// The emptiness guard is the shared run-aware presence predicate, so a
 	// block that is only a placeholder is settled too.
-	if !model.RunsHaveContent(b.SourceRuns()) {
+	k := b.Authoritative(model.AuthorityPolicy{})
+	src, _ := b.Edition(k)
+	if !model.RunsHaveContent(src.Runs) {
 		return
 	}
-	if b.SourceStatus != model.SourceStatusEstablished {
-		b.SourceStatus = model.SourceStatusWritten
+	if s := model.SourceStatus(src.Status); s != model.SourceStatusEstablished && s != model.SourceStatusWritten {
+		src.Status = model.Status(model.SourceStatusWritten)
+		b.SetEdition(k, src)
 	}
 	b.SetSourceFailing(hasFailingSourceFinding(tool.NewBlockViewWithContext(ctx, b)))
 }

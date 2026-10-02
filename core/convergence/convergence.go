@@ -408,11 +408,12 @@ func TargetState(b *model.Block, locale string) string {
 // settle step asks (check.SettleSourceStatus), so a placeholder-only unit is
 // written content here too.
 func SourceState(b *model.Block) string {
-	if !model.RunsHaveContent(b.SourceRuns()) {
+	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
+	if !model.RunsHaveContent(src.Runs) {
 		return ""
 	}
-	if b.SourceStatus != "" {
-		return string(b.SourceStatus)
+	if src.Status != "" {
+		return string(src.Status)
 	}
 	return string(model.SourceStatusWritten)
 }

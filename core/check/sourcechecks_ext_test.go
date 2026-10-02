@@ -262,6 +262,41 @@ func TestSourceReadiness_NonTranslatableUntouched(t *testing.T) {
 	assert.Empty(t, block.SourceStatus, "non-translatable source must not be stamped")
 }
 
+// The settle stamps the authoritative edition. A block read from an en-US to
+// en-US file holds a target under its source language; the settle stamps the
+// source, leaves the target's status alone, keeps an established source, and
+// records no edit of the source.
+func TestSourceReadiness_StampsTheAuthoritativeEdition(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		from model.SourceStatus
+		want model.SourceStatus
+	}{
+		{"new", model.SourceStatusNew, model.SourceStatusWritten},
+		{"written", model.SourceStatusWritten, model.SourceStatusWritten},
+		{"established", model.SourceStatusEstablished, model.SourceStatusEstablished},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			block := model.NewBlock("b1", "The colour of the button.")
+			block.SourceLocale = "en-US"
+			block.SourceStatus = tc.from
+			block.SetTargetVariant(model.Variant("en-US"), &model.Target{Runs: []model.Run{model.TextR("The color of the button.")}, Status: model.TargetStatusDraft})
+
+			check.SettleSourceStatus(t.Context(), block)
+
+			src, ok := block.Edition(model.EditionKey{})
+			require.True(t, ok)
+			assert.Equal(t, model.Status(tc.want), src.Status)
+			assert.Equal(t, "The colour of the button.", model.RunsText(src.Runs))
+			assert.Equal(t, model.TargetStatusDraft, block.Target("en-US").Status)
+			_, edited := block.SourceAsRead()
+			assert.False(t, edited)
+		})
+	}
+}
+
 // The settle's emptiness guard is the shared run-aware presence predicate
 // (model.RunsHaveContent), so a block whose only run is a placeholder is
 // written source that can clear the gate.
