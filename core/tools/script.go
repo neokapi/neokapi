@@ -349,7 +349,7 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 						// Source is read-only unless the script opts in; otherwise
 						// its source edits are ignored (immutability contract).
 						if allowSourceMutation && text != block.SourceText() {
-							block.SetSourceText(text)
+							block.EditSourceText(text)
 						}
 					}
 				}
