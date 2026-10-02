@@ -2,11 +2,12 @@ package host
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync"
 )
 
 // kapi keeps two per-user roots apart. ConfigDir (host/resource.go) holds what
@@ -71,11 +72,80 @@ func underTest() bool {
 	return strings.HasSuffix(base, ".test") || strings.HasSuffix(base, ".test.exe")
 }
 
+// testDataDirPrefix begins the name of a test binary's data root under the
+// system temporary directory. The process id follows it.
+const testDataDirPrefix = "kapi-test-data-"
+
+// sweepTestDataDirsOnce runs the sweep the first time a test binary resolves
+// its data root, before anything has been written there.
+var sweepTestDataDirsOnce sync.Once
+
 // testDataDir is the data root a test binary gets: one directory per process,
 // under the system temporary directory, so two packages running in parallel do
 // not share a workspace and neither reaches the developer's.
+//
+// The first call sweeps the roots dead test binaries left behind, so a run
+// does not add to them without bound: a root holds every workspace its
+// binary's tests opened, often hundreds of megabytes, and a binary that is
+// killed, or whose package has no TestMain calling RemoveTestDataDir, leaves
+// its root behind.
 func testDataDir() string {
-	return filepath.Join(os.TempDir(), fmt.Sprintf("kapi-test-data-%d", os.Getpid()))
+	sweepTestDataDirsOnce.Do(func() {
+		sweepTestDataDirs(os.TempDir(), os.Getpid(), processAlive)
+	})
+	return testDataRoot(os.TempDir(), os.Getpid())
+}
+
+// testDataRoot names the data root of the test binary with this process id.
+func testDataRoot(tmp string, pid int) string {
+	return filepath.Join(tmp, testDataDirPrefix+strconv.Itoa(pid))
+}
+
+// RemoveTestDataDir removes the data root this test binary was given, once its
+// tests have run. A package's TestMain calls it through devenvtest.Main, so a
+// test run leaves nothing behind under the system temporary directory. Outside
+// a test binary it does nothing.
+func RemoveTestDataDir() {
+	if !underTest() {
+		return
+	}
+	_ = os.RemoveAll(testDataRoot(os.TempDir(), os.Getpid()))
+}
+
+// sweepTestDataDirs removes from tmp the data root of every test binary that is
+// no longer running, and returns the names it removed. alive answers whether a
+// process id is running.
+//
+// The root named for self is removed as well. The sweep runs before this
+// process has resolved its own root, so a directory already carrying its id
+// was left by an earlier process that had the same id, and its workspaces
+// would otherwise leak into this run's tests.
+//
+// A root whose process is running is kept, and so is one whose id another
+// process has taken since: the next sweep after that process ends removes it.
+func sweepTestDataDirs(tmp string, self int, alive func(int) bool) []string {
+	entries, err := os.ReadDir(tmp)
+	if err != nil {
+		return nil
+	}
+	var removed []string
+	for _, e := range entries {
+		rest, ok := strings.CutPrefix(e.Name(), testDataDirPrefix)
+		if !ok || !e.IsDir() {
+			continue
+		}
+		pid, err := strconv.Atoi(rest)
+		if err != nil || pid <= 0 || strconv.Itoa(pid) != rest {
+			continue
+		}
+		if pid != self && alive(pid) {
+			continue
+		}
+		if os.RemoveAll(filepath.Join(tmp, e.Name())) == nil {
+			removed = append(removed, e.Name())
+		}
+	}
+	return removed
 }
 
 // dataDir is DataDir with its two environment seams injected, so the platform

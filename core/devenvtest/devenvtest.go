@@ -40,10 +40,18 @@ func Clear() {
 	}
 }
 
-// Main clears Vars and runs the package's tests. Call it from TestMain:
+// Main clears Vars, runs the package's tests, and then runs each of after
+// before the process exits. Call it from TestMain:
 //
-//	func TestMain(m *testing.M) { devenvtest.Main(m) }
-func Main(m *testing.M) {
+//	func TestMain(m *testing.M) { devenvtest.Main(m, host.RemoveTestDataDir) }
+//
+// after is where a package removes what its tests left behind for the whole
+// process, such as the data root a test binary gets (host.RemoveTestDataDir).
+func Main(m *testing.M, after ...func()) {
 	Clear()
-	os.Exit(m.Run())
+	code := m.Run()
+	for _, f := range after {
+		f()
+	}
+	os.Exit(code)
 }
