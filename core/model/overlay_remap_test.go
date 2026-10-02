@@ -1,6 +1,7 @@
 package model_test
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -175,6 +176,121 @@ func TestRemapOverlays_KeepsASegmentationLayerWhole(t *testing.T) {
 			assert.Equal(t, tt.want, segText(seg, newFr))
 		})
 	}
+}
+
+// A code has no width in the flattened text, so a flat offset cannot say which
+// side of it a segment boundary sits on. A rewrite keeps every code in the
+// segment it was in: a boundary after a code stays after it, wherever the
+// edits move the text.
+func TestRemapOverlays_KeepsEachCodeInItsSegment(t *testing.T) {
+	ph := func(id string) model.Run { return model.PhR(model.PlaceholderRun{ID: id, Type: "code:variable"}) }
+	tests := []struct {
+		name  string
+		old   []model.Run
+		spans [][2]model.RunPos
+		next  []model.Run
+		edits []model.RunEdit
+		want  []string
+	}{
+		{
+			name:  "a code that ends a segment stays in it after an edit before it",
+			old:   []model.Run{model.TextR("Nous employons "), ph("1"), model.TextR("Puis cela.")},
+			spans: [][2]model.RunPos{{{Run: 0}, {Run: 2}}, {{Run: 2}, {Run: 3}}},
+			next:  []model.Run{model.TextR("Nous utilisons "), ph("1"), model.TextR("Puis cela.")},
+			edits: []model.RunEdit{{Start: 5, End: 14, NewLen: 9}},
+			want:  []string{`s1=Nous utilisons <x id="1/"/>`, "s2=Puis cela."},
+		},
+		{
+			name:  "a code that ends a segment stays in it after an edit in the next",
+			old:   []model.Run{model.TextR("First."), ph("1"), model.TextR("Second.")},
+			spans: [][2]model.RunPos{{{Run: 0}, {Run: 2}}, {{Run: 2}, {Run: 3}}},
+			next:  []model.Run{model.TextR("First."), ph("1"), model.TextR("The second.")},
+			edits: []model.RunEdit{{Start: 6, End: 7, NewLen: 5}},
+			want:  []string{`s1=First.<x id="1/"/>`, "s2=The second."},
+		},
+		{
+			name:  "a code that starts a segment stays in it",
+			old:   []model.Run{model.TextR("First."), ph("1"), model.TextR("Second.")},
+			spans: [][2]model.RunPos{{{Run: 0}, {Run: 1}}, {{Run: 1}, {Run: 3}}},
+			next:  []model.Run{model.TextR("The first."), ph("1"), model.TextR("Second.")},
+			edits: []model.RunEdit{{Start: 0, End: 1, NewLen: 5}},
+			want:  []string{"s1=The first.", `s2=<x id="1/"/>Second.`},
+		},
+		{
+			name:  "two codes at one boundary stay on their sides",
+			old:   []model.Run{model.TextR("First."), ph("1"), ph("2"), model.TextR("Second.")},
+			spans: [][2]model.RunPos{{{Run: 0}, {Run: 2}}, {{Run: 2}, {Run: 4}}},
+			next:  []model.Run{model.TextR("The first."), ph("1"), ph("2"), model.TextR("Second.")},
+			edits: []model.RunEdit{{Start: 0, End: 1, NewLen: 5}},
+			want:  []string{`s1=The first.<x id="1/"/>`, `s2=<x id="2/"/>Second.`},
+		},
+		{
+			name:  "a segment whose text is deleted keeps its code",
+			old:   []model.Run{model.TextR("One."), ph("1"), model.TextR("Two."), ph("2"), model.TextR("Three.")},
+			spans: [][2]model.RunPos{{{Run: 0}, {Run: 2}}, {{Run: 2}, {Run: 4}}, {{Run: 4}, {Run: 5}}},
+			next:  []model.Run{model.TextR("One."), ph("1"), ph("2"), model.TextR("Three.")},
+			edits: []model.RunEdit{{Start: 4, End: 8, NewLen: 0}},
+			want:  []string{`s1=One.<x id="1/"/>`, `s2=<x id="2/"/>`, "s3=Three."},
+		},
+		{
+			name:  "a code an edit removed shifts no later boundary",
+			old:   []model.Run{model.TextR("A "), ph("0"), model.TextR("b."), ph("1"), model.TextR("Two.")},
+			spans: [][2]model.RunPos{{{Run: 0}, {Run: 4}}, {{Run: 4}, {Run: 5}}},
+			next:  []model.Run{model.TextR("Ab."), ph("1"), model.TextR("Two.")},
+			edits: []model.RunEdit{{Start: 1, End: 2, NewLen: 0}},
+			want:  []string{`s1=Ab.<x id="1/"/>`, "s2=Two."},
+		},
+		{
+			name:  "a code that ends the last segment stays in it",
+			old:   []model.Run{model.TextR("First. "), model.TextR("Second."), ph("1")},
+			spans: [][2]model.RunPos{{{Run: 0}, {Run: 1}}, {{Run: 1}, {Run: 3}}},
+			next:  []model.Run{model.TextR("First. The second."), ph("1")},
+			edits: []model.RunEdit{{Start: 7, End: 8, NewLen: 5}},
+			want:  []string{"s1=First. ", `s2=The second.<x id="1/"/>`},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fr := model.Variant("fr")
+			b := model.NewBlock("b1", "Source.")
+			b.SetTargetRuns("fr", tt.old)
+			var spans []model.Span
+			for i, s := range tt.spans {
+				spans = append(spans, model.Span{ID: "s" + strconv.Itoa(i+1), Range: model.SpanAnchor(s[0], s[1])})
+			}
+			b.SetSegmentation(&fr, spans)
+			b.SetTargetRuns("fr", tt.next)
+
+			dropped := model.RemapOverlays(b, &fr, tt.old, tt.next, tt.edits)
+
+			assert.Equal(t, 0, dropped)
+			seg := b.SegmentationFor(&fr)
+			require.NotNil(t, seg)
+			var got []string
+			for _, s := range seg.Spans {
+				got = append(got, s.ID+"="+model.RunsEditText(s.Range.ExtractRuns(tt.next)))
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// A term that starts after a code still starts after it once the text before
+// the code is edited.
+func TestRemapOverlays_KeepsATermStartAfterACode(t *testing.T) {
+	ph := model.PhR(model.PlaceholderRun{ID: "1", Type: "code:variable"})
+	old := []model.Run{model.TextR("Use "), ph, model.TextR("kapi now")}
+	b := model.NewRunsBlock("b1", old)
+	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "kapi", Range: model.SpanAnchor(model.RunPos{Run: 2}, model.RunPos{Run: 2, Offset: 4})})
+	next := []model.Run{model.TextR("Please use "), ph, model.TextR("kapi now")}
+	b.SetSourceRuns(next)
+
+	dropped := model.RemapOverlays(b, nil, old, next, []model.RunEdit{{Start: 0, End: 1, NewLen: 8}})
+
+	assert.Equal(t, 0, dropped)
+	sp := b.OverlaySpan(model.OverlayTerm, "kapi")
+	require.NotNil(t, sp)
+	assert.Equal(t, "kapi", model.RunsEditText(sp.Range.ExtractRuns(next)), "the term does not take in the code before it")
 }
 
 // A span a detector anchored over the flattened text can end inside a

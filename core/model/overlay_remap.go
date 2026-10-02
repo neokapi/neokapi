@@ -52,6 +52,12 @@ func (o *Overlay) onEdition(edition *VariantKey) bool {
 // dropped whole (remapPartition): a segment that contains an edit grows or
 // shrinks with it, and an edit across a segment boundary drops the layer.
 //
+// Inline codes have no width in the flattened text, so a text offset alone
+// cannot say which side of a code a boundary sits on. Each carried boundary
+// keeps its side of every code beside it (boundaries.carry): a code that
+// ended a segment still ends it, and a term that started after a code still
+// starts after it.
+//
 // With no edits the call still re-anchors: a structure-only rewrite (runs
 // added, removed, or reclassified without changing the text flattening) shifts
 // run indices, so every range span is re-projected through its text range onto
@@ -61,6 +67,7 @@ func RemapOverlays(b *Block, edition *VariantKey, oldRuns, newRuns []Run, edits 
 		return 0
 	}
 	dropped := 0
+	var bs *boundaries
 	out := b.Overlays[:0]
 	for oi := range b.Overlays {
 		o := b.Overlays[oi]
@@ -68,8 +75,11 @@ func RemapOverlays(b *Block, edition *VariantKey, oldRuns, newRuns []Run, edits 
 			out = append(out, o)
 			continue
 		}
+		if bs == nil {
+			bs = newBoundaries(oldRuns, newRuns)
+		}
 		if o.Type == OverlaySegmentation {
-			spans, ok := remapPartition(o.Spans, oldRuns, newRuns, edits)
+			spans, ok := remapPartition(o.Spans, bs, edits)
 			if !ok {
 				dropped += len(o.Spans)
 				continue
@@ -78,7 +88,7 @@ func RemapOverlays(b *Block, edition *VariantKey, oldRuns, newRuns []Run, edits 
 		} else {
 			kept := make([]Span, 0, len(o.Spans))
 			for _, s := range o.Spans {
-				ns, ok := remapSpan(s, oldRuns, newRuns, edits)
+				ns, ok := remapSpan(s, bs, edits)
 				if !ok {
 					dropped++
 					continue
@@ -105,7 +115,7 @@ func RemapOverlays(b *Block, edition *VariantKey, oldRuns, newRuns []Run, edits 
 // boundary, and then no segment list describes the rewrite; nor does one with
 // a span that cannot be carried. Either way it reports false, and the caller
 // drops the layer.
-func remapPartition(spans []Span, oldRuns, newRuns []Run, edits []RunEdit) ([]Span, bool) {
+func remapPartition(spans []Span, bs *boundaries, edits []RunEdit) ([]Span, bool) {
 	type flat struct {
 		start, end int
 		ok         bool
@@ -113,7 +123,7 @@ func remapPartition(spans []Span, oldRuns, newRuns []Run, edits []RunEdit) ([]Sp
 	pos := make([]flat, len(spans))
 	for i, s := range spans {
 		if isRangeKind(s.Range.Kind) && len(s.Range.Path) == 0 {
-			start, end := s.Range.TextSpan(oldRuns)
+			start, end := s.Range.TextSpan(bs.oldRuns)
 			pos[i] = flat{start: start, end: end, ok: true}
 		}
 	}
@@ -151,11 +161,11 @@ func remapPartition(spans []Span, oldRuns, newRuns []Run, edits []RunEdit) ([]Sp
 		}
 	}
 
-	newLen := runsFlatLen(newRuns)
+	newLen := runsFlatLen(bs.newRuns)
 	out := make([]Span, 0, len(spans))
 	for i, s := range spans {
 		if !pos[i].ok {
-			ns, ok := remapSpan(s, oldRuns, newRuns, edits)
+			ns, ok := remapSpan(s, bs, edits)
 			if !ok {
 				return nil, false
 			}
@@ -177,8 +187,8 @@ func remapPartition(spans []Span, oldRuns, newRuns []Run, edits []RunEdit) ([]Sp
 			return nil, false
 		}
 		ns := s
-		ns.Range = RangeAnchor(newRuns, start, end)
-		if !ns.Range.Resolves(newRuns) {
+		ns.Range = SpanAnchor(bs.carry(s.Range.Start, start), bs.carry(s.Range.End, end))
+		if !ns.Range.Resolves(bs.newRuns) {
 			return nil, false
 		}
 		out = append(out, ns)
@@ -193,7 +203,8 @@ func isRangeKind(k AnchorKind) bool {
 }
 
 // remapSpan carries one span across a rewrite of the runs it anchors to.
-func remapSpan(s Span, oldRuns, newRuns []Run, edits []RunEdit) (Span, bool) {
+func remapSpan(s Span, bs *boundaries, edits []RunEdit) (Span, bool) {
+	oldRuns, newRuns := bs.oldRuns, bs.newRuns
 	a := s.Range
 	switch a.Kind {
 	case AnchorBlock:
@@ -236,7 +247,7 @@ func remapSpan(s Span, oldRuns, newRuns []Run, edits []RunEdit) (Span, bool) {
 		}
 		return Span{}, false
 	}
-	return remapRangeSpan(s, oldRuns, newRuns, edits)
+	return remapRangeSpan(s, bs, edits)
 }
 
 // remapRangeSpan projects a top-level range span from oldRuns to the
@@ -247,11 +258,11 @@ func remapSpan(s Span, oldRuns, newRuns []Run, edits []RunEdit) (Span, bool) {
 // its end, so both endpoints carry the same delta.
 //
 // A shifted span that does not fit the new flattening is dropped rather than
-// clamped: the edits then do not describe the rewrite (RangeAnchor would
-// silently mis-anchor the span at the end), and a missing span is honest while
+// clamped: the edits then do not describe the rewrite (the position lookup
+// would silently pin the span to the end), and a missing span is honest while
 // a misplaced one is corrupt.
-func remapRangeSpan(s Span, oldRuns, newRuns []Run, edits []RunEdit) (Span, bool) {
-	start, end := s.Range.TextSpan(oldRuns)
+func remapRangeSpan(s Span, bs *boundaries, edits []RunEdit) (Span, bool) {
+	start, end := s.Range.TextSpan(bs.oldRuns)
 	delta := 0
 	for _, e := range edits {
 		if e.Start < end && start < e.End {
@@ -261,15 +272,92 @@ func remapRangeSpan(s Span, oldRuns, newRuns []Run, edits []RunEdit) (Span, bool
 			delta += e.NewLen - (e.End - e.Start)
 		}
 	}
-	if newLen := runsFlatLen(newRuns); start+delta < 0 || end+delta > newLen {
+	if newLen := runsFlatLen(bs.newRuns); start+delta < 0 || end+delta > newLen {
 		return Span{}, false // the edits do not describe the rewrite
 	}
 	ns := s
-	ns.Range = RangeAnchor(newRuns, start+delta, end+delta)
-	if !ns.Range.Resolves(newRuns) {
+	ns.Range = SpanAnchor(bs.carry(s.Range.Start, start+delta), bs.carry(s.Range.End, end+delta))
+	if !ns.Range.Resolves(bs.newRuns) {
 		return Span{}, false // an end falls inside a plural or select
 	}
 	return ns, true
+}
+
+// boundaries carries range boundaries from a run sequence to its rewrite. The
+// edits say where a boundary's text offset moves; the inline codes, which have
+// no width there, are paired across the rewrite so a boundary also keeps its
+// side of every code beside it.
+type boundaries struct {
+	oldRuns, newRuns []Run
+	// newCode holds, for each run of oldRuns, the index in newRuns of the code
+	// it became, or -1 for a text run or a code the rewrite removed.
+	newCode []int
+}
+
+// newBoundaries pairs the codes of oldRuns with those of newRuns in order:
+// each old code takes the first equal code after the previous pairing, so a
+// code the rewrite removed is skipped and one it added stays unpaired.
+func newBoundaries(oldRuns, newRuns []Run) *boundaries {
+	keys := make([]string, len(newRuns))
+	for j, r := range newRuns {
+		if isWidthlessCode(r) {
+			keys[j] = codeIdentity(r)
+		}
+	}
+	bs := &boundaries{oldRuns: oldRuns, newRuns: newRuns, newCode: make([]int, len(oldRuns))}
+	next := 0
+	for i, r := range oldRuns {
+		bs.newCode[i] = -1
+		if !isWidthlessCode(r) {
+			continue
+		}
+		k := codeIdentity(r)
+		for j := next; j < len(newRuns); j++ {
+			if keys[j] == k {
+				bs.newCode[i], next = j, j+1
+				break
+			}
+		}
+	}
+	return bs
+}
+
+// carry places the boundary at p in the old runs at text offset flat of the
+// new runs. Where codes sit at that offset, the boundary goes after each one
+// that came from a code before p; otherwise it takes the first position at the
+// offset, so codes nothing places lead the span that follows.
+func (bs *boundaries) carry(p RunPos, flat int) RunPos {
+	r, off := runPosition(bs.newRuns, flat)
+	if off > 0 {
+		return RunPos{Run: r, Offset: off}
+	}
+	end := r
+	for end < len(bs.newRuns) && runFlatLen(bs.newRuns[end]) == 0 {
+		end++
+	}
+	at := r
+	for i := 0; i < p.Run && i < len(bs.newCode); i++ {
+		if j := bs.newCode[i]; j >= at && j < end {
+			at = j + 1
+		}
+	}
+	return RunPos{Run: at}
+}
+
+// isWidthlessCode reports whether a run is a code the text flattening gives no
+// width: a placeholder, either half of a paired code, a subblock reference, or
+// a plural or select whose branch is empty.
+func isWidthlessCode(r Run) bool {
+	return r.Text == nil && runFlatLen(r) == 0
+}
+
+// codeIdentity names a code for pairing across a rewrite: its kind and id, or,
+// for a run that carries no id, its canonical JSON.
+func codeIdentity(r Run) string {
+	if id := r.RunID(); id != "" {
+		return string(r.Kind()) + ":" + id
+	}
+	return string(CanonicalRunsJSON([]Run{r}))
 }
 
 // DropOverlays removes every overlay on one edition of b (edition nil is the

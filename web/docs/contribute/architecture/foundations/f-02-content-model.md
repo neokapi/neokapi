@@ -295,7 +295,9 @@ because they differ in shape and lifecycle:
   left must resolve in the new runs. A segmentation layer is the edition's whole
   segment list, which bilingual writers read as such, so it is kept or dropped
   whole: the segment holding an edit grows or shrinks with it, and an edit across
-  a segment boundary drops the layer. A transforming tool's edit plan supplies
+  a segment boundary drops the layer. An inline code has no width in the text,
+  so a carried boundary keeps its place among the codes beside it, and a code
+  that ended a segment still ends it. A transforming tool's edit plan supplies
   the edits; without them the applier uses the one region the old and new text
   differ in, and an opaque whole-block rewrite drops the edition's overlays.
 - **Annotations** are *block-scoped*: a keyed map of typed payloads describing the
