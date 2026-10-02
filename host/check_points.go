@@ -72,7 +72,7 @@ func (a *App) governFile(ctx context.Context, voice *checkVoice, vocab *checkTer
 				return fileGovernance{}, err
 			}
 		}
-		if vocab != nil && vocab.proj != nil {
+		if vocab.governs() {
 			point := pointIn(vocab.root, comments)
 			if at.terms, err = vocab.forPoint(ctx, point, file); err != nil {
 				return fileGovernance{}, err
@@ -81,7 +81,10 @@ func (a *App) governFile(ctx context.Context, voice *checkVoice, vocab *checkTer
 			if err != nil {
 				return fileGovernance{}, err
 			}
-			at.point = &check.Point{Profile: rc.Profile, Channel: rc.Channel}
+			// Outside a project the named store governs and no point does.
+			if rc != nil {
+				at.point = &check.Point{Profile: rc.Profile, Channel: rc.Channel}
+			}
 			if at.context, err = vocab.contextAt(point); err != nil {
 				return fileGovernance{}, err
 			}

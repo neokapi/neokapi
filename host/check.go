@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/storage"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/terms"
@@ -1468,20 +1469,61 @@ type checkTerms struct {
 	// (SourceLocale), which a command-line run resolves once for the whole
 	// invocation.
 	sourceLocale string
+	// named reports that the invocation names a terms store with --termstore.
+	// The store governs every file, inside a project or outside one.
+	named bool
 }
 
-// newCheckTerms builds the resolver for one run. Outside a project there is no
-// decided vocabulary, and the resolver answers nil for every file.
+// newCheckTerms builds the resolver for one run. Outside a project the
+// vocabulary is the terms store the invocation names with --termstore, and with
+// none the resolver answers nil for every file.
 func (a *App) newCheckTerms(cmd Command) (*checkTerms, error) {
+	named, err := a.namedTermsStore(cmd)
+	if err != nil {
+		return nil, err
+	}
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
-		return &checkTerms{app: a, cmd: cmd, cache: map[string]terms.Terminology{}}, err
+		return &checkTerms{app: a, cmd: cmd, cache: map[string]terms.Terminology{}, named: named}, err
 	}
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
 		return nil, fmt.Errorf("load project for terms: %w", lerr)
 	}
-	return a.checkTermsAt(cmd, projectPath, proj), nil
+	t := a.checkTermsAt(cmd, projectPath, proj)
+	t.named = named
+	return t, nil
+}
+
+// namedTermsStore reports whether cmd names a terms store with --termstore,
+// and refuses one that does not exist. A check that read no vocabulary from a
+// store the caller named would report "terms none loaded" beside a pass, which
+// reads as a vocabulary the content meets.
+func (a *App) namedTermsStore(cmd Command) (bool, error) {
+	if cmd == nil || cmd.Flags().Lookup("termstore") == nil {
+		return false, nil
+	}
+	if v, _ := cmd.Flags().GetString("termstore"); v == "" {
+		return false, nil
+	}
+	sel, err := a.ResolveTermsStore(cmd, project.GovernancePoint{})
+	if err != nil {
+		return false, err
+	}
+	held, err := storage.Exists(sel.Path)
+	if err != nil {
+		return false, fmt.Errorf("open terms %q: %w", sel.Path, err)
+	}
+	if !held {
+		return false, fmt.Errorf("terms store %q does not exist", DisplayName(sel.Path))
+	}
+	return true, nil
+}
+
+// governs reports whether the resolver has a vocabulary to resolve: a
+// project's, or the store the invocation names.
+func (t *checkTerms) governs() bool {
+	return t != nil && (t.proj != nil || t.named)
 }
 
 // checkTermsAt builds the resolver for proj, the project whose recipe is
@@ -1545,9 +1587,10 @@ func (a *App) projectTermsAt(ctx context.Context, cmd Command, point project.Gov
 // the rules the terms bound at the file's point give for that language, and the
 // term rules the recipe declares for it, as the ship gate resolves them
 // (gateTermRules), for content in the resolver's source language. Outside a
-// project there are none.
+// project they are the rules of the store --termstore names, and with none
+// there are none.
 func (t *checkTerms) rulesFor(file, target string) ([]profile.TermRule, error) {
-	if t == nil || t.proj == nil {
+	if !t.governs() {
 		return nil, nil
 	}
 	if t.declared == nil {
@@ -1567,7 +1610,7 @@ func (t *checkTerms) rulesFor(file, target string) ([]profile.TermRule, error) {
 // forFile returns the vocabulary governing one file, or nil when nothing binds
 // one there.
 func (t *checkTerms) forFile(ctx context.Context, file string) (terms.Terminology, error) {
-	if t == nil || t.proj == nil {
+	if !t.governs() {
 		return nil, nil
 	}
 	return t.forPoint(ctx, t.app.governancePointForFile(t.root, file), file)
