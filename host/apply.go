@@ -108,20 +108,24 @@ type assetResult struct {
 }
 
 // applyOutput is the JSON-first report of an apply pass. Content outcomes are
-// bucketed by block (applied/skipped/stale/guard_failed/not_found); asset
-// outcomes list one result per entry. stale, guard_failed or not_found content,
-// a file whose round-trip failed, or an asset error, means the change-set did
-// not fully land and the command exits non-zero so a fix loop re-inspects and
-// retries.
+// bucketed by block (applied/skipped/stale/guard_failed/not_editable/
+// not_found); asset outcomes list one result per entry. stale, guard_failed,
+// not_editable or not_found content, a file whose round-trip failed, or an
+// asset error, means the change-set did not fully land and the command exits
+// non-zero so a fix loop re-inspects and retries.
 type applyOutput struct {
 	Content struct {
 		Applied     []string `json:"applied,omitempty"`
 		Skipped     []string `json:"skipped,omitempty"`
 		Stale       []string `json:"stale,omitempty"`
 		GuardFailed []string `json:"guard_failed,omitempty"`
+		// NotEditable names each block an entry changed that its file marks as
+		// content an edit does not change, such as a code block. The block
+		// keeps its text.
+		NotEditable []string `json:"not_editable,omitempty"`
 		// NotFound names each content entry whose id, or content_hash for an
-		// entry without an id, matched no editable block of its file, as
-		// file:id or file:content_hash:<hash>. Nothing was written for it.
+		// entry without an id, matched no block of its file, as file:id or
+		// file:content_hash:<hash>. Nothing was written for it.
 		NotFound []string `json:"not_found,omitempty"`
 		// Failed names each content file whose round-trip did not complete,
 		// with the reason, such as a file that could not be read. Its edits
@@ -142,7 +146,8 @@ func (o *applyOutput) ok() bool {
 		}
 	}
 	c := o.Content
-	return len(c.Stale) == 0 && len(c.GuardFailed) == 0 && len(c.NotFound) == 0 && len(c.Failed) == 0 && !o.assetErr()
+	return len(c.Stale) == 0 && len(c.GuardFailed) == 0 && len(c.NotEditable) == 0 && len(c.NotFound) == 0 &&
+		len(c.Failed) == 0 && !o.assetErr()
 }
 
 func (o *applyOutput) assetErr() bool {
@@ -243,6 +248,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		out.Content.Skipped = append(out.Content.Skipped, report.Skipped...)
 		out.Content.Stale = append(out.Content.Stale, report.Stale...)
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
+		out.Content.NotEditable = append(out.Content.NotEditable, report.NotEditable...)
 		out.Content.NotFound = append(out.Content.NotFound, notFoundIn(file, report)...)
 		if texts := appliedTexts(byFile[file], report.Applied); !diff && len(texts) > 0 {
 			edited[file] = texts
@@ -279,9 +285,10 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 	}
 
 	if !out.ok() {
-		// Drift, a guard miss, an edit that matched no block or an asset error
-		// means work remains: exit on the gate code so a fix loop re-inspects
-		// and retries, distinct from an operational failure.
+		// Drift, a guard miss, a change to a block that is not editable, an
+		// edit that matched no block or an asset error means work remains:
+		// exit on the gate code so a fix loop re-inspects and retries,
+		// distinct from an operational failure.
 		return WithExitCode(ExitGate, ErrSilentExit)
 	}
 	return nil
@@ -448,13 +455,16 @@ func (a *App) rewriteDiffFile(ctx context.Context, file string, t *tool.BaseTool
 // printApplyReport writes a short human summary of the apply outcome.
 func printApplyReport(w io.Writer, out *applyOutput) {
 	c := out.Content
-	if n := len(c.Applied) + len(c.Skipped) + len(c.Stale) + len(c.GuardFailed) + len(c.NotFound); n > 0 {
+	if n := len(c.Applied) + len(c.Skipped) + len(c.Stale) + len(c.GuardFailed) + len(c.NotEditable) + len(c.NotFound); n > 0 {
 		fmt.Fprintf(w, "content: %d applied, %d unchanged", len(c.Applied), len(c.Skipped))
 		if len(c.Stale) > 0 {
 			fmt.Fprintf(w, ", %d stale (source drifted, re-inspect)", len(c.Stale))
 		}
 		if len(c.GuardFailed) > 0 {
 			fmt.Fprintf(w, ", %d rejected (would corrupt inline codes or flatten plural/select branches)", len(c.GuardFailed))
+		}
+		if len(c.NotEditable) > 0 {
+			fmt.Fprintf(w, ", %d not editable (the file marks the block as content an edit does not change, such as code)", len(c.NotEditable))
 		}
 		if len(c.NotFound) > 0 {
 			fmt.Fprintf(w, ", %d not found (no block has that id or content_hash, re-inspect)", len(c.NotFound))

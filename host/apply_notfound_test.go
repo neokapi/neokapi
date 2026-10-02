@@ -120,3 +120,66 @@ func TestApplyEditsMCPReportsNotFound(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, source, string(got))
 }
+
+// The summary counts the blocks an entry changed that the file marks as not
+// editable, and such a block keeps the change-set from passing.
+func TestPrintApplyReportCountsNotEditable(t *testing.T) {
+	var out applyOutput
+	out.Content.Skipped = []string{"tu1"}
+	out.Content.NotEditable = []string{"tu3"}
+
+	var buf bytes.Buffer
+	printApplyReport(&buf, &out)
+
+	assert.Equal(t,
+		"content: 0 applied, 1 unchanged, 1 not editable (the file marks the block as content an edit does not change, such as code)\n",
+		buf.String())
+	assert.False(t, out.ok())
+}
+
+// apply_edits reports a change to a block that is not editable, such as a
+// Markdown code block, in not_editable, writes nothing for it and makes ok
+// false, while the same entry with the block's own text reads as applied
+// already.
+func TestApplyEditsMCPReportsNotEditable(t *testing.T) {
+	const doc = "Run the tool.\n\n```sh\nkapi up\n```\n"
+	tests := []struct {
+		name string
+		text func(read string) string
+		ok   bool
+	}{
+		{name: "the code block's own text", text: func(read string) string { return read }, ok: true},
+		{name: "a changed text", text: func(string) string { return "kapi down" }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newToolboxApp(t)
+			file := filepath.Join(t.TempDir(), "doc.md")
+			require.NoError(t, os.WriteFile(file, []byte(doc), 0o600))
+			_, recs := inspectRecords(t, app, file)
+			codeID, codeText := "", ""
+			for _, rec := range recs {
+				if rec.Role == "code" {
+					codeID, codeText = rec.ID, rec.Text
+				}
+			}
+			require.NotEmpty(t, codeID, "%+v", recs)
+
+			_, out, err := app.applyEditsMCP(t.Context(), contextop.Actor{Kind: contextop.ActorAgent, Name: "test", Session: "s1"},
+				applyEditsInput{Changeset: []changeEntry{{Kind: kindContent, File: file, ID: codeID, Text: tt.text(codeText)}}})
+			require.NoError(t, err)
+			assert.Equal(t, tt.ok, out.OK)
+			assert.Empty(t, out.NotFound)
+			if tt.ok {
+				assert.Equal(t, []string{codeID}, out.Skipped)
+				assert.Empty(t, out.NotEditable)
+			} else {
+				assert.Equal(t, []string{codeID}, out.NotEditable)
+			}
+
+			got, err := os.ReadFile(file)
+			require.NoError(t, err)
+			assert.Equal(t, doc, string(got))
+		})
+	}
+}

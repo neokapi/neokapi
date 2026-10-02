@@ -22,16 +22,22 @@ type Edit struct {
 
 // ApplyReport records the per-block outcome of an apply-edits pass so the
 // caller (the `kapi apply` command, the MCP tool) can report it and decide the
-// exit code: a Stale or GuardFailed entry, or an edit NotFound lists, means the
-// change-set could not be fully applied and the caller should re-inspect and
-// retry, while Applied and Skipped are success outcomes. Block IDs are recorded
-// in each bucket.
+// exit code: a Stale, GuardFailed or NotEditable entry, or an edit NotFound
+// lists, means the change-set could not be fully applied and the caller should
+// re-inspect and retry, while Applied and Skipped are success outcomes. Block
+// IDs are recorded in each bucket.
 type ApplyReport struct {
 	mu          sync.Mutex
 	Applied     []string // block source rewritten to the supplied text
 	Skipped     []string // already in the desired state (idempotent no-op)
 	Stale       []string // content_hash no longer matches — source drifted
 	GuardFailed []string // edit would drop or unbalance an inline code, or flatten plural/select branches; rejected
+	// NotEditable lists each block an edit changed that the file marks as
+	// content an edit does not change (a block that is not translatable, such
+	// as a Markdown code block). The block keeps its text. An edit whose text
+	// matches such a block is Skipped instead, so a change-set made from every
+	// block `kapi inspect` lists applies cleanly.
+	NotEditable []string
 
 	// The edits the pass was given and the ones a block of the file matched,
 	// by key. NotFound is the difference once the pass is over.
@@ -77,8 +83,8 @@ func (r *ApplyReport) matchHash(hash string) {
 // hash it was given, for an edit given without a block id.
 const NotFoundHashPrefix = "content_hash:"
 
-// NotFound lists the edits no editable block of the file matched, once the
-// pass is over: the block id of an edit given one, else NotFoundHashPrefix and
+// NotFound lists the edits no block of the file matched, once the pass is
+// over: the block id of an edit given one, else NotFoundHashPrefix and
 // the content hash it named. Such an edit changed nothing. Its block may have
 // been removed or renamed since the caller read the file, or the id or hash may
 // be mistyped, so the caller reads the file again. The list is sorted.
@@ -100,16 +106,16 @@ func (r *ApplyReport) NotFound() []string {
 	return out
 }
 
-// OK reports whether every edit landed cleanly: no drift, no rejected edit and
-// no edit that matched no block. The command maps !OK to a non-zero exit so a
-// fix loop re-inspects.
+// OK reports whether every edit landed cleanly: no drift, no rejected edit, no
+// change to a block that is not editable and no edit that matched no block.
+// The command maps !OK to a non-zero exit so a fix loop re-inspects.
 func (r *ApplyReport) OK() bool {
 	if len(r.NotFound()) > 0 {
 		return false
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return len(r.Stale) == 0 && len(r.GuardFailed) == 0
+	return len(r.Stale) == 0 && len(r.GuardFailed) == 0 && len(r.NotEditable) == 0
 }
 
 // NewApplyEditsTool builds the apply-edits tool: a source Transform that
@@ -117,9 +123,10 @@ func (r *ApplyReport) OK() bool {
 // provider-free sibling of the AI rewrite tool. It looks each block up in the
 // change-set by ID (falling back to content hash), drift-guards against the
 // canonical block identity, reconstructs the runs from the edit text,
-// and rejects any edit that would corrupt the block's inline codes. Blocks with
-// no edit pass through unchanged, and report.NotFound lists each edit no
-// editable block matched once the pass is over.
+// and rejects any edit that would corrupt the block's inline codes. A block
+// that is not translatable keeps its text: an edit that would change it is
+// reported in report.NotEditable. Blocks with no edit pass through unchanged,
+// and report.NotFound lists each edit no block matched once the pass is over.
 //
 // It depends only on core/model + core/tool — no providers/ai — so the
 // caller-supplied edit loop carries no LLM dependency. It returns a
@@ -134,9 +141,6 @@ func NewApplyEditsTool(byID, byHash map[string]Edit, report *ApplyReport) *tool.
 
 	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		var plan tool.EditPlan
-		if !v.Translatable() {
-			return plan, nil
-		}
 
 		e, ok := byID[v.ID()]
 		oldRuns := v.SourceRuns()
@@ -159,6 +163,13 @@ func NewApplyEditsTool(byID, byHash map[string]Edit, report *ApplyReport) *tool.
 		// reads the block the same way.
 		if e.Text == model.RunsEditText(oldRuns) || e.Text == model.RunsPlaceholderText(oldRuns) {
 			report.record(&report.Skipped, v.ID())
+			return plan, nil
+		}
+
+		// A block the file marks as not translatable, such as a code block, is
+		// read and listed like any other, and keeps its text.
+		if !v.Translatable() {
+			report.record(&report.NotEditable, v.ID())
 			return plan, nil
 		}
 
