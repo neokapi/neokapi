@@ -62,16 +62,14 @@ func storeSourceItem(t *testing.T, cs *sqlitestore.SQLiteStore, projectID, item 
 	require.NoError(t, cs.StoreBlocksForItem(t.Context(), projectID, "main", item, blocks))
 }
 
-// setSourceStatus stamps the status of the edition b was read in.
+// setSourceStatus stamps the status of b's authoritative edition.
 func setSourceStatus(b *model.Block, status model.SourceStatus) {
-	src, _ := b.Edition(model.EditionKey{})
-	src.Status = model.Status(status)
-	b.SetEdition(model.EditionKey{}, src)
+	b.SetEditionStatus(b.Authoritative(model.AuthorityPolicy{}), model.Status(status))
 }
 
-// sourceStatusOf reads the status of the edition b was read in.
+// sourceStatusOf reads the status of b's authoritative edition.
 func sourceStatusOf(b *model.Block) model.SourceStatus {
-	src, _ := b.Edition(model.EditionKey{})
+	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
 	return model.SourceStatus(src.Status)
 }
 

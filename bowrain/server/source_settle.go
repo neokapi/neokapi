@@ -26,7 +26,7 @@ import (
 // demands. Deeper, LLM-backed source brand-checking is layered on top later
 // (deferred), not in front of the gate.
 
-// propSettledHash records the source content hash a block's SourceStatus was
+// propSettledHash records the source content hash a block's source status was
 // stamped against. When the source changes (content-hash change), the recorded
 // status no longer describes the current source, so settlement resets the block
 // to the authored baseline and re-checks it — re-gating ONLY the changed block,
@@ -60,7 +60,7 @@ func translateAfterFor(proj *platstore.Project) model.TranslateAfterLevel {
 // settleSource runs the source-settlement phase over a project's source-locale
 // blocks: for each translatable block it (re)derives the source-authoring
 // status — resetting a block whose source changed since it was last settled,
-// running the provider-free source checks, and stamping SourceStatus via the
+// running the provider-free source checks, and stamping the source status via the
 // framework's SourceReadinessTool — then persists the blocks whose status moved.
 // It returns how many blocks settled and how many remain below the level.
 //
@@ -116,7 +116,9 @@ func (o *convergenceOrchestrator) settleBatch(
 		b := sb.Block
 		res.Total++
 
-		src, _ := b.Edition(model.EditionKey{})
+		// The status ladder belongs to the authoritative edition.
+		auth := b.Authoritative(model.AuthorityPolicy{})
+		src, _ := b.Edition(auth)
 		before := src.Status
 		beforeFailing := b.SourceFailing()
 		beforeHash := settledHash(b)
@@ -126,14 +128,13 @@ func (o *convergenceOrchestrator) settleBatch(
 		// re-checks it from scratch. Only the changed block resets; untouched
 		// blocks keep their status and are skipped by the store write below.
 		if sourceChangedSinceSettle(b, sb.ContentHash) {
-			src.Status = model.Status(model.SourceStatusNew)
-			b.SetEdition(model.EditionKey{}, src)
+			b.SetEditionStatus(auth, model.Status(model.SourceStatusNew))
 		}
 
 		settleBlockStatus(ctx, b)
 		stampSettledHash(b, sb.ContentHash)
 
-		settled, _ := b.Edition(model.EditionKey{})
+		settled, _ := b.Edition(auth)
 		if settled.Status != before {
 			res.Settled++
 		}
@@ -225,7 +226,7 @@ func settleBlockStatus(ctx context.Context, b *model.Block) {
 }
 
 // sourceChangedSinceSettle reports whether a block's current source content hash
-// differs from the hash its SourceStatus was last stamped against. A block with
+// differs from the hash its source status was last stamped against. A block with
 // no committed status (New) has nothing stale to reset. A block with a committed
 // status but no recorded hash is a status that has not yet been through a local
 // settle pass — e.g. an approval pushed from the wire (core/venue carries
@@ -237,7 +238,7 @@ func settleBlockStatus(ctx context.Context, b *model.Block) {
 // is verified on this pass rather than demoted (which would defeat a legitimate
 // pushed approval).
 func sourceChangedSinceSettle(b *model.Block, currentHash string) bool {
-	if src, _ := b.Edition(model.EditionKey{}); src.Status == model.Status(model.SourceStatusNew) {
+	if src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{})); src.Status == model.Status(model.SourceStatusNew) {
 		return false
 	}
 	prev := ""
@@ -250,7 +251,7 @@ func sourceChangedSinceSettle(b *model.Block, currentHash string) bool {
 	return prev != currentHash
 }
 
-// settledHash reads the content hash a block's SourceStatus was last stamped
+// settledHash reads the content hash a block's source status was last stamped
 // against (empty when never settled).
 func settledHash(b *model.Block) string {
 	if b.Properties == nil {

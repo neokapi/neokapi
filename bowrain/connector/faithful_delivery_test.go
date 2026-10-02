@@ -71,18 +71,13 @@ func TestFaithfulDelivery_AndroidXML(t *testing.T) {
 	require.NoError(t, err)
 
 	// Build the reviewed delivery blocks the way materializeDelivery does: the
-	// reviewed target both committed (Targets[fr]) and promoted into the source
-	// position, carrying the source-reader id. app_name is translatable="false",
+	// reviewed target both committed (the fr edition) and promoted into the
+	// source position, carrying the source-reader id. app_name is translatable="false",
 	// so it gets no target and must deliver verbatim.
 	trans := map[string]string{"Hello": "Bonjour", "Goodbye": "Au revoir"}
 	var delivered []*model.Block
 	for _, sb := range readSourceBlocks(t, reg, "androidxml", srcAbs) {
-		cp := *sb
-		if fr, ok := trans[sb.SourceText()]; ok {
-			cp.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: fr}}})
-			cp.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}})
-		}
-		delivered = append(delivered, &cp)
+		delivered = append(delivered, deliveryCopy(sb, trans[sb.SourceText()]))
 	}
 
 	// FAITHFUL: source_path points at the co-located source, so publishFile
@@ -162,13 +157,9 @@ func TestFaithfulDelivery_BindingFailure_FallsBackTranslated(t *testing.T) {
 	trans := map[string]string{"Hello": "Bonjour", "Goodbye": "Au revoir"}
 	var delivered []*model.Block
 	for _, sb := range readSourceBlocks(t, reg, "androidxml", srcAbs) {
-		cp := *sb
+		cp := deliveryCopy(sb, trans[sb.SourceText()])
 		cp.ID = "mismatch-" + sb.ID // break the binding
-		if fr, ok := trans[sb.SourceText()]; ok {
-			cp.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: fr}}})
-			cp.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}})
-		}
-		delivered = append(delivered, &cp)
+		delivered = append(delivered, cp)
 	}
 
 	require.NoError(t, c.Publish(context.Background(), []*platconn.ContentItem{{
@@ -211,12 +202,7 @@ func TestFaithfulDelivery_JSON_NoRegression(t *testing.T) {
 	trans := map[string]string{"Hello": "Bonjour", "Goodbye": "Au revoir"}
 	var delivered []*model.Block
 	for _, sb := range readSourceBlocks(t, reg, "json", srcAbs) {
-		cp := *sb
-		if fr, ok := trans[sb.SourceText()]; ok {
-			cp.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: fr}}})
-			cp.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}})
-		}
-		delivered = append(delivered, &cp)
+		delivered = append(delivered, deliveryCopy(sb, trans[sb.SourceText()]))
 	}
 
 	// Faithful (re-parse) delivery, run twice: it must be byte-identical to
@@ -242,4 +228,19 @@ func TestFaithfulDelivery_JSON_NoRegression(t *testing.T) {
 	assert.Equal(t, first, second, "re-parse delivery must be deterministic across runs")
 	assert.Less(t, strings.Index(first, "greeting"), strings.Index(first, "farewell"),
 		"re-parse delivery must preserve source key order")
+}
+
+// deliveryCopy builds a delivery block the way materializeDelivery does: the
+// stored block holds the reviewed French translation, and a copy of it carries
+// that translation in the source position. A block with no translation is
+// delivered as read.
+func deliveryCopy(sb *model.Block, fr string) *model.Block {
+	if fr != "" {
+		sb.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}})
+	}
+	cp := *sb
+	if fr != "" {
+		cp.SetSourceRuns(sb.TargetRuns("fr"))
+	}
+	return &cp
 }

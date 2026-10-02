@@ -310,7 +310,8 @@ func (tm *PostgresStore) Lookup(ctx context.Context, source *model.Block, source
 		return nil, nil
 	}
 	opts = fw.ApplyDefaults(opts)
-	src, _ := source.Edition(model.EditionKey{})
+	// A match pairs the edition translations are made from with a translation.
+	src, _ := source.Edition(source.Authoritative(model.AuthorityPolicy{}))
 	runs := src.Runs
 	if len(runs) == 0 {
 		return nil, nil
