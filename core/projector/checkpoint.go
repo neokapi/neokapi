@@ -3,6 +3,7 @@ package projector
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -32,10 +33,24 @@ const rulesTable = "workspace_rules"
 // AUTOINCREMENT tables in, so a replay after it numbers rows as the writes did.
 const sequenceTable = "sqlite_sequence"
 
+// A checkpoint table whose rows run past inlineTableBytes is kept in parts of
+// at most partBytes each (kpz.CheckpointPart), blobs of their own beside the
+// checkpoint file. The checkpoint file then holds at most inlineTableBytes per
+// table, and the block history, which grows with every pass, never makes one
+// file larger than a blob may be (workspace.MaxBlobSize). A table that only
+// grows is cut at the same rows each time, so successive checkpoints share its
+// earlier parts and the workspace stores each once.
+var (
+	inlineTableBytes = 1 << 20
+	partBytes        = 16 << 20
+)
+
 // checkpointPayload is what a checkpoint operation carries.
 type checkpointPayload struct {
-	Blob    string `json:"blob"`
-	Through string `json:"through"`
+	Blob string `json:"blob"`
+	// Blobs names the parts of the checkpoint's tables (kpz.CheckpointPart).
+	Blobs   []string `json:"blobs,omitempty"`
+	Through string   `json:"through"`
 	// Seq is the local position the checkpoint was taken at. An operation
 	// this log received later with an id before Through was merged in after
 	// the checkpoint, which the checkpoint does not include, so it no longer
@@ -52,6 +67,65 @@ type CheckpointReport struct {
 	Operations int `json:"operations"`
 	// Bytes is the size of the checkpoint file.
 	Bytes int `json:"bytes"`
+	// Parts counts the blobs holding the rows of tables too large for the
+	// checkpoint file.
+	Parts int `json:"parts,omitempty"`
+}
+
+// storeParts moves the rows of every table too large to carry in a
+// checkpoint file into parts, stored as blobs, and returns the tables left to
+// carry and the parts in the order they load.
+func (p *Projector) storeParts(ctx context.Context, tables []kpz.TableDoc) ([]kpz.TableDoc, []kpz.CheckpointPart, error) {
+	var (
+		inline []kpz.TableDoc
+		parts  []kpz.CheckpointPart
+	)
+	for _, t := range tables {
+		if len(t.Data) <= inlineTableBytes {
+			inline = append(inline, t)
+			continue
+		}
+		for _, chunk := range cutLines(t.Data, partBytes) {
+			address, err := p.log.PutBlob(ctx, chunk)
+			if err != nil {
+				return nil, nil, fmt.Errorf("projector: store part of %s: %w", t.Table, err)
+			}
+			parts = append(parts, kpz.CheckpointPart{Table: t.Table, Blob: address})
+		}
+	}
+	return inline, parts, nil
+}
+
+// cutLines cuts JSON Lines into runs of whole lines of at most limit bytes
+// each. A line longer than limit is a run of its own.
+func cutLines(data []byte, limit int) [][]byte {
+	var out [][]byte
+	for len(data) > 0 {
+		end := len(data)
+		if end > limit {
+			end = bytes.LastIndexByte(data[:limit], '\n') + 1
+			if end == 0 {
+				end = bytes.IndexByte(data, '\n') + 1
+				if end == 0 {
+					end = len(data)
+				}
+			}
+		}
+		out = append(out, data[:end])
+		data = data[end:]
+	}
+	return out
+}
+
+// partBlobs lists the blobs of a checkpoint's parts.
+func partBlobs(parts []kpz.CheckpointPart) []string {
+	var out []string
+	for _, part := range parts {
+		if !slices.Contains(out, part.Blob) {
+			out = append(out, part.Blob)
+		}
+	}
+	return out
 }
 
 // Checkpoint writes the project's projections, as of every operation the log
@@ -86,12 +160,16 @@ func (p *Projector) Checkpoint(ctx context.Context) (CheckpointReport, error) {
 	if err != nil {
 		return report, err
 	}
+	tables, parts, err := p.storeParts(ctx, tables)
+	if err != nil {
+		return report, err
+	}
 	pkg := &kpz.Package{
 		Kind:    kpz.KindCheckpoint,
 		Created: time.Now().UTC().Format(time.RFC3339),
 		Tables:  tables,
 		Checkpoint: &kpz.CheckpointMark{
-			Project: string(p.key), Through: report.Through, Operations: report.Operations,
+			Project: string(p.key), Through: report.Through, Operations: report.Operations, Parts: parts,
 		},
 	}
 	data, err := pkg.Marshal()
@@ -99,11 +177,14 @@ func (p *Projector) Checkpoint(ctx context.Context) (CheckpointReport, error) {
 		return report, fmt.Errorf("projector: write checkpoint: %w", err)
 	}
 	report.Bytes = len(data)
+	report.Parts = len(parts)
 	address, err := p.log.PutBlob(ctx, data)
 	if err != nil {
 		return report, fmt.Errorf("projector: store checkpoint: %w", err)
 	}
-	body, err := json.Marshal(checkpointPayload{Blob: address, Through: report.Through, Seq: seq, Operations: report.Operations})
+	body, err := json.Marshal(checkpointPayload{
+		Blob: address, Blobs: partBlobs(parts), Through: report.Through, Seq: seq, Operations: report.Operations,
+	})
 	if err != nil {
 		return report, err
 	}
@@ -222,6 +303,18 @@ func (p *Projector) loadTables(ctx context.Context, pkg *kpz.Package) error {
 		}
 		if err := loadRows(ctx, raw, t.Table, t.Data); err != nil {
 			return fmt.Errorf("projector: load %s: %w", t.Table, err)
+		}
+	}
+	for _, part := range pkg.Checkpoint.Parts {
+		if !projectionTable(part.Table) {
+			return fmt.Errorf("projector: a checkpoint names %q, which is not a projection table", part.Table)
+		}
+		data, err := p.log.Blob(ctx, part.Blob)
+		if err != nil {
+			return fmt.Errorf("projector: read part of %s: %w", part.Table, err)
+		}
+		if err := loadRows(ctx, raw, part.Table, data); err != nil {
+			return fmt.Errorf("projector: load %s: %w", part.Table, err)
 		}
 	}
 	if len(sequences) > 0 {
@@ -360,13 +453,20 @@ func cellValue(raw json.RawMessage) (any, error) {
 	return nil, nil
 }
 
-// loadRows inserts a table's dumped rows, in one transaction.
+// loadRows inserts a table's dumped rows, in one transaction. Rows naming the
+// same columns, which in a dump is every row, share one prepared statement.
 func loadRows(ctx context.Context, raw *storage.DB, table string, data []byte) error {
 	tx, err := raw.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
+	stmts := map[string]*sql.Stmt{}
+	defer func() {
+		for _, s := range stmts {
+			_ = s.Close()
+		}
+	}()
 	for line := range bytes.SplitSeq(bytes.TrimSpace(data), []byte("\n")) {
 		if len(line) == 0 {
 			continue
@@ -390,7 +490,15 @@ func loadRows(ctx context.Context, raw *storage.DB, table string, data []byte) e
 			args[i] = v
 			quoted[i] = `"` + strings.ReplaceAll(c, `"`, `""`) + `"`
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO "`+table+`" (`+strings.Join(quoted, ", ")+`) VALUES (`+placeholders(len(cols))+`)`, args...); err != nil {
+		names := strings.Join(quoted, ", ")
+		stmt, ok := stmts[names]
+		if !ok {
+			if stmt, err = tx.PrepareContext(ctx, `INSERT INTO "`+table+`" (`+names+`) VALUES (`+placeholders(len(cols))+`)`); err != nil {
+				return err
+			}
+			stmts[names] = stmt
+		}
+		if _, err := stmt.ExecContext(ctx, args...); err != nil {
 			return err
 		}
 	}

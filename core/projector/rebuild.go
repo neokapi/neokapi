@@ -95,8 +95,17 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 	}
 	if fromCheckpoint {
 		if err := p.loadTables(ctx, pkg); err != nil {
-			return report, err
+			// A checkpoint that cannot be loaded, a part of it missing or
+			// unreadable, costs a replay of the whole log and nothing more.
+			report.Failed = append(report.Failed, fmt.Sprintf("%s through %s: %v",
+				KindCheckpoint, workspace.ShortOpID(cp.Through), err))
+			if err := p.reset(ctx); err != nil {
+				return report, err
+			}
+			fromCheckpoint = false
 		}
+	}
+	if fromCheckpoint {
 		report.Checkpoint = cp.Through
 		later := ops[:0:0]
 		for _, op := range ops {
