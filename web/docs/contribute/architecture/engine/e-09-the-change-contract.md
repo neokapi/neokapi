@@ -105,17 +105,24 @@ note describes each rule.
   content as placeholder text, its inline codes with their attributes and the
   attributes `set_attribute` can write, its plurals and selects with the path to
   each branch, its other editions with their status and staleness, and the
-  operations it accepts. A page ends with a cursor; a cursor into a document
-  that changed since is refused as `stale`.
+  operations it accepts. A read of the file one edition lives in, such as the
+  German file of an English page, shows that edition as each block's own, with
+  the document's own edition among the others, so a reference copied from it
+  edits the German. A page ends with a cursor; a cursor into a document that
+  changed since is refused as `stale`.
 - **`Apply`** applies a change set in two phases. It asks the policy about
   every operation, groups the operations by document, and opens each document
   in its home. It then prepares every document: the home reads it, the
   service's editor applies the operations addressed to each block, and the
-  home stages the result. The commit check runs over every changed edition. If
-  any operation of any document is refused, nothing is written: the refused
-  operations say why and every other one is `not_applied`. Otherwise the
-  service settles and commits each document, applies the decisions and asset
-  operations, which bind to the content that landed, and records the change.
+  home stages the result. The service refuses an edition the staged file does
+  not change, because the format has no place for it there, and runs the
+  commit check over every changed edition. If any operation of any document is
+  refused, nothing is written: the refused operations say why and every other
+  one is `not_applied`. Otherwise the service takes the commit locks, settles
+  each document, and checks again any document its home applied a second
+  time, since that pass is the one that lands. It then commits each document
+  and, with the locks still held, applies the decisions and asset operations,
+  which bind to the content that landed, and records the change.
 - **`Describe`** says what a format supports. `DefaultCapabilities` reports
   what `ApplyBlock` does for a format kapi can write back (`set_content` in
   either form, `replace_text`, and `remove_edition` where the format holds its
@@ -125,8 +132,9 @@ note describes each rule.
 
 A document's edition lives in the document (its own edition, or one a bilingual
 file holds), in a file of its own (a project's target file), or nowhere (a
-monolingual document outside a project). An operation on an edition with no
-home is refused as `unsupported`.
+monolingual document outside a project, or an edition with a tone or a channel
+in a bilingual file, which keeps one translation per language). An operation
+on an edition with no home is refused as `unsupported`.
 
 ### Homes
 
@@ -140,32 +148,40 @@ type Home interface {
 ```
 
 A session reads the document at its head, stages a change by running the
-service's editor over its blocks, and hands back a staged change that settles
-(takes the commit lock and makes sure the change still applies), commits and
-releases. A home that reads a document whole streams every block past the
-editor; one that keeps rows looks up only the blocks the change names. The
-service orders the commit locks of several documents by a key each staged
-change reports, so two change sets that write the same documents cannot
-deadlock.
+service's editor over its blocks, and hands back a staged change that names the
+commit locks it needs, settles (makes sure the change still applies with those
+locks held), commits and releases. A home that reads a document whole streams
+every block past the editor; one that keeps rows looks up only the blocks the
+change names. The service takes the locks of every document of a change set in
+one order, by their keys, so two change sets take the locks they share in that
+order and wait for each other without deadlock. A change set that names one
+file through two documents, such as two members of one archive or a file and a
+link to it, is refused as `invalid`, because each document would stage the
+whole file from what it read.
 
 `changetest.Run` is the conformance suite every home passes: an edit lands and
 reads back, a replayed change set is stale and carries the current content
-while writing nothing, edits to different blocks commute, a refusal in one
-document leaves every document as it was, a preview writes nothing, a missing
-block is not found, the same content said again is unchanged, and a file keeps
-its mode.
+while writing nothing, edits to different blocks commute, also when one lands
+between the other's stage and commit, a refusal in one document leaves every
+document as it was, whether it is found at the stage or at the commit, a
+preview writes nothing, a missing block is not found, the same content said
+again is unchanged, and a file keeps its mode.
 
 **The file home** (`core/change/filehome`) keeps each document as a file. A
 stage reads the document through its format's reader with the writer's
 skeleton store wired, and writes the result through the same format's writer
-into a temporary file beside the document with the document's mode. A commit
-takes the document's advisory lock (`core/storage/filelock`), hashes the file
-again, and renames the staged file onto it when the file is still what the
-stage read. When the file moved, the home reads it again under the lock,
-applies the change once more and renames that result; an operation whose
-`if_match` the new content breaks is refused as `stale`, and a file that moves
-during that second pass as well is `doc_changed`. Two processes that edit
-different blocks of one file both land. Where the reader and the writer both
+into a temporary file beside the document with the document's mode. Every file
+a stage reads is hashed before it is read. A commit takes the advisory lock
+(`core/storage/filelock`) of each file, hashes the files again, and renames the
+staged files onto them when each is still what the stage read. When one moved,
+the home reads them again under the locks, applies the change once more and
+renames that result; an operation whose `if_match` the new content breaks is
+refused as `stale`, and a file that moves during that second pass as well is
+`doc_changed`. Two processes that edit different blocks of one file both land.
+An edition kept in a file of its own is written through that file's skeleton,
+and an edit that needs a block the file does not hold is refused, so the file
+is never rewritten from the document; a file that does not exist yet is
+written from the document's skeleton. Where the reader and the writer both
 stream, the document is never held whole. The implementation note
 [The file home](../../implementation/engine/file-home.md) has the details.
 
@@ -192,29 +208,36 @@ configuration its content item binds, the file of a translation is that edition
 of its source, joined by key, then by translation-invariant address, then by
 position, and a translation with no file yet is written from the source's
 skeleton. Decisions and asset operations land through the functions the review
-queue and `kapi apply` use. The commit check, the policy and the recorder each
-plug in at one function of the host.
+queue and `kapi apply` use, a decision bound to the wording the change set
+landed rather than to a later read of the file. The commit check, the policy
+and the recorder each plug in at one function of the host.
 
 ### Results and errors
 
 A result has a status (`applied`, `refused`, `previewed`, or `partial` when an
-I/O error stopped the final renames after some documents landed), a record id,
-one entry per file written or read with its digests before and after, and one
-result per operation with its revisions, the positions it resolved, the
-derived editions it left on an older basis (`invalidates`), and on a refusal an
-error from a closed set of eleven codes, each mapped once to an exit code and
-an HTTP status. A `stale` refusal carries the edition as it stands, so the
-sender can rebase without another read. A resource bound `core/safeio` reports
-is `budget_exceeded`.
+I/O error stopped the final renames after some files landed), a record id, one
+entry per file written or read with its digests before and after and whether it
+was written, and one result per operation with its revisions, the positions it
+resolved, the derived editions it left on an older basis (`invalidates`), and
+on a refusal an error from a closed set of codes, each mapped once to an exit
+code and an HTTP status. In a `partial` result the operations on the files that
+were not written are `not_applied`, and so are the decisions and asset
+operations, which wait for content that all landed; the record holds what did.
+A `stale` refusal carries the edition as it stands, so the sender can rebase
+without another read. A resource bound `core/safeio` reports is
+`budget_exceeded`.
 
 ## Consequences
 
 - A sender always learns whether its change landed and, when it did not, which
   of a few things to do next: retarget, re-read and resend, fix the content, or
   ask a person.
-- Concurrent writers of one file lose nothing. The lock orders kapi's own
-  processes; an editor that saves between the re-hash and the rename remains a
-  conflict the next read sees.
+- Concurrent kapi writers of one file lose nothing: each file a change reads
+  is hashed before the read and again under the lock. The lock orders kapi's
+  own processes; an editor that saves between the re-hash and the rename
+  remains a conflict the next read sees.
+- An operation reported `applied` reached the file. One the format has no
+  place for in that file is refused.
 - A change set is all or nothing across documents up to the final renames.
   Records follow the commit, so a record that fails to write leaves content
   that the next read finds and records as observed.
