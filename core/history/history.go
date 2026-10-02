@@ -16,6 +16,7 @@ package history
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -28,6 +29,9 @@ import (
 type Row struct {
 	// Op is the id of the content.edit operation that recorded the change.
 	Op string
+	// Address is that operation's content address, which every log holding
+	// the operation agrees on, whatever id each recorded it under first.
+	Address string
 	// Doc is the document's key.
 	Doc string
 	// Block is the block as the read reported it: its durable key where
@@ -77,12 +81,17 @@ var migrations = []storage.Migration{{
 	Version:     1,
 	Description: "block history",
 	// One row per edition an edit changed. The document, the block, the
-	// edition and the operation identify it, so applying an operation again,
-	// live or in a rebuild, writes nothing new, and the key in that order is
-	// also the index every read of one edition's history walks.
+	// edition and the operation's content address identify it, and the key in
+	// that order is also the index every read of one edition's history walks.
+	// The address rather than the id, because two logs that recorded one edit
+	// under different ids keep the older id once they merge: the row the
+	// newer id projected is then the row the older one rewrites, as a rebuild
+	// writes it. block_history_reached answers which operation left an
+	// edition at a revision without reading the rest of the document.
 	SQL: `
 CREATE TABLE IF NOT EXISTS block_history (
     op           TEXT NOT NULL,
+    address      TEXT NOT NULL,
     doc          TEXT NOT NULL,
     block        TEXT NOT NULL,
     key          TEXT NOT NULL DEFAULT '',
@@ -97,9 +106,10 @@ CREATE TABLE IF NOT EXISTS block_history (
     session      TEXT NOT NULL DEFAULT '',
     origin       TEXT NOT NULL DEFAULT '',
     at           TEXT NOT NULL,
-    PRIMARY KEY (doc, block, edition, op)
+    PRIMARY KEY (doc, block, edition, address)
 );
-CREATE INDEX IF NOT EXISTS block_history_doc ON block_history(doc, op);`,
+CREATE INDEX IF NOT EXISTS block_history_doc ON block_history(doc, op);
+CREATE INDEX IF NOT EXISTS block_history_reached ON block_history(doc, block, edition, after, op);`,
 }}
 
 // Open binds the block history to a context database, creating its table.
@@ -118,7 +128,10 @@ func Open(db *storage.DB) (*Store, error) {
 const timeLayout = "2006-01-02T15:04:05.000000000Z"
 
 // Put writes rows in one transaction. A row the store already holds, by its
-// operation, document, block and edition, is left as it is.
+// document, block, edition and operation address, is overwritten with the
+// arriving one: the same operation applied again writes the same values, and
+// the operation a merge kept in place of one with the same address writes its
+// own id, moment and origin over the one it replaced.
 func (s *Store) Put(ctx context.Context, rows []Row) error {
 	if len(rows) == 0 {
 		return nil
@@ -128,13 +141,22 @@ func (s *Store) Put(ctx context.Context, rows []Row) error {
 		return fmt.Errorf("history: put: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	for _, r := range rows {
-		if _, err := tx.ExecContext(ctx, `
-INSERT INTO block_history (op, doc, block, key, edition, before, after, basis,
+	stmt, err := tx.PrepareContext(ctx, `
+INSERT INTO block_history (op, address, doc, block, key, edition, before, after, basis,
     content_hash, context_hash, actor, actor_name, session, origin, at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(doc, block, edition, op) DO NOTHING`,
-			r.Op, r.Doc, r.Block, r.Key, r.Edition, r.Before, r.After, r.Basis,
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(doc, block, edition, address) DO UPDATE SET
+    op = excluded.op, key = excluded.key, before = excluded.before, after = excluded.after,
+    basis = excluded.basis, content_hash = excluded.content_hash, context_hash = excluded.context_hash,
+    actor = excluded.actor, actor_name = excluded.actor_name, session = excluded.session,
+    origin = excluded.origin, at = excluded.at`)
+	if err != nil {
+		return fmt.Errorf("history: put: %w", err)
+	}
+	defer func() { _ = stmt.Close() }()
+	for _, r := range rows {
+		if _, err := stmt.ExecContext(ctx,
+			r.Op, r.Address, r.Doc, r.Block, r.Key, r.Edition, r.Before, r.After, r.Basis,
 			r.ContentHash, r.ContextHash, r.Actor, r.ActorName, r.Session, r.Origin,
 			r.At.UTC().Format(timeLayout)); err != nil {
 			return fmt.Errorf("history: put %s %s@%s: %w", r.Doc, r.Block, r.Edition, err)
@@ -146,7 +168,7 @@ ON CONFLICT(doc, block, edition, op) DO NOTHING`,
 	return nil
 }
 
-const columns = `op, doc, block, key, edition, before, after, basis, content_hash, context_hash,
+const columns = `op, address, doc, block, key, edition, before, after, basis, content_hash, context_hash,
     actor, actor_name, session, origin, at`
 
 // Edition returns the recorded changes to one edition of one block, most
@@ -214,27 +236,61 @@ type Reach struct {
 	Rev     string
 }
 
-// Reached returns, for each revision an edition of a document reached through
-// a recorded change, the operation that most recently left it there. A
-// change that starts from a revision extends that operation.
-func (s *Store) Reached(ctx context.Context, doc string) (map[Reach]string, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT block, edition, after, MAX(op) FROM block_history
-WHERE doc = ? GROUP BY block, edition, after`, doc)
+// Reached returns, for each revision named, the content address of the
+// operation that most recently left that edition of a document at it. A
+// change that starts from a revision extends that operation. A revision no
+// recorded change reached is left out.
+//
+// Each revision is looked up on its own through the block_history_reached
+// index, so the cost follows the revisions asked about rather than the length
+// of the document's history.
+func (s *Store) Reached(ctx context.Context, doc string, revs []Reach) (map[Reach]string, error) {
+	out := map[Reach]string{}
+	if len(revs) == 0 {
+		return out, nil
+	}
+	type want struct {
+		B string `json:"b"`
+		E string `json:"e"`
+		R string `json:"r"`
+	}
+	wants := make([]want, len(revs))
+	for i, r := range revs {
+		wants[i] = want{B: r.Block, E: r.Edition, R: r.Rev}
+	}
+	list, err := json.Marshal(wants)
+	if err != nil {
+		return nil, fmt.Errorf("history: read the revisions of %s: %w", doc, err)
+	}
+	rows, err := s.db.QueryContext(ctx, reachedQuery, string(list), doc)
 	if err != nil {
 		return nil, fmt.Errorf("history: read the revisions of %s: %w", doc, err)
 	}
 	defer func() { _ = rows.Close() }()
-	out := map[Reach]string{}
 	for rows.Next() {
 		var r Reach
-		var op string
-		if err := rows.Scan(&r.Block, &r.Edition, &r.Rev, &op); err != nil {
+		var address sql.NullString
+		if err := rows.Scan(&r.Block, &r.Edition, &r.Rev, &address); err != nil {
 			return nil, fmt.Errorf("history: read the revisions of %s: %w", doc, err)
 		}
-		out[r] = op
+		if address.Valid {
+			out[r] = address.String
+		}
 	}
 	return out, rows.Err()
 }
+
+// reachedQuery is what Reached runs: each revision of a JSON list (?1) looked
+// up in one document (?2).
+const reachedQuery = `
+SELECT json_extract(w.value, '$.b'), json_extract(w.value, '$.e'), json_extract(w.value, '$.r'),
+       (SELECT h.address FROM block_history h
+         WHERE h.doc = ?2
+           AND h.block = json_extract(w.value, '$.b')
+           AND h.edition = json_extract(w.value, '$.e')
+           AND h.after = json_extract(w.value, '$.r')
+         ORDER BY h.op DESC LIMIT 1)
+  FROM json_each(?1) w`
 
 // DocumentHead returns the operation that recorded the most recent change in a
 // document, and "" when none is recorded. A reader caching what it derived
@@ -282,7 +338,7 @@ func scan(rows *sql.Rows) ([]Row, error) {
 	for rows.Next() {
 		var r Row
 		var at string
-		if err := rows.Scan(&r.Op, &r.Doc, &r.Block, &r.Key, &r.Edition, &r.Before, &r.After, &r.Basis,
+		if err := rows.Scan(&r.Op, &r.Address, &r.Doc, &r.Block, &r.Key, &r.Edition, &r.Before, &r.After, &r.Basis,
 			&r.ContentHash, &r.ContextHash, &r.Actor, &r.ActorName, &r.Session, &r.Origin, &at); err != nil {
 			return nil, fmt.Errorf("history: scan: %w", err)
 		}

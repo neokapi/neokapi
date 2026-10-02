@@ -152,7 +152,7 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 				fail(op, derr)
 				continue
 			}
-			edits, editOps = append(edits, editRows(op.ID, op.At, e)...), append(editOps, op)
+			edits, editOps = append(edits, editRows(op.ID, opAddress(op), op.At, e)...), append(editOps, op)
 			continue
 		}
 		flushEdits()

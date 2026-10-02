@@ -78,7 +78,7 @@ func TestMeasureReconcileOnRead(t *testing.T) {
 		for _, b := range read(p) {
 			id := model.ComputeIdentity(b)
 			rows = append(rows, history.Row{
-				Op: fmt.Sprintf("op%06d", i), Doc: doc, Block: b.ID, Edition: "en",
+				Op: fmt.Sprintf("op%06d", i), Address: fmt.Sprintf("edit:%06d", i), Doc: doc, Block: b.ID, Edition: "en",
 				ContentHash: id.ContentHash, ContextHash: id.ContextHash, At: time.Now(),
 			})
 			blocksTotal++

@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/history"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
@@ -282,6 +283,29 @@ func writeEditLog(t *testing.T, p *projector.Projector, db *projectdb.DB) {
 	require.NoError(t, err)
 }
 
+// plantStrays writes a block-history row and a document adoption that no
+// operation in the log explains, straight into the context store. A rebuild
+// that empties the tables and writes them again drops both.
+func plantStrays(t *testing.T, db *projectdb.DB) {
+	t.Helper()
+	ctx := t.Context()
+	require.NoError(t, db.History().Put(ctx, []history.Row{{
+		Op: "0p0000000000000000000000", Address: "stray", Doc: "d-stray", Block: "p", Edition: "en",
+		Before: model.AbsentRevision, After: "r:stray", At: time.Now(),
+	}}))
+	require.NoError(t, state.ApplyAdoptions(ctx, db.Raw(), []state.Adoption{{
+		Key: "d-stray", Path: "stray.md", Digest: state.ContentDigest([]string{"x"}), At: time.Now(),
+	}}))
+	// An adoption the log does hold, moved elsewhere; the rebuild puts it back.
+	adopted, err := db.Work().AdoptedDocuments(ctx)
+	require.NoError(t, err)
+	if len(adopted) > 0 {
+		require.NoError(t, state.ApplyAdoptions(ctx, db.Raw(), []state.Adoption{{
+			Key: adopted[0].Key, Path: "moved/elsewhere.md", Digest: "sha256:none", At: time.Now().Add(time.Hour),
+		}}))
+	}
+}
+
 func TestRebuildReproducesTheBlockHistory(t *testing.T) {
 	p, ws, db := open(t)
 	writeMixedLog(t, p, 200)
@@ -290,6 +314,8 @@ func TestRebuildReproducesTheBlockHistory(t *testing.T) {
 	require.Len(t, before["block_history"], 3*(4*50+2))
 	require.Len(t, before["document_adoption"], 2)
 	require.NotEmpty(t, before["unit_decision"])
+	plantStrays(t, db)
+	require.NotEqual(t, before, snapshot(t, ws, db))
 
 	time.Sleep(time.Until(time.Now().Truncate(time.Second).Add(time.Second)))
 	report, err := p.Rebuild(t.Context())
@@ -309,6 +335,9 @@ func TestRebuildFromACheckpointKeepsTheBlockHistory(t *testing.T) {
 	_, err = p.RecordEdit(ctx, flowEdit("d-after", 5, 0))
 	require.NoError(t, err)
 	before := snapshot(t, ws, db)
+	require.NotEmpty(t, before["block_history"])
+	require.NotEmpty(t, before["document_adoption"])
+	plantStrays(t, db)
 
 	report, err := p.Rebuild(ctx)
 	require.NoError(t, err)
@@ -355,6 +384,99 @@ func TestAnEditTravelsWithItsBlobs(t *testing.T) {
 	rows, err := toDB.History().Document(ctx, "d-big")
 	require.NoError(t, err)
 	assert.Len(t, rows, 400, "the pulled edits are in the block history")
+}
+
+// observedEdit is a change made outside kapi to one block's Norwegian
+// edition, as every machine that notices it records it.
+func observedEdit(round int) projector.Edit {
+	e := flowEdit("d-a", 1, round)
+	e.Actor = change.Actor{}
+	e.Origin = projector.Origin{By: "observed"}
+	return e
+}
+
+// TestARecordMergedUnderAnOlderIdLeavesTheRowsARebuildWrites: two machines
+// record one edit, each under an id of its own. When the later one pulls the
+// earlier one's log, the log keeps the older id in place of its own, and the
+// block history holds the rows a rebuild from that log writes.
+func TestARecordMergedUnderAnOlderIdLeavesTheRowsARebuildWrites(t *testing.T) {
+	ctx := t.Context()
+	remote := workspace.NewFileRemote(t.TempDir())
+	from, fromWS, _ := open(t)
+	to, toWS, toDB := open(t)
+
+	e := flowEdit("d-a", 3, 0)
+	e.Actor = change.Actor{}
+	e.Origin = projector.Origin{By: "observed"}
+	idFrom, err := from.RecordEdit(ctx, e)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Millisecond) // the ids are minted from the clock
+	idTo, err := to.RecordEdit(ctx, e)
+	require.NoError(t, err)
+	require.Less(t, idFrom, idTo)
+	// Another edit, so the pulled segment holds an operation the log lacks.
+	_, err = from.RecordEdit(ctx, flowEdit("d-b", 2, 0))
+	require.NoError(t, err)
+
+	opts := workspace.SyncOptions{LocalKinds: projector.LocalKinds}
+	_, err = fromWS.NewSync(remote, key, from.Syncer(), opts).Push(ctx)
+	require.NoError(t, err)
+	report, err := toWS.NewSync(remote, key, to.Syncer(), opts).Pull(ctx)
+	require.NoError(t, err)
+	require.False(t, report.Rebuilt, "the merge is caught up, which is the path under test")
+
+	ops, err := toWS.Select(ctx, workspace.OpQuery{KindPrefix: projector.KindEdit})
+	require.NoError(t, err)
+	require.Len(t, ops, 2)
+	live := snapshot(t, toWS, toDB)["block_history"]
+	require.Len(t, live, 5)
+	for _, row := range live {
+		assert.NotContains(t, row, idTo, "no row names the id the log replaced")
+	}
+
+	_, err = to.Rebuild(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, live, snapshot(t, toWS, toDB)["block_history"], "the rows a rebuild writes")
+}
+
+// TestTwoMachinesObservingTheSameChangesRecordThemOnce: each machine notices
+// the same two changes made outside kapi and syncs after each. The second
+// change extends the first under its address, which both logs agree on, so
+// the logs end with one operation per change.
+func TestTwoMachinesObservingTheSameChangesRecordThemOnce(t *testing.T) {
+	ctx := t.Context()
+	remote := workspace.NewFileRemote(t.TempDir())
+	a, aWS, aDB := open(t)
+	b, bWS, bDB := open(t)
+	opts := workspace.SyncOptions{LocalKinds: projector.LocalKinds}
+	sync := func() {
+		_, err := aWS.NewSync(remote, key, a.Syncer(), opts).Push(ctx)
+		require.NoError(t, err)
+		_, err = bWS.NewSync(remote, key, b.Syncer(), opts).Pull(ctx)
+		require.NoError(t, err)
+		_, err = bWS.NewSync(remote, key, b.Syncer(), opts).Push(ctx)
+		require.NoError(t, err)
+		_, err = aWS.NewSync(remote, key, a.Syncer(), opts).Pull(ctx)
+		require.NoError(t, err)
+	}
+	for round := range 3 {
+		_, err := a.RecordEdit(ctx, observedEdit(round))
+		require.NoError(t, err)
+		_, err = b.RecordEdit(ctx, observedEdit(round))
+		require.NoError(t, err)
+		sync()
+	}
+	for name, side := range map[string]struct {
+		ws *workspace.Workspace
+		db *projectdb.DB
+	}{"a": {aWS, aDB}, "b": {bWS, bDB}} {
+		ops, err := side.ws.Select(ctx, workspace.OpQuery{KindPrefix: projector.KindEdit})
+		require.NoError(t, err)
+		assert.Len(t, ops, 3, "%s: three changes, each observed twice, are three operations", name)
+		rows, err := side.db.History().Edition(ctx, "d-a", "p#0", "nb")
+		require.NoError(t, err)
+		assert.Len(t, rows, 3, name)
+	}
 }
 
 func TestEmbeddedLayoutRecordsAnEditWithoutALog(t *testing.T) {

@@ -121,19 +121,20 @@ func (p *Projector) RecordEdit(ctx context.Context, e Edit) (string, error) {
 // flow's pass over a collection, records its documents together.
 //
 // Each operation is addressed by the document, the actor and each transition,
-// with the operation that left the edition at the revision the transition
-// starts from. Recording one edit twice (a retry, two processes noticing one
-// change made outside kapi) is therefore one operation, while the same change
-// made again after it was undone extends a later operation and is another.
-// Within one call, an edit that extends an earlier one in the same call is
-// chained to that edit's address. A call that changes one edition more than
-// once therefore records the later changes again when it is retried after it
-// landed; a change set changes each edition once, and a flow records each
-// document once per pass.
+// with the address of the operation that left the edition at the revision the
+// transition starts from. Addresses are the same in every log, so recording
+// one edit twice (a retry, two machines noticing one change made outside
+// kapi) is one operation wherever it is recorded, and so is every change that
+// extends it. The same change made again after it was undone extends a later
+// operation and is another. Within one call, an edit that extends an earlier
+// one in the same call is chained to that edit's address. A call that returns
+// an edition to a revision it started from therefore records the later
+// changes again when it is retried after it landed; a change set changes each
+// edition once, and a flow records each document once per pass.
 //
 // A store with no log (the embedded layout) has no blob store and nothing to
 // address against: the records are written straight into the history,
-// hash-only, under ids minted here.
+// hash-only, under ids minted here, each its own address.
 func (p *Projector) RecordEdits(ctx context.Context, edits []Edit) ([]string, error) {
 	for _, e := range edits {
 		if e.Doc.Key == "" {
@@ -168,7 +169,7 @@ func (p *Projector) RecordEdits(ctx context.Context, edits []Edit) ([]string, er
 				return ids, err
 			}
 			id := workspace.NewOpID(now, max(latest, head))
-			if err := hs.Put(ctx, editRows(id, now, e)); err != nil {
+			if err := hs.Put(ctx, editRows(id, id, now, e)); err != nil {
 				return ids, err
 			}
 			ids, latest = append(ids, id), id
@@ -179,17 +180,31 @@ func (p *Projector) RecordEdits(ctx context.Context, edits []Edit) ([]string, er
 		return nil, err
 	}
 
+	// reached holds, per document, the address that left each edition at each
+	// revision: read from the history for the revisions an edit starts from,
+	// and moved on by each edit in this call.
 	reached := map[string]map[history.Reach]string{}
 	ops := make([]workspace.Op, 0, len(edits))
 	for i := range edits {
 		e := &edits[i]
-		doc, ok := reached[e.Doc.Key]
-		if !ok {
-			var err error
-			if doc, err = hs.Reached(ctx, e.Doc.Key); err != nil {
-				return nil, err
-			}
+		doc := reached[e.Doc.Key]
+		if doc == nil {
+			doc = map[history.Reach]string{}
 			reached[e.Doc.Key] = doc
+		}
+		var ask []history.Reach
+		for _, t := range e.Transitions {
+			at := history.Reach{Block: t.Block, Edition: t.Edition, Rev: t.Before}
+			if _, known := doc[at]; !known {
+				ask = append(ask, at)
+			}
+		}
+		found, err := hs.Reached(ctx, e.Doc.Key, ask)
+		if err != nil {
+			return nil, err
+		}
+		for _, at := range ask {
+			doc[at] = found[at]
 		}
 		if err := p.storeEditBlobs(ctx, e); err != nil {
 			return nil, err
@@ -305,12 +320,13 @@ func (p *Projector) decodeEdit(ctx context.Context, op workspace.Op) (Edit, erro
 	return e, nil
 }
 
-// editRows renders an edit as the block-history rows it projects to.
-func editRows(op string, at time.Time, e Edit) []history.Row {
+// editRows renders an edit as the block-history rows it projects to, under
+// the operation's id and content address.
+func editRows(op, address string, at time.Time, e Edit) []history.Row {
 	rows := make([]history.Row, 0, len(e.Transitions))
 	for _, t := range e.Transitions {
 		rows = append(rows, history.Row{
-			Op: op, Doc: e.Doc.Key, Block: t.Block, Key: t.Key, Edition: t.Edition,
+			Op: op, Address: address, Doc: e.Doc.Key, Block: t.Block, Key: t.Key, Edition: t.Edition,
 			Before: t.Before, After: t.After, Basis: t.Basis,
 			ContentHash: t.ContentHash, ContextHash: t.ContextHash,
 			Actor: string(e.Actor.Kind), ActorName: e.Actor.Name, Session: e.Actor.Session,
@@ -321,7 +337,8 @@ func editRows(op string, at time.Time, e Edit) []history.Row {
 }
 
 // editAddress is the content address of an edit: the project, the document,
-// the actor, and each transition with the operation it extends.
+// the actor, and each transition with the address of the operation it
+// extends.
 func editAddress(key workspace.ProjectKey, e Edit, reached map[history.Reach]string) string {
 	parts := []string{string(key), e.Doc.Key, string(e.Actor.Kind), e.Actor.Name, e.Actor.Session}
 	for _, t := range e.Transitions {
@@ -329,6 +346,15 @@ func editAddress(key workspace.ProjectKey, e Edit, reached map[history.Reach]str
 			reached[history.Reach{Block: t.Block, Edition: t.Edition, Rev: t.Before}])
 	}
 	return "edit:" + string(key) + ":" + digestOf(parts...)
+}
+
+// opAddress is the address an operation's block-history rows are keyed by:
+// its content address, or its id for one recorded without an address.
+func opAddress(op workspace.Op) string {
+	if op.Address != "" {
+		return op.Address
+	}
+	return op.ID
 }
 
 // applyEditRows writes block-history rows a run of content.edit operations

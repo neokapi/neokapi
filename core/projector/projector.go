@@ -498,7 +498,7 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 			if len(units) > 0 {
 				flush()
 			}
-			edits = append(edits, editRows(op.ID, op.At, e)...)
+			edits = append(edits, editRows(op.ID, opAddress(op), op.At, e)...)
 			editsMine = editsMine || isMine
 			continue
 		}
