@@ -186,7 +186,7 @@ when the failing writer *is* stderr, the message has nowhere to land.
 
 ## Streaming inspection: `kapi inspect --jsonl`
 
-For block-level content streaming (rather than run progress), `kapi inspect --jsonl` emits one JSON object per block, without HTML escaping, so `<x id="…"/>` placeholders read as written. Each record is the read record of the change contract: `ref` (`doc`, `block`, and `edition` for a translation), `rev`, `text`, `codes`, `structures`, `editions` and `ops`, with the block's `role` and `level`; run `kapi inspect --help` for each field.
+For block-level content streaming (rather than run progress), `kapi inspect --jsonl` emits one JSON object per block, without HTML escaping, so `<x id="…"/>` placeholders read as written. Each record is the read record of the change contract: `ref` (`doc`, `block`, and `edition` for a translation), `rev`, `text`, `codes`, `structures`, `editions` and `ops`, with the block's `role` and `level`; run `kapi inspect --help` for each field. Inside a project (`-p`, or the one discovery finds) `doc` is a file's project-relative path, or the absolute path of a file outside the project, and `kapi apply` in the same project resolves both.
 
 ## Change sets: `kapi apply`
 
@@ -194,7 +194,7 @@ For block-level content streaming (rather than run progress), `kapi inspect --js
 
 `--json` prints the result as `kapi.change-result/v1`: the set's `status` (`applied`, `refused`, `previewed` or `partial`), each document's digests before and after, and one result per operation with its `status` (`applied`, `unchanged`, `refused`, `not_applied` or `previewed`), its revisions, and on a refusal an `error` whose `code` is one of a closed set. A `stale` refusal carries the edition's `current` revision and text. `--dry-run` writes nothing and gives each document its `diff`; `--print-ops` prints the change set as decoded and applies nothing.
 
-The exit status follows the result: `0` when the change set applied or previewed; `2` when it does not decode, contradicts itself, or an operation is refused `invalid`; `5` when a backend did not answer (`unreachable`); `3` for every other refusal and for a change set that landed in part. A refusal writes nothing. `ksed --print-ops` prints a change set in the same contract, which `kapi apply` applies as printed.
+The exit status follows the result: `0` when the change set applied or previewed; `2` when it does not decode, contradicts itself, or an operation is refused `invalid`; `5` when a backend did not answer (`unreachable`); `3` for every other refusal, for a change set that landed in part, and, under the enforcing gate, for a written code comment whose check fails. A refusal writes nothing. `ksed --print-ops` prints a change set in the same contract, which `kapi apply` applies as printed, from any directory of the project.
 
 ## MCP surface stability
 

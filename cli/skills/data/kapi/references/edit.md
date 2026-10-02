@@ -59,8 +59,9 @@ it reads as the characters you typed.
 
 `inspect` reads a file with the same reader `apply` writes it back through, so
 every `ref` and `rev` it prints is one `apply` resolves. Inside a project a
-document is named by its project-relative path, so run both from the same
-project. An HTML image's `alt` or a link's `title` is a block of its own.
+document is named by its project-relative path, and a file outside the project
+by its absolute path, so run both in the same project: from inside it, or with
+the same `-p`. An HTML image's `alt` or a link's `title` is a block of its own.
 
 ## 2. Write the edits
 
@@ -120,9 +121,11 @@ refused, nothing in the change set is written, the refused operation carries an
 
 A refusal exits **3**, distinct from an operational error: re-read the affected
 blocks and resend with fresh revisions, the same loop a failing check drives. A
-change set that does not decode exits **2**. An operation whose text the block
-already holds reports `unchanged`, so resending a change set that landed is
-safe.
+change set that does not decode exits **2**. Resending a change set that
+landed writes nothing: its revisions no longer hold, so it is refused `stale`
+with each block's current text, which already reads as you wrote it. An
+operation reports `unchanged` when its `if_match` still holds and the block
+already says what it sends.
 
 ### Refused for its wording or its sender
 
@@ -183,8 +186,9 @@ also build it from the finding you are fixing.
   comment that only moved keeps its revision and is still written.
 - A change set edits code comments or documents, never both: send each in a
   change set of its own.
-- A refused edit writes nothing and exits 3. Directives, generated files, the
-  cgo preamble and example output are refused.
+- A refused edit writes nothing and exits 3. Directives, the cgo preamble and
+  example output are not blocks `inspect` lists, so a reference to one is
+  `not_found`; a comment in a generated file is refused.
 - For a `/* */` comment, leave out `/*`, `*/` and the ` * ` that opens each
   line. kapi writes the text back in the comment's own layout. Text holding
   `*/` is refused, because the comment would end there: reword it.
@@ -199,8 +203,9 @@ also build it from the finding you are fixing.
   `kapi apply`. Report such a refusal to the user rather than setting
   `KAPI_TRUST_EXEC` or answering the prompt yourself. Keep JSDoc tags such as
   `@param` and every `{@link}`: dropping one refuses the edit.
-- The result carries the findings of a check scoped to what was written. If it
-  reports one, send another edit for it. Then check the whole change
+- The result carries the findings of a check scoped to what was written. A
+  failing one exits 3 although the comment was written: send another edit for
+  it. Then check the whole change
   (`kapi check --diff-against <base>` or `--staged`) before you report done.
 
 ## Which formats can I edit?

@@ -92,7 +92,9 @@ delimiter (`s|a|b|` ≡ `s/a/b/`); `g` replaces every match in a block, `i` make
 it case-insensitive; `\1`…`\9` and `&` are backreferences; repeat `-e` for
 several substitutions. Default output is stdout and the file stays as it is;
 `-i` edits in place, `-i.bak` keeps a backup. `--target LOCALE` edits the
-translation a bilingual file (XLIFF, PO) holds.
+translation a bilingual or multilingual file (XLIFF, PO, Qt Linguist, an Xcode
+string catalog) holds. An archive is edited all or nothing: when one member's
+edit is refused, no member is written.
 
 **`ksed` writes through `kapi apply`'s contract.** Each substitution that
 changes a block becomes a `replace_text` operation on it, guarded by the
@@ -102,6 +104,15 @@ instead of applying it, so you can read what a one-liner will do, and
 keeps its structure: each branch is matched on its own, and a match that would
 swallow one is left alone. When the file changes between the read and the
 write, the edit is refused, nothing is written, and `ksed` exits 2.
+
+**Inside a project, `ksed` reads a project's file as `kapi apply` does.** A
+file under the root of the project found from the working directory (or named
+by `KAPI_PROJECT`) is named by its project-relative path and read with the
+format the recipe binds, and a translation's file is that translation of its
+source. So the printed change set applies from any directory of the project,
+and `ksed -i` and `kapi apply` lock the file the same way. A file outside the
+project is read with the format detection finds, a file no format claims as
+plain text, and `--print-ops` names it by its absolute path.
 
 **Editing a binary document at a terminal is refused.** A `.docx` edit writes a
 zip, so `ksed 's/a/b/' report.docx` with stdout on a terminal stops with

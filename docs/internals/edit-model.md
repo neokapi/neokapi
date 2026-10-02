@@ -562,6 +562,13 @@ today's guarantees: re-read compare-and-swap, the per-language write canary, the
 agreement and a check scoped to the diff (`host/apply_comment.go:111-344`). The `lines` field
 becomes unnecessary once keys are unique per file; `width` moves to a recipe setting.
 
+Gap after WP2: `kapi apply` routes a change set of comment operations to the comment write path
+beside the service (`host/apply_changeset_comment.go`), not through a home. That path runs
+neither the commit check nor the recorder. Its gate is the check of the written diff, which exits
+3 under `enforce` on a failing finding or a check that read nothing, after the file is written. A
+comment home under the service closes the gap: the check then runs before the write, and the
+recorder sees the edit.
+
 ---
 
 ## 4. Preconditions and state

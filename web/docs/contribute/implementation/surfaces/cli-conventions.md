@@ -86,7 +86,9 @@ namesakes' contract.
   `pseudo-translate`, `run`): uses the project's content when given nothing,
   works ad-hoc on named files;
 - **ad-hoc** (`formats`, `tools`, `flows`, `plugin`, `models`, `config`
-  subcommands, the toolbox): no project involved.
+  subcommands, the toolbox): no project involved, except that `ksed` reads a
+  file under the root of the project discovery finds as `kapi apply` reads it,
+  so the change set it prints applies as printed.
 
 ## Command surface
 
@@ -123,7 +125,8 @@ semantic guidance, through the same source-check implementation as ordinary
 | `pack` / `unpack` / `info` | positional archive | none | text·json·yaml | preferred / none | 1 |
 | `add` / `ls` / `rm` | positional patterns | yes | text·json·yaml | required | 1 |
 | `exec <tool> <files…>` | positional | yes | text·json·yaml | memory + terms bound from project | 1 |
-| `kcat` / `kgrep` / `ksed` / `kconv` | positional, stdin | globs yes, dirs need `-r` (`ksed`: `-R`) | text·json·yaml | none | 2; kgrep 1 = no match |
+| `kcat` / `kgrep` / `kconv` | positional, stdin | globs yes, dirs need `-r` | text·json·yaml | none | 2; kgrep 1 = no match |
+| `ksed` | positional, stdin | globs yes, dirs need `-R` | documents (`--print-ops`: a change set) | discovery: a project's file is read as `apply` reads it | 2 |
 | `kdiff a [b]` | 1–2 positional | none | text·json·yaml | none | 1 differ |
 | `flows` / `tools` / `formats` | none | none | text·json·yaml | none | 1 |
 | `plugin …` | positional name | none | text·json·yaml | none | 1; doctor 1 unhealthy |

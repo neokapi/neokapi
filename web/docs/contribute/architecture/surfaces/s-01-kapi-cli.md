@@ -112,11 +112,16 @@ all, previews it with `--dry-run`, prints the kapi.change-result/v1 result with
 stamps the actor the environment names; a change set names none.
 
 `kapi inspect` is the read that pairs with it. It reads through the same
-service, with the format and configuration the recipe binds inside a project,
-and prints each block's reference and revision, so an operation copies what the
-read printed instead of constructing an address. `--print-ops` prints the
-change set a command would apply (`ksed`), or the set as decoded
-(`kapi apply`), so the format a person can read is the format an agent sends.
+service, with the format and configuration the recipe binds inside a project
+(the one `-p` names, or the one discovery finds), and prints each block's
+reference and revision, so an operation copies what the read printed instead of
+constructing an address. A file of the project is named by its
+project-relative path, and a file outside it by its absolute path, which
+`kapi apply` in the project resolves the same way. `ksed` resolves the files it
+is given the same way, so `--print-ops` prints the change set `ksed` would
+apply and `kapi apply` applies it as printed, from any directory of the
+project; `kapi apply --print-ops` prints the set as decoded. The format a
+person can read is the format an agent sends.
 
 Registry tools do not appear as top-level verbs; they are reached through
 `kapi exec`. The generated [command reference](/reference/commands/exec) lists

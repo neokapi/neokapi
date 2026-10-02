@@ -52,7 +52,7 @@ foreign server targets and resource-helper use in other conditions.
 The CLI wrapper binds `KAPI_PROJECT` to the fixture's absolute recipe path and
 clears `KAPI_NO_PROJECT` for that invocation. Explicit environment binding resolves
 before directory discovery. This supports commands without a recipe flag,
-including `inspect`, whose `--project` selects output formats. The surrounding
+such as `ksed`, which finds the project of the files it edits. The surrounding
 agent environment retains `KAPI_NO_PROJECT=1`, isolated configuration and plugin
 discovery. MCP binds the recipe through its explicit `-p` argument.
 

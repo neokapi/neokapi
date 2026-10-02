@@ -96,7 +96,7 @@ kapi check guide.md --max-chars 500 --forbid "utilize"
 - **`not_found`**: the reference names no document or block, or a `find` matches nothing; the block may have been removed or renamed since you read it.
 - **`unsupported`**: the block takes no edit, such as a Markdown code block, which `inspect` lists with no `ops`.
 
-A refusal exits with code `3`, distinct from an operational error: read the affected blocks again and resend with fresh revisions. A change set that does not decode exits `2` before anything is read. An operation whose text the block already holds reports `unchanged`, so resending a change set that landed is safe. The same change set can carry a term or a content memory pair ([Create content](/kapi/recipes/create-content)) or a review decision ([The kapi loop](/kapi/convergence#review-the-state-record)), applied after the content; `kapi apply --schema` prints every operation.
+A refusal exits with code `3`, distinct from an operational error: read the affected blocks again and resend with fresh revisions. A change set that does not decode exits `2` before anything is read. Resending a change set that landed writes nothing: the revisions it names have moved, so it is refused as stale with each block's current text. An operation whose revision still holds and whose text the block already has reports `unchanged`. The same change set can carry a term or a content memory pair ([Create content](/kapi/recipes/create-content)) or a review decision ([The kapi loop](/kapi/convergence#review-the-state-record)), applied after the content; `kapi apply --schema` prints every operation.
 
 ## What "faithfully" means
 

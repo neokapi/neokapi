@@ -220,8 +220,10 @@ configuration its content item binds, the file of a translation is that edition
 of its source, joined by key, then by translation-invariant address, then by
 position, and a translation with no file yet is written from the source's
 skeleton. Outside a project a reference is a path under the working
-directory, read with the format detection finds, and a file no format claims is
-read as plain text unless its bytes are binary. Decisions and asset operations
+directory, read with the format detection finds by name, then by content. A
+file of a translation interchange format, or of a multilingual string catalog
+(an Xcode `.xcstrings` file), holds its editions in the file, unless the recipe
+writes the source's translations to files of their own. Decisions and asset operations
 land through the host's review-queue and asset functions, a decision bound to
 the wording the change set landed rather than to a later read of the file; on
 an edition with no content in its home, such as a parked locale's draft, the
@@ -235,13 +237,30 @@ recorded change to the edition left the content it holds.
 On the command line, `kapi apply` hands a decoded change set to the service,
 `kapi inspect` prints the service's read records, and `ksed` compiles its
 substitutions into `replace_text` operations and applies them through it
-([S-01](../surfaces/s-01-kapi-cli.md)). They build the service for the project
-the command names, for the files under its root, and over the working directory
-otherwise, where a reference may lead out of it as a path on a command line
-does. A `set_content` on a code comment, in a source file only the comment
-layer reads, goes through the comment write path, which keeps its own
-guarantees: the file is read again before it is written, the result must parse,
-and the language's formatter must agree.
+([S-01](../surfaces/s-01-kapi-cli.md)). All three build the service once per
+run: for the project the command names or discovery finds, for the files under
+its root, and over the working directory otherwise, where a reference may lead
+out of it as a path on a command line does. Inside a project a file outside the
+root is named by its absolute path, and `kapi apply` edits a change set of such
+files over the working directory. The hooks of a service outside a project are
+given a command that resolves no project, so discovery never puts an edit made
+outside one under a project's governance. Only `ksed` reads a file no format
+claims as plain text. A command that prints an edited document (`ksed` without
+`-i`) applies the change to a private copy, located and read exactly as the
+file itself, and writes the copy out. A read takes no lock and leaves a project
+as it was: the lock directory, and the ignore rule that keeps it out of a
+commit, are written when a change first commits.
+
+A `set_content` on a code comment, in a source file only the comment layer
+reads, goes through the comment write path, which keeps its own guarantees: the
+file is read again before it is written, the result must parse, and the
+language's formatter must agree. A file is read for its comments when no format
+reads it: none that `--format` names, the recipe binds, or detection finds by
+extension or content, as a Qt Linguist catalog is found in a `.ts` file. What
+was written is checked, scoped to the change, and under the enforcing gate a
+failing finding, or a check that read nothing, exits 3. The comment path runs
+neither the commit check nor the recorder: the check runs after the write, and
+nothing records a comment edit.
 
 ### Results and errors
 

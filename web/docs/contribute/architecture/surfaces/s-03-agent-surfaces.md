@@ -361,8 +361,10 @@ so is flat text in place of a plural or select, whose branches an edit reaches
 by `path`. A reference to no document or block is `not_found`; a block the
 format reads as not translatable, such as a code block, lists no operations and
 refuses an edit `unsupported`. A refusal exits 3 so the fix loop re-reads and
-retries; a change set that does not decode exits 2. An operation whose content
-the edition already holds reports `unchanged`, so resending is safe.
+retries; a change set that does not decode exits 2. A change set resent after
+it landed writes nothing: the revisions it names have moved, so it is refused
+`stale` with the current text. An operation whose `if_match` still holds and
+whose content the edition already holds reports `unchanged`.
 
 **An asset edit writes the project's store and records what it did.** The edit
 lands in the terms store or the content memory, and the same call appends a

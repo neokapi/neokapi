@@ -115,8 +115,8 @@ labeled as such where it is defined, and it is never the model contract:
   editor listings; versioned independently by its own version field.
 - **`core/editor.ContentTree`**: the run-native anatomy tree behind the
   in-browser explorers.
-- **`core/structrec.Record`**: the flat anchor record behind inspection,
-  conversion, and retrieval export.
+- **`core/structrec.Record`**: the flat anchor record behind structural
+  conversion to JSON and YAML (`kapi convert --to json|yaml`).
 
 The framework defines one envelope of its own: the sync wire,
 `core/proto/sync/v1/sync.proto`, whose `SyncBlock` and `SyncSegmentList` are

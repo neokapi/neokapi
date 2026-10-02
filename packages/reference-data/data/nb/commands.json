@@ -5716,7 +5716,13 @@
         },
         {
           "name": "project",
+          "shorthand": "p",
           "usage": "gjengi også hver blokk i disse målformatene (html, markdown, asciidoc) under \"projected\"",
+          "type": "string"
+        },
+        {
+          "name": "render",
+          "usage": "also render each block to these formats (html, markdown, asciidoc) under \"projected\"",
           "default": "[]",
           "type": "stringSlice"
         },
@@ -5730,7 +5736,8 @@
         "kapi inspect report.docx",
         "kapi inspect --jsonl 'docs/**/*.md' | jq '{ref, rev}'",
         "kapi inspect --output-format yaml report.dclg.xml",
-        "kapi inspect report.docx --project html,markdown   # each block rendered per format",
+        "kapi inspect report.docx --render html,markdown   # each block rendered per format",
+        "kapi inspect -p site/kapi.yaml site/docs/guide.md",
         "cat page.html | kapi inspect -f html"
       ],
       "offlineCapable": true,
