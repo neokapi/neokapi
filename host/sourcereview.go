@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
@@ -353,6 +354,15 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 // It returns whether anything changed — an approval already recorded for this
 // exact wording is not rewritten.
 func (a *App) ApproveSourceUnit(ctx context.Context, projectPath, sourceLang string, ref SourceUnitRef) (bool, error) {
+	return a.approveSourceUnit(ctx, projectPath, sourceLang, ref, nil)
+}
+
+// approveSourceUnit is ApproveSourceUnit. wording, when set, is the source
+// wording the approval is about as its caller holds it, such as the content a
+// change set landed under the commit lock; the approval binds to it rather
+// than to what the file says when it is read here. Nil reads it from the
+// file.
+func (a *App) approveSourceUnit(ctx context.Context, projectPath, sourceLang string, ref SourceUnitRef, wording *string) (bool, error) {
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
 
@@ -384,7 +394,11 @@ func (a *App) ApproveSourceUnit(ctx context.Context, projectPath, sourceLang str
 				continue
 			}
 			text := b.SourceText()
-			if !model.RunsHaveContent(b.SourceRuns()) {
+			empty := !model.RunsHaveContent(b.SourceRuns())
+			if wording != nil {
+				text, empty = *wording, strings.TrimSpace(*wording) == ""
+			}
+			if empty {
 				return false, fmt.Errorf("source unit %s is empty, so there is nothing to approve", ref.Key)
 			}
 			scope := a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath)

@@ -54,6 +54,10 @@ type ChangeServiceOptions struct {
 	// Format names the format of every document, a preset included, in place
 	// of what the recipe binds or detection finds.
 	Format string
+	// TargetLocale is the language of the translation a bilingual file holds,
+	// for a format whose reader has to be told it (a PO catalog's msgstr).
+	// Changes takes it from --target-lang.
+	TargetLocale model.LocaleID
 }
 
 // Changes builds the change service for the project cmd names, or for the
@@ -63,18 +67,25 @@ func (a *App) Changes(cmd Command, origin string) (*change.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return a.ChangeService(cmd.Context(), ChangeServiceOptions{Project: recipe, Origin: origin, Format: a.FormatFlag})
+	return a.changeService(cmd.Context(), cmd, ChangeServiceOptions{Project: recipe, Origin: origin, Format: a.FormatFlag, TargetLocale: model.LocaleID(a.TargetLang)})
 }
 
 // ChangeService builds the change service opts describes.
 func (a *App) ChangeService(ctx context.Context, opts ChangeServiceOptions) (*change.Service, error) {
+	return a.changeService(ctx, projectCommand(ctx, "change", opts.Project), opts)
+}
+
+// changeService builds the service; cmd names its project for the hooks that
+// resolve one from a command.
+func (a *App) changeService(ctx context.Context, cmd Command, opts ChangeServiceOptions) (*change.Service, error) {
 	a.InitRegistries()
 	var (
 		layout  filehome.Layout
 		lockDir string
+		root    string
 	)
 	if opts.Project != "" {
-		pl, err := a.newProjectLayout(opts.Project, opts.Format)
+		pl, err := a.newProjectLayout(opts.Project, opts.Format, opts.TargetLocale)
 		if err != nil {
 			return nil, err
 		}
@@ -83,17 +94,26 @@ func (a *App) ChangeService(ctx context.Context, opts ChangeServiceOptions) (*ch
 		if err != nil {
 			return nil, err
 		}
+		// The lock files live in .kapi/work, which the layout's ignore rule
+		// keeps out of a commit; the rule is written with the directory.
+		if err := project.EnsureLayout(l); err != nil {
+			return nil, err
+		}
 		lockDir = filepath.Join(l.WorkDir(), "locks")
+		root = l.Root
 	} else {
-		root := opts.Root
-		if root == "" {
+		dir := opts.Root
+		if dir == "" {
 			wd, err := os.Getwd()
 			if err != nil {
 				return nil, err
 			}
-			root = wd
+			dir = wd
 		}
-		layout = &dirChangeLayout{app: a, root: root, format: opts.Format}
+		layout = &dirChangeLayout{app: a, root: dir, format: opts.Format, target: opts.TargetLocale}
+		// Every kapi process of this user finds the same lock files for a
+		// document outside a project, whatever its temporary directory.
+		lockDir = filepath.Join(DataDir(), "locks")
 	}
 	origin := opts.Origin
 	if origin == "" {
@@ -104,16 +124,41 @@ func (a *App) ChangeService(ctx context.Context, opts ChangeServiceOptions) (*ch
 		change.WithOrigin(origin),
 		change.WithAssets(&changeAssets{app: a, recipe: opts.Project}),
 	}
-	if c := a.changeCommitCheck(ctx, opts.Project); c != nil {
-		svcOpts = append(svcOpts, change.WithCommitCheck(c))
+	check, err := a.changeCommitCheck(cmd)
+	if err != nil {
+		return nil, err
 	}
-	if p := a.changePolicy(opts.Project); p != nil {
-		svcOpts = append(svcOpts, change.WithPolicy(p))
+	if check != nil {
+		svcOpts = append(svcOpts, change.WithCommitCheck(check))
 	}
-	if r := a.changeRecorder(ctx, opts.Project); r != nil {
-		svcOpts = append(svcOpts, change.WithRecorder(r))
+	policy, err := a.changePolicy(opts.Project)
+	if err != nil {
+		return nil, err
+	}
+	if policy != nil {
+		svcOpts = append(svcOpts, change.WithPolicy(policy))
+	}
+	recorder, err := a.changeRecorder(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+	if recorder != nil {
+		svcOpts = append(svcOpts, change.WithRecorder(recorder))
 	}
 	return change.NewService(filehome.Formats{Registry: a.FormatReg}, change.OneHome(home), svcOpts...), nil
+}
+
+// projectCommand is a command that names the project at recipe with -p, for
+// the functions that resolve a project from a command; "" names none.
+func projectCommand(ctx context.Context, name, recipe string) Command {
+	cmd := NewEnvCommand(ctx, name)
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	AddProjectFlag(cmd)
+	if recipe != "" {
+		_ = cmd.Flags().Set(projectFlagName, recipe)
+	}
+	return cmd
 }
 
 // formatBinding binds a format to its reader and writer in the registry, each
@@ -166,6 +211,15 @@ func (a *App) editionsOf(name string) change.Editions {
 	return change.EditionsPerFile
 }
 
+// targetOf is the language a file of format name holds a translation in:
+// target for a bilingual format, nothing for any other.
+func (a *App) targetOf(name string, target model.LocaleID) model.LocaleID {
+	if a.editionsOf(name) != change.EditionsInFile {
+		return ""
+	}
+	return target
+}
+
 // dirChangeLayout serves the documents under a directory with no recipe: the
 // format --format names, or the one detection finds, as kapi apply reads a
 // file outside a project.
@@ -173,6 +227,7 @@ type dirChangeLayout struct {
 	app    *App
 	root   string
 	format string
+	target model.LocaleID
 }
 
 func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, error) {
@@ -193,6 +248,7 @@ func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, e
 		SourceLocale: model.LocaleID(l.app.SourceLocale()),
 		Encoding:     enc,
 		Editions:     l.app.editionsOf(name),
+		TargetLocale: l.app.targetOf(name, l.target),
 	}, nil
 }
 
@@ -222,6 +278,7 @@ type projectChangeLayout struct {
 	pctx   *project.ProjectContext
 	format string
 	source model.LocaleID
+	target model.LocaleID
 	enc    string
 
 	once  sync.Once
@@ -245,14 +302,14 @@ type targetOfSource struct {
 	locale model.LocaleID
 }
 
-func (a *App) newProjectLayout(recipe, formatRef string) (*projectChangeLayout, error) {
+func (a *App) newProjectLayout(recipe, formatRef string, target model.LocaleID) (*projectChangeLayout, error) {
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
 	}
 	pctx := project.NewProjectContext(proj, recipe)
 	return &projectChangeLayout{
-		app: a, root: pctx.ProjectDir, proj: proj, pctx: pctx, format: formatRef,
+		app: a, root: pctx.ProjectDir, proj: proj, pctx: pctx, format: formatRef, target: target,
 		source: model.LocaleID(ResolveSourceLocale(a.SourceLang, proj.Defaults.SourceLanguage)),
 		enc:    ResolveEncodingName(a.Encoding, proj.Defaults.Encoding),
 	}, nil
@@ -311,14 +368,16 @@ func (l *projectChangeLayout) Locate(ctx context.Context, doc string) (filehome.
 		return filehome.Doc{}, err
 	}
 	if entry != "" {
+		// An archive member is read with the project's configuration of the
+		// member's format.
 		name := l.format
 		if name == "" {
 			if name, err = l.app.detectChangeFormat(path, entry); err != nil {
 				return filehome.Doc{}, err
 			}
 		}
-		return filehome.Doc{Ref: ref, Path: path, Entry: entry, Format: l.app.formatBinding(name, nil, l.enc),
-			SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name)}, nil
+		return filehome.Doc{Ref: ref, Path: path, Entry: entry, Format: l.app.formatBinding(name, l.formatConfig(name, "", nil), l.enc),
+			SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target)}, nil
 	}
 	if rf, ok := ix.sources[ref]; ok {
 		return l.sourceDoc(ix, ref, rf), nil
@@ -336,8 +395,21 @@ func (l *projectChangeLayout) Locate(ctx context.Context, doc string) (filehome.
 			}
 		}
 	}
-	return filehome.Doc{Ref: ref, Path: path, Format: l.app.formatBinding(name, mergedFormatConfig(l.proj, name, nil), l.enc),
-		SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name)}, nil
+	return filehome.Doc{Ref: ref, Path: path, Format: l.app.formatBinding(name, l.formatConfig(name, "", nil), l.enc),
+		SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target)}, nil
+}
+
+// formatConfig is the configuration a reader and writer of format name take
+// in the project: the project's defaults for the format, and the content
+// item's own configuration when the item binds that format (bound). A format
+// that --format puts in place of the item's takes the defaults alone, because
+// the item's configuration is written for another reader.
+func (l *projectChangeLayout) formatConfig(name, bound string, item *project.ContentItem) map[string]any {
+	reg := func(n string) string { return preset.ParseFormatRef(n).RegistryName() }
+	if item != nil && reg(name) != reg(bound) {
+		item = nil
+	}
+	return mergedFormatConfig(l.proj, reg(name), item)
 }
 
 // sourceDoc is a source file the recipe claims, with the file of each of its
@@ -349,8 +421,8 @@ func (l *projectChangeLayout) sourceDoc(ix *projectChangeIndex, ref string, rf p
 	}
 	d := filehome.Doc{
 		Ref: ref, Path: rf.Path,
-		Format:       l.app.formatBinding(name, mergedFormatConfig(l.proj, rf.Format, rf.Item), l.enc),
-		SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name),
+		Format:       l.app.formatBinding(name, l.formatConfig(name, rf.Format, rf.Item), l.enc),
+		SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target),
 	}
 	targets := ix.targets[ref]
 	d.EditionFile = func(k model.EditionKey) (filehome.EditionFile, bool) {
@@ -399,19 +471,6 @@ func cleanRef(doc string) string {
 type changeAssets struct {
 	app    *App
 	recipe string
-}
-
-// assetCommand is the synthetic command the asset functions resolve the
-// project through.
-func (c *changeAssets) assetCommand(ctx context.Context) Command {
-	cmd := NewEnvCommand(ctx, "change")
-	cmd.SetOut(io.Discard)
-	cmd.SetErr(io.Discard)
-	AddProjectFlag(cmd)
-	if c.recipe != "" {
-		_ = cmd.Flags().Set(projectFlagName, c.recipe)
-	}
-	return cmd
 }
 
 // assetEntry is the kapi apply entry an asset operation lands as.
@@ -494,7 +553,7 @@ func (c *changeAssets) Apply(ctx context.Context, actor change.Actor, set *chang
 	if cerr != nil {
 		return "", cerr
 	}
-	res := c.app.applyRecordedAssetEntry(ctx, c.assetCommand(ctx), whoOf(actor, set), e)
+	res := c.app.applyRecordedAssetEntry(ctx, projectCommand(ctx, "change", c.recipe), whoOf(actor, set), e)
 	switch res.Status {
 	case "applied":
 		return change.OpApplied, nil
@@ -530,14 +589,19 @@ func (c *changeAssets) prepareDecision(actor change.Actor, op change.Op, target 
 }
 
 // applyDecision records a decision on the edition it binds to, through the
-// review queue's functions, which re-read the content that landed.
+// review queue's functions. The decision binds to the content the change set
+// landed, which the service read under the commit lock (target.Text and
+// target.SourceText): a write that reaches the file after it makes the
+// decision stale, and never takes it over.
 func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, set *change.Set, op change.Op, target *change.DecisionTarget) (change.OpStatus, *change.Error) {
 	body := op.Body.(*change.Decide)
 	a := c.app
 	if target.Role == change.RoleAuthoritative {
-		changed, err := a.ApproveSourceUnit(ctx, c.recipe, "", SourceUnitRef{File: filepath.FromSlash(target.Doc.Doc), Key: target.Ref.Block})
+		wording := target.Text
+		changed, err := a.approveSourceUnit(ctx, c.recipe, "", SourceUnitRef{File: filepath.FromSlash(target.Doc.Doc), Key: target.Ref.Block}, &wording)
 		return decisionOutcome(changed, err)
 	}
+	decided := &decidedContent{source: target.SourceText, target: target.Text}
 	file := target.Place.File
 	if file == "" {
 		file = target.Doc.Doc
@@ -546,7 +610,7 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 	ref := ReviewUnitRef{File: filepath.FromSlash(file), Key: target.Ref.Block, Locale: locale}
 	switch body.Outcome {
 	case change.OutcomeAdvise:
-		review := state.AIReview{Model: actor.Name, At: nowRFC3339()}
+		review := state.AIReview{Model: actor.Name, At: nowRFC3339(), TargetHash: targetHash(decided.target)}
 		if body.Score != nil {
 			review.Score = *body.Score
 		}
@@ -560,10 +624,10 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 		if set != nil {
 			note = set.Note
 		}
-		changed, err := a.ApplyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionRejected, note)
+		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionRejected, note, "", decided)
 		return decisionOutcome(changed, err)
 	default:
-		changed, err := a.ApplyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "")
+		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", "", decided)
 		return decisionOutcome(changed, err)
 	}
 }

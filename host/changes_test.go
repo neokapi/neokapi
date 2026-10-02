@@ -1,7 +1,10 @@
 package host
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,11 +16,12 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/state"
 )
 
 // changeProject writes a project with one collection and its files, and
 // returns an App and the recipe.
-func changeProject(t *testing.T, item project.ContentItem, files map[string]string) (*App, string) {
+func changeProject(t *testing.T, item project.ContentItem, files map[string]string, edit ...func(*project.KapiProject)) (*App, string) {
 	t.Helper()
 	root := t.TempDir()
 	for name, body := range files {
@@ -26,7 +30,7 @@ func changeProject(t *testing.T, item project.ContentItem, files map[string]stri
 		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
 	}
 	recipe := filepath.Join(root, project.RecipeFileName)
-	require.NoError(t, project.Save(recipe, &project.KapiProject{
+	proj := &project.KapiProject{
 		Version: project.CurrentVersion,
 		Name:    "changes",
 		Defaults: project.Defaults{
@@ -34,8 +38,11 @@ func changeProject(t *testing.T, item project.ContentItem, files map[string]stri
 			TargetLanguages: []model.LocaleID{"de", "fr"},
 		},
 		Collections: []project.Collection{{Name: "docs", Content: []project.ContentItem{item}}},
-	}))
-	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
+	}
+	for _, e := range edit {
+		e(proj)
+	}
+	require.NoError(t, project.Save(recipe, proj))
 	a := &App{}
 	a.InitRegistries()
 	return a, recipe
@@ -285,4 +292,181 @@ func TestChangeService_OutsideAProjectReadsTheWorkingDirectory(t *testing.T) {
 	info, err := os.Stat(filepath.Join(dir, "notes.json"))
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+}
+
+// TestChangeAssets_ADecisionBindsToTheContentThatLanded pins that a decision
+// is recorded on the content the change service hands the host, which it read
+// under the commit lock, and never on what the file says by the time the
+// decision is written: a save that reaches the file in between leaves the
+// decision stale instead of taking it over.
+func TestChangeAssets_ADecisionBindsToTheContentThatLanded(t *testing.T) {
+	item := project.ContentItem{Path: "locales/en.json", Target: "locales/{lang}.json"}
+	a, recipe := changeProject(t, item, map[string]string{
+		"locales/en.json": `{"title": "Welcome"}` + "\n",
+		"locales/de.json": `{"title": "Willkommen"}` + "\n",
+	})
+	root := filepath.Dir(recipe)
+	svc := changeService(t, a, recipe)
+	ctx := context.Background()
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "locales/en.json", Editions: []model.EditionKey{editionKey(t, "de")}})
+	require.NoError(t, err)
+	title := blockWith(t, page, "Welcome")
+	at := title.Ref
+	at.Edition = editionKey(t, "de")
+	assets := &changeAssets{app: a, recipe: recipe}
+	decide := func(target *change.DecisionTarget) {
+		t.Helper()
+		status, cerr := assets.Apply(ctx, changePerson, &change.Set{}, change.Op{Kind: change.KindDecide, At: target.Ref, Body: &change.Decide{Outcome: change.OutcomeEstablish}}, target)
+		require.Nil(t, cerr)
+		assert.Equal(t, change.OpApplied, status)
+	}
+	write := func(rel, body string) {
+		t.Helper()
+		require.NoError(t, os.WriteFile(filepath.Join(root, filepath.FromSlash(rel)), []byte(body), 0o644))
+	}
+
+	t.Run("a translation", func(t *testing.T) {
+		// Another writer saves the German file after the change set landed
+		// "Willkommen" and before its decision is written.
+		write("locales/de.json", `{"title": "Hallo"}`+"\n")
+		decide(&change.DecisionTarget{Doc: change.DocInfo{Doc: "locales/en.json"}, Ref: at,
+			Place: change.Place{Kind: change.PlaceOwnFile, File: "locales/de.json"}, Rev: title.Editions["de"].Rev,
+			Text: "Willkommen", SourceText: "Welcome", Role: change.RoleDerived})
+
+		ref := ReviewUnitRef{File: filepath.FromSlash("locales/de.json"), Key: title.Ref.Block, Locale: "de"}
+		info, err := a.ReviewUnit(ctx, recipe, "", ref)
+		require.NoError(t, err)
+		assert.Equal(t, "Hallo", info.Target)
+		assert.NotEqual(t, string(model.TargetStatusEstablished), info.Status, "the decision is about Willkommen, so Hallo is not established")
+
+		write("locales/de.json", `{"title": "Willkommen"}`+"\n")
+		info, err = a.ReviewUnit(ctx, recipe, "", ref)
+		require.NoError(t, err)
+		assert.Equal(t, string(model.TargetStatusEstablished), info.Status, "the wording the decision was made on is established")
+	})
+
+	t.Run("the document's own wording", func(t *testing.T) {
+		write("locales/en.json", `{"title": "Hello there"}`+"\n")
+		decide(&change.DecisionTarget{Doc: change.DocInfo{Doc: "locales/en.json"}, Ref: title.Ref,
+			Place: change.Place{Kind: change.PlaceInDocument}, Rev: title.Rev, Text: "Welcome", SourceText: "Welcome", Role: change.RoleAuthoritative})
+
+		st, err := a.OpenProjectState(ctx, root)
+		require.NoError(t, err)
+		scope := a.documentIndexOrEmpty(ctx, root).Scope(root, filepath.Join(root, "locales", "en.json"))
+		rec, ok := st.Get(ctx, state.Key{Scope: scope, Unit: title.Ref.Block, Variant: sourceVariant("en")})
+		require.True(t, ok, "the approval is recorded")
+		assert.Equal(t, state.SourceHash("Welcome"), rec.ContentHash, "the approval binds to the wording that landed")
+	})
+}
+
+// TestChangeService_FormatOverrideTakesNoConfigurationWrittenForAnother pins
+// that --format in place of the format a content item binds reads with the
+// project's defaults for the format used: the item's configuration is written
+// for its own reader, and another reader refuses its keys.
+func TestChangeService_FormatOverrideTakesNoConfigurationWrittenForAnother(t *testing.T) {
+	item := project.ContentItem{
+		Path:   "docs/*.md",
+		Format: &project.FormatSpec{Name: "markdown", Config: map[string]any{"translateFrontMatter": true, "frontMatterKeys": []any{"title"}}},
+	}
+	a, recipe := changeProject(t, item, map[string]string{"docs/tides.md": formatConfigDoc})
+	svc, err := a.ChangeService(context.Background(), ChangeServiceOptions{Project: recipe, Format: "plaintext"})
+	require.NoError(t, err)
+	page, err := svc.Read(context.Background(), change.ReadRequest{Doc: "docs/tides.md"})
+	require.NoError(t, err)
+	assert.Equal(t, "plaintext", page.Format)
+	assert.NotEmpty(t, page.Blocks)
+}
+
+// TestChangeService_AnArchiveMemberTakesTheProjectsFormatDefaults pins that a
+// member of an archive in a project is read with the project's configuration
+// of the member's format.
+func TestChangeService_AnArchiveMemberTakesTheProjectsFormatDefaults(t *testing.T) {
+	item := project.ContentItem{Path: "docs/*.md"}
+	a, recipe := changeProject(t, item, map[string]string{"docs/readme.md": "# Readme\n"}, func(p *project.KapiProject) {
+		p.Defaults.Formats = map[string]project.FormatDefaults{"markdown": {Config: map[string]any{
+			"translateFrontMatter": true, "frontMatterKeys": []any{"title"},
+		}}}
+	})
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	w, err := zw.Create("docs/tides.md")
+	require.NoError(t, err)
+	_, err = io.WriteString(w, formatConfigDoc)
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(recipe), "bundle.zip"), buf.Bytes(), 0o644))
+
+	svc := changeService(t, a, recipe)
+	page, err := svc.Read(context.Background(), change.ReadRequest{Doc: "bundle.zip!docs/tides.md"})
+	require.NoError(t, err)
+	blockWith(t, page, "Tide tables")
+	for _, b := range page.Blocks {
+		assert.NotEqual(t, "How to read them", b.Text, "the project's configuration reads the title alone from the front matter")
+	}
+}
+
+// TestChangeService_ABilingualFileIsEditedInTheLanguageItHolds pins that the
+// translation a PO catalog holds is read and written as the edition of the
+// language the service is told, and that without one the edit is refused
+// rather than reported applied and dropped.
+func TestChangeService_ABilingualFileIsEditedInTheLanguageItHolds(t *testing.T) {
+	po := "msgid \"\"\nmsgstr \"\"\n\"Language: fr\\n\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\nmsgid \"Hello\"\nmsgstr \"Bonjour\"\n"
+	tests := []struct {
+		name   string
+		target model.LocaleID
+		status change.SetStatus
+		want   string
+	}{
+		{"with the language it holds", "fr", change.SetApplied, strings.Replace(po, `msgstr "Bonjour"`, `msgstr "Salut"`, 1)},
+		{"without one", "", change.SetRefused, po},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "fr.po"), []byte(po), 0o644))
+			a := &App{}
+			a.InitRegistries()
+			svc, err := a.ChangeService(context.Background(), ChangeServiceOptions{Root: dir, TargetLocale: tc.target})
+			require.NoError(t, err)
+			page, err := svc.Read(context.Background(), change.ReadRequest{Doc: "fr.po"})
+			require.NoError(t, err)
+			hello := blockWith(t, page, "Hello")
+			rev := model.AbsentRevision
+			if ed, ok := hello.Editions["fr"]; ok {
+				assert.Equal(t, "Bonjour", ed.Text)
+				rev = ed.Rev
+			}
+			at := hello.Ref
+			at.Edition = editionKey(t, "fr")
+			res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{setTo(at, rev, "Salut")}}, changePerson)
+			require.NoError(t, err)
+			require.Equal(t, tc.status, res.Status, "%+v", res.Ops)
+			b, err := os.ReadFile(filepath.Join(dir, "fr.po"))
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, string(b))
+		})
+	}
+}
+
+// TestChangeService_KeepsItsLockFilesOutOfACommit pins that the lock files a
+// project's change service takes sit in .kapi/work, under the ignore rule the
+// project's state directory is created with.
+func TestChangeService_KeepsItsLockFilesOutOfACommit(t *testing.T) {
+	item := project.ContentItem{Path: "locales/en.json"}
+	a, recipe := changeProject(t, item, map[string]string{"locales/en.json": `{"title": "Welcome"}` + "\n"})
+	root := filepath.Dir(recipe)
+	svc := changeService(t, a, recipe)
+	page, err := svc.Read(context.Background(), change.ReadRequest{Doc: "locales/en.json"})
+	require.NoError(t, err)
+	b := page.Blocks[0]
+	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{setTo(b.Ref, b.Rev, "Welcome aboard")}}, changePerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+
+	locks, err := os.ReadDir(filepath.Join(root, project.StateDirName, project.WorkDirName, "locks"))
+	require.NoError(t, err)
+	assert.NotEmpty(t, locks, "the lock files sit under .kapi/work/locks")
+	ignore, err := os.ReadFile(filepath.Join(root, project.StateDirName, project.StateGitignoreFilename))
+	require.NoError(t, err)
+	assert.True(t, project.GitignoreCovers(string(ignore), project.WorkDirName), "the state directory's ignore rule covers them: %q", ignore)
 }
