@@ -170,17 +170,7 @@ func (s *cacheSession) Blocks(filter blockstore.BlockFilter) iter.Seq2[*blocksto
 			yield(nil, blockstore.ErrClosed)
 			return
 		}
-		where := strings.Builder{}
-		args := []any{}
-		if filter.Collection != "" {
-			where.WriteString(` AND collection = ?`)
-			args = append(args, filter.Collection)
-		}
-		if filter.Translatable != nil {
-			where.WriteString(` AND translatable = ?`)
-			args = append(args, boolInt(*filter.Translatable))
-		}
-		query := `SELECT hash, payload FROM blocks WHERE hash > ?` + where.String() + ` ORDER BY hash LIMIT ?`
+		query, args := blockPageQuery(filter)
 		after, remaining := "", filter.Limit
 		for {
 			limit := pageSize
@@ -212,6 +202,25 @@ func (s *cacheSession) Blocks(filter blockstore.BlockFilter) iter.Seq2[*blocksto
 			remaining -= len(page)
 		}
 	}
+}
+
+// blockPageQuery is the query that reads one page of blocks matching filter,
+// and the filter's arguments. The query takes the hash to resume after first
+// and the page size last. Every filter shape seeks an index in hash order (the
+// primary key, or blocks_collection_hash_idx for a collection), so a page at
+// the end of a large collection costs what one at its start does.
+func blockPageQuery(filter blockstore.BlockFilter) (string, []any) {
+	where := strings.Builder{}
+	args := []any{}
+	if filter.Collection != "" {
+		where.WriteString(` AND collection = ?`)
+		args = append(args, filter.Collection)
+	}
+	if filter.Translatable != nil {
+		where.WriteString(` AND translatable = ?`)
+		args = append(args, boolInt(*filter.Translatable))
+	}
+	return `SELECT hash, payload FROM blocks WHERE hash > ?` + where.String() + ` ORDER BY hash LIMIT ?`, args
 }
 
 // blockRow is one row of a block page: its key and its encoded block.
@@ -391,15 +400,22 @@ func (s *cacheSession) PutOverlay(sc blockstore.Overlay) error {
 	return nil
 }
 
+// The overlay page clauses seek the (kind, block_hash) primary key.
+const (
+	overlaySelect    = `SELECT kind, block_hash, payload, updated_at FROM overlays `
+	kindOverlaysPage = `WHERE kind = ? AND block_hash > ? ORDER BY block_hash LIMIT ?`
+	allOverlaysPage  = `WHERE (kind, block_hash) > (?, ?) ORDER BY kind, block_hash LIMIT ?`
+)
+
 func (s *cacheSession) ListOverlays(kind string) iter.Seq2[blockstore.Overlay, error] {
 	kind = blockstore.CanonicalOverlayKind(kind)
-	return s.overlays(`WHERE kind = ? AND block_hash > ? ORDER BY block_hash LIMIT ?`,
+	return s.overlays(kindOverlaysPage,
 		func(after blockstore.Overlay) []any { return []any{kind, after.BlockHash} },
 		"list overlays")
 }
 
 func (s *cacheSession) AllOverlays() iter.Seq2[blockstore.Overlay, error] {
-	return s.overlays(`WHERE (kind, block_hash) > (?, ?) ORDER BY kind, block_hash LIMIT ?`,
+	return s.overlays(allOverlaysPage,
 		func(after blockstore.Overlay) []any { return []any{after.Kind, after.BlockHash} },
 		"list all overlays")
 }
@@ -414,7 +430,7 @@ func (s *cacheSession) overlays(tail string, keys func(after blockstore.Overlay)
 			yield(blockstore.Overlay{}, blockstore.ErrClosed)
 			return
 		}
-		query := `SELECT kind, block_hash, payload, updated_at FROM overlays ` + tail
+		query := overlaySelect + tail
 		var after blockstore.Overlay
 		for {
 			page, err := s.overlayPage(query, append(keys(after), pageSize), what)
@@ -556,6 +572,18 @@ var cacheMigrations = []storage.Migration{
 			-- project, to save one scan on a query that runs occasionally. The
 			-- scan stays where it belongs.
 			ALTER TABLE blocks ADD COLUMN text_indexed INTEGER NOT NULL DEFAULT 0;
+		`,
+	},
+	{
+		Version:     3,
+		Description: "blocks indexed by collection then hash",
+		// Blocks reads a collection a page at a time in hash order. On an
+		// index of collection alone every page sorted the whole collection,
+		// so reading one took time quadratic in its size. This index answers
+		// the same lookups by collection and makes each page a seek.
+		SQL: `
+			CREATE INDEX blocks_collection_hash_idx ON blocks (collection, hash);
+			DROP INDEX blocks_collection_idx;
 		`,
 	},
 }
