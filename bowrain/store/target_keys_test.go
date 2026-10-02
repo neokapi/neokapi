@@ -29,6 +29,9 @@ func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 			p := createTestProject(t, s)
 
 			b := model.NewBlock("b1", "Hello")
+			// The field files the target under the key exactly as given, which
+			// is the only way a key that is not canonical gets stored. The state
+			// goes away with the field.
 			b.Targets = map[model.VariantKey]*model.Target{
 				tc.key: {Runs: text("Bonjour"), Status: model.TargetStatusTranslated},
 			}
