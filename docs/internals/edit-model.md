@@ -405,7 +405,7 @@ prose explaining which of 26 fields applies to which kind, plus a 9.1 KB output 
   "ops": {
     "set_content": {"forms": ["text", "runs"], "new_codes": ["fmt:bold", "fmt:italic", "link:hyperlink"]},
     "replace_text": {},
-    "set_attribute": {"link:hyperlink": ["href", "title"], "media:image": ["src"]},
+    "set_attribute": {"link:hyperlink": ["href"], "media:image": ["src"]},
     "mark": {"types": ["fmt:bold", "fmt:italic", "link:hyperlink"]},
     "remove_edition": {},
     "annotate": {"inline": []},
@@ -514,8 +514,8 @@ edge; the TypeScript anchor mirror already uses code points
 ### 3.4 Inline codes, attributes and plurals in a read
 
 A code is named by the id placeholder text shows (`PcOpen.ID`, `Ph.ID`). Attributes a reader
-already surfaces as their own blocks (HTML `alt` and `title`,
-`core/formats/html/tokenreader.go:1724-1744`) stay blocks and are edited with `set_content`.
+already surfaces as their own blocks or text (HTML `alt` and `title`, a Markdown link's title,
+`core/formats/html/tokenreader.go:1724-1744`) stay so and are edited with `set_content` or `replace_text`.
 Attributes kept inside a code (`href`, `src`) are edited with `set_attribute`. Plurals and
 selects are listed with their branches, so their words are visible; today an ARB plural reads
 as one opaque atom with empty text (edit-paths P5, observed):

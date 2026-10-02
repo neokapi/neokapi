@@ -56,10 +56,13 @@ A `formats` entry names the format (`name`, `display_name`, `extensions`,
 `generative`, `interchange`). A writer that can write a changed attribute of an
 inline code declares `writable_attrs`, a code type (`link:hyperlink`, or `*`)
 mapped to the attributes it writes; one that can write a new paired code declares
-`synthesizes`, the vocabulary types it writes. kapi then accepts `set_attribute`
-and `mark` for the format, and the plugin's writer receives the code with the new
-value among its attributes, or a new code with its type and attributes and no
-data, and spells it in the document. The canonical Go types live in
+`synthesizes`, the vocabulary types it writes. The change applier applies
+`set_attribute` and `mark` to the format's blocks only where these declare them,
+and the plugin's writer receives the code with the new value among its
+attributes, or a new code with its type and attributes and no data, and spells it
+in the document. When the plugin's writer replaces a built-in writer of the same
+format, these declarations replace the built-in's, so a plugin that declares
+neither takes neither operation. The canonical Go types live in
 [`core/plugin/manifest/manifest.go`](https://github.com/neokapi/neokapi/blob/main/core/plugin/manifest/manifest.go),
 and the embedded JSON Schema at `core/plugin/manifest/schema.json`.
 

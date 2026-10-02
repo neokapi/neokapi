@@ -392,7 +392,8 @@ func (w *Writer) WritableAttrs() map[string][]string {
 }
 
 // Spell the new value into the code's Data, escaped for where it sits, and
-// update its Attrs as the reader would read them back.
+// update its Attrs as the reader would read them back. Return the same runs
+// in the same order.
 func (w *Writer) WriteAttr(seq []model.Run, at int, name, value string) ([]model.Run, error)
 
 // CodeSynthesizer: the vocabulary types the writer writes as a new code.
