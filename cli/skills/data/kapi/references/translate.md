@@ -91,7 +91,8 @@ kapi run translate-qa -i ./locales/en.json --target-lang fr --json   # translate
 kapi translate ./deck.pptx --target-lang ja -o ./out/deck.ja.pptx
 ```
 
-`--target-lang` is single-valued, so run one command per locale. A bound voice
+`--target-lang` is single-valued and a list such as `fr,de` is refused before
+anything runs, so run one command per locale. A bound voice
 profile and terms still apply. Format is detected from the extension and
 written back unchanged (round-trip), preserving structure, tags, and placeholders.
 

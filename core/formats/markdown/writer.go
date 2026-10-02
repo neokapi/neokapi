@@ -2055,12 +2055,23 @@ func blockquoteMarkerPrefix(line string) string {
 // Mirrors okapi MarkdownFilter, whose TextUnit content carries only the
 // LFs between lines while its skeleton-driven writer re-emits the
 // per-line prefix.
+//
+// A translation is rendered by renderInlineText. A source an edit rewrote is
+// rendered by renderEditedSource, which escapes the markup the edit added; a
+// source nobody edited is written as it was read.
 func (w *Writer) blockText(block *model.Block) string {
-	runs := w.blockRuns(block)
-	if runs == nil {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		if runs := block.TargetRuns(w.Locale); len(runs) > 0 {
+			return finishBlockContent(block, renderInlineText(block, runs))
+		}
+	}
+	if len(block.Source) == 0 {
 		return ""
 	}
-	return RenderBlockContent(block, runs)
+	if read, edited := block.SourceAsRead(); edited {
+		return finishBlockContent(block, renderEditedSource(block, read))
+	}
+	return finishBlockContent(block, model.RenderRunsWithData(block.Source))
 }
 
 // RenderBlockContent renders a block's content (the given run sequence —
@@ -2071,7 +2082,110 @@ func (w *Writer) blockText(block *model.Block) string {
 // function so reader and writer can never disagree about untranslated
 // output.
 func RenderBlockContent(block *model.Block, runs []model.Run) string {
-	rendered := model.RenderRunsWithData(runs)
+	return finishBlockContent(block, model.RenderRunsWithData(runs))
+}
+
+// renderInlineText renders a translation's runs as RenderRunsWithData does,
+// escaping the complete inline constructs CommonMark would read from its text:
+// raw HTML, an autolink, a character reference and a complete inline link or
+// image. A translation is text, and inline codes travel as their own runs. The
+// reader turns every such construct into an inline code, so a translation
+// that copies the source's text keeps its bytes. An edited source is rendered
+// by renderEditedSource instead, which also has the block as read to compare
+// with.
+//
+// Text inside a code span is literal, as is the content of a code block, a
+// math block, front matter and the raw HTML the HTML subfilter reads; none of
+// it is escaped.
+func renderInlineText(block *model.Block, runs []model.Run) string {
+	switch block.Type {
+	case "front-matter", "code-block", "math", "html-block", "html-text", "html-attr":
+		return model.RenderRunsWithData(runs)
+	}
+	if block.SemanticRole() == model.RoleCode {
+		return model.RenderRunsWithData(runs)
+	}
+	var b strings.Builder
+	var at []int
+	codeDepth := 0
+	model.RenderRunsWith(&b, runs, &model.RunRenderer{
+		Text: func(b *strings.Builder, t string) {
+			if codeDepth == 0 {
+				for i := range len(t) {
+					if t[i] == '<' || t[i] == '&' || t[i] == '[' {
+						at = append(at, b.Len()+i)
+					}
+				}
+			}
+			b.WriteString(t)
+		},
+		Code: func(r model.Run) {
+			switch opens, closes := codeSpanRun(r); {
+			case opens:
+				codeDepth++
+			case closes && codeDepth > 0:
+				codeDepth--
+			}
+		},
+	})
+	if len(at) == 0 {
+		return b.String()
+	}
+	out := b.String()
+	var esc strings.Builder
+	esc.Grow(len(out) + len(at))
+	prev := 0
+	for _, i := range at {
+		if !opensInlineMarkup(out[i:]) || backslashEscaped(out, i) {
+			continue
+		}
+		esc.WriteString(out[prev:i])
+		esc.WriteByte('\\')
+		prev = i
+	}
+	esc.WriteString(out[prev:])
+	return esc.String()
+}
+
+// inlineMarkupRE matches, at the start of a string, the inline constructs
+// CommonMark reads from '<', '&' or '[': raw HTML (an open or closing tag, a
+// comment, a processing instruction, a declaration, a CDATA section; spec
+// 6.6), a URI or email autolink (6.5), an entity or numeric character
+// reference (2.5), and a complete inline link, whose destination and optional
+// title are closed by ')' (6.3). Brackets that open no link, such as "[1]" or
+// a link left unclosed, stay as they are.
+var inlineMarkupRE = regexp.MustCompile(`^(?:` +
+	`<[A-Za-z][A-Za-z0-9-]*(?:\s+[A-Za-z_:][A-Za-z0-9_.:-]*(?:\s*=\s*(?:[^"'=<>` + "`" + `\x00-\x20]+|'[^']*'|"[^"]*"))?)*\s*/?>` +
+	`|</[A-Za-z][A-Za-z0-9-]*\s*>` +
+	`|<!--(?:>|->|[\s\S]*?-->)` +
+	`|<\?[\s\S]*?\?>` +
+	`|<![A-Za-z][^>]*>` +
+	`|<!\[CDATA\[[\s\S]*?\]\]>` +
+	`|<[A-Za-z][A-Za-z0-9.+-]{1,31}:[^<>\x00-\x20]*>` +
+	`|<[A-Za-z0-9.!#$%&'*+/=?^_` + "`" + `{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*>` +
+	`|&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6});` +
+	`|\[[^\[\]]*\]\(\s*(?:<[^<>\n]*>|[^\s()<>]*(?:\([^\s()]*\)[^\s()<>]*)*)(?:\s+(?:"[^"]*"|'[^']*'|\([^()]*\)))?\s*\)` +
+	`)`)
+
+// opensInlineMarkup reports whether s begins with a construct inlineMarkupRE
+// names.
+func opensInlineMarkup(s string) bool {
+	return inlineMarkupRE.MatchString(s)
+}
+
+// backslashEscaped reports whether the byte at i is already escaped: preceded
+// by an odd number of backslashes.
+func backslashEscaped(s string, i int) bool {
+	n := 0
+	for j := i - 1; j >= 0 && s[j] == '\\'; j-- {
+		n++
+	}
+	return n%2 == 1
+}
+
+// finishBlockContent applies the block-level spelling the skeleton splice
+// needs to a block's rendered runs.
+func finishBlockContent(block *model.Block, rendered string) string {
 	if block.Type == "front-matter" {
 		// The skeleton carries `key: ` and the newline only; the value —
 		// including any quoting — is the block's responsibility. An
@@ -2079,7 +2193,8 @@ func RenderBlockContent(block *model.Block, runs []model.Run) string {
 		// untranslated round-trip stays byte-exact whatever the source
 		// spelling; quoting is restored (or added when needed) otherwise.
 		quote := block.Properties[BlockPropFrontMatterQuote]
-		if quote == "" && rendered == model.RenderRunsWithData(block.Source) {
+		read, _ := block.SourceAsRead()
+		if quote == "" && rendered == model.RenderRunsWithData(read) {
 			return rendered
 		}
 		return frontMatterScalar(rendered, quote)

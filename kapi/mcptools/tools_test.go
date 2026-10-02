@@ -104,6 +104,85 @@ func TestHandleExtractContent(t *testing.T) {
 	assert.Contains(t, texts, "Hello World")
 }
 
+// extract_content is the read leg of the MCP edit loop, so the id and
+// content_hash it reports for a block must be the ones apply_edits resolves.
+// An image's alt text and a paragraph with character references are where the
+// HTML reads used to part.
+func TestHandleExtractContentAddressesWhatApplyEditsWrites(t *testing.T) {
+	t.Setenv(project.NoProjectEnvVar, "1")
+	const page = "<html><body><h1>Prices</h1>" +
+		`<p><img src="c.png" alt="chart"> Prices rose.</p>` +
+		"<p>Fish &amp; chips</p></body></html>\n"
+	tests := []struct {
+		name string
+		read string // the extracted block the edit addresses
+		text string
+		want string
+	}{
+		{name: "an image's alt text", read: "chart", text: "Bar chart", want: `alt="Bar chart"`},
+		{name: "the paragraph after the image", read: `<x id="1/"/> Prices rose.`, text: `<x id="1/"/> Prices fell.`, want: "> Prices fell.</p>"},
+		{name: "a paragraph with a character reference", read: `Fish & chips`, text: `Fish & fries`, want: "<p>Fish &amp; fries</p>"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			a := testApp()
+			path := filepath.Join(t.TempDir(), "page.html")
+			require.NoError(t, os.WriteFile(path, []byte(page), 0o600))
+
+			_, out, err := handleExtractContent(t.Context(), a, ExtractContentInput{Path: path, SourceLang: "en"})
+			require.NoError(t, err)
+			var block *BlockEntry
+			for i := range out.Blocks {
+				if out.Blocks[i].SourceText == tc.read {
+					block = &out.Blocks[i]
+				}
+			}
+			require.NotNil(t, block, "extract_content shows %q: %+v", tc.read, out.Blocks)
+
+			report := &tools.ApplyReport{}
+			edit := tools.Edit{Text: tc.text, ContentHash: block.ContentHash}
+			tl := tools.NewApplyEditsTool(map[string]tools.Edit{block.ID: edit}, nil, report)
+			require.NoError(t, a.EditDocument(t.Context(), path, tl, "", true, "", nil))
+
+			assert.Equal(t, []string{block.ID}, report.Applied)
+			got, err := os.ReadFile(path)
+			require.NoError(t, err)
+			assert.Contains(t, string(got), tc.want)
+		})
+	}
+}
+
+// A format extract_content is told to read a file in is the format the edit
+// is written in: apply_edits resolves the format for a file through the same
+// host function (host.App.MCPEditFormat) and writes with EditDocumentAs.
+func TestHandleExtractContentReadsInTheFormatTheEditWrites(t *testing.T) {
+	t.Setenv(project.NoProjectEnvVar, "1")
+	a := testApp()
+	path := filepath.Join(t.TempDir(), "notes.txt")
+	require.NoError(t, os.WriteFile(path, []byte("# Notes\n\nRead the [guide](https://example.com/g).\n"), 0o600))
+
+	_, out, err := handleExtractContent(t.Context(), a, ExtractContentInput{Path: path, Format: "markdown"})
+	require.NoError(t, err)
+	require.Equal(t, "markdown", out.Format)
+	var block *BlockEntry
+	for i := range out.Blocks {
+		if out.Blocks[i].SourceText == `Read the <x id="1"/>guide<x id="/1"/>.` {
+			block = &out.Blocks[i]
+		}
+	}
+	require.NotNil(t, block, "extract_content reads the file as markdown: %+v", out.Blocks)
+
+	report := &tools.ApplyReport{}
+	edit := tools.Edit{Text: `Open the <x id="1"/>guide<x id="/1"/>.`, ContentHash: block.ContentHash}
+	tl := tools.NewApplyEditsTool(map[string]tools.Edit{block.ID: edit}, nil, report)
+	require.NoError(t, a.EditDocumentAs(t.Context(), path, a.MCPEditFormat("", path, "markdown"), tl, "", true, "", nil))
+
+	assert.Equal(t, []string{block.ID}, report.Applied)
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "# Notes\n\nOpen the [guide](https://example.com/g).\n", string(got))
+}
+
 // Outside a project, list_flows lists the composed built-in flows `kapi flows`
 // lists.
 func TestHandleListFlows(t *testing.T) {

@@ -142,3 +142,51 @@ func TestApplyEdits_RejectsFlattenedBranches(t *testing.T) {
 		})
 	}
 }
+
+// A character reference is a character in the edit text, so an edit reads a
+// block holding one as plain text and may keep, drop or move the character.
+// The block remembers the source it was read with, which its writer compares
+// with to encode the new wording.
+func TestApplyEdits_CharacterReferencesAreText(t *testing.T) {
+	ref := func(id, data string) model.Run {
+		return model.Run{Ph: &model.PlaceholderRun{ID: id, Type: "code:entity", Data: data}}
+	}
+	newBlock := func() *model.Block {
+		return &model.Block{
+			ID:           "p1",
+			Translatable: true,
+			Source: []model.Run{
+				{Text: &model.TextRun{Text: "Fish "}}, ref("1", "&amp;"), {Text: &model.TextRun{Text: " chips "}},
+				ref("2", "&lt;"), {Text: &model.TextRun{Text: "3"}},
+			},
+		}
+	}
+	tests := []struct {
+		name       string
+		text       string
+		wantBucket string
+		wantData   string // the block rendered with its codes' data
+	}{
+		{name: "the text inspect shows is a no-op", text: "Fish & chips <3", wantBucket: "skipped", wantData: "Fish &amp; chips &lt;3"},
+		{name: "the token form is a no-op too", text: `Fish <x id="1/"/> chips <x id="2/"/>3`, wantBucket: "skipped", wantData: "Fish &amp; chips &lt;3"},
+		{name: "a kept character keeps its reference", text: "Fish & fries <3", wantBucket: "applied", wantData: "Fish &amp; fries &lt;3"},
+		{name: "a rewrite may drop every reference", text: "Pay less today.", wantBucket: "applied", wantData: "Pay less today."},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			b := newBlock()
+			read := b.Source
+			report := &ApplyReport{}
+			edits := map[string]Edit{"p1": {Text: tc.text, ContentHash: model.ComputeContentHash(b.SourceText())}}
+			applyOne(t, NewApplyEditsTool(edits, nil, report), b)
+
+			buckets := map[string][]string{"applied": report.Applied, "skipped": report.Skipped}
+			assert.Equal(t, []string{"p1"}, buckets[tc.wantBucket], "%+v", report)
+			assert.Empty(t, report.GuardFailed)
+			assert.Equal(t, tc.wantData, model.RenderRunsWithData(b.Source))
+			asRead, edited := b.SourceAsRead()
+			assert.Equal(t, tc.wantBucket == "applied", edited)
+			assert.Equal(t, read, asRead)
+		})
+	}
+}

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T07:01:01Z",
+  "generatedAt": "2026-10-02T09:28:01Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -691,7 +691,7 @@
     },
     {
       "name": "extract_content",
-      "description": "Parse a file into its content blocks: each block's id, content_hash, source text (inline codes rendered as \u003cx id=\"…\"/\u003e placeholders), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply).",
+      "description": "Parse a file into its content blocks: each block's id, content_hash, source text (inline codes rendered as \u003cx id=\"…\"/\u003e placeholders, character references as their characters), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply). Both read the file in the same format, so pass the same project.",
       "surface": "content",
       "params": [
         {
@@ -704,7 +704,7 @@
           "name": "format",
           "type": "string",
           "required": false,
-          "description": "Override format detection"
+          "description": "Override format detection. apply_edits detects the format through the project, so a block read in another format may not be one it can write"
         },
         {
           "name": "project",

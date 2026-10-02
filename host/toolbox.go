@@ -175,9 +175,79 @@ func (a *App) explicitOrDetected(path string, content io.ReadSeeker) (string, bo
 // StreamBlocks opens path (or stdin), detects its format, and calls fn for each
 // Block part in document order. Read-only — the backbone of cat and grep.
 func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, b *model.Block) error) (string, error) {
+	return a.streamBlocks(ctx, path, false, "", fn)
+}
+
+// StreamEditableBlocks streams path's blocks as EditDocument reads them, so
+// every block id, text and content hash it yields is the one `kapi apply`
+// resolves. It backs `kapi inspect` and `kapi apply --diff`: the reads an edit
+// is addressed from.
+func (a *App) StreamEditableBlocks(ctx context.Context, path string, fn func(index int, b *model.Block) error) (string, error) {
+	return a.streamBlocks(ctx, path, true, "", fn)
+}
+
+// StreamEditableBlocksAs is StreamEditableBlocks in the format fmtRef names
+// (a preset included), as EditDocumentAs edits it. An empty fmtRef resolves
+// the format as StreamEditableBlocks does. MCP extract_content reads through
+// it and apply_edits writes through EditDocumentAs with the same ref.
+func (a *App) StreamEditableBlocksAs(ctx context.Context, path, fmtRef string, fn func(index int, b *model.Block) error) (string, error) {
+	return a.streamBlocks(ctx, path, true, fmtRef, fn)
+}
+
+// openEditReader builds the reader for a document and names its format:
+// fmtRef when given, else the --format flag, with a preset either names
+// applied to the reader, and otherwise the format detection finds in content.
+// The reads that address an edit and the edit itself all build their reader
+// here, so they read the same blocks.
+func (a *App) openEditReader(path string, content io.ReadSeeker, fmtRef string) (string, format.DataFormatReader, error) {
+	ref := fmtRef
+	if ref == "" {
+		ref = a.FormatFlag
+	}
+	if ref != "" {
+		reader, name, err := a.NewConfiguredReader(ref)
+		if err != nil {
+			return "", nil, err
+		}
+		return name, reader, nil
+	}
+	name, err := a.resolveFormatFrom(path, content)
+	if err != nil {
+		return "", nil, err
+	}
+	reader, err := a.FormatReg.NewReader(registry.FormatID(name))
+	if err != nil {
+		return name, nil, fmt.Errorf("no reader for format %q: %w", name, err)
+	}
+	return name, reader, nil
+}
+
+// WireEditReader gives reader the skeleton store EditDocument gives the same
+// format's reader before writing it back. Some readers model a document
+// differently while they keep a skeleton: the HTML reader turns character
+// references into inline codes and numbers an inline element's attributes
+// after its paragraph, and the MDX reader reads a JSX element's children. A
+// read that addresses an edit therefore has to be wired the same way. A format
+// with no writer or no skeleton is left unwired. release closes the store.
+func (a *App) WireEditReader(reader format.DataFormatReader, fmtName string) (release func(), err error) {
+	writer, werr := a.FormatReg.NewWriter(registry.FormatID(fmtName))
+	if werr != nil {
+		return func() {}, nil
+	}
+	store, err := format.NewWiredSkeleton(reader, writer)
+	if err != nil {
+		return nil, err
+	}
+	if store == nil {
+		return func() {}, nil
+	}
+	return func() { _ = store.Close() }, nil
+}
+
+func (a *App) streamBlocks(ctx context.Context, path string, editable bool, fmtRef string, fn func(index int, b *model.Block) error) (string, error) {
 	// A `container!entry` locator reads just that one entry, not the whole archive.
 	if loc, ok := parseEntryLocator(path); ok {
-		return a.streamEntryBlocks(ctx, loc, fn)
+		return a.streamEntryBlocks(ctx, loc, editable, fmtRef, fn)
 	}
 	src, err := openDocSource(ctx, path)
 	if err != nil {
@@ -189,15 +259,26 @@ func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, 
 	if err != nil {
 		return "", err
 	}
-	fmtName, err := a.resolveFormatFrom(path, sniff)
+	fmtName, reader, err := a.openEditReader(path, sniff, fmtRef)
 	if err != nil {
-		return "", err
+		return fmtName, err
 	}
-	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
-	if err != nil {
-		return fmtName, fmt.Errorf("no reader for format %q: %w", fmtName, err)
+	// The reader closes before the skeleton store it writes into: an early
+	// return (fn failing on a closed pipe, a read error) can leave the reader
+	// still emitting, and closing the store first would flush a writer the
+	// reader is still using.
+	release := func() {}
+	defer func() {
+		reader.Close()
+		release()
+	}()
+	if editable {
+		r, werr := a.WireEditReader(reader, fmtName)
+		if werr != nil {
+			return fmtName, fmt.Errorf("read %s: %w", DisplayName(path), werr)
+		}
+		release = r
 	}
-	defer reader.Close()
 
 	doc := &model.RawDocument{
 		URI:          DisplayName(path),
@@ -236,6 +317,12 @@ func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, 
 // changes. writeLocale
 // selects which locale the writer emits ("" = source / monolingual round-trip).
 func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, writeLocale model.LocaleID, inPlace bool, backupSuffix string, out io.Writer) error {
+	return a.EditDocumentAs(ctx, path, "", t, writeLocale, inPlace, backupSuffix, out)
+}
+
+// EditDocumentAs is EditDocument in the format fmtRef names (a preset
+// included); an empty fmtRef resolves the format as EditDocument does.
+func (a *App) EditDocumentAs(ctx context.Context, path, fmtRef string, t *tool.BaseTool, writeLocale model.LocaleID, inPlace bool, backupSuffix string, out io.Writer) error {
 	// A `container!entry` locator edits one inner file; a bare container path edits
 	// every eligible entry. Both repack through the container binding (AD-026 §6) —
 	// the archive format has no writer of its own.
@@ -258,17 +345,13 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 	if err != nil {
 		return err
 	}
-	fmtName, err := a.resolveFormatFrom(path, sniff)
+	fmtName, reader, err := a.openEditReader(path, sniff, fmtRef)
 	if err != nil {
 		return err
 	}
-
-	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
-	if err != nil {
-		return fmt.Errorf("no reader for format %q: %w", fmtName, err)
-	}
 	writer, err := a.FormatReg.NewWriter(registry.FormatID(fmtName))
 	if err != nil {
+		reader.Close()
 		return fmt.Errorf("%q is not editable (no writer). Read it with kcat; see editable formats with `kapi formats`", fmtName)
 	}
 

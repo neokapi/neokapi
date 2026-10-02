@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T07:54:17Z",
+  "generatedAt": "2026-10-02T09:28:01Z",
   "commands": [
     {
       "id": "add",
@@ -8,7 +8,7 @@
       ],
       "use": "add \u003cpattern\u003e [pattern...]",
       "short": "Add file patterns to the project's content",
-      "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\nBy default each pattern becomes a bare entry, which the project's default point\ngoverns. --name puts them in a named collection instead, and --channel binds\nthat collection to a point in the context space (profile/channel), so a surface\nis governed by the voice that suits it rather than by the project default.\nAdding to a name that already exists extends that collection.\n\n--target declares where a translated file goes: a template over {lang} and the\npath tokens ({path}, {name}, {ext}), or a directory to mirror into. Without one\na flow that writes has nowhere of its own to write, so give it here rather than\nby hand-editing the recipe. A target that lands back inside the pattern it\ncomes from is refused: the collection would re-track its own output as source.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"\n  kapi add \"docs/**/*.md\" --target \"translated/{lang}/{path}.md\"\n  kapi add \"support/**/*.md\" --name northsea-support --channel northsea/docs",
+      "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\nBy default each pattern becomes a bare entry, which the project's default point\ngoverns. --name puts them in a named collection instead, and --channel binds\nthat collection to a point in the context space (profile/channel), so a surface\nis governed by the voice that suits it rather than by the project default.\nAdding to a name that already exists extends that collection.\n\n--target declares where a translated file goes: a template over {lang} and the\npath tokens ({path}, {name}, {ext}), or a directory to mirror into. Without one\na flow that writes has nowhere of its own to write, so give it here rather than\nby hand-editing the recipe. A target that lands back inside the pattern it\ncomes from is refused: the collection would re-track its own output as source.\nOn a pattern the project already tracks, --target sets the target its entry\nlacks; an entry that already declares another target is refused, with the\nrecipe change to make instead. A file belongs to the first entry in the recipe\nwhose pattern matches it, so a target applies to the files its entry claims.\nThe output names each other file and the entry that claims it, and a pattern\nan earlier entry claims every file of is refused. Under a named collection with\na base, the target is given from the project root and kept relative to the\nbase.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"\n  kapi add \"docs/**/*.md\" --target \"translated/{lang}/{path}.md\"\n  kapi add \"support/**/*.md\" --name northsea-support --channel northsea/docs",
       "groupID": "work",
       "flags": [
         {
@@ -1502,7 +1502,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -1633,7 +1633,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -1759,7 +1759,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -1866,7 +1866,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -2246,7 +2246,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -2390,7 +2390,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -2630,7 +2630,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -2760,7 +2760,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -3102,7 +3102,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -3275,7 +3275,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -3531,7 +3531,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -3671,7 +3671,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -3952,7 +3952,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -4130,7 +4130,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -4256,7 +4256,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -4565,7 +4565,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -5189,7 +5189,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -5321,7 +5321,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -7117,7 +7117,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -7325,7 +7325,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -8279,7 +8279,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {
@@ -8545,7 +8545,7 @@
         },
         {
           "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         },
         {

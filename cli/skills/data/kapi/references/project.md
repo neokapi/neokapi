@@ -51,7 +51,13 @@ kapi init --name my-app --source-locale en --target-locale fr --target-locale de
 
 This writes `kapi.yaml` (the recipe) with a collection for each kind of content
 kapi found in the tree, each under a comment saying what it matched. Read the
-list back to the user and adjust it with them; `kapi add <pattern>` adds one. On
+list back to the user and adjust it with them; `kapi add <pattern>` adds one.
+A collection `kapi init` wrote has no `target:`, so nothing is written for a
+target language until it has one: `kapi add <pattern> --target
+"{lang}/{relpath}"` on the same pattern sets it, and refuses an entry that
+already declares a different target. A file belongs to the first entry in the
+recipe whose pattern matches it, so a target applies to the files its entry
+claims; the output names the others and the entry that claims each. On
 a project that already has a recipe, `kapi init` leaves the collections alone
 and prints the content no collection reads yet, with the lines to add.
 

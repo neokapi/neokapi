@@ -555,7 +555,7 @@
       "additionalProperties": false,
       "properties": {
         "format": {
-          "description": "Override format detection",
+          "description": "Override format detection. apply_edits detects the format through the project, so a block read in another format may not be one it can write",
           "type": "string"
         },
         "path": {

@@ -32,10 +32,27 @@ Two fields anchor an edit:
   `<x id="…"/>` tokens. **Keep every token, unchanged, in your edited text.**
   They are the markup the round-trip reconstructs. A placeholder is
   `<x id="1/"/>`; a paired span opens with `<x id="1"/>` and closes with
-  `<x id="/1"/>`. Reorder or drop one and the edit is rejected (see §3).
+  `<x id="/1"/>`. Reorder or drop one and the edit is rejected (see §3). A
+  character reference the source spells out (`&amp;`, `&rsquo;` in HTML) shows
+  as its character, and you can keep, move or drop it like any other
+  character; one you keep keeps its spelling in the file.
 - **`content_hash`** is the block's canonical identity (a hash of its plain
   source text, not of the placeholder `text`). Send it back with the edit so
   kapi can tell the block is still the one you read.
+
+Everything else in `text` is text, and kapi encodes it for the file's format.
+In HTML a `<` or `&` you type is written as a character reference. Markdown,
+MDX and AsciiDoc keep some of their own syntax in `text`: a backslash escape, a
+bracket that opens no link, an MDX `{expression}`, an AsciiDoc `+++`
+passthrough. Syntax the block already holds stays as you keep it, and syntax
+you add (a tag, a link, an expression, an `import` line, a macro) is escaped so
+it reads as the characters you typed.
+
+`inspect` (and MCP `extract_content`) read a file in the same format and with
+the same reader `apply` (and `apply_edits`) write it back through, so every
+`id` and `content_hash` they print is one `apply` resolves. Over MCP, pass both
+calls the same project. An HTML image's `alt` or a link's `title` is a block of
+its own.
 
 ## 2. Write the edits
 
@@ -55,7 +72,7 @@ kapi inspect report.docx --jsonl > blocks.jsonl
 # You rewrite the "text" of each changed block (keeping the <x id="…"/> tags) and
 # write those content entries to edits.jsonl — there is no command for it; you
 # are the writer. Then:
-kapi apply edits.jsonl --diff          # preview the content changes, write nothing
+kapi apply edits.jsonl --diff          # preview the content changes per block id, write nothing
 kapi apply edits.jsonl                  # apply in place
 kapi apply edits.jsonl --in-place=.bak  # apply, keeping a .bak of each file
 ```
@@ -75,10 +92,11 @@ block untouched and is reported, so nothing is silently corrupted:
   **stale** and skipped.
 - **Inline-code guard.** If your edited `text` drops, invents, duplicates, or
   unbalances an `<x id="…"/>` token, the edit is **rejected** rather than written
-  back with broken markup. A block that holds a plural or select construct shows
-  one form of it in `text`, and flat text cannot carry its other branches, so any
-  changed `text` for that block is **rejected** too. Leave such a block out of
-  the change-set.
+  back with broken markup. A character reference shown as its character is
+  text, so the guard does not hold it. A block that holds a plural or select
+  construct shows one form of it in `text`, and flat text cannot carry its other
+  branches, so any changed `text` for that block is **rejected** too. Leave such
+  a block out of the change-set.
 
 Either outcome exits on the **gate code (3)**, distinct from an operational
 error. Treat it as a signal to **re-inspect the affected blocks and retry** with

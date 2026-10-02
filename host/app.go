@@ -27,7 +27,6 @@ import (
 	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
-	"github.com/spf13/pflag"
 )
 
 // App holds shared CLI state that is initialized during PersistentPreRun.
@@ -316,12 +315,6 @@ func (a *App) AddInputFlags(cmd Command) {
 	cmd.Flags().StringVarP(&a.FormatFlag, "format", "f", "", "override input format detection")
 	a.AddEncodingFlag(cmd.Flags(), "e", "input file encoding")
 	a.AddSourceLangFlag(cmd.Flags())
-}
-
-// AddTargetLangFlag registers --target-lang on f, bound to the App's target
-// language.
-func (a *App) AddTargetLangFlag(f *pflag.FlagSet) {
-	f.StringVar(&a.TargetLang, "target-lang", "", "target language (e.g. fr, de-DE)")
 }
 
 // InitRegistries populates FormatReg, SchemaReg, and ToolReg with every
