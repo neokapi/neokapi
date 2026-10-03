@@ -191,7 +191,7 @@ func (s *tokenReaderState) trimTrailingWSOfLastTextBlock() string {
 	if s.lastTextBlock == nil {
 		return ""
 	}
-	runs := s.lastTextBlock.Source
+	runs := s.lastTextBlock.SourceRuns()
 	if len(runs) == 0 {
 		return ""
 	}
@@ -234,7 +234,7 @@ func (s *tokenReaderState) onStructuralEvent() {
 		restored := dropped + string(s.takePendingWS())
 		s.lastTextBlock = nil
 		if restored != "" {
-			s.store.WriteTrimmed([]byte(model.RenderRunsWithData(block.Source)), []byte(restored))
+			s.store.WriteTrimmed([]byte(model.RenderRunsWithData(block.SourceRuns())), []byte(restored))
 		}
 		return
 	}
@@ -1106,16 +1106,11 @@ leafClosed:
 	// Emit block if it has content.
 	hasID := getTokenAttr(attrs, "id") != ""
 	if !b.IsEmpty() || hasID {
-		block := &model.Block{
-			ID:                 blockID,
-			Name:               s.structuralName(s.currentStep),
-			Type:               blockTypeFromTag(tag),
-			Translatable:       true,
-			PreserveWhitespace: preserveWS,
-			Source:             b.Runs(),
-			Targets:            make(map[model.VariantKey]*model.Target),
-			Properties:         extractBlockPropsFromToken(attrs),
-		}
+		block := model.NewRunsBlock(blockID, b.Runs())
+		block.Name = s.structuralName(s.currentStep)
+		block.Type = blockTypeFromTag(tag)
+		block.PreserveWhitespace = preserveWS
+		block.Properties = extractBlockPropsFromToken(attrs)
 		setStructuralRole(block, tag, func(key string) string { return getTokenAttr(attrs, key) })
 		markInteractiveAncestor(block, s.interactiveAncestor())
 		s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
@@ -1644,16 +1639,10 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 			blockID := s.nextBlockID()
 			s.writeAttrRefSkeleton(raw, "content", blockID)
 
-			block := &model.Block{
-				ID:           blockID,
-				Name:         metaName,
-				Type:         "content",
-				Translatable: true,
-				IsReferent:   true,
-				Source:       []model.Run{{Text: &model.TextRun{Text: content}}},
-				Targets:      make(map[model.VariantKey]*model.Target),
-				Properties:   make(map[string]string),
-			}
+			block := model.NewBlock(blockID, content)
+			block.Name = metaName
+			block.Type = "content"
+			block.IsReferent = true
 			s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 
 			// Also emit as data.
@@ -1917,16 +1906,10 @@ const blockRefSentinelStart = "\x00BLOCK:"
 const blockRefSentinelEnd = "\x00"
 
 func (s *tokenReaderState) emitAttrBlock(blockID, elemName, attrKey, value string, ctx context.Context, ch chan<- model.PartResult) {
-	block := &model.Block{
-		ID:           blockID,
-		Name:         elemName + "@" + attrKey,
-		Type:         attrKey,
-		Translatable: true,
-		IsReferent:   true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-	}
+	block := model.NewBlock(blockID, value)
+	block.Name = elemName + "@" + attrKey
+	block.Type = attrKey
+	block.IsReferent = true
 	s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -2276,13 +2259,7 @@ func buildBlockWithEntities(blockID, text string) *model.Block {
 	if pos < len(text) {
 		b.AddText(text[pos:])
 	}
-	return &model.Block{
-		ID:           blockID,
-		Translatable: true,
-		Source:       b.runs,
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-	}
+	return model.NewRunsBlock(blockID, b.runs)
 }
 
 // addTextWithEntities adds raw HTML text to a runBuilder, splitting

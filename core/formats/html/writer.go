@@ -757,7 +757,8 @@ func (w *Writer) getBlockValue(block *model.Block) string {
 		}
 		return text
 	}
-	return model.RenderRunsWithData(block.Source)
+	src, _ := block.Edition(block.Authoritative(model.AuthorityPolicy{}))
+	return model.RenderRunsWithData(src.Runs)
 }
 
 // renderTargetRuns reconstructs the full text from a block's target
@@ -849,15 +850,16 @@ func writeEscapedHTMLText(b *strings.Builder, s string) {
 // A non-translatable content block (a <noscript> fallback, a JSON data island)
 // carries its markup verbatim in one run and is written back as it was read.
 func (w *Writer) renderSourceRuns(block *model.Block) string {
+	src, _ := block.Edition(block.Authoritative(model.AuthorityPolicy{}))
 	if _, edited := block.SourceAsRead(); !edited || !block.Translatable {
-		return model.RenderRunsWithData(block.Source)
+		return model.RenderRunsWithData(src.Runs)
 	}
 	escaper := htmlTextEscaper
 	if block.IsReferent {
 		escaper = htmlAttrTextEscaper
 	}
 	var b strings.Builder
-	model.RenderRunsWith(&b, block.Source, &model.RunRenderer{
+	model.RenderRunsWith(&b, src.Runs, &model.RunRenderer{
 		Text: func(b *strings.Builder, text string) { _, _ = escaper.WriteString(b, text) },
 	})
 	return b.String()

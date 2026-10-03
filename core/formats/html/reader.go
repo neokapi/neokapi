@@ -319,32 +319,20 @@ func (v *readerVisitor) onTextBlock(blockID string, n *html.Node) {
 
 func (v *readerVisitor) onAttributeBlock(blockID string, n *html.Node, attrKey string) {
 	value := getAttr(n, attrKey)
-	block := &model.Block{
-		ID:           blockID,
-		Name:         attributePath(n, attrKey),
-		Type:         attrKey,
-		Translatable: true,
-		IsReferent:   true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-	}
+	block := model.NewBlock(blockID, value)
+	block.Name = attributePath(n, attrKey)
+	block.Type = attrKey
+	block.IsReferent = true
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
 func (v *readerVisitor) onMetaBlock(blockID string, n *html.Node) {
 	metaName := strings.ToLower(getAttr(n, "name"))
 	content := getAttr(n, "content")
-	block := &model.Block{
-		ID:           blockID,
-		Name:         metaName,
-		Type:         "content",
-		Translatable: true,
-		IsReferent:   true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: content}}},
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-	}
+	block := model.NewBlock(blockID, content)
+	block.Name = metaName
+	block.Type = "content"
+	block.IsReferent = true
 	v.reader.applyStructureFacets(block, n)
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -362,22 +350,17 @@ func (v *readerVisitor) onBlockElement(blockID string, n *html.Node, preserveWS 
 		runs = []model.Run{}
 	}
 
-	block := &model.Block{
-		ID:                 blockID,
-		Name:               v.reader.blockName(n),
-		Type:               v.reader.blockType(n),
-		Translatable:       true,
-		PreserveWhitespace: preserveWS,
-		Source:             runs,
-		Targets:            make(map[model.VariantKey]*model.Target),
-		Properties:         v.reader.extractBlockProperties(n),
-		Skeleton: &model.Skeleton{
-			Strategy: model.SkeletonFragmentBased,
-			Parts: []model.SkeletonPart{
-				&model.SkeletonText{Text: v.reader.renderOpenTag(n)},
-				&model.SkeletonRef{ResourceID: blockID, Property: "target"},
-				&model.SkeletonText{Text: fmt.Sprintf("</%s>", n.Data)},
-			},
+	block := model.NewRunsBlock(blockID, runs)
+	block.Name = v.reader.blockName(n)
+	block.Type = v.reader.blockType(n)
+	block.PreserveWhitespace = preserveWS
+	block.Properties = v.reader.extractBlockProperties(n)
+	block.Skeleton = &model.Skeleton{
+		Strategy: model.SkeletonFragmentBased,
+		Parts: []model.SkeletonPart{
+			&model.SkeletonText{Text: v.reader.renderOpenTag(n)},
+			&model.SkeletonRef{ResourceID: blockID, Property: "target"},
+			&model.SkeletonText{Text: fmt.Sprintf("</%s>", n.Data)},
 		},
 	}
 	v.reader.applyStructuralRole(block, n)
@@ -395,19 +378,14 @@ func (v *readerVisitor) onMixedContentBlock(blockID string, parent *html.Node, r
 		return
 	}
 
-	block := &model.Block{
-		ID: blockID,
-		// A mixed-content run is named after the node it starts at, not after
-		// its container: a container holds several runs, so naming them all
-		// after the container would give them one address between them.
-		Name:               nodePath(runStart),
-		Type:               v.reader.blockType(parent),
-		Translatable:       true,
-		PreserveWhitespace: preserveWS,
-		Source:             runs,
-		Targets:            make(map[model.VariantKey]*model.Target),
-		Properties:         v.reader.extractBlockProperties(parent),
-	}
+	block := model.NewRunsBlock(blockID, runs)
+	// A mixed-content run is named after the node it starts at, not after
+	// its container: a container holds several runs, so naming them all
+	// after the container would give them one address between them.
+	block.Name = nodePath(runStart)
+	block.Type = v.reader.blockType(parent)
+	block.PreserveWhitespace = preserveWS
+	block.Properties = v.reader.extractBlockProperties(parent)
 	v.reader.applyStructuralRole(block, parent)
 	v.reader.applyStructureFacets(block, parent)
 	markInteractiveAncestor(block, domInteractiveAncestor(parent))
