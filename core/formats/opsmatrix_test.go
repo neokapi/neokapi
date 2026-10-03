@@ -506,7 +506,7 @@ func (fx opsFixture) locales(op matrixOp) (read, write model.LocaleID) {
 // editionRuns returns a block's edition, and whether it has one.
 func editionRuns(b *model.Block, edition editionRole, loc model.LocaleID) ([]model.Run, bool) {
 	if edition == sourceEdition {
-		return b.Source, true
+		return b.SourceRuns(), true
 	}
 	if !b.HasTarget(loc) {
 		return nil, false
@@ -871,7 +871,7 @@ func TestOperationsMatrixCoversEverySkeletonPair(t *testing.T) {
 			input = all.String()
 		}
 		holds := slices.ContainsFunc(fx.readEditable(t, doc.input, ""), func(b *model.Block) bool {
-			return model.HasStructuredRuns(b.Source)
+			return model.HasStructuredRuns(b.SourceRuns())
 		})
 		assert.Equal(t, holds, fx.structures,
 			"%s: structures must say whether the fixture reads with plurals or selects, so each branch gets its cells", fx.id())

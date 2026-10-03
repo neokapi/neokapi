@@ -14,12 +14,12 @@ func boldPara(id string) *model.Block {
 	b := model.NewBlock("", "")
 	b.ID = id
 	b.SetSemanticRole(model.RoleParagraph, 0)
-	b.Source = []model.Run{
+	b.SetSourceRuns([]model.Run{
 		{Text: &model.TextRun{Text: "a "}},
 		{PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold"}},
 		{Text: &model.TextRun{Text: "b"}},
 		{PcClose: &model.PcCloseRun{ID: "1", Type: "fmt:bold"}},
-	}
+	})
 	return b
 }
 

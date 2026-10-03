@@ -330,7 +330,7 @@ func TestEditedWordingReadsBackAsText(t *testing.T) {
 				require.NoError(t, err)
 				for _, p := range parts {
 					if b, ok := p.Resource.(*model.Block); ok && b.Translatable {
-						b.EditSourceRuns(model.ParseRunsEditText(payload, b.Source))
+						b.EditSourceRuns(model.ParseRunsEditText(payload, b.SourceRuns()))
 					}
 				}
 				out, err := spec.WriteParts(writer, parts, []byte(f.source))
@@ -346,14 +346,14 @@ func TestEditedWordingReadsBackAsText(t *testing.T) {
 					if !ok || !b.Translatable {
 						continue
 					}
-					for _, r := range b.Source {
+					for _, r := range b.SourceRuns() {
 						if r.Text != nil {
 							continue
 						}
 						_, isRef := model.CharacterReference(r.Ph)
 						assert.True(t, isRef, "the edit came back as markup %+v\noutput: %q", r, out)
 					}
-					texts = append(texts, space.ReplaceAllString(f.textOf(b.Source), " "))
+					texts = append(texts, space.ReplaceAllString(f.textOf(b.SourceRuns()), " "))
 				}
 				assert.Contains(t, texts, space.ReplaceAllString(payload, " "), "output: %q", out)
 			})

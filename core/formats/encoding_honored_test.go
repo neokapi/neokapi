@@ -47,7 +47,7 @@ func TestDeclaredEncodingIsMetadataOnly(t *testing.T) {
 			layer, _ = pr.Part.Resource.(*model.Layer)
 		case model.PartBlock:
 			if b, ok := pr.Part.Resource.(*model.Block); ok {
-				texts = append(texts, model.RenderRunsWithData(b.Source))
+				texts = append(texts, model.RenderRunsWithData(b.SourceRuns()))
 			}
 		}
 	}

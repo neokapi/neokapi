@@ -123,7 +123,7 @@ func TestOperationsMatrixStructures(t *testing.T) {
 				src := native[b.Ref.Block]
 				require.NotNil(t, src, "block %s", b.Ref.Block)
 				var want []change.StructureRead
-				collectStructures(src.Source, nil, &want)
+				collectStructures(src.SourceRuns(), nil, &want)
 				assert.Equal(t, want, b.Structures, "block %s lists the structures its reader read", b.Ref.Block)
 				for _, st := range b.Structures {
 					kinds[st.Kind] = true
