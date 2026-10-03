@@ -65,7 +65,7 @@ func TestInlineCodesRemoveToolSource(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	runs := resultBlock.Source
+	runs := resultBlock.SourceRuns()
 	assert.Equal(t, "Click here", model.RunsPlainText(runs))
 	assert.False(t, hasAnyInlineCode(runs))
 }
@@ -99,7 +99,7 @@ func TestInlineCodesRemoveToolMixedRunsBecomesPlainText(t *testing.T) {
 	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
-	out := resultBlock.Source
+	out := resultBlock.SourceRuns()
 	assert.Equal(t, "Hello world and ", model.RunsPlainText(out))
 	assert.False(t, hasAnyInlineCode(out))
 }
@@ -123,7 +123,7 @@ func TestInlineCodesRemoveToolSkipsNonTranslatable(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	// Inline codes should still be present since block is non-translatable.
-	assert.True(t, hasAnyInlineCode(resultBlock.Source))
+	assert.True(t, hasAnyInlineCode(resultBlock.SourceRuns()))
 }
 
 func TestInlineCodesRemoveConfigValidation(t *testing.T) {

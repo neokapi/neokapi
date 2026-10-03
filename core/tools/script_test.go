@@ -105,14 +105,16 @@ func TestScriptWritesOnlyTheEditionsItChanged(t *testing.T) {
 	block := model.NewBlock("tu1", "Hello world")
 	frRuns := []model.Run{model.TextR("Bonjour "), model.PcOpenR(model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}),
 		model.TextR("monde"), model.PcCloseR(model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"})}
-	block.SetTarget("fr", &model.Target{Runs: frRuns, Status: model.TargetStatusEstablished})
+	block.SetEdition(model.Variant("fr"), model.Edition{Runs: frRuns, Status: model.Status(model.TargetStatusEstablished)})
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 
 	out := result.Resource.(*model.Block)
 	assert.Equal(t, "Hallo Welt", out.TargetText("de"))
 	assert.Len(t, out.TargetRuns("fr"), 4, "the untouched target keeps its codes")
 	assert.Equal(t, "<b>", out.TargetRuns("fr")[1].PcOpen.Data)
-	assert.Equal(t, model.TargetStatusEstablished, out.Target("fr").Status)
+	fr, ok := out.Edition(model.Variant("fr"))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusEstablished), fr.Status)
 }
 
 func TestScriptModifySourceTextInPlace(t *testing.T) {
@@ -158,7 +160,9 @@ func TestScriptSourceEditKeepsASameLanguageTarget(t *testing.T) {
 	out := result.Resource.(*model.Block)
 	assert.Equal(t, "COLOUR SOURCE", out.SourceText())
 	assert.Equal(t, "colour target", out.TargetText("en-US"))
-	assert.Equal(t, model.TargetStatusEstablished, out.Target("en-US").Status)
+	tgt, ok := out.Edition(model.Variant("en-US"))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusEstablished), tgt.Status)
 }
 
 // A target filed under a key that is not canonical (nb_NO) is listed by

@@ -76,7 +76,7 @@ func firstPh(runs []model.Run) *model.PlaceholderRun {
 func TestSpanClassifyFromData(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	block.Source = append(pairedRuns("code:markup", "<b>", "Hello", "</b>"), model.Run{Text: &model.TextRun{Text: " world"}})
+	block.SetSourceRuns(append(pairedRuns("code:markup", "<b>", "Hello", "</b>"), model.Run{Text: &model.TextRun{Text: " world"}}))
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -84,7 +84,7 @@ func TestSpanClassifyFromData(t *testing.T) {
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
 	result := runSpanClassify(t, tool, part)
 
-	runs := result.Resource.(*model.Block).Source
+	runs := result.Resource.(*model.Block).SourceRuns()
 	open := firstPcOpen(runs)
 	cls := firstPcClose(runs)
 	require.NotNil(t, open)
@@ -103,7 +103,7 @@ func TestSpanClassifyFromData(t *testing.T) {
 func TestSpanClassifyFromSubType(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	block.Source = pairedRunsSubType("code:markup", "okapi:italic", "<em>", "text", "</em>")
+	block.SetSourceRuns(pairedRunsSubType("code:markup", "okapi:italic", "<em>", "text", "</em>"))
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -111,7 +111,7 @@ func TestSpanClassifyFromSubType(t *testing.T) {
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
 	result := runSpanClassify(t, tool, part)
 
-	runs := result.Resource.(*model.Block).Source
+	runs := result.Resource.(*model.Block).SourceRuns()
 	open := firstPcOpen(runs)
 	cls := firstPcClose(runs)
 	require.NotNil(t, open)
@@ -123,11 +123,11 @@ func TestSpanClassifyFromSubType(t *testing.T) {
 func TestSpanClassifyBreakPlaceholder(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	block.Source = []model.Run{
+	block.SetSourceRuns([]model.Run{
 		{Text: &model.TextRun{Text: "line one"}},
 		{Ph: &model.PlaceholderRun{ID: "1", Type: "code:markup", Data: "<br/>"}},
 		{Text: &model.TextRun{Text: "line two"}},
-	}
+	})
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -135,7 +135,7 @@ func TestSpanClassifyBreakPlaceholder(t *testing.T) {
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
 	result := runSpanClassify(t, tool, part)
 
-	ph := firstPh(result.Resource.(*model.Block).Source)
+	ph := firstPh(result.Resource.(*model.Block).SourceRuns())
 	require.NotNil(t, ph)
 	assert.Equal(t, "struct:break", ph.Type)
 	require.NotNil(t, ph.Constraints)
@@ -146,7 +146,7 @@ func TestSpanClassifyBreakPlaceholder(t *testing.T) {
 func TestSpanClassifyUnknownType(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	block.Source = pairedRuns("code:markup", "<custom-tag>", "content", "</custom-tag>")
+	block.SetSourceRuns(pairedRuns("code:markup", "<custom-tag>", "content", "</custom-tag>"))
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -154,7 +154,7 @@ func TestSpanClassifyUnknownType(t *testing.T) {
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
 	result := runSpanClassify(t, tool, part)
 
-	runs := result.Resource.(*model.Block).Source
+	runs := result.Resource.(*model.Block).SourceRuns()
 	open := firstPcOpen(runs)
 	cls := firstPcClose(runs)
 	require.NotNil(t, open)
@@ -167,7 +167,7 @@ func TestSpanClassifyUnknownType(t *testing.T) {
 func TestSpanClassifySkipsNonMarkup(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	block.Source = pairedRuns("fmt:bold", "<b>", "Hello", "</b>")
+	block.SetSourceRuns(pairedRuns("fmt:bold", "<b>", "Hello", "</b>"))
 	block.Translatable = true
 
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -175,7 +175,7 @@ func TestSpanClassifySkipsNonMarkup(t *testing.T) {
 	tool := NewSpanClassifyTool(&SpanClassifyConfig{})
 	result := runSpanClassify(t, tool, part)
 
-	runs := result.Resource.(*model.Block).Source
+	runs := result.Resource.(*model.Block).SourceRuns()
 	open := firstPcOpen(runs)
 	cls := firstPcClose(runs)
 	require.NotNil(t, open)
@@ -188,7 +188,7 @@ func TestSpanClassifySkipsNonMarkup(t *testing.T) {
 func TestSpanClassifyTargetFragments(t *testing.T) {
 	t.Parallel()
 	block := model.NewBlock("1", "")
-	block.Source = []model.Run{{Text: &model.TextRun{Text: "Hello"}}}
+	block.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: "Hello"}}})
 	block.SetTargetRuns("fr", pairedRuns("code:markup", "<i>", "Bonjour", "</i>"))
 	block.Translatable = true
 

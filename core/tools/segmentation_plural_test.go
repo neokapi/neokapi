@@ -47,7 +47,7 @@ func TestSegmentationTool_AMessageWithAPluralDoesNotFailTheFlow(t *testing.T) {
 	assert.Equal(t, 2, blocks[0].SourceSegmentCount())
 	for _, o := range blocks[1].Overlays {
 		for _, s := range o.Spans {
-			assert.True(t, s.Range.Resolves(blocks[1].Source), "no span of %s points into the plural", o.Type)
+			assert.True(t, s.Range.Resolves(blocks[1].SourceRuns()), "no span of %s points into the plural", o.Type)
 		}
 	}
 }
@@ -56,7 +56,7 @@ func TestSegmentationTool_AMessageWithAPluralDoesNotFailTheFlow(t *testing.T) {
 // entity beside it is written.
 func TestView_AnEntityInsideAPluralIsLeftOut(t *testing.T) {
 	b := pluralMessage()
-	text := model.RunsText(b.Source)
+	text := model.RunsText(b.SourceRuns())
 	bt := &tool.BaseTool{ToolName: "ner"}
 	bt.Annotate = func(v tool.BlockView) error {
 		v.AddOverlay(model.Overlay{Type: model.OverlayEntity, Spans: []model.Span{
@@ -70,5 +70,5 @@ func TestView_AnEntityInsideAPluralIsLeftOut(t *testing.T) {
 	assert.Nil(t, b.OverlaySpan(model.OverlayEntity, "e1"))
 	sp := b.OverlaySpan(model.OverlayEntity, "e2")
 	require.NotNil(t, sp)
-	assert.Equal(t, "Thanks", model.RunsText(sp.Range.ExtractRuns(b.Source)))
+	assert.Equal(t, "Thanks", model.RunsText(sp.Range.ExtractRuns(b.SourceRuns())))
 }
