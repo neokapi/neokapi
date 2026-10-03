@@ -68,10 +68,12 @@ func TestPairedSolutionsThroughKapi(t *testing.T) {
 			dir := t.TempDir()
 			require.NoError(t, materializePairedTask(dir, task))
 			require.NoError(t, readPairedContext(t.Context(), dir, binary))
+			observed := &PairedAgentResult{}
 			for i, step := range solution.Steps {
 				if step.Interfere {
 					record := newPairedInterferer(dir, *task.spec.Interference).apply()
 					require.True(t, record.Applied, record.Error)
+					observed.Interference = &record
 					continue
 				}
 				changes := filepath.Join(t.TempDir(), "changes.json")
@@ -83,7 +85,7 @@ func TestPairedSolutionsThroughKapi(t *testing.T) {
 					assert.Contains(t, string(output), `"code": "`+step.Code+`"`, "step %d", i+1)
 				}
 			}
-			result, err := validatePairedTask(dir, task, &PairedAgentResult{})
+			result, err := validatePairedTask(dir, task, observed)
 			require.NoError(t, err)
 			assert.True(t, result.ObjectivePassed, "%+v", result.Criteria)
 		})
@@ -111,7 +113,7 @@ func TestPairedProjectFreeAliasHasNoGate(t *testing.T) {
 	require.Equal(t, 0, code, string(output))
 	body, err := os.ReadFile(filepath.Join(dir, "docs", "en", "reports.md"))
 	require.NoError(t, err)
-	assert.Contains(t, string(body), "from the dashboard.")
+	assert.Contains(t, string(body), "from the portal.")
 	code, _ = runPairedKapi(t, dir, alias, nil, "inspect", "-p", filepath.Join(dir, "kapi.yaml"), "docs/en/reports.md")
 	assert.Equal(t, 2, code, "the alias refuses -p")
 }

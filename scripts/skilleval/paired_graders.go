@@ -252,8 +252,33 @@ var pairedFunctionWords = map[string][]string{
 		"to", "on", "an", "a", "if", "more", "after", "can"},
 }
 
-// pairedReadsAs reports whether a page's prose reads as language, by the
-// distinct function words of that language it uses against those of English.
+// pairedNeighbours tells a language from the ones that share most of its
+// function words. A page passes when it uses at least one form only the
+// language writes, and no form or letter only a neighbour writes.
+type pairedNeighbours struct {
+	only    []string
+	foreign map[string][]string
+	letters map[string]string
+}
+
+var pairedLanguageNeighbours = map[string]pairedNeighbours{
+	// Danish and Swedish share most of Bokmål's function words ("og", "på",
+	// "med", "som", "har", "kan"), so a Danish or Swedish page would pass on
+	// those alone.
+	"nb": {
+		only: []string{"deg", "meg", "seg", "inn", "etter", "gjennom", "hva", "noe", "mye", "hjelp"},
+		foreign: map[string][]string{
+			"Danish":  {"dig", "mig", "sig", "af", "ind", "ud", "efter", "hvad", "noget", "bliver", "gennem", "nu", "læs", "læse", "hjælp", "jer"},
+			"Swedish": {"och", "inte", "är", "att", "för", "från", "också", "när", "ska", "ett", "hur", "vad", "till", "dig", "mig", "efter", "genom", "mycket", "något"},
+		},
+		letters: map[string]string{"Swedish": "äö"},
+	},
+}
+
+// pairedReadsAs reports whether a page's prose reads as language: by the
+// distinct function words of that language it uses against those of English,
+// and, where a neighbouring language shares those words, by the forms only
+// one of them writes.
 func pairedReadsAs(text, language string) (bool, string, error) {
 	words, ok := pairedFunctionWords[language]
 	if !ok || language == "en" {
@@ -277,7 +302,34 @@ func pairedReadsAs(text, language string) (bool, string, error) {
 		}
 	}
 	detail := fmt.Sprintf("%d %s function words, %d English", len(target), language, len(english))
-	return len(target) >= 5 && len(english) <= 2, detail, nil
+	passed := len(target) >= 5 && len(english) <= 2
+	neighbours, ok := pairedLanguageNeighbours[language]
+	if !ok {
+		return passed, detail, nil
+	}
+	own := map[string]bool{}
+	foreign := []string{}
+	for _, token := range tokens {
+		if slices.Contains(neighbours.only, token) {
+			own[token] = true
+		}
+		for name, forms := range neighbours.foreign {
+			if slices.Contains(forms, token) {
+				foreign = pairedUnique(foreign, name+" "+token)
+			}
+		}
+		for name, letters := range neighbours.letters {
+			if strings.ContainsAny(token, letters) {
+				foreign = pairedUnique(foreign, name+" "+token)
+			}
+		}
+	}
+	slices.Sort(foreign)
+	detail += fmt.Sprintf(", %d forms only %s writes", len(own), language)
+	if len(foreign) > 0 {
+		detail += "; forms of another language: " + strings.Join(foreign, ", ")
+	}
+	return passed && len(own) > 0 && len(foreign) == 0, detail, nil
 }
 
 func pairedNormalized(text string) string {

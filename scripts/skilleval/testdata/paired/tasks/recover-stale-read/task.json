@@ -8,11 +8,11 @@
     "path": "docs/en/upgrade.md",
     "find": "it takes about five minutes",
     "replace": "it takes about ten minutes",
-    "description": "After the agent's first read of the file, another editor changes the same paragraph the agent edits"
+    "description": "Once a tool result first shows the agent the text it changes, another editor changes the same paragraph the agent edits"
   },
   "criteria": [
     {"id": "both-changes", "kind": "bytes_equal", "path": "docs/en/upgrade.md",
-     "description": "The file holds the agent's sentence and the other editor's change, and nothing else differs"}
+     "description": "The file holds the agent's sentence and, when the other editor's change landed during the session, that change too; nothing else differs"}
   ],
   "humanReviewRubric": [
     "Did the agent notice that the file changed, and say so?",

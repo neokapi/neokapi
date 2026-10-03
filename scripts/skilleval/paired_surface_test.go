@@ -13,9 +13,9 @@ import (
 // The surface check fails a cell whose kapi surface differs from its arm, or
 // that shows anything of the developer's own.
 func TestPairedSurfaceCheck(t *testing.T) {
-	state, workspace := t.TempDir(), t.TempDir()
+	state, workspace, tmp := t.TempDir(), t.TempDir(), t.TempDir()
 	launch := func(host, condition string) PairedLaunch {
-		return PairedLaunch{Agent: PairedAgentSpec{Host: host}, Condition: condition, StateDir: state, Workspace: workspace}
+		return PairedLaunch{Agent: PairedAgentSpec{Host: host}, Condition: condition, StateDir: state, Workspace: workspace, TmpDir: tmp}
 	}
 	allMCP := []string{"mcp__kapi__read_blocks", "mcp__kapi__apply_edits", "mcp__kapi__describe_format", "mcp__kapi__check_file"}
 	developer := []string{"okapi-expert", "skill-creator"}
@@ -26,15 +26,28 @@ func TestPairedSurfaceCheck(t *testing.T) {
 		problem string
 	}{
 		{name: "baseline as intended", launch: launch("claude", "baseline"),
-			surface: PairedSurface{Skills: []string{"dataviz"}, MCPServers: []string{}, Executables: []string{}}},
+			surface: PairedSurface{MCPServers: []string{}, Executables: []string{}}},
+		// Claude Code's bundled skills are switched off in every arm, so the
+		// arms differ in kapi's skill alone.
+		{name: "a bundled skill of Claude Code", launch: launch("claude", "skill-cli"),
+			surface: PairedSurface{Skills: []string{"kapi", "verify"}, MCPServers: []string{}, Executables: []string{"kapi"}},
+			problem: "skill verify is visible beyond the arm's"},
 		{name: "skill arm as intended", launch: launch("claude", "skill-cli"),
 			surface: PairedSurface{Skills: []string{"kapi"}, MCPServers: []string{}, Executables: []string{"kapi"}}},
 		{name: "MCP arm as intended", launch: launch("claude", "mcp"),
 			surface: PairedSurface{MCPServers: []string{"kapi"}, MCPTools: allMCP, Executables: []string{"kapi"}}},
 		{name: "project-free arm as intended", launch: launch("codex", "project-free"),
 			surface: PairedSurface{Skills: []string{"kapi-files", "skill-creator"}, BundledSkills: []string{"skill-creator"},
-				SkillRoots: []string{filepath.Join(state, "codex", "skills", ".system"), filepath.Join(workspace, ".agents", "skills")},
-				MCPServers: []string{}, Executables: []string{"kapi-files"}}},
+				SkillRoots:    []string{filepath.Join(state, "codex", "skills", ".system"), filepath.Join(workspace, ".agents", "skills")},
+				WritableRoots: []string{workspace, tmp}, MCPServers: []string{}, Executables: []string{"kapi-files"}}},
+		// Codex's workspace-write sandbox lets every session write /tmp
+		// unless told not to, and a file one session leaves there reaches
+		// the next.
+		{name: "a shared writable root", launch: launch("codex", "baseline"),
+			surface: PairedSurface{WritableRoots: []string{"/private/tmp", workspace, tmp}, MCPServers: []string{}, Executables: []string{}},
+			problem: "writable root /private/tmp is outside the cell"},
+		{name: "writable roots unreported", launch: launch("codex", "baseline"),
+			surface: PairedSurface{MCPServers: []string{}, Executables: []string{}}, problem: "writable roots are unreported"},
 		{name: "kapi skill in the baseline", launch: launch("claude", "baseline"),
 			surface: PairedSurface{Skills: []string{"kapi"}, MCPServers: []string{}, Executables: []string{}}, problem: "skill kapi visible=true"},
 		{name: "kapi on PATH in the baseline", launch: launch("codex", "baseline"),

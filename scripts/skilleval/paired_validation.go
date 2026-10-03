@@ -127,6 +127,12 @@ func validatePairedCriterion(root *os.Root, task PairedTask, files map[string][]
 		if err != nil {
 			return false, "", err
 		}
+		// The reference of a file another editor changes holds both changes.
+		// When the other editor's change never landed, the file holds the
+		// agent's alone.
+		if spec := task.spec.Interference; spec != nil && spec.Path == c.Path && !pairedInterferenceLanded(observed) {
+			want = bytes.Replace(want, []byte(spec.Replace), []byte(spec.Find), 1)
+		}
 		if bytes.Equal(output, want) {
 			return true, "", nil
 		}
@@ -185,6 +191,12 @@ func validatePairedCriterion(root *os.Root, task PairedTask, files map[string][]
 		return true, "", nil
 	}
 	return false, "", fmt.Errorf("unknown criterion kind %q", c.Kind)
+}
+
+// pairedInterferenceLanded reports whether the other editor's change was
+// written to the file during the session.
+func pairedInterferenceLanded(observed *PairedAgentResult) bool {
+	return observed != nil && observed.Interference != nil && observed.Interference.Applied
 }
 
 func (result *PairedValidation) add(criterion PairedCriterionResult) {

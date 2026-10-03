@@ -14,14 +14,35 @@ import (
 
 // pairedRetryStatuses are the attempt outcomes -paired-retry runs again: the
 // session never had its full chance, through a subscription limit, an
-// interruption or a failed launch. A timeout, a failed agent and a refused
-// route are outcomes and stay.
-var pairedRetryStatuses = []string{"rate_limited", "interrupted", "launch_failed"}
+// interruption, a failed launch, or a failure of the service or the machine
+// (an expired login, an overloaded API, a lost network). A timeout, a failed
+// agent and a refused route are outcomes and stay.
+var pairedRetryStatuses = []string{"rate_limited", "interrupted", "launch_failed", "infra_failed"}
+
+// pairedQuickFailure is how short a session that did not complete must be to
+// count toward pausing its host: an agent that worked for a minute and failed
+// has failed, while a run of sessions that each end within seconds says the
+// host cannot work at all.
+const (
+	pairedQuickFailure      = 60 * time.Second
+	pairedQuickFailureLimit = 2
+)
 
 type pairedSessionDone struct {
 	host  string
 	pause string
 	err   error
+	// started reports that the session reserved an attempt; status and
+	// duration are its outcome.
+	started  bool
+	status   string
+	duration time.Duration
+}
+
+// pairedQuickFailed reports whether a finished session counts toward pausing
+// its host.
+func pairedQuickFailed(done pairedSessionDone) bool {
+	return done.started && done.status != "completed" && done.duration < pairedQuickFailure
 }
 
 // pairedRunState is what the concurrent sessions of one run share.
@@ -104,6 +125,9 @@ func runPairedSchedule(
 		prepared[session.ID] = ready
 	}
 	if len(blockers) > 0 {
+		for _, ready := range prepared {
+			discardPairedCellTmp(ready)
+		}
 		if err := writePairedJSON(filepath.Join(opts.Dir, "blocked-"+pairedTimestamp()+".json"), blockers); err != nil {
 			return err
 		}
@@ -116,7 +140,7 @@ func runPairedSchedule(
 	hosts := max(1, len(record.Manifest.Agents))
 	perHost := max(1, (concurrency+hosts-1)/hosts)
 	queue := slices.Clone(batch)
-	busy, paused := map[string]int{}, map[string]string{}
+	busy, paused, quick := map[string]int{}, map[string]string{}, map[string]int{}
 	done := make(chan pairedSessionDone)
 	running := 0
 	var stopErr error
@@ -143,12 +167,27 @@ func runPairedSchedule(
 		result := <-done
 		running--
 		busy[result.host]--
+		if result.started {
+			if pairedQuickFailed(result) {
+				quick[result.host]++
+			} else {
+				quick[result.host] = 0
+			}
+			if result.pause == "" && quick[result.host] >= pairedQuickFailureLimit {
+				result.pause = fmt.Sprintf("%d sessions in a row ended within %s without completing", quick[result.host], pairedQuickFailure)
+			}
+		}
 		if result.pause != "" && paused[result.host] == "" {
 			paused[result.host] = result.pause
 			fmt.Printf("paired: %s paused: %s\n", result.host, result.pause)
 		}
 		if result.err != nil && stopErr == nil {
 			stopErr = result.err
+		}
+	}
+	for _, session := range queue {
+		if ready, ok := prepared[session.ID]; ok {
+			discardPairedCellTmp(ready)
 		}
 	}
 	if err := scorePaired(opts.Dir); err != nil {
@@ -158,8 +197,9 @@ func runPairedSchedule(
 		return stopErr
 	}
 	if len(paused) > 0 {
-		fmt.Println("paired: a paused host left sessions unstarted; run the same command again to resume, " +
-			"with PAIRED_EVAL_RETRY=1 to run rate-limited or interrupted attempts again")
+		fmt.Println("paired: a paused host left sessions unstarted; once the cause is fixed, run the same " +
+			"make paired-eval-pilot command again to resume, with PAIRED_EVAL_RETRY=1 to run rate-limited, " +
+			"interrupted and infrastructure-failed attempts again")
 	}
 	if state.used >= opts.MaxAttempts {
 		fmt.Printf("paired: batch ceiling reached (%d); review before increasing paired-max-attempts\n", state.used)
@@ -179,6 +219,13 @@ func preparePairedSession(
 	state *pairedRunState,
 ) (PairedPrepared, []string, error) {
 	dir := filepath.Join(opts.Dir, opts.Phase, session.ID)
+	// The binary and skill each session gets are the study's copies, checked
+	// again here so nothing that touched them during the run goes unseen.
+	if err := verifyPairedInputs(pairedInputs{
+		Kapi: opts.kapiBin, Skill: opts.skillSource, KapiHash: record.KapiHash, SkillHash: record.SkillHash,
+	}); err != nil {
+		return PairedPrepared{}, nil, err
+	}
 	// Only unstarted preparation directories are disposable. Started attempts
 	// were filtered out and remain immutable, including failed ones.
 	if err := os.RemoveAll(dir); err != nil {
@@ -208,7 +255,9 @@ func preparePairedSession(
 	}
 	state.mu.Lock()
 	if version := state.versions[session.Agent.Host]; version != "" && version != ready.Version {
-		problems = append(problems, session.ID+": agent version changed; use a new study directory")
+		problems = append(problems, fmt.Sprintf("%s: agent version changed since the study started (%s, now %s); "+
+			"reinstall %s and resume, since a session on another version measures another agent",
+			session.ID, version, ready.Version, version))
 	} else if ready.Version != "" {
 		state.versions[session.Agent.Host] = ready.Version
 	}
@@ -237,10 +286,12 @@ func runPairedSession(
 		var err error
 		ready, problems, err = preparePairedSession(ctx, opts, record, session, deps, state)
 		if err != nil {
+			discardPairedCellTmp(ready)
 			done.err = err
 			return done
 		}
 		if len(problems) > 0 {
+			discardPairedCellTmp(ready)
 			if err := writePairedJSON(filepath.Join(opts.Dir, "blocked-"+pairedTimestamp()+".json"), problems); err != nil {
 				done.err = err
 				return done
@@ -253,6 +304,7 @@ func runPairedSession(
 	state.mu.Lock()
 	if state.used >= opts.MaxAttempts || ctx.Err() != nil {
 		state.mu.Unlock()
+		discardPairedCellTmp(ready)
 		return done
 	}
 	attempt := pairedAttempt{
@@ -277,8 +329,14 @@ func runPairedSession(
 	}
 	fmt.Printf("paired: %s %s in %.0fs, objective %s\n", session.ID, result.Agent.Status,
 		float64(result.Agent.DurationMS)/1000, pairedObjectiveWord(result.Validation))
-	if result.Agent.RateLimited {
+	done.started, done.status = true, result.Agent.Status
+	done.duration = time.Duration(result.Agent.DurationMS) * time.Millisecond
+	switch {
+	case result.Agent.RateLimited:
 		done.pause = "provider rate limit; paused without automatic retry"
+	case result.Agent.InfraFailure == "auth":
+		// Every later session of the host would fail the same way.
+		done.pause = "the host's login was refused or has expired; refresh it before resuming"
 	}
 	return done
 }
@@ -335,11 +393,28 @@ func executePairedAttempt(ctx context.Context, ready PairedPrepared, session Pai
 	} else {
 		result.Validation = &validation
 	}
-	result.ArtifactHash, err = pairedTreeHash(ready.Launch.Workspace)
+	result.ArtifactScope = "task"
+	result.ArtifactHash, err = pairedArtifactHash(ready.Launch.Workspace, result.ArtifactScope)
 	if err != nil {
 		result.Error = strings.TrimSpace(result.Error + "; artifact hash: " + err.Error())
 	}
+	result.TmpDir = settlePairedCellTmp(ready.Launch)
 	return result
+}
+
+// pairedArtifactRuntime are the workspace folders the artifact hash leaves
+// out: git's metadata and kapi's runtime state, which a reviewer's git status
+// or kapi command rewrites without touching what was graded.
+var pairedArtifactRuntime = []string{".git", "kapi-data", "kapi-config", "kapi-plugins", "xdg-data", "xdg-cache", ".kapi/work"}
+
+// pairedArtifactHash hashes an attempt's workspace. Scope "task" leaves out
+// pairedArtifactRuntime; "" hashes everything, as attempts recorded before
+// the scope existed did.
+func pairedArtifactHash(workspace, scope string) (string, error) {
+	if scope == "" {
+		return pairedTreeHash(workspace)
+	}
+	return pairedTreeHashExcept(workspace, pairedArtifactRuntime)
 }
 
 // retirePairedAttempts moves aside each attempt of the phase whose outcome

@@ -204,13 +204,26 @@ repetition, then the four arms within each block, from the manifest's seed.
 | `baseline` | none: no skill, no MCP server, no kapi name on PATH | none |
 | `skill-cli` | the shipped kapi skill; `kapi` on PATH | the fixture's recipe, bound through `KAPI_PROJECT` |
 | `mcp` | the kapi MCP server (its default writing set); `kapi` on PATH; no skill | the fixture's recipe, bound with `-p` |
-| `project-free` | `kapi-files`, the same binary under a multi-call name (`cli.BusyboxRoot`) exposing `inspect`, `apply`, `formats` and the toolbox with discovery off, and a skill written for it | none: the recipe sits in the cell and is never read |
+| `project-free` | `kapi-files`, the same binary under a multi-call name (`cli.BusyboxRoot`) exposing `inspect`, `apply`, `formats` and the toolbox with discovery off, and a skill with the shipped skill's edit and toolbox guidance | none: the recipe sits in the cell and is never read |
 
 Every arm keeps the host's ordinary shell and file tools. Every cell holds the
 same files, the task's content, its `kapi.yaml` and a `STYLE.md`, and every
 project's store holds the same context, imported before the session starts: a
-voice and one term rule, which forbids `dashboard` and names `overview page` in
-its place. `STYLE.md` states that rule for an agent that reads files.
+voice and one term rule, which forbids `portal` and names `overview page` in
+its place. `STYLE.md` states that rule for an agent that reads files. No skill
+an arm installs and no MCP tool description uses the word, which a test
+asserts, so no arm is primed for or against it.
+
+The project-free skill is the shipped skill with the names changed and what
+needs a project left out. Its `SKILL.md` keeps the shipped one's description
+and, where the shipped one lists its project habits, says that no voice, terms
+or check applies; both point at their topics without naming the edit one, so
+an agent in either arm is the same two steps from the edit guidance. Its
+`edit.md` and `toolbox.md` are the shipped references with the project, MCP,
+check and translation passages removed. A test asserts that every example they
+give is one the shipped references give, save the catalog example's second
+language, which a file without a project refuses, and that they name nothing
+of the tasks.
 kapi records every shell call in a cell as an agent's (`KAPI_ACTOR=agent`), so
 the actor policy treats both hosts alike. The workspace is a git repository with
 the project committed and a clean status, as a project an agent works in is, so
@@ -239,32 +252,52 @@ file may appear in the scoped directories except one the task creates.
 | `edit-po-context` | bilingual PO | `locales/nb/messages.po` | byte diff; two entries share `msgid "Book"` and differ by `msgctxt` |
 | `add-json-key` | key added (`insert_block`) | `locales/en.json` | the JSON leaves in document order, so the key lands in `settings` after `importData`; layout byte equality reported only |
 | `recover-stale-read` | stale recovery | `docs/en/upgrade.md` | byte diff of the agent's sentence and another editor's change to the same paragraph |
-| `recover-gate-refusal` | gate refusal recovery | `docs/en/reports.md` | the first paragraph keeps its text and gains a sentence that names CSV and the overview page; every other block unchanged; no `dashboard`; no override attempt in the transcript |
+| `recover-gate-refusal` | gate refusal recovery | `docs/en/reports.md` | the first paragraph keeps its text and gains a sentence that names CSV and does not say `portal`; every other block unchanged; no `portal` anywhere; no override attempt in the transcript; naming the overview page reported only |
 
 The plural task uses Android resources because each form of a plural there is a
 block kapi reads and writes. An ARB plural still reads as one opaque ICU
 placeholder (P5 in the edit model), so a branch edit in ARB cannot go through
-the contract until P5 is fixed.
+the contract until P5 is fixed. No built-in reader produces a plural run at
+all: JSON shows an ICU message as text, ARB as one placeholder, and Android and
+PO give each form a block of its own. The contract's branch selector (an edit's
+`path` such as `[1, {"plural": "one"}]`, and the `structures` field `inspect`
+reports) therefore gets no agent data from this study.
 
 Two tasks act on the session while it runs. In `recover-stale-read` the runner
-watches the host's stream and, after the agent's first completed read of the
-file, changes "about five minutes" to "about ten minutes" in the paragraph the
-agent edits. A kapi arm's write against the old revision is refused `stale`,
-and Claude's own Edit tool refuses a file modified since it was read. The
-record says whether the change landed before the agent's write, so an attempt
-that wrote in one step without a read is reported as not exercising the stale
-path. `recover-gate-refusal` asks for a sentence "from the dashboard". In the
-two arms with a project, `kapi apply` and `apply_edits` refuse it `gate_failed`
-and name the replacement, and an agent's `--gate report` is refused
-`not_permitted`. The baseline and project-free arms have no gate, so for them
-the task measures whether they follow `STYLE.md` unprompted.
+watches the host's stream and, once a tool result has shown the agent the text
+"it takes about five minutes", changes it to "about ten minutes" in the
+paragraph the agent edits. A search that printed only the agent's own sentence
+does not land it, and neither does a command that names the text without
+printing it. A kapi arm's write against the old revision is refused `stale`.
+Claude Code 2.1's Edit tool applies an edit to a file changed since it was read
+and adds a note saying so, which the record counts as `host:stale`; Codex's
+patch fails when its context lines changed (`host:patch_failed`). The record
+says whether the change landed before the agent's write, after it, or never: an
+agent that writes with `ksed` before reading never sees it, and the file is
+then graded against the reference without the other editor's change. The
+score report counts recovery over the attempts whose change landed before the
+agent wrote, and separately over those that met a conflict signal.
+`recover-gate-refusal` asks for a sentence "from the portal". In the two arms
+with a project, `kapi apply` and `apply_edits` refuse it `gate_failed` and name
+the replacement, and an agent's `--gate report` is refused `not_permitted`. The
+baseline and project-free arms have no gate, so for them the task measures
+whether they follow `STYLE.md` unprompted. The grader asks for a sentence about
+CSV downloads without the forbidden word; a sentence that names the overview
+page is reported, and one that refers back to the overview page the paragraph
+already names also passes.
 
 Beside the graders, each attempt records its status, duration, input and output
 tokens (cache reads and writes kept apart), Claude's turn count, tool calls, the
-refusal codes its tool results carried (kapi's own, and `host:stale` or
-`host:patch_failed` for a host tool's refusal), override attempts
+refusal codes its tool results carried (kapi's own, `host:stale` or
+`host:patch_failed` for a host tool's, and `invalid:<pointer>` for a change set
+that did not decode, with each array position as `*`), override attempts
 (`--gate report`, a change set with `"gate": "report"`, `KAPI_ACTOR=person`,
-`if_match: "*"`), and kapi names it tried that its cell's PATH does not hold.
+`if_match: "*"`), kapi names and skills it tried that its cell does not hold,
+and paths it named outside its cell. The score report lists the decode errors
+per task, host and arm: they are the names and shapes agents reach for that the
+contract does not take. The Bokmål check of `add-edition-markup` asks for a
+form only Bokmål writes (`deg`, `inn`, `etter` and the like) and none only
+Danish or Swedish writes, since both share most of its function words.
 
 `TestPairedSolutionsThroughKapi` sends each task's reference change sets
 (`testdata/paired/solutions/`) through this tree's `bin/kapi` in the task's
@@ -288,59 +321,98 @@ and no model call:
   `CODEX_HOME`.
 
 A cell fails the check when kapi's skill appears outside `skill-cli`, the
-alias's skill outside `project-free`, an MCP server or `mcp__` tool outside the
-MCP arm, the edit tools are missing from the MCP arm, the kapi names on its PATH
-differ from the arm's, a skill or plugin of the developer's own is visible, or a
-skill root lies outside the cell. `make paired-eval-preflight` probes one cell
+alias's skill outside `project-free`, any other skill but the host's system
+skills is visible, an MCP server or `mcp__` tool outside the MCP arm, the edit
+tools are missing from the MCP arm, the kapi names on its PATH differ from the
+arm's, a plugin of the developer's own is visible, a skill root lies outside
+the cell, or Codex's sandbox would let the agent write outside its workspace
+and its own temporary directory. `make paired-eval-preflight` probes one cell
 per host and arm and exits non-zero on any finding, and each live session
 probes its own cell again before it starts. On 3 October 2026:
 
-| Host | Arm | kapi skill | MCP servers | kapi names on PATH | Problems |
-| --- | --- | --- | --- | --- | --- |
-| claude | baseline | none | none | none | 0 |
-| claude | skill-cli | `kapi` | none | `kapi` | 0 |
-| claude | mcp | none | `kapi` (10 tools) | `kapi` | 0 |
-| claude | project-free | `kapi-files` | none | `kapi-files` | 0 |
-| codex | baseline | none | none | none | 0 |
-| codex | skill-cli | `kapi` | none | `kapi` | 0 |
-| codex | mcp | none | `kapi` (10 tools) | `kapi` | 0 |
-| codex | project-free | `kapi-files` | none | `kapi-files` | 0 |
+| Host | Arm | kapi skill | Skills visible | MCP servers | kapi names on PATH | Problems |
+| --- | --- | --- | --- | --- | --- | --- |
+| claude | baseline | none | 0 | none | none | 0 |
+| claude | skill-cli | `kapi` | 1 | none | `kapi` | 0 |
+| claude | mcp | none | 0 | `kapi` (10 tools) | `kapi` | 0 |
+| claude | project-free | `kapi-files` | 1 | none | `kapi-files` | 0 |
+| codex | baseline | none | 4 | none | none | 0 |
+| codex | skill-cli | `kapi` | 5 | none | `kapi` | 0 |
+| codex | mcp | none | 4 | `kapi` (10 tools) | `kapi` | 0 |
+| codex | project-free | `kapi-files` | 5 | none | `kapi-files` | 0 |
 
-The other skills a cell shows are the host's own: Claude's bundled skills in
-the two skill arms, and Codex's system skills from the cell's `CODEX_HOME`. The
-study refuses to start when `bin/kapi` is missing or was built from another
-commit than the checkout's HEAD, and it never uses a kapi resolved from PATH.
+Claude Code's bundled skills are off in every arm
+(`CLAUDE_CODE_DISABLE_BUNDLED_SKILLS`, and a skill override in the workspace's
+project settings for the two that switch leaves on), so each Claude arm shows
+its own skill and nothing else. Codex shows the same four system skills from the
+cell's `CODEX_HOME` in every arm. Each cell has a temporary directory of its
+own, `TMPDIR` for both hosts and `CLAUDE_CODE_TMPDIR` for Claude Code, created
+in `/tmp` because Claude Code puts sockets under it and falls back to the
+shared `/tmp/claude-<uid>` above 44 bytes; the runner moves it into the cell's
+`state/` when the session ends. Claude's sandbox denies reading `/tmp/claude`
+and `/tmp/claude-<uid>`, and Codex's sandbox excludes `/tmp`: with the
+workspace-write defaults, `codex debug prompt-input` lists `/private/tmp` among
+the writable roots, and with the cell's configuration it lists only the
+workspace and the cell's temporary directory.
 
 ### Running it
 
+Run it in a plain terminal, from the checkout at the merged commit, rather than
+from an agent's shell, which has a time limit and a sandbox of its own:
+
 ```bash
-make build
-make paired-eval-preflight PAIRED_EVAL_DIR=/tmp/kapi-wp5-study
-make paired-eval-pilot PAIRED_EVAL_DIR=/tmp/kapi-wp5-study \
-  PAIRED_EVAL_MAX_ATTEMPTS=200 PAIRED_EVAL_CONCURRENCY=2
-make paired-eval-score PAIRED_EVAL_DIR=/tmp/kapi-wp5-study
+git pull --ff-only && make build
+PAIRED_TEST_KAPI="$PWD/bin/kapi" go test -tags fts5 ./scripts/skilleval \
+  -run 'PairedSolutions|ProjectFreeAlias|WithBuiltKapi'
+make paired-eval-preflight PAIRED_EVAL_DIR="$HOME/kapi-wp5-study"
+caffeinate -i make paired-eval-pilot PAIRED_EVAL_DIR="$HOME/kapi-wp5-study" \
+  PAIRED_EVAL_MAX_ATTEMPTS=8 PAIRED_EVAL_CONCURRENCY=2
+# Read the eight transcripts, then raise the ceiling to 168 plus the reruns allowed:
+caffeinate -i make paired-eval-pilot PAIRED_EVAL_DIR="$HOME/kapi-wp5-study" \
+  PAIRED_EVAL_MAX_ATTEMPTS=180 PAIRED_EVAL_CONCURRENCY=2
+make paired-eval-score PAIRED_EVAL_DIR="$HOME/kapi-wp5-study"
 ```
+
+The test line sends each task's reference route through the merged tree's
+build before any session is spent. For a long Claude run, export a long-lived
+`CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` first: a keychain token
+must stay valid for a session's limit and fifteen minutes more, or the session
+is not started. Keep Homebrew from upgrading `claude` and `codex` during the
+run (`HOMEBREW_NO_AUTO_UPDATE=1` in the shells that might run `brew`): a session
+on another host version is refused, since it would measure another agent.
 
 The cells live in the study directory, so it sits outside the checkout: the
 runner refuses a directory with a checkout, an instruction file, host
 configuration or a kapi recipe above it, which an agent in a cell would find.
-macOS clears temporary files a few days after their last use; copy the
-directory somewhere lasting once the study is scored.
+A directory in the home folder survives a restart, which `/tmp` does not.
+
+When the study starts it copies `bin/kapi` and the shipped skill into
+`inputs/` in the study directory, and every session runs those copies. To
+resume after an interrupt, a rate limit or a paused host, run only the
+`make paired-eval-pilot` line again; it needs no build. If the checkout has
+moved on and `scripts/skilleval` or the corpus changed, the runner refuses the
+study and names the commit it started from: resume from a worktree at that
+commit with the same `PAIRED_EVAL_DIR`. A new directory would run every session
+again.
 
 The pilot phase is the manifest's whole grid. It prints the planned session
-count before it starts one, runs one session per subscription at a time, and
-pauses only the host a rate limit reaches. Running the same command again
-resumes it without repeating a started attempt. `PAIRED_EVAL_RETRY=1` runs
-again the attempts a rate limit, an interrupt or a failed launch cut short, and
-keeps the first record as superseded. The ceiling of 200 covers the 168
-sessions and 32 such reruns.
+count before it starts one and runs one session per subscription at a time. A
+host pauses on a rate limit, on a refused or expired login, and after two
+sessions in a row that ended within a minute without completing; the other host
+goes on. `PAIRED_EVAL_RETRY=1` runs again the attempts a rate limit, an
+interrupt, a failed launch or an infrastructure failure (a refused login, an
+overloaded API, a lost network) cut short, and keeps the first record as
+superseded; the summary leaves such attempts out until they run again. The
+first eight sessions are part of the 168. A ceiling of 180 allows twelve
+reruns; every rerun counts against it.
 
 Each host runs its 84 sessions one after another, beside the other host. In
-the smoke run on 3 October 2026 the stale-read task took 10 to 37 seconds in
-eleven of twelve sessions and 324 seconds in one, and preparing and probing a
-cell takes a few seconds more. If the study's sessions average a minute, it
-takes about an hour and a half; if every session ran to its 600-second limit,
-it would take 14 hours.
+the smoke runs on 3 October 2026 the stale-read task took 10 to 37 seconds in
+most sessions and 324 seconds in one, and preparing and probing a cell, with
+the check of the study's copy of kapi, takes about ten seconds more. The other
+tasks ask for more (a translation, three files), so an average of one to one
+and a half minutes per session puts the study at about two to three hours; if
+every session ran to its 600-second limit, it would take 14 hours.
 
 ### What the edit engine costs an embedder (15.2, item 2)
 

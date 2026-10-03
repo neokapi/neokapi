@@ -58,15 +58,20 @@ func pairedSkillDir(workspace, host, skill string) string {
 }
 
 // installPairedSkill copies the arm's skill into the workspace. The kapi skill
-// is the one the binary ships (cli/skills/data/kapi); the project-free skill is
-// the evaluation's own text for the alias, embedded with the corpus.
+// is the one the binary ships (cli/skills/data/kapi), from the study's own copy
+// in a live phase; the project-free skill is the evaluation's own text for the
+// alias, embedded with the corpus.
 func installPairedSkill(launch PairedLaunch, arm pairedArm) error {
 	if arm.Skill == "" {
 		return nil
 	}
 	destination := pairedSkillDir(launch.Workspace, launch.Agent.Host, arm.Skill)
 	if arm.Skill == "kapi" {
-		return copyTree(filepath.Join(launch.RepoRoot, "cli", "skills", "data", "kapi"), destination)
+		source := launch.SkillSource
+		if source == "" {
+			source = filepath.Join(launch.RepoRoot, "cli", "skills", "data", "kapi")
+		}
+		return copyTree(source, destination)
 	}
 	prefix := "testdata/paired/skills/" + arm.Skill
 	return fs.WalkDir(pairedFixtures, prefix, func(name string, entry fs.DirEntry, walkErr error) error {

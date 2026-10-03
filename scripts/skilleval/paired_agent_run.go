@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -100,6 +101,17 @@ func runPairedAgent(ctx context.Context, prepared PairedPrepared) (PairedAgentRe
 		result.Status = "process_failed"
 		err = waitErr
 	}
+	// A host that stopped without a usable stream often says why only on
+	// standard error: an expired login, an overloaded API, a lost network. A
+	// session that ended with its own result was classified from that result.
+	if err != nil && ctx.Err() == nil && slices.Contains([]string{"process_failed", "malformed_stream", "incomplete", "identity_unverified"}, result.Status) {
+		stderrFilter.Flush()
+		if reason := pairedInfraFailure(pairedStderrTail(prepared.Launch.TranscriptPath + ".stderr")); reason != "" {
+			result.Status = "infra_failed"
+			result.InfraFailure = reason
+			err = fmt.Errorf("%w (%s failure)", err, reason)
+		}
+	}
 	if err != nil {
 		result.Error = pairedRedactText(err.Error(), prepared.Env)
 		err = errors.New(result.Error)
@@ -127,6 +139,47 @@ func pairedUnique(values []string, value string) []string {
 func pairedRateLimited(message string) bool {
 	lower := strings.ToLower(message)
 	return strings.Contains(lower, "rate limit") || strings.Contains(lower, "usage limit") || strings.Contains(lower, "quota")
+}
+
+// pairedInfraPatterns recognise a failure of the service or the machine
+// rather than of the agent: a refused or expired login, an overloaded or
+// failing API, a dropped network.
+var pairedInfraPatterns = []struct {
+	reason  string
+	pattern *regexp.Regexp
+}{
+	{"auth", regexp.MustCompile(`(?i)oauth token (?:has )?expired|token (?:has |is )?(?:expired|revoked)|invalid (?:api key|bearer token|x-api-key)|authentication[_ ](?:error|failed)|\b401\b|unauthori[sz]ed|please run /login|not logged in|login (?:is )?required|refresh token|failed to refresh|re-?authenticate`)},
+	{"overload", regexp.MustCompile(`(?i)\b529\b|overloaded|api error: 5\d\d|\b50[0234]\b (?:internal server error|bad gateway|service unavailable|gateway timeout)|internal server error|service unavailable|bad gateway|gateway timeout|server is busy`)},
+	{"network", regexp.MustCompile(`(?i)ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ENETUNREACH|network (?:error|is unreachable)|connection (?:reset|refused|closed|error|timed out)|socket hang up|fetch failed|stream (?:disconnected|error)|error sending request|could not resolve host|tls handshake|unable to connect`)},
+}
+
+// pairedInfraFailure returns the kind of infrastructure failure text
+// describes, or "".
+func pairedInfraFailure(text string) string {
+	for _, candidate := range pairedInfraPatterns {
+		if candidate.pattern.MatchString(text) {
+			return candidate.reason
+		}
+	}
+	return ""
+}
+
+// pairedStderrTail returns the end of a session's recorded standard error,
+// where a host prints why it stopped.
+func pairedStderrTail(path string) string {
+	file, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer file.Close()
+	const tail = 64 << 10
+	if info, err := file.Stat(); err == nil && info.Size() > tail {
+		if _, err := file.Seek(info.Size()-tail, io.SeekStart); err != nil {
+			return ""
+		}
+	}
+	data, _ := io.ReadAll(io.LimitReader(file, tail))
+	return string(data)
 }
 
 func pairedCodexRolloutModel(stateDir, sessionID string) (string, error) {

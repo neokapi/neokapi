@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/profile"
@@ -121,7 +122,7 @@ func TestPairedMaterializationRejectsUnsafeDestinations(t *testing.T) {
 
 // This tests the authored fixture rules, not the product checker or prose
 // quality: the voice every task's project binds forbids unsupported
-// assurances, and its terms forbid "dashboard" in favour of "overview page",
+// assurances, and its terms forbid "portal" in favour of "overview page",
 // which STYLE.md states for an agent that reads files.
 func TestPairedFixtureGovernanceMatchesItsStyleGuide(t *testing.T) {
 	body, err := pairedFixtures.ReadFile("testdata/paired/common/.kapi/voice.yaml")
@@ -146,9 +147,109 @@ func TestPairedFixtureGovernanceMatchesItsStyleGuide(t *testing.T) {
 		assert.True(t, pattern.MatchString(statement), statement)
 	}
 	assert.False(t, pattern.MatchString("Harbor Help offers scheduled video appointments."))
-	assert.Contains(t, string(body), "term: dashboard")
+	assert.Contains(t, string(body), "term: portal")
 	assert.Contains(t, string(body), "replacement: overview page")
 	style, err := pairedFixtures.ReadFile("testdata/paired/common/STYLE.md")
 	require.NoError(t, err)
-	assert.Contains(t, string(style), `write "overview page", never "dashboard"`)
+	assert.Contains(t, string(style), `write "overview page", never "portal"`)
+}
+
+// The gate task's forbidden word appears in no skill an arm installs and in
+// no MCP tool description, so no arm is primed for or against it.
+func TestPairedForbiddenTermPrimesNoArm(t *testing.T) {
+	root, err := repoRoot()
+	if err != nil {
+		t.Skipf("not in a git checkout: %v", err)
+	}
+	forbidden := regexp.MustCompile(`(?i)\bportal`)
+	sources := []string{}
+	for _, dir := range []string{filepath.Join(root, "cli", "skills", "data", "kapi")} {
+		require.NoError(t, filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+			if err == nil && !entry.IsDir() {
+				sources = append(sources, path)
+			}
+			return err
+		}))
+	}
+	descriptions, err := filepath.Glob(filepath.Join(root, "host", "mcp*.go"))
+	require.NoError(t, err)
+	sources = append(sources, descriptions...)
+	for _, source := range sources {
+		if strings.HasSuffix(source, "_test.go") {
+			continue
+		}
+		body, err := os.ReadFile(source)
+		require.NoError(t, err)
+		assert.False(t, forbidden.Match(body), "%s names the gate task's forbidden word", source)
+	}
+	require.NoError(t, fs.WalkDir(pairedFixtures, "testdata/paired/skills", func(name string, entry fs.DirEntry, err error) error {
+		if err == nil && !entry.IsDir() {
+			body, readErr := pairedFixtures.ReadFile(name)
+			require.NoError(t, readErr)
+			assert.False(t, forbidden.Match(body), "%s names the gate task's forbidden word", name)
+		}
+		return err
+	}))
+}
+
+// The project-free skill carries the shipped skill's guidance with the names
+// changed and what needs a project left out. Each example it gives is one the
+// shipped skill gives, and it names nothing of the tasks, so a difference
+// between the arms is the surface's, not the skill text's.
+func TestPairedProjectFreeSkillMirrorsTheShippedSkill(t *testing.T) {
+	root, err := repoRoot()
+	if err != nil {
+		t.Skipf("not in a git checkout: %v", err)
+	}
+	normalize := func(line string) string {
+		for _, name := range pairedToolboxNames {
+			line = strings.ReplaceAll(line, pairedFilesAlias+" "+name, name)
+		}
+		line = strings.ReplaceAll(line, pairedFilesAlias, "kapi")
+		return strings.Join(strings.Fields(line), " ")
+	}
+	// The one example line a catalog without a project changes: outside a
+	// project a catalog holds one edition, and a second is refused.
+	noProject := map[string]bool{`"editions": {"en": {"text": "Checkout"}}},`: true}
+	for _, name := range []string{"edit.md", "toolbox.md"} {
+		shipped, err := os.ReadFile(filepath.Join(root, "cli", "skills", "data", "kapi", "references", name))
+		require.NoError(t, err)
+		shippedLines := map[string]bool{}
+		for _, line := range pairedFenceLines(string(shipped)) {
+			shippedLines[normalize(line)] = true
+		}
+		mirror, err := pairedFixtures.ReadFile("testdata/paired/skills/" + pairedFilesAlias + "/references/" + name)
+		require.NoError(t, err)
+		for _, line := range pairedFenceLines(string(mirror)) {
+			if noProject[normalize(line)] {
+				continue
+			}
+			assert.True(t, shippedLines[normalize(line)], "%s: an example the shipped skill does not give: %s", name, line)
+		}
+	}
+	taskHints := regexp.MustCompile(`androidxml|strings\.xml|messages\.po|--target-lang nb|welcome\.md|upgrade\.md|reports\.md|help\.html|exportData|importData|Harbor|overview page|file of its own`)
+	require.NoError(t, fs.WalkDir(pairedFixtures, "testdata/paired/skills", func(name string, entry fs.DirEntry, err error) error {
+		if err == nil && !entry.IsDir() {
+			body, readErr := pairedFixtures.ReadFile(name)
+			require.NoError(t, readErr)
+			assert.Empty(t, taskHints.FindAllString(string(body), -1), "%s names a task", name)
+		}
+		return err
+	}))
+}
+
+// pairedFenceLines lists the lines inside a Markdown page's code fences.
+func pairedFenceLines(text string) []string {
+	var lines []string
+	inside := false
+	for line := range strings.SplitSeq(text, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+			inside = !inside
+			continue
+		}
+		if inside && strings.TrimSpace(line) != "" {
+			lines = append(lines, line)
+		}
+	}
+	return lines
 }

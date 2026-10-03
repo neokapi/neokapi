@@ -20,6 +20,6 @@ constraints:
     kind: prohibited_pattern
     regex: '(?i)\b(guarantee(?:d|s)?|always safe|risk-free)\b'
 terms:
-  - term: dashboard
+  - term: portal
     replacement: overview page
-    note: Harbor Help has no dashboard. The page that lists a reader's reports is the overview page.
+    note: Harbor Help has no portal. The page that lists a reader's reports is the overview page.

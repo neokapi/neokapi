@@ -36,8 +36,10 @@ type pairedTaskSpec struct {
 	// Scope lists the directories in which no file other than a fixture file
 	// or one Creates names may appear.
 	Scope []string `json:"scope"`
-	// Interference is the change another editor makes to a file after the
-	// agent first reads it, for a task that measures recovery from it.
+	// Interference is the change another editor makes to a file once the
+	// agent has seen the text it changes, for a task that measures recovery
+	// from it. A file it names is graded against the reference when the
+	// change landed and against the reference without it when it did not.
 	Interference      *PairedInterference `json:"interference,omitempty"`
 	Criteria          []pairedCriterion   `json:"criteria"`
 	HumanReviewRubric []string            `json:"humanReviewRubric"`
@@ -61,8 +63,9 @@ type pairedCriterion struct {
 	Description   string   `json:"description"`
 }
 
-// PairedInterference replaces Find with Replace in Path once, after the
-// agent's first completed read of that file.
+// PairedInterference replaces Find with Replace in Path once, as soon as a
+// tool result has shown the agent Find: the agent has then read the text the
+// other editor changes, and any edit it bases on that read is stale.
 type PairedInterference struct {
 	Path        string `json:"path"`
 	Find        string `json:"find"`

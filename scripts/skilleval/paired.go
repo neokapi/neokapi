@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -32,6 +33,11 @@ type PairedOptions struct {
 	Concurrency int
 	// Retry runs again the attempts whose outcome pairedRetryStatuses lists.
 	Retry bool
+
+	// kapiBin and skillSource are the kapi binary and skill the cells get:
+	// the study's own copies in a live phase, the checkout's in a preflight.
+	kapiBin     string
+	skillSource string
 }
 
 type pairedDependencies struct {
@@ -43,15 +49,33 @@ type pairedDependencies struct {
 	build func(context.Context, string) (pairedBuild, error)
 }
 
+// pairedStudyRecord is study.json, written when a study starts. Its
+// fingerprint binds every later run of the study to the same manifest,
+// corpus, runner code, and the study's own copies of kapi and its skill.
 type pairedStudyRecord struct {
 	Schema      int            `json:"schema"`
 	Fingerprint string         `json:"fingerprint"`
 	Manifest    PairedManifest `json:"manifest"`
 	CorpusHash  string         `json:"corpus_hash"`
 	CodeHash    string         `json:"code_hash"`
-	SkillHash   string         `json:"skill_hash"`
-	KapiHash    string         `json:"kapi_hash"`
-	CreatedAt   time.Time      `json:"created_at"`
+	// SkillHash and KapiHash are the hashes of the copies in inputs/, taken
+	// from the checkout when the study started.
+	SkillHash string `json:"skill_hash"`
+	KapiHash  string `json:"kapi_hash"`
+	// Build is the kapi build the copy was taken from, and the checkout's
+	// commit at that moment: the commit to resume from.
+	Build     pairedBuild `json:"build"`
+	CreatedAt time.Time   `json:"created_at"`
+}
+
+// pairedInputs are the study's own copies of what the cells run, under
+// <study>/inputs: the kapi binary and the shipped kapi skill. Each session
+// takes them from there, so a rebuild or an edit in the checkout during the
+// study changes nothing the study measures.
+type pairedInputs struct {
+	Kapi, Skill         string
+	KapiHash, SkillHash string
+	Build               pairedBuild
 }
 
 type pairedPreflight struct {
@@ -81,7 +105,14 @@ type pairedAttemptResult struct {
 	Agent          PairedAgentResult `json:"agent"`
 	Validation     *PairedValidation `json:"validation,omitempty"`
 	ArtifactHash   string            `json:"artifact_hash"`
-	Error          string            `json:"error,omitempty"`
+	// ArtifactScope says what ArtifactHash covers: "task" for the workspace
+	// without its git metadata and kapi's runtime folders, which a reviewer's
+	// git status or kapi command rewrites; empty for the whole workspace.
+	ArtifactScope string `json:"artifact_scope,omitempty"`
+	// TmpDir is where the cell's temporary directory was kept after the
+	// session.
+	TmpDir string `json:"tmp_dir,omitempty"`
+	Error  string `json:"error,omitempty"`
 }
 
 func executePaired(ctx context.Context, opts PairedOptions) error {
@@ -121,29 +152,29 @@ func executePairedWith(ctx context.Context, opts PairedOptions, deps pairedDepen
 	if opts.Phase == "score" {
 		return scorePaired(opts.Dir)
 	}
-	if opts.Phase != "preflight" && opts.Live {
-		if err := checkPairedLocation(opts.Dir); err != nil {
-			return err
-		}
-	}
-	record, err := makePairedStudyRecord(opts, manifest)
-	if err != nil {
-		return err
-	}
 	if opts.Phase == "preflight" || !opts.Live {
+		opts.kapiBin = findKapi(opts.RepoRoot)
+		opts.skillSource = filepath.Join(opts.RepoRoot, "cli", "skills", "data", "kapi")
 		return preflightPaired(ctx, opts, manifest, deps)
+	}
+	if err := checkPairedLocation(opts.Dir); err != nil {
+		return err
 	}
 	if opts.MaxAttempts < 1 {
 		return errors.New("live execution requires a positive paired-max-attempts ceiling")
 	}
-	if deps.build != nil {
-		if _, err := deps.build(ctx, opts.RepoRoot); err != nil {
-			return err
-		}
+	inputs, err := preparePairedInputs(ctx, opts, deps)
+	if err != nil {
+		return err
+	}
+	record, err := makePairedStudyRecord(opts, manifest, inputs)
+	if err != nil {
+		return err
 	}
 	if err := ensurePairedStudy(opts.Dir, record); err != nil {
 		return err
 	}
+	opts.kapiBin, opts.skillSource = inputs.Kapi, inputs.Skill
 	schedule := pairedSchedule(manifest, opts.Phase)
 	phaseDir := filepath.Join(opts.Dir, opts.Phase)
 	if err := os.MkdirAll(phaseDir, 0o700); err != nil {
@@ -211,6 +242,7 @@ func preflightPaired(ctx context.Context, opts PairedOptions, m PairedManifest, 
 				report.Blockers = append(report.Blockers, session.ID+": surface: "+problem)
 			}
 		}
+		discardPairedCellTmp(prepared)
 		report.Prepared = append(report.Prepared, prepared)
 	}
 	path := filepath.Join(opts.Dir, "preflight-"+pairedTimestamp()+".json")
@@ -252,6 +284,9 @@ func printPairedSurfaces(prepared []PairedPrepared) {
 		}
 		fmt.Printf("  %-6s %-12s skills=%v mcp=%v path=%v problems=%d (%d skills visible in all)\n",
 			s.Host, s.Condition, skills, s.MCPServers, s.Executables, len(s.Problems), len(s.Skills))
+		if len(s.WritableRoots) > 0 {
+			fmt.Printf("  %-6s %-12s writable=%v\n", "", "", s.WritableRoots)
+		}
 	}
 }
 
@@ -267,7 +302,6 @@ func materializePairedLaunch(opts PairedOptions, m PairedManifest, s PairedSessi
 	if err := materializePairedTask(workspace, task); err != nil {
 		return PairedLaunch{}, err
 	}
-	kapiBin := findKapi(opts.RepoRoot)
 	prompt := task.Prompt
 	if opts.Phase == "diagnostic" {
 		prompt += "\n\n" + pairedDiagnosticInstruction(s.Condition, pairedDiagnosticFiles(task))
@@ -277,7 +311,8 @@ func materializePairedLaunch(opts PairedOptions, m PairedManifest, s PairedSessi
 	}
 	return PairedLaunch{
 		Agent: s.Agent, Condition: s.Condition, Task: task.ID, Workspace: workspace,
-		StateDir: filepath.Join(dir, "state"), RepoRoot: opts.RepoRoot, KapiBin: kapiBin,
+		StateDir: filepath.Join(dir, "state"), RepoRoot: opts.RepoRoot, KapiBin: opts.kapiBin,
+		SkillSource: opts.skillSource, StudyDir: opts.Dir,
 		Prompt: prompt, TranscriptPath: filepath.Join(dir, "transcript.jsonl"),
 		Timeout: m.attemptTimeout(), MaxTurns: m.MaxTurns, Interference: task.spec.Interference,
 	}, nil
@@ -322,8 +357,11 @@ func findPairedTask(id string) (PairedTask, error) {
 	return PairedTask{}, fmt.Errorf("unknown task %q", id)
 }
 
-func makePairedStudyRecord(opts PairedOptions, m PairedManifest) (pairedStudyRecord, error) {
-	record := pairedStudyRecord{Schema: pairedSchema, Manifest: m, CreatedAt: time.Now().UTC()}
+func makePairedStudyRecord(opts PairedOptions, m PairedManifest, inputs pairedInputs) (pairedStudyRecord, error) {
+	record := pairedStudyRecord{
+		Schema: pairedSchema, Manifest: m, CreatedAt: time.Now().UTC(),
+		SkillHash: inputs.SkillHash, KapiHash: inputs.KapiHash, Build: inputs.Build,
+	}
 	var err error
 	record.CorpusHash, err = pairedCorpusHash()
 	if err != nil {
@@ -333,40 +371,122 @@ func makePairedStudyRecord(opts PairedOptions, m PairedManifest) (pairedStudyRec
 	if err != nil {
 		return record, err
 	}
-	record.SkillHash, err = pairedTreeHash(filepath.Join(opts.RepoRoot, "cli", "skills", "data", "kapi"))
-	if err != nil {
-		return record, err
-	}
-	record.KapiHash = "unavailable"
-	if binary := findKapi(opts.RepoRoot); binary != "" {
-		resolved, resolveErr := filepath.EvalSymlinks(binary)
-		if resolveErr != nil {
-			return record, resolveErr
-		}
-		record.KapiHash, err = pairedFileHash(resolved)
-		if err != nil {
-			return record, err
-		}
-	}
 	record.Fingerprint, err = pairedHash(struct {
-		Manifest                  PairedManifest
-		Corpus, Code, Skill, Kapi string
-	}{Manifest: m, Corpus: record.CorpusHash, Code: record.CodeHash, Skill: record.SkillHash, Kapi: record.KapiHash})
+		Manifest                          PairedManifest
+		Corpus, Code, Skill, Kapi, Commit string
+	}{Manifest: m, Corpus: record.CorpusHash, Code: record.CodeHash, Skill: record.SkillHash,
+		Kapi: record.KapiHash, Commit: record.Build.Commit})
 	return record, err
 }
 
+// ensurePairedStudy writes study.json for a new study and, for one already
+// started, checks that this run measures the same thing.
 func ensurePairedStudy(dir string, record pairedStudyRecord) error {
 	path := filepath.Join(dir, "study.json")
 	var existing pairedStudyRecord
 	if err := readPairedJSON(path, &existing); err == nil {
-		if existing.Fingerprint != record.Fingerprint {
-			return errors.New("study inputs changed; choose a fresh paired-dir to retain the existing evidence")
+		if existing.Fingerprint == record.Fingerprint {
+			return nil
 		}
-		return nil
+		resume := "a checkout of the commit it started from"
+		if existing.Build.Head != "" {
+			resume = fmt.Sprintf("a checkout of %s (git worktree add <dir> %s)", existing.Build.Head, existing.Build.Head)
+		}
+		return fmt.Errorf("this study started with another manifest, corpus or runner (scripts/skilleval) than the "+
+			"checkout holds now, so this run would measure something else. Resume it from %s, running make "+
+			"paired-eval-pilot there with the same PAIRED_EVAL_DIR; no rebuild is needed, since the study runs its own "+
+			"copy of kapi. Its started attempts stay where they are, and a new directory would run every session again",
+			resume)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return writePairedJSON(path, record)
+}
+
+// preparePairedInputs returns the study's own copies of kapi and its skill.
+// A new study takes them from the checkout, whose bin/kapi must be this
+// tree's build; a study already started keeps the copies it has, and every
+// run checks them against study.json.
+func preparePairedInputs(ctx context.Context, opts PairedOptions, deps pairedDependencies) (pairedInputs, error) {
+	dir := filepath.Join(opts.Dir, "inputs")
+	inputs := pairedInputs{Kapi: filepath.Join(dir, "kapi"), Skill: filepath.Join(dir, "skills", "kapi")}
+	var existing pairedStudyRecord
+	err := readPairedJSON(filepath.Join(opts.Dir, "study.json"), &existing)
+	if err == nil {
+		inputs.Build = existing.Build
+		inputs.KapiHash, inputs.SkillHash = existing.KapiHash, existing.SkillHash
+		return inputs, verifyPairedInputs(inputs)
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return inputs, err
+	}
+	// No attempt starts before study.json exists, so copies left by a run
+	// that stopped earlier are disposable.
+	if err := os.RemoveAll(dir); err != nil {
+		return inputs, err
+	}
+	if deps.build != nil {
+		if inputs.Build, err = deps.build(ctx, opts.RepoRoot); err != nil {
+			return inputs, err
+		}
+	}
+	binary := findKapi(opts.RepoRoot)
+	if binary == "" {
+		return inputs, errors.New("bin/kapi is missing: the study runs the kapi built from this tree; run make build")
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return inputs, err
+	}
+	if err := pairedCopyFile(binary, inputs.Kapi, 0o500); err != nil {
+		return inputs, fmt.Errorf("copy kapi into the study: %w", err)
+	}
+	if err := copyTree(filepath.Join(opts.RepoRoot, "cli", "skills", "data", "kapi"), inputs.Skill); err != nil {
+		return inputs, fmt.Errorf("copy the kapi skill into the study: %w", err)
+	}
+	if inputs.KapiHash, err = pairedFileHash(inputs.Kapi); err != nil {
+		return inputs, err
+	}
+	inputs.SkillHash, err = pairedTreeHash(inputs.Skill)
+	return inputs, err
+}
+
+// verifyPairedInputs checks the study's copies against the hashes study.json
+// recorded when the study started.
+func verifyPairedInputs(inputs pairedInputs) error {
+	kapi, err := pairedFileHash(inputs.Kapi)
+	if err != nil {
+		return fmt.Errorf("the study's copy of kapi: %w", err)
+	}
+	skill, err := pairedTreeHash(inputs.Skill)
+	if err != nil {
+		return fmt.Errorf("the study's copy of the kapi skill: %w", err)
+	}
+	if kapi != inputs.KapiHash || skill != inputs.SkillHash {
+		return fmt.Errorf("the study's copies of kapi and its skill under %s differ from the ones it started with; "+
+			"it cannot resume, and its started attempts stay as evidence", filepath.Dir(inputs.Kapi))
+	}
+	return nil
+}
+
+// pairedCopyFile copies a regular file to a new path with the given mode.
+func pairedCopyFile(source, destination string, mode os.FileMode) error {
+	in, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o700)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
+	return os.Chmod(destination, mode)
 }
 
 const pairedMaxHashFileBytes int64 = 256 << 20
@@ -399,12 +519,21 @@ func pairedFileHash(path string) (string, error) {
 }
 
 func pairedTreeHash(dir string) (string, error) {
+	return pairedTreeHashExcept(dir, nil)
+}
+
+// pairedTreeHashExcept hashes every regular file under dir but those under
+// the slash paths, relative to dir, that skip names.
+func pairedTreeHashExcept(dir string, skip []string) (string, error) {
 	entries := []string{}
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.IsDir() {
+			if relative, relErr := filepath.Rel(dir, path); relErr == nil && slices.Contains(skip, filepath.ToSlash(relative)) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if !d.Type().IsRegular() {

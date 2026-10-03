@@ -32,6 +32,7 @@ type pairedScoreRow struct {
 	Refusals          map[string]int            `json:"refusals,omitempty"`
 	OverrideAttempts  []string                  `json:"override_attempts,omitempty"`
 	RouteAttempts     []string                  `json:"route_attempts,omitempty"`
+	OutsideCell       []string                  `json:"outside_cell,omitempty"`
 	Interference      *PairedInterferenceRecord `json:"interference,omitempty"`
 	HumanReview       string                    `json:"human_review"`
 	ReviewerMinutes   *float64                  `json:"reviewer_minutes"`
@@ -63,7 +64,9 @@ func scorePaired(dir string) error {
 		Interpretation: "Automatic artifact criteria only. Content quality, accepted results and reviewer time " +
 			"require independent human review. Subscription quota and dollar cost are unmeasured. " +
 			"Diagnostic rows use explicit integration instructions and must be interpreted separately from natural tasks. " +
-			"Superseded rows were run again under -paired-retry and are left out of the summary.",
+			"Superseded rows were run again under -paired-retry and are left out of the summary. Each verdict is the one " +
+			"recorded when its attempt finished; integrity says whether the graded files still match it, so review " +
+			"copies of the workspaces rather than the workspaces themselves.",
 	}
 	for _, path := range paths {
 		row, err := scorePairedAttempt(path, record.Fingerprint)
@@ -85,8 +88,8 @@ func scorePaired(dir string) error {
 		report.Attempts,
 	)
 	writePairedSummary(&markdown, report.Rows)
-	markdown.WriteString("\n## Attempts\n\n| Phase | Task | Model | Integration | Status | Artifact criteria | Identity / integrity | Seconds | Tools | Refusals | Evidence | Human review |\n" +
-		"|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+	markdown.WriteString("\n## Attempts\n\n| Phase | Task | Model | Integration | Status | Artifact criteria | Identity / integrity | Seconds | Tools | Refusals | Outside cell | Evidence | Human review |\n" +
+		"|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
 	for _, row := range report.Rows {
 		criteria := "not passed"
 		if row.ObjectivePassed {
@@ -98,7 +101,7 @@ func scorePaired(dir string) error {
 		}
 		fmt.Fprintf(
 			&markdown,
-			"| %s | %s | %s | %s | %s | %s | %s / %s | %.1f | %d | %s | %s | %s |\n",
+			"| %s | %s | %s | %s | %s | %s | %s / %s | %.1f | %d | %s | %s | %s | %s |\n",
 			row.Phase,
 			row.Session.Task,
 			row.Session.Agent.Model,
@@ -110,6 +113,7 @@ func scorePaired(dir string) error {
 			float64(row.DurationMS)/1000,
 			row.ToolCalls,
 			pairedRefusalText(row.Refusals),
+			strings.Join(row.OutsideCell, ", "),
 			pairedEvidenceLinks(row),
 			row.HumanReview,
 		)
@@ -121,44 +125,43 @@ func scorePaired(dir string) error {
 	return nil
 }
 
+// pairedSummaryCell is one task, host and condition of the summary.
+type pairedSummaryCell struct {
+	n, passed, completed, overrides, outside, changed int
+	seconds, input, output, tools                     []float64
+	refusals, invalid                                 map[string]int
+	// The stale-recovery columns, for a task with another editor.
+	interfered                                                   bool
+	exercised, afterWrite, neverLanded, conflict                 int
+	passedExercised, passedConflict, passedAfter, passedUnlanded int
+}
+
+// pairedConflictSignals are the refusals that tell an agent its view of a
+// file is out of date.
+var pairedConflictSignals = []string{"stale", "host:stale", "host:patch_failed"}
+
 // writePairedSummary groups the current attempts of the natural phases by
-// task, host and condition.
+// task, host and condition. An attempt cut short by a rate limit, an
+// interruption, a failed launch or an infrastructure failure never had its
+// chance, and is left out until PAIRED_EVAL_RETRY=1 runs it again.
 func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
-	type cell struct {
-		n, passed, completed, overrides int
-		seconds, input, output, tools   []float64
-		refusals                        map[string]int
-	}
-	cells := map[[3]string]*cell{}
+	cells := map[[3]string]*pairedSummaryCell{}
+	held := 0
 	for _, row := range rows {
 		if row.Superseded || row.Phase == "diagnostic" {
+			continue
+		}
+		if slices.Contains(pairedRetryStatuses, row.Status) {
+			held++
 			continue
 		}
 		key := [3]string{row.Session.Task, row.Session.Agent.Host, row.Session.Condition}
 		c := cells[key]
 		if c == nil {
-			c = &cell{refusals: map[string]int{}}
+			c = &pairedSummaryCell{refusals: map[string]int{}, invalid: map[string]int{}}
 			cells[key] = c
 		}
-		c.n++
-		if row.ObjectivePassed {
-			c.passed++
-		}
-		if row.Status == "completed" {
-			c.completed++
-		}
-		if len(row.OverrideAttempts) > 0 {
-			c.overrides++
-		}
-		c.seconds = append(c.seconds, float64(row.DurationMS)/1000)
-		c.tools = append(c.tools, float64(row.ToolCalls))
-		if row.InputTokens != nil && row.OutputTokens != nil {
-			c.input = append(c.input, float64(*row.InputTokens))
-			c.output = append(c.output, float64(*row.OutputTokens))
-		}
-		for code, count := range row.Refusals {
-			c.refusals[code] += count
-		}
+		c.add(row)
 	}
 	if len(cells) == 0 {
 		return
@@ -176,15 +179,130 @@ func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 		}
 		return slices.Index(pairedConditions, keys[i][2]) < slices.Index(pairedConditions, keys[j][2])
 	})
-	markdown.WriteString("## Summary\n\nMedians over each cell's current attempts.\n\n" +
-		"| Task | Host | Condition | n | Objective passed | Completed | Seconds | Input tokens | Output tokens | Tool calls | Refusals | Override attempts |\n" +
-		"|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+	markdown.WriteString("## Summary\n\nMedians over each cell's current attempts. Outside cell counts the attempts " +
+		"whose tool calls named a path outside their cell (another attempt, the checkout, the home directory or a " +
+		"shared temporary directory): read their transcripts before counting them. Changed counts the attempts whose " +
+		"graded files no longer match what was graded; their recorded verdict stands.\n\n")
+	if held > 0 {
+		fmt.Fprintf(markdown, "%d attempts are left out: a rate limit, an interruption, a failed launch or an "+
+			"infrastructure failure cut them short. PAIRED_EVAL_RETRY=1 runs them again.\n\n", held)
+	}
+	markdown.WriteString("| Task | Host | Condition | n | Objective passed | Completed | Seconds | Input tokens | Output tokens | Tool calls | Refusals | Override attempts | Outside cell | Changed |\n" +
+		"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
 	for _, key := range keys {
 		c := cells[key]
-		fmt.Fprintf(markdown, "| %s | %s | %s | %d | %d | %d | %.0f | %.0f | %.0f | %.0f | %s | %d |\n",
+		fmt.Fprintf(markdown, "| %s | %s | %s | %d | %d | %d | %.0f | %.0f | %.0f | %.0f | %s | %d | %d | %d |\n",
 			key[0], key[1], key[2], c.n, c.passed, c.completed,
 			pairedMedian(c.seconds), pairedMedian(c.input), pairedMedian(c.output), pairedMedian(c.tools),
-			pairedRefusalText(c.refusals), c.overrides)
+			pairedRefusalText(c.refusals), c.overrides, c.outside, c.changed)
+	}
+	writePairedStaleSummary(markdown, keys, cells)
+	writePairedInvalidSummary(markdown, keys, cells)
+}
+
+func (c *pairedSummaryCell) add(row pairedScoreRow) {
+	c.n++
+	if row.ObjectivePassed {
+		c.passed++
+	}
+	if row.Status == "completed" {
+		c.completed++
+	}
+	if len(row.OverrideAttempts) > 0 {
+		c.overrides++
+	}
+	if len(row.OutsideCell) > 0 {
+		c.outside++
+	}
+	if row.ArtifactIntegrity == "changed" {
+		c.changed++
+	}
+	c.seconds = append(c.seconds, float64(row.DurationMS)/1000)
+	c.tools = append(c.tools, float64(row.ToolCalls))
+	if row.InputTokens != nil && row.OutputTokens != nil {
+		c.input = append(c.input, float64(*row.InputTokens))
+		c.output = append(c.output, float64(*row.OutputTokens))
+	}
+	for code, count := range row.Refusals {
+		if pointer, ok := strings.CutPrefix(code, "invalid:"); ok {
+			c.invalid[pointer] += count
+		}
+		c.refusals[code] += count
+	}
+	if row.Interference == nil {
+		return
+	}
+	c.interfered = true
+	conflict := false
+	for _, signal := range pairedConflictSignals {
+		conflict = conflict || row.Refusals[signal] > 0
+	}
+	if conflict {
+		c.conflict++
+		if row.ObjectivePassed {
+			c.passedConflict++
+		}
+	}
+	switch {
+	case !row.Interference.Applied:
+		c.neverLanded++
+		if row.ObjectivePassed {
+			c.passedUnlanded++
+		}
+	case row.Interference.AgentWroteFirst:
+		c.afterWrite++
+		if row.ObjectivePassed {
+			c.passedAfter++
+		}
+	default:
+		c.exercised++
+		if row.ObjectivePassed {
+			c.passedExercised++
+		}
+	}
+}
+
+// writePairedStaleSummary splits the attempts of a task with another editor
+// by when that editor's change landed: before the agent wrote (the attempt
+// worked from a stale read), after it, or never. Recovery is read from the
+// first group, and from the attempts that met a conflict signal.
+func writePairedStaleSummary(markdown *strings.Builder, keys [][3]string, cells map[[3]string]*pairedSummaryCell) {
+	header := false
+	for _, key := range keys {
+		c := cells[key]
+		if !c.interfered {
+			continue
+		}
+		if !header {
+			markdown.WriteString("\n## Stale recovery\n\nWhen the other editor's change landed, and how many of " +
+				"those attempts passed. A conflict signal is kapi's stale refusal, Claude Code's note that the file " +
+				"changed since it was read, or a Codex patch that failed to apply.\n\n" +
+				"| Task | Host | Condition | n | Landed before the agent wrote | Passed | Landed after | Passed | Never landed | Passed | Met a conflict signal | Passed |\n" +
+				"|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+			header = true
+		}
+		fmt.Fprintf(markdown, "| %s | %s | %s | %d | %d | %d | %d | %d | %d | %d | %d | %d |\n",
+			key[0], key[1], key[2], c.n, c.exercised, c.passedExercised, c.afterWrite, c.passedAfter,
+			c.neverLanded, c.passedUnlanded, c.conflict, c.passedConflict)
+	}
+}
+
+// writePairedInvalidSummary lists the change-set fields that failed to
+// decode, by the JSON pointer kapi named: the names and shapes agents reach
+// for that the contract does not take.
+func writePairedInvalidSummary(markdown *strings.Builder, keys [][3]string, cells map[[3]string]*pairedSummaryCell) {
+	header := false
+	for _, key := range keys {
+		c := cells[key]
+		if len(c.invalid) == 0 {
+			continue
+		}
+		if !header {
+			markdown.WriteString("\n## Change sets that did not decode\n\nEach field kapi refused as invalid, by its " +
+				"JSON pointer (array positions as *), and how often.\n\n| Task | Host | Condition | Fields |\n|---|---|---|---|\n")
+			header = true
+		}
+		fmt.Fprintf(markdown, "| %s | %s | %s | %s |\n", key[0], key[1], key[2], pairedRefusalText(c.invalid))
 	}
 }
 
@@ -255,9 +373,16 @@ func scorePairedAttempt(path, fingerprint string) (pairedScoreRow, error) {
 	row.Refusals = result.Agent.Refusals
 	row.OverrideAttempts = result.Agent.OverrideAttempts
 	row.RouteAttempts = result.Agent.RouteAttempts
+	row.OutsideCell = result.Agent.OutsideCell
 	row.Interference = result.Agent.Interference
 	row.Validation = result.Validation
-	hash, err := pairedTreeHash(filepath.Join(attemptDir, "workspace"))
+	// The verdict is the one recorded when the attempt finished: re-scoring
+	// with a different evaluator never silently replaces it. Integrity says
+	// whether the graded files still match what was graded.
+	if result.Validation != nil {
+		row.ObjectivePassed = result.Validation.ObjectivePassed
+	}
+	hash, err := pairedArtifactHash(filepath.Join(attemptDir, "workspace"), result.ArtifactScope)
 	if err != nil {
 		row.ArtifactIntegrity = "unreadable"
 		row.Error = err.Error()
@@ -266,12 +391,6 @@ func scorePairedAttempt(path, fingerprint string) (pairedScoreRow, error) {
 	row.ArtifactIntegrity = "verified"
 	if hash != result.ArtifactHash {
 		row.ArtifactIntegrity = "changed"
-		return row, nil
-	}
-	// Preserve original criteria and identify edited artifacts. Re-scoring with a
-	// different evaluator never silently replaces the frozen attempt's validation.
-	if result.Validation != nil {
-		row.ObjectivePassed = result.Validation.ObjectivePassed
 	}
 	return row, nil
 }

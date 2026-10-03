@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -119,7 +120,9 @@ func TestPairedFailuresConsumeAttemptsAndRemainImmutable(t *testing.T) {
 	deps := fakePairedDependencies(&calls)
 	deps.run = func(_ context.Context, p PairedPrepared) (PairedAgentResult, error) {
 		calls++
-		return PairedAgentResult{Status: "failed", ActualModel: p.Launch.Agent.Model}, errors.New("fixture failure")
+		// A session that worked for two minutes and failed is an outcome; it
+		// does not pause its host.
+		return PairedAgentResult{Status: "failed", ActualModel: p.Launch.Agent.Model, DurationMS: 120_000}, errors.New("fixture failure")
 	}
 	require.NoError(t, executePairedWith(context.Background(), opts, deps))
 	paths, err := pairedAttemptPaths(opts.Dir)
@@ -176,10 +179,51 @@ func TestPairedResumeRejectsChangedInputs(t *testing.T) {
 	opts := pairedTestOptions(t)
 	calls := 0
 	deps := fakePairedDependencies(&calls)
+	deps.build = func(context.Context, string) (pairedBuild, error) {
+		return pairedBuild{Commit: "abc1234", Head: "abc1234def"}, nil
+	}
 	require.NoError(t, executePairedWith(context.Background(), opts, deps))
 	require.NoError(t, os.WriteFile(filepath.Join(opts.RepoRoot, "scripts", "skilleval", "changed.go"), []byte("changed"), 0o600))
-	require.ErrorContains(t, executePairedWith(context.Background(), opts, deps), "study inputs changed")
+	err := executePairedWith(context.Background(), opts, deps)
+	require.ErrorContains(t, err, "Resume it from a checkout of abc1234def")
+	assert.NotContains(t, err.Error(), "choose a fresh")
 	assert.Equal(t, 2, calls)
+}
+
+// A study runs its own copy of kapi and the skill, taken when it started. A
+// rebuild of bin/kapi (whose bytes carry the build date) or an edit to the
+// checkout's skill afterwards changes nothing the study measures, and the
+// documented resume (make build, then the pilot again) carries on.
+func TestPairedResumeSurvivesARebuild(t *testing.T) {
+	opts := pairedTestOptions(t)
+	calls := 0
+	deps := fakePairedDependencies(&calls)
+	var installed []string
+	deps.prepare = func(_ context.Context, l PairedLaunch) (PairedPrepared, error) {
+		installed = append(installed, l.KapiBin, l.SkillSource)
+		return PairedPrepared{Launch: l, Version: "test-version", AuthMode: "subscription", Blockers: []string{}}, nil
+	}
+	require.NoError(t, executePairedWith(context.Background(), opts, deps))
+	require.Equal(t, 2, calls)
+	inputs := filepath.Join(opts.Dir, "inputs")
+	assert.Equal(t, filepath.Join(inputs, "kapi"), installed[0])
+	assert.Equal(t, filepath.Join(inputs, "skills", "kapi"), installed[1])
+	copied, err := os.ReadFile(filepath.Join(inputs, "kapi"))
+	require.NoError(t, err)
+	assert.Equal(t, "test binary fixture", string(copied))
+
+	require.NoError(t, os.WriteFile(filepath.Join(opts.RepoRoot, "bin", "kapi"), []byte("rebuilt at another date"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(opts.RepoRoot, "cli", "skills", "data", "kapi", "SKILL.md"), []byte("edited"), 0o600))
+	opts.MaxAttempts = 4
+	require.NoError(t, executePairedWith(context.Background(), opts, deps))
+	assert.Equal(t, 4, calls)
+
+	// The study's own copy is checked before every session.
+	require.NoError(t, os.Chmod(filepath.Join(inputs, "kapi"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(inputs, "kapi"), []byte("swapped"), 0o700))
+	opts.MaxAttempts = 6
+	require.ErrorContains(t, executePairedWith(context.Background(), opts, deps), "differ from the ones it started with")
+	assert.Equal(t, 4, calls)
 }
 
 func TestPairedScoringRetainsInterruptedAndTamperedArtifacts(t *testing.T) {
@@ -192,17 +236,42 @@ func TestPairedScoringRetainsInterruptedAndTamperedArtifacts(t *testing.T) {
 	var study pairedStudyRecord
 	require.NoError(t, readPairedJSON(filepath.Join(opts.Dir, "study.json"), &study))
 	dir := filepath.Dir(paths[0])
+	var result pairedAttemptResult
+	require.NoError(t, readPairedJSON(filepath.Join(dir, "result.json"), &result))
+	require.NotNil(t, result.Validation)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "workspace", "tampered.txt"), []byte("external edit"), 0o600))
 	row, err := scorePairedAttempt(paths[0], study.Fingerprint)
 	require.NoError(t, err)
 	assert.Equal(t, "changed", row.ArtifactIntegrity)
-	assert.False(t, row.ObjectivePassed)
+	// The verdict is the one recorded when the attempt finished.
+	assert.Equal(t, result.Validation.ObjectivePassed, row.ObjectivePassed)
 	assert.Nil(t, row.ReviewerMinutes)
 	assert.Nil(t, row.DollarCost)
 	require.NoError(t, os.Remove(filepath.Join(dir, "result.json")))
 	row, err = scorePairedAttempt(paths[0], study.Fingerprint)
 	require.NoError(t, err)
 	assert.Equal(t, "interrupted", row.Status)
+}
+
+// A reviewer's git status, or a kapi command run in a workspace, rewrites
+// git's index and kapi's runtime folders. Neither touches what was graded, so
+// the attempt's integrity stays verified.
+func TestPairedReviewInTheWorkspaceKeepsIntegrity(t *testing.T) {
+	opts := pairedTestOptions(t)
+	calls := 0
+	require.NoError(t, executePairedWith(context.Background(), opts, fakePairedDependencies(&calls)))
+	paths, err := pairedAttemptPaths(opts.Dir)
+	require.NoError(t, err)
+	var study pairedStudyRecord
+	require.NoError(t, readPairedJSON(filepath.Join(opts.Dir, "study.json"), &study))
+	workspace := filepath.Join(filepath.Dir(paths[0]), "workspace")
+	for _, dir := range []string{".git", "kapi-data", ".kapi/work"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(workspace, dir), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(workspace, dir, "index"), []byte("refreshed"), 0o600))
+	}
+	row, err := scorePairedAttempt(paths[0], study.Fingerprint)
+	require.NoError(t, err)
+	assert.Equal(t, "verified", row.ArtifactIntegrity)
 }
 
 func TestPairedAttemptTimeoutAndModelIdentity(t *testing.T) {
@@ -388,4 +457,100 @@ func TestPairedLockPreventsConcurrentRun(t *testing.T) {
 	calls := 0
 	require.ErrorContains(t, executePairedWith(context.Background(), opts, fakePairedDependencies(&calls)), "acquire study lock")
 	assert.Zero(t, calls)
+}
+
+// Sessions that keep ending within seconds pause their host, whatever the
+// status says; an infrastructure failure can be run again.
+func TestPairedQuickFailuresPauseTheHostAndInfraFailuresRetry(t *testing.T) {
+	opts := pairedTestOptions(t)
+	opts.MaxAttempts = 8
+	failing := ""
+	hosts := []string{}
+	deps := fakePairedDependencies(new(int))
+	deps.run = func(_ context.Context, p PairedPrepared) (PairedAgentResult, error) {
+		host := p.Launch.Agent.Host
+		hosts = append(hosts, host)
+		if failing == "" {
+			failing = host
+		}
+		if host != failing {
+			return PairedAgentResult{Status: "completed", ActualModel: p.Launch.Agent.Model, DurationMS: 90_000}, nil
+		}
+		return PairedAgentResult{Status: "infra_failed", InfraFailure: "network", ActualModel: p.Launch.Agent.Model, DurationMS: 3_000},
+			errors.New("stream disconnected")
+	}
+	require.NoError(t, executePairedWith(context.Background(), opts, deps))
+	count := 0
+	for _, host := range hosts {
+		if host == failing {
+			count++
+		}
+	}
+	assert.Equal(t, 2, count, "the failing host stops after two quick failures in a row")
+	assert.Len(t, hosts, 6, "the other host runs its four smoke sessions")
+
+	// Once the network is back, the two failed attempts run again.
+	opts.Retry = true
+	opts.MaxAttempts = 10
+	calls := 0
+	deps.run = fakePairedDependencies(&calls).run
+	require.NoError(t, executePairedWith(context.Background(), opts, deps))
+	assert.Equal(t, 4, calls, "two retried and two never started")
+	used, err := pairedAttemptsUsed(opts.Dir)
+	require.NoError(t, err)
+	assert.Equal(t, 10, used, "superseded attempts still count against the ceiling")
+}
+
+// An expired login pauses its host at once: every later session would fail
+// the same way.
+func TestPairedAuthFailurePausesItsHost(t *testing.T) {
+	opts := pairedTestOptions(t)
+	opts.MaxAttempts = 8
+	failing := ""
+	hosts := []string{}
+	deps := fakePairedDependencies(new(int))
+	deps.run = func(_ context.Context, p PairedPrepared) (PairedAgentResult, error) {
+		host := p.Launch.Agent.Host
+		hosts = append(hosts, host)
+		if failing == "" {
+			failing = host
+		}
+		if host != failing {
+			return PairedAgentResult{Status: "completed", ActualModel: p.Launch.Agent.Model}, nil
+		}
+		return PairedAgentResult{Status: "infra_failed", InfraFailure: "auth", ActualModel: p.Launch.Agent.Model, DurationMS: 120_000},
+			errors.New("OAuth token has expired")
+	}
+	require.NoError(t, executePairedWith(context.Background(), opts, deps))
+	assert.Len(t, hosts, 5)
+}
+
+// The summary splits the stale task's attempts by when the other editor's
+// change landed, lists the change-set fields that failed to decode, and
+// leaves out attempts an infrastructure failure cut short.
+func TestPairedSummaryShowsStaleRecoveryAndDecodeErrors(t *testing.T) {
+	session := func(condition string) PairedSession {
+		return PairedSession{Task: "recover-stale-read", Agent: PairedAgentSpec{Host: "claude"}, Condition: condition}
+	}
+	rows := []pairedScoreRow{
+		{Session: session("mcp"), Phase: "pilot", Status: "completed", ObjectivePassed: true,
+			Refusals:     map[string]int{"stale": 1},
+			Interference: &PairedInterferenceRecord{Triggered: true, Applied: true}},
+		{Session: session("mcp"), Phase: "pilot", Status: "completed", ObjectivePassed: true,
+			Interference: &PairedInterferenceRecord{Triggered: true, Applied: true, AgentWroteFirst: true}},
+		{Session: session("mcp"), Phase: "pilot", Status: "completed", ObjectivePassed: false,
+			Refusals:     map[string]int{"invalid:/type": 2},
+			Interference: &PairedInterferenceRecord{}, OutsideCell: []string{"temp:/tmp/x.json"}},
+		{Session: session("mcp"), Phase: "pilot", Status: "infra_failed"},
+	}
+	var markdown strings.Builder
+	writePairedSummary(&markdown, rows)
+	text := markdown.String()
+	assert.Contains(t, text, "1 attempts are left out")
+	assert.Contains(t, text, "| recover-stale-read | claude | mcp | 3 | 2 | 3 |")
+	assert.Contains(t, text, "| 1 | 1 |\n", "outside cell and changed columns")
+	assert.Contains(t, text, "## Stale recovery")
+	assert.Contains(t, text, "| recover-stale-read | claude | mcp | 3 | 1 | 1 | 1 | 1 | 1 | 0 | 1 | 1 |")
+	assert.Contains(t, text, "## Change sets that did not decode")
+	assert.Contains(t, text, "| recover-stale-read | claude | mcp | /type 2 |")
 }

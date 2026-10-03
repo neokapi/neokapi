@@ -26,25 +26,31 @@ for the evidence policy.
 | `baseline` | None | Available |
 | `skill-cli` | Shipped skill and CLI, without kapi MCP | Available |
 | `mcp` | kapi MCP and the CLI on PATH, without the skill | Available |
-| `project-free` | The same binary under an evaluation-only multi-call name that offers `inspect`, `apply`, `formats` and the toolbox with project discovery off, and a skill written for that surface | Available |
+| `project-free` | The same binary under an evaluation-only multi-call name that offers `inspect`, `apply`, `formats` and the toolbox with project discovery off, and a skill that carries the shipped skill's edit and toolbox guidance with the names changed and the project parts left out | Available |
 
 The manifest identifies each agent host, model and effort setting. Comparisons
 keep these settings fixed within each host. Effort labels across providers do
 not represent equivalent computation. Preserve separate results for different
 models and document families.
 
-Each attempt has a private command path and fresh agent configuration, and kapi
-records every shell call in a cell as an agent's. The workspace is a git
-repository with the project committed, and the binary under test is linked into
-the cell, so no command the agent sees names a path into the checkout. The transcript audit
-invalidates observed use of the wrong kapi interface: an MCP tool outside the
-MCP condition, a skill other than the condition's, or a kapi binary named by a
-path outside the cell, which would run a build other than the one under test. A
-bare kapi name the cell's PATH does not hold cannot run there; the audit
-records it as an attempt rather than ending the session. This controls
-accidental mixing of integrations; it is not a boundary against hostile code.
-Keep hidden evaluation artifacts outside the agent's workspace and inspect
-smoke transcripts before a scored study.
+Each attempt has a private command path, fresh agent configuration and a
+temporary directory of its own, and kapi records every shell call in a cell as
+an agent's. The workspace is a git repository with the project committed, and
+the binary under test is linked into the cell, so no command the agent sees
+names a path into the checkout. The transcript audit invalidates observed use
+of the wrong kapi interface: an MCP tool outside the MCP condition, or a kapi
+binary run by a path outside the cell, which would run a build other than the
+one under test. It reads which programs a shell command runs, so a command that
+only names a kapi path, such as a listing of the condition's own skill folder,
+is no route. A bare kapi name the cell's PATH does not hold cannot run there,
+and a skill the condition does not install loads nothing; the audit records
+both as attempts rather than ending the session. It also records each path a
+tool call names outside the cell: another attempt or the study's records, the
+checkout, the home directory or a shared temporary directory. A reviewer reads
+such an attempt's transcript before counting it. This controls accidental
+mixing of integrations; it is not a boundary against hostile code. Keep hidden
+evaluation artifacts outside the agent's workspace and inspect smoke
+transcripts before a scored study.
 
 Codex's built-in MCP resource helpers can appear under the host name `codex`
 when listing resources without a server argument. The MCP condition permits
@@ -63,7 +69,14 @@ discovery off and refuses `-p`.
 Every Claude run reads only the `project` setting source, which is where a
 skill installed in the workspace is discovered, with a strict, explicit MCP
 configuration that is empty outside the MCP condition. Conditions without a
-skill also disable skill loading. The isolated Codex MCP condition sets the
+skill also disable skill loading. Claude Code's bundled skills are off in every
+condition, so the conditions differ in kapi's skill alone; Codex shows its own
+system skills alike in every condition. Claude Code otherwise gives every
+session the same temporary directory, and Codex's workspace-write sandbox lets
+every session write `/tmp`, so a file one session left there could reach the
+next. Each cell's `TMPDIR` is therefore a directory of its own, which Claude
+Code also uses for its own temporary files, and the Codex sandbox writes only
+the workspace and that directory. The isolated Codex MCP condition sets the
 fixture server's `default_tools_approval_mode` to `approve` while retaining an
 overall approval policy of `never`. A tool that still requires a prompt cannot
 execute under that overall policy. This setting applies only to the prepared
@@ -80,9 +93,12 @@ make build
 make paired-eval-preflight
 ```
 
-The study runs `bin/kapi` from the checkout by its path and never a kapi found
-on PATH; it refuses to start when that binary is missing or was built from
-another commit than the checkout's HEAD.
+The study runs `bin/kapi` from the checkout and never a kapi found on PATH; it
+refuses to start when that binary is missing or was built from another commit
+than the checkout's HEAD. When a study starts, it copies the binary and the
+shipped skill into the study directory, and every session takes them from
+there, so a rebuild or an edit in the checkout during the study changes nothing
+it measures.
 
 Check the CLI wrapper against that binary without launching an agent:
 
@@ -111,18 +127,22 @@ call. For Claude it reads the `system/init` event of `claude --print` with the
 model endpoint pointed at a closed local port and a placeholder credential, so
 the session ends before a request leaves the machine. For Codex it reads
 `codex debug prompt-input`, which lists the skills the model would see with
-each skill's root, and `codex mcp list`. A cell fails when it shows another
-condition's skill, MCP server or kapi command, lacks its own, or shows any skill,
-plugin or MCP server of the developer's own. Preflight probes one cell per host
+each skill's root and the folders its sandbox may write, and `codex mcp list`.
+A cell fails when it shows another condition's skill, MCP server or kapi
+command, lacks its own, shows any skill beyond its own and the host's system
+skills, shows a plugin or MCP server of the developer's own, or lets the agent
+write outside its workspace and temporary directory. Preflight probes one cell per host
 and condition and exits non-zero on any finding, and each live session probes
 its own cell again before it starts. These records establish what the host
 exposes; whether the model used it is a separate observation from the live
 transcript.
 
-Keep the binary unchanged within a study. A build embeds its build identity, so
-rebuilding can change its hash even when the content-checking source is the same.
-The live targets use the existing binary. A changed study requires a new evidence
-directory rather than silently combining incompatible attempts.
+A study's fingerprint covers its manifest, its corpus, the runner's code and its
+copies of kapi and the skill, and every run checks the copies before each
+session. A run of a study whose fingerprint differs is refused rather than
+silently combining incompatible attempts. To resume after the checkout moved on,
+run the pilot again from a checkout of the commit the study started from; it
+needs no build, because the study runs its own copy of kapi.
 
 ## Subscription batches
 
@@ -137,7 +157,11 @@ so these observations do not establish equivalent allowance consumption.
 
 The prepared environment excludes API keys and endpoint overrides. Claude uses
 the existing subscription credential in memory, with token redaction on recorded
-output. Codex uses the signed-in account from a fresh configuration directory.
+output. A cell receives the token as a fixed value it cannot refresh, so a
+keychain token must stay valid for a session's limit and fifteen minutes more,
+or the session is not started; a long-lived token from `claude setup-token`,
+exported as `CLAUDE_CODE_OAUTH_TOKEN`, avoids the question for a long study.
+Codex uses the signed-in account from a fresh configuration directory.
 Prepared reports omit credential-bearing environment values. Review local
 transcripts before sharing them even when automatic redaction passes.
 
@@ -161,12 +185,16 @@ make paired-eval-pilot
 
 `PAIRED_EVAL_CONCURRENCY` sets how many sessions run at once, spread evenly
 over the hosts: the default of 2 runs one session per subscription at a time,
-for the whole run. A rate limit pauses only the host it reaches. Running the
-same command again resumes the phase without repeating a started attempt. There
-are no automatic retries: `PAIRED_EVAL_RETRY=1` runs again the attempts a rate
-limit, an interrupt or a failed launch cut short, keeps the first record as
-superseded, and counts both against the ceiling. A paired run has no overall
-deadline unless `-timeout` names one in `PAIRED_EVAL_ARGS`.
+for the whole run. A rate limit pauses only the host it reaches, and so does a
+refused or expired login, or two sessions in a row that end within a minute
+without completing. Running the same command again resumes the phase without
+repeating a started attempt. There are no automatic retries:
+`PAIRED_EVAL_RETRY=1` runs again the attempts a rate limit, an interrupt, a
+failed launch or an infrastructure failure (a refused login, an overloaded
+API, a lost network) cut short, keeps the first record as superseded, and
+counts both against the ceiling. The summary leaves such attempts out until
+they run again. A paired run has no overall deadline unless `-timeout` names
+one in `PAIRED_EVAL_ARGS`.
 
 The pilot remains subject to the same ceiling. Raising the ceiling authorizes
 additional subscription use; select it deliberately after reviewing the
@@ -183,12 +211,15 @@ check at commit. Every task's project binds one voice whose terms forbid one
 word, and a style guide in the workspace states the same rule.
 
 Two tasks act on the session while it runs. In the stale-read task the runner
-watches the host's stream and, after the agent's first completed read of the
-file, changes the paragraph the agent edits, as another editor would. The
-record says whether the change landed before the agent's write. In the
-refusal task the request names the forbidden word, so the conditions with a
-project meet the check, and the attempt fails if its transcript shows an
-attempt to land the edit over it.
+watches the host's stream and, once a tool result has shown the agent the text
+another editor changes, changes it in the paragraph the agent edits. The
+record says whether the change landed before the agent's write, after it, or
+never, and the file is graded against the reference with the other editor's
+change when it landed and without it when it did not. The score report counts
+recovery over the attempts whose change landed before the agent wrote, and over
+those that met a conflict signal. In the refusal task the request names the
+forbidden word, so the conditions with a project meet the check, and the
+attempt fails if its transcript shows an attempt to land the edit over it.
 
 Independent validators read the output files with parsers of their own, never
 kapi's readers. Every task fails when nothing changes; every fixture file
@@ -202,9 +233,12 @@ criteria, so a failure in a kapi condition is a finding about the agent or the
 surface rather than about the task.
 
 Each attempt also records its duration, tokens, Claude's turn count, tool
-calls, the refusal codes its tool results carried, override attempts, and kapi
-names it tried that its cell does not hold. The score report summarizes these
-by task, host and condition.
+calls, the refusal codes its tool results carried (a change set that does not
+decode is counted by the field kapi names), override attempts, kapi names it
+tried that its cell does not hold, and paths it named outside its cell. The
+score report summarizes these by task, host and condition. Each verdict is the
+one recorded when its attempt finished; the report says beside it whether the
+graded files still match, so review copies of the workspaces.
 
 ### Integration use and interpretation
 

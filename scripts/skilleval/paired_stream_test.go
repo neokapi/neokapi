@@ -35,9 +35,10 @@ func pairedToolResult(id, text string) map[string]any {
 	}}}
 }
 
-// The other editor's change lands after the agent's first completed read of
-// the file, not when the read is proposed, and only once.
-func TestPairedInterferenceLandsAfterTheFirstRead(t *testing.T) {
+// The other editor's change lands once a tool result has shown the agent the
+// text it changes, and only once. Naming the file, or a search that printed
+// another line of it, shows the agent nothing to be stale about.
+func TestPairedInterferenceLandsWhenTheAgentSeesTheText(t *testing.T) {
 	task := pairedTaskByID(t, "recover-stale-read")
 	workspace := t.TempDir()
 	require.NoError(t, materializePairedTask(workspace, task))
@@ -49,15 +50,18 @@ func TestPairedInterferenceLandsAfterTheFirstRead(t *testing.T) {
 	stream := pairedClaudeEvents(t,
 		pairedToolUse("1", "Glob", map[string]any{"pattern": "docs/**/*.md"}),
 		pairedToolResult("1", "docs/en/upgrade.md"),
-		// Naming the file is not reading it.
 		pairedToolUse("4", "Skill", map[string]any{"skill": "kapi", "args": "edit docs/en/upgrade.md"}),
 		pairedToolResult("4", "Launching skill: kapi"),
-		pairedToolUse("5", "Bash", map[string]any{"command": "kapi context docs/en/upgrade.md"}),
-		pairedToolResult("5", "# Writing docs/en/upgrade.md"),
+		// A search that prints only the sentence the agent edits.
+		pairedToolUse("5", "Grep", map[string]any{"pattern": "Back up your data", "path": "docs"}),
+		pairedToolResult("5", "docs/en/upgrade.md:8:Back up your data before you upgrade. The upgrade keeps your appointments and"),
+		// A search whose pattern holds the text but that printed nothing.
+		pairedToolUse("6", "Bash", map[string]any{"command": "grep -c 'it takes about five minutes' docs/en/upgrade.md"}),
+		pairedToolResult("6", "1"),
 		pairedToolUse("2", "Read", map[string]any{"file_path": file}),
-		pairedToolResult("2", "# Upgrading Harbor Help"),
+		pairedToolResult("2", "9\tmessages, and it takes about five minutes."),
 		pairedToolUse("3", "Read", map[string]any{"file_path": file}),
-		pairedToolResult("3", "# Upgrading Harbor Help"),
+		pairedToolResult("3", "9\tmessages, and it takes about five minutes."),
 	)
 	result, err := parsePairedAgentStream(strings.NewReader(stream), launch)
 	require.NoError(t, err)
@@ -68,33 +72,42 @@ func TestPairedInterferenceLandsAfterTheFirstRead(t *testing.T) {
 	assert.Equal(t, "Read", result.Interference.Trigger)
 	body, err := os.ReadFile(file)
 	require.NoError(t, err)
-	assert.Contains(t, string(body), "about ten minutes")
 	assert.Equal(t, 1, strings.Count(string(body), "about ten minutes"))
-	assert.Equal(t, 5, result.ToolCalls)
+	assert.Equal(t, 6, result.ToolCalls)
 	require.NotNil(t, result.Turns)
 	assert.Equal(t, int64(3), *result.Turns)
 }
 
-// A change that lands after the agent already wrote the file is recorded as
-// such: the attempt did not exercise a stale read.
-func TestPairedInterferenceAfterTheAgentsWrite(t *testing.T) {
+// A Codex command lands the change through what it printed, not through the
+// text of the command, and a write with no read first leaves the change to
+// land after it, which the record says.
+func TestPairedInterferenceFromCodexOutput(t *testing.T) {
 	task := pairedTaskByID(t, "recover-stale-read")
 	workspace := t.TempDir()
 	require.NoError(t, materializePairedTask(workspace, task))
 	file := filepath.Join(workspace, "docs", "en", "upgrade.md")
 	launch := PairedLaunch{
-		Agent: PairedAgentSpec{Host: "codex", Model: "test"}, Condition: "baseline",
+		Agent: PairedAgentSpec{Host: "codex", Model: "test"}, Condition: "project-free",
 		Workspace: workspace, Interference: task.spec.Interference,
 	}
 	observer := newPairedObserver(launch, &PairedAgentResult{})
+	observer.codexCompleted("command_execution", map[string]any{
+		"command": "/bin/zsh -c \"rg -n 'it takes about five minutes' docs\"", "aggregated_output": ""})
+	assert.False(t, observer.result.Interference.Triggered, "a command naming the text has not shown it")
+	// The agent writes without reading, as kapi-files ksed allows.
 	body, err := os.ReadFile(file)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(file, []byte(strings.Replace(string(body), "your data before", "your data and settings before", 1)), 0o600))
-	observer.codexCompleted("command_execution", map[string]any{"command": "sed -i '' s/x/y/ docs/en/upgrade.md"})
+	observer.codexCompleted("command_execution", map[string]any{
+		"command": "/bin/zsh -c 'kapi-files ksed -i s/x/y/ docs/en/upgrade.md'", "aggregated_output": "wrote docs/en/upgrade.md"})
+	assert.False(t, observer.result.Interference.Triggered)
+	observer.codexCompleted("command_execution", map[string]any{
+		"command": "/bin/zsh -c 'cat docs/en/upgrade.md'", "aggregated_output": "messages, and it takes about five minutes."})
 	record := observer.result.Interference
 	require.NotNil(t, record)
 	assert.True(t, record.Applied)
 	assert.True(t, record.AgentWroteFirst)
+	assert.Equal(t, "command_execution", record.Trigger)
 }
 
 func TestPairedOverrideAttemptsAreRecorded(t *testing.T) {
@@ -120,16 +133,29 @@ func TestPairedRefusalsAreCounted(t *testing.T) {
 		pairedToolResult("2", `{"status":"refused","ops":[{"error":{"code":"stale","field":"if_match"}}]}`),
 		pairedToolUse("3", "Edit", map[string]any{"file_path": "a.md"}),
 		pairedToolResult("3", "File has been modified since read, either by the user or by a linter. Read it again before attempting to write it."),
+		// Claude Code 2.1 applies the edit and notes that the file changed.
+		pairedToolUse("4", "Edit", map[string]any{"file_path": "b.md"}),
+		pairedToolResult("4", "The file b.md has been updated successfully. (note: the file had been modified on disk since you last read it; the edit was applied to the current contents)"),
+		// A change set that does not decode, from the CLI and over MCP.
+		pairedToolUse("5", "Bash", map[string]any{"command": "kapi-files apply edits.json"}),
+		pairedToolResult("5", "Exit code 2\nError: apply: invalid at /type: unknown field \"type\"; a change set takes schema, mode, gate, require_basis, note, evidence, ops"),
+		pairedToolUse("6", "mcp__kapi__apply_edits", map[string]any{"ops": []any{}}),
+		pairedToolResult("6", `{"schema":"kapi.change-result/v1","status":"refused","error":{"code":"invalid","pointer":"/ops/3/edits/0/replace","message":"unknown field"}}`),
+		pairedToolUse("7", "Bash", map[string]any{"command": "kapi apply bad.json"}),
+		pairedToolResult("7", "Error: apply: invalid: unexpected end of JSON input"),
 	)
 	result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{
 		Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "mcp",
 	})
 	require.NoError(t, err)
-	assert.Equal(t, map[string]int{"gate_failed": 1, "stale": 1, "host:stale": 1}, result.Refusals)
+	assert.Equal(t, map[string]int{
+		"gate_failed": 1, "stale": 1, "host:stale": 2,
+		"invalid:/type": 1, "invalid:/ops/*/edits/*/replace": 1, "invalid": 1,
+	}, result.Refusals)
 }
 
 func TestPairedRouteAudit(t *testing.T) {
-	state := t.TempDir()
+	state, workspace := t.TempDir(), t.TempDir()
 	for _, tc := range []struct {
 		name, condition, tool, command string
 		input                          map[string]any
@@ -138,13 +164,32 @@ func TestPairedRouteAudit(t *testing.T) {
 	}{
 		{name: "bare kapi in the baseline is an attempt", condition: "baseline", tool: "Bash", command: "kapi --help", attempts: []string{"kapi"}},
 		{name: "kapi by path outside the cell", condition: "skill-cli", tool: "Bash", command: "/opt/homebrew/bin/kapi inspect a.md", violation: true},
+		{name: "kapi by path inside a Codex shell", condition: "skill-cli", tool: "shell",
+			command: `/bin/zsh -c "cd docs && /opt/homebrew/bin/kapi inspect a.md"`, violation: true},
+		{name: "kapi by path after env", condition: "mcp", tool: "Bash", command: "env KAPI_ACTOR=agent ~/.local/bin/kapi apply x.json", violation: true},
 		{name: "the cell's own kapi by path", condition: "skill-cli", tool: "Bash", command: filepath.Join(state, "bin", "kapi") + " inspect a.md"},
 		{name: "kapi in the MCP arm", condition: "mcp", tool: "Bash", command: "kapi inspect a.md"},
 		{name: "toolbox under the alias", condition: "project-free", tool: "Bash", command: "kapi-files ksed 's/a/b/' a.md"},
 		{name: "kapi in the project-free arm", condition: "project-free", tool: "Bash", command: "kapi inspect a.md", attempts: []string{"kapi"}},
+		{name: "kapi in a pipeline of the project-free arm", condition: "project-free", tool: "Bash",
+			command: "cat edits.json | kapi apply -", attempts: []string{"kapi"}},
+		// The arm's own skill folder is an argument, not a program.
+		{name: "listing the kapi skill", condition: "skill-cli", tool: "Bash", command: "ls .agents/skills/kapi"},
+		{name: "listing the kapi skill recursively", condition: "skill-cli", tool: "Bash", command: "ls -R .claude/skills/kapi/"},
+		{name: "finding the alias skill's files", condition: "project-free", tool: "Bash", command: "find .agents/skills/kapi-files -type f"},
+		{name: "reading the skill in a Codex shell", condition: "skill-cli", tool: "shell",
+			command: `/bin/zsh -c "sed -n '1,240p' .agents/skills/kapi/SKILL.md && rg -n -F 'kapi' docs/en/upgrade.md"`},
+		{name: "a heredoc that mentions kapi", condition: "baseline", tool: "Bash",
+			command: "cat > notes.txt <<'EOF'\nkapi inspect a.md\n/opt/homebrew/bin/kapi apply x\nEOF\nwc -l notes.txt"},
+		{name: "searching for the word kapi", condition: "baseline", tool: "Bash", command: "grep -rn kapi docs"},
 		{name: "the alias's skill in its arm", condition: "project-free", tool: "Skill", input: map[string]any{"skill": "kapi-files"}},
-		{name: "kapi's skill in the project-free arm", condition: "project-free", tool: "Skill", input: map[string]any{"skill": "kapi"}, violation: true},
-		{name: "a skill in the baseline", condition: "baseline", tool: "Skill", input: map[string]any{"skill": "kapi"}, violation: true},
+		// A skill the arm does not hold is not installed, so calling one
+		// loads nothing: it is recorded, and the session goes on.
+		{name: "kapi's skill in the project-free arm", condition: "project-free", tool: "Skill", input: map[string]any{"skill": "kapi"},
+			attempts: []string{"skill:kapi"}},
+		{name: "a skill in the baseline", condition: "baseline", tool: "Skill", input: map[string]any{"skill": "kapi"}, attempts: []string{"skill:kapi"}},
+		{name: "a host-bundled skill in a skill arm", condition: "skill-cli", tool: "Skill", input: map[string]any{"skill": "verify"},
+			attempts: []string{"skill:verify"}},
 		{name: "kapi MCP outside the MCP arm", condition: "skill-cli", tool: "mcp__kapi__read_blocks", input: map[string]any{}, violation: true},
 		{name: "foreign MCP in the MCP arm", condition: "mcp", tool: "mcp__other__read", input: map[string]any{}, violation: true},
 	} {
@@ -154,10 +199,75 @@ func TestPairedRouteAudit(t *testing.T) {
 				input = map[string]any{"command": tc.command}
 			}
 			result := &PairedAgentResult{}
-			observer := newPairedObserver(PairedLaunch{Condition: tc.condition, StateDir: state}, result)
+			observer := newPairedObserver(PairedLaunch{Condition: tc.condition, StateDir: state, Workspace: workspace}, result)
 			violation := observer.toolUse("1", tc.tool, input)
 			assert.Equal(t, tc.violation, violation != "", violation)
 			assert.Equal(t, tc.attempts, result.RouteAttempts)
 		})
 	}
+}
+
+// Paths a tool call names outside the cell are recorded with where they lie:
+// another attempt or the study's records, the checkout, shared temporary
+// directories. The cell's own files and system programs are not.
+func TestPairedOutsideCellAudit(t *testing.T) {
+	study := t.TempDir()
+	attempt := filepath.Join(study, "pilot", "task-claude-baseline-01")
+	workspace, state := filepath.Join(attempt, "workspace"), filepath.Join(attempt, "state")
+	sibling := filepath.Join(study, "pilot", "task-claude-baseline-02", "workspace", "docs", "en", "upgrade.md")
+	require.NoError(t, os.MkdirAll(filepath.Join(workspace, "docs"), 0o700))
+	require.NoError(t, os.MkdirAll(state, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(attempt, "preparation.json"), []byte("{}"), 0o600))
+	repo := t.TempDir()
+	tmp := t.TempDir()
+	launch := PairedLaunch{Condition: "baseline", Workspace: workspace, StateDir: state, StudyDir: study, RepoRoot: repo, TmpDir: tmp}
+	for _, tc := range []struct {
+		name, tool string
+		input      map[string]any
+		want       []string
+	}{
+		{name: "the cell's own files", tool: "Bash", input: map[string]any{"command": "cat " + filepath.Join(workspace, "docs", "a.md") + " > " + filepath.Join(tmp, "x")}},
+		{name: "system programs", tool: "shell", input: map[string]any{"command": "/bin/zsh -c '/usr/bin/python3 /dev/null'"}},
+		{name: "a URL", tool: "Bash", input: map[string]any{"command": "echo https://harbor.example/help"}},
+		{name: "the cell's HOME", tool: "Bash", input: map[string]any{"command": "ls ~/"}},
+		{name: "another attempt", tool: "Read", input: map[string]any{"file_path": sibling}, want: []string{"study:" + sibling}},
+		{name: "the attempt's records", tool: "Bash", input: map[string]any{"command": "cat ../preparation.json"}, want: []string{"study:../preparation.json"}},
+		{name: "a parent that holds nothing", tool: "Bash", input: map[string]any{"command": "cat ../STYLE.md"}},
+		{name: "the checkout", tool: "Grep", input: map[string]any{"path": filepath.Join(repo, "scripts")}, want: []string{"checkout:" + filepath.Join(repo, "scripts")}},
+		{name: "a shared temporary file", tool: "Write", input: map[string]any{"file_path": "/tmp/claude/upgrade_edit.json"}, want: []string{"temp:/tmp/claude/upgrade_edit.json"}},
+		{name: "a Codex patch", tool: "file_change", input: map[string]any{"changes": []any{map[string]any{"path": filepath.Join(workspace, "docs", "a.md")}}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := &PairedAgentResult{}
+			newPairedObserver(launch, result).auditPaths(tc.tool, tc.input)
+			assert.Equal(t, tc.want, result.OutsideCell)
+		})
+	}
+}
+
+// An infrastructure failure is told apart from the agent's own, so it can be
+// run again and the host paused.
+func TestPairedInfraFailures(t *testing.T) {
+	for text, want := range map[string]string{
+		"API Error: 529 {\"type\":\"error\",\"error\":{\"type\":\"overloaded_error\"}}":      "overload",
+		"OAuth token has expired. Please obtain a new token or refresh your existing token.": "auth",
+		"Invalid API key · Please run /login":                                                "auth",
+		"stream disconnected before completion: error sending request":                       "network",
+		"Error: fetch failed (ECONNRESET)":                                                   "network",
+		"Reached maximum number of turns (40)":                                               "",
+		"The agent could not finish the edit":                                                "",
+	} {
+		assert.Equal(t, want, pairedInfraFailure(text), text)
+	}
+	stream := `{"type":"system","subtype":"init","model":"test","session_id":"s"}` + "\n" +
+		`{"type":"result","subtype":"error_during_execution","is_error":true,"result":"API Error: 529 Overloaded"}`
+	result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "baseline"})
+	require.Error(t, err)
+	assert.Equal(t, "infra_failed", result.Status)
+	assert.Equal(t, "overload", result.InfraFailure)
+	stream = `{"type":"thread.started","thread_id":"t"}` + "\n" + `{"type":"error","message":"stream disconnected before completion: error sending request for url"}`
+	result, err = parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{Agent: PairedAgentSpec{Host: "codex", Model: "test"}, Condition: "baseline"})
+	require.Error(t, err)
+	assert.Equal(t, "infra_failed", result.Status)
+	assert.Equal(t, "network", result.InfraFailure)
 }

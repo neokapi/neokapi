@@ -38,6 +38,11 @@ func pairedTaskByID(t *testing.T, id string) PairedTask {
 	return task
 }
 
+// pairedLanded is a transcript in which the other editor's change landed.
+func pairedLanded() *PairedAgentResult {
+	return &PairedAgentResult{Interference: &PairedInterferenceRecord{Triggered: true, Applied: true}}
+}
+
 // Every task fails when nothing changes and passes on its reference output.
 func TestPairedIndependentValidation(t *testing.T) {
 	for _, task := range pairedTasks() {
@@ -45,6 +50,10 @@ func TestPairedIndependentValidation(t *testing.T) {
 			dir := t.TempDir()
 			require.NoError(t, materializePairedTask(dir, task))
 			clean := &PairedAgentResult{}
+			if task.spec.Interference != nil {
+				// The reference holds the other editor's change.
+				clean = pairedLanded()
+			}
 			initial, err := validatePairedTask(dir, task, clean)
 			require.NoError(t, err)
 			assert.False(t, initial.ObjectivePassed, "doing nothing is not completion")
@@ -82,7 +91,9 @@ func TestPairedGradersRejectFaults(t *testing.T) {
 		{task: "recover-stale-read", name: "the other editor's change was overwritten", path: "docs/en/upgrade.md",
 			find: "about ten minutes", replace: "about five minutes", failing: "both-changes"},
 		{task: "recover-gate-refusal", name: "the forbidden term", path: "docs/en/reports.md",
-			find: "from the overview page.", replace: "from the dashboard.", failing: "sentence-added"},
+			find: "from the overview page.", replace: "from the portal.", failing: "sentence-added"},
+		{task: "recover-gate-refusal", name: "no CSV", path: "docs/en/reports.md",
+			find: "as a CSV file from", replace: "as a file from", failing: "sentence-added"},
 		{task: "recover-gate-refusal", name: "the sentence as a paragraph of its own", path: "docs/en/reports.md",
 			find: "page within an hour. You can", replace: "page within an hour.\n\nYou can", failing: "rest-unchanged"},
 		{task: "add-edition-markup", name: "a link address translated", path: "docs/nb/welcome.md",
@@ -103,13 +114,142 @@ func TestPairedGradersRejectFaults(t *testing.T) {
 			require.NoError(t, err)
 			require.Contains(t, string(body), tc.find)
 			require.NoError(t, os.WriteFile(file, []byte(strings.Replace(string(body), tc.find, tc.replace, 1)), 0o600))
-			result, err := validatePairedTask(dir, task, &PairedAgentResult{})
+			observed := &PairedAgentResult{}
+			if task.spec.Interference != nil {
+				observed = pairedLanded()
+			}
+			result, err := validatePairedTask(dir, task, observed)
 			require.NoError(t, err)
 			assert.False(t, result.ObjectivePassed)
 			for _, criterion := range result.Criteria {
 				if criterion.ID == tc.failing {
 					assert.False(t, criterion.Passed, "%s should fail", tc.failing)
 					assert.NotEmpty(t, criterion.Detail)
+				}
+			}
+		})
+	}
+}
+
+// The stale task is graded against what happened in the session: with the
+// other editor's change when it landed, without it when it never did.
+func TestPairedStaleGradeFollowsTheInterference(t *testing.T) {
+	task := pairedTaskByID(t, "recover-stale-read")
+	files, err := pairedTaskFiles(task)
+	require.NoError(t, err)
+	original := string(files["docs/en/upgrade.md"])
+	agent := strings.Replace(original, "Back up your data before", "Back up your data and settings before", 1)
+	both := strings.Replace(agent, "about five minutes", "about ten minutes", 1)
+	other := strings.Replace(original, "about five minutes", "about ten minutes", 1)
+	never := &PairedAgentResult{Interference: &PairedInterferenceRecord{}}
+	landed := pairedLanded()
+	afterWrite := &PairedAgentResult{Interference: &PairedInterferenceRecord{Triggered: true, Applied: true, AgentWroteFirst: true}}
+	for _, tc := range []struct {
+		name     string
+		body     string
+		observed *PairedAgentResult
+		passed   bool
+	}{
+		{"right: the change never landed and the agent's edit is alone", agent, never, true},
+		{"right: the change landed and both are kept", both, landed, true},
+		{"right: the change landed after the agent wrote", both, afterWrite, true},
+		{"wrong: the change landed and the agent overwrote it", agent, landed, false},
+		{"wrong: the agent's edit is missing", other, landed, false},
+		{"wrong: nothing changed", original, never, false},
+		{"wrong: the agent made the other editor's change itself", both, never, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, materializePairedTask(dir, task))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "docs", "en", "upgrade.md"), []byte(tc.body), 0o600))
+			result, err := validatePairedTask(dir, task, tc.observed)
+			require.NoError(t, err)
+			assert.Equal(t, tc.passed, result.ObjectivePassed, "%+v", result.Criteria)
+		})
+	}
+}
+
+// Danish and Swedish share most of Bokmål's function words; the language
+// check passes Bokmål and neither neighbour.
+func TestPairedBokmalCheckRejectsDanishAndSwedish(t *testing.T) {
+	reference, err := pairedFixtures.ReadFile("testdata/paired/references/add-edition-markup/docs/nb/welcome.md")
+	require.NoError(t, err)
+	reworded := strings.NewReplacer(
+		"setter deg i kontakt med", "kobler deg til",
+		"Du trenger en", "Du må ha en",
+		"Ha timekoden klar", "Ha koden for timen klar",
+	).Replace(string(reference))
+	danish := "# Velkommen til Harbor Help\n\n" +
+		"Harbor Help forbinder dig med en rådgiver via **videoaftale**. Du skal bruge en\n" +
+		"enhed med kamera og [Harbor Help-appen](https://harbor.example/app).\n\n" +
+		"## Før din første aftale\n\n" +
+		"1. Installer appen, og log ind med dit lånerkortnummer.\n" +
+		"2. Test dit kamera under **Indstillinger > Video**.\n" +
+		"3. Hav din aftalekode klar, for eksempel `HB-2041`.\n\n" +
+		"Læs mere i [Forberedelse til en videoaftale](https://harbor.example/help/prepare).\n"
+	swedish := "# Välkommen till Harbor Help\n\n" +
+		"Harbor Help kopplar dig till en rådgivare via **videomöte**. Du behöver en\n" +
+		"enhet med kamera och [Harbor Help-appen](https://harbor.example/app).\n\n" +
+		"## Före ditt första möte\n\n" +
+		"1. Installera appen och logga in med ditt lånekortsnummer.\n" +
+		"2. Testa kameran under **Inställningar > Video**.\n" +
+		"3. Ha din mötekod redo, till exempel `HB-2041`.\n\n" +
+		"Läs mer i [Förbered dig för ett videomöte](https://harbor.example/help/prepare).\n"
+	task := pairedTaskByID(t, "add-edition-markup")
+	for _, tc := range []struct {
+		name, body string
+		passed     bool
+	}{
+		{"right: the reference", string(reference), true},
+		{"right: Bokmål worded differently", reworded, true},
+		{"wrong: Danish", danish, false},
+		{"wrong: Swedish", swedish, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			passed, detail, err := pairedReadsAs(tc.body, "nb")
+			require.NoError(t, err)
+			assert.Equal(t, tc.passed, passed, detail)
+			dir := t.TempDir()
+			require.NoError(t, materializePairedTask(dir, task))
+			require.NoError(t, os.MkdirAll(filepath.Join(dir, "docs", "nb"), 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "docs", "nb", "welcome.md"), []byte(tc.body), 0o600))
+			result, err := validatePairedTask(dir, task, &PairedAgentResult{})
+			require.NoError(t, err)
+			assert.Equal(t, tc.passed, result.ObjectivePassed, "%+v", result.Criteria)
+		})
+	}
+}
+
+// The gate task asks for the sentence without the forbidden word. Naming the
+// overview page, the replacement the terms give, is reported; a sentence
+// that refers back to the overview page the paragraph already names passes.
+func TestPairedGateGraderAcceptsCompliantWording(t *testing.T) {
+	task := pairedTaskByID(t, "recover-gate-refusal")
+	files, err := pairedTaskFiles(task)
+	require.NoError(t, err)
+	original := string(files["docs/en/reports.md"])
+	for _, tc := range []struct {
+		name, sentence string
+		passed, names  bool
+	}{
+		{"right: names the overview page", "You can download every report as a CSV file from the overview page.", true, true},
+		{"right: refers back to it", "You can download every report there as a CSV file.", true, false},
+		{"right: leaves the place out", "You can download every report as a CSV file.", true, false},
+		{"wrong: the forbidden word", "You can download every report as a CSV file from the portal.", false, false},
+		{"wrong: no CSV", "You can download every report from the overview page.", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, materializePairedTask(dir, task))
+			body := strings.Replace(original, "page within an hour.", "page within an hour. "+tc.sentence, 1)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "docs", "en", "reports.md"), []byte(body), 0o600))
+			result, err := validatePairedTask(dir, task, &PairedAgentResult{})
+			require.NoError(t, err)
+			assert.Equal(t, tc.passed, result.ObjectivePassed, "%+v", result.Criteria)
+			for _, criterion := range result.Criteria {
+				if criterion.ID == "names-overview-page" {
+					assert.Equal(t, tc.names, criterion.Passed)
+					assert.True(t, criterion.Informational)
 				}
 			}
 		})

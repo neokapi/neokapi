@@ -43,6 +43,9 @@ type PairedSurface struct {
 	MCPServers    []string `json:"mcp_servers"`
 	MCPTools      []string `json:"mcp_tools"`
 	Plugins       []string `json:"plugins,omitempty"`
+	// WritableRoots are the folders the host's sandbox lets the agent write,
+	// where the host says so (Codex).
+	WritableRoots []string `json:"writable_roots,omitempty"`
 	Executables   []string `json:"executables"`
 	Problems      []string `json:"problems"`
 	Error         string   `json:"error,omitempty"`
@@ -150,6 +153,9 @@ func probePairedClaudeSurface(ctx context.Context, p PairedPrepared, surface *Pa
 var (
 	pairedCodexSkillRoot = regexp.MustCompile("(?m)^- `(r\\d+)` = `([^`]+)`$")
 	pairedCodexSkill     = regexp.MustCompile(`(?m)^- ([^:\n]+): .*\(file: (r\d+)/[^)]*\)$`)
+	// Codex tells the model which folders its sandbox lets it write.
+	pairedCodexWritable = regexp.MustCompile("The writable roots are ((?:`[^`]+`(?:, )?)+)")
+	pairedBackticked    = regexp.MustCompile("`([^`]+)`")
 )
 
 func probePairedCodexSurface(ctx context.Context, p PairedPrepared, surface *PairedSurface) error {
@@ -174,6 +180,11 @@ func probePairedCodexSurface(ctx context.Context, p PairedPrepared, surface *Pai
 	roots := map[string]string{}
 	for _, item := range items {
 		for _, text := range pairedStrings(item["content"]) {
+			if match := pairedCodexWritable.FindStringSubmatch(text); match != nil {
+				for _, root := range pairedBackticked.FindAllStringSubmatch(match[1], -1) {
+					surface.WritableRoots = pairedUnique(surface.WritableRoots, root[1])
+				}
+			}
 			if !strings.Contains(text, "<skills_instructions>") {
 				continue
 			}
@@ -262,9 +273,16 @@ func checkPairedSurface(surface *PairedSurface, launch PairedLaunch, developer [
 	if !slices.Equal(surface.Executables, arm.Executables) {
 		problem("kapi names on PATH %v, want %v", surface.Executables, arm.Executables)
 	}
+	// Beyond the arm's skill a cell shows only the host's own system skills,
+	// which Codex installs alike in every arm; Claude Code's bundled skills
+	// are switched off. Every arm then differs in kapi's skill alone.
 	for _, skill := range surface.Skills {
-		if slices.Contains(developer, skill) && !slices.Contains(surface.BundledSkills, skill) {
+		switch {
+		case skill == "kapi" || skill == pairedFilesAlias || slices.Contains(surface.BundledSkills, skill):
+		case slices.Contains(developer, skill):
 			problem("the developer's skill %s is visible", skill)
+		default:
+			problem("skill %s is visible beyond the arm's", skill)
 		}
 	}
 	for _, plugin := range surface.Plugins {
@@ -275,6 +293,17 @@ func checkPairedSurface(surface *PairedSurface, launch PairedLaunch, developer [
 	for _, root := range surface.SkillRoots {
 		if !pairedWithin(root, launch.StateDir) && !pairedWithin(root, launch.Workspace) {
 			problem("skill root %s is outside the cell", root)
+		}
+	}
+	// The agent writes only into its workspace and its own temporary
+	// directory: a shared one such as /tmp would carry one session's files
+	// to the next.
+	if launch.Agent.Host == "codex" && len(surface.WritableRoots) == 0 {
+		problem("the sandbox's writable roots are unreported")
+	}
+	for _, root := range surface.WritableRoots {
+		if !pairedWithin(root, launch.Workspace) && !pairedWithin(root, launch.TmpDir) {
+			problem("writable root %s is outside the cell", root)
 		}
 	}
 }

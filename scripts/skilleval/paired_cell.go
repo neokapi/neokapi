@@ -28,7 +28,9 @@ func pairedClaudeDenyRead(launch PairedLaunch) []string {
 	for _, name := range []string{"prompt.txt", "preparation.json", "started.json", "result.json", "transcript.jsonl", "transcript.jsonl.stderr"} {
 		deny = append(deny, filepath.Join(attempt, name))
 	}
-	return deny
+	// The cell has a temporary directory of its own; what other sessions
+	// left in the shared ones stays out of reach.
+	return append(deny, pairedSharedTemp()...)
 }
 
 // pairedSystemDirs are where a cell's tools come from: the system's own and

@@ -21,7 +21,16 @@ type PairedLaunch struct {
 	// CellKapi is KapiBin linked into the cell, which is what the agent's
 	// commands and the MCP server run, so no path into the checkout reaches
 	// the agent. Empty runs KapiBin itself.
-	CellKapi       string              `json:"cell_kapi,omitempty"`
+	CellKapi string `json:"cell_kapi,omitempty"`
+	// SkillSource is the folder the kapi skill is copied from: the study's
+	// own copy of the shipped skill, taken when the study started.
+	SkillSource string `json:"skill_source,omitempty"`
+	// StudyDir is the study directory the cell lies in. The transcript audit
+	// flags a path in it outside the cell.
+	StudyDir string `json:"study_dir,omitempty"`
+	// TmpDir is the cell's own temporary directory, the TMPDIR its host and
+	// tools write to. It is short, because Claude Code puts sockets under it.
+	TmpDir         string              `json:"tmp_dir,omitempty"`
 	Prompt         string              `json:"-"`
 	TranscriptPath string              `json:"transcript_path"`
 	Timeout        time.Duration       `json:"timeout"`
@@ -62,8 +71,11 @@ type PairedAgentResult struct {
 	OutputTokens      int64    `json:"output_tokens"`
 	Tools             []string `json:"tools"`
 	RateLimited       bool     `json:"rate_limited"`
-	QuotaStatus       string   `json:"quota_status"`
-	FinalText         string   `json:"final_text,omitempty"`
+	// InfraFailure names the infrastructure failure that ended the session
+	// (auth, overload, network), which says nothing about the agent.
+	InfraFailure string `json:"infra_failure,omitempty"`
+	QuotaStatus  string `json:"quota_status"`
+	FinalText    string `json:"final_text,omitempty"`
 	// Turns is the host's own count of model turns, where it reports one
 	// (Claude's num_turns). Codex reports none.
 	Turns *int64 `json:"turns,omitempty"`
@@ -79,6 +91,11 @@ type PairedAgentResult struct {
 	// RouteAttempts lists kapi names the agent tried that its cell's PATH does
 	// not hold. The cell cannot run them; they are recorded, not refused.
 	RouteAttempts []string `json:"route_attempts,omitempty"`
+	// OutsideCell lists the paths tool calls named outside the cell, each
+	// prefixed with where it lies: study (another attempt or the study's
+	// records), checkout, home or temp. A reviewer reads such an attempt's
+	// transcript before counting it.
+	OutsideCell []string `json:"outside_cell,omitempty"`
 	// Interference records the other editor's change, for a task that has one.
 	Interference *PairedInterferenceRecord `json:"interference,omitempty"`
 }

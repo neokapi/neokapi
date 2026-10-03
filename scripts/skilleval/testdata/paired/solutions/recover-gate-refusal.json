@@ -1,9 +1,9 @@
 {"steps": [
-  {"note": "The first attempt names the dashboard, which the project's terms forbid",
+  {"note": "The first attempt names the portal, which the project's terms forbid",
    "exit": 3, "code": "gate_failed",
    "changeset": {"ops": [
      {"op": "replace_text", "at": {"doc": "docs/en/reports.md", "block": "appointment-reports/p"}, "if_match": "r:89de563badf81bd5",
-      "edits": [{"find": "page within an hour.", "text": "page within an hour. You can download every report as a CSV file from the dashboard."}]}]}},
+      "edits": [{"find": "page within an hour.", "text": "page within an hour. You can download every report as a CSV file from the portal."}]}]}},
   {"note": "The same sentence with the term the refusal names",
    "exit": 0,
    "changeset": {"ops": [
