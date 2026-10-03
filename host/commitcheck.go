@@ -427,7 +427,8 @@ func (c *commitCheck) run(ctx context.Context, res *checkResolution, p *commitPa
 // the edition it was found on.
 func commitFinding(d check.Diagnostic, at change.Ref) change.Finding {
 	ref := at
-	return change.Finding{Rule: d.Rule, Message: d.Message, Fails: d.Fails, Suggested: d.Suggested, At: &ref}
+	return change.Finding{Rule: d.Rule, Message: d.Message, Fails: d.Fails, Suggested: d.Suggested, At: &ref,
+		Range: change.FindingRange(d.Location.Anchor), Replacement: d.Metadata["replacement"]}
 }
 
 // fingerprint is the governance fingerprint of the editions the passes

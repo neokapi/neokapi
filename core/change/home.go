@@ -134,6 +134,21 @@ var ErrStop = errors.New("change: stop reading")
 // was refused. The results say which and why.
 var ErrRefused = errors.New("change: an operation was refused")
 
+// StageRefusal is what a home's Stage may return in place of ErrRefused: the
+// refusal, with the files the stage read and the digest it read each at, so
+// a refused result lists the documents it read as not written. errors.Is
+// reports it as ErrRefused.
+type StageRefusal struct {
+	// Files are the files the stage read; After equals Before, and none is
+	// written.
+	Files []StagedFile
+}
+
+func (e *StageRefusal) Error() string { return ErrRefused.Error() }
+
+// Unwrap makes a StageRefusal ErrRefused to errors.Is.
+func (e *StageRefusal) Unwrap() error { return ErrRefused }
+
 // Want says what a read or a stage needs from a document.
 type Want struct {
 	// Blocks are the keys of the blocks the caller needs; empty is every

@@ -18,6 +18,7 @@ import type {
   ChangeResult,
   ChangeSet,
   CodeRead,
+  DocResult,
   EditionHistory,
   FormatDescription,
   HistoryEntry,
@@ -191,6 +192,11 @@ export class MemoryChanges implements ChangeClient {
     this.sets.push(set);
     const results: OpResult[] = [];
     const plans: Array<() => void> = [];
+    // What the commit check found, by document: the result lists it on the
+    // document, as the change service does.
+    const found = new Map<string, ChangeFinding[]>();
+    const docs = (): DocResult[] =>
+      [...found].map(([doc, findings]) => ({ doc, written: false, after: null, findings }));
     let refused = -1;
     set.ops.forEach((op, i) => {
       const at = "at" in op ? op.at : undefined;
@@ -218,17 +224,16 @@ export class MemoryChanges implements ChangeClient {
       }
       res.before = rev;
       const findings = this.findingsOf(op);
-      if (findings.length > 0) {
-        res.findings = findings;
-        if (set.gate !== "report") {
-          res.status = "refused";
-          res.error = {
-            code: "gate_failed",
-            message: `the edit introduces ${findings.length} failing finding(s): ${findings[0].message}`,
-          };
-          if (refused < 0) refused = i;
-          return;
-        }
+      if (at) found.set(at.doc, [...(found.get(at.doc) ?? []), ...findings]);
+      if (findings.length > 0 && set.gate !== "report") {
+        res.status = "refused";
+        delete res.before;
+        res.error = {
+          code: "gate_failed",
+          message: `the edit introduces ${findings.length} failing finding(s): ${findings[0].message}`,
+        };
+        if (refused < 0) refused = i;
+        return;
       }
       plans.push(() => this.write(b, at!, op, res));
     });
@@ -237,14 +242,14 @@ export class MemoryChanges implements ChangeClient {
         if (r.status !== "refused") {
           r.status = "not_applied";
           r.blocked_by = refused;
-          delete r.findings;
+          delete r.before;
         }
       }
       return {
         schema: "kapi.change-result/v1",
         status: "refused",
         record: null,
-        docs: [],
+        docs: docs(),
         ops: results,
       };
     }
@@ -253,7 +258,7 @@ export class MemoryChanges implements ChangeClient {
       schema: "kapi.change-result/v1",
       status: "applied",
       record: `op-${this.seq}`,
-      docs: [],
+      docs: docs().map((d) => ({ ...d, written: true })),
       ops: results,
     };
   }

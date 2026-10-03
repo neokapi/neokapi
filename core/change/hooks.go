@@ -92,6 +92,32 @@ func Introduced(o CheckOutcome) []Finding {
 	return out
 }
 
+// NewFindings returns every finding an outcome has after the change and did
+// not have before, failing or not: what a result reports the commit check
+// found. A finding that reports without failing is among them, so a sender
+// reads what the check said of its edit without running it again. Findings
+// are matched by rule, message and whether they fail.
+func NewFindings(o CheckOutcome) []Finding {
+	type key struct {
+		rule, message string
+		fails         bool
+	}
+	had := make(map[key]int, len(o.Before))
+	for _, f := range o.Before {
+		had[key{f.Rule, f.Message, f.Fails}]++
+	}
+	var out []Finding
+	for _, f := range o.After {
+		k := key{f.Rule, f.Message, f.Fails}
+		if had[k] > 0 {
+			had[k]--
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
 // Policy decides what an actor may send. It returns nil to permit op, or an
 // *Error with CodeNotPermitted that names the rule.
 type Policy interface {

@@ -483,8 +483,9 @@ func TestApply_SaveAnywayRecordsTheOverriddenFindings(t *testing.T) {
 	require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
 	require.NotNil(t, res.Ops[0].Error)
 	assert.Equal(t, change.CodeGateFailed, res.Ops[0].Error.Code)
-	require.NotEmpty(t, res.Ops[0].Findings, "the refusal carries the findings the person reads")
-	assert.Equal(t, "terms.vocabulary", res.Ops[0].Findings[0].Rule)
+	require.NotEmpty(t, res.Docs, "the refusal lists the document it read")
+	require.NotEmpty(t, res.Docs[0].Findings, "the refusal carries the findings the person reads")
+	assert.Equal(t, "terms.vocabulary", res.Docs[0].Findings[0].Rule)
 
 	ctx := t.Context()
 	svc, err := app.changeServiceFor(ctx, tab, nil)
@@ -500,7 +501,8 @@ func TestApply_SaveAnywayRecordsTheOverriddenFindings(t *testing.T) {
 	anyway.Gate = change.GateReport
 	res = applyVia(t, app, tab, anyway)
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
-	assert.NotEmpty(t, res.Ops[0].Findings, "the edit lands with its findings")
+	require.NotEmpty(t, res.Docs)
+	assert.NotEmpty(t, res.Docs[0].Findings, "the edit lands with its findings")
 	data, err := os.ReadFile(src)
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "Please utilize the dashboard")
