@@ -242,6 +242,9 @@ func (s *Service) Apply(ctx context.Context, set Set, actor Actor) (*Result, err
 	if err != nil {
 		return nil, err
 	}
+	if r.refused >= 0 {
+		return r.finish(), nil
+	}
 	if !all {
 		// An I/O error stopped the renames after some files landed. The
 		// decisions and assets bind to content that did not all land, so
@@ -757,6 +760,15 @@ func (r *applyRun) commit(ctx context.Context) (bool, error) {
 		wrote := slices.ContainsFunc(docs, func(d DocResult) bool { return d.Written })
 		if cerr != nil {
 			if !wroteAny && !wrote {
+				if e := asError(cerr); e != nil {
+					// A home that checks its head again inside the commit (a
+					// keeper's conditional record) found it moved after
+					// Settle, and nothing has landed: the change set is
+					// refused, as a head that moves during Settle refuses it.
+					r.res.Docs = r.res.Docs[:0]
+					r.refuseAll(p, e)
+					return true, nil
+				}
 				return false, fmt.Errorf("commit %s: %w", p.info.Doc, cerr)
 			}
 			all = false

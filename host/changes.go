@@ -151,10 +151,11 @@ func (a *App) changeHome(opts ChangeServiceOptions) (changeHome, error) {
 			return changeHome{}, err
 		}
 		if !opts.Materialize {
-			// An edition with no file lives in the workspace home until a
-			// delivery writes it; a service that materializes is that
-			// delivery, and writes every edition to its file.
-			pl.kept = &keptPolicy{keeper: a.keptEditions(l.Root)}
+			// An edition with no file lives in the workspace home while the
+			// recipe withholds it, until a delivery writes it; a service
+			// that materializes is that delivery, and writes every edition
+			// to its file.
+			pl.kept = a.newKeptPolicy(l.Root, pl.proj)
 		}
 		// The lock files live in .kapi/work, which the layout's ignore rule
 		// keeps out of a commit. The directory and the rule are written when a

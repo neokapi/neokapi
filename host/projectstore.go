@@ -56,8 +56,10 @@ type projectStores struct {
 	ws    map[string]*workspace.Workspace
 	wsErr map[string]error
 	// keptKeys holds, by project root, the document keys the workspace home
-	// files kept editions under (host/workhome.go).
-	keptKeys map[string]*keptDocKeys
+	// files kept editions under (host/workhome.go), and keptRedact the
+	// redaction policy it applies, as the recipe last read declared it.
+	keptKeys   map[string]*keptDocKeys
+	keptRedact map[string]keptRedactionRead
 }
 
 // ensureProjectStores returns the App's store holder, creating it on first use.
@@ -589,6 +591,7 @@ func (a *App) closeProjectStores() {
 	clear(s.projectors)
 	clear(s.bound)
 	clear(s.keptKeys)
+	clear(s.keptRedact)
 	// Last: a project store reads and writes the context database the workspace
 	// handed it, so the workspace outlives every store that borrowed from it.
 	for root, ws := range s.ws {

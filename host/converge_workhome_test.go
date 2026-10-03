@@ -103,17 +103,29 @@ func TestConverge_KeepsParkedDraftsInTheWorkspaceHome(t *testing.T) {
 	require.NotEmpty(t, hist, "keeping a draft is recorded")
 	assert.Equal(t, "flow:translate", hist[0].Origin)
 	assert.Equal(t, string(change.ActorTool), hist[0].Actor)
+	assert.NotEmpty(t, hist[0].ContentHash, "with the identity history reconciles by")
+	assert.NotEmpty(t, hist[0].ContextHash)
 }
 
 // TestConverge_DeletingTheCacheLosesNoDraftAndCallsNoProvider is WP8's
 // acceptance: `.kapi/work/` is a cache. Deleting it and running again keeps
-// every parked draft and serves each one without a provider call.
+// every parked draft, and the edit a person made to one, and serves each
+// without a provider call.
 func TestConverge_DeletingTheCacheLosesNoDraftAndCallsNoProvider(t *testing.T) {
+	ctx := context.Background()
 	a, cmd, recipe, dir := parkedReviewProject(t)
 	_, events := parkedReviewPass(t, a, cmd, recipe)
 	require.Equal(t, 4, parkedProduced(t, events, "nl").ViaAI, "the first pass pays for every unit")
+	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: "desktop"})
+	require.NoError(t, err)
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "site/locales/nl.json", Blocks: []string{"title"}})
+	require.NoError(t, err)
+	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{setTo(page.Blocks[0].Ref, page.Blocks[0].Rev, "Tijvenster")}}, changePerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 	before := map[string]map[string]string{"nb": keptTexts(t, a, dir, "nb"), "nl": keptTexts(t, a, dir, "nl")}
 	require.Len(t, before["nl"], 4)
+	require.Equal(t, "Tijvenster", before["nl"]["title"])
 
 	a.Shutdown()
 	layout, err := project.LayoutFor(recipe)
@@ -262,7 +274,7 @@ func TestStatus_ListsAKeptDraftConflict(t *testing.T) {
 	ctx := context.Background()
 	a, cmd, recipe, dir := parkedReviewProject(t)
 	parkedReviewPass(t, a, cmd, recipe)
-	require.Empty(t, a.statusConflicts(ctx, dir), "one machine's own writes never conflict")
+	require.Empty(t, a.statusConflicts(ctx, recipe), "one machine's own writes never conflict")
 
 	// Another machine's edit of the title, made before this machine's last
 	// write to the edition: its base is not the head, and the block it
@@ -281,7 +293,7 @@ func TestStatus_ListsAKeptDraftConflict(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	conflicts := a.statusConflicts(ctx, dir)
+	conflicts := a.statusConflicts(ctx, recipe)
 	require.Len(t, conflicts, 1)
 	assert.Equal(t, parkedSource, conflicts[0].Doc)
 	assert.Equal(t, "nl", conflicts[0].Locale)
@@ -328,4 +340,225 @@ func TestMerge_MaterializeDeliversTheKeptEdition(t *testing.T) {
 		}
 	}
 	assert.True(t, learned, "the delivered wording, the person's edit, reaches the content memory")
+}
+
+// TestConverge_AFileThatAppearsKeepsAPersonsEdit: a translation's file can
+// appear by a path other than a delivery of what the workspace keeps: a
+// person writes it, or a recipe that stops withholding delivery has its pass
+// write it from the flow's drafts. The file is the edition's home from then
+// on, so the workspace releases the drafts a tool made, and keeps the wording
+// a person wrote that the file does not hold, which kapi status lists and
+// kapi merge writes into the file.
+func TestConverge_AFileThatAppearsKeepsAPersonsEdit(t *testing.T) {
+	cases := []struct {
+		name   string
+		appear func(t *testing.T, recipe, dir string)
+	}{
+		{name: "a person writes the file", appear: func(t *testing.T, _, dir string) {
+			path := filepath.Join(dir, "site", "locales", "nl.json")
+			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+			require.NoError(t, os.WriteFile(path, []byte(`{"title": "Iets anders"}`+"\n"), 0o644))
+		}},
+		{name: "the recipe stops withholding delivery", appear: func(t *testing.T, recipe, _ string) {
+			proj, err := project.Load(recipe)
+			require.NoError(t, err)
+			proj.Defaults.Materialize = project.MaterializeManual
+			require.NoError(t, project.Save(recipe, proj))
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			a, cmd, recipe, dir := parkedReviewProject(t)
+			parkedReviewPass(t, a, cmd, recipe)
+			svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: "desktop"})
+			require.NoError(t, err)
+			page, err := svc.Read(ctx, change.ReadRequest{Doc: "site/locales/nl.json", Blocks: []string{"title"}})
+			require.NoError(t, err)
+			res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{setTo(page.Blocks[0].Ref, page.Blocks[0].Rev, "Tijvenster")}}, changePerson)
+			require.NoError(t, err)
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+
+			tc.appear(t, recipe, dir)
+			parkedReviewPass(t, a, cmd, recipe)
+			nl := filepath.Join(dir, "site", "locales", "nl.json")
+			require.FileExists(t, nl)
+			body, err := os.ReadFile(nl)
+			require.NoError(t, err)
+			require.NotContains(t, string(body), "Tijvenster")
+			assert.Equal(t, map[string]string{"title": "Tijvenster"}, keptTexts(t, a, dir, "nl"),
+				"the person's wording stays kept, and the tool's drafts are released")
+			conflicts := a.statusConflicts(ctx, recipe)
+			require.Len(t, conflicts, 1)
+			assert.Equal(t, StatusConflict{Doc: parkedSource, Locale: "nl", File: "site/locales/nl.json", Blocks: []string{"title"}}, conflicts[0])
+			var text strings.Builder
+			require.NoError(t, StatusOutput{Conflicts: conflicts}.FormatText(&text))
+			assert.Contains(t, text.String(), "kapi merge writes it into the file")
+
+			proj, err := project.Load(recipe)
+			require.NoError(t, err)
+			_, err = a.materializeFromProjectStore(ctx, os.Stderr, proj, recipe, []model.LocaleID{"nl"}, false)
+			require.NoError(t, err)
+			body, err = os.ReadFile(nl)
+			require.NoError(t, err)
+			assert.Contains(t, string(body), "Tijvenster", "kapi merge writes the person's wording into the file")
+			assert.Empty(t, keptTexts(t, a, dir, "nl"))
+			assert.Empty(t, a.statusConflicts(ctx, recipe))
+		})
+	}
+}
+
+// TestConverge_ADeliveryWritesTheRunsDraftsAndTheEditsMadeToThem: a locale
+// that clears its gate in the run where a source sentence changed is
+// delivered with the run's fresh draft of that sentence, and with the
+// wording a person gave another unit while the locale was parked, never with
+// the draft the workspace kept of the old sentence.
+func TestConverge_ADeliveryWritesTheRunsDraftsAndTheEditsMadeToThem(t *testing.T) {
+	ctx := context.Background()
+	a, cmd, recipe, dir := parkedReviewProject(t)
+	parkedReviewPass(t, a, cmd, recipe)
+	require.Contains(t, keptTexts(t, a, dir, "nl")["footer"], "six")
+
+	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: "desktop"})
+	require.NoError(t, err)
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "site/locales/nl.json", Blocks: []string{"cta"}})
+	require.NoError(t, err)
+	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{setTo(page.Blocks[0].Ref, page.Blocks[0].Rev, "Plan een oversteek")}}, changePerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	for _, key := range []string{"title", "subtitle"} {
+		_, err := decideUnit(cmd.Context(), a, recipe,
+			ReviewUnitRef{File: filepath.Join("site", "locales", "nl.json"), Key: key, Locale: "nl"},
+			ReviewDecisionApproved, "")
+		require.NoError(t, err)
+	}
+	src := filepath.Join(dir, "src", "en.json")
+	body, err := os.ReadFile(src)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(src, []byte(strings.Replace(string(body), "every six minutes", "every ten minutes", 1)), 0o644))
+
+	out, events := parkedReviewPass(t, a, cmd, recipe)
+	require.True(t, parkedLocaleResult(t, out, "nl").Shippable)
+	require.Equal(t, 1, parkedProviderCalls(events, "nl"), "the pass drafts the changed sentence")
+
+	delivered, err := os.ReadFile(filepath.Join(dir, "site", "locales", "nl.json"))
+	require.NoError(t, err)
+	assert.Contains(t, string(delivered), "ten", "the run's fresh draft is delivered")
+	assert.NotContains(t, string(delivered), "six", "and never the draft of the old sentence")
+	assert.Contains(t, string(delivered), "Plan een oversteek", "with the person's wording")
+	assert.Empty(t, keptDrafts(t, a, dir, "nl"), "and the workspace keeps none of it")
+}
+
+// TestStatus_AConflictClearsWhenItsDraftIsDelivered: a delivery that writes
+// a kept edition to its file settles every write a merge left divergent on
+// it, so kapi status names no conflict on an edition the workspace no longer
+// keeps.
+func TestStatus_AConflictClearsWhenItsDraftIsDelivered(t *testing.T) {
+	ctx := context.Background()
+	a, cmd, recipe, dir := parkedReviewProject(t)
+	parkedReviewPass(t, a, cmd, recipe)
+	p, err := a.Projector(ctx, dir)
+	require.NoError(t, err)
+	doc := a.documentIndexOrEmpty(ctx, dir).Key(parkedSource)
+	seq, err := p.SubjectHead(ctx, doc, "nl")
+	require.NoError(t, err)
+	other := model.Edition{Runs: []model.Run{model.TextR("Getijdenvenster")}, Status: model.Status(model.TargetStatusTranslated)}
+	_, err = p.CommitWorkspace(ctx, workhome.Commit{
+		Doc: doc, Path: parkedSource, Edition: "nl", Expect: seq, Base: "",
+		Actor: change.Actor{Kind: change.ActorPerson, Name: "elsewhere"}, Origin: "desktop",
+		Blocks: []workhome.CommitBlock{{Block: "title", Before: "r:0000000000000000",
+			After: model.RunsRevision(model.EditionKey{Locale: "nl"}, other.Runs), Edition: &other}},
+	})
+	require.NoError(t, err)
+	require.Len(t, a.statusConflicts(ctx, recipe), 1)
+
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	_, err = a.materializeFromProjectStore(ctx, os.Stderr, proj, recipe, []model.LocaleID{"nl"}, false)
+	require.NoError(t, err)
+	require.FileExists(t, filepath.Join(dir, "site", "locales", "nl.json"))
+	assert.Empty(t, keptDrafts(t, a, dir, "nl"))
+	assert.Empty(t, a.statusConflicts(ctx, recipe), "the delivery settled the conflict")
+}
+
+// TestConverge_AParkedLocaleWithAFileKeepsNoDraft: a locale delivered once
+// parks again when its source gains a sentence. Its file is its home, so the
+// run keeps none of its drafts in the workspace, the new sentence's included:
+// the workspace never holds a second copy of an edition a file holds.
+func TestConverge_AParkedLocaleWithAFileKeepsNoDraft(t *testing.T) {
+	a, cmd, recipe, dir := parkedReviewProject(t)
+	parkedReviewPass(t, a, cmd, recipe)
+	for _, key := range []string{"title", "subtitle"} {
+		_, err := decideUnit(cmd.Context(), a, recipe,
+			ReviewUnitRef{File: filepath.Join("site", "locales", "nl.json"), Key: key, Locale: "nl"},
+			ReviewDecisionApproved, "")
+		require.NoError(t, err)
+	}
+	out, _ := parkedReviewPass(t, a, cmd, recipe)
+	require.True(t, parkedLocaleResult(t, out, "nl").Shippable)
+	require.FileExists(t, filepath.Join(dir, "site", "locales", "nl.json"))
+
+	src := filepath.Join(dir, "src", "en.json")
+	body, err := os.ReadFile(src)
+	require.NoError(t, err)
+	added := strings.Replace(string(body), `"footer":`, `"note": "Tide tables are estimates",
+  "footer":`, 1)
+	require.NoError(t, os.WriteFile(src, []byte(added), 0o644))
+	keptOps := func() int {
+		n := 0
+		for _, op := range editOps(t, a, dir) {
+			if strings.HasSuffix(op.Subject, "@nl") {
+				n++
+			}
+		}
+		return n
+	}
+	was := keptOps()
+	out, _ = parkedReviewPass(t, a, cmd, recipe)
+	require.False(t, parkedLocaleResult(t, out, "nl").Shippable, "two approvals of five units are short of the gate")
+	assert.Empty(t, keptDrafts(t, a, dir, "nl"))
+	assert.Equal(t, was, keptOps(), "the run records nothing in the workspace home for a locale with a file")
+}
+
+// TestMerge_AKeptDraftOfAChangedSourceStaysStale: kapi merge writes a kept
+// draft with the basis it was made from, so a draft of a sentence that has
+// changed since reads as stale in its file, as it did where it was kept,
+// rather than as a translation of the new sentence.
+func TestMerge_AKeptDraftOfAChangedSourceStaysStale(t *testing.T) {
+	ctx := context.Background()
+	a, cmd, recipe, dir := parkedReviewProject(t)
+	parkedReviewPass(t, a, cmd, recipe)
+	keptBasis := keptDrafts(t, a, dir, "nl")["footer"].Basis
+	require.NotEmpty(t, keptBasis)
+
+	src := filepath.Join(dir, "src", "en.json")
+	body, err := os.ReadFile(src)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(src, []byte(strings.Replace(string(body), "every six minutes", "every ten minutes", 1)), 0o644))
+	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe})
+	require.NoError(t, err)
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: parkedSource, Blocks: []string{"footer"}})
+	require.NoError(t, err)
+	require.NotEqual(t, keptBasis, page.Blocks[0].Rev, "the source moved since the draft was made")
+
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	_, err = a.materializeFromProjectStore(ctx, os.Stderr, proj, recipe, []model.LocaleID{"nl"}, false)
+	require.NoError(t, err)
+	delivered, err := os.ReadFile(filepath.Join(dir, "site", "locales", "nl.json"))
+	require.NoError(t, err)
+	require.Contains(t, string(delivered), "six")
+
+	db, err := a.ProjectDB(ctx, dir)
+	require.NoError(t, err)
+	hist, err := db.History().Edition(ctx, a.documentIndexOrEmpty(ctx, dir).Key(parkedSource), "footer", "nl", 0)
+	require.NoError(t, err)
+	found := false
+	for _, h := range hist {
+		if h.Origin == "merge" && h.After != model.AbsentRevision {
+			found = true
+			assert.Equal(t, keptBasis, h.Basis, "the delivery records the basis the draft was made from")
+		}
+	}
+	assert.True(t, found, "the delivery is recorded")
 }

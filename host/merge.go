@@ -21,6 +21,8 @@ import (
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/workhome"
+	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/memory"
@@ -382,12 +384,8 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 			if serr != nil {
 				return written, fmt.Errorf("merge: %w", serr)
 			}
-			ref, edition := filepath.ToSlash(f.Relative), model.EditionKey{Locale: locale}
-			keptEd, kerr := a.keptRuns(ctx, layout.Root, ref, edition)
-			if kerr != nil {
-				return written, fmt.Errorf("merge: read the %s drafts of %s: %w", locale, f.Relative, kerr)
-			}
-			held, wrote, merr := materializeEdition(fileCtx, svc, store, keptEd, ref, locale)
+			ref := filepath.ToSlash(f.Relative)
+			held, wrote, keptEd, merr := a.deliverEdition(ctx, fileCtx, svc, store, layout.Root, ref, locale)
 			if merr != nil {
 				return written, fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, merr)
 			}
@@ -399,13 +397,6 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 			if wrote {
 				written++
 			}
-			if keptEd != nil {
-				// The file holds the edition now, so the workspace home stops
-				// keeping it.
-				if rerr := a.releaseKept(ctx, layout.Root, ref, edition, materializeActor, "merge"); rerr != nil {
-					return written, fmt.Errorf("merge: release the %s drafts of %s from the workspace home: %w", locale, f.Relative, rerr)
-				}
-			}
 
 			// Absorb the materialized targets into the project content memory with merge
 			// provenance, mirroring the XLIFF/PO/.kpz merge paths. TM write-back
@@ -414,7 +405,7 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 			// TM is how the next run recycles this work, and a silent failure to
 			// record it looks like the translation never happened.
 			if absorber != nil {
-				if _, _, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, keptEd, absorber, f.Relative, pctx.FormatConfigFor(srcFormat, f.Item)); aerr != nil {
+				if _, _, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, keptBlocksOf(keptEd), absorber, f.Relative, pctx.FormatConfigFor(srcFormat, f.Item)); aerr != nil {
 					fmt.Fprintf(os.Stderr, "Warning: merge: record %s → %s in the project content memory: %v (the target file was written)\n",
 						f.Relative, locale, aerr)
 				}
@@ -432,6 +423,47 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	}
 
 	return written, nil
+}
+
+// deliverEdition writes the translation of ref into locale from what the
+// workspace home keeps of it and the targets the block store holds
+// (materializeEdition), then releases from the workspace home exactly what it
+// read there. The release expects the head the delivery read, so an edit to
+// the kept edition that lands in between is never released unwritten: the
+// delivery reads the edition again and writes it. It returns how many blocks
+// had a translation to write, whether the file was written, and what the
+// workspace home kept that the file now holds.
+func (a *App) deliverEdition(ctx, fileCtx context.Context, svc *change.Service, store blockstore.Store, root, ref string, locale model.LocaleID) (int, bool, *workhome.Held, error) {
+	edition := model.EditionKey{Locale: locale}
+	wroteAny := false
+	for attempt := 0; ; attempt++ {
+		kept, err := a.keptEdition(ctx, root, ref, edition)
+		if err != nil {
+			return 0, false, nil, fmt.Errorf("read the %s drafts of %s: %w", locale, ref, err)
+		}
+		n, wrote, err := materializeEdition(fileCtx, svc, store, kept, ref, locale)
+		if err != nil {
+			return 0, wroteAny, nil, err
+		}
+		wroteAny = wroteAny || wrote
+		err = a.releaseKept(ctx, root, ref, edition, kept, nil, materializeActor, "merge")
+		if errors.Is(err, workspace.ErrHeadMoved) && attempt < 2 {
+			continue
+		}
+		if err != nil {
+			return n, wroteAny, kept, fmt.Errorf("release the %s drafts of %s from the workspace home: %w", locale, ref, err)
+		}
+		return n, wroteAny, kept, nil
+	}
+}
+
+// keptBlocksOf is each block's edition a read of the workspace home found,
+// nil for none.
+func keptBlocksOf(kept *workhome.Held) map[string]model.Edition {
+	if kept == nil {
+		return nil
+	}
+	return kept.Blocks
 }
 
 // localesWithStoredTargets narrows a materialize pass to the locales the

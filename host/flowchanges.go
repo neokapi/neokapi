@@ -342,9 +342,13 @@ type leftBlock struct {
 	block    *model.Block
 	editions map[string]leftEdition
 	// id and source are the block's reader id and source text, which name
-	// the overlay its producer left (blockstore.StoreKey).
-	id     string
-	source string
+	// the overlay its producer left (blockstore.StoreKey); unit and
+	// contextHash are its durable key and context hash, which identify it in
+	// the record of a draft the workspace home keeps.
+	id          string
+	source      string
+	unit        string
+	contextHash string
 }
 
 // basis is the revision of the authoritative edition a derived edition the
@@ -533,6 +537,9 @@ func (doc *flowDoc) Leave(b *model.Block) {
 	}
 	if len(lb.editions) == 0 && doc.entered == nil {
 		return
+	}
+	if len(lb.editions) > 0 {
+		lb.unit, lb.contextHash = b.Unit, model.ComputeIdentity(b).ContextHash
 	}
 	if doc.entered != nil {
 		lb.block = snapshotBlock(b)

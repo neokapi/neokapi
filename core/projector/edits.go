@@ -33,10 +33,12 @@ type Edit struct {
 	// the document's key and this, and the operation names that pair as its
 	// subject (workhome.Subject). Base is the operation the edition's head
 	// was at when the write was staged, and Cause the divergent operation a
-	// rebase carries over. The three are empty for any other write.
+	// rebase carries over. Release marks a delivery's release of the whole
+	// edition. All four are empty for any other write.
 	Edition string       `json:"edition,omitempty"`
 	Base    string       `json:"base,omitempty"`
 	Cause   string       `json:"cause,omitempty"`
+	Release bool         `json:"release,omitempty"`
 	Actor   change.Actor `json:"actor"`
 	// Origin says which surface applied the change, in By: apply, ksed, mcp,
 	// browser, desktop, flow:<name>, merge, pull or observed.

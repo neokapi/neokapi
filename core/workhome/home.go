@@ -1,6 +1,7 @@
 package workhome
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -34,6 +35,25 @@ type Log interface {
 	SubjectHead(ctx context.Context, doc, edition string) (int64, error)
 	// Blob reads runs a row keeps in a blob.
 	Blob(ctx context.Context, address string) ([]byte, error)
+	// Writes reads every write the log holds to one edition, as the fold
+	// reads them.
+	Writes(ctx context.Context, doc, edition string) ([]Write, error)
+}
+
+// Redaction keeps the values a project's redaction policy withholds out of
+// what the log records of a write to the workspace home, which travels to
+// every context backend the project shares its context through, and puts them
+// back where the workspace home reads an edition. The originals stay on the
+// machine that withheld them, so another machine reads the placeholders.
+type Redaction interface {
+	// Redact rewrites, in place, the runs and the note a write records, and
+	// drops the change set as sent, whose free text no rule reaches. An
+	// error refuses the write: a policy that cannot redact a record keeps
+	// no edition in the log.
+	Redact(ctx context.Context, c *Commit) error
+	// Restore returns runs as the edition held them before Redact, for the
+	// row that keeps them.
+	Restore(ctx context.Context, r Row, runs []model.Run) []model.Run
 }
 
 // Commit is one write to one edition the workspace home keeps, as the log
@@ -63,7 +83,10 @@ type Commit struct {
 	// DocBefore and DocAfter are the edition's digests around the write.
 	DocBefore string
 	DocAfter  string
-	Blocks    []CommitBlock
+	// Release says the write is a delivery's release of the whole edition,
+	// which settles every write a merge left divergent on it.
+	Release bool
+	Blocks  []CommitBlock
 }
 
 // CommitBlock is one block's edition as a write leaves it.
@@ -83,7 +106,9 @@ type CommitBlock struct {
 	Basis string
 	// Stamp is what the edition's producer recognizes it by.
 	Stamp json.RawMessage
-	// ContentHash and ContextHash are the block's identity signals.
+	// Key is the block's durable key where reconciliation assigned one, and
+	// ContentHash and ContextHash are its identity signals.
+	Key         string
 	ContentHash string
 	ContextHash string
 }
@@ -97,6 +122,9 @@ type Home struct {
 	// DocKey names the document a reference names by the key it keeps it
 	// under, which a rename leaves as it was. Nil keeps the reference.
 	DocKey func(ref string) string
+	// Redaction applies the project's redaction policy to what the log
+	// records; nil records the runs as they are.
+	Redaction Redaction
 }
 
 var _ filehome.Keeper = (*Home)(nil)
@@ -193,6 +221,9 @@ func (h *Home) edition(ctx context.Context, r Row) (model.Edition, error) {
 			return model.Edition{}, fmt.Errorf("workhome: read the runs of %s in %s: %w", r.Block, Subject(r.Doc, r.Edition), err)
 		}
 	}
+	if h.Redaction != nil {
+		runs = h.Redaction.Restore(ctx, r, runs)
+	}
 	return model.Edition{Runs: runs, Status: r.Status, Origin: r.Origin}, nil
 }
 
@@ -211,6 +242,35 @@ func (h *Home) Edition(ctx context.Context, ref string, k model.EditionKey) (fil
 func (h *Home) Rows(ctx context.Context, ref string, k model.EditionKey) (map[string]Row, map[string]model.Edition, error) {
 	_, _, rows, blocks, err := h.read(ctx, h.docKey(ref), editionText(k))
 	return rows, blocks, err
+}
+
+// Held is one edition the workspace home keeps, as one read found it.
+type Held struct {
+	// Token names the head the read found: a release of what the read
+	// found expects it (Release.Token).
+	Token string
+	// Rows and Blocks are each block's row and edition, by block key.
+	Rows   map[string]Row
+	Blocks map[string]model.Edition
+}
+
+// Read reads edition k of the document ref names, with the head it found.
+func (h *Home) Read(ctx context.Context, ref string, k model.EditionKey) (Held, error) {
+	seq, head, rows, blocks, err := h.read(ctx, h.docKey(ref), editionText(k))
+	if err != nil {
+		return Held{}, err
+	}
+	return Held{Token: token(seq, head), Rows: rows, Blocks: blocks}, nil
+}
+
+// record redacts c under the project's policy and records it.
+func (h *Home) record(ctx context.Context, c Commit) (string, error) {
+	if h.Redaction != nil {
+		if err := h.Redaction.Redact(ctx, &c); err != nil {
+			return "", err
+		}
+	}
+	return h.Log.CommitWorkspace(ctx, c)
 }
 
 // Commit stores the change a file home staged on an edition the workspace
@@ -251,14 +311,24 @@ func (h *Home) Commit(ctx context.Context, w filehome.KeptWrite) (string, error)
 			b.After = model.RunsRevision(w.Edition, ch.Edition.Runs)
 		}
 		if t, ok := byBlock[ch.Block]; ok {
-			b.Basis, b.ContentHash, b.ContextHash = t.Basis, t.ContentHash, t.ContextHash
+			b.Basis, b.Key, b.ContentHash, b.ContextHash = t.Basis, t.Key, t.ContentHash, t.ContextHash
+			if blk := t.Block; blk != nil {
+				if b.Key == "" {
+					b.Key = blk.Unit
+				}
+				if b.ContentHash == "" || b.ContextHash == "" {
+					id := model.ComputeIdentity(blk)
+					b.ContentHash = cmp.Or(b.ContentHash, id.ContentHash)
+					b.ContextHash = cmp.Or(b.ContextHash, id.ContextHash)
+				}
+			}
 			if keep {
 				b.BeforeRuns = t.Before
 			}
 		}
 		c.Blocks = append(c.Blocks, b)
 	}
-	id, err := h.Log.CommitWorkspace(ctx, c)
+	id, err := h.record(ctx, c)
 	if errors.Is(err, workspace.ErrHeadMoved) {
 		return "", &change.Error{Code: change.CodeDocChanged,
 			Message: fmt.Sprintf("edition %s of %s changed in the workspace while the edit was committed; read it and send the change again", c.Edition, w.Doc)}
@@ -287,7 +357,9 @@ type Produced struct {
 	Edition model.Edition
 	Basis   string
 	Stamp   json.RawMessage
-	// ContentHash and ContextHash are the block's identity signals.
+	// Key is the block's durable key where reconciliation assigned one, and
+	// ContentHash and ContextHash are its identity signals.
+	Key         string
 	ContentHash string
 	ContextHash string
 }
@@ -346,7 +418,7 @@ func (h *Home) Produce(ctx context.Context, p Produce) (ProduceResult, error) {
 			}
 			ed := d.Edition
 			c.Blocks = append(c.Blocks, CommitBlock{Block: d.Block, Before: now, After: rev, Edition: &ed,
-				Basis: d.Basis, Stamp: d.Stamp, ContentHash: d.ContentHash, ContextHash: d.ContextHash})
+				Basis: d.Basis, Stamp: d.Stamp, Key: d.Key, ContentHash: d.ContentHash, ContextHash: d.ContextHash})
 			after[d.Block] = Row{Rev: rev, Status: ed.Status, Origin: ed.Origin}
 			res.Written++
 		}
@@ -354,7 +426,7 @@ func (h *Home) Produce(ctx context.Context, p Produce) (ProduceResult, error) {
 			return res, nil
 		}
 		c.DocAfter = Digest(after)
-		id, err := h.Log.CommitWorkspace(ctx, c)
+		id, err := h.record(ctx, c)
 		if errors.Is(err, workspace.ErrHeadMoved) && attempt < 2 {
 			continue
 		}
@@ -371,33 +443,65 @@ func byWriter(o model.Origin) bool {
 	return o.Kind == model.OriginHuman || o.Kind == model.OriginAgent
 }
 
-// Release removes every block of edition k of the document ref names from
-// the workspace home, recorded as actor's write through origin: what a
-// delivery does once the edition's file holds it, so the workspace never
-// keeps a second copy of an edition that has a file. It returns the id of the
-// operation, empty when the workspace home kept nothing of the edition.
-func (h *Home) Release(ctx context.Context, ref string, k model.EditionKey, actor change.Actor, origin string) (string, error) {
+// Release is what a delivery releases from the workspace home once an
+// edition's file holds it.
+type Release struct {
+	// Token is Held.Token as the delivery read the edition: the release lands
+	// only while the edition's head is still the one the delivery wrote out,
+	// so a write that lands in between is never released unread.
+	Token string
+	// Blocks are the blocks to release; nil releases every block.
+	Blocks []string
+	// Actor and Origin are the delivery's: the tool and the surface.
+	Actor  change.Actor
+	Origin string
+}
+
+// ErrReleaseMoved is what Release returns when the edition's head moved
+// since the delivery read it. It matches workspace.ErrHeadMoved.
+var ErrReleaseMoved = fmt.Errorf("workhome: the edition changed in the workspace after the delivery read it: %w", workspace.ErrHeadMoved)
+
+// Release removes the blocks r names of edition k of the document ref names
+// from the workspace home, recorded as r.Actor's write through r.Origin: what
+// a delivery does once the edition's file holds them, so the workspace never
+// keeps a second copy of what a file holds. A release of every block the
+// edition holds settles every write a merge left divergent on it. It returns
+// the id of the operation, empty when there was nothing to release, and
+// ErrReleaseMoved when the head is no longer at r.Token.
+func (h *Home) Release(ctx context.Context, ref string, k model.EditionKey, r Release) (string, error) {
 	doc, edition := h.docKey(ref), editionText(k)
-	for attempt := 0; ; attempt++ {
-		seq, head, rows, _, err := h.read(ctx, doc, edition)
-		if err != nil {
-			return "", err
-		}
-		if len(rows) == 0 {
-			return "", nil
-		}
-		c := Commit{Doc: doc, Path: ref, Edition: edition, Expect: seq, Base: head.Op,
-			Actor: actor, Origin: origin, DocBefore: Digest(rows)}
-		for _, key := range slices.Sorted(maps.Keys(rows)) {
-			r := rows[key]
-			c.Blocks = append(c.Blocks, CommitBlock{Block: key, Before: r.Rev, After: model.AbsentRevision, Basis: r.Basis})
-		}
-		id, err := h.Log.CommitWorkspace(ctx, c)
-		if errors.Is(err, workspace.ErrHeadMoved) && attempt < 2 {
+	seq, head, rows, _, err := h.read(ctx, doc, edition)
+	if err != nil {
+		return "", err
+	}
+	if token(seq, head) != r.Token {
+		return "", ErrReleaseMoved
+	}
+	keys := r.Blocks
+	if keys == nil {
+		keys = slices.Sorted(maps.Keys(rows))
+	}
+	c := Commit{Doc: doc, Path: ref, Edition: edition, Expect: seq, Base: head.Op,
+		Actor: r.Actor, Origin: r.Origin, DocBefore: Digest(rows)}
+	after := maps.Clone(rows)
+	for _, key := range keys {
+		row, ok := rows[key]
+		if !ok {
 			continue
 		}
-		return id, err
+		c.Blocks = append(c.Blocks, CommitBlock{Block: key, Before: row.Rev, After: model.AbsentRevision, Basis: row.Basis})
+		delete(after, key)
 	}
+	if len(c.Blocks) == 0 {
+		return "", nil
+	}
+	c.Release = len(after) == 0
+	c.DocAfter = Digest(after)
+	id, err := h.record(ctx, c)
+	if errors.Is(err, workspace.ErrHeadMoved) {
+		return "", ErrReleaseMoved
+	}
+	return id, err
 }
 
 // Conflict is a write to an edition the workspace home keeps that did not
@@ -414,8 +518,10 @@ type Conflict struct {
 	Blocks []string
 }
 
-// Conflicts lists the writes that did not advance an edition's head and
-// still differ from it, in document, edition and id order.
+// Conflicts lists the writes that did not advance an edition's head, that
+// the head does not already hold, and that the rebase cannot carry over, in
+// document, edition and id order. A release that did not land is not one:
+// the delivery that made it handles what the head still holds.
 func (h *Home) Conflicts(ctx context.Context) ([]Conflict, error) {
 	if err := h.Log.CatchUp(ctx); err != nil {
 		return nil, err
@@ -434,7 +540,7 @@ func (h *Home) Conflicts(ctx context.Context) ([]Conflict, error) {
 			return nil, err
 		}
 		for _, d := range head.Divergent {
-			if Settled(d, rows) {
+			if d.Release || Settled(d, rows) || Rebaseable(d, rows) {
 				continue
 			}
 			c := Conflict{Doc: head.Doc, Path: head.Path, Edition: head.Edition, Op: d.Op}

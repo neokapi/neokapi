@@ -16,9 +16,9 @@
 //     keeps: its revision, its runs (inline, or in a blob when large), its
 //     status and origin, the basis it was made from, and the stamp its
 //     producer recognizes it by;
-//   - document_head holds one row per subject: the operation its head is at,
-//     the latest operation folded, and the operations that did not advance
-//     it.
+//   - edition_subject_head holds one row per subject: the operation its head
+//     is at, the latest operation folded, and the operations that did not
+//     advance it.
 //
 // The head a conditional record expects is the local position of the latest
 // operation on the subject, which the writer reads from the log itself
@@ -29,8 +29,10 @@
 // whose log has been merged agrees on. An operation advances the head when it
 // was staged on the head it finds (its base); otherwise it is divergent and
 // changes nothing. Every machine therefore reaches the same head whatever
-// order its log received the operations in, and a divergent operation stays
-// listed until an operation that rebases it (its cause) advances the head.
+// order its log received the operations in. A divergent operation stays
+// listed until the head advances by an operation that rebases it (its cause),
+// by a person's or an agent's write to every block it changed, or by a
+// release that removes the whole edition.
 //
 // The projector is the only writer of these tables. Everything else reads.
 package workhome
@@ -102,10 +104,13 @@ type Head struct {
 }
 
 // Divergence is an operation that did not advance a head: the blocks it
-// changed and the revisions it moved each from and to.
+// changed and the revisions it moved each from and to. Release marks a
+// release that did not land, which nothing carries over: the delivery that
+// made it handles what the head still holds.
 type Divergence struct {
-	Op     string `json:"op"`
-	Blocks []Move `json:"blocks"`
+	Op      string `json:"op"`
+	Blocks  []Move `json:"blocks"`
+	Release bool   `json:"release,omitempty"`
 }
 
 // Move is one block's edition as a write moved it.
@@ -124,9 +129,15 @@ type Write struct {
 	Path    string
 	// Base is the operation the head was at when the write was staged; Cause
 	// is the divergent operation a rebase carries over.
-	Base   string
-	Cause  string
-	Blocks []BlockWrite
+	Base  string
+	Cause string
+	// Writer says a person or an agent made the write: when it advances the
+	// head, it settles what every divergent write held for the blocks it
+	// writes. Release says the write is a delivery's release of the whole
+	// edition, which settles every divergent write.
+	Writer  bool
+	Release bool
+	Blocks  []BlockWrite
 }
 
 // BlockWrite is one block's edition as a write leaves it.
@@ -167,7 +178,7 @@ CREATE TABLE IF NOT EXISTS edition_head (
     op      TEXT NOT NULL,
     PRIMARY KEY (doc, edition, block)
 );
-CREATE TABLE IF NOT EXISTS document_head (
+CREATE TABLE IF NOT EXISTS edition_subject_head (
     doc       TEXT NOT NULL,
     edition   TEXT NOT NULL,
     path      TEXT NOT NULL DEFAULT '',
@@ -180,7 +191,7 @@ CREATE TABLE IF NOT EXISTS document_head (
 
 // Tables are the tables the store keeps, which a rebuild empties and a
 // checkpoint carries.
-var Tables = []string{"edition_head", "document_head"}
+var Tables = []string{"edition_head", "edition_subject_head"}
 
 // Open binds the store to a context database, creating its tables.
 func Open(db *storage.DB) (*Store, error) {
@@ -221,7 +232,7 @@ func fold(h *Head, rows map[string]Row, w Write) {
 		for _, b := range w.Blocks {
 			moves = append(moves, Move{Block: b.Block, Before: b.Before, After: b.After})
 		}
-		h.Divergent = append(h.Divergent, Divergence{Op: w.Op, Blocks: moves})
+		h.Divergent = append(h.Divergent, Divergence{Op: w.Op, Blocks: moves, Release: w.Release})
 		return
 	}
 	for _, b := range w.Blocks {
@@ -232,8 +243,41 @@ func fold(h *Head, rows map[string]Row, w Write) {
 		rows[b.Block] = rowOf(w, b)
 	}
 	h.Op, h.Path = w.Op, w.Path
-	if w.Cause != "" {
+	switch {
+	case w.Release:
+		// The edition went to its file: nothing a divergent write held is
+		// carried over onto a head the workspace no longer keeps.
+		h.Divergent = nil
+	case w.Cause != "":
 		h.Divergent = slices.DeleteFunc(h.Divergent, func(d Divergence) bool { return d.Op == w.Cause })
+	}
+	if w.Writer {
+		settleWritten(h, w)
+	}
+}
+
+// settleWritten drops, from every divergent write h lists, the blocks a
+// person's or an agent's write that advanced the head wrote: a write made
+// with the conflict in view decides those blocks. A divergent write left with
+// no block is settled.
+func settleWritten(h *Head, w Write) {
+	if len(h.Divergent) == 0 {
+		return
+	}
+	written := make(map[string]bool, len(w.Blocks))
+	for _, b := range w.Blocks {
+		written[b.Block] = true
+	}
+	out := h.Divergent[:0]
+	for _, d := range h.Divergent {
+		d.Blocks = slices.DeleteFunc(slices.Clone(d.Blocks), func(m Move) bool { return written[m.Block] })
+		if len(d.Blocks) > 0 {
+			out = append(out, d)
+		}
+	}
+	h.Divergent = out
+	if len(h.Divergent) == 0 {
+		h.Divergent = nil
 	}
 }
 
@@ -377,7 +421,7 @@ func putHead(ctx context.Context, tx *storage.Tx, h Head) error {
 		divergent = string(data)
 	}
 	if _, err := tx.ExecContext(ctx, `
-INSERT INTO document_head (doc, edition, path, op, last, divergent) VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO edition_subject_head (doc, edition, path, op, last, divergent) VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT(doc, edition) DO UPDATE SET
     path = excluded.path, op = excluded.op, last = excluded.last, divergent = excluded.divergent`,
 		h.Doc, h.Edition, h.Path, h.Op, h.Last, divergent); err != nil {
@@ -409,7 +453,7 @@ func scanHead(sc interface{ Scan(...any) error }) (Head, error) {
 }
 
 func readHead(ctx context.Context, q querier, doc, edition string) (Head, bool, error) {
-	h, err := scanHead(q.QueryRowContext(ctx, `SELECT `+headColumns+` FROM document_head WHERE doc = ? AND edition = ?`, doc, edition))
+	h, err := scanHead(q.QueryRowContext(ctx, `SELECT `+headColumns+` FROM edition_subject_head WHERE doc = ? AND edition = ?`, doc, edition))
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return Head{}, false, nil
@@ -428,7 +472,7 @@ func (s *Store) Head(ctx context.Context, doc, edition string) (Head, bool, erro
 // Heads returns the head of every edition the workspace home has kept, by
 // document and edition.
 func (s *Store) Heads(ctx context.Context) ([]Head, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+headColumns+` FROM document_head ORDER BY doc, edition`)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+headColumns+` FROM edition_subject_head ORDER BY doc, edition`)
 	if err != nil {
 		return nil, fmt.Errorf("workhome: read the heads: %w", err)
 	}

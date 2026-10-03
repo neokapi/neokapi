@@ -47,20 +47,26 @@ type StatusOutput struct {
 	// block history records nothing: the source each was made from is in the
 	// project's context, which kapi context pull reads (HistoryNotPulledNote).
 	HistoryNotPulled bool `json:"history_not_pulled,omitempty"`
-	// Conflicts lists the edits to drafts the workspace home keeps that two
-	// machines made from one version, that a pull merged, and that could not
-	// both land because they changed the same block. The edit that sorts
-	// first holds the block; each listed edit waits for a person.
+	// Conflicts lists what the workspace home keeps of a translation that
+	// waits for a person: an edit two machines made from one version of a
+	// draft, that a pull merged and that could not land because both changed
+	// the same block (the edit that sorts first holds it); and wording a
+	// person or an agent wrote into a draft whose file has appeared since
+	// without it, which kapi merge writes into the file.
 	Conflicts []StatusConflict `json:"conflicts,omitempty"`
 }
 
-// StatusConflict is an edit to a kept draft that a merge left unapplied.
+// StatusConflict is an edit to a kept draft that did not land, or wording a
+// translation's file does not hold.
 type StatusConflict struct {
-	// Doc is the source document, Locale the draft's language, and Edit the
-	// recorded edit (content.edit) that did not land.
+	// Doc is the source document, Locale the draft's language, and Blocks
+	// the units concerned. Edit is the recorded edit (content.edit) a merge
+	// left unapplied; File, set instead, is the translation's file that does
+	// not hold what the workspace keeps of those units.
 	Doc    string   `json:"doc"`
 	Locale string   `json:"locale"`
-	Edit   string   `json:"edit"`
+	Edit   string   `json:"edit,omitempty"`
+	File   string   `json:"file,omitempty"`
 	Blocks []string `json:"blocks"`
 }
 
@@ -184,8 +190,14 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, HistoryNotPulledNote+".")
 	}
 	for _, c := range o.Conflicts {
-		fmt.Fprintf(w, "Conflict: the %s draft of %s holds another edit to %s; edit %s did not land.\n",
-			c.Locale, c.Doc, strings.Join(c.Blocks, ", "), workspace.ShortOpID(c.Edit))
+		units := strings.Join(c.Blocks, ", ")
+		if c.File != "" {
+			fmt.Fprintf(w, "Conflict: the workspace keeps an edit to %s of the %s translation of %s that %s does not hold; kapi merge writes it into the file.\n",
+				units, c.Locale, c.Doc, c.File)
+			continue
+		}
+		fmt.Fprintf(w, "Conflict: the %s draft of %s holds another edit to %s; edit %s did not land, and a new edit to %s settles it.\n",
+			c.Locale, c.Doc, units, workspace.ShortOpID(c.Edit), units)
 	}
 	return nil
 }
@@ -729,7 +741,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			}
 		}
 		out.HistoryNotPulled = a.historyNotPulled(CmdContext(cmd), root, units)
-		out.Conflicts = a.statusConflicts(CmdContext(cmd), root)
+		out.Conflicts = a.statusConflicts(CmdContext(cmd), projectPath)
 		a.WarnInertRecipeFields(cmd, proj)
 		a.WarnStoreLocaleDrift(cmd, projectPath)
 		return output.Print(cmd, out)

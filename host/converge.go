@@ -1065,7 +1065,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 				// next delivery finds them.
 				a.printOps.note(lc.Locale + ": short of its ship gate, so kapi up delivers none of its files and none is printed")
 				if a.printOps == nil {
-					if _, kerr := a.keepParkedDrafts(ctx, filepath.Dir(projectPath), model.LocaleID(lc.Locale)); kerr != nil {
+					if _, kerr := a.keepDrafts(ctx, filepath.Dir(projectPath), model.LocaleID(lc.Locale), false); kerr != nil {
 						return fmt.Errorf("keep the %s drafts: %w", lc.Locale, kerr)
 					}
 				}
@@ -1073,9 +1073,17 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			}
 			// The locale cleared its gate, so its drafts become its delivery.
 			// This moves the run's own output, which is the record that exists
-			// for every flow; the store-backed write below adds whatever
-			// overlays the run also committed, and is a no-op for a flow that
-			// committed none.
+			// for every flow; the store-backed write below adds what the
+			// workspace home keeps of the locale and whatever overlays the
+			// run also committed. The run's drafts replace the drafts the
+			// workspace kept from an earlier run first, so what is delivered
+			// on top is the edits made to them, never a draft of a source that
+			// has changed since.
+			if a.printOps == nil {
+				if _, kerr := a.keepDrafts(ctx, filepath.Dir(projectPath), model.LocaleID(lc.Locale), true); kerr != nil {
+					return fmt.Errorf("keep the %s drafts: %w", lc.Locale, kerr)
+				}
+			}
 			delivered, derr := a.deliverDrafts(ctx, model.LocaleID(lc.Locale))
 			if derr != nil {
 				return fmt.Errorf("deliver %s: %w", lc.Locale, derr)
@@ -1141,10 +1149,10 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// back as a statement from git; see stampCommittedRecord.
 	if a.printOps == nil {
 		a.stampCommittedRecord(ctx, proj, projectPath, facts.unread)
-		// A pass that wrote a translation's file where the recipe points
-		// delivered it, so the workspace home stops keeping that edition.
-		if rerr := a.releaseDelivered(ctx, projectPath); rerr != nil {
-			return fmt.Errorf("release delivered drafts from the workspace home: %w", rerr)
+		// A translation whose file now exists, whichever path wrote it, has
+		// its file as its home: the workspace home settles what it kept.
+		if rerr := a.settleKept(ctx, projectPath); rerr != nil {
+			return fmt.Errorf("settle the drafts the workspace home keeps: %w", rerr)
 		}
 	}
 

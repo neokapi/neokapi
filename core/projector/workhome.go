@@ -46,7 +46,7 @@ func (p *Projector) CommitWorkspace(ctx context.Context, c workhome.Commit) (str
 	}
 	e := Edit{
 		Doc: EditDoc{Key: c.Doc, Path: c.Path}, Home: workhome.Name, Edition: c.Edition, Base: c.Base, Cause: c.Cause,
-		Actor: c.Actor, Origin: Origin{By: c.Origin}, Fingerprint: c.Fingerprint, Note: c.Note,
+		Release: c.Release, Actor: c.Actor, Origin: Origin{By: c.Origin}, Fingerprint: c.Fingerprint, Note: c.Note,
 		DocBefore: c.DocBefore, DocAfter: c.DocAfter, Overridden: c.Overridden,
 	}
 	byWriter := c.Actor.Kind == change.ActorPerson || c.Actor.Kind == change.ActorAgent
@@ -58,7 +58,7 @@ func (p *Projector) CommitWorkspace(ctx context.Context, c workhome.Commit) (str
 		e.SetJSON = data
 	}
 	for _, b := range c.Blocks {
-		t := EditTransition{Block: b.Block, Edition: c.Edition, Before: b.Before, After: b.After, Basis: b.Basis,
+		t := EditTransition{Block: b.Block, Key: b.Key, Edition: c.Edition, Before: b.Before, After: b.After, Basis: b.Basis,
 			ContentHash: b.ContentHash, ContextHash: b.ContextHash, Stamp: b.Stamp}
 		if byWriter {
 			t.BeforeRuns = b.BeforeRuns
@@ -109,7 +109,9 @@ func (p *Projector) Blob(ctx context.Context, address string) ([]byte, error) {
 // keeps: the head the write was staged on and each block's edition as the
 // write left it, the runs inline where they are small enough to keep so.
 func (p *Projector) workWrite(ctx context.Context, op workspace.Op, e Edit) (workhome.Write, error) {
-	w := workhome.Write{Op: op.ID, Doc: e.Doc.Key, Edition: e.Edition, Path: e.Doc.Path, Base: e.Base, Cause: e.Cause}
+	w := workhome.Write{Op: op.ID, Doc: e.Doc.Key, Edition: e.Edition, Path: e.Doc.Path, Base: e.Base, Cause: e.Cause,
+		Writer:  e.Actor.Kind == change.ActorPerson || e.Actor.Kind == change.ActorAgent,
+		Release: e.Release}
 	for _, t := range e.Transitions {
 		b := workhome.BlockWrite{Block: t.Block, Before: t.Before, After: t.After, Basis: t.Basis, Status: t.Status, Stamp: t.Stamp}
 		if t.Origin != nil {
@@ -156,9 +158,24 @@ func (p *Projector) applyWorkWrites(ctx context.Context, writes []workhome.Write
 
 // refold folds one edition again from every write the log holds for it.
 func (p *Projector) refold(ctx context.Context, doc, edition string) error {
-	ops, err := p.log.Select(ctx, workspace.OpQuery{Project: p.key, Subject: workhome.Subject(doc, edition)})
+	writes, err := p.Writes(ctx, doc, edition)
 	if err != nil {
 		return err
+	}
+	h, rows := workhome.Fold(writes)
+	h.Doc, h.Edition = doc, edition
+	return p.st.Heads.Replace(ctx, h, rows)
+}
+
+// Writes reads every write the log holds to one edition the workspace home
+// keeps, in the log's order, as the fold reads them.
+func (p *Projector) Writes(ctx context.Context, doc, edition string) ([]workhome.Write, error) {
+	if p.log == nil {
+		return nil, nil
+	}
+	ops, err := p.log.Select(ctx, workspace.OpQuery{Project: p.key, Subject: workhome.Subject(doc, edition)})
+	if err != nil {
+		return nil, err
 	}
 	var writes []workhome.Write
 	for _, op := range ops {
@@ -174,13 +191,11 @@ func (p *Projector) refold(ctx context.Context, doc, edition string) error {
 		}
 		w, err := p.workWrite(ctx, op, e)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		writes = append(writes, w)
 	}
-	h, rows := workhome.Fold(writes)
-	h.Doc, h.Edition = doc, edition
-	return p.st.Heads.Replace(ctx, h, rows)
+	return writes, nil
 }
 
 // RebaseWorkspace carries over the writes to editions the workspace home
@@ -218,8 +233,14 @@ func (p *Projector) RebaseWorkspace(ctx context.Context) (int, error) {
 }
 
 // rebase carries one divergent write over onto its edition's head, when
-// every block it changed still holds the revision it started from.
+// every block it changed still holds the revision it started from. Only the
+// blocks the head still lists for it are carried: a person's or an agent's
+// write since has decided the others. A release that did not land is never
+// carried over; the delivery that made it handles what the head holds.
 func (p *Projector) rebase(ctx context.Context, doc, edition string, d workhome.Divergence) (bool, error) {
+	if d.Release {
+		return false, nil
+	}
 	seq, err := p.SubjectHead(ctx, doc, edition)
 	if err != nil {
 		return false, err
@@ -250,12 +271,19 @@ func (p *Projector) rebase(ctx context.Context, doc, edition string, d workhome.
 	if err != nil {
 		return false, err
 	}
+	listed := make(map[string]bool, len(d.Blocks))
+	for _, m := range d.Blocks {
+		listed[m.Block] = true
+	}
 	re := e
 	re.Base, re.Cause = head.Op, d.Op
 	re.Origin = Origin{By: "rebase"}
-	re.Transitions = slices.Clone(e.Transitions)
+	re.Transitions = slices.DeleteFunc(slices.Clone(e.Transitions), func(t EditTransition) bool { return !listed[t.Block] })
 	re.Blobs = slices.Clone(e.Blobs)
 	re.SetJSON = nil
+	if len(re.Transitions) == 0 {
+		return false, nil
+	}
 	after := maps.Clone(rows)
 	for _, t := range re.Transitions {
 		if t.After == model.AbsentRevision {

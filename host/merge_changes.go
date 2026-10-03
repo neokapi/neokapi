@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/workhome"
 )
 
 // A bilingual file kapi extract writes for a translator carries, on every
@@ -448,14 +449,16 @@ func (m *materializeServices) of(locale model.LocaleID) (*change.Service, error)
 }
 
 // materializeEdition gives the translation of doc into locale every block's
-// edition the workspace home keeps (kept, by block key) and, for a block it
-// keeps none of, the target the block store holds, as one change set the
-// service writes from the source's skeleton. It returns how many blocks have
-// a translation to write, and whether the translation's file was written: a
-// file that already holds every one of them and every block of the source is
-// left as it is. ctx addresses the stored overlays by doc's key
-// (blockstore.WithSourceRel).
-func materializeEdition(ctx context.Context, svc *change.Service, store blockstore.Store, kept map[string]model.Edition, doc string, locale model.LocaleID) (int, bool, error) {
+// edition the workspace home keeps (kept, read with its head) and, for a
+// block it keeps none of, the target the block store holds, as one change set
+// the service writes from the source's skeleton. A kept edition is written
+// with the basis it was made from, so one made from a source that has changed
+// since reads as stale in its file as it did where it was kept. It returns
+// how many blocks have a translation to write, and whether the translation's
+// file was written: a file that already holds every one of them and every
+// block of the source is left as it is. ctx addresses the stored overlays by
+// doc's key (blockstore.WithSourceRel).
+func materializeEdition(ctx context.Context, svc *change.Service, store blockstore.Store, kept *workhome.Held, doc string, locale model.LocaleID) (int, bool, error) {
 	sess, err := store.Begin(ctx)
 	if err != nil {
 		return 0, false, err
@@ -469,12 +472,16 @@ func materializeEdition(ctx context.Context, svc *change.Service, store blocksto
 			return nil
 		}
 		at := change.Ref{Doc: doc, Block: r.Ref.Block, Edition: key}
-		if ed, ok := kept[change.BlockKey(b)]; ok && model.RunsHaveContent(ed.Runs) {
-			// The workspace home is the edition's home until this delivery:
-			// what it keeps is the translation, whatever the cache holds.
-			ops = append(ops, change.Op{Kind: change.KindSetContent, At: at,
-				IfMatch: model.EditionRevision(b, key), Body: &change.SetContent{Runs: ed.Runs}})
-			return nil
+		if kept != nil {
+			if ed, ok := kept.Blocks[change.BlockKey(b)]; ok && model.RunsHaveContent(ed.Runs) {
+				// The workspace home is the edition's home until this
+				// delivery: what it keeps is the translation, whatever the
+				// cache holds.
+				ops = append(ops, change.Op{Kind: change.KindSetContent, At: at,
+					IfMatch: model.EditionRevision(b, key), Basis: kept.Rows[change.BlockKey(b)].Basis,
+					Body: &change.SetContent{Runs: ed.Runs}})
+				return nil
+			}
 		}
 		// Absence and failure differ: ErrNotFound is a block with no
 		// translation yet, anything else a store that could not be read.
