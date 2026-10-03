@@ -1,7 +1,10 @@
 package change_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -130,4 +133,75 @@ func TestApplyBlock_FindNamesAnICUArgumentByItsSource(t *testing.T) {
 		requireApplied(t, apply(t, b, agent, replace("", sourceRev(b), find("{count}", "{n}"))))
 		assert.Equal(t, "Use {n} as written.", b.SourceText())
 	})
+}
+
+// refRuns is "Total:", n codes in a row and " 42 items", as the HTML reader
+// keeps "Total:&nbsp;&nbsp;… 42 items": each code is a placeholder a find may
+// name by the text it stands for.
+func refRuns(n int, data string) []model.Run {
+	runs := []model.Run{model.TextR("Total:")}
+	for i := range n {
+		runs = append(runs, model.PhR(model.PlaceholderRun{ID: fmt.Sprintf("r%d", i), Type: "ref", Data: data}))
+	}
+	return append(runs, model.TextR(" 42 items"))
+}
+
+// withinTime runs f and fails the test if it has not returned by the limit.
+func withinTime(t *testing.T, limit time.Duration, f func()) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		f()
+	}()
+	select {
+	case <-done:
+	case <-time.After(limit):
+		t.Fatalf("did not finish within %s", limit)
+	}
+}
+
+// A code a find may name by its text can be taken that way or passed over, so
+// a find over n of them in a row has 2^n ways to match. One that fails must
+// still fail in time proportional to the text, not to 2^n.
+func TestApplyBlock_FindOverManyNamedCodes(t *testing.T) {
+	const n = 64
+	for name, data := range map[string]string{
+		"nbsp":      "&nbsp;",
+		"ampersand": "&amp;",
+		"icu":       "{count}",
+	} {
+		alias := data
+		if chars, ok := model.CharacterReference(&model.PlaceholderRun{Data: data}); ok {
+			alias = chars
+		}
+		t.Run(name+": a find that fails", func(t *testing.T) {
+			b := model.NewRunsBlock("total", refRuns(n, data))
+			// The find a reader copies from the read with one digit changed.
+			miss := "Total:" + strings.Repeat(alias, n) + " 43 items"
+			var res []change.OpResult
+			withinTime(t, 5*time.Second, func() {
+				res = change.ApplyBlock(b, []change.Op{replace("", sourceRev(b), find(miss, "x"))}, person)
+			})
+			require.Len(t, res, 1)
+			requireRefused(t, res[0], change.CodeNotFound)
+		})
+		t.Run(name+": a find that holds", func(t *testing.T) {
+			b := model.NewRunsBlock("total", refRuns(n, data))
+			hit := "Total:" + strings.Repeat(alias, n) + " 42 items"
+			with := "Total:" + strings.Repeat(alias, n) + " 43 items"
+			var res []change.OpResult
+			withinTime(t, 5*time.Second, func() {
+				res = change.ApplyBlock(b, []change.Op{replace("", sourceRev(b), find(hit, with))}, person)
+			})
+			requireApplied(t, res)
+			require.Len(t, b.Source, n+2)
+			assert.Equal(t, "Total:", b.Source[0].Text.Text)
+			for i := 1; i <= n; i++ {
+				require.NotNil(t, b.Source[i].Ph, "run %d", i)
+				assert.Equal(t, data, b.Source[i].Ph.Data, "every code keeps its spelling")
+			}
+			assert.Equal(t, " 43 items", b.Source[n+1].Text.Text)
+		})
+	}
 }

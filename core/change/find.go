@@ -127,11 +127,31 @@ func codeAlias(r model.Run) []rune {
 	return nil
 }
 
-// match reports whether needle matches the elements from hi on, and returns
-// the element index after the match and the elements it took as codes: a
-// code named by its token or by its alias. Between the elements the find
-// names, a code it does not name has no width and is passed over.
-func match(h []findElem, hi int, needle []needleElem) (end int, named []int, ok bool) {
+// matcher matches one find against the elements of one sequence.
+//
+// A code the find may name by its text can be taken that way or passed over
+// at no width, so the walk branches at every such code, and n of them in a
+// row give 2^n paths to a find that fails. Whether the rest of the find
+// matches from a state (hi, ni) past its first element does not depend on the
+// path that reached it, so a state at a code that failed once is remembered
+// and not walked again. A text element has one way forward and needs no
+// memory: the walk between two codes is a straight line.
+type matcher struct {
+	h      []findElem
+	needle []needleElem
+	failed map[[2]int]struct{}
+}
+
+func newMatcher(h []findElem, needle []needleElem) *matcher {
+	return &matcher{h: h, needle: needle, failed: map[[2]int]struct{}{}}
+}
+
+// match reports whether the needle matches the elements from hi on, and
+// returns the element index after the match and the elements it took as
+// codes: a code named by its token or by its alias. Between the elements the
+// find names, a code it does not name has no width and is passed over.
+func (m *matcher) match(hi int) (end int, named []int, ok bool) {
+	h, needle := m.h, m.needle
 	var try func(hi, ni int) bool
 	try = func(hi, ni int) bool {
 		if ni == len(needle) {
@@ -142,6 +162,12 @@ func match(h []findElem, hi int, needle []needleElem) (end int, named []int, ok 
 			return false
 		}
 		e, want := h[hi], needle[ni]
+		state := [2]int{hi, ni}
+		if e.code {
+			if _, seen := m.failed[state]; seen {
+				return false
+			}
+		}
 		switch {
 		case want.code:
 			if e.code && e.key == want.key {
@@ -164,7 +190,13 @@ func match(h []findElem, hi int, needle []needleElem) (end int, named []int, ok 
 			}
 		}
 		// A code the find does not name, inside the match, has no width.
-		return e.code && ni > 0 && try(hi+1, ni)
+		if e.code && ni > 0 && try(hi+1, ni) {
+			return true
+		}
+		if e.code {
+			m.failed[state] = struct{}{}
+		}
+		return false
 	}
 	if !try(hi, 0) {
 		return 0, nil, false
@@ -202,9 +234,10 @@ func (ix *seqIndex) findAll(p parsedFind) []findMatch {
 		}
 	}
 	h := ix.elements()
+	m := newMatcher(h, p.needle)
 	var out []findMatch
 	for hi := 0; hi < len(h); {
-		end, named, ok := match(h, hi, p.needle)
+		end, named, ok := m.match(hi)
 		if !ok {
 			hi++
 			continue
