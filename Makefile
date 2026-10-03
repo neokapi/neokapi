@@ -648,6 +648,10 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	# type-check at all: the Storybook configs carried 8 errors on main (#2692).
 	# Formatting is covered by check-fmt-fixed-point above.
 	vp check --no-fmt
+	# vp check reads the workspace ignore set, which skips *.gen.ts, so it
+	# reports nothing inside the generated contract types. tsc over the
+	# package tsconfig compiles them with the type-level tests that use them.
+	cd packages/contract-types && vp run typecheck:generated
 	cd bowrain/packages/ui && vp check
 	# `vp check` reads the workspace lint ignore set, which skips stories — so
 	# nothing compiled a *.stories.tsx or the Storybook mock adapter, and the
@@ -3001,6 +3005,8 @@ check-contract-types: ## Drift gate: fail if the committed TS contract types (co
 test-contract-types: ## Test the contract-types generator and type-check the package with its type-level tests
 	cd scripts/gen-contract-types && $(GOTEST_BASE) ./... -count=1
 	cd packages/contract-types && vp check
+	# vp check skips *.gen.ts (the workspace ignore set); tsc compiles them.
+	cd packages/contract-types && vp run typecheck:generated
 
 generate-translatability: ## Generate the W3C translatability table for the Go readers from packages/i18n-react (TS is the single definition)
 	node --no-warnings --experimental-strip-types scripts/gen-translatability.ts

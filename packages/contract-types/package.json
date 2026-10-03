@@ -64,6 +64,7 @@
     "build": "node build.mjs",
     "prepack": "node build.mjs",
     "typecheck": "vp check --no-fmt --no-lint",
+    "typecheck:generated": "tsc -p tsconfig.json --noEmit",
     "check": "vp check",
     "lint": "vp lint",
     "fmt": "vp fmt",
