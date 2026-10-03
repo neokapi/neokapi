@@ -191,6 +191,9 @@ const (
 	// a stream: who sent it, from which surface, under which governance, and
 	// the correlation id its block_history and change_log rows carry.
 	EventContentChanged EventType = "content.changed"
+	// EventContentAccessChanged records a block moved along the access ladder
+	// (open, restricted, published) that governs who may change its content.
+	EventContentAccessChanged EventType = "content.access_changed"
 
 	// Platform-administration events. Emitted when instance-wide platform
 	// configuration changes in the ctrl control plane, so every server and worker

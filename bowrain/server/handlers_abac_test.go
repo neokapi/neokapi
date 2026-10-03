@@ -102,6 +102,74 @@ func TestPhase4_ABACStatusGating(t *testing.T) {
 	assert.Equal(t, http.StatusOK, edit(memberToken, "v4"))
 }
 
+// The access action moves a block along the ladder the change policy enforces:
+// restricting or publishing takes review, un-publishing takes manage, a
+// member moves nothing, and a block the project does not hold is not found.
+func TestBlockAccess_TheAccessActionMovesTheLadder(t *testing.T) {
+	s, ownerToken := newTestServer(t)
+	memberToken := addWorkspaceMember(t, s, "acc-mem", "acc-mem@example.com", platauth.RoleMember)
+	// A reviewer: review, without manage.
+	reviewerToken := addWorkspaceMember(t, s, "acc-rev", "acc-rev@example.com", platauth.RoleAdmin)
+	cs := s.ContentStore
+	ctx := t.Context()
+	require.NoError(t, s.AuthStore.SetWorkspaceRoleOverride(ctx, "test-ws", platauth.RoleAdmin,
+		platauth.PermViewContent|platauth.PermTranslate|platauth.PermReview))
+	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-acc", Name: "Access", DefaultSourceLanguage: "en",
+		TargetLanguages: []model.LocaleID{"fr"}, WorkspaceID: "test-ws"}))
+	bid := storeItemBlock(t, cs, "p-acc", "hi.txt", model.NewBlock("ba", "hi"))
+	as := cs.(platstore.BlockAccessStore)
+
+	setAccess := func(token, bid, body string) int {
+		return do(t, s, http.MethodPut, "/api/v1/test/p-acc/blocks/main/"+bid+"/access", token, body)
+	}
+	edit := func(token, text string) int {
+		code, _ := postChanges(t, s, token, "p-acc", translateOp(t, cs, "p-acc", "hi.txt", bid, "fr", text))
+		return code
+	}
+	access := func() string {
+		got, _, err := as.GetBlockAccess(ctx, "p-acc", "main", bid)
+		require.NoError(t, err)
+		return got
+	}
+
+	assert.Equal(t, http.StatusForbidden, setAccess(memberToken, bid, `{"access":"restricted"}`), "a member moves no block")
+	require.Equal(t, http.StatusOK, setAccess(ownerToken, bid, `{"access":"published"}`))
+	assert.Equal(t, bstore.BlockAccessPublished, access())
+	assert.Equal(t, http.StatusForbidden, edit(memberToken, "v1"), "a published block takes manage to edit")
+
+	assert.Equal(t, http.StatusForbidden, setAccess(reviewerToken, bid, `{"access":"open"}`), "un-publishing takes manage")
+	require.Equal(t, http.StatusOK, setAccess(ownerToken, bid, `{"access":"open"}`))
+	assert.Equal(t, http.StatusOK, edit(memberToken, "v2"), "an open block takes translate")
+
+	require.Equal(t, http.StatusOK, setAccess(reviewerToken, bid, `{"access":"in_review"}`), "the retired word reads as restricted")
+	assert.Equal(t, bstore.BlockAccessRestricted, access())
+	assert.Equal(t, http.StatusBadRequest, setAccess(ownerToken, bid, `{"access":"locked"}`))
+	assert.Equal(t, http.StatusNotFound, setAccess(ownerToken, "b-absent", `{"access":"published"}`))
+}
+
+// Publishing is a four-eyes step: under a blocking policy the person who wrote
+// a translation may not publish it, and somebody else may.
+func TestBlockAccess_PublishingOwnWorkIsRefused(t *testing.T) {
+	s, ownerToken := newTestServer(t)
+	cs := s.ContentStore
+	ctx := t.Context()
+	require.NoError(t, s.AuthStore.SetSoDMode(ctx, "test-ws", platauth.SoDBlock))
+	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-pubsod", Name: "Publish SoD", DefaultSourceLanguage: "en",
+		TargetLanguages: []model.LocaleID{"fr", "de"}, WorkspaceID: "test-ws"}))
+	bid := storeItemBlock(t, cs, "p-pubsod", "hi.txt", model.NewBlock("bs", "hi"))
+	reviewerToken := addWorkspaceMember(t, s, "pubsod-rev", "pubsod-rev@example.com", platauth.RoleAdmin)
+
+	code, res := postChanges(t, s, ownerToken, "p-pubsod", translateOp(t, cs, "p-pubsod", "hi.txt", bid, "fr", "salut"))
+	require.Equal(t, http.StatusOK, code, "%+v", res)
+	publish := func(token, body string) int {
+		return do(t, s, http.MethodPut, "/api/v1/test/p-pubsod/blocks/main/"+bid+"/access", token, body)
+	}
+	assert.Equal(t, http.StatusForbidden, publish(ownerToken, `{"access":"published","locale":"fr"}`))
+	assert.Equal(t, http.StatusForbidden, publish(ownerToken, `{"access":"published"}`), "naming no locale judges every language the block holds")
+	assert.Equal(t, http.StatusOK, publish(ownerToken, `{"access":"published","locale":"de"}`), "a language nobody wrote is publishable")
+	assert.Equal(t, http.StatusOK, publish(reviewerToken, `{"access":"published"}`))
+}
+
 // The separation-of-duties gate on establishing a translation asks who wrote
 // the translation, per language, rather than reading the newest attributed row
 // of the block's history. The decision ledger and a settled projection write

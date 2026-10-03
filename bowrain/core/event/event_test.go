@@ -185,6 +185,7 @@ func pinnedEventTypes() []struct {
 		{event.EventAuthzDenied, "authz.denied"},
 		{event.EventRollbackPerformed, "rollback.performed"},
 		{event.EventContentChanged, "content.changed"},
+		{event.EventContentAccessChanged, "content.access_changed"},
 		{event.EventPlatformConfigChanged, "platform_config.changed"},
 	}
 }

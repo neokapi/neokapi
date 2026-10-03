@@ -37,6 +37,7 @@ GET    /api/v1/:ws/:id/blocks/:ref/:bid  # One block
 
 ```
 POST /api/v1/:ws/projects/:id/streams/:stream/changes  # Apply a change set to a stream
+PUT  /api/v1/:ws/:id/blocks/:ref/:bid/access            # Move a block along the access ladder
 POST /api/v1/:ws/:id/blocks/:ref/:bid/rollback          # Restore a translation to an entry of its history
 POST /api/v1/:ws/:id/revert                             # Revert the changes recorded under one correlation id
 POST /api/v1/:ws/:id/restore                            # Restore a stream to a version or a change-log cursor
@@ -80,18 +81,25 @@ The server holds each operation to what the sender may do on the project:
   `edit_source`, and the source of an item a connector syncs is edited at the
   connector. A block whose access is restricted takes an edit from its owner or
   a reviewer of the language, and a published block from a project manager.
+  The access route moves a block along that ladder (`open`, `restricted`,
+  `published`) and is recorded as `content.access_changed`: restricting or
+  publishing takes `review`, un-publishing takes `manage_project`, and a
+  publish is held to the workspace's separation-of-duties policy for every
+  language it publishes.
 - `decide` records a review decision. `establish` takes the `review`
   permission for the language and is held to the workspace's
-  separation-of-duties policy. `reject` returns the translation to draft and
+  separation-of-duties policy; a change set that also writes the translation
+  it establishes approves the sender's own wording. `reject` returns the translation to draft and
   `withdraw` to translated; moving an established translation takes `review`.
   Each decision is written to the decision ledger and the workspace's content
   memory, as approve-passing writes it. The server keeps no pre-review, so
   `advise` is refused as `unsupported`.
-- A note is an `annotate` of type `note`, which anyone who may read the
-  content leaves; the server stamps it with its author and the time it landed.
-  An `unannotate` removes it, sent by its author or a project manager. An
-  entity is an annotation of type `entity` on the source, and takes
-  `edit_source`.
+- A note is an `annotate` of type `note` on the source, which anyone who may
+  read the content leaves; the server stamps it with its author and the time
+  it landed. An `annotate` under an existing note's id rewrites it and an
+  `unannotate` removes it, each sent by its author or a project manager. A
+  note on a translation is refused. An entity is an annotation of type
+  `entity` on the source, and takes `edit_source`.
 - An agent may neither send `gate: report` nor write without the revision it
   read, and records no review decision.
 

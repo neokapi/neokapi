@@ -1899,6 +1899,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/blocks/:ref/bulk-review", s.HandleBulkReviewBlocks)
 	g.POST("/:id/blocks/:ref/bulk-apply-memory", s.HandleBulkApplyMemory)
 	g.GET("/:id/blocks/:ref/:bid", s.HandleGetBlock)
+	// Who may change a block's content (the access ladder), which a change set
+	// does not move.
+	g.PUT("/:id/blocks/:ref/:bid/access", s.HandleSetBlockAccess)
 	// Bulk approve every passing draft in one action, then continue the loop to
 	// delivery (RV-D). Distinct path segment from /:id/review-queue below.
 	g.POST("/:id/review/approve-passing", s.HandleApprovePassing)

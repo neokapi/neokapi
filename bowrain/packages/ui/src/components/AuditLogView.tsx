@@ -107,6 +107,7 @@ const EVENT_DESCRIPTIONS: Record<string, string> = {
   "sod.violation": "Acted on own work",
   "rollback.performed": "Rolled back changes",
   "content.changed": "Changed content",
+  "content.access_changed": "Changed who may edit a block",
 };
 
 function describeEvent(eventType: string): string {

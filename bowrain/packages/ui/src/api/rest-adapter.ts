@@ -1800,8 +1800,8 @@ export class RestApiAdapter implements ApiAdapter {
     reason?: string,
   ): Promise<void> {
     await this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/status`,
-      { method: "PUT", body: JSON.stringify({ status, reason }) },
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/access`,
+      { method: "PUT", body: JSON.stringify({ access: status, reason }) },
     );
   }
 
