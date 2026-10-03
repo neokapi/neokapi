@@ -68,7 +68,7 @@ func TestRecordContextObservation_SeesTheTermAsAReaderDoes(t *testing.T) {
 		{"docs/guide.docx", "Harbor Help", "HarborHelp"},
 		{"assets/logo.bin", "Harbor Help", "HarborHelp"},
 	} {
-		assert.NoError(t, observe(c.path, c.term, c.avoid), c.path)
+		require.NoError(t, observe(c.path, c.term, c.avoid), c.path)
 	}
 
 	err := observe("site/menu.html", "Quickcast", "Quick cast")
