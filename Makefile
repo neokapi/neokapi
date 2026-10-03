@@ -406,7 +406,8 @@ test-host-oneconn: i18n-catalogs ## Run the host suite natively with every pool 
 # (core/change/changetest) every home passes, the lock that orders the file
 # home's writers, and the host's service for a project put through the same
 # conformance suite and its JSON entry points, which record each edit in the
-# workspace log on the browser's SQLite.
+# workspace log on the browser's SQLite, and the browser engine's own tests:
+# the order its commands, change calls and resets take turns in.
 CHANGE_WASM_PKGS := ./core/change/... ./core/storage/filelock/
 CHANGE_WASM_HOST_TESTS := ^(TestChangeService_Conformance|TestChangesJSON_)
 
@@ -414,6 +415,7 @@ test-wasm-stores: i18n-catalogs ## Run the store suites and the change service's
 	@test -f node_modules/@sqlite.org/sqlite-wasm/package.json || { echo "error: @sqlite.org/sqlite-wasm missing; run 'vp install'"; exit 1; }
 	GOOS=js GOARCH=wasm $(GO) test -exec "$(CURDIR)/scripts/wasm-stores/go_js_wasm_exec" -count=1 -timeout 20m $(STORE_PKGS) $(CHANGE_WASM_PKGS)
 	GOOS=js GOARCH=wasm $(GO) test -exec "$(CURDIR)/scripts/wasm-stores/go_js_wasm_exec" -count=1 -timeout 20m -run '$(CHANGE_WASM_HOST_TESTS)' ./host/
+	GOOS=js GOARCH=wasm $(GO) test -exec "$(CURDIR)/scripts/wasm-stores/go_js_wasm_exec" -count=1 -timeout 20m ./kapi/cmd/kapi-wasm-cli/
 
 test-parallel: ## Run all tests in parallel
 	@$(MAKE) --no-print-directory _fw-test & $(MAKE) -C bowrain test & wait

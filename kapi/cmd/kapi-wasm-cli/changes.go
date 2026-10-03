@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"sync"
 	"syscall/js"
 
 	"github.com/neokapi/neokapi/host/config"
@@ -31,10 +30,6 @@ import (
 
 // browserChangeOrigin names this surface in the record of a change.
 const browserChangeOrigin = "browser"
-
-// changeMu orders the calls, which share the App: one call reads or writes
-// at a time.
-var changeMu sync.Mutex
 
 func kapiRead(_ js.Value, args []js.Value) any {
 	return changeCall("kapiRead", args, app.ReadChangesJSON)
@@ -97,13 +92,13 @@ func changeArgs(name string, args []js.Value) (request, options []byte, err erro
 	return request, options, nil
 }
 
-// serveChange answers one call, one call at a time. A call takes its project
-// from its options and its source language from that project, not from the
-// flags a command gave the App. A host that runs a command and a call at once
-// orders them itself, as the lab runtime does.
+// serveChange answers one call, in its turn among the commands, the calls and
+// the resets (engineMu). A call takes its project from its options and its
+// source language from that project, not from the flags a command gave the
+// App.
 func serveChange(serve changeServe, request, options []byte) (out []byte, err error) {
-	changeMu.Lock()
-	defer changeMu.Unlock()
+	engineMu.Lock()
+	defer engineMu.Unlock()
 	defer func() {
 		if r := recover(); r != nil {
 			out, err = nil, fmt.Errorf("internal error: %v", r)

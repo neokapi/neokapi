@@ -180,12 +180,12 @@ fi
 # driver (core/storage/driver_js.go with packages/engine/src/sqlite.ts), then
 # natively with every pool held to one connection. The js run also puts the
 # change service through its conformance suite (core/change, and the host's
-# service for a project, whose recorder writes the workspace log). The same
-# gate as the CI `test-wasm-stores` job; the suites run in seconds once
-# compiled. Needs `vp install` for @sqlite.org/sqlite-wasm.
-if matches '^core/(storage|workspace|projector|projectdb|state|history|blockstore|change)/' '^(memory|terms|voice)/' '^host/storage/' \
-    '^host/(changes|editrecorder|commitcheck|changepolicy|projectstore)[^/]*\.go$' \
-    '^packages/engine/src/sqlite\.ts$' '^scripts/wasm-stores/' '^pnpm-(lock|workspace)\.yaml$'; then
+# service for a project, whose recorder writes the workspace log), which
+# compiles the whole host test package for js, and runs the browser engine's
+# own tests. The same gate as the CI `test-wasm-stores` job; the suites run in
+# seconds once compiled. Needs `vp install` for @sqlite.org/sqlite-wasm.
+if matches '^core/(storage|workspace|projector|projectdb|state|history|blockstore|change)/' '^(memory|terms|voice)/' '^host/' \
+    '^kapi/cmd/kapi-wasm-cli/' '^packages/engine/src/sqlite\.ts$' '^scripts/wasm-stores/' '^pnpm-(lock|workspace)\.yaml$'; then
     run_check "Store suites (js/wasm)" make test-wasm-stores
     run_check "Store suites (one connection per pool)" make test-stores-oneconn
 fi

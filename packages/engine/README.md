@@ -162,7 +162,9 @@ discovery finds from the working directory), and an apply's `actor`
 when omitted. In a project, an applied change set is recorded in the engine's
 workspace log, as `kapi apply` records one. An `apply` resolves to its
 `kapi.change-result/v1` whatever the status; a `read` or `describe` the
-service refuses throws `ChangeRefused`, which carries that result.
+service refuses throws `ChangeRefused`, which carries that result. The engine
+runs these calls, the commands `run` starts and `reset` one at a time, so a
+call never sees a command reconfigure the engine under it.
 
 ## Host capabilities (reverse bridges)
 

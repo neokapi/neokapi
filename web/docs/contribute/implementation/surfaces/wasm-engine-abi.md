@@ -166,17 +166,21 @@ and returns a Promise of a JSON string.
   it into the block history. A later read shows a translation's basis from
   there. Outside a project nothing is recorded. Every edit lives as long as
   the tab, with the rest of the workspace.
-- **One call at a time.** The calls share the engine's App, so the engine runs
-  them one at a time. A call takes its project from its options and its
-  source language from that project, not from the flags a command was given.
-  A host that runs commands and calls together orders them itself; the lab
-  runtime (`useLabRuntime`) queues them with its commands. Two writers of one file in the page still take turns at
-  the commit: the file home's lock (`core/storage/filelock`) is a mutex of the
-  process where the platform has no lock between processes.
+- **One at a time.** The calls, the commands `kapiRun` runs (a completion
+  included) and `kapiReset` share the engine's App, so the engine runs them in
+  turn: a command started while a call runs waits for it, and the other way
+  round. A command replaces the App's configuration and a reset removes
+  databases, so neither may run while a call waits on the file system. A call
+  takes its project from its options and its source language from that
+  project, not from the flags a command was given. Two writers of one file in
+  the page still take turns at the commit: the file home's lock
+  (`core/storage/filelock`) is a mutex of the process where the platform has no
+  lock between processes.
 - **Tested.** `make test-wasm-stores` runs, under `GOOS=js` over the browser's
   SQLite driver, `core/change` and its file home with the conformance suite
-  (`core/change/changetest`), the lock, and the host's service for a project
-  through the same suite and its JSON entry points.
+  (`core/change/changetest`), the lock, the host's service for a project
+  through the same suite and its JSON entry points, and the engine's own test
+  of the order its entry points take turns in.
   `make change-wasm-smoke` (`scripts/verify-snippets/change-smoke.ts`) boots
   the real engine in Node and drives the three calls through the facade: a read
   that matches `kapi inspect`, an edit that lands byte for byte and is

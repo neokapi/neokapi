@@ -181,7 +181,9 @@ jobs:
           # shared JS dependency graph. The same run puts the change service
           # through its conformance suite there: core/change, and the host's
           # service for a project with the recorder that writes the workspace log.
-          check_paths wasm_stores '^(core|memory|terms|voice)/' '^host/storage/' '^host/(changes|editrecorder|commitcheck|changepolicy|projectstore)[^/]*\.go$' '^packages/engine/src/sqlite\.ts$' '^scripts/wasm-stores/' '^go\.(mod|sum)$' '^Makefile$' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
+          # That compiles the whole host test package for js, so any change
+          # under host/ runs it, as does one to the browser engine's own tests.
+          check_paths wasm_stores '^(core|memory|terms|voice)/' '^host/' '^kapi/cmd/kapi-wasm-cli/' '^packages/engine/src/sqlite\.ts$' '^scripts/wasm-stores/' '^go\.(mod|sum)$' '^Makefile$' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
   frontend:

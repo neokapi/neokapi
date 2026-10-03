@@ -19,7 +19,8 @@ import (
 // stores closed (App.ForgetProjectsUnder), so a project seeded there again
 // begins with an empty context; then every database at or below it goes, since
 // the page's file system never sees them. The workspace's own databases stay,
-// holding every other project.
+// holding every other project. A reset waits for a command or a change call
+// that is running, and one that starts after it waits for it (engineMu).
 //
 // It returns a Promise that resolves to null, or to the error's message.
 func kapiReset(_ js.Value, args []js.Value) any {
@@ -30,7 +31,7 @@ func kapiReset(_ js.Value, args []js.Value) any {
 	executor := js.FuncOf(func(_ js.Value, p []js.Value) any {
 		resolve := p[0]
 		go func() {
-			if err := resetDir(context.Background(), dir); err != nil {
+			if err := resetInTurn(context.Background(), dir); err != nil {
 				resolve.Invoke(err.Error())
 				return
 			}
@@ -39,6 +40,13 @@ func kapiReset(_ js.Value, args []js.Value) any {
 		return js.Undefined()
 	})
 	return js.Global().Get("Promise").New(executor)
+}
+
+// resetInTurn starts dir over once no command or call is running (engineMu).
+func resetInTurn(ctx context.Context, dir string) error {
+	engineMu.Lock()
+	defer engineMu.Unlock()
+	return resetDir(ctx, dir)
 }
 
 func resetDir(ctx context.Context, dir string) error {

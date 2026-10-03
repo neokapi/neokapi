@@ -26,6 +26,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/version"
@@ -38,6 +39,14 @@ import (
 )
 
 var app = &cli.App{}
+
+// engineMu orders the entry points that act on the App: a command (kapiRun,
+// a completion included), a change call (kapiRead, kapiApply, kapiDescribe)
+// and a reset (kapiReset) each run in their turn. A command replaces the
+// App's configuration and initializes it again, and a reset forgets projects
+// and removes their databases, so either one running while another waits on
+// the page's file system would change the App under it.
+var engineMu sync.Mutex
 
 // browserDataDir is the data root in the engine's file system: the workspace
 // every project opened in the page registers in, with its operation log, its
@@ -186,9 +195,12 @@ func kapiRun(_ js.Value, args []js.Value) any {
 	return promise
 }
 
-// runOnce builds a fresh root and executes one command, returning the exit
-// code. It recovers panics so a single bad command can't kill the instance.
+// runOnce builds a fresh root and executes one command, in its turn
+// (engineMu), returning the exit code. It recovers panics so a single bad
+// command can't kill the instance.
 func runOnce(argv []string) (code int) {
+	engineMu.Lock()
+	defer engineMu.Unlock()
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Fprintf(os.Stderr, "kapi: internal error: %v\n", r)
