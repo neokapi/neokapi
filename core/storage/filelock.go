@@ -28,14 +28,16 @@ import (
 //
 // It is advisory and same-machine, which is all it needs to be: it guards a
 // SQLite file, and a SQLite file is already unusable across a network
-// filesystem. A platform with no implementation leaves the lock a no-op and
-// falls back to what SQLite does on its own. The lock itself is package
-// filelock, which the change service's file home takes as well.
+// filesystem. A driver whose profile has no cross-process lock
+// (Profile.CrossProcessLock false: the browser's, whose databases live and die
+// with the page, and one on a platform with no lock between processes) opens
+// none and falls back to what SQLite does on its own. The lock itself is
+// package filelock, which the change service's file home takes as well.
 
 // fileLock is a cross-process advisory lock on one database file
 // (filelock.Lock on a lock file beside it). The nil value is a lock that does
-// nothing, which is what a handle opened without Options.CrossProcessWrites
-// gets.
+// nothing, which is what a handle opened without Options.CrossProcessWrites,
+// or on a driver whose profile has no cross-process lock, gets.
 type fileLock struct {
 	lock *filelock.Lock
 }
@@ -51,9 +53,6 @@ func newFileLock(dbPath string) (*fileLock, error) {
 	l, err := filelock.Open(dbPath + lockSuffix)
 	if err != nil {
 		return nil, fmt.Errorf("open write lock for %s: %w", dbPath, err)
-	}
-	if l == nil {
-		return nil, nil
 	}
 	return &fileLock{lock: l}, nil
 }
