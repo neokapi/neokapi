@@ -34,8 +34,9 @@ type changeSender struct {
 //   - decide establish needs review for the language; reject and withdraw
 //     need translate, and moving an established translation needs review
 //     (checked when the decision is prepared, where the status is known).
-//   - A note is anyone's who may read the content; a note is removed by its
-//     author or a project manager. An entity is marked with edit source.
+//   - A note sits on a block's own edition. Anyone who may read the content
+//     adds one; its author or a project manager rewrites or removes it. An
+//     entity is marked with edit source.
 //   - An agent sends neither gate report, if_match "*", nor a decision other
 //     than advise. Only a tool records provenance, and a tool decides nothing.
 type streamPolicy struct {
@@ -96,13 +97,14 @@ func (p *streamPolicy) Permit(actor change.Actor, set *change.Set, op change.Op)
 	case change.KindAnnotate, change.KindUnannotate:
 		switch annotationType(op) {
 		case noteAnnotation:
+			if _, source := p.editionLocale(op.At.Edition); !source {
+				return &change.Error{Code: change.CodeNotPermitted, Field: "at/edition",
+					Message: "a note is written on the block's own edition; a stream keeps no note on a translation"}
+			}
 			if err := p.need(platauth.PermViewContent, "", "write a note"); err != nil {
 				return err
 			}
-			if op.Kind == change.KindUnannotate {
-				return p.mayRemoveNote(op)
-			}
-			return nil
+			return p.mayChangeNote(op)
 		case string(model.OverlayEntity):
 			return p.need(platauth.PermEditSource, "", "mark an entity")
 		}
@@ -168,26 +170,35 @@ func (p *streamPolicy) access(op change.Op, locale model.LocaleID) *change.Error
 	return nil
 }
 
-// mayRemoveNote lets a note's author or a project manager remove it.
-func (p *streamPolicy) mayRemoveNote(op change.Op) *change.Error {
-	body, _ := op.Body.(*change.Unannotate)
-	if body == nil {
+// mayChangeNote lets anyone who may read the content add a note, and a note's
+// author or a project manager rewrite or remove one that exists: an annotate
+// naming the id of a note the block holds takes that note's place.
+func (p *streamPolicy) mayChangeNote(op change.Op) *change.Error {
+	var id, what string
+	switch body := op.Body.(type) {
+	case *change.Annotate:
+		id, what = body.ID, "rewrite"
+	case *change.Unannotate:
+		id, what = body.ID, "remove"
+	}
+	if id == "" {
 		return nil
 	}
 	row := p.rows.find(p.ctx, op.At.Doc, op.At.Block)
 	if row == nil {
 		return nil
 	}
-	span := row.Block.OverlaySpan(model.OverlayType(noteAnnotation), body.ID)
+	span := row.Block.OverlaySpan(model.OverlayType(noteAnnotation), id)
 	if span == nil {
-		// The service refuses an unannotate that names no annotation.
+		// An annotate with a new id adds a note; the service refuses an
+		// unannotate that names none.
 		return nil
 	}
 	if author := span.Props[notePropAuthorID]; author != "" && author == p.sender.userID {
 		return nil
 	}
-	if err := p.need(platauth.PermManageProject, "", "remove another person's note"); err != nil {
-		err.Message = "only the note's author or a project manager can remove a note"
+	if err := p.need(platauth.PermManageProject, "", what+" another person's note"); err != nil {
+		err.Message = "only the note's author or a project manager can " + what + " a note"
 		return err
 	}
 	return nil

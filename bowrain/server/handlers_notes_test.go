@@ -41,8 +41,7 @@ func listNotes(t *testing.T, srv *Server, pid, bid string) []BlockNoteResponse {
 }
 
 // A note is an annotation a change set adds: the notes route lists it with the
-// author and time the server stamped as it landed, and a change set that
-// claims another author is stamped with its sender all the same.
+// author and time the server stamped as it landed.
 func TestNotes_ANoteLandsWithItsAuthor(t *testing.T) {
 	srv, cs := newReviewTestServer(t)
 	b := &model.Block{ID: "b1", Translatable: true}
@@ -111,6 +110,88 @@ func TestNotes_RemovingANoteTakesItsAuthorOrAManager(t *testing.T) {
 			}
 			assert.Equal(t, !tc.wantGone, stillThere, "the note's survival matches whether removing it was allowed")
 		})
+	}
+}
+
+// Rewriting a note is annotating under its id, which takes its author or a
+// project manager. A reader who may add notes cannot rewrite another person's
+// note and so take it over.
+func TestNotes_RewritingANoteTakesItsAuthorOrAManager(t *testing.T) {
+	srv, cs := newReviewTestServer(t)
+	b := &model.Block{ID: "b1", Translatable: true}
+	b.SetSourceText("Hello")
+	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
+	bid := ids["Hello"]
+
+	ada := changeCaller{user: "ada", name: "Ada", perms: platauth.PermViewContent}
+	rita := changeCaller{user: "rita", name: "Rita", perms: platauth.PermViewContent}
+	manager := changeCaller{user: "bob", name: "Bob", perms: platauth.PermViewContent | platauth.PermManageProject}
+	rewrite := func(id, text string) change.Op {
+		op := addNote("greetings.txt", bid, text)
+		op.Body.(*change.Annotate).ID = id
+		return op
+	}
+
+	for _, tc := range []struct {
+		name       string
+		writer     changeCaller
+		wantStatus int
+		wantAuthor string
+	}{
+		{"a reader cannot rewrite another person's note", rita, http.StatusForbidden, "Ada"},
+		{"the author rewrites their own note", ada, http.StatusOK, "Ada"},
+		{"a project manager rewrites anyone's note", manager, http.StatusOK, "Bob"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec, res := sendChanges(t, srv, pid, ada, change.Set{Ops: []change.Op{addNote("greetings.txt", bid, "Original by Ada")}})
+			require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+			id := res.Ops[0].ID
+			t.Cleanup(func() {
+				_, _ = sendChanges(t, srv, pid, manager, change.Set{Ops: []change.Op{removeNote("greetings.txt", bid, id)}})
+			})
+
+			rec, res = sendChanges(t, srv, pid, tc.writer, change.Set{Ops: []change.Op{rewrite(id, "Rewritten")}})
+			require.Equal(t, tc.wantStatus, rec.Code, rec.Body.String())
+			var note *BlockNoteResponse
+			for _, n := range listNotes(t, srv, pid, bid) {
+				if n.ID == id {
+					note = &n
+				}
+			}
+			require.NotNil(t, note, "the note is still listed")
+			assert.Equal(t, tc.wantAuthor, note.Author)
+			if tc.wantStatus == http.StatusForbidden {
+				assert.Equal(t, change.CodeNotPermitted, res.Ops[0].Error.Code)
+				assert.Equal(t, "Original by Ada", note.Text)
+				return
+			}
+			assert.Equal(t, "Rewritten", note.Text)
+		})
+	}
+}
+
+// A note sits on the block's own edition, where the notes route lists it: a
+// note on a translation, and the removal of one, are refused.
+func TestNotes_ANoteOnATranslationIsRefused(t *testing.T) {
+	srv, cs := newReviewTestServer(t)
+	b := &model.Block{ID: "b1", Translatable: true}
+	b.SetSourceText("Hello")
+	b.SetTargetText("fr", "Bonjour")
+	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
+	bid := ids["Hello"]
+
+	value, err := json.Marshal(map[string]string{"text": "Check the French"})
+	require.NoError(t, err)
+	for _, op := range []change.Op{
+		{Kind: change.KindAnnotate, At: at("greetings.txt", bid, "fr"), Body: &change.Annotate{Type: noteAnnotation, Value: value}},
+		{Kind: change.KindUnannotate, At: at("greetings.txt", bid, "fr"), Body: &change.Unannotate{Type: noteAnnotation, ID: "note-1"}},
+	} {
+		rec, res := sendChanges(t, srv, pid, fullCaller, change.Set{Ops: []change.Op{op}})
+		require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+		assert.Equal(t, change.CodeNotPermitted, res.Ops[0].Error.Code)
+	}
+	for _, o := range getStoredBlock(t, cs, pid, bid).Overlays {
+		assert.NotEqual(t, model.OverlayType(noteAnnotation), o.Type, "no note landed")
 	}
 }
 
