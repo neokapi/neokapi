@@ -33,6 +33,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -318,6 +319,9 @@ func (a *App) RecordContextObservation(ctx context.Context, req ContextObserveRe
 	if err != nil {
 		return ContextOperation{}, err
 	}
+	if err := observedInFiles(s.root, subject, req.Evidence); err != nil {
+		return ContextOperation{}, err
+	}
 	actor, note, err := s.actorFor(ctx, req.Actor, "")
 	if err != nil {
 		return ContextOperation{}, err
@@ -353,6 +357,12 @@ func observedSubject(req ContextObserveRequest) (contextop.Subject, error) {
 		}
 		return contextop.Subject{Kind: contextop.SubjectNote, Text: text}, nil
 	}
+	for _, form := range req.InsteadOf {
+		if describesTerm(term, form) {
+			return contextop.Subject{}, fmt.Errorf("%q holds the term %q with more words: give the form writers write in its place, "+
+				"such as a split, hyphenated or differently spelled form, or say what you saw in text", form, term)
+		}
+	}
 	rule := contextop.ObservedRule(term, req.InsteadOf)
 	if rule.Replacement == "" {
 		// The term is the form the project uses. With nothing to avoid, the
@@ -367,6 +377,59 @@ func observedSubject(req ContextObserveRequest) (contextop.Subject, error) {
 			"or differently cased form, or say what you saw in text, which is recorded as a note", term)
 	}
 	return contextop.Subject{Kind: contextop.SubjectTerm, Term: &rule, Text: text}, nil
+}
+
+// describesTerm reports whether an avoided form is a description of the term
+// rather than a form of it: the term with two or more words added, as
+// "Harbor Help product name variant" is of "Harbor Help".
+func describesTerm(term, form string) bool {
+	t, f := strings.ToLower(strings.TrimSpace(term)), strings.ToLower(strings.TrimSpace(form))
+	return t != "" && strings.Contains(f, t) && len(strings.Fields(f))-len(strings.Fields(t)) >= 2
+}
+
+// maxObservedFile bounds the size of a file an observation's evidence is
+// looked for in.
+const maxObservedFile = 8 << 20
+
+// observedInFiles refuses a term observation whose evidence names a file of
+// the project that holds neither the term nor a form it avoids: what the
+// observation says was seen there is not there. A file that cannot be read,
+// or that lies outside the project, is passed over.
+func observedInFiles(root string, subject contextop.Subject, evidence []contextop.Evidence) error {
+	if subject.Kind != contextop.SubjectTerm || subject.Term == nil || root == "" {
+		return nil
+	}
+	forms := append([]string{subject.Term.Replacement, subject.Term.Term}, subject.Term.Forms...)
+	for _, e := range evidence {
+		if e.Path == "" || filepath.IsAbs(e.Path) {
+			continue
+		}
+		path := filepath.Join(root, filepath.FromSlash(e.Path))
+		if rel, err := filepath.Rel(root, path); err != nil || strings.HasPrefix(rel, "..") {
+			continue
+		}
+		info, err := os.Stat(path)
+		if err != nil || info.IsDir() || info.Size() > maxObservedFile {
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		body := strings.ToLower(string(data))
+		found := false
+		for _, f := range forms {
+			if f != "" && strings.Contains(body, strings.ToLower(f)) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("%s holds neither %q nor a form it avoids, so the observation was not seen there: "+
+				"name the file you saw it in, or record what you know in text", e.Path, subject.Term.Replacement)
+		}
+	}
+	return nil
 }
 
 // RecordContextCorrection records wording somebody changed, and, when asked,
