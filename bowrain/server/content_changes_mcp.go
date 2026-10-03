@@ -2,6 +2,9 @@ package server
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 	"log/slog"
 	"slices"
 
@@ -20,7 +23,10 @@ func (s *Server) mcpChangeService(ctx context.Context, userID, projectID, stream
 	if err != nil {
 		return nil, nil, err
 	}
-	sender := s.userSender(ctx, userID, proj)
+	sender, err := s.userSender(ctx, userID, proj)
+	if err != nil {
+		return nil, nil, err
+	}
 	sc := s.newStreamChange(ctx, nil, proj, stream, proj.WorkspaceID, s.workspaceSlug(ctx, "", proj.WorkspaceID), sender)
 	return sc.service(), func(ctx context.Context, res *change.Result) { sc.landed(ctx, res) }, nil
 }
@@ -28,12 +34,17 @@ func (s *Server) mcpChangeService(ctx context.Context, userID, projectID, stream
 // userSender is a user as a change set's sender off a request: the
 // permissions the user holds on the project, resolved by the project access
 // middleware's resolver as a request to the project's workspace resolves them.
-func (s *Server) userSender(ctx context.Context, userID string, proj *store.Project) changeSender {
+//
+// A membership or workspace read that fails is an error, as the workspace
+// middleware answers it with 503: the plan decides whether a custodian's
+// authority stands, so resolving without it would keep authority a lapsed
+// plan suspends.
+func (s *Server) userSender(ctx context.Context, userID string, proj *store.Project) (changeSender, error) {
 	sender := changeSender{userID: userID, name: userID}
 	if s.AuthStore == nil {
 		// A deployment with no auth store holds nobody to permissions.
 		sender.allows = func(platauth.Permission, string) bool { return true }
-		return sender
+		return sender, nil
 	}
 	if u, err := s.AuthStore.GetUser(ctx, userID); err == nil && u != nil {
 		if u.Name != "" {
@@ -43,12 +54,18 @@ func (s *Server) userSender(ctx context.Context, userID string, proj *store.Proj
 		}
 	}
 	req := accessRequest{userID: userID, projectID: proj.ID, workspaceID: proj.WorkspaceID}
-	if m, err := s.AuthStore.GetMembership(ctx, proj.WorkspaceID, userID); err == nil && m != nil {
+	m, err := s.AuthStore.GetMembership(ctx, proj.WorkspaceID, userID)
+	switch {
+	case err == nil && m != nil:
 		req.role = m.Role
+	case err != nil && !errors.Is(err, sql.ErrNoRows):
+		return changeSender{}, fmt.Errorf("the workspace membership could not be read; try again: %w", err)
 	}
-	if w, err := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID); err == nil && w != nil {
-		req.plan = w.Plan
+	w, err := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID)
+	if err != nil {
+		return changeSender{}, fmt.Errorf("the project's workspace could not be read; try again: %w", err)
 	}
+	req.plan = w.Plan
 	access := s.resolveProjectAccess(ctx, req)
 	if access.custodyLapsed {
 		slog.InfoContext(ctx, "mcp: custodial authority suspended by the workspace's plan",
@@ -60,5 +77,5 @@ func (s *Server) userSender(ctx context.Context, userID string, proj *store.Proj
 		}
 		return locale == "" || !perm.LanguageScoped() || len(access.languages) == 0 || slices.Contains(access.languages, locale)
 	}
-	return sender
+	return sender, nil
 }

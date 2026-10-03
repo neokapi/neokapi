@@ -130,7 +130,9 @@ The server holds each operation to what the sender may do on the project:
 - An agent may neither send `gate: report` nor write without the revision it
   read, and records no review decision other than a pre-review (`advise`).
   The server MCP holds an agent to the permissions the project access
-  middleware resolves for the user it acts for, with the same resolver.
+  middleware resolves for the user it acts for, with the same resolver; when
+  the workspace or the user's membership cannot be read, the call fails and
+  the agent can try again.
 
 Before a change set lands, the server checks each edition it changes against
 the checks in force where the item sits, resolved as the editor's check routes

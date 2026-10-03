@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	bauth "github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 )
@@ -99,7 +102,8 @@ func TestUserSender_HoldsWhatTheMiddlewareResolves(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			perms, langs := resolved(tc.user)
-			sender := srv.userSender(ctx, tc.user, proj)
+			sender, err := srv.userSender(ctx, tc.user, proj)
+			require.NoError(t, err)
 			for perm := platauth.Permission(1); perm&platauth.PermAll != 0; perm <<= 1 {
 				assert.Equal(t, perms.Has(perm), sender.allows(perm, ""), "%s", perm)
 			}
@@ -117,7 +121,36 @@ func TestUserSender_HoldsWhatTheMiddlewareResolves(t *testing.T) {
 		assert.False(t, dp.Has(platauth.PermTranslate), "the deny rule holds")
 		cp, _ := resolved(custodian)
 		assert.False(t, cp.Has(platauth.PermManageTerms), "the lapsed plan suspends the custody")
-		assert.True(t, srv.userSender(ctx, translator, proj).allows(platauth.PermTranslate, "de"))
-		assert.False(t, srv.userSender(ctx, translator, proj).allows(platauth.PermTranslate, "fr"))
+		sender, err := srv.userSender(ctx, translator, proj)
+		require.NoError(t, err)
+		assert.True(t, sender.allows(platauth.PermTranslate, "de"))
+		assert.False(t, sender.allows(platauth.PermTranslate, "fr"))
 	})
+
+	// The plan decides whether the custodian's authority stands, so a
+	// workspace that cannot be read leaves the agent nothing, as the
+	// middleware answers such a request with 503.
+	t.Run("a workspace that cannot be read", func(t *testing.T) {
+		real := srv.AuthStore
+		srv.AuthStore = unreadableWorkspace{AuthStore: real}
+		t.Cleanup(func() { srv.AuthStore = real })
+
+		_, err := srv.userSender(ctx, custodian, proj)
+		require.ErrorIs(t, err, errWorkspaceUnreadable)
+		svc, landed, err := srv.mcpChangeService(ctx, custodian, pid, "main")
+		require.ErrorIs(t, err, errWorkspaceUnreadable)
+		assert.Nil(t, svc)
+		assert.Nil(t, landed)
+	})
+}
+
+// errWorkspaceUnreadable is the failure unreadableWorkspace answers with.
+var errWorkspaceUnreadable = errors.New("connection reset by peer")
+
+// unreadableWorkspace is the auth store with its workspace read failing, as a
+// database under contention fails it.
+type unreadableWorkspace struct{ bauth.AuthStore }
+
+func (unreadableWorkspace) GetWorkspace(context.Context, string) (*platauth.Workspace, error) {
+	return nil, errWorkspaceUnreadable
 }
