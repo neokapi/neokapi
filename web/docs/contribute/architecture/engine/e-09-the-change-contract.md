@@ -297,9 +297,9 @@ agent's write of the same wording, which stays theirs. So the history keeps the
 basis of every translation the loop made. That basis is what coverage grades an
 undecided translation by, what a decision on it starts from, and where the
 staleness gate finds what governed it. An undecided record in the decision
-ledger (a Kapi Desktop edit, or a basis the loop kept there in an older
-project) yields to the flow's last write when that write is the translation the
-file holds.
+ledger (a basis an earlier release recorded there for a Kapi Desktop edit or a
+loop pass) yields to the flow's last write when that write is the translation
+the file holds.
 
 A destination that moved while the run worked is applied again through the
 service from the run's operations (`set_content` on each edition the run
