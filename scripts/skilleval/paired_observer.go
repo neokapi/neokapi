@@ -23,13 +23,16 @@ type pairedObserver struct {
 	tools        map[string]string
 	interference *pairedInterferer
 	boundary     pairedBoundary
+	// taskFiles are the files the task may change or add, which a native
+	// write names.
+	taskFiles []string
 }
 
 func newPairedObserver(launch PairedLaunch, result *PairedAgentResult) *pairedObserver {
 	arm, _ := pairedArmFor(launch.Condition)
 	o := &pairedObserver{
 		launch: launch, arm: arm, result: result, started: time.Now(), tools: map[string]string{},
-		boundary: newPairedBoundary(launch),
+		boundary: newPairedBoundary(launch), taskFiles: pairedWritableFiles(launch.Task),
 	}
 	if launch.Interference != nil && launch.Workspace != "" {
 		o.interference = newPairedInterferer(launch.Workspace, *launch.Interference)
@@ -64,6 +67,7 @@ func (o *pairedObserver) toolUse(id, tool string, input map[string]any) string {
 	}
 	o.scanInput(tool, input)
 	o.auditPaths(tool, input)
+	o.noteRoute(tool, input)
 	return ""
 }
 
