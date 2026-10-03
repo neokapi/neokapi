@@ -541,7 +541,12 @@ reach the same edition. This retires the desktop's habit of editing a target fil
 runs" under the wrong locale (`review.go:575-576`; main-model §1.2).
 
 Outside a project, a monolingual document holds one edition, in the language `--source-lang`
-names or else the one its file or directory names (`locales/nb.json`, `de/guide.md`). An
+names or else the one its file or directory names (`locales/nb.json`, `docs/de/guide.md`), and
+a read names that edition in each block's `ref`. A bare two-letter name counts only where the
+files around it are sorted by language: in a directory named for languages (`locales`, `i18n`,
+`lang`, `translations` and the like) or beside a file or directory named for another language
+(`docs/en/guide.md` beside `docs/de/guide.md`). A name with a region or script (`nb-NO`, `pt_BR`)
+counts as it stands, and a code directory such as `src/io/` names no language. An
 operation on another edition of it has no home and is refused `unsupported`, naming the way out,
 unless the caller names an output: `kapi apply --out FILE` writes the one edition a change set
 adds to FILE, built from the document, and a library caller passes its own writer.

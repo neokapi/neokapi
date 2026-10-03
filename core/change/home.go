@@ -67,6 +67,10 @@ type DocInfo struct {
 	// own and exist, so a change to the document's own edition can name them
 	// among the editions it leaves on an older basis.
 	Derived []model.EditionKey
+	// LanguageNamed says SourceLocale is the language the document's path
+	// names, outside a project, rather than a default: a read names the
+	// document's own edition by it in each block's ref, as OwnEdition asks.
+	LanguageNamed bool
 	// Capabilities is what the document's writer can write beyond what its
 	// reader read (WriterCapabilities, or DeclaredCapabilities for a writer
 	// outside the process). The service applies every operation on the

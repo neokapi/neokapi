@@ -281,7 +281,7 @@ func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.B
 	switch {
 	case !b.IsSourceEdition(primary):
 		ref.Edition = primary
-	case ownEdition:
+	case ownEdition || info.LanguageNamed:
 		// The document's own edition, by its language.
 		ref.Edition = b.EditionKeyOf(primary)
 	}

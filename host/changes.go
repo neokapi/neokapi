@@ -375,7 +375,7 @@ type dirChangeLayout struct {
 	plainText bool
 	// sourceNamed says the caller named the documents' language. Unnamed, a
 	// monolingual document whose file or directory names a language
-	// (locales/nb.json, de/guide.md) is written in that one.
+	// (pathLanguage) is written in that one.
 	sourceNamed bool
 	// out is the file of the one edition a change set adds
 	// (ChangeServiceOptions.EditionOut), and claimed the document and
@@ -409,8 +409,8 @@ func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, e
 		TargetLocale: l.app.targetOf(name, l.target),
 	}
 	if d.Editions == change.EditionsPerFile && entry == "" {
-		if lang := pathLanguage(ref); lang != "" && !l.sourceNamed {
-			d.SourceLocale = lang
+		if lang := pathLanguage(ref, path); lang != "" && !l.sourceNamed {
+			d.SourceLocale, d.LanguageNamed = lang, true
 		}
 		d.NoEditionFile = fmt.Sprintf("outside a project %s holds one edition, its own (%s); "+
 			"to write a translation of it, name the file with kapi apply --out, or work in a project whose recipe names a target for it", ref, d.SourceLocale)
@@ -442,25 +442,80 @@ func (l *dirChangeLayout) editionOut(ref string) func(model.EditionKey) (filehom
 // two-letter language: nb, de-DE, pt_BR, zh-Hans.
 var pathLanguageRe = regexp.MustCompile(`^[a-z]{2}(?:[-_][A-Za-z0-9]{2,8})*$`)
 
+// languageDirs are the names of a directory that sorts files by language.
+var languageDirs = []string{"i18n", "intl", "l10n", "lang", "langs", "language", "languages", "locale", "locales", "messages", "translation", "translations"}
+
 // pathLanguage is the language a document's path names: its file name
 // without the extension (locales/nb.json), else the directory holding it
-// (de/guide.md). Empty when neither is a language tag.
-func pathLanguage(ref string) model.LocaleID {
+// (docs/de/guide.md). ref is the document's reference and path its file on
+// disk.
+//
+// Most two-letter names are language codes, and so are many names of code
+// directories (io, my, to, is, id), so a bare two-letter name counts only
+// where the files around it are sorted by language: in a directory named for
+// that (locales/nb.json, i18n/de/app.json), or beside another name of the same
+// kind that is a language (locales/en.json and locales/nb.json, docs/en/guide.md
+// and docs/de/guide.md). A name with a region or script (nb-NO, pt_BR,
+// zh-Hans) counts as it stands. Empty when the path names no language.
+func pathLanguage(ref, path string) model.LocaleID {
 	slashed := filepath.ToSlash(ref)
 	base := pathpkg.Base(slashed)
-	candidates := []string{strings.TrimSuffix(base, pathpkg.Ext(base))}
-	if dir := pathpkg.Dir(slashed); dir != "." && dir != "/" {
-		candidates = append(candidates, pathpkg.Base(dir))
+	ext := pathpkg.Ext(base)
+	stem := strings.TrimSuffix(base, ext)
+	dir := filepath.Dir(path)
+	if id, ok := languageName(stem); ok && (strings.ContainsAny(stem, "-_") ||
+		slices.Contains(languageDirs, strings.ToLower(filepath.Base(dir))) ||
+		hasSibling(dir, stem, func(e os.DirEntry) bool {
+			return !e.IsDir() && pathpkg.Ext(e.Name()) == ext && isLanguageName(strings.TrimSuffix(e.Name(), ext))
+		})) {
+		return id
 	}
-	for _, c := range candidates {
-		if !pathLanguageRe.MatchString(c) {
-			continue
-		}
-		if id, err := locale.Canonical(c); err == nil {
-			return id
-		}
+	if d := pathpkg.Dir(slashed); d == "." || d == "/" {
+		return ""
+	}
+	name := filepath.Base(dir)
+	id, ok := languageName(name)
+	if !ok {
+		return ""
+	}
+	parent := filepath.Dir(dir)
+	if strings.ContainsAny(name, "-_") || slices.Contains(languageDirs, strings.ToLower(filepath.Base(parent))) ||
+		hasSibling(parent, name, func(e os.DirEntry) bool {
+			if !e.IsDir() || !isLanguageName(e.Name()) {
+				return false
+			}
+			_, err := os.Stat(filepath.Join(parent, e.Name(), base))
+			return err == nil
+		}) {
+		return id
 	}
 	return ""
+}
+
+// languageName is the language a file or directory name is a tag of.
+func languageName(name string) (model.LocaleID, bool) {
+	if !pathLanguageRe.MatchString(name) {
+		return "", false
+	}
+	id, err := locale.Canonical(name)
+	return id, err == nil
+}
+
+func isLanguageName(name string) bool {
+	_, ok := languageName(name)
+	return ok
+}
+
+// hasSibling reports whether dir holds an entry other than the one named
+// name that sibling accepts.
+func hasSibling(dir, name string, sibling func(os.DirEntry) bool) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	return slices.ContainsFunc(entries, func(e os.DirEntry) bool {
+		return e.Name() != name && !strings.HasPrefix(e.Name(), name+".") && sibling(e)
+	})
 }
 
 // detectChangeFormat detects the format of a file, or of an archive member,

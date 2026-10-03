@@ -162,13 +162,14 @@ type session struct {
 
 func (s *session) Info() change.DocInfo {
 	return change.DocInfo{
-		Doc:          s.doc.Ref,
-		Format:       s.doc.Format.Name,
-		SourceLocale: s.doc.SourceLocale,
-		Editions:     s.doc.Editions,
-		Edition:      s.doc.Edition,
-		Derived:      s.doc.Derived,
-		Capabilities: s.caps,
+		Doc:           s.doc.Ref,
+		Format:        s.doc.Format.Name,
+		SourceLocale:  s.doc.SourceLocale,
+		Editions:      s.doc.Editions,
+		Edition:       s.doc.Edition,
+		Derived:       s.doc.Derived,
+		LanguageNamed: s.doc.LanguageNamed,
+		Capabilities:  s.caps,
 	}
 }
 

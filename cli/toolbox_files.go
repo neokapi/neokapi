@@ -114,9 +114,9 @@ drop, invent or unbalance an inline code is refused as guard. When any
 operation is refused, nothing is written.
 
 A document is named by its path as given. It holds one edition, in the
-language its file or directory names (locales/nb.json, de/guide.md), else in
-the source language; --out FILE writes the one edition a change set adds to a
-document, a translation of it, to FILE. With no project nothing checks an edit
+language its file or directory names (locales/nb.json, or docs/de/guide.md
+beside docs/en/guide.md), else in the source language; --out FILE writes the
+one edition a change set adds to a document, a translation of it, to FILE. With no project nothing checks an edit
 as it lands: read the result with 'kapi-files inspect' or 'kapi-files kcat'.
 
 --dry-run computes the change set, writes nothing, and prints a diff per
