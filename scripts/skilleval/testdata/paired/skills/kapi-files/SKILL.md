@@ -9,5 +9,7 @@ kapi-files reads and writes the content inside files of any format. It works
 on the files you name, with no project: no voice, terms or check applies to an
 edit.
 
+Before you change content inside a file, read `references/edit.md`.
+
 `kapi-files --help` lists its commands. This skill's `references` folder holds
-the topics; read the one you need.
+the other topics; read the one you need.
