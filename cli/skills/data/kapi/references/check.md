@@ -70,6 +70,11 @@ new finding's fix. Read the sentence around the flagged words first: when the
 replacement needs the words around it to change too, an article or an
 agreement, write that edit yourself.
 
+A finding with no `fix` is one to edit by hand: its words have an inline code
+among them (a link, bold, a placeholder) that a plain-text replacement would
+delete, or it sits in the file of a translation. Read the block, write the
+edit with the codes kept, and send it as your own `replace_text`.
+
 Unsupported semantic guidance still needs review against the retrieved context:
 a passing verdict covers only the checks that ran. If the same finding persists or
 contradicts the governing guidance, report the unresolved issue rather than

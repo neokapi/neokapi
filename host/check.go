@@ -593,6 +593,9 @@ func (a *App) newCheckResolution(cmd Command, execution *checkExecution) (*check
 	opts.require, _ = cmd.Flags().GetStringSlice("require")
 	opts.voice, _ = cmd.Flags().GetBool("voice")
 	opts.voiceMin, _ = cmd.Flags().GetFloat64("voice-min")
+	if recipe, err := ResolveProjectPath(cmd); err == nil {
+		opts.fixes = a.newFixDocs(recipe)
+	}
 	return &checkResolution{voice: voice, vocab: vocab, opts: opts}, nil
 }
 
@@ -776,6 +779,9 @@ type checkRunOptions struct {
 	// lines its comment layer classified. It is nil in a whole-file check, and
 	// for a file no comment layer reads.
 	change *commentChange
+	// fixes names the document a finding's fix addresses; nil offers no fix,
+	// as the commit check and a check of a draft do.
+	fixes *fixDocs
 	// editionsOnly holds the blocks to the rules that read one block. The
 	// commit check sets it: each block it passes is one changed edition, so
 	// the blocks are no document, and a rule over a whole document (a voice's
@@ -910,7 +916,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 				b.DelAnno(model.AnnoVoice)
 				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
 				for _, f := range found {
-					diags = append(diags, withFix(check.DiagnosticFrom(f, "terms", loc), f, b, file, model.LocaleID(opts.source(a))))
+					diags = append(diags, withFix(check.DiagnosticFrom(f, "terms", loc), f, b, file, model.LocaleID(opts.source(a)), opts.fixes))
 				}
 			}
 			if err := opts.execution.probed("terms", file, len(diags)-before, start, asked && len(words) > 0, func() (check.CanaryOutcome, error) {
@@ -949,7 +955,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 				}
 				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
 				for _, f := range found {
-					diags = append(diags, withFix(check.DiagnosticFrom(f, "voice", loc), f, b, file, model.LocaleID(opts.source(a))))
+					diags = append(diags, withFix(check.DiagnosticFrom(f, "voice", loc), f, b, file, model.LocaleID(opts.source(a)), opts.fixes))
 				}
 			}
 			// The profile's required patterns hold over the document, not over any

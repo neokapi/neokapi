@@ -464,7 +464,13 @@ edition the check read. Sent as it is, it lands while the block still says what
 the check read, and is refused as stale once it does not. The fixes of one block
 name places in the same text, so they compose as the edits of one operation;
 as separate operations of one change set, each would see the text the one
-before it left.
+before it left. A replacement is plain text, and `ApplyTextEdits` keeps a code
+only at either end of the text it replaces, so a finding whose words have an
+inline code among them gets no fix. The fix names its document as the project's
+change service resolves one, by its path from the project root, and the file of
+a translation gets no fix: the service reads that file as the translation's
+edition, while the check read it as source and held it to the source
+language's rules.
 
 ### Results and errors
 

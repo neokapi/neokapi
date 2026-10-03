@@ -215,7 +215,7 @@ func TestCheckFixAppliesThroughTheChangeService(t *testing.T) {
 // block as plain text.
 func TestCheckFixKeepsTheMarkupOfAFormattedBlock(t *testing.T) {
 	app := NewApp()
-	tab := setupMarkupBlock(t, app)
+	tab := setupMarkupBlock(t, app, `<html><body><p>Please <b>utilize</b> it</p></body></html>`, houseVoiceYAML)
 
 	res, err := app.RunChecks(tab.tabID, ProjectFilter{})
 	require.NoError(t, err)
@@ -225,6 +225,35 @@ func TestCheckFixKeepsTheMarkupOfAFormattedBlock(t *testing.T) {
 	data, err := os.ReadFile(tab.path)
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "<p>Please <b>use</b> it</p>")
+}
+
+// Words with a link among them get no fix: the replacement is plain text, and
+// applying it would delete the link with the words. The finding is still
+// reported, for the person to edit.
+func TestCheckFixIsNotOfferedForWordsThatSpanALink(t *testing.T) {
+	app := NewApp()
+	voice := `id: house
+name: House Style
+vocabulary:
+  forbidden_terms:
+    - term: read the setup guide
+      replacement: follow the setup guide
+`
+	tab := setupMarkupBlock(t, app,
+		`<html><body><p>First read the <a href="https://example.com/setup">setup guide</a> carefully.</p></body></html>`, voice)
+
+	res, err := app.RunChecks(tab.tabID, ProjectFilter{})
+	require.NoError(t, err)
+	var found *DesktopFinding
+	for _, file := range res.Files {
+		for i, f := range file.Findings {
+			if f.OriginalText == "read the setup guide" {
+				found = &file.Findings[i]
+			}
+		}
+	}
+	require.NotNil(t, found, "the check reports the words: %+v", res.Files)
+	assert.Empty(t, found.Fix, "a fix over the link would delete it")
 }
 
 // A fix names the revision the check read; a block that changed since is
@@ -256,14 +285,14 @@ type markupFixture struct {
 	blockID string
 }
 
-// setupMarkupBlock writes an HTML file with a single paragraph containing an
-// inline <b> tag (so the block has multiple runs) under the house voice, opens
-// the project, and returns the block id of that paragraph.
-func setupMarkupBlock(t *testing.T, app *App) markupFixture {
+// setupMarkupBlock writes an HTML file, page, whose paragraph holds inline
+// markup (so the block has multiple runs) under the voice voiceYAML, opens the
+// project, and returns the block id of that paragraph.
+func setupMarkupBlock(t *testing.T, app *App, page, voiceYAML string) markupFixture {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "page.html")
-	require.NoError(t, os.WriteFile(path, []byte(`<html><body><p>Please <b>utilize</b> it</p></body></html>`), 0o644))
+	require.NoError(t, os.WriteFile(path, []byte(page), 0o644))
 
 	proj := &project.KapiProject{
 		Version:     project.CurrentVersion,
@@ -271,7 +300,7 @@ func setupMarkupBlock(t *testing.T, app *App) markupFixture {
 		Collections: []project.Collection{{Path: "page.html"}},
 	}
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RelStatePath("voice.yaml")), []byte(houseVoiceYAML), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RelStatePath("voice.yaml")), []byte(voiceYAML), 0o644))
 	projPath := filepath.Join(dir, "proj.kapi")
 	require.NoError(t, project.Save(projPath, proj))
 	readContextAt(t, projPath)

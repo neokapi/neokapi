@@ -237,6 +237,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	// The file is read in the language its own project writes source in, which
 	// is what every vocabulary and terminology lookup below keys on.
 	opts.sourceLocale = a.mcpCallSourceLocale(recipe)
+	opts.fixes = a.newFixDocs(recipe)
 	var voice *checkVoice
 	if opts.profile == nil {
 		if voice, err = a.newCheckVoice(cmd, opts.execution.warningSink()); err != nil {

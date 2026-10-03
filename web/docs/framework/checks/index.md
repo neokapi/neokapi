@@ -63,8 +63,20 @@ kapi check docs/guide.md --json \
   | kapi apply -
 ```
 
-A finding on a code comment, or on a draft sent to `check_text`, carries no
-fix. The human table's first column is the outcome, `FAILS` or
+A fix names its document by its path from the project root, so `kapi apply`
+finds it from any directory of the project. Two findings over the same words,
+such as a term and a longer term that contains it, make one operation with
+overlapping edits, which is refused as a whole; apply one of them and check
+again.
+
+Some findings carry no fix. A replacement is plain text, so a finding whose
+words have an inline code among them (a link, a bold span, a placeholder) has
+none: replacing the words would delete the code with them. A finding on the
+file of a translation has none, since the check held that file's words to the
+source language's rules, and nor has a finding on a code comment or on a draft
+sent to `check_text`. Edit these by hand.
+
+The human table's first column is the outcome, `FAILS` or
 `REPORTS`, and the roll-up line reads `N failing, M reported · score S/100`. The stable rule id is the loop's
 primary key: an assistant tracks it across iterations to confirm a fix and avoid
 regressions. `--json` emits the Report verbatim; over MCP, the `check_file` and

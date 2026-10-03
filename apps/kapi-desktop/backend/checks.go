@@ -874,7 +874,7 @@ func withFix(df DesktopFinding, f check.Finding, b *model.Block, doc string, sou
 	if df.Field != "source" || doc == "" || comment.IsBlock(b) {
 		return df
 	}
-	op := check.Fix(f, change.Ref{Doc: doc, Block: change.BlockKey(b)}, check.SourceRevision(b, source))
+	op := check.Fix(f, b.SourceRuns(), change.Ref{Doc: doc, Block: change.BlockKey(b)}, check.SourceRevision(b, source))
 	if op == nil {
 		return df
 	}

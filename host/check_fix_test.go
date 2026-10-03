@@ -66,3 +66,64 @@ func TestCheck_AFindingWithAReplacementCarriesItsFix(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "# Guide\n\nWe use the widget every day.\n", string(got))
 }
+
+// fixFor runs `kapi check` on files in the fixture's project and returns the
+// failing "utilize" finding.
+func fixFor(t *testing.T, f commitFixture, files ...string) check.Diagnostic {
+	t.Helper()
+	report, err := f.app.ComputeCheck(f.command(t), files)
+	require.NoError(t, err)
+	for _, d := range report.Findings {
+		if d.Rule == "terms.vocabulary" && d.Location.Snippet == "utilize" {
+			return d
+		}
+	}
+	require.FailNow(t, "the check finds the failing term", "%+v", report.Findings)
+	return check.Diagnostic{}
+}
+
+// A fix names its document by its path from the project root, which is what
+// kapi apply resolves, from whichever directory the check ran in.
+func TestCheck_AFixNamesItsDocumentFromTheProjectRoot(t *testing.T) {
+	f := newCommitFixture(t)
+	guide := filepath.Join(f.root, "docs", "guide.md")
+	require.NoError(t, os.WriteFile(guide, []byte("# Guide\n\nWe utilize the widget every day.\n"), 0o644))
+	t.Chdir(filepath.Join(f.root, "docs"))
+
+	d := fixFor(t, f, "guide.md")
+	require.NotNil(t, d.Fix)
+	assert.Equal(t, "docs/guide.md", d.Fix.At.Doc)
+
+	svc, err := f.app.ChangeService(t.Context(), ChangeServiceOptions{Project: f.recipe, Origin: "test"})
+	require.NoError(t, err)
+	res, err := svc.Apply(t.Context(), change.Set{Ops: []change.Op{*d.Fix}}, change.Actor{Kind: change.ActorPerson})
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	got, err := os.ReadFile(guide)
+	require.NoError(t, err)
+	assert.Equal(t, "# Guide\n\nWe use the widget every day.\n", string(got))
+}
+
+// The file of a translation is read by the change service as that
+// translation, and the check held its words to the source language's rules:
+// the finding is reported with no fix.
+func TestCheck_ATranslationFileGetsNoFix(t *testing.T) {
+	f := newCommitFixture(t)
+	fr := filepath.Join(f.root, "docs", "fr", "guide.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(fr), 0o755))
+	require.NoError(t, os.WriteFile(fr, []byte("# Guide\n\nNous utilize le widget.\n"), 0o644))
+
+	d := fixFor(t, f, fr)
+	assert.Nil(t, d.Fix, "a translation's file gets no fix")
+}
+
+// A replacement is plain text: words with a code among them get no fix, which
+// would delete the code with them.
+func TestCheck_WordsThatSpanFormattingGetNoFix(t *testing.T) {
+	f := newCommitFixture(t)
+	guide := filepath.Join(f.root, "docs", "guide.md")
+	require.NoError(t, os.WriteFile(guide, []byte("# Guide\n\nWe util**ize** the widget every day.\n"), 0o644))
+
+	d := fixFor(t, f, guide)
+	assert.Nil(t, d.Fix, "the bold inside the words would go with them")
+}
