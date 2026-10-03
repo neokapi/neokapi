@@ -22,6 +22,11 @@ func apply(t *testing.T, b *model.Block, env change.BlockEnv, ops ...change.Op) 
 func requireApplied(t *testing.T, res []change.OpResult) {
 	t.Helper()
 	for _, r := range res {
+		if r.Status == change.OpRefused {
+			require.Failf(t, "refused", "op %d: %+v", r.I, r.Error)
+		}
+	}
+	for _, r := range res {
 		require.Contains(t, []change.OpStatus{change.OpApplied, change.OpUnchanged}, r.Status, "op %d: %+v", r.I, r.Error)
 	}
 }

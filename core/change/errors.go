@@ -113,7 +113,8 @@ const (
 	SubcodeStructureLost Subcode = "structure_lost"
 	// SubcodeBadPosition: a position is outside the sequence it addresses.
 	SubcodeBadPosition Subcode = "bad_position"
-	// SubcodeOverlap: two edits of one operation overlap.
+	// SubcodeOverlap: two edits of one operation overlap, or a position names
+	// text an earlier operation of the change set changed in the same edition.
 	SubcodeOverlap Subcode = "overlap"
 )
 

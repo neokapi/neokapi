@@ -159,9 +159,11 @@ func TestSedOpsPreserveCodes(t *testing.T) {
 	}
 }
 
-// Each substitution of a program is one operation, positioned in the content
-// the substitutions before it left, as the service applies operations in
-// order; every operation carries the revision ksed read.
+// Each substitution of a program is one operation, applied in order, and
+// every operation carries the revision ksed read. The first names its text by
+// position in the content ksed read; a later one matches the text the
+// substitutions before it left, and names it by find, which the service reads
+// there too.
 func TestSedOpsChainSubstitutions(t *testing.T) {
 	runs := boldUglyRuns()
 	ops, got := sedOn(t, runs, "s/Hello/Hi/", "s/world/earth/")
@@ -170,11 +172,42 @@ func TestSedOpsChainSubstitutions(t *testing.T) {
 	rev := model.RunsRevision(model.EditionKey{}, runs)
 	assert.Equal(t, rev, ops[0].IfMatch)
 	assert.Equal(t, rev, ops[1].IfMatch)
+	first := ops[0].Body.(*change.ReplaceText).Edits[0]
+	assert.Equal(t, 0, *first.Start)
 	second := ops[1].Body.(*change.ReplaceText).Edits[0]
-	assert.Equal(t, 8, *second.Start, "the second edit is positioned in the text the first left: \"Hi ugly world\"")
+	require.NotNil(t, second.Find)
+	assert.Equal(t, "world", *second.Find)
+	assert.Equal(t, 1, second.Occurrence)
 
-	_, got = sedOn(t, runs, "s/ugly/bad/", "s/bad/ugly/")
+	ops, got = sedOn(t, runs, "s/ugly/bad/", "s/bad/ugly/")
+	assert.Len(t, ops, 2)
 	assert.Equal(t, "Hello <1>ugly</1> world", sigRuns(got), "a program whose edits cancel leaves the codes as they were")
+
+	_, got = sedOn(t, []model.Run{{Text: &model.TextRun{Text: "a cat, a car"}}}, "s/a/the/g", "s/the/one/g")
+	assert.Equal(t, "one conet, one coner", sigRuns(got), "a later substitution counts the occurrences the earlier ones wrote")
+}
+
+// A later substitution whose match no find can name, an empty match here,
+// makes the program one operation that leaves the edition as the whole
+// program does.
+func TestSedOpsAnEmptyLaterMatchGivesOneOperation(t *testing.T) {
+	runs := boldUglyRuns()
+	prog, err := ParseSedProgram([]string{"s/Hello/Hi/", "s/$/!/"})
+	require.NoError(t, err)
+	at := change.Ref{Doc: "page.html", Block: "p"}
+	rev := model.RunsRevision(model.EditionKey{}, runs)
+	ops, err := prog.ops(at, rev, runs)
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, at, ops[0].At)
+	assert.Equal(t, rev, ops[0].IfMatch)
+
+	b := model.NewRunsBlock("p", runs)
+	ops[0].At = change.Ref{}
+	for _, r := range change.ApplyBlock(b, ops, change.BlockEnv{Actor: change.Actor{Kind: change.ActorPerson}}) {
+		require.Nil(t, r.Error)
+	}
+	assert.Equal(t, "Hi <1>ugly</1> world!", sigRuns(b.Source))
 }
 
 // The regular expression reports byte offsets and a text edit counts code

@@ -74,6 +74,17 @@ type BlockEnv struct {
 	// Now is the clock that stamps a person's or an agent's edit. Nil is
 	// time.Now.
 	Now func() time.Time
+	// Indexes are the places the operations have in their change set, which
+	// a refusal naming another operation names it by. Nil numbers them by
+	// their place in ops.
+	Indexes []int
+	// Chained reads every position an operation names in the edition as the
+	// operations before it left it, for an in-process caller that builds each
+	// operation on the result of the one before it: a transform's passes,
+	// where the second of two substitutions names text the first wrote. A
+	// change set never sets it; its positions name the edition its sender
+	// read.
+	Chained bool
 }
 
 // ApplyBlock applies content operations to one block in memory and returns
@@ -82,8 +93,12 @@ type BlockEnv struct {
 //
 // The operations apply in order, and each sees the result of the operations
 // before it. Every precondition (IfMatch, and Basis under RequireBasis) is
-// checked first, against the block as it stood when ApplyBlock was called. The
-// operations are all-or-nothing: when one is refused, the block is left as it
+// checked first, against the block as it stood when ApplyBlock was called, and
+// a position an operation names (an edit's start and end, a run range, a
+// path's run index) names the edition as it stood then too: it is moved
+// through the text the operations before it changed, and refused as an
+// overlap when it lies inside that text (compose.go). The operations are
+// all-or-nothing: when one is refused, the block is left as it
 // was, the refused operations say why, and every other operation is
 // not_applied with BlockedBy naming the first refusal.
 //
@@ -127,6 +142,7 @@ func ApplyBlock(b *model.Block, ops []Op, env BlockEnv) []OpResult {
 
 	if refused < 0 {
 		for i, op := range ops {
+			w.at = i
 			if err := w.apply(op, &results[i]); err != nil {
 				refuse(i, err)
 				break
@@ -371,6 +387,15 @@ type edState struct {
 	content         bool
 	removed         bool
 	overlaysChanged bool
+
+	// rebuilt says an operation changed the edition's runs, so a position
+	// that names the edition as it stood at the start is moved to where it
+	// lies now through changes, the text each operation changed, in order.
+	rebuilt bool
+	changes []seqChange
+	// startIndex indexes the sequences of the edition as it stood at the
+	// start, by path, for the positions that name them.
+	startIndex map[string]*seqIndex
 }
 
 func (st *edState) startRevision() string {
@@ -407,6 +432,8 @@ type workset struct {
 	// states are the editions touched so far, in the order first touched. A
 	// block has few editions, so a list is searched rather than a map built.
 	states []*edState
+	// at is the place in ops of the operation being applied.
+	at int
 }
 
 func newWorkset(b *model.Block, env BlockEnv) *workset {
@@ -533,7 +560,7 @@ func (w *workset) rewrite(st *edState, newRuns []model.Run, rebase OverlayRebase
 	role := w.role(st)
 	c := Consequences(w.env.Actor, role, st.ed, !st.present, w.now())
 	st.ed = model.Edition{Runs: newRuns, Status: c.Status, Origin: c.Origin, Score: st.ed.Score}
-	st.present, st.content, st.removed = true, true, false
+	st.present, st.content, st.removed, st.rebuilt = true, true, false, true
 	res.Before = st.startRevision()
 	res.After = st.revision()
 	res.Status = OpApplied
@@ -568,7 +595,8 @@ func (w *workset) setContent(op Op, body *SetContent, res *OpResult) *Error {
 	st := w.state(op.At.Edition)
 	role := w.role(st)
 	cur := st.ed.Runs
-	if len(body.Path) > 0 && !st.present {
+	path := w.currentPath(st, body.Path)
+	if len(path) > 0 && !st.present {
 		return &Error{Code: CodeNotFound, Field: "path", Message: fmt.Sprintf("edition %s does not exist; create it whole, then edit a branch", w.label(st))}
 	}
 	if !st.present && op.IfMatch != model.AbsentRevision && op.IfMatch != AnyRevision {
@@ -580,12 +608,12 @@ func (w *workset) setContent(op Op, body *SetContent, res *OpResult) *Error {
 	// back a code the authoritative edition holds.
 	var ref []model.Run
 	switch {
-	case len(body.Path) > 0:
-		seq, ok := model.ResolveRunPath(cur, body.Path)
+	case len(path) > 0:
+		seq, ok := model.ResolveRunPath(cur, path)
 		if !ok {
-			branch, ok := newBranchReference(cur, body.Path)
+			branch, ok := newBranchReference(cur, path)
 			if !ok {
-				return &Error{Code: CodeNotFound, Field: "path", Message: fmt.Sprintf("path %s reaches no plural form or select case of edition %s", pathText(body.Path), w.label(st))}
+				return &Error{Code: CodeNotFound, Field: "path", Message: fmt.Sprintf("path %s reaches no plural form or select case of edition %s", pathText(path), w.label(st))}
 			}
 			seq = branch
 		}
@@ -621,10 +649,10 @@ func (w *workset) setContent(op Op, body *SetContent, res *OpResult) *Error {
 	}
 
 	newRuns := seq
-	if len(body.Path) > 0 {
+	if len(path) > 0 {
 		var ok bool
-		if newRuns, ok = replaceAtPath(cur, body.Path, seq); !ok {
-			return &Error{Code: CodeNotFound, Field: "path", Message: fmt.Sprintf("path %s reaches no plural form or select case", pathText(body.Path))}
+		if newRuns, ok = replaceAtPath(cur, path, seq); !ok {
+			return &Error{Code: CodeNotFound, Field: "path", Message: fmt.Sprintf("path %s reaches no plural form or select case", pathText(path))}
 		}
 	}
 	if role == RoleDerived {
@@ -644,7 +672,11 @@ func (w *workset) setContent(op Op, body *SetContent, res *OpResult) *Error {
 		res.Before, res.After, res.Status = st.startRevision(), rev, OpUnchanged
 		return nil
 	}
-	return w.rewrite(st, newRuns, body.Overlays, res)
+	if err := w.rewrite(st, newRuns, body.Overlays, res); err != nil {
+		return err
+	}
+	w.noteChange(st, path, cur, true, nil)
+	return nil
 }
 
 // replaceText applies replace_text.
@@ -666,22 +698,30 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 	res.Resolved = make([]Resolved, len(body.Edits))
 	for i, e := range body.Edits {
 		field := "edits/" + strconv.Itoa(i)
-		key := pathText(e.Path)
+		path := w.currentPath(st, e.Path)
+		key := pathText(path)
 		ix, ok := index[key]
 		if !ok {
-			seq, found := model.ResolveRunPath(cur, e.Path)
+			seq, found := model.ResolveRunPath(cur, path)
 			if !found {
 				return &Error{Code: CodeNotFound, Field: field + "/path", Message: fmt.Sprintf("path %s reaches no plural form or select case", pathText(e.Path))}
 			}
 			ix = indexSequence(seq)
 			index[key] = ix
 		}
-		start, end, err := ix.resolve(e.Selection, e.Path, field)
+		var start, end int
+		var err *Error
+		if w.moved(st) && e.Find == nil {
+			// A position names the edition as the change set found it.
+			start, end, err = w.movedSelection(st, e.Selection, field)
+		} else {
+			start, end, err = ix.resolve(e.Selection, path, field)
+		}
 		if err != nil {
 			return err
 		}
-		res.Resolved[i] = Resolved{Path: e.Path, Start: ix.posAt(start), End: ix.posAt(end)}
-		paths[key] = e.Path
+		res.Resolved[i] = Resolved{Path: path, Start: ix.posAt(start), End: ix.posAt(end)}
+		paths[key] = path
 		groups[key] = append(groups[key], pathEdit{i: i, start: start, end: end, text: e.Text})
 	}
 
@@ -694,6 +734,9 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 	// The new flattened width of each top-level plural or select a branch
 	// edit changed, by its index in cur.
 	touched := map[int]int{}
+	// What the operation changes in each sequence, for the positions later
+	// operations name.
+	changed := map[string][]seqEdit{}
 	for _, key := range keys {
 		edits := groups[key]
 		slices.SortStableFunc(edits, func(a, b pathEdit) int { return a.start - b.start })
@@ -708,6 +751,7 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 		textEdits := make([]model.TextEdit, len(edits))
 		for j, e := range edits {
 			textEdits[j] = model.TextEdit{Start: e.start, End: e.end, Replacement: e.text}
+			changed[key] = append(changed[key], seqEdit{start: e.start, end: e.end, newLen: utf8.RuneCountInString(e.text)})
 		}
 		edited := model.ApplyTextEdits(seq, textEdits)
 		if len(path) == 0 {
@@ -763,7 +807,13 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 	if flatEdits == nil {
 		flatEdits = []model.RunEdit{}
 	}
-	return w.rewrite(st, next, OverlayRebase{Edits: flatEdits}, res)
+	if err := w.rewrite(st, next, OverlayRebase{Edits: flatEdits}, res); err != nil {
+		return err
+	}
+	for _, key := range keys {
+		w.noteChange(st, paths[key], cur, false, changed[key])
+	}
+	return nil
 }
 
 // removeEdition applies remove_edition.

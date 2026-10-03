@@ -213,7 +213,7 @@ func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
 	}
 
 	if !b.Translatable && len(content) > 0 {
-		preview := ApplyBlock(b, content, p.env(true))
+		preview := ApplyBlock(b, content, p.env(true, contentIdx))
 		for j, r := range preview {
 			if r.Status == OpPreviewed || r.Status == OpApplied {
 				i := contentIdx[j]
@@ -246,7 +246,7 @@ func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
 		touched[at].ops = append(touched[at].ops, contentIdx[j])
 	}
 
-	results := ApplyBlock(b, content, p.env(false))
+	results := ApplyBlock(b, content, p.env(false, contentIdx))
 	for j, r := range results {
 		i := contentIdx[j]
 		r.I = i
@@ -381,8 +381,9 @@ func (p *docPlan) End() error {
 	return nil
 }
 
-// env is the BlockEnv the change set's operations apply under.
-func (p *docPlan) env(preview bool) BlockEnv {
+// env is the BlockEnv the change set's operations apply under. indexes are
+// the places in the change set of the operations it is handed with.
+func (p *docPlan) env(preview bool, indexes []int) BlockEnv {
 	guards := Enforce
 	if p.actor.Kind == ActorTool {
 		// A tool's drafts meet the ship gates later, as its governance
@@ -396,6 +397,7 @@ func (p *docPlan) env(preview bool) BlockEnv {
 		Guards:       guards,
 		Format:       p.info.Capabilities,
 		Now:          p.svc.now,
+		Indexes:      indexes,
 	}
 }
 

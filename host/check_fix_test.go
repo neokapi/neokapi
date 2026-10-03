@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -65,6 +66,44 @@ func TestCheck_AFindingWithAReplacementCarriesItsFix(t *testing.T) {
 	got, err := os.ReadFile(guide)
 	require.NoError(t, err)
 	assert.Equal(t, "# Guide\n\nWe use the widget every day.\n", string(got))
+}
+
+// The loop `kapi check --json | jq '{ops: [.findings[].fix | select(.)]}' |
+// kapi apply -` runs over a block with two findings: each fix names its words
+// by position in the block the check read, and both land in one change set.
+func TestCheck_TwoFixesOfOneBlockLandTogether(t *testing.T) {
+	f := newCommitFixture(t)
+	guide := filepath.Join(f.root, "docs", "guide.md")
+	require.NoError(t, os.WriteFile(guide, []byte("# Guide\n\nWe utilize the widget and utilize it every day.\n"), 0o644))
+
+	report, err := f.app.ComputeCheck(f.command(t), []string{guide})
+	require.NoError(t, err)
+	raw, err := json.Marshal(report)
+	require.NoError(t, err)
+	var wire struct {
+		Findings []struct {
+			Fix json.RawMessage `json:"fix"`
+		} `json:"findings"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &wire))
+	var fixes []string
+	for _, d := range wire.Findings {
+		if len(d.Fix) > 0 {
+			fixes = append(fixes, string(d.Fix))
+		}
+	}
+	require.Len(t, fixes, 2, "one fix per finding: %s", raw)
+
+	set, err := change.Decode(strings.NewReader(`{"ops": [` + strings.Join(fixes, ",") + `]}`))
+	require.NoError(t, err)
+	svc, err := f.app.ChangeService(t.Context(), ChangeServiceOptions{Project: f.recipe, Origin: "test"})
+	require.NoError(t, err)
+	res, err := svc.Apply(t.Context(), set, change.Actor{Kind: change.ActorPerson})
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	got, err := os.ReadFile(guide)
+	require.NoError(t, err)
+	assert.Equal(t, "# Guide\n\nWe use the widget and use it every day.\n", string(got))
 }
 
 // fixFor runs `kapi check` on files in the fixture's project and returns the

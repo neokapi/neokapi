@@ -260,7 +260,8 @@ func applyEditPlan(toolName string, v *blockView, block *model.Block, plan EditP
 	if len(ops) == 0 {
 		return nil
 	}
-	env := change.BlockEnv{Actor: change.Actor{Kind: change.ActorTool, Name: toolName}, Guards: change.Report}
+	// A pass names positions in the text the passes before it left.
+	env := change.BlockEnv{Actor: change.Actor{Kind: change.ActorTool, Name: toolName}, Guards: change.Report, Chained: true}
 	for _, r := range change.ApplyBlock(block, ops, env) {
 		if r.Status == change.OpRefused {
 			return fmt.Errorf("transform tool %q: block %q: %s %s refused: %w", toolName, block.ID, r.Op, editionText(r.At), r.Error)

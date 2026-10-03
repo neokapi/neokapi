@@ -187,12 +187,19 @@ func (w *workset) mark(op Op, body *Mark, res *OpResult) *Error {
 		return err
 	}
 	cur := st.ed.Runs
-	path := body.Range.Path
+	path := w.currentPath(st, body.Range.Path)
 	seq, ok := model.ResolveRunPath(cur, path)
 	if !ok {
-		return &Error{Code: CodeNotFound, Field: "range/path", Message: fmt.Sprintf("path %s reaches no plural form or select case", pathText(path))}
+		return &Error{Code: CodeNotFound, Field: "range/path", Message: fmt.Sprintf("path %s reaches no plural form or select case", pathText(body.Range.Path))}
 	}
-	start, end, err := resolveSelection(seq, body.Range, path, "range")
+	var start, end int
+	var err *Error
+	if w.moved(st) && body.Range.Find == nil {
+		// A position names the edition as the change set found it.
+		start, end, err = w.movedSelection(st, body.Range, "range")
+	} else {
+		start, end, err = resolveSelection(seq, body.Range, path, "range")
+	}
 	if err != nil {
 		return err
 	}

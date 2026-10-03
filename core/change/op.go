@@ -143,7 +143,9 @@ type Selection struct {
 	// exactly one match.
 	Occurrence int `json:"occurrence,omitempty" jsonschema:"which match of find, counting from 1; omitted requires exactly one match"`
 	// Start and End are code-point offsets into the text of the sequence Path
-	// reaches; inline codes have zero width.
+	// reaches; inline codes have zero width. They, Range and Path's run
+	// indexes name the edition as the change set found it; Find matches it as
+	// the operations before this one left it.
 	Start *int `json:"start,omitempty" jsonschema:"start offset in Unicode code points of the text; inline codes have zero width"`
 	End   *int `json:"end,omitempty" jsonschema:"end offset, exclusive"`
 	// Range is a span between run positions.
