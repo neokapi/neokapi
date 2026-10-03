@@ -712,7 +712,7 @@ func (p EvalPrepared) blocked() bool { return len(p.Blockers) != 0 }
 // prepareEvalClaude uses project settings for discovery, allowing the evaluation
 // to test the .mcp.json and skill directory written by kapi init.
 func prepareEvalClaude(ctx context.Context, p *EvalPrepared) error {
-	token, err := pairedClaudeSubscriptionToken(ctx)
+	token, err := pairedClaudeSubscriptionToken(ctx, p.Timeout)
 	if err != nil {
 		p.Blockers = append(p.Blockers, err.Error())
 	} else {

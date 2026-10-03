@@ -817,6 +817,42 @@ func TestService_ReadsShowEditionsAndStaleness(t *testing.T) {
 	assert.Equal(t, []change.Kind{change.KindSetContent, change.KindReplaceText, change.KindRemoveEdition}, b.Ops)
 }
 
+// A read lists every plural and select with the path that reaches it and the
+// text of each branch: one inside a branch after the one that holds it, so an
+// operation can name any branch from what a read shows.
+func TestService_ReadsListEveryStructureWithItsPath(t *testing.T) {
+	n := model.PhR(model.PlaceholderRun{ID: "p1", Type: "icu", Data: "#"})
+	items := func(prefix string) []model.Run {
+		return []model.Run{model.TextR(prefix), {Plural: &model.PluralRun{Pivot: "count", Forms: map[model.PluralForm][]model.Run{
+			model.PluralOne:   {n, model.TextR(" item")},
+			model.PluralOther: {n, model.TextR(" items")},
+		}}}}
+	}
+	runs := []model.Run{model.TextR("Today "), {Select: &model.SelectRun{Pivot: "gender", Cases: map[string][]model.Run{
+		"female": items("she has "),
+		"other":  items("they have "),
+	}}}, model.TextR(".")}
+	h := newMemHome(map[string][]memBlock{"a": {{key: "cart", translatable: true, editions: map[model.EditionKey][]model.Run{{}: runs}}}})
+	b := readBlock(t, newMemService(h), "a", "cart")
+
+	assert.Equal(t, `Today they have <x id="p1/"/> items.`, b.Text)
+	path := func(steps ...model.RunPathStep) model.RunPath { return steps }
+	at := func(i int) model.RunPathStep { return model.RunPathStep{Kind: model.StepIndex, Index: i} }
+	sel := func(v string) model.RunPathStep { return model.RunPathStep{Kind: model.StepSelect, SelectValue: v} }
+	assert.Equal(t, []change.StructureRead{
+		{Path: path(at(1)), Kind: "select", Pivot: "gender", Branches: map[string]string{
+			"female": `she has <x id="p1/"/> items`, "other": `they have <x id="p1/"/> items`,
+		}},
+		{Path: path(at(1), sel("female"), at(1)), Kind: "plural", Pivot: "count", Branches: map[string]string{
+			"one": `<x id="p1/"/> item`, "other": `<x id="p1/"/> items`,
+		}},
+		{Path: path(at(1), sel("other"), at(1)), Kind: "plural", Pivot: "count", Branches: map[string]string{
+			"one": `<x id="p1/"/> item`, "other": `<x id="p1/"/> items`,
+		}},
+	}, b.Structures)
+	assert.Equal(t, change.CodeRead{Kind: "placeholder", Type: "icu"}, b.Codes["p1/"])
+}
+
 type editionStates func(b *model.Block, k model.EditionKey) (change.EditionState, bool)
 
 func (f editionStates) EditionState(_ context.Context, _ change.DocInfo, b *model.Block, k model.EditionKey) (change.EditionState, bool) {

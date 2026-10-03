@@ -1,0 +1,62 @@
+{
+ "steps": [
+  {
+   "note": "Point the contact link at the new page",
+   "exit": 0,
+   "changeset": {
+    "ops": [
+     {
+      "op": "set_attribute",
+      "at": {
+       "doc": "site/help.html",
+       "block": "p#2"
+      },
+      "if_match": "r:ced8ed76a65516e4",
+      "code": "1",
+      "name": "href",
+      "value": "https://harbor.example/support/contact"
+     },
+     {
+      "op": "replace_text",
+      "at": {
+       "doc": "site/help.html",
+       "block": "p#2"
+      },
+      "if_match": "r:ced8ed76a65516e4",
+      "edits": [
+       {
+        "find": "Contact us",
+        "text": "Contact support"
+       }
+      ]
+     },
+     {
+      "op": "set_attribute",
+      "at": {
+       "doc": "docs/help.md",
+       "block": "help-with-your-appointment/p#2"
+      },
+      "if_match": "r:0081d619c40845b8",
+      "code": "1",
+      "name": "href",
+      "value": "https://harbor.example/support/contact"
+     },
+     {
+      "op": "replace_text",
+      "at": {
+       "doc": "docs/help.md",
+       "block": "help-with-your-appointment/p#2"
+      },
+      "if_match": "r:0081d619c40845b8",
+      "edits": [
+       {
+        "find": "Contact us",
+        "text": "Contact support"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

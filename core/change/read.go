@@ -365,26 +365,40 @@ func label(s, data string) string {
 	return s
 }
 
-// structuresOf lists the plurals and selects at the top level of runs.
+// structuresOf lists the plurals and selects of runs, each with the path that
+// reaches it. A structure inside a branch is listed after the one that holds
+// it, with the path through that branch, so every branch is reachable from a
+// read.
 func structuresOf(runs []model.Run) []StructureRead {
 	var out []StructureRead
-	for i, r := range runs {
-		path := model.RunPath{{Kind: model.StepIndex, Index: i}}
-		switch {
-		case r.Plural != nil:
-			st := StructureRead{Path: path, Kind: "plural", Pivot: r.Plural.Pivot, Branches: map[string]string{}}
-			for form, rs := range r.Plural.Forms {
-				st.Branches[string(form)] = model.RunsEditText(rs)
+	var walk func(seq []model.Run, prefix model.RunPath)
+	walk = func(seq []model.Run, prefix model.RunPath) {
+		for i, r := range seq {
+			path := append(slices.Clone(prefix), model.RunPathStep{Kind: model.StepIndex, Index: i})
+			switch {
+			case r.Plural != nil:
+				st := StructureRead{Path: path, Kind: "plural", Pivot: r.Plural.Pivot, Branches: map[string]string{}}
+				for form, rs := range r.Plural.Forms {
+					st.Branches[string(form)] = model.RunsEditText(rs)
+				}
+				out = append(out, st)
+				for _, form := range sortedKeys(pluralNames(r.Plural.Forms)) {
+					walk(r.Plural.Forms[model.PluralForm(form)],
+						append(slices.Clone(path), model.RunPathStep{Kind: model.StepPlural, PluralForm: model.PluralForm(form)}))
+				}
+			case r.Select != nil:
+				st := StructureRead{Path: path, Kind: "select", Pivot: r.Select.Pivot, Branches: map[string]string{}}
+				for c, rs := range r.Select.Cases {
+					st.Branches[c] = model.RunsEditText(rs)
+				}
+				out = append(out, st)
+				for _, c := range sortedKeys(r.Select.Cases) {
+					walk(r.Select.Cases[c], append(slices.Clone(path), model.RunPathStep{Kind: model.StepSelect, SelectValue: c}))
+				}
 			}
-			out = append(out, st)
-		case r.Select != nil:
-			st := StructureRead{Path: path, Kind: "select", Pivot: r.Select.Pivot, Branches: map[string]string{}}
-			for c, rs := range r.Select.Cases {
-				st.Branches[c] = model.RunsEditText(rs)
-			}
-			out = append(out, st)
 		}
 	}
+	walk(runs, nil)
 	return out
 }
 

@@ -1022,7 +1022,7 @@
         }
       },
       "doc": {
-        "overview": "The **Flutter ARB** format reads `.arb` files, the JSON message-resource\nformat used by Flutter's `gen-l10n` tooling and the Dart `intl` package.\nEach file is monolingual: one locale (named by `@@locale`, or inferred from\nthe filename), where resource keys map to ICU MessageFormat message strings.\n\nEach message becomes a translatable block. Sibling `@\u003cid\u003e` objects describe a\nresource (its `description` and `placeholders`) and `@@\u003cglobal\u003e` keys hold\nfile metadata (`@@locale`, `@@last_modified`, `@@author`, `@@context`); both\nare preserved verbatim and never extracted. ICU placeholders (`{name}`),\nplurals (`{count, plural, …}`), and select/gender (`{g, select, …}`) are\nprotected as opaque inline codes so their syntax is never translated, and\n`@description` is surfaced as a translator note. Output is byte-faithful:\nkey order, JSON escaping, and all `@`/`@@` metadata round-trip untouched.\n",
+        "overview": "The **Flutter ARB** format reads `.arb` files, the JSON message-resource\nformat used by Flutter's `gen-l10n` tooling and the Dart `intl` package.\nEach file is monolingual: one locale (named by `@@locale`, or inferred from\nthe filename), where resource keys map to ICU MessageFormat message strings.\n\nEach message becomes a translatable block. Sibling `@\u003cid\u003e` objects describe a\nresource (its `description` and `placeholders`) and `@@\u003cglobal\u003e` keys hold\nfile metadata (`@@locale`, `@@last_modified`, `@@author`, `@@context`); both\nare preserved verbatim and never extracted. An ICU placeholder (`{name}`) is\nprotected as an inline code. A plural (`{count, plural, …}`), selectordinal\nor select (`{g, select, …}`) is read with its branches: the words of each\nbranch are translated and edited one branch at a time, with `#` and any\nplaceholder inside a branch protected as inline codes, while the keyword,\nthe branch keys and the layout are written as they were read.\n`@description` is surfaced as a translator note. Output is byte-faithful:\nkey order, JSON escaping, and all `@`/`@@` metadata round-trip untouched,\nand an edit rewrites only the value it changes.\n",
         "parameters": {
           "descriptionNotes": {
             "description": "Surface each resource's @description as a translator note.",
@@ -1033,7 +1033,8 @@
         "processingNotes": [
           "One file = one locale; the message value is the block's source content.",
           "`@\u003cid\u003e` attribute objects and `@@\u003cglobal\u003e` metadata are preserved but not extracted as translatable content.",
-          "ICU MessageFormat constructs (placeholders, plural, select, gender) are protected as inline codes, not translatable structure."
+          "ICU placeholders are protected as inline codes; plurals, selectordinals and selects are read with their branches, and an edit to one branch changes that branch alone.",
+          "`kapi extract` leaves a message holding a plural or select out of an XLIFF or PO exchange file and names it; `kapi translate` translates each of its branches."
         ],
         "examples": [
           {

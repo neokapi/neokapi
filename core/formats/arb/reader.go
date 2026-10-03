@@ -189,7 +189,7 @@ func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, 
 			}
 			if !strings.HasPrefix(key, "@") && val.typ == tokString {
 				counter++
-				res := &resource{id: key, value: val.value, description: descriptions[key], placeholders: hints[key]}
+				res := &resource{id: key, value: val.value, raw: val.raw, description: descriptions[key], placeholders: hints[key]}
 				block := r.blockFor(res, loc, counter)
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return false
@@ -376,6 +376,16 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// The skeleton stands a ref in for each message value, so the writer
+	// re-encodes it; each value keeps the spelling the file gives it, which
+	// the writer writes back while the value is unchanged.
+	var tokens []token
+	if r.skeletonStore != nil {
+		if tokens, err = newScanner(content).scan(); err == nil {
+			rawValues(tokens, cat.resources)
+		}
+	}
+
 	// Build a key→block-ID map so the skeleton token walk can emit the same
 	// "tu<n>" IDs the catalog walk assigns. Message keys are emitted in
 	// cat.keyOrder (document order), so both walks agree on the counter.
@@ -393,8 +403,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Emit the byte-exact skeleton: a token walk that writes every structural
 	// byte verbatim and stands a Ref in for each translatable message value.
-	if r.skeletonStore != nil {
-		r.emitSkeleton(content, blockIDByKey)
+	if r.skeletonStore != nil && tokens != nil {
+		r.emitSkeleton(tokens, blockIDByKey)
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
@@ -407,16 +417,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 // bytes. Non-translatable keys ("@<id>" attribute objects and "@@<global>"
 // metadata) and all structure/whitespace become Text.
 //
-// On any tokenizer error the skeleton path is left incomplete and the writer's
-// EntriesWritten check (used by the merge wiring) lets the caller fall back to
-// the non-skeleton writer. Real .arb files always tokenize — parseCatalog above
-// would have already failed on malformed input before we reach here.
-func (r *Reader) emitSkeleton(content []byte, blockIDByKey map[string]string) {
-	sc := newScanner(content)
-	tokens, err := sc.scan()
-	if err != nil {
-		return
-	}
+// The caller tokenizes the document; on a tokenizer error it emits no skeleton
+// and the writer's EntriesWritten check (used by the merge wiring) lets the
+// caller fall back to the non-skeleton writer. A file parseCatalog accepted
+// always tokenizes.
+func (r *Reader) emitSkeleton(tokens []token, blockIDByKey map[string]string) {
 	pos := 0
 	r.skeletonTop(tokens, &pos, blockIDByKey)
 	// Trailing whitespace lives on the EOF token's prefix.
@@ -424,6 +429,32 @@ func (r *Reader) emitSkeleton(content []byte, blockIDByKey map[string]string) {
 		r.skelText(tokens[pos].prefix)
 	}
 	r.skelFlush()
+}
+
+// rawValues records, on each message resource, its value as the document's
+// tokens spell it. A key written twice takes the spelling of its last
+// occurrence, as its value does.
+func rawValues(tokens []token, resources map[string]*resource) {
+	if len(tokens) == 0 || tokens[0].typ != tokObjectStart {
+		return
+	}
+	depth := 0
+	for i := 0; i < len(tokens); i++ {
+		switch tokens[i].typ {
+		case tokObjectStart, tokArrayStart:
+			depth++
+		case tokObjectEnd, tokArrayEnd:
+			depth--
+		case tokString:
+			if depth != 1 || i+2 >= len(tokens) || tokens[i+1].typ != tokColon || tokens[i+2].typ != tokString {
+				continue
+			}
+			if res, ok := resources[tokens[i].value]; ok && !strings.HasPrefix(tokens[i].value, "@") {
+				res.raw = tokens[i+2].raw
+			}
+			i += 2
+		}
+	}
 }
 
 // skeletonTop walks the flat top-level object, emitting skeleton entries.
@@ -521,11 +552,14 @@ func (r *Reader) skeletonCopyValue(tokens []token, pos *int) {
 }
 
 // blockFor builds a Block for one ARB resource. The message value is carried as
-// source content; ICU placeholders/plural/select constructs are protected as
-// opaque inline placeholder runs. The sibling "@<id>" description becomes a
-// developer note.
+// source content: ICU arguments as placeholder runs, and a plural or select as
+// a plural or select run with its branches (see icu.go). A message holding a
+// plural or select records the value it was read from, which the writer
+// writes the structure's syntax from. The sibling "@<id>" description becomes
+// a developer note.
 func (r *Reader) blockFor(res *resource, locale model.LocaleID, counter int) *model.Block {
-	runs := runsFromValue(res.value)
+	msg := readMessage(res.value)
+	runs := msg.runs
 
 	block := &model.Block{
 		ID:           "tu" + strconv.Itoa(counter),
@@ -537,6 +571,12 @@ func (r *Reader) blockFor(res *resource, locale model.LocaleID, counter int) *mo
 		Properties:   make(map[string]string),
 	}
 	block.Properties["arb.key"] = res.id
+	if len(msg.shapes) > 0 {
+		block.Properties[propMessage] = res.value
+	}
+	if res.raw != "" && res.raw != encodeJSONString(res.value) {
+		block.Properties[propRaw] = res.raw
+	}
 
 	if r.cfg.DescriptionNotes {
 		if res.description != "" {

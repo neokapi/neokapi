@@ -11,10 +11,11 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
+	"slices"
 	"time"
 )
 
-const pairedSchema = 1
+const pairedSchema = 2
 
 var pairedIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
@@ -86,18 +87,18 @@ func validatePairedManifest(m PairedManifest) error {
 			return errors.New("each agent needs an explicit model and effort")
 		}
 	}
-	if len(m.Conditions) != 3 {
-		return errors.New("study requires baseline, skill-cli and mcp")
-	}
 	conditions := map[string]bool{}
 	for _, condition := range m.Conditions {
-		if condition != "baseline" && condition != "skill-cli" && condition != "mcp" {
+		if !slices.Contains(pairedConditions, condition) {
 			return fmt.Errorf("unsupported condition %q", condition)
 		}
 		if conditions[condition] {
 			return fmt.Errorf("duplicate condition %q", condition)
 		}
 		conditions[condition] = true
+	}
+	if !conditions["baseline"] || len(conditions) < 2 {
+		return errors.New("study requires the baseline and at least one kapi condition")
 	}
 	known := map[string]bool{}
 	for _, task := range pairedTasks() {

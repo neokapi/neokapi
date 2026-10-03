@@ -1,19 +1,19 @@
 {
-  "schema": 1,
-  "study": "kapi-b1-pilot",
-  "seed": 20260910,
+  "schema": 2,
+  "study": "kapi-wp5-edit-contract",
+  "seed": 20261003,
   "agents": [
     {"host": "codex", "model": "gpt-5.6-terra", "effort": "medium"},
     {"host": "claude", "model": "claude-sonnet-5", "effort": "high"}
   ],
-  "conditions": ["baseline", "skill-cli", "mcp"],
+  "conditions": ["baseline", "skill-cli", "mcp", "project-free"],
   "tasks": [
-    "audience-child", "audience-older-adult", "rename-product", "rename-plan",
-    "revise-support-hours", "revise-booking-window", "confirm-refund-window"
+    "edit-link-html-md", "edit-plural-branch", "add-edition-markup", "edit-po-context",
+    "add-json-key", "recover-stale-read", "recover-gate-refusal"
   ],
-  "smoke_task": "audience-child",
-  "repetitions": 2,
-  "attempt_timeout_seconds": 180,
+  "smoke_task": "recover-stale-read",
+  "repetitions": 3,
+  "attempt_timeout_seconds": 600,
   "max_turns": 40,
   "billing": "subscription-only"
 }

@@ -3,7 +3,9 @@ package change
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -164,7 +166,7 @@ func (ix *seqIndex) resolveFind(find string, occurrence int, path model.RunPath,
 	}
 	switch {
 	case len(matches) == 0:
-		return 0, 0, &Error{Code: CodeNotFound, Field: field + "/find", Message: fmt.Sprintf("%q is not in the text", find)}
+		return 0, 0, notInText(ix.seq, find, path, field)
 	case occurrence == 0 && len(matches) > 1:
 		e := &Error{Code: CodeAmbiguous, Field: field + "/find",
 			Message: fmt.Sprintf("%q matches %d times; send occurrence to choose one", find, len(matches))}
@@ -182,6 +184,67 @@ func (ix *seqIndex) resolveFind(find string, occurrence int, path model.RunPath,
 		at = matches[occurrence-1]
 	}
 	return at, at + len(needle), nil
+}
+
+// notInText refuses a find that seq's own text does not hold. A read shows a
+// plural or select by one of its branches, and the text of each branch under
+// structures, so a find taken from either can lie in a branch: the refusal
+// then names each branch that holds it by the path that reaches it, with a
+// candidate per match, and says to send the edit with one of those paths.
+func notInText(seq []model.Run, find string, path model.RunPath, field string) *Error {
+	e := &Error{Code: CodeNotFound, Field: field + "/find", Message: fmt.Sprintf("%q is not in the text", find)}
+	needle := []rune(find)
+	var branches []string
+	var walk func(seq []model.Run, path model.RunPath)
+	visit := func(branch []model.Run, at model.RunPath) {
+		ix := indexSequence(branch)
+		var matches []int
+		for i := 0; len(needle) > 0 && i+len(needle) <= len(ix.text); i++ {
+			if runesAt(ix.text, i, needle) {
+				matches = append(matches, i)
+				i += len(needle) - 1
+			}
+		}
+		for n, m := range matches {
+			r := Resolved{Path: at, Start: ix.posAt(m), End: ix.posAt(m + len(needle))}
+			c := Candidate{At: &r, Text: around(ix.text, m, m+len(needle))}
+			if len(matches) > 1 {
+				c.Occurrence = n + 1
+			}
+			e.Candidates = append(e.Candidates, c)
+		}
+		if len(matches) > 0 {
+			branches = append(branches, pathText(at))
+		}
+		walk(branch, at)
+	}
+	walk = func(seq []model.Run, path model.RunPath) {
+		for i, r := range seq {
+			step := model.RunPathStep{Kind: model.StepIndex, Index: i}
+			switch {
+			case r.Plural != nil:
+				for _, name := range sortedKeys(pluralNames(r.Plural.Forms)) {
+					form := model.PluralForm(name)
+					visit(r.Plural.Forms[form], append(slices.Clone(path), step, model.RunPathStep{Kind: model.StepPlural, PluralForm: form}))
+				}
+			case r.Select != nil:
+				for _, value := range sortedKeys(r.Select.Cases) {
+					visit(r.Select.Cases[value], append(slices.Clone(path), step, model.RunPathStep{Kind: model.StepSelect, SelectValue: value}))
+				}
+			}
+		}
+	}
+	walk(seq, path)
+	switch len(branches) {
+	case 0:
+	case 1:
+		e.Message = fmt.Sprintf("%q is not in the text around the plural or select; it is in the branch at path %s: send the edit with that path",
+			find, branches[0])
+	default:
+		e.Message = fmt.Sprintf("%q is not in the text around the plural or select; it is in the branches at paths %s: send the edit with the path of the one to change",
+			find, strings.Join(branches, ", "))
+	}
+	return e
 }
 
 func runesAt(text []rune, i int, needle []rune) bool {

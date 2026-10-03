@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -53,12 +54,13 @@ func TestPairedCLIWrapperWithBuiltKapi(t *testing.T) {
 	}
 	binary, err := filepath.Abs(binary)
 	require.NoError(t, err)
-	task, err := findPairedTask("audience-child")
+	task, err := findPairedTask("add-json-key")
 	require.NoError(t, err)
 	launch := PairedLaunch{
 		Workspace: t.TempDir(), StateDir: t.TempDir(), Condition: "skill-cli", KapiBin: binary,
 	}
 	require.NoError(t, materializePairedTask(launch.Workspace, task))
+	require.NoError(t, readPairedContext(t.Context(), launch.Workspace, binary))
 	require.NoError(t, os.Mkdir(filepath.Join(launch.StateDir, "bin"), 0o700))
 	require.NoError(t, pairedToolPath(launch))
 	run := func(args ...string) []byte {
@@ -69,12 +71,12 @@ func TestPairedCLIWrapperWithBuiltKapi(t *testing.T) {
 		require.NoError(t, err, string(output))
 		return output
 	}
-	guide := run("context", "content/en/page.json")
-	assert.Contains(t, string(guide), "harbor-help/child")
-	assert.Contains(t, string(guide), "trusted adult")
-	blocks := run("inspect", "content/en/page.json", "--jsonl")
+	guide := run("context", "locales/en.json")
+	assert.Contains(t, string(guide), "Harbor Help")
+	assert.Contains(t, string(guide), "overview page")
+	blocks := run("inspect", "locales/en.json", "--jsonl")
 	lines := strings.Split(strings.TrimSpace(string(blocks)), "\n")
-	require.Len(t, lines, 4)
+	require.Len(t, lines, 9)
 	var changes strings.Builder
 	for _, line := range lines {
 		var block map[string]any
@@ -94,16 +96,16 @@ func TestPairedCLIWrapperWithBuiltKapi(t *testing.T) {
 	require.NoError(t, os.WriteFile(edits, []byte(changes.String()), 0o600))
 	run("apply", edits)
 	run("version")
-	page, err := os.ReadFile(filepath.Join(launch.Workspace, "content/en/page.json"))
+	page, err := os.ReadFile(filepath.Join(launch.Workspace, "locales/en.json"))
 	require.NoError(t, err)
 	files, err := pairedTaskFiles(task)
 	require.NoError(t, err)
-	assert.JSONEq(t, string(files["content/en/page.json"]), string(page))
+	assert.Equal(t, string(files["locales/en.json"]), string(page))
 }
 
 func TestPairedClaudeConfiguration(t *testing.T) {
 	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "private-token")
-	for _, condition := range []string{"baseline", "skill-cli", "mcp"} {
+	for _, condition := range pairedConditions {
 		t.Run(condition, func(t *testing.T) {
 			state := t.TempDir()
 			workspace := t.TempDir()
@@ -121,22 +123,88 @@ func TestPairedClaudeConfiguration(t *testing.T) {
 			} else {
 				assert.Empty(t, servers)
 			}
-			assert.Equal(t, condition != "skill-cli", strings.Contains(strings.Join(prepared.Args, " "), "--disable-slash-commands"))
+			arm, err := pairedArmFor(condition)
+			require.NoError(t, err)
+			assert.Equal(t, arm.Skill == "", strings.Contains(strings.Join(prepared.Args, " "), "--disable-slash-commands"))
 			for i, arg := range prepared.Args {
 				if arg == "--setting-sources" {
-					want := ""
-					if condition == "skill-cli" {
-						want = "project"
-					}
-					assert.Equal(t, want, prepared.Args[i+1])
+					assert.Equal(t, "project", prepared.Args[i+1], "only the workspace's own settings are read")
 				}
 			}
+			assert.Contains(t, prepared.Args, "--strict-mcp-config")
 			settings, err := os.ReadFile(filepath.Join(state, "claude-settings.json"))
 			require.NoError(t, err)
 			assert.Contains(t, string(settings), `"allowUnsandboxedCommands": false`)
 			assert.NotContains(t, string(settings), "private-token")
+			// Claude Code's own skills are off in every arm.
+			project, err := os.ReadFile(filepath.Join(workspace, ".claude", "settings.json"))
+			require.NoError(t, err)
+			for _, skill := range pairedClaudeHostSkills {
+				assert.Contains(t, string(project), `"`+skill+`": "off"`)
+			}
 		})
 	}
+}
+
+// Each cell has a temporary directory of its own, short enough for Claude
+// Code to keep its sockets in, which both hosts and the agent's tools use.
+// The shared /tmp/claude and the developer's /tmp/claude-<uid> stay out of
+// reach of Claude's shell.
+func TestPairedCellHasItsOwnTemporaryDirectory(t *testing.T) {
+	tmp, err := makePairedCellTmp()
+	require.NoError(t, err)
+	defer os.RemoveAll(tmp)
+	assert.LessOrEqual(t, len(filepath.Join(pairedResolve(tmp), "claude-"+strconv.Itoa(os.Getuid()))), pairedCellTmpLimit)
+	info, err := os.Stat(tmp)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o700), info.Mode().Perm())
+
+	state, workspace := t.TempDir(), t.TempDir()
+	launch := PairedLaunch{Agent: PairedAgentSpec{Host: "claude", Model: "m", Effort: "high"}, Condition: "baseline",
+		StateDir: state, Workspace: workspace, TmpDir: tmp}
+	env := pairedEnvironment(launch)
+	assert.Contains(t, env, "TMPDIR="+tmp)
+	assert.Contains(t, env, "CLAUDE_CODE_TMPDIR="+tmp)
+	assert.Contains(t, env, "CLAUDE_CODE_DISABLE_BUNDLED_SKILLS=1")
+
+	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "private-token")
+	prepared := PairedPrepared{Args: []string{}, Env: env, Launch: launch}
+	require.NoError(t, preparePairedClaude(context.Background(), &prepared))
+	data, err := os.ReadFile(filepath.Join(state, "claude-settings.json"))
+	require.NoError(t, err)
+	settings := map[string]any{}
+	require.NoError(t, json.Unmarshal(data, &settings))
+	filesystem := pairedObject(pairedObject(settings, "sandbox"), "filesystem")
+	assert.Equal(t, []string{tmp}, pairedStringList(filesystem["allowWrite"]))
+	denied := pairedStringList(filesystem["denyRead"])
+	for _, shared := range pairedSharedTemp() {
+		assert.Contains(t, denied, shared)
+	}
+
+	// When the session ends, what the agent left there moves into the cell.
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "edits.json"), []byte("{}"), 0o600))
+	kept := settlePairedCellTmp(launch)
+	assert.Equal(t, filepath.Join(state, "tmp"), kept)
+	_, err = os.Stat(filepath.Join(kept, "edits.json"))
+	require.NoError(t, err)
+	_, err = os.Stat(tmp)
+	assert.True(t, os.IsNotExist(err))
+}
+
+// Codex's sandbox writes only to the workspace and the cell's own TMPDIR:
+// its workspace-write mode would otherwise add /tmp, which every session
+// shares.
+func TestPairedCodexSandboxExcludesSharedTmp(t *testing.T) {
+	state, workspace := t.TempDir(), t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(state, "codex"), 0o700))
+	prepared := PairedPrepared{Executable: "/nonexistent/codex", Launch: PairedLaunch{
+		Agent: PairedAgentSpec{Host: "codex", Model: "m", Effort: "medium"}, Condition: "baseline",
+		StateDir: state, Workspace: workspace, TmpDir: "/tmp/kpe-test"}}
+	t.Setenv("CODEX_HOME", t.TempDir())
+	require.NoError(t, preparePairedCodex(context.Background(), &prepared))
+	config, err := os.ReadFile(filepath.Join(state, "codex", "config.toml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(config), "[sandbox_workspace_write]\nexclude_slash_tmp = true\nexclude_tmpdir_env_var = false\n")
 }
 
 func TestPairedCodexMCPApprovalAppliesOnlyToFixtureServer(t *testing.T) {
@@ -148,7 +216,7 @@ func TestPairedCodexMCPApprovalAppliesOnlyToFixtureServer(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(authDir, "auth.json"), []byte("{}"), 0o600))
 	probe := filepath.Join(t.TempDir(), "subscription-probe")
 	require.NoError(t, os.WriteFile(probe, []byte("#!/bin/sh\nprintf 'Logged in using ChatGPT\\n'\n"), 0o700))
-	for _, condition := range []string{"baseline", "skill-cli", "mcp"} {
+	for _, condition := range pairedConditions {
 		state := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(state, "codex"), 0o700))
 		p := PairedPrepared{
@@ -171,16 +239,19 @@ func TestPairedCodexMCPApprovalAppliesOnlyToFixtureServer(t *testing.T) {
 }
 
 func TestPairedToolPathHasOnlyAssignedCLI(t *testing.T) {
-	for _, condition := range []string{"baseline", "skill-cli", "mcp"} {
+	for _, condition := range pairedConditions {
 		t.Run(condition, func(t *testing.T) {
 			state := t.TempDir()
 			require.NoError(t, os.Mkdir(filepath.Join(state, "bin"), 0o700))
 			require.NoError(t, pairedToolPath(PairedLaunch{StateDir: state, Condition: condition, KapiBin: "/test/kapi"}))
-			_, err := os.Lstat(filepath.Join(state, "bin", "kapi"))
-			if condition == "skill-cli" {
+			arm, err := pairedArmFor(condition)
+			require.NoError(t, err)
+			assert.Equal(t, arm.Executables, pairedCellExecutables(filepath.Join(state, "bin")))
+			if condition == "project-free" {
+				// The alias is the binary itself under another name.
+				target, err := os.Readlink(filepath.Join(state, "bin", pairedFilesAlias))
 				require.NoError(t, err)
-			} else {
-				assert.True(t, os.IsNotExist(err))
+				assert.Equal(t, "/test/kapi", target)
 			}
 			_, err = os.Lstat(filepath.Join(state, "bin", "cat"))
 			require.NoError(t, err)
@@ -190,10 +261,11 @@ func TestPairedToolPathHasOnlyAssignedCLI(t *testing.T) {
 
 func TestPairedClaudeCredentialRejectsKnownExpiredToken(t *testing.T) {
 	now := time.Date(2026, time.September, 10, 21, 7, 0, 0, time.UTC)
+	need := 10*time.Minute + pairedTokenMargin
 	for _, expiry := range []int64{now.Add(-time.Hour).UnixMilli(), now.UnixMilli()} {
 		raw, err := json.Marshal(map[string]any{"claudeAiOauth": map[string]any{"accessToken": "private-test-token", "expiresAt": expiry}})
 		require.NoError(t, err)
-		token, err := pairedClaudeCredentialToken(raw, now)
+		token, err := pairedClaudeCredentialToken(raw, now, need)
 		require.ErrorContains(t, err, "has expired")
 		assert.Empty(t, token)
 		assert.NotContains(t, err.Error(), "private-test-token")
@@ -201,15 +273,35 @@ func TestPairedClaudeCredentialRejectsKnownExpiredToken(t *testing.T) {
 	for _, expiry := range []any{now.Add(time.Hour).UnixMilli(), nil, "unknown"} {
 		raw, err := json.Marshal(map[string]any{"claudeAiOauth": map[string]any{"accessToken": "private-test-token", "expiresAt": expiry}})
 		require.NoError(t, err)
-		token, err := pairedClaudeCredentialToken(raw, now)
+		token, err := pairedClaudeCredentialToken(raw, now, need)
 		require.NoError(t, err)
 		assert.Equal(t, "private-test-token", token)
 	}
 }
 
+// A token that would expire during a session is refused before the session
+// starts: the cell gets it as a fixed value it cannot refresh, so it would
+// fail partway, and that failure would read as the agent's.
+func TestPairedClaudeCredentialNeedsTheSessionAndAMargin(t *testing.T) {
+	now := time.Date(2026, time.October, 3, 12, 0, 0, 0, time.UTC)
+	need := 10*time.Minute + pairedTokenMargin
+	short, err := json.Marshal(map[string]any{"claudeAiOauth": map[string]any{
+		"accessToken": "private-test-token", "expiresAt": now.Add(20 * time.Minute).UnixMilli()}})
+	require.NoError(t, err)
+	_, err = pairedClaudeCredentialToken(short, now, need)
+	require.ErrorContains(t, err, "expires in 20m0s, and a session needs 25m0s")
+	assert.Contains(t, err.Error(), "claude setup-token")
+	long, err := json.Marshal(map[string]any{"claudeAiOauth": map[string]any{
+		"accessToken": "private-test-token", "expiresAt": now.Add(26 * time.Minute).UnixMilli()}})
+	require.NoError(t, err)
+	token, err := pairedClaudeCredentialToken(long, now, need)
+	require.NoError(t, err)
+	assert.Equal(t, "private-test-token", token)
+}
+
 func TestPairedClaudeOpaqueEnvironmentTokenHasNoInferredExpiry(t *testing.T) {
 	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "opaque-test-token")
-	token, err := pairedClaudeSubscriptionToken(t.Context())
+	token, err := pairedClaudeSubscriptionToken(t.Context(), time.Hour)
 	require.NoError(t, err)
 	assert.Equal(t, "opaque-test-token", token)
 }

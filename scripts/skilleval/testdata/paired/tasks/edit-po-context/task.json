@@ -1,0 +1,14 @@
+{
+  "id": "edit-po-context",
+  "family": "bilingual-po",
+  "prompt": "In locales/nb/messages.po, the Norwegian translation of the \"Book\" button is wrong: it reads \"Bok\", the noun. Change the translation of \"Book\" in the button context to \"Bestill\". The library entry for \"Book\" is correct; leave it and everything else in the file as it is.",
+  "editable": ["locales/nb/messages.po"],
+  "scope": ["locales"],
+  "criteria": [
+    {"id": "po-bytes", "kind": "bytes_equal", "path": "locales/nb/messages.po",
+     "description": "Only the msgstr of the button entry changes; the library entry, the wrapped entry, the plural entry and the header are unchanged"}
+  ],
+  "humanReviewRubric": [
+    "Did the agent distinguish the two entries for \"Book\" by their context?"
+  ]
+}

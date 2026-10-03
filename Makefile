@@ -2486,26 +2486,34 @@ skill-eval-completion: build ## Drive each positive scenario to a green gate (sl
 mcp-eval: build ## Measure whether an agent picks the right kapi MCP tool (spends, local only)
 	$(GO) run $(GOTAGS) ./scripts/skilleval -mode trigger -surface mcp -repeat 3 $(SKILLEVAL_ARGS)
 
-# Paired studies keep the same task across the baseline, CLI skill and MCP.
-# Live runs use the signed-in subscriptions and a persistent attempt ceiling.
+# Paired studies keep the same task across the baseline, CLI skill, MCP and
+# project-free arms. Live runs use the signed-in subscriptions and a persistent
+# attempt ceiling; the pilot phase is the manifest's whole grid. Concurrency is
+# spread evenly over the hosts, so 2 runs one session per subscription at a time.
+# PAIRED_EVAL_RETRY=1 runs again the attempts a rate limit or an interrupt cut short.
+# The cells live in PAIRED_EVAL_DIR, so it must sit outside any checkout: an
+# agent in a cell finds whatever instruction files and skills lie above it.
 PAIRED_EVAL_MANIFEST ?= scripts/skilleval/testdata/paired-study.json
-PAIRED_EVAL_DIR ?= harness/out/paired-eval
+PAIRED_EVAL_DIR ?= $(patsubst %/,%,$(or $(TMPDIR),/tmp))/kapi-paired-eval
 PAIRED_EVAL_MAX_ATTEMPTS ?= 6
+PAIRED_EVAL_CONCURRENCY ?= 2
+PAIRED_EVAL_RETRY ?=
 PAIRED_EVAL_ARGS ?=
 PAIRED_EVAL_FLAGS = -paired-manifest "$(PAIRED_EVAL_MANIFEST)" -paired-dir "$(PAIRED_EVAL_DIR)" $(PAIRED_EVAL_ARGS)
+PAIRED_EVAL_LIVE = -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS) -paired-concurrency $(PAIRED_EVAL_CONCURRENCY) $(if $(PAIRED_EVAL_RETRY),-paired-retry)
 .PHONY: paired-eval-preflight paired-eval-smoke paired-eval-diagnostic paired-eval-pilot paired-eval-score
 
-paired-eval-preflight: ## Prepare the paired agent study without model calls (build kapi first)
+paired-eval-preflight: ## Prepare the paired agent study and probe every arm's surface without model calls (build kapi first)
 	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase preflight
 
 paired-eval-smoke: ## Run a bounded subscription-backed smoke batch (consumes plan allowance)
-	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase smoke -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase smoke $(PAIRED_EVAL_LIVE)
 
 paired-eval-diagnostic: ## Test explicitly instructed integration use within the shared subscription ceiling
-	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase diagnostic -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase diagnostic $(PAIRED_EVAL_LIVE)
 
-paired-eval-pilot: ## Run the paired pilot within the persistent attempt ceiling (consumes plan allowance)
-	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase pilot -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+paired-eval-pilot: ## Run the manifest's whole grid within the persistent attempt ceiling (consumes plan allowance)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase pilot $(PAIRED_EVAL_LIVE)
 
 paired-eval-score: ## Summarize saved paired attempts without model calls
 	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase score

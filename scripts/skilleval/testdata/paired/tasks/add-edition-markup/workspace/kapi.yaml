@@ -1,0 +1,16 @@
+version: v1
+name: harbor-help-docs
+defaults:
+  source_language: en
+  voice:
+    profile: harbor-help
+  target_languages: [nb]
+  exclude:
+    - "**/.git/**"
+collections:
+  - name: docs
+    content:
+      - path: docs/en/*.md
+        format:
+          name: markdown
+        target: docs/{lang}/{name}.md

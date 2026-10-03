@@ -7,10 +7,19 @@
       "name": {}
     }
   },
-  "items": "{count, plural, one{We utilize one item} other{We utilize {count} items}}",
+  "items": "{count, plural, =0{We «utilize!set_content@source» nothing} one{We «utilize!set_content@source» one item} other{We «utilize!set_content@source» {count} items}}",
   "@items": {
     "placeholders": {
       "count": {}
     }
-  }
+  },
+  "basket": "Your basket {count,plural,offset:1\n  one {holds # item we «utilize!set_content@source»}\n  other {holds # items we «utilize!set_content@source»}\n} today",
+  "pronoun": "{gender, select, male{He will «utilize!set_content@source» it} female{She will «utilize!set_content@source» it} other{They will «utilize!set_content@source» it}}",
+  "@pronoun": {
+    "description": "who will utilize it"
+  },
+  "nested": "{gender, select, female{She has {count, plural, one{# item to «utilize!set_content@source»} other{# items to «utilize!set_content@source»}}} other{They have {count, plural, one{# item to «utilize!set_content@source»} other{# items to «utilize!set_content@source»}}}}",
+  "place": "{rank, selectordinal, one{#st to «utilize!set_content@source»} two{#nd} few{#rd} other{#th to «utilize!set_content@source»}}",
+  "quoted": "{count, plural, one{'{'«utilize!set_content@source»'}' # item} other{'{'«utilize!set_content@source»'}' # items, it''s ours}}",
+  "escaped": "Caf\u00e9 \/ menu \u00C9t\u00e9"
 }

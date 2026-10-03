@@ -1,0 +1,16 @@
+{
+  "id": "add-json-key",
+  "family": "insert-key",
+  "prompt": "Add the message key settings.exportData with the text \"Export your data\" to locales/en.json, directly after settings.importData. Keep every other key, its text and its order.",
+  "editable": ["locales/en.json"],
+  "scope": ["locales"],
+  "criteria": [
+    {"id": "keys-in-order", "kind": "json_ordered", "path": "locales/en.json",
+     "description": "settings.exportData holds Export your data directly after settings.importData, and every other key keeps its text and position"},
+    {"id": "formatting-kept", "kind": "bytes_equal", "path": "locales/en.json", "informational": true,
+     "description": "The file keeps its indentation and layout (reported only)"}
+  ],
+  "humanReviewRubric": [
+    "Did the key land in the settings object rather than as a flat dotted key at the top level?"
+  ]
+}

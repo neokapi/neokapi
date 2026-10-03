@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -100,6 +101,17 @@ func runPairedAgent(ctx context.Context, prepared PairedPrepared) (PairedAgentRe
 		result.Status = "process_failed"
 		err = waitErr
 	}
+	// A host that stopped without a usable stream often says why only on
+	// standard error: an expired login, an overloaded API, a lost network. A
+	// session that ended with its own result was classified from that result.
+	if err != nil && ctx.Err() == nil && slices.Contains([]string{"process_failed", "malformed_stream", "incomplete", "identity_unverified"}, result.Status) {
+		stderrFilter.Flush()
+		if reason := pairedInfraFailure(pairedStderrTail(prepared.Launch.TranscriptPath + ".stderr")); reason != "" {
+			result.Status = "infra_failed"
+			result.InfraFailure = reason
+			err = fmt.Errorf("%w (%s failure)", err, reason)
+		}
+	}
 	if err != nil {
 		result.Error = pairedRedactText(err.Error(), prepared.Env)
 		err = errors.New(result.Error)
@@ -108,229 +120,6 @@ func runPairedAgent(ctx context.Context, prepared PairedPrepared) (PairedAgentRe
 	return result, err
 }
 
-// Only host protocol fields establish identity and completion. Text in a model's
-// answer cannot self-certify a requested model or successful process outcome.
-func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentResult, error) {
-	result := PairedAgentResult{RequestedModel: launch.Agent.Model, Status: "incomplete", Tools: []string{}, QuotaStatus: "unknown"}
-	scanner := bufio.NewScanner(reader)
-	scanner.Buffer(make([]byte, 64*1024), 8*1024*1024)
-	complete := false
-	models := map[string]bool{}
-	for scanner.Scan() {
-		if len(strings.TrimSpace(scanner.Text())) == 0 {
-			continue
-		}
-		event := map[string]any{}
-		if err := json.Unmarshal(scanner.Bytes(), &event); err != nil {
-			result.Status = "malformed_stream"
-			return result, fmt.Errorf("invalid agent event: %w", err)
-		}
-		eventType := pairedString(event, "type")
-		if eventType == "" {
-			result.Status = "malformed_stream"
-			return result, errors.New("agent event has no type")
-		}
-		switch launch.Agent.Host {
-		case "claude":
-			if eventType == "system" && pairedString(event, "subtype") == "init" {
-				result.SessionID = pairedString(event, "session_id")
-				if model := pairedString(event, "model"); model != "" {
-					models[model] = true
-				}
-			}
-			if eventType == "assistant" {
-				msg := pairedObject(event, "message")
-				if model := pairedString(msg, "model"); model != "" && model != "<synthetic>" {
-					models[model] = true
-				}
-				if content, ok := msg["content"].([]any); ok {
-					for _, raw := range content {
-						part, ok := raw.(map[string]any)
-						if !ok {
-							continue
-						}
-						if pairedString(part, "type") == "tool_use" {
-							tool := pairedString(part, "name")
-							if launch.NoTools {
-								result.Tools = pairedUnique(result.Tools, tool)
-								result.Status = "tool_use_violation"
-								return result, errors.New("tool use violates fixed-input review protocol")
-							}
-							result.Tools = pairedUnique(result.Tools, tool)
-							if violation := pairedRouteViolation(launch.Condition, tool, pairedObject(part, "input")); violation != "" {
-								result.Status = "route_violation"
-								return result, errors.New(violation)
-							}
-						}
-					}
-				}
-			}
-			if eventType == "result" {
-				complete = true
-				result.ProtocolCompleted = true
-				result.FinalText = pairedString(event, "result")
-				usage := pairedObject(event, "usage")
-				result.UsageObserved = usage != nil
-				result.InputTokens = pairedNumber(usage, "input_tokens")
-				result.CacheReadTokens = pairedNumber(usage, "cache_read_input_tokens")
-				result.CacheWriteTokens = pairedNumber(usage, "cache_creation_input_tokens")
-				result.InputTokens += result.CacheReadTokens + result.CacheWriteTokens
-				result.OutputTokens = pairedNumber(usage, "output_tokens")
-				if failed, _ := event["is_error"].(bool); failed || pairedString(event, "subtype") != "success" {
-					result.Status = "agent_failed"
-					errorsJSON, _ := json.Marshal(event["errors"])
-					if result.RateLimited || pairedRateLimited(result.FinalText+" "+string(errorsJSON)) {
-						result.RateLimited = true
-						result.Status = "rate_limited"
-						result.QuotaStatus = "exhausted_or_throttled"
-					}
-					return result, errors.New("agent reported an unsuccessful result")
-				}
-			}
-		case "codex":
-			switch eventType {
-			case "thread.started":
-				result.SessionID = pairedString(event, "thread_id")
-				if model := pairedString(event, "model"); model != "" {
-					models[model] = true
-				}
-			case "turn.started", "turn_context":
-				if model := pairedString(event, "model"); model != "" {
-					models[model] = true
-				}
-			case "item.started", "item.completed":
-				item := pairedObject(event, "item")
-				kind := pairedString(item, "type")
-				isTool := kind == "command_execution" || kind == "mcp_tool_call" || kind == "file_change" ||
-					kind == "web_search" || kind == "collab_tool_call"
-				if launch.NoTools && isTool {
-					result.Tools = pairedUnique(result.Tools, kind)
-					result.Status = "tool_use_violation"
-					return result, errors.New("tool use violates fixed-input review protocol")
-				}
-				if kind == "command_execution" {
-					result.Tools = pairedUnique(result.Tools, "shell")
-					if violation := pairedRouteViolation(launch.Condition, "Bash", map[string]any{"command": pairedString(item, "command")}); violation != "" {
-						result.Status = "route_violation"
-						return result, errors.New(violation)
-					}
-				}
-				if kind == "mcp_tool_call" {
-					tool := "mcp__" + pairedString(item, "server") + "__" + pairedString(item, "tool")
-					result.Tools = pairedUnique(result.Tools, tool)
-					if violation := pairedCodexMCPRouteViolation(launch.Condition, item); violation != "" {
-						result.Status = "route_violation"
-						return result, errors.New(violation)
-					}
-				}
-				if kind == "agent_message" {
-					result.FinalText = pairedString(item, "text")
-				}
-			case "turn.completed":
-				complete = true
-				result.ProtocolCompleted = true
-				usage := pairedObject(event, "usage")
-				result.UsageObserved = usage != nil
-				result.InputTokens = pairedNumber(usage, "input_tokens")
-				// Codex includes cache reads in its input total; Claude reports them
-				// separately. Preserve cache counts without adding them twice.
-				result.CacheReadTokens = pairedNumber(usage, "cached_input_tokens")
-				result.OutputTokens = pairedNumber(usage, "output_tokens")
-			case "error", "turn.failed":
-				message := pairedString(event, "message") + " " + pairedString(pairedObject(event, "error"), "message")
-				result.RateLimited = pairedRateLimited(message)
-				result.Status = "agent_failed"
-				if result.RateLimited {
-					result.Status = "rate_limited"
-					result.QuotaStatus = "exhausted_or_throttled"
-				}
-				return result, fmt.Errorf("agent error: %s", strings.TrimSpace(message))
-			}
-		default:
-			return result, errors.New("unknown agent host")
-		}
-		if eventType == "rate_limit_event" {
-			info := pairedObject(event, "rate_limit_info")
-			status := pairedString(info, "status")
-			result.QuotaStatus = status
-			if status == "rejected" {
-				result.RateLimited = true
-			}
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		result.Status = "malformed_stream"
-		return result, err
-	}
-	if len(models) == 1 {
-		for model := range models {
-			result.ActualModel = model
-		}
-	}
-	if len(models) > 1 {
-		result.Status = "model_mismatch"
-		return result, errors.New("agent used multiple model identities")
-	}
-	if result.ActualModel == "" {
-		result.Status = "identity_unverified"
-		return result, errors.New("agent stream did not report model identity")
-	}
-	if result.ActualModel != launch.Agent.Model {
-		result.Status = "model_mismatch"
-		return result, fmt.Errorf("requested model %q; observed %q", launch.Agent.Model, result.ActualModel)
-	}
-	if !complete {
-		return result, errors.New("agent stream ended without completion")
-	}
-	if result.RateLimited {
-		result.Status = "rate_limited"
-		return result, errors.New("subscription rate limit reached")
-	}
-	result.Status = "completed"
-	return result, nil
-}
-
-func pairedCodexMCPRouteViolation(condition string, item map[string]any) string {
-	server, tool := pairedString(item, "server"), pairedString(item, "tool")
-	input := pairedObject(item, "arguments")
-	// Codex reports its own resource-discovery helpers under server="codex"
-	// when no target server was supplied. Only kapi is configured in this arm.
-	if condition == "mcp" && server == "codex" {
-		target := pairedString(input, "server")
-		switch tool {
-		case "list_mcp_resources", "list_mcp_resource_templates":
-			if target == "" || target == "kapi" {
-				return ""
-			}
-		case "read_mcp_resource":
-			if target == "kapi" {
-				return ""
-			}
-		}
-	}
-	return pairedRouteViolation(condition, "mcp__"+server+"__"+tool, input)
-}
-
-func pairedRouteViolation(condition, tool string, input map[string]any) string {
-	if strings.HasPrefix(tool, "mcp__") {
-		if condition != "mcp" || !strings.HasPrefix(tool, "mcp__kapi__") {
-			return "unexpected MCP tool route: " + tool
-		}
-	}
-	if condition != "skill-cli" && tool == "Skill" {
-		return "unexpected skill route"
-	}
-	if condition != "skill-cli" && (tool == "Bash" || tool == "shell") {
-		command := pairedString(input, "command")
-		// This is an audit tripwire, not a containment boundary. Matching command
-		// text alone cannot prevent aliases or indirect execution.
-		words := strings.FieldsFunc(command, func(r rune) bool { return strings.ContainsRune(" \t\n;|&()'\"", r) })
-		if slices.ContainsFunc(words, pairedKapiExecutable) {
-			return "unexpected kapi CLI route"
-		}
-	}
-	return ""
-}
 func pairedString(m map[string]any, key string) string { value, _ := m[key].(string); return value }
 func pairedObject(m map[string]any, key string) map[string]any {
 	value, _ := m[key].(map[string]any)
@@ -350,6 +139,47 @@ func pairedUnique(values []string, value string) []string {
 func pairedRateLimited(message string) bool {
 	lower := strings.ToLower(message)
 	return strings.Contains(lower, "rate limit") || strings.Contains(lower, "usage limit") || strings.Contains(lower, "quota")
+}
+
+// pairedInfraPatterns recognise a failure of the service or the machine
+// rather than of the agent: a refused or expired login, an overloaded or
+// failing API, a dropped network.
+var pairedInfraPatterns = []struct {
+	reason  string
+	pattern *regexp.Regexp
+}{
+	{"auth", regexp.MustCompile(`(?i)oauth token (?:has )?expired|token (?:has |is )?(?:expired|revoked)|invalid (?:api key|bearer token|x-api-key)|authentication[_ ](?:error|failed)|\b401\b|unauthori[sz]ed|please run /login|not logged in|login (?:is )?required|refresh token|failed to refresh|re-?authenticate`)},
+	{"overload", regexp.MustCompile(`(?i)\b529\b|overloaded|api error: 5\d\d|\b50[0234]\b (?:internal server error|bad gateway|service unavailable|gateway timeout)|internal server error|service unavailable|bad gateway|gateway timeout|server is busy`)},
+	{"network", regexp.MustCompile(`(?i)ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ENETUNREACH|network (?:error|is unreachable)|connection (?:reset|refused|closed|error|timed out)|request timed out|socket hang up|fetch failed|stream (?:disconnected|error)|error sending request|could not resolve host|tls handshake|unable to connect`)},
+}
+
+// pairedInfraFailure returns the kind of infrastructure failure text
+// describes, or "".
+func pairedInfraFailure(text string) string {
+	for _, candidate := range pairedInfraPatterns {
+		if candidate.pattern.MatchString(text) {
+			return candidate.reason
+		}
+	}
+	return ""
+}
+
+// pairedStderrTail returns the end of a session's recorded standard error,
+// where a host prints why it stopped.
+func pairedStderrTail(path string) string {
+	file, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer file.Close()
+	const tail = 64 << 10
+	if info, err := file.Stat(); err == nil && info.Size() > tail {
+		if _, err := file.Seek(info.Size()-tail, io.SeekStart); err != nil {
+			return ""
+		}
+	}
+	data, _ := io.ReadAll(io.LimitReader(file, tail))
+	return string(data)
 }
 
 func pairedCodexRolloutModel(stateDir, sessionID string) (string, error) {
@@ -450,12 +280,4 @@ func pairedRedactText(value string, env []string) string {
 		}
 	}
 	return value
-}
-
-func pairedKapiExecutable(word string) bool {
-	switch filepath.Base(word) {
-	case "kapi", "kcat", "kgrep", "ksed", "kdiff":
-		return true
-	}
-	return false
 }

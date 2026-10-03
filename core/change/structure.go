@@ -465,6 +465,16 @@ func (p *docPlan) structuralOf(b *model.Block) (insert, remove int, ok bool) {
 	return -1, -1, false
 }
 
+// spellValue is the value the document's writer writes for runs, an edition
+// of b (nil for content no reader has read), as Capabilities.Values spells
+// it.
+func (p *docPlan) spellValue(b *model.Block, runs []model.Run) string {
+	if v := p.info.Capabilities.Values; v != nil {
+		return v.SpellValue(b, runs)
+	}
+	return model.RenderRunsWithData(runs)
+}
+
 // verifyInsert checks the new block b of insert_block i as the pass read it:
 // each edition holds the content the operation gave it, as the format reads
 // that content. An edition whose file holds no partner of the new block yet
@@ -486,7 +496,7 @@ func (p *docPlan) verifyInsert(i int, b *model.Block) []model.EditionKey {
 			b.SetEdition(k, model.Edition{Runs: want[k]})
 			changed = append(changed, b.EditionKeyOf(k))
 			ed, _ = b.Edition(k)
-		} else if got, sent := model.RenderRunsWithData(ed.Runs), model.RenderRunsWithData(want[k]); got != sent {
+		} else if got, sent := p.spellValue(b, ed.Runs), p.spellValue(nil, want[k]); got != sent {
 			p.refuse(i, &Error{Code: CodeUnsupported, Capability: string(KindInsertBlock), Field: "editions/" + keyTextOf(b, k),
 				Message: fmt.Sprintf("the %s format reads edition %s of the new block %s as %q, not as given", p.info.Format, editionLabel(b, k), BlockKey(b), got)})
 			return nil

@@ -788,16 +788,31 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 	// placeholder-preserving LLM path so the model can keep them
 	// intact.
 	sourceRuns := v.SourceRuns()
+	if model.HasStructuredRuns(sourceRuns) {
+		return t.translateStructured(v, sourceRuns)
+	}
 	if model.RunsHaveInlineCodes(sourceRuns) {
 		return t.translateWithInlineCodes(v, sourceRuns)
 	}
 
+	text, resp, err := t.translatePlain(v, sourceText)
+	if err != nil {
+		return err
+	}
+	v.SetTargetText(t.targetLocale, text)
+	t.annotateTranslation(v, resp)
+
+	t.emitProgress(true, "")
+	return nil
+}
+
+// translatePlain translates text with no inline codes for the block v.
+func (t *AITranslateTool) translatePlain(v tool.VariantView, sourceText string) (string, *aiprovider.TranslateResponse, error) {
 	// Do-not-translate enforcement: mask each protected span before the model
 	// sees it and restore it verbatim after, so a DNT term cannot be translated
 	// or dropped (epic 019, item 4). No-op when no DNT terms are configured.
 	maskedSource, dntRestoreMap := dntMask(sourceText, t.dnt)
 
-	// Plain text translation.
 	ctx := aiprovider.WithMaxOutputTokens(v.Context(), blockOutputBudget(maskedSource))
 	resp, err := t.translateBlock(ctx, aiprovider.TranslateRequest{
 		Source:         maskedSource,
@@ -810,13 +825,35 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 		BlockContext:   t.contextFor(ctx, v.ID(), v.Name(), v.ChainUnit()),
 	})
 	if err != nil {
-		return fmt.Errorf("translate: %w", err)
+		return "", nil, fmt.Errorf("translate: %w", err)
 	}
 	t.addUsage(resp.Usage)
+	return dntRestore(resp.Translation, dntRestoreMap), resp, nil
+}
 
-	v.SetTargetText(t.targetLocale, dntRestore(resp.Translation, dntRestoreMap))
-	t.annotateTranslation(v, resp)
-
+// translateStructured translates a block whose source holds plurals or
+// selects one sequence at a time (tool.TranslateStructures): the text around
+// each structure, then each branch, each through the path a block of that
+// content takes. Every branch is translated and the target keeps the
+// source's structures, where translating the whole source as text would keep
+// one branch.
+func (t *AITranslateTool) translateStructured(v tool.VariantView, sourceRuns []model.Run) error {
+	runs, err := tool.TranslateStructures(sourceRuns, func(seq []model.Run) ([]model.Run, error) {
+		if model.RunsHaveInlineCodes(seq) {
+			out, _, err := t.translateCoded(v.Context(), seq)
+			return out, err
+		}
+		text, _, err := t.translatePlain(v, model.RunsText(seq))
+		if err != nil {
+			return nil, err
+		}
+		return []model.Run{model.TextR(text)}, nil
+	})
+	if err != nil {
+		return err
+	}
+	v.SetTargetRuns(t.targetLocale, runs)
+	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
 	t.emitProgress(true, "")
 	return nil
 }
@@ -873,11 +910,25 @@ func (t *AITranslateTool) translateBlockRaw(ctx context.Context, req aiprovider.
 	}, nil
 }
 
-// handleBlockWithInlineCodes translates a block that contains
-// inline codes. Renders source runs as placeholder-tagged text so
-// the LLM can preserve tag positions, then reconstructs the target
-// Run sequence from the response via ParseRunsPlaceholderText.
+// translateWithInlineCodes translates a block that contains inline codes
+// (translateCoded) and writes the target.
 func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRuns []model.Run) error {
+	targetRuns, resp, err := t.translateCoded(v.Context(), sourceRuns)
+	if err != nil {
+		return err
+	}
+	v.SetTargetRuns(t.targetLocale, targetRuns)
+	t.annotateTranslation(v, resp)
+
+	t.emitProgress(true, "")
+	return nil
+}
+
+// translateCoded translates a run sequence that holds inline codes. It
+// renders the runs as placeholder-tagged text so the LLM can preserve tag
+// positions, then reconstructs the target runs from the response via
+// ParseRunsPlaceholderText.
+func (t *AITranslateTool) translateCoded(ctx context.Context, sourceRuns []model.Run) ([]model.Run, *aiprovider.TranslateResponse, error) {
 	sourceText := model.RunsPlaceholderText(sourceRuns)
 
 	// DNT enforcement (epic 019, item 4): mask protected spans in the
@@ -890,7 +941,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 	// carries the tag rule into the prompt. (This path used to pass a fully
 	// built instruction as Source, which standardTranslate then wrapped in a
 	// second instruction — so the model was handed a prompt to translate.)
-	ctx := aiprovider.WithMaxOutputTokens(v.Context(), blockOutputBudget(maskedSource))
+	ctx = aiprovider.WithMaxOutputTokens(ctx, blockOutputBudget(maskedSource))
 	resp, err := t.translateBlock(ctx, aiprovider.TranslateRequest{
 		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
@@ -902,7 +953,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 		PreserveTags:   true,
 	})
 	if err != nil {
-		return fmt.Errorf("translate: %w", err)
+		return nil, nil, fmt.Errorf("translate: %w", err)
 	}
 	t.addUsage(resp.Usage)
 
@@ -911,11 +962,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 	// protected structurally instead — the reader marked its runs — so it is
 	// restored from the source rather than matched by string, which cannot
 	// over-match a command that also appears in the prose.
-	v.SetTargetRuns(t.targetLocale, model.RestoreNonTranslatable(targetRuns, sourceRuns))
-	t.annotateTranslation(v, resp)
-
-	t.emitProgress(true, "")
-	return nil
+	return model.RestoreNonTranslatable(targetRuns, sourceRuns), resp, nil
 }
 
 // decodeFirstJSON decodes the first JSON value in s into v, tolerating a leading
@@ -1059,8 +1106,19 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 
 	// 3. Group into batches the model can actually answer, and translate them
 	// with bounded concurrency. Packing is by output-token budget, not a fixed
-	// count — see pack.go.
-	batches := t.packBatches(entries)
+	// count — see pack.go. A block whose source holds a plural or select is
+	// translated a sequence at a time (translateStructured), so it is a batch
+	// of its own.
+	var packed []blockEntry
+	var alone [][]blockEntry
+	for _, e := range entries {
+		if model.HasStructuredRuns(e.sourceRuns) {
+			alone = append(alone, []blockEntry{e})
+			continue
+		}
+		packed = append(packed, e)
+	}
+	batches := append(t.packBatches(packed), alone...)
 	if err := goBatches(batches, t.concurrency, func(_ int, batch []blockEntry) error {
 		return t.translateBatch(ctx, batch)
 	}); err != nil {

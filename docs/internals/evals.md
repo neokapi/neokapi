@@ -182,6 +182,356 @@ most scenarios and often several times shorter, so the page reports the message
 totals beside the outcome counts. In this sweep, some tasks required kapi, while others took fewer messages
 without it.
 
+## WP5: the paired evaluation of the edit contract
+
+WP5 in the [edit model](edit-model.md) runs the paired agent evaluation before
+kapi.change/v1 is frozen, and section 15.2 adds three measurements for the
+neo/kapi question (D14). This section holds the study's design, the two offline
+measurements, and the place its results go.
+
+### Design
+
+The study runs `scripts/skilleval` in paired mode over the manifest
+`scripts/skilleval/testdata/paired-study.json`: two hosts, four arms, seven
+task families and three repetitions, 2 × 4 × 7 × 3 = 168 live sessions. Each
+host keeps one model and effort for every arm: Codex with `gpt-5.6-terra` at
+medium effort, Claude Code with `claude-sonnet-5` at high effort. A session has
+600 seconds and 40 turns. The schedule shuffles blocks of task, host and
+repetition, then the four arms within each block, from the manifest's seed.
+
+| Arm | kapi surface in the cell | Project |
+| --- | --- | --- |
+| `baseline` | none: no skill, no MCP server, no kapi name on PATH | none |
+| `skill-cli` | the shipped kapi skill; `kapi` on PATH | the fixture's recipe, bound through `KAPI_PROJECT` |
+| `mcp` | the kapi MCP server (its default writing set); `kapi` on PATH; no skill | the fixture's recipe, bound with `-p` |
+| `project-free` | `kapi-files`, the same binary under a multi-call name (`cli.BusyboxRoot`) exposing `inspect`, `apply`, `formats` and the toolbox with discovery off, and a skill with the shipped skill's edit and toolbox guidance | none: the recipe sits in the cell and is never read |
+
+Every arm keeps the host's ordinary shell and file tools. Every cell holds the
+same files, the task's content, its `kapi.yaml` and a `STYLE.md`, and every
+project's store holds the same context, imported before the session starts: a
+voice and one term rule, which forbids `portal` and names `overview page` in
+its place. `STYLE.md` states that rule for an agent that reads files. No skill
+an arm installs and no MCP tool description uses the word, which a test
+asserts, so no arm is primed for or against it.
+
+The project-free skill is the shipped skill with the names changed and what
+needs a project left out. Its `SKILL.md` keeps the shipped one's description
+and, where the shipped one lists its project habits, says that no voice, terms
+or check applies. Both tell an agent to read `references/edit.md` before it
+changes content inside a file, in the same sentence (the shipped skill adds
+`kapi help edit`, which prints the topic where `kapi init` installs the skill
+without its references), so an agent in either arm is one step from the edit
+guidance. Its `edit.md` and `toolbox.md` are the shipped references with the
+project, MCP, check and translation passages removed. A test asserts that both
+skills carry that sentence, that every example the references give is one the
+shipped references give, save the catalog example's second language, which a
+file without a project refuses, and that they name nothing of the tasks.
+
+kapi records every shell call in a cell as an agent's (`KAPI_ACTOR=agent`), so
+the actor policy treats both hosts alike. The workspace is a git repository with
+the project committed and a clean status, as a project an agent works in is, so
+`git diff` and the skill's `kapi check --diff-against HEAD` work. The binary
+under test is hard-linked into the cell, so the agent's commands never name a
+path into the checkout, and Claude's sandbox denies reading the checkout, the
+repository's main checkout when the study runs from a worktree of it, and the
+attempt's own records.
+
+Section 15.2 item 1 asks for the alias against kapi with and without a project.
+The 168 sessions hold four arms, so the comparison maps onto them:
+`skill-cli` and `mcp` are kapi with a project, and `project-free` is the binary
+without one. kapi's own CLI with discovery off is not a fifth arm: its edit
+commands are the code paths the alias runs, and what differs is the extra
+commands and the skill text. Measuring it would add 42 sessions (two hosts,
+seven tasks, three repetitions).
+
+The seven tasks, one per WP5 family, follow. Every task fails when nothing
+changes, every fixture file outside the edit must stay byte-identical, and no
+file may appear in the scoped directories except one the task creates.
+
+| Task | Family | Files | Graded by |
+| --- | --- | --- | --- |
+| `edit-link-html-md` | wording and link | `site/help.html`, `docs/help.md` | byte diff against the reference; a FAQ link shares the old address as a prefix and a code block holds it verbatim |
+| `edit-plural-branch` | plural branch | Flutter ARB `lib/l10n/app_en.arb` | byte diff; the edited `one` branch, the `=0` and `other` branches with the plural's syntax around them, and the `@inboxCount` metadata each checked byte for byte; the other branches also contain the words being replaced |
+| `add-edition-markup` | new edition | `docs/en/welcome.md` to a new `docs/nb/welcome.md` | structure: headings, list items, bold spans, inline code and link addresses in order; every block translated; Norwegian Bokmål by its function words; byte equality with the reference reported only |
+| `edit-po-context` | bilingual PO | `locales/nb/messages.po` | byte diff; two entries share `msgid "Book"` and differ by `msgctxt` |
+| `add-json-key` | key added (`insert_block`) | `locales/en.json` | the JSON leaves in document order, so the key lands in `settings` after `importData`; layout byte equality reported only |
+| `recover-stale-read` | stale recovery | `docs/en/upgrade.md` | byte diff of the agent's sentence and another editor's change to the same paragraph |
+| `recover-gate-refusal` | gate refusal recovery | `docs/en/reports.md` | the first paragraph keeps its text and gains a sentence that names CSV and does not say `portal`; every other block unchanged; no `portal` anywhere; no override attempt in the transcript; naming the overview page reported only |
+
+The plural task is an ICU plural in a Flutter ARB catalog, so it measures the
+contract's branch selector. kapi reads the message as one block holding a
+plural run (P5 in the edit model), and a read lists it under `structures` with
+its path and the text of each branch:
+
+```json
+"structures": [{"path": [0], "kind": "plural", "pivot": "count",
+  "branches": {"=0": "No new messages", "one": "<x id=\"p1/\"/> new message",
+               "other": "<x id=\"p1/\"/> new messages"}}]
+```
+
+An edit reaches the `one` branch with `path` `[0, {"plural": "one"}]`, by
+`replace_text` or `set_content`; `set_content` with the block's text, which
+shows the `other` branch, is refused as a flattening guard. A `replace_text`
+whose `find` is in the branches and not in the text around the plural is
+refused `not_found` with the path of each branch that holds it. The text of a
+`set_content` may spell the argument as `{count}`, as the prompt does, or send
+its code. The task's reference route is that `replace_text`.
+`TestPairedPluralRouteOnEverySurface` sends it, and a `set_content` of the
+branch that types `{count}`, through `kapi apply` in the project, `apply_edits`
+on the MCP server and `kapi-files apply` without a project; each result passes
+the task's graders.
+The other plural in the catalog and the `@inboxCount` placeholder declaration
+are there to be left alone.
+
+Two tasks act on the session while it runs. In `recover-stale-read` the runner
+watches the host's stream and, once a tool result has shown the agent the text
+"it takes about five minutes", changes it to "about ten minutes" in the
+paragraph the agent edits. The prompt asks for the agent's sentence and says
+nothing of another editor, so an agent learns of the change only from what its
+tools report. A search that printed only the agent's own sentence
+does not land it, and neither does a command that names the text without
+printing it. A kapi arm's write against the old revision is refused `stale`.
+Claude Code 2.1's Edit tool applies an edit to a file changed since it was read
+and adds a note saying so, which the record counts as `host:stale`; Codex's
+patch fails when its context lines changed (`host:patch_failed`). The record
+says whether the change landed before the agent's write, after it, or never: an
+agent that writes with `ksed` before reading never sees it, and the file is
+then graded against the reference without the other editor's change. The
+score report counts recovery over the attempts whose change landed before the
+agent wrote, and separately over those that met a conflict signal.
+`recover-gate-refusal` asks for a sentence "from the portal". In the two arms
+with a project, `kapi apply` and `apply_edits` refuse it `gate_failed` and name
+the replacement, and an agent's `--gate report` is refused `not_permitted`. The
+baseline and project-free arms have no gate, so for them the task measures
+whether they follow `STYLE.md` unprompted. The grader asks for a sentence about
+CSV downloads without the forbidden word; a sentence that names the overview
+page is reported, and one that refers back to the overview page the paragraph
+already names also passes.
+
+Beside the graders, each attempt records its status, duration, input and output
+tokens (cache reads and writes kept apart), Claude's turn count, tool calls, the
+refusal codes its tool results carried (kapi's own, `host:stale` or
+`host:patch_failed` for a host tool's, `invalid:<pointer>` for a change set
+that did not decode, with each array position as `*`, and
+`write:not_read_back` for a write a format refused because the value would read
+back as another message, such as an unquoted brace in an ARB branch), override attempts
+(`--gate report`, a change set with `"gate": "report"`, `KAPI_ACTOR=person`,
+`if_match: "*"`), kapi names and skills it tried that its cell does not hold,
+and paths it named outside its cell. The score report lists the decode errors
+per task, host and arm: they are the names and shapes agents reach for that the
+contract does not take. The Bokmål check of `add-edition-markup` asks for a
+form only Bokmål writes (`deg`, `inn`, `etter` and the like) and none only
+Danish or Swedish writes, since both share most of its function words.
+
+`TestPairedSolutionsThroughKapi` sends each task's reference change sets
+(`testdata/paired/solutions/`) through this tree's `bin/kapi` in the task's
+project, draws the refusals the recovery tasks are built on, and checks that the
+result passes the task's own graders; `TestPairedPluralRouteOnEverySurface`
+does the same for the plural task through the CLI, the MCP server and the
+project-free alias. A kapi arm's failure is therefore a finding about the agent
+or the surface rather than about the task.
+
+### Isolation proof
+
+Before any inference, each cell's surface is read through the host itself,
+with the executable, arguments, environment and directory the session uses,
+and no model call:
+
+- Claude: the `system/init` event of `claude --print`, with the model endpoint
+  set to a closed local port and a placeholder credential, so the session ends
+  before a request leaves the machine. Every Claude run passes
+  `--setting-sources project`, `--strict-mcp-config` and an explicit MCP
+  configuration, empty outside the MCP arm.
+- Codex: `codex debug prompt-input`, which renders the model-visible skill list
+  with each skill's root, and `codex mcp list --json`, both under the cell's own
+  `CODEX_HOME`.
+
+A cell fails the check when kapi's skill appears outside `skill-cli`, the
+alias's skill outside `project-free`, any other skill but the host's system
+skills is visible, an MCP server or `mcp__` tool outside the MCP arm, the edit
+tools are missing from the MCP arm, the kapi names on its PATH differ from the
+arm's, a plugin of the developer's own is visible, a skill root lies outside
+the cell, or Codex's sandbox would let the agent write outside its workspace
+and its own temporary directory. `make paired-eval-preflight` probes one cell
+per host and arm and exits non-zero on any finding, and each live session
+probes its own cell again before it starts. On 3 October 2026:
+
+| Host | Arm | kapi skill | Skills visible | MCP servers | kapi names on PATH | Problems |
+| --- | --- | --- | --- | --- | --- | --- |
+| claude | baseline | none | 0 | none | none | 0 |
+| claude | skill-cli | `kapi` | 1 | none | `kapi` | 0 |
+| claude | mcp | none | 0 | `kapi` (10 tools) | `kapi` | 0 |
+| claude | project-free | `kapi-files` | 1 | none | `kapi-files` | 0 |
+| codex | baseline | none | 4 | none | none | 0 |
+| codex | skill-cli | `kapi` | 5 | none | `kapi` | 0 |
+| codex | mcp | none | 4 | `kapi` (10 tools) | `kapi` | 0 |
+| codex | project-free | `kapi-files` | 5 | none | `kapi-files` | 0 |
+
+Claude Code's bundled skills are off in every arm
+(`CLAUDE_CODE_DISABLE_BUNDLED_SKILLS`, and a skill override in the workspace's
+project settings for the two that switch leaves on), so each Claude arm shows
+its own skill and nothing else. Codex shows the same four system skills from the
+cell's `CODEX_HOME` in every arm. Each cell has a temporary directory of its
+own, `TMPDIR` for both hosts and `CLAUDE_CODE_TMPDIR` for Claude Code, created
+in `/tmp` because Claude Code puts sockets under it and falls back to the
+shared `/tmp/claude-<uid>` above 44 bytes; the runner moves it into the cell's
+`state/` when the session ends. Claude's sandbox denies reading `/tmp/claude`
+and `/tmp/claude-<uid>`, and Codex's sandbox excludes `/tmp`: with the
+workspace-write defaults, `codex debug prompt-input` lists `/private/tmp` among
+the writable roots, and with the cell's configuration it lists only the
+workspace and the cell's temporary directory.
+
+### Running it
+
+Run it in a plain terminal rather than from an agent's shell, which has a time
+limit and a sandbox of its own, and from a worktree of `origin/main` made for
+the study alone, beside the main checkout rather than inside it. The main
+checkout is shared with other work and rebuilt during the day, and the
+workflow harness creates and removes its agents' worktrees under
+`.claude/worktrees/`; the study's worktree is touched by nothing else until the
+study is scored. From the main checkout, once this change has merged:
+
+```bash
+git fetch origin
+git worktree add ../neokapi-wp5-study origin/main
+cd ../neokapi-wp5-study
+make i18n-catalogs && vp install && make build
+PAIRED_TEST_KAPI="$PWD/bin/kapi" go test -tags fts5 ./scripts/skilleval \
+  -run 'PairedSolutions|PluralRoute|ProjectFreeAlias|WithBuiltKapi'
+# Copy both hosts where no upgrade reaches them, and run them from there.
+hosts="$HOME/kapi-wp5-hosts"
+mkdir -p "$hosts"
+cp -R "$(dirname "$(realpath "$(command -v claude)")")" "$hosts/claude"
+cp -R "$(dirname "$(dirname "$(realpath "$(command -v codex)")")")" "$hosts/codex"
+export PATH="$hosts/claude:$hosts/codex/bin:$PATH"
+make paired-eval-preflight PAIRED_EVAL_DIR="$HOME/kapi-wp5-study"
+# The first stage: the plural task on both hosts and in every arm.
+caffeinate -i make paired-eval-pilot PAIRED_EVAL_DIR="$HOME/kapi-wp5-study" \
+  PAIRED_EVAL_MAX_ATTEMPTS=8 PAIRED_EVAL_CONCURRENCY=2 \
+  PAIRED_EVAL_ARGS="-paired-sessions edit-plural-branch-claude-baseline-01,edit-plural-branch-claude-mcp-01,edit-plural-branch-claude-project-free-01,edit-plural-branch-claude-skill-cli-01,edit-plural-branch-codex-baseline-01,edit-plural-branch-codex-mcp-01,edit-plural-branch-codex-project-free-01,edit-plural-branch-codex-skill-cli-01"
+# Read the eight transcripts. The second stage: the other 160.
+caffeinate -i make paired-eval-pilot PAIRED_EVAL_DIR="$HOME/kapi-wp5-study" \
+  PAIRED_EVAL_MAX_ATTEMPTS=168 PAIRED_EVAL_CONCURRENCY=2
+make paired-eval-score PAIRED_EVAL_DIR="$HOME/kapi-wp5-study"
+```
+
+The test line sends each task's reference route through the worktree's build
+before any session is spent, and the plural task's through each arm's surface.
+The preflight prints the checkout and host versions a study started then would
+pin, and where each host runs from; it warns of a host in a Homebrew cask or
+formula directory, which an upgrade replaces. For a long Claude run, export a
+long-lived `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` first: a keychain
+token must stay valid for a session's limit and fifteen minutes more, or the
+session is not started.
+
+Both hosts are Homebrew casks on the study machine, and an upgrade run from any
+shell on it, another agent's included, replaces a cask's version directory. The
+copies in `$HOME/kapi-wp5-hosts` keep the version the study pins whatever an
+upgrade does to the casks: the Claude Code cask is one executable, and Codex
+keeps its resources beside its `bin`, so each copy is the whole version
+directory. Every shell that runs or resumes the study needs the same `PATH`.
+
+The first stage is eight sessions of the grid chosen by name: the plural task's
+first repetition on both hosts and in all four arms, so the ARB task, both
+hosts and every arm have a live session, one host beside the other, before the
+rest is committed. Without the selection the runner would take the first eight
+of the seeded schedule, which are all Claude, on `add-json-key` and
+`edit-po-context`, one after another. The ceiling counts every attempt the
+study has started, the first stage's included, so the second stage's ceiling
+of 168 runs the other 160 and nothing more. A rerun under `PAIRED_EVAL_RETRY=1`
+counts against the ceiling too, so raise it deliberately, by the number of
+reruns approved, when they are needed.
+
+The cells live in the study directory, so it sits outside the checkout: the
+runner refuses a directory with a checkout, an instruction file, host
+configuration or a kapi recipe above it, which an agent in a cell would find.
+A directory in the home folder survives a restart, which `/tmp` does not.
+
+When the study starts it copies `bin/kapi` and the shipped skill into
+`inputs/` in the study directory, and every session runs those copies. Its
+`study.json` records, and its fingerprint covers, the checkout it runs from,
+the commit, the hash of its copy of kapi and each host's `--version`. To resume
+after an interrupt, a rate limit or a paused host, export the same `PATH` and
+run only the `make paired-eval-pilot` line again from the same worktree; it
+needs no build and no new copy of the hosts.
+The runner refuses a run from another checkout, naming the one the study runs
+from, and a run with `claude` or `codex` at another version than the study
+started with, naming that version and where it ran from: a session on another
+version would measure another agent, and putting the copy back first on `PATH`
+resumes it. Each session's own version check uses the same pin, so a host
+upgraded before its first session is refused too. A new directory would run
+every session again.
+
+The pilot phase is the manifest's whole grid. It prints the planned session
+count before it starts one and runs one session per subscription at a time. A
+host pauses on a rate limit, on a refused or expired login, and after two
+sessions in a row that ended within a minute without completing; the other host
+goes on. `PAIRED_EVAL_RETRY=1` runs again the attempts a rate limit, an
+interrupt, a failed launch or an infrastructure failure (a refused login, an
+overloaded API, a lost network) cut short, and keeps the first record as
+superseded; the summary leaves such attempts out until they run again.
+
+Each host runs its 84 sessions one after another, beside the other host. In
+the smoke runs on 3 October 2026 the stale-read task took 10 to 37 seconds in
+most sessions and 324 seconds in one, and preparing and probing a cell, with
+the check of the study's copy of kapi, takes about ten seconds more. The other
+tasks ask for more (a translation, three files), so an average of one to one
+and a half minutes per session puts the study at about two to three hours; if
+every session ran to its 600-second limit, it would take 14 hours.
+
+### What the edit engine costs an embedder (15.2, item 2)
+
+`examples/go-apply` applies a change set with `core/change` and the file home
+over a directory, with every built-in format registered and nothing of the
+host. Measured on 3 October 2026 with Go 1.27.1 on darwin/arm64:
+
+| Measure | Value |
+| --- | --- |
+| `go list -deps` | 269 packages; 124 outside the standard library: 75 neokapi, 49 third-party |
+| Third-party modules | beevik/etree, gabriel-vasile/mimetype, pmezard/go-difflib, yuin/goldmark, golang.org/x/image, x/net, x/sync, x/sys, x/text, gopkg.in/yaml.v3 |
+| Packages from `host`, `cli`, `kapi` or `bowrain` | none |
+| Packages with cgo files | none; `CGO_ENABLED=0` builds the same program |
+| ICU | not linked; the binary links only libSystem and libresolv |
+| Binary size | 18.6 MB (12.9 MB stripped); `bin/kapi` is 91.3 MB |
+
+On the link task it writes the same bytes as `kapi apply`. A native,
+project-free embedding of the edit engine needs neither cgo nor ICU, so the
+audience for which 15.3 would build a separate artifact is already served by
+the Go module.
+
+### What a second artifact costs (15.2, item 3)
+
+| Channel | Multi-call alias | Second artifact |
+| --- | --- | --- |
+| Release matrix (darwin/arm64, linux/amd64, linux/arm64, windows/amd64, windows/arm64) | nothing | five more builds per release |
+| macOS signing and notarization | nothing | one more signed and notarized binary |
+| Windows Authenticode, signed out of band by hand | nothing | two more executables to sign each release |
+| cosign | nothing | signatures for five more archives |
+| nfpm `.deb`/`.rpm` and the apt/yum repository | one symlink entry in `packaging/nfpm.yaml` | a second package or a second binary in `kapi-cli`, for two architectures and two formats |
+| Homebrew | one `install_symlink` in `scripts/gen-brew-formula.sh` | a second formula in homebrew-tap |
+| winget | no symlink on Windows: a `kapi` subcommand, or a second portable alias of the same executable | a new package identifier and a komac submission each release |
+| `cli.json` self-update index | nothing: the update replaces the binary the link names | a second entry, and an updater that replaces two binaries |
+| setup-kapi | one link step | download, checksum and cache logic for a second binary |
+| Docker (`docker/kapi/Dockerfile`) | one `ln -s` | a second binary per architecture |
+| Docs | a page | an install page, a reference and a product name |
+
+Name availability, checked on 3 October 2026 against registry.npmjs.org, the
+PyPI JSON API, Debian's archive (api.ftp-master.debian.org) and Ubuntu's
+(api.launchpad.net), the winget source index (cdn.winget.microsoft.com) and
+formulae.brew.sh:
+
+| Name | npm | PyPI | Debian and Ubuntu | winget | Homebrew |
+| --- | --- | --- | --- | --- | --- |
+| `neo` | taken (a Geonames parser, 1.0.2) | taken (electrophysiology data, 0.14.5) | taken as a source package (python-neo; binary `python3-neo`) | free as a moniker and a command; `BrowserOS.BrowserOS.Neo` exists, and a name search for `neo` matches many packages | free |
+| `kapi-files` | free | free | free | free | free |
+
+### Results
+
+To be filled after the run: per host, task and arm, the objective pass rate
+over the three repetitions, median duration, tokens and tool calls, the
+refusals met and recovered, override attempts, and what the human review of
+the attempts found. Then the decision for the v1 freeze and for D14.
+
 ## Where the gaps are
 
 See the generated `/evals` page for current coverage gaps.

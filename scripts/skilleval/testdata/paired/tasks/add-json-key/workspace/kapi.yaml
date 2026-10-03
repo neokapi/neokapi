@@ -1,0 +1,14 @@
+version: v1
+name: harbor-help-web
+defaults:
+  source_language: en
+  voice:
+    profile: harbor-help
+  exclude:
+    - "**/.git/**"
+collections:
+  - name: web
+    content:
+      - path: locales/en.json
+        format:
+          name: json

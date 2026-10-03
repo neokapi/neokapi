@@ -149,7 +149,9 @@ func ParseRunsSemanticHTML(html string, sourceRuns []Run, reg *VocabularyRegistr
 
 		isClosing := html[loc[2]:loc[3]] == "/"
 		tagName := html[loc[4]:loc[5]]
-		hasSlash := loc[6] < loc[7] && html[loc[6]:loc[7]] == "/"
+		// Group 3 holds the attributes and group 4 the slash of a tag that
+		// closes itself, as <span data-type="…"/> does.
+		hasSlash := loc[8] < loc[9] && html[loc[8]:loc[9]] == "/"
 		isSelfClosing := hasSlash || isSelfClosingTag(tagName)
 
 		switch {

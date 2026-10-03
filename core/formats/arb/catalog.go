@@ -55,6 +55,9 @@ type resource struct {
 	id string
 	// value is the raw decoded message string (ICU MessageFormat text).
 	value string
+	// raw is the value as the file spells it, quotes and escapes included,
+	// when the reader saw the bytes; "" otherwise.
+	raw string
 	// description is the "description" field of the sibling "@<id>" attributes
 	// object, surfaced as the Block's translator note. Empty when absent.
 	description string

@@ -530,6 +530,21 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		}
 	}
 
+	// A message holding a plural or select has no place in an XLIFF or PO
+	// unit, which would carry one of its branches as the whole message (see
+	// interchange_structures.go): it is left out of the file and named.
+	var held []string
+	kept := make([]*model.Block, 0, len(blocks))
+	for _, b := range blocks {
+		if holdsStructure(b) {
+			held = append(held, blockLabel(b))
+			continue
+		}
+		kept = append(kept, b)
+	}
+	blocks = kept
+	writeHeldWarning(os.Stderr, task.source.Relative, held)
+
 	// content memory pre-fill: fill block.Targets[targetLocale] for any exact/fuzzy
 	// match. Leverage stats reflect one decision per block (counting the
 	// first segment's pre-fill outcome for that block).

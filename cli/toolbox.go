@@ -30,6 +30,8 @@ func BusyboxRoot(app *App, prog string) *cobra.Command {
 		cmd = newConvCmd(app)
 	case "kdiff":
 		cmd = newDiffCmd(app)
+	case FilesAliasName:
+		return newFilesRoot(app)
 	default:
 		return nil
 	}

@@ -1,0 +1,37 @@
+# Norwegian Bokmål translations for Harbor Help.
+msgid ""
+msgstr ""
+"Project-Id-Version: harbor-help 2.4\n"
+"Language: nb\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/booking.js:12
+msgctxt "button"
+msgid "Book"
+msgstr "Bok"
+
+#: src/catalog.js:30
+msgctxt "library"
+msgid "Book"
+msgstr "Bok"
+
+#: src/booking.js:20
+msgid "Choose a time that suits you."
+msgstr "Velg et tidspunkt som passer for deg."
+
+#: src/booking.js:41
+msgid ""
+"Appointments can be cancelled up to 24 hours before they start. After that, "
+"contact your adviser."
+msgstr ""
+"Timer kan avbestilles inntil 24 timer før de begynner. Etter det må du "
+"kontakte rådgiveren din."
+
+#: src/inbox.js:8
+msgid "%d new message"
+msgid_plural "%d new messages"
+msgstr[0] "%d ny melding"
+msgstr[1] "%d nye meldinger"

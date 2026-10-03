@@ -248,6 +248,11 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 			note(mergeOutcome{Block: u.ID, Status: mergeStale, Error: &change.Error{Code: change.CodeStale, Field: "basis", Message: why}})
 			continue
 		}
+		if flattensStructure(cur.block.SourceRuns(), target.Runs) {
+			note(mergeOutcome{Block: u.ID, Status: mergeRefused, Error: &change.Error{Code: change.CodeGuard, Subcode: change.SubcodeStructureLost,
+				Message: "the message holds a plural or select, and the file carries one branch of it, so its translation would flatten the message; " + warnStructures}})
+			continue
+		}
 		if rev.Basis == "" {
 			rev.Basis = cur.authRev
 		}

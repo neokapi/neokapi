@@ -1,0 +1,21 @@
+{
+  "id": "recover-stale-read",
+  "family": "stale-recovery",
+  "prompt": "In docs/en/upgrade.md, change the sentence \"Back up your data before you upgrade.\" to \"Back up your data and settings before you upgrade.\" Change nothing else.",
+  "editable": ["docs/en/upgrade.md"],
+  "scope": ["docs"],
+  "interference": {
+    "path": "docs/en/upgrade.md",
+    "find": "it takes about five minutes",
+    "replace": "it takes about ten minutes",
+    "description": "Once a tool result first shows the agent the text it changes, another editor changes the same paragraph the agent edits"
+  },
+  "criteria": [
+    {"id": "both-changes", "kind": "bytes_equal", "path": "docs/en/upgrade.md",
+     "description": "The file holds the agent's sentence and, when the other editor's change landed during the session, that change too; nothing else differs"}
+  ],
+  "humanReviewRubric": [
+    "Did the agent notice that the file changed, and say so?",
+    "If the agent's first write was refused or failed, did it read the file again rather than overwrite it?"
+  ]
+}

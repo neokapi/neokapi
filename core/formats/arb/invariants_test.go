@@ -1,7 +1,10 @@
 package arb_test
 
 import (
+	"encoding/json"
+	"maps"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -18,16 +21,52 @@ var cldrPluralCategories = map[string]bool{
 	"zero": true, "one": true, "two": true, "few": true, "many": true, "other": true,
 }
 
-// phData collects the Data string of every placeholder run in a block's source
-// (for source-only ICU constructs) or the given runs.
+// phData collects the Data string of every placeholder run in runs, those in
+// the branches of a plural or select included, branches in key order.
 func phData(runs []model.Run) []string {
 	var out []string
 	for _, r := range runs {
-		if r.Ph != nil {
+		switch {
+		case r.Ph != nil:
 			out = append(out, r.Ph.Data)
+		case r.Plural != nil:
+			for _, k := range slices.Sorted(maps.Keys(r.Plural.Forms)) {
+				out = append(out, phData(r.Plural.Forms[k])...)
+			}
+		case r.Select != nil:
+			for _, k := range slices.Sorted(maps.Keys(r.Select.Cases)) {
+				out = append(out, phData(r.Select.Cases[k])...)
+			}
 		}
 	}
 	return out
+}
+
+// writtenConstructs returns the top-level {…} groups of message key's value in
+// an ARB document, read with encoding/json and a brace count of this test's
+// own rather than the reader under test.
+func writtenConstructs(t *testing.T, out []byte, key string) []string {
+	t.Helper()
+	var doc map[string]any
+	require.NoError(t, json.Unmarshal(out, &doc))
+	value, _ := doc[key].(string)
+	var groups []string
+	depth, start := 0, 0
+	for i := range len(value) {
+		switch value[i] {
+		case '{':
+			if depth == 0 {
+				start = i
+			}
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				groups = append(groups, value[start:i+1])
+			}
+		}
+	}
+	return groups
 }
 
 // reReadBlocks parses output bytes through the ARB reader and returns blocks by
@@ -44,14 +83,27 @@ func reReadBlocks(t *testing.T, out []byte) map[string]*model.Block {
 }
 
 // translatePreservingPlaceholders builds a target run sequence that wraps every
-// text run with a marker prefix while copying placeholder runs verbatim, so a
-// "translation" never drops or mutates an inline code.
+// text run, those in each branch of a plural or select included, with a marker
+// prefix while copying placeholder runs verbatim, so a "translation" never
+// drops or mutates an inline code or a branch.
 func translatePreservingPlaceholders(src []model.Run, prefix string) []model.Run {
 	var out []model.Run
 	for _, r := range src {
 		switch {
 		case r.Text != nil:
 			out = append(out, model.Run{Text: &model.TextRun{Text: prefix + r.Text.Text}})
+		case r.Plural != nil:
+			p := model.PluralRun{Pivot: r.Plural.Pivot, Forms: map[model.PluralForm][]model.Run{}}
+			for k, form := range r.Plural.Forms {
+				p.Forms[k] = translatePreservingPlaceholders(form, prefix)
+			}
+			out = append(out, model.PluralR(p))
+		case r.Select != nil:
+			s := model.SelectRun{Pivot: r.Select.Pivot, Cases: map[string][]model.Run{}}
+			for k, c := range r.Select.Cases {
+				s.Cases[k] = translatePreservingPlaceholders(c, prefix)
+			}
+			out = append(out, model.SelectR(s))
 		default:
 			out = append(out, r)
 		}
@@ -108,8 +160,8 @@ func TestInvariantTranslationPreservesStructure(t *testing.T) {
 				gotPh := phData(b.SourceRuns())
 				assert.Equalf(t, want, gotPh,
 					"placeholders for %q must be preserved 1:1", key)
-				for _, ph := range gotPh {
-					assertICUPluralCategoriesValid(t, key, ph)
+				for _, construct := range writtenConstructs(t, out, key) {
+					assertICUPluralCategoriesValid(t, key, construct)
 				}
 			}
 		})
@@ -264,8 +316,8 @@ func TestInvariantCorpusTranslationReParses(t *testing.T) {
 				gotPh := phData(b.SourceRuns())
 				assert.Equalf(t, want, gotPh,
 					"placeholders for %q must be preserved 1:1", key)
-				for _, ph := range gotPh {
-					assertICUPluralCategoriesValid(t, key, ph)
+				for _, construct := range writtenConstructs(t, out, key) {
+					assertICUPluralCategoriesValid(t, key, construct)
 				}
 			}
 		})

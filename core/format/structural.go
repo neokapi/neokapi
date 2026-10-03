@@ -56,6 +56,29 @@ type StructuralEdit struct {
 	// Value is the new block's content: the text the format writes as its
 	// value, which its reader reads back as the block's content.
 	Value string
+	// Runs is the new block's content as runs, Value's source. A writer that
+	// spells a value from its runs (ValueSpeller) writes the value from them,
+	// so a plural or select in them is written as the format writes one.
+	Runs []model.Run
+}
+
+// ValueSpeller is implemented by a writer whose reader reads syntax inside a
+// value as structure, as an ARB message's plurals and selects are read as
+// plural and select runs, so model.RenderRunsWithData, which writes one branch
+// of a structure, does not give back the value. SpellValue returns the value
+// the writer writes for runs: b is the block the runs are an edition of, as
+// the format's reader read it, or nil for content no reader has read.
+type ValueSpeller interface {
+	SpellValue(b *model.Block, runs []model.Run) string
+}
+
+// SpellValue returns the value w writes for runs: its own spelling where it
+// spells values (ValueSpeller), else model.RenderRunsWithData.
+func SpellValue(w any, b *model.Block, runs []model.Run) string {
+	if s, ok := w.(ValueSpeller); ok {
+		return s.SpellValue(b, runs)
+	}
+	return model.RenderRunsWithData(runs)
 }
 
 // StructureReason says why a StructureEditor could not make an edit.

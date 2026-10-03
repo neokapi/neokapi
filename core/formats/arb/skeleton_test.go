@@ -47,17 +47,10 @@ func arbRoundtripWithSkeleton(t *testing.T, input string) string {
 // non-skeleton (original-bytes) path lives in TestByteFaithfulRoundTrip and
 // TestCorpusByteFaithfulRoundTrip; these controlled snippets pin the merge path.
 //
-// Byte-exactness limitations (deliberately excluded from this identity table):
-//
-//   - Values with JSON escapes whose canonical form differs from Dart's
-//     JsonEncoder — e.g. an escaped forward slash ("\/"), an uppercase-hex
-//     "é", or a "A"-style escape for a printable character. On the
-//     skeleton path the value is re-encoded via encodeJSONString (Dart-faithful:
-//     no slash escaping, lowercase \uXXXX only for control chars, literal UTF-8
-//     otherwise), so such an input round-trips to its canonical form, not its
-//     original bytes. The original-bytes writer path copies these verbatim; the
-//     merge path intentionally normalizes them. All snippets below use already-
-//     canonical encodings so identity holds.
+// A value the file escapes otherwise than Dart's JsonEncoder (an escaped
+// forward slash, an upper-case \u escape, a \u escape for a printable
+// character) keeps its bytes while its content is unchanged; only a changed
+// value is re-encoded (TestEditWritesOnlyTheEditedValue).
 func TestSkeletonStore_ByteExact_ARB(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -103,6 +96,10 @@ func TestSkeletonStore_ByteExact_ARB(t *testing.T) {
 		{
 			"standard_escapes",
 			"{\n  \"tabbed\": \"col1\\tcol2\",\n  \"multiline\": \"line1\\nline2\",\n  \"quoted\": \"say \\\"hi\\\"\"\n}\n",
+		},
+		{
+			"noncanonical_escapes",
+			"{\n  \"path\": \"a\\/b\",\n  \"cafe\": \"Caf\\u00e9 \\u00C9t\\u00e9 \\u0041\",\n  \"plural\": \"{n, plural, one{\\u00e9} other{\\/}}\"\n}\n",
 		},
 		{
 			"icu_quoted_brace",

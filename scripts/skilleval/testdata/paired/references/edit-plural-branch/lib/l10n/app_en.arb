@@ -1,0 +1,30 @@
+{
+  "@@locale": "en",
+  "inboxTitle": "Messages",
+  "@inboxTitle": {
+    "description": "Title of the inbox screen"
+  },
+  "inboxCount": "{count, plural, =0{No new messages} one{{count} unread message} other{{count} new messages}}",
+  "@inboxCount": {
+    "description": "How many unread messages the inbox holds",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "compact"
+      }
+    }
+  },
+  "appointmentCount": "{count, plural, one{{count} appointment this week} other{{count} appointments this week}}",
+  "@appointmentCount": {
+    "description": "Appointments booked for the current week",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxEmptyHint": "New messages from your adviser appear here.",
+  "@inboxEmptyHint": {
+    "description": "Shown when the inbox holds no messages"
+  }
+}

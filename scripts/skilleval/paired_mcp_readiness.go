@@ -16,6 +16,9 @@ import (
 
 const pairedMCPProbeTimeout = 10 * time.Second
 
+// pairedMCPRequiredTools are the tools the MCP arm must serve.
+var pairedMCPRequiredTools = []string{"read_blocks", "apply_edits", "describe_format", "check_file"}
+
 // PairedMCPReadiness records direct server discovery without invoking a tool.
 // It does not establish what an agent host exposes or what an agent uses.
 type PairedMCPReadiness struct {
@@ -130,7 +133,8 @@ func discoverPairedMCP(ctx context.Context, launch PairedLaunch, readiness *Pair
 		}
 	}
 	missing := []string{}
-	for _, name := range []string{"check_file", "check_text"} {
+	// The edit contract and the check: what the study's tasks are done with.
+	for _, name := range pairedMCPRequiredTools {
 		if !slices.Contains(readiness.Tools, name) {
 			missing = append(missing, name)
 		}

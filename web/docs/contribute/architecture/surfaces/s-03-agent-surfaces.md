@@ -53,7 +53,7 @@ when the task matches.
 
 ```
 cli/skills/data/kapi/
-├── SKILL.md            four habits, each in its CLI and MCP form, under 350 words
+├── SKILL.md            four habits, each in its CLI and MCP form, under 365 words
 └── references/         the topics `kapi help <topic>` serves
     ├── edit.md         read → edit → write → verify
     ├── create.md       author → parse → check → revise
@@ -72,8 +72,12 @@ cli/skills/data/kapi/
 what applies at the file before writing it, record what the project does every
 time while reading it, record the wording the person changes, and check what it
 changed before reporting the work done and saying what the session recorded.
-Each habit is its CLI command and its MCP tool, and one line says that `kapi
-help` lists the topics for everything else. The recording habit also names what
+Each habit is its CLI command and its MCP tool. One line names the edit topic,
+`references/edit.md` (`kapi help edit`), for an assistant about to change
+content inside a file, so the edit guidance is one step from the skill; the
+references folder ships with the skill in a plugin install, and `kapi help
+edit` prints it where `kapi init` writes `SKILL.md` alone. A last line says that
+`kapi help` lists the topics for everything else. The recording habit also names what
 to record (names as written, the spelling variety, a word chosen over a common
 alternative) and what to leave alone (a word the project writes two ways, an
 interface label, the wording of the task), because an assistant that reaches
@@ -220,8 +224,10 @@ The results and the whole transcripts are published on the
 none of the three runs in CI, because they spend and need local credentials.
 
 The paired study runs identical tasks through each agent host with ordinary
-file tools, the CLI skill, or MCP. The skill condition excludes the kapi MCP
-server; the MCP condition excludes the skill and direct kapi CLI execution.
+file tools, the CLI skill, MCP, or the edit commands with no project. The skill
+condition excludes the kapi MCP server; the MCP condition excludes the skill
+and keeps kapi on PATH, as an installation has it; the project-free condition
+runs the same binary with discovery off, so nothing governs its edits.
 Independent artifact checks assess completion, while natural prompts measure
 whether the agent discovers the available integration. Results retain failed
 attempts and distinguish these outcomes from human judgments of the content.

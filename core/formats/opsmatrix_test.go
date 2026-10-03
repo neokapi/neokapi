@@ -103,6 +103,9 @@ type opsFixture struct {
 	refuse map[string]map[string]string
 	// refused names, per operation key, the cells this fixture refuses whole.
 	refused map[string]refusal
+	// structures says the fixture holds plurals or selects, so it also gets
+	// the cell that sets each branch by its path.
+	structures bool
 }
 
 // refusal is a cell a fixture refuses whole, with the reason. err is the error
@@ -128,10 +131,18 @@ type matrixOp struct {
 	name    string
 	edition editionRole
 	sub     substitution
+	// byPath sends set_content to each branch of a plural or select that
+	// holds the word, by its path, as an agent sets one branch.
+	byPath bool
 }
 
 // key names the operation in a fixture's refuse and refused maps.
-func (op matrixOp) key() string { return op.name + "@" + string(op.edition) }
+func (op matrixOp) key() string {
+	if op.byPath {
+		return op.name + "/path@" + string(op.edition)
+	}
+	return op.name + "@" + string(op.edition)
+}
 
 // want renders the document op must produce from a template.
 func (op matrixOp) want(tmpl string) string {
@@ -140,10 +151,13 @@ func (op matrixOp) want(tmpl string) string {
 
 // matrixOps is every operation the matrix drives, each a word substitution:
 // set_content with the block's edit text and the word replaced, as `kapi
-// apply` sends a block `kapi inspect` showed, and replace_text with the
-// offsets of each match, as ksed sends a substitution (replaceEdits).
+// apply` sends a block `kapi inspect` showed; set_content by path, which in a
+// fixture with plurals or selects sets each branch holding the word with the
+// branch's text and the word replaced; and replace_text with the offsets of
+// each match, as ksed sends a substitution (replaceEdits).
 var matrixOps = []matrixOp{
 	{name: "set_content", edition: sourceEdition, sub: sourceWord},
+	{name: "set_content", edition: sourceEdition, sub: sourceWord, byPath: true},
 	{name: "replace_text", edition: sourceEdition, sub: sourceWord},
 	{name: "replace_text", edition: targetEdition, sub: targetWord},
 }
@@ -154,9 +168,17 @@ func opsMatrix() []opsFixture {
 	return []opsFixture{
 		{format: "androidxml", template: "androidxml.xml.tmpl"},
 		{format: "applestrings", template: "applestrings.strings.tmpl"},
-		// The plural message reads as one opaque placeholder, so the words in
-		// its branches are out of the edit's reach and stay as written.
-		{format: "arb", template: "arb.arb.tmpl"},
+		// Plural, select and selectordinal messages read with their branches,
+		// so each branch is edited by its path. set_content with a block's
+		// edit text, which shows one branch, would flatten the structure and
+		// is refused.
+		{
+			format: "arb", template: "arb.arb.tmpl", structures: true,
+			refuse: map[string]map[string]string{"set_content@source": {
+				"tu2": arbFlattens, "tu3": arbFlattens, "tu4": arbFlattens,
+				"tu5": arbFlattens, "tu6": arbFlattens, "tu7": arbFlattens,
+			}},
+		},
 		{format: "asciidoc", template: "asciidoc.adoc.tmpl"},
 		{format: "csv", template: "csv.csv.tmpl"},
 		{format: "designtokens", template: "designtokens.tokens.json.tmpl"},
@@ -231,6 +253,10 @@ func opsMatrix() []opsFixture {
 		{format: "yaml", template: "yaml.yaml.tmpl"},
 	}
 }
+
+// arbFlattens is why set_content with an ARB message's edit text is refused
+// on a message holding a plural or select.
+const arbFlattens = "the edit text shows one branch of the plural or select; set_content with it would flatten the structure"
 
 // tsPrologue is how the Qt writer spells the document prologue: the XML
 // declaration and DOCTYPE as Okapi's TsFilter writes them (normalizeTSPrologue).
@@ -461,8 +487,9 @@ type opOutcome struct {
 	writeErr error
 	// applied and refused list block ids by outcome.
 	applied, refused []string
-	// expect is every block's edition, as edit text, after the operation: the
-	// edited text for an applied block, the text as read for any other.
+	// expect is every block's edition, as editionContent shows it, after the
+	// operation: the edited content for an applied block, the content as read
+	// for any other.
 	expect []string
 }
 
@@ -476,15 +503,79 @@ func (fx opsFixture) locales(op matrixOp) (read, write model.LocaleID) {
 	return "", ""
 }
 
-// editionText returns a block's edition as edit text, and whether it has one.
-func editionText(b *model.Block, edition editionRole, loc model.LocaleID) (string, bool) {
+// editionRuns returns a block's edition, and whether it has one.
+func editionRuns(b *model.Block, edition editionRole, loc model.LocaleID) ([]model.Run, bool) {
 	if edition == sourceEdition {
-		return model.RunsEditText(b.Source), true
+		return b.Source, true
 	}
 	if !b.HasTarget(loc) {
+		return nil, false
+	}
+	return b.TargetRuns(loc), true
+}
+
+// editionText returns a block's edition as edit text, and whether it has one.
+func editionText(b *model.Block, edition editionRole, loc model.LocaleID) (string, bool) {
+	runs, ok := editionRuns(b, edition, loc)
+	if !ok {
 		return "", false
 	}
-	return model.RunsEditText(b.TargetRuns(loc)), true
+	return model.RunsEditText(runs), true
+}
+
+// editionContent is an edition as the matrix compares it: its edit text,
+// which shows one branch of each plural and select, then every branch's edit
+// text by its path, so an edit to any branch is seen.
+func editionContent(runs []model.Run) string {
+	var b strings.Builder
+	b.WriteString(model.RunsEditText(runs))
+	walkBranches(runs, nil, func(path model.RunPath, branch []model.Run) {
+		fmt.Fprintf(&b, "\n%v: %s", path, model.RunsEditText(branch))
+	})
+	return b.String()
+}
+
+// walkBranches calls fn with every branch of the plurals and selects in seq,
+// nested ones included, in order, with the path that reaches it from seq.
+func walkBranches(seq []model.Run, path model.RunPath, fn func(model.RunPath, []model.Run)) {
+	for i, r := range seq {
+		step := model.RunPathStep{Kind: model.StepIndex, Index: i}
+		switch {
+		case r.Plural != nil:
+			for _, form := range slices.Sorted(maps.Keys(r.Plural.Forms)) {
+				p := append(slices.Clone(path), step, model.RunPathStep{Kind: model.StepPlural, PluralForm: form})
+				fn(p, r.Plural.Forms[form])
+				walkBranches(r.Plural.Forms[form], p, fn)
+			}
+		case r.Select != nil:
+			for _, value := range slices.Sorted(maps.Keys(r.Select.Cases)) {
+				p := append(slices.Clone(path), step, model.RunPathStep{Kind: model.StepSelect, SelectValue: value})
+				fn(p, r.Select.Cases[value])
+				walkBranches(r.Select.Cases[value], p, fn)
+			}
+		}
+	}
+}
+
+// branchSets are the set_content operations that substitute sub in every
+// branch of runs that holds it and holds no plural or select of its own, each
+// by its path and with the branch's edit text, as an agent sets one branch of
+// a plural.
+func branchSets(at change.Ref, runs []model.Run, sub substitution) []change.Op {
+	var ops []change.Op
+	walkBranches(runs, nil, func(path model.RunPath, branch []model.Run) {
+		if model.HasStructuredRuns(branch) {
+			return
+		}
+		text := model.RunsEditText(branch)
+		edited := strings.ReplaceAll(text, sub.from, sub.to)
+		if edited == text {
+			return
+		}
+		ops = append(ops, change.Op{Kind: change.KindSetContent, At: at, IfMatch: change.AnyRevision,
+			Body: &change.SetContent{Path: path, Text: &edited}})
+	})
+	return ops
 }
 
 // run drives op over input: each block whose edition holds op's word gets
@@ -500,10 +591,11 @@ func (fx opsFixture) run(t *testing.T, op matrixOp, input []byte) opOutcome {
 }
 
 // substitute replaces op's word in op's edition of every block. Each block
-// whose edition holds the word gets one operation of op's kind: set_content
-// with the edition's edit text and the word replaced, or replace_text with an
-// edit at each match. A block the operation is refused on keeps the text it
-// was read with.
+// whose edition holds the word gets the operations of op's kind: set_content
+// with the edition's edit text and the word replaced, set_content by path for
+// each branch holding the word of an edition with plurals or selects, or
+// replace_text with an edit at each match. A block the operations are refused
+// on keeps the content it was read with.
 func (fx opsFixture) substitute(t *testing.T, op matrixOp, input []byte) opOutcome {
 	t.Helper()
 	readLoc, writeLoc := fx.locales(op)
@@ -514,31 +606,35 @@ func (fx opsFixture) substitute(t *testing.T, op matrixOp, input []byte) opOutco
 
 	var res opOutcome
 	res.out, res.writeErr = fx.editDocument(t, input, readLoc, writeLoc, func(b *model.Block, env change.BlockEnv) {
-		text, ok := editionText(b, op.edition, readLoc)
-		res.expect = append(res.expect, text)
+		runs, ok := editionRuns(b, op.edition, readLoc)
+		content := editionContent(runs)
+		res.expect = append(res.expect, content)
 		if !ok || !b.Translatable {
 			return
 		}
-		edited := strings.ReplaceAll(text, op.sub.from, op.sub.to)
-		if edited == text {
+		edited := strings.ReplaceAll(content, op.sub.from, op.sub.to)
+		if edited == content {
 			return
 		}
 		at := change.Ref{Doc: "opsmatrix", Block: b.ID, Edition: key}
-		o := change.Op{Kind: change.KindSetContent, At: at, IfMatch: change.AnyRevision, Body: &change.SetContent{Text: &edited}}
-		if op.name == "replace_text" {
-			runs := b.Source
-			if op.edition == targetEdition {
-				runs = b.TargetRuns(readLoc)
-			}
-			o = change.Op{Kind: change.KindReplaceText, At: at, IfMatch: change.AnyRevision, Body: &change.ReplaceText{Edits: replaceEdits(runs, nil, op.sub)}}
+		var ops []change.Op
+		switch {
+		case op.name == "replace_text":
+			ops = []change.Op{{Kind: change.KindReplaceText, At: at, IfMatch: change.AnyRevision, Body: &change.ReplaceText{Edits: replaceEdits(runs, nil, op.sub)}}}
+		case op.byPath && model.HasStructuredRuns(runs):
+			ops = branchSets(at, runs, op.sub)
+		default:
+			text := strings.ReplaceAll(model.RunsEditText(runs), op.sub.from, op.sub.to)
+			ops = []change.Op{{Kind: change.KindSetContent, At: at, IfMatch: change.AnyRevision, Body: &change.SetContent{Text: &text}}}
 		}
-		results := change.ApplyBlock(b, []change.Op{o}, env)
-		switch results[0].Status {
-		case change.OpApplied:
+		results := change.ApplyBlock(b, ops, env)
+		if slices.ContainsFunc(results, func(r change.OpResult) bool { return r.Status == change.OpRefused }) {
+			res.refused = append(res.refused, b.ID)
+			return
+		}
+		if slices.ContainsFunc(results, func(r change.OpResult) bool { return r.Status == change.OpApplied }) {
 			res.applied = append(res.applied, b.ID)
 			res.expect[len(res.expect)-1] = edited
-		case change.OpRefused:
-			res.refused = append(res.refused, b.ID)
 		}
 	})
 	return res
@@ -624,6 +720,9 @@ func cellsOf(fx opsFixture) []matrixOp {
 		if op.edition == targetEdition && fx.target.IsEmpty() {
 			continue
 		}
+		if op.byPath && !fx.structures {
+			continue
+		}
 		ops = append(ops, op)
 	}
 	return ops
@@ -672,8 +771,8 @@ func TestOperationsMatrix(t *testing.T) {
 				back := fx.readEditable(t, res.out, readLoc)
 				var got []string
 				for _, b := range back {
-					text, _ := editionText(b, op.edition, readLoc)
-					got = append(got, text)
+					runs, _ := editionRuns(b, op.edition, readLoc)
+					got = append(got, editionContent(runs))
 				}
 				assert.Equal(t, res.expect, got,
 					"%s: the written document does not read back as edited. Blocks read back:\n%s",
@@ -771,6 +870,11 @@ func TestOperationsMatrixCoversEverySkeletonPair(t *testing.T) {
 			}
 			input = all.String()
 		}
+		holds := slices.ContainsFunc(fx.readEditable(t, doc.input, ""), func(b *model.Block) bool {
+			return model.HasStructuredRuns(b.Source)
+		})
+		assert.Equal(t, holds, fx.structures,
+			"%s: structures must say whether the fixture reads with plurals or selects, so each branch gets its cells", fx.id())
 		for _, r := range fx.respelled {
 			assert.Contains(t, input, r.from, "%s: respelling %q names bytes the input does not hold", fx.id(), r.from)
 			assert.NotEmpty(t, r.reason, "%s: respelling %q gives no reason", fx.id(), r.from)

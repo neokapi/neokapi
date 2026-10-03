@@ -47,5 +47,8 @@ One thing per call. Withdraw a mistake with `kapi context withdraw <id>`
 Fix what it reports and run it again; exit 4 means it did not run. End with
 the session summary.
 
+Before you change content inside a file, read `references/edit.md`
+(`kapi help edit`).
+
 `kapi help` lists the other topics (formats, voice, terms, translation,
 i18n); `kapi help <topic>` prints one.

@@ -1,0 +1,20 @@
+{
+  "id": "edit-plural-branch",
+  "family": "plural-branch",
+  "prompt": "In lib/l10n/app_en.arb, change the one-message case (the \"one\" branch) of the inboxCount plural so it reads \"{count} unread message\". Keep its other cases, its metadata and every other message exactly as they are.",
+  "editable": ["lib/l10n/app_en.arb"],
+  "scope": ["lib"],
+  "criteria": [
+    {"id": "plural-bytes", "kind": "bytes_equal", "path": "lib/l10n/app_en.arb",
+     "description": "Only the one branch of inboxCount changes; every other byte of the catalog is as it was"},
+    {"id": "edited-branch", "kind": "icu_branch", "path": "lib/l10n/app_en.arb", "key": "inboxCount", "branch": "one",
+     "description": "The one branch of inboxCount reads as the reference's, byte for byte"},
+    {"id": "other-branches", "kind": "icu_branches_unchanged", "path": "lib/l10n/app_en.arb", "key": "inboxCount", "branch": "one",
+     "description": "The =0 and other branches of inboxCount, and the plural's syntax around them, are as they were"},
+    {"id": "metadata", "kind": "json_member_unchanged", "path": "lib/l10n/app_en.arb", "key": "@inboxCount",
+     "description": "The @inboxCount metadata, its description and placeholder declaration, is as it was"}
+  ],
+  "humanReviewRubric": [
+    "Did the agent leave the =0 and other branches, whose text also contains \"new message\", as they were?"
+  ]
+}
