@@ -92,6 +92,41 @@ func BenchmarkSQLiteMemory_LookupExactMiss(b *testing.B) {
 	}
 }
 
+// BenchmarkSQLiteMemory_LookupBlockExactHit benchmarks the exact-only question
+// for a block the memory answers, through every match mode: the entry answers
+// under its generalized, structural and plain keys alike.
+func BenchmarkSQLiteMemory_LookupBlockExactHit(b *testing.B) {
+	tm, err := memory.NewSQLiteStore(":memory:")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer tm.Close()
+	for i := range 3000 {
+		err := tm.Add(context.Background(), memory.Entry{
+			ID: fmt.Sprintf("entry-%d", i),
+			Variants: map[model.LocaleID][]model.Run{
+				model.LocaleEnglish: {{Text: &model.TextRun{Text: fmt.Sprintf("Paragraph %d explains how the shop opens every day.", i)}}},
+				model.LocaleFrench:  {{Text: &model.TextRun{Text: fmt.Sprintf("Le paragraphe %d explique comment la boutique ouvre.", i)}}},
+			},
+			HintSrcLang: model.LocaleEnglish,
+		})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+	block := &model.Block{ID: "p7"}
+	block.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: "Paragraph 7 explains how the shop opens every day."}}})
+	opts := memory.LookupOptions{MinScore: 1.0, MaxResults: 1}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		m, err := tm.Lookup(context.Background(), block, model.LocaleEnglish, model.LocaleFrench, opts)
+		if err != nil || len(m) != 1 {
+			b.Fatalf("an exact-only lookup missed its entry: %v %v", m, err)
+		}
+	}
+}
+
 func BenchmarkMemoryMatch(b *testing.B) {
 	tm := memory.NewInMemoryStore()
 
