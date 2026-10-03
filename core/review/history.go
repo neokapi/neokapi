@@ -44,7 +44,7 @@ func MatchOf(m memory.Match, source, target model.LocaleID) *MemoryMatch {
 // no provenance. Empty when neither carries a stamp, which reads as ungoverned.
 func GoverningFingerprint(b *model.Block, loc model.LocaleID, recorded string) string {
 	if b != nil {
-		if t := b.Target(loc); t != nil && t.Origin.ContextFingerprint != "" {
+		if t, ok := targetOf(b, loc); ok && t.Origin.ContextFingerprint != "" {
 			return t.Origin.ContextFingerprint
 		}
 	}
