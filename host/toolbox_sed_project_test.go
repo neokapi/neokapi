@@ -495,3 +495,31 @@ func TestCopyLayoutRedirectsOnlyTheCopiedFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(root, "notes", "a.txt"), d.Path, "a file not copied is read where it lies")
 }
+
+// A printing run records nothing, an edit made outside kapi included: the read
+// that compiles the change set it prints is left unobserved.
+func TestSedPrintOpsRecordsNothingItFinds(t *testing.T) {
+	root := sedProject(t)
+	app := newToolboxApp(t)
+	recorded := func() int {
+		t.Helper()
+		db, err := app.ProjectDB(t.Context(), root)
+		require.NoError(t, err)
+		rows, err := db.History().Document(t.Context(), app.documentIndexOrEmpty(t.Context(), root).Key("docs/sub/guide.md"))
+		require.NoError(t, err)
+		return len(rows)
+	}
+	// A recorded edit gives the document a history to compare a read with.
+	res, err := applyJSON(t, app, NewEnvCommand(t.Context(), "apply"), printOps(t, app, "s/shop/store/g", "docs/sub/guide.md"), ApplyOptions{})
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	before := recorded()
+	require.Positive(t, before)
+
+	// A person edits the file in their editor, then prints what ksed would do.
+	guide := filepath.Join(root, "docs", "sub", "guide.md")
+	require.NoError(t, os.WriteFile(guide, []byte("# Guide\n\nVisit the store tomorrow.\n"), 0o644))
+	printed := printOps(t, app, "s/store/shop/g", "docs/sub/guide.md")
+	require.Contains(t, printed, "replace_text")
+	assert.Equal(t, before, recorded(), "the printing run recorded nothing")
+}
