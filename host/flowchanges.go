@@ -341,6 +341,10 @@ func (r blockRevs) revision(text string) (string, bool) {
 type leftBlock struct {
 	block    *model.Block
 	editions map[string]leftEdition
+	// id and source are the block's reader id and source text, which name
+	// the overlay its producer left (blockstore.StoreKey).
+	id     string
+	source string
 }
 
 // basis is the revision of the authoritative edition a derived edition the
@@ -502,7 +506,7 @@ func (doc *flowDoc) Leave(b *model.Block) {
 		return
 	}
 	key := change.BlockKey(b)
-	lb := &leftBlock{editions: map[string]leftEdition{}}
+	lb := &leftBlock{editions: map[string]leftEdition{}, id: b.ID, source: b.SourceText()}
 	before := doc.before[key]
 	for _, k := range doc.tracked(b) {
 		text := editionText(k)

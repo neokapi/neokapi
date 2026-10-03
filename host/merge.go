@@ -333,7 +333,11 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	// pass, having nothing pending) and the block store is empty (so it has
 	// nothing to say). Silence is the honest output for a store with nothing to
 	// say; the locale's standing is what coverage already reports.
-	locales, err = localesWithStoredTargets(ctx, store, locales)
+	keptLocales, err := a.keptLocales(ctx, layout.Root)
+	if err != nil {
+		return 0, fmt.Errorf("merge: read the workspace home: %w", err)
+	}
+	locales, err = localesWithStoredTargets(ctx, store, keptLocales, locales)
 	if err != nil {
 		return 0, fmt.Errorf("merge: read the stored targets: %w", err)
 	}
@@ -377,17 +381,29 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 			if serr != nil {
 				return written, fmt.Errorf("merge: %w", serr)
 			}
-			held, wrote, merr := materializeEdition(fileCtx, svc, store, filepath.ToSlash(f.Relative), locale)
+			ref, edition := filepath.ToSlash(f.Relative), model.EditionKey{Locale: locale}
+			keptEd, kerr := a.keptRuns(ctx, layout.Root, ref, edition)
+			if kerr != nil {
+				return written, fmt.Errorf("merge: read the %s drafts of %s: %w", locale, f.Relative, kerr)
+			}
+			held, wrote, merr := materializeEdition(fileCtx, svc, store, keptEd, ref, locale)
 			if merr != nil {
 				return written, fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, merr)
 			}
 			if held == 0 {
-				// The store holds no translation for this file: there is
-				// nothing to write.
+				// Neither the workspace home nor the store holds a
+				// translation for this file: there is nothing to write.
 				continue
 			}
 			if wrote {
 				written++
+			}
+			if keptEd != nil {
+				// The file holds the edition now, so the workspace home stops
+				// keeping it.
+				if rerr := a.releaseKept(ctx, layout.Root, ref, edition, materializeActor, "merge"); rerr != nil {
+					return written, fmt.Errorf("merge: release the %s drafts of %s from the workspace home: %w", locale, f.Relative, rerr)
+				}
 			}
 
 			// Absorb the materialized targets into the project content memory with merge
@@ -417,11 +433,12 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	return written, nil
 }
 
-// localesWithStoredTargets narrows a materialize pass to the locales the block
-// store actually holds a target for, preserving the caller's order. One overlay
-// is enough: the question is whether the store has anything to say about the
-// locale at all, not how far along it is.
-func localesWithStoredTargets(ctx context.Context, store blockstore.Store, locales []model.LocaleID) ([]model.LocaleID, error) {
+// localesWithStoredTargets narrows a materialize pass to the locales the
+// workspace home keeps an edition of (kept) or the block store holds a target
+// for, preserving the caller's order. One overlay is enough: the question is
+// whether the store has anything to say about the locale at all, not how far
+// along it is.
+func localesWithStoredTargets(ctx context.Context, store blockstore.Store, kept map[model.LocaleID]bool, locales []model.LocaleID) ([]model.LocaleID, error) {
 	sess, err := store.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -429,6 +446,10 @@ func localesWithStoredTargets(ctx context.Context, store blockstore.Store, local
 	defer sess.Close()
 	var out []model.LocaleID
 	for _, locale := range locales {
+		if kept[model.NormalizeLocale(locale)] {
+			out = append(out, locale)
+			continue
+		}
 		for _, oerr := range sess.ListOverlays(blockstore.TargetOverlayKind(locale)) {
 			if oerr != nil {
 				return nil, oerr

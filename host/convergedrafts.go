@@ -24,9 +24,10 @@ import (
 // tree under `.kapi/work/`, one subtree per locale, and coverage grades the
 // draft. Delivery happens once, at the end of the run, for the locales that
 // cleared their gate: their drafts are promoted to the destination and the
-// materialize pass writes whatever the project block store holds on top. A
-// parked locale's draft is discarded with the tree — the work itself survives in
-// the store, where `kapi merge` or `up --materialize` can still deliver it.
+// materialize pass writes what the workspace home keeps of the locale on top.
+// A parked locale's drafts are kept in the workspace home (host/workhome.go)
+// when the tree is discarded, where a reviewer reads and edits them and
+// `kapi merge` or `up --materialize` delivers them.
 
 // convergeDraftsDirName is the run-local draft tree, inside the project's
 // derived state (never version control, never a build input).

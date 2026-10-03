@@ -168,6 +168,16 @@ func (h *Home) read(ctx context.Context, doc, edition string) (int64, Head, map[
 	return seq, head, rows, blocks, nil
 }
 
+// Holds reports whether the workspace home keeps any block of edition k of
+// the document ref names, as its projection stands.
+func (h *Home) Holds(ctx context.Context, ref string, k model.EditionKey) (bool, error) {
+	return h.Store.Held(ctx, h.docKey(ref), editionText(k))
+}
+
+// EditionOf is the edition a row keeps, its runs read from the blob that
+// holds them where the row keeps none inline.
+func (h *Home) EditionOf(ctx context.Context, r Row) (model.Edition, error) { return h.edition(ctx, r) }
+
 // edition is the edition a row keeps.
 func (h *Home) edition(ctx context.Context, r Row) (model.Edition, error) {
 	data := r.Runs

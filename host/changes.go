@@ -150,6 +150,12 @@ func (a *App) changeHome(opts ChangeServiceOptions) (changeHome, error) {
 		if err != nil {
 			return changeHome{}, err
 		}
+		if !opts.Materialize {
+			// An edition with no file lives in the workspace home until a
+			// delivery writes it; a service that materializes is that
+			// delivery, and writes every edition to its file.
+			pl.kept = &keptPolicy{keeper: a.keptEditions(l.Root)}
+		}
 		// The lock files live in .kapi/work, which the layout's ignore rule
 		// keeps out of a commit. The directory and the rule are written when a
 		// change first takes a lock, so a read leaves the project as it was.
@@ -430,6 +436,9 @@ type projectChangeLayout struct {
 	// writerHook is given every writer opened for a source file
 	// (ChangeServiceOptions.WriterHook).
 	writerHook func(format.DataFormatWriter)
+	// kept says when an edition with no file is kept in the workspace home;
+	// nil for a service that writes every edition to its file (Materialize).
+	kept *keptPolicy
 
 	once  sync.Once
 	index *projectChangeIndex
@@ -534,7 +543,7 @@ func (l *projectChangeLayout) translationFile(ref string) (targetOfSource, bool,
 	return t, ok, nil
 }
 
-func (l *projectChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, error) {
+func (l *projectChangeLayout) Locate(ctx context.Context, doc string) (filehome.Doc, error) {
 	ref, path, entry, err := filehome.ResolvePath(l.root, doc)
 	if err != nil {
 		// The file of a translation not written yet still names its edition.
@@ -543,7 +552,7 @@ func (l *projectChangeLayout) Locate(_ context.Context, doc string) (filehome.Do
 			return filehome.Doc{}, lerr
 		}
 		if ok {
-			return l.editionDoc(t)
+			return l.editionDoc(ctx, t)
 		}
 		return filehome.Doc{}, err
 	}
@@ -560,14 +569,14 @@ func (l *projectChangeLayout) Locate(_ context.Context, doc string) (filehome.Do
 			SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target)}, nil
 	}
 	if rf, ok := l.sourceFile(ref); ok {
-		return l.sourceDoc(ref, rf), nil
+		return l.sourceDoc(ctx, ref, rf), nil
 	}
 	t, ok, err := l.translationFile(ref)
 	if err != nil {
 		return filehome.Doc{}, err
 	}
 	if ok {
-		return l.editionDoc(t)
+		return l.editionDoc(ctx, t)
 	}
 	// A file in the project the recipe does not claim: read as detection
 	// finds it, with the project's defaults for its format.
@@ -613,8 +622,9 @@ func (l *projectChangeLayout) hooked(b filehome.Binding) filehome.Binding {
 }
 
 // sourceDoc is a source file the recipe claims, with the file of each of its
-// translations.
-func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) filehome.Doc {
+// translations. A translation whose file does not exist yet lives in the
+// workspace home while the workspace keeps it (keptPolicy).
+func (l *projectChangeLayout) sourceDoc(ctx context.Context, ref string, rf project.ResolvedFile) filehome.Doc {
 	name := rf.Format
 	if l.format != "" {
 		name = l.format
@@ -645,15 +655,19 @@ func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) fil
 		if !ok {
 			return filehome.EditionFile{}, false
 		}
+		path := filepath.Join(l.root, u.DisplayPath)
 		return filehome.EditionFile{
 			Ref:       filepath.ToSlash(u.DisplayPath),
-			Path:      filepath.Join(l.root, u.DisplayPath),
+			Path:      path,
 			Format:    l.app.formatBinding(u.TargetFormat, u.TargetConfig, l.enc),
 			Bilingual: l.app.editionsOf(u.TargetFormat) == change.EditionsInFile,
+			Kept:      l.kept.keeps(ctx, ref, k.Canonical(), path),
 		}, true
 	}
 	for loc, u := range targets {
-		if _, err := os.Stat(filepath.Join(l.root, u.DisplayPath)); err == nil {
+		path := filepath.Join(l.root, u.DisplayPath)
+		_, err := os.Stat(path)
+		if err == nil || (l.kept != nil && l.kept.keeper.holds(ctx, ref, model.EditionKey{Locale: loc})) {
 			d.Derived = append(d.Derived, model.EditionKey{Locale: loc})
 		}
 	}
@@ -663,12 +677,12 @@ func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) fil
 
 // editionDoc is the source a translation's file holds an edition of, with
 // that edition named.
-func (l *projectChangeLayout) editionDoc(t targetOfSource) (filehome.Doc, error) {
+func (l *projectChangeLayout) editionDoc(ctx context.Context, t targetOfSource) (filehome.Doc, error) {
 	rf, ok := l.index.sources[t.source]
 	if !ok {
 		return filehome.Doc{}, &change.Error{Code: change.CodeNotFound, Field: "at/doc", Message: "no document " + t.source}
 	}
-	d := l.sourceDoc(t.source, rf)
+	d := l.sourceDoc(ctx, t.source, rf)
 	k := model.EditionKey{Locale: t.locale}
 	d.Edition = &k
 	return d, nil
@@ -826,6 +840,10 @@ func (c *changeAssets) prepareDecision(actor change.Actor, op change.Op, target 
 	if target == nil {
 		return &change.Error{Code: change.CodeNotFound, Message: "the decision names no edition"}
 	}
+	if target.Role != change.RoleAuthoritative && target.Rev == model.AbsentRevision {
+		return &change.Error{Code: change.CodeNotFound, Field: "at/edition",
+			Message: fmt.Sprintf("block %s holds no %s edition to decide on, in its file or in the workspace home", target.Ref.Block, editionText(target.Ref.Edition))}
+	}
 	if body.Outcome == change.OutcomeAdvise && body.Score == nil {
 		return &change.Error{Code: change.CodeInvalid, Field: "score",
 			Message: "a pre-review carries the score it gives, from 0 to 100"}
@@ -853,13 +871,9 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 		changed, err := a.approveSourceUnit(ctx, c.recipe, "", SourceUnitRef{File: filepath.FromSlash(target.Doc.Doc), Key: target.Ref.Block}, &wording)
 		return decisionOutcome(changed, err)
 	}
+	// The decision binds to the edition as its home holds it: its file, or
+	// the workspace home for a parked draft no file carries yet.
 	decided := &decidedContent{source: target.SourceText, target: target.Text, targetRev: target.Rev}
-	if target.Rev == model.AbsentRevision {
-		// The edition has no content in its home: a parked draft the project
-		// store holds and no file carries yet. The decision binds to that
-		// draft, as the review queue lists it.
-		decided = nil
-	}
 	file := target.Place.File
 	if file == "" {
 		file = target.Doc.Doc

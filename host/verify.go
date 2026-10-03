@@ -1102,9 +1102,9 @@ type VerifyUnit struct {
 
 	// ProjectRoot is the directory the recipe resolved this unit from, set for
 	// units that came from a project (UnitsFromProject). It is what lets a read
-	// fall back to the project block store when the target file is absent
-	// (host/storedtargets.go); a unit assembled from bare paths has no project
-	// and leaves it empty.
+	// find the edition the workspace home keeps when the target file is absent
+	// (host/workhome.go); a unit assembled from bare paths has no project and
+	// leaves it empty.
 	ProjectRoot string
 
 	// SourceFormat/SourceConfig and TargetFormat/TargetConfig are the reader
@@ -1840,10 +1840,10 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 	if _, err := os.Stat(u.TargetPath); err != nil {
 		if os.IsNotExist(err) {
 			// No delivered file, and under a gate that is what a parked locale
-			// looks like: the pass drafted it and delivery was withheld, so the
-			// only record left is the project block store's. Read it, so the
-			// work is measurable and reviewable where it stands (#2356).
-			blocks, ok, serr := a.storedTargetBlocks(ctx, u)
+			// looks like: the pass drafted it and delivery was withheld, so its
+			// home is the workspace home. Read it there, so the work is
+			// measurable and reviewable where it stands (#2356).
+			blocks, ok, serr := a.keptTargetBlocks(ctx, u)
 			if serr != nil {
 				return nil, false, serr
 			}

@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/ref"
+	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/output"
 )
 
@@ -46,6 +47,21 @@ type StatusOutput struct {
 	// block history records nothing: the source each was made from is in the
 	// project's context, which kapi context pull reads (HistoryNotPulledNote).
 	HistoryNotPulled bool `json:"history_not_pulled,omitempty"`
+	// Conflicts lists the edits to drafts the workspace home keeps that two
+	// machines made from one version, that a pull merged, and that could not
+	// both land because they changed the same block. The edit that sorts
+	// first holds the block; each listed edit waits for a person.
+	Conflicts []StatusConflict `json:"conflicts,omitempty"`
+}
+
+// StatusConflict is an edit to a kept draft that a merge left unapplied.
+type StatusConflict struct {
+	// Doc is the source document, Locale the draft's language, and Edit the
+	// recorded edit (content.edit) that did not land.
+	Doc    string   `json:"doc"`
+	Locale string   `json:"locale"`
+	Edit   string   `json:"edit"`
+	Blocks []string `json:"blocks"`
 }
 
 // StatusVenue names the effective convergence venue for a server-connected
@@ -166,6 +182,10 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 	}
 	if o.HistoryNotPulled {
 		fmt.Fprintln(w, HistoryNotPulledNote+".")
+	}
+	for _, c := range o.Conflicts {
+		fmt.Fprintf(w, "Conflict: the %s draft of %s holds another edit to %s; edit %s did not land.\n",
+			c.Locale, c.Doc, strings.Join(c.Blocks, ", "), workspace.ShortOpID(c.Edit))
 	}
 	return nil
 }
@@ -709,6 +729,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			}
 		}
 		out.HistoryNotPulled = a.historyNotPulled(CmdContext(cmd), root, units)
+		out.Conflicts = a.statusConflicts(CmdContext(cmd), root)
 		a.WarnInertRecipeFields(cmd, proj)
 		a.WarnStoreLocaleDrift(cmd, projectPath)
 		return output.Print(cmd, out)

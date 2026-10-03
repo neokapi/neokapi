@@ -342,6 +342,9 @@ func (st *staged) stageKept(je *joinedEdition, ix *blockIndex, changed map[int]*
 		return
 	}
 	now := maps.Clone(k.Blocks)
+	if now == nil {
+		now = map[string]model.Edition{}
+	}
 	var changes []KeptChange
 	for _, si := range slices.Sorted(maps.Keys(changed)) {
 		key := ix.keys[si]

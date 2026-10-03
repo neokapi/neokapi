@@ -447,14 +447,15 @@ func (m *materializeServices) of(locale model.LocaleID) (*change.Service, error)
 	return svc, nil
 }
 
-// materializeEdition gives the translation of doc into locale every target
-// the block store holds for its blocks, as one change set the service writes
-// from the source's skeleton. It returns how many blocks the store holds a
-// target for, and whether the translation's file was written: a file that
-// already holds every stored target and every block of the source is left as
-// it is. ctx addresses the stored overlays by doc's key
+// materializeEdition gives the translation of doc into locale every block's
+// edition the workspace home keeps (kept, by block key) and, for a block it
+// keeps none of, the target the block store holds, as one change set the
+// service writes from the source's skeleton. It returns how many blocks have
+// a translation to write, and whether the translation's file was written: a
+// file that already holds every one of them and every block of the source is
+// left as it is. ctx addresses the stored overlays by doc's key
 // (blockstore.WithSourceRel).
-func materializeEdition(ctx context.Context, svc *change.Service, store blockstore.Store, doc string, locale model.LocaleID) (int, bool, error) {
+func materializeEdition(ctx context.Context, svc *change.Service, store blockstore.Store, kept map[string]model.Edition, doc string, locale model.LocaleID) (int, bool, error) {
 	sess, err := store.Begin(ctx)
 	if err != nil {
 		return 0, false, err
@@ -465,6 +466,14 @@ func materializeEdition(ctx context.Context, svc *change.Service, store blocksto
 	var ops []change.Op
 	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: doc, Editions: []model.EditionKey{key}}, func(b *model.Block, r change.BlockRead) error {
 		if !b.Translatable || b.ID == "" {
+			return nil
+		}
+		at := change.Ref{Doc: doc, Block: r.Ref.Block, Edition: key}
+		if ed, ok := kept[change.BlockKey(b)]; ok && model.RunsHaveContent(ed.Runs) {
+			// The workspace home is the edition's home until this delivery:
+			// what it keeps is the translation, whatever the cache holds.
+			ops = append(ops, change.Op{Kind: change.KindSetContent, At: at,
+				IfMatch: model.EditionRevision(b, key), Body: &change.SetContent{Runs: ed.Runs}})
 			return nil
 		}
 		// Absence and failure differ: ErrNotFound is a block with no
@@ -488,7 +497,7 @@ func materializeEdition(ctx context.Context, svc *change.Service, store blocksto
 			return nil
 		}
 		ops = append(ops, change.Op{
-			Kind: change.KindSetContent, At: change.Ref{Doc: doc, Block: r.Ref.Block, Edition: key},
+			Kind: change.KindSetContent, At: at,
 			IfMatch: model.EditionRevision(b, key),
 			Body:    &change.SetContent{Runs: t.Runs},
 		})
