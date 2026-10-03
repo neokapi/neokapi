@@ -194,9 +194,10 @@ func mcpChangeActor(req *mcp.CallToolRequest) change.Actor {
 // service edits the documents under the server's working directory). The
 // service reads the documents in that project's source language, so an
 // edition in any other language is a translation, whichever project the
-// server started in or answered last.
-func (a *App) mcpChangeService(ctx context.Context, project string) (*change.Service, string, error) {
-	return a.callChangeService(ctx, project, mcpChangeOrigin)
+// server started in or answered last. editions are the editions the call
+// names (callChangeService).
+func (a *App) mcpChangeService(ctx context.Context, project string, editions []model.EditionKey) (*change.Service, string, error) {
+	return a.callChangeService(ctx, project, mcpChangeOrigin, editions)
 }
 
 func (a *App) readBlocksMCP(ctx context.Context, in readBlocksInput) (*mcp.CallToolResult, error) {
@@ -204,7 +205,7 @@ func (a *App) readBlocksMCP(ctx context.Context, in readBlocksInput) (*mcp.CallT
 	if cerr != nil {
 		return changeRefusal(cerr)
 	}
-	svc, _, err := a.mcpChangeService(ctx, in.Project)
+	svc, _, err := a.mcpChangeService(ctx, in.Project, editions)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +217,7 @@ func (a *App) readBlocksMCP(ctx context.Context, in readBlocksInput) (*mcp.CallT
 }
 
 func (a *App) describeFormatMCP(ctx context.Context, in describeFormatInput) (*mcp.CallToolResult, error) {
-	svc, _, err := a.mcpChangeService(ctx, in.Project)
+	svc, _, err := a.mcpChangeService(ctx, in.Project, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +245,7 @@ func (a *App) applyEditsMCP(ctx context.Context, actor change.Actor, args json.R
 	if err != nil {
 		return changeError(err)
 	}
-	svc, recipe, err := a.mcpChangeService(ctx, project)
+	svc, recipe, err := a.mcpChangeService(ctx, project, opEditions(set))
 	if err != nil {
 		return nil, err
 	}

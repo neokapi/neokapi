@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
 )
@@ -266,4 +267,55 @@ func TestChangesJSON_ResolvesTheProjectTheCallNames(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, `{"title": "Welcome back"}`+"\n", string(b))
 	})
+}
+
+// outsideAProjectIn makes dir, holding files, the working directory of a call
+// that resolves no project, and returns an App to answer it.
+func outsideAProjectIn(t *testing.T, files map[string][]byte) (*App, string) {
+	t.Helper()
+	dir := t.TempDir()
+	for name, data := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), data, 0o644))
+	}
+	t.Setenv(project.NoProjectEnvVar, "1")
+	t.Chdir(dir)
+	a := &App{}
+	a.InitRegistries()
+	t.Cleanup(a.Shutdown)
+	return a, dir
+}
+
+// A PO catalog keeps its translation beside the source, and its reader reads
+// the msgstr only in the language it is told. A read names that language among
+// its editions and an apply's operations name it, as kapi apply reads a
+// catalog, so a call creates a translation the catalog holds and reads it back.
+func TestChangesJSON_TranslatesABilingualCatalogInPlace(t *testing.T) {
+	const po = "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\nmsgid \"Hello\"\nmsgstr \"\"\n"
+	a, dir := outsideAProjectIn(t, map[string][]byte{"messages.po": []byte(po)})
+	ctx := t.Context()
+
+	out, err := a.ReadChangesJSON(ctx, "browser", []byte(`{"doc":"messages.po","editions":["fr"]}`), nil)
+	require.NoError(t, err)
+	var page change.Page
+	require.NoError(t, json.Unmarshal(out, &page), string(out))
+	hello := blockWith(t, &page, "Hello")
+	assert.NotContains(t, hello.Editions, "fr", "the catalog holds no French yet")
+
+	set := asJSON(t, map[string]any{"ops": []any{map[string]any{"op": "set_content",
+		"at": map[string]any{"doc": "messages.po", "block": hello.Ref.Block, "edition": "fr"}, "if_match": model.AbsentRevision, "text": "Bonjour"}}})
+	out, err = a.ApplyChangesJSON(ctx, "browser", set, nil)
+	require.NoError(t, err)
+	res := resultJSON(t, out)
+	require.Equal(t, change.SetApplied, res.Status, "%s", out)
+	b, err := os.ReadFile(filepath.Join(dir, "messages.po"))
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "msgid \"Hello\"\nmsgstr \"Bonjour\"\n")
+
+	out, err = a.ReadChangesJSON(ctx, "browser", []byte(`{"doc":"messages.po","editions":["fr"]}`), nil)
+	require.NoError(t, err)
+	page = change.Page{}
+	require.NoError(t, json.Unmarshal(out, &page), string(out))
+	fr, ok := blockWith(t, &page, "Hello").Editions["fr"]
+	require.True(t, ok, "%s", out)
+	assert.Equal(t, "Bonjour", fr.Text)
 }

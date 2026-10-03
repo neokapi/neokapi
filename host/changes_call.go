@@ -50,17 +50,32 @@ type ChangeCallOptions struct {
 // source language, so an edition in any other language is a translation,
 // whichever project the host answered last. origin names the surface in the
 // record of a change.
-func (a *App) callChangeService(ctx context.Context, project, origin string) (*change.Service, string, error) {
+//
+// editions are the editions the call names: the ones a read asks for, or the
+// ones an apply's operations address. The one language among them other than
+// the source is the language a bilingual file is read in (a PO catalog's
+// msgstr), as kapi apply reads one (targetLocaleOf).
+func (a *App) callChangeService(ctx context.Context, project, origin string, editions []model.EditionKey) (*change.Service, string, error) {
 	recipe, err := a.ResolveMCPCallProject(project)
 	if err != nil {
 		return nil, "", err
 	}
+	source := model.LocaleID(a.mcpCallSourceLocale(recipe))
 	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: origin,
-		SourceLocale: model.LocaleID(a.mcpCallSourceLocale(recipe))})
+		SourceLocale: source, TargetLocale: soleTargetLocale(editions, source)})
 	if err != nil {
 		return nil, "", err
 	}
 	return svc, recipe, nil
+}
+
+// opEditions are the editions a change set's operations address.
+func opEditions(set change.Set) []model.EditionKey {
+	keys := make([]model.EditionKey, len(set.Ops))
+	for i, op := range set.Ops {
+		keys[i] = op.At.Edition
+	}
+	return keys
 }
 
 // applyCall applies set as actor through svc, the service of the project at
@@ -120,7 +135,7 @@ func (a *App) ReadChangesJSON(ctx context.Context, origin string, request, optio
 	if cerr != nil {
 		return changeAnswer(change.ErrorResult(cerr))
 	}
-	svc, _, err := a.callChangeService(ctx, opts.Project, origin)
+	svc, _, err := a.callChangeService(ctx, opts.Project, origin, editions)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +172,7 @@ func (a *App) ApplyChangesJSON(ctx context.Context, origin string, set, options 
 		actor = changeActorOf(resolved.Actor)
 		cs.Note = resolved.NoteWith(cs.Note)
 	}
-	svc, recipe, err := a.callChangeService(ctx, opts.Project, origin)
+	svc, recipe, err := a.callChangeService(ctx, opts.Project, origin, opEditions(cs))
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +196,7 @@ func (a *App) DescribeChangesJSON(ctx context.Context, origin string, request, o
 	if cerr := decodeCallJSON(request, "describe request", &in); cerr != nil {
 		return changeAnswer(change.ErrorResult(cerr))
 	}
-	svc, _, err := a.callChangeService(ctx, opts.Project, origin)
+	svc, _, err := a.callChangeService(ctx, opts.Project, origin, nil)
 	if err != nil {
 		return nil, err
 	}

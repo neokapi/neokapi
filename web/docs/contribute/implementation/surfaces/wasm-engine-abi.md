@@ -150,6 +150,10 @@ and returns a Promise of a JSON string.
   (`callChangeService`), with the commit check, the policy and the recorder
   `kapi apply` runs. A reference and a revision that `kapiRead` returns are the
   ones `kapi inspect` prints for the same file, and `kapiApply` takes either.
+  A bilingual file whose reader has to be told the language of the translation
+  it holds, such as a PO catalog's `msgstr`, is read in the one language other
+  than the source that a read's `editions` or an apply's operations name, as
+  `kapi apply` reads one.
 - **Answers.** A request the service refuses, a change set that does not
   decode included, resolves to a `kapi.change-result/v1` whose `error` says
   why. The Promise rejects only for a failure the contract has no code for,
