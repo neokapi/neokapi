@@ -82,25 +82,72 @@ func OpEditions(set change.Set) []model.EditionKey {
 // recipe, and notes the wording an agent's applied edits wrote against the
 // suggestions that prefer one (noteAgentEdits).
 func (a *App) applyCall(ctx context.Context, svc *change.Service, recipe string, set change.Set, actor change.Actor) (*change.Result, error) {
+	var before map[int]string
+	if actor.Kind == change.ActorAgent {
+		before = wordingBefore(ctx, svc, set)
+	}
 	res, err := svc.Apply(ctx, set, actor)
 	if err != nil {
 		return nil, err
 	}
 	if res.Status == change.SetApplied || res.Status == change.SetPartial {
 		a.noteAgentEdits(ctx, recipe, contextop.Actor{Kind: contextop.ActorKind(actor.Kind), Name: actor.Name, Session: actor.Session},
-			appliedWording(set, res))
+			appliedWording(set, res, before))
 	}
 	return res, nil
 }
 
+// editWording is what one applied content operation wrote into an edition:
+// the wording it put there, and the wording it took the place of, so a count
+// of a form in it credits only the uses the edit introduced.
+type editWording struct {
+	Before, After string
+}
+
+// wordingBefore reads the text each set_content of set replaces in a
+// document's own edition, by the operation's index, so the wording it writes
+// can be weighed against what was there. A block the read does not find is
+// left out, and its edit counts as all new.
+func wordingBefore(ctx context.Context, svc *change.Service, set change.Set) map[int]string {
+	byDoc := map[string][]int{}
+	for i, op := range set.Ops {
+		if _, ok := op.Body.(*change.SetContent); ok && op.At.Doc != "" && op.At.Block != "" {
+			byDoc[op.At.Doc] = append(byDoc[op.At.Doc], i)
+		}
+	}
+	out := map[int]string{}
+	for doc, ops := range byDoc {
+		keys := make([]string, 0, len(ops))
+		for _, i := range ops {
+			keys = append(keys, set.Ops[i].At.Block)
+		}
+		page, err := svc.Read(ctx, change.ReadRequest{Doc: doc, Blocks: keys, Limit: change.MaxReadLimit})
+		if err != nil {
+			continue
+		}
+		text := map[string]string{}
+		for _, b := range page.Blocks {
+			text[b.Ref.Block] = b.Text
+		}
+		for _, i := range ops {
+			if t, ok := text[set.Ops[i].At.Block]; ok {
+				out[i] = t
+			}
+		}
+	}
+	return out
+}
+
 // appliedWording is the wording each applied content operation wrote into a
 // document's own edition, in placeholder text, by the document as the result
-// names it, so noteAgentEdits can count the forms a suggestion prefers at the
-// document's point. A replace_text wrote only its replacements, and
-// set_content its whole text. A translation is left out: a suggestion's
-// preferred form is wording in the source language.
-func appliedWording(set change.Set, res *change.Result) map[string][]string {
-	out := map[string][]string{}
+// names it, beside the wording it took the place of, so noteAgentEdits can
+// count the forms a suggestion prefers that the edit introduced at the
+// document's point. A replace_text wrote its replacements in place of what
+// each edit's find named; a set_content wrote its whole text in place of the
+// text before (before, by operation index). A translation is left out: a
+// suggestion's preferred form is wording in the source language.
+func appliedWording(set change.Set, res *change.Result, before map[int]string) map[string][]editWording {
+	out := map[string][]editWording{}
 	for i, op := range set.Ops {
 		if i >= len(res.Ops) || res.Ops[i].Status != change.OpApplied {
 			continue
@@ -109,18 +156,22 @@ func appliedWording(set change.Set, res *change.Result) map[string][]string {
 		if at == nil || !at.Edition.IsZero() {
 			continue
 		}
-		var texts []string
+		var texts []editWording
 		switch body := op.Body.(type) {
 		case *change.SetContent:
 			switch {
 			case body.Text != nil:
-				texts = append(texts, *body.Text)
+				texts = append(texts, editWording{Before: before[i], After: *body.Text})
 			case body.Runs != nil:
-				texts = append(texts, model.RunsEditText(body.Runs))
+				texts = append(texts, editWording{Before: before[i], After: model.RunsEditText(body.Runs)})
 			}
 		case *change.ReplaceText:
 			for _, e := range body.Edits {
-				texts = append(texts, e.Text)
+				w := editWording{After: e.Text}
+				if e.Find != nil {
+					w.Before = *e.Find
+				}
+				texts = append(texts, w)
 			}
 		}
 		if len(texts) > 0 {

@@ -130,7 +130,9 @@ func TestSettle_AnAgentsEditAddsStanding(t *testing.T) {
 	app, _ := contextOpsApp(t)
 	root := contextOpsProject(t, "ctxops-applied")
 	proposed := proposeUtilise(t, app, root, agentIn("s1"))
-	edits := map[string][]string{filepath.Join(root, "config", "app.yaml"): {"We use the widget every day."}}
+	edits := map[string][]editWording{filepath.Join(root, "config", "app.yaml"): {{
+		Before: "We utilise the widget every day.", After: "We use the widget every day.",
+	}}}
 
 	app.noteAgentEdits(t.Context(), recipeOf(root), person, edits)
 	app.noteAgentEdits(t.Context(), recipeOf(root), agentIn("s2"), edits)
@@ -148,6 +150,42 @@ func TestSettle_AnAgentsEditAddsStanding(t *testing.T) {
 	require.NotNil(t, rule.Standing)
 	assert.Equal(t, 1, rule.Standing.Applied, "only the agent's edit is recorded")
 	assert.Contains(t, rule.line(), "applied in 1 agent edit")
+}
+
+// TestSettle_AnEditIsCreditedOnlyWithWordingItIntroduced: an agent's
+// set_content rewrites a whole paragraph, and the paragraph already held the
+// preferred form. The edit that changed other words in it adds nothing to the
+// suggestion's standing; the one that wrote the form where it was not adds one.
+func TestSettle_AnEditIsCreditedOnlyWithWordingItIntroduced(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := contextOpsProject(t, "ctxops-introduced")
+	proposed := proposeUtilise(t, app, root, agentIn("s1"))
+	file := filepath.Join(root, "config", "app.yaml")
+
+	app.noteAgentEdits(t.Context(), recipeOf(root), agentIn("s2"), map[string][]editWording{file: {{
+		Before: "We use the widget every day.", After: "We use the widget every single day.",
+	}}})
+	standing := func() *contextop.Standing {
+		t.Helper()
+		got, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root), Subjects: true})
+		require.NoError(t, err)
+		for _, op := range got.Operations {
+			if op.ID == proposed.ID {
+				return op.Standing
+			}
+		}
+		t.Fatal("the suggestion is in the log")
+		return nil
+	}
+	if s := standing(); s != nil {
+		assert.Zero(t, s.Applied, "the paragraph held the form before the edit")
+	}
+
+	app.noteAgentEdits(t.Context(), recipeOf(root), agentIn("s3"), map[string][]editWording{file: {{
+		Before: "We use the widget, and we utilise it daily.", After: "We use the widget, and we use it daily.",
+	}}})
+	require.NotNil(t, standing())
+	assert.Equal(t, 1, standing().Applied, "one use written where there was none")
 }
 
 // TestSettle_AMergeIsEvidence: a change that reached the default branch
