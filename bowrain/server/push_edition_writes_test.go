@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,7 +15,9 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
@@ -201,6 +205,93 @@ func TestSyncPush_RefusesAnApprovalOfTheTranslationThePusherWrote(t *testing.T) 
 	assert.Empty(t, records["greeting"].ReviewState)
 	assert.Empty(t, records["title"].ReviewState)
 	assert.Equal(t, venue.ReviewStateApproved, records["farewell"].ReviewState)
+}
+
+// bilingualXLIFF is a bilingual document whose translations carry inline codes:
+// paired formatting and a placeholder, which a push carries as runs.
+const bilingualXLIFF = `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+<file original="messages" source-language="en" target-language="nb" datatype="plaintext"><body>
+<trans-unit id="welcome"><source>Welcome to <g id="1">the shop</g>, <x id="2"/>!</source><target>Velkommen til <g id="1">butikken</g>, <x id="2"/>!</target></trans-unit>
+<trans-unit id="close"><source>Close</source><target>Lukk</target></trans-unit>
+</body></file>
+</xliff>
+`
+
+// readBilingual reads bilingualXLIFF through the format's reader, as a
+// checkout's read does.
+func readBilingual(t *testing.T) []*model.Block {
+	t.Helper()
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+	path := filepath.Join(t.TempDir(), "messages.xlf")
+	require.NoError(t, os.WriteFile(path, []byte(bilingualXLIFF), 0o644))
+	reader, err := reg.NewReader("xliff")
+	require.NoError(t, err)
+	defer reader.Close()
+	f, err := os.Open(path)
+	require.NoError(t, err)
+	defer f.Close()
+	require.NoError(t, reader.Open(t.Context(), &model.RawDocument{URI: path, FormatID: "xliff", Reader: f}))
+	var blocks []*model.Block
+	for pr := range reader.Read(t.Context()) {
+		require.NoError(t, pr.Error)
+		if b, ok := pr.Part.Resource.(*model.Block); ok && pr.Part.Type == model.PartBlock && b.HasTarget("nb") {
+			blocks = append(blocks, b)
+		}
+	}
+	require.Len(t, blocks, 2)
+	return blocks
+}
+
+// A bilingual document carries its translations in the push, and the venue
+// holds them. A checkout's block history names each translation by the
+// revision of the runs its read found, and the venue compares that with the
+// revision of the runs it stored from the push: inline codes included, the
+// two agree, so the venue takes the write as the record of the translation it
+// holds rather than as one about another translation.
+func TestSyncPush_TakesTheWriteOfABilingualTranslationItHolds(t *testing.T) {
+	srv, token := newTestServer(t)
+	pid := createProject(t, srv, token)
+	ts := httptest.NewServer(srv.GetEcho())
+	defer ts.Close()
+	client := apiclient.NewProjectBearerClient(ts.URL, pid, token)
+	ctx := context.Background()
+
+	blocks := readBilingual(t)
+	_, err := client.Push(ctx, map[string][]*model.Block{"messages.xlf": blocks},
+		[]apiclient.ItemMeta{{Name: "messages.xlf", Format: "xliff"}}, nil, nil)
+	require.NoError(t, err)
+	drainWithAuthority(t, srv)
+
+	stored, err := srv.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: pid, Stream: "main", ItemName: "messages.xlf"})
+	require.NoError(t, err)
+	unitOf := map[string]string{}
+	for _, row := range stored {
+		unitOf[row.Block.Name] = row.SourceID
+	}
+	nb := model.EditionKey{Locale: "nb"}
+	var writes []venue.EditionWrite
+	for _, b := range blocks {
+		require.NotEmpty(t, unitOf[b.Name], "the venue holds %s", b.Name)
+		writes = append(writes, venue.EditionWrite{
+			ItemName: "messages.xlf", Unit: unitOf[b.Name], Variant: "nb",
+			Revision: model.EditionRevision(b, nb), Basis: state.SourceHash(b.SourceText()),
+			Writer: venue.WriterTool, Origin: "flow:up",
+		})
+	}
+	_, err = client.Push(ctx, map[string][]*model.Block{}, nil, nil, nil, apiclient.CarryEditionWrites(writes))
+	require.NoError(t, err)
+	drainWithAuthority(t, srv)
+
+	records := nbLedger(t, srv, pid)
+	for _, b := range blocks {
+		d, ok := records[unitOf[b.Name]]
+		require.True(t, ok, "%s: the venue took the write", b.Name)
+		assert.Equal(t, state.TargetHash(model.RunsText(b.TargetRuns("nb"))), d.TargetHash,
+			"%s: as the record of the translation it holds", b.Name)
+		assert.Equal(t, state.SourceHash(b.SourceText()), d.ContentHash)
+	}
 }
 
 // The usual order is to write a translation by hand, push, and approve it
