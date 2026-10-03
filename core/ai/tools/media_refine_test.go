@@ -138,7 +138,7 @@ func TestMediaRefine_RewriteIsAnEditThatDropsStaleOverlays(t *testing.T) {
 	}
 	tool := newToolWithRaster(t, mock)
 	low := ocrBlock("tu1", "corrupted txt from the scan", 0.40)
-	low.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "scan", Range: model.RangeAnchor(low.Source, 23, 27)})
+	low.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "scan", Range: model.RangeAnchor(low.SourceRuns(), 23, 27)})
 	runRefine(t, tool, []*model.Block{low})
 
 	assert.Equal(t, "fixed", low.SourceText())
@@ -146,7 +146,7 @@ func TestMediaRefine_RewriteIsAnEditThatDropsStaleOverlays(t *testing.T) {
 	assert.True(t, edited)
 	assert.Equal(t, "corrupted txt from the scan", model.RunsText(read))
 	assert.Nil(t, low.OverlayOf(model.OverlayTerm), "the span into the old text is gone")
-	_, ok := low.OverlaysInBounds(nil, low.Source)
+	_, ok := low.OverlaysInBounds(nil, low.SourceRuns())
 	assert.True(t, ok)
 }
 

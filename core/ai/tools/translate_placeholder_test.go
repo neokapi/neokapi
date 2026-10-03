@@ -46,5 +46,7 @@ func TestAITranslate_AnInventedPlaceholderDoesNotFailTheBlock(t *testing.T) {
 	require.NotNil(t, last.Ph, "the invented placeholder is kept for the checks to find")
 	assert.Equal(t, "2", last.Ph.ID)
 	assert.Empty(t, last.Ph.Data)
-	assert.Equal(t, model.TargetStatusDraft, got.Target(model.LocaleFrench).Status)
+	tgt, ok := got.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status)
 }

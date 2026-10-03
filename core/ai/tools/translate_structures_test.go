@@ -66,7 +66,9 @@ func assertInboxTranslated(t *testing.T, b *model.Block) {
 		"one":   `[fr] <x id="p1/"/> new message`,
 		"other": `[fr] <x id="p1/"/> new messages`,
 	}, forms)
-	assert.Equal(t, model.TargetStatusDraft, b.Target(model.LocaleFrench).Status)
+	tgt, ok := b.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status)
 }
 
 // A block holding a plural is translated a branch at a time, so every branch

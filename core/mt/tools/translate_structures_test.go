@@ -40,5 +40,7 @@ func TestMTTranslateToolKeepsEveryBranch(t *testing.T) {
 	require.NotNil(t, other[1].Ph)
 	assert.Equal(t, "{name}", other[1].Ph.Data, "the code keeps its native form")
 	assert.Len(t, sources, 2, "one call per case; nothing around the select to translate")
-	assert.Equal(t, model.TargetStatusDraft, got.Target(model.LocaleFrench).Status)
+	tgt, ok := got.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status)
 }
