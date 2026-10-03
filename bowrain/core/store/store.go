@@ -164,10 +164,6 @@ type BlockStore interface {
 	ListPendingReview(ctx context.Context, query PendingReviewQuery) ([]PendingReviewRef, int, error)
 	DeleteBlock(ctx context.Context, projectID, stream, blockID string) error
 
-	AddBlockNote(ctx context.Context, projectID, stream, blockID string, note model.BlockNote) error
-	ListBlockNotes(ctx context.Context, projectID, stream, blockID string) ([]model.BlockNote, error)
-	DeleteBlockNote(ctx context.Context, projectID, stream, noteID string) error
-
 	GetBlockHistory(ctx context.Context, projectID, stream, blockID string, locale string, limit int) ([]BlockHistoryEntry, error)
 }
 

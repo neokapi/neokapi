@@ -44,6 +44,8 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 31  the ledger records the governing context a decision was made under
 // 34  the ship gate's verdict records the terminology verdict
 // 36  the jobs a grouped notification counts
+// 37  who wrote each translation a checkout holds by hand
+// 38  the block notes table retired: a note is an annotation on the block
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -273,19 +275,6 @@ var Migrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_block_history_lookup ON block_history(project_id, block_id, locale);
 			CREATE INDEX IF NOT EXISTS idx_block_history_stream ON block_history(project_id, stream, block_id, locale);
 			CREATE INDEX IF NOT EXISTS idx_block_history_correlation ON block_history(project_id, correlation_id);
-
-			-- Block notes
-			CREATE TABLE IF NOT EXISTS block_notes (
-				id         TEXT PRIMARY KEY,
-				project_id TEXT NOT NULL,
-				block_id   TEXT NOT NULL,
-				author     TEXT NOT NULL DEFAULT '',
-				text       TEXT NOT NULL,
-				stream     TEXT NOT NULL DEFAULT 'main',
-				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-			);
-			CREATE INDEX IF NOT EXISTS idx_block_notes_lookup ON block_notes(project_id, block_id);
-			CREATE INDEX IF NOT EXISTS idx_block_notes_stream ON block_notes(project_id, stream, block_id);
 
 			-- Versions
 			CREATE TABLE IF NOT EXISTS versions (
@@ -1515,6 +1504,17 @@ var Migrations = []storage.Migration{
 				written_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, stream, item_name, unit, variant)
 			);
+		`,
+	},
+	{
+		Version:     38,
+		Description: "the block notes table retired",
+		SQL: `
+			-- A note is an annotation of type note on the block's own edition,
+			-- written by a change set and read with the block. Nothing reads or
+			-- writes this table, so its rows go with it. A database built after
+			-- the baseline dropped the table has nothing to drop.
+			DROP TABLE IF EXISTS block_notes;
 		`,
 	},
 }

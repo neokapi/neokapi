@@ -67,8 +67,8 @@ func (s *PostgresStore) CreateStream(ctx context.Context, st *platstore.Stream) 
 // history would mark inherited content as changed on the new branch.
 // stamp names a column to set to the branch time, or is empty.
 //
-// mintID marks globally keyed rows, such as notes, that need new IDs. Items and
-// blocks preserve IDs so they can be compared with their parent stream.
+// mintID marks globally keyed rows that need new IDs. Items and blocks
+// preserve IDs so they can be compared with their parent stream.
 var branchStreamCopies = []struct {
 	table, columns, stamp string
 	mintID                bool
@@ -79,7 +79,6 @@ var branchStreamCopies = []struct {
 	{table: "translations", columns: "project_id, block_id, locale, text, target_json, provider, metadata", stamp: "updated_at"},
 	{table: "annotations", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
 	{table: "overlays_ext", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
-	{table: "block_notes", columns: "project_id, block_id, author, text, created_at", mintID: true},
 	{table: "unit_decisions", columns: "project_id, item_id, item_name, unit, variant, status, target_hash, content_hash, " +
 		"review_state, decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated", stamp: "updated_at"},
 }

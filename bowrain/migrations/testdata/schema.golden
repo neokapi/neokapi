@@ -264,13 +264,6 @@ block_history.origin text NOT NULL DEFAULT ''::text
 block_history.project_id text NOT NULL
 block_history.stream text NOT NULL DEFAULT 'main'::text
 block_history.text text NOT NULL DEFAULT ''::text
-block_notes.author text NOT NULL DEFAULT ''::text
-block_notes.block_id text NOT NULL
-block_notes.created_at timestamp with time zone NOT NULL DEFAULT now()
-block_notes.id text NOT NULL
-block_notes.project_id text NOT NULL
-block_notes.stream text NOT NULL DEFAULT 'main'::text
-block_notes.text text NOT NULL
 blocks.access text NOT NULL DEFAULT 'open'::text
 blocks.content_hash text NOT NULL DEFAULT ''::text
 blocks.context_hash text NOT NULL DEFAULT ''::text
@@ -1297,7 +1290,6 @@ billing_events billing_events_pkey PRIMARY KEY (id)
 billing_schema_migrations billing_schema_migrations_pkey PRIMARY KEY (version)
 block_asset_refs block_asset_refs_pkey PRIMARY KEY (project_id, block_id, asset_id)
 block_history block_history_pkey PRIMARY KEY (id)
-block_notes block_notes_pkey PRIMARY KEY (id)
 blocks blocks_pkey PRIMARY KEY (project_id, stream, id)
 blocks blocks_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 change_log change_log_pkey PRIMARY KEY (seq)
@@ -1534,8 +1526,6 @@ CREATE INDEX idx_block_asset_refs_asset ON public.block_asset_refs USING btree (
 CREATE INDEX idx_block_history_correlation ON public.block_history USING btree (project_id, correlation_id)
 CREATE INDEX idx_block_history_lookup ON public.block_history USING btree (project_id, block_id, locale)
 CREATE INDEX idx_block_history_stream ON public.block_history USING btree (project_id, stream, block_id, locale)
-CREATE INDEX idx_block_notes_lookup ON public.block_notes USING btree (project_id, block_id)
-CREATE INDEX idx_block_notes_stream ON public.block_notes USING btree (project_id, stream, block_id)
 CREATE INDEX idx_blocks_content_hash ON public.blocks USING btree (content_hash)
 CREATE INDEX idx_blocks_item ON public.blocks USING btree (project_id, stream, item_name)
 CREATE INDEX idx_blocks_item_id ON public.blocks USING btree (project_id, stream, item_id)
@@ -1718,7 +1708,6 @@ CREATE UNIQUE INDEX billing_events_pkey ON public.billing_events USING btree (id
 CREATE UNIQUE INDEX billing_schema_migrations_pkey ON public.billing_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX block_asset_refs_pkey ON public.block_asset_refs USING btree (project_id, block_id, asset_id)
 CREATE UNIQUE INDEX block_history_pkey ON public.block_history USING btree (id)
-CREATE UNIQUE INDEX block_notes_pkey ON public.block_notes USING btree (id)
 CREATE UNIQUE INDEX blocks_pkey ON public.blocks USING btree (project_id, stream, id)
 CREATE UNIQUE INDEX change_log_archive_pkey ON public.change_log_archive USING btree (seq)
 CREATE UNIQUE INDEX change_log_pkey ON public.change_log USING btree (seq)

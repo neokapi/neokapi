@@ -36,9 +36,6 @@ func seedOrphanFixture(t *testing.T, s *SQLiteStore, projectID, stream, itemName
 	blockID := blockIDForSource(t, s, projectID, stream, itemName, "greeting")
 	require.NotEmpty(t, blockID)
 
-	require.NoError(t, s.AddBlockNote(ctx, projectID, stream, blockID, model.BlockNote{
-		Author: "reviewer@example.com", Text: "the source reads oddly here",
-	}))
 	_, err := s.UpsertUnitDecisions(ctx, projectID, stream, []venue.UnitDecision{{
 		ItemName: itemName, Unit: "greeting", Variant: "nb",
 		Status:      string(model.TargetStatusEstablished),
@@ -139,7 +136,7 @@ func TestDeleteProject_LeavesNoOrphans_SQLite(t *testing.T) {
 // The stream sweep and the block sweep are one list each, shared by both
 // dialects: a table added to storeutil is reached by all four verbs at once.
 func TestDeletionTableListsAreShared(t *testing.T) {
-	assert.Contains(t, storeutil.BlockScopedTables(), "block_notes")
+	assert.Contains(t, storeutil.BlockScopedTables(), "annotations")
 	assert.Contains(t, storeutil.BlockScopedTables(), "proposed_source_changes")
 	assert.NotContains(t, storeutil.BlockScopedTables(), "change_log",
 		"a change log that forgot the removal would be no log")
