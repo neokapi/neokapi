@@ -40,11 +40,11 @@ func recordTranslation(t *testing.T, c *BowrainSourceConnector, text string) {
 	_, err = rec.Record(t.Context(), change.Record{
 		Actor: change.Actor{Kind: change.ActorTool, Name: "translate"}, Origin: "flow:translate",
 		Docs: []change.DocResult{{Doc: "locales/en.json", Home: "file", Written: true}},
-		Transitions: []change.Transition{{EditionChange: change.EditionChange{
+		Transitions: []change.Transition{{
 			Ref: change.Ref{Doc: "locales/en.json", Block: "greeting", Edition: fr}, Role: change.RoleDerived,
 			BeforeRev: model.AbsentRevision, AfterRev: model.EditionRevision(b, fr),
 			Basis: model.EditionRevision(b, model.EditionKey{Locale: "en"}), Block: b,
-		}}},
+		}},
 	})
 	require.NoError(t, err)
 }
@@ -86,15 +86,13 @@ func translatedCheckout(t *testing.T, srv *refServer) *BowrainSourceConnector {
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en.json"),
 		[]byte(`{"greeting": "Hello world", "farewell": "Goodbye now"}`+"\n"), 0o644))
 	recipe := &bproject.Recipe{
-		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{
-				SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}, Flow: "pseudo",
-				TranslateAfter: string(model.TranslateAfterNone), Materialize: coreproj.MaterializeManual,
-			},
-			Collections: []coreproj.Collection{{Name: "app", Path: "locales/en.json", Target: "locales/{lang}.json"}},
-			Flows:       map[string]*flow.StepsSpec{"pseudo": {Steps: []flow.FlowStep{{Tool: "pseudo-translate"}}}},
+		Defaults: coreproj.Defaults{
+			SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}, Flow: "pseudo",
+			TranslateAfter: string(model.TranslateAfterNone), Materialize: coreproj.MaterializeManual,
 		},
-		Server: &bproject.ServerSpec{URL: srv.URL + "/projects/proj1", Stream: "main"},
+		Collections: []coreproj.Collection{{Name: "app", Path: "locales/en.json", Target: "locales/{lang}.json"}},
+		Flows:       map[string]*flow.StepsSpec{"pseudo": {Steps: []flow.FlowStep{{Tool: "pseudo-translate"}}}},
+		Server:      &bproject.ServerSpec{URL: srv.URL + "/projects/proj1", Stream: "main"},
 	}
 	proj, err := bproject.InitProject(root, recipe)
 	require.NoError(t, err)

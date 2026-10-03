@@ -283,11 +283,11 @@ func recordLoopWrite(t *testing.T, app *App, root, doc string, locale model.Loca
 		}
 		ed.Origin = producer
 		b.SetEdition(k, ed)
-		transitions = append(transitions, change.Transition{EditionChange: change.EditionChange{
+		transitions = append(transitions, change.Transition{
 			Ref: change.Ref{Doc: doc, Block: r.Ref.Block, Edition: k}, Role: change.RoleDerived,
 			BeforeRev: model.AbsentRevision, AfterRev: model.EditionRevision(b, k),
 			Basis: model.EditionRevision(b, b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{}))), Block: b,
-		}})
+		})
 		return nil
 	})
 	require.NoError(t, err)

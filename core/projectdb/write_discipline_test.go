@@ -59,9 +59,10 @@ func unitState(i int) state.UnitState {
 	return state.UnitState{
 		Unit:        fmt.Sprintf("k1_%040x", i),
 		Variant:     model.Variant("nb"),
-		Status:      model.TargetStatusTranslated,
+		Status:      model.TargetStatusEstablished,
 		ContentHash: fmt.Sprintf("k1_%040x", i),
 		Scope:       "docs",
+		Decision:    state.Decision{ReviewState: "approved"},
 		Updated:     time.Now().UTC().Format(time.RFC3339),
 	}
 }
