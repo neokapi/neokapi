@@ -210,7 +210,7 @@ func (w *workset) admit(op Op) *Error {
 	}
 	if spec.ifMatch == ifMatchRequired && op.IfMatch == "" {
 		return &Error{Code: CodeInvalid, Field: "if_match",
-			Message: `if_match is required: send the revision you read, "absent" to create, or "*" to write whatever is there`}
+			Message: `if_match is required: send the revision you read, "absent" to create, or "*" for a blind write, which only a person may send`}
 	}
 	if op.IfMatch != "" {
 		if err := checkIfMatch(spec.ifMatch, op.IfMatch, ""); err != nil {

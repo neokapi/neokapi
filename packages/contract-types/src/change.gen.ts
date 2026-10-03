@@ -48,7 +48,9 @@ export interface ChangeSet {
   evidence?: ChangeEvidence[];
   /**
    * the operations, applied in order; a position names the content as read, and
-   * an empty list changes nothing
+   * an empty list changes nothing. Several operations may name one block, each
+   * sending the rev you read, since every if_match is checked against the
+   * content the change set began with
    */
   ops: ChangeOp[];
 }
@@ -121,7 +123,7 @@ export type SetContentOp = {
   at: ChangeRef;
   /**
    * the revision of the edition you read, "absent" for an edition that must not
-   * exist yet, or "*" for whatever is there
+   * exist yet, or "*" for a blind write, which only a person may send
    *
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
@@ -170,7 +172,7 @@ export interface ReplaceTextOp {
   at: ChangeRef;
   /**
    * the revision of the edition you read, "absent" for an edition that must not
-   * exist yet, or "*" for whatever is there
+   * exist yet, or "*" for a blind write, which only a person may send
    *
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
@@ -207,7 +209,7 @@ export interface SetAttributeOp {
   at: ChangeRef;
   /**
    * the revision of the edition you read, "absent" for an edition that must not
-   * exist yet, or "*" for whatever is there
+   * exist yet, or "*" for a blind write, which only a person may send
    *
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
@@ -229,7 +231,7 @@ export interface MarkOp {
   at: ChangeRef;
   /**
    * the revision of the edition you read, "absent" for an edition that must not
-   * exist yet, or "*" for whatever is there
+   * exist yet, or "*" for a blind write, which only a person may send
    *
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
@@ -248,7 +250,7 @@ export interface RemoveEditionOp {
   at: ChangeRef;
   /**
    * the revision of the edition you read, "absent" for an edition that must not
-   * exist yet, or "*" for whatever is there
+   * exist yet, or "*" for a blind write, which only a person may send
    *
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
@@ -337,7 +339,7 @@ export interface DecideOp {
   at: ChangeRef;
   /**
    * the revision of the edition you read, "absent" for an edition that must not
-   * exist yet, or "*" for whatever is there
+   * exist yet, or "*" for a blind write, which only a person may send
    *
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */

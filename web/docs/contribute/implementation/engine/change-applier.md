@@ -32,7 +32,7 @@ The generator fails on a schema keyword or a combination of keywords it does not
 
 An operation names the revision of the edition its sender read. `model.EditionRevision(block, key)` is `r:` and 16 hex digits of the SHA-256 of the edition key, a zero byte and the edition's runs as canonical JSON (`model.CanonicalRunsJSON`, the form the TypeScript mirror writes). Inline codes count, with their data and attributes. Status, origin and every other edition are left out, so a review decision does not move a revision and a source edit leaves a translation's revision where it was. An edition the block does not hold reads as `absent`.
 
-`if_match` is a revision, `absent` to create an edition, or `*` to write whatever is there. A derived edition's write also records its `basis`, the authoritative edition's revision it was made from: the one the sender names, or else the authoritative edition as the operations before it in the set left it. With `require_basis` set, a basis that no longer holds is refused as `stale`.
+`if_match` is a revision, `absent` to create an edition, or `*` for a blind write, which only a person may send. A derived edition's write also records its `basis`, the authoritative edition's revision it was made from: the one the sender names, or else the authoritative edition as the operations before it in the set left it. With `require_basis` set, a basis that no longer holds is refused as `stale`.
 
 ## ApplyBlock
 

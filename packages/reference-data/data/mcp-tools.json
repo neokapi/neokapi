@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T17:17:55Z",
+  "generatedAt": "2026-10-03T19:12:50Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -10,7 +10,7 @@
           "name": "ops",
           "type": "array",
           "required": true,
-          "description": "the operations, applied in order; a position names the content as read, and an empty list changes nothing"
+          "description": "the operations, applied in order; a position names the content as read, and an empty list changes nothing. Several operations may name one block, each sending the rev you read, since every if_match is checked against the content the change set began with"
         },
         {
           "name": "evidence",

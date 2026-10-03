@@ -207,7 +207,7 @@ func buildSchema() (*jsonschema.Schema, error) {
 		}
 		switch spec.IfMatch {
 		case change.IfMatchRequired:
-			s := str(`the revision of the edition you read, "absent" for an edition that must not exist yet, or "*" for whatever is there`)
+			s := str(`the revision of the edition you read, "absent" for an edition that must not exist yet, or "*" for a blind write, which only a person may send`)
 			s.Pattern = patternIfMatch
 			add("if_match", s, true)
 		case change.IfMatchOptional:
@@ -242,7 +242,7 @@ func buildSchema() (*jsonschema.Schema, error) {
 		"require_basis": {Type: "boolean", Description: "refuse a derived-edition write whose authoritative edition moved since it was read"},
 		"note":          str("one line a person reads in history and review"),
 		"evidence":      {Type: "array", Items: evidence, Description: "where the wording behind the change was seen"},
-		"ops":           {Type: "array", Items: &jsonschema.Schema{OneOf: members}, Description: "the operations, applied in order; a position names the content as read, and an empty list changes nothing"},
+		"ops":           {Type: "array", Items: &jsonschema.Schema{OneOf: members}, Description: "the operations, applied in order; a position names the content as read, and an empty list changes nothing. Several operations may name one block, each sending the rev you read, since every if_match is checked against the content the change set began with"},
 	}, []string{"schema", "mode", "gate", "require_basis", "note", "evidence", "ops"}, "ops")
 	root.Schema = "https://json-schema.org/draft/2020-12/schema"
 	root.Title = change.SchemaID
