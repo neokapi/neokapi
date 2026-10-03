@@ -254,6 +254,7 @@ func TestPairedInfraFailures(t *testing.T) {
 		"Invalid API key · Please run /login":                                                "auth",
 		"stream disconnected before completion: error sending request":                       "network",
 		"Error: fetch failed (ECONNRESET)":                                                   "network",
+		"API Error: Request timed out.":                                                      "network",
 		"Reached maximum number of turns (40)":                                               "",
 		"The agent could not finish the edit":                                                "",
 	} {

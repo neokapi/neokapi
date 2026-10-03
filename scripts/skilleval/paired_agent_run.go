@@ -150,7 +150,7 @@ var pairedInfraPatterns = []struct {
 }{
 	{"auth", regexp.MustCompile(`(?i)oauth token (?:has )?expired|token (?:has |is )?(?:expired|revoked)|invalid (?:api key|bearer token|x-api-key)|authentication[_ ](?:error|failed)|\b401\b|unauthori[sz]ed|please run /login|not logged in|login (?:is )?required|refresh token|failed to refresh|re-?authenticate`)},
 	{"overload", regexp.MustCompile(`(?i)\b529\b|overloaded|api error: 5\d\d|\b50[0234]\b (?:internal server error|bad gateway|service unavailable|gateway timeout)|internal server error|service unavailable|bad gateway|gateway timeout|server is busy`)},
-	{"network", regexp.MustCompile(`(?i)ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ENETUNREACH|network (?:error|is unreachable)|connection (?:reset|refused|closed|error|timed out)|socket hang up|fetch failed|stream (?:disconnected|error)|error sending request|could not resolve host|tls handshake|unable to connect`)},
+	{"network", regexp.MustCompile(`(?i)ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ENETUNREACH|network (?:error|is unreachable)|connection (?:reset|refused|closed|error|timed out)|request timed out|socket hang up|fetch failed|stream (?:disconnected|error)|error sending request|could not resolve host|tls handshake|unable to connect`)},
 }
 
 // pairedInfraFailure returns the kind of infrastructure failure text
