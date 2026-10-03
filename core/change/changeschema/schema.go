@@ -242,7 +242,7 @@ func buildSchema() (*jsonschema.Schema, error) {
 		"require_basis": {Type: "boolean", Description: "refuse a derived-edition write whose authoritative edition moved since it was read"},
 		"note":          str("one line a person reads in history and review"),
 		"evidence":      {Type: "array", Items: evidence, Description: "where the wording behind the change was seen"},
-		"ops":           {Type: "array", MinItems: new(1), Items: &jsonschema.Schema{OneOf: members}, Description: "the operations, applied in order"},
+		"ops":           {Type: "array", Items: &jsonschema.Schema{OneOf: members}, Description: "the operations, applied in order; a position names the content as read, and an empty list changes nothing"},
 	}, []string{"schema", "mode", "gate", "require_basis", "note", "evidence", "ops"}, "ops")
 	root.Schema = "https://json-schema.org/draft/2020-12/schema"
 	root.Title = change.SchemaID

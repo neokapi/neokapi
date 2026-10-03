@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -55,11 +56,15 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		return err
 	}
 	if err := retiredChangeShape(data); err != nil {
-		return WithExitCode(ExitUsage, err)
+		return a.refuseUndecodable(cmd, opts, &change.Error{Code: change.CodeInvalid, Message: err.Error()}, err)
 	}
 	set, err := change.Decode(bytes.NewReader(data))
 	if err != nil {
-		return WithExitCode(ExitUsage, fmt.Errorf("apply: %w", err))
+		ce, ok := errors.AsType[*change.Error](err)
+		if !ok || ce == nil {
+			ce = &change.Error{Code: change.CodeInvalid, Message: err.Error()}
+		}
+		return a.refuseUndecodable(cmd, opts, ce, fmt.Errorf("apply: %w", err))
 	}
 	if opts.DryRun {
 		set.Mode = change.ModePreview
@@ -148,6 +153,20 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 	return changeResultExit(res)
 }
 
+// refuseUndecodable answers a change set that does not decode, exit 2: with
+// --json, the refused kapi.change-result/v1 whose error says why, as MCP and
+// the browser answer it, on standard output; otherwise err, which the command
+// line prints.
+func (a *App) refuseUndecodable(cmd Command, opts ApplyOptions, ce *change.Error, err error) error {
+	if !opts.JSON {
+		return WithExitCode(ExitUsage, err)
+	}
+	if werr := writeChangeResult(cmd.OutOrStdout(), change.ErrorResult(ce)); werr != nil {
+		return werr
+	}
+	return WithExitCode(ExitUsage, ErrSilentExit)
+}
+
 // outsideProject reports whether a change set applied in the project at
 // recipe edits files outside it: every document it names is an absolute path
 // outside the project's root, as kapi inspect names a file it read outside
@@ -191,12 +210,14 @@ func under(root, path string) bool {
 // bilingual file whose reader has to be told the language of the translation
 // it holds (a PO catalog's msgstr) is read in that language.
 func targetLocaleOf(set change.Set, source model.LocaleID) model.LocaleID {
-	return soleTargetLocale(opEditions(set), source)
+	return SoleTargetLocale(OpEditions(set), source)
 }
 
-// soleTargetLocale is the one language editions name other than source, or
-// "" when they name none or several.
-func soleTargetLocale(editions []model.EditionKey, source model.LocaleID) model.LocaleID {
+// SoleTargetLocale is the one language editions name other than source, or
+// "" when they name none or several. A change service built for a call that
+// names editions reads a bilingual file in it (ChangeServiceOptions.
+// TargetLocale), as kapi apply, MCP, the browser and Kapi Desktop do.
+func SoleTargetLocale(editions []model.EditionKey, source model.LocaleID) model.LocaleID {
 	var loc model.LocaleID
 	for _, e := range editions {
 		l := model.NormalizeLocale(e.Locale)
@@ -330,6 +351,9 @@ func printChangeResult(w io.Writer, res *change.Result) {
 		if n := counts[s]; n > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s", n, strings.ReplaceAll(string(s), "_", " ")))
 		}
+	}
+	if len(res.Ops) == 0 {
+		parts = append(parts, "no operation, nothing to change")
 	}
 	fmt.Fprintf(w, "change set %s: %s\n", res.Status, strings.Join(parts, ", "))
 }

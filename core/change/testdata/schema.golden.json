@@ -862,8 +862,7 @@
           }
         ]
       },
-      "description": "the operations, applied in order",
-      "minItems": 1
+      "description": "the operations, applied in order; a position names the content as read, and an empty list changes nothing"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",

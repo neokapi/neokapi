@@ -575,6 +575,32 @@ func (r *memRecorder) Record(_ context.Context, rec change.Record) (string, erro
 	return fmt.Sprintf("op_%d", len(r.records)), nil
 }
 
+// A change set with no operation applies and changes nothing: no document is
+// written and nothing is recorded, in either mode, as a run that changes
+// nothing prints it.
+func TestService_AnEmptyChangeSetAppliesAndWritesNothing(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First")}})
+	rec := &memRecorder{}
+	svc := newMemService(h, change.WithRecorder(rec))
+	before := h.snapshot("a")
+	for _, tc := range []struct {
+		mode change.Mode
+		want change.SetStatus
+	}{{change.ModeApply, change.SetApplied}, {change.ModePreview, change.SetPreviewed}} {
+		set, err := change.Decode(strings.NewReader(`{"mode":"` + string(tc.mode) + `","ops":[]}`))
+		require.NoError(t, err)
+		res, err := svc.Apply(context.Background(), set, svcPerson)
+		require.NoError(t, err)
+		assert.Equal(t, tc.want, res.Status)
+		assert.Empty(t, res.Ops)
+		assert.Empty(t, res.Docs)
+		assert.Nil(t, res.Record)
+		assert.Nil(t, res.Error)
+	}
+	assert.Empty(t, rec.records, "nothing is recorded")
+	assert.Equal(t, before, h.snapshot("a"))
+}
+
 func TestService_RecordsWhatLanded(t *testing.T) {
 	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First", "nb", "Første")}})
 	rec := &memRecorder{}

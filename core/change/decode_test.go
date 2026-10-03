@@ -121,6 +121,20 @@ func decodeCases() []decodeCase {
 		{name: "JSONL of operations only", in: `{"op":"unannotate",` + at + `,"type":"note","id":"n1"}` + "\n" + `{"op":"unannotate",` + at + `,"type":"note","id":"n2"}`,
 			check: func(t *testing.T, s change.Set) { assert.Len(t, s.Ops, 2) }},
 
+		// A change set that changes nothing, as a run with nothing to do
+		// prints it.
+		{name: "an empty ops list", object: true, in: `{"schema":"kapi.change/v1","note":"nothing to do","ops":[]}`,
+			check: func(t *testing.T, s change.Set) {
+				assert.NotNil(t, s.Ops)
+				assert.Empty(t, s.Ops)
+				assert.Equal(t, "nothing to do", s.Note)
+			}},
+		{name: "an empty array", in: `[]`,
+			check: func(t *testing.T, s change.Set) {
+				assert.NotNil(t, s.Ops)
+				assert.Empty(t, s.Ops)
+			}},
+
 		// Refusals, each at the pointer of what is wrong.
 		{name: "unknown envelope field", object: true, pointer: "/actor", in: `{"actor":{"kind":"agent"},"ops":[{"op":"unannotate",` + at + `,"type":"note","id":"n1"}]}`},
 		{name: "unknown operation", object: true, pointer: "/ops/0/op", in: envelope(`{"op":"set_text",` + at + `}`)},
