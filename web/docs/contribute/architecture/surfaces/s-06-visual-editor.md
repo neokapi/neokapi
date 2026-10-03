@@ -2,8 +2,8 @@
 id: s-06-visual-editor
 sidebar_position: 6
 title: "S-06: The visual editor data model"
-description: "The preview kit is a render-and-inspect surface over the content model: a Part stream becomes a ContentTree, normalized to a format-shaped RenderDoc, rendered with vocabulary-styled runs and overlay marks through a projection declared per run kind; a target edit is committed on the model and round-trips through reader, skeleton, and writer."
-keywords: [neokapi, architecture decision, visual editor, preview kit, ContentTree, RenderDoc, DocumentViewer, BlockInspector, vocabulary, overlays, RunSpec, round-trip]
+description: "The preview kit is a render-and-inspect surface over the content model: a Part stream becomes a ContentTree, normalized to a format-shaped RenderDoc, rendered with vocabulary-styled runs and overlay marks through a projection declared per run kind; a host commits an edit as a change set with the revision it rendered, and the change service writes it back through reader, skeleton and writer."
+keywords: [neokapi, architecture decision, visual editor, preview kit, ContentTree, RenderDoc, DocumentViewer, BlockInspector, vocabulary, overlays, RunSpec, round-trip, change set]
 ---
 
 import { PipelineDiagram, RoundTripDiagram } from "@neokapi/docs-shared";
@@ -21,10 +21,11 @@ whose `kind` drives a format-shaped renderer. Inline runs are styled through the
 **vocabulary**; stand-off **overlays** render as inline marks whose accent is a
 function of the overlay type *and* the span's own properties. Every projection
 of a run sequence to text is declared per run kind, so a placeholder or a plural
-can never vanish from a view. Editing is deliberately kept out of the kit: the
-canonical way to commit a translation is the model's own `SetTargetRuns`, and
-the byte-faithful round-trip is a property of reader + skeleton + writer,
-independent of who edited.
+can never vanish from a view. The kit draws and inspects. A host that edits
+commits through the change service ([E-09](../engine/e-09-the-change-contract.md)):
+it sends a change set naming the revision it rendered, and the service applies it
+to the block and writes the document back through reader, skeleton and writer,
+whoever edited.
 
 <RoundTripDiagram
   animated
@@ -35,7 +36,7 @@ independent of who edited.
     { label: "Editor", sub: "render + inspect", role: "tool" },
   ]}
   back={[
-    { label: "Edit", sub: "SetTargetRuns", role: "translate" },
+    { label: "Change set", sub: "set_content · if_match", role: "translate" },
     { label: "Writer", sub: "+ skeleton" },
     { label: "Output", sub: "faithful original", role: "io" },
   ]}
@@ -56,10 +57,9 @@ The editor spans two of them and belongs to neither, for two reasons.
 `ContentTree` and its TypeScript mirror, is the seam where the two halves meet,
 and a seam nobody wrote down is a seam that drifts.
 
-**The back path is the least obvious part.** The framework supplies a target-edit
-primitive and a faithful round-trip, but ships no production translation-editing
-application. So the contract worth pinning down is *model → edit → write*, not
-any particular interface's commit flow.
+**The back path is the least obvious part.** Every surface that edits content
+sends the same change set to the same service, so the contract worth pinning
+down is *read → change set → write*, and the kit's part in it is the read.
 
 ## Decision
 
@@ -201,7 +201,7 @@ collapsible per-block view rendering the source run sequence, each variant's row
 per-span id, run range, text, and properties), annotation rows, the properties
 grid, and flag badges.
 
-### The kit renders and inspects; it does not commit
+### The kit renders and inspects; a host commits
 
 `@neokapi/ui-primitives` is the single source of truth for the kit, exported
 under `./preview`: the viewer and format preview, the file browser, the block
@@ -217,11 +217,16 @@ vocabulary registry).
 | Kapi Lab | wraps the viewer to inspect engine output; the explorers use the tree and browser views |
 | The playground and docs site | the same viewer over WASM-produced output |
 
-The boundary is deliberate. The framework ships no production
-translation-editing surface, and an application that needs one builds its commit
-surface on the model's own primitive and its own persistence. Keeping the kit
-free of an editing and commit dependency is exactly what lets every one of those
-consumers share it as dependency-light UI.
+The kit holds no commit path, which keeps it dependency-light UI every one of
+those consumers shares. A host that edits builds the commit beside the viewer on
+the change service. Kapi Desktop's document view does: a click on a block in the
+Preview puts it in focus, and Edit opens the unit's source, or the translation
+the view shows, in an editor under the document. The editor reads the unit
+through the service, draws each inline code as a chip and a plural a form at a
+time, and saves a `set_content` with the revision it read; the document is
+inspected again once the change lands. A unit that changed since it was read is
+refused with the text it holds now, which the editor shows before asking to
+apply the edit over it ([S-02](s-02-kapi-desktop.md)).
 
 ### Edit path and round-trip
 
@@ -229,35 +234,38 @@ The editor-side `BlockIndex` carries a flattened, string-valued view; its
 `UpdateTarget` method mutates that in-memory projection and is a **test helper**,
 not a commit path.
 
-The canonical way to commit a target edit is on the content model itself:
-`model.Block.SetTargetRuns(locale, runs)` sets the variant's runs in place, with
-the plain-text siblings `SetTargetText` and `SetText` for the string path
-([E-03](../engine/e-03-tool-system.md)). How a host transports an edit to the
-model and persists the result (the project block store, interchange files, a
-database) is the host's concern.
+A surface commits an edit as a change set
+([E-09](../engine/e-09-the-change-contract.md)): an operation addressed to an
+edition of a block (`{doc, block, edition}`), naming in `if_match` the revision
+of that edition the surface rendered, with the new content in the placeholder
+form a read shows. The change service applies it with `change.ApplyBlock`, the
+one function that changes a block's content, checks the result, and commits it
+through the document's home, which for a project file is the file itself. A
+revision that moved since the read refuses the change with the edition as it
+stands, so no surface overwrites a change it did not see.
 
 <PipelineDiagram
   animated
   channelLabel="edit"
   stages={[
-    { label: "Edit", sub: "target runs", role: "tool" },
-    { label: "SetTargetRuns", sub: "model.Block", note: "in place" },
-    { label: "Reader replay", sub: "source", note: "inject targets" },
+    { label: "Change set", sub: "set_content", note: "if_match", role: "tool" },
+    { label: "ApplyBlock", sub: "core/change", note: "in place" },
+    { label: "Reader replay", sub: "the home", note: "inject the edit" },
     { label: "Writer", sub: "+ skeleton" },
     { label: "Output", sub: "faithful original", role: "io" },
   ]}
-  caption="The round-trip replays the source through its reader, injects the committed targets, and reconstructs byte-faithful output through the skeleton. Persistence is the host's concern."
+  caption="The change service replays the document through its reader, applies the change set to the blocks it names, and reconstructs byte-faithful output through the skeleton."
 />
 
-The round-trip is a framework mechanism independent of who edited: the source is
-replayed through its reader, the committed targets are injected into the emitted
-block parts, and the writer reconstructs the document by pairing the reader's
-skeleton emitter with the writer's skeleton consumer, interleaving literal
-skeleton fragments with the target runs rather than re-serializing a parse tree
+The round-trip is a framework mechanism independent of who edited: the document
+is replayed through its reader, the change is applied to the emitted block parts,
+and the writer reconstructs the document by pairing the reader's skeleton emitter
+with the writer's skeleton consumer, interleaving literal skeleton fragments with
+the edited runs rather than re-serializing a parse tree
 ([E-02](../engine/e-02-format-system.md)). The equivalent bilingual round-trip
 for a translator hand-off is the extract and merge workflow
-([M-01](../multilingual/m-01-bilingual-interop.md)); the equivalent for an
-assistant-proposed edit is `kapi apply` ([S-03](s-03-agent-surfaces.md)).
+([M-01](../multilingual/m-01-bilingual-interop.md)); an agent sends the same
+change set through `kapi apply` or its MCP tools ([S-03](s-03-agent-surfaces.md)).
 
 ### What persists, what is reconstructed
 
@@ -292,15 +300,16 @@ the framework's overlay remapping; targets and annotations are unaffected.
   run-to-text projection, at the price of silently dropping a span whose text
   does not appear, which is the right trade when the alternative is a mark on
   the wrong words.
-- Editing and committing stay **outside** the kit and outside the framework,
-  which is what keeps the kit dependency-light and shareable.
+- Committing stays **outside** the kit, in the host, and every host commits
+  through the one change service, which is what keeps the kit dependency-light
+  and every edit governed and recorded the same way.
 - Faithful round-trip is a property of reader, skeleton, and writer, not of any
-  editor: setting a target run sequence and replaying the source is what
-  reconstructs the document.
+  editor: applying the change set to the read blocks and replaying the document
+  is what reconstructs it.
 - Overlays are ephemeral in the live preview: a durable interpretation must be
   stored as an annotation, or re-derived by re-running the tool that produced it.
-- `BlockIndex.UpdateTarget` is a test helper. Relying on it as a commit path
-  would be a mistake; `SetTargetRuns` is the canonical operation.
+- `BlockIndex.UpdateTarget` is a test helper. A commit is a change set
+  through the change service.
 
 ## Open questions
 
@@ -321,6 +330,7 @@ the framework's overlay remapping; targets and annotations are unaffected.
 - [F-02: The content model](../foundations/f-02-content-model.md): parts, blocks, runs, overlays, annotations, targets, and the projections the editor renders
 - [E-02: The format system](../engine/e-02-format-system.md): readers, writers, and the skeleton that makes the round-trip byte-faithful
 - [E-03: The tool system](../engine/e-03-tool-system.md): capability-typed immutability, the target-edit primitives, and overlay rebasing
+- [E-09: The change contract](../engine/e-09-the-change-contract.md): the change set, its revisions, and the service every edit goes through
 - [E-08: Document structure tiers](../engine/e-08-document-structure-tiers.md): the roles and geometry the Structure and Layout tabs read
 - [C-01: The project model](../context/c-01-project-model.md): the block store a host persists edits through
 - [M-01: Bilingual interop](../multilingual/m-01-bilingual-interop.md): the extract and merge round-trip

@@ -97,6 +97,43 @@ project context, and resolved stores, and closing one releases them. A file
 watcher refreshes the tab when the recipe changes, including edits made through
 the CLI or git.
 
+### Every edit is a change set
+
+The desktop changes content through the change service and nothing else
+([E-09](../engine/e-09-the-change-contract.md)). Four bindings carry the
+contract: `Read`, `Apply`, `Describe` and `History`, each taking and returning
+its JSON as a string that the frontend types with `@neokapi/contract-types`. A
+string, because an operation is a union that marshals itself, and a model Wails
+generated from the Go struct would describe its fields instead. The backend
+builds the service for the tab's project with `desktop` as the origin, so the
+commit check governs every edit and the block history records it, and it sends
+every change set as the person at the keyboard.
+
+A surface that changes content reads the unit it shows through `Read` and sends
+what the person does with the revision it read:
+
+- The Review page edits a translation, or a source row's wording, in the
+  inline-code editor: each code is a chip the person types beside, and the text
+  goes back in the placeholder form the read showed, so a code the edit kept is
+  the code the edition holds. A plural is edited a form at a time, each changed
+  form a `set_content` addressed by the path the read lists. An AI proposal is
+  accepted as the same `set_content`.
+- Approve and Reject send `decide`, Reject with the reviewer's note on the
+  change set. Approving the clean units of a view reads each one as it approves
+  it.
+- A check finding whose rule names a replacement carries its fix, the
+  `replace_text` `kapi check` reports, and the Checks panel sends it as it is.
+- The document view puts a clicked block in focus and edits its source or a
+  translation under the document ([S-06](s-06-visual-editor.md)).
+
+When the content changed after the surface read it, the change service refuses
+the change with the edition as it stands. The surface shows that text under
+"Changed since you opened it" and asks before sending the change again over it;
+a check's fix sent again finds its words by the text the finding quotes. The
+Review page lists the unit's recorded changes under its provenance, read from
+the block history through `History`, and its provenance names the person or the
+agent whose recorded change produced the text in force.
+
 ### The app opens on the workspace
 
 The first screen reads the workspace's project registry
@@ -444,6 +481,10 @@ the package manager.
   desktop with no backend change.
 - The app lists projects registered by any local kapi surface and checks for
   updates with one indexed query per second.
+- Every desktop edit passes the commit check and lands in the project's block
+  history with the desktop as its origin, and a change made elsewhere since the
+  desktop read the content is shown to the person before anything overwrites
+  it.
 
 ## Related
 
@@ -452,6 +493,7 @@ the package manager.
 - [E-03: The tool system](../engine/e-03-tool-system.md): the registry and schemas the forms are generated from
 - [E-04: Flows and I/O binding](../engine/e-04-flows-and-io-binding.md): why the graph's ends are endpoint pickers
 - [E-05: The plugin system](../engine/e-05-plugin-system.md): the plugin manager's model
+- [E-09: The change contract](../engine/e-09-the-change-contract.md): the change sets every desktop edit and decision is
 - [C-01: The project model](../context/c-01-project-model.md): the recipe and the `.kapi/` sources a tab loads
 - [C-03: The context store and graph](../context/c-03-context-store-and-graph.md): the workspace the home screen reads and the operation log it follows
 - [C-11: Context operations](../context/c-11-context-operations.md): the operations the feed shows and the policy behind its decisions

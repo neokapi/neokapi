@@ -187,9 +187,11 @@ approved against, and a source decision is recorded with the same identity a
 target decision carries.
 
 The source language is therefore a language of the queue rather than a mode of
-it. What differs is what a client can do next: `kapi apply` records
-target-language decisions, and source wording is approved through
-`App.ApproveSourceUnit`, which Kapi Desktop's Review page calls.
+it. A decision on either kind is a `decide` operation sent to the change service
+([E-09](../engine/e-09-the-change-contract.md)) with the revision the reviewer
+read: `kapi apply`, an agent's pre-review and Kapi Desktop's Review page all send
+it. An approval of source wording is recorded as an `establish`, bound to the
+wording the reviewer read, the record `App.ApproveSourceUnit` makes.
 
 ### What a source change does to an undecided target
 
