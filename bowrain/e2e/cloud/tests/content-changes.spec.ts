@@ -142,10 +142,16 @@ test.describe("Content changes", () => {
     const block = blocks[0];
 
     // A French word the workspace's terms rule out, through the reviewed path.
+    // The concept answers for English into French (it has a source term and
+    // a French rendering to use instead), so it governs French translations.
     const concept = await api.addConcept(wsSlug, {
       domain: "product",
-      definition: "A word we no longer write.",
-      terms: [{ text: "bidule", locale: "fr", status: "admitted" }],
+      definition: "A small device.",
+      terms: [
+        { text: "gadget", locale: "en", status: "admitted" },
+        { text: "machin", locale: "fr", status: "admitted" },
+        { text: "bidule", locale: "fr", status: "admitted" },
+      ],
     });
     const cs = await api.createChangeset(wsSlug, 'Retire "bidule"', "Too casual.");
     await api.addChangesetOp(wsSlug, cs.id, "term.status", {
@@ -181,7 +187,7 @@ test.describe("Content changes", () => {
 
     const dialog = page.getByTestId("check-findings-dialog");
     await expect(dialog).toBeVisible();
-    await expect(page.getByTestId("check-finding").first()).toContainText("bidule");
+    await expect(page.getByTestId("check-finding").first()).toContainText("terms.vocabulary");
     let served = (await api.getBlocks(wsSlug, projectId, ITEM)).find((b) => b.id === block.id);
     expect(served?.targets?.fr?.text ?? "").toBe("");
 
