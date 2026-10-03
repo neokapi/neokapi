@@ -764,7 +764,7 @@ content-addressed blobs and the log (codex-design §3).
     "doc": {"key": "d_7f3c…", "path": "docs/guide.html"},
     "home": "file",                   // file | workspace | stream:<id>
     "actor": {"kind": "agent", "name": "claude", "session": "s_01J9Q4"},
-    "origin": {"by": "apply"},        // apply | desktop | flow:<name> | merge | pull | observed
+    "origin": {"by": "apply"},        // apply | ksed | mcp | browser | desktop | flow:<name> | merge | pull | observed
     "fingerprint": "gov_4b2…",        // the governance the commit check used
     "note": "Point the guide link at the handbook",
     "doc_before": "sha256:5e1c…", "doc_after": "sha256:a07d…",
