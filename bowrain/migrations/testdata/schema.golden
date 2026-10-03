@@ -897,6 +897,8 @@ tb_relations.target_id text NOT NULL
 tb_relations.valid_from timestamp with time zone NULL
 tb_relations.valid_to timestamp with time zone NULL
 tb_relations.workspace_id text NOT NULL
+tb_revision.revision text NOT NULL
+tb_revision.workspace_id text NOT NULL
 tb_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 tb_schema_migrations.description text NOT NULL
 tb_schema_migrations.version integer NOT NULL
@@ -1405,6 +1407,7 @@ tb_concepts tb_concepts_pkey PRIMARY KEY (workspace_id, id)
 tb_relations tb_relations_pkey PRIMARY KEY (workspace_id, id)
 tb_relations tb_relations_workspace_id_source_id_fkey FOREIGN KEY (workspace_id, source_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE
 tb_relations tb_relations_workspace_id_target_id_fkey FOREIGN KEY (workspace_id, target_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE
+tb_revision tb_revision_pkey PRIMARY KEY (workspace_id)
 tb_schema_migrations tb_schema_migrations_pkey PRIMARY KEY (version)
 tb_terms tb_terms_pkey PRIMARY KEY (id)
 tb_terms tb_terms_workspace_id_concept_id_fkey FOREIGN KEY (workspace_id, concept_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE
@@ -1802,6 +1805,7 @@ CREATE UNIQUE INDEX subscriptions_workspace_id_key ON public.subscriptions USING
 CREATE UNIQUE INDEX tasks_pkey ON public.tasks USING btree (id)
 CREATE UNIQUE INDEX tb_concepts_pkey ON public.tb_concepts USING btree (workspace_id, id)
 CREATE UNIQUE INDEX tb_relations_pkey ON public.tb_relations USING btree (workspace_id, id)
+CREATE UNIQUE INDEX tb_revision_pkey ON public.tb_revision USING btree (workspace_id)
 CREATE UNIQUE INDEX tb_schema_migrations_pkey ON public.tb_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX tb_terms_pkey ON public.tb_terms USING btree (id)
 CREATE UNIQUE INDEX tm_entries_pkey ON public.tm_entries USING btree (workspace_id, id)

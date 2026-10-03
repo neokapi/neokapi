@@ -2,7 +2,9 @@ package terms
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -59,8 +61,9 @@ func NewPostgresStoreFromDB(db *storage.PgDB, workspaceID string) (*PostgresStor
 //	6  declared surface forms on terms
 //	7  do-not-translate flag on concepts
 //	8  advisory flag on concepts
+//	9  the revision of each workspace's terms
 //
-// Retired numbers are never reused. The next migration is version 9.
+// Retired numbers are never reused. The next migration is version 10.
 var Migrations = []storage.Migration{
 	{
 		Version:     5,
@@ -82,6 +85,69 @@ var Migrations = []storage.Migration{
 		Description: "advisory flag on concepts",
 		SQL:         termsschema.RenderTermsPostgresV8(),
 	},
+	{
+		Version:     9,
+		Description: "the revision of each workspace's terms",
+		// One row per workspace whose terms a write has changed: a token every
+		// write replaces in its own transaction (PostgresStore.Revision).
+		SQL: `
+CREATE TABLE IF NOT EXISTS tb_revision (
+    workspace_id TEXT PRIMARY KEY,
+    revision     TEXT NOT NULL
+);`,
+	},
+}
+
+// Revision is the revision of the workspace's terms: a token every write
+// through this store replaces, in the transaction that makes the write, with
+// one never issued before. A reader that keeps what it read under the
+// revision it read first, before reading the terms, reads them again once the
+// revision moves. Empty when no write has recorded one (a workspace with no
+// terms written since the revision was introduced, or one reset since), which
+// such a reader treats as a revision it cannot keep anything under.
+func (tb *PostgresStore) Revision(ctx context.Context) (string, error) {
+	var rev string
+	err := tb.db.QueryRowContext(ctx, "SELECT revision FROM tb_revision WHERE workspace_id = $1", tb.workspaceID).Scan(&rev)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return "", nil
+	case err != nil:
+		return "", fmt.Errorf("read the terms revision: %w", err)
+	}
+	return rev, nil
+}
+
+// bumpRevision gives the workspace's terms a new revision inside tx, the
+// transaction of the write that changes them.
+func (tb *PostgresStore) bumpRevision(ctx context.Context, tx *sql.Tx) error {
+	var token [16]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return fmt.Errorf("new terms revision: %w", err)
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO tb_revision (workspace_id, revision) VALUES ($1, $2)
+		ON CONFLICT (workspace_id) DO UPDATE SET revision = EXCLUDED.revision`,
+		tb.workspaceID, hex.EncodeToString(token[:]))
+	if err != nil {
+		return fmt.Errorf("bump the terms revision: %w", err)
+	}
+	return nil
+}
+
+// write runs fn in a transaction that also bumps the workspace's terms
+// revision, and commits both or neither.
+func (tb *PostgresStore) write(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := tb.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	if err := tb.bumpRevision(ctx, tx); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // pgValidityColumns flattens a validity into its three column values:
@@ -210,7 +276,9 @@ func (tb *PostgresStore) AddConceptWithStream(ctx context.Context, concept fw.Co
 			return fmt.Errorf("insert term: %w", err)
 		}
 	}
-
+	if err := tb.bumpRevision(ctx, tx); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -228,18 +296,20 @@ func (tb *PostgresStore) GetConcept(ctx context.Context, id string) (fw.Concept,
 
 // DeleteConcept removes a concept by ID.
 func (tb *PostgresStore) DeleteConcept(ctx context.Context, id string) error {
-	result, err := tb.db.ExecContext(ctx, "DELETE FROM tb_concepts WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id)
-	if err != nil {
-		return fmt.Errorf("delete concept: %w", err)
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("rows affected: %w", err)
-	}
-	if rows == 0 {
-		return fmt.Errorf("concept not found: %s", id)
-	}
-	return nil
+	return tb.write(ctx, func(tx *sql.Tx) error {
+		result, err := tx.ExecContext(ctx, "DELETE FROM tb_concepts WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id)
+		if err != nil {
+			return fmt.Errorf("delete concept: %w", err)
+		}
+		rows, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("rows affected: %w", err)
+		}
+		if rows == 0 {
+			return fmt.Errorf("concept not found: %s", id)
+		}
+		return nil
+	})
 }
 
 // AddRelation inserts or updates (by ID) a relation between two concepts
@@ -267,7 +337,8 @@ func (tb *PostgresStore) AddRelationWithStream(ctx context.Context, rel fw.Conce
 
 	// created_at is deliberately not updated on conflict: an upsert preserves
 	// the original creation time, like AddConcept does for concepts.
-	_, err := tb.db.ExecContext(ctx, `
+	return tb.write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `
 		INSERT INTO tb_relations (id, workspace_id, source_id, target_id, relation, note, stream, valid_from, valid_to, tags, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT (workspace_id, id) DO UPDATE SET
@@ -280,11 +351,12 @@ func (tb *PostgresStore) AddRelationWithStream(ctx context.Context, rel fw.Conce
 			valid_to = EXCLUDED.valid_to,
 			tags = EXCLUDED.tags
 	`, rel.ID, tb.workspaceID, rel.SourceID, rel.TargetID, rel.RelationType, rel.Note, stream,
-		validFrom, validTo, tags, rel.CreatedAt)
-	if err != nil {
-		return fmt.Errorf("upsert relation: %w", err)
-	}
-	return nil
+			validFrom, validTo, tags, rel.CreatedAt)
+		if err != nil {
+			return fmt.Errorf("upsert relation: %w", err)
+		}
+		return nil
+	})
 }
 
 // requireConcept returns an error if the concept does not exist.
@@ -301,18 +373,20 @@ func (tb *PostgresStore) requireConcept(ctx context.Context, role, id string) er
 
 // DeleteRelation removes a relation by ID.
 func (tb *PostgresStore) DeleteRelation(ctx context.Context, id string) error {
-	result, err := tb.db.ExecContext(ctx, "DELETE FROM tb_relations WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id)
-	if err != nil {
-		return fmt.Errorf("delete relation: %w", err)
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("rows affected: %w", err)
-	}
-	if rows == 0 {
-		return fmt.Errorf("relation not found: %s", id)
-	}
-	return nil
+	return tb.write(ctx, func(tx *sql.Tx) error {
+		result, err := tx.ExecContext(ctx, "DELETE FROM tb_relations WHERE workspace_id = $1 AND id = $2", tb.workspaceID, id)
+		if err != nil {
+			return fmt.Errorf("delete relation: %w", err)
+		}
+		rows, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("rows affected: %w", err)
+		}
+		if rows == 0 {
+			return fmt.Errorf("relation not found: %s", id)
+		}
+		return nil
+	})
 }
 
 // RelationsOf returns all relations touching the concept, in either direction,
