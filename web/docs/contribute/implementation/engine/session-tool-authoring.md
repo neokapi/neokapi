@@ -137,10 +137,10 @@ continued by another. Keep the payload small and JSON-compatible.
 
 `origin` carries the provenance the producer stamped, including the
 `ContextFingerprint` of the governing context. Most target formats
-have nowhere to keep it, so for those the overlay is the only durable
-record of what governed the answer, and it is what a convergence reads
-back when it records the basis the staleness gate compares
-(`host/basisrecord.go`).
+have nowhere to keep it; a convergence records it beside each target it
+writes, as the producer of the flow's `content.edit` in the block history,
+which is where the staleness gate reads it, and the overlay keeps it for a
+session that resumes the work.
 
 `annotations/<name>` is cross-tool in the same way, one level down:
 `<name>` is the block-annotation key, so a store that holds blocks

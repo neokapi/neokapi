@@ -123,7 +123,26 @@ kapi up --json               # NDJSON event stream (one event per line, final
 `kapi up` is the one verb that runs the loop. With no `defaults.flow` in the recipe it
 runs the built-in default flow (content memory recycle → AI translate) and materializes the
 translated files. Drift is never an error: a behind locale is *pending*, and work
-a machine can't finish *parks* (reported, exit 0), so neither blocks you. Use
+a machine can't finish *parks* (reported, exit 0), so neither blocks you.
+
+Every flow run (`up`, `translate`, `pseudo-translate`, `run`, `exec`) writes a
+file only while it still holds what it held when the run began: a file someone
+saved meanwhile keeps their bytes, and the run reports it as changed while the
+run worked (run again). In a project each file a run writes is recorded in the
+block history as the flow's edit, with the source each translation was made
+from, which is how `kapi status` tells a rewritten source under the loop's
+translation from a new one. To see what a run would change without writing,
+add `--print-ops`: it prints the change set (`set_content` per translation,
+with its `if_match` and `basis`), and `kapi apply` of that output writes the
+same bytes.
+
+```bash
+kapi up --print-ops > change.json   # one pass, nothing written, the change set on stdout
+kapi apply change.json              # apply exactly what was printed
+```
+
+A file the run would write somewhere the recipe does not keep it (an `-o` path)
+is named on stderr and left out of the change set. Use
 `--json` for the machine-readable event stream; the `up` and `up_plan` MCP tools
 expose the same loop and dry run to an assistant. `kapi run <flow>` is only for a
 *custom* one-off pipeline (one named flow, one pass); the daily loop is `kapi up`.

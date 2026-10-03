@@ -18,7 +18,9 @@ it. The service reads each document through the **home** that holds its text,
 applies the operations in memory with `change.ApplyBlock`, checks what changed,
 and commits every document or none. A file in a working tree is one home; the
 file home commits by renaming a staged file onto the document under an advisory
-lock, and applies the change again when the file moved since it was read.
+lock, and applies the change again when the file moved since it was read. A
+flow commits each document it writes through the same home and records it as
+the flow's edit.
 
 The service lives below every surface. It imports `core/model` and
 `core/safeio` and nothing above them, so the CLI, the agent tools, Kapi Desktop
@@ -249,6 +251,56 @@ manifest declaration, whose writer spells them when it writes
 a commit replaces beside it, under the lock, from the bytes the change was
 applied to. The implementation note
 [The file home](../../implementation/engine/file-home.md) has the details.
+
+### Flows
+
+A flow writes a document whole: its writer renders every block the run passed
+through, into the file it reads or into a target-language file built from the
+source's skeleton. The file home commits that document too
+(`filehome.Home.Produce`): the run digests the destination before it reads,
+the writer's output is staged beside the destination, and the commit renames it
+under the destination's lock only while the destination still holds what the
+run began from ([E-01](e-01-processing-engine.md#the-write-stage)). Every flow
+the kapi host runs commits this way: `kapi translate`, `pseudo-translate`,
+`run`, `exec` and `up`, the same runs in Kapi Desktop and over MCP, a pull's
+target files, and the delivery of a convergence pass's drafts. The host's flow
+home takes its locks where the project's change service takes them, so a flow
+and a change set on one file take turns.
+
+Inside a project the host records each document a flow wrote as one
+`content.edit`, through the recorder a change set's commit records through,
+with the actor `tool:<flow>` and the origin `flow:<flow>`. The record keeps
+revisions and hashes, no text. Its transitions are the run's effect on the file
+as the service reads it: the document is read through the service before the
+run and again after the commit, and each edition whose revision moved is a
+transition, with the source revision a translation was made from as its basis
+and the stamp the producing tool left as its producer. A translation the run
+reproduced unchanged is recorded too, once, when the block history does not
+already say a flow wrote it from the source the block holds, so the history
+keeps the basis of every translation the loop made. That basis is what
+coverage grades an undecided translation by, what a decision on it starts from,
+and where the staleness gate finds what governed it.
+
+A destination that moved while the run worked is applied again through the
+service from the run's operations (`set_content` on each edition the run
+changed, guarded by the revision read before the run). The service reads the
+file under its lock, and the document lands when no edition the run changed has
+moved too, and is refused `stale` as a whole when one has. A target-language
+edition the run left without a translation is rendered from the source by the
+writer, and is left as the file holds it when the run's changes are applied
+again.
+
+Under `--print-ops` the run commits through a home that writes nothing
+(`filehome.Options.WriteNothing`) and records nothing. What it changed in each
+document becomes operations, the difference between each block as the reader
+gave it and as the writer received it (`change.Diff`), each guarded by the
+revision the service read before the run and each `set_content` of a
+translation carrying its basis; the operations of every document form one
+change set, which `kapi apply` applies to the same bytes the run would have
+written. A file the run would write where the service does not keep the
+edition, such as an output path given on the command line in place of the
+recipe's target, is named on standard error and left out, because no change
+set addresses it.
 
 ### Hooks
 

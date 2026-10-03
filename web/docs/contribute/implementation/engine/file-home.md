@@ -8,7 +8,7 @@ keywords: [core/change/filehome, file home, advisory lock, staged write, rename,
 
 # The file home: `core/change/filehome`
 
-The file home is the home of the change service ([E-09](../../architecture/engine/e-09-the-change-contract.md)) for documents kept as files in a working tree. This note covers how it locates a document, how a stage reads and writes it, how it adds and removes blocks, how it treats a bilingual file, how a commit settles against other writers, how editions in files of their own are joined and written, and the tests that hold it to the contract.
+The file home is the home of the change service ([E-09](../../architecture/engine/e-09-the-change-contract.md)) for documents kept as files in a working tree. This note covers how it locates a document, how a stage reads and writes it, how it adds and removes blocks, how it treats a bilingual file, how a commit settles against other writers, how editions in files of their own are joined and written, how it commits a document a run produced whole, and the tests that hold it to the contract.
 
 ## Locating a document
 
@@ -74,6 +74,16 @@ A session is a `change.StructuralSession` and lists the structural operations it
 
 A writer's refusal (`format.StructureError`) refuses the operation it names: a key the document holds with no block (a number, a nested object) as `invalid`, anything else as `unsupported`. When the pass changes no content of a file the edits touched, the staged file is the writer's result itself; otherwise the pass's writer writes the result with the content edits in it. A structural edit holds the file whole in memory, and the streaming path applies to every other change. `Settle` makes the whole stage again, structural edits included, when a file moved.
 
+## A document a run produced
+
+A flow, a pull and a convergence pass's delivery write a document whole, and they commit it through the home too. `Home.Produce(ctx, path, before, write)` stages what `write` produces beside the file at `path` (`atomicfile.StageWithParents`), with the file's mode, hashing the bytes as they are written; `before` is the file's digest when the producer read it (`filehome.Digest`, empty for a file that did not exist). `Produced.Commit` opens the lock file the file's change sets lock (`Home.lockPath`, the same directory and the same `PrepareLocks`), takes it, and hashes the file again:
+
+- It holds `before`: the staged file is renamed onto it.
+- It holds the produced bytes already (the run changed nothing, or an identical run committed first): the staged file is discarded and nothing is written.
+- It holds anything else: the staged file is discarded, nothing is written, and `Commit` returns a `*filehome.MovedError` (`errors.Is` `filehome.ErrMoved`) naming the file and both digests.
+
+The home holds the producer's bytes and not its operations, so a moved file is not applied again here. The kapi host follows each document of a flow run and applies the run's operations through the change service when the file moved, which reads the file again under the lock and refuses the operations whose `if_match` no longer holds. `Produced.Release` discards a staged file that was not committed. A home built with `Options.WriteNothing` stages nothing: `Produce` runs the producer into the digest alone and `Commit` writes nothing, which `--print-ops` uses. A home that only produces documents takes a nil layout; `Open` on it is refused.
+
 ## Preview
 
 A preview stages each document and settles none: the service releases every stage after the commit check, so the temporary files are removed and the documents keep their bytes. `Staged.Diff` renders a unified diff of each file it would write, from the staged bytes against the file, when both are text of at most 1 MiB; an archive member is diffed as the member.
@@ -90,4 +100,5 @@ A preview stages each document and settles none: the service releases every stag
 - `TestFileHome_KeepsABackupOfWhatACommitReplaces` writes a backup with the original bytes and mode on a commit, and none for a preview, a refusal or an unchanged edit; `TestService_ReadEachReadsTheWholeDocument` reads past the most a page holds in one pass.
 - The structure tests add and remove keys of JSON, YAML and ARB catalogs with content edits beside them, write a new block's edition into an existing translation and into one written for the first time, remove a block from every translation, take a file's key prefix, put a new key with no anchor in the mapping its key names in every file, make the edits again when the file moved, and refuse a key held without a block, an anchor with no partner in a translation, and a format that adds no blocks. The operations matrix (`core/formats/opsmatrix_structural_test.go`) holds each format that declares the operations to its cells.
 - `TestFileHome_OneFileNamedTwiceIsRefused` names two members of one archive, and a file and a link to it, in one change set; `TestFileHome_ACommitInterruptedAfterOneFileReportsWhatLanded` stops a rename after another landed; `TestFileHome_ABilingualFileTakesOnlyTheEditionsItHolds` edits the translation an XLIFF file and a PO catalog hold and refuses the editions they cannot hold; `TestFileHome_KeepsItsLockDirectoryToItsUser` refuses a lock directory others may write to; `TestFileHome_PreparesTheLockDirectoryAtTheFirstCommit` runs `PrepareLocks` once, at the first commit and never on a read.
+- `TestProduce_CommitsWhatTheRunWrote` commits a produced document over the file it read, creates a new file's directory only at the commit, leaves a file that already holds the bytes, and keeps a file a person saved or another writer created meanwhile, reporting it moved; `TestProduce_TakesTheLockAChangeSetCommitsUnder` holds a change set's commit lock and finds the produced document waiting for it, then refused because the change set landed first; `TestProduce_AHomeThatWritesNothingStagesNothing` and `TestProduce_KeepsTheModeOfTheFileItReplaces` cover the rest.
 - In the host, `TestChangeService_ASourceDocumentResolvesWithoutTheWholeRecipe` locates a source file and its translations without expanding a pattern, `TestChangeService_AReadWritesNothing` reads a project without creating its state directory, and `TestMCPApplyEdits_EachProjectInItsOwnSourceLanguage` edits a translation in a project written in the language another project translates into.

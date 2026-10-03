@@ -196,6 +196,10 @@ For block-level content streaming (rather than run progress), `kapi inspect --js
 
 The exit status follows the result: `0` when the change set applied or previewed; `2` when it does not decode, contradicts itself, or an operation is refused `invalid`; `5` when a backend did not answer (`unreachable`); `3` for every other refusal, for a change set that landed in part, and, under the enforcing gate, for a written code comment whose check fails. A refusal writes nothing. `ksed --print-ops` prints a change set in the same contract, which `kapi apply` applies as printed, from any directory of the project.
 
+The flow commands take `--print-ops` too: `kapi translate`, `kapi pseudo-translate`, `kapi run`, `kapi up` (one pass, on this machine) and `kapi exec <tool>` for a tool that writes files. The run reads and runs its tools as it would, writes and records nothing, and prints one change set: for each document, the difference between each block as it was read and as the run would write it, each operation guarded by the revision `kapi inspect` reads and each translation's `set_content` carrying its `basis`. `kapi apply` of that change set writes the bytes the run would have written. A file the run would write somewhere the project does not keep the edition, such as an `-o` path, is named on stderr and left out.
+
+Every flow command writes a file only while it still holds what it held when the run began. A file that changed meanwhile keeps its bytes; inside a project the run applies its own changes to it again, and when an edition the run changed has moved too the file is left as it is and the command fails, naming it.
+
 ## MCP surface stability
 
 The [MCP server](/reference/mcp) (`kapi mcp`) is part of the same contract: its tool names and input schemas are a stable surface for agent integrations, locked by a snapshot test (`kapi/cmd/kapi/mcp_snapshot_test.go`). New tools and new optional fields may be added; existing tools are not renamed or removed, and existing fields do not change type, without an explicit, documented decision.
