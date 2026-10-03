@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -34,9 +35,7 @@ func TestUserSender_HoldsWhatTheMiddlewareResolves(t *testing.T) {
 	}
 	grant := func(userID, roleID string, extra map[string]any) {
 		payload := map[string]any{"user_id": userID, "role_id": roleID}
-		for k, v := range extra {
-			payload[k] = v
-		}
+		maps.Copy(payload, extra)
 		body, err := json.Marshal(payload)
 		require.NoError(t, err)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/"+pid+"/members", strings.NewReader(string(body)))
