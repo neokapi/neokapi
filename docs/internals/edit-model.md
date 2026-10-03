@@ -1975,6 +1975,16 @@ beside all of them in package-sized PRs.
   content-parity round trip (model, proto, store) holds; okapi-bridge parity passes through the
   mapping; a same-language channel edition (`en;channel=short`) round-trips; `make l10n` and the
   KBF consumers in `packages/` pass.
+- **Open, for the flip:**
+  - The script tool's pass-through (`blockToJS` in `core/tools/script.go`) lists
+    `TargetLocales()`, which includes the locale of a tone or channel edition. On a block whose
+    only same-language edition is `en-US;channel=short`, `emit(part)` fails with
+    `set_content refused: stale`; on a block whose only `fr` edition is `fr;tone=formal`, it adds
+    an empty plain `fr` target. Both predate the caller migration. Listing only locale-only
+    targets in `blockToJS` fixes both.
+  - The KBF, xcstrings and Qt TS readers file a translation with no language under the zero key
+    (`SetTargetRuns("")`), and `Block.TargetEdition("")` reads it. The flip decides where such a
+    translation lives, so that the zero key never writes the native edition.
 
 ### WP13. Close-out
 
