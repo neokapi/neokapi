@@ -280,7 +280,8 @@ written from the document's skeleton. A change set that adds or removes
 blocks has the format's writer write those edits into the document's file and
 into the file of each edition the blocks hold or name, keeping them in memory
 until the commit, and the stage's pass reads the result. A stage that removes a
-translation a bilingual file holds reads its write back, and refuses the removal
+translation a bilingual file holds, the document's own or the translation's
+file the target template names, reads its write back, and refuses the removal
 as `unsupported` when the translation is still there: the XLIFF and TMX writers
 write a translation of every unit, from the source where a block holds none,
 so a removal there would put the source in the translation's place. Their
