@@ -53,7 +53,7 @@ Three commands carry the whole model, and they divide the work cleanly:
 |---|---|---|
 | `kapi status` | **Observe**: per-locale coverage and gate standing | Always `0`: behind is pending work |
 | `kapi up` | **Produce**: runs the kapi loop | `0` whether the run caught everything up or parked work for review; non-zero only when the run broke |
-| `kapi check --ship` | **Enforce**: the release bar | `0` pass, `3` gate unmet, `1` operational error |
+| `kapi check --ship` | **Enforce**: the release bar | `0` pass, `3` gate unmet, `4` the check did not run, `1` operational error |
 
 An ordinary build never fails because a target language is behind. The gate is
 the explicit, opt-in enforcement point: wire it into merge-request pipelines
@@ -80,7 +80,7 @@ for the model.
 |---|---|---|
 | GitHub Actions | [`setup-kapi`](https://github.com/neokapi/setup-kapi) (CLI + plugins, cached) | [`kapi-action`](https://github.com/neokapi/kapi-action), or the one-line [reusable workflows](https://github.com/neokapi/kapi-workflows) |
 | GitLab CI | none needed (the components run on the image) | [`kapi-components`](https://gitlab.com/neokapi/kapi-components) from the CI/CD Catalog |
-| Anything container-based | `ghcr.io/neokapi/kapi` (cosign-signed; a variant with the server-sync plugin preinstalled is published alongside) | The CLI directly; the exit codes above are the contract |
+| Anything container-based | `ghcr.io/neokapi/kapi` (cosign-signed, with the server-sync plugin preinstalled) | The CLI directly; the exit codes above are the contract |
 
 ## Catch up on a schedule, deliver a pull request
 
@@ -122,14 +122,28 @@ when CI or deploys should react to delivered translations.
 <TabItem value="gitlab" label="GitLab CI">
 
 ```yaml title=".gitlab-ci.yml"
+stages: [build, test, kapi, deploy]
+
 include:
-  - component: gitlab.com/neokapi/kapi-components/up@0.1.0
+  - component: gitlab.com/neokapi/kapi-components/up@0.2.0
+    inputs:
+      stage: kapi
+      deliver: mr
 ```
 
-The component's job runs on scheduled and web-triggered pipelines by default,
-opens the merge request through the API (`GITLAB_API_TOKEN`, api scope), and
-exposes `KAPI_OUTCOME`, `KAPI_PASSES`, and `KAPI_PARKED_LOCALES` to downstream
-jobs via dotenv.
+The component's job runs on scheduled and web-triggered pipelines and on
+pushes to the default branch by default. Without a `deliver` input it only
+reports what changed, for a delivery job of your own; `deliver: mr` opens the
+merge request through the API (`GITLAB_API_TOKEN`, api scope). The job exposes
+`KAPI_OUTCOME`, `KAPI_PASSES`, `KAPI_PARKED_LOCALES` and `KAPI_HAS_CHANGES` to
+downstream jobs via dotenv, and lists the changed paths in the
+`kapi-changed-files.txt` artifact.
+
+The pipeline's `stages:` list must declare the stage the `stage` input names,
+or GitLab refuses to create the pipeline. The job writes its report files
+(`kapi.env`, `kapi-up.ndjson` and `kapi-changed-files.txt`) into the checkout,
+so list them in `.gitignore`; otherwise the job counts them as changes and a
+delivery commits them.
 
 </TabItem>
 </Tabs>
@@ -160,19 +174,23 @@ jobs:
 ```
 
 An unmet gate fails the job with a distinct "gate unmet" annotation and posts
-one sticky report comment that re-runs update in place.
+one sticky report comment that re-runs update in place. A gate that did not run
+(exit `4`) fails the job with a "did not run" annotation that names the cause.
 
 </TabItem>
 <TabItem value="gitlab" label="GitLab CI">
 
 ```yaml title=".gitlab-ci.yml"
 include:
-  - component: gitlab.com/neokapi/kapi-components/check@0.1.0
+  - component: gitlab.com/neokapi/kapi-components/check@0.2.0
 ```
 
-The job runs on merge-request pipelines, fails on exit `3`, and posts one
-threaded MR note with the failing gates and findings; the full
-`kapi.check/v2` report is kept as a job artifact.
+The job runs on merge-request pipelines and on pushes to the default branch,
+fails on exit `3`, and posts one threaded MR note with the failing gates and
+findings; the full `--json` report is kept as a job artifact. Exit `4`, a gate
+that did not run, fails the job too, and the report names the cause. To leave
+pushes to the default branch ungated, set the `rules` input to merge-request
+pipelines alone.
 
 </TabItem>
 </Tabs>
@@ -254,13 +272,16 @@ before anyone merges:
 
 ```yaml
 include:
-  - component: gitlab.com/neokapi/kapi-components/up@0.1.0
+  - component: gitlab.com/neokapi/kapi-components/up@0.2.0
     inputs:
+      stage: kapi
       plan: true
-      deliver: "none"
       rules:
         - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 ```
+
+As in the catch-up job, the pipeline's `stages:` list must declare the `kapi`
+stage.
 
 </TabItem>
 </Tabs>
