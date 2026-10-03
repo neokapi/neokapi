@@ -690,11 +690,6 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 	}
 	cur := st.ed.Runs
 
-	type pathEdit struct {
-		i          int
-		start, end int
-		text       string
-	}
 	groups := map[string][]pathEdit{}
 	paths := map[string]model.RunPath{}
 	index := map[string]*seqIndex{}
@@ -716,19 +711,23 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 			index[key] = ix
 		}
 		var start, end int
+		var span *findSpan
 		var err *Error
 		if w.moved(st) && e.Find == nil {
 			// A position names the edition as the change set found it.
 			start, end, err = w.movedSelection(st, e.Selection, field)
 		} else {
-			start, end, err = ix.resolve(e.Selection, path, field)
+			start, end, span, err = ix.resolveSpan(e.Selection, path, field)
 		}
 		if err != nil {
 			return err
 		}
 		res.Resolved[i] = Resolved{Path: path, Start: ix.posAt(start), End: ix.posAt(end)}
+		if span != nil {
+			res.Resolved[i].Start, res.Resolved[i].End = ix.spanPositions(span)
+		}
 		paths[key] = path
-		groups[key] = append(groups[key], pathEdit{i: i, start: start, end: end, text: e.Text})
+		groups[key] = append(groups[key], pathEdit{i: i, start: start, end: end, text: e.Text, span: span})
 	}
 
 	// Edit the deepest sequences first: an edit at one level can renumber the
@@ -746,33 +745,39 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 	for _, key := range keys {
 		edits := groups[key]
 		slices.SortStableFunc(edits, func(a, b pathEdit) int { return a.start - b.start })
-		for j := 1; j < len(edits); j++ {
-			if edits[j].start < edits[j-1].end {
-				return &Error{Code: CodeGuard, Subcode: SubcodeOverlap, Field: "edits/" + strconv.Itoa(edits[j].i),
-					Message: fmt.Sprintf("edit %d overlaps edit %d", edits[j].i, edits[j-1].i)}
-			}
+		if err := editsOverlap(edits); err != nil {
+			return err
 		}
 		path := paths[key]
 		seq, _ := model.ResolveRunPath(next, path)
-		textEdits := make([]model.TextEdit, len(edits))
-		for j, e := range edits {
-			textEdits[j] = model.TextEdit{Start: e.start, End: e.end, Replacement: e.text}
-			changed[key] = append(changed[key], seqEdit{start: e.start, end: e.end, newLen: utf8.RuneCountInString(e.text)})
+		edited, findings, err := applyPathEdits(seq, edits, cur, w.env.Guards == Report)
+		if err != nil {
+			return err
 		}
-		edited := model.ApplyTextEdits(seq, textEdits)
+		res.Findings = append(res.Findings, findings...)
+		if slices.ContainsFunc(edits, func(e pathEdit) bool { return e.span != nil }) {
+			// A find that named codes replaced runs, codes included: the
+			// sequence keeps its codes' constraints (section 2.4, rule 2),
+			// which a check of the whole edition cannot see in one branch.
+			if err := w.checkCodes(seq, edited, nil, res); err != nil {
+				return err
+			}
+		}
+		for _, e := range edits {
+			changed[key] = append(changed[key], seqEdit{start: e.start, end: e.end, newLen: e.newLen})
+		}
 		if len(path) == 0 {
 			ix := index[key]
 			for _, e := range edits {
-				n := utf8.RuneCountInString(e.text)
-				if e.start == e.end {
+				if e.start == e.end && e.span == nil {
 					// Text inserted where a plural or select sits goes before it.
 					at := ix.flatAt(e.start, false)
-					flatEdits = append(flatEdits, model.RunEdit{Start: at, End: at, NewLen: n})
+					flatEdits = append(flatEdits, model.RunEdit{Start: at, End: at, NewLen: e.newLen})
 					continue
 				}
 				// A replacement keeps a structure at its start before it and one
 				// at its end after it, as model.ApplyTextEdits places them.
-				flatEdits = append(flatEdits, model.RunEdit{Start: ix.flatAt(e.start, true), End: ix.flatAt(e.end, false), NewLen: n})
+				flatEdits = append(flatEdits, model.RunEdit{Start: ix.flatAt(e.start, true), End: ix.flatAt(e.end, false), NewLen: e.newLen})
 			}
 			next = edited
 			continue
@@ -820,6 +825,74 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 		w.noteChange(st, paths[key], cur, false, changed[key])
 	}
 	return nil
+}
+
+// pathEdit is one edit of a replace_text in the sequence its path reaches:
+// offsets into the sequence's own text, the replacement, and, for a find that
+// named inline codes, the span of runs it matched.
+type pathEdit struct {
+	i          int
+	start, end int
+	text       string
+	span       *findSpan
+	// newLen is the length of the replacement's own text, in code points.
+	newLen int
+}
+
+// editsOverlap refuses two edits of one sequence, sorted by start, that
+// overlap: their text, or, for two finds that named codes, the runs they
+// matched.
+func editsOverlap(edits []pathEdit) *Error {
+	for j := 1; j < len(edits); j++ {
+		a, b := edits[j-1], edits[j]
+		overlap := b.start < a.end
+		if !overlap && a.span != nil && b.span != nil && b.start == a.end {
+			overlap = b.span.from < a.span.to
+		}
+		if overlap {
+			return &Error{Code: CodeGuard, Subcode: SubcodeOverlap, Field: "edits/" + strconv.Itoa(b.i),
+				Message: fmt.Sprintf("edit %d overlaps edit %d", b.i, a.i)}
+		}
+	}
+	return nil
+}
+
+// applyPathEdits applies the edits of one sequence, sorted by start, and sets
+// each edit's newLen. An edit of text alone replaces text and keeps every code
+// as model.ApplyTextEdits places it. An edit whose find named codes replaces
+// the runs it matched with its replacement read as placeholder text against
+// the edition's codes; those edits are made first, right to left, so the runs
+// left of each are as the find saw them, and the edits of text alone then
+// apply together at their offsets moved past them.
+func applyPathEdits(seq []model.Run, edits []pathEdit, edition []model.Run, report bool) ([]model.Run, []Finding, *Error) {
+	var findings []Finding
+	shift := make([]int, len(edits))
+	for j := len(edits) - 1; j >= 0; j-- {
+		e := &edits[j]
+		if e.span == nil {
+			e.newLen = utf8.RuneCountInString(e.text)
+			continue
+		}
+		ix := indexSequence(seq)
+		repl, found, err := resolveTextCodes(spanReplacement(ix, e.span, e.text, edition), edition, nil, report)
+		if err != nil {
+			err.Field = "edits/" + strconv.Itoa(e.i) + "/text"
+			return nil, nil, err
+		}
+		findings = append(findings, found...)
+		e.newLen = utf8.RuneCountInString(model.SequenceText(repl))
+		seq = spliceSpan(ix, e.span.from, e.span.to, repl)
+		for k := j + 1; k < len(edits); k++ {
+			shift[k] += e.newLen - (e.end - e.start)
+		}
+	}
+	var textEdits []model.TextEdit
+	for j, e := range edits {
+		if e.span == nil {
+			textEdits = append(textEdits, model.TextEdit{Start: e.start + shift[j], End: e.end + shift[j], Replacement: e.text})
+		}
+	}
+	return model.ApplyTextEdits(seq, textEdits), findings, nil
 }
 
 // removeEdition applies remove_edition.

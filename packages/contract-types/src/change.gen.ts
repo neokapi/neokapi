@@ -503,7 +503,10 @@ export type TextEdit = {
    * "one"}]
    */
   path?: RunPath;
-  /** literal text to match */
+  /**
+   * the text to match, in placeholder form: inline codes have zero width unless
+   * a <x id="…"/> token names one
+   */
   find?: string;
   /**
    * which match of find, counting from 1; omitted requires exactly one match
@@ -518,7 +521,10 @@ export type TextEdit = {
   end?: number;
   /** a span between run positions */
   range?: RunRange;
-  /** the replacement text */
+  /**
+   * the replacement text; after a find that names a code by its token,
+   * placeholder text naming the codes it keeps
+   */
   text: string;
 } & (
   | { find: string; start?: never; end?: never; range?: never }
@@ -538,7 +544,10 @@ export type TextSelection = {
    * "one"}]
    */
   path?: RunPath;
-  /** literal text to match */
+  /**
+   * the text to match, in placeholder form: inline codes have zero width unless
+   * a <x id="…"/> token names one
+   */
   find?: string;
   /**
    * which match of find, counting from 1; omitted requires exactly one match
@@ -1117,6 +1126,11 @@ export interface ChangeError {
    * reference that resolved to nothing might have meant.
    */
   candidates?: ErrorCandidate[];
+  /**
+   * Searched is, for a find that matches nothing, the run sequence it searched:
+   * the path that reaches it and its text in placeholder form.
+   */
+  searched?: FindSearched;
   /** Expected and Found describe a guard refusal. */
   expected?: string;
   found?: string;
@@ -1146,6 +1160,17 @@ export interface ErrorCandidate {
   occurrence?: number;
   /** At is where a find match lies. */
   at?: ResolvedSpan;
+}
+
+/**
+ * Searched is the run sequence a find searched: the path that reaches it, empty
+ * for the edition's own text, and that text in placeholder form.
+ *
+ * Mirrors core/change.Searched.
+ */
+export interface FindSearched {
+  path?: RunPath;
+  text: string;
 }
 
 // ── A read page (Service.Read) ──────────────────────────────────────────────

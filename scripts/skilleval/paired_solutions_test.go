@@ -125,7 +125,22 @@ func TestPairedPluralRouteOnEverySurface(t *testing.T) {
 		"text": "{count} unread message",
 	}}})
 	require.NoError(t, err)
-	routes := map[string]json.RawMessage{"replace_text": solution.Steps[0].Changeset, "set_content typed": typed}
+	// replace_text whose find names the argument as a read shows it, by its
+	// token, and as the prompt spells it: a find reads as text does.
+	findWith := func(find, text string) json.RawMessage {
+		b, err := json.Marshal(map[string]any{"ops": []any{map[string]any{
+			"op": "replace_text", "at": map[string]any{"doc": "lib/l10n/app_en.arb", "block": "inboxCount"},
+			"if_match": reference.Ops[0].IfMatch,
+			"edits":    []any{map[string]any{"path": []any{0, map[string]any{"plural": "one"}}, "find": find, "text": text}},
+		}}})
+		require.NoError(t, err)
+		return b
+	}
+	routes := map[string]json.RawMessage{
+		"replace_text": solution.Steps[0].Changeset, "set_content typed": typed,
+		"replace_text token":    findWith(`<x id="p1/"/> new message`, `<x id="p1/"/> unread message`),
+		"replace_text argument": findWith("{count} new message", "{count} unread message"),
+	}
 
 	surfaces := []struct {
 		name  string
