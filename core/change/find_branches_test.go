@@ -51,6 +51,36 @@ func TestApplyBlock_FindInABranchNamesItsPath(t *testing.T) {
 	assert.Empty(t, err.Candidates)
 }
 
+// replace_text takes the branch on the operation, as set_content does, and an
+// edit's own path overrides it.
+func TestApplyBlock_ReplaceTextPathOnTheOperation(t *testing.T) {
+	one := model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOne}}
+	other := model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOther}}
+
+	b := model.NewRunsBlock("p", pluralRuns())
+	op := replace("", sourceRev(b), find("item", "thing"))
+	op.Body.(*change.ReplaceText).Path = one
+	res := apply(t, b, agent, op)
+	requireApplied(t, res)
+	assert.Equal(t, "You have {count: one={n} thing other={n} items} in your basket.", shape(b.Source))
+	assert.Equal(t, one, res[0].Resolved[0].Path)
+
+	b = model.NewRunsBlock("p", pluralRuns())
+	own := find("items", "things")
+	own.Path = other
+	op = replace("", sourceRev(b), find("item", "thing"), own)
+	op.Body.(*change.ReplaceText).Path = one
+	requireApplied(t, apply(t, b, agent, op))
+	assert.Equal(t, "You have {count: one={n} thing other={n} things} in your basket.", shape(b.Source),
+		"the second edit's own path overrides the operation's")
+
+	b = model.NewRunsBlock("p", pluralRuns())
+	op = replace("", sourceRev(b), find("item", "thing"))
+	op.Body.(*change.ReplaceText).Path = model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralFew}}
+	err := requireRefused(t, apply(t, b, agent, op)[0], change.CodeNotFound)
+	assert.Equal(t, "path", err.Field, "a path on the operation is named as the operation's")
+}
+
 // A find that matches nothing in a branch says which branch it searched and
 // what its text is, and offers up to three matches that differ only in case.
 func TestApplyBlock_NotFoundNamesWhatItSearched(t *testing.T) {

@@ -136,10 +136,19 @@ func TestPairedPluralRouteOnEverySurface(t *testing.T) {
 		require.NoError(t, err)
 		return b
 	}
+	// replace_text with the branch on the operation, where set_content takes
+	// it too.
+	onOperation, err := json.Marshal(map[string]any{"ops": []any{map[string]any{
+		"op": "replace_text", "at": map[string]any{"doc": "lib/l10n/app_en.arb", "block": "inboxCount"},
+		"if_match": reference.Ops[0].IfMatch, "path": []any{0, map[string]any{"plural": "one"}},
+		"edits": []any{map[string]any{"find": "new message", "text": "unread message"}},
+	}}})
+	require.NoError(t, err)
 	routes := map[string]json.RawMessage{
 		"replace_text": solution.Steps[0].Changeset, "set_content typed": typed,
-		"replace_text token":    findWith(`<x id="p1/"/> new message`, `<x id="p1/"/> unread message`),
-		"replace_text argument": findWith("{count} new message", "{count} unread message"),
+		"replace_text path on the operation": onOperation,
+		"replace_text token":                 findWith(`<x id="p1/"/> new message`, `<x id="p1/"/> unread message`),
+		"replace_text argument":              findWith("{count} new message", "{count} unread message"),
 	}
 
 	surfaces := []struct {

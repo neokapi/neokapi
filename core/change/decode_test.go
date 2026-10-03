@@ -65,6 +65,13 @@ func decodeCases() []decodeCase {
 				e := s.Ops[0].Body.(*change.ReplaceText).Edits[0]
 				assert.Equal(t, model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOne}}, e.Path)
 			}},
+		{name: "replace_text with the branch's path on the operation", object: true, in: envelope(`{"op":"replace_text","at":{"doc":"locales/en.json","block":"cart.items"},"if_match":"r:77c0a1d2e3f40516","path":[1,{"plural":"one"}],"edits":[{"find":"item","text":"article"}]}`),
+			check: func(t *testing.T, s change.Set) {
+				body := s.Ops[0].Body.(*change.ReplaceText)
+				assert.Equal(t, model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOne}}, body.Path)
+				assert.Empty(t, body.Edits[0].Path)
+			}},
+		{name: "a replace_text path that is not a path", object: true, in: envelope(`{"op":"replace_text",` + at + `,"if_match":"` + rev + `","path":[1,{"plural":"several"}],"edits":[{"find":"item","text":"article"}]}`), pointer: "/ops/0/path/1/plural"},
 		{name: "remove_edition", object: true, in: envelope(`{"op":"remove_edition","at":{"doc":"docs/guide.html","block":"p","edition":"de"},"if_match":"r:0c55e1f2a3b4c5d6"}`)},
 		{name: "annotate and unannotate", object: true, in: envelope(
 			`{"op":"annotate",`+at+`,"type":"note","id":"n1","anchor":{"kind":"range","start":{"run":2,"offset":0},"end":{"run":2,"offset":10}},"value":{"text":"Is it a handbook or a guide?"}}`,

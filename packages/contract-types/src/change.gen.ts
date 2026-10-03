@@ -176,6 +176,11 @@ export interface ReplaceTextOp {
    */
   if_match: string;
   /**
+   * a plural form or select case every edit is in, for example [1, {"plural":
+   * "one"}]; an edit's own path overrides it
+   */
+  path?: RunPath;
+  /**
    * the replacements, each naming its text by find, by start and end, or by
    * range
    *

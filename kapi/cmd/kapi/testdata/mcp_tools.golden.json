@@ -670,6 +670,10 @@
                       "tool"
                     ],
                     "type": "object"
+                  },
+                  "path": {
+                    "$ref": "#/$defs/path",
+                    "description": "a plural form or select case every edit is in, for example [1, {\"plural\": \"one\"}]; an edit's own path overrides it"
                   }
                 },
                 "required": [
