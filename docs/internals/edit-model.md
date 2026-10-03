@@ -152,9 +152,11 @@ reads all three from a file or stdin, as it reads entries today (`host/apply.go:
 
 **Order.** Operations apply in order, so operation *n* sees the result of earlier operations
 on the same edition. Every `if_match` is checked against the state when the change set began,
-so a caller never computes an intermediate revision. Positions in a later operation refer to
-the edition after the earlier ones. Porcelain sends one operation per edition and puts all of
-an edition's text edits inside one `replace_text`.
+so a caller never computes an intermediate revision, and positions (`start` and `end`, a run
+`range`, a `path`'s run index) name that state too: the applier moves each through the text
+the earlier operations on the edition changed, in the order sent, and refuses one inside that
+text as `guard`/`overlap`, naming both operations. Two fixes `kapi check` prints for one block
+therefore apply together. A `find` matches the edition after the earlier operations.
 
 ### 2.2 Operations
 

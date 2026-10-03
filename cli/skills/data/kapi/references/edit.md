@@ -85,7 +85,12 @@ and keeps everything around it:
 
 A `replace_text` edit names its text by `find` (with `occurrence` when it
 matches more than once), by code-point `start` and `end`, or by run positions in
-`range`. To edit one branch of a plural, give the edit the branch's `path` from
+`range`. Positions name the block as you read it, even when an earlier
+operation of the same change set changed that block: kapi moves them past that
+change, so several fixes of one block, each computed from the one read, apply
+together. A position inside text an earlier operation changed is refused as
+`guard` (`overlap`); a `find` matches the text as the earlier operations left
+it. To edit one branch of a plural, give the edit the branch's `path` from
 `structures`, such as `[1, {"plural": "one"}]`. A change set can also be JSONL
 (the envelope fields on the first line, one operation per line) or a JSON array
 of operations. `kapi apply --schema` prints the whole contract.
@@ -132,9 +137,9 @@ refused, nothing in the change set is written, the refused operation carries an
 
 A refusal exits **3**, distinct from an operational error: re-read the affected
 blocks and resend with fresh revisions, the same loop a failing check drives. A
-change set that does not decode exits **2**; over MCP, `apply_edits` answers it
-with a refused result whose own `error` is `invalid`, with the JSON `pointer` of
-the field to fix, and whose `ops` list is empty. Resending a change set that
+change set that does not decode exits **2**; over MCP, and from `kapi apply
+--json`, it is answered with a refused result whose own `error` is `invalid`,
+with the JSON `pointer` of the field to fix, and whose `ops` list is empty. Resending a change set that
 landed writes nothing: its revisions no longer hold, so it is refused `stale`
 with each block's current text, which already reads as you wrote it. An
 operation reports `unchanged` when its `if_match` still holds and the block

@@ -56,14 +56,18 @@ A change set has an envelope and operations.
 | `gate` | `enforce` (the default) or `report`: what a failing governance finding the change introduces does |
 | `require_basis` | refuse a write to a derived edition whose authoritative edition moved since the sender read it |
 | `note`, `evidence` | what a person reads in history, and where the wording behind the change was seen |
-| `ops` | the operations, applied in order |
+| `ops` | the operations, applied in order; a change set with none changes nothing |
 
 The content operations are `set_content`, `replace_text`, `set_attribute`,
 `mark`, `remove_edition`, `annotate`, `unannotate`, `insert_block`,
 `delete_block` and `native`. `decide` records a review decision, and `term`,
 `memory` and `recipe` change the project's terms store, content memory and
 recipe. The envelope carries no actor: the transport that delivers a change set
-says who sent it.
+says who sent it. A `set_content` or `replace_text` may state how a tool
+produced its content (`origin`: the tool, and the kind and engine it drew on),
+as a run printed with `--print-ops` states each translation it wrote. A tool in
+a flow keeps that origin on the translation; an edit a person or an agent sends
+is theirs, and the origin it states is not kept.
 
 `change.Decode` reads a change set strictly: an unknown field or operation is
 refused with the JSON pointer of what was wrong. `changeschema.Schema` is the
@@ -89,6 +93,21 @@ its runs, codes and their attributes included, and nothing else, so the same
 token holds in every home. `absent` creates an edition, and `*` writes whatever
 is there. Every `if_match` is checked against the content as it stood when the
 change set began, so a sender never computes an intermediate revision.
+
+A position names that content too. An edit's `start` and `end`, a run `range`,
+and the run index a `path` walks through all refer to the edition at the
+revision the sender read, and the applier moves each through the text the
+operations before it changed in the same edition, in the order they were sent:
+two fixes `kapi check` prints for different words of one block, each guarded by
+the revision the check read, both land where their sender meant. A position
+inside text an earlier operation replaced, or after a `set_content` of the
+sequence it lies in, has no place in the edition as it stands, and the
+operation is refused as `guard` (`overlap`) with a message naming both
+operations by their place in the change set. A `find` matches the text as the
+earlier operations left it, and an annotation's anchor marks that text. An
+in-process caller that builds each operation on the result of the one before
+it, as a transform's passes do, applies them with `BlockEnv.Chained`, under
+which every position reads the edition as the operations before it left it.
 
 ### The applier
 
@@ -118,9 +137,10 @@ note describes each rule.
   changed since is refused as `stale`. `ReadEach` reads every block of a
   document in one pass and hands each to a callback beside the block it was
   read from, for a command line that streams a whole document.
-- **`Apply`** applies a change set in two phases. It asks the policy about
-  every operation, groups the operations by document, and opens each document
-  in its home. It then prepares every document: the home reads it, the
+- **`Apply`** applies a change set in two phases. It checks each operation's
+  body as `Decode` does, since a sender in the process never passed the
+  decoder, asks the policy about every operation, groups the operations by
+  document, and opens each document in its home. It then prepares every document: the home reads it, the
   service's editor applies the operations addressed to each block, and the
   home stages the result. The service refuses an edition the staged file does
   not change, because the format has no place for it there, and runs the
@@ -233,7 +253,11 @@ while writing nothing, edits to different blocks commute, also when one lands
 between the other's stage and commit, a refusal in one document leaves every
 document as it was, whether it is found at the stage or at the commit, a
 preview writes nothing, a missing block is not found, the same content said
-again is unchanged, and a file keeps its mode.
+again is unchanged, a file keeps its mode, a removed translation reads back
+absent while a replay of its removal is stale and writes nothing, and a change
+set with no operation applies and writes nothing. Each home runs the removal on
+a document that holds its translation: the stream's own rows, or a PO catalog
+for the file home and the project homes.
 
 **The file home** (`core/change/filehome`) keeps each document as a file. A
 stage reads the document through its format's reader with the writer's
@@ -252,7 +276,11 @@ is never rewritten from the document; a file that does not exist yet is
 written from the document's skeleton. A change set that adds or removes
 blocks has the format's writer write those edits into the document's file and
 into the file of each edition the blocks hold or name, keeping them in memory
-until the commit, and the stage's pass reads the result. Where the reader and
+until the commit, and the stage's pass reads the result. A stage that removes a
+translation a bilingual file holds reads its write back, and refuses the removal
+as `unsupported` when the translation is still there: the XLIFF and TMX writers
+write a translation of every unit, from the source where a block holds none,
+so a removal there would put the source in the translation's place. Where the reader and
 the writer both stream and no block is added or removed, the document is never
 held whole. The home reports what the document's writer declares: an
 in-process writer's declaration, with the writer spelling a changed attribute
@@ -317,7 +345,8 @@ Under `--print-ops` the run commits through a home that writes nothing
 document becomes operations, the difference between each block as the reader
 gave it and as the writer received it (`change.Diff`), each guarded by the
 revision the service read before the run and each `set_content` of a
-translation carrying its basis. Before a document's operations join the change
+translation carrying its basis and, as each operation on a translation does,
+the `origin` the producing tool left. Before a document's operations join the change
 set, they are applied to a private copy of the file through the service `kapi
 apply` reaches, and they are printed only when the copy then holds the bytes
 the run would have written. A run writes a target-language file whole from its
@@ -327,9 +356,11 @@ holds an entry or an order of its own; such a file is named on standard error
 and left out. So is a file the run would write where the service does not keep
 the edition (an output path given on the command line in place of the recipe's
 target), a conversion, an export and an archive. `kapi apply` of the change set
-writes the bytes the run would have written, and records the edit as its own
-actor's: the provenance operation is in-process, so the change set carries no
-tool stamp.
+writes the bytes the run would have written, and records the edit as its
+applier's: a person's or an agent's edit is theirs, so the `origin` the
+operations state is not kept on the translation, and `kapi apply` prints one
+line naming the tools and saying so. A run with nothing to change prints a
+change set with no operation, which applies and writes nothing.
 
 A printing `kapi up` runs one pass. A gated pass drafts into its private tree
 as any pass does (`Options.WriteUnder` lets the printing home write there),
@@ -491,7 +522,9 @@ without another read. A resource bound `core/safeio` reports is
 `budget_exceeded`. A change set refused before any operation is considered,
 because it does not decode or the request carrying it is refused, is answered
 with the same result shape (`change.ErrorResult`): status `refused`, no record,
-no files or operations, and the error.
+no files or operations, and the error. `kapi apply --json` prints that result
+for a change set that does not decode, and exits 2, as MCP and the browser
+answer one.
 
 ## Consequences
 

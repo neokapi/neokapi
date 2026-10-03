@@ -147,17 +147,17 @@ block history as the flow's edit, with the source each translation was made
 from, which is how `kapi status` tells a rewritten source under the loop's
 translation from a new one. To see what a run would change, add
 `--print-ops`: the run writes no file of the project and records no change, and
-prints the change set (`set_content` per translation, with its `if_match` and
-`basis`). `kapi apply` of that output writes the bytes the run would write.
+prints the change set (`set_content` per translation, with its `if_match`, its
+`basis`, and in `origin` the tool that produced it). `kapi apply` of that
+output writes the bytes the run would write.
 
 ```bash
 kapi up --print-ops > change.json   # one pass, no file written, the change set on stdout
 kapi apply change.json              # apply exactly what was printed
 ```
 
-An empty `ops` list means there is nothing to apply (`kapi apply` refuses a
-change set with no operation). Every file left out of the change set is named
-on stderr. A run writes a
+An empty `ops` list means there is nothing to apply, and `kapi apply` of it
+changes nothing. Every file left out of the change set is named on stderr. A run writes a
 target file whole from its source, and `kapi apply` edits only the blocks the
 file already holds, so a target file the two would write differently (a key
 the source gained, an entry only the target holds) is left out, and `kapi up`
@@ -167,7 +167,8 @@ ship gate. In a project, `kapi translate`, `pseudo-translate` and `run` without
 `-o` write no file, so they print nothing: use `kapi up --print-ops`. A printing
 run reads the content memory as it stands (a pass that writes first takes the
 committed translations into it), and `kapi apply` records the change as yours,
-not as the tool's draft. Use
+not as the tool's draft: it does not keep the `origin` the printed operations
+state, and prints a one-line `note:` saying so. Use
 `--json` for the machine-readable event stream; the `up` and `up_plan` MCP tools
 expose the same loop and dry run to an assistant. `kapi run <flow>` is only for a
 *custom* one-off pipeline (one named flow, one pass); the daily loop is `kapi up`.

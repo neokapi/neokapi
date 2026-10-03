@@ -37,6 +37,8 @@ An archive member is read from its bytes, written to a buffer, and spliced into 
 
 A format that holds its translations in the document, such as PO, XLIFF or TMX, keeps one translation per language, so an edition with a tone or a channel has no place in it and is refused as `unsupported`. Some readers model a translation only when told its language: a PO catalog's `msgstr` reads as the French edition only when the reader is given `fr`. The layout gives it as `Doc.TargetLocale` (the host takes `--target-lang`), and every pass over the file hands it to the reader and to the writer. Without it the catalog's translation is not an edition a read shows, and an edit of it changes no byte, so it is refused.
 
+A stage that removes a translation the file holds reads the staged bytes back through the format's reader (`verifyRemoved`) and refuses the change as `unsupported` with capability `remove_edition` when the translation is still there. A PO catalog writes the entry with an empty `msgstr`, which reads as no translation; the XLIFF 1.2, XLIFF 2 and TMX writers, which follow the Okapi filters, write a translation of every unit and take the source where the block holds none, so a removal there is refused rather than write the source in the translation's place. An archive member is not read back.
+
 ## A commit
 
 `Staged.LockKeys` names the lock file of every file the stage reads or changes, and `Staged.Lock` takes one. The service takes the locks of every document of a change set in the order of their keys, then calls `Staged.Settle` on each, which hashes each file again.
@@ -94,7 +96,7 @@ A preview stages each document and settles none: the service releases every stag
 
 ## Tests
 
-- `changetest.Run` is the conformance suite, run by `TestFileHome_Conformance` on two JSON documents with mode `0640`; its interleaving cases run a second sender from `Options.BeforeSettle`.
+- `changetest.Run` is the conformance suite, run by `TestFileHome_Conformance` on two JSON documents with mode `0640` and a French PO catalog whose translation it removes; its interleaving cases run a second sender from `Options.BeforeSettle`. `TestFileHome_RemovingATranslationABilingualFileHolds` removes a translation from a PO catalog and refuses the removal from XLIFF 1.2, XLIFF 2 and TMX, writing nothing.
 - `TestFileHome_TwoProcessesEditingDifferentBlocksLoseNoEdit` starts the test binary as two writer processes over 50 rounds; each stages an edit of a different paragraph of one HTML file and waits at a barrier until both have staged. A third of the rounds let the first writer finish before the second settles, a third the reverse, and a third let the lock decide. Both edits are in the file after every round. Settling without the second pass loses an edit in the first round. It skips under `GOOS=js`, which cannot start a process.
 - `TestFileHome_TwoWritersOfOneBlockConflict` stages two edits of one block against one content in one process: one lands and the other is refused as `stale` with what the first wrote. `make test-wasm-stores` runs it under `GOOS=js` too, where only the lock's mutex orders the two.
 - `TestFileHome_ALargeEditStaysInBoundedMemory` edits one message of a 100,000-message JSON catalog of about 8 MiB and asserts the heap the edit takes stays under 24 MiB; the streaming path takes under 2 MiB, and a buffered round trip of the same catalog takes about 80 MiB.

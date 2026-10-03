@@ -116,7 +116,7 @@ func TestReview_MultiFileCollectionCommitsEveryDecision(t *testing.T) {
 }
 
 // writeReviewedCorrection approves the unit whose source matches srcText (for nb)
-// through the real state-store approval path — a decide through the change service records the
+// through the real state-store approval path: a decide through the change service records the
 // decision in the project state store, the authoritative carrier of review state.
 // The target argument is ignored: approval blesses the translation already in the
 // file. (Named for historical continuity with the prior .memory.json-based helper.)
