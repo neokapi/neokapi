@@ -1455,7 +1455,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 				wrote := true
 				var werr error
 				if c.pullsAnEdition(itemName, outPath) {
-					wrote, werr = c.pullEdition(ctx, services, itemName, loc, targetMap, mediaRepl)
+					wrote, werr = c.pullEdition(ctx, services, itemName, loc, targetMap, pulledBases(blocks, loc, decisions), mediaRepl)
 				} else {
 					werr = c.writeTranslatedFile(ctx, absSource, absOut, formatName, loc, targetMap, mediaRepl...)
 				}

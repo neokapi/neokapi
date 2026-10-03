@@ -156,6 +156,19 @@ func TestRecordEditionWrites_LeavesWhatItDoesNotDescribe(t *testing.T) {
 			},
 		},
 		{
+			// The venue made it, and its own record holds the source it was
+			// made from; a basis the write carries names the source the
+			// checkout held when it pulled.
+			name:  "a translation a pull brought in, carrying a basis",
+			write: venue.EditionWrite{Basis: state.SourceHash("Hello"), Writer: venue.WriterTool, Origin: "pull"},
+			check: func(t *testing.T, s *PostgresStore, projectID string) {
+				assert.Empty(t, listDecisions(t, s, projectID), "no basis record")
+				drafts, err := s.ListDraftBases(t.Context(), projectID, "main")
+				require.NoError(t, err)
+				assert.Empty(t, drafts, "and no draft mark")
+			},
+		},
+		{
 			name:  "a translation written by hand",
 			write: venue.EditionWrite{Writer: venue.WriterPerson, Origin: "desktop"},
 			check: func(t *testing.T, s *PostgresStore, projectID string) {

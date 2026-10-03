@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/convergence"
+	"github.com/neokapi/neokapi/core/history"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 )
@@ -92,7 +93,7 @@ func (c *BowrainSourceConnector) projectEditionWrites(ctx context.Context, block
 			if w.Unit != r.Block {
 				w.Block = r.Block
 			}
-			if r.Basis != "" {
+			if r.Basis != "" && r.Origin != history.OriginPull {
 				// The content hash the record keeps is the source's, which is
 				// the value a venue compares a block's source with.
 				w.Basis = r.ContentHash

@@ -107,11 +107,15 @@ func recordEditionWritesTx(ctx context.Context, tx Runner, projectID, stream, au
 			return recorded, fmt.Errorf("read the record of %s/%s: %w", w.Unit, w.Variant, err)
 		}
 		decided := haveRecord && reviewState != ""
-		if !decided && (w.Basis != "" || w.KnowsNoBasis()) &&
-			(!haveRecord || prevBasis != w.Basis || prevTarget != targetHash) {
+		basis := ""
+		if w.HasBasis() {
+			basis = w.Basis
+		}
+		if !decided && (basis != "" || w.KnowsNoBasis()) &&
+			(!haveRecord || prevBasis != basis || prevTarget != targetHash) {
 			bases = append(bases, venue.UnitDecision{
 				ItemName: w.ItemName, Unit: w.Unit, Variant: w.Variant,
-				TargetHash: targetHash, ContentHash: w.Basis,
+				TargetHash: targetHash, ContentHash: basis,
 				GoverningFingerprint: w.GoverningFingerprint, Updated: updated,
 			})
 		}

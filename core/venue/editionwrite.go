@@ -27,8 +27,8 @@ type EditionWrite struct {
 	// project keeps.
 	Revision string `json:"rev"`
 	// Basis is the content hash of the source the translation was made from
-	// (state.SourceHash), empty when the write recorded none: a person's or an
-	// agent's edit, or one made outside kapi.
+	// (state.SourceHash), empty when the write recorded none: an edit made
+	// outside kapi, or a translation a pull brought down from a venue.
 	Basis string `json:"basis,omitempty"`
 	// Writer is the kind of actor that wrote the translation: person, agent,
 	// tool, or external for an edit made outside kapi that a read observed.
@@ -49,6 +49,17 @@ const (
 	WriterExternal = "external"
 )
 
+// The origins of an edition write that bring in somebody else's work.
+const (
+	// OriginPull is a translation kapi pull brought down from a venue, made
+	// there from a source the checkout never recorded.
+	OriginPull = "pull"
+	// OriginMerge is a translation kapi merge returned or materialized.
+	OriginMerge = "merge"
+	// OriginObserved is an edit made outside kapi that a read observed.
+	OriginObserved = "observed"
+)
+
 // ByHand reports whether the pusher wrote the translation: a person's or an
 // agent's edit made through kapi in the checkout that pushes it. An agent
 // works for the person who runs it, as it does on the venue. A translation a
@@ -59,16 +70,23 @@ func (w EditionWrite) ByHand() bool {
 		return false
 	}
 	switch w.Origin {
-	case "merge", "pull", "observed":
+	case OriginMerge, OriginPull, OriginObserved:
 		return false
 	}
 	return true
 }
 
+// HasBasis reports whether the write names the source the translation was
+// made from. A pulled translation names none, whatever the write carries: the
+// venue made it, and the venue's own record holds its source.
+func (w EditionWrite) HasBasis() bool {
+	return w.Basis != "" && w.Origin != OriginPull
+}
+
 // Produced reports whether a tool made the translation from a recorded
 // source, the write a venue counts as drafted against that source.
 func (w EditionWrite) Produced() bool {
-	return w.Writer == WriterTool && w.Basis != ""
+	return w.Writer == WriterTool && w.HasBasis()
 }
 
 // KnowsNoBasis reports whether the write replaced a translation with one made

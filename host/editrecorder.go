@@ -96,6 +96,8 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 		note = rec.Set.Note
 	}
 
+	stated, statesBases := ctx.Value(statedBasesKey{}).(map[basisAt]bool)
+
 	var order []string
 	results := map[string]change.DocResult{}
 	byDoc := map[string][]change.Transition{}
@@ -137,6 +139,12 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 		}
 		keep := keptRuns{before: keepRuns, after: keepRuns || res.Home == homeWorkspace}
 		for _, t := range transitions {
+			if statesBases && !stated[basisAt{t.Ref.Block, t.Ref.EditionText()}] {
+				// The writer named the basis of every edition whose source it
+				// knows (WithStatedBases). The service's basis for any other,
+				// the source the checkout holds now, would claim it current.
+				t.Basis = ""
+			}
 			e.Transitions = append(e.Transitions, editTransition(t, keep))
 		}
 		edits = append(edits, e)
@@ -152,6 +160,30 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 		return "", fmt.Errorf("record edit: %w", err)
 	}
 	return ids[0], nil
+}
+
+// basisAt names an edition of a block a change set's operation addresses.
+type basisAt struct{ block, edition string }
+
+// statedBasesKey marks the context of a change set that states its bases.
+type statedBasesKey struct{}
+
+// WithStatedBases returns ctx for applying set, a change set whose writer
+// knows the source of some of the derived editions it writes and of no other:
+// kapi pull, writing a venue's translations, knows the source of those the
+// venue's record says were made from the source the checkout holds. Each
+// operation names that source as its basis, and the record of the set keeps
+// the basis of those editions and of no other. Without it the record keeps
+// the basis the service gives every derived edition an operation names none
+// for, the authoritative edition the change set found.
+func WithStatedBases(ctx context.Context, set change.Set) context.Context {
+	stated := map[basisAt]bool{}
+	for _, op := range set.Ops {
+		if op.Basis != "" {
+			stated[basisAt{op.At.Block, op.At.EditionText()}] = true
+		}
+	}
+	return context.WithValue(ctx, statedBasesKey{}, stated)
 }
 
 // editDoc names the document a change addressed. A change addresses a
