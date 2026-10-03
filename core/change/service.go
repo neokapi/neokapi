@@ -400,7 +400,8 @@ func (r *applyRun) plan(ctx context.Context, p *docPlan) {
 				why = "the document holds one edition, and outside a project there is no file for another"
 			}
 			r.refuse(i, &Error{Code: CodeUnsupported, Capability: "edition",
-				Message: fmt.Sprintf("edition %s of %s has nowhere to live: %s", keyText(op.At.Edition), p.info.Doc, why)})
+				Message: fmt.Sprintf("edition %s of %s has nowhere to live: %s. To write it, copy %s to the file the translation goes in and edit the copy, "+
+					"or work in a project whose recipe names a target file for it", keyText(op.At.Edition), p.info.Doc, why, p.info.Doc)})
 			continue
 		case PlaceOwnFile:
 			if !slices.ContainsFunc(p.want.Editions, func(k model.EditionKey) bool { return k.Canonical() == op.At.Edition.Canonical() }) {

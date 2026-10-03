@@ -86,6 +86,10 @@ func Decode(r io.Reader) (Set, error) {
 			if bytes.Equal(bytes.TrimSpace(rawOps), []byte("null")) {
 				return Set{}, invalidAt("/ops", "must be an array of operations")
 			}
+			if trimmed := bytes.TrimSpace(rawOps); len(trimmed) > 0 && trimmed[0] == '"' {
+				return Set{}, invalidAt("/ops", "must be an array of operations, and is a string: send the change set's fields as JSON values, "+
+					"as a tool's arguments or the document itself, not as text that holds JSON")
+			}
 			if err := json.Unmarshal(rawOps, &opsRaw); err != nil {
 				return Set{}, invalidAt("/ops", "must be an array of operations")
 			}
@@ -218,7 +222,11 @@ func decodeOp(raw json.RawMessage, ptr string) (Op, *Error) {
 	}
 	for _, k := range sortedKeys(obj) {
 		if !known[k] {
-			return Op{}, invalidAt(ptr+"/"+escapePointer(k), "unknown field %q; %s takes %s", k, kind, strings.Join(sortedKeys(known), ", "))
+			msg := fmt.Sprintf("unknown field %q; %s takes %s", k, kind, strings.Join(sortedKeys(known), ", "))
+			if kind == KindSetAttribute {
+				msg += "; the attribute's name goes in name and its new value in value"
+			}
+			return Op{}, invalidAt(ptr+"/"+escapePointer(k), "%s (kapi apply --schema %s prints its schema)", msg, kind)
 		}
 	}
 
@@ -485,6 +493,12 @@ func validateSelection(s Selection, ptr string) *Error {
 
 // decodeRef decodes an "at" reference strictly.
 func decodeRef(raw json.RawMessage, ptr string) (Ref, *Error) {
+	if obj, err := objectAt(raw, ptr); err == nil {
+		if _, ok := obj["path"]; ok {
+			return Ref{}, invalidAt(ptr+"/path", `unknown field "path"; it takes doc, block, edition. A plural or select branch is not part of the reference: `+
+				`set_content takes it as the operation's path, replace_text as the operation's path or each edit's`)
+		}
+	}
 	var w refWire
 	if err := decodeValue(raw, reflect.ValueOf(&w).Elem(), ptr); err != nil {
 		return Ref{}, err

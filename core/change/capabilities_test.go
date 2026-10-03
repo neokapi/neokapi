@@ -102,7 +102,7 @@ func TestApplyBlock_SetAttribute(t *testing.T) {
 		{"a format that declares nothing", func(b *model.Block) change.Op { return setAttr("", sourceRev(b), "1", "href", "x") },
 			person, change.CodeUnsupported, "writes no attribute"},
 		{"a stale read", func(*model.Block) change.Op { return setAttr("", "r:0000000000000000", "1", "href", "x") },
-			env, change.CodeStale, "is at"},
+			env, change.CodeStale, "changed after you read it"},
 	}
 	for _, tc := range refusals {
 		t.Run(tc.name, func(t *testing.T) {

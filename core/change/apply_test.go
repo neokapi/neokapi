@@ -716,3 +716,16 @@ func TestApplyBlock_ProvenanceIsAToolsOwn(t *testing.T) {
 	}
 	assert.Equal(t, model.SourceStatus(""), b.SourceStatus, "no target status reaches the source")
 }
+
+// A stale refusal says the edition moved after the sender read it, names the
+// revision to resend against, and says the change it holds is another
+// writer's to keep.
+func TestApplyBlock_AStaleRefusalSaysTheChangeIsAnothersToKeep(t *testing.T) {
+	b := guideBlock()
+	read := sourceRev(b)
+	requireApplied(t, apply(t, b, person, replace("", read, find("shop guide", "store guide"))))
+	now := sourceRev(b)
+	err := requireRefused(t, apply(t, b, agent, replace("", read, find("order", "buy")))[0], change.CodeStale)
+	assert.Equal(t, "edition en changed after you read it at "+read+"; it is now "+now+
+		". Its current text holds a change you have not seen: keep it, and resend against "+now, err.Message)
+}

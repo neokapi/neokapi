@@ -389,7 +389,9 @@ func printChangeResult(w io.Writer, res *change.Result) {
 			}
 			fmt.Fprintf(w, "op %d %s%s: refused%s\n", op.I, op.Op, at, msg)
 			if op.Current != nil {
-				fmt.Fprintf(w, "  current %s: %s\n", op.Current.Rev, op.Current.Text)
+				// Every line of the current text is indented under the
+				// operation, so a text of several lines reads as one value.
+				fmt.Fprintf(w, "  current %s: %s\n", op.Current.Rev, strings.ReplaceAll(op.Current.Text, "\n", "\n    "))
 			}
 			for _, c := range opCandidates(op) {
 				fmt.Fprintf(w, "  candidate %s\n", c)

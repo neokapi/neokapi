@@ -357,10 +357,14 @@ func observedSubject(req ContextObserveRequest) (contextop.Subject, error) {
 	if rule.Replacement == "" {
 		// The term is the form the project uses. With nothing to avoid, the
 		// rule would hold that form alone, which reads as a word to avoid and
-		// would flag the project's own spelling of it.
+		// would flag the project's own spelling of it. What the observation
+		// says in text is recorded as a note instead.
+		if text != "" {
+			return contextop.Subject{Kind: contextop.SubjectNote, Text: text}, nil
+		}
 		return contextop.Subject{}, fmt.Errorf("%q is the form the project uses, and nothing names the forms to avoid: "+
 			"give the spellings writers get wrong in instead_of (--instead-of), such as a split, hyphenated "+
-			"or differently cased form, or record the fact as a note in text", term)
+			"or differently cased form, or say what you saw in text, which is recorded as a note", term)
 	}
 	return contextop.Subject{Kind: contextop.SubjectTerm, Term: &rule, Text: text}, nil
 }
