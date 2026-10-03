@@ -284,6 +284,22 @@ func (b *Block) EachEdition(yield func(EditionKey, Edition) bool) {
 	}
 }
 
+// ZeroKeyTarget returns a translation filed under the zero key and whether the
+// block holds one. The zero key names the edition the block was read in, so
+// Edition, Editions and EachEdition never reach such a translation, but the
+// target accessors file and read it (SetTargetRuns("") and TargetRuns("")):
+// the Qt TS reader files one for a file with no language attribute read with
+// no source locale, and the TS writer writes it. A walk over every text a
+// writer can emit, or a writer that reports the status of the translation it
+// wrote, reads it here.
+func (b *Block) ZeroKeyTarget() (Edition, bool) {
+	t := b.Targets[EditionKey{}]
+	if t == nil {
+		return Edition{}, false
+	}
+	return Edition{Runs: t.Runs, Status: Status(t.Status), Origin: t.Origin, Score: t.Score}, true
+}
+
 // Authoritative returns the key of the block's authoritative edition under p:
 // the edition p names when the block holds it as an edition of its own, and
 // otherwise the edition the block was read in. A policy that names the source

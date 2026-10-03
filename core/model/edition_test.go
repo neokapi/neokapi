@@ -313,6 +313,37 @@ func TestBlockEachEdition(t *testing.T) {
 	})
 }
 
+// A translation filed under the zero key is reached by ZeroKeyTarget alone:
+// the zero key names the edition the block was read in for every edition
+// accessor.
+func TestBlockZeroKeyTarget(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	_, ok := b.ZeroKeyTarget()
+	assert.False(t, ok, "a block with no translation under the zero key")
+
+	b.SetTargetText("", "Hallo")
+	b.StampTargetProvenance("", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
+	b.SetTargetText("fr", "Bonjour")
+	got, ok := b.ZeroKeyTarget()
+	require.True(t, ok)
+	assert.Equal(t, "Hallo", model.RunsText(got.Runs))
+	assert.Equal(t, model.Status(model.TargetStatusEstablished), got.Status)
+	assert.Equal(t, model.Origin{Kind: model.OriginHuman}, got.Origin)
+
+	src, ok := b.Edition(model.EditionKey{})
+	require.True(t, ok)
+	assert.Equal(t, "Hello", model.RunsText(src.Runs), "the zero key still names the edition the block was read in")
+	assert.Equal(t, []model.EditionKey{{}, {Locale: "fr"}}, b.Editions())
+
+	t.Run("one with no runs is held", func(t *testing.T) {
+		b := model.NewBlock("b1", "Hello")
+		b.SetTargetRuns("", nil)
+		got, ok := b.ZeroKeyTarget()
+		assert.True(t, ok)
+		assert.Empty(t, got.Runs)
+	})
+}
+
 func TestBlockRemoveEditionAndEditions(t *testing.T) {
 	b := editionBlock()
 	assert.Equal(t, []model.EditionKey{{Locale: "en"}, {Locale: "en", Channel: "short"}, {Locale: "fr"}}, b.Editions())
