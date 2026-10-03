@@ -578,8 +578,8 @@ func creations(je *joinedEdition, ix *blockIndex, created []int, changed map[int
 // parentKey is the key path of the mapping a block keyed key sits in, as
 // JSON and YAML key paths name it.
 func parentKey(key string) string {
-	if at := strings.LastIndexByte(key, '.'); at >= 0 {
-		return key[:at]
+	if parent, _, ok := strings.CutLast(key, "."); ok {
+		return parent
 	}
 	return ""
 }
