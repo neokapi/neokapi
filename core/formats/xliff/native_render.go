@@ -5,6 +5,7 @@ import (
 
 	"golang.org/x/text/encoding"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/xmlesc"
 )
@@ -143,9 +144,9 @@ func sourceBodyIsCurrent(sa *SourceBodyNativeAnnotation, block *model.Block) boo
 		// No witness: either a genuinely empty source (in which case the
 		// block's source is empty too and the capture is trivially current)
 		// or an annotation that lost its snapshot, which must not be trusted.
-		return model.RunsText(block.Source) == ""
+		return model.RunsText(format.AuthoritativeRuns(block)) == ""
 	}
-	return model.RunsText(block.Source) == sa.SourceAsRead
+	return model.RunsText(format.AuthoritativeRuns(block)) == sa.SourceAsRead
 }
 
 // emitInlinesOpts walks an inline tree and emits XML. Two things decide where a

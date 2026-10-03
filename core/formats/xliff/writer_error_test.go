@@ -39,11 +39,7 @@ func TestFlush_SurfacesWriteError(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 
-	block := &model.Block{
-		ID:           "1",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: "Hello"}}},
-	}
+	block := model.NewBlock("1", "Hello")
 	parts := []*model.Part{
 		{Type: model.PartBlock, Resource: block},
 	}
