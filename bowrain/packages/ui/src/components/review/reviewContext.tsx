@@ -1,4 +1,5 @@
-import type { CheckFinding } from "@neokapi/contract-types";
+import type { CheckFinding, ReviewMemoryMatch } from "@neokapi/contract-types";
+import type { Run } from "@neokapi/kapi-format";
 import {
   checkFindingViews,
   checkIssueTone,
@@ -9,6 +10,7 @@ import {
 import { resolveOverlaySpans, segmentText } from "@neokapi/ui-primitives/preview";
 import type { ContentNode } from "@neokapi/ui-primitives/preview";
 import type { BlockNote, BlockTermMatch, CheckIssue } from "../../types/api";
+import type { UnifiedSaveResult } from "../UnifiedTargetEditor";
 
 /**
  * What the platform keeps for itself around the shared review cards. The five
@@ -93,4 +95,16 @@ export function AnchoredTarget({
       )}
     </p>
   );
+}
+
+/**
+ * What using a content-memory match saves: the match's runs when its answer
+ * holds a code or a plural, which its text spells flat, else its text.
+ */
+export function matchSaveResult(match: ReviewMemoryMatch): UnifiedSaveResult {
+  const runs: Run[] =
+    match.target_runs && match.target_runs.length > 0
+      ? (match.target_runs as Run[])
+      : [{ text: match.target }];
+  return { kind: "runs", runs };
 }

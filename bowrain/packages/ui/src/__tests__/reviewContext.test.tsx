@@ -13,6 +13,8 @@ import { describe, it, expect } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import type { UnifiedSaveResult } from "../components/UnifiedTargetEditor";
+import { savedTranslation } from "../components/editor/savedTranslation";
 import { FocusedReviewer } from "../components/review/FocusedReviewer";
 import { ReviewInspector } from "../components/review/ReviewInspector";
 import type { ReviewEntry } from "../components/review/reviewQueue";
@@ -463,5 +465,129 @@ describe("the document's inspector", () => {
       "Uses a term the profile forbids.",
     );
     expect(screen.getByTestId("finding-voice-0-suggestion").textContent).toBe("Changez");
+  });
+});
+
+describe("using a content-memory match", () => {
+  // The answer holds a variable, so its text spells the code flat; a save of
+  // the text would store literal braces where the variable was.
+  const codedMatch = emptyContext({
+    history: {
+      match: {
+        source: "Hello {{name}}",
+        target: "Bonjour {{name}}",
+        target_runs: [{ text: "Bonjour " }, { ph: { id: "1", type: "fmt", equiv: "{name}" } }],
+        score: 100,
+        kind: "exact",
+      },
+    },
+  });
+
+  it("saves the match's runs from the focused reviewer, so the code stays", async () => {
+    const saves: UnifiedSaveResult[] = [];
+    render(
+      <FocusedReviewer
+        entry={entry()}
+        sourceLocale="en"
+        position={{ index: 1, total: 3 }}
+        editing={false}
+        context={codedMatch}
+        onApprove={() => {}}
+        onReject={() => {}}
+        onEditToggle={() => {}}
+        onSaveEdit={(r) => {
+          saves.push(r);
+        }}
+        onCancelEdit={() => {}}
+        onReCheck={() => {}}
+        onMarkTerm={() => {}}
+        onSuggestVoiceRule={() => {}}
+        onMakeRule={() => {}}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId("memory-match-use"));
+
+    expect(saves).toHaveLength(1);
+    const saved = savedTranslation(saves[0]);
+    expect(saved.runs).toEqual([
+      { text: "Bonjour " },
+      { ph: { id: "1", type: "fmt", equiv: "{name}" } },
+    ]);
+    expect(saved.text).not.toContain("{{");
+  });
+
+  it("saves the match's runs from the document's inspector", async () => {
+    const saves: UnifiedSaveResult[] = [];
+    render(
+      <ReviewInspector
+        block={block()}
+        node={null}
+        itemName="auth.json"
+        locale="fr-FR"
+        localeLabel="French (France) (fr-FR)"
+        issues={[]}
+        terms={[]}
+        context={codedMatch}
+        editing={false}
+        marked={false}
+        onClose={() => {}}
+        onApprove={() => {}}
+        onReject={() => {}}
+        onEditToggle={() => {}}
+        onSaveEdit={(r) => {
+          saves.push(r);
+        }}
+        onCancelEdit={() => {}}
+        onToggleMark={() => {}}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId("memory-match-use"));
+
+    expect(saves).toHaveLength(1);
+    expect(savedTranslation(saves[0]).runs).toEqual([
+      { text: "Bonjour " },
+      { ph: { id: "1", type: "fmt", equiv: "{name}" } },
+    ]);
+  });
+
+  it("saves a plain match as its text", async () => {
+    const saves: UnifiedSaveResult[] = [];
+    render(
+      <ReviewInspector
+        block={block()}
+        node={null}
+        itemName="auth.json"
+        locale="fr-FR"
+        localeLabel="French (France) (fr-FR)"
+        issues={[]}
+        terms={[]}
+        context={emptyContext({
+          history: {
+            match: {
+              source: "Reset your password",
+              target: "Changez votre mot de passe",
+              score: 92,
+            },
+          },
+        })}
+        editing={false}
+        marked={false}
+        onClose={() => {}}
+        onApprove={() => {}}
+        onReject={() => {}}
+        onEditToggle={() => {}}
+        onSaveEdit={(r) => {
+          saves.push(r);
+        }}
+        onCancelEdit={() => {}}
+        onToggleMark={() => {}}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId("memory-match-use"));
+
+    expect(savedTranslation(saves[0]).runs).toEqual([{ text: "Changez votre mot de passe" }]);
   });
 });

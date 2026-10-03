@@ -24,6 +24,7 @@ const CODE_MARKERS = /[-]/g;
 
 /** What the target editor's result saves. */
 export function savedTranslation(result: UnifiedSaveResult): SavedTranslation {
+  if (result.kind === "runs") return savedRuns(result.runs);
   if (result.kind === "plural") {
     return { runs: result.runs, text: result.text, mine: result.text };
   }

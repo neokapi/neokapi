@@ -20,7 +20,7 @@ import type { BlockInfo, BlockTermMatch, CheckIssue, ReviewContext } from "../..
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getBlockStatus, getTargetText } from "../editor/blockStatus";
-import { findingViews, latestNote, termHitViews } from "./reviewContext";
+import { findingViews, latestNote, matchSaveResult, termHitViews } from "./reviewContext";
 import { Check, Pencil, X } from "../icons";
 
 export interface ReviewInspectorProps {
@@ -260,12 +260,10 @@ export function ReviewInspector({
             testId="inspector-memory"
             onUseMatch={
               context?.history.match && block && !editing
-                ? () =>
-                    void onSaveEdit({
-                      kind: "flat",
-                      codedText: context.history.match?.target ?? "",
-                      spans: [],
-                    })
+                ? () => {
+                    const match = context.history.match;
+                    if (match) void onSaveEdit(matchSaveResult(match));
+                  }
                 : undefined
             }
           />

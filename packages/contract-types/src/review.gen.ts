@@ -152,6 +152,7 @@ export interface ReviewMemoryMatch {
   kind?: string;
   source?: string;
   target: string;
+  target_runs?: Run[];
 }
 
 /**

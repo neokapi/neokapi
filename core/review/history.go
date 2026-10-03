@@ -8,7 +8,8 @@ import (
 )
 
 // MatchOf renders a content memory match as the history layer carries it: the
-// score on the percent scale, rounded half up, with the wording on both sides.
+// score on the percent scale, rounded half up, with the wording on both sides
+// and the answer's runs when it holds a code or a plural.
 // Every assembler converts through this one function, so a 0.915 reads as 92
 // on each surface rather than as 92 on one and 91 on the other.
 //
@@ -20,12 +21,16 @@ func MatchOf(m memory.Match, source, target model.LocaleID) *MemoryMatch {
 	if answer == "" {
 		return nil
 	}
-	return &MemoryMatch{
+	out := &MemoryMatch{
 		Score:  int(m.Score*100 + 0.5),
 		Kind:   string(m.MatchType),
 		Source: m.Entry.VariantText(source),
 		Target: answer,
 	}
+	if runs := m.Entry.Variant(target); model.RunsHaveInlineCodes(runs) {
+		out.TargetRuns = runs
+	}
+	return out
 }
 
 // GoverningFingerprint is the fingerprint of the context the unit's current

@@ -19,7 +19,13 @@ import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getBlockStatus, getTargetText } from "../editor/blockStatus";
 import { blockToContentNode } from "../../preview/toContentTree";
-import { AnchoredTarget, findingViews, latestNote, termHitViews } from "./reviewContext";
+import {
+  AnchoredTarget,
+  findingViews,
+  latestNote,
+  matchSaveResult,
+  termHitViews,
+} from "./reviewContext";
 import {
   Check,
   X,
@@ -498,8 +504,7 @@ export function FocusedReviewer({
               testId="reviewer-memory"
               onUseMatch={
                 memoryMatch && !editing
-                  ? () =>
-                      void onSaveEdit({ kind: "flat", codedText: memoryMatch.target, spans: [] })
+                  ? () => void onSaveEdit(matchSaveResult(memoryMatch))
                   : undefined
               }
             />
