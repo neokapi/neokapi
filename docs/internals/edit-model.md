@@ -1797,6 +1797,14 @@ beside all of them in package-sized PRs.
 - **Acceptance:** `check-wasm`, `wasm-surface-smoke`, `kpz-wasm-smoke` and the lab smoke stay green; the
   store suites and the conformance suite pass under `GOOS=js`; the engine grows by no more than 0.7 MB
   gzip.
+- **Measured** (gzip -9 of the `make web-wasm-cli` build, the JavaScript bundled and minified): the
+  engine is 1.35 MB over the one before the browser stores (#3019's tree, 20.25 MB). WP10's own parts
+  take 0.49 MB of it: the stores' Go (+0.02 MB), `sqlite3.wasm` (+0.40 MB), the JavaScript (+0.07 MB)
+  and the three entry points (3 KB). The other 0.85 MB is the edit model's Go (`core/change`, its file
+  home and schema, `core/history`, the host's service), which every surface links. The size acceptance
+  is therefore not met as written, and the choice is the founder's: count the edit model against a
+  larger budget, or trim the `GOOS=js` build. The largest trim measured is leaving the MCP server
+  out of it (the browser serves none): 0.51 MB, which leaves the engine 0.83 MB over.
 
 ### WP11. Bowrain
 
