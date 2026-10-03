@@ -458,6 +458,7 @@ func materializePairedLaunch(opts PairedOptions, m PairedManifest, s PairedSessi
 		SkillSource: opts.skillSource, StudyDir: opts.Dir,
 		Prompt: prompt, TranscriptPath: filepath.Join(dir, "transcript.jsonl"),
 		Timeout: m.attemptTimeout(), MaxTurns: m.MaxTurns, Interference: task.spec.Interference,
+		LateContext: task.spec.LateContext,
 	}, nil
 }
 

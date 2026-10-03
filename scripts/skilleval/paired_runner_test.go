@@ -627,7 +627,7 @@ func TestPairedSummaryShowsStaleRecoveryAndDecodeErrors(t *testing.T) {
 	text := markdown.String()
 	assert.Contains(t, text, "1 attempts are left out")
 	assert.Contains(t, text, "| recover-stale-read | claude | mcp | 3 | 2 | 3 |")
-	assert.Contains(t, text, "| 1 | 1 |\n", "outside cell and changed columns")
+	assert.Contains(t, text, "| 0 | 1 | 0 | 0 |\n", "override, outside cell, changed and asked columns")
 	assert.Contains(t, text, "## Stale recovery")
 	assert.Contains(t, text, "| recover-stale-read | claude | mcp | 3 | 1 | 1 | 1 | 1 | 1 | 0 | 1 | 1 |")
 	assert.Contains(t, text, "## Change sets that did not decode")

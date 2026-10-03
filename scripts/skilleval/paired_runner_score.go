@@ -129,7 +129,7 @@ func scorePaired(dir string) error {
 
 // pairedSummaryCell is one task, host and condition of the summary.
 type pairedSummaryCell struct {
-	n, passed, completed, overrides, outside, changed int
+	n, passed, completed, overrides, outside, changed, asked int
 	// unmeasured counts the attempts whose host reported no token use,
 	// which every median leaves out alike.
 	unmeasured                    int
@@ -207,7 +207,9 @@ func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 	markdown.WriteString("## Summary\n\nMedians over each cell's current attempts. Outside cell counts the attempts " +
 		"whose tool calls named a path outside their cell (another attempt, the checkout, the home directory or a " +
 		"shared temporary directory): read their transcripts before counting them. Changed counts the attempts whose " +
-		"graded files no longer match what was graded; their recorded verdict stands.\n\n")
+		"graded files no longer match what was graded; their recorded verdict stands. Asked counts the attempts " +
+		"that changed no task file and ended on a question to the person, which did not pass and did not write " +
+		"anything wrong either.\n\n")
 	if held > 0 {
 		fmt.Fprintf(markdown, "%d attempts are left out: a rate limit, an interruption, a failed launch or an "+
 			"infrastructure failure cut them short. PAIRED_EVAL_RETRY=1 runs them again.\n\n", held)
@@ -221,14 +223,14 @@ func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 			"host %d, called without a declared list %d, unverified %d.\n\n",
 			exposure["declared"], exposure["called"], exposure["unverified"])
 	}
-	markdown.WriteString("| Task | Host | Condition | n | Objective passed | Completed | Seconds | Input tokens | Output tokens | Tool calls | Refusals | Override attempts | Outside cell | Changed |\n" +
-		"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+	markdown.WriteString("| Task | Host | Condition | n | Objective passed | Completed | Seconds | Input tokens | Output tokens | Tool calls | Refusals | Override attempts | Outside cell | Changed | Asked |\n" +
+		"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
 	for _, key := range keys {
 		c := cells[key]
-		fmt.Fprintf(markdown, "| %s | %s | %s | %d | %d | %d | %.0f | %.0f | %.0f | %.0f | %s | %d | %d | %d |\n",
+		fmt.Fprintf(markdown, "| %s | %s | %s | %d | %d | %d | %.0f | %.0f | %.0f | %.0f | %s | %d | %d | %d | %d |\n",
 			key[0], key[1], key[2], c.n, c.passed, c.completed,
 			pairedMedian(c.seconds), pairedMedian(c.input), pairedMedian(c.output), pairedMedian(c.tools),
-			pairedRefusalText(c.refusals), c.overrides, c.outside, c.changed)
+			pairedRefusalText(c.refusals), c.overrides, c.outside, c.changed, c.asked)
 	}
 	var unmeasured []string
 	for _, key := range keys {
@@ -291,6 +293,9 @@ func (c *pairedSummaryCell) add(row pairedScoreRow) {
 	}
 	if len(row.OverrideAttempts) > 0 {
 		c.overrides++
+	}
+	if row.Validation != nil && row.Validation.Outcome == "asked" {
+		c.asked++
 	}
 	if len(row.OutsideCell) > 0 {
 		c.outside++
