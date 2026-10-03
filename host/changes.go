@@ -211,8 +211,11 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 	if recorder != nil {
 		svcOpts = append(svcOpts, change.WithRecorder(recorder))
 	}
-	if states := a.changeEditionStates(h.root); states != nil && !opts.revisionsOnly {
-		svcOpts = append(svcOpts, change.WithEditionStates(states))
+	if hist := a.changeHistory(h.root); hist != nil {
+		if !opts.revisionsOnly {
+			svcOpts = append(svcOpts, change.WithEditionStates(hist))
+		}
+		svcOpts = append(svcOpts, change.WithHistories(hist))
 	}
 	return change.NewService(filehome.Formats{Registry: a.FormatReg}, change.OneHome(home), svcOpts...), nil
 }

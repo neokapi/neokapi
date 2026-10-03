@@ -25,6 +25,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/change"
@@ -85,8 +86,9 @@ var changeExternalShapes = []emitType{
 	{"RunPos", reflect.TypeFor[model.RunPos](), ""},
 }
 
-// changeResultTypes, changeReadTypes and changeDescribeTypes are the structs
-// the service marshals, in the order they are declared.
+// changeResultTypes, changeReadTypes, changeDescribeTypes and
+// changeHistoryTypes are the structs the service marshals, in the order they
+// are declared.
 var (
 	changeResultTypes = []emitType{
 		{"ChangeResult", reflect.TypeFor[change.Result](), ""},
@@ -117,6 +119,12 @@ var (
 		{"OpSupported", reflect.TypeFor[change.Supported](), ""},
 		{"FormatNativeOp", reflect.TypeFor[format.NativeOp](), ""},
 	}
+	changeHistoryTypes = []emitType{
+		{"HistoryRequest", reflect.TypeFor[change.HistoryRequest](), ""},
+		{"EditionHistory", reflect.TypeFor[change.History](), ""},
+		{"HistoryEntry", reflect.TypeFor[change.HistoryEntry](), ""},
+		{"ChangeActor", reflect.TypeFor[change.Actor](), ""},
+	}
 )
 
 // changeUnion is a Go string type rendered as a union of its constants.
@@ -135,6 +143,7 @@ var changeUnions = []changeUnion{
 	{"ChangeErrorCode", reflect.TypeFor[change.Code](), "CHANGE_ERROR_CODES"},
 	{"ChangeGuardSubcode", reflect.TypeFor[change.Subcode](), "CHANGE_GUARD_SUBCODES"},
 	{"FormatEditions", reflect.TypeFor[change.Editions](), "FORMAT_EDITIONS"},
+	{"ChangeActorKind", reflect.TypeFor[change.ActorKind](), "CHANGE_ACTOR_KINDS"},
 }
 
 // changeFieldTypes overrides the reflected type of a field where the Go type
@@ -151,6 +160,10 @@ var changeFieldTypes = map[fieldKey]string{
 	// An operation's result names its kind, which may be one a tool applies
 	// in process; what a block accepts (BlockRead.Ops) is a ChangeOpKind.
 	{reflect.TypeFor[change.OpResult](), "Op"}: "ResultOpKind",
+	// A history names a block always (Service.History reads it), so its
+	// reference is what an operation's at takes.
+	{reflect.TypeFor[change.HistoryRequest](), "Ref"}: "ChangeRef",
+	{reflect.TypeFor[change.History](), "Ref"}:        "ChangeRef",
 }
 
 // fieldKey names a struct field.
@@ -187,6 +200,8 @@ func emitChange() (string, error) {
 		reflect.TypeFor[change.Ref]():    "ResultRef",
 		reflect.TypeFor[model.RunPath](): "RunPath",
 		reflect.TypeFor[change.Kind]():   "ChangeOpKind",
+		// A time marshals as RFC 3339 text.
+		reflect.TypeFor[time.Time](): "string",
 	}, used: map[fieldKey]bool{}}
 	for _, e := range changeExternalShapes {
 		g.names[e.typ] = e.name
@@ -206,6 +221,7 @@ func emitChange() (string, error) {
 		{"The result (kapi.change-result/v1)", changeResultTypes},
 		{"A read page (Service.Read)", changeReadTypes},
 		{"What a format supports (Service.Describe)", changeDescribeTypes},
+		{"An edition's recorded changes (Service.History)", changeHistoryTypes},
 	}
 	for _, sec := range sections {
 		for _, e := range sec.types {
@@ -256,9 +272,10 @@ func emitChange() (string, error) {
 	b.WriteString("// the JSON Schema core/change/changeschema generates from the Go types, so\n")
 	b.WriteString("// these types refuse the structural mistakes the decoder refuses; a pattern,\n")
 	b.WriteString("// a bound or a rule between fields is documented and checked by the decoder\n")
-	b.WriteString("// alone. The result (kapi.change-result/v1), a read page and a format's\n")
-	b.WriteString("// description are reflected from the core/change structs the service\n")
-	b.WriteString("// marshals, with the doc comments of their Go declarations.\n\n")
+	b.WriteString("// alone. The result (kapi.change-result/v1), a read page, a format's\n")
+	b.WriteString("// description and an edition's history are reflected from the core/change\n")
+	b.WriteString("// structs the service marshals, with the doc comments of their Go\n")
+	b.WriteString("// declarations.\n\n")
 	if imports := st.importList(); len(imports) > 0 {
 		fmt.Fprintf(&b, "import type { %s } from \"./content.gen.ts\";\n\n", strings.Join(imports, ", "))
 	}
