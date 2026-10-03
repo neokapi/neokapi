@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -227,4 +228,41 @@ func TestStreamHome_ARemovedTranslationLeavesTheStream(t *testing.T) {
 	assert.True(t, slices.ContainsFunc(feed.Changes, func(c platstore.ChangeEntry) bool {
 		return c.BlockID == rows[0].Block.ID && c.ChangeType == "target_removed" && c.Locale == "fr"
 	}), "the change log names the removed translation")
+}
+
+// A change set naming more items than the database has connections lands on
+// one transaction: it neither waits for a connection its own items hold nor
+// lands an item without the others.
+func TestStreamHome_AChangeSetOverMoreItemsThanConnectionsLands(t *testing.T) {
+	f := newFixture(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	const items = 8 // the test pool holds 5 connections
+	var ops []change.Op
+	for i := range items {
+		item := fmt.Sprintf("many-%d.json", i)
+		require.NoError(t, f.store.StoreItem(ctx, f.project.ID, "main", &platstore.Item{Name: item, Format: "json"}))
+		require.NoError(t, f.store.StoreBlocksForItem(ctx, f.project.ID, "main", item, []*model.Block{named("k", fmt.Sprintf("Text %d", i))}))
+		ops = append(ops, setText(change.Ref{Doc: item, Block: "k", Edition: model.EditionKey{Locale: "fr"}}, model.AbsentRevision, fmt.Sprintf("Texte %d", i)))
+	}
+	res, err := f.svc.Apply(ctx, change.Set{Ops: ops}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	for i := range items {
+		assert.Equal(t, fmt.Sprintf("Texte %d", i), read(t, f.svc, fmt.Sprintf("many-%d.json", i), "k").Editions["fr"].Text)
+	}
+
+	// A refusal found in the last item leaves every item as it was.
+	again := make([]change.Op, len(ops))
+	for i, op := range ops {
+		text := fmt.Sprintf("Texte %d, again", i)
+		again[i] = setText(op.At, read(t, f.svc, op.At.Doc, "k").Editions["fr"].Rev, text)
+	}
+	again[items-1].IfMatch = "r:0000000000000000"
+	res, err = f.svc.Apply(ctx, change.Set{Ops: again}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetRefused, res.Status)
+	for i := range items {
+		assert.Equal(t, fmt.Sprintf("Texte %d", i), read(t, f.svc, fmt.Sprintf("many-%d.json", i), "k").Editions["fr"].Text)
+	}
 }

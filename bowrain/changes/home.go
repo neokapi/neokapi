@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/change"
@@ -24,11 +25,18 @@ import (
 // of its block, so every edition lives in the document.
 //
 // A stage reads the blocks a change set addresses and applies its operations
-// in memory. The commit lock is the rows: Lock begins a transaction and holds
-// the rows the stage read, Settle applies the operations again to the held
-// rows when they moved since the stage, so every if_match is checked against
-// the rows the write stores, and Commit stores them, with their history and
-// change-log rows, and commits the transaction.
+// in memory. The commit lock is the rows: Lock holds the rows the stage read
+// on the change set's transaction, Settle applies the operations again to the
+// held rows when they moved since the stage, so every if_match is checked
+// against the rows the write stores, and Commit stores them, with their
+// history and change-log rows, and commits the transaction.
+//
+// Every item of one change set is held and stored on one transaction, which
+// the first item's Lock begins and the first Commit commits, storing every
+// item: a change set takes one database connection whatever the number of
+// items it names, and lands whole or not at all. A Home therefore commits one
+// change set at a time; the change sets applied through it run one after
+// another.
 type Home struct {
 	// Store keeps the stream. It must be a store.BlockWriteStore.
 	Store store.ContentStore
@@ -54,6 +62,86 @@ type Home struct {
 	// Committed, when set, is called with the row ids of each item a commit
 	// wrote, once the write is committed.
 	Committed func(doc string, ids []string)
+
+	// mu guards w, the write of the change set whose rows are held.
+	mu sync.Mutex
+	w  *streamWrite
+}
+
+// streamWrite is the one transaction a change set's items are held and stored
+// on.
+type streamWrite struct {
+	bw store.BlockWrite
+	// members are the items held on the write, in the order they were held.
+	members []*staged
+	// done says the write was committed or discarded, and err why it did not
+	// commit.
+	done bool
+	err  error
+}
+
+// errWriteDiscarded is what an item of a change set whose write was discarded
+// answers a commit with.
+var errWriteDiscarded = errors.New("the change set's write was discarded")
+
+// write returns the write of the change set being committed, beginning it on
+// the first item's lock.
+func (h *Home) write(ctx context.Context, ws store.BlockWriteStore) (*streamWrite, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.w != nil && !h.w.done {
+		return h.w, nil
+	}
+	bw, err := ws.BeginBlockWrite(ctx, h.ProjectID, h.stream())
+	if err != nil {
+		return nil, err
+	}
+	h.w = &streamWrite{bw: bw}
+	return h.w, nil
+}
+
+// commit stores every item held on w and commits it, once: the first item's
+// Commit commits the change set, and each later one answers with its outcome.
+func (h *Home) commit(ctx context.Context, w *streamWrite) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if w.done {
+		return w.err
+	}
+	w.done = true
+	if h.w == w {
+		h.w = nil
+	}
+	for _, m := range w.members {
+		if len(m.changed) == 0 {
+			continue
+		}
+		if err := w.bw.Store(ctx, m.changed); err != nil {
+			_ = w.bw.Rollback()
+			w.err = err
+			return err
+		}
+	}
+	if err := w.bw.Commit(); err != nil {
+		w.err = err
+		return err
+	}
+	return nil
+}
+
+// discard rolls w back unless it was committed. cause is what the items held
+// on it answer a later commit with.
+func (h *Home) discard(w *streamWrite, cause error) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if w.done {
+		return nil
+	}
+	w.done, w.err = true, cause
+	if h.w == w {
+		h.w = nil
+	}
+	return w.bw.Rollback()
 }
 
 var _ change.Home = (*Home)(nil)
@@ -189,7 +277,9 @@ type staged struct {
 	// head and after are the digests of the rows around the pass.
 	head, after string
 
-	bw      store.BlockWrite
+	// w is the change set's write the item's rows are held on, and held the
+	// rows as Lock read them.
+	w       *streamWrite
 	held    []*venue.StoredBlock
 	written bool
 }
@@ -269,25 +359,28 @@ func (st *staged) LockKeys() []string {
 	return []string{"stream:" + st.s.h.ProjectID + "/" + st.s.h.stream() + "/" + st.s.item}
 }
 
-// Lock begins the write and holds the rows the stage read.
+// Lock holds the rows the stage read on the change set's write, beginning the
+// write when this is the change set's first item.
 func (st *staged) Lock(ctx context.Context, _ string) error {
-	if st.bw != nil {
+	if st.w != nil {
 		return nil
 	}
 	if hook := st.s.h.BeforeLock; hook != nil {
 		hook(st.s.info.Doc)
 	}
-	bw, err := st.s.ws.BeginBlockWrite(ctx, st.s.h.ProjectID, st.s.h.stream())
+	w, err := st.s.h.write(ctx, st.s.ws)
 	if err != nil {
 		return err
 	}
-	held, err := bw.Hold(ctx, st.s.item, st.want.Blocks)
+	held, err := w.bw.Hold(ctx, st.s.item, st.want.Blocks)
 	if err != nil {
-		_ = bw.Rollback()
+		_ = st.s.h.discard(w, err)
 		return err
 	}
 	st.s.prepare(held)
-	st.bw, st.held = bw, held
+	st.held = held
+	w.members = append(w.members, st)
+	st.w = w
 	return nil
 }
 
@@ -314,17 +407,13 @@ func (st *staged) Settle(ctx context.Context) error {
 	return st.pass(st.held)
 }
 
-// Commit stores the changed rows and commits the write.
+// Commit stores the changed rows of every item of the change set and commits
+// the write, when no item of it has; it then reports this item's rows.
 func (st *staged) Commit(ctx context.Context) error {
-	if st.bw == nil {
+	if st.w == nil {
 		return errors.New("commit before settle")
 	}
-	if len(st.changed) > 0 {
-		if err := st.bw.Store(ctx, st.changed); err != nil {
-			return err
-		}
-	}
-	if err := st.bw.Commit(); err != nil {
+	if err := st.s.h.commit(ctx, st.w); err != nil {
 		return err
 	}
 	st.written = len(st.changed) > 0
@@ -338,12 +427,14 @@ func (st *staged) Commit(ctx context.Context) error {
 	return nil
 }
 
-// Release discards a write that did not commit.
+// Release discards the change set's write when it did not commit.
 func (st *staged) Release() error {
-	if st.bw == nil {
+	w := st.w
+	if w == nil {
 		return nil
 	}
-	return st.bw.Rollback()
+	st.w = nil
+	return st.s.h.discard(w, errWriteDiscarded)
 }
 
 // editionTexts is the text of each edition of b, keyed by its edition key in
