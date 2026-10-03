@@ -138,9 +138,12 @@ the terms store gives the workspace's terms a new revision (`tb_revision`, in
 the transaction of the write), and the server keeps one snapshot per workspace
 under the revision it was read at. A call reads the revision first and reads
 the whole terms again only when it moved, so a check costs one query while
-nobody writes the terms, on every replica. A write made outside the store, such
-as one-off SQL, moves no revision; the next write through the store, or a
-restart, brings the snapshot up to date.
+nobody writes the terms, on every replica. The migration that adds
+`tb_revision` gives every workspace that already holds terms a first revision.
+A server keeps snapshots for at most 32 workspaces, dropping the one used least
+recently, and drops a workspace's snapshot when its revision reads empty. A
+write made outside the store, such as one-off SQL, moves no revision; the next
+write through the store, or a restart, brings the snapshot up to date.
 
 The writes of a change set, the block history and the change log land in one
 transaction that holds the blocks' rows, and the revision each operation names

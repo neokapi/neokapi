@@ -88,13 +88,19 @@ var Migrations = []storage.Migration{
 	{
 		Version:     9,
 		Description: "the revision of each workspace's terms",
-		// One row per workspace whose terms a write has changed: a token every
-		// write replaces in its own transaction (PostgresStore.Revision).
+		// One row per workspace that holds terms: a token every write replaces
+		// in its own transaction (PostgresStore.Revision). A workspace whose
+		// terms were written before the table existed gets a first token here,
+		// so a reader can keep what it reads of them from the start.
 		SQL: `
 CREATE TABLE IF NOT EXISTS tb_revision (
     workspace_id TEXT PRIMARY KEY,
     revision     TEXT NOT NULL
-);`,
+);
+INSERT INTO tb_revision (workspace_id, revision)
+SELECT w.workspace_id, replace(gen_random_uuid()::text, '-', '')
+  FROM (SELECT DISTINCT workspace_id FROM tb_concepts) w
+ON CONFLICT (workspace_id) DO NOTHING;`,
 	},
 }
 
@@ -102,9 +108,8 @@ CREATE TABLE IF NOT EXISTS tb_revision (
 // through this store replaces, in the transaction that makes the write, with
 // one never issued before. A reader that keeps what it read under the
 // revision it read first, before reading the terms, reads them again once the
-// revision moves. Empty when no write has recorded one (a workspace with no
-// terms written since the revision was introduced, or one reset since), which
-// such a reader treats as a revision it cannot keep anything under.
+// revision moves. Empty for a workspace that has never held terms, which such
+// a reader treats as a revision it cannot keep anything under.
 func (tb *PostgresStore) Revision(ctx context.Context) (string, error) {
 	var rev string
 	err := tb.db.QueryRowContext(ctx, "SELECT revision FROM tb_revision WHERE workspace_id = $1", tb.workspaceID).Scan(&rev)

@@ -134,3 +134,46 @@ func TestTermSnapshotCache_ReadsPostgresTermsOncePerRevision(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, got, 1001, "and the snapshot holds the write")
 }
+
+// TestTermSnapshotCache_TermsWrittenBeforeTheRevisionAreKept pins a server
+// deployed over workspaces whose terms predate the revision table: the
+// migration that creates it gives each workspace holding terms a first
+// revision, so the term gate keeps its snapshot from the first call rather
+// than reading the terms whole on every call until somebody writes one. A
+// workspace with no terms gets none.
+func TestTermSnapshotCache_TermsWrittenBeforeTheRevisionAreKept(t *testing.T) {
+	db := pgtest.NewTestDB(t)
+	ctx := t.Context()
+	pg, err := sqlterms.NewPostgresStoreFromDB(db, "ws-before")
+	require.NoError(t, err)
+	require.NoError(t, pg.AddConcept(ctx, termConcept("c-kapi", "kapi")))
+	require.NoError(t, pg.AddConcept(ctx, termConcept("c-shop", "shop")))
+	// The database as it stood before the revision table: terms, no revisions.
+	_, err = db.ExecContext(ctx, `DROP TABLE tb_revision`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `DELETE FROM tb_schema_migrations WHERE version = 9`)
+	require.NoError(t, err)
+
+	pg, err = sqlterms.NewPostgresStoreFromDB(db, "ws-before")
+	require.NoError(t, err)
+	rev, err := pg.Revision(ctx)
+	require.NoError(t, err)
+	assert.NotEmpty(t, rev, "the migration gives terms written before it a revision")
+	empty, err := sqlterms.NewPostgresStoreFromDB(db, "ws-empty")
+	require.NoError(t, err)
+	none, err := empty.Revision(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, none, "a workspace with no terms has no revision")
+
+	tb := &countingPostgresTerms{PostgresStore: pg}
+	var c termSnapshotCache
+	snap, _ := c.snapshot(ctx, "ws-before", tb)
+	require.NotNil(t, snap)
+	c.snapshot(ctx, "ws-before", tb)
+	assert.Equal(t, 1, tb.reads, "the snapshot is kept from the first call")
+
+	require.NoError(t, pg.AddConcept(ctx, termConcept("c-new", "fresh")))
+	moved, err := pg.Revision(ctx)
+	require.NoError(t, err)
+	assert.NotEqual(t, rev, moved, "and a write moves the revision the migration gave")
+}
