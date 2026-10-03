@@ -18,12 +18,12 @@ func TestPairedMCPExposure(t *testing.T) {
 		return `{"type":"system","subtype":"init","model":"test","session_id":"s","tools":[` + tools + `]}` + "\n"
 	}
 
-	result, err := parsePairedAgentStream(strings.NewReader(init(`"Bash","mcp__kapi__read_blocks","mcp__kapi__apply_edits"`)+end), launch)
+	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(init(`"Bash","mcp__kapi__read_blocks","mcp__kapi__apply_edits"`)+end), launch)
 	require.NoError(t, err)
 	assert.Equal(t, "declared", result.MCPExposure)
 	assert.Equal(t, []string{"mcp__kapi__read_blocks", "mcp__kapi__apply_edits"}, result.MCPGiven)
 
-	result, err = parsePairedAgentStream(strings.NewReader(init(`"Bash","Read"`)+end), launch)
+	result, err = parsePairedAgentStream(t.Context(), strings.NewReader(init(`"Bash","Read"`)+end), launch)
 	require.Error(t, err)
 	assert.Equal(t, "mcp_absent", result.Status)
 	assert.Equal(t, "absent", result.MCPExposure)
@@ -32,18 +32,18 @@ func TestPairedMCPExposure(t *testing.T) {
 	stream := `{"type":"thread.started","thread_id":"t","model":"test"}` + "\n" +
 		`{"type":"item.completed","item":{"type":"mcp_tool_call","server":"kapi","tool":"read_blocks","arguments":{"doc":"a.md"}}}` + "\n" +
 		`{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}`
-	result, err = parsePairedAgentStream(strings.NewReader(stream), codex)
+	result, err = parsePairedAgentStream(t.Context(), strings.NewReader(stream), codex)
 	require.NoError(t, err)
 	assert.Equal(t, "called", result.MCPExposure)
 
 	stream = `{"type":"thread.started","thread_id":"t","model":"test"}` + "\n" + `{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}`
-	result, err = parsePairedAgentStream(strings.NewReader(stream), codex)
+	result, err = parsePairedAgentStream(t.Context(), strings.NewReader(stream), codex)
 	require.NoError(t, err)
 	assert.Equal(t, "unverified", result.MCPExposure)
 
 	baseline := launch
 	baseline.Condition = "baseline"
-	result, err = parsePairedAgentStream(strings.NewReader(init(`"Bash"`)+end), baseline)
+	result, err = parsePairedAgentStream(t.Context(), strings.NewReader(init(`"Bash"`)+end), baseline)
 	require.NoError(t, err)
 	assert.Empty(t, result.MCPExposure, "only an mcp arm is held to it")
 }

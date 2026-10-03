@@ -23,9 +23,9 @@ func TestFileHome_ARefusedChangeSetListsTheDocumentsItRead(t *testing.T) {
 	b := page.Blocks[0]
 	for name, op := range map[string]change.Op{
 		"stale": {Kind: change.KindReplaceText, At: b.Ref, IfMatch: "r:0000000000000000",
-			Body: &change.ReplaceText{Edits: []change.TextEdit{{Selection: change.Selection{Find: new("there")}, Text: "world"}}}},
+			Body: &change.ReplaceText{Edits: []change.TextEdit{{Find: new("there"), Text: "world"}}}},
 		"not found": {Kind: change.KindReplaceText, At: b.Ref, IfMatch: b.Rev,
-			Body: &change.ReplaceText{Edits: []change.TextEdit{{Selection: change.Selection{Find: new("nowhere")}, Text: "world"}}}},
+			Body: &change.ReplaceText{Edits: []change.TextEdit{{Find: new("nowhere"), Text: "world"}}}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{op}}, person)

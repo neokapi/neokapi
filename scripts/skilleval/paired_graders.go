@@ -252,7 +252,7 @@ const pairedSourceRun = 4
 // edges.
 func pairedWords(text string) []string {
 	var out []string
-	for _, field := range strings.Fields(pairedProse(text)) {
+	for field := range strings.FieldsSeq(pairedProse(text)) {
 		if word := strings.TrimFunc(field, func(r rune) bool { return unicode.IsPunct(r) || unicode.IsSymbol(r) }); word != "" {
 			out = append(out, word)
 		}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Each tool call that writes a task's files is classed by its route: the
@@ -66,7 +67,7 @@ func TestPairedStreamRecordsWriteRoutes(t *testing.T) {
 		`{"type":"assistant","message":{"model":"test","content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"kapi merge out/nb.xliff"}}]}}` + "\n" +
 		`{"type":"assistant","message":{"model":"test","content":[{"type":"tool_use","id":"t2","name":"Bash","input":{"command":"kapi apply change.json"}}]}}` + "\n" +
 		`{"type":"result","subtype":"success","is_error":false,"result":"done","usage":{"input_tokens":1,"output_tokens":1}}`
-	result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "skill-cli"})
-	assert.NoError(t, err)
+	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), PairedLaunch{Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "skill-cli"})
+	require.NoError(t, err)
 	assert.Equal(t, []string{"merge", "contract"}, result.WriteRoutes)
 }

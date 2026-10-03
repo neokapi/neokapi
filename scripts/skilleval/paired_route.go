@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -108,7 +109,7 @@ func pairedContextWriteOf(tool string, input map[string]any) string {
 
 // noteRoute records the write route one tool call takes, if it writes, the
 // files it writes in the workspace root, and a write to the context store.
-func (o *pairedObserver) noteRoute(tool string, input map[string]any) {
+func (o *pairedObserver) noteRoute(ctx context.Context, tool string, input map[string]any) {
 	for _, name := range pairedRootWrites(tool, input, o.launch.Workspace) {
 		o.result.RootWrites = pairedUnique(o.result.RootWrites, name)
 	}
@@ -120,7 +121,7 @@ func (o *pairedObserver) noteRoute(tool string, input map[string]any) {
 		o.result.WriteRoutes = pairedUnique(o.result.WriteRoutes, route)
 		// An agent that writes before reading any context meets the rule
 		// at its first write.
-		o.landLateContext("write:" + tool)
+		o.landLateContext(ctx, "write:"+tool)
 	}
 }
 

@@ -31,7 +31,7 @@ func TestPairedLateContextLandsAfterTheFirstContextRead(t *testing.T) {
 		`{"type":"assistant","message":{"model":"test","content":[{"type":"tool_use","id":"t2","name":"Bash","input":{"command":"kapi voice guide docs/en/reports.md"}}]}}` + "\n" +
 		`{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t2","content":"Write plainly."}]}}` + "\n" +
 		`{"type":"result","subtype":"success","is_error":false,"result":"done","usage":{"input_tokens":1,"output_tokens":1}}`
-	result, err := parsePairedAgentStream(strings.NewReader(stream), launch)
+	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), launch)
 	require.NoError(t, err)
 	require.NotNil(t, result.LateContext)
 	assert.True(t, result.LateContext.Applied, result.LateContext.Error)
@@ -62,7 +62,7 @@ func TestPairedLateContextLandsAtTheFirstWrite(t *testing.T) {
 	stream := `{"type":"system","subtype":"init","model":"test","session_id":"s"}` + "\n" +
 		`{"type":"assistant","message":{"model":"test","content":[{"type":"tool_use","id":"t1","name":"Edit","input":{"file_path":"` + filepath.Join(dir, "docs/en/reports.md") + `"}}]}}` + "\n" +
 		`{"type":"result","subtype":"success","is_error":false,"result":"done","usage":{"input_tokens":1,"output_tokens":1}}`
-	result, err := parsePairedAgentStream(strings.NewReader(stream), launch)
+	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), launch)
 	require.NoError(t, err)
 	require.NotNil(t, result.LateContext)
 	assert.Equal(t, "write:Edit", result.LateContext.Trigger)

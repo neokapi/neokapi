@@ -67,7 +67,7 @@ func runPairedAgent(ctx context.Context, prepared PairedPrepared) (PairedAgentRe
 	defer func() { _ = pairedStopProcess(command) }()
 	transcriptFilter := newPairedRedactor(transcript, prepared.Env)
 	defer transcriptFilter.Flush()
-	result, parseErr := parsePairedAgentStream(io.TeeReader(pipe, transcriptFilter), prepared.Launch)
+	result, parseErr := parsePairedAgentStream(ctx, io.TeeReader(pipe, transcriptFilter), prepared.Launch)
 	if parseErr != nil && result.Status != "identity_unverified" {
 		_ = pairedStopProcess(command)
 		_ = pipe.Close()

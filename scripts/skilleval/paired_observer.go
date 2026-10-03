@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path"
 	"path/filepath"
@@ -56,7 +57,7 @@ func newPairedObserver(launch PairedLaunch, result *PairedAgentResult) *pairedOb
 
 // toolUse audits one proposed tool call. It returns a violation for a route
 // the condition forbids, which ends the attempt.
-func (o *pairedObserver) toolUse(id, tool string, input map[string]any) string {
+func (o *pairedObserver) toolUse(ctx context.Context, id, tool string, input map[string]any) string {
 	if id != "" {
 		o.result.ToolCalls++
 		o.tools[id] = tool
@@ -80,12 +81,12 @@ func (o *pairedObserver) toolUse(id, tool string, input map[string]any) string {
 	}
 	o.scanInput(tool, input)
 	o.auditPaths(tool, input)
-	o.noteRoute(tool, input)
+	o.noteRoute(ctx, tool, input)
 	if o.lateContext != nil && pairedReadsContext(tool, input) {
 		if id == "" {
 			// A host that reports a call once it finished: the agent has
 			// read the context.
-			o.landLateContext("read:" + tool)
+			o.landLateContext(ctx, "read:"+tool)
 		} else {
 			o.contextReads[id] = true
 		}
@@ -139,12 +140,12 @@ func (o *pairedObserver) auditPaths(tool string, input map[string]any) {
 }
 
 // toolResult reads a Claude tool result.
-func (o *pairedObserver) toolResult(id string, texts []string) {
+func (o *pairedObserver) toolResult(ctx context.Context, id string, texts []string) {
 	o.countRefusals(texts)
 	tool := o.tools[id]
 	delete(o.tools, id)
 	if o.contextReads[id] {
-		o.landLateContext("read:" + tool)
+		o.landLateContext(ctx, "read:"+tool)
 	}
 	if o.interference != nil && o.interference.shown(texts) {
 		o.interfere(tool)

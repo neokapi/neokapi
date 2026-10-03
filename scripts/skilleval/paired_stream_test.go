@@ -65,7 +65,7 @@ func TestPairedInterferenceLandsWhenTheAgentSeesTheText(t *testing.T) {
 		pairedToolUse("3", "Read", map[string]any{"file_path": file}),
 		pairedToolResult("3", "8\tBack up your data before you upgrade. The upgrade keeps your appointments and"),
 	)
-	result, err := parsePairedAgentStream(strings.NewReader(stream), launch)
+	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), launch)
 	require.NoError(t, err)
 	require.NotNil(t, result.Interference)
 	assert.True(t, result.Interference.Triggered)
@@ -120,7 +120,7 @@ func TestPairedOverrideAttemptsAreRecorded(t *testing.T) {
 		pairedToolUse("4", "Bash", map[string]any{"command": `echo '{"op":"set_content","if_match": "*"}' | kapi apply`}),
 		pairedToolUse("5", "Bash", map[string]any{"command": "kapi apply --gate enforce edits.json"}),
 	)
-	result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{
+	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), PairedLaunch{
 		Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "skill-cli",
 	})
 	require.NoError(t, err)
@@ -152,7 +152,7 @@ func TestPairedRefusalsAreCounted(t *testing.T) {
 		pairedToolUse("9", "mcp__kapi__apply_edits", map[string]any{"ops": []any{}}),
 		pairedToolResult("9", "prepare lib/l10n/app_en.arb: arb writer: the message would not read back as written: message inboxCount: the text of a branch holds ICU syntax"),
 	)
-	result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{
+	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), PairedLaunch{
 		Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "mcp",
 	})
 	require.NoError(t, err)
@@ -209,7 +209,7 @@ func TestPairedRouteAudit(t *testing.T) {
 			}
 			result := &PairedAgentResult{}
 			observer := newPairedObserver(PairedLaunch{Condition: tc.condition, StateDir: state, Workspace: workspace}, result)
-			violation := observer.toolUse("1", tc.tool, input)
+			violation := observer.toolUse(t.Context(), "1", tc.tool, input)
 			assert.Equal(t, tc.violation, violation != "", violation)
 			assert.Equal(t, tc.attempts, result.RouteAttempts)
 		})
@@ -276,12 +276,12 @@ func TestPairedInfraFailures(t *testing.T) {
 	}
 	stream := `{"type":"system","subtype":"init","model":"test","session_id":"s"}` + "\n" +
 		`{"type":"result","subtype":"error_during_execution","is_error":true,"result":"API Error: 529 Overloaded"}`
-	result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "baseline"})
+	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), PairedLaunch{Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "baseline"})
 	require.Error(t, err)
 	assert.Equal(t, "infra_failed", result.Status)
 	assert.Equal(t, "overload", result.InfraFailure)
 	stream = `{"type":"thread.started","thread_id":"t"}` + "\n" + `{"type":"error","message":"stream disconnected before completion: error sending request for url"}`
-	result, err = parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{Agent: PairedAgentSpec{Host: "codex", Model: "test"}, Condition: "baseline"})
+	result, err = parsePairedAgentStream(t.Context(), strings.NewReader(stream), PairedLaunch{Agent: PairedAgentSpec{Host: "codex", Model: "test"}, Condition: "baseline"})
 	require.Error(t, err)
 	assert.Equal(t, "infra_failed", result.Status)
 	assert.Equal(t, "network", result.InfraFailure)
