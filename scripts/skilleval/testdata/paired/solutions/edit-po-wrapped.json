@@ -1,0 +1,27 @@
+{
+ "steps": [
+  {
+   "note": "A find across the msgstr's line break, in the Norwegian the catalog holds",
+   "exit": 0,
+   "changeset": {
+    "ops": [
+     {
+      "op": "replace_text",
+      "at": {
+       "doc": "locales/nb/booking.po",
+       "block": "Appointments can be cancelled up to 24 hours before they start. After that, call your adviser.",
+       "edition": "nb"
+      },
+      "if_match": "r:2966e79b0d5a10fd",
+      "edits": [
+       {
+        "find": "du kontakte",
+        "text": "du ringe"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,36 @@
+{
+  "id": "add-key-every-language",
+  "family": "insert-key",
+  "prompt": "Add the message key settings.exportData, directly after settings.importData, to the app's catalog and to each of its translations: \"Export your data\" in app/i18n/en.json, \"Eksporter dataene dine\" in app/i18n/nb.json and \"Daten exportieren\" in app/i18n/de.json. Keep every other key, its text and its order.",
+  "editable": [
+    "app/i18n/en.json",
+    "app/i18n/nb.json",
+    "app/i18n/de.json"
+  ],
+  "scope": [
+    "app"
+  ],
+  "criteria": [
+    {
+      "id": "keys-in-order-en",
+      "kind": "json_ordered",
+      "path": "app/i18n/en.json",
+      "description": "settings.exportData holds the English text directly after settings.importData, and every other key keeps its text and position"
+    },
+    {
+      "id": "keys-in-order-nb",
+      "kind": "json_ordered",
+      "path": "app/i18n/nb.json",
+      "description": "settings.exportData holds the Norwegian text directly after settings.importData, and every other key keeps its text and position"
+    },
+    {
+      "id": "keys-in-order-de",
+      "kind": "json_ordered",
+      "path": "app/i18n/de.json",
+      "description": "settings.exportData holds the German text directly after settings.importData, and every other key keeps its text and position"
+    }
+  ],
+  "humanReviewRubric": [
+    "Did the key land in every translation file, in the same place?"
+  ]
+}

@@ -163,6 +163,9 @@ func pairedAsks(text string) bool {
 //	md_block_extends     block Block keeps the original's text and adds text that
 //	                     contains every Require and no Forbid
 //	md_blocks_unchanged  every block but those in Except keeps the original's text
+//	po_entries           the PO catalog's entries (context, source, plural source,
+//	                     translations and comments) equal the reference's, however
+//	                     each string is wrapped across lines
 //	forbids              the file contains none of Forbid
 //	icu_branch           branch Branch of the ICU message at Key equals the
 //	                     reference's, byte for byte
@@ -253,6 +256,20 @@ func validatePairedCriterion(root *os.Root, task PairedTask, files map[string][]
 		}
 		passed, detail := pairedBlocksUnchanged(string(original), string(output), c.Except)
 		return passed, detail, nil
+	case "po_entries":
+		want, err := pairedReference(task, c.Path)
+		if err != nil {
+			return false, "", err
+		}
+		wantEntries, err := pairedPOEntries(want)
+		if err != nil {
+			return false, "", fmt.Errorf("reference: %w", err)
+		}
+		gotEntries, err := pairedPOEntries(output)
+		if err != nil {
+			return false, err.Error(), nil
+		}
+		return pairedPOEntriesMatch(wantEntries, gotEntries)
 	case "forbids":
 		for _, word := range c.Forbid {
 			if pairedContainsWord(string(output), word) {
