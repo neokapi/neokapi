@@ -219,5 +219,52 @@ ok(
   JSON.stringify(read("/scratch/cafe.md")),
 );
 
+// ── 9. A bilingual catalog is read in the language the call names ───────────
+// A PO catalog's msgstr is a translation only in a language its reader is
+// told: the read's editions and the apply's operations name it.
+mem.vol.writeFile(
+  "/scratch/messages.po",
+  enc.encode('msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\nmsgid "Hello"\nmsgstr ""\n'),
+);
+const po = (await rt.read({ doc: "messages.po", editions: ["fr"] })).blocks[0];
+const poApplied = await rt.apply({
+  ops: [
+    {
+      op: "set_content",
+      at: { doc: "messages.po", block: po.ref.block, edition: "fr" },
+      if_match: "absent",
+      text: "Bonjour",
+    },
+  ],
+});
+const poBack = (await rt.read({ doc: "messages.po", editions: ["fr"] })).blocks[0];
+ok(
+  "a call translates a PO catalog in place and reads the msgstr back",
+  poApplied.status === "applied" &&
+    read("/scratch/messages.po").includes('msgid "Hello"\nmsgstr "Bonjour"\n') &&
+    poBack.editions?.fr?.text === "Bonjour",
+  JSON.stringify(poApplied.ops[0]?.error ?? poBack.editions),
+);
+
+// ── 10. Commands and calls take turns ───────────────────────────────────────
+// A command started beside a call reconfigures the engine; the engine runs
+// them one at a time, so both land whichever starts first.
+mem.vol.writeFile("/scratch/two.json", enc.encode('{"a": "One", "b": "Two"}\n'));
+const two = await rt.read({ doc: "two.json" });
+const [blockA, blockB] = two.blocks;
+mem.vol.writeFile(
+  "/scratch/edit-a.json",
+  enc.encode(JSON.stringify({ ops: [{ op: "set_content", at: blockA.ref, if_match: blockA.rev, text: "Uno" }] })),
+);
+const [cmdCode, callResult] = await Promise.all([
+  rt.run(["apply", "/scratch/edit-a.json"]),
+  rt.apply({ ops: [{ op: "set_content", at: blockB.ref, if_match: blockB.rev, text: "Dos" }] }),
+]);
+ok(
+  "a command and a call started together both land",
+  cmdCode === 0 && callResult.status === "applied" && read("/scratch/two.json") === '{"a": "Uno", "b": "Dos"}\n',
+  JSON.stringify({ cmdCode, status: callResult.status, file: read("/scratch/two.json") }),
+);
+
 console.log(failures === 0 ? "\nALL CHANGE CONTRACT CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);
