@@ -28,7 +28,9 @@ func NewApplyCmd(a *App) *cobra.Command {
 kapi.change/v1: one JSON object with its operations under "ops", JSONL with the
 envelope fields on the first line and one operation per line, or a JSON array of
 operations. It is read from CHANGESET or, with no argument or "-", from standard
-input. 'kapi apply --schema' prints its JSON Schema.
+input. 'kapi apply --schema' prints its JSON Schema, and 'kapi apply --schema
+OP' the schema of operation OP alone (set_content, replace_text, set_attribute,
+and so on).
 
 Each content operation names what it changes in "at" ({"doc", "block",
 "edition"}, the "ref" kapi inspect prints for a block) and the revision it read
@@ -88,11 +90,16 @@ comment failed; 5 when a backend did not answer.`,
   kapi apply change.json --json
   echo '{"ops":[{"op":"replace_text","at":{"doc":"docs/guide.md","block":"install/p"},"if_match":"<rev from kapi inspect>","edits":[{"find":"colour","text":"color"}]}]}' | kapi apply
   ksed 's/colour/color/g' docs/guide.md --print-ops | kapi apply
-  kapi apply --schema`,
+  kapi apply --schema
+  kapi apply --schema set_attribute`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if schema {
-				return RunApplySchema(cmd.OutOrStdout())
+				op := ""
+				if len(args) == 1 {
+					op = args[0]
+				}
+				return RunApplySchema(cmd.OutOrStdout(), op)
 			}
 			opts := ApplyOptions{DryRun: dryRun, JSON: asJSON, PrintOps: printOps}
 			switch gate {
@@ -116,7 +123,7 @@ comment failed; 5 when a backend did not answer.`,
 	f.BoolVar(&dryRun, "dry-run", false, "compute and check the change set, print a diff per document, and write nothing")
 	f.StringVar(&gate, "gate", "", "what a failing finding the change introduces does: enforce (refuse it, the default) or report (land it with its findings; a person's choice)")
 	f.BoolVar(&asJSON, "json", false, "print the result as JSON (kapi.change-result/v1)")
-	f.BoolVar(&schema, "schema", false, "print the JSON Schema of a change set and exit")
+	f.BoolVar(&schema, "schema", false, "print the JSON Schema of a change set, or of the one operation named (kapi apply --schema set_attribute), and exit")
 	f.BoolVar(&printOps, "print-ops", false, "print the change set as decoded, with its defaults filled in, and apply nothing")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "format of every document the change set names (default: what the recipe binds, else auto-detect)")
 	a.AddEncodingFlag(f, "", "input/output encoding")

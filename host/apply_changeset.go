@@ -36,9 +36,19 @@ type ApplyOptions struct {
 	BackupSuffix string
 }
 
-// RunApplySchema prints the JSON Schema of a kapi.change/v1 change set.
-func RunApplySchema(w io.Writer) error {
-	_, err := w.Write(append(changeschema.Schema(), '\n'))
+// RunApplySchema prints the JSON Schema of a kapi.change/v1 change set, or,
+// with op naming an operation, that operation's schema alone with the
+// definitions it refers to. An operation the contract does not name is a
+// usage error that lists the ones it does.
+func RunApplySchema(w io.Writer, op string) error {
+	out := changeschema.Schema()
+	if op != "" {
+		var err error
+		if out, err = changeschema.OperationSchema(change.Kind(op)); err != nil {
+			return WithExitCode(ExitUsage, fmt.Errorf("--schema: %w", err))
+		}
+	}
+	_, err := w.Write(append(out, '\n'))
 	return err
 }
 

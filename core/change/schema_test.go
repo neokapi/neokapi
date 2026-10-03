@@ -64,6 +64,41 @@ func TestSchema_EachOperationIsAClosedOneOfMember(t *testing.T) {
 	assert.NotContains(t, kinds, string(change.KindProvenance), "the in-process provenance operation is not on the wire")
 }
 
+// Each operation's own schema is a whole schema: its member of the oneOf
+// with every definition it refers to, so it resolves alone and accepts the
+// operation as the change set's schema does.
+func TestOperationSchema(t *testing.T) {
+	for _, k := range change.Kinds() {
+		t.Run(string(k), func(t *testing.T) {
+			b, err := changeschema.OperationSchema(k)
+			require.NoError(t, err)
+			var s jsonschema.Schema
+			require.NoError(t, json.Unmarshal(b, &s))
+			require.NotNil(t, s.Properties["op"])
+			require.NotNil(t, s.Properties["op"].Const)
+			assert.Equal(t, string(k), *s.Properties["op"].Const)
+			_, err = s.Resolve(nil)
+			require.NoError(t, err, "every $ref it holds resolves")
+		})
+	}
+	rs := func(k change.Kind) *jsonschema.Resolved {
+		b, err := changeschema.OperationSchema(k)
+		require.NoError(t, err)
+		var s jsonschema.Schema
+		require.NoError(t, json.Unmarshal(b, &s))
+		r, err := s.Resolve(nil)
+		require.NoError(t, err)
+		return r
+	}
+	var op any
+	require.NoError(t, json.Unmarshal([]byte(`{"op":"set_attribute","at":{"doc":"a.html","block":"p"},"if_match":"`+rev+`","code":"1","name":"href","value":"https://x.example"}`), &op))
+	assert.NoError(t, rs(change.KindSetAttribute).Validate(op))
+	require.NoError(t, json.Unmarshal([]byte(`{"op":"set_attribute","at":{"doc":"a.html","block":"p"},"if_match":"`+rev+`","code":"1","attr":"href","value":"https://x.example"}`), &op))
+	assert.Error(t, rs(change.KindSetAttribute).Validate(op), "a guessed key is refused")
+	_, err := changeschema.OperationSchema("set_attr")
+	assert.ErrorContains(t, err, "set_attribute")
+}
+
 func resolvedSchema(t *testing.T) *jsonschema.Resolved {
 	t.Helper()
 	var s jsonschema.Schema
