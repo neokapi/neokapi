@@ -79,6 +79,11 @@ type ChangeServiceOptions struct {
 	// because the App's own source language belongs to whichever project
 	// resolved one last.
 	SourceLocale model.LocaleID
+
+	// revisionsOnly builds a service whose reads name no edition's basis from
+	// the block history: a flow's follower reads revisions alone, and a read
+	// that asks the history for every block is the larger half of its cost.
+	revisionsOnly bool
 }
 
 // Changes builds the change service for the project cmd names, or for the
@@ -189,7 +194,7 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 	if recorder != nil {
 		svcOpts = append(svcOpts, change.WithRecorder(recorder))
 	}
-	if states := a.changeEditionStates(h.root); states != nil {
+	if states := a.changeEditionStates(h.root); states != nil && !opts.revisionsOnly {
 		svcOpts = append(svcOpts, change.WithEditionStates(states))
 	}
 	return change.NewService(filehome.Formats{Registry: a.FormatReg}, change.OneHome(home), svcOpts...), nil

@@ -99,6 +99,9 @@ func (a *App) flowDocumentsIn(ctx context.Context, cmd Command, root string, sou
 	fc.changes = a.newCommandChanges(flowHookCommand(ctx, cmd, recipe), recipe, ChangeServiceOptions{
 		Format:       a.FormatFlag,
 		SourceLocale: source,
+		// The follower reads revisions and applies the run's own
+		// operations; it shows no edition's basis.
+		revisionsOnly: true,
 	})
 	if root != "" && a.printOps == nil {
 		fc.rec = a.changeRecorder(ctx, root)
@@ -205,7 +208,9 @@ func (fc *flowChanges) Open(ctx context.Context, d flow.Document) (flow.Document
 	case doc.delivery != nil:
 		doc.before, rerr = doc.delivery.firstRevisions(func() (revisions, error) { return doc.readRevisions(ctx) })
 	default:
-		doc.before, rerr = doc.readRevisions(ctx)
+		// The blocks are kept while the run works on the document, for a
+		// commit that leaves the file as it was read.
+		doc.before, doc.read, rerr = doc.readDocument(ctx, fc.rec != nil && fc.print == nil)
 	}
 	if rerr != nil {
 		doc.track = false
@@ -270,8 +275,11 @@ type flowDoc struct {
 	// track says the run's changes are recorded or printed.
 	track bool
 	// before is each block's editions as the service read them before the
-	// run: block key, then edition text, then revision.
+	// run: block key, then edition text, then revision. read is that read's
+	// blocks, for a document the run records and a commit that finds the
+	// file as the run read it.
 	before revisions
+	read   *readBlocks
 
 	mu sync.Mutex
 	// left are the blocks as the writer received them, by block key, in
@@ -401,12 +409,24 @@ func (doc *flowDoc) tracked(b *model.Block) []model.EditionKey {
 // readRevisions reads the document through the change service and returns
 // the revision of every tracked edition of each block.
 func (doc *flowDoc) readRevisions(ctx context.Context) (revisions, error) {
+	revs, _, err := doc.readDocument(ctx, false)
+	return revs, err
+}
+
+// readDocument reads the document through the change service: the revision
+// of every tracked edition of each block, and, with keep, the blocks too.
+func (doc *flowDoc) readDocument(ctx context.Context, keep bool) (revisions, *readBlocks, error) {
 	out := revisions{}
+	var blocks *readBlocks
+	if keep {
+		blocks = &readBlocks{blocks: map[string]*model.Block{}}
+	}
 	q := change.ReadRequest{Doc: doc.ref}
 	if !doc.inPlace {
 		q.Editions = []model.EditionKey{doc.edition}
 	}
 	_, err := doc.svc.ReadEach(ctx, q, func(b *model.Block, _ change.BlockRead) error {
+		key := change.BlockKey(b)
 		br := blockRevs{editions: map[string]string{}}
 		for _, k := range doc.tracked(b) {
 			br.editions[editionText(k)] = model.EditionRevision(b, k)
@@ -414,18 +434,24 @@ func (doc *flowDoc) readRevisions(ctx context.Context) (revisions, error) {
 		br.auth = b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{}))
 		br.authRev = model.EditionRevision(b, br.auth)
 		br.contentHash = model.ComputeContentHash(b.SourceText())
-		out[change.BlockKey(b)] = br
+		out[key] = br
+		if blocks != nil {
+			if _, seen := blocks.blocks[key]; !seen {
+				blocks.order = append(blocks.order, key)
+			}
+			blocks.blocks[key] = b
+		}
 		return nil
 	})
 	if err != nil {
 		var ce *change.Error
 		if errors.As(err, &ce) && ce.Code == change.CodeNotFound && !doc.inPlace {
 			// A target file that does not exist yet holds no edition.
-			return out, nil
+			return out, nil, nil
 		}
-		return nil, err
+		return nil, nil, err
 	}
-	return out, nil
+	return out, blocks, nil
 }
 
 // Enter keeps a copy of the block as the reader gave it, for the operations
@@ -540,10 +566,19 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 	if !written && !produced {
 		return nil
 	}
-	now, err := doc.readRevisionsWithBlocks(ctx)
-	if err != nil {
-		return fmt.Errorf("record what %s wrote to %s: %w", doc.d.Flow, doc.ref, err)
+	now := doc.read
+	if written || before != after || now == nil {
+		// The file holds what the run wrote, which a read is what names
+		// revision for revision as a later read finds it. A file that held
+		// the run's bytes already, as it did when the run read it, reads as
+		// it read then.
+		read, err := doc.readRevisionsWithBlocks(ctx)
+		if err != nil {
+			return fmt.Errorf("record what %s wrote to %s: %w", doc.d.Flow, doc.ref, err)
+		}
+		now = &read
 	}
+	doc.read = nil
 	loop := doc.fc.loop()
 	var transitions []change.Transition
 	for _, key := range now.order {
@@ -601,7 +636,7 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 			res.File = filepath.ToSlash(rel)
 		}
 	}
-	_, err = doc.fc.rec.Record(ctx, change.Record{
+	_, err := doc.fc.rec.Record(ctx, change.Record{
 		Actor:       flowActor(doc.d.Flow),
 		Origin:      flowOrigin(doc.d.Flow),
 		Docs:        []change.DocResult{res},
