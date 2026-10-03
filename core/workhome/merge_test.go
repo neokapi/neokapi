@@ -2,6 +2,7 @@ package workhome_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"slices"
@@ -52,14 +53,13 @@ func mergeInto(t *testing.T, into, from *machine) {
 // edition drafted on the first and merged into the second.
 func twoMachines(t *testing.T, blocks map[string]string) (*keptFixture, *keptFixture) {
 	t.Helper()
-	source := "{"
-	for i, key := range sortedKeys(blocks) {
-		if i > 0 {
-			source += ", "
-		}
-		source += fmt.Sprintf("%q: %q", key, "English "+key)
+	english := map[string]string{}
+	for key := range blocks {
+		english[key] = "English " + key
 	}
-	source += "}\n"
+	data, err := json.Marshal(english)
+	require.NoError(t, err)
+	source := string(data) + "\n"
 	a := newKeptFixture(t, newMachine(t, t.TempDir()), map[string]string{"a.json": source}, filehome.Options{})
 	b := newKeptFixture(t, newMachine(t, t.TempDir()), map[string]string{"a.json": source}, filehome.Options{})
 	a.draft(t, "a.json", blocks)
@@ -247,12 +247,11 @@ func mustRead(t *testing.T, f *keptFixture, name string) string {
 	t.Helper()
 	page, err := f.svc.Read(context.Background(), change.ReadRequest{Doc: name})
 	require.NoError(t, err)
-	out := "{"
-	for i, b := range page.Blocks {
-		if i > 0 {
-			out += ", "
-		}
-		out += fmt.Sprintf("%q: %q", b.Ref.Block, b.Text)
+	texts := map[string]string{}
+	for _, b := range page.Blocks {
+		texts[b.Ref.Block] = b.Text
 	}
-	return out + "}\n"
+	data, err := json.Marshal(texts)
+	require.NoError(t, err)
+	return string(data) + "\n"
 }

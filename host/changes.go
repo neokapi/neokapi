@@ -882,10 +882,7 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 	ref := ReviewUnitRef{File: filepath.FromSlash(file), Key: target.Ref.Block, Locale: locale}
 	switch body.Outcome {
 	case change.OutcomeAdvise:
-		review := state.AIReview{Model: reviewerName(actor), At: nowRFC3339()}
-		if decided != nil {
-			review.TargetHash = targetHash(decided.target)
-		}
+		review := state.AIReview{Model: reviewerName(actor), At: nowRFC3339(), TargetHash: targetHash(decided.target)}
 		if body.Score != nil {
 			review.Score = *body.Score
 		}

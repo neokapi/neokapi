@@ -83,7 +83,6 @@ type KeptChange struct {
 type keptPart struct {
 	keeper Keeper
 	write  KeptWrite
-	id     string
 }
 
 // keptBlocks are the blocks of a kept edition, as a join pairs them: one per
