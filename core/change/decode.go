@@ -256,7 +256,7 @@ func decodeOp(raw json.RawMessage, ptr string) (Op, *Error) {
 		switch {
 		case !ok && spec.ifMatch == ifMatchOptional:
 		case !ok:
-			return Op{}, invalidAt(ptr, `missing required field "if_match": send the revision you read, "absent" to create, or "*" to write whatever is there`)
+			return Op{}, invalidAt(ptr, `missing required field "if_match": send the revision you read, "absent" to create, or "*" for a blind write, which only a person may send`)
 		default:
 			var v string
 			if err := decodeValue(raw, reflect.ValueOf(&v).Elem(), ptr+"/if_match"); err != nil {
