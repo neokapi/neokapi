@@ -36,9 +36,6 @@ type streamDecisions struct {
 	proj   *store.Project
 	stream string
 	rows   *rowLookup
-	// sender is who sends the change set, whose name a pre-review a person
-	// records is filed under.
-	sender changeSender
 
 	// sod, when set, is the separation-of-duties gate a bulk action opened
 	// for every block and language it decides, so a decision asks no query of

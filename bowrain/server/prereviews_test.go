@@ -78,8 +78,9 @@ func TestPreReview_AnAgentsAdviceShowsBesideTheTranslationItJudged(t *testing.T)
 	assert.Nil(t, entryFor(t, listPendingReview(t, s, wsID, projID), judged).PreReview)
 }
 
-// A pre-review carries a score and judges a translation that exists, and an
-// agent records nothing but a pre-review.
+// A pre-review carries a score, judges a translation that exists and is an
+// agent's: an agent records nothing but a pre-review, and a person records
+// none, since the review queue shows a pre-review as AI advice.
 func TestPreReview_IsRefusedWithoutAScoreOrATranslation(t *testing.T) {
 	s, wsID, owner := newRecheckHarness(t)
 	ctx := t.Context()
@@ -92,24 +93,27 @@ func TestPreReview_IsRefusedWithoutAScoreOrATranslation(t *testing.T) {
 	svc, _, err := s.mcpChangeService(ctx, owner, projID, "main")
 	require.NoError(t, err)
 	agent := change.Actor{Kind: change.ActorAgent, Name: "claude-code"}
+	person := change.Actor{Kind: change.ActorPerson, Name: owner}
 	sb, err := s.ContentStore.GetBlock(ctx, projID, "main", byText["Open the app"])
 	require.NoError(t, err)
 	read := platstore.TargetRevision(sb, "fr")
 
 	cases := []struct {
-		name string
-		op   change.Op
-		code change.Code
+		name  string
+		actor change.Actor
+		op    change.Op
+		code  change.Code
 	}{
-		{"advice with no score", advise("greetings.txt", byText["Open the app"], "fr", read, nil), change.CodeInvalid},
-		{"advice on a translation that does not exist", advise("greetings.txt", byText["Sign in"], "fr", model.AbsentRevision, new(50)), change.CodeNotFound},
-		{"an agent's approval", change.Op{Kind: change.KindDecide,
+		{"advice with no score", agent, advise("greetings.txt", byText["Open the app"], "fr", read, nil), change.CodeInvalid},
+		{"advice on a translation that does not exist", agent, advise("greetings.txt", byText["Sign in"], "fr", model.AbsentRevision, new(50)), change.CodeNotFound},
+		{"an agent's approval", agent, change.Op{Kind: change.KindDecide,
 			At:      change.Ref{Doc: "greetings.txt", Block: byText["Open the app"], Edition: model.EditionKey{Locale: "fr"}},
 			IfMatch: read, Body: &change.Decide{Outcome: change.OutcomeEstablish}}, change.CodeNotPermitted},
+		{"a person's advice", person, advise("greetings.txt", byText["Open the app"], "fr", read, new(100)), change.CodeNotPermitted},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{tc.op}}, agent)
+			res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{tc.op}}, tc.actor)
 			require.NoError(t, err)
 			require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
 			require.NotNil(t, res.Ops[0].Error, "%+v", res.Ops)
@@ -119,4 +123,49 @@ func TestPreReview_IsRefusedWithoutAScoreOrATranslation(t *testing.T) {
 	reviews, err := s.ContentStore.PreReviews(ctx, projID, "main", []string{byText["Open the app"], byText["Sign in"]})
 	require.NoError(t, err)
 	assert.Empty(t, reviews, "a refused change set records nothing")
+}
+
+// A translation is judged by its revision, so an agent pre-reviews a
+// translation that holds inline codes and no words, and an empty translation
+// of an empty source, as it does any other.
+func TestPreReview_JudgesATranslationWithoutWords(t *testing.T) {
+	s, wsID, owner := newRecheckHarness(t)
+	ctx := t.Context()
+	count := model.PhR(model.PlaceholderRun{ID: "1", Type: "code:variable", Equiv: "{0}", Data: "{0}"})
+	codes := &model.Block{ID: "codes", Translatable: true}
+	codes.SetSourceRuns([]model.Run{count})
+	codes.SetTargetRuns("fr", []model.Run{count})
+	codes.Target("fr").Status = model.TargetStatusDraft
+	empty := &model.Block{ID: "empty", Translatable: true}
+	empty.SetTargetRuns("fr", []model.Run{})
+	empty.Target("fr").Status = model.TargetStatusDraft
+	projID, _ := seedGovernedProject(t, s, wsID, []*model.Block{codes, empty})
+	svc, _, err := s.mcpChangeService(ctx, owner, projID, "main")
+	require.NoError(t, err)
+	stored, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: projID, Stream: "main", ItemName: "greetings.txt"})
+	require.NoError(t, err)
+	require.Len(t, stored, 2)
+
+	for _, sb := range stored {
+		name := "empty"
+		if len(sb.Block.Source) > 0 {
+			name = "codes"
+		}
+		t.Run(name, func(t *testing.T) {
+			bid := sb.Block.ID
+			read := platstore.TargetRevision(sb, "fr")
+			require.NotEqual(t, model.AbsentRevision, read, "the block holds a French translation")
+
+			res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{advise("greetings.txt", bid, "fr", read, new(90))}},
+				change.Actor{Kind: change.ActorAgent, Name: "claude-code"})
+			require.NoError(t, err)
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+
+			reviews, err := s.ContentStore.PreReviews(ctx, projID, "main", []string{bid})
+			require.NoError(t, err)
+			require.Len(t, reviews, 1)
+			assert.Equal(t, 90, reviews[0].Score)
+			assert.Equal(t, read, reviews[0].Revision)
+		})
+	}
 }

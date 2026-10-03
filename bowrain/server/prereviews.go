@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -21,7 +20,8 @@ import (
 // the kapi host shows the AI pre-review it keeps on a unit.
 
 // prepareAdvice checks a pre-review before anything is written: it carries a
-// score, and the translation it judges has content.
+// score, and the translation it judges exists. A translation of inline codes
+// alone, or an empty one, is still a translation to judge.
 func (d *streamDecisions) prepareAdvice(ctx context.Context, body *change.Decide, target *change.DecisionTarget) *change.Error {
 	if body.Score == nil {
 		return &change.Error{Code: change.CodeInvalid, Field: "score",
@@ -31,7 +31,7 @@ func (d *streamDecisions) prepareAdvice(ctx context.Context, body *change.Decide
 		return &change.Error{Code: change.CodeNotFound, Field: "at/block",
 			Message: fmt.Sprintf("%s holds no block keyed %q", target.Doc.Doc, target.Ref.Block)}
 	}
-	if target.Rev == model.AbsentRevision || strings.TrimSpace(target.Text) == "" {
+	if target.Rev == model.AbsentRevision {
 		return &change.Error{Code: change.CodeNotFound, Field: "at",
 			Message: fmt.Sprintf("block %s has no %s translation to pre-review", target.Ref.Block, target.Ref.Edition.Locale)}
 	}
@@ -50,7 +50,7 @@ func (d *streamDecisions) recordAdvice(ctx context.Context, actor change.Actor, 
 		BlockID:  row.Block.ID,
 		Locale:   string(target.Ref.Edition.Locale),
 		Score:    *body.Score,
-		Reviewer: d.adviser(actor),
+		Reviewer: adviser(actor),
 		Reasons:  body.Reasons,
 		Revision: target.Rev,
 		At:       time.Now().UTC(),
@@ -62,19 +62,13 @@ func (d *streamDecisions) recordAdvice(ctx context.Context, actor change.Actor, 
 }
 
 // adviser is the name a pre-review is recorded under, which the review queue
-// shows beside its score: agent/<client> for an agent, as the kapi host names
-// it, and the sender's own name for anyone else.
-func (d *streamDecisions) adviser(actor change.Actor) string {
-	if actor.Kind == change.ActorAgent {
-		if actor.Name == "" {
-			return "agent"
-		}
-		return "agent/" + actor.Name
+// shows beside its score: agent/<client>, as the kapi host names an agent. The
+// policy takes a pre-review from an agent only.
+func adviser(actor change.Actor) string {
+	if actor.Name == "" {
+		return "agent"
 	}
-	if d.sender.name != "" {
-		return d.sender.name
-	}
-	return actor.Name
+	return "agent/" + actor.Name
 }
 
 // freshPreReview is the pre-review recorded on the translation of sb in loc

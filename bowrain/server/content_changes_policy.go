@@ -39,7 +39,9 @@ type changeSender struct {
 //     entity is marked with edit source.
 //   - An agent sends neither gate report, if_match "*", nor a decision other
 //     than advise, which records a pre-review and takes translate for the
-//     language. Only a tool records provenance, and a tool decides nothing.
+//     language. A pre-review is an agent's: the review queue shows it as AI
+//     advice, so a person sends establish, reject or withdraw instead. Only a
+//     tool records provenance, and a tool decides nothing.
 type streamPolicy struct {
 	ctx    context.Context //nolint:containedctx // the policy answers within one request
 	s      *Server
@@ -73,6 +75,10 @@ func (p *streamPolicy) Permit(actor change.Actor, set *change.Set, op change.Op)
 			return notPermittedTo("an agent", "decide "+string(decide.Outcome),
 				"a review decision is a person's; record a pre-review with outcome advise")
 		}
+	}
+	if actor.Kind == change.ActorPerson && decide != nil && decide.Outcome == change.OutcomeAdvise {
+		return notPermittedTo("a person", "decide advise",
+			"a pre-review is an agent's, and the review queue shows it as AI advice; establish or reject the translation")
 	}
 	if op.Kind == change.KindProvenance && actor.Kind != change.ActorTool {
 		return notPermittedTo("a "+string(actor.Kind), "record provenance", "only a tool says how it produced an edition")

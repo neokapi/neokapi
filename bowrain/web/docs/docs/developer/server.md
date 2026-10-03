@@ -115,7 +115,9 @@ The server holds each operation to what the sender may do on the project:
   memory, as approve-passing writes it. `advise` records a pre-review: the
   `score` (required, 0 to 100) and `reasons` an agent gives the translation,
   filed under `agent/<client>` against the revision in `if_match`. It moves no
-  status and takes `translate` for the language. Each entry of the
+  status and takes `translate` for the language. Only an agent sends it, over
+  the server MCP; the changes route refuses a person's `advise` with
+  `not_permitted`, because the queue shows a pre-review as AI advice. Each entry of the
   pending-review queue carries it as `pre_review`, and the review context as
   the judgement's `ai_score`, `ai_model` and `ai_findings`, while the
   translation stands at that revision.
