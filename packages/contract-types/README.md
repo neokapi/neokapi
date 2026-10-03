@@ -17,13 +17,18 @@ Five layers, re-exported from the package root:
   review decision is made in, read by every review client and taken as props
   by the shared review cards.
 - **`./change.gen`**: the change contract (`core/change`). `ChangeSet` and the
-  `ChangeOp` union are rendered from the JSON Schema of `kapi.change/v1`, so a
-  value they accept is one the service decodes: an operation is discriminated
-  by `op`, a choice of exactly one field (`text` or `runs`; `find`, `start`
-  with `end`, or `range`) refuses both, and a runs payload carries no native
-  `data`. `ChangeResult` (`kapi.change-result/v1`), the read page
-  (`ReadPage`, `BlockRead`) and a format's description (`FormatDescription`)
-  are reflected from the Go structs the service marshals. The unions of
+  `ChangeOp` union are rendered from the JSON Schema of `kapi.change/v1`, so
+  they refuse the structural mistakes the decoder refuses: an operation is
+  discriminated by `op`, a choice of exactly one field (`text` or `runs`;
+  `find`, `start` with `end`, or `range`) refuses both, a run holds one kind
+  (text, one code, a plural or a select), and a runs payload carries no native
+  `data`. A pattern, a bound or a rule between fields (a revision's form,
+  `occurrence` only beside `find`, at least one operation) is documented on
+  the field and checked by the service. `ChangeResult`
+  (`kapi.change-result/v1`), the read page (`ReadPage`, `BlockRead`) and a
+  format's description (`FormatDescription`) are reflected from the Go structs
+  the service marshals; a change set refused as a whole is a `ChangeResult`
+  whose `error` says why, with empty `docs` and `ops`. The unions of
   operation kinds, statuses and error codes come with frozen lists, and
   `CHANGE_ERROR_HTTP_STATUS` and `CHANGE_ERROR_EXIT_CODE` map each error code
   as the transports do.
@@ -42,8 +47,9 @@ make generate-contract-types
 CI enforces a drift gate (`make check-contract-types`): the committed types are
 regenerated and compared against Go on every change, so the published package
 cannot drift from the engine. `make test-contract-types` runs the generator's
-tests and type-checks `tests/`, where each change set the service refuses is
-asserted to fail compilation.
+tests, compiles the package with `tsc` (`vp run typecheck:generated`; the
+workspace's `vp check` skips `*.gen.ts`) and type-checks `tests/`, where each
+structural mistake the service refuses is asserted to fail compilation.
 
 ## Usage
 
@@ -62,6 +68,10 @@ function retitle(read: BlockRead, text: string): ChangeSet {
 
 function landed(result: ChangeResult): boolean {
   return result.status === "applied";
+}
+
+function why(result: ChangeResult): string | undefined {
+  return result.error?.message ?? result.ops.find((op) => op.error)?.error?.message;
 }
 ```
 

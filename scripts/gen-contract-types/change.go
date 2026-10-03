@@ -5,10 +5,12 @@ package main
 //
 // What a sender writes, the change set (kapi.change/v1), is rendered from the
 // JSON Schema core/change/changeschema generates from the Go types, so the
-// TypeScript says what the decoder accepts: each operation is a member of a
-// union discriminated by `op`, a choice of exactly one field (text or runs; a
-// find, a span or a range) is a union that refuses both, and a runs payload
-// cannot carry native data. What the service answers (the result,
+// TypeScript states the structure the decoder accepts: each operation is a
+// member of a union discriminated by `op`, a choice of exactly one field (text
+// or runs; a find, a span or a range) is a union that refuses both, a run or
+// a path step holds the fields of one kind, and a runs payload cannot carry
+// native data. Patterns, bounds and rules between fields are documented, and
+// the decoder alone checks them. What the service answers (the result,
 // kapi.change-result/v1, a read page and a format's description) is reflected
 // from the structs it marshals, with the doc comments of their Go
 // declarations, read from the source.
@@ -146,6 +148,9 @@ var changeFieldTypes = map[fieldKey]string{
 	{reflect.TypeFor[change.BlockRead](), "Ref"}: "ChangeRef",
 	// A nil map marshals as null: a format that writes no attribute.
 	{reflect.TypeFor[change.OpTable](), "SetAttribute"}: "Record<string, string[]> | null",
+	// An operation's result names its kind, which may be one a tool applies
+	// in process; what a block accepts (BlockRead.Ops) is a ChangeOpKind.
+	{reflect.TypeFor[change.OpResult](), "Op"}: "ResultOpKind",
 }
 
 // fieldKey names a struct field.
@@ -190,7 +195,7 @@ func emitChange() (string, error) {
 		g.names[u.typ] = u.name
 	}
 	declared := slices.Clone(st.declared)
-	declared = append(declared, "ResultRef", "ChangeOpKind")
+	declared = append(declared, "ResultRef", "ChangeOpKind", "ResultOpKind")
 	for _, u := range changeUnions {
 		declared = append(declared, u.name)
 	}
@@ -248,11 +253,12 @@ func emitChange() (string, error) {
 	b.WriteString("//\n")
 	b.WriteString("// The change contract (E-09): what a client of the change service sends and\n")
 	b.WriteString("// what the service answers. The change set (kapi.change/v1) is rendered from\n")
-	b.WriteString("// the JSON Schema core/change/changeschema generates from the Go types, so a\n")
-	b.WriteString("// value these types accept is one the decoder reads. The result\n")
-	b.WriteString("// (kapi.change-result/v1), a read page and a format's description are\n")
-	b.WriteString("// reflected from the core/change structs the service marshals, with the doc\n")
-	b.WriteString("// comments of their Go declarations.\n\n")
+	b.WriteString("// the JSON Schema core/change/changeschema generates from the Go types, so\n")
+	b.WriteString("// these types refuse the structural mistakes the decoder refuses; a pattern,\n")
+	b.WriteString("// a bound or a rule between fields is documented and checked by the decoder\n")
+	b.WriteString("// alone. The result (kapi.change-result/v1), a read page and a format's\n")
+	b.WriteString("// description are reflected from the core/change structs the service\n")
+	b.WriteString("// marshals, with the doc comments of their Go declarations.\n\n")
 	if imports := st.importList(); len(imports) > 0 {
 		fmt.Fprintf(&b, "import type { %s } from \"./content.gen.ts\";\n\n", strings.Join(imports, ", "))
 	}
@@ -289,11 +295,16 @@ func emitChangeVocabularies(docs *goDocs, root *jnode) (string, error) {
 	b.WriteString(renderUnion("ChangeOpKind",
 		docs.typeDoc(reflect.TypeFor[change.Kind]())+"\n\nThe operations a change set may carry, in the order the schema lists them;\nChangeOp[\"op\"] is the same union.",
 		members, "CHANGE_OP_KINDS"))
+	resultKinds, err := renderResultOpKind(docs, kinds)
+	if err != nil {
+		return "", err
+	}
+	b.WriteString(resultKinds)
 
 	for _, u := range changeUnions {
-		consts := docs.consts[goKey(u.typ)]
-		if len(consts) == 0 {
-			return "", fmt.Errorf("no constants of type %s found in the source", goKey(u.typ))
+		consts, err := docs.stringConsts(u.typ)
+		if err != nil {
+			return "", err
 		}
 		var members []unionMember
 		for _, c := range consts {
@@ -303,7 +314,11 @@ func emitChangeVocabularies(docs *goDocs, root *jnode) (string, error) {
 	}
 
 	codes := change.Codes()
-	if got := unionValues(constMembers(docs.consts[goKey(reflect.TypeFor[change.Code]())])); !slices.Equal(got, codeStrings(codes)) {
+	codeConsts, err := docs.stringConsts(reflect.TypeFor[change.Code]())
+	if err != nil {
+		return "", err
+	}
+	if got := unionValues(constMembers(codeConsts)); !slices.Equal(got, codeStrings(codes)) {
 		return "", fmt.Errorf("the source's Code constants %v and change.Codes %v disagree", got, codes)
 	}
 	var http, exit strings.Builder
@@ -316,6 +331,40 @@ func emitChangeVocabularies(docs *goDocs, root *jnode) (string, error) {
 	b.WriteString("\n/** The exit code a command line returns for each refusal. Mirrors core/change.Code.ExitCode. */\n")
 	fmt.Fprintf(&b, "export const CHANGE_ERROR_EXIT_CODE: Readonly<Record<ChangeErrorCode, number>> = {\n%s};\n", exit.String())
 	return b.String(), nil
+}
+
+// renderResultOpKind renders ResultOpKind, the operation an OpResult names:
+// any a change set may carry, and each Kind constant the schema leaves out,
+// which a tool in a flow applies in process through change.ApplyBlock.
+func renderResultOpKind(docs *goDocs, public []change.Kind) (string, error) {
+	all, err := docs.stringConsts(reflect.TypeFor[change.Kind]())
+	if err != nil {
+		return "", err
+	}
+	var values []string
+	var inProcess []unionMember
+	for _, c := range all {
+		values = append(values, c.value)
+		if !slices.Contains(public, change.Kind(c.value)) {
+			inProcess = append(inProcess, unionMember{value: c.value, doc: constDoc(c)})
+		}
+	}
+	for _, k := range public {
+		if !slices.Contains(values, string(k)) {
+			return "", fmt.Errorf("change.Kinds names %s, which no Kind constant in the source spells", k)
+		}
+	}
+	doc := "The operation an OpResult names: one a change set may carry, or one a tool\nin a flow applies in process, which no change set carries."
+	members := []string{"ChangeOpKind"}
+	var list []string
+	for _, m := range inProcess {
+		members = append(members, jsonString(m.value))
+		list = append(list, "- `"+m.value+"`: "+oneLine(m.doc))
+	}
+	if len(list) > 0 {
+		doc += "\n\n" + strings.Join(list, "\n")
+	}
+	return "\n" + jsDoc(doc, "") + "export type ResultOpKind =" + spaced(wrapUnion(members, "")) + ";\n", nil
 }
 
 // unionMember is one member of a rendered union.
@@ -568,6 +617,9 @@ type schemaTS struct {
 	shapes   map[string]string     // shape key → declared or imported name
 	external map[string]bool       // names content.gen.ts declares
 	imported map[string]bool
+	// exclude holds, for a member of a union of closed objects about to be
+	// rendered, the other members' fields it refuses (exclusiveKeys).
+	exclude map[*jnode][]string
 	// declared lists every name a declaration was rendered for.
 	declared []string
 	queued   map[string]bool
@@ -598,6 +650,7 @@ func newSchemaRenderer(root *jnode, docs *goDocs, names map[string]schemaName, e
 		shapes:   map[string]string{},
 		external: map[string]bool{},
 		imported: map[string]bool{},
+		exclude:  map[*jnode][]string{},
 		queued:   map[string]bool{},
 	}
 	for _, e := range external {
@@ -734,8 +787,12 @@ func (s *schemaTS) declare(name string) (string, error) {
 	if sn.goType != nil {
 		doc = s.docs.typeDoc(sn.goType) + "\n\nMirrors " + goPath(sn.goType) + "."
 		if e := n.get("enum"); e != nil {
+			consts, err := s.docs.stringConsts(sn.goType)
+			if err != nil {
+				return "", err
+			}
 			var members []unionMember
-			for _, c := range s.docs.consts[goKey(sn.goType)] {
+			for _, c := range consts {
 				members = append(members, unionMember{value: c.value, doc: constDoc(c)})
 			}
 			if !slices.Equal(unionValues(members), e.strings()) {
@@ -833,14 +890,38 @@ func (s *schemaTS) inline(n *jnode, loc string, indent int, inherit string) (str
 	}
 	for _, kw := range []string{"oneOf", "anyOf"} {
 		list := n.get(kw)
-		if list == nil || requiredOnly(list) {
+		if list == nil {
 			continue
+		}
+		if requiredOnly(list) {
+			// object renders an exactly-one choice; at least one of several
+			// fields has no rendering.
+			if kw == "anyOf" {
+				return "", fmt.Errorf("%s: anyOf of required fields is not rendered; teach change.go what it means", loc)
+			}
+			continue
+		}
+		if n.has("properties") {
+			return "", fmt.Errorf("%s: %s beside properties is not rendered; teach change.go what it means", loc, kw)
+		}
+		exclusive, err := s.exclusiveKeys(list)
+		if err != nil {
+			return "", fmt.Errorf("%s: %w", loc, err)
 		}
 		var members []string
 		for i, m := range list.arr {
+			if len(exclusive[i]) > 0 {
+				s.exclude[m] = exclusive[i]
+			}
 			t, err := s.typeOf(m, loc+"|"+memberLabel(m, i), indent+1, parentType)
 			if err != nil {
 				return "", err
+			}
+			// A member rendered as a name keeps its declaration, and refuses
+			// the other members' fields beside it.
+			if keys, pending := s.exclude[m]; pending {
+				t += " & { " + strings.TrimSuffix(strings.Join(neverFields(keys), " "), ";") + " }"
+				delete(s.exclude, m)
 			}
 			members = append(members, t)
 		}
@@ -936,6 +1017,13 @@ func (s *schemaTS) object(n *jnode, loc string, indent int) (string, error) {
 		}
 		fields = append(fields, jsDoc(doc, pad(indent+1))+pad(indent+1)+tsKey(k)+q+": "+t+";")
 	}
+	// A member of a union of closed objects refuses the fields of the others.
+	if keys, ok := s.exclude[n]; ok {
+		for _, f := range neverFields(keys) {
+			fields = append(fields, pad(indent+1)+f)
+		}
+		delete(s.exclude, n)
+	}
 	var body string
 	single := "{ " + strings.TrimSuffix(strings.Join(trimAll(fields), " "), ";") + " }"
 	// A declaration's own fields go one per line; a nested object short
@@ -978,6 +1066,93 @@ func (s *schemaTS) object(n *jnode, loc string, indent int) (string, error) {
 		alts = append(alts, "{ "+strings.Join(parts, "; ")+" }")
 	}
 	return body + " & (\n" + pad(indent+1) + "| " + strings.Join(alts, "\n"+pad(indent+1)+"| ") + "\n" + pad(indent) + ")", nil
+}
+
+// exclusiveKeys lists, for each member of a oneOf or anyOf, the fields of the
+// other members it lacks, when two or more members are closed objects told
+// apart by which fields they hold rather than by a constant (a run is text,
+// ph, pcOpen and so on). A value holding the fields of two such members
+// matches neither, and the decoder refuses it, but TypeScript checks excess
+// properties against the union as a whole, so each member has to refuse the
+// others' fields itself. A member that is no closed object lists none, and
+// members a required constant tells apart (an operation's op) list none,
+// because TypeScript checks a discriminated union member by member.
+func (s *schemaTS) exclusiveKeys(list *jnode) ([][]string, error) {
+	out := make([][]string, len(list.arr))
+	own := make([][]string, len(list.arr))
+	var objects []*jnode
+	var at []int
+	for i, m := range list.arr {
+		r, err := s.resolve(m)
+		if err != nil {
+			return nil, err
+		}
+		props := r.get("properties")
+		ap := r.get("additionalProperties")
+		if props == nil || len(props.keys) == 0 || ap == nil || !isClosed(ap) {
+			continue
+		}
+		own[i] = props.keys
+		objects = append(objects, r)
+		at = append(at, i)
+	}
+	if len(objects) < 2 || discriminated(objects) {
+		return out, nil
+	}
+	for _, i := range at {
+		for _, j := range at {
+			if i == j {
+				continue
+			}
+			for _, k := range own[j] {
+				if !slices.Contains(own[i], k) && !slices.Contains(out[i], k) {
+					out[i] = append(out[i], k)
+				}
+			}
+		}
+	}
+	return out, nil
+}
+
+// discriminated reports whether one field is required in every member and a
+// constant in each.
+func discriminated(members []*jnode) bool {
+	for _, k := range members[0].get("properties").keys {
+		every := true
+		for _, m := range members {
+			p := m.get("properties").get(k)
+			if p == nil || !p.has("const") || !slices.Contains(m.get("required").strings(), k) {
+				every = false
+				break
+			}
+		}
+		if every {
+			return true
+		}
+	}
+	return false
+}
+
+// resolve is the node a $ref names, or n itself.
+func (s *schemaTS) resolve(n *jnode) (*jnode, error) {
+	r := n.str("$ref")
+	if r == "" {
+		return n, nil
+	}
+	def, ok := strings.CutPrefix(r, "#/$defs/")
+	if target := s.root.get("$defs").get(def); ok && target != nil {
+		return target, nil
+	}
+	return nil, fmt.Errorf("$ref %q names no definition", r)
+}
+
+// neverFields renders fields a type refuses: k?: never.
+func neverFields(keys []string) []string {
+	out := make([]string, len(keys))
+	for i, k := range keys {
+		out[i] = tsKey(k) + "?: never;"
+	}
+	return out
 }
 
 // requiredOnly reports whether a oneOf lists only which properties are

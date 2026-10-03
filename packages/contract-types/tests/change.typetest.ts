@@ -19,6 +19,7 @@ import {
   type FormatDescription,
   type OpResult,
   type ReadPage,
+  type ResultOpKind,
 } from "../src/index.ts";
 
 type Equal<A, B> =
@@ -32,6 +33,11 @@ export type Checks = [
   // Every operation the schema lists is a kind the results name, and no other.
   Expect<Equal<ChangeOp["op"], ChangeOpKind>>,
   Expect<Equal<(typeof CHANGE_OP_KINDS)[number], ChangeOpKind>>,
+  // An operation's result may name a kind a tool applies in process; a block
+  // accepts only the kinds a change set carries.
+  Expect<Equal<OpResult["op"], ResultOpKind>>,
+  Expect<Equal<Exclude<ResultOpKind, ChangeOpKind>, "provenance">>,
+  Expect<Equal<BlockRead["ops"], ChangeOpKind[]>>,
   // A result names its own schema.
   Expect<Equal<ChangeResult["schema"], "kapi.change-result/v1">>,
   Expect<Equal<typeof CHANGE_RESULT_SCHEMA_ID, "kapi.change-result/v1">>,
@@ -120,7 +126,7 @@ export const examples: ChangeSet = {
     {
       op: "native",
       doc: "report.docx",
-      if_match: "sha256:9c1e",
+      if_match: "sha256:9c1e5b2f7a8d4c3e6f1a0b9d8c7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e",
       name: "docx.append_paragraph",
       args: { runs: [{ text: "Results" }], style: "Heading2" },
     },
@@ -230,6 +236,34 @@ export const refused: ChangeOp[] = [
     if_match: rev,
     // @ts-expect-error a plural form is a CLDR category or =N
     edits: [{ path: [1, { plural: "several" }], find: "a", text: "b" }],
+  },
+  {
+    op: "replace_text",
+    at,
+    if_match: rev,
+    // @ts-expect-error a path step names a plural form or a select case, never both
+    edits: [{ path: [1, { plural: "one", select: "male" }], find: "a", text: "b" }],
+  },
+  {
+    op: "set_content",
+    at,
+    if_match: rev,
+    // @ts-expect-error a run is text or one code, never both
+    runs: [{ text: "a", ph: { id: "1" } }],
+  },
+  {
+    op: "set_content",
+    at,
+    if_match: rev,
+    // @ts-expect-error a run is one code
+    runs: [{ ph: { id: "1" }, pcOpen: { id: "2" } }],
+  },
+  {
+    op: "set_content",
+    at,
+    if_match: rev,
+    // @ts-expect-error noTranslate goes with a text run
+    runs: [{ ph: { id: "1" }, noTranslate: true }],
   },
   // @ts-expect-error delete_block addresses a block, never an edition
   { op: "delete_block", at: { ...at, edition: "fr" }, if_match: { en: rev } },

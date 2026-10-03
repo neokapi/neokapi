@@ -4,11 +4,12 @@
 //
 // The change contract (E-09): what a client of the change service sends and
 // what the service answers. The change set (kapi.change/v1) is rendered from
-// the JSON Schema core/change/changeschema generates from the Go types, so a
-// value these types accept is one the decoder reads. The result
-// (kapi.change-result/v1), a read page and a format's description are
-// reflected from the core/change structs the service marshals, with the doc
-// comments of their Go declarations.
+// the JSON Schema core/change/changeschema generates from the Go types, so
+// these types refuse the structural mistakes the decoder refuses; a pattern,
+// a bound or a rule between fields is documented and checked by the decoder
+// alone. The result (kapi.change-result/v1), a read page and a format's
+// description are reflected from the core/change structs the service
+// marshals, with the doc comments of their Go declarations.
 
 import type { RunPos } from "./content.gen.ts";
 
@@ -394,13 +395,73 @@ export type ChangeRun =
     text: string;
     /** the text is not for translation, such as a command in a code span */
     noTranslate?: boolean;
+    ph?: never;
+    pcOpen?: never;
+    pcClose?: never;
+    sub?: never;
+    plural?: never;
+    select?: never;
   }
-  | { ph: InlineCode }
-  | { pcOpen: InlineCode }
-  | { pcClose: ClosingCode }
-  | { sub: SubblockCode }
-  | { plural: PluralBranches }
-  | { select: SelectBranches };
+  | {
+    ph: InlineCode;
+    text?: never;
+    noTranslate?: never;
+    pcOpen?: never;
+    pcClose?: never;
+    sub?: never;
+    plural?: never;
+    select?: never;
+  }
+  | {
+    pcOpen: InlineCode;
+    text?: never;
+    noTranslate?: never;
+    ph?: never;
+    pcClose?: never;
+    sub?: never;
+    plural?: never;
+    select?: never;
+  }
+  | {
+    pcClose: ClosingCode;
+    text?: never;
+    noTranslate?: never;
+    ph?: never;
+    pcOpen?: never;
+    sub?: never;
+    plural?: never;
+    select?: never;
+  }
+  | {
+    sub: SubblockCode;
+    text?: never;
+    noTranslate?: never;
+    ph?: never;
+    pcOpen?: never;
+    pcClose?: never;
+    plural?: never;
+    select?: never;
+  }
+  | {
+    plural: PluralBranches;
+    text?: never;
+    noTranslate?: never;
+    ph?: never;
+    pcOpen?: never;
+    pcClose?: never;
+    sub?: never;
+    select?: never;
+  }
+  | {
+    select: SelectBranches;
+    text?: never;
+    noTranslate?: never;
+    ph?: never;
+    pcOpen?: never;
+    pcClose?: never;
+    sub?: never;
+    plural?: never;
+  };
 
 /**
  * a walk into a plural or select: a run index, then the form or case, repeated
@@ -603,10 +664,12 @@ export type PathStep =
   | {
     /** a plural form: zero, one, two, few, many, other, or =N */
     plural: PluralForm;
+    select?: never;
   }
   | {
     /** a select case */
     select: string;
+    plural?: never;
   };
 
 /**
@@ -674,6 +737,16 @@ export type ChangeOpKind =
   | "memory"
   | "recipe";
 export const CHANGE_OP_KINDS: readonly ChangeOpKind[] = ["set_content", "replace_text", "set_attribute", "mark", "remove_edition", "annotate", "unannotate", "insert_block", "delete_block", "native", "decide", "term", "memory", "recipe"];
+
+/**
+ * The operation an OpResult names: one a change set may carry, or one a tool in
+ * a flow applies in process, which no change set carries.
+ *
+ * - `provenance`: records how a tool produced an edition: its status and
+ *   origin. Only a tool in a flow sends it, in process; no change set carries
+ *   it, and the schema does not list it.
+ */
+export type ResultOpKind = ChangeOpKind | "provenance";
 
 /**
  * SetStatus is the outcome of a whole change set.
@@ -890,7 +963,7 @@ export interface DocResult {
 export interface OpResult {
   /** I is the operation's index in the change set. */
   i: number;
-  op: ChangeOpKind;
+  op: ResultOpKind;
   status: ChangeOpStatus;
   at?: ResultRef;
   /** Before and After are the edition's revisions around the operation. */

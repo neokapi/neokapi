@@ -26,6 +26,10 @@ type goDocs struct {
 	types  map[string]string
 	fields map[string]string
 	consts map[string][]goConst
+	// unspelled names the constants of a named type whose value the source
+	// does not spell as a string literal (a conversion, another constant, an
+	// implicit repetition), by type.
+	unspelled map[string][]string
 }
 
 // goConst is one string constant of a named type, in source order.
@@ -42,7 +46,7 @@ func parseGoDocs(dirs ...string) (*goDocs, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := &goDocs{types: map[string]string{}, fields: map[string]string{}, consts: map[string][]goConst{}}
+	d := newGoDocs()
 	for _, dir := range dirs {
 		files, err := filepath.Glob(filepath.Join(root, dir, "*.go"))
 		if err != nil {
@@ -69,6 +73,10 @@ func parseGoDocs(dirs ...string) (*goDocs, error) {
 		}
 	}
 	return d, nil
+}
+
+func newGoDocs() *goDocs {
+	return &goDocs{types: map[string]string{}, fields: map[string]string{}, consts: map[string][]goConst{}, unspelled: map[string][]string{}}
 }
 
 // repoRoot is the nearest directory at or above the working directory that
@@ -122,31 +130,66 @@ func (d *goDocs) add(pkg string, f *ast.File) {
 				}
 			}
 		case token.CONST:
+			// prev is the type of the last typed spec, which a spec with
+			// neither a type nor a value repeats.
+			var prev *ast.Ident
 			for _, spec := range gen.Specs {
 				vs := spec.(*ast.ValueSpec)
-				ident, ok := vs.Type.(*ast.Ident)
-				if !ok || len(vs.Values) != len(vs.Names) {
+				if vs.Type == nil && len(vs.Values) == 0 && prev != nil {
+					for _, name := range vs.Names {
+						d.unspell(pkg+"."+prev.Name, name.Name)
+					}
 					continue
 				}
+				ident, ok := vs.Type.(*ast.Ident)
+				if !ok {
+					prev = nil
+					continue
+				}
+				prev = ident
+				key := pkg + "." + ident.Name
 				for i, name := range vs.Names {
-					lit, ok := vs.Values[i].(*ast.BasicLit)
-					if !ok || lit.Kind != token.STRING {
+					var lit *ast.BasicLit
+					if i < len(vs.Values) {
+						lit, _ = vs.Values[i].(*ast.BasicLit)
+					}
+					if lit == nil || lit.Kind != token.STRING {
+						d.unspell(key, name.Name)
 						continue
 					}
 					value, err := strconv.Unquote(lit.Value)
 					if err != nil {
+						d.unspell(key, name.Name)
 						continue
 					}
 					doc := commentText(vs.Doc)
 					if doc == "" {
 						doc = commentText(vs.Comment)
 					}
-					key := pkg + "." + ident.Name
 					d.consts[key] = append(d.consts[key], goConst{name: name.Name, value: value, doc: doc})
 				}
 			}
 		}
 	}
+}
+
+func (d *goDocs) unspell(key, name string) {
+	d.unspelled[key] = append(d.unspelled[key], name)
+}
+
+// stringConsts is the constants of the string type t, in source order. A
+// constant of t whose value the source does not spell as a string literal
+// fails, so a union never leaves one out.
+func (d *goDocs) stringConsts(t reflect.Type) ([]goConst, error) {
+	key := goKey(t)
+	if names := d.unspelled[key]; len(names) > 0 {
+		return nil, fmt.Errorf("the value of %s, of type %s, is not a string literal; spell it as one", strings.Join(names, ", "), goPath(t))
+	}
+	cs := d.consts[key]
+	if len(cs) == 0 {
+		return nil, fmt.Errorf("no constants of type %s found in the source", goPath(t))
+	}
+	return cs, nil
 }
 
 // commentText is a comment group's text without its trailing newline.

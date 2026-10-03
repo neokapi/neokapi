@@ -1,6 +1,8 @@
 package main
 
 import (
+	"go/parser"
+	"go/token"
 	"maps"
 	"reflect"
 	"strings"
@@ -21,8 +23,7 @@ func renderSchema(t *testing.T, schema string, names map[string]schemaName) (str
 	require.NoError(t, err)
 	all := map[string]schemaName{"": {name: "Root"}}
 	maps.Copy(all, names)
-	s := newSchemaRenderer(root, &goDocs{types: map[string]string{}, fields: map[string]string{}, consts: map[string][]goConst{}},
-		all, []emitType{{"RunPos", reflect.TypeFor[model.RunPos](), ""}})
+	s := newSchemaRenderer(root, newGoDocs(), all, []emitType{{"RunPos", reflect.TypeFor[model.RunPos](), ""}})
 	return s.emit()
 }
 
@@ -84,6 +85,32 @@ func TestSchemaRendering(t *testing.T) {
 			schema: `{"type":"object","properties":{"v":{"description":"any JSON value"}},"additionalProperties":false}`,
 			want:   []string{"  /** any JSON value */\n  v?: unknown;"},
 		},
+		{
+			name: "closed objects told apart by their fields each refuse the others' fields",
+			schema: `{"oneOf":[{"type":"integer"},
+				{"type":"object","properties":{"text":{"type":"string"},"flag":{"type":"boolean"}},"required":["text"],"additionalProperties":false},
+				{"type":"object","properties":{"ph":{"type":"string"}},"required":["ph"],"additionalProperties":false}]}`,
+			want: []string{
+				"export type Root =\n  | number\n",
+				"  | { text: string; flag?: boolean; ph?: never }\n",
+				"  | { ph: string; text?: never; flag?: never };",
+			},
+		},
+		{
+			name: "a member rendered as a name refuses the others' fields beside it",
+			schema: `{"oneOf":[{"$ref":"#/$defs/a"},
+				{"type":"object","properties":{"b":{"type":"string"}},"required":["b"],"additionalProperties":false}],
+				"$defs":{"a":{"type":"object","properties":{"a":{"type":"string"}},"required":["a"],"additionalProperties":false}}}`,
+			names: map[string]schemaName{"$a": {name: "A"}},
+			want:  []string{"A & { b?: never } | { b: string; a?: never }", "export interface A {\n  a: string;\n}"},
+		},
+		{
+			name: "members a constant tells apart refuse nothing",
+			schema: `{"oneOf":[
+				{"type":"object","properties":{"op":{"type":"string","const":"a"},"x":{"type":"string"}},"required":["op"],"additionalProperties":false},
+				{"type":"object","properties":{"op":{"type":"string","const":"b"},"y":{"type":"string"}},"required":["op"],"additionalProperties":false}]}`,
+			want: []string{`export type Root = { op: "a"; x?: string } | { op: "b"; y?: string };`},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -126,6 +153,18 @@ func TestSchemaRenderingRefuses(t *testing.T) {
 			names: map[string]schemaName{"a": {name: "A"}, "b": {name: "B"}},
 			want:  "have one shape",
 		},
+		{
+			name: "at least one of several fields",
+			schema: `{"type":"object","properties":{"after":{"type":"string"},"before":{"type":"string"}},"additionalProperties":false,
+				"anyOf":[{"required":["after"]},{"required":["before"]}]}`,
+			want: "anyOf of required fields is not rendered",
+		},
+		{
+			name: "a choice of schemas beside properties",
+			schema: `{"type":"object","properties":{"note":{"type":"string"}},"additionalProperties":false,
+				"oneOf":[{"type":"object","properties":{"a":{"type":"string"}},"additionalProperties":false},{"type":"string"}]}`,
+			want: "oneOf beside properties is not rendered",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -158,7 +197,15 @@ func TestEmitChange(t *testing.T) {
 	for _, k := range change.Kinds() {
 		assert.Contains(t, out, `op: "`+string(k)+`";`)
 	}
-	assert.NotContains(t, out, `"`+string(change.KindProvenance)+`"`, "provenance is in-process only")
+	provenance := `"` + string(change.KindProvenance) + `"`
+	_, ops, ok := strings.Cut(out, "export type ChangeOpKind =")
+	require.True(t, ok)
+	ops, _, _ = strings.Cut(ops, ";")
+	assert.NotContains(t, ops, provenance, "no change set carries provenance")
+	assert.Contains(t, out, "export type ResultOpKind = ChangeOpKind | "+provenance+";", "a tool applies it in process")
+	assert.Contains(t, out, "  op: ResultOpKind;", "an operation's result names any kind")
+	assert.Contains(t, out, "  ops: ChangeOpKind[];", "a block accepts only what a change set carries")
+	assert.Contains(t, out, "  error?: ChangeError;", "a change set refused as a whole says why")
 	for _, c := range change.Codes() {
 		assert.Contains(t, out, "  "+string(c)+": ", "every code has its transport mappings")
 	}
@@ -198,6 +245,56 @@ func TestJSDoc(t *testing.T) {
 		"",
 	}, "\n"), got)
 	assert.Contains(t, jsDoc("a */ b\nc", ""), `a *\/ b`)
+}
+
+// A union's members are the constants the source spells as string literals;
+// a constant of the type spelled any other way fails rather than going
+// missing from the union.
+func TestStringConsts(t *testing.T) {
+	const decls = "package change\n\ntype SetStatus string\n\n"
+	tests := []struct {
+		name   string
+		consts string
+		want   []string
+		err    string
+	}{
+		{
+			name:   "string literals",
+			consts: "const (\n\t// SetApplied: applied.\n\tSetApplied SetStatus = \"applied\"\n\tSetRefused SetStatus = \"refused\"\n)\n",
+			want:   []string{"applied", "refused"},
+		},
+		{
+			name:   "a conversion",
+			consts: "const (\n\tSetApplied SetStatus = \"applied\"\n\tSetRefused SetStatus = SetStatus(\"refused\")\n)\n",
+			err:    "SetRefused",
+		},
+		{
+			name:   "another constant",
+			consts: "const refused = \"refused\"\n\nconst SetRefused SetStatus = refused\n",
+			err:    "SetRefused",
+		},
+		{
+			name:   "an implicit repetition",
+			consts: "const (\n\tSetApplied SetStatus = \"applied\"\n\tSetAgain\n)\n",
+			err:    "SetAgain",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f, err := parser.ParseFile(token.NewFileSet(), "result.go", decls+tt.consts, parser.ParseComments)
+			require.NoError(t, err)
+			d := newGoDocs()
+			d.add("change", f)
+			got, err := d.stringConsts(reflect.TypeFor[change.SetStatus]())
+			if tt.err != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, unionValues(constMembers(got)))
+		})
+	}
 }
 
 func TestConstDoc(t *testing.T) {
