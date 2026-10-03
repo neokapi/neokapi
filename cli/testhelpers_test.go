@@ -157,7 +157,7 @@ ship_gate: { translated: 100, established: 50 }
 }
 
 // writeReviewedCorrection approves the unit whose source matches srcText (for nb)
-// through the real state-store approval path — ApproveReviewUnit records the
+// through the real state-store approval path, a decide through the change service, which records the
 // decision in the project state store, the authoritative carrier of review state.
 // The target argument is ignored: approval blesses the translation already in the
 // file. (Named for historical continuity with the prior .memory.json-based helper.)
@@ -169,7 +169,7 @@ func writeReviewedCorrection(t *testing.T, root, srcText, _ string) {
 	require.NoError(t, err)
 	for _, it := range rep.Review {
 		if it.Source == srcText {
-			ok, err := a.ApproveReviewUnit(context.Background(), proj, "en", it.Locale, it.File, it.Key)
+			ok, err := approveQueued(context.Background(), a, proj, it.Locale, it.File, it.Key)
 			require.NoError(t, err)
 			require.True(t, ok)
 			return

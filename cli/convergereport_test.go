@@ -36,10 +36,11 @@ func TestProjectConvergence_Composes(t *testing.T) {
 	assert.Len(t, report2.Review, 1)
 }
 
-// TestApproveReviewUnit_PromotesAndLeavesQueue drives the approval path: a queue
-// item, approved by (locale, file, key), records the correction and drops from
-// the queue while established coverage climbs.
-func TestApproveReviewUnit_PromotesAndLeavesQueue(t *testing.T) {
+// TestApprovingAUnit_PromotesAndLeavesQueue drives the approval path: a queue
+// item, approved by (locale, file, key) with a decide through the change
+// service, records the decision and drops from the queue while established
+// coverage climbs.
+func TestApprovingAUnit_PromotesAndLeavesQueue(t *testing.T) {
 	root := writeReviewProject(t)
 	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
@@ -51,7 +52,7 @@ func TestApproveReviewUnit_PromotesAndLeavesQueue(t *testing.T) {
 
 	// Approve the first queued unit by its (locale, file, key).
 	item := before.Review[0]
-	ok, err := a.ApproveReviewUnit(context.Background(), proj, "en", item.Locale, item.File, item.Key)
+	ok, err := approveQueued(context.Background(), a, proj, item.Locale, item.File, item.Key)
 	require.NoError(t, err)
 	assert.True(t, ok, "a fresh approval records a correction")
 
@@ -62,14 +63,14 @@ func TestApproveReviewUnit_PromotesAndLeavesQueue(t *testing.T) {
 	assert.NotEqual(t, item.Key, after.Review[0].Key, "the remaining item is the other unit")
 
 	// Re-approving the same unit is a no-op (already an approved correction).
-	ok2, err := a.ApproveReviewUnit(context.Background(), proj, "en", item.Locale, item.File, item.Key)
+	ok2, err := approveQueued(context.Background(), a, proj, item.Locale, item.File, item.Key)
 	require.NoError(t, err)
 	assert.False(t, ok2, "re-approval is a no-op")
 }
 
-func TestApproveReviewUnit_NotFound(t *testing.T) {
+func TestApprovingAUnit_NotFound(t *testing.T) {
 	root := writeReviewProject(t)
 	a := &App{}
-	_, err := a.ApproveReviewUnit(context.Background(), filepath.Join(root, "kapi.yaml"), "en", "nb", "nope.json", "missing")
+	_, err := approveQueued(context.Background(), a, filepath.Join(root, "kapi.yaml"), "nb", "nope.json", "missing")
 	require.Error(t, err)
 }

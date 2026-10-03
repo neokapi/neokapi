@@ -4,11 +4,13 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/host"
 )
@@ -25,9 +27,10 @@ func itemBySource(t *testing.T, items []ReviewQueueItem, source string) ReviewQu
 	return ReviewQueueItem{}
 }
 
-// TestApplyReviewDecision_ApprovedMatchesApprove verifies the generalized entry
-// point records the same reviewed state the ApproveReviewUnit veneer does.
-func TestApplyReviewDecision_ApprovedMatchesApprove(t *testing.T) {
+// A review decision is a decide operation through the change service. An
+// establish records the reviewed state, and the same decision sent again on
+// the same translation changes nothing.
+func TestDecide_EstablishRecordsTheReviewAndARepeatChangesNothing(t *testing.T) {
 	root := writeReviewProject(t)
 	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
@@ -35,9 +38,9 @@ func TestApplyReviewDecision_ApprovedMatchesApprove(t *testing.T) {
 	before, err := a.ProjectConvergence(context.Background(), proj, "en")
 	require.NoError(t, err)
 	item := itemBySource(t, before.Review, "Apple")
+	ref := ReviewUnitRef{File: item.File, Key: item.Key, Locale: item.Locale}
 
-	changed, err := a.ApplyReviewDecision(context.Background(), proj, "en",
-		ReviewUnitRef{File: item.File, Key: item.Key, Locale: item.Locale}, ReviewDecisionApproved, "")
+	changed, err := decideUnit(context.Background(), a, proj, ref, ReviewDecisionApproved, "")
 	require.NoError(t, err)
 	assert.True(t, changed)
 
@@ -46,18 +49,15 @@ func TestApplyReviewDecision_ApprovedMatchesApprove(t *testing.T) {
 	assert.Equal(t, 50, after.Locales[0].Pct["established"], "1 of 2 units reviewed")
 	require.Len(t, after.Review, 1, "the approved unit left the queue")
 
-	// A redundant approval is a no-op.
-	changed2, err := a.ApplyReviewDecision(context.Background(), proj, "en",
-		ReviewUnitRef{File: item.File, Key: item.Key, Locale: item.Locale}, ReviewDecisionApproved, "")
+	changed2, err := decideUnit(context.Background(), a, proj, ref, ReviewDecisionApproved, "")
 	require.NoError(t, err)
-	assert.False(t, changed2)
+	assert.False(t, changed2, "the same decision on the same translation is unchanged")
 }
 
-// TestApplyReviewDecision_RejectedReturnsToDraft drives the rejection path: the
-// unit drops out of the review queue, its coverage reads draft (below the
-// translated presence baseline), and the reviewer's note is kept in the
-// committed state artifact.
-func TestApplyReviewDecision_RejectedReturnsToDraft(t *testing.T) {
+// A reject drops the unit out of the review queue, its coverage reads draft
+// (below the translated presence baseline), and the change set's note is kept
+// as the reviewer's reason in the committed state artifact.
+func TestDecide_RejectKeepsTheNoteAndReturnsTheUnitToDraft(t *testing.T) {
 	root := writeReviewProject(t)
 	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
@@ -67,10 +67,9 @@ func TestApplyReviewDecision_RejectedReturnsToDraft(t *testing.T) {
 	require.Len(t, before.Review, 2)
 	assert.Equal(t, 100, before.Locales[0].Pct["translated"])
 	item := itemBySource(t, before.Review, "Apple")
+	ref := ReviewUnitRef{File: item.File, Key: item.Key, Locale: item.Locale}
 
-	changed, err := a.ApplyReviewDecision(context.Background(), proj, "en",
-		ReviewUnitRef{File: item.File, Key: item.Key, Locale: item.Locale},
-		ReviewDecisionRejected, "wrong register — too formal")
+	changed, err := decideUnit(context.Background(), a, proj, ref, ReviewDecisionRejected, "wrong register, too formal")
 	require.NoError(t, err)
 	assert.True(t, changed)
 
@@ -82,26 +81,21 @@ func TestApplyReviewDecision_RejectedReturnsToDraft(t *testing.T) {
 	assert.Equal(t, 100, after.Locales[0].Pct["draft"], "draft is the rejected unit's rung")
 	assert.Equal(t, 0, after.Locales[0].Pct["established"])
 
-	// The note survives in the committed state artifact.
 	f := struct{ Units []state.UnitState }{Units: commitAndReadUnits(t, root)}
 	require.Len(t, f.Units, 1)
 	assert.Equal(t, "draft", string(f.Units[0].Status))
 	assert.Equal(t, ReviewDecisionRejected, f.Units[0].Decision.ReviewState)
-	assert.Equal(t, "wrong register — too formal", f.Units[0].Decision.Note)
+	assert.Equal(t, "wrong register, too formal", f.Units[0].Decision.Note)
 	assert.NotEmpty(t, f.Units[0].TargetHash, "the rejection binds to the translation it judged")
 
-	// A redundant rejection (same translation, same note) is a no-op.
-	changed2, err := a.ApplyReviewDecision(context.Background(), proj, "en",
-		ReviewUnitRef{File: item.File, Key: item.Key, Locale: item.Locale},
-		ReviewDecisionRejected, "wrong register — too formal")
+	changed2, err := decideUnit(context.Background(), a, proj, ref, ReviewDecisionRejected, "wrong register, too formal")
 	require.NoError(t, err)
-	assert.False(t, changed2)
+	assert.False(t, changed2, "the same rejection with the same note changes nothing")
 }
 
-// TestApplyReviewDecision_RejectionStaleAfterEdit: retranslating a rejected unit
-// makes the rejection stale, so the unit re-enters the review queue as
-// translated — the convergence loop closes.
-func TestApplyReviewDecision_RejectionStaleAfterEdit(t *testing.T) {
+// Retranslating a rejected unit makes the rejection stale, so the unit
+// re-enters the review queue as translated: the convergence loop closes.
+func TestDecide_ARejectionGoesStaleWhenTheTranslationChanges(t *testing.T) {
 	root := writeReviewProject(t)
 	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
@@ -110,7 +104,7 @@ func TestApplyReviewDecision_RejectionStaleAfterEdit(t *testing.T) {
 	require.NoError(t, err)
 	item := itemBySource(t, before.Review, "Apple")
 
-	_, err = a.ApplyReviewDecision(context.Background(), proj, "en",
+	_, err = decideUnit(context.Background(), a, proj,
 		ReviewUnitRef{File: item.File, Key: item.Key, Locale: item.Locale}, ReviewDecisionRejected, "typo")
 	require.NoError(t, err)
 
@@ -118,8 +112,6 @@ func TestApplyReviewDecision_RejectionStaleAfterEdit(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, mid.Review, 1, "rejected unit is out of the queue")
 
-	// Retranslate the rejected unit — the recorded rejection no longer judges
-	// the current translation.
 	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
 		[]byte(`{"a":"Nytt eple","b":"Banan"}`), 0o644))
 
@@ -129,9 +121,10 @@ func TestApplyReviewDecision_RejectionStaleAfterEdit(t *testing.T) {
 	assert.Equal(t, 100, after.Locales[0].Pct["translated"], "back at the translated baseline")
 }
 
-// TestApplyReviewDecision_AgentIdentityRefused: an agent or AI identity cannot
-// approve a unit, so nothing it records establishes one.
-func TestApplyReviewDecision_AgentIdentityRefused(t *testing.T) {
+// An agent records a pre-review (advise), never a decision: the change
+// service refuses its establish and its reject, and nothing it sent
+// establishes a unit.
+func TestDecide_AnAgentMayNotDecide(t *testing.T) {
 	root := writeReviewProject(t)
 	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
@@ -141,28 +134,41 @@ func TestApplyReviewDecision_AgentIdentityRefused(t *testing.T) {
 	item := before.Review[0]
 	ref := ReviewUnitRef{File: item.File, Key: item.Key, Locale: item.Locale}
 
-	for _, by := range []string{"agent", "agent/claude-code", "ai/some-model"} {
-		_, err := a.ApplyReviewDecisionAs(context.Background(), proj, "en", ref, ReviewDecisionApproved, "", by)
-		require.Error(t, err, "%s must not establish a unit", by)
+	agent := change.Actor{Kind: change.ActorAgent, Name: "claude-code", Session: "s1"}
+	for _, decision := range []string{ReviewDecisionApproved, ReviewDecisionRejected} {
+		_, err := decideUnitAs(context.Background(), a, proj, ref, decision, "", agent)
+		var ce *change.Error
+		require.ErrorAs(t, err, &ce, "an agent must not %s a unit", decision)
+		assert.Equal(t, change.CodeNotPermitted, ce.Code)
 	}
 	after, err := a.ProjectConvergence(context.Background(), proj, "en")
 	require.NoError(t, err)
 	assert.Equal(t, 0, after.Locales[0].Pct["established"])
+	require.Len(t, after.Review, 2, "both units still await a person")
 }
 
-func TestApplyReviewDecision_UnknownDecision(t *testing.T) {
+// An outcome the contract does not name is refused as invalid, by the decoder
+// a change set is read with and by the service an in-process sender reaches.
+func TestDecide_AnUnknownOutcomeIsRefused(t *testing.T) {
 	root := writeReviewProject(t)
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
-	_, err := a.ApplyReviewDecision(context.Background(), filepath.Join(root, "kapi.yaml"), "en",
-		ReviewUnitRef{File: "nb.json", Key: "a", Locale: "nb"}, "meh", "")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown review outcome")
+
+	_, err := change.Decode(strings.NewReader(`{"ops":[{"op":"decide","at":{"doc":"nb.json","block":"a","edition":"nb"},"if_match":"*","outcome":"meh"}]}`))
+	var ce *change.Error
+	require.ErrorAs(t, err, &ce)
+	assert.Equal(t, change.CodeInvalid, ce.Code)
+	assert.Equal(t, "/ops/0/outcome", ce.Pointer)
+
+	_, err = decideUnit(context.Background(), a, proj, ReviewUnitRef{File: "nb.json", Key: "a", Locale: "nb"}, "meh", "")
+	require.ErrorAs(t, err, &ce)
+	assert.Equal(t, change.CodeInvalid, ce.Code)
 }
 
-func TestApplyReviewDecision_UnitNotFound(t *testing.T) {
+// A decision on a unit the document does not hold is refused.
+func TestDecide_AUnitTheDocumentDoesNotHold(t *testing.T) {
 	root := writeReviewProject(t)
-	a := &App{}
-	_, err := a.ApplyReviewDecision(context.Background(), filepath.Join(root, "kapi.yaml"), "en",
+	_, err := decideUnit(context.Background(), &App{}, filepath.Join(root, "kapi.yaml"),
 		ReviewUnitRef{File: "nb.json", Key: "missing", Locale: "nb"}, ReviewDecisionApproved, "")
 	require.Error(t, err)
 }

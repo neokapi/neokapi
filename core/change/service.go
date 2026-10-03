@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -261,10 +262,22 @@ func (s *Service) Apply(ctx context.Context, set Set, actor Actor) (*Result, err
 
 // permit asks the policy about every operation.
 func (r *applyRun) permit() {
+	// A change set an in-process sender built never passed the decoder, so
+	// each operation's body is checked here as Decode checks it: an outcome,
+	// an action or a score the contract does not name is refused before any
+	// home is read.
+	for i, op := range r.set.Ops {
+		if err := validateBody(op, "/ops/"+strconv.Itoa(i)); err != nil {
+			r.refuse(i, err)
+		}
+	}
 	if r.s.policy == nil {
 		return
 	}
 	for i, op := range r.set.Ops {
+		if r.res.Ops[i].Status == OpRefused {
+			continue
+		}
 		if err := r.s.policy.Permit(r.actor, r.sent, op); err != nil {
 			r.refuse(i, err)
 		}

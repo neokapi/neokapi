@@ -46,10 +46,10 @@ func governingNow(t *testing.T, a *App, recipe, root string) string {
 	return g.fingerprint
 }
 
-// TestApplyReviewDecision_RecordsTheGoverningContext: an approval records the
+// TestDecide_RecordsTheGoverningContext: an approval records the
 // context it was made under, beside the block identity it leaves alone, and the
 // same approval under a moved context is a new decision.
-func TestApplyReviewDecision_RecordsTheGoverningContext(t *testing.T) {
+func TestDecide_RecordsTheGoverningContext(t *testing.T) {
 	root := writeStalenessProject(t)
 	recipe := filepath.Join(root, "kapi.yaml")
 	a := &App{}
@@ -69,7 +69,7 @@ func TestApplyReviewDecision_RecordsTheGoverningContext(t *testing.T) {
 
 	want := governingNow(t, a, recipe, root)
 
-	changed, err := a.ApplyReviewDecision(ctx, recipe, "en", ref, "approved", "")
+	changed, err := decideUnit(ctx, a, recipe, ref, "approved", "")
 	require.NoError(t, err)
 	require.True(t, changed)
 
@@ -80,7 +80,7 @@ func TestApplyReviewDecision_RecordsTheGoverningContext(t *testing.T) {
 	assert.NotEqual(t, got.ContextHash, got.GoverningFingerprint, "the two are different quantities")
 	assert.Equal(t, "approved", got.Decision.ReviewState)
 
-	changed, err = a.ApplyReviewDecision(ctx, recipe, "en", ref, "approved", "")
+	changed, err = decideUnit(ctx, a, recipe, ref, "approved", "")
 	require.NoError(t, err)
 	assert.False(t, changed, "the same decision under the same context is already recorded")
 
@@ -95,7 +95,7 @@ tone:
 	moved := governingNow(t, a, recipe, root)
 	require.NotEqual(t, want, moved)
 
-	changed, err = a.ApplyReviewDecision(ctx, recipe, "en", ref, "approved", "")
+	changed, err = decideUnit(ctx, a, recipe, ref, "approved", "")
 	require.NoError(t, err)
 	assert.True(t, changed, "a decision re-made under a moved context is a new decision")
 	got, ok = st.Get(ctx, key)

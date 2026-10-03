@@ -516,13 +516,15 @@ written before the field existed reads through the producer's stamp on its
 ### Who decided
 
 A `Decision` records a person's outcome and, where a hosted surface knows it,
-who reached it. An agent or a model never records one: `ApplyReviewDecisionAs`
-refuses an `agent/…` or `ai/…` identity (`state.IsAgentIdentity`), and `kapi
-apply` refuses a review entry when the command runs as an agent. An agent
-pre-reviews instead: it stores a score and its reasons on the unit
-(`state.AIReview`, a `decide` operation with outcome `advise` sent through MCP
-`apply_edits`, the desktop pre-review), bound to the translation it judged, and the person reviewing reads it in the
-queue. Its judgement never counts as a person's.
+who reached it. Every decision is a `decide` operation sent to the change
+service ([E-09](../engine/e-09-the-change-contract.md)), and an agent or a model
+never records one: the service refuses a `decide` other than `advise` from an
+agent as `not_permitted`, whichever surface carries it (`kapi apply` run from an
+agent's shell, MCP `apply_edits`). An agent pre-reviews instead: it stores a
+score and its reasons on the unit (`state.AIReview`, a `decide` operation with
+outcome `advise`, the desktop pre-review), bound to the translation it judged,
+and the person reviewing reads it in the queue. Its judgement never counts as a
+person's.
 
 An `AIReview` is a third thing again: an advisory annotation carrying a score
 and findings, bound to the translation it judged so that an edit invalidates it

@@ -575,6 +575,28 @@ func (r *memRecorder) Record(_ context.Context, rec change.Record) (string, erro
 	return fmt.Sprintf("op_%d", len(r.records)), nil
 }
 
+// A sender in the process builds operations without the decoder; the service
+// checks each body as Decode does, so an outcome the contract does not name
+// is refused rather than read as some other decision.
+func TestService_RefusesABodyTheDecoderWouldRefuse(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First", "nb", "Første")}})
+	svc := newMemService(h)
+	b := readBlock(t, svc, "a", "one")
+	nb := b.Editions["nb"]
+	before := h.snapshot("a")
+	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{
+		edit(b.Ref, b.Rev, "Edited"),
+		{Kind: change.KindDecide, At: atEdition(b.Ref, "nb"), IfMatch: nb.Rev, Body: &change.Decide{Outcome: "approve"}},
+	}}, svcPerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetRefused, res.Status)
+	require.NotNil(t, res.Ops[1].Error)
+	assert.Equal(t, change.CodeInvalid, res.Ops[1].Error.Code)
+	assert.Equal(t, "/ops/1/outcome", res.Ops[1].Error.Pointer)
+	assert.Equal(t, change.OpNotApplied, res.Ops[0].Status)
+	assert.Equal(t, before, h.snapshot("a"))
+}
+
 // A change set with no operation applies and changes nothing: no document is
 // written and nothing is recorded, in either mode, as a run that changes
 // nothing prints it.

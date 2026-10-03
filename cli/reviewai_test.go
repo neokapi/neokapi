@@ -70,7 +70,7 @@ func TestRecordAIReviews_SurvivesDecision(t *testing.T) {
 	_, err = a.RecordAIReviews(context.Background(), proj, "en", apple.Locale, apple.File,
 		map[string]state.AIReview{apple.Key: {Score: 97, Model: "claude-x"}})
 	require.NoError(t, err)
-	_, err = a.ApplyReviewDecision(context.Background(), proj, "en",
+	_, err = decideUnit(context.Background(), a, proj,
 		ReviewUnitRef{File: apple.File, Key: apple.Key, Locale: apple.Locale},
 		ReviewDecisionApproved, "")
 	require.NoError(t, err)
@@ -106,15 +106,14 @@ func TestReviewUnit_FullPicture(t *testing.T) {
 		map[string]state.AIReview{apple.Key: {Score: 88, Model: "claude-x",
 			Findings: []state.AIReviewFinding{{Severity: "info", Message: "fine"}}}})
 	require.NoError(t, err)
-	_, err = a.ApplyReviewDecisionAs(context.Background(), proj, "en", ref,
-		ReviewDecisionApproved, "", "ada")
+	_, err = decideUnit(context.Background(), a, proj, ref, ReviewDecisionApproved, "")
 	require.NoError(t, err)
 
 	info, err = a.ReviewUnit(context.Background(), proj, "en", ref)
 	require.NoError(t, err)
 	assert.Equal(t, "established", info.Status)
 	assert.Equal(t, ReviewDecisionApproved, info.ReviewState)
-	assert.Equal(t, "ada", info.By)
+	assert.Empty(t, info.By, "the person at the keyboard decided")
 	require.NotNil(t, info.AIScore)
 	assert.Equal(t, 88, *info.AIScore)
 	assert.Equal(t, "claude-x", info.AIModel)

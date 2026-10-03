@@ -227,9 +227,9 @@ func TestConverge_ParkedLocaleIsReviewableThenShips(t *testing.T) {
 
 	// A person approves half of them, against the stored draft.
 	for _, key := range keys[:2] {
-		changed, err := a.ApplyReviewDecisionAs(cmd.Context(), recipe, "en",
+		changed, err := decideUnit(cmd.Context(), a, recipe,
 			ReviewUnitRef{File: filepath.Join("site", "locales", "nl.json"), Key: key, Locale: "nl"},
-			ReviewDecisionApproved, "", "")
+			ReviewDecisionApproved, "")
 		require.NoError(t, err)
 		assert.True(t, changed, "approving a stored draft records a decision")
 	}
@@ -264,9 +264,9 @@ func TestConverge_ParkedDecisionSurvivesDelivery(t *testing.T) {
 	keys := parkedQueueKeys(t, a, recipe, "nl")
 	require.Len(t, keys, 4)
 	for _, key := range keys[:2] {
-		_, err := a.ApplyReviewDecisionAs(cmd.Context(), recipe, "en",
+		_, err := decideUnit(cmd.Context(), a, recipe,
 			ReviewUnitRef{File: filepath.Join("site", "locales", "nl.json"), Key: key, Locale: "nl"},
-			ReviewDecisionApproved, "", "")
+			ReviewDecisionApproved, "")
 		require.NoError(t, err)
 	}
 	parkedReviewPass(t, a, cmd, recipe)

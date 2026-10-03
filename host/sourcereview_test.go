@@ -29,7 +29,7 @@ func sourceStatuses(t *testing.T, a *App, recipe, root string) []string {
 // reached by a person's approval alone, and a re-settle must keep it. A project
 // asking for `translate_after: established` would otherwise hold its fan-out
 // forever.
-func TestApproveSourceUnit_ReachesEstablishedAndSurvivesARecheck(t *testing.T) {
+func TestApproveSource_ReachesEstablishedAndSurvivesARecheck(t *testing.T) {
 	a, _, recipe, root := newSourceSettleProject(t, "established")
 
 	before := sourceStatuses(t, a, recipe, root)
@@ -39,7 +39,7 @@ func TestApproveSourceUnit_ReachesEstablishedAndSurvivesARecheck(t *testing.T) {
 			"a clean source settles to written, and nothing but an approval lifts it further")
 	}
 
-	changed, err := a.ApproveSourceUnit(t.Context(), recipe, "en", SourceUnitRef{
+	changed, err := approveSource(t.Context(), a, recipe, SourceUnitRef{
 		File: "src/en.json", Key: "greeting",
 	})
 	require.NoError(t, err)
@@ -50,7 +50,7 @@ func TestApproveSourceUnit_ReachesEstablishedAndSurvivesARecheck(t *testing.T) {
 		"the approval survives a re-settle rather than being recomputed away")
 
 	// Recording the same approval twice is not a change.
-	again, err := a.ApproveSourceUnit(t.Context(), recipe, "en", SourceUnitRef{
+	again, err := approveSource(t.Context(), a, recipe, SourceUnitRef{
 		File: "src/en.json", Key: "greeting",
 	})
 	require.NoError(t, err)
@@ -60,10 +60,10 @@ func TestApproveSourceUnit_ReachesEstablishedAndSurvivesARecheck(t *testing.T) {
 // An approval is about a specific sentence. Editing the source has to drop it,
 // or the blessing outlives the wording it blessed — the same failure the target
 // side's basis hash exists to prevent.
-func TestApproveSourceUnit_DroppedWhenTheSourceIsEdited(t *testing.T) {
+func TestApproveSource_DroppedWhenTheSourceIsEdited(t *testing.T) {
 	a, _, recipe, root := newSourceSettleProject(t, "established")
 
-	_, err := a.ApproveSourceUnit(t.Context(), recipe, "en", SourceUnitRef{
+	_, err := approveSource(t.Context(), a, recipe, SourceUnitRef{
 		File: "src/en.json", Key: "greeting",
 	})
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ func TestComputeSourceQueue_ListsWhatNeedsEstablishing(t *testing.T) {
 		assert.Equal(t, string(model.SourceStatusWritten), it.Status)
 	}
 
-	_, err = a.ApproveSourceUnit(t.Context(), recipe, "en", SourceUnitRef{
+	_, err = approveSource(t.Context(), a, recipe, SourceUnitRef{
 		File: "src/en.json", Key: "greeting",
 	})
 	require.NoError(t, err)
@@ -135,7 +135,7 @@ func TestSourceStateSeeder_MakesTheInFlowGateAgreeWithTheReport(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, seed, "a project with no approvals installs no hook")
 
-	_, err = a.ApproveSourceUnit(t.Context(), recipe, "en", SourceUnitRef{
+	_, err = approveSource(t.Context(), a, recipe, SourceUnitRef{
 		File: "src/en.json", Key: "greeting",
 	})
 	require.NoError(t, err)

@@ -152,8 +152,8 @@ func (s UnitState) GoverningBasis() string {
 type Decision struct {
 	ReviewState string `json:"reviewState,omitempty"` // approved | rejected | …
 	// By is the person's identity where a hosted surface knows it; empty for
-	// the person at the keyboard. Never an agent or AI identity
-	// (IsAgentIdentity).
+	// the person at the keyboard. An agent never records a decision: the
+	// change service refuses a decide other than advise from one.
 	By       string `json:"by,omitempty"`
 	At       string `json:"at,omitempty"` // RFC 3339
 	Note     string `json:"note,omitempty"`
@@ -163,22 +163,6 @@ type Decision struct {
 
 // AIIdentityPrefix marks an identity that is an AI model ("ai/<model>").
 const AIIdentityPrefix = "ai/"
-
-// AgentIdentityPrefix marks an identity that is an agent acting over MCP
-// ("agent/<client>", or the bare "agent").
-const AgentIdentityPrefix = "agent/"
-
-// IsAIDecision reports whether an identity string names an AI model.
-func IsAIDecision(by string) bool {
-	return strings.HasPrefix(by, AIIdentityPrefix)
-}
-
-// IsAgentIdentity reports whether an identity names an agent or an AI model
-// rather than a person. Such an identity records pre-reviews, never decisions:
-// only a person establishes a unit.
-func IsAgentIdentity(by string) bool {
-	return by == "agent" || strings.HasPrefix(by, AgentIdentityPrefix) || IsAIDecision(by)
-}
 
 // AIReview is an advisory AI pre-review annotation: the structured output of
 // the ai review tool ({score 0-100, findings}), bound to the translation it

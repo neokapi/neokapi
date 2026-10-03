@@ -346,22 +346,18 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 	return nil, fmt.Errorf("source unit %q (%s) not found in %s", ref.Key, sourceLang, ref.File)
 }
 
-// ApproveSourceUnit records a human approval of one source unit, bound to the
-// wording in front of the approver: the record carries that wording's hash, so
-// an edit to the source drops the approval rather than letting it outlive the
-// sentence it blessed.
+// approveSourceUnit records a person's approval of one source unit, bound to
+// the wording in front of the approver: the record carries that wording's
+// hash, so an edit to the source drops the approval rather than letting it
+// outlive the sentence it blessed. It is how the change service applies a
+// decide establish on a document's own edition (changeAssets.applyDecision).
+// wording, when set, is the source wording the approval is about as its
+// caller holds it, such as the content a change set landed under the commit
+// lock; the approval binds to it rather than to what the file says when it is
+// read here. Nil reads it from the file.
 //
-// It returns whether anything changed — an approval already recorded for this
+// It returns whether anything changed: an approval already recorded for this
 // exact wording is not rewritten.
-func (a *App) ApproveSourceUnit(ctx context.Context, projectPath, sourceLang string, ref SourceUnitRef) (bool, error) {
-	return a.approveSourceUnit(ctx, projectPath, sourceLang, ref, nil)
-}
-
-// approveSourceUnit is ApproveSourceUnit. wording, when set, is the source
-// wording the approval is about as its caller holds it, such as the content a
-// change set landed under the commit lock; the approval binds to it rather
-// than to what the file says when it is read here. Nil reads it from the
-// file.
 func (a *App) approveSourceUnit(ctx context.Context, projectPath, sourceLang string, ref SourceUnitRef, wording *string) (bool, error) {
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
