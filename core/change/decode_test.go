@@ -119,6 +119,11 @@ func decodeCases() []decodeCase {
 				assert.True(t, s.RequireBasis)
 				assert.Len(t, s.Evidence, 2)
 			}},
+		{name: "evidence names a block as a read reports it", object: true, in: `{"evidence":[{"path":"docs/a.md","block":"install/p","quote":"Read the guide"}],"ops":[]}`,
+			check: func(t *testing.T, s change.Set) {
+				assert.Equal(t, []change.Evidence{{Path: "docs/a.md", Block: "install/p", Quote: "Read the guide"}}, s.Evidence)
+			}},
+		{name: "evidence that names a unit", object: true, in: `{"evidence":[{"path":"docs/a.md","unit":"install/p"}],"ops":[]}`, pointer: "/evidence/0/unit"},
 
 		// The other two input forms.
 		{name: "an array of operations", in: `[{"op":"unannotate",` + at + `,"type":"note","id":"n1"}]`,

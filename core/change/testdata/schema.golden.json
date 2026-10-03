@@ -38,9 +38,9 @@
             "type": "string",
             "description": "a project-relative file"
           },
-          "unit": {
+          "block": {
             "type": "string",
-            "description": "the block key inside the file"
+            "description": "the block key a read reports as ref.block"
           },
           "quote": {
             "type": "string",

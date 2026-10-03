@@ -741,7 +741,7 @@ func assetEntry(set *change.Set, op change.Op) (changeEntry, *change.Error) {
 	var evidence []contextop.Evidence
 	if set != nil {
 		for _, e := range set.Evidence {
-			evidence = append(evidence, contextop.Evidence{Path: e.Path, Unit: e.Unit, Quote: e.Quote, URL: e.URL})
+			evidence = append(evidence, contextop.Evidence{Path: e.Path, Unit: e.Block, Quote: e.Quote, URL: e.URL})
 		}
 	}
 	switch body := op.Body.(type) {
