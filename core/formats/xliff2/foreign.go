@@ -81,7 +81,7 @@ func foreignCodes(segs ...[]seg) (codeIndex, []foreignData, bool) {
 				if !claim(r.Ph.ID, model.RunKindPh) {
 					return false
 				}
-				ix.ph[r.Ph.ID] = Inline{Ph: &Ph{CodeAttrs: CodeAttrs{ID: r.Ph.ID, DataRef: ref(r.Ph.Data), Equiv: r.Ph.Equiv}}}
+				ix.ph[r.Ph.ID] = Inline{Ph: &Ph{ID: r.Ph.ID, DataRef: ref(r.Ph.Data), Equiv: r.Ph.Equiv}}
 			case r.Plural != nil:
 				for _, form := range r.Plural.Forms {
 					if !walk(form) {

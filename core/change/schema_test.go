@@ -94,7 +94,7 @@ func TestOperationSchema(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"op":"set_attribute","at":{"doc":"a.html","block":"p"},"if_match":"`+rev+`","code":"1","name":"href","value":"https://x.example"}`), &op))
 	assert.NoError(t, rs(change.KindSetAttribute).Validate(op))
 	require.NoError(t, json.Unmarshal([]byte(`{"op":"set_attribute","at":{"doc":"a.html","block":"p"},"if_match":"`+rev+`","code":"1","attr":"href","value":"https://x.example"}`), &op))
-	assert.Error(t, rs(change.KindSetAttribute).Validate(op), "a guessed key is refused")
+	require.Error(t, rs(change.KindSetAttribute).Validate(op), "a guessed key is refused")
 	_, err := changeschema.OperationSchema("set_attr")
 	assert.ErrorContains(t, err, "set_attribute")
 }

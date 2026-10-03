@@ -95,11 +95,11 @@ func pairedAppendLateContext(workspace string, spec PairedLateContext) error {
 
 // landLateContext lands the task's late context once, naming what set it
 // off.
-func (o *pairedObserver) landLateContext(trigger string) {
+func (o *pairedObserver) landLateContext(ctx context.Context, trigger string) {
 	if o.lateContext == nil || (o.result.LateContext != nil && o.result.LateContext.Triggered) {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	record := o.lateContext.apply(ctx)
 	record.Trigger = trigger

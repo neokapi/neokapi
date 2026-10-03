@@ -45,7 +45,7 @@ func TestPairedAgentStream(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := parsePairedAgentStream(strings.NewReader(tc.stream), PairedLaunch{Agent: PairedAgentSpec{Host: tc.host, Model: tc.model}, Condition: tc.condition})
+			result, err := parsePairedAgentStream(t.Context(), strings.NewReader(tc.stream), PairedLaunch{Agent: PairedAgentSpec{Host: tc.host, Model: tc.model}, Condition: tc.condition})
 			assert.Equal(t, tc.status, result.Status)
 			assert.Equal(t, tc.status == "rate_limited", result.RateLimited)
 			if tc.success {
@@ -70,7 +70,7 @@ func TestPairedTokenAccountingIncludesCachedInput(t *testing.T) {
 {"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":70,"output_tokens":4}}`},
 	} {
 		t.Run(tc.host, func(t *testing.T) {
-			result, err := parsePairedAgentStream(strings.NewReader(tc.stream), PairedLaunch{
+			result, err := parsePairedAgentStream(t.Context(), strings.NewReader(tc.stream), PairedLaunch{
 				Agent: PairedAgentSpec{Host: tc.host, Model: "test"}, Condition: "baseline",
 			})
 			require.NoError(t, err)
@@ -105,7 +105,7 @@ func TestPairedCodexResourceHelpersPreserveRouteIsolation(t *testing.T) {
 		require.NoError(t, err)
 		stream := "{\"type\":\"thread.started\",\"model\":\"test\"}\n" + string(event) +
 			"\n{\"type\":\"turn.completed\",\"usage\":{}}\n"
-		result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{
+		result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), PairedLaunch{
 			Agent: PairedAgentSpec{Host: "codex", Model: "test"}, Condition: tc.condition,
 		})
 		if tc.allowed {
