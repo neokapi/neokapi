@@ -44,23 +44,12 @@ func attributeTarget(t *testing.T, s *Server, projID, blockID, locale, author, t
 	require.NoError(t, s.ContentStore.StoreBlocks(ctx, projID, "main", []*model.Block{sb.Block}))
 }
 
-// callReviewBlockGoverned invokes HandleReviewBlock the way the router would,
-// with a workspace and an acting user on the context so the governance gates
-// have something to judge.
+// callReviewBlockGoverned sends the decision body names to the stream's
+// changes route the way the router would, with a workspace and an acting user
+// on the context so the governance gates have something to judge.
 func callReviewBlockGoverned(t *testing.T, s *Server, wsID, projID, blockID, body string, perms platauth.Permission, userID string) *httptest.ResponseRecorder {
 	t.Helper()
-	e := s.GetEcho()
-	r := httptest.NewRequest(http.MethodPut, "/", strings.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref", "bid")
-	c.SetParamValues("rc", projID, "main", blockID)
-	c.Set("workspace_id", wsID)
-	c.Set("user_id", userID)
-	c.Set("project_permissions", perms)
-	_ = s.HandleReviewBlock(c)
-	return rec
+	return decideFromBody(t, s, projID, blockID, body, changeCaller{user: userID, perms: perms, ws: wsID})
 }
 
 // approveBody is the request body for approving one locale.

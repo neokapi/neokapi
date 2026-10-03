@@ -28,33 +28,8 @@ func (s *Server) groupInWorkspace(c echo.Context) error {
 }
 
 // sodRefusal is the sentence a caller sees when the workspace's
-// separation-of-duties policy refuses their own work. Named because both the
-// request-level gate and the per-block gate a batch route uses answer with it.
+// separation-of-duties policy refuses their own work.
 const sodRefusal = "separation of duties: you cannot review or approve your own work"
-
-// judgeSoD applies the workspace separation-of-duties policy to one act and
-// reports whether it may proceed, recording a violation event when the actor is
-// the author. It writes no response, so a batch route can record one block's
-// refusal against that block instead of answering for the whole request.
-//
-// False means the policy is "block". "warn" records the violation and returns
-// true; "off", an unknown author, and an actor who is not the author return
-// true with nothing recorded.
-func (s *Server) judgeSoD(c echo.Context, actorID, authorID, resource string) bool {
-	if actorID == "" || authorID == "" || actorID != authorID {
-		return true // different people (or unknown) — no conflict of interest
-	}
-	if s.AuthStore == nil {
-		return true
-	}
-	wsID, _ := c.Get("workspace_id").(string)
-	mode, err := s.AuthStore.GetSoDMode(c.Request().Context(), wsID)
-	if err != nil || mode == platauth.SoDOff {
-		return true
-	}
-	s.recordSoDViolation(c, actorID, resource, mode, 1)
-	return mode != platauth.SoDBlock // warn: recorded, but allowed
-}
 
 // recordSoDViolation logs an actor acting on their own work, under the policy
 // that judged it. It is written whether the policy blocked or only warned: what
@@ -73,21 +48,6 @@ func (s *Server) recordSoDViolation(c echo.Context, actorID, resource string, mo
 		Effect: "deny",
 		Data:   data,
 	})
-}
-
-// enforceSoD applies the workspace separation-of-duties policy when an actor
-// would act on (e.g. approve) work they themselves authored. In "block" mode it
-// writes a 403 and returns a non-nil error; in "warn" mode it records a
-// violation event but allows the action; "off" is a no-op. It is a reusable
-// primitive for review/approval handlers (e.g. translation review): pass the
-// acting user and the work's author.
-func (s *Server) enforceSoD(c echo.Context, actorID, authorID, resource string) error {
-	if s.judgeSoD(c, actorID, authorID, resource) {
-		return nil
-	}
-	// Use deny() so the caller's `if err != nil { return err }` actually
-	// aborts (c.JSON alone returns nil — a fail-open).
-	return deny(c, sodRefusal)
 }
 
 // ── Groups ────────────────────────────────────────────────────────────────

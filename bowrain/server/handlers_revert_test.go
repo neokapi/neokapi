@@ -24,7 +24,8 @@ func TestPhase4_RevertBatch(t *testing.T) {
 	fr := model.LocaleID("fr")
 	ctx := t.Context()
 
-	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-rev", Name: "Rev", DefaultSourceLanguage: "en"}))
+	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-rev", Name: "Rev", DefaultSourceLanguage: "en", TargetLanguages: []model.LocaleID{fr}}))
+	require.NoError(t, cs.StoreItem(ctx, "p-rev", "main", &platstore.Item{Name: "en.json", Format: "json"}))
 
 	mk := func(id, src string) *model.Block {
 		return model.NewBlock(id, src)
@@ -35,16 +36,18 @@ func TestPhase4_RevertBatch(t *testing.T) {
 	b1.SetTargetText(fr, "un-v0")
 	b2.SetTargetText(fr, "deux-v0")
 	ctx0 := bstore.WithChangeContext(ctx, bstore.ChangeContext{Actor: "u", CorrelationID: "c0"})
-	require.NoError(t, cs.StoreBlocks(ctx0, "p-rev", "main", []*model.Block{b1, b2}))
+	require.NoError(t, cs.StoreBlocksForItem(ctx0, "p-rev", "main", "en.json", []*model.Block{b1, b2}))
+	id1, id2 := rowIDOf(t, cs, "p-rev", "b1"), rowIDOf(t, cs, "p-rev", "b2")
 
 	// A batch (correlation BATCH1) re-translates both.
 	b1.SetTargetText(fr, "un-v1")
 	b2.SetTargetText(fr, "deux-v1")
 	ctxB := bstore.WithChangeContext(ctx, bstore.ChangeContext{Actor: "u", CorrelationID: "BATCH1"})
-	require.NoError(t, cs.StoreBlocks(ctxB, "p-rev", "main", []*model.Block{b1, b2}))
+	b1.ID, b2.ID = id1, id2
+	require.NoError(t, cs.StoreBlocksForItem(ctxB, "p-rev", "main", "en.json", []*model.Block{b1, b2}))
 
 	// Sanity: both are at v1.
-	sb1, _ := cs.GetBlock(ctx, "p-rev", "main", "b1")
+	sb1, _ := cs.GetBlock(ctx, "p-rev", "main", id1)
 	require.Equal(t, "un-v1", sb1.TargetText(fr))
 
 	// Revert the batch via the handler.
@@ -60,8 +63,8 @@ func TestPhase4_RevertBatch(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
 	// Both blocks restored to their pre-batch (v0) values.
-	sb1, _ = cs.GetBlock(ctx, "p-rev", "main", "b1")
-	sb2, _ := cs.GetBlock(ctx, "p-rev", "main", "b2")
+	sb1, _ = cs.GetBlock(ctx, "p-rev", "main", id1)
+	sb2, _ := cs.GetBlock(ctx, "p-rev", "main", id2)
 	assert.Equal(t, "un-v0", sb1.TargetText(fr))
 	assert.Equal(t, "deux-v0", sb2.TargetText(fr))
 }
@@ -73,12 +76,13 @@ func TestPhase4_RevertBatchClearsAdded(t *testing.T) {
 	cs := s.ContentStore
 	fr := model.LocaleID("fr")
 	ctx := t.Context()
-	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-rev2", Name: "Rev2", DefaultSourceLanguage: "en"}))
+	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-rev2", Name: "Rev2", DefaultSourceLanguage: "en", TargetLanguages: []model.LocaleID{fr}}))
+	require.NoError(t, cs.StoreItem(ctx, "p-rev2", "main", &platstore.Item{Name: "en.json", Format: "json"}))
 
 	b := model.NewBlock("bx", "hi")
 	b.SetTargetText(fr, "added-in-batch")
 	ctxB := bstore.WithChangeContext(ctx, bstore.ChangeContext{Actor: "u", CorrelationID: "ADD1"})
-	require.NoError(t, cs.StoreBlocks(ctxB, "p-rev2", "main", []*model.Block{b}))
+	require.NoError(t, cs.StoreBlocksForItem(ctxB, "p-rev2", "main", "en.json", []*model.Block{b}))
 
 	e := s.GetEcho()
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"correlation_id":"ADD1"}`))
@@ -91,8 +95,8 @@ func TestPhase4_RevertBatchClearsAdded(t *testing.T) {
 	require.NoError(t, s.HandleRevertBatch(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	sb, _ := cs.GetBlock(ctx, "p-rev2", "main", "bx")
-	assert.Empty(t, sb.TargetText(fr), "a batch-added target should be blanked on revert")
+	sb, _ := cs.GetBlock(ctx, "p-rev2", "main", rowIDOf(t, cs, "p-rev2", "bx"))
+	assert.Nil(t, sb.Target(fr), "a batch-added target is removed on revert")
 }
 
 // TestPhase4_RestoreToVersion proves point-in-time restore: a stream is rolled
@@ -102,11 +106,14 @@ func TestPhase4_RestoreToVersion(t *testing.T) {
 	cs := s.ContentStore
 	fr := model.LocaleID("fr")
 	ctx := t.Context()
-	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-pit", Name: "PIT", DefaultSourceLanguage: "en"}))
+	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-pit", Name: "PIT", DefaultSourceLanguage: "en", TargetLanguages: []model.LocaleID{fr}}))
+	require.NoError(t, cs.StoreItem(ctx, "p-pit", "main", &platstore.Item{Name: "en.json", Format: "json"}))
 
 	blk := model.NewBlock("bp", "hi")
 	blk.SetTargetText(fr, "v1")
-	require.NoError(t, cs.StoreBlocks(ctx, "p-pit", "main", []*model.Block{blk}))
+	require.NoError(t, cs.StoreBlocksForItem(ctx, "p-pit", "main", "en.json", []*model.Block{blk}))
+	bid := rowIDOf(t, cs, "p-pit", "bp")
+	blk.ID = bid
 
 	// Separating the three timestamps, and nothing more: the history rows, the
 	// version and the cursor are all stamped by this process, so ordering them
@@ -120,8 +127,8 @@ func TestPhase4_RestoreToVersion(t *testing.T) {
 
 	// Change after the version.
 	blk.SetTargetText(fr, "v2")
-	require.NoError(t, cs.StoreBlocks(ctx, "p-pit", "main", []*model.Block{blk}))
-	sb, _ := cs.GetBlock(ctx, "p-pit", "main", "bp")
+	require.NoError(t, cs.StoreBlocksForItem(ctx, "p-pit", "main", "en.json", []*model.Block{blk}))
+	sb, _ := cs.GetBlock(ctx, "p-pit", "main", bid)
 	require.Equal(t, "v2", sb.TargetText(fr))
 
 	// Restore to the version.
@@ -136,6 +143,20 @@ func TestPhase4_RestoreToVersion(t *testing.T) {
 	require.NoError(t, s.HandleRestoreToPoint(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	sb, _ = cs.GetBlock(ctx, "p-pit", "main", "bp")
+	sb, _ = cs.GetBlock(ctx, "p-pit", "main", bid)
 	assert.Equal(t, "v1", sb.TargetText(fr), "restore-to-version should roll the target back to the version's state")
+}
+
+// rowIDOf is the row id of the block a project's main stream keys key.
+func rowIDOf(t *testing.T, cs platstore.ContentStore, projectID, key string) string {
+	t.Helper()
+	stored, err := cs.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: projectID, Stream: "main"})
+	require.NoError(t, err)
+	for _, sb := range stored {
+		if sb.SourceID == key {
+			return sb.Block.ID
+		}
+	}
+	t.Fatalf("no block keyed %s", key)
+	return ""
 }

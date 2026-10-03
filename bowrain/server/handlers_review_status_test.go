@@ -2,10 +2,8 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -13,31 +11,37 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// These tests cover epic 006 task 3 (server side): HandleReviewBlock stores the
-// review flag as the PER-LOCALE model.Target.Status on the block's target for
-// the requested locale — the framework target ladder that convergence /
-// coverage and ship gates consume — instead of the legacy block-global
-// Properties["translation-status"]. They run against the real PostgreSQL
-// ContentStore (testcontainers), so every assertion covers the full
-// handler → StoreBlocks → translations-overlay round-trip.
+// These tests cover a review decision on the server: decide, sent to a
+// stream's changes route, stores the decision as the per-locale
+// model.Target.Status on the block's translation for the decided locale — the
+// framework target ladder that convergence, coverage and the ship gates
+// consume. They run against the real PostgreSQL ContentStore
+// (testcontainers), so every assertion covers the full route → change
+// service → stream home → translations-table round trip.
 
 // newReviewTestServer builds a minimal Server over a real Postgres content
-// store — enough for the review + blocks handlers (no auth middleware; tests
-// grant permissions directly on the echo context).
+// store — enough for the changes route and the blocks handlers (no auth
+// middleware; tests grant permissions directly on the echo context).
 func newReviewTestServer(t *testing.T) (*Server, *bstore.PostgresStore) {
 	t.Helper()
 	db := pgtest.NewTestDB(t)
 	cs, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
-	return &Server{ContentStore: cs, wsStores: newWorkspaceStores()}, cs
+	srv := &Server{ContentStore: cs, wsStores: newWorkspaceStores()}
+	srv.wsStores.memoryFactory = func() memory.Store { return &testMemoryStore{memory.NewInMemoryStore()} }
+	srv.wsStores.termsFactory = func() terms.Store { return &testTermStore{terms.NewInMemoryStore()} }
+	return srv, cs
 }
 
 // seedReviewProject creates a project (en → fr, de) with one item and the
@@ -45,13 +49,19 @@ func newReviewTestServer(t *testing.T) (*Server, *bstore.PostgresStore) {
 // IDs keyed by source text (StoreBlocksForItem remaps reader IDs).
 func seedReviewProject(t *testing.T, cs *bstore.PostgresStore, blocks []*model.Block) (string, map[string]string) {
 	t.Helper()
+	return seedReviewProjectWith(t, cs, map[string]string{}, blocks)
+}
+
+// seedReviewProjectWith is seedReviewProject with the project's properties.
+func seedReviewProjectWith(t *testing.T, cs *bstore.PostgresStore, props map[string]string, blocks []*model.Block) (string, map[string]string) {
+	t.Helper()
 	ctx := t.Context()
 	proj := &platstore.Project{
 		Name:                  "review-proj",
 		DefaultSourceLanguage: "en",
 		TargetLanguages:       []model.LocaleID{"fr", "de"},
 		WorkspaceID:           "ws-1",
-		Properties:            map[string]string{},
+		Properties:            props,
 	}
 	require.NoError(t, cs.CreateProject(ctx, proj))
 	require.NoError(t, cs.StoreItem(ctx, proj.ID, "main", &platstore.Item{
@@ -70,37 +80,18 @@ func seedReviewProject(t *testing.T, cs *bstore.PostgresStore, blocks []*model.B
 	return proj.ID, ids
 }
 
-// callReviewBlockBodyAs invokes HandleReviewBlock the way the router would,
-// with a raw JSON body and the given resolved permission set. It returns the
-// recorder and the handler's error: a denial commits a 403 to the recorder AND
-// returns errAccessDenied.
-func callReviewBlockBodyAs(t *testing.T, srv *Server, pid, bid, body string, perms platauth.Permission) (*httptest.ResponseRecorder, error) {
+// decideAs sends one decision on a block's translation, guarded by the
+// revision the stream holds, as who.
+func decideAs(t *testing.T, srv *Server, cs *bstore.PostgresStore, pid, bid, locale string, outcome change.Outcome, who changeCaller) (*httptest.ResponseRecorder, change.Result) {
 	t.Helper()
-	e := echo.New()
-	r := httptest.NewRequest(http.MethodPut,
-		"/api/v1/acme/"+pid+"/blocks/main/"+bid+"/review", strings.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref", "bid")
-	c.SetParamValues("acme", pid, "main", bid)
-	c.Set("project_permissions", perms)
-	return rec, srv.HandleReviewBlock(c)
+	rev := targetRev(t, cs, pid, bid, locale)
+	return sendChanges(t, srv, pid, who, change.Set{Ops: []change.Op{decide(at("greetings.txt", bid, locale), rev, outcome)}})
 }
 
-// callReviewBlockAs invokes HandleReviewBlock with the standard body shape.
-func callReviewBlockAs(t *testing.T, srv *Server, pid, bid, locale string, reviewed bool, perms platauth.Permission) (*httptest.ResponseRecorder, error) {
+// decideOn sends one decision with every permission.
+func decideOn(t *testing.T, srv *Server, cs *bstore.PostgresStore, pid, bid, locale string, outcome change.Outcome) (*httptest.ResponseRecorder, change.Result) {
 	t.Helper()
-	body := fmt.Sprintf(`{"target_locale":%q,"reviewed":%t,"item_name":"greetings.txt"}`, locale, reviewed)
-	return callReviewBlockBodyAs(t, srv, pid, bid, body, perms)
-}
-
-// callReviewBlock invokes HandleReviewBlock with full permissions.
-func callReviewBlock(t *testing.T, srv *Server, pid, bid, locale string, reviewed bool) *httptest.ResponseRecorder {
-	t.Helper()
-	rec, err := callReviewBlockAs(t, srv, pid, bid, locale, reviewed, platauth.PermAll)
-	require.NoError(t, err)
-	return rec
+	return decideAs(t, srv, cs, pid, bid, locale, outcome, fullCaller)
 }
 
 func getStoredBlock(t *testing.T, cs *bstore.PostgresStore, pid, bid string) *model.Block {
@@ -118,10 +109,9 @@ func draftMarks(t *testing.T, cs *bstore.PostgresStore, pid string) []platstore.
 	return marks
 }
 
-// TestHandleReviewBlockPerLocale: approving fr sets fr's Target.Status to
-// established WITHOUT touching de, and never writes the legacy block-global
-// property.
-func TestHandleReviewBlockPerLocale(t *testing.T) {
+// Establishing fr sets fr's Target.Status to established without touching de,
+// and never writes the legacy block-global property.
+func TestDecide_EstablishSetsOneLocale(t *testing.T) {
 	srv, cs := newReviewTestServer(t)
 
 	b := &model.Block{ID: "b1", Translatable: true}
@@ -131,22 +121,24 @@ func TestHandleReviewBlockPerLocale(t *testing.T) {
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
 	bid := ids["Hello"]
 
-	rec := callReviewBlock(t, srv, pid, bid, "fr", true)
+	rec, res := decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Equal(t, change.SetApplied, res.Status)
+	assert.Equal(t, change.OpApplied, res.Ops[0].Status)
 
 	got := getStoredBlock(t, cs, pid, bid)
 	require.NotNil(t, got.Target("fr"))
 	assert.Equal(t, model.TargetStatusEstablished, got.Target("fr").Status, "fr must be established")
 	require.NotNil(t, got.Target("de"))
 	assert.Equal(t, model.TargetStatusNew, got.Target("de").Status, "de must be untouched")
-	assert.Equal(t, "Bonjour", got.TargetText("fr"), "review must not touch the translation text")
+	assert.Equal(t, "Bonjour", got.TargetText("fr"), "a decision must not touch the translation text")
 	_, hasLegacy := got.Properties[legacyTranslationStatusProperty]
-	assert.False(t, hasLegacy, "the legacy block-global property must never be written anymore")
+	assert.False(t, hasLegacy, "the legacy block-global property must never be written")
 }
 
-// TestHandleReviewBlockUnreview: un-reviewing fr demotes its status back to
-// translated, still without touching de.
-func TestHandleReviewBlockUnreview(t *testing.T) {
+// Withdrawing fr's approval moves it back to translated, still without touching
+// de.
+func TestDecide_WithdrawMovesBackToTranslated(t *testing.T) {
 	srv, cs := newReviewTestServer(t)
 
 	b := &model.Block{ID: "b1", Translatable: true}
@@ -157,23 +149,21 @@ func TestHandleReviewBlockUnreview(t *testing.T) {
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
 	bid := ids["Hello"]
 
-	rec := callReviewBlock(t, srv, pid, bid, "fr", true)
+	rec, _ := decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	rec = callReviewBlock(t, srv, pid, bid, "fr", false)
+	rec, _ = decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeWithdraw)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
 	got := getStoredBlock(t, cs, pid, bid)
 	assert.Equal(t, model.TargetStatusTranslated, got.Target("fr").Status, "fr must be back at translated")
-	assert.Equal(t, model.TargetStatusEstablished, got.Target("de").Status, "de's own established status must survive fr's un-review")
+	assert.Equal(t, model.TargetStatusEstablished, got.Target("de").Status, "de's own established status must survive fr's withdrawal")
 }
 
-// TestHandleReviewBlockNoTarget documents the no-target decision (epic 006
-// task 3): approving a locale that has no non-empty translation is a 422 —
-// "established" is a rung on the target ladder and convergence.TargetState only
-// counts a status when a non-empty target exists (an untranslated block falls
-// back to source in the editor, which is not a reviewable translation).
-// Un-reviewing a locale with no target is an idempotent no-op.
-func TestHandleReviewBlockNoTarget(t *testing.T) {
+// Establishing a locale that has no non-empty translation is refused with 422:
+// established is a rung on the target ladder, and convergence only counts a
+// status when a non-empty translation exists. Withdrawing a locale with no
+// translation is an idempotent no-op.
+func TestDecide_ALocaleWithNoTranslationIsNotEstablished(t *testing.T) {
 	srv, cs := newReviewTestServer(t)
 
 	b := &model.Block{ID: "b1", Translatable: true}
@@ -182,55 +172,45 @@ func TestHandleReviewBlockNoTarget(t *testing.T) {
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
 	bid := ids["Hello"]
 
-	rec := callReviewBlock(t, srv, pid, bid, "fr", true)
+	rec, res := decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish)
 	assert.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())
-	assert.Contains(t, rec.Body.String(), "no fr translation to review")
+	require.NotNil(t, res.Ops[0].Error)
+	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
+	assert.Contains(t, res.Ops[0].Error.Message, "no fr translation to establish")
+	assert.Nil(t, getStoredBlock(t, cs, pid, bid).Target("fr"), "a refused approval must not create a target")
 
-	got := getStoredBlock(t, cs, pid, bid)
-	assert.Nil(t, got.Target("fr"), "a rejected approval must not create a target")
-
-	// Un-review with no target: idempotent no-op success.
-	rec = callReviewBlock(t, srv, pid, bid, "fr", false)
+	rec, res = decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeWithdraw)
 	assert.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	got = getStoredBlock(t, cs, pid, bid)
-	assert.Nil(t, got.Target("fr"))
+	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status)
+	assert.Nil(t, getStoredBlock(t, cs, pid, bid).Target("fr"))
 
-	// An empty translation is not reviewable either (mirrors the host review
-	// service's "has no translation to approve" rule).
+	// An empty translation is not reviewable either.
 	require.NoError(t, cs.StoreBlocks(t.Context(), pid, "main", func() []*model.Block {
 		blk := getStoredBlock(t, cs, pid, bid)
 		blk.SetTargetText("fr", "   ")
 		return []*model.Block{blk}
 	}()))
-	rec = callReviewBlock(t, srv, pid, bid, "fr", true)
+	rec, _ = decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish)
 	assert.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())
 }
 
-// TestHandleReviewBlockLegacyPropertyLifecycle: a block reviewed under the OLD
-// scheme (block-global property, no per-locale status) still reads as established
-// through the documented fallback — the blocks payload carries both the empty
-// per-locale status and the legacy property, and readers resolve
-// targets[locale].status first, then the property. Un-reviewing a locale with
-// no target clears the stuck legacy flag.
-func TestHandleReviewBlockLegacyPropertyLifecycle(t *testing.T) {
+// A block reviewed under the old scheme (block-global property, no per-locale
+// status) reads as established through the documented fallback. Withdrawing a
+// locale with no translation clears the stuck legacy flag.
+func TestDecide_AWithdrawalClearsTheLegacyFlag(t *testing.T) {
 	srv, cs := newReviewTestServer(t)
 
-	// Legacy block: property set, target present but with no per-locale status.
 	b := &model.Block{ID: "b1", Translatable: true, Properties: map[string]string{
 		legacyTranslationStatusProperty: "established",
 	}}
 	b.SetSourceText("Hello")
 	b.SetTargetText("fr", "Bonjour")
-	// Legacy block with NO target at all (was reviewable under the old scheme).
 	b2 := &model.Block{ID: "b2", Translatable: true, Properties: map[string]string{
 		legacyTranslationStatusProperty: "established",
 	}}
 	b2.SetSourceText("Goodbye")
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b, b2})
 
-	// The blocks payload (what the editor consumes) must surface BOTH the
-	// per-locale status ("" here) and the legacy property, so the frontend
-	// fallback (status first, property second) resolves this block as established.
 	blocks, err := editorGetBlocks(t.Context(), cs, pid, "main", "greetings.txt", []string{"fr", "de"}, platstore.DefaultBlockLimit, 0)
 	require.NoError(t, err)
 	byID := map[string]BlockInfoResponse{}
@@ -243,30 +223,21 @@ func TestHandleReviewBlockLegacyPropertyLifecycle(t *testing.T) {
 	assert.Equal(t, "established", legacy.Properties[legacyTranslationStatusProperty],
 		"legacy property must survive as the read fallback")
 
-	// Reviewing fr under the new scheme writes the per-locale status; the
-	// legacy property stays as-is (other locales may still read it) but the
-	// per-locale status now wins for fr.
-	rec := callReviewBlock(t, srv, pid, ids["Hello"], "fr", true)
+	rec, _ := decideOn(t, srv, cs, pid, ids["Hello"], "fr", change.OutcomeEstablish)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	got := getStoredBlock(t, cs, pid, ids["Hello"])
-	assert.Equal(t, model.TargetStatusEstablished, got.Target("fr").Status)
+	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, ids["Hello"]).Target("fr").Status)
 
-	// Un-reviewing a NO-target locale on a legacy block clears the block-global
-	// flag — the only faithful reading of "un-review" under the old scheme —
-	// so the block does not stay stuck at established forever.
-	rec = callReviewBlock(t, srv, pid, ids["Goodbye"], "fr", false)
+	rec, _ = decideOn(t, srv, cs, pid, ids["Goodbye"], "fr", change.OutcomeWithdraw)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	got = getStoredBlock(t, cs, pid, ids["Goodbye"])
-	_, hasLegacy := got.Properties[legacyTranslationStatusProperty]
-	assert.False(t, hasLegacy, "legacy flag must be cleared when un-reviewing a no-target locale")
+	_, hasLegacy := getStoredBlock(t, cs, pid, ids["Goodbye"]).Properties[legacyTranslationStatusProperty]
+	assert.False(t, hasLegacy, "legacy flag must be cleared when withdrawing a no-target locale")
 }
 
-// TestHandleReviewBlockEstablished: established is the top rung of the target
-// ladder. A plain PermTranslate caller reaches neither end of it: an approve
-// needs PermReview, and an un-review of an established target needs the same.
-// A caller holding PermReview re-approves it as an idempotent no-op that keeps
-// it established, and may demote it.
-func TestHandleReviewBlockEstablished(t *testing.T) {
+// Established is the top rung of the target ladder. A translator reaches
+// neither end of it: establishing needs review for the language, and so does
+// moving an established translation. A reviewer re-establishes it as an
+// idempotent no-op and may move it.
+func TestDecide_EstablishedTakesTheReviewPermission(t *testing.T) {
 	srv, cs := newReviewTestServer(t)
 
 	b := &model.Block{ID: "b1", Translatable: true}
@@ -276,41 +247,33 @@ func TestHandleReviewBlockEstablished(t *testing.T) {
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
 	bid := ids["Hello"]
 
-	translator := platauth.PermViewContent | platauth.PermTranslate
+	reviewer := translateCaller
+	reviewer.perms |= platauth.PermReview
 
-	// A translator cannot approve at all, established or otherwise.
-	rec, err := callReviewBlockAs(t, srv, pid, bid, "fr", true, translator)
-	require.Error(t, err, "deny() returns errAccessDenied after committing the 403")
+	rec, res := decideAs(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish, translateCaller)
 	assert.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+	assert.Equal(t, change.CodeNotPermitted, res.Ops[0].Error.Code)
 
-	// A reviewer re-approving an established target keeps it established (never demotes).
-	rec, err = callReviewBlockAs(t, srv, pid, bid, "fr", true, translator|platauth.PermReview)
-	require.NoError(t, err)
+	rec, res = decideAs(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish, reviewer)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Contains(t, rec.Body.String(), `"status":"established"`)
-	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
-		"re-approve must not demote an established target")
+	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status, "re-establishing changes nothing")
+	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status)
 
-	// Un-review without PermReview: denied, status untouched.
-	rec, err = callReviewBlockAs(t, srv, pid, bid, "fr", false, translator)
-	require.Error(t, err, "deny() returns errAccessDenied after committing the 403")
+	rec, res = decideAs(t, srv, cs, pid, bid, "fr", change.OutcomeWithdraw, translateCaller)
 	assert.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+	assert.Equal(t, change.CodeNotPermitted, res.Ops[0].Error.Code)
 	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
-		"a PermTranslate caller must not undo an approval")
+		"a translator must not undo an approval")
 
-	// With the elevated review permission the demotion is allowed.
-	rec, err = callReviewBlockAs(t, srv, pid, bid, "fr", false, translator|platauth.PermReview)
-	require.NoError(t, err)
+	rec, _ = decideAs(t, srv, cs, pid, bid, "fr", change.OutcomeWithdraw, reviewer)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Equal(t, model.TargetStatusTranslated, getStoredBlock(t, cs, pid, bid).Target("fr").Status)
 }
 
-// TestHandleReviewBlockRejectDemotesToDraft: a reviewer REJECTION
-// (reviewed=false + status:"draft") demotes the locale's target to draft — the
-// unit re-enters the work queue, matching host/convergereport.go's
-// ReviewDecisionRejected → draft mapping — while a plain un-review still lands
-// on translated, and other locales stay untouched.
-func TestHandleReviewBlockRejectDemotesToDraft(t *testing.T) {
+// A rejection moves the translation to draft, so the unit re-enters the work
+// queue, and clears the platform's draft mark so it is drafted again; other
+// locales stay untouched.
+func TestDecide_RejectMovesToDraft(t *testing.T) {
 	srv, cs := newReviewTestServer(t)
 
 	b := &model.Block{ID: "b1", Translatable: true}
@@ -320,11 +283,9 @@ func TestHandleReviewBlockRejectDemotesToDraft(t *testing.T) {
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
 	bid := ids["Hello"]
 
-	rec := callReviewBlock(t, srv, pid, bid, "fr", true)
+	rec, _ := decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	// The platform has drafted this unit against its current source: the mark a
-	// rejection has to clear for the unit to be drafted again.
 	ctx := t.Context()
 	var approval venue.UnitDecision
 	rows, err := cs.ListUnitDecisions(ctx, pid, "main")
@@ -340,41 +301,32 @@ func TestHandleReviewBlockRejectDemotesToDraft(t *testing.T) {
 	}}))
 	require.Len(t, draftMarks(t, cs, pid), 1)
 
-	rec, err = callReviewBlockBodyAs(t, srv, pid, bid,
-		`{"target_locale":"fr","reviewed":false,"status":"draft","item_name":"greetings.txt"}`, platauth.PermAll)
-	require.NoError(t, err)
+	rec, _ = decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeReject)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Contains(t, rec.Body.String(), `"status":"draft"`)
 	assert.Empty(t, draftMarks(t, cs, pid), "the rejection clears the draft mark, so the unit is drafted again")
 
 	got := getStoredBlock(t, cs, pid, bid)
-	assert.Equal(t, model.TargetStatusDraft, got.Target("fr").Status,
-		"a rejection must re-enter the work queue at draft, not stay at translated")
-	assert.Equal(t, "Bonjour", got.TargetText("fr"), "rejection must not touch the translation text")
+	assert.Equal(t, model.TargetStatusDraft, got.Target("fr").Status, "a rejection re-enters the work queue at draft")
+	assert.Equal(t, "Bonjour", got.TargetText("fr"), "a rejection must not touch the translation text")
 	assert.Equal(t, model.TargetStatusNew, got.Target("de").Status, "de must be untouched")
 
-	// An unknown demotion rung is a 400 …
-	rec, err = callReviewBlockBodyAs(t, srv, pid, bid,
-		`{"target_locale":"fr","reviewed":false,"status":"established"}`, platauth.PermAll)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
-	// … and so is a status alongside an approval.
-	rec, err = callReviewBlockBodyAs(t, srv, pid, bid,
-		`{"target_locale":"fr","reviewed":true,"status":"draft"}`, platauth.PermAll)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	// The server keeps no pre-reviews, and a stream decides on translations.
+	rec, res := decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeAdvise)
+	assert.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())
+	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
+	rec, res = sendChanges(t, srv, pid, fullCaller, change.Set{Ops: []change.Op{
+		decide(at("greetings.txt", bid, ""), sourceRev(t, cs, pid, bid), change.OutcomeEstablish)}})
+	assert.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())
+	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
 	assert.Equal(t, model.TargetStatusDraft, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
-		"rejected bodies must not change stored state")
+		"refused decisions do not change stored state")
 }
 
-// TestEditorEditDemotesStaleReview: editing an established translation invalidates
-// the stale approval — the review decision judged the OLD text, so the edited
-// target drops back to translated (the host review model binds decisions to
-// the content hash of the translation they judge for the same reason). Saving
-// identical content is not an edit and keeps the status.
-func TestEditorEditDemotesStaleReview(t *testing.T) {
+// Editing an established translation invalidates the approval: the decision
+// judged the old wording, so a person's edit drops it back to translated.
+// Saving identical content is not an edit and keeps the status.
+func TestChanges_AnEditMovesAnEstablishedTranslationBack(t *testing.T) {
 	srv, cs := newReviewTestServer(t)
-	ctx := t.Context()
 
 	b := &model.Block{ID: "b1", Translatable: true}
 	b.SetSourceText("Hello")
@@ -384,49 +336,38 @@ func TestEditorEditDemotesStaleReview(t *testing.T) {
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
 	bid := ids["Hello"]
 
-	rec := callReviewBlock(t, srv, pid, bid, "fr", true)
+	rec, _ := decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	// Saving the SAME text is not an edit: the review decision still applies.
-	require.NoError(t, editorUpdateBlockTarget(ctx, cs, pid, "main", bid,
-		UpdateBlockTargetRequest{TargetLocale: "fr", Text: "Bonjour"}))
+	rec, res := sendChanges(t, srv, pid, fullCaller, change.Set{Ops: []change.Op{
+		setText(at("greetings.txt", bid, "fr"), targetRev(t, cs, pid, bid, "fr"), "Bonjour")}})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status)
 	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
-		"re-saving identical text must keep the established status")
+		"re-saving identical text keeps the established status")
 
-	// Rewriting the fr text demotes fr to translated; de's review is untouched.
-	require.NoError(t, editorUpdateBlockTarget(ctx, cs, pid, "main", bid,
-		UpdateBlockTargetRequest{TargetLocale: "fr", Text: "Salut"}))
-	got := getStoredBlock(t, cs, pid, bid)
-	assert.Equal(t, model.TargetStatusTranslated, got.Target("fr").Status,
-		"an edited translation must not keep counting as established")
-	assert.Equal(t, "Salut", got.TargetText("fr"))
-	assert.Equal(t, model.TargetStatusEstablished, got.Target("de").Status,
-		"editing fr must not touch de's review status")
-
-	// Same rule on the Run-native update endpoint.
-	rec = callReviewBlock(t, srv, pid, bid, "fr", true)
+	rec, _ = sendChanges(t, srv, pid, fullCaller, change.Set{Ops: []change.Op{
+		setText(at("greetings.txt", bid, "fr"), targetRev(t, cs, pid, bid, "fr"), "Salut")}})
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	require.NoError(t, editorUpdateBlockTargetRuns(ctx, cs, pid, "main", bid,
-		UpdateBlockTargetRunsRequest{TargetLocale: "fr", Runs: []model.Run{{Text: &model.TextRun{Text: "Salut !"}}}}))
-	assert.Equal(t, model.TargetStatusTranslated, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
-		"a runs-level edit must also invalidate the stale review")
+	got := getStoredBlock(t, cs, pid, bid)
+	assert.Equal(t, model.TargetStatusTranslated, got.Target("fr").Status, "an edited translation does not stay established")
+	assert.Equal(t, model.OriginHuman, got.Target("fr").Origin.Kind)
+	assert.Equal(t, "Salut", got.TargetText("fr"))
+	assert.Equal(t, model.TargetStatusEstablished, got.Target("de").Status, "editing fr does not touch de's status")
+
+	// The same holds for content sent as runs.
+	rec, _ = decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	rec, _ = sendChanges(t, srv, pid, fullCaller, change.Set{Ops: []change.Op{{
+		Kind: change.KindSetContent, At: at("greetings.txt", bid, "fr"), IfMatch: targetRev(t, cs, pid, bid, "fr"),
+		Body: &change.SetContent{Runs: []model.Run{{Text: &model.TextRun{Text: "Salut !"}}}},
+	}}})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	assert.Equal(t, model.TargetStatusTranslated, getStoredBlock(t, cs, pid, bid).Target("fr").Status)
 }
 
-// TestHandleReviewBlockBadRequest: target_locale is required now that review
-// status is per-locale.
-func TestHandleReviewBlockBadRequest(t *testing.T) {
-	srv, cs := newReviewTestServer(t)
-	b := &model.Block{ID: "b1", Translatable: true}
-	b.SetSourceText("Hello")
-	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
-
-	rec := callReviewBlock(t, srv, pid, ids["Hello"], "", true)
-	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
-}
-
-// TestHandleGetFileBlocksCarriesPerLocaleStatus: the blocks endpoint the editor
-// consumes serializes each target as {text, status} keyed by plain locale, so
-// the UI reads block.targets[locale].status (pinned contract, epic 006).
+// The blocks endpoint the editor consumes serializes each target as {text,
+// status} keyed by plain locale, so the UI reads block.targets[locale].status.
 func TestHandleGetFileBlocksCarriesPerLocaleStatus(t *testing.T) {
 	srv, cs := newReviewTestServer(t)
 
@@ -437,10 +378,9 @@ func TestHandleGetFileBlocksCarriesPerLocaleStatus(t *testing.T) {
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
 	bid := ids["Hello"]
 
-	rec := callReviewBlock(t, srv, pid, bid, "fr", true)
+	rec, _ := decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	// Call the real handler end-to-end and decode the raw JSON payload.
 	e := echo.New()
 	r := httptest.NewRequest(http.MethodGet, "/api/v1/acme/"+pid+"/blocks/main?item=greetings.txt", nil)
 	w := httptest.NewRecorder()
@@ -468,32 +408,11 @@ func TestHandleGetFileBlocksCarriesPerLocaleStatus(t *testing.T) {
 	assert.False(t, hasLegacy)
 }
 
-// TestEditorReviewFeedsConvergenceCoverage is the convergence proof for epic
-// 006 task 3: a block approved through the editor endpoint counts toward that
-// locale ONLY in the convergence/coverage established numbers.
-//
-// The chain, made explicit because the host module cannot import bowrain
-// storage:
-//
-//  1. HandleReviewBlock sets Block.Targets[Variant(locale)].Status =
-//     model.TargetStatusEstablished (this package).
-//  2. The Postgres ContentStore persists the FULL model.Target JSON (runs +
-//     status + origin) per variant (bowrain/store/overlay_sync.go,
-//     SyncBlockOverlays) and GetBlocks round-trips it — asserted here against
-//     the real database.
-//  3. Host convergence consumes exactly that field: unitState is an alias for
-//     convergence.TargetState (host/convergence_alias.go:26), which returns
-//     the committed Target.Status when a non-empty target exists
-//     (core/convergence/convergence.go), and host.ComputeShipCoverage feeds it
-//     into convergence.CoverageTally (host/coverage.go). decisionStatus in
-//     host/convergereport.go maps "approved" to the SAME
-//     model.TargetStatusEstablished rung.
-//
-// This test drives steps 1–2 through the real handler + Postgres, then runs
-// step 3's exact functions (convergence.TargetState + CoverageTally +
-// gate.TargetLadder) over the round-tripped blocks and asserts the established
-// percentage moved for fr only.
-func TestEditorReviewFeedsConvergenceCoverage(t *testing.T) {
+// A block established through the changes route counts toward that locale only
+// in the convergence and coverage established numbers: the route stores the
+// per-locale Target.Status, Postgres round-trips it, and convergence.TargetState
+// and CoverageTally read exactly that field.
+func TestDecide_FeedsConvergenceCoverage(t *testing.T) {
 	srv, cs := newReviewTestServer(t)
 
 	b1 := &model.Block{ID: "b1", Translatable: true}
@@ -506,13 +425,9 @@ func TestEditorReviewFeedsConvergenceCoverage(t *testing.T) {
 	b2.SetTargetText("de", "Tschüss")
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b1, b2})
 
-	// Approve ONE block for fr through the editor endpoint.
-	rec := callReviewBlock(t, srv, pid, ids["Hello"], "fr", true)
+	rec, _ := decideOn(t, srv, cs, pid, ids["Hello"], "fr", change.OutcomeEstablish)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	// Round-trip every block from Postgres and tally coverage exactly the way
-	// host.ComputeShipCoverage does: state := unitState(block, locale) (aliased
-	// to convergence.TargetState), then tally.Add(scope, state).
 	stored, err := cs.GetBlocks(t.Context(), platstore.BlockQuery{
 		ProjectID: pid, Stream: "main", ItemName: "greetings.txt",
 	})
@@ -524,7 +439,6 @@ func TestEditorReviewFeedsConvergenceCoverage(t *testing.T) {
 		for _, locale := range []string{"fr", "de"} {
 			state := convergence.TargetState(sb.Block, locale)
 			tally.Add(convergence.Scope{Locale: locale}, state)
-			// The approved block reads at the established rung for fr only.
 			if sb.Block.ID == ids["Hello"] && locale == "fr" {
 				assert.Equal(t, string(model.TargetStatusEstablished), state)
 			} else {
@@ -540,9 +454,9 @@ func TestEditorReviewFeedsConvergenceCoverage(t *testing.T) {
 	require.True(t, ok)
 
 	assert.InDelta(t, 50, fr.AtLeastPct(ladder, string(model.TargetStatusEstablished)), 1e-9,
-		"fr: 1 of 2 blocks approved via the editor endpoint")
+		"fr: 1 of 2 blocks established")
 	assert.InDelta(t, 0, de.AtLeastPct(ladder, string(model.TargetStatusEstablished)), 1e-9,
-		"de: approving fr must not move de's established coverage")
+		"de: establishing fr does not move de's coverage")
 	assert.InDelta(t, 100, fr.AtLeastPct(ladder, string(model.TargetStatusTranslated)), 1e-9)
 	assert.InDelta(t, 100, de.AtLeastPct(ladder, string(model.TargetStatusTranslated)), 1e-9)
 }

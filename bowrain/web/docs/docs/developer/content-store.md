@@ -83,6 +83,33 @@ defer store.Close()
 Both backends share one logical schema: projects, streams, collections,
 items, blocks, versions, the change log, and assets.
 
+## Held block writes
+
+The server's change service reads and writes a stream's blocks through
+`BlockWriteStore`, which the PostgreSQL backend implements and the
+event-emitting decorator forwards:
+
+```go
+// BlockWriteStore
+ItemBlocks(ctx context.Context, projectID, stream, itemName string, keys []string) ([]*StoredBlock, error)
+BeginBlockWrite(ctx context.Context, projectID, stream string) (BlockWrite, error)
+
+// BlockWrite
+Hold(ctx context.Context, itemName string, keys []string) ([]*StoredBlock, error)
+Store(ctx context.Context, blocks []*StoredBlock) error
+Commit() error
+Rollback() error
+```
+
+`keys` names blocks by their durable key, their name or their row id. A
+`BlockWrite` is one transaction under the stream's shared write lock. `Hold`
+reads an item's blocks and locks their rows until the write ends. `Store`
+writes the changed blocks back to those rows with their history and change-log
+entries, and deletes the row of each translation the change removed, recording
+the removal as `target_removed`. The change service compares the revision each
+operation names against the held rows, so no other write lands between that
+comparison and the commit.
+
 ## Block Identity
 
 Every stored block gets a content-addressable identity computed from its source text:

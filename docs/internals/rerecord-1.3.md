@@ -151,6 +151,14 @@ vpx tsx src/cli/run.ts $CLI $WEB $TWO --only=render,publish --force --theme=both
 `BOWRAIN_SELF_BLOCK_ID` from the collaboration seed; without them the
 separation-of-duties beats act on whichever unit is in focus.
 
+The server takes a content edit, a review decision, a note or an entity mark
+only as a change set on `POST /:ws/projects/:id/streams/:stream/changes`, and
+has no other route for them.
+Record rows 8 to 15 from a commit whose web app and seed scripts
+(`harness/scripts/seed-bowrain.ts`, `harness/scripts/seed-collaboration.mjs`)
+send their writes there. Rows 10, 11 and 13 show the editor's save, review and
+note controls, so check each against the web app of that commit.
+
 ### 2. Placeholders on the page
 
 Both are first publishes, and both count among the ten that were never

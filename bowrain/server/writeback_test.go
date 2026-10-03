@@ -5,13 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"sync"
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
@@ -86,21 +84,56 @@ func TestSettleSource_AnItemRemovedDuringSettlementStaysRemoved(t *testing.T) {
 	requireNothingStored(t, cs, projectID)
 }
 
-// Pseudo-translation reads an item's blocks and writes them back with targets.
-// When the item is removed in between, nothing is stored.
+// Pseudo-translation reads an item's blocks and commits the targets it drafts
+// through the stream's change service. When the item is removed in between,
+// nothing is stored.
 func TestPseudoTranslate_AnItemRemovedDuringTheRunStaysRemoved(t *testing.T) {
-	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "writeback.db"))
+	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = cs.Close() })
 	const projectID = "pseudo-writeback-removed"
 	seedWriteBackItem(t, cs, projectID, "Hello", "Goodbye")
 
 	racing := &readThenChange{ContentStore: cs, change: func(ctx context.Context) {
 		assert.NoError(t, cs.DeleteItem(ctx, projectID, "main", "en.json"))
 	}}
-	_, err = editorPseudoTranslate(t.Context(), racing, projectID, "main", "en.json", "fr")
+	_, err = editorPseudoTranslate(t.Context(), racing, commitFor(t, cs, projectID), projectID, "main", "en.json", "fr")
 	require.NoError(t, err)
 	requireNothingStored(t, cs, projectID)
+}
+
+// Pseudo-translation commits its drafts as the tool: each lands as a draft
+// with the tool's provenance, and a translation a person wrote after the run
+// read the block keeps the person's wording.
+func TestPseudoTranslate_CommitsDraftsAndKeepsAPersonsLaterEdit(t *testing.T) {
+	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
+	require.NoError(t, err)
+	const projectID = "pseudo-drafts"
+	seedWriteBackItem(t, cs, projectID, "Hello", "Goodbye")
+	stored, err := cs.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: projectID, Stream: "main", ItemName: "en.json"})
+	require.NoError(t, err)
+	ids := map[string]string{}
+	for _, sb := range stored {
+		ids[sb.Block.SourceText()] = sb.Block.ID
+	}
+
+	racing := &readThenChange{ContentStore: cs, change: func(ctx context.Context) {
+		_, err := cs.UpdateBlock(ctx, projectID, "main", ids["Goodbye"], func(sb *venue.StoredBlock) error {
+			sb.Block.SetTargetText(model.LocaleFrench, "Au revoir")
+			return nil
+		})
+		assert.NoError(t, err)
+	}}
+	_, err = editorPseudoTranslate(t.Context(), racing, commitFor(t, cs, projectID), projectID, "main", "en.json", "fr")
+	require.NoError(t, err)
+
+	hello, err := cs.GetBlock(t.Context(), projectID, "main", ids["Hello"])
+	require.NoError(t, err)
+	require.NotNil(t, hello.Block.Target(model.LocaleFrench))
+	assert.NotEqual(t, "Hello", hello.Block.TargetText(model.LocaleFrench), "the pseudo-translation landed")
+	assert.Equal(t, model.TargetStatusDraft, hello.Block.Target(model.LocaleFrench).Status)
+	goodbye, err := cs.GetBlock(t.Context(), projectID, "main", ids["Goodbye"])
+	require.NoError(t, err)
+	assert.Equal(t, "Au revoir", goodbye.Block.TargetText(model.LocaleFrench), "the person's later wording stays")
 }
 
 // Source settlement stamps each block it checks and writes the stamp back. The

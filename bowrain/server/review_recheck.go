@@ -318,7 +318,7 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 					if !violates(sb, proj.DefaultSourceLanguage, loc) {
 						continue // still conforms — untouched
 					}
-					// Demote to draft, mirroring HandleReviewBlock's rejection mapping:
+					// Demote to draft, as a decide reject does (applyBlockReview):
 					// the translation is now wrong (it carries a forbidden term), so it
 					// re-enters the work queue, not merely re-review.
 					t.Status = model.TargetStatusDraft

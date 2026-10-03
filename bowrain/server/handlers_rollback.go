@@ -10,69 +10,88 @@ import (
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
-// applyReverts loads each affected block, applies the target reverts (restoring
-// prior content, or blanking targets the batch created), and stores them under a
-// labeled change context so the revert/restore is itself recorded in history.
-// Returns the number of targets reverted.
-func (s *Server) applyReverts(ctx context.Context, pid, stream, reason string, reverts []bstore.TargetRevert) (int, error) {
-	byBlock := map[string][]bstore.TargetRevert{}
-	order := []string{}
-	for _, r := range reverts {
-		if _, seen := byBlock[r.BlockID]; !seen {
-			order = append(order, r.BlockID)
-		}
-		byBlock[r.BlockID] = append(byBlock[r.BlockID], r)
-	}
-	reads := make([]*venue.StoredBlock, 0, len(order))
-	for _, bid := range order {
-		sb, err := s.ContentStore.GetBlock(ctx, pid, stream, bid)
-		if err != nil {
-			continue // block gone; skip
-		}
-		for _, r := range byBlock[bid] {
-			locale := model.LocaleID(r.Locale)
-			switch {
-			case r.Clear:
-				sb.Block.SetTargetText(locale, "")
-			case r.Coded != "":
-				var runs []model.Run
-				if json.Unmarshal([]byte(r.Coded), &runs) == nil && len(runs) > 0 {
-					sb.Block.SetTargetRuns(locale, runs)
-				} else {
-					sb.Block.SetTargetText(locale, r.Text)
-				}
-			default:
-				sb.Block.SetTargetText(locale, r.Text)
-			}
-		}
-		reads = append(reads, sb)
-	}
-	if len(reads) == 0 {
-		return 0, nil
-	}
-	// Written back to the rows read above: a block a push removed or rewrote since
-	// then keeps what the push left, and its reverts are not counted.
-	ctx = bstore.WithChangeContext(ctx, bstore.ChangeContext{Reason: reason})
-	res, err := s.ContentStore.WriteBackBlocks(ctx, pid, stream, reads)
+// applyReverts restores each target a revert names to the value it held: a
+// set_content of its prior runs, or the removal of a target the reverted batch
+// created. Each operation names the revision the target holds now, which the
+// revert read, and the change set is applied through the stream's change
+// service as the person, labelled reason in the history it writes, so the
+// revert is itself recorded and can be reverted. A person restoring prior
+// wording lands it over the findings it brings back (gate report). A target
+// that moved since the read keeps what it holds. It returns the number of
+// targets reverted.
+func (s *Server) applyReverts(ctx context.Context, c echo.Context, pid, stream, reason string, reverts []bstore.TargetRevert) (int, error) {
+	proj, err := s.ContentStore.GetProject(ctx, pid)
 	if err != nil {
 		return 0, err
 	}
-	skipped := make(map[string]bool, len(res.Skipped))
-	for _, id := range res.Skipped {
-		skipped[id] = true
+	set := change.Set{Gate: change.GateReport}
+	read := map[string]*venue.StoredBlock{}
+	for _, r := range reverts {
+		sb, ok := read[r.BlockID]
+		if !ok {
+			sb, _ = s.ContentStore.GetBlock(ctx, pid, stream, r.BlockID)
+			read[r.BlockID] = sb
+		}
+		if sb == nil {
+			continue // block gone; skip
+		}
+		if op, ok := revertOp(sb, r); ok {
+			set.Ops = append(set.Ops, op)
+		}
+	}
+	if len(set.Ops) == 0 {
+		return 0, nil
+	}
+	ctx = bstore.WithChangeContext(ctx, bstore.ChangeContext{Reason: reason})
+	wsID, _ := c.Get("workspace_id").(string)
+	sender := requestSender(c)
+	sc := s.newStreamChange(ctx, c, proj, stream, wsID, c.Param("ws"), sender)
+	res, _, _, err := sc.applyEach(ctx, set, change.Actor{Kind: change.ActorPerson, Name: sender.userID})
+	if err != nil || res == nil || res.Status == change.SetRefused {
+		return 0, err
 	}
 	n := 0
-	for _, sb := range reads {
-		if !skipped[sb.Block.ID] {
-			n += len(byBlock[sb.Block.ID])
+	for _, op := range res.Ops {
+		if op.Status == change.OpApplied {
+			n++
 		}
 	}
 	return n, nil
+}
+
+// revertOp is the operation that restores one target, guarded by the revision
+// the target holds in sb: its prior runs, its prior text, or its removal. A
+// revert that restores what the target already holds is no operation.
+func revertOp(sb *venue.StoredBlock, r bstore.TargetRevert) (change.Op, bool) {
+	loc := model.LocaleID(r.Locale)
+	at := change.Ref{Doc: sb.ItemName, Block: sb.Block.ID, Edition: model.EditionKey{Locale: loc}}
+	rev := store.TargetRevision(sb, loc)
+	if r.Clear {
+		if rev == model.AbsentRevision {
+			return change.Op{}, false
+		}
+		return change.Op{Kind: change.KindRemoveEdition, At: at, IfMatch: rev, Body: &change.RemoveEdition{}}, true
+	}
+	return change.Op{Kind: change.KindSetContent, At: at, IfMatch: rev, Body: &change.SetContent{Content: historyContent(r.Text, r.Coded)}}, true
+}
+
+// historyContent is a history entry's content: its runs, which keep the inline
+// markup, or its plain text when it recorded none.
+func historyContent(text, coded string) change.Content {
+	if coded != "" {
+		var runs []model.Run
+		if json.Unmarshal([]byte(coded), &runs) == nil && len(runs) > 0 {
+			return change.Content{Runs: runs}
+		}
+	}
+	return change.Content{Text: &text}
 }
 
 // RollbackBlockRequest restores a block's target for a locale to a prior
@@ -139,35 +158,39 @@ func (s *Server) HandleRollbackBlock(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "history entry not found for this block/locale"})
 	}
 
+	sb, err := s.ContentStore.GetBlock(ctx, pid, stream, bid)
+	if err != nil || sb == nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
+	}
+	proj, err := s.ContentStore.GetProject(ctx, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found"})
+	}
+	// The restore is a set_content of the entry's runs on the revision the
+	// target holds now, or on the one the caller read. Labelled so its history
+	// entry reads as a rollback; a person restoring prior wording lands it over
+	// the findings it brings back.
 	locale := model.LocaleID(req.Locale)
-	// Label the restoring write so its history entry reads as a rollback. The
-	// restore lands on the block as the write holds it, so a block removed since
-	// the history was read stays removed.
+	rev := req.BaseRevision
+	if rev == "" {
+		rev = store.TargetRevision(sb, locale)
+	}
+	set := change.Set{Gate: change.GateReport, Ops: []change.Op{{
+		Kind:    change.KindSetContent,
+		At:      change.Ref{Doc: sb.ItemName, Block: bid, Edition: model.EditionKey{Locale: locale}},
+		IfMatch: rev,
+		Body:    &change.SetContent{Content: historyContent(entry.Text, entry.Coded)},
+	}}}
 	ctx = bstore.WithChangeContext(ctx, bstore.ChangeContext{Reason: "rollback:" + strconv.FormatInt(req.ToSeq, 10)})
-	updated, uerr := s.ContentStore.UpdateBlock(ctx, pid, stream, bid, func(sb *venue.StoredBlock) error {
-		if err := checkBaseRevision(sb, locale, req.BaseRevision); err != nil {
-			return err
-		}
-		// Prefer restoring the full Run sequence (preserves inline markup); fall
-		// back to plain text.
-		if entry.Coded != "" {
-			var runs []model.Run
-			if json.Unmarshal([]byte(entry.Coded), &runs) == nil && len(runs) > 0 {
-				sb.Block.SetTargetRuns(locale, runs)
-				return nil
-			}
-		}
-		sb.Block.SetTargetText(locale, entry.Text)
-		return nil
-	})
-	if uerr != nil {
-		if changed, ok := asBlockChanged(uerr); ok {
-			return s.answerBlockChanged(c, pid, changed, req.Locale)
-		}
-		if updated == nil {
-			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
-		}
-		return serverErr(c, uerr)
+	wsID, _ := c.Get("workspace_id").(string)
+	sender := requestSender(c)
+	sc := s.newStreamChange(ctx, c, proj, stream, wsID, c.Param("ws"), sender)
+	res, err := sc.apply(ctx, set, change.Actor{Kind: change.ActorPerson, Name: sender.userID})
+	if err != nil {
+		return serverErr(c, err)
+	}
+	if res.Status == change.SetRefused {
+		return c.JSON(resultStatus(res), res)
 	}
 
 	s.emitAudit(c, auditEvent{
@@ -235,7 +258,7 @@ func (s *Server) HandleRevertBatch(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "no changes found for this correlation id"})
 	}
 
-	n, err := s.applyReverts(ctx, pid, stream, "revert_batch:"+req.CorrelationID, reverts)
+	n, err := s.applyReverts(ctx, c, pid, stream, "revert_batch:"+req.CorrelationID, reverts)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -324,7 +347,7 @@ func (s *Server) HandleRestoreToPoint(c echo.Context) error {
 		return serverErr(c, err)
 	}
 
-	n, err := s.applyReverts(ctx, pid, stream, "restore:"+label, reverts)
+	n, err := s.applyReverts(ctx, c, pid, stream, "restore:"+label, reverts)
 	if err != nil {
 		return serverErr(c, err)
 	}

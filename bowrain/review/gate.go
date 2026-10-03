@@ -202,7 +202,7 @@ func (g *Gate) Allow(blockID, locale string) error {
 //
 // One condition. The actor must hold review permission for that language in
 // that project, which is what the web asks before an un-review or a rejection
-// drops an established target (HandleReviewBlock's Elevate). The workspace
+// drops an established target (blockReviewInput.Elevate). The workspace
 // separation-of-duties policy is not asked: it judges who may bless work, and
 // withdrawing an established unit blesses nothing, so the author of a
 // translation who also holds review may take back their own decision here as

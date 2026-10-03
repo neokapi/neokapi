@@ -122,11 +122,7 @@ func (s *Server) HandleGetReviewContext(c echo.Context) error {
 
 	// History: the wording the corpus already blessed.
 	out.History = s.reviewHistory(ctx, &out.Point, proj, ws, sb, loc, recordedGoverning(decision))
-	if notes, nerr := s.ContentStore.ListBlockNotes(ctx, pid, "main", bid); nerr == nil {
-		for _, n := range notes {
-			out.Notes = append(out.Notes, blockNoteToResponse(n))
-		}
-	}
+	out.Notes = blockNotes(sb.Block)
 
 	// Judgement: the findings behind the score, not only the number.
 	s.fillReviewJudgement(ctx, &out, profile, pid, stream, bid, loc)

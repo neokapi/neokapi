@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -9,6 +8,7 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
@@ -66,11 +66,13 @@ type ApprovePassingResponse struct {
 // review task(s) closed, and if that empties the project's whole review queue
 // the loop continues to a completing convergence run → delivery (RV-B).
 //
-// Every promotion is a decision: it goes to the decision ledger with the
-// decider and the hash of the translation it blesses, and from there into the
-// workspace content memory, exactly as a per-block approval does. A translation
-// the caller wrote themselves is left pending when the workspace's
-// separation-of-duties policy blocks self-approval.
+// Every promotion is a decide operation the pass sends through the stream's
+// change service as the caller, bound to the translation the pass read: it
+// goes to the decision ledger with the decider and the hash of the translation
+// it blesses, and from there into the workspace content memory, exactly as
+// any other approval does. A translation that moved since the pass read it
+// stays pending. A translation the caller wrote themselves is left pending when
+// the workspace's separation-of-duties policy blocks self-approval.
 //
 // POST /:ws/:id/review/approve-passing  { "stream"?: "main", "locales"?: ["fr"] }
 func (s *Server) HandleApprovePassing(c echo.Context) error {
@@ -137,13 +139,16 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 	sodActor, _ := c.Get("user_id").(string)
 	sodMode := platauth.SoDOff
 
-	// The decision ledger and the separation-of-duties policy both apply here,
-	// per batch rather than per block: opening the ledger resolves the decider
-	// and the workspace memory once, and one authorship query answers for a
-	// whole batch. A block whose translation the caller wrote themselves is
-	// left pending under a blocking policy, the same outcome a failing check
-	// produces.
-	ledger := s.newReviewLedger(ctx, c, pid, stream)
+	// The decisions of the whole pass go through one change of the stream:
+	// its ledger resolves the decider and the workspace memory once, and one
+	// authorship query per batch answers the separation-of-duties policy. A
+	// block whose translation the caller wrote themselves is left pending
+	// under a blocking policy, the same outcome a failing check produces. The
+	// review loop continues once, after the pass.
+	sc := s.newStreamChange(ctx, c, proj, stream, wsID, c.Param("ws"), requestSender(c))
+	sc.holdLoop = true
+	sc.decide.quiet = true
+	person := change.Actor{Kind: change.ActorPerson, Name: sc.sender.userID}
 	localeStrings := make([]string, 0, len(locales))
 	for _, loc := range locales {
 		localeStrings = append(localeStrings, string(loc))
@@ -155,10 +160,9 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 	// and "approve everything that passes" is by nature the request that touches
 	// the most of a corpus at once.
 	//
-	// Writing per batch rather than once at the end does mean a failure part-way
-	// leaves the earlier batches approved. That is the same guarantee the single
-	// call gave (StoreBlocks is an upsert, not a transaction over the set), and
-	// the operation is idempotent: re-running approves what is still pending.
+	// Applying per batch rather than once at the end does mean a failure
+	// part-way leaves the earlier batches approved. The operation is
+	// idempotent: re-running approves what is still pending.
 	//
 	// Safe to write during the walk: the cursor is keyed on block id and an
 	// approval changes a target's status, never an id, so the page boundary the
@@ -178,14 +182,14 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 				return err
 			}
 			sod.quiet()
+			sc.decide.sod = sod
 
-			var toStore []*venue.StoredBlock
-			var decisions []venue.UnitDecision
+			set := change.Set{}
+			pending := 0
 			for _, sb := range batch {
 				if sb == nil || sb.Block == nil || !sb.Block.Translatable {
 					continue
 				}
-				modified := false
 				for _, loc := range locales {
 					if !targetPendingReview(sb.Block, loc) {
 						continue // untranslated, or already approved — not a candidate
@@ -198,57 +202,50 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 						// by the bar it missed rather than lumped into one count.
 						skipped++
 						skippedBy[blocker]++
+						pending++
 					case sod.vet(sb.Block.ID, string(loc)) != nil:
 						// The caller wrote this translation and the workspace
 						// blocks self-approval: left pending for someone else.
 						sodRefused++
+						pending++
 					default:
-						sb.Block.Target(loc).Status = model.TargetStatusEstablished
+						set.Ops = append(set.Ops, change.Op{Kind: change.KindDecide,
+							At:      change.Ref{Doc: sb.ItemName, Block: sb.Block.ID, Edition: model.EditionKey{Locale: loc}},
+							IfMatch: platstore.TargetRevision(sb, loc),
+							Body:    &change.Decide{Outcome: change.OutcomeEstablish}})
+					}
+				}
+			}
+			sodViolations += sod.violations()
+			sodMode = sod.mode()
+			if len(set.Ops) == 0 {
+				remaining += pending
+				return nil
+			}
+
+			res, applied, _, err := sc.applyEach(ctx, set, person)
+			if err != nil {
+				return err
+			}
+			// What this batch leaves pending: the excluded targets, and an
+			// approval the change service refused because its translation
+			// moved since the pass read it.
+			landed := 0
+			if res != nil && res.Status != change.SetRefused {
+				for i, op := range res.Ops {
+					if op.Status != change.OpApplied && op.Status != change.OpUnchanged {
+						continue
+					}
+					landed++
+					if op.Status == change.OpApplied {
+						loc := applied[i].At.Edition.Locale
 						approved++
 						perLocale[loc]++
 						touchedSet[loc] = true
-						modified = true
-						if ledger != nil && sb.SourceID != "" {
-							// Approvals only, so the row's basis is always
-							// re-stamped and no previous row is read.
-							decisions = append(decisions, unitDecisionFor(sb, string(loc),
-								model.TargetStatusEstablished, true, ledger.decider,
-								ledger.governingFingerprint(ctx, sb.ItemName, string(loc)), nil))
-						}
-					}
-				}
-				if modified {
-					toStore = append(toStore, sb)
-				}
-			}
-
-			if len(toStore) > 0 {
-				if _, err := s.ContentStore.WriteBackBlocks(ctx, pid, stream, toStore); err != nil {
-					return fmt.Errorf("store blocks: %w", err)
-				}
-			}
-			// The ledger follows the write, batch by batch. Holding every
-			// decision until the pass ends would reintroduce the unbounded
-			// accumulation the batching exists to avoid, and the ledger write
-			// is idempotent, so a pass that fails part-way leaves the batches
-			// it finished consistent with the statuses it stored.
-			ledger.write(ctx, decisions)
-			sodViolations += sod.violations()
-			sodMode = sod.mode()
-
-			// What this batch leaves pending: the excluded (failing/non-compliant)
-			// targets. Counted after the promotion above, over the same blocks,
-			// so an approval in this pass is not also reported as outstanding.
-			for _, sb := range batch {
-				if sb == nil || sb.Block == nil {
-					continue
-				}
-				for _, loc := range locales {
-					if targetPendingReview(sb.Block, loc) {
-						remaining++
 					}
 				}
 			}
+			remaining += pending + len(set.Ops) - landed
 			return nil
 		})
 	if walkErr != nil {

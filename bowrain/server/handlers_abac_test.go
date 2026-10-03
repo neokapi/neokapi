@@ -1,194 +1,184 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestPhase4_ABACStatusGating proves edits are gated by a block's workflow
-// status: anyone with translate can edit a draft, but editing published content
-// requires manage, and editing in-review content requires review.
+// postChanges sends ops to a project's main stream through the router, as the
+// token's holder in workspace "test", and returns the status and the result.
+func postChanges(t *testing.T, s *Server, token, pid string, ops ...change.Op) (int, change.Result) {
+	t.Helper()
+	body, err := json.Marshal(change.Set{Ops: ops})
+	require.NoError(t, err)
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/test/projects/"+pid+"/streams/main/changes", strings.NewReader(string(body)))
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	s.GetEcho().ServeHTTP(rec, r)
+	var res change.Result
+	if rec.Code < 500 {
+		_ = json.Unmarshal(rec.Body.Bytes(), &res)
+	}
+	return rec.Code, res
+}
+
+// storeItemBlock stores blk under item in a project's main stream and returns
+// the row id the store gave it.
+func storeItemBlock(t *testing.T, cs platstore.ContentStore, pid, item string, blk *model.Block) string {
+	t.Helper()
+	ctx := t.Context()
+	key := blk.ID
+	require.NoError(t, cs.StoreItem(ctx, pid, "main", &platstore.Item{Name: item, Format: "txt", ItemType: "file"}))
+	require.NoError(t, cs.StoreBlocksForItem(ctx, pid, "main", item, []*model.Block{blk}))
+	stored, err := cs.GetBlocks(ctx, platstore.BlockQuery{ProjectID: pid, Stream: "main", ItemName: item})
+	require.NoError(t, err)
+	for _, sb := range stored {
+		if sb.SourceID == key {
+			return sb.Block.ID
+		}
+	}
+	t.Fatalf("block %s not stored", key)
+	return ""
+}
+
+// translateOp sets a block's translation, guarded by the revision the stream
+// holds.
+func translateOp(t *testing.T, cs platstore.ContentStore, pid, item, bid, locale, text string) change.Op {
+	t.Helper()
+	sb, err := cs.GetBlock(t.Context(), pid, "main", bid)
+	require.NoError(t, err)
+	rev := platstore.TargetRevision(sb, model.LocaleID(locale))
+	return setText(at(item, bid, locale), rev, text)
+}
+
+// Edits are gated by a block's access state: anyone with translate edits an
+// open block, a published one takes manage, and a restricted one takes review
+// for the language.
 func TestPhase4_ABACStatusGating(t *testing.T) {
 	s, ownerToken := newTestServer(t)
 	memberToken := addWorkspaceMember(t, s, "abac-mem", "abac@example.com", platauth.RoleMember)
 	cs := s.ContentStore
 	ctx := t.Context()
-	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-abac", Name: "ABAC", DefaultSourceLanguage: "en", WorkspaceID: "test-ws"}))
-	blk := model.NewBlock("ba", "hi")
-	require.NoError(t, cs.StoreBlocks(ctx, "p-abac", "main", []*model.Block{blk}))
+	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-abac", Name: "ABAC", DefaultSourceLanguage: "en",
+		TargetLanguages: []model.LocaleID{"fr"}, WorkspaceID: "test-ws"}))
+	bid := storeItemBlock(t, cs, "p-abac", "hi.txt", model.NewBlock("ba", "hi"))
+	as, ok := cs.(platstore.BlockAccessStore)
+	require.True(t, ok)
 
 	edit := func(token, text string) int {
-		return do(t, s, http.MethodPut, "/api/v1/test/p-abac/blocks/main/ba", token, `{"target_locale":"fr","text":"`+text+`"}`)
-	}
-	setStatus := func(token, status string) int {
-		return do(t, s, http.MethodPut, "/api/v1/test/p-abac/blocks/main/ba/status", token, `{"status":"`+status+`"}`)
+		code, _ := postChanges(t, s, token, "p-abac", translateOp(t, cs, "p-abac", "hi.txt", bid, "fr", text))
+		return code
 	}
 
 	// Open: a member (translate) can edit.
-	require.Less(t, edit(memberToken, "v1"), 300)
+	require.Equal(t, http.StatusOK, edit(memberToken, "v1"))
 
-	// Owner publishes the block.
-	require.Equal(t, http.StatusOK, setStatus(ownerToken, "published"))
-
-	// Member can no longer edit published content (needs manage_project)...
+	// Published: a member can no longer edit; the owner (manage) can.
+	require.NoError(t, as.SetBlockAccess(ctx, "p-abac", "main", bid, bstore.BlockAccessPublished, ""))
 	assert.Equal(t, http.StatusForbidden, edit(memberToken, "v2"))
-	// ...but the owner (manage) still can.
-	assert.Less(t, edit(ownerToken, "v2-owner"), 300)
+	assert.Equal(t, http.StatusOK, edit(ownerToken, "v2-owner"))
 
-	// Restricted: a member without review cannot edit.
-	require.Equal(t, http.StatusOK, setStatus(ownerToken, "restricted"))
+	// Restricted: a member without review cannot edit; the owner (review) can.
+	require.NoError(t, as.SetBlockAccess(ctx, "p-abac", "main", bid, bstore.BlockAccessRestricted, ""))
 	assert.Equal(t, http.StatusForbidden, edit(memberToken, "v3"))
-	// The owner (review) can.
-	assert.Less(t, edit(ownerToken, "v3-owner"), 300)
+	assert.Equal(t, http.StatusOK, edit(ownerToken, "v3-owner"))
 
-	// A member cannot change access state (needs review).
-	assert.Equal(t, http.StatusForbidden, setStatus(memberToken, "open"))
-
-	// The retired vocabulary is normalized, not rejected: "in_review" still
-	// lands as restricted for a caller that has not caught up.
-	require.Equal(t, http.StatusOK, setStatus(ownerToken, "in_review"))
+	// The block's owner keeps working on content held for them.
+	require.NoError(t, as.SetBlockAccess(ctx, "p-abac", "main", bid, bstore.BlockAccessRestricted, "abac-mem"))
+	assert.Equal(t, http.StatusOK, edit(memberToken, "v4"))
 }
 
-// TestPhase4_SoDBlocksSelfApproval proves separation of duties (block mode)
-// prevents the translator from approving (publishing) their own work, while a
-// different reviewer can.
-func TestPhase4_SoDBlocksSelfApproval(t *testing.T) {
-	s, ownerToken := newTestServer(t)
-	cs := s.ContentStore
-	ctx := t.Context()
-	require.NoError(t, s.AuthStore.SetSoDMode(ctx, "test-ws", platauth.SoDBlock))
-	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-sod", Name: "SoD", DefaultSourceLanguage: "en", WorkspaceID: "test-ws"}))
-	blk := model.NewBlock("bs", "hi")
-	require.NoError(t, cs.StoreBlocks(ctx, "p-sod", "main", []*model.Block{blk}))
-
-	// The owner translates the block (becomes its last editor).
-	require.Less(t, do(t, s, http.MethodPut, "/api/v1/test/p-sod/blocks/main/bs", ownerToken, `{"target_locale":"fr","text":"v1"}`), 300)
-
-	// The owner cannot approve (publish) their own translation under SoD block mode.
-	assert.Equal(t, http.StatusForbidden,
-		do(t, s, http.MethodPut, "/api/v1/test/p-sod/blocks/main/bs/status", ownerToken, `{"status":"published"}`))
-
-	// A different reviewer can publish it.
-	reviewerToken := addWorkspaceMember(t, s, "sod-rev", "sod-rev@example.com", platauth.RoleAdmin)
-	assert.Equal(t, http.StatusOK,
-		do(t, s, http.MethodPut, "/api/v1/test/p-sod/blocks/main/bs/status", reviewerToken, `{"status":"published"}`))
-}
-
-// TestPublishSoDReadsTheTargetAuthor proves the four-eyes gate on publishing
-// asks who wrote the translation, per language, rather than reading the newest
-// attributed row of the block's history. The decision ledger and a settled
-// projection write into the same author column, so the block-global reading
-// named the last decider (or "system") as the translator.
-func TestPublishSoDReadsTheTargetAuthor(t *testing.T) {
+// The separation-of-duties gate on establishing a translation asks who wrote
+// the translation, per language, rather than reading the newest attributed row
+// of the block's history. The decision ledger and a settled projection write
+// into the same author column, so the block-global reading named the last
+// decider (or "system") as the translator.
+func TestEstablishSoDReadsTheTargetAuthor(t *testing.T) {
 	s, ownerToken := newTestServer(t)
 	cs := s.ContentStore
 	ctx := t.Context()
 	require.NoError(t, s.AuthStore.SetSoDMode(ctx, "test-ws", platauth.SoDBlock))
 	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{
-		ID: "p-pub", Name: "Publish SoD", DefaultSourceLanguage: "en", WorkspaceID: "test-ws",
+		ID: "p-pub", Name: "Establish SoD", DefaultSourceLanguage: "en",
+		TargetLanguages: []model.LocaleID{"fr", "de"}, WorkspaceID: "test-ws",
 	}))
-	require.NoError(t, cs.StoreItem(ctx, "p-pub", "main", &platstore.Item{
-		Name: "greetings.txt", Format: "txt", ItemType: "file",
-	}))
-	// Storing under an item mints the block a project-unique id and keeps the
-	// caller's as its source id, so the address the routes take comes back from
-	// the store rather than from the literal above.
-	storeBlock := func(blk *model.Block) string {
-		t.Helper()
-		sourceID := blk.ID
-		require.NoError(t, cs.StoreBlocksForItem(ctx, "p-pub", "main", "greetings.txt", []*model.Block{blk}))
-		stored, err := cs.GetBlocks(ctx, platstore.BlockQuery{ProjectID: "p-pub", Stream: "main", ItemName: "greetings.txt"})
-		require.NoError(t, err)
-		for _, sb := range stored {
-			if sb.SourceID == sourceID {
-				return sb.Block.ID
-			}
-		}
-		t.Fatalf("block %s not stored", sourceID)
-		return ""
-	}
 	newBlock := func(id string) string {
 		t.Helper()
-		return storeBlock(model.NewBlock(id, "hi "+id))
+		return storeItemBlock(t, cs, "p-pub", "greetings.txt", model.NewBlock(id, "hi "+id))
 	}
-	// The translator holds translate and no review, so every publish below is
-	// the owner's or the reviewer's, and what varies is who wrote the wording.
 	translatorToken := addWorkspaceMember(t, s, "pub-tr", "pub-tr@example.com", platauth.RoleMember)
 	reviewerToken := addWorkspaceMember(t, s, "pub-rev", "pub-rev@example.com", platauth.RoleAdmin)
 
-	write := func(token, blockID, locale, text string) {
+	write := func(token, bid, locale, text string) {
 		t.Helper()
-		require.Less(t, do(t, s, http.MethodPut, "/api/v1/test/p-pub/blocks/main/"+blockID, token,
-			`{"target_locale":"`+locale+`","text":"`+text+`"}`), 300)
+		code, res := postChanges(t, s, token, "p-pub", translateOp(t, cs, "p-pub", "greetings.txt", bid, locale, text))
+		require.Equal(t, http.StatusOK, code, "%+v", res)
 	}
-	publish := func(token, blockID, body string) int {
-		return do(t, s, http.MethodPut, "/api/v1/test/p-pub/blocks/main/"+blockID+"/status", token, body)
+	establish := func(token, bid, locale string) int {
+		t.Helper()
+		sb, err := cs.GetBlock(ctx, "p-pub", "main", bid)
+		require.NoError(t, err)
+		code, _ := postChanges(t, s, token, "p-pub", decide(at("greetings.txt", bid, locale),
+			platstore.TargetRevision(sb, model.LocaleID(locale)), change.OutcomeEstablish))
+		return code
 	}
 
-	t.Run("the author of the locale being published is refused", func(t *testing.T) {
+	t.Run("the author of the locale being established is refused", func(t *testing.T) {
 		bid := newBlock("b-own")
 		write(ownerToken, bid, "fr", "bonjour")
-		assert.Equal(t, http.StatusForbidden, publish(ownerToken, bid, `{"status":"published","locale":"fr"}`))
+		assert.Equal(t, http.StatusForbidden, establish(ownerToken, bid, "fr"))
 	})
 
 	t.Run("a later decision by somebody else keeps the author refused", func(t *testing.T) {
 		bid := newBlock("b-dec")
 		write(ownerToken, bid, "fr", "bonjour")
-		// The reviewer approves the target, which files a decision row against
-		// the block carrying the reviewer's identity. Reading the newest
-		// attributed row names the reviewer and lets the owner publish wording
-		// the owner wrote.
-		require.Equal(t, http.StatusOK, do(t, s, http.MethodPut, "/api/v1/test/p-pub/blocks/main/"+bid+"/review",
-			reviewerToken, `{"target_locale":"fr","reviewed":true}`))
-		assert.Equal(t, http.StatusForbidden, publish(ownerToken, bid, `{"status":"published","locale":"fr"}`))
+		require.Equal(t, http.StatusOK, establish(reviewerToken, bid, "fr"))
+		write(reviewerToken, bid, "fr", "bonjour !")
+		write(ownerToken, bid, "fr", "bonjour")
+		assert.Equal(t, http.StatusForbidden, establish(ownerToken, bid, "fr"))
 	})
 
 	t.Run("recording a decision after somebody else's edit is not authorship", func(t *testing.T) {
 		bid := newBlock("b-mine")
 		write(translatorToken, bid, "fr", "bonjour")
 		recordDecision(t, cs, "p-pub", bid, "fr", "test-user")
-		assert.Equal(t, http.StatusOK, publish(ownerToken, bid, `{"status":"published","locale":"fr"}`))
+		assert.Equal(t, http.StatusOK, establish(ownerToken, bid, "fr"))
 	})
 
 	t.Run("authoring one language does not hold up another", func(t *testing.T) {
 		bid := newBlock("b-two")
 		write(ownerToken, bid, "fr", "bonjour")
 		write(translatorToken, bid, "de", "guten tag")
-		assert.Equal(t, http.StatusForbidden, publish(ownerToken, bid, `{"status":"published","locale":"fr"}`))
-		assert.Equal(t, http.StatusOK, publish(ownerToken, bid, `{"status":"published","locale":"de"}`))
+		assert.Equal(t, http.StatusForbidden, establish(ownerToken, bid, "fr"))
+		assert.Equal(t, http.StatusOK, establish(ownerToken, bid, "de"))
 	})
 
-	t.Run("a target nobody wrote is publishable", func(t *testing.T) {
+	t.Run("a translation nobody wrote is establishable", func(t *testing.T) {
 		blk := model.NewBlock("b-machine", "hi machine")
 		blk.SetTargetText("fr", "bonjour")
-		bid := storeBlock(blk)
-		assert.Equal(t, http.StatusOK, publish(ownerToken, bid, `{"status":"published","locale":"fr"}`))
-	})
-
-	t.Run("a block the project does not hold is still a 404", func(t *testing.T) {
-		assert.Equal(t, http.StatusNotFound, publish(ownerToken, "b-absent", `{"status":"published"}`))
-	})
-
-	t.Run("naming no locale judges every language the block holds", func(t *testing.T) {
-		bid := newBlock("b-all")
-		write(translatorToken, bid, "fr", "bonjour")
-		write(ownerToken, bid, "de", "guten tag")
-		assert.Equal(t, http.StatusForbidden, publish(ownerToken, bid, `{"status":"published"}`))
-		assert.Equal(t, http.StatusOK, publish(reviewerToken, bid, `{"status":"published"}`))
+		bid := storeItemBlock(t, cs, "p-pub", "greetings.txt", blk)
+		assert.Equal(t, http.StatusOK, establish(ownerToken, bid, "fr"))
 	})
 }
 
 // recordDecision files a ledger decision on one target, naming decider as the
 // person who made it. The ledger writes it into the same block_history column a
-// translation is attributed in, which is what the publish gate must look past.
+// translation is attributed in, which is what the separation-of-duties gate
+// must look past.
 func recordDecision(t *testing.T, cs platstore.ContentStore, projectID, blockID, locale, decider string) {
 	t.Helper()
 	ds, ok := cs.(platstore.DecisionStore)

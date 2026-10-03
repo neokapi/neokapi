@@ -20,147 +20,11 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// CreateEntityRequest creates a new entity annotation on a block.
-type CreateEntityRequest struct {
-	Text   string `json:"text"`
-	Type   string `json:"type"`
-	Start  int    `json:"start"`
-	End    int    `json:"end"`
-	DNT    bool   `json:"dnt"`
-	Locale string `json:"locale,omitempty"`
-}
-
-// UpdateEntityRequest updates an existing entity annotation.
-type UpdateEntityRequest struct {
-	Type string `json:"type,omitempty"`
-	DNT  *bool  `json:"dnt,omitempty"`
-}
-
-// HandleCreateEntity adds a new entity annotation to a block (manual marking).
-func (s *Server) HandleCreateEntity(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermEditSource); err != nil {
-		return err
-	}
-
-	if s.ContentStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
-	}
-
-	projectID := projectParam(c)
-	blockID := c.Param("bid")
-
-	var req CreateEntityRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-
-	// The span is added to the block as the write holds it, on the route's
-	// stream: two marks made at once get distinct keys, and a block removed in
-	// the meantime is not stored again.
-	var key string
-	updated, err := s.ContentStore.UpdateBlock(c.Request().Context(), projectID, streamParam(c), blockID, func(sb *venue.StoredBlock) error {
-		block := sb.Block
-		// The span is anchored in the edition the block was read in.
-		src, _ := block.Edition(model.EditionKey{})
-		// Find next entity index and add a positional entity overlay span.
-		idx := nextOverlaySpanIndex(block, model.OverlayEntity, "entity:")
-		key = fmt.Sprintf("entity:%d", idx)
-		block.AddOverlaySpan(model.OverlayEntity, model.Span{
-			ID:    key,
-			Range: model.RangeAnchorForBytes(src.Runs, req.Start, req.End),
-			Value: &model.EntityAnnotation{
-				Text:   req.Text,
-				Type:   model.EntityType(req.Type),
-				DNT:    req.DNT,
-				Source: model.ExtractionSourceManual,
-				Locale: model.LocaleID(req.Locale),
-			},
-		})
-		return nil
-	})
-	if err != nil {
-		return entityWriteErr(c, updated, err)
-	}
-
-	return c.JSON(http.StatusCreated, EntityInfoResponse{
-		Key:    key,
-		Text:   req.Text,
-		Type:   req.Type,
-		Start:  req.Start,
-		End:    req.End,
-		DNT:    req.DNT,
-		Source: "manual",
-		Locale: req.Locale,
-	})
-}
-
-// HandleUpdateEntity updates an existing entity annotation on a block.
-func (s *Server) HandleUpdateEntity(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermEditSource); err != nil {
-		return err
-	}
-
-	if s.ContentStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
-	}
-
-	projectID := projectParam(c)
-	blockID := c.Param("bid")
-	entityKey := "entity:" + c.Param("idx")
-
-	var req UpdateEntityRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-
-	updated, err := s.ContentStore.UpdateBlock(c.Request().Context(), projectID, streamParam(c), blockID, func(sb *venue.StoredBlock) error {
-		entity, err := entityAt(sb.Block, entityKey)
-		if err != nil {
-			return err
-		}
-		// entity points into the block's overlay, so these edits change the span
-		// in place.
-		if req.Type != "" {
-			entity.Type = model.EntityType(req.Type)
-		}
-		if req.DNT != nil {
-			entity.DNT = *req.DNT
-		}
-		return nil
-	})
-	if err != nil {
-		return entityWriteErr(c, updated, err)
-	}
-
-	return c.NoContent(http.StatusNoContent)
-}
-
-// HandleDeleteEntity removes an entity annotation from a block.
-func (s *Server) HandleDeleteEntity(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermEditSource); err != nil {
-		return err
-	}
-
-	if s.ContentStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
-	}
-
-	projectID := projectParam(c)
-	blockID := c.Param("bid")
-	entityKey := "entity:" + c.Param("idx")
-
-	updated, err := s.ContentStore.UpdateBlock(c.Request().Context(), projectID, streamParam(c), blockID, func(sb *venue.StoredBlock) error {
-		if !sb.Block.RemoveOverlaySpan(model.OverlayEntity, entityKey) {
-			return errEntityNotFound
-		}
-		return nil
-	})
-	if err != nil {
-		return entityWriteErr(c, updated, err)
-	}
-
-	return c.NoContent(http.StatusNoContent)
-}
+// An entity on a block is an annotation of type entity on the block's own
+// edition: a change set marks one with annotate ({"type": "entity", "anchor":
+// …, "value": {"text", "type", "dnt", …}}), changes it with annotate under the
+// same id, and removes it with unannotate, through the stream's changes route.
+// Promoting a marked entity to a term candidate or a concept is its own action.
 
 // HandlePromoteEntity promotes an entity annotation to a term candidate review item.
 func (s *Server) HandlePromoteEntity(c echo.Context) error {
@@ -174,11 +38,11 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 
 	projectID := projectParam(c)
 	blockID := c.Param("bid")
-	entityKey := "entity:" + c.Param("idx")
 
 	var tcKey string
 	updated, err := s.ContentStore.UpdateBlock(c.Request().Context(), projectID, streamParam(c), blockID, func(sb *venue.StoredBlock) error {
 		block := sb.Block
+		entityKey := entitySpanID(block, c.Param("idx"))
 		entity, err := entityAt(block, entityKey)
 		if err != nil {
 			return err
@@ -238,7 +102,6 @@ func (s *Server) HandlePromoteEntityToConcept(c echo.Context) error {
 	actor, _ := c.Get("user_id").(string)
 	projectID := projectParam(c)
 	blockID := c.Param("bid")
-	entityKey := "entity:" + c.Param("idx")
 	itemName := c.QueryParam("item")
 
 	ctx := c.Request().Context()
@@ -246,7 +109,7 @@ func (s *Server) HandlePromoteEntityToConcept(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
-	span := block.OverlaySpan(model.OverlayEntity, entityKey)
+	span := block.OverlaySpan(model.OverlayEntity, entitySpanID(block, c.Param("idx")))
 	if span == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
 	}
@@ -343,6 +206,16 @@ var (
 	errEntityNotFound      = errors.New("entity not found")
 	errNotEntityAnnotation = errors.New("not an entity annotation")
 )
+
+// entitySpanID is the id of the entity span a route's :idx names: the span's
+// own id (what a read lists as the entity's key, and what annotate wrote), or
+// the index an extraction numbered "entity:N" by.
+func entitySpanID(block *model.Block, idx string) string {
+	if block.OverlaySpan(model.OverlayEntity, idx) != nil {
+		return idx
+	}
+	return "entity:" + idx
+}
 
 // entityAt is the entity annotation a block holds under key.
 func entityAt(block *model.Block, key string) (*model.EntityAnnotation, error) {
