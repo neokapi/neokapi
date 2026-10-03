@@ -116,3 +116,20 @@ func BenchmarkChangeRead_TranslatedDocument(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkInterchangeRevisions measures the read kapi extract makes of every
+// (source, target) pair: the source with its translation's file joined, for
+// the revisions each unit carries.
+func BenchmarkInterchangeRevisions(b *testing.B) {
+	_, svc := translatedGuide(b, 400)
+	ctx := context.Background()
+	for b.Loop() {
+		revs, err := interchangeRevisions(ctx, svc, "docs/guide.md", "fr")
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(revs) < 400 {
+			b.Fatalf("read %d units", len(revs))
+		}
+	}
+}
