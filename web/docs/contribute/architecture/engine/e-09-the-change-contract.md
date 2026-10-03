@@ -324,8 +324,10 @@ A printing `kapi up` runs one pass. A gated pass drafts into its private tree
 as any pass does (`Options.WriteUnder` lets the printing home write there),
 the gate decides from the drafts, and delivery prints what it would commit for
 each locale that clears its gate; a parked locale is named and prints nothing.
-A printing run absorbs nothing into the content memory and stamps nothing; the
-derived store and caches under `.kapi/work` are refreshed as on any run. In a
+A printing run records no change, absorbs nothing into the content memory and
+stamps nothing. As any pass does, it extracts the source into the derived store
+and caches under `.kapi/work`, and records the identity of a document it reads
+for the first time (`document.adopt`). In a
 project a `kapi translate`, `pseudo-translate` or `run` without `-o` writes no
 file, and prints nothing with a note.
 
