@@ -17,7 +17,7 @@ import (
 func TestBlockRoundTrip_SameLanguageTarget(t *testing.T) {
 	b := model.NewBlock("b1", "colour source")
 	b.SourceLocale = "en-US"
-	b.SourceStatus = model.SourceStatusEstablished
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusEstablished))
 	b.SetTargetVariant(model.Variant("en-US"), &model.Target{
 		Runs:   []model.Run{model.TextR("colour target")},
 		Status: model.TargetStatusTranslated,
@@ -35,10 +35,10 @@ func TestBlockRoundTrip_SameLanguageTarget(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "colour source", model.RunsText(src.Runs))
 	assert.Equal(t, model.Status(model.SourceStatusEstablished), src.Status)
-	tgt := got.Target("en-US")
-	require.NotNil(t, tgt)
+	tgt, ok := got.Edition(model.Variant("en-US"))
+	require.True(t, ok)
 	assert.Equal(t, "colour target", model.RunsText(tgt.Runs))
-	assert.Equal(t, model.TargetStatusTranslated, tgt.Status)
+	assert.Equal(t, model.Status(model.TargetStatusTranslated), tgt.Status)
 	assert.Equal(t, model.OriginHuman, tgt.Origin.Kind)
 	_, edited := got.SourceAsRead()
 	assert.False(t, edited, "a decoded block holds its source as read")
@@ -52,7 +52,7 @@ func TestBlockToProto_UnreachableEditionIsNotSentEmpty(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	b.SourceLocale = "en-US"
 	b.Targets[model.VariantKey{Locale: "nb_NO"}] = &model.Target{Runs: []model.Run{model.TextR("Hei")}}
-	b.SetTargetVariant(model.Variant("fr-FR"), &model.Target{Runs: []model.Run{model.TextR("Bonjour")}})
+	b.SetEdition(model.Variant("fr-FR"), model.Edition{Runs: []model.Run{model.TextR("Bonjour")}})
 
 	sb := BlockToProto(b, "item")
 

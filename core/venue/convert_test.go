@@ -72,16 +72,16 @@ func TestBlockTargetStatusRoundTrip(t *testing.T) {
 
 	b2, err := ProtoToBlock(BlockToProto(b, "en.json"))
 	require.NoError(t, err)
-	tgt := b2.Target("fr")
-	require.NotNil(t, tgt)
+	tgt, ok := b2.Edition(model.Variant("fr"))
+	require.True(t, ok)
 	assert.Equal(t, "Bonjour", b2.TargetText("fr"))
-	assert.Equal(t, model.TargetStatusEstablished, tgt.Status, "lifecycle status survives sync")
+	assert.Equal(t, model.Status(model.TargetStatusEstablished), tgt.Status, "lifecycle status survives sync")
 }
 
 func TestBlockSourceStatusRoundTrip(t *testing.T) {
 	b := &model.Block{ID: "b1", Translatable: true, Properties: map[string]string{"keep": "me"}}
 	b.SetSourceText("Hello")
-	b.SourceStatus = model.SourceStatusWritten
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusWritten))
 
 	sb := BlockToProto(b, "en.json")
 	// The reserved key must not leak the caller's Properties map.
@@ -89,7 +89,7 @@ func TestBlockSourceStatusRoundTrip(t *testing.T) {
 
 	b2, err := ProtoToBlock(sb)
 	require.NoError(t, err)
-	assert.Equal(t, model.SourceStatusWritten, b2.SourceStatus, "source authoring state survives sync")
+	assert.Equal(t, model.SourceStatusWritten, sourceStatus(b2), "source authoring state survives sync")
 	assert.Equal(t, "me", b2.Properties["keep"], "real properties survive")
 	_, leaked := b2.Properties["__source_status"]
 	assert.False(t, leaked, "the reserved source-status key must be stripped, not surfaced as a property")
@@ -101,7 +101,7 @@ func TestBlockSourceStatusRoundTrip(t *testing.T) {
 // inherited from core/plugin/protoconvert.
 func TestBlockRunAttrsRoundTrip(t *testing.T) {
 	b := &model.Block{ID: "b1", Translatable: true}
-	b.Source = []model.Run{
+	b.SetSourceRuns([]model.Run{
 		{Text: &model.TextRun{Text: "See "}},
 		{PcOpen: &model.PcOpenRun{
 			ID: "lnk1", Type: "link:hyperlink", Data: `<a href="https://example.com" title="Docs">`,
@@ -114,7 +114,7 @@ func TestBlockRunAttrsRoundTrip(t *testing.T) {
 			ID: "img1", Type: "link:image", Data: `![Logo](img/logo.png)`, Equiv: "img",
 			Attrs: map[string]string{model.AttrSrc: "img/logo.png", model.AttrAlt: "Logo"},
 		}},
-	}
+	})
 	b.SetTargetRuns("fr", []model.Run{
 		{Text: &model.TextRun{Text: "Voir "}},
 		{Ph: &model.PlaceholderRun{
@@ -125,7 +125,7 @@ func TestBlockRunAttrsRoundTrip(t *testing.T) {
 
 	b2, err := ProtoToBlock(BlockToProto(b, "en.json"))
 	require.NoError(t, err)
-	assert.Equal(t, b.Source, b2.Source, "source runs (incl. Attrs) survive sync")
+	assert.Equal(t, b.SourceRuns(), b2.SourceRuns(), "source runs (incl. Attrs) survive sync")
 	assert.Equal(t, b.TargetRuns("fr"), b2.TargetRuns("fr"), "target runs (incl. Attrs) survive sync")
 }
 
@@ -176,4 +176,10 @@ func TestComputeRootHash_DifferentItems(t *testing.T) {
 	h1 := ComputeRootHash(map[string]string{"en.json": "hash1"})
 	h2 := ComputeRootHash(map[string]string{"en.json": "hash2"})
 	assert.NotEqual(t, h1, h2)
+}
+
+// sourceStatus is the status of the edition b was read in.
+func sourceStatus(b *model.Block) model.SourceStatus {
+	src, _ := b.Edition(model.EditionKey{})
+	return model.SourceStatus(src.Status)
 }
