@@ -32,26 +32,43 @@ func latin1Block() *model.Block {
 	return b
 }
 
-// An operation that rewrites the text of an edition holding bytes that are not
-// UTF-8 is refused: the sender read U+FFFD where those bytes are, and the edit
-// would write it over them. An operation that leaves the text alone, and an
-// edit of an edition whose text is UTF-8, land, and the bytes stay as they
-// were.
+// latin1Lead is the block's first text run as the file holds it.
+const latin1Lead = "Caf\xe9 au "
+
+// replacementChar is U+FFFD, which a read shows for each byte that is not
+// UTF-8.
+const replacementChar = "\uFFFD"
+
+// An operation that would write U+FFFD over bytes of an edition that are not
+// UTF-8 is refused: replace_text and mark rebuild the text around their edit,
+// and a set_content carrying U+FFFD sends back the character a read shows for
+// those bytes. A set_content that states every character replaces them, and
+// an operation that leaves the text alone, or an edit of an edition whose text
+// is UTF-8, keeps them as they were.
 func TestApplyBlock_TextThatIsNotUTF8(t *testing.T) {
 	env := withFormat(person, htmlCaps())
 	tests := []struct {
 		name    string
 		op      func(b *model.Block) change.Op
 		refused bool
+		lead    string
 	}{
 		{name: "replace_text", refused: true, op: func(b *model.Block) change.Op {
 			return replace("", sourceRev(b), find("lait", "crème"))
 		}},
-		{name: "set_content", refused: true, op: func(b *model.Block) change.Op {
-			return setText("", sourceRev(b), `Caf� au <x id="1"/>crème<x id="/1"/>.`)
-		}},
 		{name: "mark", refused: true, op: func(b *model.Block) change.Op {
 			return mark("", sourceRev(b), findSel("au"), "fmt:bold", nil)
+		}},
+		{name: "set_content carrying U+FFFD", refused: true, op: func(b *model.Block) change.Op {
+			return setText("", sourceRev(b), "Caf"+replacementChar+` au <x id="1"/>cr`+"è"+`me<x id="/1"/>.`)
+		}},
+		{name: "set_content in runs carrying U+FFFD", refused: true, op: func(b *model.Block) change.Op {
+			runs := latin1Runs()
+			runs[0] = model.TextR("Caf" + replacementChar + " au ")
+			return setRuns("", sourceRev(b), runs)
+		}},
+		{name: "set_content stating every character", lead: "Café au ", op: func(b *model.Block) change.Op {
+			return setText("", sourceRev(b), "Café au "+`<x id="1"/>lait<x id="/1"/>.`)
 		}},
 		{name: "set_attribute", op: func(b *model.Block) change.Op {
 			return setAttr("", sourceRev(b), "1", "href", "https://new.example/milk")
@@ -76,7 +93,11 @@ func TestApplyBlock_TextThatIsNotUTF8(t *testing.T) {
 				return
 			}
 			requireApplied(t, res)
-			assert.Equal(t, "Caf\xe9 au ", b.Source[0].Text.Text, "the bytes stay as the file holds them")
+			want := tc.lead
+			if want == "" {
+				want = latin1Lead
+			}
+			assert.Equal(t, want, b.Source[0].Text.Text)
 		})
 	}
 
@@ -91,9 +112,11 @@ func TestApplyBlock_TextThatIsNotUTF8(t *testing.T) {
 	})
 }
 
-// A read lists no operation that rewrites the text of a block whose text is
-// not UTF-8, and keeps the operations that leave the text alone.
-func TestService_ReadListsNoTextEditForTextThatIsNotUTF8(t *testing.T) {
+// A read of a block whose text is not UTF-8 lists no operation that rebuilds
+// its text, and keeps set_content and the operations that leave the text
+// alone. Through the service, a set_content carrying the U+FFFD the read
+// showed is refused and writes nothing; one stating every character lands.
+func TestService_ReadListsNoTextRebuildForTextThatIsNotUTF8(t *testing.T) {
 	h := newMemHome(map[string][]memBlock{
 		"a": {
 			{key: "latin1", translatable: true, editions: map[model.EditionKey][]model.Run{{}: {model.TextR("Caf\xe9 au lait")}}},
@@ -106,17 +129,21 @@ func TestService_ReadListsNoTextEditForTextThatIsNotUTF8(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, page.Blocks, 2)
 	latin1, plain := page.Blocks[0], page.Blocks[1]
-	assert.Contains(t, plain.Ops, change.KindSetContent)
 	assert.Contains(t, plain.Ops, change.KindReplaceText)
-	assert.NotContains(t, latin1.Ops, change.KindSetContent)
 	assert.NotContains(t, latin1.Ops, change.KindReplaceText)
-	assert.NotContains(t, latin1.Ops, change.KindMark)
-	assert.Contains(t, latin1.Ops, change.KindRemoveEdition, "an operation that leaves the text alone is listed")
+	assert.Contains(t, latin1.Ops, change.KindSetContent)
+	assert.Contains(t, latin1.Ops, change.KindRemoveEdition)
 
-	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{edit(latin1.Ref, latin1.Rev, "Café au lait")}}, svcPerson)
+	// The text as a JSON answer carries it: U+FFFD for the byte.
+	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{edit(latin1.Ref, latin1.Rev, "Caf"+replacementChar+" au lait")}}, svcPerson)
 	require.NoError(t, err)
 	require.Equal(t, change.SetRefused, res.Status)
 	require.NotNil(t, res.Ops[0].Error)
 	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
 	assert.Equal(t, before, h.snapshot("a"), "nothing is written")
+
+	res, err = svc.Apply(context.Background(), change.Set{Ops: []change.Op{edit(latin1.Ref, latin1.Rev, "Café au lait")}}, svcPerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.Equal(t, "Café au lait", readBlock(t, svc, "a", "latin1").Text)
 }

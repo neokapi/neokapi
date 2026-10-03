@@ -125,9 +125,10 @@ refused, nothing in the change set is written, the refused operation carries an
 - **`unsupported`**: the block or format takes no such operation, such as a
   Markdown code block, which `inspect` lists with no `ops`. A block of a file
   in another encoding than UTF-8 shows `�` in its text and lists no
-  `set_content` or `replace_text`; an edit of it is refused with capability
-  `encoding`, since it would overwrite the bytes you cannot see. Ask the user
-  to convert the file to UTF-8 first.
+  `replace_text`. An edit that would write `�` over the bytes you cannot see,
+  a `replace_text` or a `set_content` whose text still holds `�`, is refused
+  with capability `encoding`. Send the block's whole text with `set_content`,
+  every character stated, or ask the user to convert the file to UTF-8.
 
 A refusal exits **3**, distinct from an operational error: re-read the affected
 blocks and resend with fresh revisions, the same loop a failing check drives. A

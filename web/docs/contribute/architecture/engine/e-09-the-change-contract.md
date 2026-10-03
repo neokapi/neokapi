@@ -472,8 +472,8 @@ no files or operations, and the error.
 - An operation reported `applied` reached the file. One the format has no
   place for in that file is refused.
 - Bytes kapi could not read as UTF-8, in a file in another encoding, are never
-  rewritten: an operation that rewrites the text of a block holding them is
-  refused as `unsupported`, and edits elsewhere in the file keep them.
+  overwritten with the U+FFFD a read shows for them: an edit that would write it
+  there is refused as `unsupported`, and edits elsewhere in the file keep them.
 - A change set is all or nothing across documents up to the final renames.
   Records follow the commit, so a record that fails to write leaves content
   that the next read finds and records as observed.

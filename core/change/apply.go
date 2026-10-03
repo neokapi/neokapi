@@ -260,10 +260,8 @@ func (w *workset) precondition(op Op) (*Error, *Current) {
 
 // apply applies one admitted operation to the workset.
 func (w *workset) apply(op Op, res *OpResult) *Error {
-	if writesText(op.Kind) {
-		if err := w.utf8Text(op); err != nil {
-			return err
-		}
+	if err := w.utf8Text(op); err != nil {
+		return err
 	}
 	switch body := op.Body.(type) {
 	case *SetContent:
@@ -286,43 +284,69 @@ func (w *workset) apply(op Op, res *OpResult) *Error {
 	return errorf(CodeInvalid, "%s is not applied to a block", op.Kind)
 }
 
-// writesText reports whether an operation of kind rewrites the text of the
-// edition it names: set_content replaces it, and replace_text and mark rebuild
-// it around the positions they resolve.
-func writesText(kind Kind) bool {
-	return kind == KindSetContent || kind == KindReplaceText || kind == KindMark
+// rebuildsText reports whether an operation of kind rebuilds the text of the
+// edition it names around the positions it resolves: replace_text and mark.
+func rebuildsText(kind Kind) bool {
+	return kind == KindReplaceText || kind == KindMark
 }
 
-// utf8Text refuses an operation that rewrites the text of an edition holding
-// bytes that are not UTF-8. A reader hands such bytes on as they are when a
-// file is in another encoding, and kapi reads every file as UTF-8, so the text
-// a read shows has U+FFFD in their place and the edit would write that
-// character over the bytes the sender never saw. An operation that leaves the
-// text alone, and an edit of another edition or block, keep those bytes.
+// utf8Text refuses an operation that would write U+FFFD over bytes of an
+// edition that are not UTF-8. A reader hands such bytes on as they are when a
+// file is in another encoding, and kapi reads every file as UTF-8, so a read
+// shows U+FFFD in their place. replace_text and mark rebuild the text around
+// their edit, which writes U+FFFD over every such byte, and a set_content
+// carrying U+FFFD sends the read's character back where the bytes stood. A
+// set_content that states every character replaces the bytes, and an
+// operation that leaves the text alone, or an edit of another edition or
+// block, keeps them.
 func (w *workset) utf8Text(op Op) *Error {
+	var why string
+	switch {
+	case rebuildsText(op.Kind):
+		why = fmt.Sprintf("%s would write U+FFFD over them; send the whole text with set_content, every character stated", op.Kind)
+	case op.Kind == KindSetContent:
+		body, _ := op.Body.(*SetContent)
+		if body == nil || !carriesReplacement(body.Content) {
+			return nil
+		}
+		why = "the U+FFFD this set_content carries would replace them; send the text with every character stated"
+	default:
+		return nil
+	}
 	st := w.state(op.At.Edition)
 	if !st.present || runsUTF8(st.ed.Runs) {
 		return nil
 	}
 	return &Error{Code: CodeUnsupported, Capability: "encoding",
-		Message: fmt.Sprintf("edition %s holds bytes that are not UTF-8, which a read shows as U+FFFD: the file is in another encoding, "+
-			"and kapi reads and writes UTF-8, so %s would rewrite those bytes; convert the file to UTF-8 and edit it then", w.label(st), op.Kind)}
+		Message: fmt.Sprintf("edition %s holds bytes that are not UTF-8, which a read shows as U+FFFD, because the file is in another encoding "+
+			"and kapi reads it as UTF-8: %s, or convert the file to UTF-8", w.label(st), why)}
 }
 
-// runsUTF8 reports whether the text of runs, plural forms and select cases
-// included, is UTF-8.
-func runsUTF8(runs []model.Run) bool {
+// carriesReplacement reports whether content holds U+FFFD, the character a
+// read shows for a byte that is not UTF-8.
+func carriesReplacement(c Content) bool {
+	free := func(s string) bool { return !strings.ContainsRune(s, utf8.RuneError) }
+	if c.Text != nil {
+		return !free(*c.Text)
+	}
+	return !everyText(c.Runs, free)
+}
+
+// runsUTF8 reports whether the text of runs is UTF-8.
+func runsUTF8(runs []model.Run) bool { return everyText(runs, utf8.ValidString) }
+
+// everyText reports whether ok holds for the text of every text run of runs,
+// plural forms and select cases included.
+func everyText(runs []model.Run, ok func(string) bool) bool {
 	for _, r := range runs {
-		if r.Text != nil && !utf8.ValidString(r.Text.Text) {
+		if r.Text != nil && !ok(r.Text.Text) {
 			return false
 		}
-		ok := true
+		all := true
 		forEachBranch(r, func(branch []model.Run) {
-			if ok && !runsUTF8(branch) {
-				ok = false
-			}
+			all = all && everyText(branch, ok)
 		})
-		if !ok {
+		if !all {
 			return false
 		}
 	}

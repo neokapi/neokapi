@@ -321,9 +321,9 @@ func TestChangesJSON_TranslatesABilingualCatalogInPlace(t *testing.T) {
 }
 
 // A file in another encoding reaches the content model as bytes that are not
-// UTF-8, which a read shows as U+FFFD. An edit of the block holding them is
-// refused rather than writing U+FFFD over them, and the block lists no
-// operation that rewrites its text; an edit of another block lands and keeps
+// UTF-8, which a read shows as U+FFFD. An edit that would write U+FFFD over
+// them is refused, a replace_text or a set_content of the read's text, and
+// the block lists no replace_text; an edit of another block lands and keeps
 // them.
 func TestChangesJSON_KeepsBytesThatAreNotUTF8(t *testing.T) {
 	const notes = "Caf\xe9 au lait\n\nSecond line here\n"
@@ -334,7 +334,7 @@ func TestChangesJSON_KeepsBytesThatAreNotUTF8(t *testing.T) {
 	require.NoError(t, err)
 	var page change.Page
 	require.NoError(t, json.Unmarshal(out, &page), string(out))
-	cafe := blockWith(t, &page, "Caf� au lait")
+	cafe := blockWith(t, &page, "Caf\uFFFD au lait")
 	second := blockWith(t, &page, "Second line here")
 	assert.NotContains(t, cafe.Ops, change.KindReplaceText)
 	assert.Contains(t, second.Ops, change.KindReplaceText)
@@ -353,6 +353,15 @@ func TestChangesJSON_KeepsBytesThatAreNotUTF8(t *testing.T) {
 	got, err := os.ReadFile(filepath.Join(dir, "notes.txt"))
 	require.NoError(t, err)
 	assert.Equal(t, notes, string(got), "a refusal writes nothing")
+
+	// The text the read answered, edited and sent back whole, still carries
+	// U+FFFD where the byte stands.
+	out, err = a.ApplyChangesJSON(ctx, "browser", asJSON(t, map[string]any{"ops": []any{map[string]any{"op": "set_content",
+		"at": cafe.Ref, "if_match": cafe.Rev, "text": strings.Replace(cafe.Text, "lait", "chaud", 1)}}}), nil)
+	require.NoError(t, err)
+	res = resultJSON(t, out)
+	require.Equal(t, change.SetRefused, res.Status, "%s", out)
+	assert.Equal(t, "encoding", res.Ops[0].Error.Capability)
 
 	out, err = a.ApplyChangesJSON(ctx, "browser", replace(second, "here", "there"), nil)
 	require.NoError(t, err)
