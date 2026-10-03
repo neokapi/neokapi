@@ -174,6 +174,13 @@ func TestInspectAndApplyAgreeOnAFileOutsideTheProject(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, ExitUsage, ExitCode(nil, err))
 	assert.Contains(t, err.Error(), "outside the project")
+	res, err = applyJSON(t, app, NewEnvCommand(t.Context(), "apply"), changeSetOf(t,
+		map[string]any{"op": "set_content", "at": rec.Ref, "if_match": rec.Rev, "text": "Hey"},
+		map[string]any{"op": "set_content", "at": guide.Ref, "if_match": guide.Rev, "text": "Visit us."}), ApplyOptions{})
+	assert.Equal(t, ExitUsage, ExitCode(nil, err))
+	assert.Equal(t, change.SetRefused, res.Status, "--json answers with the refused result")
+	require.NotNil(t, res.Error)
+	assert.Contains(t, res.Error.Message, "outside the project")
 	assert.JSONEq(t, `{"a": "Hi"}`, fileText(t, outside))
 	assert.Equal(t, "# Guide\n\nVisit the shop today.\n", fileText(t, filepath.Join(root, "docs", "sub", "guide.md")))
 

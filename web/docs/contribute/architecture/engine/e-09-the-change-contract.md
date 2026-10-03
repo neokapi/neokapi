@@ -528,8 +528,8 @@ without another read. A resource bound `core/safeio` reports is
 because it does not decode or the request carrying it is refused, is answered
 with the same result shape (`change.ErrorResult`): status `refused`, no record,
 no files or operations, and the error. `kapi apply --json` prints that result
-for a change set that does not decode, and exits 2, as MCP and the browser
-answer one.
+for a change set that does not decode or contradicts itself, and exits 2, as
+MCP and the browser answer one.
 
 ## Consequences
 

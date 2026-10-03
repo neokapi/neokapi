@@ -137,9 +137,11 @@ refused, nothing in the change set is written, the refused operation carries an
 
 A refusal exits **3**, distinct from an operational error: re-read the affected
 blocks and resend with fresh revisions, the same loop a failing check drives. A
-change set that does not decode exits **2**; over MCP, and from `kapi apply
+change set that does not decode, or mixes what one change set cannot hold
+(code comments with documents), exits **2**; over MCP, and from `kapi apply
 --json`, it is answered with a refused result whose own `error` is `invalid`,
-with the JSON `pointer` of the field to fix, and whose `ops` list is empty. Resending a change set that
+with the JSON `pointer` of the field to fix where one is at fault, and whose
+`ops` list is empty. Resending a change set that
 landed writes nothing: its revisions no longer hold, so it is refused `stale`
 with each block's current text, which already reads as you wrote it. An
 operation reports `unchanged` when its `if_match` still holds and the block

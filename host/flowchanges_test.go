@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"testing"
 
@@ -394,16 +395,38 @@ func TestFlowRun_APrintedSetStatesItsToolAndKapiApplyRecordsTheApplier(t *testin
 		tool = body.Origin.Tool
 	}
 
-	raw, err := json.Marshal(set)
+	write := func(set change.Set) string {
+		raw, err := json.Marshal(set)
+		require.NoError(t, err)
+		path := filepath.Join(t.TempDir(), "change.json")
+		require.NoError(t, os.WriteFile(path, raw, 0o600))
+		return path
+	}
+	run := func(path string, opts ApplyOptions) (string, error) {
+		apply := commitCommand(t, recipe)
+		var stderr bytes.Buffer
+		apply.SetOut(io.Discard)
+		apply.SetErr(&stderr)
+		err := a.RunApply(apply, path, opts)
+		return stderr.String(), err
+	}
+	const note = "kapi apply records the change as yours"
+
+	// A preview, and a change set refused as stale, record nothing and say
+	// nothing about the origin.
+	out, err := run(write(set), ApplyOptions{DryRun: true})
 	require.NoError(t, err)
-	path := filepath.Join(t.TempDir(), "change.json")
-	require.NoError(t, os.WriteFile(path, raw, 0o600))
-	apply := commitCommand(t, recipe)
-	var stderr bytes.Buffer
-	apply.SetOut(io.Discard)
-	apply.SetErr(&stderr)
-	require.NoError(t, a.RunApply(apply, path, ApplyOptions{}))
-	assert.Contains(t, stderr.String(),
+	assert.NotContains(t, out, note)
+	stale := set
+	stale.Ops = slices.Clone(set.Ops)
+	stale.Ops[0].IfMatch = "r:0000000000000000"
+	out, err = run(write(stale), ApplyOptions{})
+	require.Error(t, err)
+	assert.NotContains(t, out, note)
+
+	out, err = run(write(set), ApplyOptions{})
+	require.NoError(t, err)
+	assert.Contains(t, out,
 		"note: 3 operations state how "+tool+" produced their content; kapi apply records the change as yours, and that origin is not kept")
 	assert.FileExists(t, filepath.Join(root, "src", "qps.json"))
 

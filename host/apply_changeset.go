@@ -57,15 +57,11 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		return err
 	}
 	if err := retiredChangeShape(data); err != nil {
-		return a.refuseUndecodable(cmd, opts, &change.Error{Code: change.CodeInvalid, Message: err.Error()}, err)
+		return a.refuseChangeSet(cmd, opts, err)
 	}
 	set, err := change.Decode(bytes.NewReader(data))
 	if err != nil {
-		ce, ok := errors.AsType[*change.Error](err)
-		if !ok || ce == nil {
-			ce = &change.Error{Code: change.CodeInvalid, Message: err.Error()}
-		}
-		return a.refuseUndecodable(cmd, opts, ce, fmt.Errorf("apply: %w", err))
+		return a.refuseChangeSet(cmd, opts, fmt.Errorf("apply: %w", err))
 	}
 	if opts.DryRun {
 		set.Mode = change.ModePreview
@@ -82,9 +78,6 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		return err
 	}
 	actor := changeActorOf(resolved.Actor)
-	if line := toolOriginNote(set, actor); line != "" {
-		fmt.Fprintln(cmd.ErrOrStderr(), line)
-	}
 	// The note each record carries says what applied the change when the
 	// change set gives none, and keeps that a person was at the keyboard of
 	// an agent host's shell.
@@ -103,13 +96,13 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 
 	comments, err := a.commentSet(set, root, a.newCommentDocs(recipe))
 	if err != nil {
-		return WithExitCode(ExitUsage, err)
+		return a.refuseChangeSet(cmd, opts, err)
 	}
 	// A document named by its absolute path outside the project is a file
 	// kapi inspect read outside it, edited as a file outside any project is.
 	outside, err := outsideProject(set, recipe)
 	if err != nil {
-		return WithExitCode(ExitUsage, err)
+		return a.refuseChangeSet(cmd, opts, err)
 	}
 	var res *change.Result
 	if comments {
@@ -138,6 +131,9 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 	if res.Status == change.SetApplied || res.Status == change.SetPartial {
 		a.noteAgentEdits(ctx, recipe, resolved.Actor, appliedWordings(set, res))
 	}
+	if line := toolOriginNote(set, res, actor); line != "" {
+		fmt.Fprintln(cmd.ErrOrStderr(), line)
+	}
 
 	if opts.JSON {
 		if err := writeChangeResult(cmd.OutOrStdout(), res); err != nil {
@@ -158,13 +154,26 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 }
 
 // toolOriginNote is the one line kapi apply prints when operations of a
-// change set state how a tool produced their content, as a run printed with
-// --print-ops states it: the change is recorded as the sender's edit, so the
-// tool's origin is not kept. Empty when no operation states one.
-func toolOriginNote(set change.Set, actor change.Actor) string {
+// change set that landed state how a tool produced their content, as a run
+// printed with --print-ops states it: the change is recorded as the sender's
+// edit, so the tool's origin is not kept. Empty when no operation that landed
+// states one, so a refused or previewed change set prints nothing.
+func toolOriginNote(set change.Set, res *change.Result, actor change.Actor) string {
+	if set.Mode == change.ModePreview {
+		return ""
+	}
+	landed := map[int]bool{}
+	for _, r := range res.Ops {
+		if r.Status == change.OpApplied {
+			landed[r.I] = true
+		}
+	}
 	var tools []string
 	n := 0
-	for _, op := range set.Ops {
+	for i, op := range set.Ops {
+		if !landed[i] {
+			continue
+		}
 		var o *change.ToolOrigin
 		switch body := op.Body.(type) {
 		case *change.SetContent:
@@ -195,13 +204,19 @@ func toolOriginNote(set change.Set, actor change.Actor) string {
 		strings.Join(tools, ", "), whose)
 }
 
-// refuseUndecodable answers a change set that does not decode, exit 2: with
-// --json, the refused kapi.change-result/v1 whose error says why, as MCP and
-// the browser answer it, on standard output; otherwise err, which the command
-// line prints.
-func (a *App) refuseUndecodable(cmd Command, opts ApplyOptions, ce *change.Error, err error) error {
+// refuseChangeSet answers a change set refused before any operation is
+// applied, exit 2: one that does not decode, or one that contradicts itself
+// (code comments beside documents, a file outside the project beside one in
+// it). With --json it prints the refused kapi.change-result/v1 whose error
+// says why, as MCP and the browser answer it, on standard output; otherwise it
+// returns err, which the command line prints.
+func (a *App) refuseChangeSet(cmd Command, opts ApplyOptions, err error) error {
 	if !opts.JSON {
 		return WithExitCode(ExitUsage, err)
+	}
+	ce, ok := errors.AsType[*change.Error](err)
+	if !ok || ce == nil {
+		ce = &change.Error{Code: change.CodeInvalid, Message: err.Error()}
 	}
 	if werr := writeChangeResult(cmd.OutOrStdout(), change.ErrorResult(ce)); werr != nil {
 		return werr
