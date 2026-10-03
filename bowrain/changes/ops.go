@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"maps"
 	"slices"
 	"strings"
 
@@ -103,10 +104,7 @@ func (s BlockState) Ops(doc string, after *model.Block) []change.Op {
 		return r
 	}
 	var ops []change.Op
-	now := map[model.EditionKey]model.Edition{}
-	for k, e := range after.EachEdition {
-		now[k] = e
-	}
+	now := maps.Collect(after.EachEdition)
 	keys := make([]model.EditionKey, 0, len(now)+len(s.editions))
 	for k := range now {
 		keys = append(keys, k)
@@ -126,7 +124,7 @@ func (s BlockState) Ops(doc string, after *model.Block) []change.Op {
 		case !inBefore && inAfter:
 			content = true
 			ops = append(ops, change.Op{Kind: change.KindSetContent, At: at(k), IfMatch: model.AbsentRevision,
-				Basis: s.authRev, Body: &change.SetContent{Content: change.Content{Runs: slices.Clone(cur.Runs)}}})
+				Basis: s.authRev, Body: &change.SetContent{Runs: slices.Clone(cur.Runs)}})
 		case inBefore && !inAfter:
 			if !source {
 				ops = append(ops, change.Op{Kind: change.KindRemoveEdition, At: at(k), IfMatch: was.rev, Body: &change.RemoveEdition{}})
@@ -135,7 +133,7 @@ func (s BlockState) Ops(doc string, after *model.Block) []change.Op {
 		case !bytes.Equal(was.runs, model.CanonicalRunsJSON(cur.Runs)):
 			content = true
 			op := change.Op{Kind: change.KindSetContent, At: at(k), IfMatch: was.rev,
-				Body: &change.SetContent{Content: change.Content{Runs: slices.Clone(cur.Runs)}}}
+				Body: &change.SetContent{Runs: slices.Clone(cur.Runs)}}
 			if !source {
 				op.Basis = s.authRev
 			}
@@ -197,6 +195,47 @@ func keyText(k model.EditionKey) string {
 	return string(text)
 }
 
+// Draft is one block a tool in a server job produced: the item it belongs to,
+// the state the job read it in, and the block the tool handed back.
+type Draft struct {
+	Doc    string
+	Before BlockState
+	After  *model.Block
+}
+
+// CommitDrafts writes what a tool produced through the change service, as the
+// tool: the operations that turn each draft's block from the state the job
+// read into what the tool made of it (BlockState.Ops), under gate report, so
+// the drafts land with their findings and meet the ship gates later, and with
+// require_basis, so a translation drafted from a source that moved since the
+// job read it does not land. A block a person changed since the read keeps the
+// person's change (ApplyEach). It returns the result, the blocks left out,
+// and the row ids of the drafts the stream now holds: those that landed, and
+// those that changed nothing because the stream already held what the tool
+// produced.
+func CommitDrafts(ctx context.Context, svc *change.Service, tool string, drafts []Draft) (*change.Result, []Refusal, []string, error) {
+	set := change.Set{Gate: change.GateReport, RequireBasis: true}
+	byBlock := map[[2]string]bool{}
+	for _, d := range drafts {
+		byBlock[[2]string{d.Doc, d.Before.ID()}] = true
+		set.Ops = append(set.Ops, d.Before.Ops(d.Doc, d.After)...)
+	}
+	res, _, refused, err := ApplyEach(ctx, svc, set, change.Actor{Kind: change.ActorTool, Name: tool})
+	if err != nil || (res != nil && res.Status == change.SetRefused) {
+		return res, refused, nil, err
+	}
+	for _, r := range refused {
+		delete(byBlock, [2]string{r.Doc, r.Block})
+	}
+	landed := make([]string, 0, len(byBlock))
+	for _, d := range drafts {
+		if byBlock[[2]string{d.Doc, d.Before.ID()}] {
+			landed = append(landed, d.Before.ID())
+		}
+	}
+	return res, refused, landed, nil
+}
+
 // Refusal is a block whose operations a change set could not apply, and why.
 type Refusal struct {
 	Doc   string
@@ -211,20 +250,21 @@ type Refusal struct {
 // keeps the person's change, and the job's other blocks land.
 //
 // It returns the result of the change set that applied, nil when every block
-// was left out, and the blocks it left out. A refusal that names no block
-// (the change set as a whole) ends it with that result.
-func ApplyEach(ctx context.Context, svc *change.Service, set change.Set, actor change.Actor) (*change.Result, []Refusal, error) {
+// was left out, the operations that change set held (in the order of its
+// result), and the blocks it left out. A refusal that names no block (the
+// change set as a whole) ends it with that result.
+func ApplyEach(ctx context.Context, svc *change.Service, set change.Set, actor change.Actor) (*change.Result, []change.Op, []Refusal, error) {
 	var refused []Refusal
 	for {
 		if len(set.Ops) == 0 {
-			return nil, refused, nil
+			return nil, nil, refused, nil
 		}
 		res, err := svc.Apply(ctx, set, actor)
 		if err != nil {
-			return nil, refused, err
+			return nil, nil, refused, err
 		}
 		if res.Status != change.SetRefused {
-			return res, refused, nil
+			return res, set.Ops, refused, nil
 		}
 		type blockRef struct{ doc, block string }
 		drop := map[blockRef]bool{}
@@ -234,7 +274,7 @@ func ApplyEach(ctx context.Context, svc *change.Service, set change.Set, actor c
 			}
 			at := set.Ops[i].At
 			if at.Block == "" {
-				return res, refused, nil
+				return res, set.Ops, refused, nil
 			}
 			ref := blockRef{at.Doc, at.Block}
 			if !drop[ref] {
@@ -243,7 +283,7 @@ func ApplyEach(ctx context.Context, svc *change.Service, set change.Set, actor c
 			}
 		}
 		if len(drop) == 0 {
-			return res, refused, nil
+			return res, set.Ops, refused, nil
 		}
 		kept := set.Ops[:0:0]
 		for _, op := range set.Ops {

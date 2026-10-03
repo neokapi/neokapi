@@ -16,14 +16,14 @@ import (
 // WithChange returns ctx carrying the attribution of one change set: a
 // correlation id, which every block_history and change_log row the change set
 // writes carries and the record is named by, and reason, the edit reason those
-// rows give. An id ctx already carries is kept, so a change set inside a
-// larger operation (a push, a revert) is filed under it.
+// rows give. An id or a reason ctx already carries is kept, so a change set
+// inside a larger operation (a rollback, a revert) is filed under it.
 func WithChange(ctx context.Context, reason string) (context.Context, string) {
 	cc := bstore.ChangeContextFromContext(ctx)
 	if cc.CorrelationID == "" {
 		cc.CorrelationID = id.New()
 	}
-	if reason != "" {
+	if cc.Reason == "" {
 		cc.Reason = reason
 	}
 	return bstore.WithChangeContext(ctx, cc), cc.CorrelationID

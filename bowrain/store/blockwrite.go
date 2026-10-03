@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -79,7 +81,7 @@ func (s *PostgresStore) BeginBlockWrite(ctx context.Context, projectID, stream s
 		_ = tx.Rollback()
 		return nil, err
 	}
-	return &pgBlockWrite{tx: tx, projectID: projectID, stream: stream}, nil
+	return &pgBlockWrite{tx: tx, projectID: projectID, stream: stream, held: map[string]map[string]bool{}}, nil
 }
 
 // pgBlockWrite is a BlockWrite on one PostgreSQL transaction.
@@ -87,11 +89,33 @@ type pgBlockWrite struct {
 	tx        *sql.Tx
 	projectID string
 	stream    string
+	held      map[string]map[string]bool // row id → variants of its targets
 	done      bool
 }
 
+// targetVariants is the set of variants a block holds a target in. A held
+// row's set is what Store compares the stored block against, so a target the
+// change removed loses its row.
+func targetVariants(b *model.Block) map[string]bool {
+	out := map[string]bool{}
+	src := b.EditionKeyOf(model.EditionKey{})
+	for key := range b.EachEdition {
+		if key != src {
+			out[VariantKeyText(key)] = true
+		}
+	}
+	return out
+}
+
 func (w *pgBlockWrite) Hold(ctx context.Context, itemName string, keys []string) ([]*venue.StoredBlock, error) {
-	return readItemBlocks(ctx, w.tx, w.projectID, w.stream, itemName, keys, true)
+	rows, err := readItemBlocks(ctx, w.tx, w.projectID, w.stream, itemName, keys, true)
+	if err != nil {
+		return nil, err
+	}
+	for _, sb := range rows {
+		w.held[sb.Block.ID] = targetVariants(sb.Block)
+	}
+	return rows, nil
 }
 
 func (w *pgBlockWrite) Store(ctx context.Context, blocks []*venue.StoredBlock) error {
@@ -107,6 +131,52 @@ func (w *pgBlockWrite) Store(ctx context.Context, blocks []*venue.StoredBlock) e
 	}
 	if skipped := wb.Skipped(); len(skipped) > 0 {
 		return fmt.Errorf("block %s is no longer the row the write holds", skipped[0])
+	}
+	// The write above upserts the targets each block carries. A target the
+	// held row carried and the block does not was removed by the change, and
+	// its row goes too.
+	now := time.Now().UTC()
+	for _, b := range bs {
+		was, ok := w.held[b.ID]
+		if !ok {
+			continue
+		}
+		is := targetVariants(b)
+		for variant := range was {
+			if !is[variant] {
+				if err := removeTargetTx(ctx, w.tx, w.projectID, w.stream, b.ID, variant, now); err != nil {
+					return err
+				}
+			}
+		}
+		w.held[b.ID] = is
+	}
+	return nil
+}
+
+// removeTargetTx deletes one target of a block and records the removal in the
+// block's history, attributed like any other change of the transaction, and in
+// the stream's change log.
+func removeTargetTx(ctx context.Context, tx Runner, projectID, stream, blockID, variant string, now time.Time) error {
+	res, err := tx.ExecContext(ctx,
+		`DELETE FROM translations WHERE project_id=$1 AND stream=$2 AND block_id=$3 AND locale=$4`,
+		projectID, stream, blockID, variant)
+	if err != nil {
+		return fmt.Errorf("remove target %s of block %s: %w", variant, blockID, err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil
+	}
+	cc := ChangeContextFromContext(ctx)
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO block_history
+			(project_id, stream, block_id, locale, change_type, text, coded_text, origin, author, actor_role, edit_reason, correlation_id, created_at)
+		 VALUES ($1, $2, $3, $4, 'target_removed', '', '', '', $5, $6, $7, $8, $9)`,
+		projectID, stream, blockID, variant, cc.Actor, cc.ActorRole, cc.Reason, cc.CorrelationID, now); err != nil {
+		return fmt.Errorf("record the removal of target %s of block %s: %w", variant, blockID, err)
+	}
+	if err := logChange(ctx, tx, projectID, stream, blockID, "target_removed", variant, ""); err != nil {
+		return fmt.Errorf("log the removal of target %s of block %s: %w", variant, blockID, err)
 	}
 	return nil
 }

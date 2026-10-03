@@ -51,6 +51,9 @@ type Home struct {
 	// BeforeLock, when set, is called once a document of a change set is
 	// staged and before its rows are held.
 	BeforeLock func(doc string)
+	// Committed, when set, is called with the row ids of each item a commit
+	// wrote, once the write is committed.
+	Committed func(doc string, ids []string)
 }
 
 var _ change.Home = (*Home)(nil)
@@ -325,6 +328,13 @@ func (st *staged) Commit(ctx context.Context) error {
 		return err
 	}
 	st.written = len(st.changed) > 0
+	if st.written && st.s.h.Committed != nil {
+		ids := make([]string, 0, len(st.changed))
+		for _, sb := range st.changed {
+			ids = append(ids, sb.Block.ID)
+		}
+		st.s.h.Committed(st.s.info.Doc, ids)
+	}
 	return nil
 }
 

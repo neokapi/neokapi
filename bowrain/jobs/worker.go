@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
+	"github.com/neokapi/neokapi/bowrain/changes"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
@@ -650,6 +651,12 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	}
 	storedBlocks = owed
 
+	// The drafts this job writes go through the stream's change service, as
+	// the tool that produced them: the state each block was read in is
+	// recorded before the recycle pass and the translate tool change it.
+	producer := changes.NewProducer(deps.ContentStore, proj, jobStream, nil, deps.publishChange)
+	producer.Read(storedBlocks)
+
 	totalBlocks := len(storedBlocks)
 	if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, epoch, 0, totalBlocks); err != nil {
 		return fmt.Errorf("set total blocks: %w", err)
@@ -684,7 +691,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		} else {
 			memoryFilled = res.memoryCount
 			if len(res.filled) > 0 {
-				filled, err := writeBackDrafts(ctx, deps.ContentStore, job.ProjectID, jobStream, unitByBlockID, res.filled)
+				filled, err := producer.Commit(ctx, "memory-translate", res.filled)
 				if err != nil {
 					return fmt.Errorf("store recycled blocks: %w", err)
 				}
@@ -851,15 +858,12 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 				chunkBillingRef(job.ID, chunk, i))
 		}
 
-		// Store this chunk's translations before its progress is recorded, so
-		// done_blocks never claims more than the overlay table holds and a
-		// resumed attempt cannot skip a block it never wrote. Translations land
-		// in the `translations` overlay table via StoreBlocks, which upserts
-		// every edition of a block other than the one it was read in, so no
-		// separate overlay write is needed.
+		// Commit this chunk's translations before its progress is recorded, so
+		// done_blocks never claims more than the stream holds and a resumed
+		// attempt cannot skip a block it never wrote.
 		blocks := partsToBlocks(outParts)
 		if len(blocks) > 0 {
-			blocks, err = writeBackDrafts(ctx, deps.ContentStore, job.ProjectID, jobStream, unitByBlockID, blocks)
+			blocks, err = producer.Commit(ctx, "ai-translate", blocks)
 			if err != nil {
 				return fmt.Errorf("store blocks: %w", err)
 			}
@@ -1162,47 +1166,12 @@ func chunkBillingRef(jobID string, chunk []*venue.StoredBlock, offset int) strin
 	return fmt.Sprintf("%s:%d", jobID, offset)
 }
 
-// writeBackDrafts writes blocks a job read and changed back to the rows it read
-// them from, and returns the ones that landed. read maps each block id to the
-// row the job read. A block whose row a push removed, or whose source it
-// changed, after the read does not land: its draft belongs to content the store
-// no longer holds, and the next pass drafts what the store holds now.
-func writeBackDrafts(ctx context.Context, cs store.ContentStore, projectID, stream string, read map[string]*venue.StoredBlock, blocks []*model.Block) ([]*model.Block, error) {
-	reads := make([]*venue.StoredBlock, 0, len(blocks))
-	for _, b := range blocks {
-		if sb := read[b.ID]; sb != nil {
-			reads = append(reads, &venue.StoredBlock{Block: b, ItemName: sb.ItemName, ContentHash: sb.ContentHash})
-		}
+// publishChange announces a change set a job committed on the event bus, when
+// the worker has one.
+func (d *WorkerDeps) publishChange(_ context.Context, ev platev.Event) {
+	if d.EventBus != nil {
+		d.EventBus.Publish(ev)
 	}
-	res, err := cs.WriteBackBlocks(ctx, projectID, stream, reads)
-	if err != nil {
-		return nil, err
-	}
-	if len(res.Skipped) == 0 && len(reads) == len(blocks) {
-		return blocks, nil
-	}
-	skipped := make(map[string]bool, len(res.Skipped))
-	for _, id := range res.Skipped {
-		skipped[id] = true
-	}
-	landed := make([]*model.Block, 0, len(reads))
-	for _, r := range reads {
-		if !skipped[r.Block.ID] {
-			landed = append(landed, r.Block)
-		}
-	}
-	return landed, nil
-}
-
-// storedByID indexes blocks read from the store by id.
-func storedByID(stored []*venue.StoredBlock) map[string]*venue.StoredBlock {
-	byID := make(map[string]*venue.StoredBlock, len(stored))
-	for _, sb := range stored {
-		if sb != nil && sb.Block != nil {
-			byID[sb.Block.ID] = sb
-		}
-	}
-	return byID
 }
 
 // partsToBlocks extracts model.Block objects from parts (same as editor.go).

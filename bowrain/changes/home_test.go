@@ -105,7 +105,7 @@ func read(t *testing.T, svc *change.Service, doc, key string) change.BlockRead {
 }
 
 func setText(at change.Ref, rev, text string) change.Op {
-	return change.Op{Kind: change.KindSetContent, At: at, IfMatch: rev, Body: &change.SetContent{Content: change.Content{Text: &text}}}
+	return change.Op{Kind: change.KindSetContent, At: at, IfMatch: rev, Body: &change.SetContent{Text: &text}}
 }
 
 // A translation edited through the stream home lands on its row, with the
@@ -192,4 +192,39 @@ func TestStreamHome_ABlockIsAddressedByKeyNameOrRowID(t *testing.T) {
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 	assert.Equal(t, "two", res.Ops[0].At.Block)
 	assert.Equal(t, "Second, edited", read(t, f.svc, "a.json", "two").Text)
+}
+
+// A translation the change removes leaves the stream: its row goes, and the
+// block's history and the stream's change log record the removal.
+func TestStreamHome_ARemovedTranslationLeavesTheStream(t *testing.T) {
+	f := newFixture(t)
+	ctx, corr := changes.WithChange(t.Context(), "")
+	b := read(t, f.svc, "a.json", "one")
+	at := b.Ref
+	at.Edition = model.EditionKey{Locale: "fr"}
+	res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{{
+		Kind: change.KindRemoveEdition, At: at, IfMatch: b.Editions["fr"].Rev, Body: &change.RemoveEdition{},
+	}}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+
+	_, held := read(t, f.svc, "a.json", "one").Editions["fr"]
+	assert.False(t, held, "the stream holds no French translation of the block")
+	rows, err := f.store.ItemBlocks(ctx, f.project.ID, "main", "a.json", []string{"one"})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Nil(t, rows[0].Block.Target("fr"))
+
+	history, err := f.store.GetBlockHistory(ctx, f.project.ID, "main", rows[0].Block.ID, "fr", 10)
+	require.NoError(t, err)
+	require.NotEmpty(t, history)
+	assert.Equal(t, "target_removed", history[0].ChangeType)
+	assert.Empty(t, history[0].Text)
+	assert.Equal(t, corr, history[0].CorrelationID)
+
+	feed, err := f.store.GetChanges(ctx, f.project.ID, "main", 0, []string{"fr"}, 100)
+	require.NoError(t, err)
+	assert.True(t, slices.ContainsFunc(feed.Changes, func(c platstore.ChangeEntry) bool {
+		return c.BlockID == rows[0].Block.ID && c.ChangeType == "target_removed" && c.Locale == "fr"
+	}), "the change log names the removed translation")
 }

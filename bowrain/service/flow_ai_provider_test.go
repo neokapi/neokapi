@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
@@ -26,9 +26,8 @@ func newAIFlowFixture(t *testing.T) (*FlowService, store.ContentStore) {
 	t.Helper()
 	ctx := context.Background()
 
-	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "content.db"))
+	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = cs.Close() })
 
 	require.NoError(t, cs.CreateProject(ctx, &store.Project{
 		ID:                    "p1",
