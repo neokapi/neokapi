@@ -210,3 +210,38 @@ func TestLatestIsTheLastChangeToEachEdition(t *testing.T) {
 		})
 	}
 }
+
+// The change that wrote what an edition holds is the one that left it at that
+// revision, which a checkout of another branch brings back after later changes
+// on the branch it left. A read that observed the same revision never takes it
+// from the writer that recorded it.
+func TestWroteIsTheChangeThatLeftTheRevision(t *testing.T) {
+	ctx := t.Context()
+	s := openStore(t)
+	row := func(op, after, actor, origin string) history.Row {
+		return history.Row{Op: op, Address: "a-" + op, Doc: "d-1", Block: "p", Edition: "fr",
+			Before: "absent", After: after, Actor: actor, Origin: origin, At: at(1)}
+	}
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-1", "r:a", "tool", "flow:up")}))
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-2", "r:b", "tool", "flow:up")}))
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-3", "r:a", history.ActorExternal, history.OriginObserved)}))
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-4", "r:c", history.ActorExternal, history.OriginObserved)}))
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-5", "r:b", "person", "apply")}))
+
+	cases := []struct {
+		name, rev, want string
+	}{
+		{"a revision an earlier change left", "r:a", "op-1"},
+		{"the latest of the writers that left it", "r:b", "op-5"},
+		{"a revision only a read observed", "r:c", "op-4"},
+		{"a revision nobody recorded", "r:z", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, found, err := s.Wrote(ctx, "d-1", "p", "fr", tc.rev)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want != "", found)
+			assert.Equal(t, tc.want, got.Op)
+		})
+	}
+}

@@ -91,6 +91,11 @@ const ActorExternal = "external"
 // OriginObserved is the origin of an observed change.
 const OriginObserved = "observed"
 
+// OriginPull is the origin of a change kapi pull applied: a venue's
+// translation brought into the checkout. The venue made it from a source the
+// checkout never recorded, so the change records no basis.
+const OriginPull = "pull"
+
 // EditionRef names one edition of one block inside a document.
 type EditionRef struct {
 	Block   string
@@ -280,6 +285,30 @@ func (s *Store) LastWrite(ctx context.Context, doc, block, edition string) (row 
 WHERE h.doc = ? AND h.block = ? AND h.edition = ? ORDER BY h.op DESC LIMIT 1`, doc, block, edition)
 	if err != nil {
 		return Row{}, false, fmt.Errorf("history: read %s %s@%s: %w", doc, block, edition, err)
+	}
+	out, err := scan(rows)
+	if err != nil || len(out) == 0 {
+		return Row{}, false, err
+	}
+	return out[0], true, nil
+}
+
+// Wrote returns the recorded change that left one edition of one block at
+// revision rev: the most recent one a writer recorded, or, when only reads
+// observed the edition at rev, the most recent observed one. found is false
+// when no recorded change left the edition at rev.
+//
+// The history is shared by every branch of a checkout, so the change that
+// wrote the content an edition holds now is not always the latest: a checkout
+// of another branch brings back a revision an earlier change left. And an
+// observed change never takes a revision from the writer that recorded it,
+// which is what a read that overlapped that writer's commit records.
+func (s *Store) Wrote(ctx context.Context, doc, block, edition, rev string) (row Row, found bool, err error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+columns+from+`
+WHERE h.doc = ? AND h.block = ? AND h.edition = ? AND h.after = ?
+ORDER BY h.origin = ?, h.op DESC LIMIT 1`, doc, block, edition, rev, OriginObserved)
+	if err != nil {
+		return Row{}, false, fmt.Errorf("history: read %s %s@%s at %s: %w", doc, block, edition, rev, err)
 	}
 	out, err := scan(rows)
 	if err != nil || len(out) == 0 {

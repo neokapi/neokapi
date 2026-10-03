@@ -623,11 +623,12 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 				if !derived || !byTool || rev == model.AbsentRevision {
 					continue
 				}
-				if r, ok := loop.last(docKey, key, text); ok && r.After == rev &&
-					(r.Actor != string(change.ActorTool) || r.ContentHash == content) {
-					// Recorded already: a flow wrote this translation from
-					// this source, or a person or an agent wrote it and the
-					// run reproduced their wording, which stays theirs.
+				if r, ok := loop.at(docKey, key, text, rev); ok && r.After == rev &&
+					(!loopWrite(r) || r.ContentHash == content) {
+					// Recorded already: a tool wrote this translation from
+					// this source, or a writer whose source nobody recorded
+					// wrote it (a person, an agent, a venue) and the run
+					// reproduced their wording, which stays theirs.
 					continue
 				}
 			}

@@ -7,7 +7,6 @@ import (
 	"math"
 	"slices"
 
-	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
@@ -280,11 +279,13 @@ func (r reviewedIndex) lookup(scope string, b *model.Block, locale string) (revi
 	return reviewedEntry{}, false
 }
 
-// loopWrite is the last write a flow made to the block's translation in
-// locale, as the record lookup grades it.
+// loopWrite is the write a flow made to the block's translation in locale, as
+// the record lookup grades it: the one that left the translation the block
+// holds, else the latest, which then describes another translation.
 func (r reviewedIndex) loopWrite(scope string, b *model.Block, locale string) (reviewedEntry, bool) {
-	row, ok := r.loop.last(scope, blockKey(b), editionText(model.EditionKey{Locale: model.LocaleID(locale)}.Canonical()))
-	if !ok || row.Actor != string(change.ActorTool) || row.After == model.AbsentRevision {
+	loc := model.LocaleID(locale)
+	row, ok := r.loop.at(scope, blockKey(b), editionText(model.EditionKey{Locale: loc}.Canonical()), targetRevision(b, loc))
+	if !ok || !loopWrite(row) || row.After == model.AbsentRevision {
 		return reviewedEntry{}, false
 	}
 	return reviewedEntry{

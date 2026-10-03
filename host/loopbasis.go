@@ -23,16 +23,23 @@ import (
 // its basis), the revision of the translation it left, and the stamp of the
 // tool that produced it.
 //
-// So the loop's own basis is the latest row of the block history for the
-// edition, and it answers only while two things hold:
+// So the loop's own basis is the row of the block history that left the
+// edition at the revision it holds now (history.Store.Wrote), and it answers
+// only while two things hold:
 //
-//   - A tool in a flow wrote it. A translation a person or an agent wrote, or
-//     one that was in the tree before kapi ever ran, is not the loop's work: it
-//     grades basisNone or basisUnknown and is never re-drafted. The loop does
-//     not get to claim authorship of somebody's work by reading it.
-//   - The file still holds what the flow wrote: the row's revision after the
-//     change is the edition's revision now. A translation somebody has since
-//     rewritten describes work they took over.
+//   - A tool wrote it from a recorded source: a flow, or kapi pull bringing
+//     down a venue's translation whose record names the source the checkout
+//     held. A translation a person or an agent wrote, a pulled one the venue
+//     made from other wording, or one that was in the tree before kapi ever
+//     ran, is not the loop's work: it grades basisNone or basisUnknown and is
+//     never re-drafted. The loop does not get to claim authorship of
+//     somebody's work by reading it.
+//   - The file holds what the flow wrote: a recorded change left the edition
+//     at its revision now. A translation somebody has since rewritten
+//     describes work they took over. The history is shared by every branch of
+//     the checkout, so the change that answers is not always the latest: a
+//     checkout of another branch brings back what a pass wrote there, and that
+//     pass's record answers for it again.
 //
 // A decision is never overruled by it: a unit with a recorded decision is
 // graded by the decision, whose basis is the decision's.
@@ -48,6 +55,12 @@ type loopWrites struct {
 	hist  *history.Store
 	mu    sync.Mutex
 	byDoc map[string]map[[2]string]history.Row
+	byRev map[revisionOf]history.Row
+}
+
+// revisionOf names an edition of a block in a document at one revision.
+type revisionOf struct {
+	doc, block, edition, rev string
 }
 
 // newLoopWrites is the block history of the project at root. A project with
@@ -56,7 +69,10 @@ func (a *App) newLoopWrites(ctx context.Context, root string) *loopWrites {
 	if root == "" {
 		return nil
 	}
-	return &loopWrites{app: a, ctx: context.WithoutCancel(ctx), root: root, byDoc: map[string]map[[2]string]history.Row{}}
+	return &loopWrites{
+		app: a, ctx: context.WithoutCancel(ctx), root: root,
+		byDoc: map[string]map[[2]string]history.Row{}, byRev: map[revisionOf]history.Row{},
+	}
 }
 
 // open binds the project's block history, when the project has a store.
@@ -81,14 +97,51 @@ func (w *loopWrites) recorded() bool {
 // last returns the latest recorded change to the edition of the block in the
 // document, whoever made it.
 func (w *loopWrites) last(doc, block, edition string) (history.Row, bool) {
-	if w == nil {
-		return history.Row{}, false
-	}
-	if w.open() == nil {
+	if w == nil || w.open() == nil {
 		return history.Row{}, false
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	return w.latestLocked(doc, block, edition)
+}
+
+// at returns the recorded change that left the edition of the block in the
+// document at revision rev (history.Store.Wrote), and when none did, the
+// latest recorded change to it, whose After then names another revision. The
+// latest answers without another read when it left rev itself.
+func (w *loopWrites) at(doc, block, edition, rev string) (history.Row, bool) {
+	if w == nil || w.open() == nil {
+		return history.Row{}, false
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	latest, ok := w.latestLocked(doc, block, edition)
+	if !ok || rev == "" || (latest.After == rev && latest.Origin != history.OriginObserved) {
+		return latest, ok
+	}
+	key := revisionOf{doc: doc, block: block, edition: edition, rev: rev}
+	if r, cached := w.byRev[key]; cached {
+		return r, true
+	}
+	r, found, err := w.hist.Wrote(w.ctx, doc, block, edition, rev)
+	if err != nil || !found {
+		return latest, true
+	}
+	w.byRev[key] = r
+	return r, true
+}
+
+// loopWrite reports whether a row records a translation a tool made from a
+// recorded source: a flow's draft, or a venue's translation kapi pull brought
+// down where the venue's record names the source the checkout held. It is
+// re-drafted when that source moves. A pull records no basis for a
+// translation the venue made from any other wording (host.WithStatedBases).
+func loopWrite(r history.Row) bool {
+	return r.Actor == string(change.ActorTool) && r.Basis != ""
+}
+
+// latestLocked is last, with w.mu held.
+func (w *loopWrites) latestLocked(doc, block, edition string) (history.Row, bool) {
 	rows, ok := w.byDoc[doc]
 	if !ok {
 		rows = map[[2]string]history.Row{}
@@ -123,8 +176,8 @@ func (a *App) loopRecord(ctx context.Context, root, doc, unit string, locale mod
 	if targetRev == "" {
 		return state.UnitState{}, false
 	}
-	row, ok := a.newLoopWrites(ctx, root).last(doc, unit, editionText(model.EditionKey{Locale: locale}.Canonical()))
-	if !ok || row.Actor != string(change.ActorTool) || row.After != targetRev {
+	row, ok := a.newLoopWrites(ctx, root).at(doc, unit, editionText(model.EditionKey{Locale: locale}.Canonical()), targetRev)
+	if !ok || !loopWrite(row) || row.After != targetRev {
 		return state.UnitState{}, false
 	}
 	return state.UnitState{
