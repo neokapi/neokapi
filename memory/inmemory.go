@@ -311,7 +311,8 @@ func (tm *InMemoryStore) tieredLookup(plainKey, structKey, generalKey string, en
 	// Ambiguity rule — see demoteAmbiguousExacts.
 	demoteAmbiguousExacts(matches, targetLocale)
 
-	if len(matches) > 0 && opts.MinScore >= 1.0 {
+	// An exact-only lookup ends at the exact tiers; see TieredLookup.
+	if opts.MinScore >= 1.0 {
 		kept := matches[:0]
 		for _, m := range matches {
 			if m.Score >= opts.MinScore {
