@@ -88,7 +88,7 @@ func TestICUMessageWritesAnUnparsableMessageAsRead(t *testing.T) {
 		t.Run(src, func(t *testing.T) {
 			runs := runsFromValue(src)
 			require.NotNil(t, runs[0].Plural, "the plural reads with its branches")
-			assert.NoError(t, checkMessage(block, runs, valueFromRuns(runs, src), src))
+			require.NoError(t, checkMessage(block, runs, valueFromRuns(runs, src), src))
 
 			edited := setBranch(t, runs, text("A"), 0, "one")
 			value := valueFromRuns(edited, src)
