@@ -94,6 +94,18 @@ permission for that language in that project, and the workspace's
 [separation of duties](/server/members-and-roles#governance-controls) applies
 with you as the decider.
 
+Beside the decisions, a push carries how each translation of the files it
+reads was written, from the project's record of its changes: the source a run
+made it from, and who wrote it. The server grades a translation that a run on
+your machine produced against that source, as it grades one it drafted itself,
+so a source changed since reads as stale on the dashboard. A translation you
+wrote by hand (with `kapi apply`, in Kapi Desktop, or through an agent working
+for you) counts as yours for separation of duties, so your approval of it, in
+the same push or a later one, is not accepted when the workspace policy blocks
+approving your own work. A translation that a run produced, or that `kapi pull`
+or `kapi merge` brought in, names no author. Each translation's record goes
+once, and again when it changes.
+
 The content lands either way. A verdict the server does not accept is reported
 per language, and the unit stays a translation awaiting review:
 

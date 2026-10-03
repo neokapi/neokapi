@@ -107,9 +107,8 @@ In a workspace, every ledger write is an operation in the workspace's log
 before it is a row ([C-03](c-03-context-store-and-graph.md#the-stores-are-projections-of-the-log)).
 `state.WorkStore` records through a journal the host binds when it opens the
 project store (`WorkStore.SetJournal`, implemented by `projector.Decisions`):
-each entry, a decision or the basis a convergence pass recorded for its own
-output, becomes one `decision.record` operation carrying the record, the actor,
-the origin and the moment, and the projector writes the row with
+each entry becomes one `decision.record` operation carrying the record, the
+actor, the origin and the moment, and the projector writes the row with
 `state.ApplyEntries`. The operation's content address is
 `decision:<project>:<entry id>`, so the entry's own address carries over: one
 decision recorded twice, on one machine or on two whose logs are merged, is one
@@ -128,11 +127,28 @@ which answers who changed an edition, from which revision to which and through
 which surface
 ([C-03](c-03-context-store-and-graph.md#edits-are-recorded-as-content-edit)). A
 decision says a person stands behind a pairing; the block history says how the
-text in that pairing came to be. The ledger also holds entries that carry no
-decision: the basis a convergence pass records for its own output, Kapi
-Desktop's record of a person's edit, the AI pre-review a convergence report
-keeps, the governing fingerprint a seed writes and the verdicts a source venue
-clears. Each is a `decision.record` operation like a decision.
+text in that pairing came to be.
+
+The ledger holds decisions only. An entry decides something when it carries a
+review state (an approval or a rejection, of a translation or of source
+wording), a rung above translated, a parked unit, an assignee, a note, or an
+agent's pre-review, which is a `decide advise` (`state.UnitState.Decides`).
+`WorkStore` refuses an entry that decides nothing with
+`state.ErrDecidesNothing`: a translation, the source it was made from and the
+rung its producer put it on belong to the block history. A shard line or a log
+entry that decides nothing, which only an earlier release wrote, is left out on
+import and on projection, so a rebuild holds decisions only too, and so does a
+predecessor store a newer build carries forward: an entry that decides nothing
+is left behind, and the decisions after it come across. An import reports the
+decisions it recorded. Each writer follows from that. A pull records the
+venue's decisions and leaves out its records of what it produced, whose
+translations arrive as content and whose write the pull records in the block
+history, with the source the venue's record names as its basis where that is
+the source the checkout holds. A governing fingerprint read back from a
+content-memory bundle lands only on a decision. A verdict a venue refused is
+withdrawn (a revocation entry) unless the record still decides something else,
+and an approval the venue kept over a withdrawal the project made is recorded
+back from the record the venue sent.
 
 ### Document keys are recorded in the log
 
@@ -314,6 +330,14 @@ source the project has now. The server venue derives the same answer from its
 ledger: one grouped query grades every recorded basis against the current
 source, and a stale unit is withheld from the produced count until a pass has
 drafted it, so a run started by a source change has pending work and produces.
+For a unit nobody has decided, the venue's ledger row carries the basis of the
+latest draft: one its own run made, or one a run on a checkout made, which the
+push carries beside the decisions
+([S-07](../surfaces/s-07-context-centric-review.md#a-push-carries-decisions-the-venue-decides)).
+A basis record from a push carries the basis and nothing else: it never
+replaces a decision, and it leaves an undecided row's rung, note and assignee
+as they were. A translation a checkout pulled from the venue sends no basis,
+since the venue's own record of it already holds one.
 
 **Only an approval re-stamps the basis.** What clears a stale unit is the next
 decision on it, and one kind of decision: a reviewer looking at the re-drafted
@@ -326,9 +350,10 @@ and clears the staleness gate on the governance axis
 IS the decision.
 
 A **rejection** records the verdict, the rejected translation and the reviewer.
-It preserves the basis recorded by the last approval or producing run, so the
-unit's staleness remains unchanged. A translation the loop produced and nobody
-has decided has its basis in the block history, as the flow's write of it
+It preserves the basis recorded by the last approval or by the run that
+produced the translation, so the unit's staleness remains unchanged. A
+translation the loop produced and nobody has decided has its basis in the
+block history, as the flow's write that left it
 ([C-03](c-03-context-store-and-graph.md#edits-are-recorded-as-content-edit)), and
 a decision on it starts from that write: its source hash and the producer's
 stamp. Withdrawing an approval has the same effect.

@@ -233,13 +233,13 @@ func TestSourceDrift_DecidedUnitStillBehavesAsBefore(t *testing.T) {
 	assert.Empty(t, unit.ReviewState, "a re-draft never inherits the approval the old pairing carried")
 }
 
-// TestSourceDrift_ALedgerBasisYieldsToTheLoopsLaterWrite: a project whose
-// ledger still holds a decision-less basis for a translation (the shape the
-// loop recorded before its writes moved to the block history, and the shape a
-// Kapi Desktop edit records) must not let that row hide the loop's later write.
-// After one re-draft the history holds the newer basis; a second source edit
-// is drift against it, and the plan owes a draft for it.
-func TestSourceDrift_ALedgerBasisYieldsToTheLoopsLaterWrite(t *testing.T) {
+// TestSourceDrift_ALedgerBasisAnEarlierReleaseWroteIsLeftOut: a committed
+// record may still hold a decision-less basis line, the shape the loop
+// recorded before its writes moved to the block history. The ledger holds
+// decisions only, so the line is not read in: the translation has no recorded
+// basis, a source edit under it is not drift the loop can claim, and the loop
+// leaves the translation alone.
+func TestSourceDrift_ALedgerBasisAnEarlierReleaseWroteIsLeftOut(t *testing.T) {
 	root := writeReviewProject(t)
 	proj := filepath.Join(root, "kapi.yaml")
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
@@ -254,21 +254,19 @@ func TestSourceDrift_ALedgerBasisYieldsToTheLoopsLaterWrite(t *testing.T) {
 	}}))
 	readProjectContext(t, root)
 
-	rewriteSource(t, root, sourceEdited)
-	out := runReviewUp(t, proj)
-	require.Equal(t, 1, out.RedraftedUnits(), "the ledger's basis says the source moved under Eple")
-	redrafted := nbTargets(t, root)["a"]
-	require.NotEqual(t, "Eple", redrafted)
-
-	rewriteSource(t, root, `{"a":"Avocado","b":"Banana"}`)
 	a := &App{}
 	defer a.Shutdown()
+	st, err := a.OpenProjectState(context.Background(), root)
+	require.NoError(t, err)
+	held, err := st.All(context.Background())
+	require.NoError(t, err)
+	assert.Empty(t, held, "a line that decides nothing is not read into the ledger")
+
+	rewriteSource(t, root, sourceEdited)
 	plan, err := a.UpPlan(context.Background(), proj, "en")
 	require.NoError(t, err)
-	assert.Equal(t, 1, plan.Totals.Stale,
-		"the loop's write of the Apricot draft is the newer basis, and Avocado is drift against it")
-
-	again := runReviewUp(t, proj)
-	assert.Equal(t, 1, again.RedraftedUnits())
-	assert.NotEqual(t, redrafted, nbTargets(t, root)["a"])
+	assert.Zero(t, plan.Totals.Stale, "no recorded basis says which source Eple translates")
+	out := runReviewUp(t, proj)
+	assert.Zero(t, out.RedraftedUnits())
+	assert.Equal(t, "Eple", nbTargets(t, root)["a"], "a translation with no recorded basis is left alone")
 }

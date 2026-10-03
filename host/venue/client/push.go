@@ -129,6 +129,11 @@ type PushCommitRequest struct {
 	// optimization this field's shape does not preclude.
 	Decisions []venue.UnitDecision `json:"decisions,omitempty"`
 
+	// Writes carries, beside the decisions, the last recorded write of each
+	// translation the project holds for the documents the push reads (see
+	// CarryEditionWrites). They decide nothing and assert no component.
+	Writes []venue.EditionWrite `json:"writes,omitempty"`
+
 	// ExpectedRef is the compare-and-swap assertion: the governance components
 	// this push last observed on the server. The server asserts only the ones
 	// this manifest writes, and rejects with a conflict when one has moved.
@@ -178,6 +183,7 @@ type pushSettings struct {
 	scope          venue.Scope
 	tree           venue.Tree
 	allowDowngrade bool
+	writes         []venue.EditionWrite
 }
 
 // AssertRef makes the push a compare-and-swap over the governance it carries:
@@ -226,6 +232,17 @@ func DeclareTree(scope venue.Scope, tree venue.Tree) PushOption {
 		s.scope = scope
 		s.tree = tree
 	}
+}
+
+// CarryEditionWrites sends, beside the decisions, the last recorded write of
+// each translation the project holds for the documents this push reads: the
+// source it was made from and who wrote it (venue.EditionWrite). A venue grades
+// a translation stale against that source and asks separation of duties of its
+// writer, and a translation a run on this checkout produced reaches the venue
+// with neither otherwise. A push carrying them commits even when the venue
+// holds every block it sends.
+func CarryEditionWrites(writes []venue.EditionWrite) PushOption {
+	return func(s *pushSettings) { s.writes = writes }
 }
 
 // AllowModelDowngrade lets this push write content from an older model
@@ -444,7 +461,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		// empty-chunk commit rather than returning here. The caller only
 		// passes decisions when they changed, and settings are sent only when
 		// they differ, so the common unchanged push still takes this exit.
-		if len(decisions) == 0 && len(sendSettings) == 0 {
+		if len(decisions) == 0 && len(settings.writes) == 0 && len(sendSettings) == 0 {
 			resp := &SyncPushResponse{
 				PushID:                PushUnchanged,
 				UndeclaredCollections: initResp.UndeclaredCollections,
@@ -456,6 +473,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		commitResp, err := c.pushCommit(ctx, PushCommitRequest{
 			Stream:      c.stream,
 			Decisions:   decisions,
+			Writes:      settings.writes,
 			ExpectedRef: settings.expected,
 			Settings:    sendSettings,
 		})
@@ -604,6 +622,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		Items:             itemsJSON,
 		Contexts:          contexts,
 		Decisions:         decisions,
+		Writes:            settings.writes,
 		ExpectedRef:       settings.expected,
 		BlockPropertyKeys: settings.propertyKeys,
 		Scope:             settings.scope,

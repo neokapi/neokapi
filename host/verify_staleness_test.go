@@ -114,29 +114,21 @@ func newStalenessFixture(t *testing.T) *stalenessFixture {
 	}
 }
 
-// record writes one produced target's state per unit, stamped exactly as a
+// record records a flow's write of every translated unit, stamped exactly as a
 // producer running under the context in force would stamp it, except for the
-// fingerprint the caller names.
+// fingerprint the caller names. The block history keeps the stamp, as a pass
+// leaves it.
 func (f *stalenessFixture) record(t *testing.T, fingerprint string) {
 	t.Helper()
-	ctx := context.Background()
-	st, err := f.app.OpenProjectState(ctx, f.root)
+	doc, err := filepath.Rel(f.root, f.units[0].SourcePath)
 	require.NoError(t, err)
-	for _, key := range f.unitKeys {
-		require.NoError(t, st.Put(ctx, state.UnitState{
-			Unit:       key,
-			Variant:    model.Variant(model.LocaleID(f.units[0].Locale)),
-			Scope:      f.app.DocumentScope(ctx, f.root, f.units[0].SourcePath),
-			Status:     model.TargetStatusTranslated,
-			TargetHash: "h-" + key,
-			Origin: model.Origin{
-				Kind:               model.OriginAI,
-				Profile:            f.governing.profileID,
-				ProfileVersion:     f.governing.profileVersion,
-				ContextFingerprint: fingerprint,
-			},
-		}))
-	}
+	recordFlowWrite(t, f.app, filepath.Join(f.root, project.RecipeFileName), filepath.ToSlash(doc),
+		model.LocaleID(f.units[0].Locale), model.Origin{
+			Kind:               model.OriginAI,
+			Profile:            f.governing.profileID,
+			ProfileVersion:     f.governing.profileVersion,
+			ContextFingerprint: fingerprint,
+		})
 }
 
 func (f *stalenessFixture) run(t *testing.T) (verifyGateResult, bool) {
@@ -194,7 +186,7 @@ func TestStalenessGate_ThreeOutcomes(t *testing.T) {
 		assert.Empty(t, gate.Findings)
 	})
 
-	t.Run("recorded provenance that matches no unit still makes a gate row", func(t *testing.T) {
+	t.Run("a recorded decision that matches no unit still makes a gate row", func(t *testing.T) {
 		f := newStalenessFixture(t)
 		ctx := context.Background()
 		st, err := f.app.OpenProjectState(ctx, f.root)
@@ -202,8 +194,9 @@ func TestStalenessGate_ThreeOutcomes(t *testing.T) {
 		require.NoError(t, st.Put(ctx, state.UnitState{
 			Unit: "a-unit-the-source-no-longer-has", Variant: model.Variant(model.LocaleID(f.units[0].Locale)),
 			Scope:  f.app.DocumentScope(ctx, f.root, f.units[0].SourcePath),
-			Status: model.TargetStatusTranslated, TargetHash: "h-gone",
-			Origin: model.Origin{Kind: model.OriginAI, ContextFingerprint: f.governing.fingerprint},
+			Status: model.TargetStatusEstablished, TargetHash: "h-gone",
+			Decision: state.Decision{ReviewState: "approved"},
+			Origin:   model.Origin{Kind: model.OriginAI, ContextFingerprint: f.governing.fingerprint},
 		}))
 
 		gate, judged := f.run(t)

@@ -205,10 +205,12 @@ func isShortRead(shows int) bool { return shows > 0 && shows <= shortRead }
 const shortRead = change.DefaultReadLimit
 
 // editionHeads reads the most recent recorded change to an edition, of one
-// block or of every block of a document (history.Store).
+// block or of every block of a document, and the change that left an edition
+// at a revision (history.Store).
 type editionHeads interface {
 	LastWrite(ctx context.Context, doc, block, edition string) (history.Row, bool, error)
 	Latest(ctx context.Context, doc string, editions ...string) ([]history.Row, error)
+	Wrote(ctx context.Context, doc, block, edition, rev string) (history.Row, bool, error)
 }
 
 // documentStates answers for the editions of one document during one read,
@@ -228,17 +230,27 @@ type documentStates struct {
 	read map[string]map[string]history.Row
 }
 
-// EditionState returns the basis the most recent recorded change to edition k
-// of b named, when that change left the edition at the revision it holds now.
-// An edition changed since by a writer that recorded nothing (a person's
-// editor, another tool) has no basis this history can vouch for.
+// EditionState returns the basis named by the recorded change that left
+// edition k of b at the revision it holds now (history.Store.Wrote), which a
+// checkout of another branch can bring back after later changes. The most
+// recent recorded change answers without another read when it left that
+// revision itself and was not an edit made outside kapi. An edition whose
+// revision no recorded change left, or one an edit made outside kapi left,
+// has no basis this history can vouch for.
 func (d *documentStates) EditionState(b *model.Block, k model.EditionKey) (change.EditionState, bool) {
 	edition := editionText(b.EditionKeyOf(k))
 	if edition == "" {
 		return change.EditionState{}, false
 	}
+	rev := model.EditionRevision(b, k)
 	row, found := d.last(b, edition)
-	if !found || row.Basis == "" || row.After != model.EditionRevision(b, k) {
+	if !found {
+		return change.EditionState{}, false
+	}
+	if row.After != rev || row.Origin == history.OriginObserved {
+		row, found = d.wrote(b, edition, rev)
+	}
+	if !found || row.Basis == "" {
 		return change.EditionState{}, false
 	}
 	return change.EditionState{Basis: row.Basis}, true
@@ -292,6 +304,18 @@ func (d *documentStates) last(b *model.Block, edition string) (history.Row, bool
 	return row, found
 }
 
+// wrote returns the recorded change that left edition of b at revision rev,
+// a recorded write before an observed one (history.Store.Wrote).
+func (d *documentStates) wrote(b *model.Block, edition, rev string) (history.Row, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.hist == nil {
+		return history.Row{}, false
+	}
+	row, found, err := d.hist.Wrote(d.ctx, d.docKey, change.BlockKey(b), edition, rev)
+	return row, err == nil && found
+}
+
 // EditionHistory returns the recorded changes to edition k of b, most recent
 // first and at most limit of them: who made each, through which surface, when,
 // and the revisions around it.
@@ -311,7 +335,8 @@ func (h *blockHistory) EditionHistory(ctx context.Context, doc change.DocInfo, b
 	out := make([]change.HistoryEntry, 0, len(rows))
 	for _, r := range rows {
 		e := change.HistoryEntry{Record: r.Op, Before: r.Before, After: r.After, Basis: r.Basis, Origin: r.Origin, At: r.At}
-		if r.Actor != "" {
+		// An edit made outside kapi has no author anybody knows.
+		if r.Actor != "" && r.Actor != history.ActorExternal {
 			e.Actor = &change.Actor{Kind: change.ActorKind(r.Actor), Name: r.ActorName, Session: r.Session}
 		}
 		out = append(out, e)

@@ -17,10 +17,12 @@ import (
 // the block history as well as the decision ledger. An edit made through the
 // change service is recorded as a content.edit, not as a ledger entry, so:
 //
-//   - when the most recent recorded change to the edition produced the content
-//     in force, its writer is the origin: a person's edit reads as human, an
-//     agent's as agent with the agent named. A tool's write keeps the origin
-//     the tool stamped.
+//   - the recorded change that left the edition with the content in force
+//     names its writer as the origin: a person's edit reads as human, an
+//     agent's as agent with the agent named, and a tool's write as the stamp
+//     the tool left, which the block history keeps for a file that holds
+//     strings alone. A tool's write that kept no stamp, and an edit made
+//     outside kapi, leave the origin as it was.
 //   - a decision recorded against a translation that is no longer there is not
 //     the decision in force, and its origin describes text that is gone.
 func (a *App) recordedProvenance(ctx context.Context, req ReviewContextRequest, block *model.Block, loc model.LocaleID, p review.Provenance) review.Provenance {
@@ -41,6 +43,15 @@ func (a *App) recordedProvenance(ctx context.Context, req ReviewContextRequest, 
 		o.Kind = model.OriginHuman
 	case change.ActorAgent:
 		o.Kind, o.Engine, o.Reference = model.OriginAgent, row.ActorName, row.Session
+	case change.ActorTool:
+		if row.Producer == (model.Origin{}) {
+			return p
+		}
+		ts := o.Timestamp
+		o = row.Producer
+		if o.Timestamp == "" {
+			o.Timestamp = ts
+		}
 	default:
 		return p
 	}
@@ -54,10 +65,9 @@ func isReviewSource(req ReviewContextRequest, loc model.LocaleID) bool {
 	return loc == "" || (req.SourceLang != "" && model.NormalizeLocale(loc) == model.NormalizeLocale(model.LocaleID(req.SourceLang)))
 }
 
-// lastRecordedWrite is the most recent recorded change to the edition under
-// review, when it left the edition with the content the block holds now. The
-// history is read only where the project has a store, so a review creates
-// none.
+// lastRecordedWrite is the recorded change that left the edition under review
+// with the content the block holds now (history.Store.Wrote). The history is
+// read only where the project has a store, so a review creates none.
 func (a *App) lastRecordedWrite(ctx context.Context, req ReviewContextRequest, block *model.Block, loc model.LocaleID, source bool) (history.Row, bool) {
 	if req.Root == "" || req.SourcePath == "" {
 		return history.Row{}, false
@@ -84,8 +94,8 @@ func (a *App) lastRecordedWrite(ctx context.Context, req ReviewContextRequest, b
 	if err != nil || len(edition) == 0 {
 		return history.Row{}, false
 	}
-	row, found, err := db.History().LastWrite(ctx, doc, req.Key, string(edition))
-	if err != nil || !found || row.After != model.RunsRevision(key, runs) {
+	row, found, err := db.History().Wrote(ctx, doc, req.Key, string(edition), model.RunsRevision(key, runs))
+	if err != nil || !found {
 		return history.Row{}, false
 	}
 	return row, true

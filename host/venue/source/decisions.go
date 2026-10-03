@@ -158,6 +158,13 @@ func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pull
 	}
 
 	for _, d := range pulled {
+		if !d.IsDecision() {
+			// A record of what the venue produced (a translation and the
+			// source it was made from) decides nothing, and the ledger holds
+			// decisions only. The translation itself arrives as content, and
+			// the pull records its write in the block history.
+			continue
+		}
 		var variant model.VariantKey
 		if err := variant.UnmarshalText([]byte(d.Variant)); err != nil || variant.Locale == "" {
 			skipped++

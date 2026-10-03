@@ -1084,3 +1084,29 @@ type TargetAuthorStore interface {
 	// whole batch, so a bulk approval does not become a round trip per block.
 	LastTargetAuthors(ctx context.Context, projectID, stream string, blockIDs, locales []string) (map[TargetRef]string, error)
 }
+
+// EditionWriter is who wrote one translation a checkout holds by hand, as the
+// push that carried the write said (venue.EditionWrite.ByHand): the pusher,
+// and the revision of the translation the write left.
+type EditionWriter struct {
+	ItemName string
+	// Unit is the durable unit, and Block the key the checkout's own records
+	// give it where that differs: a decision a checkout pushes names the
+	// unit by either.
+	Unit     string
+	Block    string
+	Variant  string
+	Revision string
+	Author   string
+}
+
+// EditionWriterStore keeps who wrote each translation a checkout holds by
+// hand. A push records the writes it carries (PushApplier.RecordEditionWrites),
+// and a later push that carries an approval of the translation reads its
+// author here, which the venue's block history holds only for a translation
+// the venue holds and the push wrote.
+type EditionWriterStore interface {
+	// EditionWriters returns the recorded writers of the translations of the
+	// units of items, one query for the batch.
+	EditionWriters(ctx context.Context, projectID, stream string, items []string) ([]EditionWriter, error)
+}

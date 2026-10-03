@@ -468,6 +468,20 @@ say so on the `stale` axis above, and the rest come back as pending work.
 A translation edited in the same commit as its source is the exception it should
 be: that pairing was authored rather than left behind, so it is kept as it stands.
 
+For a translation nobody has reviewed, the source it was made from is in the
+record of the run that wrote it, which the project's context keeps beside its
+decisions. In a project that shares its context through a backend, a fresh
+clone reads that context with
+[`kapi context pull`](/kapi/context-portability#sharing-context-through-a-backend).
+Until it does, `kapi up` and `kapi status` say so in one line, and a source
+edited before the clone's first pass is not graded stale there:
+
+```bash
+kapi status
+# ...
+# This checkout holds no record of the source its translations were made from; run `kapi context pull` to read the project's context before a pass grades them.
+```
+
 The loop produces and never decides. Producing a translation is a different act
 from approving one, so the re-drafted unit comes back at *draft*, in the review
 worklist, with the earlier approval **not** restored; the scope does not ship

@@ -214,6 +214,10 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 			svcOpts = append(svcOpts, change.WithEditionStates(hist))
 		}
 		svcOpts = append(svcOpts, change.WithHistories(hist))
+		if recorder != nil {
+			// A read records what it finds changed outside kapi.
+			svcOpts = append(svcOpts, change.WithObserver(&editObserver{hist: hist, rec: recorder}))
+		}
 	}
 	return change.NewService(filehome.Formats{Registry: a.FormatReg}, change.OneHome(home), svcOpts...), nil
 }

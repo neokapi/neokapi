@@ -837,7 +837,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 
 	// The destination is digested before anything is read, so the commit
 	// can tell whether it changed while the run worked.
-	doc, err := r.openDocument(ctx, flowName, inputPath, outputPath, targetLang, reader.Name(), writer.Name())
+	doc, err := r.openDocument(ctx, flowName, tools, inputPath, outputPath, targetLang, reader.Name(), writer.Name())
 	if err != nil {
 		reader.Close()
 		return err
@@ -1085,7 +1085,7 @@ func (r *FileRunner) RunSkeletonReconstruct(ctx context.Context, flowName string
 		return err
 	}
 
-	doc, err := r.openDocument(ctx, flowName, outputPath, outputPath, targetLang, string(formatID), string(formatID))
+	doc, err := r.openDocument(ctx, flowName, tools, outputPath, outputPath, targetLang, string(formatID), string(formatID))
 	if err != nil {
 		return err
 	}

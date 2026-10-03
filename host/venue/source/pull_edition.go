@@ -8,8 +8,11 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/history"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
@@ -40,6 +43,40 @@ func pulledTargets(blocks []apiclient.SyncBlock, locale string) map[string][]mod
 			continue
 		}
 		out[targetMatchKey(sb.Name, sb.SourceText)] = t.Runs
+	}
+	return out
+}
+
+// pulledBases maps each pulled block's match key (targetMatchKey) to the
+// source its translation into locale was made from, as the venue's record of
+// that translation says: the basis of a decision on it, or of a draft the
+// venue made. records is the venue's ledger as the pull carries it. A
+// translation the venue's record does not describe, and one whose source the
+// venue does not know (a person wrote it there), are left out.
+func pulledBases(blocks []apiclient.SyncBlock, locale string, records []venue.UnitDecision) map[string]string {
+	if len(records) == 0 {
+		return nil
+	}
+	type unitAt struct{ item, unit, variant string }
+	byUnit := make(map[unitAt]venue.UnitDecision, len(records))
+	for _, d := range records {
+		byUnit[unitAt{d.ItemName, d.Unit, d.Variant}] = d
+	}
+	out := map[string]string{}
+	for _, sb := range blocks {
+		unit := sb.Unit
+		if unit == "" {
+			unit = sb.Name
+		}
+		d, ok := byUnit[unitAt{sb.ItemName, unit, locale}]
+		if !ok || d.ContentHash == "" {
+			continue
+		}
+		t := apiclient.SyncBlockToBlock(sb).Target(model.LocaleID(locale))
+		if t == nil || d.TargetHash != state.TargetHash(model.RunsText(t.Runs)) {
+			continue
+		}
+		out[targetMatchKey(sb.Name, sb.SourceText)] = d.ContentHash
 	}
 	return out
 }
@@ -78,11 +115,18 @@ type pullServices map[string]*change.Service
 // wrote any. media are the locale variants of the document's media, which the
 // writer substitutes as it writes; a document with none shares its
 // language's service in services.
-func (c *BowrainSourceConnector) pullEdition(ctx context.Context, services pullServices, itemName, locale string, targets map[string][]model.Run, media []MediaReplacement) (bool, error) {
+//
+// bases (pulledBases) says which source the venue made each translation
+// from. A translation made from the source this checkout holds is recorded
+// with that source as its basis, so it reads stale here once the source
+// moves. Any other is recorded with none (host.WithStatedBases): the venue
+// made it from wording this checkout does not hold, and the source the
+// checkout holds would claim it current.
+func (c *BowrainSourceConnector) pullEdition(ctx context.Context, services pullServices, itemName, locale string, targets map[string][]model.Run, bases map[string]string, media []MediaReplacement) (bool, error) {
 	svc := services[locale]
 	if svc == nil || len(media) > 0 {
 		opts := host.ChangeServiceOptions{
-			Project: c.project.RecipePath(), Origin: "pull", TargetLocale: model.LocaleID(locale), Materialize: true,
+			Project: c.project.RecipePath(), Origin: history.OriginPull, TargetLocale: model.LocaleID(locale), Materialize: true,
 		}
 		if len(media) > 0 {
 			opts.WriterHook = func(w format.DataFormatWriter) {
@@ -104,21 +148,27 @@ func (c *BowrainSourceConnector) pullEdition(ctx context.Context, services pullS
 	key := model.EditionKey{Locale: model.LocaleID(locale)}
 	var ops []change.Op
 	_, err := svc.ReadEach(ctx, change.ReadRequest{Doc: itemName, Editions: []model.EditionKey{key}}, func(b *model.Block, r change.BlockRead) error {
-		runs, ok := targets[targetMatchKey(b.Name, b.SourceText())]
+		match := targetMatchKey(b.Name, b.SourceText())
+		runs, ok := targets[match]
 		if !ok {
 			return nil
 		}
-		ops = append(ops, change.Op{
+		op := change.Op{
 			Kind: change.KindSetContent, At: change.Ref{Doc: itemName, Block: r.Ref.Block, Edition: key},
 			IfMatch: model.EditionRevision(b, key),
 			Body:    &change.SetContent{Runs: runs},
-		})
+		}
+		if basis, known := bases[match]; known && basis == state.SourceHash(b.SourceText()) {
+			op.Basis = r.Rev
+		}
+		ops = append(ops, op)
 		return nil
 	})
 	if err != nil || len(ops) == 0 {
 		return false, err
 	}
-	res, err := svc.Apply(ctx, change.Set{Gate: change.GateReport, Note: "pull " + locale, Ops: ops}, pullActor)
+	set := change.Set{Gate: change.GateReport, Note: "pull " + locale, Ops: ops}
+	res, err := svc.Apply(host.WithStatedBases(ctx, set), set, pullActor)
 	if err != nil {
 		return false, err
 	}

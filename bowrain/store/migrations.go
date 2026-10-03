@@ -1486,4 +1486,35 @@ var Migrations = []storage.Migration{
 				ON notification_group_members(created_at);
 		`,
 	},
+	{
+		Version:     37,
+		Description: "who wrote each translation a checkout holds by hand",
+		SQL: `
+			-- One row per translation a push said the pusher wrote by hand on
+			-- their checkout (core/venue.EditionWrite.ByHand): the pusher, and
+			-- the revision of the translation the write left. Separation of
+			-- duties reads it when an approval of that translation arrives in a
+			-- later push than the write did. The first pusher of a revision
+			-- stays its author when another checkout sends the same write
+			-- again, and a write of another revision by anybody else ends the
+			-- row. Keyed as the decision ledger keys a unit (item name and
+			-- durable unit), with the key the checkout's own records give the
+			-- unit beside it where that differs. A new table, so applying this
+			-- version to an existing database creates it there as it does in
+			-- an empty one.
+			CREATE TABLE IF NOT EXISTS edition_writers (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				item_name  TEXT NOT NULL,
+				unit       TEXT NOT NULL,
+				variant    TEXT NOT NULL,
+				block      TEXT NOT NULL DEFAULT '',
+				revision   TEXT NOT NULL,
+				author     TEXT NOT NULL,
+				origin     TEXT NOT NULL DEFAULT '',
+				written_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, item_name, unit, variant)
+			);
+		`,
+	},
 }

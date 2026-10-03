@@ -14,6 +14,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/review"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
@@ -84,6 +85,95 @@ type pushGovernor struct {
 	// and in its decision record, and the report counts it once and attaches
 	// the venue's standing record to it.
 	withdrawals map[unitVariantRef]int
+	// writers names who wrote by hand, on their checkout, the translation of
+	// each unit this push's verdicts judge (noteWriters). The gate judges an
+	// approval of it as that person's, as it judges a person who edits and
+	// approves in one change in the editor.
+	writers map[unitVariantRef]string
+}
+
+// noteWriters resolves who wrote by hand the translations this push's
+// verdicts judge: what earlier pushes recorded (platstore.EditionWriterStore),
+// updated by the edition writes this push carries. A write of a revision an
+// earlier push recorded keeps that push's author, so a checkout that pulled a
+// colleague's record and sends it again is not taken for its author. A write
+// of another revision by hand is the pusher's (venue.EditionWrite.ByHand),
+// and one by anybody else ends the earlier author's claim.
+//
+// It reports an error when a store that keeps the writers failed to answer,
+// which fails the push as an unreadable authorship does.
+func (g *pushGovernor) noteWriters(ctx context.Context, deps *WorkerDeps, projectID, stream string, staged []stagedGroup, decisions []venue.UnitDecision, writes []venue.EditionWrite) error {
+	if !g.judging() {
+		return nil
+	}
+	type writer struct{ author, revision string }
+	known := map[unitVariantRef]writer{}
+	if ws, ok := deps.ContentStore.(platstore.EditionWriterStore); ok {
+		rows, err := ws.EditionWriters(ctx, projectID, stream, judgedItems(staged, decisions))
+		if err != nil {
+			return fmt.Errorf("read who wrote the translations the push judges: %w", err)
+		}
+		for _, r := range rows {
+			w := writer{author: r.Author, revision: r.Revision}
+			known[unitVariantRef{item: r.ItemName, unit: r.Unit, variant: r.Variant}] = w
+			if r.Block != "" {
+				// The project's decisions name the unit by its own key.
+				known[unitVariantRef{item: r.ItemName, unit: r.Block, variant: r.Variant}] = w
+			}
+		}
+	}
+	for _, w := range writes {
+		refs := []unitVariantRef{{item: w.ItemName, unit: w.Unit, variant: w.Variant}}
+		if w.Block != "" {
+			refs = append(refs, unitVariantRef{item: w.ItemName, unit: w.Block, variant: w.Variant})
+		}
+		for _, ref := range refs {
+			prev, had := known[ref]
+			switch {
+			case had && prev.revision == w.Revision:
+				// The write an earlier push recorded, sent again.
+			case w.ByHand():
+				known[ref] = writer{author: g.actor, revision: w.Revision}
+			case had:
+				delete(known, ref)
+			}
+		}
+	}
+	g.writers = make(map[unitVariantRef]string, len(known))
+	for ref, w := range known {
+		g.writers[ref] = w.author
+	}
+	return nil
+}
+
+// judgedItems names the items a push's verdicts are about: the items its
+// blocks and its decisions belong to.
+func judgedItems(staged []stagedGroup, decisions []venue.UnitDecision) []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(item string) {
+		if item != "" && !seen[item] {
+			seen[item] = true
+			out = append(out, item)
+		}
+	}
+	for _, group := range staged {
+		add(group.ItemName)
+	}
+	for _, d := range decisions {
+		add(d.ItemName)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// gateKey is what the gate judges one unit's translation by: the row the venue
+// holds, or, for a unit arriving for the first time, the unit itself.
+func gateKey(blockID, item, unit string) string {
+	if blockID != "" {
+		return blockID
+	}
+	return "unit:" + item + "\x00" + unit
 }
 
 // recordPushGovernance stores what the review gate refused on the push's job
@@ -436,9 +526,14 @@ func (g *pushGovernor) rowFor(b *model.Block) string {
 }
 
 // allow puts one (block, locale) pair to the gate. It counts the refusal for
-// the report; countRefusal is false when the caller counts it itself.
-func (g *pushGovernor) allow(blockID, locale, kind string, countRefusal bool) (bool, string) {
-	err := g.gate.Allow(blockID, locale)
+// the report; countRefusal is false when the caller counts it itself. A
+// translation somebody wrote by hand on their checkout is judged as theirs.
+func (g *pushGovernor) allow(blockID string, at unitVariantRef, locale, kind string, countRefusal bool) (bool, string) {
+	key := gateKey(blockID, at.item, at.unit)
+	if author := g.writers[at]; author != "" {
+		g.gate.WrittenBy(key, locale, author)
+	}
+	err := g.gate.Allow(key, locale)
 	if err == nil {
 		return true, ""
 	}
@@ -575,7 +670,8 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 					// permission UNDO an approval by sending it back.
 					continue
 				}
-				allowed, reason := g.allow(blockID, locale, venue.VerdictApproval, true)
+				at := unitVariantRef{item: group.ItemName, unit: convergence.BlockKey(b), variant: variantText(key)}
+				allowed, reason := g.allow(blockID, at, locale, venue.VerdictApproval, true)
 				if allowed {
 					g.noteAccepted(blockID, group.ItemName, b.Name, locale, prior, status)
 					continue
@@ -694,7 +790,7 @@ func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue
 			continue
 		}
 		blockID := g.unitID[unitRef{item: d.ItemName, unit: d.Unit}]
-		allowed, reason := g.allow(blockID, locale, kind, false)
+		allowed, reason := g.allow(blockID, ref, locale, kind, false)
 		if !allowed {
 			refuse(reason)
 			continue

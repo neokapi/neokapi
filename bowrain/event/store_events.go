@@ -723,6 +723,16 @@ func (s *EventEmittingStore) LastTargetAuthors(ctx context.Context, projectID, s
 	return as.LastTargetAuthors(ctx, projectID, stream, blockIDs, locales)
 }
 
+// EditionWriters forwards the optional EditionWriterStore capability, which
+// the push worker reads separation of duties through.
+func (s *EventEmittingStore) EditionWriters(ctx context.Context, projectID, stream string, items []string) ([]store.EditionWriter, error) {
+	ws, ok := s.inner.(store.EditionWriterStore)
+	if !ok {
+		return nil, fmt.Errorf("content store %T keeps no edition writers", s.inner)
+	}
+	return ws.EditionWriters(ctx, projectID, stream, items)
+}
+
 // UpsertChannelAliasProposals forwards the optional ChannelAliasStore
 // capability. Same reason as the decision ledger above: the server holds the
 // wrapper, and an assertion against the wrapper's method set found nothing —

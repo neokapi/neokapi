@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -60,6 +61,7 @@ type governedPush struct {
 	blocks    []*model.Block
 	item      string
 	decisions []venue.UnitDecision
+	writes    []venue.EditionWrite
 }
 
 // run puts the push through the worker and returns the job's outcome.
@@ -81,6 +83,7 @@ func (p governedPush) run(t *testing.T, deps *WorkerDeps, jobID string) error {
 
 	items, _ := json.Marshal([]map[string]string{{"name": p.item, "format": "json"}})
 	decisions, _ := json.Marshal(p.decisions)
+	writes, _ := json.Marshal(p.writes)
 	manifest := map[string]any{
 		"project_id": p.projectID,
 		"stream":     "main",
@@ -91,6 +94,7 @@ func (p governedPush) run(t *testing.T, deps *WorkerDeps, jobID string) error {
 		}},
 		"items":     json.RawMessage(items),
 		"decisions": json.RawMessage(decisions),
+		"writes":    json.RawMessage(writes),
 	}
 	manifestData, _ := json.Marshal(manifest)
 	ref, err := deps.BlobStore.Upload(ctx, manifestData, corestorage.UploadOptions{})
@@ -236,6 +240,46 @@ func TestPushReviewGovernance(t *testing.T) {
 		report := jobGovernance(t, deps, "push-job-sod")
 		require.Len(t, report.Refusals, 1)
 		assert.Equal(t, venue.RefusedSeparationOfDuties, report.Refusals[0].Reason)
+	})
+
+	t.Run("separation of duties holds a translation written on a checkout across pushes", func(t *testing.T) {
+		deps, pid := setup(t, pushAuthority{
+			review: map[string]bool{locale: true}, mode: platauth.SoDBlock,
+		})
+		source := &model.Block{ID: "b1", Name: "b1", Translatable: true}
+		source.SetSourceText("Hello")
+		handWrite := venue.EditionWrite{ItemName: item, Unit: "b1", Variant: locale,
+			Revision: "r:1111111111111111", Writer: venue.WriterPerson, Origin: "apply"}
+		// Ada writes the translation by hand on her checkout and pushes. The
+		// venue holds no translation of it: the push carries her write alone.
+		require.NoError(t, governedPush{projectID: pid, actor: "u-ada", item: item,
+			blocks: []*model.Block{source}, writes: []venue.EditionWrite{handWrite}}.run(t, deps, "job-write"))
+
+		approval := venue.UnitDecision{
+			ItemName: item, Unit: "b1", Variant: locale,
+			Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
+			TargetHash: state.TargetHash("Bonjour"), ContentHash: state.SourceHash("Hello"),
+			Updated: time.Now().UTC().Add(time.Minute).Format(time.RFC3339),
+		}
+		// Later she approves it, and pushes the approval alone.
+		require.NoError(t, governedPush{projectID: pid, actor: "u-ada", item: item,
+			decisions: []venue.UnitDecision{approval}}.run(t, deps, "job-own-approval"))
+		report := jobGovernance(t, deps, "push-job-own-approval")
+		require.Len(t, report.Refusals, 1)
+		assert.Equal(t, venue.RefusedSeparationOfDuties, report.Refusals[0].Reason)
+		d, _ := heldDecision(t, deps, pid, "b1", locale)
+		assert.Empty(t, d.ReviewState, "her approval of her own translation is not recorded")
+
+		// Ben's checkout pulled her record and sends her write again beside
+		// his approval: he did not write it, and his approval stands.
+		approval.Updated = time.Now().UTC().Add(2 * time.Minute).Format(time.RFC3339)
+		require.NoError(t, governedPush{projectID: pid, actor: "u-ben", item: item,
+			decisions: []venue.UnitDecision{approval}, writes: []venue.EditionWrite{handWrite}}.run(t, deps, "job-ben"))
+		assert.True(t, jobGovernance(t, deps, "push-job-ben").Empty())
+		d, ok := heldDecision(t, deps, pid, "b1", locale)
+		require.True(t, ok)
+		assert.Equal(t, venue.ReviewStateApproved, d.ReviewState)
+		assert.Equal(t, "u-ben", d.DecidedBy)
 	})
 
 	t.Run("a warning policy records the conflict and accepts the rung", func(t *testing.T) {

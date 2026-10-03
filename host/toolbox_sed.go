@@ -226,8 +226,10 @@ func (r *sedRun) stdinService(ctx context.Context, dir string) (*change.Service,
 
 // print compiles the operations the program makes on a file and keeps them
 // for --print-ops. A file whose operations do not all compile contributes
-// none.
+// none. A printing run records nothing, an edit made outside kapi included, so
+// the reads it compiles from are left unobserved.
 func (r *sedRun) print(ctx context.Context, file string) error {
+	ctx = change.Unobserved(ctx)
 	if file == StdinName {
 		path, cleanup, err := stdinDocument(ctx)
 		if err != nil {

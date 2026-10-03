@@ -12,7 +12,6 @@ import (
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/memory"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -266,6 +265,43 @@ func TestReviewQueue_MarksFindings(t *testing.T) {
 	assert.Equal(t, "App", fr.Collection, "items carry their collection")
 }
 
+// recordLoopWrite records what a flow records for the translation into locale
+// of the document doc: one transition per block, made from the source in
+// front of it and stamped with producer.
+func recordLoopWrite(t *testing.T, app *App, root, doc string, locale model.LocaleID, producer model.Origin) {
+	t.Helper()
+	ctx := context.Background()
+	eng := app.hostEngine()
+	svc, err := eng.ChangeService(ctx, host.ChangeServiceOptions{Project: filepath.Join(root, "project.kapi"), SourceLocale: "en-US"})
+	require.NoError(t, err)
+	k := model.EditionKey{Locale: locale}
+	var transitions []change.Transition
+	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: doc, Editions: []model.EditionKey{k}}, func(b *model.Block, r change.BlockRead) error {
+		ed, ok := b.Edition(k)
+		if !ok {
+			return nil
+		}
+		ed.Origin = producer
+		b.SetEdition(k, ed)
+		transitions = append(transitions, change.Transition{
+			Ref: change.Ref{Doc: doc, Block: r.Ref.Block, Edition: k}, Role: change.RoleDerived,
+			BeforeRev: model.AbsentRevision, AfterRev: model.EditionRevision(b, k),
+			Basis: model.EditionRevision(b, b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{}))), Block: b,
+		})
+		return nil
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, transitions)
+	rec, err := eng.EditRecorder(ctx, root)
+	require.NoError(t, err)
+	_, err = rec.Record(ctx, change.Record{
+		Actor: change.Actor{Kind: change.ActorTool, Name: "translate"}, Origin: "flow:translate",
+		Docs:        []change.DocResult{{Doc: doc, Home: "file", Written: true}},
+		Transitions: transitions,
+	})
+	require.NoError(t, err)
+}
+
 // TestReviewEdit_RecordsAHumanOrigin: the reviewer who rewrites an AI draft
 // produced the wording in front of them, and the review model's provenance
 // layer is where that is read. The edit is recorded in the block history with
@@ -275,22 +311,12 @@ func TestReviewEdit_RecordsAHumanOrigin(t *testing.T) {
 	app := NewApp()
 	tab, root := newReviewProject(t, app)
 	file := filepath.Join("locales", "fr-FR.json")
-	ctx := context.Background()
 
-	// The record a convergence pass leaves for its own output: the source it
-	// translated, the translation it wrote, and the model that wrote it.
-	st, err := app.hostEngine().OpenProjectState(ctx, root)
-	require.NoError(t, err)
-	scope := app.hostEngine().DocumentScope(ctx, root, filepath.Join(root, "locales", "en.json"))
-	require.NoError(t, st.Record(ctx, state.UnitState{
-		Unit:        "greeting",
-		Variant:     model.Variant("fr-FR"),
-		Scope:       scope,
-		Status:      model.TargetStatusTranslated,
-		Origin:      model.Origin{Kind: model.OriginAI, Engine: "claude", Timestamp: "2026-09-01T10:00:00Z"},
-		TargetHash:  state.TargetHash("Bonjour {name}"),
-		ContentHash: state.SourceHash("Hello {name}"),
-	}))
+	// The record a convergence pass leaves for its own output, in the block
+	// history: the source it translated, the translation it wrote, and the
+	// model that wrote it.
+	recordLoopWrite(t, app, root, "locales/en.json", "fr-FR",
+		model.Origin{Kind: model.OriginAI, Engine: "claude", Timestamp: "2026-09-01T10:00:00Z"})
 
 	asDrafted, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
 	require.NoError(t, err)

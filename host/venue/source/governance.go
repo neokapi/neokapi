@@ -23,8 +23,11 @@ import (
 // decisions component of the freshness ref would keep differing, so every push
 // from then on would send the same refused claims again, be refused again, and
 // report it again. So a refused verdict is retired here the way the venue
-// retired it, leaving the basis it carried and nothing more, and a refused
-// withdrawal is restored to the record the venue kept.
+// retired it: the venue keeps the basis the verdict carried, which decides
+// nothing and folds into no component, and the project's ledger, which holds
+// decisions only, withdraws the verdict and keeps whatever else the record
+// decided (a note, an assignee, a parked unit). A refused withdrawal is
+// restored to the record the venue kept.
 //
 // Both are recorded with the venue as their origin, because the venue is who
 // reached them: they are its answer about a decision this project sent it.
@@ -94,29 +97,32 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 	}
 
 	retired := 0
+	scopes := map[string]string{}
 	for _, u := range all {
 		item := u.Scope
 		if p, ok := docPaths[u.Scope]; ok && p != "" {
 			item = p
 		}
+		scopes[item] = u.Scope
 		variant := variantText(u.Variant)
 		key := unitKey{item: item, unit: u.Unit, variant: variant}
 		if h, ok := held[key]; ok {
-			if err := st.RecordEntry(ctx, withHeld(u, h), h.DecidedBy, state.OriginVenue); err != nil {
+			delete(held, key)
+			if err := recordVenueAnswer(ctx, st, u, withHeld(u, h), h.DecidedBy); err != nil {
 				return retired, fmt.Errorf("restore unit state %s/%s: %w", u.Unit, variant, err)
 			}
 			retired++
 			continue
 		}
 		if h, ok := kept[key]; ok {
-			if err := st.RecordEntry(ctx, asVenueRecord(u, h), h.DecidedBy, state.OriginVenue); err != nil {
+			if err := recordVenueAnswer(ctx, st, u, asVenueRecord(u, h), h.DecidedBy); err != nil {
 				return retired, fmt.Errorf("take the venue's record for %s/%s: %w", u.Unit, variant, err)
 			}
 			retired++
 			continue
 		}
 		if staleRejections[key] && u.Decision.ReviewState == venue.ReviewStateRejected {
-			if err := st.RecordEntry(ctx, withoutVerdict(u), "", state.OriginVenue); err != nil {
+			if err := recordVenueAnswer(ctx, st, u, withoutVerdict(u), ""); err != nil {
 				return retired, fmt.Errorf("retire unit state %s/%s: %w", u.Unit, variant, err)
 			}
 			retired++
@@ -128,8 +134,37 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 		if !blockedLocales[string(u.Variant.Locale)] && !units[key] {
 			continue
 		}
-		if err := st.RecordEntry(ctx, withoutVerdict(u), "", state.OriginVenue); err != nil {
+		if err := recordVenueAnswer(ctx, st, u, withoutVerdict(u), ""); err != nil {
 			return retired, fmt.Errorf("retire unit state %s/%s: %w", u.Unit, variant, err)
+		}
+		retired++
+	}
+	// An approval the project withdrew holds no record here (the ledger keeps
+	// decisions only, and a withdrawal leaves the unit with none), so the
+	// approval the venue kept is recorded back from what the venue sent.
+	for key, h := range held {
+		var variant model.VariantKey
+		if err := variant.UnmarshalText([]byte(h.Variant)); err != nil || variant.Locale == "" {
+			continue
+		}
+		scope := key.item
+		if s, ok := scopes[key.item]; ok {
+			scope = s
+		} else {
+			for s, p := range docPaths {
+				if p == key.item {
+					scope = s
+					break
+				}
+			}
+		}
+		u := withHeld(state.UnitState{Scope: scope, Unit: h.Unit, Variant: variant,
+			TargetHash: h.TargetHash, ContentHash: h.ContentHash}, h)
+		if !u.Decides() {
+			continue
+		}
+		if err := st.RecordEntry(ctx, u, h.DecidedBy, state.OriginVenue); err != nil {
+			return retired, fmt.Errorf("restore unit state %s/%s: %w", h.Unit, h.Variant, err)
 		}
 		retired++
 	}
@@ -140,6 +175,17 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 		return retired, fmt.Errorf("write the project's committed record: %w", err)
 	}
 	return retired, nil
+}
+
+// recordVenueAnswer records next, the venue's answer about the local record
+// was, with the venue as its origin. An answer that decides nothing (the
+// basis a refused verdict leaves) withdraws was instead: the ledger holds
+// decisions only, and the unit is left with none, as the venue leaves it.
+func recordVenueAnswer(ctx context.Context, st *state.WorkStore, was, next state.UnitState, by string) error {
+	if next.Decides() {
+		return st.RecordEntry(ctx, next, by, state.OriginVenue)
+	}
+	return st.Delete(ctx, was.Key())
 }
 
 // unitKey is the venue's name for one record: the item that scopes the unit's

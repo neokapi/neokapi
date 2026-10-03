@@ -57,14 +57,15 @@ func TestDecide_RecordsTheGoverningContext(t *testing.T) {
 	ctx := context.Background()
 	ref := ReviewUnitRef{File: "locales/fr/app.json", Key: "greeting", Locale: "fr"}
 
-	// A record the loop left: identity signals and nothing decided.
+	// An earlier decision on the unit, carrying its identity signals.
 	st, err := a.OpenProjectState(ctx, root)
 	require.NoError(t, err)
 	scope := a.DocumentScope(ctx, root, filepath.Join(root, "locales", "en", "app.json"))
 	key := state.Key{Scope: scope, Unit: "greeting", Variant: model.Variant("fr")}
-	require.NoError(t, st.Record(ctx, state.UnitState{
+	require.NoError(t, st.Put(ctx, state.UnitState{
 		Unit: "greeting", Variant: model.Variant("fr"), Scope: scope,
-		Status: model.TargetStatusTranslated, ContextHash: "ctx-identity",
+		Status: model.TargetStatusDraft, ContextHash: "ctx-identity",
+		Decision: state.Decision{ReviewState: "rejected"},
 	}))
 
 	want := governingNow(t, a, recipe, root)
@@ -191,12 +192,10 @@ func TestAbsorbCommittedRecord_ReadsTheGoverningContextFromTheRecord(t *testing.
 			decided.Decision = state.Decision{ReviewState: "approved"}
 			decided.GoverningFingerprint = "fp-decision"
 			require.NoError(t, st.Put(ctx, decided))
-			// A basis the loop wrote before the field existed: only the
-			// producer's stamp says what governed it.
-			produced := row("farewell", "Goodbye", "Ha det")
-			produced.Status = model.TargetStatusTranslated
-			produced.Origin = model.Origin{Kind: model.OriginAI, ContextFingerprint: "fp-produced"}
-			require.NoError(t, st.Record(ctx, produced))
+			// A translation the loop wrote and nobody decided: the producer's
+			// stamp in the block history says what governed it.
+			recordFlowWrite(t, a, recipe, "src/en"+tc.ext, "nb",
+				model.Origin{Kind: model.OriginAI, ContextFingerprint: "fp-produced"})
 			// A decision about a translation somebody has since rewritten.
 			rewritten := row("ok", "All set", "Alt i orden")
 			rewritten.Status = model.TargetStatusEstablished
@@ -266,7 +265,7 @@ func TestSeedContext_CarriesTheBundlesGoverningContextOntoTheRecord(t *testing.T
 	require.NoError(t, err)
 	scope := a.DocumentScope(ctx, root, filepath.Join(root, "src", "en.json"))
 	record := func(unit, target, fingerprint string) {
-		require.NoError(t, st.Record(ctx, state.UnitState{
+		require.NoError(t, st.Put(ctx, state.UnitState{
 			Unit: unit, Variant: model.Variant("nb"), Scope: scope,
 			Status: model.TargetStatusEstablished, Decision: state.Decision{ReviewState: "approved"},
 			TargetHash: state.TargetHash(target), ContentHash: state.SourceHash("source of " + unit),

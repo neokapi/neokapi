@@ -85,6 +85,11 @@ type EditTransition struct {
 	// file that holds strings alone keeps none of it, so the record is where
 	// the staleness gate finds what governed a translation the loop wrote.
 	Producer *model.Origin `json:"producer,omitempty"`
+	// Ops are the kinds of the operations that changed the edition, in the
+	// order they applied, and Tool the tool in a flow that changed it, where
+	// the record names one.
+	Ops  []string `json:"ops,omitempty"`
+	Tool string   `json:"tool,omitempty"`
 	// RunsBefore and RunsAfter name the blobs holding the edition's runs
 	// around the change ("blob:sha256:…"), each the canonical run JSON
 	// model.RunsRevision is computed over. Empty for a hash-only record.
@@ -335,7 +340,7 @@ func editRows(op, address string, at time.Time, e Edit) []history.Row {
 			Before: t.Before, After: t.After, Basis: t.Basis,
 			ContentHash: t.ContentHash, ContextHash: t.ContextHash,
 			Actor: string(e.Actor.Kind), ActorName: e.Actor.Name, Session: e.Actor.Session,
-			Origin: e.Origin.By, At: at,
+			Origin: e.Origin.By, Ops: t.Ops, Tool: t.Tool, At: at,
 		}
 		if t.Producer != nil {
 			row.Producer = *t.Producer

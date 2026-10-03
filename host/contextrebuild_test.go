@@ -152,15 +152,15 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 	require.NoError(t, st.Put(ctx, decide("farewell", "Ha det", "asgeir")))
 	require.NoError(t, st.Delete(ctx, state.Key{Scope: "doc", Unit: "farewell", Variant: model.Variant("nb")}))
 	require.NoError(t, st.Put(ctx, decide("greeting", "Hei", "asgeir")))
-	require.NoError(t, st.Record(ctx, state.UnitState{
+	require.ErrorIs(t, st.Put(ctx, state.UnitState{
 		Unit: "title", Variant: model.Variant("nb"), Scope: "doc",
 		TargetHash: state.TargetHash("Tittel"), ContentHash: state.SourceHash("Title"),
-	}))
+	}), state.ErrDecidesNothing, "a record that decides nothing is the block history's")
 
 	db, err := app.ProjectDB(ctx, root)
 	require.NoError(t, err)
 	before := projectionRows(t, app, db)
-	require.Len(t, before["unit_decision"], 5, "four decisions and one withdrawal")
+	require.Len(t, before["unit_decision"], 4, "three decisions and one withdrawal")
 	require.NotEmpty(t, before["tb_concepts"])
 	require.NotEmpty(t, before["tm_entries"])
 	require.NotEmpty(t, before["voice_profiles"])

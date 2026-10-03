@@ -194,6 +194,10 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		// Decisions is the decisions content type, passed through the same way:
 		// the worker upserts it into the unit_decisions ledger after the chunks.
 		Decisions json.RawMessage `json:"decisions"`
+		// Writes are the edition writes beside the decisions (see
+		// venue.EditionWrite): how each translation the project holds came
+		// to be. Passed through to the worker, which records them.
+		Writes json.RawMessage `json:"writes"`
 		// ExpectedRef is the compare-and-swap assertion: the governance
 		// components this push last observed. Checked here so a client waiting
 		// on `kapi push` is told at once, and again in the worker, which is

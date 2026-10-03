@@ -212,6 +212,21 @@ type Key struct {
 // Key returns the unit's identity key.
 func (s UnitState) Key() Key { return Key{Scope: s.Scope, Unit: s.Unit, Variant: s.Variant} }
 
+// Decides reports whether the record decides something about its unit: a
+// review state (an approval or a rejection, of a translation or of source
+// wording), a rung above translated, a parked unit, an assignee or a note, or
+// an agent's pre-review (a decide advise). A record that says only what was
+// produced (a translation, the source it was made from, the rung its producer
+// put it on) decides nothing. The block history holds that, beside every
+// other change to the edition, and the ledger holds decisions only.
+func (s UnitState) Decides() bool {
+	d := s.Decision
+	return d.ReviewState != "" || d.Parked || d.Assignee != "" || d.Note != "" ||
+		s.Status.Rank() > model.TargetStatusTranslated.Rank() ||
+		s.SourceStatus == model.SourceStatusEstablished ||
+		s.AIReview != nil
+}
+
 // Stale reports whether this state was recorded against a different translation
 // than targetHash — i.e. the translation changed since the decision, so the
 // decision (an approval) no longer applies and the unit drops back down

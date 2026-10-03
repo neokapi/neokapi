@@ -105,6 +105,13 @@ type Transition struct {
 	// uses to re-attach history after a reorder.
 	ContentHash string
 	ContextHash string
+	// Ops are the kinds of the operations that changed the edition, in the
+	// order they applied. A flow names the kinds its run's change to the
+	// edition comes to (Diff); an edit made outside kapi names none.
+	Ops []Kind
+	// Tool is the tool in a flow that changed the edition, where the record
+	// can name one.
+	Tool string
 }
 
 // Record is what the service hands the recorder after the homes committed.

@@ -659,6 +659,9 @@ func TestService_RecordsWhatLanded(t *testing.T) {
 	assert.Equal(t, "nb", r.Transitions[1].Ref.EditionText())
 	assert.Equal(t, res.Ops[0].After, r.Transitions[1].Basis, "the derived edition records the authoritative revision it was made against")
 	assert.Equal(t, []change.Invalidation{{Edition: "nb", Reason: change.ReasonBasisMoved}}, res.Ops[0].Invalidates)
+	for i, tr := range r.Transitions {
+		assert.Equal(t, []change.Kind{set.Ops[i].Kind}, tr.Ops, "each transition names the operation that changed its edition")
+	}
 
 	_, err = svc.Apply(context.Background(), set, svcPerson)
 	require.NoError(t, err)

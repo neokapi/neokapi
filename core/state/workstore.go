@@ -438,6 +438,9 @@ func (w *WorkStore) Import(ctx context.Context) error {
 // last-writer-wins rule a venue pull follows, and it is what keeps a
 // colleague's earlier line from displacing a decision made here since.
 func (w *WorkStore) importUnits(ctx context.Context, units []UnitState) error {
+	// A line that decides nothing (a basis an earlier release wrote out) is
+	// not a decision, and the ledger takes none.
+	units = slices.DeleteFunc(slices.Clone(units), func(u UnitState) bool { return !u.Decides() })
 	keep, err := w.unexportedRows(ctx)
 	if err != nil {
 		return err
@@ -552,13 +555,6 @@ func (w *WorkStore) Put(ctx context.Context, u UnitState) error {
 	return w.append(ctx, u, u.Decision.By, OriginLocal, false)
 }
 
-// Record stores what the loop produced rather than what a person decided: a
-// unit's basis, the source it translated and the translation it wrote, with no
-// Decision on it.
-func (w *WorkStore) Record(ctx context.Context, u UnitState) error {
-	return w.append(ctx, u, u.Decision.By, OriginRun, false)
-}
-
 // Delete withdraws whatever applies to the unit in this checkout: a revocation
 // entry at the unit's current pairing, and the view row removed. The ledger
 // keeps everything it held, so the unit's history stays readable and a pairing
@@ -589,6 +585,9 @@ func (w *WorkStore) Delete(ctx context.Context, k Key) error {
 // longer answers is re-asserted, which moves its moment forward so it answers
 // again.
 func (w *WorkStore) append(ctx context.Context, u UnitState, actor string, origin EntryOrigin, revoked bool) error {
+	if !revoked && !u.Decides() {
+		return fmt.Errorf("state: record %s/%s: %w", u.Scope, u.Unit, ErrDecidesNothing)
+	}
 	p := u.Pairing()
 	applies, applied := w.applies(ctx, p)
 	err := w.currentPolicy()(Transition{

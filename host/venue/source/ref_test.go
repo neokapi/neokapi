@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/venue"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
@@ -35,8 +36,12 @@ type refServer struct {
 	published    ref.Ref
 	commitAssert ref.Ref
 	commits      int
-	// decisionsSent totals the decision records every commit carried.
+	// decisionsSent totals the decision records every commit carried, and
+	// writesSent the edition writes.
 	decisionsSent int
+	writesSent    int
+	// writes are the edition writes the last commit carried.
+	writes []venue.EditionWrite
 	// statusUnavailable makes the push-status route fail, so the ingest is
 	// unconfirmable — a server with no worker, or one too old for the endpoint.
 	statusUnavailable bool
@@ -146,6 +151,8 @@ func newRefServer(t *testing.T, projectID string, published ref.Ref) *refServer 
 			rs.commitAssert = manifest.ExpectedRef
 			rs.commits++
 			rs.decisionsSent += len(manifest.Decisions)
+			rs.writesSent += len(manifest.Writes)
+			rs.writes = manifest.Writes
 			w.WriteHeader(http.StatusAccepted)
 			_ = json.NewEncoder(w).Encode(map[string]any{"push_id": "p1", "status": "queued"})
 		})

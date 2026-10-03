@@ -253,6 +253,15 @@ type PushApplier interface {
 	// push records clears its unit's mark in the same transition (see
 	// DecisionStore.RecordDraftBases).
 	RecordDraftBases(ctx context.Context, projectID, stream string, drafts []DraftBasis) error
+	// RecordEditionWrites records how each translation a push's project holds
+	// came to be (venue.EditionWrite), after the push's blocks and decisions.
+	// A write about another translation than the one the venue holds is left
+	// out. On a unit nobody has decided, the write's basis becomes the unit's
+	// record; a tool's write from a recorded source marks the unit drafted
+	// against it; and a translation the pusher wrote by hand names author in
+	// the block history row this push wrote for it. It returns how many writes
+	// it recorded.
+	RecordEditionWrites(ctx context.Context, projectID, stream, author string, writes []venue.EditionWrite) (int, error)
 	GetItem(ctx context.Context, projectID, stream, itemName string) (*Item, error)
 	GetCollectionByName(ctx context.Context, projectID, name, stream string) (*Collection, error)
 	GetDefaultCollection(ctx context.Context, projectID string) (*Collection, error)

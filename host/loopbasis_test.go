@@ -313,12 +313,13 @@ func TestLoopBasis_ADecisionOnTheLoopsTranslationKeepsItsProducer(t *testing.T) 
 	assert.Equal(t, "fp-produced", u.GoverningBasis())
 }
 
-// TestLoopBasis_ADecisionStartsFromTheLoopsWriteOverAnOlderLedgerBasis: the
-// ledger holds an undecided basis for a translation the loop has since written
-// again. A decision on the loop's translation starts from the loop's write,
-// whose source is the one in front of the reviewer, and not from the older
-// record, which describes another translation.
-func TestLoopBasis_ADecisionStartsFromTheLoopsWriteOverAnOlderLedgerBasis(t *testing.T) {
+// TestLoopBasis_ADecisionStartsFromTheLoopsWriteOverAnOlderPreReview: the
+// ledger holds an agent's pre-review of a translation the loop has since
+// written again, which decides nothing about the translation. A decision on
+// the loop's translation starts from the loop's write, whose source is the one
+// in front of the reviewer, and keeps nothing the older record says about
+// another translation.
+func TestLoopBasis_ADecisionStartsFromTheLoopsWriteOverAnOlderPreReview(t *testing.T) {
 	root := writeStalenessProject(t)
 	recipe := filepath.Join(root, "kapi.yaml")
 	a := &App{}
@@ -329,10 +330,8 @@ func TestLoopBasis_ADecisionStartsFromTheLoopsWriteOverAnOlderLedgerBasis(t *tes
 	require.NoError(t, err)
 	require.NoError(t, st.Put(ctx, state.UnitState{
 		Unit: "greeting", Variant: model.Variant("fr"), Scope: scope,
-		Status:      model.TargetStatusTranslated,
-		TargetHash:  state.TargetHash("Une salutation plus ancienne"),
-		ContentHash: state.SourceHash("An older greeting"),
-		Updated:     "2026-01-01T00:00:00Z",
+		AIReview: &state.AIReview{Model: "claude", Score: 40, TargetHash: state.TargetHash("Une salutation plus ancienne")},
+		Updated:  "2026-01-01T00:00:00Z",
 	}))
 	recordFlowWrite(t, a, recipe, "locales/en/app.json", "fr", model.Origin{Kind: model.OriginAI, ContextFingerprint: "fp-produced"})
 

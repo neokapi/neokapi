@@ -33,6 +33,7 @@ type Service struct {
 	assets    Assets
 	states    EditionStates
 	histories EditionHistories
+	observer  Observer
 	describer Describer
 	origin    string
 	now       func() time.Time
@@ -897,7 +898,7 @@ func (r *applyRun) record(ctx context.Context) {
 		}
 		files := st.Files()
 		landed := false
-		for _, c := range p.changes {
+		for ci, c := range p.changes {
 			if f := fileOf(files, p.sess.Place(c.Ref.Edition)); f == nil || !f.Written {
 				continue
 			}
@@ -907,6 +908,7 @@ func (r *applyRun) record(ctx context.Context) {
 				EditionChange: c,
 				ContentHash:   model.ComputeContentHash(b.SourceText()),
 				ContextHash:   model.ComputeContextHash(b.Name, b.Type, b.Properties),
+				Ops:           r.kindsOf(p.changeOps[ci]),
 			})
 		}
 		if !landed {
@@ -932,6 +934,21 @@ func (r *applyRun) record(ctx context.Context) {
 		return
 	}
 	r.res.Record = &id
+}
+
+// kindsOf names the kinds of the operations at indexes ops of the change set,
+// in order, each once.
+func (r *applyRun) kindsOf(ops []int) []Kind {
+	var out []Kind
+	for _, i := range ops {
+		if i < 0 || i >= len(r.set.Ops) {
+			continue
+		}
+		if k := r.set.Ops[i].Kind; !slices.Contains(out, k) {
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 // finish completes a refused result: every operation not refused is

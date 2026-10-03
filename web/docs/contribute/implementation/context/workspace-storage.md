@@ -124,7 +124,7 @@ An applied edit is one `content.edit` operation per document. Its payload is the
   "transitions": [
     {"block": "install/p", "key": "u-3f9a1c0e7b2d4a55", "edition": "fr",
      "before": "r:3f9a1c0e7b2d4a55", "after": "r:c41e92d07a8b1f30", "basis": "r:9d0e…",
-     "content_hash": "…", "context_hash": "…",
+     "content_hash": "…", "context_hash": "…", "ops": ["replace_text"],
      "runs_before": "blob:sha256:…", "runs_after": "blob:sha256:…"}
   ],
   "overridden": [{"rule": "terms.vocabulary", "message": "…", "fails": true}],
@@ -138,7 +138,12 @@ the edition, the bytes `model.RunsRevision` is computed over; a tool's edit
 leaves them and `change_set` out, and carries on each derived edition's
 transition a `producer`, the `model.Origin` the producing tool stamped
 (provider, model, profile and governing context fingerprint), which a file of
-strings keeps nowhere else, except that a write to the workspace home
+strings keeps nowhere else, and on every transition the `tool` that changed
+the edition where the record names one. `ops` lists the kinds of the
+operations that changed the edition, in the order they applied. An observed
+edit (actor `{"kind": "external"}`, origin `observed`) keeps revisions and
+hashes only and names no operation. A tool's edit keeps no runs, except that a
+write to the workspace home
 (`"home": "workspace"`) keeps `runs_after` whoever made it. Under a declared
 redaction policy, `host.App.EditRecorder` redacts the runs and the note with
 the project's rules before they are stored, each run sequence as the source of
@@ -169,9 +174,11 @@ id and the operation's own instant, so a rebuild writes the same rows:
 | `key` | the durable key reconciliation assigned, where there is one |
 | `before`, `after`, `basis` | edition revisions, `absent` for an edition created or removed |
 | `content_hash`, `context_hash` | the block's identity signals after the change |
-| `actor`, `actor_name`, `session` | person, agent, tool, or empty for a change made outside kapi |
+| `actor`, `actor_name`, `session` | `person`, `agent`, `tool`, or `external` for a change made outside kapi that a read observed |
 | `origin` | `apply`, `ksed`, `mcp`, `browser`, `desktop`, `flow:<name>`, `merge`, `pull` or `observed` |
 | `producer` | the producing tool's `model.Origin` as JSON, empty when the transition carries none |
+| `ops` | the kinds of the operations that changed the edition, comma-separated, empty when none explains it |
+| `tool` | the tool in a flow that changed the edition, where the record names one |
 | `at` | the operation's instant, RFC 3339 with nanoseconds in UTC |
 
 The projector also writes one `block_history_op` row per operation: its id
@@ -190,11 +197,15 @@ operation applied twice writes the same rows. Operation ids sort by time, so "mo
 `ORDER BY op DESC`, and SQLite's `MAX()` with bare columns gives the latest row
 per block for `history.Store.Priors` in one statement. `history.Store.Latest`
 reads the latest row of each edition of a document, one primary-key seek per
-edition, which is how coverage, the staleness gate and a decision find the
-flow's last write to a translation. A second index,
-`(doc, op)`, serves the reads of a whole document, and a third,
+edition. Where the latest row did not leave the revision an edition holds (a
+branch switch brought back another), `history.Store.Wrote` finds the row that
+did, a recorded write before an observed one, which is how coverage, a
+decision, the review context and a push find the write behind a translation;
+the staleness gate reads the source alone and takes the latest row. A second
+index, `(doc, op)`, serves the reads of a whole document, and a third,
 `block_history_reached` on `(doc, block, edition, after, op)`, the address
-lookups of a recording.
+lookups of a recording, the `Wrote` lookups and an observing read's check of
+the revisions it found.
 
 `Rebuild` deletes every row of the projection tables, skipping the FTS5 shadow
 tables (emptying the virtual table empties them), resets their `sqlite_sequence`

@@ -1,6 +1,7 @@
 package projectdb_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -129,6 +130,44 @@ func TestSweep_CarriesStagedDecisionsForward(t *testing.T) {
 	_, ok := db.Work().Get(t.Context(), state.Key{Scope: "d-intro", Unit: "u-committed", Variant: model.Variant("nb")})
 	assert.True(t, ok)
 
+	assertPredecessorsGone(t, layout)
+}
+
+// A predecessor written before the ledger held decisions only may hold a
+// basis an earlier build recorded beside a translation. The ledger refuses
+// it, and the decisions it holds after that entry still come across before
+// the predecessor is deleted.
+func TestSweep_CarriesTheDecisionsPastAnEntryThatDecidesNothing(t *testing.T) {
+	layout := newLayout(t)
+	require.NoError(t, os.MkdirAll(layout.StateDir, 0o755))
+
+	old, err := state.OpenWork(t.Context(), oldWorkStorePath(layout), layout.Export().UnitStateDir())
+	require.NoError(t, err)
+	require.NoError(t, old.Put(t.Context(), unit("u-staged", "d-intro", "Staged, never committed")))
+	require.NoError(t, old.Close())
+
+	// The earlier build's basis, ahead of the decision in the ledger's order.
+	basis := state.UnitState{Unit: "u-a-basis", Variant: model.Variant("nb"), Scope: "d-intro",
+		ContentHash: model.ComputeContentHash("A translation the loop wrote")}
+	require.False(t, basis.Decides())
+	payload, err := json.Marshal(basis)
+	require.NoError(t, err)
+	db, err := storage.OpenWith(oldWorkStorePath(layout), storage.ProjectOptions())
+	require.NoError(t, err)
+	_, err = db.ExecContext(t.Context(), `INSERT INTO unit_decision
+    (id, scope, unit, variant, content_hash, target_hash, actor, origin, recorded_at, revoked, payload)
+VALUES ('e-basis', 'd-intro', 'u-a-basis', 'nb', ?, '', '', 'local', '2026-09-01T00:00:00.000000000Z', 0, ?)`,
+		basis.ContentHash, string(payload))
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+
+	writePredecessorLayout(t, layout)
+	store := openStore(t, layout)
+
+	staged, err := store.Work().Staged(t.Context())
+	require.NoError(t, err)
+	require.Len(t, staged, 1, "the decision came across, and the basis did not")
+	assert.Equal(t, "u-staged", staged[0].Unit)
 	assertPredecessorsGone(t, layout)
 }
 

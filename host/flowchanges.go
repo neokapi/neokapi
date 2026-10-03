@@ -438,8 +438,13 @@ func (doc *flowDoc) readRevisions(ctx context.Context) (revisions, error) {
 }
 
 // readDocument reads the document through the change service: the revision
-// of every tracked edition of each block, and, with keep, the blocks too.
+// of every tracked edition of each block, and, with keep, the blocks too. The
+// read records what it finds changed outside kapi, as every read does, except
+// in a run that prints its change set, which records nothing.
 func (doc *flowDoc) readDocument(ctx context.Context, keep bool) (revisions, *readBlocks, error) {
+	if doc.fc.print != nil {
+		ctx = change.Unobserved(ctx)
+	}
 	out := revisions{}
 	var blocks *readBlocks
 	if keep {
@@ -590,7 +595,7 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 	if !written && !produced {
 		return nil
 	}
-	now := doc.read
+	pre, now := doc.read, doc.read
 	if written || before != after || now == nil {
 		// The file holds what the run wrote, and a read of it names each
 		// revision as a later read finds it. A file that already held the
@@ -618,11 +623,12 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 				if !derived || !byTool || rev == model.AbsentRevision {
 					continue
 				}
-				if r, ok := loop.last(docKey, key, text); ok && r.After == rev &&
-					(r.Actor != string(change.ActorTool) || r.ContentHash == content) {
-					// Recorded already: a flow wrote this translation from
-					// this source, or a person or an agent wrote it and the
-					// run reproduced their wording, which stays theirs.
+				if r, ok := loop.at(docKey, key, text, rev); ok && r.After == rev &&
+					(!loopWrite(r) || r.ContentHash == content) {
+					// Recorded already: a tool wrote this translation from
+					// this source, or a writer whose source nobody recorded
+					// wrote it (a person, an agent, a venue) and the run
+					// reproduced their wording, which stays theirs.
 					continue
 				}
 			}
@@ -632,6 +638,8 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 				BeforeRev: was,
 				AfterRev:  rev,
 				Block:     b,
+				Ops:       doc.kinds(pre, key, k, b, was, rev),
+				Tool:      doc.toolOf(o),
 			}
 			if derived {
 				t.Role = change.RoleDerived
@@ -672,6 +680,48 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 	return nil
 }
 
+// kinds names the operation the run's change to edition k of the block keyed
+// key comes to, as change.Diff would send it: from the edition the service
+// read before the run (pre, where the follower kept that read) to b, the
+// block as the commit left it. A translation the run reproduced was set
+// again. Without the earlier read, a change between two editions that both
+// exist is named set_content.
+func (doc *flowDoc) kinds(pre *readBlocks, key string, k model.EditionKey, b *model.Block, was, rev string) []change.Kind {
+	if was == rev {
+		return []change.Kind{change.KindSetContent}
+	}
+	had, has := was != model.AbsentRevision, rev != model.AbsentRevision
+	now, _ := b.Edition(k)
+	var before []model.Run
+	if pre != nil {
+		if pb := pre.blocks[key]; pb != nil {
+			ed, _ := pb.Edition(k)
+			before = ed.Runs
+		}
+	}
+	if had && has && before == nil {
+		return []change.Kind{change.KindSetContent}
+	}
+	kind, ok := change.EditionKind(before, had, now.Runs, has)
+	if !ok {
+		return nil
+	}
+	return []change.Kind{kind}
+}
+
+// toolOf names the tool that changed an edition: the one whose stamp the
+// edition carries, else the run's only tool. A run of several tools that
+// stamped nothing names none.
+func (doc *flowDoc) toolOf(stamp model.Origin) string {
+	if stamp.Tool != "" {
+		return stamp.Tool
+	}
+	if len(doc.d.Tools) == 1 {
+		return doc.d.Tools[0]
+	}
+	return ""
+}
+
 // madeFrom is the source a derived edition of the block keyed key was made
 // from: its revision, the basis, and its content hash. A run that writes a
 // target-language file read the source before it ran, and the commit guards
@@ -709,8 +759,10 @@ type readBlocks struct {
 }
 
 // readRevisionsWithBlocks reads the document through the change service and
-// returns its blocks.
+// returns its blocks. It reads what the run has just committed, which the run
+// records itself, so the read records nothing as changed outside kapi.
 func (doc *flowDoc) readRevisionsWithBlocks(ctx context.Context) (readBlocks, error) {
+	ctx = change.Unobserved(ctx)
 	out := readBlocks{blocks: map[string]*model.Block{}}
 	q := change.ReadRequest{Doc: doc.ref}
 	if !doc.inPlace {

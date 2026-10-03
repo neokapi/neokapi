@@ -36,8 +36,8 @@ func TestReadsAnswerMostRecentFirst(t *testing.T) {
 	s := openStore(t)
 	ctx := t.Context()
 	rows := []history.Row{
-		{Op: "op1", Address: "a1", Doc: "d-1", Block: "p#1", Edition: "en", Before: "absent", After: "r:1", ContentHash: "h1", ContextHash: "c1", Actor: "tool", Origin: "flow:up", At: at(1)},
-		{Op: "op2", Address: "a2", Doc: "d-1", Block: "p#1", Edition: "en", Before: "r:1", After: "r:2", ContentHash: "h2", ContextHash: "c1", Actor: "agent", ActorName: "claude", Session: "s1", Origin: "apply", At: at(2)},
+		{Op: "op1", Address: "a1", Doc: "d-1", Block: "p#1", Edition: "en", Before: "absent", After: "r:1", ContentHash: "h1", ContextHash: "c1", Actor: "tool", Origin: "flow:up", Ops: []string{"set_content"}, Tool: "pseudo-translate", At: at(1)},
+		{Op: "op2", Address: "a2", Doc: "d-1", Block: "p#1", Edition: "en", Before: "r:1", After: "r:2", ContentHash: "h2", ContextHash: "c1", Actor: "agent", ActorName: "claude", Session: "s1", Origin: "apply", Ops: []string{"replace_text", "set_attribute"}, At: at(2)},
 		{Op: "op2", Address: "a2", Doc: "d-1", Block: "p#1", Edition: "fr", Before: "r:f1", After: "r:f2", Basis: "r:2", ContentHash: "h2", ContextHash: "c1", Actor: "agent", ActorName: "claude", Session: "s1", Origin: "apply", At: at(2)},
 		{Op: "op3", Address: "a3", Doc: "d-1", Block: "p#2", Key: "u-k", Edition: "en", Before: "r:a", After: "r:b", ContentHash: "h3", ContextHash: "c2", Actor: "person", Origin: "desktop", At: at(3)},
 		{Op: "op4", Address: "a4", Doc: "d-2", Block: "p#1", Edition: "en", Before: "r:x", After: "r:y", ContentHash: "h4", ContextHash: "c1", Origin: "observed", At: at(4)},
@@ -50,6 +50,7 @@ func TestReadsAnswerMostRecentFirst(t *testing.T) {
 	require.Len(t, got, 2)
 	assert.Equal(t, "op2", got[0].Op)
 	assert.Equal(t, rows[1], got[0], "a row reads back as it was written")
+	assert.Equal(t, rows[0], got[1], "the operation kinds and the tool read back")
 
 	recent, err := s.Edition(ctx, "d-1", "p#1", "en", 1)
 	require.NoError(t, err)
@@ -206,6 +207,41 @@ func TestLatestIsTheLastChangeToEachEdition(t *testing.T) {
 			assert.Regexp(t, `SEARCH h USING (COVERING )?INDEX sqlite_autoindex_block_history_1 \(doc=\? AND block=\? AND edition=\? AND op=\?\)`, plan,
 				"each edition's most recent change is one seek of the primary key")
 			assert.NotContains(t, plan, "CORRELATED", "no subquery runs once per row of the history")
+		})
+	}
+}
+
+// The change that wrote what an edition holds is the one that left it at that
+// revision, which a checkout of another branch brings back after later changes
+// on the branch it left. A read that observed the same revision never takes it
+// from the writer that recorded it.
+func TestWroteIsTheChangeThatLeftTheRevision(t *testing.T) {
+	ctx := t.Context()
+	s := openStore(t)
+	row := func(op, after, actor, origin string) history.Row {
+		return history.Row{Op: op, Address: "a-" + op, Doc: "d-1", Block: "p", Edition: "fr",
+			Before: "absent", After: after, Actor: actor, Origin: origin, At: at(1)}
+	}
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-1", "r:a", "tool", "flow:up")}))
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-2", "r:b", "tool", "flow:up")}))
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-3", "r:a", history.ActorExternal, history.OriginObserved)}))
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-4", "r:c", history.ActorExternal, history.OriginObserved)}))
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-5", "r:b", "person", "apply")}))
+
+	cases := []struct {
+		name, rev, want string
+	}{
+		{"a revision an earlier change left", "r:a", "op-1"},
+		{"the latest of the writers that left it", "r:b", "op-5"},
+		{"a revision only a read observed", "r:c", "op-4"},
+		{"a revision nobody recorded", "r:z", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, found, err := s.Wrote(ctx, "d-1", "p", "fr", tc.rev)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want != "", found)
+			assert.Equal(t, tc.want, got.Op)
 		})
 	}
 }

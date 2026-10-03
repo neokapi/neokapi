@@ -323,7 +323,14 @@ run's effect on the file as the service reads it: the document is read through
 the service before the run and again after the commit (a commit that finds the
 file holding the run's bytes already, as it did when the run read it, reuses
 the first read), and each edition whose revision moved is a transition, with
-the stamp the producing tool left as its producer. A translation's basis is the
+the stamp the producing tool left as its producer, the kind of operation the
+change comes to (`change.EditionKind`, as `change.Diff` would send it:
+`set_content` for an edition created or rewritten, `replace_text` for text
+moved around the same codes, `remove_edition`), and the tool that made it (the
+tool named in its stamp, or the run's only tool). The read before the run is an
+ordinary read, so it records an edit made outside kapi since the last recorded
+change as observed before the run's own record; the read after the commit is
+left unobserved, because the run records that change itself. A translation's basis is the
 source the run read before it ran, with that source's content hash: the commit
 guards the file the run writes, so a source edited while the run worked is
 drift against the basis rather than the basis. A translation the run reproduced
@@ -332,10 +339,8 @@ flow wrote it from the source the block holds, and not over a person's or an
 agent's write of the same wording, which stays theirs. So the history keeps the
 basis of every translation the loop made. That basis is what coverage grades an
 undecided translation by, what a decision on it starts from, and where the
-staleness gate finds what governed it. An undecided record in the decision
-ledger (a basis an earlier release recorded there for a Kapi Desktop edit or a
-loop pass) yields to the flow's last write when that write is the translation
-the file holds.
+staleness gate finds what governed it. The decision ledger holds decisions
+only, so the block history is the only place that basis is kept.
 
 A destination that moved while the run worked is applied again through the
 service from the run's operations (`set_content` on each edition the run

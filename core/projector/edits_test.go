@@ -74,6 +74,7 @@ func flowEdit(doc string, n int, round int) projector.Edit {
 			After:       model.RunsRevision(nb, runsOf(fmt.Sprintf("draft %d.%d", round+1, i))),
 			Basis:       fmt.Sprintf("r:%016d", i),
 			ContentHash: fmt.Sprintf("h%d", i), ContextHash: fmt.Sprintf("c%d", i),
+			Ops: []string{"set_content"}, Tool: "translate",
 		})
 	}
 	return e
@@ -134,7 +135,7 @@ func TestRecordEditWritesTheOperationAndTheHistory(t *testing.T) {
 }
 
 func TestAFlowEditKeepsHashesOnly(t *testing.T) {
-	p, ws, _ := open(t)
+	p, ws, db := open(t)
 	ctx := t.Context()
 	_, err := p.RecordEdit(ctx, flowEdit("d-a", 3, 0))
 	require.NoError(t, err)
@@ -143,6 +144,16 @@ func TestAFlowEditKeepsHashesOnly(t *testing.T) {
 	require.Len(t, ops, 1)
 	assert.NotContains(t, string(ops[0].Payload), "runs_")
 	assert.NotContains(t, string(ops[0].Payload), "change_set")
+
+	// What the flow's run did to each edition, and which tool did it, are in
+	// the block history beside the revisions.
+	rows, err := db.History().Document(ctx, "d-a")
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+	for _, r := range rows {
+		assert.Equal(t, []string{"set_content"}, r.Ops)
+		assert.Equal(t, "translate", r.Tool)
+	}
 }
 
 func TestRecordingOneEditTwiceIsOneOperation(t *testing.T) {

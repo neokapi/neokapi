@@ -182,16 +182,22 @@ func TestRetireRefusedVerdicts(t *testing.T) {
 // record took the approval back, the venue refused to, and without this step
 // every push would take it back again, be refused again, and report it again.
 func TestRetireRefusedVerdicts_RestoresAKeptApproval(t *testing.T) {
-	withdrawn := approvedUnit("greeting", "fr")
-	withdrawn.Status = model.TargetStatusTranslated
-	withdrawn.Decision = state.Decision{}
-	withdrawn.Updated = "2026-09-04T10:00:00Z"
+	approved := approvedUnit("greeting", "fr")
 	held := venue.UnitDecision{
 		ItemName: "locales/en.json", Unit: "greeting", Variant: "fr",
 		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
-		TargetHash: withdrawn.TargetHash, ContentHash: withdrawn.ContentHash,
+		TargetHash: approved.TargetHash, ContentHash: approved.ContentHash,
 		DecidedBy: "reviewer@example.com", DecidedAt: "2026-09-03T10:00:00Z",
 		Updated: "2026-09-03T10:00:00Z",
+	}
+	// The project withdrew the approval: the ledger holds decisions only, so
+	// the unit is left with none.
+	withdrawnProject := func(t *testing.T, a *host.App) (*BowrainSourceConnector, *state.WorkStore) {
+		t.Helper()
+		c, st := committedProject(t, a, approved)
+		require.NoError(t, st.Delete(t.Context(), approved.Key()))
+		require.NoError(t, st.Commit(t.Context()))
+		return c, st
 	}
 	refusal := venue.DecisionRefusal{
 		Locale: "fr", Kind: venue.VerdictDemotion, Reason: venue.RefusedEstablishedWithdrawal, Count: 1,
@@ -200,7 +206,7 @@ func TestRetireRefusedVerdicts_RestoresAKeptApproval(t *testing.T) {
 	t.Run("the project's record ends where the venue's ledger is", func(t *testing.T) {
 		a := &host.App{}
 		defer a.Shutdown()
-		c, st := committedProject(t, a, withdrawn)
+		c, st := withdrawnProject(t, a)
 
 		retired, err := c.retireRefusedVerdicts(t.Context(), &venue.PushGovernance{
 			Refusals: []venue.DecisionRefusal{refusal},
@@ -230,7 +236,7 @@ func TestRetireRefusedVerdicts_RestoresAKeptApproval(t *testing.T) {
 	t.Run("a refusal that names no record changes nothing", func(t *testing.T) {
 		a := &host.App{}
 		defer a.Shutdown()
-		c, _ := committedProject(t, a, withdrawn)
+		c, _ := withdrawnProject(t, a)
 
 		before, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)
@@ -272,12 +278,11 @@ func TestRetireRefusedVerdicts_CoversEveryDecisionThePushSent(t *testing.T) {
 	assert.Equal(t, 2, retired, "both verdicts the push carried are retired")
 
 	for _, unitID := range []string{"published", "recorded"} {
-		us, found := st.Get(t.Context(), state.Key{
+		_, found := st.Get(t.Context(), state.Key{
 			Scope: "locales/en.json", Unit: unitID, Variant: model.Variant("fr"),
 		})
-		require.True(t, found, "unit %s keeps its record", unitID)
-		assert.Empty(t, us.Decision.ReviewState,
-			"the verdict the venue would not take is gone from %s", unitID)
+		assert.False(t, found,
+			"the verdict the venue would not take is withdrawn from %s, which decides nothing else", unitID)
 	}
 
 	diff, err := st.RecordDiff(t.Context())
