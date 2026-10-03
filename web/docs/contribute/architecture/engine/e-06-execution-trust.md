@@ -24,7 +24,6 @@ of the tool:
 | `kapi exec <tool>` | the command line the user typed | runs; this **is** the choice |
 | A `kapi.yaml` recipe | a file in the working directory | asks once, remembers, re-asks when the argv changes |
 | A `.kpz` package | an archive from elsewhere | stripped on ingest |
-| The engine gRPC API | the network | refused |
 | The MCP agent surface | a model | refused, including under `--all-tools` |
 
 Only the recipe row can ask, because it is the only one with a person present and
@@ -67,9 +66,6 @@ Two surfaces can refuse outright, because neither has a user to ask:
   config, and exec-class format bindings from a package's recipe, because a
   package has crossed a trust boundary and a hostile packer will not sanitise on
   the way out.
-- **The engine gRPC API** refuses with `PermissionDenied`: a tool name and its
-  config arrive over the wire, so an exec-class tool would let a caller choose
-  the argv this process runs.
 
 The recipe arm is the one case where the answer legitimately varies, so it is the
 one arm that asks.

@@ -336,8 +336,8 @@ remembered under the kapi config directory against a fingerprint of what was
 approved, so an unrelated recipe edit keeps the approval and a changed command
 asks again. With no terminal attached kapi refuses rather than assuming
 consent; `KAPI_TRUST_EXEC=1` is the opt-in for automation, and the general
-`--yes` flag deliberately does not grant it. The engine gRPC API and the MCP
-tool surface refuse these tools outright. See
+`--yes` flag deliberately does not grant it. The MCP tool surface refuses
+these tools outright. See
 [E-06](/contribute/architecture/engine/e-06-execution-trust).
 
 ## Tool registration invariants
