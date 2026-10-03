@@ -34,9 +34,38 @@ import (
 //   - "xx-YY" names no language at all. Its PRIMARY subtag is unknown, so it is
 //     rejected; this is the typo case the gate exists for.
 //
+// The result is its own canonical form, so a locale normalized twice keys the
+// same target and the same row as one normalized once. x/text reads some tags
+// it accepts into a form that it then reads differently: "en-u-01-01-u-00-00"
+// repeats an extension singleton and reads as "en-u-01-u-00-00", which reads
+// as "en-u-01-u-00". The function reads its own answer again until the answer
+// stops changing, and keeps the last answer when x/text rejects the next read.
+//
 // It lives beside LocaleID rather than in core/locale so that the content model
 // can key a target by it (Variant); core/locale.Canonical is this function.
 func CanonicalLocale(s string) (LocaleID, error) {
+	id, err := canonicalLocaleOnce(s)
+	if err != nil {
+		return "", err
+	}
+	for prev, pass := LocaleID(s), 1; id != prev && pass < maxCanonicalPasses; pass++ {
+		next, err := canonicalLocaleOnce(string(id))
+		if err != nil {
+			break
+		}
+		prev, id = id, next
+	}
+	return id, nil
+}
+
+// maxCanonicalPasses bounds the reads CanonicalLocale makes of a tag. The tags
+// x/text reads differently on a second read settle within four reads; the
+// bound stops a tag that never settles from looping.
+const maxCanonicalPasses = 8
+
+// canonicalLocaleOnce is one read of s: x/text's canonical form, or the tag's
+// own shape when only a subtag other than the language is unknown.
+func canonicalLocaleOnce(s string) (LocaleID, error) {
 	cleaned := cleanLocaleInput(s)
 	if cleaned == "" {
 		return "", fmt.Errorf("invalid locale %q: empty", s)

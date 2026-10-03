@@ -85,3 +85,63 @@ func TestNormalizeLocale_AgreesWithCanonical(t *testing.T) {
 		assert.Equal(t, canon, NormalizeLocale(LocaleID(in)), "the lenient form returns what the strict form does for a locale")
 	}
 }
+
+// A canonical form is its own canonical form, so a locale normalized twice
+// keys the same target and the same row as one normalized once. x/text reads
+// some tags it accepts into a form that it then reads differently: a repeated
+// extension singleton loses one repeated subtag on each read, and a subtag it
+// accepted inside one extension is unknown once the extensions are reordered.
+func TestNormalizeLocale_Idempotent(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		in   LocaleID
+		want LocaleID
+	}{
+		{"en-u-en-en-t-nu", "en-t-NU-u-EN"},
+		{"AA-u-01-01-u-00-00", "aa-u-01-u-00"},
+		{"en-u-en-en-u-ca-ca", "en-u-en-u-ca"},
+		{"en-u-ca-ca-u-ca-ca-u-ca-ca-u-ca-ca", "en-u-ca-u-ca-u-ca-u-ca"},
+		{"en-u-01-01-u-00-00", "en-u-01-u-00"},
+		// x/text rejects what it made of this one on the second read, so the
+		// first read is the canonical form.
+		{"AA-u-01-01-u-00-000-00", "aa-u-01-u-00-000-00"},
+		// The casing fallback writes a byte that is not UTF-8 as U+FFFD, which
+		// lengthens the subtag and so changes how the next read cases it.
+		{"aa-t-BB-AA-0A-\x800", "aa-t-BB-AA-0A-\ufffd\ufffd\ufffd0"},
+		{"en-t-ja-u-ca-japanese", "en-t-ja-u-ca-japanese"},
+		{"en_US.UTF-8", "en-US"},
+		{"qps-ploc", "qps-Ploc"},
+		{"xx-YY", "xx-YY"},
+	}
+	for _, tc := range tests {
+		t.Run(string(tc.in), func(t *testing.T) {
+			t.Parallel()
+			once := NormalizeLocale(tc.in)
+			assert.Equal(t, tc.want, once)
+			assert.Equal(t, once, NormalizeLocale(once), "normalizing the canonical form changes it")
+		})
+	}
+}
+
+func FuzzNormalizeLocale(f *testing.F) {
+	for _, s := range []string{
+		"en", "en_US.UTF-8", "nb@bokmal", "qps-ploc", "xx-YY", "sr-latn-rs",
+		"en-t-ja-u-ca-japanese", "en-u-en-en-t-nu", "AA-u-01-01-u-00-00",
+		"AA-u-01-01-u-00-000-00", "en-u-ca-ca-u-ca-ca-u-ca-ca", "aa-t-BB-AA-0A-\x800",
+	} {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, s string) {
+		once := NormalizeLocale(LocaleID(s))
+		if twice := NormalizeLocale(once); twice != once {
+			t.Fatalf("NormalizeLocale(%q) = %q, and NormalizeLocale(%q) = %q", s, once, once, twice)
+		}
+		canon, err := CanonicalLocale(s)
+		if err != nil {
+			return
+		}
+		if again, err := CanonicalLocale(string(canon)); err == nil && again != canon {
+			t.Fatalf("CanonicalLocale(%q) = %q, and CanonicalLocale(%q) = %q", s, canon, canon, again)
+		}
+	})
+}

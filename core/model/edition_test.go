@@ -363,11 +363,12 @@ func TestBlockAuthoritative(t *testing.T) {
 	assert.Equal(t, model.EditionKey{Locale: "en"}, b.Authoritative(model.AuthorityPolicy{Locale: "de"}), "an edition the block lacks names nothing")
 }
 
-// sourceLocalesNormalizedTwice are source locales whose normalization is not
-// a fixed point: NormalizeLocale of the normalized form differs from it. The
-// first is a repeated -u- singleton x/text collapses one step at a time; the
-// second takes the casing fallback, which rewrites a byte that is not UTF-8.
-var sourceLocalesNormalizedTwice = []model.LocaleID{"AA-u-00-00-u-00-00", "aa-t-BB-AA-0A-\x800"}
+// sourceLocalesReadInSteps are malformed source locales that x/text reads
+// into a form it then reads differently, so CanonicalLocale settles them only
+// after more than one read. The first repeats a -u- singleton, which loses one
+// repeated subtag on each read; the second takes the casing fallback, which
+// rewrites a byte that is not UTF-8.
+var sourceLocalesReadInSteps = []model.LocaleID{"AA-u-00-00-u-00-00", "aa-t-BB-AA-0A-\x800"}
 
 // assertAuthoritativeIsSource checks that the key Authoritative returns with
 // no policy reaches the edition the block was read in, through every
@@ -391,11 +392,11 @@ func assertAuthoritativeIsSource(t *testing.T, b *model.Block) {
 	assert.False(t, b.RemoveEdition(k), "the edition the block was read in stays")
 }
 
-func TestBlockEdition_ASourceLocaleNormalizedTwiceStillReachesTheSource(t *testing.T) {
-	for _, loc := range sourceLocalesNormalizedTwice {
+func TestBlockEdition_AMalformedSourceLocaleStillReachesTheSource(t *testing.T) {
+	for _, loc := range sourceLocalesReadInSteps {
 		t.Run(string(loc), func(t *testing.T) {
 			once := model.NormalizeLocale(loc)
-			require.NotEqual(t, once, model.NormalizeLocale(once), "the locale this test covers normalizes in two steps")
+			require.Equal(t, once, model.NormalizeLocale(once), "the key Authoritative returns normalizes to itself")
 
 			b := model.NewBlock("b1", "Hello world")
 			b.SourceLocale = loc
@@ -417,7 +418,7 @@ func TestBlockEdition_ASourceLocaleNormalizedTwiceStillReachesTheSource(t *testi
 // source, Edition(Authoritative(AuthorityPolicy{})), to the block's Source
 // for any source locale, with and without a same-language target.
 func FuzzBlockAuthoritativeEditionIsTheSource(f *testing.F) {
-	for _, loc := range sourceLocalesNormalizedTwice {
+	for _, loc := range sourceLocalesReadInSteps {
 		f.Add(string(loc), false)
 		f.Add(string(loc), true)
 	}

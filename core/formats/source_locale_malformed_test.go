@@ -16,12 +16,12 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 )
 
-// sourceLocaleNormalizedTwice is a source locale NormalizeLocale does not
-// settle in one step: it gives "aa-u-00-u-00-00", and that gives
-// "aa-u-00-u-00". A writer reads the source as the block's authoritative
-// edition, whose key carries the once-normalized locale, so that key has to
-// reach the source although normalizing it again changes it.
-const sourceLocaleNormalizedTwice model.LocaleID = "AA-u-00-00-u-00-00"
+// sourceLocaleReadInSteps is a malformed source locale that x/text reads as
+// "aa-u-00-u-00-00" and then as "aa-u-00-u-00". A writer reads the source as
+// the block's authoritative edition, whose key carries the normalized locale,
+// so that key has to reach the source when the edition accessors normalize it
+// again.
+const sourceLocaleReadInSteps model.LocaleID = "AA-u-00-00-u-00-00"
 
 // convertWith reads input as from and writes every part through to, wired to
 // a skeleton store when the two are one format and withSkeleton is set. stamp,
@@ -80,7 +80,7 @@ func convertWith(t *testing.T, from, to registry.FormatID, input []byte, withSke
 
 // Every writer that reads the source through the authoritative edition writes
 // the same bytes whatever the block's source locale is spelled as.
-func TestASourceLocaleNormalizedTwiceChangesNoWrittenByte(t *testing.T) {
+func TestAMalformedSourceLocaleChangesNoWrittenByte(t *testing.T) {
 	cases := []struct {
 		format registry.FormatID
 		input  string
@@ -93,7 +93,7 @@ func TestASourceLocaleNormalizedTwiceChangesNoWrittenByte(t *testing.T) {
 		{format: "i18next", file: "i18next/testdata/interpolation_en.json"},
 		{format: "kbf", file: "jsx/testdata/kapi-translated.kbf.json"},
 	}
-	stamp := func(b *model.Block) { b.SourceLocale = sourceLocaleNormalizedTwice }
+	stamp := func(b *model.Block) { b.SourceLocale = sourceLocaleReadInSteps }
 	for _, tc := range cases {
 		input := []byte(tc.input)
 		if tc.file != "" {
@@ -117,13 +117,13 @@ func TestASourceLocaleNormalizedTwiceChangesNoWrittenByte(t *testing.T) {
 
 // The ARB reader files the catalogue's @@locale on each block as written, so
 // the spelling reaches a writer from the file alone.
-func TestWritersWriteAnARBSourceWhoseLocaleNormalizesTwice(t *testing.T) {
+func TestWritersWriteAnARBSourceUnderAMalformedLocale(t *testing.T) {
 	doc := []byte(`{"@@locale": "AA-u-00-00-u-00-00", "greeting": "Hello world"}`)
 	for _, to := range []registry.FormatID{"asciidoc", "doclang", "html"} {
 		t.Run(string(to), func(t *testing.T) {
 			var locales []model.LocaleID
 			out := convertWith(t, "arb", to, doc, false, func(b *model.Block) { locales = append(locales, b.SourceLocale) })
-			require.Equal(t, []model.LocaleID{sourceLocaleNormalizedTwice}, locales)
+			require.Equal(t, []model.LocaleID{sourceLocaleReadInSteps}, locales)
 			assert.Contains(t, out, "Hello world")
 		})
 	}
