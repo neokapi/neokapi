@@ -190,16 +190,12 @@ func readAll(s source) ([]byte, error) {
 	return io.ReadAll(safeio.DefaultBudget().Reader(f))
 }
 
-// read streams the document's blocks to fn.
+// read streams the document's blocks to fn. The skeleton store wired for the
+// writer the read does not use keeps nothing (format.NewWiredReadSkeleton).
 func (p pass) read(ctx context.Context, reader format.DataFormatReader, writer format.DataFormatWriter, doc *model.RawDocument) error {
 	var store *format.SkeletonStore
 	if writer != nil {
-		s, err := format.NewWiredSkeleton(reader, writer)
-		if err != nil {
-			reader.Close()
-			return err
-		}
-		store = s
+		store = format.NewWiredReadSkeleton(reader, writer)
 	}
 	// The reader closes before the skeleton store it writes into.
 	defer func() {

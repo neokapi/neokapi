@@ -258,13 +258,12 @@ func (r *Reader) readMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 		return false, fmt.Errorf("mdx: applying markdown config: %w", err)
 	}
 
+	// The span's own skeleton is read back below and dropped, and it is no
+	// larger than the span this reader already holds, so it is kept in memory
+	// rather than in a temporary file per span.
 	var subStore *format.SkeletonStore
 	if r.skeletonStore != nil {
-		var err error
-		subStore, err = format.NewSkeletonStore()
-		if err != nil {
-			return false, fmt.Errorf("mdx: sub-skeleton store: %w", err)
-		}
+		subStore = format.NewMemorySkeletonStore()
 		defer func() { _ = subStore.Close() }()
 		mdReader.SetSkeletonStore(subStore)
 	}

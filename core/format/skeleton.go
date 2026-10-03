@@ -288,6 +288,15 @@ func NewMemorySkeletonStore() *SkeletonStore {
 	}
 }
 
+// NewDiscardSkeletonStore creates a skeleton store that keeps nothing: what a
+// reader writes into it is dropped, and a read of it finds no entry. A pass
+// that reads a document and writes none wires one (NewWiredReadSkeleton), so
+// its reader models the document as it does when a writer will replay the
+// skeleton, without spooling a skeleton nothing replays.
+func NewDiscardSkeletonStore() *SkeletonStore {
+	return &SkeletonStore{buf: &bytes.Buffer{}, writer: bufio.NewWriter(io.Discard)}
+}
+
 // NewSkeletonStoreAt creates a new skeleton store at a specific path. The
 // caller is responsible for directory creation and file cleanup; Close()
 // flushes and closes the file but does not remove it. Used by kapi
@@ -610,6 +619,21 @@ func NewWiredSkeleton(reader DataFormatReader, writer DataFormatWriter) (*Skelet
 	}
 	WireSkeleton(store, reader, writer)
 	return store, nil
+}
+
+// NewWiredReadSkeleton is NewWiredSkeleton for a pass that reads the document
+// and writes nothing. Some readers model a document differently when a
+// skeleton store is wired (the HTML reader numbers attribute blocks after
+// their paragraph), so a read wires one wherever a write would, to see the
+// blocks a write sees; the store keeps nothing (NewDiscardSkeletonStore), so
+// the read creates no file. Returns nil when the pair has no skeleton path.
+func NewWiredReadSkeleton(reader DataFormatReader, writer DataFormatWriter) *SkeletonStore {
+	if !SkeletonPairEligible(reader, writer) {
+		return nil
+	}
+	store := NewDiscardSkeletonStore()
+	WireSkeleton(store, reader, writer)
+	return store
 }
 
 // NewWiredStreamingSkeleton is NewWiredSkeleton's counterpart for a caller that

@@ -276,17 +276,35 @@ func (s *session) Read(ctx context.Context, want change.Want, fn func(*model.Blo
 	if head == "" {
 		return "", &change.Error{Code: change.CodeNotFound, Field: "at/doc", Message: "no document " + s.doc.Ref}
 	}
-	editions, _, err := s.joinEditions(ctx, want.Editions)
+	if len(want.Editions) == 0 {
+		return head, s.ownPass(fn).run(ctx)
+	}
+	// One pass over the document: its blocks are held while the files of the
+	// editions it joins are read and paired with them, which needs every
+	// block's key before it pairs any.
+	var blocks []*model.Block
+	ix := &blockIndex{}
+	if err := s.ownPass(func(b *model.Block) error {
+		blocks = append(blocks, b)
+		ix.add(b)
+		return nil
+	}).run(ctx); err != nil {
+		return "", err
+	}
+	editions, err := s.joinIndexed(ctx, want.Editions, ix)
 	if err != nil {
 		return "", err
 	}
-	i := 0
-	err = s.ownPass(func(b *model.Block) error {
+	for i, b := range blocks {
 		join(editions, i, b)
-		i++
-		return fn(b)
-	}).run(ctx)
-	return head, err
+		if err := fn(b); err != nil {
+			if errors.Is(err, change.ErrStop) {
+				return head, nil
+			}
+			return head, err
+		}
+	}
+	return head, nil
 }
 
 // DocumentBlockKey translates the key of a block in edition k's own file into
