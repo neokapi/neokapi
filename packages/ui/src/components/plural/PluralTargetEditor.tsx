@@ -17,9 +17,9 @@
  * presentation only.
  */
 
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { t } from "@neokapi/i18n-react/runtime";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import type { Block, PluralForm, Run } from "@neokapi/kapi-format";
 import {
@@ -57,6 +57,15 @@ export interface PluralTargetEditorProps {
    * structure replaces the whole edition.
    */
   fixedStructure?: boolean;
+  /**
+   * Draw the editor of one plural form in place of its textarea. The textarea
+   * shows each inline code as its `{equiv}` and finds the code again by that
+   * text, so a code whose equiv holds a brace, or two codes that share one,
+   * do not survive an edit there. A host whose forms hold inline codes passes
+   * an editor that keeps each code by its id, such as the inline-code editor,
+   * and calls `onEdit` with the form's new runs.
+   */
+  renderForm?: (form: PluralForm, runs: readonly Run[], onEdit: (runs: Run[]) => void) => ReactNode;
   /** Pass-through class for the outer container. */
   className?: string;
 }
@@ -137,21 +146,26 @@ function PluralForms({
   onChange,
   forms,
   fixedStructure,
+  renderForm,
   className,
 }: PluralTargetEditorProps & { forms: readonly PluralForm[] }) {
   const pivot = pluralTargetPivot(target) ?? "";
+  const formRuns = (target[0] as { plural: { forms: Partial<Record<PluralForm, Run[]>> } }).plural
+    .forms;
   const formTexts = useMemo(() => {
     const out = new Map<PluralForm, string>();
-    const runs = (target[0] as { plural: { forms: Partial<Record<PluralForm, Run[]>> } }).plural
-      .forms;
-    for (const form of forms) out.set(form, runsToText(runs[form] ?? []));
+    for (const form of forms) out.set(form, runsToText(formRuns[form] ?? []));
     return out;
-  }, [target, forms]);
+  }, [formRuns, forms]);
 
-  const editForm = (form: PluralForm, text: string) => {
-    const runs = textToRuns(text, block.placeholders, block.source);
-    onChange(setPluralForm(target, form, runs));
-  };
+  // A form's editor may hold the callback it was first given, so an edit is
+  // applied to the target as it stands, with every other form's edits in it.
+  const latest = useRef(target);
+  latest.current = target;
+  const editRuns = (form: PluralForm, runs: Run[]) =>
+    onChange(setPluralForm(latest.current, form, runs));
+  const editForm = (form: PluralForm, text: string) =>
+    editRuns(form, textToRuns(text, block.placeholders, block.source));
 
   const downgrade = () => onChange(downgradePluralTarget(target));
 
@@ -173,14 +187,20 @@ function PluralForms({
         )}
       </div>
       <div className="space-y-2">
-        {forms.map((form) => (
-          <FormRow
-            key={form}
-            form={form}
-            value={formTexts.get(form) ?? ""}
-            onEdit={(v) => editForm(form, v)}
-          />
-        ))}
+        {forms.map((form) =>
+          renderForm ? (
+            <FormSlot key={form} form={form}>
+              {renderForm(form, formRuns[form] ?? [], (runs) => editRuns(form, runs))}
+            </FormSlot>
+          ) : (
+            <FormRow
+              key={form}
+              form={form}
+              value={formTexts.get(form) ?? ""}
+              onEdit={(v) => editForm(form, v)}
+            />
+          ),
+        )}
       </div>
     </div>
   );
@@ -208,6 +228,17 @@ function FormRow({
         aria-label={`${form} form`}
       />
     </label>
+  );
+}
+
+function FormSlot({ form, children }: { form: PluralForm; children: ReactNode }) {
+  return (
+    <div className="flex gap-3" data-neokapi-plural-form={form}>
+      <span className="mt-2 w-20 shrink-0 text-right text-xs uppercase tracking-wide text-muted-foreground">
+        {form}
+      </span>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
   );
 }
 

@@ -356,39 +356,67 @@ describe("ReviewPage", () => {
     expect(text).toContain('<x id="1"/>Welt<x id="/1"/>');
   });
 
-  // A plural is edited a form at a time; each form that changed is its own
-  // set_content, addressed by the path the read lists for it.
-  it("edits one form of a plural translation by its path", async () => {
+  // A plural is edited a form at a time, each in the inline-code editor; each
+  // form that changed is its own set_content, addressed by the path the read
+  // lists for it, and every code keeps its id whatever it displays. Each form
+  // leads with text, where the typing lands.
+  it.each([
+    {
+      name: "a placeholder",
+      codes: { "n/": { kind: "placeholder", type: "jsx:var", equiv: "count" } },
+      one: 'Noch <x id="n/"/> Artikel',
+      kept: ['<x id="n/"/>'],
+    },
+    {
+      name: "a placeholder whose equiv holds braces",
+      codes: { "n/": { kind: "placeholder", type: "icu", equiv: "{count}" } },
+      one: 'Noch <x id="n/"/> Artikel',
+      kept: ['<x id="n/"/>'],
+    },
+    {
+      name: "two placeholders that share an equiv",
+      codes: {
+        "1/": { kind: "placeholder", type: "printf", equiv: "%@" },
+        "2/": { kind: "placeholder", type: "printf", equiv: "%@" },
+      },
+      one: 'Von <x id="1/"/> Artikel für <x id="2/"/>',
+      kept: ['<x id="1/"/>', '<x id="2/"/>'],
+    },
+  ])("edits one form of a plural translation by its path, with $name", async (tc) => {
     const changes = queueChanges(ITEMS, {
       "de-DE:greeting": {
-        text: '<x id="n/"/> Artikel',
-        codes: { "n/": { kind: "placeholder", type: "jsx:var", equiv: "count" } },
+        text: tc.one,
+        codes: tc.codes,
         structures: [
           {
             path: [0],
             kind: "plural",
             pivot: "count",
-            branches: { one: '<x id="n/"/> Artikel', other: '<x id="n/"/> Artikel' },
+            branches: { one: tc.one, other: tc.one },
           },
         ],
       },
     });
     renderPage({}, changes);
     const one = await waitFor(() => {
-      const el = screen.getByRole("textbox", { name: "one form" }) as HTMLTextAreaElement;
-      expect(el.value).toBe("{count} Artikel");
-      return el;
+      const el = document.querySelector<HTMLElement>(
+        "[data-slot='edition-editor-plural-form'][data-form='one'] [contenteditable='true']",
+      );
+      expect(el).not.toBeNull();
+      return el!;
     });
-    fireEvent.change(one, { target: { value: "{count} Ding" } });
+    expect(one.querySelectorAll("[data-tag-chip]")).toHaveLength(tc.kept.length);
+    await userEvent.type(one, "Ding ");
     await userEvent.click(await screen.findByRole("button", { name: /Save & re-check/ }));
     await waitFor(() => expect(changes.sets).toHaveLength(1));
-    expect(changes.sets[0].ops).toEqual([
-      expect.objectContaining({
-        op: "set_content",
-        path: [0, { plural: "one" }],
-        text: '<x id="n/"/> Ding',
-      }),
-    ]);
+    const ops = changes.sets[0].ops;
+    expect(ops).toHaveLength(1);
+    expect(ops[0]).toMatchObject({ op: "set_content", path: [0, { plural: "one" }] });
+    const text = ops[0].op === "set_content" ? (ops[0].text ?? "") : "";
+    expect(text).toContain("Ding ");
+    for (const token of tc.kept) expect(text.split(token)).toHaveLength(2);
+    expect(text).not.toContain("{");
+    expect(text).not.toContain("%@");
   });
 
   // Someone saved the file between the read and the save. Nothing is written;

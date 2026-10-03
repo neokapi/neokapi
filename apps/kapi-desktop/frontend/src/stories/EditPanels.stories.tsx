@@ -90,6 +90,37 @@ export const PluralEdit: Story = {
   render: () => <Panel block={PLURAL} />,
 };
 
+const PLURAL_TWINS: MemoryBlock = {
+  doc: "Localizable.xcstrings",
+  block: "shared-items",
+  text: '<x id="1/"/> shared <x id="2/"/> items',
+  codes: {
+    "1/": { kind: "placeholder", type: "printf", equiv: "%@" },
+    "2/": { kind: "placeholder", type: "printf", equiv: "%@" },
+  },
+  structures: [
+    {
+      path: [0],
+      kind: "plural",
+      pivot: "count",
+      branches: {
+        one: '<x id="1/"/> shared one item with <x id="2/"/>',
+        other: '<x id="1/"/> shared items with <x id="2/"/>',
+      },
+    },
+  ],
+};
+
+/**
+ * A plural whose forms hold two codes that show the same text: each form is
+ * edited in the inline-code editor, where every code is a chip of its own id,
+ * so neither is lost or doubled.
+ */
+export const PluralEditTwinCodes: Story = {
+  name: "Plural forms with codes that look alike",
+  render: () => <Panel block={PLURAL_TWINS} />,
+};
+
 /** Type an edit and save: the block moved after it was read, so the prompt asks first. */
 export const StaleOnSave: Story = {
   name: "Changed since it was opened",

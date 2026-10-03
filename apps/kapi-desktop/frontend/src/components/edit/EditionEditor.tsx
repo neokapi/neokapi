@@ -51,9 +51,9 @@ export interface EditionEditorProps {
  * each code a chip that keeps its place, its type and its constraints; the
  * text goes back as the read's own placeholder form, so a code the edit kept
  * is the code the edition holds. A plural or select is edited a branch at a
- * time (PluralTargetEditor for a plural), each changed branch an edit of its
- * own addressed by the path the read lists, so the structure is never
- * rewritten as text.
+ * time, each branch in the same inline-code editor (inside PluralTargetEditor
+ * for a plural), each changed branch an edit of its own addressed by the path
+ * the read lists, so the structure is never rewritten as text.
  *
  * The editor is uncontrolled: a host that wants it to start over (a revert, a
  * new revision) gives it a new React key.
@@ -157,6 +157,42 @@ function branchRuns(text: string, codes: Readonly<Record<string, CodeRead>>): Ru
   return codedToRuns(codedText, spans);
 }
 
+/**
+ * One plural form in the inline-code editor: each code a chip that keeps its
+ * id, as the flat editor keeps it, and the form's new runs back through the
+ * coded-text bridge. The editor holds what it was first given.
+ */
+function PluralFormEditor({
+  form,
+  runs,
+  onEdit,
+}: {
+  form: PluralForm;
+  runs: readonly Run[];
+  onEdit: (runs: Run[]) => void;
+}) {
+  const [initial] = useState(() => runsToCoded(runs));
+  return (
+    <div
+      data-slot="edition-editor-plural-form"
+      data-form={form}
+      style={{ ["--bg-tertiary" as string]: "var(--background)" }}
+      className="rounded-md text-sm"
+    >
+      <InlineCodeEditor
+        initialCodedText={initial.codedText}
+        initialSpans={initial.spans}
+        sourceSpans={initial.spans}
+        onChange={(codedText, spans) => onEdit(codedToRuns(codedText, spans))}
+        onSave={() => {}}
+        onCancel={() => {}}
+        compact
+        autoFocus={false}
+      />
+    </div>
+  );
+}
+
 function BranchEditors({
   content,
   structures,
@@ -254,6 +290,9 @@ function PluralBranches({
         target={target}
         forms={forms}
         fixedStructure
+        renderForm={(form, runs, onEdit) => (
+          <PluralFormEditor form={form} runs={runs} onEdit={onEdit} />
+        )}
         onChange={(next) => {
           setTarget(next);
           // The structure is fixed, so the editor hands back the plural it was
