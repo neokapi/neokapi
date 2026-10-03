@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
@@ -413,7 +414,7 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 			// TM is how the next run recycles this work, and a silent failure to
 			// record it looks like the translation never happened.
 			if absorber != nil {
-				if _, _, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, absorber, f.Relative, pctx.FormatConfigFor(srcFormat, f.Item)); aerr != nil {
+				if _, _, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, keptEd, absorber, f.Relative, pctx.FormatConfigFor(srcFormat, f.Item)); aerr != nil {
 					fmt.Fprintf(os.Stderr, "Warning: merge: record %s → %s in the project content memory: %v (the target file was written)\n",
 						f.Relative, locale, aerr)
 				}
@@ -461,10 +462,12 @@ func localesWithStoredTargets(ctx context.Context, store blockstore.Store, kept 
 	return out, nil
 }
 
-// absorbStoreTargets reads the source blocks, applies the stored
-// `targets/<locale>` overlays, and writes accepted source+target pairs into
-// the project content memory with kapi-merge provenance. Returns (new, updated) counts.
-func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, absorber *memoryAbsorber, sourceRel string, formatCfg map[string]any) (int, int, error) {
+// absorbStoreTargets reads the source blocks, applies each block's edition the
+// workspace home kept (kept, by block key) or else the stored
+// `targets/<locale>` overlay, and writes accepted source+target pairs into
+// the project content memory with kapi-merge provenance. Returns (new,
+// updated) counts.
+func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, kept map[string]model.Edition, absorber *memoryAbsorber, sourceRel string, formatCfg map[string]any) (int, int, error) {
 	// The recipe's configuration for this item, not an unconfigured read: the
 	// overlays are addressed by the file-local block id, so a read that splits
 	// the document differently pairs each block's source text with another
@@ -482,6 +485,18 @@ func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFo
 	newCount, updatedCount := 0, 0
 	for _, b := range blocks {
 		if !b.Translatable || b.ID == "" {
+			continue
+		}
+		if ed, ok := kept[change.BlockKey(b)]; ok && model.RunsHaveContent(ed.Runs) {
+			// The workspace home held this translation until the delivery
+			// that wrote it: what it kept is what was delivered.
+			b.SetTargetRuns(target, ed.Runs)
+			n, u, aerr := absorber.absorb(ctx, b, source, target, "store", sourceRel, sourceAbs)
+			if aerr != nil {
+				return newCount, updatedCount, aerr
+			}
+			newCount += n
+			updatedCount += u
 			continue
 		}
 		o, oerr := sess.GetOverlay(kind, blockstore.OverlayKey(ctx, b.ID, b.SourceText()))

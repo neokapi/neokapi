@@ -291,7 +291,7 @@ func TestMerge_MaterializeDeliversTheKeptEdition(t *testing.T) {
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	written, err := a.materializeFromProjectStore(ctx, os.Stderr, proj, recipe, []model.LocaleID{"nl"}, true)
+	written, err := a.materializeFromProjectStore(ctx, os.Stderr, proj, recipe, []model.LocaleID{"nl"}, false)
 	require.NoError(t, err)
 	assert.Equal(t, 1, written)
 	body, err := os.ReadFile(filepath.Join(dir, "site", "locales", "nl.json"))
@@ -299,4 +299,12 @@ func TestMerge_MaterializeDeliversTheKeptEdition(t *testing.T) {
 	assert.Contains(t, string(body), "Plan een oversteek", "the workspace home's edition is what is delivered")
 	assert.Empty(t, keptDrafts(t, a, dir, "nl"), "and it is kept there no more")
 	assert.Len(t, keptDrafts(t, a, dir, "nb"), 4)
+
+	learned := false
+	for _, e := range memoryEntries(t, a, recipe) {
+		if e.VariantText("en") == "Plan a crossing" && e.VariantText("nl") == "Plan een oversteek" {
+			learned = true
+		}
+	}
+	assert.True(t, learned, "the delivered wording, the person's edit, reaches the content memory")
 }
