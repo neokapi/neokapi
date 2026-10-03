@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T20:03:40Z",
+  "generatedAt": "2026-10-03T21:56:44Z",
   "commands": [
     {
       "id": "add",
@@ -114,6 +114,11 @@
           "usage": "skriv ut brukerapporten som JSON",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "out",
+          "usage": "outside a project, the file to write the one edition the change set adds to a document (a translation of it); inside one, the recipe's target names it",
+          "type": "string"
         },
         {
           "name": "print-ops",
