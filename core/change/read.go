@@ -234,6 +234,11 @@ func (s *Service) readBlock(ctx context.Context, info DocInfo, desc Description,
 		Text: model.RunsEditText(ed.Runs),
 		Ops:  desc.blockOps(b.Translatable),
 	}
+	if !runsUTF8(ed.Runs) {
+		// The edition holds bytes that are not UTF-8, which an operation that
+		// rewrites its text refuses (workset.utf8Text).
+		out.Ops = slices.DeleteFunc(out.Ops, writesText)
+	}
 	out.Codes = codesOf(ed.Runs, desc)
 	out.Structures = structuresOf(ed.Runs)
 	authRev := model.EditionRevision(b, b.Authoritative(model.AuthorityPolicy{}))

@@ -260,6 +260,11 @@ func (w *workset) precondition(op Op) (*Error, *Current) {
 
 // apply applies one admitted operation to the workset.
 func (w *workset) apply(op Op, res *OpResult) *Error {
+	if writesText(op.Kind) {
+		if err := w.utf8Text(op); err != nil {
+			return err
+		}
+	}
 	switch body := op.Body.(type) {
 	case *SetContent:
 		return w.setContent(op, body, res)
@@ -279,6 +284,49 @@ func (w *workset) apply(op Op, res *OpResult) *Error {
 		return w.provenance(op, body, res)
 	}
 	return errorf(CodeInvalid, "%s is not applied to a block", op.Kind)
+}
+
+// writesText reports whether an operation of kind rewrites the text of the
+// edition it names: set_content replaces it, and replace_text and mark rebuild
+// it around the positions they resolve.
+func writesText(kind Kind) bool {
+	return kind == KindSetContent || kind == KindReplaceText || kind == KindMark
+}
+
+// utf8Text refuses an operation that rewrites the text of an edition holding
+// bytes that are not UTF-8. A reader hands such bytes on as they are when a
+// file is in another encoding, and kapi reads every file as UTF-8, so the text
+// a read shows has U+FFFD in their place and the edit would write that
+// character over the bytes the sender never saw. An operation that leaves the
+// text alone, and an edit of another edition or block, keep those bytes.
+func (w *workset) utf8Text(op Op) *Error {
+	st := w.state(op.At.Edition)
+	if !st.present || runsUTF8(st.ed.Runs) {
+		return nil
+	}
+	return &Error{Code: CodeUnsupported, Capability: "encoding",
+		Message: fmt.Sprintf("edition %s holds bytes that are not UTF-8, which a read shows as U+FFFD: the file is in another encoding, "+
+			"and kapi reads and writes UTF-8, so %s would rewrite those bytes; convert the file to UTF-8 and edit it then", w.label(st), op.Kind)}
+}
+
+// runsUTF8 reports whether the text of runs, plural forms and select cases
+// included, is UTF-8.
+func runsUTF8(runs []model.Run) bool {
+	for _, r := range runs {
+		if r.Text != nil && !utf8.ValidString(r.Text.Text) {
+			return false
+		}
+		ok := true
+		forEachBranch(r, func(branch []model.Run) {
+			if ok && !runsUTF8(branch) {
+				ok = false
+			}
+		})
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // edState is one edition of the block as the operations see it.

@@ -319,3 +319,46 @@ func TestChangesJSON_TranslatesABilingualCatalogInPlace(t *testing.T) {
 	require.True(t, ok, "%s", out)
 	assert.Equal(t, "Bonjour", fr.Text)
 }
+
+// A file in another encoding reaches the content model as bytes that are not
+// UTF-8, which a read shows as U+FFFD. An edit of the block holding them is
+// refused rather than writing U+FFFD over them, and the block lists no
+// operation that rewrites its text; an edit of another block lands and keeps
+// them.
+func TestChangesJSON_KeepsBytesThatAreNotUTF8(t *testing.T) {
+	const notes = "Caf\xe9 au lait\n\nSecond line here\n"
+	a, dir := outsideAProjectIn(t, map[string][]byte{"notes.txt": []byte(notes)})
+	ctx := t.Context()
+
+	out, err := a.ReadChangesJSON(ctx, "browser", []byte(`{"doc":"notes.txt"}`), nil)
+	require.NoError(t, err)
+	var page change.Page
+	require.NoError(t, json.Unmarshal(out, &page), string(out))
+	cafe := blockWith(t, &page, "Caf� au lait")
+	second := blockWith(t, &page, "Second line here")
+	assert.NotContains(t, cafe.Ops, change.KindReplaceText)
+	assert.Contains(t, second.Ops, change.KindReplaceText)
+
+	replace := func(b change.BlockRead, find, text string) []byte {
+		return asJSON(t, map[string]any{"ops": []any{map[string]any{"op": "replace_text", "at": b.Ref, "if_match": b.Rev,
+			"edits": []any{map[string]any{"find": find, "text": text}}}}})
+	}
+	out, err = a.ApplyChangesJSON(ctx, "browser", replace(cafe, "lait", "chaud"), nil)
+	require.NoError(t, err)
+	res := resultJSON(t, out)
+	require.Equal(t, change.SetRefused, res.Status, "%s", out)
+	require.NotNil(t, res.Ops[0].Error)
+	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
+	assert.Equal(t, "encoding", res.Ops[0].Error.Capability)
+	got, err := os.ReadFile(filepath.Join(dir, "notes.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, notes, string(got), "a refusal writes nothing")
+
+	out, err = a.ApplyChangesJSON(ctx, "browser", replace(second, "here", "there"), nil)
+	require.NoError(t, err)
+	res = resultJSON(t, out)
+	require.Equal(t, change.SetApplied, res.Status, "%s", out)
+	got, err = os.ReadFile(filepath.Join(dir, "notes.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "Caf\xe9 au lait\n\nSecond line there\n", string(got), "the other block's bytes stay as they were")
+}
