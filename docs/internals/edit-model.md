@@ -1815,8 +1815,8 @@ beside all of them in package-sized PRs.
   in 0.10 s and the same writes again in 0.013 s (PostgreSQL), and a checkout sends a write again only
   when it changed. The bases a read shows cost 0.03 ms for one
   block and 2.5 ms for a page of 100 in a document of 2,000 blocks in ten languages with five changes
-  each. A flow's second read of a document it wrote was 0.24 s across the docs corpus's rewrite pass,
-  against 0.63 s for its first read and about 50 s for the run.
+  each. A flow's second read of a document it wrote cost 0.24 s of CPU time across the docs corpus's
+  rewrite pass, against 0.63 s for its first read and about 50 s for the run, CPU time throughout.
 
 ### WP8. The workspace home and parked drafts
 
@@ -1853,7 +1853,7 @@ beside all of them in package-sized PRs.
   `TestWorkspaceHome_RandomWritesConvergeInAnyMergeOrder` (three machines, nine writes, six seeds)
   reach one head in every merge order. The conformance suite passes on the workspace home in
   `core/workhome` and in a project, removing the French it keeps of a PO catalog and of a JSON file.
-  `make test-e2e-kapi` passes; the dogfood loop runs in CI.
+  `make test-e2e-kapi` passes. The dogfood loop is pending: no CI run has used this code yet.
   `TestConverge_DeletingTheCacheLosesNoDraftAndCallsNoProvider` deletes `.kapi/work/`, and the next
   pass serves every draft without a provider call and keeps a person's edit.
 - **Measured** (`KAPI_MEASURE_OPLOG=1 go test -tags fts5 ./core/projector -run TestMeasureKeptDrafts
