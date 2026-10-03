@@ -276,6 +276,7 @@ export interface ChangeResultInfo {
     id?: string;
     error?: { code: string; message: string };
     current?: { rev: string; text?: string };
+    findings?: Array<{ rule: string; message: string; fails: boolean }>;
   }>;
 }
 

@@ -14,6 +14,8 @@ import {
   type AnnotateOp,
   type ChangeAnchor,
   type ChangeError,
+  type ChangeFinding,
+  type ChangeGate,
   type ChangeOp,
   type ChangeRef,
   type ChangeResult,
@@ -27,7 +29,15 @@ import {
   type SetContentOp,
   type UnannotateOp,
 } from "@neokapi/contract-types";
-import { otherBranch, projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
+import {
+  otherBranch,
+  projectRuns,
+  runKindOf,
+  type ModelRunSpec,
+  type Run,
+} from "@neokapi/kapi-format";
+import { codedToRuns, type SpanInfo as PrimitiveSpanInfo } from "@neokapi/ui-primitives";
+import { getTargetText } from "../components/editor/blockStatus";
 import type { BlockInfo, ReviewRung } from "../types/api";
 
 /** A change set of content operations (kapi.change/v1). */
@@ -137,6 +147,37 @@ export function setTranslation(
   return "runs" in content
     ? { op: "set_content", at, if_match: ifMatch, runs: toChangeRuns(content.runs) }
     : { op: "set_content", at, if_match: ifMatch, text: content.text };
+}
+
+/**
+ * A block's translation in one language as runs, codes included: the typed runs
+ * the server served, else the coded text the editor renders, else its text as
+ * one run. Empty when the block holds no translation there. An edit built on
+ * these keeps the translation's codes; one built on its plain text would drop
+ * them.
+ */
+export function translationRuns(block: BlockInfo, locale: string): Run[] {
+  const runs = block.targets_runs?.[locale];
+  if (runs && runs.length > 0) return runs as Run[];
+  const coded = block.targets_coded?.[locale];
+  if (coded) return codedToRuns(coded, (block.source_spans ?? []) as PrimitiveSpanInfo[]) as Run[];
+  const text = getTargetText(block, locale);
+  return text ? [{ text }] : [];
+}
+
+/**
+ * A translation with text added at its end, codes kept: what inserting a term
+ * into a translation no editor has open saves.
+ */
+export function appendText(runs: readonly Run[], text: string): Run[] {
+  if (runs.length === 0) return [{ text }];
+  const last = runs[runs.length - 1];
+  const run = last as Extract<Run, { text: string }>;
+  if (runKindOf(last) === "text" && !run.noTranslate) {
+    // The words join the text they follow, as typing them would.
+    return [...runs.slice(0, -1), { ...run, text: `${run.text} ${text}` }];
+  }
+  return [...runs, { text: ` ${text}` }];
 }
 
 /** A review decision on a translation, on the revision the reviewer read. */
@@ -289,20 +330,42 @@ const PLACEHOLDER_SPEC: ModelRunSpec<string> = {
   fallback: () => "",
 };
 
-/** A change set of ops, with an optional note a person reads in history. */
-export function contentChangeSet(ops: ChangeOp[], note?: string): ContentChangeSet {
-  return note ? { schema: CHANGE_SCHEMA_ID, note, ops } : { schema: CHANGE_SCHEMA_ID, ops };
+/** How a change set is sent beyond its operations. */
+export interface ChangeSetOptions {
+  /** One line a person reads in history. */
+  note?: string;
+  /**
+   * `report` lands the change with the check findings it introduces: a
+   * person's deliberate override of a failing check. The default refuses it.
+   */
+  gate?: ChangeGate;
+}
+
+/** A change set of ops. */
+export function contentChangeSet(ops: ChangeOp[], opts: ChangeSetOptions = {}): ContentChangeSet {
+  const set: ContentChangeSet = { schema: CHANGE_SCHEMA_ID, ops };
+  if (opts.note) set.note = opts.note;
+  if (opts.gate) set.gate = opts.gate;
+  return set;
 }
 
 /** What became of a change set, read from its result. */
 export type ChangeOutcome =
   | { status: "applied"; result: ChangeResult }
   | { status: "stale"; result: ChangeResult; op: OpResult; current: CurrentEdition }
+  | {
+      status: "gate_failed";
+      result: ChangeResult;
+      error: ChangeError;
+      /** The failing findings the change would introduce. */
+      findings: ChangeFinding[];
+    }
   | { status: "refused"; result: ChangeResult; error: ChangeError };
 
 /**
  * Read a change set's result: applied (or previewed), stale on an operation
- * whose edition moved (with the edition as it stands), or refused for any
+ * whose edition moved (with the edition as it stands), refused by a check of
+ * the content alone (with the findings that failed it), or refused for any
  * other reason (with the first refusal).
  */
 export function readOutcome(result: ChangeResult): ChangeOutcome {
@@ -311,6 +374,15 @@ export function readOutcome(result: ChangeResult): ChangeOutcome {
   const refused = result.ops.filter((op) => op.status === "refused");
   const stale = refused.find((op) => op.error?.code === "stale" && op.current);
   if (stale?.current) return { status: "stale", result, op: stale, current: stale.current };
+  const gated = refused.filter((op) => op.error?.code === "gate_failed");
+  if (gated.length > 0 && gated.length === refused.length) {
+    return {
+      status: "gate_failed",
+      result,
+      error: gated[0].error as ChangeError,
+      findings: gated.flatMap((op) => (op.findings ?? []).filter((f) => f.fails)),
+    };
+  }
   const error = refused.find((op) => op.error)?.error ?? {
     code: "invalid",
     message: "the change was refused",

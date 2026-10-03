@@ -10,7 +10,6 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
-  codedToRuns,
 } from "@neokapi/ui-primitives";
 import type { Run } from "@neokapi/kapi-format";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -38,29 +37,33 @@ import { useWorkspace } from "../context/WorkspaceContext";
 import { useLocales } from "../hooks/useLocales";
 import {
   addNote,
+  appendText,
   decideTranslation,
   decisionOutcome,
   markEntity,
-  placeholderText,
   removeNote,
   renderedRevision,
   setTranslation,
-  type TranslationContent,
+  translationRuns,
 } from "../api/contentChanges";
 import { EntityMarkPopover } from "./editor/EntityMarkPopover";
 import { VisualEditorLayout } from "./editor/VisualEditorLayout";
 import { TableView } from "./editor/TableView";
 import { StaleChangeDialog } from "./editor/StaleChangeDialog";
+import { CheckFindingsDialog } from "./editor/CheckFindingsDialog";
 import {
   captureTargetStatus,
   getTargetText,
   rollbackTargetStatus,
-  statusAfterEdit,
-  withTargetEntry,
-  withTargetRevision,
   withTargetStatus,
   type TargetStatusSnapshot,
 } from "./editor/blockStatus";
+import {
+  savedRuns,
+  savedTranslation,
+  withSavedTranslation,
+  type SavedTranslation,
+} from "./editor/savedTranslation";
 import { ArrowUp, ArrowDown } from "./icons";
 import { type UnifiedSaveResult, type UnifiedTargetEditorHandle } from "./UnifiedTargetEditor";
 
@@ -391,94 +394,56 @@ export function TranslationEditor({
   );
 
   /**
-   * Save a translation the person wrote, on the revision the editor showed. A
-   * translation someone changed since is shown to them before anything is
-   * written; when they keep it, the block is read back as it stands.
+   * Save a translation the person wrote, as runs, on the revision the editor
+   * showed. A translation someone changed since is shown to them before
+   * anything is written; when they keep it, the block is read back as it
+   * stands. A save a check refuses shows the findings, and the person saves
+   * anyway or goes back to their wording (`revise`). A save that lands is
+   * written into the block as a reload would fetch it.
    */
   const saveTranslation = useCallback(
     async (
       block: BlockInfo,
-      content: TranslationContent,
-      mine: string,
-    ): Promise<{ saved: boolean; after?: string }> => {
+      saved: SavedTranslation,
+      extra?: Partial<BlockInfo>,
+    ): Promise<"saved" | "kept" | "revise"> => {
       const outcome = await changes.commit(
-        (ifMatch) => setTranslation(fileName, block, targetLocale, content, ifMatch),
+        (ifMatch) => setTranslation(fileName, block, targetLocale, { runs: saved.runs }, ifMatch),
         renderedRevision(block, targetLocale),
-        { action: "save", locale: targetLocale, mine },
+        { action: "save", locale: targetLocale, mine: saved.mine },
       );
       if (outcome.status === "kept") {
         await refreshBlock(block.id);
-        return { saved: false };
+        return "kept";
       }
-      return { saved: true, after: outcome.after };
+      if (outcome.status === "revise") return "revise";
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === block.id
+            ? { ...withSavedTranslation(b, targetLocale, saved, outcome.after), ...extra }
+            : b,
+        ),
+      );
+      return "saved";
     },
     [changes, fileName, targetLocale, refreshBlock],
   );
 
-  // Single dispatcher for the UnifiedTargetEditor: a flat result is saved as
-  // runs; a plural result as its ICU text, clearing `targets_coded[locale]`.
+  // Single dispatcher for the UnifiedTargetEditor: a flat result and a plural
+  // one are both saved as runs, the plural as one plural run with its forms.
   // See AD #408 / #409.
   const handleUnifiedSave = useCallback(
     async (index: number, result: UnifiedSaveResult) => {
       const block = blocks[index];
       if (!block) return;
       try {
-        if (result.kind === "flat") {
-          const runs = codedToRuns(result.codedText, result.spans) as Run[];
-          const { saved, after } = await saveTranslation(block, { runs }, placeholderText(runs));
-          if (!saved) {
-            setEditingIndex(null);
-            return;
-          }
-          const plainText = result.codedText.replace(/[\uE001-\uE003]/g, "");
-          // Write the {text, status} object shape a reload would fetch: a
-          // bare-string entry here would drop the per-locale status until the
-          // next reload. statusAfterEdit mirrors the change service's rule: a
-          // person's changed text is translated, identical content keeps its
-          // status.
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === block.id
-                ? {
-                    ...withTargetRevision(
-                      withTargetEntry(b, targetLocale, {
-                        text: plainText,
-                        status: statusAfterEdit(b, targetLocale, plainText, result.codedText),
-                      }),
-                      targetLocale,
-                      after,
-                    ),
-                    targets_coded: {
-                      ...b.targets_coded,
-                      [targetLocale]: result.codedText,
-                    },
-                  }
-                : b,
-            ),
-          );
-        } else {
-          const { saved, after } = await saveTranslation(block, { text: result.text }, result.text);
-          if (!saved) {
-            setEditingIndex(null);
-            return;
-          }
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === block.id
-                ? {
-                    ...withTargetRevision(
-                      withTargetEntry(b, targetLocale, {
-                        text: result.text,
-                        status: statusAfterEdit(b, targetLocale, result.text),
-                      }),
-                      targetLocale,
-                      after,
-                    ),
-                    targets_coded: { ...b.targets_coded, [targetLocale]: "" },
-                  }
-                : b,
-            ),
-          );
+        const done = await saveTranslation(block, savedTranslation(result));
+        // A save the person takes back to revise keeps the editor open on
+        // their wording.
+        if (done === "revise") return;
+        if (done === "kept") {
+          setEditingIndex(null);
+          return;
         }
         capture(AnalyticsEvents.translationSaved, { locale: targetLocale, method: "editor" });
         // The block changed bucket, so the histogram is re-asked for.
@@ -622,27 +587,17 @@ export function TranslationEditor({
       const match = memoryMatches[index];
       const block = blocks[selectedIndex];
       if (!match || !block || !block.translatable) return;
-      void saveTranslation(block, { text: match.target }, match.target)
-        .then(({ saved, after }) => {
-          if (!saved) return;
+      // The match's runs carry its codes; its text alone would drop them.
+      const runs: Run[] =
+        match.target_runs && match.target_runs.length > 0
+          ? (match.target_runs as Run[])
+          : [{ text: match.target }];
+      void saveTranslation(block, savedRuns(runs), {
+        properties: { ...block.properties, "translation-origin": "memory" },
+      })
+        .then((done) => {
+          if (done !== "saved") return;
           capture(AnalyticsEvents.translationSaved, { locale: targetLocale, method: "tm" });
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === block.id
-                ? {
-                    ...withTargetRevision(
-                      withTargetEntry(b, targetLocale, {
-                        text: match.target,
-                        status: statusAfterEdit(b, targetLocale, match.target),
-                      }),
-                      targetLocale,
-                      after,
-                    ),
-                    properties: { ...b.properties, "translation-origin": "memory" },
-                  }
-                : b,
-            ),
-          );
           void loadCounts();
         })
         .catch((e) => setError({ title: "Couldn't apply the match", cause: e }));
@@ -662,27 +617,11 @@ export function TranslationEditor({
         targetEditorRef.current.insertText(text);
         return;
       }
-      const existing = getTargetText(block, targetLocale);
-      const next = existing ? `${existing} ${text}` : text;
-      void saveTranslation(block, { text: next }, next)
-        .then(({ saved, after }) => {
-          if (!saved) return;
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === block.id
-                ? withTargetRevision(
-                    withTargetEntry(b, targetLocale, {
-                      text: next,
-                      status: statusAfterEdit(b, targetLocale, next),
-                    }),
-                    targetLocale,
-                    after,
-                  )
-                : b,
-            ),
-          );
-        })
-        .catch((e) => setError({ title: "Couldn't insert the term", cause: e }));
+      // The term joins the translation's runs, so its codes stay where they are.
+      const runs = appendText(translationRuns(block, targetLocale), text);
+      void saveTranslation(block, savedRuns(runs)).catch((e) =>
+        setError({ title: "Couldn't insert the term", cause: e }),
+      );
     },
     [blocks, selectedIndex, editingIndex, saveTranslation, targetLocale],
   );
@@ -722,12 +661,23 @@ export function TranslationEditor({
       const block = blocks[selectedIndex];
       if (!block) return;
       // The server stamps a note with its author and time; the list read back
-      // shows it as everyone else sees it.
-      changes
-        .apply([addNote(fileName, block.id, text)])
-        .then(() => api.listBlockNotes(project.id, block.id))
-        .then((notes) => setBlockNotes(notes || []))
-        .catch((e) => setError({ title: "Couldn't add the note", cause: e }));
+      // shows it as everyone else sees it. The note is added once the change
+      // lands, read back or not: the desktop queues it while the server is out
+      // of reach, and the list cannot be read until it returns.
+      changes.apply([addNote(fileName, block.id, text)]).then(
+        async (result) => {
+          try {
+            setBlockNotes((await api.listBlockNotes(project.id, block.id)) || []);
+          } catch {
+            const id = result.ops[0]?.id ?? `pending-${Date.now()}`;
+            setBlockNotes((prev) => [
+              ...prev,
+              { id, blockId: block.id, author: "You", text, createdAt: new Date().toISOString() },
+            ]);
+          }
+        },
+        (e) => setError({ title: "Couldn't add the note", cause: e }),
+      );
     },
     [blocks, selectedIndex, changes, api, project.id, fileName],
   );
@@ -974,6 +924,7 @@ export function TranslationEditor({
         />
       )}
       <StaleChangeDialog state={changes.staleDialog} />
+      <CheckFindingsDialog state={changes.findingsDialog} />
     </div>
   );
 }

@@ -5,10 +5,8 @@ import {
   LocaleLabel,
   ReviewLanguageSelect,
   cn,
-  codedToRuns,
   statusMeta,
 } from "@neokapi/ui-primitives";
-import type { Run } from "@neokapi/kapi-format";
 import { FormatPreview, extOf } from "@neokapi/ui-primitives/preview";
 import type { BlockAttrs } from "@neokapi/ui-primitives/preview";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -28,12 +26,12 @@ import { useContentChanges } from "../hooks/useContentChanges";
 import {
   decideTranslation,
   decisionOutcome,
-  placeholderText,
   renderedRevision,
   setTranslation,
-  type TranslationContent,
 } from "../api/contentChanges";
 import { StaleChangeDialog } from "./editor/StaleChangeDialog";
+import { CheckFindingsDialog } from "./editor/CheckFindingsDialog";
+import { savedTranslation, withSavedTranslation } from "./editor/savedTranslation";
 import { useLocales } from "../hooks/useLocales";
 import { useCallerPermissions } from "../hooks/useCallerPermissions";
 import { useAnalytics } from "../context/AnalyticsContext";
@@ -48,10 +46,7 @@ import {
   getBlockStatus,
   getTargetText,
   rollbackTargetStatus,
-  statusAfterEdit,
   statusRuleClass,
-  withTargetEntry,
-  withTargetRevision,
   withTargetStatus,
   type BlockStatus,
   type TargetStatusSnapshot,
@@ -496,62 +491,24 @@ export function ReviewSurface({
   const saveTarget = useCallback(
     async (block: BlockInfo, result: UnifiedSaveResult) => {
       try {
-        const content: TranslationContent =
-          result.kind === "flat"
-            ? { runs: codedToRuns(result.codedText, result.spans) as Run[] }
-            : { text: result.text };
+        const saved = savedTranslation(result);
         const done = await changes.commit(
-          (ifMatch) => setTranslation(fileName, block, targetLocale, content, ifMatch),
+          (ifMatch) => setTranslation(fileName, block, targetLocale, { runs: saved.runs }, ifMatch),
           renderedRevision(block, targetLocale),
-          {
-            action: "save",
-            locale: targetLocale,
-            mine: "runs" in content ? placeholderText(content.runs) : content.text,
-          },
+          { action: "save", locale: targetLocale, mine: saved.mine },
         );
+        // The reviewer went back to their wording: the editor stays open on it.
+        if (done.status === "revise") return;
         if (done.status === "kept") {
           setEditing(false);
           await refreshBlock(block.id);
           return;
         }
-        const after = done.after;
-        if (result.kind === "flat") {
-          // Inline-code placeholders are private-use characters; the plain text a
-          // reload would fetch is the coded text without them.
-          const plainText = result.codedText.replace(/[\uE001-\uE003]/g, "");
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === block.id
-                ? {
-                    ...withTargetRevision(
-                      withTargetEntry(b, targetLocale, {
-                        text: plainText,
-                        status: statusAfterEdit(b, targetLocale, plainText, result.codedText),
-                      }),
-                      targetLocale,
-                      after,
-                    ),
-                    targets_coded: { ...b.targets_coded, [targetLocale]: result.codedText },
-                  }
-                : b,
-            ),
-          );
-        } else {
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === block.id
-                ? withTargetRevision(
-                    withTargetEntry(b, targetLocale, {
-                      text: result.text,
-                      status: statusAfterEdit(b, targetLocale, result.text),
-                    }),
-                    targetLocale,
-                    after,
-                  )
-                : b,
-            ),
-          );
-        }
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.id === block.id ? withSavedTranslation(b, targetLocale, saved, done.after) : b,
+          ),
+        );
         capture(AnalyticsEvents.translationSaved, { locale: targetLocale, method: "editor" });
         setEditing(false);
         void loadCounts();
@@ -966,6 +923,7 @@ export function ReviewSurface({
         onConfirm={() => void bulkApplyMemory()}
       />
       <StaleChangeDialog state={changes.staleDialog} />
+      <CheckFindingsDialog state={changes.findingsDialog} />
 
       {/* Problems panel (reused) */}
       {showProblems && (

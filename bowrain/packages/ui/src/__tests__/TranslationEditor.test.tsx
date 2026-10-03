@@ -384,8 +384,49 @@ describe("TranslationEditor — term insert", () => {
     expect(adapter.opsOf("set_content")[0]).toMatchObject({
       at: { block: "b1", edition: "fr-FR" },
       if_match: mockRevision(testBlocks[0], "fr-FR"),
-      text: "Bonjour le monde localisation",
+      runs: [{ text: "Bonjour le monde localisation" }],
     });
+  });
+
+  it("keeps the translation's inline codes when it appends the term", async () => {
+    const user = userEvent.setup();
+    const bold: BlockInfo = {
+      id: "b1",
+      source: "Save now",
+      source_runs: [
+        { text: "Save " },
+        { pcOpen: { id: "1", type: "fmt:bold", data: "<b>", equiv: "b" } },
+        { text: "now" },
+        { pcClose: { id: "1", type: "fmt:bold", data: "</b>", equiv: "b" } },
+      ],
+      targets: { "fr-FR": { text: "Enregistrer maintenant", status: "translated" } },
+      targets_runs: {
+        "fr-FR": [
+          { text: "Enregistrer " },
+          { pcOpen: { id: "1", type: "fmt:bold", data: "<b>", equiv: "b" } },
+          { text: "maintenant" },
+          { pcClose: { id: "1", type: "fmt:bold", data: "</b>", equiv: "b" } },
+        ],
+      },
+      translatable: true,
+      has_spans: true,
+      properties: {},
+    };
+    const { adapter } = renderEditor({ view: "visual", blocks: [bold] });
+    await waitForBlocks(1);
+
+    await user.click(await screen.findByTestId("term-insert-0-0"));
+
+    await waitFor(() => expect(adapter.opsOf("set_content")).toHaveLength(1));
+    const op = adapter.opsOf("set_content")[0];
+    expect(op.text).toBeUndefined();
+    expect(op.runs).toEqual([
+      { text: "Enregistrer " },
+      { pcOpen: { id: "1", type: "fmt:bold", equiv: "b" } },
+      { text: "maintenant" },
+      { pcClose: { id: "1", type: "fmt:bold", equiv: "b" } },
+      { text: " localisation" },
+    ]);
   });
 
   it("inserts at the open editor's cursor without persisting when a target editor is open", async () => {
@@ -430,8 +471,197 @@ describe("TranslationEditor — term insert", () => {
     await waitFor(() => expect(adapter.opsOf("set_content")).toHaveLength(1));
     expect(adapter.opsOf("set_content")[0]).toMatchObject({
       at: { block: "b2" },
-      text: "Au revoir localisation",
+      runs: [{ text: "Au revoir localisation" }],
     });
+  });
+});
+
+describe("TranslationEditor — a content-memory match", () => {
+  it("is saved as its runs, so the codes its text leaves out stay", async () => {
+    const user = userEvent.setup();
+    const name = { ph: { id: "name", type: "code:variable", data: "{name}", equiv: "{name}" } };
+    const greeting: BlockInfo = {
+      id: "b1",
+      source: "Hello ",
+      source_runs: [{ text: "Hello " }, name],
+      targets: {},
+      translatable: true,
+      has_spans: true,
+      properties: {},
+    };
+    const { adapter } = renderEditor({
+      view: "visual",
+      blocks: [greeting],
+      prepare: (a) => {
+        a.lookupMemoryForBlock = async () => [
+          {
+            source: "Hello {name}",
+            target: "Bonjour {name}",
+            target_runs: [{ text: "Bonjour " }, name],
+            score: 1,
+            match_type: "exact",
+          },
+        ];
+      },
+    });
+    await waitForBlocks(1);
+
+    await user.click(await screen.findByTestId("tm-apply-0"));
+
+    await waitFor(() => expect(adapter.opsOf("set_content")).toHaveLength(1));
+    const op = adapter.opsOf("set_content")[0];
+    expect(op).toMatchObject({ if_match: "absent" });
+    expect(op.text).toBeUndefined();
+    expect(op.runs).toEqual([
+      { text: "Bonjour " },
+      { ph: { id: "name", type: "code:variable", equiv: "{name}" } },
+    ]);
+  });
+});
+
+describe("TranslationEditor — a save the project's checks refuse", () => {
+  const finding = {
+    rule: "terms.vocabulary",
+    message: 'Use "réglages", not "paramètres"',
+    fails: true,
+  };
+
+  it("shows the findings, and saves anyway only when asked", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderEditor({
+      view: "visual",
+      prepare: (a) => {
+        a.failingCheck = [finding];
+      },
+    });
+    await waitForBlocks(3);
+
+    await user.click(screen.getByTestId("target-display"));
+    await screen.findByTestId("unified-target-editor");
+    await user.click(screen.getByTestId("unified-save"));
+
+    const dialog = await screen.findByTestId("check-findings-dialog");
+    expect(screen.getByTestId("check-finding").textContent).toContain(finding.message);
+    expect(screen.getByTestId("check-findings-mine").textContent).toBe("Bonjour le monde");
+    expect(adapter.changeSetCalls).toHaveLength(1);
+    expect(adapter.changeSetCalls[0].set.gate).toBeUndefined();
+
+    await user.click(screen.getByTestId("findings-override"));
+    await waitFor(() => expect(adapter.changeSetCalls).toHaveLength(2));
+    expect(adapter.changeSetCalls[1].set.gate).toBe("report");
+    expect(adapter.changeSetCalls[1].set.ops[0]).toEqual(adapter.changeSetCalls[0].set.ops[0]);
+    expect(dialog).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId("status-bar").textContent).toContain("Block 2 of 3"),
+    );
+  });
+
+  it("keeps the editor open on the person's wording when they do not save", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderEditor({
+      view: "visual",
+      prepare: (a) => {
+        a.failingCheck = [finding];
+      },
+    });
+    await waitForBlocks(3);
+
+    await user.click(screen.getByTestId("target-display"));
+    await screen.findByTestId("unified-target-editor");
+    await user.click(screen.getByTestId("unified-save"));
+    await user.click(await screen.findByTestId("findings-revise"));
+
+    await waitFor(() =>
+      expect(screen.queryByTestId("check-findings-dialog")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("unified-target-editor")).toBeInTheDocument();
+    expect(adapter.changeSetCalls).toHaveLength(1);
+    expect(screen.queryByText("Couldn't save the translation")).not.toBeInTheDocument();
+  });
+});
+
+describe("TranslationEditor — a plural translation", () => {
+  const n = { ph: { id: "n", type: "code:variable", data: "#", equiv: "#" } };
+  const pluralBlock: BlockInfo = {
+    id: "b1",
+    source: " items",
+    source_runs: [
+      {
+        plural: {
+          pivot: "count",
+          forms: { one: [n, { text: " item" }], other: [n, { text: " items" }] },
+        },
+      },
+    ],
+    targets: { "fr-FR": { text: " articles", status: "translated" } },
+    targets_runs: {
+      "fr-FR": [
+        {
+          plural: {
+            pivot: "count",
+            forms: { one: [n, { text: " article" }], other: [n, { text: " articles" }] },
+          },
+        },
+      ],
+    },
+    translatable: true,
+    has_spans: true,
+    properties: {},
+  };
+
+  it("opens on its forms and saves the whole plural as runs", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderEditor({ view: "visual", blocks: [pluralBlock] });
+    await waitForBlocks(1);
+
+    await user.click(screen.getByTestId("target-display"));
+    const editor = await screen.findByTestId("unified-target-editor");
+    expect(editor.getAttribute("data-mode")).toBe("plural");
+    await user.click(screen.getByTestId("unified-save"));
+
+    await waitFor(() => expect(adapter.opsOf("set_content")).toHaveLength(1));
+    const op = adapter.opsOf("set_content")[0];
+    expect(op.text).toBeUndefined();
+    expect(op.runs).toEqual([
+      {
+        plural: {
+          pivot: "count",
+          forms: {
+            one: [{ ph: { id: "n", type: "code:variable", equiv: "#" } }, { text: " article" }],
+            other: [{ ph: { id: "n", type: "code:variable", equiv: "#" } }, { text: " articles" }],
+          },
+        },
+      },
+    ]);
+  });
+});
+
+describe("TranslationEditor — a note", () => {
+  it("is shown once the change lands, even when the list cannot be read back", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderEditor({
+      view: "visual",
+      prepare: (a) => {
+        // The desktop queues a note while the server is out of reach; the list
+        // is the server's, and cannot be read until it returns.
+        let reads = 0;
+        const list = a.listBlockNotes.bind(a);
+        a.listBlockNotes = async (...args) => {
+          reads += 1;
+          if (reads > 1) throw new Error("the server is out of reach");
+          return list(...args);
+        };
+      },
+    });
+    await waitForBlocks(3);
+
+    await user.click(screen.getByRole("tab", { name: "Enrich" }));
+    await user.type(screen.getByTestId("note-input"), "Check the tone");
+    await user.click(screen.getByTestId("submit-note-btn"));
+
+    await waitFor(() => expect(adapter.opsOf("annotate")).toHaveLength(1));
+    expect(await screen.findByText("Check the tone")).toBeInTheDocument();
+    expect(screen.queryByText("Couldn't add the note")).not.toBeInTheDocument();
   });
 });
 

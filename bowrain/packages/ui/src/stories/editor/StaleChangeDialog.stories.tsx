@@ -74,7 +74,7 @@ export const RejectAChangedTranslation: Story = {
   },
 };
 
-/** The translation was removed after the person opened the block. */
+/** The translation was removed after the person opened the block; saving creates it again. */
 export const TranslationRemovedMeanwhile: Story = {
   args: {
     state: {
@@ -84,5 +84,29 @@ export const TranslationRemovedMeanwhile: Story = {
       current: { rev: "absent", text: "" },
       ...handlers(),
     },
+  },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await expect(await body.findByTestId("stale-reapply")).toHaveTextContent("Save my version");
+  },
+};
+
+/**
+ * An approval of a translation someone removed after the reviewer read it.
+ * There is nothing left to approve, so the dialog only closes.
+ */
+export const ApproveARemovedTranslation: Story = {
+  args: {
+    state: {
+      action: "establish",
+      locale: "fr-FR",
+      current: { rev: "absent", text: "" },
+      ...handlers(),
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await expect(await body.findByTestId("stale-keep")).toHaveTextContent("Close");
+    await expect(body.queryByTestId("stale-reapply")).not.toBeInTheDocument();
   },
 };

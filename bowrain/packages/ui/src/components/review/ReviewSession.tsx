@@ -7,19 +7,17 @@ import {
   Button,
   ReviewLanguageSelect,
   cn,
-  codedToRuns,
 } from "@neokapi/ui-primitives";
-import type { Run } from "@neokapi/kapi-format";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { StaleChangeDialog } from "../editor/StaleChangeDialog";
+import { CheckFindingsDialog } from "../editor/CheckFindingsDialog";
+import { savedTranslation, withSavedTranslation } from "../editor/savedTranslation";
 import { useContentChanges } from "../../hooks/useContentChanges";
 import {
   decideTranslation,
   decisionOutcome,
-  placeholderText,
   renderedRevision,
   setTranslation,
-  type TranslationContent,
 } from "../../api/contentChanges";
 import type {
   ApprovePassingResult,
@@ -35,12 +33,7 @@ import { useLocales } from "../../hooks/useLocales";
 import { useCallerPermissions } from "../../hooks/useCallerPermissions";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { ErrorNotice } from "../../errors";
-import {
-  getTargetText,
-  statusAfterEdit,
-  withTargetEntry,
-  withTargetRevision,
-} from "../editor/blockStatus";
+import { getTargetText } from "../editor/blockStatus";
 import { type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { ArrowLeft, Rocket, CircleCheck, Sparkles, RefreshCw } from "../icons";
 import { ReviewQueueList } from "./ReviewQueueList";
@@ -524,26 +517,21 @@ export function ReviewSession({
     async (entry: ReviewEntry, result: UnifiedSaveResult) => {
       setBusy(true);
       try {
-        let text: string;
-        let coded: string | undefined;
-        let content: TranslationContent;
-        if (result.kind === "flat") {
-          content = { runs: codedToRuns(result.codedText, result.spans) as Run[] };
-          coded = result.codedText;
-          text = result.codedText.replace(/[\uE001-\uE003]/g, "");
-        } else {
-          content = { text: result.text };
-          text = result.text;
-        }
+        const content = savedTranslation(result);
         const done = await changes.commit(
-          (ifMatch) => setTranslation(entry.itemName, entry.block, entry.locale, content, ifMatch),
+          (ifMatch) =>
+            setTranslation(
+              entry.itemName,
+              entry.block,
+              entry.locale,
+              { runs: content.runs },
+              ifMatch,
+            ),
           renderedRevision(entry.block, entry.locale),
-          {
-            action: "save",
-            locale: entry.locale,
-            mine: "runs" in content ? placeholderText(content.runs) : content.text,
-          },
+          { action: "save", locale: entry.locale, mine: content.mine },
         );
+        // The reviewer went back to their wording: the editor stays open on it.
+        if (done.status === "revise") return;
         setEditing(false);
         if (done.status === "kept") {
           // The reviewer kept the translation someone else saved: the entry
@@ -561,17 +549,7 @@ export function ReviewSession({
         try {
           saved = await api.getBlock(project.id, entry.block.id);
         } catch {
-          saved = {
-            ...withTargetRevision(
-              withTargetEntry(entry.block, entry.locale, {
-                text,
-                status: statusAfterEdit(entry.block, entry.locale, text, coded),
-              }),
-              entry.locale,
-              done.after,
-            ),
-            targets_coded: { ...entry.block.targets_coded, [entry.locale]: coded ?? "" },
-          };
+          saved = withSavedTranslation(entry.block, entry.locale, content, done.after);
         }
         setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, block: saved } : e)));
         void recheck({ ...entry, block: saved });
@@ -944,6 +922,7 @@ export function ReviewSession({
       )}
 
       <StaleChangeDialog state={changes.staleDialog} />
+      <CheckFindingsDialog state={changes.findingsDialog} />
 
       {/* Bulk approve confirmation */}
       <ConfirmDialog

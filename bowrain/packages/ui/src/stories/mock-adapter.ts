@@ -6,7 +6,7 @@
  * feels interactive without needing a real server.
  */
 
-import type { ChangeOp } from "@neokapi/contract-types";
+import type { ChangeFinding, ChangeOp } from "@neokapi/contract-types";
 import type { ApiAdapter } from "../api/adapter";
 import type { ContentChangeSet } from "../api/contentChanges";
 import { getBlockStatus, getTargetText } from "../components/editor/blockStatus";
@@ -248,6 +248,11 @@ export interface MockAdapter extends ApiAdapter {
    * prompt. Consumed by that change set.
    */
   concurrentEdit?: { blockId: string; locale: string; text: string };
+  /**
+   * Findings the project's checks raise on every translation saved: a save is
+   * refused with them unless it overrides the check (gate `report`).
+   */
+  failingCheck?: ChangeFinding[];
   /** `approvePassingReview` invocations in call order. */
   approvePassingReviewCalls: ApprovePassingRequest[];
   /** Overrides the computed `approvePassingReview` result when set. */
@@ -916,7 +921,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         adapter.concurrentEdit = undefined;
         adapter.editElsewhere(blockId, locale, text);
       }
-      return applyMockChanges({ blocks: _blocks, notes: _notes }, set);
+      return applyMockChanges(
+        { blocks: _blocks, notes: _notes, failingCheck: adapter.failingCheck },
+        set,
+      );
     },
 
     pseudoTranslateFile: async (): Promise<TranslationStats> => ({

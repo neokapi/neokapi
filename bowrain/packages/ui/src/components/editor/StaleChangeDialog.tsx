@@ -7,9 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@neokapi/ui-primitives";
-import type { ReactNode } from "react";
+import { ABSENT_REVISION } from "../../api/contentChanges";
 import type { StaleAction, StaleDialogState } from "../../hooks/useContentChanges";
 import { useLocales } from "../../hooks/useLocales";
+import { PlaceholderText } from "./PlaceholderText";
 
 export interface StaleChangeDialogProps {
   /** The open prompt (`useContentChanges().staleDialog`), or null when none is open. */
@@ -33,23 +34,29 @@ const INTRO: Record<StaleAction, string> = {
     "Someone changed this translation after you opened it, so your decision was not recorded. Read the translation as it stands before you decide.",
 };
 
+const REMOVED_INTRO =
+  "Someone removed this translation after you opened it, so your decision was not recorded. There is no translation left to decide on.";
+
 /**
  * Asks what to do when a change a person sent meets a translation that moved
  * since they opened it: the server refused it, and the dialog shows the
  * translation as it stands now (and, for a save, the person's version) so they
- * apply their change to it or keep it.
+ * apply their change to it or keep it. A decision on a translation someone
+ * removed has nothing to apply to, so the dialog offers only to keep things as
+ * they stand.
  */
 export function StaleChangeDialog({ state }: StaleChangeDialogProps) {
   const { getDisplayName } = useLocales();
   const action = state?.action ?? "save";
   const language = state ? getDisplayName(state.locale) || state.locale : "";
+  const removed = action !== "save" && state?.current.rev === ABSENT_REVISION;
 
   return (
     <Dialog open={state !== null} onOpenChange={(open) => !open && state?.onKeep()}>
       <DialogContent className="sm:max-w-[560px]" data-testid="stale-change-dialog">
         <DialogHeader>
           <DialogTitle>This translation changed since you opened it</DialogTitle>
-          <DialogDescription>{INTRO[action]}</DialogDescription>
+          <DialogDescription>{removed ? REMOVED_INTRO : INTRO[action]}</DialogDescription>
         </DialogHeader>
 
         <section className="space-y-1">
@@ -74,43 +81,20 @@ export function StaleChangeDialog({ state }: StaleChangeDialogProps) {
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => state?.onKeep()} data-testid="stale-keep">
-            Keep the current translation
+          <Button
+            variant={removed ? "default" : "outline"}
+            onClick={() => state?.onKeep()}
+            data-testid="stale-keep"
+          >
+            {removed ? "Close" : "Keep the current translation"}
           </Button>
-          <Button onClick={() => state?.onReapply()} data-testid="stale-reapply">
-            {REAPPLY_LABEL[action]}
-          </Button>
+          {!removed && (
+            <Button onClick={() => state?.onReapply()} data-testid="stale-reapply">
+              {REAPPLY_LABEL[action]}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-}
-
-const PLACEHOLDER = /<x id="([^"]*)"\/>/g;
-
-/**
- * Text in the placeholder form a read shows, each inline code drawn as a chip
- * naming its id, so a link or a variable reads as a code and not as markup.
- */
-function PlaceholderText({ text }: { text: string }) {
-  if (text === "") {
-    return <span className="text-muted-foreground italic">No translation</span>;
-  }
-  const parts: ReactNode[] = [];
-  let last = 0;
-  for (const match of text.matchAll(PLACEHOLDER)) {
-    const at = match.index ?? 0;
-    if (at > last) parts.push(text.slice(last, at));
-    parts.push(
-      <span
-        key={`${at}-${match[1]}`}
-        className="mx-0.5 inline-block rounded bg-muted px-1 font-mono text-[11px] text-muted-foreground"
-      >
-        {match[1]}
-      </span>,
-    );
-    last = at + match[0].length;
-  }
-  if (last < text.length) parts.push(text.slice(last));
-  return <>{parts}</>;
 }

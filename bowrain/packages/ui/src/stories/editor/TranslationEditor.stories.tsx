@@ -67,3 +67,35 @@ export const SaveMeetsAChangedTranslation: Story = {
     await expect(body.getByTestId("stale-current")).toHaveTextContent("Bienvenue dans Neokapi");
   },
 };
+
+/**
+ * The project's checks refuse every save here. Saving shows what they found
+ * and asks whether to go back to the wording or save it anyway.
+ */
+export const SaveMeetsAFailingCheck: Story = {
+  args: {
+    project: sampleProject,
+    fileName: "messages.json",
+    onBack: fn(),
+  },
+  decorators: [
+    createProvidersDecorator(sampleBlocks, {
+      failingCheck: [
+        {
+          rule: "terms.vocabulary",
+          message: 'Use "Neokapi" as written, not "NeoKapi"',
+          fails: true,
+        },
+      ],
+    }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await canvas.findByTestId("target-display"));
+    await canvas.findByTestId("unified-target-editor");
+    await userEvent.click(canvas.getByTestId("unified-save"));
+    await expect(await body.findByTestId("check-findings-dialog")).toBeInTheDocument();
+    await expect(body.getByTestId("check-finding")).toHaveTextContent("Neokapi");
+  },
+};

@@ -553,6 +553,7 @@ export {
   ABSENT_REVISION,
   ChangeRefusedError,
   addNote,
+  appendText,
   contentChangeSet,
   decideTranslation,
   decisionOutcome,
@@ -564,10 +565,12 @@ export {
   setTranslation,
   textRangeAnchor,
   toChangeRuns,
+  translationRuns,
 } from "./api/contentChanges";
 export type {
   ChangeOutcome,
   ChangeResult,
+  ChangeSetOptions,
   ContentChangeSet,
   EntityMark,
   TranslationContent,
@@ -575,6 +578,9 @@ export type {
 export { useContentChanges } from "./hooks/useContentChanges";
 export type {
   CommitOutcome,
+  FindingsChoice,
+  FindingsDialogState,
+  FindingsPrompt,
   StaleAction,
   StaleChoice,
   StaleDialogState,
@@ -582,6 +588,8 @@ export type {
 } from "./hooks/useContentChanges";
 export { StaleChangeDialog } from "./components/editor/StaleChangeDialog";
 export type { StaleChangeDialogProps } from "./components/editor/StaleChangeDialog";
+export { CheckFindingsDialog } from "./components/editor/CheckFindingsDialog";
+export type { CheckFindingsDialogProps } from "./components/editor/CheckFindingsDialog";
 
 // Collaboration
 export { PresenceAvatars } from "./components/PresenceAvatars";

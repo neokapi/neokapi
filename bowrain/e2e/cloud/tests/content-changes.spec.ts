@@ -134,6 +134,71 @@ test.describe("Content changes", () => {
     ]);
   });
 
+  test("a save the checks refuse lands only when the person saves it anyway", async ({
+    api,
+    authenticatedPage: page,
+  }) => {
+    const { projectId, blocks } = await projectWithStrings(api, wsSlug, "Changes checks");
+    const block = blocks[0];
+
+    // A French word the workspace's terms rule out, through the reviewed path.
+    const concept = await api.addConcept(wsSlug, {
+      domain: "product",
+      definition: "A word we no longer write.",
+      terms: [{ text: "bidule", locale: "fr", status: "admitted" }],
+    });
+    const cs = await api.createChangeset(wsSlug, 'Retire "bidule"', "Too casual.");
+    await api.addChangesetOp(wsSlug, cs.id, "term.status", {
+      concept_id: concept.id,
+      locale: "fr",
+      text: "bidule",
+      from: "admitted",
+      to: "forbidden",
+    });
+    await api.submitChangeset(wsSlug, cs.id);
+    await api.approveChangeset(wsSlug, cs.id, "Agreed.");
+    await api.mergeChangeset(wsSlug, cs.id);
+
+    // The default gate refuses the wording, with what the checks found.
+    const refused = await api.sendChanges(wsSlug, projectId, {
+      ops: [setFrench(block.id, "absent", "Bonjour, bidule !")],
+    });
+    expect(refused.status).toBe(422);
+    expect(refused.result.ops[0].error?.code).toBe("gate_failed");
+    expect(refused.result.ops[0].findings?.some((f) => f.fails)).toBe(true);
+
+    // In the editor the person sees the findings and saves anyway.
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/source`);
+    await page.getByTestId(`open-file-${ITEM}`).click();
+    await page.getByTestId("file-preview-translate").click();
+    await expect(page.getByTestId("visual-editor-card")).toBeVisible({ timeout: 30_000 });
+
+    await page.getByTestId("edit-btn").click();
+    const editable = page.getByTestId("unified-target-editor").locator('[contenteditable="true"]');
+    await editable.click();
+    await editable.pressSequentially("Bonjour, bidule !");
+    await page.getByTestId("unified-save").click();
+
+    const dialog = page.getByTestId("check-findings-dialog");
+    await expect(dialog).toBeVisible();
+    await expect(page.getByTestId("check-finding").first()).toContainText("bidule");
+    let served = (await api.getBlocks(wsSlug, projectId, ITEM)).find((b) => b.id === block.id);
+    expect(served?.targets?.fr?.text ?? "").toBe("");
+
+    const saved = page.waitForResponse(
+      (r) =>
+        r.url().endsWith("/streams/main/changes") &&
+        r.request().method() === "POST" &&
+        r.request().postDataJSON()?.gate === "report" &&
+        r.ok(),
+    );
+    await page.getByTestId("findings-override").click();
+    await saved;
+    await expect(dialog).toBeHidden();
+    served = (await api.getBlocks(wsSlug, projectId, ITEM)).find((b) => b.id === block.id);
+    expect(served?.targets?.fr?.text).toBe("Bonjour, bidule !");
+  });
+
   test("the editor shows a translation someone saved meanwhile before saving over it", async ({
     api,
     authenticatedPage: page,

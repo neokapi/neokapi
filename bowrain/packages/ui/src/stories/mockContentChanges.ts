@@ -7,7 +7,12 @@
  * or not at all.
  */
 
-import { CHANGE_RESULT_SCHEMA_ID, type ChangeOp, type OpResult } from "@neokapi/contract-types";
+import {
+  CHANGE_RESULT_SCHEMA_ID,
+  type ChangeFinding,
+  type ChangeOp,
+  type OpResult,
+} from "@neokapi/contract-types";
 import { projectRuns, type ModelRunSpec, type Run } from "@neokapi/kapi-format";
 import { runsToCoded } from "@neokapi/ui-primitives";
 import { ABSENT_REVISION, type ChangeResult, type ContentChangeSet } from "../api/contentChanges";
@@ -69,6 +74,11 @@ const PLACEHOLDER = /<x id="[^"]*"\/>/g;
 export interface MockChangeStore {
   blocks: BlockInfo[];
   notes: BlockNote[];
+  /**
+   * Findings the project's checks raise on any translation saved: under the
+   * default gate a save is refused with them; under `report` it lands.
+   */
+  failingCheck?: ChangeFinding[];
 }
 
 /**
@@ -124,6 +134,21 @@ export function applyMockChanges(store: MockChangeStore, set: ContentChangeSet):
             message: `block ${block.id} has no ${locale} translation to establish: translate it first`,
           },
         });
+        return;
+      }
+      const findings = store.failingCheck;
+      if (op.op === "set_content" && findings?.length) {
+        if (set.gate === "report") {
+          results[i].findings = findings;
+          return;
+        }
+        refuse(i, {
+          findings,
+          error: {
+            code: "gate_failed",
+            message: `the edit introduces ${findings.length} failing finding(s) in ${op.at.doc}: ${findings[0].message}`,
+          },
+        });
       }
     }
   });
@@ -159,6 +184,12 @@ export function applyMockChanges(store: MockChangeStore, set: ContentChangeSet):
         }
         result.before = mockRevision(block, locale);
         const coded = runs !== undefined ? safeCoded(runs as Run[]) : text;
+        if (runs !== undefined) {
+          block.targets_runs = { ...block.targets_runs, [locale]: runs };
+        } else if (block.targets_runs?.[locale]) {
+          const { [locale]: _gone, ...rest } = block.targets_runs;
+          block.targets_runs = rest;
+        }
         const prevCoded = getTargetCoded(block, locale);
         const changed =
           prevCoded !== "" ? coded !== prevCoded : text !== getTargetText(block, locale);

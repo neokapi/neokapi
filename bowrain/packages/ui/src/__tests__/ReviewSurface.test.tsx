@@ -270,6 +270,31 @@ describe("ReviewSurface — approve/reject persist as decide operations", () => 
     );
   });
 
+  it("keeps the correction open when the checks refuse it and the reviewer does not save", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSurface();
+    adapter.failingCheck = [
+      { rule: "terms.vocabulary", message: "Use the approved term", fails: true },
+    ];
+    await waitForDocument();
+    await openBlock(user, "b1");
+
+    await user.click(screen.getByTestId("inspector-edit"));
+    await user.click(await screen.findByTestId("unified-save"));
+    const dialog = await screen.findByTestId("check-findings-dialog");
+    expect(within(dialog).getByTestId("check-finding").textContent).toContain(
+      "Use the approved term",
+    );
+    await user.click(within(dialog).getByTestId("findings-revise"));
+
+    await waitFor(() =>
+      expect(screen.queryByTestId("check-findings-dialog")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("inspector-editor")).toBeInTheDocument();
+    expect(adapter.changeSetCalls).toHaveLength(1);
+    expect(screen.queryByText("Couldn't save the translation")).not.toBeInTheDocument();
+  });
+
   it("keeps the changed wording when the reviewer chooses to", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSurface();

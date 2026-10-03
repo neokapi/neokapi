@@ -262,6 +262,32 @@ describe("ReviewSession", () => {
     );
   });
 
+  it("shows the findings of a correction the checks refuse, and saves it anyway on request", async () => {
+    const user = userEvent.setup();
+    const finding = {
+      rule: "placeholders.integrity",
+      message: "A variable is missing",
+      fails: true,
+    };
+    let adapter!: MockAdapter;
+    renderSession(stats, (a) => {
+      adapter = a;
+      a.failingCheck = [finding];
+    });
+    await waitForQueue();
+
+    await user.click(screen.getByTestId("reviewer-edit"));
+    await user.click(screen.getByTestId("unified-save"));
+
+    const dialog = await screen.findByTestId("check-findings-dialog");
+    expect(within(dialog).getByTestId("check-finding").textContent).toContain(finding.message);
+    await user.click(within(dialog).getByTestId("findings-override"));
+
+    await waitFor(() => expect(adapter.changeSetCalls).toHaveLength(2));
+    expect(adapter.changeSetCalls[1].set.gate).toBe("report");
+    await waitFor(() => expect(screen.queryByTestId("reviewer-editor")).not.toBeInTheDocument());
+  });
+
   it("falls back to the local reconstruction when the re-read fails", async () => {
     const user = userEvent.setup();
     renderSession(stats, (adapter) => {

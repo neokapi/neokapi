@@ -4,6 +4,7 @@ import type { Run } from "@neokapi/kapi-format";
 import { RestApiAdapter } from "../api/rest-adapter";
 import {
   addNote,
+  appendText,
   contentChangeSet,
   decideTranslation,
   decisionOutcome,
@@ -15,6 +16,7 @@ import {
   setTranslation,
   textRangeAnchor,
   toChangeRuns,
+  translationRuns,
 } from "../api/contentChanges";
 import type { BlockInfo } from "../types/api";
 
@@ -158,6 +160,73 @@ describe("content change operations", () => {
       ],
     });
     expect(refused).toMatchObject({ status: "refused", error: { code: "not_permitted" } });
+
+    // A save the checks alone refused carries the failing findings, which a
+    // person may override; a set refused for that and for something else is
+    // not theirs to override.
+    const finding = { rule: "terms.vocabulary", message: "Use réglages", fails: true };
+    const advisory = { rule: "voice.tone", message: "Reads formal", fails: false };
+    const gated = {
+      ...stale,
+      ops: [
+        {
+          i: 0,
+          op: "set_content" as const,
+          status: "refused" as const,
+          error: { code: "gate_failed" as const, message: "the edit introduces 1 failing finding" },
+          findings: [finding, advisory],
+        },
+      ],
+    };
+    expect(readOutcome(gated)).toMatchObject({ status: "gate_failed", findings: [finding] });
+    const mixed = readOutcome({
+      ...gated,
+      ops: [
+        ...gated.ops,
+        {
+          i: 1,
+          op: "decide",
+          status: "refused",
+          error: { code: "not_permitted", message: "no" },
+        },
+      ],
+    });
+    expect(mixed.status).toBe("refused");
+  });
+
+  it("send a person's override of a failing check as gate report", () => {
+    const op = decideTranslation("guide.md", block, "fr", "establish");
+    expect(contentChangeSet([op])).not.toHaveProperty("gate");
+    expect(contentChangeSet([op], { gate: "report", note: "save anyway" })).toMatchObject({
+      gate: "report",
+      note: "save anyway",
+    });
+  });
+});
+
+describe("a translation's runs", () => {
+  it("are the served runs, else the coded text, else the text", () => {
+    expect(translationRuns({ ...block, targets_runs: { fr: [{ text: "Lire" }] } }, "fr")).toEqual([
+      { text: "Lire" },
+    ]);
+    expect(translationRuns(block, "fr")).toEqual([{ text: "Lire le guide" }]);
+    expect(translationRuns(block, "de")).toEqual([]);
+  });
+
+  it("take appended words after their codes, joining a trailing text run", () => {
+    const close = { pcClose: { id: "1", type: "fmt:bold", data: "</b>", equiv: "b" } };
+    expect(appendText([], "guide")).toEqual([{ text: "guide" }]);
+    expect(appendText([{ text: "Lire le" }], "guide")).toEqual([{ text: "Lire le guide" }]);
+    expect(appendText([{ text: "Lire" }, close], "guide")).toEqual([
+      { text: "Lire" },
+      close,
+      { text: " guide" },
+    ]);
+    // Words a person adds are translatable, so a do-not-translate run stays as it is.
+    expect(appendText([{ text: "kapi", noTranslate: true }], "CLI")).toEqual([
+      { text: "kapi", noTranslate: true },
+      { text: " CLI" },
+    ]);
   });
 });
 

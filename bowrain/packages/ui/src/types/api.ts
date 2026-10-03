@@ -1190,6 +1190,11 @@ export interface GovernedRefusal {
 export interface MemoryMatchInfo {
   source: string;
   target: string;
+  /**
+   * The match's target as runs, codes included, when it holds any: what
+   * applying the match saves, so the codes the text above leaves out stay.
+   */
+  target_runs?: Run[];
   score: number;
   match_type: string;
   project_id?: string;
