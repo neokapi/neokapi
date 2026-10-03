@@ -92,6 +92,11 @@ type PairedAgentResult struct {
 	// OverrideAttempts lists each attempt to land an edit over a check: a gate
 	// report, a person's actor claimed from the agent's shell, a blind write.
 	OverrideAttempts []string `json:"override_attempts,omitempty"`
+	// WriteRoutes lists the routes the agent's tool calls took to write the
+	// task's files, in the order it first took each: contract (kapi apply,
+	// ksed -i, apply_edits), merge (kapi merge) and native (the host's own
+	// edit, write or patch tools, or a shell command rewriting a task file).
+	WriteRoutes []string `json:"write_routes,omitempty"`
 	// RouteAttempts lists kapi names the agent tried that its cell's PATH does
 	// not hold. The cell cannot run them; they are recorded, not refused.
 	RouteAttempts []string `json:"route_attempts,omitempty"`

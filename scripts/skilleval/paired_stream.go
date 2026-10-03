@@ -142,11 +142,13 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 					}
 					observer.scanInput(tool, pairedObject(item, "arguments"))
 					observer.auditPaths(tool, pairedObject(item, "arguments"))
+					observer.noteRoute(tool, pairedObject(item, "arguments"))
 				}
 				if kind == "file_change" {
 					result.Tools = pairedUnique(result.Tools, "file_change")
 					observer.scanInput("file_change", item)
 					observer.auditPaths("file_change", item)
+					observer.noteRoute("file_change", item)
 				}
 				if kind == "agent_message" {
 					result.FinalText = pairedString(item, "text")

@@ -32,6 +32,7 @@ type pairedScoreRow struct {
 	Refusals          map[string]int            `json:"refusals,omitempty"`
 	OverrideAttempts  []string                  `json:"override_attempts,omitempty"`
 	RouteAttempts     []string                  `json:"route_attempts,omitempty"`
+	WriteRoute        string                    `json:"write_route,omitempty"`
 	OutsideCell       []string                  `json:"outside_cell,omitempty"`
 	Interference      *PairedInterferenceRecord `json:"interference,omitempty"`
 	HumanReview       string                    `json:"human_review"`
@@ -149,6 +150,7 @@ var pairedConflictSignals = []string{"stale", "host:stale", "host:patch_failed"}
 // chance, and is left out until PAIRED_EVAL_RETRY=1 runs it again.
 func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 	cells := map[[3]string]*pairedSummaryCell{}
+	routes := map[[4]string]*pairedSummaryCell{}
 	held := 0
 	for _, row := range rows {
 		if row.Superseded || row.Phase == "diagnostic" {
@@ -165,6 +167,17 @@ func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 			cells[key] = c
 		}
 		c.add(row)
+		route := row.WriteRoute
+		if route == "" {
+			route = "unrecorded"
+		}
+		rkey := [4]string{key[0], key[1], key[2], route}
+		r := routes[rkey]
+		if r == nil {
+			r = &pairedSummaryCell{refusals: map[string]int{}, invalid: map[string]int{}}
+			routes[rkey] = r
+		}
+		r.add(row)
 	}
 	if len(cells) == 0 {
 		return
@@ -209,8 +222,45 @@ func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 		fmt.Fprintf(markdown, "\nThe medians leave out the attempts whose host reported no token use, in seconds and "+
 			"tool calls as in tokens: %s.\n", strings.Join(unmeasured, ", "))
 	}
+	writePairedRouteSummary(markdown, routes)
 	writePairedStaleSummary(markdown, keys, cells)
 	writePairedInvalidSummary(markdown, keys, cells)
+}
+
+// writePairedRouteSummary splits each cell's attempts by the route they wrote
+// the task's files through, with the medians of each: what an attempt costs
+// depends on the route it took as much as on its condition.
+func writePairedRouteSummary(markdown *strings.Builder, routes map[[4]string]*pairedSummaryCell) {
+	if len(routes) == 0 {
+		return
+	}
+	keys := make([][4]string, 0, len(routes))
+	for key := range routes {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		for k := range 4 {
+			if keys[i][k] != keys[j][k] {
+				if k == 2 {
+					return slices.Index(pairedConditions, keys[i][k]) < slices.Index(pairedConditions, keys[j][k])
+				}
+				return keys[i][k] < keys[j][k]
+			}
+		}
+		return false
+	})
+	markdown.WriteString("\n## Write routes\n\nEach cell's attempts by the route their tool calls took to write the " +
+		"task's files: contract (kapi apply, ksed -i or apply_edits), merge (kapi merge), native (the host's own " +
+		"edit, write or patch tools, or a shell command rewriting a task file), several joined with +, or none. " +
+		"Medians as in the summary.\n\n" +
+		"| Task | Host | Condition | Route | n | Objective passed | Seconds | Input tokens | Tool calls |\n" +
+		"|---|---|---|---|---|---|---|---|---|\n")
+	for _, key := range keys {
+		c := routes[key]
+		fmt.Fprintf(markdown, "| %s | %s | %s | %s | %d | %d | %.0f | %.0f | %.0f |\n",
+			key[0], key[1], key[2], key[3], c.n, c.passed,
+			pairedMedian(c.seconds), pairedMedian(c.input), pairedMedian(c.tools))
+	}
 }
 
 func (c *pairedSummaryCell) add(row pairedScoreRow) {
@@ -391,6 +441,7 @@ func scorePairedAttempt(path, fingerprint string) (pairedScoreRow, error) {
 	row.Refusals = result.Agent.Refusals
 	row.OverrideAttempts = result.Agent.OverrideAttempts
 	row.RouteAttempts = result.Agent.RouteAttempts
+	row.WriteRoute = pairedWriteRoute(result.Agent.WriteRoutes)
 	row.OutsideCell = result.Agent.OutsideCell
 	row.Interference = result.Agent.Interference
 	row.Validation = result.Validation
