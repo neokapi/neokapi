@@ -482,6 +482,11 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 		if berr != nil {
 			return check.Report{}, berr
 		}
+		qaDiags, qerr := a.collectTargetQADiagnostics(ctx, cmd, blocks, sourcePath, model.LocaleID(targetLang), execution)
+		if qerr != nil {
+			return check.Report{}, qerr
+		}
+		biDiags = append(biDiags, qaDiags...)
 		opts.stampPoints(biDiags, blocks)
 		diags = append(diags, biDiags...)
 	} else {
