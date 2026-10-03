@@ -296,6 +296,10 @@ Measured in process on an M-series laptop, 16 goroutine writers
 | after both passes | `workspace.db` 17.7 MB, the context store 85.8 MB (150 400 `block_history` rows) |
 | rebuild of the 800 edits | 2.2 s |
 | checkpoint after both passes / rebuild from it | 4.3 s, a 0.2 MB file and 6 parts / 4.1 s |
+| a gated pass's drafts kept in the workspace home: 400 writes, 75 200 drafts with their runs, basis and stamp | 62.5 MB carried; 15 to 26 s (0.20 to 0.35 ms a draft), one blob insert per draft, under a load average of 6 to 9 |
+| every draft made again / the same drafts again, as a steady pass | 18 to 23 s / 1.3 s, nothing recorded |
+| after the two passes that write | `workspace.db` 82.2 MB, the context store 126 MB |
+| reading every kept edition / rebuild of the 800 writes / releasing every edition | 0.5 s / 8.2 to 8.6 s / 3.5 to 3.6 s |
 
 The projector adds about a millisecond to a single write. The tail under 16
 writers belongs to the content memory's row-by-row FTS5 maintenance described
