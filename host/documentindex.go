@@ -73,6 +73,31 @@ func (d DocumentIndex) Key(rel string) string {
 	return reconcile.DocumentKeyFor(rel)
 }
 
+// documentKey is DocumentIndex.Key for one project-relative path, asked of
+// the store for that path alone (state.WorkStore.DocumentKey), for a caller
+// naming a single document: resolving the whole index reads every document
+// the project knows, and a run that records each document it writes would
+// read them all once per document. A store failure answers with the key the
+// path derives to, as the zero index does.
+func (a *App) documentKey(ctx context.Context, root, rel string) string {
+	if root == "" {
+		return reconcile.DocumentKeyFor(rel)
+	}
+	db, err := a.ProjectDB(ctx, root)
+	if err != nil {
+		return reconcile.DocumentKeyFor(rel)
+	}
+	work := db.Work()
+	if work == nil {
+		return reconcile.DocumentKeyFor(rel)
+	}
+	key, found, err := work.DocumentKey(ctx, rel)
+	if err != nil || !found || key == "" {
+		return reconcile.DocumentKeyFor(rel)
+	}
+	return key
+}
+
 // documentIndexOrEmpty resolves the index and swallows a store failure, for the
 // read paths where a missing index means "decisions are keyed by path" rather
 // than "this run cannot continue".

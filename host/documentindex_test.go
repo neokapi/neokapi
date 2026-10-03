@@ -99,6 +99,37 @@ func TestARenamedDocumentKeepsItsApprovals(t *testing.T) {
 	assert.Equal(t, "reviewer", got.Decision.By)
 }
 
+// TestDocumentKeyNamesADocumentAsTheIndexDoes pins that the key a run asks
+// for one document (documentKey, which a flow and the edit recorder ask per
+// document) is the key the whole index gives the path, for a renamed
+// document, one that never moved, and a path nobody read.
+func TestDocumentKeyNamesADocumentAsTheIndexDoes(t *testing.T) {
+	a, root, recipe := renameProject(t)
+	t.Cleanup(a.Shutdown)
+	before := filepath.Join(root, "src", "guides", "intro.en.json")
+	require.NoError(t, os.WriteFile(before, []byte(`{"greeting":"Hello world"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "setup.en.json"), []byte(`{"step":"Install it"}`), 0o644))
+	extractOnce(t, a, recipe)
+	require.NoError(t, os.Rename(before, filepath.Join(root, "src", "intro.en.json")))
+	extractOnce(t, a, recipe)
+
+	docs, err := a.DocumentIndex(t.Context(), root)
+	require.NoError(t, err)
+	tests := []struct{ name, rel string }{
+		{"a renamed document", "src/intro.en.json"},
+		{"a document that stayed", "src/setup.en.json"},
+		{"the address a document left", "src/guides/intro.en.json"},
+		{"a path nobody read", "src/new.en.json"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, docs.Key(tt.rel), a.documentKey(t.Context(), root, tt.rel))
+		})
+	}
+	assert.Equal(t, reconcile.DocumentKeyFor("src/guides/intro.en.json"), a.documentKey(t.Context(), root, "src/intro.en.json"),
+		"the renamed document keeps the key its first path gave it")
+}
+
 // TestASecondCheckoutNamesADocumentAsTheProjectDoes: one checkout follows a
 // file through a rename and keeps its key. A second checkout of the project,
 // made after the rename, has extracted nothing; it reads the key the first

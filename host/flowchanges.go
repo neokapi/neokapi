@@ -603,6 +603,7 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 	}
 	doc.read = nil
 	loop := doc.fc.loop()
+	docKey := doc.fc.docKey(doc.ref)
 	var transitions []change.Transition
 	for _, key := range now.order {
 		b := now.blocks[key]
@@ -617,7 +618,7 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 				if !derived || !byTool || rev == model.AbsentRevision {
 					continue
 				}
-				if r, ok := loop.last(doc.fc.docKey(doc.ref), key, text); ok && r.After == rev &&
+				if r, ok := loop.last(docKey, key, text); ok && r.After == rev &&
 					(r.Actor != string(change.ActorTool) || r.ContentHash == content) {
 					// Recorded already: a flow wrote this translation from
 					// this source, or a person or an agent wrote it and the
@@ -698,7 +699,7 @@ func (fc *flowChanges) loop() *loopWrites {
 
 // docKey is the key the project knows the document ref by.
 func (fc *flowChanges) docKey(ref string) string {
-	return fc.app.documentIndexOrEmpty(fc.ctx, fc.root).Key(ref)
+	return fc.app.documentKey(fc.ctx, fc.root, ref)
 }
 
 // readBlocks is a read of the document's blocks, by key, in document order.

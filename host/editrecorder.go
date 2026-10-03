@@ -114,7 +114,6 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 		byDoc[t.Ref.Doc] = append(byDoc[t.Ref.Doc], t)
 	}
 
-	docs := r.app.documentIndexOrEmpty(ctx, r.root)
 	var edits []projector.Edit
 	for _, doc := range order {
 		transitions := byDoc[doc]
@@ -123,7 +122,7 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 		}
 		res := results[doc]
 		e := projector.Edit{
-			Doc:         editDoc(docs, doc),
+			Doc:         r.editDoc(ctx, doc),
 			Home:        res.Home,
 			Actor:       rec.Actor,
 			Origin:      projector.Origin{By: rec.Origin},
@@ -158,11 +157,11 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 // editDoc names the document a change addressed. A change addresses a
 // document by its project-relative path, or by its key where the document
 // lives in the workspace home and has no path; a key is kept as it is.
-func editDoc(docs DocumentIndex, doc string) projector.EditDoc {
+func (r *editRecorder) editDoc(ctx context.Context, doc string) projector.EditDoc {
 	if reconcile.IsDocumentKey(doc) {
 		return projector.EditDoc{Key: doc}
 	}
-	return projector.EditDoc{Key: docs.Key(doc), Path: doc}
+	return projector.EditDoc{Key: r.app.documentKey(ctx, r.root, doc), Path: doc}
 }
 
 // keptRuns says which of an edition's run sequences a record keeps.
