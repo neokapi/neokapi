@@ -3,8 +3,10 @@ package cli
 import (
 	"bytes"
 	"encoding/xml"
+	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -310,4 +312,113 @@ func TestMerge_SourceEditedAfterExtractIsStaleWithoutTheManifest(t *testing.T) {
 			assert.Equal(t, `{"a":"Hello there","b":"Au revoir"}`, string(data))
 		})
 	}
+}
+
+// TestMerge_APOFileWhoseHeaderAnotherToolRewrote pins how merge settles the
+// language of a returned PO file whose Language header an editor rewrote: a
+// spelling of a target language merges into that language as the recipe
+// spells it, a header naming another language gives way to the extraction
+// that wrote the file, and with no such extraction the merge is refused.
+func TestMerge_APOFileWhoseHeaderAnotherToolRewrote(t *testing.T) {
+	for _, tc := range []struct {
+		name, header string
+		lostManifest bool
+		refused      string
+	}{
+		{name: "another spelling of the target language", header: "fr_FR"},
+		{name: "another language, with the extraction that wrote it", header: "de"},
+		{name: "another language, with no extraction", header: "de", lostManifest: true, refused: "none of the project's target languages (fr-FR)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			real, err := filepath.EvalSymlinks(t.TempDir())
+			require.NoError(t, err)
+			recipe := mergeProjectFixture(t, real)
+			writeJSONSource(t, real, "src/locales/en/app.json", `{"a":"Hello"}`)
+			_, err = runExtractCmd(t, recipe, "--format", "po")
+			require.NoError(t, err)
+			returned := filepath.Join(real, "out", "src-locales-en-app.en-US-to-fr-FR.po")
+			raw, err := os.ReadFile(returned)
+			require.NoError(t, err)
+			s := strings.Replace(string(raw), `"Language: fr-FR\n"`, `"Language: `+tc.header+`\n"`, 1)
+			s = strings.Replace(s, "msgid \"Hello\"\nmsgstr \"\"", "msgid \"Hello\"\nmsgstr \"Bonjour\"", 1)
+			require.NoError(t, os.WriteFile(returned, []byte(s), 0o644))
+			if tc.lostManifest {
+				layout, err := project.LayoutFor(recipe)
+				require.NoError(t, err)
+				require.NoError(t, os.RemoveAll(project.ExtractionsRoot(layout)))
+			}
+
+			// A file that fails is reported on the process's stderr.
+			r, w, err := os.Pipe()
+			require.NoError(t, err)
+			stderr := os.Stderr
+			os.Stderr = w
+			out, err := runMergeCmd(t, recipe, "-i", returned, "--no-memory-update")
+			os.Stderr = stderr
+			require.NoError(t, w.Close())
+			reported, rerr := io.ReadAll(r)
+			require.NoError(t, rerr)
+			if tc.refused != "" {
+				require.Error(t, err)
+				assert.Contains(t, string(reported), tc.refused)
+				assert.NoDirExists(t, filepath.Join(real, "src", "locales", "de"))
+				return
+			}
+			require.NoError(t, err, "merge stdout: %s", out)
+			data, err := os.ReadFile(filepath.Join(real, "src", "locales", "fr-FR", "app.json"))
+			require.NoError(t, err)
+			assert.Equal(t, `{"a":"Bonjour"}`, string(data))
+		})
+	}
+}
+
+// TestMerge_EachTargetLanguagesUnitsLandOnTheirOwnBlocks pins that every
+// target language's units carry the IDs and the source revisions of the
+// blocks they translate. An HTML reader numbers an attribute's block after its
+// paragraph only while it captures the page's skeleton, which extract does
+// for the first target language alone; the German return translated here is
+// the second. Each unit lands in its own block or is refused, and none lands
+// in another block.
+func TestMerge_EachTargetLanguagesUnitsLandOnTheirOwnBlocks(t *testing.T) {
+	real, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	recipe := filepath.Join(real, "kapi.yaml")
+	require.NoError(t, project.Save(recipe, &project.KapiProject{
+		Version: project.CurrentVersion, Name: "HTMLMerge",
+		Defaults:    project.Defaults{SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr", "de"}},
+		Collections: []project.Collection{{Path: "site/en/*.html", Target: "site/{lang}/*.html"}},
+	}))
+	const page = "<html><body>\n<p>First paragraph with <a href=\"/x\" title=\"Link title\">a link</a> inside.</p>\n" +
+		"<p><img src=\"a.png\" alt=\"An image\"> Second paragraph.</p>\n<p>Third paragraph.</p>\n</body></html>\n"
+	writeJSONSource(t, real, "site/en/index.html", page)
+	_, err = runExtractCmd(t, recipe)
+	require.NoError(t, err)
+
+	unitsOf := func(name string) map[string]string {
+		raw, err := os.ReadFile(filepath.Join(real, "out", name))
+		require.NoError(t, err)
+		units := map[string]string{}
+		for _, m := range regexp.MustCompile(`(?s)<unit id="([^"]+)">.*?<source>(.*?)</source>`).FindAllStringSubmatch(string(raw), -1) {
+			units[m[1]] = m[2]
+		}
+		return units
+	}
+	assert.Equal(t, unitsOf("site-en-index.en-to-fr.xliff"), unitsOf("site-en-index.en-to-de.xliff"),
+		"each unit carries the same block in every target language")
+
+	returned := filepath.Join(real, "out", "site-en-index.en-to-de.xliff")
+	raw, err := os.ReadFile(returned)
+	require.NoError(t, err)
+	translated := regexp.MustCompile(`(?s)<source>(.*?)</source>`).ReplaceAllString(string(raw), "<source>$1</source><target>DE $1</target>")
+	require.NoError(t, os.WriteFile(returned, []byte(translated), 0o644))
+	out, err := runMergeCmd(t, recipe, "-i", returned, "--no-memory-update")
+	require.NoError(t, err, "merge stdout: %s", out)
+
+	data, err := os.ReadFile(filepath.Join(real, "site", "de", "index.html"))
+	require.NoError(t, err)
+	got := string(data)
+	assert.Contains(t, got, `<a href="/x" title="DE Link title">a link</a>`, "the link's title lands in the link, which stays")
+	assert.Contains(t, got, `<img src="a.png" alt="DE An image">`, "the image's text lands in the image, which stays")
+	assert.Contains(t, got, `<p>DE Third paragraph.</p>`)
+	assert.Equal(t, 5, strings.Count(got, "<p>")+strings.Count(got, "<a ")+strings.Count(got, "<img "), "no element is replaced by another block's text:\n%s", got)
 }

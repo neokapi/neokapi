@@ -429,6 +429,11 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	// source hash carried in the XLIFF file notes.
 	skeletonHash := strings.TrimPrefix(task.sourceHash, "sha256:")
 	skeletonPath := filepath.Join(task.batchDir, project.SkeletonFilename(skeletonHash))
+	//
+	// The reader gets a skeleton store whether or not this pair captures
+	// one, because some readers number blocks differently with one (the
+	// HTML reader numbers attribute blocks after their paragraph), and every
+	// target language's units must carry the IDs the change service reads.
 	var skelStore *format.SkeletonStore
 	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
 		// Only capture if we don't already have one from an earlier pair
@@ -439,8 +444,10 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 			if err != nil {
 				return project.ExtractionFile{}, fmt.Errorf("create skeleton store: %w", err)
 			}
-			emitter.SetSkeletonStore(skelStore)
+		} else if skelStore, err = format.NewSkeletonStore(); err != nil {
+			return project.ExtractionFile{}, fmt.Errorf("create skeleton store: %w", err)
 		}
+		emitter.SetSkeletonStore(skelStore)
 	}
 
 	sourceFile, err := os.Open(task.source.Path)
@@ -499,9 +506,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	// Each unit carries the revisions it is extracted against, so a merge of
 	// the returned file knows what changed since without the manifest.
 	for _, b := range blocks {
-		if rev, ok := task.revisions[b.ID]; ok {
-			stampUnitRevision(b, rev)
-		}
+		stampUnitRevision(b, extractedRevision(b, task.ctx.SourceLocale, task.revisions))
 	}
 
 	// Redaction: replace sensitive source spans with protected placeholders
@@ -1186,10 +1191,11 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 	// the package alone.
 	var revisions map[string]kpz.UnitRevision
 	for _, b := range blocks {
-		if rev, ok := task.revisions[b.ID]; ok && b.Translatable && b.ID != "" {
+		if b.Translatable && b.ID != "" {
 			if revisions == nil {
 				revisions = map[string]kpz.UnitRevision{}
 			}
+			rev := extractedRevision(b, task.ctx.SourceLocale, task.revisions)
 			revisions[b.ID] = kpz.UnitRevision{IfMatch: rev.IfMatch, Basis: rev.Basis}
 		}
 	}

@@ -377,7 +377,7 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 			if serr != nil {
 				return written, fmt.Errorf("merge: %w", serr)
 			}
-			held, merr := materializeEdition(fileCtx, svc, store, filepath.ToSlash(f.Relative), locale)
+			held, wrote, merr := materializeEdition(fileCtx, svc, store, filepath.ToSlash(f.Relative), locale)
 			if merr != nil {
 				return written, fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, merr)
 			}
@@ -386,7 +386,9 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 				// nothing to write.
 				continue
 			}
-			written++
+			if wrote {
+				written++
+			}
 
 			// Absorb the materialized targets into the project content memory with merge
 			// provenance, mirroring the XLIFF/PO/.kpz merge paths. TM write-back
@@ -401,7 +403,9 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 				}
 			}
 
-			fmt.Fprintf(out, "Merged %s → %s\n", f.Relative, targetPath)
+			if wrote {
+				fmt.Fprintf(out, "Merged %s → %s\n", f.Relative, targetPath)
+			}
 		}
 	}
 
@@ -615,9 +619,19 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 			filepath.Base(kpzInput), ferr)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(),
-		"Merged %s → %s: applied=%d stale=%d skipped=%d memory_new=%d memory_updated=%d (conflict_policy=%s)\n",
-		filepath.Base(kpzInput), targetLocale, stats.Applied, stats.Stale, stats.Skipped+stats.Refused, stats.MemoryNew, stats.MemoryUpdated, policy)
+		"Merged %s → %s: %s\n", filepath.Base(kpzInput), targetLocale, stats.summary(policy))
 	return nil
+}
+
+// summary is the counts of a merge as its report prints them: refused only
+// when a unit was refused.
+func (s mergeStats) summary(policy string) string {
+	refused := ""
+	if s.Refused > 0 {
+		refused = fmt.Sprintf(" refused=%d", s.Refused)
+	}
+	return fmt.Sprintf("applied=%d stale=%d skipped=%d%s memory_new=%d memory_updated=%d (conflict_policy=%s)",
+		s.Applied, s.Stale, s.Skipped, refused, s.MemoryNew, s.MemoryUpdated, policy)
 }
 
 // BoolFlag reads a bool flag, defaulting to false on error.
@@ -634,7 +648,9 @@ func (a *App) mergeOne(ctx context.Context, task mergeTask) (mergeStats, error) 
 	case ".xliff", ".xlf":
 		rf, err = readReturnedXLIFF(ctx, task.input)
 	case ".po":
-		rf, err = readReturnedPO(task.input)
+		if rf, err = readReturnedPO(task.input); err == nil {
+			err = settlePOLanguage(task, rf)
+		}
 	default:
 		return mergeStats{}, fmt.Errorf("merge: unsupported input extension %q (supported: .xliff, .xlf, .po)", ext)
 	}
@@ -724,6 +740,54 @@ func readReturnedPO(path string) (*returnedFile, error) {
 		rf.blocks = append(rf.blocks, b)
 	}
 	return rf, nil
+}
+
+// settlePOLanguage settles the language of a returned PO file's
+// translations. Its header names it, and the merge takes the recipe's
+// spelling of that language. A header that names none of the recipe's target
+// languages (an editor rewrote it) gives way to the extraction pair that
+// wrote the file, found by the name extract gave it in the batch's manifest;
+// with no such pair the merge is refused.
+func settlePOLanguage(task mergeTask, rf *returnedFile) error {
+	if task.project == nil || len(task.project.Defaults.TargetLanguages) == 0 {
+		return nil
+	}
+	targets := task.project.Defaults.TargetLanguages
+	settled := model.LocaleID("")
+	for _, t := range targets {
+		if model.NormalizeLocale(t) == model.NormalizeLocale(rf.locale) {
+			settled = t
+		}
+	}
+	if settled == "" && rf.batch != "" {
+		if m, err := project.LoadExtractionManifest(task.layout, rf.batch); err == nil {
+			src := project.ResolvedFile{Relative: filepath.FromSlash(rf.doc)}
+			for _, p := range m.Pairs {
+				if bilingualOutputName(src, task.ctx.SourceLocale, p.TargetLocale, extractFormatPO) == filepath.Base(rf.input) {
+					settled = p.TargetLocale
+				}
+			}
+		}
+	}
+	if settled == "" {
+		names := make([]string, len(targets))
+		for i, t := range targets {
+			names[i] = string(t)
+		}
+		return fmt.Errorf("merge: %s names %q as its language, which is none of the project's target languages (%s), and no extraction this project holds wrote it",
+			filepath.Base(rf.input), rf.locale, strings.Join(names, ", "))
+	}
+	if settled != rf.locale {
+		for _, b := range rf.blocks {
+			if t := b.Target(rf.locale); t != nil {
+				runs := t.Runs
+				b.RemoveEdition(model.EditionKey{Locale: rf.locale})
+				b.SetTargetRuns(settled, runs)
+			}
+		}
+		rf.locale = settled
+	}
+	return nil
 }
 
 // detectSourceFormat picks the format for a source path: the format the

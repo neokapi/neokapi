@@ -34,15 +34,15 @@ type WriteBackOptions struct {
 
 // WriteBack writes one of a project's source files to out, as the format's
 // writer emits it for a locale, with the targets the project block store holds
-// applied to it.
+// applied to it and every other block in the source's own text.
 //
-// This is the materialize path without a file at the end of it. `kapi merge`
-// reads a source, hydrates the stored `targets/<locale>` overlays onto it, and
-// writes the result through the format's skeleton round trip to the output
-// template; a surface showing a reader what the file will look like wants the
-// same bytes and no file. The reader and writer are configured from the recipe
-// exactly as merge configures them, so the document splits into the same blocks
-// the extraction produced and the stored targets land where they belong.
+// It renders what the block store says, for a surface showing a reader the
+// stored translation without writing a file. The reader and writer are
+// configured from the recipe exactly as `kapi merge` configures them, so the
+// document splits into the same blocks the extraction produced and the stored
+// targets land where they belong. Where the store holds a target for every
+// block these are the bytes `kapi merge` writes; for a block the store holds
+// nothing for, `kapi merge` keeps what the translation's file already says.
 //
 // Nothing is written to disk, and nothing is recorded: the content memory
 // absorption merge does belongs to a materialize pass, not to a reading of one.

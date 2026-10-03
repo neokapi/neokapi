@@ -87,8 +87,12 @@ func WritePOExtract(out io.Writer, target model.LocaleID, batchID, sourceRel, so
 			fmt.Fprintf(bw, "#. %s%s\n", poBlockCommentPrefix, b.ID)
 		}
 		if rev, ok := unitRevisionOf(b); ok {
-			fmt.Fprintf(bw, "#. %s%s\n", poIfMatchCommentPrefix, rev.IfMatch)
-			fmt.Fprintf(bw, "#. %s%s\n", poBasisCommentPrefix, rev.Basis)
+			if rev.IfMatch != "" {
+				fmt.Fprintf(bw, "#. %s%s\n", poIfMatchCommentPrefix, rev.IfMatch)
+			}
+			if rev.Basis != "" {
+				fmt.Fprintf(bw, "#. %s%s\n", poBasisCommentPrefix, rev.Basis)
+			}
 		}
 
 		// Fuzzy flag when content memory pre-fill populated a fuzzy match for this

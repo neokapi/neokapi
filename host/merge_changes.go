@@ -49,13 +49,39 @@ var (
 	unitBasisProperty   = xliff2.UnitMetaKey(xliff2.FileNoteCategoryKapi, xliff2.UnitMetaBasis)
 )
 
-// stampUnitRevision records rev on b, for the writer of a bilingual file.
+// stampUnitRevision records rev on b, for the writer of a bilingual file. A
+// revision rev leaves empty is not recorded.
 func stampUnitRevision(b *model.Block, rev unitRevision) {
 	if b.Properties == nil {
 		b.Properties = map[string]string{}
 	}
-	b.Properties[unitIfMatchProperty] = rev.IfMatch
-	b.Properties[unitBasisProperty] = rev.Basis
+	for key, value := range map[string]string{unitIfMatchProperty: rev.IfMatch, unitBasisProperty: rev.Basis} {
+		if value == "" {
+			delete(b.Properties, key)
+			continue
+		}
+		b.Properties[key] = value
+	}
+}
+
+// extractedRevision is what the unit kapi extract writes for b, a block read
+// in source, is extracted against. The basis is the revision of b's own
+// source, so it names the source the unit carries whatever block the merge
+// later finds under b's ID. The translation's revision comes from held, the
+// revisions a read of the source with its translation joined gives
+// (interchangeRevisions), and only when the block that read holds under b's
+// ID has the same source. A block its reader left with no language is given
+// source, as the change service gives every block it reads, so the two
+// revisions of one source agree.
+func extractedRevision(b *model.Block, source model.LocaleID, held map[string]unitRevision) unitRevision {
+	if b.SourceLocale == "" {
+		b.SourceLocale = source
+	}
+	rev := unitRevision{Basis: model.EditionRevision(b, b.Authoritative(model.AuthorityPolicy{}))}
+	if h, ok := held[b.ID]; ok && h.Basis == rev.Basis {
+		rev.IfMatch = h.IfMatch
+	}
+	return rev
 }
 
 // unitRevisionOf reads the revisions stampUnitRevision recorded on b, or a
@@ -206,17 +232,24 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 			continue
 		}
 		rev, _ := unitRevisionOf(u)
+		// A unit that carries its source translates that source, so it
+		// lands only on a block that still reads so, whatever basis it
+		// names. A unit that carries no basis was made from the source it
+		// carries, or, carrying none, from the file the return names.
+		carried := len(u.Source) > 0
+		var why string
+		switch {
+		case carried && !sameSource(u, cur.block, rf.plainSource):
+			why = fmt.Sprintf("block %s no longer holds the source the unit carries", cur.ref)
+		case rev.Basis == "" && !carried && !unchangedFile:
+			why = fmt.Sprintf("the source of block %s changed since the unit was extracted", cur.ref)
+		}
+		if why != "" {
+			note(mergeOutcome{Block: u.ID, Status: mergeStale, Error: &change.Error{Code: change.CodeStale, Field: "basis", Message: why}})
+			continue
+		}
 		if rev.Basis == "" {
-			// A unit that carries no basis was made from the source it
-			// carries, or, carrying none, from the file the return names.
-			switch {
-			case len(u.Source) > 0 && sameSource(u, cur.block, rf.plainSource), len(u.Source) == 0 && unchangedFile:
-				rev.Basis = cur.authRev
-			default:
-				note(mergeOutcome{Block: u.ID, Status: mergeStale, Error: &change.Error{Code: change.CodeStale, Field: "basis",
-					Message: fmt.Sprintf("the source of block %s changed since the unit was extracted", cur.ref)}})
-				continue
-			}
+			rev.Basis = cur.authRev
 		}
 		ops = append(ops, change.Op{
 			Kind: change.KindSetContent, At: change.Ref{Doc: rf.doc, Block: cur.ref, Edition: key},
@@ -284,13 +317,15 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 }
 
 // applyReturned applies ops, the set_content of each unit in units, as one
-// change set, and notes each unit's outcome. A refused unit is dropped and
-// the rest sent again: a unit whose source moved is stale, one the conflict
-// policy keeps the project's translation for is skipped, one the policy
-// gives to the translator is sent again over the revision the project now
-// holds, and any other refusal is refused. It returns the units that landed.
+// change set under the enforce gate, and notes each unit's outcome. A refused
+// unit is dropped and the rest sent again: a unit whose source moved is
+// stale, one the conflict policy keeps the project's translation for is
+// skipped, one the policy gives to the translator is sent again over the
+// revision the project now holds, and any other refusal, a translation that
+// breaks a rule governing it among them, is refused. It returns the units
+// that landed.
 func (a *App) applyReturned(ctx context.Context, svc *change.Service, task mergeTask, rf *returnedFile, ops []change.Op, units []*model.Block, note func(mergeOutcome)) ([]*model.Block, error) {
-	set := change.Set{RequireBasis: true, Gate: change.GateReport, Note: "merge " + filepath.Base(rf.input)}
+	set := change.Set{RequireBasis: true, Note: "merge " + filepath.Base(rf.input)}
 	for pass := 0; len(ops) > 0; pass++ {
 		if pass == maxMergePasses {
 			return nil, fmt.Errorf("merge: %s: the translations of %s kept changing while the merge applied them; run it again", filepath.Base(rf.input), rf.doc)
@@ -409,13 +444,15 @@ func (m *materializeServices) of(locale model.LocaleID) (*change.Service, error)
 
 // materializeEdition gives the translation of doc into locale every target
 // the block store holds for its blocks, as one change set the service writes
-// from the source's skeleton, and returns how many blocks the store holds a
-// target for. ctx addresses the stored overlays by doc's key
+// from the source's skeleton. It returns how many blocks the store holds a
+// target for, and whether the translation's file was written: a file that
+// already holds every stored target and every block of the source is left as
+// it is. ctx addresses the stored overlays by doc's key
 // (blockstore.WithSourceRel).
-func materializeEdition(ctx context.Context, svc *change.Service, store blockstore.Store, doc string, locale model.LocaleID) (int, error) {
+func materializeEdition(ctx context.Context, svc *change.Service, store blockstore.Store, doc string, locale model.LocaleID) (int, bool, error) {
 	sess, err := store.Begin(ctx)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 	defer sess.Close()
 	key := model.EditionKey{Locale: locale}
@@ -453,21 +490,25 @@ func materializeEdition(ctx context.Context, svc *change.Service, store blocksto
 		return nil
 	})
 	if err != nil || len(ops) == 0 {
-		return 0, err
+		return 0, false, err
 	}
 	res, err := svc.Apply(ctx, change.Set{Gate: change.GateReport, Note: "materialize " + string(locale), Ops: ops}, materializeActor)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 	if res.Status != change.SetApplied {
 		for _, r := range res.Ops {
 			if r.Status == change.OpRefused && r.Error != nil {
-				return 0, fmt.Errorf("block %s: %w", refBlock(r.At), r.Error)
+				return 0, false, fmt.Errorf("block %s: %w", refBlock(r.At), r.Error)
 			}
 		}
-		return 0, fmt.Errorf("the change set was %s", res.Status)
+		return 0, false, fmt.Errorf("the change set was %s", res.Status)
 	}
-	return len(ops), nil
+	written := false
+	for _, d := range res.Docs {
+		written = written || (d.Written && d.Edition != "")
+	}
+	return len(ops), written, nil
 }
 
 // refBlock names the block a result addresses.

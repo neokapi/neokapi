@@ -99,6 +99,17 @@ func newLoopProject(t *testing.T, sources map[string]string) (*App, *EnvCommand,
 	return a, cmd, recipe, dir
 }
 
+// removeTargets deletes the nb and de translations of each named source,
+// so a materialize has only the block store to write them from.
+func removeTargets(t *testing.T, dir string, names ...string) {
+	t.Helper()
+	for _, loc := range []string{"nb", "de"} {
+		for _, name := range names {
+			require.NoError(t, os.Remove(filepath.Join(dir, "out", loc, name)))
+		}
+	}
+}
+
 // converge drives one convergence run to its gate.
 func converge(t *testing.T, a *App, cmd *EnvCommand, recipe string) ConvergeOutput {
 	t.Helper()
@@ -138,6 +149,14 @@ func TestConvergeThenMaterialize_KeepsTheTranslatedText(t *testing.T) {
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
+	// The files already hold the run's output, so materialize finds nothing
+	// to change. Once they are gone it writes them again from the overlays
+	// alone.
+	written, merr := a.materializeFromProjectStore(context.Background(), io.Discard,
+		proj, recipe, []model.LocaleID{"nb", "de"}, true)
+	require.NoError(t, merr)
+	assert.Zero(t, written, "a file that already holds the stored targets is not written again")
+	removeTargets(t, dir, "en.json")
 	for _, loc := range []model.LocaleID{"nb", "de"} {
 		written, merr := a.materializeFromProjectStore(context.Background(), io.Discard,
 			proj, recipe, []model.LocaleID{loc}, false)
@@ -180,6 +199,7 @@ func TestConvergeThenMaterialize_MultiFileProject(t *testing.T) {
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
+	removeTargets(t, dir, "en.json", "more.json")
 	written, merr := a.materializeFromProjectStore(context.Background(), io.Discard,
 		proj, recipe, []model.LocaleID{"nb", "de"}, false)
 	require.NoError(t, merr)
@@ -304,6 +324,7 @@ func TestRunFlowAllLocales_RecordsItsWork(t *testing.T) {
 		afterRun[loc] = string(b)
 	}
 
+	removeTargets(t, dir, "en.json")
 	written, merr := a.materializeFromProjectStore(context.Background(), io.Discard,
 		proj, recipe, []model.LocaleID{"nb", "de"}, true)
 	require.NoError(t, merr)
