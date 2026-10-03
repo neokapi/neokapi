@@ -373,7 +373,9 @@ writes the source's translations to files of their own. Decisions and asset oper
 land through the host's review-queue and asset functions, a decision bound to
 the wording the change set landed rather than to a later read of the file; on
 an edition with no content in its home, such as a parked locale's draft, the
-decision binds to the draft the project store holds. The hooks each plug in at
+decision binds to the draft the project store holds. Such a decision names the
+edition it read as `absent`, and is refused as stale once the home holds the
+edition. The hooks each plug in at
 one function of the host: the commit check is `App.CommitCheck`, which holds a
 service outside a project to hygiene alone; the policy is `ChangePolicy`; the
 recorder is `App.EditRecorder`, inside a project; a read takes a derived

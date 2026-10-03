@@ -141,12 +141,14 @@ export function setContentOps(
   }));
 }
 
-/** A decide operation on the edition read at `rev`. */
+/**
+ * A decide operation on the edition read at `rev`. An edition read with no
+ * content in its home (a parked draft the project store holds) is named
+ * `absent`: the decision binds to the draft while the home still holds
+ * nothing for it, and is refused as stale, with the text, once it does.
+ */
 export function decideOp(ref: ChangeRef, rev: string, outcome: "establish" | "reject"): ChangeOp {
-  // An edition with no content in its home (a parked draft the project store
-  // holds) has nothing to name; the person's decision binds to whatever the
-  // project holds for it.
-  return { op: "decide", at: ref, if_match: rev === "absent" ? "*" : rev, outcome };
+  return { op: "decide", at: ref, if_match: rev, outcome };
 }
 
 /** The operation results of a change set that did not land. */

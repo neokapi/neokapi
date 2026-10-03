@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { wordsInPlainText } from "../lib/changes";
+import { decideOp, wordsInPlainText } from "../lib/changes";
 
 describe("wordsInPlainText", () => {
   it.each([
@@ -49,5 +49,22 @@ describe("wordsInPlainText", () => {
     { name: "no words", text: "Please utilize the dashboard", words: "", want: false },
   ])("$name", ({ text, words, want }) => {
     expect(wordsInPlainText(text, words)).toBe(want);
+  });
+});
+
+describe("decideOp", () => {
+  // A parked draft reads as absent; the decision names it so, never "*", so a
+  // file written meanwhile refuses it rather than taking it.
+  it.each([
+    { rev: "r:0123456789abcdef", want: "r:0123456789abcdef" },
+    { rev: "absent", want: "absent" },
+  ])("names the revision $rev read", ({ rev, want }) => {
+    const op = decideOp({ doc: "src/en.json", block: "title", edition: "nl" }, rev, "establish");
+    expect(op).toEqual({
+      op: "decide",
+      at: { doc: "src/en.json", block: "title", edition: "nl" },
+      if_match: want,
+      outcome: "establish",
+    });
   });
 });
