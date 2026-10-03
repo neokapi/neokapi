@@ -26,6 +26,9 @@ type PairedOptions struct {
 	Phase        string
 	Dir          string
 	RepoRoot     string
+	// MainCheckout is the repository's main checkout when RepoRoot is a
+	// worktree of it, "" otherwise (pairedMainCheckout).
+	MainCheckout string
 	Live         bool
 	MaxAttempts  int
 	Sessions     string
@@ -51,6 +54,9 @@ type pairedDependencies struct {
 	// hostVersion reports the version of an agent host's command line, as
 	// `<host> --version` prints it. Nil records none.
 	hostVersion func(context.Context, string) (string, error)
+	// hostExecutable reports the executable an agent host runs from. Nil
+	// records none.
+	hostExecutable func(string) (string, error)
 }
 
 // pairedStudyRecord is study.json, written when a study starts. Its
@@ -76,7 +82,11 @@ type pairedStudyRecord struct {
 	// HostVersions is each agent host's version when the study started. A
 	// session on another version would measure another agent.
 	HostVersions map[string]string `json:"host_versions"`
-	CreatedAt    time.Time         `json:"created_at"`
+	// HostExecutables is where each host ran from when the study started,
+	// which a refusal over a changed version names. Not in the fingerprint:
+	// the version is what a session must match.
+	HostExecutables map[string]string `json:"host_executables,omitempty"`
+	CreatedAt       time.Time         `json:"created_at"`
 }
 
 // pairedInputs are the study's own copies of what the cells run, under
@@ -94,14 +104,16 @@ type pairedPreflight struct {
 	Phase   string      `json:"phase"`
 	Offline bool        `json:"offline"`
 	Build   pairedBuild `json:"build"`
-	// Checkout and HostVersions are what a live study started now would pin.
-	Checkout      string            `json:"checkout"`
-	HostVersions  map[string]string `json:"host_versions"`
-	PilotSessions int               `json:"pilot_sessions"`
-	SmokeSessions int               `json:"smoke_sessions"`
-	Prepared      []PairedPrepared  `json:"prepared"`
-	Blockers      []string          `json:"blockers"`
-	HumanReview   string            `json:"human_review"`
+	// Checkout and HostVersions are what a live study started now would pin,
+	// and HostExecutables where each host would run from.
+	Checkout        string            `json:"checkout"`
+	HostVersions    map[string]string `json:"host_versions"`
+	HostExecutables map[string]string `json:"host_executables,omitempty"`
+	PilotSessions   int               `json:"pilot_sessions"`
+	SmokeSessions   int               `json:"smoke_sessions"`
+	Prepared        []PairedPrepared  `json:"prepared"`
+	Blockers        []string          `json:"blockers"`
+	HumanReview     string            `json:"human_review"`
 }
 
 type pairedAttempt struct {
@@ -132,18 +144,33 @@ type pairedAttemptResult struct {
 func executePaired(ctx context.Context, opts PairedOptions) error {
 	return executePairedWith(ctx, opts, pairedDependencies{
 		prepare: preparePairedAgent, run: runPairedAgent, probe: probePairedSurface, build: checkPairedBuild,
-		hostVersion: pairedHostVersion,
+		hostVersion: pairedHostVersion, hostExecutable: pairedHostExecutable,
 	})
+}
+
+// pairedHostExecutable returns the executable PATH finds for host, with its
+// symbolic links resolved, as preparing a cell runs it.
+func pairedHostExecutable(host string) (string, error) {
+	executable, err := exec.LookPath(host)
+	if err != nil {
+		return "", fmt.Errorf("agent executable unavailable: %s", host)
+	}
+	return filepath.EvalSymlinks(executable)
+}
+
+// pairedUpgradedInPlace reports whether an executable lies in a version
+// directory a package manager replaces on upgrade (a Homebrew cask or
+// formula), which ends a study that pins the version mid-run.
+func pairedUpgradedInPlace(executable string) bool {
+	slash := filepath.ToSlash(executable)
+	return strings.Contains(slash, "/Caskroom/") || strings.Contains(slash, "/Cellar/")
 }
 
 // pairedHostVersion runs `<host> --version` with the executable PATH finds,
 // as preparing a cell does.
 func pairedHostVersion(ctx context.Context, host string) (string, error) {
-	executable, err := exec.LookPath(host)
+	executable, err := pairedHostExecutable(host)
 	if err != nil {
-		return "", fmt.Errorf("agent executable unavailable: %s", host)
-	}
-	if executable, err = filepath.EvalSymlinks(executable); err != nil {
 		return "", err
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -173,6 +200,26 @@ func pairedHostVersions(ctx context.Context, m PairedManifest, deps pairedDepend
 		versions[agent.Host] = version
 	}
 	return versions, nil
+}
+
+// pairedHostExecutables reports where each agent host the manifest names runs
+// from.
+func pairedHostExecutables(m PairedManifest, deps pairedDependencies) (map[string]string, error) {
+	executables := map[string]string{}
+	if deps.hostExecutable == nil {
+		return executables, nil
+	}
+	for _, agent := range m.Agents {
+		if _, done := executables[agent.Host]; done {
+			continue
+		}
+		executable, err := deps.hostExecutable(agent.Host)
+		if err != nil {
+			return nil, err
+		}
+		executables[agent.Host] = executable
+	}
+	return executables, nil
 }
 
 func executePairedWith(ctx context.Context, opts PairedOptions, deps pairedDependencies) error {
@@ -225,10 +272,15 @@ func executePairedWith(ctx context.Context, opts PairedOptions, deps pairedDepen
 	if err != nil {
 		return err
 	}
+	executables, err := pairedHostExecutables(manifest, deps)
+	if err != nil {
+		return err
+	}
 	record, err := makePairedStudyRecord(opts, manifest, inputs, versions)
 	if err != nil {
 		return err
 	}
+	record.HostExecutables = executables
 	if err := ensurePairedStudy(opts.Dir, record); err != nil {
 		return err
 	}
@@ -278,6 +330,9 @@ func preflightPaired(ctx context.Context, opts PairedOptions, m PairedManifest, 
 	if report.HostVersions, err = pairedHostVersions(ctx, m, deps); err != nil {
 		report.Blockers = append(report.Blockers, err.Error())
 	}
+	if report.HostExecutables, err = pairedHostExecutables(m, deps); err != nil {
+		report.Blockers = append(report.Blockers, err.Error())
+	}
 	// Preflight cells live in the system temporary directory; the live phases
 	// put theirs in the study directory, so it is checked here too.
 	if err := checkPairedLocation(opts.Dir); err != nil {
@@ -319,6 +374,9 @@ func preflightPaired(ctx context.Context, opts PairedOptions, m PairedManifest, 
 		fmt.Printf(" %s %q", host, report.HostVersions[host])
 	}
 	fmt.Println()
+	for _, line := range pairedHostNotes(report.HostExecutables) {
+		fmt.Println("paired: " + line)
+	}
 	fmt.Printf(
 		"paired: offline preflight; %d prepared, %d smoke / %d pilot sessions, %d live blockers; %s\n",
 		len(report.Prepared),
@@ -334,6 +392,22 @@ func preflightPaired(ctx context.Context, opts PairedOptions, m PairedManifest, 
 		return fmt.Errorf("preflight found %d blockers; no live phase can start", len(report.Blockers))
 	}
 	return nil
+}
+
+// pairedHostNotes says where each host runs from, and which of them an
+// upgrade would replace while the study runs.
+func pairedHostNotes(executables map[string]string) []string {
+	var lines []string
+	for _, host := range slices.Sorted(maps.Keys(executables)) {
+		executable := executables[host]
+		line := fmt.Sprintf("%s runs from %s", host, executable)
+		if pairedUpgradedInPlace(executable) {
+			line += "; an upgrade replaces it, which stops the study until the same version is back on PATH: " +
+				"copy it aside and put the copy first on PATH before the study starts (docs/internals/evals.md, Running it)"
+		}
+		lines = append(lines, line)
+	}
+	return lines
 }
 
 // printPairedSurfaces prints what each prepared cell exposes, one line per
@@ -380,7 +454,7 @@ func materializePairedLaunch(opts PairedOptions, m PairedManifest, s PairedSessi
 	}
 	return PairedLaunch{
 		Agent: s.Agent, Condition: s.Condition, Task: task.ID, Workspace: workspace,
-		StateDir: filepath.Join(dir, "state"), RepoRoot: opts.RepoRoot, KapiBin: opts.kapiBin,
+		StateDir: filepath.Join(dir, "state"), RepoRoot: opts.RepoRoot, MainCheckout: opts.MainCheckout, KapiBin: opts.kapiBin,
 		SkillSource: opts.skillSource, StudyDir: opts.Dir,
 		Prompt: prompt, TranscriptPath: filepath.Join(dir, "transcript.jsonl"),
 		Timeout: m.attemptTimeout(), MaxTurns: m.MaxTurns, Interference: task.spec.Interference,
@@ -471,8 +545,13 @@ func ensurePairedStudy(dir string, record pairedStudyRecord) error {
 		}
 		for _, host := range slices.Sorted(maps.Keys(existing.HostVersions)) {
 			if was, now := existing.HostVersions[host], record.HostVersions[host]; was != now {
-				return fmt.Errorf("%s reports %q, and this study started with %q: a session on another version would "+
-					"measure another agent. Reinstall %s at %q and resume. %s", host, now, was, host, was, keep)
+				from := ""
+				if executable := existing.HostExecutables[host]; executable != "" {
+					from = ", run from " + executable
+				}
+				return fmt.Errorf("%s reports %q, and this study started with %q%s: a session on another version would "+
+					"measure another agent. Put the copy of %s %q taken before the study first on PATH "+
+					"(docs/internals/evals.md, Running it) and resume. %s", host, now, was, from, host, was, keep)
 			}
 		}
 		resume := "a checkout of the commit it started from"

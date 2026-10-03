@@ -124,7 +124,8 @@ func main() {
 		}
 		err = executePaired(ctx, PairedOptions{
 			ManifestPath: *pairedManifest, Phase: *pairedPhase, Dir: *pairedDir, RepoRoot: root,
-			Live: *pairedLive, MaxAttempts: *pairedMaxAttempts, Sessions: *pairedSessions,
+			MainCheckout: pairedMainCheckout(root, run("git", "rev-parse", "--path-format=absolute", "--git-common-dir")),
+			Live:         *pairedLive, MaxAttempts: *pairedMaxAttempts, Sessions: *pairedSessions,
 			Concurrency: *pairedConcurrency, Retry: *pairedRetry,
 		})
 		if err != nil {
@@ -694,6 +695,22 @@ func checkNotShrinking(combined map[string]*Report, fresh *Report) error {
 // containing fewer recorded scenarios.
 func wouldShrink(target string, fresh *Report) error {
 	return checkNotShrinking(readDataset(target), fresh)
+}
+
+// pairedMainCheckout returns the main checkout of the repository whose git
+// directory common is (git rev-parse --git-common-dir) when root, the
+// checkout a study runs from, is another worktree of it, and "" otherwise.
+// The main checkout holds the git directory as its .git.
+func pairedMainCheckout(root, common string) string {
+	common = filepath.Clean(strings.TrimSpace(common))
+	if !filepath.IsAbs(common) || filepath.Base(common) != ".git" {
+		return ""
+	}
+	main := filepath.Dir(common)
+	if main == filepath.Clean(root) {
+		return ""
+	}
+	return main
 }
 
 func repoRoot() (string, error) {

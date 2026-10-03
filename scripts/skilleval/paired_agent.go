@@ -17,7 +17,11 @@ type PairedLaunch struct {
 	Workspace string          `json:"workspace"`
 	StateDir  string          `json:"state_dir"`
 	RepoRoot  string          `json:"repo_root"`
-	KapiBin   string          `json:"kapi_bin"`
+	// MainCheckout is the repository's main checkout when RepoRoot is a
+	// worktree of it, "" otherwise. It holds the same answer key as the
+	// worktree, and every other worktree of the repository.
+	MainCheckout string `json:"main_checkout,omitempty"`
+	KapiBin      string `json:"kapi_bin"`
 	// CellKapi is KapiBin linked into the cell, which is what the agent's
 	// commands and the MCP server run, so no path into the checkout reaches
 	// the agent. Empty runs KapiBin itself.

@@ -156,6 +156,10 @@ var (
 	// applies the edit and says the file had changed.
 	pairedHostStale = regexp.MustCompile(`(?i)(?:has|had) been modified (?:on disk )?since (?:you )?(?:last )?(?:it was )?read|modified since read`)
 	pairedHostPatch = regexp.MustCompile(`(?i)failed to find expected lines|patch (?:did not apply|failed)`)
+	// A format's writer refuses a value that would read back as another
+	// message (an ARB branch holding ICU syntax) as a write error, which
+	// carries no contract code.
+	pairedWriteRefusal = regexp.MustCompile(`would not read back as written`)
 )
 
 func (o *pairedObserver) countRefusals(texts []string) {
@@ -176,6 +180,9 @@ func (o *pairedObserver) countRefusals(texts []string) {
 		}
 		if pairedHostPatch.MatchString(text) {
 			codes["host:patch_failed"] = true
+		}
+		if pairedWriteRefusal.MatchString(text) {
+			codes["write:not_read_back"] = true
 		}
 	}
 	for code := range codes {
@@ -374,6 +381,7 @@ func newPairedBoundary(launch PairedLaunch) pairedBoundary {
 	}
 	add("study", launch.StudyDir)
 	add("checkout", launch.RepoRoot)
+	add("checkout", launch.MainCheckout)
 	if home, err := os.UserHomeDir(); err == nil {
 		add("home", home)
 	}

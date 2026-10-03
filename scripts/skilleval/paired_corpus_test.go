@@ -205,6 +205,7 @@ func TestPairedProjectFreeSkillMirrorsTheShippedSkill(t *testing.T) {
 		for _, name := range pairedToolboxNames {
 			line = strings.ReplaceAll(line, pairedFilesAlias+" "+name, name)
 		}
+		line = strings.ReplaceAll(line, pairedFilesAlias+"'", "kapi's")
 		line = strings.ReplaceAll(line, pairedFilesAlias, "kapi")
 		return strings.Join(strings.Fields(line), " ")
 	}
@@ -227,6 +228,30 @@ func TestPairedProjectFreeSkillMirrorsTheShippedSkill(t *testing.T) {
 			assert.True(t, shippedLines[normalize(line)], "%s: an example the shipped skill does not give: %s", name, line)
 		}
 	}
+	// Every paragraph of the shipped references that is about a file, and not
+	// about a project, MCP, a check, a term or a translation, is in the
+	// project-free references too, so the skills cannot drift apart unseen.
+	projectOnly := regexp.MustCompile(`(?i)project|\bMCP\b|apply_edits|read_blocks|describe_format|\bcheck|verify|voice|\bterms?\b|translat|\bgate|recipe|comment|decision|person|on-brand|create\.md`)
+	// What the alias says its own way: its toolbox runs as its commands, not
+	// as programs installed beside it.
+	ownWay := regexp.MustCompile(`^They install with the kapi CLI`)
+	for _, name := range []string{"edit.md", "toolbox.md"} {
+		shipped, err := os.ReadFile(filepath.Join(root, "cli", "skills", "data", "kapi", "references", name))
+		require.NoError(t, err)
+		mirror, err := pairedFixtures.ReadFile("testdata/paired/skills/" + pairedFilesAlias + "/references/" + name)
+		require.NoError(t, err)
+		mirrored := map[string]bool{}
+		for _, paragraph := range pairedProseParagraphs(string(mirror)) {
+			mirrored[normalize(paragraph)] = true
+		}
+		for _, paragraph := range pairedProseParagraphs(string(shipped)) {
+			if projectOnly.MatchString(paragraph) || ownWay.MatchString(paragraph) {
+				continue
+			}
+			assert.True(t, mirrored[normalize(paragraph)], "%s: a paragraph about a file the project-free skill lacks: %s", name, paragraph)
+		}
+	}
+
 	// Both skills name the edit topic, so an agent in either arm is one step
 	// from the edit guidance.
 	pointer := "Before you change content inside a file, read `references/edit.md`"
@@ -247,6 +272,35 @@ func TestPairedProjectFreeSkillMirrorsTheShippedSkill(t *testing.T) {
 		}
 		return err
 	}))
+}
+
+// pairedProseParagraphs lists a Markdown page's paragraphs outside its code
+// fences and headings: the runs of lines between blank lines, a list counting
+// as one.
+func pairedProseParagraphs(text string) []string {
+	var out, current []string
+	flush := func() {
+		if len(current) > 0 {
+			out = append(out, strings.Join(current, "\n"))
+			current = nil
+		}
+	}
+	inside := false
+	for line := range strings.SplitSeq(text, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(trimmed, "```"):
+			flush()
+			inside = !inside
+		case inside:
+		case trimmed == "" || strings.HasPrefix(trimmed, "#") || trimmed == "---":
+			flush()
+		default:
+			current = append(current, line)
+		}
+	}
+	flush()
+	return out
 }
 
 // pairedFenceLines lists the lines inside a Markdown page's code fences.

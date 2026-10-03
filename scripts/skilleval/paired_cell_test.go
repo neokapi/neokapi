@@ -16,9 +16,11 @@ import (
 // attempt's records, and never the directories the shell and kapi run from.
 func TestPairedClaudeDenyReadLeavesTheCellsProgramsReadable(t *testing.T) {
 	attempt := t.TempDir()
-	launch := PairedLaunch{StateDir: filepath.Join(attempt, "state"), Workspace: filepath.Join(attempt, "workspace"), RepoRoot: "/src/neokapi"}
+	launch := PairedLaunch{StateDir: filepath.Join(attempt, "state"), Workspace: filepath.Join(attempt, "workspace"),
+		RepoRoot: "/src/neokapi-wp5-study", MainCheckout: "/src/neokapi"}
 	deny := pairedClaudeDenyRead(launch)
-	assert.Contains(t, deny, "/src/neokapi")
+	assert.Contains(t, deny, "/src/neokapi-wp5-study")
+	assert.Contains(t, deny, "/src/neokapi", "the main checkout of the study's worktree holds the same answer key")
 	assert.Contains(t, deny, filepath.Join(attempt, "started.json"))
 	assert.Contains(t, deny, filepath.Join(attempt, "prompt.txt"))
 	assert.Contains(t, deny, filepath.Join(launch.StateDir, "claude-settings.json"))
@@ -30,6 +32,18 @@ func TestPairedClaudeDenyReadLeavesTheCellsProgramsReadable(t *testing.T) {
 		assert.False(t, pairedWithin(filepath.Join(launch.StateDir, "bin", "zsh"), path), "%s covers the cell's bin", path)
 		assert.False(t, pairedWithin(filepath.Join(launch.StateDir, "kapi", "kapi"), path), "%s covers the cell's kapi", path)
 	}
+}
+
+// A study run from a worktree names the repository's main checkout, whose
+// .git holds the git directory every worktree shares; run from the main
+// checkout, it names none.
+func TestPairedMainCheckout(t *testing.T) {
+	assert.Equal(t, "/src/neokapi", pairedMainCheckout("/src/neokapi-wp5-study", "/src/neokapi/.git\n"))
+	assert.Equal(t, "/src/neokapi", pairedMainCheckout("/src/neokapi/.claude/worktrees/wp5", "/src/neokapi/.git"))
+	assert.Empty(t, pairedMainCheckout("/src/neokapi", "/src/neokapi/.git"))
+	assert.Empty(t, pairedMainCheckout("/src/neokapi", ""), "outside git")
+	assert.Empty(t, pairedMainCheckout("/src/neokapi", "/srv/neokapi.git"), "a bare repository has no main checkout")
+	assert.Empty(t, pairedMainCheckout("/src/neokapi", ".git"), "a relative answer is not used")
 }
 
 // The cell is a repository with the project committed and a clean status, so

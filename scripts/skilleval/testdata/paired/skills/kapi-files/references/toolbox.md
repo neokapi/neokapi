@@ -213,6 +213,26 @@ the result programmatically rather than just read it:
 
 `ksed` and `kconv` have no `--json`: they write documents, not data.
 
+## Works on every format kapi-files reads
+
+These are general-purpose tools, useful with no translation or project in
+sight. Read a contract you were sent, find a phrase across a tree of documents,
+rename a product across a folder of Word files in a single pass, or turn a
+`.docx` into Markdown:
+
+```bash
+kapi-files kcat contract.docx                       # read a document you can't open directly
+kapi-files kgrep -rl "Acme Corp" ./docs             # which files still say the old name
+kapi-files ksed -i 's/Acme Corp/Acme Ltd/g' *.docx  # rename it across all of them
+kapi-files kconv contract.docx --to md -o contract.md   # a Markdown copy to quote from
+```
+
+`kcat`, `kgrep` and `kconv` read every format kapi-files reads; `ksed` writes
+back the ones that support it (read-only formats like PDF are reported as an
+error, never silently mangled). The set includes formats served by the
+okapi-bridge when it is installed. Confirm what reads and writes with
+`kapi-files formats --json` (`has_reader` / `has_writer`).
+
 ## How to apply
 
 1. When the user wants to read, find, replace, compare or convert *content* in a

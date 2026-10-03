@@ -263,8 +263,9 @@ func preparePairedSession(
 	state.mu.Lock()
 	if version := state.versions[session.Agent.Host]; version != "" && version != ready.Version {
 		problems = append(problems, fmt.Sprintf("%s: agent version changed since the study started (%s, now %s); "+
-			"reinstall %s and resume, since a session on another version measures another agent",
-			session.ID, version, ready.Version, version))
+			"put the copy of %s %s taken before the study first on PATH (docs/internals/evals.md, Running it) and "+
+			"resume, since a session on another version measures another agent",
+			session.ID, version, ready.Version, session.Agent.Host, version))
 	} else if ready.Version != "" {
 		state.versions[session.Agent.Host] = ready.Version
 	}

@@ -143,6 +143,12 @@ func TestPairedRefusalsAreCounted(t *testing.T) {
 		pairedToolResult("6", `{"schema":"kapi.change-result/v1","status":"refused","error":{"code":"invalid","pointer":"/ops/3/edits/0/replace","message":"unknown field"}}`),
 		pairedToolUse("7", "Bash", map[string]any{"command": "kapi apply bad.json"}),
 		pairedToolResult("7", "Error: apply: invalid: unexpected end of JSON input"),
+		// A writer's refusal of a branch holding ICU syntax, from the CLI and
+		// as a bare MCP tool error.
+		pairedToolUse("8", "Bash", map[string]any{"command": "kapi apply plural.json"}),
+		pairedToolResult("8", "Exit code 1\nError: prepare lib/l10n/app_en.arb: arb writer: the message would not read back as written: message inboxCount: unexpected '}'"),
+		pairedToolUse("9", "mcp__kapi__apply_edits", map[string]any{"ops": []any{}}),
+		pairedToolResult("9", "prepare lib/l10n/app_en.arb: arb writer: the message would not read back as written: message inboxCount: the text of a branch holds ICU syntax"),
 	)
 	result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{
 		Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "mcp",
@@ -151,6 +157,7 @@ func TestPairedRefusalsAreCounted(t *testing.T) {
 	assert.Equal(t, map[string]int{
 		"gate_failed": 1, "stale": 1, "host:stale": 2,
 		"invalid:/type": 1, "invalid:/ops/*/edits/*/replace": 1, "invalid": 1,
+		"write:not_read_back": 2,
 	}, result.Refusals)
 }
 
@@ -218,9 +225,10 @@ func TestPairedOutsideCellAudit(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(workspace, "docs"), 0o700))
 	require.NoError(t, os.MkdirAll(state, 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(attempt, "preparation.json"), []byte("{}"), 0o600))
-	repo := t.TempDir()
+	repo, main := t.TempDir(), t.TempDir()
 	tmp := t.TempDir()
-	launch := PairedLaunch{Condition: "baseline", Workspace: workspace, StateDir: state, StudyDir: study, RepoRoot: repo, TmpDir: tmp}
+	launch := PairedLaunch{Condition: "baseline", Workspace: workspace, StateDir: state, StudyDir: study, RepoRoot: repo,
+		MainCheckout: main, TmpDir: tmp}
 	for _, tc := range []struct {
 		name, tool string
 		input      map[string]any
@@ -234,6 +242,8 @@ func TestPairedOutsideCellAudit(t *testing.T) {
 		{name: "the attempt's records", tool: "Bash", input: map[string]any{"command": "cat ../preparation.json"}, want: []string{"study:../preparation.json"}},
 		{name: "a parent that holds nothing", tool: "Bash", input: map[string]any{"command": "cat ../STYLE.md"}},
 		{name: "the checkout", tool: "Grep", input: map[string]any{"path": filepath.Join(repo, "scripts")}, want: []string{"checkout:" + filepath.Join(repo, "scripts")}},
+		{name: "the main checkout of the study's worktree", tool: "Read", input: map[string]any{"file_path": filepath.Join(main, "docs", "internals", "evals.md")},
+			want: []string{"checkout:" + filepath.Join(main, "docs", "internals", "evals.md")}},
 		{name: "a shared temporary file", tool: "Write", input: map[string]any{"file_path": "/tmp/claude/upgrade_edit.json"}, want: []string{"temp:/tmp/claude/upgrade_edit.json"}},
 		{name: "a Codex patch", tool: "file_change", input: map[string]any{"changes": []any{map[string]any{"path": filepath.Join(workspace, "docs", "a.md")}}}},
 	} {

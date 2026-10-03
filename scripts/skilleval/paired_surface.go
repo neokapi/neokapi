@@ -73,7 +73,7 @@ func probePairedSurface(ctx context.Context, p PairedPrepared) PairedSurface {
 		surface.Error = err.Error()
 	}
 	surface.Executables = pairedCellExecutables(filepath.Join(p.Launch.StateDir, "bin"))
-	checkPairedSurface(&surface, p.Launch, pairedDeveloperSkills(p.Launch.RepoRoot))
+	checkPairedSurface(&surface, p.Launch, pairedDeveloperSkills(p.Launch.RepoRoot, p.Launch.MainCheckout))
 	return surface
 }
 
@@ -325,9 +325,9 @@ func pairedCellExecutables(bin string) []string {
 }
 
 // pairedDeveloperSkills names the skills and plugins the developer running the
-// study has installed for either host, and the repository's own skills. None
-// of them may be visible in a cell.
-func pairedDeveloperSkills(repoRoot string) []string {
+// study has installed for either host, and the skills of each checkout of the
+// repository it names. None of them may be visible in a cell.
+func pairedDeveloperSkills(checkouts ...string) []string {
 	var names []string
 	home, _ := os.UserHomeDir()
 	dirs := []string{}
@@ -337,8 +337,10 @@ func pairedDeveloperSkills(repoRoot string) []string {
 			filepath.Join(home, ".agents", "skills"),
 			filepath.Join(home, ".codex", "skills"))
 	}
-	if repoRoot != "" {
-		dirs = append(dirs, filepath.Join(repoRoot, ".claude", "skills"), filepath.Join(repoRoot, ".agents", "skills"))
+	for _, checkout := range checkouts {
+		if checkout != "" {
+			dirs = append(dirs, filepath.Join(checkout, ".claude", "skills"), filepath.Join(checkout, ".agents", "skills"))
+		}
 	}
 	for _, dir := range dirs {
 		entries, err := os.ReadDir(dir)

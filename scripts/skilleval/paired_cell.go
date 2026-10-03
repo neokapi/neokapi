@@ -10,8 +10,9 @@ import (
 )
 
 // pairedClaudeDenyRead lists what Claude's sandbox keeps from the agent: the
-// checkout, the cell's configuration files, and the attempt's own records
-// beside the workspace (the prompt and the preparation, which names a task's
+// checkout, and the main checkout when the study runs from a worktree of it,
+// the cell's configuration files, and the attempt's own records beside the
+// workspace (the prompt and the preparation, which names a task's
 // interference). The cell's bin directory and its kapi stay readable without a
 // carve-out from a denied directory, so the shell and kapi always execute.
 // Claude's own configuration directory stays readable: Claude saves a long
@@ -19,8 +20,10 @@ import (
 func pairedClaudeDenyRead(launch PairedLaunch) []string {
 	attempt := filepath.Dir(launch.StateDir)
 	deny := []string{}
-	if launch.RepoRoot != "" {
-		deny = append(deny, launch.RepoRoot)
+	for _, checkout := range []string{launch.RepoRoot, launch.MainCheckout} {
+		if checkout != "" {
+			deny = append(deny, checkout)
+		}
 	}
 	for _, name := range []string{"codex", "home", "claude-settings.json", "claude-mcp.json"} {
 		deny = append(deny, filepath.Join(launch.StateDir, name))

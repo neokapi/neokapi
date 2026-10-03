@@ -200,6 +200,8 @@ func TestPairedStudyPinsTheCheckoutAndHostVersions(t *testing.T) {
 	deps := fakePairedDependencies(&calls)
 	versions := map[string]string{"claude": "2.1.287 (Claude Code)", "codex": "codex-cli 0.160.0"}
 	deps.hostVersion = func(_ context.Context, host string) (string, error) { return versions[host], nil }
+	executables := map[string]string{"claude": "/hosts/claude/claude", "codex": "/hosts/codex/bin/codex"}
+	deps.hostExecutable = func(host string) (string, error) { return executables[host], nil }
 	deps.prepare = func(_ context.Context, l PairedLaunch) (PairedPrepared, error) {
 		return PairedPrepared{Launch: l, Version: versions[l.Agent.Host], AuthMode: "subscription", Blockers: []string{}}, nil
 	}
@@ -209,15 +211,23 @@ func TestPairedStudyPinsTheCheckoutAndHostVersions(t *testing.T) {
 	require.NoError(t, readPairedJSON(filepath.Join(opts.Dir, "study.json"), &study))
 	assert.Equal(t, opts.RepoRoot, study.Checkout)
 	assert.Equal(t, versions, study.HostVersions)
+	assert.Equal(t, executables, study.HostExecutables)
 
-	// A host upgraded since the study started.
+	// A host upgraded since the study started: the refusal names where the
+	// study's version ran from and how to put it back.
 	opts.MaxAttempts = 4
 	versions["codex"] = "codex-cli 0.161.0"
+	executables["codex"] = "/opt/homebrew/Caskroom/codex/0.161.0/bin/codex"
 	err := executePairedWith(context.Background(), opts, deps)
-	require.ErrorContains(t, err, `codex reports "codex-cli 0.161.0", and this study started with "codex-cli 0.160.0"`)
-	assert.Contains(t, err.Error(), `Reinstall codex at "codex-cli 0.160.0"`)
+	require.ErrorContains(t, err, `codex reports "codex-cli 0.161.0", and this study started with "codex-cli 0.160.0", `+
+		`run from /hosts/codex/bin/codex`)
+	assert.Contains(t, err.Error(), `Put the copy of codex "codex-cli 0.160.0" taken before the study first on PATH`)
 	assert.Equal(t, 2, calls)
 	versions["codex"] = "codex-cli 0.160.0"
+
+	// The study's own copy back on PATH resumes it, wherever it lies: only the
+	// version is pinned.
+	executables["codex"] = "/elsewhere/codex/bin/codex"
 
 	// Another checkout.
 	other := opts
@@ -228,6 +238,20 @@ func TestPairedStudyPinsTheCheckoutAndHostVersions(t *testing.T) {
 
 	require.NoError(t, executePairedWith(context.Background(), opts, deps))
 	assert.Equal(t, 4, calls, "the same checkout and versions resume")
+}
+
+// The preflight says where each host runs from, and warns of a host an
+// upgrade would replace mid-study: a Homebrew cask or formula directory.
+func TestPairedHostNotesWarnOfAnUpgradedInPlaceHost(t *testing.T) {
+	notes := pairedHostNotes(map[string]string{
+		"claude": "/opt/homebrew/Caskroom/claude-code@latest/2.1.288/claude",
+		"codex":  "/study/kapi-wp5-hosts/codex/bin/codex",
+	})
+	require.Len(t, notes, 2)
+	assert.Contains(t, notes[0], "claude runs from /opt/homebrew/Caskroom/claude-code@latest/2.1.288/claude; an upgrade replaces it")
+	assert.Equal(t, "codex runs from /study/kapi-wp5-hosts/codex/bin/codex", notes[1])
+	assert.True(t, pairedUpgradedInPlace("/usr/local/Cellar/codex/0.160.0/bin/codex"))
+	assert.False(t, pairedUpgradedInPlace("/opt/homebrew/bin/claude"), "a link is resolved before it is judged")
 }
 
 // A host whose version moves after the study started is refused at its next

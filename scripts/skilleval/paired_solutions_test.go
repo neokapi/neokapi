@@ -109,42 +109,59 @@ func TestPairedPluralRouteOnEverySurface(t *testing.T) {
 	var solution pairedSolution
 	require.NoError(t, json.Unmarshal(data, &solution))
 	require.Len(t, solution.Steps, 1)
-	changeset := solution.Steps[0].Changeset
 	agent := []string{"KAPI_ACTOR=agent"}
+	// The reference route, and set_content on the branch with the argument
+	// typed as the prompt spells it.
+	var reference struct {
+		Ops []struct {
+			IfMatch string `json:"if_match"`
+		} `json:"ops"`
+	}
+	require.NoError(t, json.Unmarshal(solution.Steps[0].Changeset, &reference))
+	require.Len(t, reference.Ops, 1)
+	typed, err := json.Marshal(map[string]any{"ops": []any{map[string]any{
+		"op": "set_content", "at": map[string]any{"doc": "lib/l10n/app_en.arb", "block": "inboxCount"},
+		"if_match": reference.Ops[0].IfMatch, "path": []any{0, map[string]any{"plural": "one"}},
+		"text": "{count} unread message",
+	}}})
+	require.NoError(t, err)
+	routes := map[string]json.RawMessage{"replace_text": solution.Steps[0].Changeset, "set_content typed": typed}
 
 	surfaces := []struct {
 		name  string
-		apply func(t *testing.T, dir, changes string)
+		apply func(t *testing.T, dir, changes string, changeset json.RawMessage)
 	}{
-		{"cli", func(t *testing.T, dir, changes string) {
+		{"cli", func(t *testing.T, dir, changes string, _ json.RawMessage) {
 			code, output := runPairedKapi(t, dir, binary, agent, "apply", "-p", filepath.Join(dir, "kapi.yaml"), "--json", changes)
 			require.Equal(t, 0, code, string(output))
 		}},
-		{"mcp", func(t *testing.T, dir, _ string) {
+		{"mcp", func(t *testing.T, dir, _ string, changeset json.RawMessage) {
 			result := applyThroughPairedMCP(t, dir, binary, changeset)
 			assert.NotEqual(t, true, result["isError"], "%v", result)
 			structured, _ := result["structuredContent"].(map[string]any)
 			assert.Equal(t, "applied", structured["status"], "%v", result)
 		}},
-		{"project-free", func(t *testing.T, dir, changes string) {
+		{"project-free", func(t *testing.T, dir, changes string, _ json.RawMessage) {
 			alias := filepath.Join(t.TempDir(), pairedFilesAlias)
 			require.NoError(t, os.Symlink(binary, alias))
 			code, output := runPairedKapi(t, dir, alias, agent, "apply", "--json", changes)
 			require.Equal(t, 0, code, string(output))
 		}},
 	}
-	for _, surface := range surfaces {
-		t.Run(surface.name, func(t *testing.T) {
-			dir := t.TempDir()
-			require.NoError(t, materializePairedTask(dir, task))
-			require.NoError(t, readPairedContext(t.Context(), dir, binary))
-			changes := filepath.Join(t.TempDir(), "changes.json")
-			require.NoError(t, os.WriteFile(changes, changeset, 0o600))
-			surface.apply(t, dir, changes)
-			result, err := validatePairedTask(dir, task, &PairedAgentResult{})
-			require.NoError(t, err)
-			assert.True(t, result.ObjectivePassed, "%+v", result.Criteria)
-		})
+	for route, changeset := range routes {
+		for _, surface := range surfaces {
+			t.Run(route+"/"+surface.name, func(t *testing.T) {
+				dir := t.TempDir()
+				require.NoError(t, materializePairedTask(dir, task))
+				require.NoError(t, readPairedContext(t.Context(), dir, binary))
+				changes := filepath.Join(t.TempDir(), "changes.json")
+				require.NoError(t, os.WriteFile(changes, changeset, 0o600))
+				surface.apply(t, dir, changes, changeset)
+				result, err := validatePairedTask(dir, task, &PairedAgentResult{})
+				require.NoError(t, err)
+				assert.True(t, result.ObjectivePassed, "%+v", result.Criteria)
+			})
+		}
 	}
 }
 
