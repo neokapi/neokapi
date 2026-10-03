@@ -3751,7 +3751,8 @@ export class DefaultModelInfo {
 /**
  * DesktopFinding is one content-check finding, flattened for the React Checks
  * panel. It mirrors core/check.Finding but adds the fields the panel needs to
- * locate the offending block and (when safe) offer a one-click fix.
+ * locate the offending block and, where the rule names a replacement, the change
+ * operation that applies it.
  */
 export class DesktopFinding {
     /**
@@ -3799,7 +3800,7 @@ export class DesktopFinding {
         if (/** @type {any} */(false)) {
             /**
              * BlockID identifies the block the finding applies to (the format's stable
-             * block ID), so ApplyCheckFix can re-find it.
+             * block ID), so the document view can open at it.
              * @member
              * @type {string | undefined}
              */
@@ -3826,21 +3827,24 @@ export class DesktopFinding {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Replacement is the structured fix text (e.g. a voice profile's preferred
-             * term). Empty when there is no safe automatic replacement.
+             * Replacement is the wording the rule asks for (a term's replacement).
+             * Empty when the rule names none.
              * @member
              * @type {string | undefined}
              */
             this["replacement"] = undefined;
         }
-        if (!("fixable" in $$source)) {
+        if (/** @type {any} */(false)) {
             /**
-             * Fixable reports whether the panel may show an "Apply fix" button: a
-             * replacement and a block to target both exist.
+             * Fix is the change operation that applies Replacement, as
+             * kapi.change/v1 JSON: a replace_text of the words the finding objects to,
+             * addressed to the block's own edition under the revision the check read
+             * (check.Fix). The panel sends it to Apply as it is. Empty when the finding
+             * has no fix: no replacement, a translation's finding, or a comment.
              * @member
-             * @type {boolean}
+             * @type {string | undefined}
              */
-            this["fixable"] = false;
+            this["fix"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -7406,7 +7410,8 @@ export class ResourceInfo {
 /**
  * ReviewAIActionResult is the outcome of one per-unit AI action. Fix/retranslate
  * return a PROPOSED target only — nothing is written until the reviewer accepts
- * the diff (which routes through UpdateReviewTarget); explain returns text.
+ * the proposal, which the Review page sends as a set_content through Apply;
+ * explain returns text.
  */
 export class ReviewAIActionResult {
     /**
@@ -7416,10 +7421,21 @@ export class ReviewAIActionResult {
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
             /**
+             * ProposedTarget is the proposal as a reader reads it.
              * @member
              * @type {string | undefined}
              */
             this["proposed_target"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ProposedEdit is the proposal in the placeholder form a read shows, each
+             * inline code an <x id="…"/> naming the code the translation holds, so a
+             * set_content of it keeps every code the proposal kept.
+             * @member
+             * @type {string | undefined}
+             */
+            this["proposed_edit"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -7449,10 +7465,10 @@ export class ReviewAIActionResult {
      * @returns {ReviewAIActionResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType3;
+        const $$createField3_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("exchanges" in $$parsedSource) {
-            $$parsedSource["exchanges"] = $$createField2_0($$parsedSource["exchanges"]);
+            $$parsedSource["exchanges"] = $$createField3_0($$parsedSource["exchanges"]);
         }
         return new ReviewAIActionResult(/** @type {Partial<ReviewAIActionResult>} */($$parsedSource));
     }
@@ -7594,15 +7610,6 @@ export class ReviewUnitDetail {
              */
             this["ai_review_model"] = undefined;
         }
-        if (!("editable" in $$source)) {
-            /**
-             * Editable reports whether the target is a single plain-text run, the only
-             * shape UpdateReviewTarget can rewrite safely.
-             * @member
-             * @type {boolean}
-             */
-            this["editable"] = false;
-        }
         if (/** @type {any} */(false)) {
             /**
              * Context is the host's review model: the point governing the file, the
@@ -7627,7 +7634,7 @@ export class ReviewUnitDetail {
     static createFrom($$source = {}) {
         const $$createField10_0 = $$createType127;
         const $$createField12_0 = $$createType25;
-        const $$createField16_0 = $$createType129;
+        const $$createField15_0 = $$createType129;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("origin" in $$parsedSource) {
             $$parsedSource["origin"] = $$createField10_0($$parsedSource["origin"]);
@@ -7636,7 +7643,7 @@ export class ReviewUnitDetail {
             $$parsedSource["findings"] = $$createField12_0($$parsedSource["findings"]);
         }
         if ("context" in $$parsedSource) {
-            $$parsedSource["context"] = $$createField16_0($$parsedSource["context"]);
+            $$parsedSource["context"] = $$createField15_0($$parsedSource["context"]);
         }
         return new ReviewUnitDetail(/** @type {Partial<ReviewUnitDetail>} */($$parsedSource));
     }
