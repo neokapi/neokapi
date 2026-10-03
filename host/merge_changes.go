@@ -221,7 +221,7 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 		ops = append(ops, change.Op{
 			Kind: change.KindSetContent, At: change.Ref{Doc: rf.doc, Block: cur.ref, Edition: key},
 			IfMatch: cmp.Or(rev.IfMatch, cur.rev), Basis: rev.Basis,
-			Body: &change.SetContent{Content: change.Content{Runs: target.Runs}},
+			Body: &change.SetContent{Runs: target.Runs},
 		})
 		units = append(units, u)
 	}
@@ -448,7 +448,7 @@ func materializeEdition(ctx context.Context, svc *change.Service, store blocksto
 		ops = append(ops, change.Op{
 			Kind: change.KindSetContent, At: change.Ref{Doc: doc, Block: r.Ref.Block, Edition: key},
 			IfMatch: model.EditionRevision(b, key),
-			Body:    &change.SetContent{Content: change.Content{Runs: t.Runs}},
+			Body:    &change.SetContent{Runs: t.Runs},
 		})
 		return nil
 	})

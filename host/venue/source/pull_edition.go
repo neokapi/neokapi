@@ -111,7 +111,7 @@ func (c *BowrainSourceConnector) pullEdition(ctx context.Context, services pullS
 		ops = append(ops, change.Op{
 			Kind: change.KindSetContent, At: change.Ref{Doc: itemName, Block: r.Ref.Block, Edition: key},
 			IfMatch: model.EditionRevision(b, key),
-			Body:    &change.SetContent{Content: change.Content{Runs: runs}},
+			Body:    &change.SetContent{Runs: runs},
 		})
 		return nil
 	})
