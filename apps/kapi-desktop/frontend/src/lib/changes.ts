@@ -94,8 +94,9 @@ export interface EditionContent {
 
 /**
  * The content of an edition from a read: the edition the read was opened on,
- * or, named by `edition`, another edition the block holds, whose codes are
- * typed from the read's (a translation keeps the codes of what it translates).
+ * or, named by `edition`, another edition the block holds, with its own
+ * plurals and selects, and its own codes where the read lists them (a
+ * translation otherwise keeps the codes of what it translates).
  */
 export function editionContent(read: BlockRead, edition?: string): EditionContent | null {
   if (!edition || edition === read.ref.edition) {
@@ -113,8 +114,8 @@ export function editionContent(read: BlockRead, edition?: string): EditionConten
     ref: { ...read.ref, edition },
     rev: other.rev,
     text: other.text,
-    codes: read.codes,
-    structures: undefined,
+    codes: other.codes ?? read.codes,
+    structures: other.structures,
   };
 }
 

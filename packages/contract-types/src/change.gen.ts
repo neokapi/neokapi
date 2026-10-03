@@ -1232,6 +1232,16 @@ export interface StructureRead {
 export interface EditionRead {
   rev: string;
   text: string;
+  /**
+   * Codes lists the edition's inline codes where they differ from the block's;
+   * absent, the block's codes are the edition's.
+   */
+  codes?: Record<string, CodeRead>;
+  /**
+   * Structures lists the edition's own plurals and selects, each with the path
+   * an operation on the edition names to reach one of its branches.
+   */
+  structures?: StructureRead[];
   status?: string;
   /**
    * Basis is the authoritative edition's revision the edition was made from,

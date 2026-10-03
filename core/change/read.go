@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -90,9 +91,15 @@ type StructureRead struct {
 
 // EditionRead is an edition other than the document's own.
 type EditionRead struct {
-	Rev    string `json:"rev"`
-	Text   string `json:"text"`
-	Status string `json:"status,omitempty"`
+	Rev  string `json:"rev"`
+	Text string `json:"text"`
+	// Codes lists the edition's inline codes where they differ from the
+	// block's; absent, the block's codes are the edition's.
+	Codes map[string]CodeRead `json:"codes,omitempty"`
+	// Structures lists the edition's own plurals and selects, each with the
+	// path an operation on the edition names to reach one of its branches.
+	Structures []StructureRead `json:"structures,omitempty"`
+	Status     string          `json:"status,omitempty"`
 	// Basis is the authoritative edition's revision the edition was made
 	// from, where the host keeps it.
 	Basis string `json:"basis,omitempty"`
@@ -259,11 +266,11 @@ func (s *Service) readBlock(ctx context.Context, info DocInfo, desc Description,
 			if out.Editions == nil {
 				out.Editions = map[string]EditionRead{}
 			}
-			out.Editions[keyText(b.EditionKeyOf(k))] = EditionRead{Rev: model.EditionRevision(b, k), Text: model.RunsEditText(own.Runs), Status: string(own.Status)}
+			out.Editions[keyText(b.EditionKeyOf(k))] = out.editionRead(model.EditionRevision(b, k), own, desc)
 			continue
 		}
 		ed, _ := b.Edition(k)
-		er := EditionRead{Rev: model.EditionRevision(b, k), Text: model.RunsEditText(ed.Runs), Status: string(ed.Status)}
+		er := out.editionRead(model.EditionRevision(b, k), ed, desc)
 		if s.states != nil {
 			if st, ok := s.states.EditionState(ctx, info, b, k); ok {
 				if st.Status != "" {
@@ -279,6 +286,17 @@ func (s *Service) readBlock(ctx context.Context, info DocInfo, desc Description,
 		out.Editions[keyText(k)] = er
 	}
 	return out
+}
+
+// editionRead is ed, another edition of the block out reads, at revision rev:
+// its text and status, its plurals and selects, and its codes where they
+// differ from the block's.
+func (out BlockRead) editionRead(rev string, ed model.Edition, desc Description) EditionRead {
+	er := EditionRead{Rev: rev, Text: model.RunsEditText(ed.Runs), Status: string(ed.Status), Structures: structuresOf(ed.Runs)}
+	if codes := codesOf(ed.Runs, desc); !reflect.DeepEqual(codes, out.Codes) {
+		er.Codes = codes
+	}
+	return er
 }
 
 // codesOf lists the inline codes of runs, branches of plurals and selects

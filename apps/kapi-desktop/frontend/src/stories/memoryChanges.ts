@@ -35,9 +35,23 @@ export interface MemoryBlock {
   text: string;
   codes?: Record<string, CodeRead>;
   structures?: StructureRead[];
-  /** Other editions the block holds, by key. */
-  editions?: Record<string, { text: string; status?: string }>;
+  /** Other editions the block holds, by key, with their own plurals and selects. */
+  editions?: Record<
+    string,
+    {
+      text: string;
+      status?: string;
+      codes?: Record<string, CodeRead>;
+      structures?: StructureRead[];
+    }
+  >;
   ops?: ChangeOpKind[];
+}
+
+/** The content of one edition as the client holds it. */
+interface MemoryEdition {
+  text: string;
+  structures?: StructureRead[];
 }
 
 /** A 16-hex-digit FNV-1a hash, the shape of a revision. */
@@ -71,8 +85,23 @@ export class MemoryChanges implements ChangeClient {
   }
 
   /** The edition's revision now. */
-  rev(b: MemoryBlock): string {
+  rev(b: MemoryEdition): string {
     return revOf(JSON.stringify({ text: b.text, structures: b.structures ?? [] }));
+  }
+
+  /**
+   * The edition an operation names: a block read from its own document, or
+   * one listed among a block's editions, addressed by the block's reference
+   * and the edition's key.
+   */
+  private editionAt(at: ChangeRef): MemoryEdition | undefined {
+    const own = this.blocks.find((x) => sameRef(this.refOf(x), at));
+    if (own) return own;
+    if (!at.edition) return undefined;
+    const holder = this.blocks.find((x) =>
+      sameRef(this.refOf(x), { doc: at.doc, block: at.block }),
+    );
+    return holder?.editions?.[at.edition];
   }
 
   private refOf(b: MemoryBlock): ChangeRef {
@@ -82,7 +111,14 @@ export class MemoryChanges implements ChangeClient {
   private toRead(b: MemoryBlock): BlockRead {
     const editions: BlockRead["editions"] = {};
     for (const [key, e] of Object.entries(b.editions ?? {})) {
-      editions[key] = { rev: revOf(e.text), text: e.text, status: e.status, stale: false };
+      editions[key] = {
+        rev: this.rev(e),
+        text: e.text,
+        status: e.status,
+        stale: false,
+        ...(e.codes ? { codes: e.codes } : {}),
+        ...(e.structures ? { structures: e.structures } : {}),
+      };
     }
     return {
       ref: this.refOf(b),
@@ -129,7 +165,7 @@ export class MemoryChanges implements ChangeClient {
     let refused = -1;
     set.ops.forEach((op, i) => {
       const at = "at" in op ? op.at : undefined;
-      const b = at ? this.blocks.find((x) => sameRef(this.refOf(x), at)) : undefined;
+      const b = at ? this.editionAt(at) : undefined;
       const res: OpResult = { i, op: op.op, status: "applied", ...(at ? { at } : {}) };
       results.push(res);
       if (!b) {
@@ -152,7 +188,7 @@ export class MemoryChanges implements ChangeClient {
         return;
       }
       res.before = rev;
-      plans.push(() => this.write(b, op, res));
+      plans.push(() => this.write(b, at!, op, res));
     });
     if (refused >= 0) {
       for (const r of results) {
@@ -179,7 +215,7 @@ export class MemoryChanges implements ChangeClient {
     };
   }
 
-  private write(b: MemoryBlock, op: ChangeOp, res: OpResult): void {
+  private write(b: MemoryEdition, ref: ChangeRef, op: ChangeOp, res: OpResult): void {
     if (op.op !== "set_content") {
       res.after = this.rev(b);
       return;
@@ -201,13 +237,16 @@ export class MemoryChanges implements ChangeClient {
     const after = this.rev(b);
     res.after = after;
     // A change to the source leaves every translation on an older basis.
-    if (!this.refOf(b).edition && b.editions) {
-      res.invalidates = Object.keys(b.editions)
+    const editions = "editions" in b ? (b as MemoryBlock).editions : undefined;
+    if (!ref.edition && editions) {
+      res.invalidates = Object.keys(editions)
         .sort()
         .map((edition) => ({ edition, reason: "basis_moved" }));
     }
     this.seq++;
-    const key = JSON.stringify(this.refOf(b));
+    // A block read from its own document records under the reference its
+    // read gives; an edition listed in a block under the one the change named.
+    const key = JSON.stringify("doc" in b ? this.refOf(b as MemoryBlock) : ref);
     const entries = this.log.get(key) ?? [];
     entries.unshift({
       record: `op-${this.seq}`,

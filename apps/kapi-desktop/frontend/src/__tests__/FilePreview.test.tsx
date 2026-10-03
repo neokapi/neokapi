@@ -194,6 +194,71 @@ describe("FilePreview editing a unit", () => {
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   });
 
+  // A plural translation is edited a form at a time from the document view
+  // too: the read lists the translation's own plural, and the edit names the
+  // form by its path.
+  it("edits one form of a plural translation by its path", async () => {
+    const n = { kind: "placeholder", type: "jsx:var", equiv: "count" };
+    const changes = new MemoryChanges([
+      {
+        doc: "/abs/locales/en.json",
+        block: "greeting",
+        ref: { doc: "locales/en.json", block: "greeting" },
+        text: 'You have <x id="n/"/> items',
+        codes: { "n/": n },
+        editions: {
+          fr: {
+            text: 'Vous avez <x id="n/"/> articles',
+            structures: [
+              {
+                path: [0],
+                kind: "plural",
+                pivot: "count",
+                branches: {
+                  one: 'Un seul <x id="n/"/> article',
+                  other: 'Vous avez <x id="n/"/> articles',
+                },
+              },
+            ],
+          },
+        },
+      },
+    ]);
+    const [before] = (await changes.read({ doc: "/abs/locales/en.json" })).blocks;
+    render(
+      <FilePreview
+        tabID="tab-1"
+        filePath="/abs/locales/en.json"
+        filename="locales/en.json"
+        onClose={vi.fn()}
+        tree={tree}
+        focusKey="greeting"
+        side="fr"
+        changes={changes}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const one = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>(
+        "[data-slot='edition-editor-plural-form'][data-form='one'] [contenteditable='true']",
+      );
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    await userEvent.type(one, "Plus ");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(changes.sets).toHaveLength(1));
+    const op = changes.sets[0].ops[0];
+    expect(op).toMatchObject({
+      op: "set_content",
+      at: { doc: "locales/en.json", block: "greeting", edition: "fr" },
+      if_match: before.editions?.fr.rev,
+      path: [0, { plural: "one" }],
+    });
+    expect(op.op === "set_content" && op.text).toContain('<x id="n/"/>');
+    await waitFor(() => expect(document.querySelector("[data-slot='edition-refused']")).toBeNull());
+  });
+
   it("switches to the translation the document carries", async () => {
     renderEditable(source());
     await userEvent.click(screen.getByRole("button", { name: "Edit" }));

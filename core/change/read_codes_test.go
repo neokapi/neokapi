@@ -23,6 +23,38 @@ func TestService_ReadNamesWhatACodeStandsFor(t *testing.T) {
 	assert.Equal(t, change.CodeRead{Kind: "placeholder", Type: "code:variable", Equiv: "count"}, b.Codes["n/"])
 }
 
+// An edition listed beside the block shows its own plurals and selects, with
+// the path that reaches each branch, so an editor of that edition sends a
+// form's edit to the form. Its codes are listed where they differ from the
+// block's, and left out where they are the same.
+func TestService_ReadListsAnEditionsOwnStructure(t *testing.T) {
+	n := model.PhR(model.PlaceholderRun{ID: "n", Type: "code:variable", Data: "#", Equiv: "count"})
+	source := []model.Run{model.TextR("You have "), n, model.TextR(" in your basket.")}
+	frPlural := []model.Run{model.PluralR(model.PluralRun{Pivot: "count", Forms: map[model.PluralForm][]model.Run{
+		model.PluralOne:   {n, model.TextR(" article")},
+		model.PluralOther: {n, model.TextR(" articles")},
+	}})}
+	h := newMemHome(map[string][]memBlock{"a": {{key: "cart", translatable: true,
+		editions: map[model.EditionKey][]model.Run{
+			{}:             source,
+			{Locale: "fr"}: frPlural,
+			{Locale: "de"}: {model.TextR("Sie haben "), n, model.TextR(" im Korb.")},
+		}}}})
+	b := readBlock(t, newMemService(h), "a", "cart")
+	require.Empty(t, b.Structures, "the block's own edition is flat")
+
+	fr := b.Editions["fr"]
+	require.Len(t, fr.Structures, 1)
+	assert.Equal(t, "plural", fr.Structures[0].Kind)
+	assert.Equal(t, `<x id="n/"/> article`, fr.Structures[0].Branches["one"])
+	assert.Equal(t, model.RunPath{{Kind: model.StepIndex, Index: 0}}, fr.Structures[0].Path)
+	assert.Nil(t, fr.Codes, "the plural's codes are the block's")
+
+	de := b.Editions["de"]
+	assert.Empty(t, de.Structures)
+	assert.Nil(t, de.Codes)
+}
+
 // A reader that labels a code with its own native form (an ARB message's ICU
 // argument, a printf specifier, Android's raw markup) has that label left out
 // of a read, so the native form reaches no read. A label of its own stays.

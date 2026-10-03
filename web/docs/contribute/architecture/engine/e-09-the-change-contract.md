@@ -109,8 +109,9 @@ note describes each rule.
   reference to copy into an operation, the revision to send as `if_match`, the
   content as placeholder text, its inline codes with their attributes and the
   attributes `set_attribute` can write, its plurals and selects with the path to
-  each branch, its other editions with their status and staleness, and the
-  operations it accepts. A read of the file one edition lives in, such as the
+  each branch, its other editions with their status and staleness, each one's
+  own plurals and selects and its codes where they differ from the block's, and
+  the operations it accepts. A read of the file one edition lives in, such as the
   German file of an English page, shows that edition as each block's own, with
   the document's own edition among the others, so a reference copied from it
   edits the German. A page ends with a cursor; a cursor into a document that
