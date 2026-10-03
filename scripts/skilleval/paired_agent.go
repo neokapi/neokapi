@@ -92,6 +92,14 @@ type PairedAgentResult struct {
 	// OverrideAttempts lists each attempt to land an edit over a check: a gate
 	// report, a person's actor claimed from the agent's shell, a blind write.
 	OverrideAttempts []string `json:"override_attempts,omitempty"`
+	// MCPExposure says what the session shows of the kapi tools the host gave
+	// the model, in an mcp arm: declared (the host's tool list held them),
+	// called (the host lists no tools, as Codex does, and the model called
+	// one), absent (the host's tool list held none, and the cell failed), or
+	// unverified (no list and no call).
+	MCPExposure string `json:"mcp_exposure,omitempty"`
+	// MCPGiven lists the kapi tools the host declared to the model.
+	MCPGiven []string `json:"mcp_given,omitempty"`
 	// WriteRoutes lists the routes the agent's tool calls took to write the
 	// task's files, in the order it first took each: contract (kapi apply,
 	// ksed -i, apply_edits), merge (kapi merge) and native (the host's own

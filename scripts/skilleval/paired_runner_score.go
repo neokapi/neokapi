@@ -33,6 +33,7 @@ type pairedScoreRow struct {
 	OverrideAttempts  []string                  `json:"override_attempts,omitempty"`
 	RouteAttempts     []string                  `json:"route_attempts,omitempty"`
 	WriteRoute        string                    `json:"write_route,omitempty"`
+	MCPExposure       string                    `json:"mcp_exposure,omitempty"`
 	OutsideCell       []string                  `json:"outside_cell,omitempty"`
 	Interference      *PairedInterferenceRecord `json:"interference,omitempty"`
 	HumanReview       string                    `json:"human_review"`
@@ -151,7 +152,8 @@ var pairedConflictSignals = []string{"stale", "host:stale", "host:patch_failed"}
 func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 	cells := map[[3]string]*pairedSummaryCell{}
 	routes := map[[4]string]*pairedSummaryCell{}
-	held := 0
+	held, absent := 0, 0
+	exposure := map[string]int{}
 	for _, row := range rows {
 		if row.Superseded || row.Phase == "diagnostic" {
 			continue
@@ -159,6 +161,13 @@ func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 		if slices.Contains(pairedRetryStatuses, row.Status) {
 			held++
 			continue
+		}
+		if row.Status == "mcp_absent" {
+			absent++
+			continue
+		}
+		if row.MCPExposure != "" {
+			exposure[row.MCPExposure]++
 		}
 		key := [3]string{row.Session.Task, row.Session.Agent.Host, row.Session.Condition}
 		c := cells[key]
@@ -202,6 +211,15 @@ func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 	if held > 0 {
 		fmt.Fprintf(markdown, "%d attempts are left out: a rate limit, an interruption, a failed launch or an "+
 			"infrastructure failure cut them short. PAIRED_EVAL_RETRY=1 runs them again.\n\n", held)
+	}
+	if absent > 0 {
+		fmt.Fprintf(markdown, "%d mcp attempts are left out: the host gave the model no kapi tools, so they did not "+
+			"run the arm.\n\n", absent)
+	}
+	if len(exposure) > 0 {
+		fmt.Fprintf(markdown, "What the mcp attempts show of the kapi tools the model was given: declared by the "+
+			"host %d, called without a declared list %d, unverified %d.\n\n",
+			exposure["declared"], exposure["called"], exposure["unverified"])
 	}
 	markdown.WriteString("| Task | Host | Condition | n | Objective passed | Completed | Seconds | Input tokens | Output tokens | Tool calls | Refusals | Override attempts | Outside cell | Changed |\n" +
 		"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
@@ -442,6 +460,7 @@ func scorePairedAttempt(path, fingerprint string) (pairedScoreRow, error) {
 	row.OverrideAttempts = result.Agent.OverrideAttempts
 	row.RouteAttempts = result.Agent.RouteAttempts
 	row.WriteRoute = pairedWriteRoute(result.Agent.WriteRoutes)
+	row.MCPExposure = result.Agent.MCPExposure
 	row.OutsideCell = result.Agent.OutsideCell
 	row.Interference = result.Agent.Interference
 	row.Validation = result.Validation
