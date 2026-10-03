@@ -210,6 +210,16 @@ service as the change contract's entry points.
   for the browser, so a host test that drives an MCP tool sits in a file built
   with `!js`: the `mcp_*_test.go` files, and the `*_mcp_test.go` files beside
   the tests they belong with.
+- **No plugin host.** `kapi plugin` is a recorded gap: a plugin is a separate
+  executable that kapi starts as a subprocess and reaches over gRPC, and a page
+  can do neither. The `host/pluginhost` files that start a plugin or talk to
+  one (the daemon pool, the gRPC clients for formats, segmenters, comments and
+  source connectors, the subprocess launches) are built with `//go:build !js`,
+  so gRPC and the plugin protobuf stay out of the engine. Discovery and the
+  manifest-driven host build for the browser as well, and
+  `host/pluginhost/runtime_js.go` stands in for the launches the rest of the
+  build names, each answering that the browser runs no plugin. A test that
+  drives the plugin wire sits in a file built with `!js`.
 - **Drift is a test failure.** `cli.TestBrowserCommandSurface` compares the two
   sets and fails when a verb appears in one and not the other, or when a gap's
   help metadata drifts from the command it stands in for. Adding a verb to
