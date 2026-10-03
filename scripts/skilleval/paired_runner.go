@@ -345,6 +345,8 @@ func runPairedSession(
 	case result.Agent.InfraFailure == "auth":
 		// Every later session of the host would fail the same way.
 		done.pause = "the host's login was refused or has expired; refresh it before resuming"
+	case result.Agent.InfraFailure == "disk":
+		done.pause = "the machine ran out of disk space; free some before resuming"
 	}
 	return done
 }
@@ -373,6 +375,12 @@ func executePairedAttempt(ctx context.Context, ready PairedPrepared, session Pai
 		if errors.Is(attemptCtx.Err(), context.DeadlineExceeded) {
 			result.Agent.Status = "timeout"
 		}
+	}
+	// A disk that filled during the session failed the agent's tools, however
+	// the session ended, so the attempt is run again rather than scored.
+	if result.Agent.InfraFailure == "" && pairedDiskFull(ready.Launch.TranscriptPath, ready.Launch.TranscriptPath+".stderr") {
+		result.Agent.Status, result.Agent.InfraFailure = "infra_failed", "disk"
+		result.Error = strings.Trim(result.Error+"; the machine ran out of disk space during the session", "; ")
 	}
 	switch {
 	case agent.ActualModel == session.Agent.Model:

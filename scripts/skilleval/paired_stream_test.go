@@ -265,6 +265,8 @@ func TestPairedInfraFailures(t *testing.T) {
 		"stream disconnected before completion: error sending request":                       "network",
 		"Error: fetch failed (ECONNRESET)":                                                   "network",
 		"API Error: Request timed out.":                                                      "network",
+		"Selected model is at capacity. Please try a different model.":                       "overload",
+		"write out/nb.xliff: no space left on device":                                        "disk",
 		"Reached maximum number of turns (40)":                                               "",
 		"The agent could not finish the edit":                                                "",
 	} {

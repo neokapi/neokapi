@@ -633,3 +633,25 @@ func TestPairedSummaryShowsStaleRecoveryAndDecodeErrors(t *testing.T) {
 	assert.Contains(t, text, "## Change sets that did not decode")
 	assert.Contains(t, text, "| recover-stale-read | claude | mcp | /type 2 |")
 }
+
+// A disk that fills during a session fails the agent's tools, so the attempt
+// is an infrastructure failure, run again rather than scored, however the
+// session ended.
+func TestPairedAFullDiskIsAnInfrastructureFailure(t *testing.T) {
+	opts := pairedTestOptions(t)
+	manifest, err := readPairedManifest(opts.ManifestPath)
+	require.NoError(t, err)
+	session := pairedSchedule(manifest, "smoke")[0]
+	launch, err := materializePairedLaunch(opts, manifest, session, t.TempDir())
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Dir(launch.TranscriptPath), 0o755))
+	require.NoError(t, os.WriteFile(launch.TranscriptPath,
+		[]byte(`{"type":"user","message":{"content":[{"type":"tool_result","content":"write out/nb.xliff: no space left on device"}]}}`+"\n"), 0o644))
+	deps := pairedDependencies{run: func(context.Context, PairedPrepared) (PairedAgentResult, error) {
+		return PairedAgentResult{Status: "completed", ActualModel: session.Agent.Model}, nil
+	}}
+	result := executePairedAttempt(context.Background(), PairedPrepared{Launch: launch}, session, deps)
+	assert.Equal(t, "infra_failed", result.Agent.Status)
+	assert.Equal(t, "disk", result.Agent.InfraFailure)
+	assert.Contains(t, pairedRetryStatuses, result.Agent.Status, "run again on retry")
+}
