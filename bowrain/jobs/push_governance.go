@@ -14,6 +14,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/review"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
@@ -84,6 +85,41 @@ type pushGovernor struct {
 	// and in its decision record, and the report counts it once and attaches
 	// the venue's standing record to it.
 	withdrawals map[unitVariantRef]int
+	// byHand names the translations the pusher wrote by hand, from the
+	// push's edition writes (venue.EditionWrite.ByHand). The gate judges the
+	// pusher as their author, as it judges a person who edits and approves
+	// in one change in the editor.
+	byHand map[unitVariantRef]bool
+}
+
+// wroteByHand marks the translations a push's edition writes say the pusher
+// wrote by hand.
+func (g *pushGovernor) wroteByHand(writes []venue.EditionWrite) {
+	if g == nil {
+		return
+	}
+	for _, w := range writes {
+		if !w.ByHand() {
+			continue
+		}
+		if g.byHand == nil {
+			g.byHand = map[unitVariantRef]bool{}
+		}
+		g.byHand[unitVariantRef{item: w.ItemName, unit: w.Unit, variant: w.Variant}] = true
+		if w.Block != "" {
+			// The project's decisions name the unit by its own key.
+			g.byHand[unitVariantRef{item: w.ItemName, unit: w.Block, variant: w.Variant}] = true
+		}
+	}
+}
+
+// gateKey is what the gate judges one unit's translation by: the row the venue
+// holds, or, for a unit arriving for the first time, the unit itself.
+func gateKey(blockID, item, unit string) string {
+	if blockID != "" {
+		return blockID
+	}
+	return "unit:" + item + "\x00" + unit
 }
 
 // recordPushGovernance stores what the review gate refused on the push's job
@@ -436,9 +472,14 @@ func (g *pushGovernor) rowFor(b *model.Block) string {
 }
 
 // allow puts one (block, locale) pair to the gate. It counts the refusal for
-// the report; countRefusal is false when the caller counts it itself.
-func (g *pushGovernor) allow(blockID, locale, kind string, countRefusal bool) (bool, string) {
-	err := g.gate.Allow(blockID, locale)
+// the report; countRefusal is false when the caller counts it itself. A
+// translation the pusher wrote by hand is judged as theirs.
+func (g *pushGovernor) allow(blockID string, at unitVariantRef, locale, kind string, countRefusal bool) (bool, string) {
+	key := gateKey(blockID, at.item, at.unit)
+	if g.byHand[at] {
+		g.gate.Wrote(key, locale)
+	}
+	err := g.gate.Allow(key, locale)
 	if err == nil {
 		return true, ""
 	}
@@ -575,7 +616,8 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 					// permission UNDO an approval by sending it back.
 					continue
 				}
-				allowed, reason := g.allow(blockID, locale, venue.VerdictApproval, true)
+				at := unitVariantRef{item: group.ItemName, unit: convergence.BlockKey(b), variant: variantText(key)}
+				allowed, reason := g.allow(blockID, at, locale, venue.VerdictApproval, true)
 				if allowed {
 					g.noteAccepted(blockID, group.ItemName, b.Name, locale, prior, status)
 					continue
@@ -694,7 +736,7 @@ func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue
 			continue
 		}
 		blockID := g.unitID[unitRef{item: d.ItemName, unit: d.Unit}]
-		allowed, reason := g.allow(blockID, locale, kind, false)
+		allowed, reason := g.allow(blockID, ref, locale, kind, false)
 		if !allowed {
 			refuse(reason)
 			continue

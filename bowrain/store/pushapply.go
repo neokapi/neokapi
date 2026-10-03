@@ -7,6 +7,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
+	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 )
@@ -41,10 +42,21 @@ type pushApply struct {
 	tx Runner
 	// held is the set of stream write locks this transaction holds.
 	held map[string]struct{}
+	// correlation names every block history row the push writes, so the rows
+	// of one push can be found again: reverted as a unit, or attributed to
+	// the pusher where an edition write says they wrote the translation.
+	correlation string
 }
 
 func newPushApply(s *PostgresStore, tx Runner) pushApply {
-	return pushApply{s: s, tx: tx, held: map[string]struct{}{}}
+	return pushApply{s: s, tx: tx, held: map[string]struct{}{}, correlation: id.New()}
+}
+
+// attributed is ctx carrying the push's correlation, for the rows the push's
+// block writes append to the block history and the change log. A correlation
+// the caller already set is kept.
+func (a pushApply) attributed(ctx context.Context) context.Context {
+	return WithChangeContext(ctx, ChangeContext{CorrelationID: a.correlation})
 }
 
 // hold takes a stream's write lock before the push's first write to it. The
@@ -72,14 +84,14 @@ func (a pushApply) StoreBlocks(ctx context.Context, projectID, stream string, bl
 	if err := a.hold(ctx, projectID, stream); err != nil {
 		return err
 	}
-	return storeBlocksTx(ctx, a.tx, projectID, stream, "", blocks, nil)
+	return storeBlocksTx(a.attributed(ctx), a.tx, projectID, stream, "", blocks, nil)
 }
 
 func (a pushApply) StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
 	if err := a.hold(ctx, projectID, stream); err != nil {
 		return err
 	}
-	return storeBlocksTx(ctx, a.tx, projectID, stream, itemName, blocks, nil)
+	return storeBlocksTx(a.attributed(ctx), a.tx, projectID, stream, itemName, blocks, nil)
 }
 
 func (a pushApply) SetBlockOrder(ctx context.Context, projectID, stream, itemName string, keys []string) error {

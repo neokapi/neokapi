@@ -681,6 +681,9 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// are the venue's. With no priors there is nothing to match against, and
 	// resolution is skipped entirely rather than minting: an unresolved block
 	// keys on its name, exactly as it did before any of this existed.
+	// The block history names each block by the key it had before the
+	// resolution below, which renames blocks to the venue's identities.
+	localKeys := localBlockKeys(blockMap)
 	if serverTree != nil {
 		fetched := serverTree.Tree()
 		host.ResolveIdentity(blockMap, host.Priors{
@@ -762,6 +765,20 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		decisions = nil // the venue holds these decisions, and none changed here
 	}
 
+	// Beside the decisions, the last recorded write of each translation the
+	// documents this push reads hold: the source it was made from and who
+	// wrote it. A run that wrote translations and changed no source block
+	// still has these to send, and sends them until the venue applied them.
+	writes, werr := c.projectEditionWrites(ctx, blockMap, localKeys)
+	if werr != nil {
+		return nil, werr
+	}
+	writesHash := venue.EditionWritesHash(writes)
+	sendWrites := writesHash != "" && (opts.Force || writesHash != c.cache.WritesSynced)
+	if !sendWrites {
+		writes = nil
+	}
+
 	if opts.DryRun {
 		return &bowrainconn.PushResult{
 			BlocksPushed: len(changed),
@@ -783,7 +800,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// cannot make that comparison and does not pretend to: it stays additive,
 	// as it was before there were trees.
 	if len(changed) == 0 && !venueHoldsMoreThan(serverTree, localTree, scope) &&
-		!c.PushContextChanged() && !sendRecord && !c.pushSettingsPending() {
+		!c.PushContextChanged() && !sendRecord && !sendWrites && !c.pushSettingsPending() {
 		return &bowrainconn.PushResult{FilesScanned: len(hashMap)}, nil
 	}
 
@@ -810,6 +827,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		apiclient.AssertRef(c.refs.Ref(c.stream)),
 		apiclient.DeclareBlockProperties(venue.BlockPropertyKeys(allScannedBlocks(blockMap))),
 		apiclient.DeclareTree(scope, localTree),
+		apiclient.CarryEditionWrites(writes),
 	}
 	// --force already means "send everything, ignore the cache". It also means
 	// the one thing the server refuses on its own: writing content from an
@@ -883,6 +901,13 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 			c.cache.DecisionsSynced = decisionsHash
 		} else {
 			c.cache.DecisionsSynced = ""
+		}
+	}
+	if sendWrites {
+		if ingest == bowrainconn.IngestApplied {
+			c.cache.WritesSynced = writesHash
+		} else {
+			c.cache.WritesSynced = ""
 		}
 	}
 

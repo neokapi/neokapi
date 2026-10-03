@@ -228,6 +228,7 @@ func applyStagedPush(
 	plan *identityPlan,
 	declared venue.Tree,
 	decisions []venue.UnitDecision,
+	writes []venue.EditionWrite,
 	expected ref.Ref,
 	gov *pushGovernor,
 ) (*pushOutcome, error) {
@@ -351,6 +352,19 @@ func applyStagedPush(
 		}
 	}
 
+	// How each translation came to be, after the decisions, so a write on a
+	// unit this push decided is read against the decision: the basis a
+	// translation was made from lands as the unit's record where nobody has
+	// decided it, and a translation the pusher wrote by hand is attributed to
+	// them in the block history.
+	if len(writes) > 0 {
+		n, werr := tx.RecordEditionWrites(ctx, projectID, stream, gov.actor, writes)
+		if werr != nil {
+			return nil, werr
+		}
+		out.Writes = n
+	}
+
 	// A permission this venue could not resolve is not a refusal. Rolling the
 	// transition back leaves the producer holding the content and the
 	// verdicts, to send again once the venue can answer; landing it would
@@ -370,6 +384,8 @@ type pushOutcome struct {
 	Removed   int
 	Renamed   int
 	Decisions int
+	// Writes is how many edition writes landed on a unit's record.
+	Writes int
 
 	// Governance is what the platform's review gate did not accept: the
 	// verdicts this push carried that the pusher was not entitled to make.

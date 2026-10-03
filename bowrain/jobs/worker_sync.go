@@ -41,6 +41,11 @@ type syncPushManifest struct {
 	// ledger after the chunks are stored — so decisions arriving with the
 	// content they judge can resolve their rows and project their status.
 	Decisions json.RawMessage `json:"decisions"`
+	// Writes are the edition writes the client sent beside its decisions
+	// (venue.EditionWrite): for each translation its project holds, the
+	// source it was made from and who wrote it. Recorded after the
+	// decisions, in the same transaction.
+	Writes json.RawMessage `json:"writes"`
 	// ExpectedRef is the compare-and-swap assertion the client sent: the
 	// governance components it last observed. The commit handler checks it too,
 	// so a waiting client is told at once — but the handler answers before the
@@ -248,6 +253,14 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		}
 	}
 
+	var writes []venue.EditionWrite
+	if len(manifest.Writes) > 0 {
+		if err := json.Unmarshal(manifest.Writes, &writes); err != nil {
+			markJobFailed(ctx, deps, job.ID, "invalid edition writes payload")
+			return fmt.Errorf("parse manifest edition writes: %w", err)
+		}
+	}
+
 	// The platform is authoritative for review governance. Everything the
 	// gate needs is resolved here, before the transition opens: which rows
 	// the payload names and the rung each holds, who last wrote each target by
@@ -259,6 +272,9 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		markJobFailed(ctx, deps, job.ID, gerr.Error())
 		return gerr
 	}
+	// A translation the pusher wrote by hand is theirs to the gate, whatever
+	// the venue recorded about it before this push.
+	gov.wroteByHand(writes)
 
 	// 3. Apply the whole transition on one transaction. Blocks, items, the
 	// prune and the decisions ledger land together or not at all; a worker that
@@ -284,7 +300,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		}
 		var aerr error
 		outcome, aerr = applyStagedPush(ctx, tx, deps, job, projectID, stream,
-			staged, plan, manifest.Tree, decisions, manifest.ExpectedRef, gov)
+			staged, plan, manifest.Tree, decisions, writes, manifest.ExpectedRef, gov)
 		return aerr
 	}
 
@@ -314,6 +330,10 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	if outcome.Decisions > 0 {
 		emitLog(deps, job.StepID, "info",
 			fmt.Sprintf("Recorded %d decision(s) in the ledger", outcome.Decisions), nil)
+	}
+	if outcome.Writes > 0 {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Recorded how %d translation(s) were written", outcome.Writes), nil)
 	}
 
 	// What the review gate refused, said in every place it has to be said:
