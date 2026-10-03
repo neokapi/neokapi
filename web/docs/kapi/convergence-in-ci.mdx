@@ -53,7 +53,7 @@ Three commands carry the whole model, and they divide the work cleanly:
 |---|---|---|
 | `kapi status` | **Observe**: per-locale coverage and gate standing | Always `0`: behind is pending work |
 | `kapi up` | **Produce**: runs the kapi loop | `0` whether the run caught everything up or parked work for review; non-zero only when the run broke |
-| `kapi check --ship` | **Enforce**: the release bar | `0` pass, `3` gate unmet, `1` operational error |
+| `kapi check --ship` | **Enforce**: the release bar | `0` pass, `3` gate unmet, `4` the check did not run, `1` operational error |
 
 An ordinary build never fails because a target language is behind. The gate is
 the explicit, opt-in enforcement point: wire it into merge-request pipelines
@@ -80,7 +80,7 @@ for the model.
 |---|---|---|
 | GitHub Actions | [`setup-kapi`](https://github.com/neokapi/setup-kapi) (CLI + plugins, cached) | [`kapi-action`](https://github.com/neokapi/kapi-action), or the one-line [reusable workflows](https://github.com/neokapi/kapi-workflows) |
 | GitLab CI | none needed (the components run on the image) | [`kapi-components`](https://gitlab.com/neokapi/kapi-components) from the CI/CD Catalog |
-| Anything container-based | `ghcr.io/neokapi/kapi` (cosign-signed; a variant with the server-sync plugin preinstalled is published alongside) | The CLI directly; the exit codes above are the contract |
+| Anything container-based | `ghcr.io/neokapi/kapi` (cosign-signed, with the server-sync plugin preinstalled) | The CLI directly; the exit codes above are the contract |
 
 ## Catch up on a schedule, deliver a pull request
 
@@ -160,7 +160,8 @@ jobs:
 ```
 
 An unmet gate fails the job with a distinct "gate unmet" annotation and posts
-one sticky report comment that re-runs update in place.
+one sticky report comment that re-runs update in place. A gate that did not run
+(exit `4`) fails the job with a "did not run" annotation that names the cause.
 
 </TabItem>
 <TabItem value="gitlab" label="GitLab CI">

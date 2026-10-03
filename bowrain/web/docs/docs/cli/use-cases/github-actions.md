@@ -105,7 +105,7 @@ With `command: up` (the default), the action runs `kapi up` (the kapi loop on th
 | `outcome`           | With `command: up`: `converged` or `parked`                        |
 | `passes`            | With `command: up`: how many reconciliation passes the run took    |
 | `parked-locales`    | With `command: up`: comma-separated locales still short of their gate |
-| `gate`              | With `command: check`: `pass` or `fail`                            |
+| `gate`              | With `command: check`: `pass` or `fail`; empty when the check did not run or errored |
 | `result`            | With `command: check`: `passed`, `failed`, `did_not_run`, or `error` |
 | `did-not-run-cause` | With `command: check`, when `result` is `did_not_run`: the cause kapi reported |
 | `has-changes`       | `true` when the run left changes in the working tree               |
@@ -161,11 +161,12 @@ jobs:
 On a server-connected project the `bowrain-auth-token` secret and `server`
 input are all the job needs; the loop runs on the Bowrain server. A
 local-venue run passes the `anthropic-api-key` secret instead. The workflow
-exposes `outcome`, `passes`, `parked-locales`, and `pull-request-url` as job
-outputs.
+exposes `outcome`, `passes`, `parked-locales`, `has-changes`, and
+`pull-request-url` as job outputs.
 
 `gate.yml@v1` is the merge gate: it runs `kapi check --ship`, fails the job
-on exit `3`, and posts one sticky report comment on the pull request:
+on exit `3` (a gate is unmet) or `4` (a gate did not run), and posts one
+sticky report comment on the pull request:
 
 ```yaml
 name: Ship gate
@@ -192,8 +193,8 @@ custom shape.
 
 Gate pull requests on the project's release bar whenever content files
 change. `kapi check --ship` runs the project's bound quality gates (voice,
-terms, rule-based checks) plus its ship/source coverage gates, and exits `3`, failing
-the job, when any gate is unmet:
+terms, rule-based checks) plus its ship/source coverage gates, and fails the
+job with exit `3` when any gate is unmet or exit `4` when a gate did not run:
 
 ```yaml
 name: Ship gate
