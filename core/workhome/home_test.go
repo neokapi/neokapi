@@ -187,21 +187,22 @@ func TestWorkspaceHome_Conformance(t *testing.T) {
 			Service:         f.svc,
 			DocA:            "de/a.json",
 			DocB:            "de/b.json",
-			// A catalog whose French translation the workspace home keeps:
-			// the suite gives it one there and removes it, and the catalog
-			// keeps its bytes.
+			// A catalog and a JSON file whose French translations the
+			// workspace home keeps: the suite gives each one there and
+			// removes it, and the source keeps its bytes.
 			Translated:      "c.po",
 			TranslationFile: "fr/c.po",
+			Translations:    []changetest.Translation{{Doc: "a.json", File: "fr/a.json"}},
 			Snapshot: func(t *testing.T, doc string) []byte {
 				if rest, ok := strings.CutPrefix(doc, "fr/"); ok {
 					return f.snapshotOf(t, rest, model.EditionKey{Locale: "fr"})
 				}
-				if doc == "c.po" {
-					data, err := os.ReadFile(filepath.Join(f.dir, doc))
-					require.NoError(t, err)
-					return data
+				if rest, ok := strings.CutPrefix(doc, "de/"); ok {
+					return f.snapshot(t, rest)
 				}
-				return f.snapshot(t, strings.TrimPrefix(doc, "de/"))
+				data, err := os.ReadFile(filepath.Join(f.dir, doc))
+				require.NoError(t, err)
+				return data
 			},
 		}
 	})

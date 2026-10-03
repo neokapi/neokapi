@@ -155,7 +155,8 @@ note describes each rule.
 - **`Describe`** says what a format supports. `DescribeFormat` hands
   `FormatOps` the operations the format's round trip carries (`set_content` in
   either form, `replace_text`, and `remove_edition` where the format holds its
-  editions in one file) and what its writer declares
+  editions in one file, or keeps each in a file of its own and its writer
+  removes a block there) and what its writer declares
   ([E-02](e-02-format-system.md#edits-a-writer-can-write)), `insert_block` and
   `delete_block` among it where the writer can add and remove blocks. For a
   document the declaration is the one its home reports for the document's
@@ -257,12 +258,13 @@ preview writes nothing, a missing block is not found, the same content said
 again is unchanged, a file keeps its mode, a removed translation reads back
 absent while a replay of its removal is stale and writes nothing, and a change
 set with no operation applies and writes nothing. Each home runs the removal on
-a translation it holds: the stream's own rows, a PO catalog for the file home,
-for the project homes the catalog a PO source's target template names
-(`po/fr.po` beside `po/en.po`), and for the workspace home the French of a PO
-catalog that it keeps while that file does not exist. Where the translation
-lives apart from its source, the suite also checks that the removal is written
-there and the source catalog keeps its bytes.
+each kind of translation it holds: the stream's own rows; for the file home a
+PO catalog and a JSON file's translation in a file of its own; for the project
+homes the catalog a PO source's target template names (`po/fr.po` beside
+`po/en.po`) and the JSON file a JSON source's names; and for the workspace home
+the French of a PO catalog and of a JSON file, which it keeps while their files
+do not exist. Where the translation lives apart from its source, the suite also
+checks that the removal is written there and the source keeps its bytes.
 
 **The file home** (`core/change/filehome`) keeps each document as a file. A
 stage reads the document through its format's reader with the writer's
@@ -290,7 +292,16 @@ so a removal there would put the source in the translation's place. Their
 description lists `remove_edition`, which the stage then refuses. The read-back
 belongs to a change set's stage: a flow that writes a translation's file
 through the writer, such as `kapi exec remove-target` writing `fr/a.xlf`, gets
-what the writer writes, the source in the removed translation's place. Where the reader and
+what the writer writes, the source in the removed translation's place. A
+translation kept in a file in its own language is a block of that file, so a
+removal takes the block out of the file through the format's writer
+(`format.StructureEditor`), as `delete_block` takes a block out of an
+edition's file: the JSON, YAML and ARB writers remove a key with the comment or
+metadata beside it. A format whose writer removes no block, such as Markdown
+or HTML, does not list `remove_edition`, and a removal there is refused as
+`unsupported`. A home never deletes a file: a translation's file whose last
+block is removed keeps what the format writes for no block (`{}` for JSON).
+Where the reader and
 the writer both stream and no block is added or removed, the document is never
 held whole. The home reports what the document's writer declares: an
 in-process writer's declaration, with the writer spelling a changed attribute
@@ -322,7 +333,9 @@ before `Commit`, the result names the workspace home for that edition
 (`StagedFile.Home`), and the service's recorder records nothing more for it
 (`StagedFile.Recorded`). The conformance suite runs on the workspace home with
 the edition files of a parked locale as its documents, and removes the French
-it keeps of a PO catalog. The recipe picks the
+it keeps of a PO catalog and of a JSON file. A removal drops the kept block, for
+the formats whose description lists `remove_edition`, as it would leave the
+file the translation will be delivered to. The recipe picks the
 home of a translation whose file does not exist: under
 `materialize: on-converge` it is the workspace home, whether or not the
 workspace holds anything of it yet, and under `manual` it is the file, unless

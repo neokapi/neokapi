@@ -23,6 +23,7 @@ import (
 	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/container"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage/filelock"
 )
@@ -293,7 +294,8 @@ func (st *staged) lockKeys() error {
 // file that still holds every block of the document and nothing else: it
 // keeps its own skeleton, so its header (its language, its plural rule) and
 // its comments stay. A bilingual file a translation was removed from is read
-// back (verifyEditionRemoved).
+// back (verifyEditionRemoved); any other file loses the block that held the
+// translation (removeFromEditionFile).
 func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdition, ix *blockIndex, changed map[int][]model.Run, gone map[int]bool) error {
 	s := st.s
 	inPlace := je.exists && !s.h.materialize
@@ -322,11 +324,18 @@ func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdi
 				return nil
 			}}.run(ctx)
 	})
-	if err != nil || len(gone) == 0 || !je.file.Bilingual {
+	if err != nil || len(gone) == 0 {
 		return err
 	}
 	// The file is written from the document's skeleton, so its blocks are in
 	// the document's order.
+	if !je.file.Bilingual {
+		names := make(map[int]string, len(gone))
+		for si := range gone {
+			names[si] = ix.keys[si]
+		}
+		return st.removeFromEditionFile(ctx, f, je, gone, names)
+	}
 	return st.verifyEditionRemoved(ctx, f, je, gone)
 }
 
@@ -383,6 +392,7 @@ func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *jo
 	s := st.s
 	byTarget := map[int][]model.Run{}
 	goneAt := map[int]bool{}
+	names := map[int]string{}
 	var unpaired []string
 	for si, runs := range changed {
 		ti, ok := je.match[si]
@@ -393,6 +403,7 @@ func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *jo
 		byTarget[ti] = runs
 		if gone[si] {
 			goneAt[ti] = true
+			names[ti] = ix.keys[si]
 		}
 	}
 	if len(unpaired) > 0 {
@@ -418,6 +429,10 @@ func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *jo
 				switch runs, ok := byTarget[ti]; {
 				case ok && goneAt[ti] && je.file.Bilingual:
 					b.RemoveEdition(key)
+				case ok && goneAt[ti]:
+					// A file of the edition's own holds the translation as
+					// the block itself, which leaves the file below
+					// (removeFromEditionFile).
 				case ok:
 					ed, _ := b.Edition(key)
 					ed.Runs = runs
@@ -427,10 +442,73 @@ func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *jo
 				return nil
 			}}.run(ctx)
 	})
-	if err != nil || len(goneAt) == 0 || !je.file.Bilingual {
+	if err != nil || len(goneAt) == 0 {
 		return err
 	}
+	if !je.file.Bilingual {
+		return st.removeFromEditionFile(ctx, f, je, goneAt, names)
+	}
 	return st.verifyEditionRemoved(ctx, f, je, goneAt)
+}
+
+// removeFromEditionFile takes the blocks at the indexes at, in the block
+// order of the file the stage wrote for a joined edition, out of that file. A
+// file in the edition's own language holds a translation as a block of its
+// own, so a translation leaves such a file with its block, which the format's
+// writer removes (format.StructureEditor), as delete_block removes a block
+// from an edition's file. A format that removes no block there refuses the
+// removal, and the file is never deleted: it keeps every other block, and
+// whatever else the format writes there when none is left. names gives the
+// document's key of each block, for a refusal.
+func (st *staged) removeFromEditionFile(ctx context.Context, f *stagedFile, je *joinedEdition, at map[int]bool, names map[int]string) error {
+	s := st.s
+	var data []byte
+	var err error
+	if f.tmp != nil {
+		data, err = os.ReadFile(f.tmp.Name())
+	} else {
+		data, err = readAll(je.src)
+	}
+	if err != nil {
+		return err
+	}
+	var edits []format.StructuralEdit
+	var keys []string
+	i := 0
+	err = s.readPass(source{path: je.file.Path}.with(data), je.file.Format, func(b *model.Block) error {
+		if at[i] {
+			edits = append(edits, format.StructuralEdit{Op: format.StructuralDeleteBlock, Key: change.BlockKey(b), Block: b})
+			keys = append(keys, names[i])
+		}
+		i++
+		return nil
+	}).run(ctx)
+	if err != nil {
+		return err
+	}
+	if len(edits) != len(at) {
+		return fmt.Errorf("remove a translation from %s: the file holds %d of the %d blocks the stage wrote", je.file.Ref, len(edits), len(at))
+	}
+	out, err := writeStructure(je.file.Format, data, edits)
+	if err != nil {
+		var se *format.StructureError
+		if !errors.As(err, &se) {
+			return err
+		}
+		block := keys[0]
+		if se.Edit >= 0 && se.Edit < len(keys) {
+			block = keys[se.Edit]
+		}
+		return &change.Error{Code: change.CodeUnsupported, Capability: string(change.KindRemoveEdition), Field: "at/edition",
+			Message: fmt.Sprintf("translation %s of block %s of %s lives in %s, which it leaves only with its block, and %s; give the translation new content with set_content instead",
+				keyText(je.key), block, s.doc.Ref, je.file.Ref, se.Message)}
+	}
+	if f.tmp != nil {
+		_ = f.tmp.Discard()
+		f.tmp = nil
+	}
+	f.tmp, f.after, f.diff, err = st.writeBytes(ctx, je.file.Path, je.src, out)
+	return err
 }
 
 // verifyEditionRemoved reads back the bilingual file of a joined edition as

@@ -131,7 +131,14 @@ func TestChangeService_ConformanceOnTheWorkspaceHome(t *testing.T) {
 		keepGerman(t, a, recipe, "docs/a.json", map[string]string{"greeting": "Hallo", "farewell": "Tschüss", "thanks": "Danke"})
 		keepGerman(t, a, recipe, "docs/b.json", map[string]string{"title": "Willkommen"})
 		docA, docB := targetRef(t, a, recipe, "docs/a.json", "de"), targetRef(t, a, recipe, "docs/b.json", "de")
-		french := targetRef(t, a, recipe, "po/en.po", "fr")
+		french, frenchA := targetRef(t, a, recipe, "po/en.po", "fr"), targetRef(t, a, recipe, "docs/a.json", "fr")
+		keptFrench := func(t *testing.T, source string) []byte {
+			kept, err := a.keptEditions(filepath.Dir(recipe)).Edition(context.Background(), source, model.EditionKey{Locale: "fr"})
+			require.NoError(t, err)
+			data, err := json.Marshal(kept)
+			require.NoError(t, err)
+			return data
+		}
 		return changetest.Env{
 			Service:         svc,
 			SetBeforeSettle: func(fn func(string)) { hook = fn },
@@ -139,16 +146,16 @@ func TestChangeService_ConformanceOnTheWorkspaceHome(t *testing.T) {
 			DocB:            docB,
 			Translated:      "po/en.po",
 			TranslationFile: french,
+			// The French of a JSON file the workspace home keeps, too.
+			Translations: []changetest.Translation{{Doc: "docs/a.json", File: frenchA}},
 			Snapshot: func(t *testing.T, doc string) []byte {
 				switch doc {
-				case "po/en.po":
+				case "po/en.po", "docs/a.json":
 					return []byte(readFile(t, recipe, doc))
 				case french:
-					kept, err := a.keptEditions(filepath.Dir(recipe)).Edition(context.Background(), "po/en.po", model.EditionKey{Locale: "fr"})
-					require.NoError(t, err)
-					data, err := json.Marshal(kept)
-					require.NoError(t, err)
-					return data
+					return keptFrench(t, "po/en.po")
+				case frenchA:
+					return keptFrench(t, "docs/a.json")
 				}
 				source := "docs/a.json"
 				if doc == docB {

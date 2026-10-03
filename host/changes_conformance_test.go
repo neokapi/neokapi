@@ -30,9 +30,15 @@ func TestChangeService_Conformance(t *testing.T) {
 			// po/en.po keeps its bytes.
 			"po/en.po": conformanceCatalog("en", ""),
 			"po/fr.po": conformanceCatalog("fr", "Bonjour"),
+			// A JSON catalog whose French translation is a file of its own:
+			// the suite removes the French greeting from locales/fr.json.
+			"locales/en.json": `{"greeting": "Hello there", "farewell": "Goodbye now"}` + "\n",
+			"locales/fr.json": `{"greeting": "Bonjour", "farewell": "Au revoir"}` + "\n",
 		}, func(p *project.KapiProject) {
 			p.Collections[0].Content = append(p.Collections[0].Content, project.ContentItem{
 				Path: "po/en.po", Format: &project.FormatSpec{Name: "po"}, Target: "po/{lang}.po",
+			}, project.ContentItem{
+				Path: "locales/en.json", Target: "locales/{lang}.json",
 			})
 		})
 		t.Cleanup(a.Shutdown)
@@ -51,6 +57,7 @@ func TestChangeService_Conformance(t *testing.T) {
 			DocB:            "docs/b.json",
 			Translated:      "po/en.po",
 			TranslationFile: "po/fr.po",
+			Translations:    []changetest.Translation{{Doc: "locales/en.json", File: "locales/fr.json"}},
 			Snapshot: func(t *testing.T, doc string) []byte {
 				return []byte(readFile(t, recipe, doc))
 			},

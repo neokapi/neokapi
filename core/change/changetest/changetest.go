@@ -46,6 +46,10 @@ type Env struct {
 	// suite then asserts that the translation's writes land there and that
 	// Translated keeps its bytes. Empty is Translated.
 	TranslationFile string
+	// Translations are more documents the removal case runs on, as it runs
+	// on Translated, for a home that keeps translations in more than one
+	// way: in a bilingual catalog, and in a file of a one-language format.
+	Translations []Translation
 	// Snapshot returns what the home holds for a document, byte for byte,
 	// so the suite can tell that a refusal or a preview wrote nothing.
 	Snapshot func(t *testing.T, doc string) []byte
@@ -57,6 +61,12 @@ type Env struct {
 	// it. The suite runs a second sender there, between the first one's
 	// stage and its commit. Nil skips the cases that interleave two senders.
 	SetBeforeSettle func(fn func(doc string))
+}
+
+// Translation is a document whose French translation the removal case makes
+// and removes: Doc as Env.Translated and File as Env.TranslationFile.
+type Translation struct {
+	Doc, File string
 }
 
 // person is the actor every change set of the suite is sent as.
@@ -320,7 +330,21 @@ func removedEdition(t *testing.T, env Env) {
 	if doc == "" {
 		doc = env.DocA
 	}
-	holder := env.TranslationFile
+	if len(env.Translations) == 0 {
+		removeTranslation(t, env, Translation{Doc: doc, File: env.TranslationFile})
+		return
+	}
+	for _, tr := range append([]Translation{{Doc: doc, File: env.TranslationFile}}, env.Translations...) {
+		t.Run(tr.Doc, func(t *testing.T) { removeTranslation(t, env, tr) })
+	}
+}
+
+// removeTranslation makes a French translation of the first editable block
+// of tr.Doc where it has none, removes it, and checks that a replay of the
+// removal is stale and a removal of what is not there changes nothing.
+func removeTranslation(t *testing.T, env Env, tr Translation) {
+	doc := tr.Doc
+	holder := tr.File
 	if holder == "" {
 		holder = doc
 	}

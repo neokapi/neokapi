@@ -70,12 +70,15 @@ func TestFileHome_Conformance(t *testing.T) {
 		f := newFixture(t, map[string]string{
 			"a.json": `{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}` + "\n",
 			"b.json": `{"title": "Welcome"}` + "\n",
-			// Outside a project a translation lives in a bilingual document,
-			// here a catalog whose language the layout gives.
-			"c.po": poCatalog("fr", [2]string{"Hello there", "Bonjour"}, [2]string{"Goodbye now", "Au revoir"}),
+			// A translation lives in a bilingual document, here a catalog
+			// whose language the layout gives, or in a file of its own, here
+			// fr/d.json beside d.json.
+			"c.po":      poCatalog("fr", [2]string{"Hello there", "Bonjour"}, [2]string{"Goodbye now", "Au revoir"}),
+			"d.json":    `{"greeting": "Hello there", "farewell": "Goodbye now"}` + "\n",
+			"fr/d.json": `{"greeting": "Bonjour", "farewell": "Au revoir"}` + "\n",
 		})
 		f.svc = change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(filehome.New(
-			filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en", TargetLocale: "fr"},
+			targetLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en", TargetLocale: "fr"}},
 			filehome.Options{LockDir: t.TempDir(), BeforeSettle: func(doc string) {
 				if hook != nil {
 					hook(doc)
@@ -87,6 +90,7 @@ func TestFileHome_Conformance(t *testing.T) {
 			DocA:            "a.json",
 			DocB:            "b.json",
 			Translated:      "c.po",
+			Translations:    []changetest.Translation{{Doc: "d.json", File: "fr/d.json"}},
 			Snapshot: func(t *testing.T, doc string) []byte {
 				return []byte(f.read(t, doc))
 			},

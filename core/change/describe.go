@@ -49,13 +49,15 @@ var contentKinds = []Kind{
 // BaseOps are the operations a format's round trip carries without a writer
 // capability, for any format kapi can write back: set_content in either form,
 // replace_text, and remove_edition where the format holds editions in one
-// file. A format kapi cannot write back carries none.
+// file, or keeps each in a file of its own and its writer removes a block
+// there (delete_block), since a translation in such a file leaves it with its
+// block. A format kapi cannot write back carries none.
 func BaseOps(f FormatFacts) []Kind {
 	if !f.Editable && !f.Interchange {
 		return nil
 	}
 	base := []Kind{KindSetContent, KindReplaceText}
-	if f.Interchange {
+	if f.Interchange || slices.Contains(f.Edit.Structural, format.StructuralDeleteBlock) {
 		base = append(base, KindRemoveEdition)
 	}
 	return base
@@ -103,6 +105,10 @@ func (d Description) supports(op Op) *Error {
 		if slices.Contains(d.narrowed, op.Kind) {
 			return &Error{Code: CodeUnsupported, Capability: string(op.Kind),
 				Message: fmt.Sprintf("%s takes no %s: its home, or the %s writer as configured for it, cannot write one there; describe the document to see what it supports", d.doc, op.Kind, d.Format)}
+		}
+		if op.Kind == KindRemoveEdition && d.Editions == EditionsPerFile {
+			return &Error{Code: CodeUnsupported, Capability: string(op.Kind),
+				Message: fmt.Sprintf("the %s format keeps each translation in a file of its own, and its writer removes no block from one, so a translation cannot be removed; give it new content with set_content instead", d.Format)}
 		}
 		return &Error{Code: CodeUnsupported, Capability: string(op.Kind),
 			Message: fmt.Sprintf("the %s format does not support %s; describe the format to see what it supports", d.Format, op.Kind)}

@@ -69,11 +69,21 @@ func TestWorkspaceHome_RecordsTheOperationKindsAndTheTool(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 
+	// And then removes it.
+	page, err = f.svc.Read(ctx, change.ReadRequest{Doc: "de/a.json", Blocks: []string{"greeting"}})
+	require.NoError(t, err)
+	res, err = f.svc.Apply(ctx, change.Set{Ops: []change.Op{{Kind: change.KindRemoveEdition, At: page.Blocks[0].Ref,
+		IfMatch: page.Blocks[0].Rev, Body: &change.RemoveEdition{}}}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.NotContains(t, german(t, f), "greeting", "the removed translation is no longer kept")
+
 	assert.Equal(t, []historyStep{
 		{ops: []string{"set_content"}, tool: "ai-translate"},
 		{ops: []string{"replace_text"}, tool: "ai-translate"},
 		{ops: []string{"set_content"}},
 		{ops: []string{"replace_text"}},
+		{ops: []string{"remove_edition"}},
 	}, stepsOf(t, m, "greeting"))
 
 	// A person drafts the farewell, and a delivery that wrote it into its
