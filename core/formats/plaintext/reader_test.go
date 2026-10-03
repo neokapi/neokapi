@@ -837,7 +837,7 @@ func TestRead_SegmentIDs(t *testing.T) {
 	require.NotEmpty(t, blocks)
 
 	for _, b := range blocks {
-		require.NotEmpty(t, b.Source, "block should have source content")
+		require.NotEmpty(t, b.SourceRuns(), "block should have source content")
 		require.GreaterOrEqual(t, b.SourceSegmentCount(), 1, "block should have at least one source segment")
 		for i := range b.SourceSegmentCount() {
 			assert.NotEmpty(t, b.SourceSegmentRuns(i), "segment should have content")
