@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/profile"
@@ -14,16 +15,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// The WP5 families, one task each (docs/internals/edit-model.md, WP5).
+var pairedWP5Families = []string{
+	"bilingual-po", "gate-recovery", "insert-key", "new-edition", "plural-branch", "stale-recovery", "wording-link",
+}
+
 func TestPairedCorpusMaterialization(t *testing.T) {
 	tasks := pairedTasks()
-	require.Len(t, tasks, 8)
-	families := map[string]int{}
+	require.Len(t, tasks, 7)
+	families := []string{}
 	seen := map[string]bool{}
 	for _, task := range tasks {
 		t.Run(task.ID, func(t *testing.T) {
 			require.False(t, seen[task.ID], "task IDs must be unique")
 			seen[task.ID] = true
-			families[task.Family]++
+			families = append(families, task.Family)
 			dir := t.TempDir()
 			require.NoError(t, materializePairedTask(dir, task))
 			_, err := project.Load(filepath.Join(dir, "kapi.yaml"))
@@ -52,23 +58,30 @@ func TestPairedCorpusMaterialization(t *testing.T) {
 			})
 			require.NoError(t, err)
 			assert.Len(t, files, count)
-			// A json_equals criterion resolves its path against parsed editable
-			// files, so one naming a non-editable path can never pass. A task
-			// whose correct outcome is no change therefore carries no criteria
-			// and is scored by the automatic per-file unchanged checks instead.
-			if len(task.spec.Editable) == 0 {
-				assert.Empty(t, task.spec.Criteria, "a task with nothing editable cannot pass explicit criteria")
-			} else {
-				assert.NotEmpty(t, task.spec.Criteria)
+			assert.NotEmpty(t, task.spec.Criteria)
+			assert.NotEmpty(t, task.spec.HumanReviewRubric)
+			assert.NotEmpty(t, task.spec.Scope)
+			for _, name := range slices.Concat(task.spec.Editable, task.spec.Creates) {
+				assert.Contains(t, task.spec.Scope, pairedDirOf(name), "%s lies outside every scoped directory", name)
+			}
+			for _, name := range task.spec.Editable {
+				assert.Contains(t, files, name, "an editable file must be a fixture file")
 			}
 			for _, criterion := range task.spec.Criteria {
-				assert.Contains(t, task.spec.Editable, criterion.Path,
-					"criterion %q names a path the validator never parses", criterion.ID)
+				if criterion.Kind == "no_override" {
+					continue
+				}
+				assert.True(t, slices.Contains(task.spec.Editable, criterion.Path) || slices.Contains(task.spec.Creates, criterion.Path),
+					"criterion %q names a path the task neither edits nor creates", criterion.ID)
 			}
-			assert.NotEmpty(t, task.spec.HumanReviewRubric)
+			if task.spec.Interference != nil {
+				assert.Contains(t, task.spec.Editable, task.spec.Interference.Path)
+				assert.Contains(t, string(files[task.spec.Interference.Path]), task.spec.Interference.Find)
+			}
 		})
 	}
-	assert.Equal(t, map[string]int{"audience-adaptation": 2, "scoped-rename": 2, "guidance-revision": 3, "equipment-policy": 1}, families)
+	slices.Sort(families)
+	assert.Equal(t, pairedWP5Families, families)
 	hash, err := pairedCorpusHash()
 	require.NoError(t, err)
 	assert.Len(t, hash, 64)
@@ -81,9 +94,9 @@ func TestPairedMaterializationRejectsUnsafeDestinations(t *testing.T) {
 	task := pairedTasks()[0]
 	t.Run("existing file", func(t *testing.T) {
 		dir := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "guidance.md"), []byte("keep"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "STYLE.md"), []byte("keep"), 0o600))
 		require.Error(t, materializePairedTask(dir, task))
-		body, err := os.ReadFile(filepath.Join(dir, "guidance.md"))
+		body, err := os.ReadFile(filepath.Join(dir, "STYLE.md"))
 		require.NoError(t, err)
 		assert.Equal(t, "keep", string(body))
 	})
@@ -106,8 +119,11 @@ func TestPairedMaterializationRejectsUnsafeDestinations(t *testing.T) {
 	})
 }
 
-// This tests the authored fixture rule, not the product checker or prose quality.
-func TestPairedAssuranceFixtureMatchesItsGuidance(t *testing.T) {
+// This tests the authored fixture rules, not the product checker or prose
+// quality: the voice every task's project binds forbids unsupported
+// assurances, and its terms forbid "dashboard" in favour of "overview page",
+// which STYLE.md states for an agent that reads files.
+func TestPairedFixtureGovernanceMatchesItsStyleGuide(t *testing.T) {
 	body, err := pairedFixtures.ReadFile("testdata/paired/common/.kapi/voice.yaml")
 	require.NoError(t, err)
 	voice, err := profile.LoadProfileYAML(bytes.NewReader(body))
@@ -124,11 +140,15 @@ func TestPairedAssuranceFixtureMatchesItsGuidance(t *testing.T) {
 	for _, statement := range []string{
 		"Harbor Help is guaranteed to solve your problem.",
 		"Harbor Help guarantees a result.",
-		"We guarantee a result.",
 		"Harbor Help is always safe.",
 		"Harbor Help is risk-free.",
 	} {
 		assert.True(t, pattern.MatchString(statement), statement)
 	}
 	assert.False(t, pattern.MatchString("Harbor Help offers scheduled video appointments."))
+	assert.Contains(t, string(body), "term: dashboard")
+	assert.Contains(t, string(body), "replacement: overview page")
+	style, err := pairedFixtures.ReadFile("testdata/paired/common/STYLE.md")
+	require.NoError(t, err)
+	assert.Contains(t, string(style), `write "overview page", never "dashboard"`)
 }

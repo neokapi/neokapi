@@ -53,12 +53,13 @@ func TestPairedCLIWrapperWithBuiltKapi(t *testing.T) {
 	}
 	binary, err := filepath.Abs(binary)
 	require.NoError(t, err)
-	task, err := findPairedTask("audience-child")
+	task, err := findPairedTask("add-json-key")
 	require.NoError(t, err)
 	launch := PairedLaunch{
 		Workspace: t.TempDir(), StateDir: t.TempDir(), Condition: "skill-cli", KapiBin: binary,
 	}
 	require.NoError(t, materializePairedTask(launch.Workspace, task))
+	require.NoError(t, readPairedContext(t.Context(), launch.Workspace, binary))
 	require.NoError(t, os.Mkdir(filepath.Join(launch.StateDir, "bin"), 0o700))
 	require.NoError(t, pairedToolPath(launch))
 	run := func(args ...string) []byte {
@@ -69,12 +70,12 @@ func TestPairedCLIWrapperWithBuiltKapi(t *testing.T) {
 		require.NoError(t, err, string(output))
 		return output
 	}
-	guide := run("context", "content/en/page.json")
-	assert.Contains(t, string(guide), "harbor-help/child")
-	assert.Contains(t, string(guide), "trusted adult")
-	blocks := run("inspect", "content/en/page.json", "--jsonl")
+	guide := run("context", "locales/en.json")
+	assert.Contains(t, string(guide), "Harbor Help")
+	assert.Contains(t, string(guide), "overview page")
+	blocks := run("inspect", "locales/en.json", "--jsonl")
 	lines := strings.Split(strings.TrimSpace(string(blocks)), "\n")
-	require.Len(t, lines, 4)
+	require.Len(t, lines, 9)
 	var changes strings.Builder
 	for _, line := range lines {
 		var block map[string]any
@@ -94,16 +95,16 @@ func TestPairedCLIWrapperWithBuiltKapi(t *testing.T) {
 	require.NoError(t, os.WriteFile(edits, []byte(changes.String()), 0o600))
 	run("apply", edits)
 	run("version")
-	page, err := os.ReadFile(filepath.Join(launch.Workspace, "content/en/page.json"))
+	page, err := os.ReadFile(filepath.Join(launch.Workspace, "locales/en.json"))
 	require.NoError(t, err)
 	files, err := pairedTaskFiles(task)
 	require.NoError(t, err)
-	assert.JSONEq(t, string(files["content/en/page.json"]), string(page))
+	assert.Equal(t, string(files["locales/en.json"]), string(page))
 }
 
 func TestPairedClaudeConfiguration(t *testing.T) {
 	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "private-token")
-	for _, condition := range []string{"baseline", "skill-cli", "mcp"} {
+	for _, condition := range pairedConditions {
 		t.Run(condition, func(t *testing.T) {
 			state := t.TempDir()
 			workspace := t.TempDir()
@@ -121,16 +122,15 @@ func TestPairedClaudeConfiguration(t *testing.T) {
 			} else {
 				assert.Empty(t, servers)
 			}
-			assert.Equal(t, condition != "skill-cli", strings.Contains(strings.Join(prepared.Args, " "), "--disable-slash-commands"))
+			arm, err := pairedArmFor(condition)
+			require.NoError(t, err)
+			assert.Equal(t, arm.Skill == "", strings.Contains(strings.Join(prepared.Args, " "), "--disable-slash-commands"))
 			for i, arg := range prepared.Args {
 				if arg == "--setting-sources" {
-					want := ""
-					if condition == "skill-cli" {
-						want = "project"
-					}
-					assert.Equal(t, want, prepared.Args[i+1])
+					assert.Equal(t, "project", prepared.Args[i+1], "only the workspace's own settings are read")
 				}
 			}
+			assert.Contains(t, prepared.Args, "--strict-mcp-config")
 			settings, err := os.ReadFile(filepath.Join(state, "claude-settings.json"))
 			require.NoError(t, err)
 			assert.Contains(t, string(settings), `"allowUnsandboxedCommands": false`)
@@ -148,7 +148,7 @@ func TestPairedCodexMCPApprovalAppliesOnlyToFixtureServer(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(authDir, "auth.json"), []byte("{}"), 0o600))
 	probe := filepath.Join(t.TempDir(), "subscription-probe")
 	require.NoError(t, os.WriteFile(probe, []byte("#!/bin/sh\nprintf 'Logged in using ChatGPT\\n'\n"), 0o700))
-	for _, condition := range []string{"baseline", "skill-cli", "mcp"} {
+	for _, condition := range pairedConditions {
 		state := t.TempDir()
 		require.NoError(t, os.Mkdir(filepath.Join(state, "codex"), 0o700))
 		p := PairedPrepared{
@@ -171,16 +171,19 @@ func TestPairedCodexMCPApprovalAppliesOnlyToFixtureServer(t *testing.T) {
 }
 
 func TestPairedToolPathHasOnlyAssignedCLI(t *testing.T) {
-	for _, condition := range []string{"baseline", "skill-cli", "mcp"} {
+	for _, condition := range pairedConditions {
 		t.Run(condition, func(t *testing.T) {
 			state := t.TempDir()
 			require.NoError(t, os.Mkdir(filepath.Join(state, "bin"), 0o700))
 			require.NoError(t, pairedToolPath(PairedLaunch{StateDir: state, Condition: condition, KapiBin: "/test/kapi"}))
-			_, err := os.Lstat(filepath.Join(state, "bin", "kapi"))
-			if condition == "skill-cli" {
+			arm, err := pairedArmFor(condition)
+			require.NoError(t, err)
+			assert.Equal(t, arm.Executables, pairedCellExecutables(filepath.Join(state, "bin")))
+			if condition == "project-free" {
+				// The alias is the binary itself under another name.
+				target, err := os.Readlink(filepath.Join(state, "bin", pairedFilesAlias))
 				require.NoError(t, err)
-			} else {
-				assert.True(t, os.IsNotExist(err))
+				assert.Equal(t, "/test/kapi", target)
 			}
 			_, err = os.Lstat(filepath.Join(state, "bin", "cat"))
 			require.NoError(t, err)

@@ -1,0 +1,22 @@
+{
+  "id": "add-edition-markup",
+  "family": "new-edition",
+  "prompt": "Translate docs/en/welcome.md into Norwegian Bokmål and save the translation as docs/nb/welcome.md. Keep the page's Markdown: the headings, the numbered list, the bold text, the inline code and the links with their addresses. Do not change docs/en/welcome.md.",
+  "editable": [],
+  "creates": ["docs/nb/welcome.md"],
+  "scope": ["docs"],
+  "criteria": [
+    {"id": "markup-kept", "kind": "md_skeleton", "path": "docs/nb/welcome.md", "source": "docs/en/welcome.md",
+     "description": "The translation has the source's headings and levels, list items, bold spans, inline code and link addresses, in order"},
+    {"id": "translated", "kind": "md_translated", "path": "docs/nb/welcome.md", "source": "docs/en/welcome.md",
+     "description": "Every prose block differs from the English and no English sentence of four or more words remains"},
+    {"id": "bokmal", "kind": "language", "path": "docs/nb/welcome.md", "value": "nb",
+     "description": "The prose reads as Norwegian Bokmål by its function words"},
+    {"id": "reference-bytes", "kind": "bytes_equal", "path": "docs/nb/welcome.md", "informational": true,
+     "description": "Identical to the reference translation (wording varies; reported only)"}
+  ],
+  "humanReviewRubric": [
+    "Is the translation accurate and natural Norwegian Bokmål?",
+    "Are the interface label in bold and the appointment code treated sensibly?"
+  ]
+}

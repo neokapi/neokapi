@@ -1,0 +1,14 @@
+{
+  "id": "edit-plural-branch",
+  "family": "plural-branch",
+  "prompt": "In app/src/main/res/values/strings.xml, change the one-message case (quantity \"one\") of the inbox_count plural so it reads \"%d unread message\". Keep its other cases and every other string exactly as they are.",
+  "editable": ["app/src/main/res/values/strings.xml"],
+  "scope": ["app"],
+  "criteria": [
+    {"id": "plural-bytes", "kind": "bytes_equal", "path": "app/src/main/res/values/strings.xml",
+     "description": "Only the one case of inbox_count changes; its zero and other cases, the %d placeholder and the other plural are unchanged"}
+  ],
+  "humanReviewRubric": [
+    "Did the agent leave the other case, whose text also contains \"new message\", as it was?"
+  ]
+}

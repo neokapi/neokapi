@@ -1,0 +1,82 @@
+{
+ "steps": [
+  {
+   "note": "Norwegian Bokmål edition of the welcome page",
+   "exit": 0,
+   "changeset": {
+    "ops": [
+     {
+      "op": "set_content",
+      "at": {
+       "doc": "docs/en/welcome.md",
+       "block": "h",
+       "edition": "nb"
+      },
+      "if_match": "absent",
+      "text": "Velkommen til Harbor Help"
+     },
+     {
+      "op": "set_content",
+      "at": {
+       "doc": "docs/en/welcome.md",
+       "block": "welcome-to-harbor-help/p",
+       "edition": "nb"
+      },
+      "if_match": "absent",
+      "text": "Harbor Help setter deg i kontakt med en rådgiver via <x id=\"1\"/>videotime<x id=\"/1\"/>. Du trenger en\nenhet med kamera og <x id=\"2\"/>Harbor Help-appen<x id=\"/2\"/>."
+     },
+     {
+      "op": "set_content",
+      "at": {
+       "doc": "docs/en/welcome.md",
+       "block": "welcome-to-harbor-help/h",
+       "edition": "nb"
+      },
+      "if_match": "absent",
+      "text": "Før din første time"
+     },
+     {
+      "op": "set_content",
+      "at": {
+       "doc": "docs/en/welcome.md",
+       "block": "welcome-to-harbor-help/before-your-first-appointment/list/item",
+       "edition": "nb"
+      },
+      "if_match": "absent",
+      "text": "Installer appen og logg inn med nummeret på lånekortet ditt."
+     },
+     {
+      "op": "set_content",
+      "at": {
+       "doc": "docs/en/welcome.md",
+       "block": "welcome-to-harbor-help/before-your-first-appointment/list/item#2",
+       "edition": "nb"
+      },
+      "if_match": "absent",
+      "text": "Test kameraet under <x id=\"1\"/>Innstillinger > Video<x id=\"/1\"/>."
+     },
+     {
+      "op": "set_content",
+      "at": {
+       "doc": "docs/en/welcome.md",
+       "block": "welcome-to-harbor-help/before-your-first-appointment/list/item#3",
+       "edition": "nb"
+      },
+      "if_match": "absent",
+      "text": "Ha timekoden klar, for eksempel <x id=\"1\"/>HB-2041<x id=\"/1\"/>."
+     },
+     {
+      "op": "set_content",
+      "at": {
+       "doc": "docs/en/welcome.md",
+       "block": "welcome-to-harbor-help/before-your-first-appointment/p",
+       "edition": "nb"
+      },
+      "if_match": "absent",
+      "text": "Les mer i <x id=\"1\"/>Forberede en videotime<x id=\"/1\"/>."
+     }
+    ]
+   }
+  }
+ ]
+}

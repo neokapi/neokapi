@@ -1,0 +1,22 @@
+{
+ "steps": [
+  {
+   "note": "Translate the Book button as a verb",
+   "exit": 0,
+   "changeset": {
+    "ops": [
+     {
+      "op": "set_content",
+      "at": {
+       "doc": "locales/nb/messages.po",
+       "block": "button/Book",
+       "edition": "nb"
+      },
+      "if_match": "r:6cde96fe004bf39f",
+      "text": "Bestill"
+     }
+    ]
+   }
+  }
+ ]
+}

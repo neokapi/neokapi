@@ -1,0 +1,17 @@
+{
+  "id": "edit-link-html-md",
+  "family": "wording-link",
+  "prompt": "The contact page has moved from https://harbor.example/help to https://harbor.example/support/contact. In site/help.html and docs/help.md, point the \"Contact us\" link to https://harbor.example/support/contact and change its text to \"Contact support\". Leave the other links, the configuration example and all other text as they are.",
+  "editable": ["site/help.html", "docs/help.md"],
+  "scope": ["site", "docs"],
+  "criteria": [
+    {"id": "html-bytes", "kind": "bytes_equal", "path": "site/help.html",
+     "description": "The HTML link points to the new page and reads Contact support; every other byte is unchanged"},
+    {"id": "markdown-bytes", "kind": "bytes_equal", "path": "docs/help.md",
+     "description": "The Markdown link points to the new page and reads Contact support; the FAQ link and the code block keep the old address"}
+  ],
+  "humanReviewRubric": [
+    "Did the agent change only the contact link, leaving the FAQ link that shares the old address as a prefix?",
+    "Did the configuration example in the code block keep its address?"
+  ]
+}

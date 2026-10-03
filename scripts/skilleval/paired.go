@@ -27,11 +27,20 @@ type PairedOptions struct {
 	Live         bool
 	MaxAttempts  int
 	Sessions     string
+	// Concurrency is how many sessions run at once, spread evenly over the
+	// hosts. It is not part of the study's identity.
+	Concurrency int
+	// Retry runs again the attempts whose outcome pairedRetryStatuses lists.
+	Retry bool
 }
 
 type pairedDependencies struct {
 	prepare func(context.Context, PairedLaunch) (PairedPrepared, error)
 	run     func(context.Context, PairedPrepared) (PairedAgentResult, error)
+	// probe reads a prepared cell's surface without a model call. Nil skips it.
+	probe func(context.Context, PairedPrepared) PairedSurface
+	// build checks that bin/kapi is this tree's build. Nil skips it.
+	build func(context.Context, string) (pairedBuild, error)
 }
 
 type pairedStudyRecord struct {
@@ -49,6 +58,7 @@ type pairedPreflight struct {
 	Schema        int              `json:"schema"`
 	Phase         string           `json:"phase"`
 	Offline       bool             `json:"offline"`
+	Build         pairedBuild      `json:"build"`
 	PilotSessions int              `json:"pilot_sessions"`
 	SmokeSessions int              `json:"smoke_sessions"`
 	Prepared      []PairedPrepared `json:"prepared"`
@@ -75,7 +85,9 @@ type pairedAttemptResult struct {
 }
 
 func executePaired(ctx context.Context, opts PairedOptions) error {
-	return executePairedWith(ctx, opts, pairedDependencies{prepare: preparePairedAgent, run: runPairedAgent})
+	return executePairedWith(ctx, opts, pairedDependencies{
+		prepare: preparePairedAgent, run: runPairedAgent, probe: probePairedSurface, build: checkPairedBuild,
+	})
 }
 
 func executePairedWith(ctx context.Context, opts PairedOptions, deps pairedDependencies) error {
@@ -119,6 +131,11 @@ func executePairedWith(ctx context.Context, opts PairedOptions, deps pairedDepen
 	if opts.MaxAttempts < 1 {
 		return errors.New("live execution requires a positive paired-max-attempts ceiling")
 	}
+	if deps.build != nil {
+		if _, err := deps.build(ctx, opts.RepoRoot); err != nil {
+			return err
+		}
+	}
 	if err := ensurePairedStudy(opts.Dir, record); err != nil {
 		return err
 	}
@@ -154,6 +171,13 @@ func preflightPaired(ctx context.Context, opts PairedOptions, m PairedManifest, 
 	if err != nil {
 		return err
 	}
+	if deps.build != nil {
+		build, err := deps.build(ctx, opts.RepoRoot)
+		report.Build = build
+		if err != nil {
+			report.Blockers = append(report.Blockers, err.Error())
+		}
+	}
 	for _, session := range schedule {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -170,12 +194,20 @@ func preflightPaired(ctx context.Context, opts PairedOptions, m PairedManifest, 
 		for _, blocker := range prepared.Blockers {
 			report.Blockers = append(report.Blockers, session.ID+": "+blocker)
 		}
+		if err == nil && deps.probe != nil {
+			surface := deps.probe(ctx, prepared)
+			prepared.Surface = &surface
+			for _, problem := range surface.Problems {
+				report.Blockers = append(report.Blockers, session.ID+": surface: "+problem)
+			}
+		}
 		report.Prepared = append(report.Prepared, prepared)
 	}
 	path := filepath.Join(opts.Dir, "preflight-"+pairedTimestamp()+".json")
 	if err := writePairedJSON(path, report); err != nil {
 		return err
 	}
+	printPairedSurfaces(report.Prepared)
 	fmt.Printf(
 		"paired: offline preflight; %d prepared, %d smoke / %d pilot sessions, %d live blockers; %s\n",
 		len(report.Prepared),
@@ -184,7 +216,33 @@ func preflightPaired(ctx context.Context, opts PairedOptions, m PairedManifest, 
 		len(report.Blockers),
 		path,
 	)
+	if len(report.Blockers) > 0 {
+		for _, blocker := range report.Blockers {
+			fmt.Println("  blocker: " + blocker)
+		}
+		return fmt.Errorf("preflight found %d blockers; no live phase can start", len(report.Blockers))
+	}
 	return nil
+}
+
+// printPairedSurfaces prints what each prepared cell exposes, one line per
+// host and condition: the differential the isolation proof rests on.
+func printPairedSurfaces(prepared []PairedPrepared) {
+	fmt.Println("paired: surface per cell (kapi skills, MCP servers, kapi names on PATH, problems)")
+	for _, p := range prepared {
+		if p.Surface == nil {
+			continue
+		}
+		s := p.Surface
+		skills := []string{}
+		for _, skill := range s.Skills {
+			if skill == "kapi" || skill == pairedFilesAlias {
+				skills = append(skills, skill)
+			}
+		}
+		fmt.Printf("  %-6s %-12s skills=%v mcp=%v path=%v problems=%d (%d skills visible in all)\n",
+			s.Host, s.Condition, skills, s.MCPServers, s.Executables, len(s.Problems), len(s.Skills))
+	}
 }
 
 func materializePairedLaunch(opts PairedOptions, m PairedManifest, s PairedSession, dir string) (PairedLaunch, error) {
@@ -202,16 +260,16 @@ func materializePairedLaunch(opts PairedOptions, m PairedManifest, s PairedSessi
 	kapiBin := findKapi(opts.RepoRoot)
 	prompt := task.Prompt
 	if opts.Phase == "diagnostic" {
-		prompt += "\n\n" + pairedDiagnosticInstruction(s.Condition)
+		prompt += "\n\n" + pairedDiagnosticInstruction(s.Condition, pairedDiagnosticFiles(task))
 	}
 	if err := writePairedExclusive(filepath.Join(dir, "prompt.txt"), []byte(prompt+"\n")); err != nil {
 		return PairedLaunch{}, err
 	}
 	return PairedLaunch{
-		Agent: s.Agent, Condition: s.Condition, Workspace: workspace,
+		Agent: s.Agent, Condition: s.Condition, Task: task.ID, Workspace: workspace,
 		StateDir: filepath.Join(dir, "state"), RepoRoot: opts.RepoRoot, KapiBin: kapiBin,
 		Prompt: prompt, TranscriptPath: filepath.Join(dir, "transcript.jsonl"),
-		Timeout: m.attemptTimeout(), MaxTurns: m.MaxTurns,
+		Timeout: m.attemptTimeout(), MaxTurns: m.MaxTurns, Interference: task.spec.Interference,
 	}, nil
 }
 

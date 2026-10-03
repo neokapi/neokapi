@@ -1,0 +1,13 @@
+{"steps": [
+  {"note": "Another editor changes the paragraph after it was read", "interfere": true},
+  {"note": "The edit made from the first read is refused as stale",
+   "exit": 3, "code": "stale",
+   "changeset": {"ops": [
+     {"op": "replace_text", "at": {"doc": "docs/en/upgrade.md", "block": "upgrading-harbor-help/before-you-upgrade/p"}, "if_match": "r:546353b6762dc81a",
+      "edits": [{"find": "Back up your data before you upgrade.", "text": "Back up your data and settings before you upgrade."}]}]}},
+  {"note": "Sent again against the revision the refusal reports, it keeps the other editor's change",
+   "exit": 0,
+   "changeset": {"ops": [
+     {"op": "replace_text", "at": {"doc": "docs/en/upgrade.md", "block": "upgrading-harbor-help/before-you-upgrade/p"}, "if_match": "r:4247d44c3e210651",
+      "edits": [{"find": "Back up your data before you upgrade.", "text": "Back up your data and settings before you upgrade."}]}]}}
+]}

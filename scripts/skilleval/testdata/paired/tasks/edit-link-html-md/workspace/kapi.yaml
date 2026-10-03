@@ -1,0 +1,19 @@
+version: v1
+name: harbor-help-site
+defaults:
+  source_language: en
+  voice:
+    profile: harbor-help
+  exclude:
+    - "**/.git/**"
+collections:
+  - name: site
+    content:
+      - path: site/*.html
+        format:
+          name: html
+  - name: docs
+    content:
+      - path: docs/*.md
+        format:
+          name: markdown

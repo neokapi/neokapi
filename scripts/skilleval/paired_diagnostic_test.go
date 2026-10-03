@@ -15,7 +15,7 @@ func TestPairedDiagnosticPromptAndSelection(t *testing.T) {
 	m, err := readPairedManifest(opts.ManifestPath)
 	require.NoError(t, err)
 	schedule := pairedSchedule(m, "diagnostic")
-	require.Len(t, schedule, 4)
+	require.Len(t, schedule, 6)
 	task, err := findPairedTask(m.SmokeTask)
 	require.NoError(t, err)
 	for _, session := range schedule {
@@ -26,10 +26,14 @@ func TestPairedDiagnosticPromptAndSelection(t *testing.T) {
 		assert.Contains(t, launch.Prompt, task.Prompt)
 		assert.Contains(t, launch.Prompt, "explicit")
 		assert.Contains(t, launch.Prompt, "unsupported")
-		if session.Condition == "mcp" {
-			assert.Contains(t, launch.Prompt, "context://content/en/page.json")
-			assert.Contains(t, launch.Prompt, "no profile_file or profile_pack override")
-		} else {
+		switch session.Condition {
+		case "mcp":
+			assert.Contains(t, launch.Prompt, "context:// resource for docs/en/upgrade.md")
+			assert.Contains(t, launch.Prompt, "read_blocks")
+			assert.Contains(t, launch.Prompt, "apply_edits")
+		case "project-free":
+			assert.Contains(t, launch.Prompt, "Load the installed kapi-files skill")
+		default:
 			assert.Contains(t, launch.Prompt, "Load the installed kapi skill")
 		}
 		saved, err := os.ReadFile(filepath.Join(dir, "prompt.txt"))
@@ -49,7 +53,7 @@ func TestPairedDiagnosticPromptAndSelection(t *testing.T) {
 func TestPairedDiagnosticSharesCeilingAndRetainsPhase(t *testing.T) {
 	opts := pairedTestOptions(t)
 	opts.Phase = "diagnostic"
-	opts.Sessions = "audience-child-claude-skill-cli-01,audience-child-codex-mcp-01"
+	opts.Sessions = "recover-stale-read-claude-skill-cli-01,recover-stale-read-codex-mcp-01"
 	calls := 0
 	deps := fakePairedDependencies(&calls)
 	require.NoError(t, executePairedWith(context.Background(), opts, deps))
@@ -79,7 +83,7 @@ func TestPairedDiagnosticOfflineSelection(t *testing.T) {
 	opts := pairedTestOptions(t)
 	opts.Phase = "diagnostic"
 	opts.Live = false
-	opts.Sessions = "audience-child-codex-mcp-01"
+	opts.Sessions = "recover-stale-read-codex-mcp-01"
 	calls := 0
 	prepared := []PairedLaunch{}
 	deps := fakePairedDependencies(&calls)

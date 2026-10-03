@@ -25,11 +25,24 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
+
+// flagSet reports whether the command line named the flag.
+func flagSet(name string) bool {
+	set := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			set = true
+		}
+	})
+	return set
+}
 
 const (
 	modeTrigger    = "trigger"
@@ -66,6 +79,8 @@ func main() {
 		pairedLive        = flag.Bool("paired-live", false, "explicitly allow subscription-backed agent sessions")
 		pairedMaxAttempts = flag.Int("paired-max-attempts", 6, "persistent ceiling across live phases, including failed attempts")
 		pairedSessions    = flag.String("paired-sessions", "", "comma-separated session IDs to select; does not reset the attempt ceiling")
+		pairedConcurrency = flag.Int("paired-concurrency", 2, "live sessions at once, spread evenly over the hosts")
+		pairedRetry       = flag.Bool("paired-retry", false, "run again the attempts a rate limit, an interruption or a failed launch cut short; each counts against the ceiling")
 		evalManifest      = flag.String("eval-manifest", "", "agent evaluation manifest; selects the separate evaluation runner")
 		evalPhase         = flag.String("eval-phase", "preflight", "evaluation phase: preflight, smoke, apply, grow or report")
 		evalDir           = flag.String("eval-dir", "harness/out/eval", "private directory for immutable evaluation evidence")
@@ -97,11 +112,20 @@ func main() {
 		if err != nil {
 			fail(err.Error())
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-		defer cancel()
+		// A study runs for hours and resumes where it stopped, so it has no
+		// deadline unless -timeout names one. An interrupt ends the running
+		// sessions as interrupted, which -paired-retry runs again.
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		if flagSet("timeout") {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, *timeout)
+			defer cancel()
+		}
 		err = executePaired(ctx, PairedOptions{
 			ManifestPath: *pairedManifest, Phase: *pairedPhase, Dir: *pairedDir, RepoRoot: root,
 			Live: *pairedLive, MaxAttempts: *pairedMaxAttempts, Sessions: *pairedSessions,
+			Concurrency: *pairedConcurrency, Retry: *pairedRetry,
 		})
 		if err != nil {
 			fail(err.Error())

@@ -1,0 +1,26 @@
+{
+ "steps": [
+  {
+   "note": "Say unread for one message",
+   "exit": 0,
+   "changeset": {
+    "ops": [
+     {
+      "op": "replace_text",
+      "at": {
+       "doc": "app/src/main/res/values/strings.xml",
+       "block": "inbox_count[one]"
+      },
+      "if_match": "r:e851ca044c885f07",
+      "edits": [
+       {
+        "find": "new message",
+        "text": "unread message"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

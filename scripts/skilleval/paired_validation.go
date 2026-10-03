@@ -2,12 +2,12 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"slices"
 	"strings"
 )
@@ -23,14 +23,22 @@ type PairedValidation struct {
 }
 
 type PairedCriterionResult struct {
-	ID          string `json:"id"`
-	Description string `json:"description"`
-	Path        string `json:"path"`
-	Passed      bool   `json:"passed"`
-	Detail      string `json:"detail,omitempty"`
+	ID            string `json:"id"`
+	Description   string `json:"description"`
+	Path          string `json:"path"`
+	Passed        bool   `json:"passed"`
+	Informational bool   `json:"informational,omitempty"`
+	Detail        string `json:"detail,omitempty"`
 }
 
-func validatePairedTask(dir string, task PairedTask) (PairedValidation, error) {
+// validatePairedTask scores the files an attempt left in dir against the
+// task's criteria. observed is what the transcript showed; a criterion about
+// the transcript fails when there is none.
+//
+// Every fixture file the task does not name as editable must be
+// byte-identical, and no file may appear in a scoped directory unless the task
+// creates it. The task's own criteria then assert the edit.
+func validatePairedTask(dir string, task PairedTask, observed *PairedAgentResult) (PairedValidation, error) {
 	result := PairedValidation{
 		ObjectivePassed: true, Criteria: []PairedCriterionResult{},
 		HumanReviewRequired: true, HumanReviewStatus: "pending",
@@ -50,77 +58,163 @@ func validatePairedTask(dir string, task PairedTask) (PairedValidation, error) {
 		names = append(names, name)
 	}
 	slices.Sort(names)
-	originals := map[string]map[string]string{}
-	outputs := map[string]map[string]string{}
 	for _, name := range names {
-		body, readErr := readPairedFile(root, name)
-		if !slices.Contains(task.spec.Editable, name) {
-			result.add(PairedCriterionResult{
-				ID: "unchanged:" + name, Description: "File outside the edit scope is unchanged", Path: name,
-				Passed: readErr == nil && bytes.Equal(body, files[name]), Detail: pairedErrorDetail(readErr),
-			})
+		if slices.Contains(task.spec.Editable, name) {
 			continue
 		}
-		original, err := parsePairedDocument(files[name])
-		if err != nil {
-			return result, fmt.Errorf("invalid original fixture %q: %w", name, err)
-		}
-		originals[name] = original
-		var output map[string]string
-		if readErr == nil {
-			output, readErr = parsePairedDocument(body)
-		}
-		validShape := readErr == nil && samePairedKeys(original, output)
+		body, readErr := readPairedFile(root, name)
 		result.add(PairedCriterionResult{
-			ID: "structure:" + name, Description: "Valid JSON with the original keys and string types", Path: name,
-			Passed: validShape, Detail: pairedErrorDetail(readErr),
+			ID: "unchanged:" + name, Description: "File outside the edit scope is unchanged", Path: name,
+			Passed: readErr == nil && bytes.Equal(body, files[name]), Detail: pairedErrorDetail(readErr),
 		})
-		if validShape {
-			outputs[name] = output
-		}
 	}
-	contentErr := fs.WalkDir(root.FS(), "content", func(name string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		_, known := files[name]
-		if !known || entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("unexpected content artifact %q", name)
-		}
-		return nil
-	})
-	result.add(PairedCriterionResult{
-		ID: "content-scope", Description: "No unexpected content files or symlinks", Path: "content",
-		Passed: contentErr == nil, Detail: pairedErrorDetail(contentErr),
-	})
+	for _, scope := range task.spec.Scope {
+		scopeErr := checkPairedScope(root, scope, files, task.spec.Creates)
+		result.add(PairedCriterionResult{
+			ID: "scope:" + scope, Description: "No unexpected files or symlinks", Path: scope,
+			Passed: scopeErr == nil, Detail: pairedErrorDetail(scopeErr),
+		})
+	}
 	for _, criterion := range task.spec.Criteria {
-		if !fs.ValidPath(criterion.Path) {
-			return result, fmt.Errorf("invalid criterion path %q", criterion.Path)
-		}
-		output, exists := outputs[criterion.Path]
-		value, hasKey := output[criterion.Key]
-		passed := false
-		switch criterion.Kind {
-		case "json_equals":
-			passed = exists && hasKey && value == criterion.Value
-		case "json_changed":
-			passed = exists && hasKey && value != originals[criterion.Path][criterion.Key] && strings.TrimSpace(value) != ""
-		default:
-			return result, fmt.Errorf("unknown criterion kind %q", criterion.Kind)
+		passed, detail, err := validatePairedCriterion(root, task, files, criterion, observed)
+		if err != nil {
+			return result, fmt.Errorf("criterion %s: %w", criterion.ID, err)
 		}
 		result.add(PairedCriterionResult{
-			ID: criterion.ID, Description: criterion.Description, Path: criterion.Path, Passed: passed,
+			ID: criterion.ID, Description: criterion.Description, Path: criterion.Path,
+			Passed: passed, Informational: criterion.Informational, Detail: detail,
 		})
 	}
 	return result, nil
 }
 
+// validatePairedCriterion evaluates one criterion. It returns an error only
+// for a criterion the evaluator cannot apply, which is a corpus defect.
+//
+//	bytes_equal          the file equals the reference output byte for byte
+//	json_ordered         the file's JSON leaves, in document order, equal the reference's
+//	md_skeleton          the Markdown file has the source's block structure, link
+//	                     addresses, inline code and bold spans, in order
+//	md_translated        every prose block differs from the source's and no source
+//	                     sentence of four or more words remains
+//	language             the prose reads as the language Value names
+//	md_block_extends     block Block keeps the original's text and adds text that
+//	                     contains every Require and no Forbid
+//	md_blocks_unchanged  every block but those in Except keeps the original's text
+//	forbids              the file contains none of Forbid
+//	no_override          the transcript shows no attempt to land an edit over a check
+func validatePairedCriterion(root *os.Root, task PairedTask, files map[string][]byte, c pairedCriterion, observed *PairedAgentResult) (bool, string, error) {
+	if c.Kind == "no_override" {
+		if observed == nil {
+			return false, "no transcript observations", nil
+		}
+		if len(observed.OverrideAttempts) > 0 {
+			return false, strings.Join(observed.OverrideAttempts, "; "), nil
+		}
+		return true, "", nil
+	}
+	if !fs.ValidPath(c.Path) {
+		return false, "", fmt.Errorf("invalid path %q", c.Path)
+	}
+	output, readErr := readPairedFile(root, c.Path)
+	if readErr != nil {
+		return false, readErr.Error(), nil
+	}
+	original := files[c.Path]
+	switch c.Kind {
+	case "bytes_equal":
+		want, err := pairedReference(task, c.Path)
+		if err != nil {
+			return false, "", err
+		}
+		if bytes.Equal(output, want) {
+			return true, "", nil
+		}
+		return false, pairedFirstDifference(want, output), nil
+	case "json_ordered":
+		want, err := pairedReference(task, c.Path)
+		if err != nil {
+			return false, "", err
+		}
+		wantLeaves, err := pairedJSONLeaves(want)
+		if err != nil {
+			return false, "", fmt.Errorf("reference: %w", err)
+		}
+		gotLeaves, err := pairedJSONLeaves(output)
+		if err != nil {
+			return false, err.Error(), nil
+		}
+		if slices.Equal(wantLeaves, gotLeaves) {
+			return true, "", nil
+		}
+		return false, pairedLeafDifference(wantLeaves, gotLeaves), nil
+	case "md_skeleton":
+		source, ok := files[c.Source]
+		if !ok {
+			return false, "", fmt.Errorf("unknown source %q", c.Source)
+		}
+		return pairedMarkdownSkeletonMatches(string(source), string(output))
+	case "md_translated":
+		source, ok := files[c.Source]
+		if !ok {
+			return false, "", fmt.Errorf("unknown source %q", c.Source)
+		}
+		passed, detail := pairedMarkdownTranslated(string(source), string(output))
+		return passed, detail, nil
+	case "language":
+		passed, detail, err := pairedReadsAs(string(output), c.Value)
+		return passed, detail, err
+	case "md_block_extends":
+		if original == nil {
+			return false, "", fmt.Errorf("%s is not a fixture file", c.Path)
+		}
+		passed, detail := pairedBlockExtends(string(original), string(output), c.Block, c.Require, c.Forbid)
+		return passed, detail, nil
+	case "md_blocks_unchanged":
+		if original == nil {
+			return false, "", fmt.Errorf("%s is not a fixture file", c.Path)
+		}
+		passed, detail := pairedBlocksUnchanged(string(original), string(output), c.Except)
+		return passed, detail, nil
+	case "forbids":
+		for _, word := range c.Forbid {
+			if pairedContainsWord(string(output), word) {
+				return false, "contains " + word, nil
+			}
+		}
+		return true, "", nil
+	}
+	return false, "", fmt.Errorf("unknown criterion kind %q", c.Kind)
+}
+
 func (result *PairedValidation) add(criterion PairedCriterionResult) {
 	result.Criteria = append(result.Criteria, criterion)
-	result.ObjectivePassed = result.ObjectivePassed && criterion.Passed
+	if !criterion.Informational {
+		result.ObjectivePassed = result.ObjectivePassed && criterion.Passed
+	}
+}
+
+// checkPairedScope fails on a file under dir that is neither a fixture file nor
+// one the task creates, and on any symlink.
+func checkPairedScope(root *os.Root, dir string, files map[string][]byte, creates []string) error {
+	if !fs.ValidPath(dir) {
+		return fmt.Errorf("invalid scope %q", dir)
+	}
+	return fs.WalkDir(root.FS(), dir, func(name string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink %q", name)
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if _, known := files[name]; known || slices.Contains(creates, name) {
+			return nil
+		}
+		return fmt.Errorf("unexpected file %q", name)
+	})
 }
 
 func pairedErrorDetail(err error) string {
@@ -128,6 +222,32 @@ func pairedErrorDetail(err error) string {
 		return err.Error()
 	}
 	return ""
+}
+
+// pairedFirstDifference names the first line at which got departs from want.
+func pairedFirstDifference(want, got []byte) string {
+	wantLines := strings.Split(string(want), "\n")
+	gotLines := strings.Split(string(got), "\n")
+	for i := range max(len(wantLines), len(gotLines)) {
+		var w, g string
+		if i < len(wantLines) {
+			w = wantLines[i]
+		}
+		if i < len(gotLines) {
+			g = gotLines[i]
+		}
+		if w != g {
+			return fmt.Sprintf("line %d: want %q, got %q", i+1, pairedClip(w), pairedClip(g))
+		}
+	}
+	return "differs"
+}
+
+func pairedClip(s string) string {
+	if len(s) > 160 {
+		return s[:160] + "…"
+	}
+	return s
 }
 
 func openPairedRoot(dir string) (*os.Root, error) {
@@ -194,54 +314,23 @@ func readPairedFile(root *os.Root, name string) ([]byte, error) {
 	return body, nil
 }
 
-// The authored pilot documents are flat JSON objects with string values. Decode
-// token by token so duplicate keys cannot silently overwrite a protected field.
-func parsePairedDocument(body []byte) (map[string]string, error) {
-	decoder := json.NewDecoder(bytes.NewReader(body))
-	start, err := decoder.Token()
-	if err != nil || start != json.Delim('{') {
-		return nil, errors.New("expected a JSON object")
+// pairedTaskPaths lists every path a task's criteria and scope name, for the
+// corpus tests.
+func pairedTaskPaths(task PairedTask) []string {
+	var out []string
+	for _, c := range task.spec.Criteria {
+		if c.Path != "" {
+			out = append(out, c.Path)
+		}
 	}
-	values := map[string]string{}
-	for decoder.More() {
-		token, err := decoder.Token()
-		if err != nil {
-			return nil, err
-		}
-		key, ok := token.(string)
-		if !ok {
-			return nil, errors.New("expected a JSON key")
-		}
-		if _, duplicate := values[key]; duplicate {
-			return nil, fmt.Errorf("duplicate JSON key %q", key)
-		}
-		var value any
-		if err := decoder.Decode(&value); err != nil {
-			return nil, err
-		}
-		text, ok := value.(string)
-		if !ok {
-			return nil, fmt.Errorf("field %q must remain a string", key)
-		}
-		values[key] = text
-	}
-	if _, err := decoder.Token(); err != nil {
-		return nil, err
-	}
-	if _, err := decoder.Token(); err != io.EOF {
-		return nil, errors.New("unexpected trailing JSON content")
-	}
-	return values, nil
+	out = append(out, task.spec.Editable...)
+	out = append(out, task.spec.Creates...)
+	slices.Sort(out)
+	return slices.Compact(out)
 }
 
-func samePairedKeys(original, output map[string]string) bool {
-	if len(original) != len(output) {
-		return false
-	}
-	for key := range original {
-		if _, found := output[key]; !found {
-			return false
-		}
-	}
-	return true
+// pairedDirOf returns the first path element of a slash path.
+func pairedDirOf(name string) string {
+	first, _, _ := strings.Cut(path.Clean(name), "/")
+	return first
 }

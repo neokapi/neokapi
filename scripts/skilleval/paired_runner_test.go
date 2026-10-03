@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,18 +18,23 @@ import (
 func TestPairedManifestAndSchedule(t *testing.T) {
 	m, err := readPairedManifest("testdata/paired-study.json")
 	require.NoError(t, err)
+	// The WP5 grid: two hosts, four arms, seven task families, three
+	// repetitions.
+	assert.Equal(t, pairedConditions, m.Conditions)
+	assert.Len(t, m.Tasks, 7)
+	assert.Equal(t, 3, m.Repetitions)
 	pilot := pairedSchedule(m, "pilot")
-	require.Len(t, pilot, 84)
-	require.Len(t, pairedSchedule(m, "smoke"), 6)
+	require.Len(t, pilot, 168)
+	require.Len(t, pairedSchedule(m, "smoke"), 8)
 	assert.Equal(t, pilot, pairedSchedule(m, "pilot"))
 	seen := map[string]bool{}
 	for i, s := range pilot {
 		require.False(t, seen[s.ID])
 		seen[s.ID] = true
-		if i%3 != 0 {
-			assert.Equal(t, pilot[i-i%3].Task, s.Task)
-			assert.Equal(t, pilot[i-i%3].Agent, s.Agent)
-			assert.Equal(t, pilot[i-i%3].Repetition, s.Repetition)
+		if i%4 != 0 {
+			assert.Equal(t, pilot[i-i%4].Task, s.Task)
+			assert.Equal(t, pilot[i-i%4].Agent, s.Agent)
+			assert.Equal(t, pilot[i-i%4].Repetition, s.Repetition)
 		}
 	}
 	m.Seed++
@@ -42,6 +48,8 @@ func TestPairedManifestRejectsInvalidInputs(t *testing.T) {
 		"api billing":    func(m *PairedManifest) { m.Billing = "api" },
 		"implicit model": func(m *PairedManifest) { m.Agents[0].Model = "" },
 		"mixed arm":      func(m *PairedManifest) { m.Conditions[1] = "mcp+skill" },
+		"no baseline":    func(m *PairedManifest) { m.Conditions = []string{"skill-cli", "mcp"} },
+		"only baseline":  func(m *PairedManifest) { m.Conditions = []string{"baseline"} },
 		"duplicate task": func(m *PairedManifest) { m.Tasks = append(m.Tasks, m.Tasks[0]) },
 		"path traversal": func(m *PairedManifest) { m.Study = "../other" },
 		"timeout":        func(m *PairedManifest) { m.AttemptTimeoutSeconds = 0 },
@@ -147,7 +155,9 @@ func TestPairedPreflightAndBlockersNeverInvokeAgent(t *testing.T) {
 				assert.Contains(t, string(evidence), "check_text unavailable")
 				assert.Contains(t, string(evidence), "check_file")
 			} else {
-				require.NoError(t, err)
+				// A preflight that finds a blocker fails, so no live phase is
+				// started on its say-so.
+				require.ErrorContains(t, err, "blockers")
 			}
 			assert.Zero(t, calls)
 			used, err := pairedAttemptsUsed(opts.Dir)
@@ -217,16 +227,104 @@ func TestPairedAttemptTimeoutAndModelIdentity(t *testing.T) {
 	assert.Contains(t, result.Error, "wrong-model")
 }
 
-func TestPairedRateLimitPausesBatch(t *testing.T) {
+// A rate limit pauses the host whose subscription hit it; the other host's
+// sessions go on.
+func TestPairedRateLimitPausesItsHost(t *testing.T) {
 	opts := pairedTestOptions(t)
+	opts.MaxAttempts = 8
+	limited := ""
+	hosts := []string{}
+	deps := fakePairedDependencies(new(int))
+	deps.run = func(_ context.Context, p PairedPrepared) (PairedAgentResult, error) {
+		host := p.Launch.Agent.Host
+		hosts = append(hosts, host)
+		if limited == "" {
+			limited = host
+		}
+		if host != limited {
+			return PairedAgentResult{Status: "completed", ActualModel: p.Launch.Agent.Model}, nil
+		}
+		return PairedAgentResult{Status: "rate_limited", ActualModel: p.Launch.Agent.Model, RateLimited: true}, nil
+	}
+	require.NoError(t, executePairedWith(context.Background(), opts, deps))
+	count := 0
+	for _, host := range hosts {
+		if host == limited {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count, "the limited host starts nothing after its rate limit")
+	assert.Len(t, hosts, 5, "the other host runs its four smoke sessions")
+}
+
+// -paired-retry runs a rate-limited attempt again and keeps the first record,
+// scored as superseded and counted against the ceiling.
+func TestPairedRetryRunsRateLimitedAttemptsAgain(t *testing.T) {
+	opts := pairedTestOptions(t)
+	opts.MaxAttempts = 1
 	calls := 0
 	deps := fakePairedDependencies(&calls)
 	deps.run = func(_ context.Context, p PairedPrepared) (PairedAgentResult, error) {
 		calls++
-		return PairedAgentResult{Status: "rate-limited", ActualModel: p.Launch.Agent.Model, RateLimited: true}, nil
+		return PairedAgentResult{Status: "rate_limited", ActualModel: p.Launch.Agent.Model, RateLimited: true}, nil
 	}
 	require.NoError(t, executePairedWith(context.Background(), opts, deps))
-	assert.Equal(t, 1, calls)
+	require.Equal(t, 1, calls)
+	opts.MaxAttempts = 2
+	opts.Retry = true
+	deps.run = fakePairedDependencies(&calls).run
+	require.NoError(t, executePairedWith(context.Background(), opts, deps))
+	assert.Equal(t, 2, calls)
+	paths, err := pairedAttemptPaths(opts.Dir)
+	require.NoError(t, err)
+	require.Len(t, paths, 2)
+	var study pairedStudyRecord
+	require.NoError(t, readPairedJSON(filepath.Join(opts.Dir, "study.json"), &study))
+	superseded := 0
+	for _, path := range paths {
+		row, err := scorePairedAttempt(path, study.Fingerprint)
+		require.NoError(t, err)
+		if row.Superseded {
+			superseded++
+			assert.Equal(t, "rate_limited", row.Status)
+		}
+	}
+	assert.Equal(t, 1, superseded)
+}
+
+// Concurrent sessions never exceed the ceiling, and each host runs one
+// session at a time when the concurrency equals the number of hosts.
+func TestPairedConcurrencyKeepsTheCeilingAndOneSessionPerHost(t *testing.T) {
+	opts := pairedTestOptions(t)
+	opts.Concurrency = 2
+	opts.MaxAttempts = 7
+	opts.Phase = "pilot"
+	var mu sync.Mutex
+	running := map[string]int{}
+	most := map[string]int{}
+	calls := 0
+	deps := fakePairedDependencies(&calls)
+	deps.run = func(_ context.Context, p PairedPrepared) (PairedAgentResult, error) {
+		host := p.Launch.Agent.Host
+		mu.Lock()
+		calls++
+		running[host]++
+		most[host] = max(most[host], running[host])
+		mu.Unlock()
+		time.Sleep(5 * time.Millisecond)
+		mu.Lock()
+		running[host]--
+		mu.Unlock()
+		return PairedAgentResult{Status: "completed", ActualModel: p.Launch.Agent.Model}, nil
+	}
+	require.NoError(t, executePairedWith(context.Background(), opts, deps))
+	assert.Equal(t, 7, calls)
+	for host, n := range most {
+		assert.Equal(t, 1, n, "host %s ran more than one session at a time", host)
+	}
+	used, err := pairedAttemptsUsed(opts.Dir)
+	require.NoError(t, err)
+	assert.Equal(t, 7, used)
 }
 
 func TestPairedCancellationPreservesInterruptedStatus(t *testing.T) {

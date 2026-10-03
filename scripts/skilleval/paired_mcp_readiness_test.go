@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"testing"
 	"time"
 
@@ -21,7 +22,7 @@ func TestPairedMCPDiscovery(t *testing.T) {
 	}{
 		{mode: "ready"},
 		{mode: "pagination"},
-		{mode: "missing-tool", failure: "check_text"},
+		{mode: "missing-tool", failure: "read_blocks"},
 		{mode: "missing-context", failure: "context://"},
 		{mode: "missing-capability", failure: "advertise tools and resources"},
 		{mode: "malformed", failure: "malformed MCP message"},
@@ -52,7 +53,7 @@ func TestPairedMCPDiscovery(t *testing.T) {
 			assert.Equal(t, "test-kapi", result.ServerName)
 			assert.Equal(t, "1", result.ServerVersion)
 			assert.Equal(t, []string{"resources", "tools"}, result.Capabilities)
-			assert.Equal(t, []string{"check_file", "check_text", "zzz"}, result.Tools)
+			assert.Equal(t, []string{"apply_edits", "check_file", "describe_format", "read_blocks", "zzz"}, result.Tools)
 			assert.Equal(t, []string{"context://{+path}{?format}"}, result.ResourceTemplates)
 			log, err := os.ReadFile(filepath.Join(launch.Workspace, "peer-log"))
 			require.NoError(t, err)
@@ -91,7 +92,7 @@ func TestPairedMCPReadinessWithBuiltKapi(t *testing.T) {
 	}
 	binary, err := filepath.Abs(binary)
 	require.NoError(t, err)
-	task, err := findPairedTask("audience-child")
+	task, err := findPairedTask("recover-stale-read")
 	require.NoError(t, err)
 	launch := PairedLaunch{Workspace: t.TempDir(), StateDir: t.TempDir(), Condition: "mcp", KapiBin: binary}
 	require.NoError(t, materializePairedTask(launch.Workspace, task))
@@ -99,9 +100,10 @@ func TestPairedMCPReadinessWithBuiltKapi(t *testing.T) {
 	require.NoError(t, err)
 	result := probePairedMCP(t.Context(), launch)
 	require.Equal(t, "ready", result.Status, result.Error)
-	assert.Contains(t, result.Tools, "check_file")
-	assert.Contains(t, result.Tools, "check_text")
-	assert.Contains(t, result.ResourceTemplates, "context://{+path}{?format}")
+	for _, tool := range pairedMCPRequiredTools {
+		assert.Contains(t, result.Tools, tool)
+	}
+	assert.True(t, slices.ContainsFunc(result.ResourceTemplates, pairedLocationContextURI), "%v", result.ResourceTemplates)
 	for path, expected := range files {
 		actual, err := os.ReadFile(filepath.Join(launch.Workspace, path))
 		require.NoError(t, err)
@@ -198,7 +200,7 @@ func TestPairedMCPDiscoveryPeer(t *testing.T) {
 				result["capabilities"] = map[string]any{}
 			}
 		case "tools/list":
-			tools := []map[string]string{{"name": "zzz"}, {"name": "check_text"}, {"name": "check_file"}}
+			tools := []map[string]string{{"name": "zzz"}, {"name": "apply_edits"}, {"name": "check_file"}, {"name": "describe_format"}, {"name": "read_blocks"}}
 			if mode == "missing-tool" {
 				tools = []map[string]string{{"name": "check_file"}}
 			}
@@ -206,7 +208,7 @@ func TestPairedMCPDiscoveryPeer(t *testing.T) {
 				tools = tools[:2]
 				result["nextCursor"] = "next"
 				if pairedString(pairedObject(request, "params"), "cursor") == "next" {
-					tools = []map[string]string{{"name": "check_file"}, {"name": "check_text"}}
+					tools = []map[string]string{{"name": "check_file"}, {"name": "describe_format"}, {"name": "read_blocks"}}
 					delete(result, "nextCursor")
 				}
 			}

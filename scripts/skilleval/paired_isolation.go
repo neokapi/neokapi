@@ -19,8 +19,9 @@ func preparePairedAgent(ctx context.Context, launch PairedLaunch) (PairedPrepare
 	if launch.Agent.Host != "codex" && launch.Agent.Host != "claude" {
 		return p, errors.New("host must be codex or claude")
 	}
-	if launch.Condition != "baseline" && launch.Condition != "skill-cli" && launch.Condition != "mcp" {
-		return p, errors.New("condition must be baseline, skill-cli or mcp")
+	arm, err := pairedArmFor(launch.Condition)
+	if err != nil {
+		return p, err
 	}
 	if launch.Agent.Model == "" || launch.Agent.Effort == "" {
 		return p, errors.New("explicit model and effort required")
@@ -40,6 +41,9 @@ func preparePairedAgent(ctx context.Context, launch PairedLaunch) (PairedPrepare
 	// before the agent starts and every arm works from the same context.
 	if err := readPairedContext(ctx, launch.Workspace, launch.KapiBin); err != nil {
 		return p, err
+	}
+	if len(arm.Executables) > 0 && launch.KapiBin == "" {
+		p.Blockers = append(p.Blockers, "bin/kapi from this tree is missing: run make build")
 	}
 	preparePairedMCPReadiness(ctx, &p)
 	executable, err := exec.LookPath(launch.Agent.Host)
@@ -61,14 +65,8 @@ func preparePairedAgent(ctx context.Context, launch PairedLaunch) (PairedPrepare
 		return p, err
 	}
 	p.Env = pairedEnvironment(launch)
-	if launch.Condition == "skill-cli" {
-		destination := filepath.Join(launch.Workspace, ".claude", "skills", "kapi")
-		if launch.Agent.Host == "codex" {
-			destination = filepath.Join(launch.Workspace, ".agents", "skills", "kapi")
-		}
-		if err := copyTree(filepath.Join(launch.RepoRoot, "cli", "skills", "data", "kapi"), destination); err != nil {
-			return p, fmt.Errorf("install shipped skill: %w", err)
-		}
+	if err := installPairedSkill(launch, arm); err != nil {
+		return p, fmt.Errorf("install the %s skill: %w", arm.Skill, err)
 	}
 	switch launch.Agent.Host {
 	case "claude":
@@ -107,20 +105,35 @@ func pairedToolPath(launch PairedLaunch) error {
 			return err
 		}
 	}
-	if launch.Condition == "skill-cli" {
+	arm, err := pairedArmFor(launch.Condition)
+	if err != nil {
+		return err
+	}
+	for _, name := range arm.Executables {
 		if launch.KapiBin == "" {
-			return errors.New("skill-cli requires kapi binary")
+			return fmt.Errorf("%s requires the kapi binary built from this tree", launch.Condition)
 		}
-		destination := filepath.Join(launch.StateDir, "bin", "kapi")
-		if _, err := os.Lstat(destination); errors.Is(err, os.ErrNotExist) {
-			// Some commands have no recipe flag, such as ksed, which finds the
-			// project its files belong to. Bind the fixture through the
-			// environment without changing arguments. A nonempty KAPI_PROJECT
-			// resolves before any upward walk.
-			wrapper := "#!/bin/sh\nexport KAPI_NO_PROJECT=''\nexport KAPI_PROJECT=" +
-				pairedShellQuote(filepath.Join(launch.Workspace, "kapi.yaml")) +
-				"\nexec " + pairedShellQuote(launch.KapiBin) + " \"$@\"\n"
-			return os.WriteFile(destination, []byte(wrapper), 0o700)
+		destination := filepath.Join(launch.StateDir, "bin", name)
+		if _, err := os.Lstat(destination); !errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if !arm.Project {
+			// The alias is the binary under another name: argv[0] selects the
+			// project-free root, which turns discovery off itself.
+			if err := os.Symlink(launch.KapiBin, destination); err != nil {
+				return err
+			}
+			continue
+		}
+		// Some commands have no recipe flag, such as ksed, which finds the
+		// project its files belong to. Bind the fixture through the
+		// environment without changing arguments. A nonempty KAPI_PROJECT
+		// resolves before any upward walk.
+		wrapper := "#!/bin/sh\nexport KAPI_NO_PROJECT=''\nexport KAPI_PROJECT=" +
+			pairedShellQuote(filepath.Join(launch.Workspace, "kapi.yaml")) +
+			"\nexec " + pairedShellQuote(launch.KapiBin) + " \"$@\"\n"
+		if err := os.WriteFile(destination, []byte(wrapper), 0o700); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -129,6 +142,10 @@ func pairedToolPath(launch PairedLaunch) error {
 func pairedEnvironment(launch PairedLaunch) []string {
 	env := []string{"PATH=" + filepath.Join(launch.StateDir, "bin"), "HOME=" + filepath.Join(launch.StateDir, "home"), "SHELL=/bin/sh", "LANG=en_US.UTF-8", "TERM=dumb", "NO_COLOR=1"}
 	env = append(env, isolationEnv(launch.Workspace)...)
+	// kapi records and polices what the agent's shell runs as an agent's, on
+	// both hosts alike, rather than relying on each host's marker variable
+	// reaching the shell (host.ResolveCommandActor).
+	env = append(env, "KAPI_ACTOR=agent")
 	// These are agent runtime settings, not API provider configuration. Provider
 	// keys, endpoint overrides and alternate billing routes are not inherited.
 	env = append(env, "CLAUDE_CONFIG_DIR="+filepath.Join(launch.StateDir, "claude"), "CODEX_HOME="+filepath.Join(launch.StateDir, "codex"), "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", "ENABLE_CLAUDEAI_MCP_SERVERS=false", "CLAUDE_CODE_DISABLE_AUTO_MEMORY=1", "DISABLE_AUTOUPDATER=1")
@@ -143,9 +160,20 @@ func preparePairedClaude(ctx context.Context, p *PairedPrepared) error {
 		p.Env = append(p.Env, "CLAUDE_CODE_OAUTH_TOKEN="+token)
 		p.AuthMode = "claude.ai subscription"
 	}
+	arm, err := pairedArmFor(p.Launch.Condition)
+	if err != nil {
+		return err
+	}
+	allow := []string{"Bash", "Read", "Edit", "Write", "Glob", "Grep"}
+	if arm.Skill != "" {
+		allow = append(allow, "Skill("+arm.Skill+")")
+	}
+	if arm.MCP {
+		allow = append(allow, "mcp__kapi__*")
+	}
 	settings := map[string]any{
 		"autoMemoryEnabled": false,
-		"permissions":       map[string]any{"defaultMode": "acceptEdits", "blockReadsOutsideWorkingDirectories": true, "allow": []string{"Bash", "Read", "Edit", "Write", "Glob", "Grep", "Skill(kapi)", "mcp__kapi__*"}},
+		"permissions":       map[string]any{"defaultMode": "acceptEdits", "blockReadsOutsideWorkingDirectories": true, "allow": allow},
 		"sandbox":           map[string]any{"enabled": true, "autoAllowBashIfSandboxed": true, "allowUnsandboxedCommands": false, "filesystem": map[string]any{"denyRead": []string{p.Launch.StateDir, p.Launch.RepoRoot}, "allowRead": []string{p.Launch.Workspace, filepath.Join(p.Launch.StateDir, "bin"), p.Launch.KapiBin}}, "network": map[string]any{"allowedDomains": []string{}, "strictAllowlist": true}},
 	}
 	settingsPath := filepath.Join(p.Launch.StateDir, "claude-settings.json")
@@ -153,7 +181,7 @@ func preparePairedClaude(ctx context.Context, p *PairedPrepared) error {
 		return err
 	}
 	mcp := map[string]any{"mcpServers": map[string]any{}}
-	if p.Launch.Condition == "mcp" {
+	if arm.MCP {
 		if p.Launch.KapiBin == "" {
 			return errors.New("mcp requires kapi binary")
 		}
@@ -163,13 +191,11 @@ func preparePairedClaude(ctx context.Context, p *PairedPrepared) error {
 	if err := pairedWriteJSON(mcpPath, mcp); err != nil {
 		return err
 	}
-	settingSources := ""
-	if p.Launch.Condition == "skill-cli" {
-		// Project skill discovery uses this source. The fixture supplies the
-		// shipped skill; personal and local settings remain excluded.
-		settingSources = "project"
-	}
-	p.Args = []string{"--print", "--output-format", "stream-json", "--verbose", "--model", p.Launch.Agent.Model, "--effort", p.Launch.Agent.Effort, "--setting-sources", settingSources, "--settings", settingsPath, "--strict-mcp-config", "--mcp-config", mcpPath, "--no-session-persistence", "--permission-mode", "acceptEdits", "--tools", "Bash,Read,Edit,Write,Glob,Grep,Skill,ToolSearch"}
+	// Only the project source is read: it is where a skill installed in the
+	// workspace is discovered, and a workspace holds nothing else Claude reads.
+	// The user and local sources stay excluded in every arm, and the strict,
+	// explicit MCP configuration replaces every other server.
+	p.Args = []string{"--print", "--output-format", "stream-json", "--verbose", "--model", p.Launch.Agent.Model, "--effort", p.Launch.Agent.Effort, "--setting-sources", "project", "--settings", settingsPath, "--strict-mcp-config", "--mcp-config", mcpPath, "--no-session-persistence", "--permission-mode", "acceptEdits", "--tools", "Bash,Read,Edit,Write,Glob,Grep,Skill,ToolSearch"}
 	if p.Launch.NoTools {
 		for i := range p.Args {
 			if p.Args[i] == "--tools" {
@@ -177,7 +203,7 @@ func preparePairedClaude(ctx context.Context, p *PairedPrepared) error {
 			}
 		}
 	}
-	if p.Launch.Condition != "skill-cli" {
+	if arm.Skill == "" {
 		p.Args = append(p.Args, "--disable-slash-commands")
 	}
 	if p.Launch.MaxTurns > 0 {

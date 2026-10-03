@@ -1,0 +1,23 @@
+{
+ "steps": [
+  {
+   "note": "Add the export message",
+   "exit": 0,
+   "changeset": {
+    "ops": [
+     {
+      "op": "insert_block",
+      "doc": "locales/en.json",
+      "after": "settings.importData",
+      "name": "settings.exportData",
+      "editions": {
+       "en": {
+        "text": "Export your data"
+       }
+      }
+     }
+    ]
+   }
+  }
+ ]
+}
