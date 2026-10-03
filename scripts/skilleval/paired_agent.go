@@ -86,6 +86,10 @@ type PairedAgentResult struct {
 	Turns *int64 `json:"turns,omitempty"`
 	// ToolCalls counts the tool calls the host completed.
 	ToolCalls int `json:"tool_calls"`
+	// ToolCallsSource says where a Codex session's count came from: the
+	// exec stream, or the session's rollout where it recorded more (the
+	// rejected patches and apply_patch calls the stream leaves out).
+	ToolCallsSource string `json:"tool_calls_source,omitempty"`
 	// Refusals counts the refusal codes tool results carried: kapi's own
 	// (stale, gate_failed, guard, …) and, prefixed host:, a host tool's
 	// refusal of a stale write.
