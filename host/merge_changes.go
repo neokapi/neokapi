@@ -129,8 +129,8 @@ const (
 	mergeRefused   = "refused"
 )
 
-// mergeActor is who a merge sends its change sets as: the person returning a
-// translator's work.
+// mergeChangeActor is who a merge sends its change sets as: the person
+// returning a translator's work.
 var mergeChangeActor = change.Actor{Kind: change.ActorPerson}
 
 // maxMergePasses bounds how often a merge sends a file's change set again
