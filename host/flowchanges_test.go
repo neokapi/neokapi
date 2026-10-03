@@ -377,6 +377,43 @@ func TestFlowRun_PrintsTheChangeSetKapiApplyAppliesToTheSameBytes(t *testing.T) 
 	assert.Equal(t, string(ran), string(applied))
 }
 
+// A printed change set states how the run's tool produced each translation,
+// and kapi apply records the change as its applier's edit: it says so in one
+// line, and the block history names the person, not the tool.
+func TestFlowRun_APrintedSetStatesItsToolAndKapiApplyRecordsTheApplier(t *testing.T) {
+	a, cmd, recipe := newFlowProject(t, project.MaterializeManual)
+	root := filepath.Dir(recipe)
+	set := printRun(t, a, cmd, func() error { return a.ExecuteUp(cmd, recipe) })
+	require.Len(t, set.Ops, 3)
+	var tool string
+	for _, op := range set.Ops {
+		body, ok := op.Body.(*change.SetContent)
+		require.True(t, ok)
+		require.NotNil(t, body.Origin, "a printed translation states how it was produced")
+		assert.NotEmpty(t, body.Origin.Tool)
+		tool = body.Origin.Tool
+	}
+
+	raw, err := json.Marshal(set)
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "change.json")
+	require.NoError(t, os.WriteFile(path, raw, 0o600))
+	apply := commitCommand(t, recipe)
+	var stderr bytes.Buffer
+	apply.SetOut(io.Discard)
+	apply.SetErr(&stderr)
+	require.NoError(t, a.RunApply(apply, path, ApplyOptions{}))
+	assert.Contains(t, stderr.String(),
+		"note: 3 operations state how "+tool+" produced their content; kapi apply records the change as yours, and that origin is not kept")
+	assert.FileExists(t, filepath.Join(root, "src", "qps.json"))
+
+	rows := flowHistory(t, a, root)
+	require.NotEmpty(t, rows)
+	for _, r := range rows {
+		assert.Equal(t, string(change.ActorPerson), r.Actor, "the applier's edit, not the tool's")
+	}
+}
+
 // writeDuringRun passes every part through and, before the first, writes data
 // to path: a person saving the file while the run works.
 type writeDuringRun struct {

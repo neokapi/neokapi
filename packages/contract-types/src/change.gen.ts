@@ -47,9 +47,8 @@ export interface ChangeSet {
   /** where the wording behind the change was seen */
   evidence?: ChangeEvidence[];
   /**
-   * the operations, applied in order
-   *
-   * @minItems 1
+   * the operations, applied in order; a position names the content as read, and
+   * an empty list changes nothing
    */
   ops: ChangeOp[];
 }
@@ -145,6 +144,18 @@ export type SetContentOp = {
    * example [1, {"plural": "one"}]
    */
   path?: RunPath;
+  /**
+   * how a tool produced the content; an edit a person or an agent sends is
+   * recorded as theirs, and this is not kept
+   */
+  origin?: {
+    /** the tool that produced the content */
+    tool: string;
+    /** what the tool drew on, such as mt, ai or memory */
+    kind?: string;
+    /** the engine or model the tool used */
+    engine?: string;
+  };
 } & (
   | { text: string; runs?: never }
   | { runs: ChangeRun[]; text?: never }
@@ -171,6 +182,18 @@ export interface ReplaceTextOp {
    * @minItems 1
    */
   edits: TextEdit[];
+  /**
+   * how a tool produced the content; an edit a person or an agent sends is
+   * recorded as theirs, and this is not kept
+   */
+  origin?: {
+    /** the tool that produced the content */
+    tool: string;
+    /** what the tool drew on, such as mt, ai or memory */
+    kind?: string;
+    /** the engine or model the tool used */
+    engine?: string;
+  };
 }
 
 /** Change a writable attribute of an inline code, such as a link's href. */
@@ -833,7 +856,8 @@ export const CHANGE_ERROR_CODES: readonly ChangeErrorCode[] = ["invalid", "not_f
  * - `structure_lost`: the result would flatten a plural or select, or an edit
  *   reaches into one without naming its branch with a path.
  * - `bad_position`: a position is outside the sequence it addresses.
- * - `overlap`: two edits of one operation overlap.
+ * - `overlap`: two edits of one operation overlap, or a position names text an
+ *   earlier operation of the change set changed in the same edition.
  */
 export type ChangeGuardSubcode = "codes_changed" | "structure_lost" | "bad_position" | "overlap";
 export const CHANGE_GUARD_SUBCODES: readonly ChangeGuardSubcode[] = ["codes_changed", "structure_lost", "bad_position", "overlap"];

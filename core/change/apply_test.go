@@ -400,6 +400,33 @@ func TestApplyBlock_PreconditionsAndAtomicity(t *testing.T) {
 
 // The basis is recorded on every derived-edition write and refuses only under
 // require_basis.
+// A set_content states how a tool produced its content: a tool in a flow keeps
+// that origin on the translation, and a person's or an agent's edit is theirs
+// whatever origin it states.
+func TestApplyBlock_OnlyAToolKeepsTheOriginItStates(t *testing.T) {
+	stated := func(edition string) change.Op {
+		op := setText(edition, change.AnyRevision, "Les dette.")
+		op.Body.(*change.SetContent).Origin = &change.ToolOrigin{Tool: "translate", Kind: "mt", Engine: "demo"}
+		return op
+	}
+	tests := []struct {
+		name string
+		env  change.BlockEnv
+		want model.Origin
+	}{
+		{name: "a tool", env: tool, want: model.Origin{Tool: "translate", Kind: "mt", Engine: "demo"}},
+		{name: "a person", env: person, want: model.Origin{Kind: model.OriginHuman, Timestamp: "2026-10-02T09:00:00Z"}},
+		{name: "an agent", env: agent, want: model.Origin{Kind: model.OriginAgent, Engine: "claude", Reference: "s1", Timestamp: "2026-10-02T09:00:00Z"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			b := guideBlock()
+			requireApplied(t, apply(t, b, tc.env, stated("nb")))
+			assert.Equal(t, tc.want, b.Target("nb").Origin)
+		})
+	}
+}
+
 func TestApplyBlock_Basis(t *testing.T) {
 	b := guideBlock()
 	src := sourceRev(b)

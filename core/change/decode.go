@@ -314,8 +314,14 @@ func checkIfMatch(shape IfMatchRule, v, ptr string) *Error {
 func validateBody(op Op, ptr string) *Error {
 	switch b := op.Body.(type) {
 	case *SetContent:
+		if b.Origin != nil && b.Origin.Tool == "" {
+			return invalidAt(ptr+"/origin/tool", "names no tool")
+		}
 		return validateContent(b.Content, ptr)
 	case *ReplaceText:
+		if b.Origin != nil && b.Origin.Tool == "" {
+			return invalidAt(ptr+"/origin/tool", "names no tool")
+		}
 		if len(b.Edits) == 0 {
 			return invalidAt(ptr+"/edits", "has no edits")
 		}

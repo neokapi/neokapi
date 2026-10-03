@@ -108,9 +108,30 @@ type SetContent struct {
 	// whole edition: it walks to the plural or select run, then names the
 	// branch.
 	Path model.RunPath `json:"path,omitempty" jsonschema:"a plural form or select case to replace instead of the whole edition, for example [1, {\"plural\": \"one\"}]"`
+	// Origin says how a tool produced the content, as a run printed with
+	// --print-ops states it. The edition keeps it when a tool in a flow sends
+	// the operation. An edit a person or an agent sends is theirs, and its
+	// origin is not kept: kapi apply says so.
+	Origin *ToolOrigin `json:"origin,omitempty" jsonschema:"how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept"`
 	// Overlays says how the overlays on the edition follow the new content. It
 	// is set in process only.
 	Overlays OverlayRebase `json:"-"`
+}
+
+// ToolOrigin is how a tool produced content: the tool, and what it drew on.
+type ToolOrigin struct {
+	Tool   string `json:"tool" jsonschema:"the tool that produced the content"`
+	Kind   string `json:"kind,omitempty" jsonschema:"what the tool drew on, such as mt, ai or memory"`
+	Engine string `json:"engine,omitempty" jsonschema:"the engine or model the tool used"`
+}
+
+// OriginOf is the tool origin a model origin names, or nil when it names no
+// tool.
+func OriginOf(o model.Origin) *ToolOrigin {
+	if o.Tool == "" {
+		return nil
+	}
+	return &ToolOrigin{Tool: o.Tool, Kind: o.Kind, Engine: o.Engine}
 }
 
 // OverlayRebase says how overlays on an edition follow a rewrite of its
@@ -129,6 +150,9 @@ type OverlayRebase struct {
 // inline codes, structure and run flags.
 type ReplaceText struct {
 	Edits []TextEdit `json:"edits" jsonschema:"the replacements, each naming its text by find, by start and end, or by range"`
+	// Origin says how a tool produced the edited content, as SetContent's
+	// does.
+	Origin *ToolOrigin `json:"origin,omitempty" jsonschema:"how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept"`
 }
 
 // Selection names text in an edition: exactly one of Find, Start with End, or

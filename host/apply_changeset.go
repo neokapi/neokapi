@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/change"
@@ -81,6 +82,9 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		return err
 	}
 	actor := changeActorOf(resolved.Actor)
+	if line := toolOriginNote(set, actor); line != "" {
+		fmt.Fprintln(cmd.ErrOrStderr(), line)
+	}
 	// The note each record carries says what applied the change when the
 	// change set gives none, and keeps that a person was at the keyboard of
 	// an agent host's shell.
@@ -151,6 +155,44 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		return commentSetExit(set, res)
 	}
 	return changeResultExit(res)
+}
+
+// toolOriginNote is the one line kapi apply prints when operations of a
+// change set state how a tool produced their content, as a run printed with
+// --print-ops states it: the change is recorded as the sender's edit, so the
+// tool's origin is not kept. Empty when no operation states one.
+func toolOriginNote(set change.Set, actor change.Actor) string {
+	var tools []string
+	n := 0
+	for _, op := range set.Ops {
+		var o *change.ToolOrigin
+		switch body := op.Body.(type) {
+		case *change.SetContent:
+			o = body.Origin
+		case *change.ReplaceText:
+			o = body.Origin
+		}
+		if o == nil {
+			continue
+		}
+		n++
+		if !slices.Contains(tools, o.Tool) {
+			tools = append(tools, o.Tool)
+		}
+	}
+	if n == 0 {
+		return ""
+	}
+	whose := "yours"
+	if actor.Kind == change.ActorAgent {
+		whose = "the agent's"
+	}
+	what := "1 operation states how %s produced its content"
+	if n > 1 {
+		what = fmt.Sprintf("%d operations state how %%s produced their content", n)
+	}
+	return fmt.Sprintf("note: "+what+"; kapi apply records the change as %s, and that origin is not kept",
+		strings.Join(tools, ", "), whose)
 }
 
 // refuseUndecodable answers a change set that does not decode, exit 2: with

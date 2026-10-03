@@ -675,8 +675,18 @@ func (w *workset) setContent(op Op, body *SetContent, res *OpResult) *Error {
 	if err := w.rewrite(st, newRuns, body.Overlays, res); err != nil {
 		return err
 	}
+	w.keepOrigin(st, body.Origin)
 	w.noteChange(st, path, cur, true, nil)
 	return nil
+}
+
+// keepOrigin stamps the origin an operation states on a derived edition a
+// tool in a flow changed. Anyone else's edit is theirs (Consequences),
+// whatever origin it states.
+func (w *workset) keepOrigin(st *edState, o *ToolOrigin) {
+	if o != nil && w.env.Actor.Kind == ActorTool && w.role(st) == RoleDerived {
+		st.ed.Origin = model.Origin{Tool: o.Tool, Kind: o.Kind, Engine: o.Engine}
+	}
 }
 
 // replaceText applies replace_text.
@@ -810,6 +820,7 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 	if err := w.rewrite(st, next, OverlayRebase{Edits: flatEdits}, res); err != nil {
 		return err
 	}
+	w.keepOrigin(st, body.Origin)
 	for _, key := range keys {
 		w.noteChange(st, paths[key], cur, false, changed[key])
 	}

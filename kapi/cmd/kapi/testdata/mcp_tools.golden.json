@@ -455,7 +455,7 @@
           "type": "string"
         },
         "ops": {
-          "description": "the operations, applied in order",
+          "description": "the operations, applied in order; a position names the content as read, and an empty list changes nothing",
           "items": {
             "oneOf": [
               {
@@ -490,6 +490,28 @@
                   "op": {
                     "const": "set_content",
                     "type": "string"
+                  },
+                  "origin": {
+                    "additionalProperties": false,
+                    "description": "how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept",
+                    "properties": {
+                      "engine": {
+                        "description": "the engine or model the tool used",
+                        "type": "string"
+                      },
+                      "kind": {
+                        "description": "what the tool drew on, such as mt, ai or memory",
+                        "type": "string"
+                      },
+                      "tool": {
+                        "description": "the tool that produced the content",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "tool"
+                    ],
+                    "type": "object"
                   },
                   "path": {
                     "$ref": "#/$defs/path",
@@ -626,6 +648,28 @@
                   "op": {
                     "const": "replace_text",
                     "type": "string"
+                  },
+                  "origin": {
+                    "additionalProperties": false,
+                    "description": "how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept",
+                    "properties": {
+                      "engine": {
+                        "description": "the engine or model the tool used",
+                        "type": "string"
+                      },
+                      "kind": {
+                        "description": "what the tool drew on, such as mt, ai or memory",
+                        "type": "string"
+                      },
+                      "tool": {
+                        "description": "the tool that produced the content",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "tool"
+                    ],
+                    "type": "object"
                   }
                 },
                 "required": [
@@ -1261,7 +1305,6 @@
               }
             ]
           },
-          "minItems": 1,
           "type": "array"
         },
         "project": {
