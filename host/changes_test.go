@@ -600,3 +600,15 @@ func TestChangeAssets_APreReviewThatAnnotatesNothingIsRefused(t *testing.T) {
 	require.NotNil(t, cerr)
 	assert.Equal(t, change.CodeNotFound, cerr.Code)
 }
+
+// A change set's evidence names a block by the key a read reports, and an
+// asset it writes keeps that block with the file it was seen in.
+func TestAssetEntry_EvidenceKeepsTheBlock(t *testing.T) {
+	set := &change.Set{Evidence: []change.Evidence{{Path: "docs/a.md", Block: "install/p", Quote: "the handbook"}}}
+	e, err := assetEntry(set, change.Op{Kind: change.KindTerm, Body: &change.Term{Action: "upsert", Term: "handbook"}})
+	require.Nil(t, err)
+	require.Len(t, e.Evidence, 1)
+	assert.Equal(t, "docs/a.md", e.Evidence[0].Path)
+	assert.Equal(t, "install/p", e.Evidence[0].Unit)
+	assert.Equal(t, "the handbook", e.Evidence[0].Quote)
+}

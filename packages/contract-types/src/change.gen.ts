@@ -82,8 +82,8 @@ export type ChangeGate = "enforce" | "report";
 export interface ChangeEvidence {
   /** a project-relative file */
   path?: string;
-  /** the block key inside the file */
-  unit?: string;
+  /** the block key a read reports as ref.block */
+  block?: string;
   /** the text the wording was seen in */
   quote?: string;
   /** a web page the wording was seen on */

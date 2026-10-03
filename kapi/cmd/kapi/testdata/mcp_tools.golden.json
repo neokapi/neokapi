@@ -413,16 +413,16 @@
           "items": {
             "additionalProperties": false,
             "properties": {
+              "block": {
+                "description": "the block key a read reports as ref.block",
+                "type": "string"
+              },
               "path": {
                 "description": "a project-relative file",
                 "type": "string"
               },
               "quote": {
                 "description": "the text the wording was seen in",
-                "type": "string"
-              },
-              "unit": {
-                "description": "the block key inside the file",
                 "type": "string"
               },
               "url": {
