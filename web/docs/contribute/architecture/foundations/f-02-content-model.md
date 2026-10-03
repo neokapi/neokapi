@@ -243,6 +243,12 @@ the one the block was read in first, for loops over many blocks. Code that
 changes content reads and writes through these accessors, so the storage behind
 them (`Source` and `Targets` today) can change without touching it.
 
+`TargetEdition(locale)` and `SetTargetEdition(k, e)` read and write a target as
+an edition under the key `Target` and `SetTargetVariant` address. There the
+source language reaches a target only when the block holds one, and the empty
+locale reaches a target a reader filed under no language, which no edition
+accessor lists.
+
 `model.EditionRevision(block, k)` names an edition's content: `r:` and 16 hex
 digits of the SHA-256 of the edition key and its runs as canonical JSON. Status,
 origin and the other editions are left out, so a review decision moves no
