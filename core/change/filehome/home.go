@@ -49,6 +49,7 @@ type Home struct {
 	prepareErr   error
 	beforeSettle func(doc string)
 	backup       string
+	writeNothing bool
 }
 
 // Options configures a Home.
@@ -70,6 +71,11 @@ type Options struct {
 	// beside it with the suffix appended. The copy is written under the
 	// commit lock from the bytes the change was applied to.
 	BackupSuffix string
+	// WriteNothing makes a home that commits no produced document: Produce
+	// runs the producer into a digest and stages no file, and Commit writes
+	// nothing. A flow run that prints the change set it would apply
+	// (--print-ops) commits through such a home.
+	WriteNothing bool
 }
 
 // DefaultLockDir is where lock files go when the caller names no directory: a
@@ -80,13 +86,16 @@ func DefaultLockDir() string {
 	return filepath.Join(os.TempDir(), "kapi-locks-"+strconv.Itoa(os.Getuid()))
 }
 
-// New returns a file home over layout.
+// New returns a file home over layout. A home that only commits the
+// documents producers write (Produce) needs no layout and may be given nil;
+// Open on it fails.
 func New(layout Layout, opts Options) *Home {
 	dir := opts.LockDir
 	if dir == "" {
 		dir = DefaultLockDir()
 	}
-	return &Home{layout: layout, lockDir: dir, prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix}
+	return &Home{layout: layout, lockDir: dir, prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix,
+		writeNothing: opts.WriteNothing}
 }
 
 // Name is "file".
@@ -94,6 +103,9 @@ func (h *Home) Name() string { return "file" }
 
 // Open locates doc through the layout.
 func (h *Home) Open(ctx context.Context, doc string) (change.Session, error) {
+	if h.layout == nil {
+		return nil, &change.Error{Code: change.CodeUnreachable, Message: "this file home locates no documents"}
+	}
 	d, err := h.layout.Locate(ctx, doc)
 	if err != nil {
 		return nil, err
