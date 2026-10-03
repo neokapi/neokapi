@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T15:40:44Z",
+  "generatedAt": "2026-10-03T17:17:55Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -10,7 +10,7 @@
           "name": "ops",
           "type": "array",
           "required": true,
-          "description": "the operations, applied in order"
+          "description": "the operations, applied in order; a position names the content as read, and an empty list changes nothing"
         },
         {
           "name": "evidence",
