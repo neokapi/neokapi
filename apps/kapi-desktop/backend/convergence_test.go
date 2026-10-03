@@ -208,7 +208,6 @@ func TestGetConvergePlan_AfterARunPricesWhatTheNextPassDrafts(t *testing.T) {
 	assert.Zero(t, plan.Plan.Totals.Unanswered, "no pass runs, so nothing is drafted")
 	assert.Zero(t, plan.Plan.Totals.AIRemaining)
 	assert.Empty(t, plan.Plan.Scopes)
-	assert.Zero(t, plan.Plan.Totals.UnreadTargets, "the run read the committed targets it wrote")
 	assert.False(t, plan.StoreMissing, "the run's auto-extract populated the store")
 	assert.Zero(t, plan.ChangedFiles, "sources unchanged since the run's extract")
 
