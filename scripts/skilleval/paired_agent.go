@@ -41,6 +41,7 @@ type PairedLaunch struct {
 	MaxTurns       int                 `json:"max_turns"`
 	NoTools        bool                `json:"no_tools,omitempty"`
 	Interference   *PairedInterference `json:"interference,omitempty"`
+	LateContext    *PairedLateContext  `json:"late_context,omitempty"`
 }
 
 // PairedPrepared is an offline launch description. Blockers prohibit inference.
@@ -115,6 +116,9 @@ type PairedAgentResult struct {
 	OutsideCell []string `json:"outside_cell,omitempty"`
 	// Interference records the other editor's change, for a task that has one.
 	Interference *PairedInterferenceRecord `json:"interference,omitempty"`
+	// LateContext records when the task's late context landed, for a task
+	// that has one.
+	LateContext *PairedInterferenceRecord `json:"late_context,omitempty"`
 }
 
 // PairedInterferenceRecord says whether and when the other editor's change

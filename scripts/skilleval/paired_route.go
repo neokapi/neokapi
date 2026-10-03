@@ -49,6 +49,9 @@ func (o *pairedObserver) noteRoute(tool string, input map[string]any) {
 	route := pairedWriteRouteOf(tool, input, o.taskFiles, o.launch.Workspace)
 	if route != "" {
 		o.result.WriteRoutes = pairedUnique(o.result.WriteRoutes, route)
+		// An agent that writes before reading any context meets the rule
+		// at its first write.
+		o.landLateContext("write:" + tool)
 	}
 }
 

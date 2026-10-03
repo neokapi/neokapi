@@ -15,7 +15,12 @@ import (
 // PairedValidation deliberately has no overall accepted/pass field: objective
 // checks cannot establish meaning, audience suitability or reviewer effort.
 type PairedValidation struct {
-	ObjectivePassed     bool                    `json:"objectivePassed"`
+	ObjectivePassed bool `json:"objectivePassed"`
+	// Outcome classes the attempt: passed; asked (it changed no task file
+	// and ended on a question to the person); unchanged (it changed no task
+	// file and asked nothing); failed (it changed a task file and did not
+	// pass).
+	Outcome             string                  `json:"outcome,omitempty"`
 	Criteria            []PairedCriterionResult `json:"criteria"`
 	HumanReviewRequired bool                    `json:"humanReviewRequired"`
 	HumanReviewStatus   string                  `json:"humanReviewStatus"`
@@ -47,6 +52,13 @@ func validatePairedTask(dir string, task PairedTask, observed *PairedAgentResult
 	files, err := pairedTaskFiles(task)
 	if err != nil {
 		return result, err
+	}
+	// A late context that landed changed its files as the person did; they
+	// are held to the fixture with its text added.
+	if late := task.spec.LateContext; late != nil && observed != nil && observed.LateContext != nil && observed.LateContext.Applied {
+		for _, a := range late.Append {
+			files[a.Path] = append(slices.Clone(files[a.Path]), a.Text...)
+		}
 	}
 	root, err := openPairedRoot(dir)
 	if err != nil {
@@ -85,7 +97,52 @@ func validatePairedTask(dir string, task PairedTask, observed *PairedAgentResult
 			Passed: passed, Informational: criterion.Informational, Detail: detail,
 		})
 	}
+	result.Outcome = pairedOutcome(result.ObjectivePassed, pairedTaskFilesUnchanged(root, task, files), observed)
 	return result, nil
+}
+
+// pairedTaskFilesUnchanged reports whether every file the task may change
+// is as the fixture left it and none it may add exists.
+func pairedTaskFilesUnchanged(root *os.Root, task PairedTask, files map[string][]byte) bool {
+	for _, name := range task.spec.Editable {
+		body, err := readPairedFile(root, name)
+		if err != nil || !bytes.Equal(body, files[name]) {
+			return false
+		}
+	}
+	for _, name := range task.spec.Creates {
+		if _, err := root.Stat(name); err == nil {
+			return false
+		}
+	}
+	return true
+}
+
+// pairedOutcome classes an attempt. One that changed nothing and ended on a
+// question asked the person rather than doing the task, which is its own
+// outcome: a gate task's agent that asks before writing a forbidden word has
+// not written it.
+func pairedOutcome(passed, unchanged bool, observed *PairedAgentResult) string {
+	switch {
+	case passed:
+		return "passed"
+	case !unchanged:
+		return "failed"
+	case observed != nil && pairedAsks(observed.FinalText):
+		return "asked"
+	}
+	return "unchanged"
+}
+
+// pairedAsks reports whether an agent's last message ends its turn on a
+// question to the person.
+func pairedAsks(text string) bool {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return false
+	}
+	paragraphs := strings.Split(text, "\n\n")
+	return strings.Contains(paragraphs[len(paragraphs)-1], "?")
 }
 
 // validatePairedCriterion evaluates one criterion. It returns an error only

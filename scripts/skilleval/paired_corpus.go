@@ -40,9 +40,12 @@ type pairedTaskSpec struct {
 	// agent has seen the text it changes, for a task that measures recovery
 	// from it. A file it names is graded against the reference when the
 	// change landed and against the reference without it when it did not.
-	Interference      *PairedInterference `json:"interference,omitempty"`
-	Criteria          []pairedCriterion   `json:"criteria"`
-	HumanReviewRubric []string            `json:"humanReviewRubric"`
+	Interference *PairedInterference `json:"interference,omitempty"`
+	// LateContext is context a person adds once the agent has read the
+	// project's, for a task that measures recovery from a refusal.
+	LateContext       *PairedLateContext `json:"late_context,omitempty"`
+	Criteria          []pairedCriterion  `json:"criteria"`
+	HumanReviewRubric []string           `json:"humanReviewRubric"`
 }
 
 // pairedCriterion is one deterministic assertion on the files an attempt

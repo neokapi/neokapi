@@ -26,6 +26,10 @@ type pairedObserver struct {
 	// taskFiles are the files the task may change or add, which a native
 	// write names.
 	taskFiles []string
+	// lateContext lands the task's late context, and contextReads are the
+	// calls that read the project's context, by id, whose results land it.
+	lateContext  *pairedLateContextRun
+	contextReads map[string]bool
 }
 
 func newPairedObserver(launch PairedLaunch, result *PairedAgentResult) *pairedObserver {
@@ -37,6 +41,15 @@ func newPairedObserver(launch PairedLaunch, result *PairedAgentResult) *pairedOb
 	if launch.Interference != nil && launch.Workspace != "" {
 		o.interference = newPairedInterferer(launch.Workspace, *launch.Interference)
 		result.Interference = &PairedInterferenceRecord{}
+	}
+	if launch.LateContext != nil && launch.Workspace != "" {
+		kapiBin := launch.CellKapi
+		if kapiBin == "" {
+			kapiBin = launch.KapiBin
+		}
+		o.lateContext = &pairedLateContextRun{spec: *launch.LateContext, workspace: launch.Workspace, kapiBin: kapiBin}
+		o.contextReads = map[string]bool{}
+		result.LateContext = &PairedInterferenceRecord{}
 	}
 	return o
 }
@@ -68,6 +81,15 @@ func (o *pairedObserver) toolUse(id, tool string, input map[string]any) string {
 	o.scanInput(tool, input)
 	o.auditPaths(tool, input)
 	o.noteRoute(tool, input)
+	if o.lateContext != nil && pairedReadsContext(tool, input) {
+		if id == "" {
+			// A host that reports a call once it finished: the agent has
+			// read the context.
+			o.landLateContext("read:" + tool)
+		} else {
+			o.contextReads[id] = true
+		}
+	}
 	return ""
 }
 
@@ -121,6 +143,9 @@ func (o *pairedObserver) toolResult(id string, texts []string) {
 	o.countRefusals(texts)
 	tool := o.tools[id]
 	delete(o.tools, id)
+	if o.contextReads[id] {
+		o.landLateContext("read:" + tool)
+	}
 	if o.interference != nil && o.interference.shown(texts) {
 		o.interfere(tool)
 	}
