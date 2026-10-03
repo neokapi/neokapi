@@ -333,7 +333,8 @@ func toModelBlock(doc *kbf.Document, b *kbf.Block) *model.Block {
 		// target arrives with a zero Origin and reads as produced under no
 		// governance.
 		if origin, ok := b.TargetOrigins[locale]; ok {
-			mb.StampTargetProvenance(loc, mb.Target(loc).Status, origin)
+			e, _ := mb.Edition(model.Variant(loc))
+			mb.StampTargetProvenance(loc, model.TargetStatus(e.Status), origin)
 		}
 	}
 	ann := &KBFAnnotation{
@@ -497,8 +498,8 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 			// the source-side counterpart of the target-side discard #1471
 			// fixed just below.
 			source := cloneRuns(ann.Source)
-			if !format.VerbatimRunsCurrent(ann.Source, mb.Source) {
-				source = runsFromModel(mb.Source)
+			if src, _ := mb.Edition(mb.Authoritative(model.AuthorityPolicy{})); !format.VerbatimRunsCurrent(ann.Source, src.Runs) {
+				source = runsFromModel(src.Runs)
 			}
 			b := kbf.Block{
 				// The id is what the bundle says; a block's ID is an identity
@@ -541,7 +542,8 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 	return b, "synthesized", "synthesized"
 }
 
-// targetsFromModel projects a model.Block's committed targets onto the
+// targetsFromModel projects every edition of a model.Block but the
+// authoritative one, which the bundle holds as the source, onto the
 // .kbf.json wire shape. Every locale the block carries is written, not just
 // the writer's own: a flow that produced a target for a locale the
 // writer was not pointed at is still a target the file has to carry,
@@ -550,21 +552,16 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 // by bare locale, so a tone- or channel-qualified variant has no slot
 // and must not silently overwrite the plain one.
 func targetsFromModel(mb *model.Block) map[kbf.LocaleID][]kbf.Run {
-	if len(mb.Targets) == 0 {
-		return nil
-	}
-	out := make(map[kbf.LocaleID][]kbf.Run, len(mb.Targets))
-	for key, t := range mb.Targets {
-		if key.Tone != "" || key.Channel != "" {
+	var out map[kbf.LocaleID][]kbf.Run
+	auth := mb.Authoritative(model.AuthorityPolicy{})
+	for key, e := range mb.EachEdition {
+		if key == auth || key.Tone != "" || key.Channel != "" || len(e.Runs) == 0 {
 			continue
 		}
-		if t == nil || len(t.Runs) == 0 {
-			continue
+		if out == nil {
+			out = make(map[kbf.LocaleID][]kbf.Run)
 		}
-		out[kbf.LocaleID(key.Locale)] = runsFromModel(t.Runs)
-	}
-	if len(out) == 0 {
-		return nil
+		out[kbf.LocaleID(key.Locale)] = runsFromModel(e.Runs)
 	}
 	return out
 }
@@ -575,27 +572,22 @@ func targetsFromModel(mb *model.Block) map[kbf.LocaleID][]kbf.Run {
 // A zero Origin is omitted rather than written: an empty record and no record
 // are the same fact, and writing one would grow every bundle for nothing.
 func targetOriginsFromModel(mb *model.Block) map[kbf.LocaleID]kbf.TargetOrigin {
-	if len(mb.Targets) == 0 {
-		return nil
-	}
-	out := make(map[kbf.LocaleID]kbf.TargetOrigin, len(mb.Targets))
-	for key, t := range mb.Targets {
-		if key.Tone != "" || key.Channel != "" {
+	var out map[kbf.LocaleID]kbf.TargetOrigin
+	auth := mb.Authoritative(model.AuthorityPolicy{})
+	for key, e := range mb.EachEdition {
+		if key == auth || key.Tone != "" || key.Channel != "" || len(e.Runs) == 0 || e.Origin == (model.Origin{}) {
 			continue
 		}
-		if t == nil || len(t.Runs) == 0 || t.Origin == (model.Origin{}) {
-			continue
+		if out == nil {
+			out = make(map[kbf.LocaleID]kbf.TargetOrigin)
 		}
-		out[kbf.LocaleID(key.Locale)] = t.Origin
-	}
-	if len(out) == 0 {
-		return nil
+		out[kbf.LocaleID(key.Locale)] = e.Origin
 	}
 	return out
 }
 
 // runsFromModel is the model.Run → kbf.Run adapter used when a
-// tool populated block.Targets with structured Runs. Runs are
+// tool populated a block's editions with structured Runs. Runs are
 // preserved verbatim, including placeholders and paired codes.
 func runsFromModel(runs []model.Run) []kbf.Run {
 	if len(runs) == 0 {
