@@ -69,6 +69,11 @@ export interface PlatformAdapter {
      * was, so a person can make it again.
      */
     failedChanges?(): Promise<FailedChange[]>;
+    /**
+     * The ids of the changes `failedChanges` lists, oldest first: a cheap read
+     * the chrome polls, calling `failedChanges` only when the ids change.
+     */
+    failedChangeIds?(): Promise<number[]>;
     /** Remove one failed change from the list. */
     dismissFailedChange?(id: number): Promise<void>;
     /** Remove every failed change from the list. */

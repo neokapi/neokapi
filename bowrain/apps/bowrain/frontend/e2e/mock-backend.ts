@@ -1446,6 +1446,7 @@ export async function injectMockBackend(page: Page) {
     // before — Call.ByID's fallback for an unmocked id — and a null where a
     // component expects a list is a crash waiting for the right page.
     mock[IDS.GetFailedChanges] = () => [];
+    mock[IDS.GetFailedChangeIDs] = () => [];
     mock[IDS.ListChangesets] = () => [];
     mock[IDS.ListVoiceProfiles] = () => [];
 

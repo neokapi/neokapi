@@ -115,6 +115,7 @@ export function createDesktopPlatform(): PlatformAdapter {
       },
       pendingCount: () => Backend.GetPendingChangesCount() as Promise<number>,
       failedChanges: () => Backend.GetFailedChanges() as Promise<FailedChange[]>,
+      failedChangeIds: () => Backend.GetFailedChangeIDs() as Promise<number[]>,
       dismissFailedChange: (id: number) => Backend.DismissFailedChange(id) as Promise<void>,
       dismissFailedChanges: () => Backend.DismissFailedChanges() as Promise<void>,
       retry: retryConnection,

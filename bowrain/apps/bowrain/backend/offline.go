@@ -202,6 +202,30 @@ func (q *OfflineQueue) Failed() ([]PendingChange, error) {
 	return changes, rows.Err()
 }
 
+// FailedIDs returns the ids of the changes that did not reach the server,
+// failed or dropped, oldest first. It reads no payload, so the chrome can poll
+// it and read the list itself only when the ids change.
+func (q *OfflineQueue) FailedIDs() ([]int64, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	rows, err := q.db.Query(`SELECT id FROM pending_changes WHERE status IN ('failed', 'dropped') ORDER BY id ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ids := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 // Dismiss removes one failed or dropped change. A pending change stays.
 func (q *OfflineQueue) Dismiss(id int64) error {
 	q.mu.Lock()

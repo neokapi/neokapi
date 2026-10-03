@@ -157,6 +157,17 @@ func (a *App) GetFailedChanges() ([]FailedChange, error) {
 	return out, nil
 }
 
+// GetFailedChangeIDs lists the ids of the offline changes that did not reach
+// the server, oldest first, without reading what each was. The frontend polls
+// it and calls GetFailedChanges only when the ids change, because that call
+// reads and decodes every entry's payload, the bytes of an upload included.
+func (a *App) GetFailedChangeIDs() ([]int64, error) {
+	if a.offlineQueue == nil {
+		return []int64{}, nil
+	}
+	return a.offlineQueue.FailedIDs()
+}
+
 // DismissFailedChange removes one failed or dropped change from the list.
 func (a *App) DismissFailedChange(id int64) error {
 	if a.offlineQueue == nil {

@@ -298,3 +298,32 @@ func TestEnqueueAddsToQueue(t *testing.T) {
 	app.enqueue(deleteMemoryEntryOp{EntryID: "e1"})
 	assert.Equal(t, 1, q.PendingCount())
 }
+
+// The ids of the entries that did not reach the server list the failed and
+// dropped ones, oldest first, and follow a dismissal; a pending entry is not
+// among them.
+func TestOfflineQueueFailedIDs(t *testing.T) {
+	q := newTestQueue(t)
+
+	ids, err := q.FailedIDs()
+	require.NoError(t, err)
+	assert.Empty(t, ids)
+
+	for _, op := range []string{"op1", "op2", "op3"} {
+		require.NoError(t, q.Enqueue(op, nil))
+	}
+	changes, err := q.PeekPending(10)
+	require.NoError(t, err)
+	require.Len(t, changes, 3)
+	require.NoError(t, q.MarkDropped(changes[2].ID, "queued by an earlier version"))
+	require.NoError(t, q.MarkFailedPermanent(changes[0].ID, "HTTP 409"))
+
+	ids, err = q.FailedIDs()
+	require.NoError(t, err)
+	assert.Equal(t, []int64{changes[0].ID, changes[2].ID}, ids)
+
+	require.NoError(t, q.Dismiss(changes[0].ID))
+	ids, err = q.FailedIDs()
+	require.NoError(t, err)
+	assert.Equal(t, []int64{changes[2].ID}, ids)
+}
