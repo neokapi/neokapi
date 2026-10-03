@@ -160,6 +160,12 @@ outcomes are reported and the exit code reflects any failure.
 - **Stale segments.** A block whose `<source>` drifted since extract (someone
   edited the file while it was out) is reported **stale** and skipped, neither
   applied nor absorbed into memory. Re-extract and re-translate the drifted portion.
+- **Plurals and selects.** An XLIFF unit or PO entry holds one string, and a
+  message with a plural or select, such as an ICU plural in an ARB catalog,
+  has a branch per form. `kapi extract` leaves such a message out of the file
+  and names it, and `kapi merge` skips a returned translation that would write
+  one form in place of several. Translate those messages with `kapi translate`,
+  which translates each branch.
 - **Conflicts.** When a target already exists, `merge.conflict_policy` decides:
   `translator-wins` (default), `existing-wins`, or `newest-wins` (by
   timestamp); the same policy governs memory write-back. Never interactive.

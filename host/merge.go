@@ -822,6 +822,8 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 	}
 
 	// 5. Apply translations per conflict policy with per-block stale check.
+	var flattened []string
+	defer func() { warnFlattened(task.input, flattened) }()
 	for _, tb := range translatedBlocks {
 		target := tb.Target(targetLocale)
 		if target == nil || !hasAnyText(target.Runs) {
@@ -854,6 +856,12 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 			// noop path, but record separately so callers can see the file
 			// changed even if not at this block.
 			_ = fileStale
+		}
+
+		if flattensStructure(srcBlock.Source, target.Runs) {
+			stats.Skipped++
+			flattened = append(flattened, blockLabel(srcBlock))
+			continue
 		}
 
 		// Conflict policy.
@@ -968,6 +976,8 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 	}
 
 	// Apply per-entry.
+	var flattened []string
+	defer func() { warnFlattened(task.input, flattened) }()
 	for _, mb := range po.Blocks {
 		if mb.MsgStr == "" {
 			stats.Skipped++
@@ -988,6 +998,13 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 		// (carried in the PO's msgid) and the current source.
 		if mb.MsgID != srcBlock.SourceText() {
 			stats.Stale++
+			continue
+		}
+		if model.HasStructuredRuns(srcBlock.Source) {
+			// A PO entry's msgstr is flat text, which holds none of the
+			// message's plurals and selects.
+			stats.Skipped++
+			flattened = append(flattened, blockLabel(srcBlock))
 			continue
 		}
 		// Conflict policy.
