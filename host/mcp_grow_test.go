@@ -3,6 +3,7 @@
 package host
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"testing"
 	"time"
@@ -89,6 +90,33 @@ func TestMCPAgentActorIsAlwaysAnAgent(t *testing.T) {
 		}
 		require.NoErrorf(t, err, "an agent may %s", kind)
 	}
+}
+
+// The context tools name the block an observation was seen in by the field a
+// read reports it in, block, not by a reader's word for it.
+func TestMCPContextToolsNameTheBlock(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	tools, err := growthSession(t, app).ListTools(t.Context(), nil)
+	require.NoError(t, err)
+	seen := 0
+	for _, tool := range tools.Tools {
+		if tool.Name != "context_observe" && tool.Name != "context_correct" {
+			continue
+		}
+		seen++
+		raw, err := json.Marshal(tool.InputSchema)
+		require.NoError(t, err)
+		var s struct {
+			Properties map[string]struct {
+				Description string `json:"description"`
+			} `json:"properties"`
+		}
+		require.NoError(t, json.Unmarshal(raw, &s))
+		require.Containsf(t, s.Properties, "block", "%s takes block", tool.Name)
+		assert.Contains(t, s.Properties["block"].Description, "ref.block")
+		assert.NotContainsf(t, s.Properties, "unit", "%s takes no unit", tool.Name)
+	}
+	assert.Equal(t, 2, seen)
 }
 
 func TestMCPEvidenceAndItsRequirement(t *testing.T) {
