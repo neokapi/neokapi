@@ -256,8 +256,9 @@ between the other's stage and commit, a refusal in one document leaves every
 document as it was, whether it is found at the stage or at the commit, a
 preview writes nothing, a missing block is not found, the same content said
 again is unchanged, a file keeps its mode, a removed translation reads back
-absent while a replay of its removal is stale and writes nothing, and a change
-set with no operation applies and writes nothing. Each home runs the removal on
+absent while a replay of its removal is stale and writes nothing and a
+`set_content` creates it again, and a change set with no operation applies and
+writes nothing. Each home runs the removal on
 each kind of translation it holds: the stream's own rows; for the file home a
 PO catalog and a JSON file's translation in a file of its own; for the project
 homes the catalog a PO source's target template names (`po/fr.po` beside
@@ -278,9 +279,12 @@ renames that result; an operation whose `if_match` the new content breaks is
 refused as `stale`, and a file that moves during that second pass as well is
 `doc_changed`. Two processes that edit different blocks of one file both land.
 An edition kept in a file of its own is written through that file's skeleton,
-and an edit that needs a block the file does not hold is refused, so the file
-is never rewritten from the document; a file that does not exist yet is
-written from the document's skeleton. A change set that adds or removes
+so the file is never rewritten from the document; a file that does not exist
+yet is written from the document's skeleton. A translation created for a block
+the file does not hold arrives, in a file in its own language, with a block of
+its own that the format's writer adds beside the block it sits by in the
+document, under the key the file gives its keys; in a bilingual file, or where
+the writer adds no block, the edit is refused. A change set that adds or removes
 blocks has the format's writer write those edits into the document's file and
 into the file of each edition the blocks hold or name, keeping them in memory
 until the commit, and the stage's pass reads the result. A stage that removes a
@@ -300,7 +304,10 @@ edition's file: the JSON, YAML and ARB writers remove a key with the comment or
 metadata beside it. A format whose writer removes no block, such as Markdown
 or HTML, does not list `remove_edition`, and a removal there is refused as
 `unsupported`. A home never deletes a file: a translation's file whose last
-block is removed keeps what the format writes for no block (`{}` for JSON).
+block is removed keeps what the format writes for no block (`{}` for JSON). A
+removal or a creation the writer cannot make in a translation's file, such as
+a YAML sequence item's, refuses that operation alone, and the other
+operations of the change set are `not_applied`, blocked by it.
 Where the reader and
 the writer both stream and no block is added or removed, the document is never
 held whole. The home reports what the document's writer declares: an
@@ -419,10 +426,10 @@ the `origin` the producing tool left. Before a document's operations join the ch
 set, they are applied to a private copy of the file through the service `kapi
 apply` reaches, and they are printed only when the copy then holds the bytes
 the run would have written. A run writes a target-language file whole from its
-source, while the service edits the blocks a file holds as it stands, so the
-two differ when the source gained a block the file does not hold or the file
-holds an entry or an order of its own; such a file is named on standard error
-and left out. So is a file the run would write where the service does not keep
+source, while the service edits the file as it stands, so the two differ when
+the file holds an entry or an order of its own, or when the source gained a
+block the file's writer adds nowhere, or beside another neighbour than the run
+gives it; such a file is named on standard error and left out. So is a file the run would write where the service does not keep
 the edition (an output path given on the command line in place of the recipe's
 target), a conversion, an export and an archive. `kapi apply` of the change set
 writes the bytes the run would have written (under `materialize: on-converge`,

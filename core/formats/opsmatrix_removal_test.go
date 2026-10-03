@@ -32,6 +32,10 @@ import (
 //     the revision it was read with;
 //   - the refusals: the code, and both files as they were.
 //
+// A format lists the operation for every block it reads, so a block its
+// writer cannot take out (a YAML sequence item, named by its position) has a
+// cell holding it to a refusal.
+//
 // TestRemovalMatrixCoversEveryDeclaration holds every format that lists
 // remove_edition with one edition per file to its cells, and every other
 // such format with a skeleton pair to refusing the operation as unsupported.
@@ -58,6 +62,13 @@ type removalCell struct {
 	// removal is refused with, and both files then stay as they were.
 	want    string
 	refused change.Code
+	// source and french, when set, are the catalog and its French
+	// translation the cell runs on in place of the row's.
+	source, french string
+	// again, when set, is the text a set_content with if_match absent then
+	// creates the translation with, and recreated fr/<file> as that leaves
+	// it: the writer adds the block back beside the one it sat by.
+	again, recreated string
 }
 
 func removalMatrix() []removalRow {
@@ -65,8 +76,9 @@ func removalMatrix() []removalRow {
 		{format: "json", file: "catalog.json", template: "catalog.json.tmpl",
 			french: "{\n  \"nav\": {\n    \"home\": \"Accueil\",\n    \"cart\": \"Panier\",\n    \"legacy\": \"Ancien lien\"\n  },\n  \"title\": \"Bienvenue dans la {shop}\",\n  \"list\": [\"gardé\", \"tel quel\"],\n  \"count\": 42\n}\n",
 			cells: []removalCell{
-				{name: "remove_edition of a key between two others", block: "nav.cart",
-					want: "{\n  \"nav\": {\n    \"home\": \"Accueil\",\n    \"legacy\": \"Ancien lien\"\n  },\n  \"title\": \"Bienvenue dans la {shop}\",\n  \"list\": [\"gardé\", \"tel quel\"],\n  \"count\": 42\n}\n"},
+				{name: "remove_edition of a key between two others, and set_content creates it again there", block: "nav.cart", again: "Panier",
+					want:      "{\n  \"nav\": {\n    \"home\": \"Accueil\",\n    \"legacy\": \"Ancien lien\"\n  },\n  \"title\": \"Bienvenue dans la {shop}\",\n  \"list\": [\"gardé\", \"tel quel\"],\n  \"count\": 42\n}\n",
+					recreated: "{\n  \"nav\": {\n    \"home\": \"Accueil\",\n    \"cart\": \"Panier\",\n    \"legacy\": \"Ancien lien\"\n  },\n  \"title\": \"Bienvenue dans la {shop}\",\n  \"list\": [\"gardé\", \"tel quel\"],\n  \"count\": 42\n}\n"},
 				{name: "remove_edition of the last key of an object", block: "nav.legacy",
 					want: "{\n  \"nav\": {\n    \"home\": \"Accueil\",\n    \"cart\": \"Panier\"\n  },\n  \"title\": \"Bienvenue dans la {shop}\",\n  \"list\": [\"gardé\", \"tel quel\"],\n  \"count\": 42\n}\n"},
 				{name: "remove_edition of a top-level key holding a placeholder", block: "title",
@@ -76,17 +88,21 @@ func removalMatrix() []removalRow {
 		{format: "yaml", file: "catalog.yaml", template: "catalog.yaml.tmpl",
 			french: "# Chaînes de la boutique\nnav:\n  # Le lien d'accueil\n  home: Accueil\n  cart: Panier # dans l'en-tête\n  # Retirer après 2.0\n  legacy: Ancien lien\nhelp: |\n  Lisez le guide\n  avant de commander.\nfooter: \"Pied de page\"\n",
 			cells: []removalCell{
-				{name: "remove_edition removes the comment above the key, which is the block's note", block: "nav.legacy",
-					want: "# Chaînes de la boutique\nnav:\n  # Le lien d'accueil\n  home: Accueil\n  cart: Panier # dans l'en-tête\nhelp: |\n  Lisez le guide\n  avant de commander.\nfooter: \"Pied de page\"\n"},
+				{name: "remove_edition removes the comment above the key, which is the block's note, and set_content creates the key again", block: "nav.legacy", again: "Ancien lien",
+					want:      "# Chaînes de la boutique\nnav:\n  # Le lien d'accueil\n  home: Accueil\n  cart: Panier # dans l'en-tête\nhelp: |\n  Lisez le guide\n  avant de commander.\nfooter: \"Pied de page\"\n",
+					recreated: "# Chaînes de la boutique\nnav:\n  # Le lien d'accueil\n  home: Accueil\n  cart: Panier # dans l'en-tête\n  legacy: Ancien lien\nhelp: |\n  Lisez le guide\n  avant de commander.\nfooter: \"Pied de page\"\n"},
 				{name: "remove_edition of a value of several lines", block: "help",
 					want: "# Chaînes de la boutique\nnav:\n  # Le lien d'accueil\n  home: Accueil\n  cart: Panier # dans l'en-tête\n  # Retirer après 2.0\n  legacy: Ancien lien\nfooter: \"Pied de page\"\n"},
 				{name: "remove_edition refuses a revision that moved", block: "footer", stale: true, refused: change.CodeStale},
+				{name: "remove_edition refuses an item of a sequence, named by its position", block: "steps.[0]", refused: change.CodeUnsupported,
+					source: "steps:\n  - First\n  - Second\ntitle: Title\n", french: "steps:\n  - Premier\n  - Deuxième\ntitle: Titre\n"},
 			}},
 		{format: "arb", file: "catalog.arb", template: "catalog.arb.tmpl",
 			french: "{\n  \"@@locale\": \"fr\",\n  \"greeting\": \"Bonjour {name}\",\n  \"@greeting\": {\n    \"description\": \"Shown on the home page\",\n    \"placeholders\": {\n      \"name\": {}\n    }\n  },\n  \"cart\": \"Panier\",\n  \"items\": \"{count, plural, one{# article} other{# articles}}\",\n  \"@items\": {\n    \"placeholders\": {\n      \"count\": {}\n    }\n  }\n}\n",
 			cells: []removalCell{
-				{name: "remove_edition removes a message and its metadata", block: "greeting",
-					want: "{\n  \"@@locale\": \"fr\",\n  \"cart\": \"Panier\",\n  \"items\": \"{count, plural, one{# article} other{# articles}}\",\n  \"@items\": {\n    \"placeholders\": {\n      \"count\": {}\n    }\n  }\n}\n"},
+				{name: "remove_edition removes a message and its metadata, and set_content creates the message again", block: "greeting", again: `Bonjour <x id="p1/"/>`,
+					want:      "{\n  \"@@locale\": \"fr\",\n  \"cart\": \"Panier\",\n  \"items\": \"{count, plural, one{# article} other{# articles}}\",\n  \"@items\": {\n    \"placeholders\": {\n      \"count\": {}\n    }\n  }\n}\n",
+					recreated: "{\n  \"@@locale\": \"fr\",\n  \"greeting\": \"Bonjour {name}\",\n  \"cart\": \"Panier\",\n  \"items\": \"{count, plural, one{# article} other{# articles}}\",\n  \"@items\": {\n    \"placeholders\": {\n      \"count\": {}\n    }\n  }\n}\n"},
 				{name: "remove_edition of a plural message", block: "items",
 					want: "{\n  \"@@locale\": \"fr\",\n  \"greeting\": \"Bonjour {name}\",\n  \"@greeting\": {\n    \"description\": \"Shown on the home page\",\n    \"placeholders\": {\n      \"name\": {}\n    }\n  },\n  \"cart\": \"Panier\"\n}\n"},
 				{name: "remove_edition refuses a revision that moved", block: "cart", stale: true, refused: change.CodeStale},
@@ -150,11 +166,15 @@ func TestRemovalMatrix(t *testing.T) {
 		require.NoError(t, err)
 		for _, cell := range row.cells {
 			t.Run(string(row.format)+"/"+cell.name, func(t *testing.T) {
+				input, translation := input, row.french
+				if cell.source != "" {
+					input, translation = []byte(cell.source), cell.french
+				}
 				dir := t.TempDir()
 				require.NoError(t, os.WriteFile(filepath.Join(dir, row.file), input, 0o644))
 				require.NoError(t, os.MkdirAll(filepath.Join(dir, "fr"), 0o755))
 				frPath := filepath.Join(dir, "fr", row.file)
-				require.NoError(t, os.WriteFile(frPath, []byte(row.french), 0o644))
+				require.NoError(t, os.WriteFile(frPath, []byte(translation), 0o644))
 				svc := removalService(t, dir, reg, row.format)
 
 				before := frenchRevs(t, svc, row.file)
@@ -176,7 +196,7 @@ func TestRemovalMatrix(t *testing.T) {
 					require.Equal(t, change.SetRefused, res.Status)
 					require.NotNil(t, res.Ops[0].Error, "%+v", res.Ops[0])
 					assert.Equal(t, cell.refused, res.Ops[0].Error.Code, res.Ops[0].Error.Message)
-					assert.Equal(t, row.french, string(out), "a refused removal writes nothing")
+					assert.Equal(t, translation, string(out), "a refused removal writes nothing")
 					return
 				}
 				require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
@@ -188,6 +208,26 @@ func TestRemovalMatrix(t *testing.T) {
 				for block, was := range before {
 					if block != cell.block {
 						assert.Equal(t, was, after[block], "the translation of %s reads back as it was read", block)
+					}
+				}
+				if cell.again == "" {
+					return
+				}
+
+				text := cell.again
+				res, err = svc.Apply(context.Background(), change.Set{Ops: []change.Op{{Kind: change.KindSetContent,
+					At: change.Ref{Doc: row.file, Block: cell.block, Edition: french}, IfMatch: model.AbsentRevision, Body: &change.SetContent{Text: &text}}}},
+					change.Actor{Kind: change.ActorPerson, Name: "matrix"})
+				require.NoError(t, err)
+				require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+				out, err = os.ReadFile(frPath)
+				require.NoError(t, err)
+				assert.Equal(t, cell.recreated, string(out), "the translation's file with the translation created again")
+				again := frenchRevs(t, svc, row.file)
+				assert.Equal(t, res.Ops[0].After, again[cell.block], "the translation created again reads back")
+				for block, was := range before {
+					if block != cell.block {
+						assert.Equal(t, was, again[block], "the translation of %s reads back as it was read", block)
 					}
 				}
 			})

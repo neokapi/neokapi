@@ -164,10 +164,10 @@ kapi apply change.json              # apply exactly what was printed
 
 An empty `ops` list means there is nothing to apply, and `kapi apply` of it
 changes nothing. Every file left out of the change set is named on stderr. A run writes a
-target file whole from its source, and `kapi apply` edits only the blocks the
-file already holds, so a target file the two would write differently (a key
-the source gained, an entry only the target holds) is left out, and `kapi up`
-writes it. So are a file the recipe does not keep there (an `-o` path), a
+target file whole from its source, and `kapi apply` edits the file as it
+stands, so a target file the two would write differently (an entry only the
+target holds, or a key the source gained that `kapi apply` cannot add there,
+or adds in another place) is left out, and `kapi up` writes it. So are a file the recipe does not keep there (an `-o` path), a
 conversion, an archive, and every file of a locale `kapi up` would park at its
 ship gate. In a project, `kapi translate`, `pseudo-translate` and `run` without
 `-o` write no file, so they print nothing: use `kapi up --print-ops`. A printing

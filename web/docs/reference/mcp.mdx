@@ -426,7 +426,7 @@ plus the per-call `project`.
 
 | Operation | What it changes |
 | --- | --- |
-| `set_content` | an edition's whole text, keeping its placeholders; with `if_match: "absent"` and an `edition`, it creates that translation |
+| `set_content` | an edition's whole text, keeping its placeholders; with `if_match: "absent"` and an `edition`, it creates that translation, adding its key to a JSON, YAML or ARB translation file that lacks it |
 | `replace_text` | part of the text, named by `find`, by `start` and `end`, or by `range` |
 | `remove_edition` | drops a translation: from a bilingual file such as PO, or with its key from a JSON, YAML or ARB translation file |
 | `insert_block` | adds a key to a JSON, YAML or ARB catalog, with its text in each language |

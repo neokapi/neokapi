@@ -244,14 +244,17 @@ func (st *staged) verifyRemoved(ctx context.Context, staged string, removed map[
 	}
 	s := st.s
 	var kept *change.Error
+	var keptKey string
+	var keptEdition model.EditionKey
 	si := 0
 	p := s.ownPass(func(b *model.Block) error {
 		for _, k := range removed[si] {
 			if _, held := b.Edition(k); held && kept == nil {
 				text, _ := k.Canonical().MarshalText()
+				keptKey, keptEdition = change.BlockKey(b), k
 				kept = &change.Error{Code: change.CodeUnsupported, Capability: string(change.KindRemoveEdition), Field: "at/edition",
 					Message: fmt.Sprintf("the %s writer writes a translation of every unit, taking the source where a block holds none, so removing translation %s of block %s from %s would write its source in its place; give the translation new content with set_content instead",
-						s.doc.Format.Name, text, change.BlockKey(b), s.doc.Ref)}
+						s.doc.Format.Name, text, keptKey, s.doc.Ref)}
 			}
 		}
 		si++
@@ -262,9 +265,21 @@ func (st *staged) verifyRemoved(ctx context.Context, staged string, removed map[
 		return err
 	}
 	if kept != nil {
-		return kept
+		return st.refuseEdition(keptKey, keptEdition, kept)
 	}
 	return nil
+}
+
+// refuseEdition refuses with err the operations that changed edition k of
+// the block the document keys key (change.EditionRefuser) and returns
+// change.ErrRefused, so the change set is refused at that operation and every
+// other is not applied. An editor that refuses no operation there has err
+// refuse the document instead.
+func (st *staged) refuseEdition(key string, k model.EditionKey, err *change.Error) error {
+	if r, ok := st.e.(change.EditionRefuser); ok && r.RefuseEdition(key, k, err) {
+		return change.ErrRefused
+	}
+	return err
 }
 
 // lockKeys names the lock file of every file the stage reads or changes.
@@ -295,7 +310,7 @@ func (st *staged) lockKeys() error {
 // keeps its own skeleton, so its header (its language, its plural rule) and
 // its comments stay. A bilingual file a translation was removed from is read
 // back (verifyEditionRemoved); any other file loses the block that held the
-// translation (removeFromEditionFile).
+// translation (restructureEditionFile).
 func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdition, ix *blockIndex, changed map[int][]model.Run, gone map[int]bool) error {
 	s := st.s
 	inPlace := je.exists && !s.h.materialize
@@ -327,16 +342,16 @@ func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdi
 	if err != nil || len(gone) == 0 {
 		return err
 	}
-	// The file is written from the document's skeleton, so its blocks are in
-	// the document's order.
-	if !je.file.Bilingual {
-		names := make(map[int]string, len(gone))
-		for si := range gone {
-			names[si] = ix.keys[si]
-		}
-		return st.removeFromEditionFile(ctx, f, je, gone, names)
+	// The file is written from the document's skeleton, so its blocks have
+	// the document's keys.
+	removed := make(map[string]string, len(gone))
+	for si := range gone {
+		removed[ix.keys[si]] = ix.keys[si]
 	}
-	return st.verifyEditionRemoved(ctx, f, je, gone)
+	if !je.file.Bilingual {
+		return st.restructureEditionFile(ctx, f, je, removed, nil)
+	}
+	return st.verifyEditionRemoved(ctx, f, je, removed)
 }
 
 // stageKept stages the change to an edition a keeper holds: the blocks the
@@ -387,30 +402,58 @@ func (st *staged) stageKept(je *joinedEdition, ix *blockIndex, changed map[int]*
 
 // writeEditionInPlace stages the existing file of a joined edition through
 // its own skeleton, with each changed block written into its partner there.
-// A changed block with no partner refuses the write.
+// A translation the change creates for a block the file holds no partner of
+// is added to a file in the edition's own language as a block of its own,
+// through the format's writer (restructureEditionFile); a file whose format
+// adds no block, or a bilingual file, refuses the write.
 func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *joinedEdition, ix *blockIndex, changed map[int][]model.Run, gone map[int]bool) error {
 	s := st.s
 	byTarget := map[int][]model.Run{}
 	goneAt := map[int]bool{}
-	names := map[int]string{}
-	var unpaired []string
+	// removed maps the file's key of each block whose translation leaves it
+	// to the document's key of the block it translates.
+	removed := map[string]string{}
+	var created, unpaired []int
 	for si, runs := range changed {
 		ti, ok := je.match[si]
-		if !ok {
-			unpaired = append(unpaired, ix.keys[si])
+		switch {
+		case !ok && !gone[si]:
+			created = append(created, si)
+			continue
+		case !ok:
+			unpaired = append(unpaired, si)
 			continue
 		}
 		byTarget[ti] = runs
 		if gone[si] {
 			goneAt[ti] = true
-			names[ti] = ix.keys[si]
+			removed[change.BlockKey(je.blocks[ti])] = ix.keys[si]
 		}
 	}
+	if len(created) > 0 && (je.file.Bilingual || !addsBlocks(je.file.Format)) {
+		unpaired, created = append(unpaired, created...), nil
+	}
 	if len(unpaired) > 0 {
-		slices.Sort(unpaired)
-		return &change.Error{Code: change.CodeUnsupported, Capability: "edition", Field: "at/block",
-			Message: fmt.Sprintf("%s holds no block that pairs with %s of %s, and an edition is written only into a block its file already holds; add the block to %s first",
-				je.file.Ref, blockList(unpaired), s.doc.Ref, je.file.Ref)}
+		refusal := func(keys []string) *change.Error {
+			return &change.Error{Code: change.CodeUnsupported, Capability: "edition", Field: "at/block",
+				Message: fmt.Sprintf("%s holds no block that pairs with %s of %s, and an edition is written only into a block its file already holds; add the block to %s first",
+					je.file.Ref, blockList(keys), s.doc.Ref, je.file.Ref)}
+		}
+		keys := make([]string, 0, len(unpaired))
+		for _, si := range unpaired {
+			keys = append(keys, ix.keys[si])
+		}
+		slices.Sort(keys)
+		if r, ok := st.e.(change.EditionRefuser); ok {
+			each := true
+			for _, k := range keys {
+				each = r.RefuseEdition(k, je.key, refusal([]string{k})) && each
+			}
+			if each {
+				return change.ErrRefused
+			}
+		}
+		return refusal(keys)
 	}
 	// A bilingual file holds the edition as its translation, read and
 	// written in the edition's language; any other file holds it as its own
@@ -432,7 +475,7 @@ func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *jo
 				case ok && goneAt[ti]:
 					// A file of the edition's own holds the translation as
 					// the block itself, which leaves the file below
-					// (removeFromEditionFile).
+					// (restructureEditionFile).
 				case ok:
 					ed, _ := b.Edition(key)
 					ed.Runs = runs
@@ -442,25 +485,116 @@ func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *jo
 				return nil
 			}}.run(ctx)
 	})
-	if err != nil || len(goneAt) == 0 {
+	if err != nil {
 		return err
 	}
-	if !je.file.Bilingual {
-		return st.removeFromEditionFile(ctx, f, je, goneAt, names)
+	if je.file.Bilingual {
+		if len(removed) == 0 {
+			return nil
+		}
+		return st.verifyEditionRemoved(ctx, f, je, removed)
 	}
-	return st.verifyEditionRemoved(ctx, f, je, goneAt)
+	if len(removed) == 0 && len(created) == 0 {
+		return nil
+	}
+	return st.restructureEditionFile(ctx, f, je, removed, creations(je, ix, created, changed, goneAt))
 }
 
-// removeFromEditionFile takes the blocks at the indexes at, in the block
-// order of the file the stage wrote for a joined edition, out of that file. A
-// file in the edition's own language holds a translation as a block of its
-// own, so a translation leaves such a file with its block, which the format's
-// writer removes (format.StructureEditor), as delete_block removes a block
-// from an edition's file. A format that removes no block there refuses the
-// removal, and the file is never deleted: it keeps every other block, and
-// whatever else the format writes there when none is left. names gives the
-// document's key of each block, for a refusal.
-func (st *staged) removeFromEditionFile(ctx context.Context, f *stagedFile, je *joinedEdition, at map[int]bool, names map[int]string) error {
+// addsBlocks reports whether the writer of format b adds a block to a
+// document (format.StructureEditor).
+func addsBlocks(b Binding) bool {
+	if b.NewWriter == nil {
+		return false
+	}
+	w, err := b.NewWriter()
+	if err != nil {
+		return false
+	}
+	return slices.Contains(format.StructuralOps(w), format.StructuralInsertBlock)
+}
+
+// creation is a translation a change creates for a block of the document
+// that the edition's file, in the edition's own language, holds no partner
+// of: the block the file's writer adds there to hold it.
+type creation struct {
+	// docKey is the document's key of the block translated, and edit the
+	// block the writer adds, under the key the file gives it.
+	docKey string
+	edit   format.StructuralEdit
+}
+
+// creations are the blocks of the translations the change creates in a file
+// in the edition's own language that holds no partner of them, at the
+// document indexes created. Each goes under the key the file gives keys
+// (translateKey, as a new block's edition is keyed there), after the partner
+// of the document's nearest block before it that the file holds, or the
+// block added for that one, when its key there shares the parent of the new
+// key; else before the nearest such block after it, on the same terms; else
+// last in the mapping its key names.
+func creations(je *joinedEdition, ix *blockIndex, created []int, changed map[int][]model.Run, goneAt map[int]bool) []creation {
+	slices.Sort(created)
+	docKey, fileKey := je.anyPair(ix)
+	added := map[int]string{}
+	// in is the file's key of the document's block sj and its block there,
+	// when the file holds it once the change is written.
+	in := func(sj int) (string, *model.Block, bool) {
+		if k, ok := added[sj]; ok {
+			return k, nil, true
+		}
+		ti, ok := je.match[sj]
+		if !ok || goneAt[ti] {
+			return "", nil, false
+		}
+		return change.BlockKey(je.blocks[ti]), je.blocks[ti], true
+	}
+	out := make([]creation, 0, len(created))
+	for _, si := range created {
+		runs := changed[si]
+		e := format.StructuralEdit{Op: format.StructuralInsertBlock, Key: translateKey(ix.keys[si], docKey, fileKey),
+			Value: model.RenderRunsWithData(runs), Runs: runs}
+		parent := parentKey(e.Key)
+		for sj := si - 1; sj >= 0; sj-- {
+			if k, b, ok := in(sj); ok {
+				if parentKey(k) == parent {
+					e.Anchor, e.AnchorBlock = k, b
+				}
+				break
+			}
+		}
+		for sj := si + 1; e.Anchor == "" && sj < len(ix.keys); sj++ {
+			if k, b, ok := in(sj); ok {
+				if parentKey(k) == parent {
+					e.Anchor, e.AnchorBlock, e.Before = k, b, true
+				}
+				break
+			}
+		}
+		added[si] = e.Key
+		out = append(out, creation{docKey: ix.keys[si], edit: e})
+	}
+	return out
+}
+
+// parentKey is the key path of the mapping a block keyed key sits in, as
+// JSON and YAML key paths name it.
+func parentKey(key string) string {
+	if at := strings.LastIndexByte(key, '.'); at >= 0 {
+		return key[:at]
+	}
+	return ""
+}
+
+// restructureEditionFile takes the blocks removed names out of the file the
+// stage wrote for a joined edition in the edition's own language, and adds
+// the blocks of adds to it. Such a file holds a translation as a block of its
+// own, so a translation leaves it with its block, as delete_block removes a
+// block from an edition's file, and a translation created there arrives with
+// one; the format's writer makes both (format.StructureEditor). removed maps
+// the file's key of each block to the document's key of the block it
+// translates. A block the writer cannot remove or add refuses the operations
+// on it, and the file is never deleted: it keeps every other block, and
+// whatever else the format writes there when none is left.
+func (st *staged) restructureEditionFile(ctx context.Context, f *stagedFile, je *joinedEdition, removed map[string]string, adds []creation) error {
 	s := st.s
 	var data []byte
 	var err error
@@ -472,36 +606,75 @@ func (st *staged) removeFromEditionFile(ctx context.Context, f *stagedFile, je *
 	if err != nil {
 		return err
 	}
+	// The blocks are found by key: an edit of the pass can change what the
+	// reader reads ahead of them (a YAML value written as a number reads as
+	// no block), and with it the place of every block after.
 	var edits []format.StructuralEdit
-	var keys []string
-	i := 0
+	var docKeys []string
+	seen := map[string]int{}
 	err = s.readPass(source{path: je.file.Path}.with(data), je.file.Format, func(b *model.Block) error {
-		if at[i] {
-			edits = append(edits, format.StructuralEdit{Op: format.StructuralDeleteBlock, Key: change.BlockKey(b), Block: b})
-			keys = append(keys, names[i])
+		k := change.BlockKey(b)
+		if docKey, ok := removed[k]; ok {
+			if seen[k]++; seen[k] == 1 {
+				edits = append(edits, format.StructuralEdit{Op: format.StructuralDeleteBlock, Key: k, Block: b})
+				docKeys = append(docKeys, docKey)
+			}
 		}
-		i++
 		return nil
 	}).run(ctx)
 	if err != nil {
 		return err
 	}
-	if len(edits) != len(at) {
-		return fmt.Errorf("remove a translation from %s: the file holds %d of the %d blocks the stage wrote", je.file.Ref, len(edits), len(at))
+	for _, k := range slices.Sorted(maps.Keys(removed)) {
+		switch seen[k] {
+		case 0:
+			return fmt.Errorf("remove a translation from %s: the file the stage wrote holds no block keyed %s", je.file.Ref, k)
+		case 1:
+		default:
+			return st.refuseEdition(removed[k], je.key, &change.Error{Code: change.CodeUnsupported, Capability: string(change.KindRemoveEdition), Field: "at/edition",
+				Message: fmt.Sprintf("%s holds more than one block keyed %s, so translation %s of block %s of %s cannot leave it with its block; give the translation new content with set_content instead",
+					je.file.Ref, k, keyText(je.key), removed[k], s.doc.Ref)})
+		}
+	}
+	removals := len(edits)
+	for _, a := range adds {
+		edits = append(edits, a.edit)
+		docKeys = append(docKeys, a.docKey)
 	}
 	out, err := writeStructure(je.file.Format, data, edits)
+	var se *format.StructureError
+	for err != nil && errors.As(err, &se) && se.Edit >= removals && se.Edit < len(edits) && edits[se.Edit].Anchor != "" {
+		// The writer has no place for the new block beside the one chosen
+		// (another mapping, a sequence), so it goes last in the mapping its
+		// key names.
+		edits[se.Edit].Anchor, edits[se.Edit].AnchorBlock, edits[se.Edit].Before = "", nil, false
+		out, err = writeStructure(je.file.Format, data, edits)
+	}
 	if err != nil {
-		var se *format.StructureError
 		if !errors.As(err, &se) {
 			return err
 		}
-		block := keys[0]
-		if se.Edit >= 0 && se.Edit < len(keys) {
-			block = keys[se.Edit]
+		i := se.Edit
+		if i < 0 || i >= len(edits) {
+			i = 0
 		}
-		return &change.Error{Code: change.CodeUnsupported, Capability: string(change.KindRemoveEdition), Field: "at/edition",
-			Message: fmt.Sprintf("translation %s of block %s of %s lives in %s, which it leaves only with its block, and %s; give the translation new content with set_content instead",
-				keyText(je.key), block, s.doc.Ref, je.file.Ref, se.Message)}
+		if i < removals {
+			return st.refuseEdition(docKeys[i], je.key, &change.Error{Code: change.CodeUnsupported, Capability: string(change.KindRemoveEdition), Field: "at/edition",
+				Message: fmt.Sprintf("translation %s of block %s of %s lives in %s, which it leaves only with its block, and %s; give the translation new content with set_content instead",
+					keyText(je.key), docKeys[i], s.doc.Ref, je.file.Ref, se.Message)})
+		}
+		advice := "add the block to " + je.file.Ref + " first"
+		if se.Reason == format.StructureExists {
+			advice = "give that entry of " + je.file.Ref + " a text value, or remove it, first"
+		}
+		return st.refuseEdition(docKeys[i], je.key, &change.Error{Code: change.CodeUnsupported, Capability: "edition", Field: "at/block",
+			Message: fmt.Sprintf("%s holds no block that pairs with block %s of %s, so translation %s arrives there with a block of its own, and %s; %s",
+				je.file.Ref, docKeys[i], s.doc.Ref, keyText(je.key), se.Message, advice)})
+	}
+	if len(adds) > 0 {
+		if err := st.verifyCreated(ctx, je, out, adds); err != nil {
+			return err
+		}
 	}
 	if f.tmp != nil {
 		_ = f.tmp.Discard()
@@ -511,13 +684,54 @@ func (st *staged) removeFromEditionFile(ctx context.Context, f *stagedFile, je *
 	return err
 }
 
+// verifyCreated reads back data, a file in the edition's own language with
+// the blocks of adds added, and refuses a translation it reads otherwise than
+// it was given: no block under its key, or a value the format reads as other
+// text.
+func (st *staged) verifyCreated(ctx context.Context, je *joinedEdition, data []byte, adds []creation) error {
+	w, err := je.file.Format.NewWriter()
+	if err != nil {
+		return err
+	}
+	want := make(map[string]bool, len(adds))
+	for _, a := range adds {
+		want[a.edit.Key] = true
+	}
+	read := map[string][]*model.Block{}
+	err = st.s.readPass(source{path: je.file.Path}.with(data), je.file.Format, func(b *model.Block) error {
+		if k := change.BlockKey(b); want[k] {
+			read[k] = append(read[k], b)
+		}
+		return nil
+	}).run(ctx)
+	if err != nil {
+		return err
+	}
+	for _, a := range adds {
+		blocks := read[a.edit.Key]
+		reads := fmt.Sprintf("reads %d blocks keyed %s there", len(blocks), a.edit.Key)
+		if len(blocks) == 1 {
+			ed, _ := blocks[0].Edition(model.EditionKey{})
+			got := format.SpellValue(w, blocks[0], ed.Runs)
+			if got == format.SpellValue(w, nil, a.edit.Runs) {
+				continue
+			}
+			reads = fmt.Sprintf("reads it as %q", got)
+		}
+		return st.refuseEdition(a.docKey, je.key, &change.Error{Code: change.CodeUnsupported, Capability: "edition", Field: "at/block",
+			Message: fmt.Sprintf("translation %s of block %s of %s arrives in %s as a block keyed %s, and the %s format %s, not as given",
+				keyText(je.key), a.docKey, st.s.doc.Ref, je.file.Ref, a.edit.Key, je.file.Format.Name, reads)})
+	}
+	return nil
+}
+
 // verifyEditionRemoved reads back the bilingual file of a joined edition as
 // the stage wrote it, in the edition's language, and refuses the change when
-// a block at one of the indexes at (in the file's block order) still holds the
-// translation the editor removed: a writer that fills a unit with no
-// translation from its source, as the XLIFF and TMX writers do, would replace
-// the translation with the source rather than remove it.
-func (st *staged) verifyEditionRemoved(ctx context.Context, f *stagedFile, je *joinedEdition, at map[int]bool) error {
+// a block removed names (by the file's key, mapped to the document's) still
+// holds the translation the editor removed: a writer that fills a unit with
+// no translation from its source, as the XLIFF and TMX writers do, would
+// replace the translation with the source rather than remove it.
+func (st *staged) verifyEditionRemoved(ctx context.Context, f *stagedFile, je *joinedEdition, removed map[string]string) error {
 	if f.tmp == nil {
 		return nil
 	}
@@ -527,23 +741,24 @@ func (st *staged) verifyEditionRemoved(ctx context.Context, f *stagedFile, je *j
 	}
 	s := st.s
 	var kept *change.Error
-	i := 0
+	var keptKey string
 	p := pass{src: source{path: je.file.Path}.with(data), format: je.file.Format, locale: s.doc.SourceLocale, target: je.key.Locale,
 		encoding: s.doc.Encoding, fn: func(b *model.Block) error {
-			if _, held := b.Edition(je.key); held && at[i] && kept == nil {
+			docKey, ok := removed[change.BlockKey(b)]
+			if _, held := b.Edition(je.key); held && ok && kept == nil {
 				text, _ := je.key.MarshalText()
+				keptKey = docKey
 				kept = &change.Error{Code: change.CodeUnsupported, Capability: string(change.KindRemoveEdition), Field: "at/edition",
 					Message: fmt.Sprintf("the %s writer writes a translation of every unit, taking the source where a block holds none, so removing translation %s of block %s from %s would write its source in its place; give the translation new content with set_content instead",
 						je.file.Format.Name, text, change.BlockKey(b), je.file.Ref)}
 			}
-			i++
 			return nil
 		}}
 	if err := p.run(ctx); err != nil {
 		return err
 	}
 	if kept != nil {
-		return kept
+		return st.refuseEdition(keptKey, je.key, kept)
 	}
 	return nil
 }

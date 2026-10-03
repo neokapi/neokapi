@@ -3,6 +3,7 @@ package filehome
 import (
 	"context"
 	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
@@ -21,7 +22,11 @@ import (
 // by translation-invariant address (a heading written as its own identity, so
 // a section reads the same in both languages), and only then by position, and
 // only when both files hold the same number of blocks, which is what a file
-// materialized from the document's own skeleton holds.
+// materialized from the document's own skeleton holds. A file in a language of
+// its own whose keys all sit under one root, where the document's sit under
+// another (a Rails catalog: en: in the document, de: in the German file),
+// pairs by key below the root, so a translation one of them lacks leaves the
+// rest paired.
 
 // joinedEdition is one edition joined from its own file.
 type joinedEdition struct {
@@ -143,8 +148,21 @@ func (je *joinedEdition) pair(ix *blockIndex) {
 	// A kept edition is keyed by the document's own block keys, so a block
 	// pairs by its key or not at all.
 	positional := je.kept == nil && len(ix.keys) == len(je.blocks)
+	docRoot, fileRoot := "", ""
+	if je.kept == nil && !je.file.Bilingual {
+		fileKeys := make([]string, len(je.blocks))
+		for i, b := range je.blocks {
+			fileKeys[i] = change.BlockKey(b)
+		}
+		if docRoot, fileRoot = keyRoot(ix.keys), keyRoot(fileKeys); docRoot == fileRoot {
+			docRoot, fileRoot = "", ""
+		}
+	}
 	for si, k := range ix.keys {
 		ti, ok := byKey[k]
+		if !ok && docRoot != "" && fileRoot != "" {
+			ti, ok = byKey[fileRoot+strings.TrimPrefix(k, docRoot)]
+		}
 		if !ok && je.kept == nil && ix.addrs[si] != "" {
 			ti, ok = byAddr[ix.addrs[si]]
 		}
@@ -157,6 +175,20 @@ func (je *joinedEdition) pair(ix *blockIndex) {
 		taken[ti] = true
 		je.match[si] = ti
 	}
+}
+
+// keyRoot is the first segment every key of keys starts with, ahead of a
+// dot, or "" when they do not all share one.
+func keyRoot(keys []string) string {
+	root := ""
+	for i, k := range keys {
+		r, _, ok := strings.Cut(k, ".")
+		if !ok || r == "" || (i > 0 && r != root) {
+			return ""
+		}
+		root = r
+	}
+	return root
 }
 
 // held is what the edition file's block at index ti holds of the edition:

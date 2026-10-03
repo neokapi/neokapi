@@ -89,7 +89,7 @@ func Run(t *testing.T, newEnv func(t *testing.T) Env) {
 		{"a block no document holds is not found and nothing is written", missingBlock},
 		{"the same edition said again is unchanged", unchangedIsIdempotent},
 		{"a write keeps the file mode", modeKept},
-		{"a removed translation reads back absent and a replay is stale", removedEdition},
+		{"a removed translation reads back absent, a replay is stale, and it is created again", removedEdition},
 		{"a change set with no operation applies and writes nothing", emptyWritesNothing},
 	}
 	for _, tc := range cases {
@@ -340,8 +340,9 @@ func removedEdition(t *testing.T, env Env) {
 }
 
 // removeTranslation makes a French translation of the first editable block
-// of tr.Doc where it has none, removes it, and checks that a replay of the
-// removal is stale and a removal of what is not there changes nothing.
+// of tr.Doc where it has none, removes it, checks that a replay of the
+// removal is stale and a removal of what is not there changes nothing, and
+// creates the translation again.
 func removeTranslation(t *testing.T, env Env, tr Translation) {
 	doc := tr.Doc
 	holder := tr.File
@@ -389,6 +390,18 @@ func removeTranslation(t *testing.T, env Env, tr Translation) {
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status, "removing a translation the block does not hold changes nothing")
 	assert.Equal(t, snapshot, env.Snapshot(t, holder), "neither the refusal nor the removal that changed nothing writes")
+	if holder != doc {
+		assert.Equal(t, docBefore, env.Snapshot(t, doc), "%s keeps its bytes: its translation lives in %s", doc, holder)
+	}
+
+	// The removed translation is created again as one the block never held.
+	res = apply(t, env, change.Set{Ops: []change.Op{setText(change.BlockRead{Ref: at}, model.AbsentRevision, "Traduction nouvelle")}})
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.Equal(t, model.AbsentRevision, res.Ops[0].Before)
+	again, held := readEdition(t, env, doc, b.Ref.Block).Editions["fr"]
+	require.True(t, held, "the translation created again reads back")
+	assert.Equal(t, "Traduction nouvelle", again.Text)
+	assert.Equal(t, res.Ops[0].After, again.Rev)
 	if holder != doc {
 		assert.Equal(t, docBefore, env.Snapshot(t, doc), "%s keeps its bytes: its translation lives in %s", doc, holder)
 	}

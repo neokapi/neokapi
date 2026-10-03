@@ -156,6 +156,78 @@ func TestFileHome_RemovingATranslationFromItsOwnBilingualFile(t *testing.T) {
 	}
 }
 
+// A removal the XLIFF writer would turn into the source refuses that
+// operation alone: an edit of another unit in the same change set is not
+// applied, blocked by the refusal, whether the XLIFF file is the document or
+// the file of the translation, and nothing is written.
+func TestFileHome_ABilingualRemovalRefusalHoldsTheEditBesideIt(t *testing.T) {
+	xliff := func(hello, bye string) string {
+		target := func(s string) string {
+			if s == "" {
+				return ""
+			}
+			return "<target>" + s + "</target>"
+		}
+		return `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+<file original="a.txt" source-language="en" target-language="fr" datatype="plaintext">
+<body>
+<trans-unit id="1"><source>Hello</source>` + target(hello) + `</trans-unit>
+<trans-unit id="2"><source>Goodbye</source>` + target(bye) + `</trans-unit>
+</body>
+</file>
+</xliff>
+`
+	}
+	french := xliff("Bonjour", "Au revoir")
+	tests := []struct {
+		name, holder string
+		files        map[string]string
+		catalog      bool
+	}{
+		{name: "the document", holder: "a.xlf", files: map[string]string{"a.xlf": french}},
+		{name: "the translation's own file", holder: "fr/a.xlf", files: map[string]string{"a.xlf": xliff("", ""), "fr/a.xlf": french}, catalog: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var f *fixture
+			if tc.catalog {
+				f = newCatalogFixture(t, tc.files, filehome.Options{})
+			} else {
+				f = newFixture(t, tc.files)
+			}
+			ctx := context.Background()
+			fr := mustEdition(t, "fr")
+			page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "a.xlf", Editions: []model.EditionKey{fr}})
+			require.NoError(t, err)
+			require.Len(t, page.Blocks, 2)
+			at := func(b change.BlockRead) change.Ref {
+				r := b.Ref
+				r.Edition = fr
+				return r
+			}
+			hello, bye := page.Blocks[0], page.Blocks[1]
+			res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{
+				setOp(at(bye), bye.Editions["fr"].Rev, "Salut"),
+				{Kind: change.KindRemoveEdition, At: at(hello), IfMatch: hello.Editions["fr"].Rev, Body: &change.RemoveEdition{}},
+			}}, person)
+			require.NoError(t, err)
+			require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
+			require.NotNil(t, res.Ops[1].Error)
+			assert.Equal(t, change.CodeUnsupported, res.Ops[1].Error.Code)
+			assert.Equal(t, string(change.KindRemoveEdition), res.Ops[1].Error.Capability)
+			assert.Contains(t, res.Ops[1].Error.Message, "would write its source in its place")
+			assert.Equal(t, change.OpNotApplied, res.Ops[0].Status, "%+v", res.Ops[0])
+			assert.Nil(t, res.Ops[0].Error)
+			require.NotNil(t, res.Ops[0].BlockedBy)
+			assert.Equal(t, 1, *res.Ops[0].BlockedBy)
+			for name, body := range tc.files {
+				assert.Equal(t, body, f.read(t, name), "%s stays as it was", name)
+			}
+		})
+	}
+}
+
 // TestFileHome_ABilingualFileTakesOnlyTheEditionsItHolds pins rule 7 of the
 // contract for a file that holds its translations itself: an edit of the
 // translation the file holds reaches its bytes, and an edit of an edition the
