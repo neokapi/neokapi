@@ -1009,8 +1009,11 @@ var storeMigrations = []storage.Migration{
 		Description: "the block notes table retired",
 		SQL: `
 			-- Mirrors bowrain/store/migrations.go version 38: a note is an
-			-- annotation on the block, so the notes table and its rows go. A
-			-- database built after the baseline dropped it has nothing to drop.
+			-- annotation on the block, so the notes table goes. The server's
+			-- note routes were its only writer and the server runs on
+			-- PostgreSQL, where version 38 moves each note onto its block; a
+			-- working copy's table holds none. A database built after the
+			-- baseline dropped it has nothing to drop.
 			DROP TABLE IF EXISTS block_notes;
 		`,
 	},
