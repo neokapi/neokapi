@@ -10,24 +10,44 @@ import (
 )
 
 // pairedClaudeDenyRead lists what Claude's sandbox keeps from the agent: the
-// checkout, the cell's private host configuration, and the attempt's own
-// records beside the workspace (the prompt and the preparation, which names a
-// task's interference). The cell's bin directory and its kapi stay readable
-// without a carve-out from a denied directory, so the shell and kapi always
-// execute.
+// checkout, the cell's configuration files, and the attempt's own records
+// beside the workspace (the prompt and the preparation, which names a task's
+// interference). The cell's bin directory and its kapi stay readable without a
+// carve-out from a denied directory, so the shell and kapi always execute.
+// Claude's own configuration directory stays readable: Claude saves a long
+// tool output there and tells the model to read it from its shell.
 func pairedClaudeDenyRead(launch PairedLaunch) []string {
 	attempt := filepath.Dir(launch.StateDir)
 	deny := []string{}
 	if launch.RepoRoot != "" {
 		deny = append(deny, launch.RepoRoot)
 	}
-	for _, name := range []string{"claude", "codex", "home", "claude-settings.json", "claude-mcp.json"} {
+	for _, name := range []string{"codex", "home", "claude-settings.json", "claude-mcp.json"} {
 		deny = append(deny, filepath.Join(launch.StateDir, name))
 	}
 	for _, name := range []string{"prompt.txt", "preparation.json", "started.json", "result.json", "transcript.jsonl", "transcript.jsonl.stderr"} {
 		deny = append(deny, filepath.Join(attempt, name))
 	}
 	return deny
+}
+
+// pairedSystemDirs are where a cell's tools come from: the system's own and
+// the system package manager's, never the developer's PATH. A version
+// manager's shim (pyenv, a Node manager) reads the developer's home directory,
+// which Claude's sandbox refuses, so the tool would fail in one host's cells
+// and work in the other's.
+var pairedSystemDirs = []string{"/usr/bin", "/bin", "/usr/sbin", "/sbin", "/opt/homebrew/bin", "/usr/local/bin"}
+
+// pairedSystemTool returns the first executable named name in
+// pairedSystemDirs, or "" when none holds one.
+func pairedSystemTool(name string) string {
+	for _, dir := range pairedSystemDirs {
+		candidate := filepath.Join(dir, name)
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
+			return candidate
+		}
+	}
+	return ""
 }
 
 // pairedGitExclude keeps the cell's runtime directories and the installed

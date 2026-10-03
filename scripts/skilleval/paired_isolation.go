@@ -106,8 +106,8 @@ func pairedToolPath(launch PairedLaunch) error {
 	// arbitrary developer executables, aliases, shell startup files or kapi.
 	names := []string{"bash", "sh", "zsh", "cat", "cp", "mv", "rm", "mkdir", "ls", "pwd", "find", "sed", "awk", "grep", "head", "tail", "wc", "sort", "uniq", "cut", "tr", "diff", "git", "rg", "python3", "jq", "file", "which", "env", "printf", "touch", "date", "node", "unzip", "zip", "tar", "perl", "ruby", "xargs", "tee", "basename", "dirname"}
 	for _, name := range names {
-		source, err := exec.LookPath(name)
-		if err != nil {
+		source := pairedSystemTool(name)
+		if source == "" {
 			continue
 		}
 		destination := filepath.Join(launch.StateDir, "bin", name)

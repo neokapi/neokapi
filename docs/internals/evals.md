@@ -196,7 +196,7 @@ The study runs `scripts/skilleval` in paired mode over the manifest
 task families and three repetitions, 2 × 4 × 7 × 3 = 168 live sessions. Each
 host keeps one model and effort for every arm: Codex with `gpt-5.6-terra` at
 medium effort, Claude Code with `claude-sonnet-5` at high effort. A session has
-420 seconds and 40 turns. The schedule shuffles blocks of task, host and
+600 seconds and 40 turns. The schedule shuffles blocks of task, host and
 repetition, then the four arms within each block, from the manifest's seed.
 
 | Arm | kapi surface in the cell | Project |
@@ -334,6 +334,13 @@ resumes it without repeating a started attempt. `PAIRED_EVAL_RETRY=1` runs
 again the attempts a rate limit, an interrupt or a failed launch cut short, and
 keeps the first record as superseded. The ceiling of 200 covers the 168
 sessions and 32 such reruns.
+
+Each host runs its 84 sessions one after another, beside the other host. In
+the smoke run on 3 October 2026 the stale-read task took 10 to 37 seconds in
+eleven of twelve sessions and 324 seconds in one, and preparing and probing a
+cell takes a few seconds more. If the study's sessions average a minute, it
+takes about an hour and a half; if every session ran to its 600-second limit,
+it would take 14 hours.
 
 ### What the edit engine costs an embedder (15.2, item 2)
 

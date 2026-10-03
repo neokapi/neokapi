@@ -13,7 +13,7 @@
   ],
   "smoke_task": "recover-stale-read",
   "repetitions": 3,
-  "attempt_timeout_seconds": 420,
+  "attempt_timeout_seconds": 600,
   "max_turns": 40,
   "billing": "subscription-only"
 }

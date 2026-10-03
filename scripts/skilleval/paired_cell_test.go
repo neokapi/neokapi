@@ -21,7 +21,8 @@ func TestPairedClaudeDenyReadLeavesTheCellsProgramsReadable(t *testing.T) {
 	assert.Contains(t, deny, "/src/neokapi")
 	assert.Contains(t, deny, filepath.Join(attempt, "started.json"))
 	assert.Contains(t, deny, filepath.Join(attempt, "prompt.txt"))
-	assert.Contains(t, deny, filepath.Join(launch.StateDir, "claude"))
+	assert.Contains(t, deny, filepath.Join(launch.StateDir, "claude-settings.json"))
+	assert.NotContains(t, deny, filepath.Join(launch.StateDir, "claude"), "Claude reads its saved tool outputs from there")
 	for _, path := range deny {
 		for _, open := range []string{launch.StateDir, attempt, launch.Workspace} {
 			assert.NotEqual(t, open, path, "denying %s would hide the cell's own programs", open)
@@ -85,6 +86,24 @@ func TestPairedKapiIsLinkedIntoTheCell(t *testing.T) {
 	again, err := linkPairedKapi(launch)
 	require.NoError(t, err)
 	assert.Equal(t, cell, again)
+}
+
+// A cell's tools come from the system's directories, never through a version
+// manager's shim in the developer's home directory.
+func TestPairedCellToolsAreSystemTools(t *testing.T) {
+	assert.NotEmpty(t, pairedSystemTool("sh"))
+	assert.Empty(t, pairedSystemTool("no-such-tool-anywhere"))
+	state := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(state, "bin"), 0o700))
+	require.NoError(t, pairedToolPath(PairedLaunch{StateDir: state, Condition: "baseline"}))
+	entries, err := os.ReadDir(filepath.Join(state, "bin"))
+	require.NoError(t, err)
+	require.NotEmpty(t, entries)
+	for _, entry := range entries {
+		target, err := os.Readlink(filepath.Join(state, "bin", entry.Name()))
+		require.NoError(t, err)
+		assert.Contains(t, pairedSystemDirs, filepath.Dir(target), entry.Name())
+	}
 }
 
 func TestPairedLocationRefusesClaudesTemporaryDirectory(t *testing.T) {
