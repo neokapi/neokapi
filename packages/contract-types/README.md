@@ -23,8 +23,8 @@ Five layers, re-exported from the package root:
   `find`, `start` with `end`, or `range`) refuses both, a run holds one kind
   (text, one code, a plural or a select), and a runs payload carries no native
   `data`. A pattern, a bound or a rule between fields (a revision's form,
-  `occurrence` only beside `find`, at least one operation) is documented on
-  the field and checked by the service. `ChangeResult`
+  `occurrence` only beside `find`) is documented on the field and checked
+  by the service. `ChangeResult`
   (`kapi.change-result/v1`), the read page (`ReadPage`, `BlockRead`), a
   format's description (`FormatDescription`) and an edition's recorded changes
   (`EditionHistory`, `HistoryEntry`) are reflected from the Go structs the

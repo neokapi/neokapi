@@ -3,10 +3,12 @@ package host
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/change"
@@ -55,11 +57,11 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		return err
 	}
 	if err := retiredChangeShape(data); err != nil {
-		return WithExitCode(ExitUsage, err)
+		return a.refuseChangeSet(cmd, opts, err)
 	}
 	set, err := change.Decode(bytes.NewReader(data))
 	if err != nil {
-		return WithExitCode(ExitUsage, fmt.Errorf("apply: %w", err))
+		return a.refuseChangeSet(cmd, opts, fmt.Errorf("apply: %w", err))
 	}
 	if opts.DryRun {
 		set.Mode = change.ModePreview
@@ -94,13 +96,13 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 
 	comments, err := a.commentSet(set, root, a.newCommentDocs(recipe))
 	if err != nil {
-		return WithExitCode(ExitUsage, err)
+		return a.refuseChangeSet(cmd, opts, err)
 	}
 	// A document named by its absolute path outside the project is a file
 	// kapi inspect read outside it, edited as a file outside any project is.
 	outside, err := outsideProject(set, recipe)
 	if err != nil {
-		return WithExitCode(ExitUsage, err)
+		return a.refuseChangeSet(cmd, opts, err)
 	}
 	var res *change.Result
 	if comments {
@@ -129,6 +131,9 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 	if res.Status == change.SetApplied || res.Status == change.SetPartial {
 		a.noteAgentEdits(ctx, recipe, resolved.Actor, appliedWordings(set, res))
 	}
+	if line := toolOriginNote(set, res, actor); line != "" {
+		fmt.Fprintln(cmd.ErrOrStderr(), line)
+	}
 
 	if opts.JSON {
 		if err := writeChangeResult(cmd.OutOrStdout(), res); err != nil {
@@ -146,6 +151,77 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		return commentSetExit(set, res)
 	}
 	return changeResultExit(res)
+}
+
+// toolOriginNote is the one line kapi apply prints when operations of a
+// change set that landed state how a tool produced their content, as a run
+// printed with --print-ops states it: the change is recorded as the sender's
+// edit, so the tool's origin is not kept. Empty when no operation that landed
+// states one, so a refused or previewed change set prints nothing.
+func toolOriginNote(set change.Set, res *change.Result, actor change.Actor) string {
+	if set.Mode == change.ModePreview {
+		return ""
+	}
+	landed := map[int]bool{}
+	for _, r := range res.Ops {
+		if r.Status == change.OpApplied {
+			landed[r.I] = true
+		}
+	}
+	var tools []string
+	n := 0
+	for i, op := range set.Ops {
+		if !landed[i] {
+			continue
+		}
+		var o *change.ToolOrigin
+		switch body := op.Body.(type) {
+		case *change.SetContent:
+			o = body.Origin
+		case *change.ReplaceText:
+			o = body.Origin
+		}
+		if o == nil {
+			continue
+		}
+		n++
+		if !slices.Contains(tools, o.Tool) {
+			tools = append(tools, o.Tool)
+		}
+	}
+	if n == 0 {
+		return ""
+	}
+	whose := "yours"
+	if actor.Kind == change.ActorAgent {
+		whose = "the agent's"
+	}
+	what := "1 operation states how %s produced its content"
+	if n > 1 {
+		what = fmt.Sprintf("%d operations state how %%s produced their content", n)
+	}
+	return fmt.Sprintf("note: "+what+"; kapi apply records the change as %s, and that origin is not kept",
+		strings.Join(tools, ", "), whose)
+}
+
+// refuseChangeSet answers a change set refused before any operation is
+// applied, exit 2: one that does not decode, or one that contradicts itself
+// (code comments beside documents, a file outside the project beside one in
+// it). With --json it prints the refused kapi.change-result/v1 whose error
+// says why, as MCP and the browser answer it, on standard output; otherwise it
+// returns err, which the command line prints.
+func (a *App) refuseChangeSet(cmd Command, opts ApplyOptions, err error) error {
+	if !opts.JSON {
+		return WithExitCode(ExitUsage, err)
+	}
+	ce, ok := errors.AsType[*change.Error](err)
+	if !ok || ce == nil {
+		ce = &change.Error{Code: change.CodeInvalid, Message: err.Error()}
+	}
+	if werr := writeChangeResult(cmd.OutOrStdout(), change.ErrorResult(ce)); werr != nil {
+		return werr
+	}
+	return WithExitCode(ExitUsage, ErrSilentExit)
 }
 
 // outsideProject reports whether a change set applied in the project at
@@ -191,12 +267,14 @@ func under(root, path string) bool {
 // bilingual file whose reader has to be told the language of the translation
 // it holds (a PO catalog's msgstr) is read in that language.
 func targetLocaleOf(set change.Set, source model.LocaleID) model.LocaleID {
-	return soleTargetLocale(opEditions(set), source)
+	return SoleTargetLocale(OpEditions(set), source)
 }
 
-// soleTargetLocale is the one language editions name other than source, or
-// "" when they name none or several.
-func soleTargetLocale(editions []model.EditionKey, source model.LocaleID) model.LocaleID {
+// SoleTargetLocale is the one language editions name other than source, or
+// "" when they name none or several. A change service built for a call that
+// names editions reads a bilingual file in it (ChangeServiceOptions.
+// TargetLocale), as kapi apply, MCP, the browser and Kapi Desktop do.
+func SoleTargetLocale(editions []model.EditionKey, source model.LocaleID) model.LocaleID {
 	var loc model.LocaleID
 	for _, e := range editions {
 		l := model.NormalizeLocale(e.Locale)
@@ -330,6 +408,9 @@ func printChangeResult(w io.Writer, res *change.Result) {
 		if n := counts[s]; n > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s", n, strings.ReplaceAll(string(s), "_", " ")))
 		}
+	}
+	if len(res.Ops) == 0 {
+		parts = append(parts, "no operation, nothing to change")
 	}
 	fmt.Fprintf(w, "change set %s: %s\n", res.Status, strings.Join(parts, ", "))
 }

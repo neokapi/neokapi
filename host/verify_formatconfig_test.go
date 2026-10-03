@@ -146,7 +146,7 @@ func TestUnitFormatBinding_TargetInAnotherFormatIsDetected(t *testing.T) {
 			}
 			rf := project.ResolvedFile{Path: "/p/docs/tides.md", Format: "markdown", Item: &project.ContentItem{Path: "docs/*.md"}}
 
-			srcFormat, srcCfg, tgtFormat, tgtCfg := unitFormatBinding(proj, rf, tc.target)
+			srcFormat, srcCfg, tgtFormat, tgtCfg := unitFormatBinding(nil, proj, rf, tc.target)
 			assert.Equal(t, "markdown", srcFormat)
 			assert.Equal(t, map[string]any{"translateFrontMatter": true}, srcCfg)
 			assert.Equal(t, tc.wantFormat, tgtFormat)
@@ -155,6 +155,27 @@ func TestUnitFormatBinding_TargetInAnotherFormatIsDetected(t *testing.T) {
 			} else {
 				assert.Equal(t, srcCfg, tgtCfg)
 			}
+		})
+	}
+}
+
+// TestUnitFormatBinding_APOTemplatesTranslationIsAPOCatalog pins that a
+// template and its translations are one format: po/messages.pot translated
+// into po/fr.po carries the source's binding, because the PO format claims
+// both extensions, while a compiled po/fr.mo is still detected.
+func TestUnitFormatBinding_APOTemplatesTranslationIsAPOCatalog(t *testing.T) {
+	app := &App{}
+	app.InitRegistries()
+	rf := project.ResolvedFile{Path: "/p/po/messages.pot", Format: "po", Item: &project.ContentItem{Path: "po/messages.pot"}}
+	tests := []struct{ target, want string }{
+		{"po/fr.po", "po"},
+		{"po/fr.pot", "po"},
+		{"po/fr.mo", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.target, func(t *testing.T) {
+			_, _, got, _ := unitFormatBinding(app.FormatReg, &project.KapiProject{}, rf, tc.target)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
 )
@@ -40,8 +41,13 @@ const changeTimeout = 60 * time.Second
 var desktopActor = change.Actor{Kind: change.ActorPerson}
 
 // changeServiceFor builds the change service for the project a tab has open,
-// with the desktop as the origin it records.
-func (a *App) changeServiceFor(ctx context.Context, tabID string) (*change.Service, error) {
+// with the desktop as the origin it records. editions are the editions the
+// call names: the one language among them other than the source is the
+// language a bilingual file that holds its translation is read in (a PO
+// catalog's msgstr), as kapi apply reads one. A catalog whose collection names
+// a target keeps its translations in the target files whatever language the
+// service is told, so the French of po/en.po is edited in po/fr.po.
+func (a *App) changeServiceFor(ctx context.Context, tabID string, editions []model.EditionKey) (*change.Service, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
@@ -54,6 +60,7 @@ func (a *App) changeServiceFor(ctx context.Context, tabID string) (*change.Servi
 		Project:      op.Path,
 		Origin:       "desktop",
 		SourceLocale: source,
+		TargetLocale: host.SoleTargetLocale(editions, source),
 	})
 }
 
@@ -68,7 +75,7 @@ func (a *App) Read(tabID, request string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), changeTimeout)
 	defer cancel()
-	svc, err := a.changeServiceFor(ctx, tabID)
+	svc, err := a.changeServiceFor(ctx, tabID, q.Editions)
 	if err != nil {
 		return "", err
 	}
@@ -95,7 +102,7 @@ func (a *App) Apply(tabID, changeSet string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), changeTimeout)
 	defer cancel()
-	svc, err := a.changeServiceFor(ctx, tabID)
+	svc, err := a.changeServiceFor(ctx, tabID, host.OpEditions(set))
 	if err != nil {
 		return "", err
 	}
@@ -119,7 +126,7 @@ func (a *App) Describe(tabID, request string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), changeTimeout)
 	defer cancel()
-	svc, err := a.changeServiceFor(ctx, tabID)
+	svc, err := a.changeServiceFor(ctx, tabID, nil)
 	if err != nil {
 		return "", err
 	}
@@ -141,7 +148,7 @@ func (a *App) History(tabID, request string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), changeTimeout)
 	defer cancel()
-	svc, err := a.changeServiceFor(ctx, tabID)
+	svc, err := a.changeServiceFor(ctx, tabID, []model.EditionKey{q.Ref.Edition})
 	if err != nil {
 		return "", err
 	}

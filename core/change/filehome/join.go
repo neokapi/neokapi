@@ -45,15 +45,20 @@ type blockIndex struct {
 	addrs []string
 }
 
+// add indexes b, the document's next block.
+func (ix *blockIndex) add(b *model.Block) {
+	ix.keys = append(ix.keys, change.BlockKey(b))
+	ix.names = append(ix.names, b.Name)
+	ix.ids = append(ix.ids, b.ID)
+	ix.addrs = append(ix.addrs, b.StructuralAddress())
+}
+
 // indexDocument reads the document once for the keys and addresses a join
 // pairs on.
 func (s *session) indexDocument(ctx context.Context) (*blockIndex, error) {
 	ix := &blockIndex{}
 	err := s.ownPass(func(b *model.Block) error {
-		ix.keys = append(ix.keys, change.BlockKey(b))
-		ix.names = append(ix.names, b.Name)
-		ix.ids = append(ix.ids, b.ID)
-		ix.addrs = append(ix.addrs, b.StructuralAddress())
+		ix.add(b)
 		return nil
 	}).run(ctx)
 	return ix, err
@@ -69,6 +74,16 @@ func (s *session) joinEditions(ctx context.Context, keys []model.EditionKey) ([]
 	if err != nil {
 		return nil, nil, err
 	}
+	out, err := s.joinIndexed(ctx, keys, ix)
+	if err != nil {
+		return nil, nil, err
+	}
+	return out, ix, nil
+}
+
+// joinIndexed reads the files of the editions in keys and pairs their blocks
+// with the document's blocks ix indexes.
+func (s *session) joinIndexed(ctx context.Context, keys []model.EditionKey, ix *blockIndex) ([]*joinedEdition, error) {
 	var out []*joinedEdition
 	for _, k := range keys {
 		f, ok := s.editionFile(k)
@@ -86,13 +101,13 @@ func (s *session) joinEditions(ctx context.Context, keys []model.EditionKey) ([]
 				p.target = je.key.Locale
 			}
 			if err := p.run(ctx); err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 			je.pair(ix)
 		}
 		out = append(out, je)
 	}
-	return out, ix, nil
+	return out, nil
 }
 
 // pair matches the document's blocks to the edition file's.

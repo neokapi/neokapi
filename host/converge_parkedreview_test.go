@@ -227,9 +227,9 @@ func TestConverge_ParkedLocaleIsReviewableThenShips(t *testing.T) {
 
 	// A person approves half of them, against the stored draft.
 	for _, key := range keys[:2] {
-		changed, err := a.ApplyReviewDecisionAs(cmd.Context(), recipe, "en",
+		changed, err := decideUnit(cmd.Context(), a, recipe,
 			ReviewUnitRef{File: filepath.Join("site", "locales", "nl.json"), Key: key, Locale: "nl"},
-			ReviewDecisionApproved, "", "")
+			ReviewDecisionApproved, "")
 		require.NoError(t, err)
 		assert.True(t, changed, "approving a stored draft records a decision")
 	}
@@ -264,9 +264,9 @@ func TestConverge_ParkedDecisionSurvivesDelivery(t *testing.T) {
 	keys := parkedQueueKeys(t, a, recipe, "nl")
 	require.Len(t, keys, 4)
 	for _, key := range keys[:2] {
-		_, err := a.ApplyReviewDecisionAs(cmd.Context(), recipe, "en",
+		_, err := decideUnit(cmd.Context(), a, recipe,
 			ReviewUnitRef{File: filepath.Join("site", "locales", "nl.json"), Key: key, Locale: "nl"},
-			ReviewDecisionApproved, "", "")
+			ReviewDecisionApproved, "")
 		require.NoError(t, err)
 	}
 	parkedReviewPass(t, a, cmd, recipe)
@@ -316,7 +316,7 @@ func TestUpPlan_ParkedDraftsAreReuse(t *testing.T) {
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	plan, err := a.computeProjectPlan(cmd.Context(), proj, recipe)
+	plan, err := a.computeProjectPlan(cmd.Context(), proj, recipe, planRun{})
 	require.NoError(t, err)
 	assert.Zero(t, plan.Totals.UnreadTargets, "a parked draft is not a committed translation the store has yet to read")
 	assert.Equal(t, 8, plan.Totals.Unanswered, "the record stands behind none of the drafts")
@@ -334,7 +334,7 @@ func TestUpPlan_ParkedDraftsAreReuse(t *testing.T) {
 		"When the forecast allows this movement",
 		"When the forecast allows this crossing", 1)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "src", "en.json"), []byte(edited), 0o644))
-	plan, err = a.computeProjectPlan(cmd.Context(), proj, recipe)
+	plan, err = a.computeProjectPlan(cmd.Context(), proj, recipe, planRun{})
 	require.NoError(t, err)
 	assert.Equal(t, 6, plan.Totals.Drafts, "the untouched strings are still answered by the store")
 	assert.Equal(t, 2, plan.Totals.AIRemaining, "the rewritten one is drafted again in each locale")

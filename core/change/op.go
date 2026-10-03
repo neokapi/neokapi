@@ -108,9 +108,31 @@ type SetContent struct {
 	// whole edition: it walks to the plural or select run, then names the
 	// branch.
 	Path model.RunPath `json:"path,omitempty" jsonschema:"a plural form or select case to replace instead of the whole edition, for example [1, {\"plural\": \"one\"}]"`
+	// Origin says how a tool produced the content, as a run printed with
+	// --print-ops states it. Nothing records it: the edition takes the origin
+	// its sender's edit gives it (Consequences), kapi apply says so, and a
+	// tool in a flow records how it produced content with the provenance
+	// operation.
+	Origin *ToolOrigin `json:"origin,omitempty" jsonschema:"how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept"`
 	// Overlays says how the overlays on the edition follow the new content. It
 	// is set in process only.
 	Overlays OverlayRebase `json:"-"`
+}
+
+// ToolOrigin is how a tool produced content: the tool, and what it drew on.
+type ToolOrigin struct {
+	Tool   string `json:"tool" jsonschema:"the tool that produced the content"`
+	Kind   string `json:"kind,omitempty" jsonschema:"what the tool drew on, such as mt, ai or memory"`
+	Engine string `json:"engine,omitempty" jsonschema:"the engine or model the tool used"`
+}
+
+// OriginOf is the tool origin a model origin names, or nil when it names no
+// tool.
+func OriginOf(o model.Origin) *ToolOrigin {
+	if o.Tool == "" {
+		return nil
+	}
+	return &ToolOrigin{Tool: o.Tool, Kind: o.Kind, Engine: o.Engine}
 }
 
 // OverlayRebase says how overlays on an edition follow a rewrite of its
@@ -129,6 +151,9 @@ type OverlayRebase struct {
 // inline codes, structure and run flags.
 type ReplaceText struct {
 	Edits []TextEdit `json:"edits" jsonschema:"the replacements, each naming its text by find, by start and end, or by range"`
+	// Origin says how a tool produced the edited content, as SetContent's
+	// does.
+	Origin *ToolOrigin `json:"origin,omitempty" jsonschema:"how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept"`
 }
 
 // Selection names text in an edition: exactly one of Find, Start with End, or
@@ -143,7 +168,9 @@ type Selection struct {
 	// exactly one match.
 	Occurrence int `json:"occurrence,omitempty" jsonschema:"which match of find, counting from 1; omitted requires exactly one match"`
 	// Start and End are code-point offsets into the text of the sequence Path
-	// reaches; inline codes have zero width.
+	// reaches; inline codes have zero width. They, Range and Path's run
+	// indexes name the edition as the change set found it; Find matches it as
+	// the operations before this one left it.
 	Start *int `json:"start,omitempty" jsonschema:"start offset in Unicode code points of the text; inline codes have zero width"`
 	End   *int `json:"end,omitempty" jsonschema:"end offset, exclusive"`
 	// Range is a span between run positions.

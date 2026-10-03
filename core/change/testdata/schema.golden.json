@@ -93,6 +93,28 @@
               "path": {
                 "$ref": "#/$defs/path",
                 "description": "a plural form or select case to replace instead of the whole edition, for example [1, {\"plural\": \"one\"}]"
+              },
+              "origin": {
+                "type": "object",
+                "properties": {
+                  "tool": {
+                    "type": "string",
+                    "description": "the tool that produced the content"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "description": "what the tool drew on, such as mt, ai or memory"
+                  },
+                  "engine": {
+                    "type": "string",
+                    "description": "the engine or model the tool used"
+                  }
+                },
+                "description": "how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept",
+                "required": [
+                  "tool"
+                ],
+                "additionalProperties": false
               }
             },
             "description": "Replace an edition's content with text (placeholder form) or runs. With if_match \"absent\" it creates the edition.",
@@ -226,6 +248,28 @@
                 },
                 "description": "the replacements, each naming its text by find, by start and end, or by range",
                 "minItems": 1
+              },
+              "origin": {
+                "type": "object",
+                "properties": {
+                  "tool": {
+                    "type": "string",
+                    "description": "the tool that produced the content"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "description": "what the tool drew on, such as mt, ai or memory"
+                  },
+                  "engine": {
+                    "type": "string",
+                    "description": "the engine or model the tool used"
+                  }
+                },
+                "description": "how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept",
+                "required": [
+                  "tool"
+                ],
+                "additionalProperties": false
               }
             },
             "description": "Change text inside an edition by find, by code-point offsets or by run positions, keeping inline codes and structure.",
@@ -862,8 +906,7 @@
           }
         ]
       },
-      "description": "the operations, applied in order",
-      "minItems": 1
+      "description": "the operations, applied in order; a position names the content as read, and an empty list changes nothing"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",

@@ -544,30 +544,97 @@ type sedCmd struct {
 type sedProgram []sedCmd
 
 // ops compiles the program over an edition's runs into replace_text
-// operations at at, guarded by rev. Each substitution that matches gives one
-// operation, whose edits are positions in the content the substitutions
-// before it left, as the change service applies operations in order.
+// operations at at, guarded by rev: one for each substitution that matches,
+// applied in order. A position in a change set names the edition as its
+// sender read it, so the first substitution that matches names its text by
+// start and end. Each later one matches the text the substitutions before it
+// left, and names its text by find and occurrence, which the change service
+// reads in that text too. When a later match is one no find can name (an
+// empty match, or one that overlaps another occurrence of its words), the
+// program gives the one operation that turns the edition into what the whole
+// program leaves.
 func (p sedProgram) ops(at change.Ref, rev string, runs []model.Run) ([]change.Op, error) {
 	cur := runs
 	var out []change.Op
-	for i, c := range p {
+	named := true
+	for _, c := range p {
 		first := true
 		edits := c.edits(cur, nil, &first)
 		if len(edits) == 0 {
 			continue
 		}
 		op := change.Op{Kind: change.KindReplaceText, At: at, IfMatch: rev, Body: &change.ReplaceText{Edits: edits}}
-		out = append(out, op)
-		if i == len(p)-1 {
-			break
-		}
 		next, err := applySed(cur, op)
 		if err != nil {
 			return nil, err
 		}
+		if len(out) > 0 && named {
+			found, ok := editsByFind(runs, cur, edits)
+			if ok {
+				op.Body = &change.ReplaceText{Edits: found}
+			}
+			named = ok
+		}
+		out = append(out, op)
 		cur = next
 	}
+	if !named {
+		return sedDiff(at, rev, runs, cur), nil
+	}
 	return out, nil
+}
+
+// editsByFind names the text of each edit, positioned in cur, by find and
+// occurrence in the sequence its path reaches, with the path as it reaches the
+// same plural form or select case in start. It reports false when an edit
+// names no text, or text that is not one of the occurrences a find counts:
+// those a scan from the start of the sequence meets, each after the one
+// before it.
+func editsByFind(start, cur []model.Run, edits []change.TextEdit) ([]change.TextEdit, bool) {
+	out := make([]change.TextEdit, len(edits))
+	for i, e := range edits {
+		seq, ok := model.ResolveRunPath(cur, e.Path)
+		if !ok || e.Start == nil || e.End == nil || *e.End <= *e.Start {
+			return nil, false
+		}
+		text := []rune(model.SequenceText(seq))
+		words := text[*e.Start:*e.End]
+		occurrence := 0
+		for n, at := 0, 0; at+len(words) <= len(text); {
+			if !slices.Equal(text[at:at+len(words)], words) {
+				at++
+				continue
+			}
+			n++
+			if at == *e.Start {
+				occurrence = n
+				break
+			}
+			at += len(words)
+		}
+		if occurrence == 0 {
+			return nil, false
+		}
+		path := e.Path
+		if len(path) > 0 {
+			if path, ok = change.PathIn(cur, start, e.Path); !ok {
+				return nil, false
+			}
+		}
+		find := string(words)
+		out[i] = change.TextEdit{Path: path, Find: &find, Occurrence: occurrence, Text: e.Text}
+	}
+	return out, true
+}
+
+// sedDiff is the operation that turns an edition's runs into final, guarded by
+// rev.
+func sedDiff(at change.Ref, rev string, runs, final []model.Run) []change.Op {
+	ops := change.Diff(model.NewRunsBlock("ksed", runs), model.NewRunsBlock("ksed", final))
+	for i := range ops {
+		ops[i].At, ops[i].IfMatch = at, rev
+	}
+	return ops
 }
 
 // applySed applies one compiled operation to runs, through the applier the

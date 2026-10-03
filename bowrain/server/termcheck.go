@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
@@ -353,7 +354,7 @@ func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, strea
 	var snap terms.Terminology
 	var snapFP string
 	if tb, err := s.workspaceTermsByID(ctx, wsID); err == nil && tb != nil {
-		snap, snapFP = snapshotTerms(ctx, tb)
+		snap, snapFP = s.termSnapshots.snapshot(ctx, wsID, tb)
 	}
 
 	// Voice profile resolver: the same hierarchical binding ladder the editor and
@@ -400,9 +401,18 @@ func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, strea
 // A concept dropped by AddConcept is therefore absent from both the snapshot and
 // the digest, which is the honest pairing: verdicts are counted as computed.
 func snapshotTerms(ctx context.Context, tb terms.Store) (terms.Terminology, string) {
+	snap, fp, _ := readTermSnapshot(ctx, tb)
+	return snap, fp
+}
+
+// readTermSnapshot is snapshotTerms, reporting a read that failed.
+func readTermSnapshot(ctx context.Context, tb terms.Store) (terms.Terminology, string, error) {
 	concepts, err := tb.Concepts(ctx)
-	if err != nil || len(concepts) == 0 {
-		return nil, ""
+	if err != nil {
+		return nil, "", err
+	}
+	if len(concepts) == 0 {
+		return nil, "", nil
 	}
 	mem := terms.NewInMemoryStore()
 	h := sha256.New()
@@ -427,5 +437,107 @@ func snapshotTerms(ctx context.Context, tb terms.Store) (terms.Terminology, stri
 		}
 		h.Write([]byte{'\n'})
 	}
-	return mem, hex.EncodeToString(h.Sum(nil))
+	return mem, hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// revisionedTerms is a terms store that names the revision of what it holds
+// (the PostgreSQL store's PostgresStore.Revision): a token every write through
+// it replaces, in the write's own transaction.
+type revisionedTerms interface {
+	Revision(ctx context.Context) (string, error)
+}
+
+// termSnapshotCache keeps each workspace's terms snapshot under the revision
+// of the terms it was read at, so the checks that resolve the term gate (a
+// commit, the ship and review passes) read a workspace's whole terms once per
+// revision rather than once per call. A store that names no revision, or
+// names none yet, is read every time.
+//
+// The revision is read before the terms, so a snapshot is never older than
+// the revision it is kept under: a write that lands between the two reads
+// leaves a snapshot that already holds it under the revision before it, which
+// the next call reads past. Every replica of the server checks the revision
+// on every call, so a write through another one is seen at the next call.
+//
+// It keeps at most termSnapshotWorkspaces snapshots, dropping the one used
+// least recently to make room, and drops a workspace's snapshot when its
+// revision reads empty (a workspace removed or reset) or cannot be read.
+type termSnapshotCache struct {
+	mu   sync.Mutex
+	byWS map[string]termSnapshot
+	// clock orders the snapshots by their last use.
+	clock uint64
+}
+
+// termSnapshotWorkspaces is the most workspaces whose terms a server keeps a
+// snapshot of. A workspace past it reads its terms again on its next call.
+const termSnapshotWorkspaces = 32
+
+// termSnapshot is one workspace's snapshot and its digest, read at revision.
+type termSnapshot struct {
+	revision string
+	snap     terms.Terminology
+	fp       string
+	used     uint64
+}
+
+// snapshot returns the snapshot of tb, the terms of workspace wsID, and its
+// digest: the one kept for the revision tb holds now, else a fresh read,
+// kept when it read cleanly.
+func (c *termSnapshotCache) snapshot(ctx context.Context, wsID string, tb terms.Store) (terms.Terminology, string) {
+	rt, ok := tb.(revisionedTerms)
+	if !ok {
+		return snapshotTerms(ctx, tb)
+	}
+	rev, err := rt.Revision(ctx)
+	if err != nil || rev == "" {
+		c.drop(wsID)
+		return snapshotTerms(ctx, tb)
+	}
+	c.mu.Lock()
+	kept, ok := c.byWS[wsID]
+	if ok && kept.revision == rev {
+		c.clock++
+		kept.used = c.clock
+		c.byWS[wsID] = kept
+		c.mu.Unlock()
+		return kept.snap, kept.fp
+	}
+	c.mu.Unlock()
+	snap, fp, err := readTermSnapshot(ctx, tb)
+	if err != nil {
+		c.drop(wsID)
+		return nil, ""
+	}
+	c.keep(wsID, termSnapshot{revision: rev, snap: snap, fp: fp})
+	return snap, fp
+}
+
+// keep keeps s as workspace wsID's snapshot, dropping the snapshot used least
+// recently when the cache is full.
+func (c *termSnapshotCache) keep(wsID string, s termSnapshot) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.byWS == nil {
+		c.byWS = map[string]termSnapshot{}
+	}
+	if _, held := c.byWS[wsID]; !held && len(c.byWS) >= termSnapshotWorkspaces {
+		oldest := ""
+		for ws, kept := range c.byWS {
+			if oldest == "" || kept.used < c.byWS[oldest].used {
+				oldest = ws
+			}
+		}
+		delete(c.byWS, oldest)
+	}
+	c.clock++
+	s.used = c.clock
+	c.byWS[wsID] = s
+}
+
+// drop forgets workspace wsID's snapshot.
+func (c *termSnapshotCache) drop(wsID string) {
+	c.mu.Lock()
+	delete(c.byWS, wsID)
+	c.mu.Unlock()
 }

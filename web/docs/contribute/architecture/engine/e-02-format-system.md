@@ -209,8 +209,10 @@ reader to a writer only when they are the same format (see "Skeletons are typed
 per format" below).
 
 The store has several backings behind one API: a temp file
-(`NewSkeletonStore`), memory (`NewMemorySkeletonStore`), a concurrent channel
-for streaming pairs (`NewStreamingSkeletonStore`), and a persisted file that
+(`NewSkeletonStore`), memory (`NewMemorySkeletonStore`), nothing at all for a
+pass that reads and writes no document (`NewDiscardSkeletonStore`), a
+concurrent channel for streaming pairs (`NewStreamingSkeletonStore`), and a
+persisted file that
 outlives the process (`NewSkeletonStoreAt` / `OpenSkeletonStore`,
 `NewSkeletonStoreFromBytes`), which is how a `.kpz` workspace carries a skeleton
 between `extract` and `merge`. `format.NewWiredSkeleton(reader, writer)` is the

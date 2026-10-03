@@ -347,6 +347,12 @@ nobody. Missing units, **stale** ones (a decision's source moved) and
 apart, because they mean different things to you, and priced together, because
 the run does not treat them differently.
 
+The plan prices only the languages a pass works on. The loop passes over a
+language while it holds work: a unit with no translation, a stale or rejected
+unit, a unit failing the bound checks, or a gate the language does not meet. A
+language with none of these keeps what it holds, so its unanswered units cost
+nothing this run and the plan reports nothing to draft for it.
+
 A unit the project store already holds a draft for costs nothing further. The
 drafting step asks the store before it calls out, and serves a stored
 translation of the same source when it was made under the configuration and

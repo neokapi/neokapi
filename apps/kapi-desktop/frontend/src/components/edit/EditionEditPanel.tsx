@@ -7,6 +7,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { type EditionContent, type EditionEdit, setContentOps } from "../../lib/changes";
 import { EditionEditor } from "./EditionEditor";
 import { EditTextDisplay } from "./EditTextDisplay";
+import { GatePrompt } from "./GatePrompt";
 import { StalePrompt } from "./StalePrompt";
 import type { ChangeSender } from "./useChangeSender";
 
@@ -34,14 +35,21 @@ export interface EditionEditPanelProps {
   "data-slot"?: string;
 }
 
+/** Whether two lists of edits say the same thing. */
+function sameEdits(a: EditionEdit[], b: EditionEdit[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 /**
  * One edition in an editor, with the save that sends it to the change service.
  *
  * Save sends a set_content for each edit with the revision the editor was
  * given, so a change made to the content after it was read is never
  * overwritten unseen: the change service refuses it as stale, and the panel
- * shows the text as it stands and asks before applying the edit over it.
- * Revert starts the editor over from what was read.
+ * shows the text as it stands and asks before applying the edit over it. A
+ * save a rule in force refuses shows what the check found, and the person may
+ * save that change anyway until they change its wording. Revert starts the
+ * editor over from what was read.
  */
 export function EditionEditPanel({
   sender,
@@ -96,6 +104,16 @@ export function EditionEditPanel({
     await sender.reapply(setContentOps(content, edits));
   };
 
+  // The editor's edits change. A refusal a rule made is about the wording it
+  // was shown with, so changing that wording puts the prompt away: the next
+  // save is checked again, and Save anyway only ever sends the change whose
+  // findings the person read.
+  const editsChange = (next: EditionEdit[]) => {
+    if (sender.gated && !sameEdits(next, edits)) sender.clear();
+    setEdits(next);
+    onEditsChange?.(next);
+  };
+
   return (
     <div className="space-y-2" data-slot={dataSlot}>
       {!content ? (
@@ -118,10 +136,7 @@ export function EditionEditPanel({
           reference={reference}
           autoFocus={autoFocus}
           compact={compact}
-          onChange={(next) => {
-            setEdits(next);
-            onEditsChange?.(next);
-          }}
+          onChange={editsChange}
           onSubmit={() => void save()}
           onCancel={revert}
           data-slot={dataSlot ? `${dataSlot}-editor` : undefined}
@@ -168,10 +183,19 @@ export function EditionEditPanel({
           }}
         />
       )}
-      {sender.error && (
-        <p className="text-xs text-destructive" role="alert" data-slot="edition-refused">
-          {sender.error}
-        </p>
+      {sender.gated ? (
+        <GatePrompt
+          findings={sender.gated.findings}
+          busy={sender.busy}
+          onOverride={() => void sender.override()}
+          onDismiss={sender.clear}
+        />
+      ) : (
+        sender.error && (
+          <p className="text-xs text-destructive" role="alert" data-slot="edition-refused">
+            {sender.error}
+          </p>
+        )
       )}
     </div>
   );

@@ -191,7 +191,7 @@ it. A decision on either kind is a `decide` operation sent to the change service
 ([E-09](../engine/e-09-the-change-contract.md)) with the revision the reviewer
 read: `kapi apply`, an agent's pre-review and Kapi Desktop's Review page all send
 it. An approval of source wording is recorded as an `establish`, bound to the
-wording the reviewer read, the record `App.ApproveSourceUnit` makes.
+wording the reviewer read.
 
 ### What a source change does to an undecided target
 

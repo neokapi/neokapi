@@ -102,12 +102,18 @@ func (st *staged) run(ctx context.Context) error {
 		return err
 	}
 
-	// What the editor changed in each joined edition, by document block index.
+	// What the editor changed in each joined edition, by document block index,
+	// and the blocks it removed the edition from.
 	changed := make([]map[int][]model.Run, len(editions))
+	gone := make([]map[int]bool, len(editions))
 	for i := range changed {
 		changed[i] = map[int][]model.Run{}
+		gone[i] = map[int]bool{}
 	}
 	ownChanged := false
+	// The editions the editor removed from blocks the document holds them in,
+	// by block index, which the write is read back for (verifyRemoved).
+	removed := map[int][]model.EditionKey{}
 	si := 0
 	edit := func(b *model.Block) error {
 		join(editions, si, b)
@@ -116,10 +122,16 @@ func (st *staged) run(ctx context.Context) error {
 			at := slices.IndexFunc(editions, func(je *joinedEdition) bool { return je.key == k.Canonical() })
 			if at < 0 {
 				ownChanged = true
+				if _, held := b.Edition(k); !held {
+					removed[si] = append(removed[si], k)
+				}
 				continue
 			}
-			ed, _ := b.Edition(editions[at].key)
+			ed, held := b.Edition(editions[at].key)
 			changed[at][si] = ed.Runs
+			if !held {
+				gone[at][si] = true
+			}
 		}
 		unjoin(editions, b)
 		si++
@@ -146,6 +158,11 @@ func (st *staged) run(ctx context.Context) error {
 		_ = own.tmp.Discard()
 		own.tmp, own.after, own.diff = nil, own.before, nil
 	}
+	if len(removed) > 0 && own.tmp != nil && s.doc.Entry == "" {
+		if err := st.verifyRemoved(ctx, own.tmp.Name(), removed); err != nil {
+			return err
+		}
+	}
 	if data, ok := s.overlay[overlayKey(source{path: s.doc.Path, entry: s.doc.Entry})]; ok && own.tmp == nil {
 		// Blocks added or removed are the whole change to the file: the
 		// bytes the format wrote for them are what lands.
@@ -171,7 +188,7 @@ func (st *staged) run(ctx context.Context) error {
 			// The translation no longer holds the document's blocks: it
 			// follows the document again even though no content changed.
 		}
-		if err := st.writeEdition(ctx, f, je, ix, changed[i]); err != nil {
+		if err := st.writeEdition(ctx, f, je, ix, changed[i], gone[i]); err != nil {
 			return err
 		}
 		if f.after == f.before && f.tmp != nil {
@@ -181,6 +198,42 @@ func (st *staged) run(ctx context.Context) error {
 		}
 	}
 	return st.lockKeys()
+}
+
+// verifyRemoved reads back the document as the stage wrote it to the file at
+// staged and refuses the change when a translation the editor removed from a
+// block is still there. Some bilingual writers write a translation of every
+// unit and fill one the block does not hold from its source, as the Okapi
+// filters they follow do: such a write would replace the translation with the
+// source rather than remove it.
+func (st *staged) verifyRemoved(ctx context.Context, staged string, removed map[int][]model.EditionKey) error {
+	data, err := os.ReadFile(staged)
+	if err != nil {
+		return err
+	}
+	s := st.s
+	var kept *change.Error
+	si := 0
+	p := s.ownPass(func(b *model.Block) error {
+		for _, k := range removed[si] {
+			if _, held := b.Edition(k); held && kept == nil {
+				text, _ := k.Canonical().MarshalText()
+				kept = &change.Error{Code: change.CodeUnsupported, Capability: string(change.KindRemoveEdition), Field: "at/edition",
+					Message: fmt.Sprintf("the %s writer writes a translation of every unit, taking the source where a block holds none, so removing translation %s of block %s from %s would write its source in its place; give the translation new content with set_content instead",
+						s.doc.Format.Name, text, change.BlockKey(b), s.doc.Ref)}
+			}
+		}
+		si++
+		return nil
+	})
+	p.src = p.src.with(data)
+	if err := p.run(ctx); err != nil {
+		return err
+	}
+	if kept != nil {
+		return kept
+	}
+	return nil
 }
 
 // lockKeys names the lock file of every file the stage reads or changes.
@@ -200,23 +253,25 @@ func (st *staged) lockKeys() error {
 }
 
 // writeEdition stages the file of a joined edition with the runs the editor
-// gave it. A file that exists is edited through its own skeleton, so every
-// byte of it outside the changed blocks stays, and each changed block must
-// have a partner there; a write that would need a block the file does not
-// hold is refused, because adding one means rewriting the file. A file that
-// does not exist yet is materialized from the document's skeleton, as kapi
-// merge writes a target file, and so is every file under
-// Options.Materialize, except a bilingual file that still holds every block
-// of the document and nothing else: it keeps its own skeleton, so its header
-// (its language, its plural rule) and its comments stay.
-func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdition, ix *blockIndex, changed map[int][]model.Run) error {
+// gave it, and without the edition in the blocks gone names. A file that
+// exists is edited through its own skeleton, so every byte of it outside the
+// changed blocks stays, and each changed block must have a partner there; a
+// write that would need a block the file does not hold is refused, because
+// adding one means rewriting the file. A file that does not exist yet is
+// materialized from the document's skeleton, as kapi merge writes a target
+// file, and so is every file under Options.Materialize, except a bilingual
+// file that still holds every block of the document and nothing else: it
+// keeps its own skeleton, so its header (its language, its plural rule) and
+// its comments stay. A bilingual file a translation was removed from is read
+// back (verifyEditionRemoved).
+func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdition, ix *blockIndex, changed map[int][]model.Run, gone map[int]bool) error {
 	s := st.s
 	inPlace := je.exists && !s.h.materialize
 	if je.exists && s.h.materialize && je.file.Bilingual && !je.drifted(ix) {
 		inPlace = true
 	}
 	if inPlace {
-		return st.writeEditionInPlace(ctx, f, je, ix, changed)
+		return st.writeEditionInPlace(ctx, f, je, ix, changed, gone)
 	}
 	src := s.ownSource()
 	si := 0
@@ -230,22 +285,28 @@ func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdi
 					// A block the change leaves keeps what the file held.
 					runs, ok = je.held(ti)
 				}
-				if ok {
+				if ok && !gone[si] {
 					b.SetEdition(je.key, model.Edition{Runs: runs})
 				}
 				si++
 				return nil
 			}}.run(ctx)
 	})
-	return err
+	if err != nil || len(gone) == 0 || !je.file.Bilingual {
+		return err
+	}
+	// The file is written from the document's skeleton, so its blocks are in
+	// the document's order.
+	return st.verifyEditionRemoved(ctx, f, je, gone)
 }
 
 // writeEditionInPlace stages the existing file of a joined edition through
 // its own skeleton, with each changed block written into its partner there.
 // A changed block with no partner refuses the write.
-func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *joinedEdition, ix *blockIndex, changed map[int][]model.Run) error {
+func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *joinedEdition, ix *blockIndex, changed map[int][]model.Run, gone map[int]bool) error {
 	s := st.s
 	byTarget := map[int][]model.Run{}
+	goneAt := map[int]bool{}
 	var unpaired []string
 	for si, runs := range changed {
 		ti, ok := je.match[si]
@@ -254,6 +315,9 @@ func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *jo
 			continue
 		}
 		byTarget[ti] = runs
+		if gone[si] {
+			goneAt[ti] = true
+		}
 	}
 	if len(unpaired) > 0 {
 		slices.Sort(unpaired)
@@ -275,7 +339,10 @@ func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *jo
 		return pass{src: src, format: je.file.Format, locale: s.doc.SourceLocale, target: lang, encoding: s.doc.Encoding, out: out,
 			writeLocale: lang,
 			fn: func(b *model.Block) error {
-				if runs, ok := byTarget[ti]; ok {
+				switch runs, ok := byTarget[ti]; {
+				case ok && goneAt[ti] && je.file.Bilingual:
+					b.RemoveEdition(key)
+				case ok:
 					ed, _ := b.Edition(key)
 					ed.Runs = runs
 					b.SetEdition(key, ed)
@@ -284,7 +351,47 @@ func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *jo
 				return nil
 			}}.run(ctx)
 	})
-	return err
+	if err != nil || len(goneAt) == 0 || !je.file.Bilingual {
+		return err
+	}
+	return st.verifyEditionRemoved(ctx, f, je, goneAt)
+}
+
+// verifyEditionRemoved reads back the bilingual file of a joined edition as
+// the stage wrote it, in the edition's language, and refuses the change when
+// a block at one of the indexes at (in the file's block order) still holds the
+// translation the editor removed: a writer that fills a unit with no
+// translation from its source, as the XLIFF and TMX writers do, would replace
+// the translation with the source rather than remove it.
+func (st *staged) verifyEditionRemoved(ctx context.Context, f *stagedFile, je *joinedEdition, at map[int]bool) error {
+	if f.tmp == nil {
+		return nil
+	}
+	data, err := os.ReadFile(f.tmp.Name())
+	if err != nil {
+		return err
+	}
+	s := st.s
+	var kept *change.Error
+	i := 0
+	p := pass{src: source{path: je.file.Path}.with(data), format: je.file.Format, locale: s.doc.SourceLocale, target: je.key.Locale,
+		encoding: s.doc.Encoding, fn: func(b *model.Block) error {
+			if _, held := b.Edition(je.key); held && at[i] && kept == nil {
+				text, _ := je.key.MarshalText()
+				kept = &change.Error{Code: change.CodeUnsupported, Capability: string(change.KindRemoveEdition), Field: "at/edition",
+					Message: fmt.Sprintf("the %s writer writes a translation of every unit, taking the source where a block holds none, so removing translation %s of block %s from %s would write its source in its place; give the translation new content with set_content instead",
+						je.file.Format.Name, text, change.BlockKey(b), je.file.Ref)}
+			}
+			i++
+			return nil
+		}}
+	if err := p.run(ctx); err != nil {
+		return err
+	}
+	if kept != nil {
+		return kept
+	}
+	return nil
 }
 
 // blockList names up to three blocks in a message.

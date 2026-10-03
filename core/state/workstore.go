@@ -1227,6 +1227,39 @@ ON CONFLICT(checkout, key) DO UPDATE SET path = excluded.path, content = exclude
 	return nil
 }
 
+// DocumentKey returns the key of the document at path as the project names
+// it: the key this checkout resolved for the path, else the key of the
+// earliest adoption the project recorded there. found is false when neither
+// names one. It answers for one path what reading Documents and then
+// AdoptedDocuments answers for every path, so a caller naming a single
+// document reads the two rows that concern it rather than every document the
+// project knows.
+func (w *WorkStore) DocumentKey(ctx context.Context, path string) (key string, found bool, err error) {
+	if w.db == nil {
+		return "", false, nil
+	}
+	// Documents lists this checkout's documents by key and a later one at the
+	// same path wins, so the greatest key does here.
+	err = w.db.QueryRowContext(ctx,
+		`SELECT key FROM document WHERE checkout = ? AND path = ? ORDER BY key DESC LIMIT 1`, w.checkout, path).Scan(&key)
+	switch {
+	case err == nil:
+		return key, true, nil
+	case !errors.Is(err, sql.ErrNoRows):
+		return "", false, fmt.Errorf("state: find the document at %s: %w", path, err)
+	}
+	err = w.db.QueryRowContext(ctx,
+		`SELECT key FROM document_adoption WHERE path = ? ORDER BY first_at, key LIMIT 1`, path).Scan(&key)
+	switch {
+	case err == nil:
+		return key, true, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return "", false, nil
+	default:
+		return "", false, fmt.Errorf("state: find the adoption at %s: %w", path, err)
+	}
+}
+
 // DocumentPaths returns the documents this checkout knows as key to current
 // path.
 func (w *WorkStore) DocumentPaths(ctx context.Context) (map[string]string, error) {

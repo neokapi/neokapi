@@ -69,6 +69,7 @@ The store is append-only during writing and sequential during reading. After
 // Backings
 func NewSkeletonStore() (*SkeletonStore, error)              // temp file in os.TempDir()
 func NewMemorySkeletonStore() *SkeletonStore                  // in-memory buffer
+func NewDiscardSkeletonStore() *SkeletonStore                 // keeps nothing; a read finds no entry
 func NewStreamingSkeletonStore() *SkeletonStore               // channel-backed, for a concurrent pair
 func NewSkeletonStoreAt(path string) (*SkeletonStore, error)  // persisted; left in place on Close
 func OpenSkeletonStore(path string) (*SkeletonStore, error)   // read an existing persisted store
@@ -126,6 +127,12 @@ Every runner wires it through one seam:
 - `format.NewWiredStreamingSkeleton(reader, writer)` is the channel-backed
   counterpart for a caller that drives the concurrent protocol below. It cannot
   fail, so it returns nil only for a pair with no skeleton path.
+- `format.NewWiredReadSkeleton(reader, writer)` is the seam for a pass that
+  reads a document and writes nothing, such as the file home's reads. Some
+  readers model a document differently when a store is wired (the HTML reader
+  numbers attribute blocks after their paragraph), so a read wires one wherever
+  a write would; the store keeps nothing (`NewDiscardSkeletonStore`), so the
+  read creates no file.
 
 The file runner (`core/flow/filerunner.go`) decides per run with two
 predicates. `streamingFeed(reader, preReadContent)` is true when the reader

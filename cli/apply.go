@@ -36,7 +36,10 @@ in "if_match" (the block's "rev"). set_content gives an edition new content, in
 the placeholder text a read shows or as runs, and with "if_match": "absent"
 creates an edition. replace_text changes text inside an edition by find, by
 code-point offsets or by run positions, and keeps the inline codes and plurals
-around it. An operation whose edition moved since it was read is refused as
+around it. Offsets and run positions name the edition as it was read, even
+after an earlier operation of the change set changed it; a find matches the
+text as the earlier operations left it. A change set with no operation changes
+nothing. An operation whose edition moved since it was read is refused as
 stale with the current content. An edit that would drop, invent or unbalance an
 inline code, or flatten a plural or select, is refused as guard. When any
 operation is refused, nothing in the change set is written. An operation on the
@@ -47,6 +50,9 @@ decide records a review decision on the revision a person read. term, memory
 and recipe write a term, a content-memory pair or a recipe field into the
 project, after the content they refer to. kapi apply records every change as
 the person or agent the environment names (see 'kapi help growing-context').
+That holds for a change set a run printed with --print-ops too: the "origin"
+its operations state (the tool that produced a translation) is not kept, and
+kapi apply says so in one line.
 A decision other than advise, a term, a content-memory pair and a recipe field
 are a person's: run from an agent's shell they are refused.
 
@@ -68,8 +74,9 @@ a change set that edits one edits nothing in the project.
 --dry-run computes and checks the change set, writes nothing, and prints a diff
 per document. --gate report lands a change whose findings would otherwise
 refuse it, for a person who has read them. --json prints the result
-(kapi.change-result/v1). --print-ops prints the change set as decoded, with its
-defaults filled in, and applies nothing.
+(kapi.change-result/v1), also for a change set that does not decode, whose
+result carries the error. --print-ops prints the change set as decoded, with
+its defaults filled in, and applies nothing.
 
 Exit status: 0 when the change set applied or previewed; 2 when it does not
 decode or contradicts itself; 3 when an operation was refused, and nothing was

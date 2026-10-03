@@ -120,52 +120,31 @@ func decisionStatus(decision string) (model.TargetStatus, error) {
 	}
 }
 
-// ApproveReviewUnit establishes one review-queue unit: ApplyReviewDecision
-// with ReviewDecisionApproved, for callers that address a unit by its parts.
-func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, locale, file, key string) (bool, error) {
-	return a.ApplyReviewDecision(ctx, projectPath, sourceLang, ReviewUnitRef{File: file, Key: key, Locale: locale}, ReviewDecisionApproved, "")
-}
-
-// ApplyReviewDecision records a review decision for one review-queue unit in the
-// project STATE store (core/state) — the authoritative carrier of workflow state,
-// keyed by unit identity + locale and bound to the content hash of the
-// translation it judges, so a later edit invalidates a stale decision. The unit
-// is addressed by (file, key, locale) as listed in the review queue; the method
-// re-reads the exact target text before recording. `kapi commit` writes it on
-// into the committed record under `.kapi/state/` — distinct from the
-// `.memory.json`, which stays the recycle corpus.
+// applyReviewDecision records a person's review decision for one review-queue
+// unit in the project STATE store (core/state), the authoritative carrier of
+// workflow state, keyed by unit identity and locale and bound to the content
+// hash of the translation it judges, so a later edit invalidates a stale
+// decision. It is how the change service applies a decide operation
+// (changeAssets.applyDecision); the service has already refused one an agent
+// sent. `kapi commit` writes the record on into the committed record under
+// `.kapi/state/`, distinct from the `.memory.json`, which stays the recycle
+// corpus.
 //
-// decision is ReviewDecisionApproved (→ established) or ReviewDecisionRejected
-// (→ draft: the unit drops out of the review queue and re-enters the work
-// queue, carrying note as the reviewer's reason). An edit to the translation after any decision makes it stale, so the
-// unit re-derives from its content (a rejected unit re-enters review once it is
-// retranslated).
+// decision is ReviewDecisionApproved (established) or ReviewDecisionRejected
+// (draft: the unit drops out of the review queue and re-enters the work queue,
+// carrying note as the reviewer's reason). An edit to the translation after
+// any decision makes it stale, so the unit re-derives from its content (a
+// rejected unit re-enters review once it is retranslated).
 //
-// It returns changed=false (no error) when the unit is already at this decision
-// for this exact translation, so an embedder can treat a redundant click as a
-// no-op.
-func (a *App) ApplyReviewDecision(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note string) (bool, error) {
-	return a.ApplyReviewDecisionAs(ctx, projectPath, sourceLang, ref, decision, note, "")
-}
-
-// ApplyReviewDecisionAs is ApplyReviewDecision with an explicit decider
-// identity, recorded as the decision's Decision.By: empty for the person at
-// the keyboard, or the name a hosted surface knows them by. An agent or AI
-// identity is refused (state.IsAgentIdentity): an agent pre-reviews, and its
-// judgement never counts as a person's.
-func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note, by string) (bool, error) {
-	return a.applyReviewDecision(ctx, projectPath, sourceLang, ref, decision, note, by, nil)
-}
-
-// applyReviewDecision is ApplyReviewDecisionAs. decided, when set, is the
-// pairing the decision is about as its caller holds it, such as the content a
-// change set landed under the commit lock; the decision binds to it rather
-// than to what the files say when they are read here. Nil reads it from the
-// files.
-func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note, by string, decided *decidedContent) (bool, error) {
-	if state.IsAgentIdentity(by) {
-		return false, fmt.Errorf("%s cannot record a review decision: an agent records a pre-review (score and reasons), and a person decides", by)
-	}
+// decided, when set, is the pairing the decision is about as its caller holds
+// it, such as the content a change set landed under the commit lock; the
+// decision binds to it rather than to what the files say when they are read
+// here. Nil reads it from the files, as for a parked draft the project store
+// holds and no file carries yet.
+//
+// It returns changed=false (no error) when the unit is already at this
+// decision for this exact translation, so a repeated decision changes nothing.
+func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note string, decided *decidedContent) (bool, error) {
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
 	status, err := decisionStatus(decision)
@@ -227,7 +206,7 @@ func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang s
 			// tells one page's `p` from another's. The review queue's display
 			// path is the target file, which no other party names anything by.
 			return a.recordDecisionState(ctx, proj, root, a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath), blockKey(b), loc,
-				content, governing, status, decision, note, by)
+				content, governing, status, decision, note)
 		}
 	}
 	return false, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
@@ -298,7 +277,7 @@ type decidedContent struct {
 // verdict, the translation it turned down and who turned it down, and leaves
 // the basis where the last approval or the producing run put it, which is what
 // keeps a rejected re-draft stale rather than clearing it.
-func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, content decidedContent, governing string, status model.TargetStatus, decision, note, by string) (bool, error) {
+func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, content decidedContent, governing string, status model.TargetStatus, decision, note string) (bool, error) {
 	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return false, err
@@ -324,7 +303,7 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 		ch, gov = state.SourceHash(content.source), governing
 	}
 	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.ContentHash == ch &&
-		prev.Decision.Note == note && prev.Decision.By == by && prev.GoverningFingerprint == gov {
+		prev.Decision.Note == note && prev.Decision.By == "" && prev.GoverningFingerprint == gov {
 		return false, nil // already at this decision for this exact pairing, under this context
 	}
 	now := nowRFC3339()
@@ -335,7 +314,7 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 		TargetHash:           th,
 		ContentHash:          ch,
 		GoverningFingerprint: gov,
-		Decision:             state.Decision{ReviewState: decision, By: by, At: now, Note: note},
+		Decision:             state.Decision{ReviewState: decision, At: now, Note: note},
 		Updated:              now,
 		// The document the unit was decided in — half of the record's identity,
 		// and what lets a decision travel the sync protocol scoped to the item
@@ -505,7 +484,7 @@ type ReviewUnitOptions struct {
 
 // ReviewUnit resolves one review-queue unit by (file, key, locale) — exactly as
 // `kapi status --review` lists it — and returns its full text and recorded
-// state. It is the read leg agents pair with ApplyReviewDecisionAs.
+// state. It is the read a decide operation on the unit follows.
 func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef) (*ReviewUnitInfo, error) {
 	return a.ReviewUnitWithOptions(ctx, projectPath, sourceLang, ref, ReviewUnitOptions{})
 }

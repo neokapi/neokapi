@@ -647,8 +647,8 @@ func approveRecordUnit(t *testing.T, a *App, recipe, key string) {
 // approveRecordUnitIn is the same for any locale of the fixture.
 func approveRecordUnitIn(t *testing.T, a *App, recipe, locale, ext, key string) {
 	t.Helper()
-	changed, err := a.ApproveReviewUnit(context.Background(), recipe, "en", locale,
-		"src/"+locale+ext, key)
+	changed, err := decideUnit(context.Background(), a, recipe,
+		ReviewUnitRef{File: "src/" + locale + ext, Key: key, Locale: locale}, ReviewDecisionApproved, "")
 	require.NoError(t, err)
 	require.True(t, changed)
 }

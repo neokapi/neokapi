@@ -26,6 +26,136 @@ const frenchXLIFF = `<?xml version="1.0" encoding="UTF-8"?>
 </xliff>
 `
 
+// A translation a bilingual file holds is removed where its writer leaves a
+// unit with no translation, and refused where the writer would write the
+// source in its place, as the XLIFF and TMX writers fill a missing
+// translation from the source: removed, not replaced, or nothing is written.
+func TestFileHome_RemovingATranslationABilingualFileHolds(t *testing.T) {
+	const xliff2 = `<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+  <file id="f1">
+    <unit id="1"><segment><source>Hello</source><target>Bonjour</target></segment></unit>
+  </file>
+</xliff>
+`
+	const tmx = `<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4"><header srclang="en" datatype="plaintext" segtype="sentence" adminlang="en" creationtool="t" creationtoolversion="1" o-tmf="t"/><body>
+<tu tuid="1"><tuv xml:lang="en"><seg>Hello</seg></tuv><tuv xml:lang="fr"><seg>Bonjour</seg></tuv></tu>
+</body></tmx>
+`
+	tests := []struct {
+		doc, body string
+		target    model.LocaleID
+		want      string // empty: refused, the file as it was
+	}{
+		{doc: "fr.po", body: frenchPO, target: "fr", want: strings.Replace(frenchPO, `msgstr "Bonjour"`, `msgstr ""`, 1)},
+		{doc: "fr.xlf", body: frenchXLIFF},
+		{doc: "fr.xliff", body: xliff2},
+		{doc: "fr.tmx", body: tmx},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			f := newFixture(t, map[string]string{tc.doc: tc.body})
+			f.svc = change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(filehome.New(
+				filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en", TargetLocale: tc.target},
+				filehome.Options{LockDir: t.TempDir()})))
+			ctx := context.Background()
+			page, err := f.svc.Read(ctx, change.ReadRequest{Doc: tc.doc})
+			require.NoError(t, err)
+			require.Len(t, page.Blocks, 1)
+			b := page.Blocks[0]
+			fr, ok := b.Editions["fr"]
+			require.True(t, ok, "the file holds the French translation")
+			at := b.Ref
+			at.Edition = mustEdition(t, "fr")
+			res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{
+				{Kind: change.KindRemoveEdition, At: at, IfMatch: fr.Rev, Body: &change.RemoveEdition{}},
+			}}, person)
+			require.NoError(t, err)
+			if tc.want == "" {
+				require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
+				require.NotNil(t, res.Ops[0].Error)
+				assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
+				assert.Equal(t, string(change.KindRemoveEdition), res.Ops[0].Error.Capability)
+				assert.Contains(t, res.Ops[0].Error.Message, "would write its source in its place")
+				assert.Equal(t, tc.body, f.read(t, tc.doc), "nothing is written")
+				return
+			}
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+			assert.Equal(t, tc.want, f.read(t, tc.doc))
+			page, err = f.svc.Read(ctx, change.ReadRequest{Doc: tc.doc})
+			require.NoError(t, err)
+			_, held := page.Blocks[0].Editions["fr"]
+			assert.False(t, held, "the translation reads back absent")
+		})
+	}
+}
+
+// A translation kept in a bilingual file of its own (fr/messages.po beside
+// messages.po, as a recipe's target template keeps it) is removed the same
+// way: the PO catalog's entry loses its msgstr, and the XLIFF writers, which
+// would fill the unit from its source, refuse the removal with the file left
+// as it was. The document's own file is never written.
+func TestFileHome_RemovingATranslationFromItsOwnBilingualFile(t *testing.T) {
+	xliff2 := func(lang, target string) string {
+		tgt := ""
+		if target != "" {
+			tgt = "<target>" + target + "</target>"
+		}
+		return `<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="` + lang + `">
+  <file id="f1">
+    <unit id="1"><segment><source>Hello</source>` + tgt + `</segment></unit>
+  </file>
+</xliff>
+`
+	}
+	frenchXLIFF2 := xliff2("fr", "Bonjour")
+	tests := []struct {
+		name, doc, source, translation string
+		want                           string // empty: refused, the file as it was
+	}{
+		{name: "a PO catalog", doc: "messages.po", source: poCatalog("en", [2]string{"Hello", ""}), translation: frenchPO,
+			want: strings.Replace(frenchPO, `msgstr "Bonjour"`, `msgstr ""`, 1)},
+		{name: "an XLIFF 1.2 file", doc: "a.xlf", source: strings.Replace(frenchXLIFF, "<target>Bonjour</target>", "", 1), translation: frenchXLIFF},
+		{name: "an XLIFF 2 file", doc: "a.xliff", source: xliff2("en", ""), translation: frenchXLIFF2},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newCatalogFixture(t, map[string]string{tc.doc: tc.source, "fr/" + tc.doc: tc.translation}, filehome.Options{})
+			ctx := context.Background()
+			french := mustEdition(t, "fr")
+			page, err := f.svc.Read(ctx, change.ReadRequest{Doc: tc.doc, Editions: []model.EditionKey{french}})
+			require.NoError(t, err)
+			require.Len(t, page.Blocks, 1)
+			fr, ok := page.Blocks[0].Editions["fr"]
+			require.True(t, ok, "the French file holds the translation")
+			at := page.Blocks[0].Ref
+			at.Edition = french
+			res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{
+				{Kind: change.KindRemoveEdition, At: at, IfMatch: fr.Rev, Body: &change.RemoveEdition{}},
+			}}, person)
+			require.NoError(t, err)
+			assert.Equal(t, tc.source, f.read(t, tc.doc), "the document's own file is never written")
+			if tc.want == "" {
+				require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
+				require.NotNil(t, res.Ops[0].Error)
+				assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
+				assert.Equal(t, string(change.KindRemoveEdition), res.Ops[0].Error.Capability)
+				assert.Contains(t, res.Ops[0].Error.Message, "would write its source in its place")
+				assert.Equal(t, tc.translation, f.read(t, "fr/"+tc.doc), "nothing is written")
+				return
+			}
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+			assert.Equal(t, tc.want, f.read(t, "fr/"+tc.doc))
+			page, err = f.svc.Read(ctx, change.ReadRequest{Doc: tc.doc, Editions: []model.EditionKey{french}})
+			require.NoError(t, err)
+			_, held := page.Blocks[0].Editions["fr"]
+			assert.False(t, held, "the translation reads back absent")
+		})
+	}
+}
+
 // TestFileHome_ABilingualFileTakesOnlyTheEditionsItHolds pins rule 7 of the
 // contract for a file that holds its translations itself: an edit of the
 // translation the file holds reaches its bytes, and an edit of an edition the

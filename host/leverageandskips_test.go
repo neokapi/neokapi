@@ -78,7 +78,7 @@ func TestComputeProjectPlan_UnopenableStoreFailsThePlan(t *testing.T) {
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	_, perr := a.computeProjectPlan(t.Context(), proj, recipe)
+	_, perr := a.computeProjectPlan(t.Context(), proj, recipe, planRun{})
 	require.Error(t, perr,
 		"a content memory that cannot be read must not be reported as a project with no leverage — "+
 			"the plan's cost estimate is computed against it")
@@ -103,7 +103,7 @@ func TestComputeProjectPlan_AbsentStorePlansAtZeroLeverage(t *testing.T) {
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	plan, perr := a.computeProjectPlan(t.Context(), proj, recipe)
+	plan, perr := a.computeProjectPlan(t.Context(), proj, recipe, planRun{})
 	require.NoError(t, perr, "a project with no store yet must still plan")
 	assert.Positive(t, plan.Totals.AIRemaining, "with no content memory every missing unit is AI work")
 	assert.Zero(t, plan.Totals.MemoryExact, "no content memory means no exact-hash leverage")
@@ -127,7 +127,7 @@ func TestComputeProjectPlan_HealthyStoreStillPlans(t *testing.T) {
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	_, perr := a.computeProjectPlan(t.Context(), proj, recipe)
+	_, perr := a.computeProjectPlan(t.Context(), proj, recipe, planRun{})
 	require.NoError(t, perr, "a readable store must plan normally")
 }
 

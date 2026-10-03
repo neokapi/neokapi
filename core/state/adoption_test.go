@@ -143,6 +143,65 @@ func TestADecisionAnswersInEveryCheckoutOfTheDocument(t *testing.T) {
 	assert.Equal(t, "reviewer", got.Decision.By)
 }
 
+// TestDocumentKeyAnswersAsTheDocumentsAndAdoptionsDo pins that the key of the
+// document at one path is the one reading every document and adoption gives
+// it: this checkout's own first, then the project's earliest adoption.
+func TestDocumentKeyAnswersAsTheDocumentsAndAdoptionsDo(t *testing.T) {
+	ctx := t.Context()
+	p := newSharedProject(t)
+	first := p.checkout("first")
+	keys, err := first.AdoptDocuments(ctx, []reconcile.DocUnit{
+		{Path: "docs/intro.md", Content: []string{"h1", "h2", "h3"}},
+		{Path: "docs/setup.md", Content: []string{"s1", "s2"}},
+	})
+	require.NoError(t, err)
+	// The first checkout follows a rename of the introduction.
+	keys2, err := first.AdoptDocuments(ctx, []reconcile.DocUnit{
+		{Path: "guides/intro.md", Content: []string{"h1", "h2", "h3"}},
+		{Path: "docs/setup.md", Content: []string{"s1", "s2"}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, keys["docs/intro.md"], keys2["guides/intro.md"])
+	fresh := p.checkout("fresh")
+
+	tests := []struct {
+		name  string
+		w     *state.WorkStore
+		path  string
+		key   string
+		found bool
+	}{
+		{name: "a document this checkout resolved", w: first, path: "guides/intro.md", key: keys["docs/intro.md"], found: true},
+		{name: "a path only the project's adoptions name", w: fresh, path: "guides/intro.md", key: keys["docs/intro.md"], found: true},
+		{name: "a path the key moved away from", w: fresh, path: "docs/intro.md"},
+		{name: "a path nobody read", w: first, path: "docs/new.md"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key, found, err := tt.w.DocumentKey(ctx, tt.path)
+			require.NoError(t, err)
+			assert.Equal(t, tt.found, found)
+			assert.Equal(t, tt.key, key)
+
+			// The same answer the whole listing gives.
+			docs, err := tt.w.Documents(ctx)
+			require.NoError(t, err)
+			adopted, err := tt.w.AdoptedDocuments(ctx)
+			require.NoError(t, err)
+			byPath := map[string]string{}
+			for _, d := range docs {
+				byPath[d.Path] = d.Key
+			}
+			for _, d := range adopted {
+				if _, known := byPath[d.Path]; !known {
+					byPath[d.Path] = d.Key
+				}
+			}
+			assert.Equal(t, byPath[tt.path], key)
+		})
+	}
+}
+
 func TestAdoptingWhatTheProjectHoldsRecordsNothing(t *testing.T) {
 	ctx := t.Context()
 	p := newSharedProject(t)

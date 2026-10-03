@@ -402,6 +402,12 @@ identical pair no approval stands behind, a pair refused for asymmetric inline
 codes) is reported as **unanswered** and priced. It is kept apart from `stale`:
 stale means a decision's basis moved, which also drives the review worklist and
 shipping, and merging the two would make the plan and the run summary disagree.
+The plan prices only the languages the run's first pass works on, chosen from
+coverage derived as the run derives it before that pass (`localesNeedingPass`,
+with the bound checks unless the run skips them). A pass drafts every
+unanswered unit of a language it works on, and a language with nothing
+missing, stale, rejected, failing a check or short of its gate gets no pass, so
+its unanswered units are no work and its exact lookups are not asked.
 Whether the price is a provider call is the drafting step's own question. The
 step serves a stored draft when the project block store holds a translation of
 the same source made under its current configuration fingerprint and the
@@ -516,13 +522,15 @@ written before the field existed reads through the producer's stamp on its
 ### Who decided
 
 A `Decision` records a person's outcome and, where a hosted surface knows it,
-who reached it. An agent or a model never records one: `ApplyReviewDecisionAs`
-refuses an `agent/…` or `ai/…` identity (`state.IsAgentIdentity`), and `kapi
-apply` refuses a review entry when the command runs as an agent. An agent
-pre-reviews instead: it stores a score and its reasons on the unit
-(`state.AIReview`, a `decide` operation with outcome `advise` sent through MCP
-`apply_edits`, the desktop pre-review), bound to the translation it judged, and the person reviewing reads it in the
-queue. Its judgement never counts as a person's.
+who reached it. Every decision is a `decide` operation sent to the change
+service ([E-09](../engine/e-09-the-change-contract.md)), and an agent or a model
+never records one: the service refuses a `decide` other than `advise` from an
+agent as `not_permitted`, whichever surface carries it (`kapi apply` run from an
+agent's shell, MCP `apply_edits`). An agent pre-reviews instead: it stores a
+score and its reasons on the unit (`state.AIReview`, a `decide` operation with
+outcome `advise`, the desktop pre-review), bound to the translation it judged,
+and the person reviewing reads it in the queue. Its judgement never counts as a
+person's.
 
 An `AIReview` is a third thing again: an advisory annotation carrying a score
 and findings, bound to the translation it judged so that an edit invalidates it

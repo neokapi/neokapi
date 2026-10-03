@@ -149,7 +149,7 @@ func TestReviewQueue_ApprovedSourceStaysSelectableAtZero(t *testing.T) {
 	a := &App{}
 
 	for _, key := range []string{"a", "b"} {
-		changed, err := a.ApproveSourceUnit(t.Context(), recipe, "en", SourceUnitRef{File: "en.json", Key: key})
+		changed, err := approveSource(t.Context(), a, recipe, SourceUnitRef{File: "en.json", Key: key})
 		require.NoError(t, err)
 		require.True(t, changed)
 	}
@@ -222,7 +222,7 @@ func TestReviewUnit_AnswersASourceLanguageUnit(t *testing.T) {
 	assert.Equal(t, "a", info.Context.Neighbourhood.Key)
 
 	// The approval is readable back through the same call.
-	_, err = a.ApproveSourceUnit(t.Context(), recipe, "en", SourceUnitRef{File: "en.json", Key: "a"})
+	_, err = approveSource(t.Context(), a, recipe, SourceUnitRef{File: "en.json", Key: "a"})
 	require.NoError(t, err)
 	after, err := a.ReviewUnitWithContext(t.Context(), recipe, "en", ReviewUnitRef{
 		File: "en.json", Key: "a", Locale: "en",

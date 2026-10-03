@@ -153,7 +153,7 @@ func (p *docPlan) buildInsert(body *InsertBlock) (map[model.EditionKey][]model.R
 			Body: &SetContent{Content: c}})
 		keys = append(keys, k)
 	}
-	for j, res := range ApplyBlock(nb, ops, p.env(false)) {
+	for j, res := range ApplyBlock(nb, ops, p.env(false, nil)) {
 		if res.Status == OpRefused && res.Error != nil {
 			e := *res.Error
 			e.Field = "editions/" + keyText(keys[j])

@@ -130,6 +130,23 @@ func TestApplyChangesInLocalMode(t *testing.T) {
 		assert.Equal(t, "absent", targetRevision(t, app, info.ID, b1, "fr"))
 	})
 
+	// Two edits of one translation whose positions overlap are refused, the
+	// message naming each by its place in the change set, a decision sent
+	// before them counted.
+	t.Run("an overlap names operations by their place in the change set", func(t *testing.T) {
+		rev := targetRevision(t, app, info.ID, b0, "fr")
+		at := map[string]string{"doc": item, "block": b0, "edition": "fr"}
+		res := applyChanges(t, app, info.ID,
+			decideTarget(item, b0, "fr", rev, "establish"),
+			op{"op": "replace_text", "at": at, "if_match": rev, "edits": []map[string]any{{"start": 0, "end": 7, "text": "Salut"}}},
+			op{"op": "replace_text", "at": at, "if_match": rev, "edits": []map[string]any{{"start": 3, "end": 10, "text": "x"}}})
+		require.Equal(t, change.SetRefused, res.Status)
+		require.NotNil(t, res.Ops[2].Error, "%+v", res.Ops)
+		assert.Equal(t, change.CodeGuard, res.Ops[2].Error.Code)
+		assert.Contains(t, res.Ops[2].Error.Message, "operation 2 names a position in text operation 1")
+		assert.Equal(t, rev, targetRevision(t, app, info.ID, b0, "fr"), "a refusal writes nothing")
+	})
+
 	// Every if_match names the edition as the change set found it, so a
 	// decision beside a save of the same translation names the revision both
 	// were made against, not the one the save leaves.

@@ -112,5 +112,14 @@ func TestApplyRefusesACommentEditTheCommentLayerRefuses(t *testing.T) {
 		assert.Equal(t, ExitUsage, ExitCode(nil, err))
 		assert.Contains(t, err.Error(), "code comments and documents")
 		assertUnchanged(t, "parse.go", repairGo)
+
+		// --json answers with the refused result on standard output.
+		res, err := applyJSON(t, app, NewEnvCommand(t.Context(), "apply"), body, ApplyOptions{})
+		assert.Equal(t, ExitUsage, ExitCode(nil, err))
+		assert.Equal(t, change.SetRefused, res.Status)
+		require.NotNil(t, res.Error)
+		assert.Equal(t, change.CodeInvalid, res.Error.Code)
+		assert.Contains(t, res.Error.Message, "code comments and documents")
+		assertUnchanged(t, "parse.go", repairGo)
 	})
 }

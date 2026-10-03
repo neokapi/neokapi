@@ -129,8 +129,9 @@ func TestApply_RefusesAChangeSetThatDoesNotDecode(t *testing.T) {
 		"no if_match":       {`{"ops":[{"op":"set_content","at":{"doc":"en.json","block":"a"},"text":"Hi"}]}`, "if_match"},
 		"an actor":          {`{"actor":{"kind":"person"},"ops":[{"op":"set_content","at":{"doc":"en.json","block":"a"},"if_match":"*","text":"Hi"}]}`, "actor"},
 		"not JSON":          {`{"ops":`, "not JSON"},
-		"no operations":     {`{"ops":[]}`, "at least one operation"},
+		"no ops list":       {`{"note":"nothing"}`, `"ops": []`},
 		"a term's field":    {`{"ops":[{"op":"set_content","at":{"doc":"en.json","block":"a"},"if_match":"*","replacement":"Hi"}]}`, "/ops/0/replacement"},
+		"the retired shape": {`{"kind":"content","file":"en.json","id":"a","content_hash":"abc","text":"Hi"}`, "retired entry shape"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, _, err := runApply(t, newToolboxApp(t), NewEnvCommand(t.Context(), "apply"), tc.body, ApplyOptions{})
@@ -140,7 +141,46 @@ func TestApply_RefusesAChangeSetThatDoesNotDecode(t *testing.T) {
 			got, _ := os.ReadFile("en.json")
 			assert.JSONEq(t, `{"a":"Hello"}`, string(got))
 		})
+		// --json answers with the refused result on standard output, as MCP
+		// and the browser do, and still exits 2.
+		t.Run(name+" with --json", func(t *testing.T) {
+			stdout, stderr, err := runApply(t, newToolboxApp(t), NewEnvCommand(t.Context(), "apply"), tc.body, ApplyOptions{JSON: true})
+			require.Error(t, err)
+			assert.Equal(t, ExitUsage, ExitCode(nil, err))
+			assert.Empty(t, stderr)
+			var res change.Result
+			require.NoError(t, json.Unmarshal([]byte(stdout), &res), stdout)
+			assert.Equal(t, change.ResultSchemaID, res.Schema)
+			assert.Equal(t, change.SetRefused, res.Status)
+			require.NotNil(t, res.Error)
+			assert.Equal(t, change.CodeInvalid, res.Error.Code)
+			assert.Contains(t, res.Error.Pointer+" "+res.Error.Message, tc.want)
+			assert.Empty(t, res.Ops)
+			assert.Empty(t, res.Docs)
+		})
 	}
+}
+
+// A change set with no operation, as a run with nothing to do prints it,
+// applies and changes nothing.
+func TestApply_AnEmptyChangeSetChangesNothing(t *testing.T) {
+	noProject(t)
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.WriteFile("en.json", []byte(`{"a":"Hello"}`), 0o644))
+	var printed bytes.Buffer
+	require.NoError(t, newPrintedOps().write(&printed), "a printing run that changes nothing")
+
+	_, stderr, err := runApply(t, newToolboxApp(t), NewEnvCommand(t.Context(), "apply"), printed.String(), ApplyOptions{})
+	require.NoError(t, err)
+	assert.Contains(t, stderr, "change set applied: no operation, nothing to change")
+
+	res, err := applyJSON(t, newToolboxApp(t), NewEnvCommand(t.Context(), "apply"), printed.String(), ApplyOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, change.SetApplied, res.Status)
+	assert.Empty(t, res.Ops)
+	assert.Nil(t, res.Record)
+	got, _ := os.ReadFile("en.json")
+	assert.JSONEq(t, `{"a":"Hello"}`, string(got))
 }
 
 // The entry shape kapi apply read before kapi.change/v1 is refused by name,

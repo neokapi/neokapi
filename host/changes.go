@@ -86,11 +86,9 @@ type ChangeServiceOptions struct {
 	revisionsOnly bool
 
 	// Materialize writes each translation's file a change writes from its
-	// source's skeleton (filehome.Options.Materialize), and keeps the
-	// translations of a bilingual source (a PO or XLIFF catalog) in the
-	// files the recipe's target template names rather than in the source:
-	// kapi merge and kapi pull write whole translations this way, where the
-	// editing surfaces edit a translation's file in place.
+	// source's skeleton (filehome.Options.Materialize): kapi merge and kapi
+	// pull write whole translations this way, where the editing surfaces
+	// edit a translation's file in place.
 	Materialize bool
 	// WriterHook, inside a project, is given every writer the service opens
 	// for a source file, after the recipe configured it: kapi pull sets the
@@ -319,13 +317,6 @@ func (a *App) editionsOf(name string) change.Editions {
 	return change.EditionsPerFile
 }
 
-// interchange reports whether name is a translation interchange format (XLIFF,
-// PO, TMX), as its writer declares.
-func (a *App) interchange(name string) bool {
-	info := a.FormatReg.FormatInfo(registry.FormatID(preset.ParseFormatRef(name).RegistryName()))
-	return info != nil && info.Interchange
-}
-
 // multilingualCatalogs are the string-catalog formats whose one file holds
 // every language, each read as an edition of the source string (an Xcode
 // string catalog).
@@ -435,9 +426,6 @@ type projectChangeLayout struct {
 	// writerHook is given every writer opened for a source file
 	// (ChangeServiceOptions.WriterHook).
 	writerHook func(format.DataFormatWriter)
-	// materialize keeps the translations of a bilingual source in the files
-	// the recipe's target template names (ChangeServiceOptions.Materialize).
-	materialize bool
 
 	once  sync.Once
 	index *projectChangeIndex
@@ -466,10 +454,9 @@ func (a *App) newProjectLayout(opts ChangeServiceOptions) (*projectChangeLayout,
 	pctx := project.NewProjectContext(proj, opts.Project)
 	return &projectChangeLayout{
 		app: a, root: pctx.ProjectDir, proj: proj, pctx: pctx, format: opts.Format, target: opts.TargetLocale,
-		source:      model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), proj.Defaults.SourceLanguage)),
-		enc:         ResolveEncodingName(a.Encoding, proj.Defaults.Encoding),
-		writerHook:  opts.WriterHook,
-		materialize: opts.Materialize,
+		source:     model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), proj.Defaults.SourceLanguage)),
+		enc:        ResolveEncodingName(a.Encoding, proj.Defaults.Encoding),
+		writerHook: opts.WriterHook,
 	}, nil
 }
 
@@ -637,13 +624,13 @@ func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) fil
 	if rf.Item != nil && rf.Item.Target == "" {
 		d.NoEditionFile = "the collection that holds it names no target, so its translations have no file"
 	}
-	if len(targets) > 0 && d.Editions == change.EditionsInFile && (!l.app.interchange(name) || l.materialize) {
-		// A Qt Linguist or string-catalog source whose translations the
-		// recipe writes to files of their own keeps them there. So does
-		// any bilingual source for a service that writes whole
-		// translations (Materialize): kapi merge and kapi pull write each
-		// translation to the file the target template names, never into
-		// the source catalog.
+	if len(targets) > 0 && d.Editions == change.EditionsInFile {
+		// A bilingual source (a PO catalog or template, an XLIFF file, a
+		// Qt Linguist or string catalog) whose translations the recipe
+		// writes to files of their own keeps them there: the French of
+		// po/en.po is po/fr.po's, read and written in that file, and the
+		// source catalog's own msgstr holds no edition. Every surface
+		// reads it the same way, whatever target language it was told.
 		d.Editions, d.TargetLocale = change.EditionsPerFile, ""
 	}
 	d.EditionFile = func(k model.EditionKey) (filehome.EditionFile, bool) {
@@ -900,10 +887,10 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 		if set != nil {
 			note = set.Note
 		}
-		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionRejected, note, "", decided)
+		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionRejected, note, decided)
 		return decisionOutcome(changed, err)
 	default:
-		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", "", decided)
+		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", decided)
 		return decisionOutcome(changed, err)
 	}
 }

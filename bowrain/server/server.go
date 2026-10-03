@@ -74,6 +74,9 @@ type Server struct {
 
 	// wsStores manages per-workspace content memory and terminology stores.
 	wsStores *workspaceStores
+	// termSnapshots keeps each workspace's terms snapshot under the revision
+	// it was read at (termSnapshotCache).
+	termSnapshots termSnapshotCache
 
 	// CredentialStore manages AI provider credentials.
 	CredentialStore *credentials.Store

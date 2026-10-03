@@ -234,21 +234,41 @@ func TestUpPlan_ConvergedProjectHasNoWork(t *testing.T) {
 	assert.Contains(t, out2, "Nothing to do")
 }
 
-// TestUpPlan_ProducedUnitsTheCorpusCannotFillAreWork is the same project with an
-// empty corpus: its targets exist and the next pass re-produces every one of
-// them, so a plan reporting nothing to do described a run that was going to
-// happen anyway — the under-pricing #1974 names.
-func TestUpPlan_ProducedUnitsTheCorpusCannotFillAreWork(t *testing.T) {
+// TestUpPlan_ProducedUnitsTheCorpusCannotFillAreWorkWhenAPassRuns is the same
+// project with an empty corpus. A pass over a language drafts every unit the
+// corpus does not answer, so once a pass runs its targets are produced again
+// and the plan prices them (the under-pricing #1974 names). A language whose
+// coverage holds no work gets no pass, so the plan reports nothing to draft,
+// as the run that follows does (it runs no pass).
+func TestUpPlan_ProducedUnitsTheCorpusCannotFillAreWorkWhenAPassRuns(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	recipe, root := planFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
 
-	a2 := processOnlyApp(t)
-	out2, err := runUp(t, a2, recipe, "--plan")
-	require.NoError(t, err, out2)
-	assert.Contains(t, out2, "unanswered")
-	assert.Contains(t, out2, "the pass drafts them")
+	// Shippable, and nothing stale or failing: no pass, so nothing to draft.
+	plan, err := runUp(t, processOnlyApp(t), recipe, "--plan")
+	require.NoError(t, err, plan)
+	assert.Contains(t, plan, "every language is up to date")
+	assert.NotContains(t, plan, "unanswered")
+	steady, err := runUp(t, processOnlyApp(t), recipe)
+	require.NoError(t, err, steady)
+	assert.Contains(t, steady, "plan: every language is up to date")
+	assert.Contains(t, steady, "in 0 passes", "and the run agrees: %s", steady)
+
+	// A new string puts the language short of its gate, so the next run passes
+	// over it, and that pass drafts the two units the corpus cannot fill beside
+	// the new one.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src/locales/en/c.json"), []byte(`{"thanks":"Thank you."}`), 0o644))
+	plan, err = runUp(t, processOnlyApp(t), recipe, "--plan")
+	require.NoError(t, err, plan)
+	assert.Contains(t, plan, "2 unit(s) unanswered")
+	assert.Contains(t, plan, "the pass drafts them")
+	run, err := runUp(t, processOnlyApp(t), recipe)
+	require.NoError(t, err, run)
+	assert.Contains(t, run, "plan: 1 unit(s) missing · drafting 2 unit(s) the content memory does not answer")
+	_, _, ai := runCounts(t, run)
+	assert.Equal(t, 3, ai, "the pass drafted the new unit and the two the corpus cannot fill: %s", run)
 }
 
 // TestUpPlan_RecycleOnlyFlowPricesNothingItCannotProduce: the plan reads the

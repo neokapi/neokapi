@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/state"
 )
@@ -22,6 +23,17 @@ func requireInstallHint(t *testing.T, err error, plugin string) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, registry.ErrUnknownFormat)
 	assert.Contains(t, err.Error(), "(kapi plugins install "+plugin+")")
+}
+
+// requireInstallRefusal holds a change service refusal to naming the plugin:
+// a decision is a decide operation the service refuses as unsupported when it
+// cannot read the file.
+func requireInstallRefusal(t *testing.T, err error, plugin string) {
+	t.Helper()
+	var ce *change.Error
+	require.ErrorAs(t, err, &ce)
+	assert.Equal(t, change.CodeUnsupported, ce.Code)
+	assert.Contains(t, ce.Message, "(kapi plugins install "+plugin+")")
 }
 
 // readableReviewKey returns the key of the readable translation awaiting review,
@@ -39,13 +51,13 @@ func readableReviewKey(t *testing.T, recipe string) string {
 	return ""
 }
 
-func TestApproveReviewUnitWithNoReaderFailsAndRecordsNothing(t *testing.T) {
+func TestApprovingAUnitWithNoReaderFailsAndRecordsNothing(t *testing.T) {
 	root := reviewUnreadProject(t, true)
 	recipe := filepath.Join(root, "kapi.yaml")
 	ctx := context.Background()
 
-	ok, err := (&App{}).ApproveReviewUnit(ctx, recipe, "en", "fr", "pkg/doc.fr.idml", "hello")
-	requireInstallHint(t, err, "okapi-bridge")
+	ok, err := decideUnit(ctx, &App{}, recipe, ReviewUnitRef{File: "pkg/doc.fr.idml", Key: "hello", Locale: "fr"}, ReviewDecisionApproved, "")
+	requireInstallRefusal(t, err, "okapi-bridge")
 	assert.False(t, ok)
 	st, serr := (&App{}).OpenProjectState(ctx, root)
 	require.NoError(t, serr)
@@ -54,7 +66,7 @@ func TestApproveReviewUnitWithNoReaderFailsAndRecordsNothing(t *testing.T) {
 	assert.Empty(t, recorded, "nothing was approved")
 
 	// The readable unit beside it approves as usual.
-	ok, err = (&App{}).ApproveReviewUnit(ctx, recipe, "en", "fr", "fr.json", readableReviewKey(t, recipe))
+	ok, err = decideUnit(ctx, &App{}, recipe, ReviewUnitRef{File: "fr.json", Key: readableReviewKey(t, recipe), Locale: "fr"}, ReviewDecisionApproved, "")
 	require.NoError(t, err)
 	assert.True(t, ok)
 }
@@ -92,7 +104,7 @@ func TestSourceUnitReviewAndApprovalWithNoReaderNameThePlugin(t *testing.T) {
 	_, err := (&App{}).ReviewUnit(ctx, recipe, "en", ReviewUnitRef{File: "pkg/doc.idml", Key: "hello", Locale: "en"})
 	requireInstallHint(t, err, "okapi-bridge")
 
-	ok, err := (&App{}).ApproveSourceUnit(ctx, recipe, "en", SourceUnitRef{File: "pkg/doc.idml", Key: "hello"})
-	requireInstallHint(t, err, "okapi-bridge")
+	ok, err := approveSource(ctx, &App{}, recipe, SourceUnitRef{File: "pkg/doc.idml", Key: "hello"})
+	requireInstallRefusal(t, err, "okapi-bridge")
 	assert.False(t, ok)
 }

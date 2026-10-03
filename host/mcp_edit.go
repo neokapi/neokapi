@@ -247,7 +247,7 @@ func (a *App) applyEditsMCP(ctx context.Context, actor change.Actor, args json.R
 	if err != nil {
 		return changeError(err)
 	}
-	svc, recipe, err := a.mcpChangeService(ctx, project, opEditions(set))
+	svc, recipe, err := a.mcpChangeService(ctx, project, OpEditions(set))
 	if err != nil {
 		return nil, err
 	}

@@ -98,7 +98,7 @@ func TestReview_MultiFileCollectionCommitsEveryDecision(t *testing.T) {
 	require.Len(t, ids, 2, "and both files carry the same two ids — the shape that collides")
 
 	for _, it := range rep.Review {
-		changed, aerr := a.ApproveReviewUnit(t.Context(), recipe, "en", it.Locale, it.File, it.Key)
+		changed, aerr := decideUnit(t.Context(), a, recipe, ReviewUnitRef{File: it.File, Key: it.Key, Locale: it.Locale}, ReviewDecisionApproved, "")
 		require.NoError(t, aerr, "%s:%s", it.File, it.Key)
 		assert.True(t, changed, "%s:%s reported no change", it.File, it.Key)
 	}
@@ -116,7 +116,7 @@ func TestReview_MultiFileCollectionCommitsEveryDecision(t *testing.T) {
 }
 
 // writeReviewedCorrection approves the unit whose source matches srcText (for nb)
-// through the real state-store approval path — ApproveReviewUnit records the
+// through the real state-store approval path: a decide through the change service records the
 // decision in the project state store, the authoritative carrier of review state.
 // The target argument is ignored: approval blesses the translation already in the
 // file. (Named for historical continuity with the prior .memory.json-based helper.)
@@ -128,7 +128,7 @@ func writeReviewedCorrection(t *testing.T, root, srcText, _ string) {
 	require.NoError(t, err)
 	for _, it := range rep.Review {
 		if it.Source == srcText {
-			ok, err := a.ApproveReviewUnit(context.Background(), proj, "en", it.Locale, it.File, it.Key)
+			ok, err := decideUnit(context.Background(), a, proj, ReviewUnitRef{File: it.File, Key: it.Key, Locale: it.Locale}, ReviewDecisionApproved, "")
 			require.NoError(t, err)
 			require.True(t, ok)
 			return
@@ -197,7 +197,7 @@ func TestReview_QueueListsUnreviewedUnits(t *testing.T) {
 // TestReview_ApplyMemoryCorrectionIsRecycleNotReview drives the real `kapi apply` verb
 // and asserts the migrated boundary: a tm correction lands in the .memory.json as
 // RECYCLE leverage — it does NOT promote review coverage. Review state lives in
-// the project state store now (set by ApproveReviewUnit), not the content memory.
+// the project state store now (set by a decide through the change service), not the content memory.
 func TestReview_ApplyMemoryCorrectionIsRecycleNotReview(t *testing.T) {
 	root := writeReviewProject(t)
 	t.Chdir(root)

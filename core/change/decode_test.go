@@ -99,6 +99,12 @@ func decodeCases() []decodeCase {
 				assert.NotNil(t, runs, "an empty edition is content")
 				assert.Empty(t, runs)
 			}},
+		{name: "a set_content that states its tool origin", object: true, in: envelope(`{"op":"set_content",` + at[:len(at)-1] + `,"edition":"fr"},"if_match":"absent","text":"Bonjour","origin":{"tool":"translate","kind":"mt","engine":"demo"}}`),
+			check: func(t *testing.T, s change.Set) {
+				body := s.Ops[0].Body.(*change.SetContent)
+				require.NotNil(t, body.Origin)
+				assert.Equal(t, change.ToolOrigin{Tool: "translate", Kind: "mt", Engine: "demo"}, *body.Origin)
+			}},
 		{name: "preview mode and evidence", object: true, in: `{"mode":"preview","gate":"report","require_basis":true,"evidence":[{"path":"docs/a.md","quote":"x"},{"url":"https://example.com/issue/42"}],"ops":[{"op":"remove_edition",` + at[:len(at)-1] + `,"edition":"de"},"if_match":"*"}]}`,
 			check: func(t *testing.T, s change.Set) {
 				assert.Equal(t, change.ModePreview, s.Mode)
@@ -121,6 +127,20 @@ func decodeCases() []decodeCase {
 		{name: "JSONL of operations only", in: `{"op":"unannotate",` + at + `,"type":"note","id":"n1"}` + "\n" + `{"op":"unannotate",` + at + `,"type":"note","id":"n2"}`,
 			check: func(t *testing.T, s change.Set) { assert.Len(t, s.Ops, 2) }},
 
+		// A change set that changes nothing, as a run with nothing to do
+		// prints it.
+		{name: "an empty ops list", object: true, in: `{"schema":"kapi.change/v1","note":"nothing to do","ops":[]}`,
+			check: func(t *testing.T, s change.Set) {
+				assert.NotNil(t, s.Ops)
+				assert.Empty(t, s.Ops)
+				assert.Equal(t, "nothing to do", s.Note)
+			}},
+		{name: "an empty array", in: `[]`,
+			check: func(t *testing.T, s change.Set) {
+				assert.NotNil(t, s.Ops)
+				assert.Empty(t, s.Ops)
+			}},
+
 		// Refusals, each at the pointer of what is wrong.
 		{name: "unknown envelope field", object: true, pointer: "/actor", in: `{"actor":{"kind":"agent"},"ops":[{"op":"unannotate",` + at + `,"type":"note","id":"n1"}]}`},
 		{name: "unknown operation", object: true, pointer: "/ops/0/op", in: envelope(`{"op":"set_text",` + at + `}`)},
@@ -137,6 +157,9 @@ func decodeCases() []decodeCase {
 		{name: "a null value", object: true, pointer: "/ops/0/if_match", in: envelope(`{"op":"remove_edition",` + at + `,"if_match":null}`)},
 		{name: "both text and runs", object: true, pointer: "/ops/0", in: envelope(`{"op":"set_content",` + at + `,"if_match":"*","text":"a","runs":[]}`)},
 		{name: "neither text nor runs", object: true, pointer: "/ops/0", in: envelope(`{"op":"set_content",` + at + `,"if_match":"*"}`)},
+		{name: "an origin naming no tool", object: true, pointer: "/ops/0/origin", in: envelope(`{"op":"set_content",` + at + `,"if_match":"*","text":"a","origin":{"kind":"mt"}}`)},
+		{name: "an origin naming an empty tool", object: true, pointer: "/ops/0/origin/tool", semantic: true, in: envelope(`{"op":"set_content",` + at + `,"if_match":"*","text":"a","origin":{"tool":""}}`)},
+		{name: "an origin field the contract does not name", object: true, pointer: "/ops/0/origin/model", in: envelope(`{"op":"set_content",` + at + `,"if_match":"*","text":"a","origin":{"tool":"translate","model":"x"}}`)},
 		{name: "an edit naming its text twice", object: true, pointer: "/ops/0/edits/0", in: envelope(`{"op":"replace_text",` + at + `,"if_match":"*","edits":[{"find":"a","start":0,"end":1,"text":"b"}]}`)},
 		{name: "occurrence without find", object: true, pointer: "/ops/0/edits/0/occurrence", semantic: true, in: envelope(`{"op":"replace_text",` + at + `,"if_match":"*","edits":[{"start":0,"end":1,"occurrence":2,"text":"b"}]}`)},
 		{name: "an edition that is not a locale", object: true, pointer: "/ops/0/at/edition", semantic: true, in: envelope(`{"op":"unannotate","at":{"doc":"a","block":"b","edition":"xx-YY"},"type":"note","id":"n1"}`)},

@@ -438,14 +438,14 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
 		// Only capture if we don't already have one from an earlier pair
 		// for the same source (batch may extract N target locales off
-		// the same source file).
+		// the same source file); a later pair's store keeps nothing.
 		if _, err := os.Stat(skeletonPath); os.IsNotExist(err) {
 			skelStore, err = format.NewSkeletonStoreAt(skeletonPath)
 			if err != nil {
 				return project.ExtractionFile{}, fmt.Errorf("create skeleton store: %w", err)
 			}
-		} else if skelStore, err = format.NewSkeletonStore(); err != nil {
-			return project.ExtractionFile{}, fmt.Errorf("create skeleton store: %w", err)
+		} else {
+			skelStore = format.NewDiscardSkeletonStore()
 		}
 		emitter.SetSkeletonStore(skelStore)
 	}

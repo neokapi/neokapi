@@ -56,14 +56,19 @@ A change set has an envelope and operations.
 | `gate` | `enforce` (the default) or `report`: what a failing governance finding the change introduces does |
 | `require_basis` | refuse a write to a derived edition whose authoritative edition moved since the sender read it |
 | `note`, `evidence` | what a person reads in history, and where the wording behind the change was seen |
-| `ops` | the operations, applied in order |
+| `ops` | the operations, applied in order; a change set with none changes nothing |
 
 The content operations are `set_content`, `replace_text`, `set_attribute`,
 `mark`, `remove_edition`, `annotate`, `unannotate`, `insert_block`,
 `delete_block` and `native`. `decide` records a review decision, and `term`,
 `memory` and `recipe` change the project's terms store, content memory and
 recipe. The envelope carries no actor: the transport that delivers a change set
-says who sent it.
+says who sent it. A `set_content` or `replace_text` may state how a tool
+produced its content (`origin`: the tool, and the kind and engine it drew on),
+as a run printed with `--print-ops` states each translation it wrote. The
+service records no stated origin: an edit takes the origin its sender's edit
+gives it, a person's or an agent's their own, and a tool in a flow records how
+it produced a translation with the in-process provenance operation.
 
 `change.Decode` reads a change set strictly: an unknown field or operation is
 refused with the JSON pointer of what was wrong. `changeschema.Schema` is the
@@ -89,6 +94,21 @@ its runs, codes and their attributes included, and nothing else, so the same
 token holds in every home. `absent` creates an edition, and `*` writes whatever
 is there. Every `if_match` is checked against the content as it stood when the
 change set began, so a sender never computes an intermediate revision.
+
+A position names that content too. An edit's `start` and `end`, a run `range`,
+and the run index a `path` walks through all refer to the edition at the
+revision the sender read, and the applier moves each through the text the
+operations before it changed in the same edition, in the order they were sent:
+two fixes `kapi check` prints for different words of one block, each guarded by
+the revision the check read, both land where their sender meant. A position
+inside text an earlier operation replaced, or after a `set_content` of the
+sequence it lies in, has no place in the edition as it stands, and the
+operation is refused as `guard` (`overlap`) with a message naming both
+operations by their place in the change set. A `find` matches the text as the
+earlier operations left it, and an annotation's anchor marks that text. An
+in-process caller that builds each operation on the result of the one before
+it, as a transform's passes do, applies them with `BlockEnv.Chained`, under
+which every position reads the edition as the operations before it left it.
 
 ### The applier
 
@@ -118,9 +138,10 @@ note describes each rule.
   changed since is refused as `stale`. `ReadEach` reads every block of a
   document in one pass and hands each to a callback beside the block it was
   read from, for a command line that streams a whole document.
-- **`Apply`** applies a change set in two phases. It asks the policy about
-  every operation, groups the operations by document, and opens each document
-  in its home. It then prepares every document: the home reads it, the
+- **`Apply`** applies a change set in two phases. It checks each operation's
+  body as `Decode` does, since a sender in the process never passed the
+  decoder, asks the policy about every operation, groups the operations by
+  document, and opens each document in its home. It then prepares every document: the home reads it, the
   service's editor applies the operations addressed to each block, and the
   home stages the result. The service refuses an edition the staged file does
   not change, because the format has no place for it there, and runs the
@@ -233,7 +254,13 @@ while writing nothing, edits to different blocks commute, also when one lands
 between the other's stage and commit, a refusal in one document leaves every
 document as it was, whether it is found at the stage or at the commit, a
 preview writes nothing, a missing block is not found, the same content said
-again is unchanged, and a file keeps its mode.
+again is unchanged, a file keeps its mode, a removed translation reads back
+absent while a replay of its removal is stale and writes nothing, and a change
+set with no operation applies and writes nothing. Each home runs the removal on
+a translation it holds: the stream's own rows, a PO catalog for the file home,
+and for the project homes the catalog a PO source's target template names
+(`po/fr.po` beside `po/en.po`), where the suite also checks that the removal is
+written there and the source catalog keeps its bytes.
 
 **The file home** (`core/change/filehome`) keeps each document as a file. A
 stage reads the document through its format's reader with the writer's
@@ -252,7 +279,16 @@ is never rewritten from the document; a file that does not exist yet is
 written from the document's skeleton. A change set that adds or removes
 blocks has the format's writer write those edits into the document's file and
 into the file of each edition the blocks hold or name, keeping them in memory
-until the commit, and the stage's pass reads the result. Where the reader and
+until the commit, and the stage's pass reads the result. A stage that removes a
+translation a bilingual file holds, the document's own or the translation's
+file the target template names, reads its write back, and refuses the removal
+as `unsupported` when the translation is still there: the XLIFF and TMX writers
+write a translation of every unit, from the source where a block holds none,
+so a removal there would put the source in the translation's place. Their
+description lists `remove_edition`, which the stage then refuses. The read-back
+belongs to a change set's stage: a flow that writes a translation's file
+through the writer, such as `kapi exec remove-target` writing `fr/a.xlf`, gets
+what the writer writes, the source in the removed translation's place. Where the reader and
 the writer both stream and no block is added or removed, the document is never
 held whole. The home reports what the document's writer declares: an
 in-process writer's declaration, with the writer spelling a changed attribute
@@ -317,7 +353,8 @@ Under `--print-ops` the run commits through a home that writes nothing
 document becomes operations, the difference between each block as the reader
 gave it and as the writer received it (`change.Diff`), each guarded by the
 revision the service read before the run and each `set_content` of a
-translation carrying its basis. Before a document's operations join the change
+translation carrying its basis and, as each operation on a translation does,
+the `origin` the producing tool left. Before a document's operations join the change
 set, they are applied to a private copy of the file through the service `kapi
 apply` reaches, and they are printed only when the copy then holds the bytes
 the run would have written. A run writes a target-language file whole from its
@@ -327,9 +364,11 @@ holds an entry or an order of its own; such a file is named on standard error
 and left out. So is a file the run would write where the service does not keep
 the edition (an output path given on the command line in place of the recipe's
 target), a conversion, an export and an archive. `kapi apply` of the change set
-writes the bytes the run would have written, and records the edit as its own
-actor's: the provenance operation is in-process, so the change set carries no
-tool stamp.
+writes the bytes the run would have written, and records the edit as its
+applier's: a person's or an agent's edit is theirs, so the `origin` the
+operations state is not kept on the translation, and `kapi apply` prints one
+line naming the tools and saying so. A run with nothing to change prints a
+change set with no operation, which applies and writes nothing.
 
 A printing `kapi up` runs one pass. A gated pass drafts into its private tree
 as any pass does (`Options.WriteUnder` lets the printing home write there),
@@ -352,7 +391,7 @@ The service calls six hooks a host supplies. Each is optional.
 | `CommitCheck` | over the changed editions, before anything is written; it returns findings before and after, and the governance fingerprint it used | nothing is checked |
 | `Assets` | to prepare `decide`, `term`, `memory` and `recipe` before anything is written, and to apply them after the content landed | those operations are refused as `unsupported` |
 | `Recorder` | after the homes committed, with the transitions and the fingerprint | nothing is recorded |
-| `EditionStates` | by a read, for the status and basis of a derived edition | a read shows the status the document holds and no basis |
+| `EditionStates` | once by each read of a document, with the most blocks the read shows, for the status and basis of its derived editions | a read shows the status the document holds and no basis |
 | `EditionHistories` | by `History`, for the recorded changes to an edition | a history lists nothing |
 
 The service refuses a change only for a failing finding it introduces
@@ -369,7 +408,10 @@ skeleton. Outside a project a reference is a path under the working
 directory, read with the format detection finds by name, then by content. A
 file of a translation interchange format, or of a multilingual string catalog
 (an Xcode `.xcstrings` file), holds its editions in the file, unless the recipe
-writes the source's translations to files of their own. Decisions and asset operations
+writes the source's translations to files of their own: with a target
+`po/{lang}.po`, the French of `po/en.po` or of `po/messages.pot` is read from and
+written to `po/fr.po`, in French, and the source catalog holds no edition, for
+every surface. Decisions and asset operations
 land through the host's review-queue and asset functions, a decision bound to
 the wording the change set landed rather than to a later read of the file; on
 an edition with no content in its home, such as a parked locale's draft, the
@@ -423,8 +465,9 @@ service for each call's project and send every change set as the calling agent
 `kapiApply` and `kapiDescribe` build it through the same function and carry
 the contract as JSON in and out: a refusal, a change set that does not decode
 included, is answered as a result. A call of either surface reads a bilingual
-file, such as a PO catalog, in the one language other than the source that its
-read's editions or its operations name, as `kapi apply` does. The page names
+file that holds its translation, such as a PO catalog, in the one language
+other than the source that its read's editions or its operations name, as
+`kapi apply` does. The page names
 the sender, a person unless it says an agent, and in a project an applied
 change is recorded in the browser's workspace log
 ([WASM Engine ABI](../../implementation/surfaces/wasm-engine-abi.md#the-change-contract)).
@@ -434,10 +477,8 @@ The verbs that write whole translations build the service with
 source's skeleton, keeping what each block's partner in the file held where the
 change set leaves it, and a translation follows the source's structure, even
 where the change set changes no content in a file whose blocks no longer pair
-with the source's. Such a service keeps the translations of a bilingual source,
-a PO or XLIFF catalog whose collection names a target, in the target
-template's files too, each read and written in its language: a catalog that
-still holds every unit of its source keeps its own skeleton, header included.
+with the source's. A bilingual translation file that still holds every unit
+of its source keeps its own skeleton, header included.
 `kapi merge -i` compiles a returned XLIFF, PO or `.kpz` into `set_content`
 operations carrying the `if_match` and `basis` each unit was extracted against,
 under `require_basis` and the enforce gate, and sends them as a person;
@@ -491,7 +532,9 @@ without another read. A resource bound `core/safeio` reports is
 `budget_exceeded`. A change set refused before any operation is considered,
 because it does not decode or the request carrying it is refused, is answered
 with the same result shape (`change.ErrorResult`): status `refused`, no record,
-no files or operations, and the error.
+no files or operations, and the error. `kapi apply --json` prints that result
+for a change set that does not decode or contradicts itself, and exits 2, as
+MCP and the browser answer one.
 
 ## Consequences
 

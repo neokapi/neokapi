@@ -62,15 +62,15 @@ func (a *App) callChangeService(ctx context.Context, project, origin string, edi
 	}
 	source := model.LocaleID(a.mcpCallSourceLocale(recipe))
 	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: origin,
-		SourceLocale: source, TargetLocale: soleTargetLocale(editions, source)})
+		SourceLocale: source, TargetLocale: SoleTargetLocale(editions, source)})
 	if err != nil {
 		return nil, "", err
 	}
 	return svc, recipe, nil
 }
 
-// opEditions are the editions a change set's operations address.
-func opEditions(set change.Set) []model.EditionKey {
+// OpEditions are the editions a change set's operations address.
+func OpEditions(set change.Set) []model.EditionKey {
 	keys := make([]model.EditionKey, len(set.Ops))
 	for i, op := range set.Ops {
 		keys[i] = op.At.Edition
@@ -209,7 +209,7 @@ func (a *App) ApplyChangesJSON(ctx context.Context, origin string, set, options 
 		actor = changeActorOf(resolved.Actor)
 		cs.Note = resolved.NoteWith(cs.Note)
 	}
-	svc, recipe, err := a.callChangeService(ctx, opts.Project, origin, opEditions(cs))
+	svc, recipe, err := a.callChangeService(ctx, opts.Project, origin, OpEditions(cs))
 	if err != nil {
 		return nil, err
 	}

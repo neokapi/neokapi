@@ -226,7 +226,7 @@ func TestReviewBasis_StaleUnitIsRedrafted(t *testing.T) {
 	// time, and the locale ships.
 	c := &App{}
 	defer c.Shutdown()
-	changed, aerr := c.ApproveReviewUnit(context.Background(), proj, "en", "nb",
+	changed, aerr := approveQueued(context.Background(), c, proj, "nb",
 		rep.Review[0].File, rep.Review[0].Key)
 	require.NoError(t, aerr)
 	require.True(t, changed)

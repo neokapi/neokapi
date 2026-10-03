@@ -168,7 +168,7 @@ func TestChangesJSON_AnswersARefusalAsAResult(t *testing.T) {
 		{name: "a read of a document the project does not hold", call: read, req: `{"doc":"docs/missing.json"}`, opts: project, code: change.CodeNotFound},
 		{name: "options with a field they do not take", call: apply, req: set, opts: string(callOptions(t, recipe, map[string]any{"projects": "x"})), code: change.CodeInvalid},
 		{name: "a change set that does not decode", call: apply, req: `{"ops":[{"op":"set_content","at":{"doc":"docs/app.json","block":"greeting"}}]}`, opts: project, code: change.CodeInvalid, pointer: "/ops/0"},
-		{name: "a change set with no operations", call: apply, req: `{"ops":[]}`, opts: project, code: change.CodeInvalid},
+		{name: "a change set that lists no operations", call: apply, req: `{"note":"nothing"}`, opts: project, code: change.CodeInvalid, pointer: "/ops"},
 		{name: "a tool as the actor", call: apply, req: set, opts: string(callOptions(t, recipe, map[string]any{"actor": map[string]any{"kind": "tool", "name": "x"}})), code: change.CodeInvalid, pointer: "/actor/kind"},
 		{name: "an empty describe request", call: describe, req: `{}`, opts: project, code: change.CodeInvalid},
 	}
@@ -193,6 +193,15 @@ func TestChangesJSON_AnswersARefusalAsAResult(t *testing.T) {
 		})
 	}
 	assert.Equal(t, before, readFile(t, recipe, "docs/app.json"), "no refusal writes")
+
+	// A change set with no operation applies and writes nothing.
+	out, err := apply(`{"ops":[]}`, project)
+	require.NoError(t, err)
+	res := resultJSON(t, out)
+	assert.Equal(t, change.SetApplied, res.Status, "%s", out)
+	assert.Nil(t, res.Error)
+	assert.Empty(t, res.Ops)
+	assert.Equal(t, before, readFile(t, recipe, "docs/app.json"))
 }
 
 // TestChangesJSON_SendsAsTheActorTheCallNames pins that the actor an apply's

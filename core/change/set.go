@@ -42,7 +42,11 @@ type Set struct {
 	Evidence []Evidence `json:"evidence,omitempty"`
 	// Ops apply in order: an operation sees the result of the operations
 	// before it on the same edition, while every if_match is checked against
-	// the content as it stood when the change set began.
+	// the content as it stood when the change set began, and every position
+	// (an edit's start and end, a run range, a path's run index) names that
+	// content too and is moved past what the operations before it changed.
+	// A find matches the text as they left it. No operation is a change set
+	// that changes nothing.
 	Ops []Op `json:"ops"`
 }
 

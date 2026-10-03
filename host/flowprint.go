@@ -25,10 +25,12 @@ import (
 // nothing. What it changed in each document becomes operations: the
 // difference between each block as the reader gave it and as the writer
 // received it (change.Diff), each guarded by the revision the change service
-// read before the run, and a derived edition's set_content carrying the
-// revision of the source it was made from as its basis. The operations of
-// every document make one change set, which kapi apply applies to the same
-// bytes the run would have written.
+// read before the run, a derived edition's set_content carrying the revision
+// of the source it was made from as its basis, and every operation on a
+// derived edition stating the tool that produced it as its origin. The
+// operations of every document make one change set, which kapi apply applies
+// to the same bytes the run would have written, and records as its applier's
+// edit, keeping no origin.
 
 // WithPrintedOps runs run as the command asks: with --print-ops, every
 // document the run's flows write is held back, nothing is recorded, the run's
@@ -179,8 +181,20 @@ func (doc *flowDoc) printOps() []change.Op {
 				}
 				op.IfMatch = was
 			}
-			if _, isSet := op.Body.(*change.SetContent); isSet && !k.IsZero() && !lb.block.IsSourceEdition(k) {
-				op.Basis = doc.basis(key, lb)
+			if derived := !k.IsZero() && !lb.block.IsSourceEdition(k); derived {
+				// How the tool produced the translation, which kapi apply
+				// reads and does not keep: the edit is its applier's.
+				var origin *change.ToolOrigin
+				if ed, ok := lb.block.Edition(k); ok {
+					origin = change.OriginOf(ed.Origin)
+				}
+				switch body := op.Body.(type) {
+				case *change.SetContent:
+					op.Basis = doc.basis(key, lb)
+					body.Origin = origin
+				case *change.ReplaceText:
+					body.Origin = origin
+				}
 			}
 			op.At.Doc = doc.ref
 			op.At.Block = key

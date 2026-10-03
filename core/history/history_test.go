@@ -181,12 +181,31 @@ func TestLatestIsTheLastChangeToEachEdition(t *testing.T) {
 	require.NoError(t, s.Put(ctx, []history.Row{row("op-3", "p", "de", "r:4")}))
 	require.NoError(t, s.Put(ctx, []history.Row{{Op: "op-4", Address: "a-other", Doc: "d-2", Block: "p", Edition: "fr", After: "r:9", At: at}}))
 
-	got, err := s.Latest(ctx, "d-1")
-	require.NoError(t, err)
-	want := map[string]string{"p@de": "r:4", "p@fr": "r:3", "q@fr": "r:2"}
-	have := map[string]string{}
-	for _, r := range got {
-		have[r.Block+"@"+r.Edition] = r.After
+	tests := []struct {
+		name     string
+		editions []string
+		want     map[string]string
+	}{
+		{name: "every edition", want: map[string]string{"p@de": "r:4", "p@fr": "r:3", "q@fr": "r:2"}},
+		{name: "one edition", editions: []string{"fr"}, want: map[string]string{"p@fr": "r:3", "q@fr": "r:2"}},
+		{name: "two editions", editions: []string{"fr", "de"}, want: map[string]string{"p@de": "r:4", "p@fr": "r:3", "q@fr": "r:2"}},
+		{name: "an edition nobody changed", editions: []string{"ja"}, want: map[string]string{}},
 	}
-	assert.Equal(t, want, have)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := s.Latest(ctx, "d-1", tt.editions...)
+			require.NoError(t, err)
+			have := map[string]string{}
+			for _, r := range got {
+				have[r.Block+"@"+r.Edition] = r.After
+				assert.Equal(t, "a-"+r.Op, r.Address, "the row carries its operation's address")
+			}
+			assert.Equal(t, tt.want, have)
+
+			plan := strings.Join(history.LatestPlan(t, s, tt.editions...), "\n")
+			assert.Regexp(t, `SEARCH h USING (COVERING )?INDEX sqlite_autoindex_block_history_1 \(doc=\? AND block=\? AND edition=\? AND op=\?\)`, plan,
+				"each edition's most recent change is one seek of the primary key")
+			assert.NotContains(t, plan, "CORRELATED", "no subquery runs once per row of the history")
+		})
+	}
 }

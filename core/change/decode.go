@@ -26,9 +26,12 @@ import (
 // Decoding is strict. An unknown field, an unknown operation, a missing
 // required field, a value of the wrong type, a runs payload carrying native
 // data, and a self-contradictory operation are refused with an *Error of code
-// invalid whose Pointer names the value at fault. The returned set has its
+// invalid whose Pointer names the value at fault. A change set with no
+// operation ("ops": [], or an empty array) is valid and changes nothing; an
+// envelope that lists no "ops" at all is refused. The returned set has its
 // defaults filled in: Schema is SchemaID, Mode is apply and Gate is enforce
-// when the input left them out, and every edition key is canonical.
+// when the input left them out, every edition key is canonical, and Ops is
+// never nil.
 func Decode(r io.Reader) (Set, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -97,8 +100,8 @@ func Decode(r io.Reader) (Set, error) {
 			return Set{}, err
 		}
 	}
-	if len(opsRaw) == 0 {
-		return Set{}, invalidAt("/ops", "a change set has at least one operation")
+	if _, listed := envelope["ops"]; envelope != nil && len(values) == 1 && !listed {
+		return Set{}, invalidAt("/ops", `a change set lists its operations under "ops"; "ops": [] is a change set that changes nothing`)
 	}
 	set.Ops = make([]Op, len(opsRaw))
 	for i, raw := range opsRaw {
@@ -311,8 +314,14 @@ func checkIfMatch(shape IfMatchRule, v, ptr string) *Error {
 func validateBody(op Op, ptr string) *Error {
 	switch b := op.Body.(type) {
 	case *SetContent:
+		if b.Origin != nil && b.Origin.Tool == "" {
+			return invalidAt(ptr+"/origin/tool", "names no tool")
+		}
 		return validateContent(b.Content, ptr)
 	case *ReplaceText:
+		if b.Origin != nil && b.Origin.Tool == "" {
+			return invalidAt(ptr+"/origin/tool", "names no tool")
+		}
 		if len(b.Edits) == 0 {
 			return invalidAt(ptr+"/edits", "has no edits")
 		}

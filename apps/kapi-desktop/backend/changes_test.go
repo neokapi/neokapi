@@ -17,6 +17,9 @@ import (
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/host"
 )
 
 // bindingService carries the change contract to the desktop's bindings as the
@@ -66,15 +69,21 @@ func (b bindingService) Apply(_ context.Context, set change.Set, _ change.Actor)
 // recipe claims under paths, with targets at target ("" for none).
 func changeProject(t *testing.T, app *App, files map[string]string, paths []string, target string) (tabID, root string) {
 	t.Helper()
+	var items []project.ContentItem
+	for _, p := range paths {
+		items = append(items, project.ContentItem{Path: p, Target: target})
+	}
+	return changeProjectOf(t, app, files, items)
+}
+
+// changeProjectOf opens a project whose content is files, claimed by items.
+func changeProjectOf(t *testing.T, app *App, files map[string]string, items []project.ContentItem) (tabID, root string) {
+	t.Helper()
 	root = t.TempDir()
 	for name, body := range files {
 		path := filepath.Join(root, filepath.FromSlash(name))
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
-	}
-	var items []project.ContentItem
-	for _, p := range paths {
-		items = append(items, project.ContentItem{Path: p, Target: target})
 	}
 	proj := &project.KapiProject{
 		Version:     project.CurrentVersion,
@@ -95,14 +104,27 @@ func changeProject(t *testing.T, app *App, files map[string]string, paths []stri
 func TestChangeBindings_Conformance(t *testing.T) {
 	changetest.Run(t, func(t *testing.T) changetest.Env {
 		app := NewApp()
-		tab, root := changeProject(t, app, map[string]string{
+		catalog := func(lang, msgstr string) string {
+			return "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"Language: " + lang + "\\n\"\n\nmsgid \"Hello there\"\nmsgstr \"" + msgstr + "\"\n"
+		}
+		tab, root := changeProjectOf(t, app, map[string]string{
 			"a.json": `{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}` + "\n",
 			"b.json": `{"title": "Welcome"}` + "\n",
-		}, []string{"a.json", "b.json"}, "")
+			// A catalog whose French translation is the catalog its target
+			// template names: the suite removes the French from po/fr.po, and
+			// po/en.po keeps its bytes.
+			"po/en.po": catalog("en", ""),
+			"po/fr.po": catalog("fr", "Bonjour"),
+		}, []project.ContentItem{
+			{Path: "a.json"}, {Path: "b.json"},
+			{Path: "po/en.po", Format: &project.FormatSpec{Name: "po"}, Target: "po/{lang}.po"},
+		})
 		return changetest.Env{
-			Service: bindingService{app: app, tab: tab},
-			DocA:    "a.json",
-			DocB:    "b.json",
+			Service:         bindingService{app: app, tab: tab},
+			DocA:            "a.json",
+			DocB:            "b.json",
+			Translated:      "po/en.po",
+			TranslationFile: "po/fr.po",
 			Snapshot: func(t *testing.T, doc string) []byte {
 				b, err := os.ReadFile(filepath.Join(root, doc))
 				require.NoError(t, err)
@@ -197,6 +219,42 @@ func TestApply_EditsATranslationThroughItsFile(t *testing.T) {
 	require.NotNil(t, d.Context.Provenance.Origin)
 	assert.Equal(t, model.OriginHuman, d.Context.Provenance.Origin.Kind, "the reviewer wrote the wording in front of them")
 	assert.Empty(t, d.Context.Provenance.ReviewState, "an edit records no decision")
+}
+
+// A PO catalog's translation is edited in the catalog its target template
+// names, as the review pane reads it from that file: the French of po/en.po is
+// po/fr.po's msgstr, and the English catalog keeps its bytes.
+func TestApply_EditsAPOCatalogsTranslationInItsTargetFile(t *testing.T) {
+	app := NewApp()
+	catalog := func(lang, msgstr string) string {
+		return "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"Language: " + lang + "\\n\"\n\nmsgid \"Hello there\"\nmsgstr \"" + msgstr + "\"\n"
+	}
+	en := catalog("en", "")
+	tab, root := changeProjectOf(t, app, map[string]string{"po/en.po": en, "po/fr.po": catalog("fr", "Bonjour")},
+		[]project.ContentItem{{Path: "po/en.po", Format: &project.FormatSpec{Name: "po"}, Target: "po/{lang}.po"}})
+	for _, doc := range []string{"po/fr.po", "po/en.po"} {
+		t.Run(doc, func(t *testing.T) {
+			page := readVia(t, app, tab, change.ReadRequest{Doc: doc, Editions: []model.EditionKey{{Locale: "fr"}}})
+			require.Len(t, page.Blocks, 1)
+			b := page.Blocks[0]
+			text, rev := b.Text, b.Rev
+			if b.Ref.Edition.IsZero() || b.Ref.Edition.Locale == "en" {
+				text, rev = b.Editions["fr"].Text, b.Editions["fr"].Rev
+			}
+			require.NotEmpty(t, text, "the French po/fr.po holds reads back: %+v", b)
+			at := b.Ref
+			at.Edition = model.EditionKey{Locale: "fr"}
+			want := "Salut " + doc
+			res := applyVia(t, app, tab, change.Set{Ops: []change.Op{setText(at, rev, want)}})
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+			data, err := os.ReadFile(filepath.Join(root, "po", "fr.po"))
+			require.NoError(t, err)
+			assert.Equal(t, catalog("fr", want), string(data), "the translation lands in po/fr.po")
+			data, err = os.ReadFile(filepath.Join(root, "po", "en.po"))
+			require.NoError(t, err)
+			assert.Equal(t, en, string(data), "the source catalog keeps its bytes")
+		})
+	}
 }
 
 // Approve and Reject are decide operations bound to the revision the reviewer
@@ -406,6 +464,95 @@ func TestApply_ASourceEditListsTheTranslationsItMadeStale(t *testing.T) {
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 }
 
+// A save the project's checks refuse is gate_failed with its findings; the
+// person may save it anyway, sending the change set again with gate report,
+// and the edit's record lists the findings overridden. An agent may never
+// choose report.
+func TestApply_SaveAnywayRecordsTheOverriddenFindings(t *testing.T) {
+	// One workspace for the context the project reads in and for the
+	// desktop's engine, so the test can read the record the edit leaves.
+	wsRoot := t.TempDir()
+	app := NewApp()
+	app.hostEngine().SetWorkspaceRoot(wsRoot)
+	tab, src := overrideProject(t, app, wsRoot, `{"greeting":"Please use the dashboard"}`)
+	root := filepath.Dir(filepath.Dir(src))
+	b := blockVia(t, app, tab, "locales/en.json", "greeting")
+	utilize := change.Set{Note: "Say utilize", Ops: []change.Op{setText(b.Ref, b.Rev, "Please utilize the dashboard")}}
+
+	res := applyVia(t, app, tab, utilize)
+	require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
+	require.NotNil(t, res.Ops[0].Error)
+	assert.Equal(t, change.CodeGateFailed, res.Ops[0].Error.Code)
+	require.NotEmpty(t, res.Ops[0].Findings, "the refusal carries the findings the person reads")
+	assert.Equal(t, "terms.vocabulary", res.Ops[0].Findings[0].Rule)
+
+	ctx := t.Context()
+	svc, err := app.changeServiceFor(ctx, tab, nil)
+	require.NoError(t, err)
+	agent := utilize
+	agent.Gate = change.GateReport
+	res2, err := svc.Apply(ctx, agent, change.Actor{Kind: change.ActorAgent, Name: "claude", Session: "s1"})
+	require.NoError(t, err)
+	require.Equal(t, change.SetRefused, res2.Status)
+	assert.Equal(t, change.CodeNotPermitted, res2.Ops[0].Error.Code, "an agent may not save anyway")
+
+	anyway := utilize
+	anyway.Gate = change.GateReport
+	res = applyVia(t, app, tab, anyway)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.NotEmpty(t, res.Ops[0].Findings, "the edit lands with its findings")
+	data, err := os.ReadFile(src)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "Please utilize the dashboard")
+
+	engine := app.hostEngine()
+	p, err := engine.Projector(ctx, root)
+	require.NoError(t, err)
+	ws, err := engine.Workspace(ctx)
+	require.NoError(t, err)
+	ops, err := ws.Select(ctx, workspace.OpQuery{Project: p.Key(), KindPrefix: projector.KindEdit})
+	require.NoError(t, err)
+	require.Len(t, ops, 1, "the override is the one edit recorded")
+	var e projector.Edit
+	require.NoError(t, json.Unmarshal(ops[0].Payload, &e))
+	assert.Equal(t, change.ActorPerson, e.Actor.Kind)
+	assert.Equal(t, "desktop", e.Origin.By)
+	require.NotEmpty(t, e.Overridden, "the record names what the person overrode")
+	assert.Equal(t, "terms.vocabulary", e.Overridden[0].Rule)
+	assert.True(t, e.Overridden[0].Fails)
+}
+
+// overrideProject is setupCheckProject with the context read into the
+// workspace at wsRoot.
+func overrideProject(t *testing.T, app *App, wsRoot, sourceJSON string) (tabID, srcPath string) {
+	t.Helper()
+	dir := t.TempDir()
+	srcPath = filepath.Join(dir, "locales", "en.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(srcPath), 0o755))
+	require.NoError(t, os.WriteFile(srcPath, []byte(sourceJSON), 0o644))
+	proj := &project.KapiProject{
+		Version:     project.CurrentVersion,
+		Defaults:    project.Defaults{SourceLanguage: "en"},
+		Collections: []project.Collection{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
+	}
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RelStatePath("voice.yaml")), []byte(houseVoiceYAML), 0o644))
+	projPath := filepath.Join(dir, "proj.kapi")
+	require.NoError(t, project.Save(projPath, proj))
+
+	reader := &host.App{}
+	reader.InitRegistries()
+	reader.SetWorkspaceRoot(wsRoot)
+	_, err := reader.ImportProjectContext(context.Background(), projPath, host.ContextImportRequest{})
+	require.NoError(t, err)
+	reader.Shutdown()
+
+	tab, err := app.OpenProject(projPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+	return tab.ID, srcPath
+}
+
 func TestChangeBindings_Refusals(t *testing.T) {
 	app := NewApp()
 	tab, _ := changeProject(t, app, map[string]string{"en.json": `{"title": "Welcome"}` + "\n"}, []string{"en.json"}, "")
@@ -431,7 +578,12 @@ func TestChangeBindings_Refusals(t *testing.T) {
 	})
 	t.Run("an unknown tab is an error", func(t *testing.T) {
 		_, err := app.Apply("nope", `{"ops": []}`)
-		require.NoError(t, err, "a change set with no operations is refused before any tab is consulted")
+		require.Error(t, err, "a change set with no operations decodes, and the tab it names is not open")
+		raw, err := app.Apply("nope", `{"note": "no ops list"}`)
+		require.NoError(t, err, "a change set that does not decode is refused before any tab is consulted")
+		var res change.Result
+		require.NoError(t, json.Unmarshal([]byte(raw), &res))
+		assert.Equal(t, change.CodeInvalid, res.Error.Code)
 		_, err = app.Read("nope", `{"doc": "en.json"}`)
 		require.Error(t, err)
 	})

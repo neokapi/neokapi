@@ -272,11 +272,12 @@ func TestEditionsOfAFormat(t *testing.T) {
 	}
 }
 
-// Inside a project, a source whose translations the recipe writes to files of
-// their own keeps them there when its format is a Qt Linguist catalog, though
-// a Qt Linguist file can hold a translation: the French edition of the source
-// lives in the French file. An interchange source (a PO template) keeps its
-// placement in the document.
+// Inside a project, a bilingual source whose translations the recipe writes to
+// files of their own keeps them there, though the source file can hold a
+// translation: the French edition of a Qt Linguist catalog lives in the French
+// file, and the French of a PO template in po/fr.po, read in French, whatever
+// target language the service was told. A catalog whose collection names no
+// target holds its translation in place.
 func TestProjectPlacesTheEditionsOfABilingualSource(t *testing.T) {
 	root := t.TempDir()
 	write := func(name, body string) {
@@ -298,11 +299,14 @@ collections:
   - path: po/messages.pot
     format: po
     target: "po/{lang}.po"
+  - path: work/fr.po
+    format: po
 `)
 	write("i18n/app_en.ts", ts)
 	write("po/messages.pot", "msgid \"\"\nmsgstr \"\"\n\nmsgid \"Hello\"\nmsgstr \"\"\n")
+	write("work/fr.po", "msgid \"\"\nmsgstr \"\"\n\nmsgid \"Hello\"\nmsgstr \"Bonjour\"\n")
 	app := newToolboxApp(t)
-	pl, err := app.newProjectLayout(ChangeServiceOptions{Project: filepath.Join(root, "kapi.yaml")})
+	pl, err := app.newProjectLayout(ChangeServiceOptions{Project: filepath.Join(root, "kapi.yaml"), TargetLocale: "fr"})
 	require.NoError(t, err)
 
 	d, err := pl.Locate(t.Context(), "i18n/app_en.ts")
@@ -314,7 +318,17 @@ collections:
 
 	d, err = pl.Locate(t.Context(), "po/messages.pot")
 	require.NoError(t, err)
+	assert.Equal(t, change.EditionsPerFile, d.Editions)
+	assert.Empty(t, d.TargetLocale, "the template holds no translation of its own")
+	f, ok = d.EditionFile(model.EditionKey{Locale: "fr"})
+	require.True(t, ok)
+	assert.Equal(t, "po/fr.po", f.Ref)
+	assert.True(t, f.Bilingual, "po/fr.po is read in French")
+
+	d, err = pl.Locate(t.Context(), "work/fr.po")
+	require.NoError(t, err)
 	assert.Equal(t, change.EditionsInFile, d.Editions)
+	assert.Equal(t, model.LocaleID("fr"), d.TargetLocale)
 }
 
 // A block whose key another block of the document shares is edited all the

@@ -110,7 +110,7 @@ func TestApprovalRestampsTheBasis_RejectionDoesNot(t *testing.T) {
 	want := governingNow(t, f.app, f.recipe, f.root)
 	require.NotEqual(t, "fp-produced", want)
 
-	changed, err := f.app.ApplyReviewDecision(ctx, f.recipe, "en", f.ref, ReviewDecisionApproved, "")
+	changed, err := decideUnit(ctx, f.app, f.recipe, f.ref, ReviewDecisionApproved, "")
 	require.NoError(t, err)
 	require.True(t, changed)
 
@@ -125,7 +125,7 @@ func TestApprovalRestampsTheBasis_RejectionDoesNot(t *testing.T) {
 	// The source moves and the unit is re-drafted; the reviewer turns the new
 	// draft down.
 	f.rewriteSource(t, "Hi there")
-	changed, err = f.app.ApplyReviewDecision(ctx, f.recipe, "en", f.ref, ReviewDecisionRejected, "not our wording")
+	changed, err = decideUnit(ctx, f.app, f.recipe, f.ref, ReviewDecisionRejected, "not our wording")
 	require.NoError(t, err)
 	require.True(t, changed)
 
@@ -144,7 +144,7 @@ func TestReApprovalClearsStale_ReDraftAndRejectionDoNot(t *testing.T) {
 	f := newReapprovalFixture(t, "fp-produced")
 	ctx := context.Background()
 
-	_, err := f.app.ApplyReviewDecision(ctx, f.recipe, "en", f.ref, ReviewDecisionApproved, "")
+	_, err := decideUnit(ctx, f.app, f.recipe, f.ref, ReviewDecisionApproved, "")
 	require.NoError(t, err)
 	require.Zero(t, f.staleUnits(t), "an approval of the current source is not stale")
 
@@ -158,11 +158,11 @@ func TestReApprovalClearsStale_ReDraftAndRejectionDoNot(t *testing.T) {
 	recordFlowWrite(t, f.app, f.recipe, "locales/en/app.json", "fr", model.Origin{Kind: model.OriginAI, ContextFingerprint: "fp-redraft"})
 	assert.Equal(t, 1, f.staleUnits(t), "a re-draft cannot decide, so it cannot clear the decision")
 
-	_, err = f.app.ApplyReviewDecision(ctx, f.recipe, "en", f.ref, ReviewDecisionRejected, "")
+	_, err = decideUnit(ctx, f.app, f.recipe, f.ref, ReviewDecisionRejected, "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, f.staleUnits(t), "a rejection leaves the unit stale")
 
-	_, err = f.app.ApplyReviewDecision(ctx, f.recipe, "en", f.ref, ReviewDecisionApproved, "")
+	_, err = decideUnit(ctx, f.app, f.recipe, f.ref, ReviewDecisionApproved, "")
 	require.NoError(t, err)
 	assert.Zero(t, f.staleUnits(t), "the re-approval is the decision the basis records")
 }
@@ -178,8 +178,8 @@ func TestStalenessGate_ReApprovalClearsIt(t *testing.T) {
 		g, _ := f.run(t)
 		require.False(t, g.Pass, "the fixture starts behind the context")
 
-		_, err := f.app.ApplyReviewDecision(context.Background(),
-			filepath.Join(f.root, "kapi.yaml"), "en",
+		_, err := decideUnit(context.Background(), f.app,
+			filepath.Join(f.root, "kapi.yaml"),
 			ReviewUnitRef{File: "locales/fr/app.json", Key: "greeting", Locale: "fr"},
 			ReviewDecisionApproved, "")
 		require.NoError(t, err)
@@ -194,8 +194,8 @@ func TestStalenessGate_ReApprovalClearsIt(t *testing.T) {
 		f := newStalenessFixture(t)
 		f.record(t, "a-context-that-no-longer-governs")
 
-		_, err := f.app.ApplyReviewDecision(context.Background(),
-			filepath.Join(f.root, "kapi.yaml"), "en",
+		_, err := decideUnit(context.Background(), f.app,
+			filepath.Join(f.root, "kapi.yaml"),
 			ReviewUnitRef{File: "locales/fr/app.json", Key: "greeting", Locale: "fr"},
 			ReviewDecisionRejected, "")
 		require.NoError(t, err)
@@ -207,17 +207,6 @@ func TestStalenessGate_ReApprovalClearsIt(t *testing.T) {
 		assert.Contains(t, g.Findings[0].Message, "superseded context")
 	})
 
-	t.Run("an approval through ApproveReviewUnit answers for the unit the same way", func(t *testing.T) {
-		f := newStalenessFixture(t)
-		f.record(t, "a-context-that-no-longer-governs")
-
-		_, err := f.app.ApproveReviewUnit(context.Background(),
-			filepath.Join(f.root, "kapi.yaml"), "en", "fr", "locales/fr/app.json", "greeting")
-		require.NoError(t, err)
-
-		g, _ := f.run(t)
-		assert.True(t, g.Pass)
-	})
 }
 
 // TestGoverningBasis_OnlyAnApprovalVouches pins the record-level rule the gate
@@ -266,7 +255,7 @@ func TestGoverningBasis_OnlyAnApprovalVouches(t *testing.T) {
 func TestStaleSplit_SumsToTheStaleCount(t *testing.T) {
 	f := newReapprovalFixture(t, "fp-produced")
 	ctx := context.Background()
-	_, err := f.app.ApplyReviewDecision(ctx, f.recipe, "en", f.ref, ReviewDecisionApproved, "")
+	_, err := decideUnit(ctx, f.app, f.recipe, f.ref, ReviewDecisionApproved, "")
 	require.NoError(t, err)
 
 	f.rewriteSource(t, "Hi there")

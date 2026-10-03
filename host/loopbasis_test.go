@@ -299,8 +299,7 @@ func TestLoopBasis_ADecisionOnTheLoopsTranslationKeepsItsProducer(t *testing.T) 
 	ctx := context.Background()
 	recordFlowWrite(t, a, recipe, "locales/en/app.json", "fr", model.Origin{Kind: model.OriginAI, ContextFingerprint: "fp-produced"})
 
-	_, err := a.ApplyReviewDecision(ctx, recipe, "en",
-		ReviewUnitRef{File: "locales/fr/app.json", Key: "greeting", Locale: "fr"}, ReviewDecisionRejected, "")
+	_, err := decideUnit(ctx, a, recipe, ReviewUnitRef{File: "locales/fr/app.json", Key: "greeting", Locale: "fr"}, ReviewDecisionRejected, "")
 	require.NoError(t, err)
 
 	st, err := a.OpenProjectState(ctx, root)
@@ -337,8 +336,7 @@ func TestLoopBasis_ADecisionStartsFromTheLoopsWriteOverAnOlderLedgerBasis(t *tes
 	}))
 	recordFlowWrite(t, a, recipe, "locales/en/app.json", "fr", model.Origin{Kind: model.OriginAI, ContextFingerprint: "fp-produced"})
 
-	_, err = a.ApplyReviewDecision(ctx, recipe, "en",
-		ReviewUnitRef{File: "locales/fr/app.json", Key: "greeting", Locale: "fr"}, ReviewDecisionRejected, "")
+	_, err = decideUnit(ctx, a, recipe, ReviewUnitRef{File: "locales/fr/app.json", Key: "greeting", Locale: "fr"}, ReviewDecisionRejected, "")
 	require.NoError(t, err)
 
 	u, ok := st.Get(ctx, state.Key{Scope: scope, Unit: "greeting", Variant: model.Variant("fr")})

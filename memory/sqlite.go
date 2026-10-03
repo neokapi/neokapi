@@ -878,9 +878,43 @@ func (tm *SQLiteStore) LookupText(ctx context.Context, source string, sourceLoca
 
 func (tm *SQLiteStore) tieredLookup(ctx context.Context, plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]Match, error) {
 	return TieredLookup(ctx, plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts, CandidateSource{
-		Exact:           tm.queryExactVariant,
+		Exact:           tm.exactTiers(),
 		FuzzyCandidates: tm.queryFuzzyCandidates,
 	})
+}
+
+// exactTiers is queryExactVariant for the exact tiers of one lookup. An entry
+// that answers exactly usually answers under its generalized, structural and
+// plain keys alike, so each entry is loaded once per lookup, by the first tier
+// that finds it, rather than once per tier.
+func (tm *SQLiteStore) exactTiers() func(ctx context.Context, column, key string, sourceLocale model.LocaleID, opts LookupOptions) ([]Entry, error) {
+	loaded := map[string]Entry{}
+	return func(ctx context.Context, column, key string, sourceLocale model.LocaleID, opts LookupOptions) ([]Entry, error) {
+		ids, err := tm.exactVariantIDs(ctx, column, key, sourceLocale, opts)
+		if err != nil {
+			return nil, err
+		}
+		var load []string
+		for _, id := range ids {
+			if _, ok := loaded[id]; !ok {
+				load = append(load, id)
+			}
+		}
+		entries, err := tm.loadEntriesByIDs(ctx, load)
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range entries {
+			loaded[e.ID] = e
+		}
+		out := make([]Entry, 0, len(ids))
+		for _, id := range ids {
+			if e, ok := loaded[id]; ok {
+				out = append(out, e)
+			}
+		}
+		return out, nil
+	}
 }
 
 // sortMatches orders matches by score (desc), then match-type priority,
@@ -904,6 +938,16 @@ func sortMatches(matches []Match) []Match {
 // queryExactVariant finds entries whose source-locale variant matches the
 // given normalized key on the specified column (plain/struct_key/general_key).
 func (tm *SQLiteStore) queryExactVariant(ctx context.Context, column, key string, sourceLocale model.LocaleID, opts LookupOptions) ([]Entry, error) {
+	ids, err := tm.exactVariantIDs(ctx, column, key, sourceLocale, opts)
+	if err != nil {
+		return nil, err
+	}
+	return tm.loadEntriesByIDs(ctx, ids)
+}
+
+// exactVariantIDs is the ids of the entries queryExactVariant finds, in id
+// order.
+func (tm *SQLiteStore) exactVariantIDs(ctx context.Context, column, key string, sourceLocale model.LocaleID, opts LookupOptions) ([]string, error) {
 	where := fmt.Sprintf("v.%s = ? AND v.locale = ?", column)
 	args := []any{key, string(sourceLocale)}
 	entryWhere := ""
@@ -923,12 +967,7 @@ func (tm *SQLiteStore) queryExactVariant(ctx context.Context, column, key string
 		return nil, fmt.Errorf("query exact variant: %w", err)
 	}
 	defer rows.Close()
-
-	ids, err := scanIDs(rows)
-	if err != nil {
-		return nil, err
-	}
-	return tm.loadEntriesByIDs(ctx, ids)
+	return scanIDs(rows)
 }
 
 // queryFuzzyCandidates returns entry candidates for fuzzy matching filtered

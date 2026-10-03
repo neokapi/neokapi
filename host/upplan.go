@@ -148,6 +148,10 @@ type UpPlanOutput struct {
 	// readNothing says every unit the plan resolved was set aside, so an empty
 	// plan is one over nothing it could read rather than one with nothing to do.
 	readNothing bool
+	// upToDate says the run would pass over no language: each one's coverage
+	// is where the run leaves it (localesNeedingPass), so an empty plan is one
+	// over a project with nothing to draft, whatever the content memory holds.
+	upToDate bool
 }
 
 // upPlanNote is the estimation-method disclosure carried in the output.
@@ -173,6 +177,10 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 			fmt.Fprintf(w, "Not priced yet: this project's store has not read its committed translations, so "+
 				"what a run would recycle, and what it would draft, is not known. `kapi up` reads them "+
 				"before the pass; %d produced unit(s) wait on that.\n", o.Totals.UnreadTargets)
+			return nil
+		}
+		if o.upToDate {
+			fmt.Fprintln(w, "Nothing to do: every language is up to date, so a run drafts nothing.")
 			return nil
 		}
 		fmt.Fprintln(w, "Nothing to do: every unit has a committed target the project's content memory answers.")
@@ -270,18 +278,26 @@ func (a *App) runUpPlan(cmd Command, proj *project.KapiProject, projectPath stri
 	// recipe's unless --source-lang names another (host/sourcelang.go).
 	a.ResolveSourceLang(proj.Defaults.SourceLanguage)
 
-	plan, err := a.computeProjectPlan(ctx, proj, projectPath)
+	plan, err := a.computeProjectPlan(ctx, proj, projectPath, planRun{cmd: cmd, noChecks: BoolFlag(cmd, "no-checks")})
 	if err != nil {
 		return err
 	}
 	return output.Print(cmd, plan)
 }
 
+// planRun is what a plan knows of the run it prices: the command that names
+// the project, nil for one that names projectPath with -p, and whether the run
+// skips the bound checks (--no-checks).
+type planRun struct {
+	cmd      Command
+	noChecks bool
+}
+
 // computeProjectPlan resolves the project's units, binds the content memory a
 // run would recycle from as a read-only leverage source, and derives the dry-run
 // work plan. Shared by `kapi up --plan` and the exported UpPlan the desktop
 // binds to.
-func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject, projectPath string) (UpPlanOutput, error) {
+func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject, projectPath string, run planRun) (UpPlanOutput, error) {
 	root := filepath.Dir(projectPath)
 	units, err := a.UnitsFromProject(proj, root, "")
 	if err != nil {
@@ -312,6 +328,9 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// corpus has not finished being taught and a produced unit is not judged by
 	// it.
 	basis := upPlanBasis{root: root, projectPath: projectPath}
+	// A collection in a format no installed reader opens is left unpriced, and
+	// the plan names it.
+	basis.unread = a.newUnreadSetFor("priced")
 	layout, lerr := project.LayoutFor(projectPath)
 	if lerr != nil {
 		return UpPlanOutput{}, fmt.Errorf("resolve project layout for %s: %w", projectPath, lerr)
@@ -336,20 +355,63 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 		// live in the same store, and only there: past the stat above the store
 		// exists, so asking it creates nothing.
 		basis.store = a.storedTargetStore(ctx, layout.Root)
+		passing, perr := a.planPassingLocales(ctx, run, proj, projectPath, units, basis.unread)
+		if perr != nil {
+			return UpPlanOutput{}, perr
+		}
+		basis.passing = passing
 	}
 
-	// A collection in a format no installed reader opens is left unpriced, and
-	// the plan names it.
-	basis.unread = a.newUnreadSetFor("priced")
 	plan, err := a.computeUpPlan(ctx, basis, proj, units)
 	if err != nil {
 		return plan, err
 	}
+	plan.upToDate = basis.passing != nil && len(basis.passing) == 0
 	plan.Warnings = basis.unread.warnings()
 	_, plan.readNothing = basis.unread.unitsSkipped(root, units)
 	plan.Monolingual = !proj.DeclaresTargetLanguages()
 	a.applyPlanProvider(&plan)
 	return plan, nil
+}
+
+// planPassingLocales is the set of languages the run's first pass works on:
+// those whose coverage, derived as the run derives it before that pass
+// (deriveCoverage, with the bound checks unless the run skips them), holds
+// work (localesNeedingPass). A pass drafts every unit of a language it works
+// on that the content memory does not answer, and a language it does not work
+// on keeps what it holds, so only the languages in this set have work to
+// price. It is asked only of a project with a store: coverage reads the
+// project's decisions, and opening the store to read them would create it.
+func (a *App) planPassingLocales(ctx context.Context, run planRun, proj *project.KapiProject, projectPath string, units []VerifyUnit, unread *UnreadSet) (map[string]bool, error) {
+	root := filepath.Dir(projectPath)
+	cmd := run.cmd
+	if cmd == nil {
+		cmd = projectCommand(ctx, "up", projectPath)
+	}
+	var excl *CheckExclusions
+	if !run.noChecks {
+		var err error
+		if excl, err = a.loopCheckExclusions(ctx, cmd, proj, root, units, unread); err != nil {
+			return nil, err
+		}
+	}
+	cov, err := a.shipCoverage(ctx, proj, root, units, excl, unread)
+	if err != nil {
+		return nil, err
+	}
+	var locales []model.LocaleID
+	seen := map[string]bool{}
+	for _, u := range units {
+		if !seen[u.Locale] {
+			seen[u.Locale] = true
+			locales = append(locales, model.LocaleID(u.Locale))
+		}
+	}
+	passing := map[string]bool{}
+	for _, loc := range localesNeedingPass(cov, locales) {
+		passing[string(loc)] = true
+	}
+	return passing, nil
 }
 
 // applyPlanProvider annotates a plan with the AI provider a converge run would
@@ -394,7 +456,7 @@ func (a *App) UpPlan(ctx context.Context, projectPath, sourceLang string) (*UpPl
 	defer a.scopeSourceLang()()
 	a.SourceLang = ResolveSourceLocale(sourceLang, proj.Defaults.SourceLanguage)
 
-	plan, err := a.computeProjectPlan(ctx, proj, projectPath)
+	plan, err := a.computeProjectPlan(ctx, proj, projectPath, planRun{})
 	if err != nil {
 		return nil, err
 	}
@@ -505,6 +567,10 @@ type upPlanBasis struct {
 	// unread collects the units whose source no installed reader opens. The plan
 	// leaves them unpriced and names them.
 	unread *UnreadSet
+	// passing is the set of languages the run's first pass works on
+	// (planPassingLocales), nil when the plan cannot tell, as for a project
+	// with no store, where every language is priced.
+	passing map[string]bool
 }
 
 // computeUpPlan derives the per-scope work plan from the verify units, against
@@ -531,6 +597,11 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 
 	source := model.LocaleID(a.SourceLocale())
 	for _, u := range units {
+		if basis.passing != nil && !basis.passing[u.Locale] {
+			// The run does not pass over this language, so nothing in it is
+			// drafted, recycled or priced.
+			continue
+		}
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
 			if errors.Is(berr, errTargetUnreadable) {

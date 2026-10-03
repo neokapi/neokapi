@@ -575,6 +575,54 @@ func (r *memRecorder) Record(_ context.Context, rec change.Record) (string, erro
 	return fmt.Sprintf("op_%d", len(r.records)), nil
 }
 
+// A sender in the process builds operations without the decoder; the service
+// checks each body as Decode does, so an outcome the contract does not name
+// is refused rather than read as some other decision.
+func TestService_RefusesABodyTheDecoderWouldRefuse(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First", "nb", "Første")}})
+	svc := newMemService(h)
+	b := readBlock(t, svc, "a", "one")
+	nb := b.Editions["nb"]
+	before := h.snapshot("a")
+	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{
+		edit(b.Ref, b.Rev, "Edited"),
+		{Kind: change.KindDecide, At: atEdition(b.Ref, "nb"), IfMatch: nb.Rev, Body: &change.Decide{Outcome: "approve"}},
+	}}, svcPerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetRefused, res.Status)
+	require.NotNil(t, res.Ops[1].Error)
+	assert.Equal(t, change.CodeInvalid, res.Ops[1].Error.Code)
+	assert.Equal(t, "/ops/1/outcome", res.Ops[1].Error.Pointer)
+	assert.Equal(t, change.OpNotApplied, res.Ops[0].Status)
+	assert.Equal(t, before, h.snapshot("a"))
+}
+
+// A change set with no operation applies and changes nothing: no document is
+// written and nothing is recorded, in either mode, as a run that changes
+// nothing prints it.
+func TestService_AnEmptyChangeSetAppliesAndWritesNothing(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First")}})
+	rec := &memRecorder{}
+	svc := newMemService(h, change.WithRecorder(rec))
+	before := h.snapshot("a")
+	for _, tc := range []struct {
+		mode change.Mode
+		want change.SetStatus
+	}{{change.ModeApply, change.SetApplied}, {change.ModePreview, change.SetPreviewed}} {
+		set, err := change.Decode(strings.NewReader(`{"mode":"` + string(tc.mode) + `","ops":[]}`))
+		require.NoError(t, err)
+		res, err := svc.Apply(context.Background(), set, svcPerson)
+		require.NoError(t, err)
+		assert.Equal(t, tc.want, res.Status)
+		assert.Empty(t, res.Ops)
+		assert.Empty(t, res.Docs)
+		assert.Nil(t, res.Record)
+		assert.Nil(t, res.Error)
+	}
+	assert.Empty(t, rec.records, "nothing is recorded")
+	assert.Equal(t, before, h.snapshot("a"))
+}
+
 func TestService_RecordsWhatLanded(t *testing.T) {
 	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First", "nb", "Første")}})
 	rec := &memRecorder{}
@@ -855,8 +903,64 @@ func TestService_ReadsListEveryStructureWithItsPath(t *testing.T) {
 
 type editionStates func(b *model.Block, k model.EditionKey) (change.EditionState, bool)
 
-func (f editionStates) EditionState(_ context.Context, _ change.DocInfo, b *model.Block, k model.EditionKey) (change.EditionState, bool) {
+func (f editionStates) Document(context.Context, change.DocInfo, int) change.DocumentStates {
+	return f
+}
+
+func (f editionStates) EditionState(b *model.Block, k model.EditionKey) (change.EditionState, bool) {
 	return f(b, k)
+}
+
+// TestService_ReadAsksForEditionStatesOncePerDocument pins that a read asks
+// the host where a document's editions stand once for the document, a page
+// read and a streamed read alike, so a host answers from one read of its
+// records rather than one per block, and says how many blocks it shows at
+// most, so the host can tell a read of a few blocks from a read of them all.
+func TestService_ReadAsksForEditionStatesOncePerDocument(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {
+		textBlock("one", "First", "nb", "Første"),
+		textBlock("two", "Second", "nb", "Andre"),
+		textBlock("three", "Third", "nb", "Tredje"),
+	}})
+	states := &countingStates{}
+	svc := newMemService(h, change.WithEditionStates(states))
+	ctx := context.Background()
+
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "a"})
+	require.NoError(t, err)
+	require.Len(t, page.Blocks, 3)
+	assert.Equal(t, 1, states.documents, "one question for the document")
+	assert.Equal(t, 3, states.editions, "answered for each block's edition")
+	for _, b := range page.Blocks {
+		assert.Equal(t, "r:basis", b.Editions["nb"].Basis)
+	}
+
+	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: "a"}, func(*model.Block, change.BlockRead) error { return nil })
+	require.NoError(t, err)
+	assert.Equal(t, 2, states.documents, "a streamed read asks once too")
+
+	_, err = svc.Read(ctx, change.ReadRequest{Doc: "a", Limit: 2})
+	require.NoError(t, err)
+	_, err = svc.Read(ctx, change.ReadRequest{Doc: "a", Blocks: []string{"two"}})
+	require.NoError(t, err)
+	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: "a", Blocks: []string{"one", "three"}}, func(*model.Block, change.BlockRead) error { return nil })
+	require.NoError(t, err)
+	assert.Equal(t, []int{change.DefaultReadLimit, 0, 2, 1, 2}, states.shows,
+		"a page shows at most its limit, a streamed read every block, and a read naming blocks those blocks")
+}
+
+type countingStates struct {
+	documents, editions int
+	shows               []int
+}
+
+func (c *countingStates) Document(_ context.Context, _ change.DocInfo, shows int) change.DocumentStates {
+	c.documents++
+	c.shows = append(c.shows, shows)
+	return editionStates(func(*model.Block, model.EditionKey) (change.EditionState, bool) {
+		c.editions++
+		return change.EditionState{Basis: "r:basis"}, true
+	})
 }
 
 // TestService_EachOperationReportsItsOwnOutcome pins that a refusal on one

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"testing"
 
@@ -375,6 +376,65 @@ func TestFlowRun_PrintsTheChangeSetKapiApplyAppliesToTheSameBytes(t *testing.T) 
 	ran, err := os.ReadFile(filepath.Join(filepath.Dir(brecipe), "src", "qps.json"))
 	require.NoError(t, err)
 	assert.Equal(t, string(ran), string(applied))
+}
+
+// A printed change set states how the run's tool produced each translation,
+// and kapi apply records the change as its applier's edit: it says so in one
+// line, and the block history names the person, not the tool.
+func TestFlowRun_APrintedSetStatesItsToolAndKapiApplyRecordsTheApplier(t *testing.T) {
+	a, cmd, recipe := newFlowProject(t, project.MaterializeManual)
+	root := filepath.Dir(recipe)
+	set := printRun(t, a, cmd, func() error { return a.ExecuteUp(cmd, recipe) })
+	require.Len(t, set.Ops, 3)
+	var tool string
+	for _, op := range set.Ops {
+		body, ok := op.Body.(*change.SetContent)
+		require.True(t, ok)
+		require.NotNil(t, body.Origin, "a printed translation states how it was produced")
+		assert.NotEmpty(t, body.Origin.Tool)
+		tool = body.Origin.Tool
+	}
+
+	write := func(set change.Set) string {
+		raw, err := json.Marshal(set)
+		require.NoError(t, err)
+		path := filepath.Join(t.TempDir(), "change.json")
+		require.NoError(t, os.WriteFile(path, raw, 0o600))
+		return path
+	}
+	run := func(path string, opts ApplyOptions) (string, error) {
+		apply := commitCommand(t, recipe)
+		var stderr bytes.Buffer
+		apply.SetOut(io.Discard)
+		apply.SetErr(&stderr)
+		err := a.RunApply(apply, path, opts)
+		return stderr.String(), err
+	}
+	const note = "kapi apply records the change as yours"
+
+	// A preview, and a change set refused as stale, record nothing and say
+	// nothing about the origin.
+	out, err := run(write(set), ApplyOptions{DryRun: true})
+	require.NoError(t, err)
+	assert.NotContains(t, out, note)
+	stale := set
+	stale.Ops = slices.Clone(set.Ops)
+	stale.Ops[0].IfMatch = "r:0000000000000000"
+	out, err = run(write(stale), ApplyOptions{})
+	require.Error(t, err)
+	assert.NotContains(t, out, note)
+
+	out, err = run(write(set), ApplyOptions{})
+	require.NoError(t, err)
+	assert.Contains(t, out,
+		"note: 3 operations state how "+tool+" produced their content; kapi apply records the change as yours, and that origin is not kept")
+	assert.FileExists(t, filepath.Join(root, "src", "qps.json"))
+
+	rows := flowHistory(t, a, root)
+	require.NotEmpty(t, rows)
+	for _, r := range rows {
+		assert.Equal(t, string(change.ActorPerson), r.Actor, "the applier's edit, not the tool's")
+	}
 }
 
 // writeDuringRun passes every part through and, before the first, writes data

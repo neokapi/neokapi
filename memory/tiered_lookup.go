@@ -121,7 +121,10 @@ func TieredLookup(
 		demoteAmbiguousExacts(matches, targetLocale)
 	}
 
-	if len(matches) > 0 && opts.MinScore >= 1.0 {
+	// A fuzzy score reaches 1.0 only for a key equal to the query's, which the
+	// exact tiers above already answered (or demoted as ambiguous), so an
+	// exact-only lookup ends here whether or not they found anything.
+	if opts.MinScore >= 1.0 {
 		kept := matches[:0]
 		for _, m := range matches {
 			if m.Score >= opts.MinScore {

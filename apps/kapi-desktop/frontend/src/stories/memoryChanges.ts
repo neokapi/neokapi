@@ -2,13 +2,16 @@
  * An in-memory ChangeClient, for Storybook stories and component tests: a few
  * blocks held as a read shows them, a revision per edition computed from its
  * content, and change sets applied with the contract's precondition, so a
- * stale revision is refused with the edition as it stands. It is a stand-in for
- * the change service the desktop reaches through its bindings, which the Go
- * tests drive for real.
+ * stale revision is refused with the edition as it stands. Term rules stand in
+ * for the commit check: a set_content whose text holds a rule's term is
+ * refused gate_failed with a finding, and lands with it under gate report. It
+ * is a stand-in for the change service the desktop reaches through its
+ * bindings, which the Go tests drive for real.
  */
 
 import type {
   BlockRead,
+  ChangeFinding,
   ChangeOp,
   ChangeOpKind,
   ChangeRef,
@@ -48,6 +51,12 @@ export interface MemoryBlock {
   ops?: ChangeOpKind[];
 }
 
+/** A word the project's checks fail, and what to say instead. */
+export interface MemoryTermRule {
+  term: string;
+  replacement: string;
+}
+
 /** The content of one edition as the client holds it. */
 interface MemoryEdition {
   text: string;
@@ -79,9 +88,29 @@ export class MemoryChanges implements ChangeClient {
   private log = new Map<string, HistoryEntry[]>();
   private seq = 0;
 
-  constructor(blocks: MemoryBlock[], history: Record<string, HistoryEntry[]> = {}) {
+  private rules: MemoryTermRule[];
+
+  constructor(
+    blocks: MemoryBlock[],
+    history: Record<string, HistoryEntry[]> = {},
+    rules: MemoryTermRule[] = [],
+  ) {
     this.blocks = blocks.map((b) => ({ ...b }));
     for (const [k, v] of Object.entries(history)) this.log.set(k, [...v]);
+    this.rules = rules;
+  }
+
+  /** What the term rules find in the text an operation writes. */
+  private findingsOf(op: ChangeOp): ChangeFinding[] {
+    if (op.op !== "set_content" || op.text === undefined) return [];
+    const text = op.text;
+    return this.rules
+      .filter((r) => text.includes(r.term))
+      .map((r) => ({
+        rule: "terms.vocabulary",
+        message: `Use \u201c${r.replacement}\u201d instead of \u201c${r.term}\u201d`,
+        fails: true,
+      }));
   }
 
   /** The edition's revision now. */
@@ -188,6 +217,19 @@ export class MemoryChanges implements ChangeClient {
         return;
       }
       res.before = rev;
+      const findings = this.findingsOf(op);
+      if (findings.length > 0) {
+        res.findings = findings;
+        if (set.gate !== "report") {
+          res.status = "refused";
+          res.error = {
+            code: "gate_failed",
+            message: `the edit introduces ${findings.length} failing finding(s): ${findings[0].message}`,
+          };
+          if (refused < 0) refused = i;
+          return;
+        }
+      }
       plans.push(() => this.write(b, at!, op, res));
     });
     if (refused >= 0) {
@@ -195,6 +237,7 @@ export class MemoryChanges implements ChangeClient {
         if (r.status !== "refused") {
           r.status = "not_applied";
           r.blocked_by = refused;
+          delete r.findings;
         }
       }
       return {
