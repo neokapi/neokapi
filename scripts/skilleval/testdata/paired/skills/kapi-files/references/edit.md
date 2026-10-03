@@ -79,7 +79,12 @@ and keeps everything around it:
 
 A `replace_text` edit names its text by `find` (with `occurrence` when it
 matches more than once), by code-point `start` and `end`, or by run positions in
-`range`. To edit one branch of a plural, give the edit the branch's `path` from
+`range`. Positions name the block as you read it, even when an earlier
+operation of the same change set changed that block: kapi-files moves them past
+that change, so several fixes of one block, each computed from the one read,
+apply together. A position inside text an earlier operation changed is refused
+as `guard` (`overlap`); a `find` matches the text as the earlier operations left
+it. To edit one branch of a plural, give the edit the branch's `path` from
 `structures`, such as `[1, {"plural": "one"}]`. A change set can also be JSONL
 (the envelope fields on the first line, one operation per line) or a JSON array
 of operations. `kapi-files apply --schema` prints the whole contract.
