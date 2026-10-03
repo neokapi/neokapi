@@ -94,8 +94,10 @@ func TestService_History(t *testing.T) {
 			wantCode: change.CodeNotFound,
 		},
 		{
-			name:     "a reference with no block is invalid",
-			req:      func(b change.BlockRead) change.HistoryRequest { return change.HistoryRequest{Ref: change.Ref{Doc: b.Ref.Doc}} },
+			name: "a reference with no block is invalid",
+			req: func(b change.BlockRead) change.HistoryRequest {
+				return change.HistoryRequest{Ref: change.Ref{Doc: b.Ref.Doc}}
+			},
 			hook:     true,
 			wantCode: change.CodeInvalid,
 		},
