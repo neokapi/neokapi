@@ -137,6 +137,9 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"of one block with at, the ref read_blocks reports, and carries if_match, the rev you read. set_content replaces " +
 			"the text (keep the <x id=\"…\"/> placeholders; with if_match \"absent\" and an edition it creates that translation), " +
 			"replace_text changes part of it by find, by start and end, or by range, and remove_edition drops a translation. " +
+			"In a JSON, YAML or ARB catalog, insert_block adds a key (doc, name, after or before, and its text per language " +
+			"in editions) and delete_block removes one with its translations (at, and if_match mapping the catalog's own " +
+			"language to the rev you read). " +
 			"describe_format says which operations a format supports. A refused change set writes nothing: an edition " +
 			"that moved since you read it is refused as stale with its current revision and text, an edit that drops, " +
 			"invents or unbalances an inline code or flattens a plural is refused as guard, and every other operation reports " +

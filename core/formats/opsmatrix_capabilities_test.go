@@ -499,10 +499,13 @@ var wildcardClaim = "set_attribute " + format.AnyCodeType + "." + format.AnyAttr
 
 // TestCapabilityMatrixCoversEveryDeclaration keeps the declarations honest:
 // every attribute and vocabulary type a built-in writer declares has a cell
-// that proves it, every structural or native operation a writer declares has
-// one too, and every cell proves something its format declares. A wildcard
-// attribute declaration claims more than one cell can show, so it counts as
-// proven only with passing cells on two attributes and a cell refusing one.
+// that proves it, every native operation a writer declares has one too, and
+// every cell proves something its format declares. A wildcard attribute
+// declaration claims more than one cell can show, so it counts as proven only
+// with passing cells on two attributes and a cell refusing one. The
+// structural operations are held to their own matrix
+// (TestStructuralMatrixCoversEveryDeclaration), which asks a passing and a
+// refused cell of each.
 func TestCapabilityMatrixCoversEveryDeclaration(t *testing.T) {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
@@ -555,7 +558,8 @@ func TestCapabilityMatrixCoversEveryDeclaration(t *testing.T) {
 	}
 }
 
-// declaredClaims lists what a writer declares, in the claims cells make.
+// declaredClaims lists what a writer declares, in the claims cells make,
+// leaving out the structural operations the structural matrix proves.
 func declaredClaims(c format.EditCapabilities) map[string]bool {
 	out := map[string]bool{}
 	for typ, attrs := range c.WritableAttrs {
@@ -566,9 +570,6 @@ func declaredClaims(c format.EditCapabilities) map[string]bool {
 	for _, typ := range c.Synthesizes {
 		out["mark "+typ] = true
 		out["new code "+typ] = true
-	}
-	for _, op := range c.Structural {
-		out[op] = true
 	}
 	for _, op := range c.NativeOps {
 		out["native "+op.Name] = true

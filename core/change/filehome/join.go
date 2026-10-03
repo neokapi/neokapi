@@ -72,7 +72,7 @@ func (s *session) joinEditions(ctx context.Context, keys []model.EditionKey) ([]
 		if !ok {
 			continue
 		}
-		je := &joinedEdition{key: k.Canonical(), file: f, src: source{path: f.Path}, match: map[int]int{}}
+		je := &joinedEdition{key: k.Canonical(), file: f, src: s.fileSource(source{path: f.Path}), match: map[int]int{}}
 		je.exists = je.src.exists()
 		if je.exists {
 			err := s.readPass(je.src, f.Format, func(b *model.Block) error {

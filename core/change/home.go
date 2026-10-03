@@ -142,6 +142,63 @@ type Want struct {
 	// own edition, or an edition it holds in-file. Without it a stage only
 	// reads the document.
 	Own bool
+	// Structural says the change set adds blocks to the document or removes
+	// them. The service sets it only for a session that is a
+	// StructuralSession, whose home then runs the editor's Restructurer
+	// before each pass.
+	Structural bool
+}
+
+// StructuralSession is a session whose home can add blocks to its document
+// and remove them: insert_block and delete_block.
+type StructuralSession interface {
+	Session
+	// Structural lists the structural operations the home can write in this
+	// document; none when the document's format writes none.
+	Structural() []Kind
+}
+
+// Restructurer is the part of the service's editor that adds blocks to a
+// document and removes them. Before each pass of a stage whose Want is
+// Structural, the home reads the document as it stands: it calls
+// StartStructure, then Locate with every block in document order, with the
+// editions Want names joined in, and then Structure, which returns the edits
+// to make in the order of the change set, or ErrRefused when an operation was
+// refused. The home writes each edit into the document's file and the files
+// of its editions; an edit it cannot write it hands to Refuse, and it returns
+// ErrRefused. The pass that follows reads what the home wrote: Edit sees each
+// added block, and no removed one.
+type Restructurer interface {
+	StartStructure()
+	Locate(b *model.Block)
+	Structure() ([]StructuralEdit, error)
+	Refuse(e StructuralEdit, err *Error)
+}
+
+// StructuralEdit is one block a change set adds to a document or removes from
+// it, as a Restructurer hands it to the home.
+type StructuralEdit struct {
+	// Kind is KindInsertBlock or KindDeleteBlock.
+	Kind Kind
+	// Key is the key of the block removed, or of the block added.
+	Key string
+	// Block is the block removed, as the read before the pass found it with
+	// its editions joined, and Index its position in document order.
+	Block *model.Block
+	Index int
+	// Anchor is the key of the block the new one goes after, or before it
+	// when Before is set; empty puts the new block last. AnchorBlock and
+	// AnchorIndex are that block as read and its position, nil and -1 when
+	// an earlier edit of the change set adds it.
+	Anchor      string
+	AnchorBlock *model.Block
+	AnchorIndex int
+	Before      bool
+	// Editions is the content of each edition of the new block, keyed as
+	// the block keys them (the document's own edition by its language).
+	Editions map[model.EditionKey][]model.Run
+	// op is the index of the operation in the change set.
+	op int
 }
 
 // Editor applies a change set's operations to the blocks of one document. A

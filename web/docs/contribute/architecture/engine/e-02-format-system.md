@@ -402,7 +402,7 @@ say what a writer can write beyond its skeleton, in `core/format/editcaps.go`:
 | --- | --- | --- |
 | `AttrWriter` | `WritableAttrs()`: per code type, the attributes whose value the writer writes | `set_attribute` |
 | `CodeSynthesizer` | `Synthesizes()`: the vocabulary types the writer writes as a new paired code | `mark`, a new code in `runs` |
-| `StructuralWriter` | `Structural()`: `insert_block`, `delete_block` | the structural operations |
+| `StructureEditor` | `Structural()`: `insert_block`, `delete_block`, with `EditStructure`, which writes them | the structural operations |
 | `NativeEditor` | `NativeOps()`: format-specific operations and their argument schemas | `native` |
 
 The registry records them on `FormatInfo.EditCapabilities`, which describes the
@@ -479,6 +479,67 @@ rule that a skeleton from format A is foreign to format B's writer is enforced
 centrally, not left to each call site. A cross-format conversion therefore never
 feeds a foreign skeleton into the target writer; that writer takes the generative
 content-model route every writer shares.
+
+### Blocks a writer can add and remove
+
+A skeleton has a slot for every block the reader read and none for a block
+nobody read, so replaying it can change a block's content and nothing more.
+Adding a block to a document, or removing one together with the markup around
+it, changes the document's structure, and only the format knows what that
+markup is. In a key-value catalog it is small: a block's shell is its key and
+the value beside it.
+
+A writer that can write such an edit declares it. `StructureEditor.Structural`
+lists the operations it writes, `insert_block` and `delete_block`, and
+`StructureEditor.EditStructure` makes them: given a whole document and the
+edits in order, it returns the document with a new key and value beside a
+named block (or last), or a block's key and value removed with the separator
+that kept it from its neighbours, and every other byte as it was. It names a
+block by the key its reader gives it and finds a block it read by what the
+reader recorded on it. An edit it cannot make is a `StructureError` naming the
+edit and why: the key is held already, the block is not there, or the format
+has no way to write it there. `format.StructuralOps` reports what a writer
+declares and writes, and `ProbeEditCapabilities` records it among the writer's
+edit capabilities (`EditCapabilities.Structural`), which the change service
+([E-09](e-09-the-change-contract.md)) describes a format and a document by, so
+describing a format and applying a change set agree; a plugin format declares
+none. A writer answers `Structural` for
+its own configuration: where a document's configuration makes more than the key
+and its value part of a block's shell, describing that document reports neither
+operation and applying one is refused.
+
+A new block goes where a reader would look for its key path. Readers name a
+value in a nested object and one under a flat dotted key the same way
+(`nav.checkout`), so the writer puts the new key in the deepest object or
+mapping that the start of its key path names, beside its anchor or last there,
+and builds the objects or mappings the path names that the document lacks. An
+object that already names values by flat dotted keys takes the rest of the
+path as one key. An anchor outside that object is refused.
+
+The JSON, YAML and ARB writers declare both operations:
+
+- JSON adds a member with the indentation, line breaks and colon spacing the
+  object already uses, and a built object follows the same layout one step
+  deeper. It removes a member with the comma before or after it and a comment
+  that ends on the member's own line. A value in an array is named by its
+  position and is never added or removed. A configuration that reads a block's
+  note, id or metadata from the members beside it (`noteRules`, `idRules`,
+  `useIdStack`, `genericMetaRules`, `maxwidthRules`) declares neither
+  operation, and under `useFullKeyPath` a name such as `/nav/home` is read as
+  the key path it spells.
+- YAML adds a line at the indentation of the mapping's keys, after every line
+  of the anchor's value, or above the comment directly over the key it goes
+  before. It removes a key's lines with that comment, which the reader reads as
+  the block's note, and leaves every other comment where it is. A key in a flow
+  mapping, on a sequence item's dash line, reached through an alias, holding an
+  anchor, or inside a node with an anchor is refused. A new key or value is
+  written plain where YAML 1.2 and YAML 1.1 parsers both read it back as the
+  same string, and double-quoted otherwise (`yes`, `off`, `1:20`), and
+  removing a mapping's last key leaves it `{}`, after the tag it carries.
+- ARB keeps a message's `@` metadata beside it: a message added after another
+  goes after that message's metadata, one added before goes before metadata
+  that precedes it, and a removed message takes its metadata with it. An id
+  starting with `@` is refused.
 
 ### Reader output policy: three destinations
 
@@ -969,6 +1030,10 @@ readers implement `SubfilterAware` and declare patterns in their config.
 8. If the writer can write a changed attribute or a new inline code, implement
    `AttrWriter` or `CodeSynthesizer` and add the cells that prove each
    declaration to the operations matrix.
+9. If a block's shell is small enough to write on its own, as a catalog's key
+   and value are, implement `StructureEditor` and add the format's cells to the
+   structural operations matrix (`core/formats/opsmatrix_structural_test.go`),
+   which fails while a declaration has no passing cell.
 
 See [Implementing Formats](/contribute/implementation/engine/implementing-formats) for a
 walkthrough, and

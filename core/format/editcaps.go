@@ -85,13 +85,6 @@ type CodeSynthesizer interface {
 	SynthesizeCode(site CodeSite) (open, close model.Run, err error)
 }
 
-// StructuralWriter is implemented by a writer that can add a block to a
-// document or remove one with its shell. Structural lists the operations it
-// supports, "insert_block" and "delete_block".
-type StructuralWriter interface {
-	Structural() []string
-}
-
 // NativeOp is a format-specific operation: its name and the JSON Schema of its
 // arguments.
 type NativeOp struct {
@@ -114,8 +107,8 @@ type EditCapabilities struct {
 	// Synthesizes lists the vocabulary types mark, and a new code in a runs
 	// payload, may create (CodeSynthesizer).
 	Synthesizes []string `json:"synthesizes,omitempty"`
-	// Structural lists the structural operations the writer supports
-	// (StructuralWriter).
+	// Structural lists the structural operations the writer writes
+	// (StructureEditor, through StructuralOps).
 	Structural []string `json:"structural,omitempty"`
 	// NativeOps lists the format-specific operations (NativeEditor).
 	NativeOps []NativeOp `json:"native_ops,omitempty"`
@@ -190,7 +183,7 @@ func sortedCopy(s []string) []string {
 }
 
 // ProbeEditCapabilities returns what w declares through AttrWriter,
-// CodeSynthesizer, StructuralWriter and NativeEditor. The registry calls it
+// CodeSynthesizer, StructureEditor and NativeEditor. The registry calls it
 // once per built-in writer.
 func ProbeEditCapabilities(w DataFormatWriter) EditCapabilities {
 	var c EditCapabilities
@@ -200,9 +193,10 @@ func ProbeEditCapabilities(w DataFormatWriter) EditCapabilities {
 	if cs, ok := w.(CodeSynthesizer); ok {
 		c.Synthesizes = cs.Synthesizes()
 	}
-	if sw, ok := w.(StructuralWriter); ok {
-		c.Structural = sw.Structural()
-	}
+	// A structural operation is declared only with the half that writes it
+	// (StructureEditor), so a declaration never offers an edit the writer
+	// cannot make.
+	c.Structural = StructuralOps(w)
 	if ne, ok := w.(NativeEditor); ok {
 		c.NativeOps = ne.NativeOps()
 	}

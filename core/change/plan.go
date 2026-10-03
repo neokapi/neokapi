@@ -45,6 +45,27 @@ type docPlan struct {
 	// service can tell when Settle applied the change again.
 	passes int
 
+	// The insert_block and delete_block operations (structure.go), set when
+	// the change set is planned: the operations in change-set order, the
+	// insert of each new block's key and the delete of each removed one,
+	// each insert's content per edition, and every key a structural
+	// operation needs to find.
+	structural []int
+	inserts    map[string]int
+	deletes    map[string]int
+	newRuns    map[int]map[model.EditionKey][]model.Run
+	structKeys map[string]bool
+
+	// What the read before a pass found. StartStructure resets it.
+	structured      bool
+	located         map[string][]located
+	locIndex        int
+	structCands     map[string]*candidates
+	structChanges   []EditionChange
+	structChangeOps [][]int
+	added           map[string]int
+	removed         map[string]int
+
 	// What one pass found. Begin resets it.
 	seen      map[string]int
 	first     map[string]Candidate
@@ -67,8 +88,9 @@ func (p *docPlan) Begin() {
 	p.passes++
 	p.seen = map[string]int{}
 	p.first = map[string]Candidate{}
-	p.changes = nil
-	p.changeOps = nil
+	// The blocks removed before the pass are changes of the pass.
+	p.changes = slices.Clone(p.structChanges)
+	p.changeOps = slices.Clone(p.structChangeOps)
 	p.decisions = map[int]*DecisionTarget{}
 	p.refused = false
 	if len(p.byKey) <= candidateKeyLimit {
@@ -81,6 +103,10 @@ func (p *docPlan) Begin() {
 	}
 	for _, i := range p.ops {
 		op := p.set.Ops[i]
+		if p.structured && op.Kind == KindDeleteBlock {
+			// Decided by the read before the pass (StartStructure).
+			continue
+		}
 		p.results[i] = OpResult{I: i, Op: op.Kind, At: refOf(op)}
 	}
 }
@@ -110,6 +136,16 @@ func (p *docPlan) refuse(i int, err *Error) {
 }
 
 func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
+	if p.structured {
+		if insert, remove, ok := p.structuralOf(b); ok {
+			if insert >= 0 {
+				return p.verifyInsert(insert, b), nil
+			}
+			p.refuse(remove, &Error{Code: CodeUnsupported, Capability: string(KindDeleteBlock),
+				Message: fmt.Sprintf("the %s format still reads a block keyed %s after removing it", p.info.Format, BlockKey(b))})
+			return nil, nil
+		}
+	}
 	keys, ops := p.match(b)
 	if ops == nil {
 		p.observe(b)
@@ -326,6 +362,11 @@ func (p *docPlan) End() error {
 			continue
 		}
 		op := p.set.Ops[i]
+		if body, ok := op.Body.(*InsertBlock); ok {
+			p.refuse(i, &Error{Code: CodeUnsupported, Capability: string(KindInsertBlock),
+				Message: fmt.Sprintf("the %s format reads no block keyed %s from what was written, so the new block cannot be kept", p.info.Format, body.Name)})
+			continue
+		}
 		var cands []Candidate
 		if c := p.cands[op.At.Block]; c != nil {
 			cands = c.list()

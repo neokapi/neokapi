@@ -18,9 +18,12 @@ import (
 )
 
 // source is where a document's bytes are: a file, or a member of an archive.
+// data, when set, holds the bytes instead: the document as a structural edit
+// left it, before anything is written.
 type source struct {
 	path  string
 	entry string
+	data  []byte
 }
 
 func (s source) String() string {
@@ -32,14 +35,26 @@ func (s source) String() string {
 
 // exists reports whether the source's file is there.
 func (s source) exists() bool {
+	if s.data != nil {
+		return true
+	}
 	_, err := os.Stat(s.path)
 	return err == nil
 }
 
 // entryBytes reads an archive member.
 func (s source) entryBytes() ([]byte, error) {
+	if s.data != nil {
+		return s.data, nil
+	}
 	data, _, err := container.OpenEntry(s.path, s.entry)
 	return data, err
+}
+
+// with returns the source holding data in place of its bytes.
+func (s source) with(data []byte) source {
+	s.data = data
+	return s
 }
 
 // pass is one read of a document through its format, with or without a write.
@@ -93,7 +108,7 @@ func (p pass) run(ctx context.Context) (err error) {
 	// cannot.
 	var original []byte
 	if p.out != nil {
-		if sps, ok := writer.(format.SourcePathSetter); ok && ws.entry == "" {
+		if sps, ok := writer.(format.SourcePathSetter); ok && ws.entry == "" && ws.data == nil {
 			abs, aerr := filepath.Abs(ws.path)
 			if aerr != nil {
 				reader.Close()
@@ -112,6 +127,8 @@ func (p pass) run(ctx context.Context) (err error) {
 	doc := &model.RawDocument{URI: p.src.String(), SourceLocale: p.locale, TargetLocale: p.target, Encoding: p.encoding}
 	var file *os.File
 	switch {
+	case p.src.data != nil:
+		setBytes(doc, p.src.data)
 	case p.src.entry != "":
 		data, eerr := p.src.entryBytes()
 		if eerr != nil {
@@ -119,7 +136,7 @@ func (p pass) run(ctx context.Context) (err error) {
 			return eerr
 		}
 		setBytes(doc, data)
-	case original != nil && ws == p.src:
+	case original != nil && ws.data == nil && ws.path == p.src.path && ws.entry == p.src.entry:
 		setBytes(doc, original)
 	default:
 		f, oerr := os.Open(p.src.path)
@@ -159,6 +176,9 @@ func setBytes(doc *model.RawDocument, data []byte) {
 
 // readAll reads a source whole, within the byte budget.
 func readAll(s source) ([]byte, error) {
+	if s.data != nil {
+		return s.data, nil
+	}
 	if s.entry != "" {
 		return s.entryBytes()
 	}

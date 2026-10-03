@@ -15,6 +15,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/changetest"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 )
@@ -32,6 +33,13 @@ type memHome struct {
 	beforeSettle func(doc string)
 	// failCommit, when set, is the document whose commit fails.
 	failCommit string
+	// kv makes every document a monolingual key-value catalog whose home
+	// adds and removes blocks (structure_test.go); restructure, when set,
+	// replaces how the home writes structural edits; writes, when set, are
+	// the only structural operations the home writes.
+	kv          bool
+	restructure func(blocks []*model.Block, e change.StructuralEdit) ([]*model.Block, *change.Error)
+	writes      []change.Kind
 }
 
 type memDoc struct {
@@ -140,11 +148,33 @@ type memSession struct {
 }
 
 func (s *memSession) Info() change.DocInfo {
+	if s.h.kv {
+		// The writer declares both structural operations; the session says
+		// which of them the home writes (Structural).
+		return change.DocInfo{Doc: s.doc, Format: "memory-kv", SourceLocale: "en", Editions: change.EditionsPerFile,
+			Capabilities: change.Capabilities{Format: "memory-kv", Declared: format.EditCapabilities{Structural: []string{"delete_block", "insert_block"}}}}
+	}
 	return change.DocInfo{Doc: s.doc, Format: "memory", SourceLocale: "en", Editions: change.EditionsInFile}
 }
 
-func (s *memSession) Place(model.EditionKey) change.Place {
+func (s *memSession) Place(k model.EditionKey) change.Place {
+	if s.h.kv && !k.IsZero() && k.Locale != "en" {
+		// A key-value catalog holds its own language only.
+		return change.Place{Kind: change.PlaceNone}
+	}
 	return change.Place{Kind: change.PlaceInDocument}
+}
+
+// Structural is what the home writes: insert_block and delete_block in a
+// key-value catalog.
+func (s *memSession) Structural() []change.Kind {
+	if !s.h.kv {
+		return nil
+	}
+	if s.h.writes != nil {
+		return s.h.writes
+	}
+	return []change.Kind{change.KindInsertBlock, change.KindDeleteBlock}
 }
 
 func (s *memSession) headOf() int {
@@ -173,8 +203,8 @@ func (s *memSession) Read(_ context.Context, _ change.Want, fn func(*model.Block
 	return fmt.Sprintf("head:%d", head), nil
 }
 
-func (s *memSession) Stage(_ context.Context, _ change.Want, e change.Editor) (change.Staged, error) {
-	st := &memStaged{s: s, e: e}
+func (s *memSession) Stage(_ context.Context, want change.Want, e change.Editor) (change.Staged, error) {
+	st := &memStaged{s: s, e: e, want: want}
 	if err := st.run(); err != nil {
 		return nil, err
 	}
@@ -186,6 +216,7 @@ func (s *memSession) Close() error { return nil }
 type memStaged struct {
 	s       *memSession
 	e       change.Editor
+	want    change.Want
 	head    int
 	blocks  []*model.Block
 	changed bool
@@ -196,6 +227,11 @@ type memStaged struct {
 func (st *memStaged) run() error {
 	st.blocks, st.head = st.s.current()
 	st.changed = false
+	if st.want.Structural {
+		if err := st.restructure(); err != nil {
+			return err
+		}
+	}
 	st.e.Begin()
 	for _, b := range st.blocks {
 		keys, err := st.e.Edit(b)
@@ -205,6 +241,68 @@ func (st *memStaged) run() error {
 		st.changed = st.changed || len(keys) > 0
 	}
 	return st.e.End()
+}
+
+// restructure reads the blocks for the editor's structural operations and
+// writes the edits it returns: a removed block leaves the list, an added one
+// joins it beside its anchor, or last.
+func (st *memStaged) restructure() error {
+	r, ok := st.e.(change.Restructurer)
+	if !ok {
+		return errors.New("the editor adds and removes no blocks")
+	}
+	r.StartStructure()
+	for _, b := range st.blocks {
+		r.Locate(b)
+	}
+	edits, err := r.Structure()
+	if err != nil {
+		return err
+	}
+	for _, e := range edits {
+		write := st.s.h.restructure
+		if write == nil {
+			write = memRestructure
+		}
+		blocks, rerr := write(st.blocks, e)
+		if rerr != nil {
+			r.Refuse(e, rerr)
+			return change.ErrRefused
+		}
+		st.blocks = blocks
+	}
+	st.changed = true
+	return nil
+}
+
+// memRestructure writes one structural edit into a list of blocks.
+func memRestructure(blocks []*model.Block, e change.StructuralEdit) ([]*model.Block, *change.Error) {
+	at := func(key string) int {
+		return slices.IndexFunc(blocks, func(b *model.Block) bool { return b.Name == key })
+	}
+	switch e.Kind {
+	case change.KindDeleteBlock:
+		i := at(e.Key)
+		if i < 0 {
+			return nil, &change.Error{Code: change.CodeUnsupported, Message: "no block " + e.Key}
+		}
+		return slices.Delete(blocks, i, i+1), nil
+	case change.KindInsertBlock:
+		nb := model.NewRunsBlock("new-"+e.Key, slices.Clone(e.Editions[model.EditionKey{}]))
+		nb.Name, nb.SourceLocale, nb.Translatable = e.Key, "en", true
+		pos := len(blocks)
+		if e.Anchor != "" {
+			pos = at(e.Anchor)
+			if pos < 0 {
+				return nil, &change.Error{Code: change.CodeUnsupported, Message: "no block " + e.Anchor}
+			}
+			if !e.Before {
+				pos++
+			}
+		}
+		return slices.Insert(blocks, pos, nb), nil
+	}
+	return blocks, nil
 }
 
 func (st *memStaged) Files() []change.StagedFile {
@@ -274,10 +372,13 @@ func (st *memStaged) Release() error {
 type memFormats struct{}
 
 func (memFormats) Facts(name string) (change.FormatFacts, bool) {
-	if name != "memory" {
-		return change.FormatFacts{}, false
+	switch name {
+	case "memory":
+		return change.FormatFacts{Name: "memory", Editable: true, Interchange: true}, true
+	case "memory-kv":
+		return change.FormatFacts{Name: "memory-kv", Editable: true, Edit: format.EditCapabilities{Structural: []string{"delete_block", "insert_block"}}}, true
 	}
-	return change.FormatFacts{Name: "memory", Editable: true, Interchange: true}, true
+	return change.FormatFacts{}, false
 }
 
 var (
