@@ -1086,14 +1086,27 @@ export interface ChangeFinding {
 
 /**
  * Resolved is a span the service resolved, with the path of the run sequence it
- * lies in.
+ * lies in. Its ends follow model.RangeAnchor's attribution: a boundary at the
+ * end of a text run is the start of the run after it.
  *
  * Mirrors core/change.Resolved.
  */
 export interface ResolvedSpan {
   path?: RunPath;
-  start: RunPos;
-  end: RunPos;
+  start: ResultPosition;
+  end: ResultPosition;
+}
+
+/**
+ * Position is a run position as a result reports it: a run index and a
+ * code-point offset into that run's text. Both are always printed, a zero
+ * offset included, so a caller reads one shape.
+ *
+ * Mirrors core/change.Position.
+ */
+export interface ResultPosition {
+  run: number;
+  offset: number;
 }
 
 /**

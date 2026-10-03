@@ -729,9 +729,10 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 		if err != nil {
 			return err
 		}
-		res.Resolved[i] = Resolved{Path: path, Start: ix.posAt(start), End: ix.posAt(end)}
+		res.Resolved[i] = resolvedSpan(path, ix.posAt(start), ix.posAt(end))
 		if span != nil {
-			res.Resolved[i].Start, res.Resolved[i].End = ix.spanPositions(span)
+			s, e := ix.spanPositions(span)
+			res.Resolved[i] = resolvedSpan(path, s, e)
 		}
 		paths[key] = path
 		groups[key] = append(groups[key], pathEdit{i: i, start: start, end: end, text: e.Text, span: span})

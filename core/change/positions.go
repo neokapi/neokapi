@@ -201,9 +201,9 @@ func (ix *seqIndex) resolveFind(find string, occurrence int, path model.RunPath,
 func (ix *seqIndex) resolvedOf(m findMatch, path model.RunPath) Resolved {
 	if m.span != nil {
 		start, end := ix.spanPositions(m.span)
-		return Resolved{Path: path, Start: start, End: end}
+		return resolvedSpan(path, start, end)
 	}
-	return Resolved{Path: path, Start: ix.posAt(m.start), End: ix.posAt(m.end)}
+	return resolvedSpan(path, ix.posAt(m.start), ix.posAt(m.end))
 }
 
 // notInText refuses a find that seq's own text does not hold. A read shows a
@@ -300,7 +300,7 @@ func caseCandidates(seq []model.Run, find string, p parsedFind, path model.RunPa
 			i++
 			continue
 		}
-		r := Resolved{Path: path, Start: ix.posAt(i), End: ix.posAt(i + len(needle))}
+		r := resolvedSpan(path, ix.posAt(i), ix.posAt(i+len(needle)))
 		out = append(out, Candidate{At: &r, Text: around(ix.text, i, i+len(needle))})
 		i += len(needle)
 	}

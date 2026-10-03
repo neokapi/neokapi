@@ -106,7 +106,8 @@ func FindingRange(a *model.Anchor) *Resolved {
 	if a == nil || a.Kind != model.AnchorRange {
 		return nil
 	}
-	return &Resolved{Path: a.Path, Start: a.Start, End: a.End}
+	r := resolvedSpan(a.Path, a.Start, a.End)
+	return &r
 }
 
 // OpResult is the outcome of one operation.
@@ -152,11 +153,31 @@ func (r *OpResult) unwritten() {
 }
 
 // Resolved is a span the service resolved, with the path of the run sequence
-// it lies in.
+// it lies in. Its ends follow model.RangeAnchor's attribution: a boundary at
+// the end of a text run is the start of the run after it.
 type Resolved struct {
 	Path  model.RunPath `json:"path,omitempty"`
-	Start model.RunPos  `json:"start"`
-	End   model.RunPos  `json:"end"`
+	Start Position      `json:"start"`
+	End   Position      `json:"end"`
+}
+
+// Position is a run position as a result reports it: a run index and a
+// code-point offset into that run's text. Both are always printed, a zero
+// offset included, so a caller reads one shape.
+type Position struct {
+	Run    int `json:"run"`
+	Offset int `json:"offset"`
+}
+
+// PositionOf is p as a result reports it.
+func PositionOf(p model.RunPos) Position { return Position{Run: p.Run, Offset: p.Offset} }
+
+// RunPos is the position as the content model and an anchor write it.
+func (p Position) RunPos() model.RunPos { return model.RunPos{Run: p.Run, Offset: p.Offset} }
+
+// resolvedSpan is the span [start, end) of the sequence at path.
+func resolvedSpan(path model.RunPath, start, end model.RunPos) Resolved {
+	return Resolved{Path: path, Start: PositionOf(start), End: PositionOf(end)}
 }
 
 // Invalidation names a derived edition an edit made stale.

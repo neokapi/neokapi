@@ -22,7 +22,7 @@ func TestApplyBlock_FindNamesCodesByToken(t *testing.T) {
 		assert.Equal(t, "Read the <1>handbook</1> before you <2>order</2>.", shape(b.Source))
 		// The span opens at the link's opening code and ends after its
 		// closing one.
-		assert.Equal(t, []change.Resolved{{Start: model.RunPos{Run: 1}, End: model.RunPos{Run: 4}}}, res[0].Resolved)
+		assert.Equal(t, []change.Resolved{{Start: change.Position{Run: 1}, End: change.Position{Run: 4}}}, res[0].Resolved)
 		// The link keeps its native form and attributes.
 		require.NotNil(t, b.Source[1].PcOpen)
 		assert.Equal(t, `<a href="https://old.example/guide">`, b.Source[1].PcOpen.Data)
@@ -122,7 +122,7 @@ func TestApplyBlock_FindNamesAnICUArgumentByItsSource(t *testing.T) {
 			requireApplied(t, res)
 			assert.Equal(t, "{count: one={p1} unread message other={p1} new messages}", shape(b.Source))
 			assert.Equal(t, "{count}", b.Source[0].Plural.Forms[model.PluralOne][0].Ph.Data, "the argument keeps its native form")
-			assert.Equal(t, []change.Resolved{{Path: one, Start: model.RunPos{}, End: model.RunPos{Run: 2}}}, res[0].Resolved)
+			assert.Equal(t, []change.Resolved{{Path: one, Start: change.Position{}, End: change.Position{Run: 2}}}, res[0].Resolved)
 		})
 	}
 	t.Run("a literal brace still matches literal text", func(t *testing.T) {
