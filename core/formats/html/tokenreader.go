@@ -61,10 +61,16 @@ type tokenReaderState struct {
 	// the ref is still the last entry and its trailing whitespace can be
 	// restored in the position it occupied.
 	lastTextBlockEntries int
-	// lastTextBlock points at the most recent top-level text-block emitted
+	// lastTextBlock points at the most recent top-level text-block read
 	// so we can retroactively trim its trailing whitespace when the next
 	// event proves we just exited a text-unit.
 	lastTextBlock *model.Block
+	// held is lastTextBlock's part and every part read after it, in order.
+	// They are sent once the reader is done with lastTextBlock: when the next
+	// structural event has trimmed it, or when a later text-block takes its
+	// place, since nothing then trims it. A part on the channel belongs to the
+	// consumer, which may read or edit it at once.
+	held []*model.Part
 	// content is the entire input document. forwardScanForBlockChildren
 	// uses this for lookahead because tokenizer.Buffered() only returns
 	// what is currently in the bufio buffer — after a giant <script>
@@ -145,6 +151,27 @@ func newTokenReaderState(r *Reader, store *format.SkeletonStore) *tokenReaderSta
 	}
 }
 
+// emit sends part, or holds it behind lastTextBlock while that block can
+// still change (see held).
+func (s *tokenReaderState) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
+	if s.lastTextBlock != nil {
+		s.held = append(s.held, part)
+		return true
+	}
+	return s.reader.emit(ctx, ch, part)
+}
+
+// sendHeld sends the held parts in the order they were read.
+func (s *tokenReaderState) sendHeld(ctx context.Context, ch chan<- model.PartResult) {
+	held := s.held
+	s.held = nil
+	for _, part := range held {
+		if !s.reader.emit(ctx, ch, part) {
+			return
+		}
+	}
+}
+
 func (s *tokenReaderState) nextBlockID() string {
 	s.blockCounter++
 	return "tu" + strconv.Itoa(s.blockCounter)
@@ -219,7 +246,10 @@ func (s *tokenReaderState) trimTrailingWSOfLastTextBlock() string {
 // formatting between a text unit and the tag that follows it, and an edited
 // one still joins the new text straight to the tag the way extraction parity
 // requires.
-func (s *tokenReaderState) onStructuralEvent() {
+//
+// The trim is the last change the reader makes to the block, so the block
+// and the parts held behind it are sent here.
+func (s *tokenReaderState) onStructuralEvent(ctx context.Context, ch chan<- model.PartResult) {
 	if s.lastTextBlock != nil {
 		block := s.lastTextBlock
 		// The block's own trailing whitespace sits immediately after its ref;
@@ -236,6 +266,7 @@ func (s *tokenReaderState) onStructuralEvent() {
 		if restored != "" {
 			s.store.WriteTrimmed([]byte(model.RenderRunsWithData(block.SourceRuns())), []byte(restored))
 		}
+		s.sendHeld(ctx, ch)
 		return
 	}
 	s.flushPendingWS()
@@ -451,7 +482,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 		// Flush any whitespace still buffered at end-of-document. The
 		// document boundary is treated like a structural event for trailing
 		// whitespace inside the last text-block.
-		s.onStructuralEvent()
+		s.onStructuralEvent(ctx, ch)
 	}()
 
 	for {
@@ -477,9 +508,9 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 
 		switch tt {
 		case html.DoctypeToken:
-			s.onStructuralEvent()
+			s.onStructuralEvent(ctx, ch)
 			s.store.WriteText(raw)
-			s.reader.emit(ctx, ch, &model.Part{
+			s.emit(ctx, ch, &model.Part{
 				Type: model.PartData,
 				Resource: &model.Data{
 					ID:   s.nextDataID(),
@@ -491,14 +522,14 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			// Check if we're inside a block element (leaf).
 			// If so, this will be handled during block content collection.
 			// At top level or inside containers, it's non-translatable.
-			s.onStructuralEvent()
+			s.onStructuralEvent(ctx, ch)
 			s.store.WriteText(raw)
 			// Carry the comment's verbatim markup on the Data part so the text
 			// is reachable downstream (Properties["raw"], like asciidoc
 			// emitData). The bytes still ride the skeleton above and the part
 			// stays non-translatable Data, so this is parity-safe (parity
 			// compares only Data.ID).
-			s.reader.emit(ctx, ch, &model.Part{
+			s.emit(ctx, ch, &model.Part{
 				Type: model.PartData,
 				Resource: &model.Data{
 					ID:         s.nextDataID(),
@@ -537,7 +568,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					block.Name = s.structuralName(s.textStep())
 					block.PreserveWhitespace = true
 					markInteractiveAncestor(block, s.interactiveAncestor())
-					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+					s.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 				} else {
 					s.dropPendingWS()
 					body := text
@@ -557,9 +588,12 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					block := buildBlockWithEntities(blockID, body)
 					block.Name = s.structuralName(s.textStep())
 					markInteractiveAncestor(block, s.interactiveAncestor())
-					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+					// The previous text-block, if any, is no longer the last,
+					// so nothing trims it now: it and the parts behind it go.
+					s.sendHeld(ctx, ch)
 					s.lastTextBlock = block
 					s.lastTextBlockEntries = s.store.EntriesWritten()
+					s.held = append(s.held, &model.Part{Type: model.PartBlock, Resource: block})
 				}
 			} else {
 				// Pure-whitespace text token at top level: buffer it. The
@@ -599,7 +633,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			if inlineElements[endAtom] {
 				s.onInlineEvent()
 			} else {
-				s.onStructuralEvent()
+				s.onStructuralEvent(ctx, ch)
 			}
 
 			s.store.WriteText(raw)
@@ -622,7 +656,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			}
 
 			if a == atom.Meta {
-				s.onStructuralEvent()
+				s.onStructuralEvent(ctx, ch)
 				s.handleMetaToken(raw, attrs, ctx, ch)
 				continue
 			}
@@ -630,7 +664,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			if inlineElements[a] {
 				s.onInlineEvent()
 			} else {
-				s.onStructuralEvent()
+				s.onStructuralEvent(ctx, ch)
 			}
 
 			s.extractLangFromToken(raw, tag, attrs, ctx, ch)
@@ -678,7 +712,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 	}
 
 	if nonTranslatableElements[a] {
-		s.onStructuralEvent()
+		s.onStructuralEvent(ctx, ch)
 		// Surface renderable contextual content (<noscript> fallback, JSON data
 		// islands) as a non-translatable content block riding a skeleton ref;
 		// generic <script> / <style> (and empty bodies) stay opaque Data.
@@ -690,7 +724,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 			}
 		}
 		s.store.WriteText(raw)
-		s.reader.emit(ctx, ch, &model.Part{
+		s.emit(ctx, ch, &model.Part{
 			Type: model.PartData,
 			Resource: &model.Data{
 				ID:   s.nextDataID(),
@@ -704,14 +738,14 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 
 	if selfClosingElements[a] {
 		if a == atom.Meta {
-			s.onStructuralEvent()
+			s.onStructuralEvent(ctx, ch)
 			s.handleMetaToken(raw, attrs, ctx, ch)
 			return
 		}
 		if inlineElements[a] {
 			s.onInlineEvent()
 		} else {
-			s.onStructuralEvent()
+			s.onStructuralEvent(ctx, ch)
 		}
 		s.extractLangFromToken(raw, tag, attrs, ctx, ch)
 		if !info.translateNo {
@@ -728,7 +762,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 		info.isBlock = true
 		info.preserveWS = s.cfg.PreserveWhitespace || preserveWhitespaceElements[a]
 
-		s.onStructuralEvent()
+		s.onStructuralEvent(ctx, ch)
 		s.extractLangFromToken(nil, tag, attrs, ctx, ch)
 
 		if !info.translateNo {
@@ -742,7 +776,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 			// the skeleton as inserted bytes: the writer emits it, and skeleton
 			// alignment knows not to look for it in the source.
 			s.store.WriteInserted([]byte(`<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`))
-			s.reader.emit(ctx, ch, &model.Part{
+			s.emit(ctx, ch, &model.Part{
 				Type: model.PartData,
 				Resource: &model.Data{
 					ID:   s.nextDataID(),
@@ -1113,7 +1147,7 @@ leafClosed:
 		block.Properties = extractBlockPropsFromToken(attrs)
 		setStructuralRole(block, tag, func(key string) string { return getTokenAttr(attrs, key) })
 		markInteractiveAncestor(block, s.interactiveAncestor())
-		s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+		s.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}
 
 	// Write close tag to skeleton.
@@ -1506,7 +1540,7 @@ func (s *tokenReaderState) emitNonTranslatableContent(tokenizer *html.Tokenizer,
 	}
 
 	s.store.WriteRef(blockID)
-	s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	s.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 
 	if closeTag != nil {
 		s.store.WriteText(closeTag)
@@ -1586,7 +1620,7 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 
 	if charset != "" {
 		s.store.WriteText(raw)
-		s.reader.emit(ctx, ch, &model.Part{
+		s.emit(ctx, ch, &model.Part{
 			Type: model.PartData,
 			Resource: &model.Data{
 				ID:         s.nextDataID(),
@@ -1600,7 +1634,7 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 	if httpEquiv == "content-type" && content != "" {
 		if cs := extractCharset(content); cs != "" {
 			s.store.WriteText(raw)
-			s.reader.emit(ctx, ch, &model.Part{
+			s.emit(ctx, ch, &model.Part{
 				Type: model.PartData,
 				Resource: &model.Data{
 					ID:         s.nextDataID(),
@@ -1621,7 +1655,7 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 		// as a SkeletonLang entry rather than writing it verbatim — otherwise
 		// the declaration would keep the stale source locale on translation.
 		s.writeStartTagSkeleton(raw, nil, []string{"content"})
-		s.reader.emit(ctx, ch, &model.Part{
+		s.emit(ctx, ch, &model.Part{
 			Type: model.PartData,
 			Resource: &model.Data{
 				ID:         s.nextDataID(),
@@ -1643,10 +1677,10 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 			block.Name = metaName
 			block.Type = "content"
 			block.IsReferent = true
-			s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+			s.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 
 			// Also emit as data.
-			s.reader.emit(ctx, ch, &model.Part{
+			s.emit(ctx, ch, &model.Part{
 				Type:     model.PartData,
 				Resource: &model.Data{ID: s.nextDataID(), Name: "meta"},
 			})
@@ -1655,7 +1689,7 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 	}
 
 	s.store.WriteText(raw)
-	s.reader.emit(ctx, ch, &model.Part{
+	s.emit(ctx, ch, &model.Part{
 		Type:     model.PartData,
 		Resource: &model.Data{ID: s.nextDataID(), Name: "meta"},
 	})
@@ -1672,7 +1706,7 @@ func (s *tokenReaderState) extractLangFromToken(raw []byte, tag string, attrs []
 		lang = getTokenAttrNS(attrs, "xml", "lang")
 	}
 	if lang != "" {
-		s.reader.emit(ctx, ch, &model.Part{
+		s.emit(ctx, ch, &model.Part{
 			Type: model.PartData,
 			Resource: &model.Data{
 				ID:         s.nextDataID(),
@@ -1910,7 +1944,7 @@ func (s *tokenReaderState) emitAttrBlock(blockID, elemName, attrKey, value strin
 	block.Name = elemName + "@" + attrKey
 	block.Type = attrKey
 	block.IsReferent = true
-	s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	s.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
 // writeAttrRefSkeleton writes a tag's raw bytes to skeleton, replacing one
