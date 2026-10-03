@@ -643,9 +643,10 @@ func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) fil
 			return filehome.EditionFile{}, false
 		}
 		return filehome.EditionFile{
-			Ref:    filepath.ToSlash(u.DisplayPath),
-			Path:   filepath.Join(l.root, u.DisplayPath),
-			Format: l.app.formatBinding(u.TargetFormat, u.TargetConfig, l.enc),
+			Ref:       filepath.ToSlash(u.DisplayPath),
+			Path:      filepath.Join(l.root, u.DisplayPath),
+			Format:    l.app.formatBinding(u.TargetFormat, u.TargetConfig, l.enc),
+			Bilingual: l.app.editionsOf(u.TargetFormat) == change.EditionsInFile,
 		}, true
 	}
 	for loc, u := range targets {

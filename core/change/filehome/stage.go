@@ -163,11 +163,21 @@ func (st *staged) run(ctx context.Context) error {
 				if f.tmp, f.after, f.diff, err = st.writeBytes(ctx, je.file.Path, je.src, data); err != nil {
 					return err
 				}
+				continue
 			}
-			continue
+			if !s.h.materialize || je.file.Bilingual || !je.drifted(ix) {
+				continue
+			}
+			// The translation no longer holds the document's blocks: it
+			// follows the document again even though no content changed.
 		}
 		if err := st.writeEdition(ctx, f, je, ix, changed[i]); err != nil {
 			return err
+		}
+		if f.after == f.before && f.tmp != nil {
+			// The write gave the bytes the file already holds.
+			_ = f.tmp.Discard()
+			f.tmp, f.diff = nil, nil
 		}
 	}
 	return st.lockKeys()
@@ -194,44 +204,19 @@ func (st *staged) lockKeys() error {
 // byte of it outside the changed blocks stays, and each changed block must
 // have a partner there; a write that would need a block the file does not
 // hold is refused, because adding one means rewriting the file. A file that
-// does not exist yet, and every file under Options.Materialize, is
-// materialized from the document's skeleton, as kapi merge writes a target
-// file.
+// does not exist yet is materialized from the document's skeleton, as kapi
+// merge writes a target file, and so is every file under
+// Options.Materialize, except a bilingual file that still holds every block
+// of the document and nothing else: it keeps its own skeleton, so its header
+// (its language, its plural rule) and its comments stay.
 func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdition, ix *blockIndex, changed map[int][]model.Run) error {
 	s := st.s
-	if je.exists && !s.h.materialize {
-		byTarget := map[int][]model.Run{}
-		var unpaired []string
-		for si, runs := range changed {
-			ti, ok := je.match[si]
-			if !ok {
-				unpaired = append(unpaired, ix.keys[si])
-				continue
-			}
-			byTarget[ti] = runs
-		}
-		if len(unpaired) > 0 {
-			slices.Sort(unpaired)
-			return &change.Error{Code: change.CodeUnsupported, Capability: "edition", Field: "at/block",
-				Message: fmt.Sprintf("%s holds no block that pairs with %s of %s, and an edition is written only into a block its file already holds; add the block to %s first",
-					je.file.Ref, blockList(unpaired), s.doc.Ref, je.file.Ref)}
-		}
-		src := je.src
-		ti := 0
-		var err error
-		f.tmp, f.after, f.diff, err = st.write(ctx, je.file.Path, src, func(out io.Writer) error {
-			return pass{src: src, format: je.file.Format, locale: s.doc.SourceLocale, encoding: s.doc.Encoding, out: out,
-				fn: func(b *model.Block) error {
-					if runs, ok := byTarget[ti]; ok {
-						ed, _ := b.Edition(model.EditionKey{})
-						ed.Runs = runs
-						b.SetEdition(model.EditionKey{}, ed)
-					}
-					ti++
-					return nil
-				}}.run(ctx)
-		})
-		return err
+	inPlace := je.exists && !s.h.materialize
+	if je.exists && s.h.materialize && je.file.Bilingual && !je.drifted(ix) {
+		inPlace = true
+	}
+	if inPlace {
+		return st.writeEditionInPlace(ctx, f, je, ix, changed)
 	}
 	src := s.ownSource()
 	si := 0
@@ -241,15 +226,61 @@ func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdi
 			writeLocale: je.key.Locale, writerSource: src,
 			fn: func(b *model.Block) error {
 				runs, ok := changed[si]
-				if ti, held := je.match[si]; !ok && held {
+				if ti, paired := je.match[si]; !ok && paired {
 					// A block the change leaves keeps what the file held.
-					ed, _ := je.blocks[ti].Edition(model.EditionKey{})
-					runs, ok = ed.Runs, true
+					runs, ok = je.held(ti)
 				}
 				if ok {
 					b.SetEdition(je.key, model.Edition{Runs: runs})
 				}
 				si++
+				return nil
+			}}.run(ctx)
+	})
+	return err
+}
+
+// writeEditionInPlace stages the existing file of a joined edition through
+// its own skeleton, with each changed block written into its partner there.
+// A changed block with no partner refuses the write.
+func (st *staged) writeEditionInPlace(ctx context.Context, f *stagedFile, je *joinedEdition, ix *blockIndex, changed map[int][]model.Run) error {
+	s := st.s
+	byTarget := map[int][]model.Run{}
+	var unpaired []string
+	for si, runs := range changed {
+		ti, ok := je.match[si]
+		if !ok {
+			unpaired = append(unpaired, ix.keys[si])
+			continue
+		}
+		byTarget[ti] = runs
+	}
+	if len(unpaired) > 0 {
+		slices.Sort(unpaired)
+		return &change.Error{Code: change.CodeUnsupported, Capability: "edition", Field: "at/block",
+			Message: fmt.Sprintf("%s holds no block that pairs with %s of %s, and an edition is written only into a block its file already holds; add the block to %s first",
+				je.file.Ref, blockList(unpaired), s.doc.Ref, je.file.Ref)}
+	}
+	// A bilingual file holds the edition as its translation, read and
+	// written in the edition's language; any other file holds it as its own
+	// content.
+	key, lang := model.EditionKey{}, model.LocaleID("")
+	if je.file.Bilingual {
+		key, lang = je.key, je.key.Locale
+	}
+	src := je.src
+	ti := 0
+	var err error
+	f.tmp, f.after, f.diff, err = st.write(ctx, je.file.Path, src, func(out io.Writer) error {
+		return pass{src: src, format: je.file.Format, locale: s.doc.SourceLocale, target: lang, encoding: s.doc.Encoding, out: out,
+			writeLocale: lang,
+			fn: func(b *model.Block) error {
+				if runs, ok := byTarget[ti]; ok {
+					ed, _ := b.Edition(key)
+					ed.Runs = runs
+					b.SetEdition(key, ed)
+				}
+				ti++
 				return nil
 			}}.run(ctx)
 	})

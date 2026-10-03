@@ -423,6 +423,60 @@ func TestFileHome_MaterializeWritesAnEditionFileFromTheDocument(t *testing.T) {
 	})
 }
 
+// TestFileHome_MaterializeBringsADriftedEditionFileBackToTheDocument pins
+// that under Options.Materialize a change set addressing an edition writes its
+// file whenever the file no longer holds the document's blocks, even when no
+// content changes: the block the document gained lands with the document's
+// own text and the block only the file held is gone. A file that still holds
+// the document's blocks and gains no content is left as it is.
+func TestFileHome_MaterializeBringsADriftedEditionFileBackToTheDocument(t *testing.T) {
+	ctx := context.Background()
+	de := mustEdition(t, "de")
+	for _, tc := range []struct {
+		name, doc, edition, want string
+		written                  bool
+	}{
+		{name: "the document gained a block",
+			doc:     `{"title": "Welcome", "added": "Brand new"}` + "\n",
+			edition: `{"title":"Willkommen"}` + "\n",
+			want:    `{"title": "Willkommen", "added": "Brand new"}` + "\n", written: true},
+		{name: "the document lost a block",
+			doc:     `{"title": "Welcome"}` + "\n",
+			edition: `{"title":"Willkommen","gone":"Weg"}` + "\n",
+			want:    `{"title": "Willkommen"}` + "\n", written: true},
+		{name: "the file holds every block of the document",
+			doc:     `{"title": "Welcome"}` + "\n",
+			edition: `{"title":"Willkommen"}` + "\n",
+			want:    `{"title":"Willkommen"}` + "\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newTargetFixture(t, map[string]string{"guide.json": tc.doc, "de/guide.json": tc.edition}, filehome.Options{Materialize: true})
+			page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "guide.json", Editions: []model.EditionKey{de}})
+			require.NoError(t, err)
+			var title change.BlockRead
+			for _, b := range page.Blocks {
+				if b.Text == "Welcome" {
+					title = b
+				}
+			}
+			at := title.Ref
+			at.Edition = de
+			res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(at, title.Editions["de"].Rev, "Willkommen")}}, person)
+			require.NoError(t, err)
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+			assert.Equal(t, change.OpUnchanged, res.Ops[0].Status)
+			assert.Equal(t, tc.want, f.read(t, "de/guide.json"))
+			var written bool
+			for _, d := range res.Docs {
+				if d.File == "de/guide.json" {
+					written = d.Written
+				}
+			}
+			assert.Equal(t, tc.written, written)
+		})
+	}
+}
+
 // TestFileHome_ThePreviewOfANewTranslationCreatesNoDirectory pins that the
 // directory a translation's first file needs is created when the file is
 // committed, so a preview, and a change set refused once staged, leave the

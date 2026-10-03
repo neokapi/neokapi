@@ -10,9 +10,12 @@ import (
 
 // An edition that lives in a file of its own, such as de/guide.md beside
 // docs/guide.md, is read monolingually: its blocks hold German as their own
-// content. The file home joins each of them to the block of the document it
-// translates, so an operation addresses {doc: docs/guide.md, block, edition:
-// de} whichever file holds the text.
+// content. A bilingual file of its own, such as po/de.po beside the catalog
+// po/en.po, is read with the edition's language instead, and its blocks hold
+// German as their translation (EditionFile.Bilingual). The file home joins
+// each of them to the block of the document it translates, so an operation
+// addresses {doc: docs/guide.md, block, edition: de} whichever file holds the
+// text.
 //
 // The join pairs blocks the way the bilingual check does: by key first, then
 // by translation-invariant address (a heading written as its own identity, so
@@ -75,11 +78,14 @@ func (s *session) joinEditions(ctx context.Context, keys []model.EditionKey) ([]
 		je := &joinedEdition{key: k.Canonical(), file: f, src: s.fileSource(source{path: f.Path}), match: map[int]int{}}
 		je.exists = je.src.exists()
 		if je.exists {
-			err := s.readPass(je.src, f.Format, func(b *model.Block) error {
+			p := s.readPass(je.src, f.Format, func(b *model.Block) error {
 				je.blocks = append(je.blocks, b)
 				return nil
-			}).run(ctx)
-			if err != nil {
+			})
+			if f.Bilingual {
+				p.target = je.key.Locale
+			}
+			if err := p.run(ctx); err != nil {
 				return nil, nil, err
 			}
 			je.pair(ix)
@@ -121,6 +127,25 @@ func (je *joinedEdition) pair(ix *blockIndex) {
 	}
 }
 
+// held is what the edition file's block at index ti holds of the edition:
+// its own content in a monolingual file, its translation into the edition's
+// language in a bilingual one, which an untranslated unit does not hold.
+func (je *joinedEdition) held(ti int) ([]model.Run, bool) {
+	b := je.blocks[ti]
+	if !je.file.Bilingual {
+		ed, _ := b.Edition(model.EditionKey{})
+		return ed.Runs, true
+	}
+	ed, ok := b.Edition(je.key)
+	return ed.Runs, ok
+}
+
+// drifted reports whether the edition file and the document no longer hold
+// the same blocks: a block of either has no partner in the other.
+func (je *joinedEdition) drifted(ix *blockIndex) bool {
+	return je.exists && (len(je.match) != len(ix.keys) || len(je.match) != len(je.blocks))
+}
+
 // join gives b, the document's block at index si, the content of every
 // joined edition that holds it.
 func join(editions []*joinedEdition, si int, b *model.Block) {
@@ -129,8 +154,9 @@ func join(editions []*joinedEdition, si int, b *model.Block) {
 		if !ok {
 			continue
 		}
-		ed, _ := je.blocks[ti].Edition(model.EditionKey{})
-		b.SetEdition(je.key, model.Edition{Runs: ed.Runs})
+		if runs, held := je.held(ti); held {
+			b.SetEdition(je.key, model.Edition{Runs: runs})
+		}
 	}
 }
 

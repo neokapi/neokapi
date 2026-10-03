@@ -2,6 +2,7 @@ package filehome_test
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -80,6 +81,101 @@ func TestFileHome_ABilingualFileTakesOnlyTheEditionsItHolds(t *testing.T) {
 			assert.Equal(t, tc.code, res.Ops[0].Error.Code, res.Ops[0].Error.Message)
 			assert.Equal(t, "edition", res.Ops[0].Error.Capability)
 			assert.Equal(t, tc.body, f.read(t, tc.doc), "nothing is written")
+		})
+	}
+}
+
+// catalogLayout is a directory of PO catalogs whose translation into each
+// language is a catalog of its own, <locale>/<name>, as a recipe whose target
+// template names one file per language keeps them.
+type catalogLayout struct {
+	filehome.DirLayout
+}
+
+func (l catalogLayout) Locate(ctx context.Context, doc string) (filehome.Doc, error) {
+	d, err := l.DirLayout.Locate(ctx, doc)
+	if err != nil {
+		return d, err
+	}
+	ref := d.Ref
+	d.Editions, d.TargetLocale = change.EditionsPerFile, ""
+	d.EditionFile = func(k model.EditionKey) (filehome.EditionFile, bool) {
+		rel := string(k.Locale) + "/" + filepath.Base(ref)
+		return filehome.EditionFile{Ref: rel, Path: filepath.Join(l.Root, filepath.FromSlash(rel)), Bilingual: true}, true
+	}
+	return d, nil
+}
+
+func newCatalogFixture(t *testing.T, files map[string]string, opts filehome.Options) *fixture {
+	t.Helper()
+	f := newFixture(t, files)
+	opts.LockDir = t.TempDir()
+	home := filehome.New(catalogLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}}, opts)
+	f.svc = change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(home))
+	return f
+}
+
+// poCatalog is a PO catalog in lang holding each msgid and msgstr pair.
+func poCatalog(lang string, entries ...[2]string) string {
+	var b strings.Builder
+	b.WriteString("msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"Language: " + lang + "\\n\"\n")
+	for _, e := range entries {
+		b.WriteString("\nmsgid \"" + e[0] + "\"\nmsgstr \"" + e[1] + "\"\n")
+	}
+	return b.String()
+}
+
+// TestFileHome_ABilingualTranslationFileHoldsTheEditionAsItsTranslation pins
+// EditionFile.Bilingual: the French catalog beside an English one holds the
+// French edition as each entry's msgstr, never as its msgid. A read joins the
+// msgstr, an entry with no msgstr holds no edition, and a write keeps every
+// translation the change does not name. While the catalog holds the source's
+// entries it is written through its own skeleton, so its header stays.
+func TestFileHome_ABilingualTranslationFileHoldsTheEditionAsItsTranslation(t *testing.T) {
+	en := poCatalog("en", [2]string{"Hello", ""}, [2]string{"Goodbye", ""}, [2]string{"Thanks", ""})
+	fr := poCatalog("fr", [2]string{"Hello", "Bonjour"}, [2]string{"Goodbye", "Au revoir"}, [2]string{"Thanks", ""})
+	grown := poCatalog("en", [2]string{"Hello", ""}, [2]string{"Goodbye", ""}, [2]string{"Thanks", ""}, [2]string{"New", ""})
+	ctx := context.Background()
+	french := mustEdition(t, "fr")
+
+	for _, tc := range []struct {
+		name        string
+		materialize bool
+		source      string
+		want        string
+	}{
+		{name: "edited in place", source: en,
+			want: poCatalog("fr", [2]string{"Hello", "Bonjour"}, [2]string{"Goodbye", "Au revoir"}, [2]string{"Thanks", "Merci"})},
+		{name: "materialized while it holds every entry of the source", materialize: true, source: en,
+			want: poCatalog("fr", [2]string{"Hello", "Bonjour"}, [2]string{"Goodbye", "Au revoir"}, [2]string{"Thanks", "Merci"})},
+		// The catalog follows the source again, written from its skeleton.
+		{name: "materialized once the source gained an entry", materialize: true, source: grown,
+			want: poCatalog("en", [2]string{"Hello", "Bonjour"}, [2]string{"Goodbye", "Au revoir"}, [2]string{"Thanks", "Merci"}, [2]string{"New", ""})},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newCatalogFixture(t, map[string]string{"messages.po": tc.source, "fr/messages.po": fr}, filehome.Options{Materialize: tc.materialize})
+			page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "messages.po", Editions: []model.EditionKey{french}})
+			require.NoError(t, err)
+			held := map[string]string{}
+			var thanks change.BlockRead
+			for _, b := range page.Blocks {
+				if ed, ok := b.Editions["fr"]; ok {
+					held[b.Text] = ed.Text
+				}
+				if b.Text == "Thanks" {
+					thanks = b
+				}
+			}
+			assert.Equal(t, map[string]string{"Hello": "Bonjour", "Goodbye": "Au revoir"}, held,
+				"the read joins each msgstr, and an untranslated entry holds no French")
+
+			at := thanks.Ref
+			at.Edition = french
+			res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(at, model.AbsentRevision, "Merci")}}, person)
+			require.NoError(t, err)
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+			assert.Equal(t, tc.want, f.read(t, "fr/messages.po"))
+			assert.Equal(t, tc.source, f.read(t, "messages.po"), "the source catalog is untouched")
 		})
 	}
 }

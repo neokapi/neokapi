@@ -69,6 +69,12 @@ type EditionFile struct {
 	Path string
 	// Format reads and writes the file; the zero Binding is the document's.
 	Format Binding
+	// Bilingual says the file is a translation catalog in its own right (a
+	// PO catalog, an XLIFF or Qt Linguist file) that holds the edition as the
+	// translation of each of its units. The home reads and writes it in the
+	// edition's language, and a unit with no translation holds no edition.
+	// Otherwise the file is a document in the edition's language.
+	Bilingual bool
 }
 
 // Binding opens a format's reader and writer, each configured for one
