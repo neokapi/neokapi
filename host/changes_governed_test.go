@@ -118,7 +118,7 @@ func TestChangeService_GovernsAndRecordsAnEdit(t *testing.T) {
 		assert.Equal(t, "asgeir", row.ActorName)
 		assert.Equal(t, p.Rev, row.Before)
 		assert.Equal(t, read(t).Rev, row.After)
-		rows, err := db.History().Edition(ctx, docKey(t), p.Ref.Block, "en")
+		rows, err := db.History().Edition(ctx, docKey(t), p.Ref.Block, "en", 0)
 		require.NoError(t, err)
 		assert.Len(t, rows, 2, "both edits that landed are in the history")
 	})

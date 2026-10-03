@@ -233,10 +233,13 @@ const columns = `h.op, COALESCE(o.address, ''), h.doc, h.block, h.key, h.edition
 const from = ` FROM block_history h LEFT JOIN block_history_op o ON o.op = h.op`
 
 // Edition returns the recorded changes to one edition of one block, most
-// recent first.
-func (s *Store) Edition(ctx context.Context, doc, block, edition string) ([]Row, error) {
+// recent first: at most limit of them, or every one when limit is zero.
+func (s *Store) Edition(ctx context.Context, doc, block, edition string, limit int) ([]Row, error) {
+	if limit <= 0 {
+		limit = -1 // SQLite reads a negative LIMIT as none
+	}
 	rows, err := s.db.QueryContext(ctx, `SELECT `+columns+from+`
-WHERE h.doc = ? AND h.block = ? AND h.edition = ? ORDER BY h.op DESC`, doc, block, edition)
+WHERE h.doc = ? AND h.block = ? AND h.edition = ? ORDER BY h.op DESC LIMIT ?`, doc, block, edition, limit)
 	if err != nil {
 		return nil, fmt.Errorf("history: read %s %s@%s: %w", doc, block, edition, err)
 	}

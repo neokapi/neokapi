@@ -210,12 +210,9 @@ func (h *blockHistory) EditionHistory(ctx context.Context, doc change.DocInfo, b
 	if !ok {
 		return nil, nil
 	}
-	rows, err := hist.Edition(ctx, docKey, change.BlockKey(b), edition)
+	rows, err := hist.Edition(ctx, docKey, change.BlockKey(b), edition, limit)
 	if err != nil {
 		return nil, err
-	}
-	if len(rows) > limit {
-		rows = rows[:limit]
 	}
 	out := make([]change.HistoryEntry, 0, len(rows))
 	for _, r := range rows {
