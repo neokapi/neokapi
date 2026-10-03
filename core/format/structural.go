@@ -94,6 +94,10 @@ const (
 	// StructureUnsupported: the format has no way to make the edit there, such
 	// as beside a value in an array or a flow collection.
 	StructureUnsupported StructureReason = "unsupported"
+	// StructureAnchor: the block a new one is to go beside is outside the
+	// object or mapping the new block's key puts it in. The change set names
+	// the wrong anchor.
+	StructureAnchor StructureReason = "anchor"
 )
 
 // StructureError is the edit a StructureEditor could not make, and why.
