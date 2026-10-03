@@ -168,7 +168,7 @@ func (w *Writer) writeBlockAsMsgid(blocks map[string]*model.Block, blockID, fiel
 	// The recorded witness is the msgid as parsed, so compare against the
 	// source rebuilt with its inline-code Data spliced back in (a codeFinder
 	// `%s` comes back as `%s`) — that reproduces exactly what the reader read.
-	if raw, ok := format.VerbatimFor(block, "raw-msgid", model.RenderRunsWithData(block.Source)); ok && raw != "" {
+	if raw, ok := format.VerbatimFor(block, "raw-msgid", model.RenderRunsWithData(format.AuthoritativeRuns(block))); ok && raw != "" {
 		_, err := io.WriteString(w.Output, raw)
 		return err
 	}
@@ -589,11 +589,12 @@ func (v poValue) slice(from, to int) poValue {
 	return out
 }
 
-// renderSource returns the source text with inline-code Data preserved
-// verbatim (e.g. printf specifiers `%s` extracted by the codeFinder come back
-// out as `%s`, not as their `{equiv}` placeholder form).
+// renderSource returns the text of the block's authoritative edition with
+// inline-code Data preserved verbatim (e.g. printf specifiers `%s` extracted
+// by the codeFinder come back out as `%s`, not as their `{equiv}` placeholder
+// form).
 func renderSource(block *model.Block) poValue {
-	return renderRuns(block.Source)
+	return renderRuns(format.AuthoritativeRuns(block))
 }
 
 // renderTarget mirrors renderSource for a target locale. Returns the zero
@@ -604,11 +605,7 @@ func renderTarget(block *model.Block, locale model.LocaleID) poValue {
 	if locale == "" {
 		return poValue{}
 	}
-	t := block.Target(locale)
-	if t == nil {
-		return poValue{}
-	}
-	return renderRuns(t.Runs)
+	return renderRuns(block.TargetRuns(locale))
 }
 
 // renderRuns walks a run slice, emitting TextRun content verbatim (newlines
