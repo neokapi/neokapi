@@ -193,6 +193,23 @@ func TestStalenessGate_ThreeOutcomes(t *testing.T) {
 		assert.False(t, judged, "no produced target means no provenance to report")
 		assert.Empty(t, gate.Findings)
 	})
+
+	t.Run("recorded provenance that matches no unit still makes a gate row", func(t *testing.T) {
+		f := newStalenessFixture(t)
+		ctx := context.Background()
+		st, err := f.app.OpenProjectState(ctx, f.root)
+		require.NoError(t, err)
+		require.NoError(t, st.Put(ctx, state.UnitState{
+			Unit: "a-unit-the-source-no-longer-has", Variant: model.Variant(model.LocaleID(f.units[0].Locale)),
+			Scope:  f.app.DocumentScope(ctx, f.root, f.units[0].SourcePath),
+			Status: model.TargetStatusTranslated, TargetHash: "h-gone",
+			Origin: model.Origin{Kind: model.OriginAI, ContextFingerprint: f.governing.fingerprint},
+		}))
+
+		gate, judged := f.run(t)
+		assert.True(t, judged, "the store records produced targets, so the gate ran and reports")
+		assert.True(t, gate.Pass)
+	})
 }
 
 // TestStalenessGate_MovingTheVoiceMovesTheContext is the whole-verb case:

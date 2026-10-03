@@ -157,7 +157,11 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 		})
 	}
 
-	return gate, judged, nil
+	// A store that records produced targets makes a gate row whether or not
+	// they match a unit the project holds now; a block history that holds
+	// changes makes one only when a flow's write answered for a unit, since
+	// most of what it holds is not a produced target.
+	return gate, judged || len(produced) > 0, nil
 }
 
 // loopProvenance is the provenance of the translation a flow last wrote for
