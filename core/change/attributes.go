@@ -187,7 +187,10 @@ func (w *workset) mark(op Op, body *Mark, res *OpResult) *Error {
 		return err
 	}
 	cur := st.ed.Runs
-	path := w.currentPath(st, body.Range.Path)
+	path, perr := w.currentPath(st, body.Range.Path, "range/path")
+	if perr != nil {
+		return perr
+	}
 	seq, ok := model.ResolveRunPath(cur, path)
 	if !ok {
 		return &Error{Code: CodeNotFound, Field: "range/path", Message: fmt.Sprintf("path %s reaches no plural form or select case", pathText(body.Range.Path))}

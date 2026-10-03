@@ -65,9 +65,10 @@ The content operations are `set_content`, `replace_text`, `set_attribute`,
 recipe. The envelope carries no actor: the transport that delivers a change set
 says who sent it. A `set_content` or `replace_text` may state how a tool
 produced its content (`origin`: the tool, and the kind and engine it drew on),
-as a run printed with `--print-ops` states each translation it wrote. A tool in
-a flow keeps that origin on the translation; an edit a person or an agent sends
-is theirs, and the origin it states is not kept.
+as a run printed with `--print-ops` states each translation it wrote. The
+service records no stated origin: an edit takes the origin its sender's edit
+gives it, a person's or an agent's their own, and a tool in a flow records how
+it produced a translation with the in-process provenance operation.
 
 `change.Decode` reads a change set strictly: an unknown field or operation is
 refused with the JSON pointer of what was wrong. `changeschema.Schema` is the

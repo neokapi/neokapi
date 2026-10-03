@@ -109,9 +109,10 @@ type SetContent struct {
 	// branch.
 	Path model.RunPath `json:"path,omitempty" jsonschema:"a plural form or select case to replace instead of the whole edition, for example [1, {\"plural\": \"one\"}]"`
 	// Origin says how a tool produced the content, as a run printed with
-	// --print-ops states it. The edition keeps it when a tool in a flow sends
-	// the operation. An edit a person or an agent sends is theirs, and its
-	// origin is not kept: kapi apply says so.
+	// --print-ops states it. Nothing records it: the edition takes the origin
+	// its sender's edit gives it (Consequences), kapi apply says so, and a
+	// tool in a flow records how it produced content with the provenance
+	// operation.
 	Origin *ToolOrigin `json:"origin,omitempty" jsonschema:"how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept"`
 	// Overlays says how the overlays on the edition follow the new content. It
 	// is set in process only.

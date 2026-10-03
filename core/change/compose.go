@@ -151,26 +151,31 @@ func (w *workset) moved(st *edState) bool { return st.rebuilt && !w.env.Chained 
 
 // currentPath is the path to the sequence a path names in the edition as the
 // change set found it, in the edition as the operations before this one left
-// it. A path that reaches into content an earlier set_content replaced, or
-// that the edition did not hold at the start, is read in the edition as it
-// stands.
-func (w *workset) currentPath(st *edState, path model.RunPath) model.RunPath {
+// it. A path through a sequence an earlier set_content replaced whole has no
+// place in the edition as it stands, and neither has a path the edition did
+// not hold at the start once an earlier set_content replaced the whole
+// edition: the operation is refused as an overlap. Any other path the edition
+// did not hold at the start is read in the edition as it stands.
+func (w *workset) currentPath(st *edState, path model.RunPath, field string) (model.RunPath, *Error) {
 	if len(path) == 0 || !w.moved(st) {
-		return path
+		return path, nil
 	}
 	ords, ok := ordinalsOf(st.startRuns, path)
-	if !ok {
-		return path
+	if !st.startPresent {
+		ok = false
 	}
 	for _, c := range st.changes {
-		if c.whole && len(c.seq) < len(ords) && ordsUnder(c.seq, ords) {
-			return path
+		if c.whole && (ok && len(c.seq) < len(ords) && ordsUnder(c.seq, ords) || !ok && len(c.seq) == 0) {
+			return nil, w.pathOverlap(c.op, field)
 		}
 	}
-	if p, ok := pathOf(st.ed.Runs, ords); ok {
-		return p
+	if !ok {
+		return path, nil
 	}
-	return path
+	if p, ok := pathOf(st.ed.Runs, ords); ok {
+		return p, nil
+	}
+	return path, nil
 }
 
 // movedSelection resolves a selection that names its text by position (start
@@ -228,6 +233,14 @@ func (w *workset) overlap(earlier int, field, did string) *Error {
 	return &Error{Code: CodeGuard, Subcode: SubcodeOverlap, Field: field,
 		Message: fmt.Sprintf("operation %d names a position in text operation %d %s; positions name the edition as the change set found it, "+
 			"so send the two changes as one operation, or name this text by find", w.index(w.at), w.index(earlier), did)}
+}
+
+// pathOverlap is the refusal of a path through content an earlier operation
+// replaced whole.
+func (w *workset) pathOverlap(earlier int, field string) *Error {
+	return &Error{Code: CodeGuard, Subcode: SubcodeOverlap, Field: field,
+		Message: fmt.Sprintf("operation %d names a path into content operation %d replaced whole; a path names the edition as the change set found it, "+
+			"so send the two changes as one operation", w.index(w.at), w.index(earlier))}
 }
 
 // index is the place an operation of ApplyBlock's ops has in its change set.

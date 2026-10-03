@@ -210,6 +210,82 @@ func TestApplyBlock_APathFollowsItsPluralThroughAnEarlierEdit(t *testing.T) {
 	assert.Equal(t, 0, res[1].Resolved[0].Path[0].Index, "the result echoes the path as the edit applied")
 }
 
+// A path names the edition as the set found it, so a path through content an
+// earlier set_content replaced whole has no place in the edition as it stands,
+// even where the new content holds a plural at the same run: the operation is
+// refused as an overlap naming both operations, and nothing lands. A form
+// beside one an earlier operation replaced still lands.
+func TestApplyBlock_APathIntoContentReplacedWholeIsRefused(t *testing.T) {
+	one := model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOne}}
+	other := model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOther}}
+	n := func() model.Run { return model.PhR(model.PlaceholderRun{ID: "n", Type: "code:variable"}) }
+	whole := []model.Run{
+		model.TextR("Basket: "),
+		model.PluralR(model.PluralRun{Pivot: "count", Forms: map[model.PluralForm][]model.Run{
+			model.PluralOne:   {n(), model.TextR(" thing")},
+			model.PluralOther: {n(), model.TextR(" things")},
+		}}),
+	}
+	form := func(rev string, path model.RunPath, text string) change.Op {
+		op := setText("", rev, text)
+		op.Body.(*change.SetContent).Path = path
+		return op
+	}
+	inForm := find("thing", "object")
+	inForm.Path = one
+	tests := []struct {
+		name  string
+		start []model.Run
+		ops   func(rev string) []change.Op
+		field string
+	}{
+		{
+			name:  "a form of a plural the edition held",
+			start: pluralRuns(),
+			ops: func(rev string) []change.Op {
+				return []change.Op{setRuns("", rev, whole), form(rev, one, `<x id="n/"/> article`)}
+			},
+			field: "path",
+		},
+		{
+			name:  "a find in a form of a plural the edition held",
+			start: pluralRuns(),
+			ops: func(rev string) []change.Op {
+				return []change.Op{setRuns("", rev, whole), replace("", rev, inForm)}
+			},
+			field: "edits/0/path",
+		},
+		{
+			name:  "a form of a plural only the new content holds",
+			start: []model.Run{model.TextR("You have "), n(), model.TextR(" items.")},
+			ops: func(rev string) []change.Op {
+				return []change.Op{setRuns("", rev, whole), form(rev, one, `<x id="n/"/> article`)}
+			},
+			field: "path",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			b := model.NewRunsBlock("b", tc.start)
+			before := shape(b.Source)
+			res := apply(t, b, person, tc.ops(sourceRev(b))...)
+			err := requireRefused(t, res[1], change.CodeGuard)
+			assert.Equal(t, change.SubcodeOverlap, err.Subcode)
+			assert.Equal(t, tc.field, err.Field)
+			assert.Contains(t, err.Message, "operation 1 names a path into content operation 0 replaced whole")
+			assert.Equal(t, change.OpNotApplied, res[0].Status)
+			assert.Equal(t, before, shape(b.Source), "nothing lands")
+		})
+	}
+
+	t.Run("a form beside one replaced", func(t *testing.T) {
+		b := model.NewRunsBlock("b", pluralRuns())
+		rev := sourceRev(b)
+		requireApplied(t, apply(t, b, person, form(rev, one, `<x id="n/"/> article`), form(rev, other, `<x id="n/"/> articles`)))
+		assert.Equal(t, "You have {count: one={n} article other={n} articles} in your basket.", shape(b.Source))
+	})
+}
+
 // Two fixes of one block through the change service land together, and a
 // refusal names the operations by their places in the change set.
 func TestService_TwoFixesOfOneBlockCompose(t *testing.T) {

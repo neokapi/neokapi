@@ -398,15 +398,16 @@ func TestApplyBlock_PreconditionsAndAtomicity(t *testing.T) {
 	})
 }
 
-// The basis is recorded on every derived-edition write and refuses only under
-// require_basis.
-// A set_content states how a tool produced its content: a tool in a flow keeps
-// that origin on the translation, and a person's or an agent's edit is theirs
-// whatever origin it states.
-func TestApplyBlock_OnlyAToolKeepsTheOriginItStates(t *testing.T) {
+// A set_content states how a tool produced its content, and nothing records
+// it: a tool's edit keeps the origin the translation records, every field of
+// it (a tool in a flow records its own with the provenance operation), and a
+// person's or an agent's edit takes their own.
+func TestApplyBlock_TheOriginAnOperationStatesIsNotRecorded(t *testing.T) {
+	recorded := model.Origin{Kind: "mt", Engine: "deepl", Tool: "translate", Reference: "batch-7", Timestamp: "2026-09-30T12:00:00Z",
+		Confidence: 0.9, Profile: "docs", ProfileVersion: "3", ContextFingerprint: "f1"}
 	stated := func(edition string) change.Op {
 		op := setText(edition, change.AnyRevision, "Les dette.")
-		op.Body.(*change.SetContent).Origin = &change.ToolOrigin{Tool: "translate", Kind: "mt", Engine: "demo"}
+		op.Body.(*change.SetContent).Origin = &change.ToolOrigin{Tool: "pseudo-translate", Kind: "ai", Engine: "demo"}
 		return op
 	}
 	tests := []struct {
@@ -414,19 +415,22 @@ func TestApplyBlock_OnlyAToolKeepsTheOriginItStates(t *testing.T) {
 		env  change.BlockEnv
 		want model.Origin
 	}{
-		{name: "a tool", env: tool, want: model.Origin{Tool: "translate", Kind: "mt", Engine: "demo"}},
+		{name: "a tool", env: tool, want: recorded},
 		{name: "a person", env: person, want: model.Origin{Kind: model.OriginHuman, Timestamp: "2026-10-02T09:00:00Z"}},
 		{name: "an agent", env: agent, want: model.Origin{Kind: model.OriginAgent, Engine: "claude", Reference: "s1", Timestamp: "2026-10-02T09:00:00Z"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			b := guideBlock()
+			b.Target("nb").Origin = recorded
 			requireApplied(t, apply(t, b, tc.env, stated("nb")))
 			assert.Equal(t, tc.want, b.Target("nb").Origin)
 		})
 	}
 }
 
+// The basis is recorded on every derived-edition write and refuses only under
+// require_basis.
 func TestApplyBlock_Basis(t *testing.T) {
 	b := guideBlock()
 	src := sourceRev(b)
