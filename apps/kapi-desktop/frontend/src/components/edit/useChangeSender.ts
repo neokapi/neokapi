@@ -62,12 +62,13 @@ export interface ChangeSender {
    */
   reapply: (ops?: ChangeOp[]) => Promise<ChangeResult | null>;
   /**
-   * Save the change a rule refused anyway, or `ops` in its place: the same
-   * change set sent with gate report, which the person at the keyboard may
-   * choose. It lands with its findings, and the record of the edit lists them
-   * as overridden.
+   * Save the change a rule refused anyway: the same change set, whose
+   * findings the person was shown, sent with gate report, which the person at
+   * the keyboard may choose. It lands with its findings, and the record of the
+   * edit lists them as overridden. Wording changed after the refusal is a new
+   * change set, sent with `send` and checked again.
    */
-  override: (ops?: ChangeOp[]) => Promise<ChangeResult | null>;
+  override: () => Promise<ChangeResult | null>;
   /** Drop the held change and read the content again. */
   discard: () => Promise<void>;
   /** Forget a refusal, as a new selection does. */
@@ -138,13 +139,10 @@ export function useChangeSender(
     [stale, submit, rebase],
   );
 
-  const override = useCallback(
-    async (ops?: ChangeOp[]) => {
-      if (!gated) return null;
-      return submit(ops ?? gated.ops, gated.note, "report");
-    },
-    [gated, submit],
-  );
+  const override = useCallback(async () => {
+    if (!gated) return null;
+    return submit(gated.ops, gated.note, "report");
+  }, [gated, submit]);
 
   const discard = useCallback(async () => {
     setStale(null);

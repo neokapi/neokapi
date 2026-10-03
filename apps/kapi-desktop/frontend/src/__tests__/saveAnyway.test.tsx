@@ -1,10 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, renderHook, screen } from "./testUtils";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "./testUtils";
 
+import { EditionEditPanel } from "../components/edit/EditionEditPanel";
 import { GatePrompt } from "../components/edit/GatePrompt";
 import { useChangeSender } from "../components/edit/useChangeSender";
-import { gateFindings } from "../lib/changes";
+import { type EditionContent, editionContent, gateFindings } from "../lib/changes";
 import { MemoryChanges } from "../stories/memoryChanges";
+
+// The rich editor is a Lexical surface jsdom cannot type into; a field that
+// reports its text as the editor's edits stands in for it.
+vi.mock("../components/edit/EditionEditor", () => ({
+  EditionEditor: ({
+    content,
+    onChange,
+  }: {
+    content: { text: string };
+    onChange: (edits: { text: string }[]) => void;
+  }) => (
+    <input
+      aria-label="wording"
+      defaultValue={content.text}
+      onChange={(e) => onChange(e.target.value === content.text ? [] : [{ text: e.target.value }])}
+    />
+  ),
+}));
 
 const GUIDE = { doc: "docs/guide.md", block: "intro", text: "We use the widget every day." };
 
@@ -55,6 +74,42 @@ describe("save anyway", () => {
     expect(sent?.ops).toEqual(ops);
     const page = await client.read({ doc: GUIDE.doc, blocks: [GUIDE.block] });
     expect(page.blocks[0].text).toBe("We utilize the widget every day.");
+  });
+
+  // Save anyway sends the change whose findings the person was shown. Wording
+  // changed after the refusal puts the prompt away, and its save is checked
+  // again before it can be saved anyway.
+  it("saves anyway only the wording the person was shown the findings of", async () => {
+    const client = gatedClient();
+    const page = await client.read({ doc: GUIDE.doc, blocks: [GUIDE.block] });
+    const content = editionContent(page.blocks[0]) as EditionContent;
+    function Panel() {
+      const sender = useChangeSender(client);
+      return <EditionEditPanel sender={sender} content={content} note="Reword" />;
+    }
+    render(<Panel />);
+    const field = screen.getByLabelText("wording");
+
+    fireEvent.change(field, { target: { value: "We utilize the widget every day." } });
+    fireEvent.click(screen.getByText("Save"));
+    await screen.findByText("Save anyway");
+    expect(client.sets).toHaveLength(1);
+
+    fireEvent.change(field, { target: { value: "We utilize the gadget every day." } });
+    expect(screen.queryByText("Save anyway")).toBeNull();
+    expect(client.sets).toHaveLength(1);
+
+    fireEvent.click(screen.getByText("Save"));
+    await screen.findByText("Save anyway");
+    expect(client.sets).toHaveLength(2);
+    expect(client.sets[1].gate).toBeUndefined();
+
+    fireEvent.click(screen.getByText("Save anyway"));
+    await waitFor(() => expect(client.sets).toHaveLength(3));
+    expect(client.sets[2].gate).toBe("report");
+    expect(client.sets[2].ops).toEqual(client.sets[1].ops);
+    const after = await client.read({ doc: GUIDE.doc, blocks: [GUIDE.block] });
+    expect(after.blocks[0].text).toBe("We utilize the gadget every day.");
   });
 
   // Any other refusal offers no override.

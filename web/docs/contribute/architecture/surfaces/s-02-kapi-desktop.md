@@ -139,14 +139,17 @@ the change with the edition as it stands. The surface shows that text under
 with what the editor holds at that moment. When a rule in force fails on the
 wording a person saves, the change service refuses the change as `gate_failed`
 with the findings. The editor shows them under "A rule in force fails on this
-wording" and offers "Save anyway", which sends the same change set again, with
-what the editor holds, under `gate: report`: the edit lands with its findings,
-and the record of it lists them as overridden
-([E-09](../engine/e-09-the-change-contract.md)). The desktop sends every
-change set as the person at the keyboard, and the change service refuses
-`gate: report` from an agent. A change set naming one translation is read and
-written with that translation's language, so a PO catalog's translation is
-edited as kapi apply edits it. A check's fix sent again finds its
+wording" and offers "Save anyway", which sends the change set it refused again
+under `gate: report`: the edit lands with its findings, and the record of it
+lists them as overridden ([E-09](../engine/e-09-the-change-contract.md)).
+Changing the wording puts the prompt away, and the next save is checked again,
+so an override only ever carries findings the person was shown. The desktop
+sends every change set as the person at the keyboard, and the change service
+refuses `gate: report` from an agent. A change set naming one translation is
+read and written with that translation's language, as kapi apply edits it: a
+PO catalog that holds its translation is edited in place, and the French of a
+catalog whose collection names a target lands in the file the target names
+(`po/fr.po`), never in the source catalog. A check's fix sent again finds its
 words by the text the finding quotes, and is offered only while those words are
 plain text in the text as it stands. The
 Review page lists the unit's recorded changes under its provenance, read from
