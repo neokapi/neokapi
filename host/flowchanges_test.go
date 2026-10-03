@@ -278,7 +278,7 @@ func TestFlowRun_PrintsWhatKapiApplyWritesToTheRunsBytes(t *testing.T) {
 				return
 			}
 			assert.Empty(t, set.Ops)
-			assert.Contains(t, notes, "src/qps.json: the run writes it whole from its source")
+			assert.Contains(t, notes, "src/qps.json: the run writes the file whole")
 			assert.Equal(t, before, readTarget(t, recipe), "nothing was printed, so nothing was applied")
 		})
 	}

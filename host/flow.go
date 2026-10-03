@@ -415,7 +415,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	if processOnly && a.printOps != nil {
 		// Such a run writes no file, so it has no change set to print, and a
 		// run that prints writes nothing into the store either.
-		a.notePrintsNoFile(cmd, inputPath)
+		a.notePrintsNoFile(inputPath)
 		return nil
 	}
 
@@ -1062,7 +1062,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 		!cmd.Flags().Changed("output") && !a.convergeWriteFiles
 	if processOnly && a.printOps != nil {
 		// As in RunSingleFile: nothing to print, and nothing written.
-		a.notePrintsNoFile(cmd, inputPath)
+		a.notePrintsNoFile(inputPath)
 		return nil, nil
 	}
 

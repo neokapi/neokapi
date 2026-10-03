@@ -249,7 +249,7 @@ func (doc *flowDoc) appliesAsRun(ctx context.Context, path string, ops []change.
 	if err != nil {
 		return "", err
 	}
-	const writesWhole = "the run writes it whole from its source, and kapi apply, which edits the blocks the file holds as it stands,"
+	const writesWhole = "the run writes the file whole, and kapi apply, which edits only the blocks it names in the file as it stands,"
 	for _, r := range res.Ops {
 		if r.Status == change.OpRefused && r.Error != nil {
 			return writesWhole + " refuses its operations (" + r.Error.Message + ")", nil
@@ -268,7 +268,7 @@ func (doc *flowDoc) appliesAsRun(ctx context.Context, path string, ops []change.
 // notePrintsNoFile notes a run that writes no file and so prints nothing: in
 // a project, kapi translate, pseudo-translate and run without -o keep what
 // they produce in the project's store.
-func (a *App) notePrintsNoFile(_ Command, inputPath string) {
+func (a *App) notePrintsNoFile(inputPath string) {
 	fc := &flowChanges{root: a.projectRoot()}
 	a.printOps.note(fmt.Sprintf("%s: in a project this run writes no file without -o (it keeps what it produces in the project's store), so it prints nothing; kapi up --print-ops prints what a pass writes",
 		fc.displayPath(inputPath)))

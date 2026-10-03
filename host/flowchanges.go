@@ -592,10 +592,9 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 	}
 	now := doc.read
 	if written || before != after || now == nil {
-		// The file holds what the run wrote, which a read is what names
-		// revision for revision as a later read finds it. A file that held
-		// the run's bytes already, as it did when the run read it, reads as
-		// it read then.
+		// The file holds what the run wrote, and a read of it names each
+		// revision as a later read finds it. A file that already held the
+		// run's bytes when the run read it reads as it read then.
 		read, err := doc.readRevisionsWithBlocks(ctx)
 		if err != nil {
 			return fmt.Errorf("record what %s wrote to %s: %w", doc.d.Flow, doc.ref, err)
