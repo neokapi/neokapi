@@ -69,30 +69,41 @@ func (c *BowrainSourceConnector) pullsAnEdition(itemName, outPath string) bool {
 	return false
 }
 
+// pullServices holds, for one pull, the change service each language's
+// translations are written through.
+type pullServices map[string]*change.Service
+
 // pullEdition gives the translation of itemName into locale the runs targets
 // holds for its blocks, through the change service, and reports whether it
 // wrote any. media are the locale variants of the document's media, which the
-// writer substitutes as it writes.
-func (c *BowrainSourceConnector) pullEdition(ctx context.Context, itemName, locale string, targets map[string][]model.Run, media []MediaReplacement) (bool, error) {
-	opts := host.ChangeServiceOptions{
-		Project: c.project.RecipePath(), Origin: "pull", TargetLocale: model.LocaleID(locale), Materialize: true,
-	}
-	if len(media) > 0 {
-		opts.WriterHook = func(w format.DataFormatWriter) {
-			if mrs, ok := w.(MediaReplacementSetter); ok {
-				for _, mr := range media {
-					mrs.SetMediaReplacement(mr.ZipPath, mr.Media)
+// writer substitutes as it writes; a document with none shares its
+// language's service in services.
+func (c *BowrainSourceConnector) pullEdition(ctx context.Context, services pullServices, itemName, locale string, targets map[string][]model.Run, media []MediaReplacement) (bool, error) {
+	svc := services[locale]
+	if svc == nil || len(media) > 0 {
+		opts := host.ChangeServiceOptions{
+			Project: c.project.RecipePath(), Origin: "pull", TargetLocale: model.LocaleID(locale), Materialize: true,
+		}
+		if len(media) > 0 {
+			opts.WriterHook = func(w format.DataFormatWriter) {
+				if mrs, ok := w.(MediaReplacementSetter); ok {
+					for _, mr := range media {
+						mrs.SetMediaReplacement(mr.ZipPath, mr.Media)
+					}
 				}
 			}
 		}
-	}
-	svc, err := c.app.ChangeService(ctx, opts)
-	if err != nil {
-		return false, err
+		var err error
+		if svc, err = c.app.ChangeService(ctx, opts); err != nil {
+			return false, err
+		}
+		if len(media) == 0 {
+			services[locale] = svc
+		}
 	}
 	key := model.EditionKey{Locale: model.LocaleID(locale)}
 	var ops []change.Op
-	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: itemName, Editions: []model.EditionKey{key}}, func(b *model.Block, r change.BlockRead) error {
+	_, err := svc.ReadEach(ctx, change.ReadRequest{Doc: itemName, Editions: []model.EditionKey{key}}, func(b *model.Block, r change.BlockRead) error {
 		runs, ok := targets[targetMatchKey(b.Name, b.SourceText())]
 		if !ok {
 			return nil

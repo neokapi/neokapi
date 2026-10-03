@@ -1315,6 +1315,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// already written stay on disk and are simply overwritten next time).
 	var writeErrs []error
 
+	services := pullServices{}
 	if len(allBlocks) > 0 && len(locales) > 0 {
 		blocksByItem := map[string][]apiclient.SyncBlock{}
 		var unaddressed []string
@@ -1429,7 +1430,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 				wrote := true
 				var werr error
 				if c.pullsAnEdition(itemName, outPath) {
-					wrote, werr = c.pullEdition(ctx, itemName, loc, targetMap, mediaRepl)
+					wrote, werr = c.pullEdition(ctx, services, itemName, loc, targetMap, mediaRepl)
 				} else {
 					werr = c.writeTranslatedFile(ctx, absSource, absOut, formatName, loc, targetMap, mediaRepl...)
 				}
