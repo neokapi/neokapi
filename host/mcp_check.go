@@ -319,6 +319,11 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		if bderr != nil {
 			return nil, check.Report{}, bderr
 		}
+		qaDiags, qerr := a.collectTargetQADiagnostics(ctx, cmd, blocks, in.File, model.LocaleID(lang), execution)
+		if qerr != nil {
+			return nil, check.Report{}, qerr
+		}
+		biDiags = append(biDiags, qaDiags...)
 		opts.stampPoints(biDiags, blocks)
 		diags = append(diags, biDiags...)
 	} else {
