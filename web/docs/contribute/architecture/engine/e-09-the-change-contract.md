@@ -79,6 +79,22 @@ structs the service marshals; a drift gate regenerates them on every change. The
 note [The change applier](../../implementation/engine/change-applier.md) covers
 the types, the decoder, the schema and the TypeScript types.
 
+`kapi.change/v1` is frozen, and from then on is only extended. A frozen file
+beside each golden holds the contract as it was published: the change set's
+schema, the result's (`kapi.change-result/v1`, `changeschema.ResultSchema`) and
+the read's (`changeschema.ReadSchema`), and the MCP tool surface. A test walks
+each frozen schema beside the one the Go types generate and refuses a change that
+breaks the side that depends on it: for a request, a property, `$defs` entry or
+operation removed or renamed, a type, `const`, `$ref`, pattern, format or bound
+changed, a property newly required, an enum value removed, or
+`additionalProperties` changed; for a result or a read, the same, with a property
+dropped from `required` in place of a newly required one. An optional property,
+an operation, an enum value, a `$defs` entry and any description extend a
+schema. A breaking change needs `kapi.change/v2` and a new frozen file. Decoding
+stays strict, so an older binary refuses a field a newer sender adds as
+`invalid`, which the rule accepts: a sender learns the field is not understood
+rather than having it ignored.
+
 ### Addressing and revisions
 
 An operation addresses `{doc, block, edition}`. `doc` is a project-relative

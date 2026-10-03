@@ -6,10 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/change/changeschema"
 	"github.com/neokapi/neokapi/core/segment"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
@@ -18,11 +20,12 @@ import (
 
 // TestMCPToolSurfaceSnapshot locks the kapi MCP surface as a stable
 // contract: the tool NAMES and INPUT SCHEMAS exposed by `kapi mcp` (ad-hoc
-// mode — the full set) are snapshotted to testdata/mcp_tools.golden.json.
-// Descriptions may evolve freely; names and input schemas may only be
-// EXTENDED (new tools, new optional fields) — renaming a tool, removing one,
+// mode, the full set) are snapshotted to testdata/mcp_tools.golden.json, so
+// every change shows in review. Names and input schemas may only be
+// EXTENDED (new tools, new optional fields): renaming a tool, removing one,
 // or changing a field's type breaks agent integrations and needs an
-// explicit, documented decision.
+// explicit, documented decision. TestMCPToolSurfaceExtendsFrozen holds the
+// surface to testdata/mcp_tools.frozen.json, which nothing regenerates.
 //
 // To regenerate after an intentional change:
 //
@@ -30,6 +33,67 @@ import (
 //
 // and note the change in web/docs/reference/cli-contract.md (MCP section).
 func TestMCPToolSurfaceSnapshot(t *testing.T) {
+	snapshot := mcpToolSnapshot(t)
+	got, err := json.MarshalIndent(snapshot, "", "  ")
+	require.NoError(t, err)
+	got = append(got, '\n')
+
+	golden := filepath.Join("testdata", "mcp_tools.golden.json")
+	if os.Getenv("KAPI_UPDATE_GOLDEN") != "" {
+		require.NoError(t, os.MkdirAll(filepath.Dir(golden), 0o755))
+		require.NoError(t, os.WriteFile(golden, got, 0o644))
+		return
+	}
+	want, err := os.ReadFile(golden)
+	require.NoError(t, err, "golden file missing — run with KAPI_UPDATE_GOLDEN=1 to create it")
+	assert.Equal(t, string(want), string(got),
+		"MCP tool surface drift — the tool names + input schemas are a stable contract; "+
+			"if this change is intentional (additive), regenerate with KAPI_UPDATE_GOLDEN=1 "+
+			"and document it in web/docs/reference/cli-contract.md")
+}
+
+// TestMCPToolSurfaceExtendsFrozen holds the MCP surface to the one frozen
+// with kapi.change/v1: the tool names are a set that may only grow, and each
+// tool's input schema must extend its frozen one, as
+// core/change.TestSchemaExtendsFrozenV1 holds the change set's (a removed or
+// renamed field, a changed type, a newly required field or a removed enum
+// value fails). -update never writes the frozen file.
+func TestMCPToolSurfaceExtendsFrozen(t *testing.T) {
+	frozenBytes, err := os.ReadFile(filepath.Join("testdata", "mcp_tools.frozen.json"))
+	require.NoError(t, err)
+	var frozen struct {
+		Comment string         `json:"$comment"`
+		Tools   []toolSnapshot `json:"tools"`
+	}
+	require.NoError(t, json.Unmarshal(frozenBytes, &frozen))
+	require.Contains(t, frozen.Comment, "frozen at")
+	current := map[string]json.RawMessage{}
+	for _, tool := range mcpToolSnapshot(t) {
+		current[tool.Name] = tool.InputSchema
+	}
+	for _, tool := range frozen.Tools {
+		schema, ok := current[tool.Name]
+		if !assert.Truef(t, ok, "MCP tool %s was removed or renamed; the frozen surface only grows", tool.Name) {
+			continue
+		}
+		problems, err := changeschema.Extends(tool.InputSchema, schema, changeschema.Writer)
+		require.NoError(t, err, tool.Name)
+		assert.Emptyf(t, problems, "%s's input schema no longer extends its frozen one:\n  %s\n"+
+			"Extend it only (a new optional field, a new enum value); a breaking change needs an explicit, "+
+			"documented decision and a new frozen file.", tool.Name, strings.Join(problems, "\n  "))
+	}
+}
+
+// toolSnapshot is one tool as the snapshot and the frozen surface hold it.
+type toolSnapshot struct {
+	Name        string          `json:"name"`
+	InputSchema json.RawMessage `json:"input_schema"`
+}
+
+// mcpToolSnapshot lists the tools `kapi mcp` serves in ad-hoc mode, sorted by
+// name, each with its input schema, as a client sees them.
+func mcpToolSnapshot(t *testing.T) []toolSnapshot {
+	t.Helper()
 	// Hermetic engine registry: this package's root.go init() runs
 	// InitPluginHost at process start, so on a developer machine plugin
 	// discovery registers machine-dependent segment engines (e.g. a
@@ -93,10 +157,6 @@ func TestMCPToolSurfaceSnapshot(t *testing.T) {
 		assert.Truef(t, classified[tool.Name], "%s is in no tool set; add it to one in host/mcp_sets.go", tool.Name)
 	}
 
-	type toolSnapshot struct {
-		Name        string          `json:"name"`
-		InputSchema json.RawMessage `json:"input_schema"`
-	}
 	snapshot := make([]toolSnapshot, 0, len(tools))
 	for _, tool := range tools {
 		schemaJSON, err := json.Marshal(tool.InputSchema)
@@ -104,23 +164,7 @@ func TestMCPToolSurfaceSnapshot(t *testing.T) {
 		snapshot = append(snapshot, toolSnapshot{Name: tool.Name, InputSchema: schemaJSON})
 	}
 	sort.Slice(snapshot, func(i, j int) bool { return snapshot[i].Name < snapshot[j].Name })
-
-	got, err := json.MarshalIndent(snapshot, "", "  ")
-	require.NoError(t, err)
-	got = append(got, '\n')
-
-	golden := filepath.Join("testdata", "mcp_tools.golden.json")
-	if os.Getenv("KAPI_UPDATE_GOLDEN") != "" {
-		require.NoError(t, os.MkdirAll(filepath.Dir(golden), 0o755))
-		require.NoError(t, os.WriteFile(golden, got, 0o644))
-		return
-	}
-	want, err := os.ReadFile(golden)
-	require.NoError(t, err, "golden file missing — run with KAPI_UPDATE_GOLDEN=1 to create it")
-	assert.Equal(t, string(want), string(got),
-		"MCP tool surface drift — the tool names + input schemas are a stable contract; "+
-			"if this change is intentional (additive), regenerate with KAPI_UPDATE_GOLDEN=1 "+
-			"and document it in web/docs/reference/cli-contract.md")
+	return snapshot
 }
 
 // TestMCPResourceSurfaceSnapshot locks the addresses `kapi mcp` answers at.
