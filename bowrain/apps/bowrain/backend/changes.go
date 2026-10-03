@@ -168,6 +168,15 @@ func (a *App) applyCached(ctx context.Context, projectID string, set change.Set,
 			}
 		}
 
+		// Every if_match names the edition as it stood when the change set
+		// began, so a decision is judged against the revision its edition
+		// held before this set's content operations applied.
+		began := make(map[int]change.Current, len(decisions))
+		for _, i := range decisions {
+			at := set.Ops[i].At.Edition
+			began[i] = change.Current{Rev: model.EditionRevision(b, at), Text: b.TargetText(at.Locale)}
+		}
+
 		blockChanged := false
 		if len(content) > 0 {
 			for j, r := range change.ApplyBlock(b, content, change.BlockEnv{
@@ -187,13 +196,13 @@ func (a *App) applyCached(ctx context.Context, projectID string, set change.Set,
 		}
 		for _, i := range decisions {
 			op := set.Ops[i]
-			rev := model.EditionRevision(b, op.At.Edition)
-			if role == cacheIsTheProject && op.IfMatch != change.AnyRevision && op.IfMatch != rev {
+			if start := began[i]; role == cacheIsTheProject && op.IfMatch != change.AnyRevision && op.IfMatch != start.Rev {
 				refuse(i, &change.Error{Code: change.CodeStale, Field: "if_match",
-					Message: fmt.Sprintf("the %s translation is at %s, not %s", op.At.Edition.Locale, rev, op.IfMatch)})
-				res.Ops[i].Current = &change.Current{Rev: rev, Text: b.TargetText(op.At.Edition.Locale)}
+					Message: fmt.Sprintf("the %s translation is at %s, not %s", op.At.Edition.Locale, start.Rev, op.IfMatch)})
+				res.Ops[i].Current = &start
 				continue
 			}
+			rev := model.EditionRevision(b, op.At.Edition)
 			if op.At.Edition.Locale == "" {
 				refuse(i, &change.Error{Code: change.CodeUnsupported, Capability: "decide",
 					Message: "a review decision is on a translation; the source is reviewed where it is written"})

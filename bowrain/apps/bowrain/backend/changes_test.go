@@ -129,6 +129,29 @@ func TestApplyChangesInLocalMode(t *testing.T) {
 		assert.Equal(t, change.OpNotApplied, res.Ops[0].Status)
 		assert.Equal(t, "absent", targetRevision(t, app, info.ID, b1, "fr"))
 	})
+
+	// Every if_match names the edition as the change set found it, so a
+	// decision beside a save of the same translation names the revision both
+	// were made against, not the one the save leaves.
+	t.Run("a decision is judged against the revision the change set began on", func(t *testing.T) {
+		res := applyChanges(t, app, info.ID,
+			setTarget(item, b1, "de", "absent", "Willkommen"),
+			decideTarget(item, b1, "de", "absent", "establish"))
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+		assert.Equal(t, "established", targetStatus(t, app, info.ID, item, b1, "de"))
+
+		saved := targetRevision(t, app, info.ID, b1, "de")
+		res = applyChanges(t, app, info.ID,
+			setTarget(item, b1, "de", saved, "Herzlich willkommen"),
+			decideTarget(item, b1, "de", "r:0000000000000000", "withdraw"))
+		require.Equal(t, change.SetRefused, res.Status)
+		require.NotNil(t, res.Ops[1].Error)
+		assert.Equal(t, change.CodeStale, res.Ops[1].Error.Code)
+		require.NotNil(t, res.Ops[1].Current)
+		assert.Equal(t, saved, res.Ops[1].Current.Rev, "the refusal names the revision the set began on")
+		assert.Equal(t, "Willkommen", res.Ops[1].Current.Text)
+		assert.Equal(t, saved, targetRevision(t, app, info.ID, b1, "de"), "a refusal writes nothing")
+	})
 }
 
 // reviewedBlock translates and approves the first block of a fresh project in
