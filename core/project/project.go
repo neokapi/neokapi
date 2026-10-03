@@ -543,9 +543,10 @@ func (a AnnotationDefaults) EffectiveInlineAnnotations(declared []string) []stri
 
 // MergeDefaults governs kapi merge behavior (AD-017).
 type MergeDefaults struct {
-	// ConflictPolicy governs how merge applies a translator's target when
-	// an existing on-disk target or content memory TU already has a translation. Valid
-	// values: "translator-wins" (default), "existing-wins", "newest-wins".
+	// ConflictPolicy governs what merge does with a returned unit whose
+	// translation changed in the project since the extraction: the returned
+	// one replaces it ("translator-wins", the default), the project's is kept
+	// ("existing-wins"), or the newer file wins ("newest-wins").
 	ConflictPolicy string `yaml:"conflict_policy,omitempty" json:"conflict_policy,omitempty"`
 }
 

@@ -72,6 +72,15 @@ kapi check --ship --json                   # in a project: voice + terminology +
 kapi check ./locales/en.json --target ./locales/fr.json --target-lang fr --termstore <store>   # one-off, no project: name the terms store
 ```
 
+Each unit of the extract carries the revision of its translation and of its source
+(`<mda:meta type="if-match">` and `type="basis"` in XLIFF, `#. kapi-if-match:` and
+`#. kapi-basis:` in PO). Leave them as they are: merge checks the file against them.
+`kapi merge --json` counts each unit as `applied`, `stale` (its source changed since
+the extract; run `kapi extract` again for it), `skipped` (empty, or a translation that
+changed in the project meanwhile and `defaults.merge.conflict_policy` kept), or
+`refused` (the target dropped a placeholder or tag the source protects; fix the target
+and merge again). A non-zero `stale` or `refused` is work left.
+
 `kapi check --ship` is the gate inside a project: read its findings, fix them, and re-run
 until it passes. For a one-off file with no project, `kapi check <source> --target
 <translation>` plays the same role: it exits 3 while a finding fails. `kapi exec

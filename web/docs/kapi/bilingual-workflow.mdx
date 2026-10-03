@@ -13,10 +13,9 @@ import { ContentLab } from "@site/src/components/Lab";
 # Hand off to translators
 
 :::info The XLIFF/PO hand-off needs a project
-`kapi extract` and `kapi merge` read the recipe's content globs and target
-locales and use the project's content memory plus the extraction bookkeeping kapi
-records, so for the XLIFF or PO hand-off start with `kapi init` and run them
-inside the project. The `.kpz` workspace runs ad hoc
+`kapi extract` and `kapi merge` read the recipe's content globs, target
+locales and target files and use the project's content memory, so for the XLIFF
+or PO hand-off start with `kapi init` and run them inside the project. The `.kpz` workspace runs ad hoc
 (`kapi extract src/*.json -o work.kpz`), and ad-hoc one-way format
 _conversion_ is plain `kapi run -i <file>`.
 :::
@@ -115,10 +114,13 @@ existing corpus if you have one: `kapi memory import ./corporate-en-fr.memory.js
 ## Extract
 
 From inside the project (auto-discovered from cwd, git-style), `kapi extract`
-writes one XLIFF 2.2 per source → target pair under `out/`, records the
-captured skeletons and a manifest in the project's gitignored cache so merge
-can rebuild the source byte-for-byte, and stamps each file with a
-`<note category="kapi">` carrying the batch id, source file, and source hash:
+writes one XLIFF 2.2 per source → target pair under `out/` and records a
+manifest of the batch in the project's gitignored cache, which a later extract
+uses to reuse the work for unchanged sources. Each file carries a
+`<note category="kapi">` with the batch id, source file and source hash, and
+each unit carries, as its `<mda:meta>` metadata of category `kapi`, the
+revision of its translation as the project held it (`if-match`, `absent` where
+there was none) and the revision of its source (`basis`):
 
 ```bash
 kapi extract
@@ -152,17 +154,30 @@ kapi merge -i vendor-return/app.en-US-to-fr-FR.xliff
 kapi merge -i vendor-return/            # every .xliff in the directory; -i repeats
 ```
 
-Merge finds the right batch by the embedded batch-id note, so renamed files
-still merge. Each input is applied independently: a failure on one (parse
-error, missing manifest, stale source) doesn't abort the others; per-file
-outcomes are reported and the exit code reflects any failure.
+Merge reads the source file and the language each returned file names, and
+what each unit was extracted against travels in the file, so a renamed file
+merges, and so does one whose extraction batch is no longer in the cache. Each
+returned translation is written to the file the collection's `target` names,
+from the source's skeleton: the translated file follows its source's
+structure, and a translation it held for a unit the return does not carry
+stays. A collection with no `target` is source-only, and merging into it fails.
+Each input is applied independently: a failure on one (a parse error, a source
+with no translation file) doesn't abort the others; per-file outcomes are
+reported and the exit code reflects any failure.
 
-- **Stale segments.** A block whose `<source>` drifted since extract (someone
-  edited the file while it was out) is reported **stale** and skipped, neither
-  applied nor absorbed into memory. Re-extract and re-translate the drifted portion.
-- **Conflicts.** When a target already exists, `merge.conflict_policy` decides:
-  `translator-wins` (default), `existing-wins`, or `newest-wins` (by
-  timestamp); the same policy governs memory write-back. Never interactive.
+- **Stale units.** A unit whose source changed since the extraction (someone
+  edited the file while it was out) is reported **stale** and left out, neither
+  applied nor absorbed into memory. Re-extract and re-translate the changed
+  portion.
+- **Conflicts.** When the project's translation of a unit changed since the
+  extraction (someone translated or edited it while the file was out),
+  `merge.conflict_policy` decides: `translator-wins` (default) replaces it with
+  the returned one, `existing-wins` keeps it and skips the returned one, and
+  `newest-wins` takes the returned one when the returned file is newer than the
+  translation's file. A unit whose translation is the one it was extracted
+  against takes the returned translation under every policy. Never interactive.
+- **Refusals.** A returned translation that drops an inline code its source
+  protects is refused and reported; the rest of the file still lands.
 - **Audit.** `kapi memory audit --batch <merge-batch-id>` lists every entry the
   merge wrote, with provenance.
 
@@ -174,7 +189,9 @@ release; see [the kapi loop](/kapi/convergence).
 
 Same flow, different exchange format: `kapi extract --format po`, then
 `kapi merge -i …/*.po`: one entry per block, kapi's bookkeeping as extracted
-comments (`#. kapi-batch:`, `#. kapi-block:`), `#, fuzzy` on fuzzy memory pre-fills.
+comments (`#. kapi-batch:`, `#. kapi-block:`, and each entry's revisions as
+`#. kapi-if-match:` and `#. kapi-basis:`), the language in the header's
+`Language` field, and `#, fuzzy` on fuzzy memory pre-fills.
 A single merge invocation can mix XLIFF and PO from the same batch. PO cannot
 carry sentence-level segmentation; projects with `segmentation.source: true`
 must emit XLIFF (the combination errors early).
@@ -182,8 +199,9 @@ must emit XLIFF (the combination errors early).
 ## What stays in the project
 
 The bilingual file carries one chosen target per language, the source runs and
-inline codes, and, with the captured skeleton, enough to rebuild the original
-byte-for-byte. Everything else stays in project state: the content memory, the
+inline codes, and the revisions each unit was extracted against. Merge rebuilds
+each translated file from the source in the project, byte-for-byte outside the
+translated text. Everything else stays in project state: the content memory, the
 terms store, and the stand-off overlays, variants, and per-target status the
 [content model](/framework/content-model) records. The bilingual file is the
 lean, tool-neutral handoff; the project is the system of record, which is why

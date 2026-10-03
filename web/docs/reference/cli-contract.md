@@ -86,7 +86,7 @@ One document per batch: identity (`batch_id`, `manifest`), the extraction inputs
 
 ### `kapi merge`
 
-Applying returned bilingual files (`merge -i`) reports one entry per input plus totals and the resolved conflict policy; a failed input carries an `error` instead of counts.
+Applying returned bilingual files (`merge -i`) reports one entry per input plus totals and the resolved conflict policy; a failed input carries an `error` instead of counts. Each unit counts once: `applied` (it landed, or already said that), `stale` (its source changed since the extraction, or its block is gone), `skipped` (empty, or a translation the project changed meanwhile that the conflict policy kept), and `refused` (the change service refused it, such as a target that drops an inline code its source protects; the field is present when non-zero, and the reason goes to stderr). An input of which nothing lands because every unit was refused fails.
 
 ```json
 {
@@ -109,7 +109,7 @@ Applying returned bilingual files (`merge -i`) reports one entry per input plus 
 }
 ```
 
-Materializing from the project store (`kapi merge` with no `-i` in a project) reports the written-file count:
+Materializing from the project store (`kapi merge` with no `-i` in a project) reports the count of translation files it brought up to date with the store, written where they changed; a translation the store holds nothing for, and a source-only collection, count none:
 
 ```json
 { "written": 4, "from_project_store": true }

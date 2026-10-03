@@ -13,7 +13,9 @@ import { RoundTripDiagram } from "@neokapi/docs-shared";
 ## Summary
 
 `kapi extract` emits a bilingual file for a translator or reviewer; `kapi merge`
-applies the returned targets back onto the project's sources. The project's
+applies the returned targets to the translations of the project's sources,
+through the change service ([E-09](../engine/e-09-the-change-contract.md)). The
+project's
 [content memory](../context/c-09-content-memory.md) participates on both sides of
 that loop, pre-filling on extract and absorbing on merge, which is what makes
 each pass cheaper than the last.
@@ -24,10 +26,10 @@ by a neokapi tool at the far end ([M-06](m-06-content-packages.md)). **XLIFF 2.x
 and PO** are the industry-interop tier, for a recipient working in a third-party
 translation tool.
 
-Both tiers flow through the same two verbs. The merge key is the block content
-hash, and segmentation is a stand-off overlay over the runs rather than a
-rewrite of them ([M-02](m-02-segmentation.md)), so a project can turn
-segmentation on or off between extractions without breaking a merge.
+Both tiers flow through the same two verbs. Every unit carries the revisions
+it was extracted against, and segmentation is a stand-off overlay over the runs
+rather than a rewrite of them ([M-02](m-02-segmentation.md)), so a project can
+turn segmentation on or off between extractions without breaking a merge.
 
 <RoundTripDiagram
   forward={[
@@ -90,7 +92,10 @@ project or a `.kpz` workspace: `kapi merge work.kpz -o out/` emits the
 target-language files of an ad-hoc workspace with no project in scope
 ([M-06](m-06-content-packages.md)), and inside a project `kapi merge` with no
 `-i` materializes the target-language files from the project's block store,
-the sink for a process-only run. With neither a project nor a workspace it says
+the sink for a process-only run: the targets the store holds for a source
+become one change set on its translation, which the change service writes from
+the source's skeleton. A collection that names no `target` is source-only and
+gets no file. With neither a project nor a workspace it says
 so rather than guessing.
 
 ## The monolingual sibling
@@ -114,8 +119,9 @@ questions and stay separate verbs:
   never absorbs into the memory as a side effect.
 - `kapi merge` applies a **translator's returned targets** and, by default,
   absorbs every accepted target into the content memory. That accretion is what
-  merge is for; it is governed by the conflict policy and stale-segment
-  detection rather than a per-block drift guard.
+  merge is for. It sends the targets as a change set too, guarded by the
+  revisions the returned file carries, and the conflict policy settles a
+  translation that moved meanwhile.
 
 Folding `apply` into `merge` would contaminate the memory with monolingual
 source edits; folding `merge` into `apply` would lose the conflict policy and
@@ -184,13 +190,19 @@ does not nest inside one element, which is exactly what an anchor exists to
 express. A span straddling two `<segment>` elements is the one it cannot draw,
 and that is recorded rather than half-drawn.
 
-## Block is the merge key
+## What a returned unit names
 
-The merge key is the block content hash
-([F-03](../foundations/f-03-identity.md)), computed over the normalized source
-runs. Segmentation is a stand-off overlay over those runs
+A returned unit names its block by the id the reader assigned it: the XLIFF
+unit's `id`, the PO entry's `kapi-block` comment, the block of a `.kpz`
+overlay. It carries two revisions
+([E-09](../engine/e-09-the-change-contract.md)): the revision of the
+translation as the project held it at the extraction (`if-match`, `absent`
+where there was none), and the revision of the source the unit was read from
+(`basis`). A revision covers an edition's runs, inline codes included, and
+nothing else. Segmentation is a stand-off overlay over those runs
 ([F-02](../foundations/f-02-content-model.md)), not a rewrite of them, so it
-never moves the hash: a block's identity is stable across a segmentation toggle
+moves neither the block's content hash ([F-03](../foundations/f-03-identity.md))
+nor its revision: a block's identity is stable across a segmentation toggle
 between extractions.
 
 The reader-assigned id beside the hash is made unique where it is assigned. A
@@ -215,7 +227,8 @@ and calls `LookupSegment` for sentence-level leverage
 ## Extraction bookkeeping
 
 Each `kapi extract` run writes a manifest under
-`.kapi/work/cache/extractions/<batch-id>/`, alongside the per-source skeletons:
+`.kapi/work/cache/extractions/<batch-id>/`, alongside the per-source skeletons,
+for the next extract to reuse:
 
 ```yaml
 schemaVersion: 1
@@ -245,18 +258,24 @@ re-extract reuses a prior batch's work for a file only when both `inputsHash`
 and the file's `sourceHash` match, so a changed recipe or a changed memory
 re-extracts; `--force` skips the reuse entirely.
 
-The batch id is stamped into each emitted file so merge can resolve a returning
-file back to its manifest without guessing from the filename. XLIFF 2.x carries
-it as a file-level `<note category="kapi" id="batch-id">`, alongside notes
-recording the source path and the source hash at extract time; PO carries it as
-a file-header extracted comment (`#. kapi-batch: <uuid>`). The source-path note
-is the fallback when a batch id is missing; the source-hash note is what
-stale-segment detection compares against.
+Everything a merge needs from the extraction travels in the bilingual file,
+so the manifest can be lost. XLIFF 2.x carries file-level
+`<note category="kapi">` notes with the batch id, the source path and the
+source hash at extract time, the target language in `trgLang`, and on each
+unit an `<mda:metadata>` whose `<mda:metaGroup category="kapi">` holds the
+`if-match` and `basis` revisions. PO carries the same as extracted comments
+(`#. kapi-batch:`, `#. kapi-source-file:`, `#. kapi-source-hash:` on the
+header entry; `#. kapi-block:`, `#. kapi-if-match:` and `#. kapi-basis:` on
+each entry) and the language in the header's `Language` field. A `.kpz`
+records the revisions by block id in its interchange task. The batch id names
+the local redaction vault and the memory provenance; the source path names the
+document the units translate.
 
-Skeletons live in project state, so merge needs the same project that produced
-the extraction. That keeps the emitted XLIFF or PO small and friendly to a
-third-party tool, and keeps the memory absorb cheap. The project directory is
-already the unit of portability: `git push` ships it.
+Merge writes each translation from the source as the project holds it, so it
+needs the same project the extraction came from. That keeps the emitted XLIFF
+or PO small and friendly to a third-party tool, and keeps the memory absorb
+cheap. The project directory is already the unit of portability: `git push`
+ships it.
 
 ## The memory loop
 
@@ -283,25 +302,42 @@ write-back, leverage decays to zero, and making it opt-in would leave most
 projects' memories empty. Read-only memories imported into a project are never
 written to, so imported TMX stays reproducible from its source file.
 
-## Conflict policy and stale segments
+## Conflict policy and stale units
 
-`defaults.merge.conflict_policy` governs two decisions at once: applying a
-translator's target when an existing target is already on disk, and writing back
-to the memory when an entry already carries a translation:
+Merge compiles a returned file into one `set_content` per translated unit, on
+the edition of the unit's language, with the unit's `if-match` as its
+`if_match` and its `basis` as its `basis`, and applies the change set under
+`require_basis` through the change service. The service reads the source with
+its translation joined from the file the recipe's target template names,
+applies the operations, and writes that file from the source's skeleton
+(`filehome.Options.Materialize`), so a translation follows its source's
+structure. Redacted originals are restored before the units are compiled
+([C-10](../context/c-10-redaction.md)).
 
-- `translator-wins` (default): the returned target replaces what is there.
-- `existing-wins`: the existing target is preserved and the returned one is
-  skipped with a warning.
-- `newest-wins`: compare timestamps (file modification time, entry update time)
-  and take the newer.
+A unit whose source changed since the extraction is refused `stale` naming
+`basis`. It is **reported**, not applied, and not absorbed into the memory. A
+unit that carries no `basis` is held to the source it carries: it applies when
+that source is the source as it stands, or, for a carrier with no source text,
+when the source file's hash is the one the file records. A unit whose block is
+gone is stale too.
 
-There is no interactive prompt, so merge stays scriptable in CI.
+A unit whose translation changed in the project since the extraction is refused
+`stale` naming `if_match`, and `defaults.merge.conflict_policy` settles it:
 
-Merge detects stale segments by comparing the source hash recorded at extract
-time against the current source. A stale segment is **reported**, not silently
-applied, and not absorbed into the memory even under a policy that would
-otherwise accept it. Partial returns are ordinary: merge finds the manifest by
-batch id and applies the translated segments, leaving the rest alone.
+- `translator-wins` (default): merge sends the unit again over the revision the
+  project now holds, and the returned target replaces it.
+- `existing-wins`: the project's translation is kept and the returned one is
+  skipped.
+- `newest-wins`: the returned target replaces it when the returned file is newer
+  than the translation's file, and is skipped otherwise.
+
+Each pass drops the units refused for good and sends the rest again as one
+change set, so what lands lands atomically. There is no interactive prompt, so
+merge stays scriptable in CI. Any other refusal (a returned target that drops
+an inline code its source protects) is reported per unit and counted as
+`refused`; a file of which nothing lands fails. Partial returns are ordinary:
+merge applies the translated units and leaves the rest of the translation as
+it is.
 
 ## Recipe surface
 

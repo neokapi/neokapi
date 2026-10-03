@@ -406,6 +406,24 @@ The MCP tools `read_blocks`, `apply_edits` and `describe_format` build the
 service for each call's project and send every change set as the calling agent
 ([S-03](../surfaces/s-03-agent-surfaces.md)).
 
+The verbs that write whole translations build the service with
+`Materialize` set, so the file home writes each translation's file from its
+source's skeleton, keeping what each block's partner in the file held where the
+change set leaves it, and a translation follows the source's structure.
+`kapi merge -i` compiles a returned XLIFF, PO or `.kpz` into `set_content`
+operations carrying the `if_match` and `basis` each unit was extracted against,
+under `require_basis`, and sends them as a person; `kapi extract` reads those
+revisions through the service when it writes the units
+([M-01](../multilingual/m-01-bilingual-interop.md)). `kapi merge` with no `-i`
+sends the targets the block store holds for a source and language as one
+change set from the tool `merge`, and `kapi pull` sends the runs the server
+holds for each pulled translation as the tool `pull`, each `if_match` the
+revision the read before it found. A pull hands the writer of a document with
+locale-variant media through `ChangeServiceOptions.WriterHook`, and writes a
+target in another format than its source, which no edition reaches, with the
+target's own writer. The record names the surface as the origin: `merge` or
+`pull`.
+
 ### Results and errors
 
 A result has a status (`applied`, `refused`, `previewed`, or `partial` when an

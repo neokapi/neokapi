@@ -151,7 +151,10 @@ manifest kind:
   and alignment overlays, the per-source skeleton, and the relevant memory-match
   and term context. It excludes other locales, the full recipe, and raw source.
   This is neokapi's native interchange carrier, the parcel `extract` sends and
-  `merge` ingests.
+  `merge` ingests. Its interchange task records, by block id, the revisions
+  each unit was extracted against, and `merge` applies the returned targets
+  with them through the change service, writing each translation from the
+  project's source ([M-01](m-01-bilingual-interop.md)).
 - **Context profile** (`kapi-context`): one project's shared context in the
   layout a context backend keeps: the segments of its operation log under
   `log/`, the blobs they name under `blobs/`, and a checkpoint under
