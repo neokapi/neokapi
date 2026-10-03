@@ -716,11 +716,13 @@ func makeConcept(i int) terms.Concept {
 	}
 }
 
+// makeUnitState is one approved unit: the ledger holds decisions only.
 func makeUnitState(i int) state.UnitState {
 	return state.UnitState{
 		Unit:        blockHash(i),
 		Variant:     model.Variant("nb"),
-		Status:      model.TargetStatusTranslated,
+		Status:      model.TargetStatusEstablished,
+		Decision:    state.Decision{ReviewState: "approved"},
 		Origin:      model.Origin{Kind: "memory", Reference: fmt.Sprintf("e%08d", i%20000)},
 		TargetHash:  fmt.Sprintf("t1_%040x", i),
 		Scope:       collectionOf(i),

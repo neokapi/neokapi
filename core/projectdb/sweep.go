@@ -288,10 +288,13 @@ func moveFile(src, dst string) {
 // carryStagedForward moves the decisions a predecessor working store holds
 // into the merged one, all of them: an exported shard is read back only by
 // `kapi context import`, so a decision left in a file that is about to be
-// deleted would be one the project has lost.
+// deleted would be one the project has lost. An entry that decides nothing (a
+// basis an earlier build recorded beside a translation) has no place in the
+// ledger and is left behind.
 //
 // Silent on failure by design: the alternative is refusing to open a project
-// because a file that is about to be deleted would not read.
+// because a file that is about to be deleted would not read. An entry the new
+// store refuses is passed over, so the decisions after it still come across.
 func carryStagedForward(ctx context.Context, layout project.Layout, into *DB) {
 	if into == nil || into.work == nil {
 		return
@@ -307,9 +310,10 @@ func carryStagedForward(ctx context.Context, layout project.Layout, into *DB) {
 		return
 	}
 	for _, u := range held {
-		if err := into.work.Put(ctx, u); err != nil {
-			return
+		if !u.Decides() {
+			continue
 		}
+		_ = into.work.Put(ctx, u)
 	}
 }
 

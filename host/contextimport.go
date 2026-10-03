@@ -525,7 +525,9 @@ func reportedPath(root, path string) string {
 }
 
 // importDecisionRecord reads a directory of committed decision shards into a
-// project's ledger and writes the project's own record out again.
+// project's ledger and writes the project's own record out again. It returns
+// how many decisions it recorded: a line that decides nothing is left out and
+// not counted.
 //
 // Each row is recorded with the origin of a record read in, and recording is
 // addressed by content, so a row the ledger already holds costs nothing and a
@@ -554,6 +556,7 @@ func importDecisionRecord(ctx context.Context, st *state.WorkStore, dir string) 
 	if err != nil {
 		return 0, err
 	}
+	recorded := 0
 	for _, u := range append(first, last...) {
 		if !u.Decides() {
 			// A line an earlier release wrote for what a pass produced; the
@@ -563,11 +566,12 @@ func importDecisionRecord(ctx context.Context, st *state.WorkStore, dir string) 
 		if err := st.RecordEntry(ctx, u, u.Decision.By, state.OriginImport); err != nil {
 			return 0, err
 		}
+		recorded++
 	}
 	if err := st.PersistRecords(ctx); err != nil {
 		return 0, err
 	}
-	return len(units), nil
+	return recorded, nil
 }
 
 // recordOrderKeepingTheView splits a record into the rows to write first and
