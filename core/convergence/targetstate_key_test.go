@@ -11,7 +11,7 @@ import (
 
 // TargetState reads the target TargetRuns reads, whatever key it is filed
 // under: no language (the KBF reader files a bundle's "" target there), a
-// locale that normalizes in two steps, and the source language.
+// malformed locale x/text reads in two steps, and the source language.
 func TestTargetState_ReadsTheTargetTargetRunsReads(t *testing.T) {
 	twoStep := model.LocaleID("AA-u-00-00-u-00-00")
 	once := model.NormalizeLocale(twoStep)

@@ -15,8 +15,8 @@ import (
 // commit-targets writes the target TargetRuns reads for the run's locale,
 // whatever key it is filed under: no language (a run whose flow needs no
 // target language commits under the empty locale, and the KBF reader files a
-// bundle's "" target there), a locale that normalizes in two steps, and the
-// source language.
+// bundle's "" target there), a malformed locale x/text reads in two steps,
+// and the source language.
 func TestCommitTargets_CommitsTheTargetTargetRunsReads(t *testing.T) {
 	twoStep := model.LocaleID("AA-u-00-00-u-00-00")
 	once := model.NormalizeLocale(twoStep)

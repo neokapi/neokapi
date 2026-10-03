@@ -9,8 +9,8 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// twoStepLocale is a tag NormalizeLocale reads in two steps: once it is
-// "aa-u-00-u-00-00", and that reads as "aa-u-00-u-00".
+// twoStepLocale is a malformed tag x/text reads in two steps, first as
+// "aa-u-00-u-00-00" and then as "aa-u-00-u-00", which NormalizeLocale returns.
 const twoStepLocale = model.LocaleID("AA-u-00-00-u-00-00")
 
 // targetEditionBlocks are blocks holding a target under each kind of key a
@@ -61,8 +61,8 @@ func targetEditionLocales() []model.LocaleID {
 
 // TargetEdition reads the target Target reads, for every locale, on every kind
 // of block: a target under the source language, under no language, under a
-// locale that normalizes in two steps, under a key that is not canonical, and
-// none at all.
+// malformed locale x/text reads in two steps, under a key that is not
+// canonical, and none at all.
 func TestBlockTargetEdition_ReadsTheTargetTargetReads(t *testing.T) {
 	for name, mk := range targetEditionBlocks() {
 		for _, loc := range targetEditionLocales() {
