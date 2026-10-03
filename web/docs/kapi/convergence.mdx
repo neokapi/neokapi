@@ -470,7 +470,8 @@ be: that pairing was authored rather than left behind, so it is kept as it stand
 
 For a translation nobody has reviewed, the source it was made from is in the
 record of the run that wrote it, which the project's context keeps beside its
-decisions. A fresh clone reads that context with
+decisions. In a project that shares its context through a backend, a fresh
+clone reads that context with
 [`kapi context pull`](/kapi/context-portability#sharing-context-through-a-backend).
 Until it does, `kapi up` and `kapi status` say so in one line, and a source
 edited before the clone's first pass is not graded stale there:

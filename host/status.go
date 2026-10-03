@@ -41,10 +41,10 @@ type StatusOutput struct {
 	// is shared through were apart at the last pull or push. Absent when the
 	// context stays on this machine.
 	Context *check.ContextSync `json:"context,omitempty"`
-	// HistoryNotPulled reports a checkout whose translations exist on disk and
-	// whose block history records nothing: the source each was made from is in
-	// the project's context, which kapi context pull reads
-	// (HistoryNotPulledNote).
+	// HistoryNotPulled reports a checkout of a project that shares its
+	// context through a backend, whose translations exist on disk and whose
+	// block history records nothing: the source each was made from is in the
+	// project's context, which kapi context pull reads (HistoryNotPulledNote).
 	HistoryNotPulled bool `json:"history_not_pulled,omitempty"`
 }
 

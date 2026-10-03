@@ -40,11 +40,14 @@ func historyNotPulledIn(t *testing.T, recipe string) bool {
 	return parsed.HistoryNotPulled
 }
 
-// The loop's basis is in the project's context. A checkout whose translations
-// exist and whose block history records none has not read that context, and
-// kapi up and kapi status each say so in one line naming kapi context pull.
+// The loop's basis is in the project's context. A checkout of a project that
+// shares its context, whose translations exist and whose block history
+// records none, has not read that context, and kapi up and kapi status each
+// say so in one line naming kapi context pull.
 func TestUpAndStatus_SayWhenTheTranslationsHaveNoRecordedHistory(t *testing.T) {
-	a, cmd, recipe := newFlowProject(t, project.MaterializeManual)
+	a, cmd, recipe := newFlowProjectWith(t, project.MaterializeManual, func(p *project.KapiProject) {
+		p.Context = &project.ContextBackend{Backend: project.ContextBackendFile, Path: "shared-context"}
+	})
 	root := filepath.Dir(recipe)
 
 	assert.False(t, historyNotPulledIn(t, recipe), "a project with no translations on disk has nothing to read")
@@ -64,6 +67,23 @@ func TestUpAndStatus_SayWhenTheTranslationsHaveNoRecordedHistory(t *testing.T) {
 	// The pass recorded the translation it wrote, so neither says it again.
 	assert.False(t, historyNotPulledIn(t, recipe))
 	stderr.Reset()
+	runOnePass(t, a, cmd, recipe)
+	assert.NotContains(t, stderr.String(), "kapi context pull")
+}
+
+// A project whose context stays on this machine has no record to pull: its
+// passes record the translations they write, and neither command names a pull
+// that would fail.
+func TestUpAndStatus_SayNothingOfAPullForAProjectWithNoContextBackend(t *testing.T) {
+	a, cmd, recipe := newFlowProject(t, project.MaterializeManual)
+	root := filepath.Dir(recipe)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "qps.json"),
+		[]byte(`{"greeting": "Ĥéļļö ŵöŕļð", "farewell": "Ĝööðƀýé ñöŵ"}`+"\n"), 0o644))
+
+	assert.False(t, historyNotPulledIn(t, recipe))
+	assert.NotContains(t, statusOfProject(t, recipe, false), "kapi context pull")
+	var stderr bytes.Buffer
+	cmd.SetErr(&stderr)
 	runOnePass(t, a, cmd, recipe)
 	assert.NotContains(t, stderr.String(), "kapi context pull")
 }
