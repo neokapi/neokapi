@@ -1,7 +1,6 @@
 package host
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -42,7 +41,7 @@ func TestParseSedCmd(t *testing.T) {
 			}
 			require.NoError(t, err)
 			assert.Equal(t, tc.global, c.global)
-			got := sedProgram{c}.apply(tc.in)
+			got := sedText(t, sedProgram{c}, tc.in)
 			assert.Equal(t, tc.want, got)
 		})
 	}
@@ -51,7 +50,7 @@ func TestParseSedCmd(t *testing.T) {
 func TestSedProgramMultiple(t *testing.T) {
 	prog, err := ParseSedProgram([]string{"s/colour/color/g", "s/behaviour/behavior/g"})
 	require.NoError(t, err)
-	assert.Equal(t, "color and behavior", prog.apply("colour and behaviour"))
+	assert.Equal(t, "color and behavior", sedText(t, prog, "colour and behaviour"))
 }
 
 func TestSedReplToGo(t *testing.T) {
@@ -174,7 +173,7 @@ func TestStreamBlocksJSON(t *testing.T) {
 	assert.ElementsMatch(t, []string{"Hello", "World"}, texts)
 }
 
-func TestEditDocumentSedJSON(t *testing.T) {
+func TestSedJSON(t *testing.T) {
 	app := newToolboxApp(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "en.json")
@@ -182,11 +181,10 @@ func TestEditDocumentSedJSON(t *testing.T) {
 
 	prog, err := ParseSedProgram([]string{"s/world/EARTH/g"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
-
-	var buf bytes.Buffer
-	require.NoError(t, app.EditDocument(context.Background(), path, tool, "", false, "", &buf))
-	out := buf.String()
+	out, err := captureStdout(t, func() error {
+		return app.RunSed(context.Background(), sedCommand(), []string{path}, prog, SedOptions{})
+	})
+	require.NoError(t, err)
 	assert.Contains(t, out, "Hello EARTH")
 	assert.Contains(t, out, "EARTH peace")
 	assert.NotContains(t, out, "world")
@@ -196,7 +194,7 @@ func TestEditDocumentSedJSON(t *testing.T) {
 	assert.Contains(t, string(orig), "world")
 }
 
-func TestEditDocumentInPlaceWithBackup(t *testing.T) {
+func TestSedInPlaceWithBackup(t *testing.T) {
 	app := newToolboxApp(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "en.json")
@@ -204,9 +202,7 @@ func TestEditDocumentInPlaceWithBackup(t *testing.T) {
 
 	prog, err := ParseSedProgram([]string{"s/foo/bar/"})
 	require.NoError(t, err)
-	tool := NewSedTool(prog, "", true)
-
-	require.NoError(t, app.EditDocument(context.Background(), path, tool, "", true, ".bak", nil))
+	require.NoError(t, app.RunSed(context.Background(), sedCommand(), []string{path}, prog, SedOptions{InPlace: true, BackupSuffix: ".bak"}))
 
 	edited, _ := os.ReadFile(path)
 	assert.Contains(t, string(edited), "bar")

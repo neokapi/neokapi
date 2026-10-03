@@ -95,6 +95,23 @@ type EditionRead struct {
 
 // Read reads a page of a document's blocks.
 func (s *Service) Read(ctx context.Context, q ReadRequest) (*Page, error) {
+	return s.read(ctx, q, nil)
+}
+
+// ReadEach reads every block of a document in one pass and hands each to fn
+// as a read shows it, beside the block it was read from. It is the read a
+// command line streams: the document is read once and no page is held, so
+// Limit and Cursor are not used. fn returning ErrStop ends the read early.
+// The page it returns names the document, its home, format and head, and
+// holds no blocks.
+func (s *Service) ReadEach(ctx context.Context, q ReadRequest, fn func(b *model.Block, r BlockRead) error) (*Page, error) {
+	q.Cursor = ""
+	return s.read(ctx, q, fn)
+}
+
+// read reads q's document: a page of its blocks, or with each set, every
+// block handed to each.
+func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Block, r BlockRead) error) (*Page, error) {
 	if q.Doc == "" {
 		return nil, &Error{Code: CodeInvalid, Field: "doc", Message: "name the document to read"}
 	}
@@ -154,6 +171,9 @@ func (s *Service) Read(ctx context.Context, q ReadRequest) (*Page, error) {
 			return k != "" && slices.Contains(blocks, k)
 		}) {
 			return nil
+		}
+		if each != nil {
+			return each(b, s.readBlock(ctx, info, desc, b, editions))
 		}
 		i := index
 		index++

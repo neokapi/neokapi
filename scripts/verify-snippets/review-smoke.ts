@@ -4,7 +4,7 @@
 // exercises the project state-store commands that the regular walkthrough smoke
 // harness can't reach (it seeds only single fixtures, never a multi-file
 // project). Proves `kapi status`, `kapi status --review`, and `kapi apply`
-// (kind:"review") run against the in-memory filesystem — the prerequisite for an
+// (a decide operation) run against the in-memory filesystem — the prerequisite for an
 // in-browser review walkthrough. Mirrors the boot logic in lab-smoke.ts.
 //   Run: node --experimental-strip-types scripts/verify-snippets/review-smoke.ts
 import { readFileSync } from "node:fs";
@@ -69,13 +69,18 @@ const TARGET_FR = JSON.stringify(
   null,
   2,
 );
-// The approval change-set: bless the `greeting` unit's fr translation.
+// The approval change set: establish the `greeting` unit's fr translation.
+// "*" binds the decision to the wording that is there when it lands; a
+// reviewer who read the translation sends the revision `kapi inspect` showed.
 const REVIEW = JSON.stringify({
-  kind: "review",
-  file: "messages.fr.json",
-  id: "greeting",
-  locale: "fr",
-  status: "established",
+  ops: [
+    {
+      op: "decide",
+      at: { doc: "messages.json", block: "greeting", edition: "fr" },
+      if_match: "*",
+      outcome: "establish",
+    },
+  ],
 });
 
 mem.vol.writeFile("/project/kapi.yaml", enc.encode(RECIPE));
@@ -129,7 +134,7 @@ ok(
   !!queue?.pending?.find((u: any) => u.key === "greeting" && u.locale === "fr" && u.file === "messages.fr.json"),
 );
 
-// ── 3. apply kind:"review": the decision lands in the working store ──────────
+// ── 3. apply a decide operation: the decision lands in the working store ─────
 // apply has no -p flag, so it discovers the project from cwd (/project, above).
 // In the browser the working set persists as a JSON sidecar through the sandbox
 // FS, so it must survive into the next command exactly as the SQLite working

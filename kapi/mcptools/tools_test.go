@@ -142,7 +142,7 @@ func TestHandleExtractContentAddressesWhatApplyEditsWrites(t *testing.T) {
 			report := &tools.ApplyReport{}
 			edit := tools.Edit{Text: tc.text, ContentHash: block.ContentHash}
 			tl := tools.NewApplyEditsTool(map[string]tools.Edit{block.ID: edit}, nil, report)
-			require.NoError(t, a.EditDocument(t.Context(), path, tl, "", true, "", nil))
+			require.NoError(t, a.EditDocumentAs(t.Context(), path, "", tl, "", true, "", nil))
 
 			assert.Equal(t, []string{block.ID}, report.Applied)
 			got, err := os.ReadFile(path)

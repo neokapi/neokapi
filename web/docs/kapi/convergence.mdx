@@ -302,7 +302,7 @@ kapi up --materialize  # also write the translated files for the shippable local
       role: "translate",
       loop: ["each pass re-derives", "coverage and repeats"],
     },
-    { label: "promote", sub: "kapi apply: review approves a unit", role: "annotate", edge: "a person / agent" },
+    { label: "promote", sub: "kapi apply: decide approves a unit", role: "annotate", edge: "a person / agent" },
     { label: "release", sub: "kapi check --ship: the gate", role: "qa", edge: "gate met" },
   ]}
   caption="Produce loops to the gate; review promotes what a machine can't decide; the gate releases."
@@ -544,14 +544,16 @@ content memory holds none of it.
 `kapi status --review` is the worklist: one queue of the units awaiting a
 person, each belonging to a language, and the source language is one of them
 (its rows are marked `source`). Translated units not yet approved are the
-derived counterpart of the loop's *parked* outcome. You approve one with the one
-write verb, `kapi apply`, as a `review` change-set addressed by the unit's
-`file` / `id` / `locale` exactly as the worklist lists them:
+derived counterpart of the loop's *parked* outcome. You approve one with
+`kapi apply`, as a `decide` operation that names the source document, the block
+and the edition the worklist lists, and the revision `kapi inspect` shows for
+that edition:
 
 ```bash
-kapi status --review              # the worklist: file, id, locale per pending unit
+kapi status --review              # the worklist: file, key, locale per pending unit
 kapi status --review --lang nb    # one language (repeat or comma-separate for several)
-kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"established"}'
+kapi inspect src/en.json --jsonl  # each block's editions, with their revisions
+kapi apply <<<'{"ops":[{"op":"decide","at":{"doc":"src/en.json","block":"save.label","edition":"nb"},"if_match":"r:74dbfac2ed1c9d6e","outcome":"establish"}]}'
 ```
 
 An approval is about a **pairing**: this rendering, *of this source*. The
@@ -579,7 +581,7 @@ records a basis.
 
 <PhaseFlow
   nodes={[
-    { label: "approve", sub: "kapi apply · kind: review", role: "annotate" },
+    { label: "approve", sub: "kapi apply · decide", role: "annotate" },
     {
       label: "decision + both hashes",
       sub: "the project's store",
@@ -603,7 +605,7 @@ backend, or in one file with `kapi context export`. A
 server-connected project pushes it to the remote instead, where parked units
 enter the team's assignment and review queue.
 
-This is distinct from the content memory: `kapi apply` with `kind:"memory"` adds
+This is distinct from the content memory: a `memory` operation through `kapi apply` adds
 a source→target pair to the **recycle** corpus for future leverage and never
 promotes a unit to *established*.
 

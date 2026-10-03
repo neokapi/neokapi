@@ -1,7 +1,6 @@
 package host
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -68,28 +67,16 @@ func installedFormatterProject(t *testing.T) (file, marker, bin string) {
 	return file, marker, bin
 }
 
-// applyWithInput runs kapi apply through a over entries written as a change-set
-// file, with stdin as the command's standard input, and returns the report and
-// what the command wrote to standard error.
-func applyWithInput(t *testing.T, a *App, stdin string, entries ...map[string]any) (applyOutput, string, error) {
+// applyWithInput runs kapi apply's comment branch over entries, as for a
+// comment change set in a file (runCommentEntries), with stdin as the
+// command's standard input, and returns what it did and what the command
+// wrote.
+func applyWithInput(t *testing.T, a *App, stdin string, entries ...map[string]any) (commentRun, string, error) {
 	t.Helper()
-	var lines []string
-	for _, e := range entries {
-		b, err := json.Marshal(e)
-		require.NoError(t, err)
-		lines = append(lines, string(b))
-	}
-	path := filepath.Join(t.TempDir(), "changeset.jsonl")
-	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
 	cmd := NewEnvCommand(t.Context(), "apply")
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
 	cmd.SetIn(strings.NewReader(stdin))
-	err := a.RunApply(cmd, path, false, "", true)
-	var out applyOutput
-	require.NoError(t, json.Unmarshal(stdout.Bytes(), &out), stdout.String()+stderr.String())
-	return out, stderr.String(), err
+	out, output, err := runCommentEntries(t, a, cmd, false, entries...)
+	return out, output, err
 }
 
 // applyEditsMCPWith runs MCP apply_edits through a over entries.

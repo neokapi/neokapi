@@ -59,7 +59,7 @@ script:
   - command: ksed -i 's/Release a mooring earlier/Release a berth earlier/' docs/berths.md
   - command: ksed -i 's/by ship name/by vessel name/' app/strings.en.json
   - comment: The reviewer also spots a word the graph has never been told about. Northsea says berth, and the page says dock. That is a decision rather than an edit.
-  - command: echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
+  - command: echo '{"op":"term","action":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
   - command: kapi apply decisions.jsonl
   - comment: The reviewer recorded a term decision. The next check uses that rule.
   # And again here: a decision that changed nothing would be no decision at all.
@@ -117,8 +117,8 @@ narration:
     text: >-
       Three findings concern wording, so the source is corrected. The
       fourth is different: the reviewer notices a word the graph has never been
-      told about. That is a decision, so it is written down as one entry in the
-      terms the project reads.
+      told about. That is a decision, so it is written down as one operation in
+      the terms the project reads.
 
   - id: learned
     kind: terminal
@@ -126,8 +126,8 @@ narration:
     highlight: { text: [dock, berth] }
     caption: The next run enforces the recorded term decision.
     text: >-
-      Run the check again and it finds what the previous run passed. One entry
-      reached both the record and the gate. Fix the last one, converge, and the
+      Run the check again and it finds what the previous run passed. One
+      operation reached both the record and the gate. Fix the last one, converge, and the
       configured checks pass in one language, with no server and no credential.
       Factual accuracy and overall writing quality still need their own review.
 

@@ -86,7 +86,7 @@ func TestEditDocument_InPlaceRoundTripIsByteIdentical(t *testing.T) {
 	path := filepath.Join(dir, "messages.yaml")
 	require.NoError(t, os.WriteFile(path, []byte(yamlWithFormattingOnlyASkeletonPreserves), 0o644))
 
-	require.NoError(t, app.EditDocument(context.Background(), path, noopTool(), "", true, "", nil))
+	require.NoError(t, app.EditDocumentAs(context.Background(), path, "", noopTool(), "", true, "", nil))
 
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestEditDocument_InPlaceFailsWhenTheSkeletonStoreCannotBeCreated(t *testing
 
 	breakTempDir(t)
 
-	err := app.EditDocument(context.Background(), path, noopTool(), "", true, "", nil)
+	err := app.EditDocumentAs(context.Background(), path, "", noopTool(), "", true, "", nil)
 	require.Error(t, err, "an in-place edit that cannot preserve the document must fail, not reconstruct it")
 	assert.Contains(t, err.Error(), "messages.yaml", "the error must name the file it refused to rewrite")
 	assert.Contains(t, err.Error(), "formatting", "the error must say what would have been lost")
@@ -208,7 +208,7 @@ func TestEditArchiveEntry_FailsWhenTheSkeletonStoreCannotBeCreated(t *testing.T)
 
 	breakTempDir(t)
 
-	err = app.EditDocument(context.Background(), archive+"!messages.yaml", noopTool(), "", true, "", nil)
+	err = app.EditDocumentAs(context.Background(), archive+"!messages.yaml", "", noopTool(), "", true, "", nil)
 	require.Error(t, err, "an archive member that cannot be preserved must fail the edit")
 	assert.Contains(t, err.Error(), "messages.yaml")
 
@@ -225,7 +225,7 @@ func TestEditArchiveEntry_RoundTripIsByteIdentical(t *testing.T) {
 	dir := t.TempDir()
 	archive := writeZipFixture(t, dir, "messages.yaml", yamlWithFormattingOnlyASkeletonPreserves)
 
-	require.NoError(t, app.EditDocument(context.Background(), archive+"!messages.yaml", noopTool(), "", true, "", nil))
+	require.NoError(t, app.EditDocumentAs(context.Background(), archive+"!messages.yaml", "", noopTool(), "", true, "", nil))
 
 	assert.Equal(t, yamlWithFormattingOnlyASkeletonPreserves, readZipEntry(t, archive, "messages.yaml"))
 }

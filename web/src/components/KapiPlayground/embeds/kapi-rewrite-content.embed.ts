@@ -16,19 +16,19 @@ const config: WalkthroughEmbedConfig = {
     {
       path: "edits.jsonl",
       content:
-        '{"kind":"content","file":"release-notes.md","id":"tu3","content_hash":"7216da8380519e37fc04ad5723a5049bd8c3c9219dfb17820bec8b1089e68c5b","text":"This release adds a faster editor."}\n{"kind":"content","file":"release-notes.md","id":"tu4","content_hash":"40595e5937457a195231467a018a632154fa96c40f4680a26594cad24b6056ea","text":"Bug fixes use the new sync engine to resolve conflicts."}\n',
+        '{"op":"set_content","at":{"doc":"release-notes.md","block":"lumen-notes-2-4/highlights/p"},"if_match":"r:a42e8621c0015f4c","text":"This release adds a faster editor."}\n{"op":"replace_text","at":{"doc":"release-notes.md","block":"lumen-notes-2-4/highlights/p#2"},"if_match":"r:b5f92f83d33abab6","edits":[{"find":"utilize","text":"use"}]}\n',
     },
   ],
   steps: [
     {
-      command: "kapi apply edits.jsonl --diff",
+      command: "kapi apply edits.jsonl --dry-run",
       narration:
-        "apply is the one write verb, the sibling of inspect. Each entry is one reviewed change, bound to its block's content hash — if the file drifted, the entry refuses to land. --diff previews and writes nothing.",
+        "apply is the sibling of inspect. Each operation is one reviewed change, bound to the revision of the block it read; if the block changed since, the change set refuses to land. --dry-run previews and writes nothing.",
     },
     {
       command: "kapi apply edits.jsonl",
       narration:
-        "The same change-set writes the text back through the byte-faithful round-trip — format, structure, and inline codes preserved; only the leaf text changes.",
+        "The same change set writes the text back through the byte-faithful round-trip. Format, structure and inline codes are preserved, and only the leaf text changes.",
     },
   ],
 };

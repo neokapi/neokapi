@@ -1,8 +1,10 @@
 package host
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/neokapi/neokapi/core/project"
@@ -46,9 +48,27 @@ func AddProjectFlag(cmd Command) {
 func ResolveProjectPath(cmd Command) (string, error) {
 	var flag string
 	if cmd != nil {
+		if f := cmd.Flags().Lookup(detachedFlagName); f != nil && f.Value.String() == "true" {
+			return "", nil
+		}
 		flag, _ = cmd.Flags().GetString(projectFlagName)
 	}
 	return project.ResolveRecipePath(flag)
+}
+
+// detachedFlagName marks a command built to resolve no project at all: neither
+// the environment nor discovery from the working directory binds one to it. A
+// service that edits outside a project hands one to the hooks that resolve a
+// project from a command. No command a person runs declares it.
+const detachedFlagName = "kapi-detached"
+
+// detachedCommand is a command named name that resolves no project.
+func detachedCommand(ctx context.Context, name string) Command {
+	cmd := NewEnvCommand(ctx, name)
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	cmd.Flags().Bool(detachedFlagName, true, "")
+	return cmd
 }
 
 // RequireProjectPath resolves the project path and returns an error when no

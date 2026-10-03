@@ -146,15 +146,19 @@ approval are two commands:
 ```bash
 kapi status --review              # units awaiting a person, in every language
 kapi status --review --lang nb    # one language (repeat or comma-separate for several)
-# approve one: a `review` change-set addressed by the unit's file/id/locale
-kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"established"}'
+kapi inspect src/en.json --jsonl  # each block's editions, with the revision a decision names
+# approve one: a decide operation on the edition, bound to the revision read
+kapi apply <<<'{"ops":[{"op":"decide","at":{"doc":"src/en.json","block":"save.label","edition":"nb"},"if_match":"r:74dbfac2ed1c9d6e","outcome":"establish"}]}'
 ```
 
 One queue holds every language. A row carries `language` and, when the language
 is the project's source, `isSource: true` with a `status` on the authoring
 ladder (`written`/`established`); `languages` in the JSON counts the
-pending units per language. `kapi apply` records target-language decisions;
-source wording is approved in the Review page of Kapi Desktop.
+pending units per language. A row's `relative` is the source document and its
+`key` the block a decision names. `kapi apply` records a person's decision on a
+translation (`establish` or `reject`) and on source wording (`establish` with
+no edition); a decision binds to the revision it names, and one whose
+translation changed since it was read is refused as `stale`.
 
 The unit state lands in the project store and counts the unit as `established`,
 so the next `kapi up` sees it shipped. `kapi check --ship` is the opt-in release

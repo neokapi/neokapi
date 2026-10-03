@@ -98,6 +98,31 @@ runs many tools across many files, and a translation pass is a flow with recycli
 and checks around it. Reach for the plumbing when you want precisely one tool's
 behaviour.
 
+### Verbs for people, change sets for scripts
+
+An edit reaches a file through the change service
+([E-09](../engine/e-09-the-change-contract.md)), and the command line offers it
+two ways. People keep verbs that say what they do: `ksed` compiles a
+substitution into `replace_text` operations, each guarded by the revision `ksed`
+read, and applies them through the service. Scripts and agents send a
+kapi.change/v1 change set to `kapi apply`, which reads one JSON object, JSONL or
+an array of operations from a file or standard input, applies it whole or not at
+all, previews it with `--dry-run`, prints the kapi.change-result/v1 result with
+`--json`, and prints the contract's schema with `--schema`. The command line
+stamps the actor the environment names; a change set names none.
+
+`kapi inspect` is the read that pairs with it. It reads through the same
+service, with the format and configuration the recipe binds inside a project
+(the one `-p` names, or the one discovery finds), and prints each block's
+reference and revision, so an operation copies what the read printed instead of
+constructing an address. A file of the project is named by its
+project-relative path, and a file outside it by its absolute path, which
+`kapi apply` in the project resolves the same way. `ksed` resolves the files it
+is given the same way, so `--print-ops` prints the change set `ksed` would
+apply and `kapi apply` applies it as printed, from any directory of the
+project; `kapi apply --print-ops` prints the set as decoded. The format a
+person can read is the format an agent sends.
+
 Registry tools do not appear as top-level verbs; they are reached through
 `kapi exec`. The generated [command reference](/reference/commands/exec) lists
 each one with its schema, so the set stays derived from the registry rather than
@@ -185,9 +210,9 @@ unreadable, only unpolished.
 | 0 | `ExitOK` | success |
 | 1 | `ExitError` | operational error, the default for a failed command |
 | 2 | `ExitUsage` | usage error, and the toolbox's grep-style "trouble" status |
-| 3 | `ExitGate` | a quality or voice gate was not met |
+| 3 | `ExitGate` | a quality or voice gate was not met, or `kapi apply` refused a change set (nothing was written) |
 | 4 | `ExitNotRun` | a check reached no verdict: it checked no content, or an analyzer missed its canary |
-| 5 | `ExitUnreachable` | a context pull or push could not reach the backend; nothing changed on either side |
+| 5 | `ExitUnreachable` | a context pull or push, or a change set's backend, could not be reached; nothing changed on either side |
 | 130 | `ExitSignal` | interrupted (128 + SIGINT) |
 
 A draft that scores below its threshold is not a crash, and a script that

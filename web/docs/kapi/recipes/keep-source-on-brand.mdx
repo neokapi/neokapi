@@ -62,20 +62,24 @@ Exit `0` is a pass, `3` means at least one finding fails; `--json` emits the `ka
 
 ```bash
 kapi inspect blog-post.md --jsonl > blocks.jsonl
-# rewrite each flagged block's "text" (keep the <x id="…"/> tags) into edits.jsonl
-kapi apply edits.jsonl --diff        # preview
-kapi apply edits.jsonl               # write through the faithful round-trip
+# write an operation per flagged block, with its ref and rev, to edits.json
+# (keep the <x id="…"/> tags)
+kapi apply edits.json --dry-run      # preview
+kapi apply edits.json                # write through the faithful round-trip
 kapi check blog-post.md --profile-file brand/voice.yaml
 ```
 
-An edit whose content hash drifted, or that would corrupt an inline code, is left unchanged and reported; see [Edit content](/kapi/recipes/rewrite-content). For deterministic substitution of the terms a voice file carries, with no assistant, `kapi voice rewrite --profile-file brand/voice.yaml` reads stdin or `--input-text` and reports each change. To also add the missing rule while fixing the draft, ship both in one change-set:
+An edit to a block that changed since you read it, or that would corrupt an inline code, is refused, and nothing in the change set is written; see [Edit content](/kapi/recipes/rewrite-content). For deterministic substitution of the terms a voice file carries, with no assistant, `kapi voice rewrite --profile-file brand/voice.yaml` reads stdin or `--input-text` and reports each change. To also add the missing rule while fixing the draft, ship both in one change set:
 
-```jsonl
-{"kind":"content","file":"blog-post.md","id":"paragraph-0","content_hash":"b74d19…","text":"Today we use our infrastructure..."}
-{"kind":"term","op":"upsert","term":"leverage","locale":"en","status":"forbidden","replacement":"use"}
+```json
+{"ops": [
+  {"op": "replace_text", "at": {"doc": "blog-post.md", "block": "p"}, "if_match": "r:b74d19a2c3e4f506",
+   "edits": [{"find": "leverage", "text": "use"}]},
+  {"op": "term", "action": "upsert", "term": "leverage", "locale": "en", "status": "forbidden", "replacement": "use"}
+]}
 ```
 
-The `term` entry lands in the project's terms, so the next check enforces it (requires a kapi project). A use of the term then fails; add `"advisory":true` to have it report instead, or `"competitor":true` for a competitor's name. Run it yourself: an assistant's `term` entry is refused, and the assistant records the rule as a suggestion for you to keep instead.
+The `term` operation lands in the project's terms after the content, so the next check enforces it (requires a kapi project). A use of the term then fails; add `"advisory":true` to have it report instead, or `"competitor":true` for a competitor's name. Run it yourself: an assistant's `term` operation is refused, and the change set with it, so the assistant sends its content edits alone and records the rule as a suggestion for you to keep instead.
 
 </TabItem>
 </Tabs>

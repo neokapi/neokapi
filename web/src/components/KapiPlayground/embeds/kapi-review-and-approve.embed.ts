@@ -21,7 +21,7 @@ const config: WalkthroughEmbedConfig = {
     {
       path: "review.jsonl",
       content:
-        '{"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"established"}\n',
+        '{"op":"decide","at":{"doc":"messages.json","block":"greeting","edition":"fr"},"if_match":"r:1a83287c7ed96132","outcome":"establish"}\n',
     },
   ],
   steps: [
@@ -33,12 +33,12 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi status --review",
       narration:
-        "List translated units awaiting approval, addressed by file, id and locale for a review change-set.",
+        "List translated units awaiting approval, each with the source document, block and language a decision names.",
     },
     {
       command: "kapi apply review.jsonl",
       narration:
-        "apply binds the approval to the translation's content hash. Editing that translation later requires another review.",
+        "apply binds the approval to the revision of the translation the reviewer read. Editing that translation later requires another review.",
     },
     {
       command: "kapi status",

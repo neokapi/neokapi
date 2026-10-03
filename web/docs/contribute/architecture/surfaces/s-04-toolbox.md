@@ -109,13 +109,23 @@ text, or a `--target LOCALE` translation, one block per line; `kgrep` matches
 each block's text against the pattern. Markup and non-translatable structure
 never reach the projection.
 
-**Edit path** (`ksed`). The document is read, the substitution tool is applied to
-every part, and the reconstructed document is written back in the same format.
-The skeleton store is wired between reader and writer when both support it, so a
-faithful format round-trips its structure while only the edited text changes.
-Edits target the source unless `--target LOCALE` selects a translation. In-place
-editing requires a file argument and refuses stdin. A read-only format, one with
-no writer, returns an actionable error pointing at `kcat`.
+**Edit path** (`ksed`). `ksed` reads the document through the change service
+([E-09](../engine/e-09-the-change-contract.md)) and compiles each substitution
+into `replace_text` operations: the regex runs over each edition's text with its
+inline codes left out, and over each branch of a plural or select on its own, so
+the codes around a change stay and a match never swallows a plural. Each
+operation carries the revision `ksed` read as `if_match`, and the service applies
+them through the file home, which writes through the format's writer with the
+skeleton wired, so a faithful format round-trips its structure while only the
+edited text changes. A substitution that changes nothing compiles to nothing.
+Edits target the source unless `--target LOCALE` selects the translation a
+bilingual file holds. With `-i` the file is replaced atomically, with a backup
+when a suffix is attached; otherwise the change is applied to a private copy and
+the copy is written to standard output, and the file stays as it is. An archive
+member is edited in a change set of its own. In-place editing requires a file
+argument and refuses stdin. A format that takes no edit refuses the operation
+as `unsupported`, and the document stays as it was. `--print-ops` prints the
+change set instead of applying it, in the form `kapi apply` reads.
 
 **Convert path** (`kconv`). The input is read and written through a *different*
 format's writer, chosen from `--to` (a format id or an extension) or inferred
@@ -166,9 +176,10 @@ source) and `--format` / `-f`.
 - **`kgrep`**: `-i`, `-v`, `-c`, `-n`, `-o`, `-l` / `-L`, `-w`, `-F`, `-r`,
   `-H` / `--no-filename`, repeatable `-e`, `-q`, plus `--color` and `--json`.
 - **`ksed`**: repeatable `-e` (`s/regexp/replacement/flags`), `-i` with an
-  optional attached backup suffix, and `-R` to recurse. The script supports
-  backreferences, the `g` and `i` flags, and any single-byte delimiter. sed's
-  attached-suffix form (`-i.bak`) is normalised before dispatch.
+  optional attached backup suffix, `-R` to recurse, and `--print-ops`. The
+  script supports backreferences, the `g` and `i` flags, and any single-byte
+  delimiter. sed's attached-suffix form (`-i.bak`) is normalised before
+  dispatch.
 - **`kcat`**: `-n`, `--id` (prefix each block with its source id), `-r`, and
   `--json`.
 - **`kdiff`**: `--by auto|id|content`, `-q` / `--brief`, `--stat`, `--color`,

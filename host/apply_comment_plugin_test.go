@@ -2,7 +2,6 @@ package host
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment"
 	fmtpkg "github.com/neokapi/neokapi/core/format"
@@ -108,24 +108,11 @@ func pluginCommentEntry(t *testing.T, a *App, file, id, text string) map[string]
 	return nil
 }
 
-// applyWith runs kapi apply through a over entries written as a change-set.
-func applyWith(t *testing.T, a *App, entries ...map[string]any) (applyOutput, error) {
+// applyWith runs kapi apply's comment branch over entries, as for a comment
+// change set in a file (runCommentEntries).
+func applyWith(t *testing.T, a *App, entries ...map[string]any) (commentRun, error) {
 	t.Helper()
-	var lines []string
-	for _, e := range entries {
-		b, err := json.Marshal(e)
-		require.NoError(t, err)
-		lines = append(lines, string(b))
-	}
-	path := filepath.Join(t.TempDir(), "changeset.jsonl")
-	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
-	cmd := NewEnvCommand(t.Context(), "apply")
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	err := a.RunApply(cmd, path, false, "", true)
-	var out applyOutput
-	require.NoError(t, json.Unmarshal(stdout.Bytes(), &out), stdout.String()+stderr.String())
+	out, _, err := runCommentEntries(t, a, NewEnvCommand(t.Context(), "apply"), false, entries...)
 	return out, err
 }
 
@@ -163,6 +150,20 @@ func TestPluginCommentRewrite(t *testing.T) {
 		want := strings.Replace(rewriteTS, "the the", "the", 1)
 		assertUnchanged(t, file, want)
 		assert.Equal(t, want, string(runOxfmt(t, file, []byte(want))), "oxfmt agrees with the written file")
+	})
+
+	t.Run("kapi apply rewrites a TypeScript comment by the revision kapi inspect reads", func(t *testing.T) {
+		a := tsRewriteApp(t, nil)
+		file := tsProject(t, nil)
+		noProject(t)
+		t.Chdir(filepath.Dir(file))
+		rec := recordOf(t, inspectJSONL(t, a, "parse.ts"), "func/parse")
+		assert.Equal(t, "Parses the the input.", rec.Text)
+		body := changeSetOf(t, map[string]any{"op": "set_content", "at": rec.Ref, "if_match": rec.Rev, "text": "Parses the input."})
+		res, err := applyJSON(t, a, NewEnvCommand(t.Context(), "apply"), body, ApplyOptions{})
+		require.NoError(t, err)
+		require.Equal(t, change.OpApplied, res.Ops[0].Status, "%+v", res.Ops[0].Error)
+		assertUnchanged(t, file, strings.Replace(rewriteTS, "the the", "the", 1))
 	})
 
 	t.Run("a JSDoc block keeps its layout", func(t *testing.T) {

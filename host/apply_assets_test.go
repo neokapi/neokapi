@@ -1,7 +1,6 @@
 package host
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -437,44 +436,4 @@ func TestApplyRecipeEntry_refusesDerivedAxes(t *testing.T) {
 	})
 	assert.Equal(t, "error", res.Status)
 	assert.Contains(t, res.Detail, "empty axis")
-}
-
-// --diff writes nothing: an asset entry is listed as a preview, the store is
-// left as it was, and the same change-set without --diff lands it.
-func TestApplyDiffWritesNoAssetEntry(t *testing.T) {
-	a, cmd, root, _ := newApplyAssetProject(t)
-	ctx := context.Background()
-	changeset := filepath.Join(root, "cs.jsonl")
-	require.NoError(t, os.WriteFile(changeset,
-		[]byte(`{"kind":"term","op":"upsert","term":"dashboard","locale":"en","status":"preferred"}`+"\n"), 0o644))
-
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	require.NoError(t, a.RunApply(cmd, changeset, true, "", false))
-	assert.Contains(t, stderr.String(), "term dashboard: preview")
-
-	stdout.Reset()
-	require.NoError(t, a.RunApply(cmd, changeset, true, "", true))
-	var out applyOutput
-	require.NoError(t, json.Unmarshal(stdout.Bytes(), &out))
-	require.Len(t, out.Assets, 1)
-	assert.Equal(t, "preview", out.Assets[0].Status)
-	assert.Equal(t, "dashboard", out.Assets[0].Target)
-
-	db, err := a.ProjectDB(ctx, root)
-	require.NoError(t, err)
-	concepts, err := db.Terms().Concepts(ctx)
-	require.NoError(t, err)
-	assert.Empty(t, concepts, "--diff wrote the term")
-
-	stdout.Reset()
-	require.NoError(t, a.RunApply(cmd, changeset, false, "", true))
-	out = applyOutput{}
-	require.NoError(t, json.Unmarshal(stdout.Bytes(), &out))
-	require.Len(t, out.Assets, 1)
-	assert.Equal(t, "applied", out.Assets[0].Status, "detail: %s", out.Assets[0].Detail)
-	concepts, err = db.Terms().Concepts(ctx)
-	require.NoError(t, err)
-	assert.Len(t, concepts, 1)
 }

@@ -11,7 +11,7 @@ import (
 
 // FragmentHTML renders a single projection RenderNode (e.g. from
 // projection.ProjectBlock) to an HTML fragment — no <html>/<body> scaffold. It
-// is the per-block projection serializer behind `kapi inspect --project html`
+// is the per-block projection serializer behind `kapi inspect --render html`
 // and the convert-lab Blocks tab: the same render AST the document writer emits,
 // rendered one node at a time. A leaf renders its role's element with inline
 // runs; a table/list renders its full structure; a document concatenates its

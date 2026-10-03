@@ -1,9 +1,11 @@
-// Package structrec defines the universal structural record shared by
-// `kapi inspect` and the structural JSON/YAML conversion writers: one record per
-// content block, carrying the block's text, a stable content-hash anchor, and
-// its structural role/level. Any format — a Word document, a JSON catalog,
-// Markdown, HTML, DocLang — yields the same shape, so a document with no catalog
-// keys serializes faithfully instead of collapsing onto an empty key.
+// Package structrec defines the structural record the JSON and YAML conversion
+// writers emit (`kapi convert <doc> --to json|yaml`): one record per content
+// block, carrying the block's text, a content-hash anchor, and its structural
+// role and level. Any format (a Word document, a JSON catalog, Markdown, HTML,
+// DocLang) yields the same shape, so a document with no catalog keys
+// serializes faithfully instead of collapsing onto an empty key. The read
+// records an edit addresses are the change service's (`kapi inspect`), not
+// these.
 package structrec
 
 import (
@@ -14,20 +16,15 @@ import (
 	yamlv3 "gopkg.in/yaml.v3"
 )
 
-// Record is one content block: its text plus a stable content-hash anchor and
-// the block's structural role and nesting level. The read end of read →
-// retrieve → edit → write-back — an AI agent or RAG pipeline reads these
-// records, retrieves against the anchors, and writes edits back to the same
-// blocks (by ID).
+// Record is one content block: its text plus a content-hash anchor and the
+// block's structural role and nesting level, as a converted document carries
+// it.
 //
 // Record is a declared PROJECTION, not a wire contract (AD-034): it flattens
 // inline runs to edit text on purpose. The canonical serialization of
 // the content model is the neokapi.content.v1 schema (core/proto/content/v1)
 // and its protojson form.
 type Record struct {
-	// File is the source filename. Set by `kapi inspect` (which may span several
-	// files); omitted by the single-stream conversion writers.
-	File   string `json:"file,omitempty" yaml:"file,omitempty"`
 	Number int    `json:"number" yaml:"number"`
 	ID     string `json:"id,omitempty" yaml:"id,omitempty"`
 	// ContentHash is the canonical block identity: a SHA-256 over the block's
@@ -39,12 +36,6 @@ type Record struct {
 	Role        string `json:"role,omitempty" yaml:"role,omitempty"`
 	Level       int    `json:"level,omitempty" yaml:"level,omitempty"`
 	Text        string `json:"text" yaml:"text"`
-	// Projected carries the block rendered to one or more target formats
-	// (`kapi inspect --project html,md`), keyed by format id. Unlike Text (a
-	// flattened plain-text anchor), each value is faithful markup — inline
-	// formatting, links, table-cell structure — produced by the per-block
-	// projection serializer. Omitted unless --project was requested.
-	Projected map[string]string `json:"projected,omitempty" yaml:"projected,omitempty"`
 }
 
 // New builds a Record for one block from an explicit text rendering, computing

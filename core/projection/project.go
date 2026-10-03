@@ -7,7 +7,7 @@ import "github.com/neokapi/neokapi/core/model"
 // table-cell projects to a table-cell node (valid only inside a row), a heading
 // to a heading node, a list-item to a list-item node. A document serializer
 // composes fragments inside the structural containers ProjectStream builds; a
-// per-block consumer (kapi inspect --project, the convert-lab Blocks tab,
+// per-block consumer (kapi inspect --render, the convert-lab Blocks tab,
 // per-block preview) renders the fragment directly within scaffolding it owns.
 //
 // Role resolution mirrors the writers' established chain: the canonical

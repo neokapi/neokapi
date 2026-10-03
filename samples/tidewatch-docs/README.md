@@ -135,12 +135,15 @@ kapi status --json --jq '.locales[]
   | "\(.locale)  translated \(.pct.translated)%  established \(.pct.established)%"'
 ```
 
-Review Norwegian, and it clears the ship gate while Dutch does not:
+Review Norwegian, and it clears the ship gate while Dutch does not. Each
+`decide` operation names the unit's source document, block and language as the
+review queue lists them, and `"if_match": "*"` binds it to the wording that
+stands when it lands:
 
 ```bash
 kapi status --review --json --jq '.pending[]
   | select(.locale == "nb")
-  | {kind: "review", op: "add", file, id: .key, locale, status: "established"}' > nb.json
+  | {op: "decide", at: {doc: .relative, block: .key, edition: .locale}, if_match: "*", outcome: "establish"}' > nb.json
 kapi apply nb.json
 kapi status
 kapi check                                # PASS: the source is what a PR is held to
@@ -153,7 +156,7 @@ Dutch takes the same route, from the drafts in the project store. Nothing under
 ```bash
 kapi status --review --json --jq '.pending[]
   | select(.locale == "nl")
-  | {kind: "review", op: "add", file, id: .key, locale, status: "established"}' > nl.json
+  | {op: "decide", at: {doc: .relative, block: .key, edition: .locale}, if_match: "*", outcome: "establish"}' > nl.json
 kapi apply nl.json
 kapi up                                   # 0 passes, 8 files materialized
 ls i18n/nl

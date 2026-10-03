@@ -365,10 +365,10 @@ gate, with `--voice-min` setting the similarity cutoff.
 kapi does not send content to a model to rewrite it. An in-voice fix is
 caller-supplied: the assistant reads what applies at the point
 ([C-06](c-06-retrieval.md)), rewrites the off-voice text itself, and applies the
-result through the one write verb, `kapi apply`. The edits land through the
-byte-faithful round-trip with **no provider involved**: structure and inline
-codes are preserved, each block is drift-guarded by its content hash, and an edit
-that would corrupt markup is rejected.
+result through `kapi apply`. The edits land through the byte-faithful
+round-trip with **no provider involved**: structure and inline codes are
+preserved, each edit names the revision of the block it read and is refused when
+the block moved, and an edit that would corrupt markup is refused.
 
 `kapi voice rewrite` is a separate, deterministic helper: it substitutes the
 forbidden and competitor terms of the word rules a voice file carries (a starter
@@ -384,20 +384,20 @@ unchanged text with nothing to fix from one that still carries violations. The
 exit code stays 0. It does not call a model and does not touch tone, style or
 phrasing; those are the caller's to rewrite.
 
-### A word rule is a change-set entry
+### A word rule is a change-set operation
 
 Fixing a recurring off-voice term at the *source* (adding a word rule so every
-future draft is checked against it) is a `term` entry in the same `kapi apply`
-change-set, alongside the content fix that justifies it:
+future draft is checked against it) is a `term` operation in the same
+`kapi apply` change set, alongside the content fix that justifies it:
 
 ```json
-{"kind":"term","op":"upsert","term":"utilize","locale":"en","status":"forbidden","replacement":"use","advisory":true}
+{"op":"term","action":"upsert","term":"utilize","locale":"en","status":"forbidden","replacement":"use","advisory":true}
 ```
 
-The entry writes the concept into the project's terms store. `advisory` makes a
+The operation writes the concept into the project's terms store. `advisory` makes a
 use of the term report without failing, and `competitor` records the term as a
-competitor's name. The context policy refuses the entry before anything is
-written when an agent applies it, through `apply_edits` or from an agent's shell. A change-set has no `voice` kind; an entry
+competitor's name. The context policy refuses the operation before anything is
+written when an agent applies it, through `apply_edits` or from an agent's shell. A change set has no `voice` operation; an entry
 that uses one is refused with a message that gives the `term` form.
 
 A rule somebody notices while working is a term rule.

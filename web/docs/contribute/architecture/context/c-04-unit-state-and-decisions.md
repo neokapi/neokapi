@@ -77,9 +77,9 @@ of the project reads it from there.
 
 The content memory ([C-09](c-09-content-memory.md)) is the **recycle corpus**: a
 content-keyed pool of source→target pairs reused to pre-fill and leverage future
-work. It does not record review outcomes. Adding a pair to the memory (`kapi
-apply` with `kind:"memory"`) is recycle leverage; approving a unit (`kapi apply`
-with `kind:"review"`) writes the state store. An approved pair may *also* land in
+work. It does not record review outcomes. Adding a pair to the memory (a
+`memory` operation through `kapi apply`) is recycle leverage; approving a unit
+(a `decide` operation through `kapi apply`) writes the state store. An approved pair may *also* land in
 the memory as leverage, but that is a side effect, not where the record lives.
 
 ### The ledger is the authority
@@ -627,10 +627,11 @@ re-exports the core types through aliases so downstream code sees one import.
   answer one unit differently has decided both, and a backup built from one
   checkout's view would drop the rest. The `.kapi/` shards keep carrying the
   view, because they are what that checkout evaluates from.
-- **Approvals flow through one verb.** `kapi apply` with `kind:"review"` records
-  the unit state in the project store, addressed by `(file, id, locale)` exactly
-  as `kapi status --review` lists it. The desktop's approve action and the CLI
-  verb share one path.
+- **Approvals flow through one verb.** A `decide` operation through
+  `kapi apply` records the unit state in the project store, addressed by the
+  source document, the block and the edition `kapi status --review` lists, and
+  bound to the revision the person read ([E-09](../engine/e-09-the-change-contract.md)).
+  The desktop's approve action and the CLI verb share one path.
 - **Coverage derives from the state store plus the target files**, never from
   content-memory properties.
 - **Exchange and parcels carry state**, so a hand-off does not drop it.

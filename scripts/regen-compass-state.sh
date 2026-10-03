@@ -65,10 +65,14 @@ for name in sorted(os.listdir(record)):
         row = json.loads(line)
         if not row.get("decision"):
             continue
+        # A person's decision on the translation as it stands: the record
+        # names no revision, so the decision takes the edition as it is.
         print(json.dumps({
-            "kind": "review", "op": "add",
-            "file": "site/locales/%s.json" % row["variant"],
-            "id": row["unit"], "locale": row["variant"], "status": row["status"],
+            "op": "decide",
+            "at": {"doc": "site/locales/%s.json" % row["variant"],
+                   "block": row["unit"], "edition": row["variant"]},
+            "if_match": "*",
+            "outcome": "reject" if row["status"] == "rejected" else "establish",
         }))
 PY
 "$KAPI" apply -p "$P/kapi.yaml" "$WORK/approve.jsonl" >"$WORK/apply.log" 2>&1 ||

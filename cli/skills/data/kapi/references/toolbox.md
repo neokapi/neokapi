@@ -47,7 +47,8 @@ you author.** When the change is "replace this pattern with that" across blocks,
 `ksed` expresses it directly. When you are rewriting block text by hand (an
 on-brand fix, a clarity pass, a per-block correction), read the blocks with
 `kapi inspect` and write your edited text back through `kapi apply`, which
-drift-checks each block and preserves inline codes. See [edit.md](edit.md).
+refuses an edit whose block changed since you read it and preserves inline
+codes. See [edit.md](edit.md).
 
 ## kcat: read the content
 
@@ -83,13 +84,35 @@ ksed 's/colour/color/g' guide.md                          # to stdout, like sed
 ksed -i 's/Inc\./LLC/' *.docx                             # rewrite Word docs in place
 ksed -i.bak -e 's/v1/v2/g' -e 's/beta//' locales/en.json  # two edits, keep a .bak
 ksed --target fr 's/Bonjour/Salut/g' messages.xliff       # edit the translation
+ksed 's/shop/store/g' guide.html --print-ops > change.json  # print the change set, edit nothing
 ```
 
 `SCRIPT` is a `s/regexp/replacement/flags` substitution: any single-byte
 delimiter (`s|a|b|` ≡ `s/a/b/`); `g` replaces every match in a block, `i` makes
 it case-insensitive; `\1`…`\9` and `&` are backreferences; repeat `-e` for
-several substitutions. Default output is stdout; `-i` edits in place, `-i.bak`
-keeps a backup.
+several substitutions. Default output is stdout and the file stays as it is;
+`-i` edits in place, `-i.bak` keeps a backup. `--target LOCALE` edits the
+translation a bilingual or multilingual file (XLIFF, PO, Qt Linguist, an Xcode
+string catalog) holds. An archive is edited all or nothing: when one member's
+edit is refused, no member is written.
+
+**`ksed` writes through `kapi apply`'s contract.** Each substitution that
+changes a block becomes a `replace_text` operation on it, guarded by the
+revision `ksed` read. `--print-ops` prints that change set (kapi.change/v1)
+instead of applying it, so you can read what a one-liner will do, and
+`kapi apply change.json` applies exactly what was printed. A plural or select
+keeps its structure: each branch is matched on its own, and a match that would
+swallow one is left alone. When the file changes between the read and the
+write, the edit is refused, nothing is written, and `ksed` exits 2.
+
+**Inside a project, `ksed` reads a project's file as `kapi apply` does.** A
+file under the root of the project found from the working directory (or named
+by `KAPI_PROJECT`) is named by its project-relative path and read with the
+format the recipe binds, and a translation's file is that translation of its
+source. So the printed change set applies from any directory of the project,
+and `ksed -i` and `kapi apply` lock the file the same way. A file outside the
+project is read with the format detection finds, a file no format claims as
+plain text, and `--print-ops` names it by its absolute path.
 
 **Editing a binary document at a terminal is refused.** A `.docx` edit writes a
 zip, so `ksed 's/a/b/' report.docx` with stdout on a terminal stops with
@@ -110,11 +133,12 @@ the bold; consuming the whole span leaves no broken tag). A byte `sed` cannot do
 this; it would either miss the match or trample the markup.
 
 `ksed` only edits formats kapi can write back. A read-only format (PDF, which
-is extraction-only) has no writer, so `ksed` stops with an error
-(`pdf is a read-only format`) rather than silently replacing the document with
-its extracted text. Read such a format with `kcat`; to translate it, extract to
-a bilingual format and merge. `kapi formats --json` reports `has_writer`
-per format; check it before editing an unfamiliar one.
+is extraction-only) takes no edit, so `ksed` stops with an `unsupported` error
+naming the operation the format does not support, and the document stays as it
+was. Read such a format with `kcat`; to translate it, extract to a bilingual
+format and merge. `kapi formats --json` reports `has_writer` per format, and
+`kapi inspect` lists the operations each block accepts; check them before
+editing an unfamiliar format.
 
 ## kdiff: compare the content
 

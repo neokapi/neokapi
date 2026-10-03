@@ -313,48 +313,6 @@ func termIndex(c *terms.Concept, text string, locale model.LocaleID) int {
 // memory → the project's content memory
 // ---------------------------------------------------------------------------
 
-// applyReviewEntry records a review decision in the project STATE store via the
-// shared ApproveReviewUnit path — the CLI counterpart of the desktop "approve"
-// action and the write side of `kapi status --review`. The unit is addressed by
-// (file, id, locale) exactly as the review queue lists it; `status`, when set,
-// must be "established", the one rung a person's decision reaches. This is
-// distinct from a `kind:"memory"` entry: a content memory correction is recycle
-// leverage, not a review decision.
-func (a *App) applyReviewEntry(ctx context.Context, cmd Command, who changeActor, e changeEntry) assetResult {
-	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.ID}
-	if e.Op != "" && e.Op != "add" {
-		return errResult(res, fmt.Sprintf("review: unsupported op %q (want \"add\")", e.Op))
-	}
-	if strings.TrimSpace(e.File) == "" || strings.TrimSpace(e.ID) == "" || strings.TrimSpace(e.Locale) == "" {
-		return errResult(res, "review: file, id, and locale are required (as listed by `kapi status --review`)")
-	}
-	if refusal, refused := actorRefusal(who, e); refused {
-		return refusal
-	}
-	recipePath, _, err := a.resolveProjectRoot(cmd)
-	if err != nil {
-		return errResult(res, err.Error())
-	}
-	if st := strings.TrimSpace(e.Status); st != "" && st != string(model.TargetStatusEstablished) {
-		return errResult(res, fmt.Sprintf("review: status must be empty or %q", model.TargetStatusEstablished))
-	}
-	reviewState := string(model.TargetStatusEstablished)
-	// The raw record of what --source-lang named, not the resolved read: empty is
-	// how this hands the choice on to the recipe ApplyReviewDecision loads.
-	changed, aerr := a.ApplyReviewDecision(ctx, recipePath, a.SourceLang, ReviewUnitRef{File: e.File, Key: e.ID, Locale: e.Locale}, ReviewDecisionApproved, "")
-	if aerr != nil {
-		return errResult(res, aerr.Error())
-	}
-	if !changed {
-		res.Status = "skipped"
-		res.Detail = "already at this review state"
-		return res
-	}
-	res.Status = "applied"
-	res.Detail = fmt.Sprintf("%s %s → %s", e.Locale, e.ID, reviewState)
-	return res
-}
-
 // applyMemoryEntry adds a source→target pair to the project's content memory.
 func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Source}

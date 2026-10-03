@@ -57,7 +57,7 @@ var exemptPrefixes = []string{
 // allowed lists the functions that point a writer at a file, keyed by the file
 // and the function, with what each writes.
 var allowed = map[string]string{
-	"host/toolbox.go:EditDocumentAs":                  "rewrites a content file in place for a toolbox command (kapi ksed and the exec tools)",
+	"host/toolbox.go:EditDocumentAs":                  "rewrites a content file in place for MCP apply_edits",
 	"host/toolrun.go:processOneFile":                  "writes the output of a tool run for each input document",
 	"host/merge.go:writeMergedSourceWithSkeleton":     "writes a target-language file kapi merge builds from the source's skeleton",
 	"host/venue/source/source.go:writeTranslatedFile": "writes a target-language file a pull brings down",

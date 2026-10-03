@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -429,30 +428,4 @@ func (a *App) checkWrittenComments(ctx context.Context, cmd Command, file, diff,
 		voice: voice,
 		vocab: vocab,
 	})
-}
-
-// printCommentResults writes a short human summary of each file's comment
-// edits and the check of what was written.
-func printCommentResults(w io.Writer, results []commentFileResult) {
-	for _, f := range results {
-		for _, e := range f.Edits {
-			fmt.Fprintf(w, "comment %s %s: %s", DisplayName(f.File), e.ID, e.Status)
-			switch {
-			case e.Reason != "":
-				fmt.Fprintf(w, " (%s: %s)", e.Reason, e.Detail)
-			case e.Lines != nil:
-				fmt.Fprintf(w, " (lines %d-%d)", e.Lines.First, e.Lines.Last)
-			}
-			fmt.Fprintln(w)
-		}
-		switch {
-		case f.CheckError != "":
-			fmt.Fprintf(w, "check %s: did not run (%s)\n", DisplayName(f.File), f.CheckError)
-		case f.Check != nil:
-			fmt.Fprintf(w, "check %s: %s, %d finding(s)\n", DisplayName(f.File), f.Check.Verdict, len(f.Check.Findings))
-			for _, d := range f.Check.Findings {
-				fmt.Fprintf(w, "  %s %s %s: %s\n", diagnosticOutcome(d), d.Rule, d.Location.Block, d.Message)
-			}
-		}
-	}
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment/golang"
 	fmtpkg "github.com/neokapi/neokapi/core/format"
@@ -110,10 +111,11 @@ func TestCommentEditGuard(t *testing.T) {
 		out, _, err := runApplyChangeSet(t, NewEnvCommand(t.Context(), "apply"), false,
 			guardedEntry(file, "func/Parse", repairedParse, map[string]any{"comment_sha256": sum, "lines": lines}))
 		assert.Equal(t, ExitGate, ExitCode(nil, err))
-		require.Len(t, out.Comments, 1)
-		edit := out.Comments[0].Edits[0]
-		assert.Equal(t, commentRefused, edit.Status)
-		assert.Equal(t, "changed", edit.Reason, edit.Detail)
+		refusal := refusalOf(t, out)
+		assert.Equal(t, change.CodeStale, refusal.Code, refusal.Message)
+		require.NotNil(t, out.Result.Ops[0].Current, "the refusal carries the comment as it stands")
+		assert.Contains(t, out.Result.Ops[0].Current.Text, "from any [io.Reader]")
+		assert.Empty(t, out.Comments, "nothing reached the comment path")
 		assertUnchanged(t, file, theirs)
 	})
 
@@ -137,48 +139,24 @@ func TestCommentEditGuard(t *testing.T) {
 		assert.Equal(t, strings.Replace(moved, "// Parse reads the the input", "// Parse reads the input", 1), string(after))
 	})
 
-	t.Run("current_text guards an edit that carries no fingerprint", func(t *testing.T) {
+	t.Run(`"*" takes the comment as it stands`, func(t *testing.T) {
 		isolateCheckExecution(t)
 		file := writeCheckInput(t, t.TempDir(), "parse.go", repairGo)
 		out, _, err := runApplyChangeSet(t, NewEnvCommand(t.Context(), "apply"), false,
-			guardedEntry(file, "func/Parse", repairedParse, map[string]any{"current_text": "Parse reads the input from an [io.Reader].\n\nIt stops at the end."}))
-		assert.Equal(t, ExitGate, ExitCode(nil, err))
-		assert.Equal(t, "changed", out.Comments[0].Edits[0].Reason, out.Comments[0].Edits[0].Detail)
-		assertUnchanged(t, file, repairGo)
-
-		out, _, err = runApplyChangeSet(t, NewEnvCommand(t.Context(), "apply"), false,
-			guardedEntry(file, "func/Parse", repairedParse, map[string]any{"current_text": "Parse reads the the input from an [io.Reader].\n\nIt stops at the end."}))
+			guardedEntry(file, "func/Parse", repairedParse, nil))
 		require.NoError(t, err)
 		assert.Equal(t, commentWritten, out.Comments[0].Edits[0].Status, out.Comments[0].Edits[0].Detail)
 	})
 
-	t.Run("an entry with no guard is rejected before anything is applied", func(t *testing.T) {
+	t.Run("an operation with no if_match is refused before anything is applied", func(t *testing.T) {
 		isolateCheckExecution(t)
+		noProject(t)
 		file := writeCheckInput(t, t.TempDir(), "parse.go", repairGo)
-		_, _, err := runApplyChangeSetRaw(t, guardedEntry(file, "func/Parse", repairedParse, map[string]any{"lines": map[string]int{"first": 5, "last": 7}}))
+		body := changeSetOf(t, map[string]any{"op": "set_content", "at": map[string]any{"doc": file, "block": "func/Parse"}, "text": repairedParse})
+		_, _, err := runApply(t, newToolboxApp(t), NewEnvCommand(t.Context(), "apply"), body, ApplyOptions{})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "comment_sha256")
-		assert.NotEqual(t, ExitGate, ExitCode(nil, err), "a malformed change-set is not a gate failure")
+		assert.Contains(t, err.Error(), "if_match")
+		assert.Equal(t, ExitUsage, ExitCode(nil, err), "a malformed change set is not a gate failure")
 		assertUnchanged(t, file, repairGo)
 	})
-}
-
-// runApplyChangeSetRaw runs kapi apply over entries and returns the error
-// without reading a report, for a change-set rejected before any output.
-func runApplyChangeSetRaw(t *testing.T, entries ...map[string]any) (string, string, error) {
-	t.Helper()
-	var lines []string
-	for _, e := range entries {
-		b, err := json.Marshal(e)
-		require.NoError(t, err)
-		lines = append(lines, string(b))
-	}
-	path := t.TempDir() + "/changeset.jsonl"
-	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
-	cmd := NewEnvCommand(t.Context(), "apply")
-	var stdout, stderr strings.Builder
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	err := (&App{SourceLang: "en"}).RunApply(cmd, path, false, "", true)
-	return stdout.String(), stderr.String(), err
 }

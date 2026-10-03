@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -250,11 +251,12 @@ func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {
 		"editing the approved translation invalidates the review (targetHash link)")
 }
 
-// TestReview_ApplyReviewKindPromotesViaStateStore drives the CLI approval verb:
-// `kapi apply` with a `kind:"review"` change-set records the decision in the
-// project state store (the counterpart of the desktop approve), so the unit
-// becomes established — unlike a `kind:"memory"` entry, which is recycle-only.
-func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
+// TestReview_ApplyDecidePromotesViaStateStore drives the CLI approval verb:
+// `kapi apply` with a decide operation bound to the revision `kapi inspect`
+// shows records the decision in the project state store (the counterpart of
+// the desktop approve), so the unit becomes established, unlike a memory
+// operation, which is recycle-only.
+func TestReview_ApplyDecidePromotesViaStateStore(t *testing.T) {
 	root := writeReviewProject(t)
 	t.Chdir(root)
 
@@ -269,23 +271,38 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 	}
 	require.NotEmpty(t, item.Key, "expected an 'Apple' review unit")
 
+	// The decision names the edition and the revision a read of the source
+	// shows for it.
 	a2 := &App{}
 	a2.InitRegistries()
-	res := a2.applyReviewEntry(context.Background(), NewEnvCommand(context.Background(), "apply"), personApplies, changeEntry{
-		Kind: kindReview, File: item.File, ID: item.Key, Locale: item.Locale, Status: "established",
-	})
-	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
+	t.Setenv("KAPI_NO_PROJECT", "")
+	var rev string
+	for line := range strings.SplitSeq(strings.TrimSpace(inspectOutput(t, a2, item.Relative)), "\n") {
+		var rec struct {
+			Ref      change.Ref                    `json:"ref"`
+			Editions map[string]change.EditionRead `json:"editions"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(line), &rec))
+		if rec.Ref.Block == item.Key {
+			rev = rec.Editions[item.Locale].Rev
+		}
+	}
+	require.NotEmpty(t, rev, "kapi inspect lists the %s edition of %s", item.Locale, item.Key)
+	decide := changeSetOf(t, map[string]any{"op": "decide", "outcome": "establish", "if_match": rev,
+		"at": map[string]any{"doc": item.Relative, "block": item.Key, "edition": item.Locale}})
+	res, err := applyJSON(t, a2, NewEnvCommand(context.Background(), "apply"), decide, ApplyOptions{})
+	require.NoError(t, err)
+	require.Equal(t, change.OpApplied, res.Ops[0].Status, "%+v", res.Ops[0].Error)
 	assertCommittedUnits(t, root, 1, "approval commits to the project's unit record")
 
 	nb, ok := localeCoverage(runStatusJSON(t), "nb")
 	require.True(t, ok)
-	assert.Equal(t, 50, nb.Pct["established"], "a kind:review apply promotes via the state store")
+	assert.Equal(t, 50, nb.Pct["established"], "a decide operation promotes via the state store")
 
-	// Idempotent: re-applying the same decision is a no-op.
-	res2 := a2.applyReviewEntry(context.Background(), NewEnvCommand(context.Background(), "apply"), personApplies, changeEntry{
-		Kind: kindReview, File: item.File, ID: item.Key, Locale: item.Locale, Status: "established",
-	})
-	assert.Equal(t, "skipped", res2.Status)
+	// Idempotent: re-applying the same decision changes nothing.
+	res, err = applyJSON(t, a2, NewEnvCommand(context.Background(), "apply"), decide, ApplyOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status)
 }
 
 // assertCommittedUnits asserts how many units the project's decision ledger

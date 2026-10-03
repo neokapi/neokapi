@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"go/format"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/comment/golang"
@@ -25,28 +27,77 @@ const repairGo = "package demo\n\nimport \"io\"\n\n// Parse reads the the input 
 
 const repairedParse = "Parse reads the input from an [io.Reader].\n\nIt stops at the end."
 
-// runApplyChangeSet runs kapi apply over entries written as a change-set. A
-// report is read from standard output unless diff is set, and the output is
-// returned beside it.
-func runApplyChangeSet(t *testing.T, cmd *EnvCommand, diff bool, entries ...map[string]any) (applyOutput, string, error) {
+// commentRun is what kapi apply's comment branch did with a change set: the
+// result it reports, and the comment path's own outcome in each file, which
+// says why an edit did not land in more detail than the result's codes.
+type commentRun struct {
+	Result   *change.Result
+	Comments []commentFileResult
+}
+
+// runApplyChangeSet runs kapi apply's comment branch over entries, as a
+// person at a command line whose change set is in a file. With diff set the
+// change set is a dry run. See runCommentEntries.
+func runApplyChangeSet(t *testing.T, cmd *EnvCommand, diff bool, entries ...map[string]any) (commentRun, string, error) {
 	t.Helper()
-	var lines []string
+	return runCommentEntries(t, &App{SourceLang: "en"}, cmd, diff, entries...)
+}
+
+// runCommentEntries runs the code kapi apply runs for a change set of code
+// comments once it has read one: each entry becomes the set_content that
+// rewrites its comment, guarded by the revision its comment_sha256 names
+// ("*" when it names none), the change set is decoded as kapi apply decodes
+// one and routed as kapi apply routes it, the comment branch applies it, and
+// the error is the exit kapi apply returns. The account kapi apply prints,
+// and each document's diff for a dry run, come back as the output.
+func runCommentEntries(t *testing.T, a *App, cmd *EnvCommand, diff bool, entries ...map[string]any) (commentRun, string, error) {
+	t.Helper()
+	var ops []map[string]any
 	for _, e := range entries {
-		b, err := json.Marshal(e)
-		require.NoError(t, err)
-		lines = append(lines, string(b))
+		rev := change.AnyRevision
+		if sum, _ := e["comment_sha256"].(string); sum != "" {
+			rev = commentRevision(sum)
+		}
+		ops = append(ops, map[string]any{"op": "set_content", "at": map[string]any{"doc": e["file"], "block": e["id"]}, "if_match": rev, "text": e["text"]})
 	}
-	path := filepath.Join(t.TempDir(), "changeset.jsonl")
-	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
+	envelope := map[string]any{"ops": ops}
+	if diff {
+		envelope["mode"] = "preview"
+	}
+	body, err := json.Marshal(envelope)
+	require.NoError(t, err)
+	set, err := change.Decode(bytes.NewReader(body))
+	require.NoError(t, err)
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	a.InitRegistries()
+	comments, err := a.commentSet(set, wd, a.newCommentDocs(""))
+	require.NoError(t, err)
+	require.True(t, comments, "kapi apply routes the change set to its comment branch")
+
 	var stdout, stderr bytes.Buffer
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
-	err := (&App{SourceLang: "en"}).RunApply(cmd, path, diff, "", !diff)
-	var out applyOutput
-	if !diff {
-		require.NoError(t, json.Unmarshal(stdout.Bytes(), &out), stdout.String())
+	res, outcomes, err := a.applyCommentChange(cmd, set, wd, "", false)
+	require.NoError(t, err)
+	for _, d := range res.Docs {
+		fmt.Fprint(&stdout, d.Diff)
 	}
-	return out, stdout.String() + stderr.String(), err
+	printChangeResult(&stderr, res)
+	return commentRun{Result: res, Comments: outcomes}, stdout.String() + stderr.String(), commentSetExit(set, res)
+}
+
+// refusalOf returns the refusal of the one operation run refused.
+func refusalOf(t *testing.T, run commentRun) *change.Error {
+	t.Helper()
+	for _, op := range run.Result.Ops {
+		if op.Status == change.OpRefused {
+			require.NotNil(t, op.Error)
+			return op.Error
+		}
+	}
+	require.Failf(t, "no refusal", "%+v", run.Result.Ops)
+	return nil
 }
 
 // staleFingerprint is a fingerprint no comment has.
@@ -202,35 +253,44 @@ func TestProseP3_go(t *testing.T) {
 		assertUnchanged(t, file, repairGo)
 	})
 
-	t.Run("set-aside comments, changed comments, other languages and directive text are refused and write nothing", func(t *testing.T) {
+	t.Run("set-aside comments, changed comments and text a comment cannot hold are refused and write nothing", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, file, src, id, text string
-			lines                     *fmtpkg.LineRange
-			reason                    string
-			stale                     bool
+			// reason is why the comment path refused the edit, empty when the
+			// change set was refused before the path ran.
+			reason string
+			code   change.Code
+			stale  bool
 		}{
-			{"a directive", "d.go", "package demo\n\n//go:noinline\nfunc Parse() {}\n", "func/Parse", "Parse parses.", &fmtpkg.LineRange{First: 3, Last: 3}, string(comment.RefusedDirective), false},
-			{"a generated file", "g.go", "// Code generated by gen. DO NOT EDIT.\n\npackage demo\n\n// Parse parses.\nfunc Parse() {}\n", "func/Parse", "Parse reads.", nil, string(comment.RefusedGenerated), false},
-			{"the cgo preamble", "c.go", "package demo\n\n// #include <stdio.h>\nimport \"C\"\n", "import/C", "Nothing.", &fmtpkg.LineRange{First: 3, Last: 3}, string(comment.RefusedCgoPreamble), false},
-			{"an example's output", "x_test.go", "package demo\n\nimport \"fmt\"\n\nfunc ExampleParse() {\n\tfmt.Println(1)\n\t// Output: 1\n}\n", "func/ExampleParse/comment", "Output: 2", &fmtpkg.LineRange{First: 7, Last: 7}, string(comment.RefusedExampleOutput), false},
-			{"a line comment and a delimited comment in one group", "b.go", "package demo\n\n// Parse parses.\n/* More. */\nfunc Parse() {}\n", "func/Parse", "Parse reads.", nil, string(comment.RefusedLayout), false},
-			{"text holding the closer of a delimited comment", "t.go", "package demo\n\n/* Parse parses. */\nfunc Parse() {}\n", "func/Parse", "Parse ends */ here.", nil, string(comment.RefusedTerminator), false},
-			{"a comment that changed since it was checked", "s.go", repairGo, "func/Parse", repairedParse, nil, string(comment.RefusedChanged), true},
-			{"text that forms a directive", "n.go", repairGo, "func/Other", "nolint", nil, string(comment.RefusedDirective), false},
-			{"a YAML comment", "config.yaml", "# A note.\nkey: value\n", "comment/key", "Another note.", nil, string(comment.RefusedUnsupported), false},
+			// A comment its provider sets aside is no block kapi edits, so a
+			// reference to it names nothing.
+			{"a directive", "d.go", "package demo\n\n//go:noinline\nfunc Parse() {}\n", "func/Parse", "Parse parses.", string(comment.RefusedUnknown), change.CodeNotFound, false},
+			{"a generated file", "g.go", "// Code generated by gen. DO NOT EDIT.\n\npackage demo\n\n// Parse parses.\nfunc Parse() {}\n", "func/Parse", "Parse reads.", string(comment.RefusedGenerated), change.CodeUnsupported, false},
+			{"the cgo preamble", "c.go", "package demo\n\n// #include <stdio.h>\nimport \"C\"\n", "import/C", "Nothing.", string(comment.RefusedUnknown), change.CodeNotFound, false},
+			{"an example's output", "x_test.go", "package demo\n\nimport \"fmt\"\n\nfunc ExampleParse() {\n\tfmt.Println(1)\n\t// Output: 1\n}\n", "func/ExampleParse/comment", "Output: 2", string(comment.RefusedUnknown), change.CodeNotFound, false},
+			{"a line comment and a delimited comment in one group", "b.go", "package demo\n\n// Parse parses.\n/* More. */\nfunc Parse() {}\n", "func/Parse", "Parse reads.", string(comment.RefusedLayout), change.CodeGuard, false},
+			{"text holding the closer of a delimited comment", "t.go", "package demo\n\n/* Parse parses. */\nfunc Parse() {}\n", "func/Parse", "Parse ends */ here.", string(comment.RefusedTerminator), change.CodeGuard, false},
+			{"a comment that changed since it was checked", "s.go", repairGo, "func/Parse", repairedParse, "", change.CodeStale, true},
+			{"text that forms a directive", "n.go", repairGo, "func/Other", "nolint", string(comment.RefusedDirective), change.CodeUnsupported, false},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				isolateCheckExecution(t)
 				file := writeCheckInput(t, t.TempDir(), tc.file, tc.src)
-				entry := commentEntry(file, tc.id, tc.lines, tc.text)
+				entry := commentEntry(file, tc.id, nil, tc.text)
 				if tc.stale {
 					entry["comment_sha256"] = staleFingerprint
 				}
 				out, _, err := runApplyChangeSet(t, NewEnvCommand(t.Context(), "apply"), false, entry)
 				assert.Equal(t, ExitGate, ExitCode(nil, err))
-				edit := out.Comments[0].Edits[0]
-				assert.Equal(t, commentRefused, edit.Status)
-				assert.Equal(t, tc.reason, edit.Reason, edit.Detail)
+				assert.Equal(t, change.SetRefused, out.Result.Status)
+				assert.Equal(t, tc.code, refusalOf(t, out).Code)
+				if tc.reason != "" {
+					edit := out.Comments[0].Edits[0]
+					assert.Equal(t, commentRefused, edit.Status)
+					assert.Equal(t, tc.reason, edit.Reason, edit.Detail)
+				} else {
+					assert.Empty(t, out.Comments, "the comment path never ran")
+				}
 				assertUnchanged(t, file, tc.src)
 			})
 		}
@@ -253,24 +313,24 @@ func TestProseP3_go(t *testing.T) {
 		assert.Contains(t, string(after), "// It reports what it read.\nfunc Parse(r io.Reader) {}\n\n// Other is left alone.\nfunc Other() {}\n")
 	})
 
-	t.Run("a second entry for one comment is refused", func(t *testing.T) {
+	t.Run("a second operation on one comment refuses the change set and writes nothing", func(t *testing.T) {
 		isolateCheckExecution(t)
 		file := writeCheckInput(t, t.TempDir(), "parse.go", repairGo)
 		out, _, err := runApplyChangeSet(t, NewEnvCommand(t.Context(), "apply"), false,
 			commentEntry(file, "func/Parse", nil, repairedParse),
 			commentEntry(file, "func/Parse", nil, "Parse reads something else from an [io.Reader]."))
-		assert.Equal(t, ExitGate, ExitCode(nil, err))
-		assert.Equal(t, commentWritten, out.Comments[0].Edits[0].Status)
-		assert.Equal(t, reasonDuplicate, out.Comments[0].Edits[1].Reason)
+		assert.Equal(t, ExitUsage, ExitCode(nil, err), "a change set that contradicts itself")
+		assert.Equal(t, change.CodeInvalid, refusalOf(t, out).Code)
+		assertUnchanged(t, file, repairGo)
 	})
 
-	t.Run("--diff shows the edit and writes nothing", func(t *testing.T) {
+	t.Run("--dry-run shows the edit and writes nothing", func(t *testing.T) {
 		isolateCheckExecution(t)
 		file := writeCheckInput(t, t.TempDir(), "parse.go", repairGo)
 		_, output, err := runApplyChangeSet(t, NewEnvCommand(t.Context(), "apply"), true, commentEntry(file, "func/Parse", nil, repairedParse))
 		require.NoError(t, err)
 		assert.Contains(t, output, "-// Parse reads the the input from an [io.Reader].\n+// Parse reads the input from an [io.Reader].\n")
-		assert.Contains(t, output, "did-not-run (preview")
+		assert.Contains(t, output, "change set previewed: 1 previewed")
 		assertUnchanged(t, file, repairGo)
 	})
 
@@ -287,9 +347,13 @@ func TestProseP3_go(t *testing.T) {
 		})
 		out, _, err := runApplyChangeSet(t, NewEnvCommand(t.Context(), "apply"), false, commentEntry(file, "func/Parse", nil, repairedParse))
 		assert.Equal(t, ExitGate, ExitCode(nil, err))
+		assert.Equal(t, change.CodeStale, refusalOf(t, out).Code)
+		// The dry run that checks the change set first finds the comment it
+		// guards; the write that follows reads the other writer's file and
+		// finds it changed.
 		edit := out.Comments[0].Edits[0]
-		assert.Equal(t, commentNotRun, edit.Status)
-		assert.Equal(t, string(comment.RefusedStale), edit.Reason, edit.Detail)
+		assert.Equal(t, commentRefused, edit.Status)
+		assert.Equal(t, string(comment.RefusedChanged), edit.Reason, edit.Detail)
 		assertUnchanged(t, file, theirs)
 	})
 

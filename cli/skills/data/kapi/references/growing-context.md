@@ -274,8 +274,8 @@ kapi terms import vocab.csv -s en --monolingual --header
 
 The user keeps the suggestions they agree with (`kapi context keep --session
 <id>` keeps one run's). A person who has already decided can instead write the
-terms as `term` entries and run `kapi apply` on them, which records each as
-their decision; from your shell `kapi apply` refuses a `term` entry. A bulk
+terms as `term` operations and run `kapi apply` on them, which records each as
+their decision; from your shell `kapi apply` refuses a `term` operation. A bulk
 `terms import` writes the store without recording a decision. Then verify the
 whole thing locally:
 
@@ -440,7 +440,7 @@ README, a fixture, a vendored page); that is the report working.
 The bound voice profile is the register baseline, and the project's terms are
 the word list: `kapi voice guide <file>` prints both for a file.
 
-## 2. Draft the change-set
+## 2. Draft the change set
 
 Use the route appropriate to each proposed change. Each context operation
 records the affected rule for review. Never hand-edit a project's context: the routes
@@ -449,33 +449,34 @@ below are how it changes, and `kapi context log` is how the user reads it back.
 | What moved | Route | What the user reviews |
 | --- | --- | --- |
 | A surface appeared | `kapi add <pattern> --name <collection> --channel <profile/channel>` | the `kapi.yaml` diff |
-| A term, a name, a rename, a word to avoid | `kapi context observe --term`; a `kapi apply` entry, `kind:"term"`, for the user to apply | the suggestion with its evidence, in `kapi context log` |
-| A brand or mode axis moved | a `kapi apply` entry, `kind:"recipe"`, `path` `defaults.coordinates.<axis>` (or a collection's `coordinates`) and `value`, for the user to apply | the `kapi.yaml` diff |
+| A term, a name, a rename, a word to avoid | `kapi context observe --term`; a `kapi apply` `term` operation, for the user to apply | the suggestion with its evidence, in `kapi context log` |
+| A brand or mode axis moved | a `kapi apply` `recipe` operation, `path` `defaults.coordinates.<axis>` (or a collection's `coordinates`) and `value`, for the user to apply | the `kapi.yaml` diff |
 | Tone, style, `examples` | an edit to the profile YAML | the file diff |
 
 Two routes for the same two kinds, and the difference is who decides.
 `kapi context observe --term` records a suggestion the user keeps, each carrying
-the file it came from. A `kapi apply` change-set lands what the user has already
-decided, recorded as theirs, so the user runs it: kapi records each entry as
-whoever runs the command, and from your shell it refuses `term` and `recipe`
-entries. Reach for the first when you are reading material and suggesting what
-it implies, and draft the second for the user when the decisions are already
-made. Every word rule is a term, so they go in one change-set file:
+the file it came from. A `kapi apply` change set lands what the user has already
+decided, recorded as theirs, so the user runs it: kapi records each operation
+as whoever runs the command, and from your shell it refuses `term` and `recipe`
+operations. Reach for the first when you are reading material and suggesting
+what it implies, and draft the second for the user when the decisions are
+already made. Every word rule is a term, so they go in one change set, one
+operation per line:
 
 ```jsonl
-{"kind":"term","op":"upsert","term":"workspace","locale":"en","status":"preferred"}
-{"kind":"term","op":"upsert","term":"team space","locale":"en","status":"deprecated","replacement":"workspace"}
-{"kind":"term","op":"upsert","term":"Globex","locale":"en","status":"forbidden","replacement":"our platform","competitor":true}
+{"op":"term","action":"upsert","term":"workspace","locale":"en","status":"preferred"}
+{"op":"term","action":"upsert","term":"team space","locale":"en","status":"deprecated","replacement":"workspace"}
+{"op":"term","action":"upsert","term":"Globex","locale":"en","status":"forbidden","replacement":"our platform","competitor":true}
 ```
 
-These are the `term` entries `kapi apply` takes (`"advisory":true` makes a
-use report without failing); shapes in [edit.md → mixed change-sets](edit.md)
-and [voice.md](voice.md). A
-declared axis moves through the `recipe` kind, one axis per entry
-(`{"kind":"recipe","path":"defaults.coordinates.brand","value":"acme"}`); an
+These are the `term` operations `kapi apply` takes (`"advisory":true` makes a
+use report without failing); shapes in [edit.md → mixed change sets](edit.md)
+and [voice.md](voice.md). A declared axis moves through a `recipe` operation,
+one axis per operation
+(`{"op":"recipe","path":"defaults.coordinates.brand","value":"acme"}`); an
 empty `value` withdraws the axis, and `product` or `channel` are refused there
 because both derive from a collection's `channel:`.
-Tone, style, and `examples` changes have no entry kind: propose them as an edit
+Tone, style, and `examples` changes have no operation: propose them as an edit
 to the profile YAML and show the diff.
 
 A new surface takes the point that suits it. `--name` puts the pattern in a
@@ -492,7 +493,7 @@ profile, which is a recipe edit the user reviews.
 
 ## 3. Review with the user
 
-Present the change-set as **adds / retires / replaces**, each with its evidence:
+Present the change set as **adds / retires / replaces**, each with its evidence:
 where the new term appeared in the material, what the old one conflicts with,
 which file the new surface came from.
 
@@ -505,17 +506,17 @@ kgrep -r "team space" docs/              # the same question over files not yet 
 ```
 
 Then apply only what the user approved, and drop the rest. Do not fold a
-declined item into a later change-set "for consistency".
+declined item into a later change set "for consistency".
 
 ## 4. Apply, converge, verify
 
 ```bash
-kapi apply refresh.jsonl         # each term lands; re-run after fixing a refused entry
+kapi apply refresh.jsonl         # every term lands, or none does; fix a refused one and re-run
 kapi up                          # reconcile the graph and re-extract the sources
 kapi check --ship --json         # the refreshed gates
 ```
 
-Read the result as three separate facts: what the change-set applied, what the
+Read the result as three separate facts: what the change set applied, what the
 new gates now flag, and what the user has to do about it. A refresh that ends on
 a red gate is normal: the findings are the work the decision created.
 
@@ -523,7 +524,7 @@ a red gate is normal: the findings are the work the decision created.
 
 A newly retired term flags old usage everywhere it survives. Sweep for it while
 you are here (`kgrep`, [toolbox.md](toolbox.md)) and fix the hits through
-`kapi apply` content entries ([edit.md](edit.md)), one change-set, reviewed the
+`kapi apply` content operations ([edit.md](edit.md)), one change set, reviewed the
 same way.
 
 Some hits are legitimate: a changelog entry or an API field keeps the name it

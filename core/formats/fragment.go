@@ -22,7 +22,7 @@ var blockFragmenters = map[string]func(*projection.RenderNode) string{
 
 // RenderBlockFragment projects a single Block to the render AST
 // (projection.ProjectBlock) and serializes it to a fragment in the named target
-// format — the per-block "project" view powering `kapi inspect --project` and
+// format — the per-block "project" view powering `kapi inspect --render` and
 // the convert-lab Blocks tab (each block rendered in each format inline, without
 // running a whole-document convert per format). Returns ("", false) for an
 // unsupported format.

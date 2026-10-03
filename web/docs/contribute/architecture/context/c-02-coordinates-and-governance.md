@@ -312,8 +312,8 @@ channels it does.
 
 ### The point is edited through the one write verb
 
-A `kapi apply` change-set with `kind: "recipe"` sets one recipe field per
-entry, and the coordinate surface is part of what it may set:
+A `recipe` operation in a `kapi apply` change set sets one recipe field, and
+the coordinate surface is part of what it may set:
 `defaults.coordinates.<axis>` declares or withdraws one axis of the default point
 (an empty value withdraws it, so the operation stays total), and
 `collections.<name>.channel` places a named collection. Each goes through

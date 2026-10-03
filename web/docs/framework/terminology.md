@@ -185,8 +185,8 @@ kapi terms occurrences c-dashboard --locale nb --collection docs
 
 The `kapi terms` commands cover import, export, lookup, search, occurrences,
 statistics, and listing. Inside a project, a term decision also lands through
-the one write verb: a `kapi apply` entry with `kind:"term"` (`op`, `term`,
-`locale`, `status`, `replaces`, `do_not_translate`) is written to the project's
+`kapi apply`: a `term` operation (`action`, `term`, `locale`, `status`,
+`replacement`, `replaces`, `do_not_translate`) is written to the project's
 terms store, and `kapi terms export` writes the store out as a bundle a pull
 request can review. Concept **relations** are authored
 visually rather than from the command line: Kapi Desktop opens a per-concept

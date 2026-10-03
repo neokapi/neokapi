@@ -1,17 +1,22 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
+	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/tool"
 	"github.com/spf13/pflag"
 )
 
@@ -84,8 +89,9 @@ func NormalizeSedInPlaceArgs(args []string) []string {
 
 // SedOptions carries one `ksed` invocation's flags.
 type SedOptions struct {
-	// WriteLocale selects the translation the writer emits ("" = source).
-	WriteLocale model.LocaleID
+	// Target names the edition the substitutions edit, a translation a
+	// bilingual file holds; empty edits the document's own text.
+	Target model.LocaleID
 	// InPlace rewrites each input rather than streaming to stdout (-i).
 	InPlace bool
 	// BackupSuffix keeps a copy of each rewritten input (-i.bak).
@@ -98,9 +104,24 @@ type SedOptions struct {
 	// which the guard in binaryout.go otherwise refuses. gzip's -f, spelled
 	// long-only because ksed's -f is already --format.
 	Force bool
+	// PrintOps prints the change set the substitutions compile to, one
+	// replace_text operation per edited block and substitution, and changes
+	// nothing.
+	PrintOps bool
 }
 
-func (a *App) RunSed(ctx context.Context, args []string, t *tool.BaseTool, opts SedOptions) error {
+// RunSed applies a sed program to each file args name. ksed compiles its
+// substitutions into replace_text operations, each carrying the revision of
+// the edition it read as if_match, and applies them through the change
+// service, which writes the file through its format. A file of the project
+// discovery finds is a document of that project: named by its
+// project-relative path, read with the format the recipe binds and locked as
+// kapi apply locks it, so the change set --print-ops prints is the one kapi
+// apply applies. Any other file is read with the format detection finds, a
+// file no format claims as plain text. A file is edited in place with -i;
+// otherwise the change is applied to a private copy and the edited document
+// is written to standard output, and the file stays as it is.
+func (a *App) RunSed(ctx context.Context, cmd Command, args []string, prog sedProgram, opts SedOptions) error {
 	hadError := false
 	files, err := expandInputs(args, opts.Recursive, func(path string, err error) {
 		hadError = true
@@ -109,17 +130,25 @@ func (a *App) RunSed(ctx context.Context, args []string, t *tool.BaseTool, opts 
 	if err != nil {
 		return err
 	}
+	a.InitRegistries()
+	resolved, err := a.commandActor()
+	if err != nil {
+		return err
+	}
+	recipe, err := ResolveProjectPath(cmd)
+	if err != nil {
+		return err
+	}
+	base := ChangeServiceOptions{Origin: "ksed", Format: a.FormatFlag, TargetLocale: opts.Target, PlainText: true}
+	run := &sedRun{app: a, cmd: cmd, prog: prog, opts: opts, actor: changeActorOf(resolved.Actor), changes: a.newCommandChanges(cmd, recipe, base)}
+	run.backup = run.changes
+	if opts.BackupSuffix != "" {
+		withBackup := base
+		withBackup.BackupSuffix = opts.BackupSuffix
+		run.backup = a.newCommandChanges(cmd, recipe, withBackup)
+	}
 	for _, file := range files {
-		// One guard per document: each is judged on its own opening bytes, and
-		// a file that streams to the terminal must not license the next one.
-		out, flush := io.Writer(os.Stdout), func() error { return nil }
-		if !opts.InPlace && !opts.Force {
-			out, flush = a.guardedStdout()
-		}
-		err := a.EditDocument(ctx, file, t, opts.WriteLocale, opts.InPlace, opts.BackupSuffix, out)
-		if err == nil {
-			err = flush()
-		}
+		err := run.file(ctx, file)
 		if err != nil {
 			// A cancelled context (Ctrl-C) is a global interrupt, not a per-file
 			// error: stop now and let cli.Run map it to exit 130 with no message.
@@ -136,12 +165,371 @@ func (a *App) RunSed(ctx context.Context, args []string, t *tool.BaseTool, opts 
 			fmt.Fprintf(os.Stderr, "ksed: %s: %v\n", DisplayName(file), err)
 		}
 	}
+	if opts.PrintOps {
+		set := change.Set{Schema: change.SchemaID, Mode: change.ModeApply, Gate: change.GateEnforce, Ops: run.printed}
+		if set.Ops == nil {
+			set.Ops = []change.Op{}
+		}
+		if err := writeChangeSet(os.Stdout, set); err != nil {
+			return err
+		}
+	}
 	if hadError {
 		// A read/process error occurred (messages already printed per file);
 		// exit 2 (trouble), matching the grep-style toolbox contract and kgrep.
 		return WithExitCode(ExitUsage, ErrSilentExit)
 	}
 	return nil
+}
+
+// sedRun is one ksed invocation.
+type sedRun struct {
+	app   *App
+	cmd   Command
+	prog  sedProgram
+	opts  SedOptions
+	actor change.Actor
+	// changes holds the services ksed reads and writes files through, built
+	// once for the run; backup holds those that keep a copy of each file they
+	// replace (-i.bak), and is changes when no backup is asked for.
+	changes, backup *commandChanges
+	// printed collects the operations --print-ops prints.
+	printed []change.Op
+}
+
+// file runs the program over one file argument: a file, an archive, one
+// member of an archive (container!entry), or "-" for standard input.
+func (r *sedRun) file(ctx context.Context, file string) error {
+	switch {
+	case r.opts.PrintOps:
+		return r.print(ctx, file)
+	case r.opts.InPlace:
+		return r.inPlace(ctx, file)
+	}
+	return r.toStdout(ctx, file)
+}
+
+// docs are the documents a file argument names: each eligible member of an
+// archive, or the file itself.
+func (r *sedRun) docs(file string) ([]string, error) {
+	if isContainer(file) {
+		return r.app.containerMembers(file)
+	}
+	return []string{file}, nil
+}
+
+// stdinService is the service over the private directory a copy of standard
+// input is read from.
+func (r *sedRun) stdinService(ctx context.Context, dir string) (*change.Service, error) {
+	return r.app.changeService(ctx, r.cmd, ChangeServiceOptions{Origin: "ksed", Root: dir, Format: r.app.FormatFlag, TargetLocale: r.opts.Target, PlainText: true})
+}
+
+// print compiles the operations the program makes on a file and keeps them
+// for --print-ops. A file whose operations do not all compile contributes
+// none.
+func (r *sedRun) print(ctx context.Context, file string) error {
+	if file == StdinName {
+		path, cleanup, err := stdinDocument(ctx)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		svc, err := r.stdinService(ctx, filepath.Dir(path))
+		if err != nil {
+			return err
+		}
+		ops, err := r.compile(ctx, svc, filepath.Base(path))
+		if err != nil {
+			return err
+		}
+		for i := range ops {
+			ops[i].At.Doc = StdinName
+		}
+		r.printed = append(r.printed, ops...)
+		return nil
+	}
+	docs, err := r.docs(file)
+	if err != nil {
+		return err
+	}
+	var all []change.Op
+	for _, path := range docs {
+		svc, ref, err := r.changes.For(ctx, path)
+		if err != nil {
+			return err
+		}
+		ops, err := r.compile(ctx, svc, ref)
+		if err != nil {
+			return err
+		}
+		all = append(all, ops...)
+	}
+	r.printed = append(r.printed, all...)
+	return nil
+}
+
+// sedArchiveCompiled, when set, is called once ksed -i has compiled the
+// operations on every member of an archive and before it checks any. A test
+// changes a member there, as another writer would.
+var sedArchiveCompiled func(archive string)
+
+// sedEdit is the operations the program makes on one document, to apply
+// through the service that read it.
+type sedEdit struct {
+	svc *change.Service
+	doc string
+	ops []change.Op
+}
+
+// inPlace edits a file where it lies. An archive's members are edited each in
+// a change set of its own, since one change set writes one archive through one
+// document; every member's change is computed and checked before any is
+// written, so a member that is refused leaves the archive as it was, and the
+// archive is copied once, when a backup is asked for and a member changes.
+func (r *sedRun) inPlace(ctx context.Context, file string) error {
+	if file == StdinName {
+		return errors.New("in-place editing requires a file argument")
+	}
+	if !isContainer(file) {
+		svc, doc, err := r.backup.For(ctx, file)
+		if err != nil {
+			return err
+		}
+		ops, err := r.compile(ctx, svc, doc)
+		if err != nil || len(ops) == 0 {
+			return err
+		}
+		return r.apply(ctx, sedEdit{svc: svc, doc: doc, ops: ops}, change.ModeApply)
+	}
+	docs, err := r.docs(file)
+	if err != nil {
+		return err
+	}
+	var edits []sedEdit
+	for _, path := range docs {
+		svc, doc, err := r.changes.For(ctx, path)
+		if err != nil {
+			return err
+		}
+		ops, err := r.compile(ctx, svc, doc)
+		if err != nil {
+			return err
+		}
+		if len(ops) > 0 {
+			edits = append(edits, sedEdit{svc: svc, doc: doc, ops: ops})
+		}
+	}
+	if len(edits) == 0 {
+		return nil
+	}
+	if sedArchiveCompiled != nil {
+		sedArchiveCompiled(file)
+	}
+	for _, e := range edits {
+		if err := r.apply(ctx, e, change.ModePreview); err != nil {
+			return err
+		}
+	}
+	if r.opts.BackupSuffix != "" {
+		if err := copyFile(file, file+r.opts.BackupSuffix); err != nil {
+			return fmt.Errorf("write backup: %w", err)
+		}
+	}
+	for _, e := range edits {
+		if err := r.apply(ctx, e, change.ModeApply); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// toStdout applies the program to a private copy of the file a file argument
+// names, the whole archive for an archive or one of its members, read exactly
+// as the file itself is read, and writes the edited document to standard
+// output: the member itself for container!entry, else the copy. The file
+// stays as it is, and nothing is written when an edit is refused.
+func (r *sedRun) toStdout(ctx context.Context, file string) error {
+	dir, err := os.MkdirTemp("", "ksed-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir)
+	var (
+		copyPath, member string
+		edits            []sedEdit
+	)
+	if file == StdinName {
+		data, rerr := readContent(ctx, StdinName)
+		if rerr != nil {
+			return rerr
+		}
+		// The copy has no extension, so its format is the one --format names
+		// or detection finds in its content, as it is for a pipe.
+		copyPath = filepath.Join(dir, "stdin")
+		if err := os.WriteFile(copyPath, data, 0o600); err != nil {
+			return err
+		}
+		svc, serr := r.stdinService(ctx, dir)
+		if serr != nil {
+			return serr
+		}
+		ops, cerr := r.compile(ctx, svc, "stdin")
+		if cerr != nil {
+			return cerr
+		}
+		edits = append(edits, sedEdit{svc: svc, doc: "stdin", ops: ops})
+	} else {
+		var real string
+		real, member = splitLocator(file)
+		copyPath = filepath.Join(dir, filepath.Base(real))
+		if err := copyFile(real, copyPath); err != nil {
+			return err
+		}
+		docs, derr := r.docs(file)
+		if derr != nil {
+			return derr
+		}
+		svc, serr := r.changes.copyService(ctx, file, copyPath, filepath.Join(dir, "locks"))
+		if serr != nil {
+			return serr
+		}
+		for _, path := range docs {
+			_, doc, ferr := r.changes.For(ctx, path)
+			if ferr != nil {
+				return ferr
+			}
+			ops, cerr := r.compile(ctx, svc, doc)
+			if cerr != nil {
+				return cerr
+			}
+			edits = append(edits, sedEdit{svc: svc, doc: doc, ops: ops})
+		}
+	}
+	for _, e := range edits {
+		if len(e.ops) == 0 {
+			continue
+		}
+		if err := r.apply(ctx, e, change.ModeApply); err != nil {
+			return err
+		}
+	}
+	var in io.Reader
+	if member != "" {
+		data, _, oerr := container.OpenEntry(copyPath, member)
+		if oerr != nil {
+			return fmt.Errorf("%s: %w", file, oerr)
+		}
+		in = bytes.NewReader(data)
+	} else {
+		f, oerr := os.Open(copyPath)
+		if oerr != nil {
+			return oerr
+		}
+		defer f.Close()
+		in = f
+	}
+	// One guard per document: each is judged on its own opening bytes, and a
+	// file that streams to the terminal must not license the next one.
+	out, flush := io.Writer(os.Stdout), func() error { return nil }
+	if !r.opts.Force {
+		out, flush = r.app.guardedStdout()
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return flush()
+}
+
+// apply applies one document's operations as one change set in mode. A
+// refused operation is an error naming why; nothing in the document is
+// written then.
+func (r *sedRun) apply(ctx context.Context, e sedEdit, mode change.Mode) error {
+	set := change.Set{Schema: change.SchemaID, Mode: mode, Gate: change.GateEnforce, Ops: e.ops}
+	res, err := e.svc.Apply(ctx, set, r.actor)
+	if err != nil {
+		return err
+	}
+	switch res.Status {
+	case change.SetApplied, change.SetPreviewed:
+		return nil
+	case change.SetPartial:
+		return fmt.Errorf("the edit of %s landed in part", e.doc)
+	}
+	for _, op := range res.Ops {
+		if op.Status == change.OpRefused && op.Error != nil {
+			at := ""
+			if op.At != nil {
+				at = " " + op.At.Block
+			}
+			return fmt.Errorf("block%s: %w", at, op.Error)
+		}
+	}
+	return fmt.Errorf("the edit of %s was refused", e.doc)
+}
+
+// compile reads doc through svc and returns the operations the program makes
+// on it: for each block whose edition the substitutions change, one
+// replace_text per substitution that matched, with the edition's revision as
+// if_match. The edition is the one --target names, else the one the read was
+// opened on: the document's own, or the translation a translation's file
+// holds. A block is addressed by the key a read reports, or, where another
+// block of the document reports the same key, by the id the reader gave it,
+// which the service resolves too and which names one block.
+func (r *sedRun) compile(ctx context.Context, svc *change.Service, doc string) ([]change.Op, error) {
+	var target model.EditionKey
+	if r.opts.Target != "" {
+		target = model.EditionKey{Locale: r.opts.Target}.Canonical()
+	}
+	type blockOps struct {
+		key, id string
+		ops     []change.Op
+	}
+	var (
+		edited []blockOps
+		seen   = map[string]int{}
+	)
+	_, err := svc.ReadEach(ctx, change.ReadRequest{Doc: doc}, func(b *model.Block, read change.BlockRead) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		seen[read.Ref.Block]++
+		if !b.Translatable {
+			return nil
+		}
+		key := read.Ref.Edition
+		if r.opts.Target != "" {
+			key = target
+		}
+		ed, ok := b.Edition(key)
+		if !ok {
+			return nil
+		}
+		at := change.Ref{Doc: read.Ref.Doc, Block: read.Ref.Block, Edition: key}
+		if b.IsSourceEdition(key) {
+			at.Edition = model.EditionKey{}
+		}
+		ops, err := r.prog.ops(at, model.EditionRevision(b, key), ed.Runs)
+		if err != nil {
+			return fmt.Errorf("block %s: %w", at.Block, err)
+		}
+		if len(ops) > 0 {
+			edited = append(edited, blockOps{key: read.Ref.Block, id: b.ID, ops: ops})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out []change.Op
+	for _, e := range edited {
+		if seen[e.key] > 1 && e.id != "" && seen[e.id] == 0 {
+			for i := range e.ops {
+				e.ops[i].At.Block = e.id
+			}
+		}
+		out = append(out, e.ops...)
+	}
+	return out, nil
 }
 
 // --- sed s/// program ---------------------------------------------------------
@@ -155,59 +543,79 @@ type sedCmd struct {
 
 type sedProgram []sedCmd
 
-// apply runs every substitution over text in order.
-func (p sedProgram) apply(text string) string {
-	for _, c := range p {
-		if c.global {
-			text = c.re.ReplaceAllString(text, c.repl)
-			continue
-		}
-		// Replace the first match only.
-		loc := c.re.FindStringIndex(text)
-		if loc == nil {
-			continue
-		}
-		text = text[:loc[0]] + c.re.ReplaceAllString(text[loc[0]:loc[1]], c.repl) + text[loc[1]:]
-	}
-	return text
-}
-
-// applyRuns runs the program over a flat run sequence, editing the text while
-// preserving the inline codes around the change (model.ApplyTextEdits). It
-// returns the rewritten runs and whether the flattened text actually changed;
-// when nothing changes the original runs are returned untouched (no needless
-// re-chunking). Callers must guard with model.HasStructuredRuns: plural/select
-// runs have no linear text mapping and take the whole-text fallback instead.
-func (p sedProgram) applyRuns(runs []model.Run) ([]model.Run, bool) {
-	before := model.RunsText(runs)
+// ops compiles the program over an edition's runs into replace_text
+// operations at at, guarded by rev. Each substitution that matches gives one
+// operation, whose edits are positions in the content the substitutions
+// before it left, as the change service applies operations in order.
+func (p sedProgram) ops(at change.Ref, rev string, runs []model.Run) ([]change.Op, error) {
 	cur := runs
-	for _, c := range p {
-		cur = c.editRuns(cur)
+	var out []change.Op
+	for i, c := range p {
+		first := true
+		edits := c.edits(cur, nil, &first)
+		if len(edits) == 0 {
+			continue
+		}
+		op := change.Op{Kind: change.KindReplaceText, At: at, IfMatch: rev, Body: &change.ReplaceText{Edits: edits}}
+		out = append(out, op)
+		if i == len(p)-1 {
+			break
+		}
+		next, err := applySed(cur, op)
+		if err != nil {
+			return nil, err
+		}
+		cur = next
 	}
-	if model.RunsText(cur) == before {
-		return runs, false
-	}
-	return cur, true
+	return out, nil
 }
 
-// editRuns turns one substitution into a set of constraint-aware text edits and
-// applies them to the run sequence, so codes around the change are preserved
-// and an emptied deletable span (e.g. bold left wrapping nothing) collapses
-// rather than leaving an empty tag (see model.ApplyTextEdits). If nothing
-// matches, the input is returned unchanged.
-func (c sedCmd) editRuns(runs []model.Run) []model.Run {
-	text := model.RunsText(runs)
+// applySed applies one compiled operation to runs, through the applier the
+// change service uses, so the next substitution matches the text the
+// service will have.
+func applySed(runs []model.Run, op change.Op) ([]model.Run, error) {
+	b := model.NewRunsBlock("ksed", runs)
+	sim := op
+	sim.At = change.Ref{}
+	sim.IfMatch = change.AnyRevision
+	res := change.ApplyBlock(b, []change.Op{sim}, change.BlockEnv{Actor: change.Actor{Kind: change.ActorPerson}})
+	if len(res) == 1 && res[0].Error != nil {
+		return nil, res[0].Error
+	}
+	ed, _ := b.Edition(model.EditionKey{})
+	return ed.Runs, nil
+}
+
+// edits are the text edits the substitution makes in seq, the run sequence
+// path reaches, and in the branches of every plural and select it holds. A
+// match is found in the sequence's own text, in which inline codes, plurals
+// and selects have no width, so a match may span an inline code and the
+// codes around a change are kept; a match that would swallow a plural or a
+// select is left alone. Without g, only the first match is replaced; first
+// says whether it is still to come.
+func (c sedCmd) edits(seq []model.Run, path model.RunPath, first *bool) []change.TextEdit {
+	if !c.global && !*first {
+		return nil
+	}
+	text := model.SequenceText(seq)
 	var matches [][]int
 	if c.global {
 		matches = c.re.FindAllStringSubmatchIndex(text, -1)
 	} else if m := c.re.FindStringSubmatchIndex(text); m != nil {
 		matches = [][]int{m}
 	}
-	if len(matches) == 0 {
-		return runs
+	var structures []int
+	off := 0
+	for _, r := range seq {
+		switch {
+		case r.Text != nil:
+			off += utf8.RuneCountInString(r.Text.Text)
+		case r.Plural != nil, r.Select != nil:
+			structures = append(structures, off)
+		}
 	}
 	src := []byte(text)
-	edits := make([]model.TextEdit, 0, len(matches))
+	var out []change.TextEdit
 	// The matches are byte offsets; a text edit counts code points.
 	byteAt, runeAt := 0, 0
 	toRunes := func(b int) int {
@@ -216,12 +624,34 @@ func (c sedCmd) editRuns(runs []model.Run) []model.Run {
 		return runeAt
 	}
 	for _, m := range matches {
-		repl := c.re.Expand(nil, []byte(c.repl), src, m)
-		start := toRunes(m[0])
-		end := toRunes(m[1])
-		edits = append(edits, model.TextEdit{Start: start, End: end, Replacement: string(repl)})
+		repl := string(c.re.Expand(nil, []byte(c.repl), src, m))
+		start, end := toRunes(m[0]), toRunes(m[1])
+		if repl == text[m[0]:m[1]] {
+			continue
+		}
+		if slices.ContainsFunc(structures, func(at int) bool { return start < at && at < end }) {
+			continue
+		}
+		s, e := start, end
+		out = append(out, change.TextEdit{Path: slices.Clone(path), Start: &s, End: &e, Text: repl})
+		*first = false
 	}
-	return model.ApplyTextEdits(runs, edits)
+	for i, r := range seq {
+		step := model.RunPathStep{Kind: model.StepIndex, Index: i}
+		switch {
+		case r.Plural != nil:
+			for _, form := range slices.Sorted(maps.Keys(r.Plural.Forms)) {
+				branch := append(slices.Clone(path), step, model.RunPathStep{Kind: model.StepPlural, PluralForm: form})
+				out = append(out, c.edits(r.Plural.Forms[form], branch, first)...)
+			}
+		case r.Select != nil:
+			for _, value := range slices.Sorted(maps.Keys(r.Select.Cases)) {
+				branch := append(slices.Clone(path), step, model.RunPathStep{Kind: model.StepSelect, SelectValue: value})
+				out = append(out, c.edits(r.Select.Cases[value], branch, first)...)
+			}
+		}
+	}
+	return out
 }
 
 func ParseSedProgram(scripts []string) (sedProgram, error) {
@@ -346,58 +776,4 @@ func sedReplToGo(s string, delim byte) string {
 		}
 	}
 	return b.String()
-}
-
-// NewSedTool builds a source-transform tool that applies the sed program to the
-// source text (scopeSource) or to the target translation for locale otherwise.
-//
-// Editing is run-aware: substitutions edit the run sequence so inline codes
-// (bold/link spans, placeholders) around the change survive, an emptied
-// deletable span collapses, and a non-deletable code (line break, variable) is
-// kept — all per the vocabulary constraints (see model.ApplyTextEdits). A match
-// may even span a code boundary, because the regex sees the code-free flattening
-// of the runs. Sequences with plural/select runs have no linear text mapping, so
-// those fall back to whole-text replacement.
-func NewSedTool(prog sedProgram, locale model.LocaleID, scopeSource bool) *tool.BaseTool {
-	t := &tool.BaseTool{
-		ToolName:        "ksed",
-		ToolDescription: "stream editor for text/content",
-	}
-	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
-		var plan tool.EditPlan
-		if !v.Translatable() {
-			return plan, nil
-		}
-		if scopeSource {
-			runs := v.SourceRuns()
-			if !model.HasStructuredRuns(runs) {
-				if out, changed := prog.applyRuns(runs); changed {
-					plan.NewRuns = out
-					plan.Edits = tool.FullSpanEdit(runs, out)
-				}
-				return plan, nil
-			}
-			src := v.SourceText()
-			if out := prog.apply(src); out != src {
-				plan.ReplaceAll = &out
-			}
-			return plan, nil
-		}
-		if locale.IsEmpty() || !v.HasTarget(locale) {
-			return plan, nil
-		}
-		runs := v.TargetRuns(locale)
-		if !model.HasStructuredRuns(runs) {
-			if out, changed := prog.applyRuns(runs); changed {
-				plan.SetTarget(locale, out)
-			}
-			return plan, nil
-		}
-		tgt := v.TargetText(locale)
-		if out := prog.apply(tgt); out != tgt {
-			plan.SetTarget(locale, []model.Run{{Text: &model.TextRun{Text: out}}})
-		}
-		return plan, nil
-	}
-	return t
 }

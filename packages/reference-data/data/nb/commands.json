@@ -82,8 +82,8 @@
       "groupID": "work",
       "flags": [
         {
-          "name": "diff",
-          "usage": "forhåndsvis innholds- og kommentarendringer som en unified diff og skriv ingenting",
+          "name": "dry-run",
+          "usage": "compute and check the change set, print a diff per document, and write nothing",
           "default": "false",
           "type": "bool"
         },
@@ -99,6 +99,11 @@
           "type": "string"
         },
         {
+          "name": "gate",
+          "usage": "what a failing finding the change introduces does: enforce (refuse it, the default) or report (land it with its findings; a person's choice)",
+          "type": "string"
+        },
+        {
           "name": "in-place",
           "shorthand": "i",
           "usage": "behold en sikkerhetskopi av redigerte innholdsfiler med --in-place=.bak",
@@ -111,24 +116,32 @@
           "type": "bool"
         },
         {
+          "name": "print-ops",
+          "usage": "print the change set as decoded, with its defaults filled in, and apply nothing",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "project",
           "shorthand": "p",
           "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra gjeldende katalog hvis utelatt)",
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; bruker prosjektets source_language som standard, ellers en)",
-          "type": "string"
+          "name": "schema",
+          "usage": "print the JSON Schema of a change set and exit",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
-        "kapi inspect report.docx --jsonl | edit-the-text | kapi apply",
-        "kapi apply changeset.jsonl",
-        "kapi apply changeset.jsonl --diff",
-        "kapi status --review --json | approve-units | kapi apply",
-        "kapi apply changeset.jsonl --in-place=.bak",
-        "echo '{\"kind\":\"comment\",\"file\":\"parse.go\",\"id\":\"func/Parse\",\"lines\":{\"first\":3,\"last\":4},\"comment_sha256\":\"\u003cfrom kapi check --json\u003e\",\"text\":\"Parse reads the input.\"}' | kapi apply"
+        "kapi inspect docs/guide.md --jsonl | write-the-edits | kapi apply",
+        "kapi apply change.json",
+        "kapi apply change.json --dry-run",
+        "kapi apply change.json --json",
+        "echo '{\"ops\":[{\"op\":\"replace_text\",\"at\":{\"doc\":\"docs/guide.md\",\"block\":\"install/p\"},\"if_match\":\"\u003crev from kapi inspect\u003e\",\"edits\":[{\"find\":\"colour\",\"text\":\"color\"}]}]}' | kapi apply",
+        "ksed 's/colour/color/g' docs/guide.md --print-ops | kapi apply",
+        "kapi apply --schema"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -5703,21 +5716,28 @@
         },
         {
           "name": "project",
+          "shorthand": "p",
           "usage": "gjengi også hver blokk i disse målformatene (html, markdown, asciidoc) under \"projected\"",
+          "type": "string"
+        },
+        {
+          "name": "render",
+          "usage": "also render each block to these formats (html, markdown, asciidoc) under \"projected\"",
           "default": "[]",
           "type": "stringSlice"
         },
         {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; standard er prosjektets source_language, ellers en)",
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         }
       ],
       "examples": [
         "kapi inspect report.docx",
-        "kapi inspect --jsonl 'docs/**/*.md' | jq .content_hash",
+        "kapi inspect --jsonl 'docs/**/*.md' | jq '{ref, rev}'",
         "kapi inspect --output-format yaml report.dclg.xml",
-        "kapi inspect report.docx --project html,markdown   # each block rendered per format",
+        "kapi inspect report.docx --render html,markdown   # each block rendered per format",
+        "kapi inspect -p site/kapi.yaml site/docs/guide.md",
         "cat page.html | kapi inspect -f html"
       ],
       "offlineCapable": true,

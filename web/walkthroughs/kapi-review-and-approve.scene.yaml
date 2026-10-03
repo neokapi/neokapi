@@ -6,9 +6,9 @@
 # as a machine can (to *translated*); a person takes the ones that matter to
 # *established*. That decision is the one thing the caches can't rebuild, so it lands
 # in the project's context (shared with `kapi context push`), bound to the
-# translation's content hash. The funnel is:
+# revision of the translation the reviewer read. The funnel is:
 #
-#   status → status --review → apply (kind:"review") → status
+#   status → status --review → apply (decide) → status
 #
 # Everything runs offline in the wasm embed against the in-memory filesystem:
 # status derives coverage from the files plus the state store, and apply writes a
@@ -23,8 +23,11 @@ mode: interactive
 # messages.json is the kit fixture (greeting / farewell / cart). kapi.yaml is a
 # project whose one content file is already fully translated into fr — a flat
 # target path (messages.fr.json, no subdirectory) seeds cleanly into the embed's
-# in-memory volume. review.jsonl is the approval change-set for the greeting unit,
-# exactly as `kapi status --review` lists it (file / id / locale).
+# in-memory volume. review.jsonl is the approval change set for the greeting
+# unit: a decide operation naming the source document, the block and the fr
+# edition, with the revision `kapi inspect messages.json` shows for that
+# edition. The revision is real: editing messages.fr.json makes the decision
+# stale, by design.
 seed:
   - messages.json
 files:
@@ -49,7 +52,7 @@ files:
       }
   - path: review.jsonl
     content: |
-      {"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"established"}
+      {"op":"decide","at":{"doc":"messages.json","block":"greeting","edition":"fr"},"if_match":"r:1a83287c7ed96132","outcome":"establish"}
 
 steps:
   - comment: The project is translated — a machine took every unit to *translated*. Now a person takes the ones that matter to *established*.
@@ -59,11 +62,11 @@ steps:
     # covered by scripts/verify-snippets/review-smoke.ts, which seeds a project.
     smoke: false
   - command: kapi status --review
-    narration: List translated units awaiting approval, addressed by file, id and locale for a review change-set.
+    narration: List translated units awaiting approval, each with the source document, block and language a decision names.
     smoke: false
-  - comment: Approving a unit is a decision, recorded with the one write verb. review.jsonl blesses the greeting unit's fr translation.
+  - comment: Approving a unit is a decision, recorded with kapi apply. review.jsonl establishes the greeting unit's fr translation.
   - command: kapi apply review.jsonl
-    narration: apply binds the approval to the translation's content hash. Editing that translation later requires another review.
+    narration: apply binds the approval to the revision of the translation the reviewer read. Editing that translation later requires another review.
     smoke: false
   - command: kapi status
     narration: Established coverage increases to 33% after the recorded approval. This coverage counts toward an established gate.

@@ -284,8 +284,8 @@ mem.process.chdir("/project");
 console.log("command-surface-smoke: newly wired verbs run for real");
 const inspect = await run("inspect", "/project/article.md");
 ok(
-  "`kapi inspect` emits anchored blocks",
-  inspect.code === 0 && inspect.out.includes("content_hash"),
+  "`kapi inspect` emits read records with a reference and a revision",
+  inspect.code === 0 && inspect.out.includes('"ref"') && inspect.out.includes('"rev"'),
   inspect.out.trim().slice(0, 160),
 );
 const check = await run("check", "/project/article.md", "--no-fail");

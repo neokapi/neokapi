@@ -448,7 +448,7 @@ pre-review with `pre_review_unit`. A person writes these entries with `kapi
 apply` in a terminal:
 
 ```bash
-kapi apply <<<'{"kind":"memory","source":"Save","target":"Lagre","source_locale":"en","target_locale":"nb"}'
+kapi apply <<<'{"ops":[{"op":"memory","action":"add","from":{"edition":"en","text":"Save"},"to":{"edition":"nb","text":"Lagre"}}]}'
 ```
 
 ### check_file

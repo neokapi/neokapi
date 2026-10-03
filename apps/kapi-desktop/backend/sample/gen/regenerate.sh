@@ -106,7 +106,9 @@ python3 "$GEN/lib/targets.py" answer "$P" "$GEN/contested.json"
 echo "==> approve what the loop produced, apart from the sources held for review"
 "$KAPI" status -p "$P/kapi.yaml" --review --json > "$WORK/review.json" 2>/dev/null
 python3 "$GEN/lib/targets.py" approvals "$WORK/review.json" "$WORK/approve.jsonl"
-"$KAPI" apply -p "$P/kapi.yaml" "$WORK/approve.jsonl" >/dev/null
+# The approvals are a person's, whoever runs the script: an agent's shell
+# records only pre-reviews.
+KAPI_ACTOR=person "$KAPI" apply -p "$P/kapi.yaml" "$WORK/approve.jsonl" >/dev/null
 
 # The decisions are in the ledger from the moment they are applied. The sample
 # ships them in a context file beside the other context, which scaffolding

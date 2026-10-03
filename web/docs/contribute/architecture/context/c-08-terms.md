@@ -127,7 +127,7 @@ checkout, branch and worktree of the project reads them:
 - every read goes there. The terminology gate, `kapi terms lookup`, the
   retrieval an agent calls and the governing fingerprint all ask the same store
   and get the same answer, whichever branch the checkout is on;
-- every write goes there too. `kapi apply` with `kind:"term"` writes the store
+- every write goes there too. A `term` operation through `kapi apply` writes the store
   and records a context operation ([C-11](c-11-context-operations.md)), so
   `kapi context log` carries the change and the evidence behind it.
 

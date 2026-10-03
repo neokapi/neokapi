@@ -42,17 +42,28 @@ import (
 type Home struct {
 	layout       Layout
 	lockDir      string
+	prepareLocks func() error
 	beforeSettle func(doc string)
+	backup       string
 }
 
 // Options configures a Home.
 type Options struct {
 	// LockDir holds the lock files. Empty is DefaultLockDir.
 	LockDir string
+	// PrepareLocks, when set, is called before a lock file is opened, so a
+	// host creates the directory that holds LockDir, with whatever keeps it
+	// out of a commit, only when a change is committed and never for a read.
+	// It may be called more than once.
+	PrepareLocks func() error
 	// BeforeSettle, when set, is called after a document is staged and
 	// before its commit lock is taken. A test sets it to force two writers to
 	// stage against the same content before either commits.
 	BeforeSettle func(doc string)
+	// BackupSuffix, when set, keeps a copy of each file a commit replaces,
+	// beside it with the suffix appended. The copy is written under the
+	// commit lock from the bytes the change was applied to.
+	BackupSuffix string
 }
 
 // DefaultLockDir is where lock files go when the caller names no directory: a
@@ -69,7 +80,7 @@ func New(layout Layout, opts Options) *Home {
 	if dir == "" {
 		dir = DefaultLockDir()
 	}
-	return &Home{layout: layout, lockDir: dir, beforeSettle: opts.BeforeSettle}
+	return &Home{layout: layout, lockDir: dir, prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix}
 }
 
 // Name is "file".
@@ -249,6 +260,11 @@ func (h *Home) lockPath(path string) (string, error) {
 // openLock opens the lock file at path, creating the lock directory, which
 // belongs to this user alone, when it is not there.
 func (h *Home) openLock(path string) (*filelock.Lock, error) {
+	if h.prepareLocks != nil {
+		if err := h.prepareLocks(); err != nil {
+			return nil, err
+		}
+	}
 	if err := ensureLockDir(h.lockDir); err != nil {
 		return nil, err
 	}

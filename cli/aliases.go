@@ -21,6 +21,7 @@ type (
 	AgentWiringOptions            = host.AgentWiringOptions
 	AgentWiringResult             = host.AgentWiringResult
 	App                           = host.App
+	ApplyOptions                  = host.ApplyOptions
 	CatOptions                    = host.CatOptions
 	CheckExclusions               = host.CheckExclusions
 	Command                       = host.Command
@@ -119,6 +120,7 @@ const (
 // Function and variable re-exports.
 var (
 	RegisterInPlace              = host.RegisterInPlace
+	RunApplySchema               = host.RunApplySchema
 	AddGateFlag                  = host.AddGateFlag
 	AddVoiceAIFlags              = host.AddVoiceAIFlags
 	AddProfileFlags              = host.AddProfileFlags
@@ -208,7 +210,6 @@ var (
 	RecipeConfigSet              = host.RecipeConfigSet
 	RecipeExists                 = host.RecipeExists
 	NewMatcher                   = host.NewMatcher
-	NewSedTool                   = host.NewSedTool
 	NormalizeSedInPlaceArgs      = host.NormalizeSedInPlaceArgs
 	OllamaBaseURL                = host.OllamaBaseURL
 	OllamaInstallHint            = host.OllamaInstallHint

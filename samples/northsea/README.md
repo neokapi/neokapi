@@ -159,12 +159,12 @@ ksed -i 's/our seamless integration/our unified integration/' landing/index.html
 ksed -i 's/Release a mooring earlier/Release a berth earlier/' docs/berths.md
 ksed -i 's/by ship name/by vessel name/' app/strings.en.json
 
-echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
-kapi apply decisions.jsonl                # one entry, reaching record and gate
+echo '{"op":"term","action":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
+kapi apply decisions.jsonl                # one operation, reaching record and gate
 kapi check                                # now it finds "dock", and it fails: exit 3
 ```
 
-One entry is the whole decision. `forbidden` is chosen over `deprecated`
+One operation is the whole decision. `forbidden` is chosen over `deprecated`
 deliberately: `dock` is a word Northsea does not use, not a name it is migrating
 away from, so it should stop a build.
 
@@ -218,8 +218,8 @@ it, and the rename is two term decisions:
 kapi add "support/**/*.md" --name northsea-support --channel northsea/docs
 
 printf '%s\n%s\n' \
-  '{"kind":"term","op":"upsert","term":"Tideguard","locale":"en-GB","status":"preferred"}' \
-  '{"kind":"term","op":"upsert","term":"Tidewatch","locale":"en-GB","status":"deprecated","replacement":"Tideguard"}' \
+  '{"op":"term","action":"upsert","term":"Tideguard","locale":"en-GB","status":"preferred"}' \
+  '{"op":"term","action":"upsert","term":"Tidewatch","locale":"en-GB","status":"deprecated","replacement":"Tideguard"}' \
   > refresh.jsonl
 kapi apply refresh.jsonl
 

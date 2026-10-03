@@ -44,35 +44,38 @@ The assistant drives the loop through structured calls: `extract_content` to rea
 </TabItem>
 <TabItem value="cli" label="CLI">
 
-**Read the blocks.** `kapi inspect` returns one record per content block: the `text`, the block's structural role, a stable `id`, and a `content_hash`:
+**Read the blocks.** `kapi inspect` returns one record per content block: its reference (`ref`), the revision of its text (`rev`), the `text`, the inline codes it holds, the operations it accepts, and its structural role:
 
 ```bash
 kapi inspect guide.md --jsonl        # one JSON object per line
 ```
 
-Two fields anchor an edit: **`text`** renders inline codes as `<x id="…"/>` tokens; keep every token in your edited text (a placeholder is `<x id="1/"/>`, a paired span opens with `<x id="1"/>` and closes with `<x id="/1"/>`). A character reference the source spells out, such as `&amp;` in HTML, shows as its character; keep, move or drop it like any other character, and one you keep keeps its spelling. **`content_hash`** is the block's identity; send it back so kapi can tell the block is still the one you read. `inspect` reads a file in the same format and with the same reader `apply` writes it back through, so every `id` and `content_hash` it prints is one `apply` resolves.
+```json
+{"ref":{"doc":"guide.md","block":"setup/p"},"rev":"r:5e10a2b3c4d5e6f7","text":"See the <x id=\"1\"/>dashboard<x id=\"/1\"/>.","codes":{"1":{"kind":"paired","type":"link:hyperlink","attrs":{"href":"/dashboard"}}},"ops":["set_content","replace_text"]}
+```
+
+Three fields anchor an edit. **`ref`** names the block; copy it into the edit. **`rev`** is the revision you read; send it back as `if_match` so kapi can tell the block is still what you read. **`text`** renders inline codes as `<x id="…"/>` tokens; keep every token in your edited text (a placeholder is `<x id="1/"/>`, a paired span opens with `<x id="1"/>` and closes with `<x id="/1"/>`). A character reference the source spells out, such as `&amp;` in HTML, shows as its character; keep each one where it is, and it keeps its spelling. `inspect` reads a file with the same reader `apply` writes it back through, so every `ref` and `rev` it prints is one `apply` resolves.
 
 Everything else in `text` is text, and kapi encodes it for the file's format: in HTML a `<` or `&` you type is written as a character reference. Markdown, MDX and AsciiDoc keep some of their own syntax in `text`, such as a backslash escape, an MDX `{expression}` or an AsciiDoc `+++` passthrough. Syntax the block already holds stays as you keep it, and syntax you add (a tag, a link, an expression, an `import` line, a macro) is escaped so the page shows the characters you typed.
 
-**Edit, then apply.** Produce one `content` entry per changed block; `kapi apply` is the one write verb:
+**Edit, then apply.** Write a change set with one operation per changed block: `set_content` with the new `text`, or `replace_text` to change words inside it and keep everything around them:
 
 ```json
-{
-  "kind": "content",
-  "file": "guide.md",
-  "id": "p3",
-  "content_hash": "a1b2c3…",
-  "text": "See the <x id=\"1/\"/> dashboard."
-}
+{"ops": [
+  {"op": "set_content", "at": {"doc": "guide.md", "block": "setup/p"}, "if_match": "r:5e10a2b3c4d5e6f7",
+   "text": "Open the <x id=\"1\"/>dashboard<x id=\"/1\"/>."},
+  {"op": "replace_text", "at": {"doc": "guide.md", "block": "setup/p#2"}, "if_match": "r:0d71f30c75e4a087",
+   "edits": [{"find": "utilize", "text": "use"}]}
+]}
 ```
 
 ```bash
 kapi inspect guide.md --jsonl > blocks.jsonl
-# rewrite the "text" of the blocks you want changed (keeping every <x id="…"/>
-# token) and save them as content entries to edits.jsonl (you do this; no command)
-kapi apply edits.jsonl --diff             # preview as a unified diff per block id, write nothing
-kapi apply edits.jsonl                    # apply in place
-kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak
+# write the operations for the blocks you change (keeping every <x id="…"/>
+# token) to edits.json (you do this; no command)
+kapi apply edits.json --dry-run           # check it and print a diff per document, write nothing
+kapi apply edits.json                     # apply in place
+kapi apply edits.json --in-place=.bak     # apply, keeping a .bak
 ```
 
 **Verify.** `kapi check` confirms the result meets your content rules: deterministic, read-only, exit `0` pass and `3` on gate failure:
@@ -84,18 +87,16 @@ kapi check guide.md --max-chars 500 --forbid "utilize"
 </TabItem>
 </Tabs>
 
-## The two guards
+## What refuses an edit
 
-`apply` writes a block only when both guards pass; a blocked edit leaves that block untouched and is reported, so nothing is silently corrupted:
+`apply` writes a change set only when every operation in it holds. When one is refused, nothing in the change set is written, the refused operation names why, and the others report `not_applied`:
 
-- **Drift guard.** A block whose current `content_hash` no longer matches your entry changed since you inspected it; the edit is marked **stale** and skipped.
-- **Inline-code guard.** An edited `text` that drops, invents, duplicates, or unbalances an `<x id="…"/>` token is **rejected** rather than written back with broken markup. A block holding a plural or select construct shows one form of it in `text`; flat text cannot carry the other branches, so a changed `text` for that block is **rejected** as well.
+- **`stale`**: the block's revision is no longer the `if_match` you sent; it changed since you read it. The result carries the current revision and text to rebase on.
+- **`guard`**: an edited `text` that drops, invents, duplicates, or unbalances an `<x id="…"/>` token, or flat text in place of a block holding a plural or select. Edit one branch of a plural with the `path` that `inspect` lists under `structures`.
+- **`not_found`**: the reference names no document or block, or a `find` matches nothing; the block may have been removed or renamed since you read it.
+- **`unsupported`**: the block takes no edit, such as a Markdown code block, which `inspect` lists with no `ops`.
 
-An entry whose `id`, or `content_hash` when it gives no `id`, matches no block of its file is reported as **not found** and writes nothing; the block may have been removed or renamed since you inspected it.
-
-`kapi inspect` also lists blocks the file marks as not editable, such as a Markdown code block (`role` `code`). Such a block keeps its text: an entry that changes it is reported as **not editable**, and an entry that repeats its text is a no-op.
-
-Each of these outcomes exits on the gate code (`3`), distinct from an operational error; re-inspect the affected blocks and retry with fresh hashes. A change-set with a content entry that gives neither `id` nor `content_hash`, or with two entries that edit one block differently, is refused before anything is written, with exit code `2`. `apply` is idempotent, and the same change-set can carry asset edits (an approved term or a content memory pair; see [Create content](/kapi/recipes/create-content)) or a `kind:"review"` entry ([The kapi loop](/kapi/convergence#review-the-state-record)): one write verb, different `kind`s.
+A refusal exits with code `3`, distinct from an operational error: read the affected blocks again and resend with fresh revisions. A change set that does not decode exits `2` before anything is read. Resending a change set that landed writes nothing: the revisions it names have moved, so it is refused as stale with each block's current text. An operation whose revision still holds and whose text the block already has reports `unchanged`. The same change set can carry a term or a content memory pair ([Create content](/kapi/recipes/create-content)) or a review decision ([The kapi loop](/kapi/convergence#review-the-state-record)), applied after the content; `kapi apply --schema` prints every operation.
 
 ## What "faithfully" means
 
@@ -103,7 +104,7 @@ Only the extracted prose changes; everything outside it (`.docx` character style
 
 ## In a project
 
-In a [kapi project](/kapi/get-started/first-project), `kapi inspect` and `kapi check` run against the recipe's declared content with no file argument, and `kapi apply` lands edits against the named files.
+In a [kapi project](/kapi/get-started/first-project), `kapi inspect` and `kapi check` run against the recipe's declared content with no file argument. `inspect` names each document by its project-relative path and lists each translation among a block's `editions`, and `kapi apply` resolves those references in the same project.
 
 ## Next
 

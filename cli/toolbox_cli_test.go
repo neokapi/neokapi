@@ -134,10 +134,8 @@ func TestRunSedStdout(t *testing.T) {
 
 	prog, err := ParseSedProgram([]string{"s/world/EARTH/g"})
 	require.NoError(t, err)
-	sedTool := NewSedTool(prog, "", true)
-
 	out, cerr := captureStdout(t, func() error {
-		return app.RunSed(context.Background(), []string{path}, sedTool, SedOptions{})
+		return app.RunSed(context.Background(), NewEnvCommand(context.Background(), "sed"), []string{path}, prog, SedOptions{})
 	})
 	require.NoError(t, cerr)
 	assert.Contains(t, out, "Hello EARTH")
@@ -146,10 +144,10 @@ func TestRunSedStdout(t *testing.T) {
 	assert.Contains(t, string(orig), "world")
 }
 
-// TestEditDocumentDocxRoundtrip proves ksed edits the prose inside a real .docx
+// TestSedDocxRoundtrip proves ksed edits the prose inside a real .docx
 // and the writer reconstructs a still-readable document (faithful round-trip).
 // Skipped if the openxml fixtures aren't present.
-func TestEditDocumentDocxRoundtrip(t *testing.T) {
+func TestSedDocxRoundtrip(t *testing.T) {
 	fixtures, _ := filepath.Glob("../core/formats/openxml/testdata/*.docx")
 	if len(fixtures) == 0 {
 		t.Skip("no openxml .docx fixtures available")
@@ -190,10 +188,8 @@ func TestEditDocumentDocxRoundtrip(t *testing.T) {
 
 	prog, err := ParseSedProgram([]string{"s/" + word + "/ZZWORDZZ/g"})
 	require.NoError(t, err)
-	sedTool := NewSedTool(prog, "", true)
-
 	// Edit in place.
-	require.NoError(t, app.EditDocument(context.Background(), dst, sedTool, "", true, "", nil))
+	require.NoError(t, app.RunSed(context.Background(), NewEnvCommand(context.Background(), "sed"), []string{dst}, prog, SedOptions{InPlace: true}))
 
 	// Re-read the rewritten .docx: it must still parse, and the replacement must
 	// be visible in the extracted text.

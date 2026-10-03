@@ -142,17 +142,18 @@ kapi voice guide                       # the voice to follow: your context
 kapi terms lookup "<term>" -t en     # the approved wording for a flagged term
 ```
 
-Rewrite each flagged block, then apply your edits with `kapi apply`, the one
-write verb. It writes the file in place through the faithful round-trip
-(structure and inline codes preserved) and rejects an edit that drifted or would
-corrupt markup. See [edit.md](edit.md) for the `content`-entry shape, the guards,
-and the diff/in-place flags:
+Rewrite each flagged block, then apply your edits with `kapi apply`. It writes
+the file in place through the faithful round-trip (structure and inline codes
+preserved) and refuses an edit whose block changed since you read it or that
+would corrupt markup. See [edit.md](edit.md) for the change set's shape, what
+refuses an edit, and the preview and backup flags:
 
 ```bash
 kapi inspect blog-post.md --jsonl > blocks.jsonl
 # You rewrite the off-voice blocks' "text" on-brand (keeping the <x id="…"/> tags)
-# and save them as content entries to edits.jsonl. Then:
-kapi apply edits.jsonl --diff           # preview, then drop --diff to apply
+# and write each as a set_content operation, with the block's ref and rev, to
+# edits.json. Then:
+kapi apply edits.json --dry-run         # preview, then drop --dry-run to apply
 ```
 
 When the off-voice text is a file the user owns, apply in place: git records the
@@ -166,28 +167,28 @@ A recurring off-voice term is better fixed at the source: a term rule checks
 every future draft against it. Fix the draft through `kapi apply`, then record
 the change you made, with the rule it implies as a suggestion:
 
-```jsonl
-{"kind":"content","file":"blog-post.md","id":"p2","content_hash":"b74d…","text":"We use our infrastructure."}
+```json
+{"ops": [{"op": "replace_text", "at": {"doc": "blog-post.md", "block": "p#2"}, "if_match": "r:b74d0e1f2a3b4c5d",
+          "edits": [{"find": "utilize", "text": "use"}]}]}
 ```
 
 ```bash
-kapi apply changeset.jsonl
+kapi apply change.json
 kapi context correct utilize use --seen-in blog-post.md --suggest
 ```
 
 `kapi context log` carries the suggestion, and `kapi check` reports it without
 failing until a person keeps it. A person who has decided writes the rule
-directly with a `term` entry in their own `kapi apply` change-set:
+directly with a `term` operation in their own `kapi apply` change set:
 
 ```jsonl
-{"kind":"term","op":"upsert","term":"utilize","locale":"en","status":"forbidden","replacement":"use"}
+{"op":"term","action":"upsert","term":"utilize","locale":"en","status":"forbidden","replacement":"use"}
 ```
 
-From your shell that entry is refused, because writing a rule directly is a
+From your shell that operation is refused, because writing a rule directly is a
 person's decision. Add `"advisory":true` for a rule that reports without
-failing, or `"competitor":true` for a competitor's name. The entry requires a
-kapi project. A change-set has no `voice` kind; `kapi apply` refuses one and
-names the `term` form.
+failing, or `"competitor":true` for a competitor's name. The operation requires
+a kapi project. A change set has no `voice` operation; word rules are terms.
 
 ### Offline term substitution
 

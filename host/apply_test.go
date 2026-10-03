@@ -1,143 +1,44 @@
 package host
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/model"
-	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/core/change"
+	coretools "github.com/neokapi/neokapi/core/tools"
 )
 
-// TestReadChangeSetJSONLAndArray proves the change-set reader accepts both the
-// JSONL (one entry per line) and JSON-array forms, skipping blank lines.
-func TestReadChangeSetJSONLAndArray(t *testing.T) {
-	dir := t.TempDir()
-	jsonl := filepath.Join(dir, "cs.jsonl")
-	require.NoError(t, os.WriteFile(jsonl, []byte(
-		`{"kind":"content","file":"a.md","id":"p1","text":"x"}
-
-{"kind":"term","op":"upsert","term":"t"}
-`), 0o644))
-	got, err := readChangeSet(context.Background(), jsonl)
-	require.NoError(t, err)
-	require.Len(t, got, 2)
-	assert.Equal(t, kindContent, got[0].Kind)
-	assert.Equal(t, "p1", got[0].ID)
-	assert.Equal(t, kindTerm, got[1].Kind)
-
-	arr := filepath.Join(dir, "cs.json")
-	require.NoError(t, os.WriteFile(arr, []byte(
-		`[{"kind":"content","file":"a.md","id":"p1","text":"x"}]`), 0o644))
-	got, err = readChangeSet(context.Background(), arr)
-	require.NoError(t, err)
-	require.Len(t, got, 1)
-	assert.Equal(t, "p1", got[0].ID)
-}
-
-// TestReadChangeSetIndentedStream proves the reader accepts a stream of
-// indented JSON objects — the shape `kapi status --review --json --jq '…'`
-// prints, since --jq always indents. Selecting the units to approve with the
-// product's own filter and piping them into `kapi apply` is the review
-// round-trip; a line-oriented reader broke it on the first line of the first
-// object.
-func TestReadChangeSetIndentedStream(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "reviews.json")
-	require.NoError(t, os.WriteFile(path, []byte(`{
-  "kind": "review",
-  "op": "add",
-  "file": "src/i18n/nb.json",
-  "id": "berth.title",
-  "locale": "nb",
-  "status": "established"
-}
-{
-  "kind": "review",
-  "op": "add",
-  "file": "src/i18n/nb.json",
-  "id": "berth.empty",
-  "locale": "nb",
-  "status": "established"
-}
-`), 0o644))
-	got, err := readChangeSet(context.Background(), path)
-	require.NoError(t, err)
-	require.Len(t, got, 2)
-	assert.Equal(t, kindReview, got[0].Kind)
-	assert.Equal(t, "berth.title", got[0].ID)
-	assert.Equal(t, "berth.empty", got[1].ID)
-	assert.Equal(t, "nb", got[1].Locale)
-}
-
-// TestReadChangeSetReportsEntryOrdinal proves a malformed entry names its
-// position rather than failing anonymously.
-func TestReadChangeSetReportsEntryOrdinal(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "cs.jsonl")
-	require.NoError(t, os.WriteFile(path, []byte(
-		`{"kind":"term","op":"upsert","term":"t"}
-{"kind":"term","op":}
-`), 0o644))
-	_, err := readChangeSet(context.Background(), path)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "entry 2")
-}
-
-// TestApplyContentFaithfulRoundTrip proves a content change-set lands through
-// the faithful round-trip: only the targeted value changes, the JSON skeleton is
-// byte-identical, and the report records the applied block. Matched by canonical
-// content_hash so the test is independent of the reader's block-id scheme. No
-// provider is used.
+// A content operation lands through the format's round-trip: only the
+// addressed value changes, and the rest of the JSON is byte-identical. Sending
+// a block's current text back is unchanged and writes nothing. No provider is
+// used.
 func TestApplyContentFaithfulRoundTrip(t *testing.T) {
-	app := newToolboxApp(t)
-	dir := t.TempDir()
-	path := filepath.Join(dir, "en.json")
+	noProject(t)
+	t.Chdir(t.TempDir())
 	const src = `{"greeting":"Hello world","note":"Keep me"}`
-	require.NoError(t, os.WriteFile(path, []byte(src), 0o644))
-
-	hash := model.ComputeContentHash("Hello world")
-	report := &coretools.ApplyReport{}
-	byID, byHash := buildEditMaps([]changeEntry{
-		{Kind: kindContent, File: path, ContentHash: hash, Text: "Hi planet"},
-	})
-	tl := coretools.NewApplyEditsTool(byID, byHash, report)
-	require.NoError(t, app.EditDocument(context.Background(), path, tl, "", true, "", nil))
-
-	got, err := os.ReadFile(path)
-	require.NoError(t, err)
-	// note value + keys + braces are byte-identical; only greeting changed.
-	assert.Equal(t, `{"greeting":"Hi planet","note":"Keep me"}`, string(got))
-	assert.Len(t, report.Applied, 1)
-}
-
-// TestApplyContentNoOpByteIdentical proves feeding a block's current text back
-// is an idempotent no-op that leaves the file byte-for-byte unchanged.
-func TestApplyContentNoOpByteIdentical(t *testing.T) {
+	require.NoError(t, os.WriteFile("en.json", []byte(src), 0o644))
 	app := newToolboxApp(t)
-	dir := t.TempDir()
-	path := filepath.Join(dir, "en.json")
-	const src = `{"greeting":"Hello world"}`
-	require.NoError(t, os.WriteFile(path, []byte(src), 0o644))
+	greeting := recordOf(t, inspectJSONL(t, app, "en.json"), "greeting")
 
-	hash := model.ComputeContentHash("Hello world")
-	report := &coretools.ApplyReport{}
-	byID, byHash := buildEditMaps([]changeEntry{
-		{Kind: kindContent, File: path, ContentHash: hash, Text: "Hello world"},
-	})
-	tl := coretools.NewApplyEditsTool(byID, byHash, report)
-	require.NoError(t, app.EditDocument(context.Background(), path, tl, "", true, "", nil))
-
-	got, err := os.ReadFile(path)
+	same := changeSetOf(t, map[string]any{"op": "set_content", "at": greeting.Ref, "if_match": greeting.Rev, "text": "Hello world"})
+	res, err := applyJSON(t, app, NewEnvCommand(t.Context(), "apply"), same, ApplyOptions{})
 	require.NoError(t, err)
+	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status)
+	require.Len(t, res.Docs, 1)
+	assert.False(t, res.Docs[0].Written)
+	got, _ := os.ReadFile("en.json")
 	assert.Equal(t, src, string(got))
-	assert.Len(t, report.Skipped, 1)
-	assert.Empty(t, report.Applied)
+
+	edit := changeSetOf(t, map[string]any{"op": "set_content", "at": greeting.Ref, "if_match": greeting.Rev, "text": "Hi planet"})
+	res, err = applyJSON(t, app, NewEnvCommand(t.Context(), "apply"), edit, ApplyOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, change.OpApplied, res.Ops[0].Status)
+	got, _ = os.ReadFile("en.json")
+	assert.Equal(t, `{"greeting":"Hi planet","note":"Keep me"}`, string(got))
 }
 
 func TestBuildEditMaps_IDAndHash(t *testing.T) {
@@ -151,40 +52,30 @@ func TestBuildEditMaps_IDAndHash(t *testing.T) {
 	assert.False(t, hasH2InID, "an id-less entry must not be keyed by id")
 }
 
-// A content file whose round-trip fails is reported as failed and keeps the
-// change-set from passing, while the files that could be written are written.
-func TestApplyReportsAFileItCouldNotRewrite(t *testing.T) {
-	app := newToolboxApp(t)
+// A change set that names a document that does not exist is refused whole:
+// the document's operations are not_found, every other one is not applied,
+// and no file is written.
+func TestApplyRefusesASetThatNamesAMissingFile(t *testing.T) {
+	noProject(t)
 	dir := t.TempDir()
+	t.Chdir(dir)
 	good := filepath.Join(dir, "en.json")
-	missing := filepath.Join(dir, "missing.json")
 	require.NoError(t, os.WriteFile(good, []byte(`{"greeting":"Hello world"}`), 0o644))
+	app := newToolboxApp(t)
+	greeting := recordOf(t, inspectJSONL(t, app, "en.json"), "greeting")
 
-	hash := model.ComputeContentHash("Hello world")
-	body, err := json.Marshal([]changeEntry{
-		{Kind: kindContent, File: missing, ContentHash: hash, Text: "Hi planet"},
-		{Kind: kindContent, File: good, ContentHash: hash, Text: "Hi planet"},
-	})
-	require.NoError(t, err)
-	changeset := filepath.Join(dir, "edits.json")
-	require.NoError(t, os.WriteFile(changeset, body, 0o644))
-
-	cmd := NewEnvCommand(t.Context(), "apply")
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	err = app.RunApply(cmd, changeset, false, "", true)
-	require.Error(t, err)
-	assert.Equal(t, ExitGate, ExitCode(cmd, err))
-
-	var out applyOutput
-	require.NoError(t, json.Unmarshal(stdout.Bytes(), &out))
-	require.Len(t, out.Content.Failed, 1)
-	assert.Contains(t, out.Content.Failed[0], "missing.json")
-	assert.Len(t, out.Content.Applied, 1)
-	assert.Contains(t, stderr.String(), "missing.json")
+	body := changeSetOf(t,
+		map[string]any{"op": "set_content", "at": map[string]any{"doc": "missing.json", "block": "greeting"}, "if_match": "*", "text": "Hi planet"},
+		map[string]any{"op": "set_content", "at": greeting.Ref, "if_match": greeting.Rev, "text": "Hi planet"})
+	res, err := applyJSON(t, app, NewEnvCommand(t.Context(), "apply"), body, ApplyOptions{})
+	assert.Equal(t, ExitGate, ExitCode(nil, err))
+	assert.Equal(t, change.SetRefused, res.Status)
+	require.NotNil(t, res.Ops[0].Error)
+	assert.Equal(t, change.CodeNotFound, res.Ops[0].Error.Code)
+	assert.Contains(t, res.Ops[0].Error.Message, "missing.json")
+	assert.Equal(t, change.OpNotApplied, res.Ops[1].Status)
 
 	got, err := os.ReadFile(good)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"greeting":"Hi planet"}`, string(got))
+	assert.JSONEq(t, `{"greeting":"Hello world"}`, string(got))
 }

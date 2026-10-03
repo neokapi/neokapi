@@ -77,13 +77,13 @@
         "apply"
       ],
       "use": "apply [flags] [CHANGESET]",
-      "short": "Apply a typed change-set (content + asset edits): the one write verb",
-      "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change: a content edit, an asset edit (term, content-memory pair,\nrecipe field), or a review outcome (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash. An edit that drops,\ninvents or duplicates an inline code, crosses or unbalances paired codes, or\nchanges a block holding a plural or select construct is refused as\nguard_failed and leaves the block as it was. A content entry whose id, or\ncontent_hash when it gives no id, matches no block of its file is reported as\nnot_found and writes nothing. A block the file marks as not editable, such as\na code block, keeps its text, and an entry that changes it is reported as\nnot_editable. A term or content-memory pair is\nwritten to the project's store and recorded in its context history, a recipe\nfield is written to kapi.yaml, and a review outcome is recorded as unit state\nin the project store. Each entry is recorded as the person or agent the\nenvironment names (see 'kapi help growing-context'). Term, content-memory and recipe\nentries are a person's decisions: run from an agent's shell they are refused,\nand the agent records a suggestion with 'kapi context observe' instead.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation. It does not\nestablish a unit. To establish a translated unit, use a kind:\"review\" entry\naddressed by its file/id/locale (as 'kapi status --review' lists it); the\ndecision is recorded in the project's decision ledger and is bound to the\ntranslation's content hash, so a later edit drops the unit back to translated.\nOnly a person records a review decision: run from an agent's shell, the entry\nis refused unless KAPI_ACTOR=person says a person is at the keyboard. Recording\nit is durable at once, and 'kapi context push' shares it when the project\ndeclares a context backend.\n\nA comment edit (kind:\"comment\") rewrites one code comment, addressed by its file\nand the id 'kapi check' reports for it, such as func/Parse, in Go and in the\nlanguages a comment plugin reads (TypeScript, TSX and JavaScript among them).\nIts text is the comment's prose without comment markers. It carries the comment_sha256 that\n'kapi check --json' reports for the comment, or the prose as read in\ncurrent_text, and a comment that changed since is refused. Every byte outside\nthe comment stays as it is, the result must parse, and the language's formatter\nmust agree. Running that formatter runs code the project controls, so kapi asks\nonce per project, in a terminal, and records the answer. A directive, a\ngenerated file's comment, and text that drops or adds a code block or reference\nare refused with a reason and write nothing. Each written file is checked again over what changed, and the\nfindings are reported beside the edit.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews content and comment changes,\nlists each asset entry as a preview or with the refusal its actor gets, and\nwrites nothing. A content entry that gives neither id nor content_hash, or two\ncontent entries that edit one block differently, make the change-set\nmalformed: apply refuses it before writing anything and exits 2. Otherwise\nentries land one at a time: an entry already written stays when a later one is\nstale, refused, not found or fails, and apply then exits non-zero. Re-running\nthe corrected change-set skips what is already in place. No AI provider is\nrequired.",
+      "short": "Apply a change set: content edits, review decisions, terms and recipe fields",
+      "long": "Apply a change set, the write sibling of 'kapi inspect'. A change set is\nkapi.change/v1: one JSON object with its operations under \"ops\", JSONL with the\nenvelope fields on the first line and one operation per line, or a JSON array of\noperations. It is read from CHANGESET or, with no argument or \"-\", from standard\ninput. 'kapi apply --schema' prints its JSON Schema.\n\nEach content operation names what it changes in \"at\" ({\"doc\", \"block\",\n\"edition\"}, the \"ref\" kapi inspect prints for a block) and the revision it read\nin \"if_match\" (the block's \"rev\"). set_content gives an edition new content, in\nthe placeholder text a read shows or as runs, and with \"if_match\": \"absent\"\ncreates an edition. replace_text changes text inside an edition by find, by\ncode-point offsets or by run positions, and keeps the inline codes and plurals\naround it. An operation whose edition moved since it was read is refused as\nstale with the current content. An edit that would drop, invent or unbalance an\ninline code, or flatten a plural or select, is refused as guard. When any\noperation is refused, nothing in the change set is written. An operation on the\ntranslation a bilingual file (XLIFF, PO) holds names its language as the\nedition, and a PO catalog is read in the one language the change set names.\n\ndecide records a review decision on the revision a person read. term, memory\nand recipe write a term, a content-memory pair or a recipe field into the\nproject, after the content they refer to. kapi apply records every change as\nthe person or agent the environment names (see 'kapi help growing-context').\nA decision other than advise, a term, a content-memory pair and a recipe field\nare a person's: run from an agent's shell they are refused.\n\nA code comment is a block of its source file, keyed as 'kapi check' and 'kapi\ninspect' report it (func/Parse), in Go and in the languages a comment plugin\nreads. set_content rewrites it with its new prose in \"text\", without comment\nmarkers, and \"if_match\" is the comment's \"rev\" from kapi inspect. Every byte\noutside the comment stays as it is, the result must parse, and the language's\nformatter must agree; what was written is checked again and its findings are\nreported, and a failing one exits 3 unless --gate report is given. Running that\nformatter runs code the project controls, so kapi asks once per project, in a\nterminal, and records the answer. A change set edits code comments or\ndocuments, never both.\n\nInside a project a document is named by its project-relative path. A file\noutside the project is named by its absolute path, as kapi inspect names it, and\na change set that edits one edits nothing in the project.\n\n--dry-run computes and checks the change set, writes nothing, and prints a diff\nper document. --gate report lands a change whose findings would otherwise\nrefuse it, for a person who has read them. --json prints the result\n(kapi.change-result/v1). --print-ops prints the change set as decoded, with its\ndefaults filled in, and applies nothing.\n\nExit status: 0 when the change set applied or previewed; 2 when it does not\ndecode or contradicts itself; 3 when an operation was refused, and nothing was\nwritten, when the change landed in part, or when the check of a written code\ncomment failed; 5 when a backend did not answer.",
       "groupID": "work",
       "flags": [
         {
-          "name": "diff",
-          "usage": "preview content and comment changes as a unified diff, list asset entries, and write nothing",
+          "name": "dry-run",
+          "usage": "compute and check the change set, print a diff per document, and write nothing",
           "default": "false",
           "type": "bool"
         },
@@ -95,18 +95,29 @@
         {
           "name": "format",
           "shorthand": "f",
-          "usage": "input/output format for content files (default: auto-detect)",
+          "usage": "format of every document the change set names (default: what the recipe binds, else auto-detect)",
+          "type": "string"
+        },
+        {
+          "name": "gate",
+          "usage": "what a failing finding the change introduces does: enforce (refuse it, the default) or report (land it with its findings; a person's choice)",
           "type": "string"
         },
         {
           "name": "in-place",
           "shorthand": "i",
-          "usage": "keep a backup of edited content files with --in-place=.bak",
+          "usage": "keep a copy of each file the change set replaces, with the SUFFIX given (--in-place=.bak)",
           "type": "bool"
         },
         {
           "name": "json",
-          "usage": "print the apply report as JSON",
+          "usage": "print the result as JSON (kapi.change-result/v1)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "print-ops",
+          "usage": "print the change set as decoded, with its defaults filled in, and apply nothing",
           "default": "false",
           "type": "bool"
         },
@@ -117,18 +128,20 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
+          "name": "schema",
+          "usage": "print the JSON Schema of a change set and exit",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
-        "kapi inspect report.docx --jsonl | edit-the-text | kapi apply",
-        "kapi apply changeset.jsonl",
-        "kapi apply changeset.jsonl --diff",
-        "kapi status --review --json | approve-units | kapi apply",
-        "kapi apply changeset.jsonl --in-place=.bak",
-        "echo '{\"kind\":\"comment\",\"file\":\"parse.go\",\"id\":\"func/Parse\",\"lines\":{\"first\":3,\"last\":4},\"comment_sha256\":\"\u003cfrom kapi check --json\u003e\",\"text\":\"Parse reads the input.\"}' | kapi apply"
+        "kapi inspect docs/guide.md --jsonl | write-the-edits | kapi apply",
+        "kapi apply change.json",
+        "kapi apply change.json --dry-run",
+        "kapi apply change.json --json",
+        "echo '{\"ops\":[{\"op\":\"replace_text\",\"at\":{\"doc\":\"docs/guide.md\",\"block\":\"install/p\"},\"if_match\":\"\u003crev from kapi inspect\u003e\",\"edits\":[{\"find\":\"colour\",\"text\":\"color\"}]}]}' | kapi apply",
+        "ksed 's/colour/color/g' docs/guide.md --print-ops | kapi apply",
+        "kapi apply --schema"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -5680,8 +5693,8 @@
         "inspect"
       ],
       "use": "inspect [flags] [FILE...]",
-      "short": "Parse any format into anchored, structured content blocks",
-      "long": "Parse each file into one record per content block: the text, a stable\ncontent-hash anchor, and the block's structural role (heading, list-item,\ntable-cell, …) and nesting level. Any format, whether a Word document, a JSON catalog,\nMarkdown or HTML, yields the same shape, so an AI agent or RAG pipeline can read\ncontent, retrieve against the anchors, and write edits back to the same blocks.\n\nPrints a JSON array by default; --output-format yaml emits a YAML sequence, and\n--jsonl streams one JSON object per line (JSONL) for piping into an ingestion\npipeline.\n\nPositional paths take glob patterns (`**` recurses) and directories, expanded\nby kapi itself. Inside a project, no FILE means the project's tracked content;\nFILE \"-\" reads standard input.",
+      "short": "Read any format into content blocks, with the references and revisions an edit names",
+      "long": "Read each file into one record per content block. Any format, whether a Word\ndocument, a JSON catalog, Markdown or HTML, yields the same shape, so an agent\nor a script can read content and send edits back to the same blocks with kapi\napply:\n\n  ref         the block's reference, {\"doc\", \"block\", \"edition\"}, to copy into\n              an operation's \"at\"\n  rev         the revision of the block's text, to send as \"if_match\"\n  text        the text, with inline codes as \u003cx id=\"…\"/\u003e placeholders\n  codes       each inline code by the id its placeholder shows: its type,\n              its attributes, and the attributes an edit may change\n  structures  each plural or select, with the path to each branch and the\n              branch's text\n  editions    the block's other editions, each with its revision and text,\n              and the status the file records for it where it keeps one\n  ops         the operations the block accepts\n  role, level the block's structural role (heading, list-item, table-cell,\n              …) and nesting level\n\nInside a project (the one -p names, or the one found from the working\ndirectory) a file is named by its project-relative path and read with the\nformat and configuration the recipe binds, and each declared translation is\nlisted among the editions. A file outside the project is named by its absolute\npath. A bilingual file whose reader has to be told the language of the\ntranslation it holds, such as a PO catalog, lists it with --target-lang. A\nsource file whose comments are what kapi edits in it lists each comment, keyed\nas kapi check reports it (func/Parse).\n\nPrints a JSON array by default; --output-format yaml emits a YAML sequence, and\n--jsonl streams one JSON object per line (JSONL) for piping into a script.\n\nPositional paths take glob patterns (`**` recurses) and directories, expanded\nby kapi itself. Inside a project, no FILE means the project's tracked content;\nFILE \"-\" reads standard input.",
       "groupID": "advanced",
       "flags": [
         {
@@ -5692,7 +5705,7 @@
         {
           "name": "format",
           "shorthand": "f",
-          "usage": "input format (default: auto-detect by extension/content)",
+          "usage": "input format (default: what the recipe binds, else auto-detect by extension/content)",
           "type": "string"
         },
         {
@@ -5703,21 +5716,28 @@
         },
         {
           "name": "project",
-          "usage": "also render each block to these target formats (html, markdown, asciidoc) under \"projected\"",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "render",
+          "usage": "also render each block to these formats (html, markdown, asciidoc) under \"projected\"",
           "default": "[]",
           "type": "stringSlice"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE); one per run",
           "type": "string"
         }
       ],
       "examples": [
         "kapi inspect report.docx",
-        "kapi inspect --jsonl 'docs/**/*.md' | jq .content_hash",
+        "kapi inspect --jsonl 'docs/**/*.md' | jq '{ref, rev}'",
         "kapi inspect --output-format yaml report.dclg.xml",
-        "kapi inspect report.docx --project html,markdown   # each block rendered per format",
+        "kapi inspect report.docx --render html,markdown   # each block rendered per format",
+        "kapi inspect -p site/kapi.yaml site/docs/guide.md",
         "cat page.html | kapi inspect -f html"
       ],
       "offlineCapable": true,

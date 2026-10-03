@@ -300,8 +300,8 @@ naming an undeclared profile or channel, and any bare (unqualified) reference.
 Bare entries cannot carry a channel at all: resolution is by collection name, so
 a point on an unnamed entry could never be read.
 
-The recipe's coordinate surface is writable through `kapi apply` with
-`kind: "recipe"`: `defaults.coordinates.<axis>` (one axis per entry; an empty
+The recipe's coordinate surface is writable through a `recipe` operation in
+`kapi apply`: `defaults.coordinates.<axis>` (one axis per operation; an empty
 value withdraws it) and `collections.<name>.channel` go through
 `project.SetField`, which applies the same refusals and preserves the recipe's
 formatting.

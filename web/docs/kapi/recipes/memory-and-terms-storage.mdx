@@ -161,8 +161,8 @@ to pre-fill and leverage future translation. It is *not* where a review decision
 lands. Whether a person has established a particular target is a
 workflow decision, recorded in the [project store](/kapi/project-store)'s
 decision ledger. Approving a unit
-(`kapi apply` with `kind:"review"`) writes that record; adding a memory pair
-(`kapi apply` with `kind:"memory"`) is recycle leverage and does **not** promote
+(a `decide` operation through `kapi apply`) writes that record; adding a memory pair
+(a `memory` operation through `kapi apply`) is recycle leverage and does **not** promote
 a unit to *reviewed*.
 
 ## Note on locale flags

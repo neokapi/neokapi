@@ -37,7 +37,7 @@ script:
   - comment: "Voltway sells metering software: operator documentation, console strings, and a portal that ships under a partner's brand."
   - command: ls
   - comment: The brand every collection inherits is a decision, so it is recorded as one rather than typed into the file.
-  - command: echo '{"kind":"recipe","op":"set","path":"defaults.coordinates.brand","value":"voltway"}' > coordinates.jsonl
+  - command: echo '{"op":"recipe","path":"defaults.coordinates.brand","value":"voltway"}' > coordinates.jsonl
   - command: kapi apply coordinates.jsonl
   - comment: Ask any file where it sits. The documentation answers with the docs channel.
   - command: kapi context docs/quickstart.md --explain
