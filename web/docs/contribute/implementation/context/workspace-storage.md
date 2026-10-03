@@ -197,11 +197,15 @@ operation applied twice writes the same rows. Operation ids sort by time, so "mo
 `ORDER BY op DESC`, and SQLite's `MAX()` with bare columns gives the latest row
 per block for `history.Store.Priors` in one statement. `history.Store.Latest`
 reads the latest row of each edition of a document, one primary-key seek per
-edition, which is how coverage, the staleness gate and a decision find the
-flow's last write to a translation. A second index,
-`(doc, op)`, serves the reads of a whole document, and a third,
+edition. Where the latest row did not leave the revision an edition holds (a
+branch switch brought back another), `history.Store.Wrote` finds the row that
+did, a recorded write before an observed one, which is how coverage, a
+decision, the review context and a push find the write behind a translation;
+the staleness gate reads the source alone and takes the latest row. A second
+index, `(doc, op)`, serves the reads of a whole document, and a third,
 `block_history_reached` on `(doc, block, edition, after, op)`, the address
-lookups of a recording.
+lookups of a recording, the `Wrote` lookups and an observing read's check of
+the revisions it found.
 
 `Rebuild` deletes every row of the projection tables, skipping the FTS5 shadow
 tables (emptying the virtual table empties them), resets their `sqlite_sequence`

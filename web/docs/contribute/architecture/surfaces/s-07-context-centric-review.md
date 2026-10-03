@@ -118,17 +118,23 @@ person decides it.
 The author is read from the block history, which records every writer: a
 person through `kapi apply`, ksed, Kapi Desktop or the browser engine, an agent
 through the MCP tools, a flow, a pull, a merge, and an edit made outside kapi,
-which a read records as observed with no author. On the venue the policy reads
-the venue's own block history, where its editor and its change route record
-the person sending each change and an agent's change is its person's. Content
-written on a checkout reaches it through a push, which says for each
-translation who last wrote it. A translation a person or an agent wrote by
-hand on the checkout (not one a pull or a merge brought in, nor one observed)
-is the pusher's: the venue names the pusher as its author in the block history
-row the push writes for it, and judges an approval the same push carries as the
-pusher's approval of their own wording. A translation a flow produced, or one
-a pull, a merge or an edit outside kapi brought in, names no author, and one
-person decides it.
+which a read records as observed with no author. The author of a translation
+is the writer of the change that left it as it is (`history.Store.Wrote`), so
+a branch switch brings back the author of what the branch holds. On the venue
+the policy reads the venue's own block history, where its editor and its
+change route record the person sending each change and an agent's change is
+its person's. Content written on a checkout reaches it through a push, which
+says for each translation who wrote it. A translation a person or an agent
+wrote by hand on the checkout (not one a pull or a merge brought in, nor one
+observed) is the pusher's. The venue keeps that author for the translation's
+revision whether or not it holds the translation (`edition_writers`), names
+the author in the block history row a push writes for a translation it holds,
+and judges an approval of it, in that push or a later one, as the author's.
+The first pusher of a revision stays its author when another checkout that
+pulled the record sends the same write, and a write of another revision by
+anybody else ends the claim. A translation a flow produced, or one a pull, a
+merge or an edit outside kapi brought in, names no author, and one person
+decides it.
 
 ### Every client renders the same object
 
@@ -244,15 +250,19 @@ work ([C-04](../context/c-04-unit-state-and-decisions.md)).
 
 A working copy holds its own decision record, and `kapi push` sends it with the
 content it judges. Beside the decisions it sends how each translation of the
-documents it reads came to be (`venue.EditionWrite`): the last write the block
-history records for the edition, with its revision, the source it was made
-from, the writer (person, agent, tool, or external) and the surface. It sends
-them until the venue has applied them. The venue records them after the
-decisions: on a unit nobody has decided, the basis becomes the unit's ledger
-record, as the basis of one of its own drafts does, so a translation a run on
-the checkout produced is graded stale once its source moves; a tool's write
-from a recorded source marks the unit drafted against it; a write about
-another translation than the one the venue holds is left out.
+documents it reads came to be (`venue.EditionWrite`): the write the block
+history records as having left the translation the checkout holds, with its
+revision, the source it was made from, the writer (person, agent, tool, or
+external) and the surface. A pulled translation's write names no source: the
+venue's own record holds it. Each write goes until the venue has applied a
+push that carried it, and again when it changes. The venue records them after
+the decisions, reading each item's blocks, translations and ledger rows once:
+on a unit nobody has decided, the basis becomes the unit's ledger record, as
+the basis of one of its own drafts does, so a translation a run on the
+checkout produced is graded stale once its source moves; a tool's write from a
+recorded source marks the unit drafted against it; a write about another
+translation than the one the venue holds leaves the basis and the draft mark
+alone; and a write by hand records its author.
 
 The venue is authoritative for what has been approved in it, so it holds every
 rung above translated and every approval a push
