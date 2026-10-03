@@ -120,8 +120,8 @@ answer ends with (#2989).
 | 7 | `kapi-desktop-config` | `kapi-desktop-config` | `kapi/desktop/tour.mdx`, `kapi/desktop/recipes/store-ai-credentials.mdx` | desktop recorder | earlier settings layout |
 | 8 | `bowrain-cli-getting-started` | `bowrain-cli-getting-started` | Bowrain `getting-started/the-loop.mdx`, `walkthroughs/bowrain-getting-started.mdx` | stack + `make harness-seed` | `kapi init` proposes the catalog's collection, so the `kapi add` step is gone; status, push and up output |
 | 9 | `bowrain-cli-auth-and-workspaces` | `bowrain-cli-auth-and-workspaces` | Bowrain `walkthroughs/bowrain-auth.mdx` | stack + seed | output of the July take |
-| 10 | `bowrain-web-review` | `bowrain-web-review` | Bowrain `server/review.mdx`, `server/web-overview.mdx` | stack + `scripts/seed-collaboration.mjs` (two users) | one human rung, no sign-off controls; an approval of wording someone changed stops at the stale prompt |
-| 11 | `bowrain-web-editor` | `bowrain-web-editor` | Bowrain `server/translation-editor.mdx`, `server/web-overview.mdx` | stack + seed | status badges; a save over a translation someone changed stops at the stale prompt |
+| 10 | `bowrain-web-review` | `bowrain-web-review` | Bowrain `server/review.mdx`, `server/web-overview.mdx` | stack + `scripts/seed-collaboration.mjs` (two users) | one human rung, no sign-off controls; an approval of wording someone changed stops at the stale prompt; a correction the project's checks refuse stops at the findings prompt ("Save anyway") |
+| 11 | `bowrain-web-editor` | `bowrain-web-editor` | Bowrain `server/translation-editor.mdx`, `server/web-overview.mdx` | stack + seed | status badges; a save over a translation someone changed stops at the stale prompt; the `edit` beat's save and the `memory` beat's Apply pass the project's checks, and one the seeded terms refuse stops at the findings prompt ("The checks found problems in this translation", "Save anyway"); Apply saves the match with its tags |
 | 12 | `bowrain-web-governance` | `bowrain-web-governance` | Bowrain `server/context.mdx`, `server/terminology.mdx`, `server/translation-memory.mdx`, `server/web-overview.mdx` | stack + seed (`BOWRAIN_TERM_BLOCK_TEXT`, `BOWRAIN_TERM_TEXT`) | July take |
 | 13 | `bowrain-web-collaboration` | `bowrain-web-collaboration` | Bowrain `getting-started/introduction.mdx`, `server/collaboration.mdx`, `server/web-overview.mdx` | stack + `seed-collaboration.mjs` (two users) | July take; of two people saving one block, the second now meets the stale prompt (the walk saves none) |
 | 14 | `bowrain-web-correction-loop` | `bowrain-web-correction-loop` | Bowrain `server/context-voice.mdx`, `server/web-overview.mdx` | stack + seed | July take |
@@ -160,7 +160,12 @@ against. A save or a decision on a translation someone changed after the person
 opened it stops at a prompt, "This translation changed since you opened it",
 that shows the translation as it stands. The walks of rows 10, 11, 13 and 15
 make no concurrent edit, so a take that shows the prompt opened a block before
-the seed finished writing it. The desktop's offline beat in row 15 queues change
+the seed finished writing it. A save also passes the project's checks; one they
+refuse stops at a second prompt that lists the findings and offers "Save
+anyway". The seeds write with `gate: "report"`, so they never meet it, but the
+`edit` and `memory` beats of row 11 and a correction in row 10 do whenever the
+wording they save breaks a seeded term rule. Check each take for that prompt,
+and choose wording the terms allow rather than recording the override. The desktop's offline beat in row 15 queues change
 sets, and the queue drains as before when nobody else touched those blocks.
 
 ### 2. Placeholders on the page

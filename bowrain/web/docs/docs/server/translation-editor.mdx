@@ -37,7 +37,11 @@ version of the translation you opened. If a teammate saved a different
 translation of the block in the meantime, nothing is written: the editor shows
 their translation beside yours and asks whether to save yours over it or keep
 theirs. Approving and rejecting work the same way, so a decision always applies
-to the wording you read. The web and desktop apps are equal real-time clients of
+to the wording you read. The project's checks run on every save: when they find
+a problem your wording introduces, such as a missing variable or a word the
+terms rule out, nothing is written, and the editor lists what they found and
+asks whether to change the wording or save it anyway. A translation saved
+anyway is recorded with those findings. The web and desktop apps are equal real-time clients of
 the same server, and the desktop app keeps working offline: edits queue locally
 and replay on reconnect. See [Real-time collaboration](/server/collaboration)
 for the full picture.
@@ -113,14 +117,16 @@ block's point.
 
 Content memory matches for the block, each with a score (green for a 100%
 exact match, yellow for fuzzy), the match type, the stored source and target,
-and an **Apply** button that copies the match into the target.
+and an **Apply** button that copies the match into the target, with the tags
+and variables the match holds.
 
 ### Terms
 
 Terms found in the block appear in the term sidebar with their source term,
 suggested target term(s), lifecycle status (preferred, approved, admitted,
 deprecated), and domain. Clicking a target term inserts it into the active
-target.
+target. With no target open for editing, the term is added at the end of the
+saved translation and its tags stay where they are.
 
 ## Entities
 

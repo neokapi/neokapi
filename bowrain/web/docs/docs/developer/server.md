@@ -78,8 +78,17 @@ The web editor, the review surfaces and the desktop app send every save and
 decision with the revision they rendered from `target_revisions`
 (`bowrain/packages/ui/src/api/contentChanges.ts`). On a `stale` refusal the
 surface shows the person the translation as it stands and sends the operation
-again on the refusal's revision only when they choose to. Notes and entity
-marks are `annotate` and `unannotate` operations on the source edition. The
+again on the refusal's revision only when they choose to. On a `gate_failed`
+refusal of a save it lists the operation's failing findings and, when the
+person chooses to save anyway, sends the same change set again with
+`gate: "report"`, which the server admits from a person and records with the
+overridden findings. A translation is always sent as `runs`: a plural as one
+plural run with its forms, a content-memory match as the `target_runs` the
+match lookup serves, and an inserted term appended to the translation's runs,
+so inline codes and plural structure travel with the edit. Notes and entity
+marks are `annotate` and `unannotate` operations on the source edition, anchored
+at run positions in `source_runs`, which the blocks route serves for any source
+that is more than one run. The
 desktop sends its change sets through `editorclient.ApplyChanges`; with the
 server out of reach it applies one to its local cache and queues it unchanged in
 its offline outbox, so the server judges each `if_match` on replay and a queued
