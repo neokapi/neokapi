@@ -371,15 +371,10 @@ func TestWriteFromScratch(t *testing.T) {
 		Properties: map[string]string{"arb.locale": "en"},
 	}
 	mkBlock := func(id, key, value, desc string) *model.Block {
-		b := &model.Block{
-			ID:           id,
-			Name:         key,
-			Translatable: true,
-			SourceLocale: "en",
-			Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
-			Targets:      map[model.VariantKey]*model.Target{},
-			Properties:   map[string]string{"arb.key": key},
-		}
+		b := model.NewBlock(id, value)
+		b.Name = key
+		b.SourceLocale = "en"
+		b.Properties = map[string]string{"arb.key": key}
 		if desc != "" {
 			b.AddNote(&model.NoteAnnotation{Text: desc, From: "developer", Annotates: "general"})
 		}

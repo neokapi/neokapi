@@ -338,14 +338,9 @@ func TestWriteStringsFromScratch(t *testing.T) {
 		Properties: map[string]string{"applestrings.kind": "strings", "applestrings.encoding": "utf-8"},
 	}
 	mk := func(id, key, value string) *model.Block {
-		b := &model.Block{
-			ID:           id,
-			Translatable: true,
-			SourceLocale: "en",
-			Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
-			Targets:      map[model.VariantKey]*model.Target{},
-			Properties:   map[string]string{"applestrings.key": key, "applestrings.leaf": "value"},
-		}
+		b := model.NewBlock(id, value)
+		b.SourceLocale = "en"
+		b.Properties = map[string]string{"applestrings.key": key, "applestrings.leaf": "value"}
 		return b
 	}
 	parts := []*model.Part{
@@ -371,19 +366,15 @@ func TestWriteStringsdictFromScratch(t *testing.T) {
 		Properties: map[string]string{"applestrings.kind": "stringsdict", "applestrings.encoding": "utf-8"},
 	}
 	mkPlural := func(id, key, variable, cat, value string) *model.Block {
-		return &model.Block{
-			ID:           id,
-			Translatable: true,
-			SourceLocale: "en",
-			Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
-			Targets:      map[model.VariantKey]*model.Target{},
-			Properties: map[string]string{
-				"applestrings.key":      key,
-				"applestrings.leaf":     "plural",
-				"applestrings.var":      variable,
-				"applestrings.category": cat,
-			},
+		b := model.NewBlock(id, value)
+		b.SourceLocale = "en"
+		b.Properties = map[string]string{
+			"applestrings.key":      key,
+			"applestrings.leaf":     "plural",
+			"applestrings.var":      variable,
+			"applestrings.category": cat,
 		}
+		return b
 	}
 	parts := []*model.Part{
 		{Type: model.PartLayerStart, Resource: layer},

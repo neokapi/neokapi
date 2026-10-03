@@ -56,7 +56,7 @@ func arbEditWithSkeleton(t *testing.T, input string, streaming bool, edit func(*
 func setSource(key, value string) func(*model.Block) {
 	return func(b *model.Block) {
 		if b.Name == key {
-			b.Source = []model.Run{model.TextR(value)}
+			b.SetSourceRuns([]model.Run{model.TextR(value)})
 		}
 	}
 }
