@@ -227,6 +227,18 @@ func TestFileHome_RefusesStructureItCannotWrite(t *testing.T) {
 		assert.Equal(t, "{\"a\": \"A\", \"count\": 4}", f.read(t, "en.json"))
 	})
 
+	t.Run("an anchor outside the new key's object", func(t *testing.T) {
+		const doc = "{\"nav\": {\"cart\": \"Cart\"}, \"footer\": {\"legal\": \"Legal\"}}"
+		f := newFixture(t, map[string]string{"en.json": doc})
+		res := f.apply(t, insertAt("en.json", "footer.legal", "nav.checkout", map[string]string{"en": "Checkout"}))
+		require.NotNil(t, res.Ops[0].Error)
+		assert.Equal(t, change.CodeInvalid, res.Ops[0].Error.Code, "the change set names the wrong anchor: %+v", res.Ops[0].Error)
+		assert.Equal(t, "after", res.Ops[0].Error.Field)
+		assert.Empty(t, res.Ops[0].Error.Capability)
+		assert.Contains(t, res.Ops[0].Error.Message, "outside it")
+		assert.Equal(t, doc, f.read(t, "en.json"))
+	})
+
 	t.Run("a new block the format reads as something else", func(t *testing.T) {
 		f := newFixture(t, map[string]string{"en.yaml": "a: A\n"})
 		res := f.apply(t, insertAt("en.yaml", "a", "b", map[string]string{"en": "   "}))
