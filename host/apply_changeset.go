@@ -107,7 +107,7 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		return err
 	}
 	if opts.Out != "" && recipe != "" {
-		return WithExitCode(ExitUsage, fmt.Errorf("--out: inside a project the recipe's target names the file of each edition; "+
+		return WithExitCode(ExitUsage, errors.New("--out: inside a project the recipe's target names the file of each edition; "+
 			"send the edition at its document ({\"doc\": SOURCE, \"edition\": LANG}) and kapi writes it there"))
 	}
 
