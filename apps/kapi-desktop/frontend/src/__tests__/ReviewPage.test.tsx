@@ -440,6 +440,25 @@ describe("ReviewPage", () => {
     );
   });
 
+  // The reviewer keeps typing while the prompt is open; applying the change
+  // over the moved text sends the editor's text as it is now.
+  it("applies what the editor holds now, typed after the prompt too", async () => {
+    const { changes } = renderPage();
+    const editor = await targetEditor();
+    await userEvent.type(editor, "Welt ");
+    changes.touch("locales/de-DE.json", "greeting", "Hallo Leute");
+    await userEvent.click(await screen.findByRole("button", { name: /Save & re-check/ }));
+    await screen.findByText("Changed since you opened it");
+
+    await userEvent.type(editor, "und mehr ");
+    const typed = editor.textContent;
+    expect(typed).toContain("und mehr");
+    await userEvent.click(screen.getByRole("button", { name: /Apply my change over it/ }));
+    await waitFor(() => expect(changes.sets).toHaveLength(2));
+    const op = changes.sets[1].ops[0];
+    expect(op.op === "set_content" && op.text).toBe(typed);
+  });
+
   it("lists the recorded changes to the unit", async () => {
     const { changes } = renderPage();
     const editor = await targetEditor();

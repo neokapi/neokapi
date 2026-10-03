@@ -32,8 +32,11 @@ export interface ChangeSender {
   stale: PendingStale | null;
   /** Why the last change did not land, when it was not a moved revision. */
   error: string | null;
-  /** Send the held change again over the content as it stands. */
-  reapply: () => Promise<ChangeResult | null>;
+  /**
+   * Send the held change again over the content as it stands, or `ops` in its
+   * place: an editor's edits as they are now, typed after the refusal too.
+   */
+  reapply: (ops?: ChangeOp[]) => Promise<ChangeResult | null>;
   /** Drop the held change and read the content again. */
   discard: () => Promise<void>;
   /** Forget a refusal, as a new selection does. */
@@ -81,10 +84,13 @@ export function useChangeSender(
     [client, onApplied],
   );
 
-  const reapply = useCallback(async () => {
-    if (!stale) return null;
-    return send(rebaseOps(stale.ops, stale, rebase), stale.note);
-  }, [stale, send, rebase]);
+  const reapply = useCallback(
+    async (ops?: ChangeOp[]) => {
+      if (!stale) return null;
+      return send(rebaseOps(ops ?? stale.ops, stale, rebase), stale.note);
+    },
+    [stale, send, rebase],
+  );
 
   const discard = useCallback(async () => {
     setStale(null);

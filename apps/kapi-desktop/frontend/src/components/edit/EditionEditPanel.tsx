@@ -84,6 +84,18 @@ export function EditionEditPanel({
     sender.clear();
   };
 
+  // Apply the editor's edits as they stand now over the moved text, with
+  // anything typed while the prompt was open. An editor taken back to what
+  // was read has no change to apply, so the current text is kept.
+  const reapply = async () => {
+    if (!content || edits.length === 0) {
+      revert();
+      await sender.discard();
+      return;
+    }
+    await sender.reapply(setContentOps(content, edits));
+  };
+
   return (
     <div className="space-y-2" data-slot={dataSlot}>
       {!content ? (
@@ -149,7 +161,7 @@ export function EditionEditPanel({
           codes={content?.codes}
           locale={locale}
           busy={sender.busy}
-          onReapply={() => void sender.reapply()}
+          onReapply={() => void reapply()}
           onDiscard={() => {
             revert();
             void sender.discard();
