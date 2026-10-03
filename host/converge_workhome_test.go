@@ -234,6 +234,27 @@ func TestConverge_DeliveryMovesTheDraftsToTheirFile(t *testing.T) {
 	assert.Len(t, keptDrafts(t, a, dir, "nb"), 4, "the parked edition stays kept")
 }
 
+// TestConverge_AFileAPassWritesReleasesTheKeptEdition: a recipe that stops
+// withholding delivery has its next pass write each translation where the
+// recipe points, and a file written that way is the edition's home, so the
+// workspace home stops keeping the drafts it held.
+func TestConverge_AFileAPassWritesReleasesTheKeptEdition(t *testing.T) {
+	a, cmd, recipe, dir := parkedReviewProject(t)
+	parkedReviewPass(t, a, cmd, recipe)
+	require.Len(t, keptDrafts(t, a, dir, "nl"), 4)
+
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Materialize = project.MaterializeManual
+	require.NoError(t, project.Save(recipe, proj))
+	parkedReviewPass(t, a, cmd, recipe)
+
+	for _, loc := range []string{"nb", "nl"} {
+		require.FileExists(t, filepath.Join(dir, "site", "locales", loc+".json"))
+		assert.Empty(t, keptDrafts(t, a, dir, loc), "%s: the file holds the edition, so the workspace keeps none of it", loc)
+	}
+}
+
 // TestStatus_ListsAKeptDraftConflict: an edit to a kept draft that another
 // machine made from an older version, and that changed a block the head has
 // moved since, does not land; kapi status names it.

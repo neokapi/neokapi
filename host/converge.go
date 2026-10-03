@@ -1141,6 +1141,11 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// back as a statement from git; see stampCommittedRecord.
 	if a.printOps == nil {
 		a.stampCommittedRecord(ctx, proj, projectPath, facts.unread)
+		// A pass that wrote a translation's file where the recipe points
+		// delivered it, so the workspace home stops keeping that edition.
+		if rerr := a.releaseDelivered(ctx, projectPath); rerr != nil {
+			return fmt.Errorf("release delivered drafts from the workspace home: %w", rerr)
+		}
 	}
 
 	state := convergence.RunConverged

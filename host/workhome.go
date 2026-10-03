@@ -83,9 +83,58 @@ func (k *keptEditions) open(ctx context.Context, create bool) (*workhome.Home, e
 	if !p.Logged() {
 		return nil, nil
 	}
-	docs := k.app.documentIndexOrEmpty(ctx, k.root)
-	k.home = &workhome.Home{Store: db.Heads(), Log: p, DocKey: docs.Key}
+	keys := k.app.keptDocKeysFor(k.root)
+	keyCtx := context.WithoutCancel(ctx)
+	k.home = &workhome.Home{Store: db.Heads(), Log: p, DocKey: func(ref string) string { return keys.key(keyCtx, ref) }}
 	return k.home, nil
+}
+
+// keptDocKeys names the documents of one project by the keys the workspace
+// home files their editions under (DocumentIndex.Key). The index is read once
+// per App and read again only for a path it does not name, which a document
+// adopted since then is: every read surface asks it once per unit, and the
+// index lists every document of the project.
+type keptDocKeys struct {
+	app  *App
+	root string
+
+	mu     sync.Mutex
+	docs   *DocumentIndex
+	missed map[string]bool
+}
+
+// keptDocKeysFor returns the document keys of the project rooted at root.
+func (a *App) keptDocKeysFor(root string) *keptDocKeys {
+	s := a.ensureProjectStores()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.keptKeys == nil {
+		s.keptKeys = map[string]*keptDocKeys{}
+	}
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		abs = root
+	}
+	k, ok := s.keptKeys[abs]
+	if !ok {
+		k = &keptDocKeys{app: a, root: root, missed: map[string]bool{}}
+		s.keptKeys[abs] = k
+	}
+	return k
+}
+
+// key is the key of the document at the project-relative path ref.
+func (k *keptDocKeys) key(ctx context.Context, ref string) string {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.docs == nil || (!k.docs.Holds(ref) && !k.missed[ref]) {
+		docs := k.app.documentIndexOrEmpty(ctx, k.root)
+		k.docs = &docs
+		if !k.docs.Holds(ref) {
+			k.missed[ref] = true
+		}
+	}
+	return k.docs.Key(ref)
 }
 
 // Edition reads what the workspace home keeps of edition ed of the document
@@ -397,6 +446,60 @@ func (a *App) releaseKept(ctx context.Context, root, ref string, ed model.Editio
 	}
 	_, err = h.Release(ctx, ref, ed, actor, origin)
 	return err
+}
+
+// releaseDelivered releases from the workspace home every edition whose file
+// the recipe's target template names now exists: a pass that writes where the
+// recipe points delivered it, and the file is its home from then on. It is
+// what keeps the workspace from holding a second copy of an edition a file
+// holds whichever path wrote the file.
+func (a *App) releaseDelivered(ctx context.Context, recipe string) error {
+	root := filepath.Dir(recipe)
+	h, err := a.keptEditions(root).open(ctx, false)
+	if err != nil || h == nil {
+		return err
+	}
+	if err := h.Log.CatchUp(ctx); err != nil {
+		return err
+	}
+	heads, err := h.Store.Heads(ctx)
+	if err != nil || len(heads) == 0 {
+		return err
+	}
+	// The layout of a service that writes every edition to its file names
+	// each edition's file and keeps none.
+	ch, err := a.changeHome(ChangeServiceOptions{Project: recipe, Materialize: true})
+	if err != nil {
+		return err
+	}
+	for _, head := range heads {
+		held, err := h.Store.Held(ctx, head.Doc, head.Edition)
+		if err != nil {
+			return err
+		}
+		if !held || head.Path == "" {
+			continue
+		}
+		key, err := model.ParseEditionKey(head.Edition)
+		if err != nil {
+			continue
+		}
+		d, err := ch.layout.Locate(ctx, head.Path)
+		if err != nil || d.EditionFile == nil {
+			continue
+		}
+		f, ok := d.EditionFile(key)
+		if !ok {
+			continue
+		}
+		if _, err := os.Stat(f.Path); err != nil {
+			continue
+		}
+		if _, err := h.Release(ctx, head.Path, key, change.Actor{Kind: change.ActorTool, Name: "up"}, "flow:up"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // keptRuns reads what the workspace home keeps of edition ed of the document
