@@ -17,6 +17,9 @@ import (
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/host"
 )
 
 // bindingService carries the change contract to the desktop's bindings as the
@@ -420,6 +423,95 @@ func TestApply_ASourceEditListsTheTranslationsItMadeStale(t *testing.T) {
 	src = blockVia(t, app, tab.ID, "locales/en.json", "greeting")
 	res = applyVia(t, app, tab.ID, change.Set{Ops: []change.Op{decideOp(src.Ref, src.Rev, change.OutcomeEstablish)}})
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+}
+
+// A save the project's checks refuse is gate_failed with its findings; the
+// person may save it anyway, sending the change set again with gate report,
+// and the edit's record lists the findings overridden. An agent may never
+// choose report.
+func TestApply_SaveAnywayRecordsTheOverriddenFindings(t *testing.T) {
+	// One workspace for the context the project reads in and for the
+	// desktop's engine, so the test can read the record the edit leaves.
+	wsRoot := t.TempDir()
+	app := NewApp()
+	app.hostEngine().SetWorkspaceRoot(wsRoot)
+	tab, src := overrideProject(t, app, wsRoot, `{"greeting":"Please use the dashboard"}`)
+	root := filepath.Dir(filepath.Dir(src))
+	b := blockVia(t, app, tab, "locales/en.json", "greeting")
+	utilize := change.Set{Note: "Say utilize", Ops: []change.Op{setText(b.Ref, b.Rev, "Please utilize the dashboard")}}
+
+	res := applyVia(t, app, tab, utilize)
+	require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
+	require.NotNil(t, res.Ops[0].Error)
+	assert.Equal(t, change.CodeGateFailed, res.Ops[0].Error.Code)
+	require.NotEmpty(t, res.Ops[0].Findings, "the refusal carries the findings the person reads")
+	assert.Equal(t, "terms.vocabulary", res.Ops[0].Findings[0].Rule)
+
+	ctx := t.Context()
+	svc, err := app.changeServiceFor(ctx, tab, nil)
+	require.NoError(t, err)
+	agent := utilize
+	agent.Gate = change.GateReport
+	res2, err := svc.Apply(ctx, agent, change.Actor{Kind: change.ActorAgent, Name: "claude", Session: "s1"})
+	require.NoError(t, err)
+	require.Equal(t, change.SetRefused, res2.Status)
+	assert.Equal(t, change.CodeNotPermitted, res2.Ops[0].Error.Code, "an agent may not save anyway")
+
+	anyway := utilize
+	anyway.Gate = change.GateReport
+	res = applyVia(t, app, tab, anyway)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.NotEmpty(t, res.Ops[0].Findings, "the edit lands with its findings")
+	data, err := os.ReadFile(src)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "Please utilize the dashboard")
+
+	engine := app.hostEngine()
+	p, err := engine.Projector(ctx, root)
+	require.NoError(t, err)
+	ws, err := engine.Workspace(ctx)
+	require.NoError(t, err)
+	ops, err := ws.Select(ctx, workspace.OpQuery{Project: p.Key(), KindPrefix: projector.KindEdit})
+	require.NoError(t, err)
+	require.Len(t, ops, 1, "the override is the one edit recorded")
+	var e projector.Edit
+	require.NoError(t, json.Unmarshal(ops[0].Payload, &e))
+	assert.Equal(t, change.ActorPerson, e.Actor.Kind)
+	assert.Equal(t, "desktop", e.Origin.By)
+	require.NotEmpty(t, e.Overridden, "the record names what the person overrode")
+	assert.Equal(t, "terms.vocabulary", e.Overridden[0].Rule)
+	assert.True(t, e.Overridden[0].Fails)
+}
+
+// overrideProject is setupCheckProject with the context read into the
+// workspace at wsRoot.
+func overrideProject(t *testing.T, app *App, wsRoot, sourceJSON string) (tabID, srcPath string) {
+	t.Helper()
+	dir := t.TempDir()
+	srcPath = filepath.Join(dir, "locales", "en.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(srcPath), 0o755))
+	require.NoError(t, os.WriteFile(srcPath, []byte(sourceJSON), 0o644))
+	proj := &project.KapiProject{
+		Version:     project.CurrentVersion,
+		Defaults:    project.Defaults{SourceLanguage: "en"},
+		Collections: []project.Collection{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
+	}
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RelStatePath("voice.yaml")), []byte(houseVoiceYAML), 0o644))
+	projPath := filepath.Join(dir, "proj.kapi")
+	require.NoError(t, project.Save(projPath, proj))
+
+	reader := &host.App{}
+	reader.InitRegistries()
+	reader.SetWorkspaceRoot(wsRoot)
+	_, err := reader.ImportProjectContext(context.Background(), projPath, host.ContextImportRequest{})
+	require.NoError(t, err)
+	reader.Shutdown()
+
+	tab, err := app.OpenProject(projPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+	return tab.ID, srcPath
 }
 
 func TestChangeBindings_Refusals(t *testing.T) {

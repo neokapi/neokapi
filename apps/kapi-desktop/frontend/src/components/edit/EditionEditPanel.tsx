@@ -7,6 +7,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { type EditionContent, type EditionEdit, setContentOps } from "../../lib/changes";
 import { EditionEditor } from "./EditionEditor";
 import { EditTextDisplay } from "./EditTextDisplay";
+import { GatePrompt } from "./GatePrompt";
 import { StalePrompt } from "./StalePrompt";
 import type { ChangeSender } from "./useChangeSender";
 
@@ -40,8 +41,9 @@ export interface EditionEditPanelProps {
  * Save sends a set_content for each edit with the revision the editor was
  * given, so a change made to the content after it was read is never
  * overwritten unseen: the change service refuses it as stale, and the panel
- * shows the text as it stands and asks before applying the edit over it.
- * Revert starts the editor over from what was read.
+ * shows the text as it stands and asks before applying the edit over it. A
+ * save a rule in force refuses shows what the check found, and the person may
+ * save it anyway. Revert starts the editor over from what was read.
  */
 export function EditionEditPanel({
   sender,
@@ -94,6 +96,16 @@ export function EditionEditPanel({
       return;
     }
     await sender.reapply(setContentOps(content, edits));
+  };
+
+  // Save the editor's edits as they stand now over the findings a rule
+  // reported: the person read them and keeps the wording.
+  const saveAnyway = async () => {
+    if (!content || edits.length === 0) {
+      await sender.override();
+      return;
+    }
+    await sender.override(setContentOps(content, edits));
   };
 
   return (
@@ -168,10 +180,19 @@ export function EditionEditPanel({
           }}
         />
       )}
-      {sender.error && (
-        <p className="text-xs text-destructive" role="alert" data-slot="edition-refused">
-          {sender.error}
-        </p>
+      {sender.gated ? (
+        <GatePrompt
+          findings={sender.gated.findings}
+          busy={sender.busy}
+          onOverride={() => void saveAnyway()}
+          onDismiss={sender.clear}
+        />
+      ) : (
+        sender.error && (
+          <p className="text-xs text-destructive" role="alert" data-slot="edition-refused">
+            {sender.error}
+          </p>
+        )
       )}
     </div>
   );

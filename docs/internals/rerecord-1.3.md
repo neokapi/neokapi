@@ -30,6 +30,7 @@ Since then 1.3 changed what several of them show:
   a time) in place of a plain text box, its Save sends a `set_content` with the
   revision read, Approve and Reject send `decide`, and a unit that changed since
   it opened shows "Changed since you opened it" before anything is written. A
+  save a failing rule refuses lists the findings and offers "Save anyway". A
   **Changes** card under Provenance lists the unit's recorded changes. The
   Checks panel's Apply fix sends the finding's fix, and the document view offers
   Edit on a focused unit. Each form of a plural is an inline-code editor of its

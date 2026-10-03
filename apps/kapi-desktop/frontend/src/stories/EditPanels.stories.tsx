@@ -4,15 +4,17 @@ import type { EditionHistory } from "@neokapi/contract-types";
 
 import { ChangesCard } from "../components/edit/ChangesCard";
 import { EditionEditPanel } from "../components/edit/EditionEditPanel";
+import { GatePrompt } from "../components/edit/GatePrompt";
 import { StalePrompt } from "../components/edit/StalePrompt";
 import { useChangeSender } from "../components/edit/useChangeSender";
-import { type EditionContent, editionContent } from "../lib/changes";
+import { type EditionContent, editionContent, setContentOps } from "../lib/changes";
 import { MemoryChanges, type MemoryBlock } from "./memoryChanges";
 
 /**
  * The pieces every Kapi Desktop edit is made of: an edition in the editor, the
  * save that sends it to the change service with the revision it read, the
- * prompt a moved revision brings up, and the recorded changes of the edition.
+ * prompt a moved revision brings up, the prompt a failing rule brings up with
+ * its "Save anyway", and the recorded changes of the edition.
  */
 const meta: Meta = {
   title: "Edit/Edition panels",
@@ -146,6 +148,81 @@ export const StalePromptAlone: Story = {
         locale="en"
         onReapply={() => {}}
         onDiscard={() => {}}
+      />
+    </div>
+  ),
+};
+
+/**
+ * One block whose save a rule in force refuses: the panel saves "utilize",
+ * which the project's checks fail, as soon as it has read the block, so the
+ * prompt shows what the check found. "Save anyway" sends the same change with
+ * gate report, and it lands with its findings.
+ */
+function GatedPanel() {
+  const block: MemoryBlock = {
+    doc: "docs/guide.md",
+    block: "intro",
+    text: "We use the widget every day.",
+  };
+  const client = useMemo(
+    () => new MemoryChanges([block], {}, [{ term: "utilize", replacement: "use" }]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const [content, setContent] = useState<EditionContent | null>(null);
+  const load = useCallback(async () => {
+    const page = await client.read({ doc: block.doc, blocks: [block.block] });
+    setContent(page.blocks[0] ? editionContent(page.blocks[0]) : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  const sender = useChangeSender(client, { onApplied: load, onReload: load });
+  const [saved, setSaved] = useState(false);
+  const { send } = sender;
+  useEffect(() => {
+    if (!content || saved) return;
+    setSaved(true);
+    void send(
+      setContentOps(content, [{ text: "We utilize the widget every day." }]),
+      "Say utilize",
+    );
+  }, [content, saved, send]);
+  return (
+    <div className="max-w-xl">
+      <EditionEditPanel sender={sender} content={content} locale="en" data-slot="story-edit" />
+    </div>
+  );
+}
+
+/** A save a failing rule refuses, with the findings and "Save anyway". */
+export const SaveAnyway: Story = {
+  name: "A rule fails on the wording",
+  render: () => <GatedPanel />,
+};
+
+/** The prompt itself, as a gate_failed refusal draws it. */
+export const GatePromptAlone: Story = {
+  name: "Gate prompt",
+  render: () => (
+    <div className="max-w-xl">
+      <GatePrompt
+        findings={[
+          {
+            rule: "terms.vocabulary",
+            message: "Use \u201cuse\u201d instead of \u201cutilize\u201d",
+            fails: true,
+          },
+          {
+            rule: "voice.pattern",
+            message: "Say what to do without minimising it: \u201csimply\u201d",
+            fails: true,
+          },
+        ]}
+        onOverride={() => {}}
+        onDismiss={() => {}}
       />
     </div>
   ),

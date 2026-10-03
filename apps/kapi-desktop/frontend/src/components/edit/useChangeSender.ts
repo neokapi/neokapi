@@ -1,7 +1,19 @@
 import { useCallback, useState } from "react";
-import type { ChangeOp, ChangeResult, CurrentEdition, OpResult } from "@neokapi/contract-types";
+import type {
+  ChangeFinding,
+  ChangeOp,
+  ChangeResult,
+  CurrentEdition,
+  OpResult,
+} from "@neokapi/contract-types";
 
-import { type ChangeClient, rebaseOps, refusalMessage, staleRefusal } from "../../lib/changes";
+import {
+  type ChangeClient,
+  gateFindings,
+  rebaseOps,
+  refusalMessage,
+  staleRefusal,
+} from "../../lib/changes";
 
 /** A change that was refused because the content moved, held until the person decides. */
 export interface PendingStale {
@@ -9,6 +21,16 @@ export interface PendingStale {
   note?: string;
   op: OpResult;
   current: CurrentEdition;
+}
+
+/**
+ * A change a rule in force refused (gate_failed), held with the findings the
+ * person reads before saving it anyway.
+ */
+export interface PendingGate {
+  ops: ChangeOp[];
+  note?: string;
+  findings: ChangeFinding[];
 }
 
 export interface ChangeSenderOptions {
@@ -30,6 +52,8 @@ export interface ChangeSender {
   busy: boolean;
   /** A change refused because the content moved since it was read. */
   stale: PendingStale | null;
+  /** A change a rule in force refused, which the person may save anyway. */
+  gated: PendingGate | null;
   /** Why the last change did not land, when it was not a moved revision. */
   error: string | null;
   /**
@@ -37,6 +61,13 @@ export interface ChangeSender {
    * place: an editor's edits as they are now, typed after the refusal too.
    */
   reapply: (ops?: ChangeOp[]) => Promise<ChangeResult | null>;
+  /**
+   * Save the change a rule refused anyway, or `ops` in its place: the same
+   * change set sent with gate report, which the person at the keyboard may
+   * choose. It lands with its findings, and the record of the edit lists them
+   * as overridden.
+   */
+  override: (ops?: ChangeOp[]) => Promise<ChangeResult | null>;
   /** Drop the held change and read the content again. */
   discard: () => Promise<void>;
   /** Forget a refusal, as a new selection does. */
@@ -47,7 +78,9 @@ export interface ChangeSender {
  * Sends change sets for one surface and holds what came back. A change that
  * lands calls onApplied. One refused because its revision moved is held with
  * the edition as it now stands, so the surface can show it and ask before
- * sending it again; any other refusal is an error sentence.
+ * sending it again; one a rule in force refused is held with the findings, so
+ * the person can save it anyway; any other refusal is an error sentence. A
+ * gated refusal sets the sentence too, for a surface that offers no override.
  */
 export function useChangeSender(
   client: ChangeClient,
@@ -56,23 +89,34 @@ export function useChangeSender(
   const { onApplied, onReload, rebase } = opts;
   const [busy, setBusy] = useState(false);
   const [stale, setStale] = useState<PendingStale | null>(null);
+  const [gated, setGated] = useState<PendingGate | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const send = useCallback(
-    async (ops: ChangeOp[], note?: string): Promise<ChangeResult | null> => {
+  const submit = useCallback(
+    async (ops: ChangeOp[], note?: string, gate?: "report"): Promise<ChangeResult | null> => {
       setBusy(true);
       setError(null);
       setStale(null);
+      setGated(null);
       try {
-        const res = await client.apply({ ops, ...(note ? { note } : {}) });
+        const res = await client.apply({
+          ops,
+          ...(note ? { note } : {}),
+          ...(gate ? { gate } : {}),
+        });
         if (!res) return null;
         if (res.status === "applied") {
           await onApplied?.(res);
           return res;
         }
         const moved = staleRefusal(res);
-        if (moved) setStale({ ops, note, ...moved });
-        else setError(refusalMessage(res));
+        if (moved) {
+          setStale({ ops, note, ...moved });
+          return res;
+        }
+        const findings = gateFindings(res);
+        if (findings) setGated({ ops, note, findings });
+        setError(refusalMessage(res));
         return res;
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
@@ -84,24 +128,36 @@ export function useChangeSender(
     [client, onApplied],
   );
 
+  const send = useCallback((ops: ChangeOp[], note?: string) => submit(ops, note), [submit]);
+
   const reapply = useCallback(
     async (ops?: ChangeOp[]) => {
       if (!stale) return null;
-      return send(rebaseOps(ops ?? stale.ops, stale, rebase), stale.note);
+      return submit(rebaseOps(ops ?? stale.ops, stale, rebase), stale.note);
     },
-    [stale, send, rebase],
+    [stale, submit, rebase],
+  );
+
+  const override = useCallback(
+    async (ops?: ChangeOp[]) => {
+      if (!gated) return null;
+      return submit(ops ?? gated.ops, gated.note, "report");
+    },
+    [gated, submit],
   );
 
   const discard = useCallback(async () => {
     setStale(null);
+    setGated(null);
     setError(null);
     await onReload?.();
   }, [onReload]);
 
   const clear = useCallback(() => {
     setStale(null);
+    setGated(null);
     setError(null);
   }, []);
 
-  return { send, busy, stale, error, reapply, discard, clear };
+  return { send, busy, stale, gated, error, reapply, override, discard, clear };
 }

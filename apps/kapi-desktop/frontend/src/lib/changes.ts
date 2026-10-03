@@ -13,6 +13,7 @@
 
 import type {
   BlockRead,
+  ChangeFinding,
   ChangeOp,
   ChangeRef,
   ChangeResult,
@@ -164,6 +165,27 @@ export function staleRefusal(res: ChangeResult): { op: OpResult; current: Curren
     }
   }
   return null;
+}
+
+/**
+ * The findings of a change set a rule in force refused (gate_failed), or null
+ * when nothing refused it so. A person may save such a change anyway, sending
+ * it again with gate report; the change service refuses that to an agent.
+ */
+export function gateFindings(res: ChangeResult): ChangeFinding[] | null {
+  const gated = res.ops.filter((o) => o.status === "refused" && o.error?.code === "gate_failed");
+  if (gated.length === 0) return null;
+  const out: ChangeFinding[] = [];
+  const seen = new Set<string>();
+  for (const o of gated) {
+    for (const f of o.findings ?? []) {
+      const key = `${f.rule}\u0000${f.message}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(f);
+    }
+  }
+  return out;
 }
 
 /** Why a change set did not land, in a sentence a person reads. */
