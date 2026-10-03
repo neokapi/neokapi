@@ -131,18 +131,27 @@ saved meanwhile keeps their bytes, and the run reports it as changed while the
 run worked (run again). In a project each file a run writes is recorded in the
 block history as the flow's edit, with the source each translation was made
 from, which is how `kapi status` tells a rewritten source under the loop's
-translation from a new one. To see what a run would change without writing,
-add `--print-ops`: it prints the change set (`set_content` per translation,
-with its `if_match` and `basis`), and `kapi apply` of that output writes the
-same bytes.
+translation from a new one. To see what a run would change, add
+`--print-ops`: the run writes no file of the project and records nothing, and
+prints the change set (`set_content` per translation, with its `if_match` and
+`basis`). `kapi apply` of that output writes the bytes the run would write.
 
 ```bash
-kapi up --print-ops > change.json   # one pass, nothing written, the change set on stdout
+kapi up --print-ops > change.json   # one pass, no file written, the change set on stdout
 kapi apply change.json              # apply exactly what was printed
 ```
 
-A file the run would write somewhere the recipe does not keep it (an `-o` path)
-is named on stderr and left out of the change set. Use
+Every file left out of the change set is named on stderr. A run writes a
+target file whole from its source, and `kapi apply` edits only the blocks the
+file already holds, so a target file the two would write differently (a key
+the source gained, an entry only the target holds) is left out, and `kapi up`
+writes it. So are a file the recipe does not keep there (an `-o` path), a
+conversion, an archive, and every file of a locale `kapi up` would park at its
+ship gate. In a project, `kapi translate`, `pseudo-translate` and `run` without
+`-o` write no file, so they print nothing: use `kapi up --print-ops`. A printing
+run reads the content memory as it stands (a pass that writes first takes the
+committed translations into it), and `kapi apply` records the change as yours,
+not as the tool's draft. Use
 `--json` for the machine-readable event stream; the `up` and `up_plan` MCP tools
 expose the same loop and dry run to an assistant. `kapi run <flow>` is only for a
 *custom* one-off pipeline (one named flow, one pass); the daily loop is `kapi up`.

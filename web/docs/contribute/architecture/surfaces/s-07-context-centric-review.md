@@ -209,7 +209,10 @@ re-drafts it with the old wording still on disk. Only a decision moves a unit on
 its ladder. A target that no longer holds the revision the flow left was taken
 over by a person; it grades as basis unknown and is left alone and reported. No
 host clears targets to force the loop's attention. A push carries the decisions;
-a venue's own worker records the basis of the drafts it writes.
+a venue's own worker records the basis of the drafts it writes. The basis of a
+translation a run on this machine produced travels in the block history with
+the project's context (`kapi context push`), which a venue does not read, so a
+venue grades such a translation as one with no recorded basis.
 
 The server's translation worker reads the same ledger. A target whose recorded
 basis is stale is owed a draft, a target the ledger has no record of is left

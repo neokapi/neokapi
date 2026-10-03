@@ -62,7 +62,7 @@ const PrintOpsUsage = printOpsUsage
 const printOpsFlag = "print-ops"
 
 // printOpsUsage describes --print-ops.
-const printOpsUsage = "write nothing and print the change set the run would apply, for kapi apply"
+const printOpsUsage = "write no file and print the change set the run would apply, for kapi apply"
 
 // printedOps collects the operations of every document a run would change.
 type printedOps struct {

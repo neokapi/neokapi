@@ -269,38 +269,65 @@ and a change set on one file take turns.
 
 Inside a project the host records each document a flow wrote as one
 `content.edit`, through the recorder a change set's commit records through,
-with the actor `tool:<flow>` and the origin `flow:<flow>`. The record keeps
-revisions and hashes, no text. Its transitions are the run's effect on the file
-as the service reads it: the document is read through the service before the
-run and again after the commit, and each edition whose revision moved is a
-transition, with the source revision a translation was made from as its basis
-and the stamp the producing tool left as its producer. A translation the run
-reproduced unchanged is recorded too, once, when the block history does not
-already say a flow wrote it from the source the block holds, so the history
-keeps the basis of every translation the loop made. That basis is what
-coverage grades an undecided translation by, what a decision on it starts from,
-and where the staleness gate finds what governed it.
+with the actor `tool:<flow>` and the origin `flow:<flow>`. `kapi exec` takes
+the project the command resolves, as `kapi apply` does, for a file the project
+holds. The record keeps revisions and hashes, no text. Its transitions are the
+run's effect on the file as the service reads it: the document is read through
+the service before the run and again after the commit (a commit that finds the
+file holding the run's bytes already, as it did when the run read it, reuses
+the first read), and each edition whose revision moved is a transition, with
+the stamp the producing tool left as its producer. A translation's basis is the
+source the run read before it ran, with that source's content hash: the commit
+guards the file the run writes, so a source edited while the run worked is
+drift against the basis rather than the basis. A translation the run reproduced
+unchanged is recorded too, once, when the block history does not already say a
+flow wrote it from the source the block holds, and not over a person's or an
+agent's write of the same wording, which stays theirs. So the history keeps the
+basis of every translation the loop made. That basis is what coverage grades an
+undecided translation by, what a decision on it starts from, and where the
+staleness gate finds what governed it. An undecided record in the decision
+ledger (a Kapi Desktop edit, or a basis the loop kept there in an older
+project) yields to the flow's last write when that write is the translation the
+file holds.
 
 A destination that moved while the run worked is applied again through the
 service from the run's operations (`set_content` on each edition the run
-changed, guarded by the revision read before the run). The service reads the
-file under its lock, and the document lands when no edition the run changed has
-moved too, and is refused `stale` as a whole when one has. A target-language
-edition the run left without a translation is rendered from the source by the
-writer, and is left as the file holds it when the run's changes are applied
-again.
+changed, guarded by the revision read before the run, followed by the
+provenance the producing tool left). The service reads the file under its lock,
+and the document lands when no edition the run changed has moved too, and is
+refused as a whole otherwise: when one has moved (`stale`), or when the run
+wrote a block the file does not hold yet. The run then reports the document as
+moved, and the next run writes it. A target-language edition the run left
+without a translation is rendered from the source by the writer, and is left as
+the file holds it when the run's changes are applied again.
 
 Under `--print-ops` the run commits through a home that writes nothing
 (`filehome.Options.WriteNothing`) and records nothing. What it changed in each
 document becomes operations, the difference between each block as the reader
 gave it and as the writer received it (`change.Diff`), each guarded by the
 revision the service read before the run and each `set_content` of a
-translation carrying its basis; the operations of every document form one
-change set, which `kapi apply` applies to the same bytes the run would have
-written. A file the run would write where the service does not keep the
-edition, such as an output path given on the command line in place of the
-recipe's target, is named on standard error and left out, because no change
-set addresses it.
+translation carrying its basis. Before a document's operations join the change
+set, they are applied to a private copy of the file through the service `kapi
+apply` reaches, and they are printed only when the copy then holds the bytes
+the run would have written. A run writes a target-language file whole from its
+source, while the service edits the blocks a file holds as it stands, so the
+two differ when the source gained a block the file does not hold or the file
+holds an entry or an order of its own; such a file is named on standard error
+and left out. So is a file the run would write where the service does not keep
+the edition (an output path given on the command line in place of the recipe's
+target), a conversion, an export and an archive. `kapi apply` of the change set
+writes the bytes the run would have written, and records the edit as its own
+actor's: the provenance operation is in-process, so the change set carries no
+tool stamp.
+
+A printing `kapi up` runs one pass. A gated pass drafts into its private tree
+as any pass does (`Options.WriteUnder` lets the printing home write there),
+the gate decides from the drafts, and delivery prints what it would commit for
+each locale that clears its gate; a parked locale is named and prints nothing.
+A printing run absorbs nothing into the content memory and stamps nothing; the
+derived store and caches under `.kapi/work` are refreshed as on any run. In a
+project a `kapi translate`, `pseudo-translate` or `run` without `-o` writes no
+file, and prints nothing with a note.
 
 ### Hooks
 

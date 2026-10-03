@@ -123,8 +123,9 @@ apply and `kapi apply` applies it as printed, from any directory of the
 project; `kapi apply --print-ops` prints the set as decoded. The format a
 person can read is the format an agent sends. The flow verbs (`kapi translate`,
 `pseudo-translate`, `run`, `up`, and `kapi exec` for a tool that writes) take
-`--print-ops` as well: the run writes and records nothing and prints the change
-set it would apply, which `kapi apply` applies to the same bytes
+`--print-ops` as well: the run writes no file and records nothing, and prints
+the change set it would apply, which `kapi apply` applies to the same bytes;
+each file it leaves out is named on stderr
 ([E-09](../engine/e-09-the-change-contract.md#flows)).
 
 Registry tools do not appear as top-level verbs; they are reached through

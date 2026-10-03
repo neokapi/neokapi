@@ -688,7 +688,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -753,7 +753,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -818,7 +818,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1057,7 +1057,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1131,7 +1131,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1203,7 +1203,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1322,7 +1322,7 @@
                 "usage": "Characters prepended before each translated block"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1490,7 +1490,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1586,7 +1586,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1654,7 +1654,7 @@
                 "usage": "Visible stand-in template; supports {category} and {n}"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1713,7 +1713,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1788,7 +1788,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1853,7 +1853,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1921,7 +1921,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -2011,7 +2011,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -2237,7 +2237,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -2349,7 +2349,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -2551,7 +2551,7 @@
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
               "print-ops": {
-                "usage": "write nothing and print the change set the run would apply, for kapi apply"
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -3426,7 +3426,7 @@
               "usage": "fan out block processing across N goroutines (0 = off)"
             },
             "print-ops": {
-              "usage": "write nothing and print the change set the run would apply, for kapi apply"
+              "usage": "write no file and print the change set the run would apply, for kapi apply"
             },
             "progress": {
               "usage": "stream progress events to stderr as NDJSON (value: jsonl); events use the flow-run event vocabulary"
@@ -3535,7 +3535,7 @@
               "usage": "fan out block processing across N goroutines (0 = off)"
             },
             "print-ops": {
-              "usage": "write nothing and print the change set the run would apply, for kapi apply"
+              "usage": "write no file and print the change set the run would apply, for kapi apply"
             },
             "progress": {
               "usage": "stream progress events to stderr as NDJSON (value: jsonl); events use the flow-run event vocabulary"
@@ -3973,7 +3973,7 @@
               "usage": "fan out block processing across N goroutines (0 = off)"
             },
             "print-ops": {
-              "usage": "write nothing and print the change set the run would apply, for kapi apply"
+              "usage": "write no file and print the change set the run would apply, for kapi apply"
             },
             "progress": {
               "usage": "stream progress events to stderr as NDJSON (value: jsonl); events use the flow-run event vocabulary"
@@ -4109,7 +4109,7 @@
               "usage": "dry run: report pending work, content-memory leverage, and a token estimate per (collection, locale), with no provider calls and no writes"
             },
             "print-ops": {
-              "usage": "write nothing and print the change set the run would apply, for kapi apply"
+              "usage": "write no file and print the change set the run would apply, for kapi apply"
             },
             "project": {
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
