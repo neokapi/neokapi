@@ -290,6 +290,13 @@ func conditionalRecord(t *testing.T, b workspace.Backend) {
 		workspace.Op{Project: "prj_a", Kind: "terms.write"})
 	require.NoError(t, err)
 
+	at, err := b.SubjectHead(ctx, "prj_a", "d_1@de")
+	require.NoError(t, err)
+	assert.Equal(t, first[0].Seq, at, "a subject's head is its last operation, whatever else the log received")
+	none, err := b.SubjectHead(ctx, "prj_a", "d_2@de")
+	require.NoError(t, err)
+	assert.Zero(t, none, "a subject no operation named is at head zero")
+
 	head, err := b.Head(ctx)
 	require.NoError(t, err)
 	_, err = b.RecordIf(ctx, subject(0),

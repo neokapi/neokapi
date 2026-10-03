@@ -352,8 +352,23 @@ func (b *LocalBackend) record(ctx context.Context, expect []Expect, ops []Op) ([
 	return out, nil
 }
 
+// SubjectHead returns the local position of the last operation on a subject.
+func (b *LocalBackend) SubjectHead(ctx context.Context, project ProjectKey, subject string) (int64, error) {
+	db, err := b.Registry(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var head int64
+	if err := db.QueryRowContext(ctx,
+		`SELECT COALESCE(MAX(seq), 0) FROM workspace_ops WHERE project = ? AND subject = ?`,
+		string(project), subject).Scan(&head); err != nil {
+		return 0, fmt.Errorf("workspace: read the head of %s: %w", subject, err)
+	}
+	return head, nil
+}
+
 // subjectHead reads the local position of the last operation on a subject,
-// zero when no operation names it.
+// zero when no operation names it, inside a transaction.
 func subjectHead(ctx context.Context, tx *storage.Tx, project ProjectKey, subject string) (int64, error) {
 	var head int64
 	if err := tx.QueryRowContext(ctx,

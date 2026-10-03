@@ -181,6 +181,12 @@ func (w *Workspace) Record(ctx context.Context, ops ...Op) ([]Op, error) {
 	return w.backend.Record(ctx, ops...)
 }
 
+// SubjectHead returns the local position of the last operation on one
+// subject of one project (Backend.SubjectHead).
+func (w *Workspace) SubjectHead(ctx context.Context, project ProjectKey, subject string) (int64, error) {
+	return w.backend.SubjectHead(ctx, project, subject)
+}
+
 // RecordIf appends operations to the workspace's log only while every subject
 // expect names is at the head its writer read (Backend.RecordIf).
 func (w *Workspace) RecordIf(ctx context.Context, expect []Expect, ops ...Op) ([]Op, error) {

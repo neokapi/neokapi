@@ -117,6 +117,7 @@ const BlobThreshold = 32 << 10
 type Log interface {
 	Record(ctx context.Context, ops ...workspace.Op) ([]workspace.Op, error)
 	RecordIf(ctx context.Context, expect []workspace.Expect, ops ...workspace.Op) ([]workspace.Op, error)
+	SubjectHead(ctx context.Context, project workspace.ProjectKey, subject string) (int64, error)
 	Select(ctx context.Context, q workspace.OpQuery) ([]workspace.Op, error)
 	PutBlob(ctx context.Context, data []byte) (string, error)
 	Blob(ctx context.Context, digest string) ([]byte, error)

@@ -121,10 +121,11 @@ func TestWorkspaceHome_ConcurrentWritesMergeInEitherOrder(t *testing.T) {
 	// and the same rebase made twice is one operation once the logs merge.
 	na, err := a.m.p.RebaseWorkspace(ctx)
 	require.NoError(t, err)
-	nb, err := b.m.p.RebaseWorkspace(ctx)
-	require.NoError(t, err)
 	assert.Equal(t, 1, na, "one write changed a block the other machine left alone")
-	assert.Equal(t, na, nb)
+	// A pull applies what it merged through the projector's syncer, which
+	// rebases the same way.
+	require.NoError(t, b.m.p.Syncer().Apply(ctx, false))
+	assert.Equal(t, german(t, a), german(t, b), "both machines carried the same write over")
 	mergeInto(t, a.m, b.m)
 	mergeInto(t, b.m, a.m)
 	require.Equal(t, dumpHeads(t, a.m), dumpHeads(t, b.m), "the rebased head is one head on both machines")

@@ -28,6 +28,10 @@ type Log interface {
 	// yet folded: writes another process made, and writes merged in from
 	// another machine.
 	CatchUp(ctx context.Context) error
+	// SubjectHead is the local position of the latest operation the log
+	// holds on one edition, zero for none: the head a conditional record
+	// expects.
+	SubjectHead(ctx context.Context, doc, edition string) (int64, error)
 	// Blob reads runs a row keeps in a blob.
 	Blob(ctx context.Context, address string) ([]byte, error)
 }
@@ -40,8 +44,8 @@ type Commit struct {
 	Doc     string
 	Path    string
 	Edition string
-	// Expect is the edition's head (Head.Seq) the write was staged on, and
-	// Base the operation that head is at. Cause names the divergent
+	// Expect is the edition's head in the log (Log.SubjectHead) the write was
+	// staged on, and Base the operation the folded head is at. Cause names the divergent
 	// operation a rebase carries over.
 	Expect int64
 	Base   string
@@ -114,8 +118,13 @@ func editionText(k model.EditionKey) string {
 	return string(text)
 }
 
-// token names a head for a commit to find again.
-func token(h Head) string { return strconv.FormatInt(h.Seq, 10) + " " + h.Op }
+// token names a head for a commit to find again: the log's head on the
+// edition and the operation the folded head is at.
+func token(seq int64, h Head) string { return strconv.FormatInt(seq, 10) + " " + h.Op }
+
+// EmptyKept is what a keeper reads of an edition in a project whose log holds
+// nothing yet.
+func EmptyKept() filehome.Kept { return filehome.Kept{Token: token(0, Head{})} }
 
 // parseToken reads a token back into the head position and operation it
 // names.
@@ -128,29 +137,35 @@ func parseToken(t string) (int64, string, error) {
 	return n, op, nil
 }
 
-// read catches the projection up and reads one edition: its head and the
-// edition of each block it keeps, by block key.
-func (h *Home) read(ctx context.Context, doc, edition string) (Head, map[string]Row, map[string]model.Edition, error) {
+// read reads one edition: the log's head on it, the folded head, and the
+// edition of each block it keeps, by block key. The log's head is read before
+// the projection catches up, so the projection holds at least every write up
+// to it, and a write that lands after it moves the head a commit expects.
+func (h *Home) read(ctx context.Context, doc, edition string) (int64, Head, map[string]Row, map[string]model.Edition, error) {
+	seq, err := h.Log.SubjectHead(ctx, doc, edition)
+	if err != nil {
+		return 0, Head{}, nil, nil, err
+	}
 	if err := h.Log.CatchUp(ctx); err != nil {
-		return Head{}, nil, nil, err
+		return 0, Head{}, nil, nil, err
 	}
 	head, _, err := h.Store.Head(ctx, doc, edition)
 	if err != nil {
-		return Head{}, nil, nil, err
+		return 0, Head{}, nil, nil, err
 	}
 	rows, err := h.Store.Rows(ctx, doc, edition)
 	if err != nil {
-		return Head{}, nil, nil, err
+		return 0, Head{}, nil, nil, err
 	}
 	blocks := make(map[string]model.Edition, len(rows))
 	for key, r := range rows {
 		ed, err := h.edition(ctx, r)
 		if err != nil {
-			return Head{}, nil, nil, err
+			return 0, Head{}, nil, nil, err
 		}
 		blocks[key] = ed
 	}
-	return head, rows, blocks, nil
+	return seq, head, rows, blocks, nil
 }
 
 // edition is the edition a row keeps.
@@ -174,17 +189,17 @@ func (h *Home) edition(ctx context.Context, r Row) (model.Edition, error) {
 // Edition reads what the workspace home keeps of edition k of the document
 // ref names.
 func (h *Home) Edition(ctx context.Context, ref string, k model.EditionKey) (filehome.Kept, error) {
-	head, rows, blocks, err := h.read(ctx, h.docKey(ref), editionText(k))
+	seq, head, rows, blocks, err := h.read(ctx, h.docKey(ref), editionText(k))
 	if err != nil {
 		return filehome.Kept{}, err
 	}
-	return filehome.Kept{Token: token(head), Digest: Digest(rows), Blocks: blocks}, nil
+	return filehome.Kept{Token: token(seq, head), Digest: Digest(rows), Blocks: blocks}, nil
 }
 
 // Rows reads every block of edition k of the document ref names, as the
 // workspace home keeps it, with the projection caught up first.
 func (h *Home) Rows(ctx context.Context, ref string, k model.EditionKey) (map[string]Row, map[string]model.Edition, error) {
-	_, rows, blocks, err := h.read(ctx, h.docKey(ref), editionText(k))
+	_, _, rows, blocks, err := h.read(ctx, h.docKey(ref), editionText(k))
 	return rows, blocks, err
 }
 
@@ -291,12 +306,12 @@ type ProduceResult struct {
 func (h *Home) Produce(ctx context.Context, p Produce) (ProduceResult, error) {
 	doc, edition := h.docKey(p.Doc), editionText(p.Edition)
 	for attempt := 0; ; attempt++ {
-		head, rows, _, err := h.read(ctx, doc, edition)
+		seq, head, rows, _, err := h.read(ctx, doc, edition)
 		if err != nil {
 			return ProduceResult{}, err
 		}
 		var res ProduceResult
-		c := Commit{Doc: doc, Path: p.Doc, Edition: edition, Expect: head.Seq, Base: head.Op,
+		c := Commit{Doc: doc, Path: p.Doc, Edition: edition, Expect: seq, Base: head.Op,
 			Actor: p.Actor, Origin: p.Origin, DocBefore: Digest(rows)}
 		after := maps.Clone(rows)
 		for _, d := range p.Blocks {
@@ -354,14 +369,14 @@ func byWriter(o model.Origin) bool {
 func (h *Home) Release(ctx context.Context, ref string, k model.EditionKey, actor change.Actor, origin string) (string, error) {
 	doc, edition := h.docKey(ref), editionText(k)
 	for attempt := 0; ; attempt++ {
-		head, rows, _, err := h.read(ctx, doc, edition)
+		seq, head, rows, _, err := h.read(ctx, doc, edition)
 		if err != nil {
 			return "", err
 		}
 		if len(rows) == 0 {
 			return "", nil
 		}
-		c := Commit{Doc: doc, Path: ref, Edition: edition, Expect: head.Seq, Base: head.Op,
+		c := Commit{Doc: doc, Path: ref, Edition: edition, Expect: seq, Base: head.Op,
 			Actor: actor, Origin: origin, DocBefore: Digest(rows)}
 		for _, key := range slices.Sorted(maps.Keys(rows)) {
 			r := rows[key]

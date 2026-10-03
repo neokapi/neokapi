@@ -268,44 +268,38 @@ func TestWorkspaceHome_RebuildReproducesTheHeads(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 
-	before := dumpLocal(t, m)
+	before := dumpHeads(t, m)
 	_, err = m.p.Rebuild(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, before, dumpLocal(t, m), "a rebuild reproduces the workspace home")
+	assert.Equal(t, before, dumpHeads(t, m), "a rebuild reproduces the workspace home")
 
 	_, err = m.p.Checkpoint(ctx)
 	require.NoError(t, err)
 	report, err := m.p.Rebuild(ctx)
 	require.NoError(t, err)
 	assert.NotEmpty(t, report.Checkpoint, "the rebuild starts from the checkpoint")
-	assert.Equal(t, before, dumpLocal(t, m), "and a checkpoint carries the workspace home")
+	assert.Equal(t, before, dumpHeads(t, m), "and a checkpoint carries the workspace home")
+
+	// The head a write expects is read from the log, which no checkpoint
+	// carries, so a write after the rebuild lands.
+	page, err = f.svc.Read(ctx, change.ReadRequest{Doc: "de/a.json"})
+	require.NoError(t, err)
+	again := "Grüß Gott"
+	res, err = f.svc.Apply(ctx, change.Set{Ops: []change.Op{{Kind: change.KindSetContent, At: page.Blocks[0].Ref,
+		IfMatch: page.Blocks[0].Rev, Body: &change.SetContent{Text: &again}}}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 }
 
-// dumpHeads renders the workspace home's tables, for comparing the state two
-// machines reach. The local position of a head's latest write differs from
-// log to log, and is left out.
+// dumpHeads renders the workspace home's tables, for comparing two states:
+// one machine's before and after a rebuild, or two machines'.
 func dumpHeads(t *testing.T, m *machine) string {
-	t.Helper()
-	return dump(t, m, false)
-}
-
-// dumpLocal is dumpHeads with each head's local position, for comparing two
-// states of one machine.
-func dumpLocal(t *testing.T, m *machine) string {
-	t.Helper()
-	return dump(t, m, true)
-}
-
-func dump(t *testing.T, m *machine, local bool) string {
 	t.Helper()
 	ctx := context.Background()
 	heads, err := m.st.Heads.Heads(ctx)
 	require.NoError(t, err)
 	var b strings.Builder
 	for _, h := range heads {
-		if !local {
-			h.Seq = 0
-		}
 		data, err := json.Marshal(h)
 		require.NoError(t, err)
 		b.Write(data)

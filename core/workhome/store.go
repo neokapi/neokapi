@@ -17,9 +17,13 @@
 //     status and origin, the basis it was made from, and the stamp its
 //     producer recognizes it by;
 //   - document_head holds one row per subject: the operation its head is at,
-//     the latest operation folded, the local position of the latest operation
-//     on the subject (the head a conditional record expects), and the
-//     operations that did not advance it.
+//     the latest operation folded, and the operations that did not advance
+//     it.
+//
+// The head a conditional record expects is the local position of the latest
+// operation on the subject, which the writer reads from the log itself
+// (Log.SubjectHead): a position is local to one log, so no projection a
+// checkpoint carries to another machine holds it.
 //
 // The fold reads a subject's operations in id order, the order every machine
 // whose log has been merged agrees on. An operation advances the head when it
@@ -92,9 +96,6 @@ type Head struct {
 	Op string
 	// Last is the largest operation id folded into the head.
 	Last string
-	// Seq is the local position of the latest operation on the subject this
-	// projection has folded: the head a conditional record expects.
-	Seq int64
 	// Divergent are the operations that did not advance the head and that no
 	// later operation has rebased, in id order.
 	Divergent []Divergence
@@ -116,8 +117,7 @@ type Move struct {
 
 // Write is one operation on one edition, as the fold reads it.
 type Write struct {
-	Op  string
-	Seq int64
+	Op string
 	// Doc, Edition and Path name the edition and where its document was.
 	Doc     string
 	Edition string
@@ -173,7 +173,6 @@ CREATE TABLE IF NOT EXISTS document_head (
     path      TEXT NOT NULL DEFAULT '',
     op        TEXT NOT NULL DEFAULT '',
     last      TEXT NOT NULL DEFAULT '',
-    seq       INTEGER NOT NULL DEFAULT 0,
     divergent TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (doc, edition)
 );`,
@@ -217,7 +216,6 @@ func Fold(writes []Write) (Head, map[string]Row) {
 // fold applies one write that sorts after every write h has folded.
 func fold(h *Head, rows map[string]Row, w Write) {
 	h.Last = w.Op
-	h.Seq = max(h.Seq, w.Seq)
 	if w.Base != h.Op {
 		moves := make([]Move, 0, len(w.Blocks))
 		for _, b := range w.Blocks {
@@ -284,7 +282,6 @@ func (s *Store) Apply(ctx context.Context, writes []Write) (refold [][2]string, 
 		}
 		switch {
 		case w.Op == h.Last:
-			h.Seq = max(h.Seq, w.Seq)
 			continue
 		case w.Op < h.Last:
 			stale[key] = true
@@ -380,10 +377,10 @@ func putHead(ctx context.Context, tx *storage.Tx, h Head) error {
 		divergent = string(data)
 	}
 	if _, err := tx.ExecContext(ctx, `
-INSERT INTO document_head (doc, edition, path, op, last, seq, divergent) VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO document_head (doc, edition, path, op, last, divergent) VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT(doc, edition) DO UPDATE SET
-    path = excluded.path, op = excluded.op, last = excluded.last, seq = excluded.seq, divergent = excluded.divergent`,
-		h.Doc, h.Edition, h.Path, h.Op, h.Last, h.Seq, divergent); err != nil {
+    path = excluded.path, op = excluded.op, last = excluded.last, divergent = excluded.divergent`,
+		h.Doc, h.Edition, h.Path, h.Op, h.Last, divergent); err != nil {
 		return fmt.Errorf("workhome: put the head of %s: %w", Subject(h.Doc, h.Edition), err)
 	}
 	return nil
@@ -395,12 +392,12 @@ type querier interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 
-const headColumns = `doc, edition, path, op, last, seq, divergent`
+const headColumns = `doc, edition, path, op, last, divergent`
 
 func scanHead(sc interface{ Scan(...any) error }) (Head, error) {
 	var h Head
 	var divergent string
-	if err := sc.Scan(&h.Doc, &h.Edition, &h.Path, &h.Op, &h.Last, &h.Seq, &divergent); err != nil {
+	if err := sc.Scan(&h.Doc, &h.Edition, &h.Path, &h.Op, &h.Last, &divergent); err != nil {
 		return Head{}, err
 	}
 	if divergent != "" {

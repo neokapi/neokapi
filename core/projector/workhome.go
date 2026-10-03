@@ -88,6 +88,15 @@ func (p *Projector) CommitWorkspace(ctx context.Context, c workhome.Commit) (str
 	return ids[0], nil
 }
 
+// SubjectHead is the local position of the latest operation the log holds on
+// one edition the workspace home keeps, zero for none.
+func (p *Projector) SubjectHead(ctx context.Context, doc, edition string) (int64, error) {
+	if p.log == nil {
+		return 0, nil
+	}
+	return p.log.SubjectHead(ctx, p.key, workhome.Subject(doc, edition))
+}
+
 // Blob reads a blob from the log.
 func (p *Projector) Blob(ctx context.Context, address string) ([]byte, error) {
 	if p.log == nil {
@@ -100,7 +109,7 @@ func (p *Projector) Blob(ctx context.Context, address string) ([]byte, error) {
 // keeps: the head the write was staged on and each block's edition as the
 // write left it, the runs inline where they are small enough to keep so.
 func (p *Projector) workWrite(ctx context.Context, op workspace.Op, e Edit) (workhome.Write, error) {
-	w := workhome.Write{Op: op.ID, Seq: op.Seq, Doc: e.Doc.Key, Edition: e.Edition, Path: e.Doc.Path, Base: e.Base, Cause: e.Cause}
+	w := workhome.Write{Op: op.ID, Doc: e.Doc.Key, Edition: e.Edition, Path: e.Doc.Path, Base: e.Base, Cause: e.Cause}
 	for _, t := range e.Transitions {
 		b := workhome.BlockWrite{Block: t.Block, Before: t.Before, After: t.After, Basis: t.Basis, Status: t.Status, Stamp: t.Stamp}
 		if t.Origin != nil {
@@ -211,6 +220,13 @@ func (p *Projector) RebaseWorkspace(ctx context.Context) (int, error) {
 // rebase carries one divergent write over onto its edition's head, when
 // every block it changed still holds the revision it started from.
 func (p *Projector) rebase(ctx context.Context, doc, edition string, d workhome.Divergence) (bool, error) {
+	seq, err := p.SubjectHead(ctx, doc, edition)
+	if err != nil {
+		return false, err
+	}
+	if err := p.CatchUp(ctx); err != nil {
+		return false, err
+	}
 	head, _, err := p.st.Heads.Head(ctx, doc, edition)
 	if err != nil {
 		return false, err
@@ -253,7 +269,7 @@ func (p *Projector) rebase(ctx context.Context, doc, edition string, d workhome.
 		after[t.Block] = r
 	}
 	re.DocBefore, re.DocAfter = workhome.Digest(rows), workhome.Digest(after)
-	expect := []workspace.Expect{{Project: p.key, Subject: workhome.Subject(doc, edition), Head: head.Seq}}
+	expect := []workspace.Expect{{Project: p.key, Subject: workhome.Subject(doc, edition), Head: seq}}
 	if _, err := p.recordEdits(ctx, []Edit{re}, expect); err != nil {
 		if errors.Is(err, workspace.ErrHeadMoved) {
 			// Another writer moved the edition first; the next rebase reads

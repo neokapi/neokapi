@@ -24,12 +24,18 @@ func (p *Projector) Syncer() workspace.Applier { return syncer{p} }
 
 type syncer struct{ p *Projector }
 
-// Apply catches the stores up with the log, or rebuilds them from it.
+// Apply catches the stores up with the log, or rebuilds them from it, and then
+// carries over the writes to editions the workspace home keeps that the merge
+// left divergent (RebaseWorkspace).
 func (s syncer) Apply(ctx context.Context, rebuild bool) error {
 	if !rebuild {
-		return s.p.CatchUp(ctx)
+		if err := s.p.CatchUp(ctx); err != nil {
+			return err
+		}
+	} else if _, err := s.p.Rebuild(ctx); err != nil {
+		return err
 	}
-	_, err := s.p.Rebuild(ctx)
+	_, err := s.p.RebaseWorkspace(ctx)
 	return err
 }
 

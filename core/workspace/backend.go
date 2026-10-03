@@ -213,6 +213,11 @@ type Backend interface {
 	// rather than overwriting it.
 	RecordIf(ctx context.Context, expect []Expect, ops ...Op) ([]Op, error)
 
+	// SubjectHead returns the local position of the last operation on one
+	// subject of one project, zero when no operation names it: the head a
+	// writer reads before it stages a write it records with RecordIf.
+	SubjectHead(ctx context.Context, project ProjectKey, subject string) (int64, error)
+
 	// Since returns up to limit operations this log received after the local
 	// position given, in the order it received them. A limit of zero or less
 	// asks for every operation. A caller that wants the order across machines
