@@ -30,7 +30,8 @@ type upMCPInput struct {
 
 // upPlanMCPInput is the input to the `up_plan` MCP tool.
 type upPlanMCPInput struct {
-	Project string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+	Project  string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+	NoChecks bool   `json:"no_checks,omitempty" jsonschema:"plan the run up makes with no_checks: a language that only fails the project's bound checks gets no pass, so the plan prices none for it"`
 }
 
 func registerUpMCPTools(server *mcp.Server, a *App) {
@@ -86,7 +87,7 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 		// project's language is bounded to this call (host/sourcelang.go).
 		defer a.scopeSourceLang()()
 		a.SourceLang = a.mcpCallSourceLocale(path)
-		plan, err := a.computeProjectPlan(ctx, proj, path, planRun{})
+		plan, err := a.computeProjectPlan(ctx, proj, path, planRun{noChecks: in.NoChecks})
 		if err != nil {
 			return nil, nil, err
 		}

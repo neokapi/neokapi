@@ -2300,6 +2300,10 @@
     "input_schema": {
       "additionalProperties": false,
       "properties": {
+        "no_checks": {
+          "description": "plan the run up makes with no_checks: a language that only fails the project's bound checks gets no pass, so the plan prices none for it",
+          "type": "boolean"
+        },
         "project": {
           "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"

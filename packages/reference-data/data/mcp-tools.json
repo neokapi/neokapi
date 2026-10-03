@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T12:38:46Z",
+  "generatedAt": "2026-10-03T15:40:44Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -10,7 +10,7 @@
           "name": "ops",
           "type": "array",
           "required": true,
-          "description": "the operations, applied in order; a position names the content as read, and an empty list changes nothing"
+          "description": "the operations, applied in order"
         },
         {
           "name": "evidence",
@@ -2096,6 +2096,12 @@
       "description": "Dry-run the catch-up work for a kapi project: per (collection, locale), the units missing a target, exact-content-memory leverage, the remaining AI work, and a rough token estimate. No provider calls, nothing written. The pre-flight for the up tool.",
       "surface": "translation",
       "params": [
+        {
+          "name": "no_checks",
+          "type": "boolean",
+          "required": false,
+          "description": "plan the run up makes with no_checks: a language that only fails the project's bound checks gets no pass, so the plan prices none for it"
+        },
         {
           "name": "project",
           "type": "string",
