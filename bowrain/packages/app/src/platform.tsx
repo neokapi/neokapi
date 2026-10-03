@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
-import type { ConnectionState } from "@neokapi/ui";
+import type { ConnectionState, FailedChange } from "@neokapi/ui";
 
 /**
  * Host-capability seam for the shared Bowrain app.
@@ -64,7 +64,15 @@ export interface PlatformAdapter {
     state(): ConnectionState;
     onChange(cb: (s: ConnectionState) => void): () => void;
     pendingCount?(): Promise<number>;
-    failedCount?(): Promise<number>;
+    /**
+     * The offline changes that did not reach the server, each with what it
+     * was, so a person can make it again.
+     */
+    failedChanges?(): Promise<FailedChange[]>;
+    /** Remove one failed change from the list. */
+    dismissFailedChange?(id: number): Promise<void>;
+    /** Remove every failed change from the list. */
+    dismissFailedChanges?(): Promise<void>;
     /**
      * Attempt a reconnection now rather than at the end of the backend's
      * backoff. The desktop calls it when the webview reports the network is

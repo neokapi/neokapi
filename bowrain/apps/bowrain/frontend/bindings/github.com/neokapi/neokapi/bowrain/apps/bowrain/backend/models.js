@@ -8,6 +8,9 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as editorclient$0 from "../../../editorclient/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as model$0 from "../../../../core/model/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -391,7 +394,13 @@ export class BlockCountsView {
 }
 
 /**
- * BlockInfo is a serializable representation of a translatable block.
+ * BlockInfo is a block as the shared editor reads it, in the shape the
+ * server's blocks route serves it (editorclient.EditorBlock): the source's
+ * text and runs, each locale's target with its status and runs, and the
+ * revision each target was read at. The frontend reads it through the
+ * normalisation the web app applies to the server's payload
+ * (normalizeServerBlocks), so the editor reads one shape whichever side
+ * answered. Runs travel as canonical model.Run.
  */
 export class BlockInfo {
     /**
@@ -409,23 +418,44 @@ export class BlockInfo {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {RunInfo[] | undefined}
+             * @type {string | undefined}
              */
-            this["sourceRuns"] = undefined;
+            this["source_id"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {{ [_ in string]?: BlockTargetInfo } | undefined}
+             * @type {string | undefined}
              */
-            this["targets"] = undefined;
+            this["name"] = undefined;
+        }
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {{ [_ in string]?: RunInfo[] } | undefined}
+             * @type {model$0.Run[] | undefined}
              */
-            this["targetRuns"] = undefined;
+            this["source_runs"] = undefined;
+        }
+        if (!("targets" in $$source)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: BlockTargetInfo }}
+             */
+            this["targets"] = {};
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: model$0.Run[] } | undefined}
+             */
+            this["targets_runs"] = undefined;
         }
         if (!("translatable" in $$source)) {
             /**
@@ -434,12 +464,28 @@ export class BlockInfo {
              */
             this["translatable"] = false;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["has_inline_codes"] = undefined;
+        }
         if (!("properties" in $$source)) {
             /**
              * @member
              * @type {{ [_ in string]?: string }}
              */
             this["properties"] = {};
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Entities are the entities marked on the source, as the server serves
+             * them; the local working copy serves none.
+             * @member
+             * @type {editorclient$0.EditorEntity[] | undefined}
+             */
+            this["entities"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -461,26 +507,30 @@ export class BlockInfo {
      * @returns {BlockInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType6;
-        const $$createField2_0 = $$createType8;
-        const $$createField3_0 = $$createType9;
-        const $$createField5_0 = $$createType10;
-        const $$createField6_0 = $$createType10;
+        const $$createField4_0 = $$createType5;
+        const $$createField5_0 = $$createType7;
+        const $$createField6_0 = $$createType8;
+        const $$createField9_0 = $$createType9;
+        const $$createField10_0 = $$createType11;
+        const $$createField11_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("sourceRuns" in $$parsedSource) {
-            $$parsedSource["sourceRuns"] = $$createField1_0($$parsedSource["sourceRuns"]);
+        if ("source_runs" in $$parsedSource) {
+            $$parsedSource["source_runs"] = $$createField4_0($$parsedSource["source_runs"]);
         }
         if ("targets" in $$parsedSource) {
-            $$parsedSource["targets"] = $$createField2_0($$parsedSource["targets"]);
+            $$parsedSource["targets"] = $$createField5_0($$parsedSource["targets"]);
         }
-        if ("targetRuns" in $$parsedSource) {
-            $$parsedSource["targetRuns"] = $$createField3_0($$parsedSource["targetRuns"]);
+        if ("targets_runs" in $$parsedSource) {
+            $$parsedSource["targets_runs"] = $$createField6_0($$parsedSource["targets_runs"]);
         }
         if ("properties" in $$parsedSource) {
-            $$parsedSource["properties"] = $$createField5_0($$parsedSource["properties"]);
+            $$parsedSource["properties"] = $$createField9_0($$parsedSource["properties"]);
+        }
+        if ("entities" in $$parsedSource) {
+            $$parsedSource["entities"] = $$createField10_0($$parsedSource["entities"]);
         }
         if ("target_revisions" in $$parsedSource) {
-            $$parsedSource["target_revisions"] = $$createField6_0($$parsedSource["target_revisions"]);
+            $$parsedSource["target_revisions"] = $$createField11_0($$parsedSource["target_revisions"]);
         }
         return new BlockInfo(/** @type {Partial<BlockInfo>} */($$parsedSource));
     }
@@ -693,7 +743,7 @@ export class BlockTermMatch {
      * @returns {BlockTermMatch}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType11;
+        const $$createField1_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_terms" in $$parsedSource) {
             $$parsedSource["target_terms"] = $$createField1_0($$parsedSource["target_terms"]);
@@ -743,7 +793,7 @@ export class BulkApplyMemoryArgs {
      * @returns {BulkApplyMemoryArgs}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType11;
+        const $$createField0_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("block_ids" in $$parsedSource) {
             $$parsedSource["block_ids"] = $$createField0_0($$parsedSource["block_ids"]);
@@ -785,8 +835,8 @@ export class BulkApplyMemoryView {
      * @returns {BulkApplyMemoryView}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType13;
-        const $$createField1_0 = $$createType15;
+        const $$createField0_0 = $$createType14;
+        const $$createField1_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("applied" in $$parsedSource) {
             $$parsedSource["applied"] = $$createField0_0($$parsedSource["applied"]);
@@ -861,7 +911,7 @@ export class BulkReviewArgs {
      * @returns {BulkReviewArgs}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType11;
+        const $$createField0_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("block_ids" in $$parsedSource) {
             $$parsedSource["block_ids"] = $$createField0_0($$parsedSource["block_ids"]);
@@ -917,7 +967,7 @@ export class BulkReviewView {
      * @returns {BulkReviewView}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType17;
+        const $$createField0_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("results" in $$parsedSource) {
             $$parsedSource["results"] = $$createField0_0($$parsedSource["results"]);
@@ -1081,7 +1131,7 @@ export class CollabSession {
      * @returns {CollabSession}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType18;
+        const $$createField3_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("user" in $$parsedSource) {
             $$parsedSource["user"] = $$createField3_0($$parsedSource["user"]);
@@ -1205,7 +1255,7 @@ export class ConceptInfo {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType3;
-        const $$createField4_0 = $$createType10;
+        const $$createField4_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("terms" in $$parsedSource) {
             $$parsedSource["terms"] = $$createField3_0($$parsedSource["terms"]);
@@ -1556,6 +1606,167 @@ export class EvaluateRuleArgs {
 }
 
 /**
+ * FailedChange is a queued offline change that did not reach the server, with
+ * what it was, so a person can make it again. Status is "failed" for a change
+ * the server refused on replay (an edit to a translation someone changed in
+ * the meantime, a decision it did not accept), and "dropped" for an entry an
+ * earlier version queued under a kind this version no longer sends.
+ */
+export class FailedChange {
+    /**
+     * Creates a new FailedChange instance.
+     * @param {Partial<FailedChange>} [$$source = {}] - The source object to create the FailedChange.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["id"] = 0;
+        }
+        if (!("status" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["status"] = "";
+        }
+        if (!("operation" in $$source)) {
+            /**
+             * Operation is the kind the entry was queued under: change_set for an
+             * edit, a decision, a note or an entity mark, and the content-memory,
+             * terms and item kinds otherwise.
+             * @member
+             * @type {string}
+             */
+            this["operation"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Edits are the operations a change set carried, or the one edit a
+             * dropped entry carried.
+             * @member
+             * @type {FailedEdit[] | undefined}
+             */
+            this["edits"] = undefined;
+        }
+        if (!("reason" in $$source)) {
+            /**
+             * Reason is why it did not reach the server.
+             * @member
+             * @type {string}
+             */
+            this["reason"] = "";
+        }
+        if (!("queued_at" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["queued_at"] = "0001-01-01T00:00:00.000Z";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FailedChange instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {FailedChange}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType21;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("edits" in $$parsedSource) {
+            $$parsedSource["edits"] = $$createField3_0($$parsedSource["edits"]);
+        }
+        return new FailedChange(/** @type {Partial<FailedChange>} */($$parsedSource));
+    }
+}
+
+/**
+ * FailedEdit is one operation of a failed change: what it did, where, and the
+ * wording it carried.
+ */
+export class FailedEdit {
+    /**
+     * Creates a new FailedEdit instance.
+     * @param {Partial<FailedEdit>} [$$source = {}] - The source object to create the FailedEdit.
+     */
+    constructor($$source = {}) {
+        if (!("op" in $$source)) {
+            /**
+             * Op is the change-set operation (set_content, replace_text,
+             * remove_edition, decide, annotate, unannotate).
+             * @member
+             * @type {string}
+             */
+            this["op"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Outcome is a decision's outcome (establish, reject, withdraw).
+             * @member
+             * @type {string | undefined}
+             */
+            this["outcome"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Type is an annotation's type (note, entity).
+             * @member
+             * @type {string | undefined}
+             */
+            this["type"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["item"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["block"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Locale is the translation's language; empty for the source.
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Text is the wording the operation carried, with inline codes as the
+             * placeholders a read shows.
+             * @member
+             * @type {string | undefined}
+             */
+            this["text"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FailedEdit instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {FailedEdit}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FailedEdit(/** @type {Partial<FailedEdit>} */($$parsedSource));
+    }
+}
+
+/**
  * FlowDefinitionInfo is the frontend-facing flow definition type. It mirrors
  * the framework's flow.FlowDefinition JSON shape so the shared
  * @neokapi/flow-editor defToSpec/specToDef adapter consumes it unchanged.
@@ -1632,8 +1843,8 @@ export class FlowDefinitionInfo {
      * @returns {FlowDefinitionInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType20;
-        const $$createField4_0 = $$createType22;
+        const $$createField3_0 = $$createType23;
+        const $$createField4_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("nodes" in $$parsedSource) {
             $$parsedSource["nodes"] = $$createField3_0($$parsedSource["nodes"]);
@@ -1752,8 +1963,8 @@ export class FlowNodeInfo {
      * @returns {FlowNodeInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType23;
-        const $$createField5_0 = $$createType24;
+        const $$createField4_0 = $$createType26;
+        const $$createField5_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
@@ -1833,8 +2044,8 @@ export class FormatInfo {
      * @returns {FormatInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType11;
-        const $$createField3_0 = $$createType11;
+        const $$createField2_0 = $$createType12;
+        const $$createField3_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("mime_types" in $$parsedSource) {
             $$parsedSource["mime_types"] = $$createField2_0($$parsedSource["mime_types"]);
@@ -2194,7 +2405,7 @@ export class MarketArgs {
      * @returns {MarketArgs}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType11;
+        const $$createField2_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField2_0($$parsedSource["locales"]);
@@ -2380,7 +2591,7 @@ export class MemoryMatchInfo {
      * @returns {MemoryMatchInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType25;
+        const $$createField2_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_runs" in $$parsedSource) {
             $$parsedSource["target_runs"] = $$createField2_0($$parsedSource["target_runs"]);
@@ -2422,7 +2633,7 @@ export class MemorySearchResult {
      * @returns {MemorySearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType27;
+        const $$createField0_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2498,142 +2709,6 @@ export class MemoryUpdateRequest {
 }
 
 /**
- * PcCloseRunInfo is the closing half of a paired inline code.
- */
-export class PcCloseRunInfo {
-    /**
-     * Creates a new PcCloseRunInfo instance.
-     * @param {Partial<PcCloseRunInfo>} [$$source = {}] - The source object to create the PcCloseRunInfo.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["subType"] = undefined;
-        }
-        if (!("data" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["data"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["equiv"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new PcCloseRunInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PcCloseRunInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new PcCloseRunInfo(/** @type {Partial<PcCloseRunInfo>} */($$parsedSource));
-    }
-}
-
-/**
- * PcOpenRunInfo is the opening half of a paired inline code.
- */
-export class PcOpenRunInfo {
-    /**
-     * Creates a new PcOpenRunInfo instance.
-     * @param {Partial<PcOpenRunInfo>} [$$source = {}] - The source object to create the PcOpenRunInfo.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["subType"] = undefined;
-        }
-        if (!("data" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["data"] = "";
-        }
-        if (!("equiv" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["equiv"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["disp"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {RunConstraintsInfo | null | undefined}
-             */
-            this["constraints"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new PcOpenRunInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PcOpenRunInfo}
-     */
-    static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType29;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("constraints" in $$parsedSource) {
-            $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
-        }
-        return new PcOpenRunInfo(/** @type {Partial<PcOpenRunInfo>} */($$parsedSource));
-    }
-}
-
-/**
  * GetItemBlocks returns all blocks for an item in the project.
  * When connected, blocks are fetched from the server and cached locally.
  * On connection failure, falls back to the local cache.
@@ -2674,6 +2749,15 @@ export class PendingReviewEntryView {
              */
             this["block"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * PreReview is an agent's pre-review of the translation, as the server
+             * serves it; the local working copy keeps none.
+             * @member
+             * @type {editorclient$0.EditorPreReview | null | undefined}
+             */
+            this["pre_review"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -2685,9 +2769,13 @@ export class PendingReviewEntryView {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType31;
+        const $$createField4_0 = $$createType33;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("block" in $$parsedSource) {
             $$parsedSource["block"] = $$createField3_0($$parsedSource["block"]);
+        }
+        if ("pre_review" in $$parsedSource) {
+            $$parsedSource["pre_review"] = $$createField4_0($$parsedSource["pre_review"]);
         }
         return new PendingReviewEntryView(/** @type {Partial<PendingReviewEntryView>} */($$parsedSource));
     }
@@ -2740,89 +2828,12 @@ export class PendingReviewPageView {
      * @returns {PendingReviewPageView}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType33;
+        const $$createField0_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
         }
         return new PendingReviewPageView(/** @type {Partial<PendingReviewPageView>} */($$parsedSource));
-    }
-}
-
-/**
- * PlaceholderRunInfo is a self-closing inline code.
- */
-export class PlaceholderRunInfo {
-    /**
-     * Creates a new PlaceholderRunInfo instance.
-     * @param {Partial<PlaceholderRunInfo>} [$$source = {}] - The source object to create the PlaceholderRunInfo.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["subType"] = undefined;
-        }
-        if (!("data" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["data"] = "";
-        }
-        if (!("equiv" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["equiv"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["disp"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {RunConstraintsInfo | null | undefined}
-             */
-            this["constraints"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new PlaceholderRunInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PlaceholderRunInfo}
-     */
-    static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType29;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("constraints" in $$parsedSource) {
-            $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
-        }
-        return new PlaceholderRunInfo(/** @type {Partial<PlaceholderRunInfo>} */($$parsedSource));
     }
 }
 
@@ -2873,54 +2884,12 @@ export class PluginInfo {
      * @returns {PluginInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType11;
+        const $$createField3_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("formats" in $$parsedSource) {
             $$parsedSource["formats"] = $$createField3_0($$parsedSource["formats"]);
         }
         return new PluginInfo(/** @type {Partial<PluginInfo>} */($$parsedSource));
-    }
-}
-
-/**
- * PluralRunInfo is a structured plural construct.
- */
-export class PluralRunInfo {
-    /**
-     * Creates a new PluralRunInfo instance.
-     * @param {Partial<PluralRunInfo>} [$$source = {}] - The source object to create the PluralRunInfo.
-     */
-    constructor($$source = {}) {
-        if (!("pivot" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["pivot"] = "";
-        }
-        if (!("forms" in $$source)) {
-            /**
-             * @member
-             * @type {{ [_ in string]?: RunInfo[] }}
-             */
-            this["forms"] = {};
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new PluralRunInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PluralRunInfo}
-     */
-    static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType9;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("forms" in $$parsedSource) {
-            $$parsedSource["forms"] = $$createField1_0($$parsedSource["forms"]);
-        }
-        return new PluralRunInfo(/** @type {Partial<PluralRunInfo>} */($$parsedSource));
     }
 }
 
@@ -3037,8 +3006,8 @@ export class ProjectInfo {
      * @returns {ProjectInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType11;
-        const $$createField5_0 = $$createType35;
+        const $$createField3_0 = $$createType12;
+        const $$createField5_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField3_0($$parsedSource["target_languages"]);
@@ -3253,153 +3222,6 @@ export class ReviewArgs {
 }
 
 /**
- * RunConstraintsInfo mirrors model.RunConstraints for the frontend.
- */
-export class RunConstraintsInfo {
-    /**
-     * Creates a new RunConstraintsInfo instance.
-     * @param {Partial<RunConstraintsInfo>} [$$source = {}] - The source object to create the RunConstraintsInfo.
-     */
-    constructor($$source = {}) {
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {boolean | undefined}
-             */
-            this["deletable"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {boolean | undefined}
-             */
-            this["cloneable"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {boolean | undefined}
-             */
-            this["reorderable"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new RunConstraintsInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {RunConstraintsInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new RunConstraintsInfo(/** @type {Partial<RunConstraintsInfo>} */($$parsedSource));
-    }
-}
-
-/**
- * RunInfo describes one inline-content primitive for the frontend.
- * Exactly one of the pointer fields is non-nil per record.
- */
-export class RunInfo {
-    /**
-     * Creates a new RunInfo instance.
-     * @param {Partial<RunInfo>} [$$source = {}] - The source object to create the RunInfo.
-     */
-    constructor($$source = {}) {
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {TextRunInfo | null | undefined}
-             */
-            this["text"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {PlaceholderRunInfo | null | undefined}
-             */
-            this["ph"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {PcOpenRunInfo | null | undefined}
-             */
-            this["pcOpen"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {PcCloseRunInfo | null | undefined}
-             */
-            this["pcClose"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {SubRunInfo | null | undefined}
-             */
-            this["sub"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {PluralRunInfo | null | undefined}
-             */
-            this["plural"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {SelectRunInfo | null | undefined}
-             */
-            this["select"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new RunInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {RunInfo}
-     */
-    static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType37;
-        const $$createField1_0 = $$createType39;
-        const $$createField2_0 = $$createType41;
-        const $$createField3_0 = $$createType43;
-        const $$createField4_0 = $$createType45;
-        const $$createField5_0 = $$createType47;
-        const $$createField6_0 = $$createType49;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
-        }
-        if ("ph" in $$parsedSource) {
-            $$parsedSource["ph"] = $$createField1_0($$parsedSource["ph"]);
-        }
-        if ("pcOpen" in $$parsedSource) {
-            $$parsedSource["pcOpen"] = $$createField2_0($$parsedSource["pcOpen"]);
-        }
-        if ("pcClose" in $$parsedSource) {
-            $$parsedSource["pcClose"] = $$createField3_0($$parsedSource["pcClose"]);
-        }
-        if ("sub" in $$parsedSource) {
-            $$parsedSource["sub"] = $$createField4_0($$parsedSource["sub"]);
-        }
-        if ("plural" in $$parsedSource) {
-            $$parsedSource["plural"] = $$createField5_0($$parsedSource["plural"]);
-        }
-        if ("select" in $$parsedSource) {
-            $$parsedSource["select"] = $$createField6_0($$parsedSource["select"]);
-        }
-        return new RunInfo(/** @type {Partial<RunInfo>} */($$parsedSource));
-    }
-}
-
-/**
  * SaveProviderRequest is used to create/update a provider with an optional API key.
  */
 export class SaveProviderRequest {
@@ -3462,48 +3284,6 @@ export class SaveProviderRequest {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new SaveProviderRequest(/** @type {Partial<SaveProviderRequest>} */($$parsedSource));
-    }
-}
-
-/**
- * SelectRunInfo is a structured select construct.
- */
-export class SelectRunInfo {
-    /**
-     * Creates a new SelectRunInfo instance.
-     * @param {Partial<SelectRunInfo>} [$$source = {}] - The source object to create the SelectRunInfo.
-     */
-    constructor($$source = {}) {
-        if (!("pivot" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["pivot"] = "";
-        }
-        if (!("cases" in $$source)) {
-            /**
-             * @member
-             * @type {{ [_ in string]?: RunInfo[] }}
-             */
-            this["cases"] = {};
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new SelectRunInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {SelectRunInfo}
-     */
-    static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType9;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("cases" in $$parsedSource) {
-            $$parsedSource["cases"] = $$createField1_0($$parsedSource["cases"]);
-        }
-        return new SelectRunInfo(/** @type {Partial<SelectRunInfo>} */($$parsedSource));
     }
 }
 
@@ -3580,51 +3360,6 @@ export class StartPilotArgs {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new StartPilotArgs(/** @type {Partial<StartPilotArgs>} */($$parsedSource));
-    }
-}
-
-/**
- * SubRunInfo is a sub-filter reference.
- */
-export class SubRunInfo {
-    /**
-     * Creates a new SubRunInfo instance.
-     * @param {Partial<SubRunInfo>} [$$source = {}] - The source object to create the SubRunInfo.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("ref" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["ref"] = "";
-        }
-        if (!("equiv" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["equiv"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new SubRunInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {SubRunInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new SubRunInfo(/** @type {Partial<SubRunInfo>} */($$parsedSource));
     }
 }
 
@@ -3755,7 +3490,7 @@ export class TermEnforceResult {
      * @returns {TermEnforceResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType11;
+        const $$createField3_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("expected" in $$parsedSource) {
             $$parsedSource["expected"] = $$createField3_0($$parsedSource["expected"]);
@@ -3832,7 +3567,7 @@ export class TermInfo {
      * @returns {TermInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType11;
+        const $$createField6_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField6_0($$parsedSource["forms"]);
@@ -3867,7 +3602,7 @@ export class TermLookupResult {
      * @returns {TermLookupResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType51;
+        const $$createField0_0 = $$createType39;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("matches" in $$parsedSource) {
             $$parsedSource["matches"] = $$createField0_0($$parsedSource["matches"]);
@@ -3993,43 +3728,12 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType53;
+        const $$createField0_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
         }
         return new TermSearchResult(/** @type {Partial<TermSearchResult>} */($$parsedSource));
-    }
-}
-
-/**
- * TextRunInfo is a plain text chunk.
- */
-export class TextRunInfo {
-    /**
-     * Creates a new TextRunInfo instance.
-     * @param {Partial<TextRunInfo>} [$$source = {}] - The source object to create the TextRunInfo.
-     */
-    constructor($$source = {}) {
-        if (!("text" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["text"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new TextRunInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TextRunInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TextRunInfo(/** @type {Partial<TextRunInfo>} */($$parsedSource));
     }
 }
 
@@ -4137,10 +3841,10 @@ export class ToolInfo {
      * @returns {ToolInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType11;
-        const $$createField6_0 = $$createType11;
-        const $$createField7_0 = $$createType55;
-        const $$createField8_0 = $$createType55;
+        const $$createField5_0 = $$createType12;
+        const $$createField6_0 = $$createType12;
+        const $$createField7_0 = $$createType43;
+        const $$createField8_0 = $$createType43;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("requires" in $$parsedSource) {
             $$parsedSource["requires"] = $$createField5_0($$parsedSource["requires"]);
@@ -4344,7 +4048,7 @@ export class Validity {
      * @returns {Validity}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType10;
+        const $$createField2_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
             $$parsedSource["tags"] = $$createField2_0($$parsedSource["tags"]);
@@ -4521,7 +4225,7 @@ export class VoiceRollupResult {
      * @returns {VoiceRollupResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType57;
+        const $$createField0_0 = $$createType45;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField0_0($$parsedSource["projects"]);
@@ -4577,8 +4281,8 @@ export class WordCountResult {
      * @returns {WordCountResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType58;
-        const $$createField3_0 = $$createType58;
+        const $$createField2_0 = $$createType46;
+        const $$createField3_0 = $$createType46;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_words" in $$parsedSource) {
             $$parsedSource["target_words"] = $$createField2_0($$parsedSource["target_words"]);
@@ -4662,57 +4366,45 @@ const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = TermInfo.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = BlockStatusCountsView.createFrom;
-const $$createType5 = RunInfo.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = BlockTargetInfo.createFrom;
-const $$createType8 = $Create.Map($Create.Any, $$createType7);
-const $$createType9 = $Create.Map($Create.Any, $$createType6);
-const $$createType10 = $Create.Map($Create.Any, $Create.Any);
-const $$createType11 = $Create.Array($Create.Any);
-const $$createType12 = AppliedMemoryView.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = SkippedMemoryView.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = BlockResultView.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = CollabUser.createFrom;
-const $$createType19 = FlowNodeInfo.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = FlowEdgeInfo.createFrom;
-const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = $Create.Map($Create.Any, $Create.Any);
-const $$createType24 = PositionInfo.createFrom;
-const $$createType25 = $Create.Array($Create.Any);
-const $$createType26 = MemoryEntryInfo.createFrom;
-const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = RunConstraintsInfo.createFrom;
-const $$createType29 = $Create.Nullable($$createType28);
+const $$createType5 = $Create.Array($Create.Any);
+const $$createType6 = BlockTargetInfo.createFrom;
+const $$createType7 = $Create.Map($Create.Any, $$createType6);
+const $$createType8 = $Create.Map($Create.Any, $$createType5);
+const $$createType9 = $Create.Map($Create.Any, $Create.Any);
+const $$createType10 = editorclient$0.EditorEntity.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = $Create.Array($Create.Any);
+const $$createType13 = AppliedMemoryView.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = SkippedMemoryView.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = BlockResultView.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = CollabUser.createFrom;
+const $$createType20 = FailedEdit.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = FlowNodeInfo.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = FlowEdgeInfo.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = $Create.Map($Create.Any, $Create.Any);
+const $$createType27 = PositionInfo.createFrom;
+const $$createType28 = MemoryEntryInfo.createFrom;
+const $$createType29 = $Create.Array($$createType28);
 const $$createType30 = BlockInfo.createFrom;
 const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = PendingReviewEntryView.createFrom;
-const $$createType33 = $Create.Array($$createType32);
-const $$createType34 = ProjectItem.createFrom;
+const $$createType32 = editorclient$0.EditorPreReview.createFrom;
+const $$createType33 = $Create.Nullable($$createType32);
+const $$createType34 = PendingReviewEntryView.createFrom;
 const $$createType35 = $Create.Array($$createType34);
-const $$createType36 = TextRunInfo.createFrom;
-const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = PlaceholderRunInfo.createFrom;
-const $$createType39 = $Create.Nullable($$createType38);
-const $$createType40 = PcOpenRunInfo.createFrom;
-const $$createType41 = $Create.Nullable($$createType40);
-const $$createType42 = PcCloseRunInfo.createFrom;
-const $$createType43 = $Create.Nullable($$createType42);
-const $$createType44 = SubRunInfo.createFrom;
-const $$createType45 = $Create.Nullable($$createType44);
-const $$createType46 = PluralRunInfo.createFrom;
-const $$createType47 = $Create.Nullable($$createType46);
-const $$createType48 = SelectRunInfo.createFrom;
-const $$createType49 = $Create.Nullable($$createType48);
-const $$createType50 = TermMatchInfo.createFrom;
-const $$createType51 = $Create.Array($$createType50);
-const $$createType52 = ConceptInfo.createFrom;
-const $$createType53 = $Create.Array($$createType52);
-const $$createType54 = IOPort.createFrom;
-const $$createType55 = $Create.Array($$createType54);
-const $$createType56 = client$0.VoiceRollupEntry.createFrom;
-const $$createType57 = $Create.Array($$createType56);
-const $$createType58 = $Create.Map($Create.Any, $Create.Any);
+const $$createType36 = ProjectItem.createFrom;
+const $$createType37 = $Create.Array($$createType36);
+const $$createType38 = TermMatchInfo.createFrom;
+const $$createType39 = $Create.Array($$createType38);
+const $$createType40 = ConceptInfo.createFrom;
+const $$createType41 = $Create.Array($$createType40);
+const $$createType42 = IOPort.createFrom;
+const $$createType43 = $Create.Array($$createType42);
+const $$createType44 = client$0.VoiceRollupEntry.createFrom;
+const $$createType45 = $Create.Array($$createType44);
+const $$createType46 = $Create.Map($Create.Any, $Create.Any);

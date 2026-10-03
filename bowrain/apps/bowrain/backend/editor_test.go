@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,8 +42,8 @@ func TestPseudoTranslateFile(t *testing.T) {
 
 	for _, b := range blocks {
 		if b.Translatable {
-			assert.NotEmpty(t, flattenTargetRuns(b, "fr"), "block %q should have fr target", b.ID)
-			assert.Contains(t, flattenTargetRuns(b, "fr"), "▒", "pseudo target should carry the shade-marker wrap")
+			assert.NotEmpty(t, b.Targets["fr"].Text, "block %q should have fr target", b.ID)
+			assert.Contains(t, b.Targets["fr"].Text, "▒", "pseudo target should carry the shade-marker wrap")
 		}
 	}
 }
@@ -62,7 +63,7 @@ func TestPseudoTranslateFile_PreservesSpans(t *testing.T) {
 	require.NoError(t, err)
 	var spanBlock *BlockInfo
 	for i := range blocksBefore {
-		if runInfosHaveInline(blocksBefore[i].SourceRuns) {
+		if model.RunsHaveInlineCodes(blocksBefore[i].SourceRuns) {
 			spanBlock = &blocksBefore[i]
 			break
 		}
@@ -80,7 +81,7 @@ func TestPseudoTranslateFile_PreservesSpans(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, b := range blocksAfter {
-		if !b.Translatable || !runInfosHaveInline(b.SourceRuns) {
+		if !b.Translatable || !model.RunsHaveInlineCodes(b.SourceRuns) {
 			continue
 		}
 		targetRuns, ok := b.TargetRuns["fr"]
@@ -106,19 +107,8 @@ func TestPseudoTranslateFile_PreservesSpans(t *testing.T) {
 	}
 }
 
-// runInfosHaveInline reports whether a RunInfo slice contains any
-// non-text run (inline code).
-func runInfosHaveInline(runs []RunInfo) bool {
-	for _, r := range runs {
-		if r.Text == nil {
-			return true
-		}
-	}
-	return false
-}
-
-// countInlineCodes counts non-text runs in a RunInfo slice.
-func countInlineCodes(runs []RunInfo) int {
+// countInlineCodes counts the non-text runs of a run sequence.
+func countInlineCodes(runs []model.Run) int {
 	n := 0
 	for _, r := range runs {
 		if r.Text == nil {
@@ -230,7 +220,7 @@ func TestHTMLFileBlocks(t *testing.T) {
 	// Check for expected content
 	sources := make([]string, 0)
 	for _, b := range blocks {
-		sources = append(sources, b.FlattenSource())
+		sources = append(sources, b.Source)
 	}
 	assert.NotEmpty(t, sources)
 }

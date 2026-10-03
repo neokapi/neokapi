@@ -31,6 +31,9 @@ type PendingReviewEntryView struct {
 	ItemName string     `json:"item_name"`
 	Locale   string     `json:"locale"`
 	Block    *BlockInfo `json:"block,omitempty"`
+	// PreReview is an agent's pre-review of the translation, as the server
+	// serves it; the local working copy keeps none.
+	PreReview *editorclient.EditorPreReview `json:"pre_review,omitempty"`
 }
 
 // PendingReviewPageView is one page of the queue plus its total size.
@@ -53,7 +56,7 @@ func (a *App) GetPendingReview(projectID string, locales []string, limit, offset
 		}
 		out := &PendingReviewPageView{Total: page.Total, Limit: page.Limit, Offset: page.Offset}
 		for _, e := range page.Entries {
-			view := PendingReviewEntryView{BlockID: e.BlockID, ItemName: e.ItemName, Locale: e.Locale}
+			view := PendingReviewEntryView{BlockID: e.BlockID, ItemName: e.ItemName, Locale: e.Locale, PreReview: e.PreReview}
 			if e.Block != nil {
 				infos := editorBlocksToInfos([]editorclient.EditorBlock{*e.Block})
 				if len(infos) == 1 {
@@ -584,12 +587,19 @@ func (a *App) cacheBlocks(projectID, itemName string, blocks []BlockInfo) {
 }
 
 // blockInfoToBlock converts a BlockInfo (from server) to a model.Block for local storage.
+// The server serves a plain source as its text alone, and a plain translation
+// as its text in the targets map.
 func blockInfoToBlock(bi BlockInfo) *model.Block {
-	b := model.NewRunsBlock(bi.ID, runInfosToRuns(bi.SourceRuns))
+	source := bi.SourceRuns
+	if len(source) == 0 && bi.Source != "" {
+		source = []model.Run{model.TextR(bi.Source)}
+	}
+	b := model.NewRunsBlock(bi.ID, source)
+	b.Name = bi.Name
 	b.Translatable = bi.Translatable
 	b.Properties = bi.Properties
 	for locale, runs := range bi.TargetRuns {
-		b.SetTargetRuns(model.LocaleID(locale), runInfosToRuns(runs))
+		b.SetTargetRuns(model.LocaleID(locale), runs)
 	}
 	// Carry the per-locale target text and review status (model.Target.Status)
 	// into the cache so an offline reload round-trips review state.
@@ -607,20 +617,20 @@ func blockInfoToBlock(bi BlockInfo) *model.Block {
 	return b
 }
 
-// storedBlockToBlockInfo converts a StoredBlock to a BlockInfo.
+// storedBlockToBlockInfo converts a StoredBlock to a BlockInfo, in the shape
+// the server's blocks route serves (storedBlockToInfoResponse): targets
+// carries, per locale, the committed plain text and the per-locale review
+// status (model.Target.Status), so the shared editor reads the same shape
+// online and offline. The source's and each target's runs ride along whole.
 func storedBlockToBlockInfo(sb *venue.StoredBlock, targetLocales []string) BlockInfo {
-	targetRuns := make(map[string][]RunInfo, len(targetLocales))
-	// Mirror the server's storedBlockToInfoResponse: targets carries, per
-	// locale, the committed plain text plus the per-locale review status
-	// (model.Target.Status), so the shared editor reads the same shape online
-	// and offline.
+	targetRuns := make(map[string][]model.Run, len(targetLocales))
 	targets := make(map[string]BlockTargetInfo, len(targetLocales))
 	revisions := make(map[string]string, len(targetLocales))
 	for _, locale := range targetLocales {
 		loc := model.LocaleID(locale)
 		revisions[locale] = store.TargetRevision(sb, loc)
 		if runs := sb.Block.TargetRuns(loc); len(runs) > 0 {
-			targetRuns[locale] = runsToRunInfos(runs)
+			targetRuns[locale] = runs
 		}
 		text := sb.Block.TargetText(loc)
 		status := ""
@@ -631,139 +641,24 @@ func storedBlockToBlockInfo(sb *venue.StoredBlock, targetLocales []string) Block
 			targets[locale] = BlockTargetInfo{Text: text, Status: status}
 		}
 	}
-	if len(targets) == 0 {
-		targets = nil
-	}
 
 	props := make(map[string]string, len(sb.Block.Properties))
 	maps.Copy(props, sb.Block.Properties)
 
+	source := sb.Block.SourceRuns()
 	return BlockInfo{
 		ID:              sb.Block.ID,
-		SourceRuns:      runsToRunInfos(sb.Block.SourceRuns()),
+		SourceID:        sb.SourceID,
+		Name:            sb.Block.Name,
+		Source:          sb.Block.SourceText(),
+		SourceRuns:      source,
 		Targets:         targets,
 		TargetRuns:      targetRuns,
 		Translatable:    sb.Block.Translatable,
+		HasInlineCodes:  model.RunsHaveInlineCodes(source),
 		Properties:      props,
 		TargetRevisions: revisions,
 	}
-}
-
-// runsToRunInfos converts a run sequence to the frontend-facing
-// RunInfo representation.
-func runsToRunInfos(runs []model.Run) []RunInfo {
-	if len(runs) == 0 {
-		return nil
-	}
-	out := make([]RunInfo, len(runs))
-	for i, r := range runs {
-		out[i] = runToRunInfo(r)
-	}
-	return out
-}
-
-// runInfosToRuns reverses runsToRunInfos.
-func runInfosToRuns(infos []RunInfo) []model.Run {
-	if len(infos) == 0 {
-		return nil
-	}
-	out := make([]model.Run, len(infos))
-	for i, ri := range infos {
-		out[i] = runInfoToRun(ri)
-	}
-	return out
-}
-
-func runToRunInfo(r model.Run) RunInfo {
-	switch {
-	case r.Text != nil:
-		return RunInfo{Text: &TextRunInfo{Text: r.Text.Text}}
-	case r.Ph != nil:
-		return RunInfo{Ph: &PlaceholderRunInfo{
-			ID: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
-			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
-			Constraints: runConstraintsToInfo(r.Ph.Constraints),
-		}}
-	case r.PcOpen != nil:
-		return RunInfo{PcOpen: &PcOpenRunInfo{
-			ID: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
-			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
-			Constraints: runConstraintsToInfo(r.PcOpen.Constraints),
-		}}
-	case r.PcClose != nil:
-		return RunInfo{PcClose: &PcCloseRunInfo{
-			ID: r.PcClose.ID, Type: r.PcClose.Type, SubType: r.PcClose.SubType,
-			Data: r.PcClose.Data, Equiv: r.PcClose.Equiv,
-		}}
-	case r.Sub != nil:
-		return RunInfo{Sub: &SubRunInfo{ID: r.Sub.ID, Ref: r.Sub.Ref, Equiv: r.Sub.Equiv}}
-	case r.Plural != nil:
-		forms := make(map[string][]RunInfo, len(r.Plural.Forms))
-		for form, runs := range r.Plural.Forms {
-			forms[string(form)] = runsToRunInfos(runs)
-		}
-		return RunInfo{Plural: &PluralRunInfo{Pivot: r.Plural.Pivot, Forms: forms}}
-	case r.Select != nil:
-		cases := make(map[string][]RunInfo, len(r.Select.Cases))
-		for key, runs := range r.Select.Cases {
-			cases[key] = runsToRunInfos(runs)
-		}
-		return RunInfo{Select: &SelectRunInfo{Pivot: r.Select.Pivot, Cases: cases}}
-	}
-	return RunInfo{}
-}
-
-func runInfoToRun(ri RunInfo) model.Run {
-	switch {
-	case ri.Text != nil:
-		return model.Run{Text: &model.TextRun{Text: ri.Text.Text}}
-	case ri.Ph != nil:
-		return model.Run{Ph: &model.PlaceholderRun{
-			ID: ri.Ph.ID, Type: ri.Ph.Type, SubType: ri.Ph.SubType,
-			Data: ri.Ph.Data, Equiv: ri.Ph.Equiv, Disp: ri.Ph.Disp,
-			Constraints: runConstraintsFromInfo(ri.Ph.Constraints),
-		}}
-	case ri.PcOpen != nil:
-		return model.Run{PcOpen: &model.PcOpenRun{
-			ID: ri.PcOpen.ID, Type: ri.PcOpen.Type, SubType: ri.PcOpen.SubType,
-			Data: ri.PcOpen.Data, Equiv: ri.PcOpen.Equiv, Disp: ri.PcOpen.Disp,
-			Constraints: runConstraintsFromInfo(ri.PcOpen.Constraints),
-		}}
-	case ri.PcClose != nil:
-		return model.Run{PcClose: &model.PcCloseRun{
-			ID: ri.PcClose.ID, Type: ri.PcClose.Type, SubType: ri.PcClose.SubType,
-			Data: ri.PcClose.Data, Equiv: ri.PcClose.Equiv,
-		}}
-	case ri.Sub != nil:
-		return model.Run{Sub: &model.SubRun{ID: ri.Sub.ID, Ref: ri.Sub.Ref, Equiv: ri.Sub.Equiv}}
-	case ri.Plural != nil:
-		forms := make(map[model.PluralForm][]model.Run, len(ri.Plural.Forms))
-		for form, runs := range ri.Plural.Forms {
-			forms[model.PluralForm(form)] = runInfosToRuns(runs)
-		}
-		return model.Run{Plural: &model.PluralRun{Pivot: ri.Plural.Pivot, Forms: forms}}
-	case ri.Select != nil:
-		cases := make(map[string][]model.Run, len(ri.Select.Cases))
-		for key, runs := range ri.Select.Cases {
-			cases[key] = runInfosToRuns(runs)
-		}
-		return model.Run{Select: &model.SelectRun{Pivot: ri.Select.Pivot, Cases: cases}}
-	}
-	return model.Run{}
-}
-
-func runConstraintsToInfo(c *model.RunConstraints) *RunConstraintsInfo {
-	if c == nil {
-		return nil
-	}
-	return &RunConstraintsInfo{Deletable: c.Deletable, Cloneable: c.Cloneable, Reorderable: c.Reorderable}
-}
-
-func runConstraintsFromInfo(ri *RunConstraintsInfo) *model.RunConstraints {
-	if ri == nil {
-		return nil
-	}
-	return &model.RunConstraints{Deletable: ri.Deletable, Cloneable: ri.Cloneable, Reorderable: ri.Reorderable}
 }
 
 // legacyTranslationStatusProperty is the block-wide review flag of cached

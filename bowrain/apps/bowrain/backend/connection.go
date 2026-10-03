@@ -167,16 +167,6 @@ func (a *App) GetPendingChangesCount() int {
 	return a.offlineQueue.PendingCount()
 }
 
-// GetFailedChangesCount returns the number of queued offline changes the
-// server permanently rejected on replay (4xx). Exposed to the frontend so it
-// can surface that some offline edits did not apply.
-func (a *App) GetFailedChangesCount() int {
-	if a.offlineQueue == nil {
-		return 0
-	}
-	return a.offlineQueue.FailedCount()
-}
-
 // credentialsFor returns the credentials to present to serverURL, preferring the
 // ones already held in memory over a keychain read. The in-memory copy is what
 // makes a session that never touched the keychain reconnectable: a BOWRAIN_TOKEN

@@ -164,6 +164,62 @@ func (q *OfflineQueue) MarkFailedPermanent(id int64, errMsg string) error {
 	return err
 }
 
+// MarkDropped retires an entry of a kind this version no longer sends. It
+// leaves the pending set and the failed count, and stays listed with its
+// notice until a person dismisses it.
+func (q *OfflineQueue) MarkDropped(id int64, notice string) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	_, err := q.db.Exec(`UPDATE pending_changes SET last_error = ?, status = 'dropped' WHERE id = ?`, notice, id)
+	return err
+}
+
+// Failed returns the changes that did not reach the server, failed or
+// dropped, oldest first.
+func (q *OfflineQueue) Failed() ([]PendingChange, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	rows, err := q.db.Query(
+		`SELECT id, operation, payload, status, created_at, attempts, last_error
+		 FROM pending_changes WHERE status IN ('failed', 'dropped') ORDER BY id ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var changes []PendingChange
+	for rows.Next() {
+		var c PendingChange
+		var createdAt string
+		if err := rows.Scan(&c.ID, &c.Operation, &c.Payload, &c.Status, &createdAt, &c.Attempts, &c.LastError); err != nil {
+			return nil, err
+		}
+		c.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		changes = append(changes, c)
+	}
+	return changes, rows.Err()
+}
+
+// Dismiss removes one failed or dropped change. A pending change stays.
+func (q *OfflineQueue) Dismiss(id int64) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	_, err := q.db.Exec(`DELETE FROM pending_changes WHERE id = ? AND status IN ('failed', 'dropped')`, id)
+	return err
+}
+
+// DismissAll removes every failed and dropped change.
+func (q *OfflineQueue) DismissAll() error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	_, err := q.db.Exec(`DELETE FROM pending_changes WHERE status IN ('failed', 'dropped')`)
+	return err
+}
+
 // FailedCount returns the number of terminally failed changes — queued offline
 // mutations the server permanently rejected on replay. Exposed so the UI can
 // surface that some offline edits did not apply.

@@ -29,6 +29,20 @@ const (
 	opMemoryTranslateItem opKind = "tm_translate_item"
 )
 
+// The kinds earlier versions queued a translation save and a review decision
+// under, before every content change travelled as a change set. Their entries
+// carry no revision, so a replay could write over wording someone changed in
+// the meantime. The replay drops them with a notice, and the failed-changes
+// list shows what each was.
+const (
+	opUpdateBlockTarget     opKind = "update_block_target"
+	opUpdateBlockTargetRuns opKind = "update_block_target_runs"
+	opReviewBlock           opKind = "review_block"
+)
+
+// errRetired marks a queued entry of a retired kind.
+var errRetired = errors.New("queued by an earlier version of Bowrain without the revision it was made on, so this version does not send it; make the change again")
+
 // errUnreplayable marks a queued entry this build cannot replay: a kind it does
 // not know, or a payload that does not decode. Retrying it can never succeed,
 // so the replay marks it failed, where the pending count's failed half shows
@@ -46,10 +60,13 @@ type offlineOp interface {
 	replay(ctx context.Context, client *editorclient.EditorClient, ws string) error
 }
 
-// decodeOp reconstructs the typed op persisted under kind+payload. A kind it
-// does not know, or a payload that does not decode, is errUnreplayable.
+// decodeOp reconstructs the typed op persisted under kind+payload. A retired
+// kind is errRetired; a kind it does not know, or a payload that does not
+// decode, is errUnreplayable.
 func decodeOp(kind opKind, payload string) (offlineOp, error) {
 	switch kind {
+	case opUpdateBlockTarget, opUpdateBlockTargetRuns, opReviewBlock:
+		return nil, errRetired
 	case opChangeSet:
 		return unmarshalOp[changeSetOp](payload)
 	case opAddMemoryEntry:

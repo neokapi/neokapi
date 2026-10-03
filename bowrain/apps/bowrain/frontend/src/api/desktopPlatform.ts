@@ -1,6 +1,6 @@
 import { Browser, Events } from "@wailsio/runtime";
 import type { PlatformAdapter } from "@neokapi/bowrain-app";
-import type { ConnectionState } from "@neokapi/ui";
+import type { ConnectionState, FailedChange } from "@neokapi/ui";
 import { Backend } from "./backend";
 import {
   analyticsAvailable,
@@ -114,7 +114,9 @@ export function createDesktopPlatform(): PlatformAdapter {
         return () => cancel?.();
       },
       pendingCount: () => Backend.GetPendingChangesCount() as Promise<number>,
-      failedCount: () => Backend.GetFailedChangesCount() as Promise<number>,
+      failedChanges: () => Backend.GetFailedChanges() as Promise<FailedChange[]>,
+      dismissFailedChange: (id: number) => Backend.DismissFailedChange(id) as Promise<void>,
+      dismissFailedChanges: () => Backend.DismissFailedChanges() as Promise<void>,
       retry: retryConnection,
     },
     onFilesDropped: (cb) => {

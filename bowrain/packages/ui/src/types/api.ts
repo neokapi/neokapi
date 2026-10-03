@@ -1794,6 +1794,41 @@ export interface PendingReviewEntry {
   pre_review?: PreReviewInfo;
 }
 
+/**
+ * One operation of an offline change that did not reach the server: what it
+ * did, where, and the wording it carried. Mirrors the desktop backend's
+ * FailedEdit.
+ */
+export interface FailedEdit {
+  /** The change-set operation: set_content, replace_text, remove_edition, decide, annotate, unannotate. */
+  op: string;
+  /** A decision's outcome. */
+  outcome?: string;
+  /** An annotation's type (note, entity). */
+  type?: string;
+  item?: string;
+  block?: string;
+  /** The translation's language; absent for the source. */
+  locale?: string;
+  /** The wording it carried, inline codes as placeholders. */
+  text?: string;
+}
+
+/**
+ * An offline change that did not reach the server: refused on replay
+ * (`failed`), or queued by an earlier version in a form this one no longer
+ * sends (`dropped`). Mirrors the desktop backend's FailedChange.
+ */
+export interface FailedChange {
+  id: number;
+  status: "failed" | "dropped";
+  /** The kind it was queued under: change_set, or a content-memory, terms or item kind. */
+  operation: string;
+  edits?: FailedEdit[];
+  reason: string;
+  queued_at: string;
+}
+
 /** An agent's pre-review of a translation: its score from 0 to 100, who gave it and why. */
 export interface PreReviewInfo {
   score: number;

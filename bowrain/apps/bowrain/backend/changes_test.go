@@ -281,10 +281,10 @@ func TestApplyChangesOfflineQueuesTheChangeSetWithItsPreconditions(t *testing.T)
 	})
 }
 
-// A queued entry this build cannot replay, such as one of the retired
-// per-field kinds, is marked failed, where the failed count shows it, and the
-// queue drains past it.
-func TestReplayMarksAnEntryItCannotReplayFailed(t *testing.T) {
+// An entry of a retired per-field kind is dropped with a notice rather than
+// failed, and the failed-changes list says what it was. An entry this build
+// cannot decode is marked failed. The queue drains past both.
+func TestReplayDropsARetiredEntryAndFailsOneItCannotRead(t *testing.T) {
 	calls := 0
 	app, _ := newGovTestApp(t, func(w http.ResponseWriter, _ *http.Request) {
 		calls++
@@ -304,5 +304,25 @@ func TestReplayMarksAnEntryItCannotReplayFailed(t *testing.T) {
 
 	assert.Zero(t, calls, "nothing reaches the server")
 	assert.Equal(t, 0, q.PendingCount())
-	assert.Equal(t, 2, q.FailedCount())
+	assert.Equal(t, 1, q.FailedCount(), "only the entry nothing can read is failed")
+
+	listed, err := app.GetFailedChanges()
+	require.NoError(t, err)
+	require.Len(t, listed, 2)
+	dropped := listed[0]
+	assert.Equal(t, "dropped", dropped.Status)
+	assert.Equal(t, "update_block_target", dropped.Operation)
+	assert.Contains(t, dropped.Reason, "earlier version")
+	assert.Equal(t, []FailedEdit{{Op: "set_content", Block: "b1", Locale: "fr", Text: "Bonjour"}}, dropped.Edits,
+		"the notice says what the dropped change was")
+	assert.Equal(t, "failed", listed[1].Status)
+
+	require.NoError(t, app.DismissFailedChange(dropped.ID))
+	listed, err = app.GetFailedChanges()
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	require.NoError(t, app.DismissFailedChanges())
+	listed, err = app.GetFailedChanges()
+	require.NoError(t, err)
+	assert.Empty(t, listed)
 }

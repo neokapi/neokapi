@@ -41,7 +41,39 @@ describe("createDesktopAdapter (composite)", () => {
       offset: 0,
     });
     expect(backend.ProxyRequest).not.toHaveBeenCalled();
-    expect(blocks).toEqual([{ id: "b1" }]);
+    expect(blocks).toMatchObject([{ id: "b1" }]);
+  });
+
+  it("reads a block's runs the way the web app reads the server's, so its codes reach the editor", async () => {
+    // The shape the Wails backend serves (backend.BlockInfo), which is the
+    // server's blocks payload: the source's text and runs, each target and its
+    // runs, in the canonical run form.
+    backend.QueryItemBlocks.mockResolvedValue([
+      {
+        id: "b1",
+        source: "Hello {name}",
+        source_runs: [{ text: "Hello " }, { ph: { id: "1", type: "fmt", equiv: "{name}" } }],
+        targets: { fr: { text: "Bonjour {name}", status: "translated" } },
+        targets_runs: {
+          fr: [{ text: "Bonjour " }, { ph: { id: "1", type: "fmt", equiv: "{name}" } }],
+        },
+        translatable: true,
+        has_inline_codes: true,
+        properties: {},
+        target_revisions: { fr: "r:0000000000000001" },
+      },
+    ]);
+    const api = createDesktopAdapter();
+
+    const [block] = await api.getFileBlocks("acme", "proj-1", "about.json");
+
+    expect(block.source).toBe("Hello {name}");
+    expect(block.source_runs).toHaveLength(2);
+    expect(block.targets_runs?.fr).toHaveLength(2);
+    expect(block.has_spans).toBe(true);
+    expect(block.source_spans).toHaveLength(1);
+    expect(block.source_coded).not.toBe("Hello {name}");
+    expect(block.targets_coded?.fr).toBeDefined();
   });
 
   it("sends a change set through the ApplyChanges binding, which queues it offline", async () => {

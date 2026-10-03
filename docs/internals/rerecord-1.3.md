@@ -41,6 +41,14 @@ Since then 1.3 changed what several of them show:
   from the project root. A finding whose words have formatting among them, or
   that sits in a translation's file, carries none, and the Checks panel offers
   no Apply fix for it.
+- Bowrain records an agent's pre-review. An assistant on the server's MCP
+  endpoint sends `decide` with outcome `advise`; the review session's queue row
+  shows "AI" and the score, and the block's checks card shows the score, the
+  assistant's name and its reasons. Use match in the review session and the
+  document's inspector saves the match with its codes.
+- The Bowrain desktop's offline count reads "N not sent" and opens a list of
+  the changes that did not reach the server, each with its wording, its file and
+  language, and why; an edit an earlier version queued is listed as dropped.
 
 This page is the ordered list of what to record, how, on what infrastructure,
 and what to check in each result. The authored sources (demo scripts,
@@ -121,12 +129,12 @@ answer ends with (#2989).
 | 7 | `kapi-desktop-config` | `kapi-desktop-config` | `kapi/desktop/tour.mdx`, `kapi/desktop/recipes/store-ai-credentials.mdx` | desktop recorder | earlier settings layout |
 | 8 | `bowrain-cli-getting-started` | `bowrain-cli-getting-started` | Bowrain `getting-started/the-loop.mdx`, `walkthroughs/bowrain-getting-started.mdx` | stack + `make harness-seed` | `kapi init` proposes the catalog's collection, so the `kapi add` step is gone; status, push and up output |
 | 9 | `bowrain-cli-auth-and-workspaces` | `bowrain-cli-auth-and-workspaces` | Bowrain `walkthroughs/bowrain-auth.mdx` | stack + seed | output of the July take |
-| 10 | `bowrain-web-review` | `bowrain-web-review` | Bowrain `server/review.mdx`, `server/web-overview.mdx` | stack + `scripts/seed-collaboration.mjs` (two users) | one human rung, no sign-off controls; an approval of wording someone changed stops at the stale prompt; a correction the project's checks refuse stops at the findings prompt ("Save anyway") |
+| 10 | `bowrain-web-review` | `bowrain-web-review` | Bowrain `server/review.mdx`, `server/web-overview.mdx` | stack + `scripts/seed-collaboration.mjs` (two users) | one human rung, no sign-off controls; an approval of wording someone changed stops at the stale prompt; a correction the project's checks refuse stops at the findings prompt ("Save anyway"); a unit an assistant pre-reviewed shows "AI" and its score on the queue row and the score with its reasons in the checks card |
 | 11 | `bowrain-web-editor` | `bowrain-web-editor` | Bowrain `server/translation-editor.mdx`, `server/web-overview.mdx` | stack + seed | status badges; a save over a translation someone changed stops at the stale prompt; the `edit` beat's save and the `memory` beat's Apply pass the project's checks, and one the seeded terms refuse stops at the findings prompt ("The checks found problems in this translation", "Save anyway"); Apply saves the match with its tags |
 | 12 | `bowrain-web-governance` | `bowrain-web-governance` | Bowrain `server/context.mdx`, `server/terminology.mdx`, `server/translation-memory.mdx`, `server/web-overview.mdx` | stack + seed (`BOWRAIN_TERM_BLOCK_TEXT`, `BOWRAIN_TERM_TEXT`) | July take |
 | 13 | `bowrain-web-collaboration` | `bowrain-web-collaboration` | Bowrain `getting-started/introduction.mdx`, `server/collaboration.mdx`, `server/web-overview.mdx` | stack + `seed-collaboration.mjs` (two users) | July take; of two people saving one block, the second now meets the stale prompt (the walk saves none) |
 | 14 | `bowrain-web-correction-loop` | `bowrain-web-correction-loop` | Bowrain `server/context-voice.mdx`, `server/web-overview.mdx` | stack + seed | July take |
-| 15 | `bowrain-desktop-dashboard` | `bowrain-desktop-dashboard` | Bowrain `server/desktop-app.mdx` | stack + seed; the recorder's relay | July take; the reconnect fix (#2596) makes the offline beat recordable; the outbox queues change sets, and an offline edit someone overtook replays as failed |
+| 15 | `bowrain-desktop-dashboard` | `bowrain-desktop-dashboard` | Bowrain `server/desktop-app.mdx` | stack + seed; the recorder's relay | July take; the reconnect fix (#2596) makes the offline beat recordable; the outbox queues change sets, and an offline edit someone overtook replays as not sent: the indicator reads "1 not sent" and its list shows the edit's wording and the refusal |
 
 Rows 1 to 4 need nothing but the build. Rows 5 to 7 start their own isolated
 backend. Rows 8 to 15 need the stack only while they capture. Narrate them

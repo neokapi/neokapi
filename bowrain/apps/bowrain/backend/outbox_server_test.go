@@ -174,6 +174,16 @@ func TestOfflineEditToATranslationChangedOnTheServerIsRefusedOnReplay(t *testing
 	require.NoError(t, q.db.QueryRow(`SELECT last_error FROM pending_changes WHERE status = 'failed'`).Scan(&lastError))
 	assert.Contains(t, lastError, "HTTP 409", "the server refused it stale")
 
+	// The failed-changes list says what the refused edit was, so Alice can
+	// make it again on the wording that stands.
+	listed, err := app.GetFailedChanges()
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	assert.Equal(t, "failed", listed[0].Status)
+	require.Len(t, listed[0].Edits, 1)
+	assert.Equal(t, FailedEdit{Op: "set_content", Item: "hello.txt", Block: hello.ID, Locale: "fr", Text: "Salut tout le monde"},
+		listed[0].Edits[0])
+
 	served, err := alice.GetEditorBlocks(ctx, live.ws, proj.ID, "hello.txt")
 	require.NoError(t, err)
 	require.Len(t, served, 2)

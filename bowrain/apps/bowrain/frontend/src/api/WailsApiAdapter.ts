@@ -1,5 +1,11 @@
 import type { ApiAdapter, ComponentSchema } from "@neokapi/ui";
-import { ALL_PERMISSIONS, governedRefusalError } from "@neokapi/ui";
+import {
+  ALL_PERMISSIONS,
+  governedRefusalError,
+  normalizeServerBlock,
+  normalizeServerBlocks,
+  type ServerBlockInfo,
+} from "@neokapi/ui";
 import type {
   CallerPermissions,
   ConvergenceRun,
@@ -711,14 +717,18 @@ export class WailsApiAdapter implements ApiAdapter {
     _stream?: string,
     opts?: BlockQueryOptions,
   ): Promise<BlockInfo[]> {
-    return Backend.QueryItemBlocks(projectId, fileName, {
+    // The backend serves blocks in the shape the server's blocks route
+    // serves, and they are read through the same normalisation the web app
+    // applies to that payload, so the editor reads one shape on both.
+    const raw = (await Backend.QueryItemBlocks(projectId, fileName, {
       locale: opts?.locale ?? "",
       status: opts?.status ?? "",
       q: opts?.q ?? "",
       translatable: opts?.translatable ?? null,
       limit: opts?.limit ?? 0,
       offset: opts?.offset ?? 0,
-    }) as Promise<BlockInfo[]>;
+    })) as ServerBlockInfo[] | null;
+    return normalizeServerBlocks(raw ?? []);
   }
 
   async getBlockCounts(
@@ -740,7 +750,7 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   async getBlock(_ws: string, projectId: string, blockId: string): Promise<BlockInfo> {
-    return Backend.GetBlock(projectId, blockId) as Promise<BlockInfo>;
+    return normalizeServerBlock((await Backend.GetBlock(projectId, blockId)) as ServerBlockInfo);
   }
 
   async getItem(_ws: string, projectId: string, itemName: string): Promise<ItemInfo> {
@@ -781,12 +791,18 @@ export class WailsApiAdapter implements ApiAdapter {
     if (opts?.collectionId !== undefined) {
       throw new Error("the desktop review queue cannot be scoped to a collection");
     }
-    return Backend.GetPendingReview(
+    const page = (await Backend.GetPendingReview(
       projectId,
       opts?.locales ?? [],
       opts?.limit ?? 0,
       opts?.offset ?? 0,
-    ) as Promise<PendingReviewPage>;
+    )) as PendingReviewPage;
+    return {
+      ...page,
+      entries: (page.entries ?? []).map((e) =>
+        e.block ? { ...e, block: normalizeServerBlock(e.block as ServerBlockInfo) } : e,
+      ),
+    };
   }
   async applyChanges(
     _ws: string,

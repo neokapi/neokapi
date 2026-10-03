@@ -89,9 +89,12 @@ Two counts matter, and they mean different things:
 
 - **Pending**: changes waiting to be sent. These drain automatically once the
   server is reachable again.
-- **Failed**: changes that will not be retried and need attention.
+- **Not sent**: changes that will not be retried and need attention. The count
+  opens a list of them: what each change was (a translation, an approval, a
+  note), the file and language it applied to, the wording it carried, and why
+  it was not sent.
 
-A change becomes failed in one of two ways:
+A change is not sent in one of three ways:
 
 - **Transient failure** (the server was unreachable, a request timed out, or the
   server was rate-limiting). The app retries the change on later replay passes, up
@@ -103,16 +106,21 @@ A change becomes failed in one of two ways:
   means: the server declined the operation (for example, a validation error or a
   permission the account no longer holds), not a network hiccup.
 
+- **Queued by an earlier version.** An edit or a review an earlier version of
+  the app queued names no version of the translation, so sending it could
+  overwrite a teammate's wording. This version does not send it, and lists it
+  with a notice instead.
+
 The most common permanent rejection is an edit or review made offline to a
 translation someone else changed before you reconnected. Each queued edit names
 the version of the translation it was made against, and the server refuses one
 whose translation has moved on, so their wording stays rather than being
-overwritten by an edit made without seeing it. A change queued by an earlier
-version of the app that this version cannot replay is counted as failed too.
+overwritten by an edit made without seeing it.
 
-A failed count that will not clear indicates permanently rejected changes. Open
-the blocks they touched, read the translation as it now stands, and redo the
-edit where it still applies; failed changes do not replay on their own.
+Changes that were not sent do not replay on their own. Open the list from the
+count, read each translation as it now stands, and make the change again where
+it still applies, copying its wording from the list. Dismiss an entry once you
+have dealt with it, or dismiss them all.
 
 ## Sign-in or session problems
 
