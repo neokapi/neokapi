@@ -114,7 +114,7 @@ func TestToolRun_KeepsAFileSavedWhileTheRunWorked(t *testing.T) {
 		Files:         []string{page},
 		DefaultLayout: true,
 		NewTool: func() (tool.Tool, error) {
-			return &saveBeforeWrite{BaseTool: tool.BaseTool{ToolName: "save"}, path: page, data: saved}, nil
+			return &saveBeforeWrite{ToolName: "save", path: page, data: saved}, nil
 		},
 	})
 	require.Error(t, err)
