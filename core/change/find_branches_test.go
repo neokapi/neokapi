@@ -93,8 +93,37 @@ func TestApplyBlock_NotFoundNamesWhatItSearched(t *testing.T) {
 	require.NotNil(t, err.Searched)
 	assert.Equal(t, one, err.Searched.Path)
 
-	c := model.NewRunsBlock("c", []model.Run{model.TextR("Book a Book now. BOOK it.")})
+	c := model.NewRunsBlock("c", []model.Run{model.TextR("Book a Book now. BOOK it. Book")})
 	err = requireRefused(t, apply(t, c, agent, replace("", sourceRev(c), find("book", "order")))[0], change.CodeNotFound)
 	require.Len(t, err.Candidates, 3, "the matches that differ only in case, at most three")
 	assert.Equal(t, change.Position{Run: 0, Offset: 7}, err.Candidates[1].At.Start)
+}
+
+// A find off by white space, punctuation or a typographic apostrophe, as one
+// retyped from a read is, offers the text it nearly matches.
+func TestApplyBlock_NotFoundOffersNearMatches(t *testing.T) {
+	text := "Don’t wait: the shop\nguide, and “order” today."
+	for _, tc := range []struct{ find, want string }{
+		{"Don't wait", "Don’t wait"},
+		{"the shop guide and", "the shop\nguide, and"},
+		{"shop  guide", "shop\nguide"},
+		{`"order" today`, "“order” today"},
+		{"wait the", "wait: the"},
+	} {
+		t.Run(tc.find, func(t *testing.T) {
+			b := model.NewRunsBlock("p", []model.Run{model.TextR(text)})
+			err := requireRefused(t, apply(t, b, agent, replace("", sourceRev(b), find(tc.find, "x")))[0], change.CodeNotFound)
+			require.Len(t, err.Candidates, 1, "%+v", err.Candidates)
+			at := err.Candidates[0].At
+			require.NotNil(t, at)
+			runes := []rune(text)
+			assert.Equal(t, tc.want, string(runes[at.Start.Offset:at.End.Offset]))
+			assert.Contains(t, err.Candidates[0].Text, tc.want)
+		})
+	}
+	t.Run("a find of punctuation alone offers nothing", func(t *testing.T) {
+		b := model.NewRunsBlock("p", []model.Run{model.TextR(text)})
+		err := requireRefused(t, apply(t, b, agent, replace("", sourceRev(b), find("!?", "x")))[0], change.CodeNotFound)
+		assert.Empty(t, err.Candidates)
+	})
 }

@@ -403,7 +403,7 @@ A closed set, mapped once per transport.
 | Code | Meaning | Carries | Caller's next step | CLI exit | HTTP |
 | --- | --- | --- | --- | --- | --- |
 | `invalid` | the change set does not decode, fails its schema, or contradicts itself; an `insert_block` anchor outside the object the new key's path names | JSON pointer, or the field (`after`, `before`) | fix the change set | 2 | 400 |
-| `not_found` | the reference resolves to no document, block or edition, or a `find` matches nothing | up to three candidates (key, revision, first 80 characters); for a `find`, the `path` and text it searched | retarget or re-read | 3 | 404 |
+| `not_found` | the reference resolves to no document, block or edition, or a `find` matches nothing | up to three candidates (key, revision, first 80 characters); for a `find`, the `path` and text it searched and up to three near matches, which differ from it only in case, white space or punctuation (each with where it lies and the text around it) | retarget or re-read | 3 | 404 |
 | `ambiguous` | a key or a `find` matches more than one thing | the candidates | narrow it | 3 | 409 |
 | `stale` | `if_match` no longer holds, or `require_basis` and the basis moved; `field` says which | current revision and content | re-read, rebase, resend | 3 | 409 |
 | `doc_changed` | the document changed under the commit and one retry could not settle it (section 4.3) | new digest | resend | 3 | 409 |
