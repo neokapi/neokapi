@@ -200,7 +200,7 @@ function editLabel(e: FailedEdit): string {
   switch (e.op) {
     case "set_content":
     case "replace_text":
-      return e.locale ? "Translation" : "Source edit";
+      return e.locale ? t("Translation") : t("Source edit");
     case "remove_edition":
       return t("Translation removed");
     case "decide":
@@ -213,9 +213,9 @@ function editLabel(e: FailedEdit): string {
           return t("Review decision");
       }
     case "annotate":
-      return e.type === "entity" ? "Entity mark" : "Note";
+      return e.type === "entity" ? t("Entity mark") : t("Note");
     case "unannotate":
-      return e.type === "entity" ? "Entity mark removed" : "Note removed";
+      return e.type === "entity" ? t("Entity mark removed") : t("Note removed");
     default:
       return t("Content change");
   }
