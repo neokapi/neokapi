@@ -438,8 +438,13 @@ func (doc *flowDoc) readRevisions(ctx context.Context) (revisions, error) {
 }
 
 // readDocument reads the document through the change service: the revision
-// of every tracked edition of each block, and, with keep, the blocks too.
+// of every tracked edition of each block, and, with keep, the blocks too. The
+// read records what it finds changed outside kapi, as every read does, except
+// in a run that prints its change set, which records nothing.
 func (doc *flowDoc) readDocument(ctx context.Context, keep bool) (revisions, *readBlocks, error) {
+	if doc.fc.print != nil {
+		ctx = change.Unobserved(ctx)
+	}
 	out := revisions{}
 	var blocks *readBlocks
 	if keep {

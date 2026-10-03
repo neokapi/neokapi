@@ -139,3 +139,25 @@ func fieldOf(t *testing.T, data []byte, key string) []byte {
 	require.NoError(t, err)
 	return out
 }
+
+// A run that prints its change set records nothing, an edit made outside kapi
+// included: its read before the run is left unobserved.
+func TestAPrintingPass_RecordsNothingItFinds(t *testing.T) {
+	a, cmd, recipe := newFlowProject(t, project.MaterializeManual)
+	root := filepath.Dir(recipe)
+	runOnePass(t, a, cmd, recipe)
+	require.Len(t, flowHistory(t, a, root), 3)
+
+	// A person rewrites one translation in their editor.
+	qps := filepath.Join(root, "src", "qps.json")
+	data, err := os.ReadFile(qps)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(qps, []byte(`{"greeting": "Hand-written greeting", "farewell": `+
+		string(fieldOf(t, data, "farewell"))+`, "thanks": `+string(fieldOf(t, data, "thanks"))+"}\n"), 0o644))
+	// And a source edit gives the pass work in the document.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "en.json"),
+		[]byte(`{"greeting": "Hello world", "farewell": "Goodbye for now", "thanks": "Thank you"}`+"\n"), 0o644))
+	set := printRun(t, a, cmd, func() error { return a.ExecuteUp(cmd, recipe) })
+	require.NotEmpty(t, set.Ops, "the pass read the document and would change it")
+	assert.Len(t, flowHistory(t, a, root), 3, "the printing run recorded nothing")
+}
