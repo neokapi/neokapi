@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -90,6 +93,89 @@ func TestPairedSolutionsThroughKapi(t *testing.T) {
 			assert.True(t, result.ObjectivePassed, "%+v", result.Criteria)
 		})
 	}
+}
+
+// The plural task's reference change set, a replace_text naming the one branch
+// by its path, lands through each arm's surface: kapi apply in the project
+// (skill-cli), apply_edits on the kapi MCP server bound to the project (mcp),
+// and kapi-files apply with no project (project-free). Each result passes the
+// task's own graders, so an arm's failure on the task is a finding about the
+// agent rather than about whether its surface reaches a branch.
+func TestPairedPluralRouteOnEverySurface(t *testing.T) {
+	binary := pairedBuiltKapi(t)
+	task := pairedTaskByID(t, "edit-plural-branch")
+	data, err := pairedFixtures.ReadFile("testdata/paired/solutions/" + task.ID + ".json")
+	require.NoError(t, err)
+	var solution pairedSolution
+	require.NoError(t, json.Unmarshal(data, &solution))
+	require.Len(t, solution.Steps, 1)
+	changeset := solution.Steps[0].Changeset
+	agent := []string{"KAPI_ACTOR=agent"}
+
+	surfaces := []struct {
+		name  string
+		apply func(t *testing.T, dir, changes string)
+	}{
+		{"cli", func(t *testing.T, dir, changes string) {
+			code, output := runPairedKapi(t, dir, binary, agent, "apply", "-p", filepath.Join(dir, "kapi.yaml"), "--json", changes)
+			require.Equal(t, 0, code, string(output))
+		}},
+		{"mcp", func(t *testing.T, dir, _ string) {
+			result := applyThroughPairedMCP(t, dir, binary, changeset)
+			assert.NotEqual(t, true, result["isError"], "%v", result)
+			structured, _ := result["structuredContent"].(map[string]any)
+			assert.Equal(t, "applied", structured["status"], "%v", result)
+		}},
+		{"project-free", func(t *testing.T, dir, changes string) {
+			alias := filepath.Join(t.TempDir(), pairedFilesAlias)
+			require.NoError(t, os.Symlink(binary, alias))
+			code, output := runPairedKapi(t, dir, alias, agent, "apply", "--json", changes)
+			require.Equal(t, 0, code, string(output))
+		}},
+	}
+	for _, surface := range surfaces {
+		t.Run(surface.name, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, materializePairedTask(dir, task))
+			require.NoError(t, readPairedContext(t.Context(), dir, binary))
+			changes := filepath.Join(t.TempDir(), "changes.json")
+			require.NoError(t, os.WriteFile(changes, changeset, 0o600))
+			surface.apply(t, dir, changes)
+			result, err := validatePairedTask(dir, task, &PairedAgentResult{})
+			require.NoError(t, err)
+			assert.True(t, result.ObjectivePassed, "%+v", result.Criteria)
+		})
+	}
+}
+
+// applyThroughPairedMCP sends a change set to apply_edits on the kapi MCP
+// server bound to the project in dir, as the mcp arm's host does, and returns
+// the tool result.
+func applyThroughPairedMCP(t *testing.T, dir, binary string, changeset json.RawMessage) map[string]any {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, binary, "-p", filepath.Join(dir, "kapi.yaml"), "mcp")
+	command.Dir = dir
+	command.Env = append([]string{"PATH=" + os.Getenv("PATH"), "HOME=" + dir}, isolationEnv(dir)...)
+	command.Stderr = io.Discard
+	input, err := command.StdinPipe()
+	require.NoError(t, err)
+	output, err := command.StdoutPipe()
+	require.NoError(t, err)
+	require.NoError(t, command.Start())
+	defer func() {
+		_ = input.Close()
+		_ = command.Process.Kill()
+		_ = command.Wait()
+	}()
+	client := newPairedMCPDiscoveryClient(input, output)
+	require.NoError(t, client.initialize(&PairedMCPReadiness{}))
+	var args map[string]any
+	require.NoError(t, json.Unmarshal(changeset, &args))
+	result, err := client.call("tools/call", map[string]any{"name": "apply_edits", "arguments": args})
+	require.NoError(t, err)
+	return result
 }
 
 // The project-free alias applies the same change set with no project, so no

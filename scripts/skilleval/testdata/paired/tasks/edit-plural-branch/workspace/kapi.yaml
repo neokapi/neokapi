@@ -9,6 +9,6 @@ defaults:
 collections:
   - name: app
     content:
-      - path: app/src/main/res/values/strings.xml
+      - path: lib/l10n/app_en.arb
         format:
-          name: androidxml
+          name: arb

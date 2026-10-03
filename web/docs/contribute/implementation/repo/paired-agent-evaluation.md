@@ -137,12 +137,15 @@ its own cell again before it starts. These records establish what the host
 exposes; whether the model used it is a separate observation from the live
 transcript.
 
-A study's fingerprint covers its manifest, its corpus, the runner's code and its
-copies of kapi and the skill, and every run checks the copies before each
-session. A run of a study whose fingerprint differs is refused rather than
-silently combining incompatible attempts. To resume after the checkout moved on,
-run the pilot again from a checkout of the commit the study started from; it
-needs no build, because the study runs its own copy of kapi.
+A study's fingerprint covers its manifest, its corpus, the runner's code, the
+checkout it runs from, each agent host's version and its copies of kapi and the
+skill, and every run checks the copies before each session. A run of a study
+whose fingerprint differs is refused rather than silently combining
+incompatible attempts: a run from another checkout names the checkout the study
+runs from, and a run with an agent host at another version names the version
+the study started with. Run a long study from a worktree no other work uses,
+and resume it there; a resume needs no build, because the study runs its own
+copy of kapi.
 
 ## Subscription batches
 
@@ -225,8 +228,9 @@ Independent validators read the output files with parsers of their own, never
 kapi's readers. Every task fails when nothing changes; every fixture file
 outside the edit must stay byte-identical; and no file may appear in the task's
 directories except one it creates. The task's criteria then compare bytes with
-a reference output, compare JSON leaves in document order, or compare a
-Markdown page's structure with its source. A criterion may be informational:
+a reference output, compare JSON leaves in document order, compare one branch
+of an ICU plural or a catalog member with the reference or the original, or
+compare a Markdown page's structure with its source. A criterion may be informational:
 reported, never deciding the outcome. Each task's reference change sets, run
 through `bin/kapi` by a test, reach the reference output and pass the task's
 criteria, so a failure in a kapi condition is a finding about the agent or the

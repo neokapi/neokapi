@@ -185,9 +185,64 @@ func TestPairedResumeRejectsChangedInputs(t *testing.T) {
 	require.NoError(t, executePairedWith(context.Background(), opts, deps))
 	require.NoError(t, os.WriteFile(filepath.Join(opts.RepoRoot, "scripts", "skilleval", "changed.go"), []byte("changed"), 0o600))
 	err := executePairedWith(context.Background(), opts, deps)
-	require.ErrorContains(t, err, "Resume it from a checkout of abc1234def")
+	require.ErrorContains(t, err, "Resume it from "+opts.RepoRoot+" at abc1234def")
 	assert.NotContains(t, err.Error(), "choose a fresh")
 	assert.Equal(t, 2, calls)
+}
+
+// A study records the checkout it runs from and each host's version when it
+// starts. A run from another checkout, or with a host upgraded since, is
+// refused before a session starts, and says what to do; the same checkout and
+// versions resume.
+func TestPairedStudyPinsTheCheckoutAndHostVersions(t *testing.T) {
+	opts := pairedTestOptions(t)
+	calls := 0
+	deps := fakePairedDependencies(&calls)
+	versions := map[string]string{"claude": "2.1.287 (Claude Code)", "codex": "codex-cli 0.160.0"}
+	deps.hostVersion = func(_ context.Context, host string) (string, error) { return versions[host], nil }
+	deps.prepare = func(_ context.Context, l PairedLaunch) (PairedPrepared, error) {
+		return PairedPrepared{Launch: l, Version: versions[l.Agent.Host], AuthMode: "subscription", Blockers: []string{}}, nil
+	}
+	require.NoError(t, executePairedWith(context.Background(), opts, deps))
+	require.Equal(t, 2, calls)
+	var study pairedStudyRecord
+	require.NoError(t, readPairedJSON(filepath.Join(opts.Dir, "study.json"), &study))
+	assert.Equal(t, opts.RepoRoot, study.Checkout)
+	assert.Equal(t, versions, study.HostVersions)
+
+	// A host upgraded since the study started.
+	opts.MaxAttempts = 4
+	versions["codex"] = "codex-cli 0.161.0"
+	err := executePairedWith(context.Background(), opts, deps)
+	require.ErrorContains(t, err, `codex reports "codex-cli 0.161.0", and this study started with "codex-cli 0.160.0"`)
+	assert.Contains(t, err.Error(), `Reinstall codex at "codex-cli 0.160.0"`)
+	assert.Equal(t, 2, calls)
+	versions["codex"] = "codex-cli 0.160.0"
+
+	// Another checkout.
+	other := opts
+	other.RepoRoot = pairedTestOptions(t).RepoRoot
+	err = executePairedWith(context.Background(), other, deps)
+	require.ErrorContains(t, err, "this study runs from the checkout "+opts.RepoRoot)
+	assert.Equal(t, 2, calls)
+
+	require.NoError(t, executePairedWith(context.Background(), opts, deps))
+	assert.Equal(t, 4, calls, "the same checkout and versions resume")
+}
+
+// A host whose version moves after the study started is refused at its next
+// session, its first included: the pin is the study's, not the first attempt's.
+func TestPairedSessionOnAnotherHostVersionIsRefused(t *testing.T) {
+	opts := pairedTestOptions(t)
+	calls := 0
+	deps := fakePairedDependencies(&calls)
+	deps.hostVersion = func(_ context.Context, host string) (string, error) { return host + " 1.0", nil }
+	deps.prepare = func(_ context.Context, l PairedLaunch) (PairedPrepared, error) {
+		return PairedPrepared{Launch: l, Version: l.Agent.Host + " 1.1", AuthMode: "subscription", Blockers: []string{}}, nil
+	}
+	err := executePairedWith(context.Background(), opts, deps)
+	require.ErrorContains(t, err, "agent version changed since the study started")
+	assert.Zero(t, calls)
 }
 
 // A study runs its own copy of kapi and the skill, taken when it started. A

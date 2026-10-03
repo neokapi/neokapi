@@ -13,7 +13,7 @@ import (
 	"slices"
 )
 
-const pairedCorpusVersion = "wp5-v1"
+const pairedCorpusVersion = "wp5-v2"
 
 // PairedTask describes an identical editing task across agent integrations.
 // Its private specification and acceptance criteria never enter the workspace.
@@ -50,17 +50,21 @@ type pairedTaskSpec struct {
 // kinds. An informational criterion is reported and never decides
 // ObjectivePassed.
 type pairedCriterion struct {
-	ID            string   `json:"id"`
-	Kind          string   `json:"kind"`
-	Path          string   `json:"path,omitempty"`
-	Source        string   `json:"source,omitempty"`
-	Value         string   `json:"value,omitempty"`
-	Block         int      `json:"block,omitempty"`
-	Except        []int    `json:"except,omitempty"`
-	Require       []string `json:"require,omitempty"`
-	Forbid        []string `json:"forbid,omitempty"`
-	Informational bool     `json:"informational,omitempty"`
-	Description   string   `json:"description"`
+	ID      string   `json:"id"`
+	Kind    string   `json:"kind"`
+	Path    string   `json:"path,omitempty"`
+	Source  string   `json:"source,omitempty"`
+	Value   string   `json:"value,omitempty"`
+	Block   int      `json:"block,omitempty"`
+	Except  []int    `json:"except,omitempty"`
+	Require []string `json:"require,omitempty"`
+	Forbid  []string `json:"forbid,omitempty"`
+	// Key names a top-level member of a JSON catalog, and Branch a branch of
+	// the ICU plural or select its value holds.
+	Key           string `json:"key,omitempty"`
+	Branch        string `json:"branch,omitempty"`
+	Informational bool   `json:"informational,omitempty"`
+	Description   string `json:"description"`
 }
 
 // PairedInterference replaces Find with Replace in Path once, as soon as a

@@ -102,6 +102,15 @@ func validatePairedTask(dir string, task PairedTask, observed *PairedAgentResult
 //	                     contains every Require and no Forbid
 //	md_blocks_unchanged  every block but those in Except keeps the original's text
 //	forbids              the file contains none of Forbid
+//	icu_branch           branch Branch of the ICU message at Key equals the
+//	                     reference's, byte for byte
+//	icu_branches_unchanged
+//	                     the ICU message at Key, all but branch Branch, equals
+//	                     the original's byte for byte: every other branch and
+//	                     the syntax around them
+//	json_member_unchanged
+//	                     the value of top-level member Key is the original's,
+//	                     byte for byte as the file spells it
 //	no_override          the transcript shows no attempt to land an edit over a check
 func validatePairedCriterion(root *os.Root, task PairedTask, files map[string][]byte, c pairedCriterion, observed *PairedAgentResult) (bool, string, error) {
 	if c.Kind == "no_override" {
@@ -189,8 +198,88 @@ func validatePairedCriterion(root *os.Root, task PairedTask, files map[string][]
 			}
 		}
 		return true, "", nil
+	case "icu_branch":
+		want, err := pairedReference(task, c.Path)
+		if err != nil {
+			return false, "", err
+		}
+		return pairedBranchMatches(want, output, c.Key, c.Branch, "reference")
+	case "icu_branches_unchanged":
+		if original == nil {
+			return false, "", fmt.Errorf("%s is not a fixture file", c.Path)
+		}
+		return pairedBranchesUnchanged(original, output, c.Key, c.Branch)
+	case "json_member_unchanged":
+		if original == nil {
+			return false, "", fmt.Errorf("%s is not a fixture file", c.Path)
+		}
+		want, err := pairedJSONMember(original, c.Key)
+		if err != nil {
+			return false, "", fmt.Errorf("original: %w", err)
+		}
+		got, err := pairedJSONMember(output, c.Key)
+		if err != nil {
+			return false, err.Error(), nil
+		}
+		if bytes.Equal(want, got) {
+			return true, "", nil
+		}
+		return false, pairedFirstDifference(want, got), nil
 	}
 	return false, "", fmt.Errorf("unknown criterion kind %q", c.Kind)
+}
+
+// pairedBranchMatches reports whether branch of the ICU message at key reads
+// the same in output as in want, byte for byte.
+func pairedBranchMatches(want, output []byte, key, branch, label string) (bool, string, error) {
+	message, err := pairedJSONStringMember(want, key)
+	if err != nil {
+		return false, "", fmt.Errorf("%s: %w", label, err)
+	}
+	_, wantBody, _, err := pairedICUBranch(message, branch)
+	if err != nil {
+		return false, "", fmt.Errorf("%s: %w", label, err)
+	}
+	message, err = pairedJSONStringMember(output, key)
+	if err != nil {
+		return false, err.Error(), nil
+	}
+	_, gotBody, _, err := pairedICUBranch(message, branch)
+	if err != nil {
+		return false, err.Error(), nil
+	}
+	if gotBody != wantBody {
+		return false, fmt.Sprintf("branch %s reads %q, want %q", branch, gotBody, wantBody), nil
+	}
+	return true, "", nil
+}
+
+// pairedBranchesUnchanged reports whether the ICU message at key, with the
+// body of branch taken out, reads the same in output as in original.
+func pairedBranchesUnchanged(original, output []byte, key, branch string) (bool, string, error) {
+	message, err := pairedJSONStringMember(original, key)
+	if err != nil {
+		return false, "", fmt.Errorf("original: %w", err)
+	}
+	wantBefore, _, wantAfter, err := pairedICUBranch(message, branch)
+	if err != nil {
+		return false, "", fmt.Errorf("original: %w", err)
+	}
+	message, err = pairedJSONStringMember(output, key)
+	if err != nil {
+		return false, err.Error(), nil
+	}
+	gotBefore, _, gotAfter, err := pairedICUBranch(message, branch)
+	if err != nil {
+		return false, err.Error(), nil
+	}
+	if gotBefore != wantBefore {
+		return false, fmt.Sprintf("before branch %s: %q, want %q", branch, gotBefore, wantBefore), nil
+	}
+	if gotAfter != wantAfter {
+		return false, fmt.Sprintf("after branch %s: %q, want %q", branch, gotAfter, wantAfter), nil
+	}
+	return true, "", nil
 }
 
 // pairedInterferenceLanded reports whether the other editor's change was

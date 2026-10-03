@@ -217,13 +217,16 @@ asserts, so no arm is primed for or against it.
 The project-free skill is the shipped skill with the names changed and what
 needs a project left out. Its `SKILL.md` keeps the shipped one's description
 and, where the shipped one lists its project habits, says that no voice, terms
-or check applies; both point at their topics without naming the edit one, so
-an agent in either arm is the same two steps from the edit guidance. Its
-`edit.md` and `toolbox.md` are the shipped references with the project, MCP,
-check and translation passages removed. A test asserts that every example they
-give is one the shipped references give, save the catalog example's second
-language, which a file without a project refuses, and that they name nothing
-of the tasks.
+or check applies. Both tell an agent to read `references/edit.md` before it
+changes content inside a file, in the same sentence (the shipped skill adds
+`kapi help edit`, which prints the topic where `kapi init` installs the skill
+without its references), so an agent in either arm is one step from the edit
+guidance. Its `edit.md` and `toolbox.md` are the shipped references with the
+project, MCP, check and translation passages removed. A test asserts that both
+skills carry that sentence, that every example the references give is one the
+shipped references give, save the catalog example's second language, which a
+file without a project refuses, and that they name nothing of the tasks.
+
 kapi records every shell call in a cell as an agent's (`KAPI_ACTOR=agent`), so
 the actor policy treats both hosts alike. The workspace is a git repository with
 the project committed and a clean status, as a project an agent works in is, so
@@ -247,26 +250,39 @@ file may appear in the scoped directories except one the task creates.
 | Task | Family | Files | Graded by |
 | --- | --- | --- | --- |
 | `edit-link-html-md` | wording and link | `site/help.html`, `docs/help.md` | byte diff against the reference; a FAQ link shares the old address as a prefix and a code block holds it verbatim |
-| `edit-plural-branch` | plural branch | Android `strings.xml` | byte diff; the `other` case also contains the words being replaced |
+| `edit-plural-branch` | plural branch | Flutter ARB `lib/l10n/app_en.arb` | byte diff; the edited `one` branch, the `=0` and `other` branches with the plural's syntax around them, and the `@inboxCount` metadata each checked byte for byte; the other branches also contain the words being replaced |
 | `add-edition-markup` | new edition | `docs/en/welcome.md` to a new `docs/nb/welcome.md` | structure: headings, list items, bold spans, inline code and link addresses in order; every block translated; Norwegian Bokmål by its function words; byte equality with the reference reported only |
 | `edit-po-context` | bilingual PO | `locales/nb/messages.po` | byte diff; two entries share `msgid "Book"` and differ by `msgctxt` |
 | `add-json-key` | key added (`insert_block`) | `locales/en.json` | the JSON leaves in document order, so the key lands in `settings` after `importData`; layout byte equality reported only |
 | `recover-stale-read` | stale recovery | `docs/en/upgrade.md` | byte diff of the agent's sentence and another editor's change to the same paragraph |
 | `recover-gate-refusal` | gate refusal recovery | `docs/en/reports.md` | the first paragraph keeps its text and gains a sentence that names CSV and does not say `portal`; every other block unchanged; no `portal` anywhere; no override attempt in the transcript; naming the overview page reported only |
 
-The plural task uses Android resources because each form of a plural there is a
-block kapi reads and writes. An ARB plural still reads as one opaque ICU
-placeholder (P5 in the edit model), so a branch edit in ARB cannot go through
-the contract until P5 is fixed. No built-in reader produces a plural run at
-all: JSON shows an ICU message as text, ARB as one placeholder, and Android and
-PO give each form a block of its own. The contract's branch selector (an edit's
-`path` such as `[1, {"plural": "one"}]`, and the `structures` field `inspect`
-reports) therefore gets no agent data from this study.
+The plural task is an ICU plural in a Flutter ARB catalog, so it measures the
+contract's branch selector. kapi reads the message as one block holding a
+plural run (P5 in the edit model), and a read lists it under `structures` with
+its path and the text of each branch:
+
+```json
+"structures": [{"path": [0], "kind": "plural", "pivot": "count",
+  "branches": {"=0": "No new messages", "one": "<x id=\"p1/\"/> new message",
+               "other": "<x id=\"p1/\"/> new messages"}}]
+```
+
+An edit reaches the `one` branch with `path` `[0, {"plural": "one"}]`, by
+`replace_text` or `set_content`; `set_content` with the block's text, which
+shows the `other` branch, is refused as a flattening guard. The task's reference
+route is that `replace_text`, and `TestPairedPluralRouteOnEverySurface` sends it
+through `kapi apply` in the project, `apply_edits` on the MCP server and
+`kapi-files apply` without a project; each result passes the task's graders.
+The other plural in the catalog and the `@inboxCount` placeholder declaration
+are there to be left alone.
 
 Two tasks act on the session while it runs. In `recover-stale-read` the runner
 watches the host's stream and, once a tool result has shown the agent the text
 "it takes about five minutes", changes it to "about ten minutes" in the
-paragraph the agent edits. A search that printed only the agent's own sentence
+paragraph the agent edits. The prompt asks for the agent's sentence and says
+nothing of another editor, so an agent learns of the change only from what its
+tools report. A search that printed only the agent's own sentence
 does not land it, and neither does a command that names the text without
 printing it. A kapi arm's write against the old revision is refused `stale`.
 Claude Code 2.1's Edit tool applies an edit to a file changed since it was read
@@ -302,8 +318,10 @@ Danish or Swedish writes, since both share most of its function words.
 `TestPairedSolutionsThroughKapi` sends each task's reference change sets
 (`testdata/paired/solutions/`) through this tree's `bin/kapi` in the task's
 project, draws the refusals the recovery tasks are built on, and checks that the
-result passes the task's own graders. A kapi arm's failure is therefore a
-finding about the agent or the surface rather than about the task.
+result passes the task's own graders; `TestPairedPluralRouteOnEverySurface`
+does the same for the plural task through the CLI, the MCP server and the
+project-free alias. A kapi arm's failure is therefore a finding about the agent
+or the surface rather than about the task.
 
 ### Isolation proof
 
@@ -357,29 +375,42 @@ workspace and the cell's temporary directory.
 
 ### Running it
 
-Run it in a plain terminal, from the checkout at the merged commit, rather than
-from an agent's shell, which has a time limit and a sandbox of its own:
+Run it in a plain terminal rather than from an agent's shell, which has a time
+limit and a sandbox of its own, and from a worktree of `origin/main` made for
+the study alone. The main checkout is shared with other work and rebuilt during
+the day; the study's worktree is touched by nothing else until the study is
+scored. From the main checkout, once this change has merged:
 
 ```bash
-git pull --ff-only && make build
+git fetch origin
+git worktree add .claude/worktrees/wp5-study origin/main
+cd .claude/worktrees/wp5-study
+make i18n-catalogs && vp install && make build
 PAIRED_TEST_KAPI="$PWD/bin/kapi" go test -tags fts5 ./scripts/skilleval \
-  -run 'PairedSolutions|ProjectFreeAlias|WithBuiltKapi'
+  -run 'PairedSolutions|PluralRoute|ProjectFreeAlias|WithBuiltKapi'
+export HOMEBREW_NO_AUTO_UPDATE=1
 make paired-eval-preflight PAIRED_EVAL_DIR="$HOME/kapi-wp5-study"
+# The first stage: eight sessions.
 caffeinate -i make paired-eval-pilot PAIRED_EVAL_DIR="$HOME/kapi-wp5-study" \
   PAIRED_EVAL_MAX_ATTEMPTS=8 PAIRED_EVAL_CONCURRENCY=2
-# Read the eight transcripts, then raise the ceiling to 168 plus the reruns allowed:
+# Read the eight transcripts. The second stage: the other 160, and 12 reruns.
 caffeinate -i make paired-eval-pilot PAIRED_EVAL_DIR="$HOME/kapi-wp5-study" \
   PAIRED_EVAL_MAX_ATTEMPTS=180 PAIRED_EVAL_CONCURRENCY=2
 make paired-eval-score PAIRED_EVAL_DIR="$HOME/kapi-wp5-study"
 ```
 
-The test line sends each task's reference route through the merged tree's
-build before any session is spent. For a long Claude run, export a long-lived
-`CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` first: a keychain token
-must stay valid for a session's limit and fifteen minutes more, or the session
-is not started. Keep Homebrew from upgrading `claude` and `codex` during the
-run (`HOMEBREW_NO_AUTO_UPDATE=1` in the shells that might run `brew`): a session
-on another host version is refused, since it would measure another agent.
+The test line sends each task's reference route through the worktree's build
+before any session is spent, and the plural task's through each arm's surface.
+The preflight prints the checkout and host versions a study started then would
+pin. For a long Claude run, export a long-lived `CLAUDE_CODE_OAUTH_TOKEN` from
+`claude setup-token` first: a keychain token must stay valid for a session's
+limit and fifteen minutes more, or the session is not started.
+
+The ceiling counts every attempt the study has started, the first stage's
+included. The study is 168 sessions, so after the first eight a ceiling of 168
+runs the other 160; 180 adds the twelve reruns `PAIRED_EVAL_RETRY=1` may need,
+and every rerun counts against it. A second-stage ceiling of 160 would stop
+eight sessions short of the grid.
 
 The cells live in the study directory, so it sits outside the checkout: the
 runner refuses a directory with a checkout, an instruction file, host
@@ -387,13 +418,17 @@ configuration or a kapi recipe above it, which an agent in a cell would find.
 A directory in the home folder survives a restart, which `/tmp` does not.
 
 When the study starts it copies `bin/kapi` and the shipped skill into
-`inputs/` in the study directory, and every session runs those copies. To
-resume after an interrupt, a rate limit or a paused host, run only the
-`make paired-eval-pilot` line again; it needs no build. If the checkout has
-moved on and `scripts/skilleval` or the corpus changed, the runner refuses the
-study and names the commit it started from: resume from a worktree at that
-commit with the same `PAIRED_EVAL_DIR`. A new directory would run every session
-again.
+`inputs/` in the study directory, and every session runs those copies. Its
+`study.json` records, and its fingerprint covers, the checkout it runs from,
+the commit, the hash of its copy of kapi and each host's `--version`. To resume
+after an interrupt, a rate limit or a paused host, run only the
+`make paired-eval-pilot` line again from the same worktree; it needs no build.
+The runner refuses a run from another checkout, naming the one the study runs
+from, and a run with `claude` or `codex` at another version than the study
+started with, naming that version to reinstall: a session on another version
+would measure another agent. Each session's own version check uses the same
+pin, so a host upgraded before its first session is refused too. A new
+directory would run every session again.
 
 The pilot phase is the manifest's whole grid. It prints the planned session
 count before it starts one and runs one session per subscription at a time. A
@@ -402,9 +437,7 @@ sessions in a row that ended within a minute without completing; the other host
 goes on. `PAIRED_EVAL_RETRY=1` runs again the attempts a rate limit, an
 interrupt, a failed launch or an infrastructure failure (a refused login, an
 overloaded API, a lost network) cut short, and keeps the first record as
-superseded; the summary leaves such attempts out until they run again. The
-first eight sessions are part of the 168. A ceiling of 180 allows twelve
-reruns; every rerun counts against it.
+superseded; the summary leaves such attempts out until they run again.
 
 Each host runs its 84 sessions one after another, beside the other host. In
 the smoke runs on 3 October 2026 the stale-read task took 10 to 37 seconds in

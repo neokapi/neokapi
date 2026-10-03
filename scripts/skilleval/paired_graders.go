@@ -390,3 +390,76 @@ func pairedBlocksUnchanged(original, output string, except []int) (bool, string)
 func pairedContainsWord(text, word string) bool {
 	return regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(word)).MatchString(text)
 }
+
+// pairedJSONMember returns the raw value of top-level member key of a JSON
+// document, as the document spells it.
+func pairedJSONMember(body []byte, key string) (json.RawMessage, error) {
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(body, &members); err != nil {
+		return nil, err
+	}
+	raw, ok := members[key]
+	if !ok {
+		return nil, fmt.Errorf("no member %q", key)
+	}
+	return raw, nil
+}
+
+// pairedJSONStringMember returns the string value of top-level member key.
+func pairedJSONStringMember(body []byte, key string) (string, error) {
+	raw, err := pairedJSONMember(body, key)
+	if err != nil {
+		return "", err
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return "", fmt.Errorf("member %q is not a string", key)
+	}
+	return value, nil
+}
+
+// pairedICUBranch splits an ICU plural or select message around the body of
+// its branch key: the text through the brace that opens the body, the body,
+// and the text from the brace that closes it. A branch is a keyword followed
+// by a brace group at the structure's own level. Apostrophe quoting is not
+// read, and the corpus holds none.
+func pairedICUBranch(message, key string) (before, body, after string, err error) {
+	keyword := func(c byte) bool {
+		return c == '=' || c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+	}
+	depth := 0
+	for i := 0; i < len(message); i++ {
+		switch message[i] {
+		case '{':
+			if depth == 1 {
+				end := i
+				for end > 0 && unicode.IsSpace(rune(message[end-1])) {
+					end--
+				}
+				start := end
+				for start > 0 && keyword(message[start-1]) {
+					start--
+				}
+				if message[start:end] == key {
+					closing, open := i+1, 1
+					for ; closing < len(message) && open > 0; closing++ {
+						switch message[closing] {
+						case '{':
+							open++
+						case '}':
+							open--
+						}
+					}
+					if open != 0 {
+						return "", "", "", fmt.Errorf("branch %q is not closed", key)
+					}
+					return message[:i+1], message[i+1 : closing-1], message[closing-1:], nil
+				}
+			}
+			depth++
+		case '}':
+			depth--
+		}
+	}
+	return "", "", "", fmt.Errorf("no branch %q", key)
+}

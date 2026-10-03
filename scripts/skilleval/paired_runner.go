@@ -76,6 +76,13 @@ func runPairedSchedule(
 	if err != nil {
 		return err
 	}
+	// The versions the study started with hold from the first session on, so
+	// a host upgraded before its first session is refused too.
+	for host, version := range record.HostVersions {
+		if version != "" {
+			versions[host] = version
+		}
+	}
 	pending := []PairedSession{}
 	for _, session := range schedule {
 		dir := filepath.Join(opts.Dir, opts.Phase, session.ID)

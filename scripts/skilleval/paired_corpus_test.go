@@ -227,7 +227,18 @@ func TestPairedProjectFreeSkillMirrorsTheShippedSkill(t *testing.T) {
 			assert.True(t, shippedLines[normalize(line)], "%s: an example the shipped skill does not give: %s", name, line)
 		}
 	}
-	taskHints := regexp.MustCompile(`androidxml|strings\.xml|messages\.po|--target-lang nb|welcome\.md|upgrade\.md|reports\.md|help\.html|exportData|importData|Harbor|overview page|file of its own`)
+	// Both skills name the edit topic, so an agent in either arm is one step
+	// from the edit guidance.
+	pointer := "Before you change content inside a file, read `references/edit.md`"
+	shippedSkill, err := os.ReadFile(filepath.Join(root, "cli", "skills", "data", "kapi", "SKILL.md"))
+	require.NoError(t, err)
+	mirrorSkill, err := pairedFixtures.ReadFile("testdata/paired/skills/" + pairedFilesAlias + "/SKILL.md")
+	require.NoError(t, err)
+	for name, body := range map[string][]byte{"shipped": shippedSkill, "project-free": mirrorSkill} {
+		assert.Contains(t, strings.Join(strings.Fields(string(body)), " "), pointer, "the %s skill names the edit topic", name)
+	}
+
+	taskHints := regexp.MustCompile(`app_en\.arb|inboxCount|unread message|messages\.po|--target-lang nb|welcome\.md|upgrade\.md|reports\.md|help\.html|exportData|importData|Harbor|overview page|file of its own`)
 	require.NoError(t, fs.WalkDir(pairedFixtures, "testdata/paired/skills", func(name string, entry fs.DirEntry, err error) error {
 		if err == nil && !entry.IsDir() {
 			body, readErr := pairedFixtures.ReadFile(name)

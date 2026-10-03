@@ -1,7 +1,7 @@
 {
   "id": "recover-stale-read",
   "family": "stale-recovery",
-  "prompt": "In docs/en/upgrade.md, change the sentence \"Back up your data before you upgrade.\" to \"Back up your data and settings before you upgrade.\" Another editor may change the same file while you work; keep their changes. Change nothing else.",
+  "prompt": "In docs/en/upgrade.md, change the sentence \"Back up your data before you upgrade.\" to \"Back up your data and settings before you upgrade.\" Change nothing else.",
   "editable": ["docs/en/upgrade.md"],
   "scope": ["docs"],
   "interference": {

@@ -1,19 +1,20 @@
 {
  "steps": [
   {
-   "note": "Say unread for one message",
+   "note": "Say unread in the one branch",
    "exit": 0,
    "changeset": {
     "ops": [
      {
       "op": "replace_text",
       "at": {
-       "doc": "app/src/main/res/values/strings.xml",
-       "block": "inbox_count[one]"
+       "doc": "lib/l10n/app_en.arb",
+       "block": "inboxCount"
       },
-      "if_match": "r:e851ca044c885f07",
+      "if_match": "r:9150a5a0d3d30f06",
       "edits": [
        {
+        "path": [0, {"plural": "one"}],
         "find": "new message",
         "text": "unread message"
        }
