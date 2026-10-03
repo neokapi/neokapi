@@ -201,7 +201,7 @@ type contextObserveInput struct {
 	Term      string   `json:"term,omitempty" jsonschema:"the form this project uses for a name or word, e.g. Quickcast"`
 	InsteadOf []string `json:"instead_of,omitempty" jsonschema:"forms the project avoids for term, e.g. Quick cast; spacing, hyphen and case variants are added for you"`
 	Path      string   `json:"path,omitempty" jsonschema:"the project-relative file you saw it in"`
-	Unit      string   `json:"unit,omitempty" jsonschema:"the block or unit id inside that file, when you have one"`
+	Block     string   `json:"block,omitempty" jsonschema:"the ref.block that read_blocks or kapi inspect reports"`
 	Quote     string   `json:"quote,omitempty" jsonschema:"the wording you saw, quoted from the file"`
 	Project   string   `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 }
@@ -212,7 +212,7 @@ type contextCorrectInput struct {
 	From     string `json:"from" jsonschema:"the wording that was there"`
 	To       string `json:"to" jsonschema:"the wording that replaced it"`
 	Path     string `json:"path" jsonschema:"the project-relative file they changed it in"`
-	Unit     string `json:"unit,omitempty" jsonschema:"the block or unit id inside that file, when you have one"`
+	Block    string `json:"block,omitempty" jsonschema:"the ref.block that read_blocks or kapi inspect reports"`
 	Quote    string `json:"quote,omitempty" jsonschema:"the sentence the change was made in"`
 	Suggest  bool   `json:"suggest,omitempty" jsonschema:"also record the rule the change implies, so the next use of the old wording is reported"`
 	Advisory bool   `json:"advisory,omitempty" jsonschema:"true when that rule should only report once a person keeps it; unset, a kept rule fails a check"`
@@ -304,7 +304,7 @@ func (a *App) handleContextObserve(ctx context.Context, req *mcp.CallToolRequest
 		return nil, contextRecordOutput{}, errors.New(
 			"context_observe: `instead_of` needs `term`, the form the project uses in their place")
 	}
-	evidence := mcpEvidence(in.Path, in.Unit, in.Quote)
+	evidence := mcpEvidence(in.Path, in.Block, in.Quote)
 	if strings.TrimSpace(in.Term) != "" {
 		if err := requireEvidence("context_observe", evidence); err != nil {
 			return nil, contextRecordOutput{}, err
@@ -359,7 +359,7 @@ func (a *App) handleContextCorrect(ctx context.Context, req *mcp.CallToolRequest
 		return nil, contextRecordOutput{}, errors.New(
 			"context_correct: give both wordings, `from` (what was there) and `to` (what replaced it)")
 	}
-	evidence := mcpEvidence(in.Path, in.Unit, in.Quote)
+	evidence := mcpEvidence(in.Path, in.Block, in.Quote)
 	if err := requireEvidence("context_correct", evidence); err != nil {
 		return nil, contextRecordOutput{}, err
 	}
@@ -506,12 +506,12 @@ func sessionReport(s contextSessionOutput) string {
 }
 
 // mcpEvidence renders the location a call named as the evidence behind it.
-func mcpEvidence(path, unit, quote string) []contextop.Evidence {
-	path, unit, quote = strings.TrimSpace(path), strings.TrimSpace(unit), strings.TrimSpace(quote)
-	if path == "" && unit == "" && quote == "" {
+func mcpEvidence(path, block, quote string) []contextop.Evidence {
+	path, block, quote = strings.TrimSpace(path), strings.TrimSpace(block), strings.TrimSpace(quote)
+	if path == "" && block == "" && quote == "" {
 		return nil
 	}
-	return []contextop.Evidence{{Path: path, Unit: unit, Quote: quote}}
+	return []contextop.Evidence{{Path: path, Unit: block, Quote: quote}}
 }
 
 // requireEvidence refuses a rule nobody can check. A rule with evidence behind

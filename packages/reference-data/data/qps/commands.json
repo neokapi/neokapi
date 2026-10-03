@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T12:38:46Z",
+  "generatedAt": "2026-10-03T20:03:40Z",
   "commands": [
     {
       "id": "add",
@@ -141,7 +141,8 @@
         "kapi apply change.json --json",
         "echo '{\"ops\":[{\"op\":\"replace_text\",\"at\":{\"doc\":\"docs/guide.md\",\"block\":\"install/p\"},\"if_match\":\"\u003crev from kapi inspect\u003e\",\"edits\":[{\"find\":\"colour\",\"text\":\"color\"}]}]}' | kapi apply",
         "ksed 's/colour/color/g' docs/guide.md --print-ops | kapi apply",
-        "kapi apply --schema"
+        "kapi apply --schema",
+        "kapi apply --schema set_attribute"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -5615,7 +5616,7 @@
       "path": [
         "formats"
       ],
-      "use": "formats",
+      "use": "formats [--ops [FORMAT]]",
       "short": "▒ Ļîšţ šüþþöŕţéđ ƒîļé ƒöŕḿàţš ▒",
       "long": "▒ Ļîšţ àļļ ƒîļé ƒöŕḿàţš ţĥàţ çàñ ƃé ŕéàđ àñđ ŵŕîţţéñ.\n\nÜšé --ḿîḿé öŕ --éẋţ ţö ƒîļţéŕ ƃý ḾÎḾÉ ţýþé öŕ ƒîļé éẋţéñšîöñ. ▒",
       "groupID": "advanced",
@@ -5629,12 +5630,20 @@
           "name": "mime",
           "usage": "▒ ƒîļţéŕ ƃý ḾÎḾÉ ţýþé (é.ĝ., ţéẋţ/ĥţḿļ) ▒",
           "type": "string"
+        },
+        {
+          "name": "ops",
+          "usage": "say what each format, or the one named, takes of a change set",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
         "kapi formats",
         "kapi formats --ext .json",
-        "kapi formats --mime text/html"
+        "kapi formats --mime text/html",
+        "kapi formats --ops html --json",
+        "kapi formats --ops"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
