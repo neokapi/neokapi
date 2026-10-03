@@ -148,7 +148,7 @@ func xmlFilterBlocks(t *testing.T, input string) []*model.Block {
 // inline shape Okapi's `fmt.setContent(...).toString()` produces.
 func codedText(b *model.Block) string {
 	var sb bytes.Buffer
-	for _, r := range b.Source {
+	for _, r := range b.SourceRuns() {
 		switch {
 		case r.Text != nil:
 			sb.WriteString(r.Text.Text)

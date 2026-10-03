@@ -98,7 +98,7 @@ func inlineCodes(t *testing.T, src string, cfg *Config) []*model.PcOpenRun {
 	for res := range r.Read(context.Background()) {
 		require.NoError(t, res.Error)
 		if b, ok := res.Part.Resource.(*model.Block); ok {
-			for _, run := range b.Source {
+			for _, run := range b.SourceRuns() {
 				if run.PcOpen != nil {
 					out = append(out, run.PcOpen)
 				}

@@ -932,14 +932,7 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path, namePath string, e
 
 	s.blockCounter++
 	blockID := "tu" + strconv.Itoa(s.blockCounter)
-	block := &model.Block{
-		ID:           blockID,
-		Translatable: true,
-		Source:       finalRuns,
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-	}
-
+	block := model.NewRunsBlock(blockID, finalRuns)
 	block.Name = namePath
 
 	// Set block name from ID attribute if available
@@ -1079,15 +1072,10 @@ func cdataSectionInterior(content []byte, offset int) (start, end int, ok bool) 
 func (s *xmlParseState) emitNonTranslatableBlock(frame *elementFrame, path string, finalRuns []model.Run, endTagOffset, interimEnd int) {
 	s.blockCounter++
 	blockID := "tu" + strconv.Itoa(s.blockCounter)
-	block := &model.Block{
-		ID:                 blockID,
-		Translatable:       false,
-		Source:             finalRuns,
-		Targets:            make(map[model.VariantKey]*model.Target),
-		Properties:         make(map[string]string),
-		Name:               path,
-		PreserveWhitespace: frame.preserveWS,
-	}
+	block := model.NewRunsBlock(blockID, finalRuns)
+	block.Name = path
+	block.Translatable = false
+	block.PreserveWhitespace = frame.preserveWS
 	block.Type = s.reader.cfg.getBlockType(frame.name)
 	if frame.preserveWS {
 		// Whitespace-preserving content is verbatim code / pre / CSS — the
