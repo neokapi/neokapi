@@ -46,7 +46,8 @@ is no route. A bare kapi name the cell's PATH does not hold cannot run there,
 and a skill the condition does not install loads nothing; the audit records
 both as attempts rather than ending the session. It also records each path a
 tool call names outside the cell: another attempt or the study's records, the
-checkout, the home directory or a shared temporary directory. A reviewer reads
+checkout (and the repository's main checkout, for a study run from a worktree
+of it), the home directory or a shared temporary directory. A reviewer reads
 such an attempt's transcript before counting it. This controls accidental
 mixing of integrations; it is not a boundary against hostile code. Keep hidden
 evaluation artifacts outside the agent's workspace and inspect smoke
@@ -143,9 +144,12 @@ skill, and every run checks the copies before each session. A run of a study
 whose fingerprint differs is refused rather than silently combining
 incompatible attempts: a run from another checkout names the checkout the study
 runs from, and a run with an agent host at another version names the version
-the study started with. Run a long study from a worktree no other work uses,
+the study started with and where that host ran from. Run a long study from a
+worktree no other work uses, beside the main checkout rather than inside it,
 and resume it there; a resume needs no build, because the study runs its own
-copy of kapi.
+copy of kapi. A host a package manager upgrades in place, such as a Homebrew
+cask, belongs in a copy of its version directory first on `PATH` for the
+whole study, which the preflight warns of.
 
 ## Subscription batches
 
@@ -238,7 +242,8 @@ surface rather than about the task.
 
 Each attempt also records its duration, tokens, Claude's turn count, tool
 calls, the refusal codes its tool results carried (a change set that does not
-decode is counted by the field kapi names), override attempts, kapi names it
+decode is counted by the field kapi names, and a write a format refuses because
+the value would read back as another message is counted too), override attempts, kapi names it
 tried that its cell does not hold, and paths it named outside its cell. The
 score report summarizes these by task, host and condition. Each verdict is the
 one recorded when its attempt finished; the report says beside it whether the

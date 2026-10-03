@@ -185,9 +185,9 @@ reported and the exit code reflects any failure.
   protects, or that breaks a rule the project holds it to (a required term,
   say), is refused and reported on stderr; the rest of the file still lands.
   Fix the translation, or mark the rule advisory, and merge again.
-- **Plurals and selects.** An XLIFF unit or PO entry holds one string, and a
-  message with a plural or select, such as an ICU plural in an ARB catalog,
-  has a branch per form. `kapi extract` leaves such a message out of the file
+- **Plurals and selects.** kapi writes each XLIFF unit or PO entry as one
+  string, and a message with a plural or select, such as an ICU plural in an
+  ARB catalog, has a branch per form. `kapi extract` leaves such a message out of the file
   and names it, and `kapi merge` refuses a returned translation that would
   write one form in place of several. Translate those messages with
   `kapi translate`, which translates each branch.

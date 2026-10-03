@@ -419,8 +419,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 //
 // The caller tokenizes the document; on a tokenizer error it emits no skeleton
 // and the writer's EntriesWritten check (used by the merge wiring) lets the
-// caller fall back to the non-skeleton writer. Real .arb files always tokenize
-// — parseCatalog would have already failed on malformed input.
+// caller fall back to the non-skeleton writer. A file parseCatalog accepted
+// always tokenizes.
 func (r *Reader) emitSkeleton(tokens []token, blockIDByKey map[string]string) {
 	pos := 0
 	r.skeletonTop(tokens, &pos, blockIDByKey)

@@ -536,7 +536,12 @@ P5; `core/formats/arb/icu.go`), with `#` and any argument inside a branch as pla
 ```
 
 The writer writes the plural's keyword, branch keys and layout as it read them, and each branch
-an edit left alone byte for byte.
+an edit left alone byte for byte. A `find` that lies in branches and not in the text around the
+plural is refused `not_found`, naming the path of each branch that holds it, with a candidate per
+match. An ARB branch's text is written as ICU source, as an ARB message without a plural is: an
+argument typed as `{count}` reads back as the argument, and text that would end the branch early
+or swallow the next one is refused by the writer. An apostrophe before an argument, as French
+elides an article, is written as given, as Flutter's tools read it.
 
 `Data` (native bytes) appears in no request and no read.
 

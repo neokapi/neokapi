@@ -232,8 +232,9 @@ the actor policy treats both hosts alike. The workspace is a git repository with
 the project committed and a clean status, as a project an agent works in is, so
 `git diff` and the skill's `kapi check --diff-against HEAD` work. The binary
 under test is hard-linked into the cell, so the agent's commands never name a
-path into the checkout, and Claude's sandbox denies reading the checkout and
-the attempt's own records.
+path into the checkout, and Claude's sandbox denies reading the checkout, the
+repository's main checkout when the study runs from a worktree of it, and the
+attempt's own records.
 
 Section 15.2 item 1 asks for the alias against kapi with and without a project.
 The 168 sessions hold four arms, so the comparison maps onto them:
@@ -270,10 +271,15 @@ its path and the text of each branch:
 
 An edit reaches the `one` branch with `path` `[0, {"plural": "one"}]`, by
 `replace_text` or `set_content`; `set_content` with the block's text, which
-shows the `other` branch, is refused as a flattening guard. The task's reference
-route is that `replace_text`, and `TestPairedPluralRouteOnEverySurface` sends it
-through `kapi apply` in the project, `apply_edits` on the MCP server and
-`kapi-files apply` without a project; each result passes the task's graders.
+shows the `other` branch, is refused as a flattening guard. A `replace_text`
+whose `find` is in the branches and not in the text around the plural is
+refused `not_found` with the path of each branch that holds it. The text of a
+`set_content` may spell the argument as `{count}`, as the prompt does, or send
+its code. The task's reference route is that `replace_text`.
+`TestPairedPluralRouteOnEverySurface` sends it, and a `set_content` of the
+branch that types `{count}`, through `kapi apply` in the project, `apply_edits`
+on the MCP server and `kapi-files apply` without a project; each result passes
+the task's graders.
 The other plural in the catalog and the `@inboxCount` placeholder declaration
 are there to be left alone.
 
@@ -305,8 +311,10 @@ already names also passes.
 Beside the graders, each attempt records its status, duration, input and output
 tokens (cache reads and writes kept apart), Claude's turn count, tool calls, the
 refusal codes its tool results carried (kapi's own, `host:stale` or
-`host:patch_failed` for a host tool's, and `invalid:<pointer>` for a change set
-that did not decode, with each array position as `*`), override attempts
+`host:patch_failed` for a host tool's, `invalid:<pointer>` for a change set
+that did not decode, with each array position as `*`, and
+`write:not_read_back` for a write a format refused because the value would read
+back as another message, such as an unquoted brace in an ARB branch), override attempts
 (`--gate report`, a change set with `"gate": "report"`, `KAPI_ACTOR=person`,
 `if_match: "*"`), kapi names and skills it tried that its cell does not hold,
 and paths it named outside its cell. The score report lists the decode errors
@@ -377,40 +385,62 @@ workspace and the cell's temporary directory.
 
 Run it in a plain terminal rather than from an agent's shell, which has a time
 limit and a sandbox of its own, and from a worktree of `origin/main` made for
-the study alone. The main checkout is shared with other work and rebuilt during
-the day; the study's worktree is touched by nothing else until the study is
-scored. From the main checkout, once this change has merged:
+the study alone, beside the main checkout rather than inside it. The main
+checkout is shared with other work and rebuilt during the day, and the
+workflow harness creates and removes its agents' worktrees under
+`.claude/worktrees/`; the study's worktree is touched by nothing else until the
+study is scored. From the main checkout, once this change has merged:
 
 ```bash
 git fetch origin
-git worktree add .claude/worktrees/wp5-study origin/main
-cd .claude/worktrees/wp5-study
+git worktree add ../neokapi-wp5-study origin/main
+cd ../neokapi-wp5-study
 make i18n-catalogs && vp install && make build
 PAIRED_TEST_KAPI="$PWD/bin/kapi" go test -tags fts5 ./scripts/skilleval \
   -run 'PairedSolutions|PluralRoute|ProjectFreeAlias|WithBuiltKapi'
-export HOMEBREW_NO_AUTO_UPDATE=1
+# Copy both hosts where no upgrade reaches them, and run them from there.
+hosts="$HOME/kapi-wp5-hosts"
+mkdir -p "$hosts"
+cp -R "$(dirname "$(realpath "$(command -v claude)")")" "$hosts/claude"
+cp -R "$(dirname "$(dirname "$(realpath "$(command -v codex)")")")" "$hosts/codex"
+export PATH="$hosts/claude:$hosts/codex/bin:$PATH"
 make paired-eval-preflight PAIRED_EVAL_DIR="$HOME/kapi-wp5-study"
-# The first stage: eight sessions.
+# The first stage: the plural task on both hosts and in every arm.
 caffeinate -i make paired-eval-pilot PAIRED_EVAL_DIR="$HOME/kapi-wp5-study" \
-  PAIRED_EVAL_MAX_ATTEMPTS=8 PAIRED_EVAL_CONCURRENCY=2
-# Read the eight transcripts. The second stage: the other 160, and 12 reruns.
+  PAIRED_EVAL_MAX_ATTEMPTS=8 PAIRED_EVAL_CONCURRENCY=2 \
+  PAIRED_EVAL_ARGS="-paired-sessions edit-plural-branch-claude-baseline-01,edit-plural-branch-claude-mcp-01,edit-plural-branch-claude-project-free-01,edit-plural-branch-claude-skill-cli-01,edit-plural-branch-codex-baseline-01,edit-plural-branch-codex-mcp-01,edit-plural-branch-codex-project-free-01,edit-plural-branch-codex-skill-cli-01"
+# Read the eight transcripts. The second stage: the other 160.
 caffeinate -i make paired-eval-pilot PAIRED_EVAL_DIR="$HOME/kapi-wp5-study" \
-  PAIRED_EVAL_MAX_ATTEMPTS=180 PAIRED_EVAL_CONCURRENCY=2
+  PAIRED_EVAL_MAX_ATTEMPTS=168 PAIRED_EVAL_CONCURRENCY=2
 make paired-eval-score PAIRED_EVAL_DIR="$HOME/kapi-wp5-study"
 ```
 
 The test line sends each task's reference route through the worktree's build
 before any session is spent, and the plural task's through each arm's surface.
 The preflight prints the checkout and host versions a study started then would
-pin. For a long Claude run, export a long-lived `CLAUDE_CODE_OAUTH_TOKEN` from
-`claude setup-token` first: a keychain token must stay valid for a session's
-limit and fifteen minutes more, or the session is not started.
+pin, and where each host runs from; it warns of a host in a Homebrew cask or
+formula directory, which an upgrade replaces. For a long Claude run, export a
+long-lived `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` first: a keychain
+token must stay valid for a session's limit and fifteen minutes more, or the
+session is not started.
 
-The ceiling counts every attempt the study has started, the first stage's
-included. The study is 168 sessions, so after the first eight a ceiling of 168
-runs the other 160; 180 adds the twelve reruns `PAIRED_EVAL_RETRY=1` may need,
-and every rerun counts against it. A second-stage ceiling of 160 would stop
-eight sessions short of the grid.
+Both hosts are Homebrew casks on the study machine, and an upgrade run from any
+shell on it, another agent's included, replaces a cask's version directory. The
+copies in `$HOME/kapi-wp5-hosts` keep the version the study pins whatever an
+upgrade does to the casks: the Claude Code cask is one executable, and Codex
+keeps its resources beside its `bin`, so each copy is the whole version
+directory. Every shell that runs or resumes the study needs the same `PATH`.
+
+The first stage is eight sessions of the grid chosen by name: the plural task's
+first repetition on both hosts and in all four arms, so the ARB task, both
+hosts and every arm have a live session, one host beside the other, before the
+rest is committed. Without the selection the runner would take the first eight
+of the seeded schedule, which are all Claude, on `add-json-key` and
+`edit-po-context`, one after another. The ceiling counts every attempt the
+study has started, the first stage's included, so the second stage's ceiling
+of 168 runs the other 160 and nothing more. A rerun under `PAIRED_EVAL_RETRY=1`
+counts against the ceiling too, so raise it deliberately, by the number of
+reruns approved, when they are needed.
 
 The cells live in the study directory, so it sits outside the checkout: the
 runner refuses a directory with a checkout, an instruction file, host
@@ -421,14 +451,16 @@ When the study starts it copies `bin/kapi` and the shipped skill into
 `inputs/` in the study directory, and every session runs those copies. Its
 `study.json` records, and its fingerprint covers, the checkout it runs from,
 the commit, the hash of its copy of kapi and each host's `--version`. To resume
-after an interrupt, a rate limit or a paused host, run only the
-`make paired-eval-pilot` line again from the same worktree; it needs no build.
+after an interrupt, a rate limit or a paused host, export the same `PATH` and
+run only the `make paired-eval-pilot` line again from the same worktree; it
+needs no build and no new copy of the hosts.
 The runner refuses a run from another checkout, naming the one the study runs
 from, and a run with `claude` or `codex` at another version than the study
-started with, naming that version to reinstall: a session on another version
-would measure another agent. Each session's own version check uses the same
-pin, so a host upgraded before its first session is refused too. A new
-directory would run every session again.
+started with, naming that version and where it ran from: a session on another
+version would measure another agent, and putting the copy back first on `PATH`
+resumes it. Each session's own version check uses the same pin, so a host
+upgraded before its first session is refused too. A new directory would run
+every session again.
 
 The pilot phase is the manifest's whole grid. It prints the planned session
 count before it starts one and runs one session per subscription at a time. A
