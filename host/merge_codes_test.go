@@ -61,3 +61,28 @@ func TestEveryFinding(t *testing.T) {
 	assert.Equal(t, "2 failing findings: say overview page; a code is missing", got.Message)
 	assert.Equal(t, change.CodeGateFailed, got.Code)
 }
+
+// A unit's carried source is the block's source when its codes are the same
+// codes: by id alone when the unit names its basis, which answers for the
+// codes' data, and with their data when it names none, so a link whose
+// address moved is a source the unit no longer translates.
+func TestSameSource(t *testing.T) {
+	link := func(href string) []model.Run {
+		return []model.Run{
+			model.TextR("Read the "),
+			model.PcOpenR(model.PcOpenRun{ID: "1", Type: "link:hyperlink", Data: `<a href="` + href + `">`}),
+			model.TextR("guide"),
+			model.PcCloseR(model.PcCloseRun{ID: "1", Type: "link:hyperlink", Data: "</a>"}),
+			model.TextR("."),
+		}
+	}
+	cur := model.NewRunsBlock("p", link("https://new.example/guide"))
+	moved := model.NewRunsBlock("p", link("https://old.example/guide"))
+	same := model.NewRunsBlock("p", link("https://new.example/guide"))
+
+	assert.True(t, sameSource(same, cur, false, false))
+	assert.True(t, sameSource(same, cur, false, true))
+	assert.False(t, sameSource(moved, cur, false, false), "with no basis the codes' data is compared")
+	assert.True(t, sameSource(moved, cur, false, true), "with a basis the service judges the data")
+	assert.True(t, sameSource(moved, cur, true, false), "a plain-text carrier compares text")
+}

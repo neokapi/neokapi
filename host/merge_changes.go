@@ -248,7 +248,7 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 		carried := len(u.Source) > 0
 		var why string
 		switch {
-		case carried && !sameSource(u, cur.block, rf.plainSource):
+		case carried && !sameSource(u, cur.block, rf.plainSource, rev.Basis != ""):
 			why = fmt.Sprintf("block %s no longer holds the source the unit carries", cur.ref)
 		case rev.Basis == "" && !carried && !unchangedFile:
 			why = fmt.Sprintf("the source of block %s changed since the unit was extracted", cur.ref)
@@ -659,14 +659,19 @@ func blockList(ids []string) string {
 
 // sameSource reports whether the source a unit carries is the source block
 // cur holds: compared as plain text for a carrier that holds plain text, and
-// otherwise with each inline code as the code it is, the way an XLIFF extract
-// carries it (a <pc> or <ph> with its native form in originalData), or as its
-// original data where a returned file carries the markup as text.
-func sameSource(unit, cur *model.Block, plain bool) bool {
+// otherwise as its original data, codes included, the way a returned file
+// carries the markup. A unit that names its basis (based) may also carry each
+// code as the code it is, the way an XLIFF extract does (a <pc> or <ph> with
+// its native form in originalData): the basis then answers for the codes'
+// data, and the change service refuses the unit as stale when the source
+// moved. A unit with no basis has nothing else to answer for that data, so a
+// source whose only change is a code's data, such as a link's address, is not
+// the source it carries.
+func sameSource(unit, cur *model.Block, plain, based bool) bool {
 	if plain {
 		return unit.SourceText() == cur.SourceText()
 	}
-	if model.RunsPlaceholderText(unit.Source) == model.RunsPlaceholderText(cur.Source) {
+	if based && model.RunsPlaceholderText(unit.Source) == model.RunsPlaceholderText(cur.Source) {
 		return true
 	}
 	return model.RenderRunsWithData(unit.Source) == model.RenderRunsWithData(cur.Source)
