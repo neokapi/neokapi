@@ -92,7 +92,8 @@ func (s BlockState) ID() string { return s.id }
 //     it.
 //   - The source, when a tool changed it, is a set_content of after's runs.
 //   - An overlay after adds, changes or drops is an annotate of its spans
-//     that takes the overlay's place.
+//     that takes the overlay's place, guarded by the revision of the edition
+//     it lies on.
 //
 // Block annotations and properties are not operations and are not written.
 func (s BlockState) Ops(doc string, after *model.Block) []change.Op {
@@ -154,18 +155,26 @@ func (s BlockState) Ops(doc string, after *model.Block) []change.Op {
 
 // overlayOps returns an annotate for each overlay after adds, changes or
 // drops, taking the place of the overlay of its type and layer on its edition.
+// An overlay marks positions in the content of the edition it lies on, so
+// each is guarded by the revision of that edition the state recorded: an
+// overlay a tool made on content that moved since the read does not land.
 func (s BlockState) overlayOps(doc string, after *model.Block) []change.Op {
 	seen := map[overlayKey]bool{}
 	var ops []change.Op
 	annotate := func(k overlayKey, spans []model.Span) {
 		ref := change.Ref{Doc: doc, Block: s.id}
+		on := s.source
 		if k.edition != "" {
 			if ek, err := model.ParseEditionKey(k.edition); err == nil {
-				ref.Edition = ek
+				ref.Edition, on = ek, ek
 			}
 		}
-		ops = append(ops, change.Op{Kind: change.KindAnnotate, At: ref,
-			Body: &change.Annotate{Type: string(k.typ), Layer: k.layer, Replace: true, Spans: spans}})
+		op := change.Op{Kind: change.KindAnnotate, At: ref,
+			Body: &change.Annotate{Type: string(k.typ), Layer: k.layer, Replace: true, Spans: spans}}
+		if was, ok := s.editions[on]; ok {
+			op.IfMatch = was.rev
+		}
+		ops = append(ops, op)
 	}
 	for _, o := range after.Overlays {
 		k := keyOfOverlay(o)

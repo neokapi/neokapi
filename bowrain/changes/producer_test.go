@@ -78,3 +78,42 @@ func TestProducer_LeavesABlockAPersonChangedSinceTheRead(t *testing.T) {
 		}
 	}
 }
+
+// An extraction tool marks a span on the source it read. A person rewrites the
+// source before the job commits, so the span would mark other words: it does
+// not land, and an overlay on a source nobody touched does.
+func TestProducer_LeavesAnOverlayOnContentThatMovedSinceTheRead(t *testing.T) {
+	f := newFixture(t)
+	ctx := t.Context()
+	rows, err := f.store.ItemBlocks(ctx, f.project.ID, "main", "a.json", nil)
+	require.NoError(t, err)
+	p := changes.NewProducer(f.store, f.project, "main", nil, nil)
+	p.Read(rows)
+
+	two := read(t, f.svc, "a.json", "two")
+	res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{setText(two.Ref, two.Rev, "Totally different wording")}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+
+	for _, sb := range rows {
+		b := sb.Block
+		b.AddOverlaySpan(model.OverlayEntity, model.Span{ID: "entity:0", Range: model.RangeAnchor(b.SourceRuns(), 0, 5),
+			Value: &model.EntityAnnotation{Text: b.SourceText()[:5]}})
+	}
+	landed, err := p.Commit(ctx, "extract", []*model.Block{rows[0].Block, rows[1].Block})
+	require.NoError(t, err)
+	require.Len(t, landed, 1, "only the block whose source the tool read takes its span")
+
+	after, err := f.store.ItemBlocks(ctx, f.project.ID, "main", "a.json", nil)
+	require.NoError(t, err)
+	for _, sb := range after {
+		span := sb.Block.OverlaySpan(model.OverlayEntity, "entity:0")
+		switch sb.SourceID {
+		case "one":
+			require.NotNil(t, span, "a span on an unchanged source lands")
+		case "two":
+			assert.Equal(t, "Totally different wording", sb.Block.SourceText())
+			assert.Nil(t, span, "a span on a source that moved does not land")
+		}
+	}
+}
