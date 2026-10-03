@@ -1,11 +1,13 @@
 //go:build js && wasm
 
 // Command kapi-wasm-cli is a browser entrypoint that runs the kapi CLI inside
-// WebAssembly. It exposes a single JS function, kapiRun(argv []string), which
-// builds a fresh cobra root and executes one command — turning the one-shot
-// CLI into a REPL the page can drive from xterm.js. Standard output and
-// standard error flow through os.Stdout/os.Stderr (i.e. globalThis.fs) so the
-// page can route them to the terminal exactly as a real shell would.
+// WebAssembly. Its JS function kapiRun(argv []string) builds a fresh cobra
+// root and executes one command, turning the one-shot CLI into a REPL the page
+// can drive from xterm.js. Standard output and standard error flow through
+// os.Stdout/os.Stderr (i.e. globalThis.fs) so the page can route them to the
+// terminal exactly as a real shell would. A page that edits content calls
+// kapiRead, kapiApply and kapiDescribe instead, which carry the change
+// contract as JSON to the change service kapi apply uses (changes.go).
 //
 // The command surface comes from cli.BrowserCommandSet, which mirrors the
 // native binary's cli.KapiCommandSet verb for verb: browser-safe commands are
@@ -96,6 +98,9 @@ var engineExports = []struct {
 	{"labSegmentEngines", labSegmentEngines},
 	{"kbf", kbfDispatch},
 	{"kapiReset", kapiReset},
+	{"kapiRead", kapiRead},
+	{"kapiApply", kapiApply},
+	{"kapiDescribe", kapiDescribe},
 }
 
 // registerEngineABI installs every engine entry point plus the additive

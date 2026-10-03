@@ -178,8 +178,10 @@ jobs:
           # The store suites under GOOS=js run every store package over the
           # browser's SQLite driver, whose Go half is core/storage and whose
           # JavaScript half is packages/engine/src/sqlite.ts, pinned through the
-          # shared JS dependency graph.
-          check_paths wasm_stores '^(core|memory|terms|voice)/' '^host/storage/' '^packages/engine/src/sqlite\.ts$' '^scripts/wasm-stores/' '^go\.(mod|sum)$' '^Makefile$' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
+          # shared JS dependency graph. The same run puts the change service
+          # through its conformance suite there: core/change, and the host's
+          # service for a project with the recorder that writes the workspace log.
+          check_paths wasm_stores '^(core|memory|terms|voice)/' '^host/storage/' '^host/(changes|editrecorder|commitcheck|changepolicy|projectstore)[^/]*\.go$' '^packages/engine/src/sqlite\.ts$' '^scripts/wasm-stores/' '^go\.(mod|sum)$' '^Makefile$' '^\.github/workflows/ci\.yml$' "${js_deps[@]}"
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
   frontend:
@@ -499,7 +501,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
       - uses: ./.github/actions/setup-node-ui
-      - name: Run the store suites over the browser's SQLite driver
+      - name: Run the store and change suites over the browser's SQLite driver
         run: make test-wasm-stores
       - name: Run the store suites with one connection per pool
         run: make test-stores-oneconn

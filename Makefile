@@ -400,9 +400,20 @@ test-stores-oneconn: i18n-catalogs ## Run the store suites natively with every p
 test-host-oneconn: i18n-catalogs ## Run the host suite natively with every pool held to one connection and WAL off
 	cd host && $(GO) test -tags "fts5,storage_oneconn" -count=1 -timeout 20m ./...
 
-test-wasm-stores: i18n-catalogs ## Run the store suites under GOOS=js in Node over the browser's SQLite driver
+# The change contract runs in the browser too (kapiRead, kapiApply,
+# kapiDescribe), so test-wasm-stores also runs the change service's suites
+# under GOOS=js: core/change and its file home, with the conformance suite
+# (core/change/changetest) every home passes, the lock that orders the file
+# home's writers, and the host's service for a project put through the same
+# conformance suite and its JSON entry points, which record each edit in the
+# workspace log on the browser's SQLite.
+CHANGE_WASM_PKGS := ./core/change/... ./core/storage/filelock/
+CHANGE_WASM_HOST_TESTS := ^(TestChangeService_Conformance|TestChangesJSON_)
+
+test-wasm-stores: i18n-catalogs ## Run the store suites and the change service's conformance suites under GOOS=js in Node over the browser's SQLite driver
 	@test -f node_modules/@sqlite.org/sqlite-wasm/package.json || { echo "error: @sqlite.org/sqlite-wasm missing; run 'vp install'"; exit 1; }
-	GOOS=js GOARCH=wasm $(GO) test -exec "$(CURDIR)/scripts/wasm-stores/go_js_wasm_exec" -count=1 -timeout 20m $(STORE_PKGS)
+	GOOS=js GOARCH=wasm $(GO) test -exec "$(CURDIR)/scripts/wasm-stores/go_js_wasm_exec" -count=1 -timeout 20m $(STORE_PKGS) $(CHANGE_WASM_PKGS)
+	GOOS=js GOARCH=wasm $(GO) test -exec "$(CURDIR)/scripts/wasm-stores/go_js_wasm_exec" -count=1 -timeout 20m -run '$(CHANGE_WASM_HOST_TESTS)' ./host/
 
 test-parallel: ## Run all tests in parallel
 	@$(MAKE) --no-print-directory _fw-test & $(MAKE) -C bowrain test & wait
