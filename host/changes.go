@@ -84,6 +84,12 @@ type ChangeServiceOptions struct {
 	// the block history: a flow's follower reads revisions alone, and a read
 	// that asks the history for every block is the larger half of its cost.
 	revisionsOnly bool
+
+	// Materialize writes each translation's file a change writes from its
+	// source's skeleton (filehome.Options.Materialize): kapi merge and kapi
+	// pull write whole translations this way, where the editing surfaces
+	// edit a translation's file in place.
+	Materialize bool
 }
 
 // Changes builds the change service for the project cmd names, or for the
@@ -172,7 +178,8 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 	// The recorder opens before the home takes its first lock, after the
 	// lock directory is prepared.
 	recorder := a.changeRecorder(ctx, h.root)
-	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: recorder.before(h.prepare), BackupSuffix: opts.BackupSuffix})
+	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: recorder.before(h.prepare), BackupSuffix: opts.BackupSuffix,
+		Materialize: opts.Materialize})
 	svcOpts := []change.Option{
 		change.WithOrigin(origin),
 		change.WithAssets(&changeAssets{app: a, recipe: opts.Project}),

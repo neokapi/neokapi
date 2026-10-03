@@ -194,11 +194,12 @@ func (st *staged) lockKeys() error {
 // byte of it outside the changed blocks stays, and each changed block must
 // have a partner there; a write that would need a block the file does not
 // hold is refused, because adding one means rewriting the file. A file that
-// does not exist yet is materialized from the document's skeleton, as kapi
-// merge writes a target file.
+// does not exist yet, and every file under Options.Materialize, is
+// materialized from the document's skeleton, as kapi merge writes a target
+// file.
 func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdition, ix *blockIndex, changed map[int][]model.Run) error {
 	s := st.s
-	if je.exists {
+	if je.exists && !s.h.materialize {
 		byTarget := map[int][]model.Run{}
 		var unpaired []string
 		for si, runs := range changed {
@@ -239,7 +240,13 @@ func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdi
 		return pass{src: src, format: s.doc.Format, locale: s.doc.SourceLocale, encoding: s.doc.Encoding, out: out,
 			writeLocale: je.key.Locale, writerSource: src,
 			fn: func(b *model.Block) error {
-				if runs, ok := changed[si]; ok {
+				runs, ok := changed[si]
+				if ti, held := je.match[si]; !ok && held {
+					// A block the change leaves keeps what the file held.
+					ed, _ := je.blocks[ti].Edition(model.EditionKey{})
+					runs, ok = ed.Runs, true
+				}
+				if ok {
 					b.SetEdition(je.key, model.Edition{Runs: runs})
 				}
 				si++

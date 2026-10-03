@@ -51,6 +51,7 @@ type Home struct {
 	backup       string
 	writeNothing bool
 	writeUnder   string
+	materialize  bool
 }
 
 // Options configures a Home.
@@ -81,6 +82,16 @@ type Options struct {
 	// still writes as any home writes them: the private tree a printing
 	// convergence pass drafts into, which its delivery gate reads.
 	WriteUnder string
+	// Materialize writes every edition file a change writes from the
+	// document's skeleton, the way kapi merge and kapi pull write a
+	// translation: each block of the document carries the edition the change
+	// gave it, or else the one the file held, or else the document's own
+	// content. The file then follows the document's structure, so a change
+	// to a block the file does not hold yet lands too, and whatever only the
+	// file held is gone. Without it an edition file that exists is edited
+	// through its own skeleton, and a change to a block it does not hold is
+	// refused.
+	Materialize bool
 }
 
 // DefaultLockDir is where lock files go when the caller names no directory: a
@@ -100,7 +111,7 @@ func New(layout Layout, opts Options) *Home {
 		dir = DefaultLockDir()
 	}
 	return &Home{layout: layout, lockDir: dir, prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix,
-		writeNothing: opts.WriteNothing, writeUnder: opts.WriteUnder}
+		writeNothing: opts.WriteNothing, writeUnder: opts.WriteUnder, materialize: opts.Materialize}
 }
 
 // writes reports whether the home writes a document it produces at path.
