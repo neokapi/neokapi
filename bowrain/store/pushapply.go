@@ -53,8 +53,9 @@ func newPushApply(s *PostgresStore, tx Runner) pushApply {
 }
 
 // attributed is ctx carrying the push's correlation, for the rows the push's
-// block writes append to the block history and the change log. A correlation
-// the caller already set is kept.
+// block writes append to the block history and the change log. The push's
+// correlation replaces one the caller set; the rest of the caller's change
+// context (actor, role, reason) is kept.
 func (a pushApply) attributed(ctx context.Context) context.Context {
 	return WithChangeContext(ctx, ChangeContext{CorrelationID: a.correlation})
 }
