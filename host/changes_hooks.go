@@ -142,7 +142,7 @@ type blockHistory struct {
 	app  *App
 	root string
 
-	once sync.Once
+	mu   sync.Mutex
 	hist *history.Store
 	docs DocumentIndex
 }
@@ -152,47 +152,76 @@ var (
 	_ change.EditionHistories = (*blockHistory)(nil)
 )
 
-// open opens the history once, when the project has a store.
+// open opens the history once the project has a store. A service built
+// before the project had one, as a long-lived surface's is, finds the store a
+// later change created.
 func (h *blockHistory) open(ctx context.Context) *history.Store {
-	h.once.Do(func() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.hist == nil {
 		db := h.app.existingProjectDB(ctx, h.root)
 		if db == nil {
-			return
+			return nil
 		}
 		h.hist = db.History()
 		h.docs = h.app.documentIndexOrEmpty(ctx, h.root)
-	})
+	}
 	return h.hist
 }
 
 // key names edition k of b in doc as the recorder recorded it.
 func (h *blockHistory) key(doc change.DocInfo, b *model.Block, k model.EditionKey) (docKey, edition string, ok bool) {
-	docKey = doc.Doc
-	if !reconcile.IsDocumentKey(docKey) {
-		docKey = h.docs.Key(docKey)
+	edition = editionText(b.EditionKeyOf(k))
+	return h.docKey(doc), edition, edition != ""
+}
+
+// docKey is doc's key as the recorder records it.
+func (h *blockHistory) docKey(doc change.DocInfo) string {
+	if reconcile.IsDocumentKey(doc.Doc) {
+		return doc.Doc
 	}
-	text, err := b.EditionKeyOf(k).MarshalText()
-	if err != nil || len(text) == 0 {
-		return "", "", false
-	}
-	return docKey, string(text), true
+	return h.docs.Key(doc.Doc)
+}
+
+// Document returns where the derived editions of doc stand, from the most
+// recent recorded change to each edition of the document, read in one query
+// when the read first asks about one. A project with no store, or a history
+// that cannot be read, vouches for no basis.
+func (h *blockHistory) Document(ctx context.Context, doc change.DocInfo) change.DocumentStates {
+	return &documentStates{last: sync.OnceValue(func() map[history.EditionRef]history.Row {
+		hist := h.open(ctx)
+		if hist == nil {
+			return nil
+		}
+		rows, err := hist.Latest(ctx, h.docKey(doc))
+		if err != nil {
+			return nil
+		}
+		last := make(map[history.EditionRef]history.Row, len(rows))
+		for _, r := range rows {
+			last[history.EditionRef{Block: r.Block, Edition: r.Edition}] = r
+		}
+		return last
+	})}
+}
+
+// documentStates answers for the editions of one document from the most
+// recent recorded change to each.
+type documentStates struct {
+	last func() map[history.EditionRef]history.Row
 }
 
 // EditionState returns the basis the most recent recorded change to edition k
 // of b named, when that change left the edition at the revision it holds now.
 // An edition changed since by a writer that recorded nothing (a person's
 // editor, another tool) has no basis this history can vouch for.
-func (h *blockHistory) EditionState(ctx context.Context, doc change.DocInfo, b *model.Block, k model.EditionKey) (change.EditionState, bool) {
-	hist := h.open(ctx)
-	if hist == nil {
+func (d *documentStates) EditionState(b *model.Block, k model.EditionKey) (change.EditionState, bool) {
+	edition := editionText(b.EditionKeyOf(k))
+	if edition == "" {
 		return change.EditionState{}, false
 	}
-	docKey, edition, ok := h.key(doc, b, k)
-	if !ok {
-		return change.EditionState{}, false
-	}
-	row, found, err := hist.LastWrite(ctx, docKey, change.BlockKey(b), edition)
-	if err != nil || !found || row.Basis == "" || row.After != model.EditionRevision(b, k) {
+	row, found := d.last()[history.EditionRef{Block: change.BlockKey(b), Edition: edition}]
+	if !found || row.Basis == "" || row.After != model.EditionRevision(b, k) {
 		return change.EditionState{}, false
 	}
 	return change.EditionState{Basis: row.Basis}, true

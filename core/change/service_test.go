@@ -903,8 +903,48 @@ func TestService_ReadsListEveryStructureWithItsPath(t *testing.T) {
 
 type editionStates func(b *model.Block, k model.EditionKey) (change.EditionState, bool)
 
-func (f editionStates) EditionState(_ context.Context, _ change.DocInfo, b *model.Block, k model.EditionKey) (change.EditionState, bool) {
+func (f editionStates) Document(context.Context, change.DocInfo) change.DocumentStates { return f }
+
+func (f editionStates) EditionState(b *model.Block, k model.EditionKey) (change.EditionState, bool) {
 	return f(b, k)
+}
+
+// TestService_ReadAsksForEditionStatesOncePerDocument pins that a read asks
+// the host where a document's editions stand once for the document, a page
+// read and a streamed read alike, so a host answers from one read of its
+// records rather than one per block.
+func TestService_ReadAsksForEditionStatesOncePerDocument(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {
+		textBlock("one", "First", "nb", "Første"),
+		textBlock("two", "Second", "nb", "Andre"),
+		textBlock("three", "Third", "nb", "Tredje"),
+	}})
+	states := &countingStates{}
+	svc := newMemService(h, change.WithEditionStates(states))
+	ctx := context.Background()
+
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "a"})
+	require.NoError(t, err)
+	require.Len(t, page.Blocks, 3)
+	assert.Equal(t, 1, states.documents, "one question for the document")
+	assert.Equal(t, 3, states.editions, "answered for each block's edition")
+	for _, b := range page.Blocks {
+		assert.Equal(t, "r:basis", b.Editions["nb"].Basis)
+	}
+
+	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: "a"}, func(*model.Block, change.BlockRead) error { return nil })
+	require.NoError(t, err)
+	assert.Equal(t, 2, states.documents, "a streamed read asks once too")
+}
+
+type countingStates struct{ documents, editions int }
+
+func (c *countingStates) Document(context.Context, change.DocInfo) change.DocumentStates {
+	c.documents++
+	return editionStates(func(*model.Block, model.EditionKey) (change.EditionState, bool) {
+		c.editions++
+		return change.EditionState{Basis: "r:basis"}, true
+	})
 }
 
 // TestService_EachOperationReportsItsOwnOutcome pins that a refusal on one

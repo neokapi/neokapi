@@ -177,6 +177,10 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 	}
 	want.Blocks = blocks
 
+	var states DocumentStates
+	if s.states != nil {
+		states = s.states.Document(ctx, info)
+	}
 	page := &Page{Doc: info.Doc, Home: h.Name(), Format: info.Format, Blocks: []BlockRead{}}
 	index := 0
 	more := false
@@ -187,7 +191,7 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 			return nil
 		}
 		if each != nil {
-			return each(b, s.readBlock(ctx, info, desc, b, editions))
+			return each(b, readBlock(info, states, desc, b, editions))
 		}
 		i := index
 		index++
@@ -198,7 +202,7 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 			more = true
 			return ErrStop
 		}
-		page.Blocks = append(page.Blocks, s.readBlock(ctx, info, desc, b, editions))
+		page.Blocks = append(page.Blocks, readBlock(info, states, desc, b, editions))
 		return nil
 	})
 	if err != nil && !errors.Is(err, ErrStop) {
@@ -231,8 +235,8 @@ func (s *Service) homeFor(doc string) (Home, error) {
 // for a read of the file one edition lives in, that edition, so a person who
 // opened the German file and copies a reference edits the German. Every other
 // edition the block holds is listed among its editions, the document's own
-// included.
-func (s *Service) readBlock(ctx context.Context, info DocInfo, desc Description, b *model.Block, editions []model.EditionKey) BlockRead {
+// included, with the status and basis states gives it (nil gives none).
+func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.Block, editions []model.EditionKey) BlockRead {
 	var primary model.EditionKey
 	if info.Edition != nil {
 		primary = info.Edition.Canonical()
@@ -271,8 +275,8 @@ func (s *Service) readBlock(ctx context.Context, info DocInfo, desc Description,
 		}
 		ed, _ := b.Edition(k)
 		er := out.editionRead(model.EditionRevision(b, k), ed, desc)
-		if s.states != nil {
-			if st, ok := s.states.EditionState(ctx, info, b, k); ok {
+		if states != nil {
+			if st, ok := states.EditionState(b, k); ok {
 				if st.Status != "" {
 					er.Status = string(st.Status)
 				}
