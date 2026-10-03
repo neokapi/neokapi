@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Build @neokapi/contract-types for publishing: transpile each source file in
 // place (no bundling, so the subpath exports, ./contract.gen, ./content.gen,
-// ./review.gen and ./manual, resolve to their own dist files) and emit declarations with tsc.
+// ./review.gen, ./change.gen and ./manual, resolve to their own dist files) and
+// emit declarations with tsc.
 // Mirrors packages/kapi-format/build.mjs; in-repo consumers use the TS source
 // directly (see the package.json exports vs publishConfig split).
 import { build } from "esbuild";
@@ -16,6 +17,7 @@ const entryPoints = [
   "src/contract.gen.ts",
   "src/content.gen.ts",
   "src/review.gen.ts",
+  "src/change.gen.ts",
   "src/manual.ts",
 ];
 

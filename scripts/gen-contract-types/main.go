@@ -44,10 +44,14 @@ type output struct {
 //     core/proto/content/v1/testdata remain the binding contract.
 //   - review.gen.ts — the review model (S-07) every review client reads,
 //     reflected from core/review and the structs it carries (see review.go).
+//   - change.gen.ts: the change contract (E-09), the change set from the
+//     schema core/change/changeschema generates, and the result, read page and
+//     format description reflected from core/change (see change.go).
 var outputs = []output{
 	{"packages/contract-types/src/contract.gen.ts", emit},
 	{"packages/contract-types/src/content.gen.ts", emitContent},
 	{"packages/contract-types/src/review.gen.ts", emitReview},
+	{"packages/contract-types/src/change.gen.ts", emitChange},
 	{"core/proto/content/v1/content.schema.json", emitSchema},
 }
 

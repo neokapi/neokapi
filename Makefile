@@ -492,6 +492,7 @@ ifdef GOLANGCI_LINT
 	cd cli && $(GOLANGCI_LINT) run ./...
 	cd kapi && $(GOLANGCI_LINT) run ./...
 	cd scripts/gen-refs && $(GOLANGCI_LINT) run ./...
+	cd scripts/gen-contract-types && $(GOLANGCI_LINT) run ./...
 	cd scripts/proseprobe && $(GOLANGCI_LINT) run ./...
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
@@ -529,10 +530,12 @@ test-framework: i18n-catalogs ## Run framework module tests only (incl. the eval
 	@mkdir -p $(COVER_DIR)
 ifdef CI
 # The eval harnesses (scripts/batcheval, scripts/contexteval), the reference
-# generator (scripts/gen-refs) and the Prose probe (scripts/proseprobe) are
+# generator (scripts/gen-refs), the contract-types generator
+# (scripts/gen-contract-types) and the Prose probe (scripts/proseprobe) are
 # separate workspace modules, so the root ./... pattern never reaches them.
 # Their tests gate the corpora, the scoring, the price-table sync, the reference
-# dataset's shape and the probe's canary, keyless and fast.
+# dataset's shape, the rendering of the TypeScript contract types and the
+# probe's canary, keyless and fast.
 # One shell, `|| rc=$$?` per suite: a root-suite failure must not stop the eval
 # suites from running (and from appearing in the JSON the reporters read) —
 # the single-run form completed every package even when some failed.
@@ -541,6 +544,7 @@ ifdef CI
 	( cd scripts/batcheval && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	( cd scripts/contexteval && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	( cd scripts/gen-refs && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
+	( cd scripts/gen-contract-types && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	( cd scripts/proseprobe && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	exit $$rc
 else
@@ -548,6 +552,7 @@ else
 	cd scripts/batcheval && $(GOTEST_BASE) ./... -count=1
 	cd scripts/contexteval && $(GOTEST_BASE) ./... -count=1
 	cd scripts/gen-refs && $(GOTEST_BASE) ./... -count=1
+	cd scripts/gen-contract-types && $(GOTEST_BASE) ./... -count=1
 	cd scripts/proseprobe && $(GOTEST_BASE) ./... -count=1
 endif
 
@@ -2987,11 +2992,15 @@ check-reference-prose: build import-dogfood-context ## Register gate: the author
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
 generate-format-docs: generate-reference-docs
 
-generate-contract-types: ## Generate the shared TS contract + content-model types and the content JSON Schema from Go (core/schema, core/proto/content/v1)
+generate-contract-types: ## Generate the shared TS contract, content-model, review and change-contract types and the content JSON Schema from Go
 	$(GO) run $(GOTAGS) ./scripts/gen-contract-types
 
-check-contract-types: ## Drift gate: fail if the committed contract/content types or content JSON Schema are stale vs. Go
+check-contract-types: ## Drift gate: fail if the committed TS contract types (contract, content, review, change) or content JSON Schema are stale vs. Go
 	$(GO) run $(GOTAGS) ./scripts/gen-contract-types -check
+
+test-contract-types: ## Test the contract-types generator and type-check the package with its type-level tests
+	cd scripts/gen-contract-types && $(GOTEST_BASE) ./... -count=1
+	cd packages/contract-types && vp check
 
 generate-translatability: ## Generate the W3C translatability table for the Go readers from packages/i18n-react (TS is the single definition)
 	node --no-warnings --experimental-strip-types scripts/gen-translatability.ts
@@ -3363,7 +3372,7 @@ help: ## Show this help
         fetch-corpus publish-corpus corpus-sweep \
         generate-format-docs generate-reference-docs check-reference-docs check-reference-prose generate-reference-pages \
         import-dogfood-context bench-commit-check \
-        generate-contract-types check-contract-types \
+        generate-contract-types check-contract-types test-contract-types \
         generate-translatability check-translatability \
         generate-docs-palette check-docs-palette \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \

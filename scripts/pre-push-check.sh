@@ -187,6 +187,18 @@ if matches '^core/(storage|workspace|projector|projectdb|state|history|blockstor
     run_check "Store suites (one connection per pool)" make test-stores-oneconn
 fi
 
+# ── Generated TypeScript contract types ───────────────────────────────────
+
+# @neokapi/contract-types is generated from Go: the change contract from
+# core/change, the review model from core/review, the content model from
+# core/model and its proto. CI gates them in reference-data-drift.yml; this runs
+# the same drift gate, the generator's tests and the package's type-level tests
+# when a source they read changes.
+if matches '^core/' '^scripts/gen-contract-types/' '^packages/contract-types/'; then
+    run_check "Contract types are fresh" make check-contract-types
+    run_check "Contract types generator and type tests" make test-contract-types
+fi
+
 # ── go mod tidy drift check ───────────────────────────────────────────────
 
 if matches '^go\.(mod|sum)$' '/go\.(mod|sum)$'; then

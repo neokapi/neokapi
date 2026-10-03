@@ -1075,7 +1075,7 @@ jobs:
       - name: Download modules
         uses: ./.github/actions/go-mod-download
         with:
-          modules: ". host cli kapi scripts/gen-refs scripts/proseprobe"
+          modules: ". host cli kapi scripts/gen-refs scripts/gen-contract-types scripts/proseprobe"
 
       # golangci-lint compiles the module, and core/i18n / host/i18n resolve
       # `//go:embed catalogs/*.mo` against build output — the repository carries
@@ -1110,6 +1110,13 @@ jobs:
         uses: ./.github/actions/golangci
         with:
           working-directory: scripts/gen-refs
+
+      # gen-contract-types renders the committed TypeScript contract types the
+      # drift gate compares, from the schema and structs of core/change.
+      - name: Lint gen-contract-types
+        uses: ./.github/actions/golangci
+        with:
+          working-directory: scripts/gen-contract-types
 
       # The Prose probe decides whether a maturity rung is awarded, so its
       # module is linted like the others.
