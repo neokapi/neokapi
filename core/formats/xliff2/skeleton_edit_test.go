@@ -70,7 +70,7 @@ func replaceInEditText(runs []model.Run, from, to string) []model.Run {
 
 func editSource(from, to string) func(*model.Block) {
 	return func(b *model.Block) {
-		b.EditSourceRuns(replaceInEditText(b.Source, from, to))
+		b.EditSourceRuns(replaceInEditText(b.SourceRuns(), from, to))
 	}
 }
 
@@ -149,7 +149,7 @@ func TestSkeletonPathKeepsInlineCodes(t *testing.T) {
 func TestSkeletonPathReadsInlineCodesAsRuns(t *testing.T) {
 	var texts []string
 	skeletonEdit(t, inlineCodesDoc, func(b *model.Block) {
-		texts = append(texts, model.RunsEditText(b.Source))
+		texts = append(texts, model.RunsEditText(b.SourceRuns()))
 	})
 	assert.Equal(t, []string{
 		`We utilize the <x id="1"/>finest<x id="/1"/> ingredients<x id="2/"/>`,
@@ -244,10 +244,10 @@ func TestSkeletonPathWritesEachSegment(t *testing.T) {
 		{
 			name: "a source edit that merges the segments, with the overlays rebased",
 			edit: func(b *model.Block) {
-				old := b.Source
-				b.EditSourceRuns(replaceInEditText(b.Source, "utilize", "use"))
-				model.RemapOverlays(b, nil, old, b.Source, []model.RunEdit{{
-					Start: 0, End: len([]rune(model.RunsText(old))), NewLen: len([]rune(model.RunsText(b.Source))),
+				old := b.SourceRuns()
+				b.EditSourceRuns(replaceInEditText(b.SourceRuns(), "utilize", "use"))
+				model.RemapOverlays(b, nil, old, b.SourceRuns(), []model.RunEdit{{
+					Start: 0, End: len([]rune(model.RunsText(old))), NewLen: len([]rune(model.RunsText(b.SourceRuns()))),
 				}})
 			},
 			refused: xliff2.ErrSegmentsLost,
@@ -259,7 +259,7 @@ func TestSkeletonPathWritesEachSegment(t *testing.T) {
 		},
 		{
 			name: "a source replaced segment by segment",
-			edit: func(b *model.Block) { b.EditSourceRuns(replaceInRuns(b.Source, "utilize", "use")) },
+			edit: func(b *model.Block) { b.EditSourceRuns(replaceInRuns(b.SourceRuns(), "utilize", "use")) },
 			want: strings.Replace(multiSegmentDoc, "we utilize", "we use", 1),
 		},
 		{

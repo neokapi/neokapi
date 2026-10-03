@@ -1546,9 +1546,11 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 			// produced XLIFF reports where each unit stands. Scratch-build path
 			// only (this function is never called on the byte-exact round-trip
 			// path), so untouched round-trips are unaffected.
-			if t := block.Target(targetLang); t != nil {
-				if st := xliff2StateFromTargetStatus(t.Status); st != "" {
-					segEl.CreateAttr("state", st)
+			if key := model.Variant(targetLang); !block.IsSourceEdition(key) {
+				if t, ok := block.Edition(key); ok {
+					if st := xliff2StateFromTargetStatus(model.TargetStatus(t.Status)); st != "" {
+						segEl.CreateAttr("state", st)
+					}
 				}
 			}
 		}

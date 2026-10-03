@@ -3,6 +3,7 @@ package xliff2
 import (
 	"slices"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -129,7 +130,7 @@ func applySegmentsToBlock(block *model.Block, srcSegs []seg, tgtSegs []seg, trgL
 		Target: map[model.LocaleID]map[string]*Content{},
 	}
 
-	block.Source = layOutSegments(srcSegs, ann.Source)
+	block.SetSourceRuns(layOutSegments(srcSegs, ann.Source))
 	block.SetSegmentation(nil, buildSegmentSpans(srcSegs))
 	applyMarkOverlays(block, nil, srcSegs)
 
@@ -147,9 +148,7 @@ func applySegmentsToBlock(block *model.Block, srcSegs []seg, tgtSegs []seg, trgL
 		// read-only enrichment: the raw `state` attribute still round-trips via
 		// the property, so the writer is unaffected and byte-exact output holds.
 		if st := targetStatusFromXLIFF2State(block.Properties["state"]); st != "" {
-			if t := block.Target(trgLang); t != nil {
-				t.Status = st
-			}
+			block.SetEditionStatus(key, model.Status(st))
 		}
 	}
 
@@ -312,8 +311,9 @@ func sourceSegsFromBlock(block *model.Block) []seg {
 	if ir != nil {
 		srcIR = ir.Source
 	}
-	segs := segsFromOverlay(block.Source, overlay, srcIR)
-	return withMarks(segs, block.Source, block, nil)
+	source := format.AuthoritativeRuns(block)
+	segs := segsFromOverlay(source, overlay, srcIR)
+	return withMarks(segs, source, block, nil)
 }
 
 // withMarks hands each segment the marker spans of an edition (variant names

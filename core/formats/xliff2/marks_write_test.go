@@ -121,7 +121,7 @@ func TestMarkSpanningAPairedCodeIsDrawn(t *testing.T) {
 	overlay := back.OverlayOf(model.OverlayTerm)
 	require.NotNil(t, overlay, "a span crossing a paired code must survive")
 	require.Len(t, overlay.Spans, 1)
-	covered := model.RunsText(overlay.Spans[0].Range.ExtractRuns(back.Source))
+	covered := model.RunsText(overlay.Spans[0].Range.ExtractRuns(back.SourceRuns()))
 	assert.Contains(t, covered, "kapi")
 }
 
@@ -230,7 +230,7 @@ func TestTermMarksFollowAnEditToAnEarlierSegment(t *testing.T) {
 		Body: &change.ReplaceText{Edits: []change.TextEdit{{Find: &find, Text: "Begin"}}},
 	}}, change.BlockEnv{Actor: change.Actor{Kind: change.ActorTool, Name: "test"}})
 	require.Equal(t, change.OpApplied, res[0].Status)
-	require.Len(t, block.Source, 5, "the edit joined the text runs on both segment boundaries")
+	require.Len(t, block.SourceRuns(), 5, "the edit joined the text runs on both segment boundaries")
 
 	out := writeBlocks(t, block)
 	assert.Contains(t, out, `<source>Begin.</source>`)
@@ -242,7 +242,7 @@ func TestTermMarksFollowAnEditToAnEarlierSegment(t *testing.T) {
 	require.NotNil(t, overlay)
 	require.Len(t, overlay.Spans, 2)
 	for _, sp := range overlay.Spans {
-		assert.Equal(t, "kapi", model.RunsText(sp.Range.ExtractRuns(back.Source)), sp.ID)
+		assert.Equal(t, "kapi", model.RunsText(sp.Range.ExtractRuns(back.SourceRuns())), sp.ID)
 	}
 }
 
