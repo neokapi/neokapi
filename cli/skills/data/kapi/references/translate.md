@@ -145,7 +145,10 @@ saved meanwhile keeps their bytes, and the run reports it as changed while the
 run worked (run again). In a project each file a run writes is recorded in the
 block history as the flow's edit, with the source each translation was made
 from, which is how `kapi status` tells a rewritten source under the loop's
-translation from a new one. To see what a run would change, add
+translation from a new one. That record is part of the project's context: in a
+fresh clone run `kapi context pull` first, which `kapi up` and `kapi status`
+remind you of while the translations on disk have no recorded history. To see
+what a run would change, add
 `--print-ops`: the run writes no file of the project and records no change, and
 prints the change set (`set_content` per translation, with its `if_match`, its
 `basis`, and in `origin` the tool that produced it). `kapi apply` of that

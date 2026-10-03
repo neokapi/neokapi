@@ -359,6 +359,26 @@ steps:
   - run: kapi check --ship
 ```
 
+With `kapi-action`, the `context-sync` input runs the same commands around the
+one it runs: `pull` runs `kapi context pull` before it, and `true` also runs
+`kapi context push` after it (except on a plan):
+
+```yaml
+permissions:
+  contents: write
+steps:
+  - uses: actions/checkout@v5
+  - uses: neokapi/setup-kapi@v1
+  - uses: neokapi/kapi-action@v1
+    with:
+      context-sync: "true"
+```
+
+A runner that skips the pull holds the translations the checkout carries and
+no record of the source each was made from, so a source edited since a
+translation was made is not graded stale there. `kapi up` and `kapi status`
+say so in one line naming `kapi context pull`.
+
 `kapi context pull` fetches the ref itself (`refs/kapi/context`), which a
 checkout does not. A pull request from a fork can pull the context and cannot
 push it, so a job on one pulls and checks, and leaves pushing to a job that runs

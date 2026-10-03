@@ -41,6 +41,11 @@ type StatusOutput struct {
 	// is shared through were apart at the last pull or push. Absent when the
 	// context stays on this machine.
 	Context *check.ContextSync `json:"context,omitempty"`
+	// HistoryNotPulled reports a checkout whose translations exist on disk and
+	// whose block history records nothing: the source each was made from is in
+	// the project's context, which kapi context pull reads
+	// (HistoryNotPulledNote).
+	HistoryNotPulled bool `json:"history_not_pulled,omitempty"`
 }
 
 // StatusVenue names the effective convergence venue for a server-connected
@@ -158,6 +163,9 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 	}
 	if o.Context != nil {
 		fmt.Fprintln(w, o.Context.Line)
+	}
+	if o.HistoryNotPulled {
+		fmt.Fprintln(w, HistoryNotPulledNote+".")
 	}
 	return nil
 }
@@ -700,6 +708,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 				Backend: describeRemote(st.Remote), ToPush: st.ToPush, ToPull: st.ToPull, Line: SyncLine(st),
 			}
 		}
+		out.HistoryNotPulled = a.historyNotPulled(CmdContext(cmd), root, units)
 		a.WarnInertRecipeFields(cmd, proj)
 		a.WarnStoreLocaleDrift(cmd, projectPath)
 		return output.Print(cmd, out)

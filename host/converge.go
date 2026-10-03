@@ -623,6 +623,9 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	if berr := CheckTargetPathsWritable(admissionUnits); berr != nil {
 		return berr
 	}
+	// The source each translation on disk was made from is recorded in the
+	// project's context, which a fresh checkout has not read yet.
+	a.noteHistoryNotPulled(cmd, root, admissionUnits)
 
 	// Share one parse cache across every pass: unchanged source files parse once,
 	// not once per pass; only the targets a pass rewrites re-parse.
