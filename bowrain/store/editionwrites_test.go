@@ -244,3 +244,74 @@ func TestRecordEditionWrites_NamesThePusherAsTheAuthorOfWhatTheyWrote(t *testing
 		})
 	}
 }
+
+// writersOf is who the venue records as having written each Norwegian
+// translation in en.json by hand, by unit.
+func writersOf(t *testing.T, s *PostgresStore, projectID string) map[string]platstore.EditionWriter {
+	t.Helper()
+	rows, err := s.EditionWriters(t.Context(), projectID, "main", []string{"en.json"})
+	require.NoError(t, err)
+	out := map[string]platstore.EditionWriter{}
+	for _, r := range rows {
+		if r.Variant == "nb" {
+			out[r.Unit] = r
+		}
+	}
+	return out
+}
+
+// A translation written by hand on a checkout is recorded with its author
+// whether or not the venue holds it, so an approval in a later push can be
+// judged against it. The first pusher of a revision stays its author when
+// another checkout sends the same write; a write of another revision by
+// anybody else ends the claim.
+func TestRecordEditionWrites_KeepsWhoWroteATranslationByHand(t *testing.T) {
+	s := newTestStore(t)
+	p := createTestProject(t, s)
+	pushWrites(t, s, p.ID, "", []*model.Block{blockWithText("greeting", "Hello"), blockWithText("farewell", "Goodbye")}, nil)
+	write := func(unit, rev, writer, origin string) venue.EditionWrite {
+		return venue.EditionWrite{ItemName: "en.json", Unit: unit, Block: "local-" + unit, Variant: "nb",
+			Revision: rev, Writer: writer, Origin: origin}
+	}
+
+	pushWrites(t, s, p.ID, "u-ada", nil, []venue.EditionWrite{
+		write("greeting", "r:1111111111111111", venue.WriterPerson, "apply"),
+		write("farewell", "r:2222222222222222", venue.WriterTool, "flow:up"),
+	})
+	got := writersOf(t, s, p.ID)
+	require.Len(t, got, 1, "a run's translation has no author")
+	assert.Equal(t, platstore.EditionWriter{ItemName: "en.json", Unit: "greeting", Block: "local-greeting", Variant: "nb",
+		Revision: "r:1111111111111111", Author: "u-ada"}, got["greeting"], "the venue holds no translation of it, and keeps its author")
+
+	// Another checkout, holding Ada's record, sends the same write.
+	pushWrites(t, s, p.ID, "u-ben", nil, []venue.EditionWrite{write("greeting", "r:1111111111111111", venue.WriterPerson, "apply")})
+	assert.Equal(t, "u-ada", writersOf(t, s, p.ID)["greeting"].Author, "the first pusher of a revision stays its author")
+
+	// Ben rewrites it by hand.
+	pushWrites(t, s, p.ID, "u-ben", nil, []venue.EditionWrite{write("greeting", "r:3333333333333333", venue.WriterAgent, "mcp")})
+	assert.Equal(t, "u-ben", writersOf(t, s, p.ID)["greeting"].Author)
+
+	// A run re-drafts it.
+	pushWrites(t, s, p.ID, "u-ada", nil, []venue.EditionWrite{write("greeting", "r:4444444444444444", venue.WriterTool, "flow:up")})
+	assert.Empty(t, writersOf(t, s, p.ID), "nobody wrote the run's draft by hand")
+}
+
+// A push that sends a run's write again finds the draft mark already saying
+// it, and leaves the unit's record as it was.
+func TestRecordEditionWrites_LeavesADraftMarkThatAlreadySaysIt(t *testing.T) {
+	s := newTestStore(t)
+	p := createTestProject(t, s)
+	pushWrites(t, s, p.ID, "", []*model.Block{blockWithText("greeting", "Hello")}, nil)
+	w := venue.EditionWrite{ItemName: "en.json", Unit: "greeting", Variant: "nb", Revision: "r:0123456789abcdef",
+		Basis: state.SourceHash("Hello"), Writer: venue.WriterTool, Origin: "flow:up"}
+	updatedAt := func() string {
+		var at string
+		require.NoError(t, s.db.QueryRowContext(t.Context(),
+			`SELECT updated_at::text FROM unit_decisions WHERE project_id=$1 AND unit='greeting' AND variant='nb'`, p.ID).Scan(&at))
+		return at
+	}
+	pushWrites(t, s, p.ID, "u-ada", nil, []venue.EditionWrite{w})
+	first := updatedAt()
+	pushWrites(t, s, p.ID, "u-ada", nil, []venue.EditionWrite{w})
+	assert.Equal(t, first, updatedAt(), "the second push wrote nothing to the record")
+}

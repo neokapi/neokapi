@@ -222,10 +222,21 @@ func (g *Gate) Wrote(blockID, locale string) {
 	if g == nil {
 		return
 	}
+	g.WrittenBy(blockID, locale, g.cfg.Actor)
+}
+
+// WrittenBy records author as the last author of the target of blockID in
+// locale, in place of what the store said: a push judges an approval of a
+// translation written by hand on a checkout, which the venue's own record of
+// the target does not describe.
+func (g *Gate) WrittenBy(blockID, locale, author string) {
+	if g == nil {
+		return
+	}
 	if g.authors == nil {
 		g.authors = map[platstore.TargetRef]string{}
 	}
-	g.authors[platstore.TargetRef{BlockID: blockID, Locale: locale}] = g.cfg.Actor
+	g.authors[platstore.TargetRef{BlockID: blockID, Locale: locale}] = author
 }
 
 // vetSoD applies the workspace policy to one pair.

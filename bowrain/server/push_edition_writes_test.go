@@ -202,3 +202,47 @@ func TestSyncPush_RefusesAnApprovalOfTheTranslationThePusherWrote(t *testing.T) 
 	assert.Empty(t, records["title"].ReviewState)
 	assert.Equal(t, venue.ReviewStateApproved, records["farewell"].ReviewState)
 }
+
+// The usual order is to write a translation by hand, push, and approve it
+// later: the client sends a write once the venue has applied it, so the push
+// that carries the approval carries no write. The venue keeps who wrote the
+// translation from the earlier push, and the approval is still the author's
+// own.
+func TestSyncPush_RefusesAnApprovalOfAHandWrittenTranslationInALaterPush(t *testing.T) {
+	srv, token := newTestServer(t)
+	pid := createProject(t, srv, token)
+	ts := httptest.NewServer(srv.GetEcho())
+	defer ts.Close()
+	require.NoError(t, srv.AuthStore.SetSoDMode(t.Context(), "test-ws", platauth.SoDBlock))
+	client := apiclient.NewProjectBearerClient(ts.URL, pid, token)
+	ctx := context.Background()
+
+	_, err := client.Push(ctx, catalog(map[string]string{"greeting": "Hello world"}), catalogItems, nil, nil)
+	require.NoError(t, err)
+	drainWithAuthority(t, srv)
+
+	_, err = client.Push(ctx, map[string][]*model.Block{}, nil, nil, nil, apiclient.CarryEditionWrites([]venue.EditionWrite{
+		{ItemName: "locales/en.json", Unit: "greeting", Variant: "nb", Revision: "r:0123456789abcdef", Writer: venue.WriterPerson, Origin: "apply"},
+	}))
+	require.NoError(t, err)
+	drainWithAuthority(t, srv)
+
+	resp, err := client.Push(ctx, map[string][]*model.Block{}, nil, nil, []venue.UnitDecision{{
+		ItemName: "locales/en.json", Unit: "greeting", Variant: "nb",
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
+		TargetHash: state.TargetHash("Hei, verden"), ContentHash: state.SourceHash("Hello world"),
+		Updated: time.Now().UTC().Add(time.Minute).Format(time.RFC3339),
+	}})
+	require.NoError(t, err)
+	drainWithAuthority(t, srv)
+
+	status, err := client.PushStatus(ctx, resp.PushID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Governance, "the server reports the approval it did not accept")
+	refused := map[string]string{}
+	for _, u := range status.Governance.Units {
+		refused[u.Unit] = u.Reason
+	}
+	assert.Equal(t, venue.RefusedSeparationOfDuties, refused["greeting"], "the pusher wrote it by hand one push earlier")
+	assert.Empty(t, nbLedger(t, srv, pid)["greeting"].ReviewState)
+}

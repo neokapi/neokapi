@@ -272,9 +272,12 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		markJobFailed(ctx, deps, job.ID, gerr.Error())
 		return gerr
 	}
-	// A translation the pusher wrote by hand is theirs to the gate, whatever
-	// the venue recorded about it before this push.
-	gov.wroteByHand(writes)
+	// A translation somebody wrote by hand on their checkout is theirs to the
+	// gate, whichever push carried the write.
+	if err := gov.noteWriters(ctx, deps, projectID, stream, staged, decisions, writes); err != nil {
+		markJobFailed(ctx, deps, job.ID, err.Error())
+		return err
+	}
 
 	// 3. Apply the whole transition on one transaction. Blocks, items, the
 	// prune and the decisions ledger land together or not at all; a worker that
