@@ -537,9 +537,9 @@ func (r *Reader) emitCommentFallback(ctx context.Context, ch chan<- model.PartRe
 		Name:         key,
 		Translatable: false,
 		SourceLocale: srcLocale,
-		Source:       runsFromValue(key),
 		Properties:   make(map[string]string),
 	}
+	block.SetSourceRuns(runsFromValue(key))
 	// Deliberately not "xcstrings.key": that property drives the writer's
 	// value-splice path. The fallback carries no document value, so it uses a
 	// distinct property and the writer leaves it untouched.
@@ -625,15 +625,9 @@ func (r *Reader) emitLeaf(ctx context.Context, ch chan<- model.PartResult,
 	// stringUnits.
 	srcValue := r.sourceValueFor(e, vr, srcLang, key)
 
-	block := &model.Block{
-		ID:           blockID,
-		Name:         vr.blockName(),
-		Translatable: true,
-		SourceLocale: srcLocale,
-		Source:       runsFromValue(srcValue),
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-	}
+	block := model.NewRunsBlock(blockID, runsFromValue(srcValue))
+	block.Name = vr.blockName()
+	block.SourceLocale = srcLocale
 
 	vr.applyToBlockProps(block)
 	// The leaf's value as read, kept so a leaf the writer has no translation for
@@ -662,7 +656,7 @@ func (r *Reader) emitLeaf(ctx context.Context, ch chan<- model.PartResult,
 	lang := model.LocaleID(vr.Lang)
 	if lang == srcLocale && vr.Lang == srcLang {
 		// Source-language leaf — the value IS the source content.
-		block.Source = runsFromValue(su.Value)
+		block.SetSourceRuns(runsFromValue(su.Value))
 	} else {
 		// Target leaf — value lives under the target locale.
 		block.SetTargetRuns(lang, runsFromValue(su.Value))

@@ -307,14 +307,8 @@ func TestWriteFromScratch(t *testing.T) {
 		},
 	}
 	mkBlock := func(id, key, lang, value, state string, src model.LocaleID) *model.Block {
-		b := &model.Block{
-			ID:           id,
-			Translatable: true,
-			SourceLocale: src,
-			Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
-			Targets:      map[model.VariantKey]*model.Target{},
-			Properties:   map[string]string{},
-		}
+		b := model.NewBlock(id, value)
+		b.SourceLocale = src
 		// Mirror the property scheme the reader uses (see path.go).
 		b.Properties["xcstrings.key"] = key
 		b.Properties["xcstrings.lang"] = lang
