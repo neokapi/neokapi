@@ -90,32 +90,6 @@ func TestApply_ADryRunInAFreshProjectWritesNothing(t *testing.T) {
 	assert.NoDirExists(t, filepath.Join(root, project.StateDirName), "a dry run creates no state directory, store or lock")
 }
 
-func TestMCPApplyEdits_APreviewInAFreshProjectWritesNothing(t *testing.T) {
-	root, recipe := freshProject(t)
-	app := &App{SourceLang: "en"}
-	t.Cleanup(app.Shutdown)
-	app.InitRegistries()
-	session := editSession(t, app, "preview-agent")
-
-	var page mcpPage
-	isErr, body := callEditTool(t, session, "read_blocks", map[string]any{"doc": "docs/guide.md", "project": recipe}, &page)
-	require.False(t, isErr, body)
-	ref, rev, _ := page.blockWith(t, "every day")
-	before := fullTreeOf(t, root)
-
-	var res change.Result
-	isErr, body = callEditTool(t, session, "apply_edits", map[string]any{
-		"project": recipe, "mode": "preview",
-		"ops": []any{map[string]any{"op": "set_content", "at": ref, "if_match": rev, "text": "We use the widget each day."}},
-	}, &res)
-	require.False(t, isErr, body)
-	require.Equal(t, change.SetPreviewed, res.Status, body)
-	require.Len(t, res.Docs, 1)
-	assert.Contains(t, res.Docs[0].Diff, "+We use the widget each day.")
-	assert.Equal(t, before, fullTreeOf(t, root), "a preview leaves every file and directory of the project as it was")
-	assert.NoDirExists(t, filepath.Join(root, project.StateDirName), "a preview creates no state directory, store or lock")
-}
-
 // A project that has a store is held to what the store holds in a preview as
 // in a write: the preview refuses the edit the write would refuse, and writes
 // nothing.

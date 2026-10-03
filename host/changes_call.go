@@ -93,6 +93,43 @@ func (a *App) applyCall(ctx context.Context, svc *change.Service, recipe string,
 	return res, nil
 }
 
+// appliedWording is the wording each applied content operation wrote into a
+// document's own edition, in placeholder text, by the document as the result
+// names it, so noteAgentEdits can count the forms a suggestion prefers at the
+// document's point. A replace_text wrote only its replacements, and
+// set_content its whole text. A translation is left out: a suggestion's
+// preferred form is wording in the source language.
+func appliedWording(set change.Set, res *change.Result) map[string][]string {
+	out := map[string][]string{}
+	for i, op := range set.Ops {
+		if i >= len(res.Ops) || res.Ops[i].Status != change.OpApplied {
+			continue
+		}
+		at := res.Ops[i].At
+		if at == nil || !at.Edition.IsZero() {
+			continue
+		}
+		var texts []string
+		switch body := op.Body.(type) {
+		case *change.SetContent:
+			switch {
+			case body.Text != nil:
+				texts = append(texts, *body.Text)
+			case body.Runs != nil:
+				texts = append(texts, model.RunsEditText(body.Runs))
+			}
+		case *change.ReplaceText:
+			for _, e := range body.Edits {
+				texts = append(texts, e.Text)
+			}
+		}
+		if len(texts) > 0 {
+			out[at.Doc] = append(out[at.Doc], texts...)
+		}
+	}
+	return out
+}
+
 // editionKeys parses the editions a read names, strictly: a language that is
 // not one is refused as invalid rather than read as a key nobody holds.
 func editionKeys(names []string) ([]model.EditionKey, *change.Error) {

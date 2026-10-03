@@ -202,6 +202,14 @@ service as the change contract's entry points.
   reports it. `unknown command` therefore means the verb does not exist in kapi
   at all, never that the browser omitted it. `--help` still works on those
   verbs; their help text carries the limitation.
+- **No MCP server.** `kapi mcp` is a recorded gap, and the build leaves the
+  server out entirely: the host and cli files that import the MCP SDK are built
+  with `//go:build !js`, so neither the SDK nor a tool it would serve reaches
+  the engine. `host/mcp_js.go` and `cli/mcp_js.go` stand in for the few names
+  the rest of the build uses. `make test-wasm-stores` compiles the host's tests
+  for the browser, so a host test that drives an MCP tool sits in a file built
+  with `!js`: the `mcp_*_test.go` files, and the `*_mcp_test.go` files beside
+  the tests they belong with.
 - **Drift is a test failure.** `cli.TestBrowserCommandSurface` compares the two
   sets and fails when a verb appears in one and not the other, or when a gap's
   help metadata drifts from the command it stands in for. Adding a verb to
