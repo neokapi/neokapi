@@ -291,6 +291,65 @@ func TestRuleCheckToolNonCloneableSpanDuplicated(t *testing.T) {
 	assert.Contains(t, f.Message, "code:variable")
 }
 
+// The forms of a plural are alternatives: a code every form carries
+// appears once in what a reader sees, so a plural target made from a flat
+// source is no duplicate, while a form that repeats the code still is.
+func TestRuleCheckToolPluralFormsCountACodeOnce(t *testing.T) {
+	t.Parallel()
+	variable := func() model.Run {
+		return model.Run{Ph: &model.PlaceholderRun{
+			ID: "1", Type: "code:variable", Data: "{count}",
+			Constraints: &model.RunConstraints{Cloneable: false},
+		}}
+	}
+	text := func(s string) model.Run { return model.Run{Text: &model.TextRun{Text: s}} }
+	plural := func(one, other []model.Run) []model.Run {
+		return []model.Run{{Plural: &model.PluralRun{Pivot: "count", Forms: map[model.PluralForm][]model.Run{
+			model.PluralOne: one, model.PluralOther: other,
+		}}}}
+	}
+
+	tests := []struct {
+		name       string
+		target     []model.Run
+		duplicated bool
+	}{
+		{
+			name:   "every form carries the code once",
+			target: plural([]model.Run{variable(), text(" fichier")}, []model.Run{variable(), text(" fichiers")}),
+		},
+		{
+			name:   "one form leaves the code out",
+			target: plural([]model.Run{text("un fichier")}, []model.Run{variable(), text(" fichiers")}),
+		},
+		{
+			name:       "a form repeats the code",
+			target:     plural([]model.Run{variable(), text(" fichier")}, []model.Run{variable(), text(" fichiers sur "), variable()}),
+			duplicated: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tl := tools.NewRuleCheckTool(tools.NewRuleCheckConfig(model.LocaleFrench))
+			block := &model.Block{
+				ID:           "tu1",
+				Translatable: true,
+				Source:       []model.Run{variable(), text(" files")},
+				Properties:   make(map[string]string),
+			}
+			block.SetTargetRuns(model.LocaleFrench, tt.target)
+			result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+
+			findings := checkFindings(result.Resource.(*model.Block))
+			_, duplicated := findFinding(findings, "non-cloneable-span-duplicated")
+			assert.Equal(t, tt.duplicated, duplicated)
+			_, missing := findFinding(findings, "non-deletable-span-missing")
+			assert.False(t, missing)
+		})
+	}
+}
+
 func TestRuleCheckToolDeletableSpanMissingNoConstraintError(t *testing.T) {
 	t.Parallel()
 	cfg := tools.NewRuleCheckConfig(model.LocaleFrench)
