@@ -446,7 +446,10 @@ were not written are `not_applied`, and so are the decisions and asset
 operations, which wait for content that all landed; the record holds what did.
 A `stale` refusal carries the edition as it stands, so the sender can rebase
 without another read. A resource bound `core/safeio` reports is
-`budget_exceeded`.
+`budget_exceeded`. A change set refused before any operation is considered,
+because it does not decode or the request carrying it is refused, is answered
+with the same result shape (`change.ErrorResult`): status `refused`, no record,
+no files or operations, and the error.
 
 ## Consequences
 

@@ -345,13 +345,9 @@ func changeError(err error) (*mcp.CallToolResult, error) {
 }
 
 // changeRefusal is an error result naming the refusal, as the structured
-// result and as its text.
+// result and as its text: a kapi.change-result/v1 whose error says why.
 func changeRefusal(e *change.Error) (*mcp.CallToolResult, error) {
-	return jsonToolResult(struct {
-		Schema string        `json:"schema"`
-		Status string        `json:"status"`
-		Error  *change.Error `json:"error"`
-	}{Schema: change.ResultSchemaID, Status: string(change.SetRefused), Error: e}, true)
+	return jsonToolResult(change.ErrorResult(e), true)
 }
 
 // jsonToolResult is a tool result carrying v as its structured content and as

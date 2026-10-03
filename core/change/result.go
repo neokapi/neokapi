@@ -45,6 +45,17 @@ type Result struct {
 	Record *string     `json:"record"`
 	Docs   []DocResult `json:"docs"`
 	Ops    []OpResult  `json:"ops"`
+	// Error is why the change set was refused as a whole, before any
+	// operation was considered: it did not decode, or the request carrying it
+	// was refused. Status is then refused, and Docs and Ops are empty.
+	Error *Error `json:"error,omitempty"`
+}
+
+// ErrorResult is the result of a change set refused as a whole with e: what a
+// transport answers when the change set does not decode or the request
+// carrying it is refused, in the shape of every other result.
+func ErrorResult(e *Error) *Result {
+	return &Result{Schema: ResultSchemaID, Status: SetRefused, Docs: []DocResult{}, Ops: []OpResult{}, Error: e}
 }
 
 // DocResult is the outcome for one document.

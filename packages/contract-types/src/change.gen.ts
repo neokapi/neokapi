@@ -845,6 +845,12 @@ export interface ChangeResult {
   record: string | null;
   docs: DocResult[];
   ops: OpResult[];
+  /**
+   * Error is why the change set was refused as a whole, before any operation
+   * was considered: it did not decode, or the request carrying it was refused.
+   * Status is then refused, and Docs and Ops are empty.
+   */
+  error?: ChangeError;
 }
 
 /**

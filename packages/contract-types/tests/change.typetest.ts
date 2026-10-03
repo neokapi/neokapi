@@ -164,6 +164,23 @@ export function rebase(op: OpResult, page: ReadPage): ChangeOp | undefined {
   return { op: "set_content", at: read.ref, if_match: op.current.rev, text: op.current.text ?? "" };
 }
 
+// A change set refused as a whole (it did not decode) is a result like any
+// other, so one parse covers every answer: its error says why, and its docs
+// and ops are empty.
+export const refusedWhole: ChangeResult = {
+  schema: CHANGE_RESULT_SCHEMA_ID,
+  status: "refused",
+  record: null,
+  docs: [],
+  ops: [],
+  error: { code: "invalid", pointer: "/ops/0/wording", message: 'unknown field "wording"' },
+};
+
+// Why a result was refused: the set's error, else the first refused operation's.
+export function refusal(r: ChangeResult): ChangeErrorCode | undefined {
+  return r.error?.code ?? r.ops.find((op) => op.status === "refused")?.error?.code;
+}
+
 // Every operation status is handled, and a new one would fail this switch.
 export function settled(status: ChangeOpStatus): boolean {
   switch (status) {
