@@ -142,8 +142,8 @@ func translateRoundtripWithSkeleton(t *testing.T, input string) string {
 			continue
 		}
 		b := p.Resource.(*model.Block)
-		runs := make([]model.Run, 0, len(b.Source))
-		for _, r := range b.Source {
+		runs := make([]model.Run, 0, len(b.SourceRuns()))
+		for _, r := range b.SourceRuns() {
 			if r.Text != nil {
 				runs = append(runs, model.Run{Text: &model.TextRun{Text: "X" + r.Text.Text}})
 			} else {
