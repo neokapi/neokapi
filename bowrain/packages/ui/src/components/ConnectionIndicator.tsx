@@ -6,6 +6,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { FailedChange, FailedEdit } from "../types/api";
 import { Loader2, RefreshCw, WifiOff, X } from "./icons";
 
@@ -157,7 +158,7 @@ function FailedChangeRow({ change, onDismiss }: { change: FailedChange; onDismis
             size="sm"
             className="h-5 w-5 shrink-0 p-0"
             onClick={onDismiss}
-            aria-label="Dismiss"
+            aria-label={t("Dismiss")}
             data-testid={`failed-change-dismiss-${change.id}`}
           >
             <X className="size-3" />
@@ -185,7 +186,9 @@ function FailedChangeRow({ change, onDismiss }: { change: FailedChange; onDismis
       ))}
       <p className="text-xs text-muted-foreground" data-testid="failed-change-reason">
         {change.status === "dropped"
-          ? "Queued by an earlier version of Bowrain, which this version does not send. Make the change again."
+          ? t(
+              "Queued by an earlier version of Bowrain, which this version does not send. Make the change again.",
+            )
           : change.reason}
       </p>
     </li>
@@ -199,22 +202,22 @@ function editLabel(e: FailedEdit): string {
     case "replace_text":
       return e.locale ? "Translation" : "Source edit";
     case "remove_edition":
-      return "Translation removed";
+      return t("Translation removed");
     case "decide":
       switch (e.outcome) {
         case "establish":
-          return "Approval";
+          return t("Approval");
         case "reject":
-          return "Rejection";
+          return t("Rejection");
         default:
-          return "Review decision";
+          return t("Review decision");
       }
     case "annotate":
       return e.type === "entity" ? "Entity mark" : "Note";
     case "unannotate":
       return e.type === "entity" ? "Entity mark removed" : "Note removed";
     default:
-      return "Content change";
+      return t("Content change");
   }
 }
 
@@ -222,26 +225,26 @@ function editLabel(e: FailedEdit): string {
 function operationLabel(operation: string): string {
   switch (operation) {
     case "add_tm_entry":
-      return "Content memory entry added";
+      return t("Content memory entry added");
     case "update_tm_entry":
-      return "Content memory entry changed";
+      return t("Content memory entry changed");
     case "delete_tm_entry":
-      return "Content memory entry removed";
+      return t("Content memory entry removed");
     case "add_concept":
-      return "Term added";
+      return t("Term added");
     case "update_concept":
-      return "Term changed";
+      return t("Term changed");
     case "delete_concept":
-      return "Term removed";
+      return t("Term removed");
     case "add_items":
-      return "Files uploaded";
+      return t("Files uploaded");
     case "remove_item":
-      return "File removed";
+      return t("File removed");
     case "pseudo_translate_item":
-      return "Pseudo-translation";
+      return t("Pseudo-translation");
     case "tm_translate_item":
-      return "Translation from content memory";
+      return t("Translation from content memory");
     default:
-      return "Change";
+      return t("Change");
   }
 }
