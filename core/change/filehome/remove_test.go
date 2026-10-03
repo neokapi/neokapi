@@ -111,7 +111,7 @@ func TestFileHome_RefusesARemovalTheFormatCannotWrite(t *testing.T) {
 	require.NotNil(t, res.Ops[0].Error)
 	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
 	assert.Equal(t, string(change.KindRemoveEdition), res.Ops[0].Error.Capability)
-	assert.Contains(t, res.Ops[0].Error.Message, "file of its own")
+	assert.Contains(t, res.Ops[0].Error.Message, "the markdown writer takes no block out of a file")
 	assert.Contains(t, res.Ops[0].Error.Message, "set_content")
 	assert.Equal(t, "# Anleitung\n\nLies das zuerst.\n", f.read(t, "de/guide.md"), "the refusal writes nothing")
 }
