@@ -42,6 +42,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/workspace"
@@ -321,7 +322,7 @@ func (a *App) RecordContextObservation(ctx context.Context, req ContextObserveRe
 	if err != nil {
 		return ContextOperation{}, err
 	}
-	if err := observedInFiles(s.root, subject, req.Evidence); err != nil {
+	if err := s.observedInFiles(ctx, subject, req.Evidence); err != nil {
 		return ContextOperation{}, err
 	}
 	if subject.Term != nil {
@@ -394,49 +395,112 @@ func describesTerm(term, form string) bool {
 	return t != "" && strings.Contains(f, t) && len(strings.Fields(f))-len(strings.Fields(t)) >= 2
 }
 
-// maxObservedFile bounds the size of a file an observation's evidence is
-// looked for in.
+// maxObservedFile bounds the size of a file whose bytes an observation's
+// evidence is looked for in.
 const maxObservedFile = 8 << 20
 
 // observedInFiles refuses a term observation whose evidence names a file of
-// the project that holds neither the term nor a form it avoids: what the
-// observation says was seen there is not there. A file that cannot be read,
-// or that lies outside the project, is passed over.
-func observedInFiles(root string, subject contextop.Subject, evidence []contextop.Evidence) error {
-	if subject.Kind != contextop.SubjectTerm || subject.Term == nil || root == "" {
+// the project in which neither the term nor a form it avoids can be seen:
+// what the observation says was seen there is not there.
+//
+// A file holds a form when its bytes do, or when the text of its blocks does
+// as a read shows it, so a term in a compressed format, spelled with a
+// character reference or an escape, or split by an inline code counts. Case
+// and runs of white space are ignored, so a term a writer wrapped across two
+// lines counts too. A file no reader opens, or that lies outside the project,
+// is passed over.
+func (s *contextOpsSession) observedInFiles(ctx context.Context, subject contextop.Subject, evidence []contextop.Evidence) error {
+	if subject.Kind != contextop.SubjectTerm || subject.Term == nil || s.root == "" {
 		return nil
 	}
-	forms := append([]string{subject.Term.Replacement, subject.Term.Term}, subject.Term.Forms...)
+	var forms []string
+	for _, f := range append([]string{subject.Term.Replacement, subject.Term.Term}, subject.Term.Forms...) {
+		if f = foldedText(f); f != "" {
+			forms = append(forms, f)
+		}
+	}
+	if len(forms) == 0 {
+		return nil
+	}
 	for _, e := range evidence {
 		if e.Path == "" || filepath.IsAbs(e.Path) {
 			continue
 		}
-		path := filepath.Join(root, filepath.FromSlash(e.Path))
-		if rel, err := filepath.Rel(root, path); err != nil || strings.HasPrefix(rel, "..") {
+		path := filepath.Join(s.root, filepath.FromSlash(e.Path))
+		rel, err := filepath.Rel(s.root, path)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			continue
 		}
 		info, err := os.Stat(path)
-		if err != nil || info.IsDir() || info.Size() > maxObservedFile {
+		if err != nil || info.IsDir() {
 			continue
 		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		body := strings.ToLower(string(data))
-		found := false
-		for _, f := range forms {
-			if f != "" && strings.Contains(body, strings.ToLower(f)) {
-				found = true
-				break
+		if info.Size() <= maxObservedFile {
+			if data, err := os.ReadFile(path); err == nil && holdsAnyForm(string(data), forms) {
+				continue
 			}
 		}
-		if !found {
-			return fmt.Errorf("%s holds neither %q nor a form it avoids, so the observation was not seen there: "+
-				"name the file you saw it in, or record what you know in text", e.Path, subject.Term.Replacement)
+		seen, read := s.blocksHoldForm(ctx, filepath.ToSlash(rel), forms)
+		if !read || seen {
+			continue
 		}
+		return fmt.Errorf("%s holds neither %q nor a form it avoids, so the observation was not seen there: "+
+			"name the file you saw it in, or record what you know in text", e.Path, subject.Term.Replacement)
 	}
 	return nil
+}
+
+// blocksHoldForm reports whether the text of a block of the project's file at
+// rel, an edition the file holds or a branch of a plural or select, holds one
+// of forms, which are folded (foldedText). read is false when no reader opens
+// the file.
+func (s *contextOpsSession) blocksHoldForm(ctx context.Context, rel string, forms []string) (seen, read bool) {
+	svc, err := s.app.ChangeService(ctx, ChangeServiceOptions{Project: s.recipe, Origin: "context"})
+	if err != nil {
+		return false, false
+	}
+	holds := func(text string) bool {
+		// An inline code has no width in a find, and a writer may also have
+		// put one between two words, as a line break.
+		return holdsAnyForm(placeholderTokenRe.ReplaceAllString(text, ""), forms) ||
+			holdsAnyForm(placeholderTokenRe.ReplaceAllString(text, " "), forms)
+	}
+	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: rel, OwnEdition: true}, func(_ *model.Block, b change.BlockRead) error {
+		texts := []string{b.Text}
+		for _, ed := range b.Editions {
+			texts = append(texts, ed.Text)
+		}
+		for _, st := range b.Structures {
+			for _, branch := range st.Branches {
+				texts = append(texts, branch)
+			}
+		}
+		if slices.ContainsFunc(texts, holds) {
+			seen = true
+			return change.ErrStop
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, change.ErrStop) {
+		return false, false
+	}
+	return seen, true
+}
+
+// placeholderTokenRe matches an inline code's token in placeholder text.
+var placeholderTokenRe = regexp.MustCompile(`<x id="[^"]*"/>`)
+
+// foldedText is text with its case folded and each run of white space a
+// single space, for a comparison that ignores both.
+func foldedText(text string) string {
+	return strings.Join(strings.Fields(strings.ToLower(text)), " ")
+}
+
+// holdsAnyForm reports whether text, folded, holds one of forms, which are
+// folded already.
+func holdsAnyForm(text string, forms []string) bool {
+	body := foldedText(text)
+	return slices.ContainsFunc(forms, func(f string) bool { return strings.Contains(body, f) })
 }
 
 // maxContradictionPages bounds how much of a file entriesContradict reads.
