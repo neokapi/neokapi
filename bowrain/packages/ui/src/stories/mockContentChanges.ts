@@ -185,7 +185,10 @@ export function applyMockChanges(store: MockChangeStore, set: ContentChangeSet):
         result.before = mockRevision(block, locale);
         const coded = runs !== undefined ? safeCoded(runs as Run[]) : text;
         if (runs !== undefined) {
-          block.targets_runs = { ...block.targets_runs, [locale]: runs };
+          // The runs a change carries are the served runs without native code
+          // data, which a mock block does without.
+          const served = runs as unknown as NonNullable<BlockInfo["targets_runs"]>[string];
+          block.targets_runs = { ...block.targets_runs, [locale]: served };
         } else if (block.targets_runs?.[locale]) {
           const { [locale]: _gone, ...rest } = block.targets_runs;
           block.targets_runs = rest;
