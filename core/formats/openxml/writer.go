@@ -4871,7 +4871,7 @@ func dmlSourceContent(block *model.Block, content string) (string, bool) {
 	if src == "" {
 		return "", false
 	}
-	if !sourceRunsAsRead(block) || content != renderDMLRuns(block.Source) {
+	if !sourceRunsAsRead(block) || content != renderDMLRuns(format.AuthoritativeRuns(block)) {
 		return "", false
 	}
 	return src, true
@@ -5220,7 +5220,7 @@ func smlSourceContent(block *model.Block, content, phonetic string) (string, boo
 	if src == "" || !sourceRunsAsRead(block) {
 		return "", false
 	}
-	if content != renderSMLRichText(block.Source)+phonetic {
+	if content != renderSMLRichText(format.AuthoritativeRuns(block))+phonetic {
 		return "", false
 	}
 	return src, true
@@ -5369,22 +5369,17 @@ func smlTextElement(text string) string {
 const xmlWhitespace = " \t\r\n"
 
 // preferredRuns returns the target runs for the writer's locale when
-// present, falling back to the source runs. Returns nil if neither is
-// available, matching the earlier getFragment contract.
+// present and the writer is not writing from source, falling back to the
+// runs of the authoritative edition. Returns nil if neither is available,
+// matching the earlier getFragment contract.
 func (w *Writer) preferredRuns(block *model.Block) []model.Run {
-	if w.fromSource {
-		if len(block.Source) > 0 {
-			return block.Source
-		}
-		return nil
-	}
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+	if !w.fromSource && !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		if runs := block.TargetRuns(w.Locale); len(runs) > 0 {
 			return runs
 		}
 	}
-	if len(block.Source) > 0 {
-		return block.Source
+	if source := format.AuthoritativeRuns(block); len(source) > 0 {
+		return source
 	}
 	return nil
 }
@@ -5421,7 +5416,7 @@ func hostsOfMarkedBlocks(blocks map[string]*model.Block, marked map[string]bool)
 			if marked[id] || b == nil {
 				continue
 			}
-			for _, r := range b.Source {
+			for _, r := range format.AuthoritativeRuns(b) {
 				if r.Ph == nil || !strings.Contains(r.Ph.Data, "<!--KAPI-") {
 					continue
 				}

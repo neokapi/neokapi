@@ -872,10 +872,10 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 							blk.Translatable = false
 							blk.Type = "math"
 							blk.SetSemanticRole(model.RoleFormula, 0)
-							blk.Source = []model.Run{{Ph: &model.PlaceholderRun{
+							blk.SetSourceRuns([]model.Run{{Ph: &model.PlaceholderRun{
 								ID: "c1", Type: TypeOpaqueParaChild, SubType: SubTypeOMath,
 								Data: r.data, Equiv: equiv, Disp: disp,
-							}}}
+							}}})
 							emitBlock(blk)
 						}
 						// The same treatment for a paragraph whose only content
@@ -906,10 +906,10 @@ func (p *wmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 							blk.Translatable = false
 							blk.Type = "picture"
 							blk.SetSemanticRole(model.RolePicture, 0)
-							blk.Source = []model.Run{{Ph: &model.PlaceholderRun{
+							blk.SetSourceRuns([]model.Run{{Ph: &model.PlaceholderRun{
 								ID: "c1", Type: TypeImage, SubType: SubTypeImage,
 								Data: r.data, Attrs: attrs,
-							}}}
+							}}})
 							emitBlock(blk)
 						}
 					}

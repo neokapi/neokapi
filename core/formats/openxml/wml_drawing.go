@@ -698,20 +698,14 @@ func (p *wmlParser) emitDrawingPropMarker(
 		p.drawingPropText = map[string]string{}
 	}
 	p.drawingPropText[refID] = value
-	block := &model.Block{
-		ID: refID,
-		// The drawing's own address plus the attribute the text came from, so
-		// a shape's name, its alt text and its title are three addresses.
-		Name:         p.path.name(p.path.reserve("drawing"), "@"+element),
-		Type:         "property",
-		Translatable: translatable,
-		Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties: map[string]string{
-			"partPath": partPath,
-			"element":  element,
-		},
-	}
+	block := model.NewRunsBlock(refID, []model.Run{{Text: &model.TextRun{Text: value}}})
+	// The drawing's own address plus the attribute the text came from, so
+	// a shape's name, its alt text and its title are three addresses.
+	block.Name = p.path.name(p.path.reserve("drawing"), "@"+element)
+	block.Type = "property"
+	block.Translatable = translatable
+	block.Properties["partPath"] = partPath
+	block.Properties["element"] = element
 	if !translatable {
 		// Alt text / object title: descriptive prose for an image or shape.
 		// RoleCaption is the closest canonical role; it lets semantic export
@@ -744,17 +738,11 @@ func (p *wmlParser) writeStartElementWithTranslatableAttrTo(
 			out.WriteString(refID)
 			out.WriteString(drawingMarkerSuffix)
 			emittedRef = true
-			emitBlock(&model.Block{
-				ID:           refID,
-				Type:         "property",
-				Translatable: true,
-				Source:       []model.Run{{Text: &model.TextRun{Text: a.Value}}},
-				Targets:      make(map[model.VariantKey]*model.Target),
-				Properties: map[string]string{
-					"partPath": partPath,
-					"element":  blockElementTag,
-				},
-			})
+			block := model.NewRunsBlock(refID, []model.Run{{Text: &model.TextRun{Text: a.Value}}})
+			block.Type = "property"
+			block.Properties["partPath"] = partPath
+			block.Properties["element"] = blockElementTag
+			emitBlock(block)
 		} else {
 			out.WriteString(xmlesc.Attr(a.Value))
 		}
@@ -813,18 +801,12 @@ func (p *wmlParser) extractBareTextElement(
 					out.WriteString(refID)
 					out.WriteString(drawingMarkerSuffix)
 					p.path.ensurePart(partPath)
-					emitBlock(&model.Block{
-						ID:           refID,
-						Name:         p.path.name(p.path.reserve("alt-content-text")),
-						Type:         "property",
-						Translatable: true,
-						Source:       []model.Run{{Text: &model.TextRun{Text: text.String()}}},
-						Targets:      make(map[model.VariantKey]*model.Target),
-						Properties: map[string]string{
-							"partPath": partPath,
-							"element":  "alt-content-text",
-						},
-					})
+					block := model.NewRunsBlock(refID, []model.Run{{Text: &model.TextRun{Text: text.String()}}})
+					block.Name = p.path.name(p.path.reserve("alt-content-text"))
+					block.Type = "property"
+					block.Properties["partPath"] = partPath
+					block.Properties["element"] = "alt-content-text"
+					emitBlock(block)
 				}
 				writeRawEndElementTo(out, tt)
 				return nil

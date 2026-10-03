@@ -120,7 +120,7 @@ func TestDMLRunProperties_ModelCarriesNamedAndOpaqueCodes(t *testing.T) {
 	require.Len(t, blocks, 1)
 
 	var opaque, bold int
-	for _, r := range blocks[0].Source {
+	for _, r := range blocks[0].SourceRuns() {
 		if r.PcOpen == nil {
 			continue
 		}
@@ -224,7 +224,7 @@ func TestDMLParagraph_FieldSurvivesBesideText(t *testing.T) {
 	blocks := dmlBlocks(t, dmlDeck(t, slide))
 	require.Len(t, blocks, 1)
 	var fields int
-	for _, r := range blocks[0].Source {
+	for _, r := range blocks[0].SourceRuns() {
 		if r.Ph != nil && r.Ph.Type == TypeOpaqueParaChild {
 			fields++
 			assert.Equal(t, SubTypeDMLField, r.Ph.SubType)

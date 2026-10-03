@@ -888,7 +888,7 @@ func TestFontMappingMergesRuns(t *testing.T) {
 	text := blocks[0].SourceText()
 	assert.Equal(t, "Hello World", text)
 	// Should have no spans since the merged font is "other" property, not a formatting span
-	assert.False(t, model.RunsHaveInlineCodes(blocks[0].Source))
+	assert.False(t, model.RunsHaveInlineCodes(blocks[0].SourceRuns()))
 }
 
 // --- Code finder tests ---
@@ -908,7 +908,7 @@ func TestCodeFinderBasic(t *testing.T) {
 
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	assert.True(t, model.RunsHaveInlineCodes(blocks[0].Source), "should have code finder inline-code runs")
+	assert.True(t, model.RunsHaveInlineCodes(blocks[0].SourceRuns()), "should have code finder inline-code runs")
 }
 
 func TestCodeFinderDisabled(t *testing.T) {
@@ -925,7 +925,7 @@ func TestCodeFinderDisabled(t *testing.T) {
 
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	assert.False(t, model.RunsHaveInlineCodes(blocks[0].Source), "no spans when code finder disabled")
+	assert.False(t, model.RunsHaveInlineCodes(blocks[0].SourceRuns()), "no spans when code finder disabled")
 }
 
 // --- Extract run fonts info tests ---
@@ -1273,7 +1273,7 @@ func TestExtractDrawingTranslations_BareTInChoice(t *testing.T) {
 	require.Len(t, emitted, 1)
 	assert.Equal(t, "property", emitted[0].Type)
 	assert.Equal(t, "alt-content-text", emitted[0].Properties["element"])
-	srcRuns := emitted[0].Source
+	srcRuns := emitted[0].SourceRuns()
 	require.Len(t, srcRuns, 1)
 	require.NotNil(t, srcRuns[0].Text)
 	// Decoder applies entity decoding once on read.
@@ -1330,7 +1330,7 @@ func TestParseParagraph_BookmarkPreserved(t *testing.T) {
 	cfg.Reset()
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	runs := blocks[0].Source
+	runs := blocks[0].SourceRuns()
 	// Expected: bookmarkStart placeholder, "hello" text, bookmarkEnd placeholder.
 	require.Len(t, runs, 3, "expect bookmarkStart + text + bookmarkEnd runs")
 
@@ -1375,7 +1375,7 @@ func TestParseParagraph_GoBackBookmarkSkipped(t *testing.T) {
 	cfg.Reset()
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	runs := blocks[0].Source
+	runs := blocks[0].SourceRuns()
 	// Expected: just the text run, both _GoBack markers dropped.
 	require.Len(t, runs, 1, "expect _GoBack start AND end to be skipped")
 	require.NotNil(t, runs[0].Text)
@@ -1408,7 +1408,7 @@ func TestParseParagraph_BookmarkSpanningParagraphs(t *testing.T) {
 	require.Len(t, blocks, 2)
 
 	// Paragraph 1: bookmarkStart + "first".
-	runs1 := blocks[0].Source
+	runs1 := blocks[0].SourceRuns()
 	require.Len(t, runs1, 2)
 	require.NotNil(t, runs1[0].Ph)
 	assert.Equal(t, SubTypeBookmarkStart, runs1[0].Ph.SubType)
@@ -1417,7 +1417,7 @@ func TestParseParagraph_BookmarkSpanningParagraphs(t *testing.T) {
 	assert.Equal(t, "first", runs1[1].Text.Text)
 
 	// Paragraph 2: "second" + bookmarkEnd.
-	runs2 := blocks[1].Source
+	runs2 := blocks[1].SourceRuns()
 	require.Len(t, runs2, 2)
 	require.NotNil(t, runs2[0].Text)
 	assert.Equal(t, "second", runs2[0].Text.Text)
@@ -1460,7 +1460,7 @@ func TestRowDeletionAutoAccept(t *testing.T) {
 
 	// Only the kept row's text becomes a block.
 	require.Len(t, blocks, 1, "deleted row's content must not produce a block")
-	runs := blocks[0].Source
+	runs := blocks[0].SourceRuns()
 	require.Len(t, runs, 1)
 	require.NotNil(t, runs[0].Text)
 	assert.Equal(t, "kept", runs[0].Text.Text)
@@ -1549,7 +1549,7 @@ func TestRowDeletionDisabledWhenAcceptRevisionsFalse(t *testing.T) {
 	// With auto-accept disabled, the row is kept and its text
 	// extracted as a normal block.
 	require.Len(t, blocks, 1)
-	runs := blocks[0].Source
+	runs := blocks[0].SourceRuns()
 	require.Len(t, runs, 1)
 	require.NotNil(t, runs[0].Text)
 	assert.Equal(t, "deleted", runs[0].Text.Text)
@@ -1576,7 +1576,7 @@ func TestRowInsertionMarkerKeepsRow(t *testing.T) {
 	blocks := parseDocXML(t, docXML, cfg)
 
 	require.Len(t, blocks, 1, "row insertion must keep the row")
-	runs := blocks[0].Source
+	runs := blocks[0].SourceRuns()
 	require.Len(t, runs, 1)
 	require.NotNil(t, runs[0].Text)
 	assert.Equal(t, "inserted", runs[0].Text.Text)
@@ -1613,7 +1613,7 @@ func TestNestedTableRowDeletion(t *testing.T) {
 	blocks := parseDocXML(t, docXML, cfg)
 
 	require.Len(t, blocks, 1, "nested-deleted row's content must not emit a block")
-	runs := blocks[0].Source
+	runs := blocks[0].SourceRuns()
 	require.Len(t, runs, 1)
 	require.NotNil(t, runs[0].Text)
 	assert.Equal(t, "nested-kept", runs[0].Text.Text)
@@ -1658,7 +1658,7 @@ func TestMoveFromRowAutoAccept(t *testing.T) {
 	// Only the kept row's text becomes a block — moveFrom-row's
 	// translatable content is dropped.
 	require.Len(t, blocks, 1, "moveFrom row's content must not produce a block")
-	runs := blocks[0].Source
+	runs := blocks[0].SourceRuns()
 	require.Len(t, runs, 1)
 	require.NotNil(t, runs[0].Text)
 	assert.Equal(t, "kept", runs[0].Text.Text)
@@ -1692,8 +1692,8 @@ func TestMoveFromRowEmptyTableDropped(t *testing.T) {
 	blocks := parseDocXML(t, docXML, cfg)
 
 	require.Len(t, blocks, 2, "empty-after-moveFrom table must not emit blocks")
-	assert.Equal(t, "before", blocks[0].Source[0].Text.Text)
-	assert.Equal(t, "after", blocks[1].Source[0].Text.Text)
+	assert.Equal(t, "before", blocks[0].SourceRuns()[0].Text.Text)
+	assert.Equal(t, "after", blocks[1].SourceRuns()[0].Text.Text)
 }
 
 // TestMoveFromRowDetectorAttributeForms verifies the row-body detector
@@ -1784,8 +1784,8 @@ func TestInsContentRunExtraction(t *testing.T) {
 	blocks := parseDocXML(t, docXML, cfg)
 
 	require.Len(t, blocks, 1, "single paragraph must emit one block")
-	require.Len(t, blocks[0].Source, 1)
-	runs := blocks[0].Source
+	require.Len(t, blocks[0].SourceRuns(), 1)
+	runs := blocks[0].SourceRuns()
 	// Collect all TextRun strings in source order.
 	var texts []string
 	for _, r := range runs {

@@ -99,7 +99,7 @@ func TestSMLRichText_ModelRunsCarryNamedAndOpaqueCodes(t *testing.T) {
 
 	var opaque, bold int
 	var opaqueData string
-	for _, r := range blocks[0].Source {
+	for _, r := range blocks[0].SourceRuns() {
 		if r.PcOpen == nil {
 			continue
 		}
@@ -115,7 +115,7 @@ func TestSMLRichText_ModelRunsCarryNamedAndOpaqueCodes(t *testing.T) {
 	assert.Equal(t, 1, bold, "only the middle run is bold")
 	assert.Contains(t, opaqueData, `<sz val="12"/>`, "the opaque code carries the source bytes")
 	assert.NotContains(t, opaqueData, "<b/>", "the named formatting is not duplicated in the opaque code")
-	for _, r := range blocks[0].Source {
+	for _, r := range blocks[0].SourceRuns() {
 		if r.PcOpen != nil {
 			assert.Empty(t, r.PcOpen.Data,
 				"the source bytes travel on AttrSMLRPr, not on Data, so no other format replays them")
@@ -130,7 +130,7 @@ func TestSMLRichText_PairedCodesBalance(t *testing.T) {
 	blocks := readSharedStringBlocks(t, richTextWorkbook(t))
 	require.NotEmpty(t, blocks)
 	var open []string
-	for _, r := range blocks[0].Source {
+	for _, r := range blocks[0].SourceRuns() {
 		switch {
 		case r.PcOpen != nil:
 			open = append(open, r.PcOpen.ID)
@@ -241,7 +241,7 @@ func skeletonWriteBackRuns(t *testing.T, original []byte, locale model.LocaleID,
 
 	for _, b := range testutil.FilterBlocks(parts) {
 		if b.Translatable {
-			b.SetTargetRuns(locale, translate(b.Source))
+			b.SetTargetRuns(locale, translate(b.SourceRuns()))
 		}
 	}
 

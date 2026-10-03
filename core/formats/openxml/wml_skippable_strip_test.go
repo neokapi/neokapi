@@ -173,8 +173,8 @@ func translateKeepingCodes(t *testing.T, original []byte, uri string) []byte {
 		if !ok || !b.Translatable {
 			continue
 		}
-		runs := make([]model.Run, len(b.Source))
-		for i, r := range b.Source {
+		runs := make([]model.Run, len(b.SourceRuns()))
+		for i, r := range b.SourceRuns() {
 			if r.Text != nil {
 				text := *r.Text
 				text.Text = "[" + text.Text + "]"

@@ -60,7 +60,7 @@ func TestParagraphReplay_UntranslatedParagraphGoesBackByteForByte(t *testing.T) 
 
 func TestParagraphReplay_TargetEqualToSourceStillReplays(t *testing.T) {
 	pkg := replayDocx(t, replaySourceParagraph)
-	out := writeBackWithTargets(t, pkg, "replay.docx", func(b *model.Block) []model.Run { return b.Source })
+	out := writeBackWithTargets(t, pkg, "replay.docx", func(b *model.Block) []model.Run { return b.SourceRuns() })
 	got := string(zipPartBytes(t, out, "word/document.xml"))
 	assert.Contains(t, got, replaySourceParagraph, "a target that says what the source said, codes included, replays")
 

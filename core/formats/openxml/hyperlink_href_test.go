@@ -70,12 +70,12 @@ func readRuns(t *testing.T, data []byte) []model.Run {
 			continue
 		}
 		b, ok := pr.Part.Resource.(*model.Block)
-		if !ok || len(b.Source) == 0 {
+		if !ok || len(b.SourceRuns()) == 0 {
 			continue
 		}
-		for _, run := range b.Source {
+		for _, run := range b.SourceRuns() {
 			if run.PcOpen != nil && run.PcOpen.Type == TypeHyperlink {
-				return b.Source
+				return b.SourceRuns()
 			}
 		}
 	}

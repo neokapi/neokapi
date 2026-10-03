@@ -72,7 +72,7 @@ func TestWorksheetValueCellsCarryTheirDisplay(t *testing.T) {
 	for _, c := range cases {
 		b := cells[c.ref]
 		require.NotNil(t, b, "cell %s should be surfaced", c.ref)
-		assert.Equal(t, c.stored, model.RunsText(b.Source), "%s keeps the stored value", c.ref)
+		assert.Equal(t, c.stored, model.RunsText(b.SourceRuns()), "%s keeps the stored value", c.ref)
 		assert.Equal(t, c.display, b.Properties[model.PropCellDisplay], "%s display", c.ref)
 		assert.Equal(t, c.format, b.Properties[model.PropCellFormat], "%s format", c.ref)
 		assert.False(t, b.Translatable, "%s is a value cell", c.ref)
@@ -88,14 +88,14 @@ func TestWorksheetValueCellsCarryTheirDisplay(t *testing.T) {
 		assert.False(t, has, "%s is a text cell and carries no display", ref)
 	}
 	assert.True(t, cells["F3"].Translatable)
-	assert.Equal(t, "hello", model.RunsText(cells["F3"].Source))
+	assert.Equal(t, "hello", model.RunsText(cells["F3"].SourceRuns()))
 }
 
 func TestWorksheetDisplayFollowsTheDate1904System(t *testing.T) {
 	cells := sheetCells(readXLSXBytes(t, testutil.XLSXNumberFormats(t, true)))
 	assert.Equal(t, "01-02-25", cells["A2"].Properties[model.PropCellDisplay], "serial 44197 from 1904-01-01")
 	assert.Equal(t, "1904-03-01", cells["A3"].Properties[model.PropCellDisplay], "serial 60 is a real day in the 1904 system")
-	assert.Equal(t, "44197", model.RunsText(cells["A2"].Source))
+	assert.Equal(t, "44197", model.RunsText(cells["A2"].SourceRuns()))
 }
 
 // zipPart returns one entry of a zip package.
@@ -169,7 +169,7 @@ func TestFixtureValueCellsDisplayAsGeneral(t *testing.T) {
 		}
 		valueCells++
 		assert.Equal(t, "General", b.Properties[model.PropCellFormat], "cell %s", b.Properties["cell"])
-		assert.Equal(t, model.RunsText(b.Source), b.Properties[model.PropCellDisplay], "cell %s", b.Properties["cell"])
+		assert.Equal(t, model.RunsText(b.SourceRuns()), b.Properties[model.PropCellDisplay], "cell %s", b.Properties["cell"])
 	}
 	require.Greater(t, valueCells, 20, "the fixture holds a column of years and two of numbers")
 
@@ -189,6 +189,6 @@ func TestWorksheetWithoutStylesDisplaysGeneral(t *testing.T) {
 	require.NotNil(t, cells["A1"])
 	assert.Equal(t, "0.3", cells["A1"].Properties[model.PropCellDisplay])
 	assert.Equal(t, "General", cells["A1"].Properties[model.PropCellFormat])
-	assert.Equal(t, "0.30000000000000004", model.RunsText(cells["A1"].Source))
+	assert.Equal(t, "0.30000000000000004", model.RunsText(cells["A1"].SourceRuns()))
 	assert.Equal(t, "TRUE", cells["B1"].Properties[model.PropCellDisplay])
 }

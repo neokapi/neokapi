@@ -27,10 +27,10 @@ func TestSourceFingerprint_TellsAnEditedSourceFromTheOneRead(t *testing.T) {
 	stampSourceFingerprint(b)
 	assert.True(t, sourceRunsAsRead(b))
 
-	b.Source = []model.Run{{Text: &model.TextRun{Text: "Hallo"}}}
+	b.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: "Hallo"}}})
 	assert.False(t, sourceRunsAsRead(b), "an edit to the source runs is seen")
 
-	b.Source = []model.Run{{Text: &model.TextRun{Text: "Hello"}}}
+	b.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: "Hello"}}})
 	assert.True(t, sourceRunsAsRead(b), "runs that say what was read match again")
 
 	assert.False(t, sourceRunsAsRead(nil))
@@ -74,8 +74,8 @@ func editSourceInPlace(t *testing.T, original []byte, uri string, edit func(*mod
 // replaceInSource rewrites every text run of a block's source in place.
 func replaceInSource(from, to string) func(*model.Block) {
 	return func(b *model.Block) {
-		runs := make([]model.Run, len(b.Source))
-		for i, r := range b.Source {
+		runs := make([]model.Run, len(b.SourceRuns()))
+		for i, r := range b.SourceRuns() {
 			if r.Text != nil {
 				text := *r.Text
 				text.Text = strings.ReplaceAll(text.Text, from, to)
@@ -83,7 +83,7 @@ func replaceInSource(from, to string) func(*model.Block) {
 			}
 			runs[i] = r
 		}
-		b.Source = runs
+		b.SetSourceRuns(runs)
 	}
 }
 

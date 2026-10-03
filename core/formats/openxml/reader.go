@@ -732,20 +732,13 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 					p.skelRef(blockID)
 					p.skelWriteEndElement(d)
 
-					block := &model.Block{
-						ID: blockID,
-						// A core property is named by its element — dc:title,
-						// cp:keywords — which is the key the format gives it.
-						Name:         model.StructuralPath(append(strings.Split(partPath, "/"), currentElement)...),
-						Type:         "property",
-						Translatable: true,
-						Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
-						Targets:      make(map[model.VariantKey]*model.Target),
-						Properties: map[string]string{
-							"partPath": partPath,
-							"element":  currentElement,
-						},
-					}
+					block := model.NewRunsBlock(blockID, []model.Run{{Text: &model.TextRun{Text: text}}})
+					// A core property is named by its element — dc:title,
+					// cp:keywords — which is the key the format gives it.
+					block.Name = model.StructuralPath(append(strings.Split(partPath, "/"), currentElement)...)
+					block.Type = "property"
+					block.Properties["partPath"] = partPath
+					block.Properties["element"] = currentElement
 					emitBlock(block)
 				} else {
 					// Nothing was extracted, so the element goes back as

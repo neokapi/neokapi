@@ -1290,7 +1290,7 @@ func TestNative_DocxSegmentIDs(t *testing.T) {
 	require.NotEmpty(t, blocks)
 
 	for _, b := range blocks {
-		require.NotEmpty(t, b.Source, "block should have source content")
+		require.NotEmpty(t, b.SourceRuns(), "block should have source content")
 	}
 }
 
