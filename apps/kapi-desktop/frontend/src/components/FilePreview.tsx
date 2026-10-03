@@ -236,9 +236,11 @@ export function FilePreview({
       unitStates={unitStates}
       highlights={highlights}
       focusNote={
-        <>
-          {focusNote}
-          {canEdit && !editing && (
+        // The focus row draws only when there is something to say in it, so a
+        // file opened whole keeps the sheet it had.
+        canEdit && !editing ? (
+          <>
+            {focusNote}
             <Button
               variant="outline"
               size="xs"
@@ -248,8 +250,10 @@ export function FilePreview({
               <PenLine size={12} />
               {t("Edit")}
             </Button>
-          )}
-        </>
+          </>
+        ) : (
+          focusNote
+        )
       }
       backLabel={backLabel}
       actions={

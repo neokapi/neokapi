@@ -179,6 +179,21 @@ describe("FilePreview editing a unit", () => {
     });
   });
 
+  it("offers no edit, and draws no focus row, for a file opened whole", () => {
+    render(
+      <FilePreview
+        tabID="tab-1"
+        filePath="/abs/locales/en.json"
+        filename="locales/en.json"
+        onClose={vi.fn()}
+        tree={tree}
+        changes={source()}
+      />,
+    );
+    expect(document.querySelector('[data-slot="file-preview-focus"]')).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+  });
+
   it("switches to the translation the document carries", async () => {
     renderEditable(source());
     await userEvent.click(screen.getByRole("button", { name: "Edit" }));
