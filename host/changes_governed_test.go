@@ -67,8 +67,8 @@ func TestChangeService_GovernsAndRecordsAnEdit(t *testing.T) {
 			}
 			assert.Equal(t, "use", f.Replacement, "a term finding names the wording to use")
 			require.NotNil(t, f.Range, "a term finding names the span it found")
-			assert.Equal(t, model.RunPos{Run: 0, Offset: 3}, f.Range.Start)
-			assert.Equal(t, model.RunPos{Run: 0, Offset: 10}, f.Range.End)
+			assert.Equal(t, change.Position{Run: 0, Offset: 3}, f.Range.Start)
+			assert.Equal(t, change.Position{Run: 0, Offset: 10}, f.Range.End)
 		}
 		assert.Nil(t, res.Record)
 		assert.Equal(t, original, readFile(t, f.recipe, doc), "a refused edit writes nothing")

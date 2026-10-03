@@ -1324,7 +1324,14 @@ export interface EditionRead {
    * an operation on the edition names to reach one of its branches.
    */
   structures?: StructureRead[];
-  status?: string;
+  /**
+   * Status is where the edition stands: draft, translated or established for a
+   * translation, written or established for the document's own edition, new for
+   * an edition with no recorded status, and untranslated for one with no
+   * recorded status whose text is the authoritative edition's, as a file the
+   * source filled holds it.
+   */
+  status: string;
   /**
    * Basis is the authoritative edition's revision the edition was made from,
    * where the host keeps it.

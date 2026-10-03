@@ -593,6 +593,33 @@ func (l *projectChangeLayout) Locate(ctx context.Context, doc string) (filehome.
 		SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target)}, nil
 }
 
+// heldLocale is the target language a bilingual file at rel holds: the
+// project's only one, or the one a directory or the name of the file names
+// (locales/nb/messages.po, po/nb.po). Empty when neither says.
+func heldLocale(rel string, langs []model.LocaleID) model.LocaleID {
+	if len(langs) == 1 {
+		return model.NormalizeLocale(langs[0])
+	}
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	if n := len(parts); n > 0 {
+		parts[n-1] = strings.TrimSuffix(parts[n-1], filepath.Ext(parts[n-1]))
+	}
+	var held model.LocaleID
+	for _, loc := range langs {
+		norm := model.NormalizeLocale(loc)
+		for _, p := range parts {
+			if model.NormalizeLocale(model.LocaleID(p)) != norm {
+				continue
+			}
+			if held != "" && held != norm {
+				return ""
+			}
+			held = norm
+		}
+	}
+	return held
+}
+
 // formatConfig is the configuration a reader and writer of format name take
 // in the project: the project's defaults for the format, and the content
 // item's own configuration when the item binds that format (bound). A format
@@ -639,7 +666,8 @@ func (l *projectChangeLayout) sourceDoc(ctx context.Context, ref string, rf proj
 	if rf.Item != nil && rf.Item.Target == "" {
 		d.NoEditionFile = "the collection that holds it names no target, so its translations have no file"
 	}
-	if len(targets) > 0 && d.Editions == change.EditionsInFile {
+	switch {
+	case len(targets) > 0 && d.Editions == change.EditionsInFile:
 		// A bilingual source (a PO catalog or template, an XLIFF file, a
 		// Qt Linguist or string catalog) whose translations the recipe
 		// writes to files of their own keeps them there: the French of
@@ -647,6 +675,11 @@ func (l *projectChangeLayout) sourceDoc(ctx context.Context, ref string, rf proj
 		// source catalog's own msgstr holds no edition. Every surface
 		// reads it the same way, whatever target language it was told.
 		d.Editions, d.TargetLocale = change.EditionsPerFile, ""
+	case d.Editions == change.EditionsInFile && d.TargetLocale == "" && rf.Item != nil:
+		// A bilingual file that keeps its translation in it holds one of
+		// the project's target languages, which a read lists without being
+		// told it.
+		d.TargetLocale = heldLocale(rf.Relative, rf.Item.ResolvedTargetLanguages(nil, l.proj.Defaults))
 	}
 	d.EditionFile = func(k model.EditionKey) (filehome.EditionFile, bool) {
 		if k.Tone != "" || k.Channel != "" {
