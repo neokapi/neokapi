@@ -214,6 +214,20 @@ func (g *Gate) AllowWithdrawal(locale string) error {
 	return nil
 }
 
+// Wrote records that the actor writes the target of blockID in locale in this
+// pass, so Allow judges the actor as its last author. A translation a person
+// edits and approves in one change is their own work, whoever wrote the
+// wording before.
+func (g *Gate) Wrote(blockID, locale string) {
+	if g == nil {
+		return
+	}
+	if g.authors == nil {
+		g.authors = map[platstore.TargetRef]string{}
+	}
+	g.authors[platstore.TargetRef{BlockID: blockID, Locale: locale}] = g.cfg.Actor
+}
+
 // vetSoD applies the workspace policy to one pair.
 func (g *Gate) vetSoD(blockID, locale string) error {
 	if g.cfg.Actor == "" || g.mode == platauth.SoDOff {

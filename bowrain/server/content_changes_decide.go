@@ -22,7 +22,8 @@ import (
 // unsupported.
 //
 //   - establish moves the translation to established, under the workspace's
-//     separation-of-duties policy.
+//     separation-of-duties policy. A change set that also writes the
+//     translation it establishes is judged as the sender's own work.
 //   - reject moves it to draft, so it re-enters the work queue; withdraw moves
 //     it to translated. Moving an established translation takes the review
 //     permission for its language.
@@ -86,11 +87,18 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 	current := row.Block.Target(target.Ref.Edition.Locale)
 	switch body.Outcome {
 	case change.OutcomeEstablish:
-		if current == nil || strings.TrimSpace(target.Text) == "" {
+		if strings.TrimSpace(target.Text) == "" {
 			return &change.Error{Code: change.CodeUnsupported, Capability: "decide.establish",
 				Message: fmt.Sprintf("block %s has no %s translation to establish: translate it first", target.Ref.Block, locale)}
 		}
-		if current.Status.Rank() >= model.TargetStatusEstablished.Rank() {
+		// The row is the translation before the change set lands, and
+		// target.Rev the one the decision binds to once it has. When they
+		// differ, the change set writes the wording it establishes, and the
+		// sender is its author: the edit drops an established translation to
+		// translated, and the decision is a fresh approval of the sender's
+		// own work.
+		edited := current == nil || model.RunsRevision(target.Ref.Edition, current.Runs) != target.Rev
+		if !edited && current.Status.Rank() >= model.TargetStatusEstablished.Rank() {
 			return nil
 		}
 		sod := d.sod
@@ -100,6 +108,9 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 			if err != nil {
 				return &change.Error{Code: change.CodeUnreachable, Message: "the separation-of-duties policy could not be read: " + err.Error()}
 			}
+		}
+		if edited {
+			sod.wrote(row.Block.ID, locale)
 		}
 		if err := sod.vet(row.Block.ID, locale); err != nil {
 			return decisionRefusal(err)
