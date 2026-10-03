@@ -153,6 +153,7 @@ func ApplyBlock(b *model.Block, ops []Op, env BlockEnv) []OpResult {
 	if refused >= 0 {
 		for i := range results {
 			if results[i].Status == OpRefused {
+				results[i].unwritten()
 				continue
 			}
 			results[i] = OpResult{I: i, Op: results[i].Op, At: results[i].At, Status: OpNotApplied, BlockedBy: &refused}

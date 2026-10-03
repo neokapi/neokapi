@@ -168,13 +168,13 @@ describe("content change operations", () => {
     const advisory = { rule: "voice.tone", message: "Reads formal", fails: false };
     const gated = {
       ...stale,
+      docs: [{ doc: "docs/a.md", written: false, after: null, findings: [finding, advisory] }],
       ops: [
         {
           i: 0,
           op: "set_content" as const,
           status: "refused" as const,
           error: { code: "gate_failed" as const, message: "the edit introduces 1 failing finding" },
-          findings: [finding, advisory],
         },
       ],
     };

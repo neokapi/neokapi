@@ -346,6 +346,14 @@ type keyJoin struct {
 func (s *session) Stage(ctx context.Context, want change.Want, e change.Editor) (change.Staged, error) {
 	st := &staged{s: s, want: want, e: e}
 	if err := st.run(ctx); err != nil {
+		if errors.Is(err, change.ErrRefused) {
+			// A refusal reports the files the stage read, each as it was.
+			files := st.Files()
+			for i := range files {
+				files[i].After, files[i].Written = files[i].Before, false
+			}
+			err = &change.StageRefusal{Files: files}
+		}
 		_ = st.Release()
 		return nil, err
 	}

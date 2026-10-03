@@ -380,7 +380,7 @@ export function readOutcome(result: ChangeResult): ChangeOutcome {
       status: "gate_failed",
       result,
       error: gated[0].error as ChangeError,
-      findings: gated.flatMap((op) => (op.findings ?? []).filter((f) => f.fails)),
+      findings: result.docs.flatMap((d) => (d.findings ?? []).filter((f) => f.fails)),
     };
   }
   const error = refused.find((op) => op.error)?.error ?? {

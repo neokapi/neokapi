@@ -1003,6 +1003,12 @@ export interface DocResult {
    */
   before?: string;
   after: string | null;
+  /**
+   * Findings are what the commit check found on the edit: every finding it
+   * introduced, failing or not, on the document's first entry. It is an empty
+   * list when the check ran and found nothing, and absent when no check ran, as
+   * outside a project.
+   */
   findings?: ChangeFinding[];
   /** Diff, in a preview, is what the change would write, as a unified diff. */
   diff?: string;
@@ -1040,7 +1046,8 @@ export interface OpResult {
   invalidates?: Invalidation[];
   /**
    * Findings are guard findings the operation landed with, under a report
-   * disposition.
+   * disposition, which a tool in a flow applies with. What the commit check
+   * found is the document's (DocResult.Findings).
    */
   findings?: ChangeFinding[];
   error?: ChangeError;
@@ -1069,6 +1076,12 @@ export interface ChangeFinding {
   fails: boolean;
   suggested?: boolean;
   at?: ResultRef;
+  /** Range is the span of the edition the rule found, where it locates one. */
+  range?: ResolvedSpan;
+  /**
+   * Replacement is the wording a term rule asks for in place of what it found.
+   */
+  replacement?: string;
 }
 
 /**

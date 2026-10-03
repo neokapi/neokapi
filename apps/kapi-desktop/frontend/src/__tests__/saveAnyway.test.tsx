@@ -129,21 +129,28 @@ describe("save anyway", () => {
     expect(client.sets.every((s) => s.gate === undefined)).toBe(true);
   });
 
-  it("reads the findings of a gate_failed refusal only", () => {
+  it("reads the failing findings of a gate_failed refusal only", () => {
     const finding = { rule: "terms.vocabulary", message: "use use", fails: true };
+    const advisory = { rule: "terms.vocabulary", message: "say sign in", fails: false };
     expect(
       gateFindings({
         schema: "kapi.change-result/v1",
         status: "refused",
         record: null,
-        docs: [],
+        docs: [
+          {
+            doc: "docs/guide.md",
+            written: false,
+            after: null,
+            findings: [finding, advisory, finding],
+          },
+        ],
         ops: [
           {
             i: 0,
             op: "set_content",
             status: "refused",
             error: { code: "gate_failed", message: "fails" },
-            findings: [finding, finding],
           },
         ],
       }),
