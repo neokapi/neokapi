@@ -99,7 +99,7 @@ func TestPairedGradersRejectFaults(t *testing.T) {
 		{task: "add-json-key", name: "key appended at the end of the object", path: "locales/en.json",
 			find: "    \"exportData\": \"Export your data\",\n", replace: "", failing: "keys-in-order"},
 		{task: "recover-stale-read", name: "the other editor's change was overwritten", path: "docs/en/upgrade.md",
-			find: "about ten minutes", replace: "about five minutes", failing: "both-changes"},
+			find: "keeps all your appointments", replace: "keeps your appointments", failing: "both-changes"},
 		{task: "recover-gate-refusal", name: "the forbidden term", path: "docs/en/reports.md",
 			find: "from the overview page.", replace: "from the portal.", failing: "sentence-added"},
 		{task: "recover-gate-refusal", name: "no CSV", path: "docs/en/reports.md",
@@ -149,8 +149,8 @@ func TestPairedStaleGradeFollowsTheInterference(t *testing.T) {
 	require.NoError(t, err)
 	original := string(files["docs/en/upgrade.md"])
 	agent := strings.Replace(original, "Back up your data before", "Back up your data and settings before", 1)
-	both := strings.Replace(agent, "about five minutes", "about ten minutes", 1)
-	other := strings.Replace(original, "about five minutes", "about ten minutes", 1)
+	both := strings.Replace(agent, "keeps your appointments", "keeps all your appointments", 1)
+	other := strings.Replace(original, "keeps your appointments", "keeps all your appointments", 1)
 	never := &PairedAgentResult{Interference: &PairedInterferenceRecord{}}
 	landed := pairedLanded()
 	afterWrite := &PairedAgentResult{Interference: &PairedInterferenceRecord{Triggered: true, Applied: true, AgentWroteFirst: true}}
