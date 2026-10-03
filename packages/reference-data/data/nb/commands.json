@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T23:00:57Z",
+  "generatedAt": "2026-10-03T02:09:05Z",
   "commands": [
     {
       "id": "add",
@@ -1496,6 +1496,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "vis fremdriftslinje",
@@ -1627,6 +1633,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "vis fremdriftslinje",
@@ -1751,6 +1763,12 @@
           "usage": "fordel blokkbehandling på N goroutiner (0 = av)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -2239,6 +2257,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "vis fremdriftslinje",
@@ -2383,6 +2407,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "vis fremdriftslinje",
@@ -2516,6 +2546,12 @@
           "usage": "fordel blokkbehandling på N goroutiner (0 = av)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -2756,6 +2792,12 @@
           "usage": "Tegn som settes inn før hver oversatt blokk",
           "default": "▒ ",
           "type": "string"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -3089,6 +3131,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "vis fremdriftslinje",
@@ -3279,6 +3327,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "vis fremdriftslinje",
@@ -3414,6 +3468,12 @@
           "type": "string"
         },
         {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "vis fremdriftslinje",
@@ -3527,6 +3587,12 @@
           "usage": "fordel blokkbehandling på N goroutiner (0 = av)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -3669,6 +3735,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "vis fremdriftslinje",
@@ -3797,6 +3869,12 @@
           "usage": "fordel blokkbehandling på N goroutiner (0 = av)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -3930,6 +4008,12 @@
           "usage": "fordel blokkbehandling på N goroutiner (0 = av)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -4104,6 +4188,12 @@
           "usage": "fordel blokkbehandling på N goroutiner (0 = av)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -4556,6 +4646,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "vis fremdriftslinje",
@@ -4785,6 +4881,12 @@
           "usage": "fordel blokkbehandling på N goroutiner (0 = av)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -5190,6 +5292,12 @@
           "usage": "fordel blokkbehandling på N goroutines (0 = av)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -7117,6 +7225,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "usage": "strøm fremdriftshendelser til stderr som NDJSON (verdi: jsonl); hendelser bruker flow-run-hendelsesordlisten",
           "type": "string"
@@ -7323,6 +7437,12 @@
           "usage": "fordel blokkbehandling på N goroutiner (0 = av)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -8279,6 +8399,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "usage": "strøm fremdriftshendelser til stderr som NDJSON (verdi: jsonl); hendelser bruker vokabularet for flyt-kjøringshendelser",
           "type": "string"
@@ -8540,6 +8666,12 @@
         {
           "name": "plan",
           "usage": "tørrkjøring: rapporter ventende arbeid, gjenbruk fra innholdsminne og et tokenestimat per (samling, språkkode), uten leverandørkall og uten skriving",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write nothing and print the change set the run would apply, for kapi apply",
           "default": "false",
           "type": "bool"
         },
