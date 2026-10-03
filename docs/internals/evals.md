@@ -182,6 +182,200 @@ most scenarios and often several times shorter, so the page reports the message
 totals beside the outcome counts. In this sweep, some tasks required kapi, while others took fewer messages
 without it.
 
+## WP5: the paired evaluation of the edit contract
+
+WP5 in the [edit model](edit-model.md) runs the paired agent evaluation before
+kapi.change/v1 is frozen, and section 15.2 adds three measurements for the
+neo/kapi question (D14). This section holds the study's design, the two offline
+measurements, and the place its results go.
+
+### Design
+
+The study runs `scripts/skilleval` in paired mode over the manifest
+`scripts/skilleval/testdata/paired-study.json`: two hosts, four arms, seven
+task families and three repetitions, 2 × 4 × 7 × 3 = 168 live sessions. Each
+host keeps one model and effort for every arm: Codex with `gpt-5.6-terra` at
+medium effort, Claude Code with `claude-sonnet-5` at high effort. A session has
+420 seconds and 40 turns. The schedule shuffles blocks of task, host and
+repetition, then the four arms within each block, from the manifest's seed.
+
+| Arm | kapi surface in the cell | Project |
+| --- | --- | --- |
+| `baseline` | none: no skill, no MCP server, no kapi name on PATH | none |
+| `skill-cli` | the shipped kapi skill; `kapi` on PATH | the fixture's recipe, bound through `KAPI_PROJECT` |
+| `mcp` | the kapi MCP server (its default writing set); `kapi` on PATH; no skill | the fixture's recipe, bound with `-p` |
+| `project-free` | `kapi-files`, the same binary under a multi-call name (`cli.BusyboxRoot`) exposing `inspect`, `apply`, `formats` and the toolbox with discovery off, and a skill written for it | none: the recipe sits in the cell and is never read |
+
+Every arm keeps the host's ordinary shell and file tools. Every cell holds the
+same files: the task's content, its `kapi.yaml`, the shared `.kapi/voice.yaml`
+(a voice and one term rule: `dashboard` is forbidden, `overview page` replaces
+it) and `STYLE.md`, which states the same rule for an agent that reads files.
+kapi records every shell call in a cell as an agent's (`KAPI_ACTOR=agent`), so
+the actor policy treats both hosts alike.
+
+Section 15.2 item 1 asks for the alias against kapi with and without a project.
+The 168 sessions hold four arms, so the comparison maps onto them:
+`skill-cli` and `mcp` are kapi with a project, and `project-free` is the binary
+without one. kapi's own CLI with discovery off is not a fifth arm: its edit
+commands are the code paths the alias runs, and what differs is the extra
+commands and the skill text. Measuring it would add 42 sessions (two hosts,
+seven tasks, three repetitions).
+
+The seven tasks, one per WP5 family, follow. Every task fails when nothing
+changes, every fixture file outside the edit must stay byte-identical, and no
+file may appear in the scoped directories except one the task creates.
+
+| Task | Family | Files | Graded by |
+| --- | --- | --- | --- |
+| `edit-link-html-md` | wording and link | `site/help.html`, `docs/help.md` | byte diff against the reference; a FAQ link shares the old address as a prefix and a code block holds it verbatim |
+| `edit-plural-branch` | plural branch | Android `strings.xml` | byte diff; the `other` case also contains the words being replaced |
+| `add-edition-markup` | new edition | `docs/en/welcome.md` to a new `docs/nb/welcome.md` | structure: headings, list items, bold spans, inline code and link addresses in order; every block translated; Norwegian Bokmål by its function words; byte equality with the reference reported only |
+| `edit-po-context` | bilingual PO | `locales/nb/messages.po` | byte diff; two entries share `msgid "Book"` and differ by `msgctxt` |
+| `add-json-key` | key added (`insert_block`) | `locales/en.json` | the JSON leaves in document order, so the key lands in `settings` after `importData`; layout byte equality reported only |
+| `recover-stale-read` | stale recovery | `docs/en/upgrade.md` | byte diff of the agent's sentence and another editor's change to the same paragraph |
+| `recover-gate-refusal` | gate refusal recovery | `docs/en/reports.md` | the first paragraph keeps its text and gains a sentence that names CSV and the overview page; every other block unchanged; no `dashboard`; no override attempt in the transcript |
+
+The plural task uses Android resources because each form of a plural there is a
+block kapi reads and writes. An ARB plural still reads as one opaque ICU
+placeholder (P5 in the edit model), so a branch edit in ARB cannot go through
+the contract until P5 is fixed.
+
+Two tasks act on the session while it runs. In `recover-stale-read` the runner
+watches the host's stream and, after the agent's first completed read of the
+file, changes "about five minutes" to "about ten minutes" in the paragraph the
+agent edits. A kapi arm's write against the old revision is refused `stale`,
+and Claude's own Edit tool refuses a file modified since it was read. The
+record says whether the change landed before the agent's write, so an attempt
+that wrote in one step without a read is reported as not exercising the stale
+path. `recover-gate-refusal` asks for a sentence "from the dashboard". In the
+two arms with a project, `kapi apply` and `apply_edits` refuse it `gate_failed`
+and name the replacement, and an agent's `--gate report` is refused
+`not_permitted`. The baseline and project-free arms have no gate, so for them
+the task measures whether they follow `STYLE.md` unprompted.
+
+Beside the graders, each attempt records its status, duration, input and output
+tokens (cache reads and writes kept apart), Claude's turn count, tool calls, the
+refusal codes its tool results carried (kapi's own, and `host:stale` or
+`host:patch_failed` for a host tool's refusal), override attempts
+(`--gate report`, a change set with `"gate": "report"`, `KAPI_ACTOR=person`,
+`if_match: "*"`), and kapi names it tried that its cell's PATH does not hold.
+
+`TestPairedSolutionsThroughKapi` sends each task's reference change sets
+(`testdata/paired/solutions/`) through this tree's `bin/kapi` in the task's
+project, draws the refusals the recovery tasks are built on, and checks that the
+result passes the task's own graders. A kapi arm's failure is therefore a
+finding about the agent or the surface rather than about the task.
+
+### Isolation proof
+
+Before any inference, each cell's surface is read through the host itself,
+with the executable, arguments, environment and directory the session uses,
+and no model call:
+
+- Claude: the `system/init` event of `claude --print`, with the model endpoint
+  set to a closed local port and a placeholder credential, so the session ends
+  before a request leaves the machine. Every Claude run passes
+  `--setting-sources project`, `--strict-mcp-config` and an explicit MCP
+  configuration, empty outside the MCP arm.
+- Codex: `codex debug prompt-input`, which renders the model-visible skill list
+  with each skill's root, and `codex mcp list --json`, both under the cell's own
+  `CODEX_HOME`.
+
+A cell fails the check when kapi's skill appears outside `skill-cli`, the
+alias's skill outside `project-free`, an MCP server or `mcp__` tool outside the
+MCP arm, the edit tools are missing from the MCP arm, the kapi names on its PATH
+differ from the arm's, a skill or plugin of the developer's own is visible, or a
+skill root lies outside the cell. `make paired-eval-preflight` probes one cell
+per host and arm and exits non-zero on any finding, and each live session
+probes its own cell again before it starts. On 3 October 2026:
+
+| Host | Arm | kapi skill | MCP servers | kapi names on PATH | Problems |
+| --- | --- | --- | --- | --- | --- |
+| claude | baseline | none | none | none | 0 |
+| claude | skill-cli | `kapi` | none | `kapi` | 0 |
+| claude | mcp | none | `kapi` (10 tools) | `kapi` | 0 |
+| claude | project-free | `kapi-files` | none | `kapi-files` | 0 |
+| codex | baseline | none | none | none | 0 |
+| codex | skill-cli | `kapi` | none | `kapi` | 0 |
+| codex | mcp | none | `kapi` (10 tools) | `kapi` | 0 |
+| codex | project-free | `kapi-files` | none | `kapi-files` | 0 |
+
+The other skills a cell shows are the host's own: Claude's bundled skills in
+the two skill arms, and Codex's system skills from the cell's `CODEX_HOME`. The
+study refuses to start when `bin/kapi` is missing or was built from another
+commit than the checkout's HEAD, and it never uses a kapi resolved from PATH.
+
+### Running it
+
+```bash
+make build
+make paired-eval-preflight
+make paired-eval-pilot PAIRED_EVAL_DIR=harness/out/paired-eval-wp5 \
+  PAIRED_EVAL_MAX_ATTEMPTS=200 PAIRED_EVAL_CONCURRENCY=2
+make paired-eval-score PAIRED_EVAL_DIR=harness/out/paired-eval-wp5
+```
+
+The pilot phase is the manifest's whole grid. It prints the planned session
+count before it starts one, runs one session per subscription at a time, and
+pauses only the host a rate limit reaches. Running the same command again
+resumes it without repeating a started attempt. `PAIRED_EVAL_RETRY=1` runs
+again the attempts a rate limit, an interrupt or a failed launch cut short, and
+keeps the first record as superseded. The ceiling of 200 covers the 168
+sessions and 32 such reruns.
+
+### What the edit engine costs an embedder (15.2, item 2)
+
+`examples/go-apply` applies a change set with `core/change` and the file home
+over a directory, with every built-in format registered and nothing of the
+host. Measured on 3 October 2026 with Go 1.27.1 on darwin/arm64:
+
+| Measure | Value |
+| --- | --- |
+| `go list -deps` | 269 packages; 124 outside the standard library: 75 neokapi, 49 third-party |
+| Third-party modules | beevik/etree, gabriel-vasile/mimetype, pmezard/go-difflib, yuin/goldmark, golang.org/x/image, x/net, x/sync, x/sys, x/text, gopkg.in/yaml.v3 |
+| Packages from `host`, `cli`, `kapi` or `bowrain` | none |
+| Packages with cgo files | none; `CGO_ENABLED=0` builds the same program |
+| ICU | not linked; the binary links only libSystem and libresolv |
+| Binary size | 18.6 MB (12.9 MB stripped); `bin/kapi` is 91.3 MB |
+
+On the link task it writes the same bytes as `kapi apply`. A native,
+project-free embedding of the edit engine needs neither cgo nor ICU, so the
+audience for which 15.3 would build a separate artifact is already served by
+the Go module.
+
+### What a second artifact costs (15.2, item 3)
+
+| Channel | Multi-call alias | Second artifact |
+| --- | --- | --- |
+| Release matrix (darwin/arm64, linux/amd64, linux/arm64, windows/amd64, windows/arm64) | nothing | five more builds per release |
+| macOS signing and notarization | nothing | one more signed and notarized binary |
+| Windows Authenticode, signed out of band by hand | nothing | two more executables to sign each release |
+| cosign | nothing | signatures for five more archives |
+| nfpm `.deb`/`.rpm` and the apt/yum repository | one symlink entry in `packaging/nfpm.yaml` | a second package or a second binary in `kapi-cli`, for two architectures and two formats |
+| Homebrew | one `install_symlink` in `scripts/gen-brew-formula.sh` | a second formula in homebrew-tap |
+| winget | no symlink on Windows: a `kapi` subcommand, or a second portable alias of the same executable | a new package identifier and a komac submission each release |
+| `cli.json` self-update index | nothing: the update replaces the binary the link names | a second entry, and an updater that replaces two binaries |
+| setup-kapi | one link step | download, checksum and cache logic for a second binary |
+| Docker (`docker/kapi/Dockerfile`) | one `ln -s` | a second binary per architecture |
+| Docs | a page | an install page, a reference and a product name |
+
+Name availability, checked on 3 October 2026 against registry.npmjs.org, the
+PyPI JSON API, Debian's archive (api.ftp-master.debian.org) and Ubuntu's
+(api.launchpad.net), the winget source index (cdn.winget.microsoft.com) and
+formulae.brew.sh:
+
+| Name | npm | PyPI | Debian and Ubuntu | winget | Homebrew |
+| --- | --- | --- | --- | --- | --- |
+| `neo` | taken (a Geonames parser, 1.0.2) | taken (electrophysiology data, 0.14.5) | taken as a source package (python-neo; binary `python3-neo`) | free as a moniker and a command; `BrowserOS.BrowserOS.Neo` exists, and a name search for `neo` matches many packages | free |
+| `kapi-files` | free | free | free | free | free |
+
+### Results
+
+To be filled after the run: per host, task and arm, the objective pass rate
+over the three repetitions, median duration, tokens and tool calls, the
+refusals met and recovered, override attempts, and what the human review of
+the attempts found. Then the decision for the v1 freeze and for D14.
+
 ## Where the gaps are
 
 See the generated `/evals` page for current coverage gaps.

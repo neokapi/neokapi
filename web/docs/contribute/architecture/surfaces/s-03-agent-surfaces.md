@@ -220,8 +220,10 @@ The results and the whole transcripts are published on the
 none of the three runs in CI, because they spend and need local credentials.
 
 The paired study runs identical tasks through each agent host with ordinary
-file tools, the CLI skill, or MCP. The skill condition excludes the kapi MCP
-server; the MCP condition excludes the skill and direct kapi CLI execution.
+file tools, the CLI skill, MCP, or the edit commands with no project. The skill
+condition excludes the kapi MCP server; the MCP condition excludes the skill
+and keeps kapi on PATH, as an installation has it; the project-free condition
+runs the same binary with discovery off, so nothing governs its edits.
 Independent artifact checks assess completion, while natural prompts measure
 whether the agent discovers the available integration. Results retain failed
 attempts and distinguish these outcomes from human judgments of the content.

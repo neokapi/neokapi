@@ -222,14 +222,17 @@ consequential errors, human acceptance, actual review time, latency and cost,
 with uncertainty and explicit unmeasured outcomes.
 
 Paired agent studies compare ordinary file tools, the shipped skill with CLI
-access, and MCP access without the skill or direct CLI execution. Each agent
-host runs the same content tasks in all conditions. Model identity and effort
+access, MCP access without the skill, and the edit commands alone with no
+project. Each agent host runs the same content tasks in all conditions. Model identity and effort
 are fixed within a comparison; results from different models remain separate.
 The source guidance is equally available, and independent validators inspect
 the output artifacts. Semantic acceptance and reviewer time require human
 evidence and remain unmeasured until that review occurs.
 
-The paired runner prepares workspaces without model calls. Live execution uses
+The paired runner prepares workspaces without model calls, and reads each
+cell's surface through the agent host before any inference: a cell that shows
+another condition's integration, or the developer's own skills, plugins or MCP
+servers, is not run. Live execution uses
 an explicit session allowance, with started and failed attempts retained across
 resumes. Subscription usage is reported separately from API-equivalent cost.
 Raw study records remain local pending review for publication. Pilot documents
