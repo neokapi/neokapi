@@ -3,6 +3,7 @@ package source
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 
 	"github.com/neokapi/neokapi/core/change"
@@ -17,11 +18,15 @@ import (
 // The decision ledger holds decisions only. What a run on this checkout made,
 // and from which source, is in the project's block history, which a venue does
 // not read. So a push reads the history for the documents it scans and sends,
-// for each translation the project holds of them, the last write the history
-// records (venue.EditionWrite): the source it was made from, and who wrote it.
-// A venue grades the translation stale against that source, as it grades the
-// drafts its own runs make, and holds a reviewer to separation of duties over
-// a translation they wrote by hand.
+// for each translation the checkout holds of them, the recorded write that
+// left it as it is (venue.EditionWrite): the source it was made from, and who
+// wrote it. A venue grades the translation stale against that source, as it
+// grades the drafts its own runs make, and holds a reviewer to separation of
+// duties over a translation they wrote by hand.
+//
+// The history is shared by every branch of the checkout, so the latest write
+// of a translation can be another branch's. The push reads the revision each
+// translation holds now and sends the write that left it.
 
 // localBlockKeys keeps the key each scanned block had before the push
 // resolved it against the venue's identities: the key the block history
@@ -36,10 +41,12 @@ func localBlockKeys(blockMap map[string][]*model.Block) map[*model.Block]string 
 	return out
 }
 
-// projectEditionWrites reads, for each document the push scanned, the last
-// recorded write of every translation the block history holds for its blocks,
-// named as the venue names the unit. A block the scan no longer finds, and the
-// document's own edition, are left out.
+// projectEditionWrites reads, for each document the push scanned, the
+// recorded write that left every translation the checkout holds of its blocks
+// as it is, named as the venue names the unit. A block the scan no longer
+// finds, a translation the checkout no longer holds, and the document's own
+// edition are left out. A document whose translations cannot be read sends
+// none.
 func (c *BowrainSourceConnector) projectEditionWrites(ctx context.Context, blockMap map[string][]*model.Block, local map[*model.Block]string) ([]venue.EditionWrite, error) {
 	if c.app == nil || len(blockMap) == 0 {
 		return nil, nil
@@ -65,7 +72,8 @@ func (c *BowrainSourceConnector) projectEditionWrites(ctx context.Context, block
 
 	var out []venue.EditionWrite
 	for _, item := range items {
-		rows, err := hist.Latest(ctx, docs.Key(item))
+		key := docs.Key(item)
+		rows, err := hist.Latest(ctx, key)
 		if err != nil {
 			return nil, fmt.Errorf("read the block history of %s: %w", item, err)
 		}
@@ -76,14 +84,43 @@ func (c *BowrainSourceConnector) projectEditionWrites(ctx context.Context, block
 		for _, b := range blockMap[item] {
 			byKey[local[b]] = b
 		}
+		var asked []model.EditionKey
+		seen := map[string]bool{}
+		for _, r := range rows {
+			k, err := model.ParseEditionKey(r.Edition)
+			if err != nil || k.Locale == "" || seen[r.Edition] {
+				continue
+			}
+			seen[r.Edition] = true
+			asked = append(asked, k)
+		}
+		held, err := c.app.EditionRevisions(ctx, c.project.RecipePath(), item, asked)
+		if err != nil {
+			slog.DebugContext(ctx, "read the translations a push describes", "item", item, "error", err)
+			continue
+		}
 		for _, r := range rows {
 			b := byKey[r.Block]
-			if b == nil || r.After == model.AbsentRevision {
+			if b == nil {
 				continue
 			}
 			k, err := model.ParseEditionKey(r.Edition)
 			if err != nil || k.Locale == "" || b.IsSourceEdition(k) {
 				continue
+			}
+			rev, ok := held[history.EditionRef{Block: r.Block, Edition: r.Edition}]
+			if !ok || rev == model.AbsentRevision {
+				continue
+			}
+			if r.After != rev {
+				wrote, found, err := hist.Wrote(ctx, key, r.Block, r.Edition, rev)
+				if err != nil {
+					return nil, fmt.Errorf("read the block history of %s: %w", item, err)
+				}
+				if !found {
+					continue
+				}
+				r = wrote
 			}
 			w := venue.EditionWrite{
 				ItemName: item, Unit: convergence.BlockKey(b), Variant: variantText(k),

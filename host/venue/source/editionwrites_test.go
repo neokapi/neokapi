@@ -2,6 +2,7 @@ package source
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -27,48 +28,94 @@ import (
 	bproject "github.com/neokapi/neokapi/host/venue/project"
 )
 
-// recordTranslation records a flow's write of the French translation of the
-// greeting, made from the source the checkout holds, as kapi up records it.
-func recordTranslation(t *testing.T, c *BowrainSourceConnector, text string) {
+// applyFrench rewrites the French translation of the greeting through the
+// change service, as a person's kapi apply does.
+func applyFrench(t *testing.T, c *BowrainSourceConnector, text string) {
 	t.Helper()
-	b := &model.Block{ID: "greeting", Name: "greeting", Translatable: true, SourceLocale: "en"}
-	b.SetSourceText("Hello")
-	b.SetTargetText("fr", text)
+	ctx := context.Background()
+	svc, err := c.app.ChangeService(ctx, host.ChangeServiceOptions{Project: c.project.RecipePath(), SourceLocale: "en"})
+	require.NoError(t, err)
 	fr := model.EditionKey{Locale: "fr"}
-	rec, err := c.app.EditRecorder(t.Context(), c.project.Root)
+	var read change.BlockRead
+	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: "locales/en.json", Editions: []model.EditionKey{fr}},
+		func(_ *model.Block, r change.BlockRead) error {
+			if r.Ref.Block == "greeting" {
+				read = r
+			}
+			return nil
+		})
 	require.NoError(t, err)
-	_, err = rec.Record(t.Context(), change.Record{
-		Actor: change.Actor{Kind: change.ActorTool, Name: "translate"}, Origin: "flow:translate",
-		Docs: []change.DocResult{{Doc: "locales/en.json", Home: "file", Written: true}},
-		Transitions: []change.Transition{{
-			Ref: change.Ref{Doc: "locales/en.json", Block: "greeting", Edition: fr}, Role: change.RoleDerived,
-			BeforeRev: model.AbsentRevision, AfterRev: model.EditionRevision(b, fr),
-			Basis: model.EditionRevision(b, model.EditionKey{Locale: "en"}), Block: b,
-		}},
-	})
+	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{{
+		Kind: change.KindSetContent, At: change.Ref{Doc: "locales/en.json", Block: "greeting", Edition: fr},
+		IfMatch: read.Editions["fr"].Rev, Body: &change.SetContent{Text: &text},
+	}}}, change.Actor{Kind: change.ActorPerson})
 	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 }
 
-// A push carries the last recorded write of each translation the checkout
-// holds, beside its decisions, until the venue has applied them, and again
-// when a write moves.
+// A push carries the recorded write of each translation the checkout holds,
+// beside its decisions, until the venue has applied a push that carried it,
+// and again when it changes.
 func TestPush_SendsTheEditionWritesUntilTheVenueAppliedThem(t *testing.T) {
 	srv := newRefServer(t, "proj1", ref.Ref{Content: 5})
-	conn := newRefConnector(t, srv.Server, "proj1")
-	recordTranslation(t, conn, "Bonjour")
+	conn := translatedCheckout(t, srv)
+	up(t, conn)
 
 	_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, 1, srv.writesSent, "the translation the run wrote goes with the push")
+	assert.Equal(t, 2, srv.writesSent, "the translations the run wrote go with the push")
 
 	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, 1, srv.writesSent, "the venue applied them, and nothing moved")
+	assert.Equal(t, 2, srv.writesSent, "the venue applied them, and nothing moved")
 
-	recordTranslation(t, conn, "Salut")
+	applyFrench(t, conn, "Salut tout le monde")
 	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, 2, srv.writesSent, "a later write goes again")
+	assert.Equal(t, 3, srv.writesSent, "the write that changed goes again, alone")
+}
+
+// The block history is shared by every branch of a checkout, so the latest
+// write of a translation can be another branch's. After a checkout of a branch
+// a pass wrote earlier, the push sends the write that left the translation the
+// checkout holds: that pass's, with the source it was made from.
+func TestPush_SendsTheWriteOfTheTranslationTheCheckoutHolds(t *testing.T) {
+	srv := newRefServer(t, "proj1", ref.Ref{Content: 5})
+	conn := translatedCheckout(t, srv)
+	en := filepath.Join(conn.project.Root, "locales", "en.json")
+	fr := filepath.Join(conn.project.Root, "locales", "fr.json")
+
+	// Branch A, translated by a pass.
+	up(t, conn)
+	enA, err := os.ReadFile(en)
+	require.NoError(t, err)
+	frA, err := os.ReadFile(fr)
+	require.NoError(t, err)
+
+	// Branch B rewords the greeting, and a pass translates it.
+	require.NoError(t, os.WriteFile(en, []byte(`{"greeting": "Hello there", "farewell": "Goodbye now"}`+"\n"), 0o644))
+	up(t, conn)
+
+	// git checkout A.
+	require.NoError(t, os.WriteFile(en, enA, 0o644))
+	require.NoError(t, os.WriteFile(fr, frA, 0o644))
+	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
+	require.NoError(t, err)
+
+	var greeting *venue.EditionWrite
+	for i, w := range srv.writes {
+		if w.Unit == "greeting" || w.Block == "greeting" {
+			greeting = &srv.writes[i]
+		}
+	}
+	require.NotNil(t, greeting)
+	assert.Equal(t, venue.WriterTool, greeting.Writer, "the pass on A wrote it")
+	assert.Equal(t, state.SourceHash("Hello world"), greeting.Basis, "from the source branch A holds")
+	b := &model.Block{}
+	var held map[string]string
+	require.NoError(t, json.Unmarshal(frA, &held))
+	b.SetTargetText("fr", held["greeting"])
+	assert.Equal(t, model.EditionRevision(b, model.EditionKey{Locale: "fr"}), greeting.Revision, "the translation A holds")
 }
 
 // translatedCheckout is a checkout of proj1 on srv whose English catalog a
