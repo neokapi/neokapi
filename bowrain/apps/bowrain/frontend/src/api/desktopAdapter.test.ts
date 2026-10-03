@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const backend = vi.hoisted(() => ({
   ProxyRequest: vi.fn(),
   ProxyMultipart: vi.fn(),
+  ApplyChanges: vi.fn(),
   Logout: vi.fn(),
   GetItemBlocks: vi.fn(),
   QueryItemBlocks: vi.fn(),
@@ -41,6 +42,37 @@ describe("createDesktopAdapter (composite)", () => {
     });
     expect(backend.ProxyRequest).not.toHaveBeenCalled();
     expect(blocks).toEqual([{ id: "b1" }]);
+  });
+
+  it("sends a change set through the ApplyChanges binding, which queues it offline", async () => {
+    const result = {
+      schema: "kapi.change-result/v1",
+      status: "refused",
+      record: null,
+      docs: [],
+      ops: [
+        { i: 0, op: "set_content", status: "refused", error: { code: "stale", message: "moved" } },
+      ],
+    };
+    backend.ApplyChanges.mockResolvedValue(JSON.stringify(result));
+    const api = createDesktopAdapter();
+    const set = {
+      ops: [
+        {
+          op: "set_content" as const,
+          at: { doc: "about.json", block: "b1", edition: "fr" },
+          if_match: "r:00000000000000aa",
+          text: "Bonjour",
+        },
+      ],
+    };
+
+    // The contract travels as JSON text both ways, and a refusal is an answer.
+    const res = await api.applyChanges("acme", "proj-1", set, "main");
+
+    expect(backend.ApplyChanges).toHaveBeenCalledWith("proj-1", JSON.stringify(set));
+    expect(backend.ProxyRequest).not.toHaveBeenCalled();
+    expect(res).toEqual(result);
   });
 
   it("serves a server method through the ProxyRequest transport", async () => {
