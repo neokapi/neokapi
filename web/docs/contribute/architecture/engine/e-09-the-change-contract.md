@@ -283,7 +283,11 @@ until the commit, and the stage's pass reads the result. A stage that removes a
 translation a bilingual file holds reads its write back, and refuses the removal
 as `unsupported` when the translation is still there: the XLIFF and TMX writers
 write a translation of every unit, from the source where a block holds none,
-so a removal there would put the source in the translation's place. Where the reader and
+so a removal there would put the source in the translation's place. Their
+description lists `remove_edition`, which the stage then refuses. The read-back
+belongs to a change set's stage: a flow that writes a translation's file
+through the writer, such as `kapi exec remove-target` writing `fr/a.xlf`, gets
+what the writer writes, the source in the removed translation's place. Where the reader and
 the writer both stream and no block is added or removed, the document is never
 held whole. The home reports what the document's writer declares: an
 in-process writer's declaration, with the writer spelling a changed attribute
