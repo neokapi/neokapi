@@ -617,3 +617,48 @@ func TestFlowRun_DeliversADraftOfADocumentTheRunDoesNotFollow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `{"greeting": "Hei fra en person"}`+"\n", string(got))
 }
+
+func TestFlowRun_ADeliveredDraftRecordsTheSourceItsPassTranslated(t *testing.T) {
+	// A gated run drafts in two passes and the source changes between them.
+	// The delivered translation was made by the second pass, from the source
+	// that pass read, and the record names that source as its basis.
+	a, cmd, recipe := newFlowProject(t, project.MaterializeOnConverge)
+	root := filepath.Dir(recipe)
+	ctx := context.Background()
+	src := filepath.Join(root, "src", "en.json")
+	dest := filepath.Join(root, "src", "qps.json")
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	a.ProjectContext = project.NewProjectContext(proj, recipe)
+	end, err := a.beginConvergeDrafts(recipe, root)
+	require.NoError(t, err)
+	defer end()
+	draft, ok := a.draftPathFor("qps", dest)
+	require.True(t, ok)
+
+	pass := func(body string) {
+		home, docs := a.flowDocuments(ctx, cmd, root)
+		require.NotNil(t, docs)
+		run, err := docs.Open(ctx, flow.Document{Flow: "pseudo", InputPath: src, OutputPath: draft, TargetLocale: "qps", Format: "json"})
+		require.NoError(t, err)
+		before, err := filehome.Digest(draft)
+		require.NoError(t, err)
+		p, err := home.Produce(ctx, draft, before, func(w io.Writer) error {
+			_, werr := io.WriteString(w, body)
+			return werr
+		})
+		require.NoError(t, err)
+		require.NoError(t, run.Commit(ctx, p))
+	}
+	pass(`{"greeting": "Bonjour", "farewell": "Au revoir", "thanks": "Merci"}` + "\n")
+	require.NoError(t, os.WriteFile(src,
+		[]byte(`{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}`+"\n"), 0o644))
+	pass(`{"greeting": "Salut", "farewell": "Au revoir", "thanks": "Merci"}` + "\n")
+
+	_, err = a.deliverDrafts(ctx, "qps")
+	require.NoError(t, err)
+	row := lastWrite(t, a, root, "greeting")
+	assert.Equal(t, sourceRevisions(t, a, recipe)["greeting"][0], row.Basis,
+		"the delivered translation was made from the source the second pass read")
+	assert.Equal(t, model.ComputeContentHash("Hello there"), row.ContentHash)
+}

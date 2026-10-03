@@ -206,7 +206,18 @@ func (fc *flowChanges) Open(ctx context.Context, d flow.Document) (flow.Document
 	var rerr error
 	switch {
 	case doc.delivery != nil:
-		doc.before, rerr = doc.delivery.firstRevisions(func() (revisions, error) { return doc.readRevisions(ctx) })
+		// The destination as the run first read it guards the delivery; the
+		// source this pass translates is this pass's read of it.
+		var fresh revisions
+		doc.before, rerr = doc.delivery.firstRevisions(func() (revisions, error) {
+			r, err := doc.readRevisions(ctx)
+			fresh = r
+			return r, err
+		})
+		if rerr == nil && fresh == nil {
+			fresh, rerr = doc.readRevisions(ctx)
+		}
+		doc.sources = fresh
 	default:
 		// The blocks are kept while the run works on the document, for a
 		// commit that leaves the file as it was read.
@@ -280,6 +291,9 @@ type flowDoc struct {
 	// file as the run read it.
 	before revisions
 	read   *readBlocks
+	// sources is a draft's document as the pass that drafted it read it,
+	// for the source each translation was made from.
+	sources revisions
 
 	mu sync.Mutex
 	// left are the blocks as the writer received them, by block key, in
@@ -334,7 +348,7 @@ type leftBlock struct {
 // source the service read, or, when the run rewrote the document's own edition
 // too, that edition as the run left it.
 func (doc *flowDoc) basis(key string, lb *leftBlock) string {
-	br := doc.before[key]
+	br := doc.sourceOf(key)
 	if own, ok := lb.editions[""]; ok && doc.inPlace {
 		return model.RunsRevision(br.auth, own.runs)
 	}
@@ -345,6 +359,16 @@ func (doc *flowDoc) basis(key string, lb *leftBlock) string {
 		return doc.flowRevision(br, lb.block, lb.block.Authoritative(model.AuthorityPolicy{}))
 	}
 	return ""
+}
+
+// sourceOf is the block keyed key as the pass that wrote the document read
+// it, for the source a translation was made from: a draft's pass reads it
+// afresh, while its destination is the one the run first read.
+func (doc *flowDoc) sourceOf(key string) blockRevs {
+	if br, ok := doc.sources[key]; ok {
+		return br
+	}
+	return doc.before[key]
 }
 
 // flowRevision is the revision of edition k of a block the run holds, under
@@ -657,7 +681,7 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 // still holds what the run read, so the source b holds after the commit is the
 // one the run made its editions from.
 func (doc *flowDoc) madeFrom(key string, b *model.Block) (basis, content string) {
-	if br, ok := doc.before[key]; ok && !doc.inPlace && br.authRev != "" && br.authRev != model.AbsentRevision {
+	if br := doc.sourceOf(key); !doc.inPlace && br.authRev != "" && br.authRev != model.AbsentRevision {
 		return br.authRev, br.contentHash
 	}
 	return model.EditionRevision(b, b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{}))), model.ComputeContentHash(b.SourceText())
