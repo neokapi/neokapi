@@ -86,6 +86,30 @@ func TestApplyBlock_FindNamesCodesByToken(t *testing.T) {
 		assert.Equal(t, "You have {count: one={n} thing other={n} items} in your basket.", shape(b.Source))
 	})
 
+	t.Run("a half of a pair the find passes over and the replacement drops is named", func(t *testing.T) {
+		b := guideBlock()
+		err := requireRefused(t, apply(t, b, person, replace("", sourceRev(b),
+			find(`shop guide before you <x id="2"/>order`, `shop handbook before you <x id="2"/>order`)))[0], change.CodeGuard)
+		assert.Equal(t, change.SubcodeCodesChanged, err.Subcode)
+		assert.Contains(t, err.Message, `the find passes over <x id="/1"/> without naming it`)
+		assert.Equal(t, `<x id="/1"/>`, err.Expected)
+		assert.Equal(t, "Read the <1>shop guide</1> before you <2>order</2>.", shape(b.Source))
+	})
+
+	t.Run("named in the find and the replacement, the half keeps its place", func(t *testing.T) {
+		b := guideBlock()
+		requireApplied(t, apply(t, b, person, replace("", sourceRev(b),
+			find(`shop guide<x id="/1"/> before you <x id="2"/>order`, `shop handbook<x id="/1"/> before you <x id="2"/>order`))))
+		assert.Equal(t, "Read the <1>shop handbook</1> before you <2>order</2>.", shape(b.Source))
+	})
+
+	t.Run("a pair the find passes over whole may go whole", func(t *testing.T) {
+		b := guideBlock()
+		requireApplied(t, apply(t, b, person, replace("", sourceRev(b),
+			find(`Read the shop guide before you <x id="2"/>order`, `Read the manual before you <x id="2"/>order`))))
+		assert.Equal(t, "Read the manual before you <2>order</2>.", shape(b.Source), "the link may be deleted")
+	})
+
 	t.Run("without the path a token find names the branch that holds it", func(t *testing.T) {
 		b := model.NewRunsBlock("p", pluralRuns())
 		err := requireRefused(t, apply(t, b, person, replace("", sourceRev(b),

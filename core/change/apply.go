@@ -893,6 +893,9 @@ func applyPathEdits(seq []model.Run, edits []pathEdit, edition []model.Run, repo
 		}
 		ix := indexSequence(seq)
 		repl, found, err := resolveTextCodes(spanReplacement(ix, e.span, e.text, edition), edition, nil, report)
+		if err == nil && !report {
+			err = halvesPassedOver(ix, e.span, repl)
+		}
 		if err != nil {
 			err.Field = "edits/" + strconv.Itoa(e.i) + "/text"
 			return nil, nil, err

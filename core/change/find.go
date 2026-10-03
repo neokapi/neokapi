@@ -2,6 +2,7 @@ package change
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -21,7 +22,9 @@ import (
 // as placeholder text against the edition's codes, takes the place of the
 // whole span: a code in the span the replacement leaves out is removed where
 // it may be deleted, and otherwise the operation is refused
-// guard/codes_changed, as for any other content (section 2.4, rule 2).
+// guard/codes_changed, as for any other content (section 2.4, rule 2). Half of
+// a pair the find passed over without naming it, left out while its other
+// half stays, is refused naming that half (halvesPassedOver).
 
 // findElem is one element of a run sequence as a find matches it: a code
 // point of its text, or a run with no width of its own (an inline code, a
@@ -412,6 +415,59 @@ func spanReplacement(ix *seqIndex, s *findSpan, text string, edition []model.Run
 		}
 	}
 	return out
+}
+
+// halvesPassedOver refuses the replacement of a span a find named codes in
+// when the find passed over one half of a paired code without naming it and
+// the replacement leaves that half out while the other half stays: the pair
+// would be left unbalanced by a code the sender never named. The refusal
+// names each such half, so the sender can name it in the find and place it in
+// the replacement. A pair whose two halves the span holds and the replacement
+// leaves out is removed whole, as for any other content.
+func halvesPassedOver(ix *seqIndex, s *findSpan, repl []model.Run) *Error {
+	h := ix.elements()
+	kept, inSpan := map[codeKey]bool{}, map[codeKey]bool{}
+	for _, r := range repl {
+		if k, ok := keyOf(r); ok {
+			kept[k] = true
+		}
+	}
+	for _, e := range h[s.from:s.to] {
+		if e.code {
+			inSpan[e.key] = true
+		}
+	}
+	var halves []string
+	for i := s.from; i < s.to; i++ {
+		e := h[i]
+		if !e.code || kept[e.key] || slices.Contains(s.named, i) {
+			continue
+		}
+		partner := codeKey{id: e.key.id}
+		switch e.key.kind {
+		case model.RunKindPcOpen:
+			partner.kind = model.RunKindPcClose
+		case model.RunKindPcClose:
+			partner.kind = model.RunKindPcOpen
+		default:
+			continue
+		}
+		if inSpan[partner] && !kept[partner] {
+			continue
+		}
+		halves = append(halves, e.key.String())
+	}
+	if len(halves) == 0 {
+		return nil
+	}
+	it := "it"
+	if len(halves) > 1 {
+		it = "them"
+	}
+	return &Error{Code: CodeGuard, Subcode: SubcodeCodesChanged, Expected: strings.Join(halves, " "),
+		Message: fmt.Sprintf("the find passes over %s without naming %s, and the replacement leaves %s out, which leaves a paired code unbalanced: "+
+			"name each code by its token in the find, and in the replacement where it belongs, or send a find of text alone",
+			strings.Join(halves, ", "), it, it)}
 }
 
 func textRun(s string, noTranslate bool) model.Run {
