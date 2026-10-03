@@ -257,7 +257,7 @@ func TestICUMessageBranchEdit(t *testing.T) {
 			got := valueFromRuns(runs, tc.value)
 			assert.Equal(t, tc.want, got)
 			block := &model.Block{ID: "tu1", Name: "msg"}
-			assert.NoError(t, checkMessage(block, runs, got))
+			assert.NoError(t, checkMessage(block, runs, got, tc.value))
 		})
 	}
 }
@@ -309,14 +309,14 @@ func TestICUMessageRefusesTextThatBreaksTheSyntax(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			runs := setBranch(t, runsFromValue(src), branch, 0, "one")
-			err := checkMessage(block, runs, valueFromRuns(runs, src))
+			err := checkMessage(block, runs, valueFromRuns(runs, src), src)
 			require.ErrorIs(t, err, errInvalidMessage)
 			assert.Contains(t, err.Error(), "inboxCount")
 		})
 	}
 	quoted := setBranch(t, runsFromValue(src), []model.Run{count, model.TextR(" new '{'message'}' '#'1")}, 0, "one")
-	assert.NoError(t, checkMessage(block, quoted, valueFromRuns(quoted, src)))
+	assert.NoError(t, checkMessage(block, quoted, valueFromRuns(quoted, src), src))
 
 	// A message with no structure is written as it reads, as it always was.
-	assert.NoError(t, checkMessage(&model.Block{ID: "tu2"}, text("an {open item"), "an {open item"))
+	assert.NoError(t, checkMessage(&model.Block{ID: "tu2"}, text("an {open item"), "an {open item", ""))
 }

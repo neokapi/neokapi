@@ -2,6 +2,7 @@ package arb
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -128,13 +129,21 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocksByID map[s
 // block, shared by the buffered (writeFromSkeleton) and streaming
 // (StreamSkeletonWrite) paths so both produce identical output. A nil block
 // emits an empty JSON string rather than nothing: dropping the value would
-// leave `"key":` with no value and invalidate the document.
+// leave `"key":` with no value and invalidate the document. A value that
+// reads as the file spelled it is written with the file's bytes, so its
+// escapes stay as they were (propRaw).
 func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
 	var value string
 	if block != nil {
 		var err error
 		if value, err = w.blockValue(block); err != nil {
 			return nil, err
+		}
+		if raw := block.Properties[propRaw]; raw != "" {
+			var spelled string
+			if json.Unmarshal([]byte(raw), &spelled) == nil && spelled == value {
+				return []byte(raw), nil
+			}
 		}
 	}
 	return []byte(encodeJSONString(value)), nil
@@ -144,14 +153,16 @@ func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
 // writer's active locale when present, otherwise the source. Runs that still
 // read as the message did are written as its exact bytes, and a plural or
 // select is written in the syntax it was read with (valueFromRuns). A value
-// holding a plural or select that is not valid ICU is refused.
+// holding a plural or select that would read as another message is refused
+// (checkMessage).
 func (w *Writer) blockValue(block *model.Block) (string, error) {
 	runs := block.SourceRuns()
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		runs = block.TargetRuns(w.Locale)
 	}
-	value := valueFromRuns(runs, block.Properties[propMessage])
-	if err := checkMessage(block, runs, value); err != nil {
+	original := block.Properties[propMessage]
+	value := valueFromRuns(runs, original)
+	if err := checkMessage(block, runs, value, original); err != nil {
 		return "", err
 	}
 	return value, nil

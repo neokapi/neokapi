@@ -25,8 +25,9 @@ import (
 //   - a simple argument is one placeholder run whose Data is its exact source;
 //   - a plural or selectordinal is a plural run and a select is a select run,
 //     whose branches are runs read the same way, so the words of every branch
-//     are visible and an edit reaches one branch by its path. Inside a branch,
-//     # (the number a plural counts) is a placeholder too.
+//     are visible and an edit reaches one branch by its path. In a branch of a
+//     plural or selectordinal, # (the number it counts) is a placeholder too;
+//     in a select's branch, # is text, as ICU4J and FormatJS read it.
 //
 // The syntax itself is read by core/icu, the framework's one reader of it.
 //
@@ -42,6 +43,12 @@ import (
 // structure's syntax as it was read. Advisory (model.AdvisoryPropertyPrefix):
 // the value is the block's own content, so it must not enter the context hash.
 const propMessage = model.AdvisoryPropertyPrefix + "arb.message"
+
+// propRaw records, on a block whose value the file escapes otherwise than the
+// writer would (a \/ or a é), the value as the file spells it, quotes
+// included, so a value no edit changed is written back with the same bytes.
+// Advisory, as propMessage is.
+const propRaw = model.AdvisoryPropertyPrefix + "arb.raw"
 
 // placeholderType is the type of every placeholder run an ICU message reads
 // into: an argument, or # inside a branch.
@@ -87,7 +94,7 @@ func runsFromValue(value string) []model.Run {
 // one empty text run, so the block still has a source.
 func readMessage(value string) icuMessage {
 	var ids idSource
-	m := readSeq(value, &ids, nil)
+	m := readSeq(value, &ids, nil, false)
 	if len(m.runs) == 0 {
 		m.runs = []model.Run{{Text: &model.TextRun{Text: value}}}
 	}
@@ -105,8 +112,10 @@ func (s *idSource) next() string {
 // readSeq reads s into runs. inside is nil at a message's top level, where
 // every placeholder has an id of its own. Within a plural or select it maps a
 // placeholder's source to its id, so a placeholder repeated across branches,
-// as # and {count} are, keeps one id; there # is a placeholder.
-func readSeq(s string, ids *idSource, inside map[string]string) icuMessage {
+// as # and {count} are, keeps one id. pound reports that s is a branch of a
+// plural or selectordinal, the nearest picker around it, where # is the
+// number it counts and so a placeholder.
+func readSeq(s string, ids *idSource, inside map[string]string, pound bool) icuMessage {
 	m := icuMessage{src: s}
 	var lit []byte
 	flush := func() {
@@ -137,7 +146,7 @@ func readSeq(s string, ids *idSource, inside map[string]string) icuMessage {
 			start := i
 			icu.SkipQuoted(s, &i)
 			lit = append(lit, s[start:i]...)
-		case ch == '#' && inside != nil:
+		case ch == '#' && pound:
 			placeholder("#")
 			i++
 		case ch == '{':
@@ -202,7 +211,7 @@ func readStructure(data string, ids *idSource, inside map[string]string) (model.
 	forms := map[string][]model.Run{}
 	for k, br := range n.Branches {
 		b := branch{key: br.Keyword, gap: data[prev:starts[k]], label: data[starts[k]:br.Start]}
-		b.body = readSeq(data[br.Start:br.End], ids, inside)
+		b.body = readSeq(data[br.Start:br.End], ids, inside, sh.plural)
 		if b.body.runs == nil {
 			b.body.runs = []model.Run{}
 		}
@@ -418,34 +427,137 @@ func holdsStructure(runs []model.Run) bool {
 // written.
 var errInvalidMessage = errors.New("arb writer: the message would not read back as written")
 
-// checkMessage refuses value when runs hold a plural or select and value does
-// not read back as runs: text in a branch that holds an unquoted brace or #
-// would end the branch early, open an argument or count, and change what the
-// program shows, whether or not the result still parses. A message without a
-// plural or select is written as it reads, as it always was.
-func checkMessage(block *model.Block, runs []model.Run, value string) error {
-	if !holdsStructure(runs) {
+// errReadsAsAnother is why a value that parses is refused: it reads as
+// another message than the runs it was written from.
+var errReadsAsAnother = errors.New("the text of a branch holds ICU syntax")
+
+// checkMessage refuses value, written from runs, when runs hold a plural or
+// select and value does not read back as runs: text in a branch that holds an
+// unquoted brace or # would end the branch early, swallow the next one or
+// count, and change what the program shows, whether or not the result still
+// parses. original is the value the block was read from, "" when it held no
+// plural or select.
+//
+// Text is compared with an argument by its source, as a message without a
+// plural or select is written: an argument typed as {count} reads back as the
+// argument, which is what the text says. Two things are exempt:
+//
+//   - a value written as read, whatever ICU makes of it: a message the reader
+//     took as written (a stray brace beside a plural) never blocks a write of
+//     its file;
+//   - an apostrophe that ends a text run, or opens a quote its text run never
+//     closes, as in the French d'{name}. ICU would read it as opening a quote,
+//     Flutter's tools by default read it as an apostrophe, so it is checked
+//     as the literal apostrophe ICU spells with two, and written as given.
+//
+// A message without a plural or select is written as it reads, unchecked.
+func checkMessage(block *model.Block, runs []model.Run, value, original string) error {
+	if !holdsStructure(runs) || (original != "" && value == original) {
+		return nil
+	}
+	err := readsBackAs(value, runs, original)
+	if err == nil {
+		return nil
+	}
+	if literal, ok := literalEdgeApostrophes(runs); ok && readsBackAs(valueFromRuns(literal, original), literal, original) == nil {
 		return nil
 	}
 	name := block.ID
 	if block.Name != "" {
 		name = block.Name
 	}
-	const quote = "quote a literal brace or # in ICU style ('{', '}', '#')"
+	return fmt.Errorf("%w: message %s: %w: %q. A brace or # in a branch's text is ICU syntax: type an argument "+
+		"as {name} or send its code, and quote a brace or # meant as text ('{', '}', '#')",
+		errInvalidMessage, name, err, value)
+}
+
+// readsBackAs reports why value does not read as runs, or nil when it does. A
+// value that ICU rejects is refused unless the value it was written over was
+// rejected too, which the reader read as well as it could; the reading of the
+// two is then compared.
+func readsBackAs(value string, runs []model.Run, original string) error {
 	if _, err := icu.Parse(value); err != nil {
-		return fmt.Errorf("%w: message %s: %w; %s", errInvalidMessage, name, err, quote)
+		if _, oerr := icu.Parse(original); original == "" || oerr == nil {
+			return err
+		}
 	}
 	if spelled(readMessage(value).runs) != spelled(runs) {
-		return fmt.Errorf("%w: message %s: the text of a branch holds ICU syntax, so %q reads as another message; %s",
-			errInvalidMessage, name, value, quote)
+		return errReadsAsAnother
 	}
 	return nil
 }
 
+// literalEdgeApostrophes returns runs with each apostrophe that would open a
+// quote across the edge of its text run doubled, as ICU spells a literal
+// apostrophe: one that ends a text run, and one that opens a quote its text
+// run never closes. ok reports that it doubled one.
+func literalEdgeApostrophes(runs []model.Run) (out []model.Run, ok bool) {
+	out = make([]model.Run, len(runs))
+	for i, r := range runs {
+		switch {
+		case r.Text != nil:
+			if text, changed := doubleEdgeApostrophes(r.Text.Text); changed {
+				r = model.Run{Text: &model.TextRun{Text: text}}
+				ok = true
+			}
+		case r.Plural != nil:
+			p := &model.PluralRun{Pivot: r.Plural.Pivot, Forms: make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))}
+			for form, branch := range r.Plural.Forms {
+				var changed bool
+				p.Forms[form], changed = literalEdgeApostrophes(branch)
+				ok = ok || changed
+			}
+			r = model.Run{Plural: p}
+		case r.Select != nil:
+			s := &model.SelectRun{Pivot: r.Select.Pivot, Cases: make(map[string][]model.Run, len(r.Select.Cases))}
+			for key, branch := range r.Select.Cases {
+				var changed bool
+				s.Cases[key], changed = literalEdgeApostrophes(branch)
+				ok = ok || changed
+			}
+			r = model.Run{Select: s}
+		}
+		out[i] = r
+	}
+	return out, ok
+}
+
+// doubleEdgeApostrophes doubles, in one text run, the apostrophe that ends it
+// and each that opens a quote the text never closes.
+func doubleEdgeApostrophes(text string) (string, bool) {
+	var b strings.Builder
+	changed := false
+	for i := 0; i < len(text); {
+		if text[i] != '\'' {
+			b.WriteByte(text[i])
+			i++
+			continue
+		}
+		j := i
+		icu.SkipQuoted(text, &j)
+		span := text[i:j]
+		// A span alone at the end that is a lone apostrophe, or a quote
+		// whose apostrophes after the opening one are all doubled, has no
+		// closing apostrophe in this run.
+		open := j == len(text) && (span == "'" || (len(span) > 1 && span[1] != '\'' && strings.Count(span[1:], "'")%2 == 0))
+		if open {
+			b.WriteString("''")
+			b.WriteString(span[1:])
+			changed = true
+		} else {
+			b.WriteString(span)
+		}
+		i = j
+	}
+	return b.String(), changed
+}
+
 // spelled writes runs in a form two readings of one message share: text
-// joined, each placeholder by its source, and each plural or select by its
-// argument and its branches in key order. Ids and the split of text into
-// runs, which a reading assigns, are left out.
+// joined, an argument as its source among the text, a # by its source, and
+// each plural or select by its argument and its branches in key order. Ids
+// and the split of text into runs, which a reading assigns, are left out.
+// Text that spells an argument therefore spells it as the argument does,
+// while a # typed as text and the # a plural counts stay apart.
 func spelled(runs []model.Run) string {
 	var b strings.Builder
 	var walk func([]model.Run)
@@ -454,6 +566,8 @@ func spelled(runs []model.Run) string {
 			switch {
 			case r.Text != nil:
 				b.WriteString(r.Text.Text)
+			case r.Ph != nil && strings.HasPrefix(r.Ph.Data, "{"):
+				b.WriteString(r.Ph.Data)
 			case r.Ph != nil:
 				b.WriteString("\x00ph:" + r.Ph.Data + "\x00")
 			case r.Plural != nil:
