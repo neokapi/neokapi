@@ -223,7 +223,8 @@ the change service. Kapi Desktop's document view does: a click on a block in the
 Preview puts it in focus, and Edit opens the unit's source, or the translation
 the view shows, in an editor under the document. The editor reads the unit
 through the service, draws each inline code as a chip and a plural a form at a
-time, and saves a `set_content` with the revision it read; the document is
+time (a translation's own plural, which the read lists beside the block), and
+saves a `set_content` with the revision it read; the document is
 inspected again once the change lands. A unit that changed since it was read is
 refused with the text it holds now, which the editor shows before asking to
 apply the edit over it ([S-02](s-02-kapi-desktop.md)).

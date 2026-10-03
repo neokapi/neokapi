@@ -32,9 +32,14 @@ Since then 1.3 changed what several of them show:
   it opened shows "Changed since you opened it" before anything is written. A
   **Changes** card under Provenance lists the unit's recorded changes. The
   Checks panel's Apply fix sends the finding's fix, and the document view offers
-  Edit on a focused unit.
+  Edit on a focused unit. Each form of a plural is an inline-code editor of its
+  own, and Approve clean checks each unit again, stopping at one that changed
+  since the queue was listed or now has a finding.
 - A `kapi check --json` finding whose rule names a replacement carries `fix`,
-  the `replace_text` operation that applies it.
+  the `replace_text` operation that applies it, naming its document by the path
+  from the project root. A finding whose words have formatting among them, or
+  that sits in a translation's file, carries none, and the Checks panel offers
+  no Apply fix for it.
 
 This page is the ordered list of what to record, how, on what infrastructure,
 and what to check in each result. The authored sources (demo scripts,
@@ -106,7 +111,7 @@ answer ends with (#2989).
 
 | # | Demo | Publishes as | Embedded on | Infrastructure | What changed |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `s0-northsea-checks` | `monolingual-governance` | `kapi/recipes/keep-source-on-brand.mdx` | none | `kapi check --strict` is `kapi check`; findings read FAILS/REPORTS; the sample's voice patterns moved into `constraints:`, so no configuration warnings print; the `dock` decision is a `term` operation, and `kapi apply` closes with `change set applied: 1 applied`; the `findings.json` artifact gives each term finding with a replacement a `fix` |
+| 1 | `s0-northsea-checks` | `monolingual-governance` | `kapi/recipes/keep-source-on-brand.mdx` | none | `kapi check --strict` is `kapi check`; findings read FAILS/REPORTS; the sample's voice patterns moved into `constraints:`, so no configuration warnings print; the `dock` decision is a `term` operation, and `kapi apply` closes with `change set applied: 1 applied`; the `findings.json` artifact gives each term finding with a replacement a `fix`, except one whose words have formatting among them |
 | 2 | `05-ai-checks-guardrail` | `kapi-checks-guardrail` | `framework/checks/rule-checks.md` | none | the findings table reads FAILS, not CRITICAL/MAJOR |
 | 3 | `kapi-bilingual-workflow` | `bilingual-workflow` | `kapi/bilingual-workflow.mdx` | none | commands unchanged; each XLIFF unit now carries an `<mda:metadata>` with its `if-match` and `basis` revisions, which the `head -20` beat shows, and `kapi merge` writes the returned translations through the change service, from the source's skeleton |
 | 4 | `09-toolbox-find-replace` | `toolbox-explainer` | `toolbox/overview.mdx` | none | commands and output unchanged; re-recorded for the September template. `ksed` now applies its substitutions as change-set operations, and the demo's commands print the same output and leave the same bytes in all three files as before |
@@ -255,7 +260,7 @@ Per video:
 | `bowrain-desktop-automations` | Run now starts a run that appears at the top of the table; the row settles with a per-language summary; the dashboard's "Review pending translations" link opens the review session |
 | `bowrain-cli-getting-started` | `kapi init` prints `collections (proposed from the files here...)` with `src/locales/en.json`; `kapi status` shows the `content` and `governance` lines; `kapi up` prints the venue first; `src/locales/fr.json` arrives |
 | `08-mcp-tools` | the session reads the unit with `review_block` and sends `apply_edits` a `decide` with outcome `advise`, not an approval; the queue artifact still lists the unit, now with `aiScore` |
-| `kapi-desktop-review` | the unit shows one human action (Approve) and no sign-off control; the history layer reads "Already approved"; the translation shows its codes as chips in the editor, and the `a` keystroke lands while the editor does not hold focus; the Changes card reads "No change recorded" for an untouched unit |
+| `kapi-desktop-review` | the unit shows one human action (Approve) and no sign-off control; the history layer reads "Already approved"; the translation shows its codes as chips in the editor, and the `a` keystroke lands while the editor does not hold focus; the Changes card reads "No change recorded" for an untouched unit; the batch approval clears every clean unit with no "Batch approval stopped" notice, since nothing changes them during the take |
 | `kapi-desktop-explorer` | the Context hub opens on Learned; the walk then opens Terms, then Content Memory |
 | desktop and web demos | the recorder log reports no inert crop and no selector that matched nothing |
 

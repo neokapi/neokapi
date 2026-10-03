@@ -115,21 +115,30 @@ what the person does with the revision it read:
 - The Review page edits a translation, or a source row's wording, in the
   inline-code editor: each code is a chip the person types beside, and the text
   goes back in the placeholder form the read showed, so a code the edit kept is
-  the code the edition holds. A plural is edited a form at a time, each changed
-  form a `set_content` addressed by the path the read lists. An AI proposal is
-  accepted as the same `set_content`.
+  the code the edition holds. A plural is edited a form at a time, each form in
+  the same inline-code editor inside `PluralTargetEditor`, so every code keeps
+  its id whatever it displays, and each changed form is a `set_content`
+  addressed by the path the read lists. An AI proposal is accepted as the same
+  `set_content`.
 - Approve and Reject send `decide`, Reject with the reviewer's note on the
-  change set. Approving the clean units of a view reads each one as it approves
-  it.
+  change set. A parked draft, which reads as `absent`, is decided as `absent`.
+  Approving the clean units of a view reads each one as it approves it and runs
+  its checks again; a unit whose text is no longer what its row lists, or that
+  now trips a check, stops the batch with its row brought up to date.
 - A check finding whose rule names a replacement carries its fix, the
   `replace_text` `kapi check` reports, and the Checks panel sends it as it is.
+  A finding whose words have an inline code among them carries none.
 - The document view puts a clicked block in focus and edits its source or a
-  translation under the document ([S-06](s-06-visual-editor.md)).
+  translation under the document ([S-06](s-06-visual-editor.md)). A translation
+  is edited with its own plurals and codes, which the read lists beside the
+  block.
 
 When the content changed after the surface read it, the change service refuses
 the change with the edition as it stands. The surface shows that text under
-"Changed since you opened it" and asks before sending the change again over it;
-a check's fix sent again finds its words by the text the finding quotes. The
+"Changed since you opened it" and asks before sending the change again over it,
+with what the editor holds at that moment. A check's fix sent again finds its
+words by the text the finding quotes, and is offered only while those words are
+plain text in the text as it stands. The
 Review page lists the unit's recorded changes under its provenance, read from
 the block history through `History`, and its provenance names the person or the
 agent whose recorded change produced the text in force.
