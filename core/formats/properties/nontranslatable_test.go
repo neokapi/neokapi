@@ -57,7 +57,7 @@ func TestExcludedEntry_SurfacesContentBlock_WhenOn(t *testing.T) {
 	assert.Equal(t, "42", cb.SourceText())
 	assert.False(t, cb.Translatable)
 	assert.True(t, cb.PreserveWhitespace)
-	assert.Len(t, cb.Source, 1, "value is a single verbatim run, not inline-parsed")
+	assert.Len(t, cb.SourceRuns(), 1, "value is a single verbatim run, not inline-parsed")
 	assert.Empty(t, cb.SemanticRole(), "plain value carries no semantic role")
 
 	// No Data{skipped-entry} when surfacing is on.

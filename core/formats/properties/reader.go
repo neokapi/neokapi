@@ -939,10 +939,11 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 		return
 	}
 
-	if len(block.Source) == 0 {
+	source := block.SourceRuns()
+	if len(source) == 0 {
 		return
 	}
-	text := model.RunsText(block.Source)
+	text := model.RunsText(source)
 
 	type matchRange struct {
 		start, end int

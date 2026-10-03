@@ -162,7 +162,7 @@ func (w *Writer) blockValue(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		return encodePropertyValue(renderRunsText(block.TargetRuns(w.Locale)), w.escapeExtended())
 	}
-	source := renderRunsText(block.Source)
+	source := renderRunsText(format.AuthoritativeRuns(block))
 	if raw, ok := format.VerbatimFor(block, "rawValue", source); ok {
 		return raw
 	}
@@ -197,7 +197,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		text = renderRunsText(block.TargetRuns(w.Locale))
 	} else {
-		text = renderRunsText(block.Source)
+		text = renderRunsText(format.AuthoritativeRuns(block))
 	}
 
 	// Encode unicode escapes for non-ASCII characters
