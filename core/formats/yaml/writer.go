@@ -142,11 +142,26 @@ func encodeYAMLScalarWithIndicatorIndent(text, style, indicator, indent string) 
 	case "folded":
 		return encodeFoldedBlockWithIndicatorIndent(text, indicator, indent)
 	default:
-		if !plainScalarSafe(text) {
+		if !plainScalarSafe(text) || !plainReadsAsString(text) {
 			return encodeDoubleQuoted(text)
 		}
 		return encodePlain(text)
 	}
+}
+
+// plainReadsAsString reports whether s written plain reads back as the
+// string s, where the scalar's style was plain only because the text it held
+// was: a translation such as 10, true or no, written plain, reads as a number
+// or a boolean, which no reader takes as text. It holds under YAML 1.2, as
+// kapi reads a file, and for the booleans and null a YAML 1.1 reader (Ruby's
+// Psych, PyYAML) takes, yes, no, on and off among them. A value that does not
+// look like a number is text; one that does is parsed to decide.
+func plainReadsAsString(s string) bool {
+	switch strings.ToLower(s) {
+	case "y", "n", "yes", "no", "on", "off", "true", "false", "null", "~":
+		return false
+	}
+	return !yaml11NonString(s) || plainIsString(s)
 }
 
 // plainScalarSafe reports whether s can be emitted as a plain scalar and read
