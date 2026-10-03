@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	pathpkg "path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -16,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
@@ -79,6 +82,11 @@ type ChangeServiceOptions struct {
 	// because the App's own source language belongs to whichever project
 	// resolved one last.
 	SourceLocale model.LocaleID
+	// EditionOut, outside a project, is the file the one edition a change
+	// set adds to a monolingual document is written to: the translation of
+	// a file that holds another language (kapi apply --out). The first
+	// edition named takes it, and an operation on any other is refused.
+	EditionOut string
 
 	// revisionsOnly builds a service whose reads name no edition's basis from
 	// the block history: a flow's follower reads revisions alone, and a read
@@ -175,9 +183,17 @@ func (a *App) changeHome(opts ChangeServiceOptions) (changeHome, error) {
 		}
 		dir = wd
 	}
+	out := opts.EditionOut
+	if out != "" && !filepath.IsAbs(out) {
+		wd, err := os.Getwd()
+		if err != nil {
+			return changeHome{}, err
+		}
+		out = filepath.Join(wd, out)
+	}
 	return changeHome{
 		layout: &dirChangeLayout{app: a, root: dir, format: opts.Format, target: opts.TargetLocale, anywhere: opts.AnyPath, plainText: opts.PlainText,
-			source: model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), ""))},
+			source: model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), "")), sourceNamed: opts.SourceLocale != "", out: out},
 		// Every kapi process of this user finds the same lock files for a
 		// document outside a project, whatever its temporary directory.
 		lockDir: filepath.Join(DataDir(), "locks"),
@@ -357,6 +373,16 @@ type dirChangeLayout struct {
 	// plainText reads a file no format claims as plain text
 	// (ChangeServiceOptions.PlainText).
 	plainText bool
+	// sourceNamed says the caller named the documents' language. Unnamed, a
+	// monolingual document whose file or directory names a language
+	// (locales/nb.json, de/guide.md) is written in that one.
+	sourceNamed bool
+	// out is the file of the one edition a change set adds
+	// (ChangeServiceOptions.EditionOut), and claimed the document and
+	// edition that took it.
+	out     string
+	outMu   sync.Mutex
+	claimed string
 }
 
 func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, error) {
@@ -374,14 +400,67 @@ func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, e
 		}
 	}
 	enc := l.app.InputEncoding()
-	return filehome.Doc{
+	d := filehome.Doc{
 		Ref: ref, Path: path, Entry: entry,
 		Format:       l.app.formatBinding(name, nil, enc),
 		SourceLocale: l.source,
 		Encoding:     enc,
 		Editions:     l.app.editionsOf(name),
 		TargetLocale: l.app.targetOf(name, l.target),
-	}, nil
+	}
+	if d.Editions == change.EditionsPerFile && entry == "" {
+		if lang := pathLanguage(ref); lang != "" && !l.sourceNamed {
+			d.SourceLocale = lang
+		}
+		d.NoEditionFile = fmt.Sprintf("outside a project %s holds one edition, its own (%s); "+
+			"to write a translation of it, name the file with kapi apply --out, or work in a project whose recipe names a target for it", ref, d.SourceLocale)
+		if l.out != "" {
+			d.EditionFile = l.editionOut(ref)
+		}
+	}
+	return d, nil
+}
+
+// editionOut is the EditionFile of document ref when --out names the file
+// of the one edition the change set adds: the first document and edition to
+// ask take it.
+func (l *dirChangeLayout) editionOut(ref string) func(model.EditionKey) (filehome.EditionFile, bool) {
+	return func(k model.EditionKey) (filehome.EditionFile, bool) {
+		text, _ := k.Canonical().MarshalText()
+		claim := ref + "@" + string(text)
+		l.outMu.Lock()
+		defer l.outMu.Unlock()
+		if l.claimed != "" && l.claimed != claim {
+			return filehome.EditionFile{}, false
+		}
+		l.claimed = claim
+		return filehome.EditionFile{Ref: filepath.ToSlash(l.out), Path: l.out}, true
+	}
+}
+
+// pathLanguageRe is a file or directory name that is a language tag with a
+// two-letter language: nb, de-DE, pt_BR, zh-Hans.
+var pathLanguageRe = regexp.MustCompile(`^[a-z]{2}(?:[-_][A-Za-z0-9]{2,8})*$`)
+
+// pathLanguage is the language a document's path names: its file name
+// without the extension (locales/nb.json), else the directory holding it
+// (de/guide.md). Empty when neither is a language tag.
+func pathLanguage(ref string) model.LocaleID {
+	slashed := filepath.ToSlash(ref)
+	base := pathpkg.Base(slashed)
+	candidates := []string{strings.TrimSuffix(base, pathpkg.Ext(base))}
+	if dir := pathpkg.Dir(slashed); dir != "." && dir != "/" {
+		candidates = append(candidates, pathpkg.Base(dir))
+	}
+	for _, c := range candidates {
+		if !pathLanguageRe.MatchString(c) {
+			continue
+		}
+		if id, err := locale.Canonical(c); err == nil {
+			return id
+		}
+	}
+	return ""
 }
 
 // detectChangeFormat detects the format of a file, or of an archive member,

@@ -18,6 +18,7 @@ func NewApplyCmd(a *App) *cobra.Command {
 		schema      bool
 		printOps    bool
 		gate        string
+		out         string
 		inPlaceFlag *InPlaceFlag
 	)
 	cmd := &cobra.Command{
@@ -71,7 +72,10 @@ documents, never both.
 
 Inside a project a document is named by its project-relative path. A file
 outside the project is named by its absolute path, as kapi inspect names it, and
-a change set that edits one edits nothing in the project.
+a change set that edits one edits nothing in the project. Outside a project a
+document holds one edition, in the language --source-lang names or else the one
+its file or directory names (locales/nb.json, de/guide.md); --out FILE writes the
+one edition a change set adds to it, a translation, to FILE.
 
 --dry-run computes and checks the change set, writes nothing, and prints a diff
 per document. --gate report lands a change whose findings would otherwise
@@ -101,7 +105,7 @@ comment failed; 5 when a backend did not answer.`,
 				}
 				return RunApplySchema(cmd.OutOrStdout(), op)
 			}
-			opts := ApplyOptions{DryRun: dryRun, JSON: asJSON, PrintOps: printOps}
+			opts := ApplyOptions{DryRun: dryRun, JSON: asJSON, PrintOps: printOps, Out: out}
 			switch gate {
 			case "":
 			case string(change.GateEnforce), string(change.GateReport):
@@ -125,6 +129,7 @@ comment failed; 5 when a backend did not answer.`,
 	f.BoolVar(&asJSON, "json", false, "print the result as JSON (kapi.change-result/v1)")
 	f.BoolVar(&schema, "schema", false, "print the JSON Schema of a change set, or of the one operation named (kapi apply --schema set_attribute), and exit")
 	f.BoolVar(&printOps, "print-ops", false, "print the change set as decoded, with its defaults filled in, and apply nothing")
+	f.StringVar(&out, "out", "", "outside a project, the file to write the one edition the change set adds to a document (a translation of it); inside one, the recipe's target names it")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "format of every document the change set names (default: what the recipe binds, else auto-detect)")
 	a.AddEncodingFlag(f, "", "input/output encoding")
 	inPlaceFlag = RegisterInPlace(f, "keep a copy of each file the change set replaces, with the SUFFIX given (--in-place=.bak)")
