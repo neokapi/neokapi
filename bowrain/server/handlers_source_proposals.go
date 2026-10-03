@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -10,8 +12,8 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/venue"
 )
 
 // This file adds the back-to-source lane (RV-F), the one direction the review
@@ -207,12 +209,15 @@ func (s *Server) HandleDecideSourceProposal(c echo.Context) error {
 
 	// Approve: apply the source change (which re-drafts every locale) then record
 	// the decision.
-	runStarted, err := s.applySourceProposal(ctx, proposal, decider)
+	runStarted, err := s.applySourceProposal(c, proposal)
 	if err != nil {
 		if changed, ok := asBlockChanged(err); ok {
 			return s.answerBlockChanged(c, pid, changed, proposal.FoundInLocale)
 		}
-		return c.JSON(http.StatusUnprocessableEntity, ErrorResponse{Error: "apply source change: " + err.Error()})
+		if refused, ok := errors.AsType[*change.Error](err); ok {
+			return c.JSON(refused.Code.HTTPStatus(), ErrorResponse{Error: "apply source change: " + refused.Message})
+		}
+		return serverErr(c, fmt.Errorf("apply source change: %w", err))
 	}
 	if err := s.SourceProposalStore.Resolve(ctx, proposalID, bstore.SourceProposalApproved, decider, req.Reason); err != nil {
 		return serverErr(c, err)
@@ -238,37 +243,60 @@ func (s *Server) HandleDecideSourceProposal(c echo.Context) error {
 //
 // A target the ledger has no record of stays untouched and is not re-drafted:
 // the platform did not write it and has nothing to say about what it translates.
-func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSourceChange, actor string) (bool, error) {
+func (s *Server) applySourceProposal(c echo.Context, p *bstore.ProposedSourceChange) (bool, error) {
+	ctx := c.Request().Context()
 	stream := p.Stream
 	if stream == "" {
 		stream = "main"
 	}
-	// The change is decided on the block as the write holds it. A proposal made
-	// against source that has since been rewritten is refused with the current
-	// block, and nothing is applied over the newer wording.
-	sb, err := s.ContentStore.UpdateBlock(ctx, p.ProjectID, stream, p.BlockID, func(sb *venue.StoredBlock) error {
-		if p.OriginalSource != "" && sb.Block.SourceText() != p.OriginalSource {
-			return &blockChangedError{current: sb}
-		}
-		// Apply the source transform. A single TextRun is the faithful shape for a
-		// plain-text source fix; inline markup, if any, is not carried by this lane.
-		sb.Block.SetSourceText(p.ProposedSource)
-		// The source changed, so its authoring status is re-settled: it goes back
-		// to the New baseline so the next run's source-first phase re-checks it.
-		sb.Block.SetEditionStatus(sb.Block.Authoritative(model.AuthorityPolicy{}), model.Status(model.SourceStatusNew))
-		// The new source is persisted with the translations intact. The content
-		// hash moves, which is what makes the write re-derive every target's
-		// projection against the ledger, and what makes each target's recorded
-		// basis name wording the block no longer holds.
-		return nil
-	})
+	proj, err := s.ContentStore.GetProject(ctx, p.ProjectID)
+	if err != nil || proj == nil {
+		return false, &change.Error{Code: change.CodeNotFound, Message: "project not found"}
+	}
+	sb, err := s.ContentStore.GetBlock(ctx, p.ProjectID, stream, p.BlockID)
+	if err != nil || sb == nil {
+		return false, &change.Error{Code: change.CodeNotFound, Message: "the block the proposal names is gone"}
+	}
+	// A proposal made against source that has since been rewritten is refused
+	// with the current block, and nothing is applied over the newer wording.
+	if p.OriginalSource != "" && sb.Block.SourceText() != p.OriginalSource {
+		return false, &blockChangedError{current: sb}
+	}
+	// The approver's edit of the source, through the stream's change service:
+	// guarded by the revision read above, held to what the approver may do and
+	// to the checks in force where the item sits, and recorded as theirs. The
+	// new source keeps the translations; its content hash moves, which re-derives
+	// every target's projection against the ledger in the same write, so each
+	// target's recorded basis names wording the block no longer holds. A plain
+	// text fix is a single text run; this lane carries no inline markup.
+	sb.Block.SourceLocale = proj.DefaultSourceLanguage
+	text := p.ProposedSource
+	set := change.Set{Note: "source-proposal:" + p.ID, Ops: []change.Op{{
+		Kind: change.KindSetContent, At: change.Ref{Doc: sb.ItemName, Block: sb.Block.ID},
+		IfMatch: model.EditionRevision(sb.Block, model.EditionKey{}), Body: &change.SetContent{Text: &text},
+	}}}
+	wsID, _ := c.Get("workspace_id").(string)
+	sender := requestSender(c)
+	sc := s.newStreamChange(ctx, c, proj, stream, wsID, c.Param("ws"), sender)
+	res, err := sc.apply(ctx, set, change.Actor{Kind: change.ActorPerson, Name: sender.userID})
 	if err != nil {
 		return false, err
 	}
-	block := sb.Block
-
-	s.shipInputsChanged(ctx, p.WorkspaceID, p.ProjectID, stream)
-	s.publishEditorBlockChange(p.ProjectID, block.ID, p.ItemName, stream, "updated", actor, "")
+	if res.Status == change.SetRefused {
+		refusal := res.Error
+		if refusal == nil && len(res.Ops) > 0 {
+			refusal = res.Ops[0].Error
+		}
+		if refusal != nil && refusal.Code == change.CodeStale {
+			if current, err := s.ContentStore.GetBlock(ctx, p.ProjectID, stream, p.BlockID); err == nil && current != nil {
+				return false, &blockChangedError{current: current}
+			}
+		}
+		if refusal == nil {
+			refusal = &change.Error{Code: change.CodeInvalid, Message: "the source change was refused"}
+		}
+		return false, refusal
+	}
 
 	// A mark-dnt proposal additionally records the (new) source string as
 	// do-not-translate so the re-draft leaves it untranslated.
