@@ -846,7 +846,8 @@ What the time went to, and what changed:
   language it works on that the corpus does not answer, but the loop passes over
   a language only while its coverage holds work (`localesNeedingPass`). The
   plan now derives that selection the way the run does and prices those
-  languages alone, which also skips their lookups.
+  languages alone, which also skips their lookups. The MCP `up_plan` tool takes
+  the `no_checks` the `up` tool takes, so it prices the run that follows it.
 - **A flow resolved the project's document index per block.** The follower
   named each document by loading every document and adoption the project knows,
   with their content, once for every block it compared, and the edit recorder
@@ -870,8 +871,15 @@ go test -tags fts5 ./host -run XXX -bench 'ChangeRead|InterchangeRevisions'
 ```
 
 - **Bases were read one block at a time.** A read asked the block history for
-  each derived edition of each block (one query apiece). `EditionStates` now
-  answers per document, from `history.Store.Latest`, once per read.
+  each derived edition of each block (one query apiece). A read now tells
+  `EditionStates` how many blocks it shows at most. A short read (a page of up
+  to 100 blocks, or the blocks it names) looks each one up, so it costs what it
+  shows whatever the document's history holds. A longer read asks
+  `history.Store.Latest` once for the editions its blocks hold, which finds each
+  edition's latest change in one pass over the document's entries in the
+  primary key and reads that row by a seek. Answering every read from the whole
+  document's history in every language, through a subquery per history row, made
+  a review pane's read of one block cost more than a read of the document had.
 - **A joined read parsed the document twice and spooled skeletons nobody
   read.** A read with an edition joined from its own file read the document
   once to index it for the join and again to stream it, and every pass of a
@@ -883,8 +891,52 @@ go test -tags fts5 ./host -run XXX -bench 'ChangeRead|InterchangeRevisions'
   it was about 70% of an extract (3.1 s of wall time with it, 1.1 s with the
   read skipped), and the whole extract now takes 2.6 s of CPU against 5.0 s.
 
-Two costs were measured and left:
+The bases were read per document in one query (`Latest` over every edition,
+with a subquery per history row) before the read said what it shows. Against
+that, on a document of 400 blocks translated into five languages and rewritten
+three times, read in French:
 
+| Benchmark | One query per read | Shown blocks |
+| --- | ---: | ---: |
+| `BenchmarkChangeRead_MultilingualHistory/one-block` | 13.5 ms | 3.0 ms |
+| `BenchmarkChangeRead_MultilingualHistory/page-of-100` | 16.0 ms | 6.1 ms |
+| `BenchmarkChangeRead_MultilingualHistory/whole-document` | 18.5 ms | 6.8 ms |
+
+The block history alone, for a document of 2,000 blocks in ten languages with
+five changes to each translation (`BenchmarkLatest`,
+`BenchmarkDocumentStates`):
+
+| Read | Before | After |
+| --- | ---: | ---: |
+| `Latest`, every edition | 141 ms | 88 ms |
+| `Latest`, one edition | | 13 ms |
+| the bases of one block | 141 ms | 0.03 ms |
+| the bases of a page of 100 blocks | 141 ms | 2.5 ms |
+| the bases of the whole document in one language | 141 ms | 14 ms |
+
+```bash
+go test -tags fts5 ./core/history -run XXX -bench Latest
+go test -tags fts5 ./host -run XXX -bench 'DocumentStates|ChangeRead_Multilingual|FlowRecord'
+```
+
+`BenchmarkFlowRecord_ManyDocuments` holds the follower's record to one
+lookup of the document's key: a run over one document of 300 strings in a
+project whose store knows 200 documents, every translation one the file
+already held, records in 5.2 ms, and in 412 ms with the key resolved from the
+whole document index for each string.
+
+On the docs and synthetic projects the timings of the table above did not move
+with the read's hint (docs steady pass 24.0 s of CPU against 24.2 s; synthetic
+1.8 s against 1.9 s).
+
+Three costs were measured and left:
+
+- **Extract's second parse of a source.** `kapi extract` reads each source
+  with its own reader, which captures the skeleton merge splices into, and the
+  change service reads it again with the translation joined for the revisions
+  each unit carries. On the docs project the second read is 0.19 s of an
+  extract's 2.4 s of CPU samples. Reading once would take the change service
+  handing out the blocks and the skeleton of its joined read.
 - **The follower's second read.** A flow reads each document it follows through
   the change service before the run and, when the commit wrote the file, again
   after, so the recorded revision is the one a later read of the written bytes
@@ -910,4 +962,8 @@ terms from PostgreSQL for it took 22 ms on every call. Every write through the
 terms store now replaces a per-workspace revision in its own transaction, and
 the server keeps one snapshot per workspace under the revision it read first,
 so a call while nobody writes the terms costs 0.36 ms
-(`TestTermSnapshotCache_ReadsPostgresTermsOncePerRevision` logs both).
+(`TestTermSnapshotCache_ReadsPostgresTermsOncePerRevision` logs both). The
+migration that adds the revision gives every workspace already holding terms a
+first one, so a deployed server keeps their snapshots from the first call. A
+server keeps snapshots for at most 32 workspaces and drops the one used least
+recently.
