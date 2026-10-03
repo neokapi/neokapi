@@ -571,7 +571,7 @@
                           "type": "integer"
                         },
                         "find": {
-                          "description": "literal text to match",
+                          "description": "the text to match, in placeholder form: inline codes have zero width unless a \u003cx id=\"…\"/\u003e token names one",
                           "type": "string"
                         },
                         "occurrence": {
@@ -628,7 +628,7 @@
                           "type": "integer"
                         },
                         "text": {
-                          "description": "the replacement text",
+                          "description": "the replacement text; after a find that names a code by its token, placeholder text naming the codes it keeps",
                           "type": "string"
                         }
                       },
@@ -769,7 +769,7 @@
                         "type": "integer"
                       },
                       "find": {
-                        "description": "literal text to match",
+                        "description": "the text to match, in placeholder form: inline codes have zero width unless a \u003cx id=\"…\"/\u003e token names one",
                         "type": "string"
                       },
                       "occurrence": {

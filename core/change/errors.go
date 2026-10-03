@@ -3,6 +3,8 @@ package change
 import (
 	"fmt"
 	"slices"
+
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // Code is why an operation or a change set was refused. The set is closed:
@@ -133,6 +135,9 @@ type Error struct {
 	// Candidates are what an ambiguous reference or find matched, or what a
 	// reference that resolved to nothing might have meant.
 	Candidates []Candidate `json:"candidates,omitempty"`
+	// Searched is, for a find that matches nothing, the run sequence it
+	// searched: the path that reaches it and its text in placeholder form.
+	Searched *Searched `json:"searched,omitempty"`
 	// Expected and Found describe a guard refusal.
 	Expected string `json:"expected,omitempty"`
 	Found    string `json:"found,omitempty"`
@@ -166,6 +171,13 @@ type Candidate struct {
 	Occurrence int `json:"occurrence,omitempty"`
 	// At is where a find match lies.
 	At *Resolved `json:"at,omitempty"`
+}
+
+// Searched is the run sequence a find searched: the path that reaches it,
+// empty for the edition's own text, and that text in placeholder form.
+type Searched struct {
+	Path model.RunPath `json:"path,omitempty"`
+	Text string        `json:"text"`
 }
 
 func errorf(code Code, format string, args ...any) *Error {

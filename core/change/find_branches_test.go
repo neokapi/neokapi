@@ -42,8 +42,29 @@ func TestApplyBlock_FindInABranchNamesItsPath(t *testing.T) {
 	assert.Equal(t, " things", b.Source[1].Plural.Forms[model.PluralOther][1].Text.Text)
 	assert.Equal(t, " item", b.Source[1].Plural.Forms[model.PluralOne][1].Text.Text)
 
-	// Text in no branch either is refused as before.
+	// Text in no branch either is refused naming the text it searched.
 	err = requireRefused(t, apply(t, b, agent, replace("", sourceRev(b), find("cart", "bag")))[0], change.CodeNotFound)
-	assert.Equal(t, `"cart" is not in the text`, err.Message)
+	assert.Equal(t, `"cart" is not in the text, which is "You have <x id=\"n/\"/> things in your basket."`, err.Message)
+	require.NotNil(t, err.Searched)
+	assert.Empty(t, err.Searched.Path)
+	assert.Equal(t, `You have <x id="n/"/> things in your basket.`, err.Searched.Text)
 	assert.Empty(t, err.Candidates)
+}
+
+// A find that matches nothing in a branch says which branch it searched and
+// what its text is, and offers up to three matches that differ only in case.
+func TestApplyBlock_NotFoundNamesWhatItSearched(t *testing.T) {
+	b := model.NewRunsBlock("p", pluralRuns())
+	one := model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOne}}
+	edit := find("article", "thing")
+	edit.Path = one
+	err := requireRefused(t, apply(t, b, agent, replace("", sourceRev(b), edit))[0], change.CodeNotFound)
+	assert.Equal(t, `"article" is not in [1,{"plural":"one"}], whose text is "<x id=\"n/\"/> item"`, err.Message)
+	require.NotNil(t, err.Searched)
+	assert.Equal(t, one, err.Searched.Path)
+
+	c := model.NewRunsBlock("c", []model.Run{model.TextR("Book a Book now. BOOK it.")})
+	err = requireRefused(t, apply(t, c, agent, replace("", sourceRev(c), find("book", "order")))[0], change.CodeNotFound)
+	require.Len(t, err.Candidates, 3, "the matches that differ only in case, at most three")
+	assert.Equal(t, model.RunPos{Run: 0, Offset: 7}, err.Candidates[1].At.Start)
 }

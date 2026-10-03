@@ -100,6 +100,7 @@ var (
 		{"CurrentEdition", reflect.TypeFor[change.Current](), ""},
 		{"ChangeError", reflect.TypeFor[change.Error](), ""},
 		{"ErrorCandidate", reflect.TypeFor[change.Candidate](), ""},
+		{"FindSearched", reflect.TypeFor[change.Searched](), ""},
 	}
 	changeReadTypes = []emitType{
 		{"ReadRequest", reflect.TypeFor[change.ReadRequest](), ""},
