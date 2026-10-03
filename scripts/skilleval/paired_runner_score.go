@@ -128,8 +128,11 @@ func scorePaired(dir string) error {
 // pairedSummaryCell is one task, host and condition of the summary.
 type pairedSummaryCell struct {
 	n, passed, completed, overrides, outside, changed int
-	seconds, input, output, tools                     []float64
-	refusals, invalid                                 map[string]int
+	// unmeasured counts the attempts whose host reported no token use,
+	// which every median leaves out alike.
+	unmeasured                    int
+	seconds, input, output, tools []float64
+	refusals, invalid             map[string]int
 	// The stale-recovery columns, for a task with another editor.
 	interfered                                                   bool
 	exercised, afterWrite, neverLanded, conflict                 int
@@ -196,6 +199,16 @@ func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 			pairedMedian(c.seconds), pairedMedian(c.input), pairedMedian(c.output), pairedMedian(c.tools),
 			pairedRefusalText(c.refusals), c.overrides, c.outside, c.changed)
 	}
+	var unmeasured []string
+	for _, key := range keys {
+		if n := cells[key].unmeasured; n > 0 {
+			unmeasured = append(unmeasured, fmt.Sprintf("%s %s %s (%d)", key[0], key[1], key[2], n))
+		}
+	}
+	if len(unmeasured) > 0 {
+		fmt.Fprintf(markdown, "\nThe medians leave out the attempts whose host reported no token use, in seconds and "+
+			"tool calls as in tokens: %s.\n", strings.Join(unmeasured, ", "))
+	}
 	writePairedStaleSummary(markdown, keys, cells)
 	writePairedInvalidSummary(markdown, keys, cells)
 }
@@ -217,11 +230,16 @@ func (c *pairedSummaryCell) add(row pairedScoreRow) {
 	if row.ArtifactIntegrity == "changed" {
 		c.changed++
 	}
-	c.seconds = append(c.seconds, float64(row.DurationMS)/1000)
-	c.tools = append(c.tools, float64(row.ToolCalls))
+	// An attempt whose host reported no token use ended before the host
+	// could account for it. It is left out of every median, so the seconds,
+	// tokens and tool calls of a cell describe the same attempts.
 	if row.InputTokens != nil && row.OutputTokens != nil {
+		c.seconds = append(c.seconds, float64(row.DurationMS)/1000)
+		c.tools = append(c.tools, float64(row.ToolCalls))
 		c.input = append(c.input, float64(*row.InputTokens))
 		c.output = append(c.output, float64(*row.OutputTokens))
+	} else {
+		c.unmeasured++
 	}
 	for code, count := range row.Refusals {
 		if pointer, ok := strings.CutPrefix(code, "invalid:"); ok {
