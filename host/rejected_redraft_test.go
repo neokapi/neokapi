@@ -43,7 +43,7 @@ func newRejectionFixture(t *testing.T) *rejectionFixture {
 	st, err := a.OpenProjectState(ctx, root)
 	require.NoError(t, err)
 	scope := a.DocumentScope(ctx, root, filepath.Join(root, "locales", "en", "app.json"))
-	require.NoError(t, st.Record(ctx, state.UnitState{
+	require.NoError(t, st.Put(ctx, state.UnitState{
 		Unit: "greeting", Variant: model.Variant("fr"), Scope: scope,
 		Status:      model.TargetStatusDraft,
 		TargetHash:  state.TargetHash("Bonjour"),

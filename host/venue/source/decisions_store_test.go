@@ -201,3 +201,30 @@ func TestDecisions_ARejectionCarriesTheApprovedBasis(t *testing.T) {
 	assert.Equal(t, "sh-approved-source", us.ContentHash)
 	assert.Equal(t, "fp-approved", us.GoverningFingerprint)
 }
+
+// A pull brings the venue's decisions, not its records of what it produced:
+// a translation the venue drafted, with the source it was made from, decides
+// nothing, and the project's ledger holds decisions only. The translation
+// arrives as content, and the pull's write of it is in the block history.
+func TestPulledDecisions_LeaveOutRecordsOfWhatWasProduced(t *testing.T) {
+	a := &host.App{}
+	defer a.Shutdown()
+	c := newDecisionsConnector(t, a)
+
+	recorded, skipped, err := c.recordPulledDecisions(t.Context(), []venue.UnitDecision{
+		{Unit: "greeting", Variant: "fr", Status: "established", ReviewState: "approved",
+			TargetHash: "t-1", ContentHash: "s-1", Updated: "2026-08-05T10:00:00Z"},
+		{Unit: "farewell", Variant: "fr", Status: "translated",
+			TargetHash: "t-2", ContentHash: "s-2", Updated: "2026-08-05T10:00:00Z"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, recorded)
+	assert.Zero(t, skipped, "a record of what was produced is not an unreadable one")
+
+	st, err := a.OpenProjectState(t.Context(), c.project.Root)
+	require.NoError(t, err)
+	all, err := st.All(t.Context())
+	require.NoError(t, err)
+	require.Len(t, all, 1)
+	assert.Equal(t, "greeting", all[0].Unit)
+}

@@ -555,7 +555,12 @@ func importDecisionRecord(ctx context.Context, st *state.WorkStore, dir string) 
 		return 0, err
 	}
 	for _, u := range append(first, last...) {
-		if err := st.Record(ctx, u); err != nil {
+		if !u.Decides() {
+			// A line an earlier release wrote for what a pass produced; the
+			// ledger holds decisions only.
+			continue
+		}
+		if err := st.RecordEntry(ctx, u, u.Decision.By, state.OriginImport); err != nil {
 			return 0, err
 		}
 	}

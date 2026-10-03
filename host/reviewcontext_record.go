@@ -19,8 +19,10 @@ import (
 //
 //   - when the most recent recorded change to the edition produced the content
 //     in force, its writer is the origin: a person's edit reads as human, an
-//     agent's as agent with the agent named. A tool's write keeps the origin
-//     the tool stamped.
+//     agent's as agent with the agent named, and a tool's write as the stamp
+//     the tool left, which the block history keeps for a file that holds
+//     strings alone. A tool's write that kept no stamp, and an edit made
+//     outside kapi, leave the origin as it was.
 //   - a decision recorded against a translation that is no longer there is not
 //     the decision in force, and its origin describes text that is gone.
 func (a *App) recordedProvenance(ctx context.Context, req ReviewContextRequest, block *model.Block, loc model.LocaleID, p review.Provenance) review.Provenance {
@@ -41,6 +43,15 @@ func (a *App) recordedProvenance(ctx context.Context, req ReviewContextRequest, 
 		o.Kind = model.OriginHuman
 	case change.ActorAgent:
 		o.Kind, o.Engine, o.Reference = model.OriginAgent, row.ActorName, row.Session
+	case change.ActorTool:
+		if row.Producer == (model.Origin{}) {
+			return p
+		}
+		ts := o.Timestamp
+		o = row.Producer
+		if o.Timestamp == "" {
+			o.Timestamp = ts
+		}
 	default:
 		return p
 	}

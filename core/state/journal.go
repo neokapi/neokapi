@@ -58,7 +58,8 @@ func (w *WorkStore) SetJournal(j Journal) {
 
 // ApplyEntries writes journal entries into the ledger of a context database, in
 // one transaction. It is how a journal applies what it recorded, and how a
-// rebuild replays it.
+// rebuild replays it. An entry that decides nothing (UnitState.Decides), which
+// only a log an earlier release wrote can carry, is left out.
 func ApplyEntries(ctx context.Context, db *storage.DB, entries []JournalEntry) error {
 	if len(entries) == 0 {
 		return nil
@@ -69,6 +70,9 @@ func ApplyEntries(ctx context.Context, db *storage.DB, entries []JournalEntry) e
 	}
 	defer func() { _ = tx.Rollback() }()
 	for _, e := range entries {
+		if !e.Revoked && !e.State.Decides() {
+			continue
+		}
 		if err := insertEntry(ctx, tx, e.State, e.Actor, e.Origin, e.Revoked, e.Recorded, e.Reassert); err != nil {
 			return err
 		}

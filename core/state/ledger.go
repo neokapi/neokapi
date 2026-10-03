@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -39,8 +40,6 @@ const (
 	// OriginLocal is a decision recorded in this checkout: a person in a review
 	// pane, an agent through the MCP tools, `kapi apply`.
 	OriginLocal EntryOrigin = "local"
-	// OriginRun is a basis a convergence pass recorded for its own output.
-	OriginRun EntryOrigin = "run"
 	// OriginImport is a line read from the committed shards.
 	OriginImport EntryOrigin = "import"
 	// OriginVenue is a decision pulled from a connected venue, or the record a
@@ -143,6 +142,11 @@ type Policy func(Transition) error
 // own permissions on its side and reports what it refused, and a checkout's
 // record is whatever the person holding the checkout decided.
 func AllowAny(Transition) error { return nil }
+
+// ErrDecidesNothing refuses a ledger entry that decides nothing about its
+// unit (UnitState.Decides): the ledger holds decisions, and what a producer
+// made, and from which source, is the block history's.
+var ErrDecidesNothing = errors.New("state: the entry decides nothing, and the ledger holds decisions only")
 
 // Supersedes reports whether a record arriving from elsewhere is newer than
 // one already in force, by the `Updated` stamp both ends write.

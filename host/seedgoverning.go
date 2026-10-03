@@ -77,17 +77,16 @@ func (a *App) restoreGoverningFingerprints(ctx context.Context, st *state.WorkSt
 					continue
 				}
 				row, ok := st.Get(ctx, state.Key{Scope: scope, Unit: e.Unit, Variant: model.Variant(locale)})
-				if !ok || row.GoverningFingerprint != "" {
+				if !ok || row.GoverningFingerprint != "" || !row.Decides() {
 					continue
 				}
 				if row.TargetHash == "" || row.TargetHash != state.TargetHash(e.VariantText(locale)) {
 					continue // the row is about a different answer
 				}
 				row.GoverningFingerprint = fingerprint
-				// Recorded rather than staged: nothing here is a decision
-				// somebody owes a review, and a row already staged keeps that
-				// flag.
-				if err := st.Record(ctx, row); err != nil {
+				// The decision as it stood, with the context it was made
+				// under read back from the bundle the project committed.
+				if err := st.RecordEntry(ctx, row, row.Decision.By, state.OriginImport); err != nil {
 					return err
 				}
 				restored++

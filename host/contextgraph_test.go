@@ -425,10 +425,11 @@ func TestMaterializeContextGraphWritesBlessings(t *testing.T) {
 	}))
 	// A record whose block is gone keeps its node and gets no edge.
 	require.NoError(t, db.Work().Put(ctx, state.UnitState{
-		Unit:    "guide.removed",
-		Scope:   "docs/guide.md",
-		Variant: model.Variant("nb"),
-		Status:  model.TargetStatusTranslated,
+		Unit:     "guide.removed",
+		Scope:    "docs/guide.md",
+		Variant:  model.Variant("nb"),
+		Status:   model.TargetStatusDraft,
+		Decision: state.Decision{ReviewState: "rejected"},
 	}))
 
 	_, err = a.MaterializeContextGraph(ctx, root, proj)

@@ -507,6 +507,10 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 	}
 	for _, u := range all {
 		locale := string(u.Variant.Locale)
+		// An approval or a rejection grades its unit. The ledger holds
+		// decisions only; an undecided translation is graded by the flow's
+		// last write to it, from the block history (lookup). A source approval
+		// or an agent's pre-review answers no question this index is asked.
 		switch u.Status {
 		case model.TargetStatusEstablished, model.TargetStatusDraft:
 			idx.putUnit(u.Scope, u.Unit, locale, reviewedEntry{
@@ -514,22 +518,6 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 				contentHash: u.ContentHash, by: u.Decision.By, decided: true,
 				governing: u.GoverningContext(),
 			})
-		default:
-			// A basis recorded beside a translation with no decision on it
-			// (an earlier release's record of a Kapi Desktop edit or a loop
-			// pass, which the project's ledger keeps): the source
-			// it translates and the translation, which lets a source rewrite
-			// under an UNDECIDED translation be derived on read exactly as one
-			// under a decided translation is. A record carrying neither hash
-			// describes no pairing (a source approval, an AI annotation on a
-			// unit nobody has decided) and answers no question this index is
-			// asked.
-			if u.TargetHash != "" && undecidedRecord(u) {
-				idx.putUnit(u.Scope, u.Unit, locale, reviewedEntry{
-					status: u.Status, targetHash: u.TargetHash, contentHash: u.ContentHash,
-					governing: u.GoverningContext(),
-				})
-			}
 		}
 		if u.AIReview != nil {
 			e := aiReviewEntry{score: u.AIReview.Score, model: u.AIReview.Model, targetHash: u.AIReview.TargetHash}
@@ -542,8 +530,8 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 	return idx, nil
 }
 
-// undecidedRecord reports whether a ledger record carries no decision: a basis
-// recorded beside a translation rather than a verdict on it.
+// undecidedRecord reports whether a ledger record carries no verdict on its
+// translation: an agent's pre-review on a unit nobody has decided.
 func undecidedRecord(u state.UnitState) bool {
 	return u.Status != model.TargetStatusEstablished && u.Status != model.TargetStatusDraft && u.Decision.ReviewState == ""
 }

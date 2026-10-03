@@ -61,7 +61,7 @@ func TestOpenLedger_LeavesEveryCheckoutViewAlone(t *testing.T) {
 
 	ledger, err := state.OpenLedger(ctx, db)
 	require.NoError(t, err)
-	require.NoError(t, ledger.Record(ctx, unit("u2", "d-intro", "Bravo")))
+	require.NoError(t, ledger.Put(ctx, unit("u2", "d-intro", "Bravo")))
 
 	held, err := checkout.All(ctx)
 	require.NoError(t, err)
