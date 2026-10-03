@@ -10,17 +10,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// declareGoComments adds a source-only collection over a Go file to a recipe,
-// with or without `comments: true`.
+// declareGoComments adds a collection over a Go file to a recipe: with
+// `comments: true` a source-only one, and without it one a convergence run
+// translates, so the run reads the file as content.
 func declareGoComments(t *testing.T, recipe string, comments bool) string {
 	t.Helper()
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	proj.Collections = append(proj.Collections, project.Collection{
+	code := project.Collection{
 		Name:       "code",
 		SourceOnly: true,
 		Content:    []project.ContentItem{{Path: "code/*.go", Comments: project.ContentComments{Declared: comments}}},
-	})
+	}
+	if !comments {
+		code.SourceOnly = false
+		code.Content[0].Target = "code/{lang}/*.go"
+	}
+	proj.Collections = append(proj.Collections, code)
 	require.NoError(t, project.Save(recipe, proj))
 	goFile := filepath.Join(filepath.Dir(recipe), "code", "parse.go")
 	require.NoError(t, os.MkdirAll(filepath.Dir(goFile), 0o755))

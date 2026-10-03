@@ -90,6 +90,10 @@ type ChangeServiceOptions struct {
 	// pull write whole translations this way, where the editing surfaces
 	// edit a translation's file in place.
 	Materialize bool
+	// WriterHook, inside a project, is given every writer the service opens
+	// for a source file, after the recipe configured it: kapi pull sets the
+	// locale variants of a document's media on it.
+	WriterHook func(format.DataFormatWriter)
 }
 
 // Changes builds the change service for the project cmd names, or for the
@@ -414,6 +418,9 @@ type projectChangeLayout struct {
 	// plainText reads a file the recipe does not claim and no format reads
 	// as plain text (ChangeServiceOptions.PlainText).
 	plainText bool
+	// writerHook is given every writer opened for a source file
+	// (ChangeServiceOptions.WriterHook).
+	writerHook func(format.DataFormatWriter)
 
 	once  sync.Once
 	index *projectChangeIndex
@@ -442,8 +449,9 @@ func (a *App) newProjectLayout(opts ChangeServiceOptions) (*projectChangeLayout,
 	pctx := project.NewProjectContext(proj, opts.Project)
 	return &projectChangeLayout{
 		app: a, root: pctx.ProjectDir, proj: proj, pctx: pctx, format: opts.Format, target: opts.TargetLocale,
-		source: model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), proj.Defaults.SourceLanguage)),
-		enc:    ResolveEncodingName(a.Encoding, proj.Defaults.Encoding),
+		source:     model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), proj.Defaults.SourceLanguage)),
+		enc:        ResolveEncodingName(a.Encoding, proj.Defaults.Encoding),
+		writerHook: opts.WriterHook,
 	}, nil
 }
 
@@ -579,6 +587,22 @@ func (l *projectChangeLayout) formatConfig(name, bound string, item *project.Con
 	return mergedFormatConfig(l.proj, reg(name), item)
 }
 
+// hooked is b with the layout's writer hook given every writer b opens.
+func (l *projectChangeLayout) hooked(b filehome.Binding) filehome.Binding {
+	if l.writerHook == nil || b.NewWriter == nil {
+		return b
+	}
+	open := b.NewWriter
+	b.NewWriter = func() (format.DataFormatWriter, error) {
+		w, err := open()
+		if err == nil {
+			l.writerHook(w)
+		}
+		return w, err
+	}
+	return b
+}
+
 // sourceDoc is a source file the recipe claims, with the file of each of its
 // translations.
 func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) filehome.Doc {
@@ -588,7 +612,7 @@ func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) fil
 	}
 	d := filehome.Doc{
 		Ref: ref, Path: rf.Path,
-		Format:       l.app.formatBinding(name, l.formatConfig(name, rf.Format, rf.Item), l.enc),
+		Format:       l.hooked(l.app.formatBinding(name, l.formatConfig(name, rf.Format, rf.Item), l.enc)),
 		SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target),
 	}
 	targets := l.editionUnits(rf)

@@ -74,11 +74,10 @@ var replacing = map[string]bool{"Replace": true, "ReplaceBytes": true, "Stage": 
 // allowed lists the functions that point a writer at a file, keyed by the file
 // and the function, with what each writes.
 var allowed = map[string]string{
-	"host/merge.go:writeMergedSourceWithSkeleton": "writes a target-language file kapi merge builds from the source's skeleton",
-	"host/toolbox_conv.go:convertDocument":        "exports a document converted to another format",
-	"host/apply_comment.go:write":                 "writes the code comments kapi apply edits, which the file home does not write yet",
-	"bowrain/connector/file.go:publishFile":       "publishes a document to a connector's file destination",
-	"examples/go-quickstart/main.go:run":          "writes the example's bilingual output",
+	"host/toolbox_conv.go:convertDocument":  "exports a document converted to another format",
+	"host/apply_comment.go:write":           "writes the code comments kapi apply edits, which the file home does not write yet",
+	"bowrain/connector/file.go:publishFile": "publishes a document to a connector's file destination",
+	"examples/go-quickstart/main.go:run":    "writes the example's bilingual output",
 }
 
 func main() {

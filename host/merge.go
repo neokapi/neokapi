@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
@@ -21,7 +20,6 @@ import (
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/memory"
@@ -202,12 +200,12 @@ func (a *App) RunMerge(cmd Command) error {
 }
 
 // MergeFromProjectStore materializes localized files from the project block
-// store (AD-026 §3): for each project source × target locale it reads the
-// source, applies the stored `targets/<locale>` overlays via the
-// hydrateTargetsTool (recomputing nothing), and writes the localized file to
-// the source's output template. This is the sink half of the process-only
-// loop — `kapi run flow -i src.json` (in a project, no -o) commits overlays;
-// `kapi merge` (no -i) writes the files.
+// store (AD-026 §3): for each project source × target locale it gives the
+// source's translation the stored `targets/<locale>` overlays (recomputing
+// nothing) through the change service, which writes the file the source's
+// target template names. This is the sink half of the process-only loop —
+// `kapi run flow -i src.json` (in a project, no -o) commits overlays; `kapi
+// merge` (no -i) writes the files.
 func (a *App) MergeFromProjectStore(cmd Command) error {
 	ctx := cmd.Context()
 	projectPath, err := RequireProjectPath(cmd)
@@ -243,12 +241,14 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 
 // materializeFromProjectStore is the shared materialize path (#1078 C2/C3):
 // it writes the localized files for the given locales from the project block
-// store — each source read once, the stored `targets/<locale>` overlays
-// hydrated onto it, the localized file written via the source format's
-// skeleton round-trip. `kapi merge` (no -i) calls it over every target
-// language; `kapi up` calls it after the loop for the shippable locales when
-// the materialize policy (defaults.materialize / --materialize) says so.
-// Returns the number of files written.
+// store — for each source and locale one change set of set_content operations
+// carrying the stored `targets/<locale>` overlays, which the change service
+// writes from the source's skeleton (materializeEdition). A collection that
+// names no target is source-only and gets no file, and a translation the
+// store holds nothing for is left as it is. `kapi merge` (no -i) calls it over
+// every target language; `kapi up` calls it after the loop for the shippable
+// locales when the materialize policy (defaults.materialize / --materialize)
+// says so. Returns the number of files written.
 func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noMemoryUpdate bool) (int, error) {
 	return a.materializeProject(ctx, out, proj, projectPath, locales, noMemoryUpdate, nil)
 }
@@ -283,17 +283,27 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 		return 0, fmt.Errorf("merge: resolve project content: %w", err)
 	}
 	// A file declared for its comments alone has no target to materialize, and
-	// neither has a file in a format no installed reader opens.
+	// neither has a file in a format no installed reader opens, nor one whose
+	// collection names no target: that content is source-only.
 	kept := files[:0]
+	sourceOnly := 0
 	for _, f := range files {
-		if !f.CommentsOnly() && !a.setAside(unread, filepath.Dir(projectPath), f) {
+		switch {
+		case f.CommentsOnly():
+		case f.Item == nil || f.Item.Target == "":
+			sourceOnly++
+		case !a.setAside(unread, filepath.Dir(projectPath), f):
 			kept = append(kept, f)
 		}
 	}
 	files = kept
 	if len(files) == 0 {
-		if !unread.empty() {
+		switch {
+		case !unread.empty():
 			return 0, fmt.Errorf("merge: nothing was materialized: %s", unread.summary())
+		case sourceOnly > 0:
+			// Every file is source-only: there is no translation to write.
+			return 0, nil
 		}
 		return 0, errors.New("merge: project has no source files to materialize (check content patterns)")
 	}
@@ -331,6 +341,11 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 		return 0, nil
 	}
 
+	// The change service writes each translation from its source's skeleton,
+	// one service per language, for a bilingual source whose reader has to
+	// be told the language it holds.
+	services := &materializeServices{app: a, ctx: ctx, recipe: projectPath, source: pctx.SourceLocale}
+
 	written := 0
 	for _, f := range files {
 		srcFormat := f.Format
@@ -355,30 +370,21 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 				continue
 			}
 
-			runner := flow.NewFileRunner(flow.FileRunnerConfig{
-				FormatReg:    a.FormatReg,
-				SourceLocale: pctx.SourceLocale,
-				Encoding:     pctx.Encoding,
-				Store:        store,
-				DetectFormat: func(string) registry.FormatID { return registry.FormatID(srcFormat) },
-				// The recipe's configuration for THIS item, on both halves of the
-				// round-trip. Materializing re-reads the source to rebuild its
-				// skeleton, so a reader configured any other way splits the
-				// document into a different set of blocks than extraction did and
-				// the stored targets land on the wrong ones.
-				ConfigureReader: func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
-					return pctx.ConfigureReaderFor(reader, string(detectedFmt), f.Item)
-				},
-				ConfigureWriter: func(writer format.DataFormatWriter, fmtName registry.FormatID) error {
-					return pctx.ConfigureWriterFor(writer, string(fmtName), f.Item)
-				},
-			})
 			// Address the stored overlays by the same source-file-namespaced key
 			// the run wrote them under (blockstore.StoreKey).
 			fileCtx := blockstore.WithSourceRel(ctx, f.Relative)
-			tools := []tool.Tool{newHydrateTargetsTool(locale)}
-			if rerr := runner.RunFile(fileCtx, "merge", tools, f.Path, targetPath, string(locale)); rerr != nil {
-				return written, fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, rerr)
+			svc, serr := services.of(locale)
+			if serr != nil {
+				return written, fmt.Errorf("merge: %w", serr)
+			}
+			held, merr := materializeEdition(fileCtx, svc, store, filepath.ToSlash(f.Relative), locale)
+			if merr != nil {
+				return written, fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, merr)
+			}
+			if held == 0 {
+				// The store holds no translation for this file: there is
+				// nothing to write.
+				continue
 			}
 			written++
 

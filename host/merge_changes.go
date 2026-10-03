@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
@@ -372,6 +373,109 @@ func (a *App) translatorWins(task mergeTask, rf *returnedFile) bool {
 	default:
 		return true
 	}
+}
+
+// materializeActor is who kapi merge's materializing form sends its change
+// sets as: the tool that writes what the project's runs stored, whose drafts
+// meet the ship gates later.
+var materializeActor = change.Actor{Kind: change.ActorTool, Name: "merge"}
+
+// materializeServices builds the change service a materialize pass writes
+// each language's translations through, once per language.
+type materializeServices struct {
+	app    *App
+	ctx    context.Context
+	recipe string
+	source model.LocaleID
+	built  map[model.LocaleID]*change.Service
+}
+
+func (m *materializeServices) of(locale model.LocaleID) (*change.Service, error) {
+	if svc, ok := m.built[locale]; ok {
+		return svc, nil
+	}
+	svc, err := m.app.ChangeService(m.ctx, ChangeServiceOptions{
+		Project: m.recipe, Origin: "merge", SourceLocale: m.source, TargetLocale: locale, Materialize: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if m.built == nil {
+		m.built = map[model.LocaleID]*change.Service{}
+	}
+	m.built[locale] = svc
+	return svc, nil
+}
+
+// materializeEdition gives the translation of doc into locale every target
+// the block store holds for its blocks, as one change set the service writes
+// from the source's skeleton, and returns how many blocks the store holds a
+// target for. ctx addresses the stored overlays by doc's key
+// (blockstore.WithSourceRel).
+func materializeEdition(ctx context.Context, svc *change.Service, store blockstore.Store, doc string, locale model.LocaleID) (int, error) {
+	sess, err := store.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer sess.Close()
+	key := model.EditionKey{Locale: locale}
+	kind := blockstore.TargetOverlayKind(locale)
+	var ops []change.Op
+	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: doc, Editions: []model.EditionKey{key}}, func(b *model.Block, r change.BlockRead) error {
+		if !b.Translatable || b.ID == "" {
+			return nil
+		}
+		// Absence and failure differ: ErrNotFound is a block with no
+		// translation yet, anything else a store that could not be read.
+		o, gerr := sess.GetOverlay(kind, blockstore.OverlayKey(ctx, b.ID, b.SourceText()))
+		if errors.Is(gerr, blockstore.ErrNotFound) {
+			return nil
+		}
+		if gerr != nil {
+			return fmt.Errorf("read %s overlay for block %s: %w", kind, r.Ref.Block, gerr)
+		}
+		if len(o.Payload) == 0 {
+			return nil
+		}
+		stored := &model.Block{ID: b.ID}
+		if err := applyTargetOverlay(stored, locale, o.Payload); err != nil {
+			return err
+		}
+		t := stored.Target(locale)
+		if t == nil {
+			return nil
+		}
+		ops = append(ops, change.Op{
+			Kind: change.KindSetContent, At: change.Ref{Doc: doc, Block: r.Ref.Block, Edition: key},
+			IfMatch: model.EditionRevision(b, key),
+			Body:    &change.SetContent{Content: change.Content{Runs: t.Runs}},
+		})
+		return nil
+	})
+	if err != nil || len(ops) == 0 {
+		return 0, err
+	}
+	res, err := svc.Apply(ctx, change.Set{Gate: change.GateReport, Note: "materialize " + string(locale), Ops: ops}, materializeActor)
+	if err != nil {
+		return 0, err
+	}
+	if res.Status != change.SetApplied {
+		for _, r := range res.Ops {
+			if r.Status == change.OpRefused && r.Error != nil {
+				return 0, fmt.Errorf("block %s: %w", refBlock(r.At), r.Error)
+			}
+		}
+		return 0, fmt.Errorf("the change set was %s", res.Status)
+	}
+	return len(ops), nil
+}
+
+// refBlock names the block a result addresses.
+func refBlock(at *change.Ref) string {
+	if at == nil {
+		return "?"
+	}
+	return at.Block
 }
 
 // blockList names up to three blocks in a message.

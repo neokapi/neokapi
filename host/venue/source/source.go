@@ -1371,29 +1371,11 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 					continue
 				}
 
-				// Build target map for this locale from structured segments.
-				// Keyed by a stable match key (not the server block ID, which is
-				// not preserved across push/pull) so writeTranslatedFile can match
-				// the freshly re-parsed source blocks.
-				targetMap := map[string]string{} // matchKey → translated text
-				for _, b := range blocks {
-					if segs, ok := b.Targets[loc]; ok {
-						// Extract plain text from segments (flatten
-						// TextRuns only — inline codes and structured
-						// runs contribute nothing at export time).
-						var textSb strings.Builder
-						for _, seg := range segs {
-							for _, r := range seg.Runs {
-								if r.Text != nil {
-									textSb.WriteString(r.Text.Text)
-								}
-							}
-						}
-						if text := textSb.String(); text != "" {
-							targetMap[targetMatchKey(b.Name, b.SourceText)] = text
-						}
-					}
-				}
+				// The translations into this locale, as runs, keyed by a stable
+				// match key (not the server block ID, which is not preserved
+				// across push/pull) so the freshly re-read source blocks find
+				// theirs.
+				targetMap := pulledTargets(blocks, loc)
 				if len(targetMap) == 0 {
 					continue
 				}
@@ -1444,13 +1426,21 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 					}
 				}
 
-				werr := c.writeTranslatedFile(ctx, absSource, absOut, formatName, loc, targetMap, mediaRepl...)
+				wrote := true
+				var werr error
+				if c.pullsAnEdition(itemName, outPath) {
+					wrote, werr = c.pullEdition(ctx, itemName, loc, targetMap, mediaRepl)
+				} else {
+					werr = c.writeTranslatedFile(ctx, absSource, absOut, formatName, loc, targetMap, mediaRepl...)
+				}
 				cleanupMedia()
 				if werr != nil {
 					writeErrs = append(writeErrs, fmt.Errorf("write %s (%s): %w", outPath, loc, werr))
 					continue
 				}
-				filesWritten++
+				if wrote {
+					filesWritten++
+				}
 			}
 		}
 	}
@@ -1941,8 +1931,6 @@ func swapSourceLocale(itemName, srcLang, locale string) string {
 	return strings.TrimSuffix(itemName, ext) + "." + locale + ext
 }
 
-// writeTranslatedFile reads a source file, injects target translations into blocks,
-// and writes the translated output file using the appropriate format writer.
 // MediaReplacement describes a locale-variant media file to substitute in the
 // output. The variant asset travels as a *model.Media reference (a local file
 // path the writer streams from), never as inline bytes on this struct.
@@ -1968,7 +1956,11 @@ func targetMatchKey(name, sourceText string) string {
 	return "s:" + sourceText
 }
 
-func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePath, outputPath, formatName, locale string, targets map[string]string, mediaReplacements ...MediaReplacement) error {
+// writeTranslatedFile writes a pulled translation that is a projection rather
+// than an edition of its source (pullsAnEdition): it reads the source, gives
+// each block the runs targets holds for it, and writes the output file with
+// the writer the output path's format names.
+func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePath, outputPath, formatName, locale string, targets map[string][]model.Run, mediaReplacements ...MediaReplacement) error {
 	// Read source.
 	reader, err := c.formatReg.NewReader(registry.FormatID(formatName))
 	if err != nil {
@@ -2036,7 +2028,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 		if p.Type == model.PartBlock {
 			if b, ok := p.Resource.(*model.Block); ok {
 				if t, exists := targets[targetMatchKey(b.Name, b.SourceText())]; exists {
-					b.SetTargetText(model.LocaleID(locale), t)
+					b.SetTargetRuns(model.LocaleID(locale), t)
 				}
 			}
 		}

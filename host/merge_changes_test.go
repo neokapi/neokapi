@@ -2,6 +2,8 @@ package host
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,9 +11,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projector"
 )
 
 // mergeProject is a project with one JSON catalog whose French translation
@@ -181,4 +186,70 @@ func TestMergeReturned_ASourceOnlyDocumentIsRefused(t *testing.T) {
 	require.Error(t, err, "a merge that lands nothing because the source has no translation file fails")
 	assert.Contains(t, err.Error(), "names no target")
 	assert.Equal(t, 1, stats.Refused)
+}
+
+// TestChangeService_GivesTheWriterHookTheWriterOfATranslation pins the hook
+// kapi pull sets a document's locale-variant media through: the writer that
+// writes a translation from its source's skeleton is handed to it.
+func TestChangeService_GivesTheWriterHookTheWriterOfATranslation(t *testing.T) {
+	a, task := mergeProject(t, map[string]string{"src/en/app.json": `{"greeting": "Hello"}` + "\n"}, "")
+	ids := blockIDs(t, a, task)
+	var hooked []format.DataFormatWriter
+	svc, err := a.ChangeService(context.Background(), ChangeServiceOptions{Project: task.recipe, Materialize: true,
+		WriterHook: func(w format.DataFormatWriter) { hooked = append(hooked, w) }})
+	require.NoError(t, err)
+	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{
+		setTo(change.Ref{Doc: "src/en/app.json", Block: ids["Hello"], Edition: model.EditionKey{Locale: "fr"}}, model.AbsentRevision, "Bonjour"),
+	}}, changePerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.NotEmpty(t, hooked, "the writer of the translation went through the hook")
+	assert.Equal(t, `{"greeting": "Bonjour"}`+"\n", readFile(t, task.recipe, "src/fr/app.json"))
+}
+
+// TestMaterialize_WritesEachTranslationThroughTheChangeService pins kapi
+// merge's materializing form: the targets the block store holds become one
+// change set per translation, which the change service writes from the
+// source's skeleton and records as an edit. A message the existing
+// translation holds and the store does not keeps its text, a message the
+// source gained lands, and a source-only collection gets no file.
+func TestMaterialize_WritesEachTranslationThroughTheChangeService(t *testing.T) {
+	ctx := context.Background()
+	a, task := mergeProject(t, map[string]string{
+		"src/en/app.json": `{"greeting": "Hello", "farewell": "Goodbye", "new": "Fresh"}` + "\n",
+		"src/fr/app.json": `{"farewell":"Au revoir","greeting":"Bonjour"}` + "\n",
+		"notes/en.json":   `{"note": "Source only"}` + "\n",
+	}, project.ConflictPolicyTranslatorWins)
+	proj := task.project
+	proj.Collections = append(proj.Collections, project.Collection{Name: "notes", SourceOnly: true,
+		Content: []project.ContentItem{{Path: "notes/en.json", Format: &project.FormatSpec{Name: "json"}}}})
+	require.NoError(t, project.Save(task.recipe, proj))
+	ids := blockIDs(t, a, task)
+
+	db, err := a.ProjectDB(ctx, task.layout.Root)
+	require.NoError(t, err)
+	sess, err := a.projectBlocksAutocommit(db).Begin(ctx)
+	require.NoError(t, err)
+	fileCtx := blockstore.WithSourceRel(ctx, "src/en/app.json")
+	for text, french := range map[string]string{"Hello": "Salut", "Fresh": "Frais"} {
+		require.NoError(t, sess.PutOverlay(blockstore.Overlay{
+			Kind:      blockstore.TargetOverlayKind("fr"),
+			BlockHash: blockstore.OverlayKey(fileCtx, ids[text], text),
+			Payload:   []byte(`{"text":"` + french + `","status":"draft"}`),
+		}))
+	}
+	require.NoError(t, sess.Close())
+
+	written, err := a.materializeFromProjectStore(ctx, io.Discard, proj, task.recipe, []model.LocaleID{"fr"}, true)
+	require.NoError(t, err)
+	assert.Equal(t, 1, written)
+	assert.Equal(t, `{"greeting": "Salut", "farewell": "Au revoir", "new": "Frais"}`+"\n", readFile(t, task.recipe, "src/fr/app.json"))
+	assert.NoDirExists(t, filepath.Join(task.layout.Root, "notes", "fr"), "a source-only collection has no translation file")
+
+	ops := editOps(t, a, task.layout.Root)
+	require.Len(t, ops, 1, "the translation is written as one recorded edit")
+	var e projector.Edit
+	require.NoError(t, json.Unmarshal(ops[0].Payload, &e))
+	assert.Equal(t, "merge", e.Origin.By)
+	assert.Equal(t, change.ActorTool, e.Actor.Kind)
 }
