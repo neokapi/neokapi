@@ -295,11 +295,9 @@ func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdi
 	if err != nil || len(gone) == 0 || !je.file.Bilingual {
 		return err
 	}
-	at := make(map[int]bool, len(gone))
-	for si := range gone {
-		at[si] = true
-	}
-	return st.verifyEditionRemoved(ctx, f, je, at)
+	// The file is written from the document's skeleton, so its blocks are in
+	// the document's order.
+	return st.verifyEditionRemoved(ctx, f, je, gone)
 }
 
 // writeEditionInPlace stages the existing file of a joined edition through
