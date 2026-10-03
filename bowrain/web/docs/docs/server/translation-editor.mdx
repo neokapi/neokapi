@@ -31,12 +31,16 @@ per-block context.
 A project is a shared, live workspace. When teammates open the same project you
 see their names and avatars on the blocks they are editing, their edits and
 reviews appear in your editor without a refresh, and the progress bar moves as
-the team works. Content is saved over the server's REST API, which is
-authoritative: editing is block-level and last-write-wins, with no
-character-level co-editing. The web and desktop apps are equal real-time
-clients of the same server, and the desktop app keeps working offline: edits
-queue locally and replay on reconnect. See
-[Real-time collaboration](/server/collaboration) for the full picture.
+the team works. Content is saved on the server, which is authoritative. Editing
+is block-level, with no character-level co-editing, and every save names the
+version of the translation you opened. If a teammate saved a different
+translation of the block in the meantime, nothing is written: the editor shows
+their translation beside yours and asks whether to save yours over it or keep
+theirs. Approving and rejecting work the same way, so a decision always applies
+to the wording you read. The web and desktop apps are equal real-time clients of
+the same server, and the desktop app keeps working offline: edits queue locally
+and replay on reconnect. See [Real-time collaboration](/server/collaboration)
+for the full picture.
 
 ## Two views
 

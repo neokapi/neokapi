@@ -48,10 +48,13 @@ languages, coordinates and voice binding, is
 The browser client is always online. The desktop client keeps working when the
 network drops: on a flight, in a tunnel, or during server maintenance. Edits,
 reviews, and memory updates made offline queue locally and replay in order the
-moment you reconnect, then rejoin the live session. You never lose work to a
-dropped connection, and you do not have to think about sync; it happens on
-reconnect. See [Real-time collaboration](/server/collaboration) for the shared
-presence and live-update model both clients use.
+moment you reconnect, then rejoin the live session. A dropped connection loses
+no work, and you do not have to think about sync; it happens on reconnect. Each
+queued edit names the version of the translation it was made against, so an
+edit to a translation a teammate changed while you were offline is not applied
+over theirs and shows as a failed change instead. See
+[Real-time collaboration](/server/collaboration) for the shared presence and
+live-update model both clients use.
 
 ## Web and desktop, in sync
 

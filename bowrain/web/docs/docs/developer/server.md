@@ -74,6 +74,17 @@ leaves a translation's revision where it was. The editor's blocks payload
 carries each served translation's revision in `target_revisions`, and the
 `get_block` tool returns the same values as `revisions`.
 
+The web editor, the review surfaces and the desktop app send every save and
+decision with the revision they rendered from `target_revisions`
+(`bowrain/packages/ui/src/api/contentChanges.ts`). On a `stale` refusal the
+surface shows the person the translation as it stands and sends the operation
+again on the refusal's revision only when they choose to. Notes and entity
+marks are `annotate` and `unannotate` operations on the source edition. The
+desktop sends its change sets through `editorclient.ApplyChanges`; with the
+server out of reach it applies one to its local cache and queues it unchanged in
+its offline outbox, so the server judges each `if_match` on replay and a queued
+edit to a translation that moved meanwhile is refused and marked failed.
+
 The server holds each operation to what the sender may do on the project:
 
 - `set_content`, `replace_text` and `remove_edition` on a translation take the

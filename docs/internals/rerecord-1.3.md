@@ -120,12 +120,12 @@ answer ends with (#2989).
 | 7 | `kapi-desktop-config` | `kapi-desktop-config` | `kapi/desktop/tour.mdx`, `kapi/desktop/recipes/store-ai-credentials.mdx` | desktop recorder | earlier settings layout |
 | 8 | `bowrain-cli-getting-started` | `bowrain-cli-getting-started` | Bowrain `getting-started/the-loop.mdx`, `walkthroughs/bowrain-getting-started.mdx` | stack + `make harness-seed` | `kapi init` proposes the catalog's collection, so the `kapi add` step is gone; status, push and up output |
 | 9 | `bowrain-cli-auth-and-workspaces` | `bowrain-cli-auth-and-workspaces` | Bowrain `walkthroughs/bowrain-auth.mdx` | stack + seed | output of the July take |
-| 10 | `bowrain-web-review` | `bowrain-web-review` | Bowrain `server/review.mdx`, `server/web-overview.mdx` | stack + `scripts/seed-collaboration.mjs` (two users) | one human rung, no sign-off controls |
-| 11 | `bowrain-web-editor` | `bowrain-web-editor` | Bowrain `server/translation-editor.mdx`, `server/web-overview.mdx` | stack + seed | status badges |
+| 10 | `bowrain-web-review` | `bowrain-web-review` | Bowrain `server/review.mdx`, `server/web-overview.mdx` | stack + `scripts/seed-collaboration.mjs` (two users) | one human rung, no sign-off controls; an approval of wording someone changed stops at the stale prompt |
+| 11 | `bowrain-web-editor` | `bowrain-web-editor` | Bowrain `server/translation-editor.mdx`, `server/web-overview.mdx` | stack + seed | status badges; a save over a translation someone changed stops at the stale prompt |
 | 12 | `bowrain-web-governance` | `bowrain-web-governance` | Bowrain `server/context.mdx`, `server/terminology.mdx`, `server/translation-memory.mdx`, `server/web-overview.mdx` | stack + seed (`BOWRAIN_TERM_BLOCK_TEXT`, `BOWRAIN_TERM_TEXT`) | July take |
-| 13 | `bowrain-web-collaboration` | `bowrain-web-collaboration` | Bowrain `getting-started/introduction.mdx`, `server/collaboration.mdx`, `server/web-overview.mdx` | stack + `seed-collaboration.mjs` (two users) | July take |
+| 13 | `bowrain-web-collaboration` | `bowrain-web-collaboration` | Bowrain `getting-started/introduction.mdx`, `server/collaboration.mdx`, `server/web-overview.mdx` | stack + `seed-collaboration.mjs` (two users) | July take; of two people saving one block, the second now meets the stale prompt (the walk saves none) |
 | 14 | `bowrain-web-correction-loop` | `bowrain-web-correction-loop` | Bowrain `server/context-voice.mdx`, `server/web-overview.mdx` | stack + seed | July take |
-| 15 | `bowrain-desktop-dashboard` | `bowrain-desktop-dashboard` | Bowrain `server/desktop-app.mdx` | stack + seed; the recorder's relay | July take; the reconnect fix (#2596) makes the offline beat recordable |
+| 15 | `bowrain-desktop-dashboard` | `bowrain-desktop-dashboard` | Bowrain `server/desktop-app.mdx` | stack + seed; the recorder's relay | July take; the reconnect fix (#2596) makes the offline beat recordable; the outbox queues change sets, and an offline edit someone overtook replays as failed |
 
 Rows 1 to 4 need nothing but the build. Rows 5 to 7 start their own isolated
 backend. Rows 8 to 15 need the stack only while they capture. Narrate them
@@ -153,11 +153,15 @@ separation-of-duties beats act on whichever unit is in focus.
 
 The server takes a content edit, a review decision, a note or an entity mark
 only as a change set on `POST /:ws/projects/:id/streams/:stream/changes`, and
-has no other route for them.
-Record rows 8 to 15 from a commit whose web app and seed scripts
+the web app, the Bowrain desktop and the seed scripts
 (`harness/scripts/seed-bowrain.ts`, `harness/scripts/seed-collaboration.mjs`)
-send their writes there. Rows 10, 11 and 13 show the editor's save, review and
-note controls, so check each against the web app of that commit.
+send their writes there, each save and decision naming the revision it was made
+against. A save or a decision on a translation someone changed after the person
+opened it stops at a prompt, "This translation changed since you opened it",
+that shows the translation as it stands. The walks of rows 10, 11, 13 and 15
+make no concurrent edit, so a take that shows the prompt opened a block before
+the seed finished writing it. The desktop's offline beat in row 15 queues change
+sets, and the queue drains as before when nobody else touched those blocks.
 
 ### 2. Placeholders on the page
 
