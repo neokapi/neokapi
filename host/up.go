@@ -188,6 +188,12 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	if jobs <= 0 {
 		jobs = proj.Defaults.Jobs
 	}
+	// A run that prints its change set (--print-ops) runs one pass and writes
+	// nothing, so a second pass would find the same work pending.
+	printing := a.printOps != nil
+	if printing {
+		untilGate, maxPasses = false, 1
+	}
 
 	// The recipe's source language governs the run, whatever the run prints —
 	// so it is adopted here, before the branch that chooses the output mode,
@@ -200,7 +206,7 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	// agents and CI; otherwise a renderer paints per-locale progress
 	// on stderr — in place on a TTY, line-per-event on plain streams.
 	// --quiet keeps today's summary-only behavior.
-	jsonOut := BoolFlag(cmd, "json")
+	jsonOut := BoolFlag(cmd, "json") && !printing
 	var onEvent func(convergence.Event)
 	var stream *output.NDJSONStream
 	if jsonOut {
@@ -240,6 +246,10 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 		capture:     &result,
 	}); err != nil {
 		return err
+	}
+	if printing {
+		// The change set is the run's output (WithPrintedOps).
+		return nil
 	}
 	return PrintUpResultStream(cmd, stream, result)
 }

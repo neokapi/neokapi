@@ -37,8 +37,10 @@ type Document struct {
 	// TargetLocale is the language the run writes, empty for a run over the
 	// source alone.
 	TargetLocale model.LocaleID
-	// Format is the format the run reads the input with.
-	Format string
+	// Format is the format the run reads the input with; OutputFormat the
+	// one it writes the output in, which differs for a conversion.
+	Format       string
+	OutputFormat string
 }
 
 // InPlace reports whether the run writes the file it reads.
@@ -88,7 +90,7 @@ var defaultHome = sync.OnceValue(func() *filehome.Home { return filehome.New(nil
 // openDocument digests the destination and opens the caller's follower for
 // one document. It is called before the run reads the input, so the digest is
 // of the file as the run found it.
-func (r *FileRunner) openDocument(ctx context.Context, flowName, inputPath, outputPath, targetLang, formatName string) (*writtenDocument, error) {
+func (r *FileRunner) openDocument(ctx context.Context, flowName, inputPath, outputPath, targetLang, formatName, outputFormat string) (*writtenDocument, error) {
 	// A blocked destination is refused here, before anything is read, with
 	// the error that names what stands in the way.
 	if err := CheckOutputPath(outputPath); err != nil {
@@ -102,7 +104,7 @@ func (r *FileRunner) openDocument(ctx context.Context, flowName, inputPath, outp
 	if r.cfg.Documents != nil {
 		run, oerr := r.cfg.Documents.Open(ctx, Document{
 			Flow: flowName, InputPath: inputPath, OutputPath: outputPath,
-			TargetLocale: model.LocaleID(targetLang), Format: formatName,
+			TargetLocale: model.LocaleID(targetLang), Format: formatName, OutputFormat: outputFormat,
 		})
 		if oerr != nil {
 			return nil, oerr

@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -28,8 +30,8 @@ var containerSkipFormats = map[string]bool{
 // archive into memory — visiting one entry at a time: each eligible entry is run
 // as its own file (normal reader/writer with skeleton round-trip, so a DOCX/EPUB
 // inside the archive round-trips faithfully) and spliced into the output as it is
-// produced; every other entry is copied through. The output is written
-// atomically (temp file then rename).
+// produced; every other entry is copied through. The output is staged beside
+// the destination and committed through the file home a flow commits through.
 func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, outputPath string, progress progressGroup) error {
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:       a.FormatReg,
@@ -38,8 +40,14 @@ func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, ou
 		ConfigureReader: a.containerConfigureReader(),
 	})
 
+	// The archive commits through the file home a flow commits through, only
+	// while the destination still holds what it held when the run began.
+	before, err := filehome.Digest(outputPath)
+	if err != nil {
+		return err
+	}
 	base := filepath.Base(inputPath)
-	return writeAtomic(outputPath, func(f *os.File) error {
+	produced, err := a.flowHome(a.projectRoot()).Produce(ctx, outputPath, before, func(f io.Writer) error {
 		return container.Transform(inputPath, f, func(name string, read func() ([]byte, error)) ([]byte, bool, error) {
 			fmtName, eligible := a.containerEntryFormat(name)
 			if !eligible {
@@ -62,6 +70,11 @@ func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, ou
 			return out, true, nil
 		})
 	})
+	if err != nil {
+		return err
+	}
+	defer produced.Release()
+	return produced.Commit(ctx)
 }
 
 // runContainerEntry runs one archive entry through a single-file pipeline and

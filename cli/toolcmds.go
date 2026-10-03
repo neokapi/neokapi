@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
@@ -292,7 +293,14 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				}
 			}
 
-			return a.RunToolOnFiles(cmd.Context(), rc)
+			return a.WithPrintedOps(cmd, func() error {
+				if a.Quiet && cmd.Flags().Changed(host.PrintOpsFlag) {
+					// The change set is the run's output; the tool's report
+					// would interleave with it.
+					rc.NewCollector = nil
+				}
+				return a.RunToolOnFiles(cmd.Context(), rc)
+			})
 		},
 	}
 	a.AddInputFlags(cmd)
@@ -314,6 +322,9 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	case info.WritesOutput:
 		cmd.Flags().StringP("output", "o", "", "output path template (variables: {dir}, {name}, {ext})")
 		cmd.Flags().String("output-dir", "", "write outputs under DIR (default: rewrite each input in place)")
+	}
+	if info.WritesOutput {
+		cmd.Flags().Bool(host.PrintOpsFlag, false, host.PrintOpsUsage)
 	}
 	RegisterSchemaFlags(cmd, ToolSchema)
 	if pairsTarget && cmd.Flags().Lookup("target") == nil {

@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"maps"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/format"
@@ -2060,27 +2062,38 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 		}
 	}
 
-	// Ensure output directory exists.
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
-		return fmt.Errorf("create output directory: %w", err)
-	}
-
-	if err := writer.SetOutput(outputPath); err != nil {
-		return fmt.Errorf("set output path: %w", err)
-	}
 	writer.SetLocale(model.LocaleID(locale))
 
-	outCh := make(chan *model.Part, len(parts))
-	for _, p := range parts {
-		outCh <- p
+	// The translated file commits through the file home a flow commits
+	// through: staged beside the destination, renamed under its lock, and only
+	// while the destination still holds what it held when the write began.
+	before, err := filehome.Digest(outputPath)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", outputPath, err)
 	}
-	close(outCh)
-
-	if err := writer.Write(ctx, outCh); err != nil {
-		return fmt.Errorf("write translated file: %w", err)
+	home := filehome.New(nil, filehome.Options{})
+	if c.app != nil {
+		home = c.app.FlowHome(c.project.Root)
 	}
-
-	return writer.Close()
+	produced, err := home.Produce(ctx, outputPath, before, func(w io.Writer) error {
+		if err := writer.SetOutputWriter(w); err != nil {
+			return fmt.Errorf("set output: %w", err)
+		}
+		outCh := make(chan *model.Part, len(parts))
+		for _, p := range parts {
+			outCh <- p
+		}
+		close(outCh)
+		if err := writer.Write(ctx, outCh); err != nil {
+			return fmt.Errorf("write translated file: %w", err)
+		}
+		return writer.Close()
+	})
+	if err != nil {
+		return err
+	}
+	defer produced.Release()
+	return produced.Commit(ctx)
 }
 
 // listMediaVariants reads the variants of an item's assets, once.

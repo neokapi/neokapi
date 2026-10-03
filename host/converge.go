@@ -477,7 +477,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// ship gate does not get its files — holds for a second, redundant write
 	// while the unreviewed draft is already sitting where a site build globs
 	// (#1936). See host/convergedrafts.go.
-	if deliveryIsGated(proj, opts) {
+	if deliveryIsGated(proj, opts) && a.printOps == nil {
 		endDrafts, derr := a.beginConvergeDrafts(projectPath, projectDir)
 		if derr != nil {
 			return derr
@@ -1052,10 +1052,15 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// record a basis for them. Under a gate the pass drafts and delivery names
 	// the files; ungated, the pass wrote where the recipe points, so a locale it
 	// ran for is the answer.
-	gated := deliveryIsGated(proj, opts)
+	//
+	// A run that prints its change set delivers, stamps and records nothing.
+	gated := deliveryIsGated(proj, opts) && a.printOps == nil
 	written := writtenTargets{}
 	produced := func(locale, _ string) bool { return facts.ranPass(locale) }
-	if gated {
+	switch {
+	case a.printOps != nil:
+		produced = nil
+	case gated:
 		produced = written.wrote
 	}
 
@@ -1074,7 +1079,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			// for every flow; the store-backed write below adds whatever
 			// overlays the run also committed, and is a no-op for a flow that
 			// committed none.
-			delivered, derr := a.deliverDrafts(model.LocaleID(lc.Locale))
+			delivered, derr := a.deliverDrafts(ctx, model.LocaleID(lc.Locale))
 			if derr != nil {
 				return fmt.Errorf("deliver %s: %w", lc.Locale, derr)
 			}
@@ -1137,7 +1142,9 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// Everything this run wrote is the store's own output. Stamping it as
 	// absorbed is what keeps the next run from reading its own materialization
 	// back as a statement from git; see stampCommittedRecord.
-	a.stampCommittedRecord(ctx, proj, projectPath, facts.unread)
+	if a.printOps == nil {
+		a.stampCommittedRecord(ctx, proj, projectPath, facts.unread)
+	}
 
 	// And the basis for each translation it wrote, so the next run can see a
 	// source rewritten under an undecided one. Reported and never fatal: the run

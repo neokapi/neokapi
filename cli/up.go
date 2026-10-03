@@ -126,6 +126,14 @@ func runUpWithVenue(a *App, cmd *cobra.Command, projectPath string) error {
 	if local && forceServer {
 		return errors.New("--local and --server are mutually exclusive")
 	}
+	if BoolFlag(cmd, host.PrintOpsFlag) {
+		// The change set a pass would apply is computed where the files are:
+		// on this machine, writing nothing and pushing nothing.
+		if forceServer {
+			return errors.New("--print-ops runs one pass on this machine; it cannot be combined with --server")
+		}
+		return a.WithPrintedOps(cmd, func() error { return a.ExecuteUp(cmd, projectPath) })
+	}
 
 	dec, err := a.ResolveUpVenue(projectPath, upVenueOptions(cmd))
 	if err != nil {

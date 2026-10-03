@@ -155,7 +155,7 @@ func TestFileRunner_ShowsEachDocumentToItsFollower(t *testing.T) {
 			require.NoError(t, runner.RunFile(t.Context(), "pseudo", []tool.Tool{pseudoTool(t)}, input, output, "qps"))
 
 			require.Len(t, f.opened, 1)
-			assert.Equal(t, flow.Document{Flow: "pseudo", InputPath: input, OutputPath: output, TargetLocale: "qps", Format: "json"}, f.opened[0])
+			assert.Equal(t, flow.Document{Flow: "pseudo", InputPath: input, OutputPath: output, TargetLocale: "qps", Format: "json", OutputFormat: "json"}, f.opened[0])
 			assert.False(t, f.opened[0].InPlace())
 			assert.Len(t, f.entered, 2)
 			for id, before := range f.entered {

@@ -144,6 +144,16 @@ type App struct {
 	// is written where it was resolved rather than folded into the tree.
 	convergeDraftRoot string
 
+	// convergeDeliveries holds, for each draft a convergence pass wrote, what
+	// its delivery commits and records: the destination's digest when the run
+	// first read it and the document's follower (host/flowdrafts.go). Set
+	// with the draft tree.
+	convergeDeliveries *draftDeliveries
+
+	// printOps, when set, makes every flow run write nothing and collect the
+	// operations it would apply (--print-ops, host/flowprint.go).
+	printOps *printedOps
+
 	// docCache is the project's streaming document cache, opened by a project-level
 	// command (withParseCache) so repeated reads of unchanged files — across
 	// `status` re-runs, `verify`, every `run --until-gate` pass, and the flow

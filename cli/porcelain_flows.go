@@ -90,9 +90,11 @@ func newPorcelainFlowRunE(a *App, flowName, needInputMsg string) func(*cobra.Com
 		if err != nil {
 			return err
 		}
-		if projectPath != "" {
-			return a.RunFromProject(cmd, flowName, projectPath, RunCmdOptions{Builtin: true})
-		}
-		return a.RunFlow(cmd.Context(), cmd, flowName)
+		return a.WithPrintedOps(cmd, func() error {
+			if projectPath != "" {
+				return a.RunFromProject(cmd, flowName, projectPath, RunCmdOptions{Builtin: true})
+			}
+			return a.RunFlow(cmd.Context(), cmd, flowName)
+		})
 	}
 }

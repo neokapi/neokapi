@@ -431,6 +431,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 				recorder.SetLimits(opts.TraceLimits)
 				fileTools = wrapWithTracing(tools, recorder)
 			}
+			home, docs := a.flowDocuments(ctx, cmd, pctx.ProjectDir)
 			runner := flow.NewFileRunner(flow.FileRunnerConfig{
 				FormatReg:    a.FormatReg,
 				SourceLocale: pctx.SourceLocale,
@@ -446,6 +447,8 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 				},
 				SeedBlockState: seedSourceState,
 				Recorder:       recorder,
+				Home:           home,
+				Documents:      docs,
 			})
 			if err := runner.RunFile(ctx, opts.FlowName, fileTools, inputPath, outputPath, lang); err != nil {
 				// Final metrics snapshot so a UI preserves counts at failure.

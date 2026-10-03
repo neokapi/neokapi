@@ -129,6 +129,7 @@ func (a *App) addFlowRunFlags(cmd Command) {
 	// way to ask a flow run to be strict about a format it could not read.
 	cmd.Flags().Bool("fail-on-unknown", false, "exit with error if any file cannot be processed (default: skip with a warning)")
 	cmd.Flags().Bool("strict", false, "alias for --fail-on-unknown")
+	cmd.Flags().Bool(printOpsFlag, false, printOpsUsage)
 }
 
 // explainBindings resolves and prints the source → sink bindings for a flow run
@@ -410,7 +411,11 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	// `targets/<locale>` overlays to the project store and emits no file.
 	// Materializing the localized files is then a separate `kapi merge`. An
 	// explicit -o (or no project) keeps the file-writing path below.
-	processOnly := a.ProjectContext != nil && projStore != nil && !cmd.Flags().Changed("output") && !a.convergeWriteFiles
+	//
+	// A run that prints its change set renders the files it would write, so
+	// it takes the file-writing path into a home that writes nothing.
+	processOnly := a.ProjectContext != nil && projStore != nil && !cmd.Flags().Changed("output") && !a.convergeWriteFiles &&
+		a.printOps == nil
 
 	// The recipe's word on this file: the project's format defaults overlaid by
 	// the claiming item's own format.config, which is where the extraction rules
@@ -476,6 +481,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 		detectFormat = func(string) registry.FormatID { return registry.FormatID(declaredFormat) }
 	}
 
+	home, docs := a.flowDocuments(ctx, cmd, projRoot)
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:       a.FormatReg,
 		SourceLocale:    model.LocaleID(a.SourceLocale()),
@@ -488,6 +494,8 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 		ConfigureWriter: configureWriter,
 		PartCache:       runnerCache,
 		PartCacheKey:    runnerCacheKey,
+		Home:            home,
+		Documents:       docs,
 	})
 
 	if processOnly {
@@ -1049,7 +1057,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 	// glob that supplied that input re-tracks as source on the next run, so a
 	// writing batch inside a project doubles its own content every time.
 	processOnly := a.ProjectContext != nil && projStore != nil &&
-		!cmd.Flags().Changed("output") && !a.convergeWriteFiles
+		!cmd.Flags().Changed("output") && !a.convergeWriteFiles && a.printOps == nil
 
 	// Wrap tools with TracingTool if recorder is set.
 	var traceNodes []flow.TraceNode
@@ -1071,12 +1079,15 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 		}
 	}
 
+	home, docs := a.flowDocuments(ctx, cmd, projRoot)
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(a.SourceLocale()),
 		Encoding:     a.InputEncoding(),
 		Store:        projStore,
 		ProjectRoot:  projRoot,
+		Home:         home,
+		Documents:    docs,
 	})
 
 	if processOnly {
