@@ -52,6 +52,12 @@ func pairedDiagnosticInstruction(condition string, files []string) string {
 			" with kapi-files inspect and make the change with kapi-files apply. " +
 			"Report every refusal kapi-files apply returned, including an operation it reported as unsupported. " +
 			"If the skill or the command is unavailable, report the failure and stop; do not install or repair it."
+	case "kapi-no-project":
+		return "This is an explicit CLI integration diagnostic, not a natural discovery test. " +
+			"Load the installed kapi skill and follow its editing loop with no project: read the blocks of " + named +
+			" with kapi inspect and make the change with kapi apply. " +
+			"Report every refusal kapi apply returned, including an operation it reported as unsupported. " +
+			"If the skill or the command is unavailable, report the failure and stop; do not install or repair it."
 	default:
 		return ""
 	}

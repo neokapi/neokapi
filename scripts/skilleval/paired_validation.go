@@ -44,12 +44,18 @@ type PairedCriterionResult struct {
 // byte-identical, and no file may appear in a scoped directory unless the task
 // creates it. The task's own criteria then assert the edit.
 func validatePairedTask(dir string, task PairedTask, observed *PairedAgentResult) (PairedValidation, error) {
+	return validatePairedCell(dir, task, "", observed)
+}
+
+// validatePairedCell is validatePairedTask for a cell of condition, whose
+// fixture files are the ones pairedCellFiles says it holds.
+func validatePairedCell(dir string, task PairedTask, condition string, observed *PairedAgentResult) (PairedValidation, error) {
 	result := PairedValidation{
 		ObjectivePassed: true, Criteria: []PairedCriterionResult{},
 		HumanReviewRequired: true, HumanReviewStatus: "pending",
 		HumanReviewRubric: slices.Clone(task.spec.HumanReviewRubric),
 	}
-	files, err := pairedTaskFiles(task)
+	files, err := pairedCellFiles(task, condition)
 	if err != nil {
 		return result, err
 	}
