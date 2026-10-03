@@ -18,7 +18,7 @@ import (
 // terms, no content memory. That is what a project looks like on the day it is
 // created, and it is the case a candidate has to work in, because a check there
 // has no vocabulary analyzer to ride along with.
-const contextOpsYAML = "greeting: We utilise the widget every day.\nfarewell: Goodbye\n"
+const contextOpsYAML = "greeting: We utilise the widget every day.\nfarewell: Goodbye\ncta: Try Quick cast, then sign in and choose a plan.\n"
 
 // contextOpsApp is one App over one workspace, so two projects created in one
 // test share the workspace a widened rule lives in.
