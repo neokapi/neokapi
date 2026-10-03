@@ -11,6 +11,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/history"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/host"
 )
@@ -229,4 +231,44 @@ func TestSourceDrift_DecidedUnitStillBehavesAsBefore(t *testing.T) {
 	})
 	require.NoError(t, uerr)
 	assert.Empty(t, unit.ReviewState, "a re-draft never inherits the approval the old pairing carried")
+}
+
+// TestSourceDrift_ALedgerBasisYieldsToTheLoopsLaterWrite: a project whose
+// ledger still holds a decision-less basis for a translation (the shape the
+// loop recorded before its writes moved to the block history, and the shape a
+// Kapi Desktop edit records) must not let that row hide the loop's later write.
+// After one re-draft the history holds the newer basis; a second source edit
+// is drift against it, and the plan owes a draft for it.
+func TestSourceDrift_ALedgerBasisYieldsToTheLoopsLaterWrite(t *testing.T) {
+	root := writeReviewProject(t)
+	proj := filepath.Join(root, "kapi.yaml")
+	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
+	require.NoError(t, state.WriteCommitted(layout.Export().UnitStateDir(), []state.UnitState{{
+		Unit:        "a",
+		Variant:     model.Variant("nb"),
+		Status:      model.TargetStatusTranslated,
+		TargetHash:  state.TargetHash("Eple"),
+		ContentHash: state.SourceHash("Apple"),
+		Updated:     "2026-01-01T00:00:00Z",
+		Scope:       "en.json",
+	}}))
+	readProjectContext(t, root)
+
+	rewriteSource(t, root, sourceEdited)
+	out := runReviewUp(t, proj)
+	require.Equal(t, 1, out.RedraftedUnits(), "the ledger's basis says the source moved under Eple")
+	redrafted := nbTargets(t, root)["a"]
+	require.NotEqual(t, "Eple", redrafted)
+
+	rewriteSource(t, root, `{"a":"Avocado","b":"Banana"}`)
+	a := &App{}
+	defer a.Shutdown()
+	plan, err := a.UpPlan(context.Background(), proj, "en")
+	require.NoError(t, err)
+	assert.Equal(t, 1, plan.Totals.Stale,
+		"the loop's write of the Apricot draft is the newer basis, and Avocado is drift against it")
+
+	again := runReviewUp(t, proj)
+	assert.Equal(t, 1, again.RedraftedUnits())
+	assert.NotEqual(t, redrafted, nbTargets(t, root)["a"])
 }

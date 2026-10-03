@@ -306,11 +306,18 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 	k := state.Key{Scope: file, Unit: unit, Variant: model.Variant(locale)}
 	th := targetHash(content.target)
 	prev, hadPrev := st.Get(ctx, k)
-	if !hadPrev {
+	if !hadPrev || (undecidedRecord(prev) && prev.TargetHash != th) {
 		// An undecided translation a flow wrote: the source it was made from
 		// and the stamp of the tool that made it are in the block history,
-		// and a decision on it starts from them as it would from a record.
-		prev, hadPrev = a.loopRecord(ctx, root, file, unit, locale, content.targetRev)
+		// and a decision on it starts from them as it would from a record. An
+		// undecided record that describes another translation (a basis the
+		// loop's last write superseded) yields to it, as coverage reads it.
+		if loop, ok := a.loopRecord(ctx, root, file, unit, locale, content.targetRev); ok {
+			if hadPrev {
+				loop.SourceStatus, loop.ContextHash, loop.AIReview = prev.SourceStatus, prev.ContextHash, prev.AIReview
+			}
+			prev, hadPrev = loop, true
+		}
 	}
 	ch, gov := prev.ContentHash, prev.GoverningFingerprint
 	if status == model.TargetStatusEstablished {

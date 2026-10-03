@@ -313,3 +313,38 @@ func TestLoopBasis_ADecisionOnTheLoopsTranslationKeepsItsProducer(t *testing.T) 
 	assert.Equal(t, state.SourceHash("Hello there"), u.ContentHash, "a rejection keeps the basis the loop recorded")
 	assert.Equal(t, "fp-produced", u.GoverningBasis())
 }
+
+// TestLoopBasis_ADecisionStartsFromTheLoopsWriteOverAnOlderLedgerBasis: the
+// ledger holds an undecided basis for a translation the loop has since written
+// again. A decision on the loop's translation starts from the loop's write,
+// whose source is the one in front of the reviewer, and not from the older
+// record, which describes another translation.
+func TestLoopBasis_ADecisionStartsFromTheLoopsWriteOverAnOlderLedgerBasis(t *testing.T) {
+	root := writeStalenessProject(t)
+	recipe := filepath.Join(root, "kapi.yaml")
+	a := &App{}
+	a.InitRegistries()
+	ctx := context.Background()
+	scope := a.DocumentScope(ctx, root, filepath.Join(root, "locales", "en", "app.json"))
+	st, err := a.OpenProjectState(ctx, root)
+	require.NoError(t, err)
+	require.NoError(t, st.Put(ctx, state.UnitState{
+		Unit: "greeting", Variant: model.Variant("fr"), Scope: scope,
+		Status:      model.TargetStatusTranslated,
+		TargetHash:  state.TargetHash("Une salutation plus ancienne"),
+		ContentHash: state.SourceHash("An older greeting"),
+		Updated:     "2026-01-01T00:00:00Z",
+	}))
+	recordFlowWrite(t, a, recipe, "locales/en/app.json", "fr", model.Origin{Kind: model.OriginAI, ContextFingerprint: "fp-produced"})
+
+	_, err = a.ApplyReviewDecision(ctx, recipe, "en",
+		ReviewUnitRef{File: "locales/fr/app.json", Key: "greeting", Locale: "fr"}, ReviewDecisionRejected, "")
+	require.NoError(t, err)
+
+	u, ok := st.Get(ctx, state.Key{Scope: scope, Unit: "greeting", Variant: model.Variant("fr")})
+	require.True(t, ok)
+	assert.Equal(t, "rejected", u.Decision.ReviewState)
+	assert.Equal(t, state.SourceHash("Hello there"), u.ContentHash,
+		"the rejection keeps the basis of the loop's write, the translation the reviewer saw")
+	assert.Equal(t, "fp-produced", u.Origin.ContextFingerprint, "the producer's stamp rides along")
+}

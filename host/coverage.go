@@ -255,14 +255,34 @@ func (e reviewedEntry) blessesTarget(b *model.Block, locale model.LocaleID) bool
 }
 
 // lookup returns the record a block's unit is graded by: the unit's recorded
-// decision, else the last write a flow made to the translation (the loop's
-// basis, from the block history), else nothing.
+// decision; else whichever of the unit's undecided record and the last write a
+// flow made to the translation (the loop's basis, from the block history)
+// describes the translation on disk, the flow's write when both do; else the
+// undecided record, else the flow's write, else nothing.
+//
+// An undecided record in the ledger is a basis somebody recorded beside a
+// translation: a Kapi Desktop edit, or a loop pass of a project whose ledger
+// still holds the basis records the loop wrote there. Nothing updates it when
+// the loop writes the translation again, so a record that no longer describes
+// the file says nothing about the flow's newer write, which does.
 func (r reviewedIndex) lookup(scope string, b *model.Block, locale string) (reviewedEntry, bool) {
-	if r.byUnit != nil {
-		if e, ok := r.byUnit[reviewUnitKey(scope, blockKey(b), locale)]; ok {
-			return e, true
-		}
+	e, recorded := r.byUnit[reviewUnitKey(scope, blockKey(b), locale)]
+	if recorded && e.decided {
+		return e, true
 	}
+	w, wrote := r.loopWrite(scope, b, locale)
+	switch {
+	case wrote && (!recorded || w.blessesTarget(b, model.LocaleID(locale))):
+		return w, true
+	case recorded:
+		return e, true
+	}
+	return reviewedEntry{}, false
+}
+
+// loopWrite is the last write a flow made to the block's translation in
+// locale, as the record lookup grades it.
+func (r reviewedIndex) loopWrite(scope string, b *model.Block, locale string) (reviewedEntry, bool) {
 	row, ok := r.loop.last(scope, blockKey(b), editionText(model.EditionKey{Locale: model.LocaleID(locale)}.Canonical()))
 	if !ok || row.Actor != string(change.ActorTool) || row.After == model.AbsentRevision {
 		return reviewedEntry{}, false
@@ -495,14 +515,16 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 				governing: u.GoverningContext(),
 			})
 		default:
-			// The loop's own record of a target it wrote: the source it
-			// translated and the translation it produced, with no decision on
-			// it. It is what lets a source rewrite under an UNDECIDED
-			// translation be derived on read exactly as one under a decided
-			// translation is. A record carrying neither hash describes no
-			// pairing (a source approval, an AI annotation on a unit nobody has
-			// decided) and answers no question this index is asked.
-			if u.TargetHash != "" && u.Decision.ReviewState == "" {
+			// A basis recorded beside a translation with no decision on it
+			// (a Kapi Desktop edit, or a loop pass of a project whose ledger
+			// still holds the basis records the loop kept there): the source
+			// it translates and the translation, which lets a source rewrite
+			// under an UNDECIDED translation be derived on read exactly as one
+			// under a decided translation is. A record carrying neither hash
+			// describes no pairing (a source approval, an AI annotation on a
+			// unit nobody has decided) and answers no question this index is
+			// asked.
+			if u.TargetHash != "" && undecidedRecord(u) {
 				idx.putUnit(u.Scope, u.Unit, locale, reviewedEntry{
 					status: u.Status, targetHash: u.TargetHash, contentHash: u.ContentHash,
 					governing: u.GoverningContext(),
@@ -518,6 +540,12 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 		}
 	}
 	return idx, nil
+}
+
+// undecidedRecord reports whether a ledger record carries no decision: a basis
+// recorded beside a translation rather than a verdict on it.
+func undecidedRecord(u state.UnitState) bool {
+	return u.Status != model.TargetStatusEstablished && u.Status != model.TargetStatusDraft && u.Decision.ReviewState == ""
 }
 
 // putUnit files a record under the scope it carries and under every other
