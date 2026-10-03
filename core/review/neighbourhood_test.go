@@ -21,7 +21,7 @@ func docBlock(name, source, target string) *model.Block {
 		Source:       []model.Run{model.TextR(source)},
 	}
 	if target != "" {
-		b.SetTarget("nb", &model.Target{Runs: []model.Run{model.TextR(target)}, Status: model.TargetStatusTranslated})
+		b.SetEdition(model.Variant("nb"), model.Edition{Runs: []model.Run{model.TextR(target)}, Status: model.Status(model.TargetStatusTranslated)})
 	}
 	return b
 }
@@ -81,7 +81,7 @@ func TestNeighbourOfCarriesRunsAndTheRung(t *testing.T) {
 			model.TextR("."),
 		},
 	}
-	block.SetTarget("nb", &model.Target{Runs: []model.Run{
+	block.SetEdition(model.Variant("nb"), model.Edition{Runs: []model.Run{
 		model.TextR("Kredittene dine nullstilles "),
 		model.PhR(model.PlaceholderRun{ID: "1", Equiv: "date", Data: "{date}"}),
 		model.TextR("."),
@@ -97,7 +97,7 @@ func TestNeighbourOfCarriesRunsAndTheRung(t *testing.T) {
 	require.NotNil(t, n.Target[1].Ph)
 	assert.Empty(t, n.Status, "a target on no rung reports no status")
 
-	block.Target("nb").Status = model.TargetStatusEstablished
+	block.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusEstablished))
 	n, ok = NeighbourOf(block, "nb")
 	require.True(t, ok)
 	assert.Equal(t, "established", n.Status, "the neighbour's rung travels with it")
@@ -176,7 +176,9 @@ func TestProvenanceOfGroupsTheDecision(t *testing.T) {
 
 	t.Run("the format's own provenance wins over the record's", func(t *testing.T) {
 		stamped := docBlock("greeting", "Hello", "Hei")
-		stamped.Target("nb").Origin = model.Origin{Kind: "ai", Engine: "claude"}
+		nb, _ := stamped.Edition(model.Variant("nb"))
+		nb.Origin = model.Origin{Kind: "ai", Engine: "claude"}
+		stamped.SetEdition(model.Variant("nb"), nb)
 		got := ProvenanceOf(stamped, "nb", &state.UnitState{Origin: model.Origin{Kind: "memory"}})
 		require.NotNil(t, got.Origin)
 		assert.Equal(t, "ai", got.Origin.Kind)

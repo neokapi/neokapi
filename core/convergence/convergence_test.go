@@ -28,7 +28,7 @@ func TestTargetState_PresenceBaselineAndCommitted(t *testing.T) {
 func TestSourceState_PresenceBaselineAndCommitted(t *testing.T) {
 	b := model.NewBlock("a", "Apple")
 	assert.Equal(t, string(model.SourceStatusWritten), convergence.SourceState(b))
-	b.SourceStatus = model.SourceStatusEstablished
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusEstablished))
 	assert.Equal(t, string(model.SourceStatusEstablished), convergence.SourceState(b))
 	assert.Empty(t, convergence.SourceState(model.NewBlock("e", "  ")), "empty source is below every rung")
 }
@@ -43,7 +43,7 @@ func TestSourceState_ReadsTheAuthoritativeEdition(t *testing.T) {
 	assert.Empty(t, convergence.SourceState(b), "an empty source is below every rung")
 
 	b.SetSourceText("Apple")
-	b.SourceStatus = model.SourceStatusWritten
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusWritten))
 	assert.Equal(t, string(model.SourceStatusWritten), convergence.SourceState(b))
 }
 
