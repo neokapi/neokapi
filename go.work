@@ -15,6 +15,7 @@ use (
 	./scripts/contract-audit
 	./scripts/editguard
 	./scripts/emdashcheck
+	./scripts/fieldguard
 	./scripts/gen-contract-types
 	./scripts/gen-refs
 	./scripts/mkappcast

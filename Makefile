@@ -948,6 +948,17 @@ check-edit-writes: i18n-catalogs ## Guard: a document reaches a file only where 
 	@$(GO) run ./scripts/editguard -self-test
 	@$(GO) run ./scripts/editguard
 
+# WP14 of the edit model replaces Block.Source, Block.Targets and
+# Block.SourceStatus with peer editions, and model.Target with model.Edition.
+# The guard type-checks every module with its tests and counts, per package,
+# what still names them outside core/model and the plugin wire. It reports
+# and exits 0 until the flip, which drops -report and adds it to lint and CI
+# (docs/internals/edit-model.md, WP14). The desktop placeholder bundle lets
+# its main package type-check.
+fieldguard: kapi-desktop-lint-deps ## Inventory: uses of Block.Source, Block.Targets, Block.SourceStatus and model.Target outside core/model (WP14)
+	@$(GO) run ./scripts/fieldguard -self-test
+	@$(GO) run ./scripts/fieldguard -report
+
 check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + Apache modules link no AGPL
 	@bad=$$(cd apps/kapi-desktop && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \
 	          | grep -E '^(github\.com/spf13/cobra|github\.com/neokapi/neokapi/cli)(/|$$)' || true); \
@@ -3363,7 +3374,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         parity-sandbox parity-test parity-publish parity-clean regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-comment-coverage check-projection-writes check-edit-writes check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-comment-coverage check-projection-writes check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \
