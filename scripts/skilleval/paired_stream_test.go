@@ -43,12 +43,17 @@ func TestPairedInterferenceLandsAfterTheFirstRead(t *testing.T) {
 	require.NoError(t, materializePairedTask(workspace, task))
 	file := filepath.Join(workspace, "docs", "en", "upgrade.md")
 	launch := PairedLaunch{
-		Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "baseline",
+		Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "skill-cli",
 		Workspace: workspace, Interference: task.spec.Interference,
 	}
 	stream := pairedClaudeEvents(t,
 		pairedToolUse("1", "Glob", map[string]any{"pattern": "docs/**/*.md"}),
 		pairedToolResult("1", "docs/en/upgrade.md"),
+		// Naming the file is not reading it.
+		pairedToolUse("4", "Skill", map[string]any{"skill": "kapi", "args": "edit docs/en/upgrade.md"}),
+		pairedToolResult("4", "Launching skill: kapi"),
+		pairedToolUse("5", "Bash", map[string]any{"command": "kapi context docs/en/upgrade.md"}),
+		pairedToolResult("5", "# Writing docs/en/upgrade.md"),
 		pairedToolUse("2", "Read", map[string]any{"file_path": file}),
 		pairedToolResult("2", "# Upgrading Harbor Help"),
 		pairedToolUse("3", "Read", map[string]any{"file_path": file}),
@@ -65,7 +70,7 @@ func TestPairedInterferenceLandsAfterTheFirstRead(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(body), "about ten minutes")
 	assert.Equal(t, 1, strings.Count(string(body), "about ten minutes"))
-	assert.Equal(t, 3, result.ToolCalls)
+	assert.Equal(t, 5, result.ToolCalls)
 	require.NotNil(t, result.Turns)
 	assert.Equal(t, int64(3), *result.Turns)
 }

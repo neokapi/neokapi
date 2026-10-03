@@ -61,6 +61,14 @@ func preparePairedAgent(ctx context.Context, launch PairedLaunch) (PairedPrepare
 		return p, nil
 	}
 	p.Version = strings.TrimSpace(string(version))
+	if launch.KapiBin != "" && (len(arm.Executables) > 0 || arm.MCP) {
+		cell, err := linkPairedKapi(launch)
+		if err != nil {
+			return p, fmt.Errorf("link kapi into the cell: %w", err)
+		}
+		launch.CellKapi = cell
+		p.Launch.CellKapi = cell
+	}
 	if err := pairedToolPath(launch); err != nil {
 		return p, err
 	}
@@ -75,6 +83,11 @@ func preparePairedAgent(ctx context.Context, launch PairedLaunch) (PairedPrepare
 		err = preparePairedCodex(ctx, &p)
 	}
 	if err != nil {
+		return p, err
+	}
+	// Last, so the commit holds the project as the agent finds it and
+	// `git status` starts clean.
+	if err := initPairedGit(ctx, launch); err != nil {
 		return p, err
 	}
 	toolNote := "Fresh personal configuration; only the assigned kapi integration is discoverable. Ordinary shell and file tools remain available."
@@ -120,7 +133,7 @@ func pairedToolPath(launch PairedLaunch) error {
 		if !arm.Project {
 			// The alias is the binary under another name: argv[0] selects the
 			// project-free root, which turns discovery off itself.
-			if err := os.Symlink(launch.KapiBin, destination); err != nil {
+			if err := os.Symlink(launch.agentKapi(), destination); err != nil {
 				return err
 			}
 			continue
@@ -131,7 +144,7 @@ func pairedToolPath(launch PairedLaunch) error {
 		// resolves before any upward walk.
 		wrapper := "#!/bin/sh\nexport KAPI_NO_PROJECT=''\nexport KAPI_PROJECT=" +
 			pairedShellQuote(filepath.Join(launch.Workspace, "kapi.yaml")) +
-			"\nexec " + pairedShellQuote(launch.KapiBin) + " \"$@\"\n"
+			"\nexec " + pairedShellQuote(launch.agentKapi()) + " \"$@\"\n"
 		if err := os.WriteFile(destination, []byte(wrapper), 0o700); err != nil {
 			return err
 		}
@@ -174,7 +187,7 @@ func preparePairedClaude(ctx context.Context, p *PairedPrepared) error {
 	settings := map[string]any{
 		"autoMemoryEnabled": false,
 		"permissions":       map[string]any{"defaultMode": "acceptEdits", "blockReadsOutsideWorkingDirectories": true, "allow": allow},
-		"sandbox":           map[string]any{"enabled": true, "autoAllowBashIfSandboxed": true, "allowUnsandboxedCommands": false, "filesystem": map[string]any{"denyRead": []string{p.Launch.StateDir, p.Launch.RepoRoot}, "allowRead": []string{p.Launch.Workspace, filepath.Join(p.Launch.StateDir, "bin"), p.Launch.KapiBin}}, "network": map[string]any{"allowedDomains": []string{}, "strictAllowlist": true}},
+		"sandbox":           map[string]any{"enabled": true, "autoAllowBashIfSandboxed": true, "allowUnsandboxedCommands": false, "filesystem": map[string]any{"denyRead": pairedClaudeDenyRead(p.Launch), "allowRead": []string{p.Launch.Workspace, filepath.Join(p.Launch.StateDir, "bin"), filepath.Join(p.Launch.StateDir, "kapi")}}, "network": map[string]any{"allowedDomains": []string{}, "strictAllowlist": true}},
 	}
 	settingsPath := filepath.Join(p.Launch.StateDir, "claude-settings.json")
 	if err := pairedWriteJSON(settingsPath, settings); err != nil {
@@ -185,7 +198,7 @@ func preparePairedClaude(ctx context.Context, p *PairedPrepared) error {
 		if p.Launch.KapiBin == "" {
 			return errors.New("mcp requires kapi binary")
 		}
-		mcp["mcpServers"] = map[string]any{"kapi": map[string]any{"command": p.Launch.KapiBin, "args": []string{"-p", filepath.Join(p.Launch.Workspace, "kapi.yaml"), "mcp"}, "env": pairedKapiEnv(p.Launch.Workspace)}}
+		mcp["mcpServers"] = map[string]any{"kapi": map[string]any{"command": p.Launch.agentKapi(), "args": []string{"-p", filepath.Join(p.Launch.Workspace, "kapi.yaml"), "mcp"}, "env": pairedKapiEnv(p.Launch.Workspace)}}
 	}
 	mcpPath := filepath.Join(p.Launch.StateDir, "claude-mcp.json")
 	if err := pairedWriteJSON(mcpPath, mcp); err != nil {
@@ -255,7 +268,7 @@ func preparePairedCodex(ctx context.Context, p *PairedPrepared) error {
 		}
 		// This isolated server operates on the authorized fixture. Preapprove
 		// its tools explicitly: approval_policy=never cannot resolve a prompt.
-		config.WriteString("[mcp_servers.kapi]\ndefault_tools_approval_mode = \"approve\"\ncommand = " + strconv.Quote(p.Launch.KapiBin) + "\nargs = [\"-p\", " + strconv.Quote(filepath.Join(p.Launch.Workspace, "kapi.yaml")) + ", \"mcp\"]\n[mcp_servers.kapi.env]\n")
+		config.WriteString("[mcp_servers.kapi]\ndefault_tools_approval_mode = \"approve\"\ncommand = " + strconv.Quote(p.Launch.agentKapi()) + "\nargs = [\"-p\", " + strconv.Quote(filepath.Join(p.Launch.Workspace, "kapi.yaml")) + ", \"mcp\"]\n[mcp_servers.kapi.env]\n")
 		for key, value := range pairedKapiEnv(p.Launch.Workspace) {
 			config.WriteString(strconv.Quote(key) + " = " + strconv.Quote(value) + "\n")
 		}

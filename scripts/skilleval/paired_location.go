@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 )
 
 // pairedDiscoverable are the names an agent host or kapi finds by walking up
@@ -27,6 +28,14 @@ var pairedHomeConfig = []string{".claude", ".agents", ".codex"}
 // the surface probe can see, because a host lists no instruction file it
 // loaded.
 func checkPairedLocation(dir string) error {
+	// Claude Code keeps its temporary files in /tmp/claude-<uid>, and a study
+	// run from a Claude Code session defaults there. In a cell under it the
+	// cell's own Claude Code could not start its shell: sandbox-exec refused
+	// to execute it.
+	if claudeTemp := filepath.Join("/tmp", "claude-"+strconv.Itoa(os.Getuid())); pairedWithin(dir, claudeTemp) {
+		return fmt.Errorf("the study directory %s lies under %s, Claude Code's temporary directory, "+
+			"where the Claude Code in a cell cannot start its shell; choose another directory", dir, claudeTemp)
+	}
 	home, _ := os.UserHomeDir()
 	if home != "" {
 		home = pairedResolve(home)

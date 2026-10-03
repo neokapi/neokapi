@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -82,6 +83,47 @@ func installPairedSkill(launch PairedLaunch, arm pairedArm) error {
 		}
 		return os.WriteFile(target, data, 0o600)
 	})
+}
+
+// agentKapi is the kapi binary the agent's own commands run.
+func (l PairedLaunch) agentKapi() string {
+	if l.CellKapi != "" {
+		return l.CellKapi
+	}
+	return l.KapiBin
+}
+
+// linkPairedKapi puts the binary under test into the cell, as a hard link
+// where the checkout and the cell share a volume and as a copy otherwise. The
+// agent's sandbox then needs no read access into the checkout, which holds
+// the evaluator's references, and its shell never execs a file under a path
+// the sandbox denies.
+func linkPairedKapi(launch PairedLaunch) (string, error) {
+	dir := filepath.Join(launch.StateDir, "kapi")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	destination := filepath.Join(dir, "kapi")
+	if _, err := os.Lstat(destination); err == nil {
+		return destination, nil
+	}
+	if err := os.Link(launch.KapiBin, destination); err == nil {
+		return destination, nil
+	}
+	source, err := os.Open(launch.KapiBin)
+	if err != nil {
+		return "", err
+	}
+	defer source.Close()
+	target, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o700)
+	if err != nil {
+		return "", err
+	}
+	if _, err := io.Copy(target, source); err != nil {
+		_ = target.Close()
+		return "", err
+	}
+	return destination, target.Close()
 }
 
 // pairedKapiNames are the names a kapi binary answers to in a cell.

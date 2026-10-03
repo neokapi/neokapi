@@ -212,7 +212,12 @@ project's store holds the same context, imported before the session starts: a
 voice and one term rule, which forbids `dashboard` and names `overview page` in
 its place. `STYLE.md` states that rule for an agent that reads files.
 kapi records every shell call in a cell as an agent's (`KAPI_ACTOR=agent`), so
-the actor policy treats both hosts alike.
+the actor policy treats both hosts alike. The workspace is a git repository with
+the project committed and a clean status, as a project an agent works in is, so
+`git diff` and the skill's `kapi check --diff-against HEAD` work. The binary
+under test is hard-linked into the cell, so the agent's commands never name a
+path into the checkout, and Claude's sandbox denies reading the checkout and
+the attempt's own records.
 
 Section 15.2 item 1 asks for the alias against kapi with and without a project.
 The 168 sessions hold four arms, so the comparison maps onto them:

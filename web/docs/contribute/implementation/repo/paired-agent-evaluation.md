@@ -34,7 +34,9 @@ not represent equivalent computation. Preserve separate results for different
 models and document families.
 
 Each attempt has a private command path and fresh agent configuration, and kapi
-records every shell call in a cell as an agent's. The transcript audit
+records every shell call in a cell as an agent's. The workspace is a git
+repository with the project committed, and the binary under test is linked into
+the cell, so no command the agent sees names a path into the checkout. The transcript audit
 invalidates observed use of the wrong kapi interface: an MCP tool outside the
 MCP condition, a skill other than the condition's, or a kapi binary named by a
 path outside the cell, which would run a build other than the one under test. A

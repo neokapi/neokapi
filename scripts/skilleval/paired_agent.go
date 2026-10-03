@@ -11,13 +11,17 @@ type PairedAgentSpec struct {
 
 // PairedLaunch contains one attempt's inputs. StateDir must be outside Workspace.
 type PairedLaunch struct {
-	Agent          PairedAgentSpec     `json:"agent"`
-	Condition      string              `json:"condition"`
-	Task           string              `json:"task,omitempty"`
-	Workspace      string              `json:"workspace"`
-	StateDir       string              `json:"state_dir"`
-	RepoRoot       string              `json:"repo_root"`
-	KapiBin        string              `json:"kapi_bin"`
+	Agent     PairedAgentSpec `json:"agent"`
+	Condition string          `json:"condition"`
+	Task      string          `json:"task,omitempty"`
+	Workspace string          `json:"workspace"`
+	StateDir  string          `json:"state_dir"`
+	RepoRoot  string          `json:"repo_root"`
+	KapiBin   string          `json:"kapi_bin"`
+	// CellKapi is KapiBin linked into the cell, which is what the agent's
+	// commands and the MCP server run, so no path into the checkout reaches
+	// the agent. Empty runs KapiBin itself.
+	CellKapi       string              `json:"cell_kapi,omitempty"`
 	Prompt         string              `json:"-"`
 	TranscriptPath string              `json:"transcript_path"`
 	Timeout        time.Duration       `json:"timeout"`

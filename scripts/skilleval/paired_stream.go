@@ -256,10 +256,34 @@ func (o *pairedObserver) toolUse(id, tool string, input map[string]any) string {
 		}
 	}
 	o.scanInput(tool, input)
-	if id != "" && o.interference != nil && o.interference.mentioned(input) {
+	if id != "" && o.interference != nil && pairedReadsContent(tool, input) && o.interference.mentioned(input) {
 		o.pendingReads[id] = tool
 	}
 	return ""
+}
+
+// pairedReadVerbs are the shell commands that show a file's content.
+var pairedReadVerbs = []string{
+	"cat", "sed", "head", "tail", "awk", "grep", "rg", "nl", "less", "more", "bat", "cut",
+	"python", "python3", "perl", "ruby", "node", "jq", "diff", "git", "kcat", "inspect",
+}
+
+// pairedReadsContent reports whether a tool call shows the agent a file's
+// content: a file read, a search that prints lines, kapi's block read, or a
+// shell command that runs a reading tool. A skill invocation, a context
+// lookup or a check names the file without showing what it says.
+func pairedReadsContent(tool string, input map[string]any) bool {
+	switch tool {
+	case "Read", "Grep", "mcp__kapi__read_blocks":
+		return true
+	case "Bash", "shell":
+		for _, word := range pairedCommandWords(pairedString(input, "command")) {
+			if slices.Contains(pairedReadVerbs, path.Base(word)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // scanInput records override attempts in any value a tool call carries,
@@ -289,7 +313,17 @@ func (o *pairedObserver) codexCompleted(kind string, item map[string]any) {
 	if kind == "file_change" && pairedString(item, "status") == "failed" {
 		o.addRefusal("host:patch_failed")
 	}
-	if o.interference != nil && o.interference.mentioned(item) {
+	if o.interference == nil {
+		return
+	}
+	var reads bool
+	switch kind {
+	case "command_execution":
+		reads = pairedReadsContent("shell", map[string]any{"command": pairedString(item, "command")})
+	case "mcp_tool_call":
+		reads = pairedString(item, "server") == "kapi" && pairedString(item, "tool") == "read_blocks"
+	}
+	if reads && o.interference.mentioned(map[string]any{"command": pairedString(item, "command"), "arguments": item["arguments"]}) {
 		o.interfere(kind)
 	}
 }
