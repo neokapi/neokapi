@@ -1,10 +1,10 @@
 /**
  * Component tests for the Review surface: the reading pane is the document
  * itself (the shared preview kit over the projected content tree), a block is
- * opened by reading and decided in the slide-in inspector, and the server
- * wiring behind that is unchanged — approve / reject call `api.reviewBlock`
- * with the active target locale, apply the per-locale optimistic update and
- * roll it back on failure; the bulk actions are one request each with per-block
+ * opened by reading and decided in the slide-in inspector, and approve / reject
+ * send a decide operation on the revision the reviewer read, apply the
+ * per-locale optimistic update and roll it back on failure, and ask before
+ * deciding on wording someone changed; the bulk actions are one request each with per-block
  * outcomes; and the status filter and its histogram are block queries rather
  * than passes over a full download.
  */
@@ -18,6 +18,7 @@ import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import { BreadcrumbProvider } from "../context/BreadcrumbContext";
 import { createMockAdapter, type MockAdapter } from "../stories/mock-adapter";
+import { mockRevision } from "../stories/mockContentChanges";
 import { sampleProject } from "../stories/fixtures";
 import type { BlockInfo, TargetEntry, Workspace } from "../types/api";
 
@@ -147,8 +148,8 @@ describe("ReviewSurface — the reading pane is the document", () => {
   });
 });
 
-describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
-  it("approve calls reviewBlock with the active locale and flips the chip", async () => {
+describe("ReviewSurface — approve/reject persist as decide operations", () => {
+  it("approve sends a decision on the revision it showed and flips the chip", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSurface();
     await waitForDocument();
@@ -157,21 +158,20 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
     expect(screen.getByTestId("review-status-b1").textContent).toBe("Translated");
     await user.click(screen.getByTestId("approve-b1"));
 
-    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
-    expect(adapter.reviewBlockCalls[0]).toMatchObject({
+    await waitFor(() => expect(adapter.opsOf("decide")).toHaveLength(1));
+    expect(adapter.opsOf("decide")[0]).toMatchObject({
       workspaceSlug: "demo",
       projectId: sampleProject.id,
-      itemName: "messages.json",
-      blockId: "b1",
-      targetLocale: "fr-FR",
-      reviewed: true,
+      at: { doc: "messages.json", block: "b1", edition: "fr-FR" },
+      if_match: mockRevision(testBlocks[0], "fr-FR"),
+      outcome: "establish",
     });
     expect(screen.getByTestId("review-status-b1").textContent).toBe("Established");
     // The document's margin states the same thing.
     expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "established");
   });
 
-  it("reject calls reviewBlock with reviewed=false + draft and demotes the block", async () => {
+  it("reject sends a reject decision and demotes the block to draft", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSurface();
     await waitForDocument();
@@ -181,15 +181,13 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
     expect(screen.getByTestId("review-status-b3").textContent).toBe("Established");
     await user.click(screen.getByTestId("reject-b3"));
 
-    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
+    await waitFor(() => expect(adapter.opsOf("decide")).toHaveLength(1));
     // A rejection demotes to draft (the unit re-enters the work queue,
     // matching the host review service's rejected → draft mapping) — not to
     // translated, which would leave the rejected text passing coverage gates.
-    expect(adapter.reviewBlockCalls[0]).toMatchObject({
-      blockId: "b3",
-      targetLocale: "fr-FR",
-      reviewed: false,
-      rung: "draft",
+    expect(adapter.opsOf("decide")[0]).toMatchObject({
+      at: { block: "b3", edition: "fr-FR" },
+      outcome: "reject",
     });
     expect(screen.getByTestId("review-status-b3").textContent).toBe("Draft");
   });
@@ -208,7 +206,7 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
     // approve (the server would 422 it).
     expect(screen.getByTestId("reject-b2")).toBeDisabled();
     expect(screen.getByTestId("approve-b2")).toBeDisabled();
-    expect(adapter.reviewBlockCalls).toHaveLength(0);
+    expect(adapter.opsOf("decide")).toHaveLength(0);
   });
 
   it("decides the block being read from the keyboard", async () => {
@@ -220,15 +218,18 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
     await user.keyboard("j");
     await user.keyboard("a");
 
-    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
-    expect(adapter.reviewBlockCalls[0]).toMatchObject({ blockId: "b1", reviewed: true });
+    await waitFor(() => expect(adapter.opsOf("decide")).toHaveLength(1));
+    expect(adapter.opsOf("decide")[0]).toMatchObject({
+      at: { block: "b1" },
+      outcome: "establish",
+    });
     expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "established");
   });
 
   it("rolls back the optimistic update and surfaces an error when the call fails", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSurface();
-    adapter.failReviewBlock = true;
+    adapter.failApplyChanges = true;
     await waitForDocument();
     await openBlock(user, "b1");
 
@@ -238,8 +239,80 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
     await waitFor(() =>
       expect(screen.getByText("Couldn't mark the block as established")).toBeInTheDocument(),
     );
-    expect(adapter.reviewBlockCalls).toHaveLength(1);
+    expect(adapter.opsOf("decide")).toHaveLength(1);
     expect(screen.getByTestId("review-status-b1").textContent).toBe("Translated");
+  });
+
+  it("asks before approving wording someone changed after the reviewer read it", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSurface();
+    await waitForDocument();
+    await openBlock(user, "b1");
+    const read = mockRevision(testBlocks[0], "fr-FR");
+    adapter.editElsewhere("b1", "fr-FR", "Salut le monde");
+
+    await user.click(screen.getByTestId("approve-b1"));
+
+    // Nothing is recorded: the reviewer sees the wording that stands.
+    const dialog = await screen.findByTestId("stale-change-dialog");
+    expect(within(dialog).getByTestId("stale-current").textContent).toBe("Salut le monde");
+    expect(adapter.opsOf("decide")).toHaveLength(1);
+
+    // Approving it sends the decision again, on the revision it now holds.
+    await user.click(within(dialog).getByTestId("stale-reapply"));
+    await waitFor(() => expect(adapter.opsOf("decide")).toHaveLength(2));
+    const [first, second] = adapter.opsOf("decide");
+    expect(first.if_match).toBe(read);
+    expect(second.if_match).not.toBe(read);
+    expect(second).toMatchObject({ at: { block: "b1" }, outcome: "establish" });
+    await waitFor(() =>
+      expect(screen.getByTestId("review-status-b1").textContent).toBe("Established"),
+    );
+  });
+
+  it("keeps the correction open when the checks refuse it and the reviewer does not save", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSurface();
+    adapter.failingCheck = [
+      { rule: "terms.vocabulary", message: "Use the approved term", fails: true },
+    ];
+    await waitForDocument();
+    await openBlock(user, "b1");
+
+    await user.click(screen.getByTestId("inspector-edit"));
+    await user.click(await screen.findByTestId("unified-save"));
+    const dialog = await screen.findByTestId("check-findings-dialog");
+    expect(within(dialog).getByTestId("check-finding").textContent).toContain(
+      "Use the approved term",
+    );
+    await user.click(within(dialog).getByTestId("findings-revise"));
+
+    await waitFor(() =>
+      expect(screen.queryByTestId("check-findings-dialog")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("inspector-editor")).toBeInTheDocument();
+    expect(adapter.changeSetCalls).toHaveLength(1);
+    expect(screen.queryByText("Couldn't save the translation")).not.toBeInTheDocument();
+  });
+
+  it("keeps the changed wording when the reviewer chooses to", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSurface();
+    await waitForDocument();
+    await openBlock(user, "b1");
+    adapter.editElsewhere("b1", "fr-FR", "Salut le monde");
+
+    await user.click(screen.getByTestId("approve-b1"));
+    await user.click(await screen.findByTestId("stale-keep"));
+
+    // One refused decision, nothing approved, and the block reads as it stands.
+    await waitFor(() =>
+      expect(screen.queryByTestId("stale-change-dialog")).not.toBeInTheDocument(),
+    );
+    expect(adapter.opsOf("decide")).toHaveLength(1);
+    await waitFor(() =>
+      expect(screen.getByTestId("review-status-b1").textContent).toBe("Translated"),
+    );
   });
 });
 
@@ -268,7 +341,7 @@ describe("ReviewSurface — bulk actions are one request", () => {
       approve: true,
     });
     // The batch replaces the per-block loop entirely.
-    expect(adapter.reviewBlockCalls).toHaveLength(0);
+    expect(adapter.opsOf("decide")).toHaveLength(0);
     await waitFor(() =>
       expect(screen.getByText("Marked 2 block(s) as reviewed")).toBeInTheDocument(),
     );

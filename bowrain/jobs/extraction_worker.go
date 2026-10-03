@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
+	"github.com/neokapi/neokapi/bowrain/changes"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	bstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
@@ -272,6 +273,10 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 	if totalBlocks == 0 {
 		return nil
 	}
+	// The annotations go through the stream's change service, as the tool:
+	// the state each block was read in is recorded before the tool runs.
+	producer := changes.NewProducer(deps.ContentStore, proj, "main", nil, deps.publishChange)
+	producer.Read(storedBlocks)
 
 	if err := deps.ExtractionJobStore.UpdateExtractionJobProgress(ctx, job.ID, 0, totalBlocks, 0); err != nil {
 		return fmt.Errorf("set total blocks: %w", err)
@@ -383,11 +388,11 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 		return errLeaseLost
 	}
 
-	// Write the annotated blocks back to the rows they were read from. A block
-	// whose item a push removed, or whose source it changed, since the read
-	// keeps what the push left.
+	// Commit the annotations through the stream's change service, as the
+	// extraction tool. A block whose item a push removed, or whose source it
+	// changed, since the read keeps what the push left.
 	if len(annotated) > 0 {
-		if _, storeErr := writeBackDrafts(ctx, deps.ContentStore, job.ProjectID, "main", storedByID(storedBlocks), annotated); storeErr != nil {
+		if _, storeErr := producer.Commit(ctx, "extract", annotated); storeErr != nil {
 			slog.Warn("store annotated blocks failed", "error", storeErr)
 		}
 	}
@@ -542,5 +547,13 @@ func resolveExtractionProvider(ctx context.Context, deps *ExtractionWorkerDeps, 
 func emitExtractionLog(deps *ExtractionWorkerDeps, stepID, level, message string, data map[string]string) {
 	if deps.LogFunc != nil && stepID != "" {
 		deps.LogFunc(stepID, level, message, data)
+	}
+}
+
+// publishChange announces a change set an extraction committed on the event
+// bus, when the worker has one.
+func (d *ExtractionWorkerDeps) publishChange(_ context.Context, ev platev.Event) {
+	if d.EventBus != nil {
+		d.EventBus.Publish(ev)
 	}
 }

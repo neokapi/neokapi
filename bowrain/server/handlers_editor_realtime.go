@@ -2,14 +2,12 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
-	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
@@ -19,17 +17,19 @@ import (
 // recordReviewDecision appends a server-made review to the decision ledger
 // with the decider's identity, the time, and the hash of the translation it
 // blesses, then promotes the wording into the workspace content memory. It
-// opens a ledger for the single decision it writes; a pass over many blocks
-// opens one and writes batches through it instead.
+// writes through ledger, or opens one for the single decision it writes when
+// ledger is nil.
 //
 // A verdict that is not an approval carries the row's existing basis forward
 // rather than stamping the source and context in front of it, so the one row
 // this call reads is the row it is about to replace.
-func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, projectID, stream string, sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool) {
+func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, ledger *reviewLedger, projectID, stream string, sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool) {
 	if sb == nil || sb.SourceID == "" {
 		return
 	}
-	ledger := s.newReviewLedger(ctx, c, projectID, stream)
+	if ledger == nil {
+		ledger = s.newReviewLedger(ctx, c, projectID, stream)
+	}
 	if ledger == nil {
 		return
 	}
@@ -44,188 +44,29 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 	}
 }
 
-// This file gives the two real-time editor operations that used to travel over
-// the desktop's bespoke gRPC EditorService a REST home on the same routes the
-// web app already uses:
-//
-//   - PUT  /:ws/:id/blocks/:ref/:bid/review — set the per-locale review status
-//     on the block's target (Target.Status: established /
-//     translated / draft). Distinct from the governance workflow lifecycle
-//     (draft/in_review/published) at .../status.
-//   - POST /:ws/:id/presence — report the caller's editing focus; published to
-//     the event bus and fanned out to watchers over the /:ws/events SSE relay.
-
-// ReviewBlockRequest sets or clears the established status on one block target.
-//
-// Status optionally selects the rung the call lands on, and which rungs are
-// available depends on the direction. A clearing request (reviewed=false)
-// demotes to "translated" (the default, a plain un-review) or to "draft" (a
-// reviewer REJECTION, so the unit re-enters the work queue, the same mapping
-// the host review service uses for ReviewDecisionRejected). An approving
-// request (reviewed=true) lands on "established"; its status is omitted or
-// "established". Any other pairing is a 400.
-//
-// BaseRevision is the target revision the reviewer read. A decision that names
-// one is refused with the current block when the target has moved since.
+// ReviewBlockRequest is one review decision on one block's translation for one
+// locale, as the change service's decide operation applies it
+// (streamDecisions): Reviewed lands the translation on established; otherwise
+// Status "draft" is a rejection, which re-enters the work queue, and empty or
+// "translated" withdraws an approval. BaseRevision is the revision of the
+// translation the decision was made on; the decision is refused when the
+// translation has moved since.
 type ReviewBlockRequest struct {
-	TargetLocale string `json:"target_locale"`
-	ItemName     string `json:"item_name,omitempty"`
-	Reviewed     bool   `json:"reviewed"`
-	Status       string `json:"status,omitempty"`
-	BaseRevision string `json:"base_revision,omitempty"`
+	TargetLocale string
+	ItemName     string
+	Reviewed     bool
+	Status       string
+	BaseRevision string
 }
 
 // legacyTranslationStatusProperty is the pre-per-locale review flag: a
-// block-GLOBAL property the old editor endpoint wrote. It is write-never now —
-// review state lives on the per-locale Target.Status (the framework ladder that
-// convergence/coverage and ship gates consume) — but blocks written before the
-// change still carry it, so readers keep it as a fallback and the un-review
-// path clears it when there is no target to demote (see HandleReviewBlock).
+// block-global property an earlier review route wrote. Review state lives on
+// the per-locale Target.Status, but blocks written before the change still
+// carry it, so a withdrawal clears it when there is no target to demote.
 const legacyTranslationStatusProperty = "translation-status"
 
-// HandleReviewBlock sets the review status of a block's target for ONE locale:
-// reviewed=true moves the target to model.TargetStatusEstablished;
-// reviewed=false moves it back to model.TargetStatusTranslated — or, with
-// status:"draft", down to model.TargetStatusDraft (a reviewer REJECTION: the
-// unit re-enters the work queue, matching host/convergereport.go's
-// ReviewDecisionRejected → draft mapping). The status lives on
-// Block.Targets[Variant(locale)].Status — the framework target ladder
-// (draft→translated→established) that convergence/coverage and
-// ship gates consume — so reviewing French never touches German. The legacy
-// block-global Properties["translation-status"] is no longer written.
-//
-// It is deliberately separate from HandleSetBlockStatus, which drives the
-// governance workflow lifecycle (draft → in_review → published, PG-only,
-// four-eyes on publish).
-//
-// Approving is the review permission for the language being decided:
-// PermReview, language-scoped. A target at TargetStatusEstablished is
-// protected: approving it again is an idempotent no-op, and demoting it
-// (un-review or rejection) requires PermReview, so a translator's ordinary
-// un-review click cannot silently undo a person's decision (and the ship gates
-// keyed on established coverage).
-//
-// Every promotion also passes the workspace separation-of-duties policy:
-// whoever last wrote the translation by hand may not be the one who approves or
-// signs it off, unless the workspace has the policy off or set to warn. A
-// target a run produced has no human author and stays approvable by one person.
-//
-// No-target decision (documented per epic 006 task 3): approving a block that
-// has no non-empty translation for the locale is a 422. The visual editor lets
-// a reviewer step onto untranslated blocks (they render with source fallback),
-// but "established" is a rung on the target ladder — convergence.TargetState
-// counts a unit at its Target.Status only when a non-empty target exists, and
-// the host review service (host.ApplyReviewDecision) refuses to approve empty
-// translations for the same reason. Persisting an approval that coverage could
-// never count would silently recreate the split vocabulary this endpoint
-// removes, and an empty Target row would inflate the dashboard's translated
-// counts. Un-reviewing a locale with no target is an idempotent no-op success;
-// if the block carries the legacy block-global property (old scheme), that
-// property is cleared so a legacy "reviewed" block can actually be un-reviewed
-// (the legacy flag was block-global, so this is the only faithful reading).
-//
-// PUT /:ws/:id/blocks/:ref/:bid/review  { "target_locale": "fr", "reviewed": true }
-func (s *Server) HandleReviewBlock(c echo.Context) error {
-	if s.ContentStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
-	}
-
-	pid := projectParam(c)
-	bid := c.Param("bid")
-	stream := streamParam(c)
-
-	var req ReviewBlockRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-	if req.TargetLocale == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "target_locale is required"})
-	}
-	// The optional status picks the rung. Clearing lands on translated (a
-	// plain un-review) or draft (a reviewer rejection, which re-enters the work
-	// queue, mirroring host's ReviewDecisionRejected mapping). Approving lands
-	// on established.
-	demoteTo := model.TargetStatusTranslated
-	promoteTo := model.TargetStatusEstablished
-	if req.Reviewed {
-		switch req.Status {
-		case "", string(model.TargetStatusEstablished):
-		default:
-			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: `status must be "established" or omitted when reviewed is true`})
-		}
-	} else {
-		switch req.Status {
-		case "", string(model.TargetStatusTranslated):
-		case string(model.TargetStatusDraft):
-			demoteTo = model.TargetStatusDraft
-		default:
-			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: `status must be "translated" or "draft" when reviewed is false`})
-		}
-	}
-	// Approving and signing off are both the review permission, for the
-	// language being decided. Un-reviewing and rejecting stay with the
-	// translate permission that edits the target, so a translator can still
-	// withdraw their own work.
-	if err := s.requireLanguagePermission(c, reviewGateFor(req.Reviewed), req.TargetLocale); err != nil {
-		return err
-	}
-
-	ctx := c.Request().Context()
-	sod, err := s.newReviewSoD(ctx, c, pid, stream, []string{bid}, []string{req.TargetLocale})
-	if err != nil {
-		return serverErr(c, err)
-	}
-	out, err := s.applyBlockReview(ctx, c, blockReviewInput{
-		ProjectID: pid, Stream: stream, BlockID: bid, Request: req,
-		DemoteTo: demoteTo, PromoteTo: promoteTo,
-		Elevate: func() error { return s.requireLanguagePermission(c, platauth.PermReview, req.TargetLocale) },
-		Vet:     sod.vet,
-	})
-	if err != nil {
-		if changed, ok := asBlockChanged(err); ok {
-			return s.answerBlockChanged(c, pid, changed, req.TargetLocale)
-		}
-		if fault, ok := errors.AsType[reviewFault](err); ok {
-			return c.JSON(fault.code, ErrorResponse{Error: fault.msg})
-		}
-		if errors.Is(err, errAccessDenied) {
-			return err // Elevate already wrote the 403
-		}
-		return serverErr(c, err)
-	}
-
-	if out.Changed {
-		s.emitReviewDecisionAudit(c, pid, stream, bid, req.TargetLocale, out.From, out.Status, req.Reviewed, "")
-	}
-
-	wsID, _ := c.Get("workspace_id").(string)
-	s.shipInputsChanged(ctx, wsID, pid, stream)
-
-	// Governed review continuation (RV-B): when this approval leaves the project
-	// with zero blocks pending review for any configured locale, hand off to a
-	// completing convergence run so the approved content ships without a second
-	// user action. advanceReviewLoop is a no-op for non-governed projects, so the
-	// per-block review response above is unchanged for them. Only a real approval
-	// transition advances the loop; an un-review/rejection re-opens work and an
-	// idempotent re-approve of already-reviewed content advances nothing.
-	if out.Approval {
-		if proj, perr := s.ContentStore.GetProject(ctx, pid); perr == nil {
-			actor, _ := c.Get("user_id").(string)
-			s.advanceReviewLoop(ctx, proj, stream, []model.LocaleID{model.LocaleID(req.TargetLocale)}, actor)
-		}
-	}
-
-	resp := map[string]any{
-		"ok": true, "block_id": bid, "target_locale": req.TargetLocale, "reviewed": req.Reviewed,
-	}
-	if out.HadTarget {
-		resp["status"] = string(out.Status)
-	}
-	return c.JSON(http.StatusOK, resp)
-}
-
-// reviewFault is a per-block refusal that the single-block route answers with
-// its own HTTP status and the bulk route records against the block.
+// reviewFault is the refusal of one decision with the HTTP status its cause
+// maps to; decisionRefusal turns it into the change contract's code.
 type reviewFault struct {
 	code int
 	msg  string
@@ -233,15 +74,11 @@ type reviewFault struct {
 
 func (e reviewFault) Error() string { return e.msg }
 
-// blockReviewInput is one block's review, as both the single-block route and
-// the bulk route pose it. Elevate is called before demoting an established
-// target: the single-block route hands over the standard language-permission
-// gate (which writes its own 403), the bulk route a plain predicate so one
-// protected block cannot answer for the whole batch.
-//
-// Vet is the separation-of-duties gate, called before an approval that actually
-// promotes a target. It answers with a reviewFault, so one refused block is
-// recorded against that block rather than failing a whole selection.
+// blockReviewInput is one block's review, as a decide operation poses it
+// (streamDecisions). Elevate is called before demoting an established target,
+// and Vet, the separation-of-duties gate, before an approval that promotes
+// one; each answers with an error that refuses the decision. The change
+// service asks both when it prepares the decision, before anything is written.
 type blockReviewInput struct {
 	ProjectID string
 	Stream    string
@@ -253,6 +90,9 @@ type blockReviewInput struct {
 	PromoteTo model.TargetStatus
 	Elevate   func() error
 	Vet       func(blockID, locale string) error
+	// Ledger, when set, is the decision ledger a pass of many decisions writes
+	// through; nil opens one for the decision.
+	Ledger *reviewLedger
 }
 
 // blockReviewOutcome reports what the review did to one block.
@@ -277,10 +117,10 @@ type blockReviewOutcome struct {
 
 // applyBlockReview moves one block's target for one locale to the requested
 // rung: the status transition, the demotion rules, the decision-ledger write
-// and the change event. It is the whole of the review semantics; both review
-// routes go through it so they cannot drift apart. The caller owns the
-// dashboard-cache invalidation and the review-loop continuation, which are
-// per-request rather than per-block.
+// and the change event. It is the whole of the review semantics: every decide
+// operation a stream applies goes through it (streamDecisions). The caller
+// owns the dashboard-cache invalidation and the review-loop continuation,
+// which are per change set rather than per block.
 func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockReviewInput) (blockReviewOutcome, error) {
 	req := in.Request
 	loc := model.LocaleID(req.TargetLocale)
@@ -374,7 +214,7 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 	// blesses — not only in the projected status the write above landed. The
 	// ledger is what travels to the client on pull, where the same record
 	// lands in the project's committed state.
-	s.recordReviewDecision(ctx, c, in.ProjectID, in.Stream, sb, req.TargetLocale, out.Status, req.Reviewed)
+	s.recordReviewDecision(ctx, c, in.Ledger, in.ProjectID, in.Stream, sb, req.TargetLocale, out.Status, req.Reviewed)
 	s.emitEditorBlockChange(c, in.ProjectID, in.BlockID, req.ItemName, in.Stream, "updated")
 
 	return out, nil

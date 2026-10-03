@@ -410,7 +410,8 @@ func TestReconnectAfterTheRelayDropsAndReturns(t *testing.T) {
 			<-r.Context().Done()
 		default:
 			replays.Add(1)
-			w.WriteHeader(http.StatusNoContent)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"schema":"kapi.change-result/v1","status":"applied","record":"c1","docs":[],"ops":[]}`))
 		}
 	}))
 	defer srv.Close()
@@ -441,10 +442,7 @@ func TestReconnectAfterTheRelayDropsAndReturns(t *testing.T) {
 	app.goOffline()
 	require.Equal(t, StateOffline, app.GetConnectionState().State)
 	for _, text := range []string{"Bonjour", "Bonsoir"} {
-		app.enqueue(updateBlockTargetOp{UpdateBlockRequest{
-			ProjectID: "p1", ItemName: "hello.txt", BlockID: "b1",
-			TargetLocale: "fr", Text: text,
-		}})
+		app.enqueue(queuedSave(t, text))
 	}
 	require.Equal(t, 2, q.PendingCount())
 

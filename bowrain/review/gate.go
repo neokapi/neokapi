@@ -202,7 +202,7 @@ func (g *Gate) Allow(blockID, locale string) error {
 //
 // One condition. The actor must hold review permission for that language in
 // that project, which is what the web asks before an un-review or a rejection
-// drops an established target (HandleReviewBlock's Elevate). The workspace
+// drops an established target (blockReviewInput.Elevate). The workspace
 // separation-of-duties policy is not asked: it judges who may bless work, and
 // withdrawing an established unit blesses nothing, so the author of a
 // translation who also holds review may take back their own decision here as
@@ -212,6 +212,20 @@ func (g *Gate) AllowWithdrawal(locale string) error {
 		return Refusal{Reason: venue.RefusedEstablishedWithdrawal, Locale: locale}
 	}
 	return nil
+}
+
+// Wrote records that the actor writes the target of blockID in locale in this
+// pass, so Allow judges the actor as its last author. A translation a person
+// edits and approves in one change is their own work, whoever wrote the
+// wording before.
+func (g *Gate) Wrote(blockID, locale string) {
+	if g == nil {
+		return
+	}
+	if g.authors == nil {
+		g.authors = map[platstore.TargetRef]string{}
+	}
+	g.authors[platstore.TargetRef{BlockID: blockID, Locale: locale}] = g.cfg.Actor
 }
 
 // vetSoD applies the workspace policy to one pair.

@@ -111,6 +111,30 @@ func TestAutomation_WriteOverlay_MissingInputs(t *testing.T) {
 	require.ErrorIs(t, err, blockstore.ErrNotFound, "missing kind should produce no overlay")
 }
 
+// A translation is content, which a stream takes only through its change
+// service: the action refuses a targets/<locale> kind and the block keeps its
+// translation.
+func TestAutomation_WriteOverlay_RefusesATranslation(t *testing.T) {
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
+	initTestStores(t, srv)
+	ctx := context.Background()
+	require.NoError(t, srv.ContentStore.CreateProject(ctx, &platstore.Project{
+		ID: "proj-overlay-target", Name: "Overlay target", DefaultSourceLanguage: "en",
+	}))
+	blk := model.NewRunsBlock("blk-t", []model.Run{{Text: &model.TextRun{Text: "Hello."}}})
+	blk.SetTargetText("fr", "Bonjour.")
+	require.NoError(t, srv.ContentStore.StoreBlocks(ctx, "proj-overlay-target", "main", []*model.Block{blk}))
+
+	srv.executeWriteOverlay(ctx, event.AutomationAction{
+		Type:   "write_overlay",
+		Config: map[string]string{"kind": "targets/fr", "payload": `{"runs":[{"text":"Écrasé."}]}`},
+	}, platev.Event{ProjectID: "proj-overlay-target", Data: map[string]string{"block_id": "blk-t"}}, "")
+
+	sb, err := srv.ContentStore.GetBlock(ctx, "proj-overlay-target", "main", "blk-t")
+	require.NoError(t, err)
+	require.Equal(t, "Bonjour.", sb.Block.TargetText("fr"), "the action wrote no translation")
+}
+
 // Compile-time sanity: OpenBlockstore must produce a working
 // blockstore.Store. Keeps the integration point from regressing.
 func TestAutomation_OpenBlockstore_Works(t *testing.T) {

@@ -9,7 +9,6 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/venue"
 )
 
 // registerContentTools registers project and content management MCP tools.
@@ -23,11 +22,6 @@ func (s *MCPServer) registerContentTools() { //nolint:funlen // tool registratio
 		Name:        "update_project",
 		Description: "Update a project's name or target languages.",
 	}, s.handleUpdateProject)
-
-	mcp.AddTool(s.server, &mcp.Tool{
-		Name:        "update_block",
-		Description: "Update a block's target translation for a specific locale.",
-	}, s.handleUpdateBlock)
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "list_projects",
@@ -200,8 +194,12 @@ type getBlockOutput struct {
 	ItemName string            `json:"item_name"`
 	Source   string            `json:"source"`
 	Targets  map[string]string `json:"targets"`
-	// Revisions names each target's revision as read here. update_block takes
-	// one as base_revision and refuses an update when the target moved since.
+	// Key is the block's durable key, which read_blocks names it by; an
+	// operation may name the block by Key or by ID.
+	Key string `json:"key,omitempty"`
+	// Revisions names each target's revision as read here. apply_edits takes
+	// one as the if_match of an operation on that translation, and refuses the
+	// operation when the translation moved since.
 	Revisions map[string]string `json:"revisions"`
 }
 
@@ -237,6 +235,7 @@ func (s *MCPServer) handleGetBlock(ctx context.Context, req *mcp.CallToolRequest
 	}
 	return nil, getBlockOutput{
 		ID:        b.Block.ID,
+		Key:       b.SourceID,
 		ItemName:  b.ItemName,
 		Source:    src,
 		Targets:   targets,
@@ -430,62 +429,5 @@ func (s *MCPServer) handleUpdateProject(ctx context.Context, req *mcp.CallToolRe
 		Name:            p.Name,
 		SourceLanguage:  string(p.DefaultSourceLanguage),
 		TargetLanguages: langs,
-	}, nil
-}
-
-// --- update_block ---
-
-type updateBlockInput struct {
-	ProjectID    string `json:"project_id" jsonschema:"the project ID"`
-	BlockID      string `json:"block_id" jsonschema:"the block ID"`
-	Stream       string `json:"stream,omitempty" jsonschema:"stream name (defaults to main)"`
-	TargetLocale string `json:"target_locale" jsonschema:"locale code for the translation"`
-	TargetText   string `json:"target_text" jsonschema:"the translated text"`
-	BaseRevision string `json:"base_revision,omitempty" jsonschema:"the target revision get_block returned; the update is refused when the target changed since"`
-}
-type updateBlockOutput struct {
-	ID           string `json:"id"`
-	TargetLocale string `json:"target_locale"`
-	Updated      bool   `json:"updated"`
-}
-
-func (s *MCPServer) handleUpdateBlock(ctx context.Context, req *mcp.CallToolRequest, input updateBlockInput) (*mcp.CallToolResult, updateBlockOutput, error) {
-	if input.BlockID == "" {
-		return nil, updateBlockOutput{}, errors.New("block_id is required")
-	}
-	if input.TargetLocale == "" {
-		return nil, updateBlockOutput{}, errors.New("target_locale is required")
-	}
-	projectID, err := s.authorizeProject(ctx, req, input.ProjectID)
-	if err != nil {
-		return nil, updateBlockOutput{}, err
-	}
-	stream := input.Stream
-	if stream == "" {
-		stream = "main"
-	}
-
-	loc := model.LocaleID(input.TargetLocale)
-	_, err = s.contentStore.UpdateBlock(ctx, projectID, stream, input.BlockID, func(sb *venue.StoredBlock) error {
-		if input.BaseRevision != "" {
-			if current := store.TargetRevision(sb, loc); current != input.BaseRevision {
-				return fmt.Errorf("%w: the %s target of block %s is now %q (revision %s); read it again with get_block and decide on that wording",
-					store.ErrBlockChanged, input.TargetLocale, input.BlockID, model.RunsText(sb.Block.TargetRuns(loc)), current)
-			}
-		}
-		sb.Block.SetTargetText(loc, input.TargetText)
-		return nil
-	})
-	if err != nil {
-		if errors.Is(err, store.ErrBlockChanged) {
-			return nil, updateBlockOutput{}, err
-		}
-		return nil, updateBlockOutput{}, fmt.Errorf("update block: %w", err)
-	}
-
-	return nil, updateBlockOutput{
-		ID:           input.BlockID,
-		TargetLocale: input.TargetLocale,
-		Updated:      true,
 	}, nil
 }

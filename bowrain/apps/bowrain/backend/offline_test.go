@@ -23,14 +23,14 @@ func TestOfflineQueueEnqueueAndCount(t *testing.T) {
 
 	assert.Equal(t, 0, q.PendingCount())
 
-	err := q.Enqueue("update_block_target", map[string]string{
-		"project_id": "p1", "block_id": "b1", "target_locale": "fr", "text": "Bonjour",
+	err := q.Enqueue(string(opChangeSet), map[string]string{
+		"project_id": "p1", "stream": "main",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, q.PendingCount())
 
-	err = q.Enqueue("review_block", map[string]string{
-		"project_id": "p1", "block_id": "b1",
+	err = q.Enqueue(string(opDeleteMemoryEntry), map[string]string{
+		"entry_id": "e1",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 2, q.PendingCount())
@@ -56,29 +56,23 @@ func TestOfflineQueuePeekPendingFIFO(t *testing.T) {
 func TestOfflineQueuePeekPendingPayload(t *testing.T) {
 	q := newTestQueue(t)
 
-	payload := UpdateBlockRequest{
-		ProjectID:    "p1",
-		ItemName:     "hello.txt",
-		BlockID:      "b1",
-		TargetLocale: "fr",
-		Text:         "Bonjour le monde",
-	}
-	err := q.Enqueue("update_block_target", payload)
+	set := `{"ops":[{"op":"set_content","at":{"doc":"hello.txt","block":"b1","edition":"fr"},"if_match":"r:00000000000000aa","text":"Bonjour le monde"}]}`
+	payload := changeSetOp{ProjectID: "p1", Stream: "main", Set: json.RawMessage(set)}
+	err := q.Enqueue(string(payload.opKind()), payload)
 	require.NoError(t, err)
 
 	changes, err := q.PeekPending(10)
 	require.NoError(t, err)
 	require.Len(t, changes, 1)
 
-	// Payload should be valid JSON matching the original struct.
-	var decoded UpdateBlockRequest
-	err = json.Unmarshal([]byte(changes[0].Payload), &decoded)
+	// The payload decodes back into the op, with the change set as it was sent.
+	op, err := decodeOp(opKind(changes[0].Operation), changes[0].Payload)
 	require.NoError(t, err)
+	decoded, ok := op.(changeSetOp)
+	require.True(t, ok)
 	assert.Equal(t, "p1", decoded.ProjectID)
-	assert.Equal(t, "hello.txt", decoded.ItemName)
-	assert.Equal(t, "b1", decoded.BlockID)
-	assert.Equal(t, "fr", decoded.TargetLocale)
-	assert.Equal(t, "Bonjour le monde", decoded.Text)
+	assert.Equal(t, "main", decoded.Stream)
+	assert.JSONEq(t, set, string(decoded.Set))
 }
 
 func TestOfflineQueueMarkCompleted(t *testing.T) {

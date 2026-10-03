@@ -11,6 +11,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@neokapi/ui-primitives";
+import type { Run } from "@neokapi/kapi-format";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ErrorNotice } from "../errors";
 import type {
@@ -28,23 +29,41 @@ import type {
   AddConceptRequest,
 } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
+import { useContentChanges } from "../hooks/useContentChanges";
 import { useApi } from "../context/ApiContext";
 import { useAnalytics } from "../context/AnalyticsContext";
 import { AnalyticsEvents } from "../analytics-events";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { useLocales } from "../hooks/useLocales";
+import {
+  addNote,
+  appendText,
+  decideTranslation,
+  decisionOutcome,
+  markEntity,
+  removeNote,
+  renderedRevision,
+  setTranslation,
+  translationRuns,
+} from "../api/contentChanges";
 import { EntityMarkPopover } from "./editor/EntityMarkPopover";
 import { VisualEditorLayout } from "./editor/VisualEditorLayout";
 import { TableView } from "./editor/TableView";
+import { StaleChangeDialog } from "./editor/StaleChangeDialog";
+import { CheckFindingsDialog } from "./editor/CheckFindingsDialog";
 import {
   captureTargetStatus,
   getTargetText,
   rollbackTargetStatus,
-  statusAfterEdit,
-  withTargetEntry,
   withTargetStatus,
   type TargetStatusSnapshot,
 } from "./editor/blockStatus";
+import {
+  savedRuns,
+  savedTranslation,
+  withSavedTranslation,
+  type SavedTranslation,
+} from "./editor/savedTranslation";
 import { ArrowUp, ArrowDown } from "./icons";
 import { type UnifiedSaveResult, type UnifiedTargetEditorHandle } from "./UnifiedTargetEditor";
 
@@ -150,6 +169,7 @@ export function TranslationEditor({
   // Register breadcrumb in the top bar area
 
   const api = useEditorApi();
+  const changes = useContentChanges(project.id);
   const { capture } = useAnalytics();
   const { getFileBlocks, getBlockCounts, getWordCount: getWordCountApi } = api;
 
@@ -185,6 +205,21 @@ export function TranslationEditor({
       setCounts(EMPTY_COUNTS);
     }
   }, [getBlockCounts, project.id, fileName, targetLocale, query]);
+
+  // Read one block back as the server holds it: after a change the person
+  // chose not to apply over someone else's, and after a server action that
+  // rewrote it. The page reload is the fallback when the read fails.
+  const refreshBlock = useCallback(
+    async (blockId: string) => {
+      try {
+        const fresh = await api.getBlock(project.id, blockId);
+        setBlocks((prev) => prev.map((b) => (b.id === blockId ? fresh : b)));
+      } catch {
+        await loadBlocks();
+      }
+    },
+    [api, project.id, loadBlocks],
+  );
 
   const loadWordCount = useCallback(async () => {
     try {
@@ -337,95 +372,78 @@ export function TranslationEditor({
       const block = blocks[selectedIndex];
       if (!block) return;
       try {
-        const created = await fullApi.createEntity(wsSlug, project.id, fileName, block.id, {
-          text: entityMarkState.text,
-          type,
-          start: entityMarkState.start,
-          end: entityMarkState.end,
-          dnt,
-          source: "manual",
-        });
-        setBlocks((prev) =>
-          prev.map((b) =>
-            b.id === block.id ? { ...b, entities: [...(b.entities ?? []), created] } : b,
-          ),
-        );
+        await changes.apply([
+          markEntity(fileName, block, {
+            text: entityMarkState.text,
+            type,
+            start: entityMarkState.start,
+            end: entityMarkState.end,
+            dnt,
+            source: "manual",
+          }),
+        ]);
+        // The server anchors the entity and names it; the block read back
+        // carries it the way the editor lists entities.
+        await refreshBlock(block.id);
       } catch (err) {
         setError({ title: "Couldn't create the entity", cause: err });
       }
       setEntityMarkState(null);
     },
-    [entityMarkState, selectedIndex, blocks, fullApi, wsSlug, project.id, fileName],
+    [entityMarkState, selectedIndex, blocks, changes, fileName, refreshBlock],
   );
 
-  // Single dispatcher for the UnifiedTargetEditor — flat results go through
-  // `updateBlockTargetCoded`; plural results write the ICU string to
-  // `targets[locale]` and clear `targets_coded[locale]`. See AD #408 / #409.
+  /**
+   * Save a translation the person wrote, as runs, on the revision the editor
+   * showed. A translation someone changed since is shown to them before
+   * anything is written; when they keep it, the block is read back as it
+   * stands. A save a check refuses shows the findings, and the person saves
+   * anyway or goes back to their wording (`revise`). A save that lands is
+   * written into the block as a reload would fetch it.
+   */
+  const saveTranslation = useCallback(
+    async (
+      block: BlockInfo,
+      saved: SavedTranslation,
+      extra?: Partial<BlockInfo>,
+    ): Promise<"saved" | "kept" | "revise"> => {
+      const outcome = await changes.commit(
+        (ifMatch) => setTranslation(fileName, block, targetLocale, { runs: saved.runs }, ifMatch),
+        renderedRevision(block, targetLocale),
+        { action: "save", locale: targetLocale, mine: saved.mine },
+      );
+      if (outcome.status === "kept") {
+        await refreshBlock(block.id);
+        return "kept";
+      }
+      if (outcome.status === "revise") return "revise";
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === block.id
+            ? { ...withSavedTranslation(b, targetLocale, saved, outcome.after), ...extra }
+            : b,
+        ),
+      );
+      return "saved";
+    },
+    [changes, fileName, targetLocale, refreshBlock],
+  );
+
+  // Single dispatcher for the UnifiedTargetEditor: a flat result and a plural
+  // one are both saved as runs, the plural as one plural run with its forms.
+  // See AD #408 / #409.
   const handleUnifiedSave = useCallback(
     async (index: number, result: UnifiedSaveResult) => {
       const block = blocks[index];
       if (!block) return;
       try {
-        if (result.kind === "flat") {
-          await api.updateBlockTargetCoded({
-            project_id: project.id,
-            item_name: fileName,
-            block_id: block.id,
-            target_locale: targetLocale,
-            coded_text: result.codedText,
-            spans: result.spans,
-          });
-          const plainText = result.codedText.replace(/[\uE001-\uE003]/g, "");
-          // Write the {text, status} object shape a reload would fetch: a
-          // bare-string entry here would drop the per-locale status until the
-          // next reload. statusAfterEdit mirrors the server's rule: a changed
-          // text invalidates a stale established status (demoted to
-          // translated), identical content keeps it.
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === block.id
-                ? {
-                    ...withTargetEntry(b, targetLocale, {
-                      text: plainText,
-                      status: statusAfterEdit(b, targetLocale, plainText, result.codedText),
-                    }),
-                    targets_coded: {
-                      ...b.targets_coded,
-                      [targetLocale]: result.codedText,
-                    },
-                  }
-                : b,
-            ),
-          );
-        } else {
-          await api.updateBlockTargetCoded({
-            project_id: project.id,
-            item_name: fileName,
-            block_id: block.id,
-            target_locale: targetLocale,
-            coded_text: "",
-            spans: [],
-          });
-          await api.updateBlockTarget({
-            project_id: project.id,
-            item_name: fileName,
-            block_id: block.id,
-            target_locale: targetLocale,
-            text: result.text,
-          });
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === block.id
-                ? {
-                    ...withTargetEntry(b, targetLocale, {
-                      text: result.text,
-                      status: statusAfterEdit(b, targetLocale, result.text),
-                    }),
-                    targets_coded: { ...b.targets_coded, [targetLocale]: "" },
-                  }
-                : b,
-            ),
-          );
+        const done = await saveTranslation(block, savedTranslation(result));
+        // A save the person takes back to revise keeps the editor open on
+        // their wording.
+        if (done === "revise") return;
+        if (done === "kept") {
+          setEditingIndex(null);
+          return;
         }
         capture(AnalyticsEvents.translationSaved, { locale: targetLocale, method: "editor" });
         // The block changed bucket, so the histogram is re-asked for.
@@ -437,7 +455,7 @@ export function TranslationEditor({
         setError({ title: "Couldn't save the translation", cause: e });
       }
     },
-    [blocks, api, capture, project.id, fileName, targetLocale, loadCounts],
+    [blocks, saveTranslation, capture, targetLocale, loadCounts],
   );
 
   const handleExport = async () => {
@@ -497,8 +515,19 @@ export function TranslationEditor({
           );
         }),
       );
+      const outcome = decisionOutcome(reviewed, rung);
       try {
-        await api.reviewBlock(project.id, fileName, block.id, targetLocale, reviewed, rung);
+        // The decision binds to the wording the reviewer read: a translation
+        // someone changed since is shown before anything is recorded.
+        const done = await changes.commit(
+          (ifMatch) => decideTranslation(fileName, block, targetLocale, outcome, ifMatch),
+          renderedRevision(block, targetLocale),
+          { action: outcome, locale: targetLocale },
+        );
+        if (done.status === "kept") {
+          await refreshBlock(block.id);
+          return false;
+        }
         void loadCounts();
         return true;
       } catch (e) {
@@ -516,7 +545,7 @@ export function TranslationEditor({
         return false;
       }
     },
-    [api, capture, project.id, fileName, targetLocale, loadCounts],
+    [changes, capture, fileName, targetLocale, loadCounts, refreshBlock],
   );
 
   // Visual card handlers.
@@ -558,30 +587,22 @@ export function TranslationEditor({
       const match = memoryMatches[index];
       const block = blocks[selectedIndex];
       if (!match || !block || !block.translatable) return;
-      void api
-        .updateBlockTarget({
-          project_id: project.id,
-          item_name: fileName,
-          block_id: block.id,
-          target_locale: targetLocale,
-          text: match.target,
-        })
-        .then(() => {
+      // The match's runs carry its codes; its text alone would drop them.
+      const runs: Run[] =
+        match.target_runs && match.target_runs.length > 0
+          ? (match.target_runs as Run[])
+          : [{ text: match.target }];
+      void saveTranslation(block, savedRuns(runs), {
+        properties: { ...block.properties, "translation-origin": "memory" },
+      })
+        .then((done) => {
+          if (done !== "saved") return;
           capture(AnalyticsEvents.translationSaved, { locale: targetLocale, method: "tm" });
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === block.id
-                ? {
-                    ...b,
-                    targets: { ...b.targets, [targetLocale]: match.target },
-                    properties: { ...b.properties, "translation-origin": "memory" },
-                  }
-                : b,
-            ),
-          );
-        });
+          void loadCounts();
+        })
+        .catch((e) => setError({ title: "Couldn't apply the match", cause: e }));
     },
-    [memoryMatches, blocks, selectedIndex, api, capture, project.id, fileName, targetLocale],
+    [memoryMatches, blocks, selectedIndex, saveTranslation, capture, targetLocale, loadCounts],
   );
 
   // Insert a target term. When a target editor is open for the selected
@@ -596,26 +617,13 @@ export function TranslationEditor({
         targetEditorRef.current.insertText(text);
         return;
       }
-      const existing = getTargetText(block, targetLocale);
-      const next = existing ? `${existing} ${text}` : text;
-      void api
-        .updateBlockTarget({
-          project_id: project.id,
-          item_name: fileName,
-          block_id: block.id,
-          target_locale: targetLocale,
-          text: next,
-        })
-        .then(() => {
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === block.id ? { ...b, targets: { ...b.targets, [targetLocale]: next } } : b,
-            ),
-          );
-        })
-        .catch((e) => setError({ title: "Couldn't insert the term", cause: e }));
+      // The term joins the translation's runs, so its codes stay where they are.
+      const runs = appendText(translationRuns(block, targetLocale), text);
+      void saveTranslation(block, savedRuns(runs)).catch((e) =>
+        setError({ title: "Couldn't insert the term", cause: e }),
+      );
     },
-    [blocks, selectedIndex, editingIndex, api, project.id, fileName, targetLocale],
+    [blocks, selectedIndex, editingIndex, saveTranslation, targetLocale],
   );
 
   const handleRunFileCheck = useCallback(() => {
@@ -638,45 +646,52 @@ export function TranslationEditor({
       if (!block) return;
       // Use the audited server rollback: it restores the prior version
       // (including inline markup) non-destructively and records the rollback.
+      // The block is read back, so the next change names the revision the
+      // rollback left.
       api
         .rollbackBlock(project.id, block.id, entry.seq, targetLocale)
-        .then(() => {
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === block.id
-                ? {
-                    ...b,
-                    targets: { ...b.targets, [targetLocale]: entry.text },
-                  }
-                : b,
-            ),
-          );
-        })
+        .then(() => refreshBlock(block.id))
         .catch((e) => setError({ title: "Couldn't revert the change", cause: e }));
     },
-    [blocks, selectedIndex, api, project.id, targetLocale],
+    [blocks, selectedIndex, api, project.id, targetLocale, refreshBlock],
   );
 
   const handleAddNote = useCallback(
     (text: string) => {
       const block = blocks[selectedIndex];
       if (!block) return;
-      api
-        .addBlockNote(project.id, block.id, text)
-        .then((note) => setBlockNotes((prev) => [...prev, note]))
-        .catch((e) => setError({ title: "Couldn't add the note", cause: e }));
+      // The server stamps a note with its author and time; the list read back
+      // shows it as everyone else sees it. The note is added once the change
+      // lands, read back or not: the desktop queues it while the server is out
+      // of reach, and the list cannot be read until it returns.
+      changes.apply([addNote(fileName, block.id, text)]).then(
+        async (result) => {
+          try {
+            setBlockNotes((await api.listBlockNotes(project.id, block.id)) || []);
+          } catch {
+            const id = result.ops[0]?.id ?? `pending-${Date.now()}`;
+            setBlockNotes((prev) => [
+              ...prev,
+              { id, blockId: block.id, author: "You", text, createdAt: new Date().toISOString() },
+            ]);
+          }
+        },
+        (e) => setError({ title: "Couldn't add the note", cause: e }),
+      );
     },
-    [blocks, selectedIndex, api, project.id],
+    [blocks, selectedIndex, changes, api, project.id, fileName],
   );
 
   const handleDeleteNote = useCallback(
     (noteId: string) => {
-      api
-        .deleteBlockNote(project.id, noteId)
+      const block = blocks[selectedIndex];
+      if (!block) return;
+      changes
+        .apply([removeNote(fileName, block.id, noteId)])
         .then(() => setBlockNotes((prev) => prev.filter((n) => n.id !== noteId)))
         .catch((e) => setError({ title: "Couldn't delete the note", cause: e }));
     },
-    [api, project.id],
+    [blocks, selectedIndex, changes, fileName],
   );
 
   const handleTermCreate = useCallback(
@@ -908,6 +923,8 @@ export function TranslationEditor({
           onCancel={() => setEntityMarkState(null)}
         />
       )}
+      <StaleChangeDialog state={changes.staleDialog} />
+      <CheckFindingsDialog state={changes.findingsDialog} />
     </div>
   );
 }

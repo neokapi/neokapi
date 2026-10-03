@@ -14,30 +14,33 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // These cover the editor-domain routes that answer server-side what the web
 // surfaces used to assemble from every block in a file: the filtered blocks
 // page, its counts, one item's metadata, and the two batch actions.
 
-// newEditorBulkServer builds a Server over a SQLite content store with an
-// in-memory workspace content memory — no container needed.
-func newEditorBulkServer(t *testing.T) (*Server, *sqlitestore.SQLiteStore) {
+// newEditorBulkServer builds a Server over a real PostgreSQL content store
+// with an in-memory workspace content memory.
+func newEditorBulkServer(t *testing.T) (*Server, *bstore.PostgresStore) {
 	t.Helper()
-	cs, err := sqlitestore.NewSQLiteStore(t.TempDir() + "/store.db")
+	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = cs.Close() })
 	srv := &Server{ContentStore: cs, wsStores: newWorkspaceStores()}
 	srv.wsStores.memoryFactory = func() memory.Store { return memory.NewInMemoryStore() }
+	srv.wsStores.termsFactory = func() terms.Store { return &testTermStore{terms.NewInMemoryStore()} }
 	return srv, cs
 }
 
 // bulkTestBlocks is the seeded corpus, one block per status bucket plus a
 // non-translatable one, keyed by source text.
-func seedEditorBulkProject(t *testing.T, cs *sqlitestore.SQLiteStore) (string, map[string]string) {
+func seedEditorBulkProject(t *testing.T, cs *bstore.PostgresStore) (string, map[string]string) {
 	t.Helper()
 	ctx := t.Context()
 	proj := &platstore.Project{
@@ -205,11 +208,10 @@ func TestHandleGetBlock(t *testing.T) {
 
 	t.Run("reports the demotion an edit caused", func(t *testing.T) {
 		bid := ids["Thanks"]
-		_, err := editorBlockCall(t, srv, http.MethodPut, pid, bid,
-			"/api/v1/acme/"+pid+"/blocks/main/"+bid,
-			`{"project_id":"`+pid+`","target_locale":"fr","text":"Merci beaucoup"}`,
-			srv.HandleUpdateBlockTarget)
-		require.NoError(t, err)
+		rev := decodeJSON[BlockInfoResponse](t, get(t, bid)).TargetRevisions["fr"]
+		rec, _ := sendChanges(t, srv, pid, fullCaller, change.Set{Ops: []change.Op{
+			setText(at("greetings.txt", bid, "fr"), rev, "Merci beaucoup")}})
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
 		one := decodeJSON[BlockInfoResponse](t, get(t, bid))
 		assert.Equal(t, "Merci beaucoup", one.Targets["fr"].Text)
@@ -271,8 +273,8 @@ func TestHandleGetItem(t *testing.T) {
 	})
 }
 
-// The batch carries the single-block route's semantics exactly, and a block
-// that refuses is recorded against itself rather than failing the request.
+// The batch carries a decision's semantics exactly, and a block that refuses
+// is recorded against itself rather than failing the request.
 func TestHandleBulkReviewBlocks(t *testing.T) {
 	srv, cs := newEditorBulkServer(t)
 	pid, ids := seedEditorBulkProject(t, cs)
@@ -298,9 +300,9 @@ func TestHandleBulkReviewBlocks(t *testing.T) {
 	assert.True(t, resp.Results[0].OK)
 	assert.Equal(t, "established", resp.Results[0].Status)
 	assert.True(t, resp.Results[1].OK)
-	// An untranslated block is the single-block route's 422, per block.
+	// An untranslated block has no translation to establish, per block.
 	assert.False(t, resp.Results[2].OK)
-	assert.Contains(t, resp.Results[2].Error, "no fr translation to review")
+	assert.Contains(t, resp.Results[2].Error, "no fr translation to establish")
 	assert.False(t, resp.Results[3].OK)
 	assert.Contains(t, resp.Results[3].Error, "block not found")
 
@@ -316,8 +318,8 @@ func TestHandleBulkReviewBlocks(t *testing.T) {
 	assert.Nil(t, sb.Block.Target("fr"))
 }
 
-// A rejection demotes to draft, re-opening the work, exactly as the
-// single-block route's status:"draft" does.
+// A rejection demotes to draft, re-opening the work, exactly as a decide
+// reject does.
 func TestHandleBulkReviewBlocks_RejectDemotesToDraft(t *testing.T) {
 	srv, cs := newEditorBulkServer(t)
 	pid, ids := seedEditorBulkProject(t, cs)
@@ -344,8 +346,7 @@ func TestHandleBulkReviewBlocks_RejectDemotesToDraft(t *testing.T) {
 	assert.Equal(t, model.TargetStatusDraft, sb.Block.Target("fr").Status)
 
 	// The comment rides along as a block note.
-	notes, err := cs.ListBlockNotes(t.Context(), pid, "main", ids["Thanks"])
-	require.NoError(t, err)
+	notes := blockNotes(sb.Block)
 	require.Len(t, notes, 1)
 	assert.Equal(t, "Wrong register", notes[0].Text)
 }

@@ -2,17 +2,16 @@ package backend
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"os/exec"
-	"reflect"
 	"runtime"
-	"strings"
-	"time"
 
 	"github.com/neokapi/neokapi/bowrain/editorclient"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
@@ -246,10 +245,9 @@ func (a *App) queryItemBlocksLocal(projectID, itemName string, filter EditorBloc
 // elements: server-side when connected, from the local working copy offline.
 //
 // It is what a surface reads after writing a target, instead of rebuilding the
-// block from its own request — the demotion an edit triggers is the store's
-// decision on both paths (applyTargetTextEdit locally, the server's
-// demoteStaleReviewOnEdit remotely), and a second copy of that rule in
-// TypeScript is a copy that can disagree.
+// block from its own request: the status an edit leaves is the change
+// service's decision on both paths (change.ApplyBlock), and a second copy of
+// that rule in TypeScript is a copy that can disagree.
 func (a *App) GetBlock(projectID, blockID string) (*BlockInfo, error) {
 	if a.isConnected() {
 		client, ws := a.editorRemote()
@@ -617,8 +615,10 @@ func storedBlockToBlockInfo(sb *venue.StoredBlock, targetLocales []string) Block
 	// (model.Target.Status), so the shared editor reads the same shape online
 	// and offline.
 	targets := make(map[string]BlockTargetInfo, len(targetLocales))
+	revisions := make(map[string]string, len(targetLocales))
 	for _, locale := range targetLocales {
 		loc := model.LocaleID(locale)
+		revisions[locale] = store.TargetRevision(sb, loc)
 		if runs := sb.Block.TargetRuns(loc); len(runs) > 0 {
 			targetRuns[locale] = runsToRunInfos(runs)
 		}
@@ -639,12 +639,13 @@ func storedBlockToBlockInfo(sb *venue.StoredBlock, targetLocales []string) Block
 	maps.Copy(props, sb.Block.Properties)
 
 	return BlockInfo{
-		ID:           sb.Block.ID,
-		SourceRuns:   runsToRunInfos(sb.Block.SourceRuns()),
-		Targets:      targets,
-		TargetRuns:   targetRuns,
-		Translatable: sb.Block.Translatable,
-		Properties:   props,
+		ID:              sb.Block.ID,
+		SourceRuns:      runsToRunInfos(sb.Block.SourceRuns()),
+		Targets:         targets,
+		TargetRuns:      targetRuns,
+		Translatable:    sb.Block.Translatable,
+		Properties:      props,
+		TargetRevisions: revisions,
 	}
 }
 
@@ -765,175 +766,37 @@ func runConstraintsFromInfo(ri *RunConstraintsInfo) *model.RunConstraints {
 	return &model.RunConstraints{Deletable: ri.Deletable, Cloneable: ri.Cloneable, Reorderable: ri.Reorderable}
 }
 
-// UpdateBlockTarget updates the target text for a specific block. The local
-// cache is authoritative for block edits, so a successful server write is still
-// reconciled into the cache; an offline or failed write queues the op and
-// updates the cache alone.
-func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
-	local := func() error {
-		return a.updateBlockTargetLocal(req.ProjectID, req.BlockID, req.TargetLocale, req.Text)
-	}
-	return a.writeThroughVoid(updateBlockTargetOp{req},
-		func() error {
-			client, ws := a.editorRemote()
-			// Wrap the plain-text update in a single TextRun so the server
-			// sees the canonical Run sequence.
-			runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
-			return client.UpdateBlockTargetRuns(context.Background(), ws, req.ProjectID, req.BlockID, req.TargetLocale, runs)
-		},
-		nil, // reconcile the local cache on success
-		local,
-	)
-}
-
-func (a *App) updateBlockTargetLocal(projectID, blockID, targetLocale, text string) error {
-	ctx := context.Background()
-	sb, err := a.store.GetBlock(ctx, projectID, "main", blockID)
-	if err != nil {
-		return err
-	}
-	loc := model.LocaleID(targetLocale)
-	oldRuns := sb.Block.TargetRuns(loc)
-	sb.Block.SetTargetText(loc, text)
-	stampHumanEditOrigin(sb.Block, loc)
-	demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
-	// Use StoreBlocks (not StoreBlocksForItem) because the block already carries
-	// an internal ID — it should not be re-mapped through source_id assignment.
-	return a.store.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
-}
-
-// stampHumanEditOrigin records a translation a person typed as produced by a
-// person, the same stamp the server writes for an edit (server/editor.go). The
-// offline cache applies it so a block edited without a connection reads the way
-// the same edit reads online.
-func stampHumanEditOrigin(b *model.Block, loc model.LocaleID) {
-	if t := b.Target(loc); t != nil {
-		t.Origin = model.Origin{Kind: model.OriginHuman, Timestamp: time.Now().UTC().Format(time.RFC3339)}
-	}
-}
-
-// demoteStaleReviewOnEdit drops a established Target.Status back to
-// translated when an edit changed the target's runs. A review decision judges
-// ONE specific translation, so rewriting it invalidates the approval; the
-// offline cache applies the same rule as the server (server.editor.go), so a
-// reconnect does not resurrect an approval the edit already invalidated.
-// Statuses at or below translated are left alone — they are not decisions.
-func demoteStaleReviewOnEdit(b *model.Block, locale model.LocaleID, oldRuns []model.Run) {
-	t := b.Target(locale)
-	if t == nil {
-		return
-	}
-	if t.Status != model.TargetStatusEstablished {
-		return
-	}
-	if reflect.DeepEqual(oldRuns, t.Runs) {
-		return
-	}
-	t.Status = model.TargetStatusTranslated
-}
-
-// UpdateBlockTargetRuns updates the target for a block using a
-// structured Run sequence.
-func (a *App) UpdateBlockTargetRuns(req UpdateBlockTargetRunsRequest) error {
-	return a.writeThroughVoid(updateBlockTargetRunsOp{req},
-		func() error {
-			client, ws := a.editorRemote()
-			return client.UpdateBlockTargetRuns(context.Background(), ws, req.ProjectID, req.BlockID, req.TargetLocale, runInfosToRuns(req.Runs))
-		},
-		nil, // reconcile the local cache on success
-		func() error { return a.updateBlockTargetRunsLocal(req) },
-	)
-}
-
-func (a *App) updateBlockTargetRunsLocal(req UpdateBlockTargetRunsRequest) error {
-	ctx := context.Background()
-	sb, err := a.store.GetBlock(ctx, req.ProjectID, "main", req.BlockID)
-	if err != nil {
-		return err
-	}
-	loc := model.LocaleID(req.TargetLocale)
-	oldRuns := sb.Block.TargetRuns(loc)
-	sb.Block.SetTargetRuns(loc, runInfosToRuns(req.Runs))
-	stampHumanEditOrigin(sb.Block, loc)
-	demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
-	return a.store.StoreBlocks(ctx, req.ProjectID, "main", []*model.Block{sb.Block})
-}
-
-// ReviewBlock marks a block as established or un-reviewed for a
-// target locale. status picks the rung: with reviewed=true it is "" (an
-// approval, landing on established); with reviewed=false it is "" or
-// "translated" for a plain un-review, "draft" for a reviewer rejection (the
-// unit re-enters the work queue).
-func (a *App) ReviewBlock(projectID, itemName, blockID, targetLocale string, reviewed bool, status string) error {
-	op := reviewBlockOp{
-		ProjectID: projectID, ItemName: itemName, BlockID: blockID,
-		TargetLocale: targetLocale, Reviewed: reviewed, Status: status,
-	}
-	return a.writeThroughVoid(op,
-		func() error {
-			client, ws := a.editorRemote()
-			return client.ReviewBlock(context.Background(), ws, projectID, itemName, blockID, targetLocale, reviewed, status)
-		},
-		nil, // reconcile the local cache on success
-		func() error { return a.reviewBlockLocal(projectID, blockID, targetLocale, reviewed, status) },
-	)
-}
-
-// legacyTranslationStatusProperty is the pre-per-locale review flag: a
-// block-GLOBAL property the old scheme wrote. Review state now lives on the
-// per-locale model.Target.Status (mirroring the server's HandleReviewBlock);
-// the property is write-never, kept only as a read fallback for cached blocks
-// written before the change, and cleared on un-review when there is no target
-// to demote.
+// legacyTranslationStatusProperty is the block-wide review flag of cached
+// blocks written before review status lived on each translation
+// (model.Target.Status). It is never written; a decision that moves a block
+// with no translation clears it.
 const legacyTranslationStatusProperty = "translation-status"
 
-// reviewBlockLocal applies a review decision to the locally cached block with
-// the same per-locale semantics as the server's HandleReviewBlock: the status
-// lives on the block's target for ONE locale (reviewing fr never touches de).
-// Approving a block with no non-empty translation for the locale is an error
-// (the server's 422); un-reviewing a locale with no target clears the legacy
-// block-global property if present and is otherwise a no-op. status picks the
-// rung the same way the server's optional status field does: "draft" on a
-// clearing call for a rejection, otherwise the default rung for the direction.
-// The queued op carries it, so a working copy that decides while offline shows
-// the rung it queued.
-func (a *App) reviewBlockLocal(projectID, blockID, targetLocale string, reviewed bool, status string) error {
+// reviewBlockLocal applies one decision of a bulk review to the locally cached
+// block, the way a decide operation applies to it (decideCached): approve
+// establishes the translation, and a clearing call moves it to translated, or
+// to draft for a rejection (status "draft").
+func (a *App) reviewBlockLocal(projectID, blockID, targetLocale string, approve bool, status string) error {
 	ctx := context.Background()
-	sb, err := a.store.GetBlock(ctx, projectID, "main", blockID)
+	sb, err := a.store.GetBlock(ctx, projectID, editorStream, blockID)
 	if err != nil {
 		return err
 	}
-
-	loc := model.LocaleID(targetLocale)
-	target := sb.Block.Target(loc)
-
-	if reviewed {
-		if target == nil || strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
-			return fmt.Errorf("block %q has no %s translation to review: translate it first", blockID, targetLocale)
-		}
-		if target.Status == model.TargetStatusEstablished {
-			// Established is the top of the ladder; approving it again
-			// must not demote it (mirrors the server's HandleReviewBlock no-op).
-			return nil
-		}
-		target.Status = model.TargetStatusEstablished
-	} else {
-		if target == nil {
-			// Nothing to demote. Clear the legacy block-global flag if present so
-			// a block reviewed under the old scheme can be un-reviewed at all.
-			if _, ok := sb.Block.Properties[legacyTranslationStatusProperty]; ok {
-				delete(sb.Block.Properties, legacyTranslationStatusProperty)
-				return a.store.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
-			}
-			return nil
-		}
-		if status == string(model.TargetStatusDraft) {
-			target.Status = model.TargetStatusDraft
-		} else {
-			target.Status = model.TargetStatusTranslated
-		}
+	outcome := change.OutcomeWithdraw
+	switch {
+	case approve:
+		outcome = change.OutcomeEstablish
+	case status == string(model.TargetStatusDraft):
+		outcome = change.OutcomeReject
 	}
-	return a.store.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
+	moved, cerr := decideCached(sb.Block, model.LocaleID(targetLocale), outcome)
+	if cerr != nil {
+		return errors.New(cerr.Message)
+	}
+	if !moved {
+		return nil
+	}
+	return a.store.StoreBlocks(ctx, projectID, editorStream, []*model.Block{sb.Block})
 }
 
 // PseudoTranslateItem pseudo-translates all blocks in an item. When connected
@@ -1136,10 +999,14 @@ func (a *App) OpenFileInOS(filePath string) error {
 
 // MemoryMatchInfo is a content-memory match result for a single block, exposed to the frontend.
 type MemoryMatchInfo struct {
-	Source    string  `json:"source"`
-	Target    string  `json:"target"`
-	Score     float64 `json:"score"`
-	MatchType string  `json:"match_type"`
+	Source string `json:"source"`
+	Target string `json:"target"`
+	// TargetRuns is the target as runs when it holds an inline code or a
+	// plural, which Target leaves out: applying the match saves these. They
+	// are the runs a change carries, in the shape the editor sends them.
+	TargetRuns []model.Run `json:"target_runs,omitempty"`
+	Score      float64     `json:"score"`
+	MatchType  string      `json:"match_type"`
 }
 
 // LookupMemoryForBlock looks up content-memory matches for a specific block.
@@ -1187,13 +1054,23 @@ func (a *App) LookupMemoryForBlock(projectID, itemName, blockID, targetLocale st
 	result := make([]MemoryMatchInfo, len(matches))
 	for i, m := range matches {
 		result[i] = MemoryMatchInfo{
-			Source:    m.Entry.VariantText(srcLoc),
-			Target:    m.Entry.VariantText(tgtLoc),
-			Score:     m.Score,
-			MatchType: string(m.MatchType),
+			Source:     m.Entry.VariantText(srcLoc),
+			Target:     m.Entry.VariantText(tgtLoc),
+			TargetRuns: matchRuns(m.Entry.Variant(tgtLoc)),
+			Score:      m.Score,
+			MatchType:  string(m.MatchType),
 		}
 	}
 	return result, nil
+}
+
+// matchRuns is a match's target runs when they hold an inline code or a
+// plural, and nil for plain text, which Target already carries.
+func matchRuns(runs []model.Run) []model.Run {
+	if !model.RunsHaveInlineCodes(runs) {
+		return nil
+	}
+	return runs
 }
 
 // BlockTermMatch is a term match for a block, exposed to the frontend.

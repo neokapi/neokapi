@@ -260,7 +260,8 @@ describe("parseAppError", () => {
         '{"error":"insufficient permissions"}',
         '{"error":"no review permission for fr"}',
         '{"error":"no access to language: fr"}',
-        '{"error":"demoting an established target requires review permission"}',
+        '{"error":"moving an established translation takes the review permission for fr"}',
+        '{"error":"you may not translate fr: it takes the translate permission"}',
       ]) {
         const parsed = parseAppError(new Error(`403: ${body}`));
         expect(parsed.title, body).toBe("You don't have permission to do that");
@@ -312,6 +313,8 @@ describe("the permission refusals are the ones the server writes", () => {
     "review_governance.go",
     "handlers_editor_bulk.go",
     "handlers_governance.go",
+    "content_changes_policy.go",
+    "content_changes_decide.go",
   ]
     .map((file) => readFileSync(join(REPO_ROOT, "bowrain/server", file), "utf8"))
     .join("\n");

@@ -120,14 +120,20 @@ type EditorBlock struct {
 	TargetRuns   map[string][]model.Run       `json:"targets_runs,omitempty"`
 	Translatable bool                         `json:"translatable"`
 	Properties   map[string]string            `json:"properties"`
+	// TargetRevisions names each served locale's target revision: the
+	// if_match an operation on that translation sends.
+	TargetRevisions map[string]string `json:"target_revisions,omitempty"`
 }
 
 // EditorMemoryMatch mirrors MemoryMatchInfoResponse.
 type EditorMemoryMatch struct {
-	Source    string  `json:"source"`
-	Target    string  `json:"target"`
-	Score     float64 `json:"score"`
-	MatchType string  `json:"match_type"`
+	Source string `json:"source"`
+	Target string `json:"target"`
+	// TargetRuns is the target as runs when it holds an inline code or a
+	// plural.
+	TargetRuns []model.Run `json:"target_runs,omitempty"`
+	Score      float64     `json:"score"`
+	MatchType  string      `json:"match_type"`
 }
 
 // EditorTermMatch mirrors BlockTermMatchResponse.
@@ -520,15 +526,6 @@ func (c *EditorClient) GetPendingReview(ctx context.Context, ws, projectID strin
 		return nil, err
 	}
 	return &out, nil
-}
-
-// UpdateBlockTargetRuns replaces a block's target with a canonical Run sequence.
-func (c *EditorClient) UpdateBlockTargetRuns(ctx context.Context, ws, projectID, blockID, targetLocale string, runs []model.Run) error {
-	body := struct {
-		TargetLocale string      `json:"target_locale"`
-		Runs         []model.Run `json:"runs"`
-	}{TargetLocale: targetLocale, Runs: runs}
-	return c.DoJSON(ctx, http.MethodPut, blockPath(ws, projectID, blockID, "/runs"), nil, body, nil)
 }
 
 // ---------------------------------------------------------------------------

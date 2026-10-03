@@ -1,21 +1,24 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // TestReviewBlock_PromotesApprovedWordingIntoMemory pins the editor half of
-// "the corpus follows decisions": approving a translation through the review
-// endpoint must land the (source, target) pair in the workspace content
-// memory, and rejecting it must evict it. The full chain runs — handler →
-// ledger → PromoteDecisionsToMemory — because each hop has already failed
-// silently once (the wrapped-store capability, then a skip with no log).
+// "the corpus follows decisions": establishing a translation through a
+// stream's changes route must land the (source, target) pair in the workspace
+// content memory, and rejecting it must evict it. The full chain runs —
+// router → change service → ledger → PromoteDecisionsToMemory — because each
+// hop has already failed silently once (the wrapped-store capability, then a
+// skip with no log).
 func TestReviewBlock_PromotesApprovedWordingIntoMemory(t *testing.T) {
 	s, ownerToken := newTestServer(t)
 	cs := s.ContentStore
@@ -28,6 +31,7 @@ func TestReviewBlock_PromotesApprovedWordingIntoMemory(t *testing.T) {
 	blk := &model.Block{ID: "greeting", Translatable: true}
 	blk.SetSourceText("Hello")
 	blk.SetTargetText("nb", "Hei")
+	require.NoError(t, cs.StoreItem(ctx, "p-promote", "main", &platstore.Item{Name: "en.json", Format: "json"}))
 	require.NoError(t, cs.StoreBlocksForItem(ctx, "p-promote", "main", "en.json", []*model.Block{blk}))
 
 	// Resolve the stored row id the editor addresses blocks by.
@@ -42,8 +46,18 @@ func TestReviewBlock_PromotesApprovedWordingIntoMemory(t *testing.T) {
 	before, err := tm.Count(ctx)
 	require.NoError(t, err)
 
-	code := do(t, s, http.MethodPut, "/api/v1/test/p-promote/blocks/main/"+bid+"/review",
-		ownerToken, `{"target_locale":"nb","reviewed":true}`)
+	// The decision is sent to the stream's changes route through the router,
+	// on the revision of the translation the reviewer read.
+	decideVia := func(outcome change.Outcome) int {
+		t.Helper()
+		sb, err := cs.GetBlock(ctx, "p-promote", "main", bid)
+		require.NoError(t, err)
+		body, err := json.Marshal(change.Set{Ops: []change.Op{
+			decide(at("en.json", bid, "nb"), platstore.TargetRevision(sb, "nb"), outcome)}})
+		require.NoError(t, err)
+		return do(t, s, http.MethodPost, "/api/v1/test/projects/p-promote/streams/main/changes", ownerToken, string(body))
+	}
+	code := decideVia(change.OutcomeEstablish)
 	require.Equal(t, http.StatusOK, code)
 
 	after, err := tm.Count(ctx)
@@ -59,8 +73,7 @@ func TestReviewBlock_PromotesApprovedWordingIntoMemory(t *testing.T) {
 	assert.Equal(t, "approved", decisions[0].ReviewState)
 
 	// Rejection evicts.
-	code = do(t, s, http.MethodPut, "/api/v1/test/p-promote/blocks/main/"+bid+"/review",
-		ownerToken, `{"target_locale":"nb","reviewed":false,"status":"draft"}`)
+	code = decideVia(change.OutcomeReject)
 	require.Equal(t, http.StatusOK, code)
 	final, err := tm.Count(ctx)
 	require.NoError(t, err)

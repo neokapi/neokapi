@@ -17,6 +17,7 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 )
@@ -45,6 +46,15 @@ func (s *removeBeforeWrite) GetBlocks(ctx context.Context, q platstore.BlockQuer
 func (s *removeBeforeWrite) UpdateBlock(ctx context.Context, projectID, stream, blockID string, update func(*venue.StoredBlock) error) (*venue.StoredBlock, error) {
 	s.once.Do(func() { s.change(ctx) })
 	return s.ContentStore.UpdateBlock(ctx, projectID, stream, blockID, update)
+}
+
+func (s *removeBeforeWrite) ItemBlocks(ctx context.Context, projectID, stream, itemName string, keys []string) ([]*venue.StoredBlock, error) {
+	return s.ContentStore.(platstore.BlockWriteStore).ItemBlocks(ctx, projectID, stream, itemName, keys)
+}
+
+func (s *removeBeforeWrite) BeginBlockWrite(ctx context.Context, projectID, stream string) (platstore.BlockWrite, error) {
+	s.once.Do(func() { s.change(ctx) })
+	return s.ContentStore.(platstore.BlockWriteStore).BeginBlockWrite(ctx, projectID, stream)
 }
 
 // seedGuardedWriteItem stores one block under en.json on stream and returns
@@ -105,17 +115,25 @@ func callRollback(t *testing.T, srv *Server, pid, bid, body string) *httptest.Re
 	return rec
 }
 
-func callCreateEntity(t *testing.T, srv *Server, pid, stream, bid, body string) *httptest.ResponseRecorder {
+// markEntity marks text from start to end of the source of a block on a
+// stream as an entity, through the stream's change service, and returns the
+// result.
+func markEntity(t *testing.T, srv *Server, read platstore.ContentStore, pid, stream, bid, text string, start, end int) *change.Result {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, "/?item=en.json", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	c := srv.GetEcho().NewContext(req, rec)
-	c.Set("project_permissions", platauth.PermAll)
-	c.SetParamNames("id", "ref", "bid")
-	c.SetParamValues(pid, stream, bid)
-	require.NoError(t, srv.HandleCreateEntity(c))
-	return rec
+	ctx := t.Context()
+	proj, err := read.GetProject(ctx, pid)
+	require.NoError(t, err)
+	sb, err := read.GetBlock(ctx, pid, stream, bid)
+	require.NoError(t, err)
+	value, err := json.Marshal(model.EntityAnnotation{Text: text, Type: model.EntityType("product"), Source: model.ExtractionSourceManual})
+	require.NoError(t, err)
+	anchor := model.RangeAnchor(sb.Block.SourceRuns(), start, end)
+	sc := srv.newStreamChange(ctx, nil, proj, stream, proj.WorkspaceID, "", changeSender{userID: "u"})
+	res, err := sc.apply(ctx, change.Set{Ops: []change.Op{{Kind: change.KindAnnotate, At: change.Ref{Doc: sb.ItemName, Block: bid},
+		Body: &change.Annotate{Type: string(model.OverlayEntity), Anchor: &anchor, Value: value}}}},
+		change.Actor{Kind: change.ActorPerson, Name: "u"})
+	require.NoError(t, err)
+	return res
 }
 
 // A rollback made against a read of the target that has since moved is
@@ -137,9 +155,12 @@ func TestRollbackBlock_AStaleRollbackGetsTheCurrentBlock(t *testing.T) {
 	writeTargetText(t, cs, "p-rbs", bid, "fr", "bonjour-v3")
 	v1 := historySeq(t, cs, "p-rbs", bid, "fr", "bonjour-v1")
 
-	answer := decodeBlockChanged(t, callRollback(t, srv, "p-rbs", bid,
-		fmt.Sprintf(`{"locale":"fr","to_seq":%d,"base_revision":%q}`, v1, base)))
-	assert.Equal(t, "bonjour-v3", answer.Current.Targets["fr"].Text)
+	rec := callRollback(t, srv, "p-rbs", bid, fmt.Sprintf(`{"locale":"fr","to_seq":%d,"base_revision":%q}`, v1, base))
+	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	var res change.Result
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	require.NotNil(t, res.Ops[0].Current)
+	assert.Equal(t, "bonjour-v3", res.Ops[0].Current.Text, "the answer carries the wording that stands")
 	got, err := cs.GetBlock(ctx, "p-rbs", "main", bid)
 	require.NoError(t, err)
 	assert.Equal(t, "bonjour-v3", got.Block.TargetText("fr"), "the newer wording stays")
@@ -194,7 +215,9 @@ func TestApplyReverts_ABlockRemovedDuringTheRevertStaysRemovedAndIsNotCounted(t 
 	srv.ContentStore = &removeBeforeWrite{ContentStore: cs, change: func(ctx context.Context) {
 		assert.NoError(t, cs.DeleteItem(ctx, "p-rvr", "main", "en.json"))
 	}}
-	n, err := srv.applyReverts(ctx, "p-rvr", "main", "revert_batch:BATCH1", reverts)
+	c := srv.GetEcho().NewContext(httptest.NewRequest(http.MethodPost, "/", nil), httptest.NewRecorder())
+	c.Set("project_permissions", platauth.PermAll)
+	n, err := srv.applyReverts(ctx, c, "p-rvr", "main", "revert_batch:BATCH1", reverts)
 	require.NoError(t, err)
 	assert.Zero(t, n, "the removed blocks were not reverted")
 	assert.Empty(t, projectBlocks(t, cs, "p-rvr"), "the removal stands")
@@ -259,11 +282,16 @@ func TestEntityCreate_OnAStreamLandsOnThatStream(t *testing.T) {
 	b.Translatable = true
 	bid := seedGuardedWriteItem(t, cs, "p-ent", "feature", b)
 
-	rec := callCreateEntity(t, srv, "p-ent", "feature", bid, `{"text":"Acme Cloud","type":"product","start":0,"end":10}`)
-	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	res := markEntity(t, srv, cs, "p-ent", "feature", bid, "Acme Cloud", 0, 10)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 	sb, err := cs.GetBlock(ctx, "p-ent", "feature", bid)
 	require.NoError(t, err)
-	assert.NotNil(t, sb.Block.OverlaySpan(model.OverlayEntity, "entity:0"), "the entity is on the stream's block")
+	assert.NotNil(t, sb.Block.OverlaySpan(model.OverlayEntity, res.Ops[0].ID), "the entity is on the stream's block")
+	main, err := cs.GetBlocks(ctx, platstore.BlockQuery{ProjectID: "p-ent", Stream: "main"})
+	require.NoError(t, err)
+	for _, m := range main {
+		assert.Nil(t, m.Block.OverlayOf(model.OverlayEntity), "main keeps no entity the feature stream marked")
+	}
 }
 
 // A block removed while an entity is being marked on it stays removed.
@@ -279,8 +307,10 @@ func TestEntityCreate_ABlockRemovedDuringTheWriteStaysRemoved(t *testing.T) {
 	srv.ContentStore = &removeBeforeWrite{ContentStore: cs, change: func(ctx context.Context) {
 		assert.NoError(t, cs.DeleteItem(ctx, "p-entr", "main", "en.json"))
 	}}
-	rec := callCreateEntity(t, srv, "p-entr", "main", bid, `{"text":"Acme Cloud","type":"product","start":0,"end":10}`)
-	assert.NotEqual(t, http.StatusCreated, rec.Code, "no entity lands on a removed block: %s", rec.Body.String())
+	// The mark is made from a read of the block; the block goes before the
+	// write holds its row.
+	res := markEntity(t, srv, cs, "p-entr", "main", bid, "Acme Cloud", 0, 10)
+	assert.Equal(t, change.SetRefused, res.Status, "no entity lands on a removed block: %+v", res.Ops)
 	assert.Empty(t, projectBlocks(t, cs, "p-entr"), "the removal stands")
 }
 

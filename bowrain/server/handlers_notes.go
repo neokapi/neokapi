@@ -1,18 +1,22 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"regexp"
 	"slices"
-	"time"
+	"strings"
 
 	"github.com/labstack/echo/v4"
-	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 )
 
 // BlockNoteResponse is the API response for a block note.
+//
+// A note is an annotation of type note on the block's own edition: a change set
+// adds one with annotate ({"type": "note", "value": {"text": …}}) and removes
+// one with unannotate by its id, through the stream's changes route. The
+// server stamps who wrote it and when as it lands.
 type BlockNoteResponse struct {
 	ID        string `json:"id"`
 	BlockID   string `json:"blockId"`
@@ -21,156 +25,75 @@ type BlockNoteResponse struct {
 	CreatedAt string `json:"createdAt"`
 }
 
-// HandleAddBlockNote creates a new note on a block.
-func (s *Server) HandleAddBlockNote(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
-		return err
-	}
-	if s.ContentStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
-	}
-
-	pid := projectParam(c)
-	bid := c.Param("bid")
-
-	var req struct {
-		Text string `json:"text"`
-	}
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-	if req.Text == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "text is required"})
-	}
-
-	note := model.BlockNote{
-		ID:        id.New(),
-		BlockID:   bid,
-		Author:    extractAuthor(c),
-		Text:      req.Text,
-		CreatedAt: time.Now().UTC(),
-	}
-
-	if err := s.ContentStore.AddBlockNote(c.Request().Context(), pid, "main", bid, note); err != nil {
-		return serverErr(c, err)
-	}
-
-	// Dispatch mention notifications.
-	if s.NotificationDispatcher != nil && s.AuthStore != nil {
-		usernames := parseMentions(note.Text)
-		for _, username := range usernames {
-			user, err := s.AuthStore.GetUserByEmail(c.Request().Context(), username)
-			if err == nil && user != nil {
-				actorID, _ := c.Get("user_id").(string)
-				actorName, _ := c.Get("name").(string)
-				s.NotificationDispatcher.DispatchMention(
-					c.Request().Context(),
-					user.ID,
-					actorID,
-					actorName,
-					note.Text,
-					pid,
-					"",
-				)
-			}
-		}
-	}
-
-	return c.JSON(http.StatusCreated, blockNoteToResponse(note))
-}
-
-// HandleListBlockNotes returns all notes for a block.
+// HandleListBlockNotes returns a block's notes, oldest first.
+//
+// GET /:ws/:id/blocks/:ref/:bid/notes
 func (s *Server) HandleListBlockNotes(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
-
-	pid := projectParam(c)
-	bid := c.Param("bid")
-
-	notes, err := s.ContentStore.ListBlockNotes(c.Request().Context(), pid, "main", bid)
+	sb, err := s.ContentStore.GetBlock(c.Request().Context(), projectParam(c), streamParam(c), c.Param("bid"))
 	if err != nil {
-		return serverErr(c, err)
-	}
-
-	result := make([]BlockNoteResponse, len(notes))
-	for i, n := range notes {
-		result[i] = blockNoteToResponse(n)
-	}
-
-	return c.JSON(http.StatusOK, result)
-}
-
-// HandleDeleteBlockNote deletes a note by ID.
-//
-// Reading a note and deleting it are not the same act. This gated on
-// PermViewContent alone, which is exactly — and only — what the built-in
-// observer role holds: read-only access to project content. So every member of
-// a project, including one deliberately given no write access at all, could
-// delete anyone's note. Deleting a note is either your own housekeeping or a
-// manager's, and it now takes one of those.
-func (s *Server) HandleDeleteBlockNote(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
-		return err
-	}
-	if s.ContentStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
-	}
-
-	pid := projectParam(c)
-	bid := c.Param("bid")
-	nid := c.Param("nid")
-
-	// The note has to be read before it can be authorized on — there is no
-	// store method that fetches one by id, but the route carries the block, so
-	// the block's notes are enough.
-	notes, err := s.ContentStore.ListBlockNotes(c.Request().Context(), pid, "main", bid)
-	if err != nil {
-		return serverErr(c, err)
-	}
-	idx := slices.IndexFunc(notes, func(n model.BlockNote) bool { return n.ID == nid })
-	if idx < 0 {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "note not found"})
-	}
-	if !s.mayDeleteNote(c, notes[idx]) {
-		return deny(c, "only the note's author or a project manager can delete a note")
-	}
-
-	if err := s.ContentStore.DeleteBlockNote(c.Request().Context(), pid, "main", nid); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
-
-	return c.NoContent(http.StatusNoContent)
+	return c.JSON(http.StatusOK, blockNotes(sb.Block))
 }
 
-// mayDeleteNote reports whether the caller may delete this note: its author, or
-// anyone holding PermManageProject.
-//
-// Authorship is compared through extractAuthor, the same derivation that wrote
-// the value when the note was created — so whoever left a note always matches
-// their own. That value is a display name or an email rather than a stable user
-// id, which is the weaker half of this check: two people sharing a display name
-// inside one project could still delete each other's notes. Closing that means
-// giving model.BlockNote an author id, which is a change to stored data and a
-// migration; this closes the part that does not need one. An empty author
-// matches nobody, so a caller whose token carries neither claim gains nothing.
-func (s *Server) mayDeleteNote(c echo.Context, note model.BlockNote) bool {
-	if perms, ok := c.Get("project_permissions").(platauth.Permission); ok &&
-		perms.Has(platauth.PermManageProject) {
-		return true
+// blockNotes reads the note annotations on b's own edition, oldest first.
+func blockNotes(b *model.Block) []BlockNoteResponse {
+	out := []BlockNoteResponse{}
+	if b == nil {
+		return out
 	}
-	author := extractAuthor(c)
-	return author != "" && author == note.Author
+	o := b.OverlayOf(model.OverlayType(noteAnnotation))
+	if o == nil {
+		return out
+	}
+	for _, span := range o.Spans {
+		out = append(out, BlockNoteResponse{
+			ID:        span.ID,
+			BlockID:   b.ID,
+			Author:    span.Props[notePropAuthor],
+			Text:      noteText(span.Value),
+			CreatedAt: span.Props[notePropCreated],
+		})
+	}
+	slices.SortStableFunc(out, func(a, b BlockNoteResponse) int { return strings.Compare(a.CreatedAt, b.CreatedAt) })
+	return out
 }
 
-func blockNoteToResponse(n model.BlockNote) BlockNoteResponse {
-	return BlockNoteResponse{
-		ID:        n.ID,
-		BlockID:   n.BlockID,
-		Author:    n.Author,
-		Text:      n.Text,
-		CreatedAt: n.CreatedAt.Format(time.RFC3339),
+// noteText is the text a note annotation carries.
+func noteText(v model.Payload) string {
+	switch n := v.(type) {
+	case nil:
+		return ""
+	case *model.NoteAnnotation:
+		return n.Text
+	case *model.Notes:
+		texts := make([]string, 0, len(n.Items))
+		for _, item := range n.Items {
+			if item != nil && item.Text != "" {
+				texts = append(texts, item.Text)
+			}
+		}
+		return strings.Join(texts, "\n")
 	}
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	var body struct {
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(raw, &body) == nil && body.Text != "" {
+		return body.Text
+	}
+	if ra, ok := v.(*model.RawAnnotation); ok {
+		if json.Unmarshal(ra.Body, &body) == nil {
+			return body.Text
+		}
+	}
+	return ""
 }
 
 // parseMentions extracts @username mentions from text.

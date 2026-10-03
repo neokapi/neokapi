@@ -22,8 +22,8 @@ import (
 //	                                              ──▶ run.completed(converged)
 //	                                              ──▶ forge delivery (approved content)
 //
-// The helpers here are shared by the per-block review endpoint
-// (HandleReviewBlock) and the bulk approve-passing endpoint
+// The helpers here are shared by the decide operations a stream's change
+// service applies (streamDecisions) and the bulk approve-passing endpoint
 // (HandleApprovePassing).
 
 // targetApproved reports whether a block's target for a locale carries a review

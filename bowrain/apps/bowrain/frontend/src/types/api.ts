@@ -248,24 +248,8 @@ export interface BlockInfo {
   targetRuns?: Record<string, Run[]>;
   translatable: boolean;
   properties: Record<string, string>;
-}
-
-/** Update block request */
-export interface UpdateBlockRequest {
-  project_id: string;
-  item_name: string;
-  block_id: string;
-  target_locale: string;
-  text: string;
-}
-
-/** Update block target with a structured Run sequence */
-export interface UpdateBlockTargetRunsRequest {
-  project_id: string;
-  item_name: string;
-  block_id: string;
-  target_locale: string;
-  runs: Run[];
+  /** Each target locale's revision as the block was read: what a change names. */
+  target_revisions?: Record<string, string>;
 }
 
 /** Saved AI provider configuration (managed server-side) */

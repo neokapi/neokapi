@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
@@ -18,15 +18,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newFlowRunFixture seeds a SQLite content store with one project holding two
+// newFlowRunFixture seeds a PostgreSQL content store with one project holding two
 // items, and returns a flow service over it with the built-in tools registered.
 func newFlowRunFixture(t *testing.T) (*FlowService, store.ContentStore, *recordingTracker) {
 	t.Helper()
 	ctx := context.Background()
 
-	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "content.db"))
+	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = cs.Close() })
 
 	require.NoError(t, cs.CreateProject(ctx, &store.Project{
 		ID:                    "p1",

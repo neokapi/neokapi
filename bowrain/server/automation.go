@@ -286,14 +286,18 @@ func (s *Server) doExecuteAction(ctx context.Context, action event.AutomationAct
 	return nil
 }
 
-// executeWriteOverlay persists an overlay (targets / annotations / plugin
-// kinds) against one or more blocks through the in-process blockstore
-// adapter (#385 foundation). Config keys:
+// executeWriteOverlay persists an overlay (annotations / plugin kinds)
+// against one or more blocks through the in-process blockstore adapter (#385
+// foundation). Config keys:
 //
-//	kind      — required, e.g. "annotations/qa" or "targets/fr"
-//	payload   — required, JSON object written verbatim to the overlay
-//	stream    — optional, defaults to "main"
-//	block     — optional explicit block id; falls back to ev.Data["block_id"]
+//	kind      required, e.g. "annotations/qa"
+//	payload   required, JSON object written verbatim to the overlay
+//	stream    optional, defaults to "main"
+//	block     optional explicit block id; falls back to ev.Data["block_id"]
+//
+// A translation (a targets/<locale> kind) is content, which a stream takes
+// only through its change service, so the action refuses it; a flow run
+// (run_flow) writes translations.
 //
 // This is the reference automation action that exercises the adapter
 // end-to-end: no HTTP round-trip, AutomationRun log entries match the
@@ -303,6 +307,11 @@ func (s *Server) executeWriteOverlay(ctx context.Context, action event.Automatio
 	payload := action.Config["payload"]
 	if kind == "" || payload == "" {
 		s.appendAutomationLog(ctx, stepID, "error", "write_overlay: missing kind or payload", nil)
+		return
+	}
+	if prefix, _, _ := strings.Cut(kind, "/"); prefix == "targets" {
+		s.appendAutomationLog(ctx, stepID, "error",
+			"write_overlay: "+kind+" is a translation, which a stream takes only through its change service; run a flow to write translations", nil)
 		return
 	}
 	stream := action.Config["stream"]

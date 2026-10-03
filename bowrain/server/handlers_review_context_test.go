@@ -13,6 +13,7 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/review"
@@ -119,10 +120,12 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 		Note: "Reads as machine output", Updated: "2026-09-01T11:00:00Z",
 	}})
 	require.NoError(t, derr)
-	require.NoError(t, s.ContentStore.AddBlockNote(ctx, projID, "main", middleID, model.BlockNote{
-		ID: "n1", BlockID: middleID, Author: "owner@rc.test", Text: "Check with legal",
-		CreatedAt: time.Now().UTC(),
-	}))
+	note, _ := json.Marshal(map[string]string{"text": "Check with legal"})
+	sc := s.newStreamChange(ctx, nil, proj, "main", wsID, "rc", changeSender{userID: "owner", name: "owner@rc.test"})
+	res, err := sc.apply(ctx, change.Set{Ops: []change.Op{{Kind: change.KindAnnotate, At: at("greetings.txt", middleID, ""),
+		Body: &change.Annotate{Type: noteAnnotation, Value: note}}}}, change.Actor{Kind: change.ActorPerson, Name: "owner"})
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 
 	_, got := getReviewContext(t, s, wsID, projID, middleID, "fr")
 
@@ -314,8 +317,8 @@ func TestReviewContext_RequiresViewContent(t *testing.T) {
 
 // TestReviewContext_HandEditReadsAsHuman: a reviewer who rewrites an AI draft
 // produced the wording in front of them, and the provenance card is where they
-// read that. Both target-writing paths stamp it, because the editor writes
-// plain text through one and runs through the other.
+// read that. A person's edit stamps it, whether the content is sent as text or
+// as runs.
 func TestReviewContext_HandEditReadsAsHuman(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	ctx := context.Background()
@@ -331,8 +334,7 @@ func TestReviewContext_HandEditReadsAsHuman(t *testing.T) {
 	require.NotNil(t, asDrafted.Provenance.Origin)
 	require.Equal(t, "ai", asDrafted.Provenance.Origin.Kind, "the fixture starts as an AI draft")
 
-	require.NoError(t, editorUpdateBlockTarget(ctx, s.ContentStore, projID, "main", bid,
-		UpdateBlockTargetRequest{TargetLocale: "fr", Text: "Ouvre l'application"}))
+	editAsPerson(t, s, projID, bid, "fr", textContent("Ouvre l'application"))
 
 	_, edited := getReviewContext(t, s, wsID, projID, bid, "fr")
 	require.NotNil(t, edited.Provenance.Origin)
@@ -347,11 +349,7 @@ func TestReviewContext_HandEditReadsAsHuman(t *testing.T) {
 	sb.Block.Target("fr").Origin = model.Origin{Kind: "ai", Engine: "claude"}
 	require.NoError(t, s.ContentStore.StoreBlocks(ctx, projID, "main", []*model.Block{sb.Block}))
 
-	require.NoError(t, editorUpdateBlockTargetRuns(ctx, s.ContentStore, projID, "main", bid,
-		UpdateBlockTargetRunsRequest{
-			TargetLocale: "fr",
-			Runs:         []model.Run{{Text: &model.TextRun{Text: "Ouvrez l'application"}}},
-		}))
+	editAsPerson(t, s, projID, bid, "fr", change.Content{Runs: []model.Run{{Text: &model.TextRun{Text: "Ouvrez l'application"}}}})
 
 	_, rewritten := getReviewContext(t, s, wsID, projID, bid, "fr")
 	require.NotNil(t, rewritten.Provenance.Origin)

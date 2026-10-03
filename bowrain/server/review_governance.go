@@ -88,6 +88,14 @@ func (s *Server) newReviewSoD(ctx context.Context, c echo.Context, projectID, st
 	return &reviewSoD{gate: g}, nil
 }
 
+// wrote records that the actor writes one block's target in this pass, so vet
+// judges the actor as its author.
+func (g *reviewSoD) wrote(blockID, locale string) {
+	if g != nil {
+		g.gate.Wrote(blockID, locale)
+	}
+}
+
 // vet asks the gate about one block's target and renders a refusal the way the
 // routes answer it: the single route as a 403, a batch route as a record
 // against the block, so one protected block never answers for a whole

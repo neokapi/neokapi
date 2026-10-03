@@ -23,15 +23,15 @@ func TestPhase4_RollbackBlock(t *testing.T) {
 	ctx := t.Context()
 	fr := model.LocaleID("fr")
 
-	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-rb", Name: "RB", DefaultSourceLanguage: "en"}))
+	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-rb", Name: "RB", DefaultSourceLanguage: "en",
+		TargetLanguages: []model.LocaleID{fr}}))
 
 	blk := model.NewBlock("b-rb", "hello")
 	blk.SetTargetText(fr, "bonjour-v1")
-	require.NoError(t, cs.StoreBlocks(ctx, "p-rb", "main", []*model.Block{blk}))
-	blk.SetTargetText(fr, "bonjour-v2")
-	require.NoError(t, cs.StoreBlocks(ctx, "p-rb", "main", []*model.Block{blk}))
+	bid := storeItemBlock(t, cs, "p-rb", "en.json", blk)
+	writeTargetText(t, cs, "p-rb", bid, "fr", "bonjour-v2")
 
-	hist, err := cs.GetBlockHistory(ctx, "p-rb", "main", "b-rb", "fr", 10)
+	hist, err := cs.GetBlockHistory(ctx, "p-rb", "main", bid, "fr", 10)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(hist), 2, "two edits should produce >=2 history entries")
 
@@ -51,40 +51,43 @@ func TestPhase4_RollbackBlock(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermAll)
 	c.SetParamNames("id", "ref", "bid")
-	c.SetParamValues("p-rb", "main", "b-rb")
+	c.SetParamValues("p-rb", "main", bid)
 	require.NoError(t, s.HandleRollbackBlock(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
 	// The target is restored to v1.
-	sb, err := cs.GetBlock(ctx, "p-rb", "main", "b-rb")
+	sb, err := cs.GetBlock(ctx, "p-rb", "main", bid)
 	require.NoError(t, err)
 	assert.Equal(t, "bonjour-v1", sb.TargetText(fr))
 
-	// The rollback is itself recorded (a new history entry).
-	hist2, err := cs.GetBlockHistory(ctx, "p-rb", "main", "b-rb", "fr", 10)
+	// The rollback is itself recorded (a new history entry), labelled as one.
+	hist2, err := cs.GetBlockHistory(ctx, "p-rb", "main", bid, "fr", 10)
 	require.NoError(t, err)
 	assert.Greater(t, len(hist2), len(hist), "rollback should append a new history entry")
+	assert.Equal(t, fmt.Sprintf("rollback:%d", v1seq), hist2[0].EditReason)
 }
 
 // TestPhase4T1_HistoryAttribution proves block_history records who edited (actor
-// + role) and the correlation id, populated end-to-end via the HTTP edit path.
+// + role) and the correlation id, populated end to end through the router and
+// the stream's changes route, and that the id is the record the result names.
 func TestPhase4T1_HistoryAttribution(t *testing.T) {
 	s, ownerToken := newTestServer(t)
 	cs := s.ContentStore
 	ctx := t.Context()
-	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-attr", Name: "Attr", DefaultSourceLanguage: "en", WorkspaceID: "test-ws"}))
-	blk := model.NewBlock("b-attr", "hello")
-	require.NoError(t, cs.StoreBlocks(ctx, "p-attr", "main", []*model.Block{blk}))
+	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-attr", Name: "Attr", DefaultSourceLanguage: "en",
+		TargetLanguages: []model.LocaleID{"fr"}, WorkspaceID: "test-ws"}))
+	bid := storeItemBlock(t, cs, "p-attr", "en.json", model.NewBlock("b-attr", "hello"))
 
-	code := do(t, s, http.MethodPut, "/api/v1/test/p-attr/blocks/main/b-attr", ownerToken, `{"target_locale":"fr","text":"bonjour"}`)
-	require.Less(t, code, 300, "target update should succeed")
+	code, res := postChanges(t, s, ownerToken, "p-attr", setText(at("en.json", bid, "fr"), model.AbsentRevision, "bonjour"))
+	require.Equal(t, http.StatusOK, code, "%+v", res)
+	require.NotNil(t, res.Record)
 
-	hist, err := cs.GetBlockHistory(ctx, "p-attr", "main", "b-attr", "fr", 10)
+	hist, err := cs.GetBlockHistory(ctx, "p-attr", "main", bid, "fr", 10)
 	require.NoError(t, err)
 	require.NotEmpty(t, hist)
 	assert.Equal(t, "test-user", hist[0].Author, "history should attribute the editing user")
 	assert.Equal(t, "owner", hist[0].ActorRole, "history should record the actor's workspace role")
-	assert.NotEmpty(t, hist[0].CorrelationID, "history should record a correlation id")
+	assert.Equal(t, *res.Record, hist[0].CorrelationID, "history carries the correlation id the record is named by")
 }
 
 // TestPhase4_RollbackRequiresPermission proves the rollback endpoint is gated by

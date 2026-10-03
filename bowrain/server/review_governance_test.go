@@ -13,6 +13,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,23 +45,12 @@ func attributeTarget(t *testing.T, s *Server, projID, blockID, locale, author, t
 	require.NoError(t, s.ContentStore.StoreBlocks(ctx, projID, "main", []*model.Block{sb.Block}))
 }
 
-// callReviewBlockGoverned invokes HandleReviewBlock the way the router would,
-// with a workspace and an acting user on the context so the governance gates
-// have something to judge.
+// callReviewBlockGoverned sends the decision body names to the stream's
+// changes route the way the router would, with a workspace and an acting user
+// on the context so the governance gates have something to judge.
 func callReviewBlockGoverned(t *testing.T, s *Server, wsID, projID, blockID, body string, perms platauth.Permission, userID string) *httptest.ResponseRecorder {
 	t.Helper()
-	e := s.GetEcho()
-	r := httptest.NewRequest(http.MethodPut, "/", strings.NewReader(body))
-	r.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	c := e.NewContext(r, rec)
-	c.SetParamNames("ws", "id", "ref", "bid")
-	c.SetParamValues("rc", projID, "main", blockID)
-	c.Set("workspace_id", wsID)
-	c.Set("user_id", userID)
-	c.Set("project_permissions", perms)
-	_ = s.HandleReviewBlock(c)
-	return rec
+	return decideFromBody(t, s, projID, blockID, body, changeCaller{user: userID, perms: perms, ws: wsID})
 }
 
 // approveBody is the request body for approving one locale.
@@ -142,6 +132,56 @@ func TestReviewApproveSoDBlocksOwnWork(t *testing.T) {
 	rec = callReviewBlockGoverned(t, s, wsID, projID, bid, approveBody("fr"), testReviewer, "u-other")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, bid, "fr"))
+}
+
+// TestReviewEditAndApproveInOneChangeSetIsOwnWork: a reviewer who rewrites a
+// translation and establishes it in one change set approves their own
+// wording, whoever wrote the draft before and whatever rung it stood on. A
+// blocking policy refuses the whole change set; with the policy off, both
+// land.
+func TestReviewEditAndApproveInOneChangeSetIsOwnWork(t *testing.T) {
+	cases := []struct {
+		name    string
+		mode    platauth.SoDMode
+		before  model.TargetStatus
+		refused bool
+	}{
+		{"a machine draft under a blocking policy", platauth.SoDBlock, model.TargetStatusDraft, true},
+		{"an established translation under a blocking policy", platauth.SoDBlock, model.TargetStatusEstablished, true},
+		{"a machine draft with the policy off", platauth.SoDOff, model.TargetStatusDraft, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, wsID, _ := newRecheckHarness(t)
+			require.NoError(t, s.AuthStore.SetSoDMode(context.Background(), wsID, tc.mode))
+			b := pendingFrBlock("b1", "Hello", "Bonjour")
+			b.Target("fr").Status = tc.before
+			projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{b})
+			bid := ids["Hello"]
+			rev := targetRev(t, s.ContentStore.(*bstore.PostgresStore), projID, bid, "fr")
+			reviewer := changeCaller{user: "u-reviewer", perms: testReviewer, ws: wsID}
+
+			fr := at("greetings.txt", bid, "fr")
+			rec, res := sendChanges(t, s, projID, reviewer, change.Set{Ops: []change.Op{
+				setText(fr, rev, "Bonjour à tous"),
+				decide(fr, rev, change.OutcomeEstablish),
+			}})
+			stored := getStoredBlock(t, s.ContentStore.(*bstore.PostgresStore), projID, bid)
+			if tc.refused {
+				require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+				require.Equal(t, change.SetRefused, res.Status)
+				require.NotNil(t, res.Ops[1].Error)
+				assert.Equal(t, change.CodeNotPermitted, res.Ops[1].Error.Code)
+				assert.Equal(t, "Bonjour", stored.TargetText("fr"), "nothing of a refused change set lands")
+				assert.Equal(t, tc.before, stored.Target("fr").Status)
+				return
+			}
+			require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+			assert.Equal(t, "Bonjour à tous", stored.TargetText("fr"))
+			assert.Equal(t, model.TargetStatusEstablished, stored.Target("fr").Status)
+		})
+	}
 }
 
 // TestReviewApproveSoDWarnAllowsOwnWork: under warn the same approval goes

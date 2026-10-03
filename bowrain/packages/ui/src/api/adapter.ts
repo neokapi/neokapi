@@ -9,8 +9,6 @@ import type {
   ConfigResponse,
   PublicPlatformConfig,
   BlockInfo,
-  UpdateBlockRequest,
-  UpdateBlockTargetCodedRequest,
   AITranslateFileRequest,
   TranslationStats,
   WordCountResult,
@@ -46,7 +44,6 @@ import type {
   AutomationLogEntry,
   SaveAutomationRuleRequest,
   NotificationInfo,
-  EntityInfo,
   StreamInfo,
   StreamDiffResult,
   StreamMergeResult,
@@ -109,7 +106,6 @@ import type {
   PasskeyRegisterFinishRequest,
   SlugReservation,
   UploadFilesResult,
-  ReviewRung,
   ApprovePassingRequest,
   ApprovePassingResult,
   SourceProposal,
@@ -193,6 +189,7 @@ import type {
   StartPilotRequest,
 } from "../types/brand-graph";
 import type { ContextProfilesResponse } from "../types/context-profiles";
+import type { ChangeResult, ContentChangeSet } from "./contentChanges";
 import type {
   ChannelAliasJudgement,
   ChannelAliasProposal,
@@ -673,8 +670,23 @@ export interface ApiAdapter {
     projectId: string,
     opts?: PendingReviewOptions,
   ): Promise<PendingReviewPage>;
-  updateBlockTarget(workspaceSlug: string, req: UpdateBlockRequest): Promise<void>;
-  updateBlockTargetCoded(workspaceSlug: string, req: UpdateBlockTargetCodedRequest): Promise<void>;
+  /**
+   * Apply a change set (kapi.change/v1) to a stream of a project: how a person
+   * saves a translation, decides on one, writes or removes a note and marks an
+   * entity (see `contentChanges`). Every operation names its item by path as
+   * `doc`, and an operation on a translation names the revision the surface
+   * rendered as `if_match`.
+   *
+   * Resolves with the result (kapi.change-result/v1) whether the change set
+   * landed or was refused; a stale refusal carries the edition as it now
+   * stands. Rejects only when the request got no result.
+   */
+  applyChanges(
+    workspaceSlug: string,
+    projectId: string,
+    set: ContentChangeSet,
+    stream?: string,
+  ): Promise<ChangeResult>;
   pseudoTranslateFile(
     workspaceSlug: string,
     projectId: string,
@@ -738,15 +750,13 @@ export interface ApiAdapter {
     stream?: string,
   ): Promise<ReviewContext>;
 
-  // Block notes
-  addBlockNote(
+  // Block notes. A note is written and removed by a change set (applyChanges).
+  listBlockNotes(
     workspaceSlug: string,
     projectId: string,
     blockId: string,
-    text: string,
-  ): Promise<BlockNote>;
-  listBlockNotes(workspaceSlug: string, projectId: string, blockId: string): Promise<BlockNote[]>;
-  deleteBlockNote(workspaceSlug: string, projectId: string, noteId: string): Promise<void>;
+    stream?: string,
+  ): Promise<BlockNote[]>;
 
   // Block history
   getBlockHistory(
@@ -784,25 +794,6 @@ export interface ApiAdapter {
     blockId: string,
     status: BlockWorkflowStatus,
     reason?: string,
-  ): Promise<void>;
-  /**
-   * Approve a block's target for `targetLocale`, establishing it (or send it
-   * back down the ladder when `reviewed` is false) — the per-locale `Target.Status` review
-   * ladder, distinct from the governance workflow lifecycle above. `rung`
-   * picks where the call lands: with `reviewed` true, an approval always
-   * lands on established; with `reviewed` false, omitted/"translated" for a plain
-   * un-review and "draft" for a reviewer rejection (re-enters the work queue).
-   * A rung belonging to the other direction is ignored rather than sent.
-   */
-  reviewBlock(
-    workspaceSlug: string,
-    projectId: string,
-    itemName: string,
-    blockId: string,
-    targetLocale: string,
-    reviewed: boolean,
-    stream?: string,
-    rung?: ReviewRung,
   ): Promise<void>;
 
   /**
@@ -1056,29 +1047,8 @@ export interface ApiAdapter {
     settings: DigestSettingsDTO,
   ): Promise<DigestSettingsDTO>;
 
-  // Entity annotations
-  createEntity(
-    workspaceSlug: string,
-    projectId: string,
-    itemName: string,
-    blockId: string,
-    entity: Partial<EntityInfo>,
-  ): Promise<EntityInfo>;
-  updateEntity(
-    workspaceSlug: string,
-    projectId: string,
-    itemName: string,
-    blockId: string,
-    entityKey: string,
-    entity: Partial<EntityInfo>,
-  ): Promise<EntityInfo>;
-  deleteEntity(
-    workspaceSlug: string,
-    projectId: string,
-    itemName: string,
-    blockId: string,
-    entityKey: string,
-  ): Promise<void>;
+  // Entity annotations. An entity is marked, changed and removed by a change
+  // set (applyChanges); promoting one to a term candidate is its own action.
   promoteEntity(
     workspaceSlug: string,
     projectId: string,

@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/bowrain/changes"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/core/voicescope"
@@ -285,6 +286,7 @@ func (s *Server) recheckWorkspaceTargets(ctx context.Context, wsID, reason strin
 // and a project with no failure produces no store write, no task, and no event.
 func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Project, reason string, violates recheckOracle, actor string) error {
 	changed := map[string]*venue.StoredBlock{} // deduped by block id — one store write per block
+	states := map[string]changes.BlockState{}  // each changed block as the pass read it
 	affected := map[model.LocaleID]bool{}
 
 	// A batch at a time. What survives a batch is only what this pass demoted,
@@ -318,9 +320,12 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 					if !violates(sb, proj.DefaultSourceLanguage, loc) {
 						continue // still conforms — untouched
 					}
-					// Demote to draft, mirroring HandleReviewBlock's rejection mapping:
+					// Demote to draft, as a decide reject does (applyBlockReview):
 					// the translation is now wrong (it carries a forbidden term), so it
 					// re-enters the work queue, not merely re-review.
+					if _, seen := states[sb.Block.ID]; !seen {
+						states[sb.Block.ID] = changes.Snapshot(sb.Block, proj.DefaultSourceLanguage)
+					}
 					t.Status = model.TargetStatusDraft
 					changed[sb.Block.ID] = sb
 					affected[loc] = true
@@ -336,13 +341,21 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 		return nil
 	}
 
-	toStore := make([]*venue.StoredBlock, 0, len(changed))
-	for _, sb := range changed {
-		toStore = append(toStore, sb)
+	// The demotions land on the rows held, and only on a translation that still
+	// reads as the pass judged it at the rung it judged: one a person rewrote
+	// or decided on since the read keeps what it holds.
+	drafts := make([]changes.Draft, 0, len(changed))
+	for id, sb := range changed {
+		drafts = append(drafts, changes.Draft{Doc: sb.ItemName, Before: states[id], After: sb.Block})
 	}
-	if _, err := s.ContentStore.WriteBackBlocks(ctx, proj.ID, "main", toStore); err != nil {
+	home := &changes.Home{Store: s.ContentStore, ProjectID: proj.ID, Stream: "main", SourceLocale: proj.DefaultSourceLanguage}
+	moved, err := home.WriteMeta(ctx, drafts)
+	if err != nil {
 		slog.WarnContext(ctx, "review recheck: store demoted blocks failed", "project", proj.ID, "error", err)
 		return fmt.Errorf("store demoted blocks for %s: %w", proj.ID, err)
+	}
+	for _, m := range moved {
+		delete(changed, m.Block)
 	}
 	s.shipInputsChanged(ctx, proj.WorkspaceID, proj.ID, "main")
 	for _, sb := range changed {
@@ -351,7 +364,7 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 
 	locales := sortedLocales(affected)
 	slog.InfoContext(ctx, "review recheck: demoted approved targets that now violate a governed change; re-queued for review",
-		"project", proj.ID, "reason", reason, "blocks", len(toStore), "locales", locales)
+		"project", proj.ID, "reason", reason, "blocks", len(changed), "locales", locales)
 
 	// Re-queue the affected locales into the review queue, reusing the review-core
 	// task creation (owner-fallback assignment + per-locale dedup). The block-derived

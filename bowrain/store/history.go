@@ -71,9 +71,9 @@ func recordTargetHistoryPg(ctx context.Context, tx Runner, projectID, stream, bl
 		if newText == prev {
 			continue
 		}
-		changeType := "target_modified"
+		changeType := HistoryTargetModified
 		if prev == "" {
-			changeType = "target_added"
+			changeType = HistoryTargetAdded
 		}
 		coded := ""
 		if len(nt.Runs) > 0 {

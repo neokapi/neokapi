@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -299,25 +298,6 @@ type TermCandidateInfoResponse struct {
 	Status          string  `json:"status,omitempty"`
 }
 
-// UpdateBlockTargetRequest holds parameters for updating a block target.
-// BaseRevision is the target revision the editor read (target_revisions in the
-// blocks payload). A save that names one is refused with the current block when
-// the target has moved since.
-type UpdateBlockTargetRequest struct {
-	TargetLocale string `json:"target_locale"`
-	Text         string `json:"text"`
-	BaseRevision string `json:"base_revision,omitempty"`
-}
-
-// UpdateBlockTargetRunsRequest updates a block target from a Run sequence —
-// the Run-native counterpart of UpdateBlockTargetRequest (which carries plain
-// text). The runs are stored verbatim as the target's first segment.
-type UpdateBlockTargetRunsRequest struct {
-	TargetLocale string      `json:"target_locale"`
-	Runs         []model.Run `json:"runs"`
-	BaseRevision string      `json:"base_revision,omitempty"`
-}
-
 // TranslateRequest holds parameters for translation operations.
 type TranslateRequest struct {
 	TargetLocale     string `json:"target_locale"`
@@ -346,11 +326,15 @@ type WordCountResponse struct {
 
 // MemoryMatchInfoResponse is a content-memory match result.
 type MemoryMatchInfoResponse struct {
-	Source    string  `json:"source"`
-	Target    string  `json:"target"`
-	Score     float64 `json:"score"`
-	MatchType string  `json:"match_type"`
-	ProjectID string  `json:"project_id,omitempty"` // which project this match came from
+	Source string `json:"source"`
+	Target string `json:"target"`
+	// TargetRuns is the match's target as runs when it holds an inline code or
+	// a plural, which Target, plain text, leaves out: an editor that applies
+	// the match saves these, so the codes stay.
+	TargetRuns []model.Run `json:"target_runs,omitempty"`
+	Score      float64     `json:"score"`
+	MatchType  string      `json:"match_type"`
+	ProjectID  string      `json:"project_id,omitempty"` // which project this match came from
 }
 
 // BlockTermMatchResponse is a term match for a block.
@@ -745,96 +729,13 @@ func editorQueryBlocks(ctx context.Context, cs store.ContentStore, query store.B
 	return blocks, nil
 }
 
-// editorUpdateBlockTarget updates a block's target while holding the block's
-// row. A request that names the revision it read is refused with the block as
-// it stands when that target has moved since (see checkBaseRevision).
-func editorUpdateBlockTarget(ctx context.Context, cs store.ContentStore, projectID, stream, blockID string, req UpdateBlockTargetRequest) error {
-	loc := model.LocaleID(req.TargetLocale)
-	_, err := cs.UpdateBlock(ctx, projectID, stream, blockID, func(sb *venue.StoredBlock) error {
-		if err := checkBaseRevision(sb, loc, req.BaseRevision); err != nil {
-			return err
-		}
-		applyTargetTextEdit(sb.Block, loc, req.Text, humanEditOrigin())
-		return nil
-	})
-	return err
-}
-
-// applyTargetTextEdit writes text as the block's target for locale, stamping the
-// origin the caller names over it and demoting a review the edit invalidates.
-// Every path that writes target text in place goes through it, so none can skip
-// either.
-func applyTargetTextEdit(b *model.Block, loc model.LocaleID, text string, origin model.Origin) {
-	oldRuns := b.TargetRuns(loc)
-	b.SetTargetText(loc, text)
-	stampTargetOrigin(b, loc, origin)
-	demoteStaleReviewOnEdit(b, loc, oldRuns)
-}
-
-// humanEditOrigin is the provenance of a translation a person typed. It
-// replaces whatever produced the previous wording, because a reviewer reading
-// the provenance card is asking how the text in front of them was made, and an
-// AI draft somebody rewrote by hand was made by the person who rewrote it. The
-// origin it replaces stays in block_history beside the wording it belonged to.
-func humanEditOrigin() model.Origin {
-	return model.Origin{Kind: model.OriginHuman, Timestamp: time.Now().UTC().Format(time.RFC3339)}
-}
-
-// stampTargetOrigin records how a locale's target was produced, leaving its
-// status to demoteStaleReviewOnEdit. A zero origin leaves the existing stamp in
-// place.
-func stampTargetOrigin(b *model.Block, loc model.LocaleID, origin model.Origin) {
-	if origin == (model.Origin{}) {
-		return
+// editorPseudoTranslate pseudo-translates all blocks for an item and commits
+// the drafts through commit.
+func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, commit commitDrafts, projectID, stream, itemName, targetLocale string) (*TranslationStatsResponse, error) {
+	proj, err := cs.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
 	}
-	if t := b.Target(loc); t != nil {
-		t.Origin = origin
-	}
-}
-
-// editorUpdateBlockTargetRuns updates a block's target with the given Run
-// sequence while holding the block's row, and refuses a stale save the way
-// editorUpdateBlockTarget does.
-func editorUpdateBlockTargetRuns(ctx context.Context, cs store.ContentStore, projectID, stream, blockID string, req UpdateBlockTargetRunsRequest) error {
-	loc := model.LocaleID(req.TargetLocale)
-	_, err := cs.UpdateBlock(ctx, projectID, stream, blockID, func(sb *venue.StoredBlock) error {
-		if err := checkBaseRevision(sb, loc, req.BaseRevision); err != nil {
-			return err
-		}
-		oldRuns := sb.Block.TargetRuns(loc)
-		sb.Block.SetTargetRuns(loc, req.Runs)
-		stampTargetOrigin(sb.Block, loc, humanEditOrigin())
-		demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
-		return nil
-	})
-	return err
-}
-
-// demoteStaleReviewOnEdit drops a established Target.Status back to
-// translated when an edit actually changed the target's content. A review
-// decision judges ONE specific translation, so rewriting the text invalidates
-// the approval. The host review model binds every decision to the content hash
-// of the translation it judges for the same reason (host/convergereport.go);
-// without the demotion, an edited-after-approval target would keep counting as
-// reviewed in convergence, coverage and ship gates. Statuses at or below
-// translated are review-free rungs and stay where they are. Provenance is the
-// caller's to stamp, through stampTargetOrigin.
-func demoteStaleReviewOnEdit(b *model.Block, locale model.LocaleID, oldRuns []model.Run) {
-	t := b.Target(locale)
-	if t == nil {
-		return
-	}
-	if t.Status != model.TargetStatusEstablished {
-		return
-	}
-	if reflect.DeepEqual(oldRuns, t.Runs) {
-		return
-	}
-	t.Status = model.TargetStatusTranslated
-}
-
-// editorPseudoTranslate pseudo-translates all blocks for an item.
-func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID, stream, itemName, targetLocale string) (*TranslationStatsResponse, error) {
 	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: projectID,
 		Stream:    stream,
@@ -844,7 +745,8 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 		return nil, err
 	}
 
-	// Convert to parts for tool processing.
+	// The state each block was read in, before the tool changes it in place.
+	pass := beginToolPass(storedBlocks, proj.DefaultSourceLanguage)
 	parts := storedBlocksToParts(storedBlocks)
 
 	pseudoTool := libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
@@ -856,35 +758,11 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 		return nil, fmt.Errorf("pseudo-translate: %w", err)
 	}
 
-	// Write the updated blocks back to the rows GetBlocks read them from.
-	blocks := partsToBlocks(outParts)
-	if len(blocks) > 0 {
-		if err := writeBackEdited(ctx, cs, projectID, stream, storedBlocks, blocks); err != nil {
-			return nil, fmt.Errorf("store blocks: %w", err)
-		}
+	if _, err := pass.commit(ctx, commit, "pseudo-translate", partsToBlocks(outParts)); err != nil {
+		return nil, fmt.Errorf("store blocks: %w", err)
 	}
 
 	return editorComputeStats(outParts, targetLocale), nil
-}
-
-// writeBackEdited writes blocks an editor action read and changed back to the
-// rows it read them from. A block whose row a push removed, or whose source it
-// changed, since the read is left as the push left it.
-func writeBackEdited(ctx context.Context, cs store.ContentStore, projectID, stream string, read []*venue.StoredBlock, blocks []*model.Block) error {
-	base := make(map[string]string, len(read))
-	for _, sb := range read {
-		if sb != nil && sb.Block != nil {
-			base[sb.Block.ID] = sb.ContentHash
-		}
-	}
-	reads := make([]*venue.StoredBlock, 0, len(blocks))
-	for _, b := range blocks {
-		if hash, ok := base[b.ID]; ok {
-			reads = append(reads, &venue.StoredBlock{Block: b, ContentHash: hash})
-		}
-	}
-	_, err := cs.WriteBackBlocks(ctx, projectID, stream, reads)
-	return err
 }
 
 // editorVoiceContext bundles the optional stores the synchronous editor
@@ -1009,6 +887,7 @@ func editorMemory(ctx context.Context, voiceCtx editorVoiceContext, workspaceSlu
 func editorAITranslate(
 	ctx context.Context,
 	cs store.ContentStore,
+	commit commitDrafts,
 	providerStore *bstore.ProviderConfigStore,
 	quotaStore jobs.QuotaStore,
 	projectID, stream, itemName string,
@@ -1032,6 +911,8 @@ func editorAITranslate(
 		return nil, err
 	}
 
+	// The state each block was read in, before the tool changes it in place.
+	pass := beginToolPass(storedBlocks, proj.DefaultSourceLanguage)
 	parts := storedBlocksToParts(storedBlocks)
 
 	// A saved provider_config_id is a bring-your-own key; an inline api_key is
@@ -1117,18 +998,16 @@ func editorAITranslate(
 		billingHooks.DeductTokens(ctx, workspaceID, usage.TotalTokens(), "ai_translation", refID)
 	}
 
-	blocks := partsToBlocks(outParts)
-	if len(blocks) > 0 {
-		if err := writeBackEdited(ctx, cs, projectID, stream, storedBlocks, blocks); err != nil {
-			return nil, fmt.Errorf("store blocks: %w", err)
-		}
+	if _, err := pass.commit(ctx, commit, "ai-translate", partsToBlocks(outParts)); err != nil {
+		return nil, fmt.Errorf("store blocks: %w", err)
 	}
 
 	return editorComputeStats(outParts, req.TargetLocale), nil
 }
 
-// editorMemoryTranslate leverages content memory to translate blocks.
-func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, stream, itemName, targetLocale string) (*TranslationStatsResponse, error) {
+// editorMemoryTranslate leverages content memory to translate blocks and
+// commits the drafts through commit.
+func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, commit commitDrafts, wsStores *workspaceStores, ws, projectID, stream, itemName, targetLocale string) (*TranslationStatsResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -1148,6 +1027,8 @@ func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, wsStores 
 		return nil, fmt.Errorf("init content memory: %w", err)
 	}
 
+	// The state each block was read in, before the tool changes it in place.
+	pass := beginToolPass(storedBlocks, proj.DefaultSourceLanguage)
 	parts := storedBlocksToParts(storedBlocks)
 
 	// The rules the workspace terms impose, the derivation the translate jobs
@@ -1168,11 +1049,8 @@ func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, wsStores 
 		return nil, fmt.Errorf("content memory translate: %w", err)
 	}
 
-	blocks := partsToBlocks(outParts)
-	if len(blocks) > 0 {
-		if err := writeBackEdited(ctx, cs, projectID, stream, storedBlocks, blocks); err != nil {
-			return nil, fmt.Errorf("store blocks: %w", err)
-		}
+	if _, err := pass.commit(ctx, commit, "memory-translate", partsToBlocks(outParts)); err != nil {
+		return nil, fmt.Errorf("store blocks: %w", err)
 	}
 
 	return editorComputeStats(outParts, targetLocale), nil
@@ -1346,14 +1224,24 @@ func (m *memoryLookup) matches(ctx context.Context, b *model.Block, targetLocale
 	result := make([]MemoryMatchInfoResponse, len(matches))
 	for i, mt := range matches {
 		result[i] = MemoryMatchInfoResponse{
-			Source:    mt.Entry.VariantText(m.sourceLocale),
-			Target:    mt.Entry.VariantText(tgtLoc),
-			Score:     mt.Score,
-			MatchType: string(mt.MatchType),
-			ProjectID: mt.Entry.ProjectID,
+			Source:     mt.Entry.VariantText(m.sourceLocale),
+			Target:     mt.Entry.VariantText(tgtLoc),
+			TargetRuns: codedRuns(mt.Entry.Variant(tgtLoc)),
+			Score:      mt.Score,
+			MatchType:  string(mt.MatchType),
+			ProjectID:  mt.Entry.ProjectID,
 		}
 	}
 	return result, nil
+}
+
+// codedRuns returns runs that hold an inline code or a plural, and nil for
+// plain text, which a match's plain-text field already carries.
+func codedRuns(runs []model.Run) []model.Run {
+	if !model.RunsHaveInlineCodes(runs) {
+		return nil
+	}
+	return runs
 }
 
 // editorLookupTermsForBlock looks up term matches for a block.
@@ -1679,8 +1567,13 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 		return
 	}
 	if !model.RunsHaveInlineCodes(srcRuns) {
-		// Plain-text blocks carry their content in Source/Targets already;
-		// only blocks with inline markup need the Run sequences.
+		// A plain-text source is carried by Source. One split into several
+		// text runs (at a do-not-translate boundary) is served as runs too:
+		// an editor anchors a mark at run positions, which the flat text
+		// cannot give it.
+		if len(srcRuns) > 1 {
+			bi.SourceRuns = srcRuns
+		}
 		return
 	}
 

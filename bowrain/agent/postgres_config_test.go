@@ -94,3 +94,39 @@ func TestAgentConfigMissingRowFallsBackToDefaults(t *testing.T) {
 	require.NotNil(t, got)
 	assert.Equal(t, "ws-never-configured", got.WorkspaceID)
 }
+
+// A policy that named the retired update_block keeps restricting the agent's
+// writes: version 3 moves a denial or an approval to apply_edits, and lets an
+// allow list that admitted update_block admit the edit tools.
+func TestAgentConfigPolicyNamingUpdateBlockMovesToApplyEdits(t *testing.T) {
+	s := newAgentStore(t)
+	ctx := t.Context()
+	for _, cfg := range []*platagent.AgentConfig{
+		{WorkspaceID: "ws-deny", Enabled: true, DeniedTools: []string{"update_block", "shell"}},
+		{WorkspaceID: "ws-approve", Enabled: true, RequireApproval: []string{"update_block"}},
+		{WorkspaceID: "ws-allow", Enabled: true, AllowedTools: []string{"get_block", "update_block"}},
+		{WorkspaceID: "ws-untouched", Enabled: true, DeniedTools: []string{"shell"}},
+	} {
+		require.NoError(t, s.SaveAgentConfig(ctx, cfg))
+	}
+
+	var v3 string
+	for _, m := range Migrations {
+		if m.Version == 3 {
+			v3 = m.SQL
+		}
+	}
+	require.NotEmpty(t, v3)
+	_, err := s.db.ExecContext(ctx, v3)
+	require.NoError(t, err)
+
+	read := func(ws string) *platagent.AgentConfig {
+		got, err := s.GetAgentConfig(ctx, ws)
+		require.NoError(t, err)
+		return got
+	}
+	assert.ElementsMatch(t, []string{"apply_edits", "shell"}, read("ws-deny").DeniedTools)
+	assert.ElementsMatch(t, []string{"apply_edits"}, read("ws-approve").RequireApproval)
+	assert.ElementsMatch(t, []string{"get_block", "apply_edits", "read_blocks", "describe_format"}, read("ws-allow").AllowedTools)
+	assert.Equal(t, []string{"shell"}, read("ws-untouched").DeniedTools)
+}

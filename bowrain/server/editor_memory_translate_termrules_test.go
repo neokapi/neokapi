@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	bstore "github.com/neokapi/neokapi/bowrain/store/sqlitestore"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
@@ -28,7 +29,7 @@ func TestEditorMemoryTranslate_TermRules(t *testing.T) {
 		t.Helper()
 		ctx := t.Context()
 
-		cs, err := bstore.NewSQLiteStore(":memory:")
+		cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
 		require.NoError(t, err)
 		require.NoError(t, cs.CreateProject(ctx, &platstore.Project{
 			ID:                    "p1",
@@ -71,7 +72,7 @@ func TestEditorMemoryTranslate_TermRules(t *testing.T) {
 		}
 		wsStores.termsFactory = func() terms.Store { return &testTermStore{tb} }
 
-		_, err = editorMemoryTranslate(ctx, cs, wsStores, "acme", "p1", "main", "hello.txt", "fr")
+		_, err = editorMemoryTranslate(ctx, cs, commitFor(t, cs, "p1"), wsStores, "acme", "p1", "main", "hello.txt", "fr")
 		require.NoError(t, err)
 
 		stored, err := cs.GetBlocks(ctx, platstore.BlockQuery{ProjectID: "p1", Stream: "main", ItemName: "hello.txt"})

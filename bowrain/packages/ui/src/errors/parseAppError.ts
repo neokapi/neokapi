@@ -178,16 +178,18 @@ const STATUS_PHRASES: Record<number, Phrase> = {
 
 /**
  * The refusals the server writes when the caller lacks a grant: `deny()` in
- * `bowrain/server/middleware_auth.go` and the review permission checks. These
- * are the one 403 family a workspace admin can fix, so they alone earn the
- * "ask an admin" remedy; every other 403 states its own reason. An entry
- * ending in a space is a prefix: the server appends what was refused (a
- * locale). A contract test holds each entry against the Go source.
+ * `bowrain/server/middleware_auth.go`, the review permission checks, and the
+ * changes route's policy (a change set a grant would admit). These are the one
+ * 403 family a workspace admin can fix, so they alone earn the "ask an admin"
+ * remedy; every other 403 states its own reason. An entry ending in a space is
+ * a prefix: the server appends what was refused (a locale, an action). A
+ * contract test holds each entry against the Go source.
  */
 export const PERMISSION_REFUSALS: readonly string[] = [
   "insufficient permissions",
   "insufficient project permissions",
-  "demoting an established target requires review permission",
+  "moving an established translation takes the review permission for ",
+  "you may not ",
   "no access to language: ",
   "no review permission for ",
 ];

@@ -47,8 +47,10 @@ const FRENCH_TEXT = "Tableau de bord Acme";
  *   → RELOAD → review state persisted per locale → export the merged file.
  *
  * Flake hardening: single worker, web-first assertions only (no fixed
- * sleeps), and the approve step waits for the review PUT response before
- * reloading so the persistence assertion can never race the write.
+ * sleeps), and the approve step waits for the decision's change set to be
+ * answered before reloading, so the persistence assertion can never race the
+ * write. The save and the decision are change sets on the stream's changes
+ * route, each naming the revision the editor showed.
  */
 test.describe("Editor happy path", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
@@ -124,12 +126,20 @@ test.describe("Editor happy path", () => {
     // The typed text must be in the editor document before saving.
     await expect(editable).toContainText(FRENCH_TEXT);
 
-    // Saving persists the target and auto-advances to the next block.
+    // Saving sends a change set on the revision the editor showed, persists
+    // the target and auto-advances to the next block.
     const savedTarget = page.waitForResponse(
-      (r) => r.url().includes("/blocks/") && r.request().method() === "PUT" && r.ok(),
+      (r) => r.url().endsWith("/streams/main/changes") && r.request().method() === "POST" && r.ok(),
     );
     await page.getByTestId("unified-save").click();
-    await savedTarget;
+    const saveRequest = (await savedTarget).request().postDataJSON() as {
+      ops: { op: string; at: { doc: string; edition?: string }; if_match: string }[];
+    };
+    expect(saveRequest.ops[0]).toMatchObject({
+      op: "set_content",
+      at: { doc: FILE_NAME, edition: "fr" },
+      if_match: "absent",
+    });
 
     // ── 4. Approve the edited block (review button, per-locale status) ──────
     // Save advanced the card to block 2 — step back to the block we edited.
@@ -139,11 +149,14 @@ test.describe("Editor happy path", () => {
     // Approve/Reject live in the card's Review mode (Translate|Enrich|Review).
     await page.getByRole("tab", { name: "Review" }).click();
     const reviewed = page.waitForResponse(
-      (r) => r.url().includes("/review") && r.request().method() === "PUT" && r.ok(),
+      (r) => r.url().endsWith("/streams/main/changes") && r.request().method() === "POST" && r.ok(),
     );
     await page.getByTestId("approve-btn").click();
-    await reviewed;
-    await expect(page.getByTestId("progress-text")).toContainText("1 reviewed");
+    const decision = (await reviewed).request().postDataJSON() as {
+      ops: { op: string; outcome?: string }[];
+    };
+    expect(decision.ops[0]).toMatchObject({ op: "decide", outcome: "establish" });
+    await expect(page.getByTestId("progress-text")).toContainText("1 established");
 
     // ── 5. RELOAD — the review decision must survive a full page reload ─────
     await page.reload();
@@ -152,10 +165,10 @@ test.describe("Editor happy path", () => {
 
     // Server returned per-locale Target.Status for fr: the progress breakdown
     // counts it and the (still-selected-first) block's card shows the badge.
-    await expect(page.getByTestId("progress-text")).toContainText("1 reviewed");
+    await expect(page.getByTestId("progress-text")).toContainText("1 established");
     await expect(page.getByTestId("target-display")).toContainText(FRENCH_TEXT);
     await expect(
-      page.getByTestId("visual-editor-card").getByText("Reviewed", { exact: true }),
+      page.getByTestId("visual-editor-card").getByText("Established", { exact: true }),
     ).toBeVisible();
 
     // ── 6. Export ────────────────────────────────────────────────────────────
@@ -180,12 +193,12 @@ test.describe("Editor happy path", () => {
     }>;
     const edited = blocks.find((b) => b.targets?.fr?.text === FRENCH_TEXT);
     expect(edited, "the edited block must be in the merged payload").toBeTruthy();
-    expect(edited?.targets?.fr?.status).toBe("reviewed");
+    expect(edited?.targets?.fr?.status).toBe("established");
     // Task 3 is that review status is per locale: approving fr must not carry
     // over to de. Asserting de's status is empty says more than that, and it
     // raced — the worker's platform provider drafts every target locale in the
     // background, so de legitimately becomes "draft" once that lands, and the
     // test passed or failed on whether it had. Assert the invariant instead.
-    expect(edited?.targets?.de?.status ?? "").not.toBe("reviewed");
+    expect(edited?.targets?.de?.status ?? "").not.toBe("established");
   });
 });
