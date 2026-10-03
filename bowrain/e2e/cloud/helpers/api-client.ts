@@ -9,4 +9,7 @@ export {
   type ChangeSetSummary,
   type ChangeSetImpactInfo,
   type TrialReportInfo,
+  type EditorBlock,
+  type ContentChangeSet,
+  type ChangeResultInfo,
 } from "../../shared/index";

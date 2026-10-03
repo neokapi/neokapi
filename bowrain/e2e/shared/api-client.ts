@@ -244,6 +244,41 @@ export interface ReadinessInfo {
   components: Record<string, ReadinessComponentStatus>;
 }
 
+/** One block as the editor's block list serves it. */
+export interface EditorBlock {
+  id: string;
+  source: string;
+  translatable?: boolean;
+  targets?: Record<string, { text?: string; status?: string }>;
+  /** Each served locale's translation revision: the if_match a change names. */
+  target_revisions?: Record<string, string>;
+}
+
+/** A change set (kapi.change/v1), to the fields these tests send. */
+export interface ContentChangeSet {
+  schema?: "kapi.change/v1";
+  gate?: "enforce" | "report";
+  ops: Array<Record<string, unknown>>;
+}
+
+/** A change result (kapi.change-result/v1), to the fields these tests read. */
+export interface ChangeResultInfo {
+  schema: string;
+  status: "applied" | "refused" | "previewed" | "partial";
+  record: string | null;
+  error?: { code: string; message: string };
+  ops: Array<{
+    i: number;
+    op: string;
+    status: string;
+    before?: string;
+    after?: string;
+    id?: string;
+    error?: { code: string; message: string };
+    current?: { rev: string; text?: string };
+  }>;
+}
+
 // ---------------------------------------------------------------------------
 // BowrainAPI class
 // ---------------------------------------------------------------------------
@@ -472,6 +507,73 @@ export class BowrainAPI {
       `/${wsSlug}/${projectId}/actions/${encodeURIComponent(stream)}/pseudo-translate?item=${encodeURIComponent(fileName)}`,
       { target_locale: targetLocale },
     );
+  }
+
+  // -----------------------------------------------------------------------
+  // Content changes (kapi.change/v1): the one route that changes a stream's
+  // content, decides on a translation and annotates a block.
+  // -----------------------------------------------------------------------
+
+  /** An item's blocks as the editor reads them, each translation with its revision. */
+  async getBlocks(
+    wsSlug: string,
+    projectId: string,
+    item: string,
+    stream = "main",
+  ): Promise<EditorBlock[]> {
+    return this.get(
+      `/${wsSlug}/${projectId}/blocks/${encodeURIComponent(stream)}?item=${encodeURIComponent(item)}`,
+    );
+  }
+
+  /** The notes on a block, oldest first. A note is written by a change set. */
+  async listNotes(
+    wsSlug: string,
+    projectId: string,
+    blockId: string,
+    stream = "main",
+  ): Promise<Array<{ id: string; author: string; text: string }>> {
+    return this.get(
+      `/${wsSlug}/${projectId}/blocks/${encodeURIComponent(stream)}/${blockId}/notes`,
+    );
+  }
+
+  /** Apply a change set; a refusal fails the call. */
+  async applyChanges(
+    wsSlug: string,
+    projectId: string,
+    set: ContentChangeSet,
+    stream = "main",
+  ): Promise<ChangeResultInfo> {
+    return this.post(
+      `/${wsSlug}/projects/${projectId}/streams/${encodeURIComponent(stream)}/changes`,
+      set,
+    );
+  }
+
+  /**
+   * Send a change set and return the answer whatever its status: a refused
+   * change set is answered with a change result too, under the status its
+   * refusal's code maps to.
+   */
+  async sendChanges(
+    wsSlug: string,
+    projectId: string,
+    set: ContentChangeSet,
+    stream = "main",
+  ): Promise<{ status: number; result: ChangeResultInfo }> {
+    const resp = await fetch(
+      `${this.apiUrl}/${wsSlug}/projects/${projectId}/streams/${encodeURIComponent(stream)}/changes`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(set),
+      },
+    );
+    return { status: resp.status, result: (await resp.json()) as ChangeResultInfo };
   }
 
   // -----------------------------------------------------------------------
