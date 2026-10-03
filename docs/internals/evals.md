@@ -792,3 +792,122 @@ A one-paragraph edit costs milliseconds, small beside the model call that
 usually produced it. A sweep over every block of the docs takes seconds, which
 is the shape of a flow rather than an agent's edit, and a flow checks once per
 document.
+
+## What a steady kapi up costs
+
+A `kapi up` with nothing to draft should cost about what reading the project
+does. Before the changes below, a steady pass over 120 Markdown pages took two
+minutes once the content memory held entries, and the plan it printed named
+thousands of units to draft while the run drafted none. The measurements were
+taken with `bin/kapi` built from the commit before the changes (`da3f15c64`)
+and after them, under the isolation contract, on three scratch projects outside
+the repository:
+
+- **synthetic**: 120 Markdown pages of 25 paragraphs (3,120 blocks), one target
+  language, a flow of `pseudo-translate` alone;
+- **docs**: a copy of `web/docs` (Markdown read as MDX, and MDX) and every
+  `harness/demos/*/demo.yaml`, 444 files and 15,628 blocks, into `nb` with the
+  same flow, under a recipe written for it;
+- **KapiMart**: `samples/mart/src`, two source files into three languages.
+
+Each project runs a first pass, a steady pass, a pass after a source edit on
+every page, and two steady passes after that, then `kapi up --plan`,
+`kapi status` and `kapi extract --no-memory --force`. `KAPI_CPUPROFILE=<file>`
+writes a CPU profile of any kapi command. Other agents' builds shared the
+machine (load average 18 to 60), so CPU seconds (user and system) are the
+figures to compare; wall seconds follow them loosely.
+
+| Run | Synthetic, before | Synthetic, after | Docs, before | Docs, after |
+| --- | ---: | ---: | ---: | ---: |
+| steady pass after the edit | 161 s CPU, 145 s wall | 1.8 s CPU, 1.8 s wall | 238 s CPU, 156 s wall | 24.6 s CPU, 13.3 s wall |
+| the same, `--no-checks` (no pass) | | | 124 s CPU, 114 s wall | 3.3 s CPU, 2.2 s wall |
+| `kapi up --plan` | 159 s CPU | 0.6 s CPU | 123 s CPU | 9.1 s CPU (1.1 s with `--no-checks`) |
+| `kapi status`, for scale | 1.3 s CPU | 1.2 s CPU | 4.4 s CPU | 4.7 s CPU |
+| `kapi extract` | 0.9 s CPU | 0.6 s CPU | 5.0 s CPU | 2.6 s CPU |
+
+The docs project's language fails 47 bound checks, which the pseudo flow cannot
+fix, so every run there passes over it and drafts the 1,535 units the content
+memory does not answer; with `--no-checks` no pass runs and the run costs about
+what `kapi status` does. On KapiMart every run takes under 0.4 s before and
+after; a steady pass went from 0.26 s to 0.08 s of CPU.
+
+What the time went to, and what changed:
+
+- **Exact lookups scored the fuzzy pool.** The plan asks the content memory for
+  an exact answer (`MinScore` 1.0) for every unit it prices. A lookup whose
+  exact tiers found nothing went on to fetch and Levenshtein-score the fuzzy
+  candidate pool, though no fuzzy score reaches 1.0 for a key the exact tiers
+  did not already compare. With a few thousand entries that was 10 ms a unit.
+  `memory.TieredLookup` now ends an exact-only lookup at the exact tiers.
+- **Each exact tier loaded the entry again.** An entry that answers exactly
+  answers under its generalized, structural and plain keys alike, and each tier
+  loaded it with four queries. `SQLiteStore` loads it once per lookup.
+- **The plan priced work no pass would do.** A pass drafts every unit of a
+  language it works on that the corpus does not answer, but the loop passes over
+  a language only while its coverage holds work (`localesNeedingPass`). The
+  plan now derives that selection the way the run does and prices those
+  languages alone, which also skips their lookups.
+- **A flow resolved the project's document index per block.** The follower
+  named each document by loading every document and adoption the project knows,
+  with their content, once for every block it compared, and the edit recorder
+  did the same per record. `WorkStore.DocumentKey` answers for one path from
+  two indexed rows. On the docs project this was most of a steady pass (38 s of
+  its CPU).
+
+A read of the change service, which every follower, `kapi extract` and every
+editing surface makes, changed too:
+
+| Benchmark | Before | After |
+| --- | ---: | ---: |
+| `BenchmarkSQLiteMemory_LookupExactMiss` (3,000 entries) | 10.2 ms | 16 µs |
+| `BenchmarkSQLiteMemory_LookupBlockExactHit` | 160 µs | 73 µs |
+| `BenchmarkChangeRead_TranslatedDocument` (401 blocks, a French basis on each) | 18.5 ms | 6.3 ms |
+| `BenchmarkInterchangeRevisions` (the same document, as `kapi extract` reads it) | 10.8 ms | 6.5 ms |
+
+```bash
+go test -tags fts5 ./memory -run XXX -bench 'LookupExact|LookupBlockExactHit'
+go test -tags fts5 ./host -run XXX -bench 'ChangeRead|InterchangeRevisions'
+```
+
+- **Bases were read one block at a time.** A read asked the block history for
+  each derived edition of each block (one query apiece). `EditionStates` now
+  answers per document, from `history.Store.Latest`, once per read.
+- **A joined read parsed the document twice and spooled skeletons nobody
+  read.** A read with an edition joined from its own file read the document
+  once to index it for the join and again to stream it, and every pass of a
+  read gave its reader a temporary skeleton file, as did each markdown span of
+  an MDX document. A joined read now parses the document once, a read-only pass
+  wires a skeleton store that keeps nothing, and an MDX span keeps its own
+  skeleton in memory. `kapi extract` gives a source's later language pairs the
+  same store. This is the read extract makes of every pair. On the docs project
+  it was about 70% of an extract (3.1 s of wall time with it, 1.1 s with the
+  read skipped), and the whole extract now takes 2.6 s of CPU against 5.0 s.
+
+Two costs were measured and left:
+
+- **The follower's second read.** A flow reads each document it follows through
+  the change service before the run and, when the commit wrote the file, again
+  after, so the recorded revision is the one a later read of the written bytes
+  finds (a writer may normalize what it writes). On the docs project's rewrite
+  pass the second read was 0.24 s of CPU across the documents it wrote, and the
+  first 0.63 s, against about 50 s for the run. When the commit leaves the file
+  as the run read it, the record already uses the first read.
+- **Row iteration with a cancellable context.** The SQLite driver runs each
+  `Rows.Next` of a query made under a cancellable context in a goroutine of its
+  own, and the hand-off is a visible share of every profile. Stripping
+  cancellation from reads saved 10% to 20% of a steady pass on the docs
+  project, at the cost of a long query no longer stopping on Ctrl-C, and was
+  not adopted.
+
+The absorber, which reads the committed translations into the content memory
+before a pass, was the largest cost of the docs project's rewrite pass (about
+27 s of CPU, nearly all of it SQLite writing memory entries and their trigram
+index) and is unchanged.
+
+Bowrain's commit check, ship pass and review queue resolve the term gate from
+an in-memory snapshot of the workspace's terms. Reading 1,000 concepts of three
+terms from PostgreSQL for it took 22 ms on every call. Every write through the
+terms store now replaces a per-workspace revision in its own transaction, and
+the server keeps one snapshot per workspace under the revision it read first,
+so a call while nobody writes the terms costs 0.36 ms
+(`TestTermSnapshotCache_ReadsPostgresTermsOncePerRevision` logs both).
