@@ -765,11 +765,11 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		decisions = nil // the venue holds these decisions, and none changed here
 	}
 
-	// Beside the decisions, the last recorded write of each translation the
-	// documents this push reads hold: the source it was made from and who
-	// wrote it. A run that wrote translations and changed no source block
-	// still has these to send. Each goes until the venue applied a push that
-	// carried it, and again when it changes.
+	// Beside the decisions, the recorded write that left each translation of
+	// the documents this push reads as the checkout holds it: the source it
+	// was made from and who wrote it. A run that wrote translations and
+	// changed no source block still has these to send. Each goes until the
+	// venue applied a push that carried it, and again when it changes.
 	current, werr := c.projectEditionWrites(ctx, blockMap, localKeys)
 	if werr != nil {
 		return nil, werr
