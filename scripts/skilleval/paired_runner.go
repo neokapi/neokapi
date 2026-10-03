@@ -403,7 +403,7 @@ func executePairedAttempt(ctx context.Context, ready PairedPrepared, session Pai
 		result.Error = taskErr.Error()
 		return result
 	}
-	validation, validationErr := validatePairedTask(ready.Launch.Workspace, task, &result.Agent)
+	validation, validationErr := validatePairedCell(ready.Launch.Workspace, task, ready.Launch.Condition, &result.Agent)
 	if validationErr != nil {
 		result.Error = strings.TrimSpace(result.Error + "; validation: " + validationErr.Error())
 	} else {

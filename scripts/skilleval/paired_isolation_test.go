@@ -252,6 +252,12 @@ func TestPairedToolPathHasOnlyAssignedCLI(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, "/test/kapi", target)
 			}
+			if condition == "kapi-no-project" {
+				// kapi itself, with discovery off and no recipe bound.
+				wrapper, err := os.ReadFile(filepath.Join(state, "bin", "kapi"))
+				require.NoError(t, err)
+				assert.Contains(t, string(wrapper), "export KAPI_NO_PROJECT=1\nunset KAPI_PROJECT\n")
+			}
 			_, err = os.Lstat(filepath.Join(state, "bin", "cat"))
 			require.NoError(t, err)
 		})

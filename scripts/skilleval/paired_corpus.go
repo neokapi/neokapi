@@ -173,7 +173,13 @@ func pairedTaskFiles(task PairedTask) (map[string][]byte, error) {
 }
 
 func materializePairedTask(dir string, task PairedTask) error {
-	files, err := pairedTaskFiles(task)
+	return materializePairedCell(dir, task, "")
+}
+
+// materializePairedCell writes the fixture files a cell of condition holds
+// (pairedCellFiles) into dir.
+func materializePairedCell(dir string, task PairedTask, condition string) error {
+	files, err := pairedCellFiles(task, condition)
 	if err != nil {
 		return err
 	}

@@ -21,7 +21,7 @@ func TestPairedManifestAndSchedule(t *testing.T) {
 	require.NoError(t, err)
 	// The WP5 grid: two hosts, four arms, seven task families, three
 	// repetitions.
-	assert.Equal(t, pairedConditions, m.Conditions)
+	assert.Equal(t, pairedConditions[:4], m.Conditions, "the WP5 grid ran the first four arms")
 	assert.Len(t, m.Tasks, 7)
 	assert.Equal(t, 3, m.Repetitions)
 	pilot := pairedSchedule(m, "pilot")

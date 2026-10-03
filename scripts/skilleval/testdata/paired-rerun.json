@@ -18,7 +18,8 @@
     "baseline",
     "skill-cli",
     "mcp",
-    "project-free"
+    "project-free",
+    "kapi-no-project"
   ],
   "tasks": [
     "edit-link-html-md",

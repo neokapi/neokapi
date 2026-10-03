@@ -44,9 +44,12 @@ func preparePairedAgent(ctx context.Context, launch PairedLaunch) (PairedPrepare
 	launch.TmpDir = tmp
 	p.Launch.TmpDir = tmp
 	// The fixture's context reaches a gate through the store, so it is read in
-	// before the agent starts and every arm works from the same context.
-	if err := readPairedContext(ctx, launch.Workspace, launch.KapiBin); err != nil {
-		return p, err
+	// before the agent starts and every arm with a project works from the
+	// same context. A cell with no project holds no recipe to read it from.
+	if !arm.noProject() {
+		if err := readPairedContext(ctx, launch.Workspace, launch.KapiBin); err != nil {
+			return p, err
+		}
 	}
 	if len(arm.Executables) > 0 && launch.KapiBin == "" {
 		p.Blockers = append(p.Blockers, "bin/kapi from this tree is missing: run make build")
@@ -136,10 +139,19 @@ func pairedToolPath(launch PairedLaunch) error {
 		if _, err := os.Lstat(destination); !errors.Is(err, os.ErrNotExist) {
 			continue
 		}
-		if !arm.Project {
+		if !arm.Project && name == pairedFilesAlias {
 			// The alias is the binary under another name: argv[0] selects the
 			// project-free root, which turns discovery off itself.
 			if err := os.Symlink(launch.agentKapi(), destination); err != nil {
+				return err
+			}
+			continue
+		}
+		if !arm.Project {
+			// kapi itself with discovery off: no upward walk, and no
+			// KAPI_PROJECT to bind a recipe.
+			wrapper := "#!/bin/sh\nexport KAPI_NO_PROJECT=1\nunset KAPI_PROJECT\nexec " + pairedShellQuote(launch.agentKapi()) + " \"$@\"\n"
+			if err := os.WriteFile(destination, []byte(wrapper), 0o700); err != nil {
 				return err
 			}
 			continue
