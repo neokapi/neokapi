@@ -168,11 +168,33 @@ func TestFileHome_AddsAKeyToAnObjectInAnArray(t *testing.T) {
 
 func TestFileHome_ANewARBMessageReadsWithItsPlaceholders(t *testing.T) {
 	f := newFixture(t, map[string]string{"app_en.arb": "{\n  \"@@locale\": \"en\",\n  \"a\": \"A\"\n}\n"})
-	res := f.apply(t, insertAt("app_en.arb", "a", "items", map[string]string{"en": "{count, plural, one{# item} other{# items}}"}))
+	res := f.apply(t, insertAt("app_en.arb", "a", "items", map[string]string{"en": "{count,plural, one{# item} other{# items}}"}))
 	requireApplied(t, res)
 	b := f.block(t, "app_en.arb", "items")
-	assert.NotEmpty(t, b.Codes, "the ICU message reads as the protected construct it is")
+	assert.NotEmpty(t, b.Codes, "# reads as the placeholder it is")
+	require.Len(t, b.Structures, 1, "the ICU message reads as the plural it is")
+	assert.Equal(t, "plural", b.Structures[0].Kind)
+	assert.Equal(t, `<x id="p1/"/> item`, b.Structures[0].Branches["one"])
 	assert.Equal(t, b.Rev, res.Ops[0].After)
+	assert.Contains(t, f.read(t, "app_en.arb"), `"items": "{count,plural, one{# item} other{# items}}"`, "the value is written as given")
+}
+
+// A new message given as runs holding a plural is written as ICU syntax, as
+// Flutter's tools write one, and reads back as the plural it was given.
+func TestFileHome_ANewARBMessageFromAPluralRun(t *testing.T) {
+	f := newFixture(t, map[string]string{"app_en.arb": "{\n  \"@@locale\": \"en\",\n  \"a\": \"A\"\n}\n"})
+	n := model.PhR(model.PlaceholderRun{ID: "p1", Type: "icu", Data: "#"})
+	plural := []model.Run{model.TextR("You have "), {Plural: &model.PluralRun{Pivot: "count", Forms: map[model.PluralForm][]model.Run{
+		model.PluralOne:   {n, model.TextR(" message")},
+		model.PluralOther: {n, model.TextR(" messages")},
+	}}}}
+	op := change.Op{Kind: change.KindInsertBlock, At: change.Ref{Doc: "app_en.arb"},
+		Body: &change.InsertBlock{After: "a", Name: "inbox", Editions: map[string]change.Content{"en": {Runs: plural}}}}
+	requireApplied(t, f.apply(t, op))
+	assert.Contains(t, f.read(t, "app_en.arb"), `"inbox": "You have {count, plural, one{# message} other{# messages}}"`)
+	b := f.block(t, "app_en.arb", "inbox")
+	require.Len(t, b.Structures, 1)
+	assert.Equal(t, map[string]string{"one": `<x id="p1/"/> message`, "other": `<x id="p1/"/> messages`}, b.Structures[0].Branches)
 }
 
 func TestFileHome_StructureAndContentLandTogether(t *testing.T) {

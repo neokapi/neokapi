@@ -144,8 +144,9 @@ func ownEdits(edits []change.StructuralEdit) []format.StructuralEdit {
 		case change.KindDeleteBlock:
 			out = append(out, format.StructuralEdit{Op: format.StructuralDeleteBlock, Key: e.Key, Block: e.Block})
 		case change.KindInsertBlock:
+			runs := e.Editions[model.EditionKey{}]
 			out = append(out, format.StructuralEdit{Op: format.StructuralInsertBlock, Key: e.Key, Anchor: e.Anchor,
-				AnchorBlock: e.AnchorBlock, Before: e.Before, Value: model.RenderRunsWithData(e.Editions[model.EditionKey{}])})
+				AnchorBlock: e.AnchorBlock, Before: e.Before, Value: model.RenderRunsWithData(runs), Runs: runs})
 		}
 	}
 	return out
@@ -179,7 +180,7 @@ func editionEdits(edits []change.StructuralEdit, je *joinedEdition, ix *blockInd
 			if !ok {
 				continue
 			}
-			fe := format.StructuralEdit{Op: format.StructuralInsertBlock, Before: e.Before, Value: model.RenderRunsWithData(runs)}
+			fe := format.StructuralEdit{Op: format.StructuralInsertBlock, Before: e.Before, Value: model.RenderRunsWithData(runs), Runs: runs}
 			docKey, fileKey := "", ""
 			switch {
 			case e.Anchor == "":

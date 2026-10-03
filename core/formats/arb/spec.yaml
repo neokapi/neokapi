@@ -18,9 +18,11 @@ description: |
   Application Resource Bundle filter (Flutter gen-l10n profile). Each
   top-level "key": "value" pair is a translatable Block; the parallel
   "@key" metadata objects (description, placeholders) and the @@-prefixed
-  globals (@@locale) are structure, never extracted. ICU MessageFormat
-  plural/select/argument syntax embedded in values is protected as inline
-  codes. The @key.description is attached as a translator note when
+  globals (@@locale) are structure, never extracted. An ICU MessageFormat
+  argument in a value is protected as an inline code, and a plural, select
+  or selectordinal is read with its branches, so the words of each branch
+  are translated and edited while its syntax is kept. The
+  @key.description is attached as a translator note when
   descriptionNotes is enabled. The document is parsed losslessly so the
   writer produces byte-faithful output, splicing only changed values.
 
@@ -67,14 +69,19 @@ features:
           - "Shown in the title bar."
 
   - id: icu_protection
-    name: ICU MessageFormat protection
+    name: ICU MessageFormat arguments, plurals and selects
     description: |
-      ICU plural/select/argument syntax embedded in a value is protected
-      as inline codes so the message structure survives translation.
+      An ICU argument embedded in a value, such as {name}, is protected as
+      an inline code. A plural, select or selectordinal is read as a
+      structure whose branches hold their own text, with # and any
+      argument inside a branch as inline codes. The keyword, the branch
+      keys and the layout are written as they were read, so an edit to one
+      branch changes that branch alone.
     spec_refs:
       - "ICU User Guide — Formatting Messages (plural/select/argument syntax) (https://unicode-org.github.io/icu/userguide/format_parse/messages/)"
     native_refs:
-      - arb.TestPluralProtected
+      - arb.TestPluralReadsWithBranches
+      - arb.TestSelectReadsWithBranches
       - arb.TestPlaceholderUpdatePreservesICU
     examples:
       - id: arbicu

@@ -26,6 +26,11 @@ type Capabilities struct {
 	// Nil leaves a new code with its type and attributes and no native data,
 	// for a writer outside the process to spell.
 	Codes format.CodeSynthesizer
+	// Values spells runs as the value the writer writes for them, for a
+	// writer whose reader reads syntax in a value as a plural or select. A
+	// new block's content is compared as it spells it. Nil compares the runs'
+	// data (model.RenderRunsWithData).
+	Values format.ValueSpeller
 }
 
 // WriterCapabilities returns what an in-process writer declares, with the
@@ -38,6 +43,9 @@ func WriterCapabilities(name string, w format.DataFormatWriter) Capabilities {
 	}
 	if cs, ok := w.(format.CodeSynthesizer); ok {
 		c.Codes = cs
+	}
+	if vs, ok := w.(format.ValueSpeller); ok {
+		c.Values = vs
 	}
 	return c
 }

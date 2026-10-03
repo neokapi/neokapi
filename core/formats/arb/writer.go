@@ -90,7 +90,9 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			case model.PartBlock:
 				if block, ok := part.Resource.(*model.Block); ok {
 					blocksByID[block.ID] = block
-					w.collectBlock(block, repl)
+					if err := w.collectBlock(block, repl); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -130,52 +132,63 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocksByID map[s
 func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
 	var value string
 	if block != nil {
-		value = w.blockValue(block)
+		var err error
+		if value, err = w.blockValue(block); err != nil {
+			return nil, err
+		}
 	}
 	return []byte(encodeJSONString(value)), nil
 }
 
-// blockValue resolves a block's output ARB message value: the target text for
-// the writer's active locale when present, otherwise the source — mirroring
-// collectBlock. ICU placeholders re-emit their captured source via
-// valueFromRuns, so unchanged messages reproduce their exact bytes.
-func (w *Writer) blockValue(block *model.Block) string {
+// blockValue resolves a block's output ARB message value: the target for the
+// writer's active locale when present, otherwise the source. Runs that still
+// read as the message did are written as its exact bytes, and a plural or
+// select is written in the syntax it was read with (valueFromRuns). A value
+// holding a plural or select that is not valid ICU is refused.
+func (w *Writer) blockValue(block *model.Block) (string, error) {
+	runs := block.SourceRuns()
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return valueFromRuns(block.TargetRuns(w.Locale))
+		runs = block.TargetRuns(w.Locale)
 	}
-	return valueFromRuns(block.SourceRuns())
+	value := valueFromRuns(runs, block.Properties[propMessage])
+	if err := checkMessage(block, runs, value); err != nil {
+		return "", err
+	}
+	return value, nil
+}
+
+// Ensure Writer spells a message value from its runs.
+var _ format.ValueSpeller = (*Writer)(nil)
+
+// SpellValue returns the message value the writer writes for runs, an edition
+// of b: in the shape b's message was read with when b holds a plural or
+// select, else as Flutter's tools write one.
+func (w *Writer) SpellValue(b *model.Block, runs []model.Run) string {
+	var original string
+	if b != nil {
+		original = b.Properties[propMessage]
+	}
+	return valueFromRuns(runs, original)
 }
 
 // collectBlock records the output value for a block keyed by its ARB resource
-// key. The output value is the target text for the writer's locale when present,
-// otherwise the source text — mirroring how other native writers resolve the
-// active locale. ICU placeholders re-emit their captured source via
-// valueFromRuns, so unchanged messages reproduce their exact bytes.
-func (w *Writer) collectBlock(block *model.Block, repl *replacements) {
+// key: the target for the writer's locale when present, otherwise the source,
+// as blockValue resolves it.
+func (w *Writer) collectBlock(block *model.Block, repl *replacements) error {
 	key, ok := block.Properties["arb.key"]
 	if !ok {
-		return
+		return nil
 	}
-
-	var value string
-	switch {
-	case !w.Locale.IsEmpty() && block.HasTarget(w.Locale):
-		value = valueFromRuns(block.TargetRuns(w.Locale))
-	case !w.Locale.IsEmpty() && w.Locale == block.SourceLocale:
-		value = valueFromRuns(block.SourceRuns())
-	case w.Locale.IsEmpty():
-		value = valueFromRuns(block.SourceRuns())
-	default:
-		// No translation for the active locale — keep the source so the message
-		// round-trips unchanged.
-		value = valueFromRuns(block.SourceRuns())
+	value, err := w.blockValue(block)
+	if err != nil {
+		return err
 	}
-
 	var description string
 	if notes := block.Notes(); len(notes) > 0 {
 		description = notes[0].Text
 	}
 	repl.set(key, value, description)
+	return nil
 }
 
 // writeFromOriginal re-tokenizes the original bytes and rewrites changed

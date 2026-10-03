@@ -2,8 +2,10 @@ package arb_test
 
 import (
 	"bytes"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -191,37 +193,50 @@ func TestPlainTextIsTranslatable(t *testing.T) {
 	assert.Equal(t, "!", runs[2].Text.Text)
 }
 
-// TestPluralProtected verifies a full plural construct is one opaque
-// placeholder, never split into translatable branches.
-func TestPluralProtected(t *testing.T) {
+// TestPluralReadsWithBranches verifies a plural message reads as one plural
+// run whose forms hold the words of each branch, with the arguments inside
+// them as placeholders, and writes back as read.
+func TestPluralReadsWithBranches(t *testing.T) {
 	parts, _ := readParts(t, filepath.Join("testdata", "icu_en.arb"))
 	byName := blocksByName(testutil.FilterBlocks(parts))
 
 	itemCount := byName["itemCount"]
 	require.NotNil(t, itemCount)
 	runs := itemCount.SourceRuns()
-	// The whole value is a single plural construct → one placeholder run.
 	require.Len(t, runs, 1)
-	require.NotNil(t, runs[0].Ph)
-	assert.Equal(t, "{count, plural, =0{No items} =1{1 item} other{{count} items}}", runs[0].Ph.Data)
-	// Rendering reproduces the value exactly (including the nested {count}).
-	assert.Equal(t, "{count, plural, =0{No items} =1{1 item} other{{count} items}}",
-		model.RenderRunsWithData(runs))
+	require.NotNil(t, runs[0].Plural)
+	p := runs[0].Plural
+	assert.Equal(t, "count", p.Pivot)
+	assert.ElementsMatch(t, []model.PluralForm{"=0", "=1", model.PluralOther}, slices.Collect(maps.Keys(p.Forms)))
+	assert.Equal(t, "No items", model.RunsText(p.Forms["=0"]))
+	assert.Equal(t, "1 item", model.RunsText(p.Forms["=1"]))
+	other := p.Forms[model.PluralOther]
+	require.Len(t, other, 2)
+	require.NotNil(t, other[0].Ph, "the argument inside a branch is a placeholder")
+	assert.Equal(t, "{count}", other[0].Ph.Data)
+	assert.Equal(t, " items", other[1].Text.Text)
+
+	out := writeParts(t, parts, "")
+	assert.Contains(t, string(out), `"itemCount": "{count, plural, =0{No items} =1{1 item} other{{count} items}}"`)
 }
 
-// TestSelectProtected verifies a select/gender construct is protected while the
-// trailing literal text remains translatable text.
-func TestSelectProtected(t *testing.T) {
+// TestSelectReadsWithBranches verifies a select message reads as a select run
+// with a case per branch, and the literal text after it stays a text run.
+func TestSelectReadsWithBranches(t *testing.T) {
 	parts, _ := readParts(t, filepath.Join("testdata", "icu_en.arb"))
 	byName := blocksByName(testutil.FilterBlocks(parts))
 
 	pronoun := byName["pronoun"]
 	require.NotNil(t, pronoun)
 	runs := pronoun.SourceRuns()
-	// "{gender, select, …}" (ph) + " liked your post." (text).
 	require.Len(t, runs, 2)
-	require.NotNil(t, runs[0].Ph)
-	assert.Equal(t, "{gender, select, male{He} female{She} other{They}}", runs[0].Ph.Data)
+	require.NotNil(t, runs[0].Select)
+	assert.Equal(t, "gender", runs[0].Select.Pivot)
+	cases := map[string]string{}
+	for k, c := range runs[0].Select.Cases {
+		cases[k] = model.RunsText(c)
+	}
+	assert.Equal(t, map[string]string{"male": "He", "female": "She", "other": "They"}, cases)
 	require.NotNil(t, runs[1].Text)
 	assert.Equal(t, " liked your post.", runs[1].Text.Text)
 }

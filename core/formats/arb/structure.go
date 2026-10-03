@@ -81,7 +81,11 @@ func insertMessage(doc []byte, i int, e format.StructuralEdit) ([]byte, error) {
 	if d.Root.Member(e.Key) != nil {
 		return nil, format.StructureErrorf(i, format.StructureExists, "the catalog already has a member %q", e.Key)
 	}
-	key, value := encodeJSONString(e.Key), encodeJSONString(e.Value)
+	text := e.Value
+	if e.Runs != nil {
+		text = valueFromRuns(e.Runs, "")
+	}
+	key, value := encodeJSONString(e.Key), encodeJSONString(text)
 	if e.Anchor == "" {
 		return d.Append(d.Root, key, value), nil
 	}

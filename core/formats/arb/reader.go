@@ -521,11 +521,14 @@ func (r *Reader) skeletonCopyValue(tokens []token, pos *int) {
 }
 
 // blockFor builds a Block for one ARB resource. The message value is carried as
-// source content; ICU placeholders/plural/select constructs are protected as
-// opaque inline placeholder runs. The sibling "@<id>" description becomes a
-// developer note.
+// source content: ICU arguments as placeholder runs, and a plural or select as
+// a plural or select run with its branches (see icu.go). A message holding a
+// plural or select records the value it was read from, which the writer
+// writes the structure's syntax from. The sibling "@<id>" description becomes
+// a developer note.
 func (r *Reader) blockFor(res *resource, locale model.LocaleID, counter int) *model.Block {
-	runs := runsFromValue(res.value)
+	msg := readMessage(res.value)
+	runs := msg.runs
 
 	block := &model.Block{
 		ID:           "tu" + strconv.Itoa(counter),
@@ -537,6 +540,9 @@ func (r *Reader) blockFor(res *resource, locale model.LocaleID, counter int) *mo
 		Properties:   make(map[string]string),
 	}
 	block.Properties["arb.key"] = res.id
+	if len(msg.shapes) > 0 {
+		block.Properties[propMessage] = res.value
+	}
 
 	if r.cfg.DescriptionNotes {
 		if res.description != "" {
