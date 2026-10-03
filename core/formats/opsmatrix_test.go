@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,15 +17,12 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats"
-	"github.com/neokapi/neokapi/core/formats/ts"
-	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
-	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,8 +30,9 @@ import (
 // The operations matrix proves, for every built-in format whose reader and
 // writer share a skeleton, which operations of the edit contract reach the
 // format's bytes (docs/internals/edit-model.md, section 2.7). Each cell is one
-// (fixture, operation) pair: the fixture is read, the operation is applied
-// through the edit path kapi uses today, the document is written, and then
+// (fixture, operation) pair: the fixture is read, the operation is applied to
+// each block through change.ApplyBlock, as the change service applies it, the
+// document is written through the format's writer, and then
 //
 //   - the edited blocks read back with exactly the edited content, codes
 //     included, and every other block reads back as it was read;
@@ -44,8 +43,10 @@ import (
 // has them, and a target edition in every format that holds one. A fixture is a
 // template under testdata/opsmatrix: a word written «like this» is content of
 // an edition that the operation must change, and the same word written plainly
-// (in a key, an attribute, a comment, code data, or a block the operation
-// refuses) must come through byte for byte.
+// (in a key, an attribute, a comment, code data, or a block every operation
+// is refused on) must come through byte for byte. A word written
+// «like this!op@edition» is changed by every operation but the one named,
+// which the fixture declares refused on its block.
 //
 // An operation is added as one more matrixOp with a driver in opsFixture.run
 // and a rule for the document it produces in matrixOp.want. A cell a format
@@ -64,9 +65,9 @@ const (
 type substitution struct{ from, to string }
 
 var (
-	// sourceWord and targetWord are the words today's operation rewrites, one
-	// per edition so a source edit and a target edit are told apart in the
-	// bytes. Neither contains a character any format escapes.
+	// sourceWord and targetWord are the words the operations rewrite, one per
+	// edition so a source edit and a target edit are told apart in the bytes.
+	// Neither contains a character any format escapes.
 	sourceWord = substitution{from: "utilize", to: "use"}
 	targetWord = substitution{from: "employons", to: "utilisons"}
 )
@@ -97,8 +98,8 @@ type opsFixture struct {
 	// the reason. The document a cell must produce is the input with each one
 	// respelled, so a declaration the writer stops needing fails the cell.
 	respelled []respelling
-	// refuse names, per operation key, the blocks (by id) the edit path must
-	// refuse, with the reason.
+	// refuse names, per operation key, the blocks (by id) the operation must
+	// be refused on, with the reason.
 	refuse map[string]map[string]string
 	// refused names, per operation key, the cells this fixture refuses whole.
 	refused map[string]refusal
@@ -106,7 +107,7 @@ type opsFixture struct {
 
 // refusal is a cell a fixture refuses whole, with the reason. err is the error
 // the writer refuses the document with, matched with errors.Is, and the writer
-// writes nothing; a nil err means the edit path applies nothing and the
+// writes nothing; a nil err means the operation applies to no block and the
 // document is written unchanged.
 type refusal struct {
 	reason string
@@ -134,14 +135,15 @@ func (op matrixOp) key() string { return op.name + "@" + string(op.edition) }
 
 // want renders the document op must produce from a template.
 func (op matrixOp) want(tmpl string) string {
-	return renderTemplate(tmpl, &op.sub)
+	return renderTemplate(tmpl, &op.sub, op.key())
 }
 
-// matrixOps is every operation the matrix drives. replace_text is the one
-// operation every surface performs today: a word substitution, sent as edit
-// text through `kapi apply` for a source, and applied to a translation's runs
-// the way `ksed --target` applies it (ksedTarget).
+// matrixOps is every operation the matrix drives, each a word substitution:
+// set_content with the block's edit text and the word replaced, as `kapi
+// apply` sends a block `kapi inspect` showed, and replace_text with the
+// offsets of each match, as ksed sends a substitution (replaceEdits).
 var matrixOps = []matrixOp{
+	{name: "set_content", edition: sourceEdition, sub: sourceWord},
 	{name: "replace_text", edition: sourceEdition, sub: sourceWord},
 	{name: "replace_text", edition: targetEdition, sub: targetWord},
 }
@@ -181,11 +183,12 @@ func opsMatrix() []opsFixture {
 		{
 			format: "plaintext", template: "plaintext.txt.tmpl",
 			refuse: map[string]map[string]string{
-				"replace_text@source": {
+				"set_content@source": {
 					// The line holds the characters <x id="1"/> as text. Edit text
 					// spells a code the same way, so the edit parses them as a
 					// code the block does not have, and the inline-code guard
-					// refuses it (codes_changed).
+					// refuses it. replace_text changes the line's text and
+					// leaves the characters as they are.
 					"tu5": "edit text cannot tell literal <x id=\"1\"/> characters from a code",
 				},
 			},
@@ -202,18 +205,8 @@ func opsMatrix() []opsFixture {
 			}},
 		},
 		{format: "ts", template: "ts.ts.tmpl", target: "fr", respelled: tsPrologue},
-		{
-			format: "ts", name: "numerus", template: "ts-numerus.ts.tmpl", target: "fr", respelled: tsPrologue,
-			refused: map[string]refusal{
-				"replace_text@target": {
-					reason: "the word is in both forms, and the tool write path rebases the translation's overlays " +
-						"over the one region the old and new text differ in, which here spans the plural-form " +
-						"boundary, so the form segmentation is dropped; the writer refuses the message rather than " +
-						"move words between forms, and the contract edits one form by path (section 2.4, rule 3)",
-					err: ts.ErrNumerusFormsLost,
-				},
-			},
-		},
+		// The word is in both forms; replace_text edits each form by its path.
+		{format: "ts", name: "numerus", template: "ts-numerus.ts.tmpl", target: "fr", respelled: tsPrologue},
 		{format: "tsv", template: "tsv.tsv.tmpl"},
 		{format: "vtt", template: "vtt.vtt.tmpl"},
 		{format: "xcstrings", template: "xcstrings.xcstrings.tmpl", target: "fr"},
@@ -231,18 +224,9 @@ func opsMatrix() []opsFixture {
 			},
 		},
 		{format: "xliff2", template: "xliff2.xlf.tmpl", target: "fr"},
-		{
-			format: "xliff2", name: "segments", template: "xliff2-segments.xlf.tmpl", target: "fr",
-			refused: map[string]refusal{
-				"replace_text@source": {
-					reason: "edit text carries no segment boundaries and the apply path drops the source " +
-						"segmentation of a block it edits, so the unit no longer divides into its segments; the " +
-						"writer refuses it rather than write the whole unit into its first segment (section 2.4, " +
-						"rule 3)",
-					err: xliff2.ErrSegmentsLost,
-				},
-			},
-		},
+		// The applier rebases the segment overlays over an edit, so the unit
+		// still divides into its segments.
+		{format: "xliff2", name: "segments", template: "xliff2-segments.xlf.tmpl", target: "fr"},
 		{format: "xml", template: "xml.xml.tmpl"},
 		{format: "yaml", template: "yaml.yaml.tmpl"},
 	}
@@ -268,7 +252,8 @@ type opsDocument struct {
 
 // renderTemplate replaces every «word» marker: the substitution's own word
 // with its replacement when sub is set, every other marked word with itself.
-func renderTemplate(tmpl string, sub *substitution) string {
+// A «word!key» marker is replaced unless key is the operation's key.
+func renderTemplate(tmpl string, sub *substitution, key string) string {
 	var b strings.Builder
 	for {
 		before, marked, ok := strings.Cut(tmpl, "«")
@@ -282,7 +267,8 @@ func renderTemplate(tmpl string, sub *substitution) string {
 			return b.String()
 		}
 		b.WriteString(before)
-		if sub != nil && word == sub.from {
+		word, except, _ := strings.Cut(word, "!")
+		if sub != nil && word == sub.from && except != key {
 			b.WriteString(sub.to)
 		} else {
 			b.WriteString(word)
@@ -296,7 +282,7 @@ func renderTemplate(tmpl string, sub *substitution) string {
 func (fx opsFixture) render(t *testing.T, op *matrixOp) opsDocument {
 	t.Helper()
 	want := func(tmpl string) string {
-		out := renderTemplate(tmpl, nil)
+		out := renderTemplate(tmpl, nil, "")
 		if op != nil {
 			out = op.want(tmpl)
 		}
@@ -311,7 +297,7 @@ func (fx opsFixture) render(t *testing.T, op *matrixOp) opsDocument {
 	if !info.IsDir() {
 		raw, err := os.ReadFile(root)
 		require.NoError(t, err)
-		return opsDocument{input: []byte(renderTemplate(string(raw), nil)), want: []byte(want(string(raw)))}
+		return opsDocument{input: []byte(renderTemplate(string(raw), nil, "")), want: []byte(want(string(raw)))}
 	}
 	in, members := map[string][]byte{}, map[string][]byte{}
 	err = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
@@ -327,7 +313,7 @@ func (fx opsFixture) render(t *testing.T, op *matrixOp) opsDocument {
 		if rerr != nil {
 			return rerr
 		}
-		in[name] = []byte(renderTemplate(string(raw), nil))
+		in[name] = []byte(renderTemplate(string(raw), nil, ""))
 		members[name] = []byte(want(string(raw)))
 		return nil
 	})
@@ -416,13 +402,14 @@ func (fx opsFixture) readEditable(t *testing.T, data []byte, locale model.Locale
 	return blocks
 }
 
-// editDocument is host.EditDocument's sequence: the reader wired to the
-// writer's skeleton store, every part through tl, the parts written with the
-// original bytes bound and writeLocale active. It returns what the writer
-// wrote and the error it refused the write with, if it did. A framework test
-// cannot import host, so this is a copy of that sequence; a change to
-// host.EditDocument has to be made here too.
-func (fx opsFixture) editDocument(t *testing.T, input []byte, readLocale, writeLocale model.LocaleID, tl *tool.BaseTool) ([]byte, error) {
+// editDocument reads input with the reader wired to the writer's skeleton
+// store, hands every block to edit with the environment the change service
+// applies operations in (the writer's declared capabilities, a person's
+// edit), and writes the parts with the original bytes bound and writeLocale
+// active, as the file home writes a document (core/change/filehome). It
+// returns what the writer wrote and the error it refused the write with, if
+// it did.
+func (fx opsFixture) editDocument(t *testing.T, input []byte, readLocale, writeLocale model.LocaleID, edit func(b *model.Block, env change.BlockEnv)) ([]byte, error) {
 	t.Helper()
 	ctx := context.Background()
 	reader, writer := fx.newPair(t)
@@ -430,6 +417,7 @@ func (fx opsFixture) editDocument(t *testing.T, input []byte, readLocale, writeL
 	require.NoError(t, err)
 	require.NotNil(t, store, "%s has no skeleton pair", fx.format)
 	defer store.Close()
+	env := change.BlockEnv{Actor: change.Actor{Kind: change.ActorPerson}, Format: change.WriterCapabilities(string(fx.format), writer)}
 
 	require.NoError(t, reader.Open(ctx, &model.RawDocument{
 		URI:          "opsmatrix." + string(fx.format),
@@ -443,11 +431,10 @@ func (fx opsFixture) editDocument(t *testing.T, input []byte, readLocale, writeL
 		if res.Part == nil {
 			continue
 		}
-		p, aerr := tl.ApplyContext(ctx, res.Part)
-		require.NoError(t, aerr, "apply to %s", fx.format)
-		if p != nil {
-			parts = append(parts, p)
+		if b, ok := res.Part.Resource.(*model.Block); ok && b != nil {
+			edit(b, env)
 		}
+		parts = append(parts, res.Part)
 	}
 	require.NoError(t, reader.Close())
 
@@ -480,8 +467,8 @@ type opOutcome struct {
 }
 
 // locales returns the target locale a document is read with and the locale its
-// writer is given for op. A source edit is `kapi apply`: no target locale on
-// either side. A target edit addresses the target edition on both.
+// writer is given for op. A source edit reads and writes with no target
+// locale. A target edit addresses the target edition on both.
 func (fx opsFixture) locales(op matrixOp) (read, write model.LocaleID) {
 	if op.edition == targetEdition {
 		return fx.target, fx.target
@@ -500,117 +487,120 @@ func editionText(b *model.Block, edition editionRole, loc model.LocaleID) (strin
 	return model.RunsEditText(b.TargetRuns(loc)), true
 }
 
-// run drives op over input through today's edit path.
+// run drives op over input: each block whose edition holds op's word gets
+// the operation, applied as the change service applies it.
 func (fx opsFixture) run(t *testing.T, op matrixOp, input []byte) opOutcome {
 	t.Helper()
 	switch op.name {
-	case "replace_text":
-		return fx.replaceText(t, op, input)
+	case "set_content", "replace_text":
+		return fx.substitute(t, op, input)
 	}
 	t.Fatalf("the matrix has no driver for %s", op.name)
 	return opOutcome{}
 }
 
-// replaceText substitutes op's word in op's edition of every block.
-//
-// A source edit is the `kapi inspect` + `kapi apply` loop: the blocks are read
-// as inspect reads them, each block whose text holds the word gets an edit with
-// the word replaced and the content hash it was read with, and the apply-edits
-// tool writes them with its drift and inline-code guards. A target edit is the
-// substitution `ksed --target` applies to the translation's runs (ksedTarget),
-// which has no guard of its own.
-func (fx opsFixture) replaceText(t *testing.T, op matrixOp, input []byte) opOutcome {
+// substitute replaces op's word in op's edition of every block. Each block
+// whose edition holds the word gets one operation of op's kind: set_content
+// with the edition's edit text and the word replaced, or replace_text with an
+// edit at each match. A block the operation is refused on keeps the text it
+// was read with.
+func (fx opsFixture) substitute(t *testing.T, op matrixOp, input []byte) opOutcome {
 	t.Helper()
 	readLoc, writeLoc := fx.locales(op)
-	blocks := fx.readEditable(t, input, readLoc)
+	key := model.EditionKey{}
+	if op.edition == targetEdition {
+		key = model.EditionKey{Locale: writeLoc}.Canonical()
+	}
 
 	var res opOutcome
-	edits := map[string]tools.Edit{}
-	for _, b := range blocks {
+	res.out, res.writeErr = fx.editDocument(t, input, readLoc, writeLoc, func(b *model.Block, env change.BlockEnv) {
 		text, ok := editionText(b, op.edition, readLoc)
 		res.expect = append(res.expect, text)
 		if !ok || !b.Translatable {
-			continue
+			return
 		}
 		edited := strings.ReplaceAll(text, op.sub.from, op.sub.to)
 		if edited == text {
-			continue
+			return
 		}
-		res.expect[len(res.expect)-1] = edited
-		edits[b.ID] = tools.Edit{Text: edited, ContentHash: model.ComputeContentHash(b.SourceText())}
-	}
-
-	switch op.edition {
-	case sourceEdition:
-		report := &tools.ApplyReport{}
-		tl := tools.NewApplyEditsTool(edits, nil, report)
-		res.out, res.writeErr = fx.editDocument(t, input, readLoc, writeLoc, tl)
-		require.Empty(t, report.Stale, "%s: an edit read from this document was reported stale", fx.id())
-		res.applied, res.refused = report.Applied, report.GuardFailed
-	case targetEdition:
-		tl := &tool.BaseTool{ToolName: "opsmatrix-target"}
-		tl.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
-			var plan tool.EditPlan
-			if _, ok := edits[v.ID()]; !ok || !v.HasTarget(writeLoc) {
-				return plan, nil
+		at := change.Ref{Doc: "opsmatrix", Block: b.ID, Edition: key}
+		o := change.Op{Kind: change.KindSetContent, At: at, IfMatch: change.AnyRevision, Body: &change.SetContent{Text: &edited}}
+		if op.name == "replace_text" {
+			runs := b.Source
+			if op.edition == targetEdition {
+				runs = b.TargetRuns(readLoc)
 			}
-			if runs, changed := ksedTarget(v.TargetRuns(writeLoc), op.sub); changed {
-				plan.SetTarget(writeLoc, runs)
-				res.applied = append(res.applied, v.ID())
-			}
-			return plan, nil
+			o = change.Op{Kind: change.KindReplaceText, At: at, IfMatch: change.AnyRevision, Body: &change.ReplaceText{Edits: replaceEdits(runs, nil, op.sub)}}
 		}
-		res.out, res.writeErr = fx.editDocument(t, input, readLoc, writeLoc, tl)
-	}
-
-	// A refused block keeps the text it was read with.
-	for i, b := range blocks {
-		if slices.Contains(res.refused, b.ID) {
-			res.expect[i], _ = editionText(b, op.edition, readLoc)
+		results := change.ApplyBlock(b, []change.Op{o}, env)
+		switch results[0].Status {
+		case change.OpApplied:
+			res.applied = append(res.applied, b.ID)
+			res.expect[len(res.expect)-1] = edited
+		case change.OpRefused:
+			res.refused = append(res.refused, b.ID)
 		}
-	}
+	})
 	return res
 }
 
-// ksedTarget is the substitution `ksed --target` applies to a translation, as
-// host/toolbox_sed.go (NewSedTool, sedCmd.editRuns) does it: every match in
-// the runs' text becomes a text edit, applied through model.ApplyTextEdits so
-// the codes around it are kept; runs holding a plural or select have no
-// linear text, so their whole text is replaced as one run. A match is found
-// at a byte offset and a text edit counts code points, so each match is
-// converted before it becomes an edit. ksed has no inline-code guard. A
-// framework test cannot import host, so this is a copy of ksed's sequence; a
-// change there has to be made here too.
-func ksedTarget(runs []model.Run, sub substitution) ([]model.Run, bool) {
-	if model.HasStructuredRuns(runs) {
-		text := model.RunsText(runs)
-		out := strings.ReplaceAll(text, sub.from, sub.to)
-		if out == text {
-			return runs, false
+// replaceEdits are the replace_text edits that substitute sub in seq, the run
+// sequence path reaches, and in the branches of every plural and select it
+// holds, as ksed computes them for s/from/to/g (host/toolbox_sed.go,
+// sedCmd.edits): a match is found in the sequence's own text, in which inline
+// codes, plurals and selects have no width, and a match that would swallow a
+// plural or a select is left alone. A match is found at a byte offset and a
+// text edit counts code points, so each match is converted before it becomes
+// an edit. A framework test cannot import host, so this is a copy of ksed's
+// computation; a change there has to be made here too.
+func replaceEdits(seq []model.Run, path model.RunPath, sub substitution) []change.TextEdit {
+	text := model.SequenceText(seq)
+	var structures []int
+	off := 0
+	for _, r := range seq {
+		switch {
+		case r.Text != nil:
+			off += utf8.RuneCountInString(r.Text.Text)
+		case r.Plural != nil, r.Select != nil:
+			structures = append(structures, off)
 		}
-		return []model.Run{{Text: &model.TextRun{Text: out}}}, true
 	}
-	text := model.RunsText(runs)
 	byteAt, runeAt := 0, 0
 	toRunes := func(b int) int {
 		runeAt += utf8.RuneCountInString(text[byteAt:b])
 		byteAt = b
 		return runeAt
 	}
-	var edits []model.TextEdit
-	for at := 0; ; {
+	var out []change.TextEdit
+	for at := 0; sub.from != sub.to; {
 		i := strings.Index(text[at:], sub.from)
 		if i < 0 {
 			break
 		}
-		start := at + i
-		at = start + len(sub.from)
-		edits = append(edits, model.TextEdit{Start: toRunes(start), End: toRunes(at), Replacement: sub.to})
+		start := toRunes(at + i)
+		at += i + len(sub.from)
+		end := toRunes(at)
+		if slices.ContainsFunc(structures, func(p int) bool { return start < p && p < end }) {
+			continue
+		}
+		out = append(out, change.TextEdit{Path: slices.Clone(path), Start: &start, End: &end, Text: sub.to})
 	}
-	if len(edits) == 0 {
-		return runs, false
+	for i, r := range seq {
+		step := model.RunPathStep{Kind: model.StepIndex, Index: i}
+		switch {
+		case r.Plural != nil:
+			for _, form := range slices.Sorted(maps.Keys(r.Plural.Forms)) {
+				branch := append(slices.Clone(path), step, model.RunPathStep{Kind: model.StepPlural, PluralForm: form})
+				out = append(out, replaceEdits(r.Plural.Forms[form], branch, sub)...)
+			}
+		case r.Select != nil:
+			for _, value := range slices.Sorted(maps.Keys(r.Select.Cases)) {
+				branch := append(slices.Clone(path), step, model.RunPathStep{Kind: model.StepSelect, SelectValue: value})
+				out = append(out, replaceEdits(r.Select.Cases[value], branch, sub)...)
+			}
+		}
 	}
-	return model.ApplyTextEdits(runs, edits), true
+	return out
 }
 
 // describeBlocks lists blocks for a failure message.

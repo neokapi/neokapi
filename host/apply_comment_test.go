@@ -377,24 +377,6 @@ func TestProseP3_go(t *testing.T) {
 	})
 }
 
-func TestApplyCommentEntryValidation(t *testing.T) {
-	for name, tc := range map[string]struct {
-		entry changeEntry
-		want  string
-	}{
-		"no file":      {changeEntry{Kind: kindComment, ID: "func/Parse", Text: "x"}, `no "file"`},
-		"no id":        {changeEntry{Kind: kindComment, File: "p.go", Text: "x"}, `no "id"`},
-		"replacement":  {changeEntry{Kind: kindComment, File: "p.go", ID: "func/Parse", Replacement: "x"}, `"text"`},
-		"content hash": {changeEntry{Kind: kindComment, File: "p.go", ID: "func/Parse", Text: "x", ContentHash: "h"}, `"comment_sha256"`},
-		"no guard":     {changeEntry{Kind: kindComment, File: "p.go", ID: "func/Parse", Text: "x"}, `"current_text"`},
-	} {
-		err := validateChangeSet([]changeEntry{tc.entry})
-		require.Error(t, err, name)
-		assert.Contains(t, err.Error(), tc.want, name)
-	}
-	require.NoError(t, validateChangeSet([]changeEntry{{Kind: kindComment, File: "p.go", ID: "func/Parse", Text: "x", CommentSHA256: staleFingerprint}}))
-}
-
 func assertUnchanged(t *testing.T, file, want string) {
 	t.Helper()
 	got, err := os.ReadFile(file)

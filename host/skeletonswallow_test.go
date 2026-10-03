@@ -6,8 +6,10 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/stretchr/testify/assert"
@@ -19,8 +21,9 @@ import (
 // simply ran on without one. The skeleton is what preserves the structure the
 // reader could not model, so running on turns a byte-exact same-format pass into
 // a re-serialization from the content model — and the command still reports
-// success. host/toolbox.go's EditDocument is the worst of them because it
-// rewrites the file IN PLACE: the original bytes are gone.
+// success. An in-place edit is the worst of them, because the original bytes
+// are gone: the change service's file home (core/change/filehome) refuses an
+// edit it cannot write through the skeleton.
 //
 // Failure is induced by a real filesystem condition — TMPDIR pointed at a
 // directory that does not exist, which is what os.CreateTemp consults — never by
@@ -51,6 +54,9 @@ func isolateKapiEnv(t *testing.T) {
 		{"XDG_CACHE_HOME", filepath.Join(base, "cache")},
 		{"KAPI_PLUGINS_DIR_ONLY", "1"},
 		{"KAPI_PLUGINS_DIR", filepath.Join(base, "plugins")},
+		// The lock files of an edit outside a project live in the data
+		// directory, which a test binary otherwise puts under TMPDIR.
+		{"KAPI_DATA_DIR", filepath.Join(base, "data-dir")},
 	} {
 		t.Setenv(kv[0], kv[1])
 	}
@@ -69,55 +75,88 @@ func breakTempDir(t *testing.T) string {
 	return missing
 }
 
-// noopTool passes every part through untouched, so the only thing under test is
-// whether the document survives the reader→writer round-trip intact.
-func noopTool() *tool.BaseTool { return &tool.BaseTool{} }
+// skeletonEditFrom and skeletonEditTo are the greeting's wording before and
+// after the edit the change-service tests below make.
+const (
+	skeletonEditFrom = "Hello world"
+	skeletonEditTo   = "Hello there"
+)
 
-// ─── host/toolbox.go: EditDocument (in place) ────────────────────────────────
+// yamlGreetingEdit reads doc through a change service over dir, outside a
+// project, and returns the service and the change set that rewrites the
+// greeting from the revision the read saw.
+func yamlGreetingEdit(t *testing.T, app *App, dir, doc string) (*change.Service, change.Set) {
+	t.Helper()
+	svc, err := app.ChangeService(context.Background(), ChangeServiceOptions{Root: dir, Origin: "test"})
+	require.NoError(t, err)
+	page, err := svc.Read(context.Background(), change.ReadRequest{Doc: doc})
+	require.NoError(t, err)
+	b := blockWith(t, page, skeletonEditFrom)
+	return svc, change.Set{Ops: []change.Op{setTo(b.Ref, b.Rev, skeletonEditTo)}}
+}
 
-// TestEditDocument_InPlaceRoundTripIsByteIdentical is the control for the test
-// below and the property the swallowed error destroyed: with the skeleton store
-// available, an in-place edit that changes nothing leaves the file byte-for-byte
-// as it was — comments, quoting and indentation included.
-func TestEditDocument_InPlaceRoundTripIsByteIdentical(t *testing.T) {
+// refusedEdit applies set through svc, requires the service to refuse it, and
+// returns the refusal's message: an edit the file home cannot write through
+// the skeleton is refused, and nothing is written.
+func refusedEdit(t *testing.T, svc *change.Service, set change.Set) string {
+	t.Helper()
+	res, err := svc.Apply(context.Background(), set, changePerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetRefused, res.Status, "an edit that cannot preserve the document must be refused, not reconstructed: %+v", res.Ops)
+	require.NotNil(t, res.Ops[0].Error)
+	assert.Nil(t, res.Record)
+	return res.Ops[0].Error.Message
+}
+
+// ─── core/change/filehome: an edit through the change service ───────────────
+
+// TestChangeService_AnEditKeepsTheFormattingOnlyTheSkeletonHolds is the
+// control for the test below and the property the swallowed error destroyed:
+// with the skeleton store available, an edit changes the edited value and
+// leaves every other byte as it was, comments, quoting and indentation
+// included.
+func TestChangeService_AnEditKeepsTheFormattingOnlyTheSkeletonHolds(t *testing.T) {
 	isolateKapiEnv(t)
 	app := newToolboxApp(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "messages.yaml")
 	require.NoError(t, os.WriteFile(path, []byte(yamlWithFormattingOnlyASkeletonPreserves), 0o644))
 
-	require.NoError(t, app.EditDocumentAs(context.Background(), path, "", noopTool(), "", true, "", nil))
+	svc, set := yamlGreetingEdit(t, app, dir, "messages.yaml")
+	res, err := svc.Apply(context.Background(), set, changePerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
-	assert.Equal(t, yamlWithFormattingOnlyASkeletonPreserves, string(got),
-		"a same-format in-place edit round-trips through the skeleton byte-for-byte")
+	assert.Equal(t, strings.Replace(yamlWithFormattingOnlyASkeletonPreserves, skeletonEditFrom, skeletonEditTo, 1), string(got),
+		"an in-place edit writes through the skeleton, so only the edited value changes")
 }
 
-// TestEditDocument_InPlaceFailsWhenTheSkeletonStoreCannotBeCreated is the core
-// regression. The skeleton could not be created, so the writer would have
-// rewritten the file from the content model — losing the comments and the exact
-// layout — and returned nil. The user sees a `kapi ksed -i` / `kapi apply` that
-// exits 0 while their document has been silently reformatted, with no copy of
-// the original left anywhere.
-func TestEditDocument_InPlaceFailsWhenTheSkeletonStoreCannotBeCreated(t *testing.T) {
+// TestChangeService_AnEditIsRefusedWhenTheSkeletonStoreCannotBeCreated is the
+// core regression. The skeleton could not be created, so the writer would
+// have rewritten the file from the content model, losing the comments and
+// the exact layout. The user would see a `kapi apply` or `ksed -i` that exits
+// 0 while their document has been silently reformatted, with no copy of the
+// original left anywhere.
+func TestChangeService_AnEditIsRefusedWhenTheSkeletonStoreCannotBeCreated(t *testing.T) {
 	isolateKapiEnv(t)
 	app := newToolboxApp(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "messages.yaml")
 	require.NoError(t, os.WriteFile(path, []byte(yamlWithFormattingOnlyASkeletonPreserves), 0o644))
+	svc, set := yamlGreetingEdit(t, app, dir, "messages.yaml")
 
 	breakTempDir(t)
 
-	err := app.EditDocumentAs(context.Background(), path, "", noopTool(), "", true, "", nil)
-	require.Error(t, err, "an in-place edit that cannot preserve the document must fail, not reconstruct it")
-	assert.Contains(t, err.Error(), "messages.yaml", "the error must name the file it refused to rewrite")
-	assert.Contains(t, err.Error(), "formatting", "the error must say what would have been lost")
+	msg := refusedEdit(t, svc, set)
+	assert.Contains(t, msg, "messages.yaml", "the refusal must name the file it refused to rewrite")
+	assert.Contains(t, msg, "formatting", "the refusal must say what would have been lost")
 
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
 	assert.Equal(t, yamlWithFormattingOnlyASkeletonPreserves, string(got),
-		"and the file on disk must be untouched — a refused edit leaves no degraded artefact")
+		"and the file on disk must be untouched: a refused edit leaves no degraded artefact")
 }
 
 // ─── host/toolbox_conv.go: convertDocument ───────────────────────────────────
@@ -193,41 +232,48 @@ func TestConvertDocument_SameFormatIsByteIdentical(t *testing.T) {
 	assert.Equal(t, markdownWithFormattingOnlyASkeletonPreserves, string(got))
 }
 
-// ─── host/toolbox_archive.go: editBytes (one archive member) ─────────────────
+// ─── core/change/filehome: an edit to one archive member ─────────────────────
 
-// TestEditArchiveEntry_FailsWhenTheSkeletonStoreCannotBeCreated: a repack that
-// silently substitutes a reconstruction of the member for the member is worse
-// than a single-file edit, because the archive is rewritten around it.
-func TestEditArchiveEntry_FailsWhenTheSkeletonStoreCannotBeCreated(t *testing.T) {
+// TestChangeService_AnArchiveMemberEditIsRefusedWhenTheSkeletonStoreCannotBeCreated:
+// a repack that silently substitutes a reconstruction of the member for the
+// member is worse than a single-file edit, because the archive is rewritten
+// around it.
+func TestChangeService_AnArchiveMemberEditIsRefusedWhenTheSkeletonStoreCannotBeCreated(t *testing.T) {
 	isolateKapiEnv(t)
 	app := newToolboxApp(t)
 	dir := t.TempDir()
 	archive := writeZipFixture(t, dir, "messages.yaml", yamlWithFormattingOnlyASkeletonPreserves)
 	before, err := os.ReadFile(archive)
 	require.NoError(t, err)
+	svc, set := yamlGreetingEdit(t, app, dir, "bundle.zip!messages.yaml")
 
 	breakTempDir(t)
 
-	err = app.EditDocumentAs(context.Background(), archive+"!messages.yaml", "", noopTool(), "", true, "", nil)
-	require.Error(t, err, "an archive member that cannot be preserved must fail the edit")
-	assert.Contains(t, err.Error(), "messages.yaml")
+	msg := refusedEdit(t, svc, set)
+	assert.Contains(t, msg, "messages.yaml", "the refusal must name the member it refused to rewrite")
+	assert.Contains(t, msg, "formatting", "the refusal must say what would have been lost")
 
 	after, rerr := os.ReadFile(archive)
 	require.NoError(t, rerr)
 	assert.Equal(t, before, after, "and the archive must not have been repacked")
 }
 
-// TestEditArchiveEntry_RoundTripIsByteIdentical is the control: with a working
-// temp filesystem the member survives the repack byte-for-byte.
-func TestEditArchiveEntry_RoundTripIsByteIdentical(t *testing.T) {
+// TestChangeService_AnArchiveMemberEditKeepsTheMembersFormatting is the
+// control: with a working temp filesystem the member is repacked with only the
+// edited value changed.
+func TestChangeService_AnArchiveMemberEditKeepsTheMembersFormatting(t *testing.T) {
 	isolateKapiEnv(t)
 	app := newToolboxApp(t)
 	dir := t.TempDir()
 	archive := writeZipFixture(t, dir, "messages.yaml", yamlWithFormattingOnlyASkeletonPreserves)
 
-	require.NoError(t, app.EditDocumentAs(context.Background(), archive+"!messages.yaml", "", noopTool(), "", true, "", nil))
+	svc, set := yamlGreetingEdit(t, app, dir, "bundle.zip!messages.yaml")
+	res, err := svc.Apply(context.Background(), set, changePerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 
-	assert.Equal(t, yamlWithFormattingOnlyASkeletonPreserves, readZipEntry(t, archive, "messages.yaml"))
+	assert.Equal(t, strings.Replace(yamlWithFormattingOnlyASkeletonPreserves, skeletonEditFrom, skeletonEditTo, 1),
+		readZipEntry(t, archive, "messages.yaml"))
 }
 
 // ─── host/toolrun.go: processOneFile (the `kapi <tool>` file runner) ─────────

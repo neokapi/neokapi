@@ -263,25 +263,3 @@ func alignRunes(a, b []rune) []int {
 	}
 	return match
 }
-
-// EditKeepsInlineCodes is the fidelity guard for an edit written as edit
-// text: InlineCodesPreserved, with character references left out on both
-// sides. The edit text shows a reference as its character, so an edit may
-// drop, move or repeat one; every other code must survive as
-// InlineCodesPreserved requires.
-func EditKeepsInlineCodes(before, after []Run) bool {
-	return InlineCodesPreserved(withoutCharacterReferences(before), withoutCharacterReferences(after))
-}
-
-func withoutCharacterReferences(runs []Run) []Run {
-	out := make([]Run, 0, len(runs))
-	for _, r := range runs {
-		if r.Ph != nil {
-			if _, ok := CharacterReference(r.Ph); ok {
-				continue
-			}
-		}
-		out = append(out, r)
-	}
-	return out
-}
