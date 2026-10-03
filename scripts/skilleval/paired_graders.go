@@ -428,7 +428,7 @@ func pairedICUBranch(message, key string) (before, body, after string, err error
 		return c == '=' || c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 	}
 	depth := 0
-	for i := 0; i < len(message); i++ {
+	for i := range len(message) {
 		switch message[i] {
 		case '{':
 			if depth == 1 {

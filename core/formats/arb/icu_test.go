@@ -1,7 +1,7 @@
 package arb
 
 import (
-	"errors"
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -118,9 +118,7 @@ func setBranch(t *testing.T, runs []model.Run, branch []model.Run, path ...any) 
 	case r.Plural != nil:
 		p := *r.Plural
 		p.Forms = map[model.PluralForm][]model.Run{}
-		for k, v := range r.Plural.Forms {
-			p.Forms[k] = v
-		}
+		maps.Copy(p.Forms, r.Plural.Forms)
 		if len(path) > 2 {
 			p.Forms[model.PluralForm(key)] = setBranch(t, p.Forms[model.PluralForm(key)], branch, path[2:]...)
 		} else if branch == nil {
@@ -132,9 +130,7 @@ func setBranch(t *testing.T, runs []model.Run, branch []model.Run, path ...any) 
 	case r.Select != nil:
 		s := *r.Select
 		s.Cases = map[string][]model.Run{}
-		for k, v := range r.Select.Cases {
-			s.Cases[k] = v
-		}
+		maps.Copy(s.Cases, r.Select.Cases)
 		if len(path) > 2 {
 			s.Cases[key] = setBranch(t, s.Cases[key], branch, path[2:]...)
 		} else if branch == nil {
@@ -297,15 +293,29 @@ func pathOf(steps ...any) model.RunPath {
 	return p
 }
 
-// Text that would end a branch early is refused rather than written.
+// Branch text holding ICU syntax is refused rather than written, whether the
+// value it makes fails to parse or parses as another message; quoted, the
+// same characters are text.
 func TestICUMessageRefusesTextThatBreaksTheSyntax(t *testing.T) {
-	src := "{count, plural, one{# item} other{# items}}"
-	runs := setBranch(t, runsFromValue(src), text("an {open item"), 0, "one")
-	value := valueFromRuns(runs, src)
-	err := checkMessage(&model.Block{ID: "tu1", Name: "itemCount"}, runs, value)
-	require.Error(t, err)
-	assert.True(t, errors.Is(err, errInvalidMessage))
-	assert.Contains(t, err.Error(), "itemCount")
+	src := "{count, plural, =0{No new messages} one{{count} new message} other{{count} new messages}}"
+	count := runsFromValue(src)[0].Plural.Forms[model.PluralOne][0]
+	block := &model.Block{ID: "tu1", Name: "inboxCount"}
+	for name, branch := range map[string][]model.Run{
+		// The brace and the branch's own closing brace make an argument,
+		// and the other branch is swallowed into this one: it still parses.
+		"an open brace":       {count, model.TextR(" new {message")},
+		"a closing brace":     {count, model.TextR(" new} message")},
+		"a # read as a count": {count, model.TextR(" new message #1")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			runs := setBranch(t, runsFromValue(src), branch, 0, "one")
+			err := checkMessage(block, runs, valueFromRuns(runs, src))
+			require.ErrorIs(t, err, errInvalidMessage)
+			assert.Contains(t, err.Error(), "inboxCount")
+		})
+	}
+	quoted := setBranch(t, runsFromValue(src), []model.Run{count, model.TextR(" new '{'message'}' '#'1")}, 0, "one")
+	assert.NoError(t, checkMessage(block, quoted, valueFromRuns(quoted, src)))
 
 	// A message with no structure is written as it reads, as it always was.
 	assert.NoError(t, checkMessage(&model.Block{ID: "tu2"}, text("an {open item"), "an {open item"))

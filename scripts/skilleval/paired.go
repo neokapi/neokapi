@@ -148,7 +148,6 @@ func pairedHostVersion(ctx context.Context, host string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	//nolint:gosec // G204: the executable is the agent host the manifest names, resolved on PATH.
 	out, err := exec.CommandContext(ctx, executable, "--version").Output()
 	if err != nil {
 		return "", fmt.Errorf("%s --version: %w", host, err)

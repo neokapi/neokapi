@@ -418,21 +418,65 @@ func holdsStructure(runs []model.Run) bool {
 // written.
 var errInvalidMessage = errors.New("arb writer: the message would not read back as written")
 
-// checkMessage refuses value when runs hold a plural or select and value is
-// not valid ICU MessageFormat: text in a branch that opens or closes a brace
-// unquoted would end the branch early and change what the program shows. A
-// message without a plural or select is written as it reads, as it always
-// was.
+// checkMessage refuses value when runs hold a plural or select and value does
+// not read back as runs: text in a branch that holds an unquoted brace or #
+// would end the branch early, open an argument or count, and change what the
+// program shows, whether or not the result still parses. A message without a
+// plural or select is written as it reads, as it always was.
 func checkMessage(block *model.Block, runs []model.Run, value string) error {
 	if !holdsStructure(runs) {
 		return nil
 	}
+	name := block.ID
+	if block.Name != "" {
+		name = block.Name
+	}
+	const quote = "quote a literal brace or # in ICU style ('{', '}', '#')"
 	if _, err := icu.Parse(value); err != nil {
-		name := block.ID
-		if block.Name != "" {
-			name = block.Name
-		}
-		return fmt.Errorf("%w: message %s: %v; quote a literal brace or # in ICU style ('{', '}', '#')", errInvalidMessage, name, err)
+		return fmt.Errorf("%w: message %s: %w; %s", errInvalidMessage, name, err, quote)
+	}
+	if spelled(readMessage(value).runs) != spelled(runs) {
+		return fmt.Errorf("%w: message %s: the text of a branch holds ICU syntax, so %q reads as another message; %s",
+			errInvalidMessage, name, value, quote)
 	}
 	return nil
+}
+
+// spelled writes runs in a form two readings of one message share: text
+// joined, each placeholder by its source, and each plural or select by its
+// argument and its branches in key order. Ids and the split of text into
+// runs, which a reading assigns, are left out.
+func spelled(runs []model.Run) string {
+	var b strings.Builder
+	var walk func([]model.Run)
+	walk = func(seq []model.Run) {
+		for _, r := range seq {
+			switch {
+			case r.Text != nil:
+				b.WriteString(r.Text.Text)
+			case r.Ph != nil:
+				b.WriteString("\x00ph:" + r.Ph.Data + "\x00")
+			case r.Plural != nil:
+				b.WriteString("\x00plural:" + r.Plural.Pivot)
+				for _, k := range slices.Sorted(maps.Keys(r.Plural.Forms)) {
+					b.WriteString("\x00" + string(k) + "[")
+					walk(r.Plural.Forms[k])
+					b.WriteString("]")
+				}
+				b.WriteString("\x00")
+			case r.Select != nil:
+				b.WriteString("\x00select:" + r.Select.Pivot)
+				for _, k := range slices.Sorted(maps.Keys(r.Select.Cases)) {
+					b.WriteString("\x00" + k + "[")
+					walk(r.Select.Cases[k])
+					b.WriteString("]")
+				}
+				b.WriteString("\x00")
+			default:
+				b.WriteString("\x00" + string(r.Kind()) + "\x00")
+			}
+		}
+	}
+	walk(runs)
+	return b.String()
 }
