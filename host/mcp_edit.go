@@ -6,14 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/changeschema"
-	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -198,26 +196,13 @@ func mcpChangeActor(req *mcp.CallToolRequest) change.Actor {
 // edition in any other language is a translation, whichever project the
 // server started in or answered last.
 func (a *App) mcpChangeService(ctx context.Context, project string) (*change.Service, string, error) {
-	recipe, err := a.ResolveMCPCallProject(project)
-	if err != nil {
-		return nil, "", err
-	}
-	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: mcpChangeOrigin,
-		SourceLocale: model.LocaleID(a.mcpCallSourceLocale(recipe))})
-	if err != nil {
-		return nil, "", err
-	}
-	return svc, recipe, nil
+	return a.callChangeService(ctx, project, mcpChangeOrigin)
 }
 
 func (a *App) readBlocksMCP(ctx context.Context, in readBlocksInput) (*mcp.CallToolResult, error) {
-	editions := make([]model.EditionKey, 0, len(in.Editions))
-	for _, e := range in.Editions {
-		k, err := model.ParseEditionKey(e)
-		if err != nil {
-			return changeRefusal(&change.Error{Code: change.CodeInvalid, Field: "editions", Message: err.Error()})
-		}
-		editions = append(editions, k)
+	editions, cerr := editionKeys(in.Editions)
+	if cerr != nil {
+		return changeRefusal(cerr)
 	}
 	svc, _, err := a.mcpChangeService(ctx, in.Project)
 	if err != nil {
@@ -263,13 +248,9 @@ func (a *App) applyEditsMCP(ctx context.Context, actor change.Actor, args json.R
 	if err != nil {
 		return nil, err
 	}
-	res, err := svc.Apply(ctx, set, actor)
+	res, err := a.applyCall(ctx, svc, recipe, set, actor)
 	if err != nil {
 		return changeError(err)
-	}
-	if res.Status == change.SetApplied || res.Status == change.SetPartial {
-		a.noteAgentEdits(ctx, recipe, contextop.Actor{Kind: contextop.ActorKind(actor.Kind), Name: actor.Name, Session: actor.Session},
-			appliedWording(set, res))
 	}
 	return jsonToolResult(res, res.Status == change.SetRefused || res.Status == change.SetPartial)
 }
@@ -354,15 +335,12 @@ func changeRefusal(e *change.Error) (*mcp.CallToolResult, error) {
 // its text. HTML escaping is off, so the placeholders a block's text holds
 // read as written rather than as < escapes.
 func jsonToolResult(v any, isError bool) (*mcp.CallToolResult, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
-		return nil, fmt.Errorf("encode the result: %w", err)
+	raw, err := changeAnswer(v)
+	if err != nil {
+		return nil, err
 	}
-	raw := strings.TrimRight(buf.String(), "\n")
 	return &mcp.CallToolResult{
-		Content:           []mcp.Content{&mcp.TextContent{Text: raw}},
+		Content:           []mcp.Content{&mcp.TextContent{Text: string(raw)}},
 		StructuredContent: json.RawMessage(raw),
 		IsError:           isError,
 	}, nil
