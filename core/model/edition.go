@@ -124,12 +124,24 @@ func (b *Block) sourceKey() EditionKey {
 // which is always the document's own edition, or the block's source language
 // with no tone and no channel, unless a same-language target holds that key.
 // A same-language edition with a tone or a channel is an edition of its own.
+//
+// The source language is matched in the spelling sourceLanguageKey gives it
+// as well as in any spelling that normalizes to it. NormalizeLocale is not
+// idempotent for every malformed tag ("AA-u-00-00-u-00-00" normalizes to
+// "aa-u-00-u-00-00", and that to "aa-u-00-u-00"), so normalizing the key
+// Authoritative and Editions return a second time could miss the source.
 func (b *Block) holdsSource(k EditionKey) bool {
 	if k.IsZero() {
 		return true
 	}
-	return k.Tone == "" && k.Channel == "" && b.SourceLocale != "" &&
-		NormalizeLocale(k.Locale) == NormalizeLocale(b.SourceLocale) && !b.holdsSameLanguageTarget()
+	if k.Tone != "" || k.Channel != "" || b.SourceLocale == "" {
+		return false
+	}
+	src := b.sourceLanguageKey().Locale
+	if k.Locale != src && NormalizeLocale(k.Locale) != src {
+		return false
+	}
+	return !b.holdsSameLanguageTarget()
 }
 
 // IsSourceEdition reports whether k reaches the edition Source holds. Overlays
