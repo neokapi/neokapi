@@ -572,6 +572,19 @@ func (r *applyRun) reachesFile(p *docPlan, st Staged) {
 		if f != nil && f.After != f.Before {
 			continue
 		}
+		if ch.Before != nil && ch.After != nil && sameContent(ch.Before, ch.After) {
+			// The edition says what it said, codes and all: the runs differ
+			// only in what the writer takes from the file, such as a code's
+			// native form, so the file the change leaves as it was already
+			// holds it. The operation is unchanged, not dropped.
+			for _, i := range p.changeOps[ci] {
+				if res := &r.res.Ops[i]; res.Status == OpApplied {
+					res.Status, res.After = OpUnchanged, res.Before
+					res.Invalidates = nil
+				}
+			}
+			continue
+		}
 		file := p.info.Doc
 		if f != nil && f.File != "" {
 			file = f.File

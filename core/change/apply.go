@@ -1192,6 +1192,57 @@ func sameRuns(a, b []model.Run) bool {
 	return bytes.Equal(model.CanonicalRunsJSON(a), model.CanonicalRunsJSON(b))
 }
 
+// sameContent reports whether two run sequences say the same as a file holds
+// it: the same text and the same codes with the same types and attributes,
+// whatever each code's native form, its labels and the do-not-translate marks
+// on text, which a writer takes from the file or does not write.
+func sameContent(a, b []model.Run) bool {
+	return bytes.Equal(model.CanonicalRunsJSON(contentOnly(a)), model.CanonicalRunsJSON(contentOnly(b)))
+}
+
+// contentOnly is runs with every code's native form and labels and every
+// text's do-not-translate mark left out, branches included.
+func contentOnly(runs []model.Run) []model.Run {
+	out := make([]model.Run, len(runs))
+	for i, r := range runs {
+		switch {
+		case r.Text != nil:
+			t := *r.Text
+			t.NoTranslate = false
+			out[i] = model.Run{Text: &t}
+		case r.Ph != nil:
+			p := *r.Ph
+			p.Data, p.Disp, p.Equiv = "", "", ""
+			out[i] = model.Run{Ph: &p}
+		case r.PcOpen != nil:
+			p := *r.PcOpen
+			p.Data, p.Disp, p.Equiv = "", "", ""
+			out[i] = model.Run{PcOpen: &p}
+		case r.PcClose != nil:
+			p := *r.PcClose
+			p.Data, p.Equiv = "", ""
+			out[i] = model.Run{PcClose: &p}
+		case r.Plural != nil:
+			p := *r.Plural
+			p.Forms = make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
+			for k, f := range r.Plural.Forms {
+				p.Forms[k] = contentOnly(f)
+			}
+			out[i] = model.Run{Plural: &p}
+		case r.Select != nil:
+			s := *r.Select
+			s.Cases = make(map[string][]model.Run, len(r.Select.Cases))
+			for k, c := range r.Select.Cases {
+				s.Cases[k] = contentOnly(c)
+			}
+			out[i] = model.Run{Select: &s}
+		default:
+			out[i] = r
+		}
+	}
+	return out
+}
+
 // pathText renders a run path as JSON, for messages and grouping.
 func pathText(p model.RunPath) string {
 	if len(p) == 0 {
