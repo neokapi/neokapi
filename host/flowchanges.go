@@ -290,12 +290,14 @@ type revisions map[string]blockRevs
 
 // blockRevs is one block's editions as the change service read them: each
 // tracked edition's revision by edition text ("" is the document's own), and
-// the authoritative edition, by the key the service names it with and its
-// revision, which is the basis of a derived edition made from it.
+// the authoritative edition, by the key the service names it with, its
+// revision, which is the basis of a derived edition made from it, and the
+// content hash of its text.
 type blockRevs struct {
-	editions map[string]string
-	auth     model.EditionKey
-	authRev  string
+	editions    map[string]string
+	auth        model.EditionKey
+	authRev     string
+	contentHash string
 }
 
 // revision is the revision edition text held, AbsentRevision for one the
@@ -403,6 +405,7 @@ func (doc *flowDoc) readRevisions(ctx context.Context) (revisions, error) {
 		}
 		br.auth = b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{}))
 		br.authRev = model.EditionRevision(b, br.auth)
+		br.contentHash = model.ComputeContentHash(b.SourceText())
 		out[change.BlockKey(b)] = br
 		return nil
 	})
@@ -534,6 +537,7 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 	var transitions []change.Transition
 	for _, key := range now.order {
 		b := now.blocks[key]
+		basis, content := doc.madeFrom(key, b)
 		for _, k := range doc.tracked(b) {
 			text := editionText(k)
 			was, _ := doc.before[key].revision(text)
@@ -544,10 +548,11 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 				if !derived || !byTool || rev == model.AbsentRevision {
 					continue
 				}
-				if r, ok := loop.last(doc.fc.docKey(doc.ref), key, text); ok && r.Actor == string(change.ActorTool) &&
-					r.After == rev && r.ContentHash == model.ComputeContentHash(b.SourceText()) {
+				if r, ok := loop.last(doc.fc.docKey(doc.ref), key, text); ok && r.After == rev &&
+					(r.Actor != string(change.ActorTool) || r.ContentHash == content) {
 					// Recorded already: a flow wrote this translation from
-					// this source.
+					// this source, or a person or an agent wrote it and the
+					// run reproduced their wording, which stays theirs.
 					continue
 				}
 			}
@@ -560,7 +565,7 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 			}
 			if derived {
 				t.Role = change.RoleDerived
-				t.Basis = model.EditionRevision(b, b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{})))
+				t.Basis, t.ContentHash = basis, content
 				// A file of strings keeps no stamp, so the record carries
 				// the one the run's tool left.
 				if byTool {
@@ -595,6 +600,21 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 		return fmt.Errorf("record what %s wrote to %s: %w", doc.d.Flow, doc.ref, err)
 	}
 	return nil
+}
+
+// madeFrom is the source a derived edition of the block keyed key was made
+// from: its revision, the basis, and its content hash. A run that writes a
+// target-language file read the source before it ran, and the commit guards
+// the file it writes, not the source, so a source edited while the run worked
+// is drift against what the run read rather than the basis of its
+// translation. A run over the file it reads commits that file only while it
+// still holds what the run read, so the source b holds after the commit is the
+// one the run made its editions from.
+func (doc *flowDoc) madeFrom(key string, b *model.Block) (basis, content string) {
+	if br, ok := doc.before[key]; ok && !doc.inPlace && br.authRev != "" && br.authRev != model.AbsentRevision {
+		return br.authRev, br.contentHash
+	}
+	return model.EditionRevision(b, b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{}))), model.ComputeContentHash(b.SourceText())
 }
 
 // loop is the block history of the run's project, read once per run.

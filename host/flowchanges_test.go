@@ -309,3 +309,75 @@ func TestFlowRun_AppliesItsChangesAgainToAFileThatMovedWhileItWorked(t *testing.
 		})
 	}
 }
+
+// runEditFlow runs tools over the project's source into its qps file, through
+// the home and follower a flow of the project commits and records through.
+func runEditFlow(t *testing.T, a *App, cmd *EnvCommand, recipe string, tools ...tool.Tool) error {
+	t.Helper()
+	root := filepath.Dir(recipe)
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	a.ProjectContext = project.NewProjectContext(proj, recipe)
+	home, docs := a.flowDocuments(context.Background(), cmd, root)
+	require.NotNil(t, docs)
+	runner := flow.NewFileRunner(flow.FileRunnerConfig{FormatReg: a.FormatReg, SourceLocale: "en", Home: home, Documents: docs})
+	return runner.RunFile(context.Background(), "edit", tools,
+		filepath.Join(root, "src", "en.json"), filepath.Join(root, "src", "qps.json"), "qps")
+}
+
+// lastWrite is the newest block history row of one block's qps edition.
+func lastWrite(t *testing.T, a *App, root, block string) history.Row {
+	t.Helper()
+	for _, r := range flowHistory(t, a, root) {
+		if r.Block == block && r.Edition == "qps" {
+			return r
+		}
+	}
+	t.Fatalf("no recorded write of %s", block)
+	return history.Row{}
+}
+
+func TestFlowRun_RecordsTheSourceItTranslatedAsTheBasis(t *testing.T) {
+	// The source is edited while the run translates it. The run commits its
+	// target file, which nobody touched, and the record names the source the
+	// run read as the translation's basis: the edit is drift against it.
+	a, cmd, recipe := newFlowProject(t, project.MaterializeManual)
+	root := filepath.Dir(recipe)
+	read := sourceRevisions(t, a, recipe)
+	err := runEditFlow(t, a, cmd, recipe,
+		&writeDuringRun{ToolName: "edit-source", path: filepath.Join(root, "src", "en.json"),
+			data: `{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}` + "\n"},
+		&setTarget{ToolName: "set", key: "greeting", text: "Bonjour"})
+	require.NoError(t, err)
+
+	row := lastWrite(t, a, root, "greeting")
+	assert.Equal(t, read["greeting"][0], row.Basis, "the basis is the source the run translated")
+	assert.Equal(t, model.ComputeContentHash("Hello world"), row.ContentHash)
+	assert.NotEqual(t, sourceRevisions(t, a, recipe)["greeting"][0], row.Basis, "the source has moved since")
+	assert.Equal(t, 1, staleCount(t, a, recipe), "the edit made while the run worked is drift the loop owes a draft for")
+}
+
+func TestFlowRun_ReproducingAPersonsTranslationLeavesItTheirs(t *testing.T) {
+	// A person writes a translation; a later run reproduces their wording (as
+	// content memory recycling their edit does). The history still names the
+	// person as the last writer of it.
+	a, cmd, recipe := newFlowProject(t, project.MaterializeManual)
+	root := filepath.Dir(recipe)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "qps.json"),
+		[]byte(`{"greeting": "Hei", "farewell": "Ha det", "thanks": "Takk"}`+"\n"), 0o644))
+	ctx := context.Background()
+	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, SourceLocale: "en", Origin: "apply"})
+	require.NoError(t, err)
+	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{{
+		Kind: change.KindSetContent, At: change.Ref{Doc: "src/en.json", Block: "greeting", Edition: model.EditionKey{Locale: "qps"}},
+		IfMatch: sourceRevisions(t, a, recipe)["greeting"][1],
+		Body:    &change.SetContent{Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
+	}}}, change.Actor{Kind: change.ActorPerson, Name: "tester"})
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	require.Equal(t, string(change.ActorPerson), lastWrite(t, a, root, "greeting").Actor)
+
+	require.NoError(t, runEditFlow(t, a, cmd, recipe, &setTarget{ToolName: "set", key: "greeting", text: "Bonjour"}))
+	assert.Equal(t, string(change.ActorPerson), lastWrite(t, a, root, "greeting").Actor,
+		"the run reproduced the person's wording, which stays theirs")
+}
