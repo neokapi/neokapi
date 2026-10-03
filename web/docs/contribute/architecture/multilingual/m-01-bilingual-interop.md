@@ -94,9 +94,11 @@ target-language files of an ad-hoc workspace with no project in scope
 `-i` materializes the target-language files from the project's block store,
 the sink for a process-only run: the targets the store holds for a source
 become one change set on its translation, which the change service writes from
-the source's skeleton. A collection that names no `target` is source-only and
-gets no file. With neither a project nor a workspace it says
-so rather than guessing.
+the source's skeleton. A translation that already holds every stored target and
+every block of its source is left as it is and not counted. A translated
+document whose source gained or lost a block is written again, the new block
+in the source's language. A collection that names no `target` is source-only and gets no file.
+With neither a project nor a workspace it says so rather than guessing.
 
 ## The monolingual sibling
 
@@ -198,8 +200,11 @@ overlay. It carries two revisions
 ([E-09](../engine/e-09-the-change-contract.md)): the revision of the
 translation as the project held it at the extraction (`if-match`, `absent`
 where there was none), and the revision of the source the unit was read from
-(`basis`). A revision covers an edition's runs, inline codes included, and
-nothing else. Segmentation is a stand-off overlay over those runs
+(`basis`). The basis is the revision of the source the unit itself carries,
+and extract reads each source the way the change service reads it, so the units
+of every target language carry the ids the service gives the blocks. A
+revision covers an edition's runs, inline codes included, and nothing else.
+Segmentation is a stand-off overlay over those runs
 ([F-02](../foundations/f-02-content-model.md)), not a rewrite of them, so it
 moves neither the block's content hash ([F-03](../foundations/f-03-identity.md))
 nor its revision: a block's identity is stable across a segmentation toggle
@@ -266,8 +271,12 @@ unit an `<mda:metadata>` whose `<mda:metaGroup category="kapi">` holds the
 `if-match` and `basis` revisions. PO carries the same as extracted comments
 (`#. kapi-batch:`, `#. kapi-source-file:`, `#. kapi-source-hash:` on the
 header entry; `#. kapi-block:`, `#. kapi-if-match:` and `#. kapi-basis:` on
-each entry) and the language in the header's `Language` field. A `.kpz`
-records the revisions by block id in its interchange task. The batch id names
+each entry) and the language in the header's `Language` field. A header whose
+language is none of the recipe's target languages, because an editor rewrote
+it, gives way to the extraction that wrote the file, found in the batch's
+manifest by the name extract gave it; with no such extraction the merge of
+that file is refused. A `.kpz` records the revisions by block id in its
+interchange task. The batch id names
 the local redaction vault and the memory provenance; the source path names the
 document the units translate.
 
@@ -307,19 +316,25 @@ written to, so imported TMX stays reproducible from its source file.
 Merge compiles a returned file into one `set_content` per translated unit, on
 the edition of the unit's language, with the unit's `if-match` as its
 `if_match` and its `basis` as its `basis`, and applies the change set under
-`require_basis` through the change service. The service reads the source with
-its translation joined from the file the recipe's target template names,
-applies the operations, and writes that file from the source's skeleton
-(`filehome.Options.Materialize`), so a translation follows its source's
-structure. Redacted originals are restored before the units are compiled
+`require_basis` and the enforce gate through the change service. The service
+reads the source with its translation joined from the file the recipe's target
+template names, applies the operations, and writes that file
+(`filehome.Options.Materialize`). A translation in a document format is written
+from the source's skeleton, so it follows its source's structure. A translation
+catalog in its own right (a PO catalog beside a PO source) is read and written
+in its language: while it holds every message of its source it is written
+through its own skeleton, so its header and comments stay, and once the source
+gained or lost a message it is written from the source's skeleton, header
+included. Redacted originals are restored before the units are compiled
 ([C-10](../context/c-10-redaction.md)).
 
 A unit whose source changed since the extraction is refused `stale` naming
 `basis`. It is **reported**, not applied, and not absorbed into the memory. A
-unit that carries no `basis` is held to the source it carries: it applies when
-that source is the source as it stands, or, for a carrier with no source text,
-when the source file's hash is the one the file records. A unit whose block is
-gone is stale too.
+unit that carries its source text is held to it as well, whatever `basis` it
+names: it applies only while the block its id names holds that source. A unit
+that carries no `basis` applies when the source it carries is the source as it
+stands, or, for a carrier with no source text, when the source file's hash is
+the one the file records. A unit whose block is gone is stale too.
 
 A unit whose translation changed in the project since the extraction is refused
 `stale` naming `if_match`, and `defaults.merge.conflict_policy` settles it:
@@ -333,11 +348,21 @@ A unit whose translation changed in the project since the extraction is refused
 
 Each pass drops the units refused for good and sends the rest again as one
 change set, so what lands lands atomically. There is no interactive prompt, so
-merge stays scriptable in CI. Any other refusal (a returned target that drops
-an inline code its source protects) is reported per unit and counted as
-`refused`; a file of which nothing lands fails. Partial returns are ordinary:
-merge applies the translated units and leaves the rest of the translation as
-it is.
+merge stays scriptable in CI. Any other refusal is reported per unit on stderr
+and counted as `refused`: a returned target that drops an inline code its
+source protects, or one that introduces a failing finding of a rule that
+governs it (`gate_failed`, [E-09](../engine/e-09-the-change-contract.md)). A
+file of which nothing lands fails.
+
+Partial returns are ordinary: merge applies the translated units, and a unit
+the return does not carry keeps what the translation file held. That holds as
+far as the join pairs the file's blocks with the source's: by key, then by
+translation-invariant address, then by position. A format whose units have a
+key of their own (a JSON key, a PO message) pairs every unit whatever was
+inserted. A unit named by its position in a section (a Markdown or HTML
+paragraph) pairs by that position, so once the source gains or loses a block
+the blocks after it in that section pair with their neighbours' translations;
+a return for such a file carries every unit.
 
 ## Recipe surface
 

@@ -75,11 +75,16 @@ kapi check ./locales/en.json --target ./locales/fr.json --target-lang fr --terms
 Each unit of the extract carries the revision of its translation and of its source
 (`<mda:meta type="if-match">` and `type="basis"` in XLIFF, `#. kapi-if-match:` and
 `#. kapi-basis:` in PO). Leave them as they are: merge checks the file against them.
-`kapi merge --json` counts each unit as `applied`, `stale` (its source changed since
-the extract; run `kapi extract` again for it), `skipped` (empty, or a translation that
-changed in the project meanwhile and `defaults.merge.conflict_policy` kept), or
-`refused` (the target dropped a placeholder or tag the source protects; fix the target
-and merge again). A non-zero `stale` or `refused` is work left.
+Leave each unit's `<source>` (or `msgid`) as it is too: a unit whose source is not
+its block's is stale. `kapi merge --json` counts each unit as `applied`, `stale` (its
+source changed since the extract; run `kapi extract` again for it), `skipped` (empty,
+or a translation that changed in the project meanwhile and
+`defaults.merge.conflict_policy` kept), or `refused` (the target dropped a placeholder
+or tag the source protects, or broke a term rule; stderr names the rule. Fix the target
+and merge again). A non-zero `stale` or `refused` is work left. For a Markdown or HTML
+source that gained or lost a paragraph since its translation was written, translate
+every unit of the file before merging: a unit you leave out keeps the translation
+paired with it by position.
 
 `kapi check --ship` is the gate inside a project: read its findings, fix them, and re-run
 until it passes. For a one-off file with no project, `kapi check <source> --target

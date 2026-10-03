@@ -158,17 +158,22 @@ Merge reads the source file and the language each returned file names, and
 what each unit was extracted against travels in the file, so a renamed file
 merges, and so does one whose extraction batch is no longer in the cache. Each
 returned translation is written to the file the collection's `target` names,
-from the source's skeleton: the translated file follows its source's
-structure, and a translation it held for a unit the return does not carry
-stays. A collection with no `target` is source-only, and merging into it fails.
+and the translated file follows its source's structure. A translation the file
+held for a unit the return does not carry stays where the file names its units
+by key, as JSON keys and PO messages do. A paragraph of a Markdown or HTML file
+is named by its position in its section, so after the source gains or loses a
+paragraph, return every unit of that file. A PO catalog that holds every
+message of its source keeps its own header and comments; once the source gains
+or loses a message, the catalog is written from the source, header included.
+A collection with no `target` is source-only, and merging into it fails.
 Each input is applied independently: a failure on one (a parse error, a source
 with no translation file) doesn't abort the others; per-file outcomes are
 reported and the exit code reflects any failure.
 
 - **Stale units.** A unit whose source changed since the extraction (someone
-  edited the file while it was out) is reported **stale** and left out, neither
-  applied nor absorbed into memory. Re-extract and re-translate the changed
-  portion.
+  edited the file while it was out), or whose source text was changed in the
+  returned file, is reported **stale** and left out, neither applied nor
+  absorbed into memory. Re-extract and re-translate the changed portion.
 - **Conflicts.** When the project's translation of a unit changed since the
   extraction (someone translated or edited it while the file was out),
   `merge.conflict_policy` decides: `translator-wins` (default) replaces it with
@@ -177,7 +182,9 @@ reported and the exit code reflects any failure.
   translation's file. A unit whose translation is the one it was extracted
   against takes the returned translation under every policy. Never interactive.
 - **Refusals.** A returned translation that drops an inline code its source
-  protects is refused and reported; the rest of the file still lands.
+  protects, or that breaks a rule the project holds it to (a required term,
+  say), is refused and reported on stderr; the rest of the file still lands.
+  Fix the translation, or mark the rule advisory, and merge again.
 - **Audit.** `kapi memory audit --batch <merge-batch-id>` lists every entry the
   merge wrote, with provenance.
 
@@ -191,7 +198,10 @@ Same flow, different exchange format: `kapi extract --format po`, then
 `kapi merge -i …/*.po`: one entry per block, kapi's bookkeeping as extracted
 comments (`#. kapi-batch:`, `#. kapi-block:`, and each entry's revisions as
 `#. kapi-if-match:` and `#. kapi-basis:`), the language in the header's
-`Language` field, and `#, fuzzy` on fuzzy memory pre-fills.
+`Language` field, and `#, fuzzy` on fuzzy memory pre-fills. If an editor
+rewrites the header to a language the recipe does not list, merge takes the
+language from the extraction that wrote the file, and fails for that file when
+the extraction is no longer in the cache.
 A single merge invocation can mix XLIFF and PO from the same batch. PO cannot
 carry sentence-level segmentation; projects with `segmentation.source: true`
 must emit XLIFF (the combination errors early).
