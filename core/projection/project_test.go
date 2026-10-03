@@ -245,9 +245,9 @@ func TestAssembleTable(t *testing.T) {
 	assert.True(t, rows[0].Header, "header row flagged from cell roles")
 	require.Len(t, rows[0].Cells, 2)
 	assert.True(t, rows[0].Cells[0].Header)
-	assert.Equal(t, "A", model.RunsText(rows[0].Cells[0].Block.Source))
+	assert.Equal(t, "A", model.RunsText(rows[0].Cells[0].Block.SourceRuns()))
 	assert.False(t, rows[1].Header)
-	assert.Equal(t, "2", model.RunsText(rows[1].Cells[1].Block.Source))
+	assert.Equal(t, "2", model.RunsText(rows[1].Cells[1].Block.SourceRuns()))
 }
 
 func TestAssembleTable_CaptionLead(t *testing.T) {
@@ -263,7 +263,7 @@ func TestAssembleTable_CaptionLead(t *testing.T) {
 	}
 	_, table := AssembleTable(parts, 0)
 	require.Len(t, table.Lead, 1, "caption collected as Lead")
-	assert.Equal(t, "Table 1", model.RunsText(table.Lead[0].Source))
+	assert.Equal(t, "Table 1", model.RunsText(table.Lead[0].SourceRuns()))
 	require.Len(t, table.Rows, 1)
 	assert.Len(t, table.Rows[0].Cells, 1)
 }

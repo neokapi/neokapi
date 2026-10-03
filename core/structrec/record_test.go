@@ -25,7 +25,7 @@ func TestFromBlock_RendersPlaceholders(t *testing.T) {
 		},
 	}
 
-	rec := FromBlock(1, b, b.Source)
+	rec := FromBlock(1, b, b.SourceRuns())
 
 	// Text shows the codes as placeholders, not dropped.
 	assert.Equal(t, `Click <x id="1"/>here<x id="/1"/> now`, rec.Text)

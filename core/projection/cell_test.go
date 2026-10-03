@@ -16,20 +16,20 @@ func TestDisplayRuns(t *testing.T) {
 			model.PropCellDisplay: "01-01-21",
 			model.PropCellFormat:  "mm-dd-yy",
 		}}
-		got := DisplayRuns(b, b.Source)
+		got := DisplayRuns(b, b.SourceRuns())
 		assert.Equal(t, "01-01-21", model.RunsText(got))
-		assert.Equal(t, "44197", model.RunsText(b.Source), "the stored value stays in the block")
+		assert.Equal(t, "44197", model.RunsText(b.SourceRuns()), "the stored value stays in the block")
 	})
 
 	t.Run("no display leaves the runs alone", func(t *testing.T) {
 		b := &model.Block{ID: "c", Source: serial, Properties: map[string]string{"cell": "A2"}}
-		got := DisplayRuns(b, b.Source)
+		got := DisplayRuns(b, b.SourceRuns())
 		assert.Equal(t, serial, got)
 	})
 
 	t.Run("an empty display renders as empty", func(t *testing.T) {
 		b := &model.Block{ID: "c", Source: serial, Properties: map[string]string{model.PropCellDisplay: ""}}
-		got := DisplayRuns(b, b.Source)
+		got := DisplayRuns(b, b.SourceRuns())
 		require.Len(t, got, 1)
 		assert.Empty(t, model.RunsText(got))
 	})
@@ -54,7 +54,7 @@ func TestDisplayRuns_CharacterReferencesAreText(t *testing.T) {
 	}
 	b := &model.Block{ID: "p", Source: src}
 
-	got := DisplayRuns(b, b.Source)
+	got := DisplayRuns(b, b.SourceRuns())
 
 	assert.Equal(t, "Fish & chips <3’", model.RunsText(got))
 	assert.Equal(t, br, got[5], "other codes stay codes")
@@ -75,6 +75,6 @@ func TestProjectBlockRendersTheDisplay(t *testing.T) {
 	b.SetSemanticRole(model.RoleTableCell, 0)
 	n := ProjectBlock(b)
 	assert.Equal(t, "12.5%", n.Text())
-	assert.Equal(t, "0.125", model.RunsText(b.Source))
+	assert.Equal(t, "0.125", model.RunsText(b.SourceRuns()))
 	assert.Equal(t, "0.0%", n.Props[model.PropCellFormat], "the format travels on the node's props")
 }
