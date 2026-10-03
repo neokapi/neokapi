@@ -67,8 +67,12 @@ func (t *commitTargetsTool) commitOne(ctx context.Context, sess blockstore.Sessi
 	if !ok || b == nil || !b.Translatable || b.ID == "" {
 		return nil
 	}
-	tgt := b.Target(t.locale)
-	if tgt == nil || len(tgt.Runs) == 0 {
+	edition := model.Variant(t.locale)
+	if b.IsSourceEdition(edition) {
+		return nil // the edition the block was read in is never its target
+	}
+	tgt, ok := b.Edition(edition)
+	if !ok || len(tgt.Runs) == 0 {
 		return nil
 	}
 	key := blockstore.OverlayKey(ctx, b.ID, b.SourceText())
