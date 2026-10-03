@@ -35,10 +35,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
@@ -322,6 +324,11 @@ func (a *App) RecordContextObservation(ctx context.Context, req ContextObserveRe
 	if err := observedInFiles(s.root, subject, req.Evidence); err != nil {
 		return ContextOperation{}, err
 	}
+	if subject.Term != nil {
+		if err := s.entriesContradict(ctx, *subject.Term, req.Evidence, "observation"); err != nil {
+			return ContextOperation{}, err
+		}
+	}
 	actor, note, err := s.actorFor(ctx, req.Actor, "")
 	if err != nil {
 		return ContextOperation{}, err
@@ -432,6 +439,75 @@ func observedInFiles(root string, subject contextop.Subject, evidence []contexto
 	return nil
 }
 
+// maxContradictionPages bounds how much of a file entriesContradict reads.
+const maxContradictionPages = 10
+
+// entriesContradict refuses a term rule recorded from one entry of a file
+// when another entry of the same file holds the form the rule avoids: a rule
+// for the whole file would report that entry, which the change left as it
+// was. Book is "Bestill" on a button and "Bok" in a library, and a rule made
+// at the button would call the library wrong. Only evidence that names a
+// block is weighed, against the file's blocks and the editions it holds.
+func (s *contextOpsSession) entriesContradict(ctx context.Context, rule profile.TermRule, evidence []contextop.Evidence, what string) error {
+	re := formMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase())
+	if re == nil {
+		return nil
+	}
+	for _, e := range evidence {
+		if e.Path == "" || e.Unit == "" {
+			continue
+		}
+		others := s.entriesHolding(ctx, e.Path, e.Unit, re)
+		if len(others) == 0 {
+			continue
+		}
+		const named = 3
+		list := strings.Join(others[:min(len(others), named)], ", ")
+		if len(others) > named {
+			list += fmt.Sprintf(" and %d more", len(others)-named)
+		}
+		return fmt.Errorf("%s holds %q at %s as well as at %s, so a rule against it would report %s, which the change left as it was: "+
+			"record the %s without the rule (it keeps the entry it was made at), and say in a note which entries the wording belongs to",
+			e.Path, rule.Term, list, e.Unit, list, what)
+	}
+	return nil
+}
+
+// entriesHolding lists the blocks of the project's file at rel, other than
+// except, whose text or an edition the file holds matches re. A file the
+// project cannot read lists none.
+func (s *contextOpsSession) entriesHolding(ctx context.Context, rel, except string, re *regexp.Regexp) []string {
+	svc, err := s.app.ChangeService(ctx, ChangeServiceOptions{Project: s.recipe, Origin: "context"})
+	if err != nil {
+		return nil
+	}
+	var out []string
+	req := change.ReadRequest{Doc: rel, Limit: change.MaxReadLimit, OwnEdition: true}
+	for range maxContradictionPages {
+		page, err := svc.Read(ctx, req)
+		if err != nil {
+			return out
+		}
+		for _, b := range page.Blocks {
+			if b.Ref.Block == except {
+				continue
+			}
+			hit := re.MatchString(b.Text)
+			for _, ed := range b.Editions {
+				hit = hit || re.MatchString(ed.Text)
+			}
+			if hit {
+				out = append(out, b.Ref.Block)
+			}
+		}
+		if page.Next == "" {
+			return out
+		}
+		req.Cursor = page.Next
+	}
+	return out
+}
+
 // RecordContextCorrection records wording somebody changed, and, when asked,
 // the suggested rule that change implies.
 //
@@ -459,12 +535,16 @@ func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectReq
 		Note:       note,
 	}
 	if req.Suggest {
-		record.Subject = contextop.Subject{Kind: contextop.SubjectTerm, Term: &profile.TermRule{
+		rule := &profile.TermRule{
 			Term:        req.From,
 			Replacement: req.To,
 			Advisory:    req.Advisory,
 			Note:        req.Note,
-		}}
+		}
+		if err := s.entriesContradict(ctx, *rule, req.Evidence, "correction"); err != nil {
+			return ContextOperation{}, err
+		}
+		record.Subject = contextop.Subject{Kind: contextop.SubjectTerm, Term: rule}
 	}
 	before, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
 	if err != nil {
