@@ -1198,6 +1198,13 @@ export interface CodeRead {
   kind: string;
   type?: string;
   attrs?: Record<string, string>;
+  /**
+   * Equiv is the code's equivalent text, such as the name of the variable a
+   * placeholder stands for, and Disp the short label an editor shows on it.
+   * Neither is the code's native form, which no read shows.
+   */
+  equiv?: string;
+  disp?: string;
   /** Writable are the attributes set_attribute can change on the code. */
   writable?: string[];
 }

@@ -68,6 +68,11 @@ type CodeRead struct {
 	Kind  string            `json:"kind"`
 	Type  string            `json:"type,omitempty"`
 	Attrs map[string]string `json:"attrs,omitempty"`
+	// Equiv is the code's equivalent text, such as the name of the variable a
+	// placeholder stands for, and Disp the short label an editor shows on it.
+	// Neither is the code's native form, which no read shows.
+	Equiv string `json:"equiv,omitempty"`
+	Disp  string `json:"disp,omitempty"`
 	// Writable are the attributes set_attribute can change on the code.
 	Writable []string `json:"writable,omitempty"`
 }
@@ -304,9 +309,11 @@ func codesOf(runs []model.Run, desc Description) map[string]CodeRead {
 			switch {
 			case r.Text != nil, r.PcClose != nil:
 			case r.PcOpen != nil:
-				out[r.PcOpen.ID] = CodeRead{Kind: "paired", Type: r.PcOpen.Type, Attrs: r.PcOpen.Attrs, Writable: writable(r.PcOpen.Type, r.PcOpen.Attrs)}
+				out[r.PcOpen.ID] = CodeRead{Kind: "paired", Type: r.PcOpen.Type, Attrs: r.PcOpen.Attrs,
+					Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp, Writable: writable(r.PcOpen.Type, r.PcOpen.Attrs)}
 			case r.Ph != nil:
-				out[r.Ph.ID+"/"] = CodeRead{Kind: "placeholder", Type: r.Ph.Type, Attrs: r.Ph.Attrs, Writable: writable(r.Ph.Type, r.Ph.Attrs)}
+				out[r.Ph.ID+"/"] = CodeRead{Kind: "placeholder", Type: r.Ph.Type, Attrs: r.Ph.Attrs,
+					Equiv: r.Ph.Equiv, Disp: r.Ph.Disp, Writable: writable(r.Ph.Type, r.Ph.Attrs)}
 			case r.Sub != nil:
 				out["sub:"+r.Sub.ID] = CodeRead{Kind: "subblock", Attrs: map[string]string{"ref": r.Sub.Ref}}
 			case r.Plural != nil:
