@@ -43,7 +43,7 @@ func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, ou
 	if a.printOps != nil {
 		// A change set addresses the documents inside an archive one at a
 		// time; a run that rebuilds the archive is not printed as one.
-		a.printOps.note(fmt.Sprintf("%s: an archive the run rebuilds whole, which no change set writes; it is not printed", outputPath))
+		a.printOps.note(outputPath + ": an archive the run rebuilds whole, which no change set writes; it is not printed")
 		return nil
 	}
 	// The archive commits through the file home a flow commits through, only

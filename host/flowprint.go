@@ -270,8 +270,8 @@ func (doc *flowDoc) appliesAsRun(ctx context.Context, path string, ops []change.
 // they produce in the project's store.
 func (a *App) notePrintsNoFile(inputPath string) {
 	fc := &flowChanges{root: a.projectRoot()}
-	a.printOps.note(fmt.Sprintf("%s: in a project this run writes no file without -o (it keeps what it produces in the project's store), so it prints nothing; kapi up --print-ops prints what a pass writes",
-		fc.displayPath(inputPath)))
+	a.printOps.note(fc.displayPath(inputPath) +
+		": in a project this run writes no file without -o (it keeps what it produces in the project's store), so it prints nothing; kapi up --print-ops prints what a pass writes")
 }
 
 // displayPath names a file in a note: relative to the project's root, or to

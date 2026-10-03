@@ -2,6 +2,7 @@ package change
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -508,11 +509,6 @@ func nearness(want, got string) int {
 // copied.
 func changedBlock(b *model.Block) *model.Block {
 	c := *b
-	if b.Targets != nil {
-		c.Targets = make(map[model.VariantKey]*model.Target, len(b.Targets))
-		for k, t := range b.Targets {
-			c.Targets[k] = t
-		}
-	}
+	c.Targets = maps.Clone(b.Targets)
 	return &c
 }

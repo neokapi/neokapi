@@ -1049,7 +1049,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 				// policy that is the whole of delivery — the pass wrote into the
 				// run's draft tree — so the locale's files are genuinely absent
 				// rather than present and unblessed.
-				a.printOps.note(fmt.Sprintf("%s: short of its ship gate, so kapi up delivers none of its files and none is printed", lc.Locale))
+				a.printOps.note(lc.Locale + ": short of its ship gate, so kapi up delivers none of its files and none is printed")
 				continue
 			}
 			// The locale cleared its gate, so its drafts become its delivery.

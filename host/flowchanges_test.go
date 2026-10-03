@@ -597,8 +597,9 @@ func TestFlowRun_DeliversADraftOfADocumentTheRunDoesNotFollow(t *testing.T) {
 	// A destination saved while the run worked keeps the save.
 	require.NoError(t, os.WriteFile(dest, []byte(`{"greeting": "Hei"}`+"\n"), 0o644))
 	end()
-	end, err = a.beginConvergeDrafts(recipe, root)
+	endAgain, err := a.beginConvergeDrafts(recipe, root)
 	require.NoError(t, err)
+	defer endAgain()
 	home, docs = a.flowDocuments(ctx, cmd, root)
 	run, err = docs.Open(ctx, flow.Document{Flow: "pseudo", InputPath: filepath.Join(root, "src", "en.json"),
 		OutputPath: draft, TargetLocale: "qps", Format: "json", OutputFormat: "yaml"})
@@ -611,8 +612,7 @@ func TestFlowRun_DeliversADraftOfADocumentTheRunDoesNotFollow(t *testing.T) {
 	require.NoError(t, run.Commit(ctx, p))
 	require.NoError(t, os.WriteFile(dest, []byte(`{"greeting": "Hei fra en person"}`+"\n"), 0o644))
 	_, err = a.deliverDrafts(ctx, "qps")
-	require.Error(t, err)
-	assert.ErrorIs(t, err, filehome.ErrMoved)
+	require.ErrorIs(t, err, filehome.ErrMoved)
 	got, err = os.ReadFile(dest)
 	require.NoError(t, err)
 	assert.Equal(t, `{"greeting": "Hei fra en person"}`+"\n", string(got))
