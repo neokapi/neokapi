@@ -414,7 +414,8 @@ edition was made from, the block's key, content hash and context hash, who made
 the change (person, agent or tool, with a name and a session) and through which
 surface (`apply`, `desktop`, `flow:<name>`, `merge`, `pull`, `observed`).
 `history.Store.LastWrite` answers who last wrote an edition, among the writes
-recorded this way; `Edition` and `Document` read the changes back, most recent
+recorded this way; `Latest` reads that last write for every edition of a
+document, and `Edition` and `Document` read the changes back, most recent
 first. The file stays the only copy of its text and the log keeps facts about
 it, keyed by revisions that hold on every branch where the content matches, so
 a branch switch moves no record.
@@ -422,11 +423,26 @@ a branch switch moves no record.
 `core/change` defines the hook an applier of change sets calls once the homes
 committed (`change.Recorder`), and `host.App.EditRecorder` is the project's
 recorder: it records every document of a change set through one
-`Projector.RecordEdits` call. The writers that record a change to content any
-other way are the loop's basis records and Kapi Desktop's edits, which go
-through the decision ledger as `decision.record`
+`Projector.RecordEdits` call. Every flow the host runs records each document it
+writes through the same recorder, as one `content.edit` with the actor
+`tool:<flow>` ([E-09](../engine/e-09-the-change-contract.md#flows)); its
+transitions carry each translation's basis and, as the row's producer, the
+stamp the producing tool left (provider, model, and the governing context
+fingerprint), which a file of strings has nowhere to keep. The block history is
+therefore where the loop's basis lives: coverage grades an undecided
+translation by the flow's last write to it, a decision on such a translation
+starts from that write, and the staleness gate reads the producer from it
+([C-05](c-05-freshness.md)). The basis is the source the run read before it
+ran, so a source edited while the run worked reads as drift. A run that
+reproduces a person's or an agent's wording records nothing over their write.
+The writer that records a change to content any other way is Kapi Desktop's
+edit of a translation, which goes through the decision ledger as
+`decision.record`
 ([C-04](c-04-unit-state-and-decisions.md#the-ledger-is-a-projection-of-the-operation-log)),
-so the block history answers for the writes that reach the recorder.
+so the block history answers for the writes that reach the recorder. Such an
+undecided ledger record, or a basis an older project's loop kept in the ledger,
+grades a unit while it describes the translation the file holds; once the
+flow's last write is that translation, the write grades it.
 
 A person's or an agent's edit keeps the runs around each change and the change
 set as sent, in blobs the operation names; a tool's edit keeps the revisions

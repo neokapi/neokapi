@@ -86,10 +86,10 @@ remembered only for as long as what it approved stays the same:
   opt-in for automation whose operator has made that judgement.
 
 Surfaces where no person is present to ask do not ask. A recipe carried inside
-a `.kpz` package has these steps stripped on ingest, and the engine's gRPC API
-and the MCP agent surface refuse them outright — including under the MCP
-switch that otherwise exposes every tool, because "show me everything" and "run
-arbitrary commands" are different requests.
+a `.kpz` package has these steps stripped on ingest, and the MCP agent surface
+refuses them outright, including under the MCP switch that otherwise exposes
+every tool, because "show me everything" and "run arbitrary commands" are
+different requests.
 
 **Recipes are not secret storage.** Provider API keys belong in the OS keychain
 or in the conventional per-provider environment variable, never in a committed

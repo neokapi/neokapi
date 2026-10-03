@@ -79,6 +79,23 @@ type ChangeServiceOptions struct {
 	// because the App's own source language belongs to whichever project
 	// resolved one last.
 	SourceLocale model.LocaleID
+
+	// revisionsOnly builds a service whose reads name no edition's basis from
+	// the block history: a flow's follower reads revisions alone, and a read
+	// that asks the history for every block is the larger half of its cost.
+	revisionsOnly bool
+
+	// Materialize writes each translation's file a change writes from its
+	// source's skeleton (filehome.Options.Materialize), and keeps the
+	// translations of a bilingual source (a PO or XLIFF catalog) in the
+	// files the recipe's target template names rather than in the source:
+	// kapi merge and kapi pull write whole translations this way, where the
+	// editing surfaces edit a translation's file in place.
+	Materialize bool
+	// WriterHook, inside a project, is given every writer the service opens
+	// for a source file, after the recipe configured it: kapi pull sets the
+	// locale variants of a document's media on it.
+	WriterHook func(format.DataFormatWriter)
 }
 
 // Changes builds the change service for the project cmd names, or for the
@@ -167,7 +184,8 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 	// The recorder opens before the home takes its first lock, after the
 	// lock directory is prepared.
 	recorder := a.changeRecorder(ctx, h.root)
-	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: recorder.before(h.prepare), BackupSuffix: opts.BackupSuffix})
+	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: recorder.before(h.prepare), BackupSuffix: opts.BackupSuffix,
+		Materialize: opts.Materialize})
 	svcOpts := []change.Option{
 		change.WithOrigin(origin),
 		change.WithAssets(&changeAssets{app: a, recipe: opts.Project}),
@@ -189,7 +207,7 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 	if recorder != nil {
 		svcOpts = append(svcOpts, change.WithRecorder(recorder))
 	}
-	if states := a.changeEditionStates(h.root); states != nil {
+	if states := a.changeEditionStates(h.root); states != nil && !opts.revisionsOnly {
 		svcOpts = append(svcOpts, change.WithEditionStates(states))
 	}
 	return change.NewService(filehome.Formats{Registry: a.FormatReg}, change.OneHome(home), svcOpts...), nil
@@ -402,6 +420,12 @@ type projectChangeLayout struct {
 	// plainText reads a file the recipe does not claim and no format reads
 	// as plain text (ChangeServiceOptions.PlainText).
 	plainText bool
+	// writerHook is given every writer opened for a source file
+	// (ChangeServiceOptions.WriterHook).
+	writerHook func(format.DataFormatWriter)
+	// materialize keeps the translations of a bilingual source in the files
+	// the recipe's target template names (ChangeServiceOptions.Materialize).
+	materialize bool
 
 	once  sync.Once
 	index *projectChangeIndex
@@ -430,8 +454,10 @@ func (a *App) newProjectLayout(opts ChangeServiceOptions) (*projectChangeLayout,
 	pctx := project.NewProjectContext(proj, opts.Project)
 	return &projectChangeLayout{
 		app: a, root: pctx.ProjectDir, proj: proj, pctx: pctx, format: opts.Format, target: opts.TargetLocale,
-		source: model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), proj.Defaults.SourceLanguage)),
-		enc:    ResolveEncodingName(a.Encoding, proj.Defaults.Encoding),
+		source:      model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), proj.Defaults.SourceLanguage)),
+		enc:         ResolveEncodingName(a.Encoding, proj.Defaults.Encoding),
+		writerHook:  opts.WriterHook,
+		materialize: opts.Materialize,
 	}, nil
 }
 
@@ -567,6 +593,22 @@ func (l *projectChangeLayout) formatConfig(name, bound string, item *project.Con
 	return mergedFormatConfig(l.proj, reg(name), item)
 }
 
+// hooked is b with the layout's writer hook given every writer b opens.
+func (l *projectChangeLayout) hooked(b filehome.Binding) filehome.Binding {
+	if l.writerHook == nil || b.NewWriter == nil {
+		return b
+	}
+	open := b.NewWriter
+	b.NewWriter = func() (format.DataFormatWriter, error) {
+		w, err := open()
+		if err == nil {
+			l.writerHook(w)
+		}
+		return w, err
+	}
+	return b
+}
+
 // sourceDoc is a source file the recipe claims, with the file of each of its
 // translations.
 func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) filehome.Doc {
@@ -576,13 +618,20 @@ func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) fil
 	}
 	d := filehome.Doc{
 		Ref: ref, Path: rf.Path,
-		Format:       l.app.formatBinding(name, l.formatConfig(name, rf.Format, rf.Item), l.enc),
+		Format:       l.hooked(l.app.formatBinding(name, l.formatConfig(name, rf.Format, rf.Item), l.enc)),
 		SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target),
 	}
 	targets := l.editionUnits(rf)
-	if len(targets) > 0 && d.Editions == change.EditionsInFile && !l.app.interchange(name) {
+	if rf.Item != nil && rf.Item.Target == "" {
+		d.NoEditionFile = "the collection that holds it names no target, so its translations have no file"
+	}
+	if len(targets) > 0 && d.Editions == change.EditionsInFile && (!l.app.interchange(name) || l.materialize) {
 		// A Qt Linguist or string-catalog source whose translations the
-		// recipe writes to files of their own keeps them there.
+		// recipe writes to files of their own keeps them there. So does
+		// any bilingual source for a service that writes whole
+		// translations (Materialize): kapi merge and kapi pull write each
+		// translation to the file the target template names, never into
+		// the source catalog.
 		d.Editions, d.TargetLocale = change.EditionsPerFile, ""
 	}
 	d.EditionFile = func(k model.EditionKey) (filehome.EditionFile, bool) {
@@ -594,9 +643,10 @@ func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) fil
 			return filehome.EditionFile{}, false
 		}
 		return filehome.EditionFile{
-			Ref:    filepath.ToSlash(u.DisplayPath),
-			Path:   filepath.Join(l.root, u.DisplayPath),
-			Format: l.app.formatBinding(u.TargetFormat, u.TargetConfig, l.enc),
+			Ref:       filepath.ToSlash(u.DisplayPath),
+			Path:      filepath.Join(l.root, u.DisplayPath),
+			Format:    l.app.formatBinding(u.TargetFormat, u.TargetConfig, l.enc),
+			Bilingual: l.app.editionsOf(u.TargetFormat) == change.EditionsInFile,
 		}, true
 	}
 	for loc, u := range targets {
@@ -800,7 +850,7 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 		changed, err := a.approveSourceUnit(ctx, c.recipe, "", SourceUnitRef{File: filepath.FromSlash(target.Doc.Doc), Key: target.Ref.Block}, &wording)
 		return decisionOutcome(changed, err)
 	}
-	decided := &decidedContent{source: target.SourceText, target: target.Text}
+	decided := &decidedContent{source: target.SourceText, target: target.Text, targetRev: target.Rev}
 	if target.Rev == model.AbsentRevision {
 		// The edition has no content in its home: a parked draft the project
 		// store holds and no file carries yet. The decision binds to that

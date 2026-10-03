@@ -333,9 +333,10 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   still writes `defaults.source_gate` fails to load and names
   `defaults.translate_after`; the top-level `source_gate` coverage bar is a
   separate key.
-- `merge` (`MergeDefaults.ConflictPolicy`): how `kapi merge` resolves a
-  translator's target against an existing on-disk target or content-memory entry
-  (`translator-wins` default, `existing-wins`, `newest-wins`). See
+- `merge` (`MergeDefaults.ConflictPolicy`): what `kapi merge` does with a
+  returned unit whose translation changed in the project since the extraction,
+  which the change service refuses stale naming `if_match` (`translator-wins`
+  default, `existing-wins`, `newest-wins`). See
   [M-01](/contribute/architecture/multilingual/m-01-bilingual-interop).
 - `memory` (`MemoryDefaults`): the project's content memory:
   `fuzzy_threshold`, the pre-fill cutoff on `kapi extract` (default

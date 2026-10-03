@@ -135,7 +135,10 @@ An applied edit is one `content.edit` operation per document. Its payload is the
 
 `runs_before` and `runs_after` name blobs holding `model.CanonicalRunsJSON` of
 the edition, the bytes `model.RunsRevision` is computed over; a tool's edit
-leaves them and `change_set` out, except that a write to the workspace home
+leaves them and `change_set` out, and carries on each derived edition's
+transition a `producer`, the `model.Origin` the producing tool stamped
+(provider, model, profile and governing context fingerprint), which a file of
+strings keeps nowhere else, except that a write to the workspace home
 (`"home": "workspace"`) keeps `runs_after` whoever made it. Under a declared
 redaction policy, `host.App.EditRecorder` redacts the runs and the note with
 the project's rules before they are stored, each run sequence as the source of
@@ -168,6 +171,7 @@ id and the operation's own instant, so a rebuild writes the same rows:
 | `content_hash`, `context_hash` | the block's identity signals after the change |
 | `actor`, `actor_name`, `session` | person, agent, tool, or empty for a change made outside kapi |
 | `origin` | `apply`, `desktop`, `flow:<name>`, `merge`, `pull` or `observed` |
+| `producer` | the producing tool's `model.Origin` as JSON, empty when the transition carries none |
 | `at` | the operation's instant, RFC 3339 with nanoseconds in UTC |
 
 The projector also writes one `block_history_op` row per operation: its id
@@ -184,7 +188,10 @@ live and in a rebuild, with one prepared statement. A row that arrives for a
 key the table holds is written again with the arriving values, so the same
 operation applied twice writes the same rows. Operation ids sort by time, so "most recent" is
 `ORDER BY op DESC`, and SQLite's `MAX()` with bare columns gives the latest row
-per block for `history.Store.Priors` in one statement. A second index,
+per block for `history.Store.Priors` in one statement. `history.Store.Latest`
+reads the latest row of each edition of a document, one primary-key seek per
+edition, which is how coverage, the staleness gate and a decision find the
+flow's last write to a translation. A second index,
 `(doc, op)`, serves the reads of a whole document, and a third,
 `block_history_reached` on `(doc, block, edition, after, op)`, the address
 lookups of a recording.

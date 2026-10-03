@@ -625,22 +625,6 @@
             "short": "Test that a credential's API key is accessible"
           }
         },
-        "engine": {
-          "serve": {
-            "example": "  kapi engine serve\n  kapi engine serve --socket /tmp/my-engine.sock\n  kapi engine serve --stdio",
-            "flags": {
-              "socket": {
-                "usage": "Unix socket path to listen on (default: $XDG_RUNTIME_DIR/kapi/engine-\u003cpid\u003e.sock, falling back to the user cache dir)"
-              },
-              "stdio": {
-                "usage": "serve a single gRPC connection over stdin/stdout instead of a socket (handshake and logs go to stderr; exits on stdin EOF)"
-              }
-            },
-            "long": "Serve the neokapi content engine as a gRPC service (EngineService,\ncore/proto/engine/v1) on a local Unix socket, so any gRPC-capable language\ncan extract documents into the canonical content model, process the part\nstream through tools or flows, and merge it back to document bytes.\n\nOn startup the command prints a one-line JSON handshake on stdout,\n{\"socket\": \"\u003cpath\u003e\", \"version\": \"\u003ckapi version\u003e\", \"pid\": \u003cpid\u003e}, mirroring\nthe plugin daemon convention, then serves until interrupted.\n\nWith --stdio the server instead serves exactly ONE gRPC connection over\nstdin/stdout, so spawn-per-session callers (an editor extension, a language\nSDK that execs kapi) skip socket management entirely. In this mode stdout\ncarries nothing but the gRPC byte stream: the handshake and all logging go\nto stderr, and the server exits cleanly when stdin reaches EOF. --stdio and\n--socket are mutually exclusive.\n\nTrust model: the service is for TRUSTED LOCAL PEERS ONLY. There is no\nauthentication in v1; the socket (created inside a 0700 directory) or the\nprocess pipes are the security boundary, exactly like kapi's plugin daemon\nsockets. Do not expose the socket over the network or place it in a shared\ndirectory.",
-            "short": "Serve the EngineService gRPC API on a local Unix socket or stdio"
-          },
-          "short": "Serve the content engine as a local gRPC API"
-        },
         "exec": {
           "case-transform": {
             "example": "  kapi exec case-transform messages.json --mode upper\n  kapi exec case-transform messages.json --mode lower",
@@ -686,6 +670,9 @@
               },
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
+              },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -749,6 +736,9 @@
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
+              },
               "progress": {
                 "usage": "show progress bar"
               },
@@ -810,6 +800,9 @@
               },
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
+              },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1047,6 +1040,9 @@
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
+              },
               "progress": {
                 "usage": "show progress bar"
               },
@@ -1118,6 +1114,9 @@
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
+              },
               "progress": {
                 "usage": "show progress bar"
               },
@@ -1186,6 +1185,9 @@
               },
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
+              },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1302,6 +1304,9 @@
               },
               "prefix": {
                 "usage": "Characters prepended before each translated block"
+              },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1468,6 +1473,9 @@
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
+              },
               "progress": {
                 "usage": "show progress bar"
               },
@@ -1561,6 +1569,9 @@
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
+              },
               "progress": {
                 "usage": "show progress bar"
               },
@@ -1626,6 +1637,9 @@
               "placeholder": {
                 "usage": "Visible stand-in template; supports {category} and {n}"
               },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
+              },
               "progress": {
                 "usage": "show progress bar"
               },
@@ -1681,6 +1695,9 @@
               },
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
+              },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1754,6 +1771,9 @@
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
+              },
               "progress": {
                 "usage": "show progress bar"
               },
@@ -1815,6 +1835,9 @@
               },
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
+              },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1880,6 +1903,9 @@
               },
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
+              },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -1967,6 +1993,9 @@
               },
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
+              },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -2191,6 +2220,9 @@
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
+              },
               "progress": {
                 "usage": "show progress bar"
               },
@@ -2299,6 +2331,9 @@
               },
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
+              },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
               },
               "progress": {
                 "usage": "show progress bar"
@@ -2499,6 +2534,9 @@
               "parallel-blocks": {
                 "usage": "fan out block processing across N goroutines (0 = off)"
               },
+              "print-ops": {
+                "usage": "write no file and print the change set the run would apply, for kapi apply"
+              },
               "progress": {
                 "usage": "show progress bar"
               },
@@ -2638,7 +2676,7 @@
               "usage": "XLIFF 2.x version to emit (2.0, 2.1, 2.2; default 2.2)"
             }
           },
-          "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target language\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
+          "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target language\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").\nEvery unit carries the revision of its translation and of its source, which\nkapi merge checks the returned file against.",
           "short": "Emit a bilingual file for a translator: native .kpz or XLIFF/PO"
         },
         "flows": {
@@ -3105,7 +3143,7 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             }
           },
-          "long": "Materialize target-language files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the target-language files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink: it reads each source, applies the stored overlays, and writes the\ntarget-language file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target languages in one\nbatch are fine, and merge handles each input independently.",
+          "long": "Materialize target-language files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the target-language files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink: it gives each source's translation the stored overlays and writes\nthe target-language file from the source's skeleton.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator to the translations of the project's sources, each written from\nits source's skeleton. Every unit kapi extract wrote carries the revision of\nits translation and of its source at extraction, so merge needs nothing but\nthe file: a unit whose source changed since is reported stale and left out,\nand one whose translation changed in the project since is settled by the\nrecipe's conflict policy (defaults.merge.conflict_policy). Mixed target\nlanguages in one batch are fine, and merge handles each input independently.",
           "short": "Apply a returned bilingual file (.kpz/XLIFF/PO) back onto the project source"
         },
         "models": {
@@ -3371,6 +3409,9 @@
             "parallel-blocks": {
               "usage": "fan out block processing across N goroutines (0 = off)"
             },
+            "print-ops": {
+              "usage": "write no file and print the change set the run would apply, for kapi apply"
+            },
             "progress": {
               "usage": "stream progress events to stderr as NDJSON (value: jsonl); events use the flow-run event vocabulary"
             },
@@ -3476,6 +3517,9 @@
             },
             "parallel-blocks": {
               "usage": "fan out block processing across N goroutines (0 = off)"
+            },
+            "print-ops": {
+              "usage": "write no file and print the change set the run would apply, for kapi apply"
             },
             "progress": {
               "usage": "stream progress events to stderr as NDJSON (value: jsonl); events use the flow-run event vocabulary"
@@ -3912,6 +3956,9 @@
             "parallel-blocks": {
               "usage": "fan out block processing across N goroutines (0 = off)"
             },
+            "print-ops": {
+              "usage": "write no file and print the change set the run would apply, for kapi apply"
+            },
             "progress": {
               "usage": "stream progress events to stderr as NDJSON (value: jsonl); events use the flow-run event vocabulary"
             },
@@ -4044,6 +4091,9 @@
             },
             "plan": {
               "usage": "dry run: report pending work, content-memory leverage, and a token estimate per (collection, locale), with no provider calls and no writes"
+            },
+            "print-ops": {
+              "usage": "write no file and print the change set the run would apply, for kapi apply"
             },
             "project": {
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"

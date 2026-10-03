@@ -85,7 +85,7 @@ function ok(label: string, cond: boolean, detail = ""): void {
 // verbs are not completable, so the ones a user or a lab component types by
 // name are listed explicitly; cli.TestBrowserCommandSurface is what guarantees
 // the set is complete.
-const HIDDEN_VERBS = ["kgrep", "ksed", "kcat", "kconv", "kdiff", "hook", "engine"];
+const HIDDEN_VERBS = ["kgrep", "ksed", "kcat", "kconv", "kdiff", "hook"];
 
 console.log("command-surface-smoke: every reachable verb resolves");
 const completion = await run("__complete", "");
@@ -112,7 +112,7 @@ for (const verb of verbs) {
 // the facility the browser denies — "unknown command" would tell a lab user the
 // verb does not exist, which is false and unactionable.
 console.log("command-surface-smoke: browser-unavailable verbs are honest");
-const GAP_VERBS = ["plugin", "models", "credentials", "telemetry", "update", "mcp", "engine"];
+const GAP_VERBS = ["plugin", "models", "credentials", "telemetry", "update", "mcp"];
 for (const verb of GAP_VERBS) {
   // Bare, and with the subcommand a user would reach for — neither may fall
   // through to a second "unknown command" from an unregistered subcommand.

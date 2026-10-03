@@ -42,17 +42,11 @@ func newReapprovalFixture(t *testing.T, stamp string) *reapprovalFixture {
 	a.InitRegistries()
 	ctx := context.Background()
 
-	st, err := a.OpenProjectState(ctx, root)
-	require.NoError(t, err)
 	scope := a.DocumentScope(ctx, root, filepath.Join(root, "locales", "en", "app.json"))
-	require.NoError(t, st.Record(ctx, state.UnitState{
-		Unit: "greeting", Variant: model.Variant("fr"), Scope: scope,
-		Status:               model.TargetStatusTranslated,
-		TargetHash:           state.TargetHash("Bonjour"),
-		ContentHash:          state.SourceHash("Hello there"),
-		GoverningFingerprint: stamp,
-		Origin:               model.Origin{Kind: model.OriginAI, ContextFingerprint: stamp},
-	}))
+	// The loop translated greeting into fr under stamp: its record is the
+	// flow's write in the block history.
+	recordFlowWrite(t, a, filepath.Join(root, "kapi.yaml"), "locales/en/app.json", "fr",
+		model.Origin{Kind: model.OriginAI, ContextFingerprint: stamp})
 
 	return &reapprovalFixture{
 		app: a, root: root, recipe: filepath.Join(root, "kapi.yaml"), scope: scope,
@@ -159,7 +153,9 @@ func TestReApprovalClearsStale_ReDraftAndRejectionDoNot(t *testing.T) {
 
 	// The loop re-drafts the unit and records what it produced. The decision is
 	// not its to replace, so the unit stays stale until a person looks again.
-	require.NoError(t, f.app.recordProducedBasis(ctx, f.project(t), f.root, func(string, string) bool { return true }))
+	require.NoError(t, os.WriteFile(filepath.Join(f.root, "locales", "fr", "app.json"),
+		[]byte("{\n  \"greeting\": \"Salut\"\n}\n"), 0o644))
+	recordFlowWrite(t, f.app, f.recipe, "locales/en/app.json", "fr", model.Origin{Kind: model.OriginAI, ContextFingerprint: "fp-redraft"})
 	assert.Equal(t, 1, f.staleUnits(t), "a re-draft cannot decide, so it cannot clear the decision")
 
 	_, err = f.app.ApplyReviewDecision(ctx, f.recipe, "en", f.ref, ReviewDecisionRejected, "")
@@ -169,14 +165,6 @@ func TestReApprovalClearsStale_ReDraftAndRejectionDoNot(t *testing.T) {
 	_, err = f.app.ApplyReviewDecision(ctx, f.recipe, "en", f.ref, ReviewDecisionApproved, "")
 	require.NoError(t, err)
 	assert.Zero(t, f.staleUnits(t), "the re-approval is the decision the basis records")
-}
-
-// project loads the fixture's recipe.
-func (f *reapprovalFixture) project(t *testing.T) *project.KapiProject {
-	t.Helper()
-	proj, err := project.LoadWithOptions(f.recipe, project.LoadOptions{SkipRequiresCheck: true})
-	require.NoError(t, err)
-	return proj
 }
 
 // TestStalenessGate_ReApprovalClearsIt is the same rule on the governance axis:

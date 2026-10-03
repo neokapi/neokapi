@@ -73,20 +73,6 @@ func mergedFormatConfig(proj *project.KapiProject, formatName string, item *proj
 	return project.MergeFormatConfig(proj.Defaults.Formats, formatName, item)
 }
 
-// formatConfigForSource resolves the merged format config for a source file
-// through the content item that claims it (project.KapiProject.ItemForPath,
-// the rule content resolution applies). Used by merge, where only the relative
-// source path, and no resolved item, survives in the extraction manifest.
-func formatConfigForSource(proj *project.KapiProject, formatName, relSource string) map[string]any {
-	if proj == nil {
-		return nil
-	}
-	if item, _, ok := proj.ItemForPath(relSource); ok {
-		return mergedFormatConfig(proj, formatName, &item)
-	}
-	return mergedFormatConfig(proj, formatName, nil)
-}
-
 // applyFormatConfig applies a merged config map onto a reader's typed
 // config, stripping the reserved output.* writer options first (readers
 // normalize BOM/charset/newlines at parse time; the output options only

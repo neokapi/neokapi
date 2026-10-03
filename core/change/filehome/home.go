@@ -49,6 +49,9 @@ type Home struct {
 	prepareErr   error
 	beforeSettle func(doc string)
 	backup       string
+	writeNothing bool
+	writeUnder   string
+	materialize  bool
 }
 
 // Options configures a Home.
@@ -70,6 +73,25 @@ type Options struct {
 	// beside it with the suffix appended. The copy is written under the
 	// commit lock from the bytes the change was applied to.
 	BackupSuffix string
+	// WriteNothing makes a home that commits no produced document: Produce
+	// runs the producer into a digest and stages no file, and Commit writes
+	// nothing. A flow run that prints the change set it would apply
+	// (--print-ops) commits through such a home.
+	WriteNothing bool
+	// WriteUnder, with WriteNothing, names a directory whose files the home
+	// still writes as any home writes them: the private tree a printing
+	// convergence pass drafts into, which its delivery gate reads.
+	WriteUnder string
+	// Materialize writes every edition file a change writes from the
+	// document's skeleton, the way kapi merge and kapi pull write a
+	// translation: each block of the document carries the edition the change
+	// gave it, or else the one the file held, or else the document's own
+	// content. The file then follows the document's structure, so a change
+	// to a block the file does not hold yet lands too, and whatever only the
+	// file held is gone. Without it an edition file that exists is edited
+	// through its own skeleton, and a change to a block it does not hold is
+	// refused.
+	Materialize bool
 }
 
 // DefaultLockDir is where lock files go when the caller names no directory: a
@@ -80,13 +102,36 @@ func DefaultLockDir() string {
 	return filepath.Join(os.TempDir(), "kapi-locks-"+strconv.Itoa(os.Getuid()))
 }
 
-// New returns a file home over layout.
+// New returns a file home over layout. A home that only commits the
+// documents producers write (Produce) needs no layout and may be given nil;
+// Open on it fails.
 func New(layout Layout, opts Options) *Home {
 	dir := opts.LockDir
 	if dir == "" {
 		dir = DefaultLockDir()
 	}
-	return &Home{layout: layout, lockDir: dir, prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix}
+	return &Home{layout: layout, lockDir: dir, prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix,
+		writeNothing: opts.WriteNothing, writeUnder: opts.WriteUnder, materialize: opts.Materialize}
+}
+
+// writes reports whether the home writes a document it produces at path.
+func (h *Home) writes(path string) bool {
+	if !h.writeNothing {
+		return true
+	}
+	if h.writeUnder == "" {
+		return false
+	}
+	under, err := filepath.Abs(h.writeUnder)
+	if err != nil {
+		return false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(under, abs)
+	return err == nil && filepath.IsLocal(rel)
 }
 
 // Name is "file".
@@ -94,6 +139,9 @@ func (h *Home) Name() string { return "file" }
 
 // Open locates doc through the layout.
 func (h *Home) Open(ctx context.Context, doc string) (change.Session, error) {
+	if h.layout == nil {
+		return nil, &change.Error{Code: change.CodeUnreachable, Message: "this file home locates no documents"}
+	}
 	d, err := h.layout.Locate(ctx, doc)
 	if err != nil {
 		return nil, err
@@ -148,7 +196,7 @@ func (s *session) Place(k model.EditionKey) change.Place {
 	if f, ok := s.editionFile(k); ok {
 		return change.Place{Kind: change.PlaceOwnFile, File: f.Ref}
 	}
-	return change.Place{Kind: change.PlaceNone}
+	return change.Place{Kind: change.PlaceNone, Why: s.doc.NoEditionFile}
 }
 
 // editionFile is the file of edition k, with its format filled in.

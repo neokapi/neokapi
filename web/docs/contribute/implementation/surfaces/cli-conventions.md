@@ -136,7 +136,7 @@ semantic guidance, through the same source-check implementation as ordinary
 | `credentials …` | positional name | none | text·json·yaml | none | 1 |
 | `config …` | positional key/value | none | text·json·yaml | positional form: required | 1 |
 | `version` / `update` / `telemetry` / `completion` | none | none | text·json·yaml | none | 1 |
-| `mcp` / `engine serve` | protocol streams | none | protocol | preferred | 1 |
+| `mcp` | protocol streams | none | protocol | preferred | 1 |
 
 ### Deliberate exceptions
 

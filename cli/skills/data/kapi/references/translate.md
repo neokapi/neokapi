@@ -72,6 +72,20 @@ kapi check --ship --json                   # in a project: voice + terminology +
 kapi check ./locales/en.json --target ./locales/fr.json --target-lang fr --termstore <store>   # one-off, no project: name the terms store
 ```
 
+Each unit of the extract carries the revision of its translation and of its source
+(`<mda:meta type="if-match">` and `type="basis"` in XLIFF, `#. kapi-if-match:` and
+`#. kapi-basis:` in PO). Leave them as they are: merge checks the file against them.
+Leave each unit's `<source>` (or `msgid`) as it is too: a unit whose source is not
+its block's is stale. `kapi merge --json` counts each unit as `applied`, `stale` (its
+source changed since the extract; run `kapi extract` again for it), `skipped` (empty,
+or a translation that changed in the project meanwhile and
+`defaults.merge.conflict_policy` kept), or `refused` (the target dropped a placeholder
+or tag the source protects, or broke a term rule; stderr names the rule. Fix the target
+and merge again). A non-zero `stale` or `refused` is work left. For a Markdown or HTML
+source that gained or lost a paragraph since its translation was written, translate
+every unit of the file before merging: a unit you leave out keeps the translation
+paired with it by position.
+
 `kapi check --ship` is the gate inside a project: read its findings, fix them, and re-run
 until it passes. For a one-off file with no project, `kapi check <source> --target
 <translation>` plays the same role: it exits 3 while a finding fails. `kapi exec
@@ -123,7 +137,37 @@ kapi up --json               # NDJSON event stream (one event per line, final
 `kapi up` is the one verb that runs the loop. With no `defaults.flow` in the recipe it
 runs the built-in default flow (content memory recycle → AI translate) and materializes the
 translated files. Drift is never an error: a behind locale is *pending*, and work
-a machine can't finish *parks* (reported, exit 0), so neither blocks you. Use
+a machine can't finish *parks* (reported, exit 0), so neither blocks you.
+
+Every flow run (`up`, `translate`, `pseudo-translate`, `run`, `exec`) writes a
+file only while it still holds what it held when the run began: a file someone
+saved meanwhile keeps their bytes, and the run reports it as changed while the
+run worked (run again). In a project each file a run writes is recorded in the
+block history as the flow's edit, with the source each translation was made
+from, which is how `kapi status` tells a rewritten source under the loop's
+translation from a new one. To see what a run would change, add
+`--print-ops`: the run writes no file of the project and records no change, and
+prints the change set (`set_content` per translation, with its `if_match` and
+`basis`). `kapi apply` of that output writes the bytes the run would write.
+
+```bash
+kapi up --print-ops > change.json   # one pass, no file written, the change set on stdout
+kapi apply change.json              # apply exactly what was printed
+```
+
+An empty `ops` list means there is nothing to apply (`kapi apply` refuses a
+change set with no operation). Every file left out of the change set is named
+on stderr. A run writes a
+target file whole from its source, and `kapi apply` edits only the blocks the
+file already holds, so a target file the two would write differently (a key
+the source gained, an entry only the target holds) is left out, and `kapi up`
+writes it. So are a file the recipe does not keep there (an `-o` path), a
+conversion, an archive, and every file of a locale `kapi up` would park at its
+ship gate. In a project, `kapi translate`, `pseudo-translate` and `run` without
+`-o` write no file, so they print nothing: use `kapi up --print-ops`. A printing
+run reads the content memory as it stands (a pass that writes first takes the
+committed translations into it), and `kapi apply` records the change as yours,
+not as the tool's draft. Use
 `--json` for the machine-readable event stream; the `up` and `up_plan` MCP tools
 expose the same loop and dry run to an assistant. `kapi run <flow>` is only for a
 *custom* one-off pipeline (one named flow, one pass); the daily loop is `kapi up`.

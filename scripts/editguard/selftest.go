@@ -32,12 +32,27 @@ import (
 	"github.com/spf13/pflag"
 )
 func quiet(fs *pflag.FlagSet, l *log.Logger) { fs.SetOutput(io.Discard); l.SetOutput(io.Discard) }`},
+	{"a file replaced outside the file home", 2, `package f
+import (
+	"io"
+	"github.com/neokapi/neokapi/core/atomicfile"
+)
+func write(w func(io.Writer) error) error {
+	if _, err := atomicfile.Replace("out.html", w); err != nil {
+		return err
+	}
+	_, err := atomicfile.Stage("out.html", w)
+	return err
+}`},
+	{"reading a file's target with atomicfile", 0, `package f
+import "github.com/neokapi/neokapi/core/atomicfile"
+func where(p string) (string, error) { t, _, _, err := atomicfile.Resolve(p); return t, err }`},
 }
 
 // runSelfTest checks every fixture and fails when one reports other than it
 // expects.
 func runSelfTest() error {
-	pkgs, err := list([]string{"github.com/neokapi/neokapi/core/format", "github.com/spf13/pflag", "log"})
+	pkgs, err := list([]string{"github.com/neokapi/neokapi/core/format", "github.com/neokapi/neokapi/core/atomicfile", "github.com/spf13/pflag", "log"})
 	if err != nil {
 		return err
 	}

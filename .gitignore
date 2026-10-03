@@ -41,10 +41,6 @@ compat-report/
 /corpus/
 /corpus-staging/
 
-# EngineService example clients (make engine-examples)
-examples/engine-client-python/.venv/
-examples/engine-client-node/package-lock.json
-
 # Frontend
 node_modules/
 dist/

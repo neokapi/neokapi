@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -310,6 +311,7 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 	}
 	ids.Assign(block)
 	recordUnitNameAttr(block, attrValue(unit, "name"))
+	readUnitMetadata(unit, block)
 
 	// Unit-level <notes>: store as note-N properties (preserves order).
 	if notesEl := unit.SelectElement("notes"); notesEl != nil {
@@ -988,6 +990,13 @@ type xliff2StreamState struct {
 	targets    map[model.LocaleID][]seg
 	notes      []string
 	states     []string
+	// meta holds the unit's metadata by UnitMetaKey; metaGroups is the open
+	// metaGroup category stack, and metaType the type of the open meta.
+	meta        map[string]string
+	metaGroups  []string
+	metaType    string
+	inMeta      bool
+	metaBuilder strings.Builder
 	// unitPosStart is the index in elemPositions of the current unit's first
 	// position.
 	unitPosStart int
@@ -1036,6 +1045,9 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 		case xml.CharData:
 			if s.inNote {
 				s.noteBuilder.WriteString(string(t))
+			}
+			if s.inMeta {
+				s.metaBuilder.WriteString(string(t))
 			}
 		}
 	}
@@ -1116,6 +1128,8 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 		s.targets = make(map[model.LocaleID][]seg)
 		s.notes = nil
 		s.states = nil
+		s.meta = nil
+		s.metaGroups = nil
 		for _, a := range t.Attr {
 			switch a.Name.Local {
 			case "id":
@@ -1125,6 +1139,16 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 			case "translate":
 				s.unitTranslate = a.Value
 			}
+		}
+	case "metaGroup":
+		if s.inUnit && isMetadataSpace(t.Name.Space) {
+			s.metaGroups = append(s.metaGroups, attrValueXML(t, "category"))
+		}
+	case "meta":
+		if s.inUnit && isMetadataSpace(t.Name.Space) {
+			s.inMeta = true
+			s.metaType = attrValueXML(t, "type")
+			s.metaBuilder.Reset()
 		}
 	case "notes":
 		if s.inUnit {
@@ -1192,6 +1216,24 @@ func (s *xliff2StreamState) handleEndElement(t xml.EndElement) {
 		if s.inUnit {
 			s.emitUnit()
 		}
+	case "metaGroup":
+		if n := len(s.metaGroups); n > 0 && isMetadataSpace(t.Name.Space) {
+			s.metaGroups = s.metaGroups[:n-1]
+		}
+	case "meta":
+		if s.inMeta {
+			s.inMeta = false
+			if s.metaType != "" {
+				category := ""
+				if n := len(s.metaGroups); n > 0 {
+					category = s.metaGroups[n-1]
+				}
+				if s.meta == nil {
+					s.meta = map[string]string{}
+				}
+				s.meta[UnitMetaKey(category, s.metaType)] = strings.TrimSpace(s.metaBuilder.String())
+			}
+		}
 	case "notes":
 		s.inNotes = false
 	case "note":
@@ -1251,6 +1293,7 @@ func (s *xliff2StreamState) emitUnit() {
 	for _, note := range s.notes {
 		block.AddNote(&model.NoteAnnotation{Text: note})
 	}
+	maps.Copy(block.Properties, s.meta)
 	// The streaming skeleton path tracks at most one target locale.
 	trgLang := model.LocaleID(s.trgLang)
 	var tgtSegs []seg

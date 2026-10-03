@@ -246,7 +246,26 @@ kapi run my-flow -p kapi.yaml -i input.json --target-lang fr
 
 # List available flows
 kapi flows
+
+# Write no file; print the change set a pass of the project would apply
+kapi up -p kapi.yaml --print-ops > change.json
+kapi apply -p kapi.yaml change.json
 ```
+
+A run that writes a file commits each document through the file home a
+change set commits through: the destination is staged beside the file and
+renamed onto it under the file's lock, only while the file still holds what it
+held when the run began, so a file a person saved while the run worked keeps
+their bytes. In a project each document the run wrote is recorded as the flow's
+edit, with the source each translation was made from. `--print-ops` writes no
+file and prints the operations the run would apply, addressed to the document
+and the edition the run changed; `kapi apply` applies them to the same bytes.
+Every file left out of the change set is named on stderr, among them a target
+file the run writes whole from its source where `kapi apply` would write other
+bytes, and a file the change service does not keep the edition in (an `-o` path
+rather than the recipe's target). In a project, `kapi run` without `-o` writes
+no file, so it prints nothing. See
+[E-09: The change contract](architecture/engine/e-09-the-change-contract#flows).
 
 ### Programmatically
 

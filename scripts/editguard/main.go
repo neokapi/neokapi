@@ -1,19 +1,27 @@
 // Command editguard checks where a document's bytes are written to a file.
 //
 // Content changes go through one function, change.ApplyBlock, and a format
-// writer turns the changed blocks back into bytes. A writer is pointed at a
-// file with SetOutput(path string) error. Each place that does so writes a
-// whole document to disk, and a content file written there bypasses the
-// checks the change service makes before it writes. So this type-checks every
-// package that could write a document and reports each call to a method
-// SetOutput(string) error, except:
+// writer turns the changed blocks back into bytes. Those bytes reach a content
+// file through the file home (core/change/filehome): a change set's commit and
+// a flow's produced document are both staged beside the file and renamed onto
+// it under the file's lock, only while the file still holds what was read. A
+// document written any other way bypasses that lock and that check. So this
+// type-checks every package that could write a document and reports:
 //
-//   - in the format packages, where one writer wraps another;
-//   - at the call sites listed in allowed, keyed by file and function, each
-//     with what it writes.
+//   - each call to a method SetOutput(path string) error, which points a writer
+//     at a file and writes a whole document there;
+//   - each call to the replacing functions of core/atomicfile (Replace,
+//     ReplaceBytes, Stage, StageWithParents) outside the file home, the one
+//     place that stages and renames a content file;
+//
+// except in the format packages, where one writer wraps another, and at the
+// call sites listed in allowed, keyed by file and function, each with what it
+// writes: an export, a file that is not a content file, or a write that has not
+// moved to the file home yet.
 //
 // A new place that writes a document to a file is reported until it is listed
-// here, so the list stays the complete set of places a document reaches disk.
+// here, so the list stays the complete set of places a document reaches disk
+// outside the file home.
 //
 // Run from the repository root:
 //
@@ -48,21 +56,28 @@ var targets = []string{
 }
 
 // exemptPrefixes are the packages that write documents by design: the format
-// packages, where one writer wraps another.
+// packages, where one writer wraps another, and the file home, which stages
+// and renames every content file a change set or a flow writes.
 var exemptPrefixes = []string{
 	"github.com/neokapi/neokapi/core/format",
 	"github.com/neokapi/neokapi/core/formats/",
+	"github.com/neokapi/neokapi/core/change/filehome",
+	"github.com/neokapi/neokapi/core/atomicfile",
 }
+
+// atomicfilePath is the package whose replacing functions stage and rename a
+// file, and replacing names them.
+const atomicfilePath = "github.com/neokapi/neokapi/core/atomicfile"
+
+var replacing = map[string]bool{"Replace": true, "ReplaceBytes": true, "Stage": true, "StageWithParents": true}
 
 // allowed lists the functions that point a writer at a file, keyed by the file
 // and the function, with what each writes.
 var allowed = map[string]string{
-	"host/toolrun.go:processOneFile":                  "writes the output of a tool run for each input document",
-	"host/merge.go:writeMergedSourceWithSkeleton":     "writes a target-language file kapi merge builds from the source's skeleton",
-	"host/venue/source/source.go:writeTranslatedFile": "writes a target-language file a pull brings down",
-	"host/toolbox_conv.go:convertDocument":            "exports a document converted to another format",
-	"bowrain/connector/file.go:publishFile":           "publishes a document to a connector's file destination",
-	"examples/go-quickstart/main.go:run":              "writes the example's bilingual output",
+	"host/toolbox_conv.go:convertDocument":  "exports a document converted to another format",
+	"host/apply_comment.go:write":           "writes the code comments kapi apply edits, which the file home does not write yet",
+	"bowrain/connector/file.go:publishFile": "publishes a document to a connector's file destination",
+	"examples/go-quickstart/main.go:run":    "writes the example's bilingual output",
 }
 
 func main() {
@@ -82,11 +97,11 @@ func main() {
 		os.Exit(2)
 	}
 	if len(found) > 0 {
-		fmt.Fprintln(os.Stderr, "editguard: these point a format writer at a file outside the listed places:")
+		fmt.Fprintln(os.Stderr, "editguard: these write a document to a file outside the file home and the listed places:")
 		for _, f := range found {
 			fmt.Fprintln(os.Stderr, "  "+f)
 		}
-		fmt.Fprintln(os.Stderr, "Change content through change.ApplyBlock and write it where an existing entry writes it, or list the new place in scripts/editguard with what it writes.")
+		fmt.Fprintln(os.Stderr, "Commit a document through core/change/filehome (a change set through the change service, a whole document a run produced through Home.Produce), or list the new place in scripts/editguard with what it writes.")
 		os.Exit(1)
 	}
 }
@@ -241,8 +256,12 @@ func checkPackage(fset *token.FileSet, imp types.Importer, path string, files []
 				if !ok {
 					return true
 				}
-				recv, ok := writesFile(info, call)
-				if !ok {
+				what := ""
+				if recv, ok := writesFile(info, call); ok {
+					what = recv + ".SetOutput writes a document to a file"
+				} else if name, ok := replacesFile(info, call); ok {
+					what = "atomicfile." + name + " replaces a file outside the file home"
+				} else {
 					return true
 				}
 				if _, ok := allowed[where]; ok {
@@ -250,7 +269,7 @@ func checkPackage(fset *token.FileSet, imp types.Importer, path string, files []
 					return true
 				}
 				p := fset.Position(call.Pos())
-				found = append(found, fmt.Sprintf("%s:%d: %s.SetOutput writes a document to a file (in %s)", relFile(call.Pos()), p.Line, recv, fn.Name.Name))
+				found = append(found, fmt.Sprintf("%s:%d: %s (in %s)", relFile(call.Pos()), p.Line, what, fn.Name.Name))
 				return true
 			})
 		}
@@ -281,4 +300,21 @@ func writesFile(info *types.Info, call *ast.CallExpr) (string, bool) {
 		return "", false
 	}
 	return types.TypeString(s.Recv(), func(p *types.Package) string { return p.Name() }), true
+}
+
+// replacesFile reports whether a call is one of core/atomicfile's replacing
+// functions, and returns its name.
+func replacesFile(info *types.Info, call *ast.CallExpr) (string, bool) {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || !replacing[sel.Sel.Name] {
+		return "", false
+	}
+	fn, ok := info.Uses[sel.Sel].(*types.Func)
+	if !ok || fn.Pkg() == nil || fn.Pkg().Path() != atomicfilePath {
+		return "", false
+	}
+	if sig, ok := fn.Type().(*types.Signature); !ok || sig.Recv() != nil {
+		return "", false
+	}
+	return fn.Name(), true
 }

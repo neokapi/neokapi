@@ -51,12 +51,14 @@ Use -p to run a flow from a kapi.yaml recipe:
 
 			// If a project file is specified (or auto-discovered), apply its defaults.
 			if projectPath != "" {
-				return a.RunFromProject(cmd, flowName, projectPath, RunCmdOptions{})
+				return a.WithPrintedOps(cmd, func() error {
+					return a.RunFromProject(cmd, flowName, projectPath, RunCmdOptions{})
+				})
 			}
 
 			// Outside a project there is nothing but the built-in catalog.
 			if BuiltinFlowNames()[flowName] {
-				return a.RunFlow(cmd.Context(), cmd, flowName)
+				return a.WithPrintedOps(cmd, func() error { return a.RunFlow(cmd.Context(), cmd, flowName) })
 			}
 
 			return fmt.Errorf("unknown flow: %q\nUse \"flows\" to list available flows, or execute a tool directly (\"kapi exec %s\")", flowName, flowName)

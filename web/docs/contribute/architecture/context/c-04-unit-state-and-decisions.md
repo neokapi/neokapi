@@ -327,7 +327,11 @@ IS the decision.
 
 A **rejection** records the verdict, the rejected translation and the reviewer.
 It preserves the basis recorded by the last approval or producing run, so the
-unit's staleness remains unchanged. Withdrawing an approval has the same effect.
+unit's staleness remains unchanged. A translation the loop produced and nobody
+has decided has its basis in the block history, as the flow's write of it
+([C-03](c-03-context-store-and-graph.md#edits-are-recorded-as-content-edit)), and
+a decision on it starts from that write: its source hash and the producer's
+stamp. Withdrawing an approval has the same effect.
 On the server, rejection also clears the draft mark, scheduling a new draft.
 
 **A rejection is work whatever the basis says.** Comparing the two hashes

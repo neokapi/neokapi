@@ -66,6 +66,8 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		convergeWriteFiles:  a.convergeWriteFiles,
 		convergeDraftDir:    a.convergeDraftDir,
 		convergeDraftRoot:   a.convergeDraftRoot,
+		convergeDeliveries:  a.convergeDeliveries,
+		printOps:            a.printOps,
 		docCache:            a.docCache,
 		translator:          a.translator,
 		AISetupIOOverride:   a.AISetupIOOverride,
@@ -155,8 +157,13 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// One draft tree for the whole run: the locales of a pass draft side by
 	// side and finishConverge delivers from the store, so a per-worker tree
 	// would be a per-locale answer to a question the run asks once.
-	"convergeDraftDir":    fieldShared,
-	"convergeDraftRoot":   fieldShared,
+	"convergeDraftDir":  fieldShared,
+	"convergeDraftRoot": fieldShared,
+	// The drafts' deliveries, like the tree, are the run's: finishConverge
+	// delivers what every locale's worker drafted.
+	"convergeDeliveries": fieldShared,
+	// A run that prints its change set prints one, gathered from every worker.
+	"printOps":            fieldShared,
 	"docCache":            fieldShared,
 	"translator":          fieldShared,
 	"pluginRuntime":       fieldShared, // pre-seeded, never rebuilt per worker

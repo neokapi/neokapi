@@ -18,7 +18,9 @@ it. The service reads each document through the **home** that holds its text,
 applies the operations in memory with `change.ApplyBlock`, checks what changed,
 and commits every document or none. A file in a working tree is one home; the
 file home commits by renaming a staged file onto the document under an advisory
-lock, and applies the change again when the file moved since it was read.
+lock, and applies the change again when the file moved since it was read. A
+flow commits each document it writes through the same home and records it as
+the flow's edit.
 
 The service lives below every surface. It imports `core/model` and
 `core/safeio` and nothing above them, so the CLI, the agent tools, Kapi Desktop
@@ -250,6 +252,85 @@ a commit replaces beside it, under the lock, from the bytes the change was
 applied to. The implementation note
 [The file home](../../implementation/engine/file-home.md) has the details.
 
+### Flows
+
+A flow writes a document whole: its writer renders every block the run passed
+through, into the file it reads or into a target-language file built from the
+source's skeleton. The file home commits that document too
+(`filehome.Home.Produce`): the run digests the destination before it reads,
+the writer's output is staged beside the destination, and the commit renames it
+under the destination's lock only while the destination still holds what the
+run began from ([E-01](e-01-processing-engine.md#the-write-stage)). Every flow
+the kapi host runs commits this way: `kapi translate`, `pseudo-translate`,
+`run`, `exec` and `up`, the same runs in Kapi Desktop and over MCP, a pull's
+target files, and the delivery of a convergence pass's drafts. The host's flow
+home takes its locks where the project's change service takes them, so a flow
+and a change set on one file take turns.
+
+Inside a project the host records each document a flow wrote as one
+`content.edit`, through the recorder a change set's commit records through,
+with the actor `tool:<flow>` and the origin `flow:<flow>`. `kapi exec` takes
+the project the command resolves, as `kapi apply` does, for a file the project
+holds. The record keeps revisions and hashes, no text. Its transitions are the
+run's effect on the file as the service reads it: the document is read through
+the service before the run and again after the commit (a commit that finds the
+file holding the run's bytes already, as it did when the run read it, reuses
+the first read), and each edition whose revision moved is a transition, with
+the stamp the producing tool left as its producer. A translation's basis is the
+source the run read before it ran, with that source's content hash: the commit
+guards the file the run writes, so a source edited while the run worked is
+drift against the basis rather than the basis. A translation the run reproduced
+unchanged is recorded too, once, when the block history does not already say a
+flow wrote it from the source the block holds, and not over a person's or an
+agent's write of the same wording, which stays theirs. So the history keeps the
+basis of every translation the loop made. That basis is what coverage grades an
+undecided translation by, what a decision on it starts from, and where the
+staleness gate finds what governed it. An undecided record in the decision
+ledger (a Kapi Desktop edit, or a basis the loop kept there in an older
+project) yields to the flow's last write when that write is the translation the
+file holds.
+
+A destination that moved while the run worked is applied again through the
+service from the run's operations (`set_content` on each edition the run
+changed, guarded by the revision read before the run, followed by the
+provenance the producing tool left). The service reads the file under its lock,
+and the document lands when no edition the run changed has moved too, and is
+refused as a whole otherwise: when one has moved (`stale`), or when the run
+wrote a block the file does not hold yet. The run then reports the document as
+moved, and the next run writes it. A target-language edition the run left
+without a translation is rendered from the source by the writer, and is left as
+the file holds it when the run's changes are applied again.
+
+Under `--print-ops` the run commits through a home that writes nothing
+(`filehome.Options.WriteNothing`) and records nothing. What it changed in each
+document becomes operations, the difference between each block as the reader
+gave it and as the writer received it (`change.Diff`), each guarded by the
+revision the service read before the run and each `set_content` of a
+translation carrying its basis. Before a document's operations join the change
+set, they are applied to a private copy of the file through the service `kapi
+apply` reaches, and they are printed only when the copy then holds the bytes
+the run would have written. A run writes a target-language file whole from its
+source, while the service edits the blocks a file holds as it stands, so the
+two differ when the source gained a block the file does not hold or the file
+holds an entry or an order of its own; such a file is named on standard error
+and left out. So is a file the run would write where the service does not keep
+the edition (an output path given on the command line in place of the recipe's
+target), a conversion, an export and an archive. `kapi apply` of the change set
+writes the bytes the run would have written, and records the edit as its own
+actor's: the provenance operation is in-process, so the change set carries no
+tool stamp.
+
+A printing `kapi up` runs one pass. A gated pass drafts into its private tree
+as any pass does (`Options.WriteUnder` lets the printing home write there),
+the gate decides from the drafts, and delivery prints what it would commit for
+each locale that clears its gate; a parked locale is named and prints nothing.
+A printing run records no change, absorbs nothing into the content memory and
+stamps nothing. As any pass does, it extracts the source into the derived store
+and caches under `.kapi/work`, and records the identity of a document it reads
+for the first time (`document.adopt`). In a
+project a `kapi translate`, `pseudo-translate` or `run` without `-o` writes no
+file, and prints nothing with a note.
+
 ### Hooks
 
 The service calls five hooks a host supplies. Each is optional.
@@ -324,6 +405,30 @@ nothing records a comment edit.
 The MCP tools `read_blocks`, `apply_edits` and `describe_format` build the
 service for each call's project and send every change set as the calling agent
 ([S-03](../surfaces/s-03-agent-surfaces.md)).
+
+The verbs that write whole translations build the service with
+`Materialize` set, so the file home writes each translation's file from its
+source's skeleton, keeping what each block's partner in the file held where the
+change set leaves it, and a translation follows the source's structure, even
+where the change set changes no content in a file whose blocks no longer pair
+with the source's. Such a service keeps the translations of a bilingual source,
+a PO or XLIFF catalog whose collection names a target, in the target
+template's files too, each read and written in its language: a catalog that
+still holds every unit of its source keeps its own skeleton, header included.
+`kapi merge -i` compiles a returned XLIFF, PO or `.kpz` into `set_content`
+operations carrying the `if_match` and `basis` each unit was extracted against,
+under `require_basis` and the enforce gate, and sends them as a person;
+`kapi extract` stamps each unit with the revision of the source it carries and
+the translation's revision a read through the service gives
+([M-01](../multilingual/m-01-bilingual-interop.md)). `kapi merge` with no `-i`
+sends the targets the block store holds for a source and language as one
+change set from the tool `merge`, and `kapi pull` sends the runs the server
+holds for each pulled translation as the tool `pull`, each `if_match` the
+revision the read before it found. A pull hands the writer of a document with
+locale-variant media through `ChangeServiceOptions.WriterHook`, and writes a
+target in another format than its source, which no edition reaches, with the
+target's own writer. The record names the surface as the origin: `merge` or
+`pull`.
 
 ### Results and errors
 

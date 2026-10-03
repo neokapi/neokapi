@@ -1,6 +1,7 @@
 package host
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -64,7 +65,11 @@ func matchFormatMapping(filePath string, mappings []FormatMapping) string {
 
 // ToolRunConfig configures RunToolOnFiles.
 type ToolRunConfig struct {
-	ToolName       string
+	ToolName string
+	// Project is the recipe of the project the command resolved, "" for none.
+	// A file the project holds commits under the project's lock and is
+	// recorded in its history, as kapi apply in the project would.
+	Project        string
 	Files          []string
 	FormatMappings []FormatMapping
 	Concurrency    int
@@ -440,6 +445,20 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		}
 	}
 
+	// The destination as the run found it, before anything is read: the
+	// document commits only while the destination still holds this.
+	var out *toolOutput
+	if producesOutput && writer != nil {
+		out, err = a.openToolOutput(ctx, cfg, flow.Document{
+			Flow: cfg.ToolName, InputPath: filePath, OutputPath: outputPath,
+			TargetLocale: model.LocaleID(cfg.TargetLang), Format: registryName, OutputFormat: writer.Name(),
+		})
+		if err != nil {
+			return err
+		}
+		defer out.abort()
+	}
+
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", filePath, err)
@@ -501,6 +520,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		parts = append(parts, result.Part)
 	}
 	reader.Close()
+	out.enter(parts)
 
 	t, err := cfg.NewTool()
 	if err != nil {
@@ -594,6 +614,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 			recorder.Record("enter", "writer", key, nil)
 			recorder.Record("exit", "writer", key, nil)
 		}
+		out.leave(p)
 		outputParts = append(outputParts, p)
 	}
 
@@ -661,10 +682,6 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	}
 
 	if producesOutput && writer != nil {
-		if err := writer.SetOutput(outputPath); err != nil {
-			return fmt.Errorf("set output %s: %w", outputPath, err)
-		}
-
 		// Prefer passing the file path over loading content bytes when the writer
 		// supports it. This avoids duplicating the file in memory for gRPC transfer.
 		// As with the skeleton store, only hand the source to the writer for a
@@ -682,17 +699,28 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		locale := model.LocaleID(cfg.TargetLang)
 		writer.SetLocale(locale)
 
-		ch := make(chan *model.Part, len(outputParts))
-		for _, p := range outputParts {
-			ch <- p
-		}
-		close(ch)
-
-		if err := writer.Write(ctx, ch); err != nil {
-			return fmt.Errorf("write output %s: %w", outputPath, err)
-		}
-		if err := writer.Close(); err != nil {
-			return fmt.Errorf("close writer %s: %w", outputPath, err)
+		// The writer renders into a file staged beside the destination, which
+		// commits through the file home a change set commits through.
+		err := out.write(ctx, outputPath, func(dst io.Writer) error {
+			bw := bufio.NewWriterSize(dst, 64*1024)
+			if err := writer.SetOutputWriter(bw); err != nil {
+				return fmt.Errorf("set output %s: %w", outputPath, err)
+			}
+			ch := make(chan *model.Part, len(outputParts))
+			for _, p := range outputParts {
+				ch <- p
+			}
+			close(ch)
+			if err := writer.Write(ctx, ch); err != nil {
+				return fmt.Errorf("write output %s: %w", outputPath, err)
+			}
+			if err := writer.Close(); err != nil {
+				return fmt.Errorf("close writer %s: %w", outputPath, err)
+			}
+			return bw.Flush()
+		})
+		if err != nil {
+			return err
 		}
 
 		// Print the destination only when stderr is an interactive terminal:

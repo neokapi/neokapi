@@ -529,7 +529,7 @@ source.
 
 | Field             | Type   | Description                                                                                              |
 | ----------------- | ------ | ------------------------------------------------------------------------------------------------------- |
-| `conflict_policy` | string | `translator-wins` (default), `existing-wins`, or `newest-wins`                                          |
+| `conflict_policy` | string | What `kapi merge` does with a unit whose translation changed in the project since the extraction: `translator-wins` (default) replaces it, `existing-wins` keeps it, `newest-wins` takes the returned file when it is newer than the translation's file |
 
 #### memory
 
