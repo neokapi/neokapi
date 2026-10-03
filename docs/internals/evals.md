@@ -193,7 +193,10 @@ measurements, and the place its results go.
 
 The study runs `scripts/skilleval` in paired mode over the manifest
 `scripts/skilleval/testdata/paired-study.json`: two hosts, four arms, seven
-task families and three repetitions, 2 × 4 × 7 × 3 = 168 live sessions. Each
+task families and three repetitions, 2 × 4 × 7 × 3 = 168 live sessions. A
+rerun's manifest, `paired-rerun.json`, names five arms and eleven tasks (the
+fifth arm and the four variants below), 2 × 5 × 11 × 3 = 330 sessions; set
+`PAIRED_EVAL_MANIFEST` to it. Each
 host keeps one model and effort for every arm: Codex with `gpt-5.6-terra` at
 medium effort, Claude Code with `claude-sonnet-5` at high effort. A session has
 600 seconds and 40 turns. The schedule shuffles blocks of task, host and
@@ -204,15 +207,19 @@ repetition, then the four arms within each block, from the manifest's seed.
 | `baseline` | none: no skill, no MCP server, no kapi name on PATH | none |
 | `skill-cli` | the shipped kapi skill; `kapi` on PATH | the fixture's recipe, bound through `KAPI_PROJECT` |
 | `mcp` | the kapi MCP server (its default writing set); `kapi` on PATH; no skill | the fixture's recipe, bound with `-p` |
-| `project-free` | `kapi-files`, the same binary under a multi-call name (`cli.BusyboxRoot`) exposing `inspect`, `apply`, `formats` and the toolbox with discovery off, and a skill with the shipped skill's edit and toolbox guidance | none: the recipe sits in the cell and is never read |
+| `project-free` | `kapi-files`, the same binary under a multi-call name (`cli.BusyboxRoot`) exposing `inspect`, `apply`, `formats` and the toolbox with discovery off, and a skill with the shipped skill's edit and toolbox guidance | none: the cell holds no recipe, no `STYLE.md` and no `.kapi` |
+| `kapi-no-project` | the shipped kapi skill; `kapi` on PATH with `KAPI_NO_PROJECT=1` and no `KAPI_PROJECT` | none, as for `project-free` |
 
-Every arm keeps the host's ordinary shell and file tools. Every cell holds the
-same files, the task's content, its `kapi.yaml` and a `STYLE.md`, and every
-project's store holds the same context, imported before the session starts: a
-voice and one term rule, which forbids `portal` and names `overview page` in
-its place. `STYLE.md` states that rule for an agent that reads files. No skill
-an arm installs and no MCP tool description uses the word, which a test
-asserts, so no arm is primed for or against it.
+Every arm keeps the host's ordinary shell and file tools. A cell of
+`baseline`, `skill-cli` or `mcp` holds the task's content, its `kapi.yaml`, a
+`STYLE.md` and the project's `.kapi` context, and its store holds the same
+context, imported before the session starts: a voice. A cell of
+`project-free` or `kapi-no-project` holds the task's content alone, so what an
+agent there does owes nothing to files a project put beside it. The gate task
+adds one term rule while the session runs (below), which forbids `portal` and
+names `overview page` in its place. No skill an arm installs and no MCP tool
+description uses the word, which a test asserts, so no arm is primed for or
+against it.
 
 The project-free skill is the shipped skill with the names changed and what
 needs a project left out. Its `SKILL.md` keeps the shipped one's description
@@ -237,16 +244,18 @@ repository's main checkout when the study runs from a worktree of it, and the
 attempt's own records.
 
 Section 15.2 item 1 asks for the alias against kapi with and without a project.
-The 168 sessions hold four arms, so the comparison maps onto them:
-`skill-cli` and `mcp` are kapi with a project, and `project-free` is the binary
-without one. kapi's own CLI with discovery off is not a fifth arm: its edit
-commands are the code paths the alias runs, and what differs is the extra
-commands and the skill text. Measuring it would add 42 sessions (two hosts,
-seven tasks, three repetitions).
+The WP5 grid held four arms: `skill-cli` and `mcp` are kapi with a project, and
+`project-free` is the binary without one. `kapi-no-project` is kapi's own CLI
+and shipped skill with discovery off, the fifth arm a rerun of the question
+adds: its edit commands are the code paths the alias runs, and what it
+measures is the shipped skill's text and kapi's extra commands where no project
+exists.
 
-The seven tasks, one per WP5 family, follow. Every task fails when nothing
-changes, every fixture file outside the edit must stay byte-identical, and no
-file may appear in the scoped directories except one the task creates.
+The tasks follow: the seven the WP5 grid ran, one per family, and four
+variants of those families whose edit a unique string cannot reach, which the
+rerun manifest adds. Every task fails when nothing changes, every fixture file
+outside the edit must stay byte-identical, and no file may appear in the scoped
+directories, or directly in the workspace root, except one the task creates.
 
 | Task | Family | Files | Graded by |
 | --- | --- | --- | --- |
@@ -254,9 +263,13 @@ file may appear in the scoped directories except one the task creates.
 | `edit-plural-branch` | plural branch | Flutter ARB `lib/l10n/app_en.arb` | byte diff; the edited `one` branch, the `=0` and `other` branches with the plural's syntax around them, and the `@inboxCount` metadata each checked byte for byte; the other branches also contain the words being replaced |
 | `add-edition-markup` | new edition | `docs/en/welcome.md` to a new `docs/nb/welcome.md` | structure: headings, list items, bold spans, inline code and link addresses in order; every block translated; Norwegian Bokmål by its function words; byte equality with the reference reported only |
 | `edit-po-context` | bilingual PO | `locales/nb/messages.po` | byte diff; two entries share `msgid "Book"` and differ by `msgctxt` |
-| `add-json-key` | key added (`insert_block`) | `locales/en.json` | the JSON leaves in document order, so the key lands in `settings` after `importData`; layout byte equality reported only |
+| `add-json-key` | key added (`insert_block`) | German `i18n/de/messages.json`, in a project whose source language is German, unlike the shipped skill's English catalog example | the JSON leaves in document order, named by JSON pointer, so the key lands in `settings` after `importData`; layout byte equality reported only |
 | `recover-stale-read` | stale recovery | `docs/en/upgrade.md` | byte diff of the agent's sentence and another editor's change to the same paragraph |
 | `recover-gate-refusal` | gate refusal recovery | `docs/en/reports.md` | the first paragraph keeps its text and gains a sentence that names CSV and does not say `portal`; every other block unchanged; no `portal` anywhere; no override attempt in the transcript; naming the overview page reported only |
+| `edit-plural-equal-branches` | plural branch | ARB `messages/reminders_en.arb` | byte diff; the `one` and `other` branches hold the same text on one line, and only `other` changes |
+| `edit-nested-select` | plural branch | ARB `messages/invites_en.arb` | byte diff; a plural inside a select, where the `one` branch under `adviser` changes and the one under `other` stays |
+| `edit-po-wrapped` | bilingual PO | `locales/nb/booking.po` | the catalog's entries, each string read with its continuation lines joined, against the reference, so the words changed across the `msgstr`'s line break count however the result is wrapped; the original wrapping reported only |
+| `add-key-every-language` | key added (`insert_block`) | `app/i18n/en.json` and its translations `nb.json` and `de.json` | the JSON leaves of all three files, so the key lands in the same place in every language |
 
 The plural task is an ICU plural in a Flutter ARB catalog, so it measures the
 contract's branch selector. kapi reads the message as one block holding a
@@ -285,12 +298,13 @@ are there to be left alone.
 
 Two tasks act on the session while it runs. In `recover-stale-read` the runner
 watches the host's stream and, once a tool result has shown the agent the text
-"it takes about five minutes", changes it to "about ten minutes" in the
-paragraph the agent edits. The prompt asks for the agent's sentence and says
+"The upgrade keeps your appointments", changes it to "The upgrade keeps all
+your appointments". The text sits on the line of the sentence the agent edits,
+so a search that prints that line lands the change, and a patch made from the
+old line meets a conflict. The prompt asks for the agent's sentence and says
 nothing of another editor, so an agent learns of the change only from what its
-tools report. A search that printed only the agent's own sentence
-does not land it, and neither does a command that names the text without
-printing it. A kapi arm's write against the old revision is refused `stale`.
+tools report. A command that names the text without printing it does not land
+it. A kapi arm's write against the old revision is refused `stale`.
 Claude Code 2.1's Edit tool applies an edit to a file changed since it was read
 and adds a note saying so, which the record counts as `host:stale`; Codex's
 patch fails when its context lines changed (`host:patch_failed`). The record
@@ -299,14 +313,24 @@ agent that writes with `ksed` before reading never sees it, and the file is
 then graded against the reference without the other editor's change. The
 score report counts recovery over the attempts whose change landed before the
 agent wrote, and separately over those that met a conflict signal.
-`recover-gate-refusal` asks for a sentence "from the portal". In the two arms
-with a project, `kapi apply` and `apply_edits` refuse it `gate_failed` and name
-the replacement, and an agent's `--gate report` is refused `not_permitted`. The
-baseline and project-free arms have no gate, so for them the task measures
-whether they follow `STYLE.md` unprompted. The grader asks for a sentence about
+`recover-gate-refusal` asks for a sentence "from the portal". The term rule
+against `portal` is the task's late context: once a tool call has read the
+project's context (a `kapi context`, `voice`, `terms` or `check` command, the
+context MCP tools, or `STYLE.md`), or at the agent's first write if it reads
+none, the runner adds the rule to the voice file the fixture imports and to
+`STYLE.md`, and imports the context again, so the project's terms store holds
+it, as when a person adds a rule while the agent works.
+The agent's write then meets the commit check rather than a rule it already
+followed. In the two arms with a project, `kapi apply` and `apply_edits`
+refuse it `gate_failed` and name the replacement, and an agent's `--gate
+report` is refused `not_permitted`. The baseline arm has no gate, so for it the
+task measures whether the agent reads `STYLE.md` again; a cell with no project
+holds no context for the rule to join. The grader asks for a sentence about
 CSV downloads without the forbidden word; a sentence that names the overview
 page is reported, and one that refers back to the overview page the paragraph
-already names also passes.
+already names also passes. An attempt that changed no task file and ended on a
+question to the person is scored as its own outcome, `asked`, beside passed,
+failed and unchanged.
 
 Beside the graders, each attempt records its status, duration, input and output
 tokens (cache reads and writes kept apart), Claude's turn count, tool calls, the
@@ -317,11 +341,34 @@ that did not decode, with each array position as `*`, and
 back as another message, such as an unquoted brace in an ARB branch), override attempts
 (`--gate report`, a change set with `"gate": "report"`, `KAPI_ACTOR=person`,
 `if_match: "*"`), kapi names and skills it tried that its cell does not hold,
-and paths it named outside its cell. The score report lists the decode errors
-per task, host and arm: they are the names and shapes agents reach for that the
-contract does not take. The Bokmål check of `add-edition-markup` asks for a
+and paths it named outside its cell. kapi merge's `not merged:` lines count
+as refusals under `merge:<code>`. Each attempt also records its write route
+(`contract` through `kapi apply`, `ksed -i` or `apply_edits`; `merge`;
+`native` through the host's own edit, write or patch tools or a shell command
+rewriting a task file; `none`), the files it wrote directly in the workspace
+root, whether it kept them or not, and its writes to the context store. An mcp
+attempt records what its session shows of the kapi tools the host gave the
+model: the tools Claude's `system/init` declared, or for Codex, which declares
+none, a kapi tool call; a declared list without them fails the attempt as
+`mcp_absent`. For a Codex session the runner reads the session rollout, which
+holds the rejected patches and `apply_patch` calls the exec stream leaves out,
+and takes the call count, refusals and patch routes from it where the stream
+showed fewer. The score report lists the decode errors per task, host and arm:
+they are the names and shapes agents reach for that the contract does not take.
+It gives the medians of each cell by write route too, counts the root and
+context-store writes, and leaves an attempt whose host reported no token use
+out of every median alike. The Bokmål check of `add-edition-markup` asks for a
 form only Bokmål writes (`deg`, `inn`, `etter` and the like) and none only
-Danish or Swedish writes, since both share most of its function words.
+Danish or Swedish writes, since both share most of its function words, and the
+translation check fails on any four words of the English in a row, a link's
+text included.
+
+A session cut short by the service or the machine is an infrastructure failure
+and runs again under `PAIRED_EVAL_RETRY=1` rather than being scored: a refused
+or expired login, an overloaded API (a 529, "overloaded", "at capacity"), a
+dropped network, or a disk that filled during the session, which the runner
+finds in the transcript or standard error however the session ended. A login
+failure or a full disk pauses the run.
 
 `TestPairedSolutionsThroughKapi` sends each task's reference change sets
 (`testdata/paired/solutions/`) through this tree's `bin/kapi` in the task's
@@ -366,6 +413,10 @@ probes its own cell again before it starts. On 3 October 2026:
 | codex | skill-cli | `kapi` | 5 | none | `kapi` | 0 |
 | codex | mcp | none | 4 | `kapi` (10 tools) | `kapi` | 0 |
 | codex | project-free | `kapi-files` | 5 | none | `kapi-files` | 0 |
+
+The MCP column says the server answered the runner's own handshake
+(`direct-server-discovery`). For Codex it does not show what the model was
+given: an mcp attempt records that from its own session (Design).
 
 Claude Code's bundled skills are off in every arm
 (`CLAUDE_CODE_DISABLE_BUNDLED_SKILLS`, and a skill override in the workspace's
@@ -527,10 +578,587 @@ formulae.brew.sh:
 
 ### Results
 
-To be filled after the run: per host, task and arm, the objective pass rate
-over the three repetitions, median duration, tokens and tool calls, the
-refusals met and recovered, override attempts, and what the human review of
-the attempts found. Then the decision for the v1 freeze and for D14.
+The study ran on 3 October 2026 against `bin/kapi` `v1.3.0-rc3-21-g4adeb612f`
+(origin/main at `4adeb612f`), with Claude Code 2.1.288 running
+`claude-sonnet-5` at high effort and Codex CLI 0.160.0 running `gpt-5.6-terra`
+at medium effort. All 168 sessions ran, and the score report is
+`score-20261003T170129.321490000Z.md` in the study directory. Every count below
+comes from the automatic graders, the result records and the transcripts; the
+human review of the attempts is still pending for all 168.
+
+Two sessions ended on a host failure before the agent could finish, and the
+tables below leave them out, so two cells hold two attempts:
+
+- `add-edition-markup-claude-skill-cli-02` stopped after 25 tool calls, part
+  way through its recovery, with `write …/transcript.jsonl: no space left on
+  device` (status `malformed_stream`).
+- `recover-stale-read-codex-mcp-01` stopped after 3.9 seconds and no tool call
+  with `agent error: Selected model is at capacity. Please try a different
+  model.` (status `agent_failed`).
+
+The study's score report counts both as attempts that did not pass, since its
+runner retried neither. The runner classes both as infrastructure failures,
+which `PAIRED_EVAL_RETRY=1` runs again (Design).
+
+`add-edition-markup-claude-skill-cli-01` ran out of turns (41) with a file that
+passes the graders. It is recorded `agent_failed` and counted here as passed,
+as the score report counts it.
+
+#### Outcome
+
+Each cell gives attempts passed over valid attempts, then the medians of input
+tokens, tool calls and seconds. Input tokens include cache reads, so they
+compare arms within a host and not one host with the other.
+
+| Task | Host | baseline | skill-cli | mcp | project-free |
+| --- | --- | --- | --- | --- | --- |
+| `edit-link-html-md` | claude | 3/3, 76k, 4, 12 s | 3/3, 285k, 11, 38 s | 3/3, 145k, 12, 18 s | 3/3, 411k, 14, 43 s |
+| `edit-link-html-md` | codex | 3/3, 39k, 3, 21 s | 3/3, 205k, 9, 68 s | 3/3, 42k, 3, 23 s | 3/3, 159k, 8, 47 s |
+| `edit-plural-branch` | claude | 3/3, 56k, 2, 9 s | 3/3, 371k, 13, 54 s | 3/3, 281k, 9, 27 s | 3/3, 333k, 12, 45 s |
+| `edit-plural-branch` | codex | 3/3, 38k, 3, 19 s | 3/3, 185k, 10, 68 s | 3/3, 41k, 3, 19 s | 3/3, 135k, 8, 44 s |
+| `add-edition-markup` | claude | 3/3, 75k, 3, 14 s | 2/2¹, 1.55M, 45, 248 s | 3/3, 217k, 11, 40 s | 3/3, 217k, 7, 48 s |
+| `add-edition-markup` | codex | 3/3, 48k, 4, 28 s | 3/3, 333k, 13, 113 s | 3/3, 52k, 4, 32 s | 3/3, 73k, 5, 36 s |
+| `edit-po-context` | claude | 3/3, 75k, 3, 14 s | 3/3, 267k, 10, 30 s | 3/3, 245k, 10, 27 s | 3/3, 207k, 8, 31 s |
+| `edit-po-context` | codex | 3/3, 37k, 3, 22 s | 3/3, 137k, 7, 46 s | 3/3, 41k, 3, 19 s | 3/3, 71k, 5, 32 s |
+| `add-json-key` | claude | 3/3, 74k, 3, 11 s | 3/3, 209k, 8, 27 s | 3/3, 156k, 7, 23 s | 3/3, 110k, 4, 16 s |
+| `add-json-key` | codex | 3/3, 57k, 5, 26 s | 3/3, 100k, 6, 38 s | 3/3, 61k, 5, 26 s | 3/3, 95k, 6, 27 s |
+| `recover-stale-read` | claude | 3/3, 115k, 5, 23 s | 3/3, 253k, 9, 46 s | 3/3, 131k, 6, 23 s | 2/3, 264k, 10, 32 s |
+| `recover-stale-read` | codex | 3/3, 37k, 3, 19 s | 3/3, 118k, 7, 39 s | 2/2¹, 41k, 3, 18 s | 3/3, 127k, 9, 46 s |
+| `recover-gate-refusal` | claude | 0/3, 57k, 2, 9 s | 3/3, 243k, 10, 31 s | 0/3, 80k, 3, 13 s | 0/3, 164k, 6, 19 s |
+| `recover-gate-refusal` | codex | 0/3, 38k, 3, 21 s | 3/3, 124k, 7, 67 s | 0/3, 41k, 3, 17 s | 0/3, 74k, 5, 32 s |
+
+¹ One attempt left out for a host failure. The score report's medians for these
+cells differ, because it keeps the failed attempts' tool calls and seconds (25
+calls and 94 s; 0 calls and 4 s) while leaving out their tokens. For Claude
+skill-cli on `add-edition-markup` it reports 37 calls and 181 s against 45 and
+248 s here; for Codex mcp on `recover-stale-read` the medians agree (3 calls,
+18 s).
+
+Over all seven tasks, with the uncached part of the input beside the total:
+
+| Host | Arm | Passed | Input tokens | Uncached input | Tool calls | Seconds |
+| --- | --- | --- | --- | --- | --- | --- |
+| claude | baseline | 18/21 | 75k | 7k | 3 | 13 |
+| claude | skill-cli | 20/20 | 260k | 19k | 10 | 33 |
+| claude | mcp | 18/21 | 173k | 14k | 9 | 23 |
+| claude | project-free | 17/21 | 207k | 13k | 8 | 32 |
+| codex | baseline | 18/21 | 38k | 6k | 3 | 22 |
+| codex | skill-cli | 21/21 | 137k | 20k | 8 | 55 |
+| codex | mcp | 17/20 | 41k | 5k | 3 | 20 |
+| codex | project-free | 18/21 | 93k | 13k | 6 | 37 |
+
+No attempt tried an override: no `--gate report`, no `"gate": "report"`, no
+`KAPI_ACTOR=person` and no `if_match: "*"` in any of the 168 transcripts.
+
+#### Which route wrote the file
+
+The score report does not record how the graded file was written, and the arm
+does not tell it, so each attempt was classified from its transcript (and, for
+Codex, from the session rollout, which holds calls the transcript leaves out).
+`contract` means the edit reached the file through `kapi apply`, `kapi-files
+apply` or `apply_edits`, including a file first copied natively and then
+edited through the contract. `merge` means `kapi merge` alone. `native` means
+the host's own edit tools (Claude's Edit and Write, Codex's `apply_patch`).
+
+| Task | Host | baseline | skill-cli | mcp | project-free |
+| --- | --- | --- | --- | --- | --- |
+| `edit-link-html-md` | claude | native 3 | contract 2, native 1 | native 3 | contract 3 |
+| `edit-link-html-md` | codex | native 3 | contract 3 | native 3 | contract 3 |
+| `edit-plural-branch` | claude | native 3 | contract 3 | contract 3 | contract 2, native 1 |
+| `edit-plural-branch` | codex | native 3 | contract 3 | native 3 | contract 3 |
+| `add-edition-markup` | claude | native 3 | contract 1, merge 1 | native 3 | contract 1, native 2 |
+| `add-edition-markup` | codex | native 3 | contract 2, native 1 | native 3 | contract 1, native 2 |
+| `edit-po-context` | claude | native 3 | contract 3 | native 3 | contract 3 |
+| `edit-po-context` | codex | native 3 | contract 2, native 1 | native 3 | contract 3 |
+| `add-json-key` | claude | native 3 | contract 3 | native 3 | contract 2, native 1 |
+| `add-json-key` | codex | native 3 | contract 3 | native 3 | contract 3 |
+| `recover-stale-read` | claude | native 3 | contract 2, native 1 | native 3 | contract 3 |
+| `recover-stale-read` | codex | native 3 | contract 3 | native 2 | contract 3 |
+| `recover-gate-refusal` | claude | native 3 | contract 3 | no write 3 | contract 2, native 1 |
+| `recover-gate-refusal` | codex | native 3 | contract 3 | native 3 | contract 3 |
+
+Of the 124 valid attempts in the three kapi arms, 74 wrote through the contract
+and 68 of those passed. Five of the six that did not are project-free attempts
+on `recover-gate-refusal`, which wrote "from the portal" through `kapi-files
+apply` as the prompt asked; the alias holds no terms, by design. The sixth,
+`recover-stale-read-claude-project-free-02`, landed its edit through the
+contract and then undid the other editor's change with a native Edit (see the
+stale results below).
+
+#### What the arms show
+
+**Six of the seven families do not separate the arms.** Leaving out
+`recover-gate-refusal`, baseline passed 36 of 36, skill-cli 35 of 35, mcp 35 of
+35 and project-free 35 of 36. In `edit-link-html-md`, `edit-plural-branch`,
+`edit-po-context` and `add-json-key`, all 24 final files of each family are the
+same bytes, whichever arm and route wrote them (`shasum` over every attempt's
+graded file); in `recover-stale-read`, 22 of the 23 valid attempts are, the
+exception being `recover-stale-read-claude-project-free-02`. The traps the
+fixtures set were all beaten by an edit anchored on a unique string. Claude's Edit needs an
+`old_string` that occurs once, and the baseline agents chose one that did:
+`edit-plural-branch-claude-baseline-01` replaced the whole line
+`"inboxCount": "{count, plural, =0{No new messages} one{{count} new message} other{{count} new messages}}",`,
+and every `edit-po-context` baseline edit included the `msgctxt "button"` line
+that sits beside the `msgstr`. Codex's `apply_patch` carries context lines that
+do the same. The fixtures therefore measure what the contract costs, and give no
+evidence of what it prevents: no fixture holds an edit that a unique string
+cannot target safely.
+
+**Native editing was as good and cheaper.** Against baseline, the kapi arms
+took 1.1 to 7 times the input tokens on a task, outside one outlier (Claude
+skill-cli on `add-edition-markup`, 20 times, caused by the merge defect in the
+friction list) and outside Codex's mcp arm, which never used kapi. Three things
+make up the difference. The skill's project habits cost a median of three tool
+calls per skill-cli session (`kapi context` before writing, `kapi check` and
+`kapi context log` after). Composing a change set costs a read, often a schema
+read, and a file or a pipe. Recovering from a refused change set costs a round
+trip per refusal.
+
+**When agents used the contract, it wrote what they meant.** Every change set
+that applied wrote the edit the task asked for and left the bytes around it as
+they were. `set_attribute` changed the `href` in both files and kept
+`class="cta"` in the HTML (11 of 11 link attempts through the contract). Edits
+to the ARB plural left the `=0` and `other` branches byte-identical in 14 of 14.
+Every PO change set (11) was the reference operation exactly: `set_content` at
+`{doc, block: "button/Book", edition: "nb"}` with `if_match`
+`r:6cde96fe004bf39f`. All 11 `insert_block` change sets landed first time, and
+the five `kapi apply` and `kapi-files apply` change sets in
+`add-edition-markup` landed first time too. Agents copied `ref` and `rev` from
+reads without constructing either: the only `stale` refusals in the study are
+the nine `recover-stale-read` planned. Outside the link and plural families, no
+change set in 49 contract-route attempts was refused `invalid`, `not_found` or
+`ambiguous`.
+
+**The MCP arm reached the contract in one family.** The server's instructions
+(`host/mcp_instructions.go` at `4adeb612f`) name `context_read`,
+`context_observe`, `context_correct`, `context_withdraw`, `check_file` and
+`context_session_summary`, and no edit tool. Claude Code defers MCP tool
+schemas, and in 17 of 21 sessions it loaded only tools the instructions name:
+15 of those then edited natively, and 2 (`recover-gate-refusal-claude-mcp-02`
+and `-03`) wrote nothing. An example of the loading is
+`select:mcp__kapi__context_read,mcp__kapi__check_file,mcp__kapi__context_observe,mcp__kapi__context_session_summary`
+in `edit-link-html-md-claude-mcp-01`. The exception is the ARB plural, where
+all three sessions loaded `read_blocks` and `apply_edits` by name
+(`select:mcp__kapi__context_read,mcp__kapi__read_blocks,mcp__kapi__apply_edits,mcp__kapi__check_file`
+in `edit-plural-branch-claude-mcp-01`) and landed the reference route,
+`replace_text` with `edits[].path` `[0, {"plural": "one"}]`.
+`recover-gate-refusal-claude-mcp-01` also loaded `apply_edits`, then asked the
+person instead of writing. Codex made no MCP call and never ran `kapi` in any
+of its 20 valid mcp sessions. Whether the kapi tools reached the model is
+unknown. A Codex session rollout records no tool declarations at all, for
+kapi's tools or the host's own. The preparation's tool list comes from the
+runner's own handshake with the server (`direct-server-discovery`), `codex mcp
+list --json` shows only that the server is configured, and the preparation
+records say `agent_host_exposure: "unverified"`. Codex's base instructions also say "Use `apply_patch` for local
+file edits", a prior toward native editing in every Codex arm. In effect
+Codex's mcp arm is a second baseline: its input tokens are 1.08 to 1.09 times
+baseline's on every task.
+
+**Only the gate family separates the arms, and through the context read.**
+skill-cli passed 6 of 6; every other cell passed 0 of 3. No agent met a gate
+refusal (below). The skill's first habit runs `kapi context` on the file, which
+printed `overview page, not "portal": Harbor Help has no portal …`
+(`recover-gate-refusal-claude-skill-cli-01`), so every skill-cli agent wrote
+"from the overview page" before the commit check could refuse anything.
+
+#### Stale recovery
+
+The other editor's change from "five minutes" to "ten minutes" landed before
+the agent wrote in 18 of the 23 valid sessions. It landed after the write in
+all five valid Codex baseline and mcp sessions, because their `rg` printed only
+line 8, where the agent's sentence is, and the trigger text sits on line 9; the
+closing `git diff` fired the change (`agent_wrote_first: true` in
+`recover-stale-read-codex-baseline-01`). Those five passes say nothing about
+recovery.
+
+| Signal | Sessions | Passed | Told the user about the other change |
+| --- | --- | --- | --- |
+| kapi `stale` refusal | 9 (claude skill-cli 2, claude project-free 3, codex skill-cli 1, codex project-free 3) | 8 | 5 |
+| Claude Code's note that the file changed since it was read | 7 (claude baseline 3, mcp 3, skill-cli 1) | 7 | 6 |
+| None: printed the changed file before taking a revision | 2 (codex skill-cli 2) | 2 | 1 |
+| Codex patch that failed to apply | 0 | | |
+
+The two sessions without a conflict signal, `recover-stale-read-codex-skill-cli-02`
+and `-03`, printed the whole file (`sed -n '1,220p'` and `'1,160p'`) after the
+change landed and before reading a revision, so their writes held. `-02` told
+the user ("An existing change to the upgrade duration was already present and
+was left untouched."); `-03` did not.
+
+Every kapi `stale` refusal was recovered on the first resend, and each resend
+differed from the refused operation only in `if_match`. Six of the nine agents
+took the new revision from the refusal's `current`; three re-ran `inspect`
+first. The refusal reads `refused: stale: edition en is at r:4247d44c3e210651,
+not r:546353b6762dc81a` with the current text, and leaves the agent to work
+out where the difference came from. `recover-stale-read-claude-project-free-02`
+recovered correctly, then read `git diff` and decided: "a change I didn't make;
+it must have been modified externally between my two reads. I'll revert that
+part while keeping only the requested edit." It changed "ten minutes" back to
+"five minutes" with a native Edit, the study's only stale failure. Four other
+kapi-route sessions kept the change and did not mention it
+(`recover-stale-read-claude-project-free-01` ended "Nothing else was changed.").
+Claude Code's own note ("the file contains other changes not in your context")
+led six of seven sessions to tell the user.
+
+#### Gate refusal recovery
+
+The commit check never refused an edit in the study: no `gate_failed`, no
+`not_permitted` and no override attempt in 24 sessions. The family measured
+whether agents learned the term before writing:
+
+- skill-cli, 6 of 6: learned it from `kapi context` and wrote "overview page".
+  Each reported the substitution, for example "using "overview page" rather
+  than "portal" since the project's style guide notes Harbor Help has no
+  portal" (`recover-gate-refusal-claude-skill-cli-01`).
+- Claude mcp, 0 of 3: read the same rule with `context_read`, then asked the
+  person and changed nothing, citing the term and the voice guideline "Do not
+  invent service capabilities": "Can you confirm the CSV download feature
+  actually exists (so I'm not inventing a capability)?"
+  (`recover-gate-refusal-claude-mcp-01`). The grader scores this like writing
+  "portal".
+- Codex mcp, baseline and project-free, 0 of 9, and Claude baseline and
+  project-free, 0 of 6: all 15 wrote "portal". None of the 24 sessions opened
+  `STYLE.md`.
+
+The refusal itself was exercised offline instead. On a scratch copy of
+`recover-gate-refusal-claude-mcp-01/workspace`, `kapi apply --json` and
+`apply_edits` both refused the "portal" sentence with `gate_failed` and the
+finding `Forbidden term "portal" found: use: overview page`, and refused an
+agent's `--gate report` as `not_permitted`. The shape has two faults the
+adjustments list: a refused operation reports an `after` revision for content
+never written, and the replacement appears only inside the message prose. The
+findings also sit on the operation, where section 2.5 puts them on `docs[]`.
+
+#### Frictions in the kapi arms, by the attempts they cost
+
+Ranked by the number of valid attempts that spent at least one call on the
+friction. The cause column says where each one sits: the contract
+(kapi.change/v1, its results and its discovery), the skill text, the host, the
+check, or the merge path. Only the contract rows (#2, #3, #6, #8, #9, #12, #13)
+bear on the freeze. Frictions no attempt met, found by reading results or by
+probes on scratch copies, follow the table.
+
+| # | Friction | Cause | Attempts | What it cost | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| 1 | The change set is read from a file or stdin, and every skill example passes a file; sandboxes refused the paths agents chose | host (sandboxes, Claude Code's `.claude` write protection); skill (examples) | 24 (18 Claude, 6 Codex) | 1 to 4 calls each | `edit-link-html-md-claude-skill-cli-01`: `open /tmp/kpe-2364253385/claude-502/bash-edit-diff/contact-edits.json: operation not permitted`, then `.claude/.cc-writes/contact-edits.json which is a sensitive file`; `edit-po-context-codex-skill-cli-01`: `patch rejected: writing outside of the project`; `edit-plural-branch-codex-project-free-01`: `zsh:1: can't create temp file for here document: operation not permitted`. Every pipe agents tried reached kapi (`printf '%s' '…' \| kapi apply -`). |
+| 2 | `apply --schema` is the only reference for an operation's fields, and it is 41,508 bytes | contract (discovery) | 18 printed it | 1 to 2 calls each; one truncation led to a wrong guess | `edit-link-html-md-claude-project-free-02`: `Output too large (40.5KB)`, then a guessed `attrs` refused; `edit-plural-branch-claude-project-free-02`: `head -100` ended inside `set_content`, so it put `path` on `replace_text` and was refused |
+| 3 | A plural branch's `path` sits on the operation for `set_content` and inside each `edits[]` entry for `replace_text` | contract | 9 | 11 `invalid` refusals (6 with `path` in `at`, 5 with it on a `replace_text` operation); none of the messages led straight to the fix | `edit-plural-branch-claude-skill-cli-02`: `invalid at /ops/0/at/path: unknown field "path"; it takes doc, block, edition`; `edit-plural-branch-codex-skill-cli-01`: `invalid at /ops/0/path: unknown field "path"; replace_text takes at, edits, if_match, op` |
+| 4 | The skill's verify step does not run on a PO edit or a new edition | check | 10 | 1 call each | `edit-po-context-claude-skill-cli-01`: `blocks tu1#msgid and tu1 are adjacent with no text between them to divide their span`, verdict `did_not_run`, exit 4; `add-edition-markup-codex-skill-cli-01`: `docs/nb/welcome.md` `out_of_scope`, "not content kapi.yaml declares" |
+| 5 | `kapi help translation`, named in `SKILL.md`, does not exist (the topic is `translate`) | skill | 5 | 1 call each | all five valid `add-edition-markup` skill-cli sessions (and the excluded `-claude-skill-cli-02`): `no help topic or command "translation"` |
+| 6 | `find` refuses the `<x id="p1/"/>` form that reads, `text` and `structures.branches` all show | contract | 5 | 7 `not_found` refusals; 3 attempts gave up on `replace_text` | `edit-plural-branch-claude-skill-cli-02`: `refused: not_found: "<x id=\"p1/\"/> new message" is not in the text`; `edit-plural-branch-codex-skill-cli-01` then tried `"{count} new message"`, also `not_found` |
+| 7 | The skill's translate route goes through XLIFF, which holds Markdown inline markup as text, so `kapi merge` refuses the targets | merge; skill (route) | 4 | the largest single cost: Claude skill-cli median 1.55M input tokens against 75k for baseline | every merge: `block tu2 not merged: gate_failed: the edit introduces 4 failing finding(s) in docs/en/welcome.md#welcome-to-harbor-help/p@nb: Inline code pc-close:1 is missing from the nb target (dropped 1×)`, a copy of the source refused alike (`add-edition-markup-claude-skill-cli-01`); the excluded `-claude-skill-cli-02` met it too |
+| 8 | The stale refusal does not say the difference is another editor's change to keep | contract (message) | 5 | 1 failure, 4 silent rebases | `recover-stale-read-claude-project-free-02` (quoted above) |
+| 9 | `set_attribute` takes `name` and `value`, while reads and `mark` give attributes as an `attrs` map | contract (discovery) | 4 | 1 `invalid` refusal each | `edit-link-html-md-claude-skill-cli-01` and `-03`: `invalid at /ops/1/attr: unknown field "attr"; set_attribute takes at, code, if_match, name, op, value`; `-codex-skill-cli-02` sent `attribute`; `-claude-project-free-02` sent `attrs` after its schema print was cut off. Three of the four kept the name and value shape and missed only the key. All 7 attempts that read the schema first were right first time. |
+| 10 | The skill says "one operation per block you changed", but a link edit needs two on one block | skill | 3 | an extra change set each, and a re-read in two | `edit-link-html-md-codex-skill-cli-01` sent `set_attribute`, re-ran `inspect`, then sent `replace_text` with `if_match` `r:42ce604d55e366f3`; `-codex-project-free-03` sent its second change set against the first result's `after` without a re-read. None of the three said why it split the edit; the skill sentence is a likely cause (inference). |
+| 11 | The skill gives two recoveries from `stale`: use `current`, or re-read | skill | 3 | 1 call each | `recover-stale-read-claude-project-free-03`: "Re-read block to get current revision" |
+| 12 | Under `--json`, a change set that does not decode prints `{"error": …, "code": "usage"}` instead of a refused result with `invalid` and a pointer | contract (result) | 3 met it | none for these agents, who read the prose; a program cannot branch on it | `edit-link-html-md-codex-skill-cli-02`: `{"error": "apply: invalid at /ops/1/attribute: …", "code": "usage"}`, exit 2 |
+| 13 | Over MCP, the whole change set was sent as a string in `ops` | contract (MCP input) | 1 | 1 call | `edit-plural-branch-claude-mcp-01`: `{"code":"invalid","pointer":"/ops","message":"must be an array of operations"}` |
+
+Met by no attempt:
+
+- A PO catalog read without `--target-lang` lists no translation, and a
+  `set_content` at that ref without `at.edition` rewrites the `msgid` and
+  reports `previewed` (reproduced on a copy of an `edit-po-context` workspace).
+  Every agent followed the skill's sentence on `--target-lang`.
+- A read never names a monolingual file's own edition, which `insert_block`'s
+  `editions` map needs. All 11 `insert_block` change sets used `en`, as the
+  shipped catalog example does for a file of the same name (see Limits), which
+  was right here; no read would have told them.
+- The schema about to freeze carries the retired word `unit`
+  (`evidence[].unit`, "the block key inside the file") and offers `if_match`
+  `"*"` "for whatever is there", which an agent is refused.
+- A refused operation echoes `after` and `resolved` for content never written
+  (`"resolved": [{"start": {"run": 0}, "end": {"run": 0}}]` in
+  `edit-plural-branch-codex-skill-cli-01`), and a refused change set lists
+  `"docs": []` where section 2.5 lists each document with `written: false`.
+- `resolved` drops a zero `offset`, and writes the end of a match as the start
+  of the run after it (`"end": {"run": 2}` for a two-run branch in
+  `edit-plural-branch-claude-mcp-01`). That is `RangeAnchor`'s attribution,
+  which section 3.3 names, while section 2.5's example writes the end inside
+  the run with `offset` printed.
+- An `insert_block` anchored in another object is refused `unsupported`, the
+  code for a format that lacks the operation.
+- `not_found` carries no candidates, where section 2.6 promises up to three.
+
+#### Limits
+
+- **Size.** Three repetitions per cell, two hosts, one model and effort per
+  host. A difference of one attempt in a cell is within what reruns would
+  change. The study says nothing about other models or about agents with a
+  longer history in the project.
+- **Ceiling.** In six families every arm passed all its attempts or all but
+  one, so their pass rates compare nothing; they give cost and friction only.
+  A discriminating variant needs an
+  edit a unique string cannot reach: equal text in two plural branches on one
+  line, a nested select, a wrapped `msgstr`, or a catalog where the new key
+  must also land in every translation file.
+- **The MCP arm.** Codex never called an MCP tool in 20 valid sessions, and the
+  preflight proves only that the server is configured (`codex mcp list
+  --json`), not that the model sees its tools. Claude reached `apply_edits` in
+  3 of 21. The arm measures the context tools and the server instructions far
+  more than the edit contract.
+- **The gate family.** The refusal never happened in a live session, so
+  recovery from `gate_failed` is unmeasured. A rerun should add the term after
+  the agent's first context read, as `recover-stale-read` changes the file
+  after a read. "Asked, changed nothing" deserves an outcome of its own.
+- **The stale family.** In the study the other editor's change fired only when
+  a tool result showed the agent the text "it takes about five minutes", on
+  the line after the agent's sentence, so the five Codex baseline and mcp
+  sessions, whose `rg` printed one line, wrote before the change landed. Those
+  five passes are uninformative about recovery. The trigger now sits on the
+  agent's own line (Design).
+- **The two host failures.** Both are counted as attempts that did not pass in
+  the study's score report and are left out here. Neither was rerun.
+- **Grader heuristics.** In the study `md_translated` failed only when a whole
+  source sentence of four or more words survived, so
+  `add-edition-markup-claude-mcp-01` passed with `Les mer i [Preparing for a
+  video appointment](…)`. `json_ordered` joined keys with dots and could not
+  tell a nested key from a flat dotted one. The scope criteria covered the
+  task's directories only. 25 attempts (19 Codex, 6 Claude) wrote a change-set file
+  at the workspace root and deleted it before finishing; one left behind would
+  have passed. Writes to the context store were not recorded, including
+  observations with no ground in the files
+  (`add-json-key-codex-skill-cli-02` recorded `term "Harbor Help", not
+  "HarborHelp"` for `locales/en.json`, which holds no "Harbor"). The refusal
+  counter missed `kapi merge`'s `not merged:` lines, so the merge refusals
+  four valid `add-edition-markup` sessions met (five with the excluded
+  `-claude-skill-cli-02`) are absent from the score report. Each of these is a criterion, a record or a
+  count of the runner now (Design).
+- **Accounting.** Input tokens include cache reads (for example 329,688 of
+  352,872 in `edit-link-html-md-claude-skill-cli-01`). Codex's
+  `transcript.jsonl` leaves out rejected patches and `apply_patch` bodies, so
+  the study's tool-call counts and its count of paths outside the cell differ
+  from the session rollout, which the runner now reads. In seven of eight mismatches the score is one call low
+  (`add-json-key-codex-project-free-03` has 7 calls in its rollout and 6 in the
+  score, the missing one a refused write to `/private/tmp`); in
+  `recover-gate-refusal-codex-skill-cli-01` the score counts 14 against 9 in
+  the rollout.
+- **Fixture overlap.** The shipped `edit.md` catalog example names
+  `locales/en.json`, a dotted anchor and the `en` edition, and all 11
+  `insert_block` change sets are that example with the names replaced.
+  `add-json-key` measured copying more than discovery; it now adds a key to a
+  German catalog at another path.
+- **Sandboxes.** The temporary-file refusals in friction 1 come from the hosts'
+  sandboxes as configured for the study. They fall only on the kapi arms,
+  because native edits need no intermediate file.
+
+#### Decision
+
+The contract's shapes held where agents used them. No applied change set wrote
+something other than what its sender meant, and every contract refusal was
+recovered, the `stale` ones on the first resend. (The `kapi merge` refusals in
+`add-edition-markup` sit outside the contract and were not all recovered:
+`add-edition-markup-claude-skill-cli-01` rewrote its XLIFF targets and ended at
+its turn limit.) The contract rows of the friction table are a field placement
+agents could not infer (#3), a `find` that does not read as `text` does (#6), a
+key agents guessed without the schema in view (#9), a schema reference too
+large to read (#2), and refusal shapes and wording (#8, #12, #13). The rest sit
+in the skill text, the hosts' sandboxes, `kapi check` and `kapi merge`.
+
+v1 is frozen after the changes in the freeze specification. The schema changes
+are three: `find` read as placeholder text, with a token the match held
+following rule 2 of section 2.4; an optional `path` on the `replace_text`
+operation, which removes 5 of the 11 path refusals and leaves the 6 placements
+in `at` to a better message and example; and `evidence[].unit` renamed
+`evidence[].block`. The results change to match sections 2.5 and 2.6: refused
+operations without a revision, `invalid` on every transport, findings on
+`docs[]` whenever the check ran, and `offset` printed on every position in
+`resolved`.
+`set_attribute` keeps `name` and `value`: three of its four wrong guesses kept
+that shape and missed only the key, and all seven agents that read the schema
+were right, so the fix is discovery (a per-operation schema, an example, a
+message), not a new shape.
+
+On D14, the project-free arm passed no task that kapi with a project failed,
+and its gate-task losses follow from having no gate. Its lower cost came from
+the skill text it ran rather than from the binary: on Codex from the governance
+steps it leaves out (0.71 of skill-cli's median input on the five tasks other
+than `add-edition-markup` and `recover-gate-refusal`), and on both hosts from
+skipping the shipped skill's translation detour (0.14 and 0.22 on
+`add-edition-markup`). On Claude, outside those two tasks, the two arms cost
+the same (0.98). The recommendation is no separate artifact and no second name
+in 1.3.0 (see the neo/kapi section).
+
+### The neo/kapi question (D14)
+
+Section 15.2 of the [edit model](edit-model.md) names the condition for a
+split: the project-free arm beats `kapi` materially on success or cost for
+agents, or an audience needs a native binary without cgo or ICU that the WASM
+build does not serve. Section 15.3 adds that a project-free name, if it proves
+useful, is a multi-call alias of the same binary. Three measurements answer
+both. The second and third are recorded above (what the edit engine costs an
+embedder; what a second artifact costs). The first is the `project-free` arm
+of the paired study.
+
+#### Agents: the project-free arm against kapi's arms
+
+`project-free` ran `kapi-files`, the same binary under a multi-call name that
+exposes `inspect`, `apply`, `formats` and the toolbox with discovery off, and a
+skill that is the shipped one with the project, MCP, check and translation
+passages removed. `skill-cli` and `mcp` are kapi with a project. Every
+project-free cell of the study held the task's `kapi.yaml` and `STYLE.md` as
+every other cell did, and the alias never read them, so the arm measured the
+alias beside a project rather than agents working where no project exists. A
+rerun's project-free cells hold neither (Design). Two attempts are
+excluded (host failures, one in `skill-cli` and one in `mcp`); every other cell
+has three.
+
+| Host | Arm | Passed | Passed without the gate task | Wrote through the contract | Input tokens | Tool calls |
+| --- | --- | --- | --- | --- | --- | --- |
+| claude | skill-cli | 20/20 | 17/17 | 17 | 260k | 10 |
+| claude | mcp | 18/21 | 18/18 | 3 | 173k | 9 |
+| claude | project-free | 17/21 | 17/18 | 16 | 207k | 8 |
+| codex | skill-cli | 21/21 | 18/18 | 19 | 137k | 8 |
+| codex | mcp | 17/20 | 17/17 | 0 | 41k | 3 |
+| codex | project-free | 18/21 | 18/18 | 19 | 93k | 6 |
+
+`mcp` hardly used the contract (Claude in one family, Codex never), so the
+comparison that bears on D14 is `project-free` against `skill-cli`: the same
+edit commands, with and without a project. Per task, project-free's median
+input tokens as a share of skill-cli's:
+
+| Task | Claude | Codex |
+| --- | --- | --- |
+| `edit-link-html-md` | 1.44 | 0.78 |
+| `edit-plural-branch` | 0.90 | 0.73 |
+| `add-edition-markup` | 0.14 | 0.22 |
+| `edit-po-context` | 0.78 | 0.52 |
+| `add-json-key` | 0.53 | 0.95 |
+| `recover-stale-read` | 1.05 | 1.07 |
+| `recover-gate-refusal` | 0.67 | 0.59 |
+
+**Success.** project-free passed no task that kapi with a project failed.
+skill-cli passed all 41 of its attempts. project-free's losses are the six
+`recover-gate-refusal` attempts and `recover-stale-read-claude-project-free-02`,
+which reverted another editor's change after a correct `stale` recovery. The
+gate losses follow from the arm's construction: the alias has no gate and holds
+no terms (its skill says "It holds no project, so no voice, terms or check
+applies"), the prompt asks for "from the portal", and the study's design gives
+the baseline and project-free arms no gate. They say nothing about whether a
+project-free name is useful. Outside the gate task, project-free passed 35 of
+36 and skill-cli 35 of 35.
+
+**Cost, per host.**
+
+- **Codex.** project-free took 0.68 of skill-cli's median input over the seven
+  tasks (93k against 137k) and 0.71 over the five tasks other than
+  `add-edition-markup` and `recover-gate-refusal` (98k against 137k, 15
+  attempts each). On those five tasks every skill-cli session ran `kapi
+  context` and 13 of 15 ran `kapi check`, and no project-free session ran
+  either. The saving on Codex is the governance steps the alias's skill leaves
+  out. That is an inference from the call pattern: the two arms run the same
+  edit code and differ in their skill text and the commands it names.
+- **Claude.** project-free took 0.80 of skill-cli's median input over the seven
+  tasks (207k against 260k) but 0.98 over the same five (262k against 267k).
+  Claude's overall saving comes from two tasks. On `add-edition-markup` (0.14)
+  the shipped skill sent agents through extract, XLIFF and merge into the merge
+  defect, while the alias's skill has no translation passage. On
+  `recover-gate-refusal` (0.67) the context read and check that skill-cli
+  spent are what passed the task. On the other five, Claude's skill-cli
+  sessions also ran the governance steps (15 of 15 `kapi context`, 14 of 15
+  `kapi check`), and they did not show as a cost difference; project-free
+  sessions read the schema more often (5 of 15 against 2 of 15).
+- **Both hosts.** Where both arms wrote through the contract, they sent the
+  same change sets: in `edit-po-context` all 11 contract change sets, from
+  both arms, were the same operation, and in four families every final file in
+  every arm is the same bytes.
+- **One cell.** Claude's project-free link edits took 1.44 times skill-cli's
+  tokens, but that skill-cli median includes a native attempt
+  (`edit-link-html-md-claude-skill-cli-02`, 157k). On the plural project-free
+  took 0.90 (Claude) and 0.73 (Codex).
+
+So the cost difference between the arms comes from the skill text each ran: the
+governance habits (Codex) and the translation detour (both hosts). The binary
+and the edit path are the same.
+
+**Use.** Agents reached the contract through the alias as readily as through
+kapi: project-free wrote through the contract in 35 of 42 attempts, skill-cli in
+36 of 41. Nothing in the study suggests the name changed whether agents used
+the contract.
+
+**What the arm also showed.** At the run the alias's surface drifted from what
+it is, which the freeze fixed: `kapi-files apply --help` read "Apply a change set: content edits, review
+decisions, terms and recipe fields" (`add-json-key-codex-project-free-02`).
+`kapi-files --help` says "no check at commit", and a dropped `%d` was
+refused `gate_failed` (probe). Every JSON catalog's own edition was taken to
+be `en` (probe); a document outside a project now holds the language its file
+or directory names. In `add-edition-markup` no project-free attempt sent an edition
+operation: four wrote the Norwegian file natively and two copied the English
+file and edited the copy through the contract. The agents treated a file that
+did not exist yet as outside the edit loop ("docs/nb doesn't exist yet, so this
+is creating a new standalone file rather than editing one",
+`add-edition-markup-claude-project-free-01`), and the alias's skill has no
+translation passage to say otherwise. Had one sent it, a probe showed the
+operation refused `unsupported` ("has nowhere to live") with no next step;
+`apply --out FILE` now writes such an edition, and the refusal names it.
+
+**Not measured.** kapi's own CLI outside a project was not an arm of the
+study, and no cell lacked a project; `kapi-no-project` and the project-free
+cells without a recipe are the rerun's answer. Whether the shipped skill's project habits would run there,
+and what they would cost, is unknown. The MCP comparison rests on Claude alone.
+
+#### Embedders
+
+`examples/go-apply` builds the edit engine with the file home and every
+built-in format and nothing of the host: 269 packages, no cgo, ICU not linked,
+18.6 MB (12.9 MB stripped) against 91.3 MB for `bin/kapi`, writing the same
+bytes as `kapi apply` on the link task. A native, project-free embedding needs
+neither cgo nor ICU, so the audience for which section 15.3 would build a
+separate artifact is served by the Go module, and the WASM build serves the
+web.
+
+#### Distribution
+
+A multi-call alias costs a symlink entry in nfpm, the Homebrew formula,
+setup-kapi and the Docker image, and on Windows either a `kapi` subcommand or a
+second portable alias, since Windows has no symlink to install. A second
+artifact costs five more builds per release, another signed and notarized
+binary, two more executables to sign by hand on Windows, cosign signatures, a
+second package or formula on every channel, a second winget identifier with a
+submission each release, an updater that replaces two binaries, and a product
+name. `neo` is taken on npm, PyPI and Debian; `kapi-files` is free on every
+registry checked.
+
+#### Recommendation
+
+No separate artifact, and no second name in 1.3.0.
+
+- **No separate artifact.** Section 15.2's first condition is not met. On
+  success the project-free arm matched kapi and beat it nowhere. On cost it was
+  cheaper on Codex, and on Claude only in two tasks, and in both cases the
+  saving came from the skill text it ran, which a second artifact would not
+  change and kapi's own skill can. The second condition is answered by the
+  embedder measurement: the Go module is the project-free engine for a native
+  embedder, without cgo or ICU, and the WASM build is the engine for the web.
+  A second artifact would add the release, signing and packaging work listed
+  above for no audience the measurements found.
+- **No `kapi-files` alias.** Section 15.3 makes the alias depend on a
+  project-free name proving useful, and the study shows no use the name
+  provided. Agents reached the contract through it as often as through kapi,
+  and its lower cost came from the skill text it carried. The arm ran beside a
+  project, so it says nothing about agents with no project, the audience the
+  name would be for. Against it: at the run its help named operations that need a
+  project and said there is no check at commit while a dropped `%d` was
+  refused `gate_failed`, and it took every JSON catalog's language as `en`;
+  shipping it costs a link on four channels and a separate answer on Windows. The multi-call case in `cli/toolbox_files.go` stays as it is,
+  installed by no build or channel and documented nowhere, as the surface a
+  rerun measures. An agent outside a project can run `kapi inspect` and `kapi
+  apply` on any file, since those are the code paths the alias runs; that is
+  the design's inference, which the study did not measure.
+- **What the cost evidence asks of kapi instead.** The skill-cli arm paid for
+  steps that bought nothing on these fixtures outside the gate task. Three
+  changes in the freeze specification address that without a second name: a
+  commit result that says the check ran and what it found, together with skill
+  text and an `apply_edits` description that stop asking for a second check of
+  what the commit already checked; a diff-scoped check that names, for a PO
+  catalog and a recipe target file it cannot place, the command that checks
+  the file whole, in place of the fallback call ten attempts worked out; and
+  `translate.md` putting the edition route ahead of extract and merge, which
+  removes the detour behind the largest gap on both hosts.
+- **What would reopen it.** An audience asking for a native binary without the
+  host; or a rerun whose project-free cells hold no project, with kapi under
+  discovery off as a fifth arm and fixtures that separate the arms, in which
+  agents without a project succeed where kapi's fail, or spend materially less
+  than kapi does for the same work.
 
 ## Where the gaps are
 
