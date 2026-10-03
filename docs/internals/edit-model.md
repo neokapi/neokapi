@@ -1802,8 +1802,8 @@ beside all of them in package-sized PRs.
   and Markdown wording edit with a link change, a plural branch, a new edition with markup, a
   bilingual PO edit, a key added to `en.json` (if WP12 has landed; otherwise measured as a refusal), a
   stale recovery and a gate refusal recovery. Adjust names and shapes. Freeze.
-- **Acceptance:** met. The report is in `docs/internals/evals.md` (WP5). The contract froze at
-  `8f4d0c36b`: `core/change/testdata/schema.v1.frozen.json` holds the change set,
+- **Acceptance:** met. The report is in `docs/internals/evals.md` (WP5). The contract froze for
+  release 1.3.0 on 2026-10-03: `core/change/testdata/schema.v1.frozen.json` holds the change set,
   `result.v1.frozen.json` and `read.v1.frozen.json` beside it the result and the read, and
   `kapi/cmd/kapi/testdata/mcp_tools.frozen.json` the MCP tool surface. `TestSchemaExtendsFrozenV1`
   and its siblings hold the generated schemas to them, so the extend-only rule is in force.

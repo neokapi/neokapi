@@ -66,7 +66,8 @@ func TestMCPToolSurfaceExtendsFrozen(t *testing.T) {
 		Tools   []toolSnapshot `json:"tools"`
 	}
 	require.NoError(t, json.Unmarshal(frozenBytes, &frozen))
-	require.Contains(t, frozen.Comment, "frozen at")
+	require.Regexp(t, `frozen for release \d+\.\d+\.\d+ on \d{4}-\d{2}-\d{2}`, frozen.Comment,
+		"the frozen file names the release it froze for and the date")
 	current := map[string]json.RawMessage{}
 	for _, tool := range mcpToolSnapshot(t) {
 		current[tool.Name] = tool.InputSchema

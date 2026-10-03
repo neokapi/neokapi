@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -34,6 +35,10 @@ func TestReplySchemaGoldens(t *testing.T) {
 }
 
 // frozenAdvice is what a failing extend-only test says to do.
+// frozenWhen is how a frozen file names its freeze: by the release it froze
+// for and the date, which survive a rebase where a commit hash would not.
+var frozenWhen = regexp.MustCompile(`frozen for release \d+\.\d+\.\d+ on \d{4}-\d{2}-\d{2}`)
+
 const frozenAdvice = "A frozen contract may only be extended: add an optional property, an operation, an enum value " +
 	"or a $defs entry, or change a description. A breaking change needs a new schema version (kapi.change/v2) " +
 	"and a new frozen file beside this one."
@@ -64,7 +69,7 @@ func assertExtendsFrozen(t *testing.T, name string, current []byte, side changes
 		Comment string `json:"$comment"`
 	}
 	require.NoError(t, json.Unmarshal(frozen, &head))
-	assert.Contains(t, head.Comment, "frozen at", "the frozen file names the commit it was frozen at")
+	assert.Regexp(t, frozenWhen, head.Comment, "the frozen file names the release it froze for and the date")
 	problems, err := changeschema.Extends(frozen, current, side)
 	require.NoError(t, err)
 	assert.Empty(t, problems, "the schema no longer extends testdata/%s:\n  %s\n%s", name, strings.Join(problems, "\n  "), frozenAdvice)

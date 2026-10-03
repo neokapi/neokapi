@@ -1,5 +1,5 @@
 {
-  "$comment": "The kapi MCP tool surface, frozen at 8f4d0c36b on 2026-10-03 with kapi.change/v1; extend only. TestMCPToolSurfaceExtendsFrozen holds the served tools to it: names may only grow, and each input schema must extend its frozen one. Nothing regenerates this file.",
+  "$comment": "The kapi MCP tool surface, frozen for release 1.3.0 on 2026-10-03 with kapi.change/v1; extend only. TestMCPToolSurfaceExtendsFrozen holds the served tools to it: names may only grow, and each input schema must extend its frozen one. Nothing regenerates this file.",
   "tools": [
     {
       "name": "apply_edits",
