@@ -50,6 +50,7 @@ type Home struct {
 	beforeSettle func(doc string)
 	backup       string
 	writeNothing bool
+	writeUnder   string
 }
 
 // Options configures a Home.
@@ -76,6 +77,10 @@ type Options struct {
 	// nothing. A flow run that prints the change set it would apply
 	// (--print-ops) commits through such a home.
 	WriteNothing bool
+	// WriteUnder, with WriteNothing, names a directory whose files the home
+	// still writes as any home writes them: the private tree a printing
+	// convergence pass drafts into, which its delivery gate reads.
+	WriteUnder string
 }
 
 // DefaultLockDir is where lock files go when the caller names no directory: a
@@ -95,7 +100,27 @@ func New(layout Layout, opts Options) *Home {
 		dir = DefaultLockDir()
 	}
 	return &Home{layout: layout, lockDir: dir, prepareLocks: opts.PrepareLocks, beforeSettle: opts.BeforeSettle, backup: opts.BackupSuffix,
-		writeNothing: opts.WriteNothing}
+		writeNothing: opts.WriteNothing, writeUnder: opts.WriteUnder}
+}
+
+// writes reports whether the home writes a document it produces at path.
+func (h *Home) writes(path string) bool {
+	if !h.writeNothing {
+		return true
+	}
+	if h.writeUnder == "" {
+		return false
+	}
+	under, err := filepath.Abs(h.writeUnder)
+	if err != nil {
+		return false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(under, abs)
+	return err == nil && filepath.IsLocal(rel)
 }
 
 // Name is "file".

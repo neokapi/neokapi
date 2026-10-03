@@ -72,15 +72,15 @@ type Produced struct {
 // staged file sits beside the destination with the destination's mode, and a
 // directory the destination needs is created when it commits, never before.
 //
-// A home whose options set WriteNothing stages nothing: write runs into the
-// digest alone, and Commit writes nothing.
+// A home whose options set WriteNothing stages nothing outside WriteUnder:
+// write runs into the digest alone, and Commit writes nothing.
 func (h *Home) Produce(ctx context.Context, path, before string, write func(io.Writer) error) (*Produced, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	p := &Produced{h: h, path: path, before: before}
 	sum := sha256.New()
-	if h.writeNothing {
+	if !h.writes(path) {
 		if err := write(sum); err != nil {
 			return nil, err
 		}

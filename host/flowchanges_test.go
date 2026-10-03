@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/history"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -26,6 +27,12 @@ import (
 // catalog into qps, which needs no key and gives the same text every run. It
 // runs under the in-repo isolation contract (CLAUDE.md).
 func newFlowProject(t *testing.T, materialize string) (*App, *EnvCommand, string) {
+	t.Helper()
+	return newFlowProjectWith(t, materialize, nil)
+}
+
+// newFlowProjectWith is newFlowProject with the recipe changed by edit first.
+func newFlowProjectWith(t *testing.T, materialize string, edit func(*project.KapiProject)) (*App, *EnvCommand, string) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
@@ -52,6 +59,9 @@ func newFlowProject(t *testing.T, materialize string) (*App, *EnvCommand, string
 		Flows: map[string]*flow.StepsSpec{
 			"pseudo": {Steps: []flow.FlowStep{{Tool: "pseudo-translate"}}},
 		},
+	}
+	if edit != nil {
+		edit(proj)
 	}
 	recipe := filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, project.Save(recipe, proj))
@@ -160,14 +170,178 @@ func TestFlowRun_RecordsWhatItWroteAsOneEditPerDocument(t *testing.T) {
 // printed.
 func printRun(t *testing.T, a *App, cmd *EnvCommand, run func() error) change.Set {
 	t.Helper()
-	var out bytes.Buffer
+	set, _ := printRunNotes(t, a, cmd, run)
+	return set
+}
+
+// printRunNotes is printRun, also returning what the run noted on standard
+// error.
+func printRunNotes(t *testing.T, a *App, cmd *EnvCommand, run func() error) (change.Set, string) {
+	t.Helper()
+	var out, notes bytes.Buffer
 	cmd.SetOut(&out)
+	cmd.SetErr(&notes)
 	require.NoError(t, cmd.Flags().Set(printOpsFlag, "true"))
 	require.NoError(t, a.WithPrintedOps(cmd, run))
 	require.NoError(t, cmd.Flags().Set(printOpsFlag, "false"))
 	var set change.Set
 	require.NoError(t, json.Unmarshal(out.Bytes(), &set), "the output is a change set: %s", out.String())
-	return set
+	return set, notes.String()
+}
+
+// applyPrinted applies a printed change set to the project at recipe through
+// the change service, as kapi apply does.
+func applyPrinted(t *testing.T, a *App, recipe string, set change.Set) {
+	t.Helper()
+	if len(set.Ops) == 0 {
+		return
+	}
+	svc, err := a.ChangeService(context.Background(), ChangeServiceOptions{Project: recipe, SourceLocale: "en", Origin: "apply"})
+	require.NoError(t, err)
+	res, err := svc.Apply(context.Background(), set, change.Actor{Kind: change.ActorPerson, Name: "tester"})
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+}
+
+// readTarget reads the project's qps file, "" when there is none.
+func readTarget(t *testing.T, recipe string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(filepath.Dir(recipe), "src", "qps.json"))
+	if os.IsNotExist(err) {
+		return ""
+	}
+	require.NoError(t, err)
+	return string(data)
+}
+
+func TestFlowRun_PrintsWhatKapiApplyWritesToTheRunsBytes(t *testing.T) {
+	// After a first pass, the twins' files change the same way. One prints
+	// its next pass and applies what it printed; the other runs the pass.
+	// A file whose operations are printed ends as the same bytes in both; a
+	// file kapi apply would write otherwise is named and left out.
+	writeSource := func(body string) func(t *testing.T, root string) {
+		return func(t *testing.T, root string) {
+			require.NoError(t, os.WriteFile(filepath.Join(root, "src", "en.json"), []byte(body), 0o644))
+		}
+	}
+	cases := []struct {
+		name    string
+		prepare func(t *testing.T, root string)
+		printed bool
+	}{
+		{
+			name:    "a source edit to a block the target holds",
+			prepare: writeSource(`{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}` + "\n"),
+			printed: true,
+		},
+		{
+			name:    "a block the source gained",
+			prepare: writeSource(`{"greeting": "Hello world", "farewell": "Goodbye now", "thanks": "Thank you", "welcome": "Welcome"}` + "\n"),
+		},
+		{
+			name: "a target holding an entry of its own",
+			prepare: func(t *testing.T, root string) {
+				target := filepath.Join(root, "src", "qps.json")
+				data, err := os.ReadFile(target)
+				require.NoError(t, err)
+				var catalog map[string]any
+				require.NoError(t, json.Unmarshal(data, &catalog))
+				catalog["extra"] = "Bare her"
+				edited, err := json.Marshal(catalog)
+				require.NoError(t, err)
+				require.NoError(t, os.WriteFile(target, edited, 0o644))
+				writeSource(`{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}`+"\n")(t, root)
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a, cmd, recipe := newFlowProject(t, project.MaterializeManual)
+			b, bcmd, brecipe := newFlowProject(t, project.MaterializeManual)
+			runOnePass(t, a, cmd, recipe)
+			runOnePass(t, b, bcmd, brecipe)
+			tc.prepare(t, filepath.Dir(recipe))
+			tc.prepare(t, filepath.Dir(brecipe))
+			before := readTarget(t, recipe)
+
+			set, notes := printRunNotes(t, a, cmd, func() error { return a.ExecuteUp(cmd, recipe) })
+			assert.Equal(t, before, readTarget(t, recipe), "a printing run writes nothing")
+			applyPrinted(t, a, recipe, set)
+			runOnePass(t, b, bcmd, brecipe)
+			ran := readTarget(t, brecipe)
+			require.NotEqual(t, before, ran, "the pass writes the file")
+
+			if tc.printed {
+				require.NotEmpty(t, set.Ops)
+				assert.Equal(t, ran, readTarget(t, recipe), "kapi apply of what was printed writes the run's bytes")
+				assert.NotContains(t, notes, "src/qps.json")
+				return
+			}
+			assert.Empty(t, set.Ops)
+			assert.Contains(t, notes, "src/qps.json: the run writes it whole from its source")
+			assert.Equal(t, before, readTarget(t, recipe), "nothing was printed, so nothing was applied")
+		})
+	}
+}
+
+func TestFlowRun_PrintsWhatDeliveryWouldCommit(t *testing.T) {
+	cases := []struct {
+		name      string
+		shipGate  gate.Gate
+		delivered bool
+	}{
+		{name: "a locale with no gate to clear", delivered: true},
+		{name: "a locale short of its ship gate", shipGate: gate.Gate{"established": {Pct: 50}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			edit := func(p *project.KapiProject) { p.ShipGate = tc.shipGate }
+			a, cmd, recipe := newFlowProjectWith(t, project.MaterializeOnConverge, edit)
+			b, bcmd, brecipe := newFlowProjectWith(t, project.MaterializeOnConverge, edit)
+
+			set, notes := printRunNotes(t, a, cmd, func() error { return a.ExecuteUp(cmd, recipe) })
+			assert.Empty(t, readTarget(t, recipe), "a printing run delivers nothing")
+			assert.Empty(t, flowHistory(t, a, filepath.Dir(recipe)), "and records nothing")
+			applyPrinted(t, a, recipe, set)
+			runOnePass(t, b, bcmd, brecipe)
+
+			if tc.delivered {
+				require.Len(t, set.Ops, 3)
+				require.NotEmpty(t, readTarget(t, brecipe))
+				assert.Equal(t, readTarget(t, brecipe), readTarget(t, recipe), "kapi apply of what was printed is the delivery")
+				return
+			}
+			assert.Empty(t, set.Ops, "a parked locale's drafts are not delivered, so none is printed")
+			assert.Contains(t, notes, "qps: short of its ship gate")
+			assert.Empty(t, readTarget(t, brecipe), "the run delivered nothing either")
+		})
+	}
+}
+
+func TestFlowRun_APrintingRunThatWritesNoFilePrintsNothing(t *testing.T) {
+	// In a project, a built-in flow run without -o keeps what it produces in
+	// the project's store. Printing it prints nothing, and writes nothing
+	// there either.
+	a, _, recipe := newFlowProject(t, project.MaterializeManual)
+	cmd := NewEnvCommand(context.Background(), "pseudo-translate")
+	fs := cmd.Flags()
+	for _, name := range []string{"target-lang", "source-lang", "output", "encoding", "trace", "format"} {
+		fs.String(name, "", "")
+	}
+	fs.StringSlice("input", nil, "")
+	fs.Int("concurrency", 0, "")
+	fs.Bool("explain", false, "")
+	fs.Bool(printOpsFlag, false, "")
+	require.NoError(t, fs.Set("input", filepath.Join(filepath.Dir(recipe), "src", "en.json")))
+	require.NoError(t, fs.Set("target-lang", "qps"))
+	a.TargetLang = "qps"
+
+	set, notes := printRunNotes(t, a, cmd, func() error {
+		return a.RunFromProject(cmd, "pseudo-translate", recipe, RunCmdOptions{Builtin: true})
+	})
+	assert.Empty(t, set.Ops, "the run writes no file, so it has no change to print")
+	assert.Contains(t, notes, "src/en.json: in a project this run writes no file without -o")
+	assert.Empty(t, readTarget(t, recipe))
 }
 
 func TestFlowRun_PrintsTheChangeSetKapiApplyAppliesToTheSameBytes(t *testing.T) {
@@ -308,6 +482,7 @@ func TestFlowRun_AppliesItsChangesAgainToAFileThatMovedWhileItWorked(t *testing.
 			assert.Equal(t, "flow:edit", rows[0].Origin)
 			assert.Equal(t, "edit", rows[0].ActorName)
 			assert.Equal(t, sourceRevisions(t, a, recipe)["greeting"][0], rows[0].Basis)
+			assert.Equal(t, "set", rows[0].Producer.Tool, "the translation applied again keeps the stamp the tool left")
 		})
 	}
 }

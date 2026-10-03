@@ -96,6 +96,46 @@ func TestFileHome_AnEditionInItsOwnFileIsEditedThroughThatFile(t *testing.T) {
 	assert.Equal(t, "Herzlich willkommen", res.Ops[0].Current.Text)
 }
 
+// capturedRecords keeps every record the service hands its recorder.
+type capturedRecords struct{ records []change.Record }
+
+func (c *capturedRecords) Record(_ context.Context, rec change.Record) (string, error) {
+	c.records = append(c.records, rec)
+	return "op-1", nil
+}
+
+func TestFileHome_TheRecordReadsAnEditionInItsOwnFileAsTheChangeLeftIt(t *testing.T) {
+	// The home joins the German file into each block for the change and takes
+	// it out again once the writer has seen the block. The record still reads
+	// the edition, with the stamp the change left on it.
+	f := newFixture(t, map[string]string{
+		"guide.json":    `{"title": "Welcome"}` + "\n",
+		"de/guide.json": `{"title": "Willkommen"}` + "\n",
+	})
+	rec := &capturedRecords{}
+	home := filehome.New(targetLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}}, filehome.Options{LockDir: t.TempDir()})
+	svc := change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(home), change.WithRecorder(rec))
+	ctx := context.Background()
+	de := mustEdition(t, "de")
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "guide.json", Editions: []model.EditionKey{de}})
+	require.NoError(t, err)
+	require.Len(t, page.Blocks, 1)
+	at := page.Blocks[0].Ref
+	at.Edition = de
+
+	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(at, page.Blocks[0].Editions["de"].Rev, "Herzlich willkommen")}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	require.Len(t, rec.records, 1)
+	require.Len(t, rec.records[0].Transitions, 1)
+	b := rec.records[0].Transitions[0].Block
+	require.NotNil(t, b)
+	ed, ok := b.Edition(de)
+	require.True(t, ok, "the recorded block holds the edition the change wrote")
+	assert.Equal(t, "Herzlich willkommen", model.RunsText(ed.Runs))
+	assert.Equal(t, model.OriginHuman, ed.Origin.Kind, "with the stamp the change left")
+}
+
 func TestFileHome_AMissingEditionFileIsMaterializedFromTheDocument(t *testing.T) {
 	f := newTargetFixture(t, map[string]string{
 		"guide.json": `{"title": "Welcome", "body": "Read this first"}` + "\n",

@@ -416,10 +416,17 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// approved in them supersedes whatever a provider produced. A run that
 	// skipped them would spend a provider re-translating what the working tree
 	// already answers, so a failure here is PROPAGATED.
-	if absorbed, aerr := a.absorbProjectRecord(ctx, proj, projectPath); aerr != nil {
-		return fmt.Errorf("absorb the committed record: %w", aerr)
-	} else if line := formatRecordLine(absorbed); line != "" && !a.Quiet {
-		fmt.Fprintln(cmd.ErrOrStderr(), line)
+	//
+	// A run that prints its change set writes nothing into the content memory:
+	// its pass draws on the memory as it stands.
+	if a.printOps == nil {
+		absorbed, aerr := a.absorbProjectRecord(ctx, proj, projectPath)
+		if aerr != nil {
+			return fmt.Errorf("absorb the committed record: %w", aerr)
+		}
+		if line := formatRecordLine(absorbed); line != "" && !a.Quiet {
+			fmt.Fprintln(cmd.ErrOrStderr(), line)
+		}
 	}
 
 	// Standing project context + bindings, so flow steps honor the voice
@@ -476,7 +483,11 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// ship gate does not get its files — holds for a second, redundant write
 	// while the unreviewed draft is already sitting where a site build globs
 	// (#1936). See host/convergedrafts.go.
-	if deliveryIsGated(proj, opts) && a.printOps == nil {
+	//
+	// A run that prints its change set drafts the same way, into the same
+	// private tree, so its gate decides from the same output; delivery then
+	// prints what it would commit.
+	if deliveryIsGated(proj, opts) {
 		endDrafts, derr := a.beginConvergeDrafts(projectPath, projectDir)
 		if derr != nil {
 			return derr
@@ -1023,8 +1034,12 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	//
 	// Delivery commits each draft through the file home and records what it
 	// changed, with the basis of each translation it wrote (host/flowdrafts.go).
-	// A run that prints its change set delivers and stamps nothing.
-	gated := deliveryIsGated(proj, opts) && a.printOps == nil
+	// A run that prints its change set prints what delivery would commit, for
+	// the locales that clear their gate, and stamps nothing.
+	gated := deliveryIsGated(proj, opts)
+	if gated && out.StallReason == convergence.StallSourceNotReady {
+		a.printOps.note("the source is not ready to translate, so kapi up delivers no file and none is printed")
+	}
 
 	if gated && out.StallReason != convergence.StallSourceNotReady {
 		for i := range out.Locales {
@@ -1034,6 +1049,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 				// policy that is the whole of delivery — the pass wrote into the
 				// run's draft tree — so the locale's files are genuinely absent
 				// rather than present and unblessed.
+				a.printOps.note(fmt.Sprintf("%s: short of its ship gate, so kapi up delivers none of its files and none is printed", lc.Locale))
 				continue
 			}
 			// The locale cleared its gate, so its drafts become its delivery.
@@ -1044,6 +1060,9 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			delivered, derr := a.deliverDrafts(ctx, model.LocaleID(lc.Locale))
 			if derr != nil {
 				return fmt.Errorf("deliver %s: %w", lc.Locale, derr)
+			}
+			if a.printOps != nil {
+				continue
 			}
 			// Per-file progress lines go nowhere: the structured result carries
 			// the counts, and stray lines would corrupt --json output.

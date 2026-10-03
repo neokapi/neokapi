@@ -411,11 +411,13 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	// `targets/<locale>` overlays to the project store and emits no file.
 	// Materializing the localized files is then a separate `kapi merge`. An
 	// explicit -o (or no project) keeps the file-writing path below.
-	//
-	// A run that prints its change set renders the files it would write, so
-	// it takes the file-writing path into a home that writes nothing.
-	processOnly := a.ProjectContext != nil && projStore != nil && !cmd.Flags().Changed("output") && !a.convergeWriteFiles &&
-		a.printOps == nil
+	processOnly := a.ProjectContext != nil && projStore != nil && !cmd.Flags().Changed("output") && !a.convergeWriteFiles
+	if processOnly && a.printOps != nil {
+		// Such a run writes no file, so it has no change set to print, and a
+		// run that prints writes nothing into the store either.
+		a.notePrintsNoFile(cmd, inputPath)
+		return nil
+	}
 
 	// The recipe's word on this file: the project's format defaults overlaid by
 	// the claiming item's own format.config, which is where the extraction rules
@@ -1057,7 +1059,12 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 	// glob that supplied that input re-tracks as source on the next run, so a
 	// writing batch inside a project doubles its own content every time.
 	processOnly := a.ProjectContext != nil && projStore != nil &&
-		!cmd.Flags().Changed("output") && !a.convergeWriteFiles && a.printOps == nil
+		!cmd.Flags().Changed("output") && !a.convergeWriteFiles
+	if processOnly && a.printOps != nil {
+		// As in RunSingleFile: nothing to print, and nothing written.
+		a.notePrintsNoFile(cmd, inputPath)
+		return nil, nil
+	}
 
 	// Wrap tools with TracingTool if recorder is set.
 	var traceNodes []flow.TraceNode

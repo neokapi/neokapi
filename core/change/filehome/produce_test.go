@@ -136,6 +136,29 @@ func TestProduce_AHomeThatWritesNothingStagesNothing(t *testing.T) {
 	assert.Empty(t, entries, "nothing is staged or written")
 }
 
+func TestProduce_AHomeThatWritesNothingStillWritesUnderItsTree(t *testing.T) {
+	dir := t.TempDir()
+	drafts := filepath.Join(dir, ".kapi", "work", "drafts")
+	home := filehome.New(nil, filehome.Options{LockDir: filepath.Join(t.TempDir(), "locks"), WriteNothing: true, WriteUnder: drafts})
+
+	draft := filepath.Join(drafts, "qps", "messages.txt")
+	p, err := home.Produce(t.Context(), draft, "", produceBytes("draft\n"))
+	require.NoError(t, err)
+	require.NoError(t, p.Commit(t.Context()))
+	assert.True(t, p.Written(), "a draft is the run's own tree")
+	got, err := os.ReadFile(draft)
+	require.NoError(t, err)
+	assert.Equal(t, "draft\n", string(got))
+
+	content := filepath.Join(dir, "qps", "messages.txt")
+	q, err := home.Produce(t.Context(), content, "", produceBytes("draft\n"))
+	require.NoError(t, err)
+	require.NoError(t, q.Commit(t.Context()))
+	assert.False(t, q.Written())
+	assert.NoFileExists(t, content, "a file outside the tree is never written")
+	assert.NoDirExists(t, filepath.Join(dir, "qps"))
+}
+
 func TestProduce_AWriterThatFailsStagesNothing(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "messages.txt")

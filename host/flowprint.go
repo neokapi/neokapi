@@ -2,13 +2,19 @@ package host
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"slices"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -72,10 +78,20 @@ type printedOps struct {
 // than the one the recipe names. A change set cannot write it there, so its
 // operations are not printed.
 func (p *printedOps) leaveOut(path, ref string, k model.EditionKey) {
+	p.note(fmt.Sprintf("%s: not where kapi apply writes edition %s of %s; its operations are not printed",
+		path, editionText(k), ref))
+}
+
+// note adds one line about what the change set leaves out.
+func (p *printedOps) note(line string) {
+	if p == nil {
+		return
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.left = append(p.left, fmt.Sprintf("%s: not where kapi apply writes edition %s of %s; its operations are not printed",
-		path, editionText(k), ref))
+	if !slices.Contains(p.left, line) {
+		p.left = append(p.left, line)
+	}
 }
 
 // leftOut lists the files the change set leaves out, sorted.
@@ -172,6 +188,105 @@ func (doc *flowDoc) printOps() []change.Op {
 		}
 	}
 	return ops
+}
+
+// printDocument adds the operations of one document the run would write to
+// the run's change set, when kapi apply of them writes the bytes the run
+// would have written to the file at path (want, their digest), and otherwise
+// names the file on standard error and prints none of them.
+//
+// The two can differ, because they write a file two ways. kapi apply edits the
+// blocks an operation names in the file as it stands; a run writes a
+// target-language file whole from its source. A block the source gained has
+// no place in the file kapi apply edits, and whatever the file holds that the
+// source does not (its own order, an entry of its own) stays there under kapi
+// apply and is gone after the run. So each document's operations are applied
+// to a private copy of the file first, through the change service kapi apply
+// reaches, and printed only when the copy then holds the run's bytes.
+func (doc *flowDoc) printDocument(ctx context.Context, path, want string) error {
+	ops := doc.printOps()
+	if len(ops) == 0 {
+		return nil
+	}
+	why, err := doc.appliesAsRun(ctx, path, ops, want)
+	if err != nil {
+		return fmt.Errorf("print the operations on %s: %w", path, err)
+	}
+	if why != "" {
+		doc.fc.print.note(fmt.Sprintf("%s: %s; its operations are not printed, and kapi up writes it", doc.fc.displayPath(path), why))
+		return nil
+	}
+	doc.fc.print.add(doc.ref, ops)
+	return nil
+}
+
+// appliesAsRun applies ops to a private copy of the file at path, as kapi
+// apply in the run's project would apply them, and returns why the copy then
+// differs from the bytes whose digest is want, "" when it holds them.
+func (doc *flowDoc) appliesAsRun(ctx context.Context, path string, ops []change.Op, want string) (string, error) {
+	dir, err := os.MkdirTemp("", "kapi-print-ops-")
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	file, _ := splitLocator(path)
+	copied := filepath.Join(dir, filepath.Base(file))
+	switch data, rerr := os.ReadFile(file); {
+	case rerr == nil:
+		if err := os.WriteFile(copied, data, 0o600); err != nil {
+			return "", err
+		}
+	case !errors.Is(rerr, fs.ErrNotExist):
+		return "", rerr
+	}
+	doc.fc.mu.Lock()
+	svc, err := doc.fc.changes.copyService(ctx, file, copied, filepath.Join(dir, "locks"))
+	doc.fc.mu.Unlock()
+	if err != nil {
+		return "", err
+	}
+	res, err := svc.Apply(ctx, change.Set{Gate: change.GateReport, Ops: ops}, change.Actor{Kind: change.ActorPerson, Name: "print-ops"})
+	if err != nil {
+		return "", err
+	}
+	const writesWhole = "the run writes it whole from its source, and kapi apply, which edits the blocks the file holds as it stands,"
+	for _, r := range res.Ops {
+		if r.Status == change.OpRefused && r.Error != nil {
+			return writesWhole + " refuses its operations (" + r.Error.Message + ")", nil
+		}
+	}
+	got, err := filehome.Digest(copied)
+	if err != nil {
+		return "", err
+	}
+	if got != want {
+		return writesWhole + " would write other bytes", nil
+	}
+	return "", nil
+}
+
+// notePrintsNoFile notes a run that writes no file and so prints nothing: in
+// a project, kapi translate, pseudo-translate and run without -o keep what
+// they produce in the project's store.
+func (a *App) notePrintsNoFile(_ Command, inputPath string) {
+	fc := &flowChanges{root: a.projectRoot()}
+	a.printOps.note(fmt.Sprintf("%s: in a project this run writes no file without -o (it keeps what it produces in the project's store), so it prints nothing; kapi up --print-ops prints what a pass writes",
+		fc.displayPath(inputPath)))
+}
+
+// displayPath names a file in a note: relative to the project's root, or to
+// the working directory outside one.
+func (fc *flowChanges) displayPath(path string) string {
+	base := fc.root
+	if base == "" {
+		base, _ = os.Getwd()
+	}
+	if abs, err := filepath.Abs(path); err == nil {
+		if rel, rerr := filepath.Rel(base, abs); rerr == nil && filepath.IsLocal(rel) {
+			return filepath.ToSlash(rel)
+		}
+	}
+	return path
 }
 
 // tracks reports whether the run's record covers edition k of b.

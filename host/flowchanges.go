@@ -60,9 +60,10 @@ func flowOrigin(flowName string) string { return "flow:" + flowName }
 // flowHome is the file home a flow run commits the documents it writes
 // through: the home of the project at root ("" outside one), with the lock
 // directory a change service of that project takes its locks in. Under
-// --print-ops it writes nothing.
+// --print-ops it writes nothing but a convergence pass's drafts, which stay
+// in the run's own tree.
 func (a *App) flowHome(root string) *filehome.Home {
-	opts := filehome.Options{LockDir: filepath.Join(DataDir(), "locks"), WriteNothing: a.printOps != nil}
+	opts := filehome.Options{LockDir: filepath.Join(DataDir(), "locks"), WriteNothing: a.printOps != nil, WriteUnder: a.convergeDraftDir}
 	if root != "" {
 		l := project.LayoutAt(root)
 		opts.LockDir = filepath.Join(l.WorkDir(), "locks")
@@ -160,9 +161,13 @@ func (fc *flowChanges) Open(ctx context.Context, d flow.Document) (flow.Document
 	switch {
 	case d.OutputFormat != "" && d.OutputFormat != d.Format:
 		// A conversion: the output is another document.
+		fc.print.note(fmt.Sprintf("%s: a conversion of %s into another format, which no change set writes; it is not printed",
+			fc.displayPath(doc.dest), fc.displayPath(d.InputPath)))
 		return doc, nil
 	case !doc.inPlace && d.TargetLocale == "":
 		// The source, written somewhere else: an export.
+		fc.print.note(fmt.Sprintf("%s: a copy of %s written elsewhere, which no change set writes; it is not printed",
+			fc.displayPath(doc.dest), fc.displayPath(d.InputPath)))
 		return doc, nil
 	}
 	fc.mu.Lock()
@@ -174,6 +179,7 @@ func (fc *flowChanges) Open(ctx context.Context, d flow.Document) (flow.Document
 	svc, ref, inProject, err := fc.locate(ctx, d.InputPath)
 	fc.mu.Unlock()
 	if err != nil {
+		fc.print.note(fmt.Sprintf("%s: kapi apply reads no document there (%v); it is not printed", fc.displayPath(doc.dest), err))
 		return doc, nil
 	}
 	if fc.print == nil && (fc.rec == nil || !inProject) {
@@ -188,25 +194,23 @@ func (fc *flowChanges) Open(ctx context.Context, d flow.Document) (flow.Document
 			// and a change set cannot write it there: nothing is recorded,
 			// and a printing run names the file it leaves out.
 			if fc.print != nil {
-				fc.print.leaveOut(doc.dest, ref, doc.edition)
+				fc.print.leaveOut(fc.displayPath(doc.dest), ref, doc.edition)
 			}
 			return doc, nil
 		}
 	}
 	doc.track = true
+	var rerr error
 	switch {
 	case doc.delivery != nil:
-		revs, rerr := doc.delivery.firstRevisions(func() (revisions, error) { return doc.readRevisions(ctx) })
-		if rerr != nil {
-			doc.track = false
-			return doc, nil
-		}
-		doc.before = revs
+		doc.before, rerr = doc.delivery.firstRevisions(func() (revisions, error) { return doc.readRevisions(ctx) })
 	default:
-		if doc.before, err = doc.readRevisions(ctx); err != nil {
-			doc.track = false
-			return doc, nil
-		}
+		doc.before, rerr = doc.readRevisions(ctx)
+	}
+	if rerr != nil {
+		doc.track = false
+		fc.print.note(fmt.Sprintf("%s: kapi apply cannot read %s (%v); it is not printed", fc.displayPath(doc.dest), ref, rerr))
+		return doc, nil
 	}
 	if fc.print != nil {
 		doc.entered = map[string]*model.Block{}
@@ -360,6 +364,10 @@ type leftEdition struct {
 	key  model.EditionKey
 	runs []model.Run
 	rev  string
+	// status and origin are the stamp the run's tool left on a derived
+	// edition.
+	status model.Status
+	origin model.Origin
 }
 
 // editionText is the text form of an edition key, "" for the zero key.
@@ -462,7 +470,7 @@ func (doc *flowDoc) Leave(b *model.Block) {
 			continue
 		}
 		ed, _ := b.Edition(k)
-		lb.editions[text] = leftEdition{key: k, runs: slices.Clone(ed.Runs), rev: rev}
+		lb.editions[text] = leftEdition{key: k, runs: slices.Clone(ed.Runs), rev: rev, status: ed.Status, origin: ed.Origin}
 	}
 	if len(lb.editions) == 0 && doc.entered == nil {
 		return
@@ -489,12 +497,15 @@ func (doc *flowDoc) Abort() {}
 // writes nothing.
 func (doc *flowDoc) Commit(ctx context.Context, p *filehome.Produced) error {
 	fc := doc.fc
-	if fc.print != nil {
+	if fc.print != nil && !doc.draft {
 		if doc.track {
-			fc.print.add(doc.ref, doc.printOps())
+			return doc.printDocument(ctx, doc.dest, p.After())
 		}
 		return nil
 	}
+	// A draft is written into the run's own tree whether or not the run
+	// prints: its delivery gate reads it, and delivery prints it or commits
+	// it.
 	err := p.Commit(ctx)
 	if errors.Is(err, filehome.ErrMoved) && doc.track && doc.svc != nil && !doc.draft {
 		return doc.applyAgain(ctx, err)
@@ -679,6 +690,13 @@ func (doc *flowDoc) applyOps() []change.Op {
 				op.Basis = doc.basis(key, lb)
 			}
 			ops = append(ops, op)
+			if !ed.key.IsZero() && ed.origin != (model.Origin{}) {
+				// The stamp the tool left, which a tool actor records with
+				// the provenance operation after the content: the edition is
+				// the tool's draft, as the run's own commit leaves it.
+				ops = append(ops, change.Op{Kind: change.KindProvenance, At: at,
+					Body: &change.Provenance{Status: ed.status, Origin: ed.origin}})
+			}
 		}
 	}
 	return ops
@@ -686,7 +704,9 @@ func (doc *flowDoc) applyOps() []change.Op {
 
 // applyAgain applies what the run changed to a document that moved while it
 // worked, through the change service, which reads it again under the commit
-// lock. moved is the commit's report.
+// lock. moved is the commit's report. A change the service refuses (an edition
+// somebody changed too, or a block the file does not hold yet) leaves the file
+// as they saved it, and the run reports it: the next run writes it.
 func (doc *flowDoc) applyAgain(ctx context.Context, moved error) error {
 	ops := doc.applyOps()
 	if len(ops) == 0 {
@@ -699,10 +719,10 @@ func (doc *flowDoc) applyAgain(ctx context.Context, moved error) error {
 	if res.Status == change.SetRefused {
 		for _, r := range res.Ops {
 			if r.Status == change.OpRefused && r.Error != nil {
-				return fmt.Errorf("%w; applying the run's changes again was refused: %s", moved, r.Error.Message)
+				return fmt.Errorf("%w; the run's changes were not applied again (%s); run it again to write them", moved, r.Error.Message)
 			}
 		}
-		return moved
+		return fmt.Errorf("%w; run it again to write its changes", moved)
 	}
 	return nil
 }

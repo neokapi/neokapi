@@ -179,6 +179,18 @@ func (a *App) deliverDraft(ctx context.Context, home *filehome.Home, path, dest 
 			return err
 		}
 	}
+	if a.printOps != nil {
+		// A run that prints its change set prints what this delivery would
+		// commit, and commits nothing.
+		if doc == nil || !doc.track {
+			return nil
+		}
+		want, err := filehome.Digest(path)
+		if err != nil {
+			return err
+		}
+		return doc.printDocument(ctx, dest, want)
+	}
 	p, err := home.Produce(ctx, dest, before, func(w io.Writer) error {
 		f, oerr := os.Open(path)
 		if oerr != nil {
