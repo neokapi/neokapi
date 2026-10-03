@@ -2177,12 +2177,13 @@ moves into 1.3.0 as WP14. The guided lab learning path from the codex study is n
 | D11 | Delete `kapi engine serve`, its reference page and CI job | Delete in WP6, documenting the application channels in the same PR | Its `Merge` RPC is a write path outside the contract; nothing first-party uses it | Re-point it at `Read`, `Apply`, `Describe` and keep a polyglot RPC to maintain |
 | D12 | Browser storage | sqlite-wasm: memory in 1.3.0, OPFS in a Worker after | No browser ships SQLite; the official build is measured, small and passes main's store suites | ncruces (+3.8 MB gzip, slower) behind the same driver contract |
 | D13 | Bowrain log remote and decisions keyed by pairing | After 1.3.0 | 1.3.0 already moves every Bowrain write route; the sync wire keeps working | In 1.3.0 the server's decision key and the sidecar retire at once |
-| D14 | neo/kapi | No split and no second name in 1.3.0, after the WP5 measurements | The project-free arm passed nothing kapi failed; its lower cost (Codex 0.68, Claude 0.80 of skill-cli's median input; Claude 0.98 outside the translation and gate tasks) came from its skill text; the Go module builds the engine without cgo or ICU; a second artifact costs five builds, signing and a product name each release | A second name ships a help surface that already drifts and a Windows answer, for an audience no measurement found |
+| D14 | neo/kapi | No split and no second name in 1.3.0, after the WP5 measurements; **decided as recommended** | The project-free arm passed nothing kapi failed; its lower cost (Codex 0.68, Claude 0.80 of skill-cli's median input; Claude 0.98 outside the translation and gate tasks) came from its skill text; the Go module builds the engine without cgo or ICU; a second artifact costs five builds, signing and a product name each release | A second name ships a help surface that already drifts and a Windows answer, for an audience no measurement found |
 | D15 | Vocabulary | "Edition" and "change set" enter `brand-communication.md`; "home" stays contributor vocabulary; "venue" keeps its meaning | "Venue" already means where the loop runs (`web/docs/kapi/convergence.mdx:471-484`, the recipe's venue binding), and "store" is overloaded | Using "venue" for the text's home teaches it two meanings inside the explanation the founder asked for |
 
-D14's row records what the WP5 measurements found. The founder approved "no split for 1.3.0"
-on 2026-10-02. "No second name" settles what section 15.3 left open (an alias if a project-free
-name proved useful) and needs the founder's confirmation before the row is marked decided.
+D14's row records what the WP5 measurements found. The founder decided it as recommended: no
+split and no second name in 1.3.0, which settles what section 15.3 left open (an alias if a
+project-free name proved useful). The `kapi-files` multi-call name stays the evaluation's surface,
+installed by no channel.
 
 ---
 
