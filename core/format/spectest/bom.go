@@ -89,7 +89,7 @@ func (p BOMProbe) identities(t *testing.T, src []byte) []blockIdentity {
 		out = append(out, blockIdentity{
 			ID:   block.ID,
 			Name: block.Name,
-			Text: model.RenderRunsWithData(block.Source),
+			Text: model.RenderRunsWithData(format.AuthoritativeRuns(block)),
 		})
 	}
 	return out

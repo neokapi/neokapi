@@ -193,9 +193,8 @@ func (p ModifyProbe) runCase(t *testing.T, c EscapeCase) {
 		if textOf == nil {
 			textOf = model.RenderRunsWithData
 		}
-		got = append(got, textOf(block.Source))
-		for key := range block.Targets {
-			got = append(got, textOf(block.TargetVariant(key).Runs))
+		for _, e := range block.EachEdition {
+			got = append(got, textOf(e.Runs))
 		}
 	}
 	if slices.Contains(got, want) {

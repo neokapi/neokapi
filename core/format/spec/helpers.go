@@ -245,7 +245,7 @@ func BlockTexts(parts []*model.Part) []string {
 		if !ok || !blk.Translatable {
 			continue
 		}
-		text := model.RunsText(blk.Source)
+		text := model.RunsText(format.AuthoritativeRuns(blk))
 		if text == "" {
 			continue
 		}
