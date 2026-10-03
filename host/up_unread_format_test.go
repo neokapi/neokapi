@@ -139,7 +139,7 @@ func TestUpPlanSetsAsideCollectionsWithNoReader(t *testing.T) {
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 
-	plan, err := a.computeProjectPlan(context.Background(), proj, recipe)
+	plan, err := a.computeProjectPlan(context.Background(), proj, recipe, planRun{})
 	require.NoError(t, err)
 	requireNoReader(t, plan.Warnings, "pkg/doc.idml", "okf_idml", "okapi-bridge")
 	var app bool
@@ -184,7 +184,7 @@ func TestUpOverOnlyUnreadableContentConvergesNothing(t *testing.T) {
 	assert.Contains(t, err.Error(), "kapi plugins install okapi-bridge")
 	assert.False(t, out.Converged)
 
-	plan, err := a.computeProjectPlan(context.Background(), proj, recipe)
+	plan, err := a.computeProjectPlan(context.Background(), proj, recipe, planRun{})
 	require.NoError(t, err)
 	requireNoReader(t, plan.Warnings, "pkg/doc.idml", "okf_idml", "okapi-bridge")
 	var text bytes.Buffer

@@ -168,7 +168,7 @@ func TestUpPlan_PricesWhatTheStoreHolds(t *testing.T) {
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 
-	cold, err := a.computeProjectPlan(context.Background(), proj, recipe)
+	cold, err := a.computeProjectPlan(context.Background(), proj, recipe, planRun{})
 	require.NoError(t, err)
 	assert.Equal(t, 1, cold.Totals.MissingTarget)
 	assert.Equal(t, 0, cold.Totals.MemoryExact, "an unread bundle answers nothing")
@@ -179,7 +179,7 @@ func TestUpPlan_PricesWhatTheStoreHolds(t *testing.T) {
 
 	readProjectContext(t, root)
 
-	warm, err := a.computeProjectPlan(context.Background(), proj, recipe)
+	warm, err := a.computeProjectPlan(context.Background(), proj, recipe, planRun{})
 	require.NoError(t, err)
 	assert.Equal(t, 1, warm.Totals.MissingTarget)
 	assert.Equal(t, 1, warm.Totals.MemoryExact, "the content memory in the store answers the only unit")

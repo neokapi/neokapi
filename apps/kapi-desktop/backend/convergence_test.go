@@ -188,25 +188,42 @@ func TestGetConvergePlan_ReportsPendingWorkAndDrift(t *testing.T) {
 
 func TestGetConvergePlan_AfterARunPricesWhatTheNextPassDrafts(t *testing.T) {
 	app := NewApp()
-	tab, _ := newConvergenceProject(t, app)
+	tab, root := newConvergenceProject(t, app)
+	bringUpToDate := func() {
+		t.Helper()
+		require.NoError(t, app.BringUpToDate(tab.ID))
+		require.Eventually(t, func() bool {
+			return app.GetRunState() == string(RunStateComplete)
+		}, 30*time.Second, 50*time.Millisecond)
+	}
 
-	// Bring the project up to date, then re-plan. Every unit has a target now,
-	// and the pre-flight reads the same derivation `kapi up --plan` does: a pass
-	// fills from the content memory and drafts what it cannot fill, so a unit no
-	// corpus answers is work here too, however finished the target files look.
-	require.NoError(t, app.BringUpToDate(tab.ID))
-	require.Eventually(t, func() bool {
-		return app.GetRunState() == string(RunStateComplete)
-	}, 30*time.Second, 50*time.Millisecond)
-
+	// Bring the project up to date, then re-plan. Every unit has a target now
+	// and both languages are shippable, so the next run passes over neither and
+	// the pre-flight, which reads the same derivation `kapi up --plan` does,
+	// prices nothing, whatever the content memory answers.
+	bringUpToDate()
 	plan, err := app.GetConvergePlan(tab.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 0, plan.Plan.Totals.MissingTarget, "every unit holds a target")
-	assert.Equal(t, 4, plan.Plan.Totals.Unanswered, "2 units × 2 locales the corpus cannot fill")
-	assert.Equal(t, 4, plan.Plan.Totals.AIRemaining, "and each of them is a provider call")
+	assert.Zero(t, plan.Plan.Totals.Unanswered, "no pass runs, so nothing is drafted")
+	assert.Zero(t, plan.Plan.Totals.AIRemaining)
+	assert.Empty(t, plan.Plan.Scopes)
 	assert.Zero(t, plan.Plan.Totals.UnreadTargets, "the run read the committed targets it wrote")
 	assert.False(t, plan.StoreMissing, "the run's auto-extract populated the store")
 	assert.Zero(t, plan.ChangedFiles, "sources unchanged since the run's extract")
+
+	// A new string puts both languages short of their gate, so the next run
+	// passes over them: the plan prices the new unit in each, and discloses the
+	// produced units whose translations the run reads into the store before it
+	// judges them.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en.json"),
+		[]byte(`{"greeting":"Hello","farewell":"Goodbye","thanks":"Thank you"}`), 0o644))
+	plan, err = app.GetConvergePlan(tab.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, plan.Plan.Totals.MissingTarget, "the new unit in both languages")
+	assert.Equal(t, 2, plan.Plan.Totals.AIRemaining, "each drafted by the flow")
+	assert.Equal(t, 4, plan.Plan.Totals.UnreadTargets, "2 units × 2 locales the run reads in first")
+	assert.Len(t, plan.Plan.Scopes, 2)
 }
 
 func TestGetConvergePlan_UnknownTab(t *testing.T) {

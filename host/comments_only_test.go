@@ -207,7 +207,7 @@ func TestUpPlanPricesNoValueOfACommentsOnlyItem(t *testing.T) {
 			Name:    "config",
 			Content: []project.ContentItem{{Path: "config/*.yaml", Target: "config/{lang}/app.yaml", Comments: spelledComments(t, spelled)}},
 		})
-		out, err := a.computeProjectPlan(context.Background(), proj, recipe)
+		out, err := a.computeProjectPlan(context.Background(), proj, recipe, planRun{})
 		require.NoError(t, err)
 		return out
 	}

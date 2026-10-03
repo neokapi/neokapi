@@ -34,6 +34,9 @@ func formatPlanLine(plan UpPlanOutput) string {
 			return fmt.Sprintf("plan: %d produced unit(s) not priced: the store has not read their committed "+
 				"translations yet, so this run drafts what the record declines", t.UnreadTargets) + aside
 		}
+		if plan.upToDate {
+			return "plan: every language is up to date, so this run drafts nothing and verifies gates" + aside
+		}
 		if aside != "" {
 			return "plan: every unit it could read has a committed target the content memory answers, so this run verifies gates" + aside
 		}
@@ -225,7 +228,7 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 		// preamble silently vanishing looks identical to a build where it was
 		// never printed, and the usual cause (a memory store that will not open)
 		// is the same fault that would make the plan's leverage figure wrong.
-		if plan, perr := a.computeProjectPlan(cmd.Context(), proj, projectPath); perr != nil {
+		if plan, perr := a.computeProjectPlan(cmd.Context(), proj, projectPath, planRun{cmd: cmd, noChecks: BoolFlag(cmd, "no-checks")}); perr != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "Warning: up: cannot show the plan preamble: %v (the run continues)\n", perr)
 		} else {
 			fmt.Fprintln(cmd.ErrOrStderr(), formatPlanLine(plan))

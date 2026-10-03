@@ -86,7 +86,7 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 		// project's language is bounded to this call (host/sourcelang.go).
 		defer a.scopeSourceLang()()
 		a.SourceLang = a.mcpCallSourceLocale(path)
-		plan, err := a.computeProjectPlan(ctx, proj, path)
+		plan, err := a.computeProjectPlan(ctx, proj, path, planRun{})
 		if err != nil {
 			return nil, nil, err
 		}
