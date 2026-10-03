@@ -828,17 +828,11 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 					}
 					var block *model.Block
 					if model.RunsHaveInlineCodes(sourceRuns) {
-						block = &model.Block{
-							ID:           blockID,
-							Translatable: translatable,
-							Source:       sourceRuns,
-							Targets:      make(map[model.VariantKey]*model.Target),
-							Properties:   make(map[string]string),
-						}
+						block = model.NewRunsBlock(blockID, sourceRuns)
 					} else {
 						block = model.NewBlock(blockID, sourceText)
-						block.Translatable = translatable
 					}
+					block.Translatable = translatable
 					ids.Assign(block)
 					block.Name = messageName(&names, contextName, messageID, sourceText, commentBuilder.String())
 
@@ -922,9 +916,6 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 								Range: model.SpanAnchor(model.RunPos{Run: startRun}, model.RunPos{Run: endRun}),
 								Props: map[string]string{"numerus-form": strconv.Itoa(i)},
 							}
-						}
-						if block.Targets == nil {
-							block.Targets = make(map[model.VariantKey]*model.Target)
 						}
 						block.SetTargetRuns(targetLocale, targetRuns)
 						key := model.Variant(targetLocale)
