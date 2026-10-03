@@ -397,8 +397,8 @@ func (w *Writer) renderBlockText(block *model.Block) string {
 			return xmlEscape(model.RunsText(runs))
 		}
 	}
-	if len(block.Source) > 0 {
-		return xmlEscape(model.RunsText(block.Source))
+	if src, _ := block.Edition(block.Authoritative(model.AuthorityPolicy{})); len(src.Runs) > 0 {
+		return xmlEscape(model.RunsText(src.Runs))
 	}
 	return ""
 }

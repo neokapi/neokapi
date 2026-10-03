@@ -307,7 +307,8 @@ var typeToRole = map[string]string{
 // format — a placeholder run carrying it in Disp. Empty when the block already
 // holds the LaTeX as text (native doclang), so the normal body is used.
 func formulaLaTeX(blk *model.Block) string {
-	for _, r := range blk.Source {
+	src, _ := blk.Edition(blk.Authoritative(model.AuthorityPolicy{}))
+	for _, r := range src.Runs {
 		if r.Ph != nil && r.Ph.Disp != "" {
 			return r.Ph.Disp
 		}
@@ -450,7 +451,8 @@ func (w *Writer) writeLocation(b *strings.Builder, value, res int, force bool) {
 // blockRuns returns the runs to serialize: the target for the writer's locale
 // when present, else the source.
 func (w *Writer) blockRuns(blk *model.Block) []model.Run {
-	runs := blk.Source
+	src, _ := blk.Edition(blk.Authoritative(model.AuthorityPolicy{}))
+	runs := src.Runs
 	if !w.Locale.IsEmpty() {
 		if t := blk.TargetRuns(w.Locale); t != nil {
 			runs = t
