@@ -7,11 +7,19 @@ import { onBootProgress } from "@neokapi/kapi-playground/runtime";
 import { configurePlugins, bootEngine } from "@neokapi/kapi-playground/plugins";
 import type {
   AnnotateOptions,
+  ApplyOptions,
   BootProgress,
+  ChangeCallOptions,
+  ChangeResult,
+  ChangeSet,
+  DescribeRequest,
+  FormatDescription,
   InspectResult,
   KapiRuntime,
   KbfRequest,
   KbfResponse,
+  ReadPage,
+  ReadRequest,
   SegmentResult,
   TraceRunResult,
 } from "@neokapi/kapi-playground/runtime";
@@ -109,6 +117,20 @@ export interface LabRuntime {
   segment: (text: string, engine: string, locale: string) => SegmentResult;
   /** Segmentation engine names registered in this wasm build. */
   segmentEngines: () => string[];
+  /**
+   * Read a page of a document's blocks through the change service: each block
+   * carries the reference and the revision an operation names. Paths are
+   * absolute (/project/...). Throws `ChangeRefused` when the service refuses
+   * the read.
+   */
+  read: (req: ReadRequest, opts?: ChangeCallOptions) => Promise<ReadPage>;
+  /**
+   * Apply a kapi.change/v1 change set through the change service, as
+   * `kapi apply` does. Resolves to the result, a refusal included.
+   */
+  apply: (set: ChangeSet, opts?: ApplyOptions) => Promise<ChangeResult>;
+  /** Say what a format supports of the change contract. */
+  describe: (req: DescribeRequest, opts?: ChangeCallOptions) => Promise<FormatDescription>;
 }
 
 const PROJECT_DIR = "/project";
@@ -324,6 +346,32 @@ export function useLabRuntime(
     return rt ? rt.segmentEngines() : [];
   }, []);
 
+  // The change contract's calls share the engine's App with the commands, so
+  // they take their turn on the same chain.
+  const read = useCallback(
+    async (req: ReadRequest, opts?: ChangeCallOptions): Promise<ReadPage> => {
+      const rt = runtimeRef.current;
+      if (!rt) throw new Error("runtime not ready");
+      return serialized(() => rt.read(req, opts));
+    },
+    [],
+  );
+
+  const apply = useCallback(async (set: ChangeSet, opts?: ApplyOptions): Promise<ChangeResult> => {
+    const rt = runtimeRef.current;
+    if (!rt) throw new Error("runtime not ready");
+    return serialized(() => rt.apply(set, opts));
+  }, []);
+
+  const describe = useCallback(
+    async (req: DescribeRequest, opts?: ChangeCallOptions): Promise<FormatDescription> => {
+      const rt = runtimeRef.current;
+      if (!rt) throw new Error("runtime not ready");
+      return serialized(() => rt.describe(req, opts));
+    },
+    [],
+  );
+
   // Memoize the returned object: every method is useCallback-stable, so the
   // identity changes only when status/error change. Without this, consumers
   // that put the whole `runtime` in an effect's dep array re-run that effect
@@ -348,6 +396,9 @@ export function useLabRuntime(
       kbf,
       segment,
       segmentEngines,
+      read,
+      apply,
+      describe,
     }),
     [
       status,
@@ -366,6 +417,9 @@ export function useLabRuntime(
       kbf,
       segment,
       segmentEngines,
+      read,
+      apply,
+      describe,
     ],
   );
 }

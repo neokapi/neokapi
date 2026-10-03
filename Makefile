@@ -3168,6 +3168,9 @@ kpz-wasm-smoke: web-wasm-cli ## Verify .kpz workspace + kapi project run in the 
 wasm-surface-smoke: web-wasm-cli ## Verify no browser verb answers "unknown command", gaps explain themselves, and the labs' own argv still runs
 	node --experimental-strip-types scripts/verify-snippets/command-surface-smoke.ts
 
+change-wasm-smoke: web-wasm-cli ## Verify kapiRead, kapiApply and kapiDescribe in the browser WASM engine (read, edit, record, refusals)
+	node --experimental-strip-types scripts/verify-snippets/change-smoke.ts
+
 # ── Pages publishing (local) ──────────────────────────────────────────────────
 #
 # Local equivalents of the docs-kapi.yml / docs-bowrain.yml / web-landing.yml +
@@ -3393,7 +3396,7 @@ help: ## Show this help
         generate-translatability check-translatability \
         generate-docs-palette check-docs-palette \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
-        kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke web-sqlite-wasm \
+        kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke change-wasm-smoke web-sqlite-wasm \
         test-stores-oneconn test-host-oneconn test-wasm-stores \
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
         emails-frontend-deps emails-extract \

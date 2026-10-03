@@ -3,8 +3,9 @@
 // registers them (converted JS objects / JSON strings, see abi.ts).
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ChangeResult, ReadPage } from "@neokapi/contract-types";
 import { createMemFS } from "./memfs.ts";
-import { makeRuntime } from "./runtime.ts";
+import { ChangeRefused, makeRuntime } from "./runtime.ts";
 
 const enc = new TextEncoder();
 
@@ -17,6 +18,9 @@ const ENGINE_GLOBALS = [
   "labSegmentEngines",
   "kbf",
   "kapiReset",
+  "kapiRead",
+  "kapiApply",
+  "kapiDescribe",
   "kapiEngineABI",
 ] as const;
 
@@ -228,5 +232,109 @@ describe("makeRuntime", () => {
     expect(rt.cwd()).toBe("/project/sub");
     rt.vol.writeFile("/project/sub/a.txt", enc.encode("hi"));
     expect(rt.vol.readdir("/project/sub")).toEqual(["a.txt"]);
+  });
+});
+
+describe("the change contract", () => {
+  const page: ReadPage = {
+    doc: "docs/a.json",
+    home: "file",
+    format: "json",
+    head: "sha256:1",
+    blocks: [
+      {
+        ref: { doc: "docs/a.json", block: "greeting" },
+        rev: "r:0123456789abcdef",
+        text: "Hello",
+        ops: ["set_content", "replace_text"],
+      },
+    ],
+  };
+  const refusal: ChangeResult = {
+    schema: "kapi.change-result/v1",
+    status: "refused",
+    record: null,
+    docs: [],
+    ops: [],
+    error: { code: "not_found", message: "docs/b.json names no document" },
+  };
+
+  it("read sends the request and options as JSON and parses the page", async () => {
+    installCoreGlobals();
+    const fn = vi.fn(() => Promise.resolve(JSON.stringify(page)));
+    globalThis.kapiRead = fn;
+    const rt = makeRuntime(createMemFS());
+
+    await expect(rt.read({ doc: "docs/a.json" })).resolves.toEqual(page);
+    expect(fn).toHaveBeenLastCalledWith(`{"doc":"docs/a.json"}`);
+
+    await rt.read({ doc: "docs/a.json", limit: 5 }, { project: "/project" });
+    expect(fn).toHaveBeenLastCalledWith(
+      `{"doc":"docs/a.json","limit":5}`,
+      `{"project":"/project"}`,
+    );
+  });
+
+  it("read and describe throw the refusal the service answered", async () => {
+    installCoreGlobals();
+    globalThis.kapiRead = vi.fn(() => Promise.resolve(JSON.stringify(refusal)));
+    globalThis.kapiDescribe = vi.fn(() => Promise.resolve(JSON.stringify(refusal)));
+    const rt = makeRuntime(createMemFS());
+
+    const err = await rt.read({ doc: "docs/b.json" }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChangeRefused);
+    expect((err as ChangeRefused).result).toEqual(refusal);
+    expect((err as ChangeRefused).message).toBe("docs/b.json names no document");
+    await expect(rt.describe({ doc: "docs/b.json" })).rejects.toBeInstanceOf(ChangeRefused);
+  });
+
+  it("apply resolves the result whatever its status, refusals included", async () => {
+    installCoreGlobals();
+    const fn = vi.fn(() => Promise.resolve(JSON.stringify(refusal)));
+    globalThis.kapiApply = fn;
+    const rt = makeRuntime(createMemFS());
+
+    const set = {
+      ops: [
+        {
+          op: "set_content" as const,
+          at: { doc: "docs/a.json", block: "greeting" },
+          if_match: "r:0123456789abcdef",
+          text: "Hi",
+        },
+      ],
+    };
+    await expect(rt.apply(set, { actor: { kind: "agent", name: "lab" } })).resolves.toEqual(
+      refusal,
+    );
+    expect(fn).toHaveBeenLastCalledWith(
+      JSON.stringify(set),
+      `{"actor":{"kind":"agent","name":"lab"}}`,
+    );
+  });
+
+  it("apply refuses an answer that is not a result", async () => {
+    installCoreGlobals();
+    globalThis.kapiApply = vi.fn(() => Promise.resolve(JSON.stringify(page)));
+    const rt = makeRuntime(createMemFS());
+    await expect(rt.apply({ ops: [] })).rejects.toThrow(/kapi.change-result\/v1/);
+  });
+
+  it("describe parses the format's description", async () => {
+    installCoreGlobals();
+    const description = { format: "json", editions: "one-per-file", ops: {}, native: [] };
+    const fn = vi.fn(() => Promise.resolve(JSON.stringify(description)));
+    globalThis.kapiDescribe = fn;
+    const rt = makeRuntime(createMemFS());
+    await expect(rt.describe({ format: "json" })).resolves.toEqual(description);
+    expect(fn).toHaveBeenLastCalledWith(`{"format":"json"}`);
+  });
+
+  it("names the entry point an older engine lacks", async () => {
+    installCoreGlobals();
+    const rt = makeRuntime(createMemFS());
+    await expect(rt.read({ doc: "a.json" })).rejects.toThrow(/kapiRead is not registered/);
+    await expect(rt.apply({ ops: [] })).rejects.toThrow(/kapiApply is not registered/);
+    await expect(rt.describe({ format: "json" })).rejects.toThrow(/kapiDescribe is not registered/);
   });
 });
