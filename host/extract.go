@@ -250,8 +250,9 @@ func (a *App) RunExtract(cmd Command) error {
 		pair := project.ExtractionPair{TargetLocale: tgt}
 		pairOutDir := absOut
 		// The change service reads each source with its translation into tgt
-		// joined, for the revisions every unit carries.
-		svc, err := a.ChangeService(cmd.Context(), ChangeServiceOptions{Project: projectPath, Origin: "extract", SourceLocale: pctx.SourceLocale, TargetLocale: tgt})
+		// joined, for the revisions every unit carries, from the files kapi
+		// merge writes (Materialize).
+		svc, err := a.ChangeService(cmd.Context(), ChangeServiceOptions{Project: projectPath, Origin: "extract", SourceLocale: pctx.SourceLocale, TargetLocale: tgt, Materialize: true})
 		if err != nil {
 			return fmt.Errorf("extract: %w", err)
 		}
@@ -1051,7 +1052,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 
 	written := 0
 	for _, tgt := range targets {
-		svc, err := a.ChangeService(cmd.Context(), ChangeServiceOptions{Project: projectPath, Origin: "extract", SourceLocale: pctx.SourceLocale, TargetLocale: tgt})
+		svc, err := a.ChangeService(cmd.Context(), ChangeServiceOptions{Project: projectPath, Origin: "extract", SourceLocale: pctx.SourceLocale, TargetLocale: tgt, Materialize: true})
 		if err != nil {
 			return fmt.Errorf("extract: %w", err)
 		}

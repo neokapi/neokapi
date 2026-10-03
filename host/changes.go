@@ -86,9 +86,11 @@ type ChangeServiceOptions struct {
 	revisionsOnly bool
 
 	// Materialize writes each translation's file a change writes from its
-	// source's skeleton (filehome.Options.Materialize): kapi merge and kapi
-	// pull write whole translations this way, where the editing surfaces
-	// edit a translation's file in place.
+	// source's skeleton (filehome.Options.Materialize), and keeps the
+	// translations of a bilingual source (a PO or XLIFF catalog) in the
+	// files the recipe's target template names rather than in the source:
+	// kapi merge and kapi pull write whole translations this way, where the
+	// editing surfaces edit a translation's file in place.
 	Materialize bool
 	// WriterHook, inside a project, is given every writer the service opens
 	// for a source file, after the recipe configured it: kapi pull sets the
@@ -421,6 +423,9 @@ type projectChangeLayout struct {
 	// writerHook is given every writer opened for a source file
 	// (ChangeServiceOptions.WriterHook).
 	writerHook func(format.DataFormatWriter)
+	// materialize keeps the translations of a bilingual source in the files
+	// the recipe's target template names (ChangeServiceOptions.Materialize).
+	materialize bool
 
 	once  sync.Once
 	index *projectChangeIndex
@@ -449,9 +454,10 @@ func (a *App) newProjectLayout(opts ChangeServiceOptions) (*projectChangeLayout,
 	pctx := project.NewProjectContext(proj, opts.Project)
 	return &projectChangeLayout{
 		app: a, root: pctx.ProjectDir, proj: proj, pctx: pctx, format: opts.Format, target: opts.TargetLocale,
-		source:     model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), proj.Defaults.SourceLanguage)),
-		enc:        ResolveEncodingName(a.Encoding, proj.Defaults.Encoding),
-		writerHook: opts.WriterHook,
+		source:      model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), proj.Defaults.SourceLanguage)),
+		enc:         ResolveEncodingName(a.Encoding, proj.Defaults.Encoding),
+		writerHook:  opts.WriterHook,
+		materialize: opts.Materialize,
 	}, nil
 }
 
@@ -619,9 +625,13 @@ func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) fil
 	if rf.Item != nil && rf.Item.Target == "" {
 		d.NoEditionFile = "the collection that holds it names no target, so its translations have no file"
 	}
-	if len(targets) > 0 && d.Editions == change.EditionsInFile && !l.app.interchange(name) {
+	if len(targets) > 0 && d.Editions == change.EditionsInFile && (!l.app.interchange(name) || l.materialize) {
 		// A Qt Linguist or string-catalog source whose translations the
-		// recipe writes to files of their own keeps them there.
+		// recipe writes to files of their own keeps them there. So does
+		// any bilingual source for a service that writes whole
+		// translations (Materialize): kapi merge and kapi pull write each
+		// translation to the file the target template names, never into
+		// the source catalog.
 		d.Editions, d.TargetLocale = change.EditionsPerFile, ""
 	}
 	d.EditionFile = func(k model.EditionKey) (filehome.EditionFile, bool) {

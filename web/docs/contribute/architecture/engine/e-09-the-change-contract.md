@@ -409,7 +409,9 @@ service for each call's project and send every change set as the calling agent
 The verbs that write whole translations build the service with
 `Materialize` set, so the file home writes each translation's file from its
 source's skeleton, keeping what each block's partner in the file held where the
-change set leaves it, and a translation follows the source's structure.
+change set leaves it, and a translation follows the source's structure. Such a
+service keeps the translations of a bilingual source, a PO or XLIFF catalog
+whose collection names a target, in the target template's files too.
 `kapi merge -i` compiles a returned XLIFF, PO or `.kpz` into `set_content`
 operations carrying the `if_match` and `basis` each unit was extracted against,
 under `require_basis`, and sends them as a person; `kapi extract` reads those

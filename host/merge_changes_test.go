@@ -207,6 +207,29 @@ func TestChangeService_GivesTheWriterHookTheWriterOfATranslation(t *testing.T) {
 	assert.Equal(t, `{"greeting": "Bonjour"}`+"\n", readFile(t, task.recipe, "src/fr/app.json"))
 }
 
+// TestChangeService_MaterializeWritesABilingualSourcesTranslationToItsTarget
+// pins that a service writing whole translations keeps a PO source's
+// translation in the file the target template names: the French lands in
+// po/fr.po and the English catalog stays as it was.
+func TestChangeService_MaterializeWritesABilingualSourcesTranslationToItsTarget(t *testing.T) {
+	const en = "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"Language: en\\n\"\n\nmsgid \"Hello\"\nmsgstr \"\"\n"
+	a, recipe := changeProject(t, project.ContentItem{
+		Path: "po/en.po", Format: &project.FormatSpec{Name: "po"}, Target: "po/{lang}.po",
+	}, map[string]string{"po/en.po": en})
+	ctx := context.Background()
+	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, TargetLocale: "fr", Materialize: true})
+	require.NoError(t, err)
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "po/en.po"})
+	require.NoError(t, err)
+	at := blockWith(t, page, "Hello").Ref
+	at.Edition = model.EditionKey{Locale: "fr"}
+	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{setTo(at, model.AbsentRevision, "Bonjour")}}, changePerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.Contains(t, readFile(t, recipe, "po/fr.po"), `msgstr "Bonjour"`)
+	assert.Equal(t, en, readFile(t, recipe, "po/en.po"), "the source catalog is untouched")
+}
+
 // TestMaterialize_WritesEachTranslationThroughTheChangeService pins kapi
 // merge's materializing form: the targets the block store holds become one
 // change set per translation, which the change service writes from the
