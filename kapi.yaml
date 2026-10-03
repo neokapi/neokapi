@@ -508,7 +508,7 @@ collections:
       - path: "{bench,cli,cmd,core,examples,host,kapi,kpz,memory,plugins,providers,scripts,terms,voice}/**/*.go"
         comments:
           only: true
-      - path: "bowrain/{agent,ai,analytics,apierror,auth,billing,cmd,connector,contextscan,core,credentials,crypto,e2e,editorclient,event,forge,graph,jobs,knowledge,mailer,memory,migrations,observe,platformconfig,plugin,proto,resilience,review,safehttp,sandbox,server,service,storage,store,sync,terms,testutil,voice}/**/*.go"
+      - path: "bowrain/{agent,ai,analytics,apierror,auth,billing,changes,cmd,connector,contextscan,core,credentials,crypto,e2e,editorclient,event,forge,graph,jobs,knowledge,mailer,memory,migrations,observe,platformconfig,plugin,proto,resilience,review,safehttp,sandbox,server,service,storage,store,sync,terms,testutil,voice}/**/*.go"
         comments:
           only: true
       - path: "{apps/kapi-desktop,bowrain/apps/bowrain}/*.go"
