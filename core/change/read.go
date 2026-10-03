@@ -70,7 +70,9 @@ type CodeRead struct {
 	Attrs map[string]string `json:"attrs,omitempty"`
 	// Equiv is the code's equivalent text, such as the name of the variable a
 	// placeholder stands for, and Disp the short label an editor shows on it.
-	// Neither is the code's native form, which no read shows.
+	// Both are labels: a read leaves out either one that repeats the code's
+	// native form (an ICU argument, a printf specifier, a tag), which no read
+	// shows.
 	Equiv string `json:"equiv,omitempty"`
 	Disp  string `json:"disp,omitempty"`
 	// Writable are the attributes set_attribute can change on the code.
@@ -310,10 +312,12 @@ func codesOf(runs []model.Run, desc Description) map[string]CodeRead {
 			case r.Text != nil, r.PcClose != nil:
 			case r.PcOpen != nil:
 				out[r.PcOpen.ID] = CodeRead{Kind: "paired", Type: r.PcOpen.Type, Attrs: r.PcOpen.Attrs,
-					Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp, Writable: writable(r.PcOpen.Type, r.PcOpen.Attrs)}
+					Equiv: label(r.PcOpen.Equiv, r.PcOpen.Data), Disp: label(r.PcOpen.Disp, r.PcOpen.Data),
+					Writable: writable(r.PcOpen.Type, r.PcOpen.Attrs)}
 			case r.Ph != nil:
 				out[r.Ph.ID+"/"] = CodeRead{Kind: "placeholder", Type: r.Ph.Type, Attrs: r.Ph.Attrs,
-					Equiv: r.Ph.Equiv, Disp: r.Ph.Disp, Writable: writable(r.Ph.Type, r.Ph.Attrs)}
+					Equiv: label(r.Ph.Equiv, r.Ph.Data), Disp: label(r.Ph.Disp, r.Ph.Data),
+					Writable: writable(r.Ph.Type, r.Ph.Attrs)}
 			case r.Sub != nil:
 				out["sub:"+r.Sub.ID] = CodeRead{Kind: "subblock", Attrs: map[string]string{"ref": r.Sub.Ref}}
 			case r.Plural != nil:
@@ -332,6 +336,15 @@ func codesOf(runs []model.Run, desc Description) map[string]CodeRead {
 		return nil
 	}
 	return out
+}
+
+// label is a code's equiv or disp as a read shows it: s, unless s repeats
+// data, the code's native form, which no read shows.
+func label(s, data string) string {
+	if s == data {
+		return ""
+	}
+	return s
 }
 
 // structuresOf lists the plurals and selects at the top level of runs.

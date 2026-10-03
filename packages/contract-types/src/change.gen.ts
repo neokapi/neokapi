@@ -1201,7 +1201,9 @@ export interface CodeRead {
   /**
    * Equiv is the code's equivalent text, such as the name of the variable a
    * placeholder stands for, and Disp the short label an editor shows on it.
-   * Neither is the code's native form, which no read shows.
+   * Both are labels: a read leaves out either one that repeats the code's
+   * native form (an ICU argument, a printf specifier, a tag), which no read
+   * shows.
    */
   equiv?: string;
   disp?: string;
