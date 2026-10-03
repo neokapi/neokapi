@@ -242,16 +242,24 @@ func blockEventFor(b *model.Block) *blockEvent {
 		// stays stable; emit an empty array rather than omitting it.
 		ev.Source = []runDump{}
 	}
+	addTarget := func(key string, runs []model.Run) {
+		if ev.Targets == nil {
+			ev.Targets = make(map[string][]runDump)
+		}
+		ev.Targets[key] = dumpRuns(runs)
+	}
 	auth := b.Authoritative(model.AuthorityPolicy{})
 	for key, e := range b.EachEdition {
 		if key == auth {
 			continue
 		}
-		if ev.Targets == nil {
-			ev.Targets = make(map[string][]runDump)
-		}
 		text, _ := key.MarshalText()
-		ev.Targets[string(text)] = dumpRuns(e.Runs)
+		addTarget(string(text), e.Runs)
+	}
+	// A translation filed under the zero key is dumped under the empty key,
+	// which no edition other than the authoritative one marshals to.
+	if e, ok := b.ZeroKeyTarget(); ok {
+		addTarget("", e.Runs)
 	}
 	return ev
 }

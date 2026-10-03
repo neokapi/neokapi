@@ -196,6 +196,9 @@ func (p ModifyProbe) runCase(t *testing.T, c EscapeCase) {
 		for _, e := range block.EachEdition {
 			got = append(got, textOf(e.Runs))
 		}
+		if e, ok := block.ZeroKeyTarget(); ok {
+			got = append(got, textOf(e.Runs))
+		}
 	}
 	if slices.Contains(got, want) {
 		return

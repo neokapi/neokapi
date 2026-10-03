@@ -21,7 +21,7 @@ const oddTargetLocale = "fr-u-01-01-u-00-00"
 
 // The segment state reaches the translation's status, and the status reaches
 // the segment state, whatever spelling of a locale the document's trgLang
-// carries.
+// carries, and with no target language at all.
 func TestXLIFF2_StateUnderAnyTargetLocale(t *testing.T) {
 	t.Run("read", func(t *testing.T) {
 		doc := strings.Replace(statefulXLIFF2, `trgLang="fr"`, `trgLang="`+oddTargetLocale+`"`, 1)
@@ -36,21 +36,38 @@ func TestXLIFF2_StateUnderAnyTargetLocale(t *testing.T) {
 		assert.Equal(t, model.Status(model.TargetStatusEstablished), tgt.Status, "state=final")
 	})
 	t.Run("write", func(t *testing.T) {
-		buf := &bytes.Buffer{}
-		w := xliff2.NewWriter()
-		require.NoError(t, w.SetOutputWriter(buf))
-		layer := &model.Layer{
-			ID: "file-f1", Name: "f1", Format: "xliff2", Locale: "en", IsMultilingual: true,
-			Properties: map[string]string{"target-language": oddTargetLocale},
-		}
-		block := model.NewBlock("u1", "Hello")
-		block.SetTargetText(oddTargetLocale, "Bonjour")
-		block.StampTargetProvenance(oddTargetLocale, model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
-		parts := make(chan *model.Part, 2)
-		parts <- &model.Part{Type: model.PartLayerStart, Resource: layer}
-		parts <- &model.Part{Type: model.PartBlock, Resource: block}
-		close(parts)
-		require.NoError(t, w.Write(context.Background(), parts))
-		assert.Contains(t, buf.String(), `state="final"`)
+		out := writeEstablished(t, oddTargetLocale)
+		assert.Contains(t, out, "<target>Bonjour</target>")
+		assert.Contains(t, out, `state="final"`)
 	})
+	// With no target language the writer writes a translation filed under the
+	// empty locale, such as one the Qt TS reader files for a file with no
+	// language attribute, and reports its status.
+	t.Run("write with no target language", func(t *testing.T) {
+		out := writeEstablished(t, "")
+		assert.Contains(t, out, "<target>Bonjour</target>")
+		assert.Contains(t, out, `state="final"`)
+	})
+}
+
+// writeEstablished writes one block from scratch with an established
+// translation under locale, naming locale as the document's target language.
+func writeEstablished(t *testing.T, locale model.LocaleID) string {
+	t.Helper()
+	buf := &bytes.Buffer{}
+	w := xliff2.NewWriter()
+	require.NoError(t, w.SetOutputWriter(buf))
+	layer := &model.Layer{ID: "file-f1", Name: "f1", Format: "xliff2", Locale: "en", IsMultilingual: true}
+	if locale != "" {
+		layer.Properties = map[string]string{"target-language": string(locale)}
+	}
+	block := model.NewBlock("u1", "Hello")
+	block.SetTargetText(locale, "Bonjour")
+	block.StampTargetProvenance(locale, model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
+	parts := make(chan *model.Part, 2)
+	parts <- &model.Part{Type: model.PartLayerStart, Resource: layer}
+	parts <- &model.Part{Type: model.PartBlock, Resource: block}
+	close(parts)
+	require.NoError(t, w.Write(context.Background(), parts))
+	return buf.String()
 }

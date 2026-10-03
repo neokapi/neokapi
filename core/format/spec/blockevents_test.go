@@ -147,3 +147,26 @@ func TestDumpBlockEvents_SortedMaps(t *testing.T) {
 		t.Errorf("targets not sorted: %s", s)
 	}
 }
+
+// TestDumpBlockEvents_ZeroKeyTarget confirms the dump keeps a translation
+// filed under the empty locale. The Qt TS reader files one for a file with no
+// language attribute read with no source locale, and the TS writer writes it.
+func TestDumpBlockEvents_ZeroKeyTarget(t *testing.T) {
+	b := model.NewBlock("b", "Hello")
+	b.SetTargetText("", "Hallo")
+	b.SetTargetText("fr", "Bonjour")
+	empty := model.NewBlock("e", "Hello")
+	empty.SetTargetRuns("", nil)
+	got, err := DumpBlockEvents([]*model.Part{
+		{Type: model.PartBlock, Resource: b},
+		{Type: model.PartBlock, Resource: empty},
+	})
+	if err != nil {
+		t.Fatalf("DumpBlockEvents: %v", err)
+	}
+	want := `{"block":{"id":"b","translatable":true,"source":[{"type":"text","text":"Hello"}],"targets":{"":[{"type":"text","text":"Hallo"}],"fr":[{"type":"text","text":"Bonjour"}]}}}` + "\n" +
+		`{"block":{"id":"e","translatable":true,"source":[{"type":"text","text":"Hello"}],"targets":{"":null}}}` + "\n"
+	if string(got) != want {
+		t.Errorf("zero-key target dump\n got: %s\nwant: %s", got, want)
+	}
+}
