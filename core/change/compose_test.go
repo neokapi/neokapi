@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 	"unicode/utf8"
 
@@ -17,7 +19,7 @@ import (
 
 // rangeEdit names text by run positions.
 func rangeEdit(start, end model.RunPos, with string) change.TextEdit {
-	return change.TextEdit{Selection: change.Selection{Range: &change.Span{Start: start, End: end}}, Text: with}
+	return change.TextEdit{Range: &change.Span{Start: start, End: end}, Text: with}
 }
 
 // Positions in a change set name the edition as the set found it: two
@@ -200,8 +202,8 @@ func TestApplyBlock_APathFollowsItsPluralThroughAnEarlierEdit(t *testing.T) {
 	other := model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOther}}
 	res := apply(t, b, person,
 		replace("", rev, span(0, 9, "")),
-		replace("", rev, change.TextEdit{Selection: change.Selection{Path: one, Find: new("item")}, Text: "article"}),
-		replace("", rev, change.TextEdit{Selection: change.Selection{Path: other, Start: new(0), End: new(6)}, Text: " articles"}))
+		replace("", rev, change.TextEdit{Path: one, Find: new("item"), Text: "article"}),
+		replace("", rev, change.TextEdit{Path: other, Start: new(0), End: new(6), Text: " articles"}))
 	requireApplied(t, res)
 	assert.Equal(t, "{count: one={n} article other={n} articles} in your basket.", shape(b.Source))
 	require.Len(t, res[1].Resolved, 1)
@@ -302,10 +304,11 @@ func randomRuns(rng *rand.Rand) (func() []model.Run, []int) {
 	var codes []int
 	at, id := 0, 0
 	text := func(nt bool) {
-		s := ""
+		var b strings.Builder
 		for range 1 + rng.IntN(3) {
-			s += words[rng.IntN(len(words))]
+			b.WriteString(words[rng.IntN(len(words))])
 		}
+		s := b.String()
 		pieces = append(pieces, piece{text: s, nt: nt})
 		at += utf8.RuneCountInString(s)
 	}
@@ -315,14 +318,14 @@ func randomRuns(rng *rand.Rand) (func() []model.Run, []int) {
 		case 0:
 			id++
 			codes = append(codes, at)
-			pieces = append(pieces, piece{code: model.PhR(model.PlaceholderRun{ID: fmt.Sprint(id), Type: "code:variable", Data: "{v}"})})
+			pieces = append(pieces, piece{code: model.PhR(model.PlaceholderRun{ID: strconv.Itoa(id), Type: "code:variable", Data: "{v}"})})
 		case 1:
 			id++
 			codes = append(codes, at)
-			pieces = append(pieces, piece{code: model.PcOpenR(model.PcOpenRun{ID: fmt.Sprint(id), Type: "fmt:bold", Data: "<b>"})})
+			pieces = append(pieces, piece{code: model.PcOpenR(model.PcOpenRun{ID: strconv.Itoa(id), Type: "fmt:bold", Data: "<b>"})})
 			text(rng.IntN(2) == 0)
 			codes = append(codes, at)
-			pieces = append(pieces, piece{code: model.PcCloseR(model.PcCloseRun{ID: fmt.Sprint(id), Type: "fmt:bold", Data: "</b>"})})
+			pieces = append(pieces, piece{code: model.PcCloseR(model.PcCloseRun{ID: strconv.Itoa(id), Type: "fmt:bold", Data: "</b>"})})
 		}
 	}
 	text(false)

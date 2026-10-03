@@ -622,7 +622,7 @@ func editsByFind(start, cur []model.Run, edits []change.TextEdit) ([]change.Text
 			}
 		}
 		find := string(words)
-		out[i] = change.TextEdit{Selection: change.Selection{Path: path, Find: &find, Occurrence: occurrence}, Text: e.Text}
+		out[i] = change.TextEdit{Path: path, Find: &find, Occurrence: occurrence, Text: e.Text}
 	}
 	return out, true
 }
