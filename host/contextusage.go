@@ -248,7 +248,7 @@ var applyActor = contextop.Actor{Kind: contextop.ActorTool, Name: "apply"}
 // suggestion's standing and establishes nothing: an agent following a
 // suggestion is no person's signal. Every failure is swallowed, as
 // recordContextUsage's are.
-func (a *App) noteAgentEdits(ctx context.Context, recipe string, actor contextop.Actor, texts map[string][]string) {
+func (a *App) noteAgentEdits(ctx context.Context, recipe string, actor contextop.Actor, texts map[string][]editWording) {
 	if actor.Kind != contextop.ActorAgent || len(texts) == 0 {
 		return
 	}
@@ -282,9 +282,11 @@ func (a *App) noteAgentEdits(ctx context.Context, recipe string, actor contextop
 				continue
 			}
 			use := formMatcher([]string{rule.Replacement}, rule.MatchesCase())
+			// Only the uses an edit introduced count: a use the text
+			// already held before the edit is the files', not the edit's.
 			n := 0
-			for _, text := range texts[file] {
-				n += countUses(text, use)
+			for _, w := range texts[file] {
+				n += max(0, countUses(w.After, use)-countUses(w.Before, use))
 			}
 			if n == 0 {
 				continue
