@@ -87,7 +87,8 @@ type BlockReader interface {
 	TargetRuns(loc model.LocaleID) []model.Run
 	TargetText(loc model.LocaleID) string
 	// Target returns the target edition for loc, its runs with its status,
-	// origin and score, or nil when the block holds no target in loc. The
+	// origin and score, or nil when the block holds no target in loc: the
+	// target TargetRuns and TargetText read (model.Block.TargetEdition). The
 	// edition is a copy, so a status written to it stays there; its runs are
 	// the block's own and read-only. The edition the block was read in is
 	// never a target, so loc names a target in the source language only when
@@ -374,11 +375,7 @@ func (v *blockView) TargetLocales() []model.LocaleID           { return v.b.Targ
 func (v *blockView) TargetRuns(loc model.LocaleID) []model.Run { return v.b.TargetRuns(loc) }
 func (v *blockView) TargetText(loc model.LocaleID) string      { return v.b.TargetText(loc) }
 func (v *blockView) Target(loc model.LocaleID) *model.Edition {
-	key := model.Variant(loc)
-	if v.b.IsSourceEdition(key) {
-		return nil
-	}
-	e, ok := v.b.Edition(key)
+	e, ok := v.b.TargetEdition(loc)
 	if !ok {
 		return nil
 	}

@@ -67,11 +67,7 @@ func (t *commitTargetsTool) commitOne(ctx context.Context, sess blockstore.Sessi
 	if !ok || b == nil || !b.Translatable || b.ID == "" {
 		return nil
 	}
-	edition := model.Variant(t.locale)
-	if b.IsSourceEdition(edition) {
-		return nil // the edition the block was read in is never its target
-	}
-	tgt, ok := b.Edition(edition)
+	tgt, ok := b.TargetEdition(t.locale)
 	if !ok || len(tgt.Runs) == 0 {
 		return nil
 	}
