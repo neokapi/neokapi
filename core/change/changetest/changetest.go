@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // Service is what the suite sends change sets to and reads documents
@@ -34,6 +35,10 @@ type Env struct {
 	Service Service
 	// DocA holds at least two editable blocks; DocB at least one.
 	DocA, DocB string
+	// Translated holds an editable block that has, or can be given, a French
+	// translation: a document whose translations the home keeps, or a
+	// bilingual document holding one. Empty is DocA.
+	Translated string
 	// Snapshot returns what the home holds for a document, byte for byte,
 	// so the suite can tell that a refusal or a preview wrote nothing.
 	Snapshot func(t *testing.T, doc string) []byte
@@ -67,6 +72,8 @@ func Run(t *testing.T, newEnv func(t *testing.T) Env) {
 		{"a block no document holds is not found and nothing is written", missingBlock},
 		{"the same edition said again is unchanged", unchangedIsIdempotent},
 		{"a write keeps the file mode", modeKept},
+		{"a removed translation reads back absent and a replay is stale", removedEdition},
+		{"a change set with no operation applies and writes nothing", emptyWritesNothing},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -283,6 +290,73 @@ func unchangedIsIdempotent(t *testing.T, env Env) {
 		assert.False(t, d.Written, "nothing changed, so nothing is written")
 	}
 	assert.Equal(t, before, env.Snapshot(t, env.DocA))
+}
+
+// translation is the language of the translation the suite makes and removes.
+var translation = model.EditionKey{Locale: "fr"}
+
+// readEdition reads the block keyed key in doc with its French translation.
+func readEdition(t *testing.T, env Env, doc, key string) change.BlockRead {
+	t.Helper()
+	page, err := env.Service.Read(context.Background(), change.ReadRequest{Doc: doc, Blocks: []string{key}, Editions: []model.EditionKey{translation}})
+	require.NoError(t, err)
+	require.Len(t, page.Blocks, 1, "%s holds one block keyed %s", doc, key)
+	return page.Blocks[0]
+}
+
+func removedEdition(t *testing.T, env Env) {
+	doc := env.Translated
+	if doc == "" {
+		doc = env.DocA
+	}
+	b := editable(t, env, doc, 1)[0]
+	at := b.Ref
+	at.Edition = translation
+	fr, held := readEdition(t, env, doc, b.Ref.Block).Editions["fr"]
+	if !held {
+		res := apply(t, env, change.Set{Ops: []change.Op{setText(change.BlockRead{Ref: at}, model.AbsentRevision, "Traduction")}})
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+		fr, held = readEdition(t, env, doc, b.Ref.Block).Editions["fr"]
+		require.True(t, held, "the translation the suite made reads back")
+	}
+
+	remove := change.Op{Kind: change.KindRemoveEdition, At: at, IfMatch: fr.Rev, Body: &change.RemoveEdition{}}
+	res := apply(t, env, change.Set{Ops: []change.Op{remove}})
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.Equal(t, change.OpApplied, res.Ops[0].Status)
+	assert.Equal(t, fr.Rev, res.Ops[0].Before)
+	assert.Equal(t, model.AbsentRevision, res.Ops[0].After)
+	got := readEdition(t, env, doc, b.Ref.Block)
+	_, held = got.Editions["fr"]
+	assert.False(t, held, "the removed translation reads back absent")
+	assert.Equal(t, b.Text, got.Text, "the block's own edition is untouched")
+
+	snapshot := env.Snapshot(t, doc)
+	res = apply(t, env, change.Set{Ops: []change.Op{remove}})
+	require.Equal(t, change.SetRefused, res.Status)
+	require.NotNil(t, res.Ops[0].Error)
+	assert.Equal(t, change.CodeStale, res.Ops[0].Error.Code, "the revision the removal named no longer holds")
+	require.NotNil(t, res.Ops[0].Current)
+	assert.Equal(t, model.AbsentRevision, res.Ops[0].Current.Rev)
+
+	remove.IfMatch = change.AnyRevision
+	res = apply(t, env, change.Set{Ops: []change.Op{remove}})
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status, "removing a translation the block does not hold changes nothing")
+	assert.Equal(t, snapshot, env.Snapshot(t, doc), "neither the refusal nor the removal that changed nothing writes")
+}
+
+func emptyWritesNothing(t *testing.T, env Env) {
+	before, beforeB := env.Snapshot(t, env.DocA), env.Snapshot(t, env.DocB)
+	res := apply(t, env, change.Set{Ops: []change.Op{}})
+	require.Equal(t, change.SetApplied, res.Status)
+	assert.Empty(t, res.Ops)
+	assert.Nil(t, res.Record, "nothing is recorded")
+	for _, d := range res.Docs {
+		assert.False(t, d.Written)
+	}
+	assert.Equal(t, before, env.Snapshot(t, env.DocA))
+	assert.Equal(t, beforeB, env.Snapshot(t, env.DocB))
 }
 
 func modeKept(t *testing.T, env Env) {

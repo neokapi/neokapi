@@ -108,6 +108,9 @@ func (st *staged) run(ctx context.Context) error {
 		changed[i] = map[int][]model.Run{}
 	}
 	ownChanged := false
+	// The editions the editor removed from blocks the document holds them in,
+	// by block index, which the write is read back for (verifyRemoved).
+	removed := map[int][]model.EditionKey{}
 	si := 0
 	edit := func(b *model.Block) error {
 		join(editions, si, b)
@@ -116,6 +119,9 @@ func (st *staged) run(ctx context.Context) error {
 			at := slices.IndexFunc(editions, func(je *joinedEdition) bool { return je.key == k.Canonical() })
 			if at < 0 {
 				ownChanged = true
+				if _, held := b.Edition(k); !held {
+					removed[si] = append(removed[si], k)
+				}
 				continue
 			}
 			ed, _ := b.Edition(editions[at].key)
@@ -145,6 +151,11 @@ func (st *staged) run(ctx context.Context) error {
 	if !ownChanged && own.tmp != nil {
 		_ = own.tmp.Discard()
 		own.tmp, own.after, own.diff = nil, own.before, nil
+	}
+	if len(removed) > 0 && own.tmp != nil && s.doc.Entry == "" {
+		if err := st.verifyRemoved(ctx, own.tmp.Name(), removed); err != nil {
+			return err
+		}
 	}
 	if data, ok := s.overlay[overlayKey(source{path: s.doc.Path, entry: s.doc.Entry})]; ok && own.tmp == nil {
 		// Blocks added or removed are the whole change to the file: the
@@ -181,6 +192,42 @@ func (st *staged) run(ctx context.Context) error {
 		}
 	}
 	return st.lockKeys()
+}
+
+// verifyRemoved reads back the document as the stage wrote it to the file at
+// staged and refuses the change when a translation the editor removed from a
+// block is still there. Some bilingual writers write a translation of every
+// unit and fill one the block does not hold from its source, as the Okapi
+// filters they follow do: such a write would replace the translation with the
+// source rather than remove it.
+func (st *staged) verifyRemoved(ctx context.Context, staged string, removed map[int][]model.EditionKey) error {
+	data, err := os.ReadFile(staged)
+	if err != nil {
+		return err
+	}
+	s := st.s
+	var kept *change.Error
+	si := 0
+	p := s.ownPass(func(b *model.Block) error {
+		for _, k := range removed[si] {
+			if _, held := b.Edition(k); held && kept == nil {
+				text, _ := k.Canonical().MarshalText()
+				kept = &change.Error{Code: change.CodeUnsupported, Capability: string(change.KindRemoveEdition), Field: "at/edition",
+					Message: fmt.Sprintf("the %s writer writes a translation of every unit, taking the source where a block holds none, so removing translation %s of block %s from %s would write its source in its place; give the translation new content with set_content instead",
+						s.doc.Format.Name, text, change.BlockKey(b), s.doc.Ref)}
+			}
+		}
+		si++
+		return nil
+	})
+	p.src = p.src.with(data)
+	if err := p.run(ctx); err != nil {
+		return err
+	}
+	if kept != nil {
+		return kept
+	}
+	return nil
 }
 
 // lockKeys names the lock file of every file the stage reads or changes.

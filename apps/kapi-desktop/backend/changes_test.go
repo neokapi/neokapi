@@ -66,15 +66,21 @@ func (b bindingService) Apply(_ context.Context, set change.Set, _ change.Actor)
 // recipe claims under paths, with targets at target ("" for none).
 func changeProject(t *testing.T, app *App, files map[string]string, paths []string, target string) (tabID, root string) {
 	t.Helper()
+	var items []project.ContentItem
+	for _, p := range paths {
+		items = append(items, project.ContentItem{Path: p, Target: target})
+	}
+	return changeProjectOf(t, app, files, items)
+}
+
+// changeProjectOf opens a project whose content is files, claimed by items.
+func changeProjectOf(t *testing.T, app *App, files map[string]string, items []project.ContentItem) (tabID, root string) {
+	t.Helper()
 	root = t.TempDir()
 	for name, body := range files {
 		path := filepath.Join(root, filepath.FromSlash(name))
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
-	}
-	var items []project.ContentItem
-	for _, p := range paths {
-		items = append(items, project.ContentItem{Path: p, Target: target})
 	}
 	proj := &project.KapiProject{
 		Version:     project.CurrentVersion,
@@ -95,14 +101,24 @@ func changeProject(t *testing.T, app *App, files map[string]string, paths []stri
 func TestChangeBindings_Conformance(t *testing.T) {
 	changetest.Run(t, func(t *testing.T) changetest.Env {
 		app := NewApp()
-		tab, root := changeProject(t, app, map[string]string{
+		catalog := func(lang, msgstr string) string {
+			return "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"Language: " + lang + "\\n\"\n\nmsgid \"Hello there\"\nmsgstr \"" + msgstr + "\"\n"
+		}
+		tab, root := changeProjectOf(t, app, map[string]string{
 			"a.json": `{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}` + "\n",
 			"b.json": `{"title": "Welcome"}` + "\n",
-		}, []string{"a.json", "b.json"}, "")
+			// A catalog whose French translation is the catalog beside it.
+			"po/en.po": catalog("en", ""),
+			"po/fr.po": catalog("fr", "Bonjour"),
+		}, []project.ContentItem{
+			{Path: "a.json"}, {Path: "b.json"},
+			{Path: "po/en.po", Format: &project.FormatSpec{Name: "po"}, Target: "po/{lang}.po"},
+		})
 		return changetest.Env{
-			Service: bindingService{app: app, tab: tab},
-			DocA:    "a.json",
-			DocB:    "b.json",
+			Service:    bindingService{app: app, tab: tab},
+			DocA:       "a.json",
+			DocB:       "b.json",
+			Translated: "po/en.po",
 			Snapshot: func(t *testing.T, doc string) []byte {
 				b, err := os.ReadFile(filepath.Join(root, doc))
 				require.NoError(t, err)
@@ -431,7 +447,12 @@ func TestChangeBindings_Refusals(t *testing.T) {
 	})
 	t.Run("an unknown tab is an error", func(t *testing.T) {
 		_, err := app.Apply("nope", `{"ops": []}`)
-		require.NoError(t, err, "a change set with no operations is refused before any tab is consulted")
+		require.Error(t, err, "a change set with no operations decodes, and the tab it names is not open")
+		raw, err := app.Apply("nope", `{"note": "no ops list"}`)
+		require.NoError(t, err, "a change set that does not decode is refused before any tab is consulted")
+		var res change.Result
+		require.NoError(t, json.Unmarshal([]byte(raw), &res))
+		assert.Equal(t, change.CodeInvalid, res.Error.Code)
 		_, err = app.Read("nope", `{"doc": "en.json"}`)
 		require.Error(t, err)
 	})
