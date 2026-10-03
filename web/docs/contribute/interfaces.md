@@ -410,7 +410,8 @@ type BaseTool struct {
 
 // BlockView ⊂ VariantView are the read/write surfaces a block handler sees.
 // BlockView reads source/target and writes overlays, annotations and
-// properties; VariantView adds SetTarget*. There is no source-write view — a
+// properties; VariantView adds the target writes (SetEdition, SetTargetRuns,
+// SetTargetText, RemoveTarget). There is no source-write view — a
 // Transform handler is a read-only producer and the framework applier is the
 // only code that rewrites source. A tool needing batching, 1→N fan-out, or
 // stream control overrides Process instead.

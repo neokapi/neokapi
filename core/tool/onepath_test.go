@@ -62,7 +62,7 @@ func TestView_TargetWritesTakeTheToolConsequence(t *testing.T) {
 	assert.Equal(t, model.OriginHuman, b.Target("fr").Origin.Kind)
 
 	bt.Produce = func(v tool.VariantView) error {
-		v.SetTarget("de", &model.Target{Runs: []model.Run{model.TextR("Hallo")}, Status: model.TargetStatusDraft, Score: 0.5})
+		v.SetEdition(model.Variant("de"), model.Edition{Runs: []model.Run{model.TextR("Hallo")}, Status: model.Status(model.TargetStatusDraft), Score: 0.5})
 		v.RemoveTarget("fr")
 		return nil
 	}
@@ -71,6 +71,23 @@ func TestView_TargetWritesTakeTheToolConsequence(t *testing.T) {
 	require.NotNil(t, b.Target("de"))
 	assert.Equal(t, model.TargetStatusDraft, b.Target("de").Status)
 	assert.InDelta(t, 0.5, b.Target("de").Score, 0)
+
+	formal := model.EditionKey{Locale: "de", Tone: "formal"}
+	bt.Produce = func(v tool.VariantView) error {
+		v.SetEdition(formal, model.Edition{Runs: []model.Run{model.TextR("Guten Tag")}})
+		return nil
+	}
+	require.NoError(t, dispatch(t, bt, b))
+	_, ok := b.Edition(formal)
+	require.True(t, ok)
+	bt.Produce = func(v tool.VariantView) error {
+		v.RemoveEdition(formal)
+		return nil
+	}
+	require.NoError(t, dispatch(t, bt, b))
+	_, ok = b.Edition(formal)
+	assert.False(t, ok, "RemoveEdition removes a tone edition")
+	assert.True(t, b.HasTarget("de"), "and leaves the language's own target")
 }
 
 // A write the applier refuses is the handler's error, not a silent loss.
@@ -174,6 +191,15 @@ func TestTargetWrites_SameLanguageTarget(t *testing.T) {
 	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
 	_, hasOrigin := b.SourceOrigin()
 	assert.False(t, hasOrigin, "no tool origin reaches the source")
+
+	err = tool.WriteAs(context.Background(), b, "pseudo", func(v tool.VariantView) error {
+		v.SetEdition(model.Variant("en"), model.Edition{Runs: []model.Run{model.TextR("[colour]")},
+			Status: model.Status(model.TargetStatusDraft), Origin: model.Origin{Tool: "pseudo"}})
+		return nil
+	})
+	require.Error(t, err, "SetEdition writes targets, never the source")
+	assert.Contains(t, err.Error(), "source language")
+	assert.Equal(t, "colour source", b.SourceText())
 
 	err = tool.WriteAs(context.Background(), b, "pseudo", func(v tool.VariantView) error {
 		v.StampTargetProvenance("en", model.TargetStatusDraft, model.Origin{Tool: "pseudo"})
