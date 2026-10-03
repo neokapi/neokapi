@@ -326,7 +326,9 @@ are kept in the project's [workspace](/kapi/project-store), outside the
 checkout. `kapi status`, the review worklist, `kapi inspect` and `kapi apply`
 read and change them there, Kapi Desktop's review pane edits them there, and
 they reach the language's files when it is delivered: by the run in which it
-clears its gate, or by `kapi merge`. Deleting `.kapi/` loses none of them.
+clears its gate, or by `kapi merge`. Deleting `.kapi/` loses none of them, and
+a project that [shares its context](/kapi/context-portability) shares them
+too.
 
 Before each pass, `up` re-syncs the project block store with the working tree:
 edited source files, a store written by another kapi version, or a missing store

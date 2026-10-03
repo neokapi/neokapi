@@ -50,6 +50,12 @@ terms, the voice profiles, the approved wording in the content memory and the
 record of who approved which translation. A pull merges them by operation, so
 two machines that recorded different things both keep what they recorded.
 
+The drafts of a language whose files `materialize: on-converge` withholds
+travel too, because the workspace is where they are kept until a delivery
+writes them. Two machines that edit one such draft each keep their edit after
+a pull when they changed different units. When both changed the same unit, the
+edit made first holds it and `kapi status` lists the other as a conflict.
+
 Content files are managed separately in git.
 
 ## What never travels
