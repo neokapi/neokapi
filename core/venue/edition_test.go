@@ -18,9 +18,10 @@ func TestBlockRoundTrip_SameLanguageTarget(t *testing.T) {
 	b := model.NewBlock("b1", "colour source")
 	b.SourceLocale = "en-US"
 	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusEstablished))
-	b.SetTargetVariant(model.Variant("en-US"), &model.Target{
+	b.SetTargetRuns("en-US", nil)
+	b.SetEdition(model.Variant("en-US"), model.Edition{
 		Runs:   []model.Run{model.TextR("colour target")},
-		Status: model.TargetStatusTranslated,
+		Status: model.Status(model.TargetStatusTranslated),
 		Origin: model.Origin{Kind: model.OriginHuman},
 	})
 

@@ -16,7 +16,8 @@ import (
 func sameLanguageBlock() *model.Block {
 	b := model.NewBlock("b1", "colour source")
 	b.SourceLocale = "en-US"
-	b.SetTargetVariant(model.Variant("en-US"), &model.Target{Runs: []model.Run{model.TextR("colour target")}, Status: model.TargetStatusTranslated})
+	b.SetTargetRuns("en-US", []model.Run{model.TextR("colour target")})
+	b.SetEditionStatus(model.Variant("en-US"), model.Status(model.TargetStatusTranslated))
 	return b
 }
 

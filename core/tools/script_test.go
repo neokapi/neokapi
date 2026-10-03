@@ -154,7 +154,8 @@ func TestScriptSourceEditKeepsASameLanguageTarget(t *testing.T) {
 
 	block := model.NewBlock("tu1", "colour source")
 	block.SourceLocale = "en-US"
-	block.SetTargetVariant(model.Variant("en-US"), &model.Target{Runs: []model.Run{model.TextR("colour target")}, Status: model.TargetStatusEstablished})
+	block.SetTargetRuns("en-US", []model.Run{model.TextR("colour target")})
+	block.SetEditionStatus(model.Variant("en-US"), model.Status(model.TargetStatusEstablished))
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 
 	out := result.Resource.(*model.Block)

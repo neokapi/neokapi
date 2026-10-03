@@ -149,7 +149,8 @@ func TestTargetWrites_SameLanguageTarget(t *testing.T) {
 		b := model.NewBlock("b1", "colour source")
 		b.SourceLocale = "en-US"
 		b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusWritten))
-		b.SetTarget("en-US", &model.Target{Runs: []model.Run{model.TextR("colour target")}, Status: model.TargetStatusEstablished})
+		b.SetTargetRuns("en-US", []model.Run{model.TextR("colour target")})
+		b.SetEditionStatus(model.Variant("en-US"), model.Status(model.TargetStatusEstablished))
 		return b
 	}
 

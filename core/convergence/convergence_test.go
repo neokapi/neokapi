@@ -39,7 +39,8 @@ func TestSourceState_PresenceBaselineAndCommitted(t *testing.T) {
 func TestSourceState_ReadsTheAuthoritativeEdition(t *testing.T) {
 	b := model.NewBlock("a", "")
 	b.SourceLocale = "en-US"
-	b.SetTargetVariant(model.Variant("en-US"), &model.Target{Runs: []model.Run{model.TextR("Apple")}, Status: model.TargetStatusEstablished})
+	b.SetTargetRuns("en-US", []model.Run{model.TextR("Apple")})
+	b.SetEditionStatus(model.Variant("en-US"), model.Status(model.TargetStatusEstablished))
 	assert.Empty(t, convergence.SourceState(b), "an empty source is below every rung")
 
 	b.SetSourceText("Apple")

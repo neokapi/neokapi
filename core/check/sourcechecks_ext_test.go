@@ -282,7 +282,8 @@ func TestSourceReadiness_StampsTheAuthoritativeEdition(t *testing.T) {
 			block := model.NewBlock("b1", "The colour of the button.")
 			block.SourceLocale = "en-US"
 			block.SetEditionStatus(model.EditionKey{}, model.Status(tc.from))
-			block.SetTargetVariant(model.Variant("en-US"), &model.Target{Runs: []model.Run{model.TextR("The color of the button.")}, Status: model.TargetStatusDraft})
+			block.SetTargetRuns("en-US", []model.Run{model.TextR("The color of the button.")})
+			block.SetEditionStatus(model.Variant("en-US"), model.Status(model.TargetStatusDraft))
 
 			check.SettleSourceStatus(t.Context(), block)
 
