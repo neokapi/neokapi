@@ -157,7 +157,7 @@ func editorMemoryResultToSearch(r *editorclient.EditorMemorySearchResult) *Memor
 func editorMemoryMatchesToInfos(ms []editorclient.EditorMemoryMatch) []MemoryMatchInfo {
 	out := make([]MemoryMatchInfo, len(ms))
 	for i, m := range ms {
-		out[i] = MemoryMatchInfo{Source: m.Source, Target: m.Target, Score: m.Score, MatchType: m.MatchType}
+		out[i] = MemoryMatchInfo{Source: m.Source, Target: m.Target, TargetRuns: matchRuns(m.TargetRuns), Score: m.Score, MatchType: m.MatchType}
 	}
 	return out
 }

@@ -326,11 +326,15 @@ type WordCountResponse struct {
 
 // MemoryMatchInfoResponse is a content-memory match result.
 type MemoryMatchInfoResponse struct {
-	Source    string  `json:"source"`
-	Target    string  `json:"target"`
-	Score     float64 `json:"score"`
-	MatchType string  `json:"match_type"`
-	ProjectID string  `json:"project_id,omitempty"` // which project this match came from
+	Source string `json:"source"`
+	Target string `json:"target"`
+	// TargetRuns is the match's target as runs when it holds an inline code or
+	// a plural, which Target, plain text, leaves out: an editor that applies
+	// the match saves these, so the codes stay.
+	TargetRuns []model.Run `json:"target_runs,omitempty"`
+	Score      float64     `json:"score"`
+	MatchType  string      `json:"match_type"`
+	ProjectID  string      `json:"project_id,omitempty"` // which project this match came from
 }
 
 // BlockTermMatchResponse is a term match for a block.
@@ -1220,14 +1224,24 @@ func (m *memoryLookup) matches(ctx context.Context, b *model.Block, targetLocale
 	result := make([]MemoryMatchInfoResponse, len(matches))
 	for i, mt := range matches {
 		result[i] = MemoryMatchInfoResponse{
-			Source:    mt.Entry.VariantText(m.sourceLocale),
-			Target:    mt.Entry.VariantText(tgtLoc),
-			Score:     mt.Score,
-			MatchType: string(mt.MatchType),
-			ProjectID: mt.Entry.ProjectID,
+			Source:     mt.Entry.VariantText(m.sourceLocale),
+			Target:     mt.Entry.VariantText(tgtLoc),
+			TargetRuns: codedRuns(mt.Entry.Variant(tgtLoc)),
+			Score:      mt.Score,
+			MatchType:  string(mt.MatchType),
+			ProjectID:  mt.Entry.ProjectID,
 		}
 	}
 	return result, nil
+}
+
+// codedRuns returns runs that hold an inline code or a plural, and nil for
+// plain text, which a match's plain-text field already carries.
+func codedRuns(runs []model.Run) []model.Run {
+	if !model.RunsHaveInlineCodes(runs) {
+		return nil
+	}
+	return runs
 }
 
 // editorLookupTermsForBlock looks up term matches for a block.
@@ -1553,8 +1567,13 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 		return
 	}
 	if !model.RunsHaveInlineCodes(srcRuns) {
-		// Plain-text blocks carry their content in Source/Targets already;
-		// only blocks with inline markup need the Run sequences.
+		// A plain-text source is carried by Source. One split into several
+		// text runs (at a do-not-translate boundary) is served as runs too:
+		// an editor anchors a mark at run positions, which the flat text
+		// cannot give it.
+		if len(srcRuns) > 1 {
+			bi.SourceRuns = srcRuns
+		}
 		return
 	}
 

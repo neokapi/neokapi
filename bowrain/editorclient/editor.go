@@ -127,10 +127,13 @@ type EditorBlock struct {
 
 // EditorMemoryMatch mirrors MemoryMatchInfoResponse.
 type EditorMemoryMatch struct {
-	Source    string  `json:"source"`
-	Target    string  `json:"target"`
-	Score     float64 `json:"score"`
-	MatchType string  `json:"match_type"`
+	Source string `json:"source"`
+	Target string `json:"target"`
+	// TargetRuns is the target as runs when it holds an inline code or a
+	// plural.
+	TargetRuns []model.Run `json:"target_runs,omitempty"`
+	Score      float64     `json:"score"`
+	MatchType  string      `json:"match_type"`
 }
 
 // EditorTermMatch mirrors BlockTermMatchResponse.

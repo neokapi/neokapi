@@ -1,11 +1,35 @@
 package backend
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/bowrain/editorclient"
+	"github.com/neokapi/neokapi/core/model"
 )
+
+// A content-memory match reaches the shared editor with its runs when its
+// target holds an inline code, in the run shape a change carries, so applying
+// it saves the code; a plain-text match carries its text alone.
+func TestMemoryMatchesCarryTheirRuns(t *testing.T) {
+	coded := []model.Run{
+		{Text: &model.TextRun{Text: "Bonjour "}},
+		{Ph: &model.PlaceholderRun{ID: "1", Type: "code:variable", Equiv: "{name}", Data: "{name}"}},
+	}
+	infos := editorMemoryMatchesToInfos([]editorclient.EditorMemoryMatch{
+		{Source: "Hello {name}", Target: "Bonjour {name}", TargetRuns: coded, Score: 1, MatchType: "exact"},
+		{Source: "Hello", Target: "Bonjour", TargetRuns: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}, Score: 0.9, MatchType: "fuzzy"},
+	})
+	require.Len(t, infos, 2)
+	assert.Nil(t, infos[1].TargetRuns, "plain text travels as the target alone")
+
+	out, err := json.Marshal(infos[0])
+	require.NoError(t, err)
+	assert.Contains(t, string(out), `"target_runs":[{"text":"Bonjour "},{"ph":{"id":"1","type":"code:variable"`)
+}
 
 func TestAddMemoryEntry(t *testing.T) {
 	app := newTestApp(t)

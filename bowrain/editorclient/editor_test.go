@@ -119,7 +119,7 @@ func TestEditorBlocksRoundTrip(t *testing.T) {
 
 func TestEditorBlockLookups(t *testing.T) {
 	c, got := editorServer(t, map[string]route{
-		"GET /api/v1/acme/p1/blocks/main/b1/tm-matches":   {200, `[{"source":"Hello","target":"Bonjour","score":0.9,"match_type":"fuzzy"}]`},
+		"GET /api/v1/acme/p1/blocks/main/b1/tm-matches":   {200, `[{"source":"Hello","target":"Bonjour","target_runs":[{"text":"Bonjour "},{"ph":{"id":"1","type":"var","equiv":"NAME"}}],"score":0.9,"match_type":"fuzzy"}]`},
 		"GET /api/v1/acme/p1/blocks/main/b1/term-matches": {200, `[{"source_term":"login","target_terms":["connexion"],"domain":"ui","status":"preferred","start":0,"end":5}]`},
 	})
 	tm, err := c.LookupMemoryForBlock(context.Background(), "acme", "p1", "b1", "fr")
@@ -127,6 +127,10 @@ func TestEditorBlockLookups(t *testing.T) {
 	require.Len(t, tm, 1)
 	assert.InEpsilon(t, 0.9, tm[0].Score, 0.001)
 	assert.Equal(t, "target_locale=fr", got.query)
+	// The match's runs carry the variable its plain text leaves out.
+	require.Len(t, tm[0].TargetRuns, 2)
+	require.NotNil(t, tm[0].TargetRuns[1].Ph)
+	assert.Equal(t, "NAME", tm[0].TargetRuns[1].Ph.Equiv)
 
 	terms, err := c.LookupTermsForBlock(context.Background(), "acme", "p1", "b1", "fr")
 	require.NoError(t, err)

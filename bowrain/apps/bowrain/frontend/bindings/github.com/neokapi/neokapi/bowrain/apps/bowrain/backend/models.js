@@ -8,6 +8,9 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as model$0 from "../../../../core/model/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as client$0 from "../../../../host/venue/client/models.js";
 
 /**
@@ -2343,6 +2346,16 @@ export class MemoryMatchInfo {
              */
             this["target"] = "";
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * TargetRuns is the target as runs when it holds an inline code or a
+             * plural, which Target leaves out: applying the match saves these. They
+             * are the runs a change carries, in the shape the editor sends them.
+             * @member
+             * @type {model$0.Run[] | undefined}
+             */
+            this["target_runs"] = undefined;
+        }
         if (!("score" in $$source)) {
             /**
              * @member
@@ -2367,7 +2380,11 @@ export class MemoryMatchInfo {
      * @returns {MemoryMatchInfo}
      */
     static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("target_runs" in $$parsedSource) {
+            $$parsedSource["target_runs"] = $$createField2_0($$parsedSource["target_runs"]);
+        }
         return new MemoryMatchInfo(/** @type {Partial<MemoryMatchInfo>} */($$parsedSource));
     }
 }
@@ -2405,7 +2422,7 @@ export class MemorySearchResult {
      * @returns {MemorySearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType26;
+        const $$createField0_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2607,7 +2624,7 @@ export class PcOpenRunInfo {
      * @returns {PcOpenRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType28;
+        const $$createField6_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -2667,7 +2684,7 @@ export class PendingReviewEntryView {
      * @returns {PendingReviewEntryView}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType30;
+        const $$createField3_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("block" in $$parsedSource) {
             $$parsedSource["block"] = $$createField3_0($$parsedSource["block"]);
@@ -2723,7 +2740,7 @@ export class PendingReviewPageView {
      * @returns {PendingReviewPageView}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType32;
+        const $$createField0_0 = $$createType33;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2800,7 +2817,7 @@ export class PlaceholderRunInfo {
      * @returns {PlaceholderRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType28;
+        const $$createField6_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -3021,7 +3038,7 @@ export class ProjectInfo {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType11;
-        const $$createField5_0 = $$createType34;
+        const $$createField5_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField3_0($$parsedSource["target_languages"]);
@@ -3349,13 +3366,13 @@ export class RunInfo {
      * @returns {RunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType36;
-        const $$createField1_0 = $$createType38;
-        const $$createField2_0 = $$createType40;
-        const $$createField3_0 = $$createType42;
-        const $$createField4_0 = $$createType44;
-        const $$createField5_0 = $$createType46;
-        const $$createField6_0 = $$createType48;
+        const $$createField0_0 = $$createType37;
+        const $$createField1_0 = $$createType39;
+        const $$createField2_0 = $$createType41;
+        const $$createField3_0 = $$createType43;
+        const $$createField4_0 = $$createType45;
+        const $$createField5_0 = $$createType47;
+        const $$createField6_0 = $$createType49;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("text" in $$parsedSource) {
             $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
@@ -3850,7 +3867,7 @@ export class TermLookupResult {
      * @returns {TermLookupResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType50;
+        const $$createField0_0 = $$createType51;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("matches" in $$parsedSource) {
             $$parsedSource["matches"] = $$createField0_0($$parsedSource["matches"]);
@@ -3976,7 +3993,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType52;
+        const $$createField0_0 = $$createType53;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -4122,8 +4139,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField5_0 = $$createType11;
         const $$createField6_0 = $$createType11;
-        const $$createField7_0 = $$createType54;
-        const $$createField8_0 = $$createType54;
+        const $$createField7_0 = $$createType55;
+        const $$createField8_0 = $$createType55;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("requires" in $$parsedSource) {
             $$parsedSource["requires"] = $$createField5_0($$parsedSource["requires"]);
@@ -4504,7 +4521,7 @@ export class VoiceRollupResult {
      * @returns {VoiceRollupResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType56;
+        const $$createField0_0 = $$createType57;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField0_0($$parsedSource["projects"]);
@@ -4560,8 +4577,8 @@ export class WordCountResult {
      * @returns {WordCountResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType57;
-        const $$createField3_0 = $$createType57;
+        const $$createField2_0 = $$createType58;
+        const $$createField3_0 = $$createType58;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_words" in $$parsedSource) {
             $$parsedSource["target_words"] = $$createField2_0($$parsedSource["target_words"]);
@@ -4665,36 +4682,37 @@ const $$createType21 = FlowEdgeInfo.createFrom;
 const $$createType22 = $Create.Array($$createType21);
 const $$createType23 = $Create.Map($Create.Any, $Create.Any);
 const $$createType24 = PositionInfo.createFrom;
-const $$createType25 = MemoryEntryInfo.createFrom;
-const $$createType26 = $Create.Array($$createType25);
-const $$createType27 = RunConstraintsInfo.createFrom;
-const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = BlockInfo.createFrom;
-const $$createType30 = $Create.Nullable($$createType29);
-const $$createType31 = PendingReviewEntryView.createFrom;
-const $$createType32 = $Create.Array($$createType31);
-const $$createType33 = ProjectItem.createFrom;
-const $$createType34 = $Create.Array($$createType33);
-const $$createType35 = TextRunInfo.createFrom;
-const $$createType36 = $Create.Nullable($$createType35);
-const $$createType37 = PlaceholderRunInfo.createFrom;
-const $$createType38 = $Create.Nullable($$createType37);
-const $$createType39 = PcOpenRunInfo.createFrom;
-const $$createType40 = $Create.Nullable($$createType39);
-const $$createType41 = PcCloseRunInfo.createFrom;
-const $$createType42 = $Create.Nullable($$createType41);
-const $$createType43 = SubRunInfo.createFrom;
-const $$createType44 = $Create.Nullable($$createType43);
-const $$createType45 = PluralRunInfo.createFrom;
-const $$createType46 = $Create.Nullable($$createType45);
-const $$createType47 = SelectRunInfo.createFrom;
-const $$createType48 = $Create.Nullable($$createType47);
-const $$createType49 = TermMatchInfo.createFrom;
-const $$createType50 = $Create.Array($$createType49);
-const $$createType51 = ConceptInfo.createFrom;
-const $$createType52 = $Create.Array($$createType51);
-const $$createType53 = IOPort.createFrom;
-const $$createType54 = $Create.Array($$createType53);
-const $$createType55 = client$0.VoiceRollupEntry.createFrom;
-const $$createType56 = $Create.Array($$createType55);
-const $$createType57 = $Create.Map($Create.Any, $Create.Any);
+const $$createType25 = $Create.Array($Create.Any);
+const $$createType26 = MemoryEntryInfo.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = RunConstraintsInfo.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);
+const $$createType30 = BlockInfo.createFrom;
+const $$createType31 = $Create.Nullable($$createType30);
+const $$createType32 = PendingReviewEntryView.createFrom;
+const $$createType33 = $Create.Array($$createType32);
+const $$createType34 = ProjectItem.createFrom;
+const $$createType35 = $Create.Array($$createType34);
+const $$createType36 = TextRunInfo.createFrom;
+const $$createType37 = $Create.Nullable($$createType36);
+const $$createType38 = PlaceholderRunInfo.createFrom;
+const $$createType39 = $Create.Nullable($$createType38);
+const $$createType40 = PcOpenRunInfo.createFrom;
+const $$createType41 = $Create.Nullable($$createType40);
+const $$createType42 = PcCloseRunInfo.createFrom;
+const $$createType43 = $Create.Nullable($$createType42);
+const $$createType44 = SubRunInfo.createFrom;
+const $$createType45 = $Create.Nullable($$createType44);
+const $$createType46 = PluralRunInfo.createFrom;
+const $$createType47 = $Create.Nullable($$createType46);
+const $$createType48 = SelectRunInfo.createFrom;
+const $$createType49 = $Create.Nullable($$createType48);
+const $$createType50 = TermMatchInfo.createFrom;
+const $$createType51 = $Create.Array($$createType50);
+const $$createType52 = ConceptInfo.createFrom;
+const $$createType53 = $Create.Array($$createType52);
+const $$createType54 = IOPort.createFrom;
+const $$createType55 = $Create.Array($$createType54);
+const $$createType56 = client$0.VoiceRollupEntry.createFrom;
+const $$createType57 = $Create.Array($$createType56);
+const $$createType58 = $Create.Map($Create.Any, $Create.Any);

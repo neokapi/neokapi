@@ -999,10 +999,14 @@ func (a *App) OpenFileInOS(filePath string) error {
 
 // MemoryMatchInfo is a content-memory match result for a single block, exposed to the frontend.
 type MemoryMatchInfo struct {
-	Source    string  `json:"source"`
-	Target    string  `json:"target"`
-	Score     float64 `json:"score"`
-	MatchType string  `json:"match_type"`
+	Source string `json:"source"`
+	Target string `json:"target"`
+	// TargetRuns is the target as runs when it holds an inline code or a
+	// plural, which Target leaves out: applying the match saves these. They
+	// are the runs a change carries, in the shape the editor sends them.
+	TargetRuns []model.Run `json:"target_runs,omitempty"`
+	Score      float64     `json:"score"`
+	MatchType  string      `json:"match_type"`
 }
 
 // LookupMemoryForBlock looks up content-memory matches for a specific block.
@@ -1050,13 +1054,23 @@ func (a *App) LookupMemoryForBlock(projectID, itemName, blockID, targetLocale st
 	result := make([]MemoryMatchInfo, len(matches))
 	for i, m := range matches {
 		result[i] = MemoryMatchInfo{
-			Source:    m.Entry.VariantText(srcLoc),
-			Target:    m.Entry.VariantText(tgtLoc),
-			Score:     m.Score,
-			MatchType: string(m.MatchType),
+			Source:     m.Entry.VariantText(srcLoc),
+			Target:     m.Entry.VariantText(tgtLoc),
+			TargetRuns: matchRuns(m.Entry.Variant(tgtLoc)),
+			Score:      m.Score,
+			MatchType:  string(m.MatchType),
 		}
 	}
 	return result, nil
+}
+
+// matchRuns is a match's target runs when they hold an inline code or a
+// plural, and nil for plain text, which Target already carries.
+func matchRuns(runs []model.Run) []model.Run {
+	if !model.RunsHaveInlineCodes(runs) {
+		return nil
+	}
+	return runs
 }
 
 // BlockTermMatch is a term match for a block, exposed to the frontend.
