@@ -147,7 +147,15 @@ var _ flow.Documents = (*flowChanges)(nil)
 func (fc *flowChanges) Open(ctx context.Context, d flow.Document) (flow.DocumentRun, error) {
 	doc := &flowDoc{fc: fc, d: d, dest: d.OutputPath, inPlace: d.InPlace()}
 	if dest, ok := fc.app.draftDestination(d.TargetLocale, d.OutputPath); ok {
-		doc.dest, doc.draft = dest, true
+		// The destination as the run first read it, whichever pass this is:
+		// the drafts are the run's, and the destination keeps what it held.
+		// Delivery commits the draft only while the destination still holds
+		// it, whether or not the run follows the document.
+		dd, err := fc.app.convergeDeliveries.first(dest)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", dest, err)
+		}
+		doc.dest, doc.draft, doc.delivery = dest, true, dd
 	}
 	switch {
 	case d.OutputFormat != "" && d.OutputFormat != d.Format:
@@ -187,21 +195,13 @@ func (fc *flowChanges) Open(ctx context.Context, d flow.Document) (flow.Document
 	}
 	doc.track = true
 	switch {
-	case doc.draft:
-		// The destination as the run first read it, whichever pass this is:
-		// the drafts are the run's, and the destination keeps what it held.
-		var rerr error
-		dd := fc.app.convergeDeliveries.first(doc.dest, func() (string, revisions) {
-			digest, derr := filehome.Digest(doc.dest)
-			revs, err := doc.readRevisions(ctx)
-			rerr = errors.Join(derr, err)
-			return digest, revs
-		})
-		if rerr != nil || dd == nil {
+	case doc.delivery != nil:
+		revs, rerr := doc.delivery.firstRevisions(func() (revisions, error) { return doc.readRevisions(ctx) })
+		if rerr != nil {
 			doc.track = false
 			return doc, nil
 		}
-		doc.destBefore, doc.before = dd.before, dd.revisions
+		doc.before = revs
 	default:
 		if doc.before, err = doc.readRevisions(ctx); err != nil {
 			doc.track = false
@@ -253,9 +253,9 @@ type flowDoc struct {
 	// convergence pass that drafts, the file its draft is delivered to.
 	dest  string
 	draft bool
-	// destBefore is a draft's destination's digest when the run first read
-	// it.
-	destBefore string
+	// delivery is a draft's delivery: the destination as the run first read
+	// it, and the follower of the pass that drafted it last.
+	delivery *draftDelivery
 	// svc reads and edits the document; ref names it there.
 	svc *change.Service
 	ref string

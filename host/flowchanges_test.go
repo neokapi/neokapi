@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/history"
 	"github.com/neokapi/neokapi/core/model"
@@ -380,4 +382,63 @@ func TestFlowRun_ReproducingAPersonsTranslationLeavesItTheirs(t *testing.T) {
 	require.NoError(t, runEditFlow(t, a, cmd, recipe, &setTarget{ToolName: "set", key: "greeting", text: "Bonjour"}))
 	assert.Equal(t, string(change.ActorPerson), lastWrite(t, a, root, "greeting").Actor,
 		"the run reproduced the person's wording, which stays theirs")
+}
+
+func TestFlowRun_DeliversADraftOfADocumentTheRunDoesNotFollow(t *testing.T) {
+	// A gated pass drafts a file the run does not follow (here a conversion,
+	// a draft in another format than its source), over a destination that
+	// exists. Delivery commits it while the destination holds what the pass
+	// found there.
+	a, cmd, recipe := newFlowProject(t, project.MaterializeOnConverge)
+	root := filepath.Dir(recipe)
+	ctx := context.Background()
+	dest := filepath.Join(root, "src", "qps.json")
+	require.NoError(t, os.WriteFile(dest, []byte(`{"greeting": "Hei"}`+"\n"), 0o644))
+	end, err := a.beginConvergeDrafts(recipe, root)
+	require.NoError(t, err)
+	defer end()
+	draft, ok := a.draftPathFor("qps", dest)
+	require.True(t, ok)
+
+	home, docs := a.flowDocuments(ctx, cmd, root)
+	require.NotNil(t, docs)
+	run, err := docs.Open(ctx, flow.Document{Flow: "pseudo", InputPath: filepath.Join(root, "src", "en.json"),
+		OutputPath: draft, TargetLocale: "qps", Format: "json", OutputFormat: "yaml"})
+	require.NoError(t, err)
+	p, err := home.Produce(ctx, draft, "", func(w io.Writer) error {
+		_, werr := io.WriteString(w, "drafted\n")
+		return werr
+	})
+	require.NoError(t, err)
+	require.NoError(t, run.Commit(ctx, p))
+
+	delivered, err := a.deliverDrafts(ctx, "qps")
+	require.NoError(t, err, "the destination holds what the pass found there")
+	assert.Equal(t, []string{dest}, delivered)
+	got, err := os.ReadFile(dest)
+	require.NoError(t, err)
+	assert.Equal(t, "drafted\n", string(got))
+
+	// A destination saved while the run worked keeps the save.
+	require.NoError(t, os.WriteFile(dest, []byte(`{"greeting": "Hei"}`+"\n"), 0o644))
+	end()
+	end, err = a.beginConvergeDrafts(recipe, root)
+	require.NoError(t, err)
+	home, docs = a.flowDocuments(ctx, cmd, root)
+	run, err = docs.Open(ctx, flow.Document{Flow: "pseudo", InputPath: filepath.Join(root, "src", "en.json"),
+		OutputPath: draft, TargetLocale: "qps", Format: "json", OutputFormat: "yaml"})
+	require.NoError(t, err)
+	p, err = home.Produce(ctx, draft, "", func(w io.Writer) error {
+		_, werr := io.WriteString(w, "drafted\n")
+		return werr
+	})
+	require.NoError(t, err)
+	require.NoError(t, run.Commit(ctx, p))
+	require.NoError(t, os.WriteFile(dest, []byte(`{"greeting": "Hei fra en person"}`+"\n"), 0o644))
+	_, err = a.deliverDrafts(ctx, "qps")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, filehome.ErrMoved)
+	got, err = os.ReadFile(dest)
+	require.NoError(t, err)
+	assert.Equal(t, `{"greeting": "Hei fra en person"}`+"\n", string(got))
 }

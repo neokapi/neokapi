@@ -35,9 +35,18 @@ type draftDeliveries struct {
 
 // draftDelivery is one destination's delivery.
 type draftDelivery struct {
-	// before and revisions are the destination as the run first read it.
-	before    string
+	// before is the destination's digest when a pass first opened a draft
+	// of it, whether or not the run follows the document.
+	digested sync.Once
+	before   string
+	err      error
+	// revisions are the destination as the change service first read it,
+	// for a document the run follows.
+	read      sync.Once
 	revisions revisions
+	readErr   error
+
+	mu sync.Mutex
 	// doc follows the latest pass's draft of the destination.
 	doc *flowDoc
 }
@@ -46,38 +55,40 @@ func newDraftDeliveries() *draftDeliveries {
 	return &draftDeliveries{byDest: map[string]*draftDelivery{}}
 }
 
-// first notes the destination's digest and revisions the first time a pass
-// reads it, and returns what the run first read.
-func (d *draftDeliveries) first(dest string, read func() (string, revisions)) *draftDelivery {
+// first returns the delivery of dest, digesting the destination the first
+// time a pass opens a draft of it. The digest is taken outside the run-wide
+// lock, so the converge workers' passes do not wait on each other's reads.
+func (d *draftDeliveries) first(dest string) (*draftDelivery, error) {
 	if d == nil {
-		return nil
+		return nil, nil
 	}
 	key := absPath(dest)
 	d.mu.Lock()
-	defer d.mu.Unlock()
-	if dd, ok := d.byDest[key]; ok {
-		return dd
+	dd, ok := d.byDest[key]
+	if !ok {
+		dd = &draftDelivery{}
+		d.byDest[key] = dd
 	}
-	before, revs := read()
-	dd := &draftDelivery{before: before, revisions: revs}
-	d.byDest[key] = dd
-	return dd
+	d.mu.Unlock()
+	dd.digested.Do(func() { dd.before, dd.err = filehome.Digest(dest) })
+	return dd, dd.err
+}
+
+// firstRevisions returns the destination's revisions as read the first time
+// a pass that follows the document asked.
+func (dd *draftDelivery) firstRevisions(read func() (revisions, error)) (revisions, error) {
+	dd.read.Do(func() { dd.revisions, dd.readErr = read() })
+	return dd.revisions, dd.readErr
 }
 
 // drafted notes the follower of the pass that last drafted a destination.
 func (d *draftDeliveries) drafted(doc *flowDoc) {
-	if d == nil {
+	if d == nil || doc.delivery == nil {
 		return
 	}
-	key := absPath(doc.dest)
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	dd, ok := d.byDest[key]
-	if !ok {
-		dd = &draftDelivery{before: doc.destBefore, revisions: doc.before}
-		d.byDest[key] = dd
-	}
-	dd.doc = doc
+	doc.delivery.mu.Lock()
+	defer doc.delivery.mu.Unlock()
+	doc.delivery.doc = doc
 }
 
 // take returns and forgets the delivery of a destination.
@@ -152,12 +163,17 @@ func (a *App) deliverDraft(ctx context.Context, home *filehome.Home, path, dest 
 	dd := a.convergeDeliveries.take(dest)
 	var doc *flowDoc
 	before := ""
-	if dd != nil {
-		before, doc = dd.before, dd.doc
-		if doc != nil {
+	if dd != nil && dd.err == nil {
+		before = dd.before
+		dd.mu.Lock()
+		doc = dd.doc
+		dd.mu.Unlock()
+		if doc != nil && doc.track {
 			doc.before = dd.revisions
 		}
 	} else {
+		// A draft no pass opened through a follower: the destination as it
+		// stands now.
 		var err error
 		if before, err = filehome.Digest(dest); err != nil {
 			return err
