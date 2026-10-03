@@ -50,7 +50,6 @@ const vocab: DesktopFinding = {
   block_id: "b1",
   field: "source",
   locale: "en",
-  fixable: true,
   position: { kind: "range", start: { run: 0, offset: 7 }, end: { run: 0, offset: 14 } },
   source_runs: [{ text: "Please utilize the dashboard" }],
 };
@@ -63,7 +62,6 @@ const dnt: DesktopFinding = {
   block_id: "b1",
   field: "target",
   locale: "de",
-  fixable: false,
   position: { kind: "range", start: { run: 0, offset: 19 }, end: { run: 1 } },
   source_runs: [{ text: "Please utilize the dashboard" }],
   target_runs: [{ text: "Bitte nutzen Sie das Dashboard" }],
@@ -77,7 +75,6 @@ const placeholder: DesktopFinding = {
   block_id: "b2",
   field: "target",
   locale: "de",
-  fixable: false,
   source_runs: [
     { text: "Hello " },
     { ph: { id: "name", type: "var", data: "{name}", equiv: "name" } },
@@ -92,7 +89,6 @@ const quotedOnly: DesktopFinding = {
   original_text: "Please",
   block_id: "b1",
   field: "source",
-  fixable: false,
 };
 
 const result: CheckRunResult = {

@@ -134,11 +134,17 @@ export const api = {
   getConvergePlan: (tabID: string) => call<ConvergePlan>("GetConvergePlan", tabID),
   getProjectServer: (tabID: string) => call<ProjectServer>("GetProjectServer", tabID),
   bringUpToDate: (tabID: string) => call<void>("BringUpToDate", tabID),
-  approveReviewItem: (tabID: string, locale: string, file: string, key: string) =>
-    call<void>("ApproveReviewItem", tabID, locale, file, key),
 
-  // Review surface — queue with findings enrichment, per-unit detail, and the
-  // decision verbs (all recorded through cli.ApplyReviewDecision).
+  // The change service: every edit, check fix and review decision is a change
+  // set (kapi.change/v1) sent with the revision the surface read. Each binding
+  // takes and returns the contract's JSON as a string; src/lib/changes.ts types
+  // them with @neokapi/contract-types.
+  readBlocks: (tabID: string, request: string) => call<string>("Read", tabID, request),
+  applyChanges: (tabID: string, changeSet: string) => call<string>("Apply", tabID, changeSet),
+  describeFormat: (tabID: string, request: string) => call<string>("Describe", tabID, request),
+  blockHistory: (tabID: string, request: string) => call<string>("History", tabID, request),
+
+  // Review surface — queue with findings enrichment and per-unit detail.
   /** The unified review queue: every unit awaiting a person across the
    *  project's languages, the source language among them, plus the pending
    *  count per language. */
@@ -146,10 +152,6 @@ export const api = {
     call<ReviewQueue>("ReviewQueue", tabID, filter),
   getReviewUnit: (tabID: string, locale: string, file: string, key: string) =>
     call<ReviewUnitDetail>("GetReviewUnit", tabID, locale, file, key),
-  rejectReviewItem: (tabID: string, locale: string, file: string, key: string, note: string) =>
-    call<void>("RejectReviewItem", tabID, locale, file, key, note),
-  updateReviewTarget: (tabID: string, locale: string, file: string, key: string, text: string) =>
-    call<void>("UpdateReviewTarget", tabID, locale, file, key, text),
   /** Per-unit AI action (fix-findings | retranslate | explain). Explicit
    * invocation only — the sole review paths that reach a provider. */
   reviewAIAction: (
@@ -164,10 +166,6 @@ export const api = {
    *  judges wording against the same context the target lane does. */
   getSourceUnitContext: (tabID: string, file: string, key: string) =>
     call<ReviewContext>("GetSourceUnitContext", tabID, file, key),
-  approveSourceUnit: (tabID: string, file: string, key: string) =>
-    call<void>("ApproveSourceUnit", tabID, file, key),
-  updateSourceText: (tabID: string, file: string, key: string, text: string) =>
-    call<string[]>("UpdateSourceText", tabID, file, key, text),
   getAIActivity: (limit: number) => call<AIActivityResult>("GetAIActivity", limit),
   clearAIActivity: () => call<void>("ClearAIActivity"),
   runAIPreReview: (tabID: string, locale: string, scope: PreReviewScope) =>
@@ -224,18 +222,11 @@ export const api = {
   saveFlowFileDialog: (name: string, steps: unknown[]) =>
     call<void>("SaveFlowFileDialog", name, steps),
 
-  // Checks (scoped to tab) — runs content checks over the project's files and
-  // applies one-click fixes. See backend/checks.go.
+  // Checks (scoped to tab) — runs content checks over the project's files. A
+  // finding's fix is a change operation sent through applyChanges. See
+  // backend/checks.go.
   runChecks: (tabID: string, filter: ProjectFilter) =>
     call<CheckRunResult>("RunChecks", tabID, filter),
-  applyCheckFix: (
-    tabID: string,
-    filePath: string,
-    blockID: string,
-    field: string,
-    original: string,
-    replacement: string,
-  ) => call<void>("ApplyCheckFix", tabID, filePath, blockID, field, original, replacement),
 
   // Runner (scoped to tab)
   runFlow: (tabID: string, name: string, inputPaths: string[], targetLangs: string[]) =>

@@ -17,6 +17,13 @@ if (typeof Element !== "undefined") {
   Element.prototype.releasePointerCapture ??= () => {};
   Element.prototype.scrollIntoView ??= () => {};
 }
+// Lexical measures the selection after an edit to scroll it into view, and
+// jsdom lays nothing out, so its Range has no geometry to measure.
+if (typeof Range !== "undefined") {
+  const empty = { x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0 };
+  Range.prototype.getBoundingClientRect ??= () => ({ ...empty, toJSON: () => empty }) as DOMRect;
+  Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
+}
 
 import { vi } from "vitest";
 

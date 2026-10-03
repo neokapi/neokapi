@@ -1,4 +1,6 @@
-import { render, screen } from "./testUtils";
+import { render, screen, waitFor, within } from "./testUtils";
+import userEvent from "@testing-library/user-event";
+import { MemoryChanges } from "../stories/memoryChanges";
 import { describe, it, expect, vi } from "vitest";
 import { FilePreview } from "../components/FilePreview";
 import type { ContentTree } from "@neokapi/ui-primitives/preview";
@@ -123,5 +125,75 @@ describe("FilePreview at a block named by id", () => {
     const row = document.querySelector('[data-slot="file-preview-focus"]') as HTMLElement;
     expect(row).toHaveTextContent("missing");
     expect(screen.getByText("This unit is not in the rendered document.")).toBeInTheDocument();
+  });
+});
+
+// The document view draws; the edit beside it commits, as a change set sent
+// with the revision it read.
+describe("FilePreview editing a unit", () => {
+  function renderEditable(changes: MemoryChanges) {
+    render(
+      <FilePreview
+        tabID="tab-1"
+        filePath="/abs/locales/en.json"
+        filename="locales/en.json"
+        onClose={vi.fn()}
+        tree={tree}
+        focusKey="greeting"
+        changes={changes}
+      />,
+    );
+  }
+  const source = (): MemoryChanges =>
+    new MemoryChanges([
+      {
+        doc: "/abs/locales/en.json",
+        block: "greeting",
+        ref: { doc: "locales/en.json", block: "greeting" },
+        text: "Please utilize the dashboard",
+        editions: { fr: { text: "Veuillez utiliser le tableau de bord" } },
+      },
+    ]);
+
+  it("edits the focused unit's source and sends it with the revision it read", async () => {
+    const changes = source();
+    const [before] = (await changes.read({ doc: "/abs/locales/en.json" })).blocks;
+    renderEditable(changes);
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const editor = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>(
+        "[data-slot='unit-edit-editor'] [contenteditable='true']",
+      );
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    await userEvent.type(editor, "Now ");
+    const typed = editor.textContent;
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(changes.sets).toHaveLength(1));
+    expect(changes.sets[0].ops[0]).toEqual({
+      op: "set_content",
+      at: { doc: "locales/en.json", block: "greeting" },
+      if_match: before.rev,
+      text: typed,
+    });
+  });
+
+  it("switches to the translation the document carries", async () => {
+    renderEditable(source());
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const sides = await waitFor(() => {
+      const el = document.querySelector("[data-slot='unit-edit-sides']");
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    const buttons = within(sides as HTMLElement).getAllByRole("button");
+    await userEvent.click(buttons[buttons.length - 1]);
+    await waitFor(() =>
+      expect(
+        document.querySelector("[data-slot='unit-edit-editor'] [contenteditable='true']")
+          ?.textContent,
+      ).toBe("Veuillez utiliser le tableau de bord"),
+    );
   });
 });

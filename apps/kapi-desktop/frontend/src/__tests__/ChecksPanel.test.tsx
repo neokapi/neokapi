@@ -1,9 +1,20 @@
 import { render, screen, waitFor } from "./testUtils";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { ErrorProvider } from "../components/ErrorBanner";
 import { ChecksPanel } from "../components/ChecksPanel";
 import type { CheckRunResult } from "../types/api";
+import { MemoryChanges } from "../stories/memoryChanges";
+
+/** The source block the fixable finding sits on, as the change service reads it. */
+function sourceBlocks(text = "Please utilize the dashboard") {
+  return new MemoryChanges([{ doc: "src/locales/en.json", block: "greeting", text }]);
+}
+const REV = sourceBlocks().rev({
+  doc: "src/locales/en.json",
+  block: "greeting",
+  text: "Please utilize the dashboard",
+});
 
 const FAILING: CheckRunResult = {
   pass: false,
@@ -21,7 +32,6 @@ const FAILING: CheckRunResult = {
           original_text: "Acme Cloud",
           block_id: "blk-1",
           field: "target",
-          fixable: false,
         },
         {
           category: "vocabulary",
@@ -32,7 +42,14 @@ const FAILING: CheckRunResult = {
           replacement: "use",
           block_id: "blk-2",
           field: "source",
-          fixable: true,
+          fix: JSON.stringify({
+            op: "replace_text",
+            at: { doc: "src/locales/en.json", block: "greeting" },
+            if_match: REV,
+            edits: [
+              { range: { start: { run: 0, offset: 7 }, end: { run: 0, offset: 14 } }, text: "use" },
+            ],
+          }),
         },
       ],
     },
@@ -133,7 +150,6 @@ describe("ChecksPanel", () => {
               field: "source",
               rule: "hygiene.doubled-word",
               lines: { first: 3, last: 4 },
-              fixable: false,
             },
             {
               category: "voice",
@@ -143,7 +159,6 @@ describe("ChecksPanel", () => {
               field: "source",
               rule: "voice.style",
               lines: { first: 7, last: 7 },
-              fixable: false,
             },
           ],
         },
@@ -174,7 +189,6 @@ describe("ChecksPanel", () => {
               block_id: "blk-1",
               field: "target",
               locale: "ar-EG",
-              fixable: false,
             },
           ],
         },
@@ -186,23 +200,44 @@ describe("ChecksPanel", () => {
     expect(found).toHaveAttribute("lang", "ar-EG");
   });
 
-  it("shows an Apply fix button only for fixable findings", () => {
+  it("shows an Apply fix button only for findings that carry a fix", () => {
     renderPanel({ result: FAILING });
-    // FAILING has exactly one fixable finding.
+    // FAILING has exactly one finding with a fix.
     const fixButtons = screen.getAllByRole("button", { name: /Apply fix/i });
     expect(fixButtons).toHaveLength(1);
   });
 
-  it("calls the fix handler with the finding when Apply fix is clicked", async () => {
-    const onApplyFix = vi.fn().mockResolvedValue(undefined);
-    renderPanel({ result: FAILING, onApplyFix });
+  it("sends the finding's fix to the change service as it is", async () => {
+    const changes = sourceBlocks();
+    renderPanel({ result: FAILING, changes });
     await userEvent.click(screen.getByRole("button", { name: /Apply fix/i }));
-    await waitFor(() => expect(onApplyFix).toHaveBeenCalledTimes(1));
-    const [filePath, finding] = onApplyFix.mock.calls[0];
-    expect(filePath).toBe("src/locales/en.json");
-    expect(finding.original_text).toBe("utilize");
-    expect(finding.replacement).toBe("use");
-    expect(finding.block_id).toBe("blk-2");
+    await waitFor(() => expect(changes.sets).toHaveLength(1));
+    const fix = JSON.parse(FAILING.files[0].findings[1].fix!);
+    expect(changes.sets[0].ops).toEqual([fix]);
+    expect(screen.queryByTestId("finding-fix-refused")).not.toBeInTheDocument();
+  });
+
+  it("asks before applying a fix to text that changed since the check", async () => {
+    const changes = sourceBlocks();
+    changes.touch("src/locales/en.json", "greeting", "Please do utilize the dashboard");
+    renderPanel({ result: FAILING, changes });
+    await userEvent.click(screen.getByRole("button", { name: /Apply fix/i }));
+    const prompt = await screen.findByText("Changed since you opened it");
+    expect(prompt).toBeInTheDocument();
+    expect(screen.getByText("Please do utilize the dashboard")).toBeInTheDocument();
+
+    // Applied again, the fix finds its words in the text as it stands.
+    await userEvent.click(screen.getByRole("button", { name: /Apply the fix to this text/i }));
+    await waitFor(() => expect(changes.sets).toHaveLength(2));
+    const again = changes.sets[1].ops[0];
+    expect(again).toMatchObject({
+      op: "replace_text",
+      edits: [{ find: "utilize", text: "use" }],
+    });
+    expect(again.op === "replace_text" && again.if_match).not.toBe(REV);
+    await waitFor(() =>
+      expect(screen.queryByText("Changed since you opened it")).not.toBeInTheDocument(),
+    );
   });
 
   it("renders the all-clear state for a passing run with no findings", () => {

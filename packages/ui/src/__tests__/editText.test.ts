@@ -10,8 +10,7 @@ import {
 import { codedToRuns, runsToCoded } from "../components/editor/runsCodedBridge";
 
 // The paragraph of the change contract's examples, as a read shows it.
-const guide =
-  'Read the <x id="1"/>shop guide<x id="/1"/> before you <x id="2"/>order<x id="/2"/>.';
+const guide = 'Read the <x id="1"/>shop guide<x id="/1"/> before you <x id="2"/>order<x id="/2"/>.';
 const guideCodes: Record<string, CodeRead> = {
   "1": { kind: "paired", type: "link:hyperlink", attrs: { href: "https://old.example/guide" } },
   "2": { kind: "paired", type: "fmt:bold" },
@@ -20,7 +19,13 @@ const guideCodes: Record<string, CodeRead> = {
 describe("editTextToSegments", () => {
   it("makes a tag of each token, typed from the read's codes", () => {
     const segs = editTextToSegments(guide, guideCodes);
-    expect(segs.map((s) => (s.type === "text" ? s.value : `[${s.spanInfo.span_type}:${s.spanInfo.id}:${s.spanInfo.type}]`))).toEqual([
+    expect(
+      segs.map((s) =>
+        s.type === "text"
+          ? s.value
+          : `[${s.spanInfo.span_type}:${s.spanInfo.id}:${s.spanInfo.type}]`,
+      ),
+    ).toEqual([
       "Read the ",
       "[opening:1:link:hyperlink]",
       "shop guide",

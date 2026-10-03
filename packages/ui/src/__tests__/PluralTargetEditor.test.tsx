@@ -205,7 +205,12 @@ describe("<PluralTargetEditor>", () => {
 
   it("offers neither upgrade nor flatten when the structure is fixed", () => {
     const pluralTarget: Run[] = [
-      { plural: { pivot: "count", forms: { one: [{ text: "1 Nachricht" }], other: flatGermanTarget() } } },
+      {
+        plural: {
+          pivot: "count",
+          forms: { one: [{ text: "1 Nachricht" }], other: flatGermanTarget() },
+        },
+      },
     ];
     for (const target of [pluralTarget, flatGermanTarget()]) {
       const c = renderToContainer(

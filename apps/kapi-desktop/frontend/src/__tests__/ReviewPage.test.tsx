@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "./testUtils";
+import { render, screen, waitFor, fireEvent, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 
-import { ReviewPage, type ReviewDecision } from "../components/ReviewPage";
+import { ReviewPage } from "../components/ReviewPage";
 import { ErrorProvider } from "../components/ErrorBanner";
 import type { PreReviewResult, ReviewContext, ReviewItem, ReviewUnitDetail } from "../types/api";
+import { decisionsSent, queueChanges, type MemoryChanges } from "../stories/memoryChanges";
 
 /** A date placeholder, the kind a concatenating run walk deletes silently. */
 const DATE_PH = {
@@ -59,26 +60,34 @@ function unitFor(item: ReviewItem): ReviewUnitDetail {
             category: "placeholder",
             fails: true,
             message: "placeholder {name} missing from target",
-            fixable: false,
           },
         ]
       : [],
-    editable: true,
   };
 }
 
-function renderPage(overrides: Partial<Parameters<typeof ReviewPage>[0]> = {}) {
-  const decisions: Array<{ item: ReviewItem; decision: ReviewDecision; note?: string }> = [];
-  const onDecide = vi.fn(async (item: ReviewItem, decision: ReviewDecision, note?: string) => {
-    decisions.push({ item, decision, note });
-  });
+function renderPage(
+  overrides: Partial<Parameters<typeof ReviewPage>[0]> = {},
+  changes: MemoryChanges = queueChanges(overrides.items ?? ITEMS),
+) {
   const loadUnit = vi.fn(async (item: ReviewItem) => unitFor(item));
   const utils = render(
     <ErrorProvider>
-      <ReviewPage tabID="t1" items={ITEMS} loadUnit={loadUnit} onDecide={onDecide} {...overrides} />
+      <ReviewPage tabID="t1" items={ITEMS} loadUnit={loadUnit} changes={changes} {...overrides} />
     </ErrorProvider>,
   );
-  return { ...utils, onDecide, loadUnit, decisions };
+  return { ...utils, loadUnit, changes };
+}
+
+/** The editor the target pane draws, once the unit has been read. */
+async function targetEditor(): Promise<HTMLElement> {
+  return waitFor(() => {
+    const el = document.querySelector<HTMLElement>(
+      "[data-slot='review-target-editor'] [contenteditable='true']",
+    );
+    expect(el).not.toBeNull();
+    return el!;
+  });
 }
 
 afterEach(() => {
@@ -151,19 +160,20 @@ describe("ReviewPage", () => {
     await screen.findByText("placeholder {name} missing from target");
     const source = document.querySelector("[data-slot='review-source']");
     expect(source?.textContent).toBe("Hello {name}");
-    const target = document.querySelector("[data-slot='review-target']") as HTMLTextAreaElement;
-    expect(target.value).toBe("Hallo");
+    expect((await targetEditor()).textContent).toBe("Hallo");
   });
 
   it("approves with the keyboard and advances to the next unit", async () => {
-    const { onDecide } = renderPage();
-    await waitFor(() =>
-      expect(document.querySelector("[data-slot='review-queue-item'][data-active]")).not.toBeNull(),
-    );
+    const { changes } = renderPage();
+    await targetEditor();
     fireEvent.keyDown(window, { key: "a" });
-    await waitFor(() => expect(onDecide).toHaveBeenCalledTimes(1));
-    expect(onDecide.mock.calls[0][1]).toBe("approved");
-    expect(onDecide.mock.calls[0][0].locale).toBe("de-DE");
+    await waitFor(() => expect(decisionsSent(changes)).toHaveLength(1));
+    const [decision] = decisionsSent(changes);
+    expect(decision.outcome).toBe("establish");
+    expect(decision.at.edition).toBe("de-DE");
+    // The decision names the revision the page read.
+    const op = changes.sets[0].ops[0];
+    expect(op.op === "decide" && op.if_match).toMatch(/^r:/);
     // The approved unit left the queue; the next one is selected.
     await waitFor(() =>
       expect(document.querySelectorAll("[data-slot='review-queue-item']")).toHaveLength(2),
@@ -191,15 +201,35 @@ describe("ReviewPage", () => {
   });
 
   it("rejecting asks for a note and records it", async () => {
-    const { onDecide } = renderPage();
-    await waitFor(() =>
-      expect(document.querySelector("[data-slot='review-queue-item'][data-active]")).not.toBeNull(),
-    );
+    const { changes } = renderPage();
+    await targetEditor();
     fireEvent.keyDown(window, { key: "r" });
     await answerAsk("too literal");
-    await waitFor(() => expect(onDecide).toHaveBeenCalledTimes(1));
-    expect(onDecide.mock.calls[0][1]).toBe("rejected");
-    expect(onDecide.mock.calls[0][2]).toBe("too literal");
+    await waitFor(() => expect(decisionsSent(changes)).toHaveLength(1));
+    expect(decisionsSent(changes)[0]).toMatchObject({ outcome: "reject", note: "too literal" });
+  });
+
+  // Someone saved the file between the page's read and the decision. Nothing is
+  // recorded; the page shows the text as it stands and asks.
+  it("asks before approving text that changed since the page read it", async () => {
+    const { changes } = renderPage();
+    await targetEditor();
+    changes.touch("locales/de-DE.json", "greeting", "Hallo Leute");
+    fireEvent.keyDown(window, { key: "a" });
+    await screen.findByText("Changed since you opened it");
+    expect(screen.getByText("Hallo Leute")).toBeInTheDocument();
+    expect(document.querySelectorAll("[data-slot='review-queue-item']")).toHaveLength(3);
+
+    await userEvent.click(screen.getByRole("button", { name: /Approve the text as it stands/ }));
+    await waitFor(() =>
+      expect(document.querySelectorAll("[data-slot='review-queue-item']")).toHaveLength(2),
+    );
+    const sent = decisionsSent(changes);
+    expect(sent).toHaveLength(2);
+    const [first, second] = changes.sets.map((s) => s.ops[0]);
+    expect(
+      first.op === "decide" && second.op === "decide" && first.if_match !== second.if_match,
+    ).toBe(true);
   });
 
   // window.prompt returns null in the app's webview without ever showing
@@ -242,14 +272,12 @@ describe("ReviewPage", () => {
   });
 
   it("cancelling the reject dialog records nothing", async () => {
-    const { onDecide } = renderPage();
-    await waitFor(() =>
-      expect(document.querySelector("[data-slot='review-queue-item'][data-active]")).not.toBeNull(),
-    );
+    const { changes } = renderPage();
+    await targetEditor();
     fireEvent.keyDown(window, { key: "r" });
     await cancelAsk();
     await new Promise((r) => setTimeout(r, 20));
-    expect(onDecide).not.toHaveBeenCalled();
+    expect(changes.sets).toHaveLength(0);
   });
 
   it("filters with the findings chips", async () => {
@@ -274,31 +302,137 @@ describe("ReviewPage", () => {
   });
 
   it("batch-approves every clean unit in the current view", async () => {
-    const { onDecide } = renderPage();
+    const { changes } = renderPage();
     const batchBtn = await screen.findByRole("button", { name: /Approve 2 clean units/ });
     await userEvent.click(batchBtn);
-    await waitFor(() => expect(onDecide).toHaveBeenCalledTimes(2));
-    expect(onDecide.mock.calls.every((c) => c[1] === "approved")).toBe(true);
+    await waitFor(() => expect(decisionsSent(changes)).toHaveLength(2));
+    expect(decisionsSent(changes).every((d) => d.outcome === "establish")).toBe(true);
     // Only the unit with findings remains.
     await waitFor(() =>
       expect(document.querySelectorAll("[data-slot='review-queue-item']")).toHaveLength(1),
     );
   });
 
-  it("saves an edited target and re-checks the unit", async () => {
-    const onSaveTarget = vi.fn(async () => {});
-    renderPage({ onSaveTarget });
-    const target = (await waitFor(() => {
-      const el = document.querySelector("[data-slot='review-target']") as HTMLTextAreaElement;
-      expect(el).not.toBeNull();
-      expect(el.value).toBe("Hallo");
-      return el;
-    })) as HTMLTextAreaElement;
-    fireEvent.change(target, { target: { value: "Hallo {name}" } });
+  it("saves an edited target with the revision it read, and re-checks the unit", async () => {
+    const { changes, loadUnit } = renderPage();
+    const editor = await targetEditor();
+    const read = await changes.read({ doc: "locales/de-DE.json", blocks: ["greeting"] });
+    await userEvent.type(editor, "Welt ");
+    const typed = editor.textContent;
+    expect(typed).toContain("Welt");
     const save = await screen.findByRole("button", { name: /Save & re-check/ });
     await userEvent.click(save);
-    await waitFor(() => expect(onSaveTarget).toHaveBeenCalledTimes(1));
-    expect(onSaveTarget.mock.calls[0][1]).toBe("Hallo {name}");
+    await waitFor(() => expect(changes.sets).toHaveLength(1));
+    expect(changes.sets[0].ops).toEqual([
+      {
+        op: "set_content",
+        at: { doc: "locales/en-US.json", block: "greeting", edition: "de-DE" },
+        if_match: read.blocks[0].rev,
+        text: typed,
+      },
+    ]);
+    // The unit is loaded again so its checks run against the edited text.
+    await waitFor(() => expect(loadUnit.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  // A translation with inline codes is edited around them: each code is a chip
+  // the reviewer types beside, and the text goes back with the codes it read.
+  it("keeps the inline codes of a formatted translation when it is edited", async () => {
+    const changes = queueChanges(ITEMS, {
+      "de-DE:greeting": {
+        text: 'Hallo <x id="1"/>Welt<x id="/1"/>',
+        codes: { "1": { kind: "paired", type: "fmt:bold" } },
+      },
+    });
+    renderPage({}, changes);
+    const editor = await targetEditor();
+    expect(editor.querySelectorAll("[data-tag-chip]")).toHaveLength(2);
+    await userEvent.type(editor, "Oh, ");
+    await userEvent.click(await screen.findByRole("button", { name: /Save & re-check/ }));
+    await waitFor(() => expect(changes.sets).toHaveLength(1));
+    const op = changes.sets[0].ops[0];
+    const text = op.op === "set_content" ? (op.text ?? "") : "";
+    expect(text).toContain("Oh, ");
+    expect(text).toContain('<x id="1"/>Welt<x id="/1"/>');
+  });
+
+  // A plural is edited a form at a time; each form that changed is its own
+  // set_content, addressed by the path the read lists for it.
+  it("edits one form of a plural translation by its path", async () => {
+    const changes = queueChanges(ITEMS, {
+      "de-DE:greeting": {
+        text: '<x id="n/"/> Artikel',
+        codes: { "n/": { kind: "placeholder", type: "jsx:var", equiv: "count" } },
+        structures: [
+          {
+            path: [0],
+            kind: "plural",
+            pivot: "count",
+            branches: { one: '<x id="n/"/> Artikel', other: '<x id="n/"/> Artikel' },
+          },
+        ],
+      },
+    });
+    renderPage({}, changes);
+    const one = await waitFor(() => {
+      const el = screen.getByRole("textbox", { name: "one form" }) as HTMLTextAreaElement;
+      expect(el.value).toBe("{count} Artikel");
+      return el;
+    });
+    fireEvent.change(one, { target: { value: "{count} Ding" } });
+    await userEvent.click(await screen.findByRole("button", { name: /Save & re-check/ }));
+    await waitFor(() => expect(changes.sets).toHaveLength(1));
+    expect(changes.sets[0].ops).toEqual([
+      expect.objectContaining({
+        op: "set_content",
+        path: [0, { plural: "one" }],
+        text: '<x id="n/"/> Ding',
+      }),
+    ]);
+  });
+
+  // Someone saved the file between the read and the save. Nothing is written;
+  // the editor shows the text as it stands and asks before applying the edit.
+  it("asks before saving over a translation that changed since it was read", async () => {
+    const { changes } = renderPage();
+    const editor = await targetEditor();
+    await userEvent.type(editor, "Welt ");
+    const typed = editor.textContent;
+    changes.touch("locales/de-DE.json", "greeting", "Hallo Leute");
+    await userEvent.click(await screen.findByRole("button", { name: /Save & re-check/ }));
+    await screen.findByText("Changed since you opened it");
+    expect(screen.getByText("Hallo Leute")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Apply my change over it/ }));
+    await waitFor(() => expect(changes.sets).toHaveLength(2));
+    const op = changes.sets[1].ops[0];
+    expect(op.op === "set_content" && op.text).toBe(typed);
+    await waitFor(() =>
+      expect(screen.queryByText("Changed since you opened it")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("lists the recorded changes to the unit", async () => {
+    const { changes } = renderPage();
+    const editor = await targetEditor();
+    await userEvent.type(editor, "Welt ");
+    await userEvent.click(await screen.findByRole("button", { name: /Save & re-check/ }));
+    await waitFor(() => expect(changes.sets).toHaveLength(1));
+    const card = await waitFor(() => {
+      const el = document.querySelector("[data-slot='review-changes']");
+      expect(el?.textContent).toContain("1 recorded change");
+      return el!;
+    });
+    await userEvent.click(
+      within(card as HTMLElement).getByRole("button", { name: /recorded changes to this text/ }),
+    );
+    const entries = await waitFor(() => {
+      const els = document.querySelectorAll("[data-slot='review-change']");
+      expect(els).toHaveLength(1);
+      return els;
+    });
+    expect(entries[0].textContent).toContain("in Kapi Desktop");
+    expect(entries[0].querySelector("[data-slot='review-change-current']")).not.toBeNull();
   });
 
   it("shows the empty state when the queue is empty", async () => {
@@ -330,8 +464,7 @@ describe("ReviewPage", () => {
 
   it("retranslate prompts for an instruction, shows the diff, and Accept saves", async () => {
     const onAIAction = vi.fn(async () => ({ proposed_target: "Hallo {name}!" }));
-    const onSaveTarget = vi.fn(async () => {});
-    renderPage({ onAIAction, onSaveTarget });
+    const { changes } = renderPage({ onAIAction });
     const retranslate = await screen.findByRole("button", { name: /Retranslate/ });
     await userEvent.click(retranslate);
     await answerAsk("more informal");
@@ -347,9 +480,11 @@ describe("ReviewPage", () => {
     });
     expect(proposal.textContent).toContain("Hallo");
     expect(proposal.textContent).toContain("Hallo {name}!");
+    await targetEditor();
     await userEvent.click(screen.getByRole("button", { name: /^Accept$/ }));
-    await waitFor(() => expect(onSaveTarget).toHaveBeenCalledTimes(1));
-    expect(onSaveTarget.mock.calls[0][1]).toBe("Hallo {name}!");
+    await waitFor(() => expect(changes.sets).toHaveLength(1));
+    const op = changes.sets[0].ops[0];
+    expect(op.op === "set_content" && op.text).toBe("Hallo {name}!");
     await waitFor(() =>
       expect(document.querySelector("[data-slot='review-ai-proposal']")).toBeNull(),
     );
@@ -414,8 +549,7 @@ describe("ReviewPage", () => {
 
   it("discarding an AI proposal writes nothing", async () => {
     const onAIAction = vi.fn(async () => ({ proposed_target: "Hi" }));
-    const onSaveTarget = vi.fn(async () => {});
-    renderPage({ onAIAction, onSaveTarget });
+    const { changes } = renderPage({ onAIAction });
     await userEvent.click(await screen.findByRole("button", { name: /Retranslate/ }));
     await answerAsk("more informal");
     await waitFor(() =>
@@ -423,7 +557,7 @@ describe("ReviewPage", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: /Discard/ }));
     expect(document.querySelector("[data-slot='review-ai-proposal']")).toBeNull();
-    expect(onSaveTarget).not.toHaveBeenCalled();
+    expect(changes.sets).toHaveLength(0);
   });
 
   it("cancelling the retranslate prompt calls nothing", async () => {
@@ -868,8 +1002,7 @@ describe("ReviewPage language selector", () => {
 
 describe("ReviewPage source rows", () => {
   function renderSource(overrides: Partial<Parameters<typeof ReviewPage>[0]> = {}) {
-    const onApproveSource = vi.fn(async () => {});
-    const onSaveSource = vi.fn(async () => ["de", "fr"]);
+    const changes = queueChanges(UNIFIED);
     const utils = render(
       <ErrorProvider>
         <ReviewPage
@@ -877,20 +1010,34 @@ describe("ReviewPage source rows", () => {
           items={UNIFIED}
           scope={{ locale: "en-US" }}
           loadUnit={vi.fn(async (item: ReviewItem) => unitFor(item))}
-          onApproveSource={onApproveSource}
-          onSaveSource={onSaveSource}
+          changes={changes}
           {...overrides}
         />
       </ErrorProvider>,
     );
-    return { ...utils, onApproveSource, onSaveSource };
+    return { ...utils, changes };
+  }
+
+  /** The source pane's editor, once the unit has been read. */
+  async function sourceEditor(): Promise<HTMLElement> {
+    return waitFor(() => {
+      const el = document.querySelector<HTMLElement>(
+        "[data-slot='source-unit-editor'] [contenteditable='true']",
+      );
+      expect(el).not.toBeNull();
+      return el!;
+    });
   }
 
   it("approves the selected source unit from the one action bar", async () => {
-    const { onApproveSource } = renderSource();
+    const { changes } = renderSource();
+    await sourceEditor();
     await userEvent.click(await screen.findByRole("button", { name: /Approve source/ }));
-    await waitFor(() => expect(onApproveSource).toHaveBeenCalledTimes(1));
-    expect(onApproveSource.mock.calls[0][0].key).toBe("greeting");
+    await waitFor(() => expect(decisionsSent(changes)).toHaveLength(1));
+    expect(decisionsSent(changes)[0]).toMatchObject({
+      outcome: "establish",
+      at: { doc: "locales/en-US.json", block: "greeting" },
+    });
     // The approved unit leaves the queue.
     await waitFor(() =>
       expect(document.querySelectorAll("[data-slot='review-queue-item']")).toHaveLength(0),
@@ -898,18 +1045,16 @@ describe("ReviewPage source rows", () => {
   });
 
   it("approves a source row with the a key", async () => {
-    const { onApproveSource } = renderSource();
-    await waitFor(() =>
-      expect(document.querySelector("[data-slot='review-queue-item'][data-active]")).not.toBeNull(),
-    );
+    const { changes } = renderSource();
+    await sourceEditor();
     fireEvent.keyDown(window, { key: "a" });
-    await waitFor(() => expect(onApproveSource).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(decisionsSent(changes)).toHaveLength(1));
   });
 
   // There is no source reject, so the button is not drawn and the key does not
   // answer.
   it("offers no reject on a source row", async () => {
-    const { onApproveSource } = renderSource();
+    const { changes } = renderSource();
     await waitFor(() =>
       expect(document.querySelector("[data-slot='source-unit-pane']")).not.toBeNull(),
     );
@@ -917,34 +1062,35 @@ describe("ReviewPage source rows", () => {
     fireEvent.keyDown(window, { key: "r" });
     await new Promise((r) => setTimeout(r, 20));
     expect(document.querySelector("[data-slot='review-ask-input']")).toBeNull();
-    expect(onApproveSource).not.toHaveBeenCalled();
+    expect(changes.sets).toHaveLength(0);
   });
 
   // The translations stay where they are and the loop supersedes them. Naming
   // the languages is how the reviewer knows the re-draft is coming.
   it("saves an edit and names the languages awaiting a re-draft", async () => {
-    const { onSaveSource } = renderSource();
-    const editor = (await waitFor(() => {
-      const el = document.querySelector("[data-slot='source-unit-editor']");
+    const { changes } = renderSource();
+    const editor = await sourceEditor();
+    await userEvent.type(editor, "Oh, ");
+    const typed = editor.textContent;
+    await userEvent.click(screen.getByRole("button", { name: /Save and re-draft/ }));
+    await waitFor(() => expect(changes.sets).toHaveLength(1));
+    const op = changes.sets[0].ops[0];
+    expect(op.op === "set_content" && op.text).toBe(typed);
+    // The translations the edit left on an older source, named in the reader's terms.
+    const awaiting = await waitFor(() => {
+      const el = document.querySelector("[data-slot='source-unit-awaiting']");
       expect(el).not.toBeNull();
       return el!;
-    })) as HTMLTextAreaElement;
-    fireEvent.change(editor, { target: { value: "Hi there" } });
-    await userEvent.click(screen.getByRole("button", { name: /Save and re-draft/ }));
-    await waitFor(() => expect(onSaveSource).toHaveBeenCalledTimes(1));
-    expect(onSaveSource.mock.calls[0][1]).toBe("Hi there");
-    await waitFor(() =>
-      expect(document.querySelector("[data-slot='source-unit-awaiting']")?.textContent).toContain(
-        "de, fr",
-      ),
-    );
+    });
+    expect(awaiting.textContent).toContain("German");
+    expect(awaiting.textContent).toContain("French");
   });
 
   it("will not save an unchanged source", async () => {
-    const { onSaveSource } = renderSource();
-    const save = await screen.findByRole("button", { name: /Save and re-draft/ });
-    expect(save.hasAttribute("disabled")).toBe(true);
-    expect(onSaveSource).not.toHaveBeenCalled();
+    const { changes } = renderSource();
+    await sourceEditor();
+    expect(screen.queryByRole("button", { name: /Save and re-draft/ })).not.toBeInTheDocument();
+    expect(changes.sets).toHaveLength(0);
   });
 
   // Both kinds of row render one model. Approving source wording without seeing
