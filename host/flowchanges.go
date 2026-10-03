@@ -753,8 +753,10 @@ type readBlocks struct {
 }
 
 // readRevisionsWithBlocks reads the document through the change service and
-// returns its blocks.
+// returns its blocks. It reads what the run has just committed, which the run
+// records itself, so the read records nothing as changed outside kapi.
 func (doc *flowDoc) readRevisionsWithBlocks(ctx context.Context) (readBlocks, error) {
+	ctx = change.Unobserved(ctx)
 	out := readBlocks{blocks: map[string]*model.Block{}}
 	q := change.ReadRequest{Doc: doc.ref}
 	if !doc.inPlace {

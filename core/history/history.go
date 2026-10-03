@@ -56,8 +56,9 @@ type Row struct {
 	// change, what core/reconcile matches a later read against.
 	ContentHash string
 	ContextHash string
-	// Actor is who made the change: person, agent or tool, empty when nobody
-	// knows (an edit made outside kapi). ActorName and Session say which one.
+	// Actor is who made the change: person, agent or tool, or ActorExternal
+	// for an edit made outside kapi that a read observed. ActorName and
+	// Session say which one.
 	Actor     string
 	ActorName string
 	Session   string
@@ -80,6 +81,15 @@ type Row struct {
 	// At is when the operation was accepted.
 	At time.Time
 }
+
+// ActorExternal is the actor of a change kapi observed rather than applied:
+// an edit made outside kapi (an editor's save, a checkout of another
+// revision), whose author nobody knows. Only an observed record names it; no
+// surface sends a change as it.
+const ActorExternal = "external"
+
+// OriginObserved is the origin of an observed change.
+const OriginObserved = "observed"
 
 // EditionRef names one edition of one block inside a document.
 type EditionRef struct {

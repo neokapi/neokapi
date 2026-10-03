@@ -311,7 +311,8 @@ func (h *blockHistory) EditionHistory(ctx context.Context, doc change.DocInfo, b
 	out := make([]change.HistoryEntry, 0, len(rows))
 	for _, r := range rows {
 		e := change.HistoryEntry{Record: r.Op, Before: r.Before, After: r.After, Basis: r.Basis, Origin: r.Origin, At: r.At}
-		if r.Actor != "" {
+		// An edit made outside kapi has no author anybody knows.
+		if r.Actor != "" && r.Actor != history.ActorExternal {
 			e.Actor = &change.Actor{Kind: change.ActorKind(r.Actor), Name: r.ActorName, Session: r.Session}
 		}
 		out = append(out, e)

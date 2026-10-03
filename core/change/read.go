@@ -191,11 +191,20 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 	page := &Page{Doc: info.Doc, Home: h.Name(), Format: info.Format, Blocks: []BlockRead{}}
 	index := 0
 	more := false
+	// The observer sees each block the read shows, whatever page it falls
+	// on, and records once the read ends.
+	obs := s.observe(ctx, info)
+	if obs != nil {
+		defer obs.Done(ctx)
+	}
 	head, err := sess.Read(ctx, want, func(b *model.Block) error {
 		if len(blocks) > 0 && !slices.ContainsFunc([]string{b.Unit, b.Name, b.ID}, func(k string) bool {
 			return k != "" && slices.Contains(blocks, k)
 		}) {
 			return nil
+		}
+		if obs != nil {
+			obs.Saw(b, coveredEditions(b, editions))
 		}
 		if each != nil {
 			return each(b, readBlock(info, states, desc, b, editions))

@@ -33,6 +33,7 @@ type Service struct {
 	assets    Assets
 	states    EditionStates
 	histories EditionHistories
+	observer  Observer
 	describer Describer
 	origin    string
 	now       func() time.Time
