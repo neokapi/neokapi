@@ -248,14 +248,66 @@ func TestMerge_ConflictPolicyExistingWins(t *testing.T) {
 	xliffPath := filepath.Join(real, "out", entries[0].Name())
 	editXLIFFTarget(t, xliffPath, "Bonjour")
 
-	// With existing-wins, the XLIFF target is not propagated because the
-	// source's per-block re-read found no existing target on the *source
-	// file itself* — so v1 applies. This test is a placeholder documenting
-	// the current behavior: existing-wins consults the re-read source's
-	// block.Targets[locale], which is empty for a fresh source. A future
-	// improvement can consult the on-disk translated file directly.
-	// For now we simply assert the command succeeds with the policy set.
+	// The unit was extracted when the project held no French for it, and the
+	// French written since wins under existing-wins: the returned target is
+	// skipped and the file keeps what it holds.
 	out, err := runMergeCmd(t, recipe, "-i", xliffPath, "--no-memory-update")
 	require.NoError(t, err, "merge stdout: %s", out)
 	assert.Contains(t, out, "existing-wins")
+	assert.Contains(t, out, "applied=0 stale=0 skipped=1")
+	data, err := os.ReadFile(existingPath)
+	require.NoError(t, err)
+	assert.Equal(t, `{"k":"Déjà traduit"}`, string(data))
+}
+
+// TestMerge_SourceEditedAfterExtractIsStaleWithoutTheManifest pins that a
+// returned file carries what each unit was extracted against: a unit whose
+// source changed since is reported stale and left out, the other units land,
+// and none of it needs the extraction manifest, which is deleted here.
+func TestMerge_SourceEditedAfterExtractIsStaleWithoutTheManifest(t *testing.T) {
+	for _, tc := range []struct {
+		format    string
+		translate func(t *testing.T, path string)
+	}{
+		{format: "xliff2", translate: func(t *testing.T, path string) {
+			raw, err := os.ReadFile(path)
+			require.NoError(t, err)
+			s := strings.Replace(string(raw), "<source>Hello</source>", "<source>Hello</source><target>Bonjour</target>", 1)
+			s = strings.Replace(s, "<source>Goodbye</source>", "<source>Goodbye</source><target>Au revoir</target>", 1)
+			require.NoError(t, os.WriteFile(path, []byte(s), 0o644))
+		}},
+		{format: "po", translate: func(t *testing.T, path string) {
+			raw, err := os.ReadFile(path)
+			require.NoError(t, err)
+			s := strings.Replace(string(raw), "msgid \"Hello\"\nmsgstr \"\"", "msgid \"Hello\"\nmsgstr \"Bonjour\"", 1)
+			s = strings.Replace(s, "msgid \"Goodbye\"\nmsgstr \"\"", "msgid \"Goodbye\"\nmsgstr \"Au revoir\"", 1)
+			require.NoError(t, os.WriteFile(path, []byte(s), 0o644))
+		}},
+	} {
+		t.Run(tc.format, func(t *testing.T) {
+			real, err := filepath.EvalSymlinks(t.TempDir())
+			require.NoError(t, err)
+			recipe := mergeProjectFixture(t, real)
+			writeJSONSource(t, real, "src/locales/en/app.json", `{"a":"Hello","b":"Goodbye"}`)
+			_, err = runExtractCmd(t, recipe, "--format", tc.format)
+			require.NoError(t, err)
+			entries, err := os.ReadDir(filepath.Join(real, "out"))
+			require.NoError(t, err)
+			require.Len(t, entries, 1)
+			returned := filepath.Join(real, "out", entries[0].Name())
+			tc.translate(t, returned)
+
+			layout, err := project.LayoutFor(recipe)
+			require.NoError(t, err)
+			require.NoError(t, os.RemoveAll(project.ExtractionsRoot(layout)), "the extraction manifest is lost")
+			writeJSONSource(t, real, "src/locales/en/app.json", `{"a":"Hello there","b":"Goodbye"}`)
+
+			out, err := runMergeCmd(t, recipe, "-i", returned, "--no-memory-update")
+			require.NoError(t, err, "merge stdout: %s", out)
+			assert.Contains(t, out, "applied=1 stale=1 skipped=0")
+			data, err := os.ReadFile(filepath.Join(real, "src", "locales", "fr-FR", "app.json"))
+			require.NoError(t, err)
+			assert.Equal(t, `{"a":"Hello there","b":"Au revoir"}`, string(data))
+		})
+	}
 }

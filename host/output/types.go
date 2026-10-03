@@ -341,6 +341,7 @@ type MergeFileOutput struct {
 	Applied       int    `json:"applied"`
 	Stale         int    `json:"stale"`
 	Skipped       int    `json:"skipped"`
+	Refused       int    `json:"refused,omitempty"`
 	MemoryNew     int    `json:"memory_new"`
 	MemoryUpdated int    `json:"memory_updated"`
 	Error         string `json:"error,omitempty"`
@@ -353,6 +354,7 @@ type MergeOutput struct {
 	Applied        int               `json:"applied"`
 	Stale          int               `json:"stale"`
 	Skipped        int               `json:"skipped"`
+	Refused        int               `json:"refused,omitempty"`
 	MemoryNew      int               `json:"memory_new"`
 	MemoryUpdated  int               `json:"memory_updated"`
 	ConflictPolicy string            `json:"conflict_policy"`
@@ -375,9 +377,13 @@ func (o MergeOutput) FormatText(w io.Writer) error {
 	}
 	t.Render()
 
+	refused := ""
+	if o.Refused > 0 {
+		refused = fmt.Sprintf(" refused=%d", o.Refused)
+	}
 	fmt.Fprintf(w,
-		"\nMerge complete. applied=%d stale=%d skipped=%d memory_new=%d memory_updated=%d (conflict_policy=%s)\n",
-		o.Applied, o.Stale, o.Skipped, o.MemoryNew, o.MemoryUpdated, o.ConflictPolicy)
+		"\nMerge complete. applied=%d stale=%d skipped=%d%s memory_new=%d memory_updated=%d (conflict_policy=%s)\n",
+		o.Applied, o.Stale, o.Skipped, refused, o.MemoryNew, o.MemoryUpdated, o.ConflictPolicy)
 	return nil
 }
 

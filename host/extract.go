@@ -249,6 +249,12 @@ func (a *App) RunExtract(cmd Command) error {
 	for _, tgt := range targets {
 		pair := project.ExtractionPair{TargetLocale: tgt}
 		pairOutDir := absOut
+		// The change service reads each source with its translation into tgt
+		// joined, for the revisions every unit carries.
+		svc, err := a.ChangeService(cmd.Context(), ChangeServiceOptions{Project: projectPath, Origin: "extract", SourceLocale: pctx.SourceLocale, TargetLocale: tgt})
+		if err != nil {
+			return fmt.Errorf("extract: %w", err)
+		}
 
 		for _, src := range files {
 			outName := bilingualOutputName(src, pctx.SourceLocale, tgt, format)
@@ -290,6 +296,12 @@ func (a *App) RunExtract(cmd Command) error {
 				// Skeleton copy failed — fall through to a fresh extract.
 			}
 
+			revisions, err := interchangeRevisions(cmd.Context(), svc, filepath.ToSlash(src.Relative), tgt)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "extract: %s → %s: read the revisions its units carry: %v\n", src.Relative, tgt, err)
+				failures++
+				continue
+			}
 			ef, err := a.extractOne(cmd.Context(), extractTask{
 				ctx:            pctx,
 				layout:         layout,
@@ -304,6 +316,7 @@ func (a *App) RunExtract(cmd Command) error {
 				tm:             tm,
 				redaction:      redactionSpec,
 				redactionVault: redactionVault,
+				revisions:      revisions,
 			})
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "extract: %s → %s: %v\n", src.Relative, tgt, err)
@@ -385,6 +398,10 @@ type extractTask struct {
 	// write; originals are persisted to redactionVault for merge.
 	redaction      *project.RedactionSpec
 	redactionVault string
+
+	// revisions is, by block ID, what each unit is extracted against
+	// (interchangeRevisions); every unit written carries its own.
+	revisions map[string]unitRevision
 }
 
 // extractOne processes a single source file for a single target locale:
@@ -475,6 +492,14 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	if skelStore != nil {
 		if err := skelStore.Close(); err != nil {
 			return project.ExtractionFile{}, fmt.Errorf("capture skeleton for %s: %w", task.source.Relative, err)
+		}
+	}
+
+	// Each unit carries the revisions it is extracted against, so a merge of
+	// the returned file knows what changed since without the manifest.
+	for _, b := range blocks {
+		if rev, ok := task.revisions[b.ID]; ok {
+			stampUnitRevision(b, rev)
 		}
 	}
 
@@ -1026,11 +1051,19 @@ func (a *App) RunExtractKpz(cmd Command) error {
 
 	written := 0
 	for _, tgt := range targets {
+		svc, err := a.ChangeService(cmd.Context(), ChangeServiceOptions{Project: projectPath, Origin: "extract", SourceLocale: pctx.SourceLocale, TargetLocale: tgt})
+		if err != nil {
+			return fmt.Errorf("extract: %w", err)
+		}
 		for _, src := range files {
 			outName := bilingualOutputName(src, pctx.SourceLocale, tgt, ExtractFormatKPZ)
 			outPath := filepath.Join(absOut, outName)
+			revisions, err := interchangeRevisions(cmd.Context(), svc, filepath.ToSlash(src.Relative), tgt)
+			if err != nil {
+				return fmt.Errorf("extract: %s → %s: read the revisions its units carry: %w", src.Relative, tgt, err)
+			}
 			if err := a.extractOneKpz(cmd.Context(), kpzInterchangeTask{
-				ctx: pctx, source: src, targetLocale: tgt, outputPath: outPath, tm: mem, tb: tb,
+				ctx: pctx, source: src, targetLocale: tgt, outputPath: outPath, tm: mem, tb: tb, revisions: revisions,
 			}); err != nil {
 				return fmt.Errorf("extract: %s → %s: %w", src.Relative, tgt, err)
 			}
@@ -1049,6 +1082,8 @@ type kpzInterchangeTask struct {
 	outputPath   string
 	tm           memory.ContentMemory
 	tb           terms.Terminology
+	// revisions is, by block ID, what each unit is extracted against.
+	revisions map[string]unitRevision
 }
 
 // extractOneKpz assembles a KindInterchange package for one (source, target)
@@ -1146,6 +1181,18 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 
 	recipe := newInterchangeRecipe(string(task.ctx.SourceLocale), string(task.targetLocale))
 
+	// Each unit's revisions, for a merge that knows what changed since from
+	// the package alone.
+	var revisions map[string]kpz.UnitRevision
+	for _, b := range blocks {
+		if rev, ok := task.revisions[b.ID]; ok && b.Translatable && b.ID != "" {
+			if revisions == nil {
+				revisions = map[string]kpz.UnitRevision{}
+			}
+			revisions[b.ID] = kpz.UnitRevision{IfMatch: rev.IfMatch, Basis: rev.Basis}
+		}
+	}
+
 	pkg := &kpz.Package{
 		Kind:      kpz.KindInterchange,
 		Generator: &kpz.GeneratorInfo{ID: "kapi", Version: version.Version},
@@ -1162,6 +1209,7 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 			SourceLocale: string(task.ctx.SourceLocale),
 			TargetLocale: string(task.targetLocale),
 			SourceFiles:  []string{task.source.Relative},
+			Revisions:    revisions,
 		},
 	}
 	if err := os.MkdirAll(filepath.Dir(task.outputPath), 0o755); err != nil {

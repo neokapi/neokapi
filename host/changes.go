@@ -592,6 +592,9 @@ func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) fil
 		SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target),
 	}
 	targets := l.editionUnits(rf)
+	if rf.Item != nil && rf.Item.Target == "" {
+		d.NoEditionFile = "the collection that holds it names no target, so its translations have no file"
+	}
 	if len(targets) > 0 && d.Editions == change.EditionsInFile && !l.app.interchange(name) {
 		// A Qt Linguist or string-catalog source whose translations the
 		// recipe writes to files of their own keeps them there.

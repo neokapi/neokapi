@@ -343,6 +343,19 @@ type InterchangeTask struct {
 	TargetLocale string `json:"targetLocale,omitempty"`
 	// SourceFiles lists the source logical paths covered by this task.
 	SourceFiles []string `json:"sourceFiles,omitempty"`
+	// Revisions holds, by block ID, what each unit of the task was extracted
+	// against. kapi merge sends them as the if_match and basis of the
+	// unit's translation, so a merge needs nothing but the package to know
+	// what changed since.
+	Revisions map[string]UnitRevision `json:"revisions,omitempty"`
+}
+
+// UnitRevision is what one unit of an interchange task was extracted against:
+// the revision of its translation (model.AbsentRevision when the project held
+// none) and the revision of its source (model.EditionRevision).
+type UnitRevision struct {
+	IfMatch string `json:"ifMatch,omitempty"`
+	Basis   string `json:"basis,omitempty"`
 }
 
 // GeneratorInfo identifies the tool that produced the package.

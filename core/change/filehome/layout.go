@@ -54,6 +54,9 @@ type Doc struct {
 	// file of its own. Nil, or a false answer, leaves the edition with no
 	// home unless the format holds it in the document.
 	EditionFile func(k model.EditionKey) (EditionFile, bool)
+	// NoEditionFile says, for a refusal, why an edition EditionFile names no
+	// file for has no home; empty gives the service's general reason.
+	NoEditionFile string
 	// Derived lists the editions whose own files exist.
 	Derived []model.EditionKey
 }

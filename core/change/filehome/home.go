@@ -196,7 +196,7 @@ func (s *session) Place(k model.EditionKey) change.Place {
 	if f, ok := s.editionFile(k); ok {
 		return change.Place{Kind: change.PlaceOwnFile, File: f.Ref}
 	}
-	return change.Place{Kind: change.PlaceNone}
+	return change.Place{Kind: change.PlaceNone, Why: s.doc.NoEditionFile}
 }
 
 // editionFile is the file of edition k, with its format filled in.

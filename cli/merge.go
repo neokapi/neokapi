@@ -6,8 +6,8 @@ import (
 )
 
 // NewMergeCmd returns the `kapi merge` command (AD-017, issue #416).
-// Applies a translator-returned XLIFF back onto the project's source
-// files using the captured skeleton, records stale segments, and
+// Applies a translator-returned bilingual file to the translations of the
+// project's sources through the change service, reports stale units, and
 // absorbs accepted targets into the project content memory.
 func NewMergeCmd(a *App, _ MergeCmdOptions) *cobra.Command {
 	cmd := &cobra.Command{
@@ -20,15 +20,17 @@ returned by a translator back onto the project's source locales.
 With no -i in a project, merge writes the target-language files from the
 project block store: a process-only "kapi run" (in a project, no -o)
 commits its work as targets/<locale> overlays, and merge is the matching
-sink: it reads each source, applies the stored overlays, and writes the
-target-language file via the source format's skeleton round-trip.
+sink: it gives each source's translation the stored overlays and writes
+the target-language file from the source's skeleton.
 
 With -i, merge applies one or more bilingual files returned by a
-translator back onto the project's source locales, using the skeleton
-captured by kapi extract. Each input carries the extraction
-batch id in a file-level <note>, so merge finds the right extraction
-manifest without guessing from the filename. Mixed target languages in one
-batch are fine, and merge handles each input independently.`,
+translator to the translations of the project's sources, each written from
+its source's skeleton. Every unit kapi extract wrote carries the revision of
+its translation and of its source at extraction, so merge needs nothing but
+the file: a unit whose source changed since is reported stale and left out,
+and one whose translation changed in the project since is settled by the
+recipe's conflict policy (defaults.merge.conflict_policy). Mixed target
+languages in one batch are fine, and merge handles each input independently.`,
 		Example: `  kapi merge                     # materialize target-language files from the project store
   kapi merge -i out/app.en-to-fr.xliff
   kapi merge -i file1.xliff -i file2.xliff

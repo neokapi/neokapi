@@ -33,6 +33,13 @@ const (
 	// can match a returning msgid back to its source block. Format:
 	// "kapi-block: <block-id>".
 	poBlockCommentPrefix = "kapi-block: "
+
+	// poIfMatchCommentPrefix and poBasisCommentPrefix carry, on each entry,
+	// the revisions its unit was extracted against: the translation's
+	// (absent when the project held none) and the source's. Merge sends
+	// them as the if_match and basis of the entry's set_content.
+	poIfMatchCommentPrefix = "kapi-if-match: "
+	poBasisCommentPrefix   = "kapi-basis: "
 )
 
 // WritePOExtract emits a minimal but spec-correct PO file carrying the
@@ -79,6 +86,10 @@ func WritePOExtract(out io.Writer, target model.LocaleID, batchID, sourceRel, so
 		if b.ID != "" {
 			fmt.Fprintf(bw, "#. %s%s\n", poBlockCommentPrefix, b.ID)
 		}
+		if rev, ok := unitRevisionOf(b); ok {
+			fmt.Fprintf(bw, "#. %s%s\n", poIfMatchCommentPrefix, rev.IfMatch)
+			fmt.Fprintf(bw, "#. %s%s\n", poBasisCommentPrefix, rev.Basis)
+		}
 
 		// Fuzzy flag when content memory pre-fill populated a fuzzy match for this
 		// block. We piggyback on block.Properties set by applyMemoryPrefill
@@ -109,6 +120,8 @@ type poMergeBlock struct {
 	MsgID   string // source text as carried in the PO
 	MsgStr  string // translator's target text (empty if skipped)
 	Fuzzy   bool   // true if the #, fuzzy flag is present
+	IfMatch string // kapi-if-match: the translation's revision at extraction
+	Basis   string // kapi-basis: the source's revision at extraction
 }
 
 // poMergeFile is everything ReadPOForMerge returns for a single input.
@@ -116,6 +129,7 @@ type poMergeFile struct {
 	BatchID    string // from #. kapi-batch:
 	SourceFile string // from #. kapi-source-file:
 	SourceHash string // from #. kapi-source-hash:
+	Language   string // from the header's Language field
 	Blocks     []poMergeBlock
 }
 
@@ -153,9 +167,14 @@ func parsePOForMerge(r io.Reader) (*poMergeFile, error) {
 		if cur.MsgID == "" && cur.MsgStr == "" && cur.BlockID == "" && !cur.Fuzzy {
 			return
 		}
-		// Skip the header (msgid "") — it lives on out, not in .Blocks.
+		// The header (msgid "") lives on out, not in .Blocks.
 		if cur.MsgID == "" {
 			seenHeader = true
+			for line := range strings.SplitSeq(cur.MsgStr, "\n") {
+				if v, ok := strings.CutPrefix(line, "Language:"); ok {
+					out.Language = strings.TrimSpace(v)
+				}
+			}
 			cur = poMergeBlock{}
 			return
 		}
@@ -186,6 +205,10 @@ func parsePOForMerge(r io.Reader) (*poMergeFile, error) {
 				out.SourceHash = strings.TrimPrefix(content, poSourceHashCommentPrefix)
 			case strings.HasPrefix(content, poBlockCommentPrefix):
 				cur.BlockID = strings.TrimPrefix(content, poBlockCommentPrefix)
+			case strings.HasPrefix(content, poIfMatchCommentPrefix):
+				cur.IfMatch = strings.TrimPrefix(content, poIfMatchCommentPrefix)
+			case strings.HasPrefix(content, poBasisCommentPrefix):
+				cur.Basis = strings.TrimPrefix(content, poBasisCommentPrefix)
 			}
 			continue
 		}
