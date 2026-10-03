@@ -152,6 +152,10 @@
                 "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
                 "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
               },
+              "path": {
+                "$ref": "#/$defs/path",
+                "description": "a plural form or select case every edit is in, for example [1, {\"plural\": \"one\"}]; an edit's own path overrides it"
+              },
               "edits": {
                 "type": "array",
                 "items": {

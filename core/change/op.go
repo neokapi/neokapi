@@ -150,7 +150,11 @@ type OverlayRebase struct {
 // ReplaceText changes text inside an edition and keeps everything else:
 // inline codes, structure and run flags.
 type ReplaceText struct {
-	Edits []TextEdit `json:"edits" jsonschema:"the replacements, each naming its text by find, by start and end, or by range"`
+	// Path names the plural form or select case every edit is in, as
+	// set_content's path does; an edit's own path takes its place for that
+	// edit.
+	Path  model.RunPath `json:"path,omitempty" jsonschema:"a plural form or select case every edit is in, for example [1, {\"plural\": \"one\"}]; an edit's own path overrides it"`
+	Edits []TextEdit    `json:"edits" jsonschema:"the replacements, each naming its text by find, by start and end, or by range"`
 	// Origin says how a tool produced the edited content, as SetContent's
 	// does.
 	Origin *ToolOrigin `json:"origin,omitempty" jsonschema:"how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept"`

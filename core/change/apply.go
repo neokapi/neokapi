@@ -696,7 +696,13 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 	res.Resolved = make([]Resolved, len(body.Edits))
 	for i, e := range body.Edits {
 		field := "edits/" + strconv.Itoa(i)
-		path, perr := w.currentPath(st, e.Path, field+"/path")
+		// An edit with no path of its own is in the branch the operation's
+		// path names.
+		sel, pathField := e.Selection, field+"/path"
+		if len(sel.Path) == 0 && len(body.Path) > 0 {
+			sel.Path, pathField = body.Path, "path"
+		}
+		path, perr := w.currentPath(st, sel.Path, pathField)
 		if perr != nil {
 			return perr
 		}
@@ -705,7 +711,7 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 		if !ok {
 			seq, found := model.ResolveRunPath(cur, path)
 			if !found {
-				return &Error{Code: CodeNotFound, Field: field + "/path", Message: fmt.Sprintf("path %s reaches no plural form or select case", pathText(e.Path))}
+				return &Error{Code: CodeNotFound, Field: pathField, Message: fmt.Sprintf("path %s reaches no plural form or select case", pathText(sel.Path))}
 			}
 			ix = indexSequence(seq)
 			index[key] = ix
@@ -713,11 +719,11 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 		var start, end int
 		var span *findSpan
 		var err *Error
-		if w.moved(st) && e.Find == nil {
+		if w.moved(st) && sel.Find == nil {
 			// A position names the edition as the change set found it.
-			start, end, err = w.movedSelection(st, e.Selection, field)
+			start, end, err = w.movedSelection(st, sel, field)
 		} else {
-			start, end, span, err = ix.resolveSpan(e.Selection, path, field)
+			start, end, span, err = ix.resolveSpan(sel, path, field)
 		}
 		if err != nil {
 			return err
