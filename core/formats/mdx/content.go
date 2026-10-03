@@ -290,7 +290,7 @@ func (r *Reader) emitContentSegs(ctx context.Context, ch chan<- model.PartResult
 		// `đöçķéŕ çöḿþöšé üþ`. Splitting marks them do-not-translate; the runs
 		// still concatenate to the same bytes, which is what BlockPropVerbatim
 		// promises the writer.
-		block.Source = protectCodeSpans(string(s.text))
+		block.SetSourceRuns(protectCodeSpans(string(s.text)))
 		block.Name = r.naming.Name(nameKind)
 		block.Type = blockType
 		block.SourceLocale = locale
