@@ -9,6 +9,6 @@ defaults:
 collections:
   - name: app
     content:
-      - path: l10n/reminders_en.arb
+      - path: messages/reminders_en.arb
         format:
           name: arb

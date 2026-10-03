@@ -9,6 +9,6 @@ defaults:
 collections:
   - name: app
     content:
-      - path: l10n/invites_en.arb
+      - path: messages/invites_en.arb
         format:
           name: arb

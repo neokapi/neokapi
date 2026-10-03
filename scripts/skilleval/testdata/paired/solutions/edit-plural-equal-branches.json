@@ -8,7 +8,7 @@
      {
       "op": "replace_text",
       "at": {
-       "doc": "l10n/reminders_en.arb",
+       "doc": "messages/reminders_en.arb",
        "block": "reminderSent"
       },
       "if_match": "r:a4d601e253ca4080",

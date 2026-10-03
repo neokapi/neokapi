@@ -8,7 +8,7 @@
      {
       "op": "replace_text",
       "at": {
-       "doc": "l10n/invites_en.arb",
+       "doc": "messages/invites_en.arb",
        "block": "inviteStatus"
       },
       "if_match": "r:517814e0e9d60c1f",
