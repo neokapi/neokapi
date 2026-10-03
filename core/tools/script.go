@@ -376,7 +376,7 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 			after.SetSourceRuns(e.Runs)
 			continue
 		}
-		setTarget(after, k, e)
+		after.SetTargetEdition(k, e)
 	}
 
 	// Check if source text was modified.
@@ -408,16 +408,11 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 					if segMap, ok := segs[0].(map[string]any); ok {
 						if contentMap, ok := segMap["content"].(map[string]any); ok {
 							if text, ok := contentMap["text"].(string); ok {
-								key := model.Variant(model.LocaleID(locale))
-								if key.IsZero() {
-									continue // no language, so no target; Diff pairs none
+								loc := model.LocaleID(locale)
+								if was, ok := block.TargetEdition(loc); ok && text == model.RunsText(was.Runs) {
+									continue
 								}
-								if !block.IsSourceEdition(key) {
-									if was, ok := block.Edition(key); ok && text == model.RunsText(was.Runs) {
-										continue
-									}
-								}
-								setTarget(after, key, model.Edition{Runs: []model.Run{model.TextR(text)}})
+								after.SetTargetEdition(model.Variant(loc), model.Edition{Runs: []model.Run{model.TextR(text)}})
 							}
 						}
 					}
@@ -437,16 +432,4 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 		}
 	}
 	return original, nil
-}
-
-// setTarget stores e as the target filed under key, which names a language.
-// Until a block holds a target in its source language, that language's key
-// reaches the edition the block was read in, and SetEdition would write the
-// source; such a target is filed first with SetTargetRuns, so the copy keeps a
-// target a bilingual file in one language holds as a target.
-func setTarget(b *model.Block, key model.EditionKey, e model.Edition) {
-	if b.IsSourceEdition(key) {
-		b.SetTargetRuns(key.Locale, nil)
-	}
-	b.SetEdition(key, e)
 }

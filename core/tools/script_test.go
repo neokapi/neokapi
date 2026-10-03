@@ -186,6 +186,27 @@ func TestScriptWritesNoEditionItCannotRead(t *testing.T) {
 	assert.Equal(t, "Hei", model.RunsText(out.Targets[model.VariantKey{Locale: "nb_NO"}].Runs))
 }
 
+// A target filed under no language (the KBF reader files a bundle's "" target
+// there) reaches the script under the empty locale. change.Diff pairs no
+// edition under that key, so a script that rewrites it leaves the block as it
+// was and fails nothing.
+func TestScriptLeavesATargetUnderNoLanguage(t *testing.T) {
+	t.Parallel()
+	tl := tools.NewScriptTool(&tools.ScriptConfig{Code: `part.block.targets[""][0].content.text = "rewritten"; emit(part);`})
+
+	block := model.NewBlock("tu1", "Hello")
+	block.SourceLocale = "en-US"
+	block.SetTargetRuns("", []model.Run{model.TextR("zero")})
+	block.SetTargetRuns("fr", []model.Run{model.TextR("Bonjour")})
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+
+	out := result.Resource.(*model.Block)
+	assert.Equal(t, "Hello", out.SourceText())
+	assert.Equal(t, "zero", out.TargetText(""))
+	assert.Equal(t, "Bonjour", out.TargetText("fr"))
+	assert.ElementsMatch(t, []model.LocaleID{"", "fr"}, out.TargetLocales())
+}
+
 func TestScriptFunctionFormReturnEmits(t *testing.T) {
 	t.Parallel()
 	// A process(part) function is detected and called per Part; returning the
