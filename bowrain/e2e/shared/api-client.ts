@@ -539,6 +539,43 @@ export class BowrainAPI {
     );
   }
 
+  /**
+   * One page of the translation review queue: each pending (block, locale)
+   * pair, with the pre-review an agent recorded on it, when there is one.
+   */
+  async listPendingReview(
+    wsSlug: string,
+    projectId: string,
+    locales: string[],
+    stream = "main",
+  ): Promise<{
+    entries: Array<{
+      block_id: string;
+      locale: string;
+      pre_review?: { score: number; reviewer: string; reasons?: string[] };
+    }>;
+    total: number;
+  }> {
+    return this.get(
+      `/${wsSlug}/${projectId}/pending-review/${encodeURIComponent(stream)}?locales=${encodeURIComponent(locales.join(","))}`,
+    );
+  }
+
+  /** The review context of one unit: its judgement carries a pre-review's score, reviewer and reasons. */
+  async getReviewContext(
+    wsSlug: string,
+    projectId: string,
+    blockId: string,
+    locale: string,
+    stream = "main",
+  ): Promise<{
+    judgement: { ai_score?: number; ai_model?: string; ai_findings?: Array<{ message: string }> };
+  }> {
+    return this.get(
+      `/${wsSlug}/${projectId}/blocks/${encodeURIComponent(stream)}/${blockId}/review-context?target_locale=${encodeURIComponent(locale)}`,
+    );
+  }
+
   /** Apply a change set; a refusal fails the call. */
   async applyChanges(
     wsSlug: string,
@@ -575,6 +612,77 @@ export class BowrainAPI {
       },
     );
     return { status: resp.status, result: (await resp.json()) as ChangeResultInfo };
+  }
+
+  // -----------------------------------------------------------------------
+  // MCP
+  // -----------------------------------------------------------------------
+
+  /**
+   * Call a tool on the server's MCP endpoint as an agent that names itself
+   * `client`, acting for this client's user: open a session, then call. The
+   * answer is the tool's JSON text, parsed, and whether it is an error result.
+   */
+  async callMcpTool<T = unknown>(
+    tool: string,
+    args: Record<string, unknown>,
+    client = "e2e-agent",
+  ): Promise<{ isError: boolean; result: T }> {
+    const protocol = "2025-06-18";
+    let session = "";
+    let id = 0;
+    const send = async (method: string, params: unknown, notification = false) => {
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${this.token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        "Mcp-Protocol-Version": protocol,
+      };
+      if (session) headers["Mcp-Session-Id"] = session;
+      const message = notification
+        ? { jsonrpc: "2.0", method, params }
+        : { jsonrpc: "2.0", id: ++id, method, params };
+      const resp = await fetch(`${this.baseUrl}/mcp/`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(message),
+      });
+      if (!resp.ok) throw new Error(`MCP ${method}: ${resp.status} ${await resp.text()}`);
+      session = resp.headers.get("Mcp-Session-Id") ?? session;
+      if (notification) return undefined;
+      const body = await resp.text();
+      // A streamed answer arrives as server-sent events, one JSON-RPC message
+      // per data line; a plain one as the message itself.
+      const messages = resp.headers.get("Content-Type")?.includes("text/event-stream")
+        ? body
+            .split("\n")
+            .filter((line) => line.startsWith("data:"))
+            .map((line) => JSON.parse(line.slice(5)))
+        : [JSON.parse(body)];
+      const answer = messages.find((m) => m.id === id);
+      if (!answer) throw new Error(`MCP ${method}: no answer in ${body}`);
+      if (answer.error) throw new Error(`MCP ${method}: ${JSON.stringify(answer.error)}`);
+      return answer.result;
+    };
+
+    await send("initialize", {
+      protocolVersion: protocol,
+      capabilities: {},
+      clientInfo: { name: client, version: "1.0.0" },
+    });
+    await send("notifications/initialized", {}, true);
+    const result = (await send("tools/call", { name: tool, arguments: args })) as {
+      isError?: boolean;
+      content?: { type: string; text?: string }[];
+    };
+    const text = result.content?.find((c) => c.type === "text")?.text ?? "null";
+    let parsed: unknown = text;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // A tool that failed before it had a result says why in words.
+    }
+    return { isError: result.isError === true, result: parsed as T };
   }
 
   // -----------------------------------------------------------------------

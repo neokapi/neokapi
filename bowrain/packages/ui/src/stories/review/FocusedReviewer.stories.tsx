@@ -383,3 +383,31 @@ export const WithoutResolvedContext: Story = {
     context: emptyReviewContext("b1", "auth.json", "fr-FR"),
   },
 };
+
+/**
+ * An agent pre-reviewed the translation through the server's MCP (a decide with
+ * outcome advise): its score, its name and its reasons sit in the checks card,
+ * and the unit stays in the queue for a person to decide.
+ */
+export const WithAgentPreReview: Story = {
+  args: {
+    entry: entry({
+      preReview: {
+        score: 72,
+        reviewer: "agent/claude-code",
+        reasons: ["Reads as machine output."],
+      },
+    }),
+    context: {
+      ...emptyReviewContext("b1", "auth.json", "fr-FR"),
+      judgement: {
+        ai_score: 72,
+        ai_model: "agent/claude-code",
+        ai_findings: [
+          { message: "Reads as machine output." },
+          { message: "Uses the informal register." },
+        ],
+      },
+    },
+  },
+};

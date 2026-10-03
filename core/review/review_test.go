@@ -44,6 +44,20 @@ func TestMatchOfRendersOnePercentScale(t *testing.T) {
 			want:  &MemoryMatch{Score: 100, Kind: "exact", Source: "Hello {name}!", Target: "Hei {name}!"},
 		},
 		{
+			name: "an answer holding a code carries its runs, so using it keeps the code",
+			match: memory.Match{Entry: memory.Entry{
+				ID: "coded",
+				Variants: map[model.LocaleID][]model.Run{
+					"en": {model.TextR("Hello "), model.PhR(model.PlaceholderRun{ID: "1", Equiv: "{name}"})},
+					"nb": {model.TextR("Hei "), model.PhR(model.PlaceholderRun{ID: "1", Equiv: "{name}"})},
+				},
+			}, Score: 1, MatchType: memory.MatchExact},
+			// The text spells the code in the flattened form, which a save
+			// would store as literal braces.
+			want: &MemoryMatch{Score: 100, Kind: "exact", Source: "Hello {{name}}", Target: "Hei {{name}}",
+				TargetRuns: []model.Run{model.TextR("Hei "), model.PhR(model.PlaceholderRun{ID: "1", Equiv: "{name}"})}},
+		},
+		{
 			name: "a match with no wording for the target locale is withheld",
 			match: memory.Match{Entry: memory.Entry{
 				ID:       "half",

@@ -2,6 +2,10 @@ package server
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"log/slog"
 	"slices"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -19,21 +23,28 @@ func (s *Server) mcpChangeService(ctx context.Context, userID, projectID, stream
 	if err != nil {
 		return nil, nil, err
 	}
-	sender := s.userSender(ctx, userID, proj)
+	sender, err := s.userSender(ctx, userID, proj)
+	if err != nil {
+		return nil, nil, err
+	}
 	sc := s.newStreamChange(ctx, nil, proj, stream, proj.WorkspaceID, s.workspaceSlug(ctx, "", proj.WorkspaceID), sender)
 	return sc.service(), func(ctx context.Context, res *change.Result) { sc.landed(ctx, res) }, nil
 }
 
 // userSender is a user as a change set's sender off a request: the
-// permissions the user holds on the project, resolved as the project access
-// middleware resolves them (project membership, else the workspace role and
-// its override, less the deny rules).
-func (s *Server) userSender(ctx context.Context, userID string, proj *store.Project) changeSender {
+// permissions the user holds on the project, resolved by the project access
+// middleware's resolver as a request to the project's workspace resolves them.
+//
+// A membership or workspace read that fails is an error, as the workspace
+// middleware answers it with 503: the plan decides whether a custodian's
+// authority stands, so resolving without it would keep authority a lapsed
+// plan suspends.
+func (s *Server) userSender(ctx context.Context, userID string, proj *store.Project) (changeSender, error) {
 	sender := changeSender{userID: userID, name: userID}
 	if s.AuthStore == nil {
 		// A deployment with no auth store holds nobody to permissions.
 		sender.allows = func(platauth.Permission, string) bool { return true }
-		return sender
+		return sender, nil
 	}
 	if u, err := s.AuthStore.GetUser(ctx, userID); err == nil && u != nil {
 		if u.Name != "" {
@@ -42,30 +53,29 @@ func (s *Server) userSender(ctx context.Context, userID string, proj *store.Proj
 			sender.name = u.Email
 		}
 	}
-	var role platauth.Role
-	if m, err := s.AuthStore.GetMembership(ctx, proj.WorkspaceID, userID); err == nil && m != nil {
-		role = m.Role
+	req := accessRequest{userID: userID, projectID: proj.ID, workspaceID: proj.WorkspaceID}
+	m, err := s.AuthStore.GetMembership(ctx, proj.WorkspaceID, userID)
+	switch {
+	case err == nil && m != nil:
+		req.role = m.Role
+	case err != nil && !errors.Is(err, sql.ErrNoRows):
+		return changeSender{}, fmt.Errorf("the workspace membership could not be read; try again: %w", err)
 	}
-	resolved, err := s.AuthStore.ResolveProjectPermissions(ctx, proj.ID, userID)
-	if err != nil || resolved == nil {
-		resolved = &platauth.ResolvedPermission{}
-		if role != "" {
-			resolved = platauth.DefaultPermissionsForRole(role)
-			if perms, ok, oerr := s.AuthStore.GetWorkspaceRoleOverride(ctx, proj.WorkspaceID, role); oerr == nil && ok {
-				resolved = &platauth.ResolvedPermission{Permissions: perms}
-			}
-		}
+	w, err := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID)
+	if err != nil {
+		return changeSender{}, fmt.Errorf("the project's workspace could not be read; try again: %w", err)
 	}
-	perms := resolved.Permissions
-	if denied, derr := s.AuthStore.ResolveDenies(ctx, proj.WorkspaceID, proj.ID, userID, role); derr == nil {
-		perms &^= denied
+	req.plan = w.Plan
+	access := s.resolveProjectAccess(ctx, req)
+	if access.custodyLapsed {
+		slog.InfoContext(ctx, "mcp: custodial authority suspended by the workspace's plan",
+			"user", userID, "project", proj.ID, "coordinates", access.coordinates.String())
 	}
-	languages := resolved.Languages
 	sender.allows = func(perm platauth.Permission, locale string) bool {
-		if !perms.Has(perm) {
+		if !access.permissions.Has(perm) {
 			return false
 		}
-		return locale == "" || !perm.LanguageScoped() || len(languages) == 0 || slices.Contains(languages, locale)
+		return locale == "" || !perm.LanguageScoped() || len(access.languages) == 0 || slices.Contains(access.languages, locale)
 	}
-	return sender
+	return sender, nil
 }

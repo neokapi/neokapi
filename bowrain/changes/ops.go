@@ -78,11 +78,13 @@ func payloadJSON(v model.Payload) []byte {
 }
 
 // BlockMeta is what a pass wrote on a block beyond its content and overlays:
-// the block annotations it added or changed, the properties it set or
+// the block annotations it added, changed or removed, the properties it set or
 // removed, and the status of each edition it moved without changing the
 // edition's content. A row keeps them beside the content (Home.WriteMeta).
 type BlockMeta struct {
 	Annotations map[string]model.Payload
+	// Unannotated are the keys of the block annotations the pass removed.
+	Unannotated []string
 	Set         map[string]string
 	Removed     []string
 	// Statuses maps an edition to the status the state recorded and the one
@@ -92,7 +94,7 @@ type BlockMeta struct {
 
 // Empty reports whether the pass wrote nothing beyond the content.
 func (m BlockMeta) Empty() bool {
-	return len(m.Annotations) == 0 && len(m.Set) == 0 && len(m.Removed) == 0 && len(m.Statuses) == 0
+	return len(m.Annotations) == 0 && len(m.Unannotated) == 0 && len(m.Set) == 0 && len(m.Removed) == 0 && len(m.Statuses) == 0
 }
 
 // apply writes m onto b. An edition's status moves only while b holds it at
@@ -101,6 +103,9 @@ func (m BlockMeta) Empty() bool {
 func (m BlockMeta) apply(b *model.Block) {
 	for key, v := range m.Annotations {
 		b.SetAnno(key, v)
+	}
+	for _, key := range m.Unannotated {
+		b.DelAnno(key)
 	}
 	if len(m.Set) > 0 && b.Properties == nil {
 		b.Properties = map[string]string{}
@@ -117,10 +122,9 @@ func (m BlockMeta) apply(b *model.Block) {
 }
 
 // Meta returns what after carries beyond the state, other than content and
-// overlays: an annotation added or changed, a property set, changed or
-// removed, and the status of an edition whose content is as the state
-// recorded it. An annotation the pass removed is not among them; a row keeps
-// the annotations it has.
+// overlays: an annotation added, changed or removed, a property set, changed
+// or removed, and the status of an edition whose content is as the state
+// recorded it.
 func (s BlockState) Meta(after *model.Block) BlockMeta {
 	var m BlockMeta
 	for k, e := range after.EachEdition {
@@ -142,6 +146,12 @@ func (s BlockState) Meta(after *model.Block) BlockMeta {
 		}
 		m.Annotations[key] = v
 	}
+	for key := range s.annos {
+		if _, ok := after.Anno(key); !ok {
+			m.Unannotated = append(m.Unannotated, key)
+		}
+	}
+	slices.Sort(m.Unannotated)
 	for name, v := range after.Properties {
 		if was, ok := s.props[name]; ok && was == v {
 			continue

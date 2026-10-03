@@ -276,6 +276,16 @@ export class MemoryMatch {
              */
             this["target"] = "";
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * TargetRuns is the answer as runs when it holds an inline code or a
+             * plural, which Target, its text, cannot carry: a surface that uses the
+             * match saves these, so the codes stay.
+             * @member
+             * @type {model$0.Run[] | undefined}
+             */
+            this["target_runs"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -286,7 +296,11 @@ export class MemoryMatch {
      * @returns {MemoryMatch}
      */
     static createFrom($$source = {}) {
+        const $$createField4_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("target_runs" in $$parsedSource) {
+            $$parsedSource["target_runs"] = $$createField4_0($$parsedSource["target_runs"]);
+        }
         return new MemoryMatch(/** @type {Partial<MemoryMatch>} */($$parsedSource));
     }
 }

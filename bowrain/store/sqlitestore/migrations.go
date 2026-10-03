@@ -175,19 +175,6 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_block_history_lookup ON block_history(project_id, block_id, locale);
 			CREATE INDEX idx_block_history_stream ON block_history(project_id, stream, block_id, locale);
 
-			-- Block notes
-			CREATE TABLE block_notes (
-				id         TEXT PRIMARY KEY,
-				project_id TEXT NOT NULL,
-				block_id   TEXT NOT NULL,
-				author     TEXT NOT NULL DEFAULT '',
-				text       TEXT NOT NULL,
-				stream     TEXT NOT NULL DEFAULT 'main',
-				created_at TEXT NOT NULL DEFAULT (datetime('now'))
-			);
-			CREATE INDEX idx_block_notes_lookup ON block_notes(project_id, block_id);
-			CREATE INDEX idx_block_notes_stream ON block_notes(project_id, stream, block_id);
-
 			-- Versions
 			CREATE TABLE versions (
 				id          TEXT PRIMARY KEY,
@@ -1015,6 +1002,40 @@ var storeMigrations = []storage.Migration{
 			);
 			CREATE INDEX idx_notification_group_members_created
 				ON notification_group_members(created_at);
+		`,
+	},
+	{
+		Version:     26,
+		Description: "the block notes table retired",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 38: a note is an
+			-- annotation on the block, so the notes table goes. The server's
+			-- note routes were its only writer and the server runs on
+			-- PostgreSQL, where version 38 moves each note onto its block; a
+			-- working copy's table holds none. A database built after the
+			-- baseline dropped it has nothing to drop.
+			DROP TABLE IF EXISTS block_notes;
+		`,
+	},
+	{
+		Version:     27,
+		Description: "an agent's pre-review of a translation",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 39: the advice a
+			-- decide with outcome advise records on one translation, against
+			-- the revision it judged. One row per translation.
+			CREATE TABLE pre_reviews (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				block_id   TEXT NOT NULL,
+				locale     TEXT NOT NULL,
+				score      INTEGER NOT NULL,
+				reviewer   TEXT NOT NULL DEFAULT '',
+				reasons    TEXT NOT NULL DEFAULT '[]',
+				revision   TEXT NOT NULL DEFAULT '',
+				created_at TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, stream, block_id, locale)
+			);
 		`,
 	},
 }

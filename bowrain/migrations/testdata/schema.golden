@@ -264,13 +264,6 @@ block_history.origin text NOT NULL DEFAULT ''::text
 block_history.project_id text NOT NULL
 block_history.stream text NOT NULL DEFAULT 'main'::text
 block_history.text text NOT NULL DEFAULT ''::text
-block_notes.author text NOT NULL DEFAULT ''::text
-block_notes.block_id text NOT NULL
-block_notes.created_at timestamp with time zone NOT NULL DEFAULT now()
-block_notes.id text NOT NULL
-block_notes.project_id text NOT NULL
-block_notes.stream text NOT NULL DEFAULT 'main'::text
-block_notes.text text NOT NULL
 blocks.access text NOT NULL DEFAULT 'open'::text
 blocks.content_hash text NOT NULL DEFAULT ''::text
 blocks.context_hash text NOT NULL DEFAULT ''::text
@@ -703,6 +696,15 @@ platform_config.value jsonb NOT NULL
 platform_config_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 platform_config_schema_migrations.description text NOT NULL
 platform_config_schema_migrations.version integer NOT NULL
+pre_reviews.block_id text NOT NULL
+pre_reviews.created_at timestamp with time zone NOT NULL DEFAULT now()
+pre_reviews.locale text NOT NULL
+pre_reviews.project_id text NOT NULL
+pre_reviews.reasons text NOT NULL DEFAULT '[]'::text
+pre_reviews.reviewer text NOT NULL DEFAULT ''::text
+pre_reviews.revision text NOT NULL DEFAULT ''::text
+pre_reviews.score integer NOT NULL
+pre_reviews.stream text NOT NULL DEFAULT 'main'::text
 processed_stripe_events.event_id text NOT NULL
 processed_stripe_events.event_type text NOT NULL
 processed_stripe_events.processed_at timestamp with time zone NOT NULL DEFAULT now()
@@ -1297,7 +1299,6 @@ billing_events billing_events_pkey PRIMARY KEY (id)
 billing_schema_migrations billing_schema_migrations_pkey PRIMARY KEY (version)
 block_asset_refs block_asset_refs_pkey PRIMARY KEY (project_id, block_id, asset_id)
 block_history block_history_pkey PRIMARY KEY (id)
-block_notes block_notes_pkey PRIMARY KEY (id)
 blocks blocks_pkey PRIMARY KEY (project_id, stream, id)
 blocks blocks_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 change_log change_log_pkey PRIMARY KEY (seq)
@@ -1381,6 +1382,8 @@ pending_pushes pending_pushes_pkey PRIMARY KEY (push_id)
 pending_recipe_changes pending_recipe_changes_pkey PRIMARY KEY (id)
 platform_config platform_config_pkey PRIMARY KEY (key)
 platform_config_schema_migrations platform_config_schema_migrations_pkey PRIMARY KEY (version)
+pre_reviews pre_reviews_pkey PRIMARY KEY (project_id, stream, block_id, locale)
+pre_reviews pre_reviews_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 processed_stripe_events processed_stripe_events_pkey PRIMARY KEY (event_id)
 project_members project_members_pkey PRIMARY KEY (project_id, user_id)
 project_members project_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -1534,8 +1537,6 @@ CREATE INDEX idx_block_asset_refs_asset ON public.block_asset_refs USING btree (
 CREATE INDEX idx_block_history_correlation ON public.block_history USING btree (project_id, correlation_id)
 CREATE INDEX idx_block_history_lookup ON public.block_history USING btree (project_id, block_id, locale)
 CREATE INDEX idx_block_history_stream ON public.block_history USING btree (project_id, stream, block_id, locale)
-CREATE INDEX idx_block_notes_lookup ON public.block_notes USING btree (project_id, block_id)
-CREATE INDEX idx_block_notes_stream ON public.block_notes USING btree (project_id, stream, block_id)
 CREATE INDEX idx_blocks_content_hash ON public.blocks USING btree (content_hash)
 CREATE INDEX idx_blocks_item ON public.blocks USING btree (project_id, stream, item_name)
 CREATE INDEX idx_blocks_item_id ON public.blocks USING btree (project_id, stream, item_id)
@@ -1718,7 +1719,6 @@ CREATE UNIQUE INDEX billing_events_pkey ON public.billing_events USING btree (id
 CREATE UNIQUE INDEX billing_schema_migrations_pkey ON public.billing_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX block_asset_refs_pkey ON public.block_asset_refs USING btree (project_id, block_id, asset_id)
 CREATE UNIQUE INDEX block_history_pkey ON public.block_history USING btree (id)
-CREATE UNIQUE INDEX block_notes_pkey ON public.block_notes USING btree (id)
 CREATE UNIQUE INDEX blocks_pkey ON public.blocks USING btree (project_id, stream, id)
 CREATE UNIQUE INDEX change_log_archive_pkey ON public.change_log_archive USING btree (seq)
 CREATE UNIQUE INDEX change_log_pkey ON public.change_log USING btree (seq)
@@ -1791,6 +1791,7 @@ CREATE UNIQUE INDEX pending_pushes_pkey ON public.pending_pushes USING btree (pu
 CREATE UNIQUE INDEX pending_recipe_changes_pkey ON public.pending_recipe_changes USING btree (id)
 CREATE UNIQUE INDEX platform_config_pkey ON public.platform_config USING btree (key)
 CREATE UNIQUE INDEX platform_config_schema_migrations_pkey ON public.platform_config_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX pre_reviews_pkey ON public.pre_reviews USING btree (project_id, stream, block_id, locale)
 CREATE UNIQUE INDEX processed_stripe_events_pkey ON public.processed_stripe_events USING btree (event_id)
 CREATE UNIQUE INDEX project_members_pkey ON public.project_members USING btree (project_id, user_id)
 CREATE UNIQUE INDEX projects_pkey ON public.projects USING btree (id)

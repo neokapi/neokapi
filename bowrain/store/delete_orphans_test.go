@@ -23,9 +23,9 @@ type orphanFixture struct {
 }
 
 // seedOrphanFixture writes the fixture through the real writers: the content
-// store for the block, its target and its annotation; AddBlockNote for the
-// note; SourceProposalStore for the proposal; UpsertUnitDecisions for the
-// ledger row. overlays_ext is the one exception — its writer is the blockstore
+// store for the block, its target and its annotation (a note);
+// SourceProposalStore for the proposal; UpsertUnitDecisions for the ledger
+// row. overlays_ext is the one exception — its writer is the blockstore
 // session, which imports this package — so its row is inserted directly.
 func seedOrphanFixture(t *testing.T, s *PostgresStore, projectID, stream, itemName string) orphanFixture {
 	t.Helper()
@@ -47,9 +47,6 @@ func seedOrphanFixture(t *testing.T, s *PostgresStore, projectID, stream, itemNa
 	require.Len(t, rows, 1)
 	blockID := rows[0].Block.ID
 
-	require.NoError(t, s.AddBlockNote(ctx, projectID, stream, blockID, model.BlockNote{
-		Author: "reviewer@example.com", Text: "the source reads oddly here",
-	}))
 	require.NoError(t, NewSourceProposalStore(s.db.DB).Create(ctx, &ProposedSourceChange{
 		ProjectID: projectID, Stream: stream, ItemName: itemName, BlockID: blockID,
 		OriginalSource: "Hello", ProposedSource: "Hello there", FinderUser: "reviewer",
@@ -62,6 +59,9 @@ func seedOrphanFixture(t *testing.T, s *PostgresStore, projectID, stream, itemNa
 		Updated:     "2026-08-04T10:00:00Z",
 	}})
 	require.NoError(t, err)
+	require.NoError(t, s.RecordPreReview(ctx, projectID, stream, platstore.PreReview{
+		BlockID: blockID, Locale: "nb", Score: 70, Reviewer: "agent/claude-code", Revision: "r:0000",
+	}))
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO overlays_ext (project_id, stream, block_id, kind, payload)
 		 VALUES ($1,$2,$3,'segmentation','{}'::jsonb)`, projectID, stream, blockID)

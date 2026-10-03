@@ -244,6 +244,15 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 		progressed := false
 		for _, change := range changes {
 			if err := a.replayChange(ctx, change); err != nil {
+				if errors.Is(err, errRetired) {
+					// An earlier version queued it without the revision it
+					// was made on. It is dropped rather than failed, and the
+					// failed-changes list says what it was.
+					slog.Warn("bowrain: dropping a change queued by an earlier version", "change_id", change.ID, "operation", change.Operation)
+					_ = a.offlineQueue.MarkDropped(change.ID, errRetired.Error())
+					progressed = true
+					continue
+				}
 				var statusErr *apiclient.StatusError
 				if (errors.As(err, &statusErr) && statusErr.Permanent()) || errors.Is(err, errUnreplayable) {
 					// The server refused the change (4xx): an edit to a translation

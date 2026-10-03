@@ -124,8 +124,10 @@ func (s *Server) HandleGetReviewContext(c echo.Context) error {
 	out.History = s.reviewHistory(ctx, &out.Point, proj, ws, sb, loc, recordedGoverning(decision))
 	out.Notes = blockNotes(sb.Block)
 
-	// Judgement: the findings behind the score, not only the number.
+	// Judgement: the findings behind the score, not only the number, and the
+	// pre-review an agent recorded on the translation as it stands.
 	s.fillReviewJudgement(ctx, &out, profile, pid, stream, bid, loc)
+	s.fillPreReview(ctx, &out, pid, stream, sb, loc)
 
 	// Provenance: how this target was produced, and the decision in force.
 	out.Provenance = reviewProvenanceOf(decision, sb, loc)

@@ -49,8 +49,8 @@ func BlockScopedTables() []string {
 		"annotations",
 		"overlays_ext",
 		"block_history",
-		"block_notes",
 		"proposed_source_changes",
+		"pre_reviews",
 	}
 }
 
@@ -76,10 +76,10 @@ func StreamScopedTables() []string {
 		"annotations",
 		"overlays_ext",
 		"block_history",
-		"block_notes",
 		"change_log",
 		"unit_decisions",
 		"proposed_source_changes",
+		"pre_reviews",
 	}
 }
 
@@ -90,7 +90,6 @@ func ProjectScopedTablesWithoutCascade() []string {
 	return []string{
 		"change_log",
 		"block_history",
-		"block_notes",
 		"block_asset_refs",
 		"unit_decisions",
 		"proposed_source_changes",

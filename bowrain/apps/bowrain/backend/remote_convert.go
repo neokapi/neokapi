@@ -72,22 +72,20 @@ func editorProjectsToInfos(ps []editorclient.EditorProject) []ProjectInfo {
 func editorBlockToInfo(b editorclient.EditorBlock) BlockInfo {
 	info := BlockInfo{
 		ID:              b.ID,
-		SourceRuns:      runsToRunInfos(b.SourceRuns),
+		SourceID:        b.SourceID,
+		Name:            b.Name,
+		Source:          b.Source,
+		SourceRuns:      b.SourceRuns,
+		Targets:         make(map[string]BlockTargetInfo, len(b.Targets)),
+		TargetRuns:      b.TargetRuns,
 		Translatable:    b.Translatable,
+		HasInlineCodes:  b.HasInlineCodes,
 		Properties:      b.Properties,
+		Entities:        b.Entities,
 		TargetRevisions: b.TargetRevisions,
 	}
-	if len(b.Targets) > 0 {
-		info.Targets = make(map[string]BlockTargetInfo, len(b.Targets))
-		for locale, t := range b.Targets {
-			info.Targets[locale] = BlockTargetInfo{Text: t.Text, Status: t.Status}
-		}
-	}
-	if len(b.TargetRuns) > 0 {
-		info.TargetRuns = make(map[string][]RunInfo, len(b.TargetRuns))
-		for locale, runs := range b.TargetRuns {
-			info.TargetRuns[locale] = runsToRunInfos(runs)
-		}
+	for locale, t := range b.Targets {
+		info.Targets[locale] = BlockTargetInfo{Text: t.Text, Status: t.Status}
 	}
 	return info
 }

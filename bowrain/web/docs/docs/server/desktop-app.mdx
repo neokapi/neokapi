@@ -51,8 +51,9 @@ reviews, and memory updates made offline queue locally and replay in order the
 moment you reconnect, then rejoin the live session. You do not have to think
 about sync; it happens on reconnect. Each queued edit names the version of the
 translation it was made against, so an edit to a translation a teammate changed
-while you were offline is not applied over theirs. It counts as a failed change
-instead, and you redo it on the translation as it now stands (see
+while you were offline is not applied over theirs. It is listed as a change
+that was not sent instead, with its wording, and you make it again on the
+translation as it now stands (see
 [Troubleshooting](/server/troubleshooting#the-desktop-app-has-pending-or-failed-changes)). See
 [Real-time collaboration](/server/collaboration) for the shared presence and
 live-update model both clients use.

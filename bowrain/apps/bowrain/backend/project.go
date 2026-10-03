@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
@@ -39,80 +40,6 @@ type ProjectItem struct {
 	WordCount  int    `json:"word_count"`
 }
 
-// RunConstraintsInfo mirrors model.RunConstraints for the frontend.
-type RunConstraintsInfo struct {
-	Deletable   bool `json:"deletable,omitempty"`
-	Cloneable   bool `json:"cloneable,omitempty"`
-	Reorderable bool `json:"reorderable,omitempty"`
-}
-
-// TextRunInfo is a plain text chunk.
-type TextRunInfo struct {
-	Text string `json:"text"`
-}
-
-// PlaceholderRunInfo is a self-closing inline code.
-type PlaceholderRunInfo struct {
-	ID          string              `json:"id"`
-	Type        string              `json:"type"`
-	SubType     string              `json:"subType,omitempty"`
-	Data        string              `json:"data"`
-	Equiv       string              `json:"equiv"`
-	Disp        string              `json:"disp,omitempty"`
-	Constraints *RunConstraintsInfo `json:"constraints,omitempty"`
-}
-
-// PcOpenRunInfo is the opening half of a paired inline code.
-type PcOpenRunInfo struct {
-	ID          string              `json:"id"`
-	Type        string              `json:"type"`
-	SubType     string              `json:"subType,omitempty"`
-	Data        string              `json:"data"`
-	Equiv       string              `json:"equiv"`
-	Disp        string              `json:"disp,omitempty"`
-	Constraints *RunConstraintsInfo `json:"constraints,omitempty"`
-}
-
-// PcCloseRunInfo is the closing half of a paired inline code.
-type PcCloseRunInfo struct {
-	ID      string `json:"id"`
-	Type    string `json:"type"`
-	SubType string `json:"subType,omitempty"`
-	Data    string `json:"data"`
-	Equiv   string `json:"equiv,omitempty"`
-}
-
-// SubRunInfo is a sub-filter reference.
-type SubRunInfo struct {
-	ID    string `json:"id"`
-	Ref   string `json:"ref"`
-	Equiv string `json:"equiv"`
-}
-
-// PluralRunInfo is a structured plural construct.
-type PluralRunInfo struct {
-	Pivot string               `json:"pivot"`
-	Forms map[string][]RunInfo `json:"forms"`
-}
-
-// SelectRunInfo is a structured select construct.
-type SelectRunInfo struct {
-	Pivot string               `json:"pivot"`
-	Cases map[string][]RunInfo `json:"cases"`
-}
-
-// RunInfo describes one inline-content primitive for the frontend.
-// Exactly one of the pointer fields is non-nil per record.
-type RunInfo struct {
-	Text    *TextRunInfo        `json:"text,omitempty"`
-	Ph      *PlaceholderRunInfo `json:"ph,omitempty"`
-	PcOpen  *PcOpenRunInfo      `json:"pcOpen,omitempty"`
-	PcClose *PcCloseRunInfo     `json:"pcClose,omitempty"`
-	Sub     *SubRunInfo         `json:"sub,omitempty"`
-	Plural  *PluralRunInfo      `json:"plural,omitempty"`
-	Select  *SelectRunInfo      `json:"select,omitempty"`
-}
-
 // BlockTargetInfo is one locale's committed target as exposed to the frontend:
 // plain text plus the per-locale review status (model.Target.Status — the
 // ladder "" | draft | translated | established). The shared editor
@@ -123,14 +50,27 @@ type BlockTargetInfo struct {
 	Status string `json:"status,omitempty"`
 }
 
-// BlockInfo is a serializable representation of a translatable block.
+// BlockInfo is a block as the shared editor reads it, in the shape the
+// server's blocks route serves it (editorclient.EditorBlock): the source's
+// text and runs, each locale's target with its status and runs, and the
+// revision each target was read at. The frontend reads it through the
+// normalisation the web app applies to the server's payload
+// (normalizeServerBlocks), so the editor reads one shape whichever side
+// answered. Runs travel as canonical model.Run.
 type BlockInfo struct {
-	ID           string                     `json:"id"`
-	SourceRuns   []RunInfo                  `json:"sourceRuns,omitempty"`
-	Targets      map[string]BlockTargetInfo `json:"targets,omitempty"`
-	TargetRuns   map[string][]RunInfo       `json:"targetRuns,omitempty"`
-	Translatable bool                       `json:"translatable"`
-	Properties   map[string]string          `json:"properties"`
+	ID             string                     `json:"id"`
+	SourceID       string                     `json:"source_id,omitempty"`
+	Name           string                     `json:"name,omitempty"`
+	Source         string                     `json:"source"`
+	SourceRuns     []model.Run                `json:"source_runs,omitempty"`
+	Targets        map[string]BlockTargetInfo `json:"targets"`
+	TargetRuns     map[string][]model.Run     `json:"targets_runs,omitempty"`
+	Translatable   bool                       `json:"translatable"`
+	HasInlineCodes bool                       `json:"has_inline_codes,omitempty"`
+	Properties     map[string]string          `json:"properties"`
+	// Entities are the entities marked on the source, as the server serves
+	// them; the local working copy serves none.
+	Entities []editorclient.EditorEntity `json:"entities,omitempty"`
 	// TargetRevisions names each target locale's revision as the block was
 	// read: the if_match an operation on that translation sends
 	// (ApplyChanges).
@@ -498,63 +438,4 @@ func buildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Pr
 // countChars counts Unicode runes in text.
 func countChars(text string) int {
 	return len([]rune(text))
-}
-
-// flattenTargetRuns returns the plain-text flattening of a block's
-// target-locale runs. Used by the editor/backend tests so they
-// don't each reimplement the walker.
-func flattenTargetRuns(b BlockInfo, locale string) string {
-	return b.FlattenTarget(locale)
-}
-
-// FlattenSource returns the plain-text flattening of SourceRuns.
-func (b BlockInfo) FlattenSource() string {
-	return flattenRunInfos(b.SourceRuns)
-}
-
-// FlattenTarget returns the plain-text flattening of target runs.
-func (b BlockInfo) FlattenTarget(locale string) string {
-	return flattenRunInfos(b.TargetRuns[locale])
-}
-
-// flattenRunInfos flattens a RunInfo slice into plain text.
-func flattenRunInfos(runs []RunInfo) string {
-	var buf []rune
-	flattenRunInfosTo(&buf, runs)
-	return string(buf)
-}
-
-func flattenRunInfosTo(buf *[]rune, runs []RunInfo) {
-	for _, r := range runs {
-		switch {
-		case r.Text != nil:
-			*buf = append(*buf, []rune(r.Text.Text)...)
-		case r.Ph != nil:
-			*buf = append(*buf, '{')
-			*buf = append(*buf, []rune(r.Ph.Equiv)...)
-			*buf = append(*buf, '}')
-		case r.Sub != nil:
-			*buf = append(*buf, '[')
-			*buf = append(*buf, []rune(r.Sub.Equiv)...)
-			*buf = append(*buf, ']')
-		case r.Plural != nil:
-			if form, ok := r.Plural.Forms["other"]; ok {
-				flattenRunInfosTo(buf, form)
-				continue
-			}
-			for _, form := range r.Plural.Forms {
-				flattenRunInfosTo(buf, form)
-				break
-			}
-		case r.Select != nil:
-			if form, ok := r.Select.Cases["other"]; ok {
-				flattenRunInfosTo(buf, form)
-				continue
-			}
-			for _, form := range r.Select.Cases {
-				flattenRunInfosTo(buf, form)
-				break
-			}
-		}
-	}
 }

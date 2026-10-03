@@ -67,7 +67,7 @@ answers that already exist and serves it unchanged to every client.
 | --- | --- | --- |
 | Point | profile, channel, collection, coordinates, the voice in force with its rendered guidance, the terms in force, profile validity | `host.ContextAnswer`, resolved per file |
 | Neighbourhood | the block's key, and the blocks before and after it in document order, each with its source and what the locale under review says there | the file's blocks as the reader returns them |
-| History | the prior approved version (source and target, and whether the context it was approved under still governs); the content-memory match with its wording and score | the version chain, `memory.Lookup` |
+| History | the prior approved version (source and target, and whether the context it was approved under still governs); the content-memory match with its wording and score, and its answer's runs when the answer holds a code or a plural, which a surface that uses the match saves | the version chain, `memory.Lookup` |
 | Judgement | check findings anchored to their run positions; the AI pre-review score, model and remarks when one has run | the checkers bound at the point, `core/state` |
 | Provenance | origin of the current target; the decision in force, with identity, time and note; whether that decision was recorded against source wording that has since changed | `core/state` |
 

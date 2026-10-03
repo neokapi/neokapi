@@ -48,6 +48,13 @@ For each block:
   corrections are what the context learns from (see
   [Voice and corrections](/server/context-voice)).
 
+An assistant connected to the server's MCP endpoint can pre-review a
+translation: it gives the translation a score from 0 to 100 with its reasons.
+The queue row shows the score, and the block's checks show the score, the
+assistant's name and the reasons. A pre-review decides nothing, so the block
+stays in the queue for a person. It describes the wording the assistant read,
+and once someone changes the translation the session stops showing it.
+
 Review status is tracked **per locale**. A block's status is a property of each
 target, so approving the French target never changes the German one, and a
 reviewer scoped to French can approve only French.

@@ -177,7 +177,9 @@ test.describe("Context scan onboarding", () => {
     await expect(sourceRow(REPO_URL)).toContainText(/[1-9][\d,]* characters/);
 
     // ── 5. Evidence: every inferred field carries a confidence badge ──
-    await expect(page.getByTestId(TEST_IDS.contextScan.fieldConfidence)).toHaveCount(4);
+    // The voice keeps tone, style and examples; word rules are terms, which
+    // the candidate glossary below carries.
+    await expect(page.getByTestId(TEST_IDS.contextScan.fieldConfidence)).toHaveCount(3);
     for (const badge of await page.getByTestId(TEST_IDS.contextScan.fieldConfidence).all()) {
       await expect(badge).toContainText(/% confidence/);
     }

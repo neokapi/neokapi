@@ -1,4 +1,4 @@
-import type { BlockInfo, CheckIssue, TermCompliance } from "../../types/api";
+import type { BlockInfo, CheckIssue, PreReviewInfo, TermCompliance } from "../../types/api";
 import { getBlockStatus, getTargetText } from "../editor/blockStatus";
 
 /**
@@ -107,6 +107,11 @@ export interface ReviewEntry {
    */
   voiceScore?: number;
   voiceBar?: number;
+  /**
+   * The pre-review an agent recorded on the translation as it stands: a score
+   * and its reasons, which decide nothing.
+   */
+  preReview?: PreReviewInfo;
 }
 
 /** One grouped section of the queue list. */

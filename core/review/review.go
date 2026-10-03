@@ -217,6 +217,10 @@ type MemoryMatch struct {
 	// the answer approved for it.
 	Source string `json:"source,omitempty"`
 	Target string `json:"target"`
+	// TargetRuns is the answer as runs when it holds an inline code or a
+	// plural, which Target, its text, cannot carry: a surface that uses the
+	// match saves these, so the codes stay.
+	TargetRuns []model.Run `json:"target_runs,omitempty"`
 }
 
 // Judgement is what has already been said about this translation.

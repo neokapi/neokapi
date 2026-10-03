@@ -138,6 +138,30 @@ export const Default: Story = {
   args: { project: sampleProject, dashboardStats: pendingStats, stream: "main" },
 };
 
+/**
+ * An agent pre-reviewed one translation through the server's MCP (a decide
+ * with outcome advise): its row carries the score, and the unit stays in the
+ * queue for a person to decide.
+ */
+export const AgentPreReview: Story = {
+  args: { project: sampleProject, dashboardStats: pendingStats, stream: "main" },
+  decorators: [
+    createProvidersDecorator(blocks, {
+      blockEvidence: {
+        ...blockEvidence,
+        b2: {
+          ...blockEvidence.b2,
+          pre_review: {
+            score: 72,
+            reviewer: "agent/claude-code",
+            reasons: ["Reads as machine output."],
+          },
+        },
+      },
+    }),
+  ],
+};
+
 /** All-clear: nothing pending review. */
 export const AllClear: Story = {
   args: { project: sampleProject, dashboardStats: clearStats, stream: "main" },

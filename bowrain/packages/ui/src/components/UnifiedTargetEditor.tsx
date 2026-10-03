@@ -52,7 +52,12 @@ export type UnifiedSaveResult =
    * A plural target: `runs` is the one plural run, each form's codes kept,
    * which is what a save sends; `text` is its ICU spelling, for display.
    */
-  | { kind: "plural"; text: string; runs: Run[] };
+  | { kind: "plural"; text: string; runs: Run[] }
+  /**
+   * A translation built outside the editor and saved as given, such as a
+   * content-memory match a reviewer uses: its runs keep the match's codes.
+   */
+  | { kind: "runs"; runs: Run[] };
 
 /**
  * Imperative surface of an open target editor. `insertText` inserts plain

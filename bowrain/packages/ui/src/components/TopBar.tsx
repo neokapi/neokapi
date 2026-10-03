@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@neokapi/ui-primitives";
-import type { User, NotificationInfo, ActivityInfo, TaskInfo } from "../types/api";
+import type { User, NotificationInfo, ActivityInfo, TaskInfo, FailedChange } from "../types/api";
 import { useTheme, type Theme } from "../context/ThemeContext";
 import { Sun, Moon, Monitor, LogOut, Settings } from "./icons";
 import { ConnectionIndicator, type ConnectionState } from "./ConnectionIndicator";
@@ -20,7 +20,10 @@ export interface TopBarProps {
   onSettings?: () => void;
   connectionState?: ConnectionState;
   pendingChanges?: number;
-  failedChanges?: number;
+  /** Offline changes that did not reach the server (desktop shells only). */
+  failedChanges?: FailedChange[];
+  onDismissFailedChange?: (id: number) => void;
+  onDismissFailedChanges?: () => void;
   /** Ask the backend to reconnect now (desktop shells only). */
   onRetryConnection?: () => void;
   notifications?: NotificationInfo[];
@@ -106,6 +109,8 @@ export function TopBar({
   leftSlot,
   beforeAvatarSlot,
   failedChanges,
+  onDismissFailedChange,
+  onDismissFailedChanges,
   onRetryConnection,
 }: TopBarProps) {
   const { theme, setTheme } = useTheme();
@@ -119,6 +124,8 @@ export function TopBar({
         connectionState={connectionState}
         pendingChanges={pendingChanges}
         failedChanges={failedChanges}
+        onDismissFailedChange={onDismissFailedChange}
+        onDismissFailedChanges={onDismissFailedChanges}
         onRetryConnection={onRetryConnection}
       />
 

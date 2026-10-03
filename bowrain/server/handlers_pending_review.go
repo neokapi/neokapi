@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // pendingReviewEntry is one queue entry: the (block, locale) pair awaiting a
@@ -41,6 +43,9 @@ type pendingReviewEntry struct {
 	// governs the locale, and no voice bar applies.
 	VoiceScore *int `json:"voice_score,omitempty"`
 	VoiceBar   *int `json:"voice_bar,omitempty"`
+	// PreReview is the pre-review an agent recorded on this translation, while
+	// the translation stands at the revision it judged.
+	PreReview *preReviewView `json:"pre_review,omitempty"`
 }
 
 type pendingReviewResponse struct {
@@ -117,6 +122,8 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 	}
 	byID := map[string]*BlockInfoResponse{}
 	blockByID := map[string]*model.Block{}
+	storedByID := map[string]*venue.StoredBlock{}
+	var preReviews []store.PreReview
 	if len(ids) > 0 {
 		stored, err := s.ContentStore.GetBlocks(ctx, store.BlockQuery{
 			ProjectID: pid,
@@ -131,7 +138,14 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 			byID[bi.ID] = &bi
 			if sb.Block != nil {
 				blockByID[sb.Block.ID] = sb.Block
+				storedByID[sb.Block.ID] = sb
 			}
+		}
+		// The queue is read whole without the advice an agent left on it, so
+		// a failed read leaves the page without it.
+		if preReviews, err = s.ContentStore.PreReviews(ctx, pid, streamParam(c), ids); err != nil {
+			slog.WarnContext(ctx, "pending review: read pre-reviews failed", "project", pid, "error", err)
+			preReviews = nil
 		}
 	}
 
@@ -156,6 +170,7 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 			CollectionID: r.CollectionID,
 		}
 		loc := model.LocaleID(r.Locale)
+		entry.PreReview = preReviewViewOf(freshPreReview(preReviews, storedByID[r.BlockID], loc))
 		if block := blockByID[r.BlockID]; block != nil {
 			// Not governed, not checked and compliant are different answers, and a
 			// queue reporting compliance for either of the first two would claim

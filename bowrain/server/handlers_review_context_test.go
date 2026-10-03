@@ -514,15 +514,12 @@ func TestReviewContext_NeighbourhoodReadsTheDocument(t *testing.T) {
 	// The store stamps its own id onto each block as it lands, so the keys a
 	// push declares are read off the authored blocks first.
 	sourceOf := map[string]string{}
+	keyOf := map[string]string{}
 	for _, b := range seeded {
 		sourceOf[b.ID] = b.SourceText()
+		keyOf[b.SourceText()] = b.ID
 	}
 	projID, byText := seedGovernedProject(t, s, wsID, seeded)
-
-	// The item reads in an order the ids do not give, which is what a push
-	// declares when a heading is authored after the sections it introduces.
-	document := []string{"c", "e", "a", "d", "b"}
-	require.NoError(t, s.ContentStore.SetBlockOrder(ctx, projID, "main", "greetings.txt", document))
 
 	textAt := func(keys []string) []string {
 		out := make([]string, 0, len(keys))
@@ -532,6 +529,11 @@ func TestReviewContext_NeighbourhoodReadsTheDocument(t *testing.T) {
 		return out
 	}
 
+	// The ids the store minted give one order. The item reads in another,
+	// which is what a push declares when a heading is authored after the
+	// sections it introduces: the third, fifth, first, fourth and second
+	// blocks by id. Deriving it from the id order keeps the two orders apart
+	// whatever ids the store mints.
 	stored, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{
 		ProjectID: projID, Stream: "main", ItemName: "greetings.txt",
 	})
@@ -539,29 +541,31 @@ func TestReviewContext_NeighbourhoodReadsTheDocument(t *testing.T) {
 	require.Len(t, stored, 5)
 	idOrder := make([]string, len(stored))
 	for i, sb := range stored {
-		idOrder[i] = sb.Block.SourceText()
+		idOrder[i] = keyOf[sb.Block.SourceText()]
 	}
-	require.NotEqual(t, textAt(document), idOrder, "the case needs the two orders to differ")
+	document := []string{idOrder[2], idOrder[4], idOrder[0], idOrder[3], idOrder[1]}
+	require.NoError(t, s.ContentStore.SetBlockOrder(ctx, projID, "main", "greetings.txt", document))
+	require.NotEqual(t, document, idOrder, "the case needs the two orders to differ")
 
-	// "a" sits in the middle of the document with a full window each side.
-	_, got := getReviewContext(t, s, wsID, projID, byText["Open the app"], "fr")
+	// The middle block of the document has a full window each side.
+	_, got := getReviewContext(t, s, wsID, projID, byText[sourceOf[document[2]]], "fr")
 
 	require.Len(t, got.Neighbourhood.Before, review.DefaultWindow)
 	require.Len(t, got.Neighbourhood.After, review.DefaultWindow)
-	assert.Equal(t, textAt([]string{"c", "e"}), neighbourSources(got.Neighbourhood.Before),
+	assert.Equal(t, textAt(document[0:2]), neighbourSources(got.Neighbourhood.Before),
 		"the two blocks the document holds before this one, nearest last")
-	assert.Equal(t, textAt([]string{"d", "b"}), neighbourSources(got.Neighbourhood.After),
+	assert.Equal(t, textAt(document[3:5]), neighbourSources(got.Neighbourhood.After),
 		"the two blocks the document holds after this one, nearest first")
 
 	// The first and last blocks of the DOCUMENT are the ends of the
 	// neighbourhood, whatever their ids say.
-	_, first := getReviewContext(t, s, wsID, projID, byText["Close the app"], "fr")
+	_, first := getReviewContext(t, s, wsID, projID, byText[sourceOf[document[0]]], "fr")
 	assert.Empty(t, first.Neighbourhood.Before, "the block the document opens with has no predecessor")
-	assert.Equal(t, textAt([]string{"e", "a"}), neighbourSources(first.Neighbourhood.After))
+	assert.Equal(t, textAt(document[1:3]), neighbourSources(first.Neighbourhood.After))
 
-	_, last := getReviewContext(t, s, wsID, projID, byText["Use the app"], "fr")
+	_, last := getReviewContext(t, s, wsID, projID, byText[sourceOf[document[4]]], "fr")
 	assert.Empty(t, last.Neighbourhood.After, "the block the document ends with has no successor")
-	assert.Equal(t, textAt([]string{"a", "d"}), neighbourSources(last.Neighbourhood.Before))
+	assert.Equal(t, textAt(document[2:4]), neighbourSources(last.Neighbourhood.Before))
 }
 
 // neighbourSources reads the source text of each block beside the unit, in the

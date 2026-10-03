@@ -199,6 +199,8 @@ function ConnectedTopBar({
       connectionState={connectivity.state}
       pendingChanges={connectivity.pendingChanges}
       failedChanges={connectivity.failedChanges}
+      onDismissFailedChange={connectivity.dismissFailedChange}
+      onDismissFailedChanges={connectivity.dismissFailedChanges}
       onRetryConnection={connectivity.retry}
       leftSlot={leftSlot}
       beforeAvatarSlot={beforeAvatarSlot}

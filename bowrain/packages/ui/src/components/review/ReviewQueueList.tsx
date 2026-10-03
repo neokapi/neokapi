@@ -182,6 +182,17 @@ export function ReviewQueueList({
                         {getTargetText(entry.block, entry.locale) || "—"}
                       </DirectionalText>
                     </span>
+                    {entry.preReview && (
+                      // An agent's pre-review: a score beside the row, which
+                      // the reviewer weighs and which decides nothing.
+                      <span
+                        className="mt-0.5 shrink-0 rounded bg-muted px-1 py-px text-xs tabular-nums text-muted-foreground"
+                        title={entry.preReview.reviewer}
+                        data-testid={`queue-row-prereview-${entry.id}`}
+                      >
+                        AI {entry.preReview.score}
+                      </span>
+                    )}
                   </button>
                 );
               })}

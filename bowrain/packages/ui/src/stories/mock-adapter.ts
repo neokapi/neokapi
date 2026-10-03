@@ -43,6 +43,7 @@ import type {
   PendingRecipeChange,
   CollectionInfo,
   PendingReviewOptions,
+  PreReviewInfo,
   TermCompliance,
 } from "../types/api";
 import type { VoiceProfile, VoiceCorrectionRequest } from "../voice/types";
@@ -300,11 +301,17 @@ export interface MockAdapter extends ApiAdapter {
    * language no terms govern, and `""` for a governed target with nothing to
    * check. A `voice_bar` left out stands for a language no voice profile
    * governs, and a bar with no `voice_score` for a governed block nothing has
-   * scored. A block absent from the map is governed by neither.
+   * scored. A block absent from the map is governed by neither. A
+   * `pre_review` is an agent's advice on the block's translation.
    */
   blockEvidence: Record<
     string,
-    { term_compliance?: TermCompliance; voice_score?: number; voice_bar?: number }
+    {
+      term_compliance?: TermCompliance;
+      voice_score?: number;
+      voice_bar?: number;
+      pre_review?: PreReviewInfo;
+    }
   >;
 }
 
@@ -899,6 +906,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
                 term_compliance: evidence?.term_compliance ?? "not_governed",
                 voice_score: evidence?.voice_score,
                 voice_bar: evidence?.voice_bar,
+                pre_review: evidence?.pre_review,
               };
             }),
         )

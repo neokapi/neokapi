@@ -192,66 +192,6 @@ export interface ProjectItem {
   word_count: number;
 }
 
-/** Editing constraints applied to a run. Mirrors model.RunConstraints. */
-export interface RunConstraints {
-  deletable: boolean;
-  cloneable: boolean;
-  reorderable: boolean;
-}
-
-/**
- * One element of a block's inline content sequence (RFC 0001). A Run
- * is a discriminated union keyed by the present field; exactly one of
- * the optional fields is set. Mirrors the Wails backend `RunInfo`.
- */
-export interface Run {
-  text?: { text: string };
-  ph?: {
-    id: string;
-    type: string;
-    subType?: string;
-    data: string;
-    equiv: string;
-    disp?: string;
-    constraints?: RunConstraints;
-  };
-  pcOpen?: {
-    id: string;
-    type: string;
-    subType?: string;
-    data: string;
-    equiv: string;
-    disp?: string;
-    constraints?: RunConstraints;
-  };
-  pcClose?: { id: string; type: string; subType?: string; data: string; equiv?: string };
-  sub?: { id: string; ref: string; equiv: string };
-  plural?: { pivot: string; forms: Record<string, Run[]> };
-  select?: { pivot: string; cases: Record<string, Run[]> };
-}
-
-/**
- * One locale's committed target: plain text plus the per-locale review status
- * (the model.Target.Status ladder, "" | draft | translated | established).
- * Mirrors the Wails backend `BlockTargetInfo`.
- */
-export interface BlockTargetInfo {
-  text: string;
-  status?: string;
-}
-
-/** Translation block info. Inline markup travels as RFC 0001 Run sequences. */
-export interface BlockInfo {
-  id: string;
-  sourceRuns?: Run[];
-  targets?: Record<string, BlockTargetInfo>;
-  targetRuns?: Record<string, Run[]>;
-  translatable: boolean;
-  properties: Record<string, string>;
-  /** Each target locale's revision as the block was read: what a change names. */
-  target_revisions?: Record<string, string>;
-}
-
 /** Saved AI provider configuration (managed server-side) */
 export interface ProviderConfig {
   id: string;

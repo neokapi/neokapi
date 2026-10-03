@@ -513,49 +513,19 @@ func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 				}
 			}
 
-			var resolved *platauth.ResolvedPermission
-			if projectID == "" {
-				// Workspace-level resource (no project in path): resolve from the
-				// user's workspace role.
-				resolved = s.workspaceRoleFallback(c, "", userID)
-			} else {
-				// 2. Explicit project membership (or group binding).
-				var err error
-				resolved, err = s.AuthStore.ResolveProjectPermissions(ctx, projectID, userID)
-				if err != nil {
-					// 3. Fall back to the user's workspace role for this project.
-					resolved = s.workspaceRoleFallback(c, projectID, userID)
-				}
+			wsID, _ := c.Get("workspace_id").(string)
+			wsRole, _ := c.Get("workspace_role").(platauth.Role)
+			plan, _ := c.Get("workspace_plan").(string)
+			access := s.resolveProjectAccess(ctx, accessRequest{
+				userID: userID, projectID: projectID, workspaceID: wsID, role: wsRole, plan: plan,
+			})
+			if access.custodyLapsed {
+				s.recordCustodyLapse(c, access.coordinates)
 			}
 
-			perms := resolved.Permissions
-
-			// 4. Subtract deny rules (negative permissions always win). Applied
-			// when the workspace context is known (the workspace route group).
-			if wsID, _ := c.Get("workspace_id").(string); wsID != "" {
-				wsRole, _ := c.Get("workspace_role").(platauth.Role)
-				if denied, derr := s.AuthStore.ResolveDenies(ctx, wsID, projectID, userID, wsRole); derr == nil {
-					perms &^= denied
-				}
-			}
-
-			// 5. Custodial authority lapses when the workspace's plan carries no
-			// custodian seats — the state a lapsed trial leaves behind. Nothing
-			// is deleted: the voice, terms, rules and coordinates stay exactly as
-			// they are, and the authority returns the moment a plan does.
-			//
-			// Only BOUNDED custody lapses. Blanket authority — the workspace
-			// owner — is untouched, so an expired workspace can still approve its
-			// own work rather than being bricked by its billing state.
-			if plan, _ := c.Get("workspace_plan").(string); custodialAuthoritySuspended(plan) &&
-				platauth.IsCustodian(perms, resolved.Coordinates) {
-				perms &^= platauth.CustodialPermissions
-				s.recordCustodyLapse(c, resolved.Coordinates)
-			}
-
-			c.Set("project_permissions", perms)
-			c.Set("project_languages", resolved.Languages)
-			c.Set("project_coordinates", resolved.Coordinates)
+			c.Set("project_permissions", access.permissions)
+			c.Set("project_languages", access.languages)
+			c.Set("project_coordinates", access.coordinates)
 
 			// Enrich the change context with the actor's workspace role so
 			// block_history records who-with-what-role made each edit.
@@ -568,17 +538,81 @@ func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 	}
 }
 
-// workspaceRoleFallback resolves a user's permissions from their workspace role,
-// honoring any per-workspace role override. It prefers a workspace_role already
-// on the context (set by WorkspaceAccessMiddleware); otherwise — for routes that
-// run outside the workspace group, such as the flat sync routes — it looks up
-// the project's workspace and the user's membership there. Returns zero
-// permissions when the user has no resolvable workspace membership (deny).
-func (s *Server) workspaceRoleFallback(c echo.Context, projectID, userID string) *platauth.ResolvedPermission {
-	ctx := c.Request().Context()
+// accessRequest is who asks for access, to what, and from where: the user, the
+// project (empty for a workspace resource), and the workspace the request
+// names, with the user's role there and the workspace's plan. A request that
+// names no workspace (the flat sync routes) leaves those empty, and the
+// project's workspace answers for the role.
+type accessRequest struct {
+	userID, projectID string
+	workspaceID       string
+	role              platauth.Role
+	plan              string
+}
 
-	wsRole, _ := c.Get("workspace_role").(platauth.Role)
-	wsID, _ := c.Get("workspace_id").(string)
+// projectAccess is what an accessRequest resolves to: the permissions, the
+// languages a language-scoped permission reaches, and the coordinates a
+// custodian's authority reaches. custodyLapsed says the workspace's plan
+// suspended that authority, which the permissions then leave out.
+type projectAccess struct {
+	permissions   platauth.Permission
+	languages     []string
+	coordinates   platauth.CoordinateReach
+	custodyLapsed bool
+}
+
+// resolveProjectAccess resolves what a user may do on a project, or in the
+// workspace for a resource outside any project. It is the one resolution the
+// project access middleware runs for every request and the server MCP runs
+// for an agent acting for the user:
+//
+//  1. Project membership: an explicit project_members role template (or a
+//     group binding).
+//  2. Workspace-role fallback: the user's workspace role default permissions,
+//     with the workspace's override, used for workspace resources and for a
+//     project the user holds no membership of.
+//  3. Deny rules subtract from both (negative permissions always win), when
+//     the request names its workspace.
+//  4. Custodial authority lapses when the workspace's plan carries no
+//     custodian seats, the state a lapsed trial leaves behind. Nothing is
+//     deleted: the voice, terms, rules and coordinates stay as they are, and
+//     the authority returns the moment a plan does. Only bounded custody
+//     lapses; blanket authority (the workspace owner) is untouched, so an
+//     expired workspace can still approve its own work.
+func (s *Server) resolveProjectAccess(ctx context.Context, r accessRequest) projectAccess {
+	var resolved *platauth.ResolvedPermission
+	if r.projectID == "" {
+		resolved = s.workspaceRoleFallback(ctx, r)
+	} else {
+		var err error
+		resolved, err = s.AuthStore.ResolveProjectPermissions(ctx, r.projectID, r.userID)
+		if err != nil || resolved == nil {
+			resolved = s.workspaceRoleFallback(ctx, r)
+		}
+	}
+	perms := resolved.Permissions
+	if r.workspaceID != "" {
+		if denied, derr := s.AuthStore.ResolveDenies(ctx, r.workspaceID, r.projectID, r.userID, r.role); derr == nil {
+			perms &^= denied
+		}
+	}
+	out := projectAccess{languages: resolved.Languages, coordinates: resolved.Coordinates}
+	if custodialAuthoritySuspended(r.plan) && platauth.IsCustodian(perms, resolved.Coordinates) {
+		perms &^= platauth.CustodialPermissions
+		out.custodyLapsed = true
+	}
+	out.permissions = perms
+	return out
+}
+
+// workspaceRoleFallback resolves a user's permissions from their workspace role,
+// honoring any per-workspace role override. It prefers the role the request
+// names (set by WorkspaceAccessMiddleware); otherwise, for routes that run
+// outside the workspace group such as the flat sync routes, it looks up the
+// project's workspace and the user's membership there. Returns zero
+// permissions when the user has no resolvable workspace membership (deny).
+func (s *Server) workspaceRoleFallback(ctx context.Context, r accessRequest) *platauth.ResolvedPermission {
+	wsRole, wsID, projectID, userID := r.role, r.workspaceID, r.projectID, r.userID
 
 	if wsRole == "" {
 		// Resolve via the project's workspace (flat sync routes have no

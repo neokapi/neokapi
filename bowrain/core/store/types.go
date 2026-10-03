@@ -208,6 +208,23 @@ type PendingReviewRef struct {
 	CollectionID string `json:"collection_id"`
 }
 
+// PreReview is advice on one translation: the score a reviewer that decides
+// nothing (an agent) gives it and the reasons for the score, recorded against
+// the translation's revision. A person reviewing reads it beside the
+// translation for as long as it judges the translation as it stands.
+type PreReview struct {
+	BlockID string `json:"block_id"`
+	Locale  string `json:"locale"`
+	// Score is from 0 to 100.
+	Score int `json:"score"`
+	// Reviewer names who advised: agent/<client> for an agent.
+	Reviewer string   `json:"reviewer"`
+	Reasons  []string `json:"reasons,omitempty"`
+	// Revision is the revision of the translation the advice judged.
+	Revision string    `json:"revision"`
+	At       time.Time `json:"at"`
+}
+
 // PendingReviewQuery scopes one page of the review queue.
 type PendingReviewQuery struct {
 	ProjectID string

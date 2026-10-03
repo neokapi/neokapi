@@ -116,7 +116,7 @@ function Wrapper({ block, locale = "de" }: { block: BlockInfo; locale?: string }
           onSave={(result) => {
             if (result.kind === "flat") {
               setSavedFlat({ codedText: result.codedText, spansCount: result.spans.length });
-            } else {
+            } else if (result.kind === "plural") {
               setSavedPlural(result.text);
             }
             setOpen(false);

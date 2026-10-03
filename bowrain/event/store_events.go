@@ -552,18 +552,14 @@ func (s *EventEmittingStore) Diff(ctx context.Context, from, to string) (*store.
 	return s.inner.Diff(ctx, from, to)
 }
 
-// --- Block notes (stream-scoped) ---
+// --- Pre-reviews (stream-scoped) ---
 
-func (s *EventEmittingStore) AddBlockNote(ctx context.Context, projectID, stream, blockID string, note model.BlockNote) error {
-	return s.inner.AddBlockNote(ctx, projectID, stream, blockID, note)
+func (s *EventEmittingStore) RecordPreReview(ctx context.Context, projectID, stream string, r store.PreReview) error {
+	return s.inner.RecordPreReview(ctx, projectID, stream, r)
 }
 
-func (s *EventEmittingStore) ListBlockNotes(ctx context.Context, projectID, stream, blockID string) ([]model.BlockNote, error) {
-	return s.inner.ListBlockNotes(ctx, projectID, stream, blockID)
-}
-
-func (s *EventEmittingStore) DeleteBlockNote(ctx context.Context, projectID, stream, noteID string) error {
-	return s.inner.DeleteBlockNote(ctx, projectID, stream, noteID)
+func (s *EventEmittingStore) PreReviews(ctx context.Context, projectID, stream string, blockIDs []string) ([]store.PreReview, error) {
+	return s.inner.PreReviews(ctx, projectID, stream, blockIDs)
 }
 
 // --- Block history (stream-scoped) ---

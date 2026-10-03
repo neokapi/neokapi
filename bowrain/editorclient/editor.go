@@ -113,16 +113,37 @@ type EditorBlockTarget struct {
 
 // EditorBlock mirrors BlockInfoResponse. Runs travel as canonical model.Run;
 // Targets carries each locale's committed text and per-locale review status.
+// Source is the source's text, and SourceRuns its runs when the source holds
+// an inline code or more than one run; TargetRuns carries a locale's runs
+// when the source holds a code.
 type EditorBlock struct {
-	ID           string                       `json:"id"`
-	SourceRuns   []model.Run                  `json:"source_runs,omitempty"`
-	Targets      map[string]EditorBlockTarget `json:"targets,omitempty"`
-	TargetRuns   map[string][]model.Run       `json:"targets_runs,omitempty"`
-	Translatable bool                         `json:"translatable"`
-	Properties   map[string]string            `json:"properties"`
+	ID             string                       `json:"id"`
+	SourceID       string                       `json:"source_id,omitempty"`
+	Name           string                       `json:"name,omitempty"`
+	Source         string                       `json:"source"`
+	SourceRuns     []model.Run                  `json:"source_runs,omitempty"`
+	Targets        map[string]EditorBlockTarget `json:"targets,omitempty"`
+	TargetRuns     map[string][]model.Run       `json:"targets_runs,omitempty"`
+	Translatable   bool                         `json:"translatable"`
+	HasInlineCodes bool                         `json:"has_inline_codes,omitempty"`
+	Properties     map[string]string            `json:"properties"`
+	Entities       []EditorEntity               `json:"entities,omitempty"`
 	// TargetRevisions names each served locale's target revision: the
 	// if_match an operation on that translation sends.
 	TargetRevisions map[string]string `json:"target_revisions,omitempty"`
+}
+
+// EditorEntity mirrors EntityInfoResponse: an entity marked on the block's
+// source, by its annotation key and its byte span.
+type EditorEntity struct {
+	Key    string `json:"key"`
+	Text   string `json:"text"`
+	Type   string `json:"type"`
+	Start  int    `json:"start"`
+	End    int    `json:"end"`
+	DNT    bool   `json:"dnt"`
+	Source string `json:"source,omitempty"`
+	Locale string `json:"locale,omitempty"`
 }
 
 // EditorMemoryMatch mirrors MemoryMatchInfoResponse.
@@ -497,6 +518,17 @@ type PendingReviewEntry struct {
 	ItemName string       `json:"item_name"`
 	Locale   string       `json:"locale"`
 	Block    *EditorBlock `json:"block,omitempty"`
+	// PreReview is the pre-review an agent recorded on the translation, while
+	// the translation stands at the revision it judged.
+	PreReview *EditorPreReview `json:"pre_review,omitempty"`
+}
+
+// EditorPreReview is an agent's pre-review of a translation: the score from 0
+// to 100, who gave it and why. It decides nothing.
+type EditorPreReview struct {
+	Score    int      `json:"score"`
+	Reviewer string   `json:"reviewer"`
+	Reasons  []string `json:"reasons,omitempty"`
 }
 
 // PendingReviewPage is one page of the queue plus the queue's total size.

@@ -44,6 +44,9 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 31  the ledger records the governing context a decision was made under
 // 34  the ship gate's verdict records the terminology verdict
 // 36  the jobs a grouped notification counts
+// 37  who wrote each translation a checkout holds by hand
+// 38  block notes moved onto their blocks as note annotations; the table retired
+// 39  an agent's pre-review of a translation
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -273,19 +276,6 @@ var Migrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_block_history_lookup ON block_history(project_id, block_id, locale);
 			CREATE INDEX IF NOT EXISTS idx_block_history_stream ON block_history(project_id, stream, block_id, locale);
 			CREATE INDEX IF NOT EXISTS idx_block_history_correlation ON block_history(project_id, correlation_id);
-
-			-- Block notes
-			CREATE TABLE IF NOT EXISTS block_notes (
-				id         TEXT PRIMARY KEY,
-				project_id TEXT NOT NULL,
-				block_id   TEXT NOT NULL,
-				author     TEXT NOT NULL DEFAULT '',
-				text       TEXT NOT NULL,
-				stream     TEXT NOT NULL DEFAULT 'main',
-				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-			);
-			CREATE INDEX IF NOT EXISTS idx_block_notes_lookup ON block_notes(project_id, block_id);
-			CREATE INDEX IF NOT EXISTS idx_block_notes_stream ON block_notes(project_id, stream, block_id);
 
 			-- Versions
 			CREATE TABLE IF NOT EXISTS versions (
@@ -1514,6 +1504,87 @@ var Migrations = []storage.Migration{
 				origin     TEXT NOT NULL DEFAULT '',
 				written_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, stream, item_name, unit, variant)
+			);
+		`,
+	},
+	{
+		Version:     38,
+		Description: "block notes moved onto their blocks",
+		SQL: `
+			-- A note is an annotation of type note on the block's own edition,
+			-- written by a change set and read with the block. Each row this
+			-- table holds moves onto its block as a span of the block's note
+			-- overlay, in the shape an annotate writes and the notes route
+			-- reads: the note's id, the whole block as its range, its author
+			-- and the time it was written as props, and its text as a note
+			-- payload. A block that already carries notes keeps them, and the
+			-- moved ones join them. A note whose block is gone goes with the
+			-- table. A database built after the baseline stopped creating the
+			-- table has nothing to move.
+			DO $$
+			BEGIN
+				IF to_regclass('block_notes') IS NULL THEN
+					RETURN;
+				END IF;
+				WITH moved AS (
+					SELECT project_id, stream, block_id,
+						jsonb_agg(jsonb_build_object(
+							'id', id,
+							'range', jsonb_build_object('kind', 'block'),
+							'props', jsonb_build_object(
+								'author', author,
+								'created_at', to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')),
+							'value', jsonb_build_object('type', 'note', 'data', jsonb_build_object(
+								'items', jsonb_build_array(jsonb_strip_nulls(jsonb_build_object(
+									'text', text, 'from', NULLIF(author, '')))))))
+							ORDER BY created_at, id) AS spans
+					FROM block_notes
+					GROUP BY project_id, stream, block_id
+				)
+				UPDATE blocks b
+				SET overlays = CASE
+					WHEN EXISTS (
+						SELECT 1 FROM jsonb_array_elements(b.overlays) AS o(v)
+						WHERE v->>'type' = 'note' AND COALESCE(v->>'layer', '') = ''
+							AND COALESCE(v->'variant', 'null'::jsonb) = 'null'::jsonb)
+					THEN (
+						SELECT jsonb_agg(CASE
+							WHEN v->>'type' = 'note' AND COALESCE(v->>'layer', '') = ''
+								AND COALESCE(v->'variant', 'null'::jsonb) = 'null'::jsonb
+							THEN jsonb_set(v, '{spans}', COALESCE(v->'spans', '[]'::jsonb) || m.spans)
+							ELSE v END ORDER BY n)
+						FROM jsonb_array_elements(b.overlays) WITH ORDINALITY AS o(v, n))
+					ELSE b.overlays || jsonb_build_array(jsonb_build_object('type', 'note', 'spans', m.spans))
+				END
+				FROM moved m
+				WHERE b.project_id = m.project_id AND b.stream = m.stream AND b.id = m.block_id;
+				DROP TABLE block_notes;
+			END $$;
+		`,
+	},
+	{
+		Version:     39,
+		Description: "an agent's pre-review of a translation",
+		SQL: `
+			-- The advice a decide with outcome advise records on one
+			-- translation: a score from 0 to 100, the reasons for it and who
+			-- gave it, against the revision of the translation it judged. One
+			-- row per translation; newer advice takes the row. It decides
+			-- nothing: the review queue shows it beside the translation while
+			-- the translation is at that revision. A new table, so applying
+			-- this version to an existing database creates it there as it does
+			-- in an empty one.
+			CREATE TABLE IF NOT EXISTS pre_reviews (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				block_id   TEXT NOT NULL,
+				locale     TEXT NOT NULL,
+				score      INTEGER NOT NULL,
+				reviewer   TEXT NOT NULL DEFAULT '',
+				reasons    TEXT NOT NULL DEFAULT '[]',
+				revision   TEXT NOT NULL DEFAULT '',
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, block_id, locale)
 			);
 		`,
 	},

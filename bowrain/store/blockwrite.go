@@ -81,7 +81,7 @@ func (s *PostgresStore) BeginBlockWrite(ctx context.Context, projectID, stream s
 		_ = tx.Rollback()
 		return nil, err
 	}
-	return &pgBlockWrite{tx: tx, projectID: projectID, stream: stream, held: map[string]map[string]bool{}}, nil
+	return &pgBlockWrite{tx: tx, projectID: projectID, stream: stream, held: map[string]heldRow{}}, nil
 }
 
 // pgBlockWrite is a BlockWrite on one PostgreSQL transaction.
@@ -89,13 +89,28 @@ type pgBlockWrite struct {
 	tx        *sql.Tx
 	projectID string
 	stream    string
-	held      map[string]map[string]bool // row id → variants of its targets
+	held      map[string]heldRow // row id → what the row held when Hold read it
 	done      bool
 }
 
-// targetVariants is the set of variants a block holds a target in. A held
-// row's set is what Store compares the stored block against, so a target the
-// change removed loses its row.
+// heldRow is what Store compares a stored block against: the variants a held
+// row holds a target in and the keys of its block annotations. A target or an
+// annotation the row held and the block no longer carries was removed by the
+// change, and its row goes too.
+type heldRow struct {
+	targets map[string]bool
+	annos   map[string]bool
+}
+
+func heldRowOf(b *model.Block) heldRow {
+	annos := map[string]bool{}
+	for key := range b.Annos() {
+		annos[key] = true
+	}
+	return heldRow{targets: targetVariants(b), annos: annos}
+}
+
+// targetVariants is the set of variants a block holds a target in.
 func targetVariants(b *model.Block) map[string]bool {
 	out := map[string]bool{}
 	src := b.EditionKeyOf(model.EditionKey{})
@@ -113,7 +128,7 @@ func (w *pgBlockWrite) Hold(ctx context.Context, itemName string, keys []string)
 		return nil, err
 	}
 	for _, sb := range rows {
-		w.held[sb.Block.ID] = targetVariants(sb.Block)
+		w.held[sb.Block.ID] = heldRowOf(sb.Block)
 	}
 	return rows, nil
 }
@@ -132,19 +147,26 @@ func (w *pgBlockWrite) Store(ctx context.Context, blocks []*venue.StoredBlock) e
 	if skipped := wb.Skipped(); len(skipped) > 0 {
 		return fmt.Errorf("block %s is no longer the row the write holds", skipped[0])
 	}
-	// The write above upserts the targets each block carries. A target the
-	// held row carried and the block does not was removed by the change, and
-	// its row goes too.
+	// The write above upserts the targets and block annotations each block
+	// carries. A target or an annotation the held row carried and the block
+	// does not was removed by the change, and its row goes too.
 	now := time.Now().UTC()
 	for _, b := range bs {
 		was, ok := w.held[b.ID]
 		if !ok {
 			continue
 		}
-		is := targetVariants(b)
-		for variant := range was {
-			if !is[variant] {
+		is := heldRowOf(b)
+		for variant := range was.targets {
+			if !is.targets[variant] {
 				if err := removeTargetTx(ctx, w.tx, w.projectID, w.stream, b.ID, variant, now); err != nil {
+					return err
+				}
+			}
+		}
+		for key := range was.annos {
+			if !is.annos[key] {
+				if err := DeleteBlockAnnotation(ctx, w.tx, "pg", w.projectID, w.stream, b.ID, key); err != nil {
 					return err
 				}
 			}
