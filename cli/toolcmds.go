@@ -260,8 +260,16 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				collector = cf
 			}
 
+			// The project kapi apply resolves from this command: a file it
+			// holds is committed under its lock and recorded in its history.
+			projectPath, perr := ResolveProjectPath(cmd)
+			if perr != nil {
+				return perr
+			}
+
 			rc := ToolRunConfig{
 				ToolName:       toolName,
+				Project:        projectPath,
 				Files:          args,
 				FormatMappings: mappings,
 				Concurrency:    conc,

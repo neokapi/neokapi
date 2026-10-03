@@ -65,7 +65,11 @@ func matchFormatMapping(filePath string, mappings []FormatMapping) string {
 
 // ToolRunConfig configures RunToolOnFiles.
 type ToolRunConfig struct {
-	ToolName       string
+	ToolName string
+	// Project is the recipe of the project the command resolved, "" for none.
+	// A file the project holds commits under the project's lock and is
+	// recorded in its history, as kapi apply in the project would.
+	Project        string
 	Files          []string
 	FormatMappings []FormatMapping
 	Concurrency    int
@@ -445,7 +449,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	// document commits only while the destination still holds this.
 	var out *toolOutput
 	if producesOutput && writer != nil {
-		out, err = a.openToolOutput(ctx, flow.Document{
+		out, err = a.openToolOutput(ctx, cfg, flow.Document{
 			Flow: cfg.ToolName, InputPath: filePath, OutputPath: outputPath,
 			TargetLocale: model.LocaleID(cfg.TargetLang), Format: registryName, OutputFormat: writer.Name(),
 		})

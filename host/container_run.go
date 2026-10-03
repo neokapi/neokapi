@@ -53,7 +53,7 @@ func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, ou
 		return err
 	}
 	base := filepath.Base(inputPath)
-	produced, err := a.flowHome(a.projectRoot()).Produce(ctx, outputPath, before, func(f io.Writer) error {
+	produced, err := a.flowHome(cfg.toolRunRoot(inputPath, outputPath)).Produce(ctx, outputPath, before, func(f io.Writer) error {
 		return container.Transform(inputPath, f, func(name string, read func() ([]byte, error)) ([]byte, bool, error) {
 			fmtName, eligible := a.containerEntryFormat(name)
 			if !eligible {
