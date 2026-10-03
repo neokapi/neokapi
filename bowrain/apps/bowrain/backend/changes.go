@@ -182,6 +182,7 @@ func (a *App) applyCached(ctx context.Context, projectID string, set change.Set,
 			for j, r := range change.ApplyBlock(b, content, change.BlockEnv{
 				Actor:   change.Actor{Kind: change.ActorPerson},
 				Preview: preview,
+				Indexes: contentIdx,
 			}) {
 				i := contentIdx[j]
 				r.I, r.BlockedBy = i, nil
