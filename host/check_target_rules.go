@@ -12,7 +12,7 @@ import (
 	coretools "github.com/neokapi/neokapi/core/tools"
 )
 
-// collectTargetQADiagnostics holds a translation checked against its source
+// collectTargetRuleDiagnostics holds a translation checked against its source
 // (`kapi check SOURCE --target TARGET`, check_file with a target) to the rules
 // of the ship gate's checks gate (verifyChecksGate) that say a unit is not
 // translated: an empty target, and a target identical to its source. Each
@@ -22,7 +22,7 @@ import (
 // target drops are the placeholder family's (collectBilingualDiagnostics).
 // The commit check runs none of these: a translation an agent writes may be
 // its source's text where the language keeps it.
-func (a *App) collectTargetQADiagnostics(ctx context.Context, cmd Command, blocks []*model.Block, sourcePath string, loc model.LocaleID, execution *checkExecution) ([]check.Diagnostic, error) {
+func (a *App) collectTargetRuleDiagnostics(ctx context.Context, cmd Command, blocks []*model.Block, sourcePath string, loc model.LocaleID, execution *checkExecution) ([]check.Diagnostic, error) {
 	start := time.Now()
 	identical := a.targetIdentityRule(ctx, cmd)
 	cfg := coretools.NewRuleCheckConfig(loc)
