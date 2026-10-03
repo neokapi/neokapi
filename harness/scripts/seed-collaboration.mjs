@@ -302,7 +302,8 @@ async function main() {
       languages: [LOCALE],
     });
 
-    // Bob writes one target. His PUT is the newest target_modified row for that
+    // Bob writes one target, as the editor saves: a change set naming the
+    // revision he read. His save is the newest target_modified row for that
     // block and locale, so LastTargetAuthors answers with Bob for it and with
     // Alice for the rest.
     const blocks = await jget(`/${wsSlug}/${projectId}/blocks/main?item=${encodeURIComponent(FILE_NAME)}`);
@@ -311,11 +312,27 @@ async function main() {
     bobBlockId = translatable[0]?.id || "";
     aliceBlockId = translatable[1]?.id || translatable[0]?.id || "";
     if (bobBlockId) {
-      await jput(`/${wsSlug}/${projectId}/blocks/main/${bobBlockId}`, {
-        item_name: FILE_NAME,
-        target_locale: LOCALE,
-        text: "À propos de la société Acme Inc.",
-      }, HB);
+      const r = await fetch(`${API}/${wsSlug}/projects/${projectId}/streams/main/changes`, {
+        method: "POST",
+        headers: HB,
+        body: JSON.stringify({
+          schema: "kapi.change/v1",
+          gate: "report",
+          ops: [
+            {
+              op: "set_content",
+              at: { doc: FILE_NAME, block: bobBlockId, edition: LOCALE },
+              if_match: translatable[0]?.target_revisions?.[LOCALE] ?? "absent",
+              text: "À propos de la société Acme Inc.",
+            },
+          ],
+        }),
+      });
+      const res = await r.json().catch(() => ({}));
+      if (!r.ok || res.status === "refused") {
+        const why = res.error?.message ?? res.ops?.find((o) => o.status === "refused")?.error?.message;
+        throw new Error(`POST changes → ${r.status}: ${why ?? "refused"}`);
+      }
     }
   } catch (e) {
     console.error(`  (review governance seed skipped: ${e.message})`);
