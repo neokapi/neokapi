@@ -1014,4 +1014,25 @@ var storeMigrations = []storage.Migration{
 			DROP TABLE IF EXISTS block_notes;
 		`,
 	},
+	{
+		Version:     27,
+		Description: "an agent's pre-review of a translation",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 39: the advice a
+			-- decide with outcome advise records on one translation, against
+			-- the revision it judged. One row per translation.
+			CREATE TABLE pre_reviews (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				block_id   TEXT NOT NULL,
+				locale     TEXT NOT NULL,
+				score      INTEGER NOT NULL,
+				reviewer   TEXT NOT NULL DEFAULT '',
+				reasons    TEXT NOT NULL DEFAULT '[]',
+				revision   TEXT NOT NULL DEFAULT '',
+				created_at TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, stream, block_id, locale)
+			);
+		`,
+	},
 }

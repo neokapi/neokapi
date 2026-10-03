@@ -25,8 +25,11 @@ func TestMigrations_DropTheRetiredBlockNotesTable(t *testing.T) {
 	}
 	require.False(t, tableExists(), "a database built from the current baseline has no notes table")
 
-	// The schema a database at version 37 carries.
-	_, err := db.ExecContext(ctx, `CREATE TABLE block_notes (
+	// The schema a database at version 37 carries: the notes table, and
+	// nothing a later version adds.
+	_, err := db.ExecContext(ctx, `DROP TABLE pre_reviews`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE TABLE block_notes (
 		id         TEXT PRIMARY KEY,
 		project_id TEXT NOT NULL,
 		block_id   TEXT NOT NULL,

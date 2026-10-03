@@ -38,7 +38,8 @@ type changeSender struct {
 //     adds one; its author or a project manager rewrites or removes it. An
 //     entity is marked with edit source.
 //   - An agent sends neither gate report, if_match "*", nor a decision other
-//     than advise. Only a tool records provenance, and a tool decides nothing.
+//     than advise, which records a pre-review and takes translate for the
+//     language. Only a tool records provenance, and a tool decides nothing.
 type streamPolicy struct {
 	ctx    context.Context //nolint:containedctx // the policy answers within one request
 	s      *Server

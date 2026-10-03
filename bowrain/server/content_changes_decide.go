@@ -27,13 +27,18 @@ import (
 //   - reject moves it to draft, so it re-enters the work queue; withdraw moves
 //     it to translated. Moving an established translation takes the review
 //     permission for its language.
-//   - advise is refused: the server keeps no pre-reviews.
+//   - advise records a pre-review: the score and reasons an agent gives the
+//     translation, which the review queue shows beside it while it stands at
+//     the revision judged (prereviews.go). It moves no status.
 type streamDecisions struct {
 	s      *Server
 	c      echo.Context
 	proj   *store.Project
 	stream string
 	rows   *rowLookup
+	// sender is who sends the change set, whose name a pre-review a person
+	// records is filed under.
+	sender changeSender
 
 	// sod, when set, is the separation-of-duties gate a bulk action opened
 	// for every block and language it decides, so a decision asks no query of
@@ -63,9 +68,6 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 	}
 	body := op.Body.(*change.Decide)
 	switch {
-	case d.c == nil:
-		return &change.Error{Code: change.CodeUnsupported, Capability: "decide",
-			Message: "a review decision on a stream is a person's, sent to the server's changes route"}
 	case target == nil:
 		return &change.Error{Code: change.CodeNotFound, Field: "at", Message: "the decision names no edition"}
 	case target.Role == change.RoleAuthoritative:
@@ -75,8 +77,10 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 		return &change.Error{Code: change.CodeUnsupported, Capability: "decide",
 			Message: "a stream records review decisions on a language's translation, not on a tone or channel edition"}
 	case body.Outcome == change.OutcomeAdvise:
-		return &change.Error{Code: change.CodeUnsupported, Capability: "decide.advise",
-			Message: "the server keeps no pre-reviews; a person decides"}
+		return d.prepareAdvice(ctx, body, target)
+	case d.c == nil:
+		return &change.Error{Code: change.CodeUnsupported, Capability: "decide",
+			Message: "a review decision on a stream is a person's, sent to the server's changes route"}
 	}
 	row := d.rows.find(ctx, target.Doc.Doc, target.Ref.Block)
 	if row == nil {
@@ -124,8 +128,11 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 	return nil
 }
 
-func (d *streamDecisions) Apply(ctx context.Context, _ change.Actor, set *change.Set, op change.Op, target *change.DecisionTarget) (change.OpStatus, *change.Error) {
+func (d *streamDecisions) Apply(ctx context.Context, actor change.Actor, set *change.Set, op change.Op, target *change.DecisionTarget) (change.OpStatus, *change.Error) {
 	body := op.Body.(*change.Decide)
+	if body.Outcome == change.OutcomeAdvise {
+		return d.recordAdvice(ctx, actor, body, target)
+	}
 	row := d.rows.find(ctx, target.Doc.Doc, target.Ref.Block)
 	if row == nil {
 		return "", &change.Error{Code: change.CodeNotFound, Field: "at/block",

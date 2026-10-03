@@ -50,6 +50,7 @@ func BlockScopedTables() []string {
 		"overlays_ext",
 		"block_history",
 		"proposed_source_changes",
+		"pre_reviews",
 	}
 }
 
@@ -78,6 +79,7 @@ func StreamScopedTables() []string {
 		"change_log",
 		"unit_decisions",
 		"proposed_source_changes",
+		"pre_reviews",
 	}
 }
 

@@ -291,6 +291,7 @@ export function ReviewSession({
           termCompliance: e.term_compliance ?? "",
           voiceScore: e.voice_score,
           voiceBar: e.voice_bar,
+          preReview: e.pre_review,
         });
       }
       if (pageEntries.length < QUEUE_PAGE_SIZE || offset + pageEntries.length >= page.total) break;
@@ -325,6 +326,7 @@ export function ReviewSession({
         termCompliance: e.termCompliance,
         voiceScore: e.voiceScore,
         voiceBar: e.voiceBar,
+        preReview: e.preReview,
       });
     }
     return { entries, total: Math.max(total, entries.length) };

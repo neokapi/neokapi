@@ -112,8 +112,13 @@ The server holds each operation to what the sender may do on the project:
   it establishes approves the sender's own wording. `reject` returns the translation to draft and
   `withdraw` to translated; moving an established translation takes `review`.
   Each decision is written to the decision ledger and the workspace's content
-  memory, as approve-passing writes it. The server keeps no pre-review, so
-  `advise` is refused as `unsupported`.
+  memory, as approve-passing writes it. `advise` records a pre-review: the
+  `score` (required, 0 to 100) and `reasons` an agent gives the translation,
+  filed under `agent/<client>` against the revision in `if_match`. It moves no
+  status and takes `translate` for the language. Each entry of the
+  pending-review queue carries it as `pre_review`, and the review context as
+  the judgement's `ai_score`, `ai_model` and `ai_findings`, while the
+  translation stands at that revision.
 - A note is an `annotate` of type `note` on the source, which anyone who may
   read the content leaves; the server stamps it with its author and the time
   it landed. An `annotate` under an existing note's id rewrites it and an
@@ -121,7 +126,9 @@ The server holds each operation to what the sender may do on the project:
   note on a translation is refused. An entity is an annotation of type
   `entity` on the source, and takes `edit_source`.
 - An agent may neither send `gate: report` nor write without the revision it
-  read, and records no review decision.
+  read, and records no review decision other than a pre-review (`advise`).
+  The server MCP holds an agent to the permissions the project access
+  middleware resolves for the user it acts for, with the same resolver.
 
 Before a change set lands, the server checks each edition it changes against
 the checks in force where the item sits, resolved as the editor's check routes

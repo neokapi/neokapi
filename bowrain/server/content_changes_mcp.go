@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"slices"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -25,9 +26,8 @@ func (s *Server) mcpChangeService(ctx context.Context, userID, projectID, stream
 }
 
 // userSender is a user as a change set's sender off a request: the
-// permissions the user holds on the project, resolved as the project access
-// middleware resolves them (project membership, else the workspace role and
-// its override, less the deny rules).
+// permissions the user holds on the project, resolved by the project access
+// middleware's resolver as a request to the project's workspace resolves them.
 func (s *Server) userSender(ctx context.Context, userID string, proj *store.Project) changeSender {
 	sender := changeSender{userID: userID, name: userID}
 	if s.AuthStore == nil {
@@ -42,30 +42,23 @@ func (s *Server) userSender(ctx context.Context, userID string, proj *store.Proj
 			sender.name = u.Email
 		}
 	}
-	var role platauth.Role
+	req := accessRequest{userID: userID, projectID: proj.ID, workspaceID: proj.WorkspaceID}
 	if m, err := s.AuthStore.GetMembership(ctx, proj.WorkspaceID, userID); err == nil && m != nil {
-		role = m.Role
+		req.role = m.Role
 	}
-	resolved, err := s.AuthStore.ResolveProjectPermissions(ctx, proj.ID, userID)
-	if err != nil || resolved == nil {
-		resolved = &platauth.ResolvedPermission{}
-		if role != "" {
-			resolved = platauth.DefaultPermissionsForRole(role)
-			if perms, ok, oerr := s.AuthStore.GetWorkspaceRoleOverride(ctx, proj.WorkspaceID, role); oerr == nil && ok {
-				resolved = &platauth.ResolvedPermission{Permissions: perms}
-			}
-		}
+	if w, err := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID); err == nil && w != nil {
+		req.plan = w.Plan
 	}
-	perms := resolved.Permissions
-	if denied, derr := s.AuthStore.ResolveDenies(ctx, proj.WorkspaceID, proj.ID, userID, role); derr == nil {
-		perms &^= denied
+	access := s.resolveProjectAccess(ctx, req)
+	if access.custodyLapsed {
+		slog.InfoContext(ctx, "mcp: custodial authority suspended by the workspace's plan",
+			"user", userID, "project", proj.ID, "coordinates", access.coordinates.String())
 	}
-	languages := resolved.Languages
 	sender.allows = func(perm platauth.Permission, locale string) bool {
-		if !perms.Has(perm) {
+		if !access.permissions.Has(perm) {
 			return false
 		}
-		return locale == "" || !perm.LanguageScoped() || len(languages) == 0 || slices.Contains(languages, locale)
+		return locale == "" || !perm.LanguageScoped() || len(access.languages) == 0 || slices.Contains(access.languages, locale)
 	}
 	return sender
 }

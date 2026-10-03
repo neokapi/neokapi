@@ -1786,6 +1786,19 @@ export interface PendingReviewEntry {
    */
   voice_score?: number;
   voice_bar?: number;
+  /**
+   * The pre-review an agent recorded on this translation (a `decide` with
+   * outcome `advise`), present while the translation stands at the revision
+   * the agent judged. It decides nothing.
+   */
+  pre_review?: PreReviewInfo;
+}
+
+/** An agent's pre-review of a translation: its score from 0 to 100, who gave it and why. */
+export interface PreReviewInfo {
+  score: number;
+  reviewer: string;
+  reasons?: string[];
 }
 
 /**

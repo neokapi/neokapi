@@ -44,6 +44,9 @@ func seedOrphanFixture(t *testing.T, s *SQLiteStore, projectID, stream, itemName
 		Updated:     "2026-08-04T10:00:00Z",
 	}})
 	require.NoError(t, err)
+	require.NoError(t, s.RecordPreReview(ctx, projectID, stream, platstore.PreReview{
+		BlockID: blockID, Locale: "nb", Score: 70, Reviewer: "agent/claude-code", Revision: "r:0000",
+	}))
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO overlays_ext (project_id, stream, block_id, kind, payload)
 		 VALUES (?,?,?,'segmentation','{}')`, projectID, stream, blockID)

@@ -260,8 +260,8 @@ func (a *App) applyCached(ctx context.Context, projectID string, set change.Set,
 // one language, the way the server applies it: establish moves a translation
 // with text to established, reject moves it to draft so it re-enters the work
 // queue, and withdraw moves it to translated. It reports whether the block
-// changed. advise is refused, as the server refuses it: a pre-review is an
-// agent's, and the server keeps none.
+// changed. advise is refused: a pre-review is an agent's, which the server
+// records and the working copy keeps none of.
 func decideCached(b *model.Block, locale model.LocaleID, outcome change.Outcome) (bool, *change.Error) {
 	t := b.Target(locale)
 	switch outcome {
@@ -296,7 +296,7 @@ func decideCached(b *model.Block, locale model.LocaleID, outcome change.Outcome)
 		return true, nil
 	}
 	return false, &change.Error{Code: change.CodeUnsupported, Capability: "decide." + string(outcome),
-		Message: "the server keeps no pre-reviews; a person decides"}
+		Message: "the working copy keeps no pre-reviews; the server records them"}
 }
 
 // refusal is the error a change set the server refused replays as: a

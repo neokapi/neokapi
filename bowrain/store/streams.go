@@ -79,6 +79,7 @@ var branchStreamCopies = []struct {
 	{table: "translations", columns: "project_id, block_id, locale, text, target_json, provider, metadata", stamp: "updated_at"},
 	{table: "annotations", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
 	{table: "overlays_ext", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
+	{table: "pre_reviews", columns: "project_id, block_id, locale, score, reviewer, reasons, revision, created_at"},
 	{table: "unit_decisions", columns: "project_id, item_id, item_name, unit, variant, status, target_hash, content_hash, " +
 		"review_state, decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated", stamp: "updated_at"},
 }

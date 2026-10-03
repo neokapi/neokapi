@@ -743,6 +743,7 @@ export type {
   PendingReviewEntry,
   PendingReviewOptions,
   PendingReviewPage,
+  PreReviewInfo,
   TaskType,
   TaskStatus,
   TaskPriority,

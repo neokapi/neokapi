@@ -552,6 +552,16 @@ func (s *EventEmittingStore) Diff(ctx context.Context, from, to string) (*store.
 	return s.inner.Diff(ctx, from, to)
 }
 
+// --- Pre-reviews (stream-scoped) ---
+
+func (s *EventEmittingStore) RecordPreReview(ctx context.Context, projectID, stream string, r store.PreReview) error {
+	return s.inner.RecordPreReview(ctx, projectID, stream, r)
+}
+
+func (s *EventEmittingStore) PreReviews(ctx context.Context, projectID, stream string, blockIDs []string) ([]store.PreReview, error) {
+	return s.inner.PreReviews(ctx, projectID, stream, blockIDs)
+}
+
 // --- Block history (stream-scoped) ---
 
 func (s *EventEmittingStore) GetBlockHistory(ctx context.Context, projectID, stream, blockID string, locale string, limit int) ([]store.BlockHistoryEntry, error) {

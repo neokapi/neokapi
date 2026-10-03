@@ -46,6 +46,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 36  the jobs a grouped notification counts
 // 37  who wrote each translation a checkout holds by hand
 // 38  the block notes table retired: a note is an annotation on the block
+// 39  an agent's pre-review of a translation
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1515,6 +1516,32 @@ var Migrations = []storage.Migration{
 			-- writes this table, so its rows go with it. A database built after
 			-- the baseline dropped the table has nothing to drop.
 			DROP TABLE IF EXISTS block_notes;
+		`,
+	},
+	{
+		Version:     39,
+		Description: "an agent's pre-review of a translation",
+		SQL: `
+			-- The advice a decide with outcome advise records on one
+			-- translation: a score from 0 to 100, the reasons for it and who
+			-- gave it, against the revision of the translation it judged. One
+			-- row per translation; newer advice takes the row. It decides
+			-- nothing: the review queue shows it beside the translation while
+			-- the translation is at that revision. A new table, so applying
+			-- this version to an existing database creates it there as it does
+			-- in an empty one.
+			CREATE TABLE IF NOT EXISTS pre_reviews (
+				project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream     TEXT NOT NULL DEFAULT 'main',
+				block_id   TEXT NOT NULL,
+				locale     TEXT NOT NULL,
+				score      INTEGER NOT NULL,
+				reviewer   TEXT NOT NULL DEFAULT '',
+				reasons    TEXT NOT NULL DEFAULT '[]',
+				revision   TEXT NOT NULL DEFAULT '',
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, block_id, locale)
+			);
 		`,
 	},
 }

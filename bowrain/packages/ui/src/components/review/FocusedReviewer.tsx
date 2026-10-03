@@ -465,7 +465,13 @@ export function FocusedReviewer({
             check findings and the voice findings judge the same target, so they
             are read as one list rather than as a score beside a list. */}
           <div className="mt-4">
-            <JudgementCard findings={findingViews(issues, voiceFindings)} testId="reviewer-checks">
+            <JudgementCard
+              findings={findingViews(issues, voiceFindings)}
+              aiScore={context?.judgement.ai_score}
+              aiModel={context?.judgement.ai_model}
+              aiFindings={context?.judgement.ai_findings}
+              testId="reviewer-checks"
+            >
               <Button
                 size="sm"
                 variant="ghost"

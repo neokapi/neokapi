@@ -248,6 +248,9 @@ export function ReviewInspector({
               what to say instead. */}
           <JudgementCard
             findings={findingViews(issues, context?.judgement.findings ?? [])}
+            aiScore={context?.judgement.ai_score}
+            aiModel={context?.judgement.ai_model}
+            aiFindings={context?.judgement.ai_findings}
             testId="inspector-check"
           />
 

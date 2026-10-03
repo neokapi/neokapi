@@ -87,7 +87,7 @@ func (s *Server) newStreamChange(ctx context.Context, c echo.Context, proj *stor
 	}
 	sc.policy = &streamPolicy{ctx: ctx, s: s, proj: proj, stream: stream, wsID: wsID, sender: sender, rows: rows}
 	sc.check = &streamCommitCheck{s: s, proj: proj, stream: stream, wsID: wsID, wsSlug: wsSlug}
-	sc.decide = &streamDecisions{s: s, c: c, proj: proj, stream: stream, rows: rows}
+	sc.decide = &streamDecisions{s: s, c: c, proj: proj, stream: stream, rows: rows, sender: sender}
 	return sc
 }
 

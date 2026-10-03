@@ -162,6 +162,12 @@ type BlockStore interface {
 	// query scopes — with a collection filter, that collection's queue, so a
 	// caller paging a collection is never told the project's total.
 	ListPendingReview(ctx context.Context, query PendingReviewQuery) ([]PendingReviewRef, int, error)
+	// RecordPreReview stores an agent's advice on one translation in place of
+	// any advice recorded on it before.
+	RecordPreReview(ctx context.Context, projectID, stream string, r PreReview) error
+	// PreReviews reads the advice recorded on the named blocks, in every
+	// language.
+	PreReviews(ctx context.Context, projectID, stream string, blockIDs []string) ([]PreReview, error)
 	DeleteBlock(ctx context.Context, projectID, stream, blockID string) error
 
 	GetBlockHistory(ctx context.Context, projectID, stream, blockID string, locale string, limit int) ([]BlockHistoryEntry, error)

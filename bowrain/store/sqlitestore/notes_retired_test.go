@@ -25,7 +25,10 @@ func TestMigrations_DropTheRetiredBlockNotesTable(t *testing.T) {
 	}
 	require.False(t, tableExists(s), "a working copy built from the current baseline has no notes table")
 
-	// The schema a working copy at version 25 carries.
+	// The schema a working copy at version 25 carries: the notes table, and
+	// nothing a later version adds.
+	_, err = s.db.ExecContext(ctx, `DROP TABLE pre_reviews`)
+	require.NoError(t, err)
 	_, err = s.db.ExecContext(ctx, `CREATE TABLE block_notes (
 		id         TEXT PRIMARY KEY,
 		project_id TEXT NOT NULL,
