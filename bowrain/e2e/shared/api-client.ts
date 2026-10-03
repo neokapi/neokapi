@@ -539,6 +539,43 @@ export class BowrainAPI {
     );
   }
 
+  /**
+   * One page of the translation review queue: each pending (block, locale)
+   * pair, with the pre-review an agent recorded on it, when there is one.
+   */
+  async listPendingReview(
+    wsSlug: string,
+    projectId: string,
+    locales: string[],
+    stream = "main",
+  ): Promise<{
+    entries: Array<{
+      block_id: string;
+      locale: string;
+      pre_review?: { score: number; reviewer: string; reasons?: string[] };
+    }>;
+    total: number;
+  }> {
+    return this.get(
+      `/${wsSlug}/${projectId}/pending-review/${encodeURIComponent(stream)}?locales=${encodeURIComponent(locales.join(","))}`,
+    );
+  }
+
+  /** The review context of one unit: its judgement carries a pre-review's score, reviewer and reasons. */
+  async getReviewContext(
+    wsSlug: string,
+    projectId: string,
+    blockId: string,
+    locale: string,
+    stream = "main",
+  ): Promise<{
+    judgement: { ai_score?: number; ai_model?: string; ai_findings?: Array<{ message: string }> };
+  }> {
+    return this.get(
+      `/${wsSlug}/${projectId}/blocks/${encodeURIComponent(stream)}/${blockId}/review-context?target_locale=${encodeURIComponent(locale)}`,
+    );
+  }
+
   /** Apply a change set; a refusal fails the call. */
   async applyChanges(
     wsSlug: string,

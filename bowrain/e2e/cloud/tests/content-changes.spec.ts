@@ -112,6 +112,59 @@ test.describe("Content changes", () => {
     expect(served.targets?.fr?.status).toBe("draft");
   });
 
+  test("a pre-review shows beside the translation it judged and decides nothing", async ({
+    api,
+    auth,
+  }) => {
+    const { projectId, blocks } = await projectWithStrings(api, wsSlug, "Changes pre-review");
+    const block = blocks[0];
+    const written = await api.applyChanges(wsSlug, projectId, {
+      gate: "report",
+      ops: [setFrench(block.id, "absent", "Bonjour, le monde !")],
+    });
+    const read = written.ops[0].after!;
+
+    const advised = await api.applyChanges(wsSlug, projectId, {
+      ops: [
+        {
+          op: "decide",
+          at: { doc: ITEM, block: block.id, edition: "fr" },
+          if_match: read,
+          outcome: "advise",
+          score: 72,
+          reasons: ["Reads as machine output."],
+        },
+      ],
+    });
+    expect(advised.status).toBe("applied");
+
+    // The queue and the unit's context show it; the translation keeps its rung.
+    const queue = await api.listPendingReview(wsSlug, projectId, ["fr"]);
+    const entry = queue.entries.find((e) => e.block_id === block.id && e.locale === "fr");
+    expect(entry?.pre_review).toEqual({
+      score: 72,
+      reviewer: auth.name,
+      reasons: ["Reads as machine output."],
+    });
+    const context = await api.getReviewContext(wsSlug, projectId, block.id, "fr");
+    expect(context.judgement.ai_score).toBe(72);
+    expect(context.judgement.ai_findings).toEqual([{ message: "Reads as machine output." }]);
+    const [served] = (await api.getBlocks(wsSlug, projectId, ITEM)).filter(
+      (b) => b.id === block.id,
+    );
+    expect(served.targets?.fr?.status).not.toBe("established");
+
+    // Once the wording changes, the advice judged other words.
+    await api.applyChanges(wsSlug, projectId, {
+      gate: "report",
+      ops: [setFrench(block.id, read, "Bonjour à tous !")],
+    });
+    const after = await api.listPendingReview(wsSlug, projectId, ["fr"]);
+    expect(after.entries.find((e) => e.block_id === block.id)?.pre_review).toBeUndefined();
+    const contextAfter = await api.getReviewContext(wsSlug, projectId, block.id, "fr");
+    expect(contextAfter.judgement.ai_score).toBeUndefined();
+  });
+
   test("a note lands on the block with its author", async ({ api, auth }) => {
     const { projectId, blocks } = await projectWithStrings(api, wsSlug, "Changes notes");
     const block = blocks[0];
