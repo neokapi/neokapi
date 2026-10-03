@@ -402,7 +402,7 @@ say what a writer can write beyond its skeleton, in `core/format/editcaps.go`:
 | --- | --- | --- |
 | `AttrWriter` | `WritableAttrs()`: per code type, the attributes whose value the writer writes | `set_attribute` |
 | `CodeSynthesizer` | `Synthesizes()`: the vocabulary types the writer writes as a new paired code | `mark`, a new code in `runs` |
-| `StructuralWriter` | `Structural()`: `insert_block`, `delete_block` | the structural operations |
+| `StructureEditor` | `Structural()`: `insert_block`, `delete_block`, with `EditStructure`, which writes them | the structural operations |
 | `NativeEditor` | `NativeOps()`: format-specific operations and their argument schemas | `native` |
 
 The registry records them on `FormatInfo.EditCapabilities`, which describes the

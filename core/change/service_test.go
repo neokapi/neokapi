@@ -15,6 +15,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/changetest"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 )
@@ -148,7 +149,10 @@ type memSession struct {
 
 func (s *memSession) Info() change.DocInfo {
 	if s.h.kv {
-		return change.DocInfo{Doc: s.doc, Format: "memory-kv", SourceLocale: "en", Editions: change.EditionsPerFile}
+		// The writer declares both structural operations; the session says
+		// which of them the home writes (Structural).
+		return change.DocInfo{Doc: s.doc, Format: "memory-kv", SourceLocale: "en", Editions: change.EditionsPerFile,
+			Capabilities: change.Capabilities{Format: "memory-kv", Declared: format.EditCapabilities{Structural: []string{"delete_block", "insert_block"}}}}
 	}
 	return change.DocInfo{Doc: s.doc, Format: "memory", SourceLocale: "en", Editions: change.EditionsInFile}
 }
@@ -372,7 +376,7 @@ func (memFormats) Facts(name string) (change.FormatFacts, bool) {
 	case "memory":
 		return change.FormatFacts{Name: "memory", Editable: true, Interchange: true}, true
 	case "memory-kv":
-		return change.FormatFacts{Name: "memory-kv", Editable: true, Structural: []string{"delete_block", "insert_block"}}, true
+		return change.FormatFacts{Name: "memory-kv", Editable: true, Edit: format.EditCapabilities{Structural: []string{"delete_block", "insert_block"}}}, true
 	}
 	return change.FormatFacts{}, false
 }

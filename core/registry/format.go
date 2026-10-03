@@ -142,7 +142,7 @@ type FormatInfo struct {
 	// replaying what its reader read: the attributes of a code set_attribute
 	// may change, the vocabulary types mark may create, and its structural and
 	// native operations. Declarative, like Generative: probed once from a
-	// built-in writer's AttrWriter, CodeSynthesizer, StructuralWriter and
+	// built-in writer's AttrWriter, CodeSynthesizer, StructureEditor and
 	// NativeEditor capabilities when it is registered, and set from the cached
 	// manifest by SetEditCapabilities when a plugin's writer is. The change
 	// service applies those operations only where this declares them.

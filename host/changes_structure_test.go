@@ -25,8 +25,8 @@ func TestChangeService_AddsAndRemovesKeysAcrossACatalogsTranslations(t *testing.
 
 	d, err := svc.Describe(ctx, change.DescribeRequest{Doc: "locales/en.json"})
 	require.NoError(t, err)
-	assert.NotNil(t, d.Ops[change.KindInsertBlock], "describe reports what the JSON writer writes")
-	assert.NotNil(t, d.Ops[change.KindDeleteBlock])
+	assert.NotNil(t, d.Ops.InsertBlock, "describe reports what the JSON writer writes")
+	assert.NotNil(t, d.Ops.DeleteBlock)
 
 	text := func(s string) *string { return &s }
 	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{{
@@ -78,8 +78,8 @@ func TestChangeService_RefusesStructureWhereNotesAreReadFromBesideABlock(t *test
 
 	d, err := svc.Describe(ctx, change.DescribeRequest{Doc: "locales/en.json"})
 	require.NoError(t, err)
-	assert.Nil(t, d.Ops[change.KindInsertBlock])
-	assert.Nil(t, d.Ops[change.KindDeleteBlock])
+	assert.Nil(t, d.Ops.InsertBlock)
+	assert.Nil(t, d.Ops.DeleteBlock)
 
 	page, err := svc.Read(ctx, change.ReadRequest{Doc: "locales/en.json"})
 	require.NoError(t, err)

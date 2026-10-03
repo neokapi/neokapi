@@ -63,14 +63,14 @@ func TestService_DescribesStructureWhereTheFormatWritesIt(t *testing.T) {
 	svc := newMemService(newKVHome(textBlock("a", "A")))
 	d, err := svc.Describe(ctx, change.DescribeRequest{Format: "memory-kv"})
 	require.NoError(t, err)
-	assert.NotNil(t, d.Ops[change.KindInsertBlock])
-	assert.NotNil(t, d.Ops[change.KindDeleteBlock])
+	assert.NotNil(t, d.Ops.InsertBlock)
+	assert.NotNil(t, d.Ops.DeleteBlock)
 	assert.Contains(t, readBlock(t, svc, "c", "a").Ops, change.KindDeleteBlock, "a block of the catalog accepts delete_block")
 
 	d, err = svc.Describe(ctx, change.DescribeRequest{Format: "memory"})
 	require.NoError(t, err)
-	assert.Nil(t, d.Ops[change.KindInsertBlock], "a format whose writer declares no structure refuses it")
-	assert.Nil(t, d.Ops[change.KindDeleteBlock])
+	assert.Nil(t, d.Ops.InsertBlock, "a format whose writer declares no structure refuses it")
+	assert.Nil(t, d.Ops.DeleteBlock)
 }
 
 func TestService_InsertBlock(t *testing.T) {
@@ -296,13 +296,13 @@ func TestService_DescribesADocumentByWhatItsHomeWrites(t *testing.T) {
 
 	d, err := svc.Describe(ctx, change.DescribeRequest{Format: "memory-kv"})
 	require.NoError(t, err)
-	assert.NotNil(t, d.Ops[change.KindInsertBlock], "the format declares it")
+	assert.NotNil(t, d.Ops.InsertBlock, "the format declares it")
 
 	d, err = svc.Describe(ctx, change.DescribeRequest{Doc: "c"})
 	require.NoError(t, err)
-	assert.Nil(t, d.Ops[change.KindInsertBlock])
-	assert.Nil(t, d.Ops[change.KindDeleteBlock])
-	assert.NotNil(t, d.Ops[change.KindSetContent])
+	assert.Nil(t, d.Ops.InsertBlock)
+	assert.Nil(t, d.Ops.DeleteBlock)
+	assert.NotNil(t, d.Ops.SetContent)
 
 	b := readBlock(t, svc, "c", "x")
 	assert.NotContains(t, b.Ops, change.KindDeleteBlock)

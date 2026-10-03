@@ -660,8 +660,8 @@ func TestStructuralMatrixCoversEveryDeclaration(t *testing.T) {
 
 			d, err := svc.Describe(ctx, change.DescribeRequest{Format: string(fx.format)})
 			require.NoError(t, err)
-			assert.Nil(t, d.Ops[change.KindInsertBlock])
-			assert.Nil(t, d.Ops[change.KindDeleteBlock])
+			assert.Nil(t, d.Ops.InsertBlock)
+			assert.Nil(t, d.Ops.DeleteBlock)
 
 			blocks := readAllBlocks(t, svc, name)
 			require.NotEmpty(t, blocks)

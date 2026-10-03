@@ -33,6 +33,14 @@ func (editingWriter) SynthesizeCode(format.CodeSite) (model.Run, model.Run, erro
 	return model.Run{}, model.Run{}, errors.New("unused")
 }
 func (editingWriter) Structural() []string { return []string{"insert_block"} }
+func (editingWriter) EditStructure(doc []byte, _ []format.StructuralEdit) ([]byte, error) {
+	return doc, nil
+}
+
+// listingWriter lists a structural operation and has no half that writes it.
+type listingWriter struct{ plainWriter }
+
+func (listingWriter) Structural() []string { return []string{"insert_block"} }
 func (editingWriter) NativeOps() []format.NativeOp {
 	return []format.NativeOp{{Name: "z.op"}, {Name: "a.op"}}
 }
@@ -56,6 +64,8 @@ func TestProbeEditCapabilities(t *testing.T) {
 
 	plain := format.ProbeEditCapabilities(&plainWriter{})
 	assert.True(t, plain.IsZero(), "a writer that implements nothing declares nothing")
+	listing := format.ProbeEditCapabilities(&listingWriter{})
+	assert.Empty(t, listing.Structural, "a structural operation is declared only with the half that writes it")
 
 	wild := format.EditCapabilities{WritableAttrs: map[string][]string{format.AnyCodeType: {format.AnyAttr}}}
 	assert.True(t, wild.CanWrite("fmt:link", "rel"), "a wildcard declares every attribute of every code")
