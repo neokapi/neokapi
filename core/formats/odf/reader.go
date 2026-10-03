@@ -493,21 +493,12 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 
 						var block *model.Block
 						if hasInlineCodeRuns(runs) {
-							block = &model.Block{
-								ID:           blockID,
-								Translatable: true,
-								Source:       runs,
-								Targets:      make(map[model.VariantKey]*model.Target),
-								Properties: map[string]string{
-									"partPath": partPath,
-									"element":  t.Name.Local,
-								},
-							}
+							block = model.NewRunsBlock(blockID, runs)
 						} else {
 							block = model.NewBlock(blockID, plain)
-							block.Properties["partPath"] = partPath
-							block.Properties["element"] = t.Name.Local
 						}
+						block.Properties["partPath"] = partPath
+						block.Properties["element"] = t.Name.Local
 
 						applyFrameGeometry(block, frameStack, pageNum)
 						r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
