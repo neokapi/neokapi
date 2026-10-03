@@ -63,9 +63,10 @@ image's `alt` or a link's `title` is a block of its own.
 
 ## 2. Write the edits
 
-Write a change set (kapi.change/v1) with one operation per block you changed.
-`set_content` gives the block new text; `replace_text` changes text inside it
-and keeps everything around it:
+Write a change set (kapi.change/v1). `set_content` gives the block new text;
+`replace_text` changes text inside it and keeps everything around it. Several
+operations may name one block; each sends the `rev` you read, because every
+`if_match` is checked against the content the change set began with:
 
 ```json
 {"note": "Tighten the summary",
@@ -79,27 +80,69 @@ and keeps everything around it:
 
 A `replace_text` edit names its text by `find` (with `occurrence` when it
 matches more than once), by code-point `start` and `end`, or by run positions in
-`range`. Positions name the block as you read it, even when an earlier
+`range`. `find` reads as `text` does: a `<x id="…"/>` token in it matches that
+code, and the replacement then keeps each token you write back. To add a
+sentence at the end of a block, send `replace_text` with `find` set to its last
+words and `text` set to them with the sentence after, rather than the whole
+text again. Positions name the block as you read it, even when an earlier
 operation of the same change set changed that block: kapi-files moves them past
 that change, so several fixes of one block, each computed from the one read,
 apply together. A position inside text an earlier operation changed is refused
 as `guard` (`overlap`); a `find` matches the text as the earlier operations left
-it. To edit one branch of a plural, give the edit the branch's `path` from
-`structures`, such as `[1, {"plural": "one"}]`. A change set can also be JSONL
-(the envelope fields on the first line, one operation per line) or a JSON array
-of operations. `kapi-files apply --schema` prints the whole contract.
+it.
 
-Then apply it. `kapi-files apply` reads the change set from a file or from
-stdin:
+To edit one branch of a plural or select, give the operation the branch's
+`path` from `structures`, such as `[0, {"plural": "one"}]`: `set_content`
+replaces the branch's text, and `replace_text` edits inside it (an edit's own
+`path` overrides the operation's). The branch is never part of `at`:
+
+```json
+{"ops": [
+  {"op": "set_content", "at": {"doc": "lib/intl_en.arb", "block": "cartCount"}, "if_match": "r:77c0a1d2e3f40516",
+   "path": [0, {"plural": "one"}], "text": "<x id=\"p1/\"/> item in your cart"},
+  {"op": "replace_text", "at": {"doc": "lib/intl_en.arb", "block": "cartCount"}, "if_match": "r:77c0a1d2e3f40516",
+   "path": [0, {"plural": "other"}], "edits": [{"find": "items", "text": "articles"}]}
+]}
+```
+
+`set_attribute` changes one attribute of an inline code, such as a link's
+`href`: the code's id in `code` (`1`, as its `<x id="1"/>` token shows), the
+attribute in `name` and its new value in `value`. `mark` wraps the text
+`range` names, as a `replace_text` edit names it, in a new code of a `type`
+the format writes, such as `fmt:bold`. A code lists the attributes
+`set_attribute` can change under `writable`, and a block's `ops` list both
+where they apply:
+
+```json
+{"ops": [
+  {"op": "set_attribute", "at": {"doc": "docs/guide.html", "block": "p"}, "if_match": "r:3f9a1c0e7b2d4a55",
+   "code": "1", "name": "href", "value": "https://example.com/handbook"},
+  {"op": "mark", "at": {"doc": "docs/guide.html", "block": "p"}, "if_match": "r:3f9a1c0e7b2d4a55",
+   "range": {"find": "before you"}, "type": "fmt:bold"}
+]}
+```
+
+A change set can also be JSONL (the envelope fields on the first line, one
+operation per line) or a JSON array of operations. `kapi-files apply --schema`
+prints the whole contract, and `kapi-files apply --schema set_attribute` one
+operation's fields.
+
+Then apply it. `kapi-files apply` reads the change set from stdin, so pipe it
+in; you write it from the blocks you read, and there is no command that writes
+it for you:
 
 ```bash
-kapi-files inspect report.docx --jsonl > blocks.jsonl
-# You write the change set from the blocks you rewrite; there is no command
-# for it, you are the writer. Then:
-kapi-files apply edits.json --dry-run          # check it and print a diff per document, write nothing
-kapi-files apply edits.json                    # apply it
-kapi-files apply edits.json --in-place=.bak    # apply, keeping a .bak of each file it replaces
-kapi-files apply edits.json --json             # print the result (kapi.change-result/v1)
+printf '%s' '<change set>' | kapi-files apply - --dry-run   # check it and print a diff per document, write nothing
+printf '%s' '<change set>' | kapi-files apply -             # apply it
+printf '%s' '<change set>' | kapi-files apply - --json      # print the result (kapi.change-result/v1)
+```
+
+For a change set in a file, write the file under `$TMPDIR`, never in the
+repository you are editing:
+
+```bash
+kapi-files apply "$TMPDIR/edits.json" --dry-run          # check it, write nothing
+kapi-files apply "$TMPDIR/edits.json" --in-place=.bak    # apply, keeping a .bak of each file it replaces
 ```
 
 kapi-files never sends content to a model to rewrite it; you write the new text
@@ -111,14 +154,16 @@ and `kapi-files apply` round-trips it back.
 refused, nothing in the change set is written, the refused operation carries an
 `error` with a `code`, and every other operation reports `not_applied`:
 
-- **`stale`**: the block's revision is no longer the `if_match` you sent; the
-  file changed since you read it. The result carries the block's `current`
-  revision and text, so rebase your edit on it and resend.
+- **`stale`**: the block changed after you read it, so the `if_match` you sent
+  no longer holds. The result's `current` is the re-read: resend against its
+  `rev`. The difference is another editor's change; keep it, and tell the
+  user.
 - **`guard`**: your edited `text` drops, invents, duplicates or unbalances an
   `<x id="…"/>` token (`codes_changed`), or replaces a block holding a plural or
   select with flat text (`structure_lost`). Edit a branch with `path` instead.
 - **`not_found`**: the `ref` names no document or block, or a `find` matches
-  nothing. Re-read the file.
+  nothing; the refusal quotes the text it searched, and a `find` that lies in
+  a plural's branch names the branch's `path`. Re-read the file.
 - **`ambiguous`**: a `find` matches more than once. Add `occurrence`.
 - **`unsupported`**: the block or format takes no such operation, such as a
   Markdown code block, which `inspect` lists with no `ops`. A block of a file
@@ -128,8 +173,9 @@ refused, nothing in the change set is written, the refused operation carries an
   with capability `encoding`. Send the block's whole text with `set_content`,
   every character stated, or ask the user to convert the file to UTF-8.
 
-A refusal exits **3**, distinct from an operational error: re-read the affected
-blocks and resend with fresh revisions. A change set that does not decode exits
+A refusal exits **3**, distinct from an operational error: fix the operation
+and resend, against the `current` of a `stale` one. A change set that does not
+decode exits
 **2**. Resending a change set that landed writes nothing: its revisions no
 longer hold, so it is refused `stale` with each block's current text, which
 already reads as you wrote it. An operation reports `unchanged` when its
