@@ -64,8 +64,8 @@ func TargetRow(e model.Edition) *model.Target {
 	return &model.Target{Runs: e.Runs, Status: model.TargetStatus(e.Status), Origin: e.Origin, Score: e.Score}
 }
 
-// UpsertBlockAnnotation writes one (block, key) annotation row. It is the ONLY
-// writer of the annotations table, because all three of a row's coordinates are
+// UpsertBlockAnnotation writes one (block, key) annotation row. It and
+// DeleteBlockAnnotation are the ONLY writers of the annotations table, because all three of a row's coordinates are
 // read back by the block hydrator and a writer that spells any one of them
 // differently files a row nothing joins to:
 //
@@ -98,6 +98,17 @@ func UpsertBlockAnnotation(
 		projectID, stream, blockID, key, body, now,
 	); err != nil {
 		return fmt.Errorf("upsert annotation block=%s key=%s: %w", blockID, key, err)
+	}
+	return nil
+}
+
+// DeleteBlockAnnotation removes one (block, key) annotation row, keyed as
+// UpsertBlockAnnotation writes it.
+func DeleteBlockAnnotation(ctx context.Context, ex Execer, dialect string, projectID, stream, blockID, key string) error {
+	if _, err := ex.ExecContext(ctx, `DELETE FROM annotations WHERE project_id = `+placeholder(dialect, 1)+
+		` AND stream = `+placeholder(dialect, 2)+` AND block_id = `+placeholder(dialect, 3)+` AND kind = `+placeholder(dialect, 4),
+		projectID, stream, blockID, key); err != nil {
+		return fmt.Errorf("delete annotation block=%s key=%s: %w", blockID, key, err)
 	}
 	return nil
 }

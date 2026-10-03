@@ -171,3 +171,72 @@ func TestProducer_KeepsTheAnnotationsAndPropertiesAToolWrote(t *testing.T) {
 	assert.Empty(t, moved.AltTranslations(), "what the tool found on content that moved stays off the row")
 	assert.Empty(t, moved.Properties["terminology"])
 }
+
+// A pass that no longer stands by what an earlier pass found on a block (a
+// candidate it withdraws) removes it from the row. A block a person changed
+// since the read keeps what it holds, and a block the pass left alone keeps
+// its annotation.
+func TestProducer_RemovesTheAnnotationsAToolRemoved(t *testing.T) {
+	f := newFixture(t)
+	ctx := t.Context()
+	candidate := func(key string) *model.AltTranslations {
+		return &model.AltTranslations{Items: []*model.AltTranslation{
+			{Locale: "de", Target: []model.Run{model.TextR("Kandidat " + key)}, Score: 0.8}}}
+	}
+	rowsOf := func(items ...string) map[string]*model.Block {
+		out := map[string]*model.Block{}
+		for _, item := range items {
+			got, err := f.store.ItemBlocks(ctx, f.project.ID, "main", item, nil)
+			require.NoError(t, err)
+			for _, sb := range got {
+				out[sb.SourceID] = sb.Block
+			}
+		}
+		return out
+	}
+
+	first, err := f.store.ItemBlocks(ctx, f.project.ID, "main", "a.json", nil)
+	require.NoError(t, err)
+	more, err := f.store.ItemBlocks(ctx, f.project.ID, "main", "b.json", nil)
+	require.NoError(t, err)
+	first = append(first, more...)
+	p := changes.NewProducer(f.store, f.project, "main", nil, nil)
+	p.Read(first)
+	found := make([]*model.Block, 0, len(first))
+	for _, sb := range first {
+		sb.Block.SetAnno(model.AnnoAltTranslation, candidate(sb.SourceID))
+		found = append(found, sb.Block)
+	}
+	landed, err := p.Commit(ctx, "memory", found)
+	require.NoError(t, err)
+	require.Len(t, landed, 3)
+
+	second, err := f.store.ItemBlocks(ctx, f.project.ID, "main", "a.json", nil)
+	require.NoError(t, err)
+	for _, sb := range second {
+		require.Len(t, sb.Block.AltTranslations(), 1, "%s holds the first pass's candidate", sb.SourceID)
+	}
+	p = changes.NewProducer(f.store, f.project, "main", nil, nil)
+	p.Read(second)
+
+	two := read(t, f.svc, "a.json", "two")
+	res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{setText(two.Ref, two.Rev, "Second, rewritten")}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+
+	withdrawn := make([]*model.Block, 0, len(second))
+	for _, sb := range second {
+		sb.Block.DelAnno(model.AnnoAltTranslation)
+		withdrawn = append(withdrawn, sb.Block)
+	}
+	landed, err = p.Commit(ctx, "memory", withdrawn)
+	require.NoError(t, err)
+	assert.Len(t, landed, 1, "only the block whose content the pass read takes the removal")
+
+	after := rowsOf("a.json", "b.json")
+	_, held := after["one"].Anno(model.AnnoAltTranslation)
+	assert.False(t, held, "the candidate the pass withdrew leaves the row")
+	require.Len(t, after["two"].AltTranslations(), 1, "a block whose content moved since the read keeps what it holds")
+	assert.Equal(t, "Kandidat two", model.RunsText(after["two"].AltTranslations()[0].Target))
+	require.Len(t, after["three"].AltTranslations(), 1, "a block the pass did not run over keeps its annotation")
+}
