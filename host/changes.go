@@ -1,6 +1,7 @@
 package host
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -727,10 +729,22 @@ func (l *projectChangeLayout) Locate(ctx context.Context, doc string) (filehome.
 		SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target)}, nil
 }
 
-// heldLocale is the target language a bilingual file at rel holds: the
-// project's only one, or the one a directory or the name of the file names
-// (locales/nb/messages.po, po/nb.po). Empty when neither says.
-func heldLocale(rel string, langs []model.LocaleID) model.LocaleID {
+// heldLocale is the target language a bilingual file at rel holds: the one
+// the file declares (declaredLanguage), else the project's only target
+// language, else the one a directory or the name of the file names
+// (locales/nb/messages.po, po/nb.po). A declared language that is a target
+// language in another spelling (nb_NO for nb-NO) is that target. Empty when
+// none says.
+func heldLocale(rel string, declared model.LocaleID, langs []model.LocaleID) model.LocaleID {
+	if declared != "" {
+		norm := model.NormalizeLocale(declared)
+		for _, loc := range langs {
+			if model.NormalizeLocale(loc) == norm {
+				return model.NormalizeLocale(loc)
+			}
+		}
+		return norm
+	}
 	if len(langs) == 1 {
 		return model.NormalizeLocale(langs[0])
 	}
@@ -752,6 +766,89 @@ func heldLocale(rel string, langs []model.LocaleID) model.LocaleID {
 		}
 	}
 	return held
+}
+
+// maxHeaderScan bounds how much of a catalog declaredLanguage reads.
+const maxHeaderScan = 64 << 10
+
+// declaredLanguage is the language of the translation a bilingual file of
+// format name at path declares, for a format whose reader is told the
+// language rather than reading it: a PO catalog's Language header. Empty when
+// the file declares none or declares the source language, and for any other
+// format, whose reader reads what the file declares (an XLIFF trgLang).
+func declaredLanguage(name, path string, source model.LocaleID) model.LocaleID {
+	if path == "" || preset.ParseFormatRef(name).RegistryName() != "po" {
+		return ""
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	value := poHeaderField(io.LimitReader(f, maxHeaderScan), "Language")
+	if value == "" {
+		return ""
+	}
+	id, err := locale.Canonical(value)
+	if err != nil || (source != "" && model.NormalizeLocale(id) == model.NormalizeLocale(source)) {
+		return ""
+	}
+	return id
+}
+
+// poHeaderField is the value of a field of a PO catalog's header, the entry
+// with an empty msgid that opens it. Empty when the catalog has no header or
+// the header no such field.
+func poHeaderField(r io.Reader, field string) string {
+	const (
+		before = iota // before the header's msgid
+		msgid         // in its msgid
+		msgstr        // in its msgstr
+	)
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 0, 4096), maxHeaderScan)
+	var header strings.Builder
+	state := before
+scan:
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		switch {
+		case state == before && (line == "" || strings.HasPrefix(line, "#")):
+		case state == before && line == `msgid ""`:
+			state = msgid
+		case state == before:
+			return ""
+		case strings.HasPrefix(line, `"`):
+			v, err := strconv.Unquote(line)
+			if err != nil || (state == msgid && v != "") {
+				// A msgid continued on the lines after an empty first line
+				// opens an entry, not a header.
+				return ""
+			}
+			header.WriteString(v)
+		case state == msgid && strings.HasPrefix(line, "msgstr "):
+			v, err := strconv.Unquote(strings.TrimSpace(strings.TrimPrefix(line, "msgstr ")))
+			if err != nil {
+				return ""
+			}
+			header.WriteString(v)
+			state = msgstr
+		case state == msgstr:
+			break scan
+		default:
+			return ""
+		}
+	}
+	if state != msgstr {
+		return ""
+	}
+	for l := range strings.SplitSeq(header.String(), "\n") {
+		name, value, ok := strings.Cut(l, ":")
+		if ok && strings.EqualFold(strings.TrimSpace(name), field) {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 // formatConfig is the configuration a reader and writer of format name take
@@ -810,10 +907,11 @@ func (l *projectChangeLayout) sourceDoc(ctx context.Context, ref string, rf proj
 		// reads it the same way, whatever target language it was told.
 		d.Editions, d.TargetLocale = change.EditionsPerFile, ""
 	case d.Editions == change.EditionsInFile && d.TargetLocale == "" && rf.Item != nil:
-		// A bilingual file that keeps its translation in it holds one of
-		// the project's target languages, which a read lists without being
-		// told it.
-		d.TargetLocale = heldLocale(rf.Relative, rf.Item.ResolvedTargetLanguages(nil, l.proj.Defaults))
+		// A bilingual file that keeps its translation in it holds the
+		// language it declares or one of the project's target languages,
+		// which a read lists without being told it.
+		d.TargetLocale = heldLocale(rf.Relative, declaredLanguage(name, rf.Path, l.source),
+			rf.Item.ResolvedTargetLanguages(nil, l.proj.Defaults))
 	}
 	d.EditionFile = func(k model.EditionKey) (filehome.EditionFile, bool) {
 		if k.Tone != "" || k.Channel != "" {

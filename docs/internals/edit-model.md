@@ -517,12 +517,14 @@ references so callers copy them instead of constructing them:
 ```
 
 A read in a project, or given `--source-lang`, names the document's own edition in `ref.edition`,
-which `insert_block`'s `editions` map takes; the service treats it as the empty edition. Every
-edition a read lists carries its `status`, `new` for text filled from the source and
-`untranslated` for none. A bilingual file that keeps its translation in it (a PO catalog) lists
-the edition it holds, in the language the recipe's targets and the file's name or directory give,
-and offers `remove_edition` only where an edition is present. Reads are paged with a cursor, so a
-large document is never read whole into one response.
+which `insert_block`'s `editions` map takes; the service treats it as the empty edition. Outside a
+project a read names it too where the document's path names its language (section 3.2). Every
+edition a read lists carries its `status`. An edition with no recorded status is `untranslated`
+when its text is the source's, as a file the source filled holds it, and `new` otherwise. A
+bilingual file that keeps its translation in it (a PO catalog) lists the edition it holds, in the
+language its header declares (a PO catalog's `Language`), else the one the recipe's targets and
+the file's name or directory give, and offers `remove_edition` only where an edition is present.
+Reads are paged with a cursor, so a large document is never read whole into one response.
 
 ### 3.2 Editions that live in other files
 
