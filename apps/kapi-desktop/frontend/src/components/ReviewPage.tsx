@@ -184,6 +184,25 @@ function orderItems(items: ReviewItem[]): ReviewItem[] {
 }
 
 /**
+ * Whether a unit's text is still what its queue row lists. A row shows the
+ * text with its whitespace collapsed and, past a length, cut short with an
+ * ellipsis, so a long text is still listed when it begins with what the row
+ * shows.
+ */
+function stillListed(text: string, listed: string | undefined): boolean {
+  if (listed === undefined) return false;
+  const collapse = (s: string) => s.split(/\s+/).filter(Boolean).join(" ");
+  const now = collapse(text);
+  const row = collapse(listed);
+  if (now === row) return true;
+  if (!row.endsWith("…")) return false;
+  // The row is cut by bytes, which can split a character; what is left of it
+  // reads as a replacement character.
+  const head = row.slice(0, -1).replace(/\uFFFD+$/, "");
+  return head.length > 0 && now.startsWith(head);
+}
+
+/**
  * The review surface: one queue, one language selector.
  *
  * A project has work in several languages, the source language among them, and
@@ -750,17 +769,41 @@ export function ReviewPage({
   // Phase 2 batch: approve every clean unit in the current filter.
   const cleanVisible = useMemo(() => visible.filter((it) => it.hasFindings === false), [visible]);
   // Each unit is read as it is approved, so every approval binds to the text in
-  // the file at that moment; a unit whose approval is refused stops the batch
-  // and says why.
+  // the file at that moment, and its checks run again over that text. A unit
+  // whose text is no longer what its row lists, or that now trips a check,
+  // stops the batch with its row brought up to date, so nothing is approved
+  // that the reviewer has not seen; a unit whose approval is refused stops the
+  // batch too, and each says why.
   const approveClean = useCallback(async () => {
     const targets = cleanVisible;
     if (targets.length === 0) return;
+    const load =
+      loadUnit ?? ((it: ReviewItem) => api.getReviewUnit(tabID, it.locale, it.file, it.key));
     setBatch({ done: 0, total: targets.length });
     try {
       for (let i = 0; i < targets.length; i++) {
         const item = targets[i];
         const r = await loadRead(item);
         if (!r) break;
+        const d = await load(item);
+        if (!d) break;
+        const trips = d.findings.length > 0;
+        if (trips || !stillListed(d.target, item.target)) {
+          setQueue((q) =>
+            (q ?? []).map((it) =>
+              itemId(it) === itemId(item) ? { ...it, target: d.target, hasFindings: trips } : it,
+            ),
+          );
+          showError(
+            t("Batch approval stopped at {key}", { key: item.key }),
+            new Error(
+              trips
+                ? t("The unit now trips a check. Review it before approving it.")
+                : t("The unit changed since the queue listed it. Review the text as it stands."),
+            ),
+          );
+          break;
+        }
         const res = await client.apply({ ops: [decideOp(r.ref, r.rev, "establish")] });
         if (!res) break;
         if (res.status !== "applied") {
@@ -778,7 +821,7 @@ export function ReviewPage({
     } finally {
       setBatch(null);
     }
-  }, [cleanVisible, loadRead, client, showError]);
+  }, [cleanVisible, loadRead, loadUnit, tabID, client, showError]);
 
   // Group the visible queue by file, then flatten to a single row stream
   // (a file header, then its units) so the left pane can be virtualized: a

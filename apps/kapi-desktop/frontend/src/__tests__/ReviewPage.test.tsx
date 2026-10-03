@@ -313,6 +313,47 @@ describe("ReviewPage", () => {
     );
   });
 
+  // A clean unit is approved in the batch only while its text is what its row
+  // lists and its checks still pass: a translation rewritten since the queue
+  // was read, or one that now trips a check, stops the batch unapproved.
+  it.each([
+    {
+      name: "a unit whose text changed since the queue listed it",
+      now: (item: ReviewItem): ReviewUnitDetail => ({ ...unitFor(item), target: "Bonjour, monde" }),
+    },
+    {
+      name: "a unit that now trips a check",
+      now: (item: ReviewItem): ReviewUnitDetail => ({
+        ...unitFor(item),
+        findings: [{ category: "terms", fails: true, message: "Forbidden term found" }],
+      }),
+    },
+  ])("stops the batch at $name", async ({ now }) => {
+    const loadUnit = vi.fn(async (item: ReviewItem) =>
+      item.key === "greeting" && item.locale === "fr-FR" ? now(item) : unitFor(item),
+    );
+    const { changes } = renderPage({ loadUnit });
+    const batchBtn = await screen.findByRole("button", { name: /Approve 2 clean units/ });
+    await userEvent.click(batchBtn);
+    await screen.findByText(/Batch approval stopped at greeting/);
+    // farewell, listed first, is approved; greeting is not.
+    expect(decisionsSent(changes).map((d) => d.at.block)).toEqual(["farewell"]);
+    await waitFor(() =>
+      expect(document.querySelectorAll("[data-slot='review-queue-item']")).toHaveLength(2),
+    );
+  });
+
+  // The queue lists a long text cut short; the unit is still the one listed.
+  it("approves a clean unit whose row shows its long text cut short", async () => {
+    const long =
+      "Au revoir, et merci d'avoir utilisé notre service pendant toutes ces années passées ensemble";
+    const items: ReviewItem[] = [{ ...ITEMS[2], target: `${long.slice(0, 71)}…` }];
+    const loadUnit = vi.fn(async (item: ReviewItem) => ({ ...unitFor(item), target: long }));
+    const { changes } = renderPage({ items, loadUnit }, queueChanges(items));
+    await userEvent.click(await screen.findByRole("button", { name: /Approve 1 clean unit/ }));
+    await waitFor(() => expect(decisionsSent(changes)).toHaveLength(1));
+  });
+
   it("saves an edited target with the revision it read, and re-checks the unit", async () => {
     const { changes, loadUnit } = renderPage();
     const editor = await targetEditor();
