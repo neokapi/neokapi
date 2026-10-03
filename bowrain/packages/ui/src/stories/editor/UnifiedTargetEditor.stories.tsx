@@ -227,7 +227,7 @@ export const PluralTranslationReadBack: Story = {
 };
 
 export const UntranslatedPluralMessage: Story = {
-  name: "Untranslated plural message — opens on the source's forms",
+  name: "Untranslated plural message — opens in plural mode on the source pivot",
   render: () => <Wrapper block={makePluralMessageBlock(false)} />,
 };
 

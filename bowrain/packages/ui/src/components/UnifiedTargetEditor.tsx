@@ -413,20 +413,17 @@ function seedInitialState(block: BlockInfo, locale: string, sourceSpans: SpanInf
       };
     }
   }
-  // A message that is one plural, not yet translated, opens on the source's
-  // forms, empty, with the source's pivot.
+  // A message that is one plural, not yet translated, opens in plural mode on
+  // the source's pivot. The forms are the target language's, which need not
+  // be the source's, so only `other` opens; the person fills the rest.
   const sourcePlural = soloPlural(block.source_runs as Run[] | undefined);
   if (sourcePlural && !rawTarget) {
-    const forms: Partial<Record<PluralForm, FormState>> = {};
-    for (const form of FORMS) {
-      if (sourcePlural.plural.forms[form]) forms[form] = blankFormState();
-    }
     return {
       mode: "plural",
       activeForm: "other",
       pivot: sourcePlural.plural.pivot,
       flat: blankFormState(),
-      forms,
+      forms: { other: blankFormState() },
     };
   }
 
