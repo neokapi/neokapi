@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -119,6 +120,9 @@ func waitForFile(path string) {
 func TestFileHome_TwoProcessesEditingDifferentBlocksLoseNoEdit(t *testing.T) {
 	if testing.Short() {
 		t.Skip("starts 100 processes")
+	}
+	if runtime.GOOS == "js" {
+		t.Skip("js/wasm cannot start a process; the writers of one process are TestFileHome_TwoWritersOfOneBlockConflict")
 	}
 	exe, err := os.Executable()
 	require.NoError(t, err)
