@@ -903,7 +903,9 @@ func TestService_ReadsListEveryStructureWithItsPath(t *testing.T) {
 
 type editionStates func(b *model.Block, k model.EditionKey) (change.EditionState, bool)
 
-func (f editionStates) Document(context.Context, change.DocInfo) change.DocumentStates { return f }
+func (f editionStates) Document(context.Context, change.DocInfo, int) change.DocumentStates {
+	return f
+}
 
 func (f editionStates) EditionState(b *model.Block, k model.EditionKey) (change.EditionState, bool) {
 	return f(b, k)
@@ -912,7 +914,8 @@ func (f editionStates) EditionState(b *model.Block, k model.EditionKey) (change.
 // TestService_ReadAsksForEditionStatesOncePerDocument pins that a read asks
 // the host where a document's editions stand once for the document, a page
 // read and a streamed read alike, so a host answers from one read of its
-// records rather than one per block.
+// records rather than one per block, and says how many blocks it shows at
+// most, so the host can tell a read of a few blocks from a read of them all.
 func TestService_ReadAsksForEditionStatesOncePerDocument(t *testing.T) {
 	h := newMemHome(map[string][]memBlock{"a": {
 		textBlock("one", "First", "nb", "Første"),
@@ -935,12 +938,25 @@ func TestService_ReadAsksForEditionStatesOncePerDocument(t *testing.T) {
 	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: "a"}, func(*model.Block, change.BlockRead) error { return nil })
 	require.NoError(t, err)
 	assert.Equal(t, 2, states.documents, "a streamed read asks once too")
+
+	_, err = svc.Read(ctx, change.ReadRequest{Doc: "a", Limit: 2})
+	require.NoError(t, err)
+	_, err = svc.Read(ctx, change.ReadRequest{Doc: "a", Blocks: []string{"two"}})
+	require.NoError(t, err)
+	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: "a", Blocks: []string{"one", "three"}}, func(*model.Block, change.BlockRead) error { return nil })
+	require.NoError(t, err)
+	assert.Equal(t, []int{change.DefaultReadLimit, 0, 2, 1, 2}, states.shows,
+		"a page shows at most its limit, a streamed read every block, and a read naming blocks those blocks")
 }
 
-type countingStates struct{ documents, editions int }
+type countingStates struct {
+	documents, editions int
+	shows               []int
+}
 
-func (c *countingStates) Document(context.Context, change.DocInfo) change.DocumentStates {
+func (c *countingStates) Document(_ context.Context, _ change.DocInfo, shows int) change.DocumentStates {
 	c.documents++
+	c.shows = append(c.shows, shows)
 	return editionStates(func(*model.Block, model.EditionKey) (change.EditionState, bool) {
 		c.editions++
 		return change.EditionState{Basis: "r:basis"}, true

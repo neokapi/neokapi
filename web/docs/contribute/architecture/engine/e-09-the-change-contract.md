@@ -391,7 +391,7 @@ The service calls six hooks a host supplies. Each is optional.
 | `CommitCheck` | over the changed editions, before anything is written; it returns findings before and after, and the governance fingerprint it used | nothing is checked |
 | `Assets` | to prepare `decide`, `term`, `memory` and `recipe` before anything is written, and to apply them after the content landed | those operations are refused as `unsupported` |
 | `Recorder` | after the homes committed, with the transitions and the fingerprint | nothing is recorded |
-| `EditionStates` | once by each read of a document, for the status and basis of its derived editions | a read shows the status the document holds and no basis |
+| `EditionStates` | once by each read of a document, with the most blocks the read shows, for the status and basis of its derived editions | a read shows the status the document holds and no basis |
 | `EditionHistories` | by `History`, for the recorded changes to an edition | a history lists nothing |
 
 The service refuses a change only for a failing finding it introduces

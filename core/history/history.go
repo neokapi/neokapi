@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -275,17 +276,36 @@ func (s *Store) Empty(ctx context.Context) (bool, error) {
 }
 
 // Latest returns the most recent recorded change to each edition of each
-// block in one document: one row per edition, however long its history. It
-// walks the primary key, one seek per edition.
-func (s *Store) Latest(ctx context.Context, doc string) ([]Row, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+columns+from+`
-WHERE h.doc = ? AND h.op = (SELECT MAX(l.op) FROM block_history l
-    WHERE l.doc = h.doc AND l.block = h.block AND l.edition = h.edition)
-ORDER BY h.block, h.edition`, doc)
+// block in one document: one row per edition, however long its history. Named
+// editions limit it to those editions. It finds each edition's most recent
+// operation in one pass over the document's entries in the primary key, then
+// reads that one row of each.
+func (s *Store) Latest(ctx context.Context, doc string, editions ...string) ([]Row, error) {
+	args := []any{doc}
+	for _, e := range editions {
+		args = append(args, e)
+	}
+	rows, err := s.db.QueryContext(ctx, latestQuery(len(editions)), args...)
 	if err != nil {
 		return nil, fmt.Errorf("history: read the latest of %s: %w", doc, err)
 	}
 	return scan(rows)
+}
+
+// latestQuery is what Latest runs for a document (?1) and the editions named
+// after it, or every edition when editions is zero. The heads come first, so
+// each is one seek of the primary key rather than a scan of the document's
+// history joined to them (CROSS JOIN fixes the order).
+func latestQuery(editions int) string {
+	only := ""
+	if editions > 0 {
+		only = ` AND edition IN (?` + strings.Repeat(`, ?`, editions-1) + `)`
+	}
+	return `SELECT ` + columns + `
+  FROM (SELECT block, edition, MAX(op) AS op FROM block_history
+         WHERE doc = ?1` + only + ` GROUP BY block, edition) l
+ CROSS JOIN block_history h ON h.doc = ?1 AND h.block = l.block AND h.edition = l.edition AND h.op = l.op
+  LEFT JOIN block_history_op o ON o.op = h.op`
 }
 
 // Document returns every recorded change in one document, most recent first.

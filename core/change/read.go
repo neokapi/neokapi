@@ -179,7 +179,14 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 
 	var states DocumentStates
 	if s.states != nil {
-		states = s.states.Document(ctx, info)
+		shows := 0
+		if each == nil {
+			shows = limit
+		}
+		if len(blocks) > 0 && (shows == 0 || len(blocks) < shows) {
+			shows = len(blocks)
+		}
+		states = s.states.Document(ctx, info, shows)
 	}
 	page := &Page{Doc: info.Doc, Home: h.Name(), Format: info.Format, Blocks: []BlockRead{}}
 	index := 0

@@ -415,9 +415,11 @@ the change (person, agent or tool, with a name and a session) and through which
 surface (`apply`, `desktop`, `flow:<name>`, `merge`, `pull`, `observed`).
 `history.Store.LastWrite` answers who last wrote an edition, among the writes
 recorded this way; `Latest` reads that last write for every edition of a
-document, in the one query a read of the change service makes for the bases it
-shows, and `Edition` and `Document` read the changes back, most recent
-first. The file stays the only copy of its text and the log keeps facts about
+document, or for the editions it names, in one pass over the document's
+history, and `Edition` and `Document` read the changes back, most recent
+first. A read of the change service that shows at most a page of blocks asks
+`LastWrite` for each edition it shows, so its cost follows what it shows; a
+longer read asks `Latest` once for the editions its blocks hold. The file stays the only copy of its text and the log keeps facts about
 it, keyed by revisions that hold on every branch where the content matches, so
 a branch switch moves no record.
 

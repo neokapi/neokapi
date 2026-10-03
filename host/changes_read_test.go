@@ -58,6 +58,14 @@ func TestChangeRead_ABasisRecordedAfterTheServiceFirstReadIsRead(t *testing.T) {
 // recipe and a service over the project.
 func translatedGuide(tb testing.TB, n int) (*App, *change.Service) {
 	tb.Helper()
+	return translatedGuideIn(tb, n, []model.LocaleID{"fr"}, 1)
+}
+
+// translatedGuideIn is translatedGuide into every language of langs, each
+// translation rewritten writes times, one change set per language and
+// rewrite, so the block history holds writes changes to every translation.
+func translatedGuideIn(tb testing.TB, n int, langs []model.LocaleID, writes int) (*App, *change.Service) {
+	tb.Helper()
 	root := tb.TempDir()
 	var doc strings.Builder
 	doc.WriteString("# Guide\n\n")
@@ -70,7 +78,7 @@ func translatedGuide(tb testing.TB, n int) (*App, *change.Service) {
 	require.NoError(tb, project.Save(recipe, &project.KapiProject{
 		Version:  project.CurrentVersion,
 		Name:     "bench",
-		Defaults: project.Defaults{SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}},
+		Defaults: project.Defaults{SourceLanguage: "en", TargetLanguages: langs},
 		Collections: []project.Collection{{Name: "docs", Content: []project.ContentItem{
 			{Path: "docs/*.md", Target: "i18n/{lang}/{path}.md"},
 		}}},
@@ -82,19 +90,26 @@ func translatedGuide(tb testing.TB, n int) (*App, *change.Service) {
 	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: "test"})
 	require.NoError(tb, err)
 
-	page, err := svc.Read(ctx, change.ReadRequest{Doc: "docs/guide.md", Limit: change.MaxReadLimit})
-	require.NoError(tb, err)
-	fr, err := model.ParseEditionKey("fr")
-	require.NoError(tb, err)
-	var set change.Set
-	for _, b := range page.Blocks {
-		at := b.Ref
-		at.Edition = fr
-		set.Ops = append(set.Ops, setTo(at, model.AbsentRevision, "FR "+b.Text))
+	for _, lang := range langs {
+		k := model.EditionKey{Locale: lang}.Canonical()
+		for w := range writes {
+			page, err := svc.Read(ctx, change.ReadRequest{Doc: "docs/guide.md", Editions: []model.EditionKey{k}, Limit: change.MaxReadLimit})
+			require.NoError(tb, err)
+			var set change.Set
+			for _, b := range page.Blocks {
+				at := b.Ref
+				at.Edition = k
+				rev := model.AbsentRevision
+				if ed, ok := b.Editions[string(lang)]; ok {
+					rev = ed.Rev
+				}
+				set.Ops = append(set.Ops, setTo(at, rev, fmt.Sprintf("%s%d %s", strings.ToUpper(string(lang)), w, b.Text)))
+			}
+			res, err := svc.Apply(ctx, set, changePerson)
+			require.NoError(tb, err)
+			require.Equal(tb, change.SetApplied, res.Status)
+		}
 	}
-	res, err := svc.Apply(ctx, set, changePerson)
-	require.NoError(tb, err)
-	require.Equal(tb, change.SetApplied, res.Status)
 	return a, svc
 }
 
@@ -115,6 +130,55 @@ func BenchmarkChangeRead_TranslatedDocument(b *testing.B) {
 			b.Fatal("the read names no basis")
 		}
 	}
+}
+
+// BenchmarkChangeRead_MultilingualHistory measures reads of one language of a
+// document translated into five, each translation rewritten three times: a
+// read naming one block, a page of 100 blocks, and the whole document. The
+// block history holds every language's changes, and only the language read
+// is shown.
+func BenchmarkChangeRead_MultilingualHistory(b *testing.B) {
+	_, svc := translatedGuideIn(b, 400, []model.LocaleID{"fr", "de", "ja", "nb", "es"}, 3)
+	ctx := context.Background()
+	fr, err := model.ParseEditionKey("fr")
+	require.NoError(b, err)
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "docs/guide.md", Editions: []model.EditionKey{fr}, Limit: 1})
+	require.NoError(b, err)
+	one := page.Blocks[0].Ref.Block
+	based := func(r change.BlockRead) {
+		if r.Editions["fr"].Basis == "" {
+			b.Fatalf("no basis for %s", r.Ref.Block)
+		}
+	}
+	b.Run("one-block", func(b *testing.B) {
+		for b.Loop() {
+			page, err := svc.Read(ctx, change.ReadRequest{Doc: "docs/guide.md", Editions: []model.EditionKey{fr}, Blocks: []string{one}, Limit: 1})
+			if err != nil || len(page.Blocks) != 1 {
+				b.Fatal(err)
+			}
+			based(page.Blocks[0])
+		}
+	})
+	b.Run("page-of-100", func(b *testing.B) {
+		for b.Loop() {
+			page, err := svc.Read(ctx, change.ReadRequest{Doc: "docs/guide.md", Editions: []model.EditionKey{fr}, Limit: 100})
+			if err != nil || len(page.Blocks) != 100 {
+				b.Fatal(err)
+			}
+			based(page.Blocks[99])
+		}
+	})
+	b.Run("whole-document", func(b *testing.B) {
+		for b.Loop() {
+			_, err := svc.ReadEach(ctx, change.ReadRequest{Doc: "docs/guide.md", Editions: []model.EditionKey{fr}}, func(_ *model.Block, r change.BlockRead) error {
+				based(r)
+				return nil
+			})
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }
 
 // BenchmarkInterchangeRevisions measures the read kapi extract makes of every

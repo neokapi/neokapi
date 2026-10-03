@@ -44,14 +44,15 @@ type DecisionTarget struct {
 
 // EditionStates says where a document's derived editions stand: the status
 // of each and the basis it was made from. A host answers from its decision
-// ledger and its records. A read asks once per document it reads, so a host
-// reads its records for the whole document at once rather than once per
-// block. Without one a read reports the status the document holds and no
-// basis.
+// ledger and its records. A read asks once per document it reads and says
+// how many blocks it shows, so a host can look up each block of a short read
+// and read its records for the whole document once for a long one. Without
+// one a read reports the status the document holds and no basis.
 type EditionStates interface {
 	// Document returns where the derived editions of doc stand, for one read
-	// of it.
-	Document(ctx context.Context, doc DocInfo) DocumentStates
+	// of it. shows is at most how many blocks the read shows: a page's limit,
+	// or the number of blocks it names, and zero for a read of every block.
+	Document(ctx context.Context, doc DocInfo, shows int) DocumentStates
 }
 
 // DocumentStates says where the derived editions of one document's blocks

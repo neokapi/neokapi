@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"path/filepath"
+	"slices"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/change"
@@ -184,31 +185,47 @@ func (h *blockHistory) docKey(doc change.DocInfo) string {
 }
 
 // Document returns where the derived editions of doc stand, from the most
-// recent recorded change to each edition of the document, read in one query
-// when the read first asks about one. A project with no store, or a history
+// recent recorded change to each, for one read of it that shows at most
+// shows blocks (zero for every block). A project with no store, or a history
 // that cannot be read, vouches for no basis.
-func (h *blockHistory) Document(ctx context.Context, doc change.DocInfo) change.DocumentStates {
-	return &documentStates{last: sync.OnceValue(func() map[history.EditionRef]history.Row {
-		hist := h.open(ctx)
-		if hist == nil {
-			return nil
-		}
-		rows, err := hist.Latest(ctx, h.docKey(doc))
-		if err != nil {
-			return nil
-		}
-		last := make(map[history.EditionRef]history.Row, len(rows))
-		for _, r := range rows {
-			last[history.EditionRef{Block: r.Block, Edition: r.Edition}] = r
-		}
-		return last
-	})}
+func (h *blockHistory) Document(ctx context.Context, doc change.DocInfo, shows int) change.DocumentStates {
+	return &documentStates{ctx: ctx, h: h, doc: doc, byBlock: isShortRead(shows)}
 }
 
-// documentStates answers for the editions of one document from the most
-// recent recorded change to each.
+// isShortRead reports whether a read that shows at most shows blocks (zero
+// for every block) looks up each block's editions one at a time.
+func isShortRead(shows int) bool { return shows > 0 && shows <= shortRead }
+
+// shortRead is the most blocks a read may show and still look up each
+// block's editions one at a time. A seek of the history costs about the same
+// whatever the document's history holds, so a short read (a review pane, an
+// agent naming a block, a page) costs what it shows. A longer read reads the
+// most recent change to every block of the editions it shows in one pass over
+// the document's history, which costs what the document's history holds.
+const shortRead = change.DefaultReadLimit
+
+// editionHeads reads the most recent recorded change to an edition, of one
+// block or of every block of a document (history.Store).
+type editionHeads interface {
+	LastWrite(ctx context.Context, doc, block, edition string) (history.Row, bool, error)
+	Latest(ctx context.Context, doc string, editions ...string) ([]history.Row, error)
+}
+
+// documentStates answers for the editions of one document during one read,
+// from the most recent recorded change to each.
 type documentStates struct {
-	last func() map[history.EditionRef]history.Row
+	ctx context.Context
+	h   *blockHistory
+	doc change.DocInfo
+
+	// byBlock says the read is short enough to look up each block.
+	byBlock bool
+
+	mu     sync.Mutex
+	hist   editionHeads
+	docKey string
+	// read holds the editions read whole: block to most recent change.
+	read map[string]map[string]history.Row
 }
 
 // EditionState returns the basis the most recent recorded change to edition k
@@ -220,11 +237,59 @@ func (d *documentStates) EditionState(b *model.Block, k model.EditionKey) (chang
 	if edition == "" {
 		return change.EditionState{}, false
 	}
-	row, found := d.last()[history.EditionRef{Block: change.BlockKey(b), Edition: edition}]
+	row, found := d.last(b, edition)
 	if !found || row.Basis == "" || row.After != model.EditionRevision(b, k) {
 		return change.EditionState{}, false
 	}
 	return change.EditionState{Basis: row.Basis}, true
+}
+
+// last returns the most recent recorded change to edition of b.
+func (d *documentStates) last(b *model.Block, edition string) (history.Row, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.hist == nil {
+		hist := d.h.open(d.ctx)
+		if hist == nil {
+			return history.Row{}, false
+		}
+		d.hist, d.docKey = hist, d.h.docKey(d.doc)
+	}
+	block := change.BlockKey(b)
+	if d.byBlock {
+		row, found, err := d.hist.LastWrite(d.ctx, d.docKey, block, edition)
+		return row, err == nil && found
+	}
+	if rows, ok := d.read[edition]; ok {
+		row, found := rows[block]
+		return row, found
+	}
+	// A read asks about every derived edition of each block it shows, so the
+	// editions b holds are read with the one asked about, in one query.
+	want := []string{edition}
+	for _, k := range b.Editions() {
+		if b.IsSourceEdition(k) {
+			continue
+		}
+		e := editionText(b.EditionKeyOf(k))
+		if _, read := d.read[e]; e != "" && !read && !slices.Contains(want, e) {
+			want = append(want, e)
+		}
+	}
+	rows, err := d.hist.Latest(d.ctx, d.docKey, want...)
+	if d.read == nil {
+		d.read = map[string]map[string]history.Row{}
+	}
+	for _, e := range want {
+		d.read[e] = map[string]history.Row{}
+	}
+	if err == nil {
+		for _, r := range rows {
+			d.read[r.Edition][r.Block] = r
+		}
+	}
+	row, found := d.read[edition][block]
+	return row, found
 }
 
 // EditionHistory returns the recorded changes to edition k of b, most recent
