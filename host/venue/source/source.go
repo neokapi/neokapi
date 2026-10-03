@@ -768,16 +768,17 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// Beside the decisions, the last recorded write of each translation the
 	// documents this push reads hold: the source it was made from and who
 	// wrote it. A run that wrote translations and changed no source block
-	// still has these to send, and sends them until the venue applied them.
-	writes, werr := c.projectEditionWrites(ctx, blockMap, localKeys)
+	// still has these to send. Each goes until the venue applied a push that
+	// carried it, and again when it changes.
+	current, werr := c.projectEditionWrites(ctx, blockMap, localKeys)
 	if werr != nil {
 		return nil, werr
 	}
-	writesHash := venue.EditionWritesHash(writes)
-	sendWrites := writesHash != "" && (opts.Force || writesHash != c.cache.WritesSynced)
-	if !sendWrites {
-		writes = nil
+	writes := current
+	if !opts.Force {
+		writes = c.unsentWrites(current)
 	}
+	sendWrites := len(writes) > 0
 
 	if opts.DryRun {
 		return &bowrainconn.PushResult{
@@ -903,13 +904,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 			c.cache.DecisionsSynced = ""
 		}
 	}
-	if sendWrites {
-		if ingest == bowrainconn.IngestApplied {
-			c.cache.WritesSynced = writesHash
-		} else {
-			c.cache.WritesSynced = ""
-		}
-	}
+	c.noteWritesSent(blockMap, current, writes, ingest == bowrainconn.IngestApplied)
 
 	// Update cache with per-file hashes.
 	for itemName, fileHashes := range hashMap {

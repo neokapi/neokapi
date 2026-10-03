@@ -277,6 +277,7 @@ func TestPush_CarriesHowEachTranslationWasWritten(t *testing.T) {
 
 	_, err = conn.Push(context.Background(), bowrainconn.PushOptions{})
 	require.NoError(t, err)
+	require.Len(t, srv.writes, 1, "the venue applied the other write, which has not changed")
 	var greeting *venue.EditionWrite
 	for i, w := range srv.writes {
 		if w.Unit == "greeting" || w.Block == "greeting" {

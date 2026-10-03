@@ -40,10 +40,11 @@ type SyncCache struct {
 	// record again only when its fold differs from this one.
 	DecisionsSynced string `json:"decisions_synced,omitempty"`
 
-	// WritesSynced is the fold of the edition writes this client last sent
-	// and saw applied (venue.EditionWritesHash). A push sends them again only
-	// when their fold differs from this one.
-	WritesSynced string `json:"writes_synced,omitempty"`
+	// WritesSent holds, per item, what each translation's edition write said
+	// when this client last saw a push that carried it applied
+	// (venue.EditionWrite.Identity, keyed by venue.EditionWrite.Edition). A
+	// push sends the writes whose identity differs, and no other.
+	WritesSent map[string]map[string]string `json:"writes_sent,omitempty"`
 
 	// SettingsSynced is the hash of the recipe-owned project settings the venue
 	// last confirmed holding (venue.ProjectSettings.Hash). A push with nothing

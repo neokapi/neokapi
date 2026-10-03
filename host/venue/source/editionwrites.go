@@ -103,3 +103,42 @@ func (c *BowrainSourceConnector) projectEditionWrites(ctx context.Context, block
 	}
 	return out, nil
 }
+
+// unsentWrites returns the writes whose identity differs from what this
+// client last saw a venue apply for the same translation.
+func (c *BowrainSourceConnector) unsentWrites(writes []venue.EditionWrite) []venue.EditionWrite {
+	var out []venue.EditionWrite
+	for _, w := range writes {
+		if c.cache.WritesSent[w.ItemName][w.Edition()] != w.Identity() {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+// noteWritesSent records what a push sent. Once the venue applied it, each
+// scanned item's record is the writes the push found for it, which forgets a
+// translation that has none any more. A push the venue did not confirm
+// forgets the writes it carried, so the next push sends them again.
+func (c *BowrainSourceConnector) noteWritesSent(blockMap map[string][]*model.Block, current, sent []venue.EditionWrite, applied bool) {
+	if !applied {
+		for _, w := range sent {
+			delete(c.cache.WritesSent[w.ItemName], w.Edition())
+		}
+		return
+	}
+	if c.cache.WritesSent == nil {
+		c.cache.WritesSent = map[string]map[string]string{}
+	}
+	for item := range blockMap {
+		delete(c.cache.WritesSent, item)
+	}
+	for _, w := range current {
+		m := c.cache.WritesSent[w.ItemName]
+		if m == nil {
+			m = map[string]string{}
+			c.cache.WritesSent[w.ItemName] = m
+		}
+		m[w.Edition()] = w.Identity()
+	}
+}

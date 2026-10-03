@@ -97,16 +97,14 @@ func (w EditionWrite) KnowsNoBasis() bool {
 	return w.Basis == "" && (w.ByHand() || w.Writer == WriterExternal)
 }
 
-// EditionWritesHash folds a push's edition writes, so a producer can tell
-// whether the record it last sent has changed. Order-independent.
-func EditionWritesHash(writes []EditionWrite) string {
-	if len(writes) == 0 {
-		return ""
-	}
-	parts := make(map[string]string, len(writes))
-	for _, w := range writes {
-		parts[w.ItemName+"\x00"+w.Unit+"\x00"+w.Variant] = ref.Identity(
-			w.Block, w.Revision, w.Basis, w.Writer, w.Origin, w.GoverningFingerprint)
-	}
-	return ref.Fold(parts)
+// Edition names the translation the write is about within its item: the unit
+// and the variant.
+func (w EditionWrite) Edition() string {
+	return w.Unit + "\x00" + w.Variant
+}
+
+// Identity is what the write says, so a producer can tell whether the write it
+// last sent for a translation has changed.
+func (w EditionWrite) Identity() string {
+	return ref.Identity(w.Block, w.Revision, w.Basis, w.Writer, w.Origin, w.GoverningFingerprint)
 }
