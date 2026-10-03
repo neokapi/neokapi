@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/history"
+	"github.com/neokapi/neokapi/core/workhome"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -58,6 +59,8 @@ func projectionTable(name string) bool {
 		return !strings.HasSuffix(name, "_migrations")
 	case name == "voice_profiles", name == "voice_profile_versions", name == "unit_decision",
 		name == "document_adoption", name == "block_history", name == "block_history_op":
+		return true
+	case slices.Contains(workhome.Tables, name):
 		return true
 	}
 	return false
@@ -140,6 +143,7 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 		runKind string
 		edits   []history.Row
 		editOps []workspace.Op
+		works   []workhome.Write
 	)
 	fail := func(op workspace.Op, err error) {
 		report.Failed = append(report.Failed, fmt.Sprintf("%s %s: %v", op.Kind, workspace.ShortOpID(op.ID), err))
@@ -160,7 +164,10 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 		if err := p.applyEditRows(ctx, edits); err != nil {
 			fail(editOps[len(editOps)-1], err)
 		}
-		edits, editOps = nil, nil
+		if err := p.applyWorkWrites(ctx, works); err != nil {
+			fail(editOps[len(editOps)-1], err)
+		}
+		edits, editOps, works = nil, nil, nil
 	}
 	for _, op := range ops {
 		if !projects(op.Kind) {
@@ -179,6 +186,14 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 			if derr != nil {
 				fail(op, derr)
 				continue
+			}
+			if e.kept() {
+				w, werr := p.workWrite(ctx, op, e)
+				if werr != nil {
+					fail(op, werr)
+					continue
+				}
+				works = append(works, w)
 			}
 			edits, editOps = append(edits, editRows(op.ID, opAddress(op), op.At, e)...), append(editOps, op)
 			continue

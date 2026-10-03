@@ -75,6 +75,15 @@ CREATE TABLE IF NOT EXISTS workspace_blobs (
     size   INTEGER NOT NULL,
     data   BLOB NOT NULL
 );`,
+}, {
+	// What an operation writes, for the writes a conditional record orders:
+	// an edition the workspace home keeps. The index answers a subject's head
+	// inside the transaction that appends.
+	Version:     4,
+	Description: "operation subjects",
+	SQL: `
+ALTER TABLE workspace_ops ADD COLUMN subject TEXT;
+CREATE INDEX idx_workspace_ops_subject ON workspace_ops(project, subject, seq) WHERE subject IS NOT NULL;`,
 }}
 
 // LocalBackend keeps a workspace as a directory of SQLite files on this
@@ -235,6 +244,18 @@ func (b *LocalBackend) open(_ context.Context, dir, path string) (*storage.DB, e
 // id is given one; one whose id or content address the log already holds is
 // answered with the operation held.
 func (b *LocalBackend) Record(ctx context.Context, ops ...Op) ([]Op, error) {
+	return b.record(ctx, nil, ops)
+}
+
+// RecordIf appends operations only while every subject expect names is at the
+// position expected, checked inside the transaction that appends.
+func (b *LocalBackend) RecordIf(ctx context.Context, expect []Expect, ops ...Op) ([]Op, error) {
+	return b.record(ctx, expect, ops)
+}
+
+// record appends ops in one IMMEDIATE transaction, after checking the heads
+// expect names.
+func (b *LocalBackend) record(ctx context.Context, expect []Expect, ops []Op) ([]Op, error) {
 	if len(ops) == 0 {
 		return nil, nil
 	}
@@ -260,9 +281,19 @@ func (b *LocalBackend) Record(ctx context.Context, ops ...Op) ([]Op, error) {
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// The newest id the log holds, which a minted id must sort after. The
-	// transaction is IMMEDIATE (storage.ProjectOptions), so no other writer
-	// can slip an id in between this read and the insert.
+	// The transaction is IMMEDIATE (storage.ProjectOptions): no other writer,
+	// in this process or another, appends between this check and the insert.
+	for _, e := range expect {
+		now, err := subjectHead(ctx, tx, e.Project, e.Subject)
+		if err != nil {
+			return nil, err
+		}
+		if now != e.Head {
+			return nil, &HeadMovedError{Project: e.Project, Subject: e.Subject, Expected: e.Head, Now: now}
+		}
+	}
+
+	// The newest id the log holds, which a minted id must sort after.
 	var newest string
 	if err := tx.QueryRowContext(ctx,
 		`SELECT COALESCE(MAX(id), '') FROM workspace_ops`).Scan(&newest); err != nil {
@@ -294,13 +325,16 @@ func (b *LocalBackend) Record(ctx context.Context, ops ...Op) ([]Op, error) {
 		if op.ID == "" {
 			op.ID = NewOpID(time.Now(), newest)
 		}
-		var address any
+		var address, subject any
 		if op.Address != "" {
 			address = op.Address
 		}
+		if op.Subject != "" {
+			subject = op.Subject
+		}
 		res, err := tx.ExecContext(ctx,
-			`INSERT INTO workspace_ops (id, address, project, kind, payload, at) VALUES (?, ?, ?, ?, ?, ?)`,
-			op.ID, address, string(op.Project), op.Kind, op.Payload, at.Format(time.RFC3339Nano))
+			`INSERT INTO workspace_ops (id, address, project, kind, payload, subject, at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			op.ID, address, string(op.Project), op.Kind, op.Payload, subject, at.Format(time.RFC3339Nano))
 		if err != nil {
 			return nil, fmt.Errorf("workspace: record %s: %w", op.Kind, err)
 		}
@@ -316,6 +350,18 @@ func (b *LocalBackend) Record(ctx context.Context, ops ...Op) ([]Op, error) {
 		return nil, fmt.Errorf("workspace: record operations: %w", err)
 	}
 	return out, nil
+}
+
+// subjectHead reads the local position of the last operation on a subject,
+// zero when no operation names it.
+func subjectHead(ctx context.Context, tx *storage.Tx, project ProjectKey, subject string) (int64, error) {
+	var head int64
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COALESCE(MAX(seq), 0) FROM workspace_ops WHERE project = ? AND subject = ?`,
+		string(project), subject).Scan(&head); err != nil {
+		return 0, fmt.Errorf("workspace: read the head of %s: %w", subject, err)
+	}
+	return head, nil
 }
 
 // heldOp looks up the operation a log already holds under an arriving
@@ -338,7 +384,7 @@ WHERE (? <> '' AND id = ?) OR (? <> '' AND address = ?) LIMIT 1`,
 }
 
 // opColumns is what a read of the log selects, in the order scanOps reads.
-const opColumns = `seq, id, COALESCE(address, ''), project, kind, payload, at`
+const opColumns = `seq, id, COALESCE(address, ''), project, kind, payload, COALESCE(subject, ''), at`
 
 // scanOps reads rows selected with opColumns and closes them.
 func scanOps(rows *sql.Rows) ([]Op, error) {
@@ -350,7 +396,7 @@ func scanOps(rows *sql.Rows) ([]Op, error) {
 			project string
 			at      string
 		)
-		if err := rows.Scan(&op.Seq, &op.ID, &op.Address, &project, &op.Kind, &op.Payload, &at); err != nil {
+		if err := rows.Scan(&op.Seq, &op.ID, &op.Address, &project, &op.Kind, &op.Payload, &op.Subject, &at); err != nil {
 			return nil, fmt.Errorf("workspace: read operations: %w", err)
 		}
 		op.Project = ProjectKey(project)
@@ -389,6 +435,10 @@ func (b *LocalBackend) Select(ctx context.Context, q OpQuery) ([]Op, error) {
 	if q.Project != "" {
 		query += ` AND project = ?`
 		args = append(args, string(q.Project))
+	}
+	if q.Subject != "" {
+		query += ` AND subject = ?`
+		args = append(args, q.Subject)
 	}
 	query += ` ORDER BY seq`
 	if q.Limit > 0 {

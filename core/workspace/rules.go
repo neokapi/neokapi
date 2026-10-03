@@ -180,3 +180,9 @@ func (w *Workspace) NarrowRule(ctx context.Context, id string) error {
 func (w *Workspace) Record(ctx context.Context, ops ...Op) ([]Op, error) {
 	return w.backend.Record(ctx, ops...)
 }
+
+// RecordIf appends operations to the workspace's log only while every subject
+// expect names is at the head its writer read (Backend.RecordIf).
+func (w *Workspace) RecordIf(ctx context.Context, expect []Expect, ops ...Op) ([]Op, error) {
+	return w.backend.RecordIf(ctx, expect, ops...)
+}

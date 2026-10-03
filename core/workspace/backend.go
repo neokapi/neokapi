@@ -39,6 +39,7 @@ package workspace
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/neokapi/neokapi/core/storage"
@@ -102,9 +103,48 @@ type Op struct {
 	Kind string
 	// Payload carries the operation's detail as JSON. It may be nil.
 	Payload []byte
+	// Subject, when set, names what the operation writes for a reader that
+	// orders the writes to one thing: an edition the workspace home keeps,
+	// as the projector spells it. Two operations with one subject in one
+	// project write the same thing, and a conditional record (RecordIf)
+	// appends one only while the subject's head is the one its writer read.
+	// Empty for every operation that is not such a write.
+	Subject string
 	// At is when the operation was accepted, in UTC.
 	At time.Time
 }
+
+// Expect is what a conditional record checks before it appends: that the
+// last operation this log received on one subject of one project is still
+// the one the writer read.
+type Expect struct {
+	Project ProjectKey
+	Subject string
+	// Head is the local position (Op.Seq) of the last operation on the
+	// subject the writer read, and zero for a subject no operation named.
+	Head int64
+}
+
+// HeadMovedError is what a conditional record answers when a subject's head
+// moved since its writer read it: another process, or a merge, appended an
+// operation on the subject in between. Nothing was appended.
+type HeadMovedError struct {
+	Project  ProjectKey
+	Subject  string
+	Expected int64
+	Now      int64
+}
+
+func (e *HeadMovedError) Error() string {
+	return fmt.Sprintf("workspace: %s moved since it was read (its head is at %d, not %d)", e.Subject, e.Now, e.Expected)
+}
+
+// Is reports ErrHeadMoved.
+func (e *HeadMovedError) Is(target error) bool { return target == ErrHeadMoved }
+
+// ErrHeadMoved reports a conditional record whose subject moved; the error is
+// a *HeadMovedError.
+var ErrHeadMoved = errors.New("workspace: the subject moved since it was read")
 
 // OpQuery narrows a reading of the operation log. A zero OpQuery asks for
 // every operation.
@@ -116,6 +156,8 @@ type OpQuery struct {
 	KindPrefix string
 	// Project keeps one project's operations.
 	Project ProjectKey
+	// Subject keeps the operations on one subject (Op.Subject).
+	Subject string
 	// Limit caps the number returned. Zero or less asks for every one.
 	Limit int
 }
@@ -161,6 +203,15 @@ type Backend interface {
 	// older ID stands: an arriving operation with an older ID replaces the one
 	// held, so both logs end on the same operation.
 	Record(ctx context.Context, ops ...Op) ([]Op, error)
+
+	// RecordIf is Record, conditional on the heads expect names: inside the
+	// transaction that appends, the last operation the log received on each
+	// subject must still be at the position expected, or nothing is appended
+	// and a *HeadMovedError (errors.Is ErrHeadMoved) is returned. It is the
+	// compare-and-swap of a home whose text lives in the log: two processes
+	// writing one edition take turns, and the second finds the first's write
+	// rather than overwriting it.
+	RecordIf(ctx context.Context, expect []Expect, ops ...Op) ([]Op, error)
 
 	// Since returns up to limit operations this log received after the local
 	// position given, in the order it received them. A limit of zero or less

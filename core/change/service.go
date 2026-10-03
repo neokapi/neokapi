@@ -747,6 +747,11 @@ func (r *applyRun) commit(ctx context.Context) (bool, error) {
 		if st == nil {
 			continue
 		}
+		if rs, ok := st.(RecordingStaged); ok {
+			// A home whose commit is the record appends it itself, with the
+			// document's share of the change set's record.
+			rs.Recording(r.recordOf(p, st))
+		}
 		cerr := st.Commit(ctx)
 		docs := r.docResults(p, st)
 		wrote := slices.ContainsFunc(docs, func(d DocResult) bool { return d.Written })
@@ -838,7 +843,11 @@ func (r *applyRun) authoritative(p *docPlan, i int) bool {
 func (r *applyRun) docResults(p *docPlan, st Staged) []DocResult {
 	var out []DocResult
 	for _, f := range st.Files() {
-		d := DocResult{Doc: p.info.Doc, Home: p.home.Name(), Before: f.Before, Written: f.Written}
+		home := p.home.Name()
+		if f.Home != "" {
+			home = f.Home
+		}
+		d := DocResult{Doc: p.info.Doc, Home: home, Before: f.Before, Written: f.Written}
 		if f.File != "" && f.File != p.info.Doc {
 			d.File = f.File
 		}
@@ -884,32 +893,39 @@ func (r *applyRun) applyAssets(ctx context.Context) {
 // the findings a person chose to land with.
 func (r *applyRun) record(ctx context.Context) {
 	if r.s.recorder == nil {
+		for _, p := range r.plans {
+			if rs, ok := r.staged[p].(RecordingStaged); ok && rs.RecordID() != "" {
+				id := rs.RecordID()
+				r.res.Record = &id
+				return
+			}
+		}
 		return
 	}
 	var (
 		transitions []Transition
 		overridden  []Finding
 		fps         []string
+		selfID      string
 	)
 	for _, p := range r.plans {
 		st := r.staged[p]
 		if st == nil {
 			continue
 		}
+		if rs, ok := st.(RecordingStaged); ok && selfID == "" {
+			selfID = rs.RecordID()
+		}
 		files := st.Files()
 		landed := false
 		for ci, c := range p.changes {
-			if f := fileOf(files, p.sess.Place(c.Ref.Edition)); f == nil || !f.Written {
+			f := fileOf(files, p.sess.Place(c.Ref.Edition))
+			if f == nil || !f.Written || f.Recorded {
+				// Not written, or recorded by the commit that wrote it.
 				continue
 			}
 			landed = true
-			b := c.Block
-			transitions = append(transitions, Transition{
-				EditionChange: c,
-				ContentHash:   model.ComputeContentHash(b.SourceText()),
-				ContextHash:   model.ComputeContextHash(b.Name, b.Type, b.Properties),
-				Ops:           r.kindsOf(p.changeOps[ci]),
-			})
+			transitions = append(transitions, r.transitionOf(p, ci))
 		}
 		if !landed {
 			continue
@@ -920,6 +936,9 @@ func (r *applyRun) record(ctx context.Context) {
 		}
 	}
 	if len(transitions) == 0 {
+		if selfID != "" {
+			r.res.Record = &selfID
+		}
 		return
 	}
 	rec := Record{Actor: r.actor, Origin: r.s.origin, Fingerprint: strings.Join(fps, ","), Overridden: overridden,
@@ -931,6 +950,9 @@ func (r *applyRun) record(ctx context.Context) {
 	if err != nil || id == "" {
 		// The content is written; the next read finds a transition no record
 		// explains and records it as observed.
+		if selfID != "" {
+			r.res.Record = &selfID
+		}
 		return
 	}
 	r.res.Record = &id
@@ -949,6 +971,35 @@ func (r *applyRun) kindsOf(ops []int) []Kind {
 		}
 	}
 	return out
+}
+
+// transitionOf is edition change ci of p as the record keeps it, with the
+// block's identity signals and the kinds of the operations that made it.
+func (r *applyRun) transitionOf(p *docPlan, ci int) Transition {
+	c := p.changes[ci]
+	b := c.Block
+	return Transition{
+		EditionChange: c,
+		ContentHash:   model.ComputeContentHash(b.SourceText()),
+		ContextHash:   model.ComputeContextHash(b.Name, b.Type, b.Properties),
+		Ops:           r.kindsOf(p.changeOps[ci]),
+	}
+}
+
+// recordOf is the record of the change one document's pass makes, as a home
+// that commits by recording it appends it (RecordingStaged): every edition
+// the pass changed, who changed it through which surface, and the governance
+// the commit check used.
+func (r *applyRun) recordOf(p *docPlan, st Staged) Record {
+	rec := Record{Actor: r.actor, Origin: r.s.origin, Fingerprint: r.fingerprints[p], Overridden: r.overridden[p],
+		Docs: r.docResults(p, st)}
+	if r.actor.Kind != ActorTool {
+		rec.Set = r.sent
+	}
+	for ci := range p.changes {
+		rec.Transitions = append(rec.Transitions, r.transitionOf(p, ci))
+	}
+	return rec
 }
 
 // finish completes a refused result: every operation not refused is

@@ -11,6 +11,7 @@ import (
 	"hash"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -40,7 +41,19 @@ type staged struct {
 	// settled says the commit locks are held and every staged file applies
 	// to the file as it stands.
 	settled bool
+	// rec is the record of the change the service hands a commit that
+	// records a kept edition, and recordID the id that commit appended.
+	rec      *change.Record
+	recordID string
 }
+
+// Recording keeps the record of the change for the commit of a kept edition.
+func (st *staged) Recording(rec change.Record) { st.rec = &rec }
+
+// RecordID is the id of the record the commit of a kept edition appended.
+func (st *staged) RecordID() string { return st.recordID }
+
+var _ change.RecordingStaged = (*staged)(nil)
 
 // stagedFile is one file a stage changes, or reads and leaves.
 type stagedFile struct {
@@ -57,6 +70,13 @@ type stagedFile struct {
 	written bool
 	// diff renders the change for a preview.
 	diff func() string
+	// keeper keeps the edition the file will hold once delivered, for an
+	// edition with no file yet (EditionFile.Kept), and token names the head
+	// the stage read there. kept is the change the commit hands the keeper;
+	// nil when the stage leaves the edition as it was.
+	keeper Keeper
+	token  string
+	kept   *keptPart
 }
 
 // run reads every file the change needs, applies the editor, and stages the
@@ -82,7 +102,7 @@ func (st *staged) run(ctx context.Context) error {
 	// Settle reads it again under the lock.
 	before := map[string]string{}
 	for _, k := range st.want.Editions {
-		if f, ok := s.editionFile(k); ok {
+		if f, ok := s.editionFile(k); ok && f.Kept == nil {
 			if before[f.Path], err = hashFile(f.Path); err != nil {
 				return err
 			}
@@ -102,12 +122,15 @@ func (st *staged) run(ctx context.Context) error {
 		return err
 	}
 
-	// What the editor changed in each joined edition, by document block index,
-	// and the blocks it removed the edition from.
+	// What the editor changed in each joined edition, by document block index:
+	// the runs for a file, and the whole edition, or nil for one removed, for
+	// a kept edition; and the blocks it removed the edition from.
 	changed := make([]map[int][]model.Run, len(editions))
+	changedKept := make([]map[int]*model.Edition, len(editions))
 	gone := make([]map[int]bool, len(editions))
 	for i := range changed {
 		changed[i] = map[int][]model.Run{}
+		changedKept[i] = map[int]*model.Edition{}
 		gone[i] = map[int]bool{}
 	}
 	ownChanged := false
@@ -129,7 +152,10 @@ func (st *staged) run(ctx context.Context) error {
 			}
 			ed, held := b.Edition(editions[at].key)
 			changed[at][si] = ed.Runs
-			if !held {
+			if held {
+				changedKept[at][si] = &ed
+			} else {
+				changedKept[at][si] = nil
 				gone[at][si] = true
 			}
 		}
@@ -172,6 +198,10 @@ func (st *staged) run(ctx context.Context) error {
 	}
 
 	for i, je := range editions {
+		if je.kept != nil {
+			st.stageKept(je, ix, changedKept[i])
+			continue
+		}
 		digest := before[je.file.Path]
 		f := &stagedFile{ref: je.file.Ref, edition: &je.key, path: je.file.Path, before: digest, after: digest}
 		st.files = append(st.files, f)
@@ -298,6 +328,49 @@ func (st *staged) writeEdition(ctx context.Context, f *stagedFile, je *joinedEdi
 	// The file is written from the document's skeleton, so its blocks are in
 	// the document's order.
 	return st.verifyEditionRemoved(ctx, f, je, gone)
+}
+
+// stageKept stages the change to an edition a keeper holds: the blocks the
+// editor changed, each with the revision it had, and the edition's digest
+// around the change. Nothing is written until Commit hands it to the keeper.
+func (st *staged) stageKept(je *joinedEdition, ix *blockIndex, changed map[int]*model.Edition) {
+	k := je.kept
+	f := &stagedFile{ref: je.file.Ref, edition: &je.key, path: je.file.Path, before: k.Digest, after: k.Digest,
+		keeper: je.file.Kept, token: k.Token}
+	st.files = append(st.files, f)
+	if len(changed) == 0 {
+		return
+	}
+	now := maps.Clone(k.Blocks)
+	var changes []KeptChange
+	for _, si := range slices.Sorted(maps.Keys(changed)) {
+		key := ix.keys[si]
+		was, held := now[key]
+		before := model.AbsentRevision
+		if held {
+			before = model.RunsRevision(je.key, was.Runs)
+		}
+		ed := changed[si]
+		switch {
+		case ed == nil && !held:
+			continue
+		case ed == nil:
+			delete(now, key)
+		case held && KeptEntry(je.key, was) == KeptEntry(je.key, *ed):
+			continue
+		default:
+			now[key] = *ed
+		}
+		changes = append(changes, KeptChange{Block: key, Before: before, Edition: ed})
+	}
+	if len(changes) == 0 {
+		return
+	}
+	f.after = KeptDigest(je.key, now)
+	f.kept = &keptPart{keeper: je.file.Kept, write: KeptWrite{Doc: st.s.doc.Ref, File: je.file.Ref, Edition: je.key,
+		Token: k.Token, Before: f.before, After: f.after, Changes: changes}}
+	held := k.Blocks
+	f.diff = func() string { return keptDiff(je.file.Ref, je.key, held, changes) }
 }
 
 // writeEditionInPlace stages the existing file of a joined edition through
@@ -487,7 +560,11 @@ func sameEntry(a, b string) bool {
 func (st *staged) Files() []change.StagedFile {
 	out := make([]change.StagedFile, 0, len(st.files))
 	for _, f := range st.files {
-		out = append(out, change.StagedFile{File: f.ref, Edition: f.edition, Before: f.before, After: f.after, Written: f.written})
+		sf := change.StagedFile{File: f.ref, Edition: f.edition, Before: f.before, After: f.after, Written: f.written}
+		if f.keeper != nil {
+			sf.Home, sf.Recorded = f.keeper.Name(), true
+		}
+		out = append(out, sf)
 	}
 	return out
 }
@@ -552,7 +629,7 @@ func (st *staged) Settle(ctx context.Context) error {
 	if err := st.lockAll(ctx); err != nil {
 		return err
 	}
-	moved, err := st.moved()
+	moved, err := st.moved(ctx)
 	if err != nil {
 		return err
 	}
@@ -566,7 +643,7 @@ func (st *staged) Settle(ctx context.Context) error {
 	if err := st.lockAll(ctx); err != nil {
 		return err
 	}
-	if moved, err = st.moved(); err != nil {
+	if moved, err = st.moved(ctx); err != nil {
 		return err
 	}
 	if moved != nil {
@@ -586,9 +663,19 @@ func (st *staged) unlock() {
 }
 
 // moved returns the first file whose digest is no longer the one the stage
-// read, or nil.
-func (st *staged) moved() (*stagedFile, error) {
+// read, or nil. A kept edition has moved when its head has.
+func (st *staged) moved(ctx context.Context) (*stagedFile, error) {
 	for _, f := range st.files {
+		if f.keeper != nil {
+			now, err := f.keeper.Edition(ctx, st.s.doc.Ref, *f.edition)
+			if err != nil {
+				return nil, err
+			}
+			if now.Token != f.token {
+				return f, nil
+			}
+			continue
+		}
 		now, err := hashFile(f.path)
 		if err != nil {
 			return nil, err
@@ -602,9 +689,27 @@ func (st *staged) moved() (*stagedFile, error) {
 
 // Commit renames each staged file onto its target. An error leaves the files
 // renamed before it written, which Files reports.
-func (st *staged) Commit(context.Context) error {
+func (st *staged) Commit(ctx context.Context) error {
 	if !st.settled {
 		return fmt.Errorf("commit %s: the change was not settled", st.s.doc.Ref)
+	}
+	// A kept edition commits first: its keeper checks the head again inside
+	// the log's transaction, and a refusal there leaves every file as it was.
+	for _, f := range st.files {
+		if f.kept == nil {
+			continue
+		}
+		w := f.kept.write
+		w.Record = st.rec
+		id, err := f.kept.keeper.Commit(ctx, w)
+		if err != nil {
+			return err
+		}
+		f.kept = nil
+		f.written = true
+		if st.recordID == "" {
+			st.recordID = id
+		}
 	}
 	for _, f := range st.files {
 		if f.tmp == nil {

@@ -11,6 +11,7 @@ package changetest
 import (
 	"context"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -139,10 +140,14 @@ func editLands(t *testing.T, env Env) {
 	assert.Equal(t, change.OpApplied, res.Ops[0].Status)
 	assert.Equal(t, b.Rev, res.Ops[0].Before)
 	assert.NotEqual(t, b.Rev, res.Ops[0].After)
-	require.NotEmpty(t, res.Docs)
-	assert.True(t, res.Docs[0].Written)
-	require.NotNil(t, res.Docs[0].After)
-	assert.NotEqual(t, res.Docs[0].Before, *res.Docs[0].After, "the digests around the write differ")
+	// The result lists every file the document's change read; the edit
+	// landed in one of them, which is the document's own file unless the
+	// reference names the file of one edition.
+	written := slices.IndexFunc(res.Docs, func(d change.DocResult) bool { return d.Written })
+	require.GreaterOrEqual(t, written, 0, "the result names the file the edit was written to: %+v", res.Docs)
+	d := res.Docs[written]
+	require.NotNil(t, d.After)
+	assert.NotEqual(t, d.Before, *d.After, "the digests around the write differ")
 	assert.Equal(t, want, textOf(t, env, env.DocA, b.Ref.Block))
 }
 

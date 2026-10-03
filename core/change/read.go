@@ -189,6 +189,13 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 		states = s.states.Document(ctx, info, shows)
 	}
 	page := &Page{Doc: info.Doc, Home: h.Name(), Format: info.Format, Blocks: []BlockRead{}}
+	if info.Edition != nil {
+		// A read of the file one edition lives in reports the home that
+		// keeps that edition.
+		if pl := sess.Place(*info.Edition); pl.Home != "" {
+			page.Home = pl.Home
+		}
+	}
 	index := 0
 	more := false
 	// The observer sees each block the read shows, whatever page it falls

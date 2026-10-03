@@ -194,6 +194,9 @@ func (s *session) Place(k model.EditionKey) change.Place {
 		return change.Place{Kind: change.PlaceInDocument}
 	}
 	if f, ok := s.editionFile(k); ok {
+		if f.Kept != nil {
+			return change.Place{Kind: change.PlaceOwnFile, File: f.Ref, Home: f.Kept.Name()}
+		}
 		return change.Place{Kind: change.PlaceOwnFile, File: f.Ref}
 	}
 	return change.Place{Kind: change.PlaceNone, Why: s.doc.NoEditionFile}
