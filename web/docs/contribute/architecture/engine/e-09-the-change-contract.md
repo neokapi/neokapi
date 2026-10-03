@@ -67,9 +67,12 @@ says who sent it.
 
 `change.Decode` reads a change set strictly: an unknown field or operation is
 refused with the JSON pointer of what was wrong. `changeschema.Schema` is the
-JSON Schema generated from the same Go types. The note
-[The change applier](../../implementation/engine/change-applier.md) covers the
-types, the decoder and the schema.
+JSON Schema generated from the same Go types. TypeScript clients use
+`@neokapi/contract-types`, whose change set and operations are generated from
+that schema and whose result, read and description types are generated from the
+structs the service marshals; a drift gate regenerates them on every change. The
+note [The change applier](../../implementation/engine/change-applier.md) covers
+the types, the decoder, the schema and the TypeScript types.
 
 ### Addressing and revisions
 
