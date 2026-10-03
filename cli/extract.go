@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/spf13/cobra"
 )
@@ -38,6 +39,13 @@ kapi merge checks the returned file against.`,
 			// workspace form below).
 			if format == ExtractFormatKPZ {
 				return a.RunExtractKpz(cmd)
+			}
+			if out != "" && !IsKpzPath(out) {
+				// -o names the .kpz an ad-hoc extract writes. A project's
+				// bilingual files go one per source and language into
+				// --out-dir, so an -o here would be ignored.
+				return WithExitCode(ExitUsage, fmt.Errorf("extract: -o names a .kpz workspace, and %s is not one; "+
+					"a project's bilingual files are written one per source and language into --out-dir (default out/)", out))
 			}
 			if IsKpzPath(out) || len(args) > 0 {
 				if !IsKpzPath(out) {
