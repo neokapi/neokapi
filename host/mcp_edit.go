@@ -74,16 +74,6 @@ var readBlocksOutputSchema = json.RawMessage(`{"type":"object","properties":{` +
 	`"ops":{"type":"array","items":{"type":"string"},"description":"the operations the block accepts"}}}},` +
 	`"next":{"type":"string","description":"the cursor of the next page; absent on the last"}}}`)
 
-// applyEditsOutputSchema declares apply_edits' result, a
-// kapi.change-result/v1 document.
-var applyEditsOutputSchema = json.RawMessage(`{"type":"object","properties":{` +
-	`"schema":{"type":"string","const":"kapi.change-result/v1"},` +
-	`"status":{"type":"string","enum":["applied","refused","previewed","partial"],"description":"refused writes nothing; partial names the documents that landed"},` +
-	`"record":{"description":"the id of the recorded edit, when one was recorded"},` +
-	`"docs":{"type":"array","items":{"type":"object"},"description":"each document: written, the digests before and after, the findings, and in a preview the diff"},` +
-	`"ops":{"type":"array","items":{"type":"object"},"description":"each operation by index: status, the revisions before and after, the positions it resolved, the translations it made stale (invalidates), and on a refusal the error and, when stale, the current revision and text"},` +
-	`"error":{"type":"object","description":"why the change set could not be read, with the JSON pointer of what is wrong"}}}`)
-
 // describeFormatOutputSchema declares describe_format's result.
 var describeFormatOutputSchema = json.RawMessage(`{"type":"object","properties":{` +
 	`"format":{"type":"string"},` +
@@ -132,7 +122,7 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 	server.AddTool(&mcp.Tool{
 		Name:         "apply_edits",
 		InputSchema:  applyEditsInputSchema(),
-		OutputSchema: applyEditsOutputSchema,
+		OutputSchema: json.RawMessage(changeschema.ResultSchema()), // generated, and frozen with the request's
 		Description: "Apply a kapi.change/v1 change set: the one write verb. Each content operation addresses one edition " +
 			"of one block with at, the ref read_blocks reports, and carries if_match, the rev you read. Several operations " +
 			"may name one block, each with the rev you read. set_content replaces the text (keep the <x id=\"…\"/> " +

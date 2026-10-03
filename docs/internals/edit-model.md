@@ -1795,8 +1795,11 @@ beside all of them in package-sized PRs.
   and Markdown wording edit with a link change, a plural branch, a new edition with markup, a
   bilingual PO edit, a key added to `en.json` (if WP12 has landed; otherwise measured as a refusal), a
   stale recovery and a gate refusal recovery. Adjust names and shapes. Freeze.
-- **Acceptance:** the report is written to `docs/internals/evals.md`; the schema golden is marked
-  frozen and the extend-only rule resumes.
+- **Acceptance:** met. The report is in `docs/internals/evals.md` (WP5). The contract froze at
+  `8f4d0c36b`: `core/change/testdata/schema.v1.frozen.json` holds the change set,
+  `result.v1.frozen.json` and `read.v1.frozen.json` beside it the result and the read, and
+  `kapi/cmd/kapi/testdata/mcp_tools.frozen.json` the MCP tool surface. `TestSchemaExtendsFrozenV1`
+  and its siblings hold the generated schemas to them, so the extend-only rule is in force.
 - **Why here:** contract-first runs the evaluation before later steps build on the shape; evolve-main
   ran it last, after every surface migrated, and engine-first listed it only as a mitigation. kapi's
   agent surface once "shipped and was never exercised" (judge-product §2.1).
@@ -2030,7 +2033,8 @@ All of these hold before the 1.3.0 tag:
 1. No first-party surface changes content except through `core/change`: CLI, MCP, Kapi Desktop, flows,
    merge, pull, `up`, the browser, and Bowrain's REST, MCP and desktop. `editguard` is in CI.
 2. `kapi.change/v1` is frozen after the paired evaluation, its schema generated, its TypeScript types
-   generated and drift-gated, its golden marked frozen.
+   generated and drift-gated, its golden marked frozen. Done with WP5: the change set, the result,
+   the read and the MCP surface each have a frozen file and an extend-only test.
 3. The conformance suite passes on the file home (natively and under `GOOS=js`), the workspace home
    and the stream home on PostgreSQL.
 4. The race test passes on the file home with zero lost edits.
