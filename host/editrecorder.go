@@ -196,6 +196,10 @@ func editTransition(t change.Transition, keep keptRuns) projector.EditTransition
 		Block: t.Ref.Block, Key: key, Edition: edition,
 		Before: t.BeforeRev, After: t.AfterRev, Basis: t.Basis,
 		ContentHash: contentHash, ContextHash: contextHash,
+		Tool: t.Tool,
+	}
+	for _, k := range t.Ops {
+		out.Ops = append(out.Ops, string(k))
 	}
 	if o := producerOf(t); o != (model.Origin{}) {
 		// How a tool produced the edition, as it stamped it.

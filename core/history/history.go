@@ -69,6 +69,14 @@ type Row struct {
 	// under (model.Origin). The zero value for a person's or an agent's edit,
 	// and for a tool that stamped nothing.
 	Producer model.Origin
+	// Ops are the kinds of the operations that changed the edition, in the
+	// order they applied: set_content, replace_text, remove_edition and the
+	// rest of the change contract's kinds. Empty for a change no operation
+	// explains, such as an edit made outside kapi.
+	Ops []string
+	// Tool is the tool in a flow that changed the edition, where the record
+	// names one.
+	Tool string
 	// At is when the operation was accepted.
 	At time.Time
 }
@@ -130,6 +138,12 @@ CREATE TABLE IF NOT EXISTS block_history_op (
 	Description: "the producer of a derived edition",
 	// The producer's stamp, as JSON, empty when the change carried none.
 	SQL: `ALTER TABLE block_history ADD COLUMN producer TEXT NOT NULL DEFAULT '';`,
+}, {
+	Version:     3,
+	Description: "the operation kinds and the tool behind a change",
+	// The kinds as a comma-separated list, empty when the change named none.
+	SQL: `ALTER TABLE block_history ADD COLUMN ops TEXT NOT NULL DEFAULT '';
+ALTER TABLE block_history ADD COLUMN tool TEXT NOT NULL DEFAULT '';`,
 }}
 
 // Open binds the block history to a context database, creating its table.
@@ -164,13 +178,14 @@ func (s *Store) Put(ctx context.Context, rows []Row) error {
 	defer func() { _ = tx.Rollback() }()
 	stmt, err := tx.PrepareContext(ctx, `
 INSERT INTO block_history (op, doc, block, key, edition, before, after, basis,
-    content_hash, context_hash, actor, actor_name, session, origin, producer, at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    content_hash, context_hash, actor, actor_name, session, origin, producer, ops, tool, at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(doc, block, edition, op) DO UPDATE SET
     key = excluded.key, before = excluded.before, after = excluded.after,
     basis = excluded.basis, content_hash = excluded.content_hash, context_hash = excluded.context_hash,
     actor = excluded.actor, actor_name = excluded.actor_name, session = excluded.session,
-    origin = excluded.origin, producer = excluded.producer, at = excluded.at`)
+    origin = excluded.origin, producer = excluded.producer, ops = excluded.ops, tool = excluded.tool,
+    at = excluded.at`)
 	if err != nil {
 		return fmt.Errorf("history: put: %w", err)
 	}
@@ -190,7 +205,7 @@ ON CONFLICT(doc, block, edition, op) DO UPDATE SET
 		if _, err := stmt.ExecContext(ctx,
 			r.Op, r.Doc, r.Block, r.Key, r.Edition, r.Before, r.After, r.Basis,
 			r.ContentHash, r.ContextHash, r.Actor, r.ActorName, r.Session, r.Origin, producer,
-			r.At.UTC().Format(timeLayout)); err != nil {
+			strings.Join(r.Ops, ","), r.Tool, r.At.UTC().Format(timeLayout)); err != nil {
 			return fmt.Errorf("history: put %s %s@%s: %w", r.Doc, r.Block, r.Edition, err)
 		}
 	}
@@ -227,7 +242,7 @@ ON CONFLICT(op) DO NOTHING`, r.Op, r.Address, r.Doc); err != nil {
 }
 
 const columns = `h.op, COALESCE(o.address, ''), h.doc, h.block, h.key, h.edition, h.before, h.after, h.basis,
-    h.content_hash, h.context_hash, h.actor, h.actor_name, h.session, h.origin, h.producer, h.at`
+    h.content_hash, h.context_hash, h.actor, h.actor_name, h.session, h.origin, h.producer, h.ops, h.tool, h.at`
 
 // from is the rows read with columns: the history with each operation's
 // address.
@@ -447,10 +462,13 @@ func scan(rows *sql.Rows) ([]Row, error) {
 	var out []Row
 	for rows.Next() {
 		var r Row
-		var at, producer string
+		var at, producer, ops string
 		if err := rows.Scan(&r.Op, &r.Address, &r.Doc, &r.Block, &r.Key, &r.Edition, &r.Before, &r.After, &r.Basis,
-			&r.ContentHash, &r.ContextHash, &r.Actor, &r.ActorName, &r.Session, &r.Origin, &producer, &at); err != nil {
+			&r.ContentHash, &r.ContextHash, &r.Actor, &r.ActorName, &r.Session, &r.Origin, &producer, &ops, &r.Tool, &at); err != nil {
 			return nil, fmt.Errorf("history: scan: %w", err)
+		}
+		if ops != "" {
+			r.Ops = strings.Split(ops, ",")
 		}
 		if producer != "" {
 			if err := json.Unmarshal([]byte(producer), &r.Producer); err != nil {

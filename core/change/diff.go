@@ -70,6 +70,26 @@ func Diff(before, after *model.Block) []Op {
 	return ops
 }
 
+// EditionKind is the kind of the operation Diff sends to turn one edition from
+// was into now: set_content for an edition created or rewritten, replace_text
+// for one whose text moved around the same codes, and remove_edition for one
+// removed. had and has say whether the edition existed before and after; ok
+// is false when nothing changed.
+func EditionKind(was []model.Run, had bool, now []model.Run, has bool) (Kind, bool) {
+	switch {
+	case !had && has:
+		return KindSetContent, true
+	case had && !has:
+		return KindRemoveEdition, true
+	case had && has && !sameRuns(was, now):
+		if _, ok := textEditFor(was, now); ok {
+			return KindReplaceText, true
+		}
+		return KindSetContent, true
+	}
+	return "", false
+}
+
 // derivedOrSource returns the edition the zero key reaches on b, or, for any
 // other key, the derived edition b holds under it. A key that reaches b's
 // source is not a derived edition b holds.

@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
 )
 
 // A file-writing run commits each document through the file home, the place a
@@ -30,6 +31,8 @@ import (
 type Document struct {
 	// Flow is the name the run was started with.
 	Flow string
+	// Tools names the tools the run applies to the document, in order.
+	Tools []string
 	// InputPath is the file the run reads; OutputPath the file it writes,
 	// which is InputPath for a run that edits its own content.
 	InputPath  string
@@ -90,7 +93,7 @@ var defaultHome = sync.OnceValue(func() *filehome.Home { return filehome.New(nil
 // openDocument digests the destination and opens the caller's follower for
 // one document. It is called before the run reads the input, so the digest is
 // of the file as the run found it.
-func (r *FileRunner) openDocument(ctx context.Context, flowName, inputPath, outputPath, targetLang, formatName, outputFormat string) (*writtenDocument, error) {
+func (r *FileRunner) openDocument(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang, formatName, outputFormat string) (*writtenDocument, error) {
 	// A blocked destination is refused here, before anything is read, with
 	// the error that names what stands in the way.
 	if err := CheckOutputPath(outputPath); err != nil {
@@ -102,8 +105,14 @@ func (r *FileRunner) openDocument(ctx context.Context, flowName, inputPath, outp
 	}
 	w := &writtenDocument{before: before}
 	if r.cfg.Documents != nil {
+		names := make([]string, 0, len(tools))
+		for _, t := range tools {
+			if t != nil {
+				names = append(names, t.Name())
+			}
+		}
 		run, oerr := r.cfg.Documents.Open(ctx, Document{
-			Flow: flowName, InputPath: inputPath, OutputPath: outputPath,
+			Flow: flowName, Tools: names, InputPath: inputPath, OutputPath: outputPath,
 			TargetLocale: model.LocaleID(targetLang), Format: formatName, OutputFormat: outputFormat,
 		})
 		if oerr != nil {

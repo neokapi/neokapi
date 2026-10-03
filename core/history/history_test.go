@@ -36,8 +36,8 @@ func TestReadsAnswerMostRecentFirst(t *testing.T) {
 	s := openStore(t)
 	ctx := t.Context()
 	rows := []history.Row{
-		{Op: "op1", Address: "a1", Doc: "d-1", Block: "p#1", Edition: "en", Before: "absent", After: "r:1", ContentHash: "h1", ContextHash: "c1", Actor: "tool", Origin: "flow:up", At: at(1)},
-		{Op: "op2", Address: "a2", Doc: "d-1", Block: "p#1", Edition: "en", Before: "r:1", After: "r:2", ContentHash: "h2", ContextHash: "c1", Actor: "agent", ActorName: "claude", Session: "s1", Origin: "apply", At: at(2)},
+		{Op: "op1", Address: "a1", Doc: "d-1", Block: "p#1", Edition: "en", Before: "absent", After: "r:1", ContentHash: "h1", ContextHash: "c1", Actor: "tool", Origin: "flow:up", Ops: []string{"set_content"}, Tool: "pseudo-translate", At: at(1)},
+		{Op: "op2", Address: "a2", Doc: "d-1", Block: "p#1", Edition: "en", Before: "r:1", After: "r:2", ContentHash: "h2", ContextHash: "c1", Actor: "agent", ActorName: "claude", Session: "s1", Origin: "apply", Ops: []string{"replace_text", "set_attribute"}, At: at(2)},
 		{Op: "op2", Address: "a2", Doc: "d-1", Block: "p#1", Edition: "fr", Before: "r:f1", After: "r:f2", Basis: "r:2", ContentHash: "h2", ContextHash: "c1", Actor: "agent", ActorName: "claude", Session: "s1", Origin: "apply", At: at(2)},
 		{Op: "op3", Address: "a3", Doc: "d-1", Block: "p#2", Key: "u-k", Edition: "en", Before: "r:a", After: "r:b", ContentHash: "h3", ContextHash: "c2", Actor: "person", Origin: "desktop", At: at(3)},
 		{Op: "op4", Address: "a4", Doc: "d-2", Block: "p#1", Edition: "en", Before: "r:x", After: "r:y", ContentHash: "h4", ContextHash: "c1", Origin: "observed", At: at(4)},
@@ -50,6 +50,7 @@ func TestReadsAnswerMostRecentFirst(t *testing.T) {
 	require.Len(t, got, 2)
 	assert.Equal(t, "op2", got[0].Op)
 	assert.Equal(t, rows[1], got[0], "a row reads back as it was written")
+	assert.Equal(t, rows[0], got[1], "the operation kinds and the tool read back")
 
 	recent, err := s.Edition(ctx, "d-1", "p#1", "en", 1)
 	require.NoError(t, err)

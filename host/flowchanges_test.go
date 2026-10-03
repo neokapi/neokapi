@@ -722,3 +722,29 @@ func TestFlowRun_ADeliveredDraftRecordsTheSourceItsPassTranslated(t *testing.T) 
 		"the delivered translation was made from the source the second pass read")
 	assert.Equal(t, model.ComputeContentHash("Hello there"), row.ContentHash)
 }
+
+// A flow's record says what its run did to each edition (design 10.4): the
+// kind of operation the change comes to, and the tool that made it.
+func TestFlowRun_RecordsTheOperationKindsAndTheTool(t *testing.T) {
+	a, cmd, recipe := newFlowProject(t, project.MaterializeManual)
+	root := filepath.Dir(recipe)
+	runOnePass(t, a, cmd, recipe)
+
+	rows := flowHistory(t, a, root)
+	require.Len(t, rows, 3)
+	for _, r := range rows {
+		assert.Equal(t, []string{string(change.KindSetContent)}, r.Ops, "the pass created the %s translation", r.Block)
+		assert.Equal(t, "pseudo-translate", r.Tool, "the tool that wrote it, not only the flow")
+	}
+
+	// A source edit re-drafts one translation over the same codes.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "en.json"),
+		[]byte(`{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}`+"\n"), 0o644))
+	runOnePass(t, a, cmd, recipe)
+	rows = flowHistory(t, a, root)
+	require.Len(t, rows, 4)
+	last := rows[0]
+	assert.Equal(t, "greeting", last.Block)
+	assert.Equal(t, []string{string(change.KindReplaceText)}, last.Ops, "the run's change to the translation is a text edit")
+	assert.Equal(t, "pseudo-translate", last.Tool)
+}
