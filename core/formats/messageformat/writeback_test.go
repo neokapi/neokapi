@@ -182,8 +182,8 @@ func TestWritebackPreservesArgumentsAndEditsBranches(t *testing.T) {
 						if mode == "unchanged" {
 							return
 						}
-						runs := make([]model.Run, len(block.Source))
-						copy(runs, block.Source)
+						runs := make([]model.Run, len(block.SourceRuns()))
+						copy(runs, block.SourceRuns())
 						for i, run := range runs {
 							if run.Text != nil {
 								runs[i].Text = &model.TextRun{Text: strings.ToUpper(run.Text.Text)}
@@ -192,7 +192,7 @@ func TestWritebackPreservesArgumentsAndEditsBranches(t *testing.T) {
 						if mode == "target" {
 							block.SetTargetRuns(target, runs)
 						} else {
-							block.Source = runs
+							block.SetSourceRuns(runs)
 						}
 					})
 					require.NoError(t, err)
@@ -214,12 +214,12 @@ func TestBranchContentExcludesEdgeWhitespace(t *testing.T) {
 	blocks := blocksByPath(t, "You have{count, plural, one { one item} other { # items }}.\n")
 	require.Contains(t, blocks, "count.one")
 	require.Contains(t, blocks, "count.other")
-	assert.Equal(t, []string{`text "one item"`}, spell(blocks["count.one"].Source))
-	assert.Equal(t, []string{`ph "#"`, `text " items"`}, spell(blocks["count.other"].Source))
+	assert.Equal(t, []string{`text "one item"`}, spell(blocks["count.one"].SourceRuns()))
+	assert.Equal(t, []string{`ph "#"`, `text " items"`}, spell(blocks["count.other"].SourceRuns()))
 
 	line := blocksByPath(t, "  Hello {name}  \n")
 	require.Contains(t, line, "")
-	assert.Equal(t, []string{`text "Hello "`, `ph "{name}"`}, spell(line[""].Source))
+	assert.Equal(t, []string{`text "Hello "`, `ph "{name}"`}, spell(line[""].SourceRuns()))
 }
 
 // TestWritebackEscapesEditedText writes targets whose text carries characters
@@ -326,11 +326,11 @@ func TestWritebackEscapesEditedText(t *testing.T) {
 				require.Len(t, reread, len(source), "the written line has the branches the source has")
 				for path, block := range source {
 					require.Contains(t, reread, path)
-					want := block.Source
+					want := block.SourceRuns()
 					if runs, ok := tc.targets[path]; ok {
 						want = runs
 					}
-					assert.Equal(t, spell(want), spell(reread[path].Source), "branch %q", path)
+					assert.Equal(t, spell(want), spell(reread[path].SourceRuns()), "branch %q", path)
 				}
 			})
 		})

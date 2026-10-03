@@ -202,9 +202,9 @@ func (w *Writer) writeBlock(part *model.Part) error {
 // target when a locale is set. A value that still reads as it did is written
 // as the bytes it was read from; any other value is spelled from its runs.
 func (w *Writer) getBlockText(block *model.Block) string {
-	runs := block.Source
+	runs := format.AuthoritativeRuns(block)
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		runs = block.Target(w.Locale).Runs
+		runs = block.TargetRuns(w.Locale)
 	}
 	if raw, ok := format.VerbatimFor(block, "messageformat.raw", model.RenderRunsWithData(runs)); ok {
 		return raw

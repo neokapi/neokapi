@@ -253,7 +253,7 @@ func (r *Reader) emitLine(ctx context.Context, ch chan<- model.PartResult, conte
 			r.skelRef(blockID)
 			cursor = seg.end
 			block := r.createBlock(blockID, seg, pl, &names)
-			format.RecordVerbatim(block, "messageformat.raw", pl.raw[seg.start:seg.end], model.RenderRunsWithData(block.Source))
+			format.RecordVerbatim(block, "messageformat.raw", pl.raw[seg.start:seg.end], model.RenderRunsWithData(block.SourceRuns()))
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return false
 			}
@@ -284,15 +284,10 @@ func (r *Reader) emitLine(ctx context.Context, ch chan<- model.PartResult, conte
 // role. Translatable=false keeps it out of the MT payload while remaining
 // visible to ingestion.
 func newContentBlock(id, name, text string, lineNum int) *model.Block {
-	block := &model.Block{
-		ID:                 id,
-		Translatable:       false,
-		PreserveWhitespace: true,
-		Source:             []model.Run{{Text: &model.TextRun{Text: text}}},
-		Targets:            make(map[model.VariantKey]*model.Target),
-		Properties:         make(map[string]string),
-		Name:               name,
-	}
+	block := model.NewRunsBlock(id, []model.Run{{Text: &model.TextRun{Text: text}}})
+	block.Name = name
+	block.Translatable = false
+	block.PreserveWhitespace = true
 	block.Properties[propLine] = strconv.Itoa(lineNum)
 	return block
 }
@@ -360,14 +355,8 @@ func (r *Reader) createBlockWithRuns(id, name string, seg segment, nodes []node)
 		}
 	}
 
-	block := &model.Block{
-		ID:           id,
-		Translatable: true,
-		Source:       seg.trimRuns(runs),
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-		Name:         name,
-	}
+	block := model.NewRunsBlock(id, seg.trimRuns(runs))
+	block.Name = name
 	if seg.path != "" {
 		block.Properties[propPath] = seg.path
 	}
