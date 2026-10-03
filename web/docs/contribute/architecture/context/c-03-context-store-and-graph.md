@@ -215,7 +215,7 @@ until the project is opened somewhere else.
 | decision ledger, document adoptions | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | context | the operation log, through `core/projector` |
 | one view of the ledger and of the documents read, per checkout | `core/state` | context | the checkout's files |
 | block history | `core/history` | context | the operation log, through `core/projector` |
-| `edition_head`, `document_head`: the workspace home | `core/workhome` | context | the operation log, through `core/projector` |
+| `edition_head`, `edition_subject_head`: the workspace home | `core/workhome` | context | the operation log, through `core/projector` |
 | `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | workspace | the rows above, plus the recipe |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace | what has been opened |
 | `workspace_ops` | `core/workspace` | workspace | its own log |
@@ -500,9 +500,14 @@ them. A write to the workspace home keeps the edition it leaves, whoever made
 it, because the log is that home (below). A project that declares redaction
 ([C-10](c-10-redaction.md)) keeps no withheld value in a record: the recorder
 redacts the runs it keeps and the note with the project's rules, the originals
-going to the project vault, and leaves the change set out. A policy that
+going to the project vault, and leaves the change set out. The workspace home
+redacts what it records the same way, and puts the originals back from the
+vault where it reads an edition, so a kept draft reads whole on the machine
+that withheld its values and with placeholders anywhere else. A policy that
 detects entities needs a read's entity annotations, which a record's runs do
-not carry, so under one a record keeps revisions and hashes only.
+not carry, so under one a record keeps revisions and hashes only, and the
+workspace home keeps no edition at all: a change to a translation with no file
+is refused, and a gated run leaves its parked drafts in the producer's cache.
 
 An operation is addressed by the document, the actor and each transition with
 the address of the operation it extends, the one that most recently left the
@@ -532,23 +537,24 @@ checkout, until a delivery writes them to the files the recipe names.
 
 Each write to such an edition is one `content.edit` that carries the result:
 the runs, status and origin of each block's edition it leaves, the basis it was
-made from, and the stamp its producer serves a draft again by. The operation
-names its **subject**, the document's key and the edition
-(`workspace.Op.Subject`, indexed), and the writer appends it with a
+made from, the block's identity signals, and the stamp its producer serves a
+draft again by. The operation names its **subject**, the document's key and the
+edition (`workspace.Op.Subject`, indexed), and the writer appends it with a
 **conditional record** (`workspace.Backend.RecordIf`): inside the IMMEDIATE
 transaction that appends, the subject's last local position must still be the
 one the writer read, or nothing is appended. The projector's lock is per
 process, so this check is what makes two processes writing one edition (Kapi
 Desktop and an agent's MCP server) take turns. The head a writer expects is read
 from the log (`SubjectHead`), never from a projection, because a position is
-local to one log.
+local to one log. A head that moves after a change set settled, and before its
+commit, refuses the change set `doc_changed` with nothing landed.
 
 The projector folds each subject's writes into two tables of the context
 store: `edition_head`, one row per block of each kept edition (revision, runs
 inline up to 16 KiB and in their blob above, status, origin, basis, stamp), and
-`document_head`, one row per subject (the operation its head is at, the latest
-operation folded, and the writes that did not advance it). The fold reads a
-subject's writes in id order. A write advances the head when it was staged on
+`edition_subject_head`, one row per subject (the operation its head is at, the
+latest operation folded, and the writes that did not advance it). The fold reads
+a subject's writes in id order. A write advances the head when it was staged on
 the head it finds there (its base); otherwise it is **divergent** and changes
 nothing. Two machines that wrote one edition from one head therefore reach the
 same head after their logs merge, whichever log received which write first: a
@@ -560,20 +566,41 @@ still holds the revision it started from, the common case for writes to
 different blocks, is applied onto the head as a new `content.edit` naming it as
 its cause, addressed so that two machines rebasing one write onto one head make
 one operation. A divergent write that changed a block the head has moved since
-stays listed, and `kapi status` names it as a conflict.
+is a **conflict**, which `kapi status` names. A person's or an agent's write
+that advances the head settles the conflict for every block it writes, since it
+was made with the conflict in view, and a rebase carries over only the blocks a
+conflict still lists. A delivery's release of the whole edition settles every
+conflict on it.
 
-The file home reaches the workspace home through a keeper
-(`filehome.Keeper`): an edition whose file does not exist lives in the
-workspace home while the workspace keeps it, and its reads and change sets go
-through the keeper with `if_match` like any edition
-([E-09](../engine/e-09-the-change-contract.md#homes)). An edition with
-neither a file nor a kept draft is written to its file, which is what a
-delivery does. Once the edition's file
-exists, the file is its home and the workspace's copy is never read or
-written, so the workspace never becomes a second copy of file-backed content.
+The recipe picks an edition's home. The file home reaches the workspace home
+through a keeper (`filehome.Keeper`): under `on-converge` a translation whose
+file does not exist lives in the workspace home whether or not the workspace
+holds anything of it yet, so a change set never delivers a file the ship gate
+withholds; under `manual` it is written to its file, unless the workspace still
+keeps a draft of it. Its reads and change sets go through the keeper with
+`if_match` like any edition ([E-09](../engine/e-09-the-change-contract.md#homes)).
+Once the edition's file exists, the file is its home and the workspace's copy
+is never read or written there, and a gated run keeps no draft of a
+translation whose file exists, so the workspace never becomes a second copy of
+file-backed content.
+
 Every delivery (`kapi merge`, or `kapi up` for a locale that cleared its gate)
-writes the file from what the workspace keeps and then releases the edition, a
-`content.edit` that removes each block from the workspace home.
+writes the file from what the workspace keeps, with the basis each draft was
+made from, and then releases from the workspace home what it read there, a
+`content.edit` that removes each block. The release expects the head the
+delivery read, so an edit that lands in between is delivered by reading again
+rather than released unread. A run that delivers a locale first replaces the
+drafts the workspace kept from an earlier run with its own, so what it writes
+on top of the run's drafts is the wording a person or an agent gave the
+locale, never a draft of a source that has changed since.
+
+A translation's file can also appear by another path: a person writes it,
+`kapi pull` or a checkout brings it, or a recipe switched to `manual` has its
+pass write it from the flow's drafts. The end of every run **settles** such an
+edition: the workspace releases each block the file already holds and each
+draft a tool made, which the file supersedes, and keeps the wording a person or
+an agent wrote that the file does not hold. `kapi status` lists that wording
+as a conflict, and `kapi merge` writes it into the file.
 
 ### Deleting derived data {#kapiwork-is-free-to-delete}
 
@@ -581,10 +608,13 @@ The parse cache, extraction batches, collection overlays and `store.db` can be
 rebuilt from content files. A parked locale's drafts are kept in the workspace
 home, so deleting `.kapi/work/` loses none of them: the next `kapi up` writes the
 overlays a producer serves them from back into the block store from the stamps
-the workspace home keeps, and the pass calls no provider for them. The
-redaction vault at `.kapi/work/vault/` is an exception: it contains withheld
-originals that are neither committed nor sent to a service. Deleting it loses
-those values ([C-10](c-10-redaction.md)).
+the workspace home keeps, and the pass calls no provider for them. A draft a
+person or an agent has edited since is restored from the latest draft a
+producer wrote for it, which the log keeps, so the producer serves that draft
+and the edit stays kept. The redaction vault at `.kapi/work/vault/` is an
+exception: it contains withheld originals that are neither committed nor sent
+to a service. Deleting it loses those values, in kept drafts too
+([C-10](c-10-redaction.md)).
 
 The context store has a separate lifetime in the workspace. Deleting
 `<DataDir>/workspaces/` removes the terms, voice profiles, content memory,

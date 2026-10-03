@@ -82,8 +82,10 @@ Deletion has different consequences for each location:
   vault.** The [redaction](/framework/redaction) vault at `.kapi/work/vault/`
   contains withheld originals that are neither committed nor synced. Merge
   in-flight batches before deleting it. Workspace context is unaffected, and so
-  are a parked language's drafts: the next `kapi up` serves them again without
-  translating them anew.
+  are a parked language's drafts and the edits made to them: the next `kapi up`
+  serves them again without translating them anew. In a project that declares
+  redaction, the values withheld from those drafts are in the vault, and a draft
+  reads with placeholders without it.
 - **Deleting the workspace costs the context of every project on the machine**:
   the terms, the voice profiles, the content memory and the recorded decisions.
   A project with a [context backend](/kapi/context-portability#sharing-context-through-a-backend)

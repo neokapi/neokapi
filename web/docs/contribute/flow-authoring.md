@@ -260,6 +260,9 @@ their bytes. In a project each document the run wrote is recorded as the flow's
 edit, with the source each translation was made from. `--print-ops` writes no
 file and prints the operations the run would apply, addressed to the document
 and the edition the run changed; `kapi apply` applies them to the same bytes.
+Under `materialize: on-converge` a translation whose file does not exist yet
+lives in the workspace home, so `kapi apply` keeps it there and `kapi merge`
+writes its file.
 Every file left out of the change set is named on stderr, among them a target
 file the run writes whole from its source where `kapi apply` would write other
 bytes, and a file the change service does not keep the edition in (an `-o` path

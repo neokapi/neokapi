@@ -312,14 +312,20 @@ editor changed to the keeper, the commit lock is the lock of the file the
 edition will be delivered to, and the commit appends the change's record only
 while the edition's head in the log is still the one the stage read
 (`workspace.Backend.RecordIf`); a head that moved in between makes the stage
-read and apply again, as a moved file does. The record is the commit:
+read and apply again, as a moved file does, and a head that moves after the
+stage settled refuses the change set `doc_changed` with nothing landed. The
+record is the commit:
 `change.RecordingStaged` hands the staged change the record of its document
 before `Commit`, the result names the workspace home for that edition
 (`StagedFile.Home`), and the service's recorder records nothing more for it
 (`StagedFile.Recorded`). The conformance suite runs on the workspace home with
-the edition files of a parked locale as its documents. A host keeps an
-edition in the workspace home while the workspace keeps it and its file does
-not exist; an edition with neither is written to its file.
+the edition files of a parked locale as its documents. The recipe picks the
+home of a translation whose file does not exist: under
+`materialize: on-converge` it is the workspace home, whether or not the
+workspace holds anything of it yet, and under `manual` it is the file, unless
+the workspace still keeps a draft of it. A project that declares redaction
+records a kept edition redacted and reads it back from the vault
+([C-03](../context/c-03-context-store-and-graph.md#the-workspace-home)).
 
 ### Flows
 
@@ -339,10 +345,13 @@ that locale's drafts into the workspace home instead
 (`workhome.Home.Produce`): one write per document, each draft guarded by the
 revision the run first read of it, with its basis and the stamp its producer
 serves it again by; a block another writer changed meanwhile, or one a person
-or an agent wrote from the same source, keeps that writer's edition. A
-delivery (`kapi merge`, or `kapi up` for a locale that cleared its gate)
-writes each edition's file from what the workspace home keeps and then releases
-the edition from it (`workhome.Home.Release`).
+or an agent wrote from the same source, keeps that writer's edition. A run
+that delivers a locale replaces the drafts the workspace kept of it from an
+earlier run the same way first. A delivery (`kapi merge`, or `kapi up` for a
+locale that cleared its gate) writes each edition's file from what the
+workspace home keeps, each draft with the basis it was made from, and then
+releases what it read there (`workhome.Home.Release`), only while the
+edition's head is still the one it read.
 
 Inside a project the host records each document a flow wrote as one
 `content.edit`, through the recorder a change set's commit records through,
@@ -399,11 +408,13 @@ holds an entry or an order of its own; such a file is named on standard error
 and left out. So is a file the run would write where the service does not keep
 the edition (an output path given on the command line in place of the recipe's
 target), a conversion, an export and an archive. `kapi apply` of the change set
-writes the bytes the run would have written, and records the edit as its
-applier's: a person's or an agent's edit is theirs, so the `origin` the
-operations state is not kept on the translation, and `kapi apply` prints one
-line naming the tools and saying so. A run with nothing to change prints a
-change set with no operation, which applies and writes nothing.
+writes the bytes the run would have written (under `materialize: on-converge`,
+a translation whose file does not exist yet lands in the workspace home, its
+home until a delivery, and `kapi merge` writes those bytes), and records the
+edit as its applier's: a person's or an agent's edit is theirs, so the
+`origin` the operations state is not kept on the translation, and `kapi apply`
+prints one line naming the tools and saying so. A run with nothing to change
+prints a change set with no operation, which applies and writes nothing.
 
 A printing `kapi up` runs one pass. A gated pass drafts into its private tree
 as any pass does (`Options.WriteUnder` lets the printing home write there),

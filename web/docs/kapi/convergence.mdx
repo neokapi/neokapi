@@ -325,10 +325,18 @@ Under `materialize: on-converge` a parked language gets no files, so its drafts
 are kept in the project's [workspace](/kapi/project-store), outside the
 checkout. `kapi status`, the review worklist, `kapi inspect` and `kapi apply`
 read and change them there, Kapi Desktop's review pane edits them there, and
-they reach the language's files when it is delivered: by the run in which it
-clears its gate, or by `kapi merge`. Deleting `.kapi/` loses none of them, and
-a project that [shares its context](/kapi/context-portability) shares them
-too.
+an edit to a language that has no file yet is kept there too, so no edit
+delivers a file the gate withholds. They reach the language's files when it is
+delivered: by the run in which it clears its gate, or by `kapi merge`. Deleting
+`.kapi/work/` loses none of them, and a project that
+[shares its context](/kapi/context-portability) shares them too.
+
+When a language's file appears another way (you write it, `kapi pull` or a
+checkout brings it, or the recipe switches to `materialize: manual` and a pass
+writes it), the file holds the language from then on. The next `kapi up` drops
+the kept drafts the file supersedes and keeps any wording a person or an agent
+wrote that the file does not hold; `kapi status` lists that wording, and
+`kapi merge` writes it into the file.
 
 Before each pass, `up` re-syncs the project block store with the working tree:
 edited source files, a store written by another kapi version, or a missing store

@@ -451,7 +451,9 @@ drafted it. The block store is a cache: the workspace home keeps each parked
 draft with the stamp its producer serves it by (the overlay's key,
 configuration fingerprint and source stamp), and a run writes the overlays it
 lacks back before its first pass, so a checkout whose `.kapi/work/` was deleted
-serves its parked drafts without a provider call.
+serves its parked drafts without a provider call. A draft a person or an agent
+edited since is restored from the latest draft a producer wrote for it, which
+the log keeps.
 The plan judges a produced unit only once the record absorber has read its
 committed target at the bytes on disk (the digest stamps of
 [C-03](c-03-context-store-and-graph.md)); before that the corpus is unfinished,
