@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,12 +17,18 @@ import (
 // PostgreSQL store does, and counts the times its whole terms are read.
 type revisionedTestTerms struct {
 	*testTermStore
-	revision string
-	reads    int
-	failRead bool
+	revision     string
+	reads        int
+	failRead     bool
+	failRevision bool
 }
 
-func (r *revisionedTestTerms) Revision(context.Context) (string, error) { return r.revision, nil }
+func (r *revisionedTestTerms) Revision(context.Context) (string, error) {
+	if r.failRevision {
+		return "", errors.New("the revision is unreadable")
+	}
+	return r.revision, nil
+}
 
 func (r *revisionedTestTerms) Concepts(ctx context.Context) ([]terms.Concept, error) {
 	r.reads++
@@ -85,4 +92,69 @@ func TestTermSnapshotCache_ReadsTheTermsOncePerRevision(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, otherAll, 1, "a revision is kept per workspace")
 	assert.Equal(t, "c-other", otherAll[0].ID)
+}
+
+// TestTermSnapshotCache_KeepsABoundedSetOfWorkspaces pins what the cache
+// holds on to: a snapshot is dropped once its workspace's revision reads
+// empty or cannot be read, and past termSnapshotWorkspaces workspaces the one
+// used least recently makes room.
+func TestTermSnapshotCache_KeepsABoundedSetOfWorkspaces(t *testing.T) {
+	ctx := t.Context()
+	store := func(t *testing.T, id string) *revisionedTestTerms {
+		tb := &revisionedTestTerms{testTermStore: &testTermStore{terms.NewInMemoryStore()}, revision: "r1"}
+		require.NoError(t, tb.AddConcept(ctx, termConcept("c-"+id, id)))
+		return tb
+	}
+	kept := func(c *termSnapshotCache, ws string) bool {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		_, ok := c.byWS[ws]
+		return ok
+	}
+
+	t.Run("a revision that reads empty or fails drops the snapshot", func(t *testing.T) {
+		var c termSnapshotCache
+		tb := store(t, "ws")
+		c.snapshot(ctx, "ws", tb)
+		require.True(t, kept(&c, "ws"))
+		tb.revision = ""
+		c.snapshot(ctx, "ws", tb)
+		assert.False(t, kept(&c, "ws"), "a workspace whose terms name no revision keeps nothing")
+
+		tb.revision = "r2"
+		c.snapshot(ctx, "ws", tb)
+		require.True(t, kept(&c, "ws"))
+		tb.failRevision = true
+		snap, _ := c.snapshot(ctx, "ws", tb)
+		assert.NotNil(t, snap, "the call still reads the terms")
+		assert.False(t, kept(&c, "ws"), "a revision that cannot be read keeps nothing")
+	})
+
+	t.Run("the workspace used least recently makes room", func(t *testing.T) {
+		var c termSnapshotCache
+		stores := map[string]*revisionedTestTerms{}
+		for i := range termSnapshotWorkspaces {
+			ws := fmt.Sprintf("ws-%02d", i)
+			stores[ws] = store(t, ws)
+			c.snapshot(ctx, ws, stores[ws])
+		}
+		c.snapshot(ctx, "ws-00", stores["ws-00"])
+		stores["ws-new"] = store(t, "ws-new")
+		c.snapshot(ctx, "ws-new", stores["ws-new"])
+
+		c.mu.Lock()
+		held := len(c.byWS)
+		c.mu.Unlock()
+		assert.Equal(t, termSnapshotWorkspaces, held, "the cache holds no more than its bound")
+		assert.True(t, kept(&c, "ws-00"), "a workspace used again stays")
+		assert.True(t, kept(&c, "ws-new"))
+		assert.False(t, kept(&c, "ws-01"), "the workspace used least recently went")
+
+		reads := stores["ws-01"].reads
+		c.snapshot(ctx, "ws-01", stores["ws-01"])
+		assert.Equal(t, reads+1, stores["ws-01"].reads, "and reads its terms again on its next call")
+		reads = stores["ws-00"].reads
+		c.snapshot(ctx, "ws-00", stores["ws-00"])
+		assert.Equal(t, reads, stores["ws-00"].reads, "while a kept workspace reads only its revision")
+	})
 }

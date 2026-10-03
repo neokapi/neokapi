@@ -458,16 +458,27 @@ type revisionedTerms interface {
 // leaves a snapshot that already holds it under the revision before it, which
 // the next call reads past. Every replica of the server checks the revision
 // on every call, so a write through another one is seen at the next call.
+//
+// It keeps at most termSnapshotWorkspaces snapshots, dropping the one used
+// least recently to make room, and drops a workspace's snapshot when its
+// revision reads empty (a workspace removed or reset) or cannot be read.
 type termSnapshotCache struct {
 	mu   sync.Mutex
 	byWS map[string]termSnapshot
+	// clock orders the snapshots by their last use.
+	clock uint64
 }
+
+// termSnapshotWorkspaces is the most workspaces whose terms a server keeps a
+// snapshot of. A workspace past it reads its terms again on its next call.
+const termSnapshotWorkspaces = 32
 
 // termSnapshot is one workspace's snapshot and its digest, read at revision.
 type termSnapshot struct {
 	revision string
 	snap     terms.Terminology
 	fp       string
+	used     uint64
 }
 
 // snapshot returns the snapshot of tb, the terms of workspace wsID, and its
@@ -480,23 +491,53 @@ func (c *termSnapshotCache) snapshot(ctx context.Context, wsID string, tb terms.
 	}
 	rev, err := rt.Revision(ctx)
 	if err != nil || rev == "" {
+		c.drop(wsID)
 		return snapshotTerms(ctx, tb)
 	}
 	c.mu.Lock()
 	kept, ok := c.byWS[wsID]
-	c.mu.Unlock()
 	if ok && kept.revision == rev {
+		c.clock++
+		kept.used = c.clock
+		c.byWS[wsID] = kept
+		c.mu.Unlock()
 		return kept.snap, kept.fp
 	}
+	c.mu.Unlock()
 	snap, fp, err := readTermSnapshot(ctx, tb)
 	if err != nil {
+		c.drop(wsID)
 		return nil, ""
 	}
+	c.keep(wsID, termSnapshot{revision: rev, snap: snap, fp: fp})
+	return snap, fp
+}
+
+// keep keeps s as workspace wsID's snapshot, dropping the snapshot used least
+// recently when the cache is full.
+func (c *termSnapshotCache) keep(wsID string, s termSnapshot) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.byWS == nil {
 		c.byWS = map[string]termSnapshot{}
 	}
-	c.byWS[wsID] = termSnapshot{revision: rev, snap: snap, fp: fp}
+	if _, held := c.byWS[wsID]; !held && len(c.byWS) >= termSnapshotWorkspaces {
+		oldest := ""
+		for ws, kept := range c.byWS {
+			if oldest == "" || kept.used < c.byWS[oldest].used {
+				oldest = ws
+			}
+		}
+		delete(c.byWS, oldest)
+	}
+	c.clock++
+	s.used = c.clock
+	c.byWS[wsID] = s
+}
+
+// drop forgets workspace wsID's snapshot.
+func (c *termSnapshotCache) drop(wsID string) {
+	c.mu.Lock()
+	delete(c.byWS, wsID)
 	c.mu.Unlock()
-	return snap, fp
 }
