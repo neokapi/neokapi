@@ -27,7 +27,9 @@ func TestOutsideAProject_ACatalogHoldsTheLanguageItsNameSays(t *testing.T) {
 	svc, err := app.ChangeService(t.Context(), ChangeServiceOptions{Root: dir, Origin: "apply"})
 	require.NoError(t, err)
 
-	page, err := svc.Read(t.Context(), change.ReadRequest{Doc: "locales/nb.json", OwnEdition: true})
+	// A read names the language the path gives, unasked, as a surface that
+	// knows no language reads.
+	page, err := svc.Read(t.Context(), change.ReadRequest{Doc: "locales/nb.json"})
 	require.NoError(t, err)
 	require.Len(t, page.Blocks, 1)
 	assert.Equal(t, model.LocaleID("nb"), page.Blocks[0].Ref.Edition.Locale, "the read names the file's own edition")
@@ -52,18 +54,78 @@ func TestOutsideAProject_ACatalogHoldsTheLanguageItsNameSays(t *testing.T) {
 	assert.JSONEq(t, `{"a":"Hei du"}`, readFileIn(t, dir, "locales/nb.json"))
 }
 
+// A path names a language where its files are sorted by language: a name
+// with a region or script, a two-letter name in a directory named for
+// languages, or one beside another of its kind. A code directory or file
+// whose two-letter name happens to be a language code names none.
 func TestPathLanguage(t *testing.T) {
+	dir := t.TempDir()
+	for _, f := range []string{
+		"locales/nb.json", "i18n/pt_BR/app.json", "i18n/de/app.json", "app/nb-NO.json",
+		"strings/en.json", "strings/nb.json", "docs/en/guide.md", "docs/de/guide.md",
+		"de/guide.md", "docs/guide.md", "config/app.yaml", "src/strings.json", "locales/messages.pot",
+		"src/io/x.json", "src/os/y.json", "app/my/settings.json", "manual/to/guide.md", "assets/is.json",
+		"assets/logo.json", "docs/id.md", "docs/readme.md", "it.md", "a/sh.json", "b/ts.json",
+	} {
+		path := filepath.Join(dir, filepath.FromSlash(f))
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+		require.NoError(t, os.WriteFile(path, []byte("{}\n"), 0o644))
+	}
 	for in, want := range map[string]model.LocaleID{
-		"locales/nb.json":      "nb",
-		"de/guide.md":          "de",
-		"i18n/pt_BR/app.json":  "pt-BR",
-		"app/nb-NO.json":       "nb-NO",
+		"locales/nb.json":     "nb",
+		"i18n/pt_BR/app.json": "pt-BR",
+		"i18n/de/app.json":    "de",
+		"app/nb-NO.json":      "nb-NO",
+		"strings/nb.json":     "nb",
+		"strings/en.json":     "en",
+		"docs/de/guide.md":    "de",
+		"docs/en/guide.md":    "en",
+
+		"de/guide.md":          "",
 		"docs/guide.md":        "",
 		"config/app.yaml":      "",
 		"src/strings.json":     "",
 		"locales/messages.pot": "",
+		"src/io/x.json":        "",
+		"app/my/settings.json": "",
+		"manual/to/guide.md":   "",
+		"assets/is.json":       "",
+		"docs/id.md":           "",
+		"it.md":                "",
+		"a/sh.json":            "",
+		"b/ts.json":            "",
 	} {
-		assert.Equal(t, want, pathLanguage(in), in)
+		assert.Equal(t, want, pathLanguage(in, filepath.Join(dir, filepath.FromSlash(in))), in)
+	}
+}
+
+// Outside a project a block inserted into a catalog in a code directory
+// whose name is a language code is written in the documents' language, as
+// the skill's example sends it.
+func TestOutsideAProject_ACodeDirectoryNamesNoLanguage(t *testing.T) {
+	dir := t.TempDir()
+	for _, sub := range []string{"src/io", "src/ui"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, filepath.FromSlash(sub)), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, filepath.FromSlash(sub), "strings.json"), []byte(`{"a":"Open"}`+"\n"), 0o644))
+	}
+	app := &App{}
+	app.InitRegistries()
+	svc, err := app.ChangeService(t.Context(), ChangeServiceOptions{Root: dir, Origin: "apply"})
+	require.NoError(t, err)
+
+	text := func(s string) *string { return &s }
+	for _, doc := range []string{"src/io/strings.json", "src/ui/strings.json"} {
+		page, err := svc.Read(t.Context(), change.ReadRequest{Doc: doc})
+		require.NoError(t, err)
+		require.Len(t, page.Blocks, 1)
+		assert.True(t, page.Blocks[0].Ref.Edition.IsZero(), "%s names no language: %+v", doc, page.Blocks[0].Ref)
+		res, err := svc.Apply(t.Context(), change.Set{Ops: []change.Op{{
+			Kind: change.KindInsertBlock, At: change.Ref{Doc: doc},
+			Body: &change.InsertBlock{After: "a", Name: "b", Editions: map[string]change.Content{"en": {Text: text("Close")}}},
+		}}}, change.Actor{Kind: change.ActorAgent, Name: "test"})
+		require.NoError(t, err)
+		require.Equal(t, change.SetApplied, res.Status, "%s: %+v", doc, res.Ops)
+		assert.JSONEq(t, `{"a":"Open","b":"Close"}`, readFileIn(t, dir, doc), doc)
 	}
 }
 
