@@ -117,10 +117,10 @@ The server holds each operation to what the sender may do on the project:
   filed under `agent/<client>` against the revision in `if_match`. It moves no
   status and takes `translate` for the language. Only an agent sends it, over
   the server MCP; the changes route refuses a person's `advise` with
-  `not_permitted`, because the queue shows a pre-review as AI advice. Each entry of the
-  pending-review queue carries it as `pre_review`, and the review context as
-  the judgement's `ai_score`, `ai_model` and `ai_findings`, while the
-  translation stands at that revision.
+  `not_permitted`, because the queue shows a pre-review as AI advice. Each
+  entry of the pending-review queue carries it as `pre_review`, and the review
+  context as the judgement's `ai_score`, `ai_model` and `ai_findings`, while
+  the translation stands at that revision.
 - A note is an `annotate` of type `note` on the source, which anyone who may
   read the content leaves; the server stamps it with its author and the time
   it landed. An `annotate` under an existing note's id rewrites it and an
