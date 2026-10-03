@@ -17,8 +17,9 @@ import (
 // kapi's readers: a grader that shared the system under test's parser would
 // pass whatever that parser gets wrong.
 
-// pairedJSONLeaf is one scalar of a JSON document: its dotted key path and its
-// value as JSON.
+// pairedJSONLeaf is one scalar of a JSON document: its JSON pointer (RFC
+// 6901), which tells a key holding a dot from a nested one, and its value as
+// JSON.
 type pairedJSONLeaf struct {
 	Path  string
 	Value string
@@ -87,11 +88,9 @@ func pairedJSONWalk(decoder *json.Decoder, prefix string, leaves *[]pairedJSONLe
 	}
 }
 
+// pairedJoinKey extends a JSON pointer by one key or index.
 func pairedJoinKey(prefix, key string) string {
-	if prefix == "" {
-		return key
-	}
-	return prefix + "." + key
+	return prefix + "/" + strings.NewReplacer("~", "~0", "/", "~1").Replace(key)
 }
 
 func pairedLeafDifference(want, got []pairedJSONLeaf) string {
@@ -126,7 +125,6 @@ var (
 	pairedCodeSpan    = regexp.MustCompile("`([^`]+)`")
 	pairedBoldSpan    = regexp.MustCompile(`\*\*[^*]+\*\*|__[^_]+__`)
 	pairedLinkText    = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`)
-	pairedSentenceEnd = regexp.MustCompile(`[.!?:;]+\s*`)
 )
 
 // pairedMarkdownBlocks splits a page into blocks. A fence keeps its content
@@ -225,7 +223,7 @@ func pairedMarkdownTranslated(source, output string) (bool, string) {
 	if len(want) != len(got) {
 		return false, fmt.Sprintf("%d blocks, the source has %d", len(got), len(want))
 	}
-	whole := pairedProse(output)
+	whole := " " + strings.Join(pairedWords(output), " ") + " "
 	for i := range want {
 		if want[i].Kind == "code" {
 			continue
@@ -233,13 +231,33 @@ func pairedMarkdownTranslated(source, output string) (bool, string) {
 		if pairedProse(want[i].Text) == pairedProse(got[i].Text) {
 			return false, fmt.Sprintf("block %d is untranslated: %q", i+1, pairedClip(want[i].Text))
 		}
-		for _, sentence := range pairedSentenceEnd.Split(pairedProse(want[i].Text), -1) {
-			if len(strings.Fields(sentence)) >= 4 && strings.Contains(whole, sentence) {
-				return false, fmt.Sprintf("English remains: %q", sentence)
+		// Any four words of the source in a row, a link's text or part of
+		// a sentence as much as a whole one, are source left in the
+		// translation.
+		words := pairedWords(want[i].Text)
+		for j := 0; j+pairedSourceRun <= len(words); j++ {
+			if run := strings.Join(words[j:j+pairedSourceRun], " "); strings.Contains(whole, " "+run+" ") {
+				return false, fmt.Sprintf("source text remains: %q", run)
 			}
 		}
 	}
 	return true, ""
+}
+
+// pairedSourceRun is how many words of the source in a row a translation
+// may not keep.
+const pairedSourceRun = 4
+
+// pairedWords is a block's prose as words, without the punctuation at their
+// edges.
+func pairedWords(text string) []string {
+	var out []string
+	for _, field := range strings.Fields(pairedProse(text)) {
+		if word := strings.TrimFunc(field, func(r rune) bool { return unicode.IsPunct(r) || unicode.IsSymbol(r) }); word != "" {
+			out = append(out, word)
+		}
+	}
+	return out
 }
 
 // Function words of the languages the corpus checks. A word both languages use

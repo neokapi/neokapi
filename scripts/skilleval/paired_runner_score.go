@@ -33,6 +33,8 @@ type pairedScoreRow struct {
 	OverrideAttempts  []string                  `json:"override_attempts,omitempty"`
 	RouteAttempts     []string                  `json:"route_attempts,omitempty"`
 	WriteRoute        string                    `json:"write_route,omitempty"`
+	RootWrites        []string                  `json:"root_writes,omitempty"`
+	ContextWrites     []string                  `json:"context_writes,omitempty"`
 	MCPExposure       string                    `json:"mcp_exposure,omitempty"`
 	OutsideCell       []string                  `json:"outside_cell,omitempty"`
 	Interference      *PairedInterferenceRecord `json:"interference,omitempty"`
@@ -130,6 +132,9 @@ func scorePaired(dir string) error {
 // pairedSummaryCell is one task, host and condition of the summary.
 type pairedSummaryCell struct {
 	n, passed, completed, overrides, outside, changed, asked int
+	// rootWrites and contextWrites count the attempts that wrote a file in
+	// the workspace root, and that wrote the project's context store.
+	rootWrites, contextWrites int
 	// unmeasured counts the attempts whose host reported no token use,
 	// which every median leaves out alike.
 	unmeasured                    int
@@ -242,9 +247,31 @@ func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 		fmt.Fprintf(markdown, "\nThe medians leave out the attempts whose host reported no token use, in seconds and "+
 			"tool calls as in tokens: %s.\n", strings.Join(unmeasured, ", "))
 	}
+	writePairedWritesSummary(markdown, keys, cells)
 	writePairedRouteSummary(markdown, routes)
 	writePairedStaleSummary(markdown, keys, cells)
 	writePairedInvalidSummary(markdown, keys, cells)
+}
+
+// writePairedWritesSummary counts, per cell, the attempts that wrote a file in
+// the workspace root (whether or not it was left there) and the attempts that
+// wrote the project's context store, which the task never asks for.
+func writePairedWritesSummary(markdown *strings.Builder, keys [][3]string, cells map[[3]string]*pairedSummaryCell) {
+	header := false
+	for _, key := range keys {
+		c := cells[key]
+		if c.rootWrites == 0 && c.contextWrites == 0 {
+			continue
+		}
+		if !header {
+			markdown.WriteString("\n## Writes beside the task\n\nAttempts that wrote a file in the workspace root, kept " +
+				"or deleted later, and attempts that wrote the project's context store (kapi context, terms or memory " +
+				"verbs, or a recording context tool).\n\n| Task | Host | Condition | n | Root writes | Context-store writes |\n" +
+				"|---|---|---|---|---|---|\n")
+			header = true
+		}
+		fmt.Fprintf(markdown, "| %s | %s | %s | %d | %d | %d |\n", key[0], key[1], key[2], c.n, c.rootWrites, c.contextWrites)
+	}
 }
 
 // writePairedRouteSummary splits each cell's attempts by the route they wrote
@@ -296,6 +323,12 @@ func (c *pairedSummaryCell) add(row pairedScoreRow) {
 	}
 	if row.Validation != nil && row.Validation.Outcome == "asked" {
 		c.asked++
+	}
+	if len(row.RootWrites) > 0 {
+		c.rootWrites++
+	}
+	if len(row.ContextWrites) > 0 {
+		c.contextWrites++
 	}
 	if len(row.OutsideCell) > 0 {
 		c.outside++
@@ -465,6 +498,8 @@ func scorePairedAttempt(path, fingerprint string) (pairedScoreRow, error) {
 	row.OverrideAttempts = result.Agent.OverrideAttempts
 	row.RouteAttempts = result.Agent.RouteAttempts
 	row.WriteRoute = pairedWriteRoute(result.Agent.WriteRoutes)
+	row.RootWrites = result.Agent.RootWrites
+	row.ContextWrites = result.Agent.ContextWrites
 	row.MCPExposure = result.Agent.MCPExposure
 	row.OutsideCell = result.Agent.OutsideCell
 	row.Interference = result.Agent.Interference

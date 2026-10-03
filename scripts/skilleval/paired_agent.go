@@ -101,6 +101,13 @@ type PairedAgentResult struct {
 	MCPExposure string `json:"mcp_exposure,omitempty"`
 	// MCPGiven lists the kapi tools the host declared to the model.
 	MCPGiven []string `json:"mcp_given,omitempty"`
+	// RootWrites lists the files the agent's tool calls wrote directly in the
+	// workspace root, kept or deleted later.
+	RootWrites []string `json:"root_writes,omitempty"`
+	// ContextWrites lists the writes to the project's context store the
+	// agent's tool calls made: kapi context, terms and memory verbs and the
+	// context MCP tools that record.
+	ContextWrites []string `json:"context_writes,omitempty"`
 	// WriteRoutes lists the routes the agent's tool calls took to write the
 	// task's files, in the order it first took each: contract (kapi apply,
 	// ksed -i, apply_edits), merge (kapi merge) and native (the host's own

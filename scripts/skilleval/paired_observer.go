@@ -189,6 +189,9 @@ var (
 	// message (an ARB branch holding ICU syntax) as a write error, which
 	// carries no contract code.
 	pairedWriteRefusal = regexp.MustCompile(`would not read back as written`)
+	// kapi merge reports each unit it refused on a "not merged:" line,
+	// naming the contract code first when there is one.
+	pairedMergeRefusal = regexp.MustCompile(`\bnot merged: (?:(stale|gate_failed|guard|not_found|ambiguous|unsupported|not_permitted|invalid)\b)?`)
 )
 
 func (o *pairedObserver) countRefusals(texts []string) {
@@ -212,6 +215,13 @@ func (o *pairedObserver) countRefusals(texts []string) {
 		}
 		if pairedWriteRefusal.MatchString(text) {
 			codes["write:not_read_back"] = true
+		}
+		for _, match := range pairedMergeRefusal.FindAllStringSubmatch(text, -1) {
+			code := match[1]
+			if code == "" {
+				code = "refused"
+			}
+			codes["merge:"+code] = true
 		}
 	}
 	for code := range codes {
