@@ -23,10 +23,10 @@ import (
 // a section reads the same in both languages), and only then by position, and
 // only when both files hold the same number of blocks, which is what a file
 // materialized from the document's own skeleton holds. A file in a language of
-// its own whose keys all sit under one root, where the document's sit under
-// another (a Rails catalog: en: in the document, de: in the German file),
-// pairs by key below the root, so a translation one of them lacks leaves the
-// rest paired.
+// its own whose keys all sit under a root named for its language, where the
+// document's sit under one named for the document's (a Rails catalog: en: in
+// the document, de: in the German file), pairs by key below the root, so a
+// translation one of them lacks leaves the rest paired.
 
 // joinedEdition is one edition joined from its own file.
 type joinedEdition struct {
@@ -107,7 +107,7 @@ func (s *session) joinIndexed(ctx context.Context, keys []model.EditionKey, ix *
 			je.kept = &kept
 			je.blocks = keptBlocks(kept)
 			je.exists = len(je.blocks) > 0
-			je.pair(ix)
+			je.pair(ix, s.doc.SourceLocale)
 			out = append(out, je)
 			continue
 		}
@@ -123,15 +123,16 @@ func (s *session) joinIndexed(ctx context.Context, keys []model.EditionKey, ix *
 			if err := p.run(ctx); err != nil {
 				return nil, err
 			}
-			je.pair(ix)
+			je.pair(ix, s.doc.SourceLocale)
 		}
 		out = append(out, je)
 	}
 	return out, nil
 }
 
-// pair matches the document's blocks to the edition file's.
-func (je *joinedEdition) pair(ix *blockIndex) {
+// pair matches the document's blocks, read in language source, to the
+// edition file's.
+func (je *joinedEdition) pair(ix *blockIndex, source model.LocaleID) {
 	byKey := make(map[string]int, len(je.blocks))
 	byAddr := make(map[string]int, len(je.blocks))
 	for i, b := range je.blocks {
@@ -154,7 +155,8 @@ func (je *joinedEdition) pair(ix *blockIndex) {
 		for i, b := range je.blocks {
 			fileKeys[i] = change.BlockKey(b)
 		}
-		if docRoot, fileRoot = keyRoot(ix.keys), keyRoot(fileKeys); docRoot == fileRoot {
+		docRoot, fileRoot = keyRoot(ix.keys), keyRoot(fileKeys)
+		if docRoot == fileRoot || !namesLocale(docRoot, source) || !namesLocale(fileRoot, je.key.Locale) {
 			docRoot, fileRoot = "", ""
 		}
 	}
@@ -189,6 +191,18 @@ func keyRoot(keys []string) string {
 		root = r
 	}
 	return root
+}
+
+// namesLocale reports whether root, the first segment of a key, names locale
+// l: its tag or its language, in any case, with - or _ between the parts.
+func namesLocale(root string, l model.LocaleID) bool {
+	if root == "" || l.IsEmpty() {
+		return false
+	}
+	norm := func(s string) string { return strings.ToLower(strings.ReplaceAll(s, "_", "-")) }
+	r, tag := norm(root), norm(string(l))
+	lang, _, _ := strings.Cut(tag, "-")
+	return r == tag || r == lang
 }
 
 // held is what the edition file's block at index ti holds of the edition:

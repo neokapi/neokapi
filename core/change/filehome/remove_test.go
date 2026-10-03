@@ -295,6 +295,40 @@ func TestFileHome_ARemovedTranslationIsCreatedAgain(t *testing.T) {
 	}
 }
 
+// A translation file whose keys sit under a root named for its language,
+// where the document's sit under one named for the document's, pairs each
+// block by its key below the root, so a translation the file lacks leaves the
+// others paired. Roots that name no language pair nothing that way.
+func TestFileHome_KeysUnderALanguageRootPairBelowIt(t *testing.T) {
+	cases := []struct {
+		name, source, german, edition string
+		// paired is the German each block reads, "" for none.
+		paired map[string]string
+	}{
+		{name: "a Rails catalog", source: "en:\n  a: Alpha\n  b: Beta\n  c: Gamma\n", german: "de:\n  b: Bet\n  c: Gam\n", edition: "de",
+			paired: map[string]string{"en.a": "", "en.b": "Bet", "en.c": "Gam"}},
+		{name: "a root naming the language of a regional edition", source: "en:\n  a: Alpha\n  b: Beta\n", german: "pt_BR:\n  b: Beta em português\n", edition: "pt-BR",
+			paired: map[string]string{"en.a": "", "en.b": "Beta em português"}},
+		{name: "roots that name no language", source: "home:\n  a: Alpha\n  b: Beta\n", german: "about:\n  b: Bet\n", edition: "de",
+			paired: map[string]string{"home.a": "", "home.b": ""}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newTargetFixture(t, map[string]string{"g.yml": tc.source, tc.edition + "/g.yml": tc.german})
+			k := mustEdition(t, tc.edition)
+			for block, want := range tc.paired {
+				ed, ok := editionOf(t, f.svc, "g.yml", block, k)
+				if want == "" {
+					assert.False(t, ok, "%s pairs with no German block", block)
+					continue
+				}
+				require.True(t, ok, "%s pairs with its block below the root", block)
+				assert.Equal(t, want, ed.Text)
+			}
+		})
+	}
+}
+
 // A file whose last translation was removed holds no block to put a new one
 // beside: the translation created there goes last, under the document's key.
 func TestFileHome_ATranslationIsCreatedInAFileWithNoBlockLeft(t *testing.T) {
