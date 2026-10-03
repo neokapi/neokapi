@@ -77,22 +77,27 @@ func payloadJSON(v model.Payload) []byte {
 	return raw
 }
 
-// BlockMeta is what a tool wrote on a block beyond its content and overlays:
-// the block annotations it added or changed, and the properties it set or
-// removed. A row keeps them beside the content, and no change set operation
-// carries them (Home.WriteMeta).
+// BlockMeta is what a pass wrote on a block beyond its content and overlays:
+// the block annotations it added or changed, the properties it set or
+// removed, and the status of each edition it moved without changing the
+// edition's content. A row keeps them beside the content (Home.WriteMeta).
 type BlockMeta struct {
 	Annotations map[string]model.Payload
 	Set         map[string]string
 	Removed     []string
+	// Statuses maps an edition to the status the state recorded and the one
+	// the pass gave it.
+	Statuses map[model.EditionKey][2]model.Status
 }
 
-// Empty reports whether the tool wrote nothing beyond the content.
+// Empty reports whether the pass wrote nothing beyond the content.
 func (m BlockMeta) Empty() bool {
-	return len(m.Annotations) == 0 && len(m.Set) == 0 && len(m.Removed) == 0
+	return len(m.Annotations) == 0 && len(m.Set) == 0 && len(m.Removed) == 0 && len(m.Statuses) == 0
 }
 
-// apply writes m onto b.
+// apply writes m onto b. An edition's status moves only while b holds it at
+// the status the pass moved it from, so a decision made since the read
+// stands.
 func (m BlockMeta) apply(b *model.Block) {
 	for key, v := range m.Annotations {
 		b.SetAnno(key, v)
@@ -104,14 +109,30 @@ func (m BlockMeta) apply(b *model.Block) {
 	for _, name := range m.Removed {
 		delete(b.Properties, name)
 	}
+	for k, move := range m.Statuses {
+		if e, ok := b.Edition(k); ok && e.Status == move[0] {
+			b.SetEditionStatus(k, move[1])
+		}
+	}
 }
 
-// Meta returns the block annotations and properties after carries that the
-// state did not: an annotation added or changed, and a property set, changed
-// or removed. An annotation the tool removed is not among them; a row keeps
+// Meta returns what after carries beyond the state, other than content and
+// overlays: an annotation added or changed, a property set, changed or
+// removed, and the status of an edition whose content is as the state
+// recorded it. An annotation the pass removed is not among them; a row keeps
 // the annotations it has.
 func (s BlockState) Meta(after *model.Block) BlockMeta {
 	var m BlockMeta
+	for k, e := range after.EachEdition {
+		was, ok := s.editions[k]
+		if !ok || was.status == e.Status || !bytes.Equal(was.runs, model.CanonicalRunsJSON(e.Runs)) {
+			continue
+		}
+		if m.Statuses == nil {
+			m.Statuses = map[model.EditionKey][2]model.Status{}
+		}
+		m.Statuses[k] = [2]model.Status{was.status, e.Status}
+	}
 	for key, v := range after.Annos() {
 		if was, ok := s.annos[key]; ok && bytes.Equal(was, payloadJSON(v)) {
 			continue

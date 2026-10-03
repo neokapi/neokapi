@@ -188,15 +188,31 @@ place. The server logs how many such rows a pull left out.
 Server work that drafts from the blocks it read, such as the translation and
 extraction jobs, pseudo-translation, content-memory translation, applying
 content memory in bulk and the passes of a flow run, commits what it produced
-as a change set from the tool, against the revision of each edition it read. A
-block whose source moved, or whose translation a person changed, since the read
-keeps what it holds, and the rest of the change set lands. A removed item stays
-removed. Source settlement and the review recheck write each block only to the
-row they read, and only while that row still holds the content hash they read.
-The properties such work records on a block, such as the source settlement
-stamp, are stored without changing the block's stored context hash, so the
-producer's next push compares against the hashes its own push stored and
-uploads only what changed.
+as a change set from the tool, against the revision of each edition it read.
+The spans a tool marks are guarded by the revision of the edition they lie on.
+A block whose source moved, or whose translation a person changed, since the
+read keeps what it holds, and the rest of the change set lands; the server logs
+how many blocks a commit left out, by code. A removed item stays removed. The
+block annotations and properties a tool writes (content-memory candidates,
+extracted terminology) land on the rows that hold the content it produced, in
+the same held write that source settlement and the review recheck use: those
+two judge content without changing it, and their statuses, stamps and findings
+land only on a row that still holds the content they read, so a translation a
+person rewrote meanwhile keeps the rewrite. The properties such work records on
+a block, such as the source settlement stamp, are stored without changing the
+block's stored context hash, so the producer's next push compares against the
+hashes its own push stored and uploads only what changed.
+
+Approving a source proposal is the approver's edit of the source through the
+changes route's rules, guarded by the source the proposal was made against.
+Three writers move what a row holds beside its content without a change set:
+a review decision's status (applied as the `decide` operation lands), the
+term candidate an entity's promotion adds, and a push, which applies a
+producer's state. The first two hold the block's row while they write, and a
+push holds the stream's write lock alone, so a change set's write waits for it
+to commit. The
+`write_overlay` automation action writes annotations and plugin overlays and
+refuses a translation.
 
 A push asserts the ref it last observed only for the governance it writes. It
 asserts the decisions component when its records include a decision (a review

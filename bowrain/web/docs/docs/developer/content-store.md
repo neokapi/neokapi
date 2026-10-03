@@ -106,9 +106,15 @@ Rollback() error
 reads an item's blocks and locks their rows until the write ends. `Store`
 writes the changed blocks back to those rows with their history and change-log
 entries, and deletes the row of each translation the change removed, recording
-the removal as `target_removed`. The change service compares the revision each
-operation names against the held rows, so no other write lands between that
-comparison and the commit.
+the removal as `target_removed`. The change service holds every item a change
+set names on one `BlockWrite` and compares the revision each operation names
+against the held rows, so no other write lands between that comparison and the
+commit, and the change set lands whole on one connection.
+
+Revert, restore-to-point and rollback read a translation's history by the rows
+that record its content (`target_added`, `target_modified`, `target_removed`).
+A `target_removed` row restores no translation, and a decision row restores
+nothing.
 
 ## Block Identity
 

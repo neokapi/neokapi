@@ -438,11 +438,13 @@ func (st *staged) Release() error {
 	return st.s.h.discard(w, errWriteDiscarded)
 }
 
-// WriteMeta writes the block annotations and properties tools wrote on the
-// drafts' blocks (BlockState.Meta) on one write that holds their rows. A row
-// takes them only while it holds the content the tool produced: what a tool
-// found on content that moved since stays off the row, and the draft is
-// returned as left out, refused as stale.
+// WriteMeta writes what a pass wrote on the drafts' blocks beyond their
+// content (BlockState.Meta: block annotations, properties, and statuses moved
+// on unchanged content) on one write that holds their rows. A row takes them
+// only while it holds the content the pass produced or read: what a pass found
+// on content that moved since stays off the row, and the draft is returned as
+// left out, refused as stale. Server passes that judge content without
+// changing it (source settlement, the review recheck) write through it too.
 func (h *Home) WriteMeta(ctx context.Context, drafts []Draft) ([]Refusal, error) {
 	if len(drafts) == 0 {
 		return nil, nil

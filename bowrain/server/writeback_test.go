@@ -84,6 +84,51 @@ func TestSettleSource_AnItemRemovedDuringSettlementStaysRemoved(t *testing.T) {
 	requireNothingStored(t, cs, projectID)
 }
 
+// readThenEdit is a PostgreSQL content store on which a person edits right
+// after a caller's first block read, keeping the store's held writes.
+type readThenEdit struct {
+	*bstore.PostgresStore
+	once   sync.Once
+	change func(ctx context.Context)
+}
+
+func (s *readThenEdit) GetBlocks(ctx context.Context, q platstore.BlockQuery) ([]*venue.StoredBlock, error) {
+	blocks, err := s.PostgresStore.GetBlocks(ctx, q)
+	s.once.Do(func() { s.change(ctx) })
+	return blocks, err
+}
+
+// Settlement judges the source a batch read and stamps what it found. A person
+// rewriting a translation of a block in that batch meanwhile keeps the
+// rewrite: the stamp lands only on a row holding the content the batch read.
+func TestSettleSource_KeepsATranslationRewrittenDuringSettlement(t *testing.T) {
+	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
+	require.NoError(t, err)
+	const projectID = "settle-writeback-rewritten"
+	seedWriteBackItem(t, cs, projectID, "A well-formed sentence.", "Another well-formed sentence.")
+	all, err := cs.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: projectID, Stream: "main"})
+	require.NoError(t, err)
+	require.Len(t, all, 2)
+	rewritten, untouched := all[0].Block.ID, all[1].Block.ID
+	writeTargetText(t, cs, projectID, rewritten, "fr", "Une phrase.")
+
+	store := &readThenEdit{PostgresStore: cs}
+	s := &Server{ContentStore: store}
+	store.change = func(context.Context) {
+		editAsPerson(t, s, projectID, rewritten, "fr", textContent("Une phrase bien formée."))
+	}
+	s.convergence = newConvergenceOrchestrator(s)
+	_, err = s.convergence.settleSource(t.Context(), projectID)
+	require.NoError(t, err)
+
+	got, err := cs.GetBlock(t.Context(), projectID, "main", rewritten)
+	require.NoError(t, err)
+	assert.Equal(t, "Une phrase bien formée.", got.Block.TargetText("fr"), "the person's rewrite stays")
+	settled, err := cs.GetBlock(t.Context(), projectID, "main", untouched)
+	require.NoError(t, err)
+	assert.Equal(t, model.SourceStatusWritten, settled.Block.SourceStatus, "the untouched block is settled")
+}
+
 // Pseudo-translation reads an item's blocks and commits the targets it drafts
 // through the stream's change service. When the item is removed in between,
 // nothing is stored.
