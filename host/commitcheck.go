@@ -26,7 +26,8 @@ import (
 // `kapi check` and to the hooks.
 //
 // Outside a project nothing governs the content, and the check holds each
-// edition to the hygiene analyzer alone.
+// edition to the hygiene analyzer alone. A preview's check (change.Previewing)
+// reads the project store when the project has one and creates none.
 func (a *App) CommitCheck(cmd Command) change.CommitCheck {
 	return &commitCheck{app: a, cmd: cmd}
 }
@@ -58,6 +59,13 @@ var _ change.CommitCheck = (*commitCheck)(nil)
 // itself and writes none of them to the App, so one App checks change sets
 // for several projects, two at a time.
 func (c *commitCheck) Check(ctx context.Context, changes []change.EditionChange) ([]change.CheckOutcome, string, error) {
+	if change.Previewing(ctx) {
+		// A preview reads the project's store when it has one and creates
+		// none, so a project with no store yet has no voice or terms from
+		// one.
+		ctx = withExistingStoresOnly(ctx)
+		c = &commitCheck{app: c.app, cmd: commandIn(c.cmd, ctx), outside: c.outside}
+	}
 	a := c.app
 	a.InitRegistries()
 	in, err := c.project()
@@ -183,7 +191,11 @@ func (a *App) commitSourceLocale(cmd Command, proj *project.KapiProject) string 
 // record, so the analyzers run without their canaries.
 func (a *App) newCommitResolution(ctx context.Context, cmd Command, in commitProject) (*checkResolution, error) {
 	voice, err := a.checkVoiceAt(cmd, nil, in.recipe, in.proj, func(root string) (profile.Store, func(), error) {
-		return a.ProjectVoiceStore(ctx, root)
+		store, release, err := a.ProjectVoiceStore(ctx, root)
+		if errors.Is(err, errNoProjectStore) {
+			return nil, func() {}, nil
+		}
+		return store, release, err
 	})
 	if err != nil {
 		return nil, err

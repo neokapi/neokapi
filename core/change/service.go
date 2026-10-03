@@ -172,6 +172,9 @@ func (r *applyRun) refuseAfresh(i int, err *Error) {
 // that ended, a rename that failed before anything landed); a refusal is a
 // result with status refused.
 func (s *Service) Apply(ctx context.Context, set Set, actor Actor) (*Result, error) {
+	if set.Mode == ModePreview {
+		ctx = context.WithValue(ctx, previewKey{}, true)
+	}
 	// The service resolves references in its own copy, so the record keeps
 	// the change set as it was sent.
 	work := set

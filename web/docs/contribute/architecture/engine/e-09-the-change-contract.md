@@ -251,7 +251,11 @@ file itself, and writes the copy out. A read takes no lock and leaves a project
 as it was: the lock directory, and the ignore rule that keeps it out of a
 commit, are written when a change first commits, and the recorder opens the
 project store then, before anything is written. A read takes a derived
-edition's basis from a project store that exists and creates none.
+edition's basis from a project store that exists and creates none. A preview
+takes no lock and records nothing, and its commit check reads the project
+store when the project has one and creates none. When the project has no store
+yet, a preview checks an edit without the voice and the terms a store binds
+from the workspace.
 
 A `set_content` on a code comment, in a source file only the comment layer
 reads, goes through the comment write path, which keeps its own guarantees: the

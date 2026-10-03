@@ -10,6 +10,20 @@ import (
 // CommitCheck checks nothing, a nil Policy permits every operation, and a nil
 // Recorder records nothing. core/change defines them and knows nothing about
 // projects; kapi's host and the Bowrain server implement them.
+//
+// A preview writes nothing, and neither does a hook it calls: Apply calls the
+// hooks of a preview with a context Previewing reports, and a hook given one
+// reads the stores that exist and creates none.
+
+// previewKey marks the context of a preview's hook calls.
+type previewKey struct{}
+
+// Previewing reports whether ctx is the context Apply calls a preview's hooks
+// with.
+func Previewing(ctx context.Context) bool {
+	v, _ := ctx.Value(previewKey{}).(bool)
+	return v
+}
 
 // EditionChange is one edition a change set changed, as the commit check and
 // the recorder see it. Runs are read-only.

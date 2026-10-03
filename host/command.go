@@ -109,3 +109,21 @@ func (c *EnvCommand) Name() string {
 	}
 	return c.name
 }
+
+// commandIn returns cmd answering ctx for its context, for a call whose
+// context has to reach the functions that read one from the command.
+func commandIn(cmd Command, ctx context.Context) Command {
+	if cmd == nil {
+		return nil
+	}
+	return contextCommand{Command: cmd, ctx: ctx}
+}
+
+// contextCommand is a Command with a context of its own.
+type contextCommand struct {
+	Command
+	ctx context.Context
+}
+
+// Context returns the command's own context.
+func (c contextCommand) Context() context.Context { return c.ctx }
