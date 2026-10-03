@@ -155,10 +155,10 @@ func TestAnObservedRecord_LeavesARecordedWriteItsRevision(t *testing.T) {
 		Actor:  change.Actor{Kind: change.ActorKind(history.ActorExternal)},
 		Origin: history.OriginObserved,
 		Docs:   []change.DocResult{{Doc: "src/en.json", Home: "file"}},
-		Transitions: []change.Transition{{EditionChange: change.EditionChange{
+		Transitions: []change.Transition{{
 			Ref: change.Ref{Doc: "src/en.json", Block: "greeting", Edition: k}, Role: change.RoleDerived,
 			BeforeRev: model.AbsentRevision, AfterRev: rev, Block: b,
-		}}},
+		}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, history.ActorExternal, flowHistory(t, a, root)[0].Actor, "the observed record is the latest")
