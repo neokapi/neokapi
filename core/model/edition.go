@@ -183,15 +183,7 @@ func (b *Block) SetEdition(k EditionKey, e Edition) {
 		}
 		return
 	}
-	key := k.Canonical()
-	if b.Targets == nil {
-		b.Targets = make(map[VariantKey]*Target)
-	}
-	if t := b.Targets[key]; t != nil {
-		t.Runs, t.Status, t.Origin, t.Score = e.Runs, TargetStatus(e.Status), e.Origin, e.Score
-		return
-	}
-	b.Targets[key] = &Target{Runs: e.Runs, Status: TargetStatus(e.Status), Origin: e.Origin, Score: e.Score}
+	b.SetTargetEdition(k, e)
 }
 
 // SetEditionStatus sets the status of edition k and changes nothing else: the
