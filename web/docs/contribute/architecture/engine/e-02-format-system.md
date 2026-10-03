@@ -499,9 +499,11 @@ block by the key its reader gives it and finds a block it read by what the
 reader recorded on it. An edit it cannot make is a `StructureError` naming the
 edit and why: the key is held already, the block is not there, or the format
 has no way to write it there. `format.StructuralOps` reports what a writer
-declares and writes; the change service ([E-09](e-09-the-change-contract.md))
-reads it for a built-in writer, so describing a format and applying a change
-set agree, and a plugin format declares none. A writer answers `Structural` for
+declares and writes, and `ProbeEditCapabilities` records it among the writer's
+edit capabilities (`EditCapabilities.Structural`), which the change service
+([E-09](e-09-the-change-contract.md)) describes a format and a document by, so
+describing a format and applying a change set agree; a plugin format declares
+none. A writer answers `Structural` for
 its own configuration: where a document's configuration makes more than the key
 and its value part of a block's shell, describing that document reports neither
 operation and applying one is refused.
