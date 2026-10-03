@@ -927,6 +927,11 @@ func NewServer(cfg Config) *Server {
 		if s.PostHogClient != nil {
 			mcpOpts = append(mcpOpts, mcpserver.WithEventTracker(&eventTrackerAdapter{client: s.PostHogClient}))
 		}
+		// The edit tools read and change a stream through the change service,
+		// held to what the signed-in user may do on the project.
+		if s.ContentStore != nil {
+			mcpOpts = append(mcpOpts, mcpserver.WithChangeService(s.mcpChangeService))
+		}
 		ms, err := mcpserver.NewMCPServerWithStore(s.VoiceStore, s.ContentStore, mcpCfg, mcpOpts...)
 		if err != nil {
 			slog.Warn("failed to initialize MCP server", "error", err)
@@ -1856,6 +1861,11 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/streams/:stream/lock", s.HandleLockStream)
 	g.POST("/:id/streams/:stream/unlock", s.HandleUnlockStream)
 
+	// The change contract (kapi.change/v1): the one route through which a
+	// person changes a stream's content, decides on a translation and
+	// annotates a block. Each operation addresses an item by its path.
+	g.POST("/projects/:id/streams/:stream/changes", s.HandleApplyChanges)
+
 	// Tags — Bowrain AD-011: /:ws/:id/tags (peer to streams)
 	g.GET("/:id/tags", s.HandleListProjectTags)
 	g.POST("/:id/tags", s.HandleCreateStreamTag)
@@ -1889,10 +1899,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/blocks/:ref/bulk-review", s.HandleBulkReviewBlocks)
 	g.POST("/:id/blocks/:ref/bulk-apply-memory", s.HandleBulkApplyMemory)
 	g.GET("/:id/blocks/:ref/:bid", s.HandleGetBlock)
-	g.PUT("/:id/blocks/:ref/:bid", s.HandleUpdateBlockTarget)
-	g.PUT("/:id/blocks/:ref/:bid/runs", s.HandleUpdateBlockTargetRuns)
-	g.PUT("/:id/blocks/:ref/:bid/status", s.HandleSetBlockStatus)
-	g.PUT("/:id/blocks/:ref/:bid/review", s.HandleReviewBlock)
+	// Who may change a block's content (the access ladder), which a change set
+	// does not move.
+	g.PUT("/:id/blocks/:ref/:bid/access", s.HandleSetBlockAccess)
 	// Bulk approve every passing draft in one action, then continue the loop to
 	// delivery (RV-D). Distinct path segment from /:id/review-queue below.
 	g.POST("/:id/review/approve-passing", s.HandleApprovePassing)
@@ -1901,8 +1910,6 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/revert", s.HandleRevertBatch)
 	g.POST("/:id/restore", s.HandleRestoreToPoint)
 	g.GET("/:id/blocks/:ref/:bid/notes", s.HandleListBlockNotes)
-	g.POST("/:id/blocks/:ref/:bid/notes", s.HandleAddBlockNote)
-	g.DELETE("/:id/blocks/:ref/:bid/notes/:nid", s.HandleDeleteBlockNote)
 	g.GET("/:id/blocks/:ref/:bid/tm-matches", s.HandleLookupMemoryForBlock)
 	g.GET("/:id/blocks/:ref/:bid/term-matches", s.HandleLookupTermsForBlock)
 	// The context a reviewer decides in, for one unit: what governs it, what
@@ -1910,10 +1917,8 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/:id/blocks/:ref/:bid/review-context", s.HandleGetReviewContext)
 	g.GET("/:id/blocks/:ref/:bid/html", s.HandleRenderBlockHTML)
 
-	// Entities on blocks — Bowrain AD-011: /:ws/:id/blocks/:ref/:bid/entities
-	g.POST("/:id/blocks/:ref/:bid/entities", s.HandleCreateEntity)
-	g.PUT("/:id/blocks/:ref/:bid/entities/:idx", s.HandleUpdateEntity)
-	g.DELETE("/:id/blocks/:ref/:bid/entities/:idx", s.HandleDeleteEntity)
+	// Entities on blocks are annotations a change set writes; promoting one
+	// to a term candidate or a concept is its own action.
 	g.POST("/:id/blocks/:ref/:bid/entities/:idx/promote", s.HandlePromoteEntity)
 	g.POST("/:id/blocks/:ref/:bid/entities/:idx/promote-to-concept", s.HandlePromoteEntityToConcept)
 

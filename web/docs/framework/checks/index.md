@@ -47,7 +47,36 @@ A completed `kapi check` run produces a `core/check.Report` (versioned
 Each diagnostic carries a stable `rule` id, `fails` (true or false), a human
 `message`, an optional `suggestion`, a `location` (the block, plus a run-range
 when the checker pinpointed one), and `suggested: true` when a rule nobody has
-confirmed raised it. The human table's first column is the outcome, `FAILS` or
+confirmed raised it. A finding whose rule names a replacement, such as a term
+rule's `replacement`, carries a `fix`: the `replace_text` operation of a
+`kapi.change/v1` change set that puts the replacement in place of the words the
+finding objects to, addressed to the block and naming the revision the check
+read. Each fix names its words by their place in the text the check read, so
+the fixes for one block travel as one operation, their edits together; a second
+operation on the same block would see the text the first one left. This applies
+every fix of a report, and a fix whose block changed since the check is refused
+as stale:
+
+```bash
+kapi check docs/guide.md --json \
+  | jq '{ops: [.findings[] | select(.fix) | .fix] | group_by(.at) | map(.[0] + {edits: [.[].edits[]]})}' \
+  | kapi apply -
+```
+
+A fix names its document by its path from the project root, so `kapi apply`
+finds it from any directory of the project. Two findings over the same words,
+such as a term and a longer term that contains it, make one operation with
+overlapping edits, which is refused as a whole; apply one of them and check
+again.
+
+Some findings carry no fix. A replacement is plain text, so a finding whose
+words have an inline code among them (a link, a bold span, a placeholder) has
+none: replacing the words would delete the code with them. A finding on the
+file of a translation has none, since the check held that file's words to the
+source language's rules, and nor has a finding on a code comment or on a draft
+sent to `check_text`. Edit these by hand.
+
+The human table's first column is the outcome, `FAILS` or
 `REPORTS`, and the roll-up line reads `N failing, M reported · score S/100`. The stable rule id is the loop's
 primary key: an assistant tracks it across iterations to confirm a fix and avoid
 regressions. `--json` emits the Report verbatim; over MCP, the `check_file` and
@@ -406,8 +435,9 @@ consistency, optional LLM review) is documented under
 Checks are tools, so they compose in a [flow](/framework/flows) exactly like
 translation or transform stages, typically as the trailing stage after
 translation. In CI, gate on the exit code; in an editor or assistant, surface
-the findings for one-click fixes. A check never blocks the pipeline by mutating
-content; it annotates, and a failing finding fails the check.
+the findings and apply the fixes they carry through the change service. A check
+annotates and changes no content itself, and a failing finding fails the
+check.
 
 In a project, `kapi check --ship` (and each pass of `kapi up`) runs the bound
 gates over what was produced. The project-gate response groups findings by gate:

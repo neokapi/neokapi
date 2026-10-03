@@ -38,11 +38,16 @@ func (l targetLayout) Locate(ctx context.Context, doc string) (filehome.Doc, err
 	return d, nil
 }
 
-func newTargetFixture(t *testing.T, files map[string]string) *fixture {
+func newTargetFixture(t *testing.T, files map[string]string, opts ...filehome.Options) *fixture {
 	t.Helper()
 	f := newFixture(t, files)
 	reg := f.reg
-	home := filehome.New(targetLayout{filehome.DirLayout{Root: f.dir, Formats: reg, SourceLocale: "en"}}, filehome.Options{LockDir: t.TempDir()})
+	o := filehome.Options{}
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+	o.LockDir = t.TempDir()
+	home := filehome.New(targetLayout{filehome.DirLayout{Root: f.dir, Formats: reg, SourceLocale: "en"}}, o)
 	f.svc = change.NewService(filehome.Formats{Registry: reg}, change.OneHome(home))
 	return f
 }
@@ -94,6 +99,46 @@ func TestFileHome_AnEditionInItsOwnFileIsEditedThroughThatFile(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, change.SetRefused, res.Status)
 	assert.Equal(t, "Herzlich willkommen", res.Ops[0].Current.Text)
+}
+
+// capturedRecords keeps every record the service hands its recorder.
+type capturedRecords struct{ records []change.Record }
+
+func (c *capturedRecords) Record(_ context.Context, rec change.Record) (string, error) {
+	c.records = append(c.records, rec)
+	return "op-1", nil
+}
+
+func TestFileHome_TheRecordReadsAnEditionInItsOwnFileAsTheChangeLeftIt(t *testing.T) {
+	// The home joins the German file into each block for the change and takes
+	// it out again once the writer has seen the block. The record still reads
+	// the edition, with the stamp the change left on it.
+	f := newFixture(t, map[string]string{
+		"guide.json":    `{"title": "Welcome"}` + "\n",
+		"de/guide.json": `{"title": "Willkommen"}` + "\n",
+	})
+	rec := &capturedRecords{}
+	home := filehome.New(targetLayout{filehome.DirLayout{Root: f.dir, Formats: f.reg, SourceLocale: "en"}}, filehome.Options{LockDir: t.TempDir()})
+	svc := change.NewService(filehome.Formats{Registry: f.reg}, change.OneHome(home), change.WithRecorder(rec))
+	ctx := context.Background()
+	de := mustEdition(t, "de")
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "guide.json", Editions: []model.EditionKey{de}})
+	require.NoError(t, err)
+	require.Len(t, page.Blocks, 1)
+	at := page.Blocks[0].Ref
+	at.Edition = de
+
+	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(at, page.Blocks[0].Editions["de"].Rev, "Herzlich willkommen")}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	require.Len(t, rec.records, 1)
+	require.Len(t, rec.records[0].Transitions, 1)
+	b := rec.records[0].Transitions[0].Block
+	require.NotNil(t, b)
+	ed, ok := b.Edition(de)
+	require.True(t, ok, "the recorded block holds the edition the change wrote")
+	assert.Equal(t, "Herzlich willkommen", model.RunsText(ed.Runs))
+	assert.Equal(t, model.OriginHuman, ed.Origin.Kind, "with the stamp the change left")
 }
 
 func TestFileHome_AMissingEditionFileIsMaterializedFromTheDocument(t *testing.T) {
@@ -329,6 +374,107 @@ func TestFileHome_AnExistingEditionFileIsNeverWrittenAfresh(t *testing.T) {
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 	assert.Equal(t, strings.Replace(german, "A auf Deutsch.", "A, neu auf Deutsch.", 1), f.read(t, "de/guide.md"),
 		"an edit of a block the file holds keeps every other byte, the comment and the German-only section included")
+}
+
+// TestFileHome_MaterializeWritesAnEditionFileFromTheDocument pins
+// Options.Materialize: an edition file the change writes is written from the
+// document's skeleton, so a block the file does not hold yet takes its
+// edition, every block the file held keeps its own, a block neither holds
+// falls back to the document's text, and what only the file held is gone.
+func TestFileHome_MaterializeWritesAnEditionFileFromTheDocument(t *testing.T) {
+	files := map[string]string{
+		"guide.json":    `{"title": "Welcome", "body": "Read this first", "new": "Fresh", "late": "Later"}` + "\n",
+		"de/guide.json": `{"body":"Lies das zuerst","title":"Willkommen","extra":"Nur Deutsch"}` + "\n",
+	}
+	ctx := context.Background()
+	de := mustEdition(t, "de")
+	newOp := func(t *testing.T, f *fixture) change.Op {
+		t.Helper()
+		page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "guide.json", Editions: []model.EditionKey{de}})
+		require.NoError(t, err)
+		for _, b := range page.Blocks {
+			if b.Text == "Fresh" {
+				require.NotContains(t, b.Editions, "de", "the German file holds no block for the new message")
+				at := b.Ref
+				at.Edition = de
+				return setOp(at, model.AbsentRevision, "Frisch")
+			}
+		}
+		t.Fatal("no block reads Fresh")
+		return change.Op{}
+	}
+
+	t.Run("an edition file is edited in place without it", func(t *testing.T) {
+		f := newTargetFixture(t, files)
+		res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{newOp(t, f)}}, person)
+		require.NoError(t, err)
+		require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
+		assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
+		assert.Equal(t, files["de/guide.json"], f.read(t, "de/guide.json"))
+	})
+
+	t.Run("with it the file follows the document", func(t *testing.T) {
+		f := newTargetFixture(t, files, filehome.Options{Materialize: true})
+		res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{newOp(t, f)}}, person)
+		require.NoError(t, err)
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+		assert.Equal(t, `{"title": "Willkommen", "body": "Lies das zuerst", "new": "Frisch", "late": "Later"}`+"\n", f.read(t, "de/guide.json"))
+		assert.Equal(t, files["guide.json"], f.read(t, "guide.json"), "the document's own file is untouched")
+	})
+}
+
+// TestFileHome_MaterializeBringsADriftedEditionFileBackToTheDocument pins
+// that under Options.Materialize a change set addressing an edition writes its
+// file whenever the file no longer holds the document's blocks, even when no
+// content changes: the block the document gained lands with the document's
+// own text and the block only the file held is gone. A file that still holds
+// the document's blocks and gains no content is left as it is.
+func TestFileHome_MaterializeBringsADriftedEditionFileBackToTheDocument(t *testing.T) {
+	ctx := context.Background()
+	de := mustEdition(t, "de")
+	for _, tc := range []struct {
+		name, doc, edition, want string
+		written                  bool
+	}{
+		{name: "the document gained a block",
+			doc:     `{"title": "Welcome", "added": "Brand new"}` + "\n",
+			edition: `{"title":"Willkommen"}` + "\n",
+			want:    `{"title": "Willkommen", "added": "Brand new"}` + "\n", written: true},
+		{name: "the document lost a block",
+			doc:     `{"title": "Welcome"}` + "\n",
+			edition: `{"title":"Willkommen","gone":"Weg"}` + "\n",
+			want:    `{"title": "Willkommen"}` + "\n", written: true},
+		{name: "the file holds every block of the document",
+			doc:     `{"title": "Welcome"}` + "\n",
+			edition: `{"title":"Willkommen"}` + "\n",
+			want:    `{"title":"Willkommen"}` + "\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newTargetFixture(t, map[string]string{"guide.json": tc.doc, "de/guide.json": tc.edition}, filehome.Options{Materialize: true})
+			page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "guide.json", Editions: []model.EditionKey{de}})
+			require.NoError(t, err)
+			var title change.BlockRead
+			for _, b := range page.Blocks {
+				if b.Text == "Welcome" {
+					title = b
+				}
+			}
+			at := title.Ref
+			at.Edition = de
+			res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(at, title.Editions["de"].Rev, "Willkommen")}}, person)
+			require.NoError(t, err)
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+			assert.Equal(t, change.OpUnchanged, res.Ops[0].Status)
+			assert.Equal(t, tc.want, f.read(t, "de/guide.json"))
+			var written bool
+			for _, d := range res.Docs {
+				if d.File == "de/guide.json" {
+					written = d.Written
+				}
+			}
+			assert.Equal(t, tc.written, written)
+		})
+	}
 }
 
 // TestFileHome_ThePreviewOfANewTranslationCreatesNoDirectory pins that the

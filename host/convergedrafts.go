@@ -2,13 +2,10 @@ package host
 
 import (
 	"fmt"
-	"io/fs"
+	"github.com/neokapi/neokapi/core/project"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/project"
 )
 
 // A convergence pass drafts; only delivery puts a file where something reads it.
@@ -68,6 +65,7 @@ func (a *App) beginConvergeDrafts(projectPath, root string) (func(), error) {
 	}
 	a.convergeDraftDir = dir
 	a.convergeDraftRoot = root
+	a.convergeDeliveries = newDraftDeliveries()
 	return a.endConvergeDrafts, nil
 }
 
@@ -80,6 +78,7 @@ func (a *App) endConvergeDrafts() {
 	dir := a.convergeDraftDir
 	a.convergeDraftDir = ""
 	a.convergeDraftRoot = ""
+	a.convergeDeliveries = nil
 	if dir != "" {
 		_ = os.RemoveAll(dir)
 	}
@@ -120,58 +119,4 @@ func (a *App) draftedTargetPath(locale, targetPath string) string {
 		return targetPath
 	}
 	return drafted
-}
-
-// deliverDrafts moves one locale's drafted files to the destinations the recipe
-// resolved for them, and returns those destinations.
-//
-// This is the delivery the ship gate governs: it runs for a locale that cleared
-// its gate and for no other, so a parked locale's files are genuinely absent
-// rather than present and unblessed. It moves the run's own output rather than
-// re-deriving it, because the pass is what produced the bytes — the block store
-// is a second, independent record of the same work and is written on top
-// afterwards, but it is not guaranteed to hold a target for every flow.
-//
-// The destinations are named rather than counted because they are also the run's
-// answer to "which translations on disk did I write", which is what entitles it
-// to record a basis for the units inside them (host/basisrecord.go).
-func (a *App) deliverDrafts(locale model.LocaleID) ([]string, error) {
-	if a.convergeDraftDir == "" || a.convergeDraftRoot == "" {
-		return nil, nil
-	}
-	base := filepath.Join(a.convergeDraftDir, string(locale))
-	if _, err := os.Stat(base); err != nil {
-		return nil, nil
-	}
-	var delivered []string
-	err := filepath.WalkDir(base, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if d.IsDir() {
-			return nil
-		}
-		rel, rerr := filepath.Rel(base, path)
-		if rerr != nil {
-			return rerr
-		}
-		dest := filepath.Join(a.convergeDraftRoot, rel)
-		if merr := os.MkdirAll(filepath.Dir(dest), 0o755); merr != nil {
-			return fmt.Errorf("deliver %s: %w", rel, merr)
-		}
-		if rnerr := os.Rename(path, dest); rnerr != nil {
-			// A cross-device draft tree (a project whose state dir is elsewhere)
-			// cannot be renamed into place; copy the bytes instead.
-			body, readErr := os.ReadFile(path)
-			if readErr != nil {
-				return fmt.Errorf("deliver %s: %w", rel, rnerr)
-			}
-			if writeErr := os.WriteFile(dest, body, 0o644); writeErr != nil {
-				return fmt.Errorf("deliver %s: %w", rel, writeErr)
-			}
-		}
-		delivered = append(delivered, dest)
-		return nil
-	})
-	return delivered, err
 }

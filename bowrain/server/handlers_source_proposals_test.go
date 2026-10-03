@@ -7,9 +7,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -223,4 +225,53 @@ func TestSourceProposal_Reject(t *testing.T) {
 	runs, err := s.ConvergenceRunStore.ListRuns(ctx, projID, 20)
 	require.NoError(t, err)
 	assert.Empty(t, runs, "reject starts no convergence run")
+}
+
+// Approving a proposal is the approver's edit of the source through the
+// stream's change service: it is recorded as their change set, and a source
+// that moved after the proposal was made is answered with the block as it
+// stands, with nothing applied.
+func TestSourceProposal_ApprovalIsTheApproversChangeSet(t *testing.T) {
+	s, wsID, ownerID := newRecheckHarness(t)
+	b1 := &model.Block{ID: "b1", Translatable: true}
+	b1.SetSourceText("Colour picker")
+	b2 := &model.Block{ID: "b2", Translatable: true}
+	b2.SetSourceText("Colour wheel")
+	projID, ids := seedMultiLocaleProject(t, s, wsID, []*model.Block{b1, b2})
+
+	propose := func(bid, text string) string {
+		c, rec := spCtx(wsID, projID, "", platauth.PermReview|platauth.PermViewContent, "reviewer-1",
+			`{"block_id":"`+bid+`","item_name":"ui.json","proposed_source":"`+text+`","found_in_locale":"fr"}`)
+		require.NoError(t, s.HandleCreateSourceProposal(c))
+		require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+		var created bstore.ProposedSourceChange
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
+		return created.ID
+	}
+	approve := func(id string) *httptest.ResponseRecorder {
+		c, rec := spCtx(wsID, projID, id, platauth.PermEditSource|platauth.PermViewContent, ownerID, `{"decision":"approve"}`)
+		_ = s.HandleDecideSourceProposal(c)
+		return rec
+	}
+
+	snapshot, stop := collectEvents(t, s)
+	defer stop()
+	first := propose(ids["Colour picker"], "Color picker")
+	require.Equal(t, http.StatusOK, approve(first).Code)
+	require.Eventually(t, func() bool {
+		for _, ev := range snapshot() {
+			if ev.Type == platev.EventContentChanged && ev.Data["note"] == "source-proposal:"+first {
+				return ev.Data["actor_name"] == ownerID && ev.Data["actor_kind"] == "person"
+			}
+		}
+		return false
+	}, 2*time.Second, 20*time.Millisecond, "the approval lands as the approver's change set")
+
+	second := propose(ids["Colour wheel"], "Color wheel")
+	editAsPerson(t, s, projID, ids["Colour wheel"], "", textContent("Colour wheel, rewritten"))
+	rec := approve(second)
+	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
+	sb, err := s.ContentStore.GetBlock(t.Context(), projID, "main", ids["Colour wheel"])
+	require.NoError(t, err)
+	assert.Equal(t, "Colour wheel, rewritten", sb.Block.SourceText(), "nothing lands over the newer wording")
 }

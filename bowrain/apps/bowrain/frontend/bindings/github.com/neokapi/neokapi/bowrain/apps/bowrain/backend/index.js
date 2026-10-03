@@ -79,8 +79,6 @@ export {
     TextRunInfo,
     ToolInfo,
     TranslationStats,
-    UpdateBlockRequest,
-    UpdateBlockTargetRunsRequest,
     UpdateChangesetArgs,
     UpdateConceptRequest,
     Validity,

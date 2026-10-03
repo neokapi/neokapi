@@ -2,7 +2,7 @@
   "name": "@neokapi/contract-types",
   "version": "0.1.0",
   "private": false,
-  "description": "Shared TypeScript contract types for the neokapi engine: flow/tool IO-contract atoms, schema-language types, content-model types and the review model, generated from the Go sources of truth (core/schema, core/format/schema, core/model, core/review, neokapi.content.v1). Drift-gated against the Go definitions in CI.",
+  "description": "Shared TypeScript contract types for the neokapi engine: flow/tool IO-contract atoms, schema-language types, content-model types, the review model and the change contract (kapi.change/v1), generated from the Go sources of truth (core/schema, core/format/schema, core/model, core/review, core/change, neokapi.content.v1). Drift-gated against the Go definitions in CI.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -18,6 +18,7 @@
     "./contract.gen": "./src/contract.gen.ts",
     "./content.gen": "./src/content.gen.ts",
     "./review.gen": "./src/review.gen.ts",
+    "./change.gen": "./src/change.gen.ts",
     "./manual": "./src/manual.ts",
     "./package.json": "./package.json"
   },
@@ -41,6 +42,10 @@
         "types": "./dist/review.gen.d.ts",
         "default": "./dist/review.gen.js"
       },
+      "./change.gen": {
+        "types": "./dist/change.gen.d.ts",
+        "default": "./dist/change.gen.js"
+      },
       "./manual": {
         "types": "./dist/manual.d.ts",
         "default": "./dist/manual.js"
@@ -59,6 +64,7 @@
     "build": "node build.mjs",
     "prepack": "node build.mjs",
     "typecheck": "vp check --no-fmt --no-lint",
+    "typecheck:generated": "tsc -p tsconfig.json --noEmit",
     "check": "vp check",
     "lint": "vp lint",
     "fmt": "vp fmt",

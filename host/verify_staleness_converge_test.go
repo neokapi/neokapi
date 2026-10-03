@@ -166,21 +166,22 @@ func TestStalenessGate_ConvergenceRecordsWhatGovernedIt(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, want.fingerprint, "a governed project stamps a fingerprint")
 
+	// The run's record of each translation it wrote is the flow's write in
+	// the block history, and the producer's stamp travels with it: a JSON
+	// catalog keeps none, so the record is where a reader finds it.
 	ctx := context.Background()
-	st, err := a.OpenProjectState(ctx, root)
+	db, err := a.ProjectDB(ctx, root)
 	require.NoError(t, err)
-	recorded, err := st.All(ctx)
+	rows, err := db.History().Document(ctx, a.documentIndexOrEmpty(ctx, root).Key("src/en.json"))
 	require.NoError(t, err)
-	require.NotEmpty(t, recorded, "the run records a basis for what it produced")
+	require.Len(t, rows, 2, "the run records each translation it produced")
 
-	for _, u := range recorded {
-		assert.Equal(t, want.fingerprint, u.Origin.ContextFingerprint,
-			"unit %s carries the fingerprint the run's producers resolved", u.Unit)
-		assert.Equal(t, model.OriginAI, u.Origin.Kind, "the demo provider is an AI producer")
-		// The basis carries the same value as its own field: what governed
-		// the answer, where a reader of a JSON catalog finds it.
-		assert.Equal(t, want.fingerprint, u.GoverningFingerprint,
-			"unit %s records the producer's context as the governing fingerprint", u.Unit)
+	for _, r := range rows {
+		assert.Equal(t, "fr", r.Edition)
+		assert.Equal(t, want.fingerprint, r.Producer.ContextFingerprint,
+			"block %s carries the fingerprint the run's producers resolved", r.Block)
+		assert.Equal(t, model.OriginAI, r.Producer.Kind, "the demo provider is an AI producer")
+		assert.NotEmpty(t, r.Basis, "block %s records the source it was translated from", r.Block)
 	}
 }
 

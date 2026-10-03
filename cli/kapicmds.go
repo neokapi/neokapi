@@ -93,12 +93,6 @@ func KapiCommandSet(a *App) []*cobra.Command {
 	mcpCmd.GroupID = "advanced"
 	cmds = append(cmds, mcpCmd)
 
-	// The engine gRPC server is machine plumbing (the desktop and embedders
-	// spawn it; humans don't type it) — routable but out of --help.
-	engineCmd := NewEngineCmd(a)
-	engineCmd.Hidden = true
-	cmds = append(cmds, engineCmd)
-
 	return cmds
 }
 

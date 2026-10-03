@@ -174,13 +174,6 @@ export async function injectMockBackend(page: Page) {
       if (entry == null) return "";
       return typeof entry === "string" ? entry : (entry.text ?? "");
     };
-    // Replace a target's text while preserving its per-locale status, the way
-    // the server's SetTargetText/SetTargetRuns preserve Target.Status.
-    const setTargetPreservingStatus = (block: any, locale: string, text: string) => {
-      const entry = block.targets[locale];
-      const status = entry != null && typeof entry === "object" ? entry.status : undefined;
-      block.targets[locale] = status ? { text, status } : text;
-    };
 
     // Every id comes from the committed bindings (see wailsCallIds). The proxy
     // is what stops a rename from going quiet: reading a name the bindings no
@@ -599,44 +592,40 @@ export async function injectMockBackend(page: Page) {
       }));
     };
 
-    mock[IDS.UpdateBlockTarget] = (req: any) => {
-      const itemName = req.item_name || req.file_name;
-      const files = projectFiles[req.project_id];
-      if (!files || !files[itemName]) return;
-      const block = files[itemName].find((b: any) => b.id === req.block_id);
-      if (block) {
-        setTargetPreservingStatus(block, req.target_locale, req.text);
-      }
-    };
-
-    // The desktop adapter converts the editor's coded text + spans to an RFC
-    // 0001 Run sequence (WailsApiAdapter.updateBlockTargetCoded \u2192
-    // Backend.UpdateBlockTargetRuns), so the request carries `runs`, not
-    // coded_text, so the handler binds IDS.UpdateBlockTargetRuns — the key the
-    // adapter actually calls.
-    mock[IDS.UpdateBlockTargetRuns] = (req: any) => {
-      const itemName = req.item_name || req.file_name;
-      const files = projectFiles[req.project_id];
-      if (!files || !files[itemName]) return;
-      const block = files[itemName].find((b: any) => b.id === req.block_id);
-      if (!block) return;
-      let plain = "";
-      let coded = "";
-      for (const run of req.runs ?? []) {
-        if (run.text) {
-          plain += run.text.text;
-          coded += run.text.text;
-        } else if (run.pcOpen) {
-          coded += "\uE001";
-        } else if (run.pcClose) {
-          coded += "\uE002";
-        } else if (run.ph) {
-          coded += "\uE003";
+    // The editor's writes arrive as one change set (kapi.change/v1, JSON
+    // text), and the answer is a change result (backend/changes.go). The mock
+    // applies a translation's text and a decision's status to its items; it
+    // serves no revisions, so it judges no precondition.
+    mock[IDS.ApplyChanges] = (projectID: string, setJSON: string) => {
+      const set = JSON.parse(setJSON);
+      const files = projectFiles[projectID] ?? {};
+      const ops = (set.ops ?? []).map((op: any, i: number) => {
+        const block = files[op.at?.doc]?.find((b: any) => b.id === op.at?.block);
+        const locale = op.at?.edition;
+        if (block && locale && op.op === "set_content") {
+          // A runs payload reads as its text runs, the way a reload shows it.
+          const text =
+            op.text ??
+            (op.runs ?? []).map((r: any) => (typeof r?.text === "string" ? r.text : "")).join("");
+          block.targets[locale] = { text, status: "translated" };
+        } else if (block && locale && op.op === "decide") {
+          const status =
+            op.outcome === "establish"
+              ? "established"
+              : op.outcome === "reject"
+                ? "draft"
+                : "translated";
+          block.targets[locale] = { text: targetText(block, locale), status };
         }
-      }
-      setTargetPreservingStatus(block, req.target_locale, plain);
-      if (!block.targets_coded) block.targets_coded = {};
-      block.targets_coded[req.target_locale] = coded;
+        return { i, op: op.op, status: "applied", at: op.at };
+      });
+      return JSON.stringify({
+        schema: "kapi.change-result/v1",
+        status: "applied",
+        record: "mock",
+        docs: [],
+        ops,
+      });
     };
 
     mock[IDS.PseudoTranslateItem] = (projectID: string, itemName: string, targetLocale: string) => {
@@ -1292,41 +1281,6 @@ export async function injectMockBackend(page: Page) {
     });
 
     mock[IDS.GetPendingChangesCount] = () => 0;
-
-    mock[IDS.ReviewBlock] = (
-      _projectID: string,
-      itemName: string,
-      blockID: string,
-      targetLocale: string,
-      reviewed: boolean,
-      status?: string,
-    ) => {
-      const files = projectFiles[_projectID];
-      if (!files || !files[itemName]) return;
-      const block = files[itemName].find((b: any) => b.id === blockID);
-      if (!block) return;
-      // Mirror the server's HandleReviewBlock: review state is the per-locale
-      // {text, status} target entry (the Target.Status ladder), never the
-      // legacy block-global properties["translation-status"]; approving an
-      // empty translation is rejected (the server 422s it).
-      const text = targetText(block, targetLocale);
-      if (reviewed && !text.trim()) {
-        throw new Error(
-          `block "${blockID}" has no ${targetLocale} translation to review: translate it first`,
-        );
-      }
-      if (!reviewed && block.targets[targetLocale] == null) {
-        // Un-reviewing a no-target locale clears a stuck legacy flag; no-op otherwise.
-        if (block.properties) delete block.properties["translation-status"];
-        return;
-      }
-      block.targets[targetLocale] = {
-        text,
-        // An approval lands on established; a rejection (reviewed=false +
-        // "draft") demotes to draft, and a plain un-review to translated.
-        status: reviewed ? "established" : status === "draft" ? "draft" : "translated",
-      };
-    };
 
     // ── REST transport ──────────────────────────────────────────────────
     //

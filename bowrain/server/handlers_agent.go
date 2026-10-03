@@ -452,17 +452,7 @@ func (s *Server) HandleListBravoTools(c echo.Context) error {
 
 // agentToolNames returns all registered MCP agent tool names.
 func agentToolNames() []string {
-	return []string{
-		"list_projects", "get_project", "create_project", "update_project",
-		"list_blocks", "get_block", "update_block",
-		"create_version", "list_streams", "diff_streams", "merge_stream",
-		"list_flows", "run_flow", "get_flow_status",
-		"tm_search", "tm_import",
-		"term_search", "term_add",
-		"connector_pull", "connector_push", "connector_status",
-		"execute_script",
-		"check_vocabulary", "list_profiles", "get_voice_guide",
-	}
+	return service.ToolNames()
 }
 
 // ---------------------------------------------------------------------------

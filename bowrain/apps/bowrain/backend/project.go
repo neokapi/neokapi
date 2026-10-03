@@ -131,25 +131,10 @@ type BlockInfo struct {
 	TargetRuns   map[string][]RunInfo       `json:"targetRuns,omitempty"`
 	Translatable bool                       `json:"translatable"`
 	Properties   map[string]string          `json:"properties"`
-}
-
-// UpdateBlockRequest holds parameters for updating a block target.
-type UpdateBlockRequest struct {
-	ProjectID    string `json:"project_id"`
-	ItemName     string `json:"item_name"`
-	BlockID      string `json:"block_id"`
-	TargetLocale string `json:"target_locale"`
-	Text         string `json:"text"`
-}
-
-// UpdateBlockTargetRunsRequest holds parameters for updating a
-// block target with a structured Run sequence.
-type UpdateBlockTargetRunsRequest struct {
-	ProjectID    string    `json:"project_id"`
-	ItemName     string    `json:"item_name"`
-	BlockID      string    `json:"block_id"`
-	TargetLocale string    `json:"target_locale"`
-	Runs         []RunInfo `json:"runs"`
+	// TargetRevisions names each target locale's revision as the block was
+	// read: the if_match an operation on that translation sends
+	// (ApplyChanges).
+	TargetRevisions map[string]string `json:"target_revisions,omitempty"`
 }
 
 // TranslationStats holds statistics about a translation operation.

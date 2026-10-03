@@ -2,6 +2,7 @@ package change
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -287,7 +288,7 @@ func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
 			Key:       key,
 			BeforeRev: t.rev,
 			AfterRev:  after,
-			Block:     b,
+			Block:     changedBlock(b),
 		}
 		if t.rev != model.AbsentRevision {
 			ch.Before = t.runs
@@ -498,4 +499,16 @@ func nearness(want, got string) int {
 		n += 4
 	}
 	return n
+}
+
+// changedBlock is the block as a change left it, for the record and the commit
+// check, which read it after the home's pass has moved on: a file home takes
+// the editions it joined from their own files out of the block again once its
+// writer has seen it, and the record still reads the stamp the change left on
+// such an edition. The editions are the block's own; only the set of them is
+// copied.
+func changedBlock(b *model.Block) *model.Block {
+	c := *b
+	c.Targets = maps.Clone(b.Targets)
+	return &c
 }

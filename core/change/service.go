@@ -31,6 +31,7 @@ type Service struct {
 	recorder  Recorder
 	assets    Assets
 	states    EditionStates
+	histories EditionHistories
 	describer Describer
 	origin    string
 	now       func() time.Time

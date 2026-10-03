@@ -189,8 +189,8 @@ func TestReviewLoop_LastApprovalAutoContinuesToDelivery(t *testing.T) {
 	bindForgeConnector(t, s, wsID, projID)
 
 	// Approve the FIRST of two: a block is still pending, so nothing continues.
-	rec, err := callReviewBlockAs(t, s, projID, ids["Hello"], "fr", true, platauth.PermAll)
-	require.NoError(t, err)
+	reviewer := changeCaller{user: ownerID, perms: platauth.PermAll, ws: wsID}
+	rec := decideFromBody(t, s, projID, ids["Hello"], `{"target_locale":"fr","reviewed":true}`, reviewer)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	time.Sleep(300 * time.Millisecond)
 	assert.Nil(t, stub.Published(), "delivery must not fire while a block is still pending review")
@@ -200,8 +200,7 @@ func TestReviewLoop_LastApprovalAutoContinuesToDelivery(t *testing.T) {
 	assert.Equal(t, 1, open, "the fr review task stays open while a block is pending")
 
 	// Approve the LAST: the project has zero pending review → auto-continue.
-	rec, err = callReviewBlockAs(t, s, projID, ids["Goodbye"], "fr", true, platauth.PermAll)
-	require.NoError(t, err)
+	rec = decideFromBody(t, s, projID, ids["Goodbye"], `{"target_locale":"fr","reviewed":true}`, reviewer)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
 	// The completing run converges and delivery materializes the approved content.

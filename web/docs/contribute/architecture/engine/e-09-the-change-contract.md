@@ -18,7 +18,9 @@ it. The service reads each document through the **home** that holds its text,
 applies the operations in memory with `change.ApplyBlock`, checks what changed,
 and commits every document or none. A file in a working tree is one home; the
 file home commits by renaming a staged file onto the document under an advisory
-lock, and applies the change again when the file moved since it was read.
+lock, and applies the change again when the file moved since it was read. A
+flow commits each document it writes through the same home and records it as
+the flow's edit.
 
 The service lives below every surface. It imports `core/model` and
 `core/safeio` and nothing above them, so the CLI, the agent tools, Kapi Desktop
@@ -65,9 +67,12 @@ says who sent it.
 
 `change.Decode` reads a change set strictly: an unknown field or operation is
 refused with the JSON pointer of what was wrong. `changeschema.Schema` is the
-JSON Schema generated from the same Go types. The note
-[The change applier](../../implementation/engine/change-applier.md) covers the
-types, the decoder and the schema.
+JSON Schema generated from the same Go types. TypeScript clients use
+`@neokapi/contract-types`, whose change set and operations are generated from
+that schema and whose result, read and description types are generated from the
+structs the service marshals; a drift gate regenerates them on every change. The
+note [The change applier](../../implementation/engine/change-applier.md) covers
+the types, the decoder, the schema and the TypeScript types.
 
 ### Addressing and revisions
 
@@ -104,8 +109,9 @@ note describes each rule.
   reference to copy into an operation, the revision to send as `if_match`, the
   content as placeholder text, its inline codes with their attributes and the
   attributes `set_attribute` can write, its plurals and selects with the path to
-  each branch, its other editions with their status and staleness, and the
-  operations it accepts. A read of the file one edition lives in, such as the
+  each branch, its other editions with their status and staleness, each one's
+  own plurals and selects and its codes where they differ from the block's, and
+  the operations it accepts. A read of the file one edition lives in, such as the
   German file of an English page, shows that edition as each block's own, with
   the document's own edition among the others, so a reference copied from it
   edits the German. A page ends with a cursor; a cursor into a document that
@@ -137,6 +143,13 @@ note describes each rule.
   `WithDescriber` replaces `DescribeFormat`, and that one function is what
   `Describe` reports, what a read lists per block, and what `Apply` refuses
   outside of.
+- **`History`** lists the recorded changes to one edition, most recent first,
+  beside the revision the edition holds now. It reads the block from its home,
+  so a reference resolves as a read resolves it, and asks the
+  `EditionHistories` hook for the changes: each with its record, the revisions
+  around it, the basis a derived edition was made from, who made it (null when
+  nobody knows, as for an edit made outside kapi), through which surface, and
+  when.
 
 A document's edition lives in the document (its own edition, or one a bilingual
 file holds), in a file of its own (a project's target file), or nowhere (a
@@ -250,9 +263,88 @@ a commit replaces beside it, under the lock, from the bytes the change was
 applied to. The implementation note
 [The file home](../../implementation/engine/file-home.md) has the details.
 
+### Flows
+
+A flow writes a document whole: its writer renders every block the run passed
+through, into the file it reads or into a target-language file built from the
+source's skeleton. The file home commits that document too
+(`filehome.Home.Produce`): the run digests the destination before it reads,
+the writer's output is staged beside the destination, and the commit renames it
+under the destination's lock only while the destination still holds what the
+run began from ([E-01](e-01-processing-engine.md#the-write-stage)). Every flow
+the kapi host runs commits this way: `kapi translate`, `pseudo-translate`,
+`run`, `exec` and `up`, the same runs in Kapi Desktop and over MCP, a pull's
+target files, and the delivery of a convergence pass's drafts. The host's flow
+home takes its locks where the project's change service takes them, so a flow
+and a change set on one file take turns.
+
+Inside a project the host records each document a flow wrote as one
+`content.edit`, through the recorder a change set's commit records through,
+with the actor `tool:<flow>` and the origin `flow:<flow>`. `kapi exec` takes
+the project the command resolves, as `kapi apply` does, for a file the project
+holds. The record keeps revisions and hashes, no text. Its transitions are the
+run's effect on the file as the service reads it: the document is read through
+the service before the run and again after the commit (a commit that finds the
+file holding the run's bytes already, as it did when the run read it, reuses
+the first read), and each edition whose revision moved is a transition, with
+the stamp the producing tool left as its producer. A translation's basis is the
+source the run read before it ran, with that source's content hash: the commit
+guards the file the run writes, so a source edited while the run worked is
+drift against the basis rather than the basis. A translation the run reproduced
+unchanged is recorded too, once, when the block history does not already say a
+flow wrote it from the source the block holds, and not over a person's or an
+agent's write of the same wording, which stays theirs. So the history keeps the
+basis of every translation the loop made. That basis is what coverage grades an
+undecided translation by, what a decision on it starts from, and where the
+staleness gate finds what governed it. An undecided record in the decision
+ledger (a basis an earlier release recorded there for a Kapi Desktop edit or a
+loop pass) yields to the flow's last write when that write is the translation
+the file holds.
+
+A destination that moved while the run worked is applied again through the
+service from the run's operations (`set_content` on each edition the run
+changed, guarded by the revision read before the run, followed by the
+provenance the producing tool left). The service reads the file under its lock,
+and the document lands when no edition the run changed has moved too, and is
+refused as a whole otherwise: when one has moved (`stale`), or when the run
+wrote a block the file does not hold yet. The run then reports the document as
+moved, and the next run writes it. A target-language edition the run left
+without a translation is rendered from the source by the writer, and is left as
+the file holds it when the run's changes are applied again.
+
+Under `--print-ops` the run commits through a home that writes nothing
+(`filehome.Options.WriteNothing`) and records nothing. What it changed in each
+document becomes operations, the difference between each block as the reader
+gave it and as the writer received it (`change.Diff`), each guarded by the
+revision the service read before the run and each `set_content` of a
+translation carrying its basis. Before a document's operations join the change
+set, they are applied to a private copy of the file through the service `kapi
+apply` reaches, and they are printed only when the copy then holds the bytes
+the run would have written. A run writes a target-language file whole from its
+source, while the service edits the blocks a file holds as it stands, so the
+two differ when the source gained a block the file does not hold or the file
+holds an entry or an order of its own; such a file is named on standard error
+and left out. So is a file the run would write where the service does not keep
+the edition (an output path given on the command line in place of the recipe's
+target), a conversion, an export and an archive. `kapi apply` of the change set
+writes the bytes the run would have written, and records the edit as its own
+actor's: the provenance operation is in-process, so the change set carries no
+tool stamp.
+
+A printing `kapi up` runs one pass. A gated pass drafts into its private tree
+as any pass does (`Options.WriteUnder` lets the printing home write there),
+the gate decides from the drafts, and delivery prints what it would commit for
+each locale that clears its gate; a parked locale is named and prints nothing.
+A printing run records no change, absorbs nothing into the content memory and
+stamps nothing. As any pass does, it extracts the source into the derived store
+and caches under `.kapi/work`, and records the identity of a document it reads
+for the first time (`document.adopt`). In a
+project a `kapi translate`, `pseudo-translate` or `run` without `-o` writes no
+file, and prints nothing with a note.
+
 ### Hooks
 
-The service calls five hooks a host supplies. Each is optional.
+The service calls six hooks a host supplies. Each is optional.
 
 | Hook | Called | Without one |
 | --- | --- | --- |
@@ -261,6 +353,7 @@ The service calls five hooks a host supplies. Each is optional.
 | `Assets` | to prepare `decide`, `term`, `memory` and `recipe` before anything is written, and to apply them after the content landed | those operations are refused as `unsupported` |
 | `Recorder` | after the homes committed, with the transitions and the fingerprint | nothing is recorded |
 | `EditionStates` | by a read, for the status and basis of a derived edition | a read shows the status the document holds and no basis |
+| `EditionHistories` | by `History`, for the recorded changes to an edition | a history lists nothing |
 
 The service refuses a change only for a failing finding it introduces
 (`change.Introduced`). Under `report` the change lands with its findings, and a
@@ -280,12 +373,15 @@ writes the source's translations to files of their own. Decisions and asset oper
 land through the host's review-queue and asset functions, a decision bound to
 the wording the change set landed rather than to a later read of the file; on
 an edition with no content in its home, such as a parked locale's draft, the
-decision binds to the draft the project store holds. The hooks each plug in at
+decision binds to the draft the project store holds. Such a decision names the
+edition it read as `absent`, and is refused as stale once the home holds the
+edition. The hooks each plug in at
 one function of the host: the commit check is `App.CommitCheck`, which holds a
 service outside a project to hygiene alone; the policy is `ChangePolicy`; the
-recorder is `App.EditRecorder`, inside a project; and a read takes a derived
+recorder is `App.EditRecorder`, inside a project; a read takes a derived
 edition's basis from the project's block history, where the most recent
-recorded change to the edition left the content it holds.
+recorded change to the edition left the content it holds; and a history lists
+the edition's rows of that block history.
 
 On the command line, `kapi apply` hands a decoded change set to the service,
 `kapi inspect` prints the service's read records, and `ksed` compiles its
@@ -323,7 +419,61 @@ nothing records a comment edit.
 
 The MCP tools `read_blocks`, `apply_edits` and `describe_format` build the
 service for each call's project and send every change set as the calling agent
-([S-03](../surfaces/s-03-agent-surfaces.md)).
+([S-03](../surfaces/s-03-agent-surfaces.md)). The browser engine's `kapiRead`,
+`kapiApply` and `kapiDescribe` build it through the same function and carry
+the contract as JSON in and out: a refusal, a change set that does not decode
+included, is answered as a result. A call of either surface reads a bilingual
+file, such as a PO catalog, in the one language other than the source that its
+read's editions or its operations name, as `kapi apply` does. The page names
+the sender, a person unless it says an agent, and in a project an applied
+change is recorded in the browser's workspace log
+([WASM Engine ABI](../../implementation/surfaces/wasm-engine-abi.md#the-change-contract)).
+
+The verbs that write whole translations build the service with
+`Materialize` set, so the file home writes each translation's file from its
+source's skeleton, keeping what each block's partner in the file held where the
+change set leaves it, and a translation follows the source's structure, even
+where the change set changes no content in a file whose blocks no longer pair
+with the source's. Such a service keeps the translations of a bilingual source,
+a PO or XLIFF catalog whose collection names a target, in the target
+template's files too, each read and written in its language: a catalog that
+still holds every unit of its source keeps its own skeleton, header included.
+`kapi merge -i` compiles a returned XLIFF, PO or `.kpz` into `set_content`
+operations carrying the `if_match` and `basis` each unit was extracted against,
+under `require_basis` and the enforce gate, and sends them as a person;
+`kapi extract` stamps each unit with the revision of the source it carries and
+the translation's revision a read through the service gives
+([M-01](../multilingual/m-01-bilingual-interop.md)). `kapi merge` with no `-i`
+sends the targets the block store holds for a source and language as one
+change set from the tool `merge`, and `kapi pull` sends the runs the server
+holds for each pulled translation as the tool `pull`, each `if_match` the
+revision the read before it found. A pull hands the writer of a document with
+locale-variant media through `ChangeServiceOptions.WriterHook`, and writes a
+target in another format than its source, which no edition reaches, with the
+target's own writer. The record names the surface as the origin: `merge` or
+`pull`.
+
+Kapi Desktop reaches the service through four bindings, `Read`, `Apply`,
+`Describe` and `History`, each taking and returning the contract's JSON as a
+string. It builds the service for the tab's project with `desktop` as the
+origin and sends every change set as the person at the keyboard: an edit in the
+review pane or the document view, a check finding's fix, and Approve and Reject
+as `decide` ([S-02](../surfaces/s-02-kapi-desktop.md)).
+
+`kapi check` gives a finding whose rule names a replacement the operation that
+applies it (`check.Fix`): a `replace_text` of the words the finding objects to,
+by the run range the checker reported, under the revision of the block's own
+edition the check read. Sent as it is, it lands while the block still says what
+the check read, and is refused as stale once it does not. The fixes of one block
+name places in the same text, so they compose as the edits of one operation;
+as separate operations of one change set, each would see the text the one
+before it left. A replacement is plain text, and `ApplyTextEdits` keeps a code
+only at either end of the text it replaces, so a finding whose words have an
+inline code among them gets no fix. The fix names its document as the project's
+change service resolves one, by its path from the project root, and the file of
+a translation gets no fix: the service reads that file as the translation's
+edition, while the check read it as source and held it to the source
+language's rules.
 
 ### Results and errors
 
@@ -338,7 +488,10 @@ were not written are `not_applied`, and so are the decisions and asset
 operations, which wait for content that all landed; the record holds what did.
 A `stale` refusal carries the edition as it stands, so the sender can rebase
 without another read. A resource bound `core/safeio` reports is
-`budget_exceeded`.
+`budget_exceeded`. A change set refused before any operation is considered,
+because it does not decode or the request carrying it is refused, is answered
+with the same result shape (`change.ErrorResult`): status `refused`, no record,
+no files or operations, and the error.
 
 ## Consequences
 
@@ -347,10 +500,14 @@ without another read. A resource bound `core/safeio` reports is
   ask a person.
 - Concurrent kapi writers of one file lose nothing: each file a change reads
   is hashed before the read and again under the lock. The lock orders kapi's
-  own processes; an editor that saves between the re-hash and the rename
-  remains a conflict the next read sees.
+  own processes, and in the browser, which runs one, the calls of the page;
+  an editor that saves between the re-hash and the rename remains a conflict
+  the next read sees.
 - An operation reported `applied` reached the file. One the format has no
   place for in that file is refused.
+- Bytes kapi could not read as UTF-8, in a file in another encoding, are never
+  overwritten with the U+FFFD a read shows for them: an edit that would write it
+  there is refused as `unsupported`, and edits elsewhere in the file keep them.
 - A change set is all or nothing across documents up to the final renames.
   Records follow the commit, so a record that fails to write leaves content
   that the next read finds and records as observed.

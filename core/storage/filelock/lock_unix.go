@@ -29,3 +29,6 @@ func lockFile(f *os.File) error {
 func unlockFile(f *os.File) error {
 	return unix.Flock(int(f.Fd()), unix.LOCK_UN)
 }
+
+// releaseOnClose does nothing: closing the descriptor releases its lock.
+func releaseOnClose(*os.File) {}

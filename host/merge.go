@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
@@ -21,7 +20,6 @@ import (
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/memory"
@@ -29,13 +27,14 @@ import (
 
 // restoreRedactedBlocks restores redacted originals into the incoming
 // translated blocks using the batch's vault sidecar, if one exists. A missing
-// sidecar (batch wasn't redacted) is a no-op.
+// sidecar (batch wasn't redacted) is a no-op. Merge runs it before it compiles
+// the units into a change set.
 //
-// The incoming source is ALWAYS restored: the per-block staleness check in
-// merge compares the XLIFF source text against the (unredacted) re-read source
-// file, so the placeholders must be reverted for that comparison to hold. The
-// translated target is restored only when restoreTarget is set — passing
-// false (the --no-restore flag) leaves placeholders in the merged output.
+// The incoming source is ALWAYS restored: a unit that carries no basis is
+// compared with the source as it stands, which holds the originals, so the
+// placeholders must be reverted for that comparison to hold. The translated
+// target is restored only when restoreTarget is set — passing false (the
+// --no-restore flag) leaves placeholders in the merged output.
 func restoreRedactedBlocks(layout project.Layout, batchID string, blocks []*model.Block, targetLocale model.LocaleID, restoreTarget bool) error {
 	sidecar := layout.RedactionSidecarPath(batchID)
 	if _, err := os.Stat(sidecar); err != nil {
@@ -147,6 +146,7 @@ func (a *App) RunMerge(cmd Command) error {
 			policy:    policy,
 			mem:       absorber,
 			project:   proj,
+			recipe:    projectPath,
 			noRestore: noRestore,
 		})
 		if err != nil {
@@ -158,7 +158,7 @@ func (a *App) RunMerge(cmd Command) error {
 		totals.accumulate(stats)
 		res.Files = append(res.Files, output.MergeFileOutput{
 			Input:   rel,
-			Applied: stats.Applied, Stale: stats.Stale, Skipped: stats.Skipped,
+			Applied: stats.Applied, Stale: stats.Stale, Skipped: stats.Skipped, Refused: stats.Refused,
 			MemoryNew: stats.MemoryNew, MemoryUpdated: stats.MemoryUpdated,
 		})
 		emit(FlowRunEvent{Type: FlowEventFileDone, FilePath: in})
@@ -170,7 +170,7 @@ func (a *App) RunMerge(cmd Command) error {
 		fmt.Fprintf(os.Stderr, "Warning: merge: %v (the merged files were written)\n", ferr)
 	}
 
-	res.Applied, res.Stale, res.Skipped = totals.Applied, totals.Stale, totals.Skipped
+	res.Applied, res.Stale, res.Skipped, res.Refused = totals.Applied, totals.Stale, totals.Skipped, totals.Refused
 	res.MemoryNew, res.MemoryUpdated = totals.MemoryNew, totals.MemoryUpdated
 	res.Failures = failures
 
@@ -200,12 +200,12 @@ func (a *App) RunMerge(cmd Command) error {
 }
 
 // MergeFromProjectStore materializes localized files from the project block
-// store (AD-026 §3): for each project source × target locale it reads the
-// source, applies the stored `targets/<locale>` overlays via the
-// hydrateTargetsTool (recomputing nothing), and writes the localized file to
-// the source's output template. This is the sink half of the process-only
-// loop — `kapi run flow -i src.json` (in a project, no -o) commits overlays;
-// `kapi merge` (no -i) writes the files.
+// store (AD-026 §3): for each project source × target locale it gives the
+// source's translation the stored `targets/<locale>` overlays (recomputing
+// nothing) through the change service, which writes the file the source's
+// target template names. This is the sink half of the process-only loop —
+// `kapi run flow -i src.json` (in a project, no -o) commits overlays; `kapi
+// merge` (no -i) writes the files.
 func (a *App) MergeFromProjectStore(cmd Command) error {
 	ctx := cmd.Context()
 	projectPath, err := RequireProjectPath(cmd)
@@ -241,12 +241,14 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 
 // materializeFromProjectStore is the shared materialize path (#1078 C2/C3):
 // it writes the localized files for the given locales from the project block
-// store — each source read once, the stored `targets/<locale>` overlays
-// hydrated onto it, the localized file written via the source format's
-// skeleton round-trip. `kapi merge` (no -i) calls it over every target
-// language; `kapi up` calls it after the loop for the shippable locales when
-// the materialize policy (defaults.materialize / --materialize) says so.
-// Returns the number of files written.
+// store — for each source and locale one change set of set_content operations
+// carrying the stored `targets/<locale>` overlays, which the change service
+// writes from the source's skeleton (materializeEdition). A collection that
+// names no target is source-only and gets no file, and a translation the
+// store holds nothing for is left as it is. `kapi merge` (no -i) calls it over
+// every target language; `kapi up` calls it after the loop for the shippable
+// locales when the materialize policy (defaults.materialize / --materialize)
+// says so. Returns the number of files written.
 func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noMemoryUpdate bool) (int, error) {
 	return a.materializeProject(ctx, out, proj, projectPath, locales, noMemoryUpdate, nil)
 }
@@ -281,17 +283,27 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 		return 0, fmt.Errorf("merge: resolve project content: %w", err)
 	}
 	// A file declared for its comments alone has no target to materialize, and
-	// neither has a file in a format no installed reader opens.
+	// neither has a file in a format no installed reader opens, nor one whose
+	// collection names no target: that content is source-only.
 	kept := files[:0]
+	sourceOnly := 0
 	for _, f := range files {
-		if !f.CommentsOnly() && !a.setAside(unread, filepath.Dir(projectPath), f) {
+		switch {
+		case f.CommentsOnly():
+		case f.Item == nil || f.Item.Target == "":
+			sourceOnly++
+		case !a.setAside(unread, filepath.Dir(projectPath), f):
 			kept = append(kept, f)
 		}
 	}
 	files = kept
 	if len(files) == 0 {
-		if !unread.empty() {
+		switch {
+		case !unread.empty():
 			return 0, fmt.Errorf("merge: nothing was materialized: %s", unread.summary())
+		case sourceOnly > 0:
+			// Every file is source-only: there is no translation to write.
+			return 0, nil
 		}
 		return 0, errors.New("merge: project has no source files to materialize (check content patterns)")
 	}
@@ -329,6 +341,11 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 		return 0, nil
 	}
 
+	// The change service writes each translation from its source's skeleton,
+	// one service per language, for a bilingual source whose reader has to
+	// be told the language it holds.
+	services := &materializeServices{app: a, ctx: ctx, recipe: projectPath, source: pctx.SourceLocale}
+
 	written := 0
 	for _, f := range files {
 		srcFormat := f.Format
@@ -353,32 +370,25 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 				continue
 			}
 
-			runner := flow.NewFileRunner(flow.FileRunnerConfig{
-				FormatReg:    a.FormatReg,
-				SourceLocale: pctx.SourceLocale,
-				Encoding:     pctx.Encoding,
-				Store:        store,
-				DetectFormat: func(string) registry.FormatID { return registry.FormatID(srcFormat) },
-				// The recipe's configuration for THIS item, on both halves of the
-				// round-trip. Materializing re-reads the source to rebuild its
-				// skeleton, so a reader configured any other way splits the
-				// document into a different set of blocks than extraction did and
-				// the stored targets land on the wrong ones.
-				ConfigureReader: func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
-					return pctx.ConfigureReaderFor(reader, string(detectedFmt), f.Item)
-				},
-				ConfigureWriter: func(writer format.DataFormatWriter, fmtName registry.FormatID) error {
-					return pctx.ConfigureWriterFor(writer, string(fmtName), f.Item)
-				},
-			})
 			// Address the stored overlays by the same source-file-namespaced key
 			// the run wrote them under (blockstore.StoreKey).
 			fileCtx := blockstore.WithSourceRel(ctx, f.Relative)
-			tools := []tool.Tool{newHydrateTargetsTool(locale)}
-			if rerr := runner.RunFile(fileCtx, "merge", tools, f.Path, targetPath, string(locale)); rerr != nil {
-				return written, fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, rerr)
+			svc, serr := services.of(locale)
+			if serr != nil {
+				return written, fmt.Errorf("merge: %w", serr)
 			}
-			written++
+			held, wrote, merr := materializeEdition(fileCtx, svc, store, filepath.ToSlash(f.Relative), locale)
+			if merr != nil {
+				return written, fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, merr)
+			}
+			if held == 0 {
+				// The store holds no translation for this file: there is
+				// nothing to write.
+				continue
+			}
+			if wrote {
+				written++
+			}
 
 			// Absorb the materialized targets into the project content memory with merge
 			// provenance, mirroring the XLIFF/PO/.kpz merge paths. TM write-back
@@ -393,7 +403,9 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 				}
 			}
 
-			fmt.Fprintf(out, "Merged %s → %s\n", f.Relative, targetPath)
+			if wrote {
+				fmt.Fprintf(out, "Merged %s → %s\n", f.Relative, targetPath)
+			}
 		}
 	}
 
@@ -488,6 +500,8 @@ type mergeTask struct {
 	policy  string
 	mem     *memoryAbsorber
 	project *project.KapiProject
+	// recipe is the project's recipe file, which the change service edits.
+	recipe string
 
 	// noRestore disables restoring redacted originals from the batch vault.
 	noRestore bool
@@ -497,6 +511,7 @@ type mergeStats struct {
 	Applied       int
 	Stale         int
 	Skipped       int
+	Refused       int
 	MemoryNew     int
 	MemoryUpdated int
 }
@@ -505,16 +520,16 @@ func (s *mergeStats) accumulate(o mergeStats) {
 	s.Applied += o.Applied
 	s.Stale += o.Stale
 	s.Skipped += o.Skipped
+	s.Refused += o.Refused
 	s.MemoryNew += o.MemoryNew
 	s.MemoryUpdated += o.MemoryUpdated
 }
 
 // MergeOneKpz ingests a bilingual interchange .kpz returned by a translator
-// (kind=kapi-interchange, AD-025 §7): it validates the profile, hydrates the
-// target overlays onto the current source blocks (matched by id), staleness-
-// checks each block against the current source, applies the project conflict
-// policy, writes the merged target via the package's inline skeleton, and
-// absorbs accepted targets into the project content memory.
+// (kind=kapi-interchange, AD-025 §7): it validates the profile and merges the
+// target overlays of each source it carries through the change service, as
+// kapi merge -i merges an XLIFF or PO file, with the revisions the
+// interchange task records for each unit as their if_match and basis.
 func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	ctx := cmd.Context()
 	pkg, err := LoadWorkspace(kpzInput)
@@ -567,134 +582,56 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	}
 	// One write for the whole package, not one per merged block.
 	absorber := a.newMemoryAbsorber(tm)
-
-	// Index the package's target overlays by block id.
-	overlayByID := make(map[string][]byte)
-	for _, ov := range pkg.Overlays {
-		if blockstore.CanonicalOverlayKind(ov.Kind) == blockstore.TargetOverlayKind(targetLocale) {
-			overlayByID[ov.BlockHash] = ov.Payload
-		}
-	}
+	task := mergeTask{layout: layout, ctx: pctx, input: kpzInput, policy: policy, mem: absorber, project: proj, recipe: projectPath}
 
 	var stats mergeStats
-	// TM write-back is best-effort here (the merged file is the deliverable),
-	// but the FIRST failure is kept and reported once at the end rather than
-	// discarded per block.
-	var tmErr error
 	for _, si := range pkg.Sources {
-		srcRel := si.SourcePath
-		// The package names which of the project's sources it carries work for.
-		// That name decides both the file re-read here and the file written
-		// below, so it is contained before either happens.
-		sourceAbs, err := containedJoin(layout.Root, srcRel, "merge: package source path")
+		// The package names which of the project's sources it carries work
+		// for, and that name decides the document the merge writes, so it is
+		// contained first.
+		if _, err := containedJoin(layout.Root, si.SourcePath, "merge: package source path"); err != nil {
+			return err
+		}
+		member := kpz.SourceDir + filepath.Base(si.SourcePath)
+		rf := &returnedFile{input: kpzInput, doc: si.SourcePath, locale: targetLocale, reference: "kpz", sourceHash: si.ContentHash}
+		for _, ov := range pkg.Overlays {
+			if blockstore.CanonicalOverlayKind(ov.Kind) != blockstore.TargetOverlayKind(targetLocale) || (ov.Source != "" && ov.Source != member) {
+				continue
+			}
+			b := &model.Block{ID: ov.BlockHash}
+			if err := applyTargetOverlay(b, targetLocale, ov.Payload); err != nil {
+				return err
+			}
+			if rev, ok := pkg.InterchangeTask.Revisions[ov.BlockHash]; ok {
+				stampUnitRevision(b, unitRevision{IfMatch: rev.IfMatch, Basis: rev.Basis})
+			}
+			rf.blocks = append(rf.blocks, b)
+		}
+		s, _, err := a.mergeReturned(ctx, task, rf)
 		if err != nil {
 			return err
 		}
-		srcFormat := si.FormatID
-		if srcFormat == "" {
-			srcFormat = detectSourceFormat(a.FormatReg, pctx, srcRel, sourceAbs)
-		}
-		if srcFormat == "" {
-			return fmt.Errorf("merge: cannot detect format for source %s", sourceAbs)
-		}
-
-		currentHash, herr := project.HashFile(sourceAbs)
-		if herr != nil {
-			return fmt.Errorf("hash current source %s: %w", sourceAbs, herr)
-		}
-		fileStale := si.ContentHash != "" && currentHash != si.ContentHash
-
-		currentBlocks, _, rerr := project.ReadSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, pctx.SourceLocale, targetLocale,
-			formatConfigForSource(pctx.Project, srcFormat, srcRel))
-		if rerr != nil {
-			return fmt.Errorf("re-read source %s: %w", sourceAbs, rerr)
-		}
-
-		for _, b := range currentBlocks {
-			payload, ok := overlayByID[b.ID]
-			if !ok {
-				continue
-			}
-			// Staleness: a whole-file hash drift is advisory here; per-block
-			// identity (the block id and its source text) is the real guard.
-			// We applied the overlay by id; if the file is stale we still apply
-			// when the id matched, matching the XLIFF path's per-block tolerance.
-			_ = fileStale
-
-			existing := b.Target(targetLocale)
-			hasExisting := existing != nil && hasAnyText(existing.Runs)
-			apply := true
-			switch policy {
-			case project.ConflictPolicyExistingWins:
-				if hasExisting {
-					apply = false
-				}
-			case project.ConflictPolicyNewestWins:
-				if hasExisting {
-					srcInfo, _ := os.Stat(sourceAbs)
-					kpzInfo, _ := os.Stat(kpzInput)
-					if srcInfo != nil && kpzInfo != nil && !kpzInfo.ModTime().After(srcInfo.ModTime()) {
-						apply = false
-					}
-				}
-			}
-			if !apply {
-				stats.Skipped++
-				continue
-			}
-			if aerr := applyTargetOverlay(b, targetLocale, payload); aerr != nil {
-				return aerr
-			}
-			if b.Target(targetLocale) == nil {
-				stats.Skipped++
-				continue
-			}
-			stats.Applied++
-			if absorber != nil {
-				added, updated, aerr := absorber.absorb(ctx, b, pctx.SourceLocale, targetLocale, "kpz", srcRel, kpzInput)
-				if aerr != nil && tmErr == nil {
-					tmErr = aerr
-				}
-				stats.MemoryNew += added
-				stats.MemoryUpdated += updated
-			}
-		}
-
-		// Write the merged target via the package's skeleton. The skeleton
-		// stream is bounded; read it from its parcel reference to feed the
-		// reconstructing writer.
-		var skelBytes []byte
-		for _, s := range pkg.Skeletons {
-			if s.SourcePath == srcRel {
-				b, rerr := kpz.ReadAll(s.Content)
-				if rerr != nil {
-					return fmt.Errorf("read skeleton for %s: %w", srcRel, rerr)
-				}
-				skelBytes = b
-				break
-			}
-		}
-		entry := &project.ExtractionFile{Source: srcRel}
-		targetPath, terr := resolveMergeOutputPath(entry, pctx.Project, layout.Root, targetLocale)
-		if terr != nil {
-			return terr
-		}
-		if werr := writeMergedSourceWithSkeleton(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, targetLocale, currentBlocks, "", skelBytes, formatConfigForSource(pctx.Project, srcFormat, srcRel)); werr != nil {
-			return fmt.Errorf("write merged target %s: %w", targetPath, werr)
-		}
+		stats.accumulate(s)
 	}
 
-	if ferr := absorber.flush(ctx); ferr != nil && tmErr == nil {
-		tmErr = ferr
-	}
-	if tmErr != nil {
+	if ferr := absorber.flush(ctx); ferr != nil {
 		fmt.Fprintf(os.Stderr, "Warning: merge: record %s in the project content memory: %v (the merged files were written)\n",
-			filepath.Base(kpzInput), tmErr)
+			filepath.Base(kpzInput), ferr)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(),
-		"Merged %s → %s: applied=%d skipped=%d memory_new=%d memory_updated=%d (conflict_policy=%s)\n",
-		filepath.Base(kpzInput), targetLocale, stats.Applied, stats.Skipped, stats.MemoryNew, stats.MemoryUpdated, policy)
+		"Merged %s → %s: %s\n", filepath.Base(kpzInput), targetLocale, stats.summary(policy))
 	return nil
+}
+
+// summary is the counts of a merge as its report prints them: refused only
+// when a unit was refused.
+func (s mergeStats) summary(policy string) string {
+	refused := ""
+	if s.Refused > 0 {
+		refused = fmt.Sprintf(" refused=%d", s.Refused)
+	}
+	return fmt.Sprintf("applied=%d stale=%d skipped=%d%s memory_new=%d memory_updated=%d (conflict_policy=%s)",
+		s.Applied, s.Stale, s.Skipped, refused, s.MemoryNew, s.MemoryUpdated, policy)
 }
 
 // BoolFlag reads a bool flag, defaulting to false on error.
@@ -703,47 +640,46 @@ func BoolFlag(cmd Command, name string) bool {
 	return v
 }
 
-// mergeOne handles a single returning XLIFF / PO file.
+// mergeOne merges a single returned XLIFF or PO file.
 func (a *App) mergeOne(ctx context.Context, task mergeTask) (mergeStats, error) {
-	var stats mergeStats
-
-	ext := format.Ext(task.input)
-	switch ext {
+	var rf *returnedFile
+	var err error
+	switch ext := format.Ext(task.input); ext {
 	case ".xliff", ".xlf":
-		return a.mergeOneXLIFF(ctx, task)
+		rf, err = readReturnedXLIFF(ctx, task.input)
 	case ".po":
-		return a.mergeOnePO(ctx, task)
+		if rf, err = readReturnedPO(task.input); err == nil {
+			err = settlePOLanguage(task, rf)
+		}
 	default:
-		return stats, fmt.Errorf("merge: unsupported input extension %q (supported: .xliff, .xlf, .po)", ext)
+		return mergeStats{}, fmt.Errorf("merge: unsupported input extension %q (supported: .xliff, .xlf, .po)", ext)
 	}
+	if err != nil {
+		return mergeStats{}, err
+	}
+	stats, _, err := a.mergeReturned(ctx, task, rf)
+	return stats, err
 }
 
-// mergeOneXLIFF is the original XLIFF 2 merge path. Split out from
-// mergeOne so the dispatch is a cheap switch on the extension.
-func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, error) {
-	var stats mergeStats
-	var tmErr error
-
-	// 1. Read the incoming XLIFF — blocks + layer metadata.
+// readReturnedXLIFF reads a returned XLIFF 2 file: the source it translates
+// from its kapi source-file note, the language of its translations from its
+// trgLang, and a block per unit with the revisions its metadata carries.
+func readReturnedXLIFF(ctx context.Context, path string) (*returnedFile, error) {
 	reader := xliff2.NewReader()
-	f, err := os.Open(task.input)
+	f, err := os.Open(path)
 	if err != nil {
-		return stats, err
+		return nil, err
 	}
 	defer f.Close()
-	doc := &model.RawDocument{
-		URI:      task.input,
-		Reader:   f,
-		FormatID: "xliff2",
+	if err := reader.Open(ctx, &model.RawDocument{URI: path, Reader: f, FormatID: "xliff2"}); err != nil {
+		return nil, fmt.Errorf("xliff2 open: %w", err)
 	}
-	if err := reader.Open(ctx, doc); err != nil {
-		return stats, fmt.Errorf("xliff2 open: %w", err)
-	}
+	defer reader.Close()
 	var layer *model.Layer
-	var translatedBlocks []*model.Block
+	var blocks []*model.Block
 	for res := range reader.Read(ctx) {
 		if res.Error != nil {
-			return stats, fmt.Errorf("xliff2 read: %w", res.Error)
+			return nil, fmt.Errorf("xliff2 read: %w", res.Error)
 		}
 		switch res.Part.Type {
 		case model.PartLayerStart:
@@ -752,358 +688,106 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 			}
 		case model.PartBlock:
 			if b, ok := res.Part.Resource.(*model.Block); ok {
-				translatedBlocks = append(translatedBlocks, b)
+				blocks = append(blocks, b)
 			}
 		}
 	}
-	_ = reader.Close()
-
-	// 2. Resolve the extraction batch via the file-level note.
-	batchID := xliff2.BatchIDFromLayer(layer)
-	if batchID == "" {
-		return stats, fmt.Errorf("merge: no kapi batch id in %s. Was this file produced by kapi extract?", task.input)
-	}
-	manifest, err := project.LoadExtractionManifest(task.layout, batchID)
-	if err != nil {
-		return stats, fmt.Errorf("merge: load extraction manifest for batch %s: %w", batchID, err)
-	}
-
-	// 3. Find the matching source entry in the manifest.
 	srcRel := xliff2.FilePropertyFromLayer(layer, xliff2.FileNoteCategoryKapi, xliff2.FileNoteIDSourceFile)
 	if srcRel == "" {
-		return stats, fmt.Errorf("merge: no source-file note in %s", task.input)
+		return nil, fmt.Errorf("merge: %s names no source file. Was it produced by kapi extract?", path)
 	}
-	targetLocale := model.LocaleID(strings.TrimSpace(layer.Properties["target-language"]))
-	if targetLocale == "" {
-		// Try to derive from XLIFF <xliff trgLang>
-		targetLocale = layer.Locale // fallback — reader sets srcLang on layer.Locale
+	locale := model.LocaleID("")
+	if layer != nil {
+		locale = model.LocaleID(strings.TrimSpace(layer.Properties["target-language"]))
 	}
-
-	pair, entry, ok := findManifestEntry(manifest, srcRel, targetLocale)
-	if !ok {
-		return stats, fmt.Errorf("merge: source %q / target %q not found in batch %s", srcRel, targetLocale, batchID)
+	if locale == "" {
+		return nil, fmt.Errorf("merge: %s names no target language (trgLang)", path)
 	}
-	_ = pair
-
-	// Restore redacted originals: if this batch was extracted with --redact,
-	// a vault sidecar maps each placeholder token back to its original. We
-	// restore both the incoming source (so the staleness comparison sees the
-	// original text, matching the re-read source file) and the translated
-	// target before applying it. The originals never left the machine.
-	if err := restoreRedactedBlocks(task.layout, batchID, translatedBlocks, targetLocale, !task.noRestore); err != nil {
-		return stats, fmt.Errorf("merge: restore redaction for batch %s: %w", batchID, err)
-	}
-
-	// 4. Re-read the current source (for per-block staleness detection).
-	sourceAbs, err := containedJoin(task.layout.Root, entry.Source, "merge: manifest source path")
-	if err != nil {
-		return stats, err
-	}
-	currentHash, err := project.HashFile(sourceAbs)
-	if err != nil {
-		return stats, fmt.Errorf("hash current source %s: %w", sourceAbs, err)
-	}
-	fileStale := currentHash != entry.SourceHash
-
-	srcFormat := detectSourceFormat(a.FormatReg, task.ctx, entry.Source, sourceAbs)
-	if srcFormat == "" {
-		return stats, fmt.Errorf("merge: cannot detect format for source %s", sourceAbs)
-	}
-	currentSourceBlocks, currentSourceLayer, err := project.ReadSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, task.ctx.SourceLocale, targetLocale,
-		formatConfigForSource(task.ctx.Project, srcFormat, entry.Source))
-	if err != nil {
-		return stats, fmt.Errorf("re-read source %s: %w", sourceAbs, err)
-	}
-	_ = currentSourceLayer
-
-	currentByID := make(map[string]*model.Block, len(currentSourceBlocks))
-	for _, b := range currentSourceBlocks {
-		currentByID[b.ID] = b
-	}
-
-	// 5. Apply translations per conflict policy with per-block stale check.
-	var flattened []string
-	defer func() { warnFlattened(task.input, flattened) }()
-	for _, tb := range translatedBlocks {
-		target := tb.Target(targetLocale)
-		if target == nil || !hasAnyText(target.Runs) {
-			// Translator returned no target for this block — leave existing.
-			stats.Skipped++
-			continue
-		}
-
-		srcBlock, ok := currentByID[tb.ID]
-		if !ok {
-			stats.Stale++
-			continue
-		}
-
-		// Per-block staleness: compare the block's source text between
-		// extract-time (preserved in the XLIFF's <source>) and current source.
-		// Both sides render through RenderRunsWithData: the XLIFF carries
-		// inline codes flattened to their original data (the markdown/HTML
-		// markers), while the freshly read source block keeps them as code
-		// runs that plain SourceText() would drop — comparing unlike
-		// renderings marked every block with inline markup stale.
-		xliffSourceText := model.RenderRunsWithData(tb.Source)
-		currentSourceText := model.RenderRunsWithData(srcBlock.Source)
-		if xliffSourceText != currentSourceText {
-			stats.Stale++
-			continue
-		}
-		if fileStale {
-			// File hash drift doesn't block if per-block text still matches —
-			// noop path, but record separately so callers can see the file
-			// changed even if not at this block.
-			_ = fileStale
-		}
-
-		if flattensStructure(srcBlock.Source, target.Runs) {
-			stats.Skipped++
-			flattened = append(flattened, blockLabel(srcBlock))
-			continue
-		}
-
-		// Conflict policy.
-		existing := srcBlock.Target(targetLocale)
-		hasExisting := existing != nil
-		apply := true
-		switch task.policy {
-		case project.ConflictPolicyExistingWins:
-			if hasExisting && hasAnyText(existing.Runs) {
-				apply = false
-			}
-		case project.ConflictPolicyNewestWins:
-			// At this layer we only know about the returning XLIFF vs the
-			// (re-read) source file's existing target. Prefer the XLIFF if
-			// the source file's mtime is older than the XLIFF's mtime,
-			// otherwise keep existing.
-			if hasExisting && hasAnyText(existing.Runs) {
-				srcInfo, _ := os.Stat(sourceAbs)
-				xliffInfo, _ := os.Stat(task.input)
-				if srcInfo != nil && xliffInfo != nil && !xliffInfo.ModTime().After(srcInfo.ModTime()) {
-					apply = false
-				}
-			}
-		case project.ConflictPolicyTranslatorWins, "":
-			// Always apply the translator's target.
-		}
-		if !apply {
-			stats.Skipped++
-			continue
-		}
-		srcBlock.SetTarget(targetLocale, target)
-		stats.Applied++
-
-		// TM absorb with provenance. Best-effort, but reported: see
-		// absorbBlockIntoTM.
-		if task.mem != nil {
-			added, updated, aerr := task.mem.absorb(ctx, srcBlock, task.ctx.SourceLocale, targetLocale, batchID, entry.Source, task.input)
-			if aerr != nil && tmErr == nil {
-				tmErr = aerr
-			}
-			stats.MemoryNew += added
-			stats.MemoryUpdated += updated
-		}
-	}
-	if tmErr != nil {
-		fmt.Fprintf(os.Stderr, "Warning: merge: record %s in the project content memory: %v (the merged file was written)\n",
-			filepath.Base(task.input), tmErr)
-	}
-
-	// 6. Write the merged target file via the project's writer + skeleton.
-	targetPath, err := resolveMergeOutputPath(entry, task.ctx.Project, task.layout.Root, targetLocale)
-	if err != nil {
-		return stats, err
-	}
-	if err := writeMergedSource(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, task.layout, batchID, entry, targetLocale, currentSourceBlocks, task.ctx.Project); err != nil {
-		return stats, fmt.Errorf("write merged target %s: %w", targetPath, err)
-	}
-
-	return stats, nil
+	return &returnedFile{
+		input: path, doc: srcRel, locale: locale,
+		batch:      xliff2.BatchIDFromLayer(layer),
+		sourceHash: xliff2.FilePropertyFromLayer(layer, xliff2.FileNoteCategoryKapi, xliff2.FileNoteIDSourceHash),
+		blocks:     blocks,
+	}, nil
 }
 
-// mergeOnePO handles a returning PO (gettext) file. It shares all the
-// conflict policy, stale detection, and content memory absorb machinery with
-// mergeOneXLIFF — the only differences are parsing and target-locale
-// discovery (PO has no intrinsic src/trg attribute; we pull the target
-// from the extraction manifest via the pair that named the PO output).
-func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error) {
-	var stats mergeStats
-	var tmErr error
-
-	po, err := ReadPOForMerge(task.input)
+// readReturnedPO reads a returned PO file: the source it translates from its
+// kapi-source-file comment, the language of its translations from its
+// header, and a block per entry with the revisions its comments carry. An
+// entry with no kapi-block comment cannot be matched to a block and is read
+// with no translation, so the merge skips it.
+func readReturnedPO(path string) (*returnedFile, error) {
+	po, err := ReadPOForMerge(path)
 	if err != nil {
-		return stats, fmt.Errorf("po read: %w", err)
-	}
-	if po.BatchID == "" {
-		return stats, fmt.Errorf("merge: no kapi-batch comment in %s. Was this file produced by kapi extract?", task.input)
-	}
-	manifest, err := project.LoadExtractionManifest(task.layout, po.BatchID)
-	if err != nil {
-		return stats, fmt.Errorf("merge: load extraction manifest for batch %s: %w", po.BatchID, err)
+		return nil, fmt.Errorf("po read: %w", err)
 	}
 	if po.SourceFile == "" {
-		return stats, fmt.Errorf("merge: no kapi-source-file comment in %s", task.input)
+		return nil, fmt.Errorf("merge: %s has no kapi-source-file comment. Was it produced by kapi extract?", path)
 	}
-
-	// Target locale: resolved by finding the pair whose files list
-	// contains this source path. PO has no inherent target-locale attr,
-	// so we trust the extraction manifest.
-	pair, entry, ok := findPOManifestEntry(manifest, po.SourceFile, task.input, task.layout.Root)
-	if !ok {
-		return stats, fmt.Errorf("merge: source %q not found in batch %s", po.SourceFile, po.BatchID)
+	if po.Language == "" {
+		return nil, fmt.Errorf("merge: %s names no language in its header", path)
 	}
-	targetLocale := pair.TargetLocale
-
-	// Re-read the current source.
-	sourceAbs, err := containedJoin(task.layout.Root, entry.Source, "merge: manifest source path")
-	if err != nil {
-		return stats, err
-	}
-	srcFormat := detectSourceFormat(a.FormatReg, task.ctx, entry.Source, sourceAbs)
-	if srcFormat == "" {
-		return stats, fmt.Errorf("merge: cannot detect format for source %s", sourceAbs)
-	}
-	currentSourceBlocks, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, task.ctx.SourceLocale, targetLocale,
-		formatConfigForSource(task.ctx.Project, srcFormat, entry.Source))
-	if err != nil {
-		return stats, fmt.Errorf("re-read source %s: %w", sourceAbs, err)
-	}
-	currentByID := make(map[string]*model.Block, len(currentSourceBlocks))
-	for _, b := range currentSourceBlocks {
-		currentByID[b.ID] = b
-	}
-
-	// Apply per-entry.
-	var flattened []string
-	defer func() { warnFlattened(task.input, flattened) }()
+	locale := model.LocaleID(po.Language)
+	rf := &returnedFile{input: path, doc: po.SourceFile, locale: locale, batch: po.BatchID, sourceHash: po.SourceHash, plainSource: true}
 	for _, mb := range po.Blocks {
-		if mb.MsgStr == "" {
-			stats.Skipped++
-			continue
+		b := &model.Block{ID: mb.BlockID, Source: []model.Run{{Text: &model.TextRun{Text: mb.MsgID}}}}
+		if mb.BlockID != "" && mb.MsgStr != "" {
+			b.SetTargetText(locale, mb.MsgStr)
 		}
-		if mb.BlockID == "" {
-			// No kapi-block hint — we can't correlate cleanly. Skip
-			// rather than risk misapplying.
-			stats.Skipped++
-			continue
+		if mb.IfMatch != "" || mb.Basis != "" {
+			stampUnitRevision(b, unitRevision{IfMatch: mb.IfMatch, Basis: mb.Basis})
 		}
-		srcBlock, ok := currentByID[mb.BlockID]
-		if !ok {
-			stats.Stale++
-			continue
+		rf.blocks = append(rf.blocks, b)
+	}
+	return rf, nil
+}
+
+// settlePOLanguage settles the language of a returned PO file's
+// translations. Its header names it, and the merge takes the recipe's
+// spelling of that language. A header that names none of the recipe's target
+// languages (an editor rewrote it) gives way to the extraction pair that
+// wrote the file, found by the name extract gave it in the batch's manifest;
+// with no such pair the merge is refused.
+func settlePOLanguage(task mergeTask, rf *returnedFile) error {
+	if task.project == nil || len(task.project.Defaults.TargetLanguages) == 0 {
+		return nil
+	}
+	targets := task.project.Defaults.TargetLanguages
+	settled := model.LocaleID("")
+	for _, t := range targets {
+		if model.NormalizeLocale(t) == model.NormalizeLocale(rf.locale) {
+			settled = t
 		}
-		// Per-block staleness: compare source text between extract-time
-		// (carried in the PO's msgid) and the current source.
-		if mb.MsgID != srcBlock.SourceText() {
-			stats.Stale++
-			continue
-		}
-		if model.HasStructuredRuns(srcBlock.Source) {
-			// A PO entry's msgstr is flat text, which holds none of the
-			// message's plurals and selects.
-			stats.Skipped++
-			flattened = append(flattened, blockLabel(srcBlock))
-			continue
-		}
-		// Conflict policy.
-		existing := srcBlock.Target(targetLocale)
-		hasExisting := existing != nil
-		apply := true
-		switch task.policy {
-		case project.ConflictPolicyExistingWins:
-			if hasExisting && hasAnyText(existing.Runs) {
-				apply = false
-			}
-		case project.ConflictPolicyNewestWins:
-			if hasExisting && hasAnyText(existing.Runs) {
-				srcInfo, _ := os.Stat(sourceAbs)
-				poInfo, _ := os.Stat(task.input)
-				if srcInfo != nil && poInfo != nil && !poInfo.ModTime().After(srcInfo.ModTime()) {
-					apply = false
+	}
+	if settled == "" && rf.batch != "" {
+		if m, err := project.LoadExtractionManifest(task.layout, rf.batch); err == nil {
+			src := project.ResolvedFile{Relative: filepath.FromSlash(rf.doc)}
+			for _, p := range m.Pairs {
+				if bilingualOutputName(src, task.ctx.SourceLocale, p.TargetLocale, extractFormatPO) == filepath.Base(rf.input) {
+					settled = p.TargetLocale
 				}
 			}
 		}
-		if !apply {
-			stats.Skipped++
-			continue
+	}
+	if settled == "" {
+		names := make([]string, len(targets))
+		for i, t := range targets {
+			names[i] = string(t)
 		}
-		// Stash target text (PO v1 = one msgid per block).
-		srcBlock.SetTargetText(targetLocale, mb.MsgStr)
-		stats.Applied++
-
-		if task.mem != nil {
-			added, updated, aerr := task.mem.absorb(ctx, srcBlock, task.ctx.SourceLocale, targetLocale, po.BatchID, entry.Source, task.input)
-			if aerr != nil && tmErr == nil {
-				tmErr = aerr
-			}
-			stats.MemoryNew += added
-			stats.MemoryUpdated += updated
-		}
+		return fmt.Errorf("merge: %s names %q as its language, which is none of the project's target languages (%s), and no extraction this project holds wrote it",
+			filepath.Base(rf.input), rf.locale, strings.Join(names, ", "))
 	}
-	if tmErr != nil {
-		fmt.Fprintf(os.Stderr, "Warning: merge: record %s in the project content memory: %v (the merged file was written)\n",
-			filepath.Base(task.input), tmErr)
-	}
-
-	// Write merged target via source format writer + captured skeleton.
-	targetPath, err := resolveMergeOutputPath(entry, task.ctx.Project, task.layout.Root, targetLocale)
-	if err != nil {
-		return stats, err
-	}
-	if err := writeMergedSource(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, task.layout, po.BatchID, entry, targetLocale, currentSourceBlocks, task.ctx.Project); err != nil {
-		return stats, fmt.Errorf("write merged target %s: %w", targetPath, err)
-	}
-	return stats, nil
-}
-
-// findPOManifestEntry is the PO counterpart to findManifestEntry. Since
-// PO files carry no trgLang attribute, we locate the pair by matching
-// the output path (or falling back to the source file path) in the
-// manifest — whichever pair claims this PO as its output wins.
-func findPOManifestEntry(m *project.ExtractionManifest, sourceRel, inputPath, root string) (*project.ExtractionPair, *project.ExtractionFile, bool) {
-	absInput, _ := filepath.Abs(inputPath)
-	for i := range m.Pairs {
-		p := &m.Pairs[i]
-		// Primary: match by the pair's output path.
-		if p.Output != "" {
-			absOut := p.Output
-			if !filepath.IsAbs(absOut) {
-				absOut = filepath.Join(root, p.Output)
-			}
-			if absOut == absInput {
-				for j := range p.Files {
-					if p.Files[j].Source == sourceRel {
-						return p, &p.Files[j], true
-					}
-				}
+	if settled != rf.locale {
+		for _, b := range rf.blocks {
+			if t := b.Target(rf.locale); t != nil {
+				runs := t.Runs
+				b.RemoveEdition(model.EditionKey{Locale: rf.locale})
+				b.SetTargetRuns(settled, runs)
 			}
 		}
-		// Fallback: source-file match within the pair (useful for
-		// single-source projects where the pair output is the only file).
-		for j := range p.Files {
-			if p.Files[j].Source == sourceRel {
-				return p, &p.Files[j], true
-			}
-		}
+		rf.locale = settled
 	}
-	return nil, nil, false
-}
-
-func findManifestEntry(m *project.ExtractionManifest, sourceRel string, target model.LocaleID) (*project.ExtractionPair, *project.ExtractionFile, bool) {
-	for i := range m.Pairs {
-		p := &m.Pairs[i]
-		if target != "" && p.TargetLocale != target {
-			continue
-		}
-		for j := range p.Files {
-			if p.Files[j].Source == sourceRel {
-				return p, &p.Files[j], true
-			}
-		}
-	}
-	return nil, nil, false
+	return nil
 }
 
 // detectSourceFormat picks the format for a source path: the format the
@@ -1153,97 +837,6 @@ func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiPro
 	// Default: <source-dir>/<locale>/<basename>
 	base := filepath.Base(entry.Source)
 	return filepath.Join(root, filepath.Dir(entry.Source), string(locale), base), nil
-}
-
-// writeMergedSource writes the merged blocks to the target file using the
-// source format's writer, plus the captured skeleton when available. proj
-// (optional) supplies the project's per-format config so the shared writer
-// output options (output.bom / output.newline / output.encoding) apply on
-// merge too.
-func writeMergedSource(ctx context.Context, reg *registry.FormatRegistry, formatName, sourceAbs, targetPath string, layout project.Layout, batchID string, entry *project.ExtractionFile, locale model.LocaleID, blocks []*model.Block, proj *project.KapiProject) error {
-	skelPath := ""
-	relSource := ""
-	if entry != nil {
-		relSource = entry.Source
-		if entry.Skeleton != "" {
-			skelPath = filepath.Join(project.ExtractionDir(layout, batchID), entry.Skeleton)
-		}
-	}
-	outputCfg := formatConfigForSource(proj, formatName, relSource)
-	return writeMergedSourceWithSkeleton(ctx, reg, formatName, sourceAbs, targetPath, locale, blocks, skelPath, nil, outputCfg)
-}
-
-// writeMergedSourceWithSkeleton is the underlying writer that takes the
-// skeleton as either a file path (skelPath, for the XLIFF/PO extraction flow)
-// or raw bytes (skelBytes, for a bilingual interchange .kpz that carries the
-// skeleton inline). When both are empty the writer re-serializes from its parse
-// tree (lower fidelity). skelBytes takes precedence.
-func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegistry, formatName, sourceAbs, targetPath string, locale model.LocaleID, blocks []*model.Block, skelPath string, skelBytes []byte, outputCfg map[string]any) error {
-	writer, err := reg.NewWriter(registry.FormatID(formatName))
-	if err != nil {
-		return err
-	}
-	writer.SetLocale(locale)
-	if err := applyWriterOutputConfig(writer, outputCfg); err != nil {
-		return err
-	}
-	// Refuse a blocked destination before opening anything (#1449), so a merge
-	// onto an occupied path reports what is in the way rather than a bare
-	// "is a directory" from the writer's open.
-	if err := flow.CheckOutputPath(targetPath); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
-		return flow.ClassifyOutputPathError(targetPath, filepath.Dir(targetPath), err)
-	}
-	if err := writer.SetOutput(targetPath); err != nil {
-		return flow.ClassifyOutputPathError(targetPath, filepath.Dir(targetPath), err)
-	}
-
-	if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-		switch {
-		case len(skelBytes) > 0:
-			// Inline skeleton (from a .kpz): read-mode store over the bytes.
-			store := format.NewSkeletonStoreFromBytes(skelBytes)
-			consumer.SetSkeletonStore(store)
-			defer store.Close()
-		case skelPath != "":
-			// A skeleton that is NOT there is the documented lower-fidelity
-			// fallback (the extraction state dir is regenerable). A skeleton that
-			// is there but will not open is a fault, and its error used to be
-			// discarded — the merge then wrote a re-serialized file, losing the
-			// source's exact formatting, and reported success. Faithful
-			// write-back is the point; fail instead of degrading silently.
-			if _, statErr := os.Stat(skelPath); statErr == nil {
-				store, oerr := format.OpenSkeletonStore(skelPath)
-				if oerr != nil {
-					return fmt.Errorf("cannot write %s: its skeleton %s exists but could not be opened, so the source's exact formatting cannot be restored. Re-run `kapi extract`: %w",
-						targetPath, skelPath, oerr)
-				}
-				consumer.SetSkeletonStore(store)
-				defer store.Close()
-			}
-		}
-	}
-
-	// Emit layer + blocks.
-	parts := make(chan *model.Part, len(blocks)+1)
-	parts <- &model.Part{Type: model.PartLayerStart, Resource: &model.Layer{
-		ID:             "file-merged",
-		Name:           filepath.Base(sourceAbs),
-		Format:         formatName,
-		Locale:         locale,
-		IsMultilingual: true,
-	}}
-	for _, b := range blocks {
-		parts <- &model.Part{Type: model.PartBlock, Resource: b}
-	}
-	close(parts)
-
-	if err := writer.Write(ctx, parts); err != nil {
-		return err
-	}
-	return writer.Close()
 }
 
 // memoryAbsorber stages merged source/target pairs with kapi-merge provenance

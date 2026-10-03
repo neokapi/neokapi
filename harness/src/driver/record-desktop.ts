@@ -1187,8 +1187,9 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
  * needs no server, no provider and no network.
  *
  * The Review page uses `data-slot` rather than `data-testid`, and its keyboard
- * handler ignores every key while a textarea has focus or the document sheet is
- * open (ReviewPage.tsx), so the walk keeps focus on the page body.
+ * handler ignores every key while the editor or a text field has focus or the
+ * document sheet is open (ReviewPage.tsx), so the walk keeps focus on the page
+ * body.
  */
 async function reviewWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;

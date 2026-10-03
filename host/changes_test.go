@@ -484,6 +484,9 @@ func TestChangeService_AReadWritesNothing(t *testing.T) {
 	require.NoError(t, err)
 	_, err = svc.Describe(ctx, change.DescribeRequest{Doc: "locales/en.json"})
 	require.NoError(t, err)
+	h, err := svc.History(ctx, change.HistoryRequest{Ref: change.Ref{Doc: "locales/en.json", Block: "title"}})
+	require.NoError(t, err)
+	assert.Empty(t, h.Entries, "a project with no store has recorded no change")
 	_, err = os.Stat(filepath.Join(root, project.StateDirName))
 	assert.ErrorIs(t, err, os.ErrNotExist, "a read creates no state directory")
 }

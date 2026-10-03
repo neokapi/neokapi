@@ -123,11 +123,18 @@ refused, nothing in the change set is written, the refused operation carries an
   nothing. Re-read the file.
 - **`ambiguous`**: a `find` matches more than once. Add `occurrence`.
 - **`unsupported`**: the block or format takes no such operation, such as a
-  Markdown code block, which `inspect` lists with no `ops`.
+  Markdown code block, which `inspect` lists with no `ops`. A block of a file
+  in another encoding than UTF-8 shows `�` in its text and lists no
+  `replace_text`. An edit that would write `�` over the bytes you cannot see,
+  a `replace_text` or a `set_content` whose text still holds `�`, is refused
+  with capability `encoding`. Send the block's whole text with `set_content`,
+  every character stated, or ask the user to convert the file to UTF-8.
 
 A refusal exits **3**, distinct from an operational error: re-read the affected
 blocks and resend with fresh revisions, the same loop a failing check drives. A
-change set that does not decode exits **2**. Resending a change set that
+change set that does not decode exits **2**; over MCP, `apply_edits` answers it
+with a refused result whose own `error` is `invalid`, with the JSON `pointer` of
+the field to fix, and whose `ops` list is empty. Resending a change set that
 landed writes nothing: its revisions no longer hold, so it is refused `stale`
 with each block's current text, which already reads as you wrote it. An
 operation reports `unchanged` when its `if_match` still holds and the block

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neokapi/neokapi/bowrain/changes"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
@@ -108,12 +109,16 @@ func (o *convergenceOrchestrator) settleBatch(
 	blocks []*venue.StoredBlock,
 	res *settleResult,
 ) error {
-	var changed []*venue.StoredBlock
+	var (
+		changed []*venue.StoredBlock
+		states  = map[string]changes.BlockState{}
+	)
 	for _, sb := range blocks {
 		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
 			continue
 		}
 		b := sb.Block
+		states[b.ID] = changes.Snapshot(b, "")
 		res.Total++
 
 		// The status ladder belongs to the authoritative edition.
@@ -150,13 +155,29 @@ func (o *convergenceOrchestrator) settleBatch(
 		}
 	}
 
-	// Written back to the rows this batch was read from. A block a push removed
-	// or rewrote since the read is left alone; the next settle reads it as it
-	// now is.
-	if len(changed) > 0 {
+	if len(changed) == 0 {
+		return nil
+	}
+	// What settlement moved (the source status, its stamps, the findings the
+	// source checks left) lands on the rows held, and only on a row that still
+	// holds the content this batch read: a block a person or a push changed
+	// since the read keeps what it holds, translations included, and the next
+	// settle reads it as it now is. A store that keeps no held writes (the
+	// SQLite store) writes the blocks back to the rows that still hold the
+	// source content hash they were read with.
+	if _, held := o.server.ContentStore.(platstore.BlockWriteStore); !held {
 		if _, err := o.server.ContentStore.WriteBackBlocks(ctx, projectID, "main", changed); err != nil {
 			return fmt.Errorf("persist settled source: %w", err)
 		}
+		return nil
+	}
+	drafts := make([]changes.Draft, 0, len(changed))
+	for _, sb := range changed {
+		drafts = append(drafts, changes.Draft{Doc: sb.ItemName, Before: states[sb.Block.ID], After: sb.Block})
+	}
+	home := &changes.Home{Store: o.server.ContentStore, ProjectID: projectID, Stream: "main"}
+	if _, err := home.WriteMeta(ctx, drafts); err != nil {
+		return fmt.Errorf("persist settled source: %w", err)
 	}
 	return nil
 }

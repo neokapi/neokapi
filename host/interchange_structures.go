@@ -3,8 +3,6 @@ package host
 import (
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -18,8 +16,9 @@ import (
 // than write a message with one form where the source has several. kapi
 // translate translates each branch.
 
-// warnStructures is the advice both warnings end with.
-const warnStructures = "translate them with kapi translate, which translates each branch"
+// warnStructures is the advice the extract warning and the merge refusal end
+// with.
+const warnStructures = "kapi translate translates each branch"
 
 // flattensStructure reports whether target, a translation of source, holds
 // none of the plurals and selects source holds.
@@ -39,21 +38,6 @@ func blockLabel(b *model.Block) string {
 		return b.Name
 	}
 	return b.ID
-}
-
-// warnFlattened reports the translations in input that merge left out
-// because each would flatten a plural or select.
-func warnFlattened(input string, labels []string) {
-	writeFlattenedWarning(os.Stderr, input, labels)
-}
-
-func writeFlattenedWarning(w io.Writer, input string, labels []string) {
-	if len(labels) == 0 {
-		return
-	}
-	fmt.Fprintf(w, "Warning: merge: %s: left out %d translation(s) of a message holding a plural or select (%s): "+
-		"the file carries one branch of each, so writing it would flatten the message; %s\n",
-		filepath.Base(input), len(labels), strings.Join(labels, ", "), warnStructures)
 }
 
 // writeHeldWarning reports the messages extract left out of a bilingual file.

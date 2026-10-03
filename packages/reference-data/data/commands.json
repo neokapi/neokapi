@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T23:00:57Z",
+  "generatedAt": "2026-10-03T05:42:10Z",
   "commands": [
     {
       "id": "add",
@@ -1496,6 +1496,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "show progress bar",
@@ -1627,6 +1633,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "show progress bar",
@@ -1751,6 +1763,12 @@
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -2239,6 +2257,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "show progress bar",
@@ -2383,6 +2407,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "show progress bar",
@@ -2516,6 +2546,12 @@
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -2756,6 +2792,12 @@
           "usage": "Characters prepended before each translated block",
           "default": "▒ ",
           "type": "string"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -3089,6 +3131,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "show progress bar",
@@ -3279,6 +3327,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "show progress bar",
@@ -3414,6 +3468,12 @@
           "type": "string"
         },
         {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "show progress bar",
@@ -3527,6 +3587,12 @@
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -3669,6 +3735,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "show progress bar",
@@ -3797,6 +3869,12 @@
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -3930,6 +4008,12 @@
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -4104,6 +4188,12 @@
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -4556,6 +4646,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "show progress bar",
@@ -4785,6 +4881,12 @@
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -5192,6 +5294,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "shorthand": "p",
           "usage": "show progress bar",
@@ -5375,7 +5483,7 @@
       ],
       "use": "extract",
       "short": "Emit a bilingual file for a translator: native .kpz or XLIFF/PO",
-      "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target language\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
+      "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target language\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").\nEvery unit carries the revision of its translation and of its source, which\nkapi merge checks the returned file against.",
       "groupID": "advanced",
       "flags": [
         {
@@ -6404,7 +6512,7 @@
       ],
       "use": "merge",
       "short": "Apply a returned bilingual file (.kpz/XLIFF/PO) back onto the project source",
-      "long": "Materialize target-language files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the target-language files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink: it reads each source, applies the stored overlays, and writes the\ntarget-language file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target languages in one\nbatch are fine, and merge handles each input independently.",
+      "long": "Materialize target-language files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the target-language files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink: it gives each source's translation the stored overlays and writes\nthe target-language file from the source's skeleton.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator to the translations of the project's sources, each written from\nits source's skeleton. Every unit kapi extract wrote carries the revision of\nits translation and of its source at extraction, so merge needs nothing but\nthe file: a unit whose source changed since is reported stale and left out,\nand one whose translation changed in the project since is settled by the\nrecipe's conflict policy (defaults.merge.conflict_policy). Mixed target\nlanguages in one batch are fine, and merge handles each input independently.",
       "groupID": "advanced",
       "flags": [
         {
@@ -7117,6 +7225,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "usage": "stream progress events to stderr as NDJSON (value: jsonl); events use the flow-run event vocabulary",
           "type": "string"
@@ -7323,6 +7437,12 @@
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "progress",
@@ -8279,6 +8399,12 @@
           "type": "int"
         },
         {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "progress",
           "usage": "stream progress events to stderr as NDJSON (value: jsonl); events use the flow-run event vocabulary",
           "type": "string"
@@ -8540,6 +8666,12 @@
         {
           "name": "plan",
           "usage": "dry run: report pending work, content-memory leverage, and a token estimate per (collection, locale), with no provider calls and no writes",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "print-ops",
+          "usage": "write no file and print the change set the run would apply, for kapi apply",
           "default": "false",
           "type": "bool"
         },

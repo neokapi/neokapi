@@ -13,11 +13,9 @@ import (
 	"github.com/neokapi/neokapi/host/venue/client"
 )
 
-// This file adds the real-time editor surface — block review, presence
-// reporting, and the project change-event subscription — that the Bowrain
-// desktop used to reach over the bespoke gRPC EditorService (WatchProject +
-// UpdatePresence + ReviewBlock). They travel over the same REST/SSE routes the
-// web app already uses.
+// This file holds the real-time editor surface: presence reporting and the
+// project change-event subscription, over the same REST/SSE routes the web app
+// uses. A review decision is a change set (ApplyChanges).
 
 // EditorChangeEvent mirrors event.ChangeEvent relayed by GET /api/v1/:ws/events.
 // It is a flattened projection of a platform event: the discriminating type
@@ -37,28 +35,6 @@ type EditorChangeEvent struct {
 	UserID    string `json:"userId,omitempty"`
 	UserName  string `json:"userName,omitempty"`
 	AvatarURL string `json:"avatarUrl,omitempty"`
-}
-
-// ReviewBlock sets or clears the established status on the block's target for ONE
-// locale — the per-locale model.Target.Status ladder rung, distinct from the
-// governance status lifecycle. The server rejects reviewing a locale that has
-// no non-empty translation (422).
-//
-// status optionally picks the rung. With reviewed=true it is "" for an
-// approval (landing on established). With reviewed=false it is "" or
-// "translated" for a plain
-// un-review, "draft" for a reviewer rejection (the unit re-enters the work
-// queue). Any other pairing is a 400.
-//
-// PUT /api/v1/:ws/:id/blocks/main/:bid/review
-func (c *EditorClient) ReviewBlock(ctx context.Context, ws, projectID, itemName, blockID, targetLocale string, reviewed bool, status string) error {
-	body := struct {
-		TargetLocale string `json:"target_locale"`
-		ItemName     string `json:"item_name,omitempty"`
-		Reviewed     bool   `json:"reviewed"`
-		Status       string `json:"status,omitempty"`
-	}{TargetLocale: targetLocale, ItemName: itemName, Reviewed: reviewed, Status: status}
-	return c.DoJSON(ctx, http.MethodPut, blockPath(ws, projectID, blockID, "/review"), nil, body, nil)
 }
 
 // ReportPresence records the caller's editing focus in a project. The server

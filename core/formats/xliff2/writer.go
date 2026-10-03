@@ -1463,6 +1463,7 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 	if !block.Translatable {
 		unitEl.CreateAttr("translate", "no")
 	}
+	appendUnitMetadata(unitEl, block)
 
 	// Unit-level notes (block.Properties keys "note-N").
 	noteVals := unitNoteTexts(block)

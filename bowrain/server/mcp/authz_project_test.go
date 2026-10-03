@@ -2,6 +2,8 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/auth"
@@ -144,10 +146,18 @@ func projectScopedTools() []struct {
 			_, _, err := ms.handleGetBlock(ctx, req, getBlockInput{ProjectID: id, BlockID: "b1", Stream: "main"})
 			return err
 		}},
-		{"content", "update_block", func(ctx context.Context, ms *MCPServer, req *mcp.CallToolRequest, id string) error {
-			_, _, err := ms.handleUpdateBlock(ctx, req, updateBlockInput{
-				ProjectID: id, BlockID: "b1", TargetLocale: "fr", TargetText: "Bonjour",
-			})
+		{"content", "read_blocks", func(ctx context.Context, ms *MCPServer, req *mcp.CallToolRequest, id string) error {
+			_, err := ms.readBlocks(ctx, req, readBlocksInput{ProjectID: id, Doc: "en.json"})
+			return err
+		}},
+		{"content", "apply_edits", func(ctx context.Context, ms *MCPServer, req *mcp.CallToolRequest, id string) error {
+			call := *req
+			call.Params = &mcp.CallToolParamsRaw{Arguments: json.RawMessage(fmt.Sprintf(`{"project_id":%q,"ops":[]}`, id))}
+			_, err := ms.applyEdits(ctx, &call)
+			return err
+		}},
+		{"content", "describe_format", func(ctx context.Context, ms *MCPServer, req *mcp.CallToolRequest, id string) error {
+			_, err := ms.describeFormat(ctx, req, describeFormatInput{ProjectID: id, Format: "json"})
 			return err
 		}},
 		{"content", "create_version", func(ctx context.Context, ms *MCPServer, req *mcp.CallToolRequest, id string) error {

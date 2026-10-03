@@ -4,8 +4,10 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
@@ -69,7 +71,6 @@ func TestGetReviewUnit_ReturnsTextsAndCleanFindings(t *testing.T) {
 	assert.Equal(t, "App", d.Collection)
 	assert.Equal(t, "translated", d.Status, "no decision recorded yet — presence baseline")
 	assert.Empty(t, d.Findings, "the fr-FR translation keeps the placeholder")
-	assert.True(t, d.Editable, "a plain JSON string is editable")
 }
 
 func TestGetReviewUnit_SurfacesPlaceholderFinding(t *testing.T) {
@@ -265,85 +266,12 @@ func TestReviewQueue_MarksFindings(t *testing.T) {
 	assert.Equal(t, "App", fr.Collection, "items carry their collection")
 }
 
-func TestRejectReviewItem_SendsUnitBackToDraft(t *testing.T) {
-	app := NewApp()
-	tab, _ := newReviewProject(t, app)
-	file := filepath.Join("locales", "fr-FR.json")
-
-	require.NoError(t, app.RejectReviewItem(tab.ID, "fr-FR", file, "farewell", "too literal"))
-
-	// The rejected unit left the review queue…
-	rep, err := app.GetConvergence(tab.ID)
-	require.NoError(t, err)
-	for _, it := range rep.Review {
-		if it.Locale == "fr-FR" {
-			assert.NotEqual(t, "farewell", it.Key, "the rejected unit is out of the review queue")
-		}
-	}
-	// …and reads draft with its note on the unit detail.
-	d, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "farewell")
-	require.NoError(t, err)
-	assert.Equal(t, "draft", d.Status)
-	assert.Equal(t, "rejected", d.ReviewState)
-	assert.Equal(t, "too literal", d.Note)
-}
-
-func TestApproveReviewItem_Establishes(t *testing.T) {
-	app := NewApp()
-	tab, _ := newReviewProject(t, app)
-	file := filepath.Join("locales", "fr-FR.json")
-
-	require.NoError(t, app.ApproveReviewItem(tab.ID, "fr-FR", file, "greeting"))
-
-	rep, err := app.GetConvergence(tab.ID)
-	require.NoError(t, err)
-	for _, lc := range rep.Locales {
-		if lc.Locale == "fr-FR" {
-			assert.Equal(t, 50, lc.Pct["established"], "1 of 2 fr-FR units established")
-		}
-	}
-	d, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
-	require.NoError(t, err)
-	assert.Equal(t, "established", d.Status)
-}
-
-func TestUpdateReviewTarget_EditsFileAndInvalidatesDecision(t *testing.T) {
-	app := NewApp()
-	tab, root := newReviewProject(t, app)
-	file := filepath.Join("locales", "fr-FR.json")
-
-	// Approve first, then edit: the hash-bound approval must go stale.
-	require.NoError(t, app.ApproveReviewItem(tab.ID, "fr-FR", file, "greeting"))
-	d, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
-	require.NoError(t, err)
-	assert.Equal(t, "established", d.Status)
-
-	require.NoError(t, app.UpdateReviewTarget(tab.ID, "fr-FR", file, "greeting", "Salut {name}"))
-
-	data, err := os.ReadFile(filepath.Join(root, "locales", "fr-FR.json"))
-	require.NoError(t, err)
-	assert.Contains(t, string(data), "Salut {name}", "the edit landed in the target file")
-	assert.Contains(t, string(data), "Au revoir", "untouched units are preserved")
-
-	d2, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
-	require.NoError(t, err)
-	assert.Equal(t, "Salut {name}", d2.Target)
-	assert.Equal(t, "translated", d2.Status, "the prior approval no longer judges the edited text")
-
-	// The unit re-entered the review queue for its new text; approving again
-	// approves the edit.
-	require.NoError(t, app.ApproveReviewItem(tab.ID, "fr-FR", file, "greeting"))
-	d3, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
-	require.NoError(t, err)
-	assert.Equal(t, "established", d3.Status)
-}
-
-// TestUpdateReviewTarget_RecordsAHumanOrigin: the reviewer who rewrites an AI
-// draft produced the wording in front of them, and the review model's
-// provenance layer is where that is read. The edit records production and no
-// decision, so the unit waits in the queue for an explicit approval of the text
-// the reviewer typed.
-func TestUpdateReviewTarget_RecordsAHumanOrigin(t *testing.T) {
+// TestReviewEdit_RecordsAHumanOrigin: the reviewer who rewrites an AI draft
+// produced the wording in front of them, and the review model's provenance
+// layer is where that is read. The edit is recorded in the block history with
+// no decision, so the unit waits in the queue for an explicit approval of the
+// text the reviewer typed.
+func TestReviewEdit_RecordsAHumanOrigin(t *testing.T) {
 	app := NewApp()
 	tab, root := newReviewProject(t, app)
 	file := filepath.Join("locales", "fr-FR.json")
@@ -370,7 +298,9 @@ func TestUpdateReviewTarget_RecordsAHumanOrigin(t *testing.T) {
 	require.NotNil(t, asDrafted.Context.Provenance.Origin)
 	require.Equal(t, model.OriginAI, asDrafted.Context.Provenance.Origin.Kind)
 
-	require.NoError(t, app.UpdateReviewTarget(tab.ID, "fr-FR", file, "greeting", "Salut {name}"))
+	fr := blockVia(t, app, tab.ID, filepath.ToSlash(file), "greeting")
+	res := applyVia(t, app, tab.ID, change.Set{Ops: []change.Op{setText(fr.Ref, fr.Rev, strings.Replace(fr.Text, "Bonjour", "Salut", 1))}})
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 
 	edited, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
 	require.NoError(t, err)
@@ -394,13 +324,6 @@ func TestUpdateReviewTarget_RecordsAHumanOrigin(t *testing.T) {
 		}
 	}
 	assert.True(t, pending, "a hand edit leaves the unit in the review queue")
-}
-
-func TestUpdateReviewTarget_RefusesEmptyText(t *testing.T) {
-	app := NewApp()
-	tab, _ := newReviewProject(t, app)
-	err := app.UpdateReviewTarget(tab.ID, "fr-FR", filepath.Join("locales", "fr-FR.json"), "greeting", "   ")
-	require.Error(t, err)
 }
 
 // The menu-bar Active Filter governs the Checks panel; a Review queue that

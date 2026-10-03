@@ -15,6 +15,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/observe"
@@ -171,6 +172,19 @@ type FileRunnerConfig struct {
 	// document parsed under different config. The runner combines it with the
 	// per-file detected format. Empty when PartCache is nil.
 	PartCacheKey string
+
+	// Home is the file home every document the run writes is committed
+	// through (see documents.go). The kapi host passes the home its change
+	// service commits through, so both take the same lock for one file. Nil
+	// is a home over the default lock directory.
+	Home *filehome.Home
+
+	// Documents, when set, follows each document the run writes: it sees
+	// every block as it enters the run and as it reaches the writer, and it
+	// commits the staged document. The kapi host records the run's changes
+	// through it, or prints them as a change set. Nil commits each document
+	// and records nothing.
+	Documents Documents
 }
 
 // PartCache is the file runner's optional streaming document cache: a parse-once
@@ -548,7 +562,7 @@ func cacheableWriter(w format.DataFormatWriter) bool {
 // lazily from its file — the reader never runs on a hit, and nothing is held
 // whole in memory. Returns errCacheUnavailable (reader left open) when the cache
 // can't serve, so the caller falls back to the live read path.
-func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string, reader format.DataFormatReader, writer format.DataFormatWriter) error {
+func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string, reader format.DataFormatReader, writer format.DataFormatWriter, out *writtenDocument) error {
 	doc, err := r.cachedSource(ctx, reader, inputPath, targetLang, true) // reconstructs → record the skeleton
 	if err != nil {
 		return err
@@ -583,7 +597,7 @@ func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools
 			*errOut = replay(fctx, inCh)
 		},
 	}
-	return r.runPipelineToWriter(ctx, flowName, tools, feed, outputPath, targetLang, writer, skel, "", nil)
+	return r.runPipelineToWriter(ctx, flowName, tools, feed, outputPath, targetLang, writer, skel, "", nil, out)
 }
 
 // partCacheKey is the document-cache key for a parse: the per-file detected
@@ -821,6 +835,15 @@ func (r *FileRunner) runProcessOnly(ctx context.Context, flowName string, tools 
 func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string, reader format.DataFormatReader, writer format.DataFormatWriter) error {
 	sameFormat := reader.Name() == writer.Name()
 
+	// The destination is digested before anything is read, so the commit
+	// can tell whether it changed while the run worked.
+	doc, err := r.openDocument(ctx, flowName, inputPath, outputPath, targetLang, reader.Name(), writer.Name())
+	if err != nil {
+		reader.Close()
+		return err
+	}
+	defer doc.abort()
+
 	// A file-writing run in project scope commits the same `targets/<locale>`
 	// overlays a process-only run does — convergence deliberately runs this path so
 	// each pass's coverage sees real files — so it addresses them by the same key.
@@ -834,7 +857,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// odf, epub, idml, html, asciidoc) reconstruct from the original file and stay
 	// on the live path below.
 	if sameFormat && cacheableWriter(writer) && r.cfg.PartCache != nil {
-		if err := r.cachedFileWrite(ctx, flowName, tools, inputPath, outputPath, targetLang, reader, writer); !errors.Is(err, errCacheUnavailable) {
+		if err := r.cachedFileWrite(ctx, flowName, tools, inputPath, outputPath, targetLang, reader, writer, doc); !errors.Is(err, errCacheUnavailable) {
 			return err
 		}
 		// errCacheUnavailable → the reader was left open; fall through to live.
@@ -910,7 +933,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 			}
 			return err
 		}
-		return r.runPipelineToWriter(ctx, flowName, tools, r.readerFeeder(ctx, reader, skeletonStore), outputPath, targetLang, writer, skeletonStore, srcPath, preReadContent)
+		return r.runPipelineToWriter(ctx, flowName, tools, r.readerFeeder(ctx, reader, skeletonStore), outputPath, targetLang, writer, skeletonStore, srcPath, preReadContent, doc)
 	}
 
 	// Buffered path (non-streaming readers): read every Part up front, exactly as
@@ -946,7 +969,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 		counter := 0
 		parts = structure.SpreadsheetGridToTables(parts, &counter)
 	}
-	return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, skeletonStore, srcPath, preReadContent)
+	return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, skeletonStore, srcPath, preReadContent, doc)
 }
 
 // partFeed supplies a pipeline's Part stream and owns whatever produces it — an
@@ -1062,12 +1085,18 @@ func (r *FileRunner) RunSkeletonReconstruct(ctx context.Context, flowName string
 		return err
 	}
 
+	doc, err := r.openDocument(ctx, flowName, outputPath, outputPath, targetLang, string(formatID), string(formatID))
+	if err != nil {
+		return err
+	}
+	defer doc.abort()
+
 	// A fresh read-mode store drives the writer; partsFromSkeleton consumed its
 	// own copy enumerating the block refs.
 	skeletonStore := format.NewSkeletonStoreFromBytes(skelBytes)
 	consumer.SetSkeletonStore(skeletonStore)
 
-	return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, skeletonStore, "", nil)
+	return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, skeletonStore, "", nil, doc)
 }
 
 // partsFromSkeleton rebuilds the translatable blocks a skeleton references,
@@ -1108,7 +1137,7 @@ func partsFromSkeleton(skelBytes []byte) ([]*model.Part, error) {
 // and does NOT finalize the output — the caller owns those, so it can wrap the
 // run in atomic temp-file/rename (runPipelineToWriter) or write straight to an
 // in-memory/stream sink (RunStream). label names the destination for errors.
-func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools []tool.Tool, feed *partFeed, targetLang string, writer format.DataFormatWriter, sourcePath string, inputContent []byte, label string) error {
+func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools []tool.Tool, feed *partFeed, targetLang string, writer format.DataFormatWriter, sourcePath string, inputContent []byte, label string, doc *writtenDocument) error {
 	// A run that never reaches the feed (an unbuildable flow) still has to
 	// release what the feed owns; once the feed has run this is a no-op.
 	defer feed.Abort()
@@ -1171,9 +1200,12 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 	// Seed committed workflow state onto each block before the first tool sees
 	// it. Interposed here rather than inside each feeder because there are two
 	// (buffered and streaming) and they must not diverge on this.
+	//
+	// The same relay shows each block to the caller following the document
+	// (DocumentRun.Enter) as it leaves the reader, before any tool sees it.
 	feedCh := inCh
 	seedDone := make(chan struct{})
-	if r.cfg.SeedBlockState != nil {
+	if r.cfg.SeedBlockState != nil || doc.following() {
 		seeded := make(chan *model.Part, cap(inCh))
 		feedCh = seeded
 		go func() {
@@ -1182,7 +1214,10 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 			for p := range seeded {
 				if p != nil && p.Type == model.PartBlock {
 					if b, ok := p.Resource.(*model.Block); ok && b != nil {
-						r.cfg.SeedBlockState(sourcePath, b)
+						if r.cfg.SeedBlockState != nil {
+							r.cfg.SeedBlockState(sourcePath, b)
+						}
+						doc.enter(b)
 					}
 				}
 				select {
@@ -1231,16 +1266,24 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 	// writer enter/exit event per Part before the writer consumes it. The
 	// relay owns draining outCh and closes its own channel when outCh closes,
 	// so the no-trace path (writerIn == outCh) is byte-for-byte unchanged.
+	//
+	// The same relay shows each block to the caller following the document
+	// (DocumentRun.Leave) as the writer receives it.
 	writerIn := outCh
-	if r.cfg.Recorder != nil {
+	if r.cfg.Recorder != nil || doc.following() {
 		tapCh := make(chan *model.Part, cap(outCh))
 		go func() {
 			defer close(tapCh)
 			for p := range outCh {
-				if p != nil && p.Resource != nil {
+				if r.cfg.Recorder != nil && p != nil && p.Resource != nil {
 					key := PartKey(p)
 					r.cfg.Recorder.Record(TraceEnter, "writer", key, nil)
 					r.cfg.Recorder.Record(TraceExit, "writer", key, nil)
+				}
+				if p != nil && p.Type == model.PartBlock {
+					if b, ok := p.Resource.(*model.Block); ok && b != nil {
+						doc.leave(b)
+					}
 				}
 				tapCh <- p
 			}
@@ -1275,14 +1318,16 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 }
 
 // runPipelineToWriter executes the tool chain over the Parts supplied by feed
-// and writes the result through writer, finalizing output atomically (temp file
-// then rename) so a tool/writer error never leaves a partial destination. feed
-// is responsible for closing inCh and reporting any read error via its *error
-// argument; a buffered caller ranges a pre-read slice, a streaming caller drives
-// the reader concurrently (feedReader). When skeletonStore is non-nil it is
-// closed before returning. sourcePath/inputContent are handed to the writer only
-// when non-empty (same-format runs); skeleton-reconstructed runs pass them empty.
-func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, tools []tool.Tool, feed *partFeed, outputPath, targetLang string, writer format.DataFormatWriter, skeletonStore *format.SkeletonStore, sourcePath string, inputContent []byte) error {
+// and writes the result through writer into a document staged in the file
+// home, which it then commits (documents.go): a tool or writer error never
+// leaves a partial destination, and a destination that changed while the run
+// worked is left as it is. feed is responsible for closing inCh and reporting
+// any read error via its *error argument; a buffered caller ranges a pre-read
+// slice, a streaming caller drives the reader concurrently (feedReader). When
+// skeletonStore is non-nil it is closed before returning.
+// sourcePath/inputContent are handed to the writer only when non-empty
+// (same-format runs); skeleton-reconstructed runs pass them empty.
+func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, tools []tool.Tool, feed *partFeed, outputPath, targetLang string, writer format.DataFormatWriter, skeletonStore *format.SkeletonStore, sourcePath string, inputContent []byte, doc *writtenDocument) error {
 	if skeletonStore != nil {
 		defer skeletonStore.Close()
 	}
@@ -1304,33 +1349,22 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 		return err
 	}
 
-	// Ensure output directory exists.
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return ClassifyOutputPathError(outputPath, outputDir, err)
-	}
-
-	// Open the output file here and hand the writer a buffered io.Writer
-	// rather than letting it open the file directly (#608, S4). Skeleton-
-	// driven writers emit one (often tiny) write per skeleton entry; an
-	// unbuffered *os.File turns each into a syscall. A 64 KiB buffer
-	// coalesces them. The buffer is flushed AFTER writer.Close() returns —
-	// some writers (e.g. the KBF writer) only emit their payload in Close,
-	// so the buffer must outlive Close. Output bytes are unchanged.
+	// The writer gets a buffered io.Writer over the staged file rather than
+	// opening the destination itself (#608, S4). Skeleton-driven writers emit
+	// one (often tiny) write per skeleton entry; an unbuffered *os.File turns
+	// each into a syscall. A 64 KiB buffer coalesces them. The buffer is
+	// flushed AFTER writer.Close() returns — some writers (e.g. the KBF
+	// writer) only emit their payload in Close, so the buffer must outlive
+	// Close. Output bytes are unchanged.
 	//
-	// Write into a sibling temp file and rename onto the destination on
-	// success (#608, S1), through atomicfile: a destination that is a symlink
-	// keeps its link and an existing file keeps its mode.
-	// The executor and writer run concurrently — the writer drains the tool
-	// output channel directly. Because output is produced incrementally, a
-	// tool/writer error could leave a partial file at outputPath; the
-	// temp-then-rename keeps the destination all-or-nothing, matching the
-	// pre-S1 contract where a tool error produced no output file at all.
-	_, werr := atomicfile.Replace(outputPath, func(dst io.Writer) error {
+	// The staged file sits beside the destination with its mode, and the
+	// destination's directory is created only when the document commits.
+	produced, werr := r.home().Produce(ctx, outputPath, doc.before, func(dst io.Writer) error {
 		bw := bufio.NewWriterSize(dst, 64*1024)
 		if err := writer.SetOutputWriter(bw); err != nil {
 			return fmt.Errorf("set output: %w", err)
 		}
-		if err := r.runExecuteWrite(ctx, flowName, tools, feed, targetLang, writer, sourcePath, inputContent, label); err != nil {
+		if err := r.runExecuteWrite(ctx, flowName, tools, feed, targetLang, writer, sourcePath, inputContent, label, doc); err != nil {
 			return err
 		}
 		// Close the writer first (lets writers that emit on Close, like KBF,
@@ -1343,6 +1377,10 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 		}
 		return nil
 	})
+	if werr == nil {
+		defer func() { _ = produced.Release() }()
+		werr = doc.commit(ctx, produced)
+	}
 	if werr != nil {
 		// The pre-flight cleared this path, so a failure at the destination is
 		// a race (or a condition stat cannot see). Classify it the same way
@@ -1429,7 +1467,7 @@ func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []too
 		if err := r.openReader(ctx, reader, &budgetedSource{Reader: safeio.DefaultBudget().Reader(in)}, srcURI, targetLang); err != nil {
 			return err
 		}
-		if err := r.runExecuteWrite(ctx, flowName, tools, r.readerFeeder(ctx, reader, skeletonStore), targetLang, writer, "", preReadContent, label); err != nil {
+		if err := r.runExecuteWrite(ctx, flowName, tools, r.readerFeeder(ctx, reader, skeletonStore), targetLang, writer, "", preReadContent, label, nil); err != nil {
 			return err
 		}
 		return writer.Close()
@@ -1446,7 +1484,7 @@ func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []too
 	if err != nil {
 		return err
 	}
-	if err := r.runExecuteWrite(ctx, flowName, tools, sliceFeeder(parts), targetLang, writer, "", preReadContent, label); err != nil {
+	if err := r.runExecuteWrite(ctx, flowName, tools, sliceFeeder(parts), targetLang, writer, "", preReadContent, label, nil); err != nil {
 		return err
 	}
 	return writer.Close()

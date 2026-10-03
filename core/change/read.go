@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -68,6 +69,13 @@ type CodeRead struct {
 	Kind  string            `json:"kind"`
 	Type  string            `json:"type,omitempty"`
 	Attrs map[string]string `json:"attrs,omitempty"`
+	// Equiv is the code's equivalent text, such as the name of the variable a
+	// placeholder stands for, and Disp the short label an editor shows on it.
+	// Both are labels: a read leaves out either one that repeats the code's
+	// native form (an ICU argument, a printf specifier, a tag), which no read
+	// shows.
+	Equiv string `json:"equiv,omitempty"`
+	Disp  string `json:"disp,omitempty"`
 	// Writable are the attributes set_attribute can change on the code.
 	Writable []string `json:"writable,omitempty"`
 }
@@ -83,9 +91,15 @@ type StructureRead struct {
 
 // EditionRead is an edition other than the document's own.
 type EditionRead struct {
-	Rev    string `json:"rev"`
-	Text   string `json:"text"`
-	Status string `json:"status,omitempty"`
+	Rev  string `json:"rev"`
+	Text string `json:"text"`
+	// Codes lists the edition's inline codes where they differ from the
+	// block's; absent, the block's codes are the edition's.
+	Codes map[string]CodeRead `json:"codes,omitempty"`
+	// Structures lists the edition's own plurals and selects, each with the
+	// path an operation on the edition names to reach one of its branches.
+	Structures []StructureRead `json:"structures,omitempty"`
+	Status     string          `json:"status,omitempty"`
 	// Basis is the authoritative edition's revision the edition was made
 	// from, where the host keeps it.
 	Basis string `json:"basis,omitempty"`
@@ -234,6 +248,11 @@ func (s *Service) readBlock(ctx context.Context, info DocInfo, desc Description,
 		Text: model.RunsEditText(ed.Runs),
 		Ops:  desc.blockOps(b.Translatable),
 	}
+	if !runsUTF8(ed.Runs) {
+		// The edition holds bytes that are not UTF-8, which an operation that
+		// rebuilds its text refuses (workset.utf8Text).
+		out.Ops = slices.DeleteFunc(out.Ops, rebuildsText)
+	}
 	out.Codes = codesOf(ed.Runs, desc)
 	out.Structures = structuresOf(ed.Runs)
 	authRev := model.EditionRevision(b, b.Authoritative(model.AuthorityPolicy{}))
@@ -247,11 +266,11 @@ func (s *Service) readBlock(ctx context.Context, info DocInfo, desc Description,
 			if out.Editions == nil {
 				out.Editions = map[string]EditionRead{}
 			}
-			out.Editions[keyText(b.EditionKeyOf(k))] = EditionRead{Rev: model.EditionRevision(b, k), Text: model.RunsEditText(own.Runs), Status: string(own.Status)}
+			out.Editions[keyText(b.EditionKeyOf(k))] = out.editionRead(model.EditionRevision(b, k), own, desc)
 			continue
 		}
 		ed, _ := b.Edition(k)
-		er := EditionRead{Rev: model.EditionRevision(b, k), Text: model.RunsEditText(ed.Runs), Status: string(ed.Status)}
+		er := out.editionRead(model.EditionRevision(b, k), ed, desc)
 		if s.states != nil {
 			if st, ok := s.states.EditionState(ctx, info, b, k); ok {
 				if st.Status != "" {
@@ -267,6 +286,17 @@ func (s *Service) readBlock(ctx context.Context, info DocInfo, desc Description,
 		out.Editions[keyText(k)] = er
 	}
 	return out
+}
+
+// editionRead is ed, another edition of the block out reads, at revision rev:
+// its text and status, its plurals and selects, and its codes where they
+// differ from the block's.
+func (out BlockRead) editionRead(rev string, ed model.Edition, desc Description) EditionRead {
+	er := EditionRead{Rev: rev, Text: model.RunsEditText(ed.Runs), Status: string(ed.Status), Structures: structuresOf(ed.Runs)}
+	if codes := codesOf(ed.Runs, desc); !reflect.DeepEqual(codes, out.Codes) {
+		er.Codes = codes
+	}
+	return er
 }
 
 // codesOf lists the inline codes of runs, branches of plurals and selects
@@ -299,9 +329,13 @@ func codesOf(runs []model.Run, desc Description) map[string]CodeRead {
 			switch {
 			case r.Text != nil, r.PcClose != nil:
 			case r.PcOpen != nil:
-				out[r.PcOpen.ID] = CodeRead{Kind: "paired", Type: r.PcOpen.Type, Attrs: r.PcOpen.Attrs, Writable: writable(r.PcOpen.Type, r.PcOpen.Attrs)}
+				out[r.PcOpen.ID] = CodeRead{Kind: "paired", Type: r.PcOpen.Type, Attrs: r.PcOpen.Attrs,
+					Equiv: label(r.PcOpen.Equiv, r.PcOpen.Data), Disp: label(r.PcOpen.Disp, r.PcOpen.Data),
+					Writable: writable(r.PcOpen.Type, r.PcOpen.Attrs)}
 			case r.Ph != nil:
-				out[r.Ph.ID+"/"] = CodeRead{Kind: "placeholder", Type: r.Ph.Type, Attrs: r.Ph.Attrs, Writable: writable(r.Ph.Type, r.Ph.Attrs)}
+				out[r.Ph.ID+"/"] = CodeRead{Kind: "placeholder", Type: r.Ph.Type, Attrs: r.Ph.Attrs,
+					Equiv: label(r.Ph.Equiv, r.Ph.Data), Disp: label(r.Ph.Disp, r.Ph.Data),
+					Writable: writable(r.Ph.Type, r.Ph.Attrs)}
 			case r.Sub != nil:
 				out["sub:"+r.Sub.ID] = CodeRead{Kind: "subblock", Attrs: map[string]string{"ref": r.Sub.Ref}}
 			case r.Plural != nil:
@@ -320,6 +354,15 @@ func codesOf(runs []model.Run, desc Description) map[string]CodeRead {
 		return nil
 	}
 	return out
+}
+
+// label is a code's equiv or disp as a read shows it: s, unless s repeats
+// data, the code's native form, which no read shows.
+func label(s, data string) string {
+	if s == data {
+		return ""
+	}
+	return s
 }
 
 // structuresOf lists the plurals and selects of runs, each with the path that

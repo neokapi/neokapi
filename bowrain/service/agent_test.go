@@ -394,4 +394,7 @@ func TestToolNames(t *testing.T) {
 	assert.Contains(t, names, "list_projects")
 	assert.Contains(t, names, "execute_script")
 	assert.Contains(t, names, "check_vocabulary")
+	// The edit tools are the change contract's; there is no per-block write.
+	assert.Subset(t, names, []string{"read_blocks", "apply_edits", "describe_format"})
+	assert.NotContains(t, names, "update_block")
 }

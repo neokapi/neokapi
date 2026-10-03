@@ -1,11 +1,13 @@
 //go:build js && wasm
 
 // Command kapi-wasm-cli is a browser entrypoint that runs the kapi CLI inside
-// WebAssembly. It exposes a single JS function, kapiRun(argv []string), which
-// builds a fresh cobra root and executes one command — turning the one-shot
-// CLI into a REPL the page can drive from xterm.js. Standard output and
-// standard error flow through os.Stdout/os.Stderr (i.e. globalThis.fs) so the
-// page can route them to the terminal exactly as a real shell would.
+// WebAssembly. Its JS function kapiRun(argv []string) builds a fresh cobra
+// root and executes one command, turning the one-shot CLI into a REPL the page
+// can drive from xterm.js. Standard output and standard error flow through
+// os.Stdout/os.Stderr (i.e. globalThis.fs) so the page can route them to the
+// terminal exactly as a real shell would. A page that edits content calls
+// kapiRead, kapiApply and kapiDescribe instead, which carry the change
+// contract as JSON to the change service kapi apply uses (changes.go).
 //
 // The command surface comes from cli.BrowserCommandSet, which mirrors the
 // native binary's cli.KapiCommandSet verb for verb: browser-safe commands are
@@ -24,6 +26,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/version"
@@ -36,6 +39,14 @@ import (
 )
 
 var app = &cli.App{}
+
+// engineMu orders the entry points that act on the App: a command (kapiRun,
+// a completion included), a change call (kapiRead, kapiApply, kapiDescribe)
+// and a reset (kapiReset) each run in their turn. A command replaces the
+// App's configuration and initializes it again, and a reset forgets projects
+// and removes their databases, so either one running while another waits on
+// the page's file system would change the App under it.
+var engineMu sync.Mutex
 
 // browserDataDir is the data root in the engine's file system: the workspace
 // every project opened in the page registers in, with its operation log, its
@@ -96,6 +107,9 @@ var engineExports = []struct {
 	{"labSegmentEngines", labSegmentEngines},
 	{"kbf", kbfDispatch},
 	{"kapiReset", kapiReset},
+	{"kapiRead", kapiRead},
+	{"kapiApply", kapiApply},
+	{"kapiDescribe", kapiDescribe},
 }
 
 // registerEngineABI installs every engine entry point plus the additive
@@ -181,9 +195,12 @@ func kapiRun(_ js.Value, args []js.Value) any {
 	return promise
 }
 
-// runOnce builds a fresh root and executes one command, returning the exit
-// code. It recovers panics so a single bad command can't kill the instance.
+// runOnce builds a fresh root and executes one command, in its turn
+// (engineMu), returning the exit code. It recovers panics so a single bad
+// command can't kill the instance.
 func runOnce(argv []string) (code int) {
+	engineMu.Lock()
+	defer engineMu.Unlock()
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Fprintf(os.Stderr, "kapi: internal error: %v\n", r)

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/analytics"
+	"github.com/neokapi/neokapi/bowrain/changes"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/flow"
@@ -126,6 +127,11 @@ func (s *FlowService) RunFlow(ctx context.Context, run FlowRun) (FlowRunResult, 
 	aiRun := s.BeginAIRun(ctx, run.ProjectID, run.RunID)
 	defer aiRun.Settle(context.WithoutCancel(ctx))
 
+	proj, err := s.store.GetProject(ctx, run.ProjectID)
+	if err != nil {
+		return res, fmt.Errorf("get project: %w", err)
+	}
+
 	for _, item := range items {
 		if err := ctx.Err(); err != nil {
 			return res, err
@@ -153,7 +159,7 @@ func (s *FlowService) RunFlow(ctx context.Context, run FlowRun) (FlowRunResult, 
 			s.trackDefinitionRun(run, res.Blocks, time.Since(start), "failed")
 			return res, err
 		}
-		written, err := s.runItemPasses(ctx, def, nodes, aiRun, run.ProjectID, stream, blocks, current, locales)
+		written, err := s.runItemPasses(ctx, def, nodes, aiRun, proj, stream, blocks, current, locales)
 		release()
 		if err != nil {
 			s.trackDefinitionRun(run, res.Blocks, time.Since(start), "failed")
@@ -221,12 +227,14 @@ func (s *FlowService) storeFlowToolNodes(def *flow.FlowDefinition) ([]flow.FlowN
 }
 
 // runItemPasses streams one item's blocks through the flow once per locale
-// and persists each pass's output under the item. The tools mutate the blocks
-// in place and pass the same pointers on, so one set of blocks carries every
-// pass; each pass builds a fresh tool chain because a tool holds its target
-// locale in its config. It returns the number of blocks in the item's final
-// state, or zero when no pass produced output.
-func (s *FlowService) runItemPasses(ctx context.Context, def *flow.FlowDefinition, nodes []flow.FlowNode, aiRun *AIRun, projectID, stream string, reads []*venue.StoredBlock, blocks []*model.Block, locales []string) (int, error) {
+// and commits each pass's output through the stream's change service, as the
+// flow (changes.Producer). The tools mutate the blocks in place and pass the
+// same pointers on, so one set of blocks carries every pass; each pass builds
+// a fresh tool chain because a tool holds its target locale in its config. It
+// returns the number of blocks the last pass that wrote anything committed.
+func (s *FlowService) runItemPasses(ctx context.Context, def *flow.FlowDefinition, nodes []flow.FlowNode, aiRun *AIRun, proj *store.Project, stream string, reads []*venue.StoredBlock, blocks []*model.Block, locales []string) (int, error) {
+	producer := changes.NewProducer(s.store, proj, stream, s.formatReg, nil)
+	producer.Read(reads)
 	current := blocks
 	written := 0
 	for _, locale := range locales {
@@ -241,36 +249,17 @@ func (s *FlowService) runItemPasses(ctx context.Context, def *flow.FlowDefinitio
 		if len(out) == 0 {
 			continue
 		}
-		written, err = s.writeBackPass(ctx, projectID, stream, reads, out)
+		landed, err := producer.Commit(ctx, "flow:"+def.ID, out)
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("persist flow output: %w", err)
 		}
+		if len(landed) > 0 {
+			written = len(landed)
+		}
+		producer.Track(out)
 		current = out
 	}
 	return written, nil
-}
-
-// writeBackPass writes a pass's output back to the rows the item was read
-// from. A block a push removed or rewrote since the read keeps what the push
-// left, so a removed item is not stored again. It reports the blocks written.
-func (s *FlowService) writeBackPass(ctx context.Context, projectID, stream string, reads []*venue.StoredBlock, out []*model.Block) (int, error) {
-	base := make(map[string]string, len(reads))
-	for _, sb := range reads {
-		if sb != nil && sb.Block != nil {
-			base[sb.Block.ID] = sb.ContentHash
-		}
-	}
-	back := make([]*venue.StoredBlock, 0, len(out))
-	for _, b := range out {
-		if hash, ok := base[b.ID]; ok {
-			back = append(back, &venue.StoredBlock{Block: b, ContentHash: hash})
-		}
-	}
-	res, err := s.store.WriteBackBlocks(ctx, projectID, stream, back)
-	if err != nil {
-		return 0, fmt.Errorf("persist flow output: %w", err)
-	}
-	return res.Written, nil
 }
 
 // buildFlowTools constructs the tool chain for one pass. Each node's own

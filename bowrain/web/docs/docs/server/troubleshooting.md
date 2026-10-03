@@ -103,9 +103,16 @@ A change becomes failed in one of two ways:
   means: the server declined the operation (for example, a validation error or a
   permission the account no longer holds), not a network hiccup.
 
-A failed count that will not clear indicates permanently rejected changes. Inspect
-those changes, correct the underlying cause (permissions, or the edit itself), and
-redo the work; they will not replay on their own.
+The most common permanent rejection is an edit or review made offline to a
+translation someone else changed before you reconnected. Each queued edit names
+the version of the translation it was made against, and the server refuses one
+whose translation has moved on, so their wording stays rather than being
+overwritten by an edit made without seeing it. A change queued by an earlier
+version of the app that this version cannot replay is counted as failed too.
+
+A failed count that will not clear indicates permanently rejected changes. Open
+the blocks they touched, read the translation as it now stands, and redo the
+edit where it still applies; failed changes do not replay on their own.
 
 ## Sign-in or session problems
 

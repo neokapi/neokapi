@@ -2,11 +2,14 @@ package backend
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/core/change"
 )
 
 func TestGoOfflineSetsState(t *testing.T) {
@@ -113,13 +116,7 @@ func TestReplayPendingChangesNoClient(t *testing.T) {
 	app.offlineQueue = q
 
 	// Enqueue a change.
-	_ = q.Enqueue("update_block_target", UpdateBlockRequest{
-		ProjectID:    "p1",
-		ItemName:     "hello.txt",
-		BlockID:      "b1",
-		TargetLocale: "fr",
-		Text:         "Bonjour",
-	})
+	app.enqueue(queuedSave(t, "Bonjour"))
 
 	// No remote client → replay should fail and mark change as failed.
 	app.replayPendingChanges(context.Background())
@@ -131,33 +128,44 @@ func TestReplayPendingChangesNoClient(t *testing.T) {
 	assert.Contains(t, changes[0].LastError, "not connected")
 }
 
-// TestReplayPendingChangesPermanent4xx verifies that a queued change the
-// server permanently rejects (4xx — e.g. the review endpoint's 422 for a block
-// with no translation) is marked terminally failed after ONE attempt and the
-// replay loop drains past it instead of busy-looping on the same change.
+// TestReplayPendingChangesPermanent4xx verifies that a queued change set the
+// server refuses (a 4xx change result, such as a decision on a block with no
+// translation) is marked terminally failed after ONE attempt, and the replay
+// loop drains past it instead of busy-looping on the same change, while one
+// the server could not complete (unreachable) stays pending.
 func TestReplayPendingChangesPermanent4xx(t *testing.T) {
-	calls := 0
-	app, _ := newGovTestApp(t, func(w http.ResponseWriter, _ *http.Request) {
-		calls++
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		_, _ = w.Write([]byte(`{"error":"block has no fr translation to review"}`))
-	})
-	q := newTestQueue(t)
-	if app.offlineQueue != nil {
-		app.offlineQueue.Close()
+	cases := []struct {
+		name            string
+		status          int
+		code            change.Code
+		pending, failed int
+	}{
+		{"a refusal is retired", http.StatusUnprocessableEntity, change.CodeUnsupported, 0, 1},
+		{"an unreachable store is retried", http.StatusServiceUnavailable, change.CodeUnreachable, 1, 0},
 	}
-	app.offlineQueue = q
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			app, _ := newGovTestApp(t, func(w http.ResponseWriter, _ *http.Request) {
+				calls++
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(`{"schema":"kapi.change-result/v1","status":"refused","record":null,"docs":[],"ops":[{"i":0,"op":"decide","status":"refused","error":{"code":"` +
+					string(tc.code) + `","message":"block b1 has no fr translation to establish"}}]}`))
+			})
+			q := newTestQueue(t)
+			if app.offlineQueue != nil {
+				app.offlineQueue.Close()
+			}
+			app.offlineQueue = q
 
-	_ = q.Enqueue("review_block", reviewBlockOp{
-		ProjectID: "p1", ItemName: "hello.txt", BlockID: "b1",
-		TargetLocale: "fr", Reviewed: true,
-	})
+			app.enqueue(queuedSave(t, "Bonjour"))
+			app.replayPendingChanges(context.Background())
 
-	app.replayPendingChanges(context.Background())
-
-	assert.Equal(t, 1, calls, "a permanently rejected change must not be retried")
-	assert.Equal(t, 0, q.PendingCount())
-	assert.Equal(t, 1, q.FailedCount())
+			assert.Equal(t, 1, calls, "one pass sends the change set once")
+			assert.Equal(t, tc.pending, q.PendingCount())
+			assert.Equal(t, tc.failed, q.FailedCount())
+		})
+	}
 }
 
 // TestReplayPendingChangesNoProgress verifies that a replay pass in which
@@ -176,10 +184,7 @@ func TestReplayPendingChangesNoProgress(t *testing.T) {
 	}
 	app.offlineQueue = q
 
-	_ = q.Enqueue("review_block", reviewBlockOp{
-		ProjectID: "p1", ItemName: "hello.txt", BlockID: "b1",
-		TargetLocale: "fr", Reviewed: true,
-	})
+	app.enqueue(queuedSave(t, "Bonjour"))
 
 	app.replayPendingChanges(context.Background())
 
@@ -197,12 +202,10 @@ func TestReplayChangeNoClient(t *testing.T) {
 	app := newTestApp(t)
 
 	// With no remote client, replay should return errNotConnected.
-	change := PendingChange{
-		ID:        1,
-		Operation: "update_block_target",
-		Payload:   `{"project_id":"p1","block_id":"b1","target_locale":"fr","text":"Bonjour"}`,
-	}
-	err := app.replayChange(context.Background(), change)
+	payload, err := json.Marshal(queuedSave(t, "Bonjour"))
+	require.NoError(t, err)
+	pending := PendingChange{ID: 1, Operation: string(opChangeSet), Payload: string(payload)}
+	err = app.replayChange(context.Background(), pending)
 	assert.ErrorIs(t, err, errNotConnected)
 }
 
@@ -225,118 +228,6 @@ func TestEmitConnectionStateNilApp(t *testing.T) {
 	app := newTestApp(t)
 	// app.app is nil in test — should not panic.
 	app.emitConnectionState()
-}
-
-// TestOfflineQueueIntegrationWithUpdateBlockTarget verifies that when an app
-// is offline, UpdateBlockTarget both updates the local store AND enqueues
-// the change for later replay.
-func TestOfflineQueueIntegrationWithUpdateBlockTarget(t *testing.T) {
-	app := newTestApp(t)
-	q := newTestQueue(t)
-	if app.offlineQueue != nil {
-		app.offlineQueue.Close()
-	}
-	app.offlineQueue = q
-
-	// Create a project and add a file.
-	proj, err := app.CreateProject("Test", "en", []string{"fr"})
-	require.NoError(t, err)
-
-	tmpDir := t.TempDir()
-	writeTestFile(t, tmpDir, "hello.txt", "Hello World")
-	_, err = app.AddItems(proj.ID, []string{tmpDir + "/hello.txt"})
-	require.NoError(t, err)
-
-	blocks, err := app.GetItemBlocks(proj.ID, "hello.txt")
-	require.NoError(t, err)
-	require.NotEmpty(t, blocks)
-
-	// Put app in offline state.
-	app.mu.Lock()
-	app.connState = StateOffline
-	app.mu.Unlock()
-
-	// Update a block — should succeed locally and enqueue.
-	err = app.UpdateBlockTarget(UpdateBlockRequest{
-		ProjectID:    proj.ID,
-		ItemName:     "hello.txt",
-		BlockID:      blocks[0].ID,
-		TargetLocale: "fr",
-		Text:         "Bonjour le monde",
-	})
-	require.NoError(t, err)
-
-	// Verify local update.
-	blocks, err = app.GetItemBlocks(proj.ID, "hello.txt")
-	require.NoError(t, err)
-	assert.Equal(t, "Bonjour le monde", flattenTargetRuns(blocks[0], "fr"))
-
-	// Verify queued.
-	assert.Equal(t, 1, q.PendingCount())
-
-	changes, err := q.PeekPending(10)
-	require.NoError(t, err)
-	assert.Equal(t, "update_block_target", changes[0].Operation)
-}
-
-// TestOfflineQueueIntegrationWithReviewBlock verifies offline review queuing.
-func TestOfflineQueueIntegrationWithReviewBlock(t *testing.T) {
-	app := newTestApp(t)
-	q := newTestQueue(t)
-	if app.offlineQueue != nil {
-		app.offlineQueue.Close()
-	}
-	app.offlineQueue = q
-
-	proj, err := app.CreateProject("Test", "en", []string{"fr"})
-	require.NoError(t, err)
-
-	tmpDir := t.TempDir()
-	writeTestFile(t, tmpDir, "hello.txt", "Hello World")
-	_, err = app.AddItems(proj.ID, []string{tmpDir + "/hello.txt"})
-	require.NoError(t, err)
-
-	blocks, err := app.GetItemBlocks(proj.ID, "hello.txt")
-	require.NoError(t, err)
-	require.NotEmpty(t, blocks)
-
-	// Set a target first (needed before review).
-	_ = app.UpdateBlockTarget(UpdateBlockRequest{
-		ProjectID:    proj.ID,
-		ItemName:     "hello.txt",
-		BlockID:      blocks[0].ID,
-		TargetLocale: "fr",
-		Text:         "Bonjour",
-	})
-
-	// Go offline.
-	app.mu.Lock()
-	app.connState = StateOffline
-	app.mu.Unlock()
-
-	// Review — should succeed locally and enqueue.
-	err = app.ReviewBlock(proj.ID, "hello.txt", blocks[0].ID, "fr", true, "")
-	require.NoError(t, err)
-
-	// Verify local review: per-locale Target.Status, not the legacy
-	// block-global property (write-never since the per-locale migration).
-	blocks, err = app.GetItemBlocks(proj.ID, "hello.txt")
-	require.NoError(t, err)
-	assert.Equal(t, "established", blocks[0].Targets["fr"].Status)
-	assert.NotContains(t, blocks[0].Properties, "translation-status")
-
-	// Verify queued.
-	changes, err := q.PeekPending(10)
-	require.NoError(t, err)
-	// At least the review should be queued (UpdateBlockTarget may also be queued).
-	found := false
-	for _, c := range changes {
-		if c.Operation == "review_block" {
-			found = true
-			break
-		}
-	}
-	assert.True(t, found, "review_block should be in the queue")
 }
 
 // TestOfflineQueueIntegrationWithMemory verifies content memory add/delete offline queuing.

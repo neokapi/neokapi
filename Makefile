@@ -400,9 +400,22 @@ test-stores-oneconn: i18n-catalogs ## Run the store suites natively with every p
 test-host-oneconn: i18n-catalogs ## Run the host suite natively with every pool held to one connection and WAL off
 	cd host && $(GO) test -tags "fts5,storage_oneconn" -count=1 -timeout 20m ./...
 
-test-wasm-stores: i18n-catalogs ## Run the store suites under GOOS=js in Node over the browser's SQLite driver
+# The change contract runs in the browser too (kapiRead, kapiApply,
+# kapiDescribe), so test-wasm-stores also runs the change service's suites
+# under GOOS=js: core/change and its file home, with the conformance suite
+# (core/change/changetest) every home passes, the lock that orders the file
+# home's writers, and the host's service for a project put through the same
+# conformance suite and its JSON entry points, which record each edit in the
+# workspace log on the browser's SQLite, and the browser engine's own tests:
+# the order its commands, change calls and resets take turns in.
+CHANGE_WASM_PKGS := ./core/change/... ./core/storage/filelock/
+CHANGE_WASM_HOST_TESTS := ^(TestChangeService_Conformance|TestChangesJSON_)
+
+test-wasm-stores: i18n-catalogs ## Run the store suites and the change service's conformance suites under GOOS=js in Node over the browser's SQLite driver
 	@test -f node_modules/@sqlite.org/sqlite-wasm/package.json || { echo "error: @sqlite.org/sqlite-wasm missing; run 'vp install'"; exit 1; }
-	GOOS=js GOARCH=wasm $(GO) test -exec "$(CURDIR)/scripts/wasm-stores/go_js_wasm_exec" -count=1 -timeout 20m $(STORE_PKGS)
+	GOOS=js GOARCH=wasm $(GO) test -exec "$(CURDIR)/scripts/wasm-stores/go_js_wasm_exec" -count=1 -timeout 20m $(STORE_PKGS) $(CHANGE_WASM_PKGS)
+	GOOS=js GOARCH=wasm $(GO) test -exec "$(CURDIR)/scripts/wasm-stores/go_js_wasm_exec" -count=1 -timeout 20m -run '$(CHANGE_WASM_HOST_TESTS)' ./host/
+	GOOS=js GOARCH=wasm $(GO) test -exec "$(CURDIR)/scripts/wasm-stores/go_js_wasm_exec" -count=1 -timeout 20m ./kapi/cmd/kapi-wasm-cli/
 
 test-parallel: ## Run all tests in parallel
 	@$(MAKE) --no-print-directory _fw-test & $(MAKE) -C bowrain test & wait
@@ -492,6 +505,7 @@ ifdef GOLANGCI_LINT
 	cd cli && $(GOLANGCI_LINT) run ./...
 	cd kapi && $(GOLANGCI_LINT) run ./...
 	cd scripts/gen-refs && $(GOLANGCI_LINT) run ./...
+	cd scripts/gen-contract-types && $(GOLANGCI_LINT) run ./...
 	cd scripts/proseprobe && $(GOLANGCI_LINT) run ./...
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
@@ -506,7 +520,7 @@ ifndef PROTOC_GEN_GO
 endif
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-		core/proto/content/v1/*.proto core/proto/engine/v1/*.proto \
+		core/proto/content/v1/*.proto \
 		core/proto/sync/v1/*.proto \
 		core/plugin/proto/v1/*.proto core/plugin/proto/v2/*.proto
 
@@ -529,10 +543,12 @@ test-framework: i18n-catalogs ## Run framework module tests only (incl. the eval
 	@mkdir -p $(COVER_DIR)
 ifdef CI
 # The eval harnesses (scripts/batcheval, scripts/contexteval), the reference
-# generator (scripts/gen-refs) and the Prose probe (scripts/proseprobe) are
+# generator (scripts/gen-refs), the contract-types generator
+# (scripts/gen-contract-types) and the Prose probe (scripts/proseprobe) are
 # separate workspace modules, so the root ./... pattern never reaches them.
 # Their tests gate the corpora, the scoring, the price-table sync, the reference
-# dataset's shape and the probe's canary, keyless and fast.
+# dataset's shape, the rendering of the TypeScript contract types and the
+# probe's canary, keyless and fast.
 # One shell, `|| rc=$$?` per suite: a root-suite failure must not stop the eval
 # suites from running (and from appearing in the JSON the reporters read) —
 # the single-run form completed every package even when some failed.
@@ -541,6 +557,7 @@ ifdef CI
 	( cd scripts/batcheval && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	( cd scripts/contexteval && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	( cd scripts/gen-refs && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
+	( cd scripts/gen-contract-types && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	( cd scripts/proseprobe && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
 	exit $$rc
 else
@@ -548,6 +565,7 @@ else
 	cd scripts/batcheval && $(GOTEST_BASE) ./... -count=1
 	cd scripts/contexteval && $(GOTEST_BASE) ./... -count=1
 	cd scripts/gen-refs && $(GOTEST_BASE) ./... -count=1
+	cd scripts/gen-contract-types && $(GOTEST_BASE) ./... -count=1
 	cd scripts/proseprobe && $(GOTEST_BASE) ./... -count=1
 endif
 
@@ -571,21 +589,6 @@ endif
 
 test-platform test-bowrain-plugin test-bowrain: i18n-catalogs ## Run individual bowrain module tests
 	$(MAKE) -C bowrain $@
-
-# ── EngineService example clients (contract lock) ───────────────────────────
-# Each client starts `kapi engine serve`, extracts a JSON fixture, pseudo-
-# translates it via Process, merges it back, and asserts the result is
-# byte-identical to the CLI doing the same — locking the gRPC contract from
-# two foreign languages. Run in CI (engine-examples job) and locally.
-engine-examples: engine-examples-node engine-examples-python ## Run the EngineService Python + Node example clients against bin/kapi
-
-engine-examples-node: build ## Run the Node EngineService example client
-	cd examples/engine-client-node && npm install --no-audit --no-fund --silent
-	cd examples/engine-client-node && $(KAPI_ISO_ENV) KAPI_BIN=$(BIN_DIR)/kapi node client.mjs
-
-engine-examples-python: build ## Run the Python EngineService example client
-	cd examples/engine-client-python && python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt
-	cd examples/engine-client-python && $(KAPI_ISO_ENV) KAPI_BIN=$(BIN_DIR)/kapi .venv/bin/python client.py
 
 # Bowrain Desktop backend tests run on their own (the bowrain module's
 # `test-bowrain` excludes apps/bowrain under CI) because the Wails app backend
@@ -658,6 +661,10 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	# type-check at all: the Storybook configs carried 8 errors on main (#2692).
 	# Formatting is covered by check-fmt-fixed-point above.
 	vp check --no-fmt
+	# vp check reads the workspace ignore set, which skips *.gen.ts, so it
+	# reports nothing inside the generated contract types. tsc over the
+	# package tsconfig compiles them with the type-level tests that use them.
+	cd packages/contract-types && vp run typecheck:generated
 	cd bowrain/packages/ui && vp check
 	# `vp check` reads the workspace lint ignore set, which skips stories — so
 	# nothing compiled a *.stories.tsx or the Storybook mock adapter, and the
@@ -3010,11 +3017,17 @@ check-reference-prose: build import-dogfood-context ## Register gate: the author
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
 generate-format-docs: generate-reference-docs
 
-generate-contract-types: ## Generate the shared TS contract + content-model types and the content JSON Schema from Go (core/schema, core/proto/content/v1)
+generate-contract-types: ## Generate the shared TS contract, content-model, review and change-contract types and the content JSON Schema from Go
 	$(GO) run $(GOTAGS) ./scripts/gen-contract-types
 
-check-contract-types: ## Drift gate: fail if the committed contract/content types or content JSON Schema are stale vs. Go
+check-contract-types: ## Drift gate: fail if the committed TS contract types (contract, content, review, change) or content JSON Schema are stale vs. Go
 	$(GO) run $(GOTAGS) ./scripts/gen-contract-types -check
+
+test-contract-types: ## Test the contract-types generator and type-check the package with its type-level tests
+	cd scripts/gen-contract-types && $(GOTEST_BASE) ./... -count=1
+	cd packages/contract-types && vp check
+	# vp check skips *.gen.ts (the workspace ignore set); tsc compiles them.
+	cd packages/contract-types && vp run typecheck:generated
 
 generate-translatability: ## Generate the W3C translatability table for the Go readers from packages/i18n-react (TS is the single definition)
 	node --no-warnings --experimental-strip-types scripts/gen-translatability.ts
@@ -3164,6 +3177,9 @@ kpz-wasm-smoke: web-wasm-cli ## Verify .kpz workspace + kapi project run in the 
 
 wasm-surface-smoke: web-wasm-cli ## Verify no browser verb answers "unknown command", gaps explain themselves, and the labs' own argv still runs
 	node --experimental-strip-types scripts/verify-snippets/command-surface-smoke.ts
+
+change-wasm-smoke: web-wasm-cli ## Verify kapiRead, kapiApply and kapiDescribe in the browser WASM engine (read, edit, record, refusals)
+	node --experimental-strip-types scripts/verify-snippets/change-smoke.ts
 
 # ── Pages publishing (local) ──────────────────────────────────────────────────
 #
@@ -3386,11 +3402,11 @@ help: ## Show this help
         fetch-corpus publish-corpus corpus-sweep \
         generate-format-docs generate-reference-docs check-reference-docs check-reference-prose generate-reference-pages \
         import-dogfood-context bench-commit-check \
-        generate-contract-types check-contract-types \
+        generate-contract-types check-contract-types test-contract-types \
         generate-translatability check-translatability \
         generate-docs-palette check-docs-palette \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
-        kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke web-sqlite-wasm \
+        kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke change-wasm-smoke web-sqlite-wasm \
         test-stores-oneconn test-host-oneconn test-wasm-stores \
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
         emails-frontend-deps emails-extract \

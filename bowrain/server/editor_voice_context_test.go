@@ -10,7 +10,8 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
-	bstore "github.com/neokapi/neokapi/bowrain/store/sqlitestore"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
@@ -45,7 +46,7 @@ func editorVoiceContextFixture(t *testing.T) (platstore.ContentStore, editorVoic
 	t.Helper()
 	ctx := t.Context()
 
-	cs, err := bstore.NewSQLiteStore(":memory:")
+	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
 	require.NoError(t, err)
 
 	proj := &platstore.Project{
@@ -116,7 +117,7 @@ func TestEditorTranslateConfigCarriesVoiceContext(t *testing.T) {
 // constructs exactly the pre-existing bare config — no profile, no term rules,
 // locales and batching intact.
 func TestEditorTranslateConfigBareWithoutVoiceContext(t *testing.T) {
-	cs, err := bstore.NewSQLiteStore(":memory:")
+	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
 	require.NoError(t, err)
 	proj := &platstore.Project{ID: "p1", DefaultSourceLanguage: "en"}
 	require.NoError(t, cs.CreateProject(t.Context(), proj))
@@ -138,7 +139,7 @@ func TestEditorTranslateConfigBareWithoutVoiceContext(t *testing.T) {
 // worker job does (jobs.ProjectDNTTerms over Properties["dnt_terms"]), so a
 // per-block editor translation cannot mangle a term a batch job protects.
 func TestEditorTranslateConfigCarriesDNTTerms(t *testing.T) {
-	cs, err := bstore.NewSQLiteStore(":memory:")
+	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
 	require.NoError(t, err)
 	proj := &platstore.Project{
 		ID:                    "p1",
@@ -159,7 +160,7 @@ func TestEditorTranslateConfigCarriesDNTTerms(t *testing.T) {
 // the interactive path: an unbound workspace default, an unresolvable profile,
 // or a terms store that cannot be opened all degrade to a bare translation.
 func TestEditorTranslateConfigDegradesGracefully(t *testing.T) {
-	cs, err := bstore.NewSQLiteStore(":memory:")
+	cs, err := bstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
 	require.NoError(t, err)
 	proj := &platstore.Project{ID: "p1", WorkspaceID: "ws-1", DefaultSourceLanguage: "en"}
 	require.NoError(t, cs.CreateProject(t.Context(), proj))
@@ -187,7 +188,7 @@ func TestEditorAITranslateWithVoiceContext(t *testing.T) {
 	ctx := t.Context()
 	cs, voiceCtx, _ := editorVoiceContextFixture(t)
 
-	stats, err := editorAITranslate(ctx, cs, nil, nil, "p1", "main", "hello.txt",
+	stats, err := editorAITranslate(ctx, cs, commitFor(t, cs, "p1"), nil, nil, "p1", "main", "hello.txt",
 		TranslateRequest{TargetLocale: "fr", Provider: "demo"},
 		nil, "ws-1", "acme", jobs.PlatformProviderConfig{}, voiceCtx)
 	require.NoError(t, err)

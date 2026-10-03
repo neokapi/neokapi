@@ -187,27 +187,34 @@ approved against, and a source decision is recorded with the same identity a
 target decision carries.
 
 The source language is therefore a language of the queue rather than a mode of
-it. What differs is what a client can do next: `kapi apply` records
-target-language decisions, and source wording is approved through
-`App.ApproveSourceUnit`, which Kapi Desktop's Review page calls.
+it. A decision on either kind is a `decide` operation sent to the change service
+([E-09](../engine/e-09-the-change-contract.md)) with the revision the reviewer
+read: `kapi apply`, an agent's pre-review and Kapi Desktop's Review page all send
+it. An approval of source wording is recorded as an `establish`, bound to the
+wording the reviewer read, the record `App.ApproveSourceUnit` makes.
 
 ### What a source change does to an undecided target
 
 A decision records the source it was taken against, and coverage grades a
 decided unit stale once the source moves away from that basis. An undecided
-translation gets the same anchor from the loop itself: for every unit a run
-writes a target for, it records a decision-less state entry carrying the hash of
-the source it translated and the hash of the target it produced. The record is
-committed state, so a fresh clone carries it, and it is written unstaged, so
-loop output is never counted as a person's pending decision.
+translation gets the same anchor from the loop itself: every document a run
+writes is recorded as the flow's `content.edit`, and the block history keeps,
+for each translation the run produced, the hash of the source it translated and
+the revision of the target it left ([E-09](../engine/e-09-the-change-contract.md#flows)).
+The record lives in the project's context log, so a checkout that reads the
+project's context reads it, and it is not a decision, so loop output is never
+counted as a person's pending decision.
 
 Coverage derives the basis for both classes alike. A source change under an
 undecided target grades the unit stale, the plan counts it, and the next pass
 re-drafts it with the old wording still on disk. Only a decision moves a unit on
-its ladder. A target that no longer matches its recorded hash was taken over by
-a person; it grades as basis unknown and is left alone and reported. No host
-clears targets to force the loop's attention, and the records travel with the
-decisions on push, so a venue receives the same basis the loop worked from.
+its ladder. A target that no longer holds the revision the flow left was taken
+over by a person; it grades as basis unknown and is left alone and reported. No
+host clears targets to force the loop's attention. A push carries the decisions;
+a venue's own worker records the basis of the drafts it writes. The basis of a
+translation a run on this machine produced travels in the block history with
+the project's context (`kapi context push`), which a venue does not read, so a
+venue grades such a translation as one with no recorded basis.
 
 The server's translation worker reads the same ledger. A target whose recorded
 basis is stale is owed a draft, a target the ledger has no record of is left

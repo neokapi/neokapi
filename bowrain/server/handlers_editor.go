@@ -586,87 +586,6 @@ func (s *Server) HandleGetItem(c echo.Context) error {
 	})
 }
 
-// HandleUpdateBlockTarget updates the target text for a block.
-func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
-		return err
-	}
-
-	if s.ContentStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
-	}
-
-	pid := projectParam(c)
-	bid := c.Param("bid")
-
-	var req UpdateBlockTargetRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-	if err := s.requireLanguagePermission(c, platauth.PermTranslate, req.TargetLocale); err != nil {
-		return err
-	}
-	// ABAC: editing in-review/published content is gated by status + ownership.
-	if err := s.requireEditableStatus(c, pid, bid, req.TargetLocale); err != nil {
-		return err
-	}
-
-	if err := editorUpdateBlockTarget(c.Request().Context(), s.ContentStore, pid, streamParam(c), bid, req); err != nil {
-		if changed, ok := asBlockChanged(err); ok {
-			return s.answerBlockChanged(c, pid, changed, req.TargetLocale)
-		}
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
-	}
-
-	wsID, _ := c.Get("workspace_id").(string)
-	s.shipInputsChanged(c.Request().Context(), wsID, pid, streamParam(c))
-
-	userID, _ := c.Get("user_id").(string)
-	s.trackEvent(userID, "translation_saved", map[string]any{
-		"project_id": pid,
-		"block_id":   bid,
-		"locale":     req.TargetLocale,
-	})
-
-	return c.NoContent(http.StatusNoContent)
-}
-
-// HandleUpdateBlockTargetRuns updates a block target from a Run sequence.
-func (s *Server) HandleUpdateBlockTargetRuns(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
-		return err
-	}
-
-	if s.ContentStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
-	}
-
-	pid := projectParam(c)
-	bid := c.Param("bid")
-
-	var req UpdateBlockTargetRunsRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-	if err := s.requireLanguagePermission(c, platauth.PermTranslate, req.TargetLocale); err != nil {
-		return err
-	}
-	if err := s.requireEditableStatus(c, pid, bid, req.TargetLocale); err != nil {
-		return err
-	}
-
-	if err := editorUpdateBlockTargetRuns(c.Request().Context(), s.ContentStore, pid, streamParam(c), bid, req); err != nil {
-		if changed, ok := asBlockChanged(err); ok {
-			return s.answerBlockChanged(c, pid, changed, req.TargetLocale)
-		}
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
-	}
-
-	wsID, _ := c.Get("workspace_id").(string)
-	s.shipInputsChanged(c.Request().Context(), wsID, pid, streamParam(c))
-	return c.NoContent(http.StatusNoContent)
-}
-
 // HandlePseudoTranslate pseudo-translates all blocks in a file.
 func (s *Server) HandlePseudoTranslate(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
@@ -690,13 +609,14 @@ func (s *Server) HandlePseudoTranslate(c echo.Context) error {
 		return err
 	}
 
-	stats, err := editorPseudoTranslate(c.Request().Context(), s.ContentStore, pid, streamParam(c), fname, req.TargetLocale)
+	commit, err := s.requestCommit(c, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	stats, err := editorPseudoTranslate(c.Request().Context(), s.ContentStore, commit, pid, streamParam(c), fname, req.TargetLocale)
 	if err != nil {
 		return serverErr(c, err)
 	}
-
-	wsID, _ := c.Get("workspace_id").(string)
-	s.shipInputsChanged(c.Request().Context(), wsID, pid, streamParam(c))
 	return c.JSON(http.StatusOK, stats)
 }
 
@@ -737,7 +657,11 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 	voiceCtx := s.editorVoiceContext()
 
 	wsID, _ := c.Get("workspace_id").(string)
-	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, s.ProviderStore, s.QuotaStore,
+	commit, err := s.requestCommit(c, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, commit, s.ProviderStore, s.QuotaStore,
 		pid, streamParam(c), fname, req, s.BillingHooks, wsID, c.Param("ws"),
 		s.platformProviderConfigForWorkspace(c.Request().Context(), wsID), voiceCtx)
 	if err != nil {
@@ -749,8 +673,6 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 		}
 		return serverErr(c, err)
 	}
-
-	s.shipInputsChanged(c.Request().Context(), wsID, pid, streamParam(c))
 	return c.JSON(http.StatusOK, stats)
 }
 
@@ -778,13 +700,14 @@ func (s *Server) HandleMemoryTranslate(c echo.Context) error {
 		return err
 	}
 
-	stats, err := editorMemoryTranslate(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, streamParam(c), fname, req.TargetLocale)
+	commit, err := s.requestCommit(c, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	stats, err := editorMemoryTranslate(c.Request().Context(), s.ContentStore, commit, s.wsStores, ws, pid, streamParam(c), fname, req.TargetLocale)
 	if err != nil {
 		return serverErr(c, err)
 	}
-
-	wsID, _ := c.Get("workspace_id").(string)
-	s.shipInputsChanged(c.Request().Context(), wsID, pid, streamParam(c))
 	return c.JSON(http.StatusOK, stats)
 }
 

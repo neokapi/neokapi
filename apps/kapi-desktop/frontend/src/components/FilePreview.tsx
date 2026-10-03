@@ -1,10 +1,14 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PenLine } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import { FilePreview as PreviewSheet } from "@neokapi/ui-primitives/preview";
 import type { ContentTree, ContentNode, PreviewHighlights } from "@neokapi/ui-primitives/preview";
 import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
+import { type ChangeClient, tabChanges } from "../lib/changes";
 import { qk } from "../lib/queryKeys";
+import { UnitEditSection } from "./edit/UnitEditSection";
 
 // collectMediaNodes walks the tree for media nodes that carry a resolvable URI
 // (the image/audio/video readers emit the asset by URI). Each needs its bytes
@@ -36,6 +40,18 @@ function unitKeyForBlock(tree: ContentTree, blockID: string): string | undefined
   };
   tree.root.forEach(walk);
   return found;
+}
+
+// targetLocales lists the target locales the tree's blocks carry, the
+// editions the document view can show beside the source.
+function targetLocales(tree: ContentTree): string[] {
+  const out = new Set<string>();
+  const walk = (n: ContentNode) => {
+    if (n.kind === "block") for (const loc of Object.keys(n.targets ?? {})) out.add(loc);
+    n.children?.forEach(walk);
+  };
+  tree.root.forEach(walk);
+  return [...out].sort();
 }
 
 export interface FilePreviewProps {
@@ -90,6 +106,11 @@ export interface FilePreviewProps {
   backLabel?: string;
   /** Which side the document opens on: the source, or a target locale key. */
   side?: string;
+  /**
+   * The change service an edit made in the document is sent to
+   * (Storybook/tests pass an in-memory one); defaults to the tab's.
+   */
+  changes?: ChangeClient;
 }
 
 // FilePreview is the desktop's project-content preview surface. It binds the
@@ -106,8 +127,13 @@ export interface FilePreviewProps {
 //
 // A host that arrives here to look at one unit passes `focusKey`, and the sheet
 // opens at that block with the review states of the file's other units drawn
-// alongside it. Every decision stays on the surface the reader came from: this
-// one reads the document.
+// alongside it. Every decision stays on the surface the reader came from.
+//
+// The document can be edited a unit at a time: a click on a block in the
+// Preview puts it in focus, and Edit opens the unit's source, or the
+// translation in view, under the document. The edit is a change set sent with
+// the revision it read (UnitEditSection), so the view only draws and the
+// change service commits; the document is inspected again once it lands.
 export function FilePreview({
   tabID,
   filePath,
@@ -122,7 +148,10 @@ export function FilePreview({
   focusNote,
   backLabel,
   side,
+  changes,
 }: FilePreviewProps) {
+  const client = useMemo(() => changes ?? tabChanges(tabID), [changes, tabID]);
+  const queryClient = useQueryClient();
   // Inspect the file (or one archive entry) and serve any media bytes in a single
   // query fn — the Wails bindings are the data source, react-query owns caching.
   const previewQuery = useQuery({
@@ -172,11 +201,17 @@ export function FilePreview({
   // The unit to open at, by the key the sheet addresses it with. A block named
   // by id reads as its id until the tree arrives, and stays its id when the
   // tree does not hold it, which the sheet then says.
+  // A block the reader picks in the Preview takes the focus, for editing.
+  const [picked, setPicked] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const focus = useMemo(() => {
+    if (picked) return picked;
     if (focusKey) return focusKey;
     if (!focusBlockID) return focusKey;
     return (tree ? unitKeyForBlock(tree, focusBlockID) : undefined) ?? focusBlockID;
-  }, [focusKey, focusBlockID, tree]);
+  }, [picked, focusKey, focusBlockID, tree]);
+  const editSides = useMemo(() => ["source", ...(tree ? targetLocales(tree) : [])], [tree]);
+  const canEdit = !!filePath && !entryPath && !!focus;
   const loading = !presetTree && !!filePath && previewQuery.isLoading;
   const error = previewQuery.error
     ? previewQuery.error instanceof Error
@@ -200,11 +235,49 @@ export function FilePreview({
       focusKey={focus}
       unitStates={unitStates}
       highlights={highlights}
-      focusNote={focusNote}
+      focusNote={
+        // The focus row draws only when there is something to say in it, so a
+        // file opened whole keeps the sheet it had.
+        canEdit && !editing ? (
+          <>
+            {focusNote}
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => setEditing(true)}
+              data-slot="file-preview-edit"
+            >
+              <PenLine size={12} />
+              {t("Edit")}
+            </Button>
+          </>
+        ) : (
+          focusNote
+        )
+      }
       backLabel={backLabel}
+      actions={
+        canEdit && editing && filePath && focus ? (
+          <UnitEditSection
+            key={focus}
+            client={client}
+            doc={filePath}
+            unitKey={focus}
+            side={side ?? "source"}
+            sides={editSides}
+            onClose={() => setEditing(false)}
+            onApplied={() =>
+              queryClient.invalidateQueries({ queryKey: qk.inspectFile(tabID, filePath, true) })
+            }
+          />
+        ) : undefined
+      }
       viewer={{
         resolveMediaUrl: (node) => mediaUrls[node.id] ?? node.media?.uri,
         defaultSide: side,
+        onSelectBlock: (id) => {
+          if (tree) setPicked(unitKeyForBlock(tree, id) ?? id);
+        },
         code: entryPath
           ? undefined
           : {

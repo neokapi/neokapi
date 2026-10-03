@@ -39,10 +39,16 @@ const (
 
 // ReviewAIActionResult is the outcome of one per-unit AI action. Fix/retranslate
 // return a PROPOSED target only — nothing is written until the reviewer accepts
-// the diff (which routes through UpdateReviewTarget); explain returns text.
+// the proposal, which the Review page sends as a set_content through Apply;
+// explain returns text.
 type ReviewAIActionResult struct {
+	// ProposedTarget is the proposal as a reader reads it.
 	ProposedTarget string `json:"proposed_target,omitempty"`
-	Explanation    string `json:"explanation,omitempty"`
+	// ProposedEdit is the proposal in the placeholder form a read shows, each
+	// inline code an <x id="…"/> naming the code the translation holds, so a
+	// set_content of it keeps every code the proposal kept.
+	ProposedEdit string `json:"proposed_edit,omitempty"`
+	Explanation  string `json:"explanation,omitempty"`
 	// Exchanges are the LLM calls this action made: the messages sent, the
 	// schema constraining the output, the reply and the token usage. A reviewer
 	// asked to accept a proposed translation can see what the model was told
@@ -157,7 +163,10 @@ func (a *App) reviewAIPropose(ctx context.Context, op *openProject, unit host.Un
 	if strings.TrimSpace(proposed) == "" {
 		return nil, errors.New("the model returned an empty translation. Try a more specific instruction")
 	}
-	return &ReviewAIActionResult{ProposedTarget: proposed}, nil
+	return &ReviewAIActionResult{
+		ProposedTarget: proposed,
+		ProposedEdit:   model.RunsEditText(b.TargetRuns(model.LocaleID(unit.TargetLang))),
+	}, nil
 }
 
 // reviewAIExplain runs the ai review tool over the block and renders its
@@ -212,7 +221,7 @@ func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope st
 	points := a.newPointResolver(op, false)
 	profile := points.at(ctx, collection, relPath)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
-	for _, f := range a.blockCheckFindings(ctx, b, sourceLang, loc, profile,
+	for _, f := range a.blockCheckFindings(ctx, b, relPath, sourceLang, loc, profile,
 		points.termsAt(ctx, collection, relPath), dntTerms) {
 		outcome := "reports"
 		if f.Fails {

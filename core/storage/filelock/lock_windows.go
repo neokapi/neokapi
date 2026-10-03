@@ -31,3 +31,6 @@ func unlockFile(f *os.File) error {
 		new(windows.Overlapped),
 	)
 }
+
+// releaseOnClose does nothing: closing the descriptor releases its lock.
+func releaseOnClose(*os.File) {}

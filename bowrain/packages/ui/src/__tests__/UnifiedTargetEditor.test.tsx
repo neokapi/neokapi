@@ -165,7 +165,95 @@ describe("UnifiedTargetEditor — plural save", () => {
       // flattenRuns; the actual `count` token resolves through the
       // source spans.
       expect(arg.text).toContain("{count}");
+      // What a save sends is the plural run itself, each form's codes kept.
+      expect(arg.runs).toHaveLength(1);
+      const [run] = arg.runs;
+      expect(run).toHaveProperty("plural.pivot", "count");
+      expect(JSON.stringify(run)).toContain('"ph"');
     }
+  });
+
+  // A message that is one plural (ARB, ICU) arrives as runs. Its translation
+  // opens on its forms, and an untranslated one opens in plural mode on the
+  // source's pivot with the source's variable offered as a chip.
+  const n = { ph: { id: "n", type: "code:variable", data: "#", equiv: "#" } };
+  const pluralMessage = (translated: boolean): BlockInfo =>
+    makeBlock({
+      source: " messages",
+      source_spans: undefined,
+      source_runs: [
+        {
+          plural: {
+            pivot: "count",
+            forms: { one: [n, { text: " message" }], other: [n, { text: " messages" }] },
+          },
+        },
+      ],
+      targets: translated ? { de: { text: " Nachrichten", status: "translated" } } : {},
+      targets_runs: translated
+        ? {
+            de: [
+              {
+                plural: {
+                  pivot: "count",
+                  forms: { one: [n, { text: " Nachricht" }], other: [n, { text: " Nachrichten" }] },
+                },
+              },
+            ],
+          }
+        : {},
+    });
+
+  it("opens a plural translation on its forms and saves it whole", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(
+      <UnifiedTargetEditor
+        block={pluralMessage(true)}
+        locale="de"
+        onSave={onSave}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("unified-target-editor").getAttribute("data-mode")).toBe("plural");
+    expect(screen.getByTestId("mode-header-plural").textContent).toContain("count");
+    await user.click(screen.getByTestId("unified-save"));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const arg = onSave.mock.calls[0][0] as UnifiedSaveResult;
+    expect(arg.kind).toBe("plural");
+    if (arg.kind === "plural") {
+      expect(arg.runs).toEqual([
+        {
+          plural: {
+            pivot: "count",
+            forms: {
+              one: [
+                expect.objectContaining({ ph: expect.objectContaining({ id: "n" }) }),
+                { text: " Nachricht" },
+              ],
+              other: [
+                expect.objectContaining({ ph: expect.objectContaining({ id: "n" }) }),
+                { text: " Nachrichten" },
+              ],
+            },
+          },
+        },
+      ]);
+    }
+  });
+
+  it("opens an untranslated plural message in plural mode on the source's pivot", () => {
+    render(
+      <UnifiedTargetEditor
+        block={pluralMessage(false)}
+        locale="de"
+        onSave={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("unified-target-editor").getAttribute("data-mode")).toBe("plural");
+    expect(screen.getByTestId("mode-header-plural").textContent).toContain("count");
+    expect(screen.getByTestId("form-tab-other").getAttribute("aria-selected")).toBe("true");
   });
 });
 

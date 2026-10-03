@@ -526,7 +526,7 @@ func checkToolPolicy(cfg *platagent.AgentConfig, toolName string) string {
 func ToolNames() []string {
 	return []string{
 		"list_projects", "get_project", "create_project", "update_project",
-		"list_blocks", "get_block", "update_block",
+		"list_blocks", "get_block", "read_blocks", "apply_edits", "describe_format",
 		"create_version", "list_streams", "diff_streams", "merge_stream",
 		"list_flows", "run_flow", "get_flow_status",
 		"tm_search", "tm_import",

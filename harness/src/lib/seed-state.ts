@@ -34,6 +34,8 @@ export interface EditorBlock {
   id: string;
   translatable?: boolean;
   targets?: Record<string, { text?: string } | undefined>;
+  /** Each served locale's translation revision: what a change to it names. */
+  target_revisions?: Record<string, string>;
 }
 
 /** Whether any source block still sits below the project's gate. */

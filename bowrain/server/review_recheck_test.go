@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -83,6 +84,37 @@ func newRecheckHarness(t *testing.T) (*Server, string, string) {
 
 // reviewedBlock builds a translatable block whose fr target is already reviewed —
 // the "approved before the term was marked" starting point RV-E reacts to.
+// A person rewrites a translation while the recheck sweeps the project: the
+// recheck judged the wording it read, so its demotion lands only on wording it
+// judged. The person's rewrite stays, and a translation nobody touched is
+// demoted.
+func TestReviewRecheck_KeepsATranslationRewrittenDuringTheSweep(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{
+		reviewedBlock("b1", "Use the app", "Utiliser l'application"),
+		reviewedBlock("b2", "Use the tool", "Utiliser l'outil"),
+	})
+	proj, err := s.ContentStore.GetProject(t.Context(), projID)
+	require.NoError(t, err)
+
+	rewritten := ids["Use the app"]
+	edited := false
+	violates := func(sb *venue.StoredBlock, _, _ model.LocaleID) bool {
+		if sb.Block.ID == rewritten && !edited {
+			edited = true
+			editAsPerson(t, s, projID, rewritten, "fr", textContent("Employer l'application"))
+		}
+		return true
+	}
+	require.NoError(t, s.recheckProjectTargets(t.Context(), proj, "test", violates, "system"))
+	require.True(t, edited)
+
+	got := getStoredBlock(t, s.ContentStore.(*bstore.PostgresStore), projID, rewritten)
+	assert.Equal(t, "Employer l'application", got.TargetText("fr"), "the person's rewrite stays")
+	assert.Equal(t, model.TargetStatusTranslated, got.Target("fr").Status)
+	assert.Equal(t, model.TargetStatusDraft, frStatus(t, s, projID, ids["Use the tool"]), "the untouched translation is demoted")
+}
+
 func reviewedBlock(id, source, frTarget string) *model.Block {
 	b := &model.Block{ID: id, Translatable: true}
 	b.SetSourceText(source)

@@ -60,6 +60,7 @@ func extractProjectFixture(t *testing.T, dir string, targetLanguages []model.Loc
 			{
 				Path:   "src/locales/en/*.json",
 				Format: &project.FormatSpec{Name: "json"},
+				Target: "src/locales/{lang}/*.json",
 			},
 		},
 	}
@@ -175,6 +176,10 @@ func TestExtractMergeKpzInterchangeRoundTrip(t *testing.T) {
 	assert.Equal(t, "fr-FR", pkg.InterchangeTask.TargetLocale)
 	require.NotEmpty(t, pkg.Skeletons, "interchange package must carry a skeleton")
 	require.NotEmpty(t, pkg.Overlays, "interchange package must carry content memory-prefilled target overlays")
+	rev, ok := pkg.InterchangeTask.Revisions[pkg.Overlays[0].BlockHash]
+	require.True(t, ok, "the task records what each unit was extracted against: %+v", pkg.InterchangeTask.Revisions)
+	assert.Equal(t, model.AbsentRevision, rev.IfMatch)
+	assert.Equal(t, model.RunsRevision(model.EditionKey{Locale: "en-US"}, []model.Run{{Text: &model.TextRun{Text: "Hello, world."}}}), rev.Basis)
 
 	// Merge the interchange .kpz back.
 	ma := newExtractApp(t)
@@ -189,11 +194,23 @@ func TestExtractMergeKpzInterchangeRoundTrip(t *testing.T) {
 	assert.Contains(t, mout.String(), "memory_new=")
 	assert.NotContains(t, mout.String(), "tm_", "the content memory is named memory in the report")
 
-	// The merged target file should exist and carry the translated text.
-	mergedPath := filepath.Join(real, "src/locales/en", "fr-FR", "messages.json")
+	// The merged target file is the translation the recipe's target names,
+	// and carries the translated text.
+	mergedPath := filepath.Join(real, "src", "locales", "fr-FR", "messages.json")
 	merged, err := os.ReadFile(mergedPath)
 	require.NoError(t, err, "merge did not write the translated output")
 	assert.Contains(t, string(merged), "Bonjour le monde.")
+
+	// A package merged again after its source moved is stale: the task's
+	// basis no longer names the source.
+	writeJSONSource(t, real, "src/locales/en/messages.json", `{"greeting": "Hello, everyone."}`)
+	again := NewMergeCmd(ma, MergeCmdOptions{})
+	mout.Reset()
+	again.SetOut(&mout)
+	again.SetErr(&mout)
+	again.SetArgs([]string{"--project", recipe, kpzPath})
+	require.NoError(t, again.Execute(), "merge output: %s", mout.String())
+	assert.Contains(t, mout.String(), "applied=0 stale=1")
 }
 
 func TestExtract_TargetLangFlagSubsetsRecipe(t *testing.T) {
@@ -245,6 +262,71 @@ func TestExtract_StampsBatchIDAndSourceHashInXLIFFFile(t *testing.T) {
 	hashExpected, err := project.HashFile(sourcePath)
 	require.NoError(t, err)
 	assert.Contains(t, s, hashExpected)
+}
+
+// TestExtract_StampsEachUnitWithItsRevisions pins the two revisions every unit
+// of a bilingual file carries: the revision of its translation as the project
+// holds it (absent where it holds none) and the revision of its source, in
+// XLIFF as the unit's metadata and in PO as the entry's comments.
+func TestExtract_StampsEachUnitWithItsRevisions(t *testing.T) {
+	text := func(s string) []model.Run { return []model.Run{{Text: &model.TextRun{Text: s}}} }
+	basisHello := model.RunsRevision(model.EditionKey{Locale: "en-US"}, text("Hello"))
+	basisBye := model.RunsRevision(model.EditionKey{Locale: "en-US"}, text("Goodbye"))
+	ifMatchHello := model.RunsRevision(model.EditionKey{Locale: "fr-FR"}, text("Bonjour"))
+
+	setup := func(t *testing.T) (string, string) {
+		real, err := filepath.EvalSymlinks(t.TempDir())
+		require.NoError(t, err)
+		recipe := extractProjectFixture(t, real, []model.LocaleID{"fr-FR"})
+		writeJSONSource(t, real, "src/locales/en/app.json", `{"a":"Hello","b":"Goodbye"}`)
+		writeJSONSource(t, real, "src/locales/fr-FR/app.json", `{"a":"Bonjour"}`)
+		return real, recipe
+	}
+
+	t.Run("xliff", func(t *testing.T) {
+		real, recipe := setup(t)
+		_, err := runExtractCmd(t, recipe)
+		require.NoError(t, err)
+		entries, err := os.ReadDir(filepath.Join(real, "out"))
+		require.NoError(t, err)
+		require.Len(t, entries, 1)
+		f, err := os.Open(filepath.Join(real, "out", entries[0].Name()))
+		require.NoError(t, err)
+		defer f.Close()
+		r := xliff2.NewReader()
+		require.NoError(t, r.Open(t.Context(), &model.RawDocument{Reader: f, FormatID: "xliff2"}))
+		defer r.Close()
+		got := map[string][2]string{}
+		for res := range r.Read(t.Context()) {
+			require.NoError(t, res.Error)
+			if b, ok := res.Part.Resource.(*model.Block); ok {
+				got[b.SourceText()] = [2]string{
+					b.Properties[xliff2.UnitMetaKey(xliff2.FileNoteCategoryKapi, xliff2.UnitMetaIfMatch)],
+					b.Properties[xliff2.UnitMetaKey(xliff2.FileNoteCategoryKapi, xliff2.UnitMetaBasis)],
+				}
+			}
+		}
+		assert.Equal(t, [2]string{ifMatchHello, basisHello}, got["Hello"])
+		assert.Equal(t, [2]string{model.AbsentRevision, basisBye}, got["Goodbye"])
+	})
+
+	t.Run("po", func(t *testing.T) {
+		real, recipe := setup(t)
+		_, err := runExtractCmd(t, recipe, "--format", "po")
+		require.NoError(t, err)
+		entries, err := os.ReadDir(filepath.Join(real, "out"))
+		require.NoError(t, err)
+		require.Len(t, entries, 1)
+		po, err := ReadPOForMerge(filepath.Join(real, "out", entries[0].Name()))
+		require.NoError(t, err)
+		assert.Equal(t, "fr-FR", po.Language)
+		got := map[string][2]string{}
+		for _, e := range po.Blocks {
+			got[e.MsgID] = [2]string{e.IfMatch, e.Basis}
+		}
+		assert.Equal(t, [2]string{ifMatchHello, basisHello}, got["Hello"])
+		assert.Equal(t, [2]string{model.AbsentRevision, basisBye}, got["Goodbye"])
+	})
 }
 
 func TestExtract_MemoryExactPrefillFillsTarget(t *testing.T) {

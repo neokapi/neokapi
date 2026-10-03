@@ -69,11 +69,6 @@ var browserGaps = map[string]browserGap{
 		group:  "advanced",
 		reason: "an MCP server serves a long-lived stdio session, which the browser build has no peer for",
 	},
-	"engine": {
-		short:  "Serve the content engine as a local gRPC API",
-		hidden: true,
-		reason: "the engine gRPC service listens on a Unix socket, which the browser has no access to",
-	},
 }
 
 // BrowserUnavailableReason reports why the browser build cannot run the
@@ -205,7 +200,6 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 	cmds = append(cmds, NewToolCommands(a)...)
 
 	cmds = append(cmds, newBrowserGapCmd("mcp"))
-	cmds = append(cmds, newBrowserGapCmd("engine"))
 
 	return cmds
 }

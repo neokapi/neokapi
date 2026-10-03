@@ -286,10 +286,27 @@ func TestChecksAtPointUnavailableContextFails(t *testing.T) {
 				proj.Properties = map[string]string{coreprofile.PropertyProfileID: "missing"}
 				require.NoError(t, cs.UpdateProject(t.Context(), proj))
 			}
-			_, err := srv.checksAtPoint(t.Context(), proj.ID, "main", "", originTestWS, "acme", "fr")
+			// A named stream that cannot be read fails the resolution; the
+			// project's main stream needs no row of its own.
+			stream := "main"
+			if unavailable == "stream" {
+				stream = "feature"
+			}
+			_, err := srv.checksAtPoint(t.Context(), proj.ID, stream, "", originTestWS, "acme", "fr")
 			require.ErrorContains(t, err, "check "+unavailable)
 		})
 	}
+}
+
+// A project's main stream with no row of its own resolves with no stream
+// properties, so the checks of a project nobody branched still run.
+func TestChecksAtPointResolvesAnImplicitMainStream(t *testing.T) {
+	srv, cs, _ := newOriginTestServer(t)
+	proj := seedOriginProject(t, cs, "implicit-main")
+	srv.wsStores.termsFactory = func() terms.Store { return &testTermStore{terms.NewInMemoryStore()} }
+	checks, err := srv.checksAtPoint(t.Context(), proj.ID, "main", "", originTestWS, "acme", "fr")
+	require.NoError(t, err)
+	assert.Equal(t, model.LocaleID("fr"), checks.TargetLocale)
 }
 
 func TestHandleCheckFileUnavailableTermsReturnsServiceError(t *testing.T) {

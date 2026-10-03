@@ -1,3 +1,5 @@
+//go:build !js
+
 package host
 
 import (
@@ -6,14 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/change/changeschema"
-	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -68,9 +68,9 @@ var readBlocksOutputSchema = json.RawMessage(`{"type":"object","properties":{` +
 	`"ref":{"type":"object","description":"the reference to copy into an operation's at"},` +
 	`"rev":{"type":"string","description":"the revision to send as if_match"},` +
 	`"text":{"type":"string","description":"the content, inline codes as <x id=\"…\"/> placeholders"},` +
-	`"codes":{"type":"object","description":"each inline code by the id its placeholder shows: kind, type, attributes and the attributes set_attribute can change"},` +
+	`"codes":{"type":"object","description":"each inline code by the id its placeholder shows: kind, type, attributes, the attributes set_attribute can change, and equiv and disp, labels naming what the code stands for; an edit keeps a code by its placeholder, never by its label"},` +
 	`"structures":{"type":"array","description":"each plural or select, with the path that reaches it and the text of each branch"},` +
-	`"editions":{"type":"object","description":"the block's other editions by key: rev, text, status, basis and stale"},` +
+	`"editions":{"type":"object","description":"the block's other editions by key: rev, text, status, basis and stale, each one's plurals and selects as structures, and its codes where they differ from the block's"},` +
 	`"ops":{"type":"array","items":{"type":"string"},"description":"the operations the block accepts"}}}},` +
 	`"next":{"type":"string","description":"the cursor of the next page; absent on the last"}}}`)
 
@@ -196,30 +196,18 @@ func mcpChangeActor(req *mcp.CallToolRequest) change.Actor {
 // service edits the documents under the server's working directory). The
 // service reads the documents in that project's source language, so an
 // edition in any other language is a translation, whichever project the
-// server started in or answered last.
-func (a *App) mcpChangeService(ctx context.Context, project string) (*change.Service, string, error) {
-	recipe, err := a.ResolveMCPCallProject(project)
-	if err != nil {
-		return nil, "", err
-	}
-	svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: mcpChangeOrigin,
-		SourceLocale: model.LocaleID(a.mcpCallSourceLocale(recipe))})
-	if err != nil {
-		return nil, "", err
-	}
-	return svc, recipe, nil
+// server started in or answered last. editions are the editions the call
+// names (callChangeService).
+func (a *App) mcpChangeService(ctx context.Context, project string, editions []model.EditionKey) (*change.Service, string, error) {
+	return a.callChangeService(ctx, project, mcpChangeOrigin, editions)
 }
 
 func (a *App) readBlocksMCP(ctx context.Context, in readBlocksInput) (*mcp.CallToolResult, error) {
-	editions := make([]model.EditionKey, 0, len(in.Editions))
-	for _, e := range in.Editions {
-		k, err := model.ParseEditionKey(e)
-		if err != nil {
-			return changeRefusal(&change.Error{Code: change.CodeInvalid, Field: "editions", Message: err.Error()})
-		}
-		editions = append(editions, k)
+	editions, cerr := editionKeys(in.Editions)
+	if cerr != nil {
+		return changeRefusal(cerr)
 	}
-	svc, _, err := a.mcpChangeService(ctx, in.Project)
+	svc, _, err := a.mcpChangeService(ctx, in.Project, editions)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +219,7 @@ func (a *App) readBlocksMCP(ctx context.Context, in readBlocksInput) (*mcp.CallT
 }
 
 func (a *App) describeFormatMCP(ctx context.Context, in describeFormatInput) (*mcp.CallToolResult, error) {
-	svc, _, err := a.mcpChangeService(ctx, in.Project)
+	svc, _, err := a.mcpChangeService(ctx, in.Project, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -259,17 +247,13 @@ func (a *App) applyEditsMCP(ctx context.Context, actor change.Actor, args json.R
 	if err != nil {
 		return changeError(err)
 	}
-	svc, recipe, err := a.mcpChangeService(ctx, project)
+	svc, recipe, err := a.mcpChangeService(ctx, project, opEditions(set))
 	if err != nil {
 		return nil, err
 	}
-	res, err := svc.Apply(ctx, set, actor)
+	res, err := a.applyCall(ctx, svc, recipe, set, actor)
 	if err != nil {
 		return changeError(err)
-	}
-	if res.Status == change.SetApplied || res.Status == change.SetPartial {
-		a.noteAgentEdits(ctx, recipe, contextop.Actor{Kind: contextop.ActorKind(actor.Kind), Name: actor.Name, Session: actor.Session},
-			appliedWording(set, res))
 	}
 	return jsonToolResult(res, res.Status == change.SetRefused || res.Status == change.SetPartial)
 }
@@ -298,43 +282,6 @@ func splitProjectArg(args json.RawMessage) (string, []byte, *change.Error) {
 	return project, body, nil
 }
 
-// appliedWording is the wording each applied content operation wrote into a
-// document's own edition, in placeholder text, by the document as the result
-// names it, so noteAgentEdits can count the forms a suggestion prefers at the
-// document's point. A replace_text wrote only its replacements, and
-// set_content its whole text. A translation is left out: a suggestion's
-// preferred form is wording in the source language.
-func appliedWording(set change.Set, res *change.Result) map[string][]string {
-	out := map[string][]string{}
-	for i, op := range set.Ops {
-		if i >= len(res.Ops) || res.Ops[i].Status != change.OpApplied {
-			continue
-		}
-		at := res.Ops[i].At
-		if at == nil || !at.Edition.IsZero() {
-			continue
-		}
-		var texts []string
-		switch body := op.Body.(type) {
-		case *change.SetContent:
-			switch {
-			case body.Text != nil:
-				texts = append(texts, *body.Text)
-			case body.Runs != nil:
-				texts = append(texts, model.RunsEditText(body.Runs))
-			}
-		case *change.ReplaceText:
-			for _, e := range body.Edits {
-				texts = append(texts, e.Text)
-			}
-		}
-		if len(texts) > 0 {
-			out[at.Doc] = append(out[at.Doc], texts...)
-		}
-	}
-	return out
-}
-
 // changeError is the tool result of a refusal the change service returned as
 // an error, or the error itself when it is not one of the contract's.
 func changeError(err error) (*mcp.CallToolResult, error) {
@@ -345,28 +292,21 @@ func changeError(err error) (*mcp.CallToolResult, error) {
 }
 
 // changeRefusal is an error result naming the refusal, as the structured
-// result and as its text.
+// result and as its text: a kapi.change-result/v1 whose error says why.
 func changeRefusal(e *change.Error) (*mcp.CallToolResult, error) {
-	return jsonToolResult(struct {
-		Schema string        `json:"schema"`
-		Status string        `json:"status"`
-		Error  *change.Error `json:"error"`
-	}{Schema: change.ResultSchemaID, Status: string(change.SetRefused), Error: e}, true)
+	return jsonToolResult(change.ErrorResult(e), true)
 }
 
 // jsonToolResult is a tool result carrying v as its structured content and as
 // its text. HTML escaping is off, so the placeholders a block's text holds
 // read as written rather than as < escapes.
 func jsonToolResult(v any, isError bool) (*mcp.CallToolResult, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
-		return nil, fmt.Errorf("encode the result: %w", err)
+	raw, err := changeAnswer(v)
+	if err != nil {
+		return nil, err
 	}
-	raw := strings.TrimRight(buf.String(), "\n")
 	return &mcp.CallToolResult{
-		Content:           []mcp.Content{&mcp.TextContent{Text: raw}},
+		Content:           []mcp.Content{&mcp.TextContent{Text: string(raw)}},
 		StructuredContent: json.RawMessage(raw),
 		IsError:           isError,
 	}, nil

@@ -86,6 +86,7 @@ type MCPServer struct {
 	flowCatalog    FlowCatalog
 	flowRunner     FlowRunner
 	tracker        EventTracker
+	changes        ChangeServiceFactory
 	server         *mcp.Server
 	handler        http.Handler
 	metadata       *oauthex.ProtectedResourceMetadata
@@ -225,6 +226,7 @@ func NewMCPServerWithStore(voiceStore coreprofile.Store, contentStore store.Cont
 	// Register expanded tools for @bravo agent (Bowrain AD-016).
 	if contentStore != nil {
 		ms.registerContentTools()
+		ms.registerEditTools()
 		ms.registerFlowTools()
 		ms.registerMemoryTools()
 		ms.registerTermsTools()

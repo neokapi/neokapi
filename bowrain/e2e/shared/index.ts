@@ -32,6 +32,9 @@ export type {
   TrialReportInfo,
   ReadinessComponentStatus,
   ReadinessInfo,
+  EditorBlock,
+  ContentChangeSet,
+  ChangeResultInfo,
 } from "./api-client.js";
 
 // Keycloak admin

@@ -1,3 +1,5 @@
+//go:build !js
+
 package host
 
 import (
@@ -269,7 +271,8 @@ func TestMCPApplyEdits_WritesWordingAsText(t *testing.T) {
 // writes nothing: a change set that does not decode names the JSON pointer
 // at fault, a block the document does not hold is not_found, and a block the
 // format marks as content an edit does not change is unsupported. Each is an
-// error result.
+// error result. A change set refused as a whole is a result too: its error
+// says why, with no record and with empty docs and ops.
 func TestMCPApplyEdits_RefusalsWriteNothing(t *testing.T) {
 	const doc = "Run the tool.\n\n```sh\nkapi up\n```\n"
 	tests := []struct {
@@ -277,6 +280,9 @@ func TestMCPApplyEdits_RefusalsWriteNothing(t *testing.T) {
 		args    func(t *testing.T, s *mcp.ClientSession) map[string]any
 		code    change.Code
 		pointer string
+		// whole says the change set is refused before any operation is
+		// considered.
+		whole bool
 	}{
 		{
 			name: "an unknown field",
@@ -284,21 +290,21 @@ func TestMCPApplyEdits_RefusalsWriteNothing(t *testing.T) {
 				return map[string]any{"ops": []any{map[string]any{"op": "set_content", "at": map[string]any{"doc": "doc.md", "block": "x"},
 					"if_match": "*", "text": "x", "wording": "x"}}}
 			},
-			code: change.CodeInvalid, pointer: "/ops/0/wording",
+			code: change.CodeInvalid, pointer: "/ops/0/wording", whole: true,
 		},
 		{
 			name: "the old entry shape",
 			args: func(*testing.T, *mcp.ClientSession) map[string]any {
 				return map[string]any{"changeset": []any{map[string]any{"kind": "content", "file": "doc.md", "text": "x"}}}
 			},
-			code: change.CodeInvalid,
+			code: change.CodeInvalid, whole: true,
 		},
 		{
 			name: "a project that is not a path",
 			args: func(*testing.T, *mcp.ClientSession) map[string]any {
 				return map[string]any{"project": 7, "ops": []any{}}
 			},
-			code: change.CodeInvalid, pointer: "/project",
+			code: change.CodeInvalid, pointer: "/project", whole: true,
 		},
 		{
 			name: "a block the document does not hold",
@@ -350,6 +356,15 @@ func TestMCPApplyEdits_RefusalsWriteNothing(t *testing.T) {
 			assert.Equal(t, tc.code, e.Code, body)
 			if tc.pointer != "" {
 				assert.Equal(t, tc.pointer, e.Pointer)
+			}
+			if tc.whole {
+				require.NotNil(t, res.Error, "the change set is refused as a whole: %s", body)
+				var raw map[string]json.RawMessage
+				require.NoError(t, json.Unmarshal([]byte(body), &raw), body)
+				assert.JSONEq(t, `"kapi.change-result/v1"`, string(raw["schema"]), body)
+				assert.JSONEq(t, "null", string(raw["record"]), body)
+				assert.JSONEq(t, "[]", string(raw["docs"]), body)
+				assert.JSONEq(t, "[]", string(raw["ops"]), body)
 			}
 			got, err := os.ReadFile(file)
 			require.NoError(t, err)

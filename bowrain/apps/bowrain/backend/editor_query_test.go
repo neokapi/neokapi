@@ -36,10 +36,7 @@ func TestQueryItemBlocksFiltersByStatus(t *testing.T) {
 	blocks, err := app.GetItemBlocks(info.ID, itemName)
 	require.NoError(t, err)
 	require.NotEmpty(t, blocks)
-	require.NoError(t, app.UpdateBlockTarget(UpdateBlockRequest{
-		ProjectID: info.ID, ItemName: itemName, BlockID: blocks[0].ID,
-		TargetLocale: "fr", Text: "Bonjour le monde",
-	}))
+	saveTarget(t, app, info.ID, itemName, blocks[0].ID, "fr", "Bonjour le monde")
 
 	translated, err := app.QueryItemBlocks(info.ID, itemName, EditorBlockFilter{
 		Locale: "fr", Status: "translated",
@@ -60,10 +57,7 @@ func TestGetBlockCountsPartitionsByStatus(t *testing.T) {
 
 	blocks, err := app.GetItemBlocks(info.ID, itemName)
 	require.NoError(t, err)
-	require.NoError(t, app.UpdateBlockTarget(UpdateBlockRequest{
-		ProjectID: info.ID, ItemName: itemName, BlockID: blocks[0].ID,
-		TargetLocale: "fr", Text: "Bonjour le monde",
-	}))
+	saveTarget(t, app, info.ID, itemName, blocks[0].ID, "fr", "Bonjour le monde")
 
 	counts, err := app.GetBlockCounts(info.ID, itemName, EditorBlockFilter{Locale: "fr"})
 	require.NoError(t, err)
@@ -90,10 +84,7 @@ func TestGetBlockReportsWhatTheStoreHolds(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, blocks[0], *one, "the same element the block page carries")
 
-	require.NoError(t, app.UpdateBlockTarget(UpdateBlockRequest{
-		ProjectID: info.ID, ItemName: itemName, BlockID: id,
-		TargetLocale: "fr", Text: "Bonjour le monde",
-	}))
+	saveTarget(t, app, info.ID, itemName, id, "fr", "Bonjour le monde")
 	after, err := app.GetBlock(info.ID, id)
 	require.NoError(t, err)
 	assert.Equal(t, "Bonjour le monde", after.Targets["fr"].Text)
@@ -129,10 +120,7 @@ func TestBulkReviewBlocksReportsEachBlock(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, blocks, 3)
 	for _, b := range blocks[:2] {
-		require.NoError(t, app.UpdateBlockTarget(UpdateBlockRequest{
-			ProjectID: info.ID, ItemName: itemName, BlockID: b.ID,
-			TargetLocale: "fr", Text: "Bonjour",
-		}))
+		saveTarget(t, app, info.ID, itemName, b.ID, "fr", "Bonjour")
 	}
 
 	// The third block has no fr target, so approving it refuses — in its own

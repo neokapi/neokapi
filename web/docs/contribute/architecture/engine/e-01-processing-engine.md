@@ -187,6 +187,33 @@ content is supplied, with a streaming skeleton only when the writer streams too.
 The bounds count Parts, so a single large Block or a retained skeleton can still
 dominate memory.
 
+### The write stage
+
+A file run ends in the format writer, and the writer's bytes reach the file
+through the **file home** of the change contract
+([E-09](e-09-the-change-contract.md)), the place every change set commits too.
+The file runner (`flow.FileRunner`) digests the destination before it reads
+anything, streams the writer's output into a file staged beside the
+destination with the destination's mode (`filehome.Home.Produce`), and commits
+it: under the destination's advisory lock, the staged file is renamed onto the
+destination only while the destination still holds what it held when the run
+began. A destination that changed while the run worked (a person saved it, a
+change set or another run committed first) keeps what it holds, and the run
+reports it as moved (`filehome.ErrMoved`). A destination that already holds the
+bytes the run produced is left as it is. A tool or writer error discards the
+staged file, so a failed run leaves no partial destination.
+
+A caller that keeps a record of what a run changed follows each document
+through `FileRunnerConfig.Documents`: it sees every block as it leaves the
+reader and as it reaches the writer, and it commits the staged document itself.
+The kapi host records each document a flow writes in a project as one
+`content.edit`, applies the run's changes again through the change service when
+the destination moved, and, under `--print-ops`, commits through a home that
+writes nothing and prints the change set the run would apply
+([E-09](e-09-the-change-contract.md#flows)). The kapi host passes the home its
+change service commits through, so a flow and a change set writing one file
+take turns under one lock.
+
 ### Collectors and streaming collectors
 
 Collectors aggregate results across documents (word counts, check reports, term
@@ -268,9 +295,6 @@ orders the nodes with Kahn's algorithm and reports a cycle as an error;
 `Validate()` checks node identifiers, node types and edge endpoints. Each host
 path derives the chain in its own way:
 
-- The engine service (`kapi engine serve`) refuses a definition in which a node
-  has more than one incoming or outgoing edge, then runs the topological order
-  as one chain.
 - The built-in flow path checks data flow and transformer placement, then
   orders the tool nodes by their canvas X position (`orderedToolNodes`).
 - The project flow runner builds one tool per step, in step order, and refuses

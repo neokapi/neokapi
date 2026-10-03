@@ -2,6 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ReviewPage } from "../components/ReviewPage";
 import { ErrorProvider } from "../components/ErrorBanner";
 import type { ReviewContext, ReviewItem, ReviewUnitDetail } from "../types/api";
+import { waitFor } from "storybook/test";
+import { queueChanges } from "./memoryChanges";
 
 /** A date placeholder, the kind a concatenating run walk deletes silently. */
 const DATE_PH = { id: "1", type: "var", data: "{date}", equiv: "date" };
@@ -83,7 +85,6 @@ const DETAILS: Record<string, Partial<ReviewUnitDetail>> = {
         severity: "major",
         message: "placeholder {product} missing from target",
         suggestion: "Carry {product} into the translation verbatim",
-        fixable: false,
       },
     ],
   },
@@ -115,21 +116,16 @@ async function loadUnit(item: ReviewItem): Promise<ReviewUnitDetail> {
     target: item.target ?? "",
     status: "translated",
     findings: [],
-    editable: true,
     ...extra,
   };
 }
-
-const noopDecide = async () => {};
-const noopSave = async () => {};
 
 export const Queue: Story = {
   args: {
     tabID: "storybook",
     items: QUEUE,
     loadUnit,
-    onDecide: noopDecide,
-    onSaveTarget: noopSave,
+    changes: queueChanges(QUEUE),
   },
 };
 
@@ -139,8 +135,7 @@ export const ScopedToCollection: Story = {
     items: QUEUE,
     scope: { collection: "Marketing", locale: "nb" },
     loadUnit,
-    onDecide: noopDecide,
-    onSaveTarget: noopSave,
+    changes: queueChanges(QUEUE),
   },
 };
 
@@ -149,8 +144,6 @@ export const Empty: Story = {
     tabID: "storybook",
     items: [],
     loadUnit,
-    onDecide: noopDecide,
-    onSaveTarget: noopSave,
   },
 };
 
@@ -185,8 +178,7 @@ export const LargeQueue: Story = {
     tabID: "storybook",
     items: LARGE_QUEUE,
     loadUnit,
-    onDecide: noopDecide,
-    onSaveTarget: noopSave,
+    changes: queueChanges(LARGE_QUEUE),
   },
 };
 
@@ -318,18 +310,12 @@ async function loadSourceContext(item: ReviewItem): Promise<ReviewContext> {
   };
 }
 
-const noopApproveSource = async () => {};
-const noopSaveSource = async () => ["nb", "de-DE"];
-
 const unifiedArgs = {
   tabID: "storybook",
   items: UNIFIED_QUEUE,
   loadUnit: loadUnitWithContext,
   loadSourceContext,
-  onDecide: noopDecide,
-  onSaveTarget: noopSave,
-  onApproveSource: noopApproveSource,
-  onSaveSource: noopSaveSource,
+  changes: queueChanges(UNIFIED_QUEUE),
 };
 
 export const AllLanguages: Story = {
@@ -367,5 +353,127 @@ export const LayersCollapsed: Story = {
       "[data-slot$='-toggle'][aria-expanded='true']",
     );
     for (const toggle of toggles) toggle.click();
+  },
+};
+
+/**
+ * A translation with inline codes in the editor: each code is a chip the
+ * reviewer types beside, and a save sends the text with the codes it read.
+ */
+export const FormattedEdit: Story = {
+  name: "Edit: formatted translation",
+  args: {
+    tabID: "storybook",
+    items: QUEUE,
+    scope: { locale: "de-DE" },
+    loadUnit,
+    changes: queueChanges(QUEUE, {
+      "de-DE:hero.title": {
+        text: 'Lokalisierte Inhalte <x id="1"/>ohne Mühsal<x id="/1"/> ausliefern',
+        codes: { "1": { kind: "paired", type: "fmt:bold" } },
+      },
+    }),
+  },
+};
+
+/** A plural translation, edited a form at a time; each changed form is saved by its path. */
+export const PluralEdit: Story = {
+  name: "Edit: plural translation",
+  args: {
+    tabID: "storybook",
+    items: QUEUE,
+    scope: { locale: "de-DE" },
+    loadUnit,
+    changes: queueChanges(QUEUE, {
+      "de-DE:hero.title": {
+        text: '<x id="n/"/> Artikel im Warenkorb',
+        codes: { "n/": { kind: "placeholder", type: "jsx:var", equiv: "count" } },
+        structures: [
+          {
+            path: [0],
+            kind: "plural",
+            pivot: "count",
+            branches: {
+              one: '<x id="n/"/> Artikel im Warenkorb',
+              other: '<x id="n/"/> Artikel im Warenkorb',
+            },
+          },
+        ],
+      },
+    }),
+  },
+};
+
+/**
+ * Another writer saved the translation after the page read it. Edit it and
+ * save: nothing is written, and the editor shows the text as it stands and asks
+ * before applying the edit over it.
+ */
+export const StaleOnSave: Story = {
+  name: "Edit: changed since it was opened",
+  args: {
+    tabID: "storybook",
+    items: QUEUE,
+    scope: { locale: "de-DE" },
+    loadUnit,
+    changes: (() => {
+      const changes = queueChanges(QUEUE);
+      const read = changes.read.bind(changes);
+      let reads = 0;
+      changes.read = async (request) => {
+        const page = await read(request);
+        if (++reads === 1) {
+          changes.touch("locales/de-DE.json", "hero.title", "Lokalisierte Inhalte, ohne Mühe");
+        }
+        return page;
+      };
+      return changes;
+    })(),
+  },
+};
+
+/** The unit's recorded changes, open under its provenance. */
+export const RecordedChanges: Story = {
+  name: "Recorded changes",
+  args: {
+    tabID: "storybook",
+    items: QUEUE,
+    scope: { locale: "de-DE" },
+    loadUnit,
+    changes: queueChanges(
+      QUEUE,
+      {},
+      {
+        [JSON.stringify({ doc: "locales/en-US.json", block: "hero.title", edition: "de-DE" })]: [
+          {
+            record: "op-3",
+            before: "r:1111111111111111",
+            after: "r:2222222222222222",
+            actor: { kind: "person", name: "Ingrid" },
+            origin: "desktop",
+            at: "2026-10-02T14:12:00Z",
+          },
+          {
+            record: "op-2",
+            before: "absent",
+            after: "r:1111111111111111",
+            basis: "r:0000000000000000",
+            actor: { kind: "tool", name: "translate" },
+            origin: "flow:up",
+            at: "2026-10-01T09:30:00Z",
+          },
+        ],
+      },
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const toggle = await waitFor(() => {
+      const el = canvasElement.querySelector<HTMLButtonElement>(
+        "[data-slot='review-changes-toggle']",
+      );
+      if (!el) throw new Error("the changes card has not drawn yet");
+      return el;
+    });
+    if (toggle.getAttribute("aria-expanded") !== "true") toggle.click();
   },
 };

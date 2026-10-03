@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	bstore "github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
+	pgstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -57,9 +58,8 @@ func (s *cancellingExtractionStore) CompleteExtractionJob(context.Context, strin
 // enough for the chunk loop to run more than one pass over it.
 func newExtractionCancelFixture(t *testing.T, blocks int) (bstore.ContentStore, string) {
 	t.Helper()
-	cs, err := sqlitestore.NewSQLiteStore(t.TempDir() + "/content.db")
+	cs, err := pgstore.NewPostgresStoreFromDB(pgtest.NewTestDB(t))
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = cs.Close() })
 
 	projectID := "extract-" + id.New()
 	ctx := context.Background()

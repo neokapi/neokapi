@@ -156,6 +156,30 @@ export function AppendChangesetOp(workspaceSlug, changesetID, req) {
 }
 
 /**
+ * ApplyChanges applies a change set (kapi.change/v1, as JSON) to a project's
+ * main stream and returns the result (kapi.change-result/v1, as JSON). It is how
+ * the desktop editor saves a translation, decides on one and annotates a block,
+ * each operation naming the revision of the edition the editor showed.
+ * 
+ * Connected, the server applies the change set and judges every precondition,
+ * and a change set it applied is applied to the local cache too. When the
+ * server is out of reach the change set applies to the cache and queues with
+ * its preconditions (changeSetOp), and the server judges them when the
+ * connection returns. In local mode, with no server, the cache is the project
+ * and judges them itself.
+ * 
+ * The result carries refusals too: a stale refusal names the edition as it now
+ * stands, which the editor shows before it asks whether to apply the edit
+ * again. An error means the change set got no result.
+ * @param {string} projectID
+ * @param {string} $set
+ * @returns {$CancellablePromise<string>}
+ */
+export function ApplyChanges(projectID, $set) {
+    return $Call.ByID(3314855517, projectID, $set);
+}
+
+/**
  * ApproveChangeset records an approving review verdict.
  * @param {string} workspaceSlug
  * @param {string} changesetID
@@ -509,10 +533,9 @@ export function FetchContent(connectorID, projectID) {
  * elements: server-side when connected, from the local working copy offline.
  * 
  * It is what a surface reads after writing a target, instead of rebuilding the
- * block from its own request — the demotion an edit triggers is the store's
- * decision on both paths (applyTargetTextEdit locally, the server's
- * demoteStaleReviewOnEdit remotely), and a second copy of that rule in
- * TypeScript is a copy that can disagree.
+ * block from its own request: the status an edit leaves is the change
+ * service's decision on both paths (change.ApplyBlock), and a second copy of
+ * that rule in TypeScript is a copy that can disagree.
  * @param {string} projectID
  * @param {string} blockID
  * @returns {$CancellablePromise<$models.BlockInfo | null>}
@@ -1602,24 +1625,6 @@ export function RetryConnection() {
 }
 
 /**
- * ReviewBlock marks a block as established or un-reviewed for a
- * target locale. status picks the rung: with reviewed=true it is "" (an
- * approval, landing on established); with reviewed=false it is "" or
- * "translated" for a plain un-review, "draft" for a reviewer rejection (the
- * unit re-enters the work queue).
- * @param {string} projectID
- * @param {string} itemName
- * @param {string} blockID
- * @param {string} targetLocale
- * @param {boolean} reviewed
- * @param {string} status
- * @returns {$CancellablePromise<void>}
- */
-export function ReviewBlock(projectID, itemName, blockID, targetLocale, reviewed, status) {
-    return $Call.ByID(1353546789, projectID, itemName, blockID, targetLocale, reviewed, status);
-}
-
-/**
  * SaveFlowDefinition creates or updates a project flow definition on the server.
  * Built-in flows are immutable; the server rejects writes to them.
  * @param {string} projectID
@@ -1762,28 +1767,6 @@ export function TrialFindings(workspaceSlug, changesetID, projectID, stream) {
  */
 export function TryAutoConnect() {
     return $Call.ByID(1058981368);
-}
-
-/**
- * UpdateBlockTarget updates the target text for a specific block. The local
- * cache is authoritative for block edits, so a successful server write is still
- * reconciled into the cache; an offline or failed write queues the op and
- * updates the cache alone.
- * @param {$models.UpdateBlockRequest} req
- * @returns {$CancellablePromise<void>}
- */
-export function UpdateBlockTarget(req) {
-    return $Call.ByID(3768121167, req);
-}
-
-/**
- * UpdateBlockTargetRuns updates the target for a block using a
- * structured Run sequence.
- * @param {$models.UpdateBlockTargetRunsRequest} req
- * @returns {$CancellablePromise<void>}
- */
-export function UpdateBlockTargetRuns(req) {
-    return $Call.ByID(3903261825, req);
 }
 
 /**

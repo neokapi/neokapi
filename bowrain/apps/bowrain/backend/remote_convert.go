@@ -71,10 +71,11 @@ func editorProjectsToInfos(ps []editorclient.EditorProject) []ProjectInfo {
 
 func editorBlockToInfo(b editorclient.EditorBlock) BlockInfo {
 	info := BlockInfo{
-		ID:           b.ID,
-		SourceRuns:   runsToRunInfos(b.SourceRuns),
-		Translatable: b.Translatable,
-		Properties:   b.Properties,
+		ID:              b.ID,
+		SourceRuns:      runsToRunInfos(b.SourceRuns),
+		Translatable:    b.Translatable,
+		Properties:      b.Properties,
+		TargetRevisions: b.TargetRevisions,
 	}
 	if len(b.Targets) > 0 {
 		info.Targets = make(map[string]BlockTargetInfo, len(b.Targets))
@@ -156,7 +157,7 @@ func editorMemoryResultToSearch(r *editorclient.EditorMemorySearchResult) *Memor
 func editorMemoryMatchesToInfos(ms []editorclient.EditorMemoryMatch) []MemoryMatchInfo {
 	out := make([]MemoryMatchInfo, len(ms))
 	for i, m := range ms {
-		out[i] = MemoryMatchInfo{Source: m.Source, Target: m.Target, Score: m.Score, MatchType: m.MatchType}
+		out[i] = MemoryMatchInfo{Source: m.Source, Target: m.Target, TargetRuns: matchRuns(m.TargetRuns), Score: m.Score, MatchType: m.MatchType}
 	}
 	return out
 }

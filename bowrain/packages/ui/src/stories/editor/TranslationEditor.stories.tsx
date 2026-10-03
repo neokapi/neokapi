@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { fn } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 import { TranslationEditor } from "../../components/TranslationEditor";
-import { sampleProject } from "../fixtures";
-import { withProviders } from "../decorators";
+import { sampleBlocks, sampleProject } from "../fixtures";
+import { createProvidersDecorator, withProviders } from "../decorators";
 
 const meta: Meta<typeof TranslationEditor> = {
   title: "Editor/Core/TranslationEditor",
@@ -38,5 +38,64 @@ export const WithExportHandler: Story = {
     fileName: "messages.json",
     onBack: fn(),
     onExport: fn(),
+  },
+};
+
+/**
+ * Someone saves the first block's French translation while it is open here.
+ * Saving shows their translation beside this one and asks before anything is
+ * written over it.
+ */
+export const SaveMeetsAChangedTranslation: Story = {
+  args: {
+    project: sampleProject,
+    fileName: "messages.json",
+    onBack: fn(),
+  },
+  decorators: [
+    createProvidersDecorator(sampleBlocks, {
+      concurrentEdit: { blockId: "blk-1", locale: "fr-FR", text: "Bienvenue dans Neokapi" },
+    }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await canvas.findByTestId("target-display"));
+    await canvas.findByTestId("unified-target-editor");
+    await userEvent.click(canvas.getByTestId("unified-save"));
+    await expect(await body.findByTestId("stale-change-dialog")).toBeInTheDocument();
+    await expect(body.getByTestId("stale-current")).toHaveTextContent("Bienvenue dans Neokapi");
+  },
+};
+
+/**
+ * The project's checks refuse every save here. Saving shows what they found
+ * and asks whether to go back to the wording or save it anyway.
+ */
+export const SaveMeetsAFailingCheck: Story = {
+  args: {
+    project: sampleProject,
+    fileName: "messages.json",
+    onBack: fn(),
+  },
+  decorators: [
+    createProvidersDecorator(sampleBlocks, {
+      failingCheck: [
+        {
+          rule: "terms.vocabulary",
+          message: 'Use "Neokapi" as written, not "NeoKapi"',
+          fails: true,
+        },
+      ],
+    }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await canvas.findByTestId("target-display"));
+    await canvas.findByTestId("unified-target-editor");
+    await userEvent.click(canvas.getByTestId("unified-save"));
+    await expect(await body.findByTestId("check-findings-dialog")).toBeInTheDocument();
+    await expect(body.getByTestId("check-finding")).toHaveTextContent("Neokapi");
   },
 };

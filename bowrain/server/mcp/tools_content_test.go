@@ -77,36 +77,6 @@ func TestHandleUpdateProject(t *testing.T) {
 	assert.Equal(t, []string{"ja-JP"}, out.TargetLanguages)
 }
 
-func TestHandleUpdateBlock(t *testing.T) {
-	ms := newTestMCPServerWithContent(t)
-	ctx := t.Context()
-
-	// Create a project and block.
-	p := &store.Project{
-		Name:                  "Test",
-		DefaultSourceLanguage: model.LocaleEnglish,
-	}
-	require.NoError(t, ms.contentStore.CreateProject(ctx, p))
-	b := model.NewBlock("b1", "Hello")
-	require.NoError(t, ms.contentStore.StoreBlocks(ctx, p.ID, "main", []*model.Block{b}))
-
-	// Update block's target.
-	_, out, err := ms.handleUpdateBlock(ctx, nil, updateBlockInput{
-		ProjectID:    p.ID,
-		BlockID:      "b1",
-		TargetLocale: "fr-FR",
-		TargetText:   "Bonjour",
-	})
-	require.NoError(t, err)
-	assert.True(t, out.Updated)
-	assert.Equal(t, "fr-FR", out.TargetLocale)
-
-	// Verify persistence.
-	sb, err := ms.contentStore.GetBlock(ctx, p.ID, "main", "b1")
-	require.NoError(t, err)
-	assert.Equal(t, "Bonjour", sb.Block.TargetText(model.LocaleID("fr-FR")))
-}
-
 func TestHandleSandboxExecuteScript(t *testing.T) {
 	bs := &memVoiceStore{}
 	_ = bs.CreateProfile(t.Context(), &coreprofile.VoiceProfile{ID: "p1"})

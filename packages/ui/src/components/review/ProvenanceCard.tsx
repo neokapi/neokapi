@@ -19,6 +19,8 @@ export function originLabel(kind: string | undefined): string | undefined {
   switch (kind) {
     case "human":
       return t("Written by a person");
+    case "agent":
+      return t("Written by an agent");
     case "memory":
       return t("Recycled from content memory");
     case "mt":

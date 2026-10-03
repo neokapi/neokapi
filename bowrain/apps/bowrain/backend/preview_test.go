@@ -114,15 +114,7 @@ func TestRenderBlockHTML_WithTarget(t *testing.T) {
 
 	blockID := blocks[0].ID
 
-	// Set a target translation
-	err = app.UpdateBlockTarget(UpdateBlockRequest{
-		ProjectID:    info.ID,
-		ItemName:     "hello.txt",
-		BlockID:      blockID,
-		TargetLocale: "fr",
-		Text:         "Bonjour le monde",
-	})
-	require.NoError(t, err)
+	saveTarget(t, app, info.ID, "hello.txt", blockID, "fr", "Bonjour le monde")
 
 	// With target locale -> returns target
 	html, err := app.RenderBlockHTML(info.ID, "hello.txt", blockID, "fr")

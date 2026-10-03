@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	voicepg "github.com/neokapi/neokapi/bowrain/voice"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
@@ -48,10 +50,14 @@ func TestCrossTenantProjectIDOR(t *testing.T) {
 	ctx := t.Context()
 	// Victim project lives in the FIRST workspace (test-ws).
 	require.NoError(t, s.ContentStore.CreateProject(ctx, &platstore.Project{
-		ID: "victim-proj", Name: "Victim", DefaultSourceLanguage: "en", WorkspaceID: "test-ws",
+		ID: "victim-proj", Name: "Victim", DefaultSourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}, WorkspaceID: "test-ws",
 	}))
-	blk := model.NewBlock("vb", "secret")
-	require.NoError(t, s.ContentStore.StoreBlocks(ctx, "victim-proj", "main", []*model.Block{blk}))
+	storeItemBlock(t, s.ContentStore, "victim-proj", "en.json", model.NewBlock("vb", "secret"))
+	translate := func(text string) string {
+		body, err := json.Marshal(change.Set{Ops: []change.Op{setText(at("en.json", "vb", "fr"), change.AnyRevision, text)}})
+		require.NoError(t, err)
+		return string(body)
+	}
 
 	t.Run("read via foreign workspace slug is 404", func(t *testing.T) {
 		// Attacker is owner of attacker-ws, addresses the victim project through it.
@@ -61,8 +67,8 @@ func TestCrossTenantProjectIDOR(t *testing.T) {
 	})
 
 	t.Run("write via foreign workspace slug is 404", func(t *testing.T) {
-		code := do(t, s, http.MethodPut, "/api/v1/attacker/victim-proj/blocks/main/vb", attackerToken,
-			`{"target_locale":"fr","text":"pwned"}`)
+		code := do(t, s, http.MethodPost, "/api/v1/attacker/projects/victim-proj/streams/main/changes", attackerToken,
+			translate("pwned"))
 		assert.Equal(t, http.StatusNotFound, code,
 			"cross-tenant project write must be denied (fail-closed 404)")
 	})
@@ -87,8 +93,8 @@ func TestCrossTenantProjectIDOR(t *testing.T) {
 	})
 
 	t.Run("legitimate owner write succeeds", func(t *testing.T) {
-		code := do(t, s, http.MethodPut, "/api/v1/test/victim-proj/blocks/main/vb", ownerToken,
-			`{"target_locale":"fr","text":"bonjour"}`)
+		code := do(t, s, http.MethodPost, "/api/v1/test/projects/victim-proj/streams/main/changes", ownerToken,
+			translate("bonjour"))
 		assert.Less(t, code, 300, "the project's own workspace owner must still write it")
 	})
 }

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -232,14 +233,18 @@ func (s *Server) checksAtPoint(ctx context.Context, projectID, stream, itemName,
 	}
 	rc := coreprofile.ResolveContext{Locale: locale, ProjectProperties: proj.Properties}
 	if stream != "" {
+		// A project's main stream need not have a row of its own; a stream
+		// with no row carries no properties.
 		st, err := s.ContentStore.GetStream(ctx, projectID, stream)
-		if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows) && stream == "main":
+		case err != nil:
 			return checks, fmt.Errorf("check stream: %w", err)
-		}
-		if st == nil {
+		case st == nil:
 			return checks, errors.New("check stream is unavailable")
+		default:
+			rc.StreamProperties = st.Properties
 		}
-		rc.StreamProperties = st.Properties
 	}
 	if itemName != "" {
 		item, err := s.ContentStore.GetItem(ctx, projectID, stream, itemName)
@@ -291,6 +296,23 @@ func (s *Server) checksAtPoint(ctx context.Context, projectID, stream, itemName,
 // dashboard passes: they judge a whole project a block at a time and resolve no
 // point of their own.
 func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointChecks) ([]CheckIssueResponse, error) {
+	standard, err := standardFindings(ctx, block, checks)
+	if err != nil {
+		return nil, err
+	}
+	issues := checkIssuesFromFindings(standard)
+	voice, err := voiceFindings(ctx, block, checks)
+	if err != nil {
+		return nil, err
+	}
+	return append(issues, checkIssuesFromFindings(voice)...), nil
+}
+
+// standardFindings runs the standard per-locale checks on a scratch copy of
+// block: the rule check with placeholder integrity, and the protected terms
+// when the project declares any. They judge the target for checks'
+// TargetLocale against the block's source.
+func standardFindings(ctx context.Context, block *model.Block, checks pointChecks) ([]check.Finding, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -331,23 +353,35 @@ func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointCheck
 		}
 	}
 
-	issues := checkIssuesFromFindings(check.Findings(tool.NewBlockViewWithContext(ctx, &scratch)))
+	return check.Findings(tool.NewBlockViewWithContext(ctx, &scratch)), nil
+}
 
-	// The vocabulary governing this point: the profile's own rules and the
-	// workspace's retired, forbidden and competitor terms, located in the
-	// source. It reports on its own annotation rather than the unified surface,
-	// so it is read separately.
-	if checks.Voice != nil {
-		vocab := tools.NewVoiceVocabCheckTool(checks.Voice, checks.Terms).InSourceLocale(checks.SourceLocale)
-		if _, err := vocab.ApplyContext(ctx, part); err != nil {
-			return nil, fmt.Errorf("voice rules check: %w", err)
-		}
-		if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](&scratch, "voice"); ok {
-			issues = append(issues, checkIssuesFromFindings(ann.Findings)...)
-		}
+// voiceFindings runs the vocabulary governing the point on a scratch copy of
+// block: the profile's own rules and the workspace's retired, forbidden and
+// competitor terms, located in the source. It reports on its own annotation
+// rather than the unified surface, so it is read separately. With no voice
+// bound at the point it finds nothing.
+func voiceFindings(ctx context.Context, block *model.Block, checks pointChecks) ([]check.Finding, error) {
+	if checks.Voice == nil {
+		return nil, nil
 	}
-
-	return issues, nil
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if block == nil {
+		return nil, errors.New("check block is unavailable")
+	}
+	scratch := *block
+	scratch.Annotations = nil
+	part := &model.Part{Type: model.PartBlock, Resource: &scratch}
+	vocab := tools.NewVoiceVocabCheckTool(checks.Voice, checks.Terms).InSourceLocale(checks.SourceLocale)
+	if _, err := vocab.ApplyContext(ctx, part); err != nil {
+		return nil, fmt.Errorf("voice rules check: %w", err)
+	}
+	if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](&scratch, "voice"); ok {
+		return ann.Findings, nil
+	}
+	return nil, nil
 }
 
 // checkIssuesFromFindings maps core/check.Finding onto the CheckIssueResponse wire shape.

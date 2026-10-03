@@ -10,7 +10,9 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // Baseline is version 2 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 3.
+// repaired. Retired numbers are never reused; later versions follow it.
+//
+//	3  tool policies name apply_edits where they named update_block
 var Migrations = []storage.Migration{
 	{
 		Version:     2,
@@ -74,6 +76,33 @@ var Migrations = []storage.Migration{
 				created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 			CREATE INDEX IF NOT EXISTS idx_agent_usage_ws_created ON agent_usage(workspace_id, created_at);
+		`,
+	},
+	{
+		Version:     3,
+		Description: "tool policies name apply_edits where they named update_block",
+		// The agent writes content with apply_edits, after reading it with
+		// read_blocks. A policy matches tools by name, so a denial or an
+		// approval that named update_block moves to apply_edits, and an allow
+		// list that admitted it admits the edit tools.
+		SQL: `
+			UPDATE agent_config SET denied_tools = (
+				SELECT COALESCE(jsonb_agg(DISTINCT CASE WHEN t = 'update_block' THEN 'apply_edits' ELSE t END), '[]'::jsonb)
+				FROM jsonb_array_elements_text(denied_tools) AS t)
+			WHERE denied_tools @> '["update_block"]'::jsonb;
+
+			UPDATE agent_config SET require_approval = (
+				SELECT COALESCE(jsonb_agg(DISTINCT CASE WHEN t = 'update_block' THEN 'apply_edits' ELSE t END), '[]'::jsonb)
+				FROM jsonb_array_elements_text(require_approval) AS t)
+			WHERE require_approval @> '["update_block"]'::jsonb;
+
+			UPDATE agent_config SET allowed_tools = (
+				SELECT COALESCE(jsonb_agg(DISTINCT t), '[]'::jsonb) FROM (
+					SELECT CASE WHEN e = 'update_block' THEN 'apply_edits' ELSE e END AS t
+					FROM jsonb_array_elements_text(allowed_tools) AS e
+					UNION ALL SELECT 'read_blocks'
+					UNION ALL SELECT 'describe_format') AS tools)
+			WHERE allowed_tools @> '["update_block"]'::jsonb;
 		`,
 	},
 }

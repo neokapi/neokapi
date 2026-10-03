@@ -324,6 +324,42 @@ features:
     native_refs:
       - xliff2.TestReadXLIFF2Notes
 
+  - id: unit_metadata
+    name: Unit metadata surfaces as Block properties
+    description: |
+      The Metadata module's `<mda:metadata>` inside a unit is read as one
+      Block property per `<mda:meta>`, keyed `mda:<category>:<type>` by
+      the enclosing `<mda:metaGroup category>`, and a unit written from
+      the content model carries those properties back as its metadata.
+      kapi extract records the revisions a returned unit is merged
+      against this way (category `kapi`, types `if-match` and `basis`).
+    spec_refs:
+      - "XLIFF 2.1 §5.8 Metadata Module"
+    examples:
+      - name: kapi_revisions
+        origin: "authored: unit with an mda:metaGroup carrying kapi revisions"
+        input_xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" xmlns:mda="urn:oasis:names:tc:xliff:metadata:2.0" version="2.0" srcLang="en" trgLang="fr">
+            <file id="f1">
+              <unit id="u1">
+                <mda:metadata>
+                  <mda:metaGroup category="kapi">
+                    <mda:meta type="if-match">absent</mda:meta>
+                    <mda:meta type="basis">r:0123456789abcdef</mda:meta>
+                  </mda:metaGroup>
+                </mda:metadata>
+                <segment id="s1"><source>Welcome</source></segment>
+              </unit>
+            </file>
+          </xliff>
+        block_count: 1
+        first_block_text: "Welcome"
+    native_refs:
+      - xliff2.TestUnitMetadata_ReadIntoBlockProperties
+      - xliff2.TestUnitMetadata_WrittenFromBlockProperties
+      - xliff2.TestUnitMetadata_SurvivesASkeletonRoundTrip
+
   - id: segment_state
     name: Segment state attribute carried on Block
     description: |

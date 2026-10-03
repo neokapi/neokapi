@@ -834,6 +834,14 @@ block holds in that language, and is refused when the block holds none, so it
 never replaces the source. A write the applier refuses is the handler's error. The contract the operations follow is
 in [the change applier note](../../implementation/engine/change-applier.md).
 
+What a run's tools leave in each block reaches a file through the format
+writer and the file home a change set commits through
+([E-01](e-01-processing-engine.md#the-write-stage)), and inside a project the
+kapi host records each document the run wrote as the flow's `content.edit`
+([E-09](e-09-the-change-contract.md#flows)): the revisions of the editions the
+run moved, each translation's basis, and the stamp the producing tool left,
+which a file of strings has nowhere to keep.
+
 A tool that genuinely needs
 the maximal surface (`script`, which runs arbitrary JavaScript) overrides
 `Process` instead and self-gates source mutation behind its own flag.

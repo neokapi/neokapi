@@ -10,6 +10,7 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -94,22 +95,22 @@ func TestShipGateEvents_PushEditAndReviewAnnounceWithNoRead(t *testing.T) {
 	}
 	require.Len(t, ids, 2)
 
+	editor := changeCaller{user: "test-user", perms: platauth.PermAll, ws: "test-ws"}
 	for _, source := range []string{"Hello", "Goodbye"} {
-		rec := writeBlockAs(t, srv.HandleUpdateBlockTarget, pid, ids[source], "", `{"target_locale":"nb","text":"Hei"}`)
-		require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
+		rec, _ := sendChanges(t, srv, pid, editor, change.Set{Ops: []change.Op{
+			setText(at("en.json", ids[source], "nb"), model.AbsentRevision, "Hei")}})
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	}
 	assert.Equal(t, []string{"quality.gate.pass translated nb actual=2 required=2 not_checked=false"}, gateLines(events.drain(t, srv)),
 		"the edit that completes coverage clears the gate")
 
-	reject := `{"target_locale":"nb","reviewed":false,"status":"draft","item_name":"en.json"}`
-	rec, err := callReviewBlockBodyAs(t, srv, pid, ids["Hello"], reject, platauth.PermAll)
-	require.NoError(t, err)
+	reject := `{"target_locale":"nb","reviewed":false,"status":"draft"}`
+	rec := decideFromBody(t, srv, pid, ids["Hello"], reject, editor)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Equal(t, []string{"quality.gate.fail rejected nb actual=1 required=0 not_checked=false"}, gateLines(events.drain(t, srv)),
 		"a rejection waiting for a new draft withholds the language and announces the rejected gate")
 
-	rec, err = callReviewBlockBodyAs(t, srv, pid, ids["Hello"], reject, platauth.PermAll)
-	require.NoError(t, err)
+	rec = decideFromBody(t, srv, pid, ids["Hello"], reject, editor)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Empty(t, gateLines(events.drain(t, srv)), "a decision that changes no gate announces nothing")
 }

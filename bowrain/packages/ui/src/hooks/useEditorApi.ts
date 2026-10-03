@@ -10,9 +10,6 @@ import type {
   BulkApplyMemoryResult,
   BulkReviewBlocksRequest,
   BulkReviewBlocksResult,
-  ReviewRung,
-  UpdateBlockRequest,
-  UpdateBlockTargetCodedRequest,
   AITranslateFileRequest,
   TranslationStats,
   WordCountResult,
@@ -27,6 +24,7 @@ import type {
   PendingReviewOptions,
   PendingReviewPage,
 } from "../types/api";
+import type { ChangeResult, ContentChangeSet } from "../api/contentChanges";
 
 export function useEditorApi() {
   const api = useApi();
@@ -91,18 +89,14 @@ export function useEditorApi() {
     [api, ws, activeStream],
   );
 
-  const updateBlockTarget = useCallback(
-    async (req: UpdateBlockRequest): Promise<void> =>
-      api.updateBlockTarget(ws, { ...req, stream: req.stream || activeStream }),
-    [api, ws, activeStream],
-  );
-
-  const updateBlockTargetCoded = useCallback(
-    async (req: UpdateBlockTargetCodedRequest): Promise<void> =>
-      api.updateBlockTargetCoded(ws, {
-        ...req,
-        stream: req.stream || activeStream,
-      }),
+  /**
+   * Apply a change set to the active stream: a saved translation, a review
+   * decision, a note, an entity mark (see `api/contentChanges`). Resolves with
+   * the result whether the change set landed or was refused.
+   */
+  const applyChanges = useCallback(
+    async (projectId: string, set: ContentChangeSet): Promise<ChangeResult> =>
+      api.applyChanges(ws, projectId, set, activeStream),
     [api, ws, activeStream],
   );
 
@@ -185,35 +179,10 @@ export function useEditorApi() {
     [api, ws, activeStream],
   );
 
-  const reviewBlock = useCallback(
-    async (
-      projectId: string,
-      itemName: string,
-      blockId: string,
-      targetLocale: string,
-      reviewed: boolean,
-      rung?: ReviewRung,
-    ): Promise<void> =>
-      api.reviewBlock(ws, projectId, itemName, blockId, targetLocale, reviewed, activeStream, rung),
-    [api, ws, activeStream],
-  );
-
-  const addBlockNote = useCallback(
-    async (projectId: string, blockId: string, text: string): Promise<BlockNote> =>
-      api.addBlockNote(ws, projectId, blockId, text),
-    [api, ws],
-  );
-
   const listBlockNotes = useCallback(
     async (projectId: string, blockId: string): Promise<BlockNote[]> =>
-      api.listBlockNotes(ws, projectId, blockId),
-    [api, ws],
-  );
-
-  const deleteBlockNote = useCallback(
-    async (projectId: string, noteId: string): Promise<void> =>
-      api.deleteBlockNote(ws, projectId, noteId),
-    [api, ws],
+      api.listBlockNotes(ws, projectId, blockId, activeStream),
+    [api, ws, activeStream],
   );
 
   const runCheck = useCallback(
@@ -277,8 +246,7 @@ export function useEditorApi() {
       bulkReviewBlocks,
       bulkApplyMemory,
       getPendingReview,
-      updateBlockTarget,
-      updateBlockTargetCoded,
+      applyChanges,
       aiTranslateFile,
       memoryTranslateFile,
       getWordCount,
@@ -288,11 +256,8 @@ export function useEditorApi() {
       getReviewContext,
       getBlockHistory,
       rollbackBlock,
-      reviewBlock,
       approvePassing,
-      addBlockNote,
       listBlockNotes,
-      deleteBlockNote,
       runCheck,
       runFileCheck,
       renderDocumentPreview,
@@ -309,8 +274,7 @@ export function useEditorApi() {
       bulkReviewBlocks,
       bulkApplyMemory,
       getPendingReview,
-      updateBlockTarget,
-      updateBlockTargetCoded,
+      applyChanges,
       aiTranslateFile,
       memoryTranslateFile,
       getWordCount,
@@ -320,11 +284,8 @@ export function useEditorApi() {
       getReviewContext,
       getBlockHistory,
       rollbackBlock,
-      reviewBlock,
       approvePassing,
-      addBlockNote,
       listBlockNotes,
-      deleteBlockNote,
       runCheck,
       runFileCheck,
       renderDocumentPreview,

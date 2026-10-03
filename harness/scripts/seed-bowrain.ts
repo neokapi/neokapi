@@ -165,6 +165,36 @@ async function jput<T>(p: string, body: unknown, token: string): Promise<T> {
   return (text ? JSON.parse(text) : {}) as T;
 }
 
+/**
+ * Send a change set (kapi.change/v1) to the project's main stream, as the
+ * editor saves: each operation names the revision of the translation it read.
+ * The seed writes with `gate: "report"`, so governance findings land with the
+ * wording rather than refusing it; any refusal fails the seed with the
+ * server's reason.
+ */
+async function applyChanges(
+  ws: string,
+  pid: string,
+  ops: unknown[],
+  token: string,
+): Promise<void> {
+  const p = `/${ws}/projects/${pid}/streams/main/changes`;
+  const r = await fetch(`${API}${p}`, {
+    method: "POST",
+    headers: authJSON(token),
+    body: JSON.stringify({ schema: "kapi.change/v1", gate: "report", ops }),
+  });
+  const res = (await r.json().catch(() => ({}))) as {
+    status?: string;
+    error?: { message?: string };
+    ops?: { status?: string; error?: { message?: string } }[];
+  };
+  if (!r.ok || res.status === "refused") {
+    const why = res.error?.message ?? res.ops?.find((o) => o.status === "refused")?.error?.message;
+    throw new Error(`POST ${p} → ${r.status}: ${why ?? "refused"}`);
+  }
+}
+
 async function jdelete(p: string, token: string): Promise<void> {
   const r = await fetch(`${API}${p}`, {
     method: "DELETE",
@@ -450,6 +480,7 @@ interface Block {
   id: string;
   translatable?: boolean;
   source?: string;
+  target_revisions?: Record<string, string>;
 }
 
 /**
@@ -516,15 +547,20 @@ async function ensureReviewGovernance(
         `(${translatable.length} translatable blocks)`,
     );
   }
-  // Bob's PUT is the newest target_modified row for that block and locale, so
+  // Bob's save is the newest target_modified row for that block and locale, so
   // LastTargetAuthors answers with Bob for it and with Alice for the rest.
-  await jput(
-    `/${ws}/${projectId}/blocks/main/${peerBlockId}`,
-    {
-      item_name: FILE_NAME,
-      target_locale: COLLAB_LOCALE,
-      text: PEER_BLOCK_TARGET,
-    },
+  const peer = translatable.find((b) => b.id === peerBlockId);
+  await applyChanges(
+    ws,
+    projectId,
+    [
+      {
+        op: "set_content",
+        at: { doc: FILE_NAME, block: peerBlockId, edition: COLLAB_LOCALE },
+        if_match: peer?.target_revisions?.[COLLAB_LOCALE] ?? "absent",
+        text: PEER_BLOCK_TARGET,
+      },
+    ],
     bobToken,
   );
   console.log(`  · ${BOB.email} wrote block ${peerBlockId} (${COLLAB_LOCALE})`);
@@ -581,9 +617,9 @@ async function settleSourceWithRun(ws: string, pid: string, token: string): Prom
  * work to start whether or not the last take's run already did it.
  *
  * The seed runs immediately before every recording, and the take it precedes
- * translates this locale on camera. Writing an empty target is what the editor
- * does when somebody discards a translation, and a block with no target text is
- * pending again (jobs/decision_basis.go `needsDraft`).
+ * translates this locale on camera. Removing a translation is one change set of
+ * remove_edition operations, each on the revision the seed read, and a block
+ * with no target is pending again (jobs/decision_basis.go `needsDraft`).
  */
 async function clearPendingLocale(ws: string, pid: string, token: string): Promise<number> {
   const blocks = listOf<EditorBlock>(
@@ -593,15 +629,16 @@ async function clearPendingLocale(ws: string, pid: string, token: string): Promi
     ),
     "blocks",
   );
-  const ids = targetsToClear(blocks, PENDING_LOCALE);
-  for (const id of ids) {
-    await jput(
-      `/${ws}/${pid}/blocks/main/${id}`,
-      { item_name: FILE_NAME, target_locale: PENDING_LOCALE, text: "" },
-      token,
-    );
-  }
-  return ids.length;
+  const ids = new Set(targetsToClear(blocks, PENDING_LOCALE));
+  const ops = blocks
+    .filter((b) => ids.has(b.id))
+    .map((b) => ({
+      op: "remove_edition",
+      at: { doc: FILE_NAME, block: b.id, edition: PENDING_LOCALE },
+      if_match: b.target_revisions?.[PENDING_LOCALE] ?? "*",
+    }));
+  if (ops.length > 0) await applyChanges(ws, pid, ops, token);
+  return ops.length;
 }
 
 /**

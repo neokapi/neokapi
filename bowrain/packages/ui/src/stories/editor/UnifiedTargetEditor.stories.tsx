@@ -188,6 +188,49 @@ export const PluralWithInlineCodes: Story = {
   ),
 };
 
+/** A message that is one plural (ARB, ICU), as the server serves it: runs, the variable in each form. */
+function makePluralMessageBlock(translated: boolean): BlockInfo {
+  const n = { ph: { id: "n", type: "code:variable", data: "#", equiv: "#" } };
+  return {
+    id: "blk-plural-message",
+    source: " messages",
+    source_runs: [
+      {
+        plural: {
+          pivot: "count",
+          forms: { one: [n, { text: " message" }], other: [n, { text: " messages" }] },
+        },
+      },
+    ],
+    has_spans: true,
+    targets: translated ? { de: { text: " Nachrichten", status: "translated" } } : {},
+    targets_runs: translated
+      ? {
+          de: [
+            {
+              plural: {
+                pivot: "count",
+                forms: { one: [n, { text: " Nachricht" }], other: [n, { text: " Nachrichten" }] },
+              },
+            },
+          ],
+        }
+      : {},
+    translatable: true,
+    properties: {},
+  };
+}
+
+export const PluralTranslationReadBack: Story = {
+  name: "Plural translation read back as runs — opens on its forms",
+  render: () => <Wrapper block={makePluralMessageBlock(true)} />,
+};
+
+export const UntranslatedPluralMessage: Story = {
+  name: "Untranslated plural message — opens in plural mode on the source pivot",
+  render: () => <Wrapper block={makePluralMessageBlock(false)} />,
+};
+
 export const EmptyFlatThenUpgrade: Story = {
   name: "Empty target — author flat, then upgrade",
   render: () => <Wrapper block={makeMessagesBlock({})} />,

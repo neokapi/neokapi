@@ -327,7 +327,7 @@ func (a *App) AssembleReviewContext(ctx context.Context, req ReviewContextReques
 		Neighbourhood: review.NeighbourhoodOf(req.Blocks, idx, req.Window, loc),
 		History:       a.reviewHistory(ctx, req, block, loc),
 		Judgement:     reviewJudgement(ctx, entry, block, req.SourceLang, loc, req.Unit),
-		Provenance:    review.ProvenanceOf(block, loc, req.Unit),
+		Provenance:    a.recordedProvenance(ctx, req, block, loc, review.ProvenanceOf(block, loc, req.Unit)),
 	}
 }
 

@@ -9,13 +9,14 @@
 // holder releases it.
 //
 // The lock is advisory and same-machine. It orders the processes that take
-// it, and nothing else: an editor saving the same file never asks. A platform
-// with no implementation (the browser build, which runs one process) gets a
-// nil Lock, on which every method does nothing.
+// it, and nothing else: an editor saving the same file never asks.
 //
 // The kernel lock belongs to an open file description, so two Locks on one
 // path exclude each other even inside one process. One Lock shared by several
-// goroutines is ordered by its own mutex.
+// goroutines is ordered by its own mutex. A platform with no lock between
+// processes (the browser build, which runs one process) keeps the part that
+// holds within one: the Locks on one path take one mutex of the process, so
+// two goroutines writing one file still take turns (Supported is false there).
 package filelock
 
 import (
@@ -34,16 +35,12 @@ type Lock struct {
 }
 
 // Open opens the lock file at path, creating it if absent, and returns a Lock
-// on it, not yet held. On a platform with no advisory lock it returns nil and
-// no error.
+// on it, not yet held.
 //
 // A lock file that cannot be created is reported: a caller that asked for
 // cross-process ordering and silently did not get it would be told the order
 // holds when it does not.
 func Open(path string) (*Lock, error) {
-	if !Supported {
-		return nil, nil
-	}
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o666)
 	if err != nil {
 		return nil, fmt.Errorf("open the lock file %s: %w", path, err)
@@ -103,5 +100,6 @@ func (l *Lock) Close() error {
 	}
 	f := l.file
 	l.file = nil
+	releaseOnClose(f)
 	return f.Close()
 }

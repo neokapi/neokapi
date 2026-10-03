@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   Check,
@@ -10,7 +10,6 @@ import {
   PauseCircle,
   RefreshCw,
   Sparkles,
-  Undo2,
   X,
 } from "lucide-react";
 import {
@@ -44,7 +43,22 @@ import { useError } from "./ErrorBanner";
 import { AIExchangeDisclosure } from "./AIExchangeView";
 import { FilePreview } from "./FilePreview";
 import { SourceUnitPane } from "./review/SourceUnitPane";
+import { ChangesCard } from "./edit/ChangesCard";
+import { EditionEditPanel } from "./edit/EditionEditPanel";
+import { EditTextDisplay } from "./edit/EditTextDisplay";
+import { StalePrompt } from "./edit/StalePrompt";
+import { useChangeSender } from "./edit/useChangeSender";
 import { useActiveFilter } from "../context/ActiveFilterContext";
+import {
+  type ChangeClient,
+  decideOp,
+  editionContent,
+  readBlock,
+  refusalMessage,
+  setContentOps,
+  tabChanges,
+} from "../lib/changes";
+import type { BlockRead, ChangeResult, EditionHistory } from "@neokapi/contract-types";
 import type {
   CheckWarning,
   PreReviewResult,
@@ -81,15 +95,12 @@ export interface ReviewPageProps {
   warnings?: CheckWarning[];
   /** Override the unit loader (Storybook/tests); defaults to api.getReviewUnit. */
   loadUnit?: (item: ReviewItem) => Promise<ReviewUnitDetail | null>;
-  /** Override the decision recorder (Storybook/tests); defaults to the Wails calls. */
-  onDecide?: (item: ReviewItem, decision: ReviewDecision, note?: string) => Promise<void>;
-  /** Override the target-save handler (Storybook/tests); defaults to api.updateReviewTarget. */
-  onSaveTarget?: (item: ReviewItem, text: string) => Promise<void>;
-  /** Override the source approve handler (Storybook/tests); defaults to api.approveSourceUnit. */
-  onApproveSource?: (item: ReviewItem) => Promise<void>;
-  /** Override the source-save handler (Storybook/tests); defaults to
-   *  api.updateSourceText. Resolves to the locales the next run will re-draft. */
-  onSaveSource?: (item: ReviewItem, text: string) => Promise<string[]>;
+  /**
+   * The change service the page reads each unit from and sends every edit and
+   * decision to, as change sets (Storybook/tests pass an in-memory one);
+   * defaults to the tab's.
+   */
+  changes?: ChangeClient;
   /** Override the source review-model loader (Storybook/tests); defaults to
    *  api.getSourceUnitContext. */
   loadSourceContext?: (item: ReviewItem) => Promise<ReviewContext | null>;
@@ -173,6 +184,25 @@ function orderItems(items: ReviewItem[]): ReviewItem[] {
 }
 
 /**
+ * Whether a unit's text is still what its queue row lists. A row shows the
+ * text with its whitespace collapsed and, past a length, cut short with an
+ * ellipsis, so a long text is still listed when it begins with what the row
+ * shows.
+ */
+function stillListed(text: string, listed: string | undefined): boolean {
+  if (listed === undefined) return false;
+  const collapse = (s: string) => s.split(/\s+/).filter(Boolean).join(" ");
+  const now = collapse(text);
+  const row = collapse(listed);
+  if (now === row) return true;
+  if (!row.endsWith("…")) return false;
+  // The row is cut by bytes, which can split a character; what is left of it
+  // reads as a replacement character.
+  const head = row.slice(0, -1).replace(/\uFFFD+$/, "");
+  return head.length > 0 && now.startsWith(head);
+}
+
+/**
  * The review surface: one queue, one language selector.
  *
  * A project has work in several languages, the source language among them, and
@@ -188,15 +218,18 @@ function orderItems(items: ReviewItem[]): ReviewItem[] {
  * center, and the five layers of the review model below, each headed by its own
  * verdict. A target row shows its source read-only with its translation
  * editable; a source row shows the author's wording editable, in SourceUnitPane.
- * A target decision (a approve / r reject) records through
- * host.ApplyReviewDecision, hash-bound to the text it judged; editing the
- * translation re-runs the unit's checks and re-bases the next approval on the
- * new text. A source unit has one decision, approve, so `a` is the only
- * decision key a source row answers.
+ * Every edit and decision is a change set sent to the change service with the
+ * revision the page read for the unit: an edit is a set_content (formatted text
+ * in the inline-code editor, a plural a form at a time), and a decision (a
+ * approve / r reject) is a decide bound to the text it judged. When the text
+ * changed since the page read it, nothing is written: the page shows the text
+ * as it stands and asks before applying the change over it. A source unit has
+ * one decision, approve, so `a` is the only decision key a source row answers.
+ * The unit's recorded changes are listed under its provenance.
  *
  * The AI paths are explicit clicks: per-unit actions (Fix with AI, Retranslate,
- * Explain) yield a proposal diff that Accept routes through the same save path
- * as a manual edit, and the pre-review modal annotates by default (an optional
+ * Explain) yield a proposal diff that Accept sends as the same set_content a
+ * manual edit sends, and the pre-review modal annotates by default (an optional
  * auto-approve is recorded as ai/<model>, which human-required gates ignore).
  * Listing or loading the queue calls no provider.
  */
@@ -207,10 +240,7 @@ export function ReviewPage({
   languages: propLanguages,
   warnings: propWarnings,
   loadUnit,
-  onDecide,
-  onSaveTarget,
-  onApproveSource,
-  onSaveSource,
+  changes,
   loadSourceContext,
   onAIAction,
   onPreReview,
@@ -233,8 +263,16 @@ export function ReviewPage({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [unit, setUnit] = useState<ReviewUnitDetail | null>(null);
   const [unitLoading, setUnitLoading] = useState(false);
-  const [editText, setEditText] = useState("");
-  const [saving, setSaving] = useState(false);
+  // The selected unit as the change service reads it: the reference and the
+  // revision every edit and decision on it names, and its content with codes.
+  const client = useMemo(() => changes ?? tabChanges(tabID), [changes, tabID]);
+  const [read, setRead] = useState<BlockRead | null>(null);
+  const [readError, setReadError] = useState<string | null>(null);
+  const [history, setHistory] = useState<EditionHistory | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  // The last edit that landed, for the source pane's "re-drafted on the next
+  // run" line.
+  const [lastSaved, setLastSaved] = useState<ChangeResult | null>(null);
   const [deciding, setDeciding] = useState(false);
   const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
   // Per-unit AI actions (phase 3): a running action, the proposed replacement
@@ -253,7 +291,7 @@ export function ReviewPage({
   // can drive.
   const [askText, setAskText] = useState<AskPrompt | null>(null);
   const [askValue, setAskValue] = useState("");
-  const [aiProposal, setAIProposal] = useState<string | null>(null);
+  const [aiProposal, setAIProposal] = useState<{ text: string; edit?: string } | null>(null);
   const [aiExplanation, setAIExplanation] = useState<string | null>(null);
   // The calls the last AI action made. Held beside its result so the disclosure
   // under a proposal shows the prompt that produced THAT proposal.
@@ -268,7 +306,6 @@ export function ReviewPage({
   // and closing it returns to the queue with this unit still selected and the
   // list where it was.
   const [documentOpen, setDocumentOpen] = useState(false);
-  const editRef = useRef<HTMLTextAreaElement>(null);
 
   const refreshQueue = useCallback(async () => {
     if (propItems) {
@@ -355,11 +392,9 @@ export function ReviewPage({
     // model from GetSourceUnitContext.
     if (!selected || selected.isSource) {
       setUnit(null);
-      setEditText("");
       return;
     }
     setUnit(null);
-    setEditText(selected.target ?? "");
     let cancelled = false;
     setUnitLoading(true);
     const load =
@@ -368,7 +403,6 @@ export function ReviewPage({
       .then((d) => {
         if (cancelled) return;
         setUnit(d ?? null);
-        setEditText(d?.target ?? "");
       })
       .catch((err) => {
         if (!cancelled) showError("Failed to load the review unit", err);
@@ -381,6 +415,103 @@ export function ReviewPage({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, tabID, loadUnit]);
+
+  // Read the selected unit through the change service. A target row's file is
+  // the translation's own file, whose read names that edition; a source row's
+  // is the source. The read and the history it names are what an edit or a
+  // decision binds to.
+  const loadRead = useCallback(
+    (item: ReviewItem) => readBlock(client, item.file, item.key),
+    [client],
+  );
+  useEffect(() => {
+    setRead(null);
+    setReadError(null);
+    setLastSaved(null);
+    if (!selected) return;
+    let cancelled = false;
+    loadRead(selected)
+      .then((r) => {
+        if (!cancelled) setRead(r);
+      })
+      .catch((err) => {
+        if (!cancelled) setReadError(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, loadRead]);
+
+  const readRef = read?.ref;
+  const readRev = read?.rev;
+  useEffect(() => {
+    setHistory(null);
+    if (!readRef) return;
+    let cancelled = false;
+    setHistoryLoading(true);
+    client
+      .history({ ref: readRef })
+      .then((h) => {
+        if (!cancelled) setHistory(h);
+      })
+      .catch(() => {
+        // The history is context beside the decision; failing to read it
+        // leaves the unit reviewable.
+        if (!cancelled) setHistory(null);
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, readRef?.doc, readRef?.block, readRef?.edition, readRev]);
+
+  // After an edit lands: read the unit again (its new revision), and for a
+  // translation reload the detail so the checks re-run against the new text and
+  // the queue row shows it.
+  const afterEdit = useCallback(
+    async (res: ChangeResult) => {
+      if (!selected) return;
+      setLastSaved(res);
+      setRead(await loadRead(selected));
+      if (selected.isSource) {
+        // The queue's counts follow the source's rung, which an edit moves.
+        await refreshQueue();
+        return;
+      }
+      const load =
+        loadUnit ?? ((it: ReviewItem) => api.getReviewUnit(tabID, it.locale, it.file, it.key));
+      const d = await load(selected);
+      setUnit(d ?? null);
+      if (d) {
+        const has = d.findings.length > 0;
+        setQueue((q) =>
+          (q ?? []).map((it) =>
+            itemId(it) === itemId(selected) ? { ...it, target: d.target, hasFindings: has } : it,
+          ),
+        );
+      }
+    },
+    [selected, loadRead, loadUnit, tabID, refreshQueue],
+  );
+  const reread = useCallback(async () => {
+    if (selected) setRead(await loadRead(selected));
+  }, [selected, loadRead]);
+
+  // Edits (the editor's save, an accepted AI proposal) and decisions each hold
+  // their own refusal, so a stale decision is asked about beside the decision
+  // keys and a stale edit beside the editor.
+  const editSender = useChangeSender(client, { onApplied: afterEdit, onReload: reread });
+  const decisionSender = useChangeSender(client, { onReload: reread });
+  const clearEdit = editSender.clear;
+  const clearDecision = decisionSender.clear;
+  useEffect(() => {
+    clearEdit();
+    clearDecision();
+  }, [selectedId, clearEdit, clearDecision]);
 
   // The review model for the selected unit: the point governing its file, the
   // blocks either side of it, what it said before, what the checks found, and
@@ -418,55 +549,52 @@ export function ReviewPage({
     [visible, selectedIndex],
   );
 
+  // A decision is a decide operation on the revision the page read, so it
+  // binds to the text the reviewer had in front of them. A source unit has one
+  // decision, approve: the source's establish. The decided unit leaves the
+  // queue; the selection effect advances.
   const decide = useCallback(
     async (item: ReviewItem, decision: ReviewDecision, note?: string) => {
+      if (!read || itemId(item) !== selectedId) return;
       setDeciding(true);
       try {
-        if (onDecide) {
-          await onDecide(item, decision, note);
-        } else if (decision === "approved") {
-          await api.approveReviewItem(tabID, item.locale, item.file, item.key);
-        } else {
-          await api.rejectReviewItem(tabID, item.locale, item.file, item.key, note ?? "");
+        const outcome = decision === "approved" ? "establish" : "reject";
+        const res = await decisionSender.send(
+          [decideOp(read.ref, read.rev, outcome)],
+          decision === "rejected" ? note : undefined,
+        );
+        if (res?.status === "applied") {
+          setQueue((q) => (q ?? []).filter((it) => itemId(it) !== itemId(item)));
         }
-        // The decided unit leaves the queue; the selection effect advances.
-        setQueue((q) => (q ?? []).filter((it) => itemId(it) !== itemId(item)));
-      } catch (err) {
-        showError("Failed to record the review decision", err);
       } finally {
         setDeciding(false);
       }
     },
-    [tabID, onDecide, showError],
+    [read, selectedId, decisionSender],
   );
 
-  // A source unit has one decision: a person's approval bound to this exact
-  // wording (host.ApproveSourceUnit). There is no source reject, so `a` is the
-  // only decision key a source row answers.
-  const approveSource = useCallback(
-    async (item: ReviewItem) => {
-      setDeciding(true);
-      try {
-        if (onApproveSource) await onApproveSource(item);
-        else await api.approveSourceUnit(tabID, item.file, item.key);
-        setQueue((q) => (q ?? []).filter((it) => itemId(it) !== itemId(item)));
-      } catch (err) {
-        showError("Could not approve the source", err);
-      } finally {
-        setDeciding(false);
+  // Approve the text as it now stands, after the reviewer has seen it in the
+  // stale prompt.
+  const decideAgain = useCallback(async () => {
+    if (!selected) return;
+    setDeciding(true);
+    try {
+      const res = await decisionSender.reapply();
+      if (res?.status === "applied") {
+        setQueue((q) => (q ?? []).filter((it) => itemId(it) !== itemId(selected)));
       }
-    },
-    [tabID, onApproveSource, showError],
-  );
+    } finally {
+      setDeciding(false);
+    }
+  }, [selected, decisionSender]);
 
   const approve = useCallback(() => {
-    if (!selected || deciding) return;
-    if (selected.isSource) void approveSource(selected);
-    else void decide(selected, "approved");
-  }, [selected, deciding, decide, approveSource]);
+    if (!selected || deciding || !read) return;
+    void decide(selected, "approved");
+  }, [selected, deciding, read, decide]);
 
   const reject = useCallback(() => {
-    if (!selected || selected.isSource || deciding) return;
+    if (!selected || selected.isSource || deciding || !read) return;
     setAskValue("");
     setAskText({
       kind: "reject",
@@ -476,43 +604,12 @@ export function ReviewPage({
       confirm: t("Send back"),
       allowEmpty: true,
     });
-  }, [selected, deciding]);
-
-  const saveTarget = useCallback(async () => {
-    if (!selected || !unit) return;
-    setSaving(true);
-    try {
-      if (onSaveTarget) {
-        await onSaveTarget(selected, editText);
-      } else {
-        await api.updateReviewTarget(tabID, selected.locale, selected.file, selected.key, editText);
-      }
-      // Re-load the unit: findings re-run against the edited text, and the
-      // next approval binds to the new content hash.
-      const load =
-        loadUnit ?? ((it: ReviewItem) => api.getReviewUnit(tabID, it.locale, it.file, it.key));
-      const d = await load(selected);
-      setUnit(d ?? null);
-      setEditText(d?.target ?? editText);
-      if (d) {
-        const has = d.findings.length > 0;
-        setQueue((q) =>
-          (q ?? []).map((it) =>
-            itemId(it) === itemId(selected) ? { ...it, target: d.target, hasFindings: has } : it,
-          ),
-        );
-      }
-    } catch (err) {
-      showError("Failed to save the translation", err);
-    } finally {
-      setSaving(false);
-    }
-  }, [selected, unit, editText, tabID, onSaveTarget, loadUnit, showError]);
+  }, [selected, deciding, read]);
 
   // Per-unit AI actions — the only review paths that call a provider, and only
   // on explicit click. Fix/retranslate yield a PROPOSAL (diff + Accept/Discard);
-  // explain yields text. Nothing is written until Accept, which routes through
-  // the same save-target path as a manual edit.
+  // explain yields text. Nothing is written until Accept, which sends the same
+  // set_content a manual edit sends.
   const runAIAction = useCallback(
     async (action: ReviewAIActionKind, instructionOverride?: string) => {
       if (!selected || aiBusy) return;
@@ -543,7 +640,7 @@ export function ReviewPage({
         if (action === "explain") {
           setAIExplanation(res.explanation ?? "");
         } else if (res.proposed_target) {
-          setAIProposal(res.proposed_target);
+          setAIProposal({ text: res.proposed_target, edit: res.proposed_edit });
         }
       } catch (err) {
         showError("AI action failed", err);
@@ -567,44 +664,18 @@ export function ReviewPage({
     void runAIAction("retranslate", value);
   }, [askText, askValue, selected, decide, runAIAction]);
 
-  // Accept the AI proposal: write it through the same path a manual edit takes
-  // (UpdateReviewTarget), then re-load the unit so checks re-run and the next
-  // approval binds to the new text.
+  // Accept the AI proposal: a set_content of its edit text over the revision the
+  // page read, the change a manual edit sends, so a translation that moved
+  // meanwhile is asked about rather than overwritten.
   const acceptProposal = useCallback(async () => {
-    if (!selected || !unit || aiProposal === null) return;
-    setSaving(true);
-    try {
-      if (onSaveTarget) {
-        await onSaveTarget(selected, aiProposal);
-      } else {
-        await api.updateReviewTarget(
-          tabID,
-          selected.locale,
-          selected.file,
-          selected.key,
-          aiProposal,
-        );
-      }
-      setAIProposal(null);
-      const load =
-        loadUnit ?? ((it: ReviewItem) => api.getReviewUnit(tabID, it.locale, it.file, it.key));
-      const d = await load(selected);
-      setUnit(d ?? null);
-      setEditText(d?.target ?? aiProposal);
-      if (d) {
-        const has = d.findings.length > 0;
-        setQueue((q) =>
-          (q ?? []).map((it) =>
-            itemId(it) === itemId(selected) ? { ...it, target: d.target, hasFindings: has } : it,
-          ),
-        );
-      }
-    } catch (err) {
-      showError("Failed to apply the AI proposal", err);
-    } finally {
-      setSaving(false);
-    }
-  }, [selected, unit, aiProposal, tabID, onSaveTarget, loadUnit, showError]);
+    if (!read || aiProposal === null) return;
+    const content = editionContent(read);
+    if (!content) return;
+    const res = await editSender.send(
+      setContentOps(content, [{ text: aiProposal.edit ?? aiProposal.text }]),
+    );
+    if (res?.status === "applied") setAIProposal(null);
+  }, [read, aiProposal, editSender]);
 
   // AI pre-review modal: load the reviewer model for display when it opens.
   useEffect(() => {
@@ -646,7 +717,9 @@ export function ReviewPage({
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
       const tag = el?.tagName ?? "";
-      if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") {
+      // The editor is a contenteditable as well as the plural forms' textareas.
+      const editable = !!el?.closest?.("[contenteditable='true']");
+      if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT" || editable) {
         if (e.key === "Escape") el?.blur();
         return;
       }
@@ -681,7 +754,11 @@ export function ReviewPage({
           break;
         case "e":
           e.preventDefault();
-          editRef.current?.focus();
+          document
+            .querySelector<HTMLElement>(
+              "[data-slot='review-target-editor'] [contenteditable='true'], [data-slot='review-target-editor'] textarea",
+            )
+            ?.focus();
           break;
       }
     };
@@ -691,17 +768,50 @@ export function ReviewPage({
 
   // Phase 2 batch: approve every clean unit in the current filter.
   const cleanVisible = useMemo(() => visible.filter((it) => it.hasFindings === false), [visible]);
+  // Each unit is read as it is approved, so every approval binds to the text in
+  // the file at that moment, and its checks run again over that text. A unit
+  // whose text is no longer what its row lists, or that now trips a check,
+  // stops the batch with its row brought up to date, so nothing is approved
+  // that the reviewer has not seen; a unit whose approval is refused stops the
+  // batch too, and each says why.
   const approveClean = useCallback(async () => {
     const targets = cleanVisible;
     if (targets.length === 0) return;
+    const load =
+      loadUnit ?? ((it: ReviewItem) => api.getReviewUnit(tabID, it.locale, it.file, it.key));
     setBatch({ done: 0, total: targets.length });
     try {
       for (let i = 0; i < targets.length; i++) {
         const item = targets[i];
-        if (onDecide) {
-          await onDecide(item, "approved");
-        } else {
-          await api.approveReviewItem(tabID, item.locale, item.file, item.key);
+        const r = await loadRead(item);
+        if (!r) break;
+        const d = await load(item);
+        if (!d) break;
+        const trips = d.findings.length > 0;
+        if (trips || !stillListed(d.target, item.target)) {
+          setQueue((q) =>
+            (q ?? []).map((it) =>
+              itemId(it) === itemId(item) ? { ...it, target: d.target, hasFindings: trips } : it,
+            ),
+          );
+          showError(
+            t("Batch approval stopped at {key}", { key: item.key }),
+            new Error(
+              trips
+                ? t("The unit now trips a check. Review it before approving it.")
+                : t("The unit changed since the queue listed it. Review the text as it stands."),
+            ),
+          );
+          break;
+        }
+        const res = await client.apply({ ops: [decideOp(r.ref, r.rev, "establish")] });
+        if (!res) break;
+        if (res.status !== "applied") {
+          showError(
+            t("Batch approval stopped at {key}", { key: item.key }),
+            new Error(refusalMessage(res)),
+          );
+          break;
         }
         setQueue((q) => (q ?? []).filter((it) => itemId(it) !== itemId(item)));
         setBatch({ done: i + 1, total: targets.length });
@@ -711,7 +821,7 @@ export function ReviewPage({
     } finally {
       setBatch(null);
     }
-  }, [cleanVisible, tabID, onDecide, showError]);
+  }, [cleanVisible, loadRead, loadUnit, tabID, client, showError]);
 
   // Group the visible queue by file, then flatten to a single row stream
   // (a file header, then its units) so the left pane can be virtualized: a
@@ -755,6 +865,16 @@ export function ReviewPage({
     if (parts.length === 0) return "";
     return `${activeFilter.name || t("the active filter")}: ${parts.join(" · ")}`;
   }, [activeFilter]);
+
+  // Whether the translation can be edited here, and the source it answers to:
+  // its words and codes for the editor's tag palette.
+  const canEdit = !!read && read.ops.includes("set_content");
+  const sourceReference = useMemo(() => {
+    if (!read?.editions) return undefined;
+    const src = (unit?.source_locale ?? selected?.sourceLocale ?? "").toLowerCase();
+    const key = Object.keys(read.editions).find((k) => k.toLowerCase() === src);
+    return key ? { text: read.editions[key].text, codes: read.codes } : undefined;
+  }, [read, unit?.source_locale, selected?.sourceLocale]);
 
   const chips: Array<{ id: Chip; label: string }> = [
     { id: "all", label: t("All") },
@@ -1210,13 +1330,18 @@ export function ReviewPage({
                 )}
 
                 {selected?.isSource ? (
-                  <SourceUnitPane
-                    tabID={tabID}
-                    item={selected}
-                    onSaveSource={onSaveSource}
-                    onChanged={refreshQueue}
-                    loadContext={loadSourceContext}
-                  />
+                  <>
+                    <SourceUnitPane
+                      tabID={tabID}
+                      item={selected}
+                      read={read}
+                      readError={readError}
+                      sender={editSender}
+                      saved={lastSaved}
+                      loadContext={loadSourceContext}
+                    />
+                    <ChangesCard history={history} loading={historyLoading} />
+                  </>
                 ) : (
                   <>
                     <PointCard point={model?.point} loading={unitLoading} />
@@ -1250,97 +1375,83 @@ export function ReviewPage({
                             locale={unit?.locale ?? selected?.locale ?? ""}
                             data-slot="review-target-language"
                           />
-                          {unit && !unit.editable && (
-                            <span className="font-normal">
-                              {t("(formatted content, read-only)")}
-                            </span>
-                          )}
                         </div>
-                        <textarea
-                          ref={editRef}
-                          className="min-h-20 w-full resize-y rounded-md border border-input bg-transparent p-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
-                          value={editText}
-                          onChange={(e) => setEditText(e.target.value)}
-                          disabled={!unit || !unit.editable || saving}
-                          aria-label={t("Edit the translation")}
-                          data-slot="review-target"
-                          translate="no"
-                          {...directionAttrs(unit?.locale ?? selected?.locale)}
-                        />
-                        {unit && unit.editable && editText !== unit.target && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <Button
-                              size="xs"
-                              onClick={() => void saveTarget()}
-                              disabled={saving}
-                              data-slot="review-save"
-                            >
-                              {saving ? (
-                                <Loader2 size={12} className="animate-spin" />
-                              ) : (
-                                <Check size={12} />
-                              )}
-                              {t("Save & re-check")}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="xs"
-                              onClick={() => setEditText(unit.target)}
-                              disabled={saving}
-                            >
-                              <Undo2 size={12} />
-                              {t("Revert")}
-                            </Button>
+                        {readError ? (
+                          <div className="space-y-1">
+                            <div className="whitespace-pre-wrap text-sm" translate="no">
+                              {unit?.target ?? selected?.target ?? ""}
+                            </div>
+                            <p className="text-xs text-destructive" data-slot="review-read-error">
+                              {readError}
+                            </p>
                           </div>
+                        ) : (
+                          <EditionEditPanel
+                            sender={editSender}
+                            content={read ? editionContent(read) : null}
+                            locale={unit?.locale ?? selected?.locale}
+                            reference={sourceReference}
+                            readOnlyReason={
+                              read && !read.ops.includes("set_content")
+                                ? t("This format does not write a change to this text.")
+                                : undefined
+                            }
+                            saveLabel={t("Save & re-check")}
+                            compact
+                            autoFocus={false}
+                            data-slot="review-target"
+                            actions={
+                              /* Per-unit AI actions (phase 3): explicit clicks only. */
+                              <div
+                                className="flex flex-wrap items-center gap-2"
+                                data-slot="review-ai-actions"
+                              >
+                                <Button
+                                  variant="outline"
+                                  size="xs"
+                                  onClick={() => void runAIAction("fix-findings")}
+                                  disabled={!canEdit || aiBusy !== null || editSender.busy}
+                                  data-slot="review-ai-fix"
+                                >
+                                  {aiBusy === "fix-findings" ? (
+                                    <Loader2 size={12} className="animate-spin" />
+                                  ) : (
+                                    <Sparkles size={12} />
+                                  )}
+                                  {t("Fix with AI")}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="xs"
+                                  onClick={() => void runAIAction("retranslate")}
+                                  disabled={!canEdit || aiBusy !== null || editSender.busy}
+                                  data-slot="review-ai-retranslate"
+                                >
+                                  {aiBusy === "retranslate" ? (
+                                    <Loader2 size={12} className="animate-spin" />
+                                  ) : (
+                                    <Sparkles size={12} />
+                                  )}
+                                  {t("Retranslate…")}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="xs"
+                                  onClick={() => void runAIAction("explain")}
+                                  disabled={!unit || aiBusy !== null}
+                                  data-slot="review-ai-explain"
+                                >
+                                  {aiBusy === "explain" ? (
+                                    <Loader2 size={12} className="animate-spin" />
+                                  ) : (
+                                    <Sparkles size={12} />
+                                  )}
+                                  {t("Explain")}
+                                </Button>
+                              </div>
+                            }
+                          />
                         )}
-                        {/* Per-unit AI actions (phase 3): explicit clicks only. */}
-                        <div
-                          className="mt-2 flex flex-wrap items-center gap-2"
-                          data-slot="review-ai-actions"
-                        >
-                          <Button
-                            variant="outline"
-                            size="xs"
-                            onClick={() => void runAIAction("fix-findings")}
-                            disabled={!unit || !unit.editable || aiBusy !== null || saving}
-                            data-slot="review-ai-fix"
-                          >
-                            {aiBusy === "fix-findings" ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <Sparkles size={12} />
-                            )}
-                            {t("Fix with AI")}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="xs"
-                            onClick={() => void runAIAction("retranslate")}
-                            disabled={!unit || !unit.editable || aiBusy !== null || saving}
-                            data-slot="review-ai-retranslate"
-                          >
-                            {aiBusy === "retranslate" ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <Sparkles size={12} />
-                            )}
-                            {t("Retranslate…")}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="xs"
-                            onClick={() => void runAIAction("explain")}
-                            disabled={!unit || aiBusy !== null}
-                            data-slot="review-ai-explain"
-                          >
-                            {aiBusy === "explain" ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <Sparkles size={12} />
-                            )}
-                            {t("Explain")}
-                          </Button>
-                        </div>
                       </CardContent>
                     </Card>
 
@@ -1372,23 +1483,32 @@ export function ReviewPage({
                               <span className="mr-1 text-[10px] uppercase text-muted-foreground">
                                 {t("Proposed")}
                               </span>
-                              <span
-                                className="whitespace-pre-wrap"
-                                translate="no"
-                                {...directionAttrs(unit.locale)}
-                              >
-                                {aiProposal}
-                              </span>
+                              {aiProposal.edit !== undefined ? (
+                                <EditTextDisplay
+                                  text={aiProposal.edit}
+                                  codes={read?.codes}
+                                  locale={unit.locale}
+                                  className="whitespace-pre-wrap"
+                                />
+                              ) : (
+                                <span
+                                  className="whitespace-pre-wrap"
+                                  translate="no"
+                                  {...directionAttrs(unit.locale)}
+                                >
+                                  {aiProposal.text}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <Button
                               size="xs"
                               onClick={() => void acceptProposal()}
-                              disabled={saving}
+                              disabled={editSender.busy}
                               data-slot="review-ai-accept"
                             >
-                              {saving ? (
+                              {editSender.busy ? (
                                 <Loader2 size={12} className="animate-spin" />
                               ) : (
                                 <Check size={12} />
@@ -1399,7 +1519,7 @@ export function ReviewPage({
                               variant="outline"
                               size="xs"
                               onClick={() => setAIProposal(null)}
-                              disabled={saving}
+                              disabled={editSender.busy}
                               data-slot="review-ai-discard"
                             >
                               <X size={12} />
@@ -1478,10 +1598,44 @@ export function ReviewPage({
                         }
                       }
                     />
+
+                    {/* Every recorded change to this translation. */}
+                    <ChangesCard history={history} loading={historyLoading} />
                   </>
                 )}
               </div>
             </ScrollArea>
+
+            {/* A decision on text that changed since the page read it: the text
+                as it stands, and the reviewer's choice. */}
+            {decisionSender.stale && (
+              <div className="mt-3">
+                <StalePrompt
+                  current={decisionSender.stale.current}
+                  codes={read?.codes}
+                  locale={selected?.isSource ? selected.sourceLocale : selected?.locale}
+                  busy={deciding}
+                  reapplyLabel={
+                    decisionSender.stale.ops.some(
+                      (o) => o.op === "decide" && o.outcome === "reject",
+                    )
+                      ? t("Send back the text as it stands")
+                      : t("Approve the text as it stands")
+                  }
+                  onReapply={() => void decideAgain()}
+                  onDiscard={() => void decisionSender.discard()}
+                />
+              </div>
+            )}
+            {decisionSender.error && (
+              <p
+                className="mt-2 text-xs text-destructive"
+                role="alert"
+                data-slot="review-decision-refused"
+              >
+                {decisionSender.error}
+              </p>
+            )}
 
             {/* Action bar: the keyboard verbs, spelled out. A source unit has
                 one decision, so Reject is absent on a source row and `r`
@@ -1494,7 +1648,7 @@ export function ReviewPage({
                 variant="success"
                 size="sm"
                 onClick={approve}
-                disabled={!selected || deciding}
+                disabled={!selected || deciding || !read}
                 data-slot="review-approve"
               >
                 <Check size={13} />
@@ -1509,7 +1663,7 @@ export function ReviewPage({
                   variant="destructive"
                   size="sm"
                   onClick={reject}
-                  disabled={!selected || deciding}
+                  disabled={!selected || deciding || !read}
                   data-slot="review-reject"
                 >
                   <X size={13} />

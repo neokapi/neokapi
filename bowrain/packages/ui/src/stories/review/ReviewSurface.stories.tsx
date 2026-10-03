@@ -75,3 +75,24 @@ export const InspectorWithoutContext: Story = {
     await expect(await canvas.findByTestId("review-inspector")).toBeInTheDocument();
   },
 };
+
+/**
+ * Someone changes the French translation of the opened block before the
+ * reviewer approves it. The approval is not recorded: the reviewer reads the
+ * translation as it stands and approves that, or keeps it undecided.
+ */
+export const ApproveMeetsAChangedTranslation: Story = {
+  decorators: [
+    createProvidersDecorator(sampleBlocks, {
+      concurrentEdit: { blockId: "blk-1", locale: "fr-FR", text: "Bienvenue dans Neokapi" },
+    }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await canvas.findByTestId("review-block-blk-1"));
+    await userEvent.click(await body.findByTestId("approve-blk-1"));
+    await expect(await body.findByTestId("stale-change-dialog")).toBeInTheDocument();
+    await expect(body.getByTestId("stale-reapply")).toHaveTextContent("Approve this version");
+  },
+};

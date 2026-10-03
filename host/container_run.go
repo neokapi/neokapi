@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
+	"io"
 	"path/filepath"
 
+	"github.com/neokapi/neokapi/core/change/filehome"
 	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -28,8 +29,8 @@ var containerSkipFormats = map[string]bool{
 // archive into memory — visiting one entry at a time: each eligible entry is run
 // as its own file (normal reader/writer with skeleton round-trip, so a DOCX/EPUB
 // inside the archive round-trips faithfully) and spliced into the output as it is
-// produced; every other entry is copied through. The output is written
-// atomically (temp file then rename).
+// produced; every other entry is copied through. The output is staged beside
+// the destination and committed through the file home a flow commits through.
 func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, outputPath string, progress progressGroup) error {
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:       a.FormatReg,
@@ -38,8 +39,20 @@ func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, ou
 		ConfigureReader: a.containerConfigureReader(),
 	})
 
+	if a.printOps != nil {
+		// A change set addresses the documents inside an archive one at a
+		// time; a run that rebuilds the archive is not printed as one.
+		a.printOps.note(outputPath + ": an archive the run rebuilds whole, which no change set writes; it is not printed")
+		return nil
+	}
+	// The archive commits through the file home a flow commits through, only
+	// while the destination still holds what it held when the run began.
+	before, err := filehome.Digest(outputPath)
+	if err != nil {
+		return err
+	}
 	base := filepath.Base(inputPath)
-	return writeAtomic(outputPath, func(f *os.File) error {
+	produced, err := a.flowHome(cfg.toolRunRoot(inputPath, outputPath)).Produce(ctx, outputPath, before, func(f io.Writer) error {
 		return container.Transform(inputPath, f, func(name string, read func() ([]byte, error)) ([]byte, bool, error) {
 			fmtName, eligible := a.containerEntryFormat(name)
 			if !eligible {
@@ -62,6 +75,11 @@ func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, ou
 			return out, true, nil
 		})
 	})
+	if err != nil {
+		return err
+	}
+	defer func() { _ = produced.Release() }()
+	return produced.Commit(ctx)
 }
 
 // runContainerEntry runs one archive entry through a single-file pipeline and
@@ -121,31 +139,4 @@ func (a *App) containerConfigureReader() func(format.DataFormatReader, registry.
 	return func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
 		return a.ProjectContext.ConfigureReader(reader, string(detectedFmt))
 	}
-}
-
-// writeAtomic writes via a sibling temp file then renames, so a failure never
-// leaves a partial container at path.
-func writeAtomic(path string, write func(*os.File) error) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create output dir: %w", err)
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".kapi-container-*")
-	if err != nil {
-		return fmt.Errorf("create temp output: %w", err)
-	}
-	tmpPath := tmp.Name()
-	if err := write(tmp); err != nil {
-		tmp.Close()
-		os.Remove(tmpPath)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(tmpPath)
-		return err
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		os.Remove(tmpPath)
-		return fmt.Errorf("finalize %s: %w", path, err)
-	}
-	return nil
 }

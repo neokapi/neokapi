@@ -439,10 +439,19 @@ func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, 
 		encoding = pctx.Encoding
 	}
 
+	// The documents commit through the file home a change set commits
+	// through, and a project's record keeps what the run changed.
+	root := ""
+	if pctx != nil {
+		root = pctx.ProjectDir
+	}
+	home, docs := a.FlowDocuments(ctx, root, model.LocaleID(sourceLang))
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(sourceLang),
 		Encoding:     encoding,
+		Home:         home,
+		Documents:    docs,
 		ConfigureReader: func(reader format.DataFormatReader, fmtName registry.FormatID) error {
 			if pctx != nil {
 				return pctx.ConfigureReader(reader, string(fmtName))

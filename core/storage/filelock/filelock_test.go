@@ -13,10 +13,10 @@ import (
 	"github.com/neokapi/neokapi/core/storage/filelock"
 )
 
+// TestLock_TwoLocksOnOnePathExcludeEachOther holds on every platform: where
+// there is no lock between processes (the browser build), the Locks of one
+// process on one path still take turns.
 func TestLock_TwoLocksOnOnePathExcludeEachOther(t *testing.T) {
-	if !filelock.Supported {
-		t.Skip("this platform has no advisory lock")
-	}
 	path := filepath.Join(t.TempDir(), "doc.lock")
 	a, err := filelock.Open(path)
 	require.NoError(t, err)
@@ -54,10 +54,31 @@ func TestLock_ACancelledContextTakesNothing(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	require.ErrorIs(t, l.Lock(ctx), context.Canceled)
-	if l != nil {
-		require.NoError(t, l.Lock(t.Context()), "the lock is free after a cancelled attempt")
-		l.Unlock()
+	require.NoError(t, l.Lock(t.Context()), "the lock is free after a cancelled attempt")
+	l.Unlock()
+}
+
+func TestLock_ClosingAHeldLockReleasesIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "doc.lock")
+	a, err := filelock.Open(path)
+	require.NoError(t, err)
+	require.NoError(t, a.Lock(t.Context()))
+	require.NoError(t, a.Close())
+
+	b, err := filelock.Open(path)
+	require.NoError(t, err)
+	defer b.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- b.Lock(ctx) }()
+	select {
+	case err := <-done:
+		require.NoError(t, err, "a closed lock holds nothing")
+	case <-time.After(5 * time.Second):
+		t.Fatal("the lock a closed Lock held was never released")
 	}
+	b.Unlock()
 }
 
 func TestLock_NilIsALockThatDoesNothing(t *testing.T) {

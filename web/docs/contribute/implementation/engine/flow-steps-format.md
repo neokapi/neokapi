@@ -70,8 +70,8 @@ at run time ([E-04](../../architecture/engine/e-04-flows-and-io-binding.md)), no
 A `parallel:` block exists in the definition model only. Every host runs a flow
 as an ordered tool chain
 ([E-01](../../architecture/engine/e-01-processing-engine.md#flow-definitions)):
-the engine service refuses a definition with fan-out or merge edges, and the
-project flow runner builds one tool per step and fails on a `parallel:` step.
+the project flow runner builds one tool per step and fails on a `parallel:`
+step.
 Write a flow meant to run as ordered steps.
 
 ## Examples

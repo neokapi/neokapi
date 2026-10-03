@@ -1,16 +1,16 @@
 package server
 
 import (
-	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -20,9 +20,9 @@ import (
 const maxBulkBlocks = 1000
 
 // BulkReviewRequest applies one review decision to a selection of blocks.
-// Status picks the demotion rung when Approve is false, exactly as the
-// single-block route's field does: "translated" (default) or "draft" (a
-// rejection). Comment, when present, is attached to every block as a note.
+// Status picks the demotion rung when Approve is false: "translated" (default,
+// a withdrawn approval) or "draft" (a rejection). Comment, when present, is
+// left on every block as a note and is the decision's note in the audit trail.
 type BulkReviewRequest struct {
 	BlockIDs     []string `json:"block_ids"`
 	TargetLocale string   `json:"target_locale"`
@@ -52,17 +52,14 @@ type BulkReviewResponse struct {
 }
 
 // HandleBulkReviewBlocks applies one review decision across a selection of
-// blocks in a single request, replacing the editor's per-block request loop.
-// Each block goes through the same code path as the single-block route
-// (applyBlockReview), so the status transitions, the demotion rules and the
-// decision-ledger writes are identical; a block that refuses is recorded in
-// its own result rather than failing the batch. The review-loop continuation
-// runs once, after the pass, for the locale that saw a real approval.
-//
-// The gates are the single-block route's gates: approving needs PermReview for
-// the language, withdrawing or rejecting needs PermTranslate, and an approval
-// of work the caller wrote themselves meets the workspace separation-of-duties
-// policy. The authorship the policy needs is read once for the whole selection.
+// blocks in a single request. It is a server action over the change contract:
+// each block's decision is a decide operation on the translation the request
+// read, applied through the stream's change service as the person, so the
+// status transitions, the separation-of-duties policy and the decision-ledger
+// writes are those of every decision. A block whose decision is refused (its
+// translation moved, the person wrote it, it has no translation to approve)
+// is reported in its own result and the rest land. The review-loop
+// continuation runs once, after the pass.
 //
 // POST /:ws/:id/blocks/:ref/bulk-review
 //
@@ -90,108 +87,108 @@ func (s *Server) HandleBulkReviewBlocks(c echo.Context) error {
 			Error: fmt.Sprintf("block_ids holds %d blocks, more than the %d a single request applies", len(req.BlockIDs), maxBulkBlocks),
 		})
 	}
-	demoteTo := model.TargetStatusTranslated
-	switch req.Status {
-	case "", string(model.TargetStatusTranslated):
-	case string(model.TargetStatusDraft):
-		demoteTo = model.TargetStatusDraft
+	outcome, landsOn := change.OutcomeWithdraw, model.TargetStatusTranslated
+	switch {
+	case req.Approve && req.Status != "":
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "status only applies when approve is false (approval always lands on established)"})
+	case req.Approve:
+		outcome, landsOn = change.OutcomeEstablish, model.TargetStatusEstablished
+	case req.Status == string(model.TargetStatusDraft):
+		outcome, landsOn = change.OutcomeReject, model.TargetStatusDraft
+	case req.Status == "" || req.Status == string(model.TargetStatusTranslated):
 	default:
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: `status must be "translated" or "draft"`})
 	}
-	if req.Approve && req.Status != "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "status only applies when approve is false (approval always lands on reviewed)"})
-	}
-	// Approving is the review permission for the language, exactly as the
-	// single-block route gates it; withdrawing an approval or rejecting stays
-	// with translate.
+	// Approving is the review permission for the language; withdrawing an
+	// approval or rejecting stays with translate.
 	if err := s.requireLanguagePermission(c, reviewGateFor(req.Approve), req.TargetLocale); err != nil {
 		return err
 	}
 
-	// The elevated gate for demoting an established target, as a predicate: one
-	// protected block in the selection must not answer for the whole batch.
-	elevate := func() error {
-		if allowsLanguage(c, platauth.PermReview, req.TargetLocale) {
-			return nil
-		}
-		return reviewFault{http.StatusForbidden, "demoting an established target requires review permission"}
-	}
-
 	ctx := c.Request().Context()
-	// One authorship query for the whole selection, before the pass: the
-	// separation-of-duties gate then costs nothing per block.
-	sod, err := s.newReviewSoD(ctx, c, pid, stream, req.BlockIDs, []string{req.TargetLocale})
+	proj, err := s.ContentStore.GetProject(ctx, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found"})
+	}
+	stored, err := s.ContentStore.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: pid, Stream: stream, IDs: req.BlockIDs, Limit: len(req.BlockIDs),
+	})
 	if err != nil {
 		return serverErr(c, err)
 	}
-	results := make([]BlockResult, 0, len(req.BlockIDs))
-	succeeded, failed, approvals := 0, 0, 0
-	for _, bid := range req.BlockIDs {
-		out, err := s.applyBlockReview(ctx, c, blockReviewInput{
-			ProjectID: pid, Stream: stream, BlockID: bid, DemoteTo: demoteTo, Elevate: elevate,
-			Vet: sod.vet,
-			Request: ReviewBlockRequest{
-				TargetLocale: req.TargetLocale,
-				ItemName:     req.ItemName,
-				Reviewed:     req.Approve,
-				Status:       req.Status,
-			},
-		})
-		if err != nil {
-			failed++
-			results = append(results, BlockResult{BlockID: bid, Error: bulkBlockError(err)})
+
+	loc := model.LocaleID(req.TargetLocale)
+	results := make(map[string]*BlockResult, len(req.BlockIDs))
+	set := change.Set{Note: req.Comment}
+	note, _ := json.Marshal(map[string]string{"text": req.Comment})
+	for _, sb := range stored {
+		if sb == nil || sb.Block == nil {
 			continue
 		}
-		succeeded++
-		if out.Approval {
-			approvals++
-		}
-		if out.Changed {
-			s.emitReviewDecisionAudit(c, pid, stream, bid, req.TargetLocale, out.From, out.Status, req.Approve, req.Comment)
-		}
-		results = append(results, BlockResult{BlockID: bid, OK: true, Status: string(out.Status)})
+		bid := sb.Block.ID
+		results[bid] = &BlockResult{BlockID: bid}
+		set.Ops = append(set.Ops, change.Op{Kind: change.KindDecide,
+			At:      change.Ref{Doc: sb.ItemName, Block: bid, Edition: model.EditionKey{Locale: loc}},
+			IfMatch: store.TargetRevision(sb, loc), Body: &change.Decide{Outcome: outcome}})
 		if req.Comment != "" {
-			s.addReviewComment(ctx, c, pid, stream, bid, req.Comment)
+			set.Ops = append(set.Ops, change.Op{Kind: change.KindAnnotate,
+				At:   change.Ref{Doc: sb.ItemName, Block: bid},
+				Body: &change.Annotate{Type: noteAnnotation, Value: note}})
 		}
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	s.shipInputsChanged(ctx, wsID, pid, stream)
-
-	reviewCompleted := false
-	if approvals > 0 {
-		if proj, perr := s.ContentStore.GetProject(ctx, pid); perr == nil {
-			actor, _ := c.Get("user_id").(string)
-			reviewCompleted = s.advanceReviewLoop(ctx, proj, stream, []model.LocaleID{model.LocaleID(req.TargetLocale)}, actor)
+	sc := s.newStreamChange(ctx, c, proj, stream, wsID, c.Param("ws"), requestSender(c))
+	// One authorship query for the whole selection: the separation-of-duties
+	// gate then costs nothing per block.
+	if sc.decide.sod, err = s.newReviewSoD(ctx, c, pid, stream, req.BlockIDs, []string{req.TargetLocale}); err != nil {
+		return serverErr(c, err)
+	}
+	res, applied, refused, err := sc.applyEach(ctx, set, change.Actor{Kind: change.ActorPerson, Name: sc.sender.userID})
+	if err != nil {
+		return serverErr(c, err)
+	}
+	for _, r := range refused {
+		if br := results[r.Block]; br != nil {
+			br.Error = "the server could not apply the change to this block"
+			if r.Error != nil {
+				br.Error = r.Error.Message
+			}
+		}
+	}
+	if res != nil && res.Status != change.SetRefused {
+		for i, op := range res.Ops {
+			if applied[i].Kind != change.KindDecide || op.At == nil {
+				continue
+			}
+			br := results[applied[i].At.Block]
+			if br == nil || br.Error != "" {
+				continue
+			}
+			br.OK = true
+			if op.Before != model.AbsentRevision {
+				br.Status = string(landsOn)
+			}
 		}
 	}
 
-	return c.JSON(http.StatusOK, BulkReviewResponse{
-		Results: results, Succeeded: succeeded, Failed: failed, ReviewCompleted: reviewCompleted,
-	})
-}
-
-// bulkBlockError renders one block's failure for its result entry. A refusal
-// carries its own sentence; anything else is a server fault the batch reports
-// without leaking internals.
-func bulkBlockError(err error) string {
-	if fault, ok := errors.AsType[reviewFault](err); ok {
-		return fault.msg
+	out := BulkReviewResponse{Results: make([]BlockResult, 0, len(req.BlockIDs)), ReviewCompleted: sc.completed}
+	for _, bid := range req.BlockIDs {
+		br := results[bid]
+		if br == nil {
+			br = &BlockResult{BlockID: bid, Error: "block not found"}
+		}
+		if !br.OK && br.Error == "" {
+			br.Error = "the server could not apply the change to this block"
+		}
+		if br.OK {
+			out.Succeeded++
+		} else {
+			out.Failed++
+		}
+		out.Results = append(out.Results, *br)
 	}
-	return "the server could not apply the change to this block"
-}
-
-// addReviewComment attaches the batch's comment to one block. Best-effort: the
-// review decision is already written, and a note that fails to store must not
-// undo it.
-func (s *Server) addReviewComment(ctx context.Context, c echo.Context, projectID, stream, blockID, text string) {
-	_ = s.ContentStore.AddBlockNote(ctx, projectID, stream, blockID, model.BlockNote{
-		ID:        id.New(),
-		BlockID:   blockID,
-		Author:    extractAuthor(c),
-		Text:      text,
-		CreatedAt: time.Now().UTC(),
-	})
+	return c.JSON(http.StatusOK, out)
 }
 
 // BulkApplyMemoryRequest applies the best content-memory match to a selection
@@ -229,11 +226,11 @@ type BulkApplyMemoryResponse struct {
 }
 
 // HandleBulkApplyMemory writes the best content-memory match above the
-// threshold into each selected block's target, in one request — the pass the
-// editor used to make with a lookup and an update call per block. The
-// workspace memory and the project's source language resolve once; the
-// accepted blocks are stored in a single write, so a review a match
-// invalidates is demoted by the same rule an ordinary edit follows.
+// threshold into each selected block's target, in one request. The workspace
+// memory and the project's source language resolve once, and the accepted
+// matches are committed through the stream's change service as the
+// content-memory tool's drafts: a block a person changed since the pass read
+// it keeps the person's change and is reported skipped.
 //
 // POST /:ws/:id/blocks/:ref/bulk-apply-memory
 //
@@ -276,6 +273,10 @@ func (s *Server) HandleBulkApplyMemory(c echo.Context) error {
 	ctx := c.Request().Context()
 	resp := BulkApplyMemoryResponse{Applied: []AppliedMemory{}, Skipped: []SkippedMemory{}}
 
+	proj, err := s.ContentStore.GetProject(ctx, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found"})
+	}
 	lookup, err := newMemoryLookup(ctx, s.ContentStore, s.wsStores, ws, pid)
 	if err != nil {
 		return serverErr(c, err)
@@ -293,13 +294,15 @@ func (s *Server) HandleBulkApplyMemory(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, err)
 	}
+	// The state each block was read in, before a match changes it in place.
+	pass := beginToolPass(stored, proj.DefaultSourceLanguage)
 	byID := make(map[string]*model.Block, len(stored))
 	for _, sb := range stored {
 		byID[sb.Block.ID] = sb.Block
 	}
 
 	loc := model.LocaleID(req.TargetLocale)
-	var toStore []*model.Block
+	var drafted []*model.Block
 	for _, bid := range req.BlockIDs {
 		b := byID[bid]
 		switch {
@@ -310,9 +313,8 @@ func (s *Server) HandleBulkApplyMemory(c echo.Context) error {
 			resp.Skipped = append(resp.Skipped, SkippedMemory{BlockID: bid, Reason: "block is not translatable"})
 			continue
 		case !s.blockEditAllowed(c, pid, bid, req.TargetLocale):
-			// The same ABAC gate the single-block target update enforces:
-			// restricted or published content is not editable by an ordinary
-			// translate permission.
+			// The access state a person's edit meets: restricted or published
+			// content is not editable by an ordinary translate permission.
 			resp.Skipped = append(resp.Skipped, SkippedMemory{BlockID: bid, Reason: "not permitted to edit this block"})
 			continue
 		}
@@ -326,27 +328,52 @@ func (s *Server) HandleBulkApplyMemory(c echo.Context) error {
 			continue
 		}
 		best := matches[0]
-		// The edit is applied to the block this request read, which a preview
-		// then never stores — the mutation dies with the request, and the
-		// preview's verdict is the pass's own rather than a second copy of it.
-		applyTargetTextEdit(b, loc, best.Target, model.Origin{
-			Kind:      model.OriginMemory,
-			Timestamp: time.Now().UTC().Format(time.RFC3339),
-		})
-		toStore = append(toStore, b)
+		// The match is applied to the block this request read, which a preview
+		// then never commits — the preview's verdict is the pass's own rather
+		// than a second copy of it.
+		memoryTarget(b, loc, best.Target)
+		drafted = append(drafted, b)
 		resp.Applied = append(resp.Applied, AppliedMemory{BlockID: bid, Text: best.Target, Score: best.Score})
 	}
 
-	if len(toStore) > 0 && !req.Preview {
-		if err := writeBackEdited(ctx, s.ContentStore, pid, stream, stored, toStore); err != nil {
-			return serverErr(c, fmt.Errorf("store blocks: %w", err))
-		}
-		for _, b := range toStore {
-			s.emitEditorBlockChange(c, pid, b.ID, "", stream, "updated")
-		}
-		wsID, _ := c.Get("workspace_id").(string)
-		s.shipInputsChanged(ctx, wsID, pid, stream)
+	if len(drafted) == 0 || req.Preview {
+		return c.JSON(http.StatusOK, resp)
 	}
-
+	wsID, _ := c.Get("workspace_id").(string)
+	landed, err := pass.commit(ctx, s.commitTo(c, proj, stream, wsID), "bulk-apply-memory", drafted)
+	if err != nil {
+		return serverErr(c, fmt.Errorf("store blocks: %w", err))
+	}
+	took := make(map[string]bool, len(landed))
+	for _, id := range landed {
+		took[id] = true
+	}
+	applied := resp.Applied[:0]
+	for _, a := range resp.Applied {
+		if took[a.BlockID] {
+			applied = append(applied, a)
+			continue
+		}
+		resp.Skipped = append(resp.Skipped, SkippedMemory{BlockID: a.BlockID, Reason: "the block changed since it was read"})
+	}
+	resp.Applied = applied
 	return c.JSON(http.StatusOK, resp)
+}
+
+// memoryTarget writes text as b's translation into loc, produced by the
+// content memory: an established translation whose wording the match changes
+// drops to translated, since the approval judged other wording.
+func memoryTarget(b *model.Block, loc model.LocaleID, text string) {
+	before := b.Target(loc)
+	established := before != nil && before.Status == model.TargetStatusEstablished
+	oldRuns := b.TargetRuns(loc)
+	b.SetTargetText(loc, text)
+	t := b.Target(loc)
+	if t == nil {
+		return
+	}
+	t.Origin = model.Origin{Kind: model.OriginMemory, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	if established && !reflect.DeepEqual(oldRuns, t.Runs) {
+		t.Status = model.TargetStatusTranslated
+	}
 }
