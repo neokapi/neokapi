@@ -217,6 +217,8 @@ An application reads and changes content through one of four channels. Each carr
 
 The [MCP server](/reference/mcp) (`kapi mcp`) is part of the same contract: its tool names and input schemas are a stable surface for agent integrations, locked by a snapshot test (`kapi/cmd/kapi/mcp_snapshot_test.go`). New tools and new optional fields may be added; existing tools are not renamed or removed, and existing fields do not change type, without an explicit, documented decision.
 
+The `kapi.change/v1` freeze is one such decision. `apply_edits` reads `find` as placeholder text, takes an optional `path` on a `replace_text` operation, and names a piece of evidence's block `evidence[].block`, which was `evidence[].unit`; `context_observe` and `context_correct` take `block` where they took `unit`.
+
 `check_text` accepts an optional `context_path`, a project-relative destination
 whose voice and terms apply to the supplied draft. It requires a bound project
 and cannot be combined with `profile_file` or `profile_pack`. The result keeps
