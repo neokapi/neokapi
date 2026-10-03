@@ -9,10 +9,14 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/locale"
@@ -28,9 +32,25 @@ func init() {
 	RegisterMCPToolFactory(registerCheckMCPTools)
 }
 
+// checkReportOutputSchema declares the kapi.check/v2 report check_text and
+// check_file return. It is the report's inferred schema, with a finding's fix
+// declared as the change operation it marshals as: the Go type writes the
+// kapi.change/v1 wire form (the shape apply_edits takes), not its fields.
+var checkReportOutputSchema = sync.OnceValue(func() *jsonschema.Schema {
+	s, err := jsonschema.For[check.Report](&jsonschema.ForOptions{TypeSchemas: map[reflect.Type]*jsonschema.Schema{
+		reflect.TypeFor[change.Op](): {Type: "object",
+			Description: "a kapi.change/v1 operation that applies the finding's replacement; send it to apply_edits in a change set's ops as it is"},
+	}})
+	if err != nil {
+		panic(fmt.Sprintf("check report output schema: %v", err))
+	}
+	return s
+})
+
 func registerCheckMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
-		Name: "check_text",
+		Name:         "check_text",
+		OutputSchema: checkReportOutputSchema(),
 		Description: "Check a draft snippet with deterministic content rules. Before drafting, read the " +
 			"context://<project-relative-path> resource for the applicable guidance. Supply context_path " +
 			"to check with that destination's voice and terms; without it, project guidance is not resolved. " +
@@ -43,7 +63,8 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name: "check_file",
+		Name:         "check_file",
+		OutputSchema: checkReportOutputSchema(),
 		Description: "Check a file you changed against the voice and terms in force at its location, in any " +
 			"format kapi reads (Markdown, JSON, Word, XLIFF and more). Run it on every file you changed and fix " +
 			"what it reports before you say the work is done. To check only what a change touched, pass diff, " +
@@ -124,8 +145,11 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 	for i := range execution.Analyzers {
 		execution.Analyzers[i].File = ""
 	}
+	// A draft is no document, so no operation can name it: its findings carry
+	// neither a file nor a fix.
 	for i := range diags {
 		diags[i].Location.File = ""
+		diags[i].Fix = nil
 	}
 	target := check.Target{Kind: "text", Blocks: 1, ContextPath: in.ContextPath}
 	// A draft named for a destination is held to the voice and terms in force

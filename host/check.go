@@ -910,7 +910,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 				b.DelAnno(model.AnnoVoice)
 				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
 				for _, f := range found {
-					diags = append(diags, check.DiagnosticFrom(f, "terms", loc))
+					diags = append(diags, withFix(check.DiagnosticFrom(f, "terms", loc), f, b, file, model.LocaleID(opts.source(a))))
 				}
 			}
 			if err := opts.execution.probed("terms", file, len(diags)-before, start, asked && len(words) > 0, func() (check.CanaryOutcome, error) {
@@ -949,7 +949,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 				}
 				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
 				for _, f := range found {
-					diags = append(diags, check.DiagnosticFrom(f, "voice", loc))
+					diags = append(diags, withFix(check.DiagnosticFrom(f, "voice", loc), f, b, file, model.LocaleID(opts.source(a))))
 				}
 			}
 			// The profile's required patterns hold over the document, not over any
