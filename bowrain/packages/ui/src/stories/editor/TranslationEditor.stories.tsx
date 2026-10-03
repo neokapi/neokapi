@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { fn } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 import { TranslationEditor } from "../../components/TranslationEditor";
-import { sampleProject } from "../fixtures";
-import { withProviders } from "../decorators";
+import { sampleBlocks, sampleProject } from "../fixtures";
+import { createProvidersDecorator, withProviders } from "../decorators";
 
 const meta: Meta<typeof TranslationEditor> = {
   title: "Editor/Core/TranslationEditor",
@@ -38,5 +38,32 @@ export const WithExportHandler: Story = {
     fileName: "messages.json",
     onBack: fn(),
     onExport: fn(),
+  },
+};
+
+/**
+ * Someone saves the first block's French translation while it is open here.
+ * Saving shows their translation beside this one and asks before anything is
+ * written over it.
+ */
+export const SaveMeetsAChangedTranslation: Story = {
+  args: {
+    project: sampleProject,
+    fileName: "messages.json",
+    onBack: fn(),
+  },
+  decorators: [
+    createProvidersDecorator(sampleBlocks, {
+      concurrentEdit: { blockId: "blk-1", locale: "fr-FR", text: "Bienvenue dans Neokapi" },
+    }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await canvas.findByTestId("target-display"));
+    await canvas.findByTestId("unified-target-editor");
+    await userEvent.click(canvas.getByTestId("unified-save"));
+    await expect(await body.findByTestId("stale-change-dialog")).toBeInTheDocument();
+    await expect(body.getByTestId("stale-current")).toHaveTextContent("Bienvenue dans Neokapi");
   },
 };

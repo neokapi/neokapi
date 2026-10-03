@@ -3,32 +3,37 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	"github.com/neokapi/neokapi/bowrain/editorclient"
-	"github.com/neokapi/neokapi/core/model"
 )
 
 // opKind is the sealed set of offline mutation kinds the desktop outbox can
 // carry. Each value doubles as the persisted `operation` column of the offline
-// queue, so these string literals are a stable on-disk contract — do not rename
-// them (older queued entries must still decode after an upgrade).
+// queue, so these string literals are a stable on-disk contract: a queued entry
+// is replayed by the kind it was written under.
 type opKind string
 
 const (
-	opUpdateBlockTarget     opKind = "update_block_target"
-	opUpdateBlockTargetRuns opKind = "update_block_target_runs"
-	opReviewBlock           opKind = "review_block"
-	opAddMemoryEntry        opKind = "add_tm_entry"
-	opUpdateMemoryEntry     opKind = "update_tm_entry"
-	opDeleteMemoryEntry     opKind = "delete_tm_entry"
-	opAddConcept            opKind = "add_concept"
-	opUpdateConcept         opKind = "update_concept"
-	opDeleteConcept         opKind = "delete_concept"
-	opAddItems              opKind = "add_items"
-	opRemoveItem            opKind = "remove_item"
-	opPseudoTranslateItem   opKind = "pseudo_translate_item"
-	opMemoryTranslateItem   opKind = "tm_translate_item"
+	opChangeSet           opKind = "change_set"
+	opAddMemoryEntry      opKind = "add_tm_entry"
+	opUpdateMemoryEntry   opKind = "update_tm_entry"
+	opDeleteMemoryEntry   opKind = "delete_tm_entry"
+	opAddConcept          opKind = "add_concept"
+	opUpdateConcept       opKind = "update_concept"
+	opDeleteConcept       opKind = "delete_concept"
+	opAddItems            opKind = "add_items"
+	opRemoveItem          opKind = "remove_item"
+	opPseudoTranslateItem opKind = "pseudo_translate_item"
+	opMemoryTranslateItem opKind = "tm_translate_item"
 )
+
+// errUnreplayable marks a queued entry this build cannot replay: a kind it does
+// not know, or a payload that does not decode. Retrying it can never succeed,
+// so the replay marks it failed, where the pending count's failed half shows
+// it, rather than dropping it unseen.
+var errUnreplayable = errors.New("this version cannot replay the queued change")
 
 // offlineOp is a typed, self-describing offline mutation: it knows its kind
 // (the persisted operation tag) and how to replay itself against the REST
@@ -41,17 +46,12 @@ type offlineOp interface {
 	replay(ctx context.Context, client *editorclient.EditorClient, ws string) error
 }
 
-// decodeOp reconstructs the typed op persisted under kind+payload. It returns
-// (nil, nil) for an unknown kind so replay can skip a forward-incompatible queue
-// entry written by a newer build.
+// decodeOp reconstructs the typed op persisted under kind+payload. A kind it
+// does not know, or a payload that does not decode, is errUnreplayable.
 func decodeOp(kind opKind, payload string) (offlineOp, error) {
 	switch kind {
-	case opUpdateBlockTarget:
-		return unmarshalOp[updateBlockTargetOp](payload)
-	case opUpdateBlockTargetRuns:
-		return unmarshalOp[updateBlockTargetRunsOp](payload)
-	case opReviewBlock:
-		return unmarshalOp[reviewBlockOp](payload)
+	case opChangeSet:
+		return unmarshalOp[changeSetOp](payload)
 	case opAddMemoryEntry:
 		return unmarshalOp[addMemoryEntryOp](payload)
 	case opUpdateMemoryEntry:
@@ -73,7 +73,7 @@ func decodeOp(kind opKind, payload string) (offlineOp, error) {
 	case opMemoryTranslateItem:
 		return unmarshalOp[memoryTranslateItemOp](payload)
 	default:
-		return nil, nil
+		return nil, fmt.Errorf("%w: unknown operation %q", errUnreplayable, kind)
 	}
 }
 
@@ -81,54 +81,36 @@ func decodeOp(kind opKind, payload string) (offlineOp, error) {
 func unmarshalOp[T offlineOp](payload string) (offlineOp, error) {
 	var op T
 	if err := json.Unmarshal([]byte(payload), &op); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errUnreplayable, err)
 	}
 	return op, nil
 }
 
-// --- Block editor ops ---
+// --- Content ops ---
 
-// updateBlockTargetOp queues a plain-text target update. It embeds the request
-// so the persisted JSON is identical to the original UpdateBlockRequest payload.
-type updateBlockTargetOp struct{ UpdateBlockRequest }
-
-func (updateBlockTargetOp) opKind() opKind { return opUpdateBlockTarget }
-
-func (o updateBlockTargetOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
-	// Plain-text replay: emit a single TextRun so the server receives the
-	// canonical Run sequence.
-	runs := []model.Run{{Text: &model.TextRun{Text: o.Text}}}
-	return client.UpdateBlockTargetRuns(ctx, ws, o.ProjectID, o.BlockID, o.TargetLocale, runs)
+// changeSetOp queues a change set (kapi.change/v1) made while the server was
+// out of reach: a saved translation, a review decision, a note or an entity
+// mark. It keeps the preconditions it was sent with, so on replay the server
+// judges each one against the content as it then stands. An edit to a
+// translation someone else changed in the meantime is refused stale, and the
+// replay marks it failed, instead of landing over their wording.
+type changeSetOp struct {
+	ProjectID string          `json:"project_id"`
+	Stream    string          `json:"stream"`
+	Set       json.RawMessage `json:"set"`
 }
 
-// updateBlockTargetRunsOp queues a structured Run-sequence target update.
-type updateBlockTargetRunsOp struct{ UpdateBlockTargetRunsRequest }
+func (changeSetOp) opKind() opKind { return opChangeSet }
 
-func (updateBlockTargetRunsOp) opKind() opKind { return opUpdateBlockTargetRuns }
-
-func (o updateBlockTargetRunsOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
-	return client.UpdateBlockTargetRuns(ctx, ws, o.ProjectID, o.BlockID, o.TargetLocale, runInfosToRuns(o.Runs))
+func (o changeSetOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
+	res, err := client.ApplyChanges(ctx, ws, o.ProjectID, o.Stream, o.Set)
+	if err != nil {
+		return err
+	}
+	return refusal(res)
 }
 
-// reviewBlockOp queues a block review/un-review. Status is the optional rung,
-// mirroring the server's review body: "draft" on a clearing call for a
-// rejection, empty for the default rung either way.
-type reviewBlockOp struct {
-	ProjectID    string `json:"project_id"`
-	ItemName     string `json:"item_name"`
-	BlockID      string `json:"block_id"`
-	TargetLocale string `json:"target_locale"`
-	Reviewed     bool   `json:"reviewed"`
-	Status       string `json:"status,omitempty"`
-}
-
-func (reviewBlockOp) opKind() opKind { return opReviewBlock }
-
-func (o reviewBlockOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
-	return client.ReviewBlock(ctx, ws, o.ProjectID, o.ItemName, o.BlockID, o.TargetLocale, o.Reviewed, o.Status)
-}
-
-// --- Translation-memory ops ---
+// --- Content-memory ops ---
 
 // addMemoryEntryOp queues a new content-memory entry.
 type addMemoryEntryOp struct {

@@ -1,8 +1,9 @@
-import { codedToRuns } from "@neokapi/ui-primitives";
+import { CHANGE_RESULT_SCHEMA_ID } from "@neokapi/contract-types";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import { normalizeServerBlocks, type ServerBlockInfo } from "../components/editor/blockRuns";
 import { ApiError, apiErrorFromResponse } from "../errors/ApiError";
 import type { ApiAdapter } from "./adapter";
+import type { ChangeResult, ContentChangeSet } from "./contentChanges";
 import type {
   User,
   Workspace,
@@ -14,8 +15,6 @@ import type {
   ConfigResponse,
   PublicPlatformConfig,
   BlockInfo,
-  UpdateBlockRequest,
-  UpdateBlockTargetCodedRequest,
   AITranslateFileRequest,
   TranslationStats,
   WordCountResult,
@@ -51,7 +50,6 @@ import type {
   AutomationLogEntry,
   SaveAutomationRuleRequest,
   NotificationInfo,
-  EntityInfo,
   StreamInfo,
   StreamDiffResult,
   StreamMergeResult,
@@ -121,7 +119,6 @@ import type {
   PasskeyRegisterStartResponse,
   PasskeyRegisterFinishRequest,
   SlugReservation,
-  ReviewRung,
   ApprovePassingRequest,
   ApprovePassingResult,
   SourceProposal,
@@ -312,6 +309,15 @@ export type ApiTransport = (input: string, init?: RequestInit) => Promise<Respon
  */
 function httpError(resp: Response, body: string): Error {
   return apiErrorFromResponse(resp.status, body, resp.headers.get("X-Request-ID"));
+}
+
+/** Whether a response body is a change result (kapi.change-result/v1). */
+function isChangeResult(body: unknown): body is ChangeResult {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    (body as { schema?: unknown }).schema === CHANGE_RESULT_SCHEMA_ID
+  );
 }
 
 export class RestApiAdapter implements ApiAdapter {
@@ -1579,34 +1585,24 @@ export class RestApiAdapter implements ApiAdapter {
     };
   }
 
-  async updateBlockTarget(workspaceSlug: string, req: UpdateBlockRequest): Promise<void> {
-    await this.fetchJSON(
-      `${this.projectEp(workspaceSlug, req.project_id)}/blocks/${this.ref(req.stream)}/${req.block_id}`,
-      {
-        method: "PUT",
-        body: JSON.stringify(req),
-      },
-    );
-  }
-
-  async updateBlockTargetCoded(
+  async applyChanges(
     workspaceSlug: string,
-    req: UpdateBlockTargetCodedRequest,
-  ): Promise<void> {
-    // The @neokapi/ui editor still authors coded text + spans; the server
-    // consumes RFC 0001 runs (PUT .../runs — there is no /coded route), so
-    // convert at the boundary, exactly like WailsApiAdapter does for the
-    // desktop backend.
-    await this.fetchJSON(
-      `${this.projectEp(workspaceSlug, req.project_id)}/blocks/${this.ref(req.stream)}/${req.block_id}/runs`,
-      {
-        method: "PUT",
-        body: JSON.stringify({
-          target_locale: req.target_locale,
-          runs: codedToRuns(req.coded_text, req.spans),
-        }),
-      },
-    );
+    projectId: string,
+    set: ContentChangeSet,
+    stream?: string,
+  ): Promise<ChangeResult> {
+    // POST /:ws/projects/:id/streams/:stream/changes. A refused change set is
+    // answered with the status its refusal maps to (409 stale, 403, 422, …) and
+    // a change result as the body; that result is the answer, not an error.
+    try {
+      return await this.fetchJSON<ChangeResult>(
+        `/api/v1/${workspaceSlug}/projects/${encodeURIComponent(projectId)}/streams/${this.ref(stream)}/changes`,
+        { method: "POST", body: JSON.stringify(set) },
+      );
+    } catch (err) {
+      if (err instanceof ApiError && isChangeResult(err.body)) return err.body;
+      throw err;
+    }
   }
 
   async pseudoTranslateFile(
@@ -1805,33 +1801,6 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async reviewBlock(
-    workspaceSlug: string,
-    projectId: string,
-    itemName: string,
-    blockId: string,
-    targetLocale: string,
-    reviewed: boolean,
-    stream?: string,
-    rung?: ReviewRung,
-  ): Promise<void> {
-    // An approval always lands on established, so only "draft" (a rejection)
-    // rides on a clearing call; everything else is the default rung.
-    const status = reviewed ? undefined : rung === "draft" ? "draft" : undefined;
-    await this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/review`,
-      {
-        method: "PUT",
-        body: JSON.stringify({
-          item_name: itemName,
-          target_locale: targetLocale,
-          reviewed,
-          status,
-        }),
-      },
-    );
-  }
-
   async approvePassingReview(
     workspaceSlug: string,
     projectId: string,
@@ -2004,37 +1973,14 @@ export class RestApiAdapter implements ApiAdapter {
 
   // ── Block Notes ──────────────────────────────────────────────────────────
 
-  async addBlockNote(
-    workspaceSlug: string,
-    projectId: string,
-    blockId: string,
-    text: string,
-  ): Promise<BlockNote> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/notes`,
-      {
-        method: "POST",
-        body: JSON.stringify({ text }),
-      },
-    );
-  }
-
   async listBlockNotes(
     workspaceSlug: string,
     projectId: string,
     blockId: string,
+    stream?: string,
   ): Promise<BlockNote[]> {
     return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/notes`,
-    );
-  }
-
-  async deleteBlockNote(workspaceSlug: string, projectId: string, noteId: string): Promise<void> {
-    // Note: the route includes block ID in the path, but for deletion we use a
-    // placeholder since the server only needs project ID and note ID.
-    await this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/_/notes/${noteId}`,
-      { method: "DELETE" },
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/notes`,
     );
   }
 
@@ -2533,52 +2479,6 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   // ── Entity Annotations ──────────────────────────────────────────────────
-
-  async createEntity(
-    workspaceSlug: string,
-    projectId: string,
-    itemName: string,
-    blockId: string,
-    entity: Partial<EntityInfo>,
-  ): Promise<EntityInfo> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/entities`,
-      {
-        method: "POST",
-        body: JSON.stringify({ item_name: itemName, ...entity }),
-      },
-    );
-  }
-
-  async updateEntity(
-    workspaceSlug: string,
-    projectId: string,
-    itemName: string,
-    blockId: string,
-    entityKey: string,
-    entity: Partial<EntityInfo>,
-  ): Promise<EntityInfo> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/entities/${encodeURIComponent(entityKey)}`,
-      {
-        method: "PUT",
-        body: JSON.stringify({ item_name: itemName, ...entity }),
-      },
-    );
-  }
-
-  async deleteEntity(
-    workspaceSlug: string,
-    projectId: string,
-    itemName: string,
-    blockId: string,
-    entityKey: string,
-  ): Promise<void> {
-    await this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/entities/${encodeURIComponent(entityKey)}?item_name=${encodeURIComponent(itemName)}`,
-      { method: "DELETE" },
-    );
-  }
 
   async promoteEntity(
     workspaceSlug: string,

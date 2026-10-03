@@ -847,6 +847,14 @@ export interface BlockInfo {
   has_spans: boolean;
   properties: Record<string, string>;
   entities?: EntityInfo[];
+  /**
+   * Each served locale's translation revision, as the block was read: the
+   * `if_match` an operation on that translation sends. `"absent"` names a
+   * locale the block holds no translation for. A surface that saves or decides
+   * names the revision it rendered, so a translation someone changed in the
+   * meantime is refused rather than overwritten.
+   */
+  target_revisions?: Record<string, string>;
 }
 
 /** Entity annotation on a block */
@@ -878,27 +886,6 @@ export interface NotificationInfo {
   task_id?: string;
   priority?: string;
   created_at: string;
-}
-
-/** Update block request */
-export interface UpdateBlockRequest {
-  project_id: string;
-  item_name: string;
-  block_id: string;
-  target_locale: string;
-  text: string;
-  stream?: string;
-}
-
-/** Update block target with coded text and spans */
-export interface UpdateBlockTargetCodedRequest {
-  project_id: string;
-  item_name: string;
-  block_id: string;
-  target_locale: string;
-  coded_text: string;
-  spans: SpanInfo[];
-  stream?: string;
 }
 
 /** AI translate file request */

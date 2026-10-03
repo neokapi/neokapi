@@ -548,6 +548,40 @@ export { countBucket, creditBucket, percentBucket, sharePercentBucket } from "./
 export type { ApiAdapter } from "./api/adapter";
 export { fetchConnectorStatuses, CONNECTOR_STATUS_BATCH_SIZE } from "./api/connector-status";
 export { RestApiAdapter, type ApiTransport } from "./api/rest-adapter";
+// Content changes: the change sets the editor surfaces send.
+export {
+  ABSENT_REVISION,
+  ChangeRefusedError,
+  addNote,
+  contentChangeSet,
+  decideTranslation,
+  decisionOutcome,
+  markEntity,
+  placeholderText,
+  readOutcome,
+  removeNote,
+  renderedRevision,
+  setTranslation,
+  textRangeAnchor,
+  toChangeRuns,
+} from "./api/contentChanges";
+export type {
+  ChangeOutcome,
+  ChangeResult,
+  ContentChangeSet,
+  EntityMark,
+  TranslationContent,
+} from "./api/contentChanges";
+export { useContentChanges } from "./hooks/useContentChanges";
+export type {
+  CommitOutcome,
+  StaleAction,
+  StaleChoice,
+  StaleDialogState,
+  StalePrompt,
+} from "./hooks/useContentChanges";
+export { StaleChangeDialog } from "./components/editor/StaleChangeDialog";
+export type { StaleChangeDialogProps } from "./components/editor/StaleChangeDialog";
 
 // Collaboration
 export { PresenceAvatars } from "./components/PresenceAvatars";
@@ -601,8 +635,6 @@ export type {
   ReviewRung,
   ApprovePassingRequest,
   ApprovePassingResult,
-  UpdateBlockRequest,
-  UpdateBlockTargetCodedRequest,
   AITranslateFileRequest,
   TranslationStats,
   WordCountResult,

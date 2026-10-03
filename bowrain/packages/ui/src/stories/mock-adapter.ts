@@ -6,8 +6,11 @@
  * feels interactive without needing a real server.
  */
 
+import type { ChangeOp } from "@neokapi/contract-types";
 import type { ApiAdapter } from "../api/adapter";
+import type { ContentChangeSet } from "../api/contentChanges";
 import { getBlockStatus, getTargetText } from "../components/editor/blockStatus";
+import { applyMockChanges, servedBlock, writeTranslation } from "./mockContentChanges";
 import type {
   ApprovePassingRequest,
   ApprovePassingResult,
@@ -207,27 +210,44 @@ ${script}
 </html>`;
 }
 
-/** One recorded `reviewBlock` invocation (for component-test assertions). */
-export interface ReviewBlockCall {
+/** One recorded `applyChanges` invocation (for component-test assertions). */
+export interface ChangeSetCall {
   workspaceSlug: string;
   projectId: string;
-  itemName: string;
-  blockId: string;
-  targetLocale: string;
-  reviewed: boolean;
   stream?: string;
-  rung?: ReviewRung;
+  set: ContentChangeSet;
 }
 
+/** One operation of a recorded change set, with the call it was sent on. */
+export type RecordedOp<T extends ChangeOp = ChangeOp> = T & {
+  workspaceSlug: string;
+  projectId: string;
+  stream?: string;
+};
+
 /**
- * The mock adapter plus test hooks: recorded review calls and a failure
- * toggle so tests can assert the optimistic-update rollback path.
+ * The mock adapter plus test hooks: recorded change sets, a failure toggle so
+ * tests can assert the optimistic-update rollback path, and a way to change a
+ * translation as someone else would.
  */
 export interface MockAdapter extends ApiAdapter {
-  /** `reviewBlock` invocations in call order. */
-  reviewBlockCalls: ReviewBlockCall[];
-  /** When true, `reviewBlock` rejects instead of applying. */
-  failReviewBlock: boolean;
+  /** `applyChanges` invocations in call order. */
+  changeSetCalls: ChangeSetCall[];
+  /** The operations of one kind the recorded change sets carried, in order. */
+  opsOf: <K extends ChangeOp["op"]>(kind: K) => RecordedOp<Extract<ChangeOp, { op: K }>>[];
+  /** When true, `applyChanges` rejects, as a request that got no answer does. */
+  failApplyChanges: boolean;
+  /**
+   * Change a translation as another person would: the next change that names
+   * the revision the surface read is refused stale.
+   */
+  editElsewhere: (blockId: string, locale: string, text: string) => void;
+  /**
+   * A translation another person saves just before the next change set lands,
+   * so a story that opens a block and then saves or decides meets the stale
+   * prompt. Consumed by that change set.
+   */
+  concurrentEdit?: { blockId: string; locale: string; text: string };
   /** `approvePassingReview` invocations in call order. */
   approvePassingReviewCalls: ApprovePassingRequest[];
   /** Overrides the computed `approvePassingReview` result when set. */
@@ -571,16 +591,8 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     throw new Error("Not implemented in mock");
   };
 
-  // Replace a target's text while preserving its per-locale review status —
-  // the server's SetTargetText/SetTargetRuns preserve Target.Status, so the
-  // mock must not clobber a {text, status} entry with a bare string.
-  const setTargetPreservingStatus = (blk: BlockInfo, locale: string, text: string) => {
-    const entry = blk.targets[locale];
-    const status = entry != null && typeof entry === "object" ? entry.status : undefined;
-    blk.targets[locale] = status ? { text, status } : text;
-  };
-
-  const reviewBlockCalls: ReviewBlockCall[] = [];
+  const changeSetCalls: ChangeSetCall[] = [];
+  const _notes: BlockNote[] = sampleBlockNotes.map((n) => ({ ...n }));
   const approvePassingReviewCalls: ApprovePassingRequest[] = [];
   const createSourceProposalCalls: CreateSourceProposalRequest[] = [];
   const decideSourceProposalCalls: { proposalId: string; decision: string; reason?: string }[] = [];
@@ -596,8 +608,18 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
 
   const adapter: MockAdapter = {
     // --- Test hooks -------------------------------------------------------
-    reviewBlockCalls,
-    failReviewBlock: false,
+    changeSetCalls,
+    opsOf: <K extends ChangeOp["op"]>(kind: K) =>
+      changeSetCalls.flatMap(({ set, workspaceSlug, projectId, stream }) =>
+        set.ops
+          .filter((op): op is Extract<ChangeOp, { op: K }> => op.op === kind)
+          .map((op) => ({ ...op, workspaceSlug, projectId, stream })),
+      ),
+    failApplyChanges: false,
+    editElsewhere: (blockId, locale, text) => {
+      const blk = _blocks.find((b) => b.id === blockId);
+      if (blk) writeTranslation(blk, locale, text, text, "translated");
+    },
     approvePassingReviewCalls,
     createSourceProposalCalls,
     decideSourceProposalCalls,
@@ -774,10 +796,9 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
 
     // --- Editor ---------------------------------------------------------
     getFileBlocks: async (_ws, _projectId, _fileName, _stream, opts) =>
-      queryBlocks(_blocks, opts).slice(
-        opts?.offset ?? 0,
-        (opts?.offset ?? 0) + (opts?.limit ?? _blocks.length),
-      ),
+      queryBlocks(_blocks, opts)
+        .slice(opts?.offset ?? 0, (opts?.offset ?? 0) + (opts?.limit ?? _blocks.length))
+        .map(servedBlock),
 
     getBlockCounts: async (_ws, _projectId, _item, locale, _stream, opts) => {
       const matching = queryBlocks(_blocks, { locale, ...opts });
@@ -795,7 +816,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     getBlock: async (_ws, _projectId, blockId) => {
       const block = _blocks.find((b) => b.id === blockId);
       if (!block) throw new Error(`block not found: ${blockId}`);
-      return block;
+      return servedBlock(block);
     },
 
     getItem: async (_ws, _projectId, itemName) => ({
@@ -865,7 +886,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
                 block_id: b.id,
                 item_name: itemName,
                 locale: loc,
-                block: b,
+                block: servedBlock(b),
                 collection_id: adapter.itemCollections[itemName] ?? "",
                 // The two bars beyond the checks the server judges on, in the shape
                 // the real payload carries: terminology the seed leaves out is not
@@ -887,27 +908,15 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       };
     },
 
-    updateBlockTarget: async (_ws, req) => {
-      const blk = _blocks.find((b) => b.id === req.block_id);
-      if (blk) {
-        setTargetPreservingStatus(blk, req.target_locale, req.text);
-        blk.targets_coded = blk.targets_coded ?? {};
-        blk.targets_coded[req.target_locale] = req.text;
+    applyChanges: async (workspaceSlug, projectId, set, stream) => {
+      changeSetCalls.push({ workspaceSlug, projectId, stream, set });
+      if (adapter.failApplyChanges) throw new Error("applyChanges failed (mock)");
+      if (adapter.concurrentEdit) {
+        const { blockId, locale, text } = adapter.concurrentEdit;
+        adapter.concurrentEdit = undefined;
+        adapter.editElsewhere(blockId, locale, text);
       }
-    },
-
-    updateBlockTargetCoded: async (_ws, req) => {
-      const blk = _blocks.find((b) => b.id === req.block_id);
-      if (blk) {
-        blk.targets_coded = blk.targets_coded ?? {};
-        blk.targets_coded[req.target_locale] = req.coded_text;
-        // Also write plain text (strip Unicode markers)
-        setTargetPreservingStatus(
-          blk,
-          req.target_locale,
-          req.coded_text.replace(/[\uE001\uE002\uE003]/g, ""),
-        );
-      }
+      return applyMockChanges({ blocks: _blocks, notes: _notes }, set);
     },
 
     pseudoTranslateFile: async (): Promise<TranslationStats> => ({
@@ -1075,15 +1084,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
           },
 
     // --- Block notes ----------------------------------------------------
-    addBlockNote: async (_ws, _projectId, blockId, text): Promise<BlockNote> => ({
-      id: `note-${Date.now()}`,
-      blockId,
-      author: "translator@example.com",
-      text,
-      createdAt: new Date().toISOString(),
-    }),
-    listBlockNotes: async (): Promise<BlockNote[]> => sampleBlockNotes,
-    deleteBlockNote: async () => {},
+    listBlockNotes: async (): Promise<BlockNote[]> => _notes.map((n) => ({ ...n })),
 
     // --- Block history ---------------------------------------------------
     getBlockHistory: async (): Promise<BlockHistoryEntry[]> => sampleBlockHistory,
@@ -1093,41 +1094,6 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     revertBatch: async () => ({ reverted: 0 }),
     restoreToPoint: async () => ({ restored: 0 }),
     setBlockStatus: async () => {},
-
-    // --- Per-locale review (Target.Status ladder) -------------------------
-    reviewBlock: async (
-      workspaceSlug,
-      projectId,
-      itemName,
-      blockId,
-      targetLocale,
-      reviewed,
-      stream,
-      rung,
-    ) => {
-      reviewBlockCalls.push({
-        workspaceSlug,
-        projectId,
-        itemName,
-        blockId,
-        targetLocale,
-        reviewed,
-        stream,
-        rung,
-      });
-      if (adapter.failReviewBlock) throw new Error("reviewBlock failed (mock)");
-      const blk = _blocks.find((b) => b.id === blockId);
-      if (blk) {
-        const entry = blk.targets[targetLocale];
-        const text = typeof entry === "string" ? entry : (entry?.text ?? "");
-        blk.targets[targetLocale] = {
-          text,
-          // An approval lands on established, a rejection at draft, and a
-          // plain un-review at translated (mirrors HandleReviewBlock).
-          status: reviewed ? "established" : rung === "draft" ? "draft" : "translated",
-        };
-      }
-    },
 
     approvePassingReview: async (_ws, _projectId, req = {}) => {
       approvePassingReviewCalls.push(req);
@@ -1466,25 +1432,6 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     updateDigestSettings: async (_ws, settings) => settings,
 
     // --- Entities ---------------------------------------------------------
-    createEntity: async (_ws, _pid, _item, _bid, entity) => ({
-      key: `entity-${Date.now()}`,
-      text: "",
-      type: "generic",
-      start: 0,
-      end: 0,
-      dnt: false,
-      ...entity,
-    }),
-    updateEntity: async (_ws, _pid, _item, _bid, entityKey, entity) => ({
-      key: entityKey,
-      text: "",
-      type: "generic",
-      start: 0,
-      end: 0,
-      dnt: false,
-      ...entity,
-    }),
-    deleteEntity: noop,
     promoteEntity: noop,
     listStreams: async () => [],
     createStream: async () => {

@@ -116,10 +116,17 @@ export function ReviewInspector({
         className="gap-3 data-[side=right]:w-full data-[side=right]:sm:w-3/4 data-[side=right]:sm:max-w-none data-[side=right]:lg:w-[42rem]"
         data-testid="review-inspector"
         // Reading on is not dismissing: a click inside the document moves the
-        // inspector rather than closing it. Anywhere else still dismisses.
+        // inspector rather than closing it, and answering a dialog the
+        // inspector's own action opened (a translation that changed since it
+        // was read) leaves it open. Anywhere else still dismisses.
         onInteractOutside={(e) => {
           const target = e.target as HTMLElement | null;
-          if (target?.closest('[data-testid="review-document"]')) e.preventDefault();
+          if (
+            target?.closest('[data-testid="review-document"]') ||
+            target?.closest('[data-slot="dialog-content"]')
+          ) {
+            e.preventDefault();
+          }
         }}
       >
         <SheetHeader className="pb-0">

@@ -7,8 +7,20 @@ import {
   Button,
   ReviewLanguageSelect,
   cn,
+  codedToRuns,
 } from "@neokapi/ui-primitives";
+import type { Run } from "@neokapi/kapi-format";
 import { ConfirmDialog } from "../ConfirmDialog";
+import { StaleChangeDialog } from "../editor/StaleChangeDialog";
+import { useContentChanges } from "../../hooks/useContentChanges";
+import {
+  decideTranslation,
+  decisionOutcome,
+  placeholderText,
+  renderedRevision,
+  setTranslation,
+  type TranslationContent,
+} from "../../api/contentChanges";
 import type {
   ApprovePassingResult,
   ProjectInfo,
@@ -23,7 +35,12 @@ import { useLocales } from "../../hooks/useLocales";
 import { useCallerPermissions } from "../../hooks/useCallerPermissions";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { ErrorNotice } from "../../errors";
-import { getTargetText, statusAfterEdit, withTargetEntry } from "../editor/blockStatus";
+import {
+  getTargetText,
+  statusAfterEdit,
+  withTargetEntry,
+  withTargetRevision,
+} from "../editor/blockStatus";
 import { type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { ArrowLeft, Rocket, CircleCheck, Sparkles, RefreshCw } from "../icons";
 import { ReviewQueueList } from "./ReviewQueueList";
@@ -201,6 +218,7 @@ export function ReviewSession({
   onBack,
 }: ReviewSessionProps) {
   const api = useEditorApi();
+  const changes = useContentChanges(project.id);
   const { getDisplayName } = useLocales();
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
@@ -430,15 +448,19 @@ export function ReviewSession({
       actedRef.current = true;
       setEntries((prev) => prev.filter((e) => e.id !== entry.id));
       setPendingTotal((t) => Math.max(0, t - 1));
+      // A rejection sends the translation back to draft, so it re-enters the
+      // work queue. The decision binds to the wording the reviewer read: a
+      // translation someone changed since is shown before anything is recorded.
+      const outcome = decisionOutcome(reviewed, reviewed ? rung : "draft");
       try {
-        await api.reviewBlock(
-          project.id,
-          entry.itemName,
-          entry.block.id,
-          entry.locale,
-          reviewed,
-          reviewed ? rung : "draft",
+        const done = await changes.commit(
+          (ifMatch) =>
+            decideTranslation(entry.itemName, entry.block, entry.locale, outcome, ifMatch),
+          renderedRevision(entry.block, entry.locale),
+          { action: outcome, locale: entry.locale },
         );
+        // Kept: the entry comes back with the translation as it stands.
+        if (done.status === "kept") void refetch();
       } catch (e) {
         setActionError(e);
         void refetch();
@@ -446,7 +468,7 @@ export function ReviewSession({
         setBusy(false);
       }
     },
-    [api, busy, project.id, refetch],
+    [changes, busy, refetch],
   );
 
   const approve = useCallback(() => {
@@ -504,38 +526,50 @@ export function ReviewSession({
       try {
         let text: string;
         let coded: string | undefined;
+        let content: TranslationContent;
         if (result.kind === "flat") {
-          await api.updateBlockTargetCoded({
-            project_id: project.id,
-            item_name: entry.itemName,
-            block_id: entry.block.id,
-            target_locale: entry.locale,
-            coded_text: result.codedText,
-            spans: result.spans,
-          });
+          content = { runs: codedToRuns(result.codedText, result.spans) as Run[] };
           coded = result.codedText;
           text = result.codedText.replace(/[\uE001-\uE003]/g, "");
         } else {
-          await api.updateBlockTarget({
-            project_id: project.id,
-            item_name: entry.itemName,
-            block_id: entry.block.id,
-            target_locale: entry.locale,
-            text: result.text,
-          });
+          content = { text: result.text };
           text = result.text;
         }
+        const done = await changes.commit(
+          (ifMatch) => setTranslation(entry.itemName, entry.block, entry.locale, content, ifMatch),
+          renderedRevision(entry.block, entry.locale),
+          {
+            action: "save",
+            locale: entry.locale,
+            mine: "runs" in content ? placeholderText(content.runs) : content.text,
+          },
+        );
         setEditing(false);
+        if (done.status === "kept") {
+          // The reviewer kept the translation someone else saved: the entry
+          // shows it as it stands.
+          const fresh = await api.getBlock(project.id, entry.block.id).catch(() => null);
+          if (fresh) {
+            setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, block: fresh } : e)));
+          } else {
+            void refetch();
+          }
+          return;
+        }
 
         let saved: BlockInfo;
         try {
           saved = await api.getBlock(project.id, entry.block.id);
         } catch {
           saved = {
-            ...withTargetEntry(entry.block, entry.locale, {
-              text,
-              status: statusAfterEdit(entry.block, entry.locale, text, coded),
-            }),
+            ...withTargetRevision(
+              withTargetEntry(entry.block, entry.locale, {
+                text,
+                status: statusAfterEdit(entry.block, entry.locale, text, coded),
+              }),
+              entry.locale,
+              done.after,
+            ),
             targets_coded: { ...entry.block.targets_coded, [entry.locale]: coded ?? "" },
           };
         }
@@ -547,7 +581,7 @@ export function ReviewSession({
         setBusy(false);
       }
     },
-    [api, project.id, recheck],
+    [api, changes, project.id, recheck, refetch],
   );
 
   // Bulk "Approve all passing": server promotes every pending block passing
@@ -908,6 +942,8 @@ export function ReviewSession({
           )}
         </div>
       )}
+
+      <StaleChangeDialog state={changes.staleDialog} />
 
       {/* Bulk approve confirmation */}
       <ConfirmDialog

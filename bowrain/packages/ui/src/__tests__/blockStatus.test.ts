@@ -140,14 +140,18 @@ describe("statusAfterEdit — an edit invalidates a stale review decision", () =
     expect(statusAfterEdit(established, "fr", "Bonjour")).toBe("established");
   });
 
-  it("leaves rungs at or below translated alone", () => {
+  it("makes a draft a person rewrote translated, as the change service does", () => {
     expect(
       statusAfterEdit(makeBlock({ fr: { text: "Bonjour", status: "draft" } }), "fr", "Salut"),
-    ).toBe("draft");
+    ).toBe("translated");
     expect(
       statusAfterEdit(makeBlock({ fr: { text: "Bonjour", status: "translated" } }), "fr", "Salut"),
     ).toBe("translated");
-    expect(statusAfterEdit(makeBlock({ fr: "Bonjour" }), "fr", "Salut")).toBe("");
+    expect(statusAfterEdit(makeBlock({ fr: "Bonjour" }), "fr", "Salut")).toBe("translated");
+    // Saving the same wording is no edit: the rung stays where it was.
+    expect(
+      statusAfterEdit(makeBlock({ fr: { text: "Bonjour", status: "draft" } }), "fr", "Bonjour"),
+    ).toBe("draft");
   });
 
   it("compares coded text when the save carries runs", () => {

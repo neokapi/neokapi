@@ -245,10 +245,11 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 		for _, change := range changes {
 			if err := a.replayChange(ctx, change); err != nil {
 				var statusErr *apiclient.StatusError
-				if errors.As(err, &statusErr) && statusErr.Permanent() {
-					// The server rejected the change outright (4xx) — e.g. a queued
-					// review of a block whose translation no longer exists (422) or a
-					// deleted block (404). Retrying the identical request can never
+				if (errors.As(err, &statusErr) && statusErr.Permanent()) || errors.Is(err, errUnreplayable) {
+					// The server refused the change (4xx): an edit to a translation
+					// someone changed while the app was offline (409), a decision on
+					// a block with no translation (422), a deleted block (404). Or
+					// this build cannot replay the entry at all. Retrying can never
 					// succeed, so retire it and keep draining the queue.
 					slog.Warn("bowrain: dropping permanently failed change", "change_id", change.ID, "operation", change.Operation, "error", err)
 					_ = a.offlineQueue.MarkFailedPermanent(change.ID, err.Error())
@@ -298,10 +299,6 @@ func (a *App) replayChange(ctx context.Context, change PendingChange) error {
 	op, err := decodeOp(opKind(change.Operation), change.Payload)
 	if err != nil {
 		return err
-	}
-	if op == nil {
-		slog.Info("bowrain: unknown pending change operation:", "value", change.Operation)
-		return nil // skip unknown operations
 	}
 	return op.replay(ctx, client, ws)
 }

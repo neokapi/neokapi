@@ -17,8 +17,6 @@ import type {
   BlockInfo,
   PendingReviewOptions,
   PendingReviewPage,
-  UpdateBlockRequest,
-  UpdateBlockTargetCodedRequest,
   AITranslateFileRequest,
   TranslationStats,
   WordCountResult,
@@ -51,7 +49,6 @@ import type {
   AutomationEvent,
   SaveAutomationRuleRequest,
   NotificationInfo,
-  EntityInfo,
   StreamInfo,
   StreamDiffResult,
   StreamMergeResult,
@@ -134,7 +131,6 @@ import type {
   MergeResult,
   Pilot,
   StartPilotRequest,
-  ReviewRung,
   ApprovePassingResult,
   VoiceCorrectionRequest,
   VoiceCorrectionResult,
@@ -166,9 +162,9 @@ import type {
   ConceptStatusCounts,
   LocaleCoverageReport,
   ChangeSetCounts,
+  ChangeResult,
+  ContentChangeSet,
 } from "@neokapi/ui";
-
-import { codedToRuns } from "./codedToRuns";
 
 /**
  * Presence-collaboration session info surfaced by the Go backend so the webview
@@ -792,19 +788,18 @@ export class WailsApiAdapter implements ApiAdapter {
       opts?.offset ?? 0,
     ) as Promise<PendingReviewPage>;
   }
-  async updateBlockTarget(_ws: string, req: UpdateBlockRequest): Promise<void> {
-    return Backend.UpdateBlockTarget(req);
-  }
-  async updateBlockTargetCoded(_ws: string, req: UpdateBlockTargetCodedRequest): Promise<void> {
-    // The @neokapi/ui editor still authors coded text + spans; the Wails
-    // backend now consumes RFC 0001 runs, so convert at the boundary.
-    return Backend.UpdateBlockTargetRuns({
-      project_id: req.project_id,
-      item_name: req.item_name,
-      block_id: req.block_id,
-      target_locale: req.target_locale,
-      runs: codedToRuns(req.coded_text, req.spans),
-    });
+  async applyChanges(
+    _ws: string,
+    projectId: string,
+    set: ContentChangeSet,
+    _stream?: string,
+  ): Promise<ChangeResult> {
+    // The Go backend sends the change set to the server's changes route, or,
+    // with the server out of reach, applies it to the local cache and queues
+    // it with its preconditions for replay (backend/changes.go). The desktop
+    // editor is pinned to the main stream, as every desktop editor call is.
+    // The contract travels as JSON text both ways.
+    return JSON.parse(await Backend.ApplyChanges(projectId, JSON.stringify(set))) as ChangeResult;
   }
   async pseudoTranslateFile(
     _ws: string,
@@ -1119,30 +1114,9 @@ export class WailsApiAdapter implements ApiAdapter {
     return { restored: 0 };
   }
   async setBlockStatus(): Promise<void> {}
-  async reviewBlock(
-    _ws: string,
-    projectId: string,
-    itemName: string,
-    blockId: string,
-    targetLocale: string,
-    reviewed: boolean,
-    _stream?: string,
-    rung?: ReviewRung,
-  ): Promise<void> {
-    // Delegates to the Go backend, which calls the server's review endpoint
-    // and queues the operation for replay when offline (backend/offlineop.go).
-    // Desktop mode is stream-unaware by design: the entire desktop editor
-    // surface is pinned to the "main" stream (editorRef in
-    // bowrain/editorclient/editor.go), so the adapter accepts and ignores the
-    // stream parameter — same as rollbackBlock/getBlockHistory above. An
-    // approval always lands on established, so only "draft" (a rejection)
-    // rides on a clearing call.
-    const status = reviewed ? "" : rung === "draft" ? "draft" : "";
-    return Backend.ReviewBlock(projectId, itemName, blockId, targetLocale, reviewed, status);
-  }
   async approvePassingReview(): Promise<ApprovePassingResult> {
     // Bulk approve-passing is a server-side governance operation; the desktop
-    // working copy signs off block-by-block via reviewBlock instead.
+    // working copy signs off block-by-block with decide operations instead.
     throw new Error("bulk approve-passing is not available in the desktop app");
   }
   async recordVoiceCorrection(
@@ -1210,20 +1184,10 @@ export class WailsApiAdapter implements ApiAdapter {
   async setRoleOverride(): Promise<void> {}
   async demoteVoiceRule(): Promise<void> {}
 
-  // --- Block notes (desktop: not yet backed by Wails bindings) ---
-  async addBlockNote(
-    _ws: string,
-    _projectId: string,
-    _blockId: string,
-    _text: string,
-  ): Promise<BlockNote> {
-    throw new Error("Block notes not yet supported in desktop mode");
-  }
+  // --- Block notes: read from the server (the composite routes this to REST);
+  // a note is written and removed by a change set (applyChanges). ---
   async listBlockNotes(_ws: string, _projectId: string, _blockId: string): Promise<BlockNote[]> {
     return [];
-  }
-  async deleteBlockNote(_ws: string, _projectId: string, _noteId: string): Promise<void> {
-    throw new Error("Block notes not yet supported in desktop mode");
   }
 
   // --- Checks (desktop: not yet backed by Wails bindings) ---
@@ -1389,35 +1353,8 @@ export class WailsApiAdapter implements ApiAdapter {
     throw new Error("not implemented in desktop app");
   }
 
-  // --- Entity annotations (desktop: not yet backed by Wails bindings) ---
-  async createEntity(
-    _ws: string,
-    _projectId: string,
-    _itemName: string,
-    _blockId: string,
-    _entity: Partial<EntityInfo>,
-  ): Promise<EntityInfo> {
-    throw new Error("Entity annotations not yet supported in desktop mode");
-  }
-  async updateEntity(
-    _ws: string,
-    _projectId: string,
-    _itemName: string,
-    _blockId: string,
-    _entityKey: string,
-    _entity: Partial<EntityInfo>,
-  ): Promise<EntityInfo> {
-    throw new Error("Entity annotations not yet supported in desktop mode");
-  }
-  async deleteEntity(
-    _ws: string,
-    _projectId: string,
-    _itemName: string,
-    _blockId: string,
-    _entityKey: string,
-  ): Promise<void> {
-    throw new Error("Entity annotations not yet supported in desktop mode");
-  }
+  // --- Entity annotations: an entity is marked by a change set
+  // (applyChanges); promoting one is a server action. ---
   async promoteEntity(
     _ws: string,
     _projectId: string,

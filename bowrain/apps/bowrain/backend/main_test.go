@@ -9,7 +9,10 @@ import (
 
 	"github.com/zalando/go-keyring"
 
+	"github.com/neokapi/neokapi/bowrain/migrations"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -29,6 +32,10 @@ import (
 var templateStorePath string
 
 func TestMain(m *testing.M) {
+	// The tests that run the real server against PostgreSQL each get a copy of
+	// a database the migrations built once (pgtest.UseTemplate).
+	pgtest.UseTemplate(func(db *storage.PgDB) error { return migrations.Apply(db, nil) })
+
 	// Replace the OS keychain with an in-memory mock for the whole package, so
 	// no test can ever read or write the developer's real bowrain tokens — even
 	// one that forgets to call keyring.MockInit() itself. Defense in depth on

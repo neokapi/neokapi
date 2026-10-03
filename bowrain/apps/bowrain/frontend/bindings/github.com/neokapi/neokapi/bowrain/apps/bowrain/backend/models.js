@@ -438,6 +438,16 @@ export class BlockInfo {
              */
             this["properties"] = {};
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * TargetRevisions names each target locale's revision as the block was
+             * read: the if_match an operation on that translation sends
+             * (ApplyChanges).
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["target_revisions"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -452,6 +462,7 @@ export class BlockInfo {
         const $$createField2_0 = $$createType8;
         const $$createField3_0 = $$createType9;
         const $$createField5_0 = $$createType10;
+        const $$createField6_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sourceRuns" in $$parsedSource) {
             $$parsedSource["sourceRuns"] = $$createField1_0($$parsedSource["sourceRuns"]);
@@ -464,6 +475,9 @@ export class BlockInfo {
         }
         if ("properties" in $$parsedSource) {
             $$parsedSource["properties"] = $$createField5_0($$parsedSource["properties"]);
+        }
+        if ("target_revisions" in $$parsedSource) {
+            $$parsedSource["target_revisions"] = $$createField6_0($$parsedSource["target_revisions"]);
         }
         return new BlockInfo(/** @type {Partial<BlockInfo>} */($$parsedSource));
     }
@@ -4169,129 +4183,6 @@ export class TranslationStats {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new TranslationStats(/** @type {Partial<TranslationStats>} */($$parsedSource));
-    }
-}
-
-/**
- * UpdateBlockRequest holds parameters for updating a block target.
- */
-export class UpdateBlockRequest {
-    /**
-     * Creates a new UpdateBlockRequest instance.
-     * @param {Partial<UpdateBlockRequest>} [$$source = {}] - The source object to create the UpdateBlockRequest.
-     */
-    constructor($$source = {}) {
-        if (!("project_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["project_id"] = "";
-        }
-        if (!("item_name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["item_name"] = "";
-        }
-        if (!("block_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["block_id"] = "";
-        }
-        if (!("target_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_locale"] = "";
-        }
-        if (!("text" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["text"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new UpdateBlockRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {UpdateBlockRequest}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new UpdateBlockRequest(/** @type {Partial<UpdateBlockRequest>} */($$parsedSource));
-    }
-}
-
-/**
- * UpdateBlockTargetRunsRequest holds parameters for updating a
- * block target with a structured Run sequence.
- */
-export class UpdateBlockTargetRunsRequest {
-    /**
-     * Creates a new UpdateBlockTargetRunsRequest instance.
-     * @param {Partial<UpdateBlockTargetRunsRequest>} [$$source = {}] - The source object to create the UpdateBlockTargetRunsRequest.
-     */
-    constructor($$source = {}) {
-        if (!("project_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["project_id"] = "";
-        }
-        if (!("item_name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["item_name"] = "";
-        }
-        if (!("block_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["block_id"] = "";
-        }
-        if (!("target_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_locale"] = "";
-        }
-        if (!("runs" in $$source)) {
-            /**
-             * @member
-             * @type {RunInfo[]}
-             */
-            this["runs"] = [];
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new UpdateBlockTargetRunsRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {UpdateBlockTargetRunsRequest}
-     */
-    static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType6;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("runs" in $$parsedSource) {
-            $$parsedSource["runs"] = $$createField4_0($$parsedSource["runs"]);
-        }
-        return new UpdateBlockTargetRunsRequest(/** @type {Partial<UpdateBlockTargetRunsRequest>} */($$parsedSource));
     }
 }
 

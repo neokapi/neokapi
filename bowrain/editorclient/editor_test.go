@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -93,10 +92,9 @@ func TestEditorBlocksRoundTrip(t *testing.T) {
 	// A block with an inline placeholder run to exercise canonical model.Run
 	// decoding, plus a target locale carrying the per-locale review status
 	// (targets[locale].status — the payload the desktop reads review state from).
-	body := `[{"id":"b1","source_runs":[{"text":"Hello "},{"ph":{"id":"1","type":"var","equiv":"NAME"}}],"targets":{"fr":{"text":"Bonjour NAME","status":"established"},"de":{"text":"Hallo NAME"}},"targets_runs":{"fr":[{"text":"Bonjour "},{"ph":{"id":"1","type":"var","equiv":"NAME"}}]},"translatable":true,"properties":{"k":"v"}}]`
+	body := `[{"id":"b1","source_runs":[{"text":"Hello "},{"ph":{"id":"1","type":"var","equiv":"NAME"}}],"targets":{"fr":{"text":"Bonjour NAME","status":"established"},"de":{"text":"Hallo NAME"}},"targets_runs":{"fr":[{"text":"Bonjour "},{"ph":{"id":"1","type":"var","equiv":"NAME"}}]},"translatable":true,"properties":{"k":"v"},"target_revisions":{"fr":"r:00000000000000aa","de":"r:00000000000000bb"}}]`
 	c, got := editorServer(t, map[string]route{
-		"GET /api/v1/acme/p1/blocks/main":         {200, body},
-		"PUT /api/v1/acme/p1/blocks/main/b1/runs": {204, ""},
+		"GET /api/v1/acme/p1/blocks/main": {200, body},
 	})
 
 	blocks, err := c.GetEditorBlocks(context.Background(), "acme", "p1", "a.json")
@@ -115,19 +113,8 @@ func TestEditorBlocksRoundTrip(t *testing.T) {
 	assert.Equal(t, "Bonjour NAME", blocks[0].Targets["fr"].Text)
 	assert.Equal(t, "established", blocks[0].Targets["fr"].Status)
 	assert.Empty(t, blocks[0].Targets["de"].Status)
-
-	// Update round-trips the canonical runs verbatim in the request body.
-	runs := []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}
-	require.NoError(t, c.UpdateBlockTargetRuns(context.Background(), "acme", "p1", "b1", "fr", runs))
-	var sent struct {
-		TargetLocale string      `json:"target_locale"`
-		Runs         []model.Run `json:"runs"`
-	}
-	require.NoError(t, json.Unmarshal(got.body, &sent))
-	assert.Equal(t, "fr", sent.TargetLocale)
-	require.Len(t, sent.Runs, 1)
-	require.NotNil(t, sent.Runs[0].Text)
-	assert.Equal(t, "Bonjour", sent.Runs[0].Text.Text)
+	// The revision each translation was served at: what an edit names.
+	assert.Equal(t, map[string]string{"fr": "r:00000000000000aa", "de": "r:00000000000000bb"}, blocks[0].TargetRevisions)
 }
 
 func TestEditorBlockLookups(t *testing.T) {

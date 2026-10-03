@@ -68,9 +68,8 @@ export interface UnifiedTargetEditorProps {
   locale: string;
   /**
    * Save handler. Wrapper figures out flat vs plural and calls back
-   * with the right shape; the parent dispatches to the appropriate
-   * API (typically `updateBlockTargetCoded` for flat, `updateBlockTarget`
-   * + clearing the coded column for plural).
+   * with the right shape; the parent sends it as a change (`set_content`
+   * with runs for flat, with the ICU text for plural).
    */
   onSave: (result: UnifiedSaveResult) => void | Promise<void>;
   /** Cancel handler — fired on Escape or the explicit Cancel button. */

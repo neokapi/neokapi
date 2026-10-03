@@ -5,8 +5,10 @@ import {
   LocaleLabel,
   ReviewLanguageSelect,
   cn,
+  codedToRuns,
   statusMeta,
 } from "@neokapi/ui-primitives";
+import type { Run } from "@neokapi/kapi-format";
 import { FormatPreview, extOf } from "@neokapi/ui-primitives/preview";
 import type { BlockAttrs } from "@neokapi/ui-primitives/preview";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -22,6 +24,16 @@ import type {
   ReviewRung,
 } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
+import { useContentChanges } from "../hooks/useContentChanges";
+import {
+  decideTranslation,
+  decisionOutcome,
+  placeholderText,
+  renderedRevision,
+  setTranslation,
+  type TranslationContent,
+} from "../api/contentChanges";
+import { StaleChangeDialog } from "./editor/StaleChangeDialog";
 import { useLocales } from "../hooks/useLocales";
 import { useCallerPermissions } from "../hooks/useCallerPermissions";
 import { useAnalytics } from "../context/AnalyticsContext";
@@ -39,6 +51,7 @@ import {
   statusAfterEdit,
   statusRuleClass,
   withTargetEntry,
+  withTargetRevision,
   withTargetStatus,
   type BlockStatus,
   type TargetStatusSnapshot,
@@ -133,6 +146,7 @@ export function ReviewSurface({
 
   const { getDisplayName } = useLocales();
   const api = useEditorApi();
+  const changes = useContentChanges(project.id);
   const { capture } = useAnalytics();
   const { getFileBlocks, getBlockCounts } = api;
   // Approving is the `review` permission, per language, so a translator gets a
@@ -200,6 +214,21 @@ export function ReviewSurface({
   useEffect(() => {
     void loadBlocks();
   }, [loadBlocks]);
+
+  // Read one block back as the server holds it, after a change the reviewer
+  // chose not to apply over someone else's. The page reload is the fallback
+  // when the read fails.
+  const refreshBlock = useCallback(
+    async (blockId: string) => {
+      try {
+        const fresh = await api.getBlock(project.id, blockId);
+        setBlocks((prev) => prev.map((b) => (b.id === blockId ? fresh : b)));
+      } catch {
+        await loadBlocks();
+      }
+    },
+    [api, project.id, loadBlocks],
+  );
 
   useEffect(() => {
     void loadCounts();
@@ -311,8 +340,19 @@ export function ReviewSurface({
           );
         }),
       );
+      const outcome = decisionOutcome(reviewed, rung);
       try {
-        await api.reviewBlock(project.id, fileName, block.id, targetLocale, reviewed, rung);
+        // The decision binds to the wording the reviewer read: a translation
+        // someone changed since is shown before anything is recorded.
+        const done = await changes.commit(
+          (ifMatch) => decideTranslation(fileName, block, targetLocale, outcome, ifMatch),
+          renderedRevision(block, targetLocale),
+          { action: outcome, locale: targetLocale },
+        );
+        if (done.status === "kept") {
+          await refreshBlock(block.id);
+          return;
+        }
         void loadCounts();
       } catch (e) {
         setBlocks((prev) =>
@@ -328,7 +368,7 @@ export function ReviewSurface({
         });
       }
     },
-    [api, capture, project.id, fileName, targetLocale, loadCounts],
+    [changes, capture, fileName, targetLocale, loadCounts, refreshBlock],
   );
 
   // While a bulk request is in flight, single approve/reject clicks and a
@@ -451,19 +491,31 @@ export function ReviewSurface({
   }, [marked, memoryBatchIds, api, project.id, targetLocale, loadBlocks, loadCounts]);
 
   // A correction made while reviewing is the same write the Translate editor
-  // makes: coded text plus spans, with the status the server would derive.
+  // makes: a change set on the revision the reviewer read, with the status the
+  // change service derives.
   const saveTarget = useCallback(
     async (block: BlockInfo, result: UnifiedSaveResult) => {
       try {
+        const content: TranslationContent =
+          result.kind === "flat"
+            ? { runs: codedToRuns(result.codedText, result.spans) as Run[] }
+            : { text: result.text };
+        const done = await changes.commit(
+          (ifMatch) => setTranslation(fileName, block, targetLocale, content, ifMatch),
+          renderedRevision(block, targetLocale),
+          {
+            action: "save",
+            locale: targetLocale,
+            mine: "runs" in content ? placeholderText(content.runs) : content.text,
+          },
+        );
+        if (done.status === "kept") {
+          setEditing(false);
+          await refreshBlock(block.id);
+          return;
+        }
+        const after = done.after;
         if (result.kind === "flat") {
-          await api.updateBlockTargetCoded({
-            project_id: project.id,
-            item_name: fileName,
-            block_id: block.id,
-            target_locale: targetLocale,
-            coded_text: result.codedText,
-            spans: result.spans,
-          });
           // Inline-code placeholders are private-use characters; the plain text a
           // reload would fetch is the coded text without them.
           const plainText = result.codedText.replace(/[\uE001-\uE003]/g, "");
@@ -471,30 +523,31 @@ export function ReviewSurface({
             prev.map((b) =>
               b.id === block.id
                 ? {
-                    ...withTargetEntry(b, targetLocale, {
-                      text: plainText,
-                      status: statusAfterEdit(b, targetLocale, plainText, result.codedText),
-                    }),
+                    ...withTargetRevision(
+                      withTargetEntry(b, targetLocale, {
+                        text: plainText,
+                        status: statusAfterEdit(b, targetLocale, plainText, result.codedText),
+                      }),
+                      targetLocale,
+                      after,
+                    ),
                     targets_coded: { ...b.targets_coded, [targetLocale]: result.codedText },
                   }
                 : b,
             ),
           );
         } else {
-          await api.updateBlockTarget({
-            project_id: project.id,
-            item_name: fileName,
-            block_id: block.id,
-            target_locale: targetLocale,
-            text: result.text,
-          });
           setBlocks((prev) =>
             prev.map((b) =>
               b.id === block.id
-                ? withTargetEntry(b, targetLocale, {
-                    text: result.text,
-                    status: statusAfterEdit(b, targetLocale, result.text),
-                  })
+                ? withTargetRevision(
+                    withTargetEntry(b, targetLocale, {
+                      text: result.text,
+                      status: statusAfterEdit(b, targetLocale, result.text),
+                    }),
+                    targetLocale,
+                    after,
+                  )
                 : b,
             ),
           );
@@ -506,7 +559,7 @@ export function ReviewSurface({
         setError({ title: "Couldn't save the translation", cause: e });
       }
     },
-    [api, capture, project.id, fileName, targetLocale, loadCounts],
+    [changes, capture, fileName, targetLocale, loadCounts, refreshBlock],
   );
 
   const runChecks = useCallback(() => {
@@ -912,6 +965,7 @@ export function ReviewSurface({
         onCancel={() => setMemoryPreview(null)}
         onConfirm={() => void bulkApplyMemory()}
       />
+      <StaleChangeDialog state={changes.staleDialog} />
 
       {/* Problems panel (reused) */}
       {showProblems && (

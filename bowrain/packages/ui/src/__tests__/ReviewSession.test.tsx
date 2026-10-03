@@ -137,18 +137,17 @@ describe("ReviewSession", () => {
     );
   });
 
-  it("approve persists via reviewBlock and advances to the next pending block", async () => {
+  it("approve sends a decision and advances to the next pending block", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSession();
     await waitForQueue();
 
     await user.click(screen.getByTestId("reviewer-approve"));
 
-    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
-    expect(adapter.reviewBlockCalls[0]).toMatchObject({
-      blockId: "b1",
-      targetLocale: "fr-FR",
-      reviewed: true,
+    await waitFor(() => expect(adapter.opsOf("decide")).toHaveLength(1));
+    expect(adapter.opsOf("decide")[0]).toMatchObject({
+      at: { doc: "messages.json", block: "b1", edition: "fr-FR" },
+      outcome: "establish",
     });
     // The queue shrinks and the next pending block slides into place.
     await waitFor(() =>
@@ -163,17 +162,35 @@ describe("ReviewSession", () => {
     const { adapter } = renderSession();
     await waitForQueue();
     await user.keyboard("a");
-    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
-    expect(adapter.reviewBlockCalls[0].reviewed).toBe(true);
+    await waitFor(() => expect(adapter.opsOf("decide")).toHaveLength(1));
+    expect(adapter.opsOf("decide")[0].outcome).toBe("establish");
   });
 
-  it("reject demotes to draft via reviewBlock", async () => {
+  it("reject sends a reject decision, which demotes to draft", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSession();
     await waitForQueue();
     await user.click(screen.getByTestId("reviewer-reject"));
-    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
-    expect(adapter.reviewBlockCalls[0]).toMatchObject({ reviewed: false, rung: "draft" });
+    await waitFor(() => expect(adapter.opsOf("decide")).toHaveLength(1));
+    expect(adapter.opsOf("decide")[0]).toMatchObject({ outcome: "reject" });
+  });
+
+  it("shows a translation someone changed before approving it, and keeps it on request", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSession();
+    await waitForQueue();
+    adapter.editElsewhere("b1", "fr-FR", "Salut le monde");
+
+    await user.click(screen.getByTestId("reviewer-approve"));
+
+    const dialog = await screen.findByTestId("stale-change-dialog");
+    expect(within(dialog).getByTestId("stale-current").textContent).toBe("Salut le monde");
+    await user.click(within(dialog).getByTestId("stale-keep"));
+
+    // Nothing was approved: the refused decision is the only one sent, and the
+    // entry comes back with the wording that stands.
+    expect(adapter.opsOf("decide")).toHaveLength(1);
+    await waitFor(() => expect(screen.getByTestId(`queue-row-${e1}`)).toBeInTheDocument());
   });
 
   // Approving needs review permission, so a translator gets a disabled button
