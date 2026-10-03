@@ -800,7 +800,7 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 		changed, err := a.approveSourceUnit(ctx, c.recipe, "", SourceUnitRef{File: filepath.FromSlash(target.Doc.Doc), Key: target.Ref.Block}, &wording)
 		return decisionOutcome(changed, err)
 	}
-	decided := &decidedContent{source: target.SourceText, target: target.Text}
+	decided := &decidedContent{source: target.SourceText, target: target.Text, targetRev: target.Rev}
 	if target.Rev == model.AbsentRevision {
 		// The edition has no content in its home: a parked draft the project
 		// store holds and no file carries yet. The decision binds to that

@@ -80,6 +80,11 @@ type EditTransition struct {
 	// change, which core/reconcile matches a later read against.
 	ContentHash string `json:"content_hash,omitempty"`
 	ContextHash string `json:"context_hash,omitempty"`
+	// Producer is how a tool in a flow produced a derived edition: its
+	// provider, model and the governing context it was produced under. A
+	// file that holds strings alone keeps none of it, so the record is where
+	// the staleness gate finds what governed a translation the loop wrote.
+	Producer *model.Origin `json:"producer,omitempty"`
 	// RunsBefore and RunsAfter name the blobs holding the edition's runs
 	// around the change ("blob:sha256:…"), each the canonical run JSON
 	// model.RunsRevision is computed over. Empty for a hash-only record.
@@ -325,13 +330,17 @@ func (p *Projector) decodeEdit(ctx context.Context, op workspace.Op) (Edit, erro
 func editRows(op, address string, at time.Time, e Edit) []history.Row {
 	rows := make([]history.Row, 0, len(e.Transitions))
 	for _, t := range e.Transitions {
-		rows = append(rows, history.Row{
+		row := history.Row{
 			Op: op, Address: address, Doc: e.Doc.Key, Block: t.Block, Key: t.Key, Edition: t.Edition,
 			Before: t.Before, After: t.After, Basis: t.Basis,
 			ContentHash: t.ContentHash, ContextHash: t.ContextHash,
 			Actor: string(e.Actor.Kind), ActorName: e.Actor.Name, Session: e.Actor.Session,
 			Origin: e.Origin.By, At: at,
-		})
+		}
+		if t.Producer != nil {
+			row.Producer = *t.Producer
+		}
+		rows = append(rows, row)
 	}
 	return rows
 }

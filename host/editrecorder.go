@@ -198,6 +198,10 @@ func editTransition(t change.Transition, keep keptRuns) projector.EditTransition
 		Before: t.BeforeRev, After: t.AfterRev, Basis: t.Basis,
 		ContentHash: contentHash, ContextHash: contextHash,
 	}
+	if o := producerOf(t); o != (model.Origin{}) {
+		// How a tool produced the edition, as it stamped it.
+		out.Producer = &o
+	}
 	if keep.before {
 		out.BeforeRuns = t.Before
 	}
@@ -288,4 +292,17 @@ func (r *recordRedaction) apply(ctx context.Context, edits []projector.Edit) err
 		}
 	}
 	return nil
+}
+
+// producerOf is the stamp a tool left on the derived edition a transition
+// leaves, or the zero origin.
+func producerOf(t change.Transition) model.Origin {
+	if t.Block == nil || t.Role != change.RoleDerived || t.Ref.Edition.IsZero() {
+		return model.Origin{}
+	}
+	ed, ok := t.Block.Edition(t.Ref.Edition)
+	if !ok || ed.Origin.Kind == model.OriginHuman {
+		return model.Origin{}
+	}
+	return ed.Origin
 }

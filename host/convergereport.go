@@ -203,7 +203,7 @@ func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang s
 			if !b.Translatable || blockKey(b) != ref.Key {
 				continue
 			}
-			content := decidedContent{source: b.SourceText(), target: b.TargetText(loc)}
+			content := decidedContent{source: b.SourceText(), target: b.TargetText(loc), targetRev: targetRevision(b, loc)}
 			if decided != nil {
 				content = *decided
 			}
@@ -269,6 +269,9 @@ func (a *App) governingFingerprintFor(ctx context.Context, projectPath string, p
 type decidedContent struct {
 	source string
 	target string
+	// targetRev is the revision of the translation (model.EditionRevision),
+	// which names the flow's write the translation is, when one is.
+	targetRev string
 }
 
 // recordDecisionState records a unit's review decision in the project state store
@@ -303,6 +306,12 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 	k := state.Key{Scope: file, Unit: unit, Variant: model.Variant(locale)}
 	th := targetHash(content.target)
 	prev, hadPrev := st.Get(ctx, k)
+	if !hadPrev {
+		// An undecided translation a flow wrote: the source it was made from
+		// and the stamp of the tool that made it are in the block history,
+		// and a decision on it starts from them as it would from a record.
+		prev, hadPrev = a.loopRecord(ctx, root, file, unit, locale, content.targetRev)
+	}
 	ch, gov := prev.ContentHash, prev.GoverningFingerprint
 	if status == model.TargetStatusEstablished {
 		ch, gov = state.SourceHash(content.source), governing

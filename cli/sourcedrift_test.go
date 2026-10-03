@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/history"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/host"
 )
@@ -23,14 +25,34 @@ import (
 // with the new sentence, learned it, recycled it back, and reported the project
 // caught up.
 //
-// The loop now records a basis for every unit it writes a target for, so the
-// rewrite is derived from a committed record and healed on any machine.
+// The loop records what it wrote as the flow's content.edit, and the block
+// history keeps each translation's basis beside it, so the rewrite is derived
+// from a record that a fresh checkout of the project reads too.
 
 // dropDerivedState removes everything under .kapi/ that is rebuilt rather than
 // committed, which is what a CI checkout has.
 func dropDerivedState(t *testing.T, root string) {
 	t.Helper()
 	require.NoError(t, os.RemoveAll(filepath.Join(root, ".kapi", "work")))
+}
+
+// loopBasis reads the flow's last write of one unit's nb translation from the
+// project's block history.
+func loopBasis(t *testing.T, root, unit string) (history.Row, bool) {
+	t.Helper()
+	a := &App{}
+	defer a.Shutdown()
+	ctx := context.Background()
+	db, err := a.ProjectDB(ctx, root)
+	require.NoError(t, err)
+	idx, err := a.DocumentIndex(ctx, root)
+	require.NoError(t, err)
+	row, ok, err := db.History().LastWrite(ctx, idx.Key("en.json"), unit, "nb")
+	require.NoError(t, err)
+	if !ok || row.Actor != string(change.ActorTool) {
+		return history.Row{}, false
+	}
+	return row, true
 }
 
 // committedBasis reads the committed state record for one unit and locale.
@@ -57,11 +79,12 @@ func TestSourceDrift_UndecidedUnitIsRedrafted(t *testing.T) {
 		"a converged pass reproduces the wording the record already holds")
 
 	// The loop recorded what it translated, with no decision on it.
-	basis, ok := committedBasis(t, root, "a")
+	basis, ok := loopBasis(t, root, "a")
 	require.True(t, ok, "the run records the basis of every translation it writes")
 	assert.Equal(t, state.SourceHash("Apple"), basis.ContentHash)
-	assert.Equal(t, state.TargetHash("Eple"), basis.TargetHash)
-	assert.Empty(t, basis.Decision.ReviewState, "producing is not deciding")
+	assert.NotEmpty(t, basis.Basis)
+	_, decided := committedBasis(t, root, "a")
+	assert.False(t, decided, "producing is not deciding")
 
 	rewriteSource(t, root, sourceEdited)
 
@@ -81,10 +104,10 @@ func TestSourceDrift_UndecidedUnitIsRedrafted(t *testing.T) {
 	assert.Equal(t, "Banan", after["b"], "the unit whose source did not move is left alone")
 
 	// Nothing was decided, so nothing stays withheld: the re-draft settles it.
-	redrafted, ok := committedBasis(t, root, "a")
+	redrafted, ok := loopBasis(t, root, "a")
 	require.True(t, ok)
 	assert.Equal(t, state.SourceHash("Apricot"), redrafted.ContentHash)
-	assert.Equal(t, state.TargetHash(after["a"]), redrafted.TargetHash)
+	assert.NotEqual(t, basis.After, redrafted.After, "the record is of the new draft")
 }
 
 // TestSourceDrift_SurvivesAFreshCheckout is the same rewrite on a checkout with
@@ -133,7 +156,7 @@ func TestSourceDrift_UnknownBasisIsNeverRedrafted(t *testing.T) {
 	require.NoError(t, perr)
 	assert.Zero(t, plan.Totals.Stale)
 
-	_, ok := committedBasis(t, root, "a")
+	_, ok := loopBasis(t, root, "a")
 	assert.False(t, ok, "reading a translation is not a reason to claim authorship of it")
 }
 
@@ -146,9 +169,8 @@ func TestSourceDrift_HandEditedTargetIsLeftAlone(t *testing.T) {
 	proj := filepath.Join(root, "kapi.yaml")
 	runReviewUp(t, proj)
 
-	basis, ok := committedBasis(t, root, "a")
-	require.True(t, ok)
-	require.Equal(t, state.TargetHash("Eple"), basis.TargetHash)
+	_, ok := loopBasis(t, root, "a")
+	require.True(t, ok, "the loop's translation carries its basis")
 
 	// A person rewrites the translation in the committed catalog, then the
 	// source moves under it.

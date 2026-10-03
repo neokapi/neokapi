@@ -7,6 +7,7 @@ import (
 	"math"
 	"slices"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
@@ -188,6 +189,10 @@ type reviewedIndex struct {
 	// aiReviews carries advisory AI pre-review annotations (score + model),
 	// independent of any decision, so the review queue can display them.
 	aiReviews map[string]aiReviewEntry
+	// loop is the block history, which holds the basis of each translation a
+	// flow wrote (host/loopbasis.go). A unit with no record in byUnit is
+	// graded by the flow's last write to it.
+	loop *loopWrites
 }
 
 type reviewedEntry struct {
@@ -214,6 +219,9 @@ type reviewedEntry struct {
 	// (state.UnitState.GoverningContext): what the decider approved it under,
 	// or what the producer stamped. Empty for an ungoverned answer.
 	governing string
+	// afterRev, set for a flow's write read from the block history, is the
+	// revision of the translation the flow left. It stands in for targetHash.
+	afterRev string
 }
 
 // governingFingerprint reports what the record says governed the translation a
@@ -222,10 +230,7 @@ type reviewedEntry struct {
 // fingerprint is a statement about the answer it recorded, so it says nothing
 // about wording somebody has since put in its place.
 func (r reviewedIndex) governingFingerprint(scope string, b *model.Block, locale string) string {
-	if r.byUnit == nil {
-		return ""
-	}
-	e, ok := r.byUnit[reviewUnitKey(scope, blockKey(b), locale)]
+	e, ok := r.lookup(scope, b, locale)
 	if !ok || !e.blessesTarget(b, model.LocaleID(locale)) {
 		return ""
 	}
@@ -243,7 +248,29 @@ func (r reviewedIndex) governingFingerprint(scope string, b *model.Block, locale
 // judged, while one whose target has moved too says nothing at all about what is
 // on disk.
 func (e reviewedEntry) blessesTarget(b *model.Block, locale model.LocaleID) bool {
+	if e.afterRev != "" {
+		return targetRevision(b, locale) == e.afterRev
+	}
 	return e.targetHash == "" || targetHash(b.TargetText(locale)) == e.targetHash
+}
+
+// lookup returns the record a block's unit is graded by: the unit's recorded
+// decision, else the last write a flow made to the translation (the loop's
+// basis, from the block history), else nothing.
+func (r reviewedIndex) lookup(scope string, b *model.Block, locale string) (reviewedEntry, bool) {
+	if r.byUnit != nil {
+		if e, ok := r.byUnit[reviewUnitKey(scope, blockKey(b), locale)]; ok {
+			return e, true
+		}
+	}
+	row, ok := r.loop.last(scope, blockKey(b), editionText(model.EditionKey{Locale: model.LocaleID(locale)}.Canonical()))
+	if !ok || row.Actor != string(change.ActorTool) || row.After == model.AbsentRevision {
+		return reviewedEntry{}, false
+	}
+	return reviewedEntry{
+		status: model.TargetStatusTranslated, contentHash: row.ContentHash,
+		afterRev: row.After, governing: row.Producer.ContextFingerprint,
+	}, true
 }
 
 // basisVerdict grades a recorded basis against the source in front of the
@@ -304,10 +331,7 @@ func reviewUnitKey(scope, unit, locale string) string {
 // pairing grades unknown, and the loop, which re-drafts what it reads as stale,
 // leaves a person's edit where they put it.
 func (r reviewedIndex) grade(scope string, b *model.Block, locale string) (e reviewedEntry, basis basisVerdict, applies bool) {
-	if r.byUnit == nil {
-		return reviewedEntry{}, basisNone, false
-	}
-	e, ok := r.byUnit[reviewUnitKey(scope, blockKey(b), locale)]
+	e, ok := r.lookup(scope, b, locale)
 	if !ok {
 		return reviewedEntry{}, basisNone, false
 	}
@@ -451,6 +475,7 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 	if root == "" {
 		return idx, nil
 	}
+	idx.loop = a.newLoopWrites(ctx, root)
 	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return idx, err

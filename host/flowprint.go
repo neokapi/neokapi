@@ -39,6 +39,9 @@ func (a *App) WithPrintedOps(cmd Command, run func() error) error {
 	if err := run(); err != nil {
 		return err
 	}
+	for _, line := range ops.leftOut() {
+		fmt.Fprintln(cmd.ErrOrStderr(), "note: "+line)
+	}
 	return ops.write(cmd.OutOrStdout())
 }
 
@@ -59,6 +62,29 @@ const printOpsUsage = "write nothing and print the change set the run would appl
 type printedOps struct {
 	mu   sync.Mutex
 	docs map[string][]change.Op
+	// left are the files the run would write that no change set addresses,
+	// with why.
+	left []string
+}
+
+// leaveOut notes a file the run would write where the change service does not
+// keep edition k of the document ref: an output path the run was given rather
+// than the one the recipe names. A change set cannot write it there, so its
+// operations are not printed.
+func (p *printedOps) leaveOut(path, ref string, k model.EditionKey) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.left = append(p.left, fmt.Sprintf("%s: not where kapi apply writes edition %s of %s; its operations are not printed",
+		path, editionText(k), ref))
+}
+
+// leftOut lists the files the change set leaves out, sorted.
+func (p *printedOps) leftOut() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	out := slices.Clone(p.left)
+	slices.Sort(out)
+	return out
 }
 
 func newPrintedOps() *printedOps { return &printedOps{docs: map[string][]change.Op{}} }

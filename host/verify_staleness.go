@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
@@ -50,7 +51,9 @@ type stalenessScope struct {
 // its source file, and returns the gate result plus whether there was anything
 // to judge at all.
 //
-// A project whose state store holds no produced target contributes no gate row.
+// A project that holds no produced target, neither a stamp or a decision in its
+// state store nor a flow's stamped write in its block history, contributes no
+// gate row.
 // "0 findings" about content that does not exist reads as a gate that ran and
 // passed, which is a claim about provenance nobody made.
 func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root string, units []VerifyUnit, unread *UnreadSet) (verifyGateResult, bool, error) {
@@ -66,7 +69,10 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 		return gate, false, err
 	}
 	produced := producedTargets(recorded)
-	if len(produced) == 0 {
+	// The translations a flow wrote carry their producer's stamp in the block
+	// history (host/loopbasis.go).
+	loop := a.newLoopWrites(ctx, root)
+	if len(produced) == 0 && !loop.recorded() {
 		return gate, false, nil
 	}
 
@@ -79,6 +85,7 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 	docs := a.documentIndexOrEmpty(ctx, root)
 	blocks := newSourceBlockCache(a, ctx)
 	unstamped := 0
+	judged := false
 	var scopes []stalenessScope
 
 	for _, u := range units {
@@ -103,11 +110,15 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 			}
 			p, ok := produced[reviewUnitKey(document, blockKey(b), u.Locale)]
 			if !ok {
+				p, ok = loopProvenance(loop, document, b, model.LocaleID(u.Locale))
+			}
+			if !ok {
 				// Nothing was produced here. Whether that is a gap is the ship
 				// gate's question, and answering it twice in two vocabularies
 				// is how two gates come to disagree.
 				continue
 			}
+			judged = true
 			scope.produced++
 			switch {
 			case p.fingerprint == "":
@@ -146,7 +157,20 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 		})
 	}
 
-	return gate, true, nil
+	return gate, judged, nil
+}
+
+// loopProvenance is the provenance of the translation a flow last wrote for
+// the block, from the producer's stamp the block history keeps for it. The
+// gate reads the source alone, as it reads a record, so the latest change to
+// the edition answers: a person's or an agent's carries no producer, and a
+// write that carries no stamp is no provenance, as a record with none is not.
+func loopProvenance(loop *loopWrites, document string, b *model.Block, locale model.LocaleID) (producedProvenance, bool) {
+	row, ok := loop.last(document, blockKey(b), editionText(model.EditionKey{Locale: locale}.Canonical()))
+	if !ok || row.Actor != string(change.ActorTool) || row.Producer == (model.Origin{}) {
+		return producedProvenance{}, false
+	}
+	return producedProvenance{origin: row.Producer, fingerprint: row.Producer.ContextFingerprint}, true
 }
 
 // producedProvenance is what one record says about the governance of the target

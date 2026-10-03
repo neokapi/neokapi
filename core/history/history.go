@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/storage"
 )
@@ -62,6 +63,11 @@ type Row struct {
 	// Origin is the surface that applied the change: apply, desktop,
 	// flow:<name>, merge, pull or observed.
 	Origin string
+	// Producer is how a tool in a flow produced a derived edition: the
+	// provider and model behind it and the governing context it was produced
+	// under (model.Origin). The zero value for a person's or an agent's edit,
+	// and for a tool that stamped nothing.
+	Producer model.Origin
 	// At is when the operation was accepted.
 	At time.Time
 }
@@ -118,6 +124,11 @@ CREATE TABLE IF NOT EXISTS block_history_op (
     address TEXT NOT NULL UNIQUE,
     doc     TEXT NOT NULL
 );`,
+}, {
+	Version:     2,
+	Description: "the producer of a derived edition",
+	// The producer's stamp, as JSON, empty when the change carried none.
+	SQL: `ALTER TABLE block_history ADD COLUMN producer TEXT NOT NULL DEFAULT '';`,
 }}
 
 // Open binds the block history to a context database, creating its table.
@@ -152,13 +163,13 @@ func (s *Store) Put(ctx context.Context, rows []Row) error {
 	defer func() { _ = tx.Rollback() }()
 	stmt, err := tx.PrepareContext(ctx, `
 INSERT INTO block_history (op, doc, block, key, edition, before, after, basis,
-    content_hash, context_hash, actor, actor_name, session, origin, at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    content_hash, context_hash, actor, actor_name, session, origin, producer, at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(doc, block, edition, op) DO UPDATE SET
     key = excluded.key, before = excluded.before, after = excluded.after,
     basis = excluded.basis, content_hash = excluded.content_hash, context_hash = excluded.context_hash,
     actor = excluded.actor, actor_name = excluded.actor_name, session = excluded.session,
-    origin = excluded.origin, at = excluded.at`)
+    origin = excluded.origin, producer = excluded.producer, at = excluded.at`)
 	if err != nil {
 		return fmt.Errorf("history: put: %w", err)
 	}
@@ -171,9 +182,13 @@ ON CONFLICT(doc, block, edition, op) DO UPDATE SET
 			}
 			op = r.Op
 		}
+		producer, err := producerText(r.Producer)
+		if err != nil {
+			return fmt.Errorf("history: put %s %s@%s: %w", r.Doc, r.Block, r.Edition, err)
+		}
 		if _, err := stmt.ExecContext(ctx,
 			r.Op, r.Doc, r.Block, r.Key, r.Edition, r.Before, r.After, r.Basis,
-			r.ContentHash, r.ContextHash, r.Actor, r.ActorName, r.Session, r.Origin,
+			r.ContentHash, r.ContextHash, r.Actor, r.ActorName, r.Session, r.Origin, producer,
 			r.At.UTC().Format(timeLayout)); err != nil {
 			return fmt.Errorf("history: put %s %s@%s: %w", r.Doc, r.Block, r.Edition, err)
 		}
@@ -211,7 +226,7 @@ ON CONFLICT(op) DO NOTHING`, r.Op, r.Address, r.Doc); err != nil {
 }
 
 const columns = `h.op, COALESCE(o.address, ''), h.doc, h.block, h.key, h.edition, h.before, h.after, h.basis,
-    h.content_hash, h.context_hash, h.actor, h.actor_name, h.session, h.origin, h.at`
+    h.content_hash, h.context_hash, h.actor, h.actor_name, h.session, h.origin, h.producer, h.at`
 
 // from is the rows read with columns: the history with each operation's
 // address.
@@ -242,6 +257,18 @@ WHERE h.doc = ? AND h.block = ? AND h.edition = ? ORDER BY h.op DESC LIMIT 1`, d
 		return Row{}, false, err
 	}
 	return out[0], true, nil
+}
+
+// Empty reports whether the history holds no change at all.
+func (s *Store) Empty(ctx context.Context) (bool, error) {
+	var one int
+	switch err := s.db.QueryRowContext(ctx, `SELECT 1 FROM block_history LIMIT 1`).Scan(&one); {
+	case errors.Is(err, sql.ErrNoRows):
+		return true, nil
+	case err != nil:
+		return false, fmt.Errorf("history: %w", err)
+	}
+	return false, nil
 }
 
 // Document returns every recorded change in one document, most recent first.
@@ -383,10 +410,15 @@ func scan(rows *sql.Rows) ([]Row, error) {
 	var out []Row
 	for rows.Next() {
 		var r Row
-		var at string
+		var at, producer string
 		if err := rows.Scan(&r.Op, &r.Address, &r.Doc, &r.Block, &r.Key, &r.Edition, &r.Before, &r.After, &r.Basis,
-			&r.ContentHash, &r.ContextHash, &r.Actor, &r.ActorName, &r.Session, &r.Origin, &at); err != nil {
+			&r.ContentHash, &r.ContextHash, &r.Actor, &r.ActorName, &r.Session, &r.Origin, &producer, &at); err != nil {
 			return nil, fmt.Errorf("history: scan: %w", err)
+		}
+		if producer != "" {
+			if err := json.Unmarshal([]byte(producer), &r.Producer); err != nil {
+				return nil, fmt.Errorf("history: read the producer of %s: %w", r.Op, err)
+			}
 		}
 		t, err := time.Parse(timeLayout, at)
 		if err != nil {
@@ -396,4 +428,17 @@ func scan(rows *sql.Rows) ([]Row, error) {
 		out = append(out, r)
 	}
 	return out, rows.Err()
+}
+
+// producerText is a producer's stamp as the store keeps it: JSON, or "" for
+// none.
+func producerText(o model.Origin) (string, error) {
+	if o == (model.Origin{}) {
+		return "", nil
+	}
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }

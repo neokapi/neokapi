@@ -130,6 +130,9 @@ type flowChanges struct {
 	print   *printedOps
 	// source is the language the documents are written in.
 	source model.LocaleID
+	// history is the project's block history, read when a document is
+	// recorded.
+	history *loopWrites
 
 	mu sync.Mutex
 }
@@ -172,17 +175,18 @@ func (fc *flowChanges) Open(ctx context.Context, d flow.Document) (flow.Document
 	if !doc.inPlace {
 		doc.edition = model.EditionKey{Locale: d.TargetLocale}.Canonical()
 		if !fc.editionLivesAt(ctx, ref, doc.edition, doc.dest) {
-			// The run writes the edition somewhere the recipe does not keep
-			// it, so a read of the document does not find it there.
-			if fc.print == nil {
-				return doc, nil
+			// The run writes the edition somewhere the change service does
+			// not keep it, so a read of the document does not find it there
+			// and a change set cannot write it there: nothing is recorded,
+			// and a printing run names the file it leaves out.
+			if fc.print != nil {
+				fc.print.leaveOut(doc.dest, ref, doc.edition)
 			}
-			doc.unplaced = true
+			return doc, nil
 		}
 	}
 	doc.track = true
 	switch {
-	case doc.unplaced:
 	case doc.draft:
 		// The destination as the run first read it, whichever pass this is:
 		// the drafts are the run's, and the destination keeps what it held.
@@ -259,9 +263,6 @@ type flowDoc struct {
 	// writes edition, a target-language file of the document.
 	inPlace bool
 	edition model.EditionKey
-	// unplaced says the edition's file is one the change service does not
-	// read the edition from (an ad hoc output path outside a project).
-	unplaced bool
 	// track says the run's changes are recorded or printed.
 	track bool
 	// before is each block's editions as the service read them before the
@@ -275,7 +276,13 @@ type flowDoc struct {
 	left    map[string]*leftBlock
 	order   []string
 	entered map[string]*model.Block
+	// producers are the stamps the run's tools left on each derived edition
+	// it wrote, by block key and edition text, for the record.
+	producers map[string]model.Origin
 }
+
+// producerKey names one edition of one block among a document's producers.
+func producerKey(block, edition string) string { return block + "\x00" + edition }
 
 // revisions maps a block key to its editions as the change service read
 // them.
@@ -433,6 +440,14 @@ func (doc *flowDoc) Leave(b *model.Block) {
 	before := doc.before[key]
 	for _, k := range doc.tracked(b) {
 		text := editionText(k)
+		if ed, ok := b.Edition(k); ok && !k.IsZero() && ed.Origin != (model.Origin{}) {
+			doc.mu.Lock()
+			if doc.producers == nil {
+				doc.producers = map[string]model.Origin{}
+			}
+			doc.producers[producerKey(key, text)] = ed.Origin
+			doc.mu.Unlock()
+		}
 		rev := doc.flowRevision(before, b, k)
 		if was, _ := before.revision(text); rev == was {
 			continue
@@ -488,21 +503,34 @@ func (doc *flowDoc) Commit(ctx context.Context, p *filehome.Produced) error {
 		fc.app.noteDraft(doc, p)
 		return nil
 	}
-	if !p.Written() || !doc.track || fc.rec == nil {
+	if !doc.track || fc.rec == nil {
 		return nil
 	}
-	return doc.record(ctx, p.Before(), p.After())
+	return doc.record(ctx, p.Written(), p.Before(), p.After())
 }
 
-// record reads the document as the commit left it and records each tracked
-// edition whose revision moved, as one content.edit. The content is written
-// whatever happens here; a failure is reported as the record's and leaves the
-// next read to find a transition no record explains.
-func (doc *flowDoc) record(ctx context.Context, before, after string) error {
+// record reads the document as the commit left it and records, as one
+// content.edit, each tracked edition whose revision moved, and each
+// translation the run produced that the file already held, unless the block
+// history already says a flow wrote that translation from the source the block
+// holds now. The second kind keeps the run's basis: a pass that reproduces a
+// translation (content memory recycling the wording a file holds) still made
+// it from the source in front of it, and a later source edit under it is drift
+// the loop owes a draft for. The content is written whatever happens here; a
+// failure is reported as the record's and leaves the next read to find a
+// transition no record explains.
+func (doc *flowDoc) record(ctx context.Context, written bool, before, after string) error {
+	doc.mu.Lock()
+	produced := len(doc.producers) > 0
+	doc.mu.Unlock()
+	if !written && !produced {
+		return nil
+	}
 	now, err := doc.readRevisionsWithBlocks(ctx)
 	if err != nil {
 		return fmt.Errorf("record what %s wrote to %s: %w", doc.d.Flow, doc.ref, err)
 	}
+	loop := doc.fc.loop()
 	var transitions []change.Transition
 	for _, key := range now.order {
 		b := now.blocks[key]
@@ -510,20 +538,36 @@ func (doc *flowDoc) record(ctx context.Context, before, after string) error {
 			text := editionText(k)
 			was, _ := doc.before[key].revision(text)
 			rev := model.EditionRevision(b, k)
+			o, byTool := doc.producer(key, text)
+			derived := !b.IsSourceEdition(k) && !k.IsZero()
 			if rev == was {
-				continue
+				if !derived || !byTool || rev == model.AbsentRevision {
+					continue
+				}
+				if r, ok := loop.last(doc.fc.docKey(doc.ref), key, text); ok && r.Actor == string(change.ActorTool) &&
+					r.After == rev && r.ContentHash == model.ComputeContentHash(b.SourceText()) {
+					// Recorded already: a flow wrote this translation from
+					// this source.
+					continue
+				}
 			}
 			t := change.Transition{EditionChange: change.EditionChange{
 				Ref:       change.Ref{Doc: doc.ref, Block: key, Edition: k},
-				Role:      change.RoleDerived,
+				Role:      change.RoleAuthoritative,
 				BeforeRev: was,
 				AfterRev:  rev,
 				Block:     b,
 			}}
-			if b.IsSourceEdition(k) || k.IsZero() {
-				t.Role = change.RoleAuthoritative
-			} else {
+			if derived {
+				t.Role = change.RoleDerived
 				t.Basis = model.EditionRevision(b, b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{})))
+				// A file of strings keeps no stamp, so the record carries
+				// the one the run's tool left.
+				if byTool {
+					ed, _ := b.Edition(k)
+					ed.Origin = o
+					b.SetEdition(k, ed)
+				}
 			}
 			transitions = append(transitions, t)
 		}
@@ -531,7 +575,10 @@ func (doc *flowDoc) record(ctx context.Context, before, after string) error {
 	if len(transitions) == 0 {
 		return nil
 	}
-	res := change.DocResult{Doc: doc.ref, Home: "file", Written: true, Before: before, After: &after}
+	res := change.DocResult{Doc: doc.ref, Home: "file", Written: written, Before: before}
+	if written {
+		res.After = &after
+	}
 	if !doc.inPlace {
 		res.Edition = editionText(doc.edition)
 		if rel, rerr := filepath.Rel(doc.fc.root, doc.dest); rerr == nil {
@@ -548,6 +595,21 @@ func (doc *flowDoc) record(ctx context.Context, before, after string) error {
 		return fmt.Errorf("record what %s wrote to %s: %w", doc.d.Flow, doc.ref, err)
 	}
 	return nil
+}
+
+// loop is the block history of the run's project, read once per run.
+func (fc *flowChanges) loop() *loopWrites {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	if fc.history == nil {
+		fc.history = fc.app.newLoopWrites(fc.ctx, fc.root)
+	}
+	return fc.history
+}
+
+// docKey is the key the project knows the document ref by.
+func (fc *flowChanges) docKey(ref string) string {
+	return fc.app.documentIndexOrEmpty(fc.ctx, fc.root).Key(ref)
 }
 
 // readBlocks is a read of the document's blocks, by key, in document order.
@@ -690,3 +752,11 @@ func copyRuns(runs []model.Run) []model.Run {
 // one): the lock directory a change service of that project takes its locks
 // in.
 func (a *App) FlowHome(root string) *filehome.Home { return a.flowHome(root) }
+
+// producer is the stamp the run's tool left on edition text of the block key.
+func (doc *flowDoc) producer(key, text string) (model.Origin, bool) {
+	doc.mu.Lock()
+	defer doc.mu.Unlock()
+	o, ok := doc.producers[producerKey(key, text)]
+	return o, ok
+}

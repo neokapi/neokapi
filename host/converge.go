@@ -7,7 +7,6 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
@@ -552,7 +551,6 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			if err != nil {
 				return convergence.PassProduction{}, err
 			}
-			facts.notePassed(locale)
 			return tap.snapshot(), nil
 		},
 	}
@@ -708,15 +706,6 @@ type convergeFacts struct {
 	// producing a translation does not decide it), so the count that says "the
 	// loop did its half" has to be taken before the half is done.
 	redraftable map[string]int
-	// passed is the locales a pass actually ran for. Together with the delivery
-	// policy it decides which target files hold this run's own output, which is
-	// what entitles the run to record a basis for the units inside them
-	// (host/basisrecord.go): a file the run did not write holds somebody else's
-	// translation of a source the run cannot name.
-	//
-	// Guarded because the loop fans its passes out across locales in parallel.
-	mu     sync.Mutex
-	passed map[string]bool
 	// unread names the content the run set aside because no installed reader
 	// opens its format. Nil when --fail-on-unknown keeps it in.
 	unread *UnreadSet
@@ -735,23 +724,6 @@ func announceSetAside(emitter *convergence.Emitter, unread *UnreadSet) {
 				format, named(files[format]), sentenceCase(installClause(unread.readers[files[format][0]].plugin))),
 		})
 	}
-}
-
-// notePassed records that a pass ran for this locale.
-func (f *convergeFacts) notePassed(locale string) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.passed == nil {
-		f.passed = map[string]bool{}
-	}
-	f.passed[locale] = true
-}
-
-// ranPass reports whether any pass ran for this locale.
-func (f *convergeFacts) ranPass(locale string) bool {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.passed[locale]
 }
 
 // noteRedraftable records the first pass's stale-unit count for the locales that
@@ -1048,21 +1020,11 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// prevent. This mirrors the server, which skips its post-run work when the run
 	// stalled on source_not_ready (convergence_orchestrator.go). Materialize only
 	// once the source is settled and real targets exist.
-	// Which translations on disk this run wrote, which is what entitles it to
-	// record a basis for them. Under a gate the pass drafts and delivery names
-	// the files; ungated, the pass wrote where the recipe points, so a locale it
-	// ran for is the answer.
 	//
-	// A run that prints its change set delivers, stamps and records nothing.
+	// Delivery commits each draft through the file home and records what it
+	// changed, with the basis of each translation it wrote (host/flowdrafts.go).
+	// A run that prints its change set delivers and stamps nothing.
 	gated := deliveryIsGated(proj, opts) && a.printOps == nil
-	written := writtenTargets{}
-	produced := func(locale, _ string) bool { return facts.ranPass(locale) }
-	switch {
-	case a.printOps != nil:
-		produced = nil
-	case gated:
-		produced = written.wrote
-	}
 
 	if gated && out.StallReason != convergence.StallSourceNotReady {
 		for i := range out.Locales {
@@ -1082,9 +1044,6 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 			delivered, derr := a.deliverDrafts(ctx, model.LocaleID(lc.Locale))
 			if derr != nil {
 				return fmt.Errorf("deliver %s: %w", lc.Locale, derr)
-			}
-			for _, dest := range delivered {
-				written.note(lc.Locale, dest)
 			}
 			// Per-file progress lines go nowhere: the structured result carries
 			// the counts, and stray lines would corrupt --json output.
@@ -1144,16 +1103,6 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// back as a statement from git; see stampCommittedRecord.
 	if a.printOps == nil {
 		a.stampCommittedRecord(ctx, proj, projectPath, facts.unread)
-	}
-
-	// And the basis for each translation it wrote, so the next run can see a
-	// source rewritten under an undecided one. Reported and never fatal: the run
-	// has already produced its output, and a state store that could not take the
-	// records leaves the following run to write them (host/basisrecord.go).
-	if berr := a.recordProducedBasis(ctx, proj, filepath.Dir(projectPath), produced); berr != nil && !a.Quiet {
-		fmt.Fprintf(cmd.ErrOrStderr(),
-			"warning: could not record what this run translated, so the next run cannot tell "+
-				"a rewritten source from a new one: %v\n", berr)
 	}
 
 	state := convergence.RunConverged

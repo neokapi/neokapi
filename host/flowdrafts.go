@@ -183,8 +183,8 @@ func (a *App) deliverDraft(ctx context.Context, home *filehome.Home, path, dest 
 	if err != nil {
 		return err
 	}
-	if doc == nil || !p.Written() || !doc.track || doc.fc.rec == nil {
+	if doc == nil || !doc.track || doc.fc.rec == nil {
 		return nil
 	}
-	return doc.record(ctx, p.Before(), p.After())
+	return doc.record(ctx, p.Written(), p.Before(), p.After())
 }
