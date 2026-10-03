@@ -319,7 +319,7 @@ func TestImmutabilityGuard(t *testing.T) {
 		// A term span over the trailing "ld" (runes 9..11): outside the claimed
 		// edit, but its shifted range (7..9) cannot fit "hi" — the remap drops it
 		// rather than mis-anchor it, and the bounds invariant holds.
-		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RangeAnchor(b.Source, 9, 11)})
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RangeAnchor(b.SourceRuns(), 9, 11)})
 		require.NoError(t, run(bt, b))
 		assert.Equal(t, "hi", b.SourceText())
 		assert.Nil(t, b.OverlayOf(model.OverlayTerm), "the unmappable span (and its emptied overlay) is dropped")
@@ -335,12 +335,12 @@ func TestImmutabilityGuard(t *testing.T) {
 			}, nil
 		}
 		b := mkBlock()
-		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RangeAnchor(b.Source, 6, 11)})
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RangeAnchor(b.SourceRuns(), 6, 11)})
 		require.NoError(t, run(bt, b))
 		// The span was rebased onto the new runs and now covers "world" (0..5).
 		sp := b.OverlaySpan(model.OverlayTerm, "t1")
 		require.NotNil(t, sp)
-		s, e := sp.Range.TextSpan(b.Source)
+		s, e := sp.Range.TextSpan(b.SourceRuns())
 		assert.Equal(t, 0, s)
 		assert.Equal(t, 5, e)
 	})
@@ -351,7 +351,7 @@ func TestImmutabilityGuard(t *testing.T) {
 			return tool.EditPlan{ReplaceAll: &rewritten}, nil
 		}
 		b := mkBlock()
-		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RangeAnchor(b.Source, 0, 5)})
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RangeAnchor(b.SourceRuns(), 0, 5)})
 		require.NoError(t, run(bt, b))
 		assert.Equal(t, "a fully rewritten sentence", b.SourceText())
 		assert.Nil(t, b.OverlayOf(model.OverlayTerm))
@@ -367,11 +367,11 @@ func TestImmutabilityGuard(t *testing.T) {
 			}}, nil
 		}
 		b := mkBlock()
-		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RangeAnchor(b.Source, 6, 11)})
+		b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "t1", Range: model.RangeAnchor(b.SourceRuns(), 6, 11)})
 		require.NoError(t, run(bt, b))
 		sp := b.OverlaySpan(model.OverlayTerm, "t1")
 		require.NotNil(t, sp)
-		s, e := sp.Range.TextSpan(b.Source)
+		s, e := sp.Range.TextSpan(b.SourceRuns())
 		assert.Equal(t, 6, s)
 		assert.Equal(t, 11, e)
 	})
@@ -383,12 +383,13 @@ func TestImmutabilityGuard(t *testing.T) {
 			return plan, nil
 		}
 		b := mkBlock()
-		tgt := model.NewTarget([]model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}, model.TargetStatusTranslated)
-		tgt.Origin = model.Origin{Kind: model.OriginHuman}
-		b.SetTarget("fr", tgt)
+		b.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}},
+			Status: model.Status(model.TargetStatusTranslated), Origin: model.Origin{Kind: model.OriginHuman}})
 		require.NoError(t, run(bt, b))
 		assert.Equal(t, "BONJOUR", b.TargetText("fr"))
-		assert.Equal(t, model.TargetStatusDraft, b.Target("fr").Status, "nobody has read the wording the tool wrote")
-		assert.Equal(t, model.OriginHuman, b.Target("fr").Origin.Kind)
+		tgt, ok := b.Edition(model.Variant("fr"))
+		require.True(t, ok)
+		assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status, "nobody has read the wording the tool wrote")
+		assert.Equal(t, model.OriginHuman, tgt.Origin.Kind)
 	})
 }

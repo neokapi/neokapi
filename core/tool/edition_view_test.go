@@ -45,7 +45,7 @@ func TestView_SetSourceStatusKeepsTheContent(t *testing.T) {
 	v.SetSourceStatus(model.SourceStatusEstablished)
 
 	assert.Equal(t, model.SourceStatusEstablished, v.SourceStatus())
-	assert.Equal(t, model.SourceStatusEstablished, b.SourceStatus)
+	assert.Equal(t, model.SourceStatusEstablished, sourceStatus(b))
 	assert.Equal(t, "Hello", b.SourceText())
 	o, ok := b.SourceOrigin()
 	require.True(t, ok)
@@ -79,7 +79,7 @@ func TestView_SetSourceStatusTouchesOnlyTheStatus(t *testing.T) {
 
 			tool.NewBlockView(b).SetSourceStatus(model.SourceStatusEstablished)
 
-			assert.Equal(t, model.SourceStatusEstablished, b.SourceStatus)
+			assert.Equal(t, model.SourceStatusEstablished, sourceStatus(b))
 			got, ok := b.Anno(model.AnnoSourceOrigin)
 			if tt.anno == nil {
 				assert.False(t, ok)
@@ -148,4 +148,10 @@ func TestView_TargetIsACopy(t *testing.T) {
 	src := model.NewBlock("b2", "Hello")
 	src.SourceLocale = "en-US"
 	assert.Nil(t, tool.NewBlockView(src).Target("en-US"), "the source is never a target")
+}
+
+// sourceStatus is the status of the edition b was read in.
+func sourceStatus(b *model.Block) model.SourceStatus {
+	src, _ := b.Edition(model.EditionKey{})
+	return model.SourceStatus(src.Status)
 }
