@@ -258,7 +258,7 @@ func blockEventFor(b *model.Block) *blockEvent {
 	}
 	// A translation filed under the zero key is dumped under the empty key,
 	// which no edition other than the authoritative one marshals to.
-	if e, ok := b.ZeroKeyTarget(); ok {
+	if e, ok := b.TargetEdition(""); ok {
 		addTarget("", e.Runs)
 	}
 	return ev

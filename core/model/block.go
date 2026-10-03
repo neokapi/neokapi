@@ -238,8 +238,10 @@ func (b *Block) TargetVariant(key VariantKey) *Target { return b.Targets[key.Can
 // edition the block was read in. The source language names a target only when
 // the block holds one, as a bilingual file in one language does. The empty
 // locale names a target a reader filed under no language, as the KBF reader
-// files a bundle's "" target; Edition reads the zero key as the edition the
-// block was read in.
+// files a bundle's "" target and the Qt TS reader files the translation of a
+// file with no language attribute read with no source locale. Edition,
+// Editions and EachEdition read the zero key as the edition the block was read
+// in, so a walk over every text a writer can emit reads such a target here.
 func (b *Block) TargetEdition(locale LocaleID) (Edition, bool) {
 	t := b.Targets[Variant(locale)]
 	if t == nil {

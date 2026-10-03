@@ -83,10 +83,14 @@ func TestBlockTargetEdition_ReadsTheTargetTargetReads(t *testing.T) {
 }
 
 // The empty locale reads the target filed under no language, and the zero key
-// still names the edition the block was read in for Edition.
+// still names the edition the block was read in for Edition, Editions and
+// EachEdition.
 func TestBlockTargetEdition_NoLanguage(t *testing.T) {
-	b := targetEditionBlocks()["no language"]()
+	_, ok := targetEditionBlocks()["no target"]().TargetEdition("")
+	assert.False(t, ok, "a block with no target under no language")
 
+	b := targetEditionBlocks()["no language"]()
+	b.SetTargetText("fr", "Bonjour")
 	got, ok := b.TargetEdition("")
 	require.True(t, ok)
 	assert.Equal(t, "zero", model.RunsText(got.Runs))
@@ -96,9 +100,21 @@ func TestBlockTargetEdition_NoLanguage(t *testing.T) {
 	src, ok := b.Edition(model.EditionKey{})
 	require.True(t, ok)
 	assert.Equal(t, "Hello", model.RunsText(src.Runs))
+	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}, {Locale: "fr"}}, b.Editions())
+	for k := range b.EachEdition {
+		assert.False(t, k.IsZero(), "the target under no language is not an edition EachEdition yields")
+	}
 
 	_, ok = targetEditionBlocks()["no target"]().TargetEdition("en-US")
 	assert.False(t, ok, "the source language names no target while the block holds none")
+
+	t.Run("one with no runs is held", func(t *testing.T) {
+		b := model.NewBlock("b1", "Hello")
+		b.SetTargetRuns("", nil)
+		got, ok := b.TargetEdition("")
+		assert.True(t, ok)
+		assert.Empty(t, got.Runs)
+	})
 }
 
 // SetTargetEdition writes where SetTargetVariant writes, on every kind of

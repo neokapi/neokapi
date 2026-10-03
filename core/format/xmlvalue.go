@@ -63,7 +63,7 @@ func CheckXMLText(formatName string, locale model.LocaleID, block *model.Block, 
 // CheckXMLBlock is CheckXMLText over a block's text runs in every edition: the
 // authoritative one first, reported with no locale, then each of the others
 // under its language, and last a translation filed under the zero key
-// (model.Block.ZeroKeyTarget), reported with no locale. It suits a writer that
+// (model.Block.TargetEdition("")), reported with no locale. It suits a writer that
 // serializes a block through several call sites, where one check at the block
 // boundary covers them all.
 //
@@ -86,7 +86,7 @@ func CheckXMLBlock(formatName string, block *model.Block) error {
 			return err
 		}
 	}
-	if e, ok := block.ZeroKeyTarget(); ok {
+	if e, ok := block.TargetEdition(""); ok {
 		return checkXMLRuns(formatName, "", block, e.Runs)
 	}
 	return nil

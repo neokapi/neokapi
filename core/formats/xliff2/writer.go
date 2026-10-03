@@ -1545,30 +1545,18 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 			// Surface the target's lifecycle status as the segment state, so a
 			// produced XLIFF reports where each unit stands. Scratch-build path
 			// only (this function is never called on the byte-exact round-trip
-			// path), so untouched round-trips are unaffected.
-			if t, ok := writtenTarget(block, targetLang); ok {
+			// path), so untouched round-trips are unaffected. TargetEdition
+			// reads the target targetSegsFromBlock writes
+			// (TargetRuns(targetLang)): the one filed under the zero key when
+			// there is no target language, and none for the source language
+			// unless the block holds a same-language target.
+			if t, ok := block.TargetEdition(targetLang); ok {
 				if st := xliff2StateFromTargetStatus(model.TargetStatus(t.Status)); st != "" {
 					segEl.CreateAttr("state", st)
 				}
 			}
 		}
 	}
-}
-
-// writtenTarget returns the translation the writer reads for targetLang
-// (targetSegsFromBlock reads TargetRuns(targetLang)), with its status. With no
-// target language that is a translation filed under the zero key, which no
-// edition key reaches. When targetLang names the edition the block was read
-// in, the block holds no translation under it.
-func writtenTarget(block *model.Block, targetLang model.LocaleID) (model.Edition, bool) {
-	key := model.Variant(targetLang)
-	if key.IsZero() {
-		return block.ZeroKeyTarget()
-	}
-	if block.IsSourceEdition(key) {
-		return model.Edition{}, false
-	}
-	return block.Edition(key)
 }
 
 // writeSegmentInline writes the segment's body into el from its inline IR

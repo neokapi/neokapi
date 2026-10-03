@@ -196,7 +196,7 @@ func (p ModifyProbe) runCase(t *testing.T, c EscapeCase) {
 		for _, e := range block.EachEdition {
 			got = append(got, textOf(e.Runs))
 		}
-		if e, ok := block.ZeroKeyTarget(); ok {
+		if e, ok := block.TargetEdition(""); ok {
 			got = append(got, textOf(e.Runs))
 		}
 	}
