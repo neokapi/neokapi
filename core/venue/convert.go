@@ -185,13 +185,14 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 		b.SetSourceText(sb.SourceText)
 	}
 
-	// Targets: one Target per variant, runs concatenated from the wire
+	// Targets: one edition per variant, runs concatenated from the wire
 	// segments, status/origin/score restored from the first segment's props.
 	// Each is stored as a target whatever its key, so a target filed under the
-	// source language stays a target.
+	// source language stays a target. A key that names no language names no
+	// target, and BlockToProto never sends one.
 	for keyText, list := range sb.Targets {
-		var key model.VariantKey
-		if err := key.UnmarshalText([]byte(keyText)); err != nil {
+		var key model.EditionKey
+		if err := key.UnmarshalText([]byte(keyText)); err != nil || key.IsZero() {
 			continue
 		}
 		var runs []model.Run
@@ -202,7 +203,7 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 			}
 			runs = append(runs, protoconvert.ProtoToRuns(seg.Runs)...)
 		}
-		b.SetTargetVariant(key, segmentToTarget(runs, first))
+		setTarget(b, key, segmentToEdition(runs, first))
 	}
 
 	// Annotations.
@@ -327,10 +328,21 @@ func targetToSegment(t model.Edition) *contentv1.SegmentMessage {
 	}
 }
 
-// segmentToTarget rebuilds a Target from concatenated runs plus the first
-// wire segment's metadata properties.
-func segmentToTarget(runs []model.Run, first *contentv1.SegmentMessage) *model.Target {
-	t := &model.Target{Runs: runs}
+// setTarget stores e as the target filed under key, which names a language.
+// Until a block holds a target in its source language, that language's key
+// reaches the edition the block was read in, and SetEdition would write the
+// source; such a target is filed first with SetTargetRuns.
+func setTarget(b *model.Block, key model.EditionKey, e model.Edition) {
+	if b.IsSourceEdition(key) {
+		b.SetTargetRuns(key.Locale, nil)
+	}
+	b.SetEdition(key, e)
+}
+
+// segmentToEdition rebuilds a derived edition from concatenated runs plus the
+// first wire segment's metadata properties.
+func segmentToEdition(runs []model.Run, first *contentv1.SegmentMessage) model.Edition {
+	t := model.Edition{Runs: runs}
 	if first == nil {
 		return t
 	}
@@ -338,7 +350,7 @@ func segmentToTarget(runs []model.Run, first *contentv1.SegmentMessage) *model.T
 	if props == nil {
 		return t
 	}
-	t.Status = model.TargetStatus(props[propTargetStatus])
+	t.Status = model.Status(props[propTargetStatus])
 	if s := props[propTargetScore]; s != "" {
 		if v, err := strconv.ParseFloat(s, 64); err == nil {
 			t.Score = v

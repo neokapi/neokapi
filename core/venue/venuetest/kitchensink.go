@@ -109,9 +109,9 @@ func KitchenSinkBlock() *model.Block {
 	})
 
 	// Targets: two variants; fully-populated provenance on the first.
-	b.SetTargetVariant(frVariant, &model.Target{
+	b.SetEdition(frVariant, model.Edition{
 		Runs:   []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}},
-		Status: model.TargetStatusEstablished,
+		Status: model.Status(model.TargetStatusEstablished),
 		Score:  0.97,
 		Origin: model.Origin{
 			Kind:               model.OriginAI,
@@ -125,9 +125,9 @@ func KitchenSinkBlock() *model.Block {
 			ContextFingerprint: "9f2b7c1d4e6a8035",
 		},
 	})
-	b.SetTargetVariant(deFormal, &model.Target{
+	b.SetEdition(deFormal, model.Edition{
 		Runs:   []model.Run{{Text: &model.TextRun{Text: "Guten Tag"}}},
-		Status: model.TargetStatusTranslated,
+		Status: model.Status(model.TargetStatusTranslated),
 		Origin: model.Origin{Kind: model.OriginHuman},
 	})
 	// A memory-origin target: recycled from content memory, carrying the governing
@@ -135,9 +135,9 @@ func KitchenSinkBlock() *model.Block {
 	// AI target under one context carries). Recycled targets are the bulk of a
 	// converged corpus, so both wire paths must carry their governance too — the
 	// parity round-trip forces it.
-	b.SetTargetVariant(esVariant, &model.Target{
+	b.SetEdition(esVariant, model.Edition{
 		Runs:   []model.Run{{Text: &model.TextRun{Text: "Hola"}}},
-		Status: model.TargetStatusDraft,
+		Status: model.Status(model.TargetStatusDraft),
 		Score:  0.88,
 		Origin: model.Origin{
 			Kind:               model.OriginMemory,

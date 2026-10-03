@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/model"
+	contentv1 "github.com/neokapi/neokapi/core/proto/content/v1"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 )
 
@@ -65,4 +66,19 @@ func TestBlockToProto_UnreachableEditionIsNotSentEmpty(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "Hei", got.TargetText("nb-NO"))
 	}
+}
+
+// A target key that names no language names no target. BlockToProto never
+// sends one, and ProtoToBlock stores none: the block holds its source alone.
+func TestProtoToBlock_KeyWithNoLanguageIsNoTarget(t *testing.T) {
+	got, err := ProtoToBlock(&pb.SyncBlock{
+		SourceText: "Hello",
+		Targets: map[string]*pb.SyncSegmentList{
+			"": {Segments: []*contentv1.SegmentMessage{runsToSegment("", []model.Run{model.TextR("Hei")})}},
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []model.EditionKey{{}}, got.Editions())
+	assert.Empty(t, got.TargetLocales())
+	assert.Equal(t, "Hello", got.SourceText())
 }
