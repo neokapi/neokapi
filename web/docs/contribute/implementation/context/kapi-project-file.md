@@ -324,7 +324,9 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
 - `materialize` (`manual` | `on-converge`): whether the convergence loop owns
   delivery of the target-language files. `manual`, the default, leaves delivery
   to `kapi merge` or `kapi up --materialize`; `on-converge` writes a locale's
-  files only when its gated scopes are all shippable.
+  files only when its gated scopes are all shippable, and keeps a parked
+  locale's drafts in the workspace home (`core/workhome`) until a delivery
+  writes them.
 - `jobs` (int): how many target languages one `kapi up` pass converges
   concurrently; `up --jobs` overrides per run.
 - `translate_after` (`written` | `established` | `none`): the source status a

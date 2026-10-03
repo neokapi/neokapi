@@ -249,8 +249,10 @@ The other recipe families each have an AD or a reference section of their own:
   `manual`, the default, a pass writes where the recipe points as it produces
   each unit, and delivery is an explicit `kapi merge` or `kapi up --materialize`.
   With `on-converge` the run owns delivery under the ship gate: its passes draft
-  into a run-local tree, and only a locale whose gated scopes are all shippable
-  has its files written to the collection's `target:` path.
+  into a run-local tree, only a locale whose gated scopes are all shippable has
+  its files written to the collection's `target:` path, and a parked locale's
+  drafts are kept in the workspace home until a delivery writes them
+  ([C-03](c-03-context-store-and-graph.md#the-workspace-home)).
 - `defaults.annotations` decides which stand-off annotations a writer draws
   inline; `defaults.locales` holds per-target-language tool presets;
   `defaults.formats` holds per-format reader configuration and detection

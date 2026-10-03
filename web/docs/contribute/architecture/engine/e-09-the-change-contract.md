@@ -299,6 +299,28 @@ a commit replaces beside it, under the lock, from the bytes the change was
 applied to. The implementation note
 [The file home](../../implementation/engine/file-home.md) has the details.
 
+**The workspace home** (`core/workhome`) keeps the editions that have no file
+yet: a parked locale's drafts and the edits made to them
+([C-03](../context/c-03-context-store-and-graph.md#the-workspace-home)). Such
+an edition belongs to a document whose own edition is a file, so the file home
+reaches it: the layout names the file the edition will be delivered to, and a
+keeper (`filehome.Keeper`) that holds it until then. A read joins the kept
+edition to the document's blocks by block key, with the status and origin the
+workspace home keeps beside its runs, and reports the workspace home as its
+home (`change.Place.Home`, `Page.Home`). A stage hands the editions the
+editor changed to the keeper, the commit lock is the lock of the file the
+edition will be delivered to, and the commit appends the change's record only
+while the edition's head in the log is still the one the stage read
+(`workspace.Backend.RecordIf`); a head that moved in between makes the stage
+read and apply again, as a moved file does. The record is the commit:
+`change.RecordingStaged` hands the staged change the record of its document
+before `Commit`, the result names the workspace home for that edition
+(`StagedFile.Home`), and the service's recorder records nothing more for it
+(`StagedFile.Recorded`). The conformance suite runs on the workspace home with
+the edition files of a parked locale as its documents. A host keeps an
+edition in the workspace home while the workspace keeps it and its file does
+not exist; an edition with neither is written to its file.
+
 ### Flows
 
 A flow writes a document whole: its writer renders every block the run passed
@@ -312,7 +334,15 @@ the kapi host runs commits this way: `kapi translate`, `pseudo-translate`,
 `run`, `exec` and `up`, the same runs in Kapi Desktop and over MCP, a pull's
 target files, and the delivery of a convergence pass's drafts. The host's flow
 home takes its locks where the project's change service takes them, so a flow
-and a change set on one file take turns.
+and a change set on one file take turns. A gated run that parks a locale writes
+that locale's drafts into the workspace home instead
+(`workhome.Home.Produce`): one write per document, each draft guarded by the
+revision the run first read of it, with its basis and the stamp its producer
+serves it again by; a block another writer changed meanwhile, or one a person
+or an agent wrote from the same source, keeps that writer's edition. A
+delivery (`kapi merge`, or `kapi up` for a locale that cleared its gate)
+writes each edition's file from what the workspace home keeps and then releases
+the edition from it (`workhome.Home.Release`).
 
 Inside a project the host records each document a flow wrote as one
 `content.edit`, through the recorder a change set's commit records through,
