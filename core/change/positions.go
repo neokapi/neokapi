@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -212,8 +213,8 @@ func (ix *seqIndex) resolvedOf(m findMatch, path model.RunPath) Resolved {
 // then names each branch that holds it by the path that reaches it, with a
 // candidate per match, and says to send the edit with one of those paths. A
 // find that holds in no branch either is refused naming the path searched and
-// the text there, with up to three matches that differ from it only in case
-// as candidates; one that names by token a code the text does not hold is
+// the text there, with up to three near matches (nearCandidates) as
+// candidates; one that names by token a code the text does not hold is
 // refused naming the token.
 func notInText(seq []model.Run, find string, p parsedFind, path model.RunPath, field string) *Error {
 	e := &Error{Code: CodeNotFound, Field: field + "/find", Message: notInSequence(find, path, seq),
@@ -259,7 +260,7 @@ func notInText(seq []model.Run, find string, p parsedFind, path model.RunPath, f
 	walk(seq, path)
 	switch len(branches) {
 	case 0:
-		e.Candidates = caseCandidates(seq, find, p, path)
+		e.Candidates = nearCandidates(seq, find, p, path)
 	case 1:
 		e.Message = fmt.Sprintf("%q is not in the text around the plural or select; it is in the branch at path %s: send the edit with that path",
 			find, branches[0])
@@ -281,30 +282,72 @@ func searchedName(path model.RunPath) string {
 // maxCandidates bounds the candidates a not_found refusal of a find carries.
 const maxCandidates = 3
 
-// caseCandidates lists up to three matches of a find of text alone that
-// differ from it only in case.
-func caseCandidates(seq []model.Run, find string, p parsedFind, path model.RunPath) []Candidate {
+// nearCandidates lists up to three near matches of a find of text alone:
+// text that differs from it only in case, in white space or in punctuation,
+// a typographic apostrophe or quote included, as a find copied by hand or
+// retyped from a read tends to.
+func nearCandidates(seq []model.Run, find string, p parsedFind, path model.RunPath) []Candidate {
 	if len(p.tokens) > 0 {
 		return nil
 	}
 	ix := indexSequence(seq)
-	needle := []rune(strings.ToLower(find))
-	lower := []rune(strings.ToLower(string(ix.text)))
-	if len(lower) != len(ix.text) || len(needle) != utf8.RuneCountInString(find) {
-		// A case mapping that changes the length leaves no offsets to report.
+	needle, _ := foldNear([]rune(find))
+	needle = []rune(strings.TrimSpace(string(needle)))
+	if len(needle) == 0 {
 		return nil
 	}
+	hay, spans := foldNear(ix.text)
+	// The punctuation a find opens or closes with is left out of the fold,
+	// and a candidate takes as much as lies at the same edge of its match.
+	edges := []rune(strings.TrimSpace(find))
+	lead, trail := 0, 0
+	for lead < len(edges) && unicode.IsPunct(edges[lead]) {
+		lead++
+	}
+	for trail < len(edges)-lead && unicode.IsPunct(edges[len(edges)-1-trail]) {
+		trail++
+	}
 	var out []Candidate
-	for i := 0; i+len(needle) <= len(lower) && len(out) < maxCandidates; {
-		if !runesAt(lower, i, needle) {
+	for i := 0; i+len(needle) <= len(hay) && len(out) < maxCandidates; {
+		if !runesAt(hay, i, needle) {
 			i++
 			continue
 		}
-		r := resolvedSpan(path, ix.posAt(i), ix.posAt(i+len(needle)))
-		out = append(out, Candidate{At: &r, Text: around(ix.text, i, i+len(needle))})
+		start, end := spans[i][0], spans[i+len(needle)-1][1]
+		for n := 0; n < lead && start > 0 && unicode.IsPunct(ix.text[start-1]); n++ {
+			start--
+		}
+		for n := 0; n < trail && end < len(ix.text) && unicode.IsPunct(ix.text[end]); n++ {
+			end++
+		}
+		r := resolvedSpan(path, ix.posAt(start), ix.posAt(end))
+		out = append(out, Candidate{At: &r, Text: around(ix.text, start, end)})
 		i += len(needle)
 	}
 	return out
+}
+
+// foldNear is text as a near match compares it: each code point in lower
+// case, punctuation left out, and each run of white space one space. spans
+// holds, for each code point of the folded text, the code points [start, end)
+// of text it stands for.
+func foldNear(text []rune) (folded []rune, spans [][2]int) {
+	for i, r := range text {
+		switch {
+		case unicode.IsPunct(r):
+		case unicode.IsSpace(r):
+			if n := len(folded); n > 0 && folded[n-1] == ' ' {
+				spans[n-1][1] = i + 1
+				continue
+			}
+			folded = append(folded, ' ')
+			spans = append(spans, [2]int{i, i + 1})
+		default:
+			folded = append(folded, unicode.ToLower(r))
+			spans = append(spans, [2]int{i, i + 1})
+		}
+	}
+	return folded, spans
 }
 
 func runesAt(text []rune, i int, needle []rune) bool {
