@@ -92,15 +92,10 @@ func (w *loopWrites) last(doc, block, edition string) (history.Row, bool) {
 	rows, ok := w.byDoc[doc]
 	if !ok {
 		rows = map[[2]string]history.Row{}
-		all, err := w.hist.Document(w.ctx, doc)
+		latest, err := w.hist.Latest(w.ctx, doc)
 		if err == nil {
-			// Most recent first: the first row of each edition is its last
-			// write.
-			for _, r := range all {
-				k := [2]string{r.Block, r.Edition}
-				if _, seen := rows[k]; !seen {
-					rows[k] = r
-				}
+			for _, r := range latest {
+				rows[[2]string{r.Block, r.Edition}] = r
 			}
 		}
 		w.byDoc[doc] = rows

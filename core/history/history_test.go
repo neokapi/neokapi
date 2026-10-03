@@ -163,3 +163,26 @@ func TestPriorsCarryTheMostRecentIdentityEvidence(t *testing.T) {
 		{Key: "u-moved", Scope: "d-1", ContentHash: "m", ContextHash: "c3"},
 	}, priors, "one unit per block, keyed by its durable key where it has one")
 }
+
+func TestLatestIsTheLastChangeToEachEdition(t *testing.T) {
+	ctx := t.Context()
+	s := openStore(t)
+	at := time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)
+	row := func(op, block, edition, after string) history.Row {
+		return history.Row{Op: op, Address: "a-" + op, Doc: "d-1", Block: block, Edition: edition,
+			Before: "absent", After: after, Actor: "tool", At: at}
+	}
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-1", "p", "fr", "r:1"), row("op-1", "q", "fr", "r:2")}))
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-2", "p", "fr", "r:3")}))
+	require.NoError(t, s.Put(ctx, []history.Row{row("op-3", "p", "de", "r:4")}))
+	require.NoError(t, s.Put(ctx, []history.Row{{Op: "op-4", Address: "a-other", Doc: "d-2", Block: "p", Edition: "fr", After: "r:9", At: at}}))
+
+	got, err := s.Latest(ctx, "d-1")
+	require.NoError(t, err)
+	want := map[string]string{"p@de": "r:4", "p@fr": "r:3", "q@fr": "r:2"}
+	have := map[string]string{}
+	for _, r := range got {
+		have[r.Block+"@"+r.Edition] = r.After
+	}
+	assert.Equal(t, want, have)
+}

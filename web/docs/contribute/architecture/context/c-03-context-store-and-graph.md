@@ -414,7 +414,8 @@ edition was made from, the block's key, content hash and context hash, who made
 the change (person, agent or tool, with a name and a session) and through which
 surface (`apply`, `desktop`, `flow:<name>`, `merge`, `pull`, `observed`).
 `history.Store.LastWrite` answers who last wrote an edition, among the writes
-recorded this way; `Edition` and `Document` read the changes back, most recent
+recorded this way; `Latest` reads that last write for every edition of a
+document, and `Edition` and `Document` read the changes back, most recent
 first. The file stays the only copy of its text and the log keeps facts about
 it, keyed by revisions that hold on every branch where the content matches, so
 a branch switch moves no record.

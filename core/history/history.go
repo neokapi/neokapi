@@ -271,6 +271,20 @@ func (s *Store) Empty(ctx context.Context) (bool, error) {
 	return false, nil
 }
 
+// Latest returns the most recent recorded change to each edition of each
+// block in one document: one row per edition, however long its history. It
+// walks the primary key, one seek per edition.
+func (s *Store) Latest(ctx context.Context, doc string) ([]Row, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+columns+from+`
+WHERE h.doc = ? AND h.op = (SELECT MAX(l.op) FROM block_history l
+    WHERE l.doc = h.doc AND l.block = h.block AND l.edition = h.edition)
+ORDER BY h.block, h.edition`, doc)
+	if err != nil {
+		return nil, fmt.Errorf("history: read the latest of %s: %w", doc, err)
+	}
+	return scan(rows)
+}
+
 // Document returns every recorded change in one document, most recent first.
 func (s *Store) Document(ctx context.Context, doc string) ([]Row, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+columns+from+`
