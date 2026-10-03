@@ -122,10 +122,12 @@ that lands is recorded as a `content.changed` event.
 Rollback, revert and restore apply what they restore as a change set from the
 person who asked, against the revision each translation holds when the route
 reads it: rollback sets the content of the history entry, inline codes
-included, and a translation the reverted changes created is removed. A
-rollback takes the revision the caller read as `base_revision`. A translation
-that moved since the route read it keeps what it holds. The restored wording
-lands over the findings it brings back.
+included, and a translation that did not exist at the restored point is
+removed. They read only the history entries that record content: an entry
+that records a removal restores none, and a rollback to a decision entry is
+refused with `422`. A rollback takes the revision the caller read as
+`base_revision`. A translation that moved since the route read it keeps what it
+holds. The restored wording lands over the findings it brings back.
 
 ### Sync
 

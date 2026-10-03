@@ -290,10 +290,10 @@ func (s *Server) doExecuteAction(ctx context.Context, action event.AutomationAct
 // against one or more blocks through the in-process blockstore adapter (#385
 // foundation). Config keys:
 //
-//	kind      — required, e.g. "annotations/qa"
-//	payload   — required, JSON object written verbatim to the overlay
-//	stream    — optional, defaults to "main"
-//	block     — optional explicit block id; falls back to ev.Data["block_id"]
+//	kind      required, e.g. "annotations/qa"
+//	payload   required, JSON object written verbatim to the overlay
+//	stream    optional, defaults to "main"
+//	block     optional explicit block id; falls back to ev.Data["block_id"]
 //
 // A translation (a targets/<locale> kind) is content, which a stream takes
 // only through its change service, so the action refuses it; a flow run
