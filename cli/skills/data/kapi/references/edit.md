@@ -217,6 +217,40 @@ Code comments are edited with `kapi apply`. MCP `apply_edits` refuses a code
 comment as `unsupported`: give the change set to the user to apply with
 `kapi apply`.
 
+## Add and remove a key in a catalog
+
+A JSON, YAML or ARB message catalog takes `insert_block` and `delete_block`.
+Every other format refuses both as `unsupported`, and so does a JSON catalog
+whose configuration reads a note or an id from the members beside a message.
+`describe_format`, or the `ops` a block lists in `kapi inspect`, shows where
+they apply:
+
+```json
+{"ops": [
+  {"op": "insert_block", "doc": "locales/en.json", "after": "nav.cart", "name": "nav.checkout",
+   "editions": {"en": {"text": "Checkout"}, "de": {"text": "Kasse"}}},
+  {"op": "delete_block", "at": {"doc": "locales/en.json", "block": "nav.legacy"},
+   "if_match": {"en": "r:5e10a2b3c4d5e6f7"}}
+]}
+```
+
+- `insert_block` takes the new key in `name` and its text per language in
+  `editions`: the catalog's own language, and each translation the project
+  keeps in a file of its own, which gains the key too (a translation file not
+  written yet is created). The key goes in the object its key path names
+  (`nav.checkout` goes in `nav`), after the key `after` names or before the
+  one `before` names, and last in that object with neither; an object missing
+  on the path is created. A key the catalog already holds is refused as
+  `stale` with that block as `current`.
+- `delete_block` names the block in `at`, with no edition, and the revision
+  of the catalog's own language in `if_match`. A translation's revision you
+  add there is checked too. The key leaves every translation file with it.
+- Send both to the source catalog: one sent to a translation's file is
+  `invalid`, and so is a content operation on a block the same change set adds
+  or removes. Put a new key's text in `editions`.
+- A new key's text is held to the voice and terms like any edit, and the
+  change is recorded like any other.
+
 ## Which formats can I edit?
 
 `kapi formats` reports an **Edit** column and the JSON adds `editable` and
