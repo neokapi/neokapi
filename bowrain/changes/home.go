@@ -1,0 +1,396 @@
+package changes
+
+import (
+	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"slices"
+	"strings"
+
+	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/change/filehome"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/venue"
+)
+
+// Home is the change service's stream home: the documents of one stream of
+// one project, each an item whose blocks are rows. A row holds every edition
+// of its block, so every edition lives in the document.
+//
+// A stage reads the blocks a change set addresses and applies its operations
+// in memory. The commit lock is the rows: Lock begins a transaction and holds
+// the rows the stage read, Settle applies the operations again to the held
+// rows when they moved since the stage, so every if_match is checked against
+// the rows the write stores, and Commit stores them, with their history and
+// change-log rows, and commits the transaction.
+type Home struct {
+	// Store keeps the stream. It must be a store.BlockWriteStore.
+	Store store.ContentStore
+	// ProjectID and Stream name the stream.
+	ProjectID string
+	Stream    string
+	// SourceLocale is the language the project's content is written in.
+	SourceLocale model.LocaleID
+	// Locales are the languages the project translates into. An edition in
+	// any other language has no home in the stream. Empty admits every
+	// language.
+	Locales []model.LocaleID
+	// Registry binds an item's format to the writer that declares what the
+	// format can hold beyond what its reader read (set_attribute, mark, new
+	// codes). Nil declares nothing.
+	Registry *registry.FormatRegistry
+	// Stamp, when set, is called with each block a stage changed, once the
+	// operations have applied and before the block is stored.
+	Stamp func(b *model.Block)
+	// BeforeLock, when set, is called once a document of a change set is
+	// staged and before its rows are held.
+	BeforeLock func(doc string)
+}
+
+var _ change.Home = (*Home)(nil)
+
+// Name is the home as a result reports it.
+func (h *Home) Name() string { return "stream:" + h.stream() }
+
+func (h *Home) stream() string {
+	if h.Stream == "" {
+		return "main"
+	}
+	return h.Stream
+}
+
+// Open starts work on the item doc names.
+func (h *Home) Open(ctx context.Context, doc string) (change.Session, error) {
+	ws, ok := h.Store.(store.BlockWriteStore)
+	if !ok {
+		return nil, &change.Error{Code: change.CodeUnsupported, Capability: "stream",
+			Message: fmt.Sprintf("the content store %T keeps no held writes, so the stream takes no change set", h.Store)}
+	}
+	if doc == "" {
+		return nil, &change.Error{Code: change.CodeInvalid, Field: "at/doc", Message: "the reference names no item"}
+	}
+	item, err := h.Store.GetItem(ctx, h.ProjectID, h.stream(), doc)
+	switch {
+	case errors.Is(err, sql.ErrNoRows) || (err == nil && item == nil):
+		return nil, &change.Error{Code: change.CodeNotFound, Field: "at/doc",
+			Message: fmt.Sprintf("stream %s holds no item %s", h.stream(), doc)}
+	case err != nil:
+		return nil, fmt.Errorf("read item %s: %w", doc, err)
+	}
+	info := change.DocInfo{
+		Doc:          item.Name,
+		Format:       item.Format,
+		SourceLocale: h.SourceLocale,
+		Editions:     change.EditionsInFile,
+		Capabilities: h.capabilities(item.Format),
+	}
+	return &session{h: h, ws: ws, item: item.Name, info: info}, nil
+}
+
+// capabilities is what the writer of format can write beyond what its reader
+// read, as the export of an item writes it.
+func (h *Home) capabilities(format string) change.Capabilities {
+	if h.Registry == nil || format == "" || h.Registry.FormatInfo(registry.FormatID(format)) == nil {
+		return change.Capabilities{Format: format}
+	}
+	return filehome.RegistryBinding(h.Registry, format, "").Capabilities()
+}
+
+// admits reports whether the stream keeps editions in locale.
+func (h *Home) admits(locale model.LocaleID) bool {
+	if len(h.Locales) == 0 || model.NormalizeLocale(locale) == model.NormalizeLocale(h.SourceLocale) {
+		return true
+	}
+	return slices.ContainsFunc(h.Locales, func(l model.LocaleID) bool {
+		return model.NormalizeLocale(l) == model.NormalizeLocale(locale)
+	})
+}
+
+// session is one item open in the stream home.
+type session struct {
+	h    *Home
+	ws   store.BlockWriteStore
+	item string
+	info change.DocInfo
+}
+
+func (s *session) Info() change.DocInfo { return s.info }
+
+func (s *session) Place(k model.EditionKey) change.Place {
+	if k.IsZero() || s.h.admits(k.Locale) {
+		return change.Place{Kind: change.PlaceInDocument}
+	}
+	return change.Place{Kind: change.PlaceNone, Why: fmt.Sprintf("the project does not translate into %s", k.Locale)}
+}
+
+// prepare gives each block read from a row the project's source language,
+// which no row keeps, so an edition key in that language names the source.
+func (s *session) prepare(rows []*venue.StoredBlock) {
+	for _, sb := range rows {
+		if sb != nil && sb.Block != nil && sb.Block.SourceLocale == "" {
+			sb.Block.SourceLocale = s.h.SourceLocale
+		}
+	}
+}
+
+func (s *session) Read(ctx context.Context, want change.Want, fn func(*model.Block) error) (string, error) {
+	rows, err := s.ws.ItemBlocks(ctx, s.h.ProjectID, s.h.stream(), s.item, want.Blocks)
+	if err != nil {
+		return "", err
+	}
+	s.prepare(rows)
+	head := digest(rows)
+	for _, sb := range rows {
+		if err := fn(sb.Block); err != nil {
+			if errors.Is(err, change.ErrStop) {
+				break
+			}
+			return "", err
+		}
+	}
+	return head, nil
+}
+
+func (s *session) Stage(ctx context.Context, want change.Want, e change.Editor) (change.Staged, error) {
+	rows, err := s.ws.ItemBlocks(ctx, s.h.ProjectID, s.h.stream(), s.item, want.Blocks)
+	if err != nil {
+		return nil, err
+	}
+	st := &staged{s: s, want: want, e: e}
+	if err := st.pass(rows); err != nil {
+		return nil, err
+	}
+	return st, nil
+}
+
+func (s *session) Close() error { return nil }
+
+// staged is a change to one item, held ready to commit.
+type staged struct {
+	s    *session
+	want change.Want
+	e    change.Editor
+
+	// rows are the blocks the last pass ran over, and changed the ones it
+	// changed. before is the text of each edition of a changed block as the
+	// pass found it, for the preview.
+	rows    []*venue.StoredBlock
+	changed []*venue.StoredBlock
+	before  map[string]map[string]string
+	// head and after are the digests of the rows around the pass.
+	head, after string
+
+	bw      store.BlockWrite
+	held    []*venue.StoredBlock
+	written bool
+}
+
+// pass applies the change set's operations to rows.
+func (st *staged) pass(rows []*venue.StoredBlock) error {
+	st.s.prepare(rows)
+	st.rows, st.changed = rows, nil
+	st.head = digest(rows)
+	st.before = map[string]map[string]string{}
+	st.e.Begin()
+	for _, sb := range rows {
+		was := editionTexts(sb.Block)
+		keys, err := st.e.Edit(sb.Block)
+		if err != nil {
+			return err
+		}
+		if len(keys) > 0 {
+			st.changed = append(st.changed, sb)
+			st.before[sb.Block.ID] = was
+		}
+	}
+	if err := st.e.End(); err != nil {
+		return err
+	}
+	if st.s.h.Stamp != nil {
+		for _, sb := range st.changed {
+			st.s.h.Stamp(sb.Block)
+		}
+	}
+	st.after = digest(rows)
+	return nil
+}
+
+func (st *staged) Files() []change.StagedFile {
+	return []change.StagedFile{{File: st.s.info.Doc, Before: st.head, After: st.after, Written: st.written}}
+}
+
+// Diff renders each edition the change rewrites, before and after.
+func (st *staged) Diff() string {
+	if len(st.changed) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "--- %s\n+++ %s\n", st.s.info.Doc, st.s.info.Doc)
+	for _, sb := range st.changed {
+		was := st.before[sb.Block.ID]
+		now := editionTexts(sb.Block)
+		keys := make([]string, 0, len(now))
+		for k := range now {
+			keys = append(keys, k)
+		}
+		for k := range was {
+			if _, ok := now[k]; !ok {
+				keys = append(keys, k)
+			}
+		}
+		slices.Sort(keys)
+		for _, k := range keys {
+			if was[k] == now[k] {
+				continue
+			}
+			fmt.Fprintf(&b, "@@ %s %s @@\n", change.BlockKey(sb.Block), k)
+			if old, ok := was[k]; ok {
+				fmt.Fprintf(&b, "-%s\n", old)
+			}
+			if cur, ok := now[k]; ok {
+				fmt.Fprintf(&b, "+%s\n", cur)
+			}
+		}
+	}
+	return b.String()
+}
+
+// LockKeys names the item's rows.
+func (st *staged) LockKeys() []string {
+	return []string{"stream:" + st.s.h.ProjectID + "/" + st.s.h.stream() + "/" + st.s.item}
+}
+
+// Lock begins the write and holds the rows the stage read.
+func (st *staged) Lock(ctx context.Context, _ string) error {
+	if st.bw != nil {
+		return nil
+	}
+	if hook := st.s.h.BeforeLock; hook != nil {
+		hook(st.s.info.Doc)
+	}
+	bw, err := st.s.ws.BeginBlockWrite(ctx, st.s.h.ProjectID, st.s.h.stream())
+	if err != nil {
+		return err
+	}
+	held, err := bw.Hold(ctx, st.s.item, st.want.Blocks)
+	if err != nil {
+		_ = bw.Rollback()
+		return err
+	}
+	st.s.prepare(held)
+	st.bw, st.held = bw, held
+	return nil
+}
+
+// Settle applies the operations again to the held rows when they moved since
+// the stage. Every if_match is then checked against the rows the commit
+// stores.
+func (st *staged) Settle(ctx context.Context) error {
+	if err := st.Lock(ctx, ""); err != nil {
+		return err
+	}
+	if digest(st.held) == st.head {
+		// The rows are as the stage read them: what it changed is what the
+		// held rows become. The content hash each row holds is the base the
+		// write guards on.
+		hashes := make(map[string]string, len(st.held))
+		for _, sb := range st.held {
+			hashes[sb.Block.ID] = sb.ContentHash
+		}
+		for _, sb := range st.changed {
+			sb.ContentHash = hashes[sb.Block.ID]
+		}
+		return nil
+	}
+	return st.pass(st.held)
+}
+
+// Commit stores the changed rows and commits the write.
+func (st *staged) Commit(ctx context.Context) error {
+	if st.bw == nil {
+		return errors.New("commit before settle")
+	}
+	if len(st.changed) > 0 {
+		if err := st.bw.Store(ctx, st.changed); err != nil {
+			return err
+		}
+	}
+	if err := st.bw.Commit(); err != nil {
+		return err
+	}
+	st.written = len(st.changed) > 0
+	return nil
+}
+
+// Release discards a write that did not commit.
+func (st *staged) Release() error {
+	if st.bw == nil {
+		return nil
+	}
+	return st.bw.Rollback()
+}
+
+// editionTexts is the text of each edition of b, keyed by its edition key in
+// text form, in the placeholder form a read shows.
+func editionTexts(b *model.Block) map[string]string {
+	out := map[string]string{}
+	for k, e := range b.EachEdition {
+		text, _ := k.MarshalText()
+		name := string(text)
+		if b.IsSourceEdition(k) {
+			name = "(source)"
+		}
+		out[name] = model.RunsEditText(e.Runs)
+	}
+	return out
+}
+
+// rowState is what a row holds that a write stores, for the digest that tells
+// whether the rows moved between a stage and its commit.
+type rowState struct {
+	ID           string                   `json:"id"`
+	Translatable bool                     `json:"translatable"`
+	Properties   map[string]string        `json:"properties,omitempty"`
+	Editions     []editionState           `json:"editions"`
+	Overlays     []model.Overlay          `json:"overlays,omitempty"`
+	Annotations  map[string]model.Payload `json:"annotations,omitempty"`
+}
+
+type editionState struct {
+	Key    string          `json:"key"`
+	Runs   json.RawMessage `json:"runs"`
+	Status model.Status    `json:"status,omitempty"`
+	Origin model.Origin    `json:"origin,omitzero"`
+	Score  float64         `json:"score,omitempty"`
+}
+
+// digest is the head of the rows: a hash over what each holds.
+func digest(rows []*venue.StoredBlock) string {
+	h := sha256.New()
+	for _, sb := range rows {
+		if sb == nil || sb.Block == nil {
+			continue
+		}
+		b := sb.Block
+		st := rowState{ID: b.ID, Translatable: b.Translatable, Properties: b.Properties, Overlays: b.Overlays, Annotations: b.AnnoMap()}
+		for k, e := range b.EachEdition {
+			text, _ := k.MarshalText()
+			st.Editions = append(st.Editions, editionState{Key: string(text), Runs: model.CanonicalRunsJSON(e.Runs),
+				Status: e.Status, Origin: e.Origin, Score: e.Score})
+		}
+		slices.SortFunc(st.Editions, func(a, b editionState) int { return strings.Compare(a.Key, b.Key) })
+		raw, err := json.Marshal(st)
+		if err != nil {
+			raw = []byte(b.ID + ":" + err.Error())
+		}
+		h.Write(raw)
+		h.Write([]byte{0})
+	}
+	return "sha256:" + hex.EncodeToString(h.Sum(nil))
+}

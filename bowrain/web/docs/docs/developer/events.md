@@ -63,6 +63,7 @@ webhook delivery live in `bowrain/event`.
 | `review.completed`           | A project's review queue is emptied            |
 | `review.decided`             | One block's target is approved, rejected, or un-reviewed |
 | `review.bulk_approved`       | An approve-passing pass promotes a language's passing targets |
+| `content.changed`            | A change set lands on a stream: who sent it, from which surface, and the correlation id of its history rows |
 | `voice.check.started` / `voice.check.completed` | A voice check runs            |
 | `voice.drift` / `voice.corrected` / `voice.profile.updated` | The voice loop moves |
 | `stream.created` / `stream.merged` / `stream.deleted` / `stream.locked` / `stream.unlocked` / `stream.tagged` | A stream changes |

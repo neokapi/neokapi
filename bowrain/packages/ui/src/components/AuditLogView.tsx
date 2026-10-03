@@ -106,6 +106,7 @@ const EVENT_DESCRIPTIONS: Record<string, string> = {
   "review.bulk_approved": "Approved everything passing",
   "sod.violation": "Acted on own work",
   "rollback.performed": "Rolled back changes",
+  "content.changed": "Changed content",
 };
 
 function describeEvent(eventType: string): string {
