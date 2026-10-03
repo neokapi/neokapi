@@ -139,7 +139,7 @@ func (a *App) RunSed(ctx context.Context, cmd Command, args []string, prog sedPr
 	if err != nil {
 		return err
 	}
-	base := ChangeServiceOptions{Origin: "ksed", Format: a.FormatFlag, TargetLocale: opts.Target, PlainText: true}
+	base := ChangeServiceOptions{Origin: "ksed", Format: a.FormatFlag, TargetLocale: opts.Target, SourceLocale: model.LocaleID(a.SourceLang), PlainText: true}
 	run := &sedRun{app: a, cmd: cmd, prog: prog, opts: opts, actor: changeActorOf(resolved.Actor), changes: a.newCommandChanges(cmd, recipe, base)}
 	run.backup = run.changes
 	if opts.BackupSuffix != "" {
@@ -221,7 +221,7 @@ func (r *sedRun) docs(file string) ([]string, error) {
 // stdinService is the service over the private directory a copy of standard
 // input is read from.
 func (r *sedRun) stdinService(ctx context.Context, dir string) (*change.Service, error) {
-	return r.app.changeService(ctx, r.cmd, ChangeServiceOptions{Origin: "ksed", Root: dir, Format: r.app.FormatFlag, TargetLocale: r.opts.Target, PlainText: true})
+	return r.app.changeService(ctx, r.cmd, ChangeServiceOptions{Origin: "ksed", Root: dir, Format: r.app.FormatFlag, TargetLocale: r.opts.Target, SourceLocale: model.LocaleID(r.app.SourceLang), PlainText: true})
 }
 
 // print compiles the operations the program makes on a file and keeps them

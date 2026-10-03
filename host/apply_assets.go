@@ -100,20 +100,11 @@ func (a *App) applyRecordedAssetEntry(ctx context.Context, cmd Command, who chan
 	return res
 }
 
-// actorRefusal is the result an asset or review entry gets when its actor may
-// not make it, and whether the actor is refused. Writing a term, a content
-// memory pair or a recipe field directly is a person's decision under the
-// context policy, and so is establishing a unit. Applying an entry and
-// previewing it with --diff both ask here, so a preview shows the refusal the
-// write would give.
+// actorRefusal is the result an asset entry gets when its actor may not make
+// it, and whether the actor is refused. Writing a term, a content memory pair
+// or a recipe field directly is a person's decision under the context policy.
 func actorRefusal(who changeActor, e changeEntry) (assetResult, bool) {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: assetTarget(e)}
-	if e.Kind == kindReview {
-		if who.Actor.Kind == contextop.ActorAgent {
-			return errResult(res, "review: an agent records a pre-review (the pre_review_unit tool), never a decision; a person establishes a unit"), true
-		}
-		return assetResult{}, false
-	}
 	subject, _ := assetSubject(e)
 	if err := contextop.PersonDecides(contextop.Transition{
 		Actor:   who.Actor,
@@ -164,8 +155,6 @@ func assetTarget(e changeEntry) string {
 		return e.Source
 	case kindRecipe:
 		return e.Path
-	case kindReview:
-		return e.ID
 	}
 	return e.Term
 }

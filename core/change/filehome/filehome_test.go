@@ -2,6 +2,7 @@ package filehome_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -268,4 +269,39 @@ func TestFileHome_KeepsItsLockDirectoryToItsUser(t *testing.T) {
 			assert.Equal(t, os.FileMode(0o700), info.Mode().Perm())
 		})
 	}
+}
+
+// TestFileHome_PreparesTheLockDirectoryAtTheFirstCommit pins that the home
+// runs PrepareLocks once, when a commit first takes a lock and never on a
+// read, and that a failure stops the commit with nothing written.
+func TestFileHome_PreparesTheLockDirectoryAtTheFirstCommit(t *testing.T) {
+	body := `{"greeting": "Hello there", "farewell": "Goodbye"}` + "\n"
+	ctx := context.Background()
+	t.Run("once, at the first commit", func(t *testing.T) {
+		calls := 0
+		dir := filepath.Join(t.TempDir(), "locks")
+		f := newFixture(t, map[string]string{"a.json": body}, filehome.Options{LockDir: dir, PrepareLocks: func() error { calls++; return nil }})
+		page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "a.json"})
+		require.NoError(t, err)
+		assert.Zero(t, calls, "a read prepares nothing")
+		_, err = os.Stat(dir)
+		require.ErrorIs(t, err, os.ErrNotExist, "a read creates no lock directory")
+		for i, text := range []string{"Hello", "Bye"} {
+			b := page.Blocks[i]
+			res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(b.Ref, b.Rev, text)}}, person)
+			require.NoError(t, err)
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+		}
+		assert.Equal(t, 1, calls)
+	})
+	t.Run("a failure stops the commit", func(t *testing.T) {
+		f := newFixture(t, map[string]string{"a.json": body}, filehome.Options{PrepareLocks: func() error { return errors.New("read-only project") }})
+		page, err := f.svc.Read(ctx, change.ReadRequest{Doc: "a.json"})
+		require.NoError(t, err)
+		b := page.Blocks[0]
+		_, err = f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(b.Ref, b.Rev, "Hello")}}, person)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "read-only project")
+		assert.Equal(t, body, f.read(t, "a.json"), "nothing is written")
+	})
 }

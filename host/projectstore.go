@@ -153,6 +153,31 @@ func (s *projectStores) workspaceRootFor(projectRoot string) string {
 	return filepath.Join(DataDir(), WorkspacesDirName, "test-"+hex.EncodeToString(sum[:8]))
 }
 
+// errNoProjectStore is ProjectDB's answer, under a context
+// withExistingStoresOnly marks, for a project that has no store.
+var errNoProjectStore = errors.New("the project has no store yet")
+
+// existingStoresOnlyKey marks a context under which ProjectDB opens a store
+// a project has and creates none.
+type existingStoresOnlyKey struct{}
+
+// withExistingStoresOnly marks ctx so that ProjectDB, called with it or with a
+// command carrying it, opens the store a project has and answers
+// errNoProjectStore for a project that has none, rather than create one. A
+// preview's commit check reads under it.
+func withExistingStoresOnly(ctx context.Context) context.Context {
+	return context.WithValue(ctx, existingStoresOnlyKey{}, true)
+}
+
+// existingStoresOnly reports whether ctx is marked by withExistingStoresOnly.
+func existingStoresOnly(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	v, _ := ctx.Value(existingStoresOnlyKey{}).(bool)
+	return v
+}
+
 // ProjectDB returns the open store for the project rooted at root — its block
 // cache and overlays in the checkout, and its content memory, terms, voice
 // profiles and unit working set in the workspace (core/projectdb).
@@ -192,6 +217,11 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	defer s.mu.Unlock()
 	if db, ok := s.dbs[abs]; ok {
 		return db, nil
+	}
+	if existingStoresOnly(ctx) {
+		if _, err := os.Stat(projectLayoutAt(abs).StorePath()); err != nil {
+			return nil, errNoProjectStore
+		}
 	}
 	// Opening is App lifecycle, not request work, so it does not inherit the
 	// caller's cancellation: the open runs every subsystem's migrations and

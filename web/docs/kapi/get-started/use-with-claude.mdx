@@ -64,7 +64,7 @@ Your client launches `kapi mcp` as a stdio subprocess. Claude Code and Cursor re
 }
 ```
 
-`--project` names the project the server answers for, so it binds yours rather than whichever project sits above the directory your client started it in. The writing tools include `extract_content` and `apply_edits`, which read a file's blocks and write edits back with the file's structure and inline codes kept. For a project that declares target languages, `kapi init` adds `"--tools", "writing,translation"` to the arguments, so the agent also gets the translation tools beside the writing ones.
+`--project` names the project the server answers for, so it binds yours rather than whichever project sits above the directory your client started it in. The writing tools include `read_blocks`, `apply_edits` and `describe_format`, which read a file's blocks, write edits back with the file's structure and inline codes kept, and say what a format supports. For a project that declares target languages, `kapi init` adds `"--tools", "writing,translation"` to the arguments, so the agent also gets the translation tools beside the writing ones.
 
 See [MCP server](/reference/mcp) for every client's configuration and the full tool list.
 

@@ -12,8 +12,8 @@ mcp: true
 model: sonnet
 captureTimeoutSec: 300
 # The sandbox IS the project: a recipe at its root with a drafted French
-# catalog, so the project-scoped tools (review_queue, review_unit, pre_review_unit)
-# have a real queue to work. An assistant records a pre-review and never
+# catalog, so the project-scoped tools (review_queue, review_block, and
+# apply_edits for the pre-review) have a real queue to work. An assistant records a pre-review and never
 # establishes a unit, so the queue keeps its length and gains a score. The sandbox lives in os.tmpdir(), outside the repo.
 project: true
 # The fixture's voice profile is a file until a person reads it into this

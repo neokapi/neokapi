@@ -2,8 +2,8 @@
 id: s-03-agent-surfaces
 sidebar_position: 3
 title: "S-03: Agent surfaces: MCP and skills"
-description: "An AI assistant reaches kapi two ways: a shipped Agent Skill that drives the CLI, and a curated MCP server for non-CLI clients. On the command line, content and asset edits land through kapi apply as a kapi.change/v1 change set, applied whole or not at all by the change service; review decisions have verbs of their own on both surfaces."
-keywords: [neokapi, architecture decision, agent skill, SKILL.md, MCP, model context protocol, kapi apply, change set, hooks, progressive disclosure]
+description: "An AI assistant reaches kapi two ways: a shipped Agent Skill that drives the CLI, and a curated MCP server for non-CLI clients. Content and asset edits are kapi.change/v1 change sets, applied whole or not at all by the change service, sent with kapi apply on the command line and with apply_edits over MCP, where an agent reads blocks with read_blocks and records a pre-review as a decide operation with outcome advise."
+keywords: [neokapi, architecture decision, agent skill, SKILL.md, MCP, model context protocol, kapi apply, apply_edits, change set, hooks, progressive disclosure]
 ---
 
 import { CycleDiagram } from "@neokapi/docs-shared";
@@ -22,9 +22,11 @@ deliberately curated set plus the `context://` resource space. Both converge on
 the same asymmetry: **the assistant writes the content; kapi supplies the
 context, applies edits through format-aware writers, and runs configured checks.** On the
 command line, content and asset edits land through `kapi apply` as a
-kapi.change/v1 change set ([E-09](../engine/e-09-the-change-contract.md)), and
-MCP clients send edits with `apply_edits`. A review decision has its own verbs
-on both surfaces, sharing the host's decision path.
+kapi.change/v1 change set ([E-09](../engine/e-09-the-change-contract.md)), the
+contract the change service applies for every surface. On the MCP server an
+agent reads a document's blocks with `read_blocks` and sends the same change
+set with `apply_edits`. A pre-review is a `decide` operation with outcome
+`advise` in such a change set, and a review decision stays a person's.
 
 ## Context
 
@@ -379,13 +381,15 @@ document without writing. `--print-ops` echoes the decoded set, and
 `ksed --print-ops` prints the change set a substitution compiles to, so the
 path a person takes and the path an agent takes share one format.
 
-A review decision belongs to a person, so no MCP tool records one. An agent
-pre-reviews: `pre_review_unit` stores a score from 0 to 100 and its reasons on
-a queued unit, bound to the translation it judged and recorded with the
-agent's identity, and the person working the queue reads it beside the unit.
-A person's decision reaches the decision ledger through the desktop, a
-`decide` operation through `kapi apply` run as a person, or a hosted review
-session.
+A review decision belongs to a person. An agent pre-reviews: `review_block`
+reads a queued block with the reference and revision of the edition under
+review, and `apply_edits` records a `decide` operation at that reference with
+outcome `advise`, a score from 0 to 100 and its reasons. The pre-review is
+bound to the revision the agent read and recorded as `agent/<client>`, and the
+person working the queue reads it beside the unit. An agent's `establish`,
+`reject` or `withdraw` is refused as `not_permitted`. A person's decision
+reaches the decision ledger through the desktop, `kapi apply` run as a person,
+or a hosted review session.
 
 ### Governance at commit
 
@@ -522,22 +526,21 @@ none:
 
 | Set | Serves |
 | --- | --- |
-| `writing` | the `context://` resources, `context_read`, `context_search`, `context_observe`, `context_correct`, `context_withdraw`, `context_session_summary`, `check_file`, `extract_content`, `apply_edits` |
+| `writing` | the `context://` resources, `context_read`, `context_search`, `context_observe`, `context_correct`, `context_withdraw`, `context_session_summary`, `check_file`, `read_blocks`, `apply_edits`, `describe_format` |
 | `content` | `check_text`, `voice_check`, `voice_rewrite`, `term-check`, `detect_format`, `redact` |
 | `translation` | `translate`, `up`, `up_plan`, `stats` |
-| `review` | `review_queue`, `review_unit`, `pre_review_unit` |
+| `review` | `review_queue`, `review_block`, `apply_edits` |
 | `all` | every set |
 
-The sets are one table in `host/mcp_sets.go`. Every factory registers its
-tools, and the server then removes whatever the selected sets leave out; the
-surface snapshot fails when a tool belongs to no set. A name that is not a set
+The sets are one table in `host/mcp_sets.go`, and a tool may sit in more than
+one: `apply_edits` is in the review set too, because an agent records its
+pre-review through it. Every factory registers its tools, and the server then
+removes each tool that no selected set lists; the surface snapshot fails when a
+tool belongs to no set. A name that is not a set
 fails startup with the list. `kapi init` writes `--tools writing,translation`
 into the MCP entry of a project that declares target languages. The writing
-set holds the structured edit path, `extract_content` to read a file's blocks
-and `apply_edits` to write them back, so an agent in a project `kapi init`
-wired reaches it whichever sets the entry names. `apply_edits` declares each
-comment file's check as an object, because `check_file` in the same set
-declares the `kapi.check/v2` report in full. The listing
+set holds the edit contract, so an agent in a project `kapi init` wired
+reaches it whichever sets the entry names. The listing
 helpers and `pseudo_translate` sit behind `--all-tools`, the flow-running verbs
 behind `--all-flows`, and `--all` serves every set and both. `list_flows`
 lists what `kapi flows` lists for the call's project and `run_flow` resolves
@@ -568,6 +571,43 @@ Three curation rules are asserted by tests rather than remembered:
 
 In project mode the set narrows further to tools whose source the recipe
 declares, and the project's first target language becomes the default.
+
+### The edit contract over MCP
+
+Three tools carry the change contract ([E-09](../engine/e-09-the-change-contract.md))
+to an agent, each over the change service the host builds for the call's
+project:
+
+| Tool | Takes | Returns |
+| --- | --- | --- |
+| `read_blocks` | `doc`, optionally `blocks`, `editions`, `cursor` and `limit` | a page of blocks, each with its `ref` and `rev`, its text with inline codes as `<x id="…"/>` placeholders, its codes and their attributes, its plural and select branches, its other editions and the operations it accepts, and `next` for the following page |
+| `apply_edits` | a `kapi.change/v1` change set: its input schema is the change-set schema with the per-call `project` added | a `kapi.change-result/v1` result |
+| `describe_format` | `format`, or `doc` for the format kapi reads it in | what each operation supports in that format, or null where the format refuses it |
+
+The read and the write go through one service and one reader for a document,
+so a reference and a revision `read_blocks` reports are the ones `apply_edits`
+resolves. The service reads each project in that project's source language,
+resolved for the call from its recipe and any language the server was started
+with, so an edition is a translation whichever project the server started in
+or answered last. A refused change set writes nothing; a partial one landed in
+part, after an interrupted write or a decision refused once the content was
+written. Either is an error result carrying the same structured result, so a
+client that reads only `isError` still learns that nothing, or not
+everything, landed. The results are written with HTML escaping off, so the
+placeholders a block's text holds reach the agent as written.
+
+Code comments are written by the comment entries of `kapi apply`, outside the
+change service. A read or an edit of a source code file kapi reads for its
+comments is refused as `unsupported` with the capability `comment`, and an
+agent edits the comment in the file and runs `check_file` on it.
+
+The transport stamps the actor: every change set `apply_edits` applies is the
+calling agent's, named by its `initialize` name, in the server's session. The
+context policy refuses an agent's `term`, `memory` and `recipe` operations, and
+the change set holding one is refused whole; an agent records a term rule as a
+suggestion instead. An applied edit that writes the form a suggestion prefers
+adds to that suggestion's standing as an agent signal
+([C-11](../context/c-11-context-operations.md)).
 
 ### Asking a location is a resource
 
@@ -609,7 +649,10 @@ isolated projects. It exercises `initialize`, `tools/list`, `tools/call` and
 
 Every check tool has both passing and failing fixtures. Bilingual fixtures
 include target content so the suite detects tools that skip translation checks
-or return an empty result for invalid content.
+or return an empty result for invalid content. The edit contract is driven the
+way an agent drives it: `read_blocks`, then `apply_edits` with the reference
+and revision it reported, the same change set refused as `stale` with the text
+the block holds now, and an agent's decision refused as `not_permitted`.
 
 The suite lives in `kapi/e2e` and runs in the `Kapi CLI E2E` job on pull requests
 that change `cli/`, `host/` or `kapi/`.
@@ -660,9 +703,9 @@ between revising content and troubleshooting the command.
 
 - [S-01: The kapi CLI](s-01-kapi-cli.md): the command surface the skill drives and the exit-code contract it consumes
 - [S-04: Toolbox utilities](s-04-toolbox.md): the format-aware utilities a skill reaches for; `kapi apply` is the deliberate, reviewed sibling of `ksed`'s regex substitution
-- [S-07: The review model](s-07-context-centric-review.md): the object `review_unit` returns whole
+- [S-07: The review model](s-07-context-centric-review.md): the object `review_block` returns whole
 - [C-11: Context operations](../context/c-11-context-operations.md): the operations the write tools record, and the policy that decides who may record which
-- [E-09: The change contract](../engine/e-09-the-change-contract.md): the operations, revisions, results and error codes `kapi apply` speaks
+- [E-09: The change contract](../engine/e-09-the-change-contract.md): the operations, revisions, results and error codes `kapi apply` and `apply_edits` speak, and the service that applies them
 - [E-02: The format system](../engine/e-02-format-system.md): the writer capabilities behind `editable` / `round_trip` / `generative`
 - [E-06: Execution trust](../engine/e-06-execution-trust.md): why code-executing tools stay off the agent surface
 - [C-04: Unit state and decisions](../context/c-04-unit-state-and-decisions.md): what a `decide` operation records

@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
-	coretools "github.com/neokapi/neokapi/core/tools"
 )
 
 // A content operation lands through the format's round-trip: only the
@@ -39,17 +38,6 @@ func TestApplyContentFaithfulRoundTrip(t *testing.T) {
 	assert.Equal(t, change.OpApplied, res.Ops[0].Status)
 	got, _ = os.ReadFile("en.json")
 	assert.Equal(t, `{"greeting":"Hi planet","note":"Keep me"}`, string(got))
-}
-
-func TestBuildEditMaps_IDAndHash(t *testing.T) {
-	byID, byHash := buildEditMaps([]changeEntry{
-		{ID: "p1", Text: "a", ContentHash: "h1"},
-		{ContentHash: "h2", Text: "b"},
-	})
-	assert.Equal(t, coretools.Edit{Text: "a", ContentHash: "h1"}, byID["p1"])
-	assert.Equal(t, coretools.Edit{Text: "b", ContentHash: "h2"}, byHash["h2"])
-	_, hasH2InID := byID["h2"]
-	assert.False(t, hasH2InID, "an id-less entry must not be keyed by id")
 }
 
 // A change set that names a document that does not exist is refused whole:

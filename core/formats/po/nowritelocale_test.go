@@ -18,12 +18,13 @@ import (
 // writer's msgstr resolved to the empty string and every translation in the
 // catalog was rewritten away — with nothing edited, and exit 0 (#1482).
 //
-// The document has no target locale here either, which is exactly what
-// host.EditDocument does: it sets SourceLocale and leaves TargetLocale unset. So
-// the model carries no target at all, the captured msgstr is the ONLY statement
-// of the slot's content, and re-emitting it verbatim is the writer's only
-// faithful move. "The writer cannot say what belongs here" is not the same fact
-// as "there is no translation".
+// The document has no target locale here either, which is how the file home
+// reads a catalog no target language is given for: it sets SourceLocale and
+// leaves TargetLocale unset. So the model carries no target at all, the
+// captured msgstr is the ONLY statement of the slot's content, and
+// re-emitting it verbatim is the writer's only faithful move. "The writer
+// cannot say what belongs here" is not the same fact as "there is no
+// translation".
 func TestNoWriteLocale_KeepsTheCatalogsTranslations(t *testing.T) {
 	t.Parallel()
 	input := `msgid ""
@@ -83,9 +84,9 @@ msgstr[1] "%d fichiers"
 		"a plural entry written with no active locale must keep every form's translation")
 }
 
-// noLocaleRoundtrip reads input the way host.EditDocument does — source locale
-// only, no document target locale — optionally applies edit to every block, and
-// writes with NO writer locale.
+// noLocaleRoundtrip reads input with the source locale only and no document
+// target locale, optionally applies edit to every block, and writes with NO
+// writer locale.
 func noLocaleRoundtrip(t *testing.T, input string, edit func(*model.Block)) string {
 	t.Helper()
 	ctx := t.Context()

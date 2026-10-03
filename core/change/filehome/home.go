@@ -31,6 +31,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/change"
@@ -43,6 +44,8 @@ type Home struct {
 	layout       Layout
 	lockDir      string
 	prepareLocks func() error
+	prepared     sync.Once
+	prepareErr   error
 	beforeSettle func(doc string)
 	backup       string
 }
@@ -51,10 +54,12 @@ type Home struct {
 type Options struct {
 	// LockDir holds the lock files. Empty is DefaultLockDir.
 	LockDir string
-	// PrepareLocks, when set, is called before a lock file is opened, so a
-	// host creates the directory that holds LockDir, with whatever keeps it
-	// out of a commit, only when a change is committed and never for a read.
-	// It may be called more than once.
+	// PrepareLocks, when set, runs once, before the home first opens a lock
+	// file, which a commit does and a read never does, and a failure stops
+	// that commit before anything is written. The kapi host writes a
+	// project's state directory there, with the ignore rule that keeps the
+	// lock files out of a commit, and opens the project's recorder, so a read
+	// leaves the project as it found it.
 	PrepareLocks func() error
 	// BeforeSettle, when set, is called after a document is staged and
 	// before its commit lock is taken. A test sets it to force two writers to
@@ -261,8 +266,9 @@ func (h *Home) lockPath(path string) (string, error) {
 // belongs to this user alone, when it is not there.
 func (h *Home) openLock(path string) (*filelock.Lock, error) {
 	if h.prepareLocks != nil {
-		if err := h.prepareLocks(); err != nil {
-			return nil, err
+		h.prepared.Do(func() { h.prepareErr = h.prepareLocks() })
+		if h.prepareErr != nil {
+			return nil, fmt.Errorf("prepare the lock directory: %w", h.prepareErr)
 		}
 	}
 	if err := ensureLockDir(h.lockDir); err != nil {

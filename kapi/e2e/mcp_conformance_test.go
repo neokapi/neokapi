@@ -27,6 +27,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -403,19 +404,20 @@ func listTools(t *testing.T, ctx context.Context, session *mcp.ClientSession) ma
 
 // TestMCPConformanceDefaultIsTheWritingSet: a server started with no --tools
 // serves the writing set and the context:// resources, and nothing else. The
-// set holds the structured edit path, so an agent in a project kapi init wired
-// reads blocks with extract_content and writes them with apply_edits.
+// set holds the edit contract, so an agent in a project kapi init wired reads
+// blocks with read_blocks, sends change sets with apply_edits, and asks what a
+// format supports with describe_format.
 func TestMCPConformanceDefaultIsTheWritingSet(t *testing.T) {
 	session, ctx := startMCPServer(t)
 	byName := listTools(t, ctx, session)
 	for _, name := range []string{
 		"context_read", "context_search", "context_observe", "context_correct",
 		"context_withdraw", "context_session_summary", "check_file",
-		"extract_content", "apply_edits",
+		"read_blocks", "apply_edits", "describe_format",
 	} {
 		assert.Contains(t, byName, name)
 	}
-	assert.Len(t, byName, 9, "the writing set and no other tool")
+	assert.Len(t, byName, 10, "the writing set and no other tool")
 
 	var templates []string
 	for tmpl, err := range session.ResourceTemplates(ctx, nil) {
@@ -429,6 +431,12 @@ func TestMCPConformanceDefaultIsTheWritingSet(t *testing.T) {
 	assert.Contains(t, byName, "up")
 	assert.Contains(t, byName, "apply_edits")
 	assert.NotContains(t, byName, "check_text", "content is its own set")
+
+	// The review set carries apply_edits, through which an agent records its
+	// pre-review, and nothing else of the writing set.
+	review, rctx := startMCPServer(t, "--tools", "review")
+	byName = listTools(t, rctx, review)
+	assert.ElementsMatch(t, []string{"review_queue", "review_block", "apply_edits"}, slices.Collect(maps.Keys(byName)))
 }
 
 func TestMCPConformanceToolSurface(t *testing.T) {
@@ -440,8 +448,8 @@ func TestMCPConformanceToolSurface(t *testing.T) {
 	// happened to start in.
 	projectScoped := []string{
 		"check_file", "check_text", "context_search", "apply_edits",
-		"up", "up_plan", "extract_content",
-		"review_queue", "review_unit", "pre_review_unit",
+		"up", "up_plan", "read_blocks", "describe_format",
+		"review_queue", "review_block",
 		"term-check", "translate", "redact",
 	}
 	for _, name := range projectScoped {
@@ -1455,4 +1463,57 @@ func TestMCPConformanceGrowthParity(t *testing.T) {
 	require.NotEmpty(t, strip(fromMCP))
 	assert.Equal(t, strip(fromCLI), strip(fromMCP),
 		"one observation is one suggestion, whichever surface recorded it")
+}
+
+// ─── The edit contract ──────────────────────────────────────────────────────
+
+// TestMCPConformanceEditLoop drives the edit contract the way an agent does,
+// against the built binary: read_blocks reports a reference and a revision,
+// apply_edits sends them back and the file changes, the same change set sent
+// again is refused as stale with the text the block holds now, and an agent's
+// decision is refused before anything is written.
+func TestMCPConformanceEditLoop(t *testing.T) {
+	proj := writeConformanceProject(t, "edit", "translation memory", "content memory", "nb", "innholdsminne")
+	session, ctx := mcpServer(t, "-p", proj.Recipe)
+
+	page := callTool(t, ctx, session, "read_blocks", map[string]any{"doc": "docs/clean.md"})
+	assert.Equal(t, "docs/clean.md", page["doc"])
+	var ref map[string]any
+	var rev string
+	for _, item := range page["blocks"].([]any) {
+		b := asMap(t, item)
+		if strings.Contains(b["text"].(string), "content memory") {
+			ref, rev = asMap(t, b["ref"]), b["rev"].(string)
+		}
+	}
+	require.NotNil(t, ref, "read_blocks lists the paragraph: %v", page)
+
+	set := map[string]any{"ops": []any{map[string]any{
+		"op": "replace_text", "at": ref, "if_match": rev,
+		"edits": []any{map[string]any{"find": "rely on", "text": "keep"}},
+	}}}
+	applied := callTool(t, ctx, session, "apply_edits", set)
+	assert.Equal(t, "applied", applied["status"])
+	body, err := os.ReadFile(proj.Clean)
+	require.NoError(t, err)
+	assert.Equal(t, "# Clean\n\nWe keep the content memory here.\n", string(body))
+
+	replay := rawCallTool(t, ctx, session, "apply_edits", set)
+	require.True(t, replay.IsError, "must fail: a change set sent against a revision that moved landed")
+	refused := asMap(t, replay.StructuredContent)
+	assert.Equal(t, "refused", refused["status"])
+	op := asMap(t, refused["ops"].([]any)[0])
+	assert.Equal(t, "stale", asMap(t, op["error"])["code"])
+	assert.Contains(t, asMap(t, op["current"])["text"], "We keep the content memory here.")
+
+	decide := rawCallTool(t, ctx, session, "apply_edits", map[string]any{"ops": []any{map[string]any{
+		"op": "decide", "at": ref, "if_match": asMap(t, op["current"])["rev"], "outcome": "establish",
+	}}})
+	require.True(t, decide.IsError, "must fail: an agent's decision was recorded")
+	op = asMap(t, asMap(t, decide.StructuredContent)["ops"].([]any)[0])
+	assert.Equal(t, "not_permitted", asMap(t, op["error"])["code"])
+
+	described := callTool(t, ctx, session, "describe_format", map[string]any{"doc": "docs/clean.md"})
+	assert.Equal(t, "markdown", described["format"])
+	assert.Equal(t, "one-per-file", described["editions"])
 }

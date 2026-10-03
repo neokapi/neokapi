@@ -1,6 +1,6 @@
 // Package mcptools is the kapi binary's MCP porcelain: the file-shaped tools
-// (format detection, content extraction, the review verbs) that sit alongside
-// the host's own MCP tools on the `kapi mcp` server. Registration happens in
+// (format detection, the flow verbs, the review verbs) that sit alongside the
+// host's own MCP tools on the `kapi mcp` server. Registration happens in
 // init(), so importing the package is what exposes the tools.
 //
 // It is a library rather than part of `package main` so the tool surface can be
@@ -45,13 +45,6 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 		Description: "Detect the file format from a file path based on its extension",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input DetectFormatInput) (*mcp.CallToolResult, DetectFormatOutput, error) {
 		return handleDetectFormat(a, input)
-	})
-
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "extract_content",
-		Description: "Parse a file into its content blocks: each block's id, content_hash, source text (inline codes rendered as <x id=\"…\"/> placeholders, character references as their characters), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply). Both read the file in the same format, so pass the same project.",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input ExtractContentInput) (*mcp.CallToolResult, ExtractContentOutput, error) {
-		return handleExtractContent(ctx, a, input)
 	})
 
 	if a.MCPSurface.AllFlows {
@@ -102,32 +95,6 @@ type DetectFormatOutput struct {
 	Extensions []string `json:"extensions,omitempty"`
 	HasReader  bool     `json:"has_reader"`
 	HasWriter  bool     `json:"has_writer"`
-}
-
-type ExtractContentInput struct {
-	Path       string `json:"path" jsonschema:"File path to extract content from"`
-	Format     string `json:"format,omitempty" jsonschema:"Override format detection. apply_edits detects the format through the project, so a block read in another format may not be one it can write"`
-	SourceLang string `json:"source_lang,omitempty" jsonschema:"Source language (default: en)"`
-	Project    string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in); its declared formats scope detection"`
-}
-
-type BlockEntry struct {
-	ID string `json:"id"`
-	// ContentHash is the canonical block identity (SHA-256 of the plain,
-	// normalized source text) — the drift anchor to send back in an apply_edits
-	// content entry.
-	ContentHash string `json:"content_hash"`
-	// SourceText is the block's edit text: inline codes as <x id="…"/>
-	// placeholders, so an edit can round-trip without dropping a link, span or
-	// placeholder, and character references as their characters.
-	SourceText string `json:"source_text"`
-	WordCount  int    `json:"word_count"`
-}
-
-type ExtractContentOutput struct {
-	Blocks    []BlockEntry `json:"blocks"`
-	Format    string       `json:"format"`
-	WordCount int          `json:"word_count"`
 }
 
 type RunFlowInput struct {
@@ -237,41 +204,6 @@ func handleDetectFormat(a *cli.App, input DetectFormatInput) (*mcp.CallToolResul
 		out.HasWriter = info.HasWriter
 	}
 	return nil, out, nil
-}
-
-func handleExtractContent(ctx context.Context, a *cli.App, input ExtractContentInput) (*mcp.CallToolResult, ExtractContentOutput, error) {
-	if _, err := a.ResolveMCPCallProject(input.Project); err != nil {
-		return nil, ExtractContentOutput{}, err
-	}
-	// Read as apply_edits writes: the same format resolution and the same
-	// wired reader, so every id and content hash reported here is one
-	// apply_edits resolves.
-	fmtRef := a.MCPEditFormat(input.Project, input.Path, input.Format)
-	var blocks []BlockEntry
-	var totalWords int
-	fmtName, err := a.StreamEditableBlocksAs(ctx, input.Path, fmtRef, func(_ int, blk *model.Block) error {
-		if !blk.Translatable {
-			return nil
-		}
-		wc := blk.WordCount()
-		blocks = append(blocks, BlockEntry{
-			ID:          blk.ID,
-			ContentHash: model.ComputeContentHash(blk.SourceText()),
-			SourceText:  model.RunsEditText(blk.Source),
-			WordCount:   wc,
-		})
-		totalWords += wc
-		return nil
-	})
-	if err != nil {
-		return nil, ExtractContentOutput{}, fmt.Errorf("read %s: %w", input.Path, err)
-	}
-
-	return nil, ExtractContentOutput{
-		Blocks:    blocks,
-		Format:    fmtName,
-		WordCount: totalWords,
-	}, nil
 }
 
 func handleRunFlow(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {

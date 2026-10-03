@@ -21,10 +21,10 @@ import (
 )
 
 // A source edit must reach the file. This is the cross-format matrix for #1473:
-// every registered writer is driven through the same round-trip the real
-// `kapi ksed -i` takes (host.EditDocument — reader → tool → writer with a wired
-// skeleton store), one word of the source is rewritten, and the output is read
-// back to prove the edit survived.
+// every registered writer is driven through a source round trip (reader, an
+// edit of each block's source, writer, with a wired skeleton store, as the
+// file home writes an edited document), one word of the source is rewritten,
+// and the output is read back to prove the edit survived.
 //
 // The defect this closes is not a missing feature but a *shortcut*: a writer that
 // captured the value's verbatim bytes at read time re-emits them whenever the text
@@ -303,10 +303,9 @@ func editSourceRuns(b *model.Block, from, to string) bool {
 	return edited
 }
 
-// runSourceEdit drives one format through the same sequence host.EditDocument
-// uses for `kapi ksed -i`: a wired skeleton store between reader and writer, the
-// whole part stream buffered, then written. It returns the produced bytes and
-// how many blocks were edited.
+// runSourceEdit drives one format through a source round trip: a wired
+// skeleton store between reader and writer, the whole part stream buffered,
+// then written. It returns the produced bytes and how many blocks were edited.
 //
 // withSkeleton false is the writer's no-skeleton path — the one a cross-format
 // `kapi convert` and any caller that did not wire a store takes. Output there is

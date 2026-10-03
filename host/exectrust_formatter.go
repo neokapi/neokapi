@@ -67,18 +67,6 @@ func (a *App) applyFormatterTrust(cmd Command, changeSetOnStdin bool) *formatter
 	return trust
 }
 
-// mcpFormatterTrust is the trust MCP apply_edits holds formatters to, which
-// allows none. A project's formatter runs code the project controls, through
-// its executable and the configuration files it loads, and an agent that may
-// write files can write those, so apply_edits never runs one, whatever is
-// recorded. The environment grant does not apply either, because a project's
-// own MCP client configuration can set the server's environment.
-func mcpFormatterTrust() *formatterTrust {
-	trust := newFormatterTrust(false)
-	trust.refuse = "apply_edits never runs a project's formatter, because the formatter runs code the project controls: run kapi apply with this edit from a terminal"
-	return trust
-}
-
 // refusal says why the formatter configFile selects under name may not run on
 // this surface whatever is recorded, and is empty where a decision can allow it.
 func (t *formatterTrust) refusal(configFile, name string) string {

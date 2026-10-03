@@ -100,12 +100,12 @@ for analyzer scope and timing boundaries.
 | `context_observe`, `context_correct`, `context_withdraw`, `context_session_summary` | `host/mcp_grow.go` (each wraps one call in `host/contextops.go`) |
 | `up`, `up_plan` | `host/mcp_up.go` |
 | `check_text`, `check_file` | `host/mcp_check.go` |
-| `apply_edits` | `host/mcp_edit.go` (change-set kinds in `host/apply.go`) |
+| `read_blocks`, `apply_edits`, `describe_format` | `host/mcp_edit.go`, over the change service `App.ChangeService` builds (`host/changes.go`) |
 | `stats` | `host/mcp_stats.go` |
 | `voice_check`, `voice_rewrite` | `host/mcp_voice.go` |
 | Curated framework tools (`translate`, `term-check`, `redact`) | `host/mcp_tools.go` |
-| `detect_format`, `extract_content`, the listing and flow verbs | `kapi/mcptools/tools.go` |
-| The review verbs | `kapi/mcptools/review.go` |
+| `detect_format`, the listing and flow verbs | `kapi/mcptools/tools.go` |
+| `review_queue`, `review_block` | `kapi/mcptools/review.go`, with the read in `host/reviewblock.go` |
 
 ## Curation
 
@@ -155,51 +155,67 @@ read it rather than a prose copy.
 
 | Result | Type |
 | --- | --- |
-| `extract_content` | `mcptools.ExtractContentOutput` |
+| `read_blocks` | `change.Page` |
+| `apply_edits` | `change.Result`, a `kapi.change-result/v1` document |
+| `describe_format` | `change.Description` |
 | `detect_format` | `mcptools.DetectFormatOutput` |
 | `run_flow`, `pseudo_translate` | `mcptools.RunFlowOutput` |
 | `list_formats`, `list_flows`, `list_tools` | `mcptools.ListFormatsOutput`, `ListFlowsOutput`, `ListToolsOutput` |
-| Review verbs | `mcptools.ReviewQueueOutput`, `ReviewUnitOutput`, `ReviewDecisionOutput` |
+| Review tools | `mcptools.ReviewQueueOutput` (each row with the `ref` review_block takes), `mcptools.ReviewBlockOutput` (the `ref` and `rev` of the edition under review and the `host.ReviewUnitInfo` with its review context) |
 | `check_text`, `check_file` | a `kapi.check/v2` Report; see [the JSON contract](/reference/cli-contract) |
 | `context_observe`, `context_correct`, `context_withdraw` | `host.contextRecordOutput`: the operation id, its kind and status (`suggested` or `contested`, with `contested_by` naming the other side), the session, what was recorded, the command that reviews it, and what happens to it next |
 | `context_session_summary` | `host.contextSessionOutput`: the counts `observed`, `corrected`, `suggested`, `contested`, `established`, `withdrawn`, `dropped` and `reverted`, with the sentence to end a report on and the `kapi context keep --session <id>` command a person keeps the session's suggestions with |
 | `stats` | the same document `kapi stats --json` emits |
 | A curated framework tool | `host.frameworkToolOutput`: target translations, rewritten source, properties, overlays, and annotations for the one processed block |
 
-`apply_edits` reports `ok` alongside the per-block outcome (`applied`,
-`skipped`, `stale`, `guard_failed`, `not_editable`, `not_found`) and a
-per-entry asset result. `ok` is false when an edit drifted, was rejected,
-changed a block that is not editable or matched no block, which is the caller's
-signal to re-read the block and retry rather than to force the write. An edit
-is rejected as `guard_failed` when it drops, invents or duplicates an inline
-code, crosses or unbalances paired codes, or changes a block holding a plural
-or select construct. `not_editable` names each block an entry changed that the
-format reads as not translatable, such as a code block, which `extract_content`
-leaves out and `kapi inspect` lists; the block keeps its text. `not_found` names
-each content entry whose `id`, or `content_hash` when it gives no `id`, matches
-no block of its file, as `file:id` or `file:content_hash:<hash>`; nothing is
-written for it.
+`read_blocks`, `apply_edits` and `describe_format` build their results
+themselves rather than through the SDK's typed path: each result is encoded once
+with HTML escaping off and set as both the structured content and the text
+content, so the `<x id="…"/>` placeholders a block's text holds reach the client
+as written. Their output schemas are declared envelopes
+(`readBlocksOutputSchema`, `applyEditsOutputSchema`,
+`describeFormatOutputSchema`), because the run model nests and the tool
+descriptions name a page's fields.
 
-A content entry uses `kind: "content"`, `file`, the extracted block `id` and
-`content_hash`, and `text` for its new wording. `replacement` belongs to term
-entries. Both the CLI and MCP reject content entries carrying a nonempty
-`replacement` before applying any entry, with an error identifying the expected
-`text` field. They reject a content entry with neither `id` nor `content_hash`,
-and two content entries that edit one block differently, the same way.
+`apply_edits` registers through `Server.AddTool` and reads the raw arguments.
+Its input schema is `changeschema.Schema()` with `project` added; the handler
+removes `project` and decodes the rest with `change.Decode`, so a change set
+that does not decode is refused with the contract's `invalid` code and the JSON
+pointer of what was wrong rather than with the SDK's validation message. The
+actor is the calling agent: kind `agent`, the client's `initialize` name, and
+`MCPSessionID()`. A refused or partial change set is an error result carrying
+the `kapi.change-result/v1` result. A refusal with no operation to attach it to
+(a change set that does not decode, a read the service refuses) is an error
+result carrying `schema`, `status: "refused"` and `error`. After a change set
+lands, the handler collects the wording each applied `set_content` and
+`replace_text` wrote into a document's own edition, under the canonical
+reference the result names, and passes it to `noteAgentEdits`
+(`host/contextusage.go`). A translation's wording is left out, because a
+suggestion's preferred form is source-language wording.
 
-A comment entry uses `kind: "comment"`, `file`, the comment's `id` and `lines`
-as `check_file` reports them, and `text` for the comment's prose without comment
-markers. It is guarded by the `comment_sha256` the check reported for the
-comment, or by the prose as read in `current_text`, and an entry with neither is
-rejected before any entry is applied. A comment whose bytes or prose differ is
-refused with the reason `changed`. `width` optionally sets the wrap column. Its outcome sits under `comments`, one record per file. Each edit is
-`written`, `unchanged`, `refused` or `did-not-run`, the last two with a `reason`
-and `detail`. `diff` is the change written, and `check` is a `kapi.check/v2`
-Report scoped to that diff. `ok` is false when an edit was refused or did not
-run, or when that check did not pass. Before the first comment of a language is
-written, the write canary (`comment.VerifyRewriter`) runs, and a failed canary
-leaves every entry in that language not run. Comment entries are handled in
-`host/apply_comment.go`.
+Each call builds the change service for its project (`mcpChangeService`): the
+recipe the `project` argument resolves, else the one the server started with,
+else none, and then the documents are those under the server's working
+directory. The service takes the call's source language from
+`mcpCallSourceLocale`, which loads the recipe and ranks it against the language
+named when the server started, so `App.SourceLang`, which every host function
+that resolves a project rewrites, plays no part. Building the service reads the
+recipe and writes nothing: a reference to a source file resolves through
+`ProjectContext.ResolvePaths` alone, the content patterns are expanded only for
+a reference that names no source file (the file of a translation), and the
+project's state directory is created at the first commit. `review_block` reads
+the block through the same service, in the project's own source language, to
+report the canonical reference and the revision of the edition under review,
+then answers with `ReviewUnitWithContext`, addressing the unit by the file the
+recipe writes that edition to.
+
+An advise lands through `RecordAIReviews`, under `agent/<client>`. It needs a
+score, and one the review queue has no unit for is refused as `not_found` once
+the content beside it was written, which makes the change set `partial`.
+
+The tool sets are `mcpToolSets` in `host/mcp_sets.go`. `pruneMCPToolSets`
+removes each tool that no selected set lists, so `apply_edits`, which the
+writing and review sets both list, is served when either is.
 
 ## The surface is a contract
 

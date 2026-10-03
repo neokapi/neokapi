@@ -61,7 +61,11 @@ it reads as the characters you typed.
 every `ref` and `rev` it prints is one `apply` resolves. Inside a project a
 document is named by its project-relative path, and a file outside the project
 by its absolute path, so run both in the same project: from inside it, or with
-the same `-p`. An HTML image's `alt` or a link's `title` is a block of its own.
+the same `-p`. Over MCP, `read_blocks` reports each block's `ref` and `rev`,
+and `apply_edits` takes them back as the `at` and `if_match` of a
+`kapi.change/v1` operation; pass both calls the same project.
+`describe_format` lists the operations a format takes. An HTML image's
+`alt` or a link's `title` is a block of its own.
 
 ## 2. Write the edits
 
@@ -86,7 +90,9 @@ matches more than once), by code-point `start` and `end`, or by run positions in
 (the envelope fields on the first line, one operation per line) or a JSON array
 of operations. `kapi apply --schema` prints the whole contract.
 
-Then apply it. `kapi apply` reads the change set from a file or from stdin:
+Then apply it. Over MCP, send the change set to `apply_edits`, which returns
+the same result `kapi apply --json` prints and reports a refused set as an
+error. `kapi apply` reads the change set from a file or from stdin:
 
 ```bash
 kapi inspect report.docx --jsonl > blocks.jsonl
@@ -198,15 +204,18 @@ also build it from the finding you are fixing.
   plugin, without a formatter that runs on the file, or without that trust, the
   edit is refused as `unsupported` and nothing is written. The trust is
   execution trust: the user answers the prompt `kapi apply` shows in a
-  terminal, once per formatter configuration. MCP `apply_edits` never runs a
-  project's formatter: give the change set to the user to apply with
-  `kapi apply`. Report such a refusal to the user rather than setting
-  `KAPI_TRUST_EXEC` or answering the prompt yourself. Keep JSDoc tags such as
-  `@param` and every `{@link}`: dropping one refuses the edit.
+  terminal, once per formatter configuration. Report such a refusal to the
+  user rather than setting `KAPI_TRUST_EXEC` or answering the prompt yourself.
+  Keep JSDoc tags such as `@param` and every `{@link}`: dropping one refuses
+  the edit.
 - The result carries the findings of a check scoped to what was written. A
   failing one exits 3 although the comment was written: send another edit for
   it. Then check the whole change
   (`kapi check --diff-against <base>` or `--staged`) before you report done.
+
+Code comments are edited with `kapi apply`. MCP `apply_edits` refuses a code
+comment as `unsupported`: give the change set to the user to apply with
+`kapi apply`.
 
 ## Which formats can I edit?
 

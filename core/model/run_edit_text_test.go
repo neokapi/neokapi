@@ -134,30 +134,6 @@ func TestParseRunsEditText_NoReferencesIsPlaceholderParse(t *testing.T) {
 	assert.Equal(t, ParseRunsPlaceholderText(edit, src), ParseRunsEditText(edit, src))
 }
 
-func TestEditKeepsInlineCodes(t *testing.T) {
-	link := []Run{
-		{PcOpen: &PcOpenRun{ID: "1", Data: "<a>"}},
-		txt("x"),
-		{PcClose: &PcCloseRun{ID: "1", Data: "</a>"}},
-	}
-	before := append([]Run{txt("Fish "), entityRun("2", "&amp;"), txt(" ")}, link...)
-	tests := []struct {
-		name  string
-		after []Run
-		want  bool
-	}{
-		{name: "a reference dropped", after: append([]Run{txt("Fish and ")}, link...), want: true},
-		{name: "a reference repeated", after: append([]Run{entityRun("2", "&amp;"), entityRun("2", "&amp;")}, link...), want: true},
-		{name: "a link dropped", after: []Run{txt("Fish "), entityRun("2", "&amp;")}, want: false},
-		{name: "a link unbalanced", after: []Run{link[2], txt("x"), link[0]}, want: false},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, EditKeepsInlineCodes(before, tc.after))
-		})
-	}
-}
-
 func TestEditSourceKeepsTheSourceAsRead(t *testing.T) {
 	read := []Run{txt("Hello "), entityRun("1", "&amp;"), txt(" bye")}
 	b := &Block{ID: "b1", Source: read}

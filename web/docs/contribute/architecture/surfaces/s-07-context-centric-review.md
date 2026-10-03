@@ -18,7 +18,7 @@ Review consumes the two retrieval primitives
 [C-06](../context/c-06-retrieval.md) defines: *what applies here* for the unit's path, and *what do we know about
 this* for its content. Host assembles one **review model** from those answers,
 once per unit, and every client renders it. The desktop's detail pane and the
-MCP `review_unit` tool receive the same object; a client that draws a subset
+MCP `review_block` tool receive the same object; a client that draws a subset
 chooses it in its own projection, and every client receives the whole.
 
 Content is reviewed unit by unit. What kapi learned about how a project writes
@@ -146,7 +146,7 @@ fails to compile in the one that ignores it. The clients are:
 | --- | --- |
 | Kapi Desktop ([S-02](s-02-kapi-desktop.md)) | the queue's detail pane: the five shared cards over the model, and the document view opening at the unit with review state drawn as marks |
 | `kapi status --review` ([S-01](s-01-kapi-cli.md)) | the queue as a table, `--lang` narrowing it to one or more languages, and as JSON with `--json` |
-| MCP `review_unit` ([S-03](s-03-agent-surfaces.md)) | the model whole, as the read leg before `pre_review_unit`; `review_queue` lists the queue with its per-language counts |
+| MCP `review_block` ([S-03](s-03-agent-surfaces.md)) | the model whole, with the reference and revision of the edition under review, as the read leg before a pre-review sent through `apply_edits`; `review_queue` lists the queue with its per-language counts and each row's reference |
 | A review surface over the REST editor | the queue as a list with the focused unit beside it: the same five cards over the same model, the findings anchored on the target, with the three verdicts under them |
 
 A host that records a review decision with an identity is a client of this

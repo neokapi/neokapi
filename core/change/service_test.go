@@ -357,10 +357,14 @@ type wordCheck struct {
 	word   string
 	seen   [][]change.EditionChange
 	report bool
+	// previewing records, per call, whether the call's context was a
+	// preview's.
+	previewing []bool
 }
 
-func (c *wordCheck) Check(_ context.Context, changes []change.EditionChange) ([]change.CheckOutcome, string, error) {
+func (c *wordCheck) Check(ctx context.Context, changes []change.EditionChange) ([]change.CheckOutcome, string, error) {
 	c.seen = append(c.seen, changes)
+	c.previewing = append(c.previewing, change.Previewing(ctx))
 	out := make([]change.CheckOutcome, len(changes))
 	find := func(runs []model.Run) []change.Finding {
 		if strings.Contains(model.RunsText(runs), c.word) {
@@ -399,6 +403,19 @@ func TestService_CommitCheck(t *testing.T) {
 		require.Len(t, check.seen[0], 1)
 		assert.Equal(t, "Clean text", model.RunsText(check.seen[0][0].Before))
 		assert.Equal(t, "Now utilize it", model.RunsText(check.seen[0][0].After))
+	})
+
+	t.Run("a preview's check is told it is a preview", func(t *testing.T) {
+		h := newHome()
+		check := &wordCheck{word: "utilize"}
+		svc := newMemService(h, change.WithCommitCheck(check))
+		b := readBlock(t, svc, "a", "two")
+		for _, mode := range []change.Mode{change.ModePreview, change.ModeApply} {
+			res, err := svc.Apply(context.Background(), change.Set{Mode: mode, Ops: []change.Op{edit(b.Ref, b.Rev, "Now use it")}}, svcPerson)
+			require.NoError(t, err)
+			require.NotEqual(t, change.SetRefused, res.Status, "%+v", res.Ops)
+		}
+		assert.Equal(t, []bool{true, false}, check.previewing, "a preview's hooks read the stores that exist and create none")
 	})
 
 	t.Run("a violation the edition already had is not held against the edit", func(t *testing.T) {
@@ -662,6 +679,19 @@ func TestService_Describe(t *testing.T) {
 	d, err = plugged.Describe(ctx, change.DescribeRequest{Format: "memory"})
 	require.NoError(t, err)
 	assert.Equal(t, map[string][]string{"link:hyperlink": {"href"}}, d.Ops.SetAttribute, "the capability table plugs in through one function")
+}
+
+// A document the home cannot open for a reason that is no refusal is an
+// error from Describe, never an empty description.
+func TestService_DescribeReportsAFailedOpen(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {textBlock("one", "First")}})
+	h.openErr = errors.New("the disk is gone")
+	d, err := newMemService(h).Describe(context.Background(), change.DescribeRequest{Doc: "a"})
+	require.Error(t, err)
+	assert.Nil(t, d)
+	var ce *change.Error
+	assert.NotErrorAs(t, err, &ce, "a failure that is no refusal is no *change.Error")
+	assert.Contains(t, err.Error(), "the disk is gone")
 }
 
 func TestService_ReadsShowEditionsAndStaleness(t *testing.T) {

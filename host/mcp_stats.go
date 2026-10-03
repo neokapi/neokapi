@@ -8,7 +8,7 @@ import (
 )
 
 // init registers the stats MCP tool on the shared `mcp` server: the sizing
-// surface for agents. It pairs with extract_content (per-block detail) the way
+// surface for agents. It pairs with read_blocks (per-block detail) the way
 // `kapi stats` pairs with `kapi inspect` — survey a document's volume and shape
 // before deciding how to process it.
 func init() {

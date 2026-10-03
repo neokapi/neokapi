@@ -28,12 +28,10 @@ import (
 	"os"
 
 	"github.com/mattn/go-isatty"
-	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/tool"
 )
 
 // StdinName is the conventional path token for standard input.
@@ -175,30 +173,15 @@ func (a *App) explicitOrDetected(path string, content io.ReadSeeker) (string, bo
 // StreamBlocks opens path (or stdin), detects its format, and calls fn for each
 // Block part in document order. Read-only — the backbone of cat and grep.
 func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, b *model.Block) error) (string, error) {
-	return a.streamBlocks(ctx, path, false, "", fn)
+	return a.streamBlocks(ctx, path, fn)
 }
 
-// StreamEditableBlocksAs streams path's blocks in the format fmtRef names (a
-// preset included) as EditDocumentAs reads them, so every block id, text and
-// content hash it yields is one EditDocumentAs resolves. An empty fmtRef
-// resolves the format from --format or detection. MCP extract_content reads
-// through it and apply_edits writes through EditDocumentAs with the same ref.
-func (a *App) StreamEditableBlocksAs(ctx context.Context, path, fmtRef string, fn func(index int, b *model.Block) error) (string, error) {
-	return a.streamBlocks(ctx, path, true, fmtRef, fn)
-}
-
-// openEditReader builds the reader for a document and names its format:
-// fmtRef when given, else the --format flag, with a preset either names
-// applied to the reader, and otherwise the format detection finds in content.
-// The reads that address an edit and the edit itself all build their reader
-// here, so they read the same blocks.
-func (a *App) openEditReader(path string, content io.ReadSeeker, fmtRef string) (string, format.DataFormatReader, error) {
-	ref := fmtRef
-	if ref == "" {
-		ref = a.FormatFlag
-	}
-	if ref != "" {
-		reader, name, err := a.NewConfiguredReader(ref)
+// openReader builds the reader for a document and names its format: the
+// --format flag, with a preset it names applied to the reader, and otherwise
+// the format detection finds in content.
+func (a *App) openReader(path string, content io.ReadSeeker) (string, format.DataFormatReader, error) {
+	if a.FormatFlag != "" {
+		reader, name, err := a.NewConfiguredReader(a.FormatFlag)
 		if err != nil {
 			return "", nil, err
 		}
@@ -215,32 +198,10 @@ func (a *App) openEditReader(path string, content io.ReadSeeker, fmtRef string) 
 	return name, reader, nil
 }
 
-// WireEditReader gives reader the skeleton store EditDocumentAs gives the same
-// format's reader before writing it back. Some readers model a document
-// differently while they keep a skeleton: the HTML reader turns character
-// references into inline codes and numbers an inline element's attributes
-// after its paragraph, and the MDX reader reads a JSX element's children. A
-// read that addresses an edit therefore has to be wired the same way. A format
-// with no writer or no skeleton is left unwired. release closes the store.
-func (a *App) WireEditReader(reader format.DataFormatReader, fmtName string) (release func(), err error) {
-	writer, werr := a.FormatReg.NewWriter(registry.FormatID(fmtName))
-	if werr != nil {
-		return func() {}, nil
-	}
-	store, err := format.NewWiredSkeleton(reader, writer)
-	if err != nil {
-		return nil, err
-	}
-	if store == nil {
-		return func() {}, nil
-	}
-	return func() { _ = store.Close() }, nil
-}
-
-func (a *App) streamBlocks(ctx context.Context, path string, editable bool, fmtRef string, fn func(index int, b *model.Block) error) (string, error) {
+func (a *App) streamBlocks(ctx context.Context, path string, fn func(index int, b *model.Block) error) (string, error) {
 	// A `container!entry` locator reads just that one entry, not the whole archive.
 	if loc, ok := parseEntryLocator(path); ok {
-		return a.streamEntryBlocks(ctx, loc, editable, fmtRef, fn)
+		return a.streamEntryBlocks(ctx, loc, fn)
 	}
 	src, err := openDocSource(ctx, path)
 	if err != nil {
@@ -252,26 +213,11 @@ func (a *App) streamBlocks(ctx context.Context, path string, editable bool, fmtR
 	if err != nil {
 		return "", err
 	}
-	fmtName, reader, err := a.openEditReader(path, sniff, fmtRef)
+	fmtName, reader, err := a.openReader(path, sniff)
 	if err != nil {
 		return fmtName, err
 	}
-	// The reader closes before the skeleton store it writes into: an early
-	// return (fn failing on a closed pipe, a read error) can leave the reader
-	// still emitting, and closing the store first would flush a writer the
-	// reader is still using.
-	release := func() {}
-	defer func() {
-		reader.Close()
-		release()
-	}()
-	if editable {
-		r, werr := a.WireEditReader(reader, fmtName)
-		if werr != nil {
-			return fmtName, fmt.Errorf("read %s: %w", DisplayName(path), werr)
-		}
-		release = r
-	}
+	defer reader.Close()
 
 	doc := &model.RawDocument{
 		URI:          DisplayName(path),
@@ -301,144 +247,6 @@ func (a *App) streamBlocks(ctx context.Context, path string, editable bool, fmtR
 		}
 	}
 	return fmtName, nil
-}
-
-// EditDocumentAs reads path in the format fmtRef names (a preset included;
-// empty resolves it from --format or detection), applies the tool to every
-// part, then writes the reconstructed document: in place (with an optional
-// backup) or to out. The skeleton store is wired between reader and writer so
-// structure-preserving formats (e.g. .docx) round-trip byte for byte while
-// only the edited text changes. writeLocale selects which locale the writer
-// emits ("" = source / monolingual round-trip). MCP apply_edits writes through
-// it.
-func (a *App) EditDocumentAs(ctx context.Context, path, fmtRef string, t *tool.BaseTool, writeLocale model.LocaleID, inPlace bool, backupSuffix string, out io.Writer) error {
-	// A `container!entry` locator edits one inner file; a bare container path edits
-	// every eligible entry. Both repack through the container binding (AD-026 §6) —
-	// the archive format has no writer of its own.
-	if loc, ok := parseEntryLocator(path); ok {
-		return a.editArchiveEntry(ctx, loc, t, writeLocale, inPlace, backupSuffix, out)
-	}
-	if container.IsContainerPath(path) {
-		return a.editArchiveAll(ctx, path, t, writeLocale, inPlace, backupSuffix, out)
-	}
-	if inPlace && (path == "" || path == StdinName) {
-		return errors.New("in-place editing requires a file argument")
-	}
-	src, err := openDocSource(ctx, path)
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-
-	sniff, err := src.seeker()
-	if err != nil {
-		return err
-	}
-	fmtName, reader, err := a.openEditReader(path, sniff, fmtRef)
-	if err != nil {
-		return err
-	}
-	writer, err := a.FormatReg.NewWriter(registry.FormatID(fmtName))
-	if err != nil {
-		reader.Close()
-		return fmt.Errorf("%q is not editable (no writer). Read it with kcat; see editable formats with `kapi formats`", fmtName)
-	}
-
-	// Wire skeleton store when both sides support it (byte-for-byte round-trip).
-	// A store that cannot be created fails the edit: this path rewrites the file
-	// IN PLACE, so degrading silently would replace a faithfully-preserved
-	// document with a reconstruction of itself — the original bytes are gone and
-	// the command still reports success.
-	store, skelErr := format.NewWiredSkeleton(reader, writer)
-	if skelErr != nil {
-		reader.Close()
-		return fmt.Errorf("cannot edit %s: %w", DisplayName(path), skelErr)
-	}
-	if store != nil {
-		defer store.Close()
-	}
-
-	doc := &model.RawDocument{
-		URI:          DisplayName(path),
-		SourceLocale: model.LocaleID(a.SourceLocale()),
-		Encoding:     a.InputEncoding(),
-	}
-	if err := src.rawDocument(doc); err != nil {
-		reader.Close()
-		return err
-	}
-	if err := reader.Open(ctx, doc); err != nil {
-		reader.Close()
-		return fmt.Errorf("open %s: %w", DisplayName(path), err)
-	}
-
-	var outParts []*model.Part
-	for res := range reader.Read(ctx) {
-		if res.Error != nil {
-			reader.Close()
-			return res.Error
-		}
-		if res.Part == nil {
-			continue
-		}
-		// ApplyContext (not Apply) so a network-backed tool — e.g. the AI
-		// rewrite tool — honours cancellation/deadlines on its provider calls
-		// while the document is streamed. Pure-text tools (ksed) ignore ctx.
-		p, aerr := t.ApplyContext(ctx, res.Part)
-		if aerr != nil {
-			reader.Close()
-			return aerr
-		}
-		if p != nil {
-			outParts = append(outParts, p)
-		}
-	}
-	reader.Close()
-
-	if inPlace {
-		// In place, the original must be held in memory: SetOutput truncates
-		// the file the writer would otherwise re-read for its skeleton, so a
-		// source-path binding here would hand the writer an empty document.
-		content, berr := src.bytes()
-		if berr != nil {
-			return berr
-		}
-		if backupSuffix != "" {
-			if err := os.WriteFile(path+backupSuffix, content, 0o644); err != nil {
-				return fmt.Errorf("write backup: %w", err)
-			}
-		}
-		if err := writer.SetOutput(path); err != nil {
-			return err
-		}
-		if ocs, ok := writer.(format.OriginalContentSetter); ok {
-			ocs.SetOriginalContent(content)
-		}
-	} else {
-		if err := writer.SetOutputWriter(out); err != nil {
-			return err
-		}
-		// Writing elsewhere leaves the input intact, so a package writer can
-		// re-read it from disk rather than take a second copy of it.
-		if err := bindWriterSource(writer, path, "", src); err != nil {
-			return err
-		}
-	}
-	writer.SetEncoding(a.InputEncoding())
-	writer.SetLocale(writeLocale)
-
-	ch := make(chan *model.Part, len(outParts)+1)
-	for _, p := range outParts {
-		ch <- p
-	}
-	close(ch)
-	if err := writer.Write(ctx, ch); err != nil {
-		return fmt.Errorf("write %s: %w", DisplayName(path), err)
-	}
-	if err := writer.Close(); err != nil {
-		return fmt.Errorf("close %s: %w", DisplayName(path), err)
-	}
-	return nil
 }
 
 // expandInputs turns a Unix-filter utility's file arguments into a concrete

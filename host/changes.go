@@ -71,6 +71,14 @@ type ChangeServiceOptions struct {
 	// are binary, as the toolbox reads one (ksed). Without it such a file is
 	// refused: no format reads it.
 	PlainText bool
+	// SourceLocale is the language the documents are written in, which wins
+	// over the recipe's defaults.source_language; empty takes the recipe's,
+	// else DefaultSourceLang. An edition in this language is the document's
+	// own. Changes takes it from --source-lang. A long-lived host (the MCP
+	// server, Kapi Desktop) passes the language it resolved for the call,
+	// because the App's own source language belongs to whichever project
+	// resolved one last.
+	SourceLocale model.LocaleID
 }
 
 // Changes builds the change service for the project cmd names, or for the
@@ -80,7 +88,8 @@ func (a *App) Changes(cmd Command, origin string) (*change.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return a.changeService(cmd.Context(), cmd, ChangeServiceOptions{Project: recipe, Origin: origin, Format: a.FormatFlag, TargetLocale: model.LocaleID(a.TargetLang)})
+	return a.changeService(cmd.Context(), cmd, ChangeServiceOptions{Project: recipe, Origin: origin, Format: a.FormatFlag,
+		TargetLocale: model.LocaleID(a.TargetLang), SourceLocale: model.LocaleID(a.SourceLang)})
 }
 
 // ChangeService builds the change service opts describes.
@@ -113,7 +122,7 @@ type changeHome struct {
 func (a *App) changeHome(opts ChangeServiceOptions) (changeHome, error) {
 	a.InitRegistries()
 	if opts.Project != "" {
-		pl, err := a.newProjectLayout(opts.Project, opts.Format, opts.TargetLocale)
+		pl, err := a.newProjectLayout(opts)
 		if err != nil {
 			return changeHome{}, err
 		}
@@ -141,7 +150,8 @@ func (a *App) changeHome(opts ChangeServiceOptions) (changeHome, error) {
 		dir = wd
 	}
 	return changeHome{
-		layout: &dirChangeLayout{app: a, root: dir, format: opts.Format, target: opts.TargetLocale, anywhere: opts.AnyPath, plainText: opts.PlainText},
+		layout: &dirChangeLayout{app: a, root: dir, format: opts.Format, target: opts.TargetLocale, anywhere: opts.AnyPath, plainText: opts.PlainText,
+			source: model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), ""))},
 		// Every kapi process of this user finds the same lock files for a
 		// document outside a project, whatever its temporary directory.
 		lockDir: filepath.Join(DataDir(), "locks"),
@@ -307,6 +317,7 @@ type dirChangeLayout struct {
 	app    *App
 	root   string
 	format string
+	source model.LocaleID
 	target model.LocaleID
 	// anywhere resolves a reference that leaves root as a path on the file
 	// system (ChangeServiceOptions.AnyPath).
@@ -334,7 +345,7 @@ func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, e
 	return filehome.Doc{
 		Ref: ref, Path: path, Entry: entry,
 		Format:       l.app.formatBinding(name, nil, enc),
-		SourceLocale: model.LocaleID(l.app.SourceLocale()),
+		SourceLocale: l.source,
 		Encoding:     enc,
 		Editions:     l.app.editionsOf(name),
 		TargetLocale: l.app.targetOf(name, l.target),
@@ -359,6 +370,10 @@ func (a *App) detectChangeFormat(path, entry string, plainText bool) (string, er
 		return name, nil
 	}
 	if !plainText {
+		if _, code := commentProviders.For(path); code {
+			return "", &change.Error{Code: change.CodeUnsupported, Capability: "comment",
+				Message: filepath.Base(path) + " is source code: kapi reads its comments for checks, and the change service writes no code comment; edit the comment with kapi apply, or in the file and check the file afterwards"}
+		}
 		return "", &change.Error{Code: change.CodeUnsupported, Capability: "format", Message: "no format reads " + filepath.Base(path)}
 	}
 	if a.binaryStream(f) {
@@ -368,6 +383,13 @@ func (a *App) detectChangeFormat(path, entry string, plainText bool) (string, er
 }
 
 // projectChangeLayout serves the documents of a project.
+//
+// A reference to a source file resolves on its own, by the rule that names
+// the item claiming a path (ProjectContext.ResolvePaths), so reading or
+// editing a document costs the same in a project of ten files and of ten
+// thousand. Only a reference that names no source file, such as the file of
+// a translation, expands the recipe's content patterns, once per service, to
+// find the source it belongs to.
 type projectChangeLayout struct {
 	app    *App
 	root   string
@@ -390,8 +412,6 @@ type projectChangeLayout struct {
 type projectChangeIndex struct {
 	// sources are the files the recipe claims as content.
 	sources map[string]project.ResolvedFile
-	// targets maps a source to the file of each of its translations.
-	targets map[string]map[model.LocaleID]VerifyUnit
 	// byTarget maps a translation's file to the source and the locale it
 	// holds.
 	byTarget map[string]targetOfSource
@@ -402,23 +422,24 @@ type targetOfSource struct {
 	locale model.LocaleID
 }
 
-func (a *App) newProjectLayout(recipe, formatRef string, target model.LocaleID) (*projectChangeLayout, error) {
-	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
+func (a *App) newProjectLayout(opts ChangeServiceOptions) (*projectChangeLayout, error) {
+	proj, err := project.LoadWithOptions(opts.Project, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
 	}
-	pctx := project.NewProjectContext(proj, recipe)
+	pctx := project.NewProjectContext(proj, opts.Project)
 	return &projectChangeLayout{
-		app: a, root: pctx.ProjectDir, proj: proj, pctx: pctx, format: formatRef, target: target,
-		source: model.LocaleID(ResolveSourceLocale(a.SourceLang, proj.Defaults.SourceLanguage)),
+		app: a, root: pctx.ProjectDir, proj: proj, pctx: pctx, format: opts.Format, target: opts.TargetLocale,
+		source: model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), proj.Defaults.SourceLanguage)),
 		enc:    ResolveEncodingName(a.Encoding, proj.Defaults.Encoding),
 	}, nil
 }
 
-// load resolves the recipe's content once.
+// load expands the recipe's content once, for a reference that names no
+// source file.
 func (l *projectChangeLayout) load() (*projectChangeIndex, error) {
 	l.once.Do(func() {
-		ix := &projectChangeIndex{sources: map[string]project.ResolvedFile{}, targets: map[string]map[model.LocaleID]VerifyUnit{}, byTarget: map[string]targetOfSource{}}
+		ix := &projectChangeIndex{sources: map[string]project.ResolvedFile{}, byTarget: map[string]targetOfSource{}}
 		files, err := l.pctx.ResolveContent(l.app.FormatReg)
 		if err != nil {
 			l.err = err
@@ -428,42 +449,72 @@ func (l *projectChangeLayout) load() (*projectChangeIndex, error) {
 			if rf.CommentsOnly() {
 				continue
 			}
-			ix.sources[filepath.ToSlash(rf.Relative)] = rf
-		}
-		units, err := l.app.UnitsFromProject(l.proj, l.root, "")
-		if err != nil {
-			l.err = err
-			return
-		}
-		for _, u := range units {
-			// A target in another format than its source is a conversion, and
-			// no edition of the source can be written through it.
-			if u.TargetFormat == "" {
-				continue
+			src := filepath.ToSlash(rf.Relative)
+			ix.sources[src] = rf
+			for loc, u := range l.editionUnits(rf) {
+				ix.byTarget[filepath.ToSlash(u.DisplayPath)] = targetOfSource{source: src, locale: loc}
 			}
-			src := filepath.ToSlash(relativeToRoot(l.root, u.SourcePath))
-			loc := model.NormalizeLocale(model.LocaleID(u.Locale))
-			if ix.targets[src] == nil {
-				ix.targets[src] = map[model.LocaleID]VerifyUnit{}
-			}
-			ix.targets[src][loc] = u
-			ix.byTarget[filepath.ToSlash(u.DisplayPath)] = targetOfSource{source: src, locale: loc}
 		}
 		l.index = ix
 	})
 	return l.index, l.err
 }
 
-func (l *projectChangeLayout) Locate(ctx context.Context, doc string) (filehome.Doc, error) {
+// sourceFile resolves ref as a source file the recipe claims for its values,
+// without expanding any pattern.
+func (l *projectChangeLayout) sourceFile(ref string) (project.ResolvedFile, bool) {
+	return claimedSource(l.app.FormatReg, l.pctx, ref)
+}
+
+// claimedSource resolves rel, a project-relative path, as the recipe claims
+// it: the file, and true when an item claims its values. The format is the
+// item's, or the one detection finds from the file's content, as
+// ResolveContent finds it.
+func claimedSource(reg *registry.FormatRegistry, pctx *project.ProjectContext, rel string) (project.ResolvedFile, bool) {
+	files := pctx.ResolvePaths(reg, []string{rel}, func(rel string) (io.ReadSeeker, error) {
+		return os.Open(filepath.Join(pctx.ProjectDir, filepath.FromSlash(rel)))
+	})
+	if len(files) != 1 || files[0].CommentsOnly() {
+		return project.ResolvedFile{}, false
+	}
+	return files[0], true
+}
+
+// editionUnits is the file of each translation of rf the recipe declares,
+// by language. A target in another format than its source is a conversion,
+// and no edition of the source can be written through it.
+func (l *projectChangeLayout) editionUnits(rf project.ResolvedFile) map[model.LocaleID]VerifyUnit {
+	out := map[model.LocaleID]VerifyUnit{}
+	for _, u := range l.app.unitsOfFile(l.proj, l.root, rf, "") {
+		if u.TargetFormat == "" {
+			continue
+		}
+		out[model.NormalizeLocale(model.LocaleID(u.Locale))] = u
+	}
+	return out
+}
+
+// translationFile finds the source and the language of the translation
+// whose file ref names.
+func (l *projectChangeLayout) translationFile(ref string) (targetOfSource, bool, error) {
 	ix, err := l.load()
 	if err != nil {
-		return filehome.Doc{}, err
+		return targetOfSource{}, false, err
 	}
+	t, ok := ix.byTarget[ref]
+	return t, ok, nil
+}
+
+func (l *projectChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, error) {
 	ref, path, entry, err := filehome.ResolvePath(l.root, doc)
 	if err != nil {
 		// The file of a translation not written yet still names its edition.
-		if t, ok := ix.byTarget[cleanRef(doc)]; ok {
-			return l.editionDoc(ctx, ix, t)
+		t, ok, lerr := l.translationFile(cleanRef(doc))
+		if lerr != nil {
+			return filehome.Doc{}, lerr
+		}
+		if ok {
+			return l.editionDoc(t)
 		}
 		return filehome.Doc{}, err
 	}
@@ -479,11 +530,15 @@ func (l *projectChangeLayout) Locate(ctx context.Context, doc string) (filehome.
 		return filehome.Doc{Ref: ref, Path: path, Entry: entry, Format: l.app.formatBinding(name, l.formatConfig(name, "", nil), l.enc),
 			SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target)}, nil
 	}
-	if rf, ok := ix.sources[ref]; ok {
-		return l.sourceDoc(ix, ref, rf), nil
+	if rf, ok := l.sourceFile(ref); ok {
+		return l.sourceDoc(ref, rf), nil
 	}
-	if t, ok := ix.byTarget[ref]; ok {
-		return l.editionDoc(ctx, ix, t)
+	t, ok, err := l.translationFile(ref)
+	if err != nil {
+		return filehome.Doc{}, err
+	}
+	if ok {
+		return l.editionDoc(t)
 	}
 	// A file in the project the recipe does not claim: read as detection
 	// finds it, with the project's defaults for its format.
@@ -514,7 +569,7 @@ func (l *projectChangeLayout) formatConfig(name, bound string, item *project.Con
 
 // sourceDoc is a source file the recipe claims, with the file of each of its
 // translations.
-func (l *projectChangeLayout) sourceDoc(ix *projectChangeIndex, ref string, rf project.ResolvedFile) filehome.Doc {
+func (l *projectChangeLayout) sourceDoc(ref string, rf project.ResolvedFile) filehome.Doc {
 	name := rf.Format
 	if l.format != "" {
 		name = l.format
@@ -524,7 +579,7 @@ func (l *projectChangeLayout) sourceDoc(ix *projectChangeIndex, ref string, rf p
 		Format:       l.app.formatBinding(name, l.formatConfig(name, rf.Format, rf.Item), l.enc),
 		SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target),
 	}
-	targets := ix.targets[ref]
+	targets := l.editionUnits(rf)
 	if len(targets) > 0 && d.Editions == change.EditionsInFile && !l.app.interchange(name) {
 		// A Qt Linguist or string-catalog source whose translations the
 		// recipe writes to files of their own keeps them there.
@@ -555,12 +610,12 @@ func (l *projectChangeLayout) sourceDoc(ix *projectChangeIndex, ref string, rf p
 
 // editionDoc is the source a translation's file holds an edition of, with
 // that edition named.
-func (l *projectChangeLayout) editionDoc(_ context.Context, ix *projectChangeIndex, t targetOfSource) (filehome.Doc, error) {
-	rf, ok := ix.sources[t.source]
+func (l *projectChangeLayout) editionDoc(t targetOfSource) (filehome.Doc, error) {
+	rf, ok := l.index.sources[t.source]
 	if !ok {
 		return filehome.Doc{}, &change.Error{Code: change.CodeNotFound, Field: "at/doc", Message: "no document " + t.source}
 	}
-	d := l.sourceDoc(ix, t.source, rf)
+	d := l.sourceDoc(t.source, rf)
 	k := model.EditionKey{Locale: t.locale}
 	d.Edition = &k
 	return d, nil
@@ -718,6 +773,10 @@ func (c *changeAssets) prepareDecision(actor change.Actor, op change.Op, target 
 	if target == nil {
 		return &change.Error{Code: change.CodeNotFound, Message: "the decision names no edition"}
 	}
+	if body.Outcome == change.OutcomeAdvise && body.Score == nil {
+		return &change.Error{Code: change.CodeInvalid, Field: "score",
+			Message: "a pre-review carries the score it gives, from 0 to 100"}
+	}
 	switch {
 	case body.Outcome == change.OutcomeWithdraw:
 		return &change.Error{Code: change.CodeUnsupported, Capability: "decide.withdraw", Message: "withdrawing a decision is not recorded by this host"}
@@ -756,7 +815,7 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 	ref := ReviewUnitRef{File: filepath.FromSlash(file), Key: target.Ref.Block, Locale: locale}
 	switch body.Outcome {
 	case change.OutcomeAdvise:
-		review := state.AIReview{Model: actor.Name, At: nowRFC3339()}
+		review := state.AIReview{Model: reviewerName(actor), At: nowRFC3339()}
 		if decided != nil {
 			review.TargetHash = targetHash(decided.target)
 		}
@@ -767,6 +826,12 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 			review.Findings = append(review.Findings, state.AIReviewFinding{Message: r})
 		}
 		n, err := a.RecordAIReviews(ctx, c.recipe, "", locale, ref.File, map[string]state.AIReview{ref.Key: review})
+		if err == nil && n == 0 {
+			// The review queue holds no unit at this edition, so the
+			// pre-review has nothing to annotate.
+			return "", &change.Error{Code: change.CodeNotFound, Field: "at",
+				Message: fmt.Sprintf("the review queue holds no %s translation of block %s in %s to record a pre-review on", locale, ref.Key, file)}
+		}
 		return decisionOutcome(n > 0, err)
 	case change.OutcomeReject:
 		note := ""
@@ -779,6 +844,19 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 		changed, err := a.applyReviewDecision(ctx, c.recipe, "", ref, ReviewDecisionApproved, "", "", decided)
 		return decisionOutcome(changed, err)
 	}
+}
+
+// reviewerName is the name a pre-review is recorded under, which the review
+// queue shows beside its score: agent/<client> for an agent, and the sender's
+// own name for anyone else.
+func reviewerName(actor change.Actor) string {
+	if actor.Kind != change.ActorAgent {
+		return actor.Name
+	}
+	if actor.Name == "" {
+		return "agent"
+	}
+	return "agent/" + actor.Name
 }
 
 func decisionOutcome(changed bool, err error) (change.OpStatus, *change.Error) {

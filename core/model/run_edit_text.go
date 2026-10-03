@@ -9,7 +9,7 @@ import (
 )
 
 // The edit text is the form a block takes in the edit loop: what `kapi
-// inspect` and MCP extract_content show, and what `kapi apply` and MCP
+// inspect` and MCP read_blocks show, and what `kapi apply` and MCP
 // apply_edits take back. It is RunsPlaceholderText with one difference: a
 // placeholder that stands for characters, a character reference such as
 // `&amp;` or `&rsquo;`, is shown as those characters. The HTML and Markdown
@@ -262,26 +262,4 @@ func alignRunes(a, b []rune) []int {
 		}
 	}
 	return match
-}
-
-// EditKeepsInlineCodes is the fidelity guard for an edit written as edit
-// text: InlineCodesPreserved, with character references left out on both
-// sides. The edit text shows a reference as its character, so an edit may
-// drop, move or repeat one; every other code must survive as
-// InlineCodesPreserved requires.
-func EditKeepsInlineCodes(before, after []Run) bool {
-	return InlineCodesPreserved(withoutCharacterReferences(before), withoutCharacterReferences(after))
-}
-
-func withoutCharacterReferences(runs []Run) []Run {
-	out := make([]Run, 0, len(runs))
-	for _, r := range runs {
-		if r.Ph != nil {
-			if _, ok := CharacterReference(r.Ph); ok {
-				continue
-			}
-		}
-		out = append(out, r)
-	}
-	return out
 }

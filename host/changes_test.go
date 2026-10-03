@@ -470,3 +470,72 @@ func TestChangeService_KeepsItsLockFilesOutOfACommit(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, project.GitignoreCovers(string(ignore), project.WorkDirName), "the state directory's ignore rule covers them: %q", ignore)
 }
+
+// TestChangeService_AReadWritesNothing pins that reading a project's document
+// and describing its format leave the project as they found it: the state
+// directory and its ignore rule are written by the first commit.
+func TestChangeService_AReadWritesNothing(t *testing.T) {
+	item := project.ContentItem{Path: "locales/en.json", Target: "locales/{lang}.json"}
+	a, recipe := changeProject(t, item, map[string]string{"locales/en.json": `{"title": "Welcome"}` + "\n"})
+	root := filepath.Dir(recipe)
+	svc := changeService(t, a, recipe)
+	ctx := context.Background()
+	_, err := svc.Read(ctx, change.ReadRequest{Doc: "locales/en.json", Editions: []model.EditionKey{editionKey(t, "de")}})
+	require.NoError(t, err)
+	_, err = svc.Describe(ctx, change.DescribeRequest{Doc: "locales/en.json"})
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(root, project.StateDirName))
+	assert.ErrorIs(t, err, os.ErrNotExist, "a read creates no state directory")
+}
+
+// TestChangeService_ASourceDocumentResolvesWithoutTheWholeRecipe pins that a
+// reference to a source file locates its document, translations included,
+// without expanding the recipe's content patterns, and that the file of a
+// translation, which no pattern of a source names, expands them once.
+func TestChangeService_ASourceDocumentResolvesWithoutTheWholeRecipe(t *testing.T) {
+	item := project.ContentItem{Path: "locales/en.json", Target: "locales/{lang}.json"}
+	a, recipe := changeProject(t, item, map[string]string{
+		"locales/en.json": `{"title": "Welcome"}` + "\n",
+		"locales/de.json": `{"title": "Willkommen"}` + "\n",
+	})
+	l, err := a.newProjectLayout(ChangeServiceOptions{Project: recipe})
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	d, err := l.Locate(ctx, "locales/en.json")
+	require.NoError(t, err)
+	assert.Equal(t, "json", d.Format.Name)
+	assert.Equal(t, []model.EditionKey{{Locale: "de"}}, d.Derived, "the source's translations are found from the source alone")
+	f, ok := d.EditionFile(model.EditionKey{Locale: "fr"})
+	require.True(t, ok, "a declared translation with no file yet has a home")
+	assert.Equal(t, "locales/fr.json", f.Ref)
+	assert.Nil(t, l.index, "no content pattern was expanded")
+
+	d, err = l.Locate(ctx, "locales/de.json")
+	require.NoError(t, err)
+	assert.Equal(t, "locales/en.json", d.Ref)
+	require.NotNil(t, d.Edition)
+	assert.Equal(t, model.LocaleID("de"), d.Edition.Locale)
+	assert.NotNil(t, l.index, "the file of a translation is found by expanding the recipe")
+}
+
+// TestChangeAssets_APreReviewThatAnnotatesNothingIsRefused pins that an
+// agent's pre-review the review queue has no unit for is refused as
+// not_found, rather than reported as recorded.
+func TestChangeAssets_APreReviewThatAnnotatesNothingIsRefused(t *testing.T) {
+	item := project.ContentItem{Path: "locales/en.json", Target: "locales/{lang}.json"}
+	a, recipe := changeProject(t, item, map[string]string{
+		"locales/en.json": `{"title": "Welcome"}` + "\n",
+		"locales/de.json": `{"title": "Willkommen"}` + "\n",
+	})
+	assets := &changeAssets{app: a, recipe: recipe}
+	score := 80
+	at := change.Ref{Doc: "locales/en.json", Block: "no-such-block", Edition: editionKey(t, "de")}
+	target := &change.DecisionTarget{Doc: change.DocInfo{Doc: "locales/en.json"}, Ref: at,
+		Place: change.Place{Kind: change.PlaceOwnFile, File: "locales/de.json"}, Text: "Willkommen", SourceText: "Welcome", Role: change.RoleDerived}
+	agent := change.Actor{Kind: change.ActorAgent, Name: "review-agent", Session: "s1"}
+	_, cerr := assets.Apply(context.Background(), agent, &change.Set{},
+		change.Op{Kind: change.KindDecide, At: at, Body: &change.Decide{Outcome: change.OutcomeAdvise, Score: &score}}, target)
+	require.NotNil(t, cerr)
+	assert.Equal(t, change.CodeNotFound, cerr.Code)
+}

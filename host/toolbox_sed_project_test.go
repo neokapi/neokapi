@@ -302,7 +302,7 @@ collections:
 	write("i18n/app_en.ts", ts)
 	write("po/messages.pot", "msgid \"\"\nmsgstr \"\"\n\nmsgid \"Hello\"\nmsgstr \"\"\n")
 	app := newToolboxApp(t)
-	pl, err := app.newProjectLayout(filepath.Join(root, "kapi.yaml"), "", "")
+	pl, err := app.newProjectLayout(ChangeServiceOptions{Project: filepath.Join(root, "kapi.yaml")})
 	require.NoError(t, err)
 
 	d, err := pl.Locate(t.Context(), "i18n/app_en.ts")
@@ -462,7 +462,7 @@ func TestCopyLayoutRedirectsOnlyTheCopiedFile(t *testing.T) {
 	root := sedProject(t)
 	app := newToolboxApp(t)
 	recipe := filepath.Join(root, "kapi.yaml")
-	pl, err := app.newProjectLayout(recipe, "", "")
+	pl, err := app.newProjectLayout(ChangeServiceOptions{Project: recipe})
 	require.NoError(t, err)
 	file := filepath.Join(root, "loc", "nb.json")
 	copyPath := filepath.Join(t.TempDir(), "nb.json")

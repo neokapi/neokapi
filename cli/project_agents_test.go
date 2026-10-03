@@ -116,10 +116,10 @@ func TestInitCmd_rerunWiresAnExistingProject(t *testing.T) {
 	require.NoError(t, err, "running init on a project that has a recipe wires it")
 }
 
-// The MCP entry kapi init writes serves the structured edit path, with or
-// without target languages: extract_content reads a file's blocks and
-// apply_edits writes them back.
-func TestInitCmd_mcpEntryServesTheEditPath(t *testing.T) {
+// The MCP entry kapi init writes serves the edit contract, with or without
+// target languages: read_blocks reads a document's blocks, apply_edits sends
+// change sets back, and describe_format says what a format supports.
+func TestInitCmd_mcpEntryServesTheEditContract(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
@@ -153,8 +153,9 @@ func TestInitCmd_mcpEntryServesTheEditPath(t *testing.T) {
 			for set := range sets {
 				served = append(served, host.MCPToolSetTools(set)...)
 			}
-			assert.Contains(t, served, "extract_content")
-			assert.Contains(t, served, "apply_edits")
+			for _, name := range []string{"read_blocks", "apply_edits", "describe_format"} {
+				assert.Contains(t, served, name)
+			}
 		})
 	}
 }

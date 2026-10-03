@@ -251,7 +251,11 @@ file itself, and writes the copy out. A read takes no lock and leaves a project
 as it was: the lock directory, and the ignore rule that keeps it out of a
 commit, are written when a change first commits, and the recorder opens the
 project store then, before anything is written. A read takes a derived
-edition's basis from a project store that exists and creates none.
+edition's basis from a project store that exists and creates none. A preview
+takes no lock and records nothing, and its commit check reads the project
+store when the project has one and creates none. When the project has no store
+yet, a preview checks an edit without the voice and the terms a store binds
+from the workspace.
 
 A `set_content` on a code comment, in a source file only the comment layer
 reads, goes through the comment write path, which keeps its own guarantees: the
@@ -263,6 +267,10 @@ was written is checked, scoped to the change, and under the enforcing gate a
 failing finding, or a check that read nothing, exits 3. The comment path runs
 neither the commit check nor the recorder: the check runs after the write, and
 nothing records a comment edit.
+
+The MCP tools `read_blocks`, `apply_edits` and `describe_format` build the
+service for each call's project and send every change set as the calling agent
+([S-03](../surfaces/s-03-agent-surfaces.md)).
 
 ### Results and errors
 
@@ -303,3 +311,4 @@ without another read. A resource bound `core/safeio` reports is
 - [E-03: Tool system](e-03-tool-system.md)
 - [The change applier](../../implementation/engine/change-applier.md)
 - [The file home](../../implementation/engine/file-home.md)
+- [S-03: Agent surfaces](../surfaces/s-03-agent-surfaces.md)

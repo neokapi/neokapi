@@ -52,7 +52,7 @@ confirmed raised it. The human table's first column is the outcome, `FAILS` or
 primary key: an assistant tracks it across iterations to confirm a fix and avoid
 regressions. `--json` emits the Report verbatim; over MCP, the `check_file` and
 `check_text` tools return the same Report, the verifier counterpart to the
-`extract_content`/`apply_edits` editing tools, so an assistant can
+`read_blocks`/`apply_edits` editing tools, so an assistant can
 **author → check → revise → re-check** without leaving the conversation.
 
 For a draft intended for a project file, pass that destination as `context_path`

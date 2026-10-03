@@ -1,7 +1,6 @@
 package host
 
 import (
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -13,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/comment"
-	"github.com/neokapi/neokapi/core/contextop"
 )
 
 // markingOxfmt writes an executable named oxfmt into dir and returns its path.
@@ -79,18 +77,6 @@ func applyWithInput(t *testing.T, a *App, stdin string, entries ...map[string]an
 	return out, output, err
 }
 
-// applyEditsMCPWith runs MCP apply_edits through a over entries.
-func applyEditsMCPWith(t *testing.T, a *App, entries ...map[string]any) applyEditsMCPOutput {
-	t.Helper()
-	data, err := json.Marshal(map[string]any{"changeset": entries})
-	require.NoError(t, err)
-	var in applyEditsInput
-	require.NoError(t, json.Unmarshal(data, &in))
-	_, out, err := a.applyEditsMCP(t.Context(), contextop.Actor{Kind: contextop.ActorAgent}, in)
-	require.NoError(t, err)
-	return out
-}
-
 // repairEntry is the edit that repairs file's doubled word, guarded by the
 // fingerprint the comment has now.
 func repairEntry(t *testing.T, a *App, file string) map[string]any {
@@ -131,8 +117,8 @@ func assertFormatterRan(t *testing.T, comments []commentFileResult, file, marker
 // A project's formatter runs code the project controls, so a comment edit runs
 // it only under execution trust (host/exectrust.go): the KAPI_TRUST_EXEC grant
 // for kapi apply, a decision recorded for the configuration file that selects
-// the formatter, or an answer given at kapi apply's prompt. MCP apply_edits
-// never runs it. Otherwise the edit did not run.
+// the formatter, or an answer given at kapi apply's prompt. Otherwise the
+// edit did not run.
 //
 // The subtests named "must fail" hold a formatter no one allowed, or an allow
 // that no longer matches what would run, and assert that it never runs.
@@ -155,22 +141,6 @@ func TestCommentFormatterTrust(t *testing.T) {
 		out, _, err := applyWithInput(t, a, "", repairEntry(t, a, file))
 		assert.Equal(t, ExitGate, ExitCode(nil, err))
 		assertFormatterNotRun(t, out.Comments, file, marker, "no one has allowed it to run")
-	})
-
-	t.Run("must fail: apply_edits does not run a formatter no one allowed", func(t *testing.T) {
-		a := declaredFormatterApp(t)
-		file, marker, _ := installedFormatterProject(t)
-		out := applyEditsMCPWith(t, a, repairEntry(t, a, file))
-		assert.False(t, out.OK)
-		assertFormatterNotRun(t, out.Comments, file, marker, "apply_edits never runs a project's formatter", "kapi apply")
-	})
-
-	t.Run("must fail: apply_edits does not take KAPI_TRUST_EXEC as an allow", func(t *testing.T) {
-		a := declaredFormatterApp(t)
-		t.Setenv(execTrustEnvVar, "1")
-		file, marker, _ := installedFormatterProject(t)
-		out := applyEditsMCPWith(t, a, repairEntry(t, a, file))
-		assertFormatterNotRun(t, out.Comments, file, marker, "apply_edits never runs a project's formatter")
 	})
 
 	t.Run("kapi apply runs the formatter under KAPI_TRUST_EXEC and records nothing", func(t *testing.T) {
@@ -211,8 +181,6 @@ func TestCommentFormatterTrust(t *testing.T) {
 		a.isTTY = func() bool { return false }
 		out, _, _ = applyWithInput(t, a, "", repairEntry(t, a, file))
 		assertFormatterNotRun(t, out.Comments, file, marker, "was declined", ExecTrustPath())
-		mcp := applyEditsMCPWith(t, a, repairEntry(t, a, file))
-		assertFormatterNotRun(t, mcp.Comments, file, marker, "apply_edits never runs a project's formatter")
 	})
 
 	t.Run("must fail: a change to the configuration file that selects the formatter voids the allow", func(t *testing.T) {
@@ -251,7 +219,6 @@ func TestCommentFormatterTrust(t *testing.T) {
 		cmd := NewEnvCommand(t.Context(), "apply")
 		assert.Nil(t, a.applyFormatterTrust(cmd, true).ask, "the answer would be read from the change-set")
 		assert.NotNil(t, a.applyFormatterTrust(cmd, false).ask)
-		assert.Nil(t, mcpFormatterTrust().ask, "apply_edits never runs a project's formatter")
 	})
 
 	t.Run("must fail: a PATH entry that is not an absolute path is skipped and named", func(t *testing.T) {

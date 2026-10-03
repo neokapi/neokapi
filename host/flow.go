@@ -2229,6 +2229,9 @@ func (a *App) storeConcepts(cmd Command, point project.GovernancePoint) ([]sqlte
 	ctx := CmdContext(cmd)
 	if sel.InProject() {
 		db, err := a.ProjectDB(ctx, sel.Root)
+		if errors.Is(err, errNoProjectStore) {
+			return nil, "", nil
+		}
 		if err != nil {
 			return nil, "", err
 		}

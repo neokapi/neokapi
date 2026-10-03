@@ -1,22 +1,57 @@
 {
-  "generatedAt": "2026-10-02T15:49:19Z",
+  "generatedAt": "2026-10-02T21:19:59Z",
   "tools": [
     {
       "name": "apply_edits",
-      "description": "Apply a typed change-set: the one write verb. For document wording, each entry uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and hashes with extract_content. The replacement field belongs to term entries. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash). An edit that drops, invents or duplicates an inline code, crosses or unbalances paired codes, or changes a block holding a plural or select construct is refused as guard_failed and leaves the block as it was. An entry whose id, or content_hash when it gives no id, matches no block of its file is listed in not_found and writes nothing. Stale, guard_failed, not_editable and not_found each make ok false: read the file again and resend. Every entry is recorded as yours, the calling agent's, in this server's session. Writing a term, a content memory pair or a recipe field directly is a person's decision, so those entries are refused with a reason and write nothing: record a term rule as a suggestion with context_observe, or context_correct for wording you changed, and a person keeps it. No AI provider is used. Read the context://\u003cproject-relative-path\u003e resource before editing content, then run check_file on each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, id and lines (as check_file reports them, such as func/Parse), comment_sha256 (the fingerprint check_file reports for the comment; a comment whose bytes differ is refused as changed, and current_text may carry the prose as read instead) and text (the comment's prose without comment markers, or a /* */ comment's delimiters and the * opening each line). Every byte outside the comment is kept, a /* */ comment keeps its layout, the result must parse and the language's formatter must agree; a directive, a generated file's comment, a changed comment, text holding */ in a /* */ comment and text that drops a code block or reference are refused with a reason and write nothing. A comment in a language whose plugin or formatter is not installed, or whose formatter does not format the file, did not run and is not written. A project's formatter runs code that project controls, and an agent that can write files can write the configuration it loads, so apply_edits never runs it: such a comment did not run, with the reason formatter, and a person applies it with kapi apply in a terminal. Each written file's result carries a check scoped to the change.",
+      "description": "Apply a kapi.change/v1 change set: the one write verb. Each content operation addresses one edition of one block with at, the ref read_blocks reports, and carries if_match, the rev you read. set_content replaces the text (keep the \u003cx id=\"…\"/\u003e placeholders; with if_match \"absent\" and an edition it creates that translation), replace_text changes part of it by find, by start and end, or by range, and remove_edition drops a translation. describe_format says which operations a format supports. A refused change set writes nothing: an edition that moved since you read it is refused as stale with its current revision and text, an edit that drops, invents or unbalances an inline code or flattens a plural is refused as guard, and every other operation reports not_applied. Each refusal carries a code and the field at fault: re-read, fix the operation and resend. Status partial means some of it landed: a write interrupted after some documents were written (docs says which), or a decision or store operation refused after the content was written, which carries its error. Re-read the documents before you send more. mode preview computes and checks the change set and returns a diff per document without writing. A source edit lists the translations it made stale under invalidates. Every operation is recorded as yours, the calling agent's, in this server's session. Writing a term, a content-memory pair or a recipe field and deciding a review are a person's: those operations are refused as not_permitted. Record a term rule as a suggestion with context_observe, or context_correct for wording you changed, and record a pre-review as decide with outcome advise, a score from 0 to 100 and your reasons, at the ref and rev review_block reports. Run check_file on each changed file afterwards.",
       "surface": "writing",
       "params": [
         {
-          "name": "changeset",
+          "name": "ops",
           "type": "array",
           "required": true,
-          "description": "the typed change-set entries to apply"
+          "description": "the operations, applied in order"
+        },
+        {
+          "name": "evidence",
+          "type": "array",
+          "required": false,
+          "description": "where the wording behind the change was seen"
+        },
+        {
+          "name": "gate",
+          "type": "string",
+          "required": false,
+          "description": "enforce (the default): a failing finding the change introduces refuses it; report: the change lands with its findings"
+        },
+        {
+          "name": "mode",
+          "type": "string",
+          "required": false,
+          "description": "apply (the default), or preview: compute and check, write nothing"
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "one line a person reads in history and review"
         },
         {
           "name": "project",
           "type": "string",
           "required": false,
           "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
+        },
+        {
+          "name": "require_basis",
+          "type": "boolean",
+          "required": false,
+          "description": "refuse a derived-edition write whose authoritative edition moved since it was read"
+        },
+        {
+          "name": "schema",
+          "type": "string",
+          "required": false
         }
       ]
     },
@@ -499,6 +534,31 @@
       ]
     },
     {
+      "name": "describe_format",
+      "description": "Say what apply_edits can do in a format: whether the format keeps a document's translations in one file or one per file, and for each content operation what it accepts (the content forms of set_content, the code types a writer can create, the attributes set_attribute can change per code type), or null where the format refuses the operation as unsupported. Name a format, or a document to describe the format kapi reads it in.",
+      "surface": "writing",
+      "params": [
+        {
+          "name": "doc",
+          "type": "string",
+          "required": false,
+          "description": "a document, to describe the format kapi reads it in; give this or format"
+        },
+        {
+          "name": "format",
+          "type": "string",
+          "required": false,
+          "description": "a format name, such as html, markdown or po"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
+        }
+      ]
+    },
+    {
       "name": "detect_format",
       "description": "Detect the file format from a file path based on its extension",
       "surface": "content",
@@ -690,37 +750,6 @@
       ]
     },
     {
-      "name": "extract_content",
-      "description": "Parse a file into its content blocks: each block's id, content_hash, source text (inline codes rendered as \u003cx id=\"…\"/\u003e placeholders, character references as their characters), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply). Both read the file in the same format, so pass the same project.",
-      "surface": "writing",
-      "params": [
-        {
-          "name": "path",
-          "type": "string",
-          "required": true,
-          "description": "File path to extract content from"
-        },
-        {
-          "name": "format",
-          "type": "string",
-          "required": false,
-          "description": "Override format detection. apply_edits detects the format through the project, so a block read in another format may not be one it can write"
-        },
-        {
-          "name": "project",
-          "type": "string",
-          "required": false,
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in); its declared formats scope detection"
-        },
-        {
-          "name": "source_lang",
-          "type": "string",
-          "required": false,
-          "description": "Source language (default: en)"
-        }
-      ]
-    },
-    {
       "name": "inline-codes-remove",
       "description": "Inline Codes Remove",
       "surface": "all-tools",
@@ -881,49 +910,6 @@
           "type": "string",
           "required": false,
           "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
-        }
-      ]
-    },
-    {
-      "name": "pre_review_unit",
-      "description": "Record your pre-review of one review-queue unit: a score from 0 to 100 and the reasons behind it. It is advisory and bound to the current translation, so an edit drops it. The person reviewing sees it in the queue; it never establishes the unit or sends it back.",
-      "surface": "review",
-      "params": [
-        {
-          "name": "file",
-          "type": "string",
-          "required": true,
-          "description": "Target file path, as listed by review_queue"
-        },
-        {
-          "name": "key",
-          "type": "string",
-          "required": true,
-          "description": "Unit key, as listed by review_queue"
-        },
-        {
-          "name": "locale",
-          "type": "string",
-          "required": true,
-          "description": "Target locale, as listed by review_queue"
-        },
-        {
-          "name": "score",
-          "type": "integer",
-          "required": true,
-          "description": "How well the translation stands, from 0 (unusable) to 100 (nothing to change)"
-        },
-        {
-          "name": "project",
-          "type": "string",
-          "required": false,
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
-        },
-        {
-          "name": "reasons",
-          "type": "array",
-          "required": false,
-          "description": "What you found, one entry per issue; empty when nothing needs saying"
         }
       ]
     },
@@ -1267,6 +1253,49 @@
       ]
     },
     {
+      "name": "read_blocks",
+      "description": "Read a document's blocks, a page at a time: the read leg of apply_edits. Each block carries ref (doc, block and edition) to copy into an operation's at, rev to send as its if_match, and text with inline codes as \u003cx id=\"…\"/\u003e placeholders, which an edit keeps. codes lists each code by the id its placeholder shows, with its type and attributes; structures lists each plural or select with the path that reaches a branch and the branch's text; editions lists the block's translations with their revision, text and status; ops lists the operations the block accepts. A page holds up to limit blocks: pass next back as cursor for the following page. A cursor from a document that changed since is refused as stale; read it again from the start. Reads the document as apply_edits writes it, through the format and configuration the project binds.",
+      "surface": "writing",
+      "params": [
+        {
+          "name": "doc",
+          "type": "string",
+          "required": true,
+          "description": "the document: a path inside the project, relative to its root or absolute, or outside a project a path under the server's working directory; container!entry names an archive member; the file of a translation reads that edition of its source"
+        },
+        {
+          "name": "blocks",
+          "type": "array",
+          "required": false,
+          "description": "only these blocks, by the block key a read reports; empty reads every block"
+        },
+        {
+          "name": "cursor",
+          "type": "string",
+          "required": false,
+          "description": "continue a read: the next value of the page before"
+        },
+        {
+          "name": "editions",
+          "type": "array",
+          "required": false,
+          "description": "translations kept in files of their own to show beside each block, such as fr or de; the editions the document holds itself are always shown"
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "description": "the most blocks a page holds (default 100, at most 1000)"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
+        }
+      ]
+    },
+    {
       "name": "recycle",
       "description": "Recycle",
       "surface": "all-tools",
@@ -1493,8 +1522,27 @@
       ]
     },
     {
+      "name": "review_block",
+      "description": "Read one block's review picture: ref and rev, the reference and revision of the edition under review, and the unit: source and target text, ladder status, the last recorded decision (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. Address it with the ref a review_queue row carries, or a ref read_blocks reports with the translation's edition. A block in the project's source language is read from its source file and returns its authoring rung with no target half. To record a pre-review, send apply_edits a decide operation with at set to ref, if_match set to rev, outcome advise, a score from 0 to 100 and your reasons: it is bound to the wording you read, a later edit drops it, and it never establishes the block.",
+      "surface": "review",
+      "params": [
+        {
+          "name": "at",
+          "type": "object",
+          "required": true,
+          "description": "the edition to review, as a review_queue row's ref names it"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
+        }
+      ]
+    },
+    {
       "name": "review_queue",
-      "description": "List the review queue: every unit awaiting a person, addressed by (file, key, locale). One queue holds every language, the project's source language among them: a translated unit not yet approved is one row, and a source unit held below the project's translate_after level is another, marked `isSource`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_unit for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
+      "description": "List the review queue: every unit awaiting a person, each with ref, the reference review_block reads it by ({doc, block, edition}: the source document, the block key and the translation's language; no edition for a source unit). One queue holds every language, the project's source language among them: a translated unit not yet approved is one row, and a source unit held below the project's translate_after level is another, marked `isSource`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_block for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
       "surface": "review",
       "params": [
         {
@@ -1514,37 +1562,6 @@
           "type": "string",
           "required": false,
           "description": "Only list units for this target locale"
-        },
-        {
-          "name": "project",
-          "type": "string",
-          "required": false,
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
-        }
-      ]
-    },
-    {
-      "name": "review_unit",
-      "description": "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. A unit in the project's source language is read the same way, from its source file, and returns its authoring rung with no target half. The read leg before pre_review_unit.",
-      "surface": "review",
-      "params": [
-        {
-          "name": "file",
-          "type": "string",
-          "required": true,
-          "description": "File path, as listed by review_queue: the target file for a translation, the source file for a source unit"
-        },
-        {
-          "name": "key",
-          "type": "string",
-          "required": true,
-          "description": "Unit key, as listed by review_queue"
-        },
-        {
-          "name": "locale",
-          "type": "string",
-          "required": true,
-          "description": "Language of the unit, as listed by review_queue: a target locale, or the project's source language for a source unit"
         },
         {
           "name": "project",

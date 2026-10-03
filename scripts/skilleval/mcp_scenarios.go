@@ -22,8 +22,8 @@ package main
 // because a missing tool must fail a test, not a metered sweep.
 var mcpToolCatalogue = []string{
 	"apply_edits", "check_file", "check_text", "context_search",
-	"detect_format", "extract_content", "pre_review_unit", "redact", "review_queue",
-	"review_unit", "stats", "term-check", "translate", "up",
+	"describe_format", "detect_format", "read_blocks", "redact", "review_block",
+	"review_queue", "stats", "term-check", "translate", "up",
 	"up_plan", "voice_check", "voice_rewrite",
 }
 
@@ -105,10 +105,10 @@ var mcpScenarios = []Scenario{
 		Turns: 5,
 	},
 	{
-		ID:         "m05-extract-content",
+		ID:         "m05-read-blocks",
 		Kind:       positive,
 		Surface:    surfaceMCP,
-		ExpectTool: "extract_content",
+		ExpectTool: "read_blocks",
 		Prompt:     "Pull the readable text out of proposal.docx so I can look at it.",
 		Path:       "mcp (read)",
 		Why: "A binary, and one the agent can in fact read another way: unzipping a .docx and pulling the XML " +

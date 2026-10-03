@@ -108,10 +108,8 @@ func PairedCodesKeepShape(reference, runs []Run) bool {
 // their order, pivots, branch keys and each branch's codes. Invalid run unions
 // are rejected. Text may change in any branch.
 //
-// It is the fidelity guard every structure-preserving edit producer shares
-// (apply-edits gates a caller-supplied rewrite on it), so an edit that would
-// corrupt inline markup or flatten a plural/select construct leaves the source
-// unchanged. It checks structure, not semantic attribute changes or
+// An edit that would corrupt inline markup or flatten a plural/select
+// construct fails it. It checks structure, not semantic attribute changes or
 // vocabulary permissions. Callers reconstruct inline-code metadata from the
 // source.
 func InlineCodesPreserved(a, b []Run) bool {

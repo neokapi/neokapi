@@ -28,18 +28,24 @@ func TestParseMCPToolSets(t *testing.T) {
 	assert.Contains(t, err.Error(), "writing, content, translation, review, all", "the refusal lists the sets")
 }
 
-// No tool sits in two sets: `--tools content` and `--tools writing` are
-// different decisions, and a tool in both would make one of them a lie.
-func TestMCPToolSetsDoNotOverlap(t *testing.T) {
-	seen := map[string]string{}
+// Each set serves every tool it lists, whichever other sets are named: a tool
+// two sets list (apply_edits, in writing and review) is served when either
+// is, and removed only when neither is.
+func TestMCPToolSetsServeEveryToolTheyList(t *testing.T) {
+	isolateCheckExecution(t)
+	all, _ := listSurface(t, nil)
 	for set, tools := range mcpToolSets {
-		for _, tool := range tools {
-			if other, dup := seen[tool]; dup {
-				t.Errorf("%s is in both %s and %s", tool, other, set)
+		t.Run(set, func(t *testing.T) {
+			served, _ := listSurface(t, map[string]bool{set: true})
+			for _, tool := range tools {
+				if slices.Contains(all, tool) {
+					assert.Contains(t, served, tool, "--tools %s serves %s", set, tool)
+				}
 			}
-			seen[tool] = set
-		}
+		})
 	}
+	served, _ := listSurface(t, map[string]bool{MCPSetContent: true})
+	assert.NotContains(t, served, "apply_edits", "a tool no named set lists is removed")
 }
 
 // listSurface lists the tools and resource templates a server built with the
@@ -73,20 +79,14 @@ func listSurface(t *testing.T, sets map[string]bool) ([]string, []string) {
 func TestMCPToolSetsGateTheSurface(t *testing.T) {
 	isolateCheckExecution(t)
 
-	// extract_content is registered by the kapi binary's own factories
-	// (kapi/mcptools), so a host-only server serves the rest of the set.
+	// The host registers every tool of the writing set, so a host-only server
+	// serves the whole set.
 	all, _ := listSurface(t, nil)
 	tools, templates := listSurface(t, map[string]bool{MCPSetWriting: true})
 	slices.Sort(tools)
-	var want []string
-	for _, name := range MCPToolSetTools(MCPSetWriting) {
-		if slices.Contains(all, name) {
-			want = append(want, name)
-		}
-	}
+	want := MCPToolSetTools(MCPSetWriting)
 	slices.Sort(want)
 	assert.Equal(t, want, tools, "the writing set serves its tools and no other")
-	assert.Contains(t, tools, "apply_edits", "the writing set serves the structured edit path")
 	assert.ElementsMatch(t, []string{contextLocationTemplate, contextProfileTemplate}, templates)
 
 	tools, templates = listSurface(t, map[string]bool{MCPSetTranslation: true})
@@ -98,29 +98,16 @@ func TestMCPToolSetsGateTheSurface(t *testing.T) {
 	assert.Contains(t, all, "check_file")
 }
 
-// The default surface reaches the structured edit path: extract_content reads
-// a file's blocks and apply_edits writes them back. An agent in a project kapi
-// init wired, which names no set or adds only translation, has both.
-func TestMCPWritingSetServesTheEditPath(t *testing.T) {
+// The default surface reaches the edit contract: read_blocks reads a
+// document's blocks, apply_edits sends a change set, and describe_format says
+// what a format supports. An agent in a project kapi init wired, which names
+// no set or adds only translation, has all three.
+func TestMCPWritingSetServesTheEditContract(t *testing.T) {
 	writing := MCPToolSetTools(MCPSetWriting)
-	for _, name := range []string{"extract_content", "apply_edits"} {
+	for _, name := range []string{"read_blocks", "apply_edits", "describe_format"} {
 		assert.Contains(t, writing, name)
-		assert.NotContains(t, MCPToolSetTools(MCPSetContent), name, "a tool sits in one set")
+		assert.NotContains(t, MCPToolSetTools(MCPSetContent), name)
 	}
-}
-
-// apply_edits declares each comment file's check as an object rather than
-// repeating the kapi.check/v2 report schema check_file already declares in the
-// same set, which would double the size of a tool every writing session reads.
-func TestApplyEditsOutputSchemaLeavesTheCheckToCheckFile(t *testing.T) {
-	s := applyEditsOutputSchema()
-	comments := s.Properties["comments"]
-	require.NotNil(t, comments)
-	require.NotNil(t, comments.Items)
-	held := comments.Items.Properties["check"]
-	require.NotNil(t, held)
-	assert.Empty(t, held.Properties, "the report's fields are check_file's to declare")
-	assert.Contains(t, held.Description, "check_file")
-	assert.Contains(t, s.Properties, "not_found", "the rest of the result is declared as inferred")
-	assert.Contains(t, comments.Items.Properties, "edits")
+	assert.Equal(t, []string{"review_queue", "review_block", "apply_edits"}, MCPToolSetTools(MCPSetReview),
+		"an agent records a pre-review through apply_edits, so the review set serves it")
 }

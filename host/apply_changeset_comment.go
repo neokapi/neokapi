@@ -50,9 +50,9 @@ func commentRevision(fp string) string {
 type commentDocs struct {
 	app  *App
 	root string
-	// index is the recipe's content, resolved on first use; nil outside a
+	// layout resolves the recipe's files, built on first use; nil outside a
 	// project.
-	index func() *projectChangeIndex
+	layout func() *projectChangeLayout
 }
 
 // newCommentDocs tells comment documents for the project at recipe, "" none.
@@ -60,7 +60,7 @@ func (a *App) newCommentDocs(recipe string) *commentDocs {
 	c := &commentDocs{app: a}
 	if recipe != "" {
 		c.root = filepath.Dir(recipe)
-		c.index = a.projectIndex(recipe)
+		c.layout = a.lazyProjectLayout(recipe)
 	}
 	return c
 }
@@ -86,7 +86,7 @@ func (c *commentDocs) is(path string) bool {
 // source the recipe claims for its content, or the file of one of its
 // translations. A file declared for its comments alone is not bound.
 func (c *commentDocs) bound(path string) bool {
-	if c.index == nil {
+	if c.layout == nil {
 		return false
 	}
 	abs, err := filepath.Abs(path)
@@ -97,14 +97,16 @@ func (c *commentDocs) bound(path string) bool {
 	if err != nil || !filepath.IsLocal(rel) {
 		return false
 	}
-	ix := c.index()
-	if ix == nil {
+	l := c.layout()
+	if l == nil {
 		return false
 	}
 	rel = filepath.ToSlash(rel)
-	_, source := ix.sources[rel]
-	_, target := ix.byTarget[rel]
-	return source || target
+	if _, source := l.sourceFile(rel); source {
+		return true
+	}
+	_, target, err := l.translationFile(rel)
+	return err == nil && target
 }
 
 // formatReads reports whether detection finds a format for the file at path,
