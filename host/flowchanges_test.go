@@ -281,7 +281,7 @@ func TestFlowRun_AppliesItsChangesAgainToAFileThatMovedWhileItWorked(t *testing.
 			require.NotNil(t, docs)
 			runner := flow.NewFileRunner(flow.FileRunnerConfig{FormatReg: a.FormatReg, SourceLocale: "en", Home: home, Documents: docs})
 			tools := []tool.Tool{
-				&writeDuringRun{BaseTool: tool.BaseTool{ToolName: "save"}, path: target, data: tc.saved},
+				&writeDuringRun{ToolName: "save", path: target, data: tc.saved},
 				&setTarget{BaseTool: tool.BaseTool{ToolName: "set"}, key: "greeting", text: "Bonjour"},
 			}
 			err = runner.RunFile(context.Background(), "edit", tools, filepath.Join(root, "src", "en.json"), target, "qps")

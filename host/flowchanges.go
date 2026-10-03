@@ -551,13 +551,13 @@ func (doc *flowDoc) record(ctx context.Context, written bool, before, after stri
 					continue
 				}
 			}
-			t := change.Transition{EditionChange: change.EditionChange{
+			t := change.Transition{
 				Ref:       change.Ref{Doc: doc.ref, Block: key, Edition: k},
 				Role:      change.RoleAuthoritative,
 				BeforeRev: was,
 				AfterRev:  rev,
 				Block:     b,
-			}}
+			}
 			if derived {
 				t.Role = change.RoleDerived
 				t.Basis = model.EditionRevision(b, b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{})))
@@ -654,7 +654,7 @@ func (doc *flowDoc) applyOps() []change.Op {
 				ops = append(ops, change.Op{Kind: change.KindRemoveEdition, At: at, IfMatch: was, Body: &change.RemoveEdition{}})
 				continue
 			}
-			op := change.Op{Kind: change.KindSetContent, At: at, IfMatch: was, Body: &change.SetContent{Content: change.Content{Runs: ed.runs}}}
+			op := change.Op{Kind: change.KindSetContent, At: at, IfMatch: was, Body: &change.SetContent{Runs: ed.runs}}
 			if !ed.key.IsZero() {
 				op.Basis = doc.basis(key, lb)
 			}

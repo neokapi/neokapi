@@ -41,11 +41,11 @@ type MovedError struct {
 func (e *MovedError) Error() string {
 	switch {
 	case e.Before == "":
-		return fmt.Sprintf("%s was created by another writer while the run worked; nothing was written to it", e.Path)
+		return e.Path + " was created by another writer while the run worked; nothing was written to it"
 	case e.Now == "":
-		return fmt.Sprintf("%s was removed while the run worked; nothing was written to it", e.Path)
+		return e.Path + " was removed while the run worked; nothing was written to it"
 	}
-	return fmt.Sprintf("%s changed while the run worked; nothing was written to it", e.Path)
+	return e.Path + " changed while the run worked; nothing was written to it"
 }
 
 // Is reports ErrMoved.

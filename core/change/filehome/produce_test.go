@@ -73,10 +73,10 @@ func TestProduce_CommitsWhatTheRunWrote(t *testing.T) {
 
 			p, err := home.Produce(t.Context(), path, before, produceBytes("new\n"))
 			require.NoError(t, err)
-			defer p.Release()
+			defer func() { _ = p.Release() }()
 			if tc.existing == nil {
 				_, serr := os.Stat(filepath.Dir(path))
-				assert.ErrorIs(t, serr, os.ErrNotExist, "a stage creates no directory")
+				require.ErrorIs(t, serr, os.ErrNotExist, "a stage creates no directory")
 			}
 			if tc.between != nil {
 				tc.between(t, path)
@@ -164,7 +164,7 @@ func TestProduce_TakesTheLockAChangeSetCommitsUnder(t *testing.T) {
 	producer := filehome.New(nil, filehome.Options{LockDir: locks})
 	p, err := producer.Produce(t.Context(), path, before, produceBytes(`{"greeting": "Bonjour"}`+"\n"))
 	require.NoError(t, err)
-	defer p.Release()
+	defer func() { _ = p.Release() }()
 
 	// A change set staged and settled holds the file's commit lock until it
 	// commits.
@@ -174,7 +174,7 @@ func TestProduce_TakesTheLockAChangeSetCommitsUnder(t *testing.T) {
 	defer sess.Close()
 	staged, err := sess.Stage(t.Context(), change.Want{Own: true}, &replaceEditor{text: "Hello again"})
 	require.NoError(t, err)
-	defer staged.Release()
+	defer func() { _ = staged.Release() }()
 	require.NoError(t, staged.Settle(t.Context()))
 
 	committed := make(chan error, 1)

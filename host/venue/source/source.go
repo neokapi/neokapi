@@ -2092,7 +2092,7 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	if err != nil {
 		return err
 	}
-	defer produced.Release()
+	defer func() { _ = produced.Release() }()
 	return produced.Commit(ctx)
 }
 

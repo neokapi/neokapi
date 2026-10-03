@@ -175,7 +175,7 @@ func (a *App) deliverDraft(ctx context.Context, home *filehome.Home, path, dest 
 	if err != nil {
 		return err
 	}
-	defer p.Release()
+	defer func() { _ = p.Release() }()
 	err = p.Commit(ctx)
 	if errors.Is(err, filehome.ErrMoved) && doc != nil && doc.track && doc.svc != nil {
 		return doc.applyAgain(ctx, err)

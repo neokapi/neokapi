@@ -1378,7 +1378,7 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 		return nil
 	})
 	if werr == nil {
-		defer produced.Release()
+		defer func() { _ = produced.Release() }()
 		werr = doc.commit(ctx, produced)
 	}
 	if werr != nil {

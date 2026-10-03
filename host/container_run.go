@@ -73,7 +73,7 @@ func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, ou
 	if err != nil {
 		return err
 	}
-	defer produced.Release()
+	defer func() { _ = produced.Release() }()
 	return produced.Commit(ctx)
 }
 

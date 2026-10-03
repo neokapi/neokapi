@@ -167,14 +167,6 @@ func TestReApprovalClearsStale_ReDraftAndRejectionDoNot(t *testing.T) {
 	assert.Zero(t, f.staleUnits(t), "the re-approval is the decision the basis records")
 }
 
-// project loads the fixture's recipe.
-func (f *reapprovalFixture) project(t *testing.T) *project.KapiProject {
-	t.Helper()
-	proj, err := project.LoadWithOptions(f.recipe, project.LoadOptions{SkipRequiresCheck: true})
-	require.NoError(t, err)
-	return proj
-}
-
 // TestStalenessGate_ReApprovalClearsIt is the same rule on the governance axis:
 // the gate compares the unit's governing basis, so an approval made under the
 // context in force answers for the unit and a rejection reads through to the

@@ -77,7 +77,7 @@ func (t *toolOutput) write(ctx context.Context, path string, produce func(io.Wri
 	if err != nil {
 		return err
 	}
-	defer p.Release()
+	defer func() { _ = p.Release() }()
 	t.done = true
 	if t.run != nil {
 		return t.run.Commit(ctx, p)
