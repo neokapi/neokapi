@@ -50,6 +50,13 @@ export interface PluralTargetEditorProps {
   onChange(next: Run[]): void;
   /** Optional subset of CLDR forms to display; defaults to all six. */
   forms?: readonly PluralForm[];
+  /**
+   * Keep the structure as it is: the forms are edited, and neither "Upgrade to
+   * plural" nor "Flatten back" is offered. A host that saves each form as its
+   * own change (a branch of the plural, by path) passes it, since a change of
+   * structure replaces the whole edition.
+   */
+  fixedStructure?: boolean;
   /** Pass-through class for the outer container. */
   className?: string;
 }
@@ -70,6 +77,7 @@ function FlatTarget({
   target,
   onChange,
   forms,
+  fixedStructure,
   className,
 }: PluralTargetEditorProps & { forms: readonly PluralForm[] }) {
   const candidates = useMemo(() => pluralPivotCandidates(block as Block), [block]);
@@ -96,7 +104,7 @@ function FlatTarget({
         onChange={(e) => handleEdit(e.target.value)}
         aria-label="Translation"
       />
-      {candidates.length > 0 ? (
+      {candidates.length > 0 && !fixedStructure ? (
         <div className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Pivot:</span>
           <select
@@ -128,6 +136,7 @@ function PluralForms({
   target,
   onChange,
   forms,
+  fixedStructure,
   className,
 }: PluralTargetEditorProps & { forms: readonly PluralForm[] }) {
   const pivot = pluralTargetPivot(target) ?? "";
@@ -152,14 +161,16 @@ function PluralForms({
         <span className="text-muted-foreground">
           Plural pivot: <span className="font-mono">{pivot}</span>
         </span>
-        <button
-          type="button"
-          className={ghostButtonClass}
-          onClick={downgrade}
-          aria-label="Collapse plural target to flat text"
-        >
-          Flatten back to single target
-        </button>
+        {!fixedStructure && (
+          <button
+            type="button"
+            className={ghostButtonClass}
+            onClick={downgrade}
+            aria-label="Collapse plural target to flat text"
+          >
+            Flatten back to single target
+          </button>
+        )}
       </div>
       <div className="space-y-2">
         {forms.map((form) => (

@@ -202,4 +202,23 @@ describe("<PluralTargetEditor>", () => {
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange.mock.calls[0][0]).toEqual(flatGermanTarget());
   });
+
+  it("offers neither upgrade nor flatten when the structure is fixed", () => {
+    const pluralTarget: Run[] = [
+      { plural: { pivot: "count", forms: { one: [{ text: "1 Nachricht" }], other: flatGermanTarget() } } },
+    ];
+    for (const target of [pluralTarget, flatGermanTarget()]) {
+      const c = renderToContainer(
+        createElement(PluralTargetEditor, {
+          block: fixtureBlock(),
+          target,
+          onChange: vi.fn(),
+          fixedStructure: true,
+        }),
+      );
+      const labels = Array.from(c.querySelectorAll("button")).map((b) => b.textContent ?? "");
+      expect(labels.some((l) => l.includes("Flatten") || l.includes("Upgrade"))).toBe(false);
+      expect(c.querySelector("textarea")).toBeTruthy();
+    }
+  });
 });
