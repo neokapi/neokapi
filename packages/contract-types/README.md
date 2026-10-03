@@ -25,9 +25,10 @@ Five layers, re-exported from the package root:
   `data`. A pattern, a bound or a rule between fields (a revision's form,
   `occurrence` only beside `find`, at least one operation) is documented on
   the field and checked by the service. `ChangeResult`
-  (`kapi.change-result/v1`), the read page (`ReadPage`, `BlockRead`) and a
-  format's description (`FormatDescription`) are reflected from the Go structs
-  the service marshals; a change set refused as a whole is a `ChangeResult`
+  (`kapi.change-result/v1`), the read page (`ReadPage`, `BlockRead`), a
+  format's description (`FormatDescription`) and an edition's recorded changes
+  (`EditionHistory`, `HistoryEntry`) are reflected from the Go structs the
+  service marshals; a change set refused as a whole is a `ChangeResult`
   whose `error` says why, with empty `docs` and `ops`. The unions of
   operation kinds, statuses and error codes come with frozen lists, and
   `CHANGE_ERROR_HTTP_STATUS` and `CHANGE_ERROR_EXIT_CODE` map each error code

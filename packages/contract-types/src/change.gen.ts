@@ -7,9 +7,10 @@
 // the JSON Schema core/change/changeschema generates from the Go types, so
 // these types refuse the structural mistakes the decoder refuses; a pattern,
 // a bound or a rule between fields is documented and checked by the decoder
-// alone. The result (kapi.change-result/v1), a read page and a format's
-// description are reflected from the core/change structs the service
-// marshals, with the doc comments of their Go declarations.
+// alone. The result (kapi.change-result/v1), a read page, a format's
+// description and an edition's history are reflected from the core/change
+// structs the service marshals, with the doc comments of their Go
+// declarations.
 
 import type { RunPos } from "./content.gen.ts";
 
@@ -851,6 +852,18 @@ export const CHANGE_GUARD_SUBCODES: readonly ChangeGuardSubcode[] = ["codes_chan
 export type FormatEditions = "one-per-file" | "in-file";
 export const FORMAT_EDITIONS: readonly FormatEditions[] = ["one-per-file", "in-file"];
 
+/**
+ * ActorKind says what kind of sender a change has.
+ *
+ * Mirrors core/change.ActorKind.
+ *
+ * - `person`: is someone using kapi, Kapi Desktop or a Bowrain editor.
+ * - `agent`: is an AI working through kapi's agent surfaces.
+ * - `tool`: is a tool running in a flow.
+ */
+export type ChangeActorKind = "person" | "agent" | "tool";
+export const CHANGE_ACTOR_KINDS: readonly ChangeActorKind[] = ["person", "agent", "tool"];
+
 /** The HTTP status a transport answers each refusal with. Mirrors core/change.Code.HTTPStatus. */
 export const CHANGE_ERROR_HTTP_STATUS: Readonly<Record<ChangeErrorCode, number>> = {
   invalid: 400,
@@ -1185,6 +1198,15 @@ export interface CodeRead {
   kind: string;
   type?: string;
   attrs?: Record<string, string>;
+  /**
+   * Equiv is the code's equivalent text, such as the name of the variable a
+   * placeholder stands for, and Disp the short label an editor shows on it.
+   * Both are labels: a read leaves out either one that repeats the code's
+   * native form (an ICU argument, a printf specifier, a tag), which no read
+   * shows.
+   */
+  equiv?: string;
+  disp?: string;
   /** Writable are the attributes set_attribute can change on the code. */
   writable?: string[];
 }
@@ -1210,6 +1232,16 @@ export interface StructureRead {
 export interface EditionRead {
   rev: string;
   text: string;
+  /**
+   * Codes lists the edition's inline codes where they differ from the block's;
+   * absent, the block's codes are the edition's.
+   */
+  codes?: Record<string, CodeRead>;
+  /**
+   * Structures lists the edition's own plurals and selects, each with the path
+   * an operation on the edition names to reach one of its branches.
+   */
+  structures?: StructureRead[];
   status?: string;
   /**
    * Basis is the authoritative edition's revision the edition was made from,
@@ -1311,4 +1343,87 @@ export type OpSupported = Record<string, never>;
 export interface FormatNativeOp {
   name: string;
   schema?: unknown;
+}
+
+// ── An edition's recorded changes (Service.History) ─────────────────────────
+
+/**
+ * HistoryRequest names the edition whose recorded changes to list.
+ *
+ * Mirrors core/change.HistoryRequest.
+ */
+export interface HistoryRequest {
+  /**
+   * Ref is the edition as a read reports it. A reference to the file one
+   * edition lives in, with no edition, names that edition, as a read of that
+   * file does.
+   */
+  ref: ChangeRef;
+  /**
+   * Limit is the most entries the history holds; zero is DefaultHistoryLimit.
+   */
+  limit?: number;
+}
+
+/**
+ * History is the recorded changes to one edition, most recent first.
+ *
+ * Mirrors core/change.History.
+ */
+export interface EditionHistory {
+  /** Ref is the edition, canonical. */
+  ref: ChangeRef;
+  /**
+   * Rev is the edition's revision now, "absent" for an edition the block does
+   * not hold.
+   */
+  rev: string;
+  entries: HistoryEntry[];
+}
+
+/**
+ * HistoryEntry is one recorded change to an edition.
+ *
+ * Mirrors core/change.HistoryEntry.
+ */
+export interface HistoryEntry {
+  /**
+   * Record is the id of the recorded edit (content.edit) that made the change.
+   */
+  record: string;
+  /**
+   * Before and After are the edition's revisions around the change: Before is
+   * "absent" for an edition the change created, and After for one it removed.
+   */
+  before: string;
+  after: string;
+  /**
+   * Basis is the authoritative edition's revision a derived edition was made
+   * from, when the change recorded one.
+   */
+  basis?: string;
+  /**
+   * Actor is who made the change, null when nobody knows who, as for an edit
+   * made outside kapi.
+   */
+  actor: ChangeActor | null;
+  /**
+   * Origin is the surface that applied the change: apply, desktop, mcp,
+   * flow:<name>, merge, pull or observed.
+   */
+  origin?: string;
+  /** At is when the change was recorded. */
+  at: string;
+}
+
+/**
+ * Actor is who sends a change. The transport sets it; a change set never names
+ * its own sender.
+ *
+ * Mirrors core/change.Actor.
+ */
+export interface ChangeActor {
+  kind: ChangeActorKind;
+  name?: string;
+  session?: string;
 }

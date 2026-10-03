@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -155,6 +156,10 @@ type Diagnostic struct {
 	// Suggested marks a diagnostic raised by a suggested rule. It never fails
 	// and weighs nothing in the score. See Finding.Suggested.
 	Suggested bool `json:"suggested,omitempty"`
+	// Fix is the change operation that applies the finding's replacement
+	// (Fix), for a finding whose rule names one: a kapi.change/v1 operation a
+	// change set carries to kapi apply as it is.
+	Fix *change.Op `json:"fix,omitempty"`
 }
 
 // Point is a governance point a project resolved for checked blocks: the

@@ -247,16 +247,21 @@ export interface DesktopFinding {
   message: string;
   suggestion?: string;
   original_text?: string;
-  /** The format's stable block id, so a fix can re-find the block. */
+  /** The format's stable block id, so the document view can open at it. */
   block_id?: string;
   /** Which side of the block the offending text lives on. */
   field?: "source" | "target";
   /** The language `original_text` is written in, for direction and lang attributes. */
   locale?: string;
-  /** Structured fix text (e.g. a voice profile's preferred term). */
+  /** The wording the rule asks for (a term's replacement). */
   replacement?: string;
-  /** Whether the panel may show a one-click "Apply fix" button. */
-  fixable: boolean;
+  /**
+   * The change operation that applies `replacement`, as kapi.change/v1 JSON (a
+   * replace_text of the words the finding objects to, under the revision the
+   * check read). The panel sends it to the change service as it is. Absent
+   * when the finding has no fix.
+   */
+  fix?: string;
   /** The rule that fired, so the finding traces to the decision behind it. */
   rule?: string;
   /** The coordinate the checked file sits at. Empty is the project's own point. */
@@ -1221,8 +1226,6 @@ export interface ReviewUnitDetail {
   /** Best content-memory match percent (absent/0 = none found or no project content memory open). */
   memory_score?: number;
   findings: DesktopFinding[];
-  /** Whether the target is a single plain-text run (safe to edit in place). */
-  editable: boolean;
   /** Fresh AI pre-review annotation (state-store read; no provider call). */
   ai_review_score?: number;
   ai_review_model?: string;
@@ -1258,7 +1261,11 @@ export type ReviewAIActionKind = "fix-findings" | "retranslate" | "explain";
 /** Outcome of a per-unit review AI action: a proposed target (fix-findings /
  * retranslate — nothing written until accepted) or explanation text. */
 export interface ReviewAIActionResult {
+  /** The proposal as a reader reads it. */
   proposed_target?: string;
+  /** The proposal in the placeholder form a read shows, which Accept sends as
+   *  a set_content so every code the proposal kept is kept. */
+  proposed_edit?: string;
   explanation?: string;
   /** The LLM calls this action made, so the reviewer can read what was sent
    *  before accepting what came back. */

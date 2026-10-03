@@ -20,10 +20,18 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 )
 
+// Service is what the suite sends change sets to and reads documents
+// through: a *change.Service, or a surface that carries the contract to one,
+// such as an application binding that takes and returns its JSON.
+type Service interface {
+	Read(ctx context.Context, q change.ReadRequest) (*change.Page, error)
+	Apply(ctx context.Context, set change.Set, actor change.Actor) (*change.Result, error)
+}
+
 // Env is a home under test.
 type Env struct {
 	// Service applies change sets to documents in the home.
-	Service *change.Service
+	Service Service
 	// DocA holds at least two editable blocks; DocB at least one.
 	DocA, DocB string
 	// Snapshot returns what the home holds for a document, byte for byte,

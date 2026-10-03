@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
@@ -279,7 +280,7 @@ func TestGetConvergence_UnknownTab(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestApproveReviewItem_PromotesToReviewed(t *testing.T) {
+func TestDecideEstablish_PromotesToReviewed(t *testing.T) {
 	app := NewApp()
 	tab, root := newConvergenceProject(t, app)
 
@@ -300,7 +301,9 @@ func TestApproveReviewItem_PromotesToReviewed(t *testing.T) {
 	}
 	require.NotNil(t, item, "fr-FR has translated units awaiting review")
 
-	require.NoError(t, app.ApproveReviewItem(tab.ID, item.Locale, item.File, item.Key))
+	read := blockVia(t, app, tab.ID, filepath.ToSlash(item.File), item.Key)
+	res := applyVia(t, app, tab.ID, change.Set{Ops: []change.Op{decideOp(read.Ref, read.Rev, change.OutcomeEstablish)}})
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 
 	after, err := app.GetConvergence(tab.ID)
 	require.NoError(t, err)
@@ -315,10 +318,4 @@ func TestApproveReviewItem_PromotesToReviewed(t *testing.T) {
 			assert.NotEqual(t, item.Key, it.Key, "the approved unit is gone")
 		}
 	}
-}
-
-func TestApproveReviewItem_UnknownTab(t *testing.T) {
-	app := NewApp()
-	err := app.ApproveReviewItem("nope", "fr-FR", "f.json", "k")
-	require.Error(t, err)
 }

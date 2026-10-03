@@ -109,8 +109,9 @@ note describes each rule.
   reference to copy into an operation, the revision to send as `if_match`, the
   content as placeholder text, its inline codes with their attributes and the
   attributes `set_attribute` can write, its plurals and selects with the path to
-  each branch, its other editions with their status and staleness, and the
-  operations it accepts. A read of the file one edition lives in, such as the
+  each branch, its other editions with their status and staleness, each one's
+  own plurals and selects and its codes where they differ from the block's, and
+  the operations it accepts. A read of the file one edition lives in, such as the
   German file of an English page, shows that edition as each block's own, with
   the document's own edition among the others, so a reference copied from it
   edits the German. A page ends with a cursor; a cursor into a document that
@@ -142,6 +143,13 @@ note describes each rule.
   `WithDescriber` replaces `DescribeFormat`, and that one function is what
   `Describe` reports, what a read lists per block, and what `Apply` refuses
   outside of.
+- **`History`** lists the recorded changes to one edition, most recent first,
+  beside the revision the edition holds now. It reads the block from its home,
+  so a reference resolves as a read resolves it, and asks the
+  `EditionHistories` hook for the changes: each with its record, the revisions
+  around it, the basis a derived edition was made from, who made it (null when
+  nobody knows, as for an edit made outside kapi), through which surface, and
+  when.
 
 A document's edition lives in the document (its own edition, or one a bilingual
 file holds), in a file of its own (a project's target file), or nowhere (a
@@ -289,9 +297,9 @@ agent's write of the same wording, which stays theirs. So the history keeps the
 basis of every translation the loop made. That basis is what coverage grades an
 undecided translation by, what a decision on it starts from, and where the
 staleness gate finds what governed it. An undecided record in the decision
-ledger (a Kapi Desktop edit, or a basis the loop kept there in an older
-project) yields to the flow's last write when that write is the translation the
-file holds.
+ledger (a basis an earlier release recorded there for a Kapi Desktop edit or a
+loop pass) yields to the flow's last write when that write is the translation
+the file holds.
 
 A destination that moved while the run worked is applied again through the
 service from the run's operations (`set_content` on each edition the run
@@ -336,7 +344,7 @@ file, and prints nothing with a note.
 
 ### Hooks
 
-The service calls five hooks a host supplies. Each is optional.
+The service calls six hooks a host supplies. Each is optional.
 
 | Hook | Called | Without one |
 | --- | --- | --- |
@@ -345,6 +353,7 @@ The service calls five hooks a host supplies. Each is optional.
 | `Assets` | to prepare `decide`, `term`, `memory` and `recipe` before anything is written, and to apply them after the content landed | those operations are refused as `unsupported` |
 | `Recorder` | after the homes committed, with the transitions and the fingerprint | nothing is recorded |
 | `EditionStates` | by a read, for the status and basis of a derived edition | a read shows the status the document holds and no basis |
+| `EditionHistories` | by `History`, for the recorded changes to an edition | a history lists nothing |
 
 The service refuses a change only for a failing finding it introduces
 (`change.Introduced`). Under `report` the change lands with its findings, and a
@@ -364,12 +373,15 @@ writes the source's translations to files of their own. Decisions and asset oper
 land through the host's review-queue and asset functions, a decision bound to
 the wording the change set landed rather than to a later read of the file; on
 an edition with no content in its home, such as a parked locale's draft, the
-decision binds to the draft the project store holds. The hooks each plug in at
+decision binds to the draft the project store holds. Such a decision names the
+edition it read as `absent`, and is refused as stale once the home holds the
+edition. The hooks each plug in at
 one function of the host: the commit check is `App.CommitCheck`, which holds a
 service outside a project to hygiene alone; the policy is `ChangePolicy`; the
-recorder is `App.EditRecorder`, inside a project; and a read takes a derived
+recorder is `App.EditRecorder`, inside a project; a read takes a derived
 edition's basis from the project's block history, where the most recent
-recorded change to the edition left the content it holds.
+recorded change to the edition left the content it holds; and a history lists
+the edition's rows of that block history.
 
 On the command line, `kapi apply` hands a decoded change set to the service,
 `kapi inspect` prints the service's read records, and `ksed` compiles its
@@ -440,6 +452,28 @@ locale-variant media through `ChangeServiceOptions.WriterHook`, and writes a
 target in another format than its source, which no edition reaches, with the
 target's own writer. The record names the surface as the origin: `merge` or
 `pull`.
+
+Kapi Desktop reaches the service through four bindings, `Read`, `Apply`,
+`Describe` and `History`, each taking and returning the contract's JSON as a
+string. It builds the service for the tab's project with `desktop` as the
+origin and sends every change set as the person at the keyboard: an edit in the
+review pane or the document view, a check finding's fix, and Approve and Reject
+as `decide` ([S-02](../surfaces/s-02-kapi-desktop.md)).
+
+`kapi check` gives a finding whose rule names a replacement the operation that
+applies it (`check.Fix`): a `replace_text` of the words the finding objects to,
+by the run range the checker reported, under the revision of the block's own
+edition the check read. Sent as it is, it lands while the block still says what
+the check read, and is refused as stale once it does not. The fixes of one block
+name places in the same text, so they compose as the edits of one operation;
+as separate operations of one change set, each would see the text the one
+before it left. A replacement is plain text, and `ApplyTextEdits` keeps a code
+only at either end of the text it replaces, so a finding whose words have an
+inline code among them gets no fix. The fix names its document as the project's
+change service resolves one, by its path from the project root, and the file of
+a translation gets no fix: the service reads that file as the translation's
+edition, while the check read it as source and held it to the source
+language's rules.
 
 ### Results and errors
 

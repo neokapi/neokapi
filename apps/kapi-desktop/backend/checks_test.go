@@ -2,11 +2,13 @@ package backend
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -95,7 +97,11 @@ func TestRunChecksFindsVoiceVocab(t *testing.T) {
 	assert.Equal(t, "source", vocab.Field)
 	assert.Equal(t, "en", vocab.Locale, "a source-side finding carries the project's source locale")
 	assert.Equal(t, "use", vocab.Replacement)
-	assert.True(t, vocab.Fixable, "a forbidden term with a replacement and a block id should be fixable")
+	require.NotEmpty(t, vocab.Fix, "a forbidden term with a replacement carries the operation that applies it")
+	var fix change.Op
+	require.NoError(t, json.Unmarshal([]byte(vocab.Fix), &fix), "the fix is a kapi.change/v1 operation")
+	assert.Equal(t, change.KindReplaceText, fix.Kind)
+	assert.Equal(t, change.Ref{Doc: "locales/en.json", Block: "greeting"}, fix.At)
 	assert.NotEmpty(t, vocab.BlockID)
 	// The finding travels with the text it was raised on, so the panel can show
 	// the words in place with the position marked over them.
@@ -151,27 +157,42 @@ func TestRunChecksTargetFindingCarriesTargetLocale(t *testing.T) {
 	assert.Equal(t, "Hallo", model.RunsText(placeholder.TargetRuns))
 }
 
-func TestApplyCheckFixRewritesSourceAndResolves(t *testing.T) {
+// applyFix sends a finding's fix to Apply, as the Checks panel does.
+func applyFix(t *testing.T, app *App, tabID string, f DesktopFinding) change.Result {
+	t.Helper()
+	require.NotEmpty(t, f.Fix, "the finding carries a fix")
+	raw, err := app.Apply(tabID, `{"ops": [`+f.Fix+`]}`)
+	require.NoError(t, err)
+	var res change.Result
+	require.NoError(t, json.Unmarshal([]byte(raw), &res))
+	return res
+}
+
+// fixableFinding is the first finding of a run that carries a fix.
+func fixableFinding(t *testing.T, res *CheckRunResult) DesktopFinding {
+	t.Helper()
+	for _, file := range res.Files {
+		for _, f := range file.Findings {
+			if f.Fix != "" {
+				return f
+			}
+		}
+	}
+	require.FailNow(t, "expected a finding with a fix")
+	return DesktopFinding{}
+}
+
+func TestCheckFixAppliesThroughTheChangeService(t *testing.T) {
 	app := NewApp()
 	tabID, srcPath := setupCheckProject(t, app, `{"greeting":"Please utilize the dashboard"}`)
 
 	res, err := app.RunChecks(tabID, ProjectFilter{})
 	require.NoError(t, err)
-	require.Len(t, res.Files, 1)
+	vocab := fixableFinding(t, res)
 
-	var vocab *DesktopFinding
-	for i := range res.Files[0].Findings {
-		if res.Files[0].Findings[i].Fixable {
-			vocab = &res.Files[0].Findings[i]
-			break
-		}
-	}
-	require.NotNil(t, vocab, "expected a fixable finding")
-
-	// Apply the one-click fix.
-	require.NoError(t, app.ApplyCheckFix(
-		tabID, res.Files[0].Path, vocab.BlockID, vocab.Field, vocab.OriginalText, vocab.Replacement,
-	))
+	applied := applyFix(t, app, tabID, vocab)
+	require.Equal(t, change.SetApplied, applied.Status, "%+v", applied.Ops)
+	require.NotNil(t, applied.Record, "the fix is recorded as the person's edit")
 
 	// The file on disk now uses the preferred term.
 	data, rerr := os.ReadFile(srcPath)
@@ -189,29 +210,73 @@ func TestApplyCheckFixRewritesSourceAndResolves(t *testing.T) {
 	assert.Equal(t, 100, res2.Score, "score should be perfect once the only finding is fixed")
 }
 
-func TestApplyCheckFixRefusesMarkupContent(t *testing.T) {
+// A fix inside a formatted block keeps the markup around the words it
+// replaces: it names the words by their run range, never by rewriting the
+// block as plain text.
+func TestCheckFixKeepsTheMarkupOfAFormattedBlock(t *testing.T) {
 	app := NewApp()
-	// Block whose source carries inline markup: a plain substring replace
-	// could corrupt the paired code, so the fix must refuse.
-	tabID := setupMarkupBlock(t, app)
+	tab := setupMarkupBlock(t, app, `<html><body><p>Please <b>utilize</b> it</p></body></html>`, houseVoiceYAML)
 
-	err := app.ApplyCheckFix(tabID.tabID, tabID.path, tabID.blockID, "source", "utilize", "use")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "manual fix needed")
+	res, err := app.RunChecks(tab.tabID, ProjectFilter{})
+	require.NoError(t, err)
+	applied := applyFix(t, app, tab.tabID, fixableFinding(t, res))
+	require.Equal(t, change.SetApplied, applied.Status, "%+v", applied.Ops)
+
+	data, err := os.ReadFile(tab.path)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "<p>Please <b>use</b> it</p>")
 }
 
-func TestApplyCheckFixValidatesArgs(t *testing.T) {
+// Words with a link among them get no fix: the replacement is plain text, and
+// applying it would delete the link with the words. The finding is still
+// reported, for the person to edit.
+func TestCheckFixIsNotOfferedForWordsThatSpanALink(t *testing.T) {
 	app := NewApp()
-	tabID, src := setupCheckProject(t, app, `{"greeting":"hi"}`)
+	voice := `id: house
+name: House Style
+vocabulary:
+  forbidden_terms:
+    - term: read the setup guide
+      replacement: follow the setup guide
+`
+	tab := setupMarkupBlock(t, app,
+		`<html><body><p>First read the <a href="https://example.com/setup">setup guide</a> carefully.</p></body></html>`, voice)
 
-	// Missing block id.
-	require.Error(t, app.ApplyCheckFix(tabID, src, "", "source", "a", "b"))
-	// Bad field.
-	require.Error(t, app.ApplyCheckFix(tabID, src, "x", "middle", "a", "b"))
-	// Empty original/replacement.
-	require.Error(t, app.ApplyCheckFix(tabID, src, "x", "source", "", "b"))
-	// Unknown tab.
-	require.Error(t, app.ApplyCheckFix("nope", src, "x", "source", "a", "b"))
+	res, err := app.RunChecks(tab.tabID, ProjectFilter{})
+	require.NoError(t, err)
+	var found *DesktopFinding
+	for _, file := range res.Files {
+		for i, f := range file.Findings {
+			if f.OriginalText == "read the setup guide" {
+				found = &file.Findings[i]
+			}
+		}
+	}
+	require.NotNil(t, found, "the check reports the words: %+v", res.Files)
+	assert.Empty(t, found.Fix, "a fix over the link would delete it")
+}
+
+// A fix names the revision the check read; a block that changed since is
+// refused with the text it holds now, and the file is left as the other
+// writer left it.
+func TestCheckFixOnAChangedBlockIsStale(t *testing.T) {
+	app := NewApp()
+	tabID, srcPath := setupCheckProject(t, app, `{"greeting":"Please utilize the dashboard"}`)
+	res, err := app.RunChecks(tabID, ProjectFilter{})
+	require.NoError(t, err)
+	vocab := fixableFinding(t, res)
+
+	changed := `{"greeting":"Please do utilize the dashboard"}`
+	require.NoError(t, os.WriteFile(srcPath, []byte(changed), 0o644))
+	applied := applyFix(t, app, tabID, vocab)
+	require.Equal(t, change.SetRefused, applied.Status)
+	require.NotNil(t, applied.Ops[0].Error)
+	assert.Equal(t, change.CodeStale, applied.Ops[0].Error.Code)
+	require.NotNil(t, applied.Ops[0].Current)
+	assert.Equal(t, "Please do utilize the dashboard", applied.Ops[0].Current.Text)
+	data, err := os.ReadFile(srcPath)
+	require.NoError(t, err)
+	assert.Equal(t, changed, string(data))
 }
 
 type markupFixture struct {
@@ -220,22 +285,25 @@ type markupFixture struct {
 	blockID string
 }
 
-// setupMarkupBlock writes an HTML file with a single paragraph containing an
-// inline <b> tag (so the block has multiple runs), opens the project, and
-// returns the block id the fix should refuse to touch.
-func setupMarkupBlock(t *testing.T, app *App) markupFixture {
+// setupMarkupBlock writes an HTML file, page, whose paragraph holds inline
+// markup (so the block has multiple runs) under the voice voiceYAML, opens the
+// project, and returns the block id of that paragraph.
+func setupMarkupBlock(t *testing.T, app *App, page, voiceYAML string) markupFixture {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "page.html")
-	require.NoError(t, os.WriteFile(path, []byte(`<html><body><p>Please <b>utilize</b> it</p></body></html>`), 0o644))
+	require.NoError(t, os.WriteFile(path, []byte(page), 0o644))
 
 	proj := &project.KapiProject{
 		Version:     project.CurrentVersion,
 		Defaults:    project.Defaults{SourceLanguage: "en"},
 		Collections: []project.Collection{{Path: "page.html"}},
 	}
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RelStatePath("voice.yaml")), []byte(voiceYAML), 0o644))
 	projPath := filepath.Join(dir, "proj.kapi")
 	require.NoError(t, project.Save(projPath, proj))
+	readContextAt(t, projPath)
 	tab, err := app.OpenProject(projPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })

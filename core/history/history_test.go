@@ -45,11 +45,15 @@ func TestReadsAnswerMostRecentFirst(t *testing.T) {
 	require.NoError(t, s.Put(ctx, rows))
 	require.NoError(t, s.Put(ctx, rows), "applying the same rows again changes nothing")
 
-	got, err := s.Edition(ctx, "d-1", "p#1", "en")
+	got, err := s.Edition(ctx, "d-1", "p#1", "en", 0)
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 	assert.Equal(t, "op2", got[0].Op)
 	assert.Equal(t, rows[1], got[0], "a row reads back as it was written")
+
+	recent, err := s.Edition(ctx, "d-1", "p#1", "en", 1)
+	require.NoError(t, err)
+	assert.Equal(t, []history.Row{rows[1]}, recent, "a limit keeps the most recent rows")
 
 	last, found, err := s.LastWrite(ctx, "d-1", "p#1", "fr")
 	require.NoError(t, err)
@@ -113,7 +117,7 @@ func TestAnOperationTakesThePlaceOfOneHoldingItsAddress(t *testing.T) {
 	older.Op, older.Origin, older.At = "op1", "flow:up", at(1)
 	require.NoError(t, s.Put(ctx, []history.Row{older}))
 
-	got, err := s.Edition(ctx, "d-1", "p#1", "nb")
+	got, err := s.Edition(ctx, "d-1", "p#1", "nb", 0)
 	require.NoError(t, err)
 	assert.Equal(t, []history.Row{older}, got, "one row, as the operation the log kept wrote it")
 }

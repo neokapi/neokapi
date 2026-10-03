@@ -61,9 +61,6 @@ type ReviewUnitDetail struct {
 	// the state store (read-derived; loading a unit never calls a provider).
 	AIReviewScore *int   `json:"ai_review_score,omitempty"`
 	AIReviewModel string `json:"ai_review_model,omitempty"`
-	// Editable reports whether the target is a single plain-text run, the only
-	// shape UpdateReviewTarget can rewrite safely.
-	Editable bool `json:"editable"`
 	// Context is the host's review model: the point governing the file, the
 	// blocks either side of this one, its prior approved version and the
 	// content-memory match with its wording, the check findings with their run
@@ -156,7 +153,7 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 // review pane showed a clean unit and HasFindings read false. A synthetic
 // blocking finding is honest at the panel, and keeps the signature usable from
 // the paths that legitimately continue past one bad unit.
-func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, sourceLang string, locale model.LocaleID, profile *coreprofile.VoiceProfile, tb terms.Terminology, dntTerms []string) []DesktopFinding {
+func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, doc, sourceLang string, locale model.LocaleID, profile *coreprofile.VoiceProfile, tb terms.Terminology, dntTerms []string) []DesktopFinding {
 	findings := []DesktopFinding{}
 	// The review surface addresses a unit, and carries its own scope in the
 	// queue rather than on each finding, so the point stays unset here.
@@ -184,7 +181,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, sourceLang
 		}
 		if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
 			for _, f := range ann.Findings {
-				findings = append(findings, toDesktopFinding(f, b, "source", sourceLang, point))
+				findings = append(findings, withFix(toDesktopFinding(f, b, "source", sourceLang, point), f, b, doc, model.LocaleID(sourceLang)))
 			}
 			b.DelAnno("voice")
 		}
@@ -262,7 +259,6 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 		Target:       targetText,
 		SourceLocale: sourceLang,
 		Status:       string(model.TargetStatusTranslated),
-		Editable:     targetEditable(b, loc),
 	}
 	if strings.TrimSpace(targetText) == "" {
 		detail.Status = ""
@@ -273,7 +269,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	points := a.newPointResolver(op, false)
 	profile := points.at(ctx, rf.Collection, rf.Relative)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
-	detail.Findings = a.blockCheckFindings(ctx, b, sourceLang, loc, profile,
+	detail.Findings = a.blockCheckFindings(ctx, b, filepath.ToSlash(rf.Relative), sourceLang, loc, profile,
 		points.termsAt(ctx, rf.Collection, rf.Relative), dntTerms)
 
 	// Recorded decision + provenance from the project state store, when the
@@ -357,16 +353,6 @@ func (a *App) reviewMemoryFor(ctx context.Context, op *openProject, root string)
 		}
 	}
 	return a.hostEngine().ReviewMemory(ctx, root)
-}
-
-// targetEditable reports whether the block's target for the locale is a single
-// plain-text run — the only shape UpdateReviewTarget can rewrite safely.
-func targetEditable(b *model.Block, loc model.LocaleID) bool {
-	t := b.Target(loc)
-	if t == nil {
-		return false
-	}
-	return isSinglePlainTextRun(t.Runs)
 }
 
 // ReviewQueue lists units awaiting review across all project languages. Source
@@ -460,7 +446,7 @@ func (a *App) markReviewFindings(ctx context.Context, op *openProject, sourceLan
 			if !ok {
 				continue
 			}
-			has := len(a.blockCheckFindings(ctx, b, sourceLang, model.LocaleID(s.locale), profile, tb, dntTerms)) > 0
+			has := len(a.blockCheckFindings(ctx, b, filepath.ToSlash(rf.Relative), sourceLang, model.LocaleID(s.locale), profile, tb, dntTerms)) > 0
 			items[i].HasFindings = &has
 		}
 	}
@@ -489,166 +475,4 @@ func filterReviewItems(items []host.ReviewQueueItem, filter ProjectFilter) []hos
 		out = append(out, it)
 	}
 	return out
-}
-
-// RejectReviewItem sends one review-queue unit back to the work queue: it
-// records a `rejected` decision (status draft) in the project state store, with
-// the reviewer's note, through the same host.ApplyReviewDecision path the CLI
-// uses. The unit leaves the review queue; retranslating it makes the rejection
-// stale and it re-enters review.
-func (a *App) RejectReviewItem(tabID, locale, file, key, note string) error {
-	return a.applyReviewDecision(tabID, locale, file, key, host.ReviewDecisionRejected, note)
-}
-
-// applyReviewDecision routes every desktop review decision through the shared
-// host.ApplyReviewDecision path, so the CLI and the desktop record identical
-// state (no desktop-only state writes).
-func (a *App) applyReviewDecision(tabID, locale, file, key, decision, note string) error {
-	op := a.getOpenProject(tabID)
-	if op == nil {
-		return fmt.Errorf("project tab %q not found", tabID)
-	}
-	loc, lerr := requireLocale(locale)
-	if lerr != nil {
-		return lerr
-	}
-	locale = string(loc)
-	if op.Project == nil || op.Path == "" {
-		return errors.New("project has no recipe loaded")
-	}
-	src := string(op.Project.Defaults.SourceLanguage)
-	_, err := a.hostEngine().ApplyReviewDecision(context.Background(), op.Path, src,
-		host.ReviewUnitRef{File: file, Key: key, Locale: locale}, decision, note)
-	return err
-}
-
-// UpdateReviewTarget rewrites one translation atomically through the format
-// reader and writer, using the same path as the Checks panel's Apply fix action.
-// Only a single plain-text run is supported; substring edits to placeholders or
-// paired codes could corrupt markup and are rejected.
-//
-// The new content hash invalidates earlier approvals. The edit records human
-// origin, the target hash and source basis without a review decision. The unit
-// remains in the review queue until a reviewer approves the new wording.
-func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
-	op := a.getOpenProject(tabID)
-	if op == nil {
-		return fmt.Errorf("project tab %q not found", tabID)
-	}
-	if op.Project == nil || op.Path == "" {
-		return errors.New("project has no recipe loaded")
-	}
-	if strings.TrimSpace(text) == "" {
-		return errors.New("the edited translation is empty. Reject the unit instead to send it back to draft")
-	}
-	loc, lerr := requireLocale(locale)
-	if lerr != nil {
-		return lerr
-	}
-	locale = string(loc)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	rf, tgtPath, err := a.findReviewSource(op, locale, file)
-	if err != nil {
-		return err
-	}
-	if _, serr := os.Stat(tgtPath); serr != nil {
-		return fmt.Errorf("target file %q not found: %w", tgtPath, serr)
-	}
-
-	pctx := project.NewProjectContext(op.Project, op.Path)
-	sourceLang := string(pctx.SourceLocale)
-	// A target is the translated rendering of its source item, so the rewrite
-	// reads and writes it under the format the recipe binds that item to rather
-	// than the one its extension suggests.
-	fmtName := rf.Format
-	if fmtName == "" {
-		fmtName = pctx.DetectFormat(a.formatReg, tgtPath)
-	}
-	if fmtName == "" {
-		return fmt.Errorf("could not detect a format for %q", filepath.Base(tgtPath))
-	}
-
-	// The target file is read monolingually, so its translated text lives in
-	// each block's source runs — the same convention ApplyCheckFix relies on.
-	applied := false
-	var applyErr error
-	transform := func(b *model.Block) {
-		if convergence.BlockKey(b) != key {
-			return
-		}
-		if !isSinglePlainTextRun(b.SourceRuns()) {
-			applyErr = fmt.Errorf("manual edit needed (formatted content): unit %q has inline markup or multiple runs, so a plain-text rewrite could corrupt it", key)
-			return
-		}
-		b.EditSourceText(text)
-		applied = true
-	}
-	if err := a.rewriteFile(ctx, tgtPath, fmtName, sourceLang, pctx, rf.Item, transform); err != nil {
-		return host.NoReaderError(err, rf.Relative, fmtName, a.discoveredPlugins()...)
-	}
-	if applyErr != nil {
-		return applyErr
-	}
-	if !applied {
-		return fmt.Errorf("unit %q not found in %q", key, filepath.Base(tgtPath))
-	}
-	if rerr := a.recordHumanTargetEdit(ctx, op, rf, tgtPath, locale, key); rerr != nil {
-		return fmt.Errorf("the translation was saved, but recording who produced it failed: %w", rerr)
-	}
-	return nil
-}
-
-// recordHumanTargetEdit records a hand-edited translation in the project state
-// store: a human origin, the hash of the translation now in the file, and the
-// hash of the source it renders. It carries no decision, so the unit sits at the
-// presence baseline and waits for a reviewer to approve the new wording.
-//
-// The record has the shape the loop writes for its own output (host's basis
-// records) and lands in the ledger as its own entry, so the previous record,
-// with the origin the loop stamped, stays readable in the unit's history.
-//
-// The entry is durable where it lands. Serializing the committed shards is a
-// separate act (`kapi commit`), and doing it on every keystroke-sized edit
-// would rewrite the project's record for one line.
-func (a *App) recordHumanTargetEdit(ctx context.Context, op *openProject, rf project.ResolvedFile, tgtPath, locale, key string) error {
-	root := filepath.Dir(op.Path)
-	st, err := a.hostEngine().OpenProjectState(ctx, root)
-	if err != nil {
-		return err
-	}
-	// Re-read the pairing the record is about: the source wording and the
-	// translation the rewrite just put beside it.
-	_, byKey, err := a.reviewUnitBlocks(ctx, op, rf, tgtPath, locale)
-	if err != nil {
-		return err
-	}
-	b, ok := byKey[key]
-	if !ok {
-		return fmt.Errorf("unit %q not found in %q after the edit", key, filepath.Base(tgtPath))
-	}
-
-	loc := model.LocaleID(locale)
-	scope := a.hostEngine().DocumentScope(ctx, root, rf.Path)
-	k := state.Key{Scope: scope, Unit: key, Variant: model.Variant(loc)}
-	now := time.Now().UTC().Format(time.RFC3339)
-	next := state.UnitState{
-		Unit:        key,
-		Variant:     model.Variant(loc),
-		Status:      model.TargetStatusTranslated,
-		Origin:      model.Origin{Kind: model.OriginHuman, Timestamp: now},
-		TargetHash:  state.TargetHash(b.TargetText(loc)),
-		ContentHash: state.SourceHash(b.SourceText()),
-		Updated:     now,
-		Scope:       scope,
-	}
-	if prev, had := st.Get(ctx, k); had {
-		// The source lane's own state and the identity signals ride along; the
-		// decision and the AI pre-review both judged text that is gone.
-		next.SourceStatus = prev.SourceStatus
-		next.ContextHash = prev.ContextHash
-	}
-	return st.RecordEntry(ctx, next, "", state.OriginLocal)
 }

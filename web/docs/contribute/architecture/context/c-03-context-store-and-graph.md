@@ -435,14 +435,13 @@ starts from that write, and the staleness gate reads the producer from it
 ([C-05](c-05-freshness.md)). The basis is the source the run read before it
 ran, so a source edited while the run worked reads as drift. A run that
 reproduces a person's or an agent's wording records nothing over their write.
-The writer that records a change to content any other way is Kapi Desktop's
-edit of a translation, which goes through the decision ledger as
-`decision.record`
+Kapi Desktop edits content through the change service as well, so its edits
+reach the same recorder with the origin `desktop`. An undecided record in the
+decision ledger
 ([C-04](c-04-unit-state-and-decisions.md#the-ledger-is-a-projection-of-the-operation-log)),
-so the block history answers for the writes that reach the recorder. Such an
-undecided ledger record, or a basis an older project's loop kept in the ledger,
-grades a unit while it describes the translation the file holds; once the
-flow's last write is that translation, the write grades it.
+a basis an earlier release recorded beside a translation for a Kapi Desktop
+edit or a loop pass, grades a unit while it describes the translation the file
+holds; once the flow's last write is that translation, the write grades it.
 
 A person's or an agent's edit keeps the runs around each change and the change
 set as sent, in blobs the operation names; a tool's edit keeps the revisions

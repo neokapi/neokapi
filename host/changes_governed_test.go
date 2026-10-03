@@ -118,7 +118,7 @@ func TestChangeService_GovernsAndRecordsAnEdit(t *testing.T) {
 		assert.Equal(t, "asgeir", row.ActorName)
 		assert.Equal(t, p.Rev, row.Before)
 		assert.Equal(t, read(t).Rev, row.After)
-		rows, err := db.History().Edition(ctx, docKey(t), p.Ref.Block, "en")
+		rows, err := db.History().Edition(ctx, docKey(t), p.Ref.Block, "en", 0)
 		require.NoError(t, err)
 		assert.Len(t, rows, 2, "both edits that landed are in the history")
 	})
@@ -142,6 +142,39 @@ func TestChangeService_GovernsAndRecordsAnEdit(t *testing.T) {
 		fr = read(t, "fr").Editions["fr"]
 		assert.Equal(t, p.Rev, fr.Basis)
 		assert.True(t, fr.Stale, "the source moved past the translation's basis")
+	})
+
+	t.Run("a history lists the recorded changes to an edition, most recent first", func(t *testing.T) {
+		p := read(t, "fr")
+		h, err := svc.History(ctx, change.HistoryRequest{Ref: p.Ref})
+		require.NoError(t, err)
+		assert.Equal(t, p.Ref, h.Ref)
+		assert.Equal(t, p.Rev, h.Rev)
+		require.Len(t, h.Entries, 3, "the three edits of the source that landed")
+		latest := h.Entries[0]
+		assert.Equal(t, p.Rev, latest.After, "the most recent change left the edition as it reads now")
+		require.NotNil(t, latest.Actor)
+		assert.Equal(t, person, *latest.Actor)
+		assert.Equal(t, "test", latest.Origin)
+		assert.False(t, latest.At.IsZero())
+		for i := 1; i < len(h.Entries); i++ {
+			assert.Equal(t, h.Entries[i].After, h.Entries[i-1].Before, "each change starts where the one before it ended")
+		}
+
+		at := p.Ref
+		at.Edition = editionKey(t, "fr")
+		frHist, err := svc.History(ctx, change.HistoryRequest{Ref: at})
+		require.NoError(t, err)
+		assert.Equal(t, at, frHist.Ref)
+		assert.Equal(t, p.Editions["fr"].Rev, frHist.Rev)
+		require.Len(t, frHist.Entries, 1)
+		assert.Equal(t, model.AbsentRevision, frHist.Entries[0].Before, "the translation was created")
+		assert.NotEmpty(t, frHist.Entries[0].Basis)
+
+		one, err := svc.History(ctx, change.HistoryRequest{Ref: p.Ref, Limit: 1})
+		require.NoError(t, err)
+		require.Len(t, one.Entries, 1)
+		assert.Equal(t, latest, one.Entries[0])
 	})
 }
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -201,5 +201,79 @@ describe("<PluralTargetEditor>", () => {
 
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange.mock.calls[0][0]).toEqual(flatGermanTarget());
+  });
+
+  it("offers neither upgrade nor flatten when the structure is fixed", () => {
+    const pluralTarget: Run[] = [
+      {
+        plural: {
+          pivot: "count",
+          forms: { one: [{ text: "1 Nachricht" }], other: flatGermanTarget() },
+        },
+      },
+    ];
+    for (const target of [pluralTarget, flatGermanTarget()]) {
+      const c = renderToContainer(
+        createElement(PluralTargetEditor, {
+          block: fixtureBlock(),
+          target,
+          onChange: vi.fn(),
+          fixedStructure: true,
+        }),
+      );
+      const labels = Array.from(c.querySelectorAll("button")).map((b) => b.textContent ?? "");
+      expect(labels.some((l) => l.includes("Flatten") || l.includes("Upgrade"))).toBe(false);
+      expect(c.querySelector("textarea")).toBeTruthy();
+    }
+  });
+
+  // A host draws each form's editor. An edit lands in the target as it stands,
+  // with the edits other forms made since their editor was drawn, and codes
+  // pass through as runs, never as `{equiv}` text.
+  it("draws each form with the host's editor and composes the forms' edits", () => {
+    const twin = (id: string): Run => ({ ph: { id, type: "printf", data: "%@", equiv: "%@" } });
+    const target: Run[] = [
+      {
+        plural: {
+          pivot: "count",
+          forms: { one: [twin("1"), { text: " Artikel" }], other: [twin("1"), twin("2")] },
+        },
+      },
+    ];
+    // The editor each form was first drawn with, holding its first callback,
+    // as an uncontrolled editor does.
+    const edits = new Map<string, (runs: Run[]) => void>();
+    let current = target;
+    function Host() {
+      const [value, setValue] = useState<Run[]>(target);
+      return createElement(PluralTargetEditor, {
+        block: fixtureBlock(),
+        target: value,
+        forms: ["one", "other"],
+        fixedStructure: true,
+        onChange: (next: Run[]) => {
+          current = next;
+          setValue(next);
+        },
+        renderForm: (form, _runs, onEdit) => {
+          if (!edits.has(form)) edits.set(form, onEdit);
+          return createElement("span", { "data-form-editor": form });
+        },
+      });
+    }
+    const c = renderToContainer(createElement(Host));
+    expect(c.querySelector("textarea")).toBeNull();
+    expect(c.querySelectorAll("[data-form-editor]")).toHaveLength(2);
+
+    act(() => edits.get("one")!([twin("1"), { text: " Ding" }]));
+    act(() => edits.get("other")!([twin("2"), twin("1")]));
+    expect(current).toEqual([
+      {
+        plural: {
+          pivot: "count",
+          forms: { one: [twin("1"), { text: " Ding" }], other: [twin("2"), twin("1")] },
+        },
+      },
+    ]);
   });
 });

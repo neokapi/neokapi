@@ -73,6 +73,13 @@ export interface InlineCodeEditorProps {
   locale?: string;
   /** Optional ref receiving the imperative `InlineCodeEditorHandle`. */
   handleRef?: React.Ref<InlineCodeEditorHandle>;
+  /**
+   * Focus the editor when it mounts. Defaults to true, for an editor opened to
+   * type in; a surface that shows the editor beside keyboard navigation (a
+   * review queue's j/k) passes false, so loading the next unit leaves focus
+   * where the reader had it.
+   */
+  autoFocus?: boolean;
 }
 
 /** Read the Lexical editor state and convert to coded text + spans. */
@@ -105,7 +112,15 @@ function editorStateToCodedText(root: ReturnType<typeof $getRoot>): {
 }
 
 /** Plugin that handles Enter/Escape keys and auto-focus. */
-function KeyHandlerPlugin({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) {
+function KeyHandlerPlugin({
+  onSave,
+  onCancel,
+  autoFocus,
+}: {
+  onSave: () => void;
+  onCancel: () => void;
+  autoFocus: boolean;
+}) {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
@@ -139,8 +154,8 @@ function KeyHandlerPlugin({ onSave, onCancel }: { onSave: () => void; onCancel: 
 
   // Auto-focus on mount
   useEffect(() => {
-    editor.focus();
-  }, [editor]);
+    if (autoFocus) editor.focus();
+  }, [editor, autoFocus]);
 
   return null;
 }
@@ -292,6 +307,7 @@ export function InlineCodeEditor({
   compact,
   locale,
   handleRef,
+  autoFocus = true,
 }: InlineCodeEditorProps) {
   const editorRef = useRef<LexicalEditor | null>(null);
   const [validation, setValidation] = useState<TagValidationResult | null>(null);
@@ -394,7 +410,7 @@ export function InlineCodeEditor({
           ErrorBoundary={LexicalErrorBoundary}
         />
         <HistoryPlugin />
-        <KeyHandlerPlugin onSave={handleSave} onCancel={onCancel} />
+        <KeyHandlerPlugin onSave={handleSave} onCancel={onCancel} autoFocus={autoFocus} />
         <TagConstraintPlugin />
         <TagShortcutPlugin sourceSpans={sourceSpans} usedSpans={currentSpans} />
         <SelectionToolbarPlugin sourceSpans={sourceSpans} usedSpans={currentSpans} />

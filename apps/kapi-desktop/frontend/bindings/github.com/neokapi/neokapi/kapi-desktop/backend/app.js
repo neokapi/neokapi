@@ -176,27 +176,18 @@ export function AnnotateEntities(handle, req) {
 }
 
 /**
- * ApplyCheckFix applies a single finding's structured replacement to a block in
- * a content file — the Checks panel's one-click fix. It reads the file through
- * its format reader, finds the block by ID, replaces the first occurrence of
- * original with replacement in the requested field (source or target), and
- * writes the file back through the format writer.
- * 
- * Safety: the edit is only applied when the field's content is a single plain
- * text run (no inline markup / multiple runs). A plain substring replace over
- * runs that carry placeholders or paired codes could silently corrupt the
- * markup, so in that case the fix is refused with a clear error and the file is
- * left untouched.
+ * Apply applies a change set as the person using the desktop and returns the
+ * result, kapi.change-result/v1. A refusal is a result, never an error: a
+ * change set that does not decode answers with the result's own error, and a
+ * refused operation (a stale revision, a failing rule) with its error and, when
+ * stale, the edition as it now stands. An error means the change set could not
+ * be applied at all.
  * @param {string} tabID
- * @param {string} filePath
- * @param {string} blockID
- * @param {string} field
- * @param {string} original
- * @param {string} replacement
- * @returns {$CancellablePromise<void>}
+ * @param {string} changeSet
+ * @returns {$CancellablePromise<string>}
  */
-export function ApplyCheckFix(tabID, filePath, blockID, field, original, replacement) {
-    return $Call.ByID(3698120319, tabID, filePath, blockID, field, original, replacement);
+export function Apply(tabID, changeSet) {
+    return $Call.ByID(3954133740, tabID, changeSet);
 }
 
 /**
@@ -224,35 +215,6 @@ export function ApplyPreset(tabID, presetName) {
  */
 export function ApplyTemplate(tabID, template) {
     return $Call.ByID(1105718358, tabID, template);
-}
-
-/**
- * ApproveReviewItem records an approved review decision through
- * host.ApplyReviewDecision, bound to the translation's content hash. The unit is
- * addressed by the review queue's (locale, file, key) tuple. After approval,
- * GetConvergence reports it as reviewed and removes it from the queue.
- * @param {string} tabID
- * @param {string} locale
- * @param {string} file
- * @param {string} key
- * @returns {$CancellablePromise<void>}
- */
-export function ApproveReviewItem(tabID, locale, file, key) {
-    return $Call.ByID(613262262, tabID, locale, file, key);
-}
-
-/**
- * ApproveSourceUnit records a human approval of one source unit, lifting it to
- * the top of the source ladder. The record binds to the wording approved, so a
- * later edit to that sentence drops the approval rather than letting it stand
- * over text nobody read.
- * @param {string} tabID
- * @param {string} file
- * @param {string} key
- * @returns {$CancellablePromise<void>}
- */
-export function ApproveSourceUnit(tabID, file, key) {
-    return $Call.ByID(814170, tabID, file, key);
 }
 
 /**
@@ -742,6 +704,18 @@ export function DeleteProvider(id) {
  */
 export function DeleteUserFlow(id) {
     return $Call.ByID(3795596216, id);
+}
+
+/**
+ * Describe says what a format supports, or a document's format as its home
+ * writes it: request is a change.DescribeRequest and the answer a
+ * change.Description.
+ * @param {string} tabID
+ * @param {string} request
+ * @returns {$CancellablePromise<string>}
+ */
+export function Describe(tabID, request) {
+    return $Call.ByID(761565633, tabID, request);
 }
 
 /**
@@ -1475,6 +1449,19 @@ export function GetVersion() {
 }
 
 /**
+ * History lists the recorded changes to one edition of a block, most recent
+ * first: request is a change.HistoryRequest and the answer a change.History,
+ * read from the project's block history (who changed the edition, through
+ * which surface, when, and the revisions around each change).
+ * @param {string} tabID
+ * @param {string} request
+ * @returns {$CancellablePromise<string>}
+ */
+export function History(tabID, request) {
+    return $Call.ByID(1213519088, tabID, request);
+}
+
+/**
  * InspectArchiveEntry parses a single archive entry and returns the same content
  * tree JSON as InspectFile, so the viewer/BlockInspector can preview a file that
  * lives inside a container. Only that entry is read (random access for ZIP, scan
@@ -2107,6 +2094,19 @@ export function ProjectVoice(tabID) {
 }
 
 /**
+ * Read reads a page of a document's blocks: request is a change.ReadRequest
+ * and the answer a change.Page, each block with the reference and revision an
+ * operation names. A document is a project-relative path, or the file of one
+ * edition of it, whose read names that edition.
+ * @param {string} tabID
+ * @param {string} request
+ * @returns {$CancellablePromise<string>}
+ */
+export function Read(tabID, request) {
+    return $Call.ByID(2480523996, tabID, request);
+}
+
+/**
  * RecipeGovernance describes the governance vocabulary of the open project: the
  * axes a point can carry, the channels a collection can name, and the profiles
  * a voice binding can reach.
@@ -2146,23 +2146,6 @@ export function RecipeGovernance(tabID) {
  */
 export function RecoverResource(path) {
     return $Call.ByID(2829441104, path);
-}
-
-/**
- * RejectReviewItem sends one review-queue unit back to the work queue: it
- * records a `rejected` decision (status draft) in the project state store, with
- * the reviewer's note, through the same host.ApplyReviewDecision path the CLI
- * uses. The unit leaves the review queue; retranslating it makes the rejection
- * stale and it re-enters review.
- * @param {string} tabID
- * @param {string} locale
- * @param {string} file
- * @param {string} key
- * @param {string} note
- * @returns {$CancellablePromise<void>}
- */
-export function RejectReviewItem(tabID, locale, file, key, note) {
-    return $Call.ByID(3023371476, tabID, locale, file, key, note);
 }
 
 /**
@@ -2853,49 +2836,6 @@ export function UpdatePlugin(name) {
  */
 export function UpdateProject(tabID, proj) {
     return $Call.ByID(2356547906, tabID, proj);
-}
-
-/**
- * UpdateReviewTarget rewrites one translation atomically through the format
- * reader and writer, using the same path as the Checks panel's Apply fix action.
- * Only a single plain-text run is supported; substring edits to placeholders or
- * paired codes could corrupt markup and are rejected.
- * 
- * The new content hash invalidates earlier approvals. The edit records human
- * origin, the target hash and source basis without a review decision. The unit
- * remains in the review queue until a reviewer approves the new wording.
- * @param {string} tabID
- * @param {string} locale
- * @param {string} file
- * @param {string} key
- * @param {string} text
- * @returns {$CancellablePromise<void>}
- */
-export function UpdateReviewTarget(tabID, locale, file, key, text) {
-    return $Call.ByID(523815832, tabID, locale, file, key, text);
-}
-
-/**
- * UpdateSourceText rewrites one source unit and reports the locales whose
- * translation the next run will re-draft.
- * 
- * The translations stay where they are. Each one renders the sentence that was
- * there a moment ago, and the loop knows that: `kapi up` records the source it
- * translated for every target it writes, so the rewrite reads as drift on the
- * next run, the unit is re-drafted against the wording the project has now, and
- * the run reports how many it re-drafted. Emptying them here destroyed the
- * previous translation, which is what the content memory recycles from and what
- * a reviewer compares the new draft against.
- * @param {string} tabID
- * @param {string} file
- * @param {string} key
- * @param {string} text
- * @returns {$CancellablePromise<string[]>}
- */
-export function UpdateSourceText(tabID, file, key, text) {
-    return $Call.ByID(2461793539, tabID, file, key, text).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType0($result);
-    }));
 }
 
 /**

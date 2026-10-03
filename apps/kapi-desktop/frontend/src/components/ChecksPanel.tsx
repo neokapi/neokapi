@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ShieldCheck,
   ShieldAlert,
@@ -30,6 +30,10 @@ import { useError } from "./ErrorBanner";
 import { FilePreview } from "./FilePreview";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { findingHighlights, findingSide } from "../lib/findingHighlights";
+import { type ChangeClient, tabChanges, wordsInPlainText } from "../lib/changes";
+import { StalePrompt } from "./edit/StalePrompt";
+import { useChangeSender } from "./edit/useChangeSender";
+import type { ChangeOp, CurrentEdition } from "@neokapi/contract-types";
 import type {
   CheckFileResult,
   CheckNotRunCause,
@@ -64,10 +68,10 @@ export interface ChecksPanelProps {
   /** Force the loading/skeleton state (for Storybook). */
   forceLoading?: boolean;
   /**
-   * Override the fix handler (for Storybook/tests). Receives the file path and
-   * the finding; returns once the fix is applied. Defaults to api.applyCheckFix.
+   * The change service a finding's fix is sent to, as the change set it
+   * carries (Storybook/tests pass an in-memory one); defaults to the tab's.
    */
-  onApplyFix?: (filePath: string, finding: DesktopFinding) => Promise<void>;
+  changes?: ChangeClient;
   /**
    * Open the Context explorer standing at a finding's point, with the rule that
    * fired named. Absent renders the findings without the click-through.
@@ -197,11 +201,34 @@ function ConfigurationWarnings({ warnings }: { warnings: CheckWarning[] }) {
   );
 }
 
+/**
+ * A fix sent again over text that changed since the check read it: its words
+ * are found again by the text the finding quotes, rather than by a run range
+ * the change may have moved.
+ */
+function refindWords(op: ChangeOp, finding: DesktopFinding | null): ChangeOp {
+  if (op.op !== "replace_text" || !finding?.original_text) return op;
+  const find = finding.original_text;
+  return {
+    ...op,
+    edits: op.edits.map((e) => ({ ...(e.path ? { path: e.path } : {}), find, text: e.text })),
+  };
+}
+
+/**
+ * Whether a fix can be sent again over the text as it now stands: the words
+ * the finding quotes are still there, in plain text. Found again across an
+ * inline code, the replacement would delete the code with them.
+ */
+function refindable(finding: DesktopFinding | null, current: CurrentEdition): boolean {
+  return !!finding?.original_text && wordsInPlainText(current.text ?? "", finding.original_text);
+}
+
 export function ChecksPanel({
   tabID,
   result: propResult,
   forceLoading = false,
-  onApplyFix,
+  changes,
   onOpenContext,
   previewTree,
 }: ChecksPanelProps) {
@@ -251,31 +278,38 @@ export function ChecksPanel({
     }
   }, [tabID, activeFilter, propResult, showError]);
 
+  // A finding's fix is the change operation it carries, sent as it is: it names
+  // the revision the check read, so a block that changed since is refused with
+  // the text it now holds, and the card asks before applying the fix to it.
+  const client = useMemo(() => changes ?? tabChanges(tabID), [changes, tabID]);
+  const fixFinding = useRef<DesktopFinding | null>(null);
+  const [staleKey, setStaleKey] = useState<string | null>(null);
+  const fixer = useChangeSender(client, {
+    // Re-run so the resolved finding disappears and the score updates.
+    onApplied: () => runChecks(),
+    rebase: (op) => refindWords(op, fixFinding.current),
+  });
+
   const handleApplyFix = useCallback(
-    async (filePath: string, finding: DesktopFinding, key: string) => {
-      setFixingKey(key);
+    async (finding: DesktopFinding, key: string) => {
+      if (!finding.fix) return;
+      let op: ChangeOp;
       try {
-        if (onApplyFix) {
-          await onApplyFix(filePath, finding);
-        } else {
-          await api.applyCheckFix(
-            tabID,
-            filePath,
-            finding.block_id ?? "",
-            finding.field ?? "source",
-            finding.original_text ?? "",
-            finding.replacement ?? "",
-          );
-        }
-        // Re-run so the resolved finding disappears and the score updates.
-        await runChecks();
+        op = JSON.parse(finding.fix) as ChangeOp;
       } catch (err) {
-        showError("Failed to apply fix", err);
+        showError("The fix could not be read", err);
+        return;
+      }
+      fixFinding.current = finding;
+      setFixingKey(key);
+      setStaleKey(key);
+      try {
+        await fixer.send([op]);
       } finally {
         setFixingKey(null);
       }
     },
-    [tabID, onApplyFix, runChecks, showError],
+    [fixer, showError],
   );
 
   // Open the file in the document sheet: at one finding's block, on the side it
@@ -556,6 +590,41 @@ export function ChecksPanel({
                                   {finding.suggestion}
                                 </p>
                               )}
+                              {staleKey === key && fixer.stale && (
+                                <div className="mt-2">
+                                  <StalePrompt
+                                    current={fixer.stale.current}
+                                    locale={finding.locale}
+                                    busy={fixer.busy}
+                                    reapplyLabel={t("Apply the fix to this text")}
+                                    onReapply={
+                                      refindable(fixFinding.current, fixer.stale.current)
+                                        ? () => void fixer.reapply()
+                                        : undefined
+                                    }
+                                    note={
+                                      refindable(fixFinding.current, fixer.stale.current)
+                                        ? undefined
+                                        : t(
+                                            "The fix no longer fits this text: its words are gone, or formatting now sits among them. Open the document to edit it.",
+                                          )
+                                    }
+                                    onDiscard={() => {
+                                      fixer.clear();
+                                      void runChecks();
+                                    }}
+                                  />
+                                </div>
+                              )}
+                              {staleKey === key && fixer.error && (
+                                <p
+                                  className="mt-2 text-xs text-destructive"
+                                  role="alert"
+                                  data-testid="finding-fix-refused"
+                                >
+                                  {fixer.error}
+                                </p>
+                              )}
                             </div>
                             <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
                               <Button
@@ -567,12 +636,13 @@ export function ChecksPanel({
                                 <FileSearch size={12} />
                                 Open in document
                               </Button>
-                              {finding.fixable && (
+                              {finding.fix && (
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  disabled={fixingKey === key}
-                                  onClick={() => void handleApplyFix(file.path, finding, key)}
+                                  disabled={fixingKey === key || fixer.busy}
+                                  onClick={() => void handleApplyFix(finding, key)}
+                                  data-testid="finding-apply-fix"
                                 >
                                   {fixingKey === key ? (
                                     <Loader2 size={12} className="animate-spin" />

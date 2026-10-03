@@ -77,20 +77,13 @@ func TestRunChecksReadsNoValueOfACommentsOnlyItem(t *testing.T) {
 	assert.Equal(t, map[string]int{"en.json": 1, "app.yaml": 1}, checked(t, "true"), "must fail: comments: true checks the value")
 }
 
-// A source edit, a source unit's review context and a check fix each address a
-// value, so each refuses a file declared for its comments alone.
+// A source unit's review context addresses a value, so it refuses a file
+// declared for its comments alone.
 func TestSourceEditsRefuseACommentsOnlyItem(t *testing.T) {
 	for name, act := range map[string]func(app *App, tabID, root string) error{
-		"UpdateSourceText": func(app *App, tabID, _ string) error {
-			_, err := app.UpdateSourceText(tabID, "config/app.yaml", "greeting", "Please use the reader.")
-			return err
-		},
 		"GetSourceUnitContext": func(app *App, tabID, _ string) error {
 			_, err := app.GetSourceUnitContext(tabID, "config/app.yaml", "greeting")
 			return err
-		},
-		"ApplyCheckFix": func(app *App, tabID, root string) error {
-			return app.ApplyCheckFix(tabID, filepath.Join(root, "config", "app.yaml"), "greeting", "source", "utilize", "use")
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

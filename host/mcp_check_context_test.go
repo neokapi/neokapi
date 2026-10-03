@@ -127,12 +127,14 @@ func TestCheckTextMCPDestinationMatchesFileContext(t *testing.T) {
 	}
 }
 
-// Locations differ between an in-memory block and an extracted JSON block;
-// compare the rules, severities and messages rather than masking them entirely.
+// Locations differ between an in-memory block and an extracted JSON block, and
+// a fix names its finding's location; compare the rules, severities and
+// messages rather than masking them entirely.
 func scopedFindingMeaning(report check.Report) []check.Diagnostic {
 	findings := append([]check.Diagnostic{}, report.Findings...)
 	for i := range findings {
 		findings[i].Location = check.Location{}
+		findings[i].Fix = nil
 	}
 	return findings
 }

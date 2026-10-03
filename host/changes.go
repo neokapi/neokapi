@@ -211,8 +211,11 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 	if recorder != nil {
 		svcOpts = append(svcOpts, change.WithRecorder(recorder))
 	}
-	if states := a.changeEditionStates(h.root); states != nil && !opts.revisionsOnly {
-		svcOpts = append(svcOpts, change.WithEditionStates(states))
+	if hist := a.changeHistory(h.root); hist != nil {
+		if !opts.revisionsOnly {
+			svcOpts = append(svcOpts, change.WithEditionStates(hist))
+		}
+		svcOpts = append(svcOpts, change.WithHistories(hist))
 	}
 	return change.NewService(filehome.Formats{Registry: a.FormatReg}, change.OneHome(home), svcOpts...), nil
 }
@@ -272,6 +275,11 @@ func (a *App) formatBinding(name string, cfg map[string]any, enc string) filehom
 				r, _, err = a.NewConfiguredReader(name)
 			} else {
 				r, err = a.FormatReg.NewReader(id)
+			}
+			if errors.Is(err, registry.ErrUnknownFormat) {
+				// A format a plugin supplies: the refusal names the plugin to
+				// install, as every other read of the format does.
+				return nil, fmt.Errorf("%s: %w", formatInstallClause(a.discoveredPlugins(), registryName), err)
 			}
 			if err != nil {
 				return nil, err

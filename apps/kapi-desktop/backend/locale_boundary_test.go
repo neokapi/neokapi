@@ -90,31 +90,6 @@ func TestRunChecksCanonicalizesFilterLanguages(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// review.go — the decision path shares one body, so it is gated once.
-func TestReviewDecisionsCanonicalizeTheirLocale(t *testing.T) {
-	app := NewApp()
-	tab, _ := newContextProject(t, app)
-
-	// The unit does not exist, so both spellings fail the same way: what is
-	// asserted is that the locale was accepted and normalized before the
-	// lookup, not that the lookup succeeded.
-	posix := app.ApproveReviewItem(tab.ID, "nb_NO", "docs/help/billing.json", "nope")
-	canonical := app.ApproveReviewItem(tab.ID, "nb-NO", "docs/help/billing.json", "nope")
-	assert.Equal(t, canonical != nil, posix != nil)
-	if canonical != nil {
-		assert.Equal(t, canonical.Error(), posix.Error(),
-			"nb_NO and nb-NO reach the same unit")
-	}
-
-	err := app.RejectReviewItem(tab.ID, "not a locale at all", "docs/help/billing.json", "k", "")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "is not a locale")
-
-	err = app.UpdateReviewTarget(tab.ID, "!!!", "docs/help/billing.json", "k", "text")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "is not a locale")
-}
-
 // review_ai.go — both AI entry points take a locale argument.
 func TestReviewAICanonicalizesItsLocale(t *testing.T) {
 	app := NewApp()

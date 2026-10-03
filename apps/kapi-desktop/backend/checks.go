@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,12 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/registry"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/terms"
@@ -26,7 +26,8 @@ import (
 
 // DesktopFinding is one content-check finding, flattened for the React Checks
 // panel. It mirrors core/check.Finding but adds the fields the panel needs to
-// locate the offending block and (when safe) offer a one-click fix.
+// locate the offending block and, where the rule names a replacement, the change
+// operation that applies it.
 type DesktopFinding struct {
 	Category string `json:"category"`
 	// Fails says whether the finding fails the check, as the rule that raised
@@ -36,7 +37,7 @@ type DesktopFinding struct {
 	Suggestion   string `json:"suggestion,omitempty"`
 	OriginalText string `json:"original_text,omitempty"`
 	// BlockID identifies the block the finding applies to (the format's stable
-	// block ID), so ApplyCheckFix can re-find it.
+	// block ID), so the document view can open at it.
 	BlockID string `json:"block_id,omitempty"`
 	// Field is which side of the block the offending text lives on:
 	// "source" or "target".
@@ -45,12 +46,15 @@ type DesktopFinding struct {
 	// a source-side finding, the target locale for a target-side one — so the
 	// panel can render it with the right direction and lang attribute.
 	Locale string `json:"locale,omitempty"`
-	// Replacement is the structured fix text (e.g. a voice profile's preferred
-	// term). Empty when there is no safe automatic replacement.
+	// Replacement is the wording the rule asks for (a term's replacement).
+	// Empty when the rule names none.
 	Replacement string `json:"replacement,omitempty"`
-	// Fixable reports whether the panel may show an "Apply fix" button: a
-	// replacement and a block to target both exist.
-	Fixable bool `json:"fixable"`
+	// Fix is the change operation that applies Replacement, as
+	// kapi.change/v1 JSON: a replace_text of the words the finding objects to,
+	// addressed to the block's own edition under the revision the check read
+	// (check.Fix). The panel sends it to Apply as it is. Empty when the finding
+	// has no fix: no replacement, a translation's finding, or a comment.
+	Fix string `json:"fix,omitempty"`
 	// Rule names what fired, so a finding can be traced to the decision that
 	// produced it rather than only to the text it objects to.
 	Rule string `json:"rule,omitempty"`
@@ -256,7 +260,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 					}
 					if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, model.AnnoVoice); ok {
 						for _, f := range ann.Findings {
-							fileFindings = append(fileFindings, toDesktopFinding(f, b, "source", sourceLang, filePoint))
+							fileFindings = append(fileFindings, withFix(toDesktopFinding(f, b, "source", sourceLang, filePoint), f, b, filepath.ToSlash(rf.Relative), pctx.SourceLocale))
 							allFindings = append(allFindings, f)
 						}
 					}
@@ -753,215 +757,6 @@ func (v *pointResolver) loadedSources() []string {
 	return v.sources
 }
 
-// ApplyCheckFix applies a single finding's structured replacement to a block in
-// a content file — the Checks panel's one-click fix. It reads the file through
-// its format reader, finds the block by ID, replaces the first occurrence of
-// original with replacement in the requested field (source or target), and
-// writes the file back through the format writer.
-//
-// Safety: the edit is only applied when the field's content is a single plain
-// text run (no inline markup / multiple runs). A plain substring replace over
-// runs that carry placeholders or paired codes could silently corrupt the
-// markup, so in that case the fix is refused with a clear error and the file is
-// left untouched.
-func (a *App) ApplyCheckFix(tabID, filePath, blockID, field, original, replacement string) error {
-	op := a.getOpenProject(tabID)
-	if op == nil {
-		return fmt.Errorf("tab %q not found", tabID)
-	}
-	if blockID == "" {
-		return errors.New("a block id is required to apply a fix")
-	}
-	if original == "" || replacement == "" {
-		return errors.New("both the original text and its replacement are required")
-	}
-	if field != "source" && field != "target" {
-		return fmt.Errorf("field must be %q or %q, got %q", "source", "target", field)
-	}
-
-	pctx := project.NewProjectContext(op.Project, op.Path)
-	sourceLang := string(pctx.SourceLocale)
-
-	// The format the recipe declares for this item, not the one its extension
-	// suggests. This rewrites the user's file: reading a `.md` item the recipe
-	// binds to mdx with the markdown reader turns an `import { … }` line into a
-	// paragraph, and writing that back is how a fix corrupts a page. Detection is
-	// the fallback for a file the project does not declare as content.
-	fmtName := ""
-	item := (*project.ContentItem)(nil)
-	if rf := a.resolvedFileFor(pctx, filePath); rf != nil {
-		if rf.CommentsOnly() {
-			return fmt.Errorf("%s is declared for its comments alone, so it has no value to fix", filepath.Base(filePath))
-		}
-		fmtName, item = rf.Format, rf.Item
-	}
-	if fmtName == "" {
-		fmtName = pctx.DetectFormat(a.formatReg, filePath)
-	}
-	if fmtName == "" {
-		return fmt.Errorf("could not detect a format for %q", filepath.Base(filePath))
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// The fix is in-place: read parts, mutate the one matching block, write the
-	// same parts back. We mutate the live *model.Block carried by the part so
-	// the writer reproduces the file faithfully (skeleton, ordering, untouched
-	// blocks all preserved).
-	//
-	// A content file is read monolingually here, so its text — whether it is the
-	// source file (field "source") or a translated target file (field "target")
-	// — lands in the block's source runs. The fix therefore always replaces in
-	// the block's own text runs; `field` records which side the finding was on
-	// (it determines which file path the panel passes), not a different setter.
-	applied := false
-	var applyErr error
-	transform := func(b *model.Block) {
-		if b.ID != blockID {
-			return
-		}
-		runs := b.SourceRuns()
-		if !isSinglePlainTextRun(runs) {
-			applyErr = fmt.Errorf("manual fix needed (formatted content): block %q has inline markup or multiple runs, so an automatic replace could corrupt it", blockID)
-			return
-		}
-		text := model.RunsText(runs)
-		if !strings.Contains(text, original) {
-			applyErr = fmt.Errorf("the original text %q is no longer present in block %q (it may already be fixed)", original, blockID)
-			return
-		}
-		b.EditSourceText(strings.Replace(text, original, replacement, 1))
-		applied = true
-	}
-
-	if err := a.rewriteFile(ctx, filePath, fmtName, sourceLang, pctx, item, transform); err != nil {
-		return err
-	}
-	if applyErr != nil {
-		return applyErr
-	}
-	if !applied {
-		return fmt.Errorf("block %q not found in %q", blockID, filepath.Base(filePath))
-	}
-	return nil
-}
-
-// rewriteFile reads filePath through its format reader, runs transform over
-// every block (in stream order), then writes the parts back through the format
-// writer atomically (temp file + rename). Non-block parts pass through
-// unchanged.
-func (a *App) rewriteFile(ctx context.Context, filePath, fmtName, sourceLang string, pctx *project.ProjectContext, item *project.ContentItem, transform func(*model.Block)) error {
-	reader, err := a.formatReg.NewReader(registry.FormatID(fmtName))
-	if err != nil {
-		return fmt.Errorf("no reader for %q: %w", fmtName, err)
-	}
-	defer reader.Close()
-
-	writer, err := a.formatReg.NewWriter(registry.FormatID(fmtName))
-	if err != nil {
-		return fmt.Errorf("no writer for %q: %w", fmtName, err)
-	}
-	defer writer.Close()
-
-	// Both halves of the round-trip carry the recipe's configuration for this
-	// item: a rewrite that reads under one configuration and writes under
-	// another renumbers the document it is replacing.
-	if pctx != nil {
-		if cerr := pctx.ConfigureReaderFor(reader, fmtName, item); cerr != nil {
-			return fmt.Errorf("configure reader for %s: %w", filepath.Base(filePath), cerr)
-		}
-		if cerr := pctx.ConfigureWriterFor(writer, fmtName, item); cerr != nil {
-			return fmt.Errorf("configure writer for %s: %w", filepath.Base(filePath), cerr)
-		}
-	}
-
-	// Wire skeleton store when both sides support it so the writer reproduces
-	// the original structure (whitespace, key order, untouched values). A store
-	// that cannot be created fails the rewrite: this replaces the user's file, so
-	// degrading silently would reformat every untouched value in it while the UI
-	// reported the fix applied.
-	skeletonStore, skelErr := format.NewWiredSkeleton(reader, writer)
-	if skelErr != nil {
-		return fmt.Errorf("cannot rewrite %s: %w", filepath.Base(filePath), skelErr)
-	}
-	if skeletonStore != nil {
-		defer skeletonStore.Close()
-	}
-
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return fmt.Errorf("read %s: %w", filepath.Base(filePath), err)
-	}
-
-	doc := &model.RawDocument{
-		URI:          filePath,
-		SourceLocale: model.LocaleID(sourceLang),
-		Encoding:     "UTF-8",
-		Reader:       io.NopCloser(bytes.NewReader(content)),
-	}
-	if err := reader.Open(ctx, doc); err != nil {
-		return fmt.Errorf("open %q: %w", filepath.Base(filePath), err)
-	}
-
-	var parts []*model.Part
-	for pr := range reader.Read(ctx) {
-		if pr.Error != nil {
-			return fmt.Errorf("read %q: %w", filepath.Base(filePath), pr.Error)
-		}
-		if pr.Part != nil && pr.Part.Type == model.PartBlock {
-			if b, ok := pr.Part.Resource.(*model.Block); ok {
-				transform(b)
-			}
-		}
-		parts = append(parts, pr.Part)
-	}
-	reader.Close()
-
-	// Write back atomically.
-	tmp, err := os.CreateTemp(filepath.Dir(filePath), ".kapi-fix-*")
-	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-	cleanup := func() {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-	}
-
-	if err := writer.SetOutputWriter(tmp); err != nil {
-		cleanup()
-		return fmt.Errorf("set output: %w", err)
-	}
-	// Skeleton-driven writers (OpenXML) need the original bytes to rebuild.
-	if ocs, ok := writer.(format.OriginalContentSetter); ok {
-		ocs.SetOriginalContent(content)
-	}
-
-	in := make(chan *model.Part, len(parts)+1)
-	for _, p := range parts {
-		in <- p
-	}
-	close(in)
-	if err := writer.Write(ctx, in); err != nil {
-		cleanup()
-		return fmt.Errorf("write %q: %w", filepath.Base(filePath), err)
-	}
-	if err := writer.Close(); err != nil {
-		cleanup()
-		return fmt.Errorf("close writer: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("close temp file: %w", err)
-	}
-	if err := os.Rename(tmpPath, filePath); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("finalize %q: %w", filepath.Base(filePath), err)
-	}
-	return nil
-}
-
 // --- helpers ---------------------------------------------------------------
 
 // resolveTargetPath derives the on-disk path of the translated file for a
@@ -1067,7 +862,27 @@ func toDesktopFinding(f check.Finding, b *model.Block, field string, locale stri
 	if field == "target" {
 		df.TargetRuns = b.TargetRuns(model.LocaleID(locale))
 	}
-	df.Fixable = replacement != "" && b.ID != "" && f.OriginalText != ""
+	return df
+}
+
+// withFix gives a source-side finding the change operation that applies its
+// replacement (check.Fix) to b, a block of the document doc, a
+// project-relative path, written in source. The operation names the revision
+// the check read, so a change to the block since then is refused as stale with
+// the text it now holds.
+func withFix(df DesktopFinding, f check.Finding, b *model.Block, doc string, source model.LocaleID) DesktopFinding {
+	if df.Field != "source" || doc == "" || comment.IsBlock(b) {
+		return df
+	}
+	op := check.Fix(f, b.SourceRuns(), change.Ref{Doc: doc, Block: change.BlockKey(b)}, check.SourceRevision(b, source))
+	if op == nil {
+		return df
+	}
+	raw, err := encodeChange(op)
+	if err != nil {
+		return df
+	}
+	df.Fix = raw
 	return df
 }
 
@@ -1097,13 +912,6 @@ func findingRule(f check.Finding) string {
 // it. The project's own point renders empty rather than as a guessed name.
 func pointRef(p ContextPointDTO) string {
 	return project.ChannelRef{Profile: p.Profile, Channel: p.Channel}.String()
-}
-
-// isSinglePlainTextRun reports whether runs is exactly one TextRun — the only
-// shape where a plain substring replace is structurally safe (no placeholders
-// or paired inline codes to corrupt).
-func isSinglePlainTextRun(runs []model.Run) bool {
-	return len(runs) == 1 && runs[0].Text != nil
 }
 
 // sortDesktopFindings orders failing findings first, for stable panel output.

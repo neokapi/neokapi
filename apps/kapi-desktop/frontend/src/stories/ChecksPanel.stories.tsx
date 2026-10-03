@@ -3,7 +3,36 @@ import { useState } from "react";
 import type { ContentTree } from "@neokapi/ui-primitives/preview";
 import { ErrorProvider } from "../components/ErrorBanner";
 import { ChecksPanel } from "../components/ChecksPanel";
-import type { CheckRunResult, DesktopFinding } from "../types/api";
+import type { CheckRunResult } from "../types/api";
+import type { ChangeClient } from "../lib/changes";
+import { MemoryChanges, type MemoryBlock } from "./memoryChanges";
+
+/** The checked file's blocks as the change service reads them. */
+const CHECKED_BLOCKS: MemoryBlock[] = [
+  {
+    doc: "src/locales/en.json",
+    block: "blk-2",
+    text: "Please utilize the dashboard to review your credits.",
+  },
+  {
+    doc: "src/locales/en.json",
+    block: "blk-3",
+    text: 'Your credits reset on <x id="date/"/>leverage them before then.',
+    codes: { "date/": { kind: "placeholder", type: "var", equiv: "date" } },
+  },
+];
+const READER = new MemoryChanges(CHECKED_BLOCKS);
+
+/** A finding's fix: the replace_text the check carries, under the revision it read. */
+function fixFor(block: string, start: number, end: number, run: number, text: string): string {
+  const b = CHECKED_BLOCKS.find((x) => x.block === block)!;
+  return JSON.stringify({
+    op: "replace_text",
+    at: { doc: "src/locales/en.json", block },
+    if_match: READER.rev(b),
+    edits: [{ range: { start: { run, offset: start }, end: { run, offset: end } }, text }],
+  });
+}
 
 const PASSING: CheckRunResult = {
   pass: true,
@@ -61,7 +90,6 @@ const FAILING: CheckRunResult = {
           block_id: "blk-1",
           field: "target",
           locale: "de",
-          fixable: false,
           position: { kind: "range", start: { run: 0, offset: 11 }, end: { run: 0, offset: 21 } },
           source_runs: [{ text: "Welcome to Acme Cloud, where your team ships faster." }],
           target_runs: [{ text: "Willkommen bei Acme Wolke, wo Ihr Team schneller liefert." }],
@@ -76,7 +104,7 @@ const FAILING: CheckRunResult = {
           block_id: "blk-2",
           field: "source",
           locale: "en",
-          fixable: true,
+          fix: fixFor("blk-2", 7, 14, 0, "use"),
           position: { kind: "range", start: { run: 0, offset: 7 }, end: { run: 0, offset: 14 } },
           source_runs: [{ text: "Please utilize the dashboard to review your credits." }],
         },
@@ -90,7 +118,7 @@ const FAILING: CheckRunResult = {
           block_id: "blk-2",
           field: "source",
           locale: "en",
-          fixable: true,
+          fix: fixFor("blk-2", 19, 28, 0, "overview"),
           position: { kind: "range", start: { run: 0, offset: 19 }, end: { run: 0, offset: 28 } },
           source_runs: [{ text: "Please utilize the dashboard to review your credits." }],
         },
@@ -104,7 +132,7 @@ const FAILING: CheckRunResult = {
           block_id: "blk-3",
           field: "source",
           locale: "en",
-          fixable: true,
+          fix: fixFor("blk-3", 0, 8, 2, "use"),
           position: { kind: "range", start: { run: 2, offset: 0 }, end: { run: 2, offset: 8 } },
           source_runs: [
             { text: "Your credits reset on " },
@@ -125,7 +153,6 @@ const FAILING: CheckRunResult = {
           block_id: "blk-4",
           field: "target",
           locale: "de",
-          fixable: false,
           source_runs: [
             { text: "You have " },
             { ph: { id: "count", type: "var", data: "{count}", equiv: "count" } },
@@ -140,7 +167,6 @@ const FAILING: CheckRunResult = {
           block_id: "blk-5",
           field: "source",
           locale: "en",
-          fixable: false,
           source_runs: [
             { text: "Kindly proceed to the billing area at your earliest convenience." },
           ],
@@ -276,32 +302,82 @@ export const Loading: Story = {
 };
 
 /**
- * Interactive: applying a fix removes the finding and recomputes the score.
- * Wires onApplyFix to a local reducer so the story behaves like the real panel
- * without a Wails backend.
+ * Interactive: Apply fix sends the finding's fix to the change service, and the
+ * finding leaves the list once it lands. The in-memory service stands in for
+ * the bindings.
  */
 export const InteractiveFix: StoryObj<typeof ChecksPanel> = {
   render: () => {
     function Wrapper() {
       const [result, setResult] = useState<CheckRunResult>(FAILING);
-      const applyFix = async (filePath: string, finding: DesktopFinding) => {
-        setResult((prev) => {
-          const files = prev.files.map((f) =>
-            f.path === filePath
-              ? { ...f, findings: f.findings.filter((x) => x.block_id !== finding.block_id) }
-              : f,
-          );
-          const remaining = files.flatMap((f) => f.findings);
-          const critical = remaining.some((f) => f.severity === "critical");
-          // Crude score: 100 − Σ MQM-ish penalties.
-          const weight = (s: string) =>
-            s === "critical" ? 25 : s === "major" ? 5 : s === "minor" ? 1 : 0;
-          const score = Math.max(0, 100 - remaining.reduce((n, f) => n + weight(f.severity), 0));
-          return { pass: !critical, verdict: critical ? "failed" : "passed", score, files };
-        });
-      };
-      return <ChecksPanel tabID="story" result={result} onApplyFix={applyFix} />;
+      const [changes] = useState<ChangeClient>(() => {
+        const memory = new MemoryChanges(CHECKED_BLOCKS);
+        return {
+          read: (r) => memory.read(r),
+          describe: () => memory.describe(),
+          history: (r) => memory.history(r),
+          apply: async (set) => {
+            const res = await memory.apply(set);
+            if (res.status === "applied") {
+              const fixed = new Set(set.ops.map((op) => ("at" in op ? op.at.block : "")));
+              setResult((prev) => {
+                const files = prev.files.map((f) => ({
+                  ...f,
+                  findings: f.findings.filter((x) => !(x.fix && fixed.has(x.block_id ?? ""))),
+                }));
+                const failing = files.some((f) => f.findings.some((x) => x.fails));
+                return { ...prev, pass: !failing, verdict: failing ? "failed" : "passed", files };
+              });
+            }
+            return res;
+          },
+        };
+      });
+      return <ChecksPanel tabID="story" result={result} changes={changes} />;
     }
     return <Wrapper />;
+  },
+};
+
+/**
+ * The block changed after the check read it. Apply fix writes nothing, shows
+ * the text as it stands and asks before applying the fix to it.
+ */
+export const StaleFix: Story = {
+  name: "Fix: changed since the check",
+  args: {
+    tabID: "story",
+    result: FAILING,
+    changes: (() => {
+      const memory = new MemoryChanges(CHECKED_BLOCKS);
+      memory.touch(
+        "src/locales/en.json",
+        "blk-2",
+        "Please do utilize the dashboard before your credits reset.",
+      );
+      return memory;
+    })(),
+  },
+};
+
+/**
+ * The block changed after the check read it, and its words now have a bold
+ * span among them. The fix's plain-text replacement would delete the bold, so
+ * after Apply fix the prompt says why and offers only to keep the text.
+ */
+export const StaleFixOverFormatting: Story = {
+  name: "Fix: words now span formatting",
+  args: {
+    tabID: "story",
+    result: FAILING,
+    changes: (() => {
+      const memory = new MemoryChanges(CHECKED_BLOCKS);
+      memory.touch(
+        "src/locales/en.json",
+        "blk-2",
+        'Please util<x id="1"/>ize<x id="/1"/> the dashboard to review your credits.',
+      );
+      return memory;
+    })(),
   },
 };

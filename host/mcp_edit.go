@@ -68,9 +68,9 @@ var readBlocksOutputSchema = json.RawMessage(`{"type":"object","properties":{` +
 	`"ref":{"type":"object","description":"the reference to copy into an operation's at"},` +
 	`"rev":{"type":"string","description":"the revision to send as if_match"},` +
 	`"text":{"type":"string","description":"the content, inline codes as <x id=\"…\"/> placeholders"},` +
-	`"codes":{"type":"object","description":"each inline code by the id its placeholder shows: kind, type, attributes and the attributes set_attribute can change"},` +
+	`"codes":{"type":"object","description":"each inline code by the id its placeholder shows: kind, type, attributes, the attributes set_attribute can change, and equiv and disp, labels naming what the code stands for; an edit keeps a code by its placeholder, never by its label"},` +
 	`"structures":{"type":"array","description":"each plural or select, with the path that reaches it and the text of each branch"},` +
-	`"editions":{"type":"object","description":"the block's other editions by key: rev, text, status, basis and stale"},` +
+	`"editions":{"type":"object","description":"the block's other editions by key: rev, text, status, basis and stale, each one's plurals and selects as structures, and its codes where they differ from the block's"},` +
 	`"ops":{"type":"array","items":{"type":"string"},"description":"the operations the block accepts"}}}},` +
 	`"next":{"type":"string","description":"the cursor of the next page; absent on the last"}}}`)
 

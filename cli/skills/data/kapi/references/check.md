@@ -58,6 +58,23 @@ rule established across the workspace. The voice's pattern rules are
 `voice.style` and its siblings, and a translation's term findings come from the
 `terms.target` analyzer.
 
+A finding whose rule names a replacement carries `fix`: a `replace_text`
+operation that puts the replacement in place of the flagged words, naming the
+revision the check read. Send the ones you mean to apply in a change set's
+`ops`, to `apply_edits` or `kapi apply -`, rather than retyping the edit. A fix
+names its words by their place in the text the check read, so put the fixes for
+one block in one operation with their `edits` together: a second operation on
+the same block sees the text the first one left. A fix whose block changed since
+the check is refused as `stale` with the current text; check again and use the
+new finding's fix. Read the sentence around the flagged words first: when the
+replacement needs the words around it to change too, an article or an
+agreement, write that edit yourself.
+
+A finding with no `fix` is one to edit by hand: its words have an inline code
+among them (a link, bold, a placeholder) that a plain-text replacement would
+delete, or it sits in the file of a translation. Read the block, write the
+edit with the codes kept, and send it as your own `replace_text`.
+
 Unsupported semantic guidance still needs review against the retrieved context:
 a passing verdict covers only the checks that ran. If the same finding persists or
 contradicts the governing guidance, report the unresolved issue rather than

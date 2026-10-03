@@ -25,6 +25,21 @@ Since then 1.3 changed what several of them show:
   revision, and `ksed` writes through the same contract.
 - Kapi Desktop opens on the workspace, carries the context digest and a
   Learned section in the Context hub, and its review surface has one human rung.
+- Kapi Desktop edits through the change service. The Review page's translation
+  and source panes are the inline-code editor (codes as chips, a plural a form at
+  a time) in place of a plain text box, its Save sends a `set_content` with the
+  revision read, Approve and Reject send `decide`, and a unit that changed since
+  it opened shows "Changed since you opened it" before anything is written. A
+  **Changes** card under Provenance lists the unit's recorded changes. The
+  Checks panel's Apply fix sends the finding's fix, and the document view offers
+  Edit on a focused unit. Each form of a plural is an inline-code editor of its
+  own, and Approve clean checks each unit again, stopping at one that changed
+  since the queue was listed or now has a finding.
+- A `kapi check --json` finding whose rule names a replacement carries `fix`,
+  the `replace_text` operation that applies it, naming its document by the path
+  from the project root. A finding whose words have formatting among them, or
+  that sits in a translation's file, carries none, and the Checks panel offers
+  no Apply fix for it.
 
 This page is the ordered list of what to record, how, on what infrastructure,
 and what to check in each result. The authored sources (demo scripts,
@@ -96,7 +111,7 @@ answer ends with (#2989).
 
 | # | Demo | Publishes as | Embedded on | Infrastructure | What changed |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `s0-northsea-checks` | `monolingual-governance` | `kapi/recipes/keep-source-on-brand.mdx` | none | `kapi check --strict` is `kapi check`; findings read FAILS/REPORTS; the sample's voice patterns moved into `constraints:`, so no configuration warnings print; the `dock` decision is a `term` operation, and `kapi apply` closes with `change set applied: 1 applied` |
+| 1 | `s0-northsea-checks` | `monolingual-governance` | `kapi/recipes/keep-source-on-brand.mdx` | none | `kapi check --strict` is `kapi check`; findings read FAILS/REPORTS; the sample's voice patterns moved into `constraints:`, so no configuration warnings print; the `dock` decision is a `term` operation, and `kapi apply` closes with `change set applied: 1 applied`; the `findings.json` artifact gives each term finding with a replacement a `fix`, except one whose words have formatting among them |
 | 2 | `05-ai-checks-guardrail` | `kapi-checks-guardrail` | `framework/checks/rule-checks.md` | none | the findings table reads FAILS, not CRITICAL/MAJOR |
 | 3 | `kapi-bilingual-workflow` | `bilingual-workflow` | `kapi/bilingual-workflow.mdx` | none | commands unchanged; each XLIFF unit now carries an `<mda:metadata>` with its `if-match` and `basis` revisions, which the `head -20` beat shows, and `kapi merge` writes the returned translations through the change service, from the source's skeleton |
 | 4 | `09-toolbox-find-replace` | `toolbox-explainer` | `toolbox/overview.mdx` | none | commands and output unchanged; re-recorded for the September template. `ksed` now applies its substitutions as change-set operations, and the demo's commands print the same output and leave the same bytes in all three files as before |
@@ -143,7 +158,7 @@ published.
 
 | # | Demo | Publishes as | Placeholder on | Infrastructure | What changed |
 | --- | --- | --- | --- | --- | --- |
-| 16 | `kapi-desktop-review` | `kapi-desktop-review` | `kapi/recipes/review-and-approve.mdx`, `kapi/recipes/translate-content.mdx` | desktop recorder | one human rung: Approve, with no sign-off control; every walk selector still renders |
+| 16 | `kapi-desktop-review` | `kapi-desktop-review` | `kapi/recipes/review-and-approve.mdx`, `kapi/recipes/translate-content.mdx` | desktop recorder | one human rung: Approve, with no sign-off control; the translation sits in the inline-code editor (codes as chips) rather than a text box, and Approve waits until the unit is read through the change service; a **Changes** card follows Provenance; every walk selector still renders |
 | 17 | `bowrain-desktop-automations` | `bowrain-desktop-automations` | Bowrain `walkthroughs/bowrain-automation.mdx` | stack + seed (#2597 gives the seed a source ready to run) | narration only: two sentences cut; the run row and the delivery panel's review link still render |
 
 `kapi-desktop-projects` (row 5) also fills the video placeholders on
@@ -198,7 +213,7 @@ page, so nothing a reader sees is stale in the meantime.
 | `kapi-desktop-explorer` | `kapi-desktop-explorer` | desktop recorder | the Context hub rail now lists Learned and Agent View above Terms and Content Memory |
 | `bowrain-sizzle` | `bowrain-sizzle` | renders from the web and desktop clips | render after rows 10 to 15 |
 | `02-nextjs-zero-to-i18n`, `03-translate-docx` | `claude-app-i18n`, `claude-translate-document` | Claude session (billed) | published in July, not embedded |
-| `01`, `04`, `06`, `07` | (not published) | Claude session (billed); AI provider for 01-07 | `04` and `07` render `kapi check --json` and `kapi status --json` artifacts from the take's sandbox, so `--only=artifacts,render` on the machine that holds the take refreshes them without a new session |
+| `01`, `04`, `06`, `07` | (not published) | Claude session (billed); AI provider for 01-07 | `04` and `07` render `kapi check --json` and `kapi status --json` artifacts from the take's sandbox, so `--only=artifacts,render` on the machine that holds the take refreshes them without a new session; a term finding with a replacement now carries `fix` in the check artifact |
 
 The web walkthrough scenes (`web/walkthroughs/*.scene.yaml`) are interactive
 embeds that run the wasm build live on the page, so they need no recording. The
@@ -245,7 +260,7 @@ Per video:
 | `bowrain-desktop-automations` | Run now starts a run that appears at the top of the table; the row settles with a per-language summary; the dashboard's "Review pending translations" link opens the review session |
 | `bowrain-cli-getting-started` | `kapi init` prints `collections (proposed from the files here...)` with `src/locales/en.json`; `kapi status` shows the `content` and `governance` lines; `kapi up` prints the venue first; `src/locales/fr.json` arrives |
 | `08-mcp-tools` | the session reads the unit with `review_block` and sends `apply_edits` a `decide` with outcome `advise`, not an approval; the queue artifact still lists the unit, now with `aiScore` |
-| `kapi-desktop-review` | the unit shows one human action (Approve) and no sign-off control; the history layer reads "Already approved" |
+| `kapi-desktop-review` | the unit shows one human action (Approve) and no sign-off control; the history layer reads "Already approved"; the translation shows its codes as chips in the editor, and the `a` keystroke lands while the editor does not hold focus; the Changes card reads "No change recorded" for an untouched unit; the batch approval clears every clean unit with no "Batch approval stopped" notice, since nothing changes them during the take |
 | `kapi-desktop-explorer` | the Context hub opens on Learned; the walk then opens Terms, then Content Memory |
 | desktop and web demos | the recorder log reports no inert crop and no selector that matched nothing |
 

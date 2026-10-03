@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,8 +17,7 @@ import (
 // paragraph of prose) and the reader config the project declares for the format
 // (keyPathPatterns, which say which YAML keys hold prose at all). Read under the
 // extension's default format and reader defaults, the panel reports findings
-// against content no convergence run ever touches — and its one-click fix
-// rewrites the file through the wrong writer.
+// against content no convergence run ever touches.
 
 // setupRecipeFormatProject writes a project binding both halves and returns the
 // tab plus the absolute paths of the two content files.
@@ -99,34 +99,34 @@ func TestRunChecks_ReadsTheFormatAndConfigTheRecipeDeclares(t *testing.T) {
 	}
 }
 
-// The one-click fix rewrites the user's file, so it reads and writes it through
-// the format the recipe names rather than the one the extension suggests.
-func TestApplyCheckFix_UsesTheDeclaredFormat(t *testing.T) {
+// An edit rewrites the user's file, so the change service reads and writes it
+// through the format the recipe names rather than the one the extension
+// suggests: read as markdown, the mdx import line is a paragraph, and writing
+// that back corrupts the page.
+func TestApply_WritesThroughTheDeclaredFormat(t *testing.T) {
 	app := NewApp()
 	tabID, mdPath, _ := setupRecipeFormatProject(t, app)
 
 	before, err := os.ReadFile(mdPath)
 	require.NoError(t, err)
 
-	// The mdx reader gives the body paragraph a block id the markdown reader
-	// numbers differently, so a fix addressed by that id only lands when the
-	// rewrite reads the file as the recipe declares it.
-	blocks, err := app.readBlocksForChecks(t.Context(), mdPath, "mdx", nil, "en")
-	require.NoError(t, err)
-	var target string
-	for _, b := range blocks {
-		if b.Translatable && b.SourceText() == "A plain paragraph." {
-			target = b.ID
+	page := readVia(t, app, tabID, change.ReadRequest{Doc: "docs/page.md"})
+	var para *change.BlockRead
+	for i, b := range page.Blocks {
+		assert.NotContains(t, b.Text, "import {", "the mdx reader keeps the import line out of the prose")
+		if b.Text == "A plain paragraph." {
+			para = &page.Blocks[i]
 		}
 	}
-	require.NotEmpty(t, target, "the mdx reader offers the body paragraph")
+	require.NotNil(t, para, "the mdx reader offers the body paragraph")
 
-	require.NoError(t, app.ApplyCheckFix(tabID, mdPath, target, "source", "A plain paragraph.", "An ordinary paragraph."))
+	res := applyVia(t, app, tabID, change.Set{Ops: []change.Op{setText(para.Ref, para.Rev, "An ordinary paragraph.")}})
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 
 	after, err := os.ReadFile(mdPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(after), "An ordinary paragraph.")
 	assert.Contains(t, string(after), "import { Preview } from '@site/src/seamless';",
-		"the import line is structure to the reader the recipe names and must survive the rewrite")
+		"the import line is structure to the reader the recipe names and must survive the write")
 	assert.NotEqual(t, string(before), string(after))
 }

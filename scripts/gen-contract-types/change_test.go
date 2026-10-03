@@ -214,6 +214,10 @@ func TestEmitChange(t *testing.T) {
 	assert.Contains(t, out, "  at?: ResultRef;", "a pointer with omitempty is optional")
 	assert.Contains(t, out, "  ref: ChangeRef;", "a read's reference is what an operation takes")
 	assert.Contains(t, out, `import type { RunPos } from "./content.gen.ts";`)
+	assert.Contains(t, out, "export interface EditionHistory {\n", "a history is named for what it is, not the DOM's History")
+	assert.Contains(t, out, "  actor: ChangeActor | null;", "an edit made outside kapi has no known actor")
+	assert.Contains(t, out, `export type ChangeActorKind = "person" | "agent" | "tool";`)
+	assert.Contains(t, out, "  at: string;", "a time marshals as text")
 }
 
 // A type that marshals itself has no generic rendering.

@@ -260,9 +260,9 @@ func (e reviewedEntry) blessesTarget(b *model.Block, locale model.LocaleID) bool
 // describes the translation on disk, the flow's write when both do; else the
 // undecided record, else the flow's write, else nothing.
 //
-// An undecided record in the ledger is a basis somebody recorded beside a
-// translation: a Kapi Desktop edit, or a loop pass of a project whose ledger
-// still holds the basis records the loop wrote there. Nothing updates it when
+// An undecided record in the ledger is a basis an earlier release recorded
+// beside a translation, for a Kapi Desktop edit or a loop pass; a project's
+// ledger keeps the records it was given. Nothing updates it when
 // the loop writes the translation again, so a record that no longer describes
 // the file says nothing about the flow's newer write, which does.
 func (r reviewedIndex) lookup(scope string, b *model.Block, locale string) (reviewedEntry, bool) {
@@ -516,8 +516,8 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 			})
 		default:
 			// A basis recorded beside a translation with no decision on it
-			// (a Kapi Desktop edit, or a loop pass of a project whose ledger
-			// still holds the basis records the loop kept there): the source
+			// (an earlier release's record of a Kapi Desktop edit or a loop
+			// pass, which the project's ledger keeps): the source
 			// it translates and the translation, which lets a source rewrite
 			// under an UNDECIDED translation be derived on read exactly as one
 			// under a decided translation is. A record carrying neither hash
