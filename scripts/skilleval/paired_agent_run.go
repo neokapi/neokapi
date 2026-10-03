@@ -87,6 +87,9 @@ func runPairedAgent(ctx context.Context, prepared PairedPrepared) (PairedAgentRe
 			}
 		}
 	}
+	if prepared.Launch.Agent.Host == "codex" && result.SessionID != "" {
+		mergePairedCodexRollout(&result, prepared.Launch)
+	}
 	result.DurationMS = time.Since(started).Milliseconds()
 	switch {
 	case ctx.Err() != nil:
