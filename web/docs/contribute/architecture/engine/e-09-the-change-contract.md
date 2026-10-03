@@ -258,9 +258,11 @@ again is unchanged, a file keeps its mode, a removed translation reads back
 absent while a replay of its removal is stale and writes nothing, and a change
 set with no operation applies and writes nothing. Each home runs the removal on
 a translation it holds: the stream's own rows, a PO catalog for the file home,
-and for the project homes the catalog a PO source's target template names
-(`po/fr.po` beside `po/en.po`), where the suite also checks that the removal is
-written there and the source catalog keeps its bytes.
+for the project homes the catalog a PO source's target template names
+(`po/fr.po` beside `po/en.po`), and for the workspace home the French of a PO
+catalog that it keeps while that file does not exist. Where the translation
+lives apart from its source, the suite also checks that the removal is written
+there and the source catalog keeps its bytes.
 
 **The file home** (`core/change/filehome`) keeps each document as a file. A
 stage reads the document through its format's reader with the writer's
@@ -319,7 +321,8 @@ record is the commit:
 before `Commit`, the result names the workspace home for that edition
 (`StagedFile.Home`), and the service's recorder records nothing more for it
 (`StagedFile.Recorded`). The conformance suite runs on the workspace home with
-the edition files of a parked locale as its documents. The recipe picks the
+the edition files of a parked locale as its documents, and removes the French
+it keeps of a PO catalog. The recipe picks the
 home of a translation whose file does not exist: under
 `materialize: on-converge` it is the workspace home, whether or not the
 workspace holds anything of it yet, and under `manual` it is the file, unless

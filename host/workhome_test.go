@@ -106,10 +106,21 @@ func keptGerman(t *testing.T, a *App, recipe, doc string) map[string]string {
 // holds yet.
 func TestChangeService_ConformanceOnTheWorkspaceHome(t *testing.T) {
 	changetest.Run(t, func(t *testing.T) changetest.Env {
-		a, recipe := withheldProject(t, map[string]string{
+		// A catalog whose French translation is the file its target
+		// template names, which does not exist yet: the suite gives the
+		// catalog a French translation, which the workspace home keeps, and
+		// removes it there, and po/en.po keeps its bytes.
+		a, recipe := changeProject(t, project.ContentItem{Path: "docs/*.json", Target: "out/{lang}/{path}.json"}, map[string]string{
 			"docs/a.json": `{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}` + "\n",
 			"docs/b.json": `{"title": "Welcome"}` + "\n",
+			"po/en.po":    conformanceCatalog("en", ""),
+		}, func(p *project.KapiProject) {
+			p.Defaults.Materialize = project.MaterializeOnConverge
+			p.Collections[0].Content = append(p.Collections[0].Content, project.ContentItem{
+				Path: "po/en.po", Format: &project.FormatSpec{Name: "po"}, Target: "po/{lang}.po",
+			})
 		})
+		t.Cleanup(a.Shutdown)
 		var hook func(string)
 		svc, err := a.ChangeService(t.Context(), ChangeServiceOptions{Project: recipe, Origin: "test", BeforeSettle: func(doc string) {
 			if hook != nil {
@@ -120,12 +131,25 @@ func TestChangeService_ConformanceOnTheWorkspaceHome(t *testing.T) {
 		keepGerman(t, a, recipe, "docs/a.json", map[string]string{"greeting": "Hallo", "farewell": "Tschüss", "thanks": "Danke"})
 		keepGerman(t, a, recipe, "docs/b.json", map[string]string{"title": "Willkommen"})
 		docA, docB := targetRef(t, a, recipe, "docs/a.json", "de"), targetRef(t, a, recipe, "docs/b.json", "de")
+		french := targetRef(t, a, recipe, "po/en.po", "fr")
 		return changetest.Env{
 			Service:         svc,
 			SetBeforeSettle: func(fn func(string)) { hook = fn },
 			DocA:            docA,
 			DocB:            docB,
+			Translated:      "po/en.po",
+			TranslationFile: french,
 			Snapshot: func(t *testing.T, doc string) []byte {
+				switch doc {
+				case "po/en.po":
+					return []byte(readFile(t, recipe, doc))
+				case french:
+					kept, err := a.keptEditions(filepath.Dir(recipe)).Edition(context.Background(), "po/en.po", model.EditionKey{Locale: "fr"})
+					require.NoError(t, err)
+					data, err := json.Marshal(kept)
+					require.NoError(t, err)
+					return data
+				}
 				source := "docs/a.json"
 				if doc == docB {
 					source = "docs/b.json"

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -51,30 +52,41 @@ func newMachine(t *testing.T, dir string) *machine {
 	return &machine{ws: ws, p: p, st: st, home: &workhome.Home{Store: st.Heads, Log: p}}
 }
 
-// keptLayout serves the JSON documents under root, each with a German
-// edition the workspace home keeps until a delivery writes de/<name>.
+// keptLayout serves the documents under root, each with a German and a French
+// edition the workspace home keeps until a delivery writes <locale>/<name>. A
+// bilingual catalog keeps its translations there too, apart from itself.
 type keptLayout struct {
 	root string
 	reg  *registry.FormatRegistry
 	home filehome.Keeper
 }
 
+// keptLocales are the languages of the editions keptLayout keeps.
+var keptLocales = []model.LocaleID{"de", "fr"}
+
 func (l keptLayout) Locate(ctx context.Context, doc string) (filehome.Doc, error) {
 	var edition *model.EditionKey
-	if rest, ok := strings.CutPrefix(doc, "de/"); ok {
-		de := model.EditionKey{Locale: "de"}
-		edition, doc = &de, rest
+	for _, loc := range keptLocales {
+		if rest, ok := strings.CutPrefix(doc, string(loc)+"/"); ok {
+			k := model.EditionKey{Locale: loc}
+			edition, doc = &k, rest
+			break
+		}
 	}
 	d, err := filehome.DirLayout{Root: l.root, Formats: l.reg, SourceLocale: "en"}.Locate(ctx, doc)
 	if err != nil {
 		return filehome.Doc{}, err
 	}
 	d.Edition = edition
+	if d.Editions == change.EditionsInFile {
+		d.Editions, d.TargetLocale = change.EditionsPerFile, ""
+	}
 	d.EditionFile = func(k model.EditionKey) (filehome.EditionFile, bool) {
-		if k.Locale != "de" {
+		if !slices.Contains(keptLocales, k.Locale) {
 			return filehome.EditionFile{}, false
 		}
-		return filehome.EditionFile{Ref: "de/" + d.Ref, Path: filepath.Join(l.root, "de", filepath.FromSlash(d.Ref)), Kept: l.home}, true
+		loc := string(k.Locale)
+		return filehome.EditionFile{Ref: loc + "/" + d.Ref, Path: filepath.Join(l.root, loc, filepath.FromSlash(d.Ref)), Kept: l.home}, true
 	}
 	return d, nil
 }
@@ -139,7 +151,13 @@ func sortedKeys(m map[string]string) []string {
 // snapshot is what the workspace home keeps of the German edition of doc.
 func (f *keptFixture) snapshot(t *testing.T, doc string) []byte {
 	t.Helper()
-	kept, err := f.m.home.Edition(context.Background(), doc, model.EditionKey{Locale: "de"})
+	return f.snapshotOf(t, doc, model.EditionKey{Locale: "de"})
+}
+
+// snapshotOf is what the workspace home keeps of edition k of doc.
+func (f *keptFixture) snapshotOf(t *testing.T, doc string, k model.EditionKey) []byte {
+	t.Helper()
+	kept, err := f.m.home.Edition(context.Background(), doc, k)
 	require.NoError(t, err)
 	data, err := json.Marshal(kept)
 	require.NoError(t, err)
@@ -156,6 +174,7 @@ func TestWorkspaceHome_Conformance(t *testing.T) {
 		f := newKeptFixture(t, m, map[string]string{
 			"a.json": `{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}` + "\n",
 			"b.json": `{"title": "Welcome"}` + "\n",
+			"c.po":   "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"Language: en\\n\"\n\nmsgid \"Hello there\"\nmsgstr \"\"\n",
 		}, filehome.Options{BeforeSettle: func(doc string) {
 			if hook != nil {
 				hook(doc)
@@ -168,7 +187,20 @@ func TestWorkspaceHome_Conformance(t *testing.T) {
 			Service:         f.svc,
 			DocA:            "de/a.json",
 			DocB:            "de/b.json",
+			// A catalog whose French translation the workspace home keeps:
+			// the suite gives it one there and removes it, and the catalog
+			// keeps its bytes.
+			Translated:      "c.po",
+			TranslationFile: "fr/c.po",
 			Snapshot: func(t *testing.T, doc string) []byte {
+				if rest, ok := strings.CutPrefix(doc, "fr/"); ok {
+					return f.snapshotOf(t, rest, model.EditionKey{Locale: "fr"})
+				}
+				if doc == "c.po" {
+					data, err := os.ReadFile(filepath.Join(f.dir, doc))
+					require.NoError(t, err)
+					return data
+				}
 				return f.snapshot(t, strings.TrimPrefix(doc, "de/"))
 			},
 		}
