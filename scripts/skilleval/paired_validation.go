@@ -87,6 +87,11 @@ func validatePairedTask(dir string, task PairedTask, observed *PairedAgentResult
 			Passed: scopeErr == nil, Detail: pairedErrorDetail(scopeErr),
 		})
 	}
+	rootErr := checkPairedRoot(root, files, task.spec.Creates)
+	result.add(PairedCriterionResult{
+		ID: "scope:/", Description: "No unexpected files in the workspace root", Path: ".",
+		Passed: rootErr == nil, Detail: pairedErrorDetail(rootErr),
+	})
 	for _, criterion := range task.spec.Criteria {
 		passed, detail, err := validatePairedCriterion(root, task, files, criterion, observed)
 		if err != nil {
@@ -152,8 +157,8 @@ func pairedAsks(text string) bool {
 //	json_ordered         the file's JSON leaves, in document order, equal the reference's
 //	md_skeleton          the Markdown file has the source's block structure, link
 //	                     addresses, inline code and bold spans, in order
-//	md_translated        every prose block differs from the source's and no source
-//	                     sentence of four or more words remains
+//	md_translated        every prose block differs from the source's and no four
+//	                     words of the source's prose in a row remain
 //	language             the prose reads as the language Value names
 //	md_block_extends     block Block keeps the original's text and adds text that
 //	                     contains every Require and no Forbid
@@ -373,6 +378,28 @@ func checkPairedScope(root *os.Root, dir string, files map[string][]byte, create
 		}
 		return fmt.Errorf("unexpected file %q", name)
 	})
+}
+
+// checkPairedRoot refuses a file left directly in the workspace root that is
+// neither a fixture file nor one the task adds, such as a change set an agent
+// wrote beside the project. Directories are the scopes' and the runtime's,
+// and a dotfile is a host's or a tool's.
+func checkPairedRoot(root *os.Root, files map[string][]byte, creates []string) error {
+	entries, err := fs.ReadDir(root.FS(), ".")
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || strings.HasPrefix(name, ".") {
+			continue
+		}
+		if _, known := files[name]; known || slices.Contains(creates, name) {
+			continue
+		}
+		return fmt.Errorf("unexpected file %q", name)
+	}
+	return nil
 }
 
 func pairedErrorDetail(err error) string {

@@ -351,7 +351,15 @@ func TestPairedMarkdownBlocks(t *testing.T) {
 func TestPairedJSONLeavesRejectDuplicates(t *testing.T) {
 	leaves, err := pairedJSONLeaves([]byte(`{"a": {"b": "x", "c": [1, true]}, "d": null}`))
 	require.NoError(t, err)
-	assert.Equal(t, []pairedJSONLeaf{{"a.b", `"x"`}, {"a.c.0", "1"}, {"a.c.1", "true"}, {"d", "null"}}, leaves)
+	assert.Equal(t, []pairedJSONLeaf{{"/a/b", `"x"`}, {"/a/c/0", "1"}, {"/a/c/1", "true"}, {"/d", "null"}}, leaves)
+	// A key that holds a dot is told from a nested key.
+	dotted, err := pairedJSONLeaves([]byte(`{"a.b": "x"}`))
+	require.NoError(t, err)
+	assert.NotEqual(t, leaves[:1], dotted)
+	assert.Equal(t, "/a.b", dotted[0].Path)
+	escaped, err := pairedJSONLeaves([]byte(`{"a/b~c": 1}`))
+	require.NoError(t, err)
+	assert.Equal(t, "/a~1b~0c", escaped[0].Path)
 	_, err = pairedJSONLeaves([]byte(`{"a": "x", "a": "y"}`))
 	require.ErrorContains(t, err, "duplicate key")
 	_, err = pairedJSONLeaves([]byte(`{"a": "x"} {}`))

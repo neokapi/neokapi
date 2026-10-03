@@ -44,8 +44,77 @@ func pairedWritableFiles(task string) []string {
 	return slices.Concat(t.spec.Editable, t.spec.Creates)
 }
 
-// noteRoute records the write route one tool call takes, if it writes.
+var (
+	// pairedRedirectTarget is the file a shell redirection writes.
+	pairedRedirectTarget = regexp.MustCompile(`(?:^|[^0-9&>-])>>?\s*([^\s&|;<>()]+)`)
+	// pairedContextWrite is a kapi command that writes the project's context
+	// store: a recorded observation or correction, a kept or dropped rule, a
+	// term or a content-memory pair.
+	pairedContextWrite = regexp.MustCompile(`\bkapi(?:-files)?\s+(?:context\s+(?:observe|correct|keep|drop|contest|withdraw|revert|widen|import)|terms\s+(?:add|import|set|remove)|memory\s+(?:add|import))\b`)
+)
+
+// pairedRootWrites lists the files a tool call writes directly in the
+// workspace root, where no task file lies: a change set or a note an agent
+// leaves beside the project, which the root's scope check finds only if it is
+// still there at the end.
+func pairedRootWrites(tool string, input map[string]any, workspace string) []string {
+	var targets []string
+	switch tool {
+	case "Bash", "shell":
+		for _, match := range pairedRedirectTarget.FindAllStringSubmatch(pairedString(input, "command"), -1) {
+			targets = append(targets, strings.Trim(match[1], `"'`))
+		}
+	case "Write":
+		targets = append(targets, pairedString(input, "file_path"))
+	case "file_change":
+		for _, raw := range pairedList(input["changes"]) {
+			change, _ := raw.(map[string]any)
+			targets = append(targets, pairedString(change, "path"))
+		}
+	}
+	var out []string
+	for _, target := range targets {
+		if target == "" || strings.HasPrefix(target, "/dev/") || strings.HasPrefix(target, "$") {
+			continue
+		}
+		if filepath.IsAbs(target) {
+			if workspace == "" || filepath.Dir(target) != filepath.Clean(workspace) {
+				continue
+			}
+			target = filepath.Base(target)
+		}
+		if strings.Contains(filepath.ToSlash(target), "/") || target == "kapi.yaml" || target == "STYLE.md" {
+			continue
+		}
+		out = append(out, target)
+	}
+	return out
+}
+
+// pairedContextWriteOf names the context-store write a tool call makes, or
+// "".
+func pairedContextWriteOf(tool string, input map[string]any) string {
+	switch {
+	case tool == "Bash" || tool == "shell":
+		if match := pairedContextWrite.FindString(pairedString(input, "command")); match != "" {
+			return strings.Join(strings.Fields(match), " ")
+		}
+	case strings.HasPrefix(tool, "mcp__kapi__context_") &&
+		!strings.HasSuffix(tool, "_read") && !strings.HasSuffix(tool, "_log") && !strings.HasSuffix(tool, "_session"):
+		return tool
+	}
+	return ""
+}
+
+// noteRoute records the write route one tool call takes, if it writes, the
+// files it writes in the workspace root, and a write to the context store.
 func (o *pairedObserver) noteRoute(tool string, input map[string]any) {
+	for _, name := range pairedRootWrites(tool, input, o.launch.Workspace) {
+		o.result.RootWrites = pairedUnique(o.result.RootWrites, name)
+	}
+	if write := pairedContextWriteOf(tool, input); write != "" {
+		o.result.ContextWrites = pairedUnique(o.result.ContextWrites, write)
+	}
 	route := pairedWriteRouteOf(tool, input, o.taskFiles, o.launch.Workspace)
 	if route != "" {
 		o.result.WriteRoutes = pairedUnique(o.result.WriteRoutes, route)
