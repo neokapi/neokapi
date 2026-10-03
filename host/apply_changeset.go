@@ -34,6 +34,9 @@ type ApplyOptions struct {
 	// BackupSuffix keeps a copy of each file the change replaces, beside it
 	// with the suffix appended.
 	BackupSuffix string
+	// Out, outside a project, is the file the one edition the change set
+	// adds to a document is written to (ChangeServiceOptions.EditionOut).
+	Out string
 }
 
 // RunApplySchema prints the JSON Schema of a kapi.change/v1 change set, or,
@@ -103,6 +106,10 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 	if err != nil {
 		return err
 	}
+	if opts.Out != "" && recipe != "" {
+		return WithExitCode(ExitUsage, fmt.Errorf("--out: inside a project the recipe's target names the file of each edition; "+
+			"send the edition at its document ({\"doc\": SOURCE, \"edition\": LANG}) and kapi writes it there"))
+	}
 
 	comments, err := a.commentSet(set, root, a.newCommentDocs(recipe))
 	if err != nil {
@@ -121,7 +128,7 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 	} else {
 		svcOpts := ChangeServiceOptions{
 			Project: recipe, Origin: "apply", Format: a.FormatFlag, SourceLocale: model.LocaleID(a.SourceLang),
-			AnyPath: recipe == "", BackupSuffix: opts.BackupSuffix,
+			AnyPath: recipe == "", BackupSuffix: opts.BackupSuffix, EditionOut: opts.Out,
 			TargetLocale: targetLocaleOf(set, a.changeSourceLocale(recipe)),
 		}
 		if outside {
