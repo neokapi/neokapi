@@ -70,7 +70,8 @@ type KBFAnnotation struct {
 	// Block (nil-safe for blocks without targets). This is provenance —
 	// the targets *as read*. It is deliberately not what the writer
 	// emits: the model.Block's targets are, because only those carry
-	// what the pipeline produced.
+	// what the pipeline produced. The one exception is a target under the
+	// empty locale, which no edition holds (see keepEmptyLocaleTarget).
 	Targets map[kbf.LocaleID][]kbf.Run
 	// TargetOrigins maps locale → how that target was produced, as read. Same
 	// standing as Targets: the record of what the file said, beside the runs
@@ -482,8 +483,9 @@ func (w *Writer) handlePart(part *model.Part) error {
 // annotation supplies the wire-level metadata the model has no
 // first-class field for — hash, placeholders, properties, preview,
 // document identity — and the structured source Runs are preserved
-// verbatim. Targets come from the model.Block, never from the
-// annotation. If there is no annotation (the synthesized case) the
+// verbatim. Targets come from the model.Block, apart from a target the
+// bundle carried under the empty locale, which comes from the annotation
+// (keepEmptyLocaleTarget). If there is no annotation (the synthesized case) the
 // writer emits a minimal text-only block so the archive is still
 // well-formed.
 func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
@@ -524,6 +526,7 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 				Properties:    ann.Properties,
 				Preview:       ann.Preview,
 			}
+			keepEmptyLocaleTarget(&b, ann)
 			return b, ann.DocumentID, ann.DocumentPath
 		}
 	}
@@ -584,6 +587,29 @@ func targetOriginsFromModel(mb *model.Block) map[kbf.LocaleID]kbf.TargetOrigin {
 		out[kbf.LocaleID(key.Locale)] = e.Origin
 	}
 	return out
+}
+
+// keepEmptyLocaleTarget writes back a target the bundle carried under the
+// empty locale, with its origin, as the reader read it. The reader files such
+// a target under the zero edition key, which names the edition the block was
+// read in, so EachEdition never yields it and no edition accessor can change
+// or remove it: the annotation's copy is the target. As for every other
+// target, empty runs are not written, and neither is a zero origin.
+func keepEmptyLocaleTarget(b *kbf.Block, ann *KBFAnnotation) {
+	runs := ann.Targets[""]
+	if len(runs) == 0 {
+		return
+	}
+	if b.Targets == nil {
+		b.Targets = make(map[kbf.LocaleID][]kbf.Run)
+	}
+	b.Targets[""] = cloneRuns(runs)
+	if origin := ann.TargetOrigins[""]; origin != (kbf.TargetOrigin{}) {
+		if b.TargetOrigins == nil {
+			b.TargetOrigins = make(map[kbf.LocaleID]kbf.TargetOrigin)
+		}
+		b.TargetOrigins[""] = origin
+	}
 }
 
 // runsFromModel is the model.Run → kbf.Run adapter used when a
