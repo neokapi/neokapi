@@ -10,6 +10,28 @@ import (
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 )
 
+// The block_history change types that record a target's content: added,
+// rewritten, or removed. A history row of any other type (a decision, a
+// projection the ledger settled) records no content and restores none.
+const (
+	HistoryTargetAdded    = "target_added"
+	HistoryTargetModified = "target_modified"
+	HistoryTargetRemoved  = "target_removed"
+)
+
+// contentHistoryTypes is the SQL list of the content change types.
+const contentHistoryTypes = `('` + HistoryTargetAdded + `','` + HistoryTargetModified + `','` + HistoryTargetRemoved + `')`
+
+// IsContentHistory reports whether a block_history change type records a
+// target's content.
+func IsContentHistory(changeType string) bool {
+	switch changeType {
+	case HistoryTargetAdded, HistoryTargetModified, HistoryTargetRemoved:
+		return true
+	}
+	return false
+}
+
 // TargetRevert describes how to restore one (block, locale) target to the value
 // it held before a batch (correlation) of changes.
 type TargetRevert struct {
@@ -17,84 +39,72 @@ type TargetRevert struct {
 	Locale  string
 	Text    string // prior text to restore (empty when Clear)
 	Coded   string // prior coded runs JSON, if any
-	Clear   bool   // the target was first created in the batch → revert blanks it
+	Clear   bool   // the target did not exist before: the revert removes it
 }
 
-// ComputeBatchReverts returns, for every (block, locale) target changed under a
-// correlation id (a push/import/request batch), the value it had immediately
-// before that batch — i.e. what reverting the batch should restore. A target
-// first created by the batch has Clear=true (no prior value). This is read-only;
-// callers apply the reverts through the normal StoreBlocks path so the revert is
-// itself recorded in history.
+// priorContentSQL reads, for each (block, locale) of the pairs subquery (the
+// first %s), the last content row the bound (the second %s) admits, and
+// whether the target existed then: a pair with no such row, or whose last row
+// is a removal, did not.
+const priorContentSQL = `SELECT b.block_id, b.locale, COALESCE(p.text, ''), COALESCE(p.coded_text, ''),
+	   p.change_type IS NULL OR p.change_type = '` + HistoryTargetRemoved + `' AS clear
+	 FROM (%s) b
+	 LEFT JOIN LATERAL (
+	   SELECT h.text, h.coded_text, h.change_type FROM block_history h
+	   WHERE h.project_id=$1 AND h.stream=$2 AND h.block_id=b.block_id AND h.locale=b.locale
+	     AND h.change_type IN ` + contentHistoryTypes + ` AND %s
+	   ORDER BY h.id DESC LIMIT 1) p ON TRUE`
+
+// ComputeBatchReverts returns, for every (block, locale) target whose content
+// changed under a correlation id (a push/import/request batch), the value it
+// had immediately before that batch: what reverting the batch should restore.
+// A target that did not exist before the batch has Clear=true. This is
+// read-only; callers apply the reverts through the change service so the
+// revert is itself recorded in history.
 func (s *PostgresStore) ComputeBatchReverts(ctx context.Context, projectID, stream, correlationID string) ([]TargetRevert, error) {
 	stream = storeutil.DefaultStream(stream)
 	if correlationID == "" {
 		return nil, errors.New("correlation_id is required")
 	}
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT b.block_id, b.locale,
-		   COALESCE((SELECT h.text FROM block_history h
-		             WHERE h.project_id=$1 AND h.stream=$2 AND h.block_id=b.block_id AND h.locale=b.locale AND h.id < b.first_id
-		             ORDER BY h.id DESC LIMIT 1), '') AS prior_text,
-		   COALESCE((SELECT h.coded_text FROM block_history h
-		             WHERE h.project_id=$1 AND h.stream=$2 AND h.block_id=b.block_id AND h.locale=b.locale AND h.id < b.first_id
-		             ORDER BY h.id DESC LIMIT 1), '') AS prior_coded,
-		   NOT EXISTS(SELECT 1 FROM block_history h
-		             WHERE h.project_id=$1 AND h.stream=$2 AND h.block_id=b.block_id AND h.locale=b.locale AND h.id < b.first_id) AS clear
-		 FROM (
-		   SELECT block_id, locale, MIN(id) AS first_id
-		   FROM block_history
-		   WHERE project_id=$1 AND stream=$2 AND correlation_id=$3
-		   GROUP BY block_id, locale
-		 ) b`,
+	pairs := `SELECT block_id, locale, MIN(id) AS first_id FROM block_history
+		WHERE project_id=$1 AND stream=$2 AND correlation_id=$3 AND change_type IN ` + contentHistoryTypes + `
+		GROUP BY block_id, locale`
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(priorContentSQL, pairs, "h.id < b.first_id"),
 		projectID, stream, correlationID)
 	if err != nil {
 		return nil, fmt.Errorf("compute batch reverts: %w", err)
 	}
-	defer rows.Close()
+	return scanReverts(rows)
+}
 
+// ComputePointInTimeReverts returns, for every (block, locale) whose content
+// changed after the cutoff, the value it held as of the cutoff: what restoring
+// the stream to that point should set. A target that did not exist at the
+// cutoff gets Clear=true. Targets unchanged since the cutoff are not returned
+// (already correct). Read-only; callers apply them through the change service
+// so the restore is recorded.
+func (s *PostgresStore) ComputePointInTimeReverts(ctx context.Context, projectID, stream string, cutoff time.Time) ([]TargetRevert, error) {
+	stream = storeutil.DefaultStream(stream)
+	pairs := `SELECT DISTINCT block_id, locale FROM block_history
+		WHERE project_id=$1 AND stream=$2 AND created_at > $3 AND change_type IN ` + contentHistoryTypes
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(priorContentSQL, pairs, "h.created_at <= $3"),
+		projectID, stream, cutoff)
+	if err != nil {
+		return nil, fmt.Errorf("compute point-in-time reverts: %w", err)
+	}
+	return scanReverts(rows)
+}
+
+func scanReverts(rows *sql.Rows) ([]TargetRevert, error) {
+	defer rows.Close()
 	var out []TargetRevert
 	for rows.Next() {
 		var r TargetRevert
 		if err := rows.Scan(&r.BlockID, &r.Locale, &r.Text, &r.Coded, &r.Clear); err != nil {
 			return nil, fmt.Errorf("scan revert: %w", err)
 		}
-		out = append(out, r)
-	}
-	return out, rows.Err()
-}
-
-// ComputePointInTimeReverts returns, for every (block, locale) that changed
-// AFTER the cutoff, the value it held as of the cutoff — i.e. what restoring the
-// stream to that point should set. Targets created after the cutoff get
-// Clear=true. Targets unchanged since the cutoff are not returned (already
-// correct). Read-only; callers apply via StoreBlocks so the restore is recorded.
-func (s *PostgresStore) ComputePointInTimeReverts(ctx context.Context, projectID, stream string, cutoff time.Time) ([]TargetRevert, error) {
-	stream = storeutil.DefaultStream(stream)
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT b.block_id, b.locale,
-		   COALESCE((SELECT h.text FROM block_history h
-		             WHERE h.project_id=$1 AND h.stream=$2 AND h.block_id=b.block_id AND h.locale=b.locale AND h.created_at <= $3
-		             ORDER BY h.id DESC LIMIT 1), '') AS asof_text,
-		   COALESCE((SELECT h.coded_text FROM block_history h
-		             WHERE h.project_id=$1 AND h.stream=$2 AND h.block_id=b.block_id AND h.locale=b.locale AND h.created_at <= $3
-		             ORDER BY h.id DESC LIMIT 1), '') AS asof_coded,
-		   NOT EXISTS(SELECT 1 FROM block_history h
-		             WHERE h.project_id=$1 AND h.stream=$2 AND h.block_id=b.block_id AND h.locale=b.locale AND h.created_at <= $3) AS clear
-		 FROM (
-		   SELECT DISTINCT block_id, locale FROM block_history
-		   WHERE project_id=$1 AND stream=$2 AND created_at > $3
-		 ) b`,
-		projectID, stream, cutoff)
-	if err != nil {
-		return nil, fmt.Errorf("compute point-in-time reverts: %w", err)
-	}
-	defer rows.Close()
-	var out []TargetRevert
-	for rows.Next() {
-		var r TargetRevert
-		if err := rows.Scan(&r.BlockID, &r.Locale, &r.Text, &r.Coded, &r.Clear); err != nil {
-			return nil, fmt.Errorf("scan revert: %w", err)
+		if r.Clear {
+			r.Text, r.Coded = "", ""
 		}
 		out = append(out, r)
 	}

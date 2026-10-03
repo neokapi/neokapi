@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -141,21 +142,19 @@ func (s *Server) HandleRollbackBlock(c echo.Context) error {
 		return serverErr(c, err)
 	}
 
-	var entry *struct {
-		Text  string
-		Coded string
-	}
-	for _, h := range history {
-		if h.Seq == req.ToSeq {
-			entry = &struct {
-				Text  string
-				Coded string
-			}{Text: h.Text, Coded: h.Coded}
+	var entry *store.BlockHistoryEntry
+	for i := range history {
+		if history[i].Seq == req.ToSeq {
+			entry = &history[i]
 			break
 		}
 	}
 	if entry == nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "history entry not found for this block/locale"})
+	}
+	if !bstore.IsContentHistory(entry.ChangeType) {
+		return c.JSON(http.StatusUnprocessableEntity, ErrorResponse{Error: fmt.Sprintf(
+			"history entry %d records a %s, not the translation's wording; roll back to an entry that records its content", req.ToSeq, entry.ChangeType)})
 	}
 
 	sb, err := s.ContentStore.GetBlock(ctx, pid, stream, bid)
@@ -167,7 +166,8 @@ func (s *Server) HandleRollbackBlock(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found"})
 	}
 	// The restore is a set_content of the entry's runs on the revision the
-	// target holds now, or on the one the caller read. Labelled so its history
+	// target holds now, or on the one the caller read; an entry that records
+	// the translation's removal restores its removal. Labelled so its history
 	// entry reads as a rollback; a person restoring prior wording lands it over
 	// the findings it brings back.
 	locale := model.LocaleID(req.Locale)
@@ -175,12 +175,20 @@ func (s *Server) HandleRollbackBlock(c echo.Context) error {
 	if rev == "" {
 		rev = store.TargetRevision(sb, locale)
 	}
-	set := change.Set{Gate: change.GateReport, Ops: []change.Op{{
+	op := change.Op{
 		Kind:    change.KindSetContent,
 		At:      change.Ref{Doc: sb.ItemName, Block: bid, Edition: model.EditionKey{Locale: locale}},
 		IfMatch: rev,
 		Body:    &change.SetContent{Content: historyContent(entry.Text, entry.Coded)},
-	}}}
+	}
+	if entry.ChangeType == bstore.HistoryTargetRemoved {
+		if rev == model.AbsentRevision {
+			// The block holds no translation in the language: as it was.
+			return c.JSON(http.StatusOK, map[string]any{"ok": true, "block_id": bid, "locale": req.Locale, "restored_seq": req.ToSeq})
+		}
+		op.Kind, op.Body = change.KindRemoveEdition, &change.RemoveEdition{}
+	}
+	set := change.Set{Gate: change.GateReport, Ops: []change.Op{op}}
 	ctx = bstore.WithChangeContext(ctx, bstore.ChangeContext{Reason: "rollback:" + strconv.FormatInt(req.ToSeq, 10)})
 	wsID, _ := c.Get("workspace_id").(string)
 	sender := requestSender(c)

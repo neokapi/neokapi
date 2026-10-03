@@ -8,10 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -145,6 +148,99 @@ func TestPhase4_RestoreToVersion(t *testing.T) {
 
 	sb, _ = cs.GetBlock(ctx, "p-pit", "main", bid)
 	assert.Equal(t, "v1", sb.TargetText(fr), "restore-to-version should roll the target back to the version's state")
+}
+
+// testServerCaller holds every permission in the test server's workspace.
+var testServerCaller = changeCaller{user: "user-1", name: "Ada", perms: platauth.PermAll, ws: "test-ws"}
+
+// removeTranslation removes a block's translation as a person's change set.
+func removeTranslation(t *testing.T, s *Server, pid, item, bid, locale string) {
+	t.Helper()
+	rev := targetRev(t, s.ContentStore.(*bstore.PostgresStore), pid, bid, locale)
+	rec, res := sendChanges(t, s, pid, testServerCaller, change.Set{Ops: []change.Op{{
+		Kind: change.KindRemoveEdition, At: at(item, bid, locale), IfMatch: rev, Body: &change.RemoveEdition{}}}})
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+}
+
+// sendRestore calls a restore route (revert or rollback) with body as a
+// project manager and returns the response.
+func sendRestore(t *testing.T, s *Server, handler func(echo.Context) error, pid, bid, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c := s.GetEcho().NewContext(req, rec)
+	c.Set("project_permissions", platauth.PermAll)
+	c.SetParamNames("id", "ref", "bid")
+	c.SetParamValues(pid, "main", bid)
+	require.NoError(t, handler(c))
+	return rec
+}
+
+// History rows that record no wording (a removal, a decision) restore what
+// they record: a revert to before a batch that re-added a removed translation
+// removes it again, and a decision filed before a batch leaves the wording it
+// was made on as what the revert restores.
+func TestRevert_HistoryRowsThatRecordNoWording(t *testing.T) {
+	fr := model.LocaleID("fr")
+	setup := func(t *testing.T, pid string) (*Server, string) {
+		s, _ := newTestServer(t)
+		require.NoError(t, s.ContentStore.CreateProject(t.Context(), &platstore.Project{ID: pid, Name: pid, DefaultSourceLanguage: "en",
+			TargetLanguages: []model.LocaleID{fr}, WorkspaceID: "test-ws"}))
+		blk := model.NewBlock("b", "hello")
+		blk.SetTargetText(fr, "bonjour-v0")
+		return s, storeItemBlock(t, s.ContentStore, pid, "en.json", blk)
+	}
+	batch := func(t *testing.T, s *Server, pid, bid, corr, text string) {
+		ctx := bstore.WithChangeContext(t.Context(), bstore.ChangeContext{Actor: "u", CorrelationID: corr})
+		_, err := s.ContentStore.UpdateBlock(ctx, pid, "main", bid, func(sb *venue.StoredBlock) error {
+			sb.Block.SetTargetText(fr, text)
+			return nil
+		})
+		require.NoError(t, err)
+	}
+
+	t.Run("a translation removed before the batch is removed by its revert", func(t *testing.T) {
+		s, bid := setup(t, "p-rm")
+		removeTranslation(t, s, "p-rm", "en.json", bid, "fr")
+		batch(t, s, "p-rm", bid, "READD", "bonjour-v1")
+
+		rec := sendRestore(t, s, s.HandleRevertBatch, "p-rm", bid, `{"correlation_id":"READD"}`)
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		assert.Nil(t, getStoredBlock(t, s.ContentStore.(*bstore.PostgresStore), "p-rm", bid).Target(fr),
+			"the block holds no translation, as before the batch")
+	})
+
+	t.Run("a decision filed before the batch restores the wording before it", func(t *testing.T) {
+		s, bid := setup(t, "p-dec")
+		rec, res := sendChanges(t, s, "p-dec", testServerCaller, change.Set{Ops: []change.Op{
+			decide(at("en.json", bid, "fr"), targetRev(t, s.ContentStore.(*bstore.PostgresStore), "p-dec", bid, "fr"), change.OutcomeEstablish)}})
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+		hist, err := s.ContentStore.GetBlockHistory(t.Context(), "p-dec", "main", bid, "fr", 10)
+		require.NoError(t, err)
+		require.Equal(t, "decision", hist[0].ChangeType, "the premise: the decision is the last history row before the batch")
+		batch(t, s, "p-dec", bid, "AFTER", "bonjour-v1")
+
+		rec = sendRestore(t, s, s.HandleRevertBatch, "p-dec", bid, `{"correlation_id":"AFTER"}`)
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		assert.Equal(t, "bonjour-v0", getStoredBlock(t, s.ContentStore.(*bstore.PostgresStore), "p-dec", bid).TargetText(fr))
+	})
+
+	t.Run("a rollback to a removal removes the translation", func(t *testing.T) {
+		s, bid := setup(t, "p-rb-rm")
+		removeTranslation(t, s, "p-rb-rm", "en.json", bid, "fr")
+		hist, err := s.ContentStore.GetBlockHistory(t.Context(), "p-rb-rm", "main", bid, "fr", 10)
+		require.NoError(t, err)
+		require.Equal(t, bstore.HistoryTargetRemoved, hist[0].ChangeType)
+		removal := hist[0].Seq
+		batch(t, s, "p-rb-rm", bid, "READD", "bonjour-v1")
+
+		rec := sendRestore(t, s, s.HandleRollbackBlock, "p-rb-rm", bid, fmt.Sprintf(`{"locale":"fr","to_seq":%d}`, removal))
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		assert.Nil(t, getStoredBlock(t, s.ContentStore.(*bstore.PostgresStore), "p-rb-rm", bid).Target(fr))
+	})
 }
 
 // rowIDOf is the row id of the block a project's main stream keys key.

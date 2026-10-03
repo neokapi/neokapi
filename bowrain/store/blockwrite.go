@@ -171,11 +171,11 @@ func removeTargetTx(ctx context.Context, tx Runner, projectID, stream, blockID, 
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO block_history
 			(project_id, stream, block_id, locale, change_type, text, coded_text, origin, author, actor_role, edit_reason, correlation_id, created_at)
-		 VALUES ($1, $2, $3, $4, 'target_removed', '', '', '', $5, $6, $7, $8, $9)`,
-		projectID, stream, blockID, variant, cc.Actor, cc.ActorRole, cc.Reason, cc.CorrelationID, now); err != nil {
+		 VALUES ($1, $2, $3, $4, $5, '', '', '', $6, $7, $8, $9, $10)`,
+		projectID, stream, blockID, variant, HistoryTargetRemoved, cc.Actor, cc.ActorRole, cc.Reason, cc.CorrelationID, now); err != nil {
 		return fmt.Errorf("record the removal of target %s of block %s: %w", variant, blockID, err)
 	}
-	if err := logChange(ctx, tx, projectID, stream, blockID, "target_removed", variant, ""); err != nil {
+	if err := logChange(ctx, tx, projectID, stream, blockID, HistoryTargetRemoved, variant, ""); err != nil {
 		return fmt.Errorf("log the removal of target %s of block %s: %w", variant, blockID, err)
 	}
 	return nil
