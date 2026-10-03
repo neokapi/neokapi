@@ -66,14 +66,26 @@ func TestService_FindingsArePresentWheneverTheCheckRan(t *testing.T) {
 	})
 }
 
+// Every position a result reports prints its offset, a zero one included, and
+// the end of a match at the end of a text run is the start of the run after
+// it (RangeAnchor's attribution).
+func TestResolvedPrintsEveryOffset(t *testing.T) {
+	b := guideBlock()
+	res := apply(t, b, person, replace("", sourceRev(b), find("shop guide", "handbook")))
+	requireApplied(t, res)
+	raw, err := json.Marshal(res[0].Resolved)
+	require.NoError(t, err)
+	assert.JSONEq(t, `[{"start":{"run":1,"offset":0},"end":{"run":3,"offset":0}}]`, string(raw))
+}
+
 // A finding names the span it found and, for a term rule, the wording to use
 // instead, so a sender rewrites it without reading the message.
 func TestFindingRange(t *testing.T) {
 	a := model.SpanAnchor(model.RunPos{Run: 0, Offset: 4}, model.RunPos{Run: 0, Offset: 11})
 	got := change.FindingRange(&a)
 	require.NotNil(t, got)
-	assert.Equal(t, model.RunPos{Run: 0, Offset: 4}, got.Start)
-	assert.Equal(t, model.RunPos{Run: 0, Offset: 11}, got.End)
+	assert.Equal(t, change.Position{Run: 0, Offset: 4}, got.Start)
+	assert.Equal(t, change.Position{Run: 0, Offset: 11}, got.End)
 	block := model.BlockAnchor()
 	assert.Nil(t, change.FindingRange(&block), "an anchor on the whole block names no span")
 	assert.Nil(t, change.FindingRange(nil))

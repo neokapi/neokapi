@@ -227,7 +227,7 @@ func (w *workset) mark(op Op, body *Mark, res *OpResult) *Error {
 	if err := w.checkCodes(cur, next, nil, res); err != nil {
 		return err
 	}
-	res.Resolved = []Resolved{{Path: path, Start: posAt(seq, start), End: posAt(seq, end)}}
+	res.Resolved = []Resolved{resolvedSpan(path, posAt(seq, start), posAt(seq, end))}
 	return w.rewrite(st, next, OverlayRebase{Edits: []model.RunEdit{}}, res)
 }
 

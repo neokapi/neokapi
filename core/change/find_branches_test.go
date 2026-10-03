@@ -96,5 +96,5 @@ func TestApplyBlock_NotFoundNamesWhatItSearched(t *testing.T) {
 	c := model.NewRunsBlock("c", []model.Run{model.TextR("Book a Book now. BOOK it.")})
 	err = requireRefused(t, apply(t, c, agent, replace("", sourceRev(c), find("book", "order")))[0], change.CodeNotFound)
 	require.Len(t, err.Candidates, 3, "the matches that differ only in case, at most three")
-	assert.Equal(t, model.RunPos{Run: 0, Offset: 7}, err.Candidates[1].At.Start)
+	assert.Equal(t, change.Position{Run: 0, Offset: 7}, err.Candidates[1].At.Start)
 }
