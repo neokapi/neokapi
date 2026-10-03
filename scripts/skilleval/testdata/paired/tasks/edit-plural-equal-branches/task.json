@@ -1,24 +1,24 @@
 {
   "id": "edit-plural-equal-branches",
   "family": "plural-branch",
-  "prompt": "In l10n/reminders_en.arb, the reminderSent plural says \"Reminder sent to your adviser\" in both of its cases. Change its other case (the \"other\" branch) to \"Reminders sent to your adviser\". Keep its one case, its metadata and every other message exactly as they are.",
+  "prompt": "In messages/reminders_en.arb, the reminderSent plural says \"Reminder sent to your adviser\" in both of its cases. Change its other case (the \"other\" branch) to \"Reminders sent to your adviser\". Keep its one case, its metadata and every other message exactly as they are.",
   "editable": [
-    "l10n/reminders_en.arb"
+    "messages/reminders_en.arb"
   ],
   "scope": [
-    "l10n"
+    "messages"
   ],
   "criteria": [
     {
       "id": "plural-bytes",
       "kind": "bytes_equal",
-      "path": "l10n/reminders_en.arb",
+      "path": "messages/reminders_en.arb",
       "description": "Only the other branch of reminderSent changes; every other byte of the catalog is as it was"
     },
     {
       "id": "edited-branch",
       "kind": "icu_branch",
-      "path": "l10n/reminders_en.arb",
+      "path": "messages/reminders_en.arb",
       "key": "reminderSent",
       "branch": "other",
       "description": "The other branch of reminderSent reads as the reference's, byte for byte"
@@ -26,7 +26,7 @@
     {
       "id": "other-branches",
       "kind": "icu_branches_unchanged",
-      "path": "l10n/reminders_en.arb",
+      "path": "messages/reminders_en.arb",
       "key": "reminderSent",
       "branch": "other",
       "description": "The one branch of reminderSent, which holds the same text, and the plural's syntax are as they were"
