@@ -241,7 +241,7 @@ func TestApply_EditsAPOCatalogsTranslationInItsTargetFile(t *testing.T) {
 			if b.Ref.Edition.IsZero() || b.Ref.Edition.Locale == "en" {
 				text, rev = b.Editions["fr"].Text, b.Editions["fr"].Rev
 			}
-			require.NotEqual(t, "", text, "the French po/fr.po holds reads back: %+v", b)
+			require.NotEmpty(t, text, "the French po/fr.po holds reads back: %+v", b)
 			at := b.Ref
 			at.Edition = model.EditionKey{Locale: "fr"}
 			want := "Salut " + doc
