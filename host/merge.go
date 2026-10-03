@@ -68,6 +68,16 @@ func restoreRedactedBlocks(layout project.Layout, batchID string, blocks []*mode
 			if tr, n := restore(b.TargetRuns(targetLocale)); n > 0 {
 				b.SetTargetRuns(targetLocale, tr)
 			}
+			continue
+		}
+		// Kept unrestored, a placeholder stays as the visible stand-in the
+		// vault records for it: text the file holds, as an XLIFF that carried
+		// the placeholder as a code returns it with no native form of its own.
+		if tr, n := redaction.Restore(b.TargetRuns(targetLocale), func(token string) (string, bool) {
+			v, ok := vault.Get(b.ID, token)
+			return v.Disp, ok && v.Disp != ""
+		}); n > 0 {
+			b.SetTargetRuns(targetLocale, tr)
 		}
 	}
 	return nil

@@ -38,9 +38,11 @@ func TestCodesChanged(t *testing.T) {
 	assert.Contains(t, e.Error(), `guard (codes_changed): expected <x id="1"/> <x id="/1"/>, found none`)
 	assert.NotContains(t, e.Error(), "pc-close")
 
-	e = codesChanged(source, append(append([]model.Run{}, source...), model.PhR(model.PlaceholderRun{ID: "9"})))
+	assert.Nil(t, codesChanged(source, append(append([]model.Run{}, source...), model.PhR(model.PlaceholderRun{ID: "9"}))),
+		"a code the translation adds is the change service's to judge")
+	e = codesChanged(source, append(append([]model.Run{}, source[:1]...), model.TextR("videotime."), model.PhR(model.PlaceholderRun{ID: "9"})))
 	require.NotNil(t, e)
-	assert.Equal(t, `<x id="9/"/>`, e.Found)
+	assert.Equal(t, `<x id="9/"/>`, e.Found, "beside a dropped code, an added one is named too")
 }
 
 // A gate refusal of a merged unit names every failing finding the commit

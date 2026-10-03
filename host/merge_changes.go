@@ -404,13 +404,15 @@ func (a *App) applyReturned(ctx context.Context, svc *change.Service, task merge
 }
 
 // codesChanged refuses a translation that drops an inline code its source
-// holds, or holds one its source does not, as guard/codes_changed with the
-// codes as a read shows them: what the source holds and the translation
-// lacks as expected, and what the translation adds as found. The commit
-// check would refuse it too, naming one code at a time.
+// holds as guard/codes_changed, with the codes as a read shows them: what the
+// source holds and the translation lacks as expected, and what the
+// translation adds besides as found. The commit check would refuse it too,
+// naming one code at a time. A code the translation adds, such as a
+// redaction placeholder a merge keeps with --no-restore, is the change
+// service's to judge.
 func codesChanged(source, target []model.Run) *change.Error {
 	d := model.DiffRunCodes(source, target)
-	if d.Balanced() {
+	if len(d.MissingCodes()) == 0 {
 		return nil
 	}
 	tokens, order := codeTokens(source, target)
