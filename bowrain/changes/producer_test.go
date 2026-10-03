@@ -117,3 +117,57 @@ func TestProducer_LeavesAnOverlayOnContentThatMovedSinceTheRead(t *testing.T) {
 		}
 	}
 }
+
+// A tool writes block annotations and properties beside the content: a draft
+// with its candidates, and a block it only analysed. Both land on the rows. A
+// block a person changed since the read keeps what it holds, and what the tool
+// found on its old content stays off it.
+func TestProducer_KeepsTheAnnotationsAndPropertiesAToolWrote(t *testing.T) {
+	f := newFixture(t)
+	ctx := t.Context()
+	rows, err := f.store.ItemBlocks(ctx, f.project.ID, "main", "a.json", nil)
+	require.NoError(t, err)
+	more, err := f.store.ItemBlocks(ctx, f.project.ID, "main", "b.json", nil)
+	require.NoError(t, err)
+	rows = append(rows, more...)
+	p := changes.NewProducer(f.store, f.project, "main", nil, nil)
+	p.Read(rows)
+
+	three := read(t, f.svc, "b.json", "three")
+	res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{setText(three.Ref, three.Rev, "Third, rewritten")}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+
+	byKey := map[string]*model.Block{}
+	for _, sb := range rows {
+		byKey[sb.SourceID] = sb.Block
+		sb.Block.SetAnno(model.AnnoAltTranslation, &model.AltTranslations{Items: []*model.AltTranslation{
+			{Locale: "de", Target: []model.Run{{Text: &model.TextRun{Text: "Kandidat " + sb.SourceID}}}, Score: 0.8}}})
+		if sb.Block.Properties == nil {
+			sb.Block.Properties = map[string]string{}
+		}
+		sb.Block.Properties["terminology"] = `[{"term":"` + sb.SourceID + `"}]`
+	}
+	byKey["one"].SetTargetText("de", "Erster")
+	landed, err := p.Commit(ctx, "memory", []*model.Block{byKey["one"], byKey["two"], byKey["three"]})
+	require.NoError(t, err)
+	assert.Len(t, landed, 2, "the drafts on content nobody moved land")
+
+	stored := func(item, key string) *model.Block {
+		got, err := f.store.ItemBlocks(ctx, f.project.ID, "main", item, []string{key})
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		return got[0].Block
+	}
+	for _, key := range []string{"one", "two"} {
+		b := stored("a.json", key)
+		alts := b.AltTranslations()
+		require.Len(t, alts, 1, key)
+		assert.Equal(t, "Kandidat "+key, model.RunsText(alts[0].Target), key)
+		assert.Equal(t, `[{"term":"`+key+`"}]`, b.Properties["terminology"], key)
+	}
+	assert.Equal(t, "Erster", stored("a.json", "one").TargetText("de"))
+	moved := stored("b.json", "three")
+	assert.Empty(t, moved.AltTranslations(), "what the tool found on content that moved stays off the row")
+	assert.Empty(t, moved.Properties["terminology"])
+}

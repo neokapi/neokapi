@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -435,6 +436,82 @@ func (st *staged) Release() error {
 	}
 	st.w = nil
 	return st.s.h.discard(w, errWriteDiscarded)
+}
+
+// WriteMeta writes the block annotations and properties tools wrote on the
+// drafts' blocks (BlockState.Meta) on one write that holds their rows. A row
+// takes them only while it holds the content the tool produced: what a tool
+// found on content that moved since stays off the row, and the draft is
+// returned as left out, refused as stale.
+func (h *Home) WriteMeta(ctx context.Context, drafts []Draft) ([]Refusal, error) {
+	if len(drafts) == 0 {
+		return nil, nil
+	}
+	ws, ok := h.Store.(store.BlockWriteStore)
+	if !ok {
+		return nil, fmt.Errorf("the content store %T keeps no held writes", h.Store)
+	}
+	byItem := map[string][]Draft{}
+	for _, d := range drafts {
+		byItem[d.Doc] = append(byItem[d.Doc], d)
+	}
+	bw, err := ws.BeginBlockWrite(ctx, h.ProjectID, h.stream())
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = bw.Rollback() }()
+	var (
+		changed []*venue.StoredBlock
+		moved   []Refusal
+	)
+	for _, item := range slices.Sorted(maps.Keys(byItem)) {
+		ds := byItem[item]
+		keys := make([]string, len(ds))
+		for i, d := range ds {
+			keys[i] = d.Before.ID()
+		}
+		held, err := bw.Hold(ctx, item, keys)
+		if err != nil {
+			return nil, err
+		}
+		byID := make(map[string]*venue.StoredBlock, len(held))
+		for _, sb := range held {
+			if sb.Block.SourceLocale == "" {
+				sb.Block.SourceLocale = h.SourceLocale
+			}
+			byID[sb.Block.ID] = sb
+		}
+		for _, d := range ds {
+			sb := byID[d.Before.ID()]
+			if sb == nil || !sameContent(sb.Block, d.After) {
+				moved = append(moved, Refusal{Doc: item, Block: d.Before.ID(), Error: &change.Error{Code: change.CodeStale,
+					Message: "the block's content moved since the tool read it, so what the tool found on it is not kept"}})
+				continue
+			}
+			d.Before.Meta(d.After).apply(sb.Block)
+			changed = append(changed, sb)
+		}
+	}
+	if len(changed) > 0 {
+		if err := bw.Store(ctx, changed); err != nil {
+			return nil, err
+		}
+	}
+	return moved, bw.Commit()
+}
+
+// sameContent reports whether a and b hold the same editions with the same
+// runs.
+func sameContent(a, b *model.Block) bool {
+	contents := func(blk *model.Block) map[string]string {
+		out := map[string]string{}
+		for k, e := range blk.EachEdition {
+			text, _ := k.MarshalText()
+			out[string(text)] = string(model.CanonicalRunsJSON(e.Runs))
+		}
+		return out
+	}
+	return maps.Equal(contents(a), contents(b))
 }
 
 // editionTexts is the text of each edition of b, keyed by its edition key in

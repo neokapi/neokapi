@@ -90,7 +90,7 @@ func (p *Producer) Commit(ctx context.Context, tool string, blocks []*model.Bloc
 	}
 	svc := NewService(p.home, p.registry, change.WithRecorder(p.rec))
 	ctx, _ = WithChange(ctx, "")
-	_, _, landed, err := CommitDrafts(ctx, svc, tool, drafts)
+	_, _, landed, err := CommitDrafts(ctx, p.home, svc, tool, drafts)
 	if err != nil {
 		return nil, err
 	}

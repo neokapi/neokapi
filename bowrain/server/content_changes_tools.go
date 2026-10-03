@@ -64,7 +64,7 @@ func (s *Server) commitTo(c echo.Context, proj *store.Project, stream, wsID stri
 	return func(ctx context.Context, tool string, drafts []changes.Draft) ([]string, error) {
 		sc := s.newStreamChange(ctx, c, proj, stream, wsID, "", changeSender{})
 		ctx, _ = changes.WithChange(ctx, "")
-		res, _, landed, err := changes.CommitDrafts(ctx, sc.toolService(), tool, drafts)
+		res, _, landed, err := changes.CommitDrafts(ctx, sc.home, sc.toolService(), tool, drafts)
 		if err != nil {
 			return nil, err
 		}

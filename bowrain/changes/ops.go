@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"maps"
 	"slices"
 	"strings"
@@ -13,15 +15,18 @@ import (
 )
 
 // BlockState is a block as a server job read it, before a tool ran over it:
-// the revision and content of each edition, and the overlays on each. A tool
-// changes the block it is given in place, so a job records the state first and
-// compares the block the tool hands back against it (Ops).
+// the revision and content of each edition, the overlays on each, and the
+// block's annotations and properties. A tool changes the block it is given in
+// place, so a job records the state first and compares the block the tool
+// hands back against it (Ops, Meta).
 type BlockState struct {
 	id       string
 	source   model.EditionKey
 	authRev  string
 	editions map[model.EditionKey]editionSnap
 	overlays map[overlayKey][]byte
+	annos    map[string][]byte
+	props    map[string]string
 }
 
 type editionSnap struct {
@@ -56,7 +61,82 @@ func Snapshot(b *model.Block, source model.LocaleID) BlockState {
 	for _, o := range b.Overlays {
 		s.overlays[keyOfOverlay(o)] = overlayJSON(o)
 	}
+	s.annos = map[string][]byte{}
+	for key, v := range b.Annos() {
+		s.annos[key] = payloadJSON(v)
+	}
+	s.props = maps.Clone(b.Properties)
 	return s
+}
+
+func payloadJSON(v model.Payload) []byte {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return []byte(err.Error())
+	}
+	return raw
+}
+
+// BlockMeta is what a tool wrote on a block beyond its content and overlays:
+// the block annotations it added or changed, and the properties it set or
+// removed. A row keeps them beside the content, and no change set operation
+// carries them (Home.WriteMeta).
+type BlockMeta struct {
+	Annotations map[string]model.Payload
+	Set         map[string]string
+	Removed     []string
+}
+
+// Empty reports whether the tool wrote nothing beyond the content.
+func (m BlockMeta) Empty() bool {
+	return len(m.Annotations) == 0 && len(m.Set) == 0 && len(m.Removed) == 0
+}
+
+// apply writes m onto b.
+func (m BlockMeta) apply(b *model.Block) {
+	for key, v := range m.Annotations {
+		b.SetAnno(key, v)
+	}
+	if len(m.Set) > 0 && b.Properties == nil {
+		b.Properties = map[string]string{}
+	}
+	maps.Copy(b.Properties, m.Set)
+	for _, name := range m.Removed {
+		delete(b.Properties, name)
+	}
+}
+
+// Meta returns the block annotations and properties after carries that the
+// state did not: an annotation added or changed, and a property set, changed
+// or removed. An annotation the tool removed is not among them; a row keeps
+// the annotations it has.
+func (s BlockState) Meta(after *model.Block) BlockMeta {
+	var m BlockMeta
+	for key, v := range after.Annos() {
+		if was, ok := s.annos[key]; ok && bytes.Equal(was, payloadJSON(v)) {
+			continue
+		}
+		if m.Annotations == nil {
+			m.Annotations = map[string]model.Payload{}
+		}
+		m.Annotations[key] = v
+	}
+	for name, v := range after.Properties {
+		if was, ok := s.props[name]; ok && was == v {
+			continue
+		}
+		if m.Set == nil {
+			m.Set = map[string]string{}
+		}
+		m.Set[name] = v
+	}
+	for name := range s.props {
+		if _, ok := after.Properties[name]; !ok {
+			m.Removed = append(m.Removed, name)
+		}
+	}
+	slices.Sort(m.Removed)
+	return m
 }
 
 func keyOfOverlay(o model.Overlay) overlayKey {
@@ -95,7 +175,8 @@ func (s BlockState) ID() string { return s.id }
 //     that takes the overlay's place, guarded by the revision of the edition
 //     it lies on.
 //
-// Block annotations and properties are not operations and are not written.
+// Block annotations and properties are not operations: Meta returns them, and
+// the stream home writes them (Home.WriteMeta).
 func (s BlockState) Ops(doc string, after *model.Block) []change.Op {
 	at := func(k model.EditionKey) change.Ref {
 		r := change.Ref{Doc: doc, Block: s.id}
@@ -212,17 +293,19 @@ type Draft struct {
 	After  *model.Block
 }
 
-// CommitDrafts writes what a tool produced through the change service, as the
-// tool: the operations that turn each draft's block from the state the job
-// read into what the tool made of it (BlockState.Ops), under gate report, so
-// the drafts land with their findings and meet the ship gates later, and with
-// require_basis, so a translation drafted from a source that moved since the
-// job read it does not land. A block a person changed since the read keeps the
-// person's change (ApplyEach). It returns the result, the blocks left out,
-// and the row ids of the drafts the stream now holds: those that landed, and
-// those that changed nothing because the stream already held what the tool
+// CommitDrafts writes what a tool produced through the change service of
+// home, as the tool: the operations that turn each draft's block from the
+// state the job read into what the tool made of it (BlockState.Ops), under
+// gate report, so the drafts land with their findings and meet the ship gates
+// later, and with require_basis, so a translation drafted from a source that
+// moved since the job read it does not land. A block a person changed since
+// the read keeps the person's change (ApplyEach). The block annotations and
+// properties the tool wrote then land on the rows that hold what the tool
+// produced (Home.WriteMeta). It returns the result, the blocks left out, and
+// the row ids of the drafts the stream now holds: those that landed, and those
+// that changed nothing because the stream already held what the tool
 // produced.
-func CommitDrafts(ctx context.Context, svc *change.Service, tool string, drafts []Draft) (*change.Result, []Refusal, []string, error) {
+func CommitDrafts(ctx context.Context, home *Home, svc *change.Service, tool string, drafts []Draft) (*change.Result, []Refusal, []string, error) {
 	set := change.Set{Gate: change.GateReport, RequireBasis: true}
 	byBlock := map[[2]string]bool{}
 	for _, d := range drafts {
@@ -236,6 +319,21 @@ func CommitDrafts(ctx context.Context, svc *change.Service, tool string, drafts 
 	for _, r := range refused {
 		delete(byBlock, [2]string{r.Doc, r.Block})
 	}
+	var meta []Draft
+	for _, d := range drafts {
+		if byBlock[[2]string{d.Doc, d.Before.ID()}] && !d.Before.Meta(d.After).Empty() {
+			meta = append(meta, d)
+		}
+	}
+	moved, err := home.WriteMeta(ctx, meta)
+	if err != nil {
+		return res, refused, nil, err
+	}
+	for _, r := range moved {
+		delete(byBlock, [2]string{r.Doc, r.Block})
+	}
+	refused = append(refused, moved...)
+	logLeftOut(ctx, home, tool, refused)
 	landed := make([]string, 0, len(byBlock))
 	for _, d := range drafts {
 		if byBlock[[2]string{d.Doc, d.Before.ID()}] {
@@ -243,6 +341,31 @@ func CommitDrafts(ctx context.Context, svc *change.Service, tool string, drafts 
 		}
 	}
 	return res, refused, landed, nil
+}
+
+// logLeftOut records the blocks a tool's commit left out, counted by the code
+// that left them out, so what a job reports it produced can be read beside
+// what landed.
+func logLeftOut(ctx context.Context, home *Home, tool string, refused []Refusal) {
+	if len(refused) == 0 {
+		return
+	}
+	codes := map[change.Code]int{}
+	for _, r := range refused {
+		var code change.Code
+		if r.Error != nil {
+			code = r.Error.Code
+		}
+		codes[code]++
+	}
+	first := refused[0]
+	reason := ""
+	if first.Error != nil {
+		reason = first.Error.Message
+	}
+	slog.InfoContext(ctx, "changes: a tool's commit left blocks out",
+		"tool", tool, "project", home.ProjectID, "stream", home.stream(), "left_out", len(refused),
+		"codes", fmt.Sprint(codes), "first_item", first.Doc, "first_block", first.Block, "first_reason", reason)
 }
 
 // Refusal is a block whose operations a change set could not apply, and why.
