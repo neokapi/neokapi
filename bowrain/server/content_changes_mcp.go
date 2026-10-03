@@ -67,7 +67,7 @@ func (s *Server) userSender(ctx context.Context, userID string, proj *store.Proj
 	req.plan = w.Plan
 	access := s.resolveProjectAccess(ctx, req)
 	if access.custodyLapsed {
-		s.recordMCPCustodyLapse(userID, proj.WorkspaceID, access.coordinates)
+		s.recordMCPCustodyLapse(ctx, userID, proj.WorkspaceID, access.coordinates)
 	}
 	sender.allows = func(perm platauth.Permission, locale string) bool {
 		if !access.permissions.Has(perm) {

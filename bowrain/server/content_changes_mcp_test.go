@@ -130,7 +130,9 @@ func TestUserSender_HoldsWhatTheMiddlewareResolves(t *testing.T) {
 	})
 
 	// A custody the plan suspends is filed as the audit line the middleware
-	// files for a request, naming the MCP route.
+	// files for a request, naming the MCP route, with the actor's name and
+	// the request's id, address and user agent the authentication middleware
+	// put on the request context.
 	t.Run("a lapsed custody is audited", func(t *testing.T) {
 		snapshot, stop := collectEvents(t, srv)
 		defer stop()
@@ -142,9 +144,13 @@ func TestUserSender_HoldsWhatTheMiddlewareResolves(t *testing.T) {
 			}
 			return platev.Event{}, false
 		}
-		_, err := srv.userSender(ctx, translator, proj)
+		request := func(userID, name string) context.Context {
+			rctx := platev.WithActor(ctx, userID, name)
+			return platev.WithRequestMeta(rctx, platev.RequestMeta{RequestID: "req-mcp-" + name, IP: "203.0.113.7", UserAgent: "agent/1.0"})
+		}
+		_, err := srv.userSender(request(translator, "translator@example.com"), translator, proj)
 		require.NoError(t, err)
-		_, err = srv.userSender(ctx, custodian, proj)
+		_, err = srv.userSender(request(custodian, "custodian@example.com"), custodian, proj)
 		require.NoError(t, err)
 		require.Eventually(t, func() bool { _, ok := lapse(custodian); return ok }, 2*time.Second, 10*time.Millisecond)
 		ev, _ := lapse(custodian)
@@ -152,6 +158,10 @@ func TestUserSender_HoldsWhatTheMiddlewareResolves(t *testing.T) {
 		assert.Equal(t, wsID, ev.WorkspaceID)
 		assert.Equal(t, "custodian_seats_unavailable", ev.Data["reason"])
 		assert.Contains(t, ev.Data["coordinates"], "acme")
+		assert.Equal(t, "custodian@example.com", ev.Data["actor_name"])
+		assert.Equal(t, "req-mcp-custodian@example.com", ev.RequestID)
+		assert.Equal(t, "203.0.113.7", ev.IP)
+		assert.Equal(t, "agent/1.0", ev.UserAgent)
 		assert.Never(t, func() bool { _, ok := lapse(translator); return ok }, 200*time.Millisecond, 10*time.Millisecond,
 			"a user whose custody stands files nothing")
 	})

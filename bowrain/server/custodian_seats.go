@@ -167,18 +167,29 @@ func (s *Server) recordCustodyLapse(c echo.Context, reach platauth.CoordinateRea
 
 // recordMCPCustodyLapse files the same audit line for a user an agent acts for
 // through the server MCP, whose change sets reach a project outside the request
-// middleware, so there is no request to read the actor and workspace from.
-func (s *Server) recordMCPCustodyLapse(userID, workspaceID string, reach platauth.CoordinateReach) {
+// middleware, so there is no echo request to read the actor and workspace from.
+// The actor's name and the request's id, address and user agent come from the
+// request context the authentication middleware filled, as the store's events
+// read them.
+func (s *Server) recordMCPCustodyLapse(ctx context.Context, userID, workspaceID string, reach platauth.CoordinateReach) {
 	if s.EventBus == nil {
 		return
 	}
+	data := custodyLapseData(reach, mcpPath)
+	if name := platev.ActorNameFromContext(ctx); name != "" && platev.ActorFromContext(ctx) == userID {
+		data["actor_name"] = name
+	}
+	meta := platev.RequestMetaFromContext(ctx)
 	s.EventBus.Publish(platev.Event{
 		Type:        platev.EventAuthzDenied,
 		Source:      "server",
 		WorkspaceID: workspaceID,
 		Actor:       userID,
 		Effect:      "suspend",
-		Data:        custodyLapseData(reach, mcpPath),
+		Data:        data,
+		RequestID:   meta.RequestID,
+		IP:          meta.IP,
+		UserAgent:   meta.UserAgent,
 	})
 }
 
