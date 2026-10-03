@@ -57,7 +57,7 @@ func TestExcludedInlineHTMLKeepsItsMarkupVerbatim(t *testing.T) {
 	require.Len(t, blocks, 1)
 
 	var opens []*model.PcOpenRun
-	for _, r := range blocks[0].Source {
+	for _, r := range blocks[0].SourceRuns() {
 		if r.PcOpen != nil {
 			opens = append(opens, r.PcOpen)
 		}

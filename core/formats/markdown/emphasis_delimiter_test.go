@@ -66,7 +66,7 @@ func TestUnderscoreEmphasisKeepsItsKind(t *testing.T) {
 	blocks := readBlocks(t, out)
 	require.Len(t, blocks, 1)
 	var types []string
-	for _, r := range blocks[0].Source {
+	for _, r := range blocks[0].SourceRuns() {
 		if r.PcOpen != nil {
 			types = append(types, r.PcOpen.Type)
 		}

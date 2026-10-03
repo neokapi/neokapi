@@ -64,7 +64,7 @@ func TestImageAltIsNotTranslatableWithTranslationOff(t *testing.T) {
 	assert.Contains(t, blocks[0].SourceText(), "My Title", "the title stays translatable")
 
 	var open *model.PcOpenRun
-	for _, r := range blocks[0].Source {
+	for _, r := range blocks[0].SourceRuns() {
 		if r.PcOpen != nil && r.PcOpen.Type == "media:image" {
 			open = r.PcOpen
 			break
@@ -108,8 +108,8 @@ func TestImageAltTranslatedStaysTheSource(t *testing.T) {
 
 	blocks := testutil.FilterBlocks(parts)
 	require.Len(t, blocks, 1)
-	target := make([]model.Run, 0, len(blocks[0].Source))
-	for _, r := range blocks[0].Source {
+	target := make([]model.Run, 0, len(blocks[0].SourceRuns()))
+	for _, r := range blocks[0].SourceRuns() {
 		if r.Text == nil {
 			target = append(target, r)
 			continue

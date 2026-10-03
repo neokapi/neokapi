@@ -78,7 +78,7 @@ func TestWrappedLinkTitleTranslatesInsideAContainer(t *testing.T) {
 	translate := func(blocks []*model.Block) {
 		require.Len(t, blocks, 1)
 		var target []model.Run
-		for _, r := range blocks[0].Source {
+		for _, r := range blocks[0].SourceRuns() {
 			if r.Text == nil {
 				target = append(target, r)
 				continue

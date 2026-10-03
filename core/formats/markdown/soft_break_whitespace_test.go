@@ -65,7 +65,7 @@ func TestSoftBreakSingleTrailingSpaceKeepsTheLine(t *testing.T) {
 		blocks := readBlocks(t, tc.input)
 		require.Len(t, blocks, 1)
 		assert.Equal(t, tc.text, blocks[0].SourceText(), "the block keeps the line structure")
-		assert.Equal(t, tc.text, markdown.RenderBlockContent(blocks[0], blocks[0].Source), "the rendered content reproduces the source")
+		assert.Equal(t, tc.text, markdown.RenderBlockContent(blocks[0], blocks[0].SourceRuns()), "the rendered content reproduces the source")
 		assert.Equal(t, tc.input, roundtripWithSkeleton(t, tc.input), "skeleton path is not byte-exact")
 	}
 }

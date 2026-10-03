@@ -28,7 +28,7 @@ func applyToCell(t *testing.T, doc, pick string, op func(b *model.Block) change.
 	env := change.BlockEnv{Actor: change.Actor{Kind: change.ActorPerson}, Format: change.WriterCapabilities("markdown", writer)}
 	var res []change.OpResult
 	for _, p := range parts {
-		if b, ok := p.Resource.(*model.Block); ok && strings.Contains(model.RunsText(b.Source), pick) {
+		if b, ok := p.Resource.(*model.Block); ok && strings.Contains(model.RunsText(b.SourceRuns()), pick) {
 			require.Nil(t, res, "%q picks one block", pick)
 			res = change.ApplyBlock(b, []change.Op{op(b)}, env)
 		}
@@ -46,8 +46,8 @@ func cellLink(t *testing.T, doc, pick string) *model.PcOpenRun {
 	parts, err := spec.ReadParts(markdown.NewReader(), []byte(doc))
 	require.NoError(t, err)
 	for _, p := range parts {
-		if b, ok := p.Resource.(*model.Block); ok && strings.Contains(model.RunsText(b.Source), pick) {
-			for _, r := range b.Source {
+		if b, ok := p.Resource.(*model.Block); ok && strings.Contains(model.RunsText(b.SourceRuns()), pick) {
+			for _, r := range b.SourceRuns() {
 				if r.PcOpen != nil && r.PcOpen.Type == "link:hyperlink" {
 					return r.PcOpen
 				}

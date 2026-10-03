@@ -21,7 +21,7 @@ func TestInlineMathTaggedForEditors(t *testing.T) {
 		if p.Type != model.PartBlock {
 			continue
 		}
-		for _, run := range p.Resource.(*model.Block).Source {
+		for _, run := range p.Resource.(*model.Block).SourceRuns() {
 			if run.PcOpen != nil && run.PcOpen.Type == "fmt:math" {
 				mathRun = run.PcOpen
 			}

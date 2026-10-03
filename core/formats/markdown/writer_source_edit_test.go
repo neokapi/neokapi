@@ -40,10 +40,10 @@ func editConfiguredMarkdownSource(t *testing.T, reader *markdown.Reader, doc, fr
 	edited := 0
 	for _, p := range parts {
 		b, ok := p.Resource.(*model.Block)
-		if !ok || !b.Translatable || model.RunsText(b.Source) != from {
+		if !ok || !b.Translatable || model.RunsText(b.SourceRuns()) != from {
 			continue
 		}
-		b.EditSourceRuns(model.ParseRunsEditText(to, b.Source))
+		b.EditSourceRuns(model.ParseRunsEditText(to, b.SourceRuns()))
 		edited++
 	}
 	require.Equal(t, 1, edited, "exactly one block reads %q", from)

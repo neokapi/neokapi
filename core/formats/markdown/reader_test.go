@@ -375,7 +375,7 @@ func TestReadHTMLBlockSubfilter(t *testing.T) {
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			block := p.Resource.(*model.Block)
-			if block.Type == "html-text" && len(block.Source) > 0 && block.SourceText() == "HTML content" {
+			if block.Type == "html-text" && len(block.SourceRuns()) > 0 && block.SourceText() == "HTML content" {
 				hasHTMLContentBlock = true
 			}
 		}
