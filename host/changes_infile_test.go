@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,9 +27,9 @@ msgstr ""
 `
 
 // A PO catalog that keeps its translation in it lists that edition in a read
-// without being told the language: the project's only target language, or
-// the one its path names. A block that holds no translation lists no
-// remove_edition.
+// without being told the language: the one its header declares, the
+// project's only target language, or the one its path names. A block that
+// holds no translation lists no remove_edition.
 func TestChangeService_AnInFileReadListsTheEditionItHolds(t *testing.T) {
 	for name, tc := range map[string]struct {
 		path  string
@@ -37,6 +38,7 @@ func TestChangeService_AnInFileReadListsTheEditionItHolds(t *testing.T) {
 		"the project's only target language": {"locales/messages.po", []model.LocaleID{"nb"}},
 		"the language its directory names":   {"locales/nb/messages.po", []model.LocaleID{"de", "nb"}},
 		"the language its name names":        {"po/nb.po", []model.LocaleID{"de", "nb"}},
+		"the language its header declares":   {"po/messages.po", []model.LocaleID{"de", "nb"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			item := project.ContentItem{Path: tc.path, Format: &project.FormatSpec{Name: "po"}}
@@ -94,9 +96,31 @@ func TestChangeService_AReadNamesTheDocumentsOwnEdition(t *testing.T) {
 }
 
 func TestHeldLocale(t *testing.T) {
-	assert.Equal(t, model.LocaleID("nb"), heldLocale("x/messages.po", []model.LocaleID{"nb"}))
-	assert.Equal(t, model.LocaleID("de"), heldLocale("locales/de/messages.po", []model.LocaleID{"de", "nb"}))
-	assert.Equal(t, model.LocaleID("nb"), heldLocale("po/nb.po", []model.LocaleID{"de", "nb"}))
-	assert.Empty(t, heldLocale("po/messages.po", []model.LocaleID{"de", "nb"}), "nothing names one of several")
-	assert.Empty(t, heldLocale("de/nb.po", []model.LocaleID{"de", "nb"}), "two names for two languages say nothing")
+	assert.Equal(t, model.LocaleID("nb"), heldLocale("x/messages.po", "", []model.LocaleID{"nb"}))
+	assert.Equal(t, model.LocaleID("de"), heldLocale("locales/de/messages.po", "", []model.LocaleID{"de", "nb"}))
+	assert.Equal(t, model.LocaleID("nb"), heldLocale("po/nb.po", "", []model.LocaleID{"de", "nb"}))
+	assert.Empty(t, heldLocale("po/messages.po", "", []model.LocaleID{"de", "nb"}), "nothing names one of several")
+	assert.Empty(t, heldLocale("de/nb.po", "", []model.LocaleID{"de", "nb"}), "two names for two languages say nothing")
+	assert.Equal(t, model.LocaleID("nb"), heldLocale("po/messages.po", "nb", []model.LocaleID{"de", "nb"}), "the header says")
+	assert.Equal(t, model.LocaleID("de"), heldLocale("po/nb.po", "de", []model.LocaleID{"de", "nb"}), "the header wins over the name")
+	assert.Equal(t, model.LocaleID("pt-BR"), heldLocale("po/messages.po", "pt_BR", []model.LocaleID{"pt-BR"}))
+	assert.Equal(t, model.LocaleID("fr"), heldLocale("po/messages.po", "fr", []model.LocaleID{"de", "nb"}), "a language no target names")
+}
+
+// The header of a PO catalog is the entry with an empty msgid that opens it;
+// a catalog whose first entry has a msgid continued on the next lines has
+// none.
+func TestPOHeaderField(t *testing.T) {
+	for name, tc := range map[string]struct{ po, want string }{
+		"one line per field":    {heldPO, "nb"},
+		"after comments":        {"# Norwegian\n#, fuzzy\nmsgid \"\"\nmsgstr \"\"\n\"Language: nb_NO\\n\"\n", "nb_NO"},
+		"the msgstr's own line": {"msgid \"\"\nmsgstr \"Language: de\\n\"\n\nmsgid \"a\"\nmsgstr \"b\"\n", "de"},
+		"no Language field":     {"msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain\\n\"\n", ""},
+		"no header":             {"msgid \"Book\"\nmsgstr \"Bok\"\n", ""},
+		"a continued msgid":     {"msgid \"\"\n\"Language: nb\"\nmsgstr \"x\"\n", ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, poHeaderField(strings.NewReader(tc.po), "Language"))
+		})
+	}
 }
