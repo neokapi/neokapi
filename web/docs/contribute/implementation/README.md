@@ -54,7 +54,7 @@ subsystem of the engine.
 | --------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | [CLI Conventions](surfaces/cli-conventions.md)           | [S-01](/contribute/architecture/surfaces/s-01-kapi-cli)                | Input/output/exit-code/project contracts, per-command surface table                                  |
 | [MCP Tools Reference](surfaces/mcp-tools-reference.md)   | [S-03](/contribute/architecture/surfaces/s-03-agent-surfaces)          | Where the MCP tool handlers live, how a tool reaches the server, and what shape its result takes     |
-| [WASM Engine ABI](surfaces/wasm-engine-abi.md)           | [S-01](/contribute/architecture/surfaces/s-01-kapi-cli)                | The JS contract the browser build of the CLI exposes to `@neokapi/engine`, and its reverse bridges   |
+| [WASM Engine ABI](surfaces/wasm-engine-abi.md)           | [S-01](/contribute/architecture/surfaces/s-01-kapi-cli)                | The JS contract the browser build of the CLI exposes to `@neokapi/engine`, the change contract's entry points, and its reverse bridges   |
 
 ## M: Multilingual
 

@@ -407,7 +407,13 @@ nothing records a comment edit.
 
 The MCP tools `read_blocks`, `apply_edits` and `describe_format` build the
 service for each call's project and send every change set as the calling agent
-([S-03](../surfaces/s-03-agent-surfaces.md)).
+([S-03](../surfaces/s-03-agent-surfaces.md)). The browser engine's `kapiRead`,
+`kapiApply` and `kapiDescribe` build it through the same function and carry
+the contract as JSON in and out: a refusal, a change set that does not decode
+included, is answered as a result. The page names the sender, a person unless
+it says an agent, and in a project an applied change is recorded in the
+browser's workspace log
+([WASM Engine ABI](../../implementation/surfaces/wasm-engine-abi.md#the-change-contract)).
 
 The verbs that write whole translations build the service with
 `Materialize` set, so the file home writes each translation's file from its
@@ -458,8 +464,9 @@ no files or operations, and the error.
   ask a person.
 - Concurrent kapi writers of one file lose nothing: each file a change reads
   is hashed before the read and again under the lock. The lock orders kapi's
-  own processes; an editor that saves between the re-hash and the rename
-  remains a conflict the next read sees.
+  own processes, and in the browser, which runs one, the calls of the page;
+  an editor that saves between the re-hash and the rename remains a conflict
+  the next read sees.
 - An operation reported `applied` reached the file. One the format has no
   place for in that file is refused.
 - A change set is all or nothing across documents up to the final renames.

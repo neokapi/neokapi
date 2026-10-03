@@ -16,7 +16,9 @@ The package owns:
   `inspectAnnotated`, `kbf`, `segment`, `segmentEngines`, `runWithTrace`,
   `reset` (start a directory over, its projects, databases and files) and
   `removeDatabase`, plus the in-memory volume (`vol`), `cwd`/`chdir`, and
-  `setSinks` for stdout/stderr routing.
+  `setSinks` for stdout/stderr routing. `read`, `apply` and `describe` edit
+  content through the change contract (`kapi.change/v1`), the one `kapi apply`
+  and the agent tools use.
 - **Versioned ABI** — `engineABI()` reads the engine's `kapiEngineABI()`
   descriptor (`{abi, version, functions}`) for feature detection;
   `hasEngineFunction(name)` probes individual entry points (with a fallback
@@ -29,9 +31,10 @@ The package owns:
   `kapiBrowserTranslate`) as documented interfaces, plus
   `detectCapabilities()`.
 
-Payload types (the `ContentTree` returned by `inspect`, run shapes, overlays)
-come from `@neokapi/contract-types`, generated from the Go structs — they
-cannot drift from the engine.
+Payload types (the `ContentTree` returned by `inspect`, run shapes, overlays,
+the change set, its result and the read page) come from
+`@neokapi/contract-types`, generated from the Go structs, so they cannot drift
+from the engine.
 
 The package deliberately has **no UI or ML dependencies** (no xterm, monaco,
 pdfium, onnxruntime). Higher-level kits — terminals, modals, plugin bridges —
@@ -120,6 +123,46 @@ await rt.run(["pseudo-translate", "/project/app.json", "-o", "/project/out.json"
 // Or use the typed endpoints.
 const { tree } = await rt.inspect("/project/app.json"); // ContentTree (@neokapi/contract-types)
 ```
+
+## Editing content
+
+`read`, `apply` and `describe` carry the change contract to the same change
+service `kapi inspect` and `kapi apply` use. A read gives each block the
+reference to copy into an operation's `at` and the revision to send as its
+`if_match`; an apply of an operation built from them lands through the format's
+writer, so everything around the text stays byte for byte, and is refused as
+`stale` when the block changed since the read.
+
+```ts
+import { ChangeRefused } from "@neokapi/engine";
+
+const page = await rt.read({ doc: "/project/app.json" });
+const hello = page.blocks.find((b) => b.text === "world")!;
+
+const result = await rt.apply({
+  ops: [{ op: "set_content", at: hello.ref, if_match: hello.rev, text: "everyone" }],
+});
+if (result.status !== "applied") {
+  console.warn(result.error?.message ?? result.ops.find((op) => op.error)?.error?.message);
+}
+
+const html = await rt.describe({ format: "html" }); // which operations HTML supports
+
+try {
+  await rt.read({ doc: "/project/missing.json" });
+} catch (e) {
+  if (e instanceof ChangeRefused) console.warn(e.result.error?.code); // "not_found"
+}
+```
+
+Each call takes options as a second argument: `project` names the project the
+call acts in (its `kapi.yaml`, its root or a path inside it; omitted, the one
+discovery finds from the working directory), and an apply's `actor`
+(`{ kind: "person" | "agent", name, session }`) names who sends it, a person
+when omitted. In a project, an applied change set is recorded in the engine's
+workspace log, as `kapi apply` records one. An `apply` resolves to its
+`kapi.change-result/v1` whatever the status; a `read` or `describe` the
+service refuses throws `ChangeRefused`, which carries that result.
 
 ## Host capabilities (reverse bridges)
 
