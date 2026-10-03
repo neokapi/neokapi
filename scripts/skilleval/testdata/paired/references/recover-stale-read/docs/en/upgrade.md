@@ -5,8 +5,8 @@ Windows 11 or macOS 13.
 
 ## Before you upgrade
 
-Back up your data and settings before you upgrade. The upgrade keeps your appointments and
-messages, and it takes about ten minutes.
+Back up your data and settings before you upgrade. The upgrade keeps all your appointments and
+messages, and it takes about five minutes.
 
 ## After the upgrade
 
