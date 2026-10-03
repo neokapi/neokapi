@@ -77,6 +77,9 @@ const DefaultContextTermsLimit = 25
 // ContextAnswer is what applies at one point.
 type ContextAnswer struct {
 	Constraints []coreprofile.ConstraintResolution `json:"constraints,omitempty"`
+	// EditionOf names, for the file of a translation the recipe keeps, the
+	// source document it is an edition of and the edition.
+	EditionOf *ContextEditionOf `json:"edition_of,omitempty"`
 	// Point is the coordinate the request resolved to.
 	Point ContextPoint `json:"point"`
 	// Scope says how much could have been read, so a thin answer is readable:
@@ -286,6 +289,9 @@ type ContextPointSources struct {
 	// Notes are caveats the assembly itself produced — a location outside the
 	// project, a profile no recipe declares.
 	Notes []string
+	// EditionOf is set when Path is the file of a translation the recipe
+	// keeps: the source document it is an edition of, and the edition.
+	EditionOf *ContextEditionOf
 	// Unread names the context files a checkout holds whose project store has
 	// never held context, and the command that reads them.
 	Unread *ContextFilesNotice
@@ -319,6 +325,13 @@ func ResolveContextGovernance(proj *project.KapiProject, req ContextPointRequest
 // project.GovernancePoint.NoReader for the file.
 func contextPathPoint(proj *project.KapiProject, req ContextPointRequest, rel string, noReader bool, at time.Time) project.GovernancePoint {
 	return project.GovernancePoint{Path: rel, NoReader: noReader, Comments: req.Declared && proj.ClaimsOnlyComments(rel, noReader), At: at}
+}
+
+// ContextEditionOf names the source document a translation's file holds an
+// edition of, and the edition.
+type ContextEditionOf struct {
+	Source  string `json:"source"`
+	Edition string `json:"edition"`
 }
 
 // ContextSourcesAt assembles what a by-location answer reads — the one path for
@@ -377,6 +390,14 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 			return src, noop
 		}
 		src.Path = matched
+		// The file of a translation the recipe keeps is an edition of its
+		// source, which the change contract addresses through the source.
+		a.InitRegistries()
+		if l, lerr := a.newProjectLayout(ChangeServiceOptions{Project: projectPath}); lerr == nil {
+			if t, ok, _ := l.translationFile(matched); ok {
+				src.EditionOf = &ContextEditionOf{Source: t.source, Edition: string(t.locale)}
+			}
+		}
 		// A file the project's ignore rules match is content the project does not
 		// declare, so it sits at the project's default point and in no collection.
 		if !ProjectIgnores(root, matched) {
@@ -589,7 +610,8 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	total := len(all)
 
 	res := &ContextAnswer{
-		Scope: scope,
+		EditionOf: src.EditionOf,
+		Scope:     scope,
 		Coverage: coverageOf(
 			countKinds(src.Voice != nil, len(hits) > 0, len(src.Rules.Binding) > 0),
 			len(src.Rules.Advisory) > 0),
@@ -625,6 +647,13 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	// it by reading again.
 	res.Notes = append(res.Notes, src.Freshness...)
 	res.Attention = append(res.Attention, src.Freshness...)
+	// The file of a translation is written through its source: a writer who
+	// reaches for the file itself edits it outside the contract.
+	if e := src.EditionOf; e != nil {
+		res.Attention = append(res.Attention, fmt.Sprintf(
+			"this file is the %s edition of %s: write it with apply_edits (or `kapi apply`) at {\"doc\": %q, \"edition\": %q}, "+
+				"with if_match \"absent\" for a block it does not hold yet", e.Edition, e.Source, e.Source, e.Edition))
+	}
 	// Then the coverage, for a thin answer. A caller that reads no further has
 	// still been told the two things that matter here: how much stands behind
 	// this, and what to watch for while it works.
