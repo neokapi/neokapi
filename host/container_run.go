@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/change/filehome"
@@ -140,31 +139,4 @@ func (a *App) containerConfigureReader() func(format.DataFormatReader, registry.
 	return func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
 		return a.ProjectContext.ConfigureReader(reader, string(detectedFmt))
 	}
-}
-
-// writeAtomic writes via a sibling temp file then renames, so a failure never
-// leaves a partial container at path.
-func writeAtomic(path string, write func(*os.File) error) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create output dir: %w", err)
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".kapi-container-*")
-	if err != nil {
-		return fmt.Errorf("create temp output: %w", err)
-	}
-	tmpPath := tmp.Name()
-	if err := write(tmp); err != nil {
-		tmp.Close()
-		os.Remove(tmpPath)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(tmpPath)
-		return err
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		os.Remove(tmpPath)
-		return fmt.Errorf("finalize %s: %w", path, err)
-	}
-	return nil
 }
