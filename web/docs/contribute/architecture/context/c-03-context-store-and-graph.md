@@ -410,17 +410,19 @@ the log. An applied edit is a `content.edit` operation per document it
 changed, and the projector writes it into the **block history**
 (`core/history`, the `block_history` table): one row per edition the edit
 changed, with the edition revisions before and after, the basis a derived
-edition was made from, the block's key, content hash and context hash, who made
-the change (person, agent or tool, with a name and a session) and through which
-surface (`apply`, `desktop`, `flow:<name>`, `merge`, `pull`, `observed`).
-`history.Store.LastWrite` answers who last wrote an edition, among the writes
-recorded this way; `Latest` reads that last write for every edition of a
-document, or for the editions it names, in one pass over the document's
-history, and `Edition` and `Document` read the changes back, most recent
-first. A read of the change service that shows at most a page of blocks asks
-`LastWrite` for each edition it shows, so its cost follows what it shows; a
-longer read asks `Latest` once for the editions its blocks hold. The file stays the only copy of its text and the log keeps facts about
-it, keyed by revisions that hold on every branch where the content matches, so
+edition was made from, the block's key, content hash and context hash, the
+kinds of the operations that changed it and, for a flow, the tool that changed
+it, who made the change (person, agent or tool, with a name and a session, or
+`external` for an edit made outside kapi) and through which surface (`apply`,
+`ksed`, `mcp`, `browser`, `desktop`, `flow:<name>`, `merge`, `pull`,
+`observed`). `history.Store.LastWrite` answers who last wrote an edition, for
+every writer; `Latest` reads that last write for every edition of a document,
+or for the editions it names, in one pass over the document's history, and
+`Edition` and `Document` read the changes back, most recent first. A read of
+the change service that shows at most a page of blocks asks `LastWrite` for
+each edition it shows, so its cost follows what it shows; a longer read asks
+`Latest` once for the editions its blocks hold. The file stays the only copy
+of its text and the log keeps facts about it, keyed by revisions that hold on every branch where the content matches, so
 a branch switch moves no record.
 
 `core/change` defines the hook an applier of change sets calls once the homes
@@ -429,22 +431,47 @@ recorder: it records every document of a change set through one
 `Projector.RecordEdits` call. Every flow the host runs records each document it
 writes through the same recorder, as one `content.edit` with the actor
 `tool:<flow>` ([E-09](../engine/e-09-the-change-contract.md#flows)); its
-transitions carry each translation's basis and, as the row's producer, the
-stamp the producing tool left (provider, model, and the governing context
+transitions carry each translation's basis, the kind of operation the run's
+change to the edition comes to (as `change.Diff` would send it), the tool that
+made it (the tool's stamp, or the run's only tool), and, as the row's producer,
+the stamp the producing tool left (provider, model, and the governing context
 fingerprint), which a file of strings has nowhere to keep. The block history is
 therefore where the loop's basis lives: coverage grades an undecided
 translation by the flow's last write to it, a decision on such a translation
-starts from that write, and the staleness gate reads the producer from it
+starts from that write, the review context names the producer of a translation
+a flow wrote, and the staleness gate reads the producer from it
 ([C-05](c-05-freshness.md)). The basis is the source the run read before it
 ran, so a source edited while the run worked reads as drift. A run that
 reproduces a person's or an agent's wording records nothing over their write.
-Kapi Desktop edits content through the change service as well, so its edits
-reach the same recorder with the origin `desktop`. An undecided record in the
-decision ledger
-([C-04](c-04-unit-state-and-decisions.md#the-ledger-is-a-projection-of-the-operation-log)),
-a basis an earlier release recorded beside a translation for a Kapi Desktop
-edit or a loop pass, grades a unit while it describes the translation the file
-holds; once the flow's last write is that translation, the write grades it.
+Kapi Desktop, `kapi apply`, ksed, the MCP edit tools and the browser engine
+edit content through the change service, so their edits reach the same
+recorder under their own origins. The decision ledger holds decisions only
+([C-04](c-04-unit-state-and-decisions.md#the-ledger-is-a-projection-of-the-operation-log)):
+what a producer made, and from which source, is in the block history and
+nowhere else.
+
+The block history is part of the workspace log, so a checkout reads it with
+`kapi context pull`, and a fresh clone holds the translations the repository
+carries and none of the record of how they were written. Until it pulls, a
+translation whose source was edited before the clone's first pass is not graded
+stale there. `kapi up` and `kapi status` say so in one line
+(`host.HistoryNotPulledNote`) when translations exist on disk and the history
+records nothing. A push to a venue carries the same record for the documents it
+reads ([S-07](../surfaces/s-07-context-centric-review.md#a-push-carries-decisions-the-venue-decides)).
+
+An edit made outside kapi records nothing when it happens. The next read
+through the change service finds it: the service shows each block it reads to
+its observer (`change.Observer`), and the host's (`host/changes_observe.go`)
+compares every edition with the last change the history records for it. An
+edition whose revision that change did not leave was changed by something that
+recorded nothing, and the read records it as one hash-only `content.edit` for
+the document, with the actor `external` and the origin `observed`, starting
+from the revision the history last recorded. An edition the history has never
+recorded is left alone. A history shows such a change with no actor, since
+nobody knows who made it, and it carries no basis, so the translation reads as
+made from no recorded source. A flow's read of the document it has just
+committed is left unobserved (`change.Unobserved`), because the flow records
+that change itself.
 
 A person's or an agent's edit keeps the runs around each change and the change
 set as sent, in blobs the operation names; a tool's edit keeps the revisions

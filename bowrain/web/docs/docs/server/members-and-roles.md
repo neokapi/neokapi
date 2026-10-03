@@ -149,9 +149,12 @@ brief:
   it to off, warn (record a warning but allow it), or block (refuse an approval
   of content the approver wrote). It covers approving a translation block by
   block, over a selection, and through **Approve everything passing**, where a
-  refused target is left pending and counted. A draft a run produced has no
-  human author, so this rule never stops the one person in a workspace from
-  approving it.
+  refused target is left pending and counted. A translation written on a
+  laptop counts as the work of the person who pushes it when they wrote it by
+  hand there (with `kapi apply`, in Kapi Desktop, or through an agent working
+  for them), and the rule applies to an approval of it in the push as in the
+  web app. A draft a run produced has no human author, so this rule never stops
+  the one person in a workspace from approving it.
 - **Teams**: group members so they can be granted project roles in bulk.
 - **Deny rules**: negative permissions that always override grants. A rule
   targets a user, a workspace role, or a team, and removes specific permissions

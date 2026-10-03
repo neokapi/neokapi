@@ -115,6 +115,21 @@ Whoever last wrote a translation by hand may not approve it, unless the policy
 is off or set to warn. A target a run produced has no human author, so one
 person decides it.
 
+The author is read from the block history, which records every writer: a
+person through `kapi apply`, ksed, Kapi Desktop or the browser engine, an agent
+through the MCP tools, a flow, a pull, a merge, and an edit made outside kapi,
+which a read records as observed with no author. On the venue the policy reads
+the venue's own block history, where its editor and its change route record
+the person sending each change and an agent's change is its person's. Content
+written on a checkout reaches it through a push, which says for each
+translation who last wrote it. A translation a person or an agent wrote by
+hand on the checkout (not one a pull or a merge brought in, nor one observed)
+is the pusher's: the venue names the pusher as its author in the block history
+row the push writes for it, and judges an approval the same push carries as the
+pusher's approval of their own wording. A translation a flow produced, or one
+a pull, a merge or an edit outside kapi brought in, names no author, and one
+person decides it.
+
 ### Every client renders the same object
 
 The model is one Go type, `core/review.Context`, which `host` names
@@ -203,18 +218,20 @@ for each translation the run produced, the hash of the source it translated and
 the revision of the target it left ([E-09](../engine/e-09-the-change-contract.md#flows)).
 The record lives in the project's context log, so a checkout that reads the
 project's context reads it, and it is not a decision, so loop output is never
-counted as a person's pending decision.
+counted as a person's pending decision. A fresh clone holds the translations
+the repository carries and none of that record until it runs
+`kapi context pull`; `kapi up` and `kapi status` say so in one line while the
+translations exist on disk and the history records nothing.
 
 Coverage derives the basis for both classes alike. A source change under an
 undecided target grades the unit stale, the plan counts it, and the next pass
 re-drafts it with the old wording still on disk. Only a decision moves a unit on
 its ladder. A target that no longer holds the revision the flow left was taken
-over by a person; it grades as basis unknown and is left alone and reported. No
-host clears targets to force the loop's attention. A push carries the decisions;
-a venue's own worker records the basis of the drafts it writes. The basis of a
-translation a run on this machine produced travels in the block history with
-the project's context (`kapi context push`), which a venue does not read, so a
-venue grades such a translation as one with no recorded basis.
+over by a person; the next read records that change as observed, with no
+author and no basis, and the unit grades as basis unknown and is left alone and
+reported. No host clears targets to force the loop's attention. A venue's own
+worker records the basis of the drafts it writes, and a push carries the basis
+a run on a checkout recorded (see below), so the venue grades both alike.
 
 The server's translation worker reads the same ledger. A target whose recorded
 basis is stale is owed a draft, a target the ledger has no record of is left
@@ -226,8 +243,19 @@ work ([C-04](../context/c-04-unit-state-and-decisions.md)).
 ### A push carries decisions; the venue decides
 
 A working copy holds its own decision record, and `kapi push` sends it with the
-content it judges. The venue is authoritative for what has been approved in it,
-so it holds every rung above translated and every approval a push
+content it judges. Beside the decisions it sends how each translation of the
+documents it reads came to be (`venue.EditionWrite`): the last write the block
+history records for the edition, with its revision, the source it was made
+from, the writer (person, agent, tool, or external) and the surface. It sends
+them until the venue has applied them. The venue records them after the
+decisions: on a unit nobody has decided, the basis becomes the unit's ledger
+record, as the basis of one of its own drafts does, so a translation a run on
+the checkout produced is graded stale once its source moves; a tool's write
+from a recorded source marks the unit drafted against it; a write about
+another translation than the one the venue holds is left out.
+
+The venue is authoritative for what has been approved in it, so it holds every
+rung above translated and every approval a push
 carries to the gate its own review surfaces pass: the pusher's review permission
 for that language in that project, and the workspace separation-of-duties
 policy with the pusher as the decider. One function answers for every caller,
