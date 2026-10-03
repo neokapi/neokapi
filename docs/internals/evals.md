@@ -207,9 +207,10 @@ repetition, then the four arms within each block, from the manifest's seed.
 | `project-free` | `kapi-files`, the same binary under a multi-call name (`cli.BusyboxRoot`) exposing `inspect`, `apply`, `formats` and the toolbox with discovery off, and a skill written for it | none: the recipe sits in the cell and is never read |
 
 Every arm keeps the host's ordinary shell and file tools. Every cell holds the
-same files: the task's content, its `kapi.yaml`, the shared `.kapi/voice.yaml`
-(a voice and one term rule: `dashboard` is forbidden, `overview page` replaces
-it) and `STYLE.md`, which states the same rule for an agent that reads files.
+same files, the task's content, its `kapi.yaml` and a `STYLE.md`, and every
+project's store holds the same context, imported before the session starts: a
+voice and one term rule, which forbids `dashboard` and names `overview page` in
+its place. `STYLE.md` states that rule for an agent that reads files.
 kapi records every shell call in a cell as an agent's (`KAPI_ACTOR=agent`), so
 the actor policy treats both hosts alike.
 
@@ -309,11 +310,17 @@ commit than the checkout's HEAD, and it never uses a kapi resolved from PATH.
 
 ```bash
 make build
-make paired-eval-preflight
-make paired-eval-pilot PAIRED_EVAL_DIR=harness/out/paired-eval-wp5 \
+make paired-eval-preflight PAIRED_EVAL_DIR=/tmp/kapi-wp5-study
+make paired-eval-pilot PAIRED_EVAL_DIR=/tmp/kapi-wp5-study \
   PAIRED_EVAL_MAX_ATTEMPTS=200 PAIRED_EVAL_CONCURRENCY=2
-make paired-eval-score PAIRED_EVAL_DIR=harness/out/paired-eval-wp5
+make paired-eval-score PAIRED_EVAL_DIR=/tmp/kapi-wp5-study
 ```
+
+The cells live in the study directory, so it sits outside the checkout: the
+runner refuses a directory with a checkout, an instruction file, host
+configuration or a kapi recipe above it, which an agent in a cell would find.
+macOS clears temporary files a few days after their last use; copy the
+directory somewhere lasting once the study is scored.
 
 The pilot phase is the manifest's whole grid. It prints the planned session
 count before it starts one, runs one session per subscription at a time, and

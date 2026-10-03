@@ -8,6 +8,7 @@ import (
 	"io"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -67,7 +68,7 @@ func pairedJSONWalk(decoder *json.Decoder, prefix string, leaves *[]pairedJSONLe
 			}
 		case '[':
 			for index := 0; decoder.More(); index++ {
-				if err := pairedJSONWalk(decoder, pairedJoinKey(prefix, fmt.Sprint(index)), leaves); err != nil {
+				if err := pairedJSONWalk(decoder, pairedJoinKey(prefix, strconv.Itoa(index)), leaves); err != nil {
 					return err
 				}
 			}

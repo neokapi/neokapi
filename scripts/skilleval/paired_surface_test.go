@@ -1,11 +1,13 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // The surface check fails a cell whose kapi surface differs from its arm, or
@@ -48,10 +50,10 @@ func TestPairedSurfaceCheck(t *testing.T) {
 		{name: "the developer's skill", launch: launch("claude", "baseline"),
 			surface: PairedSurface{Skills: []string{"okapi-expert"}, MCPServers: []string{}, Executables: []string{}}, problem: "developer's skill okapi-expert"},
 		{name: "a skill root outside the cell", launch: launch("codex", "baseline"),
-			surface: PairedSurface{Skills: []string{"find-skills"}, SkillRoots: []string{"/home/someone/.agents/skills"},
+			surface: PairedSurface{Skills: []string{"find-skills"}, SkillRoots: []string{"/home/dev/.agents/skills"},
 				MCPServers: []string{}, Executables: []string{}}, problem: "outside the cell"},
 		{name: "an installed plugin", launch: launch("claude", "baseline"),
-			surface: PairedSurface{Plugins: []string{"codex@/home/someone/.claude/plugins/codex"}, MCPServers: []string{}, Executables: []string{}},
+			surface: PairedSurface{Plugins: []string{"codex@/home/dev/.claude/plugins/codex"}, MCPServers: []string{}, Executables: []string{}},
 			problem: "plugin codex"},
 		{name: "unreadable surface", launch: launch("claude", "baseline"),
 			surface: PairedSurface{Error: "claude ended without an init event"}, problem: "surface unreadable"},
@@ -65,6 +67,26 @@ func TestPairedSurfaceCheck(t *testing.T) {
 			}
 			assert.True(t, strings.Contains(strings.Join(surface.Problems, "\n"), tc.problem), "%v", surface.Problems)
 		})
+	}
+}
+
+// A study directory inside a checkout would put the checkout's instruction
+// files and skills above every cell, where no surface probe can see them.
+func TestPairedLocationRefusesADirectoryUnderACheckout(t *testing.T) {
+	clean := t.TempDir()
+	require.NoError(t, checkPairedLocation(filepath.Join(clean, "study", "not-yet-created")))
+	for _, marker := range []string{".git", "CLAUDE.md", "AGENTS.md", ".claude", "kapi.yaml"} {
+		root := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(root, "nested"), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(root, marker), []byte("x"), 0o600))
+		err := checkPairedLocation(filepath.Join(root, "nested", "study"))
+		require.Error(t, err, marker)
+		assert.Contains(t, err.Error(), marker)
+	}
+	// The default study directory of a run from the checkout is refused.
+	repo, err := repoRoot()
+	if err == nil {
+		assert.Error(t, checkPairedLocation(filepath.Join(repo, "harness", "out", "paired-eval")))
 	}
 }
 

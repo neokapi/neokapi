@@ -89,9 +89,15 @@ PAIRED_TEST_KAPI="$PWD/bin/kapi" go test ./scripts/skilleval -run TestPairedCLIW
 ```
 
 Preflight prepares configurations without inference. The default manifest is
-`scripts/skilleval/testdata/paired-study.json`; output defaults to the ignored
-`harness/out/paired-eval` directory. Override them with `PAIRED_EVAL_MANIFEST` and
-`PAIRED_EVAL_DIR`.
+`scripts/skilleval/testdata/paired-study.json`; output defaults to
+`kapi-paired-eval` under the system temporary directory. Override them with
+`PAIRED_EVAL_MANIFEST` and `PAIRED_EVAL_DIR`. The cells live in the output
+directory, so the runner refuses one that lies inside a checkout or under any
+instruction file, host configuration or kapi recipe an agent would find by
+walking up from its cell: the checkout's `CLAUDE.md`, `AGENTS.md` and skills
+would reach every condition, and a host lists no instruction file it loaded.
+macOS removes temporary files a few days after their last use, so copy the
+evidence somewhere lasting once a study is scored.
 
 For MCP, preparation also starts the isolated kapi server, initializes its
 protocol and lists its tools and context resources. Missing edit tools, a

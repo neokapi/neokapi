@@ -46,8 +46,7 @@ func runPairedKapi(t *testing.T, dir, binary string, extra []string, args ...str
 	command.Env = append([]string{"PATH=" + os.Getenv("PATH"), "HOME=" + dir}, isolationEnv(dir)...)
 	command.Env = append(command.Env, extra...)
 	output, err := command.Output()
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		return exit.ExitCode(), output
 	}
 	require.NoError(t, err)

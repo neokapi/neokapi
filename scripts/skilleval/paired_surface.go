@@ -76,7 +76,7 @@ func probePairedSurface(ctx context.Context, p PairedPrepared) PairedSurface {
 
 func probePairedClaudeSurface(ctx context.Context, p PairedPrepared, surface *PairedSurface) error {
 	surface.Evidence = "claude init event; model endpoint closed, placeholder credential"
-	port, err := pairedClosedPort()
+	port, err := pairedClosedPort(ctx)
 	if err != nil {
 		return err
 	}
@@ -365,8 +365,9 @@ func pairedResolve(name string) string {
 }
 
 // pairedClosedPort returns a local port nothing listens on.
-func pairedClosedPort() (string, error) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+func pairedClosedPort(ctx context.Context) (string, error) {
+	var config net.ListenConfig
+	listener, err := config.Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return "", err
 	}

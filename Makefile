@@ -2484,8 +2484,10 @@ mcp-eval: build ## Measure whether an agent picks the right kapi MCP tool (spend
 # attempt ceiling; the pilot phase is the manifest's whole grid. Concurrency is
 # spread evenly over the hosts, so 2 runs one session per subscription at a time.
 # PAIRED_EVAL_RETRY=1 runs again the attempts a rate limit or an interrupt cut short.
+# The cells live in PAIRED_EVAL_DIR, so it must sit outside any checkout: an
+# agent in a cell finds whatever instruction files and skills lie above it.
 PAIRED_EVAL_MANIFEST ?= scripts/skilleval/testdata/paired-study.json
-PAIRED_EVAL_DIR ?= harness/out/paired-eval
+PAIRED_EVAL_DIR ?= $(patsubst %/,%,$(or $(TMPDIR),/tmp))/kapi-paired-eval
 PAIRED_EVAL_MAX_ATTEMPTS ?= 6
 PAIRED_EVAL_CONCURRENCY ?= 2
 PAIRED_EVAL_RETRY ?=

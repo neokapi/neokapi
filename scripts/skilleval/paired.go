@@ -121,6 +121,11 @@ func executePairedWith(ctx context.Context, opts PairedOptions, deps pairedDepen
 	if opts.Phase == "score" {
 		return scorePaired(opts.Dir)
 	}
+	if opts.Phase != "preflight" && opts.Live {
+		if err := checkPairedLocation(opts.Dir); err != nil {
+			return err
+		}
+	}
 	record, err := makePairedStudyRecord(opts, manifest)
 	if err != nil {
 		return err
@@ -177,6 +182,11 @@ func preflightPaired(ctx context.Context, opts PairedOptions, m PairedManifest, 
 		if err != nil {
 			report.Blockers = append(report.Blockers, err.Error())
 		}
+	}
+	// Preflight cells live in the system temporary directory; the live phases
+	// put theirs in the study directory, so it is checked here too.
+	if err := checkPairedLocation(opts.Dir); err != nil {
+		report.Blockers = append(report.Blockers, err.Error())
 	}
 	for _, session := range schedule {
 		if err := ctx.Err(); err != nil {
@@ -288,6 +298,7 @@ func readPairedContext(ctx context.Context, workspace, kapiBin string) error {
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
+	//nolint:gosec // G702: kapiBin is this checkout's own build (findKapi) and the workspace a cell this run created.
 	cmd := exec.CommandContext(ctx, kapiBin, "context", "import",
 		"-p", filepath.Join(workspace, "kapi.yaml"))
 	cmd.Dir = workspace

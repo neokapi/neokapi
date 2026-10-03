@@ -75,7 +75,7 @@ func main() {
 	var (
 		pairedManifest    = flag.String("paired-manifest", "", "paired study manifest; selects the separate comparison runner")
 		pairedPhase       = flag.String("paired-phase", "preflight", "paired phase: preflight, diagnostic, smoke, pilot or score")
-		pairedDir         = flag.String("paired-dir", "harness/out/paired-eval", "private directory for immutable paired evidence")
+		pairedDir         = flag.String("paired-dir", filepath.Join(os.TempDir(), "kapi-paired-eval"), "private directory for immutable paired evidence, outside any checkout")
 		pairedLive        = flag.Bool("paired-live", false, "explicitly allow subscription-backed agent sessions")
 		pairedMaxAttempts = flag.Int("paired-max-attempts", 6, "persistent ceiling across live phases, including failed attempts")
 		pairedSessions    = flag.String("paired-sessions", "", "comma-separated session IDs to select; does not reset the attempt ceiling")

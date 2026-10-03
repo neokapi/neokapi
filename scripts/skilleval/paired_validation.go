@@ -314,21 +314,6 @@ func readPairedFile(root *os.Root, name string) ([]byte, error) {
 	return body, nil
 }
 
-// pairedTaskPaths lists every path a task's criteria and scope name, for the
-// corpus tests.
-func pairedTaskPaths(task PairedTask) []string {
-	var out []string
-	for _, c := range task.spec.Criteria {
-		if c.Path != "" {
-			out = append(out, c.Path)
-		}
-	}
-	out = append(out, task.spec.Editable...)
-	out = append(out, task.spec.Creates...)
-	slices.Sort(out)
-	return slices.Compact(out)
-}
-
 // pairedDirOf returns the first path element of a slash path.
 func pairedDirOf(name string) string {
 	first, _, _ := strings.Cut(path.Clean(name), "/")
