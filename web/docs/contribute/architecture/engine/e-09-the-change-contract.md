@@ -369,7 +369,8 @@ the stamp the producing tool left as its producer, the kind of operation the
 change comes to (`change.EditionKind`, as `change.Diff` would send it:
 `set_content` for an edition created or rewritten, `replace_text` for text
 moved around the same codes, `remove_edition`), and the tool that made it (the
-tool named in its stamp, or the run's only tool). The read before the run is an
+tool named in its stamp, or the run's only tool, leaving out the counter a
+convergence pass adds). The read before the run is an
 ordinary read, so it records an edit made outside kapi since the last recorded
 change as observed before the run's own record; the read after the commit is
 left unobserved, because the run records that change itself. A translation's basis is the

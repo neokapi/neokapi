@@ -721,14 +721,16 @@ func (doc *flowDoc) kinds(pre *readBlocks, key string, k model.EditionKey, b *mo
 }
 
 // toolOf names the tool that changed an edition: the one whose stamp the
-// edition carries, else the run's only tool. A run of several tools that
+// edition carries, else the run's only tool, leaving out the convergence
+// pass's counter, which changes no content. A run of several tools that
 // stamped nothing names none.
 func (doc *flowDoc) toolOf(stamp model.Origin) string {
 	if stamp.Tool != "" {
 		return stamp.Tool
 	}
-	if len(doc.d.Tools) == 1 {
-		return doc.d.Tools[0]
+	tools := slices.DeleteFunc(slices.Clone(doc.d.Tools), func(name string) bool { return name == convergeTapName })
+	if len(tools) == 1 {
+		return tools[0]
 	}
 	return ""
 }

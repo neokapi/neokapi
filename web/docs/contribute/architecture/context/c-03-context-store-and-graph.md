@@ -442,7 +442,8 @@ writes through the same recorder, as one `content.edit` with the actor
 `tool:<flow>` ([E-09](../engine/e-09-the-change-contract.md#flows)); its
 transitions carry each translation's basis, the kind of operation the run's
 change to the edition comes to (as `change.Diff` would send it), the tool that
-made it (the tool's stamp, or the run's only tool), and, as the row's producer,
+made it (the tool's stamp, or the run's only tool, the counter a convergence
+pass adds left out), and, as the row's producer,
 the stamp the producing tool left (provider, model, and the governing context
 fingerprint), which a file of strings has nowhere to keep. The block history is
 therefore where the loop's basis lives: coverage grades an undecided
@@ -538,7 +539,11 @@ checkout, until a delivery writes them to the files the recipe names.
 Each write to such an edition is one `content.edit` that carries the result:
 the runs, status and origin of each block's edition it leaves, the basis it was
 made from, the block's identity signals, and the stamp its producer serves a
-draft again by. The operation names its **subject**, the document's key and the
+draft again by. Its block history rows name the kinds of the operations that
+made each change and the tool, as a write to a file's do: the kinds a change
+set sent, the kind a flow's draft comes to (`set_content`, or `replace_text`
+for text moved around the same codes) with the tool the flow names, and
+`remove_edition` for a removal or a delivery's release. The operation names its **subject**, the document's key and the
 edition (`workspace.Op.Subject`, indexed), and the writer appends it with a
 **conditional record** (`workspace.Backend.RecordIf`): inside the IMMEDIATE
 transaction that appends, the subject's last local position must still be the

@@ -192,7 +192,12 @@ edition). Each of its transitions also carries the edition's `status`, its
 `origin` and, for a producer's draft, a `stamp` (`{"key", "provider",
 "config", "source", "runs"}`: the block-store overlay key, the reuse fields of
 the overlay the producer serves the draft from, and the overlay's runs where a
-later step of the flow changed the draft). Under a declared redaction policy
+later step of the flow changed the draft). Its transitions carry `ops` and
+`tool` as any edit's do: a change set's kinds, a producer's draft as
+`set_content` or `replace_text` (`change.EditionKind`, the kind `change.Diff`
+would send) with the tool the flow names, and a release as `remove_edition`.
+A rebase carries the transitions of the write it carries over, with their
+kinds and tool. Under a declared redaction policy
 the runs and the note are redacted as the recorder redacts them, under the
 same vault names, the change set is left out, and `workhome.Home` puts the
 originals back from the project vault where it reads a row; a policy that
