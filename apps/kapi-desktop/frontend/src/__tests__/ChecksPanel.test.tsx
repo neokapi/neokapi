@@ -240,6 +240,28 @@ describe("ChecksPanel", () => {
     );
   });
 
+  // The words were found again across a bold span someone added since the
+  // check: sent again, the plain-text replacement would delete the bold, so the
+  // prompt offers only to keep the current text.
+  it("offers no fix over text whose words now have formatting among them", async () => {
+    const changes = sourceBlocks();
+    changes.touch(
+      "src/locales/en.json",
+      "greeting",
+      'Please util<x id="1"/>ize<x id="/1"/> the dashboard',
+    );
+    renderPanel({ result: FAILING, changes });
+    await userEvent.click(screen.getByRole("button", { name: /Apply fix/i }));
+    await screen.findByText("Changed since you opened it");
+    expect(
+      screen.queryByRole("button", { name: /Apply the fix to this text/i }),
+    ).not.toBeInTheDocument();
+    expect(document.querySelector("[data-slot='stale-prompt-note']")).toHaveTextContent(
+      /formatting now sits among them/,
+    );
+    expect(changes.sets).toHaveLength(1);
+  });
+
   it("renders the all-clear state for a passing run with no findings", () => {
     renderPanel({ result: PASSING });
     expect(screen.getByText("Passing")).toBeInTheDocument();

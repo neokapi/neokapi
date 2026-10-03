@@ -28,6 +28,7 @@ import type {
   RunPath,
 } from "@neokapi/contract-types";
 import { t } from "@neokapi/i18n-react/runtime";
+import { editTextToSegments } from "@neokapi/ui-primitives";
 
 import { api } from "../hooks/useApi";
 
@@ -230,6 +231,33 @@ function sameEdition(
   b: { doc: string; block?: string; edition?: string },
 ): boolean {
   return a.doc === b.doc && a.block === b.block && (a.edition ?? "") === (b.edition ?? "");
+}
+
+/** How many times words occur in text, matches not overlapping. */
+function occurrences(text: string, words: string): number {
+  let n = 0;
+  for (let at = text.indexOf(words); at >= 0; at = text.indexOf(words, at + words.length)) n++;
+  return n;
+}
+
+/**
+ * Whether words occur in an edit text with no inline code among them, every
+ * time they occur, as the change service finds them (codes have no width). A
+ * check's fix replaces its words with plain text, which keeps a code only at
+ * either end of them; words found again across a link or a bold span would
+ * take it with them.
+ */
+export function wordsInPlainText(text: string, words: string): boolean {
+  if (!words) return false;
+  const segments = editTextToSegments(text);
+  let flat = "";
+  let inText = 0;
+  for (const seg of segments) {
+    if (seg.type !== "text") continue;
+    flat += seg.value;
+    inText += occurrences(seg.value, words);
+  }
+  return inText > 0 && inText === occurrences(flat, words);
 }
 
 /** The editions a source edit left on an older basis, as their keys. */

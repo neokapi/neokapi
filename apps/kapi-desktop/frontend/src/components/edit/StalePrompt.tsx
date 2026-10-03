@@ -14,8 +14,13 @@ export interface StalePromptProps {
   locale?: string;
   /** What applying again does, said in the button. */
   reapplyLabel?: string;
-  /** Apply the same change over the current text. */
-  onReapply: () => void;
+  /**
+   * Apply the same change over the current text. Absent when the change
+   * cannot be applied to the text as it stands, which `note` says why.
+   */
+  onReapply?: () => void;
+  /** Why the change is not offered again over the current text. */
+  note?: string;
   /** Keep the current text and drop the change. */
   onDiscard: () => void;
   busy?: boolean;
@@ -33,6 +38,7 @@ export function StalePrompt({
   locale,
   reapplyLabel,
   onReapply,
+  note,
   onDiscard,
   busy,
 }: StalePromptProps) {
@@ -50,10 +56,17 @@ export function StalePrompt({
             data-slot="stale-prompt-current"
           />
         </div>
+        {note && (
+          <p className="mb-2" data-slot="stale-prompt-note">
+            {note}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="xs" onClick={onReapply} disabled={busy} data-slot="stale-prompt-reapply">
-            {reapplyLabel ?? t("Apply my change over it")}
-          </Button>
+          {onReapply && (
+            <Button size="xs" onClick={onReapply} disabled={busy} data-slot="stale-prompt-reapply">
+              {reapplyLabel ?? t("Apply my change over it")}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="xs"

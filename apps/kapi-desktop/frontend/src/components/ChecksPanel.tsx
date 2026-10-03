@@ -30,10 +30,10 @@ import { useError } from "./ErrorBanner";
 import { FilePreview } from "./FilePreview";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { findingHighlights, findingSide } from "../lib/findingHighlights";
-import { type ChangeClient, tabChanges } from "../lib/changes";
+import { type ChangeClient, tabChanges, wordsInPlainText } from "../lib/changes";
 import { StalePrompt } from "./edit/StalePrompt";
 import { useChangeSender } from "./edit/useChangeSender";
-import type { ChangeOp } from "@neokapi/contract-types";
+import type { ChangeOp, CurrentEdition } from "@neokapi/contract-types";
 import type {
   CheckFileResult,
   CheckNotRunCause,
@@ -213,6 +213,15 @@ function refindWords(op: ChangeOp, finding: DesktopFinding | null): ChangeOp {
     ...op,
     edits: op.edits.map((e) => ({ ...(e.path ? { path: e.path } : {}), find, text: e.text })),
   };
+}
+
+/**
+ * Whether a fix can be sent again over the text as it now stands: the words
+ * the finding quotes are still there, in plain text. Found again across an
+ * inline code, the replacement would delete the code with them.
+ */
+function refindable(finding: DesktopFinding | null, current: CurrentEdition): boolean {
+  return !!finding?.original_text && wordsInPlainText(current.text ?? "", finding.original_text);
 }
 
 export function ChecksPanel({
@@ -588,7 +597,18 @@ export function ChecksPanel({
                                     locale={finding.locale}
                                     busy={fixer.busy}
                                     reapplyLabel={t("Apply the fix to this text")}
-                                    onReapply={() => void fixer.reapply()}
+                                    onReapply={
+                                      refindable(fixFinding.current, fixer.stale.current)
+                                        ? () => void fixer.reapply()
+                                        : undefined
+                                    }
+                                    note={
+                                      refindable(fixFinding.current, fixer.stale.current)
+                                        ? undefined
+                                        : t(
+                                            "The fix no longer fits this text: its words are gone, or formatting now sits among them. Open the document to edit it.",
+                                          )
+                                    }
                                     onDiscard={() => {
                                       fixer.clear();
                                       void runChecks();

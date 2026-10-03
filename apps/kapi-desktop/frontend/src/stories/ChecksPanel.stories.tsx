@@ -359,3 +359,25 @@ export const StaleFix: Story = {
     })(),
   },
 };
+
+/**
+ * The block changed after the check read it, and its words now have a bold
+ * span among them. The fix's plain-text replacement would delete the bold, so
+ * after Apply fix the prompt says why and offers only to keep the text.
+ */
+export const StaleFixOverFormatting: Story = {
+  name: "Fix: words now span formatting",
+  args: {
+    tabID: "story",
+    result: FAILING,
+    changes: (() => {
+      const memory = new MemoryChanges(CHECKED_BLOCKS);
+      memory.touch(
+        "src/locales/en.json",
+        "blk-2",
+        'Please util<x id="1"/>ize<x id="/1"/> the dashboard to review your credits.',
+      );
+      return memory;
+    })(),
+  },
+};
