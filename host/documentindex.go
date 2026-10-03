@@ -98,6 +98,14 @@ func (a *App) documentKey(ctx context.Context, root, rel string) string {
 	return key
 }
 
+// Holds reports whether the index names the document at a project-relative
+// path by a key the project resolved, rather than by the key the path derives
+// to.
+func (d DocumentIndex) Holds(rel string) bool {
+	key, ok := d.byPath[rel]
+	return ok && key != ""
+}
+
 // documentIndexOrEmpty resolves the index and swallows a store failure, for the
 // read paths where a missing index means "decisions are keyed by path" rather
 // than "this run cannot continue".

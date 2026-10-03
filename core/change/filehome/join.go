@@ -35,6 +35,9 @@ type joinedEdition struct {
 	// match maps the index of a document block to the index of the edition
 	// file's block that holds its edition.
 	match map[int]int
+	// kept is what the keeper holds of an edition with no file yet
+	// (EditionFile.Kept); its blocks pair with the document's by key alone.
+	kept *Kept
 }
 
 // blockIndex is what a join needs of each block of the document.
@@ -91,6 +94,18 @@ func (s *session) joinIndexed(ctx context.Context, keys []model.EditionKey, ix *
 			continue
 		}
 		je := &joinedEdition{key: k.Canonical(), file: f, src: s.fileSource(source{path: f.Path}), match: map[int]int{}}
+		if f.Kept != nil {
+			kept, err := f.Kept.Edition(ctx, s.doc.Ref, je.key)
+			if err != nil {
+				return nil, err
+			}
+			je.kept = &kept
+			je.blocks = keptBlocks(kept)
+			je.exists = len(je.blocks) > 0
+			je.pair(ix)
+			out = append(out, je)
+			continue
+		}
 		je.exists = je.src.exists()
 		if je.exists {
 			p := s.readPass(je.src, f.Format, func(b *model.Block) error {
@@ -125,10 +140,12 @@ func (je *joinedEdition) pair(ix *blockIndex) {
 		}
 	}
 	taken := make(map[int]bool, len(je.blocks))
-	positional := len(ix.keys) == len(je.blocks)
+	// A kept edition is keyed by the document's own block keys, so a block
+	// pairs by its key or not at all.
+	positional := je.kept == nil && len(ix.keys) == len(je.blocks)
 	for si, k := range ix.keys {
 		ti, ok := byKey[k]
-		if !ok && ix.addrs[si] != "" {
+		if !ok && je.kept == nil && ix.addrs[si] != "" {
 			ti, ok = byAddr[ix.addrs[si]]
 		}
 		if !ok && positional && !taken[si] {
@@ -167,6 +184,13 @@ func join(editions []*joinedEdition, si int, b *model.Block) {
 	for _, je := range editions {
 		ti, ok := je.match[si]
 		if !ok {
+			continue
+		}
+		if je.kept != nil {
+			// The keeper holds the edition whole: its status and origin
+			// travel with its runs.
+			ed, _ := je.blocks[ti].Edition(model.EditionKey{})
+			b.SetEdition(je.key, ed)
 			continue
 		}
 		if runs, held := je.held(ti); held {

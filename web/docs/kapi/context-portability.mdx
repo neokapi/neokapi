@@ -50,6 +50,13 @@ terms, the voice profiles, the approved wording in the content memory and the
 record of who approved which translation. A pull merges them by operation, so
 two machines that recorded different things both keep what they recorded.
 
+The drafts of a language whose files `materialize: on-converge` withholds
+travel too, because the workspace is where they are kept until a delivery
+writes them. Two machines that edit one such draft each keep their edit after
+a pull when they changed different units. When both changed the same unit, the
+edit made first holds it and `kapi status` lists the other as a conflict;
+editing that unit again settles it.
+
 Content files are managed separately in git.
 
 ## What never travels
@@ -58,7 +65,9 @@ Redaction withholds sensitive values before content reaches a model or a
 service, and keeps the originals in a vault on the machine that read them
 (`.kapi/work/vault/`). The vault is never pushed and never exported, and there
 is no flag that changes that. If you move a project to another machine, the
-placeholders come with it and the originals do not.
+placeholders come with it and the originals do not. The same holds for a parked
+language's drafts: they travel with their withheld values replaced, and read
+whole only on the machine that withheld them.
 
 Rules you widened to every project stay on your machine too: they belong to
 your workspace, not to the project. The derived stores and caches under

@@ -177,6 +177,18 @@ policy is read at every point content can leave:
    a gate rather than an implicit rewrite: silently inserting a step into a
    user's flow would change what their flow means, while refusing to run it says
    so.
+4. **The operation log.** The record of an applied edit travels to every
+   context backend the project shares its context through, so the recorder
+   redacts the runs and the note it keeps, vaulting each run sequence under the
+   edition and revision it belongs to, and leaves the change set as sent out
+   ([C-03](c-03-context-store-and-graph.md#edits-are-recorded-as-content-edit)).
+   A translation with no file is kept in the log itself (the workspace home),
+   so its record is redacted the same way and the workspace home restores the
+   originals from the project vault where it reads the edition: on the machine
+   that withheld them the edition reads whole, and anywhere else it reads with
+   its placeholders. A policy that detects entities needs a read's entity
+   annotations, which a record does not carry, so under one a record keeps
+   revisions and hashes only and the workspace home keeps no edition.
 
 ### CLI surface
 

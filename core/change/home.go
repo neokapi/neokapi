@@ -83,6 +83,11 @@ type Place struct {
 	// File is the edition's own file, as a document reference, for
 	// PlaceOwnFile.
 	File string
+	// Home, for PlaceOwnFile, names the home that keeps the edition when it
+	// is not the document's: "workspace" for an edition whose file has not
+	// been written yet and whose text the workspace home keeps until a
+	// delivery writes it there. Empty is the document's home.
+	Home string
 	// Why says, for PlaceNone, why the edition has no home, as a refusal
 	// reports it.
 	Why string
@@ -230,6 +235,29 @@ type StagedFile struct {
 	// Written says Commit put the file's new content in place. A commit an
 	// I/O error interrupted leaves some files written and others not.
 	Written bool
+	// Home names the home that keeps the file's change when it is not the
+	// document's (Place.Home); empty is the document's home.
+	Home string
+	// Recorded says the commit records the file's change itself: a home
+	// whose text lives in the log commits by appending the change's record
+	// (RecordingStaged), and the service's recorder records nothing more
+	// for it.
+	Recorded bool
+}
+
+// RecordingStaged is a staged change part of which commits by recording it:
+// an edition the workspace home keeps, whose text lives in the project's log.
+// Before Commit the service hands it the record of the document's change, and
+// its commit appends the share of that record its files hold
+// (StagedFile.Recorded) only while their head is still the one the stage
+// read, which is how two writers of such an edition take turns.
+type RecordingStaged interface {
+	Staged
+	// Recording is given the record of the change, before Commit.
+	Recording(rec Record)
+	// RecordID is the id of the record the commit appended, empty when it
+	// appended none.
+	RecordID() string
 }
 
 // Staged is a change held ready to commit.

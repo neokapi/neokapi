@@ -109,7 +109,7 @@ Applying returned bilingual files (`merge -i`) reports one entry per input plus 
 }
 ```
 
-Materializing from the project store (`kapi merge` with no `-i` in a project) reports the count of translation files it wrote: a file a stored target changed, or a document whose source gained or lost a block since it was written. A translation that already says what the store holds, one the store holds nothing for, and a source-only collection count none:
+Materializing from the project store (`kapi merge` with no `-i` in a project) writes each translation from the drafts the workspace keeps for it, or else from the targets the block store holds, and reports the count of translation files it wrote: a file a kept draft or a stored target changed, or a document whose source gained or lost a block since it was written. A translation that already says what the store holds, one the store holds nothing for, and a source-only collection count none:
 
 ```json
 { "written": 4, "from_project_store": true }

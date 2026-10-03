@@ -29,6 +29,7 @@ project's checkouts in the local workspace.
 |---|---|---|---|
 | **context store** | a workspace under your data directory | **authored**: terms, voice profiles, content memory, recorded decisions | **back it up with [`kapi context export`](/kapi/context-portability)** |
 | operation history | the same workspace | every observation, proposal and decision, with the evidence behind each ([Growing context](/kapi/context-decisions)) | remains local; established context can be exported |
+| parked drafts | the same workspace | **authored**: the drafts of a language whose files `materialize: on-converge` withholds, and the edits made to them | kept until a delivery writes them to their files |
 | projection | `.kapi/work/store.db` | **derived from your files**: the block cache, the overlays a run wrote, the extraction stamps | rebuilds on the next run |
 | cache | `.kapi/work/cache/` | **derived**: parse cache, extractions, collections, sync cache | rebuilds on the next run |
 
@@ -80,7 +81,11 @@ Deletion has different consequences for each location:
 - **Deleting `.kapi/` removes derived data, personal filters and any redaction
   vault.** The [redaction](/framework/redaction) vault at `.kapi/work/vault/`
   contains withheld originals that are neither committed nor synced. Merge
-  in-flight batches before deleting it. Workspace context is unaffected.
+  in-flight batches before deleting it. Workspace context is unaffected, and so
+  are a parked language's drafts and the edits made to them: the next `kapi up`
+  serves them again without translating them anew. In a project that declares
+  redaction, the values withheld from those drafts are in the vault, and a draft
+  reads with placeholders without it.
 - **Deleting the workspace costs the context of every project on the machine**:
   the terms, the voice profiles, the content memory and the recorded decisions.
   A project with a [context backend](/kapi/context-portability#sharing-context-through-a-backend)
@@ -146,11 +151,14 @@ project answers the same query shapes server-side across more dimensions. See
 The store also explains the two stages of a run:
 
 1. **Working**: `kapi run` (with no `-o`, in a project) lands its translations
-   as overlays in the block tables of `store.db`. The work is *in the store and
-   not yet in your files*.
-2. **Ship**: `kapi merge` writes those overlays out to the **target files**;
-   `kapi status` then reads the files (plus the unit-state record) for the real ship
-   state, the [kapi loop](/kapi/convergence)'s ladders and gates.
+   as overlays in the block tables of `store.db`, and a `kapi up` under
+   `materialize: on-converge` keeps the drafts of each language it parks in the
+   workspace. The work is *recorded and not yet in your files*.
+2. **Ship**: `kapi merge` writes that work out to the **target files**, a
+   parked language's drafts and the edits made to them first, and the
+   workspace stops keeping them; `kapi status` then reads the files (plus the
+   unit-state record) for the real ship state, the
+   [kapi loop](/kapi/convergence)'s ladders and gates.
 
 So coverage has two readings: "what's translated in the store" (working,
 pre-merge) and "what's in the files and reviewed" (ship). In Kapi Desktop, the

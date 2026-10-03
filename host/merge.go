@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
@@ -20,6 +21,8 @@ import (
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/workhome"
+	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/memory"
@@ -333,7 +336,11 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	// pass, having nothing pending) and the block store is empty (so it has
 	// nothing to say). Silence is the honest output for a store with nothing to
 	// say; the locale's standing is what coverage already reports.
-	locales, err = localesWithStoredTargets(ctx, store, locales)
+	keptLocales, err := a.keptLocales(ctx, layout.Root)
+	if err != nil {
+		return 0, fmt.Errorf("merge: read the workspace home: %w", err)
+	}
+	locales, err = localesWithStoredTargets(ctx, store, keptLocales, locales)
 	if err != nil {
 		return 0, fmt.Errorf("merge: read the stored targets: %w", err)
 	}
@@ -377,13 +384,14 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 			if serr != nil {
 				return written, fmt.Errorf("merge: %w", serr)
 			}
-			held, wrote, merr := materializeEdition(fileCtx, svc, store, filepath.ToSlash(f.Relative), locale)
+			ref := filepath.ToSlash(f.Relative)
+			held, wrote, keptEd, merr := a.deliverEdition(ctx, fileCtx, svc, store, layout.Root, ref, locale)
 			if merr != nil {
 				return written, fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, merr)
 			}
 			if held == 0 {
-				// The store holds no translation for this file: there is
-				// nothing to write.
+				// Neither the workspace home nor the store holds a
+				// translation for this file: there is nothing to write.
 				continue
 			}
 			if wrote {
@@ -397,7 +405,7 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 			// TM is how the next run recycles this work, and a silent failure to
 			// record it looks like the translation never happened.
 			if absorber != nil {
-				if _, _, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, absorber, f.Relative, pctx.FormatConfigFor(srcFormat, f.Item)); aerr != nil {
+				if _, _, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, keptBlocksOf(keptEd), absorber, f.Relative, pctx.FormatConfigFor(srcFormat, f.Item)); aerr != nil {
 					fmt.Fprintf(os.Stderr, "Warning: merge: record %s → %s in the project content memory: %v (the target file was written)\n",
 						f.Relative, locale, aerr)
 				}
@@ -417,11 +425,53 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	return written, nil
 }
 
-// localesWithStoredTargets narrows a materialize pass to the locales the block
-// store actually holds a target for, preserving the caller's order. One overlay
-// is enough: the question is whether the store has anything to say about the
-// locale at all, not how far along it is.
-func localesWithStoredTargets(ctx context.Context, store blockstore.Store, locales []model.LocaleID) ([]model.LocaleID, error) {
+// deliverEdition writes the translation of ref into locale from what the
+// workspace home keeps of it and the targets the block store holds
+// (materializeEdition), then releases from the workspace home exactly what it
+// read there. The release expects the head the delivery read, so an edit to
+// the kept edition that lands in between is never released unwritten: the
+// delivery reads the edition again and writes it. It returns how many blocks
+// had a translation to write, whether the file was written, and what the
+// workspace home kept that the file now holds.
+func (a *App) deliverEdition(ctx, fileCtx context.Context, svc *change.Service, store blockstore.Store, root, ref string, locale model.LocaleID) (int, bool, *workhome.Held, error) {
+	edition := model.EditionKey{Locale: locale}
+	wroteAny := false
+	for attempt := 0; ; attempt++ {
+		kept, err := a.keptEdition(ctx, root, ref, edition)
+		if err != nil {
+			return 0, false, nil, fmt.Errorf("read the %s drafts of %s: %w", locale, ref, err)
+		}
+		n, wrote, err := materializeEdition(fileCtx, svc, store, kept, ref, locale)
+		if err != nil {
+			return 0, wroteAny, nil, err
+		}
+		wroteAny = wroteAny || wrote
+		err = a.releaseKept(ctx, root, ref, edition, kept, nil, materializeActor, "merge")
+		if errors.Is(err, workspace.ErrHeadMoved) && attempt < 2 {
+			continue
+		}
+		if err != nil {
+			return n, wroteAny, kept, fmt.Errorf("release the %s drafts of %s from the workspace home: %w", locale, ref, err)
+		}
+		return n, wroteAny, kept, nil
+	}
+}
+
+// keptBlocksOf is each block's edition a read of the workspace home found,
+// nil for none.
+func keptBlocksOf(kept *workhome.Held) map[string]model.Edition {
+	if kept == nil {
+		return nil
+	}
+	return kept.Blocks
+}
+
+// localesWithStoredTargets narrows a materialize pass to the locales the
+// workspace home keeps an edition of (kept) or the block store holds a target
+// for, preserving the caller's order. One overlay is enough: the question is
+// whether the store has anything to say about the locale at all, not how far
+// along it is.
+func localesWithStoredTargets(ctx context.Context, store blockstore.Store, kept map[model.LocaleID]bool, locales []model.LocaleID) ([]model.LocaleID, error) {
 	sess, err := store.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -429,6 +479,10 @@ func localesWithStoredTargets(ctx context.Context, store blockstore.Store, local
 	defer sess.Close()
 	var out []model.LocaleID
 	for _, locale := range locales {
+		if kept[model.NormalizeLocale(locale)] {
+			out = append(out, locale)
+			continue
+		}
 		for _, oerr := range sess.ListOverlays(blockstore.TargetOverlayKind(locale)) {
 			if oerr != nil {
 				return nil, oerr
@@ -440,10 +494,12 @@ func localesWithStoredTargets(ctx context.Context, store blockstore.Store, local
 	return out, nil
 }
 
-// absorbStoreTargets reads the source blocks, applies the stored
-// `targets/<locale>` overlays, and writes accepted source+target pairs into
-// the project content memory with kapi-merge provenance. Returns (new, updated) counts.
-func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, absorber *memoryAbsorber, sourceRel string, formatCfg map[string]any) (int, int, error) {
+// absorbStoreTargets reads the source blocks, applies each block's edition the
+// workspace home kept (kept, by block key) or else the stored
+// `targets/<locale>` overlay, and writes accepted source+target pairs into
+// the project content memory with kapi-merge provenance. Returns (new,
+// updated) counts.
+func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, kept map[string]model.Edition, absorber *memoryAbsorber, sourceRel string, formatCfg map[string]any) (int, int, error) {
 	// The recipe's configuration for this item, not an unconfigured read: the
 	// overlays are addressed by the file-local block id, so a read that splits
 	// the document differently pairs each block's source text with another
@@ -461,6 +517,18 @@ func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFo
 	newCount, updatedCount := 0, 0
 	for _, b := range blocks {
 		if !b.Translatable || b.ID == "" {
+			continue
+		}
+		if ed, ok := kept[change.BlockKey(b)]; ok && model.RunsHaveContent(ed.Runs) {
+			// The workspace home held this translation until the delivery
+			// that wrote it: what it kept is what was delivered.
+			b.SetTargetRuns(target, ed.Runs)
+			n, u, aerr := absorber.absorb(ctx, b, source, target, "store", sourceRel, sourceAbs)
+			if aerr != nil {
+				return newCount, updatedCount, aerr
+			}
+			newCount += n
+			updatedCount += u
 			continue
 		}
 		o, oerr := sess.GetOverlay(kind, blockstore.OverlayKey(ctx, b.ID, b.SourceText()))

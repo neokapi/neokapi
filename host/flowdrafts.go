@@ -8,6 +8,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/change/filehome"
@@ -89,6 +91,37 @@ func (d *draftDeliveries) drafted(doc *flowDoc) {
 	doc.delivery.mu.Lock()
 	defer doc.delivery.mu.Unlock()
 	doc.delivery.doc = doc
+}
+
+// drafts returns the followers of the latest pass that drafted each
+// destination of a locale, for documents the run follows and writes a
+// target-language file of.
+func (d *draftDeliveries) drafts(locale model.LocaleID) []*flowDoc {
+	if d == nil {
+		return nil
+	}
+	d.mu.Lock()
+	dests := make([]*draftDelivery, 0, len(d.byDest))
+	for _, dd := range d.byDest {
+		dests = append(dests, dd)
+	}
+	d.mu.Unlock()
+	want := model.NormalizeLocale(locale)
+	var out []*flowDoc
+	for _, dd := range dests {
+		dd.mu.Lock()
+		doc := dd.doc
+		dd.mu.Unlock()
+		if doc == nil || !doc.track || doc.inPlace || doc.svc == nil {
+			continue
+		}
+		if model.NormalizeLocale(doc.edition.Locale) != want {
+			continue
+		}
+		out = append(out, doc)
+	}
+	slices.SortFunc(out, func(a, b *flowDoc) int { return strings.Compare(a.ref, b.ref) })
+	return out
 }
 
 // take returns and forgets the delivery of a destination.

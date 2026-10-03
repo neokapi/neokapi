@@ -50,10 +50,11 @@ The projection stays in the checkout at `.kapi/work/store.db`
 | `voice_*` | `voice/` | context |
 | `unit_decision`, `unit_view`, `document`, `document_adoption`, `checkout`, `state_meta` | `core/state` | context |
 | `block_history`, `block_history_op` | `core/history` | context |
+| `edition_head`, `edition_subject_head` | `core/workhome` | context |
 | `projector_cursor` | `core/projector` | context |
 | `graph_nodes`, `graph_edges` | `host/storage/graph` | workspace |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace |
-| `workspace_ops` (arrival `seq`, operation `id`, optional content `address`) | `core/workspace` | workspace |
+| `workspace_ops` (arrival `seq`, operation `id`, optional content `address`, optional `subject`) | `core/workspace` | workspace |
 | `workspace_blobs` (`sha256:` digest, size, gzip-compressed bytes) | `core/workspace` | workspace |
 | `workspace_rules` | `core/workspace` | workspace |
 | `workspace_agent_sessions` | `core/workspace` | workspace |
@@ -67,13 +68,15 @@ widened nothing pays nothing for the table.
 `core/projectdb` opens both project pools and hands each subsystem its handle.
 Callers name a capability rather than a file: `Blocks()` and
 `BlocksAutocommit()` come from the projection, and `Memory()`, `Terms()`,
-`Voice()`, `Work()`, `History()` and `Raw()` from the context store.
+`Voice()`, `Work()`, `History()`, `Heads()` and `Raw()` from the context
+store.
 
 ## The projector
 
 `core/projector` is the only writer of `tb_*`, `tm_*`, `voice_profiles`,
 `voice_profile_versions`, `unit_decision`, `document_adoption`,
-`block_history`, `block_history_op` and `workspace_rules`
+`block_history`, `block_history_op`, `edition_head`, `edition_subject_head`
+and `workspace_rules`
 ([C-03](../../architecture/context/c-03-context-store-and-graph.md#the-stores-are-projections-of-the-log)).
 A write is two transactions under one in-process mutex per context store: the
 operation into `workspace_ops` (and its steps into `workspace_blobs` when they
@@ -143,8 +146,7 @@ the edition where the record names one. `ops` lists the kinds of the
 operations that changed the edition, in the order they applied. An observed
 edit (actor `{"kind": "external"}`, origin `observed`) keeps revisions and
 hashes only and names no operation. A tool's edit keeps no runs, except that a
-write to the workspace home
-(`"home": "workspace"`) keeps `runs_after` whoever made it. Under a declared
+write to the workspace home keeps `runs_after` whoever made it (below). Under a declared
 redaction policy, `host.App.EditRecorder` redacts the runs and the note with
 the project's rules before they are stored, each run sequence as the source of
 a block named `edit:<doc>#<block>@<edition>:<revision>` so the project vault
@@ -180,6 +182,50 @@ id and the operation's own instant, so a rebuild writes the same rows:
 | `ops` | the kinds of the operations that changed the edition, comma-separated, empty when none explains it |
 | `tool` | the tool in a flow that changed the edition, where the record names one |
 | `at` | the operation's instant, RFC 3339 with nanoseconds in UTC |
+
+A write to the workspace home is a `content.edit` with `"home": "workspace"`
+and up to four more fields: `edition` (the edition the write changed, in its
+text form), `base` (the operation the edition's head was at when the write was
+staged, empty for the first), `cause` (the divergent operation a rebase
+carries over) and `release` (true for a delivery's release of the whole
+edition). Each of its transitions also carries the edition's `status`, its
+`origin` and, for a producer's draft, a `stamp` (`{"key", "provider",
+"config", "source", "runs"}`: the block-store overlay key, the reuse fields of
+the overlay the producer serves the draft from, and the overlay's runs where a
+later step of the flow changed the draft). Under a declared redaction policy
+the runs and the note are redacted as the recorder redacts them, under the
+same vault names, the change set is left out, and `workhome.Home` puts the
+originals back from the project vault where it reads a row; a policy that
+detects entities refuses the write. The operation's `subject` column
+holds `<doc key>@<edition>`, and the address adds `workspace`, the edition, the
+base and the cause to what it covers, so two machines that rebase one write
+onto one head record one operation. `workhome.Home` and the projector append
+it with `LocalBackend.RecordIf`: the same IMMEDIATE transaction as `Record`,
+which first reads `COALESCE(MAX(seq), 0)` over `(project, subject)` through the
+partial index `idx_workspace_ops_subject` and appends nothing when it differs
+from the head the writer read (`workspace.HeadMovedError`). The writer reads
+that head with `SubjectHead` before the projector catches up.
+
+The projector folds those operations into two tables:
+
+| Table | Key | Holds |
+| --- | --- | --- |
+| `edition_head` | `doc`, `edition`, `block` | `rev`; `runs`, the canonical run JSON inline when it is at most 16 KiB; `blob`, the address of the blob holding it; `status`; `origin` as JSON; `basis`; `stamp`; `op`, the write that left the row |
+| `edition_subject_head` | `doc`, `edition` | `path`, where the document was at the head; `op`, the operation the head is at; `last`, the largest operation id folded; `divergent`, a JSON list of `{op, blocks: [{block, before, after}], release}` for the writes that did not advance the head and that nothing has settled since |
+
+A write whose `base` equals `edition_subject_head.op` advances the head: each
+block it changed is written to `edition_head`, or deleted for an `after` of
+`absent`. A `cause` removes that write from `divergent`, a `release` empties
+`divergent`, and a person's or an agent's write removes the blocks it wrote
+from every write in `divergent`, dropping a write left with none. Any other
+write is appended to `divergent`. A write whose id sorts before `last` arrived out of order
+(merged in from another log), so the projector selects every operation on the
+subject (`OpQuery.Subject`), folds them again in id order (`workhome.Fold`)
+and replaces the subject's rows (`workhome.Store.Replace`). The runs of a
+foreign write are read from its blob as it is folded, so a rebuild writes the
+rows the live writes left. Neither table keeps a log position: a checkpoint
+carries both, and a position read from another machine's log would mean
+nothing here.
 
 The projector also writes one `block_history_op` row per operation: its id
 (the primary key), its content address (unique) and its document, so the

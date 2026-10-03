@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/history"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/workhome"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -26,8 +27,19 @@ type Edit struct {
 	Doc EditDoc `json:"doc"`
 	// Home is where the document's text lives: file, workspace or
 	// stream:<id>.
-	Home  string       `json:"home,omitempty"`
-	Actor change.Actor `json:"actor"`
+	Home string `json:"home,omitempty"`
+	// Edition, for a write to the workspace home, is the edition the write
+	// changed, in its text form: the workspace home keeps the edition under
+	// the document's key and this, and the operation names that pair as its
+	// subject (workhome.Subject). Base is the operation the edition's head
+	// was at when the write was staged, and Cause the divergent operation a
+	// rebase carries over. Release marks a delivery's release of the whole
+	// edition. All four are empty for any other write.
+	Edition string       `json:"edition,omitempty"`
+	Base    string       `json:"base,omitempty"`
+	Cause   string       `json:"cause,omitempty"`
+	Release bool         `json:"release,omitempty"`
+	Actor   change.Actor `json:"actor"`
 	// Origin says which surface applied the change, in By: apply, ksed, mcp,
 	// browser, desktop, flow:<name>, merge, pull or observed.
 	Origin Origin `json:"origin,omitzero"`
@@ -95,6 +107,12 @@ type EditTransition struct {
 	// model.RunsRevision is computed over. Empty for a hash-only record.
 	RunsBefore string `json:"runs_before,omitempty"`
 	RunsAfter  string `json:"runs_after,omitempty"`
+	// Status and Origin are the edition's status and origin after a write
+	// to the workspace home, and Stamp what the edition's producer
+	// recognizes a draft by: the workspace home keeps them with the runs.
+	Status model.Status    `json:"status,omitempty"`
+	Origin *model.Origin   `json:"origin,omitempty"`
+	Stamp  json.RawMessage `json:"stamp,omitempty"`
 
 	// BeforeRuns and AfterRuns are the runs RecordEdit stores in RunsBefore
 	// and RunsAfter. A nil sequence stores nothing.
@@ -146,6 +164,12 @@ func (p *Projector) RecordEdit(ctx context.Context, e Edit) (string, error) {
 // address against: the records are written straight into the history,
 // hash-only, under ids minted here, each its own address.
 func (p *Projector) RecordEdits(ctx context.Context, edits []Edit) ([]string, error) {
+	return p.recordEdits(ctx, edits, nil)
+}
+
+// recordEdits is RecordEdits, appending the operations only while every head
+// expect names holds (workspace.Backend.RecordIf) when expect is set.
+func (p *Projector) recordEdits(ctx context.Context, edits []Edit, expect []workspace.Expect) ([]string, error) {
 	for _, e := range edits {
 		if e.Doc.Key == "" {
 			return nil, errors.New("projector: an edit names no document")
@@ -229,7 +253,13 @@ func (p *Projector) RecordEdits(ctx context.Context, edits []Edit) ([]string, er
 		}
 		ops = append(ops, op)
 	}
-	written, err := p.log.Record(ctx, ops...)
+	var written []workspace.Op
+	var err error
+	if expect != nil {
+		written, err = p.log.RecordIf(ctx, expect, ops...)
+	} else {
+		written, err = p.log.Record(ctx, ops...)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -305,8 +335,16 @@ func (p *Projector) encodeEdit(ctx context.Context, e Edit, at time.Time) (works
 			return workspace.Op{}, fmt.Errorf("projector: encode %s: %w", KindEdit, err)
 		}
 	}
-	return workspace.Op{Project: p.key, Kind: KindEdit, Payload: body, At: at}, nil
+	op := workspace.Op{Project: p.key, Kind: KindEdit, Payload: body, At: at}
+	if e.kept() {
+		op.Subject = workhome.Subject(e.Doc.Key, e.Edition)
+	}
+	return op, nil
 }
+
+// kept reports whether an edit is a write to an edition the workspace home
+// keeps.
+func (e Edit) kept() bool { return e.Home == workhome.Name && e.Edition != "" }
 
 // decodeEdit reads the edit a content.edit operation carries, from its
 // payload or its blob.
@@ -355,6 +393,12 @@ func editRows(op, address string, at time.Time, e Edit) []history.Row {
 // extends.
 func editAddress(key workspace.ProjectKey, e Edit, reached map[history.Reach]string) string {
 	parts := []string{string(key), e.Doc.Key, string(e.Actor.Kind), e.Actor.Name, e.Actor.Session}
+	if e.kept() {
+		// A write to the workspace home is also the head it was staged on
+		// and the write it carries over: two machines that rebase one write
+		// onto one head make one operation.
+		parts = append(parts, workhome.Name, e.Edition, e.Base, e.Cause)
+	}
 	for _, t := range e.Transitions {
 		parts = append(parts, t.Block, t.Key, t.Edition, t.Before, t.After, t.Basis,
 			reached[history.Reach{Block: t.Block, Edition: t.Edition, Rev: t.Before}])

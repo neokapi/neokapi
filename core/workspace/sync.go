@@ -310,6 +310,7 @@ type segmentLine struct {
 	Address string          `json:"address,omitempty"`
 	Project string          `json:"project"`
 	Kind    string          `json:"kind"`
+	Subject string          `json:"subject,omitempty"`
 	At      string          `json:"at"`
 	Payload json.RawMessage `json:"payload,omitempty"`
 }
@@ -320,7 +321,7 @@ func EncodeSegment(ops []Op) ([]byte, error) {
 	enc := json.NewEncoder(&buf)
 	for _, op := range ops {
 		line := segmentLine{
-			ID: op.ID, Address: op.Address, Project: string(op.Project), Kind: op.Kind,
+			ID: op.ID, Address: op.Address, Project: string(op.Project), Kind: op.Kind, Subject: op.Subject,
 			At: op.At.UTC().Format(time.RFC3339Nano),
 		}
 		if len(op.Payload) > 0 {
@@ -359,7 +360,7 @@ func DecodeSegment(data []byte, project ProjectKey) ([]Op, error) {
 			return nil, fmt.Errorf("line %d: %w", n+1, err)
 		}
 		out = append(out, Op{
-			ID: line.ID, Address: line.Address, Project: project, Kind: line.Kind,
+			ID: line.ID, Address: line.Address, Project: project, Kind: line.Kind, Subject: line.Subject,
 			Payload: []byte(line.Payload), At: at.UTC(),
 		})
 	}

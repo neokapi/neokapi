@@ -20,13 +20,14 @@ import (
 
 // #2356. Under `materialize: on-converge` a pass drafts every locale and
 // delivers only the locales that cleared their ship gate. A parked locale's
-// draft tree goes with the run, and its work stays in the project block store as
-// `targets/<locale>` overlays.
+// draft tree goes with the run, and its drafts are kept in the workspace home
+// (host/workhome.go), with the overlays the producer serves them from in the
+// project block store.
 //
-// These tests hold the whole cycle together over that store: the run's own
-// report, `kapi status` coverage and the review queue all read it, a decision
-// taken on a stored draft counts toward the gate, and the pass after serves the
-// draft instead of paying a provider for it again.
+// These tests hold the whole cycle together over the workspace home: the
+// run's own report, `kapi status` coverage and the review queue all read the
+// drafts there, a decision taken on a kept draft counts toward the gate, and
+// the pass after serves the draft instead of paying a provider for it again.
 
 // parkedReviewSource is four strings, so approving two of them is exactly the
 // 50% `established` bar the fixture's ship gate asks for.
@@ -41,7 +42,7 @@ const parkedReviewSource = `{
 // parkedReviewProject writes a two-locale project that drafts through the
 // deterministic demo provider and delivers under a gate no unattended run can
 // clear: `reviewed: 50` needs a person. Both locales therefore park on the first
-// run, with their drafts in the store and nothing on disk.
+// run, with their drafts in the workspace home and nothing on disk.
 func parkedReviewProject(t *testing.T) (*App, *EnvCommand, string, string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -196,9 +197,9 @@ func parkedQueueKeys(t *testing.T, a *App, recipe, locale string) []string {
 
 // TestConverge_ParkedLocaleIsReviewableThenShips is the issue's cycle end to
 // end: the first pass parks both locales with nothing on disk, status and the
-// review queue read the drafts out of the store, two approvals put nl at its
-// `reviewed: 50` bar, and the pass after serves nl's four units from the store
-// and delivers the locale.
+// review queue read the drafts out of the workspace home, two approvals put nl
+// at its `reviewed: 50` bar, and the pass after serves nl's four units from
+// the store and delivers the locale.
 func TestConverge_ParkedLocaleIsReviewableThenShips(t *testing.T) {
 	a, cmd, recipe, dir := parkedReviewProject(t)
 
@@ -216,7 +217,7 @@ func TestConverge_ParkedLocaleIsReviewableThenShips(t *testing.T) {
 
 	// The read surfaces find the parked work where it lives.
 	cov := parkedCoverage(t, a, cmd, recipe, dir, "nl")
-	assert.Equal(t, 100, cov.Pct["translated"], "the store holds a translation for every nl unit")
+	assert.Equal(t, 100, cov.Pct["translated"], "the workspace home holds a translation for every nl unit")
 	assert.Zero(t, cov.Pct["established"])
 	assert.False(t, cov.Shippable, "translated is not the whole gate")
 	assert.Equal(t, cov.Pct["translated"], parkedLocaleResult(t, out, "nl").Pct["translated"],

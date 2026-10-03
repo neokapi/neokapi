@@ -309,7 +309,15 @@ func TestFlowRun_PrintsWhatDeliveryWouldCommit(t *testing.T) {
 			if tc.delivered {
 				require.Len(t, set.Ops, 3)
 				require.NotEmpty(t, readTarget(t, brecipe))
-				assert.Equal(t, readTarget(t, brecipe), readTarget(t, recipe), "kapi apply of what was printed is the delivery")
+				// The recipe withholds a translation's file until a delivery
+				// writes it, so kapi apply keeps what was printed in the
+				// workspace, and kapi merge writes the file the run delivers.
+				assert.Empty(t, readTarget(t, recipe), "kapi apply delivers no file the recipe withholds")
+				proj, err := project.Load(recipe)
+				require.NoError(t, err)
+				_, err = a.materializeFromProjectStore(cmd.Context(), io.Discard, proj, recipe, []model.LocaleID{"qps"}, false)
+				require.NoError(t, err)
+				assert.Equal(t, readTarget(t, brecipe), readTarget(t, recipe), "kapi apply of what was printed, then kapi merge, is the delivery")
 				return
 			}
 			assert.Empty(t, set.Ops, "a parked locale's drafts are not delivered, so none is printed")

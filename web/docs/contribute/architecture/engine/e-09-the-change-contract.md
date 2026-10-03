@@ -258,9 +258,11 @@ again is unchanged, a file keeps its mode, a removed translation reads back
 absent while a replay of its removal is stale and writes nothing, and a change
 set with no operation applies and writes nothing. Each home runs the removal on
 a translation it holds: the stream's own rows, a PO catalog for the file home,
-and for the project homes the catalog a PO source's target template names
-(`po/fr.po` beside `po/en.po`), where the suite also checks that the removal is
-written there and the source catalog keeps its bytes.
+for the project homes the catalog a PO source's target template names
+(`po/fr.po` beside `po/en.po`), and for the workspace home the French of a PO
+catalog that it keeps while that file does not exist. Where the translation
+lives apart from its source, the suite also checks that the removal is written
+there and the source catalog keeps its bytes.
 
 **The file home** (`core/change/filehome`) keeps each document as a file. A
 stage reads the document through its format's reader with the writer's
@@ -299,6 +301,35 @@ a commit replaces beside it, under the lock, from the bytes the change was
 applied to. The implementation note
 [The file home](../../implementation/engine/file-home.md) has the details.
 
+**The workspace home** (`core/workhome`) keeps the editions that have no file
+yet: a parked locale's drafts and the edits made to them
+([C-03](../context/c-03-context-store-and-graph.md#the-workspace-home)). Such
+an edition belongs to a document whose own edition is a file, so the file home
+reaches it: the layout names the file the edition will be delivered to, and a
+keeper (`filehome.Keeper`) that holds it until then. A read joins the kept
+edition to the document's blocks by block key, with the status and origin the
+workspace home keeps beside its runs, and reports the workspace home as its
+home (`change.Place.Home`, `Page.Home`). A stage hands the editions the
+editor changed to the keeper, the commit lock is the lock of the file the
+edition will be delivered to, and the commit appends the change's record only
+while the edition's head in the log is still the one the stage read
+(`workspace.Backend.RecordIf`); a head that moved in between makes the stage
+read and apply again, as a moved file does, and a head that moves after the
+stage settled refuses the change set `doc_changed` with nothing landed. The
+record is the commit:
+`change.RecordingStaged` hands the staged change the record of its document
+before `Commit`, the result names the workspace home for that edition
+(`StagedFile.Home`), and the service's recorder records nothing more for it
+(`StagedFile.Recorded`). The conformance suite runs on the workspace home with
+the edition files of a parked locale as its documents, and removes the French
+it keeps of a PO catalog. The recipe picks the
+home of a translation whose file does not exist: under
+`materialize: on-converge` it is the workspace home, whether or not the
+workspace holds anything of it yet, and under `manual` it is the file, unless
+the workspace still keeps a draft of it. A project that declares redaction
+records a kept edition redacted and reads it back from the vault
+([C-03](../context/c-03-context-store-and-graph.md#the-workspace-home)).
+
 ### Flows
 
 A flow writes a document whole: its writer renders every block the run passed
@@ -312,7 +343,18 @@ the kapi host runs commits this way: `kapi translate`, `pseudo-translate`,
 `run`, `exec` and `up`, the same runs in Kapi Desktop and over MCP, a pull's
 target files, and the delivery of a convergence pass's drafts. The host's flow
 home takes its locks where the project's change service takes them, so a flow
-and a change set on one file take turns.
+and a change set on one file take turns. A gated run that parks a locale writes
+that locale's drafts into the workspace home instead
+(`workhome.Home.Produce`): one write per document, each draft guarded by the
+revision the run first read of it, with its basis and the stamp its producer
+serves it again by; a block another writer changed meanwhile, or one a person
+or an agent wrote from the same source, keeps that writer's edition. A run
+that delivers a locale replaces the drafts the workspace kept of it from an
+earlier run the same way first. A delivery (`kapi merge`, or `kapi up` for a
+locale that cleared its gate) writes each edition's file from what the
+workspace home keeps, each draft with the basis it was made from, and then
+releases what it read there (`workhome.Home.Release`), only while the
+edition's head is still the one it read.
 
 Inside a project the host records each document a flow wrote as one
 `content.edit`, through the recorder a change set's commit records through,
@@ -369,11 +411,13 @@ holds an entry or an order of its own; such a file is named on standard error
 and left out. So is a file the run would write where the service does not keep
 the edition (an output path given on the command line in place of the recipe's
 target), a conversion, an export and an archive. `kapi apply` of the change set
-writes the bytes the run would have written, and records the edit as its
-applier's: a person's or an agent's edit is theirs, so the `origin` the
-operations state is not kept on the translation, and `kapi apply` prints one
-line naming the tools and saying so. A run with nothing to change prints a
-change set with no operation, which applies and writes nothing.
+writes the bytes the run would have written (under `materialize: on-converge`,
+a translation whose file does not exist yet lands in the workspace home, its
+home until a delivery, and `kapi merge` writes those bytes), and records the
+edit as its applier's: a person's or an agent's edit is theirs, so the
+`origin` the operations state is not kept on the translation, and `kapi apply`
+prints one line naming the tools and saying so. A run with nothing to change
+prints a change set with no operation, which applies and writes nothing.
 
 A printing `kapi up` runs one pass. A gated pass drafts into its private tree
 as any pass does (`Options.WriteUnder` lets the printing home write there),

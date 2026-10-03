@@ -65,6 +65,7 @@ import (
 	"github.com/neokapi/neokapi/core/history"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/core/workhome"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
@@ -115,6 +116,8 @@ const BlobThreshold = 32 << 10
 // *workspace.Workspace satisfies it.
 type Log interface {
 	Record(ctx context.Context, ops ...workspace.Op) ([]workspace.Op, error)
+	RecordIf(ctx context.Context, expect []workspace.Expect, ops ...workspace.Op) ([]workspace.Op, error)
+	SubjectHead(ctx context.Context, project workspace.ProjectKey, subject string) (int64, error)
 	Select(ctx context.Context, q workspace.OpQuery) ([]workspace.Op, error)
 	PutBlob(ctx context.Context, data []byte) (string, error)
 	Blob(ctx context.Context, digest string) ([]byte, error)
@@ -162,11 +165,14 @@ type Stores struct {
 	Memory  *memory.SQLiteStore
 	Voice   *voice.SQLiteStore
 	History *history.Store
+	// Heads is the workspace home's projection: the editions it keeps and
+	// the head of each (core/workhome).
+	Heads *workhome.Store
 }
 
 // ProjectStores are the projections a project store holds.
 func ProjectStores(db *projectdb.DB) Stores {
-	return Stores{Raw: db.Raw(), Terms: db.Terms(), Memory: db.Memory(), Voice: db.Voice(), History: db.History()}
+	return Stores{Raw: db.Raw(), Terms: db.Terms(), Memory: db.Memory(), Voice: db.Voice(), History: db.History(), Heads: db.Heads()}
 }
 
 // ContextStores binds the projections to a project's context database straight
@@ -190,7 +196,11 @@ func ContextStores(raw *storage.DB) (Stores, error) {
 	if err != nil {
 		return Stores{}, fmt.Errorf("projector: bind the block history: %w", err)
 	}
-	return Stores{Raw: raw, Terms: tb, Memory: tm, Voice: vc, History: hs}, nil
+	heads, err := workhome.Open(raw)
+	if err != nil {
+		return Stores{}, fmt.Errorf("projector: bind the workspace home: %w", err)
+	}
+	return Stores{Raw: raw, Terms: tb, Memory: tm, Voice: vc, History: hs, Heads: heads}, nil
 }
 
 // locks holds one mutex per context store, keyed by the store's pool, so every
@@ -464,6 +474,7 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 		unitsMine bool
 		edits     []history.Row
 		editsMine bool
+		works     []workhome.Write
 	)
 	flush := func() {
 		if len(units) > 0 {
@@ -473,10 +484,14 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 			units, unitsMine = nil, false
 		}
 		if len(edits) > 0 {
-			if aerr := p.applyEditRows(ctx, edits); aerr != nil && editsMine && first == nil {
+			aerr := p.applyEditRows(ctx, edits)
+			if aerr == nil {
+				aerr = p.applyWorkWrites(ctx, works)
+			}
+			if aerr != nil && editsMine && first == nil {
 				first = aerr
 			}
-			edits, editsMine = nil, false
+			edits, editsMine, works = nil, false, nil
 		}
 	}
 	for _, op := range ops {
@@ -497,6 +512,16 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 			}
 			if len(units) > 0 {
 				flush()
+			}
+			if e.kept() {
+				w, werr := p.workWrite(ctx, op, e)
+				if werr != nil {
+					if isMine && first == nil {
+						first = werr
+					}
+					continue
+				}
+				works = append(works, w)
 			}
 			edits = append(edits, editRows(op.ID, opAddress(op), op.At, e)...)
 			editsMine = editsMine || isMine

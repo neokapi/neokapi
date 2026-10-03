@@ -66,12 +66,18 @@ two are separated:
 
 | Kind | Examples | Home | Authoritative? |
 | --- | --- | --- | --- |
-| Derived | parsed blocks, coverage, rungs reachable from content | `.kapi/work/cache/`, and the checkout's projection at `.kapi/work/store.db` | no: rebuildable, ignored |
+| Derived | parsed blocks, coverage, rungs reachable from content, the overlays a producer serves a draft from | `.kapi/work/cache/`, and the checkout's projection at `.kapi/work/store.db` | no: rebuildable, ignored |
 | Authored unit state | approvals, parking, reviewer, notes | the decision ledger (`core/state`) in the project's context store | yes |
+| A parked locale's drafts, and the edits made to them | the text of translations whose files a gate withholds | the workspace home (`core/workhome`) in the project's context store | yes, until a delivery writes them to their files |
 
 The cache may *mirror* authored state in transit, but it never *owns* it. A
 decision is durable in the ledger the moment it is recorded, and every checkout
-of the project reads it from there.
+of the project reads it from there. A parked locale's drafts are text, so they
+have a home of their own: the workspace home keeps them in the operation log
+([C-03](c-03-context-store-and-graph.md#the-workspace-home)), and the coverage,
+the review queue and the checks read them there while their files do not exist.
+A decision on such a draft binds to the revision the workspace home holds, as a
+decision on a delivered translation binds to the revision its file holds.
 
 ### Content memory is recycle, not the state carrier
 
@@ -441,14 +447,21 @@ plan puts that question to a producer built the way a pass builds one
 (`tool.StoredTargetReuser`), so the two answer it from one function. A unit the
 step would serve this way is counted as a **stored draft** at no tokens; a
 parked locale's whole draft set reads this way on the run after the one that
-drafted it.
+drafted it. The block store is a cache: the workspace home keeps each parked
+draft with the stamp its producer serves it by (the overlay's key,
+configuration fingerprint and source stamp), and a run writes the overlays it
+lacks back before its first pass, so a checkout whose `.kapi/work/` was deleted
+serves its parked drafts without a provider call. A draft a person or an agent
+edited since is restored from the latest draft a producer wrote for it, which
+the log keeps.
 The plan judges a produced unit only once the record absorber has read its
 committed target at the bytes on disk (the digest stamps of
 [C-03](c-03-context-store-and-graph.md)); before that the corpus is unfinished,
 its silence means "not asked", and the plan says so rather than quoting either a
 free run or a provider call per translation the run will recycle. A produced
-unit with no file on disk is a parked locale's draft, read out of the store;
-nothing is left for the absorber to read, so the plan judges it at once. What the loop
+unit with no file on disk is a parked locale's draft, read out of the
+workspace home; nothing is left for the absorber to read, so the plan judges it
+at once. What the loop
 cannot do is decide, so the re-draft never restores the withdrawn approval: the
 unit returns at its presence baseline, in the review worklist, and the scope
 stays withheld until someone reviews the new pairing.

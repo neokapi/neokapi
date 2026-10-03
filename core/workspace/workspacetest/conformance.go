@@ -64,6 +64,8 @@ func RunConformance(t *testing.T, newBackend Factory) {
 		{"a content address is held once", contentAddressIsHeldOnce},
 		{"a selection narrows by kind and project", selectionNarrows},
 		{"a blob is held once under the digest of its bytes", blobIsHeldByDigest},
+		{"a subject reads back and narrows a selection", subjectNarrows},
+		{"a conditional record appends only while every subject's head holds", conditionalRecord},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -247,6 +249,70 @@ func blobIsHeldByDigest(t *testing.T, b workspace.Backend) {
 	require.ErrorIs(t, err, workspace.ErrNoBlob)
 	_, err = b.Blob(ctx, "not-an-address")
 	require.Error(t, err)
+}
+
+func subjectNarrows(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	_, err := b.Record(ctx,
+		workspace.Op{Project: "prj_a", Kind: "content.edit", Subject: "d_1@de"},
+		workspace.Op{Project: "prj_a", Kind: "content.edit"},
+		workspace.Op{Project: "prj_b", Kind: "content.edit", Subject: "d_1@de"},
+		workspace.Op{Project: "prj_a", Kind: "content.edit", Subject: "d_1@fr"},
+		workspace.Op{Project: "prj_a", Kind: "content.edit", Subject: "d_1@de"},
+	)
+	require.NoError(t, err)
+
+	got, err := b.Select(ctx, workspace.OpQuery{Project: "prj_a", Subject: "d_1@de"})
+	require.NoError(t, err)
+	require.Len(t, got, 2, "a subject keeps the operations that name it, in one project")
+	for _, op := range got {
+		assert.Equal(t, "d_1@de", op.Subject, "the subject reads back as it was recorded")
+	}
+	all, err := b.Since(ctx, 0, 0)
+	require.NoError(t, err)
+	assert.Empty(t, all[1].Subject, "an operation recorded with no subject reads back with none")
+}
+
+func conditionalRecord(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	subject := func(head int64) []workspace.Expect {
+		return []workspace.Expect{{Project: "prj_a", Subject: "d_1@de", Head: head}}
+	}
+	first, err := b.RecordIf(ctx, subject(0),
+		workspace.Op{Project: "prj_a", Kind: "content.edit", Subject: "d_1@de"})
+	require.NoError(t, err, "a subject no operation named is at head zero")
+	require.Len(t, first, 1)
+
+	// Another subject, and an operation with none, leave the head alone.
+	_, err = b.Record(ctx,
+		workspace.Op{Project: "prj_a", Kind: "content.edit", Subject: "d_1@fr"},
+		workspace.Op{Project: "prj_b", Kind: "content.edit", Subject: "d_1@de"},
+		workspace.Op{Project: "prj_a", Kind: "terms.write"})
+	require.NoError(t, err)
+
+	at, err := b.SubjectHead(ctx, "prj_a", "d_1@de")
+	require.NoError(t, err)
+	assert.Equal(t, first[0].Seq, at, "a subject's head is its last operation, whatever else the log received")
+	none, err := b.SubjectHead(ctx, "prj_a", "d_2@de")
+	require.NoError(t, err)
+	assert.Zero(t, none, "a subject no operation named is at head zero")
+
+	head, err := b.Head(ctx)
+	require.NoError(t, err)
+	_, err = b.RecordIf(ctx, subject(0),
+		workspace.Op{Project: "prj_a", Kind: "content.edit", Subject: "d_1@de"})
+	require.ErrorIs(t, err, workspace.ErrHeadMoved, "a writer that read the subject before the first write is refused")
+	var moved *workspace.HeadMovedError
+	require.ErrorAs(t, err, &moved)
+	assert.Equal(t, first[0].Seq, moved.Now, "the refusal names where the head is")
+	after, err := b.Head(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, head, after, "a refused conditional record appends nothing")
+
+	second, err := b.RecordIf(ctx, subject(first[0].Seq),
+		workspace.Op{Project: "prj_a", Kind: "content.edit", Subject: "d_1@de"})
+	require.NoError(t, err, "a writer that read the head lands")
+	assert.Greater(t, second[0].Seq, first[0].Seq)
 }
 
 // ids renders the ids of a batch of operations.

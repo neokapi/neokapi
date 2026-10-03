@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/reconcile"
+	"github.com/neokapi/neokapi/core/workhome"
 )
 
 // The record of an applied edit.
@@ -29,8 +30,9 @@ import (
 // the change set as sent, which review, a revert by session and "who wrote
 // this" read back. A tool's edit, which a flow makes by the thousand, keeps
 // the revisions and hashes only: the file holds the text. A write to the
-// workspace home keeps the edition it leaves, whoever made it, because the log
-// is that home.
+// workspace home is recorded by the commit that keeps it (core/workhome),
+// with the edition it leaves, because the log is that home; the recorder
+// records the rest of the change set.
 //
 // A project that declares redaction (defaults.redaction) keeps no withheld
 // value in a record, because a record travels to every context backend the
@@ -42,7 +44,7 @@ import (
 // not carry, so under one the record keeps no runs and no note.
 
 // homeWorkspace is the home whose text the log holds (change.DocResult.Home).
-const homeWorkspace = "workspace"
+const homeWorkspace = workhome.Name
 
 // EditRecorder returns the recorder for the project rooted at root. It
 // records through the project's projector, so an edit reaches the same log
@@ -101,7 +103,13 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 	var order []string
 	results := map[string]change.DocResult{}
 	byDoc := map[string][]change.Transition{}
+	kept := map[string]bool{}
 	for _, d := range rec.Docs {
+		if d.Home == homeWorkspace {
+			// The workspace home recorded its change when it committed it.
+			kept[d.Doc] = true
+			continue
+		}
 		if _, seen := results[d.Doc]; !seen {
 			order = append(order, d.Doc)
 		}
@@ -109,6 +117,9 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 	}
 	for _, t := range rec.Transitions {
 		if _, listed := results[t.Ref.Doc]; !listed {
+			if kept[t.Ref.Doc] {
+				continue
+			}
 			if _, seen := byDoc[t.Ref.Doc]; !seen {
 				order = append(order, t.Ref.Doc)
 			}
@@ -137,7 +148,7 @@ func (r *editRecorder) Record(ctx context.Context, rec change.Record) (string, e
 		if res.After != nil {
 			e.DocAfter = *res.After
 		}
-		keep := keptRuns{before: keepRuns, after: keepRuns || res.Home == homeWorkspace}
+		keep := keptRuns{before: keepRuns, after: keepRuns}
 		for _, t := range transitions {
 			if statesBases && !stated[basisAt{t.Ref.Block, t.Ref.EditionText()}] {
 				// The writer named the basis of every edition whose source it
@@ -187,8 +198,8 @@ func WithStatedBases(ctx context.Context, set change.Set) context.Context {
 }
 
 // editDoc names the document a change addressed. A change addresses a
-// document by its project-relative path, or by its key where the document
-// lives in the workspace home and has no path; a key is kept as it is.
+// document by its project-relative path, or by its key; a key is kept as it
+// is.
 func (r *editRecorder) editDoc(ctx context.Context, doc string) projector.EditDoc {
 	if reconcile.IsDocumentKey(doc) {
 		return projector.EditDoc{Key: doc}

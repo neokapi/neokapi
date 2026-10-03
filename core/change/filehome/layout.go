@@ -75,6 +75,10 @@ type EditionFile struct {
 	// edition's language, and a unit with no translation holds no edition.
 	// Otherwise the file is a document in the edition's language.
 	Bilingual bool
+	// Kept, when set, keeps the edition until a delivery writes its file:
+	// the file is not written, and the edition's text lives in the keeper
+	// (keep.go).
+	Kept Keeper
 }
 
 // Binding opens a format's reader and writer, each configured for one

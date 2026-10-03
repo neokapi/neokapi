@@ -62,6 +62,7 @@ import (
 	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/core/workhome"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/voice"
@@ -148,6 +149,7 @@ type DB struct {
 	blocksAuto blockstore.Store
 	work       *state.WorkStore
 	history    *history.Store
+	heads      *workhome.Store
 }
 
 // Open opens (creating it if absent) the project's projection at
@@ -236,7 +238,11 @@ func (d *DB) bind(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("projectdb: bind block history: %w", err)
 	}
-	d.memory, d.terms, d.voice, d.blocks, d.blocksAuto, d.work, d.history = mem, tb, vc, blocks, auto, work, hs
+	heads, err := workhome.Open(d.context)
+	if err != nil {
+		return fmt.Errorf("projectdb: bind the workspace home: %w", err)
+	}
+	d.memory, d.terms, d.voice, d.blocks, d.blocksAuto, d.work, d.history, d.heads = mem, tb, vc, blocks, auto, work, hs, heads
 	return nil
 }
 
@@ -302,6 +308,11 @@ func (d *DB) Work() *state.WorkStore { return d.work }
 // store. It is nil on a build with no file-backed SQLite driver. The projector
 // writes it; everything else reads.
 func (d *DB) History() *history.Store { return d.history }
+
+// Heads returns the workspace home's projection (core/workhome), in the
+// context store: the editions of the project's documents that have no file
+// yet. The projector writes it; everything else reads.
+func (d *DB) Heads() *workhome.Store { return d.heads }
 
 // Join runs fn on one connection that sees both of the project's databases: the
 // projection as `main` and the context store as `context` (ContextSchema). It

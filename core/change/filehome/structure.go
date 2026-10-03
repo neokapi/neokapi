@@ -68,9 +68,10 @@ func (st *staged) restructure(ctx context.Context) error {
 	overlay[overlayKey(own)] = out
 
 	for _, je := range editions {
-		if !je.exists {
+		if !je.exists || je.kept != nil {
 			// A new block's edition in a file that does not exist yet is
-			// written when the pass materializes the file.
+			// written when the pass materializes the file, and a kept
+			// edition takes it from the pass as any change.
 			continue
 		}
 		fedits, from, rerr := editionEdits(edits, je, ix)

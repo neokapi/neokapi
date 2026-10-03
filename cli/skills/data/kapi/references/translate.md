@@ -153,7 +153,9 @@ what a run would change, add
 `--print-ops`: the run writes no file of the project and records no change, and
 prints the change set (`set_content` per translation, with its `if_match`, its
 `basis`, and in `origin` the tool that produced it). `kapi apply` of that
-output writes the bytes the run would write.
+output writes the bytes the run would write. Under `materialize: on-converge`
+a translation whose file does not exist yet is kept in the workspace instead,
+and `kapi merge` writes its file.
 
 ```bash
 kapi up --print-ops > change.json   # one pass, no file written, the change set on stdout

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -204,4 +205,23 @@ func TestWorkspaceReadsFromAWriteRestrictedDirectory(t *testing.T) {
 
 	_, err = ctxDB.ExecContext(ctx, `INSERT INTO terms (v) VALUES ('lost')`)
 	assert.Error(t, err, "a write through the handle is refused too")
+}
+
+// TestSegmentCarriesTheSubject: an operation's subject travels through a
+// remote's segment, so a machine that pulls a write to an edition the
+// workspace home keeps orders it with the writes it holds on that edition.
+func TestSegmentCarriesTheSubject(t *testing.T) {
+	now := time.Now()
+	first := workspace.NewOpID(now, "")
+	ops := []workspace.Op{
+		{ID: first, Project: "prj_a", Kind: "content.edit", Subject: "d_1@de", Payload: []byte(`{}`), At: now},
+		{ID: workspace.NewOpID(now, first), Project: "prj_a", Kind: "terms.write", Payload: []byte(`{}`), At: now},
+	}
+	data, err := workspace.EncodeSegment(ops)
+	require.NoError(t, err)
+	back, err := workspace.DecodeSegment(data, "prj_a")
+	require.NoError(t, err)
+	require.Len(t, back, 2)
+	assert.Equal(t, "d_1@de", back[0].Subject)
+	assert.Empty(t, back[1].Subject)
 }

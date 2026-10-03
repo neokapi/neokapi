@@ -627,6 +627,14 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// project's context, which a fresh checkout has not read yet.
 	a.noteHistoryNotPulled(cmd, root, admissionUnits)
 
+	// A producer serves a draft the workspace home keeps from its overlay in
+	// the block store, a cache a deleted `.kapi/work/` loses: write back the
+	// overlays the store lacks before a pass asks for them, so a kept draft
+	// costs no provider call to serve again.
+	if _, rerr := a.restoreKeptOverlays(cmd.Context(), root); rerr != nil {
+		return fmt.Errorf("restore the drafts the workspace home keeps: %w", rerr)
+	}
+
 	// Share one parse cache across every pass: unchanged source files parse once,
 	// not once per pass; only the targets a pass rewrites re-parse.
 	return a.withParseCache(root, func() error {
@@ -994,9 +1002,10 @@ func producedUnits(cov []LocaleCoverage) int {
 //
 // Materialize policy: when the recipe sets `defaults.materialize: on-converge`
 // (or the run forces it with --materialize), every locale whose gated scopes
-// are ALL shippable has its target files written from the project block
-// store via the shared merge/materialize path; parked locales are skipped —
-// their content isn't at the bar yet.
+// are ALL shippable has its target files written via the shared
+// merge/materialize path, from what the workspace home keeps of it and the
+// run's drafts; a parked locale is not delivered, and its drafts are kept in
+// the workspace home (host/workhome.go) until it is.
 func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, translateAfter model.TranslateAfterLevel, blockedOnSource, totalSource int, facts *convergeFacts, opts ConvergeOptions, emit func(convergence.Event)) error {
 	out := buildConvergeOutput(flowName, passes, cov, locales, facts.redraftable)
 	out.Warnings = facts.unread.warnings()
@@ -1051,15 +1060,30 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 				// Parked and pending locales are not delivered. Under this
 				// policy that is the whole of delivery — the pass wrote into the
 				// run's draft tree — so the locale's files are genuinely absent
-				// rather than present and unblessed.
+				// rather than present and unblessed. The drafts are kept in the
+				// workspace home, where a reviewer reads and edits them and the
+				// next delivery finds them.
 				a.printOps.note(lc.Locale + ": short of its ship gate, so kapi up delivers none of its files and none is printed")
+				if a.printOps == nil {
+					if _, kerr := a.keepDrafts(ctx, filepath.Dir(projectPath), model.LocaleID(lc.Locale), false); kerr != nil {
+						return fmt.Errorf("keep the %s drafts: %w", lc.Locale, kerr)
+					}
+				}
 				continue
 			}
 			// The locale cleared its gate, so its drafts become its delivery.
 			// This moves the run's own output, which is the record that exists
-			// for every flow; the store-backed write below adds whatever
-			// overlays the run also committed, and is a no-op for a flow that
-			// committed none.
+			// for every flow; the store-backed write below adds what the
+			// workspace home keeps of the locale and whatever overlays the
+			// run also committed. The run's drafts replace the drafts the
+			// workspace kept from an earlier run first, so what is delivered
+			// on top is the edits made to them, never a draft of a source that
+			// has changed since.
+			if a.printOps == nil {
+				if _, kerr := a.keepDrafts(ctx, filepath.Dir(projectPath), model.LocaleID(lc.Locale), true); kerr != nil {
+					return fmt.Errorf("keep the %s drafts: %w", lc.Locale, kerr)
+				}
+			}
 			delivered, derr := a.deliverDrafts(ctx, model.LocaleID(lc.Locale))
 			if derr != nil {
 				return fmt.Errorf("deliver %s: %w", lc.Locale, derr)
@@ -1125,6 +1149,11 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 	// back as a statement from git; see stampCommittedRecord.
 	if a.printOps == nil {
 		a.stampCommittedRecord(ctx, proj, projectPath, facts.unread)
+		// A translation whose file now exists, whichever path wrote it, has
+		// its file as its home: the workspace home settles what it kept.
+		if rerr := a.settleKept(ctx, projectPath); rerr != nil {
+			return fmt.Errorf("settle the drafts the workspace home keeps: %w", rerr)
+		}
 	}
 
 	state := convergence.RunConverged

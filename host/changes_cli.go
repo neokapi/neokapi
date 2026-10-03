@@ -150,7 +150,9 @@ func (l copyLayout) Locate(ctx context.Context, doc string) (filehome.Doc, error
 			if !ok || !samePath(f.Path, l.file) {
 				return filehome.EditionFile{}, false
 			}
-			f.Path = l.copy
+			// The copy holds the edition, whatever home the edition has in
+			// the project: a preview writes nothing anywhere else.
+			f.Path, f.Kept = l.copy, nil
 			return f, true
 		}
 	}

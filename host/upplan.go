@@ -648,8 +648,8 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 			// reported as unread rather than guessed at either way.
 			//
 			// That holds for a delivered file. A produced unit with no file on
-			// disk is a parked locale's draft, read out of the block store: there
-			// is no committed translation for the absorber to read, so the
+			// disk is a parked locale's draft, read out of the workspace home:
+			// there is no committed translation for the absorber to read, so the
 			// corpus's silence about it is final, and the reuse question below is
 			// what prices it.
 			if produced && delivered && !settled && basis.reviewed.basisFor(scope, b, u.Locale) != basisStale {
@@ -755,7 +755,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 }
 
 // targetDelivered reports whether a unit's target file is on disk. A produced
-// unit without one was read out of the block store, which is what a parked
+// unit without one was read out of the workspace home, which is what a parked
 // locale's drafts look like between the run that drafted them and the review
 // that delivers them.
 func targetDelivered(targetPath string) bool {

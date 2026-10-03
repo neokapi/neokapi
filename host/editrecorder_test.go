@@ -183,32 +183,22 @@ func TestRecorderWritesOneOperationPerDocument(t *testing.T) {
 	assert.Len(t, outro.Overridden, 1, "a finding placed in another document stays with it")
 }
 
-// TestRecorderKeepsTheResultOfAWriteToTheWorkspaceHome: the log is the
-// workspace home, so a write there keeps the edition it leaves whoever made
-// it, a tool included. A document the change addresses by its key, as one in
-// the workspace home is, is recorded under that key.
-func TestRecorderKeepsTheResultOfAWriteToTheWorkspaceHome(t *testing.T) {
+// TestRecorderLeavesAWorkspaceHomeWriteToItsCommit: the workspace home
+// records a write when it commits it, with the edition the write leaves, so
+// the recorder records nothing more for a document result in that home and
+// records the change set's other documents as it records any.
+func TestRecorderLeavesAWorkspaceHomeWriteToItsCommit(t *testing.T) {
 	a, root, rec := recorderProject(t)
 	ctx := t.Context()
 	key := reconcile.DocumentKeyFor("parked/intro")
-	_, err := rec.Record(ctx, change.Record{
+	id, err := rec.Record(ctx, change.Record{
 		Actor: change.Actor{Kind: change.ActorTool, Name: "translate"}, Origin: "flow:up",
 		Docs:        []change.DocResult{{Doc: key, Home: "workspace", Written: true}},
 		Transitions: greetingEdit(key),
 	})
 	require.NoError(t, err)
-
-	ops := editOps(t, a, root)
-	require.Len(t, ops, 1)
-	var e projector.Edit
-	require.NoError(t, json.Unmarshal(ops[0].Payload, &e))
-	assert.Equal(t, projector.EditDoc{Key: key}, e.Doc, "a key is kept as it is")
-	require.Len(t, e.Transitions, 2)
-	for _, tr := range e.Transitions {
-		assert.NotEmpty(t, tr.RunsAfter, "%s: the result is kept", tr.Edition)
-		assert.Empty(t, tr.RunsBefore, "%s: a tool's record keeps nothing before", tr.Edition)
-	}
-	assert.Empty(t, e.ChangeSet)
+	assert.Empty(t, id, "the commit recorded the write, so nothing more is")
+	assert.Empty(t, editOps(t, a, root))
 }
 
 // redactingProject is recorderProject whose recipe declares redaction with
