@@ -187,12 +187,12 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 
 	// Targets: one edition per variant, runs concatenated from the wire
 	// segments, status/origin/score restored from the first segment's props.
-	// Each is stored as a target whatever its key, so a target filed under the
-	// source language stays a target. A key that names no language names no
-	// target, and BlockToProto never sends one.
+	// Each is filed as a target whatever its key (SetTargetEdition), so a
+	// target under the source language stays a target, and so does one under
+	// no language.
 	for keyText, list := range sb.Targets {
 		var key model.EditionKey
-		if err := key.UnmarshalText([]byte(keyText)); err != nil || key.IsZero() {
+		if err := key.UnmarshalText([]byte(keyText)); err != nil {
 			continue
 		}
 		var runs []model.Run
@@ -203,7 +203,7 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 			}
 			runs = append(runs, protoconvert.ProtoToRuns(seg.Runs)...)
 		}
-		setTarget(b, key, segmentToEdition(runs, first))
+		b.SetTargetEdition(key, segmentToEdition(runs, first))
 	}
 
 	// Annotations.
@@ -326,17 +326,6 @@ func targetToSegment(t model.Edition) *contentv1.SegmentMessage {
 		Runs:       protoconvert.RunsToProto(t.Runs),
 		Properties: props,
 	}
-}
-
-// setTarget stores e as the target filed under key, which names a language.
-// Until a block holds a target in its source language, that language's key
-// reaches the edition the block was read in, and SetEdition would write the
-// source; such a target is filed first with SetTargetRuns.
-func setTarget(b *model.Block, key model.EditionKey, e model.Edition) {
-	if b.IsSourceEdition(key) {
-		b.SetTargetRuns(key.Locale, nil)
-	}
-	b.SetEdition(key, e)
 }
 
 // segmentToEdition rebuilds a derived edition from concatenated runs plus the

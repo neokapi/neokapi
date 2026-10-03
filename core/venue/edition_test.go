@@ -69,17 +69,35 @@ func TestBlockToProto_UnreachableEditionIsNotSentEmpty(t *testing.T) {
 	}
 }
 
-// A target key that names no language names no target. BlockToProto never
-// sends one, and ProtoToBlock stores none: the block holds its source alone.
-func TestProtoToBlock_KeyWithNoLanguageIsNoTarget(t *testing.T) {
+// A target key that names no language is filed as a target under no language,
+// with its status, origin and score, and the source stays as the wire sent it.
+// No edition accessor lists that target, so BlockToProto sends none back.
+func TestProtoToBlock_KeyWithNoLanguageIsATarget(t *testing.T) {
+	sent := model.Edition{
+		Runs:   []model.Run{model.TextR("Hei")},
+		Status: model.Status(model.TargetStatusTranslated),
+		Origin: model.Origin{Kind: model.OriginAI, ContextFingerprint: "fp-zero"},
+		Score:  0.5,
+	}
 	got, err := ProtoToBlock(&pb.SyncBlock{
-		SourceText: "Hello",
+		SourceText:   "Hello",
+		SourceLocale: "en-US",
 		Targets: map[string]*pb.SyncSegmentList{
-			"": {Segments: []*contentv1.SegmentMessage{runsToSegment("", []model.Run{model.TextR("Hei")})}},
+			"": {Segments: []*contentv1.SegmentMessage{targetToSegment(sent)}},
 		},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, []model.EditionKey{{}}, got.Editions())
-	assert.Empty(t, got.TargetLocales())
-	assert.Equal(t, "Hello", got.SourceText())
+
+	tgt, ok := got.TargetEdition("")
+	require.True(t, ok, "the target filed under no language")
+	assert.Equal(t, sent, tgt)
+	assert.Equal(t, []model.LocaleID{""}, got.TargetLocales())
+	src, ok := got.Edition(model.EditionKey{})
+	require.True(t, ok)
+	assert.Equal(t, "Hello", model.RunsText(src.Runs))
+	_, edited := got.SourceAsRead()
+	assert.False(t, edited, "a decoded block holds its source as read")
+	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}}, got.Editions())
+
+	assert.NotContains(t, BlockToProto(got, "item").Targets, "")
 }
