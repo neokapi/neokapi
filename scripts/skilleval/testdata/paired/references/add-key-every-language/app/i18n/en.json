@@ -1,0 +1,8 @@
+{
+  "settings": {
+    "title": "Settings",
+    "importData": "Import your data",
+    "exportData": "Export your data",
+    "deleteAccount": "Delete your account"
+  }
+}

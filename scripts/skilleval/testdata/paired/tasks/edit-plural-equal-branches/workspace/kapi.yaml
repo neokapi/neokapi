@@ -1,14 +1,14 @@
 version: v1
-name: harbor-help-web
+name: harbor-help-app
 defaults:
-  source_language: de
+  source_language: en
   voice:
     profile: harbor-help
   exclude:
     - "**/.git/**"
 collections:
-  - name: web
+  - name: app
     content:
-      - path: i18n/de/messages.json
+      - path: l10n/reminders_en.arb
         format:
-          name: json
+          name: arb

@@ -71,7 +71,7 @@ func TestPairedCellIsACleanRepository(t *testing.T) {
 	files.Dir, files.Env = launch.Workspace, status.Env
 	listed, err := files.Output()
 	require.NoError(t, err)
-	assert.Contains(t, string(listed), "locales/en.json")
+	assert.Contains(t, string(listed), "i18n/de/messages.json")
 	assert.NotContains(t, string(listed), "kapi-data")
 	assert.NotContains(t, string(listed), ".claude")
 	// The repository's own files are no content the task scopes.

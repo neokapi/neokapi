@@ -1,0 +1,15 @@
+{
+  "@@locale": "en",
+  "inviteStatus": "{role, select, adviser{{count, plural, one{Your adviser has a new invitation} other{Your adviser has {count} invitations}}} other{{count, plural, one{You have one invitation} other{You have {count} invitations}}}}",
+  "@inviteStatus": {
+    "description": "How many invitations wait, for the reader or their adviser",
+    "placeholders": {
+      "role": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+}

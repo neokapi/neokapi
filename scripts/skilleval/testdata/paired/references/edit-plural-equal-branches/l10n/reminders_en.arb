@@ -1,0 +1,16 @@
+{
+  "@@locale": "en",
+  "reminderTitle": "Reminders",
+  "@reminderTitle": {
+    "description": "Title of the reminders screen"
+  },
+  "reminderSent": "{count, plural, one{Reminder sent to your adviser} other{Reminders sent to your adviser}}",
+  "@reminderSent": {
+    "description": "Shown after the reader sends reminders",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+}

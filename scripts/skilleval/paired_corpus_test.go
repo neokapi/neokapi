@@ -23,7 +23,7 @@ var pairedWP5Families = []string{
 
 func TestPairedCorpusMaterialization(t *testing.T) {
 	tasks := pairedTasks()
-	require.Len(t, tasks, 7)
+	require.Len(t, tasks, 11)
 	families := []string{}
 	seen := map[string]bool{}
 	for _, task := range tasks {
@@ -82,7 +82,7 @@ func TestPairedCorpusMaterialization(t *testing.T) {
 		})
 	}
 	slices.Sort(families)
-	assert.Equal(t, pairedWP5Families, families)
+	assert.Equal(t, pairedWP5Families, slices.Compact(families), "the variants add tasks to the WP5 families, and no family")
 	hash, err := pairedCorpusHash()
 	require.NoError(t, err)
 	assert.Len(t, hash, 64)

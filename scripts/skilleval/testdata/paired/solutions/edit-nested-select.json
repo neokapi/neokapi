@@ -1,0 +1,36 @@
+{
+ "steps": [
+  {
+   "note": "The one branch of the plural under adviser, named by its path",
+   "exit": 0,
+   "changeset": {
+    "ops": [
+     {
+      "op": "replace_text",
+      "at": {
+       "doc": "l10n/invites_en.arb",
+       "block": "inviteStatus"
+      },
+      "if_match": "r:517814e0e9d60c1f",
+      "path": [
+       0,
+       {
+        "select": "adviser"
+       },
+       0,
+       {
+        "plural": "one"
+       }
+      ],
+      "edits": [
+       {
+        "find": "one invitation",
+        "text": "a new invitation"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

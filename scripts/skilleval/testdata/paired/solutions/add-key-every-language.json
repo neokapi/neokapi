@@ -1,16 +1,22 @@
 {
  "steps": [
   {
-   "note": "Add the export message in the catalog's own language",
+   "note": "One insert_block names the key's text in the catalog and in each translation",
    "exit": 0,
    "changeset": {
     "ops": [
      {
       "op": "insert_block",
-      "doc": "i18n/de/messages.json",
+      "doc": "app/i18n/en.json",
       "after": "settings.importData",
       "name": "settings.exportData",
       "editions": {
+       "en": {
+        "text": "Export your data"
+       },
+       "nb": {
+        "text": "Eksporter dataene dine"
+       },
        "de": {
         "text": "Daten exportieren"
        }
