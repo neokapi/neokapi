@@ -13,17 +13,32 @@
 // @neokapi/kapi-playground, which builds on this package.
 
 // Boot + runtime facade.
-export { bootKapiRuntime, isBooted, makeRuntime, onBootProgress } from "./runtime.ts";
+export {
+  bootKapiRuntime,
+  ChangeRefused,
+  isBooted,
+  makeRuntime,
+  onBootProgress,
+} from "./runtime.ts";
 export type {
   AnnotateOptions,
+  ApplyOptions,
   BootOptions,
   BootProgress,
+  ChangeActor,
+  ChangeCallOptions,
+  ChangeResult,
+  ChangeSet,
+  DescribeRequest,
+  FormatDescription,
   InspectResult,
   KapiRuntime,
   KbfRequest,
   KbfResponse,
   PreviewBlock,
   PreviewResult,
+  ReadPage,
+  ReadRequest,
   SegmentPiece,
   SegmentResult,
   TraceRunResult,

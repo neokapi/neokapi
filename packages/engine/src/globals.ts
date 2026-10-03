@@ -59,6 +59,29 @@ declare global {
    */
   // eslint-disable-next-line no-var
   var kapiReset: ((dir: string) => Promise<string | null>) | undefined;
+  /**
+   * Read a page of a document's blocks through the change service.
+   * `requestJSON` is a serialized ReadRequest, `optionsJSON` the call's
+   * options ({project}). Resolves to a serialized ReadPage, or to a
+   * kapi.change-result/v1 refusal; rejects only on a failure the contract has
+   * no code for.
+   */
+  // eslint-disable-next-line no-var
+  var kapiRead: ((requestJSON: string, optionsJSON?: string) => Promise<string>) | undefined;
+  /**
+   * Apply a serialized kapi.change/v1 change set through the change service.
+   * `optionsJSON` is the call's options ({project, actor}). Resolves to a
+   * serialized kapi.change-result/v1, a refusal included.
+   */
+  // eslint-disable-next-line no-var
+  var kapiApply: ((changeSetJSON: string, optionsJSON?: string) => Promise<string>) | undefined;
+  /**
+   * Describe what a format supports. `requestJSON` is a serialized
+   * DescribeRequest. Resolves to a serialized FormatDescription, or to a
+   * kapi.change-result/v1 refusal.
+   */
+  // eslint-disable-next-line no-var
+  var kapiDescribe: ((requestJSON: string, optionsJSON?: string) => Promise<string>) | undefined;
   /** ABI descriptor for feature detection; absent on pre-ABI builds. */
   // eslint-disable-next-line no-var
   var kapiEngineABI: (() => EngineABI) | undefined;
@@ -84,5 +107,3 @@ declare global {
   // eslint-disable-next-line no-var
   var kapiBrowserTranslate: KapiBrowserTranslate | undefined;
 }
-
-export {};

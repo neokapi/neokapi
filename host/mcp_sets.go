@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // Tool sets: what `kapi mcp --tools <set>[,<set>...]` serves.
@@ -107,33 +105,18 @@ func AllMCPToolSets() map[string]bool {
 	return sets
 }
 
-// pruneMCPToolSets removes from the server every tool that no selected set
-// lists, and the resources when their set is not selected. A nil selection
-// serves every set, for a caller that builds a server without going through
-// `kapi mcp`.
-func pruneMCPToolSets(server *mcp.Server, selected map[string]bool) {
-	if selected == nil {
-		return
-	}
-	served := map[string]bool{}
-	for set, tools := range mcpToolSets {
-		if selected[set] {
-			for _, tool := range tools {
-				served[tool] = true
-			}
-		}
-	}
-	for set, tools := range mcpToolSets {
-		if selected[set] {
-			continue
-		}
-		for _, tool := range tools {
-			if !served[tool] {
-				server.RemoveTools(tool)
-			}
-		}
-	}
-	if !selected[mcpResourceSet] {
-		server.RemoveResourceTemplates(contextLocationTemplate, contextProfileTemplate)
-	}
+// MCPSurface is the tool surface a server exposes. It is set from flags on
+// `kapi mcp` (--tools, --all-tools, --all-flows, --all) rather than an
+// environment variable: the surface an assistant sees is a property of how the
+// server was started, so it belongs on the command that starts it, where
+// `--help` lists it.
+type MCPSurface struct {
+	// Sets are the tool sets served (the MCPSet constants above). nil serves every set,
+	// for a caller that builds a server without going through `kapi mcp`.
+	Sets map[string]bool
+	// AllTools exposes every CLI-visible registry tool instead of the curated
+	// set — pipeline steps, format internals, one-off transforms.
+	AllTools bool
+	// AllFlows exposes the flow-running verbs.
+	AllFlows bool
 }

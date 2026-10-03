@@ -3,7 +3,7 @@
 // (issue #817). Apache-2.0; safe for both the Apache `packages/*` zone and the
 // AGPL `bowrain/*` zone to import.
 //
-// Four layers:
+// Five layers:
 //   - ./contract.gen — IO-contract atoms generated from Go (core/schema,
 //     core/format/schema, core/model). DO NOT EDIT; regenerate with
 //     `make generate-contract-types`.
@@ -13,10 +13,15 @@
 //   - ./review.gen — the review model (S-07) generated from core/review and
 //     the structs it carries, read by every review client and by the shared
 //     review cards. DO NOT EDIT; regenerate with `make generate-contract-types`.
+//   - ./change.gen — the change contract (E-09): the change set
+//     (kapi.change/v1) from the schema core/change generates, and the result
+//     (kapi.change-result/v1), read page and format description reflected from
+//     core/change. DO NOT EDIT; regenerate with `make generate-contract-types`.
 //   - ./manual — the superset envelope types (ComponentSchema, PropertySchema,
 //     ConditionExpr, ToolDoc, ToolDocParam) the UI extends beyond Go.
 
 export * from "./contract.gen.ts";
 export * from "./content.gen.ts";
 export * from "./review.gen.ts";
+export * from "./change.gen.ts";
 export * from "./manual.ts";

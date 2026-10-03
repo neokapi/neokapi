@@ -170,7 +170,7 @@ id and the operation's own instant, so a rebuild writes the same rows:
 | `before`, `after`, `basis` | edition revisions, `absent` for an edition created or removed |
 | `content_hash`, `context_hash` | the block's identity signals after the change |
 | `actor`, `actor_name`, `session` | person, agent, tool, or empty for a change made outside kapi |
-| `origin` | `apply`, `desktop`, `flow:<name>`, `merge`, `pull` or `observed` |
+| `origin` | `apply`, `ksed`, `mcp`, `browser`, `desktop`, `flow:<name>`, `merge`, `pull` or `observed` |
 | `producer` | the producing tool's `model.Origin` as JSON, empty when the transition carries none |
 | `at` | the operation's instant, RFC 3339 with nanoseconds in UTC |
 

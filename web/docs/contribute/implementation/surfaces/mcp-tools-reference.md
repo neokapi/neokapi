@@ -186,7 +186,8 @@ actor is the calling agent: kind `agent`, the client's `initialize` name, and
 `MCPSessionID()`. A refused or partial change set is an error result carrying
 the `kapi.change-result/v1` result. A refusal with no operation to attach it to
 (a change set that does not decode, a read the service refuses) is an error
-result carrying `schema`, `status: "refused"` and `error`. After a change set
+result carrying `change.ErrorResult`: the same result with `status: "refused"`,
+`record: null`, empty `docs` and `ops`, and `error` saying why. After a change set
 lands, the handler collects the wording each applied `set_content` and
 `replace_text` wrote into a document's own edition, under the canonical
 reference the result names, and passes it to `noteAgentEdits`

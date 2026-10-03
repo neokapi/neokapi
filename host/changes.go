@@ -96,6 +96,10 @@ type ChangeServiceOptions struct {
 	// for a source file, after the recipe configured it: kapi pull sets the
 	// locale variants of a document's media on it.
 	WriterHook func(format.DataFormatWriter)
+	// BeforeSettle, when set, is called once a document is staged and before
+	// its commit lock is taken (filehome.Options.BeforeSettle), which is where
+	// a test holds one sender while another lands.
+	BeforeSettle func(doc string)
 }
 
 // Changes builds the change service for the project cmd names, or for the
@@ -185,7 +189,7 @@ func (a *App) serviceOver(ctx context.Context, cmd Command, opts ChangeServiceOp
 	// lock directory is prepared.
 	recorder := a.changeRecorder(ctx, h.root)
 	home := filehome.New(h.layout, filehome.Options{LockDir: h.lockDir, PrepareLocks: recorder.before(h.prepare), BackupSuffix: opts.BackupSuffix,
-		Materialize: opts.Materialize})
+		Materialize: opts.Materialize, BeforeSettle: opts.BeforeSettle})
 	svcOpts := []change.Option{
 		change.WithOrigin(origin),
 		change.WithAssets(&changeAssets{app: a, recipe: opts.Project}),

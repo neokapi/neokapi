@@ -1,8 +1,8 @@
 ---
 sidebar_position: 3
 title: "WASM Engine ABI"
-description: "The stable JS contract between the browser wasm build of kapi and the @neokapi/engine npm package: the global function set, the kapiEngineABI feature-detection descriptor, and the optional host-provided reverse bridges."
-keywords: [wasm, WebAssembly, engine ABI, kapiEngineABI, "@neokapi/engine", browser engine, reverse bridge, implementation note]
+description: "The stable JS contract between the browser wasm build of kapi and the @neokapi/engine npm package: the global function set, the change contract's entry points, the kapiEngineABI feature-detection descriptor, and the optional host-provided reverse bridges."
+keywords: [wasm, WebAssembly, engine ABI, kapiEngineABI, kapiApply, kapiRead, "@neokapi/engine", browser engine, change contract, reverse bridge, implementation note]
 ---
 
 # WASM Engine ABI
@@ -115,14 +115,83 @@ official SQLite WebAssembly build, `@sqlite.org/sqlite-wasm`.
   the directory's files; the playground's Reset button and the terminal's `rm`
   (through `KapiRuntime.removeDatabase`) use them.
 - **Tested in Node.** `make test-wasm-stores` runs the store suites under
-  `GOOS=js` in Node over the same bridge (`scripts/wasm-stores/`). A test that
-  needs a git subprocess, directory permissions that reach a database, or
+  `GOOS=js` in Node over the same bridge (`scripts/wasm-stores/`), and the
+  change service's suites beside them ([The change
+  contract](#the-change-contract)). A test that needs a subprocess (git, or a
+  second writer process), directory permissions that reach a database, or
   preemption skips there and names which.
+
+## The change contract
+
+A page that edits content sends the change contract
+([E-09](/contribute/architecture/engine/e-09-the-change-contract)) to three
+entry points, rather than a command line to `kapiRun`. Each takes the
+contract's JSON as a string and an optional second string, the call's options,
+and returns a Promise of a JSON string.
+
+| Entry point | Takes | Resolves to |
+| --- | --- | --- |
+| `kapiRead(requestJSON, optionsJSON?)` | a read request: `{doc, blocks, editions, cursor, limit}` | a read page: each block's `ref` and `rev`, its text in placeholder form, its codes, plurals and selects, its other editions and the operations it accepts, and `next` for the following page |
+| `kapiApply(changeSetJSON, optionsJSON?)` | a `kapi.change/v1` change set: an object with `ops`, JSONL, or an array of operations | the `kapi.change-result/v1` result |
+| `kapiDescribe(requestJSON, optionsJSON?)` | `{format}` or `{doc}` | what the format supports of each operation |
+
+- **Options.** `{project, actor}`. `project` names the project the call acts
+  in: its `kapi.yaml`, its root, or a path inside it. Without one, the call
+  acts in the project discovery finds from the engine's working directory, as a
+  command given no `-p` does, and outside any project a document is a path
+  under that directory. `actor`, which only an apply takes, is
+  `{kind, name, session}` with `kind` either `person` or `agent`. Without
+  one, the change set is a person's, as `kapi apply` records one. An agent's
+  term, memory and recipe operations and its review decisions are refused,
+  as they are over MCP.
+- **One service.** The calls build the change service through
+  `host.ReadChangesJSON`, `host.ApplyChangesJSON` and
+  `host.DescribeChangesJSON`, from the same function the MCP edit tools use
+  (`callChangeService`), with the commit check, the policy and the recorder
+  `kapi apply` runs. A reference and a revision that `kapiRead` returns are the
+  ones `kapi inspect` prints for the same file, and `kapiApply` takes either.
+  A bilingual file whose reader has to be told the language of the translation
+  it holds, such as a PO catalog's `msgstr`, is read in the one language other
+  than the source that a read's `editions` or an apply's operations name, as
+  `kapi apply` reads one.
+- **Answers.** A request the service refuses, a change set that does not
+  decode included, resolves to a `kapi.change-result/v1` whose `error` says
+  why. The Promise rejects only for a failure the contract has no code for,
+  such as a `project` that names no file. On the facade, `read` and
+  `describe` throw `ChangeRefused`, which carries that result, and `apply`
+  resolves to its result whatever the status.
+- **The record.** In a project, an applied change set is recorded in the
+  workspace's log under `/.kapi-data` as one `content.edit` operation per
+  document, the record `kapi apply` writes natively, and the projector writes
+  it into the block history. A later read shows a translation's basis from
+  there. Outside a project nothing is recorded. Every edit lives as long as
+  the tab, with the rest of the workspace.
+- **One at a time.** The calls, the commands `kapiRun` runs (a completion
+  included) and `kapiReset` share the engine's App, so the engine runs them in
+  turn: a command started while a call runs waits for it, and the other way
+  round. A command replaces the App's configuration and a reset removes
+  databases, so neither may run while a call waits on the file system. A call
+  takes its project from its options and its source language from that
+  project, not from the flags a command was given. Two writers of one file in
+  the page still take turns at the commit: the file home's lock
+  (`core/storage/filelock`) is a mutex of the process where the platform has no
+  lock between processes.
+- **Tested.** `make test-wasm-stores` runs, under `GOOS=js` over the browser's
+  SQLite driver, `core/change` and its file home with the conformance suite
+  (`core/change/changetest`), the lock, the host's service for a project
+  through the same suite and its JSON entry points, and the engine's own test
+  of the order its entry points take turns in.
+  `make change-wasm-smoke` (`scripts/verify-snippets/change-smoke.ts`) boots
+  the real engine in Node and drives the three calls through the facade: a read
+  that matches `kapi inspect`, an edit that lands byte for byte and is
+  recorded, a stale replay, a translation's basis read back, and the refusals.
 
 ## Command surface
 
 `kapiRun(argv)` executes the ordinary kapi CLI, so the browser build has a
 second contract alongside the global function set: which verbs it answers.
+`kapi apply` and `kapi inspect` run there as they do natively, over the same
+service as the change contract's entry points.
 
 - **One declaration.** `cli.BrowserCommandSet` is the browser build's command
   set, mirroring `cli.KapiCommandSet` (the native binary's) verb for verb.
@@ -133,6 +202,24 @@ second contract alongside the global function set: which verbs it answers.
   reports it. `unknown command` therefore means the verb does not exist in kapi
   at all, never that the browser omitted it. `--help` still works on those
   verbs; their help text carries the limitation.
+- **No MCP server.** `kapi mcp` is a recorded gap, and the build leaves the
+  server out entirely: the host and cli files that import the MCP SDK are built
+  with `//go:build !js`, so neither the SDK nor a tool it would serve reaches
+  the engine. `host/mcp_js.go` and `cli/mcp_js.go` stand in for the few names
+  the rest of the build uses. `make test-wasm-stores` compiles the host's tests
+  for the browser, so a host test that drives an MCP tool sits in a file built
+  with `!js`: the `mcp_*_test.go` files, and the `*_mcp_test.go` files beside
+  the tests they belong with.
+- **No plugin host.** `kapi plugin` is a recorded gap: a plugin is a separate
+  executable that kapi starts as a subprocess and reaches over gRPC, and a page
+  can do neither. The `host/pluginhost` files that start a plugin or talk to
+  one (the daemon pool, the gRPC clients for formats, segmenters, comments and
+  source connectors, the subprocess launches) are built with `//go:build !js`,
+  so gRPC and the plugin protobuf stay out of the engine. Discovery and the
+  manifest-driven host build for the browser as well, and
+  `host/pluginhost/runtime_js.go` stands in for the launches the rest of the
+  build names, each answering that the browser runs no plugin. A test that
+  drives the plugin wire sits in a file built with `!js`.
 - **Drift is a test failure.** `cli.TestBrowserCommandSurface` compares the two
   sets and fails when a verb appears in one and not the other, or when a gap's
   help metadata drifts from the command it stands in for. Adding a verb to
@@ -167,8 +254,10 @@ the Command Reference cannot claim a verb runs in the lab when it does not.
 | Store suites under `GOOS=js` | `scripts/wasm-stores/`, `make test-wasm-stores` |
 | Lab project for the annotators | `kapi/cmd/kapi-wasm-cli/labproject.go` |
 | Starting a directory over (`kapiReset`) | `kapi/cmd/kapi-wasm-cli/reset.go`, `App.ForgetProjectsUnder` in `host/projectstore.go` |
+| The change contract (`kapiRead`, `kapiApply`, `kapiDescribe`) | `kapi/cmd/kapi-wasm-cli/changes.go`, `host/changes_call.go` |
+| The change contract smoke | `scripts/verify-snippets/change-smoke.ts`, `make change-wasm-smoke` |
 | Reverse-bridge capability types | `packages/engine/src/capabilities.ts` |
-| Payload types (ContentTree, runs) | `@neokapi/contract-types` (generated) |
+| Payload types (ContentTree, runs, the change contract) | `@neokapi/contract-types` (generated) |
 
 When adding an entry point: add it to `engineExports`, type it in
 `globals.ts`, surface it on the facade if user-facing, and leave the `abi`

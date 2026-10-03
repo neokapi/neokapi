@@ -9,7 +9,16 @@
 // Boot is lazy: nothing is fetched until `bootKapiRuntime()` is first called.
 // Subsequent calls reuse the warm instance.
 
-import type { ContentTree } from "@neokapi/contract-types";
+import { CHANGE_RESULT_SCHEMA_ID } from "@neokapi/contract-types";
+import type {
+  ChangeResult,
+  ChangeSet,
+  ContentTree,
+  DescribeRequest,
+  FormatDescription,
+  ReadPage,
+  ReadRequest,
+} from "@neokapi/contract-types";
 import type { RawInspectResponse, RawPreviewResponse } from "./abi.ts";
 import { createMemFS } from "./memfs.ts";
 import type { MemFS, MemVolume } from "./memfs.ts";
@@ -106,6 +115,66 @@ export interface SegmentResult {
   segments?: SegmentPiece[];
 }
 
+// The change contract's own types, so a host typed against this package names
+// a read, a change set and its result without a second dependency.
+export type {
+  ChangeResult,
+  ChangeSet,
+  DescribeRequest,
+  FormatDescription,
+  ReadPage,
+  ReadRequest,
+} from "@neokapi/contract-types";
+
+/** Who sends a change set: a person or an agent (core/change.Actor). */
+export interface ChangeActor {
+  kind: "person" | "agent";
+  /** The agent's or the person's name, for the record. */
+  name?: string;
+  /** The session that groups one agent run. */
+  session?: string;
+}
+
+/** What a read, an apply or a description says beside its request. */
+export interface ChangeCallOptions {
+  /**
+   * The project the call acts on: its kapi.yaml, its root directory, or a
+   * path inside it. Omitted is the project discovery finds from the working
+   * directory, as for a command given no `-p`.
+   */
+  project?: string;
+}
+
+/** What an apply says beside its change set. */
+export interface ApplyOptions extends ChangeCallOptions {
+  /** Who sends the change set. Omitted is a person, as `kapi apply` records one. */
+  actor?: ChangeActor;
+}
+
+/**
+ * A read or a description the change service refused: a document that does
+ * not exist, a stale cursor, a request that does not decode. `result` is the
+ * kapi.change-result/v1 answer, whose `error` says why.
+ */
+export class ChangeRefused extends Error {
+  readonly result: ChangeResult;
+
+  constructor(result: ChangeResult) {
+    super(result.error?.message ?? "the change service refused the request");
+    this.name = "ChangeRefused";
+    this.result = result;
+  }
+}
+
+/** Whether an engine answer is a kapi.change-result/v1 document. */
+function isChangeResult(v: unknown): v is ChangeResult {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    (v as { schema?: unknown }).schema === CHANGE_RESULT_SCHEMA_ID
+  );
+}
+
 export interface KapiRuntime {
   vol: MemVolume;
   run(argv: string[]): Promise<number>;
@@ -154,6 +223,28 @@ export interface KapiRuntime {
    * Answers false when no database is held there. Throws when one is open.
    */
   removeDatabase(path: string): boolean;
+  /**
+   * Read a page of a document's blocks through the change service, as
+   * `kapi inspect` reads them: each block carries the reference to copy into
+   * an operation's `at` and the revision to send as its `if_match`. Pass the
+   * page's `next` back as `cursor` for the following page. Throws
+   * {@link ChangeRefused} when the service refuses the read.
+   */
+  read(req: ReadRequest, opts?: ChangeCallOptions): Promise<ReadPage>;
+  /**
+   * Apply a kapi.change/v1 change set through the change service, as
+   * `kapi apply` does, and resolve to its result whatever the status: a
+   * refused change set (a stale revision, a dropped inline code, a change set
+   * that does not decode) is a result with status `refused` that says why, and
+   * writes nothing. In a project the change is recorded in the workspace log.
+   */
+  apply(set: ChangeSet, opts?: ApplyOptions): Promise<ChangeResult>;
+  /**
+   * Say what a format supports of the contract: a format by name, or the
+   * format a document is read in. Throws {@link ChangeRefused} when the
+   * service refuses the request.
+   */
+  describe(req: DescribeRequest, opts?: ChangeCallOptions): Promise<FormatDescription>;
   cwd(): string;
   chdir(dir: string): void;
   /** Point the live stdout/stderr sinks at a destination (the active terminal). */
@@ -332,6 +423,30 @@ export function makeRuntime(mem: MemFS): KapiRuntime {
     }
   };
 
+  // The change contract's entry points are looked up per call, so a facade
+  // over an engine that predates them still boots and says so when used.
+  const changeCall = async (
+    name: "kapiRead" | "kapiApply" | "kapiDescribe",
+    request: unknown,
+    opts: ChangeCallOptions | undefined,
+  ): Promise<unknown> => {
+    const fn = globalThis[name];
+    if (typeof fn !== "function") {
+      throw new Error(
+        `engine global ${name} is not registered (this engine predates the change contract entry points)`,
+      );
+    }
+    const raw = await (opts
+      ? fn(JSON.stringify(request), JSON.stringify(opts))
+      : fn(JSON.stringify(request)));
+    return JSON.parse(raw) as unknown;
+  };
+  // A read and a description answer their own type, or the refusal they were.
+  const answered = <T>(v: unknown): T => {
+    if (isChangeResult(v)) throw new ChangeRefused(v);
+    return v as T;
+  };
+
   return {
     vol: mem.vol,
     run: (argv: string[]) => run(argv),
@@ -415,6 +530,17 @@ export function makeRuntime(mem: MemFS): KapiRuntime {
       if (typeof res === "object") throw new Error(res.err);
       return true;
     },
+    read: async (req: ReadRequest, opts?: ChangeCallOptions): Promise<ReadPage> =>
+      answered<ReadPage>(await changeCall("kapiRead", req, opts)),
+    apply: async (set: ChangeSet, opts?: ApplyOptions): Promise<ChangeResult> => {
+      const res = await changeCall("kapiApply", set, opts);
+      if (!isChangeResult(res)) {
+        throw new Error("kapiApply answered something other than a kapi.change-result/v1 result");
+      }
+      return res;
+    },
+    describe: async (req: DescribeRequest, opts?: ChangeCallOptions): Promise<FormatDescription> =>
+      answered<FormatDescription>(await changeCall("kapiDescribe", req, opts)),
     cwd: () => mem.vol.cwd(),
     chdir: (dir: string) => mem.process.chdir(dir),
     setSinks: (out, err) => {

@@ -28,8 +28,8 @@ type Edit struct {
 	// stream:<id>.
 	Home  string       `json:"home,omitempty"`
 	Actor change.Actor `json:"actor"`
-	// Origin says which surface applied the change, in By: apply, desktop,
-	// flow:<name>, merge, pull or observed.
+	// Origin says which surface applied the change, in By: apply, ksed, mcp,
+	// browser, desktop, flow:<name>, merge, pull or observed.
 	Origin Origin `json:"origin,omitzero"`
 	// Fingerprint is the governance the commit check used.
 	Fingerprint string `json:"fingerprint,omitempty"`

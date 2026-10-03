@@ -191,9 +191,15 @@ func under(root, path string) bool {
 // bilingual file whose reader has to be told the language of the translation
 // it holds (a PO catalog's msgstr) is read in that language.
 func targetLocaleOf(set change.Set, source model.LocaleID) model.LocaleID {
+	return soleTargetLocale(opEditions(set), source)
+}
+
+// soleTargetLocale is the one language editions name other than source, or
+// "" when they name none or several.
+func soleTargetLocale(editions []model.EditionKey, source model.LocaleID) model.LocaleID {
 	var loc model.LocaleID
-	for _, op := range set.Ops {
-		l := model.NormalizeLocale(op.At.Edition.Locale)
+	for _, e := range editions {
+		l := model.NormalizeLocale(e.Locale)
 		if l == "" || l == model.NormalizeLocale(source) {
 			continue
 		}

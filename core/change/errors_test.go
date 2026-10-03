@@ -1,9 +1,11 @@
 package change_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
 )
@@ -43,4 +45,17 @@ func TestError_Message(t *testing.T) {
 	assert.Equal(t, "invalid at /ops/0/op: unknown operation", (&change.Error{Code: change.CodeInvalid, Pointer: "/ops/0/op", Message: "unknown operation"}).Error())
 	assert.Equal(t, "guard (overlap): edit 1 overlaps edit 0", (&change.Error{Code: change.CodeGuard, Subcode: change.SubcodeOverlap, Message: "edit 1 overlaps edit 0"}).Error())
 	assert.Equal(t, "stale: moved", (&change.Error{Code: change.CodeStale, Message: "moved"}).Error())
+}
+
+// A change set refused as a whole is answered in the shape of every other
+// result: status refused, no record, empty docs and ops, and the error.
+func TestErrorResult_IsAResult(t *testing.T) {
+	got, err := json.Marshal(change.ErrorResult(&change.Error{Code: change.CodeInvalid, Pointer: "/ops/0/op", Message: "unknown operation"}))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"schema":"kapi.change-result/v1","status":"refused","record":null,"docs":[],"ops":[],
+		"error":{"code":"invalid","pointer":"/ops/0/op","message":"unknown operation"}}`, string(got))
+
+	applied, err := json.Marshal(change.Result{Schema: change.ResultSchemaID, Status: change.SetApplied, Docs: []change.DocResult{}, Ops: []change.OpResult{}})
+	require.NoError(t, err)
+	assert.NotContains(t, string(applied), `"error"`, "a result whose operations were considered carries no set-level error")
 }

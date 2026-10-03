@@ -764,7 +764,7 @@ content-addressed blobs and the log (codex-design §3).
     "doc": {"key": "d_7f3c…", "path": "docs/guide.html"},
     "home": "file",                   // file | workspace | stream:<id>
     "actor": {"kind": "agent", "name": "claude", "session": "s_01J9Q4"},
-    "origin": {"by": "apply"},        // apply | desktop | flow:<name> | merge | pull | observed
+    "origin": {"by": "apply"},        // apply | ksed | mcp | browser | desktop | flow:<name> | merge | pull | observed
     "fingerprint": "gov_4b2…",        // the governance the commit check used
     "note": "Point the guide link at the handbook",
     "doc_before": "sha256:5e1c…", "doc_after": "sha256:a07d…",
@@ -1797,6 +1797,21 @@ beside all of them in package-sized PRs.
 - **Acceptance:** `check-wasm`, `wasm-surface-smoke`, `kpz-wasm-smoke` and the lab smoke stay green; the
   store suites and the conformance suite pass under `GOOS=js`; the engine grows by no more than 0.7 MB
   gzip.
+- **Measured** (gzip -9 of `kapi-cli.wasm` as `make web-wasm-cli` builds it with go1.27.1, from a
+  `git archive` of each revision, and the JavaScript bundled and minified): the browser build leaves out
+  two things a page cannot run, each through `//go:build !js`. The MCP server and its SDK are built
+  for native targets only (the host and cli files that import the SDK), so the engine registers no MCP
+  tool. The plugin host's wire is built for native targets only too: the daemon pool, the gRPC clients
+  for formats, segmenters, comments and source connectors, and the subprocess launches in
+  `host/pluginhost`, so neither gRPC nor the plugin protobuf reaches the engine. Discovery and the
+  manifest-driven host stay, and `host/pluginhost/runtime_js.go` answers every plugin launch with an
+  error. Against the engine before the browser stores (64a1593df, `kapi-cli.wasm.gz` 20.25 MB), the Go
+  shrinks by 1.24 MB to 19.01 MB, `sqlite3.wasm` adds 0.40 MB and the JavaScript 0.07 MB, so the
+  engine is 0.77 MB smaller than before and the size acceptance is met. Both exclusions remove code
+  the earlier engine carried as well (the MCP SDK 0.52 MB, the plugin host 1.66 MB). Counted without
+  them, the browser stores add 0.49 MB (their Go 0.02 MB, `sqlite3.wasm`, the JavaScript) and the edit
+  model's Go 0.92 MB (`core/change`, its file home and schema, `core/history`, the host's change
+  service), 1.41 MB together.
 
 ### WP11. Bowrain
 

@@ -138,7 +138,6 @@ var (
 	AllKBF                       = host.AllKBF
 	ApplyAIDefaults              = host.ApplyAIDefaults
 	ApplySourceLocale            = host.ApplySourceLocale
-	ApplyMCPToolFactories        = host.ApplyMCPToolFactories
 	MCPToolSetNames              = host.MCPToolSetNames
 	MCPToolSetTools              = host.MCPToolSetTools
 	BoolFlag                     = host.BoolFlag
@@ -228,7 +227,6 @@ var (
 	ReadPOForMerge               = host.ReadPOForMerge
 	ReadProfileInput             = host.ReadProfileInput
 	ReadSubjectText              = host.ReadSubjectText
-	RegisterMCPToolFactory       = host.RegisterMCPToolFactory
 	RequireProjectPath           = host.RequireProjectPath
 	ResetMCPToolFactoriesForTest = host.ResetMCPToolFactoriesForTest
 	ResolveDir                   = host.ResolveDir

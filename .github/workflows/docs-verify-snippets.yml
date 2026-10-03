@@ -6,7 +6,8 @@ name: Docs — Verify Snippets
 #
 # The job also hosts the wasm-backed smoke tests that share this build: the
 # .kpz/.kapi workspace lifecycle, the KBF Go↔TS parity mirror, the review →
-# approve loop, and the browser command surface. One `make web-wasm-cli` is
+# approve loop, the browser command surface and the change contract (kapiRead,
+# kapiApply, kapiDescribe). One `make web-wasm-cli` is
 # amortized across all of them, so a smoke test belongs here rather than in a
 # job that would build the wasm again.
 
@@ -34,6 +35,8 @@ on:
       # change to either can break a command call the surface smoke replays.
       - "packages/kapi-lab/**"
       - "packages/engine/**"
+      # The change contract's types, which the engine facade reads its answers by.
+      - "packages/contract-types/**"
       # The TypeScript half of the KBF parity smoke. The Go half is covered by
       # core/**/*.go (core/kbf/, core/formats/jsx/); without this entry a
       # TS-only change to the mirror would skip the only Go↔TS parity signal.
@@ -60,6 +63,8 @@ on:
       # change to either can break a command call the surface smoke replays.
       - "packages/kapi-lab/**"
       - "packages/engine/**"
+      # The change contract's types, which the engine facade reads its answers by.
+      - "packages/contract-types/**"
       # The TypeScript half of the KBF parity smoke. The Go half is covered by
       # core/**/*.go (core/kbf/, core/formats/jsx/); without this entry a
       # TS-only change to the mirror would skip the only Go↔TS parity signal.
@@ -118,6 +123,12 @@ jobs:
       # round-trip through the in-memory skeleton store.
       - name: Verify the lab surface in wasm (inspect, trace, script, round-trip)
         run: node --experimental-strip-types scripts/verify-snippets/lab-smoke.ts
+
+      # The change contract a lab edits through: kapiRead, kapiApply and
+      # kapiDescribe over the @neokapi/engine facade, an edit recorded in the
+      # browser's workspace log, and the refusals a page reads back.
+      - name: Verify the change contract in wasm (read, apply, describe)
+        run: node --experimental-strip-types scripts/verify-snippets/change-smoke.ts
 
       # The browser command surface: no verb may answer "unknown command", the
       # verbs the browser cannot run must explain why, and every lab component's

@@ -178,13 +178,28 @@ fi
 
 # The store suites under GOOS=js in Node, over the browser engine's own SQLite
 # driver (core/storage/driver_js.go with packages/engine/src/sqlite.ts), then
-# natively with every pool held to one connection. The same gate as the CI
-# `test-wasm-stores` job; the suites run in seconds once compiled. Needs
-# `vp install` for @sqlite.org/sqlite-wasm.
-if matches '^core/(storage|workspace|projector|projectdb|state|history|blockstore)/' '^(memory|terms|voice)/' '^host/storage/' \
-    '^packages/engine/src/sqlite\.ts$' '^scripts/wasm-stores/' '^pnpm-(lock|workspace)\.yaml$'; then
+# natively with every pool held to one connection. The js run also puts the
+# change service through its conformance suite (core/change, and the host's
+# service for a project, whose recorder writes the workspace log), which
+# compiles the whole host test package for js, and runs the browser engine's
+# own tests. The same gate as the CI `test-wasm-stores` job; the suites run in
+# seconds once compiled. Needs `vp install` for @sqlite.org/sqlite-wasm.
+if matches '^core/(storage|workspace|projector|projectdb|state|history|blockstore|change)/' '^(memory|terms|voice)/' '^host/' \
+    '^kapi/cmd/kapi-wasm-cli/' '^packages/engine/src/sqlite\.ts$' '^scripts/wasm-stores/' '^pnpm-(lock|workspace)\.yaml$'; then
     run_check "Store suites (js/wasm)" make test-wasm-stores
     run_check "Store suites (one connection per pool)" make test-stores-oneconn
+fi
+
+# ── Generated TypeScript contract types ───────────────────────────────────
+
+# @neokapi/contract-types is generated from Go: the change contract from
+# core/change, the review model from core/review, the content model from
+# core/model and its proto. CI gates them in reference-data-drift.yml; this runs
+# the same drift gate, the generator's tests and the package's type-level tests
+# when a source they read changes.
+if matches '^core/' '^scripts/gen-contract-types/' '^packages/contract-types/'; then
+    run_check "Contract types are fresh" make check-contract-types
+    run_check "Contract types generator and type tests" make test-contract-types
 fi
 
 # ── go mod tidy drift check ───────────────────────────────────────────────

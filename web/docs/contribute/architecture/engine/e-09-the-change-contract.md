@@ -67,9 +67,12 @@ says who sent it.
 
 `change.Decode` reads a change set strictly: an unknown field or operation is
 refused with the JSON pointer of what was wrong. `changeschema.Schema` is the
-JSON Schema generated from the same Go types. The note
-[The change applier](../../implementation/engine/change-applier.md) covers the
-types, the decoder and the schema.
+JSON Schema generated from the same Go types. TypeScript clients use
+`@neokapi/contract-types`, whose change set and operations are generated from
+that schema and whose result, read and description types are generated from the
+structs the service marshals; a drift gate regenerates them on every change. The
+note [The change applier](../../implementation/engine/change-applier.md) covers
+the types, the decoder, the schema and the TypeScript types.
 
 ### Addressing and revisions
 
@@ -404,7 +407,15 @@ nothing records a comment edit.
 
 The MCP tools `read_blocks`, `apply_edits` and `describe_format` build the
 service for each call's project and send every change set as the calling agent
-([S-03](../surfaces/s-03-agent-surfaces.md)).
+([S-03](../surfaces/s-03-agent-surfaces.md)). The browser engine's `kapiRead`,
+`kapiApply` and `kapiDescribe` build it through the same function and carry
+the contract as JSON in and out: a refusal, a change set that does not decode
+included, is answered as a result. A call of either surface reads a bilingual
+file, such as a PO catalog, in the one language other than the source that its
+read's editions or its operations name, as `kapi apply` does. The page names
+the sender, a person unless it says an agent, and in a project an applied
+change is recorded in the browser's workspace log
+([WASM Engine ABI](../../implementation/surfaces/wasm-engine-abi.md#the-change-contract)).
 
 The verbs that write whole translations build the service with
 `Materialize` set, so the file home writes each translation's file from its
@@ -443,7 +454,10 @@ were not written are `not_applied`, and so are the decisions and asset
 operations, which wait for content that all landed; the record holds what did.
 A `stale` refusal carries the edition as it stands, so the sender can rebase
 without another read. A resource bound `core/safeio` reports is
-`budget_exceeded`.
+`budget_exceeded`. A change set refused before any operation is considered,
+because it does not decode or the request carrying it is refused, is answered
+with the same result shape (`change.ErrorResult`): status `refused`, no record,
+no files or operations, and the error.
 
 ## Consequences
 
@@ -452,10 +466,14 @@ without another read. A resource bound `core/safeio` reports is
   ask a person.
 - Concurrent kapi writers of one file lose nothing: each file a change reads
   is hashed before the read and again under the lock. The lock orders kapi's
-  own processes; an editor that saves between the re-hash and the rename
-  remains a conflict the next read sees.
+  own processes, and in the browser, which runs one, the calls of the page;
+  an editor that saves between the re-hash and the rename remains a conflict
+  the next read sees.
 - An operation reported `applied` reached the file. One the format has no
   place for in that file is refused.
+- Bytes kapi could not read as UTF-8, in a file in another encoding, are never
+  overwritten with the U+FFFD a read shows for them: an edit that would write it
+  there is refused as `unsupported`, and edits elsewhere in the file keep them.
 - A change set is all or nothing across documents up to the final renames.
   Records follow the commit, so a record that fails to write leaves content
   that the next read finds and records as observed.

@@ -2,7 +2,6 @@ package host
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"sync"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/reconcile"
+	"github.com/neokapi/neokapi/core/storage"
 )
 
 // The hooks the change service calls, each built here and plugged in at this
@@ -120,7 +120,9 @@ func (a *App) existingProjectDB(ctx context.Context, root string) *projectdb.DB 
 	_, open := s.dbs[abs]
 	s.mu.Unlock()
 	if !open {
-		if _, err := os.Stat(projectLayoutAt(abs).StorePath()); err != nil {
+		// The database belongs to the driver: in the browser it lives in
+		// SQLite's memory, where os.Stat never finds it.
+		if held, _ := storage.Exists(projectLayoutAt(abs).StorePath()); !held {
 			return nil
 		}
 	}
