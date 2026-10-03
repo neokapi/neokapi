@@ -804,11 +804,28 @@ func checkRunConstraints(source, target []model.Run) []check.Finding {
 // inlineCodeFingerprints counts inline-code runs by fingerprint and
 // also returns the exemplar run for each fingerprint (used to look
 // up constraints).
+//
+// The forms of a plural or select are alternatives: a reader sees one of
+// them, so a code that every form carries appears once. Each plural or
+// select contributes, per fingerprint, the largest count any one of its
+// forms holds, and a plural target built from a flat source that names
+// {count} in every form carries {count} once, as the source does.
 func inlineCodeFingerprints(runs []model.Run) (map[string]int, map[string]model.Run) {
-	counts := make(map[string]int)
 	exemplars := make(map[string]model.Run)
-	var walk func(rs []model.Run)
-	walk = func(rs []model.Run) {
+	var count func(rs []model.Run) map[string]int
+	branches := func(forms [][]model.Run, into map[string]int) {
+		most := make(map[string]int)
+		for _, form := range forms {
+			for key, n := range count(form) {
+				most[key] = max(most[key], n)
+			}
+		}
+		for key, n := range most {
+			into[key] += n
+		}
+	}
+	count = func(rs []model.Run) map[string]int {
+		counts := make(map[string]int)
 		for _, r := range rs {
 			if key, ok := runFingerprint(r); ok {
 				counts[key]++
@@ -817,19 +834,23 @@ func inlineCodeFingerprints(runs []model.Run) (map[string]int, map[string]model.
 				}
 			}
 			if r.Plural != nil {
+				forms := make([][]model.Run, 0, len(r.Plural.Forms))
 				for _, form := range r.Plural.Forms {
-					walk(form)
+					forms = append(forms, form)
 				}
+				branches(forms, counts)
 			}
 			if r.Select != nil {
+				cases := make([][]model.Run, 0, len(r.Select.Cases))
 				for _, form := range r.Select.Cases {
-					walk(form)
+					cases = append(cases, form)
 				}
+				branches(cases, counts)
 			}
 		}
+		return counts
 	}
-	walk(runs)
-	return counts, exemplars
+	return count(runs), exemplars
 }
 
 // splitFingerprint decomposes "type|kind" into its two halves. Used
