@@ -904,8 +904,8 @@ Met by no attempt:
   a tool result showed the agent the text "it takes about five minutes", on
   the line after the agent's sentence, so the five Codex baseline and mcp
   sessions, whose `rg` printed one line, wrote before the change landed. Those
-  five passes are uninformative about recovery. The trigger now sits on the
-  agent's own line (Design).
+  five passes are uninformative about recovery. The runner's trigger sits on
+  the agent's own line (Design).
 - **The two host failures.** Both are counted as attempts that did not pass in
   the study's score report and are left out here. Neither was rerun.
 - **Grader heuristics.** In the study `md_translated` failed only when a whole
@@ -921,13 +921,13 @@ Met by no attempt:
   "HarborHelp"` for `locales/en.json`, which holds no "Harbor"). The refusal
   counter missed `kapi merge`'s `not merged:` lines, so the merge refusals
   four valid `add-edition-markup` sessions met (five with the excluded
-  `-claude-skill-cli-02`) are absent from the score report. Each of these is a criterion, a record or a
-  count of the runner now (Design).
+  `-claude-skill-cli-02`) are absent from the score report. The runner keeps
+  each of these as a criterion, a record or a count (Design).
 - **Accounting.** Input tokens include cache reads (for example 329,688 of
   352,872 in `edit-link-html-md-claude-skill-cli-01`). Codex's
   `transcript.jsonl` leaves out rejected patches and `apply_patch` bodies, so
   the study's tool-call counts and its count of paths outside the cell differ
-  from the session rollout, which the runner now reads. In seven of eight mismatches the score is one call low
+  from the session rollout, which the runner reads. In seven of eight mismatches the score is one call low
   (`add-json-key-codex-project-free-03` has 7 calls in its rollout and 6 in the
   score, the missing one a refused write to `/private/tmp`); in
   `recover-gate-refusal-codex-skill-cli-01` the score counts 14 against 9 in
@@ -935,8 +935,8 @@ Met by no attempt:
 - **Fixture overlap.** The shipped `edit.md` catalog example names
   `locales/en.json`, a dotted anchor and the `en` edition, and all 11
   `insert_block` change sets are that example with the names replaced.
-  `add-json-key` measured copying more than discovery; it now adds a key to a
-  German catalog at another path.
+  `add-json-key` measured copying more than discovery; the runner's task adds
+  a key to a German catalog at another path.
 - **Sandboxes.** The temporary-file refusals in friction 1 come from the hosts'
   sandboxes as configured for the study. They fall only on the kapi arms,
   because native edits need no intermediate file.
@@ -1075,13 +1075,14 @@ kapi: project-free wrote through the contract in 35 of 42 attempts, skill-cli in
 36 of 41. Nothing in the study suggests the name changed whether agents used
 the contract.
 
-**What the arm also showed.** At the run the alias's surface drifted from what
-it is, which the freeze fixed: `kapi-files apply --help` read "Apply a change set: content edits, review
-decisions, terms and recipe fields" (`add-json-key-codex-project-free-02`).
+**What the arm also showed.** At the run the alias's help described kapi's
+surface rather than its own: `kapi-files apply --help` read "Apply a change
+set: content edits, review decisions, terms and recipe fields"
+(`add-json-key-codex-project-free-02`).
 `kapi-files --help` says "no check at commit", and a dropped `%d` was
 refused `gate_failed` (probe). Every JSON catalog's own edition was taken to
-be `en` (probe); a document outside a project now holds the language its file
-or directory names. In `add-edition-markup` no project-free attempt sent an edition
+be `en` (probe); outside a project a document holds the language its file or
+directory names (`edit-model.md` section 3.2). In `add-edition-markup` no project-free attempt sent an edition
 operation: four wrote the Norwegian file natively and two copied the English
 file and edited the copy through the contract. The agents treated a file that
 did not exist yet as outside the edit loop ("docs/nb doesn't exist yet, so this
@@ -1089,7 +1090,7 @@ is creating a new standalone file rather than editing one",
 `add-edition-markup-claude-project-free-01`), and the alias's skill has no
 translation passage to say otherwise. Had one sent it, a probe showed the
 operation refused `unsupported` ("has nowhere to live") with no next step;
-`apply --out FILE` now writes such an edition, and the refusal names it.
+`apply --out FILE` writes such an edition, and the refusal names it.
 
 **Not measured.** kapi's own CLI outside a project was not an arm of the
 study, and no cell lacked a project; `kapi-no-project` and the project-free
