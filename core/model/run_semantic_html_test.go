@@ -117,6 +117,22 @@ func TestParseRunsSemanticHTMLWithPlaceholder(t *testing.T) {
 	assert.Equal(t, "Line two", textParts[1])
 }
 
+// A placeholder of a type the vocabulary has no element for is written as a
+// span with its type and a closing slash, and reads back as that placeholder,
+// not as a code that opens.
+func TestParseRunsSemanticHTMLSelfClosingSpan(t *testing.T) {
+	reg := newVocabRegistry(t)
+	source := []model.Run{model.TextR("Reply to "), {Ph: &model.PlaceholderRun{ID: "p1", Type: "icu", Data: "{name}"}}}
+	html := model.RunsSemanticHTML(source, reg)
+	require.Equal(t, `Reply to <span data-type="icu"/>`, html)
+
+	runs := model.ParseRunsSemanticHTML("Répondre à "+html[len("Reply to "):], source, reg)
+	require.Len(t, runs, 2)
+	assert.Equal(t, "Répondre à ", runs[0].Text.Text)
+	require.NotNil(t, runs[1].Ph)
+	assert.Equal(t, "{name}", runs[1].Ph.Data)
+}
+
 func TestParseRunsSemanticHTMLAssignsIDsToExtraTags(t *testing.T) {
 	reg := newVocabRegistry(t)
 

@@ -524,14 +524,19 @@ A code is named by the id placeholder text shows (`PcOpen.ID`, `Ph.ID`). Attribu
 already surfaces as their own blocks or text (HTML `alt` and `title`, a Markdown link's title,
 `core/formats/html/tokenreader.go:1724-1744`) stay so and are edited with `set_content` or `replace_text`.
 Attributes kept inside a code (`href`, `src`) are edited with `set_attribute`. Plurals and
-selects are listed with their branches, so their words are visible; today an ARB plural reads
-as one opaque atom with empty text (edit-paths P5, observed):
+selects are listed with their branches, so their words are visible: `text` shows the `other`
+branch in place, and `structures` lists each plural and select, a nested one after the branch
+that holds it, with the path an edit names to reach a branch. An ARB message reads so (edit-paths
+P5; `core/formats/arb/icu.go`), with `#` and any argument inside a branch as placeholders:
 
 ```json
-"text": "You have <x id=\"p1/\"/> in your basket.",
-"codes": {"p1": {"type": "plural", "pivot": "count",
-                 "branches": {"one": "<x id=\"n/\"/> item", "other": "<x id=\"n/\"/> items"}}}
+"text": "You have <x id=\"p1/\"/> items in your basket.",
+"structures": [{"path": [1], "kind": "plural", "pivot": "count",
+                "branches": {"one": "<x id=\"p1/\"/> item", "other": "<x id=\"p1/\"/> items"}}]
 ```
+
+The writer writes the plural's keyword, branch keys and layout as it read them, and each branch
+an edit left alone byte for byte.
 
 `Data` (native bytes) appears in no request and no read.
 
@@ -1231,7 +1236,7 @@ working.
 | Pseudo-translation | `set_content` on a pseudo edition, origin `pseudo`, status `draft` | pseudo suites; `kpz-wasm-smoke`; the pseudo English docs build |
 | Create and remove target tools | `set_content` (a copy of the authoritative runs) and `remove_edition` | tool suites |
 | Segmentation | `annotate` on the segmentation layer of an edition; positions are run-relative and the applier rebases them on every edition | segmentation suites, plus a matrix case for target-side rebasing (P6) |
-| Plurals and selects | `replace_text` or `set_content` with `path`; refusal instead of flattening | the MessageFormat write-back fix (r2: 20 of 24 subtests fail on main; fixes on `adopt/labs` and codex `6d105292a`) and an ICU plural fixture in the matrix |
+| Plurals and selects | `replace_text` or `set_content` with `path`; refusal instead of flattening; the MT and LLM translate tools translate a structured source a branch at a time (`tool.TranslateStructures`) | the MessageFormat write-back fix (r2: 20 of 24 subtests fail on main; fixes on `adopt/labs` and codex `6d105292a`) and an ICU plural fixture in the matrix |
 | XLIFF 2, PO and KPZ extract | a read; each unit carries the target edition's revision (`if_match`) and the authoritative revision (`basis`) as metadata: XLIFF `<mda:meta>`, a PO `#.` extracted comment, a KPZ field | `host/extract` suites extended with the two fields |
 | `kapi merge -i` | the interchange file compiles into `set_content` operations with `if_match`, `basis` and `require_basis`, committed atomically; the conflict policy maps to `stale` outcomes; redaction restore runs before compile | merge suites; a new case: a source edited after extract is refused `stale` naming `basis` |
 | `kapi merge` (materialize) | commits an edition into its file home, creating the file | merge suites |

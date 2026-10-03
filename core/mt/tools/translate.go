@@ -126,7 +126,9 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 // translate writes the MT target for one block. Source is read-only (the
 // VariantView exposes no source setter). When the source carries inline codes
 // it round-trips through RunsSemanticHTML — MT APIs preserve HTML tags
-// natively, so semantic tags are the most robust transport for the codes.
+// natively, so semantic tags are the most robust transport for the codes. A
+// source holding plurals or selects is translated a sequence at a time
+// (tool.TranslateStructures), so every branch is translated and none is lost.
 func (t *MTTranslateTool) translate(v tool.VariantView) error {
 	if !v.Translatable() {
 		return nil
@@ -138,20 +140,14 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 	}
 
 	sourceRuns := v.SourceRuns()
-	if model.RunsHaveInlineCodes(sourceRuns) {
-		resp, err := t.provider.Translate(v.Context(), mtprovider.TranslateRequest{
-			Source:       model.RunsSemanticHTML(sourceRuns, t.vocab),
-			SourceLocale: t.sourceLocale,
-			TargetLocale: t.targetLocale,
+	if model.HasStructuredRuns(sourceRuns) || model.RunsHaveInlineCodes(sourceRuns) {
+		runs, err := tool.TranslateStructures(sourceRuns, func(seq []model.Run) ([]model.Run, error) {
+			return t.translateSequence(v.Context(), seq)
 		})
 		if err != nil {
-			return fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
+			return err
 		}
-		// Whether a provider honours <code> is the provider's business, and a
-		// translated command is worse than an untranslated sentence, so the
-		// protected spans are put back rather than asked for.
-		translated := model.ParseRunsSemanticHTML(resp.Translation, sourceRuns, t.vocab)
-		v.SetTargetRuns(t.targetLocale, model.RestoreNonTranslatable(translated, sourceRuns))
+		v.SetTargetRuns(t.targetLocale, runs)
 		v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
 		return nil
 	}
@@ -168,6 +164,36 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 	v.SetTargetText(t.targetLocale, resp.Translation)
 	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
 	return nil
+}
+
+// translateSequence translates one run sequence that holds no plural or
+// select: its text alone, or, when it holds inline codes, through semantic
+// HTML.
+func (t *MTTranslateTool) translateSequence(ctx context.Context, seq []model.Run) ([]model.Run, error) {
+	if !model.RunsHaveInlineCodes(seq) {
+		resp, err := t.provider.Translate(ctx, mtprovider.TranslateRequest{
+			Source:       model.RunsText(seq),
+			SourceLocale: t.sourceLocale,
+			TargetLocale: t.targetLocale,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
+		}
+		return []model.Run{model.TextR(resp.Translation)}, nil
+	}
+	resp, err := t.provider.Translate(ctx, mtprovider.TranslateRequest{
+		Source:       model.RunsSemanticHTML(seq, t.vocab),
+		SourceLocale: t.sourceLocale,
+		TargetLocale: t.targetLocale,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
+	}
+	// Whether a provider honours <code> is the provider's business, and a
+	// translated command is worse than an untranslated sentence, so the
+	// protected spans are put back rather than asked for.
+	translated := model.ParseRunsSemanticHTML(resp.Translation, seq, t.vocab)
+	return model.RestoreNonTranslatable(translated, seq), nil
 }
 
 // mtOrigin describes a target produced by this MT tool: how it was made (the
