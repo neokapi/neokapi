@@ -276,6 +276,11 @@ func (a *App) formatBinding(name string, cfg map[string]any, enc string) filehom
 			} else {
 				r, err = a.FormatReg.NewReader(id)
 			}
+			if errors.Is(err, registry.ErrUnknownFormat) {
+				// A format a plugin supplies: the refusal names the plugin to
+				// install, as every other read of the format does.
+				return nil, fmt.Errorf("%s: %w", formatInstallClause(a.discoveredPlugins(), registryName), err)
+			}
 			if err != nil {
 				return nil, err
 			}

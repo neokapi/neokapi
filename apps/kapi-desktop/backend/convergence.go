@@ -338,11 +338,3 @@ func (w *runEventWriter) Write(p []byte) (int, error) {
 	}
 	return len(p), nil
 }
-
-// ApproveReviewItem records an approved review decision through
-// host.ApplyReviewDecision, bound to the translation's content hash. The unit is
-// addressed by the review queue's (locale, file, key) tuple. After approval,
-// GetConvergence reports it as reviewed and removes it from the queue.
-func (a *App) ApproveReviewItem(tabID, locale, file, key string) error {
-	return a.applyReviewDecision(tabID, locale, file, key, host.ReviewDecisionApproved, "")
-}

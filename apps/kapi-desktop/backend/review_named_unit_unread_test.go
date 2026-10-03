@@ -9,9 +9,9 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 )
 
-// Opening or editing one review unit names its file. When no reader for the
-// file's format is installed the request fails and names the plugin to install;
-// the readable unit beside it opens as usual.
+// Opening or reading one review unit to edit it names its file. When no reader
+// for the file's format is installed the request fails and names the plugin to
+// install; the readable unit beside it opens as usual.
 func TestReviewUnitRequestsWithNoReaderNameThePlugin(t *testing.T) {
 	isolateCheckPlugins(t)
 	app := NewApp()
@@ -21,7 +21,7 @@ func TestReviewUnitRequestsWithNoReaderNameThePlugin(t *testing.T) {
 	require.ErrorIs(t, err, registry.ErrUnknownFormat)
 	assert.Contains(t, err.Error(), "kapi plugins install okapi-bridge")
 
-	err = app.UpdateReviewTarget(tabID, "fr", "pkg/doc.fr.idml", "hello", "Bonjour")
+	_, err = app.Read(tabID, `{"doc": "pkg/doc.fr.idml", "blocks": ["hello"]}`)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "kapi plugins install okapi-bridge")
 

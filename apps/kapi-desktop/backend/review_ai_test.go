@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
@@ -78,11 +79,20 @@ func TestReviewAIAction_Retranslate(t *testing.T) {
 	assert.Equal(t, "make it informal", mock.TranslateCalls[0].Instruction)
 	assert.Equal(t, "Hello {name}", mock.TranslateCalls[0].Source)
 
-	// A proposal never writes the target file — Accept routes through
-	// UpdateReviewTarget.
+	// A proposal never writes the target file.
 	data, rerr := os.ReadFile(filepath.Join(root, "locales", "fr-FR.json"))
 	require.NoError(t, rerr)
 	assert.Contains(t, string(data), "Bonjour {name}")
+
+	// Accept sends the proposal's edit text as a set_content through Apply, the
+	// path a manual edit takes.
+	require.Equal(t, "Salut {name} !", res.ProposedEdit)
+	fr := blockVia(t, app, tab.ID, "locales/fr-FR.json", "greeting")
+	applied := applyVia(t, app, tab.ID, change.Set{Ops: []change.Op{setText(fr.Ref, fr.Rev, res.ProposedEdit)}})
+	require.Equal(t, change.SetApplied, applied.Status, "%+v", applied.Ops)
+	data, rerr = os.ReadFile(filepath.Join(root, "locales", "fr-FR.json"))
+	require.NoError(t, rerr)
+	assert.Contains(t, string(data), "Salut {name} !")
 }
 
 func TestReviewAIAction_RetranslateNeedsInstruction(t *testing.T) {
