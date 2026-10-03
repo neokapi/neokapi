@@ -110,7 +110,9 @@ func TestChangeBindings_Conformance(t *testing.T) {
 		tab, root := changeProjectOf(t, app, map[string]string{
 			"a.json": `{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}` + "\n",
 			"b.json": `{"title": "Welcome"}` + "\n",
-			// A catalog whose French translation is the catalog beside it.
+			// A catalog whose French translation is the catalog its target
+			// template names: the suite removes the French from po/fr.po, and
+			// po/en.po keeps its bytes.
 			"po/en.po": catalog("en", ""),
 			"po/fr.po": catalog("fr", "Bonjour"),
 		}, []project.ContentItem{
@@ -118,10 +120,11 @@ func TestChangeBindings_Conformance(t *testing.T) {
 			{Path: "po/en.po", Format: &project.FormatSpec{Name: "po"}, Target: "po/{lang}.po"},
 		})
 		return changetest.Env{
-			Service:    bindingService{app: app, tab: tab},
-			DocA:       "a.json",
-			DocB:       "b.json",
-			Translated: "po/en.po",
+			Service:         bindingService{app: app, tab: tab},
+			DocA:            "a.json",
+			DocB:            "b.json",
+			Translated:      "po/en.po",
+			TranslationFile: "po/fr.po",
 			Snapshot: func(t *testing.T, doc string) []byte {
 				b, err := os.ReadFile(filepath.Join(root, doc))
 				require.NoError(t, err)
@@ -216,6 +219,42 @@ func TestApply_EditsATranslationThroughItsFile(t *testing.T) {
 	require.NotNil(t, d.Context.Provenance.Origin)
 	assert.Equal(t, model.OriginHuman, d.Context.Provenance.Origin.Kind, "the reviewer wrote the wording in front of them")
 	assert.Empty(t, d.Context.Provenance.ReviewState, "an edit records no decision")
+}
+
+// A PO catalog's translation is edited in the catalog its target template
+// names, as the review pane reads it from that file: the French of po/en.po is
+// po/fr.po's msgstr, and the English catalog keeps its bytes.
+func TestApply_EditsAPOCatalogsTranslationInItsTargetFile(t *testing.T) {
+	app := NewApp()
+	catalog := func(lang, msgstr string) string {
+		return "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"Language: " + lang + "\\n\"\n\nmsgid \"Hello there\"\nmsgstr \"" + msgstr + "\"\n"
+	}
+	en := catalog("en", "")
+	tab, root := changeProjectOf(t, app, map[string]string{"po/en.po": en, "po/fr.po": catalog("fr", "Bonjour")},
+		[]project.ContentItem{{Path: "po/en.po", Format: &project.FormatSpec{Name: "po"}, Target: "po/{lang}.po"}})
+	for _, doc := range []string{"po/fr.po", "po/en.po"} {
+		t.Run(doc, func(t *testing.T) {
+			page := readVia(t, app, tab, change.ReadRequest{Doc: doc, Editions: []model.EditionKey{{Locale: "fr"}}})
+			require.Len(t, page.Blocks, 1)
+			b := page.Blocks[0]
+			text, rev := b.Text, b.Rev
+			if b.Ref.Edition.IsZero() || b.Ref.Edition.Locale == "en" {
+				text, rev = b.Editions["fr"].Text, b.Editions["fr"].Rev
+			}
+			require.NotEqual(t, "", text, "the French po/fr.po holds reads back: %+v", b)
+			at := b.Ref
+			at.Edition = model.EditionKey{Locale: "fr"}
+			want := "Salut " + doc
+			res := applyVia(t, app, tab, change.Set{Ops: []change.Op{setText(at, rev, want)}})
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+			data, err := os.ReadFile(filepath.Join(root, "po", "fr.po"))
+			require.NoError(t, err)
+			assert.Equal(t, catalog("fr", want), string(data), "the translation lands in po/fr.po")
+			data, err = os.ReadFile(filepath.Join(root, "po", "en.po"))
+			require.NoError(t, err)
+			assert.Equal(t, en, string(data), "the source catalog keeps its bytes")
+		})
+	}
 }
 
 // Approve and Reject are decide operations bound to the revision the reviewer

@@ -22,6 +22,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/preset"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -1173,14 +1174,36 @@ func (a *App) unitFormat(name string, cfg map[string]any) (string, map[string]an
 // source read from `.po` and delivered as a compiled `.mo`, which is write-only
 // through the pipeline — and there the target is detected instead, so
 // bilingualBlocks still reaches its file-presence fallback rather than handing
-// binary to a text reader.
-func unitFormatBinding(proj *project.KapiProject, rf project.ResolvedFile, targetPath string) (srcFormat string, srcCfg map[string]any, tgtFormat string, tgtCfg map[string]any) {
+// binary to a text reader. Two extensions the source's format both claims (a
+// PO template, messages.pot, translated into po/fr.po) name one format, which
+// reg says; a nil reg compares the extensions alone.
+func unitFormatBinding(reg *registry.FormatRegistry, proj *project.KapiProject, rf project.ResolvedFile, targetPath string) (srcFormat string, srcCfg map[string]any, tgtFormat string, tgtCfg map[string]any) {
 	srcFormat = rf.Format
 	srcCfg = mergedFormatConfig(proj, srcFormat, rf.Item)
-	if !strings.EqualFold(filepath.Ext(rf.Path), filepath.Ext(targetPath)) {
+	if !sameFormatExtension(reg, srcFormat, filepath.Ext(rf.Path), filepath.Ext(targetPath)) {
 		return srcFormat, srcCfg, "", nil
 	}
 	return srcFormat, srcCfg, srcFormat, srcCfg
+}
+
+// sameFormatExtension reports whether a file with extension a and one with
+// extension b are both files of format name: the same extension, or two the
+// format registers.
+func sameFormatExtension(reg *registry.FormatRegistry, name, a, b string) bool {
+	if strings.EqualFold(a, b) {
+		return true
+	}
+	if reg == nil || a == "" || b == "" {
+		return false
+	}
+	info := reg.FormatInfo(registry.FormatID(preset.ParseFormatRef(name).RegistryName()))
+	if info == nil {
+		return false
+	}
+	claims := func(ext string) bool {
+		return slices.ContainsFunc(info.Extensions, func(e string) bool { return strings.EqualFold(e, ext) })
+	}
+	return claims(a) && claims(b)
 }
 
 // resolveVerifyUnits expands project targets, or resolves explicit source and
@@ -1230,7 +1253,7 @@ func (a *App) unitsOfFile(proj *project.KapiProject, root string, rf project.Res
 		// where none does (host/convergedrafts.go). DisplayPath keeps naming
 		// the destination, which is what a reader is being told about.
 		targetPath = a.draftedTargetPath(string(loc), targetPath)
-		srcFormat, srcCfg, tgtFormat, tgtCfg := unitFormatBinding(proj, rf, targetPath)
+		srcFormat, srcCfg, tgtFormat, tgtCfg := unitFormatBinding(a.FormatReg, proj, rf, targetPath)
 		units = append(units, VerifyUnit{
 			SourcePath:   rf.Path,
 			TargetPath:   targetPath,
@@ -1330,7 +1353,7 @@ func (a *App) unitsFromArgs(proj *project.KapiProject, root string, args []strin
 			if localeFilter != "" && loc != localeFilter {
 				continue
 			}
-			srcFormat, srcCfg, tgtFormat, tgtCfg := unitFormatBinding(proj, rf, abs)
+			srcFormat, srcCfg, tgtFormat, tgtCfg := unitFormatBinding(a.FormatReg, proj, rf, abs)
 			unit = VerifyUnit{SourcePath: rf.Path, TargetPath: abs, Locale: loc, Collection: rf.Collection,
 				DisplayPath: rel, ProjectRoot: root, SourceFormat: srcFormat, SourceConfig: srcCfg,
 				TargetFormat: tgtFormat, TargetConfig: tgtCfg}

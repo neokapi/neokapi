@@ -43,8 +43,10 @@ var desktopActor = change.Actor{Kind: change.ActorPerson}
 // changeServiceFor builds the change service for the project a tab has open,
 // with the desktop as the origin it records. editions are the editions the
 // call names: the one language among them other than the source is the
-// language a bilingual file is read in (a PO catalog's msgstr), as kapi apply
-// reads one.
+// language a bilingual file that holds its translation is read in (a PO
+// catalog's msgstr), as kapi apply reads one. A catalog whose collection names
+// a target keeps its translations in the target files whatever language the
+// service is told, so the French of po/en.po is edited in po/fr.po.
 func (a *App) changeServiceFor(ctx context.Context, tabID string, editions []model.EditionKey) (*change.Service, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {

@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -444,6 +445,63 @@ func TestChangeService_ABilingualFileIsEditedInTheLanguageItHolds(t *testing.T) 
 			b, err := os.ReadFile(filepath.Join(dir, "fr.po"))
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, string(b))
+		})
+	}
+}
+
+// TestChangeService_AProjectCatalogsTranslationLivesInItsTargetFile pins that
+// a PO source the recipe gives a target template keeps each translation in
+// the file the template names, for every service: the French of po/en.po (or
+// of the template po/messages.pot) is read from and written to po/fr.po,
+// whether the service is told a target language (kapi apply, MCP, the
+// browser and Kapi Desktop derive one from the change set) or not, and
+// whether the change names the source or the translation's file. The source
+// catalog keeps its bytes.
+func TestChangeService_AProjectCatalogsTranslationLivesInItsTargetFile(t *testing.T) {
+	const msgs = "msgid \"Hello\"\nmsgstr \"%s\"\n"
+	catalog := func(lang, msgstr string) string {
+		return "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"Language: " + lang + "\\n\"\n\n" + fmt.Sprintf(msgs, msgstr)
+	}
+	tests := []struct {
+		name, source string
+		target       model.LocaleID
+		doc          string
+	}{
+		{"a catalog, told the language", "po/en.po", "fr", "po/en.po"},
+		{"a catalog, told no language", "po/en.po", "", "po/en.po"},
+		{"a catalog, addressed by the translation's file", "po/en.po", "fr", "po/fr.po"},
+		{"a template, told the language", "po/messages.pot", "fr", "po/messages.pot"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			src := catalog("en", "")
+			fr := catalog("fr", "Bonjour")
+			a, recipe := changeProject(t, project.ContentItem{
+				Path: tc.source, Format: &project.FormatSpec{Name: "po"}, Target: "po/{lang}.po",
+			}, map[string]string{tc.source: src, "po/fr.po": fr})
+			ctx := context.Background()
+			svc, err := a.ChangeService(ctx, ChangeServiceOptions{Project: recipe, Origin: "test", TargetLocale: tc.target})
+			require.NoError(t, err)
+			french := editionKey(t, "fr")
+			page, err := svc.Read(ctx, change.ReadRequest{Doc: tc.doc, Editions: []model.EditionKey{french}})
+			require.NoError(t, err)
+			require.Len(t, page.Blocks, 1)
+			hello := page.Blocks[0]
+			ed, ok := hello.Editions["fr"]
+			if hello.Ref.Edition == french {
+				// A read of the translation's file names its edition.
+				ed, ok = change.EditionRead{Rev: hello.Rev, Text: hello.Text}, true
+			}
+			require.True(t, ok, "the French the translation's file holds reads back")
+			assert.Equal(t, "Bonjour", ed.Text)
+
+			at := hello.Ref
+			at.Edition = french
+			res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{setTo(at, ed.Rev, "Salut")}}, changePerson)
+			require.NoError(t, err)
+			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+			assert.Equal(t, catalog("fr", "Salut"), readFile(t, recipe, "po/fr.po"), "the translation lands in its own file")
+			assert.Equal(t, src, readFile(t, recipe, tc.source), "the source catalog keeps its bytes")
 		})
 	}
 }

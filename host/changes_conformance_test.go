@@ -25,7 +25,9 @@ func TestChangeService_Conformance(t *testing.T) {
 		a, recipe := changeProject(t, project.ContentItem{Path: "docs/*.json"}, map[string]string{
 			"docs/a.json": `{"greeting": "Hello there", "farewell": "Goodbye now", "thanks": "Thank you"}` + "\n",
 			"docs/b.json": `{"title": "Welcome"}` + "\n",
-			// A catalog whose French translation is the catalog beside it.
+			// A catalog whose French translation is the catalog its target
+			// template names: the suite removes the French from po/fr.po, and
+			// po/en.po keeps its bytes.
 			"po/en.po": conformanceCatalog("en", ""),
 			"po/fr.po": conformanceCatalog("fr", "Bonjour"),
 		}, func(p *project.KapiProject) {
@@ -48,6 +50,7 @@ func TestChangeService_Conformance(t *testing.T) {
 			DocA:            "docs/a.json",
 			DocB:            "docs/b.json",
 			Translated:      "po/en.po",
+			TranslationFile: "po/fr.po",
 			Snapshot: func(t *testing.T, doc string) []byte {
 				return []byte(readFile(t, recipe, doc))
 			},

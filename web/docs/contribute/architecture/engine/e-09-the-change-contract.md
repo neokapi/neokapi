@@ -256,8 +256,10 @@ preview writes nothing, a missing block is not found, the same content said
 again is unchanged, a file keeps its mode, a removed translation reads back
 absent while a replay of its removal is stale and writes nothing, and a change
 set with no operation applies and writes nothing. Each home runs the removal on
-a document that holds its translation: the stream's own rows, or a PO catalog
-for the file home and the project homes.
+a translation it holds: the stream's own rows, a PO catalog for the file home,
+and for the project homes the catalog a PO source's target template names
+(`po/fr.po` beside `po/en.po`), where the suite also checks that the removal is
+written there and the source catalog keeps its bytes.
 
 **The file home** (`core/change/filehome`) keeps each document as a file. A
 stage reads the document through its format's reader with the writer's
@@ -400,7 +402,10 @@ skeleton. Outside a project a reference is a path under the working
 directory, read with the format detection finds by name, then by content. A
 file of a translation interchange format, or of a multilingual string catalog
 (an Xcode `.xcstrings` file), holds its editions in the file, unless the recipe
-writes the source's translations to files of their own. Decisions and asset operations
+writes the source's translations to files of their own: with a target
+`po/{lang}.po`, the French of `po/en.po` or of `po/messages.pot` is read from and
+written to `po/fr.po`, in French, and the source catalog holds no edition, for
+every surface. Decisions and asset operations
 land through the host's review-queue and asset functions, a decision bound to
 the wording the change set landed rather than to a later read of the file; on
 an edition with no content in its home, such as a parked locale's draft, the
@@ -454,8 +459,9 @@ service for each call's project and send every change set as the calling agent
 `kapiApply` and `kapiDescribe` build it through the same function and carry
 the contract as JSON in and out: a refusal, a change set that does not decode
 included, is answered as a result. A call of either surface reads a bilingual
-file, such as a PO catalog, in the one language other than the source that its
-read's editions or its operations name, as `kapi apply` does. The page names
+file that holds its translation, such as a PO catalog, in the one language
+other than the source that its read's editions or its operations name, as
+`kapi apply` does. The page names
 the sender, a person unless it says an agent, and in a project an applied
 change is recorded in the browser's workspace log
 ([WASM Engine ABI](../../implementation/surfaces/wasm-engine-abi.md#the-change-contract)).
@@ -465,10 +471,8 @@ The verbs that write whole translations build the service with
 source's skeleton, keeping what each block's partner in the file held where the
 change set leaves it, and a translation follows the source's structure, even
 where the change set changes no content in a file whose blocks no longer pair
-with the source's. Such a service keeps the translations of a bilingual source,
-a PO or XLIFF catalog whose collection names a target, in the target
-template's files too, each read and written in its language: a catalog that
-still holds every unit of its source keeps its own skeleton, header included.
+with the source's. A bilingual translation file that still holds every unit
+of its source keeps its own skeleton, header included.
 `kapi merge -i` compiles a returned XLIFF, PO or `.kpz` into `set_content`
 operations carrying the `if_match` and `basis` each unit was extracted against,
 under `require_basis` and the enforce gate, and sends them as a person;

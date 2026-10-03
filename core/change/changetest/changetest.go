@@ -39,6 +39,12 @@ type Env struct {
 	// translation: a document whose translations the home keeps, or a
 	// bilingual document holding one. Empty is DocA.
 	Translated string
+	// TranslationFile is the document whose bytes hold Translated's French
+	// translation when the home keeps it apart from Translated (a catalog
+	// whose translation is the catalog its target template names). The
+	// suite then asserts that the translation's writes land there and that
+	// Translated keeps its bytes. Empty is Translated.
+	TranslationFile string
 	// Snapshot returns what the home holds for a document, byte for byte,
 	// so the suite can tell that a refusal or a preview wrote nothing.
 	Snapshot func(t *testing.T, doc string) []byte
@@ -309,6 +315,11 @@ func removedEdition(t *testing.T, env Env) {
 	if doc == "" {
 		doc = env.DocA
 	}
+	holder := env.TranslationFile
+	if holder == "" {
+		holder = doc
+	}
+	docBefore := env.Snapshot(t, doc)
 	b := editable(t, env, doc, 1)[0]
 	at := b.Ref
 	at.Edition = translation
@@ -320,6 +331,7 @@ func removedEdition(t *testing.T, env Env) {
 		require.True(t, held, "the translation the suite made reads back")
 	}
 
+	translated := env.Snapshot(t, holder)
 	remove := change.Op{Kind: change.KindRemoveEdition, At: at, IfMatch: fr.Rev, Body: &change.RemoveEdition{}}
 	res := apply(t, env, change.Set{Ops: []change.Op{remove}})
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
@@ -330,8 +342,12 @@ func removedEdition(t *testing.T, env Env) {
 	_, held = got.Editions["fr"]
 	assert.False(t, held, "the removed translation reads back absent")
 	assert.Equal(t, b.Text, got.Text, "the block's own edition is untouched")
+	assert.NotEqual(t, translated, env.Snapshot(t, holder), "the removal is written to %s, which holds the translation", holder)
+	if holder != doc {
+		assert.Equal(t, docBefore, env.Snapshot(t, doc), "%s keeps its bytes: its translation lives in %s", doc, holder)
+	}
 
-	snapshot := env.Snapshot(t, doc)
+	snapshot := env.Snapshot(t, holder)
 	res = apply(t, env, change.Set{Ops: []change.Op{remove}})
 	require.Equal(t, change.SetRefused, res.Status)
 	require.NotNil(t, res.Ops[0].Error)
@@ -343,7 +359,10 @@ func removedEdition(t *testing.T, env Env) {
 	res = apply(t, env, change.Set{Ops: []change.Op{remove}})
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status, "removing a translation the block does not hold changes nothing")
-	assert.Equal(t, snapshot, env.Snapshot(t, doc), "neither the refusal nor the removal that changed nothing writes")
+	assert.Equal(t, snapshot, env.Snapshot(t, holder), "neither the refusal nor the removal that changed nothing writes")
+	if holder != doc {
+		assert.Equal(t, docBefore, env.Snapshot(t, doc), "%s keeps its bytes: its translation lives in %s", doc, holder)
+	}
 }
 
 func emptyWritesNothing(t *testing.T, env Env) {
