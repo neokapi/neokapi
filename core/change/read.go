@@ -26,6 +26,13 @@ type ReadRequest struct {
 	Cursor string `json:"cursor,omitempty"`
 	// Limit is the most blocks a page holds; zero is DefaultReadLimit.
 	Limit int `json:"limit,omitempty"`
+	// OwnEdition names the document's own edition in each block's ref, by
+	// the language the document is written in, where a ref would otherwise
+	// leave the edition out. A sender copies it into insert_block's
+	// editions, and the service takes it as the document's own edition. A
+	// surface sets it when it knows the document's language, as a project's
+	// recipe gives it.
+	OwnEdition bool `json:"own_edition,omitempty"`
 }
 
 // DefaultReadLimit and MaxReadLimit bound a page.
@@ -219,7 +226,7 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 			obs.Saw(b, coveredEditions(b, editions))
 		}
 		if each != nil {
-			return each(b, readBlock(info, states, desc, b, editions))
+			return each(b, readBlock(info, states, desc, b, editions, q.OwnEdition))
 		}
 		i := index
 		index++
@@ -230,7 +237,7 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 			more = true
 			return ErrStop
 		}
-		page.Blocks = append(page.Blocks, readBlock(info, states, desc, b, editions))
+		page.Blocks = append(page.Blocks, readBlock(info, states, desc, b, editions, q.OwnEdition))
 		return nil
 	})
 	if err != nil && !errors.Is(err, ErrStop) {
@@ -264,15 +271,19 @@ func (s *Service) homeFor(doc string) (Home, error) {
 // opened the German file and copies a reference edits the German. Every other
 // edition the block holds is listed among its editions, the document's own
 // included, with the status and basis states gives it (nil gives none).
-func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.Block, editions []model.EditionKey) BlockRead {
+func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.Block, editions []model.EditionKey, ownEdition bool) BlockRead {
 	var primary model.EditionKey
 	if info.Edition != nil {
 		primary = info.Edition.Canonical()
 	}
 	ed, _ := b.Edition(primary)
 	ref := Ref{Doc: info.Doc, Block: BlockKey(b)}
-	if !b.IsSourceEdition(primary) {
+	switch {
+	case !b.IsSourceEdition(primary):
 		ref.Edition = primary
+	case ownEdition:
+		// The document's own edition, by its language.
+		ref.Edition = b.EditionKeyOf(primary)
 	}
 	out := BlockRead{
 		Ref:  ref,

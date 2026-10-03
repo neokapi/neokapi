@@ -1227,6 +1227,14 @@ export interface ReadRequest {
   cursor?: string;
   /** Limit is the most blocks a page holds; zero is DefaultReadLimit. */
   limit?: number;
+  /**
+   * OwnEdition names the document's own edition in each block's ref, by the
+   * language the document is written in, where a ref would otherwise leave the
+   * edition out. A sender copies it into insert_block's editions, and the
+   * service takes it as the document's own edition. A surface sets it when it
+   * knows the document's language, as a project's recipe gives it.
+   */
+  own_edition?: boolean;
 }
 
 /**

@@ -122,6 +122,9 @@ type inspectSources struct {
 func (a *App) inspectDocument(ctx context.Context, cmd Command, src inspectSources, file string, render []string, emit func(inspectRecord) error) error {
 	svc, doc, label := (*change.Service)(nil), "", ""
 	var want []model.EditionKey
+	// A ref names the document's own edition by its language where the
+	// project or --source-lang gives it.
+	own := a.SourceLang != ""
 	switch {
 	case file == StdinName:
 		path, cleanup, err := stdinDocument(ctx)
@@ -143,9 +146,10 @@ func (a *App) inspectDocument(ctx context.Context, cmd Command, src inspectSourc
 		svc, doc = cs.svc, ref
 		if project {
 			want = src.editions(doc)
+			own = true
 		}
 	}
-	_, err := svc.ReadEach(ctx, change.ReadRequest{Doc: doc, Editions: want}, func(b *model.Block, r change.BlockRead) error {
+	_, err := svc.ReadEach(ctx, change.ReadRequest{Doc: doc, Editions: want, OwnEdition: own}, func(b *model.Block, r change.BlockRead) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}

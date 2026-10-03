@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // inspectOutput runs `kapi inspect --jsonl` on path and returns the raw output.
@@ -178,7 +179,8 @@ func TestInspectPrintsReadRecords(t *testing.T) {
 			break
 		}
 	}
-	assert.Equal(t, change.Ref{Doc: "page.html", Block: "p"}, rec.Ref)
+	assert.Equal(t, change.Ref{Doc: "page.html", Block: "p", Edition: model.EditionKey{Locale: "en"}}, rec.Ref,
+		"--source-lang names the document's own edition")
 	assert.Regexp(t, `^r:[0-9a-f]{16}$`, rec.Rev)
 	require.Contains(t, rec.Codes, "1")
 	assert.Equal(t, "link:hyperlink", rec.Codes["1"].Type)

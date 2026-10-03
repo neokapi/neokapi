@@ -207,11 +207,14 @@ func (a *App) readBlocksMCP(ctx context.Context, in readBlocksInput) (*mcp.CallT
 	if cerr != nil {
 		return changeRefusal(cerr)
 	}
-	svc, _, err := a.mcpChangeService(ctx, in.Project, editions)
+	svc, recipe, err := a.mcpChangeService(ctx, in.Project, editions)
 	if err != nil {
 		return nil, err
 	}
-	page, err := svc.Read(ctx, change.ReadRequest{Doc: in.Doc, Blocks: in.Blocks, Editions: editions, Cursor: in.Cursor, Limit: in.Limit})
+	// In a project a ref names the document's own edition by the language
+	// the recipe gives it.
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: in.Doc, Blocks: in.Blocks, Editions: editions, Cursor: in.Cursor, Limit: in.Limit,
+		OwnEdition: recipe != ""})
 	if err != nil {
 		return changeError(err)
 	}

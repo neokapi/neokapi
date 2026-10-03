@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // qtCatalog is a Qt Linguist catalog: a .ts file, the extension TypeScript
@@ -221,7 +222,8 @@ func TestInspectReadsTheProjectItNames(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(line), &rec), line)
 		refs = append(refs, rec.Ref)
 	}
-	assert.Contains(t, refs, change.Ref{Doc: "notes/a.txt", Block: "note/p"}, "the Markdown paragraph the recipe's format reads")
+	assert.Contains(t, refs, change.Ref{Doc: "notes/a.txt", Block: "note/p", Edition: model.EditionKey{Locale: "en"}},
+		"the Markdown paragraph the recipe's format reads, in the recipe's source language")
 }
 
 // The hooks that resolve a project from a command resolve none for a service

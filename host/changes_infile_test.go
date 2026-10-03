@@ -62,6 +62,37 @@ func TestChangeService_AnInFileReadListsTheEditionItHolds(t *testing.T) {
 	}
 }
 
+// A read that names the document's own edition gives each ref the language
+// the recipe gives the document, and the service takes a ref so named, and
+// an insert_block whose editions use it, as the document's own edition.
+func TestChangeService_AReadNamesTheDocumentsOwnEdition(t *testing.T) {
+	item := project.ContentItem{Path: "locales/en.json"}
+	a, recipe := changeProject(t, item, map[string]string{"locales/en.json": `{"nav": {"home": "Home"}}` + "\n"})
+	svc := changeService(t, a, recipe)
+	ctx := context.Background()
+
+	plain, err := svc.Read(ctx, change.ReadRequest{Doc: "locales/en.json"})
+	require.NoError(t, err)
+	require.Len(t, plain.Blocks, 1)
+	assert.True(t, plain.Blocks[0].Ref.Edition.IsZero(), "a read that is not asked leaves the edition out")
+
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "locales/en.json", OwnEdition: true})
+	require.NoError(t, err)
+	require.Len(t, page.Blocks, 1)
+	b := page.Blocks[0]
+	assert.Equal(t, change.Ref{Doc: "locales/en.json", Block: "nav.home", Edition: model.EditionKey{Locale: "en"}}, b.Ref)
+
+	own := b.Ref.Edition.Locale
+	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{
+		setTo(b.Ref, b.Rev, "Start"),
+		{Kind: change.KindInsertBlock, At: change.Ref{Doc: "locales/en.json"}, Body: &change.InsertBlock{
+			After: "nav.home", Name: "nav.help", Editions: map[string]change.Content{string(own): {Text: new("Help")}}}},
+	}}, change.Actor{Kind: change.ActorAgent, Name: "claude", Session: "s1"})
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	assert.JSONEq(t, `{"nav": {"home": "Start", "help": "Help"}}`, readFile(t, recipe, "locales/en.json"))
+}
+
 func TestHeldLocale(t *testing.T) {
 	assert.Equal(t, model.LocaleID("nb"), heldLocale("x/messages.po", []model.LocaleID{"nb"}))
 	assert.Equal(t, model.LocaleID("de"), heldLocale("locales/de/messages.po", []model.LocaleID{"de", "nb"}))
