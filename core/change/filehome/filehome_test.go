@@ -187,6 +187,8 @@ func TestFileHome_AMonolingualDocumentOutsideAProjectHasNoOtherEdition(t *testin
 	require.NotNil(t, res.Ops[0].Error)
 	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
 	assert.Equal(t, "edition", res.Ops[0].Error.Capability)
+	assert.Contains(t, res.Ops[0].Error.Message, "copy a.json to the file the translation goes in and edit the copy",
+		"the refusal names the way out")
 }
 
 func TestFileHome_ADocumentOutsideTheRootIsRefused(t *testing.T) {

@@ -243,3 +243,47 @@ func TestOpMarshal_ShapeOnTheWire(t *testing.T) {
 	_, err = json.Marshal(change.Op{Kind: change.KindSetContent, Body: &change.ReplaceText{}})
 	assert.Error(t, err, "a body of another kind")
 }
+
+// A refusal of a change set that does not decode says what to send instead,
+// for the guesses agents make most: a branch's path in the reference, a key
+// set_attribute does not take, and the operations sent as a string.
+func TestDecode_RefusalsSayWhatToSend(t *testing.T) {
+	at := `"at":{"doc":"lib/app_en.arb","block":"inbox"}`
+	for name, tc := range map[string]struct {
+		in, pointer string
+		says        []string
+	}{
+		"a path in the reference": {
+			in:      envelope(`{"op":"set_content","at":{"doc":"lib/app_en.arb","block":"inbox","path":[0,{"plural":"one"}]},"if_match":"` + rev + `","text":"x"}`),
+			pointer: "/ops/0/at/path",
+			says:    []string{"not part of the reference", "set_content takes it as the operation's path", "replace_text as the operation's path or each edit's"},
+		},
+		"a key set_attribute does not take": {
+			in:      envelope(`{"op":"set_attribute",` + at + `,"if_match":"` + rev + `","code":"1","attr":"href","value":"https://x.example"}`),
+			pointer: "/ops/0/attr",
+			says:    []string{"set_attribute takes at, code, if_match, name, op, value", "the attribute's name goes in name and its new value in value", "kapi apply --schema set_attribute"},
+		},
+		"an unknown field elsewhere": {
+			in:      envelope(`{"op":"replace_text",` + at + `,"if_match":"` + rev + `","edits":[{"find":"a","text":"b"}],"note":"x"}`),
+			pointer: "/ops/0/note",
+			says:    []string{"kapi apply --schema replace_text"},
+		},
+		"the operations as a string": {
+			in:      `{"ops":"[{\"op\":\"set_content\"}]"}`,
+			pointer: "/ops",
+			says:    []string{"is a string", "not as text that holds JSON"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := change.Decode(strings.NewReader(tc.in))
+			require.Error(t, err)
+			var ce *change.Error
+			require.ErrorAs(t, err, &ce)
+			assert.Equal(t, change.CodeInvalid, ce.Code)
+			assert.Equal(t, tc.pointer, ce.Pointer)
+			for _, s := range tc.says {
+				assert.Contains(t, ce.Message, s)
+			}
+		})
+	}
+}

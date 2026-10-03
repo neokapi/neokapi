@@ -247,8 +247,7 @@ func (w *workset) precondition(op Op) (*Error, *Current) {
 		}
 	default:
 		if rev := st.startRevision(); rev != op.IfMatch {
-			return &Error{Code: CodeStale, Field: "if_match",
-				Message: fmt.Sprintf("edition %s is at %s, not %s", w.label(st), rev, op.IfMatch)}, st.startCurrent()
+			return &Error{Code: CodeStale, Field: "if_match", Message: staleMessage(w.label(st), op.IfMatch, rev)}, st.startCurrent()
 		}
 	}
 	if op.Kind != KindSetContent {
@@ -273,6 +272,17 @@ func (w *workset) precondition(op Op) (*Error, *Current) {
 			Message: fmt.Sprintf("the authoritative edition %s is at %s, not %s", w.label(auth), rev, op.Basis)}, auth.startCurrent()
 	}
 	return nil, nil
+}
+
+// staleMessage is the refusal of an if_match that no longer holds: the
+// edition moved after its sender read it, and the text it holds now carries
+// another writer's change, which a resend keeps.
+func staleMessage(label, read, now string) string {
+	if now == model.AbsentRevision {
+		return fmt.Sprintf("edition %s was removed after you read it at %s", label, read)
+	}
+	return fmt.Sprintf("edition %s changed after you read it at %s; it is now %s. Its current text holds a change you have not seen: keep it, and resend against %s",
+		label, read, now, now)
 }
 
 // apply applies one admitted operation to the workset.
