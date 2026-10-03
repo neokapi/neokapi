@@ -271,7 +271,6 @@ const sidebars: SidebarsConfig = {
         "reference/project-file",
         "reference/mcp",
         "reference/cli-contract",
-        "reference/engine-service",
         "reference/telemetry",
       ],
     },

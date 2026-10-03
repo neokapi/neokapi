@@ -295,9 +295,6 @@ orders the nodes with Kahn's algorithm and reports a cycle as an error;
 `Validate()` checks node identifiers, node types and edge endpoints. Each host
 path derives the chain in its own way:
 
-- The engine service (`kapi engine serve`) refuses a definition in which a node
-  has more than one incoming or outgoing edge, then runs the topological order
-  as one chain.
 - The built-in flow path checks data flow and transformer placement, then
   orders the tool nodes by their canvas X position (`orderedToolNodes`).
 - The project flow runner builds one tool per step, in step order, and refuses

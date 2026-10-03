@@ -91,8 +91,7 @@ Invoke a single tool directly as a tool command. Use a flow to compose tools;
 - **Order**: a flow runs as a linear chain of tools, each feeding the next.
   Its definition is stored as nodes and edges, and the steps parser accepts
   `parallel:` branches, but every host path runs an ordered tool list: the
-  engine service refuses fan-out and merge joins, and the CLI and project
-  runners build one tool after another
+  CLI and project runners build one tool after another
   ([E-01](e-01-processing-engine.md#flow-definitions)).
 - **Identity and reuse**: a flow has a name and a source (built-in, user,
   project). A project's `flows:` block is its vocabulary of named operations,

@@ -242,6 +242,9 @@ const config: Config = {
       {
         redirects: [
           { from: "/kapi/get-started/project-vs-adhoc", to: "/kapi/projects" },
+          // The engine service is retired; the channels an application drives
+          // kapi through are listed on the scripting contract.
+          { from: "/reference/engine-service", to: "/reference/cli-contract" },
           { from: "/kapi/modes", to: "/kapi/projects" },
           { from: "/kapi/get-started/use-with-skills", to: "/kapi/get-started/use-with-claude" },
           { from: "/kapi/get-started/use-with-mcp", to: "/kapi/get-started/use-with-claude" },
@@ -1141,7 +1144,6 @@ const config: Config = {
             { label: "kapi serialization formats", to: "/reference/serialization/overview" },
             { label: "MCP Server", to: "/reference/mcp" },
             { label: "Scripting & JSON contract", to: "/reference/cli-contract" },
-            { label: "Engine service (gRPC)", to: "/reference/engine-service" },
             { label: "Telemetry", to: "/reference/telemetry" },
           ],
         },

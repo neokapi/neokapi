@@ -7,7 +7,7 @@ keywords: [kapi json, scripting, jq, exit codes, NDJSON, progress events, automa
 
 # Scripting & JSON contract
 
-kapi's core verbs speak a documented, golden-tested machine contract so scripts, CI pipelines, and foreign-language callers never have to parse prose. This page covers the output flags, the structured results of `run`, `extract`, and `merge`, the JSON error envelope, exit codes, and streaming progress events. For driving the engine over gRPC instead of the CLI, see the [Engine service](/reference/engine-service); for the AI-agent surface, see the [MCP server](/reference/mcp).
+kapi's core verbs speak a documented, golden-tested machine contract so scripts, CI pipelines, and foreign-language callers never have to parse prose. This page covers the output flags, the structured results of `run`, `extract`, and `merge`, the JSON error envelope, exit codes, and streaming progress events. An application that drives kapi instead of a person at a terminal uses one of the channels in [Driving kapi from an application](#driving-kapi-from-an-application); for the AI-agent surface, see the [MCP server](/reference/mcp).
 
 Compatibility: the JSON documents below are a stable contract. Fields may be added in a release; existing field names and types do not change. The shapes are locked by golden tests (`cli/contract_golden_test.go`).
 
@@ -199,6 +199,17 @@ The exit status follows the result: `0` when the change set applied or previewed
 The flow commands take `--print-ops` too: `kapi translate`, `kapi pseudo-translate`, `kapi run`, `kapi up` (one pass, on this machine) and `kapi exec <tool>` for a tool that writes files. The run reads and runs its tools as it would, writes no file of the project, records no change and absorbs nothing into the content memory, and prints one change set: for each document, the difference between each block as it was read and as the run would write it, each operation guarded by the revision `kapi inspect` reads and each translation's `set_content` carrying its `basis`. `kapi apply` of that change set writes the bytes the run would have written, and records the edit as the applier's. A run that would change nothing prints a change set with no operation, which `kapi apply` refuses as `invalid`. Every file the change set leaves out is named on stderr: a target file `kapi apply` would write other bytes into than the run (the run writes it whole from its source, so a block the source gained or an entry only the target holds), a file the project does not keep the edition in (an `-o` path), a conversion, an export, an archive, and the files of a locale `kapi up` would park at its ship gate. In a project, `kapi translate`, `kapi pseudo-translate` and `kapi run` without `-o` write no file and print an empty change set. `kapi exec` over a file of the project the command resolves names it as `kapi apply` in that project does.
 
 Every flow command writes a file only while it still holds what it held when the run began. A file that changed meanwhile keeps its bytes; inside a project the run applies its own changes to it again, and when an edition the run changed has moved too the file is left as it is and the command fails, naming it.
+
+## Driving kapi from an application
+
+An application reads and changes content through one of four channels. Each carries the change contract ([E-09](/contribute/architecture/engine/e-09-the-change-contract)): a read gives every block its `ref` and `rev`, and a write is a `kapi.change/v1` change set, held to the same rules whichever channel sends it.
+
+| Channel | For | How |
+| --- | --- | --- |
+| The Go library | a Go program | `host.App.ChangeService` builds the change service for a project, with the recipe's formats, its governance and its history; `core/change` with `core/change/filehome` builds one over a directory. The service has `Read`, `Apply` and `Describe`. |
+| `kapi apply -` | a program in any language that can start a process | write a change set to standard input; with `--json` the `kapi.change-result/v1` result arrives on standard output, and the exit status follows [Change sets](#change-sets-kapi-apply). `kapi inspect --jsonl` is the matching read. |
+| MCP over standard input and output | an agent host, or any MCP client | `kapi mcp` serves `read_blocks`, `apply_edits`, `describe_format` and the rest of the [MCP tools](/reference/mcp). |
+| The browser build | a web page | `@neokapi/engine` loads the WebAssembly build of kapi and calls the functions of its [engine ABI](/contribute/implementation/surfaces/wasm-engine-abi). |
 
 ## MCP surface stability
 
