@@ -224,7 +224,7 @@ The edition a block was read in is filed under the zero key, whatever language
 `nb_NO` and `nb-NO` name one. `Native` lists the editions the document's bytes
 hold: the edition the block was read in first, under the zero key, then each
 edition a bilingual reader files from the document, such as the target of an
-XLIFF unit or each localization of an xcstrings entry. An empty list means the
+XLIFF unit or each language of an xcstrings entry. An empty list means the
 document holds the edition it was read in alone. A translation a reader files
 under no language (a KBF bundle's `unlabelled` edition) sits apart from the editions:
 `TargetEdition("")` reads it and `EachTargetEdition` yields it under the zero

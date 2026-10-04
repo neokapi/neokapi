@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Content Model
-description: The neokapi content model: documents as a stream of Parts (Layer, Block, Data, Media); a Block carries its content as peer editions, each a flat Run sequence, with stand-off Overlays, so tools and translations work independently of the source file format.
+description: "The neokapi content model: documents as a stream of Parts (Layer, Block, Data, Media); a Block carries its content as peer editions, each a flat Run sequence, with stand-off Overlays, so tools and translations work independently of the source file format."
 keywords: [content model, Part, Block, Run, Overlay, edition, Layer, multilingual content, format-independent]
 ---
 
