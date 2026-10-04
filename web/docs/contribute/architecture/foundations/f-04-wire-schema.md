@@ -65,8 +65,8 @@ for an edition with no tone and no channel, `fr;tone=formal` or
 `en;channel=short` for an edition of a tone or a channel, and the empty locale
 for a translation filed under no language. A peer that reads `locale` as a
 language tag maps a key with a tone or a channel to a tag of its own: the Okapi
-bridge reads it through ICU's `LocaleId`, which gives `und` for both examples and
-`en` for `en-US;channel=short`. Such a peer answers for that edition under
+bridge parses it with Okapi's `LocaleId.fromString`, which gives `und` for both
+examples and `en` for `en-US;channel=short`. Such a peer answers for that edition under
 another key, so a host that sends it one through a step that returns the block,
 rather than through a writer that matches the locale it writes, gets the edition
 back under that key.
