@@ -237,7 +237,7 @@ describe("FilePreview — opening at one unit", () => {
 
   it("marks a unit with a state but no focus, and says so when the key is unknown", () => {
     render(<FilePreview {...base} open tree={tree} focusKey="missing" unitStates={unitStates} />);
-    expect(screen.getByText("This unit is not in the rendered document.")).toBeTruthy();
+    expect(screen.getByText("This block is not in the rendered document.")).toBeTruthy();
     expect(screen.getByText("awaiting review")).toBeTruthy();
     expect(document.querySelector('[data-review-state="needs work"]')).toBeTruthy();
     expect(document.querySelector('[data-review-focus="true"]')).toBeNull();

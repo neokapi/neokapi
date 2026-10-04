@@ -105,8 +105,8 @@ export function VoiceScoreChip({ score, bar }: { score?: number; bar: number }) 
       data-below-bar={below ? "true" : undefined}
       title={
         score === undefined
-          ? t("The lowest voice score this profile accepts. This unit has not been scored.")
-          : t("The unit's latest voice score against the bar its profile sets.")
+          ? t("The lowest voice score this profile accepts. This block has not been scored.")
+          : t("The block's latest voice score against the bar its profile sets.")
       }
     >
       {score === undefined ? t("Bar {bar}", { bar }) : t("Voice {score} of {bar}", { score, bar })}
@@ -159,8 +159,8 @@ export function PointCard({
   // state would hand its own state to the loaded one.
   if (!point) {
     const waiting = loading
-      ? t("Resolving the point this unit sits at…")
-      : t("No point resolved for this unit.");
+      ? t("Resolving the point this block sits at…")
+      : t("No point resolved for this block.");
     return (
       <LayerCard
         title={t("Point")}
@@ -177,7 +177,7 @@ export function PointCard({
         }
         dataSlot="review-point"
         testId={testId}
-        toggleLabel={t("What governs this unit")}
+        toggleLabel={t("What governs this block")}
         defaultOpen={defaultOpen}
         className={className}
       >
@@ -232,7 +232,7 @@ export function PointCard({
       summary={summary}
       dataSlot="review-point"
       testId={testId}
-      toggleLabel={t("What governs this unit")}
+      toggleLabel={t("What governs this block")}
       defaultOpen={defaultOpen}
       className={className}
     >

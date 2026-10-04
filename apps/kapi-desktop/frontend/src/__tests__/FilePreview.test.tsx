@@ -124,7 +124,7 @@ describe("FilePreview at a block named by id", () => {
     );
     const row = document.querySelector('[data-slot="file-preview-focus"]') as HTMLElement;
     expect(row).toHaveTextContent("missing");
-    expect(screen.getByText("This unit is not in the rendered document.")).toBeInTheDocument();
+    expect(screen.getByText("This block is not in the rendered document.")).toBeInTheDocument();
   });
 });
 

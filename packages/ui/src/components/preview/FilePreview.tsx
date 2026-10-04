@@ -324,7 +324,7 @@ export default function FilePreview({
               )}
               {focusKey && tree && !focusNode && (
                 <span className="text-[11px] text-muted-foreground">
-                  {t("This unit is not in the rendered document.")}
+                  {t("This block is not in the rendered document.")}
                 </span>
               )}
             </div>
