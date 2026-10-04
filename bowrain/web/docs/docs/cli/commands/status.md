@@ -21,7 +21,7 @@ kapi status [flags]
 ### The coverage grid
 
 One row per scope, a locale or a `locale/collection` pair, with the number of
-units, one column per rung of the target ladder (the share of units that have
+blocks, one column per rung of the target ladder (the share of blocks that have
 reached drafting, translation, review), a pipeline bar showing distance to the
 bar, and a **ship** column. Ship is a verdict rather than a percentage: it
 reads the ship state, `established` (a person established the content) or
@@ -30,7 +30,7 @@ gate, `blocked: <rung>` naming the first unmet gate so it points at the work,
 or `not gated` when no gate matches the scope.
 
 Under the grid, two basis lines report what a percentage cannot: how many
-units carry a decision made against content that has since changed, and how
+translations carry a decision made against content that has since changed, and how
 many have never been judged. A project that names no target language reports
 itself as monolingual rather than as empty.
 
@@ -61,7 +61,7 @@ declared but the bowrain plugin is missing).
 | ---------------- | --------------------------------------------------------------------------- |
 | `--locale`       | Limit the grid to a single target locale                                    |
 | `--source-lang`  | Source language (overrides the project's `source_language`)                 |
-| `--review`       | List the units awaiting review in every language, the source language among them, instead of the grid; approve a translated one with `kapi apply` |
+| `--review`       | List the blocks awaiting review in every language, the source language among them, instead of the grid; approve a translated one with `kapi apply` |
 | `--lang <tag>`   | With `--review`, list only these languages (repeatable, or comma-separated) |
 | `--ship`         | Emit the minimal `ship.json` manifest (locale → shippable, state, and any dimension that governs nothing there) instead of the grid: the shape a language picker consumes to hide locales that are not shippable and badge those shipped on machine review |
 | `--emit <path>`  | With `--ship`, write the manifest to this path instead of stdout            |

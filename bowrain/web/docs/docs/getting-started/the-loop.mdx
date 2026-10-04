@@ -40,7 +40,7 @@ Producing, promoting, and releasing stay separate. Each role has a home:
       label: "promote",
       sub: "Review in the web or desktop app",
       role: "annotate",
-      edge: "parked units land here",
+      edge: "parked translations land here",
     },
     {
       label: "release",
@@ -54,10 +54,10 @@ Producing, promoting, and releasing stay separate. Each role has a home:
 
 - **A run produces.** A server-side flow over connector content, a push under
   the `bowrain.converge` policy, or a developer's `kapi up`: each drives every
-  unit as far up its lifecycle as a flow can take it unaided.
+  block as far up its lifecycle as a flow can take it unaided.
 - **Review promotes.** What a run parks appears in the project's
   [review session](/server/review), where a person (or several; decisions are
-  shared) advances a unit past what a machine can decide.
+  shared) advances a translation past what a machine can decide.
 - **The gate releases.** [`kapi check --ship`](/cli/use-cases/brand-terminology-ci)
   answers one question, *is this scope shippable?*, and is the explicit,
   opt-in enforcement point for a release in a pipeline. Language drift never
@@ -111,7 +111,7 @@ The gate can require human approval when the project needs it.
 - **Settle the source.** A server run's first pass runs the source stage over the
   source locale only (source checks, do-not-translate terms marked and
   **protected** so translation can never touch them, the rule-based checks) and stamps each
-  unit's source status up the authoring ladder (*written → established*).
+  block's source status up the authoring ladder (*written → established*).
 - **Hold the source.** The project's `defaults.translate_after` (default
   `written`) is the source-side counterpart of
   the ship gate. Source that
@@ -127,7 +127,7 @@ The gate can require human approval when the project needs it.
   shippable; whatever a machine cannot decide **parks** for review rather than
   shipping under-reviewed.
 
-Editing a source unit re-opens the hold for changed segments. The next
+Editing a source block re-opens the hold for changed segments. The next
 run checks and regenerates those segments. The model itself, the ladders and gate
 thresholds, is documented once on the kapi site:
 <KapiLink to="/kapi/convergence#source-first">Source first</KapiLink>.
@@ -194,7 +194,7 @@ Every surface reads the same derived state:
 - **In the terminal**, [`kapi status`](/cli/commands/status) shows the
   per-language coverage grid, the server standing, and the effective venue and
   `bowrain.converge` policy.
-- **In the review session**, parked units are the worklist: a run reports them
+- **In the review session**, parked translations are the worklist: a run reports them
   as awaiting a person and still exits zero. Parked work is pending review, not
   an error.
 

@@ -107,7 +107,7 @@ or `kapi merge` brought in, names no author. Each translation's record goes
 once, and again when it changes.
 
 The content lands either way. A verdict the server does not accept is reported
-per language, and the unit stays a translation awaiting review:
+per language, and the translation stays one awaiting review:
 
 ```
 Pushed 47 blocks (12 uploaded), 512 words (scanned 12 files)
@@ -119,22 +119,22 @@ Pushed 47 blocks (12 uploaded), 512 words (scanned 12 files)
 The last line is the project's record following the server's answer, so the same
 refused verdicts are not sent again on every push.
 
-Taking an established unit back is held to the same permission. A push that
-lowers a target the server holds at established, with the translation and the
-source it was established for unchanged, withdraws it, and the withdrawal lands
-only when you hold review permission for that language. Otherwise the unit
-stands, the push reports the demotion it did not apply, and the project's
-record is restored to what the server holds:
+Taking an established translation back is held to the same permission. A push
+that lowers a target the server holds at established, with the translation and
+the source it was established for unchanged, withdraws it, and the withdrawal
+lands only when you hold review permission for that language. Otherwise the
+translation stays established, the push reports the demotion it did not apply,
+and the project's record is restored to what the server holds:
 
 ```
-1 demotion not accepted for nb-NO: withdrawing an established unit needs review permission
+1 demotion not accepted for nb-NO: withdrawing an established translation needs review permission
 1 local record(s) now match the platform; they will not be sent again
 ```
 
 A rejection applies to the translation it names. When the server has replaced
 that translation since your working copy last pulled, the rejection changes
-nothing there. The unit keeps its rung and its record, the push reports the
-rejection it did not apply, and kapi replaces the project's record with the one
+nothing there. The server's translation keeps its rung and its record, the push
+reports the rejection it did not apply, and kapi replaces the project's record with the one
 the server holds. Pull before rejecting, so that the rejection names the
 translation on the server.
 
