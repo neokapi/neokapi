@@ -2218,7 +2218,11 @@ All of these hold before the 1.3.0 tag:
 11. User and agent surfaces say block and edition; "unit" is gone from them.
 12. ADs describe the result, and the affected walkthroughs are re-recorded.
 13. `model.Block` holds peer editions (`Editions`, `Native`, `Derivation`), `Block.Key` replaces
-    `Block.Unit`, KBF is v2, and the decision pairing uses revisions (WP14).
+    `Block.Unit`, KBF is v2, and the decision pairing uses revisions (WP14). Done on the engine and
+    the checkouts. Bowrain stores the pairing and grades its ledger by the hashes, a decision WP14
+    lists as open before the tag; KBF v2 ships with the `@neokapi/kapi-format` and
+    `@neokapi/i18n-react` 3.0.0 pair and a kapi release that reads schema 2 (WP14, "Open, for the
+    release").
 
 **Cut lines**, in the order they would be cut if 1.3.0 runs late: WP12 (key-value structure), then
 `mark` (keep `set_attribute`), then local reconciliation on read (ship identity evidence only). None of

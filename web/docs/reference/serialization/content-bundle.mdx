@@ -451,7 +451,11 @@ and writes it back unchanged when it rewrites the bundle.
 | `rev`  | string | yes      | That edition's revision when this one was made, `r:` and 16 hex digits of a hash of its key and runs. |
 
 Comparing `rev` with the current revision of the edition named in `from` tells
-whether the derived edition is stale.
+whether the derived edition is stale. A revision of the source is taken under
+the language a reader files it by, which may be the bundle's source language,
+the source language of the project that read it, or none. The runs are the
+same under each, so kapi reads a derivation from the source as current while
+the revision of the source runs under any of these keys equals `rev`.
 
 ### Origin
 
