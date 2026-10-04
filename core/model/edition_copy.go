@@ -16,12 +16,16 @@ func (b *Block) CopyEditionSet() *Block {
 }
 
 // CopyEditions returns a copy of b whose editions are its own: each edition's
-// runs are copied with copyRuns, so nothing done to an edition of either block
+// runs, and the source as read (SourceAsRead) once an edit has kept it, are
+// copied with copyRuns, so nothing done to an edition of either block
 // afterwards reaches the other. Every field outside the editions is copied the
 // way a struct copy copies it.
 func (b *Block) CopyEditions(copyRuns func([]Run) []Run) *Block {
 	c := *b
 	c.Source = copyRuns(b.Source)
+	if b.sourceKept {
+		c.readSource = copyRuns(b.readSource)
+	}
 	if b.Targets != nil {
 		c.Targets = make(map[VariantKey]*Target, len(b.Targets))
 		for k, t := range b.Targets {

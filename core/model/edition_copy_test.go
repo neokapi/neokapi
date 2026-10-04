@@ -35,10 +35,10 @@ func TestBlockCopyEditionSet(t *testing.T) {
 	assert.Equal(t, model.Status(model.SourceStatusEstablished), src.Status)
 }
 
-func TestBlockCopyEditions(t *testing.T) {
-	b := editionBlock()
-	b.EditSourceText("Hello there")
-	copyRuns := func(runs []model.Run) []model.Run {
+// jsonCopyRuns copies a run sequence through its canonical JSON, so no run of
+// the copy shares a pointer with the original.
+func jsonCopyRuns(t *testing.T) func([]model.Run) []model.Run {
+	return func(runs []model.Run) []model.Run {
 		if runs == nil {
 			return nil
 		}
@@ -46,7 +46,12 @@ func TestBlockCopyEditions(t *testing.T) {
 		require.NoError(t, json.Unmarshal(model.CanonicalRunsJSON(runs), &out))
 		return out
 	}
-	c := b.CopyEditions(copyRuns)
+}
+
+func TestBlockCopyEditions(t *testing.T) {
+	b := editionBlock()
+	b.EditSourceText("Hello there")
+	c := b.CopyEditions(jsonCopyRuns(t))
 	fr := model.Variant("fr")
 
 	want := map[string]string{}
@@ -80,6 +85,43 @@ func TestBlockCopyEditions(t *testing.T) {
 	asRead, edited := c.SourceAsRead()
 	assert.Equal(t, "Hello", model.RunsText(asRead), "the copy keeps the source as read")
 	assert.True(t, edited)
+}
+
+func TestBlockCopyEditions_HoldsItsOwnSourceAsRead(t *testing.T) {
+	t.Run("an edited block", func(t *testing.T) {
+		b := editionBlock()
+		b.EditSourceText("Hello there")
+		c := b.CopyEditions(jsonCopyRuns(t))
+
+		asRead, edited := c.SourceAsRead()
+		assert.True(t, edited, "the copy knows its source was edited")
+		require.Len(t, asRead, 1)
+		asRead[0].Text.Text = "Changed in place"
+
+		orig, edited := b.SourceAsRead()
+		assert.Equal(t, "Hello", model.RunsText(orig), "a change to the copy's source as read leaves the block's as it was")
+		assert.True(t, edited)
+		assert.Equal(t, "Hello there", b.SourceText())
+	})
+
+	t.Run("a block no edit has touched", func(t *testing.T) {
+		b := editionBlock()
+		c := b.CopyEditions(jsonCopyRuns(t))
+
+		asRead, edited := c.SourceAsRead()
+		assert.False(t, edited)
+		require.Len(t, asRead, 1)
+		asRead[0].Text.Text = "Changed in place"
+
+		orig, edited := b.SourceAsRead()
+		assert.Equal(t, "Hello", model.RunsText(orig), "a change to the copy's source leaves the block's as it was")
+		assert.False(t, edited)
+
+		c.EditSourceText("Hello again")
+		orig, edited = b.SourceAsRead()
+		assert.Equal(t, "Hello", model.RunsText(orig), "an edit to the copy keeps the block's source as read")
+		assert.False(t, edited, "an edit to the copy leaves the block unedited")
+	})
 }
 
 func TestBlockCopyEditions_KeepsANilTarget(t *testing.T) {
