@@ -149,6 +149,15 @@ func KitchenSinkBlock() *model.Block {
 		},
 	})
 
+	// A same-language channel edition: a peer of the edition the block was read
+	// in, in its language, which every path must carry under its own key and
+	// never fold into the source.
+	b.SetEdition(model.EditionKey{Locale: model.LocaleEnglish, Channel: "short"}, model.Edition{
+		Runs:   []model.Run{{Text: &model.TextRun{Text: "Hi"}}},
+		Status: model.Status(model.TargetStatusTranslated),
+		Origin: model.Origin{Kind: model.OriginAgent, Engine: "claude"},
+	})
+
 	// Annotations: block-scoped note (rides on the annotations map, not overlays).
 	b.AddNote(&model.NoteAnnotation{Text: "hero copy", From: "dev", Priority: 1, Annotates: "source"})
 
