@@ -25,9 +25,9 @@ the target-language file from the source's skeleton.
 
 With -i, merge applies one or more bilingual files returned by a
 translator to the translations of the project's sources, each written from
-its source's skeleton. Every unit kapi extract wrote carries the revision of
+its source's skeleton. Every block kapi extract wrote carries the revision of
 its translation and of its source at extraction, so merge needs nothing but
-the file: a unit whose source changed since is reported stale and left out,
+the file: a block whose source changed since is reported stale and left out,
 and one whose translation changed in the project since is settled by the
 recipe's conflict policy (defaults.merge.conflict_policy). Mixed target
 languages in one batch are fine, and merge handles each input independently.`,
