@@ -207,8 +207,8 @@ func TestSkeletonStore_WithTranslation_PreservesICU(t *testing.T) {
 		b := p.Resource.(*model.Block)
 		// Translate only the leading literal text run, preserving the ICU
 		// placeholder run (which re-emits its captured Data verbatim).
-		runs := make([]model.Run, 0, len(b.Source))
-		for _, r := range b.Source {
+		runs := make([]model.Run, 0, len(b.SourceRuns()))
+		for _, r := range b.SourceRuns() {
 			if r.Text != nil {
 				runs = append(runs, model.Run{Text: &model.TextRun{Text: "Vous avez "}})
 			} else {
