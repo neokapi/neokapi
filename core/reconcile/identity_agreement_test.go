@@ -58,7 +58,7 @@ func TestScopeStillSeparatesIdenticalBlocksInDifferentDocuments(t *testing.T) {
 	prior.Key = "unit-in-a"
 
 	inB := reconcile.Blocks("doc-b", []*model.Block{mk("p", "Shared boilerplate.")},
-		[]reconcile.Unit{prior})
+		[]reconcile.Prior{prior})
 	require.Len(t, inB, 1)
 
 	// It matches on CONTENT — the same words really are the same words, and
@@ -71,7 +71,7 @@ func TestScopeStillSeparatesIdenticalBlocksInDifferentDocuments(t *testing.T) {
 	// context pass from handing one document's history to another's.
 	claimed := reconcile.Blocks("doc-b",
 		[]*model.Block{mk("p", "Different words entirely.")},
-		[]reconcile.Unit{prior})
+		[]reconcile.Prior{prior})
 	require.Len(t, claimed, 1)
 	assert.Equal(t, reconcile.New, claimed[0].Kind,
 		"a block named 'p' in another document must not claim this one's history on the name alone")

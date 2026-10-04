@@ -173,7 +173,7 @@ func bookBlocks(t *testing.T, data []byte) []*model.Block {
 	return out
 }
 
-func bookKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcile.Result {
+func bookKeys(blocks []*model.Block, prior []reconcile.Prior) map[string]reconcile.Result {
 	out := map[string]reconcile.Result{}
 	for _, r := range reconcile.Blocks(epubIdentityScope, blocks, prior) {
 		out[r.Block.SourceText()] = r
@@ -181,8 +181,8 @@ func bookKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcil
 	return out
 }
 
-func bookUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Unit {
-	var out []reconcile.Unit
+func bookUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Prior {
+	var out []reconcile.Prior
 	for _, b := range blocks {
 		u := reconcile.Identify(epubIdentityScope, b)
 		u.Key = res[b.SourceText()].Key

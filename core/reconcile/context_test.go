@@ -62,7 +62,7 @@ func TestContext_SeparatesDocuments(t *testing.T) {
 	// Bravo is a different paragraph in a different file that happens to sit in
 	// the same slot. It must not inherit intro.md's unit.
 	got := reconcile.Blocks("docs/guide.md",
-		[]*model.Block{blk("para1", "Bravo")}, []reconcile.Unit{intro})
+		[]*model.Block{blk("para1", "Bravo")}, []reconcile.Prior{intro})
 	require.Len(t, got, 1)
 	assert.Equal(t, reconcile.New, got[0].Kind,
 		"a same-named block in another document is not an edit of this one")
@@ -80,7 +80,7 @@ func TestContext_ScopeIsTheDocumentKeyNotThePath(t *testing.T) {
 
 	// The file moved on disk. Its document key did not, so its blocks do not
 	// notice: no context changed, so this is untouched rather than moved.
-	got := reconcile.Blocks(key, []*model.Block{blk("para1", "Alpha")}, []reconcile.Unit{before})
+	got := reconcile.Blocks(key, []*model.Block{blk("para1", "Alpha")}, []reconcile.Prior{before})
 
 	assert.Equal(t, "u-alpha", got[0].Key)
 	assert.Equal(t, reconcile.Unchanged, got[0].Kind,
@@ -90,7 +90,7 @@ func TestContext_ScopeIsTheDocumentKeyNotThePath(t *testing.T) {
 // Position shifting is the ordinary case and must not cost identity.
 func TestContext_InsertionAtTheTopShiftsEveryName(t *testing.T) {
 	v1 := []*model.Block{blk("para1", "Alpha"), blk("para2", "Bravo")}
-	prior := []reconcile.Unit{priorOf("u-alpha", v1[0]), priorOf("u-bravo", v1[1])}
+	prior := []reconcile.Prior{priorOf("u-alpha", v1[0]), priorOf("u-bravo", v1[1])}
 
 	// A new opening paragraph renames both existing blocks.
 	got := byText(reconcile.Blocks(doc, []*model.Block{blk("para1", "Intro"), blk("para2", "Alpha"), blk("para3", "Bravo")}, prior))
@@ -104,7 +104,7 @@ func TestContext_InsertionAtTheTopShiftsEveryName(t *testing.T) {
 // Swapping two blocks keeps both identities: their words went with them.
 func TestContext_ReorderKeepsBothUnits(t *testing.T) {
 	v1 := []*model.Block{blk("para1", "Alpha"), blk("para2", "Bravo")}
-	prior := []reconcile.Unit{priorOf("u-alpha", v1[0]), priorOf("u-bravo", v1[1])}
+	prior := []reconcile.Prior{priorOf("u-alpha", v1[0]), priorOf("u-bravo", v1[1])}
 
 	got := byText(reconcile.Blocks(doc, []*model.Block{blk("para1", "Bravo"), blk("para2", "Alpha")}, prior))
 
@@ -115,7 +115,7 @@ func TestContext_ReorderKeepsBothUnits(t *testing.T) {
 // A block that changes type in place is not the same unit continuing: promoting
 // a paragraph to a heading changes how it is written, read and translated.
 func TestContext_TypeChangeIsNotAnEdit(t *testing.T) {
-	prior := []reconcile.Unit{priorOf("u-para", typed("x", "paragraph", "Alpha"))}
+	prior := []reconcile.Prior{priorOf("u-para", typed("x", "paragraph", "Alpha"))}
 
 	got := reconcile.Blocks(doc, []*model.Block{typed("x", "heading", "Alpha")}, prior)
 
@@ -129,7 +129,7 @@ func TestContext_TypeChangeIsNotAnEdit(t *testing.T) {
 // their words alone. Pinned because a looser normalization would silently merge
 // units that are genuinely different to a translator.
 func TestContext_ContentNormalizationBoundaries(t *testing.T) {
-	prior := []reconcile.Unit{priorOf("u-alpha", blk("para1", "Alpha"))}
+	prior := []reconcile.Prior{priorOf("u-alpha", blk("para1", "Alpha"))}
 
 	t.Run("surrounding whitespace is not a change", func(t *testing.T) {
 		got := reconcile.Blocks(doc, []*model.Block{blk("para1", "  Alpha  ")}, prior)
@@ -168,7 +168,7 @@ func TestContext_ManyDocumentsSharingBlockNames(t *testing.T) {
 	}
 
 	// First pass over a project with no history mints one unit per document.
-	var project []reconcile.Unit
+	var project []reconcile.Prior
 	keys := map[string]string{}
 	for path, text := range docs {
 		got := reconcile.Blocks(path, []*model.Block{blk("para1", text)}, project)
@@ -199,7 +199,7 @@ func TestContext_TextMovedBetweenDocuments(t *testing.T) {
 
 	// The paragraph is cut from intro.md and pasted into install.md.
 	got := reconcile.Blocks("docs/install.md",
-		[]*model.Block{blk("para1", "Install the CLI")}, []reconcile.Unit{origin})
+		[]*model.Block{blk("para1", "Install the CLI")}, []reconcile.Prior{origin})
 
 	assert.Equal(t, "u-install", got[0].Key,
 		"the same sentence in a new file is not new work")
@@ -221,7 +221,7 @@ func TestContext_RepeatedTextPrefersItsOwnDocument(t *testing.T) {
 	second := reconcile.Identify("formats/xml.yaml", blk("options.description", "Description"))
 	second.Key = "u-xml-description-2"
 	// A venue serves priors in path order, so the other document's unit comes first.
-	prior := []reconcile.Unit{other, first, second}
+	prior := []reconcile.Prior{other, first, second}
 
 	// The same two blocks, read again after a property was recorded on each.
 	current := []*model.Block{

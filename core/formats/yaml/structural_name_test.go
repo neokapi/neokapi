@@ -140,7 +140,7 @@ func yamlBlocks(t *testing.T, content string) []*model.Block {
 	return out
 }
 
-func yamlKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcile.Result {
+func yamlKeys(blocks []*model.Block, prior []reconcile.Prior) map[string]reconcile.Result {
 	out := map[string]reconcile.Result{}
 	for _, r := range reconcile.Blocks(yamlIdentityScope, blocks, prior) {
 		out[r.Block.SourceText()] = r
@@ -148,8 +148,8 @@ func yamlKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcil
 	return out
 }
 
-func yamlUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Unit {
-	var out []reconcile.Unit
+func yamlUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Prior {
+	var out []reconcile.Prior
 	for _, b := range blocks {
 		u := reconcile.Identify(yamlIdentityScope, b)
 		u.Key = res[b.SourceText()].Key

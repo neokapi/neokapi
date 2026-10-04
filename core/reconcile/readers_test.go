@@ -35,7 +35,7 @@ func readBlocks(t *testing.T, r format.DataFormatReader, content string) []*mode
 
 // keysByText reconciles a read and indexes the outcome by the words of each
 // block, which is how these tests refer to blocks across revisions.
-func keysByText(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcile.Result {
+func keysByText(blocks []*model.Block, prior []reconcile.Prior) map[string]reconcile.Result {
 	out := map[string]reconcile.Result{}
 	for _, r := range reconcile.Blocks(doc, blocks, prior) {
 		out[r.Block.SourceText()] = r
@@ -43,8 +43,8 @@ func keysByText(blocks []*model.Block, prior []reconcile.Unit) map[string]reconc
 	return out
 }
 
-func unitsOf(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Unit {
-	var out []reconcile.Unit
+func unitsOf(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Prior {
+	var out []reconcile.Prior
 	for _, b := range blocks {
 		u := reconcile.Identify(doc, b)
 		u.Key = res[b.SourceText()].Key
