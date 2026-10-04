@@ -277,7 +277,7 @@ describe("the queue's neighbourhood", () => {
   it("says the unit is alone rather than drawing empty boxes for its neighbours", () => {
     reviewer({}, emptyContext());
     expect(screen.getByTestId("reviewer-neighbourhood-summary").textContent).toContain(
-      "This unit stands alone in its document.",
+      "This block stands alone in its document.",
     );
     const rows = screen
       .getByTestId("reviewer-neighbourhood")

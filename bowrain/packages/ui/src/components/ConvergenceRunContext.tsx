@@ -10,7 +10,7 @@ import type { ConvergenceRun } from "../types/api";
  * stopped and what to do, never a silent spinner:
  *
  *  - source_not_ready → "Source not ready — settle N blocks" + Review source
- *  - needs_credits    → "Out of credits — N AI units remaining" + Buy credits
+ *  - needs_credits    → "Out of credits, N blocks left for the AI" + Buy credits
  *  - quota_exceeded   → "AI usage limit reached" (resume when the limit resets)
  *  - no_target_locales → "No target languages configured" (add one in settings)
  *  - parked (checks)  → "Parked — open review"
@@ -204,7 +204,7 @@ function stallBanner(
         title="Out of credits"
         body={
           remaining > 0
-            ? `${remaining} AI unit${remaining === 1 ? "" : "s"} remaining. Add credits to finish translating; work so far is saved.`
+            ? `${remaining} block${remaining === 1 ? "" : "s"} left for the AI. Add credits to finish translating; work so far is saved.`
             : "This workspace is out of credits. Add credits to finish translating; work so far is saved."
         }
         action={actions.onBuyCredits && { label: "Buy credits", onClick: actions.onBuyCredits }}
@@ -268,7 +268,7 @@ function stallBanner(
   return null;
 }
 
-/** AI units still pending across the run's locale standing. */
+/** Blocks still pending for the AI across the run's locale standing. */
 function aiRemaining(run: ConvergenceRun): number {
   const locales = run.locales ?? [];
   let remaining = 0;
