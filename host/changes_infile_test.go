@@ -64,6 +64,38 @@ func TestChangeService_AnInFileReadListsTheEditionItHolds(t *testing.T) {
 	}
 }
 
+// A JSON catalog keeps each translation in a file of its own. A block lists
+// remove_edition where the read shows a translation it holds: in a read of
+// the source that joins the German file, and in a read of the German file
+// itself. A key the German file lacks lists none.
+func TestChangeService_AOneFileTranslationIsOfferedForRemovalWhereItIsHeld(t *testing.T) {
+	item := project.ContentItem{Path: "locales/en.json", Target: "locales/{lang}.json"}
+	a, recipe := changeProject(t, item, map[string]string{
+		"locales/en.json": `{"title": "Welcome", "body": "Read this first"}` + "\n",
+		"locales/de.json": `{"title": "Willkommen"}` + "\n",
+	})
+	svc := changeService(t, a, recipe)
+	ctx := context.Background()
+	opsOf := func(req change.ReadRequest) map[string][]change.Kind {
+		t.Helper()
+		page, err := svc.Read(ctx, req)
+		require.NoError(t, err)
+		out := map[string][]change.Kind{}
+		for _, b := range page.Blocks {
+			out[b.Ref.Block] = b.Ops
+		}
+		return out
+	}
+
+	ops := opsOf(change.ReadRequest{Doc: "locales/en.json", Editions: []model.EditionKey{editionKey(t, "de")}})
+	assert.Contains(t, ops["title"], change.KindRemoveEdition)
+	assert.NotContains(t, ops["body"], change.KindRemoveEdition, "the German file holds no body")
+
+	ops = opsOf(change.ReadRequest{Doc: "locales/de.json"})
+	assert.Contains(t, ops["title"], change.KindRemoveEdition, "a read of the German file shows the German it holds")
+	assert.NotContains(t, ops["body"], change.KindRemoveEdition, "the German file holds no body")
+}
+
 // A read that names the document's own edition gives each ref the language
 // the recipe gives the document, and the service takes a ref so named, and
 // an insert_block whose editions use it, as the document's own edition.
