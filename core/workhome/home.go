@@ -111,6 +111,12 @@ type CommitBlock struct {
 	Key         string
 	ContentHash string
 	ContextHash string
+	// Ops are the kinds of the operations that changed the edition, in the
+	// order they applied, and Tool the tool in a flow that changed it, where
+	// the write can name one: the block history keeps both, as it does for a
+	// write to a file.
+	Ops  []change.Kind
+	Tool string
 }
 
 // Home is the workspace home over one project's log and projection. It keeps
@@ -312,6 +318,7 @@ func (h *Home) Commit(ctx context.Context, w filehome.KeptWrite) (string, error)
 		}
 		if t, ok := byBlock[ch.Block]; ok {
 			b.Basis, b.Key, b.ContentHash, b.ContextHash = t.Basis, t.Key, t.ContentHash, t.ContextHash
+			b.Ops, b.Tool = slices.Clone(t.Ops), t.Tool
 			if blk := t.Block; blk != nil {
 				if b.Key == "" {
 					b.Key = blk.Unit
@@ -362,6 +369,9 @@ type Produced struct {
 	Key         string
 	ContentHash string
 	ContextHash string
+	// Tool is the tool in the flow that drafted the edition, where the flow
+	// can name one.
+	Tool string
 }
 
 // ProduceResult says what a Produce wrote.
@@ -388,7 +398,7 @@ type ProduceResult struct {
 func (h *Home) Produce(ctx context.Context, p Produce) (ProduceResult, error) {
 	doc, edition := h.docKey(p.Doc), editionText(p.Edition)
 	for attempt := 0; ; attempt++ {
-		seq, head, rows, _, err := h.read(ctx, doc, edition)
+		seq, head, rows, eds, err := h.read(ctx, doc, edition)
 		if err != nil {
 			return ProduceResult{}, err
 		}
@@ -418,7 +428,8 @@ func (h *Home) Produce(ctx context.Context, p Produce) (ProduceResult, error) {
 			}
 			ed := d.Edition
 			c.Blocks = append(c.Blocks, CommitBlock{Block: d.Block, Before: now, After: rev, Edition: &ed,
-				Basis: d.Basis, Stamp: d.Stamp, Key: d.Key, ContentHash: d.ContentHash, ContextHash: d.ContextHash})
+				Basis: d.Basis, Stamp: d.Stamp, Key: d.Key, ContentHash: d.ContentHash, ContextHash: d.ContextHash,
+				Ops: []change.Kind{draftKind(eds[d.Block].Runs, ok, ed.Runs)}, Tool: d.Tool})
 			after[d.Block] = Row{Rev: rev, Status: ed.Status, Origin: ed.Origin}
 			res.Written++
 		}
@@ -436,6 +447,18 @@ func (h *Home) Produce(ctx context.Context, p Produce) (ProduceResult, error) {
 		res.Record = id
 		return res, nil
 	}
+}
+
+// draftKind is the kind of the operation a draft comes to, as change.Diff
+// would send it: set_content for an edition created or rewritten, and
+// replace_text for one whose text moved around the same codes. A draft that
+// gives a held edition its own runs again (a new stamp or status) is set
+// again.
+func draftKind(was []model.Run, had bool, now []model.Run) change.Kind {
+	if k, ok := change.EditionKind(was, had, now, true); ok {
+		return k
+	}
+	return change.KindSetContent
 }
 
 // byWriter reports whether an edition's origin is a person's or an agent's.
@@ -489,7 +512,8 @@ func (h *Home) Release(ctx context.Context, ref string, k model.EditionKey, r Re
 		if !ok {
 			continue
 		}
-		c.Blocks = append(c.Blocks, CommitBlock{Block: key, Before: row.Rev, After: model.AbsentRevision, Basis: row.Basis})
+		c.Blocks = append(c.Blocks, CommitBlock{Block: key, Before: row.Rev, After: model.AbsentRevision, Basis: row.Basis,
+			Ops: []change.Kind{change.KindRemoveEdition}})
 		delete(after, key)
 	}
 	if len(c.Blocks) == 0 {

@@ -236,8 +236,11 @@ func TestFlowRun_PrintsWhatKapiApplyWritesToTheRunsBytes(t *testing.T) {
 			printed: true,
 		},
 		{
+			// The JSON writer adds the key the source gained after the
+			// block before it, where the run writes it too.
 			name:    "a block the source gained",
 			prepare: writeSource(`{"greeting": "Hello world", "farewell": "Goodbye now", "thanks": "Thank you", "welcome": "Welcome"}` + "\n"),
+			printed: true,
 		},
 		{
 			name: "a target holding an entry of its own",

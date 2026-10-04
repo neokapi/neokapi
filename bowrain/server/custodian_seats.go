@@ -161,10 +161,47 @@ func (s *Server) recordCustodyLapse(c echo.Context, reach platauth.CoordinateRea
 	s.emitAudit(c, auditEvent{
 		Type:   platev.EventAuthzDenied,
 		Effect: "suspend",
-		Data: map[string]string{
-			"reason":      "custodian_seats_unavailable",
-			"coordinates": reach.String(),
-			"path":        c.Path(),
-		},
+		Data:   custodyLapseData(reach, c.Path()),
 	})
+}
+
+// recordMCPCustodyLapse files the same audit line for a user an agent acts for
+// through the server MCP, whose change sets reach a project outside the request
+// middleware, so there is no echo request to read the actor and workspace from.
+// The actor's name and the request's id, address and user agent come from the
+// request context the authentication middleware filled, as the store's events
+// read them.
+func (s *Server) recordMCPCustodyLapse(ctx context.Context, userID, workspaceID string, reach platauth.CoordinateReach) {
+	if s.EventBus == nil {
+		return
+	}
+	data := custodyLapseData(reach, mcpPath)
+	if name := platev.ActorNameFromContext(ctx); name != "" && platev.ActorFromContext(ctx) == userID {
+		data["actor_name"] = name
+	}
+	meta := platev.RequestMetaFromContext(ctx)
+	s.EventBus.Publish(platev.Event{
+		Type:        platev.EventAuthzDenied,
+		Source:      "server",
+		WorkspaceID: workspaceID,
+		Actor:       userID,
+		Effect:      "suspend",
+		Data:        data,
+		RequestID:   meta.RequestID,
+		IP:          meta.IP,
+		UserAgent:   meta.UserAgent,
+	})
+}
+
+// mcpPath is the route the server MCP answers on, as a custody lapse names it.
+const mcpPath = "/mcp/*"
+
+// custodyLapseData is what a custody lapse's audit line says: why, the
+// coordinates the custody would have reached, and the route that asked.
+func custodyLapseData(reach platauth.CoordinateReach, path string) map[string]string {
+	return map[string]string{
+		"reason":      "custodian_seats_unavailable",
+		"coordinates": reach.String(),
+		"path":        path,
+	}
 }

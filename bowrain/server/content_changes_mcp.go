@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -68,8 +67,7 @@ func (s *Server) userSender(ctx context.Context, userID string, proj *store.Proj
 	req.plan = w.Plan
 	access := s.resolveProjectAccess(ctx, req)
 	if access.custodyLapsed {
-		slog.InfoContext(ctx, "mcp: custodial authority suspended by the workspace's plan",
-			"user", userID, "project", proj.ID, "coordinates", access.coordinates.String())
+		s.recordMCPCustodyLapse(ctx, userID, proj.WorkspaceID, access.coordinates)
 	}
 	sender.allows = func(perm platauth.Permission, locale string) bool {
 		if !access.permissions.Has(perm) {

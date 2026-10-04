@@ -330,10 +330,10 @@ func TestFileHome_ADocumentThatMovedOnceIsAppliedAgain(t *testing.T) {
 
 // TestFileHome_AnExistingEditionFileIsNeverWrittenAfresh pins that an edition
 // is written into a file that exists through that file's own skeleton, and
-// that an edit needing a block the file does not hold is refused: writing it
-// would mean rewriting the file from the document's skeleton, and whatever
-// only that file holds (an editor's comment, a section of its own) would be
-// gone.
+// that an edit needing a block the file does not hold is refused where the
+// format's writer adds no block, as Markdown's does: writing it would mean
+// rewriting the file from the document's skeleton, and whatever only that
+// file holds (an editor's comment, a section of its own) would be gone.
 func TestFileHome_AnExistingEditionFileIsNeverWrittenAfresh(t *testing.T) {
 	german := "<!-- Redaktion: bitte nicht entfernen -->\n\n# Installieren\n\nA auf Deutsch.\n\nB auf Deutsch.\n\n## Nur Deutsch\n\nX auf Deutsch.\n"
 	f := newTargetFixture(t, map[string]string{
@@ -367,8 +367,23 @@ func TestFileHome_AnExistingEditionFileIsNeverWrittenAfresh(t *testing.T) {
 	assert.Empty(t, res.Ops[0].After, "a refused operation reports no revision it would have made")
 	assert.Equal(t, german, f.read(t, "de/guide.md"), "nothing is written")
 
-	at = paired.Ref
-	at.Edition = de
+	// Beside an edit the file can take, the refusal is the creation's alone:
+	// the edit is not applied, blocked by it.
+	pairedAt := paired.Ref
+	pairedAt.Edition = de
+	res, err = f.svc.Apply(ctx, change.Set{Ops: []change.Op{
+		setOp(pairedAt, paired.Editions["de"].Rev, "A, neu auf Deutsch."),
+		setOp(at, model.AbsentRevision, "C auf Deutsch."),
+	}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
+	assert.Equal(t, change.OpRefused, res.Ops[1].Status)
+	assert.Equal(t, change.OpNotApplied, res.Ops[0].Status, "%+v", res.Ops[0])
+	require.NotNil(t, res.Ops[0].BlockedBy)
+	assert.Equal(t, 1, *res.Ops[0].BlockedBy)
+	assert.Equal(t, german, f.read(t, "de/guide.md"), "nothing is written")
+
+	at = pairedAt
 	res, err = f.svc.Apply(ctx, change.Set{Ops: []change.Op{setOp(at, paired.Editions["de"].Rev, "A, neu auf Deutsch.")}}, person)
 	require.NoError(t, err)
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
@@ -404,13 +419,13 @@ func TestFileHome_MaterializeWritesAnEditionFileFromTheDocument(t *testing.T) {
 		return change.Op{}
 	}
 
-	t.Run("an edition file is edited in place without it", func(t *testing.T) {
+	t.Run("without it the file gains the block and keeps the rest", func(t *testing.T) {
 		f := newTargetFixture(t, files)
 		res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{newOp(t, f)}}, person)
 		require.NoError(t, err)
-		require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
-		assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
-		assert.Equal(t, files["de/guide.json"], f.read(t, "de/guide.json"))
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+		assert.Equal(t, `{"body":"Lies das zuerst","new":"Frisch","title":"Willkommen","extra":"Nur Deutsch"}`+"\n", f.read(t, "de/guide.json"),
+			"the new key goes after the block before it in the document, and what only the file holds stays")
 	})
 
 	t.Run("with it the file follows the document", func(t *testing.T) {

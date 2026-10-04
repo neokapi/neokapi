@@ -210,6 +210,11 @@ func TestWorkspaceHome_RebaseCarriesOnlyTheBlocksStillListed(t *testing.T) {
 	assert.Equal(t, 1, n)
 	assert.Equal(t, map[string]string{"greeting": "Grüß Gott", "thanks": "Herzlichen Dank"}, german(t, a),
 		"the block nobody else wrote is carried over, and the settled one keeps the person's wording")
+	hist, err := a.m.st.History.Edition(ctx, "a.json", "greeting", "de", 1)
+	require.NoError(t, err)
+	require.Len(t, hist, 1)
+	assert.Equal(t, "rebase", hist[0].Origin)
+	assert.Equal(t, []string{"set_content"}, hist[0].Ops, "the write carried over keeps the kinds of the operations that made it")
 	conflicts, err = a.m.home.Conflicts(ctx)
 	require.NoError(t, err)
 	assert.Empty(t, conflicts)

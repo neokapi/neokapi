@@ -3,6 +3,7 @@ package filehome
 import (
 	"context"
 	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
@@ -21,7 +22,11 @@ import (
 // by translation-invariant address (a heading written as its own identity, so
 // a section reads the same in both languages), and only then by position, and
 // only when both files hold the same number of blocks, which is what a file
-// materialized from the document's own skeleton holds.
+// materialized from the document's own skeleton holds. A file in a language of
+// its own whose keys all sit under a root named for its language, where the
+// document's sit under one named for the document's (a Rails catalog: en: in
+// the document, de: in the German file), pairs by key below the root, so a
+// translation one of them lacks leaves the rest paired.
 
 // joinedEdition is one edition joined from its own file.
 type joinedEdition struct {
@@ -102,7 +107,7 @@ func (s *session) joinIndexed(ctx context.Context, keys []model.EditionKey, ix *
 			je.kept = &kept
 			je.blocks = keptBlocks(kept)
 			je.exists = len(je.blocks) > 0
-			je.pair(ix)
+			je.pair(ix, s.doc.SourceLocale)
 			out = append(out, je)
 			continue
 		}
@@ -118,15 +123,16 @@ func (s *session) joinIndexed(ctx context.Context, keys []model.EditionKey, ix *
 			if err := p.run(ctx); err != nil {
 				return nil, err
 			}
-			je.pair(ix)
+			je.pair(ix, s.doc.SourceLocale)
 		}
 		out = append(out, je)
 	}
 	return out, nil
 }
 
-// pair matches the document's blocks to the edition file's.
-func (je *joinedEdition) pair(ix *blockIndex) {
+// pair matches the document's blocks, read in language source, to the
+// edition file's.
+func (je *joinedEdition) pair(ix *blockIndex, source model.LocaleID) {
 	byKey := make(map[string]int, len(je.blocks))
 	byAddr := make(map[string]int, len(je.blocks))
 	for i, b := range je.blocks {
@@ -143,8 +149,22 @@ func (je *joinedEdition) pair(ix *blockIndex) {
 	// A kept edition is keyed by the document's own block keys, so a block
 	// pairs by its key or not at all.
 	positional := je.kept == nil && len(ix.keys) == len(je.blocks)
+	docRoot, fileRoot := "", ""
+	if je.kept == nil && !je.file.Bilingual {
+		fileKeys := make([]string, len(je.blocks))
+		for i, b := range je.blocks {
+			fileKeys[i] = change.BlockKey(b)
+		}
+		docRoot, fileRoot = keyRoot(ix.keys), keyRoot(fileKeys)
+		if docRoot == fileRoot || !namesLocale(docRoot, source) || !namesLocale(fileRoot, je.key.Locale) {
+			docRoot, fileRoot = "", ""
+		}
+	}
 	for si, k := range ix.keys {
 		ti, ok := byKey[k]
+		if !ok && docRoot != "" && fileRoot != "" {
+			ti, ok = byKey[fileRoot+strings.TrimPrefix(k, docRoot)]
+		}
 		if !ok && je.kept == nil && ix.addrs[si] != "" {
 			ti, ok = byAddr[ix.addrs[si]]
 		}
@@ -157,6 +177,32 @@ func (je *joinedEdition) pair(ix *blockIndex) {
 		taken[ti] = true
 		je.match[si] = ti
 	}
+}
+
+// keyRoot is the first segment every key of keys starts with, ahead of a
+// dot, or "" when they do not all share one.
+func keyRoot(keys []string) string {
+	root := ""
+	for i, k := range keys {
+		r, _, ok := strings.Cut(k, ".")
+		if !ok || r == "" || (i > 0 && r != root) {
+			return ""
+		}
+		root = r
+	}
+	return root
+}
+
+// namesLocale reports whether root, the first segment of a key, names locale
+// l: its tag or its language, in any case, with - or _ between the parts.
+func namesLocale(root string, l model.LocaleID) bool {
+	if root == "" || l.IsEmpty() {
+		return false
+	}
+	norm := func(s string) string { return strings.ToLower(strings.ReplaceAll(s, "_", "-")) }
+	r, tag := norm(root), norm(string(l))
+	lang, _, _ := strings.Cut(tag, "-")
+	return r == tag || r == lang
 }
 
 // held is what the edition file's block at index ti holds of the edition:

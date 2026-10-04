@@ -211,10 +211,11 @@ func (doc *flowDoc) printOps() []change.Op {
 //
 // The two can differ, because they write a file two ways. kapi apply edits the
 // blocks an operation names in the file as it stands; a run writes a
-// target-language file whole from its source. A block the source gained has
-// no place in the file kapi apply edits, and whatever the file holds that the
-// source does not (its own order, an entry of its own) stays there under kapi
-// apply and is gone after the run. So each document's operations are applied
+// target-language file whole from its source. A block the source gained goes,
+// under kapi apply, beside a neighbour in the file where the format's writer
+// adds blocks, and has no place in it where the writer adds none; whatever the
+// file holds that the source does not (its own order, an entry of its own)
+// stays there under kapi apply and is gone after the run. So each document's operations are applied
 // to a private copy of the file first, through the change service kapi apply
 // reaches, and printed only when the copy then holds the run's bytes.
 func (doc *flowDoc) printDocument(ctx context.Context, path, want string) error {

@@ -105,6 +105,8 @@ func TestConverge_KeepsParkedDraftsInTheWorkspaceHome(t *testing.T) {
 	assert.Equal(t, string(change.ActorTool), hist[0].Actor)
 	assert.NotEmpty(t, hist[0].ContentHash, "with the identity history reconciles by")
 	assert.NotEmpty(t, hist[0].ContextHash)
+	assert.Equal(t, []string{"set_content"}, hist[0].Ops, "with the kind of operation the draft comes to")
+	assert.Equal(t, "translate", hist[0].Tool, "and the tool that drafted it")
 }
 
 // TestConverge_DeletingTheCacheLosesNoDraftAndCallsNoProvider is WP8's
@@ -265,6 +267,18 @@ func TestConverge_AFileAPassWritesReleasesTheKeptEdition(t *testing.T) {
 		require.FileExists(t, filepath.Join(dir, "site", "locales", loc+".json"))
 		assert.Empty(t, keptDrafts(t, a, dir, loc), "%s: the file holds the edition, so the workspace keeps none of it", loc)
 	}
+
+	// The block history names what each write to the workspace home was:
+	// the draft the flow's tool set, and the release that took it out.
+	db, err := a.ProjectDB(context.Background(), dir)
+	require.NoError(t, err)
+	hist, err := db.History().Edition(context.Background(), a.documentIndexOrEmpty(context.Background(), dir).Key(parkedSource), "title", "nl", 0)
+	require.NoError(t, err)
+	require.Len(t, hist, 2)
+	assert.Equal(t, []string{"remove_edition"}, hist[0].Ops, "the release removes the edition from the workspace home")
+	assert.Equal(t, "flow:up", hist[0].Origin)
+	assert.Equal(t, []string{"set_content"}, hist[1].Ops)
+	assert.Equal(t, "translate", hist[1].Tool)
 }
 
 // TestStatus_ListsAKeptDraftConflict: an edit to a kept draft that another

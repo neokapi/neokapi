@@ -180,6 +180,19 @@ type Restructurer interface {
 	Refuse(e StructuralEdit, err *Error)
 }
 
+// EditionRefuser is the part of the service's editor that refuses an edition
+// change a home finds, after the pass, that it cannot write in the edition's
+// file, such as a translation whose block the format's writer cannot take out
+// of that file. RefuseEdition refuses with err the operations of the pass
+// that changed edition k of the block the document keys key, and reports
+// whether there was one; the home's Stage or Settle then returns ErrRefused,
+// and every other operation of the change set is not applied, blocked by the
+// refusal, as a refusal in the pass leaves it. A home whose editor is no
+// EditionRefuser, or finds no such operation, refuses the document instead.
+type EditionRefuser interface {
+	RefuseEdition(key string, k model.EditionKey, err *Error) bool
+}
+
 // StructuralEdit is one block a change set adds to a document or removes from
 // it, as a Restructurer hands it to the home.
 type StructuralEdit struct {

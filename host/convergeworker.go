@@ -240,10 +240,13 @@ func (t *convergeTap) reusedDrafts() int {
 	return total
 }
 
+// convergeTapName is the name of the tool that counts a pass's progress.
+const convergeTapName = "converge-progress"
+
 // newConvergeTap builds the tap for one locale's pass run.
 func newConvergeTap(locale string) *convergeTap {
 	t := &convergeTap{locale: model.LocaleID(locale)}
-	t.ToolName = "converge-progress"
+	t.ToolName = convergeTapName
 	t.ToolDescription = "counts converged units for live run progress (internal)"
 	t.Annotate = func(v tool.BlockView) error {
 		if !v.Translatable() {

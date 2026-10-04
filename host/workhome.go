@@ -445,6 +445,7 @@ func (doc *flowDoc) parked(ctx context.Context, store blockstore.Store) workhome
 			Key:         lb.unit,
 			ContentHash: doc.sourceOf(key).contentHash,
 			ContextHash: lb.contextHash,
+			Tool:        doc.toolOf(ed.origin),
 		}
 		pr.Stamp = draftStampOf(sess, doc, lb, ed)
 		p.Blocks = append(p.Blocks, pr)

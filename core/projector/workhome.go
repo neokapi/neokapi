@@ -59,7 +59,10 @@ func (p *Projector) CommitWorkspace(ctx context.Context, c workhome.Commit) (str
 	}
 	for _, b := range c.Blocks {
 		t := EditTransition{Block: b.Block, Key: b.Key, Edition: c.Edition, Before: b.Before, After: b.After, Basis: b.Basis,
-			ContentHash: b.ContentHash, ContextHash: b.ContextHash, Stamp: b.Stamp}
+			ContentHash: b.ContentHash, ContextHash: b.ContextHash, Stamp: b.Stamp, Tool: b.Tool}
+		for _, k := range b.Ops {
+			t.Ops = append(t.Ops, string(k))
+		}
 		if byWriter {
 			t.BeforeRuns = b.BeforeRuns
 		}

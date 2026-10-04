@@ -155,7 +155,8 @@ note describes each rule.
 - **`Describe`** says what a format supports. `DescribeFormat` hands
   `FormatOps` the operations the format's round trip carries (`set_content` in
   either form, `replace_text`, and `remove_edition` where the format holds its
-  editions in one file) and what its writer declares
+  editions in one file, or keeps each in a file of its own and its writer
+  removes a block there) and what its writer declares
   ([E-02](e-02-format-system.md#edits-a-writer-can-write)), `insert_block` and
   `delete_block` among it where the writer can add and remove blocks. For a
   document the declaration is the one its home reports for the document's
@@ -255,14 +256,16 @@ between the other's stage and commit, a refusal in one document leaves every
 document as it was, whether it is found at the stage or at the commit, a
 preview writes nothing, a missing block is not found, the same content said
 again is unchanged, a file keeps its mode, a removed translation reads back
-absent while a replay of its removal is stale and writes nothing, and a change
-set with no operation applies and writes nothing. Each home runs the removal on
-a translation it holds: the stream's own rows, a PO catalog for the file home,
-for the project homes the catalog a PO source's target template names
-(`po/fr.po` beside `po/en.po`), and for the workspace home the French of a PO
-catalog that it keeps while that file does not exist. Where the translation
-lives apart from its source, the suite also checks that the removal is written
-there and the source catalog keeps its bytes.
+absent while a replay of its removal is stale and writes nothing and a
+`set_content` creates it again, and a change set with no operation applies and
+writes nothing. Each home runs the removal on
+each kind of translation it holds: the stream's own rows; for the file home a
+PO catalog and a JSON file's translation in a file of its own; for the project
+homes the catalog a PO source's target template names (`po/fr.po` beside
+`po/en.po`) and the JSON file a JSON source's names; and for the workspace home
+the French of a PO catalog and of a JSON file, which it keeps while their files
+do not exist. Where the translation lives apart from its source, the suite also
+checks that the removal is written there and the source keeps its bytes.
 
 **The file home** (`core/change/filehome`) keeps each document as a file. A
 stage reads the document through its format's reader with the writer's
@@ -276,9 +279,12 @@ renames that result; an operation whose `if_match` the new content breaks is
 refused as `stale`, and a file that moves during that second pass as well is
 `doc_changed`. Two processes that edit different blocks of one file both land.
 An edition kept in a file of its own is written through that file's skeleton,
-and an edit that needs a block the file does not hold is refused, so the file
-is never rewritten from the document; a file that does not exist yet is
-written from the document's skeleton. A change set that adds or removes
+so the file is never rewritten from the document; a file that does not exist
+yet is written from the document's skeleton. A translation created for a block
+the file does not hold arrives, in a file in its own language, with a block of
+its own that the format's writer adds beside the block it sits by in the
+document, under the key the file gives its keys; in a bilingual file, or where
+the writer adds no block, the edit is refused. A change set that adds or removes
 blocks has the format's writer write those edits into the document's file and
 into the file of each edition the blocks hold or name, keeping them in memory
 until the commit, and the stage's pass reads the result. A stage that removes a
@@ -290,7 +296,19 @@ so a removal there would put the source in the translation's place. Their
 description lists `remove_edition`, which the stage then refuses. The read-back
 belongs to a change set's stage: a flow that writes a translation's file
 through the writer, such as `kapi exec remove-target` writing `fr/a.xlf`, gets
-what the writer writes, the source in the removed translation's place. Where the reader and
+what the writer writes, the source in the removed translation's place. A
+translation kept in a file in its own language is a block of that file, so a
+removal takes the block out of the file through the format's writer
+(`format.StructureEditor`), as `delete_block` takes a block out of an
+edition's file: the JSON, YAML and ARB writers remove a key with the comment or
+metadata beside it. A format whose writer removes no block, such as Markdown
+or HTML, does not list `remove_edition`, and a removal there is refused as
+`unsupported`. A home never deletes a file: a translation's file whose last
+block is removed keeps what the format writes for no block (`{}` for JSON). A
+removal or a creation the writer cannot make in a translation's file, such as
+a YAML sequence item's, refuses that operation alone, and the other
+operations of the change set are `not_applied`, blocked by it.
+Where the reader and
 the writer both stream and no block is added or removed, the document is never
 held whole. The home reports what the document's writer declares: an
 in-process writer's declaration, with the writer spelling a changed attribute
@@ -322,7 +340,9 @@ before `Commit`, the result names the workspace home for that edition
 (`StagedFile.Home`), and the service's recorder records nothing more for it
 (`StagedFile.Recorded`). The conformance suite runs on the workspace home with
 the edition files of a parked locale as its documents, and removes the French
-it keeps of a PO catalog. The recipe picks the
+it keeps of a PO catalog and of a JSON file. A removal drops the kept block, for
+the formats whose description lists `remove_edition`, as it would leave the
+file the translation will be delivered to. The recipe picks the
 home of a translation whose file does not exist: under
 `materialize: on-converge` it is the workspace home, whether or not the
 workspace holds anything of it yet, and under `manual` it is the file, unless
@@ -369,7 +389,8 @@ the stamp the producing tool left as its producer, the kind of operation the
 change comes to (`change.EditionKind`, as `change.Diff` would send it:
 `set_content` for an edition created or rewritten, `replace_text` for text
 moved around the same codes, `remove_edition`), and the tool that made it (the
-tool named in its stamp, or the run's only tool). The read before the run is an
+tool named in its stamp, or the run's only tool, leaving out the counter a
+convergence pass adds). The read before the run is an
 ordinary read, so it records an edit made outside kapi since the last recorded
 change as observed before the run's own record; the read after the commit is
 left unobserved, because the run records that change itself. A translation's basis is the
@@ -405,10 +426,10 @@ the `origin` the producing tool left. Before a document's operations join the ch
 set, they are applied to a private copy of the file through the service `kapi
 apply` reaches, and they are printed only when the copy then holds the bytes
 the run would have written. A run writes a target-language file whole from its
-source, while the service edits the blocks a file holds as it stands, so the
-two differ when the source gained a block the file does not hold or the file
-holds an entry or an order of its own; such a file is named on standard error
-and left out. So is a file the run would write where the service does not keep
+source, while the service edits the file as it stands, so the two differ when
+the file holds an entry or an order of its own, or when the source gained a
+block the file's writer adds nowhere, or beside another neighbour than the run
+gives it; such a file is named on standard error and left out. So is a file the run would write where the service does not keep
 the edition (an output path given on the command line in place of the recipe's
 target), a conversion, an export and an archive. `kapi apply` of the change set
 writes the bytes the run would have written (under `materialize: on-converge`,

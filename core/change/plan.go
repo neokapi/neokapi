@@ -328,6 +328,25 @@ func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
 	return changed, nil
 }
 
+var _ EditionRefuser = (*docPlan)(nil)
+
+// RefuseEdition refuses the operations the pass applied to edition k of the
+// block keyed key, as their results name it.
+func (p *docPlan) RefuseEdition(key string, k model.EditionKey, err *Error) bool {
+	k = k.Canonical()
+	found := false
+	for _, i := range p.ops {
+		r := p.results[i]
+		if r.Status != OpApplied || r.At == nil || r.At.Block != key || r.At.Edition.Canonical() != k || p.set.Ops[i].Kind == KindDecide {
+			continue
+		}
+		p.results[i] = OpResult{I: i, Op: r.Op, At: r.At}
+		p.refuse(i, err)
+		found = true
+	}
+	return found
+}
+
 // refusedAny reports whether an operation of ops was refused.
 func (p *docPlan) refusedAny(ops []int) bool {
 	return slices.ContainsFunc(ops, func(i int) bool { return p.results[i].Status == OpRefused })

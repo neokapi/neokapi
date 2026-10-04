@@ -1769,27 +1769,129 @@ beside all of them in package-sized PRs.
 
 - **Moves:** `kapi up` basis records, the desktop's human-edit record, the review queue, separation of
   duties, `kapi status`.
-- **Contents:** `content.edit` and `document.adopt` kinds; the `block_history` projection with guard,
-  checkpoint and rebuild coverage; basis records and the desktop record fold in; `unit.record`
-  becomes `decision.record` with decisions only (data reset, per the standing decision); local block
-  reconciliation on read with priors from history, cached per document revision; observed transitions;
-  the recorder for flows (hash-only) and for people and agents (with runs).
-- **Acceptance:** rebuild reproduces `block_history` exactly; a full dogfood loop pass records within
-  the measured budget (52.5 MB hash-only per 75,000 transitions, ws-store §9); separation of duties
-  reads "who last wrote this" for every writer; local reconciliation keeps a key across a sibling
-  insertion in Markdown and DOCX fixtures; the read-time cost of reconciliation on the dogfood corpus
-  is measured, and if it exceeds 10% of read time the package ships records with identity evidence
-  and defers reconciliation on read.
+- **Built:** three kinds in the workspace log. `content.edit` is one operation per document a change
+  set or a flow changed. `document.adopt` records each adoption of a document key (path, content
+  digest, key, chained on the adoption it follows). `decision.record` replaces `unit.record` and holds
+  decisions only: `WorkStore` refuses an entry that decides nothing (`state.ErrDecidesNothing`), and
+  old logs were reset rather than migrated. The projector writes each transition into `block_history`
+  (`core/history`, in the context store), with the revisions around it, the basis, the block's key,
+  content hash and context hash, the actor (person, agent, tool, or `external`), the origin, the
+  producing tool's stamp, the kinds of the operations that made it and the tool. `block_history_op`
+  keeps each operation's content address, so two logs that recorded one edit under different ids hold
+  the rows a rebuild writes. Both tables are in the projection guard, the reset, the checkpoints (a
+  large table in parts) and the rebuild.
+- **Writers:** every change set the service applies records through the host's recorder. A person's
+  or an agent's edit keeps the runs around each change and the change set as sent, in blobs; a flow's
+  edit keeps revisions and hashes, with the producer's stamp; a write to the workspace home keeps the
+  result. A project's redaction policy applies to what is kept. The flow follower records each
+  document a flow wrote (`tool:<flow>`, `flow:<flow>`), with the kind each change comes to and the
+  tool. The loop's basis is that record: the decision-less basis records are gone, and coverage, the
+  staleness gate and the review context read a translation's writer and basis from the change that
+  left its current revision (`history.Store.Wrote`). A read through the service that finds an edition
+  at a revision no recorded change left records one hash-only `content.edit` with actor `external` and
+  origin `observed`; a branch switch records nothing. `kapi status` and `kapi up` say when a checkout
+  that shares its context holds translations and no history of them.
+- **Separation of duties:** locally `history.Store.Wrote` answers who wrote what an edition holds, for
+  every writer. A push carries each translation's last write beside its decisions
+  (`venue.EditionWrite`), and the server keeps who wrote a translation by hand in `edition_writers`,
+  which its push gate reads.
+- **Reconciliation on read:** not built. On `web/docs` (408 files, 13,703 blocks) a read at a new
+  revision spent 38% of its time on the priors (25%) and `reconcile.Blocks` (13%), over the 10% bar, so
+  records carry identity evidence instead (`docs/internals/evals.md`, "Reconciling a read against the
+  block history"). `TestRecordedIdentityReattachesHistoryAfterASiblingInsertion` re-attaches recorded
+  keys after a sibling insertion in Markdown and DOCX.
+- **Acceptance:** `TestRebuildReproducesTheBlockHistory` and the checkpoint variant rebuild every row,
+  with rows the log does not explain planted first. Who wrote a translation is answered for every
+  writer, locally and on the server, whose push gate refuses an author's approval of their own
+  wording (tested against PostgreSQL). The dogfood-scale pass below records well inside the design's
+  budget of 52.5 MB per 75,000 hash-only transitions.
+- **Measured** (`KAPI_MEASURE_OPLOG=1 go test -tags fts5 ./core/projector -run Measure -v`, under a
+  load average of about 18): a pass of 400 documents with 188 hash-only transitions each carries
+  22.2 MB and records in 2.0 s a document at a time (0.027 ms a transition) or 1.8 s in one call; after
+  two passes `workspace.db` holds 17.7 MB and the context store 85.8 MB; rebuilding the 800 edits
+  takes 2.2 s, a checkpoint 4.3 s (6 parts) and a rebuild from it 4.1 s. Finding the operation an
+  edit extends (`history.Store.Reached`) costs 0.93 to 0.98 ms for 188 revisions whether the
+  document's history holds 188 rows or 18,800. The server applies the 2,000 edition writes of a push
+  in 0.10 s and the same writes again in 0.013 s (PostgreSQL), and a checkout sends a write again only
+  when it changed. The bases a read shows cost 0.03 ms for one
+  block and 2.5 ms for a page of 100 in a document of 2,000 blocks in ten languages with five changes
+  each. A flow's second read of a document it wrote cost 0.24 s of CPU time across the docs corpus's
+  rewrite pass, against 0.63 s for its first read and about 50 s for the run, CPU time throughout.
 
 ### WP8. The workspace home and parked drafts
 
 - **Moves:** `on-converge` parked locales, `kapi merge` materialize, KPZ opened for editing.
-- **Contents:** `Op.Subject` and the conditional record; `edition_head` and `document_head`; the
-  divergent-head rule with rebase; the guard against shadowing a file home; parked drafts move from
-  `targets/<locale>` overlays; `host/storedtargets.go` fallback removed.
-- **Acceptance:** a property test merges concurrent edits in both orders and reaches the same head;
-  the conformance suite passes on the workspace home; `kapi up` e2e and the dogfood loop green;
-  deleting `.kapi/work/` and re-running loses no draft and calls no provider.
+- **Built:** `workspace.Op.Subject` (indexed, carried in every sync segment) and the conditional
+  record `Backend.RecordIf`, which appends only while each named subject's last local position is
+  the one the writer read (`ErrHeadMoved` otherwise). `core/workhome` folds the writes into two
+  projections: `edition_head`, one row per block of each kept edition (revision, runs inline up to
+  16 KiB and in a blob above, status, origin, basis, stamp), and `edition_subject_head`, one row per
+  edition (the operation the head is at, the latest folded, the divergent writes). The design's
+  whole-document `document_head` is not built. The fold reads each subject in id order: a write
+  staged on the head advances it, any other is divergent, and a write that arrives out of order makes
+  the projector fold the subject again. After a pull, `Projector.RebaseWorkspace` carries a divergent
+  write over when every block it changed still holds the revision it started from; the rest are
+  conflicts, which `kapi status` lists. A person's or an agent's write settles the blocks it writes,
+  and a delivery's release of the whole edition settles every conflict on it.
+- **Routing:** the file home reaches the workspace home through a keeper (`filehome.Keeper`). Under
+  `on-converge` a translation whose file does not exist lives in the workspace home; under `manual`
+  it is written to its file unless the workspace still keeps a draft of it. Once the file exists it is
+  the home: a gated run keeps no draft of it, and the end of every run releases what the file holds
+  and every tool draft, keeping a person's or an agent's wording, which `kapi status` lists and
+  `kapi merge` writes. A change set's commit to a kept edition is the conditional record of its
+  `content.edit`, redacted under the project's policy; a policy that detects entities keeps no
+  edition.
+- **Parked drafts:** a gated run writes a parked locale's drafts with `workhome.Home.Produce`, one
+  write per document, each draft guarded by the revision the run read, with its basis and the
+  producer's stamp. Before a pass, `restoreKeptOverlays` writes the block store's overlays back from
+  those stamps. The stored-target fallback is deleted. `kapi merge` and a delivering `kapi up` write
+  each file from the kept edition with each draft's basis, then release what they read, only while the
+  edition's head is still the one they read; the delivered wording reaches the content memory. Every
+  write names the kinds of its operations and its tool in the block history, as a write to a file
+  does, and a removal drops a kept draft for the formats whose description lists `remove_edition`.
+- **Acceptance:** `TestWorkspaceHome_ConcurrentWritesMergeInEitherOrder` and
+  `TestWorkspaceHome_RandomWritesConvergeInAnyMergeOrder` (three machines, nine writes, six seeds)
+  reach one head in every merge order. The conformance suite passes on the workspace home in
+  `core/workhome` and in a project, removing the French it keeps of a PO catalog and of a JSON file.
+  `make test-e2e-kapi` passes. The dogfood loop is pending: no CI run has used this code yet.
+  `TestConverge_DeletingTheCacheLosesNoDraftAndCallsNoProvider` deletes `.kapi/work/`, and the next
+  pass serves every draft without a provider call and keeps a person's edit.
+- **Measured** (`KAPI_MEASURE_OPLOG=1 go test -tags fts5 ./core/projector -run TestMeasureKeptDrafts
+  -v`, three runs under a load average of 6 to 9): parking 400 documents of 188 drafts each (75,200)
+  takes 15 to 26 s (0.20 to 0.35 ms a draft, against 0.027 ms for a hash-only transition) and
+  carries 62.5 MB, about three times the bytes of a hash-only pass. The record keeps each draft's
+  runs as a blob of its own, written by one insert apiece, and a CPU profile of the run is mostly
+  waiting. Drafting every block again takes 18 to 23 s, and a steady pass, every draft held already,
+  records nothing in 1.3 s. After the two passes that write, `workspace.db` holds 82.2 MB and the
+  context store 126 MB. Reading every kept edition takes 0.5 s (1.3 ms a document), a rebuild of the
+  800 writes 8.2 to 8.6 s, and releasing every edition, as a delivery does, 3.5 to 3.6 s.
+
+**After 1.3.0, from WP7 and WP8:**
+
+- Reconciliation on read, which the identity evidence on every row prepares for.
+- Writing the blobs of one record in one transaction, which a pass that parks a whole corpus would
+  notice first.
+- History rows of a divergent kept write are written before the fold decides it diverged; a refold
+  that changes the decision would rewrite them.
+- The observer's window between its end-of-read check and its record can add one redundant observed
+  row; a read outside the service (extraction, coverage, the plan) observes nothing, and a format
+  whose round trip is not byte-stable would show as an observed edit.
+- Local records name no person, so a venue names the first pusher of a revision as its author, and
+  its own review surfaces learn a checkout's author only from the push that wrote the translation. A
+  removed translation sends no write; a basis record a push writes is stamped at the push and can win
+  over an older local decision pushed after it; local decisions do not join a venue's minted unit
+  keys; the staleness gate takes a translation's latest row, which after a branch switch can be
+  another branch's.
+- Two checkouts that mint different keys for one document before their logs meet keep both.
+- KPZ opened for editing on the workspace home, with the whole-document `document_head` (WP8b), and
+  kept-draft conflicts in Kapi Desktop.
+- Under a policy that detects entities, parked drafts stay in the producer's cache; a kept edition
+  read on another machine carries placeholders and another revision, so a producer there never
+  replaces it.
+- A block deleted from the source leaves its kept row orphaned, and `kapi up --plan` after
+  `.kapi/work/` is deleted prices kept drafts as provider work until a pass restores their overlays.
+- A kept draft or a translation's file of a format whose writer removes no block (Markdown, HTML) has
+  no `remove_edition`; structural operations for those formats would bring it.
 
 ### WP9. Kapi Desktop
 

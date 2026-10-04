@@ -72,7 +72,9 @@ point is a contributor with a narrow beat, and contributors are never metered.
 - When a plan carries no custodian seats, which is what a lapsed trial leaves
   behind, existing custodial authority stops resolving. Nothing is deleted: the
   voice, the terms, the rules and the coordinates stay exactly as they are, and
-  the authority returns the moment a plan does.
+  the authority returns the moment a plan does. Each request that meets such a
+  custody, from the web app or from an agent through the server's MCP endpoint,
+  adds an `authz.denied` entry with the effect `suspend` to the audit log.
 - The workspace **owner keeps an implicit, unbillable custodianship at the root
   point**, so approval is always possible even on Free.
 - A point nobody holds is reported on its profile card in the

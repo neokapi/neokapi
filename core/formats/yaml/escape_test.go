@@ -168,3 +168,37 @@ func TestUntouchedScalarKeepsItsStyle(t *testing.T) {
 		})
 	}
 }
+
+// TestModifiedPlainValueKeepsReadingAsText: a scalar was plain because the text
+// it held read as text, which says nothing about the translation written in its
+// place. A translation that would read as a number, a boolean or null written
+// plain (10, true, the Spanish no, which a YAML 1.1 reader takes as false) is
+// written double-quoted, so it reads back as the text it is; any other keeps
+// the plain style.
+func TestModifiedPlainValueKeepsReadingAsText(t *testing.T) {
+	cases := []struct {
+		target string
+		quoted bool
+	}{
+		{target: "10", quoted: true},
+		{target: "1.5", quoted: true},
+		{target: "true", quoted: true},
+		{target: "No", quoted: true},
+		{target: "on", quoted: true},
+		{target: "null", quoted: true},
+		{target: "10 Artikel"},
+		{target: "Nordwind"},
+		{target: "Hallo"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.target, func(t *testing.T) {
+			out := modifyAndWrite(t, "msg: hello\n", tc.target)
+			want := "msg: " + tc.target + "\n"
+			if tc.quoted {
+				want = "msg: \"" + tc.target + "\"\n"
+			}
+			require.Equal(t, want, out)
+			require.Equal(t, []string{tc.target}, modifiedValues(t, out), "the translation reads back as its text")
+		})
+	}
+}
