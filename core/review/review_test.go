@@ -88,8 +88,8 @@ func TestPriorVersionOfReadsTheChain(t *testing.T) {
 		Name:         "settings.save",
 		Unit:         "settings.save",
 		Translatable: true,
-		Source:       []model.Run{model.TextR("Save this file")},
 	}
+	block.SetSourceText("Save this file")
 
 	tests := []struct {
 		name         string
