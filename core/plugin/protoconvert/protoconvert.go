@@ -7,6 +7,8 @@ package protoconvert
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/proto/content/v1"
@@ -628,11 +630,12 @@ func segSpanID(seg *model.Overlay, i int) string {
 	return fmt.Sprintf("s%d", i+1)
 }
 
-// sourceSegProtos emits one SegmentMessage per source segment span, carrying
-// the span id so the reverse conversion can rebuild the segmentation overlay.
-// An unsegmented block emits a single "s1" segment.
+// sourceSegProtos emits one SegmentMessage per segment span of the block's
+// first native edition, the one the wire carries as the source, with the span
+// id so the reverse conversion can rebuild the segmentation overlay. An
+// unsegmented block emits a single "s1" segment.
 func sourceSegProtos(b *model.Block) []*pb.SegmentMessage {
-	if src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{})); len(src.Runs) == 0 {
+	if src, _ := b.Edition(b.NativeEditions()[0]); len(src.Runs) == 0 {
 		return nil
 	}
 	seg := b.SourceSegmentation()
@@ -644,11 +647,9 @@ func sourceSegProtos(b *model.Block) []*pb.SegmentMessage {
 	return out
 }
 
-// targetSegProtos emits one SegmentMessage per target segment span for a
-// locale (one "s1" segment when the target is unsegmented).
-func targetSegProtos(b *model.Block, loc model.LocaleID) []*pb.SegmentMessage {
-	runs := b.TargetRuns(loc)
-	key := model.Variant(loc)
+// targetSegProtos emits one SegmentMessage per segment span of the target
+// filed under key (one "s1" segment when the target is unsegmented).
+func targetSegProtos(b *model.Block, key model.EditionKey, runs []model.Run) []*pb.SegmentMessage {
 	seg := b.SegmentationFor(key)
 	if seg == nil || len(seg.Spans) == 0 {
 		return []*pb.SegmentMessage{runsToSegmentProto("s1", runs)}
@@ -677,13 +678,55 @@ func segProtosToRunsAndSpans(msgs []*pb.SegmentMessage) ([]model.Run, []model.Sp
 	return runs, spans
 }
 
-// applyTargetSegProtos sets a locale's target runs from SegmentMessages and a
-// target segmentation overlay when the peer split it into multiple segments.
-func applyTargetSegProtos(b *model.Block, loc model.LocaleID, msgs []*pb.SegmentMessage) {
+// targetEntries emits one TargetEntry per edition other than the block's
+// first native one, in the order of their keys' text form, and one for a
+// translation filed under no language. The entry's locale is the key's text
+// form: the bare language for an edition with no tone and no channel, as every
+// plugin reads it, "fr;tone=formal" or "en;channel=short" for an edition of a
+// tone or a channel, and the empty locale for a translation under no
+// language.
+func targetEntries(b *model.Block) []*pb.TargetEntry {
+	var out []*pb.TargetEntry
+	first := true
+	for k, e := range b.EachEdition {
+		if first {
+			first = false
+			continue
+		}
+		text, err := k.MarshalText()
+		if err != nil {
+			continue
+		}
+		out = append(out, &pb.TargetEntry{Locale: string(text), Segments: targetSegProtos(b, k, e.Runs)})
+	}
+	slices.SortFunc(out, func(a, c *pb.TargetEntry) int { return strings.Compare(a.Locale, c.Locale) })
+	// The zero key names the first native edition, so the overlays of a
+	// translation under no language cannot be told from that edition's: it
+	// travels as one segment.
+	if e, ok := b.TargetEdition(""); ok {
+		out = append(out, &pb.TargetEntry{Locale: "", Segments: []*pb.SegmentMessage{runsToSegmentProto("s1", e.Runs)}})
+	}
+	return out
+}
+
+// applyTargetSegProtos files a target's runs from SegmentMessages under the
+// edition key its entry's locale spells, with a target segmentation overlay
+// when the peer split it into multiple segments. An edition of a language
+// keeps the status and provenance the block already holds for it.
+func applyTargetSegProtos(b *model.Block, locale string, msgs []*pb.SegmentMessage) {
+	var key model.EditionKey
+	_ = key.UnmarshalText([]byte(locale))
 	runs, spans := segProtosToRunsAndSpans(msgs)
-	b.SetTargetRuns(loc, runs)
-	if len(spans) > 0 {
-		key := model.Variant(loc)
+	if key.Tone == "" && key.Channel == "" {
+		b.SetTargetRuns(key.Locale, runs)
+	} else {
+		// A key with a tone or a channel never reaches the first native
+		// edition, so Edition reads the target alone.
+		e, _ := b.Edition(key)
+		e.Runs = runs
+		b.SetTargetEdition(key, e)
+	}
+	if len(spans) > 0 && !key.IsZero() {
 		b.SetSegmentation(key, spans)
 	}
 }
@@ -712,12 +755,7 @@ func BlockToProto(b *model.Block) *pb.BlockMessage {
 		Overlays:           positionalOverlaysToProto(b),
 	}
 	msg.Source = sourceSegProtos(b)
-	for _, locale := range b.TargetLocales() {
-		msg.Targets = append(msg.Targets, &pb.TargetEntry{
-			Locale:   string(locale),
-			Segments: targetSegProtos(b, locale),
-		})
-	}
+	msg.Targets = targetEntries(b)
 	return msg
 }
 
@@ -726,9 +764,9 @@ func ProtoToBlock(msg *pb.BlockMessage) *model.Block {
 	if msg == nil {
 		return nil
 	}
-	// The source segments are the edition the block was read in; the block
-	// starts with an empty target map and properties map, as NewRunsBlock
-	// makes them.
+	// The source segments are the block's first native edition, the one it was
+	// read in, and every target entry is one of the rest; the block starts
+	// with an empty properties map, as NewRunsBlock makes it.
 	srcRuns, srcSpans := segProtosToRunsAndSpans(msg.Source)
 	b := model.NewRunsBlock(msg.Id, srcRuns)
 	b.Name = msg.Name
@@ -749,7 +787,7 @@ func ProtoToBlock(msg *pb.BlockMessage) *model.Block {
 		b.SetSegmentation(model.EditionKey{}, srcSpans)
 	}
 	for _, te := range msg.Targets {
-		applyTargetSegProtos(b, model.LocaleID(te.Locale), te.Segments)
+		applyTargetSegProtos(b, te.Locale, te.Segments)
 	}
 	for _, om := range msg.Overlays {
 		b.Overlays = append(b.Overlays, ProtoToOverlay(om))
@@ -1042,7 +1080,7 @@ func ContentBlockToPart(cb *pb.ContentBlock) *model.Part {
 
 	// Target content
 	for _, te := range cb.Targets {
-		applyTargetSegProtos(block, model.LocaleID(te.Locale), te.Segments)
+		applyTargetSegProtos(block, te.Locale, te.Segments)
 	}
 
 	// Properties
@@ -1094,12 +1132,7 @@ func PartToContentBlock(p *model.Part) *pb.ContentBlock {
 	cb.Source = sourceSegProtos(block)
 
 	// Target content
-	for _, locale := range block.TargetLocales() {
-		cb.Targets = append(cb.Targets, &pb.TargetEntry{
-			Locale:   string(locale),
-			Segments: targetSegProtos(block, locale),
-		})
-	}
+	cb.Targets = targetEntries(block)
 
 	// Properties
 	if len(block.Properties) > 0 {
