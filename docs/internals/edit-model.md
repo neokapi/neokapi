@@ -523,7 +523,8 @@ edition a read lists carries its `status`. An edition with no recorded status is
 when its text is the source's, as a file the source filled holds it, and `new` otherwise. A
 bilingual file that keeps its translation in it (a PO catalog) lists the edition it holds, in the
 language its header declares (a PO catalog's `Language`), else the one the recipe's targets and
-the file's name or directory give, and offers `remove_edition` only where an edition is present.
+the file's name or directory give. A block offers `remove_edition` only where the read shows a
+translation it holds, whether its file keeps translations in it or each in a file of its own.
 Reads are paged with a cursor, so a large document is never read whole into one response.
 
 ### 3.2 Editions that live in other files

@@ -303,6 +303,10 @@ func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.B
 	authEd, _ := b.Edition(authKey)
 	authText := model.RunsEditText(authEd.Runs)
 	primaryKey := b.EditionKeyOf(primary)
+	// holdsTranslation is whether the read shows a translation the block
+	// holds: the edition it was opened on, or one it lists.
+	_, holdsPrimary := b.Edition(primary)
+	holdsTranslation := holdsPrimary && !b.IsSourceEdition(primary)
 	for _, k := range b.Editions() {
 		if b.EditionKeyOf(k) == primaryKey {
 			continue
@@ -320,6 +324,7 @@ func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.B
 			continue
 		}
 		ed, _ := b.Edition(k)
+		holdsTranslation = true
 		er := out.editionRead(model.EditionRevision(b, k), ed, desc)
 		if states != nil {
 			if st, ok := states.EditionState(b, k); ok {
@@ -344,9 +349,9 @@ func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.B
 		}
 		out.Editions[keyText(k)] = er
 	}
-	if info.Editions == EditionsInFile && len(out.Editions) == 0 {
-		// A file that keeps its translations in it lists every one it holds,
-		// so a block that holds none has no edition to remove.
+	if !holdsTranslation {
+		// A block that holds no translation has none to remove, whether its
+		// file keeps the translations in it or each in a file of its own.
 		out.Ops = slices.DeleteFunc(out.Ops, func(k Kind) bool { return k == KindRemoveEdition })
 	}
 	return out
