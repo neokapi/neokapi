@@ -228,7 +228,10 @@ XLIFF unit or each localization of an xcstrings entry. An empty list means the
 document holds the edition it was read in alone. A translation a reader files
 under no language (a KBF bundle's `""` target) sits apart from the editions:
 `TargetEdition("")` reads it and `EachTargetEdition` yields it under the zero
-key.
+key. Its overlays sit apart with it, because an overlay naming the zero key is
+on the edition the block was read in: `TargetSegmentation(locale)` and
+`SetTargetSegmentation(locale, spans)` reach a translation's segmentation by
+the locale the target accessors take, the empty locale included.
 
 One set of accessors reaches every edition by its key: `Edition(k)`,
 `SetEdition(k, e)`, `SetEditionStatus(k, s)`, `RemoveEdition(k)`,
