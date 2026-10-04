@@ -2,7 +2,6 @@ package sqlitestore_test
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,7 +10,6 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/storage"
 )
 
 // schema1Payload is a block row as a store wrote it while blocks carried
@@ -23,27 +21,16 @@ const schema1Payload = `{"id":"tu1","hash":"h1","translatable":true,"type":"","s
 // in a scan, and its text is found by a search.
 func TestAStoreWrittenInSchema1Reads(t *testing.T) {
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "store.db")
-
-	s, err := sqlitestore.New(path)
-	require.NoError(t, err)
-	require.NoError(t, s.Close())
-
-	db, err := storage.Open(path)
+	db := sharedDB(t)
+	s, err := sqlitestore.NewFromDB(db, true)
 	require.NoError(t, err)
 	_, err = db.ExecContext(ctx,
 		`INSERT INTO blocks (hash, collection, translatable, payload) VALUES (?, ?, ?, ?)`,
 		"h1", "docs", 1, []byte(schema1Payload))
 	require.NoError(t, err)
-	require.NoError(t, db.Close())
 
-	s, err = sqlitestore.New(path)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = s.Close() })
 	sess, err := s.Begin(ctx)
 	require.NoError(t, err)
-	defer sess.Close()
-
 	got, err := sess.GetBlock("h1")
 	require.NoError(t, err)
 	assert.Equal(t, "tu1", got.ID)
@@ -60,6 +47,7 @@ func TestAStoreWrittenInSchema1Reads(t *testing.T) {
 		n++
 	}
 	assert.Equal(t, 1, n)
+	require.NoError(t, sess.Close())
 
 	hits, err := blockstore.SearchText(ctx, s, "kai", blockstore.TextSearchOptions{Locales: []string{"nb-NO"}})
 	require.NoError(t, err)
