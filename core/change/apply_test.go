@@ -507,20 +507,20 @@ func TestApplyBlock_RebasesOverlaysOnTheEditedEdition(t *testing.T) {
 	b := guideBlock()
 	nb := model.Variant("nb")
 	nbRuns := b.TargetRuns("nb")
-	b.SetSegmentation(&nb, []model.Span{{ID: "s1", Range: model.RangeAnchor(nbRuns, 0, 3)}, {ID: "s2", Range: model.RangeAnchor(nbRuns, 4, 16)}})
+	b.SetSegmentation(nb, []model.Span{{ID: "s1", Range: model.RangeAnchor(nbRuns, 0, 3)}, {ID: "s2", Range: model.RangeAnchor(nbRuns, 4, 16)}})
 	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "order", Range: model.RangeAnchor(b.SourceRuns(), 31, 36)})
 
 	requireApplied(t, apply(t, b, person, replace("nb", editionRev(b, "nb"), find("butikkguiden", "håndboka"))))
-	seg := b.SegmentationFor(&nb)
+	seg := b.SegmentationFor(nb)
 	require.NotNil(t, seg)
 	require.Len(t, seg.Spans, 2, "the segment holding the edit is resized, not dropped")
 	assert.Equal(t, "Les", model.RunsText(seg.Spans[0].Range.ExtractRuns(b.TargetRuns("nb"))))
 	assert.Equal(t, "håndboka", model.RunsText(seg.Spans[1].Range.ExtractRuns(b.TargetRuns("nb"))))
-	_, ok := b.OverlaysInBounds(&nb, b.TargetRuns("nb"))
+	_, ok := b.OverlaysInBounds(nb, b.TargetRuns("nb"))
 	assert.True(t, ok)
 
 	requireApplied(t, apply(t, b, person, setText("nb", editionRev(b, "nb"), "Bestill nå.")))
-	assert.Nil(t, b.SegmentationFor(&nb), "a rewrite across the segments drops the layer whole")
+	assert.Nil(t, b.SegmentationFor(nb), "a rewrite across the segments drops the layer whole")
 
 	requireApplied(t, apply(t, b, person, replace("", sourceRev(b), find("shop guide", "handbook"))))
 	sp := b.OverlaySpan(model.OverlayTerm, "order")
@@ -535,12 +535,12 @@ func remove(edition, ifMatch string) change.Op {
 func TestApplyBlock_RemoveEdition(t *testing.T) {
 	b := guideBlock()
 	nb := model.Variant("nb")
-	b.SetSegmentation(&nb, []model.Span{{ID: "s1", Range: model.RangeAnchor(b.TargetRuns("nb"), 0, 3)}})
+	b.SetSegmentation(nb, []model.Span{{ID: "s1", Range: model.RangeAnchor(b.TargetRuns("nb"), 0, 3)}})
 	res := apply(t, b, person, remove("nb", editionRev(b, "nb")))
 	requireApplied(t, res)
 	assert.Equal(t, model.AbsentRevision, res[0].After)
 	assert.False(t, b.HasTarget("nb"))
-	assert.Nil(t, b.SegmentationFor(&nb), "the edition's overlays go with it")
+	assert.Nil(t, b.SegmentationFor(nb), "the edition's overlays go with it")
 
 	assert.Equal(t, change.OpUnchanged, apply(t, b, person, remove("nb", "*"))[0].Status)
 	requireRefused(t, apply(t, b, person, remove("nb", "r:0123456789abcdef"))[0], change.CodeStale)
@@ -561,7 +561,7 @@ func TestApplyBlock_AnnotateAndUnannotate(t *testing.T) {
 	nb := model.Variant("nb")
 	var spans []model.Span
 	for _, o := range b.Overlays {
-		if o.Type == "note" && o.Variant != nil && *o.Variant == nb {
+		if o.Type == "note" && o.Edition == nb {
 			spans = o.Spans
 		}
 	}
@@ -620,7 +620,7 @@ func TestApplyBlock_SpansThatEndInsideAPlural(t *testing.T) {
 	assert.NotNil(t, b.OverlaySpan(model.OverlayEntity, "e2"))
 
 	b = model.NewRunsBlock("p", pluralRuns())
-	b.SetSegmentation(nil, []model.Span{{ID: "s1", Range: model.RangeAnchor(runs, 0, len([]rune(text)))}})
+	b.SetSegmentation(model.EditionKey{}, []model.Span{{ID: "s1", Range: model.RangeAnchor(runs, 0, len([]rune(text)))}})
 	res = apply(t, b, tool, annotate(string(model.OverlaySegmentation),
 		model.Span{ID: "s1", Range: model.RangeAnchor(runs, 0, 12)}, model.Span{ID: "s2", Range: model.RangeAnchor(runs, 12, 31)}))
 	assert.Equal(t, change.OpUnchanged, res[0].Status)

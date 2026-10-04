@@ -265,7 +265,7 @@ func TestLookupSegmentAdaptsTheSegmentsEntity(t *testing.T) {
 				Entities:    []memory.EntityMapping{orgMapping("e1", "Initech", "Initech")},
 			}))
 			b := lookupOrgs(txt("Contact "), org("e1", "Acme"), txt(" today. "), txt("Ask "), org("e2", "Globex"), txt(" now."))
-			b.SetSegmentation(nil, []model.Span{
+			b.SetSegmentation(model.EditionKey{}, []model.Span{
 				{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 3})},
 				{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 3}, model.RunPos{Run: 6})},
 			})
@@ -334,7 +334,7 @@ func TestExtractEntityAnnotationsInsideAPlural(t *testing.T) {
 func TestExtractSegmentEntityAnnotations(t *testing.T) {
 	t.Parallel()
 	b := lookupOrgs(txt("Contact "), org("e1", "Acme"), txt(" today. "), txt("Ask "), org("e2", "Globex"), txt(" now."))
-	b.SetSegmentation(nil, []model.Span{
+	b.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 2, Offset: 8})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 3}, model.RunPos{Run: 6})},
 	})

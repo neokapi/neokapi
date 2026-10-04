@@ -498,9 +498,9 @@ func overlayViews(b *model.Block) []OverlayView {
 		// rendered separately by annotationViews via AnnoMap.
 		side := "source"
 		runs := src.Runs
-		if o.Variant != nil {
-			side = variantLabel(*o.Variant)
-			if e, ok := b.Edition(*o.Variant); ok {
+		if !o.Edition.IsZero() {
+			side = variantLabel(o.Edition)
+			if e, ok := b.Edition(o.Edition); ok {
 				runs = e.Runs
 			}
 		}

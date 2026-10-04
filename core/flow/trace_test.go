@@ -520,7 +520,7 @@ func TestSnapshotOverlaysAndAnnotations(t *testing.T) {
 		Range: model.RangeAnchor(block.SourceRuns(), 0, 5),
 		Value: &model.EntityAnnotation{Text: "Alice", Type: model.EntityType("entity:person")},
 	})
-	block.SetSegmentation(nil, []model.Span{
+	block.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.RangeAnchor(block.SourceRuns(), 0, 22)},
 	})
 	block.AddNote(&model.NoteAnnotation{Text: "reviewed"})
@@ -571,8 +571,8 @@ func TestSnapshotSameLanguageTarget(t *testing.T) {
 	block.SetTargetRuns("en-US", []model.Run{model.TextR("colour target")})
 	enUS, de := model.Variant("en-US"), model.Variant("de")
 	block.Overlays = append(block.Overlays,
-		model.Overlay{Type: model.OverlayTerm, Variant: &enUS, Spans: []model.Span{{ID: "t1", Range: model.SpanAnchor(model.RunPos{Run: 0, Offset: 7}, model.RunPos{Run: 0, Offset: 13})}}},
-		model.Overlay{Type: model.OverlayEntity, Variant: &de, Spans: []model.Span{{ID: "e1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 6})}}},
+		model.Overlay{Type: model.OverlayTerm, Edition: enUS, Spans: []model.Span{{ID: "t1", Range: model.SpanAnchor(model.RunPos{Run: 0, Offset: 7}, model.RunPos{Run: 0, Offset: 13})}}},
+		model.Overlay{Type: model.OverlayEntity, Edition: de, Spans: []model.Span{{ID: "e1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 6})}}},
 	)
 
 	rec := flow.NewTraceRecorder()

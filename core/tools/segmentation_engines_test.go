@@ -76,8 +76,8 @@ func TestSegmentationTool_MultiLayer(t *testing.T) {
 	b2 := out.Resource.(*model.Block)
 
 	assert.NotNil(t, b2.SourceSegmentation(), "primary layer survives")
-	assert.NotNil(t, b2.SegmentationLayerFor(nil, "clause"), "named layer added")
-	layers := b2.SegmentationLayers(nil)
+	assert.NotNil(t, b2.SegmentationLayerFor(model.EditionKey{}, "clause"), "named layer added")
+	layers := b2.SegmentationLayers(model.EditionKey{})
 	assert.ElementsMatch(t, []string{"", "clause"}, layers)
 	// segment-count tracks the primary layer only.
 	assert.Equal(t, "3", b2.Properties[tools.PropSegmentCount])

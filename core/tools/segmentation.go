@@ -299,12 +299,12 @@ func (t *SegmentationTool) annotate(v tool.BlockView) error {
 			return err
 		}
 		layer := t.layerFor(seg)
-		if v.SegmentationLayerFor(nil, layer) == nil || cfg.OverwriteSegmentation {
+		if v.SegmentationLayerFor(model.EditionKey{}, layer) == nil || cfg.OverwriteSegmentation {
 			spans, err := seg.Segment(v.Context(), v.SourceRuns(), v.SourceLocale())
 			if err != nil {
 				return fmt.Errorf("segmentation (source): %w", err)
 			}
-			v.SetSegmentationLayer(nil, layer, spans)
+			v.SetSegmentationLayer(model.EditionKey{}, layer, spans)
 			if layer == segment.LayerSentence {
 				v.SetProperty(PropSegmentCount, strconv.Itoa(len(spans)))
 			}
@@ -318,12 +318,12 @@ func (t *SegmentationTool) annotate(v tool.BlockView) error {
 		}
 		layer := t.layerFor(seg)
 		key := model.Variant(cfg.TargetLocale)
-		if v.SegmentationLayerFor(&key, layer) == nil || cfg.OverwriteSegmentation {
+		if v.SegmentationLayerFor(key, layer) == nil || cfg.OverwriteSegmentation {
 			spans, err := seg.Segment(v.Context(), v.TargetRuns(cfg.TargetLocale), cfg.TargetLocale)
 			if err != nil {
 				return fmt.Errorf("segmentation (target): %w", err)
 			}
-			v.SetSegmentationLayer(&key, layer, spans)
+			v.SetSegmentationLayer(key, layer, spans)
 		}
 	}
 

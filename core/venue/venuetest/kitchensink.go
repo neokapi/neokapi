@@ -218,7 +218,7 @@ func KitchenSinkOverlays() []model.Overlay {
 		},
 		{
 			Type:    model.OverlayAlignment,
-			Variant: &frVariant,
+			Edition: frVariant,
 			Spans: []model.Span{{
 				ID:    "a0",
 				Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1}),

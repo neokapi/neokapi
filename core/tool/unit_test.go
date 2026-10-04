@@ -18,7 +18,7 @@ func twoSegBlock(s1, s2 string) *model.Block {
 		{Text: &model.TextRun{Text: s1}},
 		{Text: &model.TextRun{Text: s2}},
 	})
-	b.SetSegmentation(nil, []model.Span{
+	b.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})
@@ -115,7 +115,7 @@ func TestSourceUnitsIgnorable(t *testing.T) {
 		{Text: &model.TextRun{Text: "Hello."}},
 		{Text: &model.TextRun{Text: " "}},
 	})
-	b.SetSegmentation(nil, []model.Span{
+	b.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 		{ID: "ws", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2}), Props: map[string]string{model.SpanPropIgnorable: "true"}},
 	})
@@ -186,7 +186,7 @@ func TestTargetUnitsIgnorablePreservedVerbatim(t *testing.T) {
 		{Text: &model.TextRun{Text: "Hello."}},
 		{Text: &model.TextRun{Text: " "}},
 	})
-	b.SetSegmentation(nil, []model.Span{
+	b.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 		{ID: "ws", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2}), Props: map[string]string{model.SpanPropIgnorable: "true"}},
 	})
@@ -222,7 +222,7 @@ func TestTargetUnitsReadsTargetSegment(t *testing.T) {
 	})
 	// Mirror the source segmentation onto the target side.
 	key := model.Variant(frFR)
-	b.SetSegmentation(&key, []model.Span{
+	b.SetSegmentation(key, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})

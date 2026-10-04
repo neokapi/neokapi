@@ -383,9 +383,9 @@ func everyText(runs []model.Run, ok func(string) bool) bool {
 // edState is one edition of the block as the operations see it.
 type edState struct {
 	key model.EditionKey
-	// slot is the Variant of the edition's overlays: nil for the edition Source
-	// holds.
-	slot *model.VariantKey
+	// slot is the key the edition's overlays name: the zero key for the
+	// edition the block was read in.
+	slot model.EditionKey
 
 	startPresent bool
 	startRuns    []model.Run
@@ -462,8 +462,7 @@ func (w *workset) state(k model.EditionKey) *edState {
 	ed, ok := w.b.Edition(k)
 	st := &edState{key: key, startPresent: ok, startRuns: ed.Runs, present: ok, ed: ed}
 	if !w.b.IsSourceEdition(k) {
-		slot := key
-		st.slot = &slot
+		st.slot = key
 	}
 	for _, o := range w.b.Overlays {
 		if overlayOn(o, st.slot) {
@@ -490,11 +489,8 @@ func (w *workset) label(st *edState) string {
 	return "(the document's own)"
 }
 
-func overlayOn(o model.Overlay, slot *model.VariantKey) bool {
-	if slot == nil || o.Variant == nil {
-		return slot == nil && o.Variant == nil
-	}
-	return o.Variant.Canonical() == slot.Canonical()
+func overlayOn(o model.Overlay, slot model.EditionKey) bool {
+	return o.Edition.Canonical() == slot.Canonical()
 }
 
 // commit writes every changed edition and its overlays to the block.
@@ -514,7 +510,7 @@ func (w *workset) commit() {
 
 // replaceOverlays puts overlays in place of the block's overlays on one
 // edition, where the first of them stood.
-func replaceOverlays(b *model.Block, slot *model.VariantKey, overlays []model.Overlay) {
+func replaceOverlays(b *model.Block, slot model.EditionKey, overlays []model.Overlay) {
 	out := make([]model.Overlay, 0, len(b.Overlays)+len(overlays))
 	placed := false
 	for _, o := range b.Overlays {
@@ -981,7 +977,7 @@ func (w *workset) annotate(op Op, body *Annotate, res *OpResult) *Error {
 		}
 	}
 	if oi < 0 {
-		st.overlays = append(st.overlays, model.Overlay{Type: typ, Variant: st.slot})
+		st.overlays = append(st.overlays, model.Overlay{Type: typ, Edition: st.slot})
 		oi = len(st.overlays) - 1
 	}
 	o := &st.overlays[oi]
@@ -1069,7 +1065,7 @@ func (w *workset) writeSpans(st *edState, body *Annotate, res *OpResult) *Error 
 		}
 		st.overlays = slices.Delete(st.overlays, oi, oi+1)
 	case oi < 0:
-		st.overlays = append(st.overlays, model.Overlay{Type: typ, Variant: st.slot, Layer: body.Layer, Spans: slices.Clone(spans)})
+		st.overlays = append(st.overlays, model.Overlay{Type: typ, Edition: st.slot, Layer: body.Layer, Spans: slices.Clone(spans)})
 	case body.Replace:
 		st.overlays[oi].Spans = slices.Clone(spans)
 	default:
@@ -1124,7 +1120,7 @@ func (w *workset) unannotate(op Op, body *Unannotate, res *OpResult) *Error {
 // the edition the block was read in.
 func (w *workset) provenance(op Op, body *Provenance, res *OpResult) *Error {
 	st := w.state(op.At.Edition)
-	if st.slot == nil {
+	if st.slot.IsZero() {
 		return &Error{Code: CodeInvalid, Field: "at/edition",
 			Message: fmt.Sprintf("provenance records how a tool produced a derived edition; edition %s is the one the block was read in", w.label(st))}
 	}

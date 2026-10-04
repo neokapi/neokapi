@@ -222,7 +222,7 @@ func applyPseudoToBlockOpts(b *model.Block, spec PseudoSpec, forceSourceBase boo
 			spans = append(spans, sp)
 		}
 		key := model.Variant(tgt)
-		b.SetSegmentation(&key, spans)
+		b.SetSegmentation(key, spans)
 	}
 
 	// Attach the pseudo-translated inline IR for the target locale so the
@@ -275,7 +275,7 @@ func targetBaseSegs(b *model.Block, loc model.LocaleID) []baseSeg {
 		ir = a.Target[loc]
 	}
 	key := model.Variant(loc)
-	overlay := b.SegmentationFor(&key)
+	overlay := b.SegmentationFor(key)
 	if overlay == nil || len(overlay.Spans) == 0 {
 		if len(t.Runs) == 0 {
 			return nil

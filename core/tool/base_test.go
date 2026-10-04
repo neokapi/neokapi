@@ -300,7 +300,7 @@ func TestImmutabilityGuard(t *testing.T) {
 		bt := &tool.BaseTool{ToolName: "analyzer"}
 		bt.Annotate = func(v tool.BlockView) error {
 			v.SetProperty("word-count", "2")
-			v.SetSegmentation(nil, oneSpanOverlay)
+			v.SetSegmentation(model.EditionKey{}, oneSpanOverlay)
 			return nil
 		}
 		require.NoError(t, run(bt, mkBlock()))

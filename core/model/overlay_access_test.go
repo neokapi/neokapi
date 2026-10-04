@@ -59,7 +59,7 @@ func TestAnnotationsAndOverlaysAreSeparate(t *testing.T) {
 	t.Parallel()
 	b := NewBlock("b1", "hello world")
 	// A positional overlay and a block annotation live in distinct carriers.
-	b.SetSegmentation(nil, []Span{{ID: "s1", Range: SpanAnchor(RunPos{Run: 0}, RunPos{Run: 1})}})
+	b.SetSegmentation(EditionKey{}, []Span{{ID: "s1", Range: SpanAnchor(RunPos{Run: 0}, RunPos{Run: 1})}})
 	b.SetAnno("note", &NoteAnnotation{Text: "hi"})
 
 	assert.Len(t, b.AnnoMap(), 1, "annotations carry the note only")

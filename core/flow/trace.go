@@ -423,12 +423,12 @@ func snapshotOverlays(b *model.Block) []OverlaySnapshot {
 		o := &b.Overlays[i]
 		side := "source"
 		runs := src.Runs
-		if o.Variant != nil {
-			if key, err := o.Variant.MarshalText(); err == nil {
+		if !o.Edition.IsZero() {
+			if key, err := o.Edition.MarshalText(); err == nil {
 				side = string(key)
 			}
 			// An overlay on an edition the block does not hold covers nothing.
-			e, _ := b.Edition(*o.Variant)
+			e, _ := b.Edition(o.Edition)
 			runs = e.Runs
 		}
 		text := model.RunsText(runs)

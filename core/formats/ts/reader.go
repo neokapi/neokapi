@@ -919,7 +919,7 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 						}
 						block.SetTargetRuns(targetLocale, targetRuns)
 						key := model.Variant(targetLocale)
-						block.SetSegmentation(&key, spans)
+						block.SetSegmentation(key, spans)
 						// Snapshot the original numerusforms verbatim so
 						// the writer can decide whether downstream steps
 						// modified any plural form (mirrors okapi's

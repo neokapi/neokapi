@@ -120,7 +120,7 @@ func TestWriter_DefaultsTo2_2(t *testing.T) {
 	ctx := t.Context()
 
 	block := model.NewBlock("u1", "Hello")
-	block.SetSegmentation(nil, []model.Span{
+	block.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 	})
 	parts := []*model.Part{

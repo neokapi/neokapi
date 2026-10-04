@@ -85,7 +85,7 @@ func (u *unit) TargetRuns(loc model.LocaleID) []model.Run {
 		return u.b.TargetRuns(loc)
 	}
 	key := model.Variant(loc)
-	if tseg := u.b.SegmentationLayerFor(&key, u.layer); tseg != nil && u.idx < len(tseg.Spans) {
+	if tseg := u.b.SegmentationLayerFor(key, u.layer); tseg != nil && u.idx < len(tseg.Spans) {
 		return tseg.Spans[u.idx].Range.ExtractRuns(u.b.TargetRuns(loc))
 	}
 	return u.b.TargetRuns(loc)
@@ -103,7 +103,7 @@ func (u *unit) SetTargetRuns(_ model.LocaleID, runs []model.Run) {
 func sourceUnits(b *model.Block, layer string) iter.Seq[Unit] {
 	return func(yield func(Unit) bool) {
 		src := authoritative(b).Runs
-		seg := b.SegmentationLayerFor(nil, layer)
+		seg := b.SegmentationLayerFor(model.EditionKey{}, layer)
 		if seg == nil || len(seg.Spans) == 0 {
 			if len(src) > 0 {
 				yield(&unit{b: b, idx: 0, layer: layer, src: src})
@@ -140,7 +140,7 @@ func targetUnits(v *blockView, loc model.LocaleID, layer string) iter.Seq[Writab
 	b := v.b
 	return func(yield func(WritableUnit) bool) {
 		src := authoritative(b).Runs
-		seg := b.SegmentationLayerFor(nil, layer)
+		seg := b.SegmentationLayerFor(model.EditionKey{}, layer)
 		if seg == nil || len(seg.Spans) == 0 {
 			if len(src) == 0 {
 				return

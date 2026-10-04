@@ -56,8 +56,9 @@ type Span struct {
 // material (see [SpanPropIgnorable]).
 func (s Span) Ignorable() bool { return s.Props[SpanPropIgnorable] == "true" }
 
-// Overlay is a typed, positional (run-anchored) stand-off layer over one side
-// of a Block: the source (Variant nil) or a specific target variant. Its spans
+// Overlay is a typed, positional (run-anchored) stand-off layer over one
+// edition of a Block, which Edition names: the zero key names the edition the
+// block was read in, and any other key the edition filed under it. Its spans
 // carry real ranges into the runs — segmentation, terminology, entities, check
 // findings, alignment. Block-scoped metadata that has no position (notes,
 // alt-translations, analysis results, format round-trip state) is not an
@@ -70,10 +71,12 @@ func (s Span) Ignorable() bool { return s.Props[SpanPropIgnorable] == "true" }
 // while named layers ("llm-chunk", "clause", …) are additional interpretations
 // produced on demand. Layer is meaningful only for segmentation overlays.
 type Overlay struct {
-	Type    OverlayType `json:"type"`
-	Variant *VariantKey `json:"variant,omitempty"` // nil = source side
-	Layer   string      `json:"layer,omitempty"`   // LayerPrimary ("") = primary sentence segmentation
-	Spans   []Span      `json:"spans,omitempty"`
+	Type OverlayType `json:"type"`
+	// Edition names the edition the spans anchor to. Its JSON form is the
+	// key's text form under "variant", left out for the zero key.
+	Edition EditionKey `json:"variant,omitzero"`
+	Layer   string     `json:"layer,omitempty"` // LayerPrimary ("") = primary sentence segmentation
+	Spans   []Span     `json:"spans,omitempty"`
 }
 
 // LayerPrimary names the primary sentence segmentation layer — the one bilingual
@@ -83,8 +86,9 @@ type Overlay struct {
 // "clause", …) are additional, on-demand interpretations.
 const LayerPrimary = ""
 
-// OnSource reports whether the overlay annotates the source run sequence.
-func (o *Overlay) OnSource() bool { return o == nil || o.Variant == nil }
+// OnSource reports whether the overlay annotates the edition the block was
+// read in: whether it names the zero key.
+func (o *Overlay) OnSource() bool { return o == nil || o.Edition.IsZero() }
 
 func clampInt(v, lo, hi int) int {
 	return min(max(v, lo), hi)
@@ -230,21 +234,23 @@ func runeToByteOffset(s string, runeOff int) int {
 	return len(s)
 }
 
-// SegmentationFor returns the primary (layer "") segmentation overlay for the
-// given side (nil = source), or nil if none.
-func (b *Block) SegmentationFor(variant *VariantKey) *Overlay {
-	return b.SegmentationLayerFor(variant, LayerPrimary)
+// SegmentationFor returns the primary (layer "") segmentation overlay on
+// edition k (the zero key for the edition the block was read in), or nil if
+// none.
+func (b *Block) SegmentationFor(k EditionKey) *Overlay {
+	return b.SegmentationLayerFor(k, LayerPrimary)
 }
 
-// SegmentationLayerFor returns the segmentation overlay for the given side
-// (nil = source) and layer ("" = primary sentence segmentation), or nil.
-func (b *Block) SegmentationLayerFor(variant *VariantKey, layer string) *Overlay {
+// SegmentationLayerFor returns the segmentation overlay on edition k (the zero
+// key for the edition the block was read in) and layer ("" = primary sentence
+// segmentation), or nil.
+func (b *Block) SegmentationLayerFor(k EditionKey, layer string) *Overlay {
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
 		if o.Type != OverlaySegmentation {
 			continue
 		}
-		if sameVariant(o.Variant, variant) && o.Layer == layer {
+		if o.Edition == k && o.Layer == layer {
 			return o
 		}
 	}
@@ -252,48 +258,41 @@ func (b *Block) SegmentationLayerFor(variant *VariantKey, layer string) *Overlay
 }
 
 // SegmentationLayers lists the layer names of every segmentation overlay on
-// the given side (nil = source), in overlay order. The primary layer reports
-// as "".
-func (b *Block) SegmentationLayers(variant *VariantKey) []string {
+// edition k (the zero key for the edition the block was read in), in overlay
+// order. The primary layer reports as "".
+func (b *Block) SegmentationLayers(k EditionKey) []string {
 	var layers []string
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
-		if o.Type == OverlaySegmentation && sameVariant(o.Variant, variant) {
+		if o.Type == OverlaySegmentation && o.Edition == k {
 			layers = append(layers, o.Layer)
 		}
 	}
 	return layers
 }
 
-func sameVariant(a, b *VariantKey) bool {
-	if a == nil || b == nil {
-		return a == nil && b == nil
-	}
-	return *a == *b
+// SetSegmentation replaces the primary (layer "") segmentation overlay on
+// edition k (the zero key for the edition the block was read in) with one
+// carrying the supplied spans. Empty spans removes it.
+func (b *Block) SetSegmentation(k EditionKey, spans []Span) {
+	b.SetSegmentationLayer(k, LayerPrimary, spans)
 }
 
-// SetSegmentation replaces the primary (layer "") segmentation overlay for the
-// given side (nil = source) with one carrying the supplied spans. Empty spans
-// removes it.
-func (b *Block) SetSegmentation(variant *VariantKey, spans []Span) {
-	b.SetSegmentationLayer(variant, LayerPrimary, spans)
-}
-
-// SetSegmentationLayer replaces the segmentation overlay for the given side
-// (nil = source) and layer ("" = primary sentence segmentation) with one
-// carrying the supplied spans, leaving other layers untouched. Empty spans
-// removes that layer.
-func (b *Block) SetSegmentationLayer(variant *VariantKey, layer string, spans []Span) {
+// SetSegmentationLayer replaces the segmentation overlay on edition k (the
+// zero key for the edition the block was read in) and layer ("" = primary
+// sentence segmentation) with one carrying the supplied spans, leaving other
+// layers untouched. Empty spans removes that layer.
+func (b *Block) SetSegmentationLayer(k EditionKey, layer string, spans []Span) {
 	out := b.Overlays[:0]
 	for _, o := range b.Overlays {
-		if o.Type == OverlaySegmentation && sameVariant(o.Variant, variant) && o.Layer == layer {
+		if o.Type == OverlaySegmentation && o.Edition == k && o.Layer == layer {
 			continue
 		}
 		out = append(out, o)
 	}
 	b.Overlays = out
 	if len(spans) > 0 {
-		b.Overlays = append(b.Overlays, Overlay{Type: OverlaySegmentation, Variant: variant, Layer: layer, Spans: spans})
+		b.Overlays = append(b.Overlays, Overlay{Type: OverlaySegmentation, Edition: k, Layer: layer, Spans: spans})
 	}
 }
 

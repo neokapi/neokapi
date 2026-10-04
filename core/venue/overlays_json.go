@@ -43,6 +43,15 @@ type overlayWire struct {
 	Spans   []spanWire        `json:"spans,omitempty"`
 }
 
+// editionWire is the wire form of the edition an overlay names: absent for the
+// zero key, the edition the block was read in.
+func editionWire(k model.EditionKey) *model.VariantKey {
+	if k.IsZero() {
+		return nil
+	}
+	return &k
+}
+
 // spanWire mirrors model.Span but carries Value as a discriminated envelope so
 // the polymorphic model.Payload interface can be reconstructed on decode.
 type spanWire struct {
@@ -69,7 +78,7 @@ func MarshalOverlays(overlays []model.Overlay) ([]byte, error) {
 	}
 	wire := make([]overlayWire, len(overlays))
 	for i, o := range overlays {
-		w := overlayWire{Type: o.Type, Variant: o.Variant, Layer: o.Layer}
+		w := overlayWire{Type: o.Type, Variant: editionWire(o.Edition), Layer: o.Layer}
 		if len(o.Spans) > 0 {
 			w.Spans = make([]spanWire, len(o.Spans))
 			for j, s := range o.Spans {
@@ -105,7 +114,10 @@ func UnmarshalOverlays(data []byte) ([]model.Overlay, error) {
 	}
 	overlays := make([]model.Overlay, len(wire))
 	for i, w := range wire {
-		o := model.Overlay{Type: w.Type, Variant: w.Variant, Layer: w.Layer}
+		o := model.Overlay{Type: w.Type, Layer: w.Layer}
+		if w.Variant != nil {
+			o.Edition = *w.Variant
+		}
 		if len(w.Spans) > 0 {
 			o.Spans = make([]model.Span, len(w.Spans))
 			for j, sw := range w.Spans {

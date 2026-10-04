@@ -336,8 +336,8 @@ func dumpOverlays(overlays []model.Overlay) []overlayDump {
 	out := make([]overlayDump, 0, len(overlays))
 	for _, o := range overlays {
 		od := overlayDump{Type: string(o.Type), Layer: o.Layer}
-		if o.Variant != nil {
-			text, _ := o.Variant.MarshalText()
+		if !o.Edition.IsZero() {
+			text, _ := o.Edition.MarshalText()
 			od.Variant = string(text)
 		}
 		for _, s := range o.Spans {

@@ -50,7 +50,7 @@ func checkUnit(block *model.Block, loc model.LocaleID) error {
 	hasTarget := !loc.IsEmpty() && block.HasTarget(loc)
 	if hasTarget && ir != nil && len(ir.Target[loc]) > 1 {
 		key := model.Variant(loc)
-		if !divides(block.SegmentationFor(&key), block.TargetRuns(loc)) {
+		if !divides(block.SegmentationFor(key), block.TargetRuns(loc)) {
 			return fmt.Errorf("xliff2 writer: unit %q: the target: %w", block.ID, ErrSegmentsLost)
 		}
 	}
@@ -80,7 +80,7 @@ func checkUnit(block *model.Block, loc model.LocaleID) error {
 // one anonymous segment.
 func writtenSourceSegs(block *model.Block) []seg {
 	if source := format.AuthoritativeRuns(block); !tiles(block.SourceSegmentation(), source) {
-		return withMarks([]seg{{Runs: source}}, source, block, nil)
+		return withMarks([]seg{{Runs: source}}, source, block, model.EditionKey{})
 	}
 	return sourceSegsFromBlock(block)
 }
@@ -88,8 +88,8 @@ func writtenSourceSegs(block *model.Block) []seg {
 // writtenTargetSegs is writtenSourceSegs for the target in loc.
 func writtenTargetSegs(block *model.Block, loc model.LocaleID) []seg {
 	key := model.Variant(loc)
-	if runs := block.TargetRuns(loc); !tiles(block.SegmentationFor(&key), runs) {
-		return withMarks([]seg{{Runs: runs}}, runs, block, &key)
+	if runs := block.TargetRuns(loc); !tiles(block.SegmentationFor(key), runs) {
+		return withMarks([]seg{{Runs: runs}}, runs, block, key)
 	}
 	return targetSegsFromBlock(block, loc)
 }

@@ -124,7 +124,7 @@ func OverlayToProto(o model.Overlay) *pb.OverlayMessage {
 	msg := &pb.OverlayMessage{
 		Type:    string(o.Type),
 		Layer:   o.Layer,
-		Variant: variantToProto(o.Variant),
+		Variant: variantToProto(o.Edition),
 	}
 	for _, s := range o.Spans {
 		msg.Spans = append(msg.Spans, spanToProto(s))
@@ -137,7 +137,7 @@ func ProtoToOverlay(msg *pb.OverlayMessage) model.Overlay {
 	o := model.Overlay{
 		Type:    model.OverlayType(msg.Type),
 		Layer:   msg.Layer,
-		Variant: protoToVariant(msg.Variant),
+		Edition: protoToVariant(msg.Variant),
 	}
 	for _, sm := range msg.Spans {
 		o.Spans = append(o.Spans, protoToSpan(sm))
@@ -145,18 +145,22 @@ func ProtoToOverlay(msg *pb.OverlayMessage) model.Overlay {
 	return o
 }
 
-func variantToProto(v *model.VariantKey) *pb.VariantMessage {
-	if v == nil {
+// variantToProto encodes the edition an overlay names. The wire leaves the
+// message out for the zero key, the edition the block was read in.
+func variantToProto(k model.EditionKey) *pb.VariantMessage {
+	if k.IsZero() {
 		return nil
 	}
-	return &pb.VariantMessage{Locale: string(v.Locale), Tone: v.Tone, Channel: v.Channel}
+	return &pb.VariantMessage{Locale: string(k.Locale), Tone: k.Tone, Channel: k.Channel}
 }
 
-func protoToVariant(msg *pb.VariantMessage) *model.VariantKey {
+// protoToVariant decodes the edition an overlay names: the zero key, the
+// edition the block was read in, when the message is absent or empty.
+func protoToVariant(msg *pb.VariantMessage) model.EditionKey {
 	if msg == nil {
-		return nil
+		return model.EditionKey{}
 	}
-	return &model.VariantKey{Locale: model.LocaleID(msg.Locale), Tone: msg.Tone, Channel: msg.Channel}
+	return model.EditionKey{Locale: model.LocaleID(msg.Locale), Tone: msg.Tone, Channel: msg.Channel}
 }
 
 func spanToProto(s model.Span) *pb.SpanMessage {
@@ -645,7 +649,7 @@ func sourceSegProtos(b *model.Block) []*pb.SegmentMessage {
 func targetSegProtos(b *model.Block, loc model.LocaleID) []*pb.SegmentMessage {
 	runs := b.TargetRuns(loc)
 	key := model.Variant(loc)
-	seg := b.SegmentationFor(&key)
+	seg := b.SegmentationFor(key)
 	if seg == nil || len(seg.Spans) == 0 {
 		return []*pb.SegmentMessage{runsToSegmentProto("s1", runs)}
 	}
@@ -680,7 +684,7 @@ func applyTargetSegProtos(b *model.Block, loc model.LocaleID, msgs []*pb.Segment
 	b.SetTargetRuns(loc, runs)
 	if len(spans) > 0 {
 		key := model.Variant(loc)
-		b.SetSegmentation(&key, spans)
+		b.SetSegmentation(key, spans)
 	}
 }
 
@@ -742,7 +746,7 @@ func ProtoToBlock(msg *pb.BlockMessage) *model.Block {
 		b.SetAnno(k, v)
 	}
 	if len(srcSpans) > 0 {
-		b.SetSegmentation(nil, srcSpans)
+		b.SetSegmentation(model.EditionKey{}, srcSpans)
 	}
 	for _, te := range msg.Targets {
 		applyTargetSegProtos(b, model.LocaleID(te.Locale), te.Segments)
@@ -1033,7 +1037,7 @@ func ContentBlockToPart(cb *pb.ContentBlock) *model.Part {
 	srcRuns, srcSpans := segProtosToRunsAndSpans(cb.Source)
 	block.SetSourceRuns(srcRuns)
 	if len(srcSpans) > 0 {
-		block.SetSegmentation(nil, srcSpans)
+		block.SetSegmentation(model.EditionKey{}, srcSpans)
 	}
 
 	// Target content

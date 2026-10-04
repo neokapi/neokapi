@@ -97,8 +97,10 @@ type BlockReader interface {
 
 	// Overlays / annotations / properties (read side).
 	Overlays() []model.Overlay
-	SegmentationFor(variant *model.VariantKey) *model.Overlay
-	SegmentationLayerFor(variant *model.VariantKey, layer string) *model.Overlay
+	// SegmentationFor and SegmentationLayerFor read the segmentation on one
+	// edition, the zero key naming the edition the block was read in.
+	SegmentationFor(k model.EditionKey) *model.Overlay
+	SegmentationLayerFor(k model.EditionKey, layer string) *model.Overlay
 	// OverlaySpans returns the spans of the source-side overlay of the
 	// given type (term, entity, term-candidate, …), or nil. Read-only.
 	OverlaySpans(t model.OverlayType) []model.Span
@@ -119,8 +121,10 @@ type BlockReader interface {
 // OverlayWriter is the overlay-writing facet of a block view: positional,
 // run-anchored stand-off layers (segmentation, term, entity, qa, alignment).
 type OverlayWriter interface {
-	SetSegmentation(variant *model.VariantKey, spans []model.Span)
-	SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span)
+	// SetSegmentation and SetSegmentationLayer write the segmentation on one
+	// edition, the zero key naming the edition the block was read in.
+	SetSegmentation(k model.EditionKey, spans []model.Span)
+	SetSegmentationLayer(k model.EditionKey, layer string, spans []model.Span)
 	AddOverlay(o model.Overlay)
 	// AddOverlaySpan appends an overlay span (term, entity, …) to the
 	// source-side overlay of the given type, merging into the existing overlay. The
@@ -281,15 +285,6 @@ func (v *blockView) ref(key model.EditionKey) change.Ref {
 	return change.Ref{Block: v.b.ID, Edition: key}
 }
 
-// variantRef addresses the edition an overlay's variant names: the source when
-// nil.
-func (v *blockView) variantRef(variant *model.VariantKey) change.Ref {
-	if variant == nil {
-		return v.ref(model.EditionKey{})
-	}
-	return v.ref(*variant)
-}
-
 // setRuns replaces a target's runs, creating the target when absent.
 func (v *blockView) setRuns(key model.EditionKey, runs []model.Run, more ...change.Op) {
 	if v.err != nil {
@@ -384,17 +379,17 @@ func (v *blockView) Target(loc model.LocaleID) *model.Edition {
 
 // Overlays / annotations / properties (writable output surface).
 func (v *blockView) Overlays() []model.Overlay { return v.b.Overlays }
-func (v *blockView) SegmentationFor(variant *model.VariantKey) *model.Overlay {
-	return v.b.SegmentationFor(variant)
+func (v *blockView) SegmentationFor(k model.EditionKey) *model.Overlay {
+	return v.b.SegmentationFor(k)
 }
-func (v *blockView) SegmentationLayerFor(variant *model.VariantKey, layer string) *model.Overlay {
-	return v.b.SegmentationLayerFor(variant, layer)
+func (v *blockView) SegmentationLayerFor(k model.EditionKey, layer string) *model.Overlay {
+	return v.b.SegmentationLayerFor(k, layer)
 }
-func (v *blockView) SetSegmentation(variant *model.VariantKey, spans []model.Span) {
-	v.SetSegmentationLayer(variant, model.LayerPrimary, spans)
+func (v *blockView) SetSegmentation(k model.EditionKey, spans []model.Span) {
+	v.SetSegmentationLayer(k, model.LayerPrimary, spans)
 }
-func (v *blockView) SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span) {
-	v.apply(change.Op{Kind: change.KindAnnotate, At: v.variantRef(variant),
+func (v *blockView) SetSegmentationLayer(k model.EditionKey, layer string, spans []model.Span) {
+	v.apply(change.Op{Kind: change.KindAnnotate, At: v.ref(k),
 		Body: &change.Annotate{Type: string(model.OverlaySegmentation), Layer: layer, Spans: spans, Replace: true}})
 }
 func (v *blockView) AddOverlay(o model.Overlay) {
@@ -402,7 +397,7 @@ func (v *blockView) AddOverlay(o model.Overlay) {
 	if spans == nil {
 		spans = []model.Span{}
 	}
-	v.apply(change.Op{Kind: change.KindAnnotate, At: v.variantRef(o.Variant),
+	v.apply(change.Op{Kind: change.KindAnnotate, At: v.ref(o.Edition),
 		Body: &change.Annotate{Type: string(o.Type), Layer: o.Layer, Spans: spans}})
 }
 func (v *blockView) AddOverlaySpan(t model.OverlayType, s model.Span) {

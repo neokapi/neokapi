@@ -35,7 +35,7 @@ import (
 // from profile.MatchVocabulary against the lab's voice profile
 // (labproject.go), and check overlays from the shared source-only shape rules
 // (double spaces, doubled words — check.HygieneOverlay).
-// Each is a source-anchored overlay (Variant nil) carrying its matched span text
+// Each is a source-anchored overlay (naming the zero key) carrying its matched span text
 // and type-specific props, picked up by the existing OverlayView serializer.
 //
 // It returns the same {ok, format, json, bytes} shape as labInspect (a Promise,
@@ -189,7 +189,7 @@ func annotateParts(ctx context.Context, parts []*model.Part, opts annotateOption
 			// surfaces it as the block's `segments`, which the preview renders as
 			// sentence boundaries. Only attach when it actually splits.
 			if spans := segmentSpans(ctx, runs, opts.SegmentEngine, opts.SegmentLocale); len(spans) > 1 {
-				b.SetSegmentation(nil, spans)
+				b.SetSegmentation(model.EditionKey{}, spans)
 			}
 		}
 	}

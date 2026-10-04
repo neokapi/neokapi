@@ -3,7 +3,7 @@ package model
 // Side names which run sequence a stand-off interpretation pertains to: the
 // source runs, or a target variant. It is used by the flow IO contract (a tool
 // produces/consumes a port on the source or target side) and by overlay
-// metadata where the distinction is not already carried by Overlay.Variant.
+// metadata where the distinction is not already carried by Overlay.Edition.
 type Side int
 
 const (

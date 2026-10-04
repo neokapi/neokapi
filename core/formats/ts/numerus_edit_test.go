@@ -163,7 +163,7 @@ func TestNumerusFormsAreWrittenOrRefused(t *testing.T) {
 	translateWhole := func(b *model.Block) {
 		translateMT(b)
 		key := model.Variant("fr")
-		b.SetSegmentation(&key, nil)
+		b.SetSegmentation(key, nil)
 	}
 
 	tests := []struct {
@@ -195,7 +195,7 @@ func TestNumerusFormsAreWrittenOrRefused(t *testing.T) {
 			edit: func(b *model.Block) {
 				b.SetTargetText("fr", "Nous utilisons %n article(s)")
 				key := model.Variant("fr")
-				b.SetSegmentation(&key, []model.Span{{
+				b.SetSegmentation(key, []model.Span{{
 					ID:    "n1",
 					Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1}),
 				}})

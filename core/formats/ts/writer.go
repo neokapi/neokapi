@@ -868,7 +868,7 @@ func numerusTarget(block *model.Block, locale model.LocaleID) ([]model.Run, *mod
 	if len(runs) == 0 {
 		return nil, nil
 	}
-	return runs, block.SegmentationFor(&key)
+	return runs, block.SegmentationFor(key)
 }
 
 // targetLocale returns the locale whose translation the writer writes: the
