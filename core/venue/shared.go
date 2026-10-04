@@ -65,9 +65,10 @@ type AssetVariant struct {
 // one locale variant — the wire form of core/state.UnitState plus the item that
 // scopes the unit's durable identity (the same structural name recurs across
 // items, so an unscoped unit key cannot be joined safely). It records the
-// decision as a FACT — who, when, which rung, and the hashes of the pairing it
-// blesses: the translation, and the source that translation was approved for.
-// Freshness is derived by whoever reads it, never stored.
+// decision as a FACT — who, when, which rung, and the pairing it blesses: the
+// translation, and the source that translation was approved for, each by
+// revision and by hash. Freshness is derived by whoever reads it, never
+// stored.
 type UnitDecision struct {
 	ProjectID string `json:"project_id,omitempty"`
 	Stream    string `json:"stream,omitempty"`
@@ -89,6 +90,12 @@ type UnitDecision struct {
 	// before the basis was tracked — unknown, which readers must not confuse
 	// with a source that has moved.
 	ContentHash string `json:"contentHash,omitempty"`
+	// Revision and Basis name the translation and the source by revision
+	// (state.UnitState.Revision and Basis), which count inline codes where
+	// the hashes do not. A reader grades a record that carries them by them,
+	// and one written before revisions by its hashes. Empty on such a record.
+	Revision    string `json:"revision,omitempty"`
+	Basis       string `json:"basis,omitempty"`
 	ReviewState string `json:"reviewState,omitempty"` // approved | rejected
 	DecidedBy   string `json:"by,omitempty"`          // "" human · "ai/<model>" · "agent/<client>" · server identity
 	DecidedAt   string `json:"at,omitempty"`          // RFC 3339

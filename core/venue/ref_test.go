@@ -212,6 +212,35 @@ func TestDecisionIdentity_GoverningFingerprint(t *testing.T) {
 		legacy.DecidedBy, legacy.DecidedAt, legacy.Note, "false", legacy.Assignee), DecisionIdentity(legacy))
 }
 
+// TestDecisionIdentity_RevisionPairing: a record that carries the revision
+// pairing folds it in, so a decision on a translation that differs from
+// another in an inline code alone is a change, while a record written before
+// revisions keeps the identity it had.
+func TestDecisionIdentity_RevisionPairing(t *testing.T) {
+	legacy := decision("u1", "nb", "established")
+	paired := legacy
+	paired.Revision, paired.Basis = "r:1111111111111111", "r:aaaaaaaaaaaaaaaa"
+	recoded := paired
+	recoded.Revision = "r:2222222222222222"
+
+	assert.False(t, SameDecision(legacy, paired), "gaining the revision pairing is a change")
+	assert.False(t, SameDecision(paired, recoded), "a decision on other content is a change, though its hashes are one")
+	assert.NotEqual(t, DecisionsComponent([]UnitDecision{paired}), DecisionsComponent([]UnitDecision{recoded}))
+	assert.Equal(t, ref.Identity(legacy.Status, legacy.TargetHash, legacy.ContentHash, legacy.ReviewState,
+		legacy.DecidedBy, legacy.DecidedAt, legacy.Note, "false", legacy.Assignee), DecisionIdentity(legacy),
+		"a record written before revisions folds over the fields it always had")
+
+	fingerprinted := paired
+	fingerprinted.GoverningFingerprint = "fp"
+	onlyRev := legacy
+	onlyRev.Revision = "fp"
+	assert.NotEqual(t, DecisionIdentity(fingerprinted), DecisionIdentity(onlyRev), "the fields are told apart by name")
+
+	basis := paired.AsBasis(model.TargetStatusTranslated)
+	assert.Equal(t, paired.Revision, basis.Revision, "a refused verdict kept as a basis keeps the pairing it was about")
+	assert.Equal(t, paired.Basis, basis.Basis)
+}
+
 // TestAsBasis_DropsTheGoverningFingerprint: the fingerprint records the
 // context a verdict was made under, so a refused verdict kept as a bare basis
 // carries none.
