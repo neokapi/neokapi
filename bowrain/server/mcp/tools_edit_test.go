@@ -104,8 +104,8 @@ func TestApplyEdits_EditsATranslationOnTheRevisionItRead(t *testing.T) {
 
 	rows, err := cs.(store.BlockWriteStore).ItemBlocks(ctx, p.ID, "main", "en.json", nil)
 	require.NoError(t, err)
-	target := rows[0].Block.Target("fr")
-	require.NotNil(t, target)
+	target, ok := rows[0].Block.Edition(model.Variant("fr"))
+	require.True(t, ok)
 	assert.Equal(t, "Coucou", model.RunsText(target.Runs))
 	assert.Equal(t, model.OriginAgent, target.Origin.Kind, "an agent's edit is recorded as the agent's")
 }
