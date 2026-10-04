@@ -240,7 +240,7 @@ func (b *Block) TargetVariant(key VariantKey) *Target { return b.Targets[key.Can
 // locale names a target a reader filed under no language, as the KBF reader
 // files a bundle's "" target and the Qt TS reader files the translation of a
 // file with no language attribute read with no source locale. Edition,
-// Editions and EachEdition read the zero key as the edition the block was read
+// EditionKeys and EachEdition read the zero key as the edition the block was read
 // in, so a walk over every text a writer can emit reads such a target here.
 func (b *Block) TargetEdition(locale LocaleID) (Edition, bool) {
 	t := b.Targets[Variant(locale)]

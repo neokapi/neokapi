@@ -495,7 +495,7 @@ func (v *blockView) TargetUnits(loc model.LocaleID, layer string) iter.Seq[Writa
 func (v *blockView) RemoveTarget(loc model.LocaleID) { v.RemoveEdition(model.Variant(loc)) }
 func (v *blockView) ClearTargets() {
 	var ops []change.Op
-	for _, key := range v.b.Editions() {
+	for _, key := range v.b.EditionKeys() {
 		if v.b.IsSourceEdition(key) {
 			continue
 		}

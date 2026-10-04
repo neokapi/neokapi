@@ -54,12 +54,12 @@ func copyBlock(t *testing.T, b *model.Block) *model.Block {
 
 // translations lists the keys of the editions of b other than the one it was
 // read in.
-func translations(b *model.Block) []model.EditionKey { return b.Editions()[1:] }
+func translations(b *model.Block) []model.EditionKey { return b.EditionKeys()[1:] }
 
 // editions renders every edition of a block as canonical JSON, by key.
 func editions(b *model.Block) map[string]string {
 	out := map[string]string{}
-	for _, k := range b.Editions() {
+	for _, k := range b.EditionKeys() {
 		e, _ := b.Edition(k)
 		key, _ := k.MarshalText()
 		out[string(key)] = string(model.CanonicalRunsJSON(e.Runs))

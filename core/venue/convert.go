@@ -65,7 +65,7 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 	// key that Edition does not reach (a target stored under a non-canonical
 	// key); that edition is left out, because an empty target would replace
 	// the translation the receiver holds.
-	for _, key := range b.Editions() {
+	for _, key := range b.EditionKeys() {
 		if key == auth {
 			continue
 		}

@@ -345,7 +345,7 @@ func (p *docPlan) structureDelete(i int, op Op, body *DeleteBlock) (StructuralEd
 		p.removed[k] = i
 	}
 	authKey := b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{}))
-	for _, k := range b.Editions() {
+	for _, k := range b.EditionKeys() {
 		ed, _ := b.Edition(k)
 		role := RoleDerived
 		if k == authKey {

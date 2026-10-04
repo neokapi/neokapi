@@ -100,7 +100,7 @@ func TestBlockTargetEdition_NoLanguage(t *testing.T) {
 	src, ok := b.Edition(model.EditionKey{})
 	require.True(t, ok)
 	assert.Equal(t, "Hello", model.RunsText(src.Runs))
-	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}, {Locale: "fr"}}, b.Editions())
+	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}, {Locale: "fr"}}, b.EditionKeys())
 	for k := range b.EachEdition {
 		assert.False(t, k.IsZero(), "the target under no language is not an edition EachEdition yields")
 	}

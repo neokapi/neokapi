@@ -29,7 +29,7 @@ func TestBlockCopyEditionSet(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, model.Status(model.TargetStatusEstablished), e.Status, "an edition both hold is shared")
 
-	assert.Equal(t, b.Editions()[0], c.Editions()[0])
+	assert.Equal(t, b.EditionKeys()[0], c.EditionKeys()[0])
 	src, _ := c.Edition(c.Authoritative(model.AuthorityPolicy{}))
 	assert.Equal(t, "Hello", model.RunsText(src.Runs))
 	assert.Equal(t, model.Status(model.SourceStatusEstablished), src.Status)

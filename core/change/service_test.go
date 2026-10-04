@@ -96,7 +96,7 @@ func capture(blocks []*model.Block) []memBlock {
 	out := make([]memBlock, 0, len(blocks))
 	for _, b := range blocks {
 		mb := memBlock{key: b.Name, translatable: b.Translatable, editions: map[model.EditionKey][]model.Run{}}
-		for _, k := range b.Editions() {
+		for _, k := range b.EditionKeys() {
 			ed, _ := b.Edition(k)
 			if b.IsSourceEdition(k) {
 				k = model.EditionKey{}

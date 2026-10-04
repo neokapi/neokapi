@@ -279,7 +279,7 @@ func (d *documentStates) last(b *model.Block, edition string) (history.Row, bool
 	// A read asks about every derived edition of each block it shows, so the
 	// editions b holds are read with the one asked about, in one query.
 	want := []string{edition}
-	for _, k := range b.Editions() {
+	for _, k := range b.EditionKeys() {
 		if b.IsSourceEdition(k) {
 			continue
 		}

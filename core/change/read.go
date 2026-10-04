@@ -307,7 +307,7 @@ func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.B
 	// holds: the edition it was opened on, or one it lists.
 	_, holdsPrimary := b.Edition(primary)
 	holdsTranslation := holdsPrimary && !b.IsSourceEdition(primary)
-	for _, k := range b.Editions() {
+	for _, k := range b.EditionKeys() {
 		if b.EditionKeyOf(k) == primaryKey {
 			continue
 		}
