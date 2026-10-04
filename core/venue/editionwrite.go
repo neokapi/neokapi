@@ -26,11 +26,12 @@ type EditionWrite struct {
 	// record; one holding none takes it as the record of a translation the
 	// project keeps.
 	Revision string `json:"rev"`
-	// Basis is the revision of the source the translation was made from, as
-	// the block history recorded it (SourceRevision: the source's runs under
-	// the project's source language), empty when the write recorded none: an
-	// edit made outside kapi, or a translation a pull brought down from a
-	// venue.
+	// Basis is the revision of the source the translation was made from,
+	// taken under the project's source language as a venue takes it
+	// (SourceRevision). The block history records it under the key the run's
+	// reader filed the source by, and a push sends it as Basis gives it.
+	// Empty when the write recorded none: an edit made outside kapi, or a
+	// translation a pull brought down from a venue.
 	Basis string `json:"basis,omitempty"`
 	// Writer is the kind of actor that wrote the translation: person, agent,
 	// tool, or external for an edit made outside kapi that a read observed.

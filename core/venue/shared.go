@@ -93,9 +93,11 @@ type UnitDecision struct {
 	Revision string `json:"revision,omitempty"`
 	// Basis is the revision of the SOURCE the decision blessed that
 	// translation for, taken under the project's source language
-	// (SourceRevision; state.UnitState.Basis). A revision counts inline codes
-	// with their data and attributes, so a changed link target moves it. A
-	// record whose basis is not the source the unit holds now is stale.
+	// (SourceRevision). A checkout records it (state.UnitState.Basis) under
+	// the key its reader filed the source by, and a push sends it as Basis
+	// gives it. A revision counts inline codes with their data and
+	// attributes, so a changed link target moves it. A record whose basis is
+	// not the source the unit holds now is stale.
 	Basis       string `json:"basis,omitempty"`
 	ReviewState string `json:"reviewState,omitempty"` // approved | rejected
 	DecidedBy   string `json:"by,omitempty"`          // "" human · "ai/<model>" · "agent/<client>" · server identity
