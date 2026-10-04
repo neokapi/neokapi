@@ -303,15 +303,15 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 					continue
 				}
 				for _, loc := range proj.TargetLanguages {
-					t := sb.Block.Target(loc)
-					if t == nil {
+					t, ok := sb.Block.TargetEdition(loc)
+					if !ok {
 						continue
 					}
 					// RV-E pulls back only APPROVED work. A target below reviewed is
 					// already pending review, so re-checking it would change nothing —
 					// leaving it alone is what makes replays idempotent and avoids
 					// demoting a target that was already re-queued.
-					if t.Status.Rank() < model.TargetStatusEstablished.Rank() {
+					if model.TargetStatus(t.Status).Rank() < model.TargetStatusEstablished.Rank() {
 						continue
 					}
 					if strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
@@ -326,7 +326,8 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 					if _, seen := states[sb.Block.ID]; !seen {
 						states[sb.Block.ID] = changes.Snapshot(sb.Block, proj.DefaultSourceLanguage)
 					}
-					t.Status = model.TargetStatusDraft
+					t.Status = model.Status(model.TargetStatusDraft)
+					sb.Block.SetTargetEdition(model.Variant(loc), t)
 					changed[sb.Block.ID] = sb
 					affected[loc] = true
 				}

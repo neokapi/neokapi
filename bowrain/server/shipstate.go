@@ -296,7 +296,7 @@ func deriveShipGate(
 						continue
 					}
 					for _, localeStr := range locales {
-						if b.Block.Target(model.LocaleID(localeStr)) == nil {
+						if _, ok := b.Block.TargetEdition(model.LocaleID(localeStr)); !ok {
 							continue
 						}
 						judge(b.Block, b.ItemName, localeStr, "")
@@ -332,7 +332,10 @@ func deriveShipGate(
 			// A pair the store named but the block read did not return was
 			// deleted between the two queries. It has no verdict to record and
 			// no content to count.
-			if b == nil || !b.Block.Translatable || b.Block.Target(model.LocaleID(pair.Locale)) == nil {
+			if b == nil || !b.Block.Translatable {
+				continue
+			}
+			if _, ok := b.Block.TargetEdition(model.LocaleID(pair.Locale)); !ok {
 				continue
 			}
 			judge(b.Block, b.ItemName, pair.Locale, pair.Basis)

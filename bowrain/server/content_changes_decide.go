@@ -85,7 +85,8 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 			Message: fmt.Sprintf("%s holds no block keyed %q", target.Doc.Doc, target.Ref.Block)}
 	}
 	locale := string(target.Ref.Edition.Locale)
-	current := row.Block.Target(target.Ref.Edition.Locale)
+	current, held := row.Block.TargetEdition(target.Ref.Edition.Locale)
+	currentStatus := model.TargetStatus(current.Status)
 	switch body.Outcome {
 	case change.OutcomeEstablish:
 		if strings.TrimSpace(target.Text) == "" {
@@ -98,8 +99,8 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 		// sender is its author: the edit drops an established translation to
 		// translated, and the decision is a fresh approval of the sender's
 		// own work.
-		edited := current == nil || model.RunsRevision(target.Ref.Edition, current.Runs) != target.Rev
-		if !edited && current.Status.Rank() >= model.TargetStatusEstablished.Rank() {
+		edited := !held || model.RunsRevision(target.Ref.Edition, current.Runs) != target.Rev
+		if !edited && currentStatus.Rank() >= model.TargetStatusEstablished.Rank() {
 			return nil
 		}
 		sod := d.sod
@@ -117,7 +118,7 @@ func (d *streamDecisions) Prepare(ctx context.Context, _ change.Actor, op change
 			return decisionRefusal(err)
 		}
 	default:
-		if current != nil && current.Status == model.TargetStatusEstablished && !allowsLanguage(d.c, platauth.PermReview, locale) {
+		if held && currentStatus == model.TargetStatusEstablished && !allowsLanguage(d.c, platauth.PermReview, locale) {
 			return &change.Error{Code: change.CodeNotPermitted,
 				Message: "moving an established translation takes the review permission for " + locale}
 		}

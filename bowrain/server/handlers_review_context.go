@@ -266,7 +266,7 @@ func (s *Server) reviewNeighbourhood(ctx context.Context, pid, stream string, sb
 				continue
 			}
 			nb := review.Neighbour{Key: b.ID, Source: src}
-			if t := b.Target(loc); t != nil {
+			if t, ok := b.TargetEdition(loc); ok {
 				nb.Target = t.Runs
 				nb.Status = string(t.Status)
 			}
@@ -382,7 +382,7 @@ func reviewProvenanceOf(d *venue.UnitDecision, sb *venue.StoredBlock, loc model.
 		// A record with no basis at all is unknown rather than moved.
 		p.Stale = d.ContentHash != "" && sb.ContentHash != "" && d.ContentHash != sb.ContentHash
 	}
-	if t := sb.Block.Target(loc); t != nil && t.Origin.Kind != "" {
+	if t, ok := sb.Block.TargetEdition(loc); ok && t.Origin.Kind != "" {
 		o := t.Origin
 		p.Origin = &o
 	}

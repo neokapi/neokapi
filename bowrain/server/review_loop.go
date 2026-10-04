@@ -30,8 +30,8 @@ import (
 // decision — established on the model.TargetStatus ladder. Governed
 // delivery ships only these.
 func targetApproved(b *model.Block, loc model.LocaleID) bool {
-	t := b.Target(loc)
-	return t != nil && t.Status.Rank() >= model.TargetStatusEstablished.Rank()
+	t, ok := b.TargetEdition(loc)
+	return ok && model.TargetStatus(t.Status).Rank() >= model.TargetStatusEstablished.Rank()
 }
 
 // targetPendingReview reports whether a block's target for a locale is awaiting
@@ -44,15 +44,15 @@ func targetPendingReview(b *model.Block, loc model.LocaleID) bool {
 	if b == nil || !b.Translatable {
 		return false
 	}
-	t := b.Target(loc)
+	t, ok := b.TargetEdition(loc)
 	// Presence is the shared run-aware predicate, matching
 	// convergence.TargetState: a target whose only run is an inline code is
 	// produced content. Read through TargetText() it flattened to "" and the unit
 	// never entered the review queue, so no reviewer could ever approve it.
-	if t == nil || !model.RunsHaveContent(b.TargetRuns(loc)) {
+	if !ok || !model.RunsHaveContent(t.Runs) {
 		return false
 	}
-	return t.Status.Rank() < model.TargetStatusEstablished.Rank()
+	return model.TargetStatus(t.Status).Rank() < model.TargetStatusEstablished.Rank()
 }
 
 // pendingReviewLocales answers, for every locale asked about, whether the
