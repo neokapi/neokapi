@@ -184,7 +184,7 @@ func firstBlockRuns(t *testing.T, input string) []model.Run {
 	t.Helper()
 	blocks := readBlocks(t, input)
 	require.NotEmpty(t, blocks)
-	return blocks[0].Source
+	return blocks[0].SourceRuns()
 }
 
 // TestReaderConfigExtractionToggles verifies the config knobs gate extraction.

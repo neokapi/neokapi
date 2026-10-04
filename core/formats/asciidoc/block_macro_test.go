@@ -50,7 +50,7 @@ func TestBlockMacro_ImageAltTextIsTheOnlyContent(t *testing.T) {
 			var texts []string
 			for _, p := range parts {
 				if b, ok := p.Resource.(*model.Block); ok && b.Translatable {
-					texts = append(texts, model.RunsEditText(b.Source))
+					texts = append(texts, model.RunsEditText(b.SourceRuns()))
 				}
 			}
 			assert.Equal(t, tc.texts, texts)
@@ -74,7 +74,7 @@ func writeAsciidoc(t *testing.T, doc, from string, locale model.LocaleID, edit f
 	require.NoError(t, err)
 	edited := 0
 	for _, p := range parts {
-		if b, ok := p.Resource.(*model.Block); ok && b.Translatable && model.RunsEditText(b.Source) == from {
+		if b, ok := p.Resource.(*model.Block); ok && b.Translatable && model.RunsEditText(b.SourceRuns()) == from {
 			edit(b)
 			edited++
 		}
@@ -93,7 +93,7 @@ func readBackTexts(t *testing.T, doc string) []string {
 	var texts []string
 	for _, p := range parts {
 		if b, ok := p.Resource.(*model.Block); ok && b.Translatable {
-			texts = append(texts, model.RunsEditText(b.Source))
+			texts = append(texts, model.RunsEditText(b.SourceRuns()))
 		}
 	}
 	return texts
@@ -116,10 +116,10 @@ func runImageAltCases(t *testing.T, tests []imageAltCase) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var locale model.LocaleID
-			edit := func(b *model.Block) { b.EditSourceRuns(model.ParseRunsEditText(tc.to, b.Source)) }
+			edit := func(b *model.Block) { b.EditSourceRuns(model.ParseRunsEditText(tc.to, b.SourceRuns())) }
 			if tc.translate {
 				locale = "fr"
-				edit = func(b *model.Block) { b.SetTargetRuns("fr", model.ParseRunsEditText(tc.to, b.Source)) }
+				edit = func(b *model.Block) { b.SetTargetRuns("fr", model.ParseRunsEditText(tc.to, b.SourceRuns())) }
 			}
 			out, err := writeAsciidoc(t, tc.doc, tc.from, locale, edit)
 			if tc.refused != nil {
