@@ -146,7 +146,7 @@ The toolbox utilities (`kgrep`) additionally use grep-parity semantics: exit 1 w
 | --- | --- | --- |
 | `state` | Run-state transition | `message` |
 | `progress` | About to process one file (or source→locale pair) | `file_index`, `file_count`, `file_path`, `locale` |
-| `file_done` | One block completed | `file_path`, `output_path`, `locale` |
+| `file_done` | One file (or source→locale pair) completed | `file_path`, `output_path`, `locale` |
 | `pipeline_metrics` | Per-step throughput snapshot (multi-locale project runs) | `steps` |
 | `complete` | Run finished | `duration_ms`, `files_processed`, `message` |
 
