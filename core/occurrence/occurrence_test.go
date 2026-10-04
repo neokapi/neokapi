@@ -289,6 +289,37 @@ func TestFindWithNoTermsStore(t *testing.T) {
 	assert.NotErrorIs(t, err, ErrUnknownSubject, "an absent store is not an unknown term")
 }
 
+// A use in a tone or channel edition names that edition by its key, and a
+// filter naming the language finds it beside the plain edition, while a filter
+// naming the full key finds it alone.
+func TestFindNamesAToneEditionByItsKey(t *testing.T) {
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(t.Context(), concept("c-memory", "product", term("innholdsminne", "nb"))))
+
+	store := blockstore.NewMemoryStore()
+	sess, err := store.Begin(t.Context())
+	require.NoError(t, err)
+	require.NoError(t, sess.PutBlock("site", block("h1", "hero", "site/index.html", "The content memory.", map[string]string{
+		"nb":             "Innholdsminne i bruk.",
+		"nb;tone=formal": "Deres innholdsminne.",
+	})))
+	require.NoError(t, sess.Commit())
+	src := Sources{Terms: tb, Blocks: store}
+
+	locales := func(q Query) []string {
+		res, err := Find(t.Context(), src, q)
+		require.NoError(t, err)
+		var out []string
+		for _, o := range res.Occurrences {
+			out = append(out, o.Locale)
+		}
+		return out
+	}
+	assert.Equal(t, []string{"nb", "nb;tone=formal"}, locales(Query{Subject: "c-memory"}))
+	assert.Equal(t, []string{"nb", "nb;tone=formal"}, locales(Query{Subject: "c-memory", Locales: []string{"nb"}}))
+	assert.Equal(t, []string{"nb;tone=formal"}, locales(Query{Subject: "c-memory", Locales: []string{"nb;tone=formal"}}))
+}
+
 // One term text may belong to several concepts. Occurrences report which.
 func TestFindAcrossConcepts(t *testing.T) {
 	tb := terms.NewInMemoryStore()

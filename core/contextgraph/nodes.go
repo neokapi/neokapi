@@ -116,8 +116,8 @@ type UsesTerm struct {
 	// Validity is the term's own window, carried so the answer resolves at an
 	// instant: a term deprecated from a date is not discouraged before it.
 	Validity *graph.Validity
-	// Locale is the language of the text the term was found in — empty for the
-	// block's own source text.
+	// Locale is the edition the term was found in: empty for the block's own
+	// source text, otherwise the edition's key ("nb", "nb;tone=formal").
 	Locale     string
 	Collection string
 	Document   string

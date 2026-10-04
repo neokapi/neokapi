@@ -53,7 +53,9 @@ type Query struct {
 	// tried first, then term text, so one positional argument serves both.
 	Subject string
 	// Locales restricts which text is searched: nil means every locale,
-	// SourceLocale means the block's own text. An empty non-nil slice matches
+	// SourceLocale means the block's own text. A language also takes the tone
+	// and channel editions in it, and a full edition key takes that edition
+	// alone (blockstore.TextSearchOptions). An empty non-nil slice matches
 	// nothing.
 	Locales []string
 	// Collection restricts the search to one collection.
@@ -83,8 +85,10 @@ type Occurrence struct {
 	// Collection is the collection the block belongs to, where the store can
 	// derive it.
 	Collection string `json:"collection,omitempty"`
-	// Locale is the language of the text the term was found in: SourceLocale
-	// for the block's own text, otherwise the target locale.
+	// Locale is the edition the term was found in: SourceLocale for the
+	// block's own text, otherwise the edition's key, a locale with a tone or a
+	// channel where the edition has one ("nb", "nb;tone=formal"). Its language
+	// is the part before the first ';'.
 	Locale string `json:"locale"`
 
 	// Start and End are byte offsets of the match within that text.
