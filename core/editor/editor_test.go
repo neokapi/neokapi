@@ -20,35 +20,24 @@ func makeHTMLParts() []*model.Part {
 		Encoding: "UTF-8",
 	}
 
-	block1 := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: "Hello world"}}},
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   map[string]string{"note": "greeting"},
-		Skeleton: &model.Skeleton{
-			Strategy: model.SkeletonFragmentBased,
-			Parts: []model.SkeletonPart{
-				&model.SkeletonText{Text: "<p>"},
-				&model.SkeletonRef{ResourceID: "tu1", Property: "target"},
-				&model.SkeletonText{Text: "</p>"},
-			},
+	block1 := model.NewBlock("tu1", "Hello world")
+	block1.Properties["note"] = "greeting"
+	block1.Skeleton = &model.Skeleton{
+		Strategy: model.SkeletonFragmentBased,
+		Parts: []model.SkeletonPart{
+			&model.SkeletonText{Text: "<p>"},
+			&model.SkeletonRef{ResourceID: "tu1", Property: "target"},
+			&model.SkeletonText{Text: "</p>"},
 		},
 	}
 
-	block2 := &model.Block{
-		ID:           "tu2",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: "Welcome"}}},
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-		Skeleton: &model.Skeleton{
-			Strategy: model.SkeletonFragmentBased,
-			Parts: []model.SkeletonPart{
-				&model.SkeletonText{Text: "<h1>"},
-				&model.SkeletonRef{ResourceID: "tu2", Property: "target"},
-				&model.SkeletonText{Text: "</h1>"},
-			},
+	block2 := model.NewBlock("tu2", "Welcome")
+	block2.Skeleton = &model.Skeleton{
+		Strategy: model.SkeletonFragmentBased,
+		Parts: []model.SkeletonPart{
+			&model.SkeletonText{Text: "<h1>"},
+			&model.SkeletonRef{ResourceID: "tu2", Property: "target"},
+			&model.SkeletonText{Text: "</h1>"},
 		},
 	}
 
@@ -214,19 +203,13 @@ func TestHTMLPreviewWithSpans(t *testing.T) {
 		{PcClose: &model.PcCloseRun{ID: "b", Type: "b", Data: "</b>"}},
 	}
 
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       runs,
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-		Skeleton: &model.Skeleton{
-			Strategy: model.SkeletonFragmentBased,
-			Parts: []model.SkeletonPart{
-				&model.SkeletonText{Text: "<p>"},
-				&model.SkeletonRef{ResourceID: "tu1", Property: "target"},
-				&model.SkeletonText{Text: "</p>"},
-			},
+	block := model.NewRunsBlock("tu1", runs)
+	block.Skeleton = &model.Skeleton{
+		Strategy: model.SkeletonFragmentBased,
+		Parts: []model.SkeletonPart{
+			&model.SkeletonText{Text: "<p>"},
+			&model.SkeletonRef{ResourceID: "tu1", Property: "target"},
+			&model.SkeletonText{Text: "</p>"},
 		},
 	}
 
@@ -240,22 +223,12 @@ func TestHTMLPreviewWithSpans(t *testing.T) {
 
 func TestMarkdownPreview(t *testing.T) {
 	t.Parallel()
+	title := model.NewBlock("tu1", "My Title")
+	title.Type = "heading"
+	title.Properties["level"] = "1"
 	parts := []*model.Part{
-		{Type: model.PartBlock, Resource: &model.Block{
-			ID:           "tu1",
-			Translatable: true,
-			Source:       []model.Run{{Text: &model.TextRun{Text: "My Title"}}},
-			Targets:      make(map[model.VariantKey]*model.Target),
-			Type:         "heading",
-			Properties:   map[string]string{"level": "1"},
-		}},
-		{Type: model.PartBlock, Resource: &model.Block{
-			ID:           "tu2",
-			Translatable: true,
-			Source:       []model.Run{{Text: &model.TextRun{Text: "Some text"}}},
-			Targets:      make(map[model.VariantKey]*model.Target),
-			Properties:   make(map[string]string),
-		}},
+		{Type: model.PartBlock, Resource: title},
+		{Type: model.PartBlock, Resource: model.NewBlock("tu2", "Some text")},
 	}
 
 	preview := BuildMarkdownPreview(parts)
@@ -266,13 +239,7 @@ func TestMarkdownPreview(t *testing.T) {
 func TestGenericPreview(t *testing.T) {
 	t.Parallel()
 	parts := []*model.Part{
-		{Type: model.PartBlock, Resource: &model.Block{
-			ID:           "tu1",
-			Translatable: true,
-			Source:       []model.Run{{Text: &model.TextRun{Text: "Hello <world>"}}},
-			Targets:      make(map[model.VariantKey]*model.Target),
-			Properties:   make(map[string]string),
-		}},
+		{Type: model.PartBlock, Resource: model.NewBlock("tu1", "Hello <world>")},
 	}
 
 	preview := BuildGenericPreview(parts)
@@ -289,13 +256,7 @@ func TestSourceHTMLWithSpans(t *testing.T) {
 		{PcClose: &model.PcCloseRun{ID: "a", Type: "a", Data: "</a>"}},
 	}
 
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       runs,
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-	}
+	block := model.NewRunsBlock("tu1", runs)
 
 	parts := []*model.Part{{Type: model.PartBlock, Resource: block}}
 	index := BuildBlockIndex(parts, "en", "html", "page.html")
@@ -318,10 +279,8 @@ func TestRenderFragmentHTML(t *testing.T) {
 		{PcClose: &model.PcCloseRun{ID: "b", Type: "b", Data: "</b>"}},
 	}
 
-	block2 := &model.Block{
-		ID:     "tu2",
-		Source: runs,
-	}
+	block2 := &model.Block{ID: "tu2"}
+	block2.SetSourceRuns(runs)
 	assert.Equal(t, "Hello <b>world</b>", renderFragmentHTML(block2))
 }
 
