@@ -228,7 +228,7 @@ func TestServerWritesBlessings(t *testing.T) {
 	require.True(t, ok)
 	_, err := decisions.UpsertUnitDecisions(ctx, proj.ID, writerStream, []venue.UnitDecision{{
 		ItemName: "docs.json", Unit: "intro", Variant: "nb",
-		Status: "established", ReviewState: "approved", TargetHash: "th-1",
+		Status: "established", ReviewState: "approved", Revision: "r:1111111111111111", Basis: "r:aaaaaaaaaaaaaaaa",
 	}})
 	require.NoError(t, err)
 
@@ -245,7 +245,8 @@ func TestServerWritesBlessings(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, blessings, 1)
 	assert.Equal(t, "intro", blessings[0].Unit)
-	assert.Equal(t, "th-1", blessings[0].TargetHash)
+	assert.Equal(t, "r:1111111111111111", blessings[0].Revision)
+	assert.Equal(t, "r:aaaaaaaaaaaaaaaa", blessings[0].Basis)
 }
 
 // An unscoped write is refused rather than allowed to clear a label across

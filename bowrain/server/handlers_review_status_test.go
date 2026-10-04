@@ -297,7 +297,7 @@ func TestDecide_RejectMovesToDraft(t *testing.T) {
 	}
 	require.NotEmpty(t, approval.Unit, "the approval is recorded in the ledger")
 	require.NoError(t, cs.RecordDraftBases(ctx, pid, "main", []platstore.DraftBasis{{
-		ItemName: approval.ItemName, Unit: approval.Unit, Variant: approval.Variant, SourceHash: approval.ContentHash,
+		ItemName: approval.ItemName, Unit: approval.Unit, Variant: approval.Variant, Basis: approval.Basis,
 	}}))
 	require.Len(t, draftMarks(t, cs, pid), 1)
 

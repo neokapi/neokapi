@@ -6,7 +6,6 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,10 +37,10 @@ func seedOrphanFixture(t *testing.T, s *SQLiteStore, projectID, stream, itemName
 
 	_, err := s.UpsertUnitDecisions(ctx, projectID, stream, []venue.UnitDecision{{
 		ItemName: itemName, Unit: "greeting", Variant: "nb",
-		Status:      string(model.TargetStatusEstablished),
-		TargetHash:  state.TargetHash("Hei"),
-		ContentHash: state.SourceHash("Hello"),
-		Updated:     "2026-08-04T10:00:00Z",
+		Status:   string(model.TargetStatusEstablished),
+		Revision: nbTextRevision("Hei"),
+		Basis:    sourceRevision("Hello"),
+		Updated:  "2026-08-04T10:00:00Z",
 	}})
 	require.NoError(t, err)
 	require.NoError(t, s.RecordPreReview(ctx, projectID, stream, platstore.PreReview{

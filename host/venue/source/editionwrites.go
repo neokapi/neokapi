@@ -130,10 +130,11 @@ func (c *BowrainSourceConnector) projectEditionWrites(ctx context.Context, block
 			if w.Unit != r.Block {
 				w.Block = r.Block
 			}
-			if r.Basis != "" && r.Origin != history.OriginPull {
-				// The content hash the record keeps is the source's, which is
-				// the value a venue compares a block's source with.
-				w.Basis = r.ContentHash
+			if r.Origin != history.OriginPull {
+				// The revision of the source the write was made from, taken
+				// under the project's source language as the venue takes the
+				// revision of the source it holds.
+				w.Basis = r.Basis
 			}
 			out = append(out, w)
 		}

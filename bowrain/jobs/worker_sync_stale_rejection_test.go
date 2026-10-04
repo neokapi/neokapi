@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,7 +24,7 @@ func (r *rejectionRedraft) decisionPush(jobID, actor, recorded, reviewState stri
 	record := venue.UnitDecision{
 		ItemName: r.item, Unit: redraftUnit, Variant: redraftLocale,
 		Status: string(rung), ReviewState: reviewState, Note: note,
-		TargetHash: state.TargetHash(recorded), ContentHash: state.SourceHash(redraftSource),
+		Revision: frRevision(recorded), Basis: srcRevision(redraftSource),
 		DecidedBy: actor, DecidedAt: at, Updated: at,
 	}
 	require.NoError(r.t, governedPush{
@@ -61,7 +60,7 @@ func TestPushedRejectionOfAnOlderTranslation(t *testing.T) {
 			"the translation the platform holds keeps its rung")
 		after := r.ledgerRow()
 		assert.Equal(t, venue.ReviewStateApproved, after.ReviewState, "and its verdict")
-		assert.Equal(t, before.TargetHash, after.TargetHash, "the ledger still names the translation it approved")
+		assert.Equal(t, before.Revision, after.Revision, "the ledger still names the translation it approved")
 		assert.Equal(t, before.DecidedBy, after.DecidedBy)
 		assert.Equal(t, mark, r.mark(), "the draft mark stands")
 		assert.Zero(t, r.draft("job-draft-2"), "nothing is re-drafted")
@@ -89,7 +88,7 @@ func TestPushedRejectionOfAnOlderTranslation(t *testing.T) {
 		assert.Equal(t, rung, storedTarget(t, r.deps, r.pid, r.item, redraftLocale))
 		after := r.ledgerRow()
 		assert.Empty(t, after.ReviewState, "no rejection is recorded against the translation the platform holds")
-		assert.Equal(t, before.TargetHash, after.TargetHash)
+		assert.Equal(t, before.Revision, after.Revision)
 		assert.Equal(t, mark, r.mark())
 		assert.Zero(t, r.draft("job-draft-2"))
 	})

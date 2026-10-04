@@ -71,6 +71,8 @@ func TestLastTargetAuthors(t *testing.T) {
 			Unit:        unit,
 			Variant:     "fr",
 			Status:      string(model.TargetStatusEstablished),
+			Revision:    model.RunsRevision(model.Variant("fr"), []model.Run{model.TextR("Bonjour à tous")}),
+			Basis:       sourceRevision("Hello"),
 			ReviewState: "approved",
 			DecidedBy:   "reviewer@example.test",
 			DecidedAt:   "2026-01-01T00:00:00Z",

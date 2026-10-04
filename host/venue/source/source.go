@@ -264,9 +264,8 @@ func (c *BowrainSourceConnector) ListFiles(ctx context.Context, paths []string) 
 
 		dirty := 0
 		for _, b := range blocks {
-			identity := model.ComputeIdentity(b)
 			cached, found := c.lookupCachedHashForItem(relPath, convergence.BlockKey(b))
-			if !found || cached != identity.RecordHash() {
+			if !found || cached != venue.RecordHash(b, c.sourceLanguage()) {
 				dirty++
 			}
 		}
@@ -376,7 +375,7 @@ type FileDelta struct {
 	Path    string       // path relative to project root
 	Format  string       // detected format name
 	Added   int          // blocks present locally but not in the sync cache
-	Changed int          // blocks whose content hash differs from the cache
+	Changed int          // blocks whose record hash differs from the cache
 	Removed int          // blocks in the cache but no longer present locally
 	Blocks  []BlockDelta // per-block detail, sorted by block ID
 }
@@ -402,7 +401,7 @@ func (d *Diff) HasChanges() bool {
 //
 // Local-vs-remote semantics, anchored on the sync cache:
 //   - "added"   — block present locally, absent from the cache.
-//   - "changed" — block present in both, content hash differs.
+//   - "changed" — block present in both, record hash differs (venue.RecordHash).
 //   - "removed" — block present in the cache, absent locally.
 //
 // It also queries the server for the count of pending remote changes, mirroring
@@ -716,7 +715,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 				// Content-addressed and global: a block that moved between
 				// files is content the venue already holds, and asking per item
 				// would upload it again under the new name.
-				if _, have := held[model.ComputeIdentity(b).RecordHash()]; !have {
+				if _, have := held[venue.RecordHash(b, c.sourceLanguage())]; !have {
 					changed = append(changed, itemBlock{itemName: itemName, block: b})
 				}
 			default:
@@ -829,6 +828,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// the server would preserve values the source had genuinely dropped.
 	pushOpts := []apiclient.PushOption{
 		apiclient.AssertRef(c.refs.Ref(c.stream)),
+		apiclient.TransferUnder(c.sourceLanguage()),
 		apiclient.DeclareBlockProperties(venue.BlockPropertyKeys(allScannedBlocks(blockMap))),
 		apiclient.DeclareTree(scope, localTree),
 		apiclient.CarryEditionWrites(writes),
@@ -1648,8 +1648,7 @@ func (c *BowrainSourceConnector) scanLocal(ctx context.Context, paths []string) 
 
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
-				identity := model.ComputeIdentity(b)
-				fileHashes[convergence.BlockKey(b)] = identity.RecordHash()
+				fileHashes[convergence.BlockKey(b)] = venue.RecordHash(b, c.sourceLanguage())
 			}
 			hashMap[relPath] = fileHashes
 			blockMap[relPath] = blocks
@@ -1673,8 +1672,7 @@ func (c *BowrainSourceConnector) scanLocal(ctx context.Context, paths []string) 
 
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
-				identity := model.ComputeIdentity(b)
-				fileHashes[convergence.BlockKey(b)] = identity.RecordHash()
+				fileHashes[convergence.BlockKey(b)] = venue.RecordHash(b, c.sourceLanguage())
 			}
 			hashMap[relPath] = fileHashes
 			blockMap[relPath] = blocks
@@ -1704,6 +1702,15 @@ func excludePaths(scope venue.Scope, paths []string) venue.Scope {
 
 // globEscaper escapes the characters path.Match reads as a pattern.
 var globEscaper = strings.NewReplacer(`\`, `\\`, `*`, `\*`, `?`, `\?`, `[`, `\[`)
+
+// sourceLanguage is the project's source language as a project read resolves
+// it: the language every decision's basis is taken under, and the one the
+// venue takes the revision of a block's source under (venue.SourceRevision).
+// The transfer hash folds that revision, so a push takes it under the same
+// language.
+func (c *BowrainSourceConnector) sourceLanguage() model.LocaleID {
+	return model.LocaleID(host.ResolveSourceLocale("", c.project.Recipe.Defaults.SourceLanguage))
+}
 
 // detectFormat determines the format for a file: the format the claiming
 // content item declares (itemFor), or the registry when it declares none.

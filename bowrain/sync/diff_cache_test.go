@@ -125,11 +125,11 @@ func TestDiffEngine_CacheMiss_LoadsFromStoreAndPopulatesCache(t *testing.T) {
 
 	cachedBlocks, ok := cache.View(ctx, "proj-1", "main").GetBlockHashes(ctx, "en.json")
 	require.True(t, ok, "block hashes should be cached after a miss")
-	// Cached as the transfer hash — both stored halves folded — because that is
+	// Cached as the transfer hash — every stored part folded — because that is
 	// what a push's block hashes are compared against.
 	assert.Equal(t, map[string]string{
-		"b1": model.ComputeRecordHash("hash-b1", ""),
-		"b2": model.ComputeRecordHash("hash-b2", ""),
+		"b1": model.ComputeRecordHash("hash-b1", "", ""),
+		"b2": model.ComputeRecordHash("hash-b2", "", ""),
 	}, cachedBlocks)
 
 	// Second call: now served from the item-hash cache → no further store reads.
@@ -197,12 +197,12 @@ func TestDiffEngine_InvalidateDuringRead_DoesNotCacheStaleHashes(t *testing.T) {
 
 	raced, err := engine.ExportItemHashes(ctx, "proj-1", "main")
 	require.NoError(t, err)
-	assert.Equal(t, venue.ComputeItemHash(map[string]string{"b1": model.ComputeRecordHash("before", "")}),
+	assert.Equal(t, venue.ComputeItemHash(map[string]string{"b1": model.ComputeRecordHash("before", "", "")}),
 		raced["en.json"], "the racing read answers with what it read")
 
 	after, err := engine.ExportItemHashes(ctx, "proj-1", "main")
 	require.NoError(t, err)
-	assert.Equal(t, venue.ComputeItemHash(map[string]string{"b1": model.ComputeRecordHash("after", "")}),
+	assert.Equal(t, venue.ComputeItemHash(map[string]string{"b1": model.ComputeRecordHash("after", "", "")}),
 		after["en.json"], "the next read answers for the content the write left")
 	assert.Equal(t, 2, store.getBlocksCalls, "the raced read's hashes were never served")
 }

@@ -34,7 +34,7 @@ func (s *SQLiteStore) UpdateBlock(ctx context.Context, projectID, stream, blockI
 	}
 	row := tx.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, overlays, stored_at, updated_at
+			source_revision, source_json, properties, overlays, stored_at, updated_at
 		 FROM blocks WHERE project_id=? AND stream=? AND id=?`, projectID, stream, blockID)
 	sb, err := scanStoredBlock(row)
 	if err != nil {

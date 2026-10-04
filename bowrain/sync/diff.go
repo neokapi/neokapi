@@ -244,10 +244,11 @@ func (d *DiffEngine) loadBlockHashes(ctx context.Context, view HashView, project
 			key = sb.Block.ID
 		}
 		// The transfer hash, not the content hash: a block the client stores
-		// with a property this row was written before does not match, so the
-		// push that carries it is asked for it. Both halves are columns here,
-		// so the fold costs nothing — see model.BlockIdentity.RecordHash.
-		hashes[key] = model.ComputeRecordHash(sb.ContentHash, sb.ContextHash)
+		// with a property this row was written before, or with an inline code
+		// this row's source does not carry, does not match, so the push that
+		// carries it is asked for it. Every part is a column here, so the fold
+		// costs nothing — see venue.RecordHash.
+		hashes[key] = model.ComputeRecordHash(sb.ContentHash, sb.ContextHash, sb.SourceRevision)
 	}
 
 	view.SetBlockHashes(ctx, itemName, hashes)

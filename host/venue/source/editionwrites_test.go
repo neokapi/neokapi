@@ -19,7 +19,6 @@ import (
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host"
@@ -27,6 +26,17 @@ import (
 	"github.com/neokapi/neokapi/host/venue/config"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
 )
+
+// sourceRev is the revision of a plain-text source under the project's source
+// language, en: the basis a checkout records and the revision a venue holds.
+func sourceRev(text string) string {
+	return venue.SourceRevision(model.NewBlock("", text), "en")
+}
+
+// targetRev is the revision of a plain-text French translation.
+func targetRev(text string) string {
+	return model.RunsRevision(model.Variant("fr"), []model.Run{model.TextR(text)})
+}
 
 // applyFrench rewrites the French translation of the greeting through the
 // change service, as a person's kapi apply does.
@@ -110,7 +120,7 @@ func TestPush_SendsTheWriteOfTheTranslationTheCheckoutHolds(t *testing.T) {
 	}
 	require.NotNil(t, greeting)
 	assert.Equal(t, venue.WriterTool, greeting.Writer, "the pass on A wrote it")
-	assert.Equal(t, state.SourceHash("Hello world"), greeting.Basis, "from the source branch A holds")
+	assert.Equal(t, sourceRev("Hello world"), greeting.Basis, "from the source branch A holds")
 	b := &model.Block{}
 	var held map[string]string
 	require.NoError(t, json.Unmarshal(frA, &held))
@@ -203,7 +213,7 @@ func TestPull_RecordsTheBasisTheVenueGaveATranslation(t *testing.T) {
 			targets := map[string][]model.Run{match: {{Text: &model.TextRun{Text: "Bonjour le monde"}}}}
 			var bases map[string]pulledBasis
 			if tc.venue != "" {
-				bases = map[string]pulledBasis{match: {hash: state.SourceHash(tc.venue)}}
+				bases = map[string]pulledBasis{match: pulledBasis(sourceRev(tc.venue))}
 			}
 			wrote, err := conn.pullEdition(ctx, pullServices{}, "locales/en.json", "fr", targets, bases, nil)
 			require.NoError(t, err)
@@ -260,7 +270,7 @@ func TestPulledBases_NameTheSourceTheVenueRecorded(t *testing.T) {
 	}
 	record := func(unit, source, target string) venue.UnitDecision {
 		return venue.UnitDecision{ItemName: "locales/en.json", Unit: unit, Variant: "fr",
-			ContentHash: state.SourceHash(source), TargetHash: state.TargetHash(target)}
+			Basis: sourceRev(source), Revision: targetRev(target)}
 	}
 	blocks := []apiclient.SyncBlock{
 		block("greeting", "Hello world", "Bonjour le monde"),
@@ -273,16 +283,15 @@ func TestPulledBases_NameTheSourceTheVenueRecorded(t *testing.T) {
 	got := pulledBases(blocks, "fr", []venue.UnitDecision{
 		record("greeting", "Hello", "Bonjour le monde"),
 		record("farewell", "Goodbye now", "Salut"), // a record of another translation
-		{ItemName: "locales/en.json", Unit: "thanks", Variant: "fr", TargetHash: state.TargetHash("Merci")},
+		{ItemName: "locales/en.json", Unit: "thanks", Variant: "fr", Revision: targetRev("Merci")},
 		revisioned,
 	})
-	assert.Equal(t, map[string]pulledBasis{targetMatchKey("greeting", "Hello world"): {hash: state.SourceHash("Hello")}}, got)
+	assert.Equal(t, map[string]pulledBasis{targetMatchKey("greeting", "Hello world"): pulledBasis(sourceRev("Hello"))}, got)
 }
 
-// A venue's record that names the source by revision is read by it: the basis
-// names the source the checkout holds while the revision does, under any key a
-// read of the document gives it, and a link moved in the source, which no hash
-// sees, means it names another.
+// A venue's record names the source by revision: the basis names the source
+// the checkout holds while the revision does, under any key a read of the
+// document gives it, and a link moved in the source means it names another.
 func TestPulledBasis_NamesTheSourceByRevision(t *testing.T) {
 	link := func(href string) []model.Run {
 		return []model.Run{
@@ -295,14 +304,15 @@ func TestPulledBasis_NamesTheSourceByRevision(t *testing.T) {
 	held := model.NewRunsBlock("tu1", link("https://a.example"))
 	held.SourceLocale = "en"
 	venueRead := model.NewRunsBlock("tu1", link("https://a.example"))
-	basis := pulledBasis{rev: model.EditionRevision(venueRead, model.EditionKey{}), hash: state.SourceHash(venueRead.SourceText())}
+	basis := pulledBasis(model.EditionRevision(venueRead, model.EditionKey{}))
 	assert.True(t, basis.names(held, "en"), "the venue read the source under no language; the content is the one held")
 
 	moved := model.NewRunsBlock("tu1", link("https://b.example"))
 	moved.SourceLocale = "en"
 	assert.False(t, basis.names(moved, "en"), "the link moved under the venue's translation")
-	assert.True(t, pulledBasis{hash: basis.hash}.names(moved, "en"), "a record made before revisions is read by its hash")
-	assert.False(t, pulledBasis{}.names(held, "en"), "a record that names no source names none")
+	assert.True(t, pulledBasis(venue.SourceRevision(moved, "en")).names(moved, "en"),
+		"the venue's revision of the source under the project's language names it")
+	assert.False(t, pulledBasis("").names(held, "en"), "a record that names no source names none")
 }
 
 // After kapi up, the push carries how each translation was written: the source
@@ -337,7 +347,7 @@ func TestPush_CarriesHowEachTranslationWasWritten(t *testing.T) {
 		assert.Equal(t, "fr", w.Variant)
 		assert.Equal(t, venue.WriterTool, w.Writer, "%s: a tool in the flow wrote it", local)
 		assert.Equal(t, "flow:pseudo", w.Origin)
-		assert.Equal(t, state.SourceHash(sources[local]), w.Basis, "%s: the source the run made it from", local)
+		assert.Equal(t, sourceRev(sources[local]), w.Basis, "%s: the source the run made it from", local)
 		assert.Equal(t, reads[local].Editions["fr"].Rev, w.Revision, "%s: the translation on disk", local)
 		assert.False(t, w.ByHand())
 	}
@@ -363,6 +373,6 @@ func TestPush_CarriesHowEachTranslationWasWritten(t *testing.T) {
 	require.NotNil(t, greeting, "the push carries the new write")
 	assert.Equal(t, venue.WriterPerson, greeting.Writer)
 	assert.Equal(t, "apply", greeting.Origin)
-	assert.Equal(t, state.SourceHash("Hello world"), greeting.Basis, "the source in front of the person who wrote it")
+	assert.Equal(t, sourceRev("Hello world"), greeting.Basis, "the source in front of the person who wrote it")
 	assert.True(t, greeting.ByHand(), "the pusher wrote it")
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -96,7 +95,7 @@ func (r *rejectionRedraft) mark() string {
 	require.NoError(r.t, err)
 	for _, d := range drafts {
 		if d.Unit == redraftUnit && d.Variant == redraftLocale {
-			return d.SourceHash
+			return d.Basis
 		}
 	}
 	return ""
@@ -111,7 +110,7 @@ func (r *rejectionRedraft) verdictPush(jobID, actor string, permits map[string]b
 	record := venue.UnitDecision{
 		ItemName: r.item, Unit: redraftUnit, Variant: redraftLocale,
 		Status: string(rung), ReviewState: reviewState,
-		TargetHash: state.TargetHash(recorded), ContentHash: state.SourceHash(redraftSource),
+		Revision: frRevision(recorded), Basis: srcRevision(redraftSource),
 		DecidedBy: actor, DecidedAt: at, Updated: at,
 	}
 	require.NoError(r.t, governedPush{
@@ -122,14 +121,14 @@ func (r *rejectionRedraft) verdictPush(jobID, actor string, permits map[string]b
 }
 
 func TestPushedRejectionRedrafts(t *testing.T) {
-	sourceHash := state.SourceHash(redraftSource)
+	sourceRev := srcRevision(redraftSource)
 
 	t.Run("a rejection the push lands clears the mark and the next run drafts once", func(t *testing.T) {
 		r := newRejectionRedraft(t)
 		require.Equal(t, 1, r.draft("job-draft-1"), "the first run drafts the unit")
 		drafted := r.target()
 		require.NotEmpty(t, drafted)
-		require.Equal(t, sourceHash, r.mark(), "and marks the source it drafted against")
+		require.Equal(t, sourceRev, r.mark(), "and marks the source it drafted against")
 		require.Zero(t, r.draft("job-draft-2"), "nothing is owed before the rejection")
 
 		r.verdictPush("job-reject", "u-translator", map[string]bool{}, drafted, drafted,
@@ -141,14 +140,14 @@ func TestPushedRejectionRedrafts(t *testing.T) {
 		assert.Empty(t, r.mark(), "the rejection the push landed clears the mark")
 
 		assert.Equal(t, 1, r.draft("job-draft-3"), "the next run drafts the rejected unit")
-		assert.Equal(t, sourceHash, r.mark(), "and marks the new draft")
+		assert.Equal(t, sourceRev, r.mark(), "and marks the new draft")
 		assert.Zero(t, r.draft("job-draft-4"), "once")
 
 		// A producer that has not pulled sends the same record again, with the
 		// translation it holds. It is not a new decision.
 		r.verdictPush("job-reject-again", "u-translator", map[string]bool{}, drafted, drafted,
 			model.TargetStatusDraft, venue.ReviewStateRejected, time.Hour)
-		assert.Equal(t, sourceHash, r.mark(), "a rejection sent again clears nothing")
+		assert.Equal(t, sourceRev, r.mark(), "a rejection sent again clears nothing")
 		assert.Zero(t, r.draft("job-draft-5"), "and buys no second draft")
 	})
 
@@ -160,7 +159,7 @@ func TestPushedRejectionRedrafts(t *testing.T) {
 		r.verdictPush("job-approve", "u-reviewer", map[string]bool{redraftLocale: true}, drafted, drafted,
 			model.TargetStatusEstablished, venue.ReviewStateApproved, time.Hour)
 		require.Equal(t, model.TargetStatusEstablished, storedTarget(t, r.deps, r.pid, r.item, redraftLocale))
-		require.Equal(t, sourceHash, r.mark(), "an approval leaves the mark as it was")
+		require.Equal(t, sourceRev, r.mark(), "an approval leaves the mark as it was")
 
 		r.verdictPush("job-reject-refused", "u-translator", map[string]bool{}, drafted, drafted,
 			model.TargetStatusDraft, venue.ReviewStateRejected, 2*time.Hour)
@@ -170,7 +169,7 @@ func TestPushedRejectionRedrafts(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, venue.ReviewStateApproved, d.ReviewState)
 		assert.Len(t, jobGovernance(t, r.deps, "push-job-reject-refused").Refusals, 1, "the refusal is reported")
-		assert.Equal(t, sourceHash, r.mark(), "a refused rejection leaves the mark")
+		assert.Equal(t, sourceRev, r.mark(), "a refused rejection leaves the mark")
 		assert.Zero(t, r.draft("job-draft-2"), "and buys no draft")
 	})
 
@@ -181,7 +180,7 @@ func TestPushedRejectionRedrafts(t *testing.T) {
 
 		r.verdictPush("job-reject-stale", "u-translator", map[string]bool{}, drafted, "Effacer le compte",
 			model.TargetStatusDraft, venue.ReviewStateRejected, time.Hour)
-		assert.Equal(t, sourceHash, r.mark(), "the rejection judges a translation the venue has replaced")
+		assert.Equal(t, sourceRev, r.mark(), "the rejection judges a translation the venue has replaced")
 		assert.Zero(t, r.draft("job-draft-2"), "so it buys no draft")
 	})
 }

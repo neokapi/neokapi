@@ -188,7 +188,7 @@ type RichPullResponse struct {
 
 	// Decisions is the project's decision ledger — the latest workflow
 	// decision per (item, unit, variant), with decider identity, time, and
-	// the hash of the translation each decision blesses. Like Contexts it is
+	// the pairing each decision blesses, by revision. Like Contexts it is
 	// not cursor-driven: the ledger is small and the client reconciles it
 	// last-writer-wins into its working store, where `kapi commit` remains
 	// the only door into the git-tracked record.

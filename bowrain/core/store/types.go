@@ -687,9 +687,11 @@ type LocaleTranslationStats struct {
 	// split rather than folded into it. Additive: producers that do not read
 	// the ledger's verdicts leave it 0.
 	RejectedAwaitingDraftBlocks int `json:"rejected_awaiting_draft_blocks,omitempty"`
-	// BasisUnknownBlocks counts decisions without a recorded source basis.
-	// These retain their existing lifecycle state and remain eligible to ship.
-	// Recording a new decision supplies a basis and clears the unknown status.
+	// BasisUnknownBlocks counts records that name no source they were made
+	// from: a translation written outside kapi, which a push records with no
+	// basis. These retain their existing lifecycle state and remain eligible
+	// to ship. A decision on the unit supplies a basis and clears the unknown
+	// status.
 	BasisUnknownBlocks int `json:"basis_unknown_blocks,omitempty"`
 	// ShipState is the derived per-locale ship state (see DeriveShipState).
 	// Empty when the producer did not derive it.
@@ -895,10 +897,12 @@ type DecisionStore interface {
 	ListUnitDecisions(ctx context.Context, projectID, stream string) ([]venue.UnitDecision, error)
 	// TallyDecisionBasis grades the stream's recorded decisions against the
 	// source the project holds NOW, grouped by (item, variant). A decision
-	// records the basis it blessed (UnitDecision.ContentHash) and the block
-	// records its current source hash; the two are the same value
-	// (model.ComputeContentHash of the source text), so the grading is an
-	// equality join and never a re-derivation. Decisions naming a unit this
+	// records the basis it blessed (UnitDecision.Basis) and the block records
+	// the revision of its current source (StoredBlock.SourceRevision); the two
+	// are taken the same way (venue.SourceRevision), so the grading is an
+	// equality join and never a re-derivation. A decision is current while its
+	// basis is the block's source revision, stale when it names another, and
+	// unknown when it names none (BasisStale). Decisions naming a unit this
 	// store holds no block for are omitted — there is nothing to grade them
 	// against.
 	TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]DecisionBasisTally, error)
@@ -906,8 +910,8 @@ type DecisionStore interface {
 	// platform's latest draft of it was made against. The decision half of
 	// the row is never touched, and a unit with no row is not given one: the
 	// stamp qualifies a record, it is not a record on its own. An empty
-	// SourceHash clears the mark, which is how a rejection puts a unit back in
-	// line for a draft.
+	// Basis clears the mark, which is how a rejection puts a unit back in line
+	// for a draft.
 	RecordDraftBases(ctx context.Context, projectID, stream string, drafts []DraftBasis) error
 	// ListDraftBases returns every stamped draft basis on the stream.
 	ListDraftBases(ctx context.Context, projectID, stream string) ([]DraftBasis, error)
@@ -933,14 +937,14 @@ type DecisionBasisTally struct {
 	// Variant is the decision's locale (and optional tone/channel) in
 	// EditionKey text form, as the ledger stores it.
 	Variant string
-	// Stale counts decisions whose basis names source wording the block no
-	// longer carries: the translation renders a sentence the project has since
-	// rewritten.
+	// Stale counts decisions whose basis names a revision of the source other
+	// than the one the block carries: the translation renders a source the
+	// project has since changed, its wording or an inline code.
 	Stale int
-	// BasisUnknown counts decisions recorded before a basis was tracked. Empty
-	// is unknown, never stale — reading that silence as drift would withhold
-	// every locale of every project holding decisions from before the field
-	// existed.
+	// BasisUnknown counts records that name no basis: a translation written
+	// outside kapi, made from no recorded source. Unknown is never stale —
+	// reading that silence as drift would re-draft a person's translation on
+	// a guess.
 	BasisUnknown int
 	// Owed counts the stale decisions whose unit still owes a draft: the unit
 	// carries a target for the variant, and the platform has recorded no
@@ -967,7 +971,7 @@ type DecisionBasisTally struct {
 // one unit and variant: the source that draft was made against. It sits on
 // the unit's ledger row beside the decision and is never confused with it: a
 // decision's basis is what a person blessed, and the draft basis is what the
-// platform last translated. The two differ for exactly as long as a rewritten
+// platform last translated. The two differ for exactly as long as a changed
 // source waits on a re-review, which is how a stale decided unit is drafted
 // once per source change rather than once per pass.
 type DraftBasis struct {
@@ -976,11 +980,11 @@ type DraftBasis struct {
 	// Variant is the locale (and optional tone/channel) in EditionKey text
 	// form, as the ledger stores it.
 	Variant string
-	// SourceHash is the block's content hash at the time of the draft
-	// (model.ComputeContentHash of the source text, the value a basis records).
+	// Basis is the revision of the block's source at the time of the draft
+	// (StoredBlock.SourceRevision, the value a decision's basis records).
 	// Empty clears the mark: the unit is owed a draft again, which is what a
 	// reviewer turning one down leaves behind.
-	SourceHash string
+	Basis string
 }
 
 // ChannelAliasProposal is the workspace's observation that two channel slugs

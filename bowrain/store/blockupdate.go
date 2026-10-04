@@ -29,7 +29,7 @@ func (s *PostgresStore) UpdateBlock(ctx context.Context, projectID, stream, bloc
 	}
 	row := tx.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, overlays, stored_at, updated_at
+			source_revision, source_json, properties, overlays, stored_at, updated_at
 		 FROM blocks WHERE project_id=$1 AND stream=$2 AND id=$3
 		 FOR UPDATE`, projectID, stream, blockID)
 	sb, err := scanStoredBlockPg(row)

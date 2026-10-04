@@ -7,6 +7,7 @@ import (
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
 	"github.com/stretchr/testify/assert"
@@ -47,8 +48,9 @@ func TestConnectorDiff_NothingToDoOnceTheFieldHasBeenPushed(t *testing.T) {
 	const content = `{"greeting":"Hello","farewell":"Goodbye"}`
 	proj, reg := newDiffTestProject(t, content)
 
+	source := model.LocaleID(host.ResolveSourceLocale("", proj.Recipe.Defaults.SourceLanguage))
 	seedCacheWithHashes(t, proj, reg, func(b *model.Block) string {
-		return model.ComputeIdentity(b).RecordHash()
+		return venue.RecordHash(b, source)
 	})
 
 	conn := NewLocalConnector(&host.App{}, proj, reg)

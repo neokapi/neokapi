@@ -279,6 +279,7 @@ blocks.project_id text NOT NULL
 blocks.properties text NOT NULL DEFAULT '{}'::text
 blocks.source_id text NOT NULL DEFAULT ''::text
 blocks.source_json text NOT NULL DEFAULT '[]'::text
+blocks.source_revision text NOT NULL DEFAULT ''::text
 blocks.stored_at timestamp with time zone NOT NULL DEFAULT now()
 blocks.stream text NOT NULL DEFAULT 'main'::text
 blocks.translatable boolean NOT NULL DEFAULT true
@@ -1107,7 +1108,6 @@ unclaimed_projects.project_id text NOT NULL
 unclaimed_projects.target_languages text NOT NULL
 unit_decisions.assignee text NOT NULL DEFAULT ''::text
 unit_decisions.basis text NOT NULL DEFAULT ''::text
-unit_decisions.content_hash text NOT NULL DEFAULT ''::text
 unit_decisions.decided_at text NOT NULL DEFAULT ''::text
 unit_decisions.decided_by text NOT NULL DEFAULT ''::text
 unit_decisions.draft_basis text NOT NULL DEFAULT ''::text
@@ -1121,7 +1121,6 @@ unit_decisions.review_state text NOT NULL DEFAULT ''::text
 unit_decisions.revision text NOT NULL DEFAULT ''::text
 unit_decisions.status text NOT NULL DEFAULT ''::text
 unit_decisions.stream text NOT NULL DEFAULT 'main'::text
-unit_decisions.target_hash text NOT NULL DEFAULT ''::text
 unit_decisions.unit text NOT NULL
 unit_decisions.updated text NOT NULL DEFAULT ''::text
 unit_decisions.updated_at timestamp with time zone NOT NULL DEFAULT now()

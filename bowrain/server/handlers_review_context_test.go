@@ -435,7 +435,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	_, derr := ds.UpsertUnitDecisions(ctx, projID, "main", []venue.UnitDecision{{
 		ItemName: middle.ItemName, Unit: middle.SourceID, Variant: "fr", Status: "established",
 		ReviewState: "approved", DecidedBy: "owner@rc.test", DecidedAt: "2026-09-01T11:00:00Z",
-		Note: "Matches the approved wording", ContentHash: middle.ContentHash,
+		Note: "Matches the approved wording", Basis: middle.SourceRevision,
 		Updated: "2026-09-01T11:00:00Z",
 	}})
 	require.NoError(t, derr)
@@ -445,7 +445,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 			ReviewState: "approved", By: "owner@rc.test", At: "2026-09-01T11:00:00Z",
 			Note: "Matches the approved wording",
 		},
-		ContentHash: state.SourceHash(middle.Block.SourceText()),
+		Basis: middle.SourceRevision,
 	}
 
 	_, got := getReviewContext(t, s, wsID, projID, middle.Block.ID, "fr")

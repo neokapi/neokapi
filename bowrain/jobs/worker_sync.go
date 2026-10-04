@@ -267,7 +267,11 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	// hand, the workspace policy, and the pusher's review permission for each
 	// language a verdict or a withdrawn establishment names. A push that carries
 	// neither resolves no permission at all.
-	gov, gerr := newPushGovernor(ctx, deps, projectID, stream, workspaceID, manifest.ActorID, staged, decisions)
+	var sourceLanguage model.LocaleID
+	if projectRow != nil {
+		sourceLanguage = projectRow.DefaultSourceLanguage
+	}
+	gov, gerr := newPushGovernor(ctx, deps, projectID, stream, workspaceID, sourceLanguage, manifest.ActorID, staged, decisions)
 	if gerr != nil {
 		markJobFailed(ctx, deps, job.ID, gerr.Error())
 		return gerr

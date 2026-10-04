@@ -99,11 +99,12 @@ type BlockStore interface {
 	StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error
 	// WriteBackBlocks stores blocks a caller read from this store and then
 	// changed: drafted targets, a settled status, added annotations. Each
-	// StoredBlock carries the block to write and, as ContentHash, the content
-	// hash the caller read. A block lands only on the row it was read from, and
-	// only while that row still holds that content hash, so a push that removed
-	// the row or changed its source after the read is never undone. Blocks that
-	// do not land are reported in the result. It creates no row and no item.
+	// StoredBlock carries the block to write and, as SourceRevision, the
+	// revision of the source the caller read. A block lands only on the row it
+	// was read from, and only while that row still holds that source revision,
+	// so a push that removed the row or changed its source after the read, an
+	// inline code included, is never undone. Blocks that do not land are
+	// reported in the result. It creates no row and no item.
 	//
 	// It keeps each row's stored context hash. That hash is the producer's: a
 	// push stores it and the producer's next push compares against it, while the

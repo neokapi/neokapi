@@ -159,7 +159,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 			}
 		}
 		u := withHeld(state.UnitState{Scope: scope, Unit: h.Unit, Variant: variant,
-			TargetHash: h.TargetHash, ContentHash: h.ContentHash, Revision: h.Revision, Basis: h.Basis}, h)
+			Revision: h.Revision, Basis: h.Basis}, h)
 		if !u.Decides() {
 			continue
 		}
@@ -216,9 +216,9 @@ func withoutVerdict(u state.UnitState) state.UnitState {
 
 // withHeld is the record the venue kept when it refused to take back an
 // approval: the local record with the venue's verdict on it again, and the
-// venue's record time, since the record is now the venue's. The hashes stay
+// venue's record time, since the record is now the venue's. The pairing stays
 // the local record's own; a withdrawal is refused only over the pairing the
-// approval blessed, so they already agree.
+// approval blessed, so the two already agree.
 func withHeld(u state.UnitState, h venue.UnitDecision) state.UnitState {
 	u.Status = model.TargetStatus(h.Status)
 	u.Decision.ReviewState = h.ReviewState
@@ -240,8 +240,6 @@ func withHeld(u state.UnitState, h venue.UnitDecision) state.UnitState {
 // holds.
 func asVenueRecord(u state.UnitState, h venue.UnitDecision) state.UnitState {
 	u = withHeld(u, h)
-	u.TargetHash = h.TargetHash
-	u.ContentHash = h.ContentHash
 	u.Revision = h.Revision
 	u.Basis = h.Basis
 	return u

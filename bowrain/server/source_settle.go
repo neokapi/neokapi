@@ -27,13 +27,14 @@ import (
 // demands. Deeper, LLM-backed source brand-checking is layered on top later
 // (deferred), not in front of the gate.
 
-// propSettledHash records the source content hash a block's source status was
-// stamped against. When the source changes (content-hash change), the recorded
-// status no longer describes the current source, so settlement resets the block
-// to the authored baseline and re-checks it — re-gating ONLY the changed block,
-// never the whole corpus (epic 019 acceptance #6). It rides in block properties
+// propSettledRevision records the revision of the source a block's source
+// status was stamped against (StoredBlock.SourceRevision). When the source
+// changes, its wording or an inline code, the recorded status no longer
+// describes the current source, so settlement resets the block to the
+// authored baseline and re-checks it — re-gating ONLY the changed block, never
+// the whole corpus (epic 019 acceptance #6). It rides in block properties
 // alongside the status itself.
-const propSettledHash = "__source_settled_hash"
+const propSettledRevision = "__source_settled_revision"
 
 // settleResult reports one source-settlement pass over a project.
 type settleResult struct {
@@ -126,18 +127,18 @@ func (o *convergenceOrchestrator) settleBatch(
 		src, _ := b.Edition(auth)
 		before := src.Status
 		beforeFailing := b.SourceFailing()
-		beforeHash := settledHash(b)
+		beforeRevision := settledRevision(b)
 		// Re-gate on source change: if the block's source no longer matches the
 		// content it was settled against, its committed status (and any human
 		// approval) is stale — reset to the authored baseline so this pass
 		// re-checks it from scratch. Only the changed block resets; untouched
 		// blocks keep their status and are skipped by the store write below.
-		if sourceChangedSinceSettle(b, sb.ContentHash) {
+		if sourceChangedSinceSettle(b, sb.SourceRevision) {
 			b.SetEditionStatus(auth, model.Status(model.SourceStatusNew))
 		}
 
 		settleBlockStatus(ctx, b)
-		stampSettledHash(b, sb.ContentHash)
+		stampSettledRevision(b, sb.SourceRevision)
 
 		settled, _ := b.Edition(auth)
 		if settled.Status != before {
@@ -147,10 +148,10 @@ func (o *convergenceOrchestrator) settleBatch(
 			res.BlockedOnSource++
 		}
 		// Persist only blocks that actually moved: a status change OR a newly
-		// recorded/updated settled-hash. An already-settled, unchanged block is
-		// skipped, so a steady-state run rewrites nothing (re-gate ONLY the
-		// changed block — epic 019 acceptance #6).
-		if settled.Status != before || b.SourceFailing() != beforeFailing || settledHash(b) != beforeHash {
+		// recorded/updated settled revision. An already-settled, unchanged
+		// block is skipped, so a steady-state run rewrites nothing (re-gate
+		// ONLY the changed block — epic 019 acceptance #6).
+		if settled.Status != before || b.SourceFailing() != beforeFailing || settledRevision(b) != beforeRevision {
 			changed = append(changed, sb)
 		}
 	}
@@ -164,7 +165,7 @@ func (o *convergenceOrchestrator) settleBatch(
 	// since the read keeps what it holds, translations included, and the next
 	// settle reads it as it now is. A store that keeps no held writes (the
 	// SQLite store) writes the blocks back to the rows that still hold the
-	// source content hash they were read with.
+	// source revision they were read with.
 	if _, held := o.server.ContentStore.(platstore.BlockWriteStore); !held {
 		if _, err := o.server.ContentStore.WriteBackBlocks(ctx, projectID, "main", changed); err != nil {
 			return fmt.Errorf("persist settled source: %w", err)
@@ -246,49 +247,47 @@ func settleBlockStatus(ctx context.Context, b *model.Block) {
 	check.SettleSourceStatus(ctx, b)
 }
 
-// sourceChangedSinceSettle reports whether a block's current source content hash
-// differs from the hash its source status was last stamped against. A block with
-// no committed status (New) has nothing stale to reset. A block with a committed
-// status but no recorded hash is a status that has not yet been through a local
-// settle pass — e.g. an approval pushed from the wire (core/venue carries
-// __source_status but not the settled-hash). The first settle records the
-// current hash for it (stampSettledHash, always called), so any SUBSEQUENT
-// content edit is caught and re-gated. Because every push starts a convergence
-// run that settles, a push-approved block is always stamped before it can be
-// edited — so the "committed status, no hash" case reads as unchanged here and
-// is verified on this pass rather than demoted (which would defeat a legitimate
-// pushed approval).
-func sourceChangedSinceSettle(b *model.Block, currentHash string) bool {
+// sourceChangedSinceSettle reports whether the revision of a block's current
+// source differs from the revision its source status was last stamped
+// against. A block with no committed status (New) has nothing stale to reset.
+// A block with a committed status but no recorded revision is a status that
+// has not yet been through a settle pass — e.g. an approval pushed from the
+// wire (core/venue carries __source_status but not the settled revision). The
+// first settle records the current revision for it (stampSettledRevision,
+// always called), so any SUBSEQUENT change to the source is caught and
+// re-gated. Because every push starts a convergence run that settles, a
+// push-approved block is always stamped before it can be edited — so the
+// "committed status, no revision" case reads as unchanged here and is verified
+// on this pass rather than demoted (which would defeat a legitimate pushed
+// approval).
+func sourceChangedSinceSettle(b *model.Block, currentRevision string) bool {
 	if src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{})); src.Status == model.Status(model.SourceStatusNew) {
 		return false
 	}
-	prev := ""
-	if b.Properties != nil {
-		prev = b.Properties[propSettledHash]
-	}
-	if prev == "" || currentHash == "" {
+	prev := settledRevision(b)
+	if prev == "" || currentRevision == "" {
 		return false
 	}
-	return prev != currentHash
+	return prev != currentRevision
 }
 
-// settledHash reads the content hash a block's source status was last stamped
-// against (empty when never settled).
-func settledHash(b *model.Block) string {
+// settledRevision reads the source revision a block's source status was last
+// stamped against (empty when never settled).
+func settledRevision(b *model.Block) string {
 	if b.Properties == nil {
 		return ""
 	}
-	return b.Properties[propSettledHash]
+	return b.Properties[propSettledRevision]
 }
 
-// stampSettledHash records the content hash this settle pass judged, so the next
-// pass can detect a source change and re-gate the block.
-func stampSettledHash(b *model.Block, currentHash string) {
-	if currentHash == "" {
+// stampSettledRevision records the source revision this settle pass judged,
+// so the next pass can detect a source change and re-gate the block.
+func stampSettledRevision(b *model.Block, currentRevision string) {
+	if currentRevision == "" {
 		return
 	}
 	if b.Properties == nil {
 		b.Properties = map[string]string{}
 	}
-	b.Properties[propSettledHash] = currentHash
+	b.Properties[propSettledRevision] = currentRevision
 }

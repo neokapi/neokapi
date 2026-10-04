@@ -16,7 +16,6 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
-	"github.com/neokapi/neokapi/core/state"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
@@ -158,7 +157,7 @@ func TestPushReviewGovernance(t *testing.T) {
 		deps.ReviewAuthority = auth
 		projectID := "gov-" + t.Name()
 		require.NoError(t, deps.ContentStore.CreateProject(t.Context(),
-			&store.Project{ID: projectID, Name: "Governed"}))
+			&store.Project{ID: projectID, Name: "Governed", DefaultSourceLanguage: "en"}))
 		return deps, projectID
 	}
 
@@ -258,7 +257,7 @@ func TestPushReviewGovernance(t *testing.T) {
 		approval := venue.UnitDecision{
 			ItemName: item, Unit: "b1", Variant: locale,
 			Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
-			TargetHash: state.TargetHash("Bonjour"), ContentHash: state.SourceHash("Hello"),
+			Revision: frRevision("Bonjour"), Basis: srcRevision("Hello"),
 			Updated: time.Now().UTC().Add(time.Minute).Format(time.RFC3339),
 		}
 		// Later she approves it, and pushes the approval alone.
@@ -408,7 +407,7 @@ func TestPushReviewGovernance_ApprovalWithdrawal(t *testing.T) {
 	approved := venue.UnitDecision{
 		ItemName: item, Unit: "b1", Variant: locale,
 		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
-		TargetHash: state.TargetHash(text), ContentHash: state.SourceHash(source),
+		Revision: frRevision(text), Basis: srcRevision(source),
 		DecidedBy: "u-reviewer", DecidedAt: "2026-09-03T10:00:00Z", Updated: "2026-09-03T10:00:00Z",
 	}
 	withdrawn := approved.AsBasis(model.TargetStatusTranslated)
@@ -422,7 +421,7 @@ func TestPushReviewGovernance_ApprovalWithdrawal(t *testing.T) {
 		deps.ReviewAuthority = pushAuthority{review: map[string]bool{locale: true}}
 		pid := "gov-withdraw-" + t.Name()
 		require.NoError(t, deps.ContentStore.CreateProject(t.Context(),
-			&store.Project{ID: pid, Name: "Established"}))
+			&store.Project{ID: pid, Name: "Established", DefaultSourceLanguage: "en"}))
 		first := governedPush{
 			projectID: pid, actor: "u-reviewer", item: item,
 			blocks:    []*model.Block{reviewedBlock("b1", source, locale, text, rung)},
@@ -468,7 +467,7 @@ func TestPushReviewGovernance_ApprovalWithdrawal(t *testing.T) {
 		require.NotNil(t, unit.Held, "the record the venue kept travels back for the producer to hold")
 		assert.Equal(t, venue.ReviewStateApproved, unit.Held.ReviewState)
 		assert.Equal(t, "u-reviewer", unit.Held.DecidedBy)
-		assert.Equal(t, approved.TargetHash, unit.Held.TargetHash)
+		assert.Equal(t, approved.Revision, unit.Held.Revision)
 	})
 
 	t.Run("with review permission the withdrawal lands and is audited", func(t *testing.T) {
@@ -535,7 +534,7 @@ func TestPushReviewGovernance_ApprovalWithdrawal(t *testing.T) {
 	t.Run("an edited translation is not a withdrawal and lands at translated", func(t *testing.T) {
 		deps, pid := venueHolding(t, model.TargetStatusEstablished, approved, pushAuthority{review: map[string]bool{}})
 		edited := withdrawn
-		edited.TargetHash = state.TargetHash("Salut")
+		edited.Revision = frRevision("Salut")
 		push := governedPush{
 			projectID: pid, actor: "u-translator", item: item,
 			blocks:    []*model.Block{reviewedBlock("b1", source, locale, "Salut", model.TargetStatusTranslated)},
@@ -548,7 +547,7 @@ func TestPushReviewGovernance_ApprovalWithdrawal(t *testing.T) {
 		d, ok := heldDecision(t, deps, pid, "b1", locale)
 		require.True(t, ok)
 		assert.Empty(t, d.ReviewState)
-		assert.Equal(t, edited.TargetHash, d.TargetHash)
+		assert.Equal(t, edited.Revision, d.Revision)
 		assert.True(t, jobGovernance(t, deps, "push-job-edit").Empty())
 	})
 
@@ -664,7 +663,7 @@ func TestPushReviewGovernance_AuditsAcceptedRungs(t *testing.T) {
 
 			pid := "gov-audit-" + tc.name
 			require.NoError(t, deps.ContentStore.CreateProject(t.Context(),
-				&store.Project{ID: pid, Name: "Audited"}))
+				&store.Project{ID: pid, Name: "Audited", DefaultSourceLanguage: "en"}))
 
 			push := governedPush{
 				projectID: pid, actor: "u-reviewer", item: item,
@@ -712,7 +711,7 @@ func TestPushReviewGovernance_AuditsNoRefusedRung(t *testing.T) {
 
 	pid := "gov-audit-refused"
 	require.NoError(t, deps.ContentStore.CreateProject(t.Context(),
-		&store.Project{ID: pid, Name: "Audited"}))
+		&store.Project{ID: pid, Name: "Audited", DefaultSourceLanguage: "en"}))
 	seedHandWritten(t, deps, pid, item, "u-author", locale, "Bonjour")
 
 	push := governedPush{

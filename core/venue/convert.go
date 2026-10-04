@@ -423,7 +423,7 @@ func unmarshalAnnotations(data []byte) (map[string]model.Payload, error) {
 // about.
 //
 // It scopes DELETION, not transfer — what to send is decided by the record hash
-// (model.BlockIdentity.RecordHash), per block, and needs no declaration.
+// (RecordHash), per block, and needs no declaration.
 //
 // The problem it solves is a fleet that is not one version. A CI runner pinned
 // to an older kapi reads the same files with a reader that records less, and

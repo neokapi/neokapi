@@ -52,12 +52,12 @@ func venueLedger(sent []venue.UnitDecision) []venue.UnitDecision {
 
 func approvedUnit(unit, locale string) state.UnitState {
 	return state.UnitState{
-		Scope:       "locales/en.json",
-		Unit:        unit,
-		Variant:     model.Variant(model.LocaleID(locale)),
-		Status:      model.TargetStatusEstablished,
-		TargetHash:  "target-" + unit,
-		ContentHash: "source-" + unit,
+		Scope:    "locales/en.json",
+		Unit:     unit,
+		Variant:  model.Variant(model.LocaleID(locale)),
+		Status:   model.TargetStatusEstablished,
+		Revision: "r:target-" + unit,
+		Basis:    "r:source-" + unit,
 		Decision: state.Decision{
 			ReviewState: venue.ReviewStateApproved,
 			By:          "me@example.com",
@@ -186,7 +186,7 @@ func TestRetireRefusedVerdicts_RestoresAKeptApproval(t *testing.T) {
 	held := venue.UnitDecision{
 		ItemName: "locales/en.json", Unit: "greeting", Variant: "fr",
 		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
-		TargetHash: approved.TargetHash, ContentHash: approved.ContentHash,
+		Revision: approved.Revision, Basis: approved.Basis,
 		DecidedBy: "reviewer@example.com", DecidedAt: "2026-09-03T10:00:00Z",
 		Updated: "2026-09-03T10:00:00Z",
 	}

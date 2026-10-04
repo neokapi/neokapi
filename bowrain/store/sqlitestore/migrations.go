@@ -1082,4 +1082,23 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE unit_decisions ADD COLUMN basis    TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     36,
+		Description: "decisions are graded by revision",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 41: each block's
+			-- source revision, stamped whenever the source is written, which a
+			-- decision's basis is graded against; the text hashes of the
+			-- pairing dropped; draft marks and source settlement stamps that
+			-- named a text hash cleared. A row written before this version
+			-- holds no source revision until its source is written again, and
+			-- no basis is current against it until then.
+			ALTER TABLE blocks ADD COLUMN source_revision TEXT NOT NULL DEFAULT '';
+			ALTER TABLE unit_decisions DROP COLUMN target_hash;
+			ALTER TABLE unit_decisions DROP COLUMN content_hash;
+			UPDATE unit_decisions SET draft_basis = '' WHERE draft_basis <> '';
+			UPDATE blocks SET properties = json_remove(properties, '$.__source_settled_hash')
+			 WHERE properties LIKE '%"__source_settled_hash"%';
+		`,
+	},
 }

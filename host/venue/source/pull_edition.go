@@ -48,19 +48,13 @@ func pulledTargets(blocks []apiclient.SyncBlock, locale string) map[string][]mod
 }
 
 // pulledBasis is the source a pulled translation was made from, as the
-// venue's record of it names it: by revision where the record carries one,
-// and by content hash.
-type pulledBasis struct {
-	rev, hash string
-}
+// venue's record of it names it: the revision of that source.
+type pulledBasis string
 
 // names reports whether the basis is the source of b as this checkout holds
-// it: by revision where the record carries one, under any key a read of the
-// document gives the source, and by hash where it was recorded before
-// revisions.
+// it, under any key a read of the document gives the source.
 func (p pulledBasis) names(b *model.Block, source model.LocaleID) bool {
-	r := state.UnitState{Basis: p.rev, ContentHash: p.hash}
-	return r.BasisKnown() && !r.SourceStale(state.ReadSource(b, source))
+	return p != "" && state.ReadSource(b, source).HoldsBasis(string(p))
 }
 
 // pulledBases maps each pulled block's match key (targetMatchKey) to the
@@ -85,22 +79,17 @@ func pulledBases(blocks []apiclient.SyncBlock, locale string, records []venue.Un
 			unit = sb.Name
 		}
 		d, ok := byUnit[unitAt{sb.ItemName, unit, locale}]
-		if !ok || (d.ContentHash == "" && d.Basis == "") {
+		if !ok || d.Basis == "" {
 			continue
 		}
 		t, ok := apiclient.SyncBlockToBlock(sb).TargetEdition(model.LocaleID(locale))
 		if !ok {
 			continue
 		}
-		record := state.UnitState{TargetHash: d.TargetHash, Revision: d.Revision}
-		if record.TargetHash == "" && record.Revision == "" ||
-			record.Stale(state.Reading{
-				Revision:   model.RunsRevision(model.Variant(model.LocaleID(locale)), t.Runs),
-				TargetHash: state.TargetHash(model.RunsText(t.Runs)),
-			}) {
+		if d.Revision != model.RunsRevision(model.Variant(model.LocaleID(locale)), t.Runs) {
 			continue // the record is about another translation
 		}
-		out[targetMatchKey(sb.Name, sb.SourceText)] = pulledBasis{rev: d.Basis, hash: d.ContentHash}
+		out[targetMatchKey(sb.Name, sb.SourceText)] = pulledBasis(d.Basis)
 	}
 	return out
 }

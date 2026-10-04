@@ -13,30 +13,31 @@ type BlockIdentity struct {
 	ContextHash string // SHA-256 of contextual information (name, type, properties)
 }
 
-// RecordHash combines ContentHash and ContextHash to determine whether a stored
-// block needs to be transferred.
+// ComputeRecordHash folds a block's content hash, its context hash and the
+// revision of its source into the transfer hash, which decides whether a
+// stored block needs to be transferred.
 //
 // ContentHash identifies the text. ContextHash includes the name, type and
 // reader-supplied properties, so metadata changes trigger a transfer even when
-// the text is unchanged. Persisted fields must contribute to one of these hashes.
+// the text is unchanged. The source revision (RunsRevision of the source runs)
+// covers the inline codes with their data and attributes, which the content
+// hash is blind to, so a changed link target is transferred too. Persisted
+// fields must contribute to one of these.
 //
 // Derived locators use AdvisoryPropertyPrefix and are excluded from ContextHash.
 // Moving a line number therefore does not re-upload every subsequent block.
-func (i *BlockIdentity) RecordHash() string {
-	if i == nil {
-		return ""
-	}
-	return ComputeRecordHash(i.ContentHash, i.ContextHash)
-}
-
-// ComputeRecordHash folds a content hash and a context hash into the transfer
-// hash — see BlockIdentity.RecordHash. Takes the halves rather than a block so
-// a store that already holds both as columns folds them without rehashing.
-func ComputeRecordHash(contentHash, contextHash string) string {
+//
+// It takes the parts rather than a block so a store that holds all three as
+// columns folds them without rehashing. The revision depends on the key the
+// source is taken under, and both sides of a transfer take it under the same
+// one (core/venue.RecordHash).
+func ComputeRecordHash(contentHash, contextHash, sourceRevision string) string {
 	h := sha256.New()
 	h.Write([]byte(contentHash))
 	h.Write([]byte{0})
 	h.Write([]byte(contextHash))
+	h.Write([]byte{0})
+	h.Write([]byte(sourceRevision))
 	return hex.EncodeToString(h.Sum(nil))
 }
 

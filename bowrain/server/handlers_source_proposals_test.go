@@ -15,7 +15,6 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -105,8 +104,8 @@ func TestSourceProposal_ProposeApproveDemotesEveryLocale(t *testing.T) {
 		Unit:        "b1",
 		Variant:     "fr",
 		Status:      string(model.TargetStatusEstablished),
-		TargetHash:  state.TargetHash("Sélecteur de couleur"),
-		ContentHash: state.SourceHash("Colour picker"),
+		Revision:    textRevision("fr", "Sélecteur de couleur"),
+		Basis:       enSourceRevision("Colour picker"),
 		ReviewState: "approved",
 		DecidedBy:   "reviewer-1",
 		Updated:     "2026-01-01T00:00:00Z",

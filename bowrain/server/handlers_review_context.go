@@ -377,10 +377,11 @@ func reviewProvenanceOf(d *venue.UnitDecision, sb *venue.StoredBlock, loc model.
 		p.By = d.DecidedBy
 		p.At = d.DecidedAt
 		p.Note = d.Note
-		// A decision whose recorded basis names source wording the block no
-		// longer carries was a verdict on a sentence that has since changed.
-		// A record with no basis at all is unknown rather than moved.
-		p.Stale = d.ContentHash != "" && sb.ContentHash != "" && d.ContentHash != sb.ContentHash
+		// A decision whose recorded basis names another revision of the
+		// source than the block carries was a verdict on a source that has
+		// since changed, its wording or an inline code. A record with no
+		// basis at all is unknown rather than moved.
+		p.Stale = store.BasisStale(d.Basis, sb.SourceRevision)
 	}
 	if t, ok := sb.Block.TargetEdition(loc); ok && t.Origin.Kind != "" {
 		o := t.Origin

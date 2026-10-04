@@ -5,7 +5,6 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,7 +66,8 @@ func TestUnitDecisions_UpsertProjectsAndIsIdempotent(t *testing.T) {
 		Unit:        "greeting",
 		Variant:     "nb",
 		Status:      string(model.TargetStatusEstablished),
-		TargetHash:  state.TargetHash("Hei"),
+		Revision:    nbTextRevision("Hei"),
+		Basis:       sourceRevision("Hello"),
 		ReviewState: "approved",
 		DecidedBy:   "reviewer@example.com",
 		DecidedAt:   "2026-08-04T10:00:00Z",
@@ -110,8 +110,8 @@ func TestUnitDecisions_UpsertProjectsAndIsIdempotent(t *testing.T) {
 }
 
 // TestUnitDecisions_StaleOnArrivalDoesNotProject pins the freshness rule: a
-// decision blessing a translation the store does not currently hold is
-// recorded in the ledger but moves no status.
+// decision blessing a translation the store does not currently hold, or naming
+// no source at all, is recorded in the ledger but moves no status.
 func TestUnitDecisions_StaleOnArrivalDoesNotProject(t *testing.T) {
 	s := newTestStore(t)
 	ctx := t.Context()
@@ -123,16 +123,29 @@ func TestUnitDecisions_StaleOnArrivalDoesNotProject(t *testing.T) {
 
 	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:     string(model.TargetStatusEstablished),
-		TargetHash: state.TargetHash("Hei"), // blesses a DIFFERENT translation
-		DecidedBy:  "reviewer@example.com",
-		Updated:    "2026-08-04T10:00:00Z",
+		Status:    string(model.TargetStatusEstablished),
+		Revision:  nbTextRevision("Hei"), // blesses a DIFFERENT translation
+		Basis:     sourceRevision("Hello"),
+		DecidedBy: "reviewer@example.com",
+		Updated:   "2026-08-04T10:00:00Z",
 	}})
 	require.NoError(t, err)
 	assert.Equal(t, 1, changed, "the fact is recorded")
 	assert.Equal(t, model.TargetStatusTranslated, targetStatus(t, s, p.ID, "en.json", "greeting"),
 		"a stale-on-arrival decision must not move the status")
 	assert.Len(t, listDecisions(t, s, p.ID), 1)
+
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status:    string(model.TargetStatusEstablished),
+		Revision:  nbTextRevision("Hei der"),
+		DecidedBy: "reviewer@example.com",
+		Updated:   "2026-08-04T11:00:00Z",
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, 1, changed, "the fact is recorded")
+	assert.Equal(t, model.TargetStatusTranslated, targetStatus(t, s, p.ID, "en.json", "greeting"),
+		"a decision that names no source names none the store holds")
 }
 
 // TestUnitDecisions_SourceEditDemotesApproval is use case 2 at the store
@@ -148,10 +161,11 @@ func TestUnitDecisions_SourceEditDemotesApproval(t *testing.T) {
 	}))
 	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:     string(model.TargetStatusEstablished),
-		TargetHash: state.TargetHash("Hei"),
-		DecidedBy:  "reviewer@example.com",
-		Updated:    "2026-08-04T10:00:00Z",
+		Status:    string(model.TargetStatusEstablished),
+		Revision:  nbTextRevision("Hei"),
+		Basis:     sourceRevision("Hello"),
+		DecidedBy: "reviewer@example.com",
+		Updated:   "2026-08-04T10:00:00Z",
 	}})
 	require.NoError(t, err)
 	require.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, p.ID, "en.json", "greeting"))
@@ -185,11 +199,11 @@ func TestUnitDecisions_RestoredSourceFindsItsApproval(t *testing.T) {
 	}))
 	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:      string(model.TargetStatusEstablished),
-		TargetHash:  state.TargetHash("Hei"),
-		ContentHash: state.SourceHash("Hello"),
-		DecidedBy:   "reviewer@example.com",
-		Updated:     "2026-08-04T10:00:00Z",
+		Status:    string(model.TargetStatusEstablished),
+		Revision:  nbTextRevision("Hei"),
+		Basis:     sourceRevision("Hello"),
+		DecidedBy: "reviewer@example.com",
+		Updated:   "2026-08-04T10:00:00Z",
 	}})
 	require.NoError(t, err)
 	require.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, p.ID, "en.json", "greeting"))
@@ -230,13 +244,12 @@ func TestUnitDecisions_RestoredSourceFindsItsApproval(t *testing.T) {
 
 // TestTallyDecisionBasis pins the Postgres grading of recorded decisions
 // against the source the project holds now — the equality join between a
-// decision's recorded basis and the block's content hash.
+// decision's recorded basis and the block's source revision.
 func TestTallyDecisionBasis(t *testing.T) {
 	tests := []struct {
 		name string
-		// basis is the content hash the decision records; "current" means the
-		// hash of the stored source, "" a record written before the basis was
-		// tracked.
+		// basis is the revision the decision records: "current" for the
+		// revision of the stored source, "" for none.
 		basis           string
 		rewriteSourceTo string
 		translatable    bool
@@ -250,7 +263,7 @@ func TestTallyDecisionBasis(t *testing.T) {
 			name: "source rewritten under the decision", basis: "current",
 			rewriteSourceTo: "Hello there", translatable: true, unit: "greeting", wantStale: 1, wantOwed: 1,
 		},
-		{name: "decision recorded before the basis was tracked", basis: "", translatable: true, unit: "greeting", wantUnknown: 1},
+		{name: "a record that names no source", basis: "", translatable: true, unit: "greeting", wantUnknown: 1},
 		{
 			name: "an unknown basis stays unknown when the source moves", basis: "",
 			rewriteSourceTo: "Hello there", translatable: true, unit: "greeting", wantUnknown: 1,
@@ -274,14 +287,14 @@ func TestTallyDecisionBasis(t *testing.T) {
 
 			basis := tt.basis
 			if basis == "current" {
-				basis = state.SourceHash("Hello")
+				basis = sourceRevision("Hello")
 			}
 			_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 				ItemName: "en.json", Unit: tt.unit, Variant: "nb",
-				Status:      string(model.TargetStatusEstablished),
-				TargetHash:  state.TargetHash("Hei"),
-				ContentHash: basis,
-				Updated:     "2026-08-04T10:00:00Z",
+				Status:   string(model.TargetStatusEstablished),
+				Revision: nbTextRevision("Hei"),
+				Basis:    basis,
+				Updated:  "2026-08-04T10:00:00Z",
 			}})
 			require.NoError(t, err)
 
@@ -311,6 +324,48 @@ func TestTallyDecisionBasis(t *testing.T) {
 	}
 }
 
+// TestUnitDecisions_AnInlineCodeRetiresAnApproval: a source whose wording
+// stays and whose link moves is another source. The approval made for the old
+// link drops to the presence baseline, the tally reads it stale, and the link
+// moving back restores it, as a change to the wording does.
+func TestUnitDecisions_AnInlineCodeRetiresAnApproval(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	b := linkedBlock("guide", "the guide", "/v1/guide")
+	b.SetTargetText("nb", "Les veiledningen")
+	b.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusTranslated))
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{b}))
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
+		ItemName: "en.json", Unit: "guide", Variant: "nb",
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
+		Revision: nbTextRevision("Les veiledningen"), Basis: linkedSourceRevision("the guide", "/v1/guide"),
+		DecidedBy: "reviewer@example.com", Updated: "2026-10-04T10:00:00Z",
+	}})
+	require.NoError(t, err)
+	require.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, p.ID, "en.json", "guide"))
+
+	moved := linkedBlock("guide", "the guide", "/v2/guide")
+	require.Equal(t, b.SourceText(), moved.SourceText(), "the wording is the same")
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{moved}))
+	assert.Equal(t, model.TargetStatusTranslated, targetStatus(t, s, p.ID, "en.json", "guide"),
+		"an approval does not survive a change to a link in the source it was made for")
+	tallies, err := s.TallyDecisionBasis(ctx, p.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, tallies, 1)
+	assert.Equal(t, 1, tallies[0].Stale)
+	assert.Equal(t, 1, tallies[0].Owed, "and the loop owes the unit a draft carrying the new link")
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{linkedBlock("guide", "the guide", "/v1/guide")}))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, p.ID, "en.json", "guide"),
+		"the link moving back restores the approval")
+	tallies, err = s.TallyDecisionBasis(ctx, p.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, tallies, 1)
+	assert.Zero(t, tallies[0].Stale)
+}
+
 // TestRecordDraftBases pins the draft mark beside the decision: a stale unit is
 // owed a draft until the platform stamps the source it drafted against, the
 // stamp never touches the decision, a unit the ledger does not hold gets no
@@ -330,19 +385,19 @@ func TestRecordDraftBases(t *testing.T) {
 		{
 			ItemName: "en.json", Unit: "greeting", Variant: "nb",
 			Status: string(model.TargetStatusEstablished), ReviewState: "approved", DecidedBy: "reviewer-1",
-			TargetHash: state.TargetHash("Hei"), ContentHash: state.SourceHash("Hello"),
+			Revision: nbTextRevision("Hei"), Basis: sourceRevision("Hello"),
 			Updated: "2026-08-04T10:00:00Z",
 		},
 		{
 			ItemName: "en.json", Unit: "farewell", Variant: "nb",
-			TargetHash: state.TargetHash("Ha det"), ContentHash: state.SourceHash("Goodbye"),
+			Revision: nbTextRevision("Ha det"), Basis: sourceRevision("Goodbye"),
 			Updated: "2026-08-04T10:00:00Z",
 		},
 		{
 			ItemName: "en.json", Unit: "untranslated", Variant: "nb",
 			Status: string(model.TargetStatusEstablished), ReviewState: "approved", DecidedBy: "reviewer-1",
-			ContentHash: state.SourceHash("See you"),
-			Updated:     "2026-08-04T10:00:00Z",
+			Basis:   sourceRevision("See you"),
+			Updated: "2026-08-04T10:00:00Z",
 		},
 	})
 	require.NoError(t, err)
@@ -366,9 +421,9 @@ func TestRecordDraftBases(t *testing.T) {
 	assert.Equal(t, 2, got.Owed, "a stale decision on a unit with no target is not owed")
 
 	require.NoError(t, s.RecordDraftBases(ctx, p.ID, "main", []platstore.DraftBasis{
-		{ItemName: "en.json", Unit: "greeting", Variant: "nb", SourceHash: state.SourceHash("Hello there")},
-		{ItemName: "en.json", Unit: "farewell", Variant: "nb", SourceHash: state.SourceHash("Goodbye then")},
-		{ItemName: "en.json", Unit: "absent", Variant: "nb", SourceHash: state.SourceHash("nothing")},
+		{ItemName: "en.json", Unit: "greeting", Variant: "nb", Basis: sourceRevision("Hello there")},
+		{ItemName: "en.json", Unit: "farewell", Variant: "nb", Basis: sourceRevision("Goodbye then")},
+		{ItemName: "en.json", Unit: "absent", Variant: "nb", Basis: sourceRevision("nothing")},
 	}))
 	got = tally()
 	assert.Equal(t, 3, got.Stale, "the decisions stay stale until a person replaces them")
@@ -377,8 +432,8 @@ func TestRecordDraftBases(t *testing.T) {
 	drafts, err := s.ListDraftBases(ctx, p.ID, "main")
 	require.NoError(t, err)
 	require.Len(t, drafts, 2, "a unit the ledger does not hold gets no row")
-	assert.Equal(t, platstore.DraftBasis{ItemName: "en.json", Unit: "farewell", Variant: "nb", SourceHash: state.SourceHash("Goodbye then")}, drafts[0])
-	assert.Equal(t, platstore.DraftBasis{ItemName: "en.json", Unit: "greeting", Variant: "nb", SourceHash: state.SourceHash("Hello there")}, drafts[1])
+	assert.Equal(t, platstore.DraftBasis{ItemName: "en.json", Unit: "farewell", Variant: "nb", Basis: sourceRevision("Goodbye then")}, drafts[0])
+	assert.Equal(t, platstore.DraftBasis{ItemName: "en.json", Unit: "greeting", Variant: "nb", Basis: sourceRevision("Hello there")}, drafts[1])
 
 	records, err := s.ListUnitDecisions(ctx, p.ID, "main")
 	require.NoError(t, err)
@@ -389,8 +444,8 @@ func TestRecordDraftBases(t *testing.T) {
 	require.Len(t, byUnit, 3)
 	assert.Equal(t, "approved", byUnit["greeting"].ReviewState, "the stamp never touches the decision")
 	assert.Equal(t, "reviewer-1", byUnit["greeting"].DecidedBy)
-	assert.Equal(t, state.SourceHash("Hello"), byUnit["greeting"].ContentHash)
-	assert.Equal(t, state.TargetHash("Hei"), byUnit["greeting"].TargetHash)
+	assert.Equal(t, sourceRevision("Hello"), byUnit["greeting"].Basis)
+	assert.Equal(t, nbTextRevision("Hei"), byUnit["greeting"].Revision)
 
 	// The source moves again, away from the mark: owed once more.
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
@@ -415,11 +470,11 @@ func TestUnitDecisions_StaleBasisDoesNotProject(t *testing.T) {
 
 	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:      string(model.TargetStatusEstablished),
-		TargetHash:  state.TargetHash("Hei"),
-		ContentHash: state.SourceHash("Hello"), // the wording the reviewer saw
-		DecidedBy:   "reviewer@example.com",
-		Updated:     "2026-08-04T10:00:00Z",
+		Status:    string(model.TargetStatusEstablished),
+		Revision:  nbTextRevision("Hei"),
+		Basis:     sourceRevision("Hello"), // the wording the reviewer saw
+		DecidedBy: "reviewer@example.com",
+		Updated:   "2026-08-04T10:00:00Z",
 	}})
 	require.NoError(t, err)
 	assert.Equal(t, 1, changed, "the fact is recorded")
@@ -439,7 +494,7 @@ func TestUnitDecisions_GoverningFingerprintRoundTrips(t *testing.T) {
 
 	legacy := venue.UnitDecision{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status: string(model.TargetStatusEstablished), TargetHash: state.TargetHash("Hei"),
+		Status: string(model.TargetStatusEstablished), Revision: nbTextRevision("Hei"),
 		ReviewState: "approved", DecidedBy: "reviewer@example.com", Updated: "2026-08-04T10:00:00Z",
 	}
 	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{legacy})
@@ -496,25 +551,25 @@ func TestTallyDecisionBasis_RejectionOwesADraft(t *testing.T) {
 		{
 			ItemName: "en.json", Unit: "refused", Variant: "nb",
 			Status: string(model.TargetStatusDraft), ReviewState: venue.ReviewStateRejected,
-			DecidedBy: "reviewer-1", TargetHash: state.TargetHash("Hei"),
-			ContentHash: state.SourceHash("Hello"), Updated: "2026-09-01T10:00:00Z",
+			DecidedBy: "reviewer-1", Revision: nbTextRevision("Hei"),
+			Basis: sourceRevision("Hello"), Updated: "2026-09-01T10:00:00Z",
 		},
 		{
 			ItemName: "en.json", Unit: "blessed", Variant: "nb",
 			Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
-			DecidedBy: "reviewer-1", TargetHash: state.TargetHash("Ha det"),
-			ContentHash: state.SourceHash("Goodbye"), Updated: "2026-09-01T10:00:00Z",
+			DecidedBy: "reviewer-1", Revision: nbTextRevision("Ha det"),
+			Basis: sourceRevision("Goodbye"), Updated: "2026-09-01T10:00:00Z",
 		},
 		{
 			ItemName: "en.json", Unit: "drifted", Variant: "nb",
 			Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
-			DecidedBy: "reviewer-1", TargetHash: state.TargetHash("Vi ses"),
-			ContentHash: state.SourceHash("See you"), Updated: "2026-09-01T10:00:00Z",
+			DecidedBy: "reviewer-1", Revision: nbTextRevision("Vi ses"),
+			Basis: sourceRevision("See you"), Updated: "2026-09-01T10:00:00Z",
 		},
 		{
 			ItemName: "en.json", Unit: "bare", Variant: "nb",
 			Status: string(model.TargetStatusDraft), ReviewState: venue.ReviewStateRejected,
-			DecidedBy: "reviewer-1", ContentHash: state.SourceHash("Sign out"),
+			DecidedBy: "reviewer-1", Basis: sourceRevision("Sign out"),
 			Updated: "2026-09-01T10:00:00Z",
 		},
 	})
@@ -529,8 +584,8 @@ func TestTallyDecisionBasis_RejectionOwesADraft(t *testing.T) {
 	_, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "drifted", Variant: "nb",
 		Status: string(model.TargetStatusDraft), ReviewState: venue.ReviewStateRejected,
-		DecidedBy: "reviewer-1", TargetHash: state.TargetHash("Vi ses"),
-		ContentHash: state.SourceHash("See you"), Updated: "2026-09-01T11:00:00Z",
+		DecidedBy: "reviewer-1", Revision: nbTextRevision("Vi ses"),
+		Basis: sourceRevision("See you"), Updated: "2026-09-01T11:00:00Z",
 	}})
 	require.NoError(t, err)
 
@@ -549,14 +604,14 @@ func TestTallyDecisionBasis_RejectionOwesADraft(t *testing.T) {
 	assert.LessOrEqual(t, got.Owed, got.Stale, "Owed stays a subset of Stale")
 
 	require.NoError(t, s.RecordDraftBases(ctx, p.ID, "main", []platstore.DraftBasis{
-		{ItemName: "en.json", Unit: "refused", Variant: "nb", SourceHash: state.SourceHash("Hello")},
+		{ItemName: "en.json", Unit: "refused", Variant: "nb", Basis: sourceRevision("Hello")},
 	}))
 	got = tally()
 	assert.Zero(t, got.RejectedOwed, "drafted since the rejection: the unit waits on the next verdict")
 	assert.Equal(t, 1, got.Owed, "the stale unit is untouched by another unit's mark")
 
 	require.NoError(t, s.RecordDraftBases(ctx, p.ID, "main", []platstore.DraftBasis{
-		{ItemName: "en.json", Unit: "drifted", Variant: "nb", SourceHash: state.SourceHash("See you soon")},
+		{ItemName: "en.json", Unit: "drifted", Variant: "nb", Basis: sourceRevision("See you soon")},
 	}))
 	got = tally()
 	assert.Equal(t, 1, got.Stale, "the withdrawn approval is still a person's to replace")
@@ -571,40 +626,27 @@ func TestTallyDecisionBasis_RejectionOwesADraft(t *testing.T) {
 	assert.Equal(t, 1, tally().RejectedOwed, "a second rejection owes a second draft")
 }
 
-// TestUnitDecisions_RevisionPairingRoundTrips: a decision made since
-// revisions carries the revision of the translation it blesses and of the
-// source it blessed it for. The ledger stores both beside the hashes and reads
-// them back; a row written before them reads back with neither and is read by
-// its hashes; a record that gains them is a change the store writes, and a
-// verdict on a translation that differs in an inline code alone replaces it.
+// TestUnitDecisions_RevisionPairingRoundTrips: a decision carries the revision
+// of the translation it blesses and of the source it blessed it for. The
+// ledger stores both and reads them back, an identical record is a no-op, and
+// a verdict on a translation that differs in an inline code alone replaces it.
 // The SQLite store pins the same contract.
 func TestUnitDecisions_RevisionPairingRoundTrips(t *testing.T) {
 	s := newTestStore(t)
 	ctx := t.Context()
 	p := createTestProject(t, s)
 
-	legacy := venue.UnitDecision{
+	paired := venue.UnitDecision{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status: string(model.TargetStatusEstablished), TargetHash: state.TargetHash("Hei"), ContentHash: state.SourceHash("Hello"),
+		Status: string(model.TargetStatusEstablished), Revision: "r:1111111111111111", Basis: "r:aaaaaaaaaaaaaaaa",
 		ReviewState: "approved", DecidedBy: "reviewer@example.com", Updated: "2026-08-04T10:00:00Z",
 	}
-	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{legacy})
+	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{paired})
 	require.NoError(t, err)
 	require.Equal(t, 1, changed)
 	got, err := s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
 	require.NoError(t, err)
 	require.NotNil(t, got)
-	assert.Empty(t, got.Revision, "a record made before revisions names none")
-	assert.Empty(t, got.Basis)
-
-	paired := legacy
-	paired.Revision, paired.Basis = "r:1111111111111111", "r:aaaaaaaaaaaaaaaa"
-	paired.Updated = "2026-08-04T10:30:00Z"
-	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{paired})
-	require.NoError(t, err)
-	assert.Equal(t, 1, changed, "a record that gains the revision pairing is a change")
-	got, err = s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
-	require.NoError(t, err)
 	assert.Equal(t, "r:1111111111111111", got.Revision)
 	assert.Equal(t, "r:aaaaaaaaaaaaaaaa", got.Basis)
 	listed := listDecisions(t, s, p.ID)["en.json|greeting|nb"]
@@ -620,87 +662,15 @@ func TestUnitDecisions_RevisionPairingRoundTrips(t *testing.T) {
 	recoded.Updated = "2026-08-04T11:00:00Z"
 	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{recoded})
 	require.NoError(t, err)
-	assert.Equal(t, 1, changed, "a verdict on other content is a change, though the hashes are one")
+	assert.Equal(t, 1, changed, "a verdict on other content is a change")
 	got, err = s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
 	require.NoError(t, err)
 	assert.Equal(t, "r:2222222222222222", got.Revision)
-}
 
-// TestUnitDecisions_AnOlderClientKeepsThePairing: a client built before
-// revisions drops the pairing from a verdict it pulls and sends the record
-// back. The store reads it as the record it holds: nothing is written, the row
-// keeps its pairing and the verdict is filed in block_history once. A verdict
-// that client makes itself is a change, recorded as it says it, with no
-// pairing. The SQLite store pins the same contract.
-func TestUnitDecisions_AnOlderClientKeepsThePairing(t *testing.T) {
-	s := newTestStore(t)
-	ctx := t.Context()
-	p := createTestProject(t, s)
-	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
-		blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated),
-	}))
-	decisionEvents := func() int {
-		var n int
-		require.NoError(t, s.db.QueryRowContext(ctx,
-			`SELECT count(*) FROM block_history WHERE project_id = $1 AND change_type = 'decision'`, p.ID).Scan(&n))
-		return n
-	}
-
-	platform := venue.UnitDecision{
-		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status: string(model.TargetStatusEstablished), TargetHash: state.TargetHash("Hei"), ContentHash: state.SourceHash("Hello"),
-		Revision: "r:1111111111111111", Basis: "r:aaaaaaaaaaaaaaaa",
-		ReviewState: "approved", DecidedBy: "reviewer@example.com", Updated: "2026-10-04T10:00:00Z",
-	}
-	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{platform})
+	rebased := recoded
+	rebased.Basis = "r:bbbbbbbbbbbbbbbb"
+	rebased.Updated = "2026-08-04T12:00:00Z"
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{rebased})
 	require.NoError(t, err)
-	require.Equal(t, 1, changed)
-	require.Equal(t, 1, decisionEvents())
-
-	older := platform
-	older.Revision, older.Basis = "", ""
-	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{older})
-	require.NoError(t, err)
-	assert.Zero(t, changed, "the same verdict, less two fields the sender cannot know, is no change")
-	got, err := s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
-	require.NoError(t, err)
-	assert.Equal(t, platform.Revision, got.Revision, "the row keeps its pairing")
-	assert.Equal(t, platform.Basis, got.Basis)
-	assert.Equal(t, 1, decisionEvents(), "the verdict is filed once")
-
-	noted := older
-	noted.Note = "keep the informal register"
-	noted.Updated = "2026-10-04T11:00:00Z"
-	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{noted})
-	require.NoError(t, err)
-	assert.Equal(t, 1, changed, "a verdict the older client made is a change")
-	got, err = s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
-	require.NoError(t, err)
-	assert.Equal(t, "keep the informal register", got.Note)
-	assert.Empty(t, got.Revision, "and names the content as its sender did, by hash")
-	assert.Empty(t, got.Basis)
-}
-
-// DecisionUnchanged reads a record that lacks only the pairing the stored row
-// carries as unchanged, and every other difference as a change.
-func TestDecisionUnchanged_ARecordWithoutThePairing(t *testing.T) {
-	stored := venue.UnitDecision{
-		Status: string(model.TargetStatusEstablished), TargetHash: "t", ContentHash: "c",
-		Revision: "r:1", Basis: "r:2", ReviewState: "approved",
-	}
-	unpaired := stored
-	unpaired.Revision, unpaired.Basis = "", ""
-	assert.True(t, DecisionUnchanged(stored, stored))
-	assert.True(t, DecisionUnchanged(stored, unpaired), "a sender that cannot carry the pairing")
-	assert.False(t, DecisionUnchanged(unpaired, stored), "a record that gains the pairing is a change")
-
-	half := stored
-	half.Basis = ""
-	assert.False(t, DecisionUnchanged(stored, half), "a record that names one half names other content")
-	other := unpaired
-	other.ReviewState = "rejected"
-	assert.False(t, DecisionUnchanged(stored, other), "a different verdict is a change")
-	recoded := stored
-	recoded.Revision = "r:3"
-	assert.False(t, DecisionUnchanged(stored, recoded), "a verdict on other content is a change")
+	assert.Equal(t, 1, changed, "a verdict for another source is a change")
 }

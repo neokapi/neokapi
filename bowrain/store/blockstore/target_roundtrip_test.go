@@ -15,7 +15,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -195,7 +194,8 @@ func TestOverlayWrite_EveryReaderSeesTheTarget(t *testing.T) {
 				Unit:        block.SourceID,
 				Variant:     "fr",
 				Status:      string(model.TargetStatusEstablished),
-				TargetHash:  state.TargetHash("Bonjour"),
+				Revision:    model.RunsRevision(model.Variant("fr"), []model.Run{model.TextR("Bonjour")}),
+				Basis:       block.SourceRevision,
 				ReviewState: "approved",
 			}})
 			require.NoError(t, err)

@@ -17,13 +17,13 @@ func (h *refHarness) basis(t *testing.T, unit string) {
 	_, err := h.store.UpsertUnitDecisions(t.Context(), h.project.ID, refTestStream,
 		[]venue.UnitDecision{{
 			ItemName: "docs/intro.md", Unit: unit, Variant: "fr",
-			TargetHash: "target-" + unit, ContentHash: "source-" + unit,
+			Revision: "r:target-" + unit, Basis: "r:source-" + unit,
 			Updated: "2026-09-15T00:00:00Z",
 		}})
 	require.NoError(t, err)
 }
 
-const oneBasis = `[{"item":"docs/intro.md","unit":"u3","variant":"fr","targetHash":"target-u3","contentHash":"source-u3","updated":"2026-09-15T00:00:00Z"}]`
+const oneBasis = `[{"item":"docs/intro.md","unit":"u3","variant":"fr","revision":"r:target-u3","basis":"r:source-u3","updated":"2026-09-15T00:00:00Z"}]`
 
 // A server run drafts units between a client's pull and its push, and each
 // draft records its basis in the ledger. None of those records is a decision

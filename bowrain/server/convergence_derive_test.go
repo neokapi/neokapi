@@ -22,7 +22,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -227,7 +226,7 @@ func seedStaleUnit(t *testing.T, cs *sqlitestore.SQLiteStore, projectID string, 
 
 	record := venue.UnitDecision{
 		ItemName: "app.json", Unit: "greeting", Variant: string(model.LocaleFrench),
-		TargetHash: state.TargetHash("Bonjour"), ContentHash: state.SourceHash("Hello"),
+		Revision: textRevision(model.LocaleFrench, "Bonjour"), Basis: enSourceRevision("Hello"),
 		Updated: "2026-01-01T00:00:00Z",
 	}
 	if decided {
@@ -330,7 +329,7 @@ func TestOrchestrator_SourceChangeRedraftsOnce(t *testing.T) {
 					return convergence.PassProduction{}, err
 				}
 				for _, d := range bases {
-					marks[unitKey{d.ItemName, d.Unit, d.Variant}] = d.SourceHash
+					marks[unitKey{d.ItemName, d.Unit, d.Variant}] = d.Basis
 				}
 				blocks, err := cs.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID, Stream: "main"})
 				if err != nil {
@@ -346,7 +345,7 @@ func TestOrchestrator_SourceChangeRedraftsOnce(t *testing.T) {
 					key := unitKey{sb.ItemName, sb.SourceID, locale}
 					rec, recorded := records[key]
 					owed := !sb.Block.HasTarget(model.LocaleID(locale))
-					if !owed && recorded && rec.ContentHash != "" && rec.ContentHash != sb.ContentHash && marks[key] != sb.ContentHash {
+					if !owed && recorded && platstore.BasisStale(rec.Basis, sb.SourceRevision) && marks[key] != sb.SourceRevision {
 						owed = true
 					}
 					if !owed {
@@ -359,12 +358,12 @@ func TestOrchestrator_SourceChangeRedraftsOnce(t *testing.T) {
 					if !recorded || rec.ReviewState == "" {
 						basisRecords = append(basisRecords, venue.UnitDecision{
 							ItemName: sb.ItemName, Unit: sb.SourceID, Variant: locale,
-							TargetHash: state.TargetHash(text), ContentHash: sb.ContentHash,
+							Revision: textRevision(model.LocaleID(locale), text), Basis: sb.SourceRevision,
 							Updated: "2026-03-01T00:00:00Z",
 						})
 					}
 					stamps = append(stamps, platstore.DraftBasis{
-						ItemName: sb.ItemName, Unit: sb.SourceID, Variant: locale, SourceHash: sb.ContentHash,
+						ItemName: sb.ItemName, Unit: sb.SourceID, Variant: locale, Basis: sb.SourceRevision,
 					})
 				}
 				if len(toStore) == 0 {
@@ -430,7 +429,7 @@ func TestOrchestrator_SourceChangeRedraftsOnce(t *testing.T) {
 				require.NoError(t, err)
 				require.Len(t, records, 1)
 				assert.Equal(t, "approved", records[0].ReviewState, "the decision is never written over")
-				assert.Equal(t, state.SourceHash("Hello"), records[0].ContentHash)
+				assert.Equal(t, enSourceRevision("Hello"), records[0].Basis)
 			} else {
 				assert.Zero(t, counts.Stale, "the loop's own basis follows its draft")
 				assert.Zero(t, stats.LocaleStats[0].StaleBlocks)

@@ -59,9 +59,9 @@ import (
 // block; a nil gate governs nothing.
 //
 // Staleness is graded by the ledger, not by this pass: TallyDecisionBasis joins
-// each decision's recorded basis to the block's current source hash. It runs
-// unbounded by the coverage gate because a stale unit withholds a scope at any
-// coverage, and it is one grouped query rather than a per-block read.
+// each decision's recorded basis to the revision of the block's current source.
+// It runs unbounded by the coverage gate because a stale unit withholds a scope
+// at any coverage, and it is one grouped query rather than a per-block read.
 func applyShipStates(ctx context.Context, cs store.ContentStore, voiceStore coreprofile.Store, projectID, stream string, gate *termGate, stats *store.TranslationDashboardStats) error {
 	fullyCovered := func(ls store.LocaleTranslationStats) bool {
 		return ls.TotalBlocks > 0 && ls.TranslatedBlocks >= ls.TotalBlocks

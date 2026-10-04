@@ -105,15 +105,13 @@ func (c *BowrainSourceConnector) projectDecisions(ctx context.Context) ([]venue.
 			item = p
 		}
 		out = append(out, venue.UnitDecision{
-			ItemName:    item,
-			Unit:        u.Unit,
-			Variant:     variantText(u.Variant),
-			Status:      string(u.Status),
-			TargetHash:  u.TargetHash,
-			ContentHash: u.ContentHash,
-			// The revision pairing travels beside the hashes, so the venue's
-			// ledger names the content the decision was made on as the
-			// project's record does.
+			ItemName: item,
+			Unit:     u.Unit,
+			Variant:  variantText(u.Variant),
+			Status:   string(u.Status),
+			// The pairing travels by revision, so the venue's ledger names the
+			// content the decision was made on as the project's record does,
+			// inline codes included.
 			Revision:    u.Revision,
 			Basis:       u.Basis,
 			ReviewState: u.Decision.ReviewState,
@@ -182,17 +180,15 @@ func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pull
 			}
 		}
 		next := state.UnitState{
-			Unit:       d.Unit,
-			Variant:    variant,
-			Status:     model.TargetStatus(d.Status),
-			TargetHash: d.TargetHash,
-			// The basis rides down with the decision. Without it a pulled
-			// approval would arrive with nothing to say which source it blessed,
-			// and every unit reviewed on the server would read as current here
-			// however far its source had moved since.
-			ContentHash: d.ContentHash,
-			Revision:    d.Revision,
-			Basis:       d.Basis,
+			Unit:    d.Unit,
+			Variant: variant,
+			Status:  model.TargetStatus(d.Status),
+			// The pairing rides down with the decision. Without the basis a
+			// pulled approval would arrive with nothing to say which source it
+			// blessed, and every unit reviewed on the server would read as
+			// current here however far its source had moved since.
+			Revision: d.Revision,
+			Basis:    d.Basis,
 			Decision: state.Decision{
 				ReviewState: d.ReviewState,
 				By:          d.DecidedBy,

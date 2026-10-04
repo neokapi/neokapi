@@ -157,7 +157,7 @@ func pushBlocksDrainedBy(t *testing.T, srv *Server, e *echo.Echo, authHeader, pr
 		for _, b := range blocks {
 			// The transfer hash, keyed on the durable identity, as a real
 			// client sends it.
-			blockHashes[convergence.BlockKey(b)] = model.ComputeIdentity(b).RecordHash()
+			blockHashes[convergence.BlockKey(b)] = venue.RecordHash(b, "en")
 		}
 		blockHashesByItem[itemName] = blockHashes
 		itemHashes[itemName] = venue.ComputeItemHash(blockHashes)

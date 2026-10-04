@@ -89,7 +89,7 @@ func (d *DiffEngine) loadTreeItem(ctx context.Context, projectID, stream, itemNa
 		ti.Keys = append(ti.Keys, key)
 		ti.Content = append(ti.Content, sb.ContentHash)
 		ti.Context = append(ti.Context, sb.ContextHash)
-		ti.Record = append(ti.Record, model.ComputeRecordHash(sb.ContentHash, sb.ContextHash))
+		ti.Record = append(ti.Record, model.ComputeRecordHash(sb.ContentHash, sb.ContextHash, sb.SourceRevision))
 	}
 	return ti, nil
 }

@@ -394,14 +394,14 @@ func (st *staged) Settle(ctx context.Context) error {
 	}
 	if digest(st.held) == st.head {
 		// The rows are as the stage read them: what it changed is what the
-		// held rows become. The content hash each row holds is the base the
+		// held rows become. The source revision each row holds is the base the
 		// write guards on.
-		hashes := make(map[string]string, len(st.held))
+		revisions := make(map[string]string, len(st.held))
 		for _, sb := range st.held {
-			hashes[sb.Block.ID] = sb.ContentHash
+			revisions[sb.Block.ID] = sb.SourceRevision
 		}
 		for _, sb := range st.changed {
-			sb.ContentHash = hashes[sb.Block.ID]
+			sb.SourceRevision = revisions[sb.Block.ID]
 		}
 		return nil
 	}

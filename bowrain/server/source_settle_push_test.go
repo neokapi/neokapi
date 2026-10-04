@@ -33,7 +33,7 @@ func sourceSettled(cs *sqlitestore.SQLiteStore, projectID string) bool {
 		return false
 	}
 	for _, sb := range got {
-		if sb.Block != nil && sb.Block.Properties[propSettledHash] != "" {
+		if sb.Block != nil && sb.Block.Properties[propSettledRevision] != "" {
 			return true
 		}
 	}

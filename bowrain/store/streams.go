@@ -75,12 +75,12 @@ var branchStreamCopies = []struct {
 }{
 	{table: "items", columns: "id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at", stamp: "updated_at"},
 	{table: "blocks", columns: "id, project_id, item_name, item_id, source_id, name, type, mime_type, translatable, " +
-		"content_hash, context_hash, source_json, overlays, word_count, properties, owner_id, access, stored_at", stamp: "updated_at"},
+		"content_hash, context_hash, source_revision, source_json, overlays, word_count, properties, owner_id, access, stored_at", stamp: "updated_at"},
 	{table: "translations", columns: "project_id, block_id, locale, text, target_json, provider, metadata", stamp: "updated_at"},
 	{table: "annotations", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
 	{table: "overlays_ext", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
 	{table: "pre_reviews", columns: "project_id, block_id, locale, score, reviewer, reasons, revision, created_at"},
-	{table: "unit_decisions", columns: "project_id, item_id, item_name, unit, variant, status, target_hash, content_hash, " +
+	{table: "unit_decisions", columns: "project_id, item_id, item_name, unit, variant, status, " +
 		"revision, basis, review_state, decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated", stamp: "updated_at"},
 }
 

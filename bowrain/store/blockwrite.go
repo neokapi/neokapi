@@ -19,7 +19,7 @@ var _ platstore.BlockWriteStore = (*PostgresStore)(nil)
 // three a change set may address it by. %s is either nothing or the filter and,
 // for a held read, FOR UPDATE.
 const itemBlocksSQL = `SELECT b.id, b.project_id, b.item_name, b.source_id, b.name, b.type, b.mime_type, b.translatable,
-		b.content_hash, b.context_hash, b.source_json, b.properties, b.overlays, b.stored_at, b.updated_at
+		b.content_hash, b.context_hash, b.source_revision, b.source_json, b.properties, b.overlays, b.stored_at, b.updated_at
 	 FROM blocks b
 	 WHERE b.project_id = $1 AND b.stream = $2 AND b.item_name = $3%s
 	 ORDER BY ` + BlockListOrder + `%s`
@@ -135,7 +135,7 @@ func (w *pgBlockWrite) Hold(ctx context.Context, itemName string, keys []string)
 
 func (w *pgBlockWrite) Store(ctx context.Context, blocks []*venue.StoredBlock) error {
 	// A write-back: each block lands on the row Hold read, which still holds
-	// the content hash it read because the row is held. It keeps the row's
+	// the source revision it read because the row is held. It keeps the row's
 	// stored context hash, which is the producer's (see WriteBackBlocks).
 	wb, bs := storeutil.NewWriteBack(blocks)
 	if len(bs) == 0 {

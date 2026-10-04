@@ -24,8 +24,12 @@ type StoredBlock struct {
 	SourceID    string // format-reader-assigned ID (e.g., "tu1"); empty for blocks stored without an item
 	ContentHash string
 	ContextHash string
-	StoredAt    time.Time
-	UpdatedAt   time.Time
+	// SourceRevision is the revision of the block's source as the store holds
+	// it (SourceRevision under the project's source language), stamped when
+	// the source is written. A decision's basis is graded against it.
+	SourceRevision string
+	StoredAt       time.Time
+	UpdatedAt      time.Time
 }
 
 // Asset represents a binary asset (image, audio, video) stored in BlobStore
@@ -65,10 +69,11 @@ type AssetVariant struct {
 // one locale variant — the wire form of core/state.UnitState plus the item that
 // scopes the unit's durable identity (the same structural name recurs across
 // items, so an unscoped unit key cannot be joined safely). It records the
-// decision as a FACT — who, when, which rung, and the pairing it blesses: the
-// translation, and the source that translation was approved for, each by
-// revision and by hash. Freshness is derived by whoever reads it, never
-// stored.
+// decision as a FACT — who, when, which rung, and the pairing it blesses by
+// revision: the translation, and the source that translation was approved
+// for. Freshness is derived by whoever reads it, never stored: a record is
+// current while the unit's source still has the basis revision and its
+// translation still has the revision.
 type UnitDecision struct {
 	ProjectID string `json:"project_id,omitempty"`
 	Stream    string `json:"stream,omitempty"`
@@ -82,19 +87,15 @@ type UnitDecision struct {
 	Variant string `json:"variant"`
 	// Status is the target-ladder rung the decision lands the unit on.
 	Status string `json:"status,omitempty"`
-	// TargetHash is the content hash of the translation the decision blesses
-	// (state.TargetHash of the trimmed target text).
-	TargetHash string `json:"targetHash,omitempty"`
-	// ContentHash is the BASIS: the content hash of the SOURCE the decision
-	// blessed that translation for (state.SourceHash). Empty on a record written
-	// before the basis was tracked — unknown, which readers must not confuse
-	// with a source that has moved.
-	ContentHash string `json:"contentHash,omitempty"`
-	// Revision and Basis name the translation and the source by revision
-	// (state.UnitState.Revision and Basis), which count inline codes where
-	// the hashes do not. A reader grades a record that carries them by them,
-	// and one written before revisions by its hashes. Empty on such a record.
-	Revision    string `json:"revision,omitempty"`
+	// Revision is the revision of the translation the decision blesses
+	// (model.TargetRevision; state.UnitState.Revision). Empty on a source
+	// approval, which is about the source alone.
+	Revision string `json:"revision,omitempty"`
+	// Basis is the revision of the SOURCE the decision blessed that
+	// translation for, taken under the project's source language
+	// (SourceRevision; state.UnitState.Basis). A revision counts inline codes
+	// with their data and attributes, so a changed link target moves it. A
+	// record whose basis is not the source the unit holds now is stale.
 	Basis       string `json:"basis,omitempty"`
 	ReviewState string `json:"reviewState,omitempty"` // approved | rejected
 	DecidedBy   string `json:"by,omitempty"`          // "" human · "ai/<model>" · "agent/<client>" · server identity
