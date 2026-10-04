@@ -403,14 +403,14 @@ func TestOverlayTargets_CarriesTargetProvenance(t *testing.T) {
 
 	OverlayTargets(src, tgt, "nb")
 
-	got := src[0].Target("nb")
-	require.NotNil(t, got)
+	got, ok := src[0].TargetEdition("nb")
+	require.True(t, ok)
 	assert.Equal(t, "Logg inn", src[0].TargetText("nb"))
 	assert.Equal(t, "cfp-abc123", got.Origin.ContextFingerprint,
 		"the fingerprint the absorber reads survives the overlay")
 	assert.Equal(t, "northsea", got.Origin.Profile)
 	assert.Equal(t, "ai", got.Origin.Kind)
-	assert.Equal(t, model.TargetStatusTranslated, got.Status)
+	assert.Equal(t, model.TargetStatusTranslated, model.TargetStatus(got.Status))
 }
 
 // A monolingual target file carries the translation as its own source, so there
@@ -424,8 +424,8 @@ func TestOverlayTargets_MonolingualTargetHasNoProvenance(t *testing.T) {
 
 	OverlayTargets(src, tgt, "nb")
 
-	got := src[0].Target("nb")
-	require.NotNil(t, got)
+	got, ok := src[0].TargetEdition("nb")
+	require.True(t, ok)
 	assert.Equal(t, "Logg inn", src[0].TargetText("nb"))
 	assert.Equal(t, model.Origin{}, got.Origin)
 }

@@ -343,12 +343,13 @@ func (a *App) keptTargetBlocks(ctx context.Context, u VerifyUnit) ([]*model.Bloc
 // read `blocked: translate` while holding a translation of every unit. A rung
 // above translated is a decision, and it is kept.
 func normalizeKeptStatus(b *model.Block, loc model.LocaleID) {
-	t := b.Target(loc)
-	if t == nil {
+	t, ok := b.TargetEdition(loc)
+	if !ok {
 		return
 	}
-	if t.Status.Rank() < model.TargetStatusTranslated.Rank() {
+	if model.TargetStatus(t.Status).Rank() < model.TargetStatusTranslated.Rank() {
 		t.Status = ""
+		b.SetTargetEdition(model.Variant(loc), t)
 	}
 }
 

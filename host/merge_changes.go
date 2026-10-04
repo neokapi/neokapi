@@ -226,8 +226,8 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 	var ops []change.Op
 	var units []*model.Block
 	for _, u := range rf.blocks {
-		target := u.Target(rf.locale)
-		if target == nil || !hasAnyText(target.Runs) {
+		target, ok := u.TargetEdition(rf.locale)
+		if !ok || !hasAnyText(target.Runs) {
 			note(mergeOutcome{Block: u.ID, Status: mergeSkipped})
 			continue
 		}
@@ -245,7 +245,7 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 		// lands only on a block that still reads so, whatever basis it
 		// names. A unit that carries no basis was made from the source it
 		// carries, or, carrying none, from the file the return names.
-		carried := len(u.Source) > 0
+		carried := len(u.SourceRuns()) > 0
 		var why string
 		switch {
 		case carried && !sameSource(u, cur.block, rf.plainSource, rev.Basis != ""):
@@ -317,8 +317,9 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 	if task.mem != nil {
 		for _, u := range landed {
 			cur := current[u.ID]
-			b := &model.Block{ID: u.ID, Source: cur.block.Source, SourceLocale: cur.block.SourceLocale, Identity: cur.block.Identity}
-			b.SetTargetRuns(rf.locale, u.Target(rf.locale).Runs)
+			b := &model.Block{ID: u.ID, SourceLocale: cur.block.SourceLocale, Identity: cur.block.Identity}
+			b.SetSourceRuns(cur.block.SourceRuns())
+			b.SetTargetRuns(rf.locale, u.TargetRuns(rf.locale))
 			added, updated, aerr := task.mem.absorb(ctx, b, task.ctx.SourceLocale, rf.locale, cmp.Or(rf.reference, rf.batch, "merge"), rf.doc, rf.input)
 			if aerr != nil && tmErr == nil {
 				tmErr = aerr
@@ -604,8 +605,8 @@ func materializeEdition(ctx context.Context, svc *change.Service, store blocksto
 		if err := applyTargetOverlay(stored, locale, o.Payload); err != nil {
 			return err
 		}
-		t := stored.Target(locale)
-		if t == nil {
+		t, ok := stored.TargetEdition(locale)
+		if !ok {
 			return nil
 		}
 		ops = append(ops, change.Op{
@@ -671,8 +672,8 @@ func sameSource(unit, cur *model.Block, plain, based bool) bool {
 	if plain {
 		return unit.SourceText() == cur.SourceText()
 	}
-	if based && model.RunsPlaceholderText(unit.Source) == model.RunsPlaceholderText(cur.Source) {
+	if based && model.RunsPlaceholderText(unit.SourceRuns()) == model.RunsPlaceholderText(cur.SourceRuns()) {
 		return true
 	}
-	return model.RenderRunsWithData(unit.Source) == model.RenderRunsWithData(cur.Source)
+	return model.RenderRunsWithData(unit.SourceRuns()) == model.RenderRunsWithData(cur.SourceRuns())
 }

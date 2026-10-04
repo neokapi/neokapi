@@ -160,7 +160,7 @@ func TestSourceStateSeeder_MakesTheInFlowGateAgreeWithTheReport(t *testing.T) {
 		seed(units[0].SourcePath, b)
 		// The gate settles after the seed, exactly as the in-flow stage does.
 		check.SettleSourceStatus(t.Context(), b)
-		if b.SourceStatus == model.SourceStatusEstablished {
+		if sourceStatusOf(b) == model.SourceStatusEstablished {
 			approved++
 		} else {
 			other++

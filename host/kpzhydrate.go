@@ -95,13 +95,14 @@ func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) e
 	// would deliver a file whose translations claim to have been produced under
 	// no governance at all.
 	if p.Status != "" || p.Origin != nil {
-		if t := b.Target(locale); t != nil {
+		if t, ok := b.TargetEdition(locale); ok {
 			if p.Status != "" {
-				t.Status = model.TargetStatus(p.Status)
+				t.Status = model.Status(p.Status)
 			}
 			if p.Origin != nil {
 				t.Origin = *p.Origin
 			}
+			b.SetTargetEdition(model.Variant(locale), t)
 		}
 	}
 	return nil

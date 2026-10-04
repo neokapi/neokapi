@@ -428,13 +428,13 @@ func runToolOverText(ctx context.Context, t tool.Tool, text string, targetLang m
 
 // serializeBlock renders a processed block into the JSON-friendly output shape.
 func serializeBlock(b *model.Block) *frameworkToolOutput {
-	out := &frameworkToolOutput{Source: model.RunsText(b.Source)}
-	if len(b.Targets) > 0 {
-		out.Targets = make(map[string]string, len(b.Targets))
-		for k, tgt := range b.Targets {
-			key, _ := k.MarshalText()
-			out.Targets[string(key)] = model.RunsText(tgt.Runs)
+	out := &frameworkToolOutput{Source: model.RunsText(b.SourceRuns())}
+	for k, tgt := range b.EachTargetEdition {
+		if out.Targets == nil {
+			out.Targets = map[string]string{}
 		}
+		key, _ := k.MarshalText()
+		out.Targets[string(key)] = model.RunsText(tgt.Runs)
 	}
 	if len(b.Properties) > 0 {
 		out.Properties = b.Properties

@@ -74,7 +74,7 @@ func WritePOExtract(out io.Writer, target model.LocaleID, batchID, sourceRel, so
 		if !b.Translatable {
 			continue
 		}
-		if len(b.Source) == 0 {
+		if len(b.SourceRuns()) == 0 {
 			continue
 		}
 		// One msgid per block (segmentation-off case). Skip multi-segment

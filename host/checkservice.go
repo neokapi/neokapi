@@ -122,11 +122,11 @@ func OverlayTargets(sourceBlocks, targetBlocks []*model.Block, locale model.Loca
 		// caller downstream — the record absorber most of all — then reads an
 		// answer with no governing context recorded, which is the same thing it
 		// reads for an answer produced under no governance.
-		if t := tb.Target(locale); t != nil {
-			if st := sb.Target(locale); st != nil {
-				status := st.Status
+		if t, ok := tb.TargetEdition(locale); ok {
+			if st, ok := sb.TargetEdition(locale); ok {
+				status := model.TargetStatus(st.Status)
 				if t.Status != "" {
-					status = t.Status
+					status = model.TargetStatus(t.Status)
 				}
 				sb.StampTargetProvenance(locale, status, t.Origin)
 			}

@@ -20,10 +20,10 @@ func docBlock(name, source, target string) *model.Block {
 		ID:           name,
 		Name:         name,
 		Translatable: true,
-		Source:       []model.Run{model.TextR(source)},
 	}
+	b.SetSourceRuns([]model.Run{model.TextR(source)})
 	if target != "" {
-		b.SetTarget("nb", &model.Target{Runs: []model.Run{model.TextR(target)}})
+		b.SetEdition(model.Variant("nb"), model.Edition{Runs: []model.Run{model.TextR(target)}})
 	}
 	return b
 }
@@ -48,7 +48,10 @@ func TestAssembleReviewContextComposesTheSharedLayers(t *testing.T) {
 	ctx := t.Context()
 	blocks := fiveBlockDoc()
 	blocks[2].Unit = "doc.three"
-	blocks[2].Target("nb").Origin = model.Origin{Kind: "ai", Engine: "claude", ContextFingerprint: "fp-now"}
+	three, ok := blocks[2].TargetEdition("nb")
+	require.True(t, ok)
+	three.Origin = model.Origin{Kind: "ai", Engine: "claude", ContextFingerprint: "fp-now"}
+	blocks[2].SetEdition(model.Variant("nb"), three)
 	tm := memory.NewInMemoryStore()
 	at := time.Date(2026, 2, 1, 9, 0, 0, 0, time.UTC)
 	require.NoError(t, tm.Add(ctx, chainAnswer("v2", "doc.three", "Third paragraph.", "Tredje avsnitt.", "fp-now", at)))
@@ -102,10 +105,8 @@ func TestReviewHistoryThreadsTheGoverningFingerprint(t *testing.T) {
 	tm := memory.NewInMemoryStore()
 	at := time.Date(2026, 2, 1, 9, 0, 0, 0, time.UTC)
 	require.NoError(t, tm.Add(ctx, chainAnswer("v2", "settings.save", "Save the file", "Lagre filen", "fp-now", at)))
-	block := &model.Block{
-		ID: "b1", Name: "settings.save", Unit: "settings.save", Translatable: true,
-		Source: []model.Run{model.TextR("Save this file")},
-	}
+	block := &model.Block{ID: "b1", Name: "settings.save", Unit: "settings.save", Translatable: true}
+	block.SetSourceRuns([]model.Run{model.TextR("Save this file")})
 	a := &App{}
 
 	tests := []struct {
@@ -231,10 +232,7 @@ func TestAssembleReviewContextReadsTheDocumentNotTheIDs(t *testing.T) {
 // idNamedBlock builds a translatable block whose id and reader's name are
 // separate, so a case can put the two orders at odds.
 func idNamedBlock(id, name, source string) *model.Block {
-	return &model.Block{
-		ID:           id,
-		Name:         name,
-		Translatable: true,
-		Source:       []model.Run{model.TextR(source)},
-	}
+	b := &model.Block{ID: id, Name: name, Translatable: true}
+	b.SetSourceRuns([]model.Run{model.TextR(source)})
+	return b
 }

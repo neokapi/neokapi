@@ -658,7 +658,7 @@ const (
 // written as a run sequence plus a target segmentation overlay index-aligned
 // to the source spans (so a segmented block round-trips per-segment targets).
 func applyMemoryPrefill(ctx context.Context, tm memory.ContentMemory, block *model.Block, source, target model.LocaleID, threshold float64) prefillOutcome {
-	if tm == nil || block == nil || len(block.Source) == 0 {
+	if tm == nil || block == nil || len(block.SourceRuns()) == 0 {
 		return prefillNone
 	}
 	opts := memory.LookupOptions{MinScore: threshold, MaxResults: 1}

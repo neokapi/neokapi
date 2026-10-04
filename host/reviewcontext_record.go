@@ -29,7 +29,7 @@ func (a *App) recordedProvenance(ctx context.Context, req ReviewContextRequest, 
 	source := isReviewSource(req, loc)
 	if !source && req.Unit != nil && req.Unit.Stale(state.TargetHash(block.TargetText(loc))) {
 		p.ReviewState, p.By, p.At, p.Note, p.Status = "", "", "", "", ""
-		if t := block.Target(loc); t == nil || t.Origin.Kind == "" {
+		if t, ok := block.TargetEdition(loc); !ok || t.Origin.Kind == "" {
 			p.Origin = nil
 		}
 	}

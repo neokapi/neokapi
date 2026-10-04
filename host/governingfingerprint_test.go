@@ -112,7 +112,7 @@ func TestGoverningFingerprintOf_TheTargetsOwnStampWins(t *testing.T) {
 	const scope = "d-doc"
 	stamped := &model.Block{ID: "greeting", Name: "greeting", Translatable: true}
 	stamped.SetSourceText("Hello")
-	stamped.SetTarget("nb", &model.Target{Runs: []model.Run{model.TextR("Hei")}, Origin: model.Origin{ContextFingerprint: "fp-file"}})
+	stamped.SetEdition(model.Variant("nb"), model.Edition{Runs: []model.Run{model.TextR("Hei")}, Origin: model.Origin{ContextFingerprint: "fp-file"}})
 	bare := &model.Block{ID: "greeting", Name: "greeting", Translatable: true}
 	bare.SetSourceText("Hello")
 	bare.SetTargetText("nb", "Hei")
