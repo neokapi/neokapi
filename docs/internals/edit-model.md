@@ -1178,13 +1178,24 @@ language for an edition with no tone and no channel, as the bridge reads it, and
 response of `kapi.change/v1` changes.
 
 The decision ledger pairs revisions since the flip: a record carries the revision of the edition
-it blesses and its basis beside the two text hashes, and readers grade a record by revision where
-it carries one and by hash where it was recorded before. No data is reset: the local ledger and
-each view gain the two columns empty (store migration 8), Bowrain's `unit_decisions` gains them the
-same way (PostgreSQL version 40, the SQLite store's 35), and every record written before answers by
-its hashes until the next decision on its unit. A source revision depends on the key it is taken
-under and readers disagree on that key, so the source half is matched under every key a reader of
-the document gives it (`Block.SourceRevisions`).
+it blesses and its basis. On a checkout they sit beside the two text hashes, and a reader grades a
+record by revision where it carries one and by hash where it was recorded before; no local data is
+reset (the local ledger and each view gain the two columns empty, store migration 8). Bowrain
+grades by revision alone, as if it had from the start (founder decision 2026-10-04: no reader for
+rows without revisions). A decision travels the sync wire as its two revisions and no hashes; every
+stored block carries `blocks.source_revision`, the revision of its source under the project's
+source language (`venue.SourceRevision`), stamped on every source write; the status projection,
+the settle on a source write, the grouped tally in both stores, the draft mark, the review
+context's stale flag, push governance, edition writes, memory promotion, the ship verdict basis,
+the source settlement stamp and the write-back guard all compare revisions; and a push's transfer
+hash folds the source revision (`venue.RecordHash`), so a change to an inline code alone is sent
+and retires a decision on the platform as it does on a checkout. PostgreSQL version 41 and the
+SQLite store's 36 add the column and drop `unit_decisions.target_hash` and `content_hash`; see the
+1.3.0 checklist for what existing data loses. A source revision depends on the key it is taken under and readers disagree on
+that key, so on a checkout the source half is matched under every key a reader of the document
+gives it (`Block.SourceRevisions`); Bowrain takes every revision under the project's source
+language, the key a project read files the source by, so a checkout's basis and the platform's
+revision are one value.
 
 ### 6.5 Names: Block, Key, Edition, and retiring "unit"
 
@@ -2148,15 +2159,11 @@ beside all of them in package-sized PRs.
     records it in process, and the block history holds the basis of each write. `Native` stays
     process-local by design (the kitchen-sink guard lists it as derived: a reader records it each
     time it reads the file).
-  - Bowrain stores and returns the revision pairing and records it on its own verdicts, and still
-    grades its ledger by the hashes: the source half against `blocks.content_hash`, the draft mark
-    and the status projections included. A change to an inline code alone therefore retires a
-    decision on a checkout and leaves it established on the platform; C-04, S-07 and the Bowrain
-    review and push pages say so. Grading there by revision needs the source revision on each
-    stored block (a migration of its own), and it moves the grouped tally in both stores, the
-    settle path on a source write, the upsert projection, the draft mark and the review context's
-    stale flag. It needs an owner and a decision before 1.3.0: move the platform, or ship it
-    grading by text.
+  - Bowrain takes a source revision under the project's source language as the server knows it
+    (`projects.default_source_language`), and a checkout under the recipe's. The two are one
+    language by contract (the change service relies on it too); a project whose recipe names
+    another language than the server's reads every platform decision stale and re-sends every
+    block on each push. Nothing reconciles the two yet.
   - The content memory keeps its pairs by language. Pairing a `from` and a `to` edition waits for
     a reader or a tool that produces a tone or channel edition.
   - `edit.Classify` is unchanged: it compares the source a content-memory pair holds with the
@@ -2218,11 +2225,18 @@ All of these hold before the 1.3.0 tag:
 11. User and agent surfaces say block and edition; "unit" is gone from them.
 12. ADs describe the result, and the affected walkthroughs are re-recorded.
 13. `model.Block` holds peer editions (`Editions`, `Native`, `Derivation`), `Block.Key` replaces
-    `Block.Unit`, KBF is v2, and the decision pairing uses revisions (WP14). Done on the engine and
-    the checkouts. Bowrain stores the pairing and grades its ledger by the hashes, a decision WP14
-    lists as open before the tag; KBF v2 ships with the `@neokapi/kapi-format` and
-    `@neokapi/i18n-react` 3.0.0 pair and a kapi release that reads schema 2 (WP14, "Open, for the
-    release").
+    `Block.Unit`, KBF is v2, and the decision pairing uses revisions (WP14). Done on the engine, the
+    checkouts and Bowrain, which grades its ledger by revision alone (section 6.4). Bowrain's
+    PostgreSQL version 41 drops the hash pairing of every stored decision, clears every draft mark
+    and leaves every stored block without a source revision until its source is written again, so
+    a decision recorded before it grades as basis unknown and every existing approval stops
+    projecting once its source is next written: the dogfood project is reset when the server that
+    carries it is deployed. The server and the `kapi-bowrain` that pushes to it move together: a
+    client and a server on either side of the change fold the transfer hash differently and send
+    every block on every push, and a client built before revisions sends decisions that name no
+    basis. KBF v2 ships with the
+    `@neokapi/kapi-format` and `@neokapi/i18n-react` 3.0.0 pair and a kapi release that reads
+    schema 2 (WP14, "Open, for the release").
 
 **Cut lines**, in the order they would be cut if 1.3.0 runs late: WP12 (key-value structure), then
 `mark` (keep `set_attribute`), then local reconciliation on read (ship identity evidence only). None of

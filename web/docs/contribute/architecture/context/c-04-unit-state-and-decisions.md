@@ -318,12 +318,17 @@ except where an inline code alone moved: a changed link target, or a link
 removed, retires a decision recorded with revisions and leaves one recorded
 before them standing.
 
-The server venue stores both halves with each decision and grades its own
-ledger by the hashes alone, against the source text it holds: its status
-projection, its grouped tally and its draft mark. A change to an inline code
-alone therefore retires a decision on a checkout and leaves it standing on the
-server venue until the unit is decided again. Grading there by revision needs
-the revision of each source the venue stores.
+A connected venue names the pairing by revision alone: a decision travels the
+sync protocol as its two revisions, without the hashes, and the venue grades its
+ledger by them. It stamps every block it stores with the revision of its source
+taken under the project's source language (`venue.SourceRevision`), which is
+the basis a project read records for the same content, and a decision is
+current there while its basis is that revision and its revision is the
+translation's. The status projection, the grouped tally, the draft mark, the
+review context's stale flag and the governance a push is put to all read the
+pairing that way. A push decides what to send by a transfer hash that folds the
+same source revision (`venue.RecordHash`), so a change to an inline code alone
+reaches the venue, and it retires a decision there as it does on the checkout.
 
 A revision covers the key its edition is filed under, and the readers of one
 document do not file its source alike: the change service keeps a language the
@@ -377,8 +382,8 @@ the pending set on any scope (gated or not, since the `draft` tally would
 otherwise read an ungated scope as complete), it is priced in `kapi up --plan` on
 the same recycle-versus-AI split, and the pass produces a translation of the
 source the project has now. The server venue derives the answer from its
-ledger by text: one grouped query grades every recorded basis hash against the
-current source's, and a stale unit is withheld from the produced count until a pass has
+ledger by revision: one grouped query grades every recorded basis against the
+revision of the current source, and a stale unit is withheld from the produced count until a pass has
 drafted it, so a run started by a source change has pending work and produces.
 For a unit nobody has decided, the venue's ledger row carries the basis of the
 latest draft: one its own run made, or one a run on a checkout made, which the
@@ -393,7 +398,7 @@ since the venue's own record of it already holds one.
 decision on it, and one kind of decision: a reviewer looking at the re-drafted
 translation and saying it stands, on the source in front of them and under the
 governance in force where they are deciding. That verdict binds both halves of
-the basis, the source hash and the governing fingerprint, and the readers that
+the basis, the source and the governing fingerprint, and the readers that
 grade the unit compare against it, so the unit reads current on the source axis
 and clears the staleness gate on the governance axis
 ([C-05](c-05-freshness.md)). The never-over-a-decision rule holds: the approval
@@ -410,10 +415,11 @@ the producer's stamp. Coverage grades the write's basis by revision. Withdrawing
 an approval has the same effect.
 On the server, rejection also clears the draft mark, scheduling a new draft.
 
-**A rejection is work whatever the basis says.** Comparing the two hashes
-answers whether a translation renders the sentence the project holds. It says
-nothing about whether the project stands behind that translation, and a reviewer
-turning down a translation of the source in front of them moves neither hash, so
+**A rejection is work whatever the basis says.** Comparing the two halves of the
+pairing answers whether a translation renders the source the project holds. It
+says nothing about whether the project stands behind that translation, and a
+reviewer turning down a translation of the source in front of them moves neither
+half, so
 a reader grading the basis alone sees a settled record over a unit sitting at
 `draft` with a refusal on it. The verdict is therefore read beside the basis: a
 rejected unit is owed a draft until the venue has drafted it again since the
@@ -559,9 +565,8 @@ approved, and it is the same fact the graph's `blesses` edge carries
 ([C-03](c-03-context-store-and-graph.md)), which carries both halves, by
 revision and by hash, for that reason, so *which decision covers this unit, at
 which basis* is answerable by traversal as well as by lookup. A connected venue
-applies the same basis rule from its side: it stores the revisions beside the
-hashes and returns them on a pull, records them on a verdict made there, and
-grades its own ledger by the hashes.
+applies the same basis rule from its side, by revision: a record that names no
+basis is unknown there too, counted and never stale.
 
 ### What governed the decision
 

@@ -239,9 +239,9 @@ author and no basis, and the unit grades as basis unknown and is left alone and
 reported. No host clears targets to force the loop's attention. A venue's own
 worker records the basis of the drafts it writes, and a push carries the basis
 a run on a checkout recorded (see below), so the venue grades both alike. The
-server venue grades by the hash of the source text: a change to an inline code
-alone moves no hash, so the venue keeps such a unit current where coverage on a
-checkout reads it stale ([C-04](../context/c-04-unit-state-and-decisions.md#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed)).
+server venue grades by the revision of the source as well, taken under the
+project's source language, so a changed link reads stale there as it does in
+coverage on a checkout ([C-04](../context/c-04-unit-state-and-decisions.md#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed)).
 
 The server's translation worker reads the same ledger. A target whose recorded
 basis is stale is owed a draft, a target the ledger has no record of is left
@@ -253,7 +253,10 @@ work ([C-04](../context/c-04-unit-state-and-decisions.md)).
 ### A push carries decisions; the venue decides
 
 A working copy holds its own decision record, and `kapi push` sends it with the
-content it judges. Beside the decisions it sends how each translation of the
+content it judges. A decision names the translation and the source it blesses by
+revision, as the project's record does, and a block whose source changed in an
+inline code alone is sent as a changed block, so the venue grades the decision
+against the source the checkout holds. Beside the decisions it sends how each translation of the
 documents it reads came to be (`venue.EditionWrite`): the write the block
 history records as having left the translation the checkout holds, with its
 revision, the source it was made from, the writer (person, agent, tool, or

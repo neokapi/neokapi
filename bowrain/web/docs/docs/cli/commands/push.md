@@ -55,7 +55,8 @@ protocol serves `kapi push`, `kapi up`, and the server-side connectors, and
 [`kapi pull`](/cli/commands/pull) reads the same tree back.
 
 1. **Scan.** kapi reads the recipe's `collections:`, extracts every block, and
-   computes each item's content hash. When a file a collection covers cannot be
+   computes a hash of each item's content, its inline codes included, so a
+   changed link is pushed as a changed block. When a file a collection covers cannot be
    read (it fails to parse, or it is a catalog in a schema this kapi does not
    read), the push stops before it sends anything and names the file and the
    reason. A file that no format reads is left out of the tree, and the server
@@ -102,8 +103,8 @@ Beside the decisions, a push carries how each translation of the files it
 reads was written, from the project's record of its changes: the source a run
 made it from, and who wrote it. The server grades a translation that a run on
 your machine produced against that source, as it grades one it drafted itself,
-so a source whose wording changed since reads as stale on the dashboard (a
-change to inline codes alone counts on your machine and not here; see
+so a source that changed since, its wording or an inline code such as a link,
+reads as stale on the dashboard, as it does on your machine (see
 [What an approval leaves behind](/server/review#what-an-approval-leaves-behind)).
 A translation you
 wrote by hand (with `kapi apply`, in Kapi Desktop, or through an agent working
