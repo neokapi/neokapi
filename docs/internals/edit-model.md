@@ -2104,6 +2104,11 @@ beside all of them in package-sized PRs.
     agree while a block's `SourceLocale` is the recipe's source language. They differ for a
     bilingual file whose own source language is not the recipe's, where section 6.3 makes the
     project's language authoritative.
+  - No change-contract address names the translation filed under no language, so a transform
+    tool's edit plan that rewrites every locale `TargetLocales` lists (span-classify among them)
+    is refused on a block that holds one ("a target in , the block's source language"). Either
+    the tool views leave that translation out, as the script tool's view does for tone and
+    channel editions, or the contract gains an address for it.
   - A plugin peer that reads `TargetEntry.locale` as a language tag maps a tone or channel key
     to a tag of its own (the Okapi bridge gives `und` for `fr;tone=formal`). The writer path
     matches the locale it writes, so only a step that returns the block, today the parity
