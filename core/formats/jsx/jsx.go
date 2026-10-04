@@ -60,8 +60,9 @@ var MimeTypes = []string{
 
 // KBFAnnotation travels alongside a model.Block and carries what the
 // bundle says about the block that the model has no field for: the
-// source runs as read, placeholders, properties, preview hints, and
-// the enclosing document. Every edition lives on the model.Block
+// source runs as read, placeholders, properties, preview hints, the
+// enclosing document and project, and any edition under a key the
+// model cannot hold. Every other edition lives on the model.Block
 // itself; this annotation is the handoff between reader, tools, and
 // writer for the rest.
 type KBFAnnotation struct {
@@ -85,6 +86,15 @@ type KBFAnnotation struct {
 	DocumentID string
 	// DocumentPath is the enclosing Document.Path in the .kbf.json file.
 	DocumentPath string
+	// Project is the bundle's project: its id and the language its source
+	// editions are in. A writer keeps it, so a bundle kapi rewrites still
+	// names the language of its source.
+	Project kbf.ProjectInfo `json:",omitzero"`
+	// Unread holds the editions the bundle files under a key the model
+	// cannot hold (kbf.Block.UnreadEditions), such as a dimension a later
+	// minor of the schema adds. They stay off the model.Block and the
+	// writer carries them through verbatim.
+	Unread map[string]kbf.Edition `json:",omitempty"`
 }
 
 // AnnotationType satisfies any.
@@ -277,7 +287,7 @@ func (r *Reader) streamKBF(ctx context.Context, ch chan<- model.PartResult, data
 	var ids model.IDBuilder
 	for _, doc := range file.Documents {
 		for i := range doc.Blocks {
-			block := toModelBlock(&doc, &doc.Blocks[i])
+			block := toModelBlock(file.Project, &doc, &doc.Blocks[i])
 			ids.Assign(block)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
@@ -294,9 +304,14 @@ func (r *Reader) streamKBF(ctx context.Context, ch chan<- model.PartResult, data
 // from a bundle would arrive with a zero Origin and read as produced
 // under no governance. The KBFAnnotation overlay carries extra
 // wire-level metadata (Hash, DocumentID, DocumentPath, Placeholders,
-// Preview) that the model.Block doesn't have first-class fields for;
-// writers read it back to reconstruct the archive.
-func toModelBlock(doc *kbf.Document, b *kbf.Block) *model.Block {
+// Preview, the project) that the model.Block doesn't have first-class
+// fields for; writers read it back to reconstruct the archive.
+//
+// An edition under a key the model cannot hold (a dimension a later
+// minor of the schema adds) is kept on the annotation instead, so it
+// neither lands on the edition its key would shorten to nor drops out
+// of a bundle kapi writes back.
+func toModelBlock(project kbf.ProjectInfo, doc *kbf.Document, b *kbf.Block) *model.Block {
 	source := b.SourceRuns()
 	mb := model.NewRunsBlock(b.ID, cloneRuns(source))
 	mb.Translatable = b.Translatable
@@ -325,7 +340,9 @@ func toModelBlock(doc *kbf.Document, b *kbf.Block) *model.Block {
 	if b.Hash != "" {
 		mb.Properties["hash"] = b.Hash
 	}
-	b.FileEditions(mb)
+	// The editions FileEditions leaves are exactly the ones Unread keeps
+	// below, so its report is already acted on.
+	_ = b.FileEditions(mb)
 	ann := &KBFAnnotation{
 		Source:       cloneRuns(source),
 		Placeholders: append([]kbf.Placeholder(nil), b.Placeholders...),
@@ -335,6 +352,8 @@ func toModelBlock(doc *kbf.Document, b *kbf.Block) *model.Block {
 		Hash:         b.Hash,
 		DocumentID:   doc.ID,
 		DocumentPath: doc.Path,
+		Project:      project,
+		Unread:       b.UnreadEditions(),
 	}
 	mb.SetAnno(AnnotationType, ann)
 	return mb
@@ -357,6 +376,14 @@ type Writer struct {
 	generator kbf.GeneratorInfo
 	project   kbf.ProjectInfo
 
+	// What the parts written say about the project, first seen first: the
+	// project of the bundle a block was read from, the source language a
+	// reader stamped on a block, and the language of the layer the blocks
+	// arrived in. buildKBF names the project from them (projectInfo).
+	readProject kbf.ProjectInfo
+	blockLocale model.LocaleID
+	layerLocale model.LocaleID
+
 	// Accumulated blocks grouped by document id/path.
 	pending map[string]*pendingDoc
 	order   []string
@@ -368,7 +395,10 @@ type pendingDoc struct {
 	blocks []kbf.Block
 }
 
-// NewWriter creates a new KBF writer.
+// NewWriter creates a new KBF writer. A bundle it writes names the project
+// the blocks were read from when they came from a bundle, and otherwise the
+// source language the blocks or their layer carry; the project
+// "neokapi-output" in English is what it names when the parts say nothing.
 func NewWriter() *Writer {
 	return &Writer{
 		generator: kbf.GeneratorInfo{ID: "neokapi", Version: "1.0"},
@@ -426,12 +456,24 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 }
 
 func (w *Writer) handlePart(part *model.Part) error {
-	if part == nil || part.Type != model.PartBlock {
+	if part == nil {
+		return nil
+	}
+	if part.Type == model.PartLayerStart {
+		if layer, ok := part.Resource.(*model.Layer); ok && layer != nil && w.layerLocale.IsEmpty() {
+			w.layerLocale = layer.Locale
+		}
+		return nil
+	}
+	if part.Type != model.PartBlock {
 		return nil
 	}
 	mblock, ok := part.Resource.(*model.Block)
 	if !ok || mblock == nil {
 		return nil
+	}
+	if w.blockLocale.IsEmpty() {
+		w.blockLocale = mblock.SourceLocale
 	}
 	block, docID, docPath := w.materializeBlock(mblock)
 	pd, ok := w.pending[docID]
@@ -457,15 +499,24 @@ func (w *Writer) handlePart(part *model.Part) error {
 // If the block carries a KBFAnnotation (the round-trip case) the
 // annotation supplies the wire-level metadata the model has no
 // first-class field for (hash, placeholders, properties, preview,
-// document identity), and the source runs as read are written while
-// they still carry the block's current source. If there is no
-// annotation (the synthesized case) the writer emits a minimal
-// text-only source so the archive is still well-formed.
+// document identity, project), the source runs as read are written
+// while they still carry the block's current source, and an edition
+// under a key the model cannot hold is written as it was read. If
+// there is no annotation (the synthesized case) the writer emits a
+// minimal text-only source so the archive is still well-formed.
 func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 	editions, unlabelled := kbf.EditionsOf(mb)
 	source := editions[kbf.SourceEdition]
 	if annRaw, ok := mb.Anno(AnnotationType); ok {
 		if ann, ok := annRaw.(*KBFAnnotation); ok && ann != nil {
+			if w.readProject == (kbf.ProjectInfo{}) {
+				w.readProject = ann.Project
+			}
+			for key, e := range ann.Unread {
+				if _, held := editions[key]; !held {
+					editions[key] = e
+				}
+			}
 			// The annotation's source runs are the ones read from the input
 			// bundle, kept so a block nothing touched round-trips with its
 			// structure (placeholders, paired codes) verbatim. They are only
@@ -532,12 +583,35 @@ func (w *Writer) Close() error {
 	return w.writeKBF(file)
 }
 
+// projectInfo names the project of the bundle being written. A block read
+// from a bundle names that bundle's project, which is kept whole. Otherwise
+// the source language is the one a reader stamped on the blocks, or the
+// language of the layer they arrived in, under the writer's own project id.
+// The source edition of every block is in project.sourceLocale, so a bundle
+// written with English there while its source is German would misname its
+// source.
+func (w *Writer) projectInfo() kbf.ProjectInfo {
+	project := w.project
+	if w.readProject.ID != "" {
+		project.ID = w.readProject.ID
+	}
+	switch {
+	case w.readProject.SourceLocale != "":
+		project.SourceLocale = w.readProject.SourceLocale
+	case !w.blockLocale.IsEmpty():
+		project.SourceLocale = kbf.LocaleID(w.blockLocale)
+	case !w.layerLocale.IsEmpty():
+		project.SourceLocale = kbf.LocaleID(w.layerLocale)
+	}
+	return project
+}
+
 func (w *Writer) buildKBF() *kbf.File {
 	file := &kbf.File{
 		SchemaVersion: kbf.SchemaVersion,
 		Kind:          kbf.Kind,
 		Generator:     w.generator,
-		Project:       w.project,
+		Project:       w.projectInfo(),
 	}
 	for _, id := range w.order {
 		pd := w.pending[id]
