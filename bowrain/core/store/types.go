@@ -602,7 +602,7 @@ type BlockStatRow struct {
 	SourceWords   int      // word count from source text
 	TargetLocales []string // locales that have non-empty target translations
 	// ApprovedLocales is the subset of TargetLocales whose stored target carries
-	// a review decision (Target.Status at reviewed or above on the lifecycle
+	// a review decision (Edition.Status at reviewed or above on the lifecycle
 	// ladder). Used to derive per-locale ship states without deserializing runs.
 	ApprovedLocales []string
 }
@@ -648,7 +648,7 @@ type LocaleTranslationStats struct {
 	TotalWords       int     `json:"total_words"`
 	Percentage       float64 `json:"percentage"`
 	// ApprovedBlocks counts translatable blocks whose target for this locale
-	// carries a review decision (Target.Status established).
+	// carries a review decision (Edition.Status established).
 	ApprovedBlocks int `json:"approved_blocks"`
 	// FailingChecks counts translated blocks whose target for this locale fails
 	// the project's ship gate — a rule-based check with error severity, OR a

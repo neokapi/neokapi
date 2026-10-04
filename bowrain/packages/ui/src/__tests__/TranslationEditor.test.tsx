@@ -211,7 +211,7 @@ describe("TranslationEditor — review actions persist as decide operations", ()
       outcome: "establish",
     });
     // Approve advances to the next block once the call resolves; step back to
-    // see b1's chip, driven by the optimistic per-locale Target.Status write.
+    // see b1's chip, driven by the optimistic per-locale Edition.Status write.
     await waitFor(() =>
       expect(screen.getByTestId("status-bar").textContent).toContain("Block 2 of 3"),
     );

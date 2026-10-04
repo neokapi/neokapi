@@ -380,7 +380,7 @@ func BlockKey(b *model.Block) string {
 func BlockAddress(b *model.Block) string { return b.StructuralAddress() }
 
 // TargetState derives a translatable block's target-lifecycle state for a locale.
-// A committed Target.Status is authoritative; otherwise a present, non-empty
+// A committed Edition.Status is authoritative; otherwise a present, non-empty
 // target counts as `translated` (the presence baseline) and an absent/empty
 // target is untranslated (below every rung).
 //

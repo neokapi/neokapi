@@ -335,8 +335,8 @@ export const Types: Story = {
           role: "translate",
           fields: [
             { name: "Translatable", type: "bool" },
-            { name: "Source", type: "[]Run" },
-            { name: "Targets", type: "map[VariantKey]*Target" },
+            { name: "Editions", type: "map[EditionKey]*Edition" },
+            { name: "Native", type: "[]EditionKey" },
             { name: "Overlays", type: "[]Overlay" },
           ],
         },
@@ -349,12 +349,13 @@ export const Types: Story = {
           ],
         },
         {
-          name: "Target",
+          name: "Edition",
           col: 2,
           role: "translate",
           fields: [
             { name: "Runs", type: "[]Run" },
-            { name: "Status", type: "TargetStatus" },
+            { name: "Status", type: "Status" },
+            { name: "Derived", type: "*Derivation" },
           ],
         },
         {
@@ -369,9 +370,9 @@ export const Types: Story = {
       ]}
       edges={[
         { from: 0, to: 1, label: "contains" },
-        { from: 1, to: 2, label: "flat Source sequence" },
-        { from: 1, to: 3, label: "per variant" },
-        { from: 1, to: 4, label: "stand-off, run-anchored" },
+        { from: 1, to: 2, label: "each edition's flat run sequence" },
+        { from: 1, to: 3, label: "one per edition key" },
+        { from: 1, to: 4, label: "stand-off, on one edition" },
       ]}
     />
   ),

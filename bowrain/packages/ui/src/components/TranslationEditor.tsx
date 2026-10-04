@@ -483,7 +483,7 @@ export function TranslationEditor({
     }
   };
 
-  // Persist a review decision: optimistic per-locale Target.Status write
+  // Persist a review decision: optimistic per-locale Edition.Status write
   // (the shape a reload would fetch), server call, rollback + error on failure.
   // The rollback snapshot is captured inside the setBlocks updater — from the
   // state the write actually replaced, not a possibly stale component-scope
