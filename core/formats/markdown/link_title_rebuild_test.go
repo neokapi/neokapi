@@ -83,13 +83,12 @@ func TestLinkTitleRebuildIsAFixedPoint(t *testing.T) {
 // the output as text; what it must not do is spell a link of its own.
 func TestRebuildTitlePairWithoutItsLink(t *testing.T) {
 	t.Parallel()
-	block := model.NewBlock("p", "")
-	block.Source = []model.Run{
+	block := model.NewRunsBlock("p", []model.Run{
 		{Text: &model.TextRun{Text: "x "}},
 		{PcOpen: &model.PcOpenRun{ID: "1", Type: "link:hyperlink", SubType: "md:link-title", Data: "(b '"}},
 		{Text: &model.TextRun{Text: "t"}},
 		{PcClose: &model.PcCloseRun{ID: "1", Type: "link:hyperlink", SubType: "md:link-title", Data: "')"}},
 		{Text: &model.TextRun{Text: " y"}},
-	}
+	})
 	assert.Equal(t, "x t y\n", rebuildBlocks(t, block))
 }

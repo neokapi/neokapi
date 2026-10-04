@@ -1284,7 +1284,7 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 	if len(patterns) == 0 {
 		return
 	}
-	block.SetSourceRuns(applyCodeFinderToRuns(block.Source, patterns))
+	block.SetSourceRuns(applyCodeFinderToRuns(block.SourceRuns(), patterns))
 	for _, loc := range block.TargetLocales() {
 		block.SetTargetRuns(loc, applyCodeFinderToRuns(block.TargetRuns(loc), patterns))
 	}

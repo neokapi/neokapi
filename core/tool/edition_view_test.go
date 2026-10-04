@@ -16,7 +16,8 @@ import (
 func sameLanguageBlock() *model.Block {
 	b := model.NewBlock("b1", "colour source")
 	b.SourceLocale = "en-US"
-	b.SetTargetVariant(model.Variant("en-US"), &model.Target{Runs: []model.Run{model.TextR("colour target")}, Status: model.TargetStatusTranslated})
+	b.SetTargetRuns("en-US", []model.Run{model.TextR("colour target")})
+	b.SetEditionStatus(model.Variant("en-US"), model.Status(model.TargetStatusTranslated))
 	return b
 }
 
@@ -45,7 +46,7 @@ func TestView_SetSourceStatusKeepsTheContent(t *testing.T) {
 	v.SetSourceStatus(model.SourceStatusEstablished)
 
 	assert.Equal(t, model.SourceStatusEstablished, v.SourceStatus())
-	assert.Equal(t, model.SourceStatusEstablished, b.SourceStatus)
+	assert.Equal(t, model.SourceStatusEstablished, sourceStatus(b))
 	assert.Equal(t, "Hello", b.SourceText())
 	o, ok := b.SourceOrigin()
 	require.True(t, ok)
@@ -79,7 +80,7 @@ func TestView_SetSourceStatusTouchesOnlyTheStatus(t *testing.T) {
 
 			tool.NewBlockView(b).SetSourceStatus(model.SourceStatusEstablished)
 
-			assert.Equal(t, model.SourceStatusEstablished, b.SourceStatus)
+			assert.Equal(t, model.SourceStatusEstablished, sourceStatus(b))
 			got, ok := b.Anno(model.AnnoSourceOrigin)
 			if tt.anno == nil {
 				assert.False(t, ok)
@@ -106,7 +107,7 @@ func TestWithImmutabilityCheck_SameLanguageTarget(t *testing.T) {
 	}{
 		{"source", func(v tool.BlockView) { v.SourceRuns()[0].Text.Text = "changed" }, "changed source"},
 		{"target", func(v tool.BlockView) { v.TargetRuns("en-US")[0].Text.Text = "changed" }, "changed target"},
-		{"target status", func(v tool.BlockView) { v.Target("en-US").Status = model.TargetStatusEstablished }, "changed target"},
+		{"target through Target", func(v tool.BlockView) { v.Target("en-US").Runs[0].Text.Text = "changed" }, "changed target"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -124,4 +125,34 @@ func TestWithImmutabilityCheck_SameLanguageTarget(t *testing.T) {
 	untouched.Annotate = func(tool.BlockView) error { return nil }
 	_, err := untouched.ApplyContext(ctx, &model.Part{Type: model.PartBlock, Resource: sameLanguageBlock()})
 	require.NoError(t, err)
+}
+
+// Target hands a tool a copy of the target edition: a status or an origin
+// written to it stays in the copy, and the block's target is as it was.
+func TestView_TargetIsACopy(t *testing.T) {
+	b := sameLanguageBlock()
+	v := tool.NewBlockView(b)
+
+	got := v.Target("en-US")
+	require.NotNil(t, got)
+	assert.Equal(t, "colour target", model.RunsText(got.Runs))
+	assert.Equal(t, model.Status(model.TargetStatusTranslated), got.Status)
+	got.Status = model.Status(model.TargetStatusEstablished)
+	got.Origin = model.Origin{Kind: model.OriginHuman}
+
+	e, ok := b.Edition(model.Variant("en-US"))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusTranslated), e.Status)
+	assert.Empty(t, e.Origin.Kind)
+	assert.Nil(t, v.Target("fr"), "no target in fr")
+
+	src := model.NewBlock("b2", "Hello")
+	src.SourceLocale = "en-US"
+	assert.Nil(t, tool.NewBlockView(src).Target("en-US"), "the source is never a target")
+}
+
+// sourceStatus is the status of the edition b was read in.
+func sourceStatus(b *model.Block) model.SourceStatus {
+	src, _ := b.Edition(model.EditionKey{})
+	return model.SourceStatus(src.Status)
 }

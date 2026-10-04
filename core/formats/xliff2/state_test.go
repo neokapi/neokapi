@@ -60,9 +60,9 @@ func TestXLIFF2_StateRoundTrip(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(t.Context()))
 
 	require.Len(t, blocks, 1)
-	tgt := blocks[0].Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
-	assert.Equal(t, model.TargetStatusEstablished, tgt.Status, "signed-off → final → signed-off")
+	tgt, ok := blocks[0].Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusEstablished), tgt.Status, "signed-off → final → signed-off")
 }
 
 const statefulXLIFF2 = `<?xml version="1.0" encoding="UTF-8"?>
@@ -88,9 +88,9 @@ func TestReadXLIFF2_TargetState(t *testing.T) {
 	require.Len(t, blocks, 4)
 
 	status := func(b *model.Block) model.TargetStatus {
-		tgt := b.Target(model.LocaleFrench)
-		require.NotNil(t, tgt)
-		return tgt.Status
+		tgt, ok := b.Edition(model.Variant(model.LocaleFrench))
+		require.True(t, ok)
+		return model.TargetStatus(tgt.Status)
 	}
 	assert.Equal(t, model.TargetStatusEstablished, status(blocks[0]), "state=reviewed")
 	assert.Equal(t, model.TargetStatusEstablished, status(blocks[1]), "state=final")

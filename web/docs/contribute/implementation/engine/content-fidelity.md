@@ -141,14 +141,11 @@ translated one splices the new text in place; the structure is never disturbed.
 
 ```go
 // core/formats/openxml/dml.go (emitDrawingProp): image/shape alt-text
-block := &model.Block{
-    ID:           id,
-    Type:         "property",
-    Translatable: false,
-    Source:       []model.Run{{Text: &model.TextRun{Text: a.Value}}},
-    Targets:      make(map[model.VariantKey]*model.Target),
-    Properties:   map[string]string{"partPath": partPath, "element": element},
-}
+block := model.NewRunsBlock(id, []model.Run{{Text: &model.TextRun{Text: a.Value}}})
+block.Type = "property"
+block.Translatable = false
+block.Properties["partPath"] = partPath
+block.Properties["element"] = element
 block.SetSemanticRole(model.RoleCaption, 0) // func (b *Block) SetSemanticRole(role string, level int)
 emitBlock(block)
 return id // caller writes a skeleton Ref to this id
@@ -192,13 +189,16 @@ it beside it:
 
 ```go
 // core/formats/openxml/sml.go (emitLiteralCellAnchor)
-Source: []model.Run{{Text: &model.TextRun{Text: "44197"}}},
-Properties: map[string]string{
-    "partPath":            partPath,
-    "cell":                "A2",
-    model.PropCellDisplay: "01-01-21", // what the sheet shows
-    model.PropCellFormat:  "mm-dd-yy", // the number-format code it shows it through
-},
+block := &model.Block{
+    Type: "cell",
+    Properties: map[string]string{
+        "partPath":            partPath,
+        "cell":                "A2",
+        model.PropCellDisplay: "01-01-21", // what the sheet shows
+        model.PropCellFormat:  "mm-dd-yy", // the number-format code it shows it through
+    },
+}
+block.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: "44197"}}})
 ```
 
 The stored value stays the block's content, so the skeleton, the block's

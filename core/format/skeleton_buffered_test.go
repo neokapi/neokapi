@@ -17,7 +17,7 @@ func textRenderer(block *model.Block) ([]byte, error) {
 	if block == nil {
 		return nil, nil
 	}
-	return []byte(model.RenderRunsWithData(block.Source)), nil
+	return []byte(model.RenderRunsWithData(AuthoritativeRuns(block))), nil
 }
 
 func TestBufferedSkeletonWrite(t *testing.T) {
@@ -83,7 +83,7 @@ func TestBufferedSkeletonWrite(t *testing.T) {
 				if block == nil {
 					return []byte(`""`), nil
 				}
-				return []byte(model.RenderRunsWithData(block.Source)), nil
+				return []byte(model.RenderRunsWithData(AuthoritativeRuns(block))), nil
 			},
 			want: `"key":""`,
 		},

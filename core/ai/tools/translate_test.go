@@ -76,9 +76,9 @@ func TestAITranslate_SessionOverlayWrittenUnderStoreKey(t *testing.T) {
 
 	assert.Equal(t, 1, *calls)
 	assert.Equal(t, "[fr] Hello", block.TargetText(model.LocaleFrench))
-	tgt := block.Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
-	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
+	tgt, ok := block.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status)
 	assert.Equal(t, model.OriginAI, tgt.Origin.Kind)
 
 	// Reopen the store: the overlay must persist under the StoreKey…
@@ -160,9 +160,9 @@ func TestAITranslate_SessionCachedOverlaySkipsSecondPass(t *testing.T) {
 
 	assert.Equal(t, 1, *calls, "cached overlay must skip the LLM on the second pass")
 	assert.Equal(t, "[fr] Hello", hydrated.TargetText(model.LocaleFrench))
-	tgt := hydrated.Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
-	assert.Equal(t, model.TargetStatusDraft, tgt.Status, "hydrated target keeps draft provenance")
+	tgt, ok := hydrated.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status, "hydrated target keeps draft provenance")
 	assert.Equal(t, model.OriginAI, tgt.Origin.Kind)
 
 	// Same block id in a different source file keys differently → fresh call.
@@ -238,9 +238,9 @@ func TestAITranslate_BatchSessionWritesAndReusesOverlays(t *testing.T) {
 	for _, p := range parts2 {
 		b := p.Resource.(*model.Block)
 		assert.True(t, b.HasTarget(model.LocaleFrench), "block %s must hydrate from the overlay", b.ID)
-		tgt := b.Target(model.LocaleFrench)
-		require.NotNil(t, tgt)
-		assert.Equal(t, model.TargetStatusDraft, tgt.Status)
+		tgt, ok := b.Edition(model.Variant(model.LocaleFrench))
+		require.True(t, ok)
+		assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status)
 		assert.Equal(t, model.OriginAI, tgt.Origin.Kind)
 	}
 }
@@ -382,8 +382,8 @@ func TestAITranslate_StampsGoverningProfile(t *testing.T) {
 	block := runSession(t, ctx, tl, sess, model.NewBlock("tu1", "Hello"))
 	require.NoError(t, sess.Commit())
 
-	tgt := block.Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
+	tgt, ok := block.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
 	assert.Equal(t, model.OriginAI, tgt.Origin.Kind, "how it was made")
 	assert.Equal(t, "end-user-help", tgt.Origin.Profile, "what governed it")
 	assert.Equal(t, "7", tgt.Origin.ProfileVersion, "which revision of it was in force")
@@ -407,8 +407,8 @@ func TestAITranslate_NoProfileLeavesStampEmpty(t *testing.T) {
 	block := runSession(t, ctx, tl, sess, model.NewBlock("tu1", "Hello"))
 	require.NoError(t, sess.Commit())
 
-	tgt := block.Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
+	tgt, ok := block.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
 	assert.Equal(t, model.OriginAI, tgt.Origin.Kind)
 	assert.Empty(t, tgt.Origin.Profile)
 	assert.Empty(t, tgt.Origin.ProfileVersion)
@@ -433,8 +433,8 @@ func TestAITranslate_UnversionedProfileStampsIDOnly(t *testing.T) {
 	block := runSession(t, ctx, tl, sess, model.NewBlock("tu1", "Hello"))
 	require.NoError(t, sess.Commit())
 
-	tgt := block.Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
+	tgt, ok := block.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
 	assert.Equal(t, "draft-profile", tgt.Origin.Profile)
 	assert.Empty(t, tgt.Origin.ProfileVersion)
 }
@@ -456,8 +456,8 @@ func stampedFingerprint(t *testing.T, cfg tools.AITranslateConfig) string {
 	block := runSession(t, ctx, tl, sess, model.NewBlock("tu1", "Hello"))
 	require.NoError(t, sess.Commit())
 
-	tgt := block.Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
+	tgt, ok := block.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
 	return tgt.Origin.ContextFingerprint
 }
 

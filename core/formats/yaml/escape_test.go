@@ -134,7 +134,7 @@ func modifiedValues(t *testing.T, source string) []string {
 			continue
 		}
 		if block, ok := part.Resource.(*model.Block); ok && block.Translatable {
-			out = append(out, model.RenderRunsWithData(block.Source))
+			out = append(out, model.RenderRunsWithData(block.SourceRuns()))
 		}
 	}
 	return out

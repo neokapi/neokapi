@@ -562,7 +562,7 @@ func TestStructuralMatrix(t *testing.T) {
 				// with their native data, so each compares by the value written.
 				native := map[string]string{}
 				for _, b := range (opsFixture{format: row.format}).readEditable(t, out, "") {
-					native[b.Name] = model.RenderRunsWithData(b.Source)
+					native[b.Name] = model.RenderRunsWithData(b.SourceRuns())
 				}
 				// The notes the reader gives each block: every block keeps its
 				// own, and a new one has none, but where the cell says.

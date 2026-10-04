@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -23,7 +24,7 @@ const sourceFingerprintAnnotationKey = "openxml-source-fingerprint"
 // reader emitted them. Runs that cannot be encoded leave no stamp, and a block
 // without one is treated as edited.
 func stampSourceFingerprint(b *model.Block) {
-	digest, ok := runsFingerprint(b.Source)
+	digest, ok := runsFingerprint(b.SourceRuns())
 	if !ok {
 		return
 	}
@@ -52,7 +53,7 @@ func sourceRunsAsRead(b *model.Block) bool {
 	if want == "" {
 		return false
 	}
-	got, ok := runsFingerprint(b.Source)
+	got, ok := runsFingerprint(format.AuthoritativeRuns(b))
 	return ok && got == want
 }
 

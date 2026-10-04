@@ -376,7 +376,7 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 			after.SetSourceRuns(e.Runs)
 			continue
 		}
-		after.SetTargetVariant(k, &model.Target{Runs: e.Runs, Status: model.TargetStatus(e.Status), Origin: e.Origin, Score: e.Score})
+		after.SetTargetEdition(k, e)
 	}
 
 	// Check if source text was modified.
@@ -409,10 +409,10 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 						if contentMap, ok := segMap["content"].(map[string]any); ok {
 							if text, ok := contentMap["text"].(string); ok {
 								loc := model.LocaleID(locale)
-								if block.Target(loc) != nil && text == block.TargetText(loc) {
+								if was, ok := block.TargetEdition(loc); ok && text == model.RunsText(was.Runs) {
 									continue
 								}
-								after.SetTargetVariant(model.Variant(loc), &model.Target{Runs: []model.Run{model.TextR(text)}})
+								after.SetTargetEdition(model.Variant(loc), model.Edition{Runs: []model.Run{model.TextR(text)}})
 							}
 						}
 					}

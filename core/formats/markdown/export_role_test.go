@@ -80,7 +80,7 @@ func TestExportTitleCodeCaption(t *testing.T) {
 // source-format Data), so a DocLang/Docling source's "<bold>" projects to
 // Markdown "**bold**" rather than leaking the literal tag.
 func TestExportInlineFromType(t *testing.T) {
-	b := &model.Block{ID: "p", Translatable: true, Source: []model.Run{
+	b := model.NewRunsBlock("p", []model.Run{
 		{Text: &model.TextRun{Text: "see "}},
 		{PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<bold>"}},
 		{Text: &model.TextRun{Text: "this"}},
@@ -89,7 +89,7 @@ func TestExportInlineFromType(t *testing.T) {
 		{PcOpen: &model.PcOpenRun{ID: "2", Type: "fmt:italic", Data: "<italic>"}},
 		{Text: &model.TextRun{Text: "that"}},
 		{PcClose: &model.PcCloseRun{Data: "</italic>"}},
-	}}
+	})
 	b.SetSemanticRole(model.RoleParagraph, 0)
 
 	out := writeBlocks(t, b)

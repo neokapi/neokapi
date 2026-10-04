@@ -86,7 +86,14 @@ type BlockReader interface {
 	TargetLocales() []model.LocaleID
 	TargetRuns(loc model.LocaleID) []model.Run
 	TargetText(loc model.LocaleID) string
-	Target(loc model.LocaleID) *model.Target
+	// Target returns the target edition for loc, its runs with its status,
+	// origin and score, or nil when the block holds no target in loc: the
+	// target TargetRuns and TargetText read (model.Block.TargetEdition). The
+	// edition is a copy, so a status written to it stays there; its runs are
+	// the block's own and read-only. The edition the block was read in is
+	// never a target, so loc names a target in the source language only when
+	// the block holds one.
+	Target(loc model.LocaleID) *model.Edition
 
 	// Overlays / annotations / properties (read side).
 	Overlays() []model.Overlay
@@ -167,13 +174,19 @@ type VariantView interface {
 // TargetWriter is the target-writing facet of a block view: committing,
 // stamping, and removing per-variant target content.
 type TargetWriter interface {
-	SetTarget(loc model.LocaleID, t *model.Target)
-	SetTargetVariant(key model.VariantKey, t *model.Target)
+	// SetEdition writes the derived edition key names, its runs, status,
+	// origin and score, creating it when the block does not hold it. The
+	// edition the block was read in is the source, which a Transform handler
+	// rewrites through its EditPlan: a write to it here is refused.
+	SetEdition(key model.EditionKey, e model.Edition)
 	SetTargetRuns(loc model.LocaleID, runs []model.Run)
 	SetTargetText(loc model.LocaleID, text string)
 	// StampTargetProvenance records how the locale's target was produced
 	// (lifecycle status + origin) without touching its runs; no-op if absent.
 	StampTargetProvenance(loc model.LocaleID, status model.TargetStatus, origin model.Origin)
+	// RemoveEdition removes the derived edition key names; the source has none
+	// to remove. RemoveTarget is RemoveEdition for a locale.
+	RemoveEdition(key model.EditionKey)
 	RemoveTarget(loc model.LocaleID)
 	ClearTargets()
 
@@ -304,9 +317,9 @@ func sourceLanguageTarget(b *model.Block, key model.EditionKey) error {
 }
 
 // provenance is the operation that records how the tool produced an edition.
-func (v *blockView) provenance(key model.EditionKey, status model.TargetStatus, origin model.Origin, score *float64) change.Op {
+func (v *blockView) provenance(key model.EditionKey, status model.Status, origin model.Origin, score *float64) change.Op {
 	return change.Op{Kind: change.KindProvenance, At: v.ref(key),
-		Body: &change.Provenance{Status: model.Status(status), Origin: origin, Score: score}}
+		Body: &change.Provenance{Status: status, Origin: origin, Score: score}}
 }
 
 // NewBlockView and NewVariantView build an explicit view over a Block at the
@@ -361,7 +374,13 @@ func (v *blockView) HasTarget(loc model.LocaleID) bool         { return v.b.HasT
 func (v *blockView) TargetLocales() []model.LocaleID           { return v.b.TargetLocales() }
 func (v *blockView) TargetRuns(loc model.LocaleID) []model.Run { return v.b.TargetRuns(loc) }
 func (v *blockView) TargetText(loc model.LocaleID) string      { return v.b.TargetText(loc) }
-func (v *blockView) Target(loc model.LocaleID) *model.Target   { return v.b.Target(loc) }
+func (v *blockView) Target(loc model.LocaleID) *model.Edition {
+	e, ok := v.b.TargetEdition(loc)
+	if !ok {
+		return nil
+	}
+	return &e
+}
 
 // Overlays / annotations / properties (writable output surface).
 func (v *blockView) Overlays() []model.Overlay { return v.b.Overlays }
@@ -458,16 +477,9 @@ func (v *blockView) result(part *model.Part) *model.Part {
 
 // Target writes (VariantView). Each is a set_content, remove_edition or
 // provenance operation on the edition a locale or variant key names.
-func (v *blockView) SetTarget(loc model.LocaleID, t *model.Target) {
-	v.SetTargetVariant(model.Variant(loc), t)
-}
-func (v *blockView) SetTargetVariant(key model.VariantKey, t *model.Target) {
-	if t == nil {
-		v.removeEdition(key)
-		return
-	}
-	score := t.Score
-	v.setRuns(key, t.Runs, v.provenance(key, t.Status, t.Origin, &score))
+func (v *blockView) SetEdition(key model.EditionKey, e model.Edition) {
+	score := e.Score
+	v.setRuns(key, e.Runs, v.provenance(key, e.Status, e.Origin, &score))
 }
 func (v *blockView) SetTargetRuns(loc model.LocaleID, runs []model.Run) {
 	v.setRuns(model.Variant(loc), runs)
@@ -480,12 +492,12 @@ func (v *blockView) StampTargetProvenance(loc model.LocaleID, status model.Targe
 	if v.b.IsSourceEdition(key) {
 		return // no target holds the key; the source takes no target status
 	}
-	v.apply(v.provenance(key, status, origin, nil))
+	v.apply(v.provenance(key, model.Status(status), origin, nil))
 }
 func (v *blockView) TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit] {
 	return targetUnits(v, loc, layer)
 }
-func (v *blockView) RemoveTarget(loc model.LocaleID) { v.removeEdition(model.Variant(loc)) }
+func (v *blockView) RemoveTarget(loc model.LocaleID) { v.RemoveEdition(model.Variant(loc)) }
 func (v *blockView) ClearTargets() {
 	var ops []change.Op
 	for _, key := range v.b.Editions() {
@@ -499,8 +511,8 @@ func (v *blockView) ClearTargets() {
 	}
 }
 
-// removeEdition removes a derived edition. The source has no target to remove.
-func (v *blockView) removeEdition(key model.EditionKey) {
+// RemoveEdition removes a derived edition. The source has no target to remove.
+func (v *blockView) RemoveEdition(key model.EditionKey) {
 	if v.b.IsSourceEdition(key) {
 		return
 	}

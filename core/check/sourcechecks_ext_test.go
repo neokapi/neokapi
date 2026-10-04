@@ -188,7 +188,7 @@ func runReadiness(t *testing.T, seed func(b *model.Block)) (model.SourceStatus, 
 		seed(block)
 	}
 	check.SettleSourceStatus(t.Context(), block)
-	return block.SourceStatus, block.SourceFailing()
+	return sourceStatus(block), block.SourceFailing()
 }
 
 func TestSourceReadiness_CleanSourceIsWrittenAndPasses(t *testing.T) {
@@ -243,7 +243,7 @@ func TestSourceReadiness_ReportingFindingTolerated(t *testing.T) {
 func TestSourceReadiness_KeepsEstablished(t *testing.T) {
 	t.Parallel()
 	got, failing := runReadiness(t, func(b *model.Block) {
-		b.SourceStatus = model.SourceStatusEstablished
+		b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusEstablished))
 		b.SetAnno("voice", &profile.VoiceAnnotation{
 			Findings: []profile.VoiceFinding{{
 				Fails:   true,
@@ -259,7 +259,7 @@ func TestSourceReadiness_NonTranslatableUntouched(t *testing.T) {
 	t.Parallel()
 	block := &model.Block{ID: "x", Translatable: false, Source: []model.Run{{Text: &model.TextRun{Text: "code"}}}}
 	check.SettleSourceStatus(t.Context(), block)
-	assert.Empty(t, block.SourceStatus, "non-translatable source must not be stamped")
+	assert.Empty(t, sourceStatus(block), "non-translatable source must not be stamped")
 }
 
 // The settle stamps the authoritative edition. A block read from an en-US to
@@ -281,8 +281,9 @@ func TestSourceReadiness_StampsTheAuthoritativeEdition(t *testing.T) {
 			t.Parallel()
 			block := model.NewBlock("b1", "The colour of the button.")
 			block.SourceLocale = "en-US"
-			block.SourceStatus = tc.from
-			block.SetTargetVariant(model.Variant("en-US"), &model.Target{Runs: []model.Run{model.TextR("The color of the button.")}, Status: model.TargetStatusDraft})
+			block.SetEditionStatus(model.EditionKey{}, model.Status(tc.from))
+			block.SetTargetRuns("en-US", []model.Run{model.TextR("The color of the button.")})
+			block.SetEditionStatus(model.Variant("en-US"), model.Status(model.TargetStatusDraft))
 
 			check.SettleSourceStatus(t.Context(), block)
 
@@ -290,7 +291,9 @@ func TestSourceReadiness_StampsTheAuthoritativeEdition(t *testing.T) {
 			require.True(t, ok)
 			assert.Equal(t, model.Status(tc.want), src.Status)
 			assert.Equal(t, "The colour of the button.", model.RunsText(src.Runs))
-			assert.Equal(t, model.TargetStatusDraft, block.Target("en-US").Status)
+			tgt, ok := block.Edition(model.Variant("en-US"))
+			require.True(t, ok)
+			assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status)
 			_, edited := block.SourceAsRead()
 			assert.False(t, edited)
 		})
@@ -321,7 +324,7 @@ func TestSourceReadiness_StampTouchesOnlyTheStatus(t *testing.T) {
 
 			check.SettleSourceStatus(t.Context(), block)
 
-			assert.Equal(t, model.SourceStatusWritten, block.SourceStatus)
+			assert.Equal(t, model.SourceStatusWritten, sourceStatus(block))
 			got, ok := block.Anno(model.AnnoSourceOrigin)
 			if tc.anno == nil {
 				assert.False(t, ok)
@@ -346,10 +349,16 @@ func TestSourceReadiness_PlaceholderOnlySourceIsStamped(t *testing.T) {
 		{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:var", Data: "{p.price}", Equiv: "p.price"}},
 	}}
 	check.SettleSourceStatus(t.Context(), block)
-	assert.Equal(t, model.SourceStatusWritten, block.SourceStatus)
+	assert.Equal(t, model.SourceStatusWritten, sourceStatus(block))
 
 	// The boundary holds: a genuinely empty source is still not stamped.
 	empty := &model.Block{ID: "e", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "  "}}}}
 	check.SettleSourceStatus(t.Context(), empty)
-	assert.Empty(t, empty.SourceStatus)
+	assert.Empty(t, sourceStatus(empty))
+}
+
+// sourceStatus is the status of the edition b was read in.
+func sourceStatus(b *model.Block) model.SourceStatus {
+	src, _ := b.Edition(model.EditionKey{})
+	return model.SourceStatus(src.Status)
 }

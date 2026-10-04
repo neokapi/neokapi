@@ -102,6 +102,6 @@ func TestSegmentationTool_CodeAware(t *testing.T) {
 
 	require.Equal(t, 2, b.SourceSegmentCount())
 	// The placeholder run is untouched — segmentation is a stand-off overlay.
-	require.Len(t, b.Source, 3)
-	assert.NotNil(t, b.Source[1].Ph)
+	require.Len(t, b.SourceRuns(), 3)
+	assert.NotNil(t, b.SourceRuns()[1].Ph)
 }

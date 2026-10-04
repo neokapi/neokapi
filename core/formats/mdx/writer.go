@@ -185,8 +185,8 @@ func (w *Writer) blockRuns(block *model.Block) []model.Run {
 			return runs
 		}
 	}
-	if len(block.Source) > 0 {
-		return block.Source
+	if source := format.AuthoritativeRuns(block); len(source) > 0 {
+		return source
 	}
 	return nil
 }

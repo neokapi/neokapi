@@ -312,8 +312,8 @@ func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
 			var text string
 			switch elemType {
 			case "source":
-				if len(block.Source) > 0 {
-					text = w.runsToXML(block.Source)
+				if source := format.AuthoritativeRuns(block); len(source) > 0 {
+					text = w.runsToXML(source)
 				}
 			case "translation", "synthesized_translation":
 				// `synthesized_translation` is the placeholder the reader
@@ -326,7 +326,7 @@ func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
 				// produced (matches okapi's text-modification fill).
 				if block.HasTarget(targetLocale) {
 					text = w.runsToXML(block.TargetRuns(targetLocale))
-				} else if len(block.Targets) > 0 {
+				} else {
 					// File declared a target language other than ours
 					// (e.g. <TS language="af">). Preserve the existing
 					// translation so non-matching round-trips match
@@ -345,8 +345,8 @@ func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
 					// TextModificationStep is disabled: the empty target
 					// gets filled with the source string before the writer
 					// runs.
-					if len(block.Source) > 0 {
-						text = w.runsToXML(block.Source)
+					if source := format.AuthoritativeRuns(block); len(source) > 0 {
+						text = w.runsToXML(source)
 					}
 				}
 			case "numerus_translation":
@@ -639,8 +639,8 @@ func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) e
 
 	// Write source
 	var sourceText string
-	if len(block.Source) > 0 {
-		sourceText = w.runsToXML(block.Source)
+	if source := format.AuthoritativeRuns(block); len(source) > 0 {
+		sourceText = w.runsToXML(source)
 	}
 	if _, err := fmt.Fprintf(w.Output, "        <source>%s</source>\n", sourceText); err != nil {
 		return err

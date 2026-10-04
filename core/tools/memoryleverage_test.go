@@ -31,7 +31,7 @@ type fuzzyMatch struct {
 func (m *mockMemoryProvider) Lookup(_ context.Context, req corememory.Request) (corememory.Match, bool) {
 	key := req.Text
 	if req.Block != nil {
-		key = model.FlattenRuns(req.Block.Source)
+		key = model.FlattenRuns(req.Block.SourceRuns())
 	}
 	if key == "" {
 		return corememory.Match{}, false
@@ -106,11 +106,11 @@ func TestMemoryLeverageToolExactMatch(t *testing.T) {
 
 	// Whole-block leverage is auditable too: target provenance + an
 	// alt-translation annotation carrying the match metadata.
-	tgt := resultBlock.Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
+	tgt, ok := resultBlock.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
 	assert.Equal(t, model.OriginMemory, tgt.Origin.Kind)
 	assert.Equal(t, "recycle", tgt.Origin.Tool)
-	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status)
 	assert.InEpsilon(t, 1.0, tgt.Score, 0.001)
 	alts := resultBlock.AltTranslations()
 	require.Len(t, alts, 1, "one alt-translation candidate present")
@@ -142,8 +142,8 @@ func TestMemoryLeverageToolStampsGovernance(t *testing.T) {
 	block := model.NewBlock("tu1", "Hello world")
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 
-	tgt := result.Resource.(*model.Block).Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
+	tgt, ok := result.Resource.(*model.Block).Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
 	assert.Equal(t, model.OriginMemory, tgt.Origin.Kind)
 	assert.Equal(t, "recycle", tgt.Origin.Tool)
 	assert.Equal(t, "end-user-help", tgt.Origin.Profile)
@@ -390,11 +390,11 @@ func TestMemoryLeverageSegmentedAllExact(t *testing.T) {
 	assert.Equal(t, "Hello world. Goodbye.", rb.SourceText())
 
 	// The committed target carries provenance + score, not just text.
-	tgt := rb.Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
+	tgt, ok := rb.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
 	assert.Equal(t, model.OriginMemory, tgt.Origin.Kind)
 	assert.Equal(t, "recycle", tgt.Origin.Tool)
-	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status)
 	assert.InEpsilon(t, 1.0, tgt.Score, 0.001)
 
 	// Each segment match is recorded as an auditable AltTranslation.
@@ -453,7 +453,9 @@ func TestMemoryLeverageSegmentedMixedExactFuzzy(t *testing.T) {
 	assert.Equal(t, 80, tm.Score)
 	assert.Equal(t, "segmented-fuzzy", tm.Type)
 	assert.Equal(t, "2/2", tm.SegmentMatches)
-	assert.InEpsilon(t, 0.8, rb.Target(model.LocaleFrench).Score, 0.001)
+	fr, ok := rb.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
+	assert.InEpsilon(t, 0.8, fr.Score, 0.001)
 	// Per-segment annotations carry the individual match type + score.
 	assert.Equal(t, model.MatchExact, altTrans(t, rb, 0).MatchType)
 	a1 := altTrans(t, rb, 1)
@@ -520,10 +522,10 @@ func (m *mockBlockMemoryProvider) Lookup(ctx context.Context, req corememory.Req
 // placeholder run followed by text.
 func iconBlock(id string) *model.Block {
 	b := model.NewBlock(id, "")
-	b.Source = []model.Run{
+	b.SetSourceRuns([]model.Run{
 		{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:element", Data: "{=m0}", Equiv: "=m0"}},
 		{Text: &model.TextRun{Text: " Install"}},
-	}
+	})
 	return b
 }
 
@@ -531,7 +533,7 @@ func iconBlock(id string) *model.Block {
 // tiers rather than inline-code integrity.
 func plainBlock(id, text string) *model.Block {
 	b := model.NewBlock(id, "")
-	b.Source = []model.Run{{Text: &model.TextRun{Text: text}}}
+	b.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: text}}})
 	return b
 }
 
@@ -557,13 +559,13 @@ func TestMemoryLeverageBlockAwareRunsFill(t *testing.T) {
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
 	rb := result.Resource.(*model.Block)
 
-	tgt := rb.Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
+	tgt, ok := rb.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
 	require.Len(t, tgt.Runs, 2, "target keeps the entry's run structure")
 	require.NotNil(t, tgt.Runs[0].Ph, "placeholder run preserved")
 	assert.Equal(t, "=m0", tgt.Runs[0].Ph.Equiv)
 	assert.Equal(t, " Installer", tgt.Runs[1].Text.Text)
-	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status)
 	assert.Equal(t, model.OriginMemory, tgt.Origin.Kind)
 	assert.InEpsilon(t, 1.0, tgt.Score, 0.001)
 
@@ -667,8 +669,8 @@ func TestMemoryLeverageBlockAwareIncompatibleCodes(t *testing.T) {
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: plainBlock("tu1", "Install")})
 	rb := result.Resource.(*model.Block)
 
-	tgt := rb.Target(model.LocaleFrench)
-	require.NotNil(t, tgt, "text path filled instead")
+	tgt, ok := rb.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok, "text path filled instead")
 	require.Len(t, tgt.Runs, 1)
 	assert.Equal(t, "Installer", tgt.Runs[0].Text.Text)
 }
@@ -692,10 +694,10 @@ func TestTMLeverageNeverFillsLossyMatch(t *testing.T) {
 	// `{documentedCount} documented formats`.
 	countBlock := func(id string) *model.Block {
 		b := model.NewBlock(id, "")
-		b.Source = []model.Run{
+		b.SetSourceRuns([]model.Run{
 			{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:var", Data: "{documentedCount}", Equiv: "documentedCount"}},
 			{Text: &model.TextRun{Text: " documented formats"}},
-		}
+		})
 		return b
 	}
 	faithfulRuns := []model.Run{
@@ -767,8 +769,8 @@ func TestTMLeverageNeverFillsLossyMatch(t *testing.T) {
 				return
 			}
 
-			tgt := rb.Target(model.LocaleID("nb"))
-			require.NotNil(t, tgt)
+			tgt, ok := rb.Edition(model.Variant(model.LocaleID("nb")))
+			require.True(t, ok)
 			assert.Equal(t, tc.wantText, model.RunsText(tgt.Runs))
 			if tc.wantPlaceholder {
 				require.NotNil(t, tgt.Runs[0].Ph, "placeholder run preserved")
@@ -794,7 +796,7 @@ func TestTMLeverageSegmentedFillRejectsCodeLoss(t *testing.T) {
 	block := segBlock("tu1", seg1Src, "Goodbye.")
 	// Append an icon placeholder to the source: the segment overlay still
 	// covers the text, but the assembled plain target would drop the code.
-	block.Source = append(block.Source, model.Run{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:element", Data: "{=m0}", Equiv: "=m0"}})
+	block.SetSourceRuns(append(block.SourceRuns(), model.Run{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:element", Data: "{=m0}", Equiv: "=m0"}}))
 
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 	rb := result.Resource.(*model.Block)
@@ -819,7 +821,7 @@ func TestMemoryLeverageBlockAwareCloneIsolation(t *testing.T) {
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
 	rb := result.Resource.(*model.Block)
 
-	rb.Target(model.LocaleFrench).Runs[1].Text.Text = "MUTATED"
+	rb.TargetRuns(model.LocaleFrench)[1].Text.Text = "MUTATED"
 	assert.Equal(t, " Installer", stored[1].Text.Text, "content-memory entry runs unaffected by target edits")
 }
 

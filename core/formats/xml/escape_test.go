@@ -71,7 +71,7 @@ func TestRepresentableCharactersSurvive(t *testing.T) {
 					continue
 				}
 				if block, ok := part.Resource.(*model.Block); ok && block.Translatable {
-					got = append(got, model.RenderRunsWithData(block.Source))
+					got = append(got, model.RenderRunsWithData(block.SourceRuns()))
 				}
 			}
 			require.Contains(t, got, tc.text, "output: %q", out)

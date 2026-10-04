@@ -33,11 +33,11 @@ func editMDXSource(t *testing.T, doc, from, to string) string {
 		if !ok || !b.Translatable {
 			continue
 		}
-		seen = append(seen, model.RunsEditText(b.Source))
-		if model.RunsEditText(b.Source) != from {
+		seen = append(seen, model.RunsEditText(b.SourceRuns()))
+		if model.RunsEditText(b.SourceRuns()) != from {
 			continue
 		}
-		b.EditSourceRuns(model.ParseRunsEditText(to, b.Source))
+		b.EditSourceRuns(model.ParseRunsEditText(to, b.SourceRuns()))
 		edited++
 	}
 	require.Equal(t, 1, edited, "exactly one block reads %q; blocks: %q", from, seen)

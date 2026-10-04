@@ -185,12 +185,13 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 		b.SetSourceText(sb.SourceText)
 	}
 
-	// Targets: one Target per variant, runs concatenated from the wire
+	// Targets: one edition per variant, runs concatenated from the wire
 	// segments, status/origin/score restored from the first segment's props.
-	// Each is stored as a target whatever its key, so a target filed under the
-	// source language stays a target.
+	// Each is filed as a target whatever its key (SetTargetEdition), so a
+	// target under the source language stays a target, and so does one under
+	// no language.
 	for keyText, list := range sb.Targets {
-		var key model.VariantKey
+		var key model.EditionKey
 		if err := key.UnmarshalText([]byte(keyText)); err != nil {
 			continue
 		}
@@ -202,7 +203,7 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 			}
 			runs = append(runs, protoconvert.ProtoToRuns(seg.Runs)...)
 		}
-		b.SetTargetVariant(key, segmentToTarget(runs, first))
+		b.SetTargetEdition(key, segmentToEdition(runs, first))
 	}
 
 	// Annotations.
@@ -327,10 +328,10 @@ func targetToSegment(t model.Edition) *contentv1.SegmentMessage {
 	}
 }
 
-// segmentToTarget rebuilds a Target from concatenated runs plus the first
-// wire segment's metadata properties.
-func segmentToTarget(runs []model.Run, first *contentv1.SegmentMessage) *model.Target {
-	t := &model.Target{Runs: runs}
+// segmentToEdition rebuilds a derived edition from concatenated runs plus the
+// first wire segment's metadata properties.
+func segmentToEdition(runs []model.Run, first *contentv1.SegmentMessage) model.Edition {
+	t := model.Edition{Runs: runs}
 	if first == nil {
 		return t
 	}
@@ -338,7 +339,7 @@ func segmentToTarget(runs []model.Run, first *contentv1.SegmentMessage) *model.T
 	if props == nil {
 		return t
 	}
-	t.Status = model.TargetStatus(props[propTargetStatus])
+	t.Status = model.Status(props[propTargetStatus])
 	if s := props[propTargetScore]; s != "" {
 		if v, err := strconv.ParseFloat(s, 64); err == nil {
 			t.Score = v

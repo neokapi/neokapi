@@ -3,6 +3,7 @@ package xliff
 import (
 	"strconv"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -59,14 +60,15 @@ func sourceSegViews(block *model.Block) []segView {
 	if block == nil {
 		return nil
 	}
+	source := format.AuthoritativeRuns(block)
 	seg := block.SourceSegmentation()
 	if seg == nil {
-		if len(block.Source) == 0 {
+		if len(source) == 0 {
 			return nil
 		}
 		return []segView{{
 			ID:     "s1",
-			Runs:   block.Source,
+			Runs:   source,
 			Native: nativeFromBlock(block, segNativeKey("s1")),
 		}}
 	}
@@ -75,7 +77,7 @@ func sourceSegViews(block *model.Block) []segView {
 		id := span.ID
 		out[i] = segView{
 			ID:     id,
-			Runs:   span.Range.ExtractRuns(block.Source),
+			Runs:   span.Range.ExtractRuns(source),
 			Native: nativeFromBlock(block, segNativeKey(id)),
 		}
 	}

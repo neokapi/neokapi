@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -231,7 +232,7 @@ func blockEventFor(b *model.Block) *blockEvent {
 		Name:               b.Name,
 		Type:               b.Type,
 		Translatable:       b.Translatable,
-		Source:             dumpRuns(b.Source),
+		Source:             dumpRuns(format.AuthoritativeRuns(b)),
 		Properties:         nonEmptyStrMap(b.Properties),
 		Overlays:           dumpOverlays(b.Overlays),
 		PreserveWhitespace: b.PreserveWhitespace,
@@ -241,15 +242,24 @@ func blockEventFor(b *model.Block) *blockEvent {
 		// stays stable; emit an empty array rather than omitting it.
 		ev.Source = []runDump{}
 	}
-	if len(b.Targets) > 0 {
-		ev.Targets = make(map[string][]runDump, len(b.Targets))
-		for key, tgt := range b.Targets {
-			if tgt == nil {
-				continue
-			}
-			text, _ := key.MarshalText()
-			ev.Targets[string(text)] = dumpRuns(tgt.Runs)
+	addTarget := func(key string, runs []model.Run) {
+		if ev.Targets == nil {
+			ev.Targets = make(map[string][]runDump)
 		}
+		ev.Targets[key] = dumpRuns(runs)
+	}
+	auth := b.Authoritative(model.AuthorityPolicy{})
+	for key, e := range b.EachEdition {
+		if key == auth {
+			continue
+		}
+		text, _ := key.MarshalText()
+		addTarget(string(text), e.Runs)
+	}
+	// A translation filed under the zero key is dumped under the empty key,
+	// which no edition other than the authoritative one marshals to.
+	if e, ok := b.TargetEdition(""); ok {
+		addTarget("", e.Runs)
 	}
 	return ev
 }

@@ -90,8 +90,8 @@ func TestExtractAccessibilityText_ODP(t *testing.T) {
 	for _, b := range blocks {
 		assert.False(t, b.Translatable, "accessibility text is non-translatable")
 		assert.Equal(t, model.RoleCaption, b.SemanticRole(), "alt-text/long-desc is a caption")
-		require.Len(t, b.Source, 1, "single verbatim source run (no inline parse)")
-		require.NotNil(t, b.Source[0].Text, "source run is plain text")
+		require.Len(t, b.SourceRuns(), 1, "single verbatim source run (no inline parse)")
+		require.NotNil(t, b.SourceRuns()[0].Text, "source run is plain text")
 		g, ok := b.Geometry()
 		require.True(t, ok, "block anchored to the enclosing draw:frame")
 		assert.Equal(t, 1, g.Page, "frame on presentation page 1")
@@ -163,8 +163,8 @@ func TestExtractFormDisplayAttributes(t *testing.T) {
 	for _, b := range caps {
 		assert.False(t, b.Translatable)
 		assert.Equal(t, "button", b.Properties["element"])
-		require.Len(t, b.Source, 1)
-		require.NotNil(t, b.Source[0].Text)
+		require.Len(t, b.SourceRuns(), 1)
+		require.NotNil(t, b.SourceRuns()[0].Text)
 	}
 }
 

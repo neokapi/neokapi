@@ -97,7 +97,7 @@ Done.
 		assert.True(t, b.Translatable,
 			"an unclassified component's text is promoted, not dropped")
 		assert.True(t, b.PreserveWhitespace, "JSX text children ride verbatim")
-		assert.Len(t, b.Source, 1, "JSX text child must be a single verbatim run")
+		assert.Len(t, b.SourceRuns(), 1, "JSX text child must be a single verbatim run")
 		assert.NotContains(t, b.SourceText(), "<", "no tag bytes in a content block")
 		assert.NotContains(t, b.SourceText(), "Callout", "no component name in a content block")
 	}
@@ -209,7 +209,7 @@ After.
 	texts := blockTextsByType(parts, "table-cell")
 	assert.Equal(t, []string{"Name", "Value", "alpha", "first", "beta", "second"}, texts,
 		"a cell's inline markup is parsed, so its text is the prose inside it")
-	assert.NotEmpty(t, cells[2].Source, "bold cell text arrives as runs")
+	assert.NotEmpty(t, cells[2].SourceRuns(), "bold cell text arrives as runs")
 	assert.NotContains(t, texts, "----------", "the delimiter row is not a cell")
 	assert.Empty(t, opaqueData(parts, "mdx-table"), "a delegated table emits no opaque Data")
 

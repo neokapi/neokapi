@@ -616,9 +616,9 @@ func (p *smlParser) parseWorksheetFrom(d *rawDecoder, merges map[string]mergeSpa
 							Name:         model.StructuralPath(append(strings.Split(partPath, "/"), cellRef)...),
 							Type:         "cell",
 							Translatable: true,
-							Source:       source,
 							Properties:   props,
 						}
+						block.SetSourceRuns(source)
 						// Intrinsic cell-grid geometry (WS2): a literal/inline-string
 						// cell lives at a single (col,row), so its position is the
 						// cell address itself; a merged cell additionally spans
@@ -739,15 +739,11 @@ func (p *smlParser) emitSheetHeading(partPath string, emitBlock func(*model.Bloc
 		return
 	}
 	*p.blockCounter++
-	block := &model.Block{
-		ID:           fmt.Sprintf("tu%d", *p.blockCounter),
-		Name:         model.StructuralPath(append(strings.Split(partPath, "/"), "@name")...),
-		Type:         "sheet-name",
-		Translatable: false,
-		Source:       []model.Run{{Text: &model.TextRun{Text: name}}},
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   map[string]string{"partPath": partPath},
-	}
+	block := model.NewRunsBlock(fmt.Sprintf("tu%d", *p.blockCounter), []model.Run{{Text: &model.TextRun{Text: name}}})
+	block.Name = model.StructuralPath(append(strings.Split(partPath, "/"), "@name")...)
+	block.Type = "sheet-name"
+	block.Translatable = false
+	block.Properties["partPath"] = partPath
 	block.SetSemanticRole(model.RoleHeading, 2)
 	emitBlock(block)
 }
@@ -777,13 +773,13 @@ func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, merg
 		Name:         model.StructuralPath(append(strings.Split(partPath, "/"), cellRef)...),
 		Type:         "cell",
 		Translatable: false,
-		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
 		Properties: map[string]string{
 			"partPath": partPath,
 			"cell":     cellRef,
 			"siIndex":  strconv.Itoa(idx),
 		},
 	}
+	block.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: text}}})
 	p.ids.Assign(block)
 	if g := cellGeometry(cellRef, partPath, merges); g != nil {
 		block.SetGeometry(g)
@@ -837,7 +833,6 @@ func (p *smlParser) emitLiteralCellAnchor(text, display, code, cellRef, partPath
 		Name:         model.StructuralPath(append(strings.Split(partPath, "/"), cellRef)...),
 		Type:         "cell",
 		Translatable: false,
-		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
 		Properties: map[string]string{
 			"partPath":            partPath,
 			"cell":                cellRef,
@@ -845,6 +840,7 @@ func (p *smlParser) emitLiteralCellAnchor(text, display, code, cellRef, partPath
 			model.PropCellFormat:  code,
 		},
 	}
+	block.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: text}}})
 	p.ids.Assign(block)
 	if g := cellGeometry(cellRef, partPath, merges); g != nil {
 		block.SetGeometry(g)
@@ -1222,16 +1218,17 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 	if form := smlSourceForm(content, source, phonetic); form != "" {
 		props[cellSourceProp] = form
 	}
-	return &model.Block{
+	block := &model.Block{
 		ID: id,
 		// A shared string is addressed by the index every cell references it
 		// by — the format's own key, and a better name than any count.
 		Name:         model.StructuralPath(append(strings.Split(partPath, "/"), "si["+strconv.Itoa(siIndex)+"]")...),
 		Type:         "shared-string",
 		Translatable: true,
-		Source:       source,
 		Properties:   props,
 	}
+	block.SetSourceRuns(source)
+	return block
 }
 
 // parseTable parses an Excel table definition (xl/tables/tableN.xml) and emits
@@ -1332,15 +1329,11 @@ func (p *smlParser) skelWriteTableColumn(d *rawDecoder, t xml.StartElement, part
 		p.skelBuf.Write(raw[valEnd:])
 	}
 
-	emitBlock(&model.Block{
-		ID:           blockID,
-		Name:         blockName,
-		Type:         "table-column",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: nameVal}}},
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   map[string]string{"partPath": partPath},
-	})
+	block := model.NewRunsBlock(blockID, []model.Run{{Text: &model.TextRun{Text: nameVal}}})
+	block.Name = blockName
+	block.Type = "table-column"
+	block.Properties["partPath"] = partPath
+	emitBlock(block)
 }
 
 // emitXLSXCommentData scans an Excel comment part (xl/comments*.xml) for

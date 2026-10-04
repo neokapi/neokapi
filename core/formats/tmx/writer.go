@@ -268,13 +268,13 @@ func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
 			var runs []model.Run
 			langLower := strings.ToLower(lang)
 			if langMatches(langLower, srcLang) {
-				runs = block.Source
+				runs = format.AuthoritativeRuns(block)
 			} else {
 				localeID := model.LocaleID(lang)
 				if block.HasTarget(localeID) {
 					runs = block.TargetRuns(localeID)
 				} else {
-					runs = block.Source
+					runs = format.AuthoritativeRuns(block)
 				}
 			}
 
@@ -598,7 +598,7 @@ func (w *Writer) flush() error {
 		// Add source TUV
 		tu.TUVs = append(tu.TUVs, xmlTUV{
 			Lang: srcLang,
-			Seg:  xmlSeg{Inner: renderTMXSeg(block.Source)},
+			Seg:  xmlSeg{Inner: renderTMXSeg(format.AuthoritativeRuns(block))},
 		})
 
 		// Add target TUVs

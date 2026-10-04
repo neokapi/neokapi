@@ -281,11 +281,11 @@ func TestInlineCodesRemove_StepConfigApplySource(t *testing.T) {
 		return b
 	}
 	untouched := runStep(t, "inline-codes-remove", nil, "nb", withCodedSource())
-	assert.Equal(t, []string{"text:Save", "ph:", "text:now"}, runShapes(untouched.Source),
+	assert.Equal(t, []string{"text:Save", "ph:", "text:now"}, runShapes(untouched.SourceRuns()),
 		"the source keeps its codes at the default")
 
 	stripped := runStep(t, "inline-codes-remove", map[string]any{"applySource": true}, "nb", withCodedSource())
-	assert.Equal(t, []string{"text:Savenow"}, runShapes(stripped.Source),
+	assert.Equal(t, []string{"text:Savenow"}, runShapes(stripped.SourceRuns()),
 		"the step asked for the source too")
 }
 

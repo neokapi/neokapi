@@ -29,15 +29,9 @@ func (r *Reader) emitStringsdict(ctx context.Context, ch chan<- model.PartResult
 		leaf := doc.leafs[i]
 		counter++
 		blockID := "tu" + strconv.Itoa(counter)
-		block := &model.Block{
-			ID:           blockID,
-			Name:         leafName(leaf),
-			Translatable: true,
-			SourceLocale: locale,
-			Source:       runsFromValue(leaf.value, r.cfg.ProtectPlaceholders),
-			Targets:      make(map[model.VariantKey]*model.Target),
-			Properties:   make(map[string]string),
-		}
+		block := model.NewRunsBlock(blockID, runsFromValue(leaf.value, r.cfg.ProtectPlaceholders))
+		block.Name = leafName(leaf)
+		block.SourceLocale = locale
 		block.Properties[propBlockKey] = leaf.topKey
 		block.Properties[propBlockLeaf] = string(leaf.kind)
 		if leaf.variable != "" {

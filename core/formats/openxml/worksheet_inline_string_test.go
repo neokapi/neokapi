@@ -112,16 +112,16 @@ func TestInlineStringCellKeepsItsRichRuns(t *testing.T) {
 	cells := sheetCells(readXLSXBytes(t, inlineStringWorkbook(t)))
 
 	require.NotNil(t, cells["B3"])
-	assert.Equal(t, "bold and plain", model.RunsText(cells["B3"].Source))
-	assert.True(t, model.RunsHaveInlineCodes(cells["B3"].Source),
+	assert.Equal(t, "bold and plain", model.RunsText(cells["B3"].SourceRuns()))
+	assert.True(t, model.RunsHaveInlineCodes(cells["B3"].SourceRuns()),
 		"the bold run survives as an inline code")
 
 	require.NotNil(t, cells["A3"])
-	assert.Equal(t, "plain inline", model.RunsText(cells["A3"].Source))
-	assert.False(t, model.RunsHaveInlineCodes(cells["A3"].Source))
+	assert.Equal(t, "plain inline", model.RunsText(cells["A3"].SourceRuns()))
+	assert.False(t, model.RunsHaveInlineCodes(cells["A3"].SourceRuns()))
 
 	require.NotNil(t, cells["C3"])
-	assert.Equal(t, " padded ", model.RunsText(cells["C3"].Source),
+	assert.Equal(t, " padded ", model.RunsText(cells["C3"].SourceRuns()),
 		"xml:space=preserve keeps the padding")
 }
 
@@ -183,7 +183,7 @@ func TestSharedStringKeepsEdgeWhitespace(t *testing.T) {
 	var texts []string
 	for _, b := range blocks {
 		if b.Type == "shared-string" {
-			texts = append(texts, model.RunsText(b.Source))
+			texts = append(texts, model.RunsText(b.SourceRuns()))
 		}
 	}
 	assert.Equal(t, []string{" leading", "trailing ", "no padding"}, texts)

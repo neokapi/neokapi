@@ -65,7 +65,7 @@ func TestCodeSpanContentIsNotTranslatable(t *testing.T) {
 	blocks := blocksOf(t, "Run `kapi check --ship` in CI.\n")
 	require.Len(t, blocks, 1)
 
-	translatable, protected := runText(blocks[0].Source)
+	translatable, protected := runText(blocks[0].SourceRuns())
 	assert.Equal(t, "kapi check --ship", protected,
 		"the command belongs to the tool, not the translator")
 	assert.Contains(t, translatable, "Run ")
@@ -88,7 +88,7 @@ func TestEmphasisStaysTranslatable(t *testing.T) {
 	blocks := blocksOf(t, "Run **the check** and _the gate_ now.\n")
 	require.Len(t, blocks, 1)
 
-	translatable, protected := runText(blocks[0].Source)
+	translatable, protected := runText(blocks[0].SourceRuns())
 	assert.Empty(t, protected, "bold and italic are prose, whatever the markers")
 	assert.Contains(t, translatable, "the check")
 	assert.Contains(t, translatable, "the gate")

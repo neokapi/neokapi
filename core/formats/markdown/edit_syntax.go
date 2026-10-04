@@ -218,24 +218,25 @@ func renderEditedSource(block *model.Block, read []model.Run) string {
 // EditSyntax for Markdown, a wider set for MDX. The result still needs
 // FinishBlockContent.
 func RenderEditedSource(block *model.Block, read []model.Run, inline format.AddedSyntax) string {
+	source := format.AuthoritativeRuns(block)
 	switch block.Type {
 	case "front-matter", "code-block", "math":
-		return model.RenderRunsWithData(block.Source)
+		return model.RenderRunsWithData(source)
 	case "html-text":
 		var b strings.Builder
-		model.RenderRunsWith(&b, block.Source, &model.RunRenderer{
+		model.RenderRunsWith(&b, source, &model.RunRenderer{
 			Text: func(b *strings.Builder, text string) { _, _ = htmlTextEscaper.WriteString(b, text) },
 		})
 		return b.String()
 	case "html-block":
-		return format.RenderEditedRuns(block.Source, read, htmlSourceSyntax)
+		return format.RenderEditedRuns(source, read, htmlSourceSyntax)
 	case "html-attr":
-		return format.RenderEditedRuns(block.Source, read, htmlAttrSyntax)
+		return format.RenderEditedRuns(source, read, htmlAttrSyntax)
 	}
 	if block.SemanticRole() == model.RoleCode {
-		return model.RenderRunsWithData(block.Source)
+		return model.RenderRunsWithData(source)
 	}
-	return format.RenderEditedRuns(block.Source, read, inline)
+	return format.RenderEditedRuns(source, read, inline)
 }
 
 // FinishBlockContent applies the block-level spelling the skeleton splice

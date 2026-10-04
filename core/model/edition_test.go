@@ -362,3 +362,76 @@ func TestBlockAuthoritative(t *testing.T) {
 	assert.Equal(t, model.EditionKey{Locale: "fr"}, b.Authoritative(model.AuthorityPolicy{Locale: "fr"}), "a recipe can name a held edition")
 	assert.Equal(t, model.EditionKey{Locale: "en"}, b.Authoritative(model.AuthorityPolicy{Locale: "de"}), "an edition the block lacks names nothing")
 }
+
+// sourceLocalesReadInSteps are malformed source locales that x/text reads
+// into a form it then reads differently, so CanonicalLocale settles them only
+// after more than one read. The first repeats a -u- singleton, which loses one
+// repeated subtag on each read; the second takes the casing fallback, which
+// rewrites a byte that is not UTF-8.
+var sourceLocalesReadInSteps = []model.LocaleID{"AA-u-00-00-u-00-00", "aa-t-BB-AA-0A-\x800"}
+
+// assertAuthoritativeIsSource checks that the key Authoritative returns with
+// no policy reaches the edition the block was read in, through every
+// accessor, so a writer reading that edition writes the source.
+func assertAuthoritativeIsSource(t *testing.T, b *model.Block) {
+	t.Helper()
+	k := b.Authoritative(model.AuthorityPolicy{})
+	e, ok := b.Edition(k)
+	require.True(t, ok, "Edition(%+v)", k)
+	require.NotEmpty(t, e.Runs)
+	assert.Same(t, &b.SourceRuns()[0], &e.Runs[0], "the edition is the source")
+	assert.True(t, b.IsSourceEdition(k))
+	assert.Equal(t, k, b.EditionKeyOf(k))
+	assert.Equal(t, k, b.EditionKeyOf(model.EditionKey{}))
+	assert.Equal(t, k, b.Editions()[0])
+	for key, ed := range b.EachEdition {
+		assert.Equal(t, k, key, "the edition read in is yielded first")
+		assert.Same(t, &b.SourceRuns()[0], &ed.Runs[0])
+		break
+	}
+	assert.False(t, b.RemoveEdition(k), "the edition the block was read in stays")
+}
+
+func TestBlockEdition_AMalformedSourceLocaleStillReachesTheSource(t *testing.T) {
+	for _, loc := range sourceLocalesReadInSteps {
+		t.Run(string(loc), func(t *testing.T) {
+			once := model.NormalizeLocale(loc)
+			require.Equal(t, once, model.NormalizeLocale(once), "the key Authoritative returns normalizes to itself")
+
+			b := model.NewBlock("b1", "Hello world")
+			b.SourceLocale = loc
+			assertAuthoritativeIsSource(t, b)
+			assert.Equal(t, model.EditionKey{Locale: once}, b.Authoritative(model.AuthorityPolicy{}))
+
+			require.True(t, b.SetEditionStatus(b.Authoritative(model.AuthorityPolicy{}), model.Status(model.SourceStatusEstablished)))
+			assert.Equal(t, model.SourceStatusEstablished, b.SourceStatus)
+			assert.Empty(t, b.Targets, "a status stamp on the source creates no target")
+
+			b.SetTargetText(loc, "Hello target")
+			assertAuthoritativeIsSource(t, b)
+			assert.Equal(t, model.EditionKey{}, b.Authoritative(model.AuthorityPolicy{}), "a same-language target takes the source language's key")
+		})
+	}
+}
+
+// FuzzBlockAuthoritativeEditionIsTheSource holds every writer's read of the
+// source, Edition(Authoritative(AuthorityPolicy{})), to the block's Source
+// for any source locale, with and without a same-language target.
+func FuzzBlockAuthoritativeEditionIsTheSource(f *testing.F) {
+	for _, loc := range sourceLocalesReadInSteps {
+		f.Add(string(loc), false)
+		f.Add(string(loc), true)
+	}
+	for _, loc := range []string{"", "en", "en-US", "nb_NO", "EN_us.UTF-8", "qps-Ploc", "xx-YY", "not a locale"} {
+		f.Add(loc, false)
+		f.Add(loc, true)
+	}
+	f.Fuzz(func(t *testing.T, loc string, sameLanguageTarget bool) {
+		b := model.NewBlock("b1", "Hello world")
+		b.SourceLocale = model.LocaleID(loc)
+		if sameLanguageTarget && loc != "" {
+			b.SetTargetText(model.LocaleID(loc), "Hello target")
+		}
+		assertAuthoritativeIsSource(t, b)
+	})
+}

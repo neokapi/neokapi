@@ -232,6 +232,44 @@ func (b *Block) Target(locale LocaleID) *Target { return b.Targets[Variant(local
 // TargetVariant returns the committed target for a full variant key, or nil.
 func (b *Block) TargetVariant(key VariantKey) *Target { return b.Targets[key.Canonical()] }
 
+// TargetEdition returns the target filed under locale as an edition (its runs,
+// status, origin and score) and whether the block holds one. It reads the
+// target Target, TargetRuns and TargetText read, so it never returns the
+// edition the block was read in. The source language names a target only when
+// the block holds one, as a bilingual file in one language does. The empty
+// locale names a target a reader filed under no language, as the KBF reader
+// files a bundle's "" target and the Qt TS reader files the translation of a
+// file with no language attribute read with no source locale. Edition,
+// Editions and EachEdition read the zero key as the edition the block was read
+// in, so a walk over every text a writer can emit reads such a target here.
+func (b *Block) TargetEdition(locale LocaleID) (Edition, bool) {
+	t := b.Targets[Variant(locale)]
+	if t == nil {
+		return Edition{}, false
+	}
+	return Edition{Runs: t.Runs, Status: Status(t.Status), Origin: t.Origin, Score: t.Score}, true
+}
+
+// SetTargetEdition files e as the target under k (its runs, status, origin and
+// score), creating the target when the block holds none there. It writes where
+// SetTargetVariant writes, so the edition the block was read in stays as it is:
+// a key in the source language files a target in that language, and the zero
+// key files a target under no language. SetEdition writes the edition the block
+// was read in for the zero key, and for the source language while the block
+// holds no target in it. An existing target is updated in place, so a *Target
+// a caller holds sees the change.
+func (b *Block) SetTargetEdition(k EditionKey, e Edition) {
+	key := k.Canonical()
+	if b.Targets == nil {
+		b.Targets = make(map[VariantKey]*Target)
+	}
+	if t := b.Targets[key]; t != nil {
+		t.Runs, t.Status, t.Origin, t.Score = e.Runs, TargetStatus(e.Status), e.Origin, e.Score
+		return
+	}
+	b.Targets[key] = &Target{Runs: e.Runs, Status: TargetStatus(e.Status), Origin: e.Origin, Score: e.Score}
+}
+
 // StampTargetProvenance records how a locale's committed target was produced —
 // its lifecycle status and origin — without touching its runs. It is a no-op
 // when no target exists for the locale, so producers can set the text and stamp

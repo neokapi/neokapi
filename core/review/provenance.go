@@ -29,7 +29,7 @@ func ProvenanceOf(b *model.Block, loc model.LocaleID, unit *state.UnitState) Pro
 		}
 	}
 	if b != nil {
-		if t := b.Target(loc); t != nil && t.Origin.Kind != "" {
+		if t, ok := b.TargetEdition(loc); ok && t.Origin.Kind != "" {
 			o := t.Origin
 			p.Origin = &o
 		}

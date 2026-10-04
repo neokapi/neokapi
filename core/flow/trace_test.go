@@ -517,11 +517,11 @@ func TestSnapshotOverlaysAndAnnotations(t *testing.T) {
 	block := model.NewBlock("b1", "Alice met Bob in Paris")
 	block.AddOverlaySpan(model.OverlayEntity, model.Span{
 		ID:    "e1",
-		Range: model.RangeAnchor(block.Source, 0, 5),
+		Range: model.RangeAnchor(block.SourceRuns(), 0, 5),
 		Value: &model.EntityAnnotation{Text: "Alice", Type: model.EntityType("entity:person")},
 	})
 	block.SetSegmentation(nil, []model.Span{
-		{ID: "s1", Range: model.RangeAnchor(block.Source, 0, 22)},
+		{ID: "s1", Range: model.RangeAnchor(block.SourceRuns(), 0, 22)},
 	})
 	block.AddNote(&model.NoteAnnotation{Text: "reviewed"})
 
@@ -568,7 +568,7 @@ func TestSnapshotOverlaysAndAnnotations(t *testing.T) {
 func TestSnapshotSameLanguageTarget(t *testing.T) {
 	block := model.NewBlock("b1", "colour source")
 	block.SourceLocale = "en-US"
-	block.SetTargetVariant(model.Variant("en-US"), &model.Target{Runs: []model.Run{model.TextR("colour target")}})
+	block.SetTargetRuns("en-US", []model.Run{model.TextR("colour target")})
 	enUS, de := model.Variant("en-US"), model.Variant("de")
 	block.Overlays = append(block.Overlays,
 		model.Overlay{Type: model.OverlayTerm, Variant: &enUS, Spans: []model.Span{{ID: "t1", Range: model.SpanAnchor(model.RunPos{Run: 0, Offset: 7}, model.RunPos{Run: 0, Offset: 13})}}},

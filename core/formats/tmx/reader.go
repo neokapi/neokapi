@@ -821,13 +821,8 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 		srcLangLower = strings.ToLower(string(locale))
 	}
 
-	block := &model.Block{
-		ID:           tuID,
-		Name:         tuID,
-		Translatable: true,
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-	}
+	block := model.NewRunsBlock(tuID, nil)
+	block.Name = tuID
 
 	// Store TU properties
 	for _, prop := range tu.props {
@@ -845,14 +840,15 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 	}
 
 	// Find source TUV
+	var source []model.Run
 	var sourceFound bool
 	for _, tuv := range tu.tuvs {
 		tuvLangLower := strings.ToLower(tuv.lang)
 		if langMatches(tuvLangLower, srcLangLower) {
 			if tuv.seg != nil {
-				block.Source = tuv.seg.runs
+				source = tuv.seg.runs
 			} else {
-				block.Source = []model.Run{{Text: &model.TextRun{Text: ""}}}
+				source = []model.Run{{Text: &model.TextRun{Text: ""}}}
 			}
 			sourceFound = true
 			break
@@ -863,16 +859,17 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 	if !sourceFound && len(tu.tuvs) > 0 {
 		tuv := tu.tuvs[0]
 		if tuv.seg != nil {
-			block.Source = tuv.seg.runs
+			source = tuv.seg.runs
 		} else {
-			block.Source = []model.Run{{Text: &model.TextRun{Text: ""}}}
+			source = []model.Run{{Text: &model.TextRun{Text: ""}}}
 		}
 	}
 
 	// If still no source, set empty
-	if block.Source == nil {
-		block.Source = []model.Run{{Text: &model.TextRun{Text: ""}}}
+	if source == nil {
+		source = []model.Run{{Text: &model.TextRun{Text: ""}}}
 	}
+	block.SetSourceRuns(source)
 
 	// Add targets
 	firstTarget := true

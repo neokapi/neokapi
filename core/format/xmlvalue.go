@@ -60,9 +60,12 @@ func CheckXMLText(formatName string, locale model.LocaleID, block *model.Block, 
 	return e
 }
 
-// CheckXMLBlock is CheckXMLText over a block's text runs — its source and each
-// target variant. It suits a writer that serializes a block through several
-// call sites, where one check at the block boundary covers them all.
+// CheckXMLBlock is CheckXMLText over a block's text runs in every edition: the
+// authoritative one first, reported with no locale, then each of the others
+// under its language, and last a translation filed under the zero key
+// (model.Block.TargetEdition("")), reported with no locale. It suits a writer that
+// serializes a block through several call sites, where one check at the block
+// boundary covers them all.
 //
 // Inline-code data is deliberately out of scope. A reader may carry private
 // sentinels there — tmx wraps `<sub>` markup in U+0001/U+0002, html replaces a
@@ -73,16 +76,18 @@ func CheckXMLBlock(formatName string, block *model.Block) error {
 	if block == nil {
 		return nil
 	}
-	if err := checkXMLRuns(formatName, "", block, block.Source); err != nil {
-		return err
-	}
-	for key, target := range block.Targets {
-		if target == nil {
-			continue
+	auth := block.Authoritative(model.AuthorityPolicy{})
+	for key, e := range block.EachEdition {
+		locale := key.Locale
+		if key == auth {
+			locale = ""
 		}
-		if err := checkXMLRuns(formatName, key.Locale, block, target.Runs); err != nil {
+		if err := checkXMLRuns(formatName, locale, block, e.Runs); err != nil {
 			return err
 		}
+	}
+	if e, ok := block.TargetEdition(""); ok {
+		return checkXMLRuns(formatName, "", block, e.Runs)
 	}
 	return nil
 }

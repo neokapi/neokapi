@@ -857,11 +857,10 @@ func (r *Reader) emitBlock(ctx context.Context, ch chan<- model.PartResult,
 	id := fmt.Sprintf("tu%d", r.blockCounter)
 	text := string(r.source[contentStart:contentEnd])
 
-	block := model.NewBlock(id, text)
+	block := model.NewRunsBlock(id, parseInline(text))
 	block.Name = r.blockName(name)
 	block.Type = blockType
 	block.SourceLocale = r.locale
-	block.Source = parseInline(text)
 	if role != "" {
 		block.SetSemanticRole(role, level)
 	}

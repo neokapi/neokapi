@@ -302,13 +302,9 @@ func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, grou
 func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit *etree.Element, trgLang model.LocaleID, parentTranslate bool, scope []string, names *model.NameBuilder, ids *model.IDBuilder) {
 	translatable := inheritedTranslate(parentTranslate, unit)
 
-	block := &model.Block{
-		ID:           attrValue(unit, "id"),
-		Name:         unitName(names, scope, attrValue(unit, "id")),
-		Translatable: translatable,
-		Properties:   make(map[string]string),
-		Targets:      make(map[model.VariantKey]*model.Target),
-	}
+	block := model.NewRunsBlock(attrValue(unit, "id"), nil)
+	block.Name = unitName(names, scope, attrValue(unit, "id"))
+	block.Translatable = translatable
 	ids.Assign(block)
 	recordUnitNameAttr(block, attrValue(unit, "name"))
 	readUnitMetadata(unit, block)
@@ -1276,13 +1272,9 @@ func (s *xliff2StreamState) emitUnit() {
 	if s.unitTranslate != "" {
 		translatable = !strings.EqualFold(s.unitTranslate, "no")
 	}
-	block := &model.Block{
-		ID:           s.unitID,
-		Name:         unitName(&s.names, append([]string{s.fileID}, s.groupIDs...), s.unitID),
-		Translatable: translatable,
-		Properties:   make(map[string]string),
-		Targets:      make(map[model.VariantKey]*model.Target),
-	}
+	block := model.NewRunsBlock(s.unitID, nil)
+	block.Name = unitName(&s.names, append([]string{s.fileID}, s.groupIDs...), s.unitID)
+	block.Translatable = translatable
 	s.ids.Assign(block)
 	recordUnitNameAttr(block, s.unitName)
 	for _, st := range s.states {

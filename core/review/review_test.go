@@ -148,9 +148,9 @@ func TestPriorVersionOfWithoutAChain(t *testing.T) {
 
 func TestGoverningFingerprintPrefersTheFormatStamp(t *testing.T) {
 	stamped := &model.Block{ID: "b", Translatable: true}
-	stamped.SetTarget("nb", &model.Target{Runs: []model.Run{model.TextR("Hei")}, Origin: model.Origin{ContextFingerprint: "fp-file"}})
+	stamped.SetEdition(model.Variant("nb"), model.Edition{Runs: []model.Run{model.TextR("Hei")}, Origin: model.Origin{ContextFingerprint: "fp-file"}})
 	bare := &model.Block{ID: "b", Translatable: true}
-	bare.SetTarget("nb", &model.Target{Runs: []model.Run{model.TextR("Hei")}})
+	bare.SetEdition(model.Variant("nb"), model.Edition{Runs: []model.Run{model.TextR("Hei")}})
 
 	tests := []struct {
 		name     string

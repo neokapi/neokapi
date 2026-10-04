@@ -51,9 +51,9 @@ func TestAITranslateToolSetsTarget(t *testing.T) {
 
 	// The producer stamps lifecycle + provenance so coverage and ship gates can
 	// see how far the unit has progressed (a fresh machine translation = draft).
-	tgt := resultBlock.Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
-	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
+	tgt, ok := resultBlock.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status)
 	assert.Equal(t, model.OriginAI, tgt.Origin.Kind)
 }
 

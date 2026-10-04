@@ -38,15 +38,9 @@ func (r *Reader) emitStrings(ctx context.Context, ch chan<- model.PartResult, co
 		e := doc.entries[i]
 		counter++
 		blockID := "tu" + strconv.Itoa(counter)
-		block := &model.Block{
-			ID:           blockID,
-			Name:         e.key,
-			Translatable: true,
-			SourceLocale: locale,
-			Source:       runsFromValue(e.value, r.cfg.ProtectPlaceholders),
-			Targets:      make(map[model.VariantKey]*model.Target),
-			Properties:   make(map[string]string),
-		}
+		block := model.NewRunsBlock(blockID, runsFromValue(e.value, r.cfg.ProtectPlaceholders))
+		block.Name = e.key
+		block.SourceLocale = locale
 		block.Properties[propBlockKey] = e.key
 		block.Properties[propBlockLeaf] = leafValue
 

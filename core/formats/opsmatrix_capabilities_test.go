@@ -326,13 +326,13 @@ func (fx opsFixture) drive(t *testing.T, input []byte, pick string, ops func(b *
 			continue
 		}
 		if b, ok := r.Part.Resource.(*model.Block); ok {
-			res.read = append(res.read, model.RunsEditText(b.Source))
-			if strings.Contains(model.RunsEditText(b.Source), pick) {
+			res.read = append(res.read, model.RunsEditText(b.SourceRuns()))
+			if strings.Contains(model.RunsEditText(b.SourceRuns()), pick) {
 				picked++
 				res.at = len(res.read) - 1
 				results := change.ApplyBlock(b, ops(b), env)
 				res.result = results[len(results)-1]
-				res.edited = slices.Clone(b.Source)
+				res.edited = slices.Clone(b.SourceRuns())
 			}
 		}
 		parts = append(parts, r.Part)
@@ -386,12 +386,12 @@ func capDrivers(c capCell) []capDriver {
 			// The payload is the block's runs with the new code where mark
 			// puts it, every code named by id, type and attributes, and
 			// none carrying native data.
-			probe := model.NewRunsBlock(b.ID, slices.Clone(b.Source))
+			probe := model.NewRunsBlock(b.ID, slices.Clone(b.SourceRuns()))
 			probe.Type, probe.IsReferent = b.Type, b.IsReferent
 			res := change.ApplyBlock(probe, []change.Op{markOp(probe)}, change.BlockEnv{Actor: change.Actor{Kind: change.ActorPerson}, Format: caps})
 			require.Equal(t, change.OpApplied, res[0].Status, "%+v", res[0].Error)
-			runs := make([]model.Run, len(probe.Source))
-			for i, r := range probe.Source {
+			runs := make([]model.Run, len(probe.SourceRuns()))
+			for i, r := range probe.SourceRuns() {
 				runs[i] = wirePayload(r)
 			}
 			return []change.Op{{Kind: change.KindSetContent, At: at, IfMatch: model.EditionRevision(b, model.EditionKey{}),
@@ -448,11 +448,11 @@ func TestCapabilityMatrix(t *testing.T) {
 					require.Len(t, back, len(res.read), "the written document holds the blocks it was read with")
 					for i, b := range back {
 						if i == res.at {
-							assert.Equal(t, string(model.CanonicalRunsJSON(renumberCodes(res.edited))), string(model.CanonicalRunsJSON(renumberCodes(b.Source))),
+							assert.Equal(t, string(model.CanonicalRunsJSON(renumberCodes(res.edited))), string(model.CanonicalRunsJSON(renumberCodes(b.SourceRuns()))),
 								"the edited block reads back with the content the operation produced")
 							continue
 						}
-						assert.Equal(t, res.read[i], model.RunsEditText(b.Source), "block %s reads back as read", b.ID)
+						assert.Equal(t, res.read[i], model.RunsEditText(b.SourceRuns()), "block %s reads back as read", b.ID)
 					}
 				})
 			}

@@ -176,6 +176,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 // attribute list it sits in (macroAttrValue).
 func (w *Writer) blockText(block *model.Block) (string, error) {
 	var text string
+	src, _ := block.Edition(block.Authoritative(model.AuthorityPolicy{}))
 	switch read, edited := block.SourceAsRead(); {
 	case !w.Locale.IsEmpty() && block.HasTarget(w.Locale):
 		runs, err := spellImageAlts(block.TargetRuns(w.Locale))
@@ -184,13 +185,13 @@ func (w *Writer) blockText(block *model.Block) (string, error) {
 		}
 		text = model.RenderRunsWithData(runs)
 	case edited:
-		runs, err := spellImageAlts(block.Source)
+		runs, err := spellImageAlts(src.Runs)
 		if err != nil {
 			return "", w.altError(block, err)
 		}
 		text = format.RenderEditedRuns(runs, read, editSyntax)
 	default:
-		return model.RenderRunsWithData(block.Source), nil
+		return model.RenderRunsWithData(src.Runs), nil
 	}
 	if block.Type == blockTypeAlt {
 		spelled, err := macroAttrValue(text, block.Properties[propAltQuoted] == "true", false)
@@ -212,7 +213,8 @@ func (w *Writer) altError(block *model.Block, err error) error {
 // (renderInlineAsciidoc), not echoed from the source format's Data, so a foreign
 // document projects to clean AsciiDoc.
 func (w *Writer) blockTextNormalized(block *model.Block) string {
-	runs := block.Source
+	src, _ := block.Edition(block.Authoritative(model.AuthorityPolicy{}))
+	runs := src.Runs
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		runs = block.TargetRuns(w.Locale)
 	}

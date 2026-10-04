@@ -147,7 +147,7 @@ func TestSMLRunProps_UnderlineNoneIsNotAnUnderline(t *testing.T) {
 	sst := sourceFormSST(`<si><r><rPr><u val="none"/><sz val="11"/></rPr><t>Plain</t></r></si>`)
 	blocks := readSharedStringBlocks(t, richTextPackage(t, sst))
 	require.Len(t, blocks, 1)
-	for _, r := range blocks[0].Source {
+	for _, r := range blocks[0].SourceRuns() {
 		if r.PcOpen != nil {
 			assert.NotEqual(t, TypeUnderline, r.PcOpen.Type,
 				"a run that says it is not underlined shows a translator no underline")

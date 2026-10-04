@@ -66,7 +66,7 @@ func tableShape(parts []*model.Part) (tables int, rows int, headerRows int, cell
 		case model.PartBlock:
 			b, _ := p.Resource.(*model.Block)
 			if b.SemanticRole() == model.RoleTableCell || b.SemanticRole() == model.RoleTableHeader {
-				cellTexts = append(cellTexts, runsText(b.Source))
+				cellTexts = append(cellTexts, runsText(b.SourceRuns()))
 			}
 		}
 	}

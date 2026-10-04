@@ -496,7 +496,8 @@ func cellSpanAttrs(b *model.Block) (attrs string, colSpan int) {
 // A spreadsheet value cell renders its formatted display in place of the
 // stored value (projection.DisplayRuns).
 func (w *Writer) renderInlineHTML(b *model.Block) string {
-	runs := b.Source
+	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
+	runs := src.Runs
 	if !w.Locale.IsEmpty() {
 		if t := b.TargetRuns(w.Locale); len(t) > 0 {
 			runs = t

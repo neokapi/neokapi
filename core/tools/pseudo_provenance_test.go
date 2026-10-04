@@ -27,9 +27,9 @@ func TestPseudo_ANewTargetKeepsItsDraftStamp(t *testing.T) {
 	}
 	stamped := func(t *testing.T, b *model.Block) {
 		t.Helper()
-		tg := b.Target("qps")
-		require.NotNil(t, tg, "the target exists")
-		assert.Equal(t, model.TargetStatusDraft, tg.Status)
+		tg, ok := b.Edition(model.Variant("qps"))
+		require.True(t, ok, "the target exists")
+		assert.Equal(t, model.Status(model.TargetStatusDraft), tg.Status)
 		assert.Equal(t, "pseudo-translate", tg.Origin.Tool)
 	}
 

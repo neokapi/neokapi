@@ -7,6 +7,7 @@ import (
 
 	"github.com/beevik/etree"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -43,7 +44,7 @@ func checkUnit(block *model.Block, loc model.LocaleID) error {
 		return ov != nil && len(ov.Spans) > 0 && tiles(ov, runs)
 	}
 	ir := unitSegmentsIR(block)
-	if ir != nil && len(ir.Source) > 1 && !divides(block.SourceSegmentation(), block.Source) {
+	if ir != nil && len(ir.Source) > 1 && !divides(block.SourceSegmentation(), format.AuthoritativeRuns(block)) {
 		return fmt.Errorf("xliff2 writer: unit %q: the source: %w", block.ID, ErrSegmentsLost)
 	}
 	hasTarget := !loc.IsEmpty() && block.HasTarget(loc)
@@ -78,8 +79,8 @@ func checkUnit(block *model.Block, loc model.LocaleID) error {
 // segmentation's segments while it tiles the runs, and otherwise the runs as
 // one anonymous segment.
 func writtenSourceSegs(block *model.Block) []seg {
-	if !tiles(block.SourceSegmentation(), block.Source) {
-		return withMarks([]seg{{Runs: block.Source}}, block.Source, block, nil)
+	if source := format.AuthoritativeRuns(block); !tiles(block.SourceSegmentation(), source) {
+		return withMarks([]seg{{Runs: source}}, source, block, nil)
 	}
 	return sourceSegsFromBlock(block)
 }

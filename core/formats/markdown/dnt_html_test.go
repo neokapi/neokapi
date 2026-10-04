@@ -32,7 +32,7 @@ func TestCodeishHTMLElementsProtectTheirText(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			blocks := blocksOf(t, tc.src)
 			require.NotEmpty(t, blocks)
-			translatable, protected := runText(blocks[0].Source)
+			translatable, protected := runText(blocks[0].SourceRuns())
 
 			if tc.protected == "" {
 				assert.Empty(t, protected, "%s is not a code element", tc.name)
@@ -52,7 +52,7 @@ func TestNestedCodeishElementsUnwind(t *testing.T) {
 	blocks := blocksOf(t, "A <code>one <var>two</var> three</code> and then prose.\n")
 	require.NotEmpty(t, blocks)
 
-	translatable, protected := runText(blocks[0].Source)
+	translatable, protected := runText(blocks[0].SourceRuns())
 	assert.Contains(t, protected, "one ")
 	assert.Contains(t, protected, "two")
 	assert.Contains(t, translatable, " and then prose.")

@@ -2065,13 +2065,14 @@ func (w *Writer) blockText(block *model.Block) string {
 			return finishBlockContent(block, renderInlineText(block, runs))
 		}
 	}
-	if len(block.Source) == 0 {
+	source := format.AuthoritativeRuns(block)
+	if len(source) == 0 {
 		return ""
 	}
 	if read, edited := block.SourceAsRead(); edited {
 		return finishBlockContent(block, renderEditedSource(block, read))
 	}
-	return finishBlockContent(block, model.RenderRunsWithData(block.Source))
+	return finishBlockContent(block, model.RenderRunsWithData(source))
 }
 
 // RenderBlockContent renders a block's content (the given run sequence —
@@ -2284,8 +2285,8 @@ func (w *Writer) blockRuns(block *model.Block) []model.Run {
 			return runs
 		}
 	}
-	if len(block.Source) > 0 {
-		return block.Source
+	if source := format.AuthoritativeRuns(block); len(source) > 0 {
+		return source
 	}
 	return nil
 }

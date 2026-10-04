@@ -52,7 +52,7 @@ func TestKitchenSinkRoundTrip(t *testing.T) {
 // newly-added Run kind trips this until it is added to the fixture.
 func TestKitchenSinkCoversEveryRunKind(t *testing.T) {
 	present := map[model.RunKind]bool{}
-	for _, r := range venuetest.KitchenSinkBlock().Source {
+	for _, r := range venuetest.KitchenSinkBlock().SourceRuns() {
 		present[r.Kind()] = true
 	}
 	for _, k := range venuetest.AllRunKinds {
@@ -171,8 +171,11 @@ func TestOriginFixtureIsComplete(t *testing.T) {
 	b := venuetest.KitchenSinkBlock()
 
 	var populated *model.Origin
-	for _, tgt := range b.Targets {
-		o := tgt.Origin
+	for k, e := range b.EachEdition {
+		if b.IsSourceEdition(k) {
+			continue
+		}
+		o := e.Origin
 		if populated == nil || countSetFields(o) > countSetFields(*populated) {
 			cp := o
 			populated = &cp

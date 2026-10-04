@@ -912,14 +912,9 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 		blockRuns = p.codeFinder.applyToRuns(blockRuns, ids)
 	}
 
-	block := &model.Block{
-		ID:           id,
-		Type:         "paragraph",
-		Translatable: true,
-		Source:       blockRuns,
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   map[string]string{"partPath": partPath},
-	}
+	block := model.NewRunsBlock(id, blockRuns)
+	block.Type = "paragraph"
+	block.Properties["partPath"] = partPath
 
 	// Collect font info if configured
 	if p.cfg.ExtractRunFontsInfo {

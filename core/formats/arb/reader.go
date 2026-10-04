@@ -561,15 +561,9 @@ func (r *Reader) blockFor(res *resource, locale model.LocaleID, counter int) *mo
 	msg := readMessage(res.value)
 	runs := msg.runs
 
-	block := &model.Block{
-		ID:           "tu" + strconv.Itoa(counter),
-		Name:         res.id,
-		Translatable: true,
-		SourceLocale: locale,
-		Source:       runs,
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-	}
+	block := model.NewRunsBlock("tu"+strconv.Itoa(counter), runs)
+	block.Name = res.id
+	block.SourceLocale = locale
 	block.Properties["arb.key"] = res.id
 	if len(msg.shapes) > 0 {
 		block.Properties[propMessage] = res.value

@@ -106,7 +106,7 @@ func TestAutoLinkPlaceholderCarriesTheBrackets(t *testing.T) {
 	blocks := readBlocks(t, "*<https://example.com> now*\n")
 	require.Len(t, blocks, 1)
 	var data []string
-	for _, r := range blocks[0].Source {
+	for _, r := range blocks[0].SourceRuns() {
 		if r.Ph != nil && r.Ph.SubType == "md:autolink" {
 			data = append(data, r.Ph.Data)
 		}

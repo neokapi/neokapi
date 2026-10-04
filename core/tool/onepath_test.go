@@ -32,9 +32,9 @@ func TestView_ReadsItsOwnWrites(t *testing.T) {
 	}
 	require.NoError(t, dispatch(t, bt, b))
 	assert.Equal(t, "Bonjour", seen)
-	tg := b.Target("fr")
-	require.NotNil(t, tg)
-	assert.Equal(t, model.TargetStatusDraft, tg.Status, "the stamp lands on the target the handler just created")
+	tg, ok := b.Edition(model.Variant("fr"))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), tg.Status, "the stamp lands on the target the handler just created")
 	assert.Equal(t, "probe", tg.Origin.Tool)
 }
 
@@ -43,14 +43,14 @@ func TestView_ReadsItsOwnWrites(t *testing.T) {
 // stamp is how the tool records what it produced.
 func TestView_TargetWritesTakeTheToolConsequence(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
-	b.SetTarget("fr", &model.Target{Runs: []model.Run{model.TextR("Salut")}, Status: model.TargetStatusEstablished, Origin: model.Origin{Kind: model.OriginHuman}})
+	b.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{model.TextR("Salut")}, Status: model.Status(model.TargetStatusEstablished), Origin: model.Origin{Kind: model.OriginHuman}})
 	bt := &tool.BaseTool{ToolName: "case"}
 	bt.Produce = func(v tool.VariantView) error {
 		v.SetTargetText("fr", "Salut")
 		return nil
 	}
 	require.NoError(t, dispatch(t, bt, b))
-	assert.Equal(t, model.TargetStatusEstablished, b.Target("fr").Status, "a write that changes nothing keeps the approval")
+	assert.Equal(t, model.Status(model.TargetStatusEstablished), target(t, b, "fr").Status, "a write that changes nothing keeps the approval")
 
 	bt.Produce = func(v tool.VariantView) error {
 		v.SetTargetText("fr", "SALUT")
@@ -58,19 +58,36 @@ func TestView_TargetWritesTakeTheToolConsequence(t *testing.T) {
 	}
 	require.NoError(t, dispatch(t, bt, b))
 	assert.Equal(t, "SALUT", b.TargetText("fr"))
-	assert.Equal(t, model.TargetStatusDraft, b.Target("fr").Status)
-	assert.Equal(t, model.OriginHuman, b.Target("fr").Origin.Kind)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), target(t, b, "fr").Status)
+	assert.Equal(t, model.OriginHuman, target(t, b, "fr").Origin.Kind)
 
 	bt.Produce = func(v tool.VariantView) error {
-		v.SetTarget("de", &model.Target{Runs: []model.Run{model.TextR("Hallo")}, Status: model.TargetStatusDraft, Score: 0.5})
+		v.SetEdition(model.Variant("de"), model.Edition{Runs: []model.Run{model.TextR("Hallo")}, Status: model.Status(model.TargetStatusDraft), Score: 0.5})
 		v.RemoveTarget("fr")
 		return nil
 	}
 	require.NoError(t, dispatch(t, bt, b))
 	assert.False(t, b.HasTarget("fr"))
-	require.NotNil(t, b.Target("de"))
-	assert.Equal(t, model.TargetStatusDraft, b.Target("de").Status)
-	assert.InDelta(t, 0.5, b.Target("de").Score, 0)
+	de := target(t, b, "de")
+	assert.Equal(t, model.Status(model.TargetStatusDraft), de.Status)
+	assert.InDelta(t, 0.5, de.Score, 0)
+
+	formal := model.EditionKey{Locale: "de", Tone: "formal"}
+	bt.Produce = func(v tool.VariantView) error {
+		v.SetEdition(formal, model.Edition{Runs: []model.Run{model.TextR("Guten Tag")}})
+		return nil
+	}
+	require.NoError(t, dispatch(t, bt, b))
+	_, ok := b.Edition(formal)
+	require.True(t, ok)
+	bt.Produce = func(v tool.VariantView) error {
+		v.RemoveEdition(formal)
+		return nil
+	}
+	require.NoError(t, dispatch(t, bt, b))
+	_, ok = b.Edition(formal)
+	assert.False(t, ok, "RemoveEdition removes a tone edition")
+	assert.True(t, b.HasTarget("de"), "and leaves the language's own target")
 }
 
 // A write the applier refuses is the handler's error, not a silent loss.
@@ -131,8 +148,9 @@ func TestTargetWrites_SameLanguageTarget(t *testing.T) {
 	sameLanguage := func() *model.Block {
 		b := model.NewBlock("b1", "colour source")
 		b.SourceLocale = "en-US"
-		b.SourceStatus = model.SourceStatusWritten
-		b.SetTarget("en-US", &model.Target{Runs: []model.Run{model.TextR("colour target")}, Status: model.TargetStatusEstablished})
+		b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusWritten))
+		b.SetTargetRuns("en-US", []model.Run{model.TextR("colour target")})
+		b.SetEditionStatus(model.Variant("en-US"), model.Status(model.TargetStatusEstablished))
 		return b
 	}
 
@@ -156,13 +174,13 @@ func TestTargetWrites_SameLanguageTarget(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "colour source", b.SourceText())
-	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
+	assert.Equal(t, model.SourceStatusWritten, sourceStatus(b))
 	assert.Equal(t, "[colour]", b.TargetText("en-US"))
-	assert.Equal(t, model.TargetStatusDraft, b.Target("en-US").Status)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), target(t, b, "en-US").Status)
 
 	b = model.NewBlock("b2", "colour source")
 	b.SourceLocale = "en"
-	b.SourceStatus = model.SourceStatusWritten
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusWritten))
 	err = tool.WriteAs(context.Background(), b, "pseudo", func(v tool.VariantView) error {
 		v.SetTargetText("en", "[colour]")
 		v.StampTargetProvenance("en", model.TargetStatusDraft, model.Origin{Tool: "pseudo"})
@@ -171,16 +189,25 @@ func TestTargetWrites_SameLanguageTarget(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "source language")
 	assert.Equal(t, "colour source", b.SourceText())
-	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
+	assert.Equal(t, model.SourceStatusWritten, sourceStatus(b))
 	_, hasOrigin := b.SourceOrigin()
 	assert.False(t, hasOrigin, "no tool origin reaches the source")
+
+	err = tool.WriteAs(context.Background(), b, "pseudo", func(v tool.VariantView) error {
+		v.SetEdition(model.Variant("en"), model.Edition{Runs: []model.Run{model.TextR("[colour]")},
+			Status: model.Status(model.TargetStatusDraft), Origin: model.Origin{Tool: "pseudo"}})
+		return nil
+	})
+	require.Error(t, err, "SetEdition writes targets, never the source")
+	assert.Contains(t, err.Error(), "source language")
+	assert.Equal(t, "colour source", b.SourceText())
 
 	err = tool.WriteAs(context.Background(), b, "pseudo", func(v tool.VariantView) error {
 		v.StampTargetProvenance("en", model.TargetStatusDraft, model.Origin{Tool: "pseudo"})
 		return nil
 	})
 	require.NoError(t, err, "a stamp on a target the block lacks does nothing")
-	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
+	assert.Equal(t, model.SourceStatusWritten, sourceStatus(b))
 }
 
 // Overlay writes go through the applier too, and keep every field of a span.
@@ -283,4 +310,15 @@ func TestEditPlan_NonCanonicalKeysNameTheirEdition(t *testing.T) {
 	_, err = two.Ops(b)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "two spellings")
+}
+
+// target returns the target edition b holds for loc, failing the test when it
+// holds none.
+func target(t *testing.T, b *model.Block, loc model.LocaleID) model.Edition {
+	t.Helper()
+	key := model.Variant(loc)
+	require.False(t, b.IsSourceEdition(key), "%s names the source", loc)
+	e, ok := b.Edition(key)
+	require.True(t, ok, "no %s target", loc)
+	return e
 }

@@ -26,7 +26,7 @@ const overlappingPairsDoc = `<?xml version="1.0" encoding="UTF-8"?>
 func TestReader_OverlappingPairsStayEditable(t *testing.T) {
 	blocks := readBlocks(t, overlappingPairsDoc)
 	require.Len(t, blocks, 1)
-	source := blocks[0].Source
+	source := blocks[0].SourceRuns()
 
 	text := model.RunsPlaceholderText(source)
 	require.Equal(t, `<x id="1"/>bold <x id="2"/>both<x id="/1"/> italic<x id="/2"/>`, text,

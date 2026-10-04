@@ -42,7 +42,7 @@ func TestReadRestoresTermMarkAsOverlay(t *testing.T) {
 
 	// The span covers exactly the marked run, and resolving it returns the
 	// marked text rather than an approximation of it.
-	assert.Equal(t, "kapi", model.RunsText(span.Range.ExtractRuns(block.Source)))
+	assert.Equal(t, "kapi", model.RunsText(span.Range.ExtractRuns(block.SourceRuns())))
 }
 
 // A marker type the framework has no overlay of its own for is still carried:
@@ -64,7 +64,7 @@ func TestReadKeepsUnknownMarkTypes(t *testing.T) {
 	assert.Equal(t, "comment", overlay.Spans[0].Props["type"])
 	assert.Equal(t, "ask legal", overlay.Spans[0].Props["value"])
 	assert.Equal(t, "the wording",
-		model.RunsText(overlay.Spans[0].Range.ExtractRuns(block.Source)))
+		model.RunsText(overlay.Spans[0].Range.ExtractRuns(block.SourceRuns())))
 }
 
 // A mark inside a <pc> is positioned against the block's runs, not the pc's:
@@ -82,7 +82,7 @@ func TestReadPositionsMarkInsidePairedCode(t *testing.T) {
 	require.NotNil(t, overlay)
 	require.Len(t, overlay.Spans, 1)
 	assert.Equal(t, "kapi",
-		model.RunsText(overlay.Spans[0].Range.ExtractRuns(block.Source)))
+		model.RunsText(overlay.Spans[0].Range.ExtractRuns(block.SourceRuns())))
 }
 
 // <sm>/<em> is the shape XLIFF 2 provides for a span that need not nest, which
@@ -102,7 +102,7 @@ func TestReadRestoresSpanningMarkers(t *testing.T) {
 	require.Len(t, overlay.Spans, 1)
 	assert.Equal(t, "s1", overlay.Spans[0].ID)
 
-	covered := model.RunsText(overlay.Spans[0].Range.ExtractRuns(block.Source))
+	covered := model.RunsText(overlay.Spans[0].Range.ExtractRuns(block.SourceRuns()))
 	assert.True(t, strings.Contains(covered, "kapi"),
 		"the span must cover the content between the markers, got %q", covered)
 }
@@ -149,5 +149,5 @@ func TestReadCarriesForeignDoNotTranslateMarks(t *testing.T) {
 	assert.Equal(t, "no", span.Props["translate"],
 		"translate=no is the instruction; losing it loses the decision")
 	assert.Equal(t, "support@example.com",
-		model.RunsText(span.Range.ExtractRuns(block.Source)))
+		model.RunsText(span.Range.ExtractRuns(block.SourceRuns())))
 }

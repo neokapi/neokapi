@@ -665,10 +665,11 @@ func excerptAt(b []byte, off int) string {
 // for untranslated output, including the markdown line-prefix property so
 // multi-line blockquote/list continuations reconstruct exactly.
 func renderBlockSource(block *model.Block) string {
-	if len(block.Source) == 0 {
+	source := block.SourceRuns()
+	if len(source) == 0 {
 		return ""
 	}
-	return markdown.RenderBlockContent(block, block.Source)
+	return markdown.RenderBlockContent(block, source)
 }
 
 // --- Skeleton helpers (mirror the markdown reader's coalescing pattern) ---

@@ -1002,10 +1002,11 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 		return
 	}
 
-	if len(block.Source) == 0 {
+	src := block.SourceRuns()
+	if len(src) == 0 {
 		return
 	}
-	text := model.RunsText(block.Source)
+	text := model.RunsText(src)
 
 	type matchRange struct {
 		start, end int

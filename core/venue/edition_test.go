@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/model"
+	contentv1 "github.com/neokapi/neokapi/core/proto/content/v1"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 )
 
@@ -16,10 +17,11 @@ import (
 func TestBlockRoundTrip_SameLanguageTarget(t *testing.T) {
 	b := model.NewBlock("b1", "colour source")
 	b.SourceLocale = "en-US"
-	b.SourceStatus = model.SourceStatusEstablished
-	b.SetTargetVariant(model.Variant("en-US"), &model.Target{
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusEstablished))
+	b.SetTargetRuns("en-US", nil)
+	b.SetEdition(model.Variant("en-US"), model.Edition{
 		Runs:   []model.Run{model.TextR("colour target")},
-		Status: model.TargetStatusTranslated,
+		Status: model.Status(model.TargetStatusTranslated),
 		Origin: model.Origin{Kind: model.OriginHuman},
 	})
 
@@ -34,10 +36,10 @@ func TestBlockRoundTrip_SameLanguageTarget(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "colour source", model.RunsText(src.Runs))
 	assert.Equal(t, model.Status(model.SourceStatusEstablished), src.Status)
-	tgt := got.Target("en-US")
-	require.NotNil(t, tgt)
+	tgt, ok := got.Edition(model.Variant("en-US"))
+	require.True(t, ok)
 	assert.Equal(t, "colour target", model.RunsText(tgt.Runs))
-	assert.Equal(t, model.TargetStatusTranslated, tgt.Status)
+	assert.Equal(t, model.Status(model.TargetStatusTranslated), tgt.Status)
 	assert.Equal(t, model.OriginHuman, tgt.Origin.Kind)
 	_, edited := got.SourceAsRead()
 	assert.False(t, edited, "a decoded block holds its source as read")
@@ -51,7 +53,7 @@ func TestBlockToProto_UnreachableEditionIsNotSentEmpty(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	b.SourceLocale = "en-US"
 	b.Targets[model.VariantKey{Locale: "nb_NO"}] = &model.Target{Runs: []model.Run{model.TextR("Hei")}}
-	b.SetTargetVariant(model.Variant("fr-FR"), &model.Target{Runs: []model.Run{model.TextR("Bonjour")}})
+	b.SetEdition(model.Variant("fr-FR"), model.Edition{Runs: []model.Run{model.TextR("Bonjour")}})
 
 	sb := BlockToProto(b, "item")
 
@@ -65,4 +67,37 @@ func TestBlockToProto_UnreachableEditionIsNotSentEmpty(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "Hei", got.TargetText("nb-NO"))
 	}
+}
+
+// A target key that names no language is filed as a target under no language,
+// with its status, origin and score, and the source stays as the wire sent it.
+// No edition accessor lists that target, so BlockToProto sends none back.
+func TestProtoToBlock_KeyWithNoLanguageIsATarget(t *testing.T) {
+	sent := model.Edition{
+		Runs:   []model.Run{model.TextR("Hei")},
+		Status: model.Status(model.TargetStatusTranslated),
+		Origin: model.Origin{Kind: model.OriginAI, ContextFingerprint: "fp-zero"},
+		Score:  0.5,
+	}
+	got, err := ProtoToBlock(&pb.SyncBlock{
+		SourceText:   "Hello",
+		SourceLocale: "en-US",
+		Targets: map[string]*pb.SyncSegmentList{
+			"": {Segments: []*contentv1.SegmentMessage{targetToSegment(sent)}},
+		},
+	})
+	require.NoError(t, err)
+
+	tgt, ok := got.TargetEdition("")
+	require.True(t, ok, "the target filed under no language")
+	assert.Equal(t, sent, tgt)
+	assert.Equal(t, []model.LocaleID{""}, got.TargetLocales())
+	src, ok := got.Edition(model.EditionKey{})
+	require.True(t, ok)
+	assert.Equal(t, "Hello", model.RunsText(src.Runs))
+	_, edited := got.SourceAsRead()
+	assert.False(t, edited, "a decoded block holds its source as read")
+	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}}, got.Editions())
+
+	assert.NotContains(t, BlockToProto(got, "item").Targets, "")
 }

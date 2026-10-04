@@ -389,9 +389,8 @@ func BlockAddress(b *model.Block) string { return b.StructuralAddress() }
 // unit read as untranslated forever: below every rung, dragging its scope's
 // coverage down, and so permanently short of the ship gate.
 func TargetState(b *model.Block, locale string) string {
-	loc := model.LocaleID(locale)
-	t := b.Target(loc)
-	if t == nil || !model.RunsHaveContent(b.TargetRuns(loc)) {
+	t, ok := b.TargetEdition(model.LocaleID(locale))
+	if !ok || !model.RunsHaveContent(t.Runs) {
 		return ""
 	}
 	if t.Status != "" {

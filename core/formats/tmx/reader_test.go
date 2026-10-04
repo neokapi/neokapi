@@ -1145,7 +1145,7 @@ func TestTargetLangNotSpecified(t *testing.T) {
 	require.NotEmpty(t, blocks)
 	assert.Equal(t, "No target lang", blocks[0].SourceText())
 	// No target TUV, so no targets
-	assert.Empty(t, blocks[0].Targets)
+	assert.Empty(t, blocks[0].TargetLocales())
 }
 
 // okapi: TmxFilterTest#testTargetLangNotSpecified2

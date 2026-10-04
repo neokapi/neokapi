@@ -1134,10 +1134,11 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 		return
 	}
 
-	if len(block.Source) == 0 {
+	source := block.SourceRuns()
+	if len(source) == 0 {
 		return
 	}
-	text := model.RunsText(block.Source)
+	text := model.RunsText(source)
 
 	// Collect all match ranges
 	type matchRange struct {
@@ -1179,7 +1180,7 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 	if lastEnd < len(text) {
 		runs = append(runs, model.Run{Text: &model.TextRun{Text: text[lastEnd:]}})
 	}
-	block.Source = runs
+	block.SetSourceRuns(runs)
 }
 
 // foldMoreIndentedRuns mirrors snakeyaml's (Okapi reference parser)

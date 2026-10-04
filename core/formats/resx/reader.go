@@ -391,15 +391,9 @@ func (r *Reader) emitDataBlock(ctx context.Context, ch chan<- model.PartResult,
 		return true
 	}
 
-	block := &model.Block{
-		ID:           "tu" + strconv.Itoa(counter),
-		Name:         name,
-		Translatable: true,
-		SourceLocale: r.docLocale(),
-		Source:       buildValueRuns(valueText),
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-	}
+	block := model.NewRunsBlock("tu"+strconv.Itoa(counter), buildValueRuns(valueText))
+	block.Name = name
+	block.SourceLocale = r.docLocale()
 
 	// xml:space="preserve" means the surrounding whitespace inside <value> is
 	// significant. RESX strings are commonly declared with it; record the flag

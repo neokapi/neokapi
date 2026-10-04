@@ -98,7 +98,7 @@ func TestDocxVMergeRowspan(t *testing.T) {
 	// The merged cell carries RowSpan == 2.
 	var merged *model.Block
 	for _, p := range parts {
-		if b, ok := p.Resource.(*model.Block); ok && model.RunsText(b.Source) == "Merged" {
+		if b, ok := p.Resource.(*model.Block); ok && model.RunsText(b.SourceRuns()) == "Merged" {
 			merged = b
 		}
 	}

@@ -524,7 +524,7 @@ func (w *Writer) sourceText(block *model.Block) string {
 			// trans-unit the mrk wrappers and the whitespace between them
 			// live in `<seg-source>`, which is emitted from its own path and
 			// keeps them.
-			return renderNativeWithRunsOpts(sa.Content, block.Source, opts)
+			return renderNativeWithRunsOpts(sa.Content, format.AuthoritativeRuns(block), opts)
 		}
 	}
 	return concatSegments(sourceSegViews(block))
@@ -808,7 +808,7 @@ func (w *Writer) flush() (retErr error) {
 		fmt.Fprintf(ew, ">\n")
 
 		// Source
-		sourceText := fragmentToXLIFF(block.Source)
+		sourceText := fragmentToXLIFF(format.AuthoritativeRuns(block))
 		fmt.Fprintf(ew, "        <source>%s</source>\n", sourceText)
 
 		// Target

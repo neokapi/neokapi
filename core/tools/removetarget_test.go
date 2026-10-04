@@ -47,7 +47,7 @@ func TestRemoveTargetToolAllLocales(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
 	assert.False(t, resultBlock.HasTarget(model.LocaleGerman))
-	assert.Empty(t, resultBlock.Targets)
+	assert.Empty(t, resultBlock.TargetLocales())
 }
 
 func TestRemoveTargetToolSkipsNonTranslatable(t *testing.T) {

@@ -62,8 +62,8 @@ func pictureBlock(t *testing.T, blocks []*model.Block) *model.Block {
 func TestDrawingResolvesSourceAndAltText(t *testing.T) {
 	pic := pictureBlock(t, readDocxFileBlocks(t, imageFixture))
 
-	require.Len(t, pic.Source, 1)
-	ph := pic.Source[0].Ph
+	require.Len(t, pic.SourceRuns(), 1)
+	ph := pic.SourceRuns()[0].Ph
 	require.NotNil(t, ph, "the picture block should carry the drawing's placeholder run")
 	assert.Equal(t, TypeImage, ph.Type)
 

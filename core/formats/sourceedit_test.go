@@ -282,8 +282,8 @@ func (tc sourceEditCase) newWord() string {
 // what `kapi ksed` does through tool.BaseTool's Transform handler.
 func editSourceRuns(b *model.Block, from, to string) bool {
 	edited := false
-	runs := make([]model.Run, len(b.Source))
-	copy(runs, b.Source)
+	runs := make([]model.Run, len(b.SourceRuns()))
+	copy(runs, b.SourceRuns())
 	for i := range runs {
 		if runs[i].Text == nil {
 			continue
@@ -850,11 +850,11 @@ func runTargetEdit(t *testing.T, tc targetSlotCase, edit func(*model.Block, mode
 			continue
 		}
 		if b, ok := res.Part.Resource.(*model.Block); ok && edit != nil {
-			for key := range b.Targets {
-				if key.Locale != tc.locale || len(b.TargetRuns(key.Locale)) == 0 {
+			for _, loc := range b.TargetLocales() {
+				if loc != tc.locale || len(b.TargetRuns(loc)) == 0 {
 					continue
 				}
-				edit(b, key.Locale)
+				edit(b, loc)
 				edits++
 			}
 		}
@@ -958,7 +958,7 @@ func TestTargetSlotAxisCoversEveryFormatWithATargetSlot(t *testing.T) {
 			if res.Part == nil {
 				continue
 			}
-			if b, ok := res.Part.Resource.(*model.Block); ok && len(b.Targets) > 0 {
+			if b, ok := res.Part.Resource.(*model.Block); ok && len(b.TargetLocales()) > 0 {
 				attached = true
 			}
 		}

@@ -1957,10 +1957,34 @@ beside all of them in package-sized PRs.
   `@neokapi/i18n-react` and `@neokapi/contract-types` regenerated; the decision pairing on
   revisions (data reset). The plugin wire keeps its field numbers; the plugin host maps `source` to
   the first native edition and `targets` to the rest.
+- **Inventory:** `make fieldguard` runs `scripts/fieldguard`, which type-checks every module in
+  `go.work` and the plugin modules under `plugins/`, with their tests, under each build
+  configuration that builds one of their files (the host with every test tag, js/wasm, windows,
+  linux without cgo). It counts each identifier outside `core/model` that resolves to
+  `Block.Source`, `Block.Targets`, `Block.SourceStatus`, the type `model.Target`, or a `core/model`
+  function whose signature carries a `Target` (`NewTarget`, `Block.Target`, `Block.SetTarget` and
+  the variant forms), per package and module, non-test and test separately. A field of another type
+  with the same name resolves to a different object and is not counted. `core/plugin/protoconvert`
+  is allowed as the plugin-wire mapping. The target prints the inventory and exits 0; `-v` lists
+  every use and `-format markdown` or `json` renders it for a report. The flip PR drops `-report`,
+  so a remaining use fails, and adds the target to `make lint`, `make pre-push` and CI. On
+  2026-10-03 it counted 372 non-test uses in 113 files across 49 packages, and 759 test uses in 207
+  files across 54 packages.
 - **Acceptance:** no reference to `Block.Source` or `Block.Targets` remains outside the plugin-wire
-  mapping; every suite of every module passes; the content-parity round trip (model, proto, store)
-  holds; okapi-bridge parity passes through the mapping; a same-language channel edition
-  (`en;channel=short`) round-trips; `make l10n` and the KBF consumers in `packages/` pass.
+  mapping (`scripts/fieldguard` without `-report` passes); every suite of every module passes; the
+  content-parity round trip (model, proto, store) holds; okapi-bridge parity passes through the
+  mapping; a same-language channel edition (`en;channel=short`) round-trips; `make l10n` and the
+  KBF consumers in `packages/` pass.
+- **Open, for the flip:**
+  - The script tool's pass-through (`blockToJS` in `core/tools/script.go`) lists
+    `TargetLocales()`, which includes the locale of a tone or channel edition. On a block whose
+    only same-language edition is `en-US;channel=short`, `emit(part)` fails with
+    `set_content refused: stale`; on a block whose only `fr` edition is `fr;tone=formal`, it adds
+    an empty plain `fr` target. Both predate the caller migration. Listing only locale-only
+    targets in `blockToJS` fixes both.
+  - The KBF, xcstrings and Qt TS readers file a translation with no language under the zero key
+    (`SetTargetRuns("")`), and `Block.TargetEdition("")` reads it. The flip decides where such a
+    translation lives, so that the zero key never writes the native edition.
 
 ### WP13. Close-out
 

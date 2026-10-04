@@ -1338,14 +1338,10 @@ const TransUnitIDProperty = model.PropDocumentID
 // buildBlock creates a Block from parsed trans-unit data.
 func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.LocaleID, translatable, preserveWS bool) *model.Block {
 	hasTargetElem := tu.hasTarget
-	block := &model.Block{
-		ID:                 tu.id,
-		Name:               tu.id,
-		Translatable:       translatable,
-		PreserveWhitespace: preserveWS || tu.preserveWS,
-		Properties:         make(map[string]string),
-		Targets:            make(map[model.VariantKey]*model.Target),
-	}
+	block := model.NewRunsBlock(tu.id, nil)
+	block.Name = tu.id
+	block.Translatable = translatable
+	block.PreserveWhitespace = preserveWS || tu.preserveWS
 
 	if tu.resname != "" {
 		block.Name = tu.resname
@@ -1414,7 +1410,7 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			spans[i] = model.Span{ID: seg.mid, Range: model.SpanAnchor(model.RunPos{Run: start}, model.RunPos{Run: len(srcRuns)})}
 			block.SetAnno(segNativeKey(seg.mid), &SegmentNativeAnnotation{Content: nc})
 		}
-		block.Source = srcRuns
+		block.SetSourceRuns(srcRuns)
 		block.SetSegmentation(nil, spans)
 		// Attach body-level native IR for <source>: parsed from the
 		// raw <source> body (which is unsegmented but mirrors the
@@ -1422,18 +1418,18 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		// segments + reasonable separators when <source> wasn't present.
 		block.SetAnno("xliff:source-body", &SourceBodyNativeAnnotation{
 			Content:      parseNativeContent(tu.source),
-			SourceAsRead: model.RunsText(block.Source),
+			SourceAsRead: model.RunsText(block.SourceRuns()),
 		})
 	} else {
 		// Use <source> content. The single segment and the body
 		// annotation cover the same bytes, so parse the native IR once
 		// and share it between both rather than decoding tu.source twice.
 		srcNative := parseNativeContent(tu.source)
-		block.Source = nativeToRuns(srcNative)
+		block.SetSourceRuns(nativeToRuns(srcNative))
 		block.SetAnno(segNativeKey("s1"), &SegmentNativeAnnotation{Content: srcNative})
 		block.SetAnno("xliff:source-body", &SourceBodyNativeAnnotation{
 			Content:      srcNative,
-			SourceAsRead: model.RunsText(block.Source),
+			SourceAsRead: model.RunsText(block.SourceRuns()),
 		})
 		// When we dropped the seg-source segments, also clear the
 		// downstream segmentation hints so the writer doesn't try to

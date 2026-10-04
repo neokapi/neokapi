@@ -551,5 +551,5 @@ func (w *Writer) blockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.Translatable && block.HasTarget(w.Locale) {
 		return model.RenderRunsWithData(block.TargetRuns(w.Locale))
 	}
-	return model.RenderRunsWithData(block.Source)
+	return model.RenderRunsWithData(format.AuthoritativeRuns(block))
 }

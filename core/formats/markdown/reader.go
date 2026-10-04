@@ -1150,7 +1150,7 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	block.Properties["level"] = strconv.Itoa(n.Level)
 	block.SetSemanticRole(model.RoleHeading, n.Level)
 	r.addInlineRuns(block, n, source)
-	if markupOnly(block.Source) {
+	if markupOnly(block.SourceRuns()) {
 		// A heading that is one autolink has nothing to translate: its line
 		// replays from source, and the section it opens stays on the trail.
 		r.blockCounter--
@@ -1371,7 +1371,7 @@ func (r *Reader) emitAdmonition(ctx context.Context, ch chan<- model.PartResult,
 	// constructs inside admonition bodies and excludes their tag
 	// fragments from translation.
 	if runs := admonitionBodyRuns(bodyText); runs != nil {
-		bodyBlock.Source = runs
+		bodyBlock.SetSourceRuns(runs)
 	}
 	// perLineExcess indicates whether any body line carries indent
 	// beyond the outer admonition indent. When every body line sits at
@@ -1613,7 +1613,7 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	block := model.NewBlock(blockID, textContent)
 	block.Name = r.naming.Name(kindParagraph)
 	r.addInlineRuns(block, n, source)
-	if markupOnly(block.Source) {
+	if markupOnly(block.SourceRuns()) {
 		// A paragraph that is one autolink or one entity has nothing to
 		// translate: its bytes replay from source with the gap before the
 		// next block, and its ordinal stays consumed (#2429).
@@ -1759,7 +1759,7 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 			break
 		}
 	}
-	if markupOnly(block.Source) {
+	if markupOnly(block.SourceRuns()) {
 		// An item that is one autolink has nothing to translate: its marker
 		// line replays from source, and its ordinal stays consumed.
 		r.blockCounter--
@@ -1822,7 +1822,7 @@ func (r *Reader) emitListItemMixed(ctx context.Context, ch chan<- model.PartResu
 			block.Properties[BlockPropLinePrefix] = prefix
 		}
 
-		if markupOnly(block.Source) {
+		if markupOnly(block.SourceRuns()) {
 			// A header that is one autolink has nothing to translate: its
 			// marker line replays from source with the next gap.
 			r.blockCounter--
@@ -2944,7 +2944,7 @@ func (r *Reader) addInlineRuns(block *model.Block, node ast.Node, source []byte)
 	idCounter := 0
 	r.buildCodedRuns(b, node, source, &idCounter)
 	if b.HasInlineCodes() {
-		block.Source = b.Runs()
+		block.SetSourceRuns(b.Runs())
 	}
 }
 
@@ -4089,10 +4089,11 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 		return
 	}
 
-	if len(block.Source) == 0 {
+	source := block.SourceRuns()
+	if len(source) == 0 {
 		return
 	}
-	text := model.RunsText(block.Source)
+	text := model.RunsText(source)
 
 	type matchRange struct {
 		start, end int

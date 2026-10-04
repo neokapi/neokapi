@@ -65,9 +65,9 @@ func TestPseudoTranslateTool(t *testing.T) {
 
 	// Pseudo output is a placeholder: it must be stamped `draft`, never
 	// `translated`, so ship-gate coverage never counts it as real translation.
-	tgt := resultBlock.Target("qps")
-	if assert.NotNil(t, tgt) {
-		assert.Equal(t, model.TargetStatusDraft, tgt.Status)
+	tgt, ok := resultBlock.Edition(model.Variant("qps"))
+	if assert.True(t, ok) {
+		assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status)
 		assert.Equal(t, "pseudo-translate", tgt.Origin.Tool)
 	}
 }

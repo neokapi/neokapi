@@ -42,7 +42,7 @@ func NeighbourOf(b *model.Block, loc model.LocaleID) (Neighbour, bool) {
 		return Neighbour{}, false
 	}
 	n := Neighbour{Key: convergence.BlockKey(b), Source: src}
-	if t := b.Target(loc); t != nil {
+	if t, ok := b.TargetEdition(loc); ok {
 		n.Target = t.Runs
 		n.Status = string(t.Status)
 	}

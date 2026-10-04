@@ -33,7 +33,7 @@ func findOMathPh(parts []*model.Part) *model.PlaceholderRun {
 		if !ok {
 			continue
 		}
-		for _, r := range b.Source {
+		for _, r := range b.SourceRuns() {
 			if r.Ph != nil && r.Ph.SubType == SubTypeOMath {
 				return r.Ph
 			}
@@ -95,8 +95,8 @@ func TestOMMLStandaloneSurfaced(t *testing.T) {
 	blk := findFormulaBlock(readFile(t, "testdata/math_block.docx"))
 	require.NotNil(t, blk, "standalone equation should surface as a RoleFormula block")
 	assert.False(t, blk.Translatable, "math is non-translatable")
-	require.Len(t, blk.Source, 1)
-	ph := blk.Source[0].Ph
+	require.Len(t, blk.SourceRuns(), 1)
+	ph := blk.SourceRuns()[0].Ph
 	require.NotNil(t, ph, "the formula block carries an OMML placeholder run")
 	assert.True(t, strings.HasPrefix(ph.Equiv, "$$"), "display math wrapped in $$: %q", ph.Equiv)
 	assert.Contains(t, ph.Disp, `\sum`, "bare LaTeX carries the summation")

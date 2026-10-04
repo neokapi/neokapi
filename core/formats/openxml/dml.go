@@ -446,7 +446,7 @@ func (p *dmlParser) parseParagraph(d *rawDecoder, partPath string, emitBlock fun
 				p.skelWriteEndElement(d)
 
 				block := p.buildBlock(blockID, merged, partPath)
-				if src := dmlSourceForm(d.RangeString(runsStart, runsEnd), block.Source); src != "" {
+				if src := dmlSourceForm(d.RangeString(runsStart, runsEnd), block.SourceRuns()); src != "" {
 					block.Properties[dmlSourceProp] = src
 				}
 				if role, level := p.placeholderRole(); role != "" {
@@ -616,15 +616,11 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 
 	closeActive()
 
-	return &model.Block{
-		ID:           id,
-		Name:         p.paragraphName(partPath),
-		Type:         "paragraph",
-		Translatable: true,
-		Source:       b.Runs(),
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   map[string]string{"partPath": partPath},
-	}
+	block := model.NewRunsBlock(id, b.Runs())
+	block.Name = p.paragraphName(partPath)
+	block.Type = "paragraph"
+	block.Properties["partPath"] = partPath
+	return block
 }
 
 // skelWriteDrawingPropElement writes a <p:cNvPr>/<p:docPr> (or pic:/wps:
@@ -695,18 +691,12 @@ func (p *dmlParser) emitDrawingProp(a xml.Attr, partPath string, emitBlock func(
 		element = propElementDrawingTitle
 	}
 	p.path.ensurePart(partPath)
-	block := &model.Block{
-		ID:           id,
-		Name:         p.path.name("@" + a.Name.Local),
-		Type:         "property",
-		Translatable: false,
-		Source:       []model.Run{{Text: &model.TextRun{Text: a.Value}}},
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties: map[string]string{
-			"partPath": partPath,
-			"element":  element,
-		},
-	}
+	block := model.NewRunsBlock(id, []model.Run{{Text: &model.TextRun{Text: a.Value}}})
+	block.Name = p.path.name("@" + a.Name.Local)
+	block.Type = "property"
+	block.Translatable = false
+	block.Properties["partPath"] = partPath
+	block.Properties["element"] = element
 	// Alt text / object title is descriptive prose for an image or shape;
 	// RoleCaption lets semantic export and the editor identify it without
 	// treating it as MT input.

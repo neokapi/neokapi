@@ -1545,9 +1545,13 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 			// Surface the target's lifecycle status as the segment state, so a
 			// produced XLIFF reports where each unit stands. Scratch-build path
 			// only (this function is never called on the byte-exact round-trip
-			// path), so untouched round-trips are unaffected.
-			if t := block.Target(targetLang); t != nil {
-				if st := xliff2StateFromTargetStatus(t.Status); st != "" {
+			// path), so untouched round-trips are unaffected. TargetEdition
+			// reads the target targetSegsFromBlock writes
+			// (TargetRuns(targetLang)): the one filed under the zero key when
+			// there is no target language, and none for the source language
+			// unless the block holds a same-language target.
+			if t, ok := block.TargetEdition(targetLang); ok {
+				if st := xliff2StateFromTargetStatus(model.TargetStatus(t.Status)); st != "" {
 					segEl.CreateAttr("state", st)
 				}
 			}

@@ -43,7 +43,7 @@ func TestDiffLeverageUnchangedSource(t *testing.T) {
 
 	// An identical source keeps its prior translation as-is: no draft downgrade.
 	// (Coverage falls to the presence baseline of `translated`.)
-	if tgt := resultBlock.Target(model.LocaleFrench); assert.NotNil(t, tgt) {
+	if tgt, ok := resultBlock.Edition(model.Variant(model.LocaleFrench)); assert.True(t, ok) {
 		assert.Empty(t, tgt.Status, "unchanged leverage must not downgrade to draft")
 	}
 }
@@ -114,9 +114,9 @@ func TestDiffLeverageFuzzyMatch(t *testing.T) {
 
 	// The leveraged target rode over onto a changed source, so it needs review:
 	// it must be stamped `draft`, not counted as fully `translated`.
-	tgt := resultBlock.Target(model.LocaleFrench)
-	if assert.NotNil(t, tgt) {
-		assert.Equal(t, model.TargetStatusDraft, tgt.Status)
+	tgt, ok := resultBlock.Edition(model.Variant(model.LocaleFrench))
+	if assert.True(t, ok) {
+		assert.Equal(t, model.Status(model.TargetStatusDraft), tgt.Status)
 	}
 }
 
@@ -298,7 +298,7 @@ func TestDiffLeverageRejectsCodeLoss(t *testing.T) {
 			tl := tools.NewDiffLeverageTool(cfg)
 
 			block := model.NewBlock("tu1", "")
-			block.Source = tc.source
+			block.SetSourceRuns(tc.source)
 			result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 			rb := result.Resource.(*model.Block)
 

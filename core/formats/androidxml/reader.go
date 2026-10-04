@@ -564,15 +564,10 @@ func (r *Reader) emitPlurals(ctx context.Context, ch chan<- model.PartResult,
 // content: visible to ingestion but skipped by MT, with PreserveWhitespace set so
 // its verbatim value is never reflowed.
 func (r *Reader) newBlock(counter int, name string, runs []model.Run, translatable bool) *model.Block {
-	b := &model.Block{
-		ID:           "tu" + strconv.Itoa(counter),
-		Name:         name,
-		Translatable: translatable,
-		SourceLocale: r.docLocale(),
-		Source:       runs,
-		Targets:      make(map[model.VariantKey]*model.Target),
-		Properties:   make(map[string]string),
-	}
+	b := model.NewRunsBlock("tu"+strconv.Itoa(counter), runs)
+	b.Name = name
+	b.Translatable = translatable
+	b.SourceLocale = r.docLocale()
 	if !translatable {
 		b.PreserveWhitespace = true
 	}

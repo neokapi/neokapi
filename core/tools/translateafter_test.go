@@ -33,7 +33,7 @@ func TestTranslateAfterTool_SettlesAndHoldsBelowLevel(t *testing.T) {
 	gt := NewTranslateAfterTool(model.TranslateAfterEstablished)
 	hold(t, gt, b)
 
-	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus, "settled to written")
+	assert.Equal(t, model.SourceStatusWritten, sourceStatus(b), "settled to written")
 	assert.True(t, b.SourceHeld(), "written is below established → held")
 	held, total := gt.Snapshot()
 	assert.Equal(t, 1, held)
@@ -48,7 +48,7 @@ func TestTranslateAfterTool_AdmitsAtLevel(t *testing.T) {
 	gt := NewTranslateAfterTool(model.TranslateAfterWritten)
 	hold(t, gt, b)
 
-	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
+	assert.Equal(t, model.SourceStatusWritten, sourceStatus(b))
 	assert.False(t, b.SourceHeld(), "clean source reaches the written level; the stale hold is cleared")
 	held, _ := gt.Snapshot()
 	assert.Equal(t, 0, held)
@@ -61,7 +61,7 @@ func TestTranslateAfterTool_NoneIsPassthrough(t *testing.T) {
 	gt := NewTranslateAfterTool(model.TranslateAfterNone)
 	hold(t, gt, b)
 
-	assert.Equal(t, model.SourceStatusNew, b.SourceStatus, "none never settles")
+	assert.Equal(t, model.SourceStatusNew, sourceStatus(b), "none never settles")
 	assert.False(t, b.SourceHeld())
 	held, total := gt.Snapshot()
 	assert.Equal(t, 0, held)
@@ -76,7 +76,7 @@ func TestTranslateAfterTool_WhitespaceHeldAtWritten(t *testing.T) {
 	gt := NewTranslateAfterTool(model.TranslateAfterWritten)
 	hold(t, gt, b)
 
-	assert.Equal(t, model.SourceStatusNew, b.SourceStatus, "a major source finding keeps it unsettled")
+	assert.Equal(t, model.SourceStatusNew, sourceStatus(b), "a major source finding keeps it unsettled")
 	assert.True(t, b.SourceHeld())
 }
 
@@ -125,7 +125,7 @@ type staticMemoryProvider map[string]string
 func (m staticMemoryProvider) Lookup(_ context.Context, req corememory.Request) (corememory.Match, bool) {
 	key := req.Text
 	if req.Block != nil {
-		key = model.FlattenRuns(req.Block.Source)
+		key = model.FlattenRuns(req.Block.SourceRuns())
 	}
 	t, ok := m[key]
 	if !ok {
@@ -150,4 +150,10 @@ func TestTranslateAfterFromConfig_RefusesAnUnknownLevel(t *testing.T) {
 	tl, err := NewTranslateAfterFromConfig(map[string]any{}, "")
 	require.NoError(t, err)
 	assert.NotNil(t, tl)
+}
+
+// sourceStatus is the status of the edition b was read in.
+func sourceStatus(b *model.Block) model.SourceStatus {
+	src, _ := b.Edition(model.EditionKey{})
+	return model.SourceStatus(src.Status)
 }

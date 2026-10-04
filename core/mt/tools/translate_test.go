@@ -101,8 +101,8 @@ func TestMTTranslateToolStampsGovernance(t *testing.T) {
 	block := model.NewBlock("tu1", "Hello World")
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 
-	tgt := result.Resource.(*model.Block).Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
+	tgt, ok := result.Resource.(*model.Block).Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
 	assert.Equal(t, model.OriginMT, tgt.Origin.Kind)
 	assert.Equal(t, "test-mt", tgt.Origin.Engine)
 	assert.Equal(t, "end-user-help", tgt.Origin.Profile)
@@ -124,8 +124,8 @@ func TestMTTranslateToolUngovernedHasNoFingerprint(t *testing.T) {
 	block := model.NewBlock("tu1", "Hello World")
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 
-	tgt := result.Resource.(*model.Block).Target(model.LocaleFrench)
-	require.NotNil(t, tgt)
+	tgt, ok := result.Resource.(*model.Block).Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
 	assert.Equal(t, model.OriginMT, tgt.Origin.Kind)
 	assert.Empty(t, tgt.Origin.Profile)
 	assert.Empty(t, tgt.Origin.ProfileVersion)

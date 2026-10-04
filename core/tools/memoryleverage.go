@@ -299,9 +299,9 @@ func recordWholeBlockMatch(v tool.VariantView, conf *MemoryLeverageConfig, trans
 	// entries stored without inline codes; the structure-aware path above is
 	// the one that classifies.
 	if shouldFillTarget(conf, v, score, "") && !fillWouldDropCodes(v, targetRuns) && !fillBreaksTermRules(conf, v, targetRuns) {
-		v.SetTarget(conf.TargetLocale, &model.Target{
+		v.SetEdition(model.Variant(conf.TargetLocale), model.Edition{
 			Runs:   targetRuns,
-			Status: model.TargetStatusDraft,
+			Status: model.Status(model.TargetStatusDraft),
 			Origin: conf.recycleOrigin(),
 			Score:  float64(score) / 100,
 		})
@@ -442,9 +442,9 @@ func leverageBlock(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 		v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
 		return false
 	}
-	v.SetTarget(conf.TargetLocale, &model.Target{
+	v.SetEdition(model.Variant(conf.TargetLocale), model.Edition{
 		Runs:   targetRuns,
-		Status: model.TargetStatusDraft,
+		Status: model.Status(model.TargetStatusDraft),
 		Origin: conf.recycleOrigin(),
 		Score:  float64(m.Score) / 100,
 	})
@@ -633,12 +633,12 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 	// source has. Filling it would drop them (see fillWouldDropCodes); the
 	// segment matches stay recorded as alt-translations either way.
 	if shouldFillTarget(conf, v, minScore, "") && !fillWouldDropCodes(v, assembled) && !fillBreaksTermRules(conf, v, assembled) {
-		// Commit a real Target carrying provenance and score, not an opaque
+		// Commit a target edition carrying provenance and score, not an opaque
 		// string: a content memory pre-fill is a reviewable draft assembled from segment
 		// matches, so a reviewer/tool can see it came from content memory and at what score.
-		v.SetTarget(conf.TargetLocale, &model.Target{
+		v.SetEdition(model.Variant(conf.TargetLocale), model.Edition{
 			Runs:   assembled,
-			Status: model.TargetStatusDraft,
+			Status: model.Status(model.TargetStatusDraft),
 			Origin: conf.recycleOrigin(),
 			Score:  float64(minScore) / 100,
 		})

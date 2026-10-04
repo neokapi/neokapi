@@ -87,7 +87,7 @@ func TestDMLSourceForm_MergedRunsReachTheModelAsOne(t *testing.T) {
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Tworows", blocks[0].SourceText())
 	texts := 0
-	for _, r := range blocks[0].Source {
+	for _, r := range blocks[0].SourceRuns() {
 		if r.Text != nil {
 			texts++
 		}
