@@ -105,9 +105,9 @@ KBF is also the internal content representation the pipeline operates on.
 | `Document`                       | `<file>`                                                                                    | One source artifact's worth of content.                                                                               |
 | (no structural grouping)         | `<group>`                                                                                   | XLIFF can nest `<group>`s for hierarchy; KBF blocks are flat within a `Document`.                                     |
 | `Block`                          | `<unit>`                                                                                    | What translation tracking follows.                                                                                     |
-| `source` `Run[]`                 | `<segment><source>` content                                                                 | KBF has no structural segment; XLIFF wraps source/target in one or more structural `<segment>`s per `<unit>`.         |
-| `targets` map (locale → `Run[]`) | `<segment><target>`                                                                         | **KBF holds many target locales in one file; XLIFF is bilingual: one `trgLang` per document.**                        |
-| (no per-target state)            | `<segment state>`                                                                           | XLIFF tracks `initial` → `translated` → `reviewed` → `final` (+ `subState`); KBF has no segment state machine.        |
+| source edition (`editions[""]`)  | `<segment><source>` content                                                                 | KBF has no structural segment; XLIFF wraps source/target in one or more structural `<segment>`s per `<unit>`.         |
+| `editions` map (key → `Edition`) | `<segment><target>`                                                                         | **KBF holds every edition in one file: many languages, and tone or channel editions of one; XLIFF is bilingual: one `trgLang` per document.** |
+| edition `status`                 | `<segment state>`                                                                           | KBF records one state per edition (`draft` → `translated` → `established`); XLIFF one per segment (`initial` → `translated` → `reviewed` → `final`, + `subState`). |
 | `text` run                       | character data                                                                              |                                                                                                                       |
 | `ph` run                         | `<ph>` (standalone code)                                                                    | KBF carries the original token inline in `data`; XLIFF references native data via `<originalData>`/`dataRef`.         |
 | `pcOpen` / `pcClose`             | `<pc>` (or `<sc>` / `<ec>`)                                                                 | A paired code wrapping content. XLIFF distinguishes well-formed `<pc>` from overlapping `<sc>`/`<ec>` spans.          |
@@ -158,9 +158,9 @@ disturb them and a validator can detect orphaned anchors. XLIFF expresses
 annotations inline with `<mrk>`/`<sm>`/`<em>` and through the Metadata module,
 interleaved with the content.
 
-**Multi-target.** A single KBF file can hold translations for many locales in
-each block's `targets` map. XLIFF is bilingual by design: a document declares one
-`srcLang` and one `trgLang`.
+**Multi-target.** A single KBF file can hold translations for many locales, and
+tone or channel editions of one language, in each block's `editions` map. XLIFF
+is bilingual by design: a document declares one `srcLang` and one `trgLang`.
 
 ## Where XLIFF is the stronger choice
 
@@ -173,8 +173,8 @@ where it is the better tool:
   to a human translation supply chain means XLIFF.
 - **A translation workflow state machine.** XLIFF's per-segment `state`
   (`initial` → `translated` → `reviewed` → `final`) plus `subState` models the
-  lifecycle of a translation through review. KBF has no notion of target state;
-  it records content rather than workflow position.
+  lifecycle of a translation through review, segment by segment. KBF records
+  one coarser `status` per edition and carries no review sub-states.
 - **Inline memory and MT match suggestions.** The **Translation Candidates**
   module carries scored translation suggestions (`<mtc:matches>`) right next to
   the block they apply to. KBF has no inline match-candidate representation;

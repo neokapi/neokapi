@@ -1093,7 +1093,7 @@ they read from the document. `NativeEditions()` returns the list as `EditionKeys
 keys. `Derivation` is the pairing C-04 records per decision, moved onto the edition so staleness
 can be read from the content itself; the decision pairing on revisions sets it (WP14, open).
 
-A translation a reader files under no language (a KBF bundle's `""` target, an xcstrings
+A translation a reader files under no language (a KBF bundle's `unlabelled` edition, an xcstrings
 localization keyed by the empty string, the translation of a Qt TS file that names no language)
 has no key of its own, because the zero key names the document's own edition. It sits apart from
 `Editions`: `TargetEdition("")` and the other target accessors given the empty locale read and
@@ -1146,7 +1146,7 @@ package alongside WP2 to WP11; the storage flip and the renames land after WP11 
 The flip touched 1,248 type-checked non-test uses in 260 files across 84 packages, about 629
 test files, the canonical proto, KBF, about 79 TypeScript files and the Bowrain DTOs (main-model
 §6.1, measured with a type-checked scanner). It runs in this order (engine-first phase 3), and
-steps 1 to 4 are done:
+steps 1 to 5 are done:
 
 1. Add accessors on `Block` (`Edition(k)`, `SetEdition`, `Editions()`, `Authoritative(policy)`)
    implemented over `Source` and `Targets`.
@@ -1159,8 +1159,13 @@ steps 1 to 4 are done:
    through a tool that resolves every reference under every build configuration the repository
    builds in, then counts the new name's references against the old one's, so a declaration that
    captured part of a rename would fail it.
-5. KBF moves to a v2 schema with editions (it is read by the npm `@neokapi/i18n-react`);
-   `@neokapi/contract-types` is regenerated.
+5. KBF carries editions in schema 2.0 (it is read by the npm `@neokapi/i18n-react`): a block's
+   `editions` map holds the source under the empty key and every other edition, tone and channel
+   editions included, under its key text, each with `status`, `origin`, `score` and `derived`;
+   a translation filed under no language rides as `unlabelled`. Readers in Go (`core/kbf`) and
+   TypeScript (`@neokapi/kapi-format`) take schema 1.0 as well and read it as the editions it
+   describes, and writers write 2.0; a block row in the project block cache decodes from either
+   shape. `@neokapi/contract-types` is regenerated with no change, because it carries no KBF type.
 
 The plugin wire does not move. `BlockMessage.source/targets` has frozen field numbers and the Java
 okapi-bridge compiles it in 7 files (main-model §6.1). The plugin host maps `source` to the first
@@ -2054,8 +2059,8 @@ beside all of them in package-sized PRs.
   `VariantKey` to `EditionKey` and `Target` to `Edition` by a type-checked rename; KBF v2 with
   `@neokapi/i18n-react` and `@neokapi/contract-types` regenerated; the decision pairing on
   revisions (data reset). The plugin wire keeps its field numbers; the plugin host maps `source`
-  to the first native edition and `targets` to the rest. Done: everything but KBF v2 and the
-  decision pairing, which start from the flip.
+  to the first native edition and `targets` to the rest. Done: everything but the decision
+  pairing, which starts from the flip.
 - **Gate:** `make fieldguard` runs `scripts/fieldguard`, which type-checks every module in
   `go.work` and the plugin modules under `plugins/`, with their tests, under each build
   configuration that builds one of their files (the host with every test tag, js/wasm, windows,
@@ -2072,10 +2077,10 @@ beside all of them in package-sized PRs.
   every suite of every module passes; the content-parity round trip (model, proto, store) holds,
   the kitchen-sink block carrying `en;channel=short`; okapi-bridge parity passes through the
   mapping; a same-language channel edition round-trips through the model, the plugin wire, both
-  sync wires, the PostgreSQL and SQLite stores, the document cache and the change service. A KBF
-  bundle in the v1 schema keys a target by language alone, so it writes no source-language target
-  for a channel edition and carries none (KBF v2); `make l10n` and the KBF consumers in
-  `packages/` pass.
+  sync wires, the PostgreSQL and SQLite stores, the document cache, the change service and a KBF
+  bundle, which carries it under its own key beside the source and writes no plain target in the
+  source language for it; a bundle in schema 1.0 reads as the editions it describes; `make l10n`
+  and the KBF consumers in `packages/` pass.
 - **Settled by the flip:**
   - The script tool's `blockToJS` lists only the editions with no tone and no channel that the
     target accessors reach, so a pass-through script keeps `en-US;channel=short` and
@@ -2093,9 +2098,20 @@ beside all of them in package-sized PRs.
   - `Block.FileTargetAsSpelled` is gone; a test writes `b.Editions[key]` directly.
   - The comments that named `model.Target` name `model.Edition`, the Bowrain desktop bindings
     follow, and the model diagram story draws `Editions` and `Native`.
+- **Settled by KBF v2:**
+  - The KBF format reader files every edition a bundle holds on the block, marked native, with its
+    status, origin, score and derivation, and the writer writes every edition the block holds; the
+    v1 boundary mapping (locale-only targets, the annotation's copy of a `""` target) is gone, and
+    a block from another format keeps its translation filed under no language.
+  - The Bowrain block-store projection (`toKBF`, `fromKBF`) carries every edition under its key,
+    so a tone or channel edition keeps a key of its own beside its language's plain edition.
+  - `neokapi-i18n compile` infers the languages to emit from language-only edition keys; a tone
+    or channel edition compiles only when `--locale` names it. The review store writes an edited
+    catalog back in schema 2.0.
+  - The Go and TypeScript serializers write the same bytes for every edition shape and for a
+    schema 1.0 file (`packages/kapi-format/tests/editions.test.ts` over the format fixtures,
+    `make kbf-smoke`, the `/kbf-tests` conformance page).
 - **Open after the flip:**
-  - KBF v2 carries editions with a tone or a channel, and the v1 reader's mapping at the boundary
-    goes with it.
   - The decision pairing on revisions sets `Edition.Derived`. The sync wires and the stores do not
     carry `Derived` yet, and `Native` stays process-local by design (the kitchen-sink guard lists
     it as derived: a reader records it each time it reads the file).
