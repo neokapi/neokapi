@@ -199,7 +199,7 @@ func countTranslated(t *testing.T, f *billingWorkerFixture, locale model.LocaleI
 	require.NoError(t, err)
 	n := 0
 	for _, b := range blocks {
-		if b.Block.Target(locale) != nil {
+		if _, ok := b.Block.Edition(model.Variant(locale)); ok {
 			n++
 		}
 	}
