@@ -124,9 +124,9 @@ func editChapter(t *testing.T, data []byte, edit func(*model.Block)) string {
 func TestSpineItemKeepsItsInlineMarkup(t *testing.T) {
 	sub := func(from, to string) func(*model.Block) {
 		return func(b *model.Block) {
-			text := model.RunsEditText(b.Source)
+			text := model.RunsEditText(b.SourceRuns())
 			if edited := strings.ReplaceAll(text, from, to); edited != text {
-				b.EditSourceRuns(model.ParseRunsEditText(edited, b.Source))
+				b.EditSourceRuns(model.ParseRunsEditText(edited, b.SourceRuns()))
 			}
 		}
 	}

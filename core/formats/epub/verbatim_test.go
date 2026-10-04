@@ -174,8 +174,8 @@ func TestVerbatim_DefaultSurfacesContentBlocks(t *testing.T) {
 		assert.True(t, b.PreserveWhitespace, "verbatim block must preserve whitespace")
 		assert.Equal(t, model.RoleCode, b.SemanticRole(), "verbatim block role")
 		// Single verbatim run, not inline-parsed.
-		require.Len(t, b.Source, 1)
-		require.NotNil(t, b.Source[0].Text)
+		require.Len(t, b.SourceRuns(), 1)
+		require.NotNil(t, b.SourceRuns()[0].Text)
 	}
 
 	bodies := []string{nt[0].SourceText(), nt[1].SourceText()}

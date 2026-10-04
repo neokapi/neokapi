@@ -242,8 +242,8 @@ func TestNonTranslatable_OPFMetadata(t *testing.T) {
 	require.NotNil(t, title)
 	assert.False(t, title.Translatable)
 	assert.Equal(t, model.RoleTitle, title.SemanticRole())
-	require.Len(t, title.Source, 1, "single verbatim run, not inline-parsed")
-	require.NotNil(t, title.Source[0].Text)
+	require.Len(t, title.SourceRuns(), 1, "single verbatim run, not inline-parsed")
+	require.NotNil(t, title.SourceRuns()[0].Text)
 
 	// dc:identifier / dc:language never surface as blocks.
 	for _, p := range parts {
