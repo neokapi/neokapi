@@ -154,10 +154,10 @@ func TestOverlayWrite_EveryReaderSeesTheTarget(t *testing.T) {
 			})
 			require.NoError(t, err)
 			require.Len(t, rows, 1)
-			target := rows[0].Block.Target("fr")
-			require.NotNil(t, target, "block came back with no fr target")
+			target, ok := rows[0].Block.Edition(model.Variant("fr"))
+			require.True(t, ok, "block came back with no fr target")
 			require.Equal(t, "Bonjour", model.RunsText(target.Runs))
-			require.Equal(t, model.TargetStatusTranslated, target.Status)
+			require.Equal(t, model.Status(model.TargetStatusTranslated), target.Status)
 			require.Equal(t, "mt", target.Origin.Kind)
 		})
 
@@ -242,13 +242,14 @@ func TestEditorWrite_OverlayReadSeesTheTarget(t *testing.T) {
 		got, err := sess.GetOverlay("targets/de", block.ContentHash)
 		require.NoError(t, err, "the editor's target is invisible to the overlay read")
 
-		var target model.Target
+		var target blockstore.TargetOverlay
 		require.NoError(t, json.Unmarshal(got.Payload, &target))
 		require.Len(t, target.Runs, 2, "the target came back without its placeholder")
 		require.Equal(t, "Hallo ", target.Runs[0].Text.Text)
 		require.NotNil(t, target.Runs[1].Ph)
 		require.Equal(t, "{name}", target.Runs[1].Ph.Equiv)
-		require.Equal(t, model.TargetStatusEstablished, target.Status)
+		require.Equal(t, string(model.TargetStatusEstablished), target.Status)
+		require.NotNil(t, target.Origin)
 		require.Equal(t, model.OriginHuman, target.Origin.Kind)
 
 		// And the listing agrees with the single read, under the key the block
