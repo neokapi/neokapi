@@ -1237,6 +1237,14 @@ jobs:
       - name: "Guard: the release casks carry no install hook or retired vocabulary"
         run: ./scripts/check-cask-heredocs.sh
 
+      # The one guard here that type-checks Go: every module, with its tests,
+      # under every build configuration that builds a file of it.
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          cache-flavor: plain
+      - name: "Guard: only core/model reaches a block's edition storage"
+        run: make fieldguard
+
       # The gate itself runs only in the nightly convergence, where nothing
       # exercises it on a pull request. Its self-test does: it drives the real
       # classification against real scratch repositories, so a change to the
