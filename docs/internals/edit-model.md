@@ -2060,6 +2060,14 @@ beside all of them in package-sized PRs.
     state a direct write to the storage leaves, for the tests of consumers that must cope with it.
     `make fieldguard` fails on a call to it outside a test. The flip removes it: a test then
     writes `b.Editions[key]` directly.
+  - `gopls rename` changes identifiers, and comments that name the type in plain text, in Go and
+    in TypeScript, keep the old name. Under `bowrain/`, `apps/` and `packages/`,
+    `git grep -nP '\bmodel\.Target\b|\bTarget\.Status\b'` listed 24 such comments in 17 files on
+    2026-10-04, each describing the review status of a locale's translation. The one in
+    `bowrain/apps/bowrain/backend/project.go` is copied into the Bowrain desktop bindings, so
+    `make wails-bindings` follows the sweep. The model diagram story in
+    `packages/docs-shared/src/diagram/Diagrams.stories.tsx` draws `Source` and `Targets` as the
+    block's fields.
 
 ### WP13. Close-out
 
