@@ -76,6 +76,35 @@ func TestStore_Capabilities(t *testing.T) {
 	}
 }
 
+// A block with an edition under a key the model cannot hold is refused, and the
+// store holds nothing for it: storing the rest would drop that edition, or file
+// it over the plain Norwegian one.
+func TestSession_PutBlockRefusesAnEditionKeyItCannotHold(t *testing.T) {
+	ctx := context.Background()
+	bs, cs, projectID := newTestStore(t)
+	sess, err := bs.Begin(ctx)
+	require.NoError(t, err)
+	defer sess.Close()
+
+	block := &blockstore.Block{
+		ID:           "login",
+		Translatable: true,
+		Type:         kbf.BlockTypeJSXElement,
+		Editions: map[string]kbf.Edition{
+			kbf.SourceEdition:  {Runs: []kbf.Run{{Text: &kbf.TextRun{Text: "Log in"}}}},
+			"nb":               {Runs: []kbf.Run{{Text: &kbf.TextRun{Text: "Logg inn"}}}},
+			"nb;audience=kids": {Runs: []kbf.Run{{Text: &kbf.TextRun{Text: "Hopp inn"}}}},
+		},
+	}
+	err = sess.PutBlock("", block)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `"nb;audience=kids"`)
+
+	rows, err := cs.GetBlocks(ctx, platstore.BlockQuery{ProjectID: projectID, Stream: "main"})
+	require.NoError(t, err)
+	require.Empty(t, rows)
+}
+
 func TestSession_PutGetBlock(t *testing.T) {
 	ctx := context.Background()
 	bs, _, _ := newTestStore(t)

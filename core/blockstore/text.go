@@ -31,7 +31,9 @@ type BlockText struct {
 // BlockTexts returns the block's plain text per edition: the source first, then
 // each other edition that carries any, in the order of its key. Empty texts are
 // omitted: there is nothing to index or search in them. A translation filed
-// under no language has no key to be found under, so it is not among them.
+// under no language has no key to be found under, so it is not among them, and
+// neither is an edition under a key kbf.ReadKey refuses: the key its text would
+// shorten to belongs to another edition, whose text it would be filed beside.
 //
 // This is the one definition of "the text of a block" the search index, the
 // in-memory scan and the occurrence query all share, so a match found by one is
@@ -46,9 +48,13 @@ func BlockTexts(b *Block) []BlockText {
 		out = append(out, BlockText{Locale: SourceLocale, Text: src})
 	}
 	for _, key := range keys {
+		ek, err := kbf.ReadKey(key)
+		if err != nil {
+			continue
+		}
 		if txt := model.FlattenRuns(b.Editions[key].Runs); txt != "" {
 			// Canonical, the form every locale filter asks in.
-			out = append(out, BlockText{Locale: kbf.KeyText(kbf.ParseKey(key)), Text: txt})
+			out = append(out, BlockText{Locale: kbf.KeyText(ek), Text: txt})
 		}
 	}
 	return out
@@ -85,7 +91,9 @@ func (o TextSearchOptions) Wants(locale string) bool {
 // CanonicalLocales returns the locale filter with every entry in canonical
 // form, the form BlockTexts files a text under: a locale normalized, and an
 // edition key with a tone or a channel in its canonical text form. Nil stays
-// nil (no filter) and the source key stays the empty string.
+// nil (no filter) and the source key stays the empty string. An entry
+// kbf.ReadKey refuses is kept as given, so it matches no text rather than the
+// shorter key it would read as.
 func (o TextSearchOptions) CanonicalLocales() []string {
 	if o.Locales == nil {
 		return nil
@@ -93,7 +101,10 @@ func (o TextSearchOptions) CanonicalLocales() []string {
 	out := make([]string, len(o.Locales))
 	for i, l := range o.Locales {
 		if strings.Contains(l, ";") {
-			out[i] = kbf.KeyText(kbf.ParseKey(l))
+			out[i] = l
+			if ek, err := kbf.ReadKey(l); err == nil {
+				out[i] = kbf.KeyText(ek)
+			}
 			continue
 		}
 		out[i] = string(model.NormalizeLocale(model.LocaleID(l)))
@@ -126,7 +137,10 @@ type TextHit struct {
 	// API, which carries no collection, so it reports only the collection the
 	// search was filtered to — empty when it was not filtered.
 	Collection string
-	// Locale is SourceLocale for source text, or the target locale id.
+	// Locale is SourceLocale for source text, or the edition key the text was
+	// filed under (BlockText.Locale): a locale id, with a tone or a channel
+	// where the edition has one ("nb", "nb;tone=formal"). The language is the
+	// part before the first ';'.
 	Locale string
 	// Text is the matched text, verbatim.
 	Text string

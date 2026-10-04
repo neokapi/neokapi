@@ -58,13 +58,19 @@ func toKBF(sb *venue.StoredBlock) *kbf.Block {
 // the block was read in and every other edition filed under its key
 // (kbf.Block.FileEditions), sufficient for the overlay-at-a-time
 // read/write pattern the blockstore.Store API exposes.
-func fromKBF(b *kbf.Block) *model.Block {
+//
+// A block holding an edition under a key the model cannot hold is
+// refused: the ContentStore keeps model editions only, so storing the
+// rest of the block would lose that edition without a word.
+func fromKBF(b *kbf.Block) (*model.Block, error) {
 	if b == nil {
-		return nil
+		return nil, nil
 	}
 	mb := model.NewRunsBlock(b.ID, append([]model.Run(nil), b.SourceRuns()...))
 	mb.Translatable = b.Translatable
 	mb.Type = string(b.Type)
-	b.FileEditions(mb)
-	return mb
+	if err := b.FileEditions(mb); err != nil {
+		return nil, err
+	}
+	return mb, nil
 }

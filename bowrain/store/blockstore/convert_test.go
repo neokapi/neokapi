@@ -53,10 +53,27 @@ func TestToKBF_CarriesASameLanguageChannelEdition(t *testing.T) {
 	assert.Equal(t, "Save", model.RunsText(k.SourceRuns()))
 	assert.Equal(t, map[string]string{"en;channel=short": "Sv.", "fr": "Enregistrer"}, editionTexts(k))
 
-	back := fromKBF(k)
+	back, err := fromKBF(k)
+	require.NoError(t, err)
 	back.SourceLocale = "en"
 	assert.Equal(t, []model.EditionKey{{Locale: "en"}, short, {Locale: "fr"}}, back.EditionKeys(),
 		"the channel edition comes back under its key, and no same-language edition appears")
+}
+
+// A block holding an edition under a key the model cannot hold is refused
+// whole, so the store never keeps the rest of it and drops that edition, and
+// never files it over the edition its key would shorten to.
+func TestFromKBF_RefusesAnEditionKeyTheModelCannotHold(t *testing.T) {
+	k := &kbf.Block{ID: "save", Editions: map[string]kbf.Edition{
+		kbf.SourceEdition:  {Runs: []kbf.Run{{Text: &kbf.TextRun{Text: "Save"}}}},
+		"nb":               {Runs: []kbf.Run{{Text: &kbf.TextRun{Text: "Lagre"}}}},
+		"nb;audience=kids": {Runs: []kbf.Run{{Text: &kbf.TextRun{Text: "Lagre det"}}}},
+	}}
+	mb, err := fromKBF(k)
+	require.Error(t, err)
+	assert.Nil(t, mb)
+	assert.Contains(t, err.Error(), `"nb;audience=kids"`)
+	assert.Contains(t, err.Error(), `"audience"`)
 }
 
 // editionTexts is the text of every edition of a projection but the source,

@@ -283,7 +283,8 @@ func TestEditionsCarryEveryEditionOfTheModel(t *testing.T) {
 	assert.Equal(t, "EMPTYLOC", model.RunsText(unlabelled.Runs))
 	assert.Equal(t, "established", editions[SourceEdition].Status)
 	assert.Equal(t, model.OriginOCR, editions[SourceEdition].Origin.Kind)
-	assert.Equal(t, &Derivation{From: "en", Rev: "r:01"}, editions["en;channel=short"].Derived)
+	assert.Equal(t, &Derivation{From: SourceEdition, Rev: "r:01"}, editions["en;channel=short"].Derived,
+		"a derivation from the source names it by the empty key, whatever the model calls it")
 
 	// Through the wire and back onto a fresh block.
 	kb := Block{ID: "b", Editions: editions, Unlabelled: unlabelled}
@@ -294,7 +295,7 @@ func TestEditionsCarryEveryEditionOfTheModel(t *testing.T) {
 
 	back := model.NewRunsBlock("b", read.SourceRuns())
 	back.SourceLocale = "en"
-	read.FileEditions(back)
+	require.NoError(t, read.FileEditions(back))
 
 	src, _ := back.Edition(model.EditionKey{})
 	assert.Equal(t, model.Status("established"), src.Status)
@@ -305,7 +306,10 @@ func TestEditionsCarryEveryEditionOfTheModel(t *testing.T) {
 	gotShort, ok := back.Edition(short)
 	require.True(t, ok)
 	assert.Equal(t, "Sign", model.RunsText(gotShort.Runs))
-	assert.Equal(t, &model.Derivation{From: model.Variant("en"), Rev: "r:01"}, gotShort.Derived)
+	require.NotNil(t, gotShort.Derived)
+	assert.Equal(t, &model.Derivation{From: model.EditionKey{}, Rev: "r:01"}, gotShort.Derived,
+		"the empty key reads back as the zero key")
+	assert.True(t, back.IsSourceEdition(gotShort.Derived.From))
 	gotFormal, ok := back.Edition(formal)
 	require.True(t, ok)
 	assert.Equal(t, "Connectez-vous", model.RunsText(gotFormal.Runs))
@@ -326,9 +330,112 @@ func TestFileEditionsSettlesTwoSpellingsOfOneLocaleTheSameWay(t *testing.T) {
 	}}
 	for range 20 {
 		mb := model.NewRunsBlock("b", kb.SourceRuns())
-		kb.FileEditions(mb)
+		require.NoError(t, kb.FileEditions(mb))
 		assert.Equal(t, "underscore", mb.TargetText("nb-NO"))
 	}
+}
+
+func TestReadKey(t *testing.T) {
+	for _, tc := range []struct {
+		text string
+		want model.EditionKey
+	}{
+		{"", model.EditionKey{}},
+		{"nb", model.EditionKey{Locale: "nb"}},
+		{"nb_NO", model.EditionKey{Locale: "nb-NO"}},
+		{"qps", model.EditionKey{Locale: "qps"}},
+		{"fr;tone=formal", model.EditionKey{Locale: "fr", Tone: "formal"}},
+		{"en;channel=short", model.EditionKey{Locale: "en", Channel: "short"}},
+		{"fr;channel=short;tone=formal", model.EditionKey{Locale: "fr", Tone: "formal", Channel: "short"}},
+	} {
+		got, err := ReadKey(tc.text)
+		require.NoError(t, err, tc.text)
+		assert.Equal(t, tc.want, got, tc.text)
+	}
+	for text, reason := range map[string]string{
+		"nb;audience=kids":           `dimension this build does not read: "audience"`,
+		";x=y":                       "names no language",
+		";tone=formal":               "names no language",
+		"nb;tone=":                   "is not name=value",
+		"nb;tone":                    "is not name=value",
+		"nb;tone=formal;tone=casual": "names its tone twice",
+		"nb;channel=a;channel=b":     "names its channel twice",
+	} {
+		_, err := ReadKey(text)
+		require.Error(t, err, text)
+		assert.Contains(t, err.Error(), reason, text)
+	}
+}
+
+// A key with a dimension this build does not read (a later minor of the schema
+// could add one) is left off the model. Read leniently it would be the plain
+// edition of its language, and the one that sorts last would replace the
+// other; `;x=y` would be the source.
+func TestFileEditionsLeavesAKeyItCannotRead(t *testing.T) {
+	kb := Block{ID: "b", Editions: map[string]Edition{
+		SourceEdition:      {Runs: []Run{{Text: &TextRun{Text: "Log in"}}}},
+		"nb":               {Runs: []Run{{Text: &TextRun{Text: "Logg inn"}}}},
+		"nb;audience=kids": {Runs: []Run{{Text: &TextRun{Text: "Hopp inn"}}}},
+		";x=y":             {Runs: []Run{{Text: &TextRun{Text: "junk"}}}},
+	}}
+	mb := model.NewRunsBlock("b", kb.SourceRuns())
+	err := kb.FileEditions(mb)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"nb;audience=kids"`)
+	assert.Contains(t, err.Error(), `";x=y"`)
+
+	assert.Equal(t, "Logg inn", mb.TargetText("nb"), "the plain edition keeps its own text")
+	assert.Equal(t, "Log in", mb.SourceText(), "the source keeps its own text")
+	assert.Equal(t, []model.EditionKey{{}, {Locale: "nb"}}, mb.EditionKeys(), "nothing else is filed")
+
+	assert.Equal(t, map[string]Edition{
+		"nb;audience=kids": kb.Editions["nb;audience=kids"],
+		";x=y":             kb.Editions[";x=y"],
+	}, kb.UnreadEditions())
+	assert.Nil(t, peerBlock().UnreadEditions())
+}
+
+// A derivation from the source names it by the empty key on the wire. With a
+// same-language edition beside the source, the language names that edition,
+// and a derivation from it keeps the language.
+func TestEditionsOfNamesTheSourceByTheEmptyKey(t *testing.T) {
+	derivedFrom := func(mb *model.Block, from model.EditionKey) string {
+		mb.SetEdition(model.EditionKey{Locale: "en", Channel: "short"}, model.Edition{
+			Runs:    []model.Run{model.TextR("Sign")},
+			Derived: &model.Derivation{From: from, Rev: model.EditionRevision(mb, from)},
+		})
+		editions, _ := EditionsOf(mb)
+		d := editions["en;channel=short"].Derived
+		require.NotNil(t, d)
+		return d.From
+	}
+
+	mb := model.NewRunsBlock("b", []model.Run{model.TextR("Sign in")})
+	mb.SourceLocale = "en"
+	assert.Equal(t, SourceEdition, derivedFrom(mb, mb.Authoritative(model.AuthorityPolicy{})))
+	assert.Equal(t, SourceEdition, derivedFrom(mb, model.EditionKey{}))
+
+	same := model.NewRunsBlock("b", []model.Run{model.TextR("Sign in")})
+	same.SourceLocale = "en"
+	same.SetTargetEdition(model.Variant("en"), model.Edition{Runs: []model.Run{model.TextR("Sign in, please")}})
+	assert.Equal(t, "en", derivedFrom(same, model.Variant("en")), "the same-language edition keeps its key")
+	assert.Equal(t, SourceEdition, derivedFrom(same, model.EditionKey{}))
+}
+
+// The source carries no score, and an edition with a status and no runs is
+// left out: what the bundle documents for both.
+func TestEditionsOfWritesNoSourceScoreAndNoEmptyEdition(t *testing.T) {
+	kb := Block{ID: "b", Editions: map[string]Edition{
+		SourceEdition: {Runs: []Run{{Text: &TextRun{Text: "Sign in"}}}, Status: "established", Score: 0.5},
+		"nb":          {Runs: []Run{}, Status: "draft"},
+	}}
+	mb := model.NewRunsBlock("b", kb.SourceRuns())
+	require.NoError(t, kb.FileEditions(mb))
+
+	editions, _ := EditionsOf(mb)
+	assert.Equal(t, []string{SourceEdition}, keysOf(editions))
+	assert.Equal(t, "established", editions[SourceEdition].Status)
+	assert.Zero(t, editions[SourceEdition].Score)
 }
 
 func keysOf(m map[string]Edition) []string {

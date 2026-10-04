@@ -256,7 +256,10 @@ func (s *session) PutBlock(collection string, b *blockstore.Block) error {
 	if b == nil {
 		return errors.New("bowrain/blockstore: PutBlock: nil block")
 	}
-	mb := fromKBF(b)
+	mb, err := fromKBF(b)
+	if err != nil {
+		return fmt.Errorf("bowrain/blockstore: PutBlock: %w", err)
+	}
 	// When a collection is supplied, route the block through
 	// StoreBlocksForItem so items-within-collection bookkeeping stays
 	// consistent — the collection is created on first use. Empty

@@ -3,9 +3,11 @@ package kbf
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -39,7 +41,9 @@ type Edition struct {
 	// Origin records how the content was produced and under what context.
 	// Omitted while it records nothing.
 	Origin Origin `json:"origin,omitzero"`
-	// Score is the producer's quality score. Omitted while zero.
+	// Score is the producer's quality score for a derived edition. Omitted
+	// while zero. The source carries none: a reader of a bundle leaves a score
+	// on the source behind, and a writer writes none there.
 	Score float64 `json:"score,omitempty"`
 	// Derived names the edition this one was made from and that edition's
 	// revision when it was made. Omitted for an authored edition.
@@ -191,17 +195,52 @@ func KeyText(key model.EditionKey) string {
 	return string(text)
 }
 
-// ParseKey returns the edition key text names, canonical: the language
-// normalized the way the model files it, a tone and a channel kept, and an
-// unknown dimension ignored. The empty text is the zero key.
-func ParseKey(text string) model.EditionKey {
-	var key model.EditionKey
-	_ = key.UnmarshalText([]byte(text))
-	return key.Canonical()
+// ReadKey returns the edition key text names, canonical: the language
+// normalized the way the model files it, with its tone and its channel. The
+// empty text is the zero key, the source.
+//
+// A key this build cannot hold is refused rather than read as a shorter one: a
+// key that names no language, a dimension other than tone and channel, a
+// dimension named twice, or a dimension with no value. Read leniently,
+// `nb;audience=kids` would be `nb` and replace the plain Norwegian edition, and
+// `;x=y` would be the source. The language is read as leniently as the model
+// reads it, so a pseudo-locale such as `qps` is a key like any other.
+func ReadKey(text string) (model.EditionKey, error) {
+	if text == SourceEdition {
+		return model.EditionKey{}, nil
+	}
+	parts := strings.Split(text, ";")
+	if strings.TrimSpace(parts[0]) == "" {
+		return model.EditionKey{}, fmt.Errorf("kbf: edition key %q names no language", text)
+	}
+	key := model.EditionKey{Locale: model.NormalizeLocale(model.LocaleID(parts[0]))}
+	for _, p := range parts[1:] {
+		name, val, ok := strings.Cut(p, "=")
+		if !ok || val == "" {
+			return model.EditionKey{}, fmt.Errorf("kbf: edition key %q: %q is not name=value", text, p)
+		}
+		switch name {
+		case "tone":
+			if key.Tone != "" {
+				return model.EditionKey{}, fmt.Errorf("kbf: edition key %q names its tone twice", text)
+			}
+			key.Tone = val
+		case "channel":
+			if key.Channel != "" {
+				return model.EditionKey{}, fmt.Errorf("kbf: edition key %q names its channel twice", text)
+			}
+			key.Channel = val
+		default:
+			return model.EditionKey{}, fmt.Errorf("kbf: edition key %q has a dimension this build does not read: %q", text, name)
+		}
+	}
+	return key, nil
 }
 
 // FromModelEdition returns e in the bundle's shape, with a run sequence of its
-// own.
+// own. Its derivation names the edition it was made from by that edition's key
+// text; EditionsOf, which knows the block, names a derivation from the source
+// SourceEdition.
 func FromModelEdition(e model.Edition) Edition {
 	out := Edition{
 		Runs:   slices.Clone(e.Runs),
@@ -215,8 +254,23 @@ func FromModelEdition(e model.Edition) Edition {
 	return out
 }
 
+// fromModelEdition is FromModelEdition for an edition of mb, with a derivation
+// from the edition mb was read in naming it SourceEdition. The model knows the
+// source by its language when the block has one, and in a bundle that also
+// holds a same-language edition that language names the other edition.
+func fromModelEdition(mb *model.Block, e model.Edition) Edition {
+	out := FromModelEdition(e)
+	if e.Derived != nil && mb.IsSourceEdition(e.Derived.From) {
+		out.Derived.From = SourceEdition
+	}
+	return out
+}
+
 // ModelEdition returns e as the content model holds it, with a run sequence of
-// its own.
+// its own. A derivation from SourceEdition names the zero key, which reaches
+// the edition a block was read in on every block. A derivation from a key
+// ReadKey refuses names an edition the model cannot hold, so the edition comes
+// back with no basis recorded.
 func (e Edition) ModelEdition() model.Edition {
 	out := model.Edition{
 		Runs:   slices.Clone(e.Runs),
@@ -225,7 +279,9 @@ func (e Edition) ModelEdition() model.Edition {
 		Score:  e.Score,
 	}
 	if e.Derived != nil {
-		out.Derived = &model.Derivation{From: ParseKey(e.Derived.From), Rev: e.Derived.Rev}
+		if from, err := ReadKey(e.Derived.From); err == nil {
+			out.Derived = &model.Derivation{From: from, Rev: e.Derived.Rev}
+		}
 	}
 	return out
 }
@@ -233,27 +289,46 @@ func (e Edition) ModelEdition() model.Edition {
 // EditionsOf returns every edition mb holds in the bundle's shape: the edition
 // mb was read in under SourceEdition, every other edition under the text of its
 // canonical key, and a translation filed under no language as the unlabelled
-// edition. An edition other than the source that holds no runs is left out:
-// no edition and an empty one say the same thing to every reader of a bundle.
+// edition. A derivation from the edition mb was read in names it
+// SourceEdition. An edition other than the source that holds no runs is left
+// out, whatever status it records: no edition and an empty one say the same
+// thing to every reader of a bundle. The source carries no score, because the
+// model keeps a score for derived editions only.
 func EditionsOf(mb *model.Block) (editions map[string]Edition, unlabelled *Edition) {
 	editions = make(map[string]Edition)
 	first := true
 	for key, e := range mb.EachEdition {
 		if first {
 			first = false
-			editions[SourceEdition] = FromModelEdition(e)
+			editions[SourceEdition] = fromModelEdition(mb, e)
 			continue
 		}
 		if len(e.Runs) == 0 {
 			continue
 		}
-		editions[KeyText(key)] = FromModelEdition(e)
+		editions[KeyText(key)] = fromModelEdition(mb, e)
 	}
 	if e, ok := mb.TargetEdition(""); ok && len(e.Runs) > 0 {
-		u := FromModelEdition(e)
+		u := fromModelEdition(mb, e)
 		unlabelled = &u
 	}
 	return editions, unlabelled
+}
+
+// UnreadEditions returns the editions b holds under a key ReadKey refuses, by
+// key text, or nil when it holds none. FileEditions leaves them off the model;
+// a reader that writes the bundle back carries them through verbatim.
+func (b *Block) UnreadEditions() map[string]Edition {
+	var out map[string]Edition
+	for text, e := range b.Editions {
+		if _, err := ReadKey(text); err != nil {
+			if out == nil {
+				out = make(map[string]Edition)
+			}
+			out[text] = e
+		}
+	}
+	return out
 }
 
 // FileEditions files the editions b holds on mb, a block whose source already
@@ -263,7 +338,12 @@ func EditionsOf(mb *model.Block) (editions map[string]Edition, unlabelled *Editi
 // as mb's translation filed under no language. Editions are filed in the order
 // of their key text, so two keys that name one edition (`nb_NO` and `nb-NO`)
 // settle the same way on every read.
-func (b *Block) FileEditions(mb *model.Block) {
+//
+// An edition under a key ReadKey refuses is left off mb: the model has no key
+// for it, and the key its text would shorten to belongs to another edition.
+// FileEditions files every other edition and returns an error naming each one
+// it left (UnreadEditions returns them).
+func (b *Block) FileEditions(mb *model.Block) error {
 	if src, ok := b.Editions[SourceEdition]; ok {
 		if src.Derived != nil {
 			mb.SetEdition(model.EditionKey{}, src.ModelEdition())
@@ -277,9 +357,11 @@ func (b *Block) FileEditions(mb *model.Block) {
 			}
 		}
 	}
+	var unread []error
 	for _, text := range b.TargetKeys() {
-		key := ParseKey(text)
-		if key.IsZero() {
+		key, err := ReadKey(text)
+		if err != nil {
+			unread = append(unread, fmt.Errorf("block %q: %w", b.ID, err))
 			continue
 		}
 		mb.SetTargetEdition(key, b.Editions[text].ModelEdition())
@@ -288,4 +370,5 @@ func (b *Block) FileEditions(mb *model.Block) {
 	if b.Unlabelled != nil {
 		mb.SetTargetEdition(model.EditionKey{}, b.Unlabelled.ModelEdition())
 	}
+	return errors.Join(unread...)
 }

@@ -110,6 +110,29 @@ func TestBlockTexts_TargetLocalesAreCanonical(t *testing.T) {
 	assert.Nil(t, TextSearchOptions{}.CanonicalLocales(), "no filter stays no filter")
 }
 
+// An edition under a key kbf.ReadKey refuses is not found under the key its
+// text would shorten to: the plain edition of that language is the only text
+// filed there, and a filter naming the unreadable key matches nothing.
+func TestBlockTexts_LeavesAKeyItCannotRead(t *testing.T) {
+	b := &kbf.Block{
+		ID: "tu1",
+		Editions: map[string]kbf.Edition{
+			kbf.SourceEdition:  {Runs: []model.Run{{Text: &model.TextRun{Text: "Log in"}}}},
+			"nb":               {Runs: []model.Run{{Text: &model.TextRun{Text: "Logg inn"}}}},
+			"nb;audience=kids": {Runs: []model.Run{{Text: &model.TextRun{Text: "Hopp inn"}}}},
+			";x=y":             {Runs: []model.Run{{Text: &model.TextRun{Text: "junk"}}}},
+		},
+	}
+	assert.Equal(t, []BlockText{
+		{Locale: SourceLocale, Text: "Log in"},
+		{Locale: "nb", Text: "Logg inn"},
+	}, BlockTexts(b))
+
+	opts := TextSearchOptions{Locales: []string{"nb;audience=kids"}}
+	assert.Equal(t, []string{"nb;audience=kids"}, opts.CanonicalLocales(), "kept as given, not shortened to nb")
+	assert.False(t, opts.Wants("nb"))
+}
+
 func TestScanText_LocaleFilterIsCanonical(t *testing.T) {
 	ctx := context.Background()
 	store := NewMemoryStore()
