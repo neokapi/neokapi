@@ -10,7 +10,8 @@ import (
 )
 
 func TestAnnotateWritesFindingsAnnotation(t *testing.T) {
-	b := &model.Block{ID: "b1", Source: []model.Run{{Text: &model.TextRun{Text: "Leverage our synergy."}}}}
+	b := &model.Block{ID: "b1"}
+	b.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: "Leverage our synergy."}}})
 	v := tool.NewBlockView(b)
 
 	findings := []Finding{
