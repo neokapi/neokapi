@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Block, Run } from "@neokapi/kapi-format";
+import { sourceEditions } from "@neokapi/kapi-format";
 import { PluralTargetEditor } from "../components/plural/PluralTargetEditor";
 
 function renderToContainer(el: React.ReactElement): HTMLDivElement {
@@ -22,13 +23,13 @@ afterEach(() => {
   }
 });
 
-function fixtureBlock(): Pick<Block, "source" | "placeholders"> {
+function fixtureBlock(): Pick<Block, "editions" | "placeholders"> {
   return {
-    source: [
+    editions: sourceEditions([
       { text: "You have " },
       { ph: { id: "1", type: "jsx:var", data: "{count}", equiv: "count" } },
       { text: " messages" },
-    ],
+    ]),
     placeholders: [{ name: "count", kind: "variable", jsType: "number", sourceExpr: "count" }],
   };
 }

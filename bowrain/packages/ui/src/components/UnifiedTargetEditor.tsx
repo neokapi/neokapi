@@ -36,7 +36,7 @@ import {
   type SpanInfo as PrimitiveSpanInfo,
 } from "@neokapi/ui-primitives";
 
-import type { Block, PluralForm, Run } from "@neokapi/kapi-format";
+import type { PluralForm, Run } from "@neokapi/kapi-format";
 import { flattenRuns, pluralPivotCandidates, runKindOf } from "@neokapi/kapi-format";
 
 import { toKapiBlock } from "./blockAdapter";
@@ -125,7 +125,7 @@ export function UnifiedTargetEditor({
     [servedSpans, sourceRuns],
   );
   const adaptedBlock = useMemo(() => toKapiBlock(block), [block]);
-  const candidates = useMemo(() => pluralPivotCandidates(adaptedBlock as Block), [adaptedBlock]);
+  const candidates = useMemo(() => pluralPivotCandidates(adaptedBlock), [adaptedBlock]);
 
   const initial = useMemo(
     () => seedInitialState(block, locale, sourceSpans),
@@ -438,7 +438,7 @@ function seedInitialState(block: BlockInfo, locale: string, sourceSpans: SpanInf
   if (preview) {
     const forms = decodePluralForms(rawTarget, sourceSpans);
     const adapted = toKapiBlock(block);
-    const candidates = pluralPivotCandidates(adapted as Block);
+    const candidates = pluralPivotCandidates(adapted);
     return {
       mode: "plural",
       activeForm: forms.other ? "other" : ((Object.keys(forms)[0] as PluralForm) ?? "other"),
@@ -456,7 +456,7 @@ function seedInitialState(block: BlockInfo, locale: string, sourceSpans: SpanInf
     : { codedText: rawTarget, spans: [] };
 
   const adapted = toKapiBlock(block);
-  const candidates = pluralPivotCandidates(adapted as Block);
+  const candidates = pluralPivotCandidates(adapted);
   return {
     mode: "flat",
     activeForm: "other",

@@ -1,7 +1,7 @@
 /**
  * Adapter from bowrain's `BlockInfo` (REST/Wails API shape) to the
  * minimal `@neokapi/kapi-format` Block fields that editor primitives
- * need (`source` runs + `placeholders` table for pivot candidates).
+ * need (the source edition + `placeholders` table for pivot candidates).
  *
  * Intentionally narrow — bowrain doesn't carry typed Placeholder
  * data on every block, so we synthesise the table from
@@ -14,12 +14,13 @@
  */
 
 import type { Block, Placeholder } from "@neokapi/kapi-format";
+import { sourceEditions } from "@neokapi/kapi-format";
 
 import type { BlockInfo, SpanInfo } from "../types/api";
 
-export function toKapiBlock(block: BlockInfo): Pick<Block, "source" | "placeholders"> {
+export function toKapiBlock(block: BlockInfo): Pick<Block, "editions" | "placeholders"> {
   return {
-    source: [{ text: block.source }],
+    editions: sourceEditions([{ text: block.source }]),
     placeholders: spansToPlaceholders(block.source_spans),
   };
 }

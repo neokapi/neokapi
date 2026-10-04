@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import type { Block, Run } from "@neokapi/kapi-format";
+import { sourceEditions } from "@neokapi/kapi-format";
 import { PluralTargetEditor } from "../../components/plural/PluralTargetEditor";
 
 const meta: Meta<typeof PluralTargetEditor> = {
@@ -29,12 +30,12 @@ export default meta;
 
 type Story = StoryObj<typeof PluralTargetEditor>;
 
-const block: Pick<Block, "source" | "placeholders"> = {
-  source: [
+const block: Pick<Block, "editions" | "placeholders"> = {
+  editions: sourceEditions([
     { text: "You have " },
     { ph: { id: "1", type: "jsx:var", data: "{count}", equiv: "count" } },
     { text: " messages" },
-  ],
+  ]),
   placeholders: [{ name: "count", kind: "variable", jsType: "number", sourceExpr: "count" }],
 };
 
@@ -98,15 +99,15 @@ export const PluralPartiallyFilled: Story = {
 export const MultiplePlaceholders: Story = {
   name: "Block with multiple placeholder candidates",
   render: () => {
-    const richBlock: Pick<Block, "source" | "placeholders"> = {
-      source: [
+    const richBlock: Pick<Block, "editions" | "placeholders"> = {
+      editions: sourceEditions([
         { text: "User " },
         { ph: { id: "1", type: "jsx:var", data: "{name}", equiv: "name" } },
         { text: " opened " },
         { ph: { id: "2", type: "jsx:var", data: "{count}", equiv: "count" } },
         { text: " files in " },
         { ph: { id: "3", type: "jsx:var", data: "{folder}", equiv: "folder" } },
-      ],
+      ]),
       placeholders: [
         { name: "name", kind: "variable", jsType: "string", sourceExpr: "user.name" },
         { name: "count", kind: "variable", jsType: "number", sourceExpr: "file.count" },
