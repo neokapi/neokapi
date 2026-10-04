@@ -163,7 +163,7 @@ func TestWriterEmitsAReplacedTarget(t *testing.T) {
 // deletes the locale from the model block, and the file must lose it.
 func TestWriterEmitsTargetRemoval(t *testing.T) {
 	out := editThroughKBF(t, translatedKBF(), nbTgt, func(blocks []*model.Block) {
-		delete(blocks[0].Targets, model.Variant(nbTgt))
+		blocks[0].RemoveEdition(model.Variant(nbTgt))
 	})
 
 	blocks := allBlocks(out)
@@ -214,9 +214,9 @@ func TestWriterEmitsAnAddedLocaleAlongsideTheExistingOne(t *testing.T) {
 // target for that locale.
 func TestWriterIgnoresToneQualifiedVariants(t *testing.T) {
 	out := editThroughKBF(t, translatedKBF(), nbTgt, func(blocks []*model.Block) {
-		blocks[0].Targets[model.VariantKey{Locale: nbTgt, Tone: "formal"}] = &model.Target{
+		blocks[0].SetEdition(model.EditionKey{Locale: nbTgt, Tone: "formal"}, model.Edition{
 			Runs: []model.Run{{Text: &model.TextRun{Text: "De lagrer nå"}}},
-		}
+		})
 	})
 
 	blocks := allBlocks(out)

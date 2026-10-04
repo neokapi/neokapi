@@ -77,8 +77,8 @@ func TestKBFReaderRestoresTargetOrigin(t *testing.T) {
 	blocks := readBlocks(t, originFixture)
 	require.Len(t, blocks, 1)
 
-	tgt := blocks[0].Target("nb")
-	require.NotNil(t, tgt, "the bundle declares an nb target")
+	tgt, ok := blocks[0].TargetEdition("nb")
+	require.True(t, ok, "the bundle declares an nb target")
 	assert.Equal(t, "Logg inn", blocks[0].TargetText("nb"))
 
 	// The whole record, not a chosen field: a reader that restored only the
@@ -112,8 +112,8 @@ func TestKBFTargetOriginSurvivesARoundTrip(t *testing.T) {
 	// on, so it is asserted end to end rather than one leg at a time.
 	again := readBlocks(t, buf)
 	require.Len(t, again, 1)
-	back := again[0].Target("nb")
-	require.NotNil(t, back)
+	back, ok := again[0].TargetEdition("nb")
+	require.True(t, ok)
 	assert.Equal(t, "cfp-abc123", back.Origin.ContextFingerprint)
 	assert.Equal(t, "Logg inn", again[0].TargetText("nb"))
 }
@@ -140,8 +140,8 @@ func TestKBFReadsABundleWithoutOrigins(t *testing.T) {
 	blocks := readBlocks(t, body)
 	require.Len(t, blocks, 1)
 
-	tgt := blocks[0].Target("nb")
-	require.NotNil(t, tgt)
+	tgt, ok := blocks[0].TargetEdition("nb")
+	require.True(t, ok)
 	assert.Equal(t, "Logg inn", blocks[0].TargetText("nb"))
 	assert.Equal(t, model.Origin{}, tgt.Origin)
 }
