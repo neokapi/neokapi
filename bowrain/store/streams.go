@@ -325,17 +325,20 @@ func (s *PostgresStore) DiffStream(ctx context.Context, projectID, streamName st
 
 	// A full outer join over the two sides: present on one only is an add or a
 	// remove, present on both with differing content is a modification, and
-	// present on both alike contributes nothing.
+	// present on both alike contributes nothing. Content is the wording (the
+	// content hash) and the source revision, which also moves with an inline
+	// code, so a branch that changed only a link reports that block modified.
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT COALESCE(b.id, p.id),
 			CASE WHEN p.id IS NULL THEN 'added'
 			     WHEN b.id IS NULL THEN 'removed'
 			     ELSE 'modified' END
-		 FROM (SELECT id, content_hash FROM blocks WHERE project_id=$1 AND stream=$2) b
+		 FROM (SELECT id, content_hash, source_revision FROM blocks WHERE project_id=$1 AND stream=$2) b
 		 FULL OUTER JOIN
-		     (SELECT id, content_hash FROM blocks WHERE project_id=$1 AND stream=$3) p
+		     (SELECT id, content_hash, source_revision FROM blocks WHERE project_id=$1 AND stream=$3) p
 		 ON p.id = b.id
-		 WHERE p.id IS NULL OR b.id IS NULL OR p.content_hash <> b.content_hash
+		 WHERE p.id IS NULL OR b.id IS NULL
+		    OR p.content_hash <> b.content_hash OR p.source_revision <> b.source_revision
 		 ORDER BY 1`,
 		projectID, streamName, parentName)
 	if err != nil {
