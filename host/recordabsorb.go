@@ -987,15 +987,16 @@ func (p *priorSourceIndex) scan() (byHash, byUnit map[string][]model.Run) {
 		}
 		// model.RunsText, the same projection model.Block.SourceText makes, so a
 		// stored block hashes to the number a decision recorded for it.
-		text := model.RunsText(b.Source)
+		source := b.SourceRuns()
+		text := model.RunsText(source)
 		if text == "" {
 			continue
 		}
 		h := state.SourceHash(text)
 		if _, seen := byHash[h]; !seen {
-			byHash[h] = b.Source
+			byHash[h] = source
 		}
-		byUnit[priorUnitKey(b.Properties.File, b.ID)] = b.Source
+		byUnit[priorUnitKey(b.Properties.File, b.ID)] = source
 	}
 	return byHash, byUnit
 }

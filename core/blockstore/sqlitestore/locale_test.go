@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,8 +70,10 @@ func TestSearchBlockText_LocaleFilterIsCanonical(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, sess.PutBlock("app", &blockstore.Block{
 		ID: "tu1", Hash: "h1", Translatable: true,
-		Source:  []model.Run{model.TextR("Berth")},
-		Targets: map[string][]model.Run{"nb_NO": {model.TextR("Kai")}},
+		Editions: map[string]kbf.Edition{
+			kbf.SourceEdition: {Runs: []model.Run{model.TextR("Berth")}},
+			"nb_NO":           {Runs: []model.Run{model.TextR("Kai")}},
+		},
 	}))
 	require.NoError(t, sess.Commit())
 

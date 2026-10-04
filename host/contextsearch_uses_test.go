@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
@@ -90,7 +91,10 @@ func (g *graphProject) putBlocks(t *testing.T, blocks []usesBlock) {
 	require.NoError(t, err)
 	for _, bc := range blocks {
 		b := &blockstore.Block{Hash: bc.hash, ID: bc.id, Translatable: true,
-			Source: []model.Run{model.TextR(bc.source)}, Targets: bc.targets}
+			Editions: kbf.SourceEditions([]model.Run{model.TextR(bc.source)})}
+		for locale, runs := range bc.targets {
+			b.SetEdition(locale, kbf.Edition{Runs: runs})
+		}
 		b.Properties.File = bc.file
 		require.NoError(t, sess.PutBlock("docs", b))
 	}

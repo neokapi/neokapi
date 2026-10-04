@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/state"
@@ -321,7 +322,7 @@ func TestBlockSession_HoldsTheGateForItsWholeLife(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, sess.PutBlock("docs", &blockstore.Block{
 		ID: "u1", Hash: "k1_" + strings.Repeat("a", 40), Translatable: true,
-		Source: []model.Run{model.TextR("held")},
+		Editions: kbf.SourceEditions([]model.Run{model.TextR("held")}),
 	}))
 
 	written := make(chan error, 1)
@@ -385,13 +386,13 @@ func TestAutocommitBlocks_DoNotHoldTheGate(t *testing.T) {
 		defer b.Close()
 		done <- b.PutBlock("docs", &blockstore.Block{
 			ID: "u2", Hash: "k1_" + strings.Repeat("b", 40),
-			Source: []model.Run{model.TextR("concurrent")},
+			Editions: kbf.SourceEditions([]model.Run{model.TextR("concurrent")}),
 		})
 	}()
 
 	require.NoError(t, a.PutBlock("docs", &blockstore.Block{
 		ID: "u1", Hash: "k1_" + strings.Repeat("a", 40),
-		Source: []model.Run{model.TextR("concurrent")},
+		Editions: kbf.SourceEditions([]model.Run{model.TextR("concurrent")}),
 	}))
 
 	select {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
@@ -19,14 +20,11 @@ func block(hash, id, file, source string, targets map[string]string) *blockstore
 		Hash:         hash,
 		ID:           id,
 		Translatable: true,
-		Source:       []model.Run{model.TextR(source)},
+		Editions:     kbf.SourceEditions([]model.Run{model.TextR(source)}),
 	}
 	b.Properties.File = file
-	if len(targets) > 0 {
-		b.Targets = map[string][]model.Run{}
-		for locale, text := range targets {
-			b.Targets[locale] = []model.Run{model.TextR(text)}
-		}
+	for locale, text := range targets {
+		b.SetEdition(locale, kbf.Edition{Runs: []model.Run{model.TextR(text)}})
 	}
 	return b
 }

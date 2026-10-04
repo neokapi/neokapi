@@ -10,8 +10,15 @@ render the same bytes.
 
 ### Types (`schema.go`)
 
-- `Block` — unit of translation tracking, carries `Source []Run`,
-  optional per-locale `Targets map[LocaleID][]Run`, and metadata.
+- `Block`: unit of translation tracking. Its `Editions map[string]Edition`
+  holds the edition it was read in under `SourceEdition` (the empty key) and
+  every other edition under the text of its edition key (`fr`,
+  `fr;tone=formal`, `en;channel=short`), beside placeholders and metadata.
+  A translation filed under no language rides apart as `Unlabelled`.
+- `Edition`: one edition's `Runs`, `Status`, `Origin`, `Score` and
+  `Derived` (the edition it was made from and that edition's revision).
+  `EditionsOf` and `Block.FileEditions` convert to and from the editions of a
+  `model.Block`.
 - `Run` — discriminated union: `Text`, `Ph`, `PcOpen`, `PcClose`,
   `Sub`, `Plural`, `Select`. Strict marshal/unmarshal rejects
   zero- or multi-discriminator records.
@@ -31,8 +38,10 @@ data, err := kbf.Marshal(file)          // deterministic .kbf.json JSON
 ```
 
 The writer is deterministic (2-space indent, no HTML escaping,
-trailing newline) — the byte output is stable for hashing and
-git diffing.
+trailing newline), so the byte output is stable for hashing and
+git diffing. It writes schema 2.0. The reader also takes schema 1.0, whose
+blocks carried `source` runs beside `targets` keyed by locale, and returns it
+as the editions it describes, stamped 2.0.
 
 ### Validator (`validator.go`)
 

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
@@ -150,7 +151,7 @@ func TestDetectStoreDrift(t *testing.T) {
 
 	sess, err := db.Blocks().Begin(ctx)
 	require.NoError(t, err)
-	require.NoError(t, sess.PutBlock("docs", &blockstore.Block{Hash: "h1", Source: []model.Run{model.TextR("Hello")}}))
+	require.NoError(t, sess.PutBlock("docs", &blockstore.Block{Hash: "h1", Editions: kbf.SourceEditions([]model.Run{model.TextR("Hello")})}))
 	require.NoError(t, sess.Commit())
 
 	drift = db.DetectStoreDrift(ctx, files)
@@ -202,7 +203,7 @@ func TestDetectStoreDrift_DelegatesToSharedComparison(t *testing.T) {
 
 	sess, err := db.Blocks().Begin(ctx)
 	require.NoError(t, err)
-	require.NoError(t, sess.PutBlock("docs", &blockstore.Block{Hash: "h1", Source: []model.Run{model.TextR("Hello")}}))
+	require.NoError(t, sess.PutBlock("docs", &blockstore.Block{Hash: "h1", Editions: kbf.SourceEditions([]model.Run{model.TextR("Hello")})}))
 	require.NoError(t, sess.Commit())
 	require.NoError(t, db.StampBlockStoreVersion(ctx))
 	require.NoError(t, db.SaveSourceStamps(ctx, stamps))

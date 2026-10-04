@@ -14,7 +14,7 @@ func filesHeading() *Block {
 		Hash:         "2xykvb",
 		Translatable: true,
 		Type:         BlockTypeJSXElement,
-		Source: []Run{
+		Editions: SourceEditions([]Run{
 			{Text: &TextRun{Text: "Files "}},
 			{PcOpen: &PcOpenRun{
 				ID: "1", Type: "jsx:element", SubType: "span",
@@ -31,7 +31,7 @@ func filesHeading() *Block {
 				ID: "1", Type: "jsx:element", SubType: "span",
 				Data: "</span>", Equiv: "muted",
 			}},
-		},
+		}),
 		Placeholders: []Placeholder{
 			{Name: "muted", Kind: PlaceholderElement, SourceExpr: `<span className="muted">...</span>`, JSType: "ReactNode"},
 			{Name: "count", Kind: PlaceholderVariable, SourceExpr: "count", JSType: "number"},
@@ -61,7 +61,7 @@ func tagChip() *Block {
 		Hash:         "2GcSuQ",
 		Translatable: true,
 		Type:         BlockTypeJSXElement,
-		Source: []Run{
+		Editions: SourceEditions([]Run{
 			{Ph: &PlaceholderRun{
 				ID: "1", Type: "jsx:node", SubType: "logical-and",
 				Data:  `index !== undefined && <span className="badge">{index}</span>`,
@@ -78,7 +78,7 @@ func tagChip() *Block {
 				Data:  `!deletable && <span className="required">*</span>`,
 				Equiv: "required", Disp: "⟨required⟩",
 			}},
-		},
+		}),
 		Placeholders: []Placeholder{
 			{Name: "badge", Kind: PlaceholderNode, SourceExpr: `index !== undefined && <span className="badge">{index}</span>`, JSType: "ReactNode", Optional: true},
 			{Name: "label", Kind: PlaceholderVariable, SourceExpr: "label", JSType: "string"},
@@ -117,7 +117,7 @@ func shoppingCart() *Block {
 		Hash:         "9QpZ11",
 		Translatable: true,
 		Type:         BlockTypeJSXElement,
-		Source: []Run{
+		Editions: SourceEditions([]Run{
 			{Plural: &PluralRun{
 				Pivot: "count",
 				Forms: map[PluralForm][]Run{
@@ -132,7 +132,7 @@ func shoppingCart() *Block {
 					},
 				},
 			}},
-		},
+		}),
 		Placeholders: []Placeholder{
 			{Name: "count", Kind: PlaceholderICUPivot, SourceExpr: "items", JSType: "number"},
 		},

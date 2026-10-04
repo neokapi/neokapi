@@ -211,10 +211,10 @@ func TestValidateBlock_UnknownPlaceholderDeduped(t *testing.T) {
 		ID:           "dup",
 		Translatable: true,
 		Type:         BlockTypeJSXElement,
-		Source: []Run{
+		Editions: SourceEditions([]Run{
 			{Ph: &PlaceholderRun{ID: "1", Type: "jsx:var", Data: "{x}", Equiv: "x"}},
 			{Ph: &PlaceholderRun{ID: "2", Type: "jsx:var", Data: "{x}", Equiv: "x"}},
-		},
+		}),
 		// No placeholders declared.
 	}
 	errs := ValidateBlock(b)
@@ -234,10 +234,10 @@ func TestValidateBlock_MalformedRuns(t *testing.T) {
 			name: "run with no discriminator",
 			block: &Block{
 				ID: "empty-run", Translatable: true, Type: BlockTypeJSXElement,
-				Source: []Run{
+				Editions: SourceEditions([]Run{
 					{Text: &TextRun{Text: "ok"}},
 					{}, // zero discriminators — malformed
-				},
+				}),
 			},
 			wantCount: 1,
 		},
@@ -245,9 +245,9 @@ func TestValidateBlock_MalformedRuns(t *testing.T) {
 			name: "run with two discriminators",
 			block: &Block{
 				ID: "double-run", Translatable: true, Type: BlockTypeJSXElement,
-				Source: []Run{
+				Editions: SourceEditions([]Run{
 					{Text: &TextRun{Text: "hi"}, Ph: &PlaceholderRun{ID: "1", Type: "t", Data: "d", Equiv: "e"}},
-				},
+				}),
 				Placeholders: []Placeholder{{Name: "e", Kind: PlaceholderVariable}},
 			},
 			wantCount: 1,
@@ -256,11 +256,11 @@ func TestValidateBlock_MalformedRuns(t *testing.T) {
 			name: "malformed run nested inside a plural form",
 			block: &Block{
 				ID: "nested", Translatable: true, Type: BlockTypeJSXElement,
-				Source: []Run{
+				Editions: SourceEditions([]Run{
 					{Plural: &PluralRun{Pivot: "n", Forms: map[PluralForm][]Run{
 						PluralOther: {{}}, // malformed inside the form
 					}}},
-				},
+				}),
 				Placeholders: []Placeholder{{Name: "n", Kind: PlaceholderICUPivot}},
 			},
 			wantCount: 1,
@@ -269,8 +269,10 @@ func TestValidateBlock_MalformedRuns(t *testing.T) {
 			name: "malformed run inside a target",
 			block: &Block{
 				ID: "target-bad", Translatable: true, Type: BlockTypeJSXElement,
-				Source:  []Run{{Text: &TextRun{Text: "ok"}}},
-				Targets: map[LocaleID][]Run{"fr": {{}}},
+				Editions: map[string]Edition{
+					SourceEdition: {Runs: []Run{{Text: &TextRun{Text: "ok"}}}},
+					"fr":          {Runs: []Run{{}}},
+				},
 			},
 			wantCount: 1,
 		},

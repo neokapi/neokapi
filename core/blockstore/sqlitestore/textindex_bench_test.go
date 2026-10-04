@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/require"
 )
@@ -19,8 +20,8 @@ func benchCorpus(n int) []*blockstore.Block {
 			Hash:         fmt.Sprintf("h%08d", i),
 			ID:           fmt.Sprintf("doc.section.%d", i),
 			Translatable: true,
-			Source: []model.Run{model.TextR(fmt.Sprintf(
-				"Paragraph %d of the guide explains how the content memory recycles approved wording across a project.", i))},
+			Editions: kbf.SourceEditions([]model.Run{model.TextR(fmt.Sprintf(
+				"Paragraph %d of the guide explains how the content memory recycles approved wording across a project.", i))}),
 		}
 	}
 	return out

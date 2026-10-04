@@ -97,7 +97,7 @@ func TestWriterRoundTripKBF(t *testing.T) {
 
 	// Structured content preserved.
 	assert.Equal(t, "files-heading", roundTrip.Documents[0].Blocks[0].ID)
-	assert.NotEmpty(t, roundTrip.Documents[0].Blocks[0].Source)
+	assert.NotEmpty(t, roundTrip.Documents[0].Blocks[0].SourceRuns())
 	assert.Equal(t, kbf.BlockTypeJSXElement, roundTrip.Documents[0].Blocks[0].Type)
 }
 
@@ -147,8 +147,9 @@ func TestWriterPreservesStructuredTargetRuns(t *testing.T) {
 	require.NotEmpty(t, file.Documents)
 	for _, d := range file.Documents {
 		for _, block := range d.Blocks {
-			target, ok := block.Targets["qps"]
+			edition, ok := block.Edition("qps")
 			require.True(t, ok, "block %q missing qps target", block.ID)
+			target := edition.Runs
 			require.Len(t, target, 3, "block %q target runs flattened — should be text+ph+text", block.ID)
 			require.NotNil(t, target[1].Ph, "block %q second run should be Ph", block.ID)
 			assert.Equal(t, "x", target[1].Ph.Equiv)
@@ -335,7 +336,7 @@ func filesHeading() *kbf.Block {
 	return &kbf.Block{
 		ID: "files-heading", Hash: "2xykvb", Translatable: true,
 		Type: kbf.BlockTypeJSXElement,
-		Source: []kbf.Run{
+		Editions: kbf.SourceEditions([]kbf.Run{
 			{Text: &kbf.TextRun{Text: "Files "}},
 			{PcOpen: &kbf.PcOpenRun{
 				ID: "1", Type: "jsx:element", SubType: "span",
@@ -352,7 +353,7 @@ func filesHeading() *kbf.Block {
 				ID: "1", Type: "jsx:element", SubType: "span",
 				Data: "</span>", Equiv: "muted",
 			}},
-		},
+		}),
 		Placeholders: []kbf.Placeholder{
 			{Name: "muted", Kind: kbf.PlaceholderElement,
 				SourceExpr: `<span className="muted">...</span>`, JSType: "ReactNode"},
@@ -370,7 +371,7 @@ func tagChip() *kbf.Block {
 	return &kbf.Block{
 		ID: "tag-chip", Hash: "2GcSuQ", Translatable: true,
 		Type: kbf.BlockTypeJSXElement,
-		Source: []kbf.Run{
+		Editions: kbf.SourceEditions([]kbf.Run{
 			{Ph: &kbf.PlaceholderRun{
 				ID: "1", Type: "jsx:node", SubType: "logical-and",
 				Data:  `index !== undefined && <span className="badge">{index}</span>`,
@@ -387,7 +388,7 @@ func tagChip() *kbf.Block {
 				Data:  `!deletable && <span className="required">*</span>`,
 				Equiv: "required", Disp: "⟨required⟩",
 			}},
-		},
+		}),
 		Placeholders: []kbf.Placeholder{
 			{Name: "badge", Kind: kbf.PlaceholderNode,
 				SourceExpr: `index !== undefined && <span className="badge">{index}</span>`,
@@ -409,7 +410,7 @@ func shoppingCart() *kbf.Block {
 	return &kbf.Block{
 		ID: "shopping-cart-plural", Hash: "9QpZ11", Translatable: true,
 		Type: kbf.BlockTypeJSXElement,
-		Source: []kbf.Run{
+		Editions: kbf.SourceEditions([]kbf.Run{
 			{Plural: &kbf.PluralRun{
 				Pivot: "count",
 				Forms: map[kbf.PluralForm][]kbf.Run{
@@ -424,7 +425,7 @@ func shoppingCart() *kbf.Block {
 					},
 				},
 			}},
-		},
+		}),
 		Placeholders: []kbf.Placeholder{
 			{Name: "count", Kind: kbf.PlaceholderICUPivot,
 				SourceExpr: "items", JSType: "number"},

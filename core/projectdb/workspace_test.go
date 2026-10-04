@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
@@ -203,7 +204,7 @@ func writeBlock(t *testing.T, db *projectdb.DB, collection, hash, text string) {
 		ID:           hash,
 		Hash:         hash,
 		Translatable: true,
-		Source:       []model.Run{model.TextR(text)},
+		Editions:     kbf.SourceEditions([]model.Run{model.TextR(text)}),
 		Properties:   model.BlockProperties{File: collection + "/index.md"},
 	}))
 	require.NoError(t, sess.Commit())

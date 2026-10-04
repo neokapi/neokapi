@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/contextgraph"
 	coreg "github.com/neokapi/neokapi/core/graph"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/occurrence"
 	"github.com/neokapi/neokapi/core/project"
@@ -28,7 +29,7 @@ func (bc graphFixtureBlock) block() *blockstore.Block {
 		Hash:         bc.hash,
 		ID:           bc.id,
 		Translatable: true,
-		Source:       []model.Run{model.TextR(bc.source)},
+		Editions:     kbf.SourceEditions([]model.Run{model.TextR(bc.source)}),
 	}
 	b.Properties.File = bc.file
 	return b

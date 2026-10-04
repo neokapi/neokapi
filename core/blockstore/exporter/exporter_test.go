@@ -18,8 +18,8 @@ func seed(t *testing.T, store blockstore.Store) {
 	ctx := context.Background()
 	sess, err := store.Begin(ctx)
 	require.NoError(t, err)
-	require.NoError(t, sess.PutBlock("default", &kbf.Block{Hash: "h1", ID: "b1", Translatable: true, Source: []kbf.Run{{Text: &kbf.TextRun{Text: "Hello"}}}}))
-	require.NoError(t, sess.PutBlock("default", &kbf.Block{Hash: "h2", ID: "b2", Translatable: true, Source: []kbf.Run{{Text: &kbf.TextRun{Text: "World"}}}}))
+	require.NoError(t, sess.PutBlock("default", &kbf.Block{Hash: "h1", ID: "b1", Translatable: true, Editions: kbf.SourceEditions([]kbf.Run{{Text: &kbf.TextRun{Text: "Hello"}}})}))
+	require.NoError(t, sess.PutBlock("default", &kbf.Block{Hash: "h2", ID: "b2", Translatable: true, Editions: kbf.SourceEditions([]kbf.Run{{Text: &kbf.TextRun{Text: "World"}}})}))
 	require.NoError(t, sess.PutOverlay(blockstore.Overlay{Kind: "targets/fr", BlockHash: "b1", Payload: []byte(`{"text":"Bonjour"}`)}))
 	require.NoError(t, sess.PutOverlay(blockstore.Overlay{Kind: "targets/fr", BlockHash: "b2", Payload: []byte(`{"text":"Monde"}`)}))
 	require.NoError(t, sess.PutOverlay(blockstore.Overlay{Kind: "annotations/qa", BlockHash: "b1", Payload: []byte(`{"ok":true}`)}))
@@ -54,7 +54,7 @@ func TestExportLoadRoundTripCache(t *testing.T) {
 	require.Len(t, snap2.Overlays, 3)
 	assert.Equal(t, snap.Overlays, snap2.Overlays)
 	// Block payloads survive identically.
-	assert.Equal(t, snap.Blocks[0].Block.Source, snap2.Blocks[0].Block.Source)
+	assert.Equal(t, snap.Blocks[0].Block.SourceRuns(), snap2.Blocks[0].Block.SourceRuns())
 }
 
 func TestExportMemoryStore(t *testing.T) {

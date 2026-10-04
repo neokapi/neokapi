@@ -3,12 +3,12 @@ package sqlitestore
 import (
 	"context"
 	"encoding/json"
-	"maps"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/stretchr/testify/assert"
@@ -20,11 +20,10 @@ func textBlock(hash, text string, targets map[string][]model.Run) *blockstore.Bl
 		Hash:         hash,
 		ID:           hash,
 		Translatable: true,
-		Source:       []model.Run{model.TextR(text)},
+		Editions:     kbf.SourceEditions([]model.Run{model.TextR(text)}),
 	}
-	if targets != nil {
-		b.Targets = map[string][]model.Run{}
-		maps.Copy(b.Targets, targets)
+	for key, runs := range targets {
+		b.SetEdition(key, kbf.Edition{Runs: runs})
 	}
 	return b
 }

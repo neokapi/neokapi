@@ -87,6 +87,7 @@ type AnchorResolution struct {
 
 // ResolveAnchor resolves an annotation's anchor against the block it names,
 // returning either the resolved entity or a machine-readable reason it did not.
+// A path walks the runs of the edition the block was read in.
 // Mirrors resolveAnchor in packages/kapi-format/src/annotation.ts.
 func ResolveAnchor(block *Block, anchor Anchor) AnchorResolution {
 	if block == nil {
@@ -97,7 +98,7 @@ func ResolveAnchor(block *Block, anchor Anchor) AnchorResolution {
 		return AnchorResolution{OK: true, Kind: AnchorBlock, BlockTarget: block}
 	}
 
-	seq, landed, ok := walkPath(block.Source, anchor.Path)
+	seq, landed, ok := walkPath(block.SourceRuns(), anchor.Path)
 	if !ok {
 		return AnchorResolution{OK: false, Err: ReasonPathOutOfBounds}
 	}

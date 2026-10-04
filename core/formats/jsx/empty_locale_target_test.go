@@ -11,9 +11,10 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// emptyLocaleBundle is a bundle whose block carries, beside its nb target, a
-// target under the empty locale. kbf.ValidateBlock accepts it, and the reader
-// files it on the block like any other target.
+// emptyLocaleBundle is a bundle in schema 1 whose block carries targets in the
+// shape that schema keyed them by: a map from locale to runs beside a map from
+// locale to origin. A target under the empty locale is a translation filed
+// under no language; kbf.ValidateBlock accepts it.
 func emptyLocaleBundle(targets, origins string) string {
 	return `{
   "schemaVersion": "1.0",
@@ -39,34 +40,38 @@ func emptyLocaleBundle(targets, origins string) string {
 }`
 }
 
-// A bundle's target under the empty locale is written back as it was read,
-// with its origin, beside the targets the edition accessors reach.
+// A bundle's target under the empty locale reads as the block's translation
+// filed under no language, and is written back as the unlabelled edition with
+// its origin, beside the editions the edition accessors reach.
 func TestKBFRoundTripKeepsATargetUnderTheEmptyLocale(t *testing.T) {
 	cases := []struct {
-		name        string
-		targets     string
-		origins     string
-		wantTargets map[kbf.LocaleID]string
-		wantOrigins []kbf.LocaleID
+		name           string
+		targets        string
+		origins        string
+		wantEditions   map[string]string
+		wantUnlabelled string
+		wantOrigin     string
 	}{
 		{
-			name:        "with an origin",
-			targets:     `{"nb": [{"text": "Logg inn"}], "": [{"text": "EMPTYLOC"}]}`,
-			origins:     `{"nb": {"kind": "ai"}, "": {"kind": "human"}}`,
-			wantTargets: map[kbf.LocaleID]string{"nb": "Logg inn", "": "EMPTYLOC"},
-			wantOrigins: []kbf.LocaleID{"", "nb"},
+			name:           "with an origin",
+			targets:        `{"nb": [{"text": "Logg inn"}], "": [{"text": "EMPTYLOC"}]}`,
+			origins:        `{"nb": {"kind": "ai"}, "": {"kind": "human"}}`,
+			wantEditions:   map[string]string{"nb": "Logg inn"},
+			wantUnlabelled: "EMPTYLOC",
+			wantOrigin:     "human",
 		},
 		{
-			name:        "without an origin",
-			targets:     `{"": [{"text": "EMPTYLOC"}]}`,
-			origins:     `{}`,
-			wantTargets: map[kbf.LocaleID]string{"": "EMPTYLOC"},
+			name:           "without an origin",
+			targets:        `{"": [{"text": "EMPTYLOC"}]}`,
+			origins:        `{}`,
+			wantEditions:   map[string]string{},
+			wantUnlabelled: "EMPTYLOC",
 		},
 		{
-			name:        "an origin with no runs is not written",
-			targets:     `{"nb": [{"text": "Logg inn"}], "": []}`,
-			origins:     `{"": {"kind": "human"}}`,
-			wantTargets: map[kbf.LocaleID]string{"nb": "Logg inn"},
+			name:         "an origin with no runs is not written",
+			targets:      `{"nb": [{"text": "Logg inn"}], "": []}`,
+			origins:      `{"": {"kind": "human"}}`,
+			wantEditions: map[string]string{"nb": "Logg inn"},
 		},
 	}
 	for _, tc := range cases {
@@ -74,27 +79,51 @@ func TestKBFRoundTripKeepsATargetUnderTheEmptyLocale(t *testing.T) {
 			blocks := readBlocks(t, emptyLocaleBundle(tc.targets, tc.origins))
 			require.Len(t, blocks, 1)
 			assert.Equal(t, "Sign in", blocks[0].SourceText())
+			assert.Equal(t, tc.wantUnlabelled, blocks[0].TargetText(""))
 
+			body := writeBundle(t, blocks[0])
 			var file kbf.File
-			require.NoError(t, json.Unmarshal([]byte(writeBundle(t, blocks[0])), &file))
+			require.NoError(t, json.Unmarshal([]byte(body), &file))
 			require.Len(t, file.Documents, 1)
 			require.Len(t, file.Documents[0].Blocks, 1)
 			out := file.Documents[0].Blocks[0]
 
-			assert.Equal(t, "Sign in", model.RunsText(out.Source))
-			got := map[kbf.LocaleID]string{}
-			for loc, runs := range out.Targets {
-				got[loc] = model.RunsText(runs)
+			assert.Equal(t, "Sign in", model.RunsText(out.SourceRuns()))
+			got := map[string]string{}
+			for _, key := range out.TargetKeys() {
+				got[key] = model.RunsText(out.Editions[key].Runs)
 			}
-			assert.Equal(t, tc.wantTargets, got)
-			var origins []kbf.LocaleID
-			for loc := range out.TargetOrigins {
-				origins = append(origins, loc)
+			assert.Equal(t, tc.wantEditions, got)
+			if tc.wantUnlabelled == "" {
+				assert.Nil(t, out.Unlabelled)
+				return
 			}
-			assert.ElementsMatch(t, tc.wantOrigins, origins)
-			if tc.wantOrigins != nil {
-				assert.Equal(t, "human", out.TargetOrigins[""].Kind)
-			}
+			require.NotNil(t, out.Unlabelled)
+			assert.Equal(t, tc.wantUnlabelled, model.RunsText(out.Unlabelled.Runs))
+			assert.Equal(t, tc.wantOrigin, out.Unlabelled.Origin.Kind)
+
+			back := readBlocks(t, body)
+			require.Len(t, back, 1)
+			assert.Equal(t, tc.wantUnlabelled, back[0].TargetText(""))
+			assert.Equal(t, "Sign in", back[0].SourceText(), "the unlabelled edition never reaches the source")
 		})
 	}
+}
+
+// A block that reaches the writer with no bundle annotation, read from another
+// format, keeps a translation filed under no language too.
+func TestKBFWriterKeepsTheUnlabelledEditionOfABlockFromAnotherFormat(t *testing.T) {
+	b := model.NewBlock("s1", "Sign in")
+	b.SetTargetEdition(model.EditionKey{}, model.Edition{
+		Runs:   []model.Run{model.TextR("EMPTYLOC")},
+		Origin: model.Origin{Kind: model.OriginHuman},
+	})
+
+	var file kbf.File
+	require.NoError(t, json.Unmarshal([]byte(writeBundle(t, b)), &file))
+	out := file.Documents[0].Blocks[0]
+	require.NotNil(t, out.Unlabelled)
+	assert.Equal(t, "EMPTYLOC", model.RunsText(out.Unlabelled.Runs))
+	assert.Equal(t, model.OriginHuman, out.Unlabelled.Origin.Kind)
+	assert.Empty(t, out.TargetKeys())
 }

@@ -323,7 +323,7 @@ func plainBlockSourceText(b *blockstore.Block) string {
 		return ""
 	}
 	var sb strings.Builder
-	for _, r := range b.Source {
+	for _, r := range b.SourceRuns() {
 		if r.Text != nil {
 			sb.WriteString(r.Text.Text)
 		}

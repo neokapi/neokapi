@@ -11,18 +11,23 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// A bundle keys a target by its language alone, so a same-language channel
-// edition has no slot in it. Writing a block that holds one writes the source
-// and each language's own edition as they were, and no target in the source
-// language, so reading the bundle back finds the block as the bundle held it.
-// Carrying the channel edition itself is the work of the bundle's v2 schema.
-func TestKBFWritesNoSourceLanguageTargetForAChannelEdition(t *testing.T) {
+// A bundle keys each edition by its full key, so a same-language channel
+// edition and a tone edition each have a key of their own. Writing a block that
+// holds them writes the source, each language's own edition and every
+// qualified edition as they were, and reading the bundle back finds the block
+// as it was written, with no source-language target beside the source.
+func TestKBFCarriesChannelAndToneEditions(t *testing.T) {
 	blocks := readBlocks(t, emptyLocaleBundle(`{"nb": [{"text": "Logg inn"}]}`, `{}`))
 	require.Len(t, blocks, 1)
 	b := blocks[0]
 	b.SourceLocale = "en" // the bundle's project language
 	short := model.EditionKey{Locale: "en", Channel: "short"}
-	b.SetEdition(short, model.Edition{Runs: []model.Run{model.TextR("Sign")}})
+	b.SetEdition(short, model.Edition{
+		Runs:    []model.Run{model.TextR("Sign")},
+		Derived: &model.Derivation{From: model.Variant("en"), Rev: model.EditionRevision(b, model.Variant("en"))},
+	})
+	formal := model.EditionKey{Locale: "nb", Tone: "formal"}
+	b.SetEdition(formal, model.Edition{Runs: []model.Run{model.TextR("Logg Dem inn")}})
 
 	body := writeBundle(t, b)
 	var file kbf.File
@@ -30,17 +35,32 @@ func TestKBFWritesNoSourceLanguageTargetForAChannelEdition(t *testing.T) {
 	require.Len(t, file.Documents, 1)
 	require.Len(t, file.Documents[0].Blocks, 1)
 	out := file.Documents[0].Blocks[0]
-	assert.Equal(t, "Sign in", model.RunsText(out.Source))
-	got := map[kbf.LocaleID]string{}
-	for loc, runs := range out.Targets {
-		got[loc] = model.RunsText(runs)
+	assert.Equal(t, "Sign in", model.RunsText(out.SourceRuns()))
+	got := map[string]string{}
+	for _, key := range out.TargetKeys() {
+		got[key] = model.RunsText(out.Editions[key].Runs)
 	}
-	assert.Equal(t, map[kbf.LocaleID]string{"nb": "Logg inn"}, got, "the channel edition takes no slot")
+	assert.Equal(t, map[string]string{
+		"en;channel=short": "Sign",
+		"nb":               "Logg inn",
+		"nb;tone=formal":   "Logg Dem inn",
+	}, got, "every edition has a key of its own, and no plain en target appears")
+	require.NotNil(t, out.Editions["en;channel=short"].Derived)
+	assert.Equal(t, "en", out.Editions["en;channel=short"].Derived.From)
 
 	back := readBlocks(t, body)
 	require.Len(t, back, 1)
+	back[0].SourceLocale = "en"
 	assert.Equal(t, "Sign in", back[0].SourceText())
 	assert.Equal(t, "Logg inn", back[0].TargetText("nb"))
-	_, held := back[0].Edition(short)
-	assert.False(t, held, "a bundle in the v1 schema carries no channel edition")
+	gotShort, held := back[0].Edition(short)
+	require.True(t, held, "the channel edition reads back")
+	assert.Equal(t, "Sign", model.RunsText(gotShort.Runs))
+	require.NotNil(t, gotShort.Derived)
+	assert.Equal(t, model.Variant("en"), gotShort.Derived.From)
+	gotFormal, held := back[0].Edition(formal)
+	require.True(t, held, "the tone edition reads back")
+	assert.Equal(t, "Logg Dem inn", model.RunsText(gotFormal.Runs))
+	_, sameLanguage := back[0].TargetEdition("en")
+	assert.False(t, sameLanguage, "the channel edition leaves no plain target in the source language")
 }

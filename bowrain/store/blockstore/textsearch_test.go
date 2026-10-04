@@ -335,8 +335,8 @@ func TestSearchBlockText_HitCarriesTheBlock(t *testing.T) {
 	require.NotNil(t, h.Block)
 	assert.NotEmpty(t, h.Hash, "the hit names the block by its content key")
 	assert.Equal(t, h.Hash, h.Block.Hash)
-	assert.Equal(t, "The Content Memory keeps decisions", model.FlattenRuns(h.Block.Source))
-	assert.Equal(t, "Innholdsminnet tar vare på valgene", model.FlattenRuns(h.Block.Targets["nb"]))
+	assert.Equal(t, "The Content Memory keeps decisions", model.FlattenRuns(h.Block.SourceRuns()))
+	assert.Equal(t, "Innholdsminnet tar vare på valgene", model.FlattenRuns(h.Block.Editions["nb"].Runs))
 }
 
 func TestSearchBlockText_Limit(t *testing.T) {

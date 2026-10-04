@@ -88,7 +88,7 @@ func TestSession_PutGetBlock(t *testing.T) {
 		ID:           "hello",
 		Translatable: true,
 		Type:         kbf.BlockTypeJSXElement,
-		Source:       []kbf.Run{{Text: &kbf.TextRun{Text: "Hello"}}},
+		Editions:     kbf.SourceEditions([]kbf.Run{{Text: &kbf.TextRun{Text: "Hello"}}}),
 	}
 	// Empty collection = project-level write; collection-scoped
 	// writes route through StoreBlocksForItem and get a generated
@@ -123,8 +123,8 @@ func TestSession_PutGetBlock(t *testing.T) {
 	if streamed.Hash == "" {
 		t.Fatalf("expected server-computed ContentHash on streamed block, got empty")
 	}
-	if len(streamed.Source) != 1 || streamed.Source[0].Text == nil || streamed.Source[0].Text.Text != "Hello" {
-		t.Fatalf("source runs didn't round-trip: %+v", streamed.Source)
+	if src := streamed.SourceRuns(); len(src) != 1 || src[0].Text == nil || src[0].Text.Text != "Hello" {
+		t.Fatalf("source runs did not round-trip: %+v", streamed.SourceRuns())
 	}
 
 	// Now look up that same block by its computed hash.
@@ -363,7 +363,7 @@ func TestSession_PutBlock_CollectionScoped(t *testing.T) {
 	want := &blockstore.Block{
 		ID:           "src-1",
 		Translatable: true,
-		Source:       []kbf.Run{{Text: &kbf.TextRun{Text: "Scoped"}}},
+		Editions:     kbf.SourceEditions([]kbf.Run{{Text: &kbf.TextRun{Text: "Scoped"}}}),
 	}
 	if err := sess.PutBlock("greetings", want); err != nil {
 		t.Fatalf("put block in collection: %v", err)
@@ -383,8 +383,8 @@ func TestSession_PutBlock_CollectionScoped(t *testing.T) {
 		if b == nil {
 			continue
 		}
-		if len(b.Source) != 1 || b.Source[0].Text == nil || b.Source[0].Text.Text != "Scoped" {
-			t.Fatalf("wrong block streamed: %+v", b.Source)
+		if src := b.SourceRuns(); len(src) != 1 || src[0].Text == nil || src[0].Text.Text != "Scoped" {
+			t.Fatalf("wrong block streamed: %+v", b.SourceRuns())
 		}
 		got++
 	}

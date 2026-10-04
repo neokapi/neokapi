@@ -24,8 +24,10 @@ func sampleBlocks() *kbf.File {
 			ID: "d", DocumentType: kbf.DocumentTypeJSX, Path: "a.tsx",
 			Blocks: []kbf.Block{{
 				ID: "b1", Hash: "h1", Translatable: true, Type: kbf.BlockTypeJSXElement,
-				Source:       []kbf.Run{{Text: &kbf.TextRun{Text: "Hi <b>there</b> & more"}}},
-				Targets:      map[string][]kbf.Run{"fr": {{Text: &kbf.TextRun{Text: "Salut"}}}},
+				Editions: map[string]kbf.Edition{
+					kbf.SourceEdition: {Runs: []kbf.Run{{Text: &kbf.TextRun{Text: "Hi <b>there</b> & more"}}}},
+					"fr":              {Runs: []kbf.Run{{Text: &kbf.TextRun{Text: "Salut"}}}},
+				},
 				Placeholders: []kbf.Placeholder{},
 				Properties:   kbf.BlockProperties{File: "a.tsx", Line: 1, Component: "C", JSXPath: "p", Element: "p"},
 			}},
@@ -113,7 +115,7 @@ func TestPackageRoundTrip(t *testing.T) {
 	assert.Equal(t, "tm-1", got.Memory.Entries[0].ID)
 	assert.Equal(t, "c-1", got.Terms.Concepts[0].ID)
 	// The block's markup with < > & survived unescaped through the KBF member.
-	assert.Equal(t, "Hi <b>there</b> & more", got.Blocks[0].File.Documents[0].Blocks[0].Source[0].Text.Text)
+	assert.Equal(t, "Hi <b>there</b> & more", got.Blocks[0].File.Documents[0].Blocks[0].SourceRuns()[0].Text.Text)
 }
 
 func TestMarshalDeterministic(t *testing.T) {

@@ -5,18 +5,22 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 )
 
 // SourceLocale is the locale key a block's own text is filed under. It is empty
 // on purpose: a block cache holds no opinion about which language its source is
-// in — the recipe does. Targets are filed under their own locale id.
-const SourceLocale = ""
+// in; the recipe does. It is kbf.SourceEdition, the key a block files the
+// edition it was read in under, and every other edition is filed under its own
+// edition key.
+const SourceLocale = kbf.SourceEdition
 
 // BlockText is one block's plain text in one locale.
 type BlockText struct {
-	// Locale is SourceLocale for the block's source text, or the target
-	// locale id.
+	// Locale is SourceLocale for the block's source text, or the canonical
+	// edition key of another edition: a locale id, with a tone or a channel
+	// where the edition has one ("nb", "en;channel=short").
 	Locale string
 	// Text is the flattened plain text: placeholders contribute their
 	// equivalent, paired codes contribute their content, plural and select
@@ -25,9 +29,10 @@ type BlockText struct {
 	Text string
 }
 
-// BlockTexts returns the block's plain text per locale — the source first, then
-// each target that carries any. Empty texts are omitted: there is nothing to
-// index or search in them.
+// BlockTexts returns the block's plain text per edition: the source first, then
+// each other edition that carries any, in the order of its key. Empty texts are
+// omitted: there is nothing to index or search in them. A translation filed
+// under no language has no key to be found under, so it is not among them.
 //
 // This is the one definition of "the text of a block" the search index, the
 // in-memory scan and the occurrence query all share, so a match found by one is
@@ -36,17 +41,15 @@ func BlockTexts(b *Block) []BlockText {
 	if b == nil {
 		return nil
 	}
-	out := make([]BlockText, 0, 1+len(b.Targets))
-	if src := model.FlattenRuns(b.Source); src != "" {
+	keys := b.TargetKeys()
+	out := make([]BlockText, 0, 1+len(keys))
+	if src := model.FlattenRuns(b.SourceRuns()); src != "" {
 		out = append(out, BlockText{Locale: SourceLocale, Text: src})
 	}
-	for locale, runs := range b.Targets {
-		if locale == SourceLocale {
-			continue // a target filed under the source key would shadow it
-		}
-		if txt := model.FlattenRuns(runs); txt != "" {
+	for _, key := range keys {
+		if txt := model.FlattenRuns(b.Editions[key].Runs); txt != "" {
 			// Canonical, the form every locale filter asks in.
-			out = append(out, BlockText{Locale: string(model.NormalizeLocale(model.LocaleID(locale))), Text: txt})
+			out = append(out, BlockText{Locale: kbf.KeyText(kbf.ParseKey(key)), Text: txt})
 		}
 	}
 	return out
