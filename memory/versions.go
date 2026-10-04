@@ -126,8 +126,8 @@ func (tm *InMemoryStore) Versions(ctx context.Context, q VersionQuery, excludeID
 }
 
 // ErrVersionQueryNeedsUnit reports a history query without a block identity.
-// Entries with no unit cannot establish that they belong to the same block.
-var ErrVersionQueryNeedsUnit = errors.New("memory: version query needs a unit")
+// Entries with no block key cannot establish that they belong to the same block.
+var ErrVersionQueryNeedsUnit = errors.New("memory: version query needs a block key")
 
 // Versions returns a block's history from the SQLite corpus. It selects entries
 // using the (unit, point) index and loads their variants, entities and origins
