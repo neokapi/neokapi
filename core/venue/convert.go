@@ -28,7 +28,7 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 		Id:                 b.ID,
 		ItemName:           itemName,
 		Name:               b.Name,
-		Unit:               b.Unit,
+		Unit:               b.Key,
 		Type:               b.Type,
 		MimeType:           b.MimeType,
 		Translatable:       b.Translatable,
@@ -139,7 +139,7 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 	b := &model.Block{
 		ID:                 sb.Id,
 		Name:               sb.Name,
-		Unit:               sb.Unit,
+		Key:                sb.Unit,
 		Type:               sb.Type,
 		MimeType:           sb.MimeType,
 		Translatable:       sb.Translatable,

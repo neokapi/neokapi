@@ -86,7 +86,7 @@ func TestPriorVersionOfReadsTheChain(t *testing.T) {
 	block := &model.Block{
 		ID:           "b1",
 		Name:         "settings.save",
-		Unit:         "settings.save",
+		Key:          "settings.save",
 		Translatable: true,
 	}
 	block.SetSourceText("Save this file")
@@ -118,7 +118,7 @@ func TestPriorVersionOfWithoutAChain(t *testing.T) {
 	tm := memory.NewInMemoryStore()
 
 	t.Run("no reader answers nothing", func(t *testing.T) {
-		assert.Nil(t, PriorVersionOf(ctx, nil, &model.Block{ID: "b", Unit: "x"}, "en", "nb", ""))
+		assert.Nil(t, PriorVersionOf(ctx, nil, &model.Block{ID: "b", Key: "x"}, "en", "nb", ""))
 	})
 
 	t.Run("a block with no chain identity asks nothing", func(t *testing.T) {
@@ -126,7 +126,7 @@ func TestPriorVersionOfWithoutAChain(t *testing.T) {
 	})
 
 	t.Run("a chain the corpus has never seen answers nothing", func(t *testing.T) {
-		block := &model.Block{ID: "b", Unit: "never.written", Translatable: true}
+		block := &model.Block{ID: "b", Key: "never.written", Translatable: true}
 		assert.Nil(t, PriorVersionOf(ctx, tm, block, "en", "nb", ""))
 	})
 
@@ -141,7 +141,7 @@ func TestPriorVersionOfWithoutAChain(t *testing.T) {
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		}))
-		block := &model.Block{ID: "b", Unit: "half.answer", Translatable: true}
+		block := &model.Block{ID: "b", Key: "half.answer", Translatable: true}
 		assert.Nil(t, PriorVersionOf(ctx, tm, block, "en", "nb", ""))
 	})
 }

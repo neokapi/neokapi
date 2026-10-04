@@ -122,7 +122,7 @@ func (s *Service) History(ctx context.Context, q HistoryRequest) (*History, erro
 
 	var block *model.Block
 	_, err = sess.Read(ctx, want, func(b *model.Block) error {
-		if slices.Contains([]string{b.Unit, b.Name, b.ID}, key) {
+		if slices.Contains([]string{b.Key, b.Name, b.ID}, key) {
 			block = b
 			return ErrStop
 		}

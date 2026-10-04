@@ -34,7 +34,7 @@ func copyRuns(t *testing.T, runs []model.Run) []model.Run {
 // changing one copy leaves the other alone.
 func copyBlock(t *testing.T, b *model.Block) *model.Block {
 	t.Helper()
-	c := &model.Block{ID: b.ID, Name: b.Name, Unit: b.Unit, Type: b.Type, Translatable: b.Translatable, SourceLocale: b.SourceLocale}
+	c := &model.Block{ID: b.ID, Name: b.Name, Key: b.Key, Type: b.Type, Translatable: b.Translatable, SourceLocale: b.SourceLocale}
 	c.SetSourceRuns(copyRuns(t, b.SourceRuns()))
 	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
 	c.SetEditionStatus(c.Authoritative(model.AuthorityPolicy{}), src.Status)

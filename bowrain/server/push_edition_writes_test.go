@@ -160,7 +160,7 @@ func TestSyncPush_RefusesAnApprovalOfTheTranslationThePusherWrote(t *testing.T) 
 	blocks := catalog(map[string]string{"greeting": "Hello world", "farewell": "Goodbye now", "title": "Welcome"})
 	// The venue knows the title by a key of its own; the checkout's decisions
 	// name it by the key its reader gives it.
-	blocks["locales/en.json"][2].Unit = "u-title"
+	blocks["locales/en.json"][2].Key = "u-title"
 	_, err := client.Push(ctx, blocks, catalogItems, nil, nil)
 	require.NoError(t, err)
 	drainWithAuthority(t, srv)

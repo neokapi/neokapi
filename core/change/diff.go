@@ -104,8 +104,8 @@ func derivedOrSource(b *model.Block, k model.EditionKey) (model.Edition, bool) {
 // else its id.
 func blockKey(b *model.Block) string {
 	switch {
-	case b.Unit != "":
-		return b.Unit
+	case b.Key != "":
+		return b.Key
 	case b.Name != "":
 		return b.Name
 	}

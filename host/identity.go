@@ -54,7 +54,7 @@ type Priors struct {
 
 // ResolveIdentity matches a fresh read against what the project already knows
 // and returns the durable identity of every block, writing each one onto its
-// block as model.Block.Unit.
+// block as model.Block.Key.
 //
 // byPath is what a source scan produces: blocks grouped by the file they came
 // from. Documents are resolved first, because a block's context is scoped to its
@@ -91,7 +91,7 @@ func ResolveIdentity(byPath map[string][]*model.Block, priors Priors) []Resolved
 		rd := ResolvedDocument{Path: d.Path, Scope: scope, Kind: resolvedDocs[i].Kind}
 		for _, r := range results {
 			if r.Block != nil {
-				r.Block.Unit = r.Key
+				r.Block.Key = r.Key
 			}
 			rd.Blocks = append(rd.Blocks, ResolvedBlock{Block: r.Block, Unit: r.Key, Kind: r.Kind})
 		}

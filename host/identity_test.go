@@ -81,8 +81,8 @@ func TestResolveIdentity_WritesTheUnitOntoTheBlock(t *testing.T) {
 
 	require.Len(t, docs, 1)
 	require.Len(t, docs[0].Blocks, 1)
-	assert.NotEmpty(t, blocks[0].Unit)
-	assert.Equal(t, docs[0].Blocks[0].Unit, blocks[0].Unit)
+	assert.NotEmpty(t, blocks[0].Key)
+	assert.Equal(t, docs[0].Blocks[0].Unit, blocks[0].Key)
 }
 
 // Renaming a file must not disturb anything inside it.

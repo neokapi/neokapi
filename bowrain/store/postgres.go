@@ -1951,7 +1951,7 @@ func scanStoredBlockPg(row scanner) (*venue.StoredBlock, error) {
 	// a translation and a history entry are filed under here. Reading it back
 	// onto the block is what makes a pull round-trip the identity rather than
 	// hand back a block whose key would be re-derived from its name.
-	sb.Block.Unit = sb.SourceID
+	sb.Block.Key = sb.SourceID
 	return &sb, nil
 }
 

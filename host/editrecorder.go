@@ -223,7 +223,7 @@ func editTransition(t change.Transition, keep keptRuns) projector.EditTransition
 			edition = string(text)
 		}
 		if key == "" {
-			key = b.Unit
+			key = b.Key
 		}
 		if contentHash == "" || contextHash == "" {
 			id := model.ComputeIdentity(b)

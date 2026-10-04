@@ -217,7 +217,7 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 		defer obs.Done(ctx)
 	}
 	head, err := sess.Read(ctx, want, func(b *model.Block) error {
-		if len(blocks) > 0 && !slices.ContainsFunc([]string{b.Unit, b.Name, b.ID}, func(k string) bool {
+		if len(blocks) > 0 && !slices.ContainsFunc([]string{b.Key, b.Name, b.ID}, func(k string) bool {
 			return k != "" && slices.Contains(blocks, k)
 		}) {
 			return nil

@@ -15,7 +15,7 @@ type SyncBlock struct {
 	ID       string `json:"id"`
 	ItemName string `json:"item_name"`
 	Name     string `json:"name"`
-	// Unit is the block's durable identity (model.Block.Unit) — what a decision
+	// Unit is the block's durable identity (model.Block.Key) — what a decision
 	// and a translation are filed under. Distinct from Name, which is the
 	// format's own structural address and shifts when a sibling is deleted.
 	Unit         string                   `json:"unit,omitempty"`
