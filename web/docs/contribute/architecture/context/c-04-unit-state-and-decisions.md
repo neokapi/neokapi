@@ -195,9 +195,12 @@ filed under each stay with it.
 
 `WorkStore.Lookup` returns the decision for the source and the translation a
 checkout holds (`state.Reading`): an entry recorded with revisions where they
-are the content's, and one recorded before revisions where its hashes are.
-Where both answer, the entry that names more of the content does, so a later
-withdrawal is never undone by an older entry for the same text. Different
+are the content's, and one recorded before revisions where its hashes are,
+until an entry with revisions is recorded for the same hashes. From then on the
+later entry speaks for that text, whether or not its revisions are still the
+content's, and of the entries that answer the latest does. A later withdrawal is
+therefore never undone by an older entry for the same text, even after an
+inline code moves under it. Different
 translations of a unit have separate ledger entries, two that differ in an
 inline code alone among them. Checkouts with identical source and translation
 share the same decision, regardless of branch.
@@ -315,15 +318,25 @@ except where an inline code alone moved: a changed link target, or a link
 removed, retires a decision recorded with revisions and leaves one recorded
 before them standing.
 
+The server venue stores both halves with each decision and grades its own
+ledger by the hashes alone, against the source text it holds: its status
+projection, its grouped tally and its draft mark. A change to an inline code
+alone therefore retires a decision on a checkout and leaves it standing on the
+server venue until the unit is decided again. Grading there by revision needs
+the revision of each source the venue stores.
+
 A revision covers the key its edition is filed under, and the readers of one
 document do not file its source alike: the change service keeps a language the
 file declares, a project read files every block under the project's source
 language, and a reader that declares none leaves the block with none. The source
 half is therefore matched under every key a reader of the document gives it
-(`model.Block.SourceRevisions`), and a project read that files a block under the
-project's language keeps the language its reader declared on the block
-(`model.PropReadSourceLocale`). The content is the same under every key, so the
-match finds exactly the source as it stands.
+(`model.Block.SourceRevisions`), and every project read that files a block under
+the project's language keeps the language its reader declared on the block
+(`model.PropReadSourceLocale`), the workspace home's reading of a parked
+locale's drafts included. The content is the same under every key, so the
+match finds exactly the source as it stands. A derivation's standing
+(`model.Block.BasisStanding`) and the record absorber's recovery of the source
+at a basis match the same keys.
 
 A record is **stale** when either half no longer matches what the project holds.
 Editing an approved translation drops the unit back below *established*; rewriting
@@ -363,9 +376,9 @@ basis-stale unit exactly as it treats one with no translation at all: it is in
 the pending set on any scope (gated or not, since the `draft` tally would
 otherwise read an ungated scope as complete), it is priced in `kapi up --plan` on
 the same recycle-versus-AI split, and the pass produces a translation of the
-source the project has now. The server venue derives the same answer from its
-ledger: one grouped query grades every recorded basis against the current
-source, and a stale unit is withheld from the produced count until a pass has
+source the project has now. The server venue derives the answer from its
+ledger by text: one grouped query grades every recorded basis hash against the
+current source's, and a stale unit is withheld from the produced count until a pass has
 drafted it, so a run started by a source change has pending work and produces.
 For a unit nobody has decided, the venue's ledger row carries the basis of the
 latest draft: one its own run made, or one a run on a checkout made, which the

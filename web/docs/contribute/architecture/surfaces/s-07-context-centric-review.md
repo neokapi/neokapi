@@ -220,8 +220,8 @@ A decision records the source it was taken against, and coverage grades a
 decided unit stale once the source moves away from that basis. An undecided
 translation gets the same anchor from the loop itself: every document a run
 writes is recorded as the flow's `content.edit`, and the block history keeps,
-for each translation the run produced, the hash of the source it translated and
-the revision of the target it left ([E-09](../engine/e-09-the-change-contract.md#flows)).
+for each translation the run produced, the revision and the hash of the source
+it translated and the revision of the target it left ([E-09](../engine/e-09-the-change-contract.md#flows)).
 The record lives in the project's context log, so a checkout that reads the
 project's context reads it, and it is not a decision, so loop output is never
 counted as a person's pending decision. A fresh clone holds the translations
@@ -229,15 +229,19 @@ the repository carries and none of that record until it runs
 `kapi context pull`; `kapi up` and `kapi status` say so in one line while the
 translations exist on disk and the history records nothing.
 
-Coverage derives the basis for both classes alike. A source change under an
-undecided target grades the unit stale, the plan counts it, and the next pass
-re-drafts it with the old wording still on disk. Only a decision moves a unit on
+Coverage grades the basis of both classes alike, by the revision of the
+source, so a changed link counts as a source change as much as a changed word.
+A source change under an undecided target grades the unit stale, the plan counts
+it, and the next pass re-drafts it with the old wording still on disk. Only a decision moves a unit on
 its ladder. A target that no longer holds the revision the flow left was taken
 over by a person; the next read records that change as observed, with no
 author and no basis, and the unit grades as basis unknown and is left alone and
 reported. No host clears targets to force the loop's attention. A venue's own
 worker records the basis of the drafts it writes, and a push carries the basis
-a run on a checkout recorded (see below), so the venue grades both alike.
+a run on a checkout recorded (see below), so the venue grades both alike. The
+server venue grades by the hash of the source text: a change to an inline code
+alone moves no hash, so the venue keeps such a unit current where coverage on a
+checkout reads it stale ([C-04](../context/c-04-unit-state-and-decisions.md#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed)).
 
 The server's translation worker reads the same ledger. A target whose recorded
 basis is stale is owed a draft, a target the ledger has no record of is left

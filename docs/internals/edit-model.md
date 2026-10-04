@@ -2150,10 +2150,22 @@ beside all of them in package-sized PRs.
     time it reads the file).
   - Bowrain stores and returns the revision pairing and records it on its own verdicts, and still
     grades its ledger by the hashes: the source half against `blocks.content_hash`, the draft mark
-    and the status projections included. Grading there by revision needs the source revision on
-    each stored block.
+    and the status projections included. A change to an inline code alone therefore retires a
+    decision on a checkout and leaves it established on the platform; C-04, S-07 and the Bowrain
+    review and push pages say so. Grading there by revision needs the source revision on each
+    stored block (a migration of its own), and it moves the grouped tally in both stores, the
+    settle path on a source write, the upsert projection, the draft mark and the review context's
+    stale flag. It needs an owner and a decision before 1.3.0: move the platform, or ship it
+    grading by text.
   - The content memory keeps its pairs by language. Pairing a `from` and a `to` edition waits for
     a reader or a tool that produces a tone or channel edition.
+  - `edit.Classify` is unchanged: it compares the source a content-memory pair holds with the
+    source in hand. The record absorber writes that pair from the source at the basis revision,
+    which it recovers from the block store by revision under every key a reader gives the source,
+    and it writes no pair whose basis revision the store no longer holds. Classifying against the
+    text at `Derived.Rev` directly waits for a store that keeps `Derived`.
+  - The staleness gate reads a translation's latest write rather than the write that left the
+    revision on disk (the list after 1.3.0 from WP7 and WP8), so it does not pair either.
   - The project authority policy (section 6.3). Every `Authoritative` call passes
     `AuthorityPolicy{}`, the engine's rule, and none passes the recipe's source language. The two
     agree while a block's `SourceLocale` is the recipe's source language. They differ for a

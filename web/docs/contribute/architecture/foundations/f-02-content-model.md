@@ -264,7 +264,10 @@ different keys: none, the language the file declares, or a project's source
 language. `SourceRevisions(source)` lists the revision of the source under each,
 the property `PropReadSourceLocale` keeping a declared language on a block a
 project read files under the project's, so a basis any reader took is matched
-by content. `TranslateAfterLevel.AdmitsDerivation(b, from)` is the derivation
+by content. `BasisStanding` matches a derivation from the source the same way:
+where the edition it names is the one the block was read in, or a language the
+block holds no edition in, it reads current while any of those revisions is the
+basis. `TranslateAfterLevel.AdmitsDerivation(b, from)` is the derivation
 gate: an edition is derived from `from` only once `from` reaches the level on
 the ladder of its role.
 

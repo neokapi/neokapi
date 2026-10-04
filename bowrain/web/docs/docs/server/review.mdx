@@ -126,10 +126,14 @@ its rung and its record, and the push reports the rejection it did not apply.
 
 Two records, written for every approval whichever route made it:
 
-- **A decision**, in the project's ledger, naming who decided, when, and the
-  hash of the exact wording they blessed. That record travels to a working copy
+- **A decision**, in the project's ledger, naming who decided, when, the hash
+  of the exact wording they blessed, and the revisions of the translation and
+  of its source, inline codes included. That record travels to a working copy
   on `kapi pull`, and it is what promotes the wording into the workspace
-  [content memory](/server/translation-memory).
+  [content memory](/server/translation-memory). The server grades its own
+  statuses by the wording: when only a link or another inline code changes, the
+  approval stays in force here, while kapi on a working copy reads it as stale
+  until someone decides the block again.
 - **An audit entry**, in the workspace [audit log](/server/security-and-privacy#the-audit-log), naming
   the actor, the block, the locale, and the rungs the target moved between. A
   rejection and a withdrawn approval are recorded the same way, each

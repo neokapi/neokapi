@@ -28,8 +28,10 @@ Implemented in Go at
 
 A decision is appended to the project's **decision ledger**, which lives in the
 [project store](/kapi/project-store), and it is durable the moment it is
-recorded. Every local checkout reads the ledger and applies decisions whose
-source and target hashes match its current content.
+recorded. Every local checkout reads the ledger and applies the decisions made
+on the source and translation it holds now: by their revisions where a decision
+records them, and by the source and target hashes where it was recorded before
+revisions.
 
 The shards are the ledger in a form git can track: for each block, what was
 decided about the source and the translation. `kapi context import` reads that
@@ -59,7 +61,7 @@ scope, each line a single block:
 ```
 
 ```json title="one line of a shard"
-{"unit":"k1_…","scope":"d-app-messages","variant":{"locale":"nb"},"status":"established","targetHash":"…","contentHash":"…","contextHash":"…","decision":{"reviewState":"approved","at":"2026-08-04T09:12:44Z"},"updated":"2026-08-04T09:12:44Z"}
+{"unit":"k1_…","scope":"d-app-messages","variant":{"locale":"nb"},"status":"established","targetHash":"…","revision":"r:…","basis":"r:…","contentHash":"…","contextHash":"…","decision":{"reviewState":"approved","at":"2026-08-04T09:12:44Z"},"updated":"2026-08-04T09:12:44Z"}
 ```
 
 **JSON Lines rather than one document**, because the record is appended to and
@@ -108,26 +110,34 @@ the version rides the single-document serialization of the same records.
 | `sourceStatus` | string | Source ladder position: written → established. |
 | `origin` | object | Provenance of the current target (engine/tool/reference). |
 | `targetHash` | string | Content hash of the translation this state blesses. |
-| `contentHash` | string | The decision's **basis**: the hash of the source wording the decision was made against. A record whose basis no longer matches the block's current source reads as *stale*. |
+| `revision` | string | Revision of the translation this state blesses, inline codes included: the token `kapi inspect` prints. Absent on a record made before revisions, and on a source approval. |
+| `basis` | string | The decision's **basis**: the revision of the source the decision was made against. A record whose basis no longer matches the block's current source reads as *stale*. Absent on a record made before revisions. |
+| `contentHash` | string | The basis by text: the hash of the source wording the decision was made against. A record that carries no `basis` is graded by it. |
 | `contextHash` | string | The fingerprint of the governing context (voice, terms, point) in force when the block was produced; the staleness gate compares it against the context in force now. |
 | `decision` | object | The recorded workflow decision: `reviewState` (`approved`, `rejected`, …), `by` (empty for a person, `ai/<model>` for an autonomous AI approval, `agent/<client>` for an agent acting for a person), `at`, `note`, `parked`, `assignee`. |
-| `aiReview` | object | Last AI pre-review annotation. Optional. |
+| `aiReview` | object | Last AI pre-review annotation. Optional. Its `targetHash` and `revision` name the translation it judged. |
 | `updated` | string | RFC 3339. |
 
-Three hashes carry most of the design:
+A few fields carry most of the design:
 
-**`targetHash` does not duplicate the translation.** It is a hash of the text
-the review was made against, so editing that text invalidates a stale approval
-rather than silently carrying it forward. The translation itself lives in the
-deliverable; this record only blesses it.
+**`revision` and `targetHash` name the translation without holding it.** They
+identify the content the review was made against, so editing it invalidates a
+stale approval rather than silently carrying it forward. The revision covers
+the inline codes as well as the words, so a changed link counts as an edit. The
+translation itself lives in the deliverable; this record only blesses it.
 
-**`contentHash` binds the decision to its source.** An approval is about a
-pairing, this rendering *of this source*, so the record keeps the hash of the
-source wording as the decision's basis. Edit the source and the block reads as
-stale until someone decides the new pairing; restore the source and the
-decision applies again. It is also what lets a block removed in one revision
-and restored in a later one come back to its own history rather than being
-re-translated.
+**`basis` and `contentHash` bind the decision to its source.** An approval is
+about a pairing, this rendering *of this source*, so the record keeps the
+revision of the source, and the hash of its wording, as the decision's basis.
+Edit the source and the block reads as stale until someone decides the new
+pairing; restore the source and the decision applies again. The content hash is
+also what lets a block removed in one revision and restored in a later one come
+back to its own history rather than being re-translated.
+
+**A record made before revisions is read by its hashes.** It carries no
+`revision` or `basis`, applies while the text of both halves matches, and keeps
+answering that way until the block is decided again. Once a decision with
+revisions is recorded for the same text, the older record no longer answers.
 
 **`contextHash` binds the target to the governance it was produced under.** The
 staleness gate reads it: a target written under a voice profile or a terms
