@@ -120,7 +120,7 @@ func loadDecisionLedger(ctx context.Context, cs store.ContentStore, projectID, s
 }
 
 // record returns the ledger's record for a block's variant.
-func (l decisionLedger) record(sb *venue.StoredBlock, key model.VariantKey) (ledgerRecord, bool) {
+func (l decisionLedger) record(sb *venue.StoredBlock, key model.EditionKey) (ledgerRecord, bool) {
 	if len(l) == 0 || sb == nil || sb.SourceID == "" || sb.ItemName == "" {
 		return ledgerRecord{}, false
 	}
@@ -209,9 +209,9 @@ func blockSourceHash(sb *venue.StoredBlock) string {
 	return model.ComputeContentHash(sb.Block.SourceText())
 }
 
-// variantText renders a VariantKey the way the ledger stores it ("fr",
+// variantText renders a EditionKey the way the ledger stores it ("fr",
 // "fr;tone=…").
-func variantText(k model.VariantKey) string {
+func variantText(k model.EditionKey) string {
 	b, err := k.MarshalText()
 	if err != nil {
 		return string(k.Locale)

@@ -19,7 +19,7 @@ type EditionWrite struct {
 	// decisions among them, where that differs from Unit: a checkout names a
 	// block by its reader's key, and a push resolves it to the venue's.
 	Block string `json:"block,omitempty"`
-	// Variant is the locale (and optional tone/channel) in VariantKey text form.
+	// Variant is the locale (and optional tone/channel) in EditionKey text form.
 	Variant string `json:"variant"`
 	// Revision is the edition's revision the write left (model.RunsRevision).
 	// A venue holding another translation of the unit takes nothing from the

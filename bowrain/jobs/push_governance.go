@@ -939,7 +939,7 @@ func (g *pushGovernor) dropStaleRejections(held, decisions []venue.UnitDecision)
 
 // decisionLocale reads the language out of a decision's variant.
 func decisionLocale(d venue.UnitDecision) string {
-	var key model.VariantKey
+	var key model.EditionKey
 	if err := key.UnmarshalText([]byte(d.Variant)); err != nil {
 		return ""
 	}

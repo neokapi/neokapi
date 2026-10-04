@@ -460,7 +460,7 @@ func tallyDecisionBasis(ctx context.Context, cs store.ContentStore, projectID, s
 		if t.Stale == 0 && t.BasisUnknown == 0 && t.Owed == 0 && t.RejectedOwed == 0 {
 			continue
 		}
-		var variant model.VariantKey
+		var variant model.EditionKey
 		if err := variant.UnmarshalText([]byte(t.Variant)); err != nil || variant.Locale == "" {
 			continue // a variant that names no locale belongs to no locale scope
 		}

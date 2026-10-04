@@ -122,8 +122,8 @@ func TestEditPlan_TargetOverlaysFollowAndKeysAreCanonical(t *testing.T) {
 	bt := &tool.BaseTool{ToolName: "probe"}
 	bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		var p tool.EditPlan
-		p.SetTargetVariant(model.VariantKey{Locale: "fr"}, []model.Run{model.TextR("Salut")})
-		p.SetTargetVariant(model.VariantKey{Locale: "nb_NO"}, []model.Run{model.TextR("Hei")})
+		p.SetTargetVariant(model.EditionKey{Locale: "fr"}, []model.Run{model.TextR("Salut")})
+		p.SetTargetVariant(model.EditionKey{Locale: "nb_NO"}, []model.Run{model.TextR("Hei")})
 		return p, nil
 	}
 	require.NoError(t, dispatch(t, bt, b))
@@ -258,8 +258,8 @@ func TestEditPlan_TextEditsApplyAsReplaceText(t *testing.T) {
 	bt := &tool.BaseTool{ToolName: "probe"}
 	bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		var p tool.EditPlan
-		p.AddTextEdits(model.VariantKey{}, []change.TextEdit{edit(0, 5, "Press")})
-		p.AddTextEdits(model.VariantKey{}, []change.TextEdit{edit(11, 14, "later")})
+		p.AddTextEdits(model.EditionKey{}, []change.TextEdit{edit(0, 5, "Press")})
+		p.AddTextEdits(model.EditionKey{}, []change.TextEdit{edit(11, 14, "later")})
 		p.AddTextEdits(model.Variant("fr"), []change.TextEdit{edit(6, 10, "Keep")})
 		p.AddTextEdits(model.Variant("fr"), nil)
 		return p, nil
@@ -277,7 +277,7 @@ func TestEditPlan_TextEditsApplyAsReplaceText(t *testing.T) {
 	var source tool.EditPlan
 	text := "Salut"
 	source.ReplaceAll = &text
-	source.AddTextEdits(model.VariantKey{}, []change.TextEdit{edit(0, 1, "c")})
+	source.AddTextEdits(model.EditionKey{}, []change.TextEdit{edit(0, 1, "c")})
 	_, err = source.Ops(b)
 	require.Error(t, err)
 }
@@ -289,7 +289,7 @@ func TestEditPlan_TextEditsApplyAsReplaceText(t *testing.T) {
 func TestEditPlan_NonCanonicalKeysNameTheirEdition(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	b.SetTargetText("fr-FR", "Bonjour")
-	p := tool.EditPlan{Targets: map[model.VariantKey][]model.Run{{Locale: "fr-fr"}: {model.TextR("Salut")}}}
+	p := tool.EditPlan{Targets: map[model.EditionKey][]model.Run{{Locale: "fr-fr"}: {model.TextR("Salut")}}}
 
 	ops, err := p.Ops(b)
 	require.NoError(t, err)
@@ -302,7 +302,7 @@ func TestEditPlan_NonCanonicalKeysNameTheirEdition(t *testing.T) {
 	}
 	assert.Equal(t, "Salut", b.TargetText("fr-FR"))
 
-	two := tool.EditPlan{Targets: map[model.VariantKey][]model.Run{
+	two := tool.EditPlan{Targets: map[model.EditionKey][]model.Run{
 		{Locale: "fr-fr"}: {model.TextR("Salut")},
 		{Locale: "fr_FR"}: {model.TextR("Coucou")},
 	}}

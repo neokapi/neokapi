@@ -78,7 +78,7 @@ func PromoteDecisionsToMemory(
 			if sb == nil || sb.Block == nil || !sb.Block.Translatable {
 				continue
 			}
-			var variant model.VariantKey
+			var variant model.EditionKey
 			if err := variant.UnmarshalText([]byte(d.Variant)); err != nil || variant.Locale == "" {
 				continue
 			}

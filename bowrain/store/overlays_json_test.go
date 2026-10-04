@@ -16,7 +16,7 @@ import (
 // (model.OverlayCheck) carrying only props, and a target-side (Variant-bearing)
 // alignment overlay. Anchors use real run-index ranges.
 func overlaysFixture() []model.Overlay {
-	frVariant := model.VariantKey{Locale: model.LocaleFrench}
+	frVariant := model.EditionKey{Locale: model.LocaleFrench}
 	return []model.Overlay{
 		{
 			Type:  model.OverlaySegmentation,

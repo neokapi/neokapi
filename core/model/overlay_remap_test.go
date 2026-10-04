@@ -356,7 +356,7 @@ func TestDropOverlays_RemovesOneEditionOnly(t *testing.T) {
 		{Type: model.OverlaySegmentation, Edition: de},
 		{Type: model.OverlayTerm},
 	}
-	nbNO := model.VariantKey{Locale: "nb_NO"}
+	nbNO := model.EditionKey{Locale: "nb_NO"}
 	assert.Equal(t, 0, model.DropOverlays(b, nbNO))
 	assert.Equal(t, 1, model.DropOverlays(b, fr))
 	assert.Len(t, b.Overlays, 2)

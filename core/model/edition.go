@@ -18,10 +18,6 @@ import (
 // block holds a same-language edition of its own under that key, as a
 // bilingual file from en-US to en-US does.
 
-// EditionKey names one edition of a block: its language, and optionally a tone
-// and a channel. The zero key names the edition the block was read in.
-type EditionKey = VariantKey
-
 // Status is an edition's lifecycle state. The edition's role picks the ladder
 // it climbs: the authoritative edition goes from written to established (the
 // values of SourceStatus), a derived edition from draft through translated to
@@ -71,7 +67,7 @@ type AuthorityPolicy struct {
 // language normalized to its BCP-47 form. The empty string is the zero key,
 // which names the document's own edition.
 //
-// It is strict where VariantKey.UnmarshalText is lenient: a language that is
+// It is strict where EditionKey.UnmarshalText is lenient: a language that is
 // not a locale, a dimension other than tone and channel, a dimension named
 // twice, and a dimension with no value are errors.
 func ParseEditionKey(s string) (EditionKey, error) {

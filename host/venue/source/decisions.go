@@ -52,8 +52,8 @@ func (c *BowrainSourceConnector) bindRefsToStore(ctx context.Context) {
 	c.refs.BindStore(id)
 }
 
-// variantText renders a VariantKey in its wire text form ("nb", "fr;tone=…").
-func variantText(k model.VariantKey) string {
+// variantText renders a EditionKey in its wire text form ("nb", "fr;tone=…").
+func variantText(k model.EditionKey) string {
 	b, err := k.MarshalText()
 	if err != nil {
 		return string(k.Locale)
@@ -165,7 +165,7 @@ func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pull
 			// the pull records its write in the block history.
 			continue
 		}
-		var variant model.VariantKey
+		var variant model.EditionKey
 		if err := variant.UnmarshalText([]byte(d.Variant)); err != nil || variant.Locale == "" {
 			skipped++
 			continue

@@ -210,7 +210,7 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 	// segments, status/origin/score restored from the first segment's props.
 	// Each is filed as a target, so a target in the source language stays one.
 	for keyText, segs := range sb.Targets {
-		var key model.VariantKey
+		var key model.EditionKey
 		if err := key.UnmarshalText([]byte(keyText)); err != nil {
 			continue
 		}

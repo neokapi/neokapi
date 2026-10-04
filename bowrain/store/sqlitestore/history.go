@@ -149,7 +149,7 @@ func loadExistingTargets(ctx context.Context, tx *sql.Tx, projectID, _, blockID 
 		if err := rows.Scan(&keyText, &targetJSON); err != nil {
 			return nil, err
 		}
-		var key model.VariantKey
+		var key model.EditionKey
 		if err := key.UnmarshalText([]byte(keyText)); err != nil {
 			continue // skip malformed keys silently
 		}

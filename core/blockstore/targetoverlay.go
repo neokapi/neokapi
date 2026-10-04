@@ -7,7 +7,7 @@ import (
 )
 
 // targetOverlayPrefix is the namespace of the committed-translation overlays;
-// the sub-key is the variant, a locale in the common case (model.VariantKey).
+// the sub-key is the variant, a locale in the common case (model.EditionKey).
 const targetOverlayPrefix = "targets/"
 
 // TargetOverlayKind names the overlay a locale's committed translations live
@@ -27,7 +27,7 @@ func CanonicalOverlayKind(kind string) string {
 	if !ok || sub == "" {
 		return kind
 	}
-	var key model.VariantKey
+	var key model.EditionKey
 	if err := key.UnmarshalText([]byte(sub)); err != nil {
 		return kind
 	}
@@ -45,7 +45,7 @@ func TargetOverlayLocale(kind string) (locale model.LocaleID, ok bool) {
 	if !found || sub == "" {
 		return "", false
 	}
-	var key model.VariantKey
+	var key model.EditionKey
 	if err := key.UnmarshalText([]byte(sub)); err != nil {
 		return "", false
 	}

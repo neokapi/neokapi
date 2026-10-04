@@ -157,7 +157,7 @@ func (s *pgStore) textCandidates(
 			for i, l := range wantTargets {
 				marks[i] = bind(l)
 			}
-			// The locale column holds the VariantKey text form, so a toned or
+			// The locale column holds the EditionKey text form, so a toned or
 			// channelled target is filed under "nb;tone=formal". toKBF keys the
 			// block's targets by the bare locale, and this must agree with it.
 			where = append(where, "split_part(t.locale, ';', 1) IN ("+strings.Join(marks, ",")+")")

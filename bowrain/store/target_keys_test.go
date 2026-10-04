@@ -18,11 +18,11 @@ func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 	text := func(s string) []model.Run { return []model.Run{{Text: &model.TextRun{Text: s}}} }
 	tests := []struct {
 		name string
-		key  model.VariantKey
+		key  model.EditionKey
 		want []model.EditionKey
 	}{
-		{"a locale spelled another way", model.VariantKey{Locale: "fr_FR"}, []model.EditionKey{{}, {Locale: "fr-FR"}}},
-		{"the zero key", model.VariantKey{}, []model.EditionKey{{}}},
+		{"a locale spelled another way", model.EditionKey{Locale: "fr_FR"}, []model.EditionKey{{}, {Locale: "fr-FR"}}},
+		{"the zero key", model.EditionKey{}, []model.EditionKey{{}}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -63,7 +63,7 @@ func TestGetBlock_ReadsARowUnderItsCanonicalKey(t *testing.T) {
 
 	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{model.NewBlock("b1", "Hello")}))
 	require.NoError(t, UpsertBlockTarget(ctx, s.SQLDB(), "pg", p.ID, "main", "b1",
-		model.VariantKey{Locale: "fr_FR"},
+		model.EditionKey{Locale: "fr_FR"},
 		model.Edition{Runs: text("Bonjour"), Status: model.Status(model.TargetStatusTranslated)}, nil, time.Now().UTC()))
 	var locale string
 	require.NoError(t, s.SQLDB().QueryRowContext(ctx,

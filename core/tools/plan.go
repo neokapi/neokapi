@@ -97,7 +97,7 @@ type textPass struct {
 
 // skippedMatch is a change a pass found and could not make.
 type skippedMatch struct {
-	edition model.VariantKey
+	edition model.EditionKey
 	text    string
 	reason  string
 }
@@ -114,7 +114,7 @@ type skippedMatch struct {
 func textPlan(v tool.BlockView, applySource bool, targets []model.LocaleID, passes ...textPass) (tool.EditPlan, []skippedMatch) {
 	var plan tool.EditPlan
 	var skipped []skippedMatch
-	edit := func(key model.VariantKey, runs []model.Run) {
+	edit := func(key model.EditionKey, runs []model.Run) {
 		cur := runs
 		for _, pass := range passes {
 			pe := &passEdits{}
@@ -126,7 +126,7 @@ func textPlan(v tool.BlockView, applySource bool, targets []model.LocaleID, pass
 		}
 	}
 	if applySource {
-		edit(model.VariantKey{}, v.SourceRuns())
+		edit(model.EditionKey{}, v.SourceRuns())
 	}
 	for _, loc := range targets {
 		if !v.HasTarget(loc) {
