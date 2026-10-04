@@ -50,7 +50,7 @@ function creditLine(estimate: ConvergenceEstimate): string | null {
   if (c.covers_all_ai) {
     return `~${c.estimated_credits.toLocaleString()} credits${usd} for the AI work. Your balance of ${c.balance.toLocaleString()} covers it.`;
   }
-  return `~${c.estimated_credits.toLocaleString()} credits${usd} for the AI work. Your balance of ${c.balance.toLocaleString()} covers ~${c.covers_ai_units.toLocaleString()} of ${estimate.totals.via_ai.toLocaleString()} AI units.`;
+  return `~${c.estimated_credits.toLocaleString()} credits${usd} for the AI work. Your balance of ${c.balance.toLocaleString()} covers ~${c.covers_ai_units.toLocaleString()} of the ${estimate.totals.via_ai.toLocaleString()} blocks for the AI.`;
 }
 
 export function ConvergenceRunNowDialog({
