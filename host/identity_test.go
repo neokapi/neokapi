@@ -38,7 +38,7 @@ func carryForward(docs []ResolvedDocument) Priors {
 		for _, b := range d.Blocks {
 			id := reconcile.Identify(d.Scope, b.Block)
 			doc.Content = append(doc.Content, id.ContentHash)
-			p.Units = append(p.Units, reconcile.Unit{
+			p.Units = append(p.Units, reconcile.Prior{
 				Key:         b.Unit,
 				Scope:       d.Scope,
 				ContentHash: id.ContentHash,
@@ -144,7 +144,7 @@ func TestResolveIdentity_KeepsTheKeysThePriorsCarry(t *testing.T) {
 		Documents: []reconcile.DocUnit{{
 			Key: "d-existing", Path: "docs/guide.md", Content: []string{id.ContentHash},
 		}},
-		Units: []reconcile.Unit{{
+		Units: []reconcile.Prior{{
 			Key: "the-venues-own-key", Scope: "d-existing",
 			ContentHash: id.ContentHash, ContextHash: id.ContextHash,
 		}},

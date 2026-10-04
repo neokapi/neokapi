@@ -149,8 +149,8 @@ func (t Tree) Records() map[string]struct{} {
 //
 // The scope is the item's path, which is what qualifies a context match: a
 // block's name is only unique inside its own document.
-func (t Tree) Priors() []reconcile.Unit {
-	var out []reconcile.Unit
+func (t Tree) Priors() []reconcile.Prior {
+	var out []reconcile.Prior
 	for _, p := range t.paths() {
 		ti := t[p]
 		// The document's identity, not its address — see TreeItem.ID.
@@ -165,7 +165,7 @@ func (t Tree) Priors() []reconcile.Unit {
 				// producer reached before it could ask at all.
 				break
 			}
-			out = append(out, reconcile.Unit{
+			out = append(out, reconcile.Prior{
 				Key:         key,
 				Scope:       scope,
 				ContentHash: ti.Content[i],

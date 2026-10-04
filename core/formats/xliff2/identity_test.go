@@ -149,7 +149,7 @@ func TestIdentity_EditedSourceKeepsIdentity(t *testing.T) {
 		return testutil.CollectBlocks(t, reader.Read(ctx))
 	}
 
-	var prior []reconcile.Unit
+	var prior []reconcile.Prior
 	for _, b := range blocksOf(xliffDoc(unitAlpha + unitBravo)) {
 		u := reconcile.Identify(scope, b)
 		u.Key = b.Name

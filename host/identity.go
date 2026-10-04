@@ -49,7 +49,7 @@ type ResolvedDocument struct {
 // made a cold CI runner and a reset venue two different kinds of wrong.
 type Priors struct {
 	Documents []reconcile.DocUnit
-	Units     []reconcile.Unit
+	Units     []reconcile.Prior
 }
 
 // ResolveIdentity matches a fresh read against what the project already knows

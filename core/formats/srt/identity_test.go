@@ -162,7 +162,7 @@ func TestUntouchedCueReconcilesAsUnchanged(t *testing.T) {
 	v2 := read("1\n00:00:01,000 --> 00:00:04,000\nAlpha\n\n" +
 		"2\n00:00:09,000 --> 00:00:12,000\nCharlie\n")
 
-	prior := make([]reconcile.Unit, len(v1))
+	prior := make([]reconcile.Prior, len(v1))
 	for i, b := range v1 {
 		u := reconcile.Identify(scope, b)
 		u.Key = "k" + strconv.Itoa(i)

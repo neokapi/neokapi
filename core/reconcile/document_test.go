@@ -65,7 +65,7 @@ func TestDocuments_RenameLeavesEveryBlockUntouched(t *testing.T) {
 	scope := docs[0].Key
 
 	v1 := reconcile.Blocks(scope, before.Blocks, nil)
-	var prior []reconcile.Unit
+	var prior []reconcile.Prior
 	for i, b := range before.Blocks {
 		u := reconcile.Identify(scope, b)
 		u.Key = v1[i].Key

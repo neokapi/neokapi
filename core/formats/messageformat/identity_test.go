@@ -61,7 +61,7 @@ func TestIdentity_StableAcrossTwoReads(t *testing.T) {
 // structure, never its words — so editing a branch keeps the block.
 func TestIdentity_EditedBranchTextKeepsIdentity(t *testing.T) {
 	const scope = "messages.mf"
-	var prior []reconcile.Unit
+	var prior []reconcile.Prior
 	for _, b := range readBlocks(t, "{count, plural, one {# file} other {# files}}\n") {
 		u := reconcile.Identify(scope, b)
 		u.Key = b.Name

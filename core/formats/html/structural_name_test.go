@@ -240,7 +240,7 @@ func htmlBlocks(t *testing.T, mode htmlReaderMode, content string) []*model.Bloc
 	return out
 }
 
-func htmlKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcile.Result {
+func htmlKeys(blocks []*model.Block, prior []reconcile.Prior) map[string]reconcile.Result {
 	out := map[string]reconcile.Result{}
 	for _, r := range reconcile.Blocks(htmlIdentityScope, blocks, prior) {
 		out[r.Block.SourceText()] = r
@@ -248,8 +248,8 @@ func htmlKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcil
 	return out
 }
 
-func htmlUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Unit {
-	var out []reconcile.Unit
+func htmlUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Prior {
+	var out []reconcile.Prior
 	for _, b := range blocks {
 		u := reconcile.Identify(htmlIdentityScope, b)
 		u.Key = res[b.SourceText()].Key

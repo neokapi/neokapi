@@ -22,7 +22,7 @@ func blk(name, text string) *model.Block {
 // is covered in context_test.go.
 const doc = "doc.md"
 
-func priorOf(key string, b *model.Block) reconcile.Unit {
+func priorOf(key string, b *model.Block) reconcile.Prior {
 	u := reconcile.Identify(doc, b)
 	u.Key = key
 	return u
@@ -40,7 +40,7 @@ func byText(rs []reconcile.Result) map[string]reconcile.Result {
 // The four gradings, each in isolation.
 func TestBlocks_Grades(t *testing.T) {
 	original := blk("para3", "Charlie")
-	prior := []reconcile.Unit{priorOf("u-charlie", original)}
+	prior := []reconcile.Prior{priorOf("u-charlie", original)}
 
 	t.Run("nothing changed", func(t *testing.T) {
 		got := byText(reconcile.Blocks(doc, []*model.Block{blk("para3", "Charlie")}, prior))
@@ -54,7 +54,7 @@ func TestBlocks_Grades(t *testing.T) {
 		got := byText(reconcile.Blocks(doc, []*model.Block{blk("para3", "Charlie, revised")}, prior))
 		assert.Equal(t, reconcile.Edited, got["Charlie, revised"].Kind)
 		assert.Equal(t, "u-charlie", got["Charlie, revised"].Key,
-			"an edit must keep the unit's identity, not read as a delete plus an add")
+			"an edit must keep the block's identity, not read as a delete plus an add")
 	})
 
 	// The case a position-only key cannot see. An earlier paragraph was deleted,
@@ -63,7 +63,7 @@ func TestBlocks_Grades(t *testing.T) {
 		got := byText(reconcile.Blocks(doc, []*model.Block{blk("para2", "Charlie")}, prior))
 		assert.Equal(t, reconcile.Moved, got["Charlie"].Kind)
 		assert.Equal(t, "u-charlie", got["Charlie"].Key,
-			"an unrelated deletion must not mint a new unit")
+			"an unrelated deletion must not mint a new key")
 	})
 
 	t.Run("new", func(t *testing.T) {
@@ -73,25 +73,25 @@ func TestBlocks_Grades(t *testing.T) {
 	})
 }
 
-// Two blocks with identical source text are distinct units. Keying on content
+// Two blocks with identical source text are distinct blocks. Keying on content
 // alone merges them, and then approving one silently approves the other — the
-// reason a content-derived unit key was tried here and abandoned.
+// reason a content-derived key was tried here and abandoned.
 func TestBlocks_IdenticalTextStaysTwoUnits(t *testing.T) {
 	first, second := blk("cell1", "Yes"), blk("cell2", "Yes")
-	prior := []reconcile.Unit{priorOf("u-first", first), priorOf("u-second", second)}
+	prior := []reconcile.Prior{priorOf("u-first", first), priorOf("u-second", second)}
 
 	got := reconcile.Blocks(doc, []*model.Block{blk("cell1", "Yes"), blk("cell2", "Yes")}, prior)
 	require.Len(t, got, 2)
 
 	assert.Equal(t, "u-first", got[0].Key)
-	assert.Equal(t, "u-second", got[1].Key, "same words, different place, different unit")
+	assert.Equal(t, "u-second", got[1].Key, "same words, different place, different block")
 	assert.Equal(t, reconcile.Unchanged, got[0].Kind)
 	assert.Equal(t, reconcile.Unchanged, got[1].Kind)
 }
 
 // No prior may be claimed twice, or two blocks would share one decision record.
 func TestBlocks_APriorIsClaimedOnce(t *testing.T) {
-	prior := []reconcile.Unit{priorOf("u-only", blk("para1", "Yes"))}
+	prior := []reconcile.Prior{priorOf("u-only", blk("para1", "Yes"))}
 
 	got := reconcile.Blocks(doc, []*model.Block{blk("para1", "Yes"), blk("para2", "Yes")}, prior)
 	require.Len(t, got, 2)
@@ -105,9 +105,9 @@ func TestBlocks_APriorIsClaimedOnce(t *testing.T) {
 // own history, so already-translated text is not re-translated.
 func TestBlocks_SurvivesRemovalAndReturn(t *testing.T) {
 	v1 := []*model.Block{blk("para1", "Alpha"), blk("para2", "Bravo")}
-	prior := []reconcile.Unit{priorOf("u-alpha", v1[0]), priorOf("u-bravo", v1[1])}
+	prior := []reconcile.Prior{priorOf("u-alpha", v1[0]), priorOf("u-bravo", v1[1])}
 
-	// v2 drops Bravo. Prior units are retained — that is what makes the return
+	// v2 drops Bravo. Priors are retained — that is what makes the return
 	// recoverable, and why removal must not purge them.
 	v2 := reconcile.Blocks(doc, []*model.Block{blk("para1", "Alpha")}, prior)
 	require.Len(t, v2, 1)
@@ -136,7 +136,7 @@ func TestBlocks_MintsDeterministically(t *testing.T) {
 // Both hashes changing at once is the irreducible case: nothing links the new
 // block to the old one, so it is honestly new rather than a bad guess.
 func TestBlocks_EditedAndMovedIsANewUnit(t *testing.T) {
-	prior := []reconcile.Unit{priorOf("u-charlie", blk("para3", "Charlie"))}
+	prior := []reconcile.Prior{priorOf("u-charlie", blk("para3", "Charlie"))}
 
 	got := byText(reconcile.Blocks(doc, []*model.Block{blk("para2", "Charlie, revised")}, prior))
 	assert.Equal(t, reconcile.New, got["Charlie, revised"].Kind)

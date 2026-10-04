@@ -163,7 +163,7 @@ func TestPriorsCarryTheMostRecentIdentityEvidence(t *testing.T) {
 	}))
 	priors, err := s.Priors(ctx, "d-1")
 	require.NoError(t, err)
-	assert.Equal(t, []reconcile.Unit{
+	assert.Equal(t, []reconcile.Prior{
 		{Key: "p#1", Scope: "d-1", ContentHash: "new", ContextHash: "c1"},
 		{Key: "u-moved", Scope: "d-1", ContentHash: "m", ContextHash: "c3"},
 	}, priors, "one unit per block, keyed by its durable key where it has one")

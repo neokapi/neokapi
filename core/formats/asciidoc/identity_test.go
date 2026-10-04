@@ -92,7 +92,7 @@ func TestAsciiDocIdentity_RewordingAHeadingIsAnEdit(t *testing.T) {
 	v1 := readBlocks(t, "== Install\n\nNeeds Go.\n")
 	v2 := readBlocks(t, "== Installation\n\nNeeds Go.\n")
 
-	var priors []reconcile.Unit
+	var priors []reconcile.Prior
 	for i, r := range reconcile.Blocks(scope, v1, nil) {
 		u := reconcile.Identify(scope, v1[i])
 		u.Key = r.Key
