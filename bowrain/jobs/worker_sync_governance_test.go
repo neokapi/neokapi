@@ -470,6 +470,26 @@ func TestPushReviewGovernance_ApprovalWithdrawal(t *testing.T) {
 		assert.Equal(t, approved.Revision, unit.Held.Revision)
 	})
 
+	// The governance compares the source revision the venue holds with the
+	// pushed block's, taken under the project's source language. A worker that
+	// cannot read the project cannot take it, so it refuses the push rather than
+	// read the withdrawal as an edit and land it unjudged.
+	t.Run("a push to a project the worker cannot read is refused", func(t *testing.T) {
+		deps, pid := venueHolding(t, model.TargetStatusEstablished, approved, pushAuthority{review: map[string]bool{}})
+		pg, ok := deps.ContentStore.(*bstore.PostgresStore)
+		require.True(t, ok)
+		deps.ContentStore = unreadableProject{pg}
+		lowered := governedPush{
+			projectID: pid, actor: "u-translator", item: item,
+			blocks: []*model.Block{reviewedBlock("b1", source, locale, text, model.TargetStatusTranslated)},
+		}
+		require.Error(t, lowered.run(t, deps, "job-unread"))
+
+		deps.ContentStore = pg
+		assert.Equal(t, model.TargetStatusEstablished, storedTarget(t, deps, pid, item, locale),
+			"the approval stands")
+	})
+
 	t.Run("with review permission the withdrawal lands and is audited", func(t *testing.T) {
 		deps, pid := venueHolding(t, model.TargetStatusEstablished, approved, pushAuthority{review: map[string]bool{locale: true}})
 		bus := &recordingBus{}
@@ -734,4 +754,13 @@ func TestPushReviewGovernance_AuditsNoRefusedRung(t *testing.T) {
 	}
 	assert.Zero(t, reviews, "a refused rung moved nothing, so there is nothing to record as decided")
 	assert.Equal(t, 1, violations, "one record for the push, with the count")
+}
+
+// unreadableProject is the venue's store with a project row it cannot read, as
+// a dropped connection leaves it: every other read and write reaches the
+// store.
+type unreadableProject struct{ *bstore.PostgresStore }
+
+func (unreadableProject) GetProject(context.Context, string) (*store.Project, error) {
+	return nil, errors.New("read project: connection reset by peer")
 }

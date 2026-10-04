@@ -174,13 +174,16 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		itemMetaMap[itemMetas[i].Name] = &itemMetas[i]
 	}
 
-	// Read the project once: its source language seeds the content memory below,
-	// and its workspace is the brand hub the context reconcile binds voices in.
-	// A project that cannot be read leaves both unresolved, which degrades each
-	// to its own no-op rather than failing a push whose content is fine.
-	var projectRow *store.Project
-	if p, perr := deps.ContentStore.GetProject(ctx, projectID); perr == nil {
-		projectRow = p
+	// Read the project once. Its source language is the language every source
+	// revision this push stores and judges is taken under: the governance below
+	// tells a withdrawal of an approval from an edit by comparing them. It also
+	// seeds the content memory, and its workspace is the brand hub the context
+	// reconcile binds voices in. A push to a project that cannot be read is
+	// refused, so no withdrawal goes unjudged.
+	projectRow, err := deps.ContentStore.GetProject(ctx, projectID)
+	if err != nil {
+		markJobFailed(ctx, deps, job.ID, "project could not be read")
+		return fmt.Errorf("read project %s: %w", projectID, err)
 	}
 
 	// The context content type reconciles inside the transition below, and
@@ -194,10 +197,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		markJobFailed(ctx, deps, job.ID, "invalid context entries")
 		return err
 	}
-	workspaceID := ""
-	if projectRow != nil {
-		workspaceID = projectRow.WorkspaceID
-	}
+	workspaceID := projectRow.WorkspaceID
 	if len(contextEntries) > 0 {
 		if err := assertContextRef(ctx, deps, projectID, stream, manifest.ExpectedRef); err != nil {
 			markJobFailed(ctx, deps, job.ID, err.Error())
@@ -220,9 +220,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		if tm, terr := deps.MemoryResolver.GetMemory(slug); terr == nil {
 			seedMemory = tm
 		}
-		if projectRow != nil {
-			sourceLocale = projectRow.DefaultSourceLanguage
-		}
+		sourceLocale = projectRow.DefaultSourceLanguage
 	}
 
 	// 2. Stage every chunk. Nothing is written here: the chunks are
@@ -267,11 +265,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	// hand, the workspace policy, and the pusher's review permission for each
 	// language a verdict or a withdrawn establishment names. A push that carries
 	// neither resolves no permission at all.
-	var sourceLanguage model.LocaleID
-	if projectRow != nil {
-		sourceLanguage = projectRow.DefaultSourceLanguage
-	}
-	gov, gerr := newPushGovernor(ctx, deps, projectID, stream, workspaceID, sourceLanguage, manifest.ActorID, staged, decisions)
+	gov, gerr := newPushGovernor(ctx, deps, projectID, stream, workspaceID, projectRow.DefaultSourceLanguage, manifest.ActorID, staged, decisions)
 	if gerr != nil {
 		markJobFailed(ctx, deps, job.ID, gerr.Error())
 		return gerr
