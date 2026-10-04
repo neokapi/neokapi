@@ -17,7 +17,8 @@ func runFormats(t *testing.T, args ...string) (string, error) {
 	a := &App{}
 	a.InitRegistries()
 	cmd := NewFormatsCmd(a)
-	cmd.Flags().Bool("json", false, "")
+	// Persistent, as the root's --json is, so `formats list --json` reaches it.
+	cmd.PersistentFlags().Bool("json", false, "")
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T23:40:11Z",
+  "generatedAt": "2026-10-04T00:55:45Z",
   "commands": [
     {
       "id": "add",
@@ -5665,6 +5665,34 @@
       "examples": [
         "kapi formats info json",
         "kapi formats info okf_html"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "formats.list",
+      "path": [
+        "formats",
+        "list"
+      ],
+      "use": "list",
+      "short": "List supported file formats",
+      "flags": [
+        {
+          "name": "ext",
+          "usage": "filter by file extension (e.g., .docx)",
+          "type": "string"
+        },
+        {
+          "name": "mime",
+          "usage": "filter by MIME type (e.g., text/html)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi formats list",
+        "kapi formats list --ext .json --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

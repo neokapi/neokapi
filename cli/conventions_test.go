@@ -30,6 +30,7 @@ var listCommands = [][]string{
 	{"flows", "list"},
 	{"tools", "list"},
 	{"formats"},
+	{"formats", "list"},
 	{"plugin", "list"},
 	{"models", "list"},
 	{"config", "list"},

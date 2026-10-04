@@ -2707,6 +2707,18 @@
             "example": "  kapi formats info json\n  kapi formats info okf_html",
             "short": "Show detailed information about a format"
           },
+          "list": {
+            "example": "  kapi formats list\n  kapi formats list --ext .json --json",
+            "flags": {
+              "ext": {
+                "usage": "filter by file extension (e.g., .docx)"
+              },
+              "mime": {
+                "usage": "filter by MIME type (e.g., text/html)"
+              }
+            },
+            "short": "List supported file formats"
+          },
           "long": "List all file formats that can be read and written.\n\nUse --mime or --ext to filter by MIME type or file extension.\n\n--ops says what a format takes of a change set (kapi apply): each content\noperation it supports, with the forms, code types and attributes it writes,\nand whether it keeps a document's translations in one file. Name a format to\ndescribe it alone, as MCP describe_format does; with no name every format kapi\ncan edit is listed.",
           "schema": {
             "example": "  kapi formats schema json\n  kapi formats schema okf_html",
