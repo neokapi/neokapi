@@ -47,7 +47,7 @@ func TestPreReview_AnAgentsAdviceShowsBesideTheTranslationItJudged(t *testing.T)
 
 	sb, err = s.ContentStore.GetBlock(ctx, projID, "main", judged)
 	require.NoError(t, err)
-	assert.Equal(t, model.TargetStatusDraft, sb.Block.Target("fr").Status, "a pre-review moves no status")
+	assert.Equal(t, model.TargetStatusDraft, targetStatusOf(t, sb.Block, "fr"), "a pre-review moves no status")
 
 	_, got := getReviewContext(t, s, wsID, projID, judged, "fr")
 	require.NotNil(t, got.Judgement.AIScore, "the review context shows the advice")
@@ -135,10 +135,10 @@ func TestPreReview_JudgesATranslationWithoutWords(t *testing.T) {
 	codes := &model.Block{ID: "codes", Translatable: true}
 	codes.SetSourceRuns([]model.Run{count})
 	codes.SetTargetRuns("fr", []model.Run{count})
-	codes.Target("fr").Status = model.TargetStatusDraft
+	codes.SetEditionStatus(model.Variant("fr"), model.Status(model.TargetStatusDraft))
 	empty := &model.Block{ID: "empty", Translatable: true}
 	empty.SetTargetRuns("fr", []model.Run{})
-	empty.Target("fr").Status = model.TargetStatusDraft
+	empty.SetEditionStatus(model.Variant("fr"), model.Status(model.TargetStatusDraft))
 	projID, _ := seedGovernedProject(t, s, wsID, []*model.Block{codes, empty})
 	svc, _, err := s.mcpChangeService(ctx, owner, projID, "main")
 	require.NoError(t, err)
@@ -148,7 +148,7 @@ func TestPreReview_JudgesATranslationWithoutWords(t *testing.T) {
 
 	for _, sb := range stored {
 		name := "empty"
-		if len(sb.Block.Source) > 0 {
+		if len(sb.Block.SourceRuns()) > 0 {
 			name = "codes"
 		}
 		t.Run(name, func(t *testing.T) {

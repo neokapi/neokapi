@@ -89,9 +89,9 @@ func TestSourceProposal_ProposeApproveDemotesEveryLocale(t *testing.T) {
 	b1 := &model.Block{ID: "b1", Translatable: true}
 	b1.SetSourceText("Colour picker")
 	b1.SetTargetText("fr", "Sélecteur de couleur")
-	b1.Target("fr").Status = model.TargetStatusEstablished
+	b1.SetEditionStatus(model.Variant("fr"), model.Status(model.TargetStatusEstablished))
 	b1.SetTargetText("de", "Farbwähler")
-	b1.Target("de").Status = model.TargetStatusEstablished
+	b1.SetEditionStatus(model.Variant("de"), model.Status(model.TargetStatusEstablished))
 	projID, ids := seedMultiLocaleProject(t, s, wsID, []*model.Block{b1})
 	blockID := ids["Colour picker"]
 	require.NotEmpty(t, blockID)
@@ -152,13 +152,13 @@ func TestSourceProposal_ProposeApproveDemotesEveryLocale(t *testing.T) {
 	sb, err := s.ContentStore.GetBlock(ctx, projID, "main", blockID)
 	require.NoError(t, err)
 	assert.Equal(t, "Color picker", sb.Block.SourceText(), "the approved source change is applied")
-	require.NotNil(t, sb.Block.Target("fr"), "the fr translation is kept")
+	require.True(t, holdsTarget(sb.Block, "fr"), "the fr translation is kept")
 	assert.Equal(t, "Sélecteur de couleur", sb.Block.TargetText("fr"))
-	assert.Equal(t, model.TargetStatusTranslated, sb.Block.Target("fr").Status,
+	assert.Equal(t, model.TargetStatusTranslated, targetStatusOf(t, sb.Block, "fr"),
 		"the fr approval blessed wording the source no longer carries → back to the presence baseline")
-	require.NotNil(t, sb.Block.Target("de"), "the de translation is kept too, so the fan-out reaches ALL locales")
+	require.True(t, holdsTarget(sb.Block, "de"), "the de translation is kept too, so the fan-out reaches ALL locales")
 	assert.Equal(t, "Farbwähler", sb.Block.TargetText("de"))
-	assert.Equal(t, model.TargetStatusTranslated, sb.Block.Target("de").Status)
+	assert.Equal(t, model.TargetStatusTranslated, targetStatusOf(t, sb.Block, "de"))
 	assert.Equal(t, model.SourceStatusNew, sourceStatusOf(sb.Block), "the changed source re-settles on the next pass")
 
 	// The ledger grades the kept translation against the source the project holds
@@ -197,7 +197,7 @@ func TestSourceProposal_Reject(t *testing.T) {
 	b1 := &model.Block{ID: "b1", Translatable: true}
 	b1.SetSourceText("Colour picker")
 	b1.SetTargetText("fr", "Sélecteur de couleur")
-	b1.Target("fr").Status = model.TargetStatusEstablished
+	b1.SetEditionStatus(model.Variant("fr"), model.Status(model.TargetStatusEstablished))
 	projID, ids := seedMultiLocaleProject(t, s, wsID, []*model.Block{b1})
 	blockID := ids["Colour picker"]
 
@@ -215,8 +215,8 @@ func TestSourceProposal_Reject(t *testing.T) {
 	sb, err := s.ContentStore.GetBlock(ctx, projID, "main", blockID)
 	require.NoError(t, err)
 	assert.Equal(t, "Colour picker", sb.Block.SourceText(), "reject leaves the source untouched")
-	require.NotNil(t, sb.Block.Target("fr"))
-	assert.Equal(t, model.TargetStatusEstablished, sb.Block.Target("fr").Status, "reject leaves the target approved")
+	require.True(t, holdsTarget(sb.Block, "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatusOf(t, sb.Block, "fr"), "reject leaves the target approved")
 
 	got, err := s.SourceProposalStore.Get(ctx, created.ID)
 	require.NoError(t, err)

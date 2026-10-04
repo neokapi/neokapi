@@ -41,7 +41,7 @@ func attributeTarget(t *testing.T, s *Server, projID, blockID, locale, author, t
 	require.NoError(t, err)
 	loc := model.LocaleID(locale)
 	sb.Block.SetTargetText(loc, text)
-	sb.Block.Target(loc).Status = model.TargetStatusDraft
+	sb.Block.SetEditionStatus(model.Variant(loc), model.Status(model.TargetStatusDraft))
 	require.NoError(t, s.ContentStore.StoreBlocks(ctx, projID, "main", []*model.Block{sb.Block}))
 }
 
@@ -63,9 +63,7 @@ func targetStatus(t *testing.T, s *Server, projID, blockID, locale string) model
 	t.Helper()
 	sb, err := s.ContentStore.GetBlock(context.Background(), projID, "main", blockID)
 	require.NoError(t, err)
-	target := sb.Block.Target(model.LocaleID(locale))
-	require.NotNil(t, target)
-	return target.Status
+	return targetStatusOf(t, sb.Block, model.LocaleID(locale))
 }
 
 // TestReviewApproveNeedsReviewPermission: approving is PermReview for the
@@ -155,7 +153,7 @@ func TestReviewEditAndApproveInOneChangeSetIsOwnWork(t *testing.T) {
 			s, wsID, _ := newRecheckHarness(t)
 			require.NoError(t, s.AuthStore.SetSoDMode(context.Background(), wsID, tc.mode))
 			b := pendingFrBlock("b1", "Hello", "Bonjour")
-			b.Target("fr").Status = tc.before
+			b.SetEditionStatus(model.Variant("fr"), model.Status(tc.before))
 			projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{b})
 			bid := ids["Hello"]
 			rev := targetRev(t, s.ContentStore.(*bstore.PostgresStore), projID, bid, "fr")
@@ -173,13 +171,13 @@ func TestReviewEditAndApproveInOneChangeSetIsOwnWork(t *testing.T) {
 				require.NotNil(t, res.Ops[1].Error)
 				assert.Equal(t, change.CodeNotPermitted, res.Ops[1].Error.Code)
 				assert.Equal(t, "Bonjour", stored.TargetText("fr"), "nothing of a refused change set lands")
-				assert.Equal(t, tc.before, stored.Target("fr").Status)
+				assert.Equal(t, tc.before, targetStatusOf(t, stored, "fr"))
 				return
 			}
 			require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 			require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
 			assert.Equal(t, "Bonjour à tous", stored.TargetText("fr"))
-			assert.Equal(t, model.TargetStatusEstablished, stored.Target("fr").Status)
+			assert.Equal(t, model.TargetStatusEstablished, targetStatusOf(t, stored, "fr"))
 		})
 	}
 }

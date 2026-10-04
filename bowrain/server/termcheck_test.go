@@ -334,7 +334,7 @@ func translatedFrBlock(id, source, frTarget string) *model.Block {
 	b := &model.Block{ID: id, Translatable: true}
 	b.SetSourceText(source)
 	b.SetTargetText("fr", frTarget)
-	b.Target("fr").Status = model.TargetStatusTranslated
+	b.SetEditionStatus(model.Variant("fr"), model.Status(model.TargetStatusTranslated))
 	return b
 }
 

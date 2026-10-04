@@ -99,7 +99,7 @@ func TestPhase4_RevertBatchClearsAdded(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
 	sb, _ := cs.GetBlock(ctx, "p-rev2", "main", rowIDOf(t, cs, "p-rev2", "bx"))
-	assert.Nil(t, sb.Target(fr), "a batch-added target is removed on revert")
+	assert.False(t, holdsTarget(sb.Block, fr), "a batch-added target is removed on revert")
 }
 
 // TestPhase4_RestoreToVersion proves point-in-time restore: a stream is rolled
@@ -208,7 +208,7 @@ func TestRevert_HistoryRowsThatRecordNoWording(t *testing.T) {
 
 		rec := sendRestore(t, s, s.HandleRevertBatch, "p-rm", bid, `{"correlation_id":"READD"}`)
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-		assert.Nil(t, getStoredBlock(t, s.ContentStore.(*bstore.PostgresStore), "p-rm", bid).Target(fr),
+		assert.False(t, holdsTarget(getStoredBlock(t, s.ContentStore.(*bstore.PostgresStore), "p-rm", bid), fr),
 			"the block holds no translation, as before the batch")
 	})
 
@@ -239,7 +239,7 @@ func TestRevert_HistoryRowsThatRecordNoWording(t *testing.T) {
 
 		rec := sendRestore(t, s, s.HandleRollbackBlock, "p-rb-rm", bid, fmt.Sprintf(`{"locale":"fr","to_seq":%d}`, removal))
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-		assert.Nil(t, getStoredBlock(t, s.ContentStore.(*bstore.PostgresStore), "p-rb-rm", bid).Target(fr))
+		assert.False(t, holdsTarget(getStoredBlock(t, s.ContentStore.(*bstore.PostgresStore), "p-rb-rm", bid), fr))
 	})
 }
 

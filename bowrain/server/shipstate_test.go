@@ -321,7 +321,7 @@ func TestApplyShipStates_StaleBasisWithholdsLocale(t *testing.T) {
 		b.SetSourceText(text)
 		if withTarget {
 			b.SetTargetText("nb", "Hei")
-			b.Target("nb").Status = model.TargetStatusTranslated
+			b.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusTranslated))
 		}
 		require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "en.json", []*model.Block{b}))
 	}
@@ -453,7 +453,7 @@ func TestPublicShipManifestWithholdsStaleLocale(t *testing.T) {
 		b.SetSourceText(text)
 		if withTarget {
 			b.SetTargetText("nb", "Hei")
-			b.Target("nb").Status = model.TargetStatusTranslated
+			b.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusTranslated))
 		}
 		require.NoError(t, srv.ContentStore.StoreBlocksForItem(ctx, proj.ID, "main", "en.json", []*model.Block{b}))
 		srv.invalidateDashboardCache(proj.WorkspaceID, proj.ID)

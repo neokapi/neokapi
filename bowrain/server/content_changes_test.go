@@ -109,13 +109,13 @@ func TestApplyChanges_AnApprovalOfWordingThatChangedIsRefused(t *testing.T) {
 	require.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
 	assert.Equal(t, change.CodeStale, res.Ops[0].Error.Code)
 	assert.Equal(t, "Salut", res.Ops[0].Current.Text, "the reviewer is shown the wording that stands")
-	assert.NotEqual(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
+	assert.NotEqual(t, model.TargetStatusEstablished, targetStatusOf(t, getStoredBlock(t, cs, pid, bid), "fr"),
 		"wording the reviewer did not read is not approved")
 
 	rec, _ = sendChanges(t, srv, pid, fullCaller, change.Set{Ops: []change.Op{
 		decide(at("greetings.txt", bid, "fr"), res.Ops[0].Current.Rev, change.OutcomeEstablish)}})
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status)
+	assert.Equal(t, model.TargetStatusEstablished, targetStatusOf(t, getStoredBlock(t, cs, pid, bid), "fr"))
 }
 
 // Each refusal is answered with the status its code maps to, and a change set

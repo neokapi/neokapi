@@ -158,7 +158,7 @@ func decideFromBody(t *testing.T, s *Server, pid, bid, body string, who changeCa
 	require.NoError(t, err)
 	loc := model.LocaleID(req.TargetLocale)
 	rev := model.RunsRevision(model.EditionKey{Locale: loc}, sb.Block.TargetRuns(loc))
-	if sb.Block.Target(loc) == nil {
+	if !holdsTarget(sb.Block, loc) {
 		rev = model.AbsentRevision
 	}
 	rec, _ := sendChanges(t, s, pid, who, change.Set{Ops: []change.Op{
