@@ -2244,20 +2244,20 @@ All of these hold before the 1.3.0 tag:
     and leaves every stored block without a source revision until its source is written again.
     Until then a decision that names a basis reads stale and one that names none reads as basis
     unknown, a convergence run in that window drafts the stale units again, and a push that lowers
-    an established translation reads as an edit and is not held to review permission. The first
-    push after the deploy re-sends every block, which stamps each source revision, logs a source
-    change for every block and demotes every approval whose basis is not that revision. A
-    checkout's approval since version 40 comes back on the same push, which re-sends the
-    checkout's decisions with each basis as the platform's revision; the platform's own approvals
-    at version 40, taken under no key, stay demoted. Every checkout's recorded ref names a
-    decisions fold the server no longer computes, so its first push after the deploy is refused
-    until it pulls, and after a reset each checkout deletes `.kapi/work/cache/refs.json`. The
-    dogfood project is reset when the server that carries it is deployed. The server and the
-    `kapi-bowrain` that pushes to it move together: a client and a server on either side of the
-    change fold the transfer hash differently and send every block on every push, a client built
-    before revisions sends decisions that name no basis, and one built before this change sends a
-    basis under its reader's key, which the platform reads stale for a file that declares its own
-    language. KBF v2 ships with the `@neokapi/kapi-format` and
+    an established translation reads as an edit and is not held to review permission. Every
+    checkout's recorded ref names a decisions fold the server no longer computes, so a checkout's
+    first push after the deploy is refused until it pulls, and after a reset each checkout deletes
+    `.kapi/work/cache/refs.json`. The first push that lands re-sends every block, which stamps
+    each source revision, logs a source change for every block and demotes every approval whose
+    basis is not that revision. A checkout's approval since version 40 of a translation the
+    platform holds comes back on the same push, which re-sends the checkout's decisions with each
+    basis as the platform's revision; the platform's own approvals at version 40, taken under no
+    key, stay demoted. The dogfood project is reset when the server that carries it is deployed.
+    The server and the `kapi-bowrain` that pushes to it move together: a client and a server on
+    either side of the change fold the transfer hash differently and send every block on every
+    push, a client built before revisions sends decisions that name no basis, and one built before
+    this change sends a basis under its reader's key, which the platform reads stale for a file
+    that declares its own language. KBF v2 ships with the `@neokapi/kapi-format` and
     `@neokapi/i18n-react` 3.0.0 pair and a kapi release that reads schema 2 (WP14, "Open, for the
     release").
 
