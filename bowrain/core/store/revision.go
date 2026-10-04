@@ -27,8 +27,8 @@ func TargetRevision(sb *venue.StoredBlock, locale model.LocaleID) string {
 	if sb == nil || sb.Block == nil {
 		return model.AbsentRevision
 	}
-	t := sb.Block.Target(locale)
-	if t == nil {
+	t, ok := sb.Block.TargetEdition(locale)
+	if !ok {
 		return model.AbsentRevision
 	}
 	return model.RunsRevision(model.Variant(locale), t.Runs)
