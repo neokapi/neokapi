@@ -263,7 +263,7 @@ func (st *staged) verifyRemoved(ctx context.Context, staged string, removed map[
 				text, _ := k.Canonical().MarshalText()
 				keptKey, keptEdition = change.BlockKey(b), k
 				kept = &change.Error{Code: change.CodeUnsupported, Capability: string(change.KindRemoveEdition), Field: "at/edition",
-					Message: fmt.Sprintf("the %s writer writes a translation of every unit, taking the source where a block holds none, so removing translation %s of block %s from %s would write its source in its place; give the translation new content with set_content instead",
+					Message: fmt.Sprintf("the %s writer writes a translation of every block, taking the source where a block holds none, so removing translation %s of block %s from %s would write its source in its place; give the translation new content with set_content instead",
 						s.doc.Format.Name, text, keptKey, s.doc.Ref)}
 			}
 		}
@@ -759,7 +759,7 @@ func (st *staged) verifyEditionRemoved(ctx context.Context, f *stagedFile, je *j
 				text, _ := je.key.MarshalText()
 				keptKey = docKey
 				kept = &change.Error{Code: change.CodeUnsupported, Capability: string(change.KindRemoveEdition), Field: "at/edition",
-					Message: fmt.Sprintf("the %s writer writes a translation of every unit, taking the source where a block holds none, so removing translation %s of block %s from %s would write its source in its place; give the translation new content with set_content instead",
+					Message: fmt.Sprintf("the %s writer writes a translation of every block, taking the source where a block holds none, so removing translation %s of block %s from %s would write its source in its place; give the translation new content with set_content instead",
 						je.file.Format.Name, text, change.BlockKey(b), je.file.Ref)}
 			}
 			return nil
