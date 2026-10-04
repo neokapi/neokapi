@@ -256,7 +256,7 @@ func (l *reviewLedger) clearDraftBasis(ctx context.Context, sb *venue.StoredBloc
 		ItemName: sb.ItemName, Unit: sb.SourceID, Variant: locale,
 	}})
 	if err != nil {
-		slog.WarnContext(ctx, "rejected unit's draft mark not cleared; the next pass may leave it waiting on a review already made",
+		slog.WarnContext(ctx, "rejected translation's draft mark not cleared; the next pass may leave it waiting on a review already made",
 			"project", l.projectID, "stream", l.stream, "unit", sb.SourceID, "locale", locale, "error", err)
 	}
 }

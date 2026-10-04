@@ -1739,7 +1739,7 @@ func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, stream, bloc
 		if _, err := tx.ExecContext(ctx,
 			`DELETE FROM unit_decisions WHERE project_id=$1 AND stream=$2 AND item_id=$3 AND unit=$4`,
 			projectID, stream, itemID, sourceID); err != nil {
-			return fmt.Errorf("delete unit decisions for block %s: %w", blockID, err)
+			return fmt.Errorf("delete the decisions on block %s: %w", blockID, err)
 		}
 		if _, err := tx.ExecContext(ctx,
 			`DELETE FROM edition_writers WHERE project_id=$1 AND stream=$2 AND item_name=$3 AND unit=$4`,

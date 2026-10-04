@@ -232,7 +232,7 @@ func (o PullOutput) FormatText(w io.Writer) error {
 			fmt.Fprintf(w, "Updated %d file(s)\n", o.FilesWritten)
 		}
 		if o.DecisionsStaged > 0 {
-			fmt.Fprintf(w, "Recorded %d unit-state update(s) from the server ledger\n", o.DecisionsStaged)
+			fmt.Fprintf(w, "Recorded %d decision(s) from the server ledger\n", o.DecisionsStaged)
 		}
 		if o.ItemsRetired > 0 {
 			fmt.Fprintf(w, "Skipped %d retired item(s): the server still holds them, this checkout no longer does\n", o.ItemsRetired)

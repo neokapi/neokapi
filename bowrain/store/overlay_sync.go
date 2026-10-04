@@ -604,7 +604,7 @@ type Querier = storage.Querier
 // larger atomic transition.
 type Runner = storage.Runner
 
-// VariantKeyText renders a EditionKey to its canonical text form for use as a
+// VariantKeyText renders an EditionKey to its canonical text form for use as a
 // change-log identifier and the translations.locale column ("fr-FR" for the
 // locale-only common case).
 func VariantKeyText(key model.EditionKey) string {

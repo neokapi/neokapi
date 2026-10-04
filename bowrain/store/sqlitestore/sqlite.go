@@ -1506,7 +1506,7 @@ func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, stream, blockI
 		if _, err := tx.ExecContext(ctx,
 			`DELETE FROM unit_decisions WHERE project_id=? AND stream=? AND item_id=? AND unit=?`,
 			projectID, stream, itemID, sourceID); err != nil {
-			return fmt.Errorf("delete unit decisions for block %s: %w", blockID, err)
+			return fmt.Errorf("delete the decisions on block %s: %w", blockID, err)
 		}
 	}
 
