@@ -142,6 +142,26 @@ func TestUnmarshalTakesAMinorOfAKnownMajorAndRefusesAnUnknownOne(t *testing.T) {
 	assert.Equal(t, "2.7", f.SchemaVersion, "a minor of the current major is kept as read")
 }
 
+// The blocks Marshal writes are in the current schema, so a file stamped with
+// another major, or with no valid version, is written as the current one.
+func TestMarshalStampsTheVersionOfTheShapeItWrites(t *testing.T) {
+	for in, want := range map[string]string{
+		"":     SchemaVersion,
+		"1.0":  SchemaVersion,
+		"1.4":  SchemaVersion,
+		"two":  SchemaVersion,
+		"2.0":  "2.0",
+		"2.7":  "2.7",
+		"3.0":  SchemaVersion,
+		"2.0x": SchemaVersion,
+	} {
+		f := &File{SchemaVersion: in, Kind: Kind, Documents: []Document{}}
+		out, err := Marshal(f)
+		require.NoError(t, err, in)
+		assert.Contains(t, string(out), `"schemaVersion": "`+want+`"`, in)
+	}
+}
+
 // peerBlock holds an edition of every kind a block can carry.
 func peerBlock() *Block {
 	return &Block{
