@@ -55,11 +55,21 @@ oracle. Model to proto to model is identity for every Run kind, for overlays, fo
 multi-locale targets, segmentation, skeleton refs, display hints, and registered
 annotations.
 
-Three things do not cross this schema: target variant tone and channel (targets
-are keyed by locale in `TargetEntry`), per-target status, origin, and score, and
-the block's durable `Unit` key ([F-03](f-03-identity.md)). A protocol that needs
-them carries them in its own envelope rather than widening the canonical
-messages.
+Two things do not cross this schema: per-edition status, origin, and score, and
+the block's durable `Key` ([F-03](f-03-identity.md)). A protocol that needs them
+carries them in its own envelope rather than widening the canonical messages.
+
+The source segments carry the block's first native edition and each
+`TargetEntry` one of the others, under its key's text form: the bare language
+for an edition with no tone and no channel, `fr;tone=formal` or
+`en;channel=short` for an edition of a tone or a channel, and the empty locale
+for a translation filed under no language. A peer that reads `locale` as a
+language tag maps a key with a tone or a channel to a tag of its own: the Okapi
+bridge reads it through ICU's `LocaleId`, which gives `und` for both examples and
+`en` for `en-US;channel=short`. Such a peer answers for that edition under
+another key, so a host that sends it one through a step that returns the block,
+rather than through a writer that matches the locale it writes, gets the edition
+back under that key.
 
 ### Canonical JSON
 
