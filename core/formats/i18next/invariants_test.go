@@ -33,7 +33,7 @@ func keyPathSet(blocks []*model.Block) []string {
 // source content, in order.
 func placeholderData(b *model.Block) []string {
 	var ph []string
-	for _, run := range b.Source {
+	for _, run := range b.SourceRuns() {
 		if run.Ph != nil {
 			ph = append(ph, run.Ph.Data)
 		}
