@@ -323,14 +323,25 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 	_ = srcSeg.Set("content", srcContent)
 	_ = obj.Set("source", vm.NewArray(srcSeg))
 
-	// Targets as a map of locale -> native JS one-element array.
+	// Targets as a map of locale -> native JS one-element array. The map keys a
+	// target by its language alone, so it holds each edition of a language
+	// with no tone and no channel that the target accessors reach, the
+	// translation filed under no language among them under "". An edition of
+	// a tone or a channel stays out: under its language it would read as that
+	// language's own edition, and a script handing it back would write one.
 	targets := vm.NewObject()
-	for _, locale := range block.TargetLocales() {
+	for k, e := range block.EachTargetEdition {
+		if k.Tone != "" || k.Channel != "" {
+			continue
+		}
+		if _, ok := block.TargetEdition(k.Locale); !ok {
+			continue
+		}
 		tSeg := vm.NewObject()
 		tContent := vm.NewObject()
-		_ = tContent.Set("text", block.TargetText(locale))
+		_ = tContent.Set("text", model.RunsText(e.Runs))
 		_ = tSeg.Set("content", tContent)
-		_ = targets.Set(string(locale), vm.NewArray(tSeg))
+		_ = targets.Set(string(k.Locale), vm.NewArray(tSeg))
 	}
 	_ = obj.Set("targets", targets)
 
