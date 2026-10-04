@@ -194,6 +194,36 @@ func TestDecisionGrading_AnInlineCodeChangeOnThePlatformGradesTheSameOnACheckout
 	assert.False(t, checkoutFresh(pulled, checkoutBlock("/v1/guide")))
 }
 
+// A format that declares its own language (en-GB here, in an en project) makes
+// the change service take the basis under that language, and a checkout reads
+// a basis under either as current. The push sends it as the platform takes it
+// (venue.Basis, as BowrainSourceConnector does), so the platform grades the
+// approval as the checkout does, and retires it on a link change as the
+// checkout does.
+func TestDecisionGrading_ABasisTakenUnderTheFilesLanguageGradesTheSameOnThePlatform(t *testing.T) {
+	srv, pid, client := newGradedProject(t)
+
+	declared := checkoutBlock("/v1/guide")
+	declared.SourceLocale = "en-GB"
+	record, wire := checkoutApproval(declared, time.Now())
+	record.Basis = model.EditionRevision(declared, model.EditionKey{})
+	require.NotEqual(t, venue.SourceRevision(declared, "en"), record.Basis,
+		"the change service took the basis under the file's language")
+	require.True(t, checkoutFresh(record, declared), "the checkout reads its approval current")
+
+	wire.Basis = venue.Basis(declared, "en", record.Basis)
+	pushGraded(t, srv, client, declared, []venue.UnitDecision{wire})
+	assert.Equal(t, platformGrade{established: true}, gradeOnPlatform(t, srv, pid),
+		"the platform reads the approval current, and projects it")
+
+	moved := checkoutBlock("/v2/guide")
+	moved.SourceLocale = "en-GB"
+	assert.False(t, checkoutFresh(record, moved), "the checkout retires the approval")
+	pushGraded(t, srv, client, moved, nil)
+	assert.Equal(t, platformGrade{stale: true, flagged: true}, gradeOnPlatform(t, srv, pid),
+		"and so does the platform")
+}
+
 // storedGuideID is the platform's row id of the guide block.
 func storedGuideID(t *testing.T, srv *Server, pid string) string {
 	t.Helper()

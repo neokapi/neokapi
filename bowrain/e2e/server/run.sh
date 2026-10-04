@@ -43,5 +43,12 @@ echo "Running e2e tests..."
 cd "$ROOT_DIR/bowrain"
 go test -tags "fts5,e2e" -count=1 -v ./e2e/server/
 
+# A checkout's push and pull against the same stack: the host module's
+# connector, driven by the change service and a flow, as kapi-bowrain runs it.
+echo ""
+echo "Running checkout e2e tests..."
+cd "$ROOT_DIR/host"
+go test -tags "fts5,e2e" -count=1 -v -run 'TestRevisionE2E' ./venue/source/
+
 echo ""
 echo "All Bowrain server e2e tests passed!"
