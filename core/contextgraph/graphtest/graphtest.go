@@ -152,6 +152,7 @@ func Fixture() ([]*graph.Node, []*graph.Edge) {
 	// A decision blessing project B's block.
 	blessing := contextgraph.UnitState{
 		Unit: "hero", Variant: "nb", Status: "established", ReviewState: "approved", TargetHash: "th-b1",
+		Revision: "r:b1b1b1b1b1b1b1b1", Basis: "r:0000aaaa0000aaaa",
 	}
 	add(contextgraph.UnitStateNode(ScopeB, blessing))
 	link(contextgraph.BlessesEdge(ScopeB, blessing, SharedContentKey))
@@ -334,6 +335,8 @@ func RunQueryShapes(t *testing.T, store Store) {
 		require.Len(t, got, 1)
 		assert.Equal(t, "hero", got[0].Unit)
 		assert.Equal(t, "th-b1", got[0].TargetHash)
+		assert.Equal(t, "r:b1b1b1b1b1b1b1b1", got[0].Revision, "the blessing names the translation by revision")
+		assert.Equal(t, "r:0000aaaa0000aaaa", got[0].Basis, "and the source it blessed it for")
 
 		// The identical wording in the other project is not blessed by it.
 		none, err := contextgraph.BlessingsOfBlock(ctx, store, ScopeA, SharedContentKey)
