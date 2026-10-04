@@ -235,3 +235,34 @@ func TestTargetSegmentsReadsTargetSegment(t *testing.T) {
 	assert.Equal(t, "Bonjour le monde. ", got[0])
 	assert.Equal(t, "Au revoir.", got[1])
 }
+
+// A translation filed under no language reads whole in every segment while it
+// carries no segmentation of its own: the source's spans describe the source,
+// never that translation's runs.
+func TestSegmentTargetRunsOfATranslationUnderNoLanguage(t *testing.T) {
+	t.Parallel()
+	b := twoSegBlock("Hello world. ", "Goodbye.")
+	b.SetTargetRuns("", []model.Run{{Text: &model.TextRun{Text: "Hallo Welt. Auf Wiedersehen."}}})
+	v := tool.NewBlockView(b)
+
+	var got []string
+	for u := range v.SourceSegments(model.LayerPrimary) {
+		got = append(got, model.RunsText(u.TargetRuns("")))
+	}
+	assert.Equal(t, []string{"Hallo Welt. Auf Wiedersehen.", "Hallo Welt. Auf Wiedersehen."}, got)
+
+	// With a segmentation of its own, each segment reads its span.
+	b.SetTargetRuns("", []model.Run{
+		{Text: &model.TextRun{Text: "Hallo Welt. "}},
+		{Text: &model.TextRun{Text: "Auf Wiedersehen."}},
+	})
+	b.SetTargetSegmentation("", []model.Span{
+		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
+		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
+	})
+	got = nil
+	for u := range v.SourceSegments(model.LayerPrimary) {
+		got = append(got, model.RunsText(u.TargetRuns("")))
+	}
+	assert.Equal(t, []string{"Hallo Welt. ", "Auf Wiedersehen."}, got)
+}

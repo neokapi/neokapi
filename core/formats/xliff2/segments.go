@@ -314,16 +314,17 @@ func sourceSegsFromBlock(block *model.Block) []seg {
 	}
 	source := format.AuthoritativeRuns(block)
 	segs := segsFromOverlay(source, overlay, srcIR)
-	return withMarks(segs, source, block, model.EditionKey{})
+	return withMarks(segs, source, sourceOverlays(block))
 }
 
-// withMarks hands each segment the marker spans of an edition (edition names
-// it, the zero key for the source) that fall inside it, so the writer can draw them
-// without needing the block in scope: the term spans as Marks, and the other
-// markers the file carried as OtherMarks. runs is the sequence the spans
-// anchor to, which segs divide.
-func withMarks(segs []seg, runs []model.Run, block *model.Block, edition model.EditionKey) []seg {
-	if overlay := overlayOn(block, model.OverlayTerm, edition); overlay != nil && len(overlay.Spans) > 0 {
+// withMarks hands each segment the marker spans of an edition that fall inside
+// it, so the writer can draw them without needing the block in scope: the term
+// spans as Marks, and the other markers the file carried as OtherMarks.
+// overlays looks up the edition's overlays by type (sourceOverlays,
+// targetOverlays). runs is the sequence the spans anchor to, which segs
+// divide.
+func withMarks(segs []seg, runs []model.Run, overlays func(model.OverlayType) *model.Overlay) []seg {
+	if overlay := overlays(model.OverlayTerm); overlay != nil && len(overlay.Spans) > 0 {
 		placed, unplaced := marksForSegments(segs, runs, overlay.Spans, termAttrs)
 		for i := range segs {
 			segs[i].Marks = placed[i]
@@ -332,7 +333,7 @@ func withMarks(segs []seg, runs []model.Run, block *model.Block, edition model.E
 			segs[0].UnplacedMarks = unplaced
 		}
 	}
-	if overlay := overlayOn(block, OverlayMrk, edition); overlay != nil && len(overlay.Spans) > 0 {
+	if overlay := overlays(OverlayMrk); overlay != nil && len(overlay.Spans) > 0 {
 		placed, _ := marksForSegments(segs, runs, overlay.Spans, markerAttrs)
 		for i := range segs {
 			segs[i].OtherMarks = placed[i]
@@ -390,21 +391,37 @@ func targetSegsFromBlock(block *model.Block, loc model.LocaleID) []seg {
 	if runs == nil {
 		return nil
 	}
-	key := model.Variant(loc)
-	overlay := block.SegmentationFor(key)
+	overlay := block.TargetSegmentation(loc)
 	ir := unitSegmentsIR(block)
 	var tgtIR map[string]*Content
 	if ir != nil {
 		tgtIR = ir.Target[loc]
 	}
-	return withMarks(segsFromOverlay(runs, overlay, tgtIR), runs, block, key)
+	return withMarks(segsFromOverlay(runs, overlay, tgtIR), runs, targetOverlays(block, loc))
 }
 
-// overlayOn returns the overlay of type t on the edition k names (the zero key
-// for the source), or nil when the block has none.
-func overlayOn(block *model.Block, t model.OverlayType, k model.EditionKey) *model.Overlay {
-	for i := range block.Overlays {
-		o := &block.Overlays[i]
+// sourceOverlays looks up the overlays on the source by type.
+func sourceOverlays(block *model.Block) func(model.OverlayType) *model.Overlay {
+	return func(t model.OverlayType) *model.Overlay { return overlayOn(block.Overlays, t, model.EditionKey{}) }
+}
+
+// targetOverlays looks up by type the overlays on the translation
+// TargetRuns(loc) reads: for the empty locale, the translation filed under no
+// language, whose overlays sit apart from the block's others.
+func targetOverlays(block *model.Block, loc model.LocaleID) func(model.OverlayType) *model.Overlay {
+	key := model.Variant(loc)
+	overlays := block.Overlays
+	if key.IsZero() {
+		overlays = block.UnlabelledOverlays()
+	}
+	return func(t model.OverlayType) *model.Overlay { return overlayOn(overlays, t, key) }
+}
+
+// overlayOn returns the overlay of type t in overlays on the edition k names
+// (the zero key for the source), or nil when there is none.
+func overlayOn(overlays []model.Overlay, t model.OverlayType, k model.EditionKey) *model.Overlay {
+	for i := range overlays {
+		o := &overlays[i]
 		if o.Type == t && o.Edition.Canonical() == k.Canonical() {
 			return o
 		}

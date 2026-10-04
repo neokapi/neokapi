@@ -698,8 +698,7 @@ func applyMemoryPrefill(ctx context.Context, tm memory.ContentMemory, block *mod
 	}
 	block.SetTargetRuns(target, targetRuns)
 	if segCount > 1 {
-		key := model.Variant(target)
-		block.SetSegmentation(key, targetSpans)
+		block.SetTargetSegmentation(target, targetSpans)
 	}
 	// Stash the match type on the block so downstream writers can surface
 	// it in format-appropriate ways (PO's `#, fuzzy` flag; XLIFF 2's
