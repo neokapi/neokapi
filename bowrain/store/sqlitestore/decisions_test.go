@@ -364,6 +364,142 @@ func TestUpsertUnitDecisions_StaleBasisDoesNotProject_SQLite(t *testing.T) {
 		"a decision blessing source the store has rewritten must not project an approval")
 }
 
+// nbStatus is the rung the stored Norwegian translation of unit projects.
+func nbStatus(t *testing.T, s *SQLiteStore, projectID, unit string) model.TargetStatus {
+	t.Helper()
+	rows, err := s.GetBlocks(t.Context(), platstore.BlockQuery{
+		ProjectID: projectID, Stream: "main", ItemName: "en.json", Limit: 10,
+	})
+	require.NoError(t, err)
+	for _, sb := range rows {
+		if sb.SourceID == unit {
+			nb, ok := sb.Block.Edition(model.Variant("nb"))
+			require.True(t, ok)
+			return model.TargetStatus(nb.Status)
+		}
+	}
+	t.Fatalf("unit %s not found", unit)
+	return ""
+}
+
+// translatedBlock is a block with source and an nb translation at the
+// translated rung.
+func translatedBlock(id, source, translation string) *model.Block {
+	b := &model.Block{ID: id, Translatable: true}
+	b.SetSourceText(source)
+	b.SetTargetText("nb", translation)
+	b.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusTranslated))
+	return b
+}
+
+// TestUnitDecisions_ALoweringVerdictNeedsNoBasis_SQLite: the Postgres store's
+// TestUnitDecisions_ALoweringVerdictNeedsNoBasis, on the working copy.
+func TestUnitDecisions_ALoweringVerdictNeedsNoBasis_SQLite(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		translatedBlock("greeting", "Hello", "Hei"),
+		translatedBlock("farewell", "Goodbye", "Ha det"),
+	}))
+	rejection := func(unit, translation, basis, at string) venue.UnitDecision {
+		return venue.UnitDecision{
+			ItemName: "en.json", Unit: unit, Variant: "nb",
+			Status: string(model.TargetStatusDraft), ReviewState: venue.ReviewStateRejected,
+			Revision: nbTextRevision(translation), Basis: basis,
+			DecidedAt: at, Updated: at,
+		}
+	}
+
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{
+		rejection("greeting", "Hei", "", "2026-08-04T10:00:00Z"),
+		rejection("farewell", "Ha det", sourceRevision("Goodbye then"), "2026-08-04T10:00:00Z"),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, model.TargetStatusDraft, nbStatus(t, s, p.ID, "greeting"),
+		"a rejection that names no source lowers the translation it names")
+	assert.Equal(t, model.TargetStatusTranslated, nbStatus(t, s, p.ID, "farewell"),
+		"a rejection of a translation of another source lowers nothing")
+
+	_, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
+		Revision: nbTextRevision("Hei"), DecidedAt: "2026-08-04T12:00:00Z", Updated: "2026-08-04T12:00:00Z",
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, model.TargetStatusDraft, nbStatus(t, s, p.ID, "greeting"),
+		"an approval that names no source raises nothing")
+}
+
+// TestStoreBlocks_ASameLanguageTranslationLeavesTheSourceRevision_SQLite: the
+// Postgres store's test of the same name, on the working copy.
+func TestStoreBlocks_ASameLanguageTranslationLeavesTheSourceRevision_SQLite(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	bilingual := translatedBlock("greeting", "Hello", "Hei")
+	bilingual.SetTargetText(model.LocaleEnglish, "Hello there")
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{bilingual}))
+	stamped := func() string {
+		rows, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID, Stream: "main", ItemName: "en.json"})
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		assert.Equal(t, venue.SourceRevision(rows[0].Block, model.LocaleEnglish), rows[0].SourceRevision)
+		return rows[0].SourceRevision
+	}
+	first := stamped()
+	assert.Equal(t, sourceRevision("Hello"), first)
+
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
+		Revision: nbTextRevision("Hei"), Basis: first,
+		DecidedAt: "2026-08-04T10:00:00Z", Updated: "2026-08-04T10:00:00Z",
+	}})
+	require.NoError(t, err)
+	require.Equal(t, model.TargetStatusEstablished, nbStatus(t, s, p.ID, "greeting"))
+
+	again := translatedBlock("greeting", "Hello", "Hei")
+	again.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusEstablished))
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{again}))
+	assert.Equal(t, first, stamped(), "the source did not move")
+	assert.Equal(t, model.TargetStatusEstablished, nbStatus(t, s, p.ID, "greeting"))
+	assert.Zero(t, countRows(t, s, "change_log", `project_id=? AND change_type='source_modified'`, p.ID))
+}
+
+// TestUpdateProject_SourceLanguageIsFixedOnceItHoldsContent_SQLite: the
+// Postgres store's test of the same name, on the working copy.
+func TestUpdateProject_SourceLanguageIsFixedOnceItHoldsContent_SQLite(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	p.DefaultSourceLanguage = "en-GB"
+	require.NoError(t, s.UpdateProject(ctx, p), "a project with no content may change its language")
+	p.DefaultSourceLanguage = model.LocaleEnglish
+	require.NoError(t, s.UpdateProject(ctx, p))
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		translatedBlock("greeting", "Hello", "Hei"),
+	}))
+	p.Name = "Renamed"
+	require.NoError(t, s.UpdateProject(ctx, p), "settings other than the language change")
+
+	p.DefaultSourceLanguage = "en-GB"
+	require.ErrorIs(t, s.UpdateProject(ctx, p), platstore.ErrSourceLanguageFixed)
+	got, err := s.GetProject(ctx, p.ID)
+	require.NoError(t, err)
+	assert.Equal(t, model.LocaleEnglish, got.DefaultSourceLanguage)
+	assert.Equal(t, "Renamed", got.Name)
+
+	missing := *p
+	missing.ID = "no-such-project"
+	err = s.UpdateProject(ctx, &missing)
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, platstore.ErrSourceLanguageFixed)
+}
+
 // TestUnitDecisions_GoverningFingerprintRoundTrips_SQLite: the fingerprint of
 // the context a decision was made under is stored beside it and read back, a
 // record that gains one is a change the store writes, and one made under a

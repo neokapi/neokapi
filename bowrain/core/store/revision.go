@@ -12,6 +12,13 @@ import (
 // block as it now stands.
 var ErrBlockChanged = errors.New("block changed since it was read")
 
+// ErrSourceLanguageFixed refuses a change to the source language of a project
+// that holds content. The store takes the revision of every block's source
+// under that language (StoredBlock.SourceRevision), and every decision's basis
+// names one of those revisions, so a change would leave each basis naming a
+// source the project no longer grades by.
+var ErrSourceLanguageFixed = errors.New("the source language of a project that holds content cannot change")
+
 // TargetRevision identifies one locale's target on a block as a reader sees
 // it: the edition revision of that target (model.RunsRevision), a function of
 // the target's content alone. A single write names the revision it read, and
@@ -65,4 +72,24 @@ func BasisCurrent(basis, sourceRevision string) bool {
 // Both stores' SQL encode the same tests over their columns.
 func BasisStale(basis, sourceRevision string) bool {
 	return basis != "" && basis != sourceRevision
+}
+
+// DecisionProjects reports whether a decision that puts its translation on
+// the rung status, made against basis, sets the rung a translation of the
+// source a block holds at sourceRevision projects. The translation half (the
+// decision's revision against the translation the row holds) is the caller's
+// test.
+//
+// A decision that establishes a translation needs a current basis: an
+// approval names the source it approved, and one that names another source,
+// or none, stamps no approval onto the source the block holds. A decision
+// that leaves the translation on a lower rung (a rejection, a withdrawal)
+// projects unless its basis is stale. One that names no basis is a verdict on
+// a translation written outside kapi, and a checkout reading the same record
+// lowers the translation too.
+func DecisionProjects(status, basis, sourceRevision string) bool {
+	if model.TargetStatus(status).Rank() > model.TargetStatusTranslated.Rank() {
+		return BasisCurrent(basis, sourceRevision)
+	}
+	return !BasisStale(basis, sourceRevision)
 }

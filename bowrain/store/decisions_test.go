@@ -483,6 +483,133 @@ func TestUnitDecisions_StaleBasisDoesNotProject(t *testing.T) {
 	assert.Len(t, listDecisions(t, s, p.ID), 1)
 }
 
+// TestUnitDecisions_ALoweringVerdictNeedsNoBasis: a checkout rejects a
+// translation it holds no record of (one written by hand, outside kapi), so the
+// rejection names the translation and no source. The rejection lowers the
+// translation on the platform as it does on the checkout. A rejection made
+// against another source than the block holds lowers nothing, and an approval
+// that names no source raises nothing.
+func TestUnitDecisions_ALoweringVerdictNeedsNoBasis(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated),
+		blockWithTarget("farewell", "Goodbye", "Ha det", model.TargetStatusTranslated),
+	}))
+	rejection := func(unit, translation, basis, at string) venue.UnitDecision {
+		return venue.UnitDecision{
+			ItemName: "en.json", Unit: unit, Variant: "nb",
+			Status: string(model.TargetStatusDraft), ReviewState: venue.ReviewStateRejected,
+			Revision: nbTextRevision(translation), Basis: basis,
+			DecidedAt: at, Updated: at,
+		}
+	}
+
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{
+		rejection("greeting", "Hei", "", "2026-08-04T10:00:00Z"),
+		rejection("farewell", "Ha det", sourceRevision("Goodbye then"), "2026-08-04T10:00:00Z"),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, model.TargetStatusDraft, targetStatus(t, s, p.ID, "en.json", "greeting"),
+		"a rejection that names no source lowers the translation it names")
+	assert.Equal(t, model.TargetStatusTranslated, targetStatus(t, s, p.ID, "en.json", "farewell"),
+		"a rejection of a translation of another source lowers nothing")
+
+	_, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{
+		rejection("farewell", "Ha det", sourceRevision("Goodbye"), "2026-08-04T11:00:00Z"),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, model.TargetStatusDraft, targetStatus(t, s, p.ID, "en.json", "farewell"),
+		"a rejection of a translation of the source the block holds lowers it")
+
+	_, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
+		Revision: nbTextRevision("Hei"), DecidedAt: "2026-08-04T12:00:00Z", Updated: "2026-08-04T12:00:00Z",
+	}})
+	require.NoError(t, err)
+	assert.Equal(t, model.TargetStatusDraft, targetStatus(t, s, p.ID, "en.json", "greeting"),
+		"an approval that names no source raises nothing")
+}
+
+// TestStoreBlocks_ASameLanguageTranslationLeavesTheSourceRevision: a write
+// that carries a block's source with a translation filed under the source
+// language, and a later write of the same source without it, stamp one source
+// revision. The source did not move, so an approval made against it stays.
+func TestStoreBlocks_ASameLanguageTranslationLeavesTheSourceRevision(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	bilingual := blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated)
+	bilingual.SetTargetText(model.LocaleEnglish, "Hello there")
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{bilingual}))
+	stamped := func() string {
+		rows, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID, Stream: "main", ItemName: "en.json"})
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		assert.Equal(t, venue.SourceRevision(rows[0].Block, model.LocaleEnglish), rows[0].SourceRevision,
+			"the stamp is the revision of the source the row holds")
+		return rows[0].SourceRevision
+	}
+	first := stamped()
+	assert.Equal(t, sourceRevision("Hello"), first)
+
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
+		Revision: nbTextRevision("Hei"), Basis: first,
+		DecidedAt: "2026-08-04T10:00:00Z", Updated: "2026-08-04T10:00:00Z",
+	}})
+	require.NoError(t, err)
+	require.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, p.ID, "en.json", "greeting"))
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusEstablished),
+	}))
+	assert.Equal(t, first, stamped(), "the source did not move")
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, p.ID, "en.json", "greeting"))
+	assert.Zero(t, countRows(t, s, "change_log", `project_id=$1 AND change_type='source_modified'`, p.ID),
+		"no source change is logged")
+}
+
+// TestUpdateProject_SourceLanguageIsFixedOnceItHoldsContent: the store takes
+// every source revision under the project's source language, so a project that
+// holds a block keeps its language. Every other setting still changes, and a
+// project with no content may change its language.
+func TestUpdateProject_SourceLanguageIsFixedOnceItHoldsContent(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	p.DefaultSourceLanguage = "en-GB"
+	require.NoError(t, s.UpdateProject(ctx, p), "a project with no content may change its language")
+	p.DefaultSourceLanguage = model.LocaleEnglish
+	require.NoError(t, s.UpdateProject(ctx, p))
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
+		blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated),
+	}))
+	p.Name = "Renamed"
+	require.NoError(t, s.UpdateProject(ctx, p), "settings other than the language change")
+
+	p.DefaultSourceLanguage = "en-GB"
+	err := s.UpdateProject(ctx, p)
+	require.ErrorIs(t, err, platstore.ErrSourceLanguageFixed)
+	got, err := s.GetProject(ctx, p.ID)
+	require.NoError(t, err)
+	assert.Equal(t, model.LocaleEnglish, got.DefaultSourceLanguage)
+	assert.Equal(t, "Renamed", got.Name)
+
+	missing := *p
+	missing.ID = "no-such-project"
+	err = s.UpdateProject(ctx, &missing)
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, platstore.ErrSourceLanguageFixed)
+}
+
 // TestUnitDecisions_GoverningFingerprintRoundTrips: the fingerprint of the
 // context a decision was made under is stored beside it and read back, a record
 // that gains one is a change the store writes, and one made under a moved

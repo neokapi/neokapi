@@ -144,11 +144,12 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		}
 
 		// The projection holds only while both halves of the blessed pairing do:
-		// the source it was blessed for, and the translation the row carries.
+		// the source it was blessed for (platstore.DecisionProjects), and the
+		// translation the row carries.
 		if d.Status == "" {
 			continue
 		}
-		if !platstore.BasisCurrent(d.Basis, blockRevision) {
+		if !platstore.DecisionProjects(d.Status, d.Basis, blockRevision) {
 			continue
 		}
 		var targetJSON string

@@ -208,15 +208,17 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		}
 
 		// Project the status — only while BOTH halves of the pairing the
-		// decision blessed still hold: the source it was blessed for, and the
-		// translation the row currently carries. A decision arriving against a
-		// source this store has since changed, its wording or an inline code,
-		// is recorded but moves nothing; projecting it would stamp an approval
-		// onto a source nobody approved a translation of.
+		// decision blessed still hold: the source it was blessed for
+		// (platstore.DecisionProjects), and the translation the row currently
+		// carries. A decision arriving against a source this store has since
+		// changed, its wording or an inline code, is recorded but moves
+		// nothing; projecting it would stamp an approval onto a source nobody
+		// approved a translation of. A rejection of a translation written
+		// outside kapi names no source and lowers it all the same.
 		if d.Status == "" {
 			continue
 		}
-		if !platstore.BasisCurrent(d.Basis, blockRevision) {
+		if !platstore.DecisionProjects(d.Status, d.Basis, blockRevision) {
 			continue
 		}
 		var targetJSON string

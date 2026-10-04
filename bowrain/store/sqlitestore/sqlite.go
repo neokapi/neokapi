@@ -115,16 +115,27 @@ func (s *SQLiteStore) UpdateProject(ctx context.Context, p *platstore.Project) e
 	if p.DashboardVisibility == "" {
 		p.DashboardVisibility = "private"
 	}
+	// The source language stays while the project holds content: every
+	// source revision stamped on its blocks is taken under it
+	// (platstore.ErrSourceLanguageFixed).
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE projects SET name=?, default_source_language=?, target_languages=?, target_language_mode=?, default_stream=?, dashboard_visibility=?, properties=?, workspace_id=?, converge_policy=?, updated_at=?
-		 WHERE id=?`,
+		 WHERE id=? AND (default_source_language=? OR NOT EXISTS (SELECT 1 FROM blocks WHERE project_id=?))`,
 		p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, p.DashboardVisibility, string(propsJSON),
-		p.WorkspaceID, platstore.NormalizeConvergePolicy(p.ConvergePolicy), p.UpdatedAt.Format(time.RFC3339), p.ID)
+		p.WorkspaceID, platstore.NormalizeConvergePolicy(p.ConvergePolicy), p.UpdatedAt.Format(time.RFC3339), p.ID,
+		string(p.DefaultSourceLanguage), p.ID)
 	if err != nil {
 		return fmt.Errorf("update project: %w", err)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
+		var exists bool
+		if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM projects WHERE id=?)`, p.ID).Scan(&exists); err != nil {
+			return fmt.Errorf("update project: %w", err)
+		}
+		if exists {
+			return fmt.Errorf("update project %s: %w", p.ID, platstore.ErrSourceLanguageFixed)
+		}
 		return fmt.Errorf("project %s not found", p.ID)
 	}
 	return nil

@@ -140,9 +140,12 @@ func (s *PostgresStore) UpdateProject(ctx context.Context, p *platstore.Project)
 	if p.DashboardVisibility == "" {
 		p.DashboardVisibility = "private"
 	}
+	// The source language stays while the project holds content: every
+	// source revision stamped on its blocks is taken under it
+	// (platstore.ErrSourceLanguageFixed).
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE projects SET name=$1, default_source_language=$2, target_languages=$3, target_language_mode=$4, default_stream=$5, dashboard_visibility=$6, properties=$7, workspace_id=$8, converge_policy=$9, updated_at=$10
-		 WHERE id=$11`,
+		 WHERE id=$11 AND (default_source_language=$2 OR NOT EXISTS (SELECT 1 FROM blocks WHERE project_id=$11))`,
 		p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, p.DashboardVisibility, string(propsJSON),
 		p.WorkspaceID, platstore.NormalizeConvergePolicy(p.ConvergePolicy), p.UpdatedAt, p.ID)
 	if err != nil {
@@ -150,6 +153,13 @@ func (s *PostgresStore) UpdateProject(ctx context.Context, p *platstore.Project)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
+		var exists bool
+		if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM projects WHERE id=$1)`, p.ID).Scan(&exists); err != nil {
+			return fmt.Errorf("update project: %w", err)
+		}
+		if exists {
+			return fmt.Errorf("update project %s: %w", p.ID, platstore.ErrSourceLanguageFixed)
+		}
 		return fmt.Errorf("project %s not found", p.ID)
 	}
 	return nil
