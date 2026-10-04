@@ -57,7 +57,7 @@ parameters:
     description: Use the JSON key as the block name.
     help: |
       When enabled (the default), the JSON key is used as the block's name
-      (resname) so translators and downstream tools can reference each unit.
+      (resname) so translators and downstream tools can reference each block.
     values: "`true` / `false` (default `true`)"
   useFullKeyPath:
     description: Use the full hierarchical key path as the block name.

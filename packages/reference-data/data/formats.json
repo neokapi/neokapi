@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T06:55:54Z",
+  "generatedAt": "2026-10-04T08:37:50Z",
   "kind": "format",
   "entries": [
     {
@@ -2058,7 +2058,7 @@
           },
           "useKeyAsName": {
             "description": "Use the JSON key as the block name.",
-            "help": "When enabled (the default), the JSON key is used as the block's name\n(resname) so translators and downstream tools can reference each unit.\n",
+            "help": "When enabled (the default), the JSON key is used as the block's name\n(resname) so translators and downstream tools can reference each block.\n",
             "values": "`true` / `false` (default `true`)"
           },
           "useLeadingSlashOnKeyPath": {

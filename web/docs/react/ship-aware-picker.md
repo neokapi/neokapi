@@ -31,7 +31,7 @@ precedence as the ship gate, and resolves a `gate:` name against the shared
 ```yaml
 # kapi.yaml
 ship_gate: { translated: 100 } # go live once fully translated
-established_gate: { established: 100 } # ship established once a person established every unit
+established_gate: { established: 100 } # ship established once a person established every translation
 ```
 
 A rule list narrows the bar per collection or locale, most-specific rule wins:
@@ -39,7 +39,7 @@ A rule list narrows the bar per collection or locale, most-specific rule wins:
 ```yaml
 established_gates:
   - when: { locales: [ja] }
-    gate: { established: 100 } # Japanese needs a person on every unit
+    gate: { established: 100 } # Japanese needs a person on every translation
   - gate: { established: 80 }
 ```
 
