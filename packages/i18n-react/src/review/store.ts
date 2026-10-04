@@ -23,7 +23,7 @@ import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from "
 import { join } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import type { Block, BlockV1, File as KBFFile, Run } from "@neokapi/kapi-format";
+import type { Block, BlockV1, Edition, File as KBFFile, Run } from "@neokapi/kapi-format";
 import {
   Kind,
   SchemaVersion,
@@ -196,9 +196,10 @@ export class ReviewStore {
 
   /**
    * Write a target edit back into the block's `.kbf.json` file. The
-   * edited text is stored as a single text run — the same shape a
+   * edited text is stored as a single text run, the same shape a
    * translator editing the file by hand produces; kapi's validators
-   * and content memory treat it as any other unstructured target.
+   * and content memory treat it as any other unstructured target. The
+   * edition records the edit as a person's (reviewedEdition).
    */
   put(hash: string, locale: string, text: string): ReviewPayload | null {
     this.refresh();
@@ -207,11 +208,9 @@ export class ReviewStore {
     const file = readKBF(loc.path);
     const block = file.documents?.[loc.docIndex]?.blocks?.[loc.blockIndex];
     if (!block) return null;
-    // The edit replaces the edition's runs and keeps what else the catalog
-    // recorded about it.
     block.editions = {
       ...block.editions,
-      [locale]: { ...block.editions[locale], runs: [{ text }] as Run[] },
+      [locale]: reviewedEdition(block.editions[locale], text),
     };
     // Written back under the current root kind and schema, the way kapi's own
     // writer stamps a catalog it rewrites. A catalog an older release of this
@@ -234,6 +233,24 @@ export class ReviewStore {
     this.broadcast({ hash, locale, text });
     return this.get(hash);
   }
+}
+
+/**
+ * The edition a reviewer's edit leaves: the edited text as one run, with what
+ * the engine records when a person changes a translation (Go
+ * `core/change.Consequences`). It is translated, with a human origin stamped
+ * now, and keeps the producer's score. The producer's origin, status and
+ * derivation described the wording the reviewer replaced, so none of them is
+ * kept.
+ */
+export function reviewedEdition(previous: Edition | undefined, text: string): Edition {
+  const edition: Edition = {
+    runs: [{ text }] as Run[],
+    status: "translated",
+    origin: { kind: "human", timestamp: new Date().toISOString().replace(/\.\d+Z$/, "Z") },
+  };
+  if (previous?.score) edition.score = previous.score;
+  return edition;
 }
 
 /**

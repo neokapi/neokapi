@@ -152,6 +152,34 @@ describe("ReviewStore", () => {
     expect(onDisk.documents[0].blocks[0].editions.de.runs[0].text).toBe("Willkommen zurück!");
   });
 
+  it("records a reviewer's edit as a person's: translated, a human origin, no producer derivation", () => {
+    const dir = scratch();
+    const hash = seedKbfTree(dir);
+    const path = join(dir, "i18n", "src", "Page.kbf.json");
+    const raw = JSON.parse(readFileSync(path, "utf-8"));
+    raw.documents[0].blocks[0].editions.de = {
+      runs: [{ text: "Willkommen zurück" }],
+      status: "draft",
+      origin: { kind: "ai", engine: "claude", context_fingerprint: "cfp-1" },
+      score: 0.8,
+      derived: { from: "", rev: "r:0123456789abcdef" },
+    };
+    writeFileSync(path, JSON.stringify(raw));
+
+    const store = new ReviewStore(join(dir, "i18n"));
+    store.put(hash, "de", "Willkommen zurück!");
+
+    const de = JSON.parse(readFileSync(path, "utf-8")).documents[0].blocks[0].editions.de;
+    expect(de.runs).toEqual([{ text: "Willkommen zurück!" }]);
+    expect(de.status).toBe("translated");
+    expect(de.origin.kind).toBe("human");
+    expect(de.origin.engine).toBeUndefined();
+    expect(de.origin.context_fingerprint).toBeUndefined();
+    expect(de.origin.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    expect(de.score).toBe(0.8);
+    expect(de.derived).toBeUndefined();
+  });
+
   it("serves and edits a catalog an earlier kapi wrote in schema 1.0, writing it back in the current one", () => {
     const dir = scratch();
     const hash = seedKbfTree(dir, true);
