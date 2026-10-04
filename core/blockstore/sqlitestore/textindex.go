@@ -67,7 +67,18 @@ func (k *cacheStore) SearchBlockText(ctx context.Context, needle string, opts bl
 			marks[i] = "?"
 			args = append(args, l)
 		}
-		where = append(where, `bt.locale IN (`+strings.Join(marks, ",")+`)`)
+		clause := `bt.locale IN (` + strings.Join(marks, ",") + `)`
+		// A language also takes the tone and channel editions in it, whose
+		// rows are filed under the full edition key ("nb;tone=formal").
+		if languages := opts.Languages(); len(languages) > 0 {
+			lmarks := make([]string, len(languages))
+			for i, l := range languages {
+				lmarks[i] = "?"
+				args = append(args, l)
+			}
+			clause = `(` + clause + ` OR (instr(bt.locale, ';') > 0 AND substr(bt.locale, 1, instr(bt.locale, ';') - 1) IN (` + strings.Join(lmarks, ",") + `)))`
+		}
+		where = append(where, clause)
 	}
 
 	q := `SELECT bt.block_hash, bt.locale, bt.text, b.collection, b.payload

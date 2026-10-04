@@ -106,8 +106,8 @@ func seedSearchCorpus(t *testing.T, cs *bstore.PostgresStore, projectID string) 
 	})
 	plural.Translatable = true
 
-	// A toned target is filed under the variant key "nb;tone=formal", while the
-	// block reads it back under the bare locale.
+	// A toned target is filed under its edition key "nb;tone=formal", and the
+	// block reads it back under that key.
 	toned := model.NewRunsBlock("toned", []model.Run{model.TextR("Please sign in")})
 	toned.Translatable = true
 	toned.SetEdition(
@@ -172,7 +172,7 @@ func scanHits(t *testing.T, store blockstore.Store, needle string, opts blocksto
 	for b, err := range sess.Blocks(blockstore.BlockFilter{Collection: opts.Collection}) {
 		require.NoError(t, err)
 		for _, bt := range blockstore.BlockTexts(b) {
-			if opts.Locales != nil && !slices.Contains(opts.Locales, bt.Locale) {
+			if !opts.Wants(bt.Locale) {
 				continue
 			}
 			if !strings.Contains(strings.ToLower(bt.Text), lower) {
@@ -278,8 +278,22 @@ func TestSearchBlockText_Matches(t *testing.T) {
 			needle: "vennligst",
 			opts:   blockstore.TextSearchOptions{Locales: []string{"nb"}},
 			want: []hitKey{
-				{Collection: docsCollection, Locale: "nb", Text: "Vennligst logg inn"},
+				{Collection: docsCollection, Locale: "nb;tone=formal", Text: "Vennligst logg inn"},
 			},
+		},
+		{
+			name:   "a full edition key finds that edition",
+			needle: "vennligst",
+			opts:   blockstore.TextSearchOptions{Locales: []string{"nb;tone=formal"}},
+			want: []hitKey{
+				{Collection: docsCollection, Locale: "nb;tone=formal", Text: "Vennligst logg inn"},
+			},
+		},
+		{
+			name:   "another tone of the language is not that edition",
+			needle: "vennligst",
+			opts:   blockstore.TextSearchOptions{Locales: []string{"nb;tone=casual"}},
+			want:   nil,
 		},
 		{
 			name:   "an empty non-nil locale set matches nothing",

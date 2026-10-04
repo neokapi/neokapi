@@ -2,7 +2,6 @@ package blockstore
 
 import (
 	"context"
-	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/kbf"
@@ -60,29 +59,60 @@ type TextSearchOptions struct {
 	// Collection restricts the search to one collection. Empty means all.
 	Collection string
 	// Locales restricts the search to these locale keys, where the empty
-	// string means the source text (SourceLocale). Nil means every locale.
+	// string means the source text (SourceLocale). A language also takes the
+	// tone and channel editions in it ("nb" takes "nb;tone=formal"); a full
+	// edition key takes that edition alone. Nil means every locale.
 	Locales []string
 	// Limit caps the number of hits returned. Zero means no cap.
 	Limit int
 }
 
-func (o TextSearchOptions) wants(locale string) bool {
+// Wants reports whether text filed under locale, a BlockText.Locale, passes
+// the locale filter.
+func (o TextSearchOptions) Wants(locale string) bool {
 	if o.Locales == nil {
 		return true
 	}
-	return slices.Contains(o.CanonicalLocales(), locale)
+	language, _, qualified := strings.Cut(locale, ";")
+	for _, l := range o.CanonicalLocales() {
+		if l == locale || (qualified && l != SourceLocale && l == language) {
+			return true
+		}
+	}
+	return false
 }
 
-// CanonicalLocales returns the locale filter with every locale in canonical
-// form, the form BlockTexts files a target's text under. Nil stays nil (no
-// filter) and the source key stays the empty string.
+// CanonicalLocales returns the locale filter with every entry in canonical
+// form, the form BlockTexts files a text under: a locale normalized, and an
+// edition key with a tone or a channel in its canonical text form. Nil stays
+// nil (no filter) and the source key stays the empty string.
 func (o TextSearchOptions) CanonicalLocales() []string {
 	if o.Locales == nil {
 		return nil
 	}
 	out := make([]string, len(o.Locales))
 	for i, l := range o.Locales {
+		if strings.Contains(l, ";") {
+			out[i] = kbf.KeyText(kbf.ParseKey(l))
+			continue
+		}
 		out[i] = string(model.NormalizeLocale(model.LocaleID(l)))
+	}
+	return out
+}
+
+// Languages returns the entries of the locale filter that name a language
+// alone, canonical: the ones that also take the tone and channel editions in
+// that language. Nil when there is no filter.
+func (o TextSearchOptions) Languages() []string {
+	if o.Locales == nil {
+		return nil
+	}
+	var out []string
+	for _, l := range o.CanonicalLocales() {
+		if l != SourceLocale && !strings.Contains(l, ";") {
+			out = append(out, l)
+		}
 	}
 	return out
 }
@@ -151,7 +181,7 @@ func scanText(ctx context.Context, store Store, needle string, opts TextSearchOp
 			return nil, err
 		}
 		for _, bt := range BlockTexts(b) {
-			if !opts.wants(bt.Locale) {
+			if !opts.Wants(bt.Locale) {
 				continue
 			}
 			if !strings.Contains(strings.ToLower(bt.Text), lowerNeedle) {

@@ -104,9 +104,9 @@ func TestBlockTexts_TargetLocalesAreCanonical(t *testing.T) {
 
 	opts := TextSearchOptions{Locales: []string{"nb_NO", SourceLocale}}
 	assert.Equal(t, []string{"nb-NO", ""}, opts.CanonicalLocales())
-	assert.True(t, opts.wants("nb-NO"))
-	assert.True(t, opts.wants(SourceLocale))
-	assert.False(t, opts.wants("de"))
+	assert.True(t, opts.Wants("nb-NO"))
+	assert.True(t, opts.Wants(SourceLocale))
+	assert.False(t, opts.Wants("de"))
 	assert.Nil(t, TextSearchOptions{}.CanonicalLocales(), "no filter stays no filter")
 }
 
