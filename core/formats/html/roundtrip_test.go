@@ -592,12 +592,12 @@ func TestSkeletonRoundtrip_TrimmedWhitespaceIsRestored(t *testing.T) {
 					// Rewrite text in place, the way a correction tool does:
 					// replacing the whole run slice would also drop the inline
 					// placeholders that carry the block's markup.
-					for i := range b.Source {
-						if b.Source[i].Text == nil {
+					for _, r := range b.SourceRuns() {
+						if r.Text == nil {
 							continue
 						}
-						if replacement := tc.edit(b.Source[i].Text.Text); replacement != "" {
-							b.Source[i].Text.Text = replacement
+						if replacement := tc.edit(r.Text.Text); replacement != "" {
+							r.Text.Text = replacement
 							edited = true
 						}
 					}

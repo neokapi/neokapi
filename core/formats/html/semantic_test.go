@@ -290,12 +290,12 @@ func TestSemanticExport_Escaping(t *testing.T) {
 	plain.SetSemanticRole(model.RoleParagraph, 0)
 
 	// bold inline run via vocabulary type.
-	bold := &model.Block{ID: "b", Translatable: true, Source: []model.Run{
+	bold := model.NewRunsBlock("b", []model.Run{
 		{Text: &model.TextRun{Text: "see "}},
 		{PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold"}},
 		{Text: &model.TextRun{Text: "this"}},
 		{PcClose: &model.PcCloseRun{}},
-	}}
+	})
 	bold.SetSemanticRole(model.RoleParagraph, 0)
 
 	out := writeSemanticParts(t,

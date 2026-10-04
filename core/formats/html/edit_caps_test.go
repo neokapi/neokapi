@@ -146,7 +146,7 @@ func TestReadersRecordInteractiveAncestor(t *testing.T) {
 				continue
 			}
 			for _, w := range want {
-				if strings.Contains(model.RunsText(b.Source), w.words) {
+				if strings.Contains(model.RunsText(b.SourceRuns()), w.words) {
 					seen++
 					assert.Equal(t, w.tag, b.Properties[PropInteractiveAncestor], "skeleton=%v: the block holding %q", skeleton, w.words)
 				}

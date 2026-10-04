@@ -30,10 +30,10 @@ func editSource(t *testing.T, doc, from, to string) string {
 	edited := 0
 	for _, p := range parts {
 		b, ok := p.Resource.(*model.Block)
-		if !ok || !b.Translatable || (model.RunsText(b.Source) != from && model.RunsEditText(b.Source) != from) {
+		if !ok || !b.Translatable || (model.RunsText(b.SourceRuns()) != from && model.RunsEditText(b.SourceRuns()) != from) {
 			continue
 		}
-		b.EditSourceRuns(model.ParseRunsEditText(to, b.Source))
+		b.EditSourceRuns(model.ParseRunsEditText(to, b.SourceRuns()))
 		edited++
 	}
 	require.Equal(t, 1, edited, "exactly one block reads %q", from)
@@ -52,7 +52,7 @@ func readBackTexts(t *testing.T, html string) []string {
 	var texts []string
 	for _, p := range parts {
 		if b, ok := p.Resource.(*model.Block); ok && b.Translatable {
-			texts = append(texts, model.RunsText(b.Source))
+			texts = append(texts, model.RunsText(b.SourceRuns()))
 		}
 	}
 	return texts

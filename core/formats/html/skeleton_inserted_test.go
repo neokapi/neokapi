@@ -130,7 +130,7 @@ func TestSkeletonInsertedCharsetMeta(t *testing.T) {
 			if b == nil {
 				return nil, nil
 			}
-			return []byte(model.RenderRunsWithData(b.Source)), nil
+			return []byte(model.RenderRunsWithData(b.SourceRuns())), nil
 		}
 		var out bytes.Buffer
 		require.NoError(t, format.BufferedSkeletonWrite(store, blocks, &out, render, nil))
