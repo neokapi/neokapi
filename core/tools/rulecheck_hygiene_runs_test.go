@@ -32,7 +32,7 @@ func checkPh(id, equiv string) model.Run {
 // finding categories.
 func checkRunCategories(t *testing.T, sourceRuns, targetRuns []model.Run) []string {
 	t.Helper()
-	b := &model.Block{ID: "u1", Translatable: true, Source: sourceRuns, Properties: map[string]string{}}
+	b := model.NewRunsBlock("u1", sourceRuns)
 	b.SetTargetRuns(model.LocaleFrench, targetRuns)
 
 	tl := tools.NewRuleCheckTool(tools.NewRuleCheckConfig(model.LocaleFrench))
@@ -198,7 +198,7 @@ func TestRuleCheck_TargetSameAsSourceWithCodes(t *testing.T) {
 // checkCategoriesWith is checkRunCategories with a caller-supplied config.
 func checkCategoriesWith(t *testing.T, cfg *tools.RuleCheckConfig, sourceRuns, targetRuns []model.Run) []string {
 	t.Helper()
-	b := &model.Block{ID: "u1", Translatable: true, Source: sourceRuns, Properties: map[string]string{}}
+	b := model.NewRunsBlock("u1", sourceRuns)
 	b.SetTargetRuns(cfg.TargetLocale, targetRuns)
 
 	out := processPart(t, tools.NewRuleCheckTool(cfg), &model.Part{Type: model.PartBlock, Resource: b})
@@ -218,11 +218,7 @@ func checkCategoriesWith(t *testing.T, cfg *tools.RuleCheckConfig, sourceRuns, t
 // U+FFFC is not ISO-8859-1 encodable, so a leak here would report a
 // charset-violation on every block that contains a placeholder.
 func TestRuleCheck_SentinelNeverReachesCharacterRules(t *testing.T) {
-	b := &model.Block{
-		ID: "u1", Translatable: true,
-		Source:     []model.Run{checkPh("1", "x"), checkTx(" cafe")},
-		Properties: map[string]string{},
-	}
+	b := model.NewRunsBlock("u1", []model.Run{checkPh("1", "x"), checkTx(" cafe")})
 	b.SetTargetRuns(model.LocaleFrench, []model.Run{checkPh("1", "x"), checkTx(" cafe")})
 
 	cfg := tools.NewRuleCheckConfig(model.LocaleFrench)

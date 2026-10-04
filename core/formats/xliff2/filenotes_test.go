@@ -60,10 +60,8 @@ func TestXLIFF2_FileNotesRoundTrip(t *testing.T) {
 			"target-language": "fr",
 		},
 	}
-	block := &model.Block{
-		ID:     "u1",
-		Source: []model.Run{{Text: &model.TextRun{Text: "Hello, world."}}},
-	}
+	block := &model.Block{ID: "u1"}
+	block.SetSourceText("Hello, world.")
 	block.SetSegmentation(nil, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 	})
@@ -159,10 +157,8 @@ func TestXLIFF2_FileNotes_ExplicitOverridesLayer(t *testing.T) {
 			"file-note:kapi:batch-id": "stale-batch",
 		},
 	}
-	block := &model.Block{
-		ID:     "u1",
-		Source: []model.Run{{Text: &model.TextRun{Text: "x"}}},
-	}
+	block := &model.Block{ID: "u1"}
+	block.SetSourceText("x")
 	block.SetSegmentation(nil, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 	})

@@ -22,7 +22,7 @@ func phRun(equiv string) model.Run {
 }
 
 func TestSourceState_PlaceholderOnlyIsAuthored(t *testing.T) {
-	b := &model.Block{ID: "price", Translatable: true, Source: []model.Run{phRun("p.price")}}
+	b := model.NewRunsBlock("price", []model.Run{phRun("p.price")})
 	assert.Equal(t, string(model.SourceStatusWritten), convergence.SourceState(b),
 		"a placeholder-only source is authored content, not a hole in the source ladder")
 
@@ -33,7 +33,7 @@ func TestSourceState_PlaceholderOnlyIsAuthored(t *testing.T) {
 }
 
 func TestTargetState_PlaceholderOnlyIsTranslated(t *testing.T) {
-	b := &model.Block{ID: "price", Translatable: true, Source: []model.Run{phRun("p.price")}}
+	b := model.NewRunsBlock("price", []model.Run{phRun("p.price")})
 	b.SetTargetRuns("nb", []model.Run{phRun("p.price")})
 	assert.Equal(t, string(model.TargetStatusTranslated), convergence.TargetState(b, "nb"),
 		"a placeholder-only target is produced, so it reaches the translated rung and can ship")

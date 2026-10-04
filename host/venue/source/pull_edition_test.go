@@ -77,7 +77,7 @@ func TestPull_AnInlineCodeKeepsItsCode(t *testing.T) {
 			continue
 		}
 		var runs []model.Run
-		for _, r := range b.Source {
+		for _, r := range b.SourceRuns() {
 			if r.Text != nil {
 				fr, ok := french[r.Text.Text]
 				require.True(t, ok, "no French for %q", r.Text.Text)

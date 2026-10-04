@@ -1083,6 +1083,10 @@ many for an xcstrings entry. That is how the service knows where an edit can be 
 `Derivation` is the pairing C-04 records per decision, moved onto the edition so staleness can be
 read from the content itself.
 
+The field `Editions` takes the name of the accessor that lists a block's edition keys today,
+`Block.Editions() []EditionKey`. Go rejects a field and a method of one name on a type, so that
+accessor becomes `Block.EditionKeys()` in the PR that adds the field (section 6.4, step 3).
+
 ### 6.3 Source as policy
 
 | Main's source-first mechanism | In the end state |
@@ -1121,7 +1125,9 @@ measured with a type-checked scanner). It runs in this order (engine-first phase
 1. Add accessors on `Block` (`Edition(k)`, `SetEdition`, `Editions()`, `Authoritative(policy)`)
    implemented over `Source` and `Targets`.
 2. Migrate callers package by package, each PR green.
-3. Flip the storage to `Editions` and delete the old fields in one PR once no caller remains.
+3. Flip the storage to `Editions` and delete the old fields in one PR once no caller remains. The
+   same PR renames the accessor `Editions()` to `EditionKeys()` with `gopls rename`, because the
+   field cannot share its name (section 6.2).
 4. Rename `Block.Unit` to `Block.Key` and `tool.Unit` to `tool.Segment` with `gopls rename`. A
    substring replace once produced `NotificaticompliantDrift` on main; this is a type-checked
    rename.
@@ -1148,6 +1154,7 @@ with the flip, in the same data reset as `decision.record`. Until the flip lands
 | "content units" in prose and catalog strings (about 20 pages under `web/docs/kapi/`) | "blocks" | 1.3.0, before the walkthroughs are re-recorded |
 | `Block.Unit`, `tool.Unit`, `reconcile.Unit` | `Block.Key`, `tool.Segment`, `reconcile.Prior` | with the flip |
 | `VariantKey`, `Target` | `EditionKey`, `Edition` | with the flip |
+| the accessor `Block.Editions()` | `Block.EditionKeys()`, freeing the name for the field | with the flip, in the PR that adds the field |
 | C-04 "Unit state and decisions" | "Block state and decisions", slug redirected in `web/docusaurus.config.ts` | with the 1.3.0 docs |
 
 The rule behind the split: names that people and agents see move once, inside the 1.3.0 break
@@ -2011,7 +2018,8 @@ beside all of them in package-sized PRs.
   proto, KBF, about 79 TypeScript files and the Bowrain DTOs (main-model §6.1).
 - **Contents:** the steps of section 6.4: accessors (`Edition`, `SetEdition`, `Editions`,
   `Authoritative`) with WP1; callers migrated package by package, each PR green; `Editions`,
-  `Native` and `Derivation` replace `Source` and `Targets` in one PR once no caller remains;
+  `Native` and `Derivation` replace `Source` and `Targets` in one PR once no caller remains, and
+  that PR renames the accessor `Editions()` to `EditionKeys()` so the field can take its name;
   `Block.Unit` to `Block.Key`, `tool.Unit` to `tool.Segment`, `reconcile.Unit` to `reconcile.Prior`,
   `VariantKey` to `EditionKey`, `Target` to `Edition` by `gopls rename`; KBF v2 with
   `@neokapi/i18n-react` and `@neokapi/contract-types` regenerated; the decision pairing on
@@ -2025,11 +2033,16 @@ beside all of them in package-sized PRs.
   function whose signature carries a `Target` (`NewTarget`, `Block.Target`, `Block.SetTarget` and
   the variant forms), per package and module, non-test and test separately. A field of another type
   with the same name resolves to a different object and is not counted. `core/plugin/protoconvert`
-  is allowed as the plugin-wire mapping. The target prints the inventory and exits 0; `-v` lists
-  every use and `-format markdown` or `json` renders it for a report. The flip PR drops `-report`,
-  so a remaining use fails, and adds the target to `make lint`, `make pre-push` and CI. On
+  is allowed as the plugin-wire mapping. The uses of the helpers `core/model` exports for tests
+  (`Block.FileTargetAsSpelled`) are counted on their own lines, and a use outside a `_test.go` file
+  fails the target in every mode, in the allowed package too. Otherwise the target prints the
+  inventory and exits 0; `-v` lists every use and `-format markdown` or `json` renders it for a
+  report. The flip PR drops `-report`, so a remaining use of a field, the type, a function or a
+  test-only helper fails, and adds the target to `make lint`, `make pre-push` and CI. On
   2026-10-03 it counted 372 non-test uses in 113 files across 49 packages, and 759 test uses in 207
-  files across 54 packages.
+  files across 54 packages. On 2026-10-04, with step 2 of section 6.4 done, it counts no use outside
+  `core/model` and the plugin-wire mapping, in code or in tests. The mapping keeps 14 test uses, and
+  three tests call `Block.FileTargetAsSpelled`.
 - **Acceptance:** no reference to `Block.Source` or `Block.Targets` remains outside the plugin-wire
   mapping (`scripts/fieldguard` without `-report` passes); every suite of every module passes; the
   content-parity round trip (model, proto, store) holds; okapi-bridge parity passes through the
@@ -2043,8 +2056,26 @@ beside all of them in package-sized PRs.
     an empty plain `fr` target. Both predate the caller migration. Listing only locale-only
     targets in `blockToJS` fixes both.
   - The KBF, xcstrings and Qt TS readers file a translation with no language under the zero key
-    (`SetTargetRuns("")`), and `Block.TargetEdition("")` reads it. The flip decides where such a
-    translation lives, so that the zero key never writes the native edition.
+    (`SetTargetRuns("")`), `Block.TargetEdition("")` reads it, and `Block.EachTargetEdition`
+    yields it beside the other targets. The flip decides where such a translation lives, so that
+    the zero key never writes the native edition.
+  - `Block.CopyEditionSet`, which `core/change` uses to keep a block as a change left it, shares
+    each target with the original and holds the source status as a value of its own. Once the
+    source edition sits in the same map as the others, a cloned map shares it too. The flip either
+    copies the authoritative edition in `CopyEditionSet` or shows that no caller changes it on one
+    copy only.
+  - `Block.FileTargetAsSpelled` files a target under a key that is not canonical (`nb_NO`), the
+    state a direct write to the storage leaves, for the tests of consumers that must cope with it.
+    `make fieldguard` fails on a call to it outside a test. The flip removes it: a test then
+    writes `b.Editions[key]` directly.
+  - `gopls rename` changes identifiers, and comments that name the type in plain text, in Go and
+    in TypeScript, keep the old name. Under `bowrain/`, `apps/` and `packages/`,
+    `git grep -nP '\bmodel\.Target\b|\bTarget\.Status\b'` listed 24 such comments in 17 files on
+    2026-10-04, each describing the review status of a locale's translation. The one in
+    `bowrain/apps/bowrain/backend/project.go` is copied into the Bowrain desktop bindings, so
+    `make wails-bindings` follows the sweep. The model diagram story in
+    `packages/docs-shared/src/diagram/Diagrams.stories.tsx` draws `Source` and `Targets` as the
+    block's fields.
 
 ### WP13. Close-out
 

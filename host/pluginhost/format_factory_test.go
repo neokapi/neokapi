@@ -172,7 +172,7 @@ func TestRegisterModeCFormats_ReaderStreamsParts(t *testing.T) {
 	}
 	require.Len(t, blocks, 1, "fakedaemon emits one block per Process call")
 	// The fakedaemon echoes filter_class in the source text.
-	require.NotEmpty(t, blocks[0].Source)
+	require.NotEmpty(t, blocks[0].SourceRuns())
 	assert.Equal(t, "fakefmt", textOfBlock(blocks[0]))
 }
 
@@ -219,11 +219,11 @@ func TestRegisterModeCFormats_NilPoolIsNoop(t *testing.T) {
 // segments. Tests use this to assert on the fake daemon's emitted
 // payload without traversing the full Run model.
 func textOfBlock(b *model.Block) string {
-	if b == nil || len(b.Source) == 0 {
+	if b == nil || len(b.SourceRuns()) == 0 {
 		return ""
 	}
 	var out strings.Builder
-	for _, run := range b.Source {
+	for _, run := range b.SourceRuns() {
 		if run.Text != nil {
 			out.WriteString(run.Text.Text)
 		}

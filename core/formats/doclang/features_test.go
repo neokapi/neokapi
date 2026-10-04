@@ -120,7 +120,7 @@ func TestReadFeatures_ThreadingCodeAndInline(t *testing.T) {
 	// Inline rtl + handwriting become typed runs.
 	para := findBlock(t, blocks, "Hebrew שלום and a signature here.")
 	types := map[string]bool{}
-	for _, r := range para.Source {
+	for _, r := range para.SourceRuns() {
 		if r.PcOpen != nil {
 			types[r.PcOpen.Type] = true
 		}

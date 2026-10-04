@@ -30,7 +30,7 @@ func snapshot(blocks []*model.Block) structuralSnapshot {
 		}
 		s.roles = append(s.roles, role)
 		s.levels = append(s.levels, level)
-		s.codes = append(s.codes, codeData(b.Source))
+		s.codes = append(s.codes, codeData(b.SourceRuns()))
 	}
 	return s
 }
@@ -75,7 +75,7 @@ func TestInvariantTranslationPreservesStructure(t *testing.T) {
 		}
 		b := p.Resource.(*model.Block)
 		var nr []model.Run
-		for _, r := range b.Source {
+		for _, r := range b.SourceRuns() {
 			if r.Text != nil {
 				nr = append(nr, model.Run{Text: &model.TextRun{Text: strings.ToUpper(r.Text.Text)}})
 			} else {

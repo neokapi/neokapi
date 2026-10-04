@@ -14,12 +14,8 @@ import (
 // docBlock builds one translatable block with a name, a source and an optional
 // target for nb.
 func docBlock(name, source, target string) *model.Block {
-	b := &model.Block{
-		ID:           name,
-		Name:         name,
-		Translatable: true,
-		Source:       []model.Run{model.TextR(source)},
-	}
+	b := &model.Block{ID: name, Name: name, Translatable: true}
+	b.SetSourceText(source)
 	if target != "" {
 		b.SetEdition(model.Variant("nb"), model.Edition{Runs: []model.Run{model.TextR(target)}, Status: model.Status(model.TargetStatusTranslated)})
 	}
@@ -71,16 +67,12 @@ func TestNeighbourhoodOfKeepsDocumentOrder(t *testing.T) {
 }
 
 func TestNeighbourOfCarriesRunsAndTheRung(t *testing.T) {
-	block := &model.Block{
-		ID:           "credits",
-		Name:         "billing.credits",
-		Translatable: true,
-		Source: []model.Run{
-			model.TextR("Your credits reset on "),
-			model.PhR(model.PlaceholderRun{ID: "1", Equiv: "date", Data: "{date}"}),
-			model.TextR("."),
-		},
-	}
+	block := &model.Block{ID: "credits", Name: "billing.credits", Translatable: true}
+	block.SetSourceRuns([]model.Run{
+		model.TextR("Your credits reset on "),
+		model.PhR(model.PlaceholderRun{ID: "1", Equiv: "date", Data: "{date}"}),
+		model.TextR("."),
+	})
 	block.SetEdition(model.Variant("nb"), model.Edition{Runs: []model.Run{
 		model.TextR("Kredittene dine nullstilles "),
 		model.PhR(model.PlaceholderRun{ID: "1", Equiv: "date", Data: "{date}"}),
@@ -108,12 +100,14 @@ func TestNeighbourOfCarriesRunsAndTheRung(t *testing.T) {
 }
 
 func TestNeighbourOfSkipsUnreadableBlocks(t *testing.T) {
+	untranslatable := &model.Block{ID: "x"}
+	untranslatable.SetSourceText("x")
 	tests := []struct {
 		name  string
 		block *model.Block
 	}{
 		{name: "nil block", block: nil},
-		{name: "untranslatable block", block: &model.Block{ID: "x", Source: []model.Run{model.TextR("x")}}},
+		{name: "untranslatable block", block: untranslatable},
 		{name: "block with no source runs", block: &model.Block{ID: "y", Translatable: true}},
 	}
 	for _, tc := range tests {
@@ -239,10 +233,7 @@ func TestNeighbourhoodOfReadsTheDocumentNotTheIDs(t *testing.T) {
 // idBlock builds a translatable block whose id and reader's name are separate,
 // so a case can put the two orders at odds.
 func idBlock(id, name, source string) *model.Block {
-	return &model.Block{
-		ID:           id,
-		Name:         name,
-		Translatable: true,
-		Source:       []model.Run{model.TextR(source)},
-	}
+	b := &model.Block{ID: id, Name: name, Translatable: true}
+	b.SetSourceText(source)
+	return b
 }

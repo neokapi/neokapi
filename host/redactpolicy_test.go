@@ -56,7 +56,9 @@ func TestProjectRedaction_ReadsTheDeclaredPolicy(t *testing.T) {
 // RedactAtIngest is called unconditionally from ingest paths, so its no-op and
 // refusal behaviour is what keeps those call sites free of policy logic.
 func TestRedactAtIngest_Boundaries(t *testing.T) {
-	blocks := []*model.Block{{ID: "b1", Source: []model.Run{{Text: &model.TextRun{Text: "hello"}}}}}
+	b1 := &model.Block{ID: "b1"}
+	b1.SetSourceText("hello")
+	blocks := []*model.Block{b1}
 
 	t.Run("no policy is a no-op", func(t *testing.T) {
 		require.NoError(t, RedactAtIngest(t.Context(), blocks, nil, t.TempDir(), "", "en"))

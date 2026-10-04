@@ -34,24 +34,19 @@ func dataPart(d *model.Data) *model.Part {
 // source is a flat run sequence (AD-002); the two sentence boundaries are a
 // stand-off segmentation overlay rather than structural segments.
 func richBlock() *model.Block {
-	b := &model.Block{
-		ID:           "b1",
-		Translatable: true,
-		Source: []model.Run{
-			{Text: &model.TextRun{Text: "Hello "}},
-			{Ph: &model.PlaceholderRun{ID: "1", Type: "var", Data: "{name}", Equiv: "{name}"}},
-			{Plural: &model.PluralRun{
-				Pivot: "count",
-				Forms: map[model.PluralForm][]model.Run{
-					model.PluralOne:   {{Text: &model.TextRun{Text: "1 item"}}},
-					model.PluralOther: {{Text: &model.TextRun{Text: "# items"}}},
-				},
-			}},
-		},
-		Targets: map[model.VariantKey]*model.Target{
-			model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
-		},
-	}
+	b := &model.Block{ID: "b1", Translatable: true}
+	b.SetSourceRuns([]model.Run{
+		{Text: &model.TextRun{Text: "Hello "}},
+		{Ph: &model.PlaceholderRun{ID: "1", Type: "var", Data: "{name}", Equiv: "{name}"}},
+		{Plural: &model.PluralRun{
+			Pivot: "count",
+			Forms: map[model.PluralForm][]model.Run{
+				model.PluralOne:   {{Text: &model.TextRun{Text: "1 item"}}},
+				model.PluralOther: {{Text: &model.TextRun{Text: "# items"}}},
+			},
+		}},
+	})
+	b.SetTargetRuns("fr", []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}})
 	b.SetSegmentation(nil, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 2})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 2}, model.RunPos{Run: 3})},
@@ -112,17 +107,16 @@ func TestBuildContentTree_Hierarchy(t *testing.T) {
 // sourceLocale (packages/ui's FormatPreview) saw nothing and rendered every
 // document left-to-right regardless of its actual language.
 func TestBuildContentTree_BlockLocaleFallsBackToLayer(t *testing.T) {
+	// A block that does declare its own locale (the mixed-locale-bundle case)
+	// must keep it rather than being overwritten by the layer.
+	own := model.NewBlock("b2", "bonjour")
+	own.SourceLocale = "fr"
 	parts := []*model.Part{
 		layerStart(&model.Layer{ID: "root", Format: "json", Locale: "ar"}),
 		groupStart(&model.GroupStart{ID: "g1"}),
 		blockPart(model.NewBlock("b1", "بدون قفل لغة")), // block sets no SourceLocale of its own
 		groupEnd("g1"),
-		// A block that does declare its own locale (the mixed-locale-bundle
-		// case) must keep it rather than being overwritten by the layer.
-		blockPart(&model.Block{
-			ID: "b2", Translatable: true, SourceLocale: "fr",
-			Source: []model.Run{{Text: &model.TextRun{Text: "bonjour"}}},
-		}),
+		blockPart(own),
 		// A nested layer with its own locale wins for its own blocks — the
 		// fallback is the innermost enclosing layer, not the root.
 		layerStart(&model.Layer{ID: "child", Format: "html", Locale: "en", ParentID: "root"}),
@@ -205,7 +199,7 @@ func TestBuildContentTree_SameLanguageTarget(t *testing.T) {
 func TestBuildContentTree_UnreachableEditionIsNotShownEmpty(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	b.SourceLocale = "en-US"
-	b.Targets[model.VariantKey{Locale: "nb_NO"}] = &model.Target{Runs: []model.Run{model.TextR("Hei")}}
+	b.FileTargetAsSpelled(model.EditionKey{Locale: "nb_NO"}, model.Edition{Runs: []model.Run{model.TextR("Hei")}})
 
 	tree := BuildContentTree([]*model.Part{blockPart(b)}, "json")
 	require.Len(t, tree.Root, 1)

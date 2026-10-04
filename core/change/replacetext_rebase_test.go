@@ -40,11 +40,11 @@ func TestReplaceText_KeepsSpansAcrossTopLevelAndBranchEdits(t *testing.T) {
 	))
 	requireApplied(t, res)
 
-	assert.Equal(t, "Hi world many things and bye", model.RunsText(b.Source))
+	assert.Equal(t, "Hi world many things and bye", model.RunsText(b.SourceRuns()))
 	for id, want := range map[string]string{"world": "world", "bye": "bye"} {
 		sp := b.OverlaySpan(model.OverlayTerm, id)
 		require.NotNil(t, sp, "the %s span", id)
-		assert.Equal(t, want, model.RunsText(sp.Range.ExtractRuns(b.Source)))
+		assert.Equal(t, want, model.RunsText(sp.Range.ExtractRuns(b.SourceRuns())))
 	}
 }
 
@@ -58,7 +58,7 @@ func TestReplaceText_AnEditAfterAPluralLeavesItOutOfTheRebase(t *testing.T) {
 
 	sp := b.OverlaySpan(model.OverlayTerm, "count")
 	require.NotNil(t, sp)
-	assert.Equal(t, "have many items", model.RunsText(sp.Range.ExtractRuns(b.Source)))
+	assert.Equal(t, "have many items", model.RunsText(sp.Range.ExtractRuns(b.SourceRuns())))
 }
 
 // replace_text reads each sequence once, so an operation with an edit per
@@ -74,5 +74,5 @@ func TestReplaceText_ManyEditsScaleWithTheText(t *testing.T) {
 	start := time.Now()
 	requireApplied(t, apply(t, b, person, replace("", "*", edits...)))
 	assert.Less(t, time.Since(start), 5*time.Second)
-	assert.Equal(t, strings.ReplaceAll(text, " the ", " THE "), model.RunsText(b.Source))
+	assert.Equal(t, strings.ReplaceAll(text, " the ", " THE "), model.RunsText(b.SourceRuns()))
 }

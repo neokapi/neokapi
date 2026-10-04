@@ -136,7 +136,7 @@ func readCostProject(b *testing.B, recipe, dir, source string) costProject {
 		}
 		rel, _ := projectRelPath(root, path)
 		for _, blk := range blocks {
-			if blk.Translatable && len(blk.Source) > 0 {
+			if blk.Translatable && len(blk.SourceRuns()) > 0 {
 				p.docs[rel] = append(p.docs[rel], blk)
 			}
 		}
@@ -151,20 +151,23 @@ func readCostProject(b *testing.B, recipe, dir, source string) costProject {
 
 // sourceEdit is an edit that appends a word to a block's source.
 func sourceEdit(doc string, blk *model.Block) change.EditionChange {
-	after := append(slices.Clone(blk.Source), model.Run{Text: &model.TextRun{Text: " today"}})
+	after := append(slices.Clone(blk.SourceRuns()), model.Run{Text: &model.TextRun{Text: " today"}})
 	return change.EditionChange{Ref: change.Ref{Doc: doc, Block: blockKey(blk)}, Role: change.RoleAuthoritative,
-		Before: blk.Source, After: after, Block: blk}
+		Before: blk.SourceRuns(), After: after, Block: blk}
 }
 
 // translationEdit is an edit to a block's Norwegian translation, which starts
 // as a copy of the source.
 func translationEdit(doc string, blk *model.Block) change.EditionChange {
-	before := slices.Clone(blk.Source)
-	after := append(slices.Clone(blk.Source), model.Run{Text: &model.TextRun{Text: " i dag"}})
-	b := *blk
-	b.Targets = map[model.VariantKey]*model.Target{model.Variant("nb"): {Runs: after}}
+	before := slices.Clone(blk.SourceRuns())
+	after := append(slices.Clone(blk.SourceRuns()), model.Run{Text: &model.TextRun{Text: " i dag"}})
+	b := blk.CopyEditionSet()
+	for k := range blk.EachTargetEdition {
+		b.RemoveEdition(k)
+	}
+	b.SetEdition(model.Variant("nb"), model.Edition{Runs: after})
 	return change.EditionChange{Ref: change.Ref{Doc: doc, Block: blockKey(blk), Edition: model.EditionKey{Locale: "nb"}},
-		Role: change.RoleDerived, Before: before, After: after, Block: &b}
+		Role: change.RoleDerived, Before: before, After: after, Block: b}
 }
 
 // BenchmarkCommitCheck measures the commit check over the repository's own

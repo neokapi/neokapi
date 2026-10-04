@@ -152,7 +152,8 @@ func TestMergeReturned_AUnitWithNoRevisionsIsHeldToTheSourceItCarries(t *testing
 	}, project.ConflictPolicyTranslatorWins)
 	ids := blockIDs(t, a, task)
 	unit := func(id, source, french string) *model.Block {
-		b := &model.Block{ID: id, Source: []model.Run{{Text: &model.TextRun{Text: source}}}}
+		b := &model.Block{ID: id}
+		b.SetSourceText(source)
 		b.SetTargetText("fr", french)
 		return b
 	}
@@ -183,7 +184,7 @@ func TestMergeReturned_AUnitIsHeldToTheSourceItCarriesWhateverItsBasis(t *testin
 	revs := extracted(t, a, task)
 	unit := func(id, source, french string) *model.Block {
 		b := returnedUnit(id, french, revs[id])
-		b.Source = []model.Run{{Text: &model.TextRun{Text: source}}}
+		b.SetSourceText(source)
 		return b
 	}
 	rf := &returnedFile{input: task.input, doc: "src/en/app.json", locale: "fr", blocks: []*model.Block{
@@ -423,7 +424,7 @@ func TestMergeReturned_APOTranslationKeepsWhatTheReturnLeaves(t *testing.T) {
 	assert.Equal(t, model.AbsentRevision, revs[ids["Thanks"]].IfMatch, "an untranslated entry holds no French")
 
 	unit := returnedUnit(ids["Thanks"], "Merci", revs[ids["Thanks"]])
-	unit.Source = []model.Run{{Text: &model.TextRun{Text: "Thanks"}}}
+	unit.SetSourceText("Thanks")
 	rf := &returnedFile{input: task.input, doc: "po/en.po", locale: "fr", plainSource: true, blocks: []*model.Block{unit}}
 	stats, _, err := a.mergeReturned(ctx, task, rf)
 	require.NoError(t, err)

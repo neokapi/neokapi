@@ -310,12 +310,12 @@ func TestHandleBulkReviewBlocks(t *testing.T) {
 	for _, source := range []string{"Hello", "Goodbye"} {
 		sb, err := cs.GetBlock(ctx, pid, "main", ids[source])
 		require.NoError(t, err)
-		assert.Equal(t, model.TargetStatusEstablished, sb.Block.Target("fr").Status, source)
+		assert.Equal(t, model.TargetStatusEstablished, targetStatusOf(t, sb.Block, "fr"), source)
 	}
 	// The untranslated block gained nothing — no empty target was written.
 	sb, err := cs.GetBlock(ctx, pid, "main", ids["Untranslated"])
 	require.NoError(t, err)
-	assert.Nil(t, sb.Block.Target("fr"))
+	assert.False(t, holdsTarget(sb.Block, "fr"))
 }
 
 // A rejection demotes to draft, re-opening the work, exactly as a decide
@@ -343,7 +343,7 @@ func TestHandleBulkReviewBlocks_RejectDemotesToDraft(t *testing.T) {
 
 	sb, err := cs.GetBlock(t.Context(), pid, "main", ids["Thanks"])
 	require.NoError(t, err)
-	assert.Equal(t, model.TargetStatusDraft, sb.Block.Target("fr").Status)
+	assert.Equal(t, model.TargetStatusDraft, targetStatusOf(t, sb.Block, "fr"))
 
 	// The comment rides along as a block note.
 	notes := blockNotes(sb.Block)

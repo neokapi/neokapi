@@ -289,3 +289,19 @@ func (b *Block) Authoritative(p AuthorityPolicy) EditionKey {
 	}
 	return b.sourceKey()
 }
+
+// FileTargetAsSpelled files e as a target under k exactly as k is spelled,
+// with its language left as given rather than canonicalized. Every other write
+// canonicalizes its key, so this is the one way a block comes to hold a target
+// under a key such as nb_NO: the state a direct write to the storage leaves.
+// Editions and EachEdition list such a target under its canonical key, and
+// Edition and TargetEdition reach it by neither spelling. It exists for the
+// tests of consumers that must cope with such a block; everything else writes
+// through SetEdition or SetTargetEdition. A target already filed under k is
+// replaced.
+func (b *Block) FileTargetAsSpelled(k EditionKey, e Edition) {
+	if b.Targets == nil {
+		b.Targets = make(map[VariantKey]*Target)
+	}
+	b.Targets[k] = &Target{Runs: e.Runs, Status: TargetStatus(e.Status), Origin: e.Origin, Score: e.Score}
+}

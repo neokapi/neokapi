@@ -204,7 +204,7 @@ func TestPushContextEmptyFoldMatchesNoCollections(t *testing.T) {
 // blockFor keeps the governance-hash cases above readable by giving the
 // content-carrying tests a block to push.
 func blockFor(id, text string) *model.Block {
-	return &model.Block{ID: id, Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}
+	return model.NewBlock(id, text)
 }
 
 // TestPushCarriesContextAlongsideContent pins that the two content types travel

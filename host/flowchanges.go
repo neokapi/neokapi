@@ -880,22 +880,9 @@ func (a *App) draftDestination(locale model.LocaleID, path string) (string, bool
 // to the block afterwards leaves the copy as it was: the source runs and each
 // target, runs included, are copies.
 func snapshotBlock(b *model.Block) *model.Block {
-	c := *b
-	c.Source = copyRuns(b.Source)
-	if b.Targets != nil {
-		c.Targets = make(map[model.VariantKey]*model.Target, len(b.Targets))
-		for k, t := range b.Targets {
-			if t == nil {
-				c.Targets[k] = nil
-				continue
-			}
-			tc := *t
-			tc.Runs = copyRuns(t.Runs)
-			c.Targets[k] = &tc
-		}
-	}
+	c := b.CopyEditions(copyRuns)
 	c.Properties = maps.Clone(b.Properties)
-	return &c
+	return c
 }
 
 // copyRuns copies a run sequence through its canonical JSON, so no run of the

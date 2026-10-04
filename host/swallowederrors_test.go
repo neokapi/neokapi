@@ -316,7 +316,8 @@ func TestApplyTargetOverlay_MalformedPayloadIsAnError(t *testing.T) {
 	err := applyTargetOverlay(b, model.LocaleID("fr"), []byte(`{"text":`))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "decode target overlay")
-	assert.Nil(t, b.Target(model.LocaleID("fr")), "nothing is applied from an undecodable payload")
+	_, held := b.TargetEdition(model.LocaleID("fr"))
+	assert.False(t, held, "nothing is applied from an undecodable payload")
 }
 
 // TestApplyTargetOverlay_WellFormedPayloadApplies is the control.

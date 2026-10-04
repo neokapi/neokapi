@@ -3,7 +3,10 @@ package change_test
 import (
 	"fmt"
 	"strings"
+	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/model"
@@ -42,8 +45,23 @@ func guideBlock() *model.Block {
 		model.PcCloseR(model.PcCloseRun{ID: "2", Type: "fmt:bold", Data: "</b>"}),
 		model.TextR("."),
 	}
-	b.SetTarget("nb", &model.Target{Runs: nb, Status: model.TargetStatusTranslated})
+	b.SetEdition(model.Variant("nb"), model.Edition{Runs: nb, Status: model.Status(model.TargetStatusTranslated)})
 	return b
+}
+
+// translation returns the translation b holds for locale, and fails the test
+// when it holds none.
+func translation(t *testing.T, b *model.Block, locale model.LocaleID) model.Edition {
+	t.Helper()
+	e, ok := b.TargetEdition(locale)
+	require.True(t, ok, "the block holds no %s translation", locale)
+	return e
+}
+
+// sourceStatus is the status of the edition b was read in.
+func sourceStatus(b *model.Block) model.SourceStatus {
+	e, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
+	return model.SourceStatus(e.Status)
 }
 
 // pluralRuns is an ICU message: "You have {count, plural, one {# item} other

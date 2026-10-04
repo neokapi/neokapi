@@ -14,17 +14,10 @@ import (
 )
 
 func declarationTestBlocks() map[string][]*model.Block {
-	return map[string][]*model.Block{
-		"src/App.jsx": {
-			{
-				ID:           "b1",
-				Name:         "greeting",
-				Translatable: true,
-				Source:       []model.Run{{Text: &model.TextRun{Text: "Hello"}}},
-				Properties:   map[string]string{"hash": "k1_abc"},
-			},
-		},
-	}
+	b := model.NewBlock("b1", "Hello")
+	b.Name = "greeting"
+	b.Properties["hash"] = "k1_abc"
+	return map[string][]*model.Block{"src/App.jsx": {b}}
 }
 
 // commitCapture answers a push the short way — one item, one block needed — and

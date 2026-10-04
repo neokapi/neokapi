@@ -965,7 +965,7 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 
 		// Record target history before overwriting. The snapshot is kept for the
 		// change log below, which asks the same question of the same targets.
-		var oldTargets map[model.VariantKey]*model.Target
+		var oldTargets map[model.EditionKey]model.Edition
 		if !isNew && carriesTranslation(b) {
 			loaded, loadErr := loadExistingTargets(ctx, tx, projectID, itemName, internalID)
 			if loadErr == nil && loaded != nil {
@@ -1082,7 +1082,7 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 				variant := bstore.VariantKeyText(key)
 				_, had := prev[variant]
 				if had && oldTargets != nil {
-					if old := oldTargets[key]; old != nil &&
+					if old, ok := oldTargets[key]; ok &&
 						model.RunsText(nt.Runs) == model.RunsText(old.Runs) {
 						continue
 					}

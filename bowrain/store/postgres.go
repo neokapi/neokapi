@@ -1967,7 +1967,10 @@ func UnmarshalSourceRuns(sourceJSON string) []model.Run {
 
 // HydrateOverlays adds the translations (as editions) and annotations of
 // the supplied freshly scanned blocks from the kind-specific tables.
-// Single round trip per table, not per-block. Safe for empty input.
+// Single round trip per table, not per-block. Safe for empty input. Each row
+// is filed onto its block as LoadBlockOverlays scans it, so a hydrate holds
+// the blocks and the row it is filing. A hydrate that fails can leave a block
+// with part of its rows, and the caller discards the blocks with the error.
 func HydrateOverlays(
 	ctx context.Context,
 	db Querier,
@@ -1987,41 +1990,28 @@ func HydrateOverlays(
 		ids = append(ids, sb.Block.ID)
 		byID[sb.Block.ID] = sb
 	}
-	// Chunked: every id lands in one IN(...) placeholder, and a whole-project
-	// hydrate (the review loop, an unscoped GetBlocks) at corpus scale blew
-	// Postgres's 65,535-bind-parameter limit. Same bound as the storeBlocks
-	// prefetch, kept far below the limit for SQLite's sake too.
-	const hydrateChunk = 5000
-	for start := 0; start < len(ids); start += hydrateChunk {
-		chunk := ids[start:min(start+hydrateChunk, len(ids))]
-		targets, annotations, err := LoadBlockOverlays(ctx, db, dialect, projectID, stream, chunk)
-		if err != nil {
-			return fmt.Errorf("hydrate overlays: %w", err)
+	translation := func(id string, key model.EditionKey, e model.Edition) {
+		sb := byID[id]
+		// A row filed under no language names no translation: that key
+		// reaches the edition the block was read in, which the block row
+		// holds.
+		if sb == nil || sb.Block.IsSourceEdition(key) {
+			return
 		}
-		for id, locs := range targets {
-			sb := byID[id]
-			if sb == nil {
-				continue
-			}
-			for key, t := range locs {
-				// A row filed under no language names no translation: that
-				// key reaches the edition the block was read in, which the
-				// block row holds.
-				if t == nil || sb.Block.IsSourceEdition(key) {
-					continue
-				}
-				// The decoded row is filed as it was read, the way a reader
-				// files a target, so a large hydrate copies nothing.
-				sb.Block.SetTargetVariant(key, t)
-			}
+		// The decoded runs are filed as they were read, the way a reader
+		// files a target, so a large hydrate copies no content.
+		sb.Block.SetTargetEdition(key, e)
+	}
+	annotation := func(id, kind string, ann model.Payload) {
+		if sb := byID[id]; sb != nil {
+			sb.Block.SetAnno(kind, ann)
 		}
-		for id, anns := range annotations {
-			if sb := byID[id]; sb != nil {
-				for k, v := range anns {
-					sb.Block.SetAnno(k, v)
-				}
-			}
-		}
+	}
+	// LoadBlockOverlays reads the ids in chunks (overlayChunk), so a
+	// whole-project hydrate (the review loop, an unscoped GetBlocks) at corpus
+	// scale stays within the driver's bind-parameter limit.
+	if err := LoadBlockOverlays(ctx, db, dialect, projectID, stream, ids, translation, annotation); err != nil {
+		return fmt.Errorf("hydrate overlays: %w", err)
 	}
 	return nil
 }

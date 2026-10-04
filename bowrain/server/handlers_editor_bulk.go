@@ -364,16 +364,17 @@ func (s *Server) HandleBulkApplyMemory(c echo.Context) error {
 // content memory: an established translation whose wording the match changes
 // drops to translated, since the approval judged other wording.
 func memoryTarget(b *model.Block, loc model.LocaleID, text string) {
-	before := b.Target(loc)
-	established := before != nil && before.Status == model.TargetStatusEstablished
+	before, had := b.TargetEdition(loc)
+	established := had && model.TargetStatus(before.Status) == model.TargetStatusEstablished
 	oldRuns := b.TargetRuns(loc)
 	b.SetTargetText(loc, text)
-	t := b.Target(loc)
-	if t == nil {
+	t, ok := b.TargetEdition(loc)
+	if !ok {
 		return
 	}
 	t.Origin = model.Origin{Kind: model.OriginMemory, Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	if established && !reflect.DeepEqual(oldRuns, t.Runs) {
-		t.Status = model.TargetStatusTranslated
+		t.Status = model.Status(model.TargetStatusTranslated)
 	}
+	b.SetTargetEdition(model.Variant(loc), t)
 }

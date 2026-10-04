@@ -205,10 +205,10 @@ func TestInterpolationProtected(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			b := byName[name]
 			require.NotNil(t, b, "missing block %s", name)
-			require.NotEmpty(t, b.Source)
+			require.NotEmpty(t, b.SourceRuns())
 
 			var phData []string
-			for _, run := range b.Source {
+			for _, run := range b.SourceRuns() {
 				if run.Ph != nil {
 					phData = append(phData, run.Ph.Data)
 				}
@@ -374,7 +374,7 @@ func TestNestedNamespaceNames(t *testing.T) {
 	title := byName["/home/title"]
 	require.NotNil(t, title)
 	var phData []string
-	for _, run := range title.Source {
+	for _, run := range title.SourceRuns() {
 		if run.Ph != nil {
 			phData = append(phData, run.Ph.Data)
 		}

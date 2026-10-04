@@ -87,15 +87,11 @@ func TestSegmentationTool_MultiLayer(t *testing.T) {
 // and the runs are never rewritten (the placeholder survives in the source).
 func TestSegmentationTool_CodeAware(t *testing.T) {
 	t.Parallel()
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source: []model.Run{
-			{Text: &model.TextRun{Text: "First sentence. "}},
-			{Ph: &model.PlaceholderRun{ID: "x1", Equiv: "{x1}"}},
-			{Text: &model.TextRun{Text: "Second sentence."}},
-		},
-	}
+	block := model.NewRunsBlock("tu1", []model.Run{
+		{Text: &model.TextRun{Text: "First sentence. "}},
+		{Ph: &model.PlaceholderRun{ID: "x1", Equiv: "{x1}"}},
+		{Text: &model.TextRun{Text: "Second sentence."}},
+	})
 	tl := tools.NewSegmentationTool(&tools.SegmentationConfig{TreatIsolatedCodesAsWhitespace: true})
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 	b := result.Resource.(*model.Block)

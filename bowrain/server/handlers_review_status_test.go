@@ -127,10 +127,10 @@ func TestDecide_EstablishSetsOneLocale(t *testing.T) {
 	assert.Equal(t, change.OpApplied, res.Ops[0].Status)
 
 	got := getStoredBlock(t, cs, pid, bid)
-	require.NotNil(t, got.Target("fr"))
-	assert.Equal(t, model.TargetStatusEstablished, got.Target("fr").Status, "fr must be established")
-	require.NotNil(t, got.Target("de"))
-	assert.Equal(t, model.TargetStatusNew, got.Target("de").Status, "de must be untouched")
+	require.True(t, holdsTarget(got, "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatusOf(t, got, "fr"), "fr must be established")
+	require.True(t, holdsTarget(got, "de"))
+	assert.Equal(t, model.TargetStatusNew, targetStatusOf(t, got, "de"), "de must be untouched")
 	assert.Equal(t, "Bonjour", got.TargetText("fr"), "a decision must not touch the translation text")
 	_, hasLegacy := got.Properties[legacyTranslationStatusProperty]
 	assert.False(t, hasLegacy, "the legacy block-global property must never be written")
@@ -155,8 +155,8 @@ func TestDecide_WithdrawMovesBackToTranslated(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
 	got := getStoredBlock(t, cs, pid, bid)
-	assert.Equal(t, model.TargetStatusTranslated, got.Target("fr").Status, "fr must be back at translated")
-	assert.Equal(t, model.TargetStatusEstablished, got.Target("de").Status, "de's own established status must survive fr's withdrawal")
+	assert.Equal(t, model.TargetStatusTranslated, targetStatusOf(t, got, "fr"), "fr must be back at translated")
+	assert.Equal(t, model.TargetStatusEstablished, targetStatusOf(t, got, "de"), "de's own established status must survive fr's withdrawal")
 }
 
 // Establishing a locale that has no non-empty translation is refused with 422:
@@ -177,12 +177,12 @@ func TestDecide_ALocaleWithNoTranslationIsNotEstablished(t *testing.T) {
 	require.NotNil(t, res.Ops[0].Error)
 	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
 	assert.Contains(t, res.Ops[0].Error.Message, "no fr translation to establish")
-	assert.Nil(t, getStoredBlock(t, cs, pid, bid).Target("fr"), "a refused approval must not create a target")
+	assert.False(t, holdsTarget(getStoredBlock(t, cs, pid, bid), "fr"), "a refused approval must not create a target")
 
 	rec, res = decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeWithdraw)
 	assert.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status)
-	assert.Nil(t, getStoredBlock(t, cs, pid, bid).Target("fr"))
+	assert.False(t, holdsTarget(getStoredBlock(t, cs, pid, bid), "fr"))
 
 	// An empty translation is not reviewable either.
 	require.NoError(t, cs.StoreBlocks(t.Context(), pid, "main", func() []*model.Block {
@@ -225,7 +225,7 @@ func TestDecide_AWithdrawalClearsTheLegacyFlag(t *testing.T) {
 
 	rec, _ := decideOn(t, srv, cs, pid, ids["Hello"], "fr", change.OutcomeEstablish)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, ids["Hello"]).Target("fr").Status)
+	assert.Equal(t, model.TargetStatusEstablished, targetStatusOf(t, getStoredBlock(t, cs, pid, ids["Hello"]), "fr"))
 
 	rec, _ = decideOn(t, srv, cs, pid, ids["Goodbye"], "fr", change.OutcomeWithdraw)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -257,17 +257,17 @@ func TestDecide_EstablishedTakesTheReviewPermission(t *testing.T) {
 	rec, res = decideAs(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish, reviewer)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status, "re-establishing changes nothing")
-	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status)
+	assert.Equal(t, model.TargetStatusEstablished, targetStatusOf(t, getStoredBlock(t, cs, pid, bid), "fr"))
 
 	rec, res = decideAs(t, srv, cs, pid, bid, "fr", change.OutcomeWithdraw, translateCaller)
 	assert.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
 	assert.Equal(t, change.CodeNotPermitted, res.Ops[0].Error.Code)
-	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
+	assert.Equal(t, model.TargetStatusEstablished, targetStatusOf(t, getStoredBlock(t, cs, pid, bid), "fr"),
 		"a translator must not undo an approval")
 
 	rec, _ = decideAs(t, srv, cs, pid, bid, "fr", change.OutcomeWithdraw, reviewer)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusTranslated, getStoredBlock(t, cs, pid, bid).Target("fr").Status)
+	assert.Equal(t, model.TargetStatusTranslated, targetStatusOf(t, getStoredBlock(t, cs, pid, bid), "fr"))
 }
 
 // A rejection moves the translation to draft, so the unit re-enters the work
@@ -306,9 +306,9 @@ func TestDecide_RejectMovesToDraft(t *testing.T) {
 	assert.Empty(t, draftMarks(t, cs, pid), "the rejection clears the draft mark, so the unit is drafted again")
 
 	got := getStoredBlock(t, cs, pid, bid)
-	assert.Equal(t, model.TargetStatusDraft, got.Target("fr").Status, "a rejection re-enters the work queue at draft")
+	assert.Equal(t, model.TargetStatusDraft, targetStatusOf(t, got, "fr"), "a rejection re-enters the work queue at draft")
 	assert.Equal(t, "Bonjour", got.TargetText("fr"), "a rejection must not touch the translation text")
-	assert.Equal(t, model.TargetStatusNew, got.Target("de").Status, "de must be untouched")
+	assert.Equal(t, model.TargetStatusNew, targetStatusOf(t, got, "de"), "de must be untouched")
 
 	// A pre-review is an agent's, and a stream decides on translations.
 	rec, res := decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeAdvise)
@@ -318,7 +318,7 @@ func TestDecide_RejectMovesToDraft(t *testing.T) {
 		decide(at("greetings.txt", bid, ""), sourceRev(t, cs, pid, bid), change.OutcomeEstablish)}})
 	assert.Equal(t, http.StatusUnprocessableEntity, rec.Code, rec.Body.String())
 	assert.Equal(t, change.CodeUnsupported, res.Ops[0].Error.Code)
-	assert.Equal(t, model.TargetStatusDraft, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
+	assert.Equal(t, model.TargetStatusDraft, targetStatusOf(t, getStoredBlock(t, cs, pid, bid), "fr"),
 		"refused decisions do not change stored state")
 }
 
@@ -343,17 +343,19 @@ func TestChanges_AnEditMovesAnEstablishedTranslationBack(t *testing.T) {
 		setText(at("greetings.txt", bid, "fr"), targetRev(t, cs, pid, bid, "fr"), "Bonjour")}})
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Equal(t, change.OpUnchanged, res.Ops[0].Status)
-	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
+	assert.Equal(t, model.TargetStatusEstablished, targetStatusOf(t, getStoredBlock(t, cs, pid, bid), "fr"),
 		"re-saving identical text keeps the established status")
 
 	rec, _ = sendChanges(t, srv, pid, fullCaller, change.Set{Ops: []change.Op{
 		setText(at("greetings.txt", bid, "fr"), targetRev(t, cs, pid, bid, "fr"), "Salut")}})
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	got := getStoredBlock(t, cs, pid, bid)
-	assert.Equal(t, model.TargetStatusTranslated, got.Target("fr").Status, "an edited translation does not stay established")
-	assert.Equal(t, model.OriginHuman, got.Target("fr").Origin.Kind)
+	assert.Equal(t, model.TargetStatusTranslated, targetStatusOf(t, got, "fr"), "an edited translation does not stay established")
+	fr, ok := got.TargetEdition("fr")
+	require.True(t, ok)
+	assert.Equal(t, model.OriginHuman, fr.Origin.Kind)
 	assert.Equal(t, "Salut", got.TargetText("fr"))
-	assert.Equal(t, model.TargetStatusEstablished, got.Target("de").Status, "editing fr does not touch de's status")
+	assert.Equal(t, model.TargetStatusEstablished, targetStatusOf(t, got, "de"), "editing fr does not touch de's status")
 
 	// The same holds for content sent as runs.
 	rec, _ = decideOn(t, srv, cs, pid, bid, "fr", change.OutcomeEstablish)
@@ -363,7 +365,7 @@ func TestChanges_AnEditMovesAnEstablishedTranslationBack(t *testing.T) {
 		Body: &change.SetContent{Runs: []model.Run{{Text: &model.TextRun{Text: "Salut !"}}}},
 	}}})
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusTranslated, getStoredBlock(t, cs, pid, bid).Target("fr").Status)
+	assert.Equal(t, model.TargetStatusTranslated, targetStatusOf(t, getStoredBlock(t, cs, pid, bid), "fr"))
 }
 
 // The blocks endpoint the editor consumes serializes each target as {text,

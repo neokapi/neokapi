@@ -137,7 +137,8 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 	}
 	execution.recordContext("", in.ContextPath, opts)
 	execution.Timings.ContextMS += elapsedMS(contextStart)
-	block := &model.Block{ID: "text", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: in.Text}}}}
+	block := &model.Block{ID: "text", Translatable: true}
+	block.SetSourceText(in.Text)
 	diags, err := a.collectFileDiagnostics(ctx, []*model.Block{block}, "text", opts)
 	if err != nil {
 		return nil, check.Report{}, err

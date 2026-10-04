@@ -132,10 +132,10 @@ func TestStreamHome_ATranslationLandsWithItsHistory(t *testing.T) {
 	rows, err := f.store.ItemBlocks(ctx, f.project.ID, "main", "a.json", []string{"one"})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
-	target := rows[0].Block.Target("fr")
-	require.NotNil(t, target)
+	target, ok := rows[0].Block.Edition(model.Variant("fr"))
+	require.True(t, ok)
 	assert.Equal(t, "Le premier", model.RunsText(target.Runs))
-	assert.Equal(t, model.TargetStatusTranslated, target.Status, "a person's edit leaves the translation translated")
+	assert.Equal(t, model.Status(model.TargetStatusTranslated), target.Status, "a person's edit leaves the translation translated")
 	assert.Equal(t, model.OriginHuman, target.Origin.Kind)
 
 	history, err := f.store.GetBlockHistory(ctx, f.project.ID, "main", rows[0].Block.ID, "fr", 10)
@@ -214,7 +214,8 @@ func TestStreamHome_ARemovedTranslationLeavesTheStream(t *testing.T) {
 	rows, err := f.store.ItemBlocks(ctx, f.project.ID, "main", "a.json", []string{"one"})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
-	assert.Nil(t, rows[0].Block.Target("fr"))
+	_, stored := rows[0].Block.Edition(model.Variant("fr"))
+	assert.False(t, stored)
 
 	history, err := f.store.GetBlockHistory(ctx, f.project.ID, "main", rows[0].Block.ID, "fr", 10)
 	require.NoError(t, err)

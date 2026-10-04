@@ -816,7 +816,8 @@ func readReturnedPO(path string) (*returnedFile, error) {
 	locale := model.LocaleID(po.Language)
 	rf := &returnedFile{input: path, doc: po.SourceFile, locale: locale, batch: po.BatchID, sourceHash: po.SourceHash, plainSource: true}
 	for _, mb := range po.Blocks {
-		b := &model.Block{ID: mb.BlockID, Source: []model.Run{{Text: &model.TextRun{Text: mb.MsgID}}}}
+		b := &model.Block{ID: mb.BlockID}
+		b.SetSourceText(mb.MsgID)
 		if mb.BlockID != "" && mb.MsgStr != "" {
 			b.SetTargetText(locale, mb.MsgStr)
 		}
@@ -865,7 +866,7 @@ func settlePOLanguage(task mergeTask, rf *returnedFile) error {
 	}
 	if settled != rf.locale {
 		for _, b := range rf.blocks {
-			if t := b.Target(rf.locale); t != nil {
+			if t, ok := b.TargetEdition(rf.locale); ok {
 				runs := t.Runs
 				b.RemoveEdition(model.EditionKey{Locale: rf.locale})
 				b.SetTargetRuns(settled, runs)

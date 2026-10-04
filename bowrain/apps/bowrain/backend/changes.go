@@ -263,20 +263,22 @@ func (a *App) applyCached(ctx context.Context, projectID string, set change.Set,
 // changed. advise is refused: a pre-review is an agent's, which the server
 // records and the working copy keeps none of.
 func decideCached(b *model.Block, locale model.LocaleID, outcome change.Outcome) (bool, *change.Error) {
-	t := b.Target(locale)
+	t, held := b.TargetEdition(locale)
+	from := model.TargetStatus(t.Status)
 	switch outcome {
 	case change.OutcomeEstablish:
-		if t == nil || strings.TrimSpace(b.TargetText(locale)) == "" {
+		if !held || strings.TrimSpace(b.TargetText(locale)) == "" {
 			return false, &change.Error{Code: change.CodeUnsupported, Capability: "decide.establish",
 				Message: fmt.Sprintf("block %s has no %s translation to establish: translate it first", b.ID, locale)}
 		}
-		if t.Status.Rank() >= model.TargetStatusEstablished.Rank() {
+		if from.Rank() >= model.TargetStatusEstablished.Rank() {
 			return false, nil
 		}
-		t.Status = model.TargetStatusEstablished
+		t.Status = model.Status(model.TargetStatusEstablished)
+		b.SetTargetEdition(model.Variant(locale), t)
 		return true, nil
 	case change.OutcomeReject, change.OutcomeWithdraw:
-		if t == nil {
+		if !held {
 			// Nothing to move. A block reviewed under the block-wide flag keeps
 			// it until a decision clears it.
 			if _, ok := b.Properties[legacyTranslationStatusProperty]; ok {
@@ -289,10 +291,11 @@ func decideCached(b *model.Block, locale model.LocaleID, outcome change.Outcome)
 		if outcome == change.OutcomeReject {
 			to = model.TargetStatusDraft
 		}
-		if t.Status == to {
+		if from == to {
 			return false, nil
 		}
-		t.Status = to
+		t.Status = model.Status(to)
+		b.SetTargetEdition(model.Variant(locale), t)
 		return true, nil
 	}
 	return false, &change.Error{Code: change.CodeUnsupported, Capability: "decide." + string(outcome),

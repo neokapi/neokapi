@@ -13,7 +13,7 @@ import (
 func runDNT(t *testing.T, src, tgt string, terms []string, caseInsensitive bool) []check.Finding {
 	t.Helper()
 	loc := model.LocaleID("de")
-	b := &model.Block{ID: "b", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: src}}}}
+	b := model.NewBlock("b", src)
 	tool.NewVariantView(b).SetTargetText(loc, tgt)
 
 	cfg := NewDNTCheckConfig(loc)

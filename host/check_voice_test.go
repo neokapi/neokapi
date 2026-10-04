@@ -17,7 +17,9 @@ func (f fakeVoice) similarity(text string, _ []string) ([]float64, error) {
 }
 
 func block(id, text string) *model.Block {
-	return &model.Block{ID: id, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}
+	b := &model.Block{ID: id}
+	b.SetSourceText(text)
+	return b
 }
 
 func TestVoiceSimilarityFindings(t *testing.T) {

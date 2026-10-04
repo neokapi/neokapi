@@ -163,7 +163,7 @@ func TestReviewRecheck_KeepsATranslationRewrittenDuringTheSweep(t *testing.T) {
 
 	got := getStoredBlock(t, s.ContentStore.(*bstore.PostgresStore), projID, rewritten)
 	assert.Equal(t, "Employer l'application", got.TargetText("fr"), "the person's rewrite stays")
-	assert.Equal(t, model.TargetStatusTranslated, got.Target("fr").Status)
+	assert.Equal(t, model.TargetStatusTranslated, targetStatusOf(t, got, "fr"))
 	assert.Equal(t, model.TargetStatusDraft, frStatus(t, s, projID, ids["Use the tool"]), "the untouched translation is demoted")
 }
 
@@ -171,7 +171,7 @@ func reviewedBlock(id, source, frTarget string) *model.Block {
 	b := &model.Block{ID: id, Translatable: true}
 	b.SetSourceText(source)
 	b.SetTargetText("fr", frTarget)
-	b.Target("fr").Status = model.TargetStatusEstablished
+	b.SetEditionStatus(model.Variant("fr"), model.Status(model.TargetStatusEstablished))
 	return b
 }
 
@@ -194,7 +194,7 @@ func frStatus(t *testing.T, s *Server, projID, blockID string) model.TargetStatu
 	t.Helper()
 	sb, err := s.ContentStore.GetBlock(context.Background(), projID, "main", blockID)
 	require.NoError(t, err)
-	return sb.Block.Target("fr").Status
+	return targetStatusOf(t, sb.Block, "fr")
 }
 
 func openFrReviewTasks(t *testing.T, s *Server, wsID, projID string) int {

@@ -207,7 +207,7 @@ func TestSedOpsAnEmptyLaterMatchGivesOneOperation(t *testing.T) {
 	for _, r := range change.ApplyBlock(b, ops, change.BlockEnv{Actor: change.Actor{Kind: change.ActorPerson}}) {
 		require.Nil(t, r.Error)
 	}
-	assert.Equal(t, "Hi <1>ugly</1> world!", sigRuns(b.Source))
+	assert.Equal(t, "Hi <1>ugly</1> world!", sigRuns(b.SourceRuns()))
 }
 
 // The regular expression reports byte offsets and a text edit counts code

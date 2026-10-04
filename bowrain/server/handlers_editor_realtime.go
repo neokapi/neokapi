@@ -138,33 +138,34 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 		if err := checkBaseRevision(sb, loc, req.BaseRevision); err != nil {
 			return err
 		}
-		target := sb.Block.Target(loc) // locale-only variant (tone/channel empty)
+		target, held := sb.Block.TargetEdition(loc) // locale-only variant (tone/channel empty)
+		from := model.TargetStatus(target.Status)
 
 		var status model.TargetStatus
 		if req.Reviewed {
-			if target == nil || strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
+			if !held || strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
 				return reviewFault{http.StatusUnprocessableEntity, fmt.Sprintf(
 					"block %q has no %s translation to review: translate it first (an untranslated block falls back to source, which is not a reviewable translation)",
 					in.BlockID, req.TargetLocale)}
 			}
-			if target.Status == model.TargetStatusEstablished {
+			if from == model.TargetStatusEstablished {
 				// Established is the top of the ladder; approving it again
 				// must not demote it. Idempotent success, keeping the rung.
-				out = blockReviewOutcome{HadTarget: true, From: target.Status, Status: target.Status}
+				out = blockReviewOutcome{HadTarget: true, From: from, Status: from}
 				return errNothingToWrite
 			}
 			// Separation of duties applies to a real promotion. A call that lands
 			// on a rung the target already holds moves nothing, so there is no
 			// decision to refuse: re-approving a reviewed target passes, while
 			// signing one off is a fresh decision and is vetted.
-			if in.Vet != nil && target.Status.Rank() < promoteTo.Rank() {
+			if in.Vet != nil && from.Rank() < promoteTo.Rank() {
 				if err := in.Vet(in.BlockID, req.TargetLocale); err != nil {
 					return err
 				}
 			}
 			status = promoteTo
 		} else {
-			if target == nil {
+			if !held {
 				// Nothing to demote. Clear the legacy block-global flag if present so
 				// a block reviewed under the old scheme can be un-reviewed at all.
 				if _, ok := sb.Block.Properties[legacyTranslationStatusProperty]; !ok {
@@ -174,7 +175,7 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 				clearedLegacy = true
 				return nil
 			}
-			if target.Status == model.TargetStatusEstablished {
+			if from == model.TargetStatusEstablished {
 				// Undoing an established unit is a review-level action, not ordinary
 				// translation work: without this gate a PermTranslate caller could
 				// drop an established target two rungs to translated with no audit
@@ -185,14 +186,14 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 			}
 			status = in.DemoteTo
 		}
-		from := target.Status
 		// An approval counts for the review loop: it
 		// leaves the project one pending unit lighter. Signing off a target that
 		// was already reviewed leaves the pending count where it was, so it does
 		// not advance the loop, the same way a re-approve does not.
 		approval := req.Reviewed && status.Rank() >= model.TargetStatusEstablished.Rank() &&
 			from.Rank() < model.TargetStatusEstablished.Rank()
-		target.Status = status
+		target.Status = model.Status(status)
+		sb.Block.SetTargetEdition(model.Variant(loc), target)
 		out = blockReviewOutcome{HadTarget: true, From: from, Status: status, Approval: approval, Changed: from != status}
 		return nil
 	})

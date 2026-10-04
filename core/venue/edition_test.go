@@ -52,7 +52,7 @@ func TestBlockRoundTrip_SameLanguageTarget(t *testing.T) {
 func TestBlockToProto_UnreachableEditionIsNotSentEmpty(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	b.SourceLocale = "en-US"
-	b.Targets[model.VariantKey{Locale: "nb_NO"}] = &model.Target{Runs: []model.Run{model.TextR("Hei")}}
+	b.FileTargetAsSpelled(model.EditionKey{Locale: "nb_NO"}, model.Edition{Runs: []model.Run{model.TextR("Hei")}})
 	b.SetEdition(model.Variant("fr-FR"), model.Edition{Runs: []model.Run{model.TextR("Bonjour")}})
 
 	sb := BlockToProto(b, "item")

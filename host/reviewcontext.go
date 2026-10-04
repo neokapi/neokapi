@@ -364,7 +364,8 @@ func (a *App) reviewHistory(ctx context.Context, req ReviewContextRequest, b *mo
 		h.Prior = review.PriorVersionOf(ctx, vr, b, source, loc, review.GoverningFingerprint(b, loc, recorded))
 	}
 
-	lookup := &model.Block{ID: "review-lookup", Translatable: true, Source: b.SourceRuns()}
+	lookup := &model.Block{ID: "review-lookup", Translatable: true}
+	lookup.SetSourceRuns(b.SourceRuns())
 	matches, err := req.Memory.Lookup(ctx, lookup, source, loc, memory.LookupOptions{MinScore: 0.5, MaxResults: 1})
 	if err == nil && len(matches) > 0 {
 		h.Match = review.MatchOf(matches[0], source, loc)

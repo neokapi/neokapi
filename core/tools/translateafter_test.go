@@ -12,10 +12,9 @@ import (
 )
 
 func srcBlock(text string) *model.Block {
-	return &model.Block{
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
-	}
+	b := &model.Block{Translatable: true}
+	b.SetSourceText(text)
+	return b
 }
 
 // hold drives one block through the translate-after stage's Process pipeline, as a

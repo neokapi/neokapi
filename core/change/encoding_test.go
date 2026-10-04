@@ -28,7 +28,7 @@ func latin1Block() *model.Block {
 	b := model.NewRunsBlock("tu1", latin1Runs())
 	b.Name = "p"
 	b.SourceLocale = "fr"
-	b.SetTarget("nb", &model.Target{Runs: []model.Run{model.TextR("Kaffe med melk.")}, Status: model.TargetStatusTranslated})
+	b.SetEdition(model.Variant("nb"), model.Edition{Runs: []model.Run{model.TextR("Kaffe med melk.")}, Status: model.Status(model.TargetStatusTranslated)})
 	return b
 }
 
@@ -97,7 +97,7 @@ func TestApplyBlock_TextThatIsNotUTF8(t *testing.T) {
 			if want == "" {
 				want = latin1Lead
 			}
-			assert.Equal(t, want, b.Source[0].Text.Text)
+			assert.Equal(t, want, b.SourceRuns()[0].Text.Text)
 		})
 	}
 

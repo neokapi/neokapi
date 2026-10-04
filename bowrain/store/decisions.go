@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -227,8 +226,8 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		if err != nil {
 			return changed, fmt.Errorf("read target for decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
-		var tgt model.Target
-		if uerr := json.Unmarshal([]byte(targetJSON), &tgt); uerr != nil {
+		tgt, uerr := UnmarshalTargetJSON([]byte(targetJSON))
+		if uerr != nil {
 			continue // an unreadable target is not this write's to repair
 		}
 		if d.TargetHash != "" && state.TargetHash(model.RunsText(tgt.Runs)) != d.TargetHash {
@@ -500,8 +499,8 @@ func DecisionEventReason(event string) string {
 // payload. An unreadable payload yields "", which grades as a target that
 // cannot match any recorded hash.
 func TargetTextFromJSON(targetJSON string) string {
-	var tgt model.Target
-	if err := json.Unmarshal([]byte(targetJSON), &tgt); err != nil {
+	tgt, err := UnmarshalTargetJSON([]byte(targetJSON))
+	if err != nil {
 		return ""
 	}
 	return model.RunsText(tgt.Runs)

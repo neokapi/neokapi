@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -162,8 +161,7 @@ func (r *writeRecorder) item(ctx context.Context, item string, writes []venue.Ed
 		// The translation the venue holds, when it holds one.
 		held, targetHash := false, ""
 		if targetJSON, ok := targets[[2]string{blockID, w.Variant}]; ok {
-			var tgt model.Target
-			if uerr := json.Unmarshal([]byte(targetJSON), &tgt); uerr == nil {
+			if tgt, uerr := UnmarshalTargetJSON([]byte(targetJSON)); uerr == nil {
 				if model.RunsRevision(key.Canonical(), tgt.Runs) != w.Revision {
 					continue // the write describes another translation
 				}

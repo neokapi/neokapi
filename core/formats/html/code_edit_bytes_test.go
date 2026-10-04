@@ -28,7 +28,7 @@ func applyAndWrite(t *testing.T, doc, pick string, op func(b *model.Block) chang
 	env := change.BlockEnv{Actor: change.Actor{Kind: change.ActorPerson}, Format: change.WriterCapabilities("html", writer)}
 	applied := 0
 	for _, p := range parts {
-		if b, ok := p.Resource.(*model.Block); ok && strings.Contains(model.RunsText(b.Source), pick) {
+		if b, ok := p.Resource.(*model.Block); ok && strings.Contains(model.RunsText(b.SourceRuns()), pick) {
 			res := change.ApplyBlock(b, []change.Op{op(b)}, env)
 			require.Equal(t, change.OpApplied, res[0].Status, "%+v", res[0].Error)
 			applied++

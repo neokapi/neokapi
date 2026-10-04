@@ -34,10 +34,10 @@ func TestProducer_CommitsWhatAToolProduced(t *testing.T) {
 	after, err := f.store.ItemBlocks(ctx, f.project.ID, "main", "a.json", nil)
 	require.NoError(t, err)
 	for _, sb := range after {
-		target := sb.Block.Target("de")
-		require.NotNil(t, target, sb.SourceID)
+		target, ok := sb.Block.Edition(model.Variant("de"))
+		require.True(t, ok, sb.SourceID)
 		assert.Equal(t, "Entwurf "+sb.Block.SourceText(), model.RunsText(target.Runs))
-		assert.Equal(t, model.TargetStatusDraft, target.Status)
+		assert.Equal(t, model.Status(model.TargetStatusDraft), target.Status)
 		assert.Equal(t, model.OriginAI, target.Origin.Kind)
 		assert.Equal(t, "demo", target.Origin.Engine)
 	}

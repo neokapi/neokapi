@@ -27,6 +27,12 @@
 // Source) is not reported. core/model itself is exempt, and so is each package
 // listed in allowed, with the reason it keeps the fields.
 //
+// core/model also exports helpers that exist for tests, listed in testOnly
+// (Block.FileTargetAsSpelled, which files a target under a key that is not
+// canonical). Their uses outside core/model are counted on their own, test
+// and non-test. A use outside a _test.go file fails the check, with -report
+// or without, and the allowed packages get no exception.
+//
 // Packages load under each build configuration in configs in turn. The first
 // covers the host with every test tag; each later one (the model tags,
 // js/wasm, windows, linux without cgo) loads only the directories that still
@@ -34,10 +40,12 @@
 // builds is listed as unchecked.
 //
 // The output counts the uses per package, non-test and test separately,
-// grouped by module, with the totals and a count per kind. The check fails
-// while a use remains outside core/model and the allowed packages. -report
-// prints the same inventory and exits 0, which is how make fieldguard runs it
-// until the flip turns the gate on.
+// grouped by module, with the totals and a count per kind, then the uses of
+// each test-only helper. The check fails while a use of a field, the type or a
+// function remains outside core/model and the allowed packages, or while a
+// test-only helper is used outside core/model at all. -report prints the same
+// inventory and exits 0 unless a test-only helper is used outside a test,
+// which is how make fieldguard runs it until the flip turns the gate on.
 //
 // Run from the repository root:
 //
@@ -85,6 +93,14 @@ var fields = map[string]bool{"Source": true, "Targets": true, "SourceStatus": tr
 // with the reason.
 var allowed = map[string]string{
 	"core/plugin/protoconvert": "the plugin wire: BlockMessage keeps its source and targets field numbers, and the mapping reads source as the first native edition and targets as the rest (edit-model 6.4)",
+}
+
+// testOnly lists the core/model functions and methods that exist for tests,
+// by the name kindOf gives them, each with what it does. A test outside
+// core/model may use one; any other file fails the check. The flip removes
+// them (edit-model WP14), so the gate fails while a use remains.
+var testOnly = map[string]string{
+	"Block.FileTargetAsSpelled": "files a target under a key that is not canonical, which no accessor or decoder does",
 }
 
 // config is one build configuration packages load under.
@@ -148,11 +164,36 @@ func main() {
 	for _, w := range inv.warnings {
 		fmt.Fprintln(os.Stderr, "fieldguard: warning:", w)
 	}
-	if n := inv.remaining(); n > 0 && !*report {
-		fmt.Fprintf(os.Stderr, "fieldguard: %d uses of Block.Source, Block.Targets, Block.SourceStatus and model.Target remain outside core/model and the allowed packages.\n", n)
-		fmt.Fprintln(os.Stderr, "Read and write a block's editions through the accessors in core/model/edition.go, or list the package in scripts/fieldguard with the reason it keeps the fields.")
+	if msg := inv.verdict(*report); msg != "" {
+		fmt.Fprint(os.Stderr, msg)
 		os.Exit(1)
 	}
+}
+
+// verdict returns why the check fails, or "" when it passes. A test-only
+// helper used outside a test fails it under report as well; every other use
+// fails it only when report is false.
+func (inv *inventory) verdict(report bool) string {
+	var b strings.Builder
+	if bad := inv.misused(); len(bad) > 0 {
+		fmt.Fprintf(&b, "fieldguard: %d uses outside a test of a core/model helper that exists for tests:\n", len(bad))
+		for _, u := range bad {
+			fmt.Fprintf(&b, "  %s:%d:%d: %s\n", u.File, u.Line, u.Col, u.Kind)
+		}
+		fmt.Fprintln(&b, "Write an edition through SetEdition or SetTargetEdition, which file it under its canonical key.")
+	}
+	if report {
+		return b.String()
+	}
+	if n := inv.remaining(); n > 0 {
+		fmt.Fprintf(&b, "fieldguard: %d uses of Block.Source, Block.Targets, Block.SourceStatus and model.Target remain outside core/model and the allowed packages.\n", n)
+		fmt.Fprintln(&b, "Read and write a block's editions through the accessors in core/model/edition.go, or list the package in scripts/fieldguard with the reason it keeps the fields.")
+	}
+	if n := len(inv.helpers); n > 0 {
+		fmt.Fprintf(&b, "fieldguard: %d uses of a test-only core/model helper remain outside core/model.\n", n)
+		fmt.Fprintln(&b, "The flip removes these helpers with the fields they write (docs/internals/edit-model.md, WP14).")
+	}
+	return b.String()
 }
 
 func fail(err error) {
@@ -472,8 +513,8 @@ func scan(fset *token.FileSet, info *types.Info, add func(token.Position, string
 }
 
 // kindOf names what obj is when it is a Block field the flip removes, the
-// type model.Target, or a core/model function whose signature carries one.
-// Anything else is "".
+// type model.Target, a core/model function whose signature carries one, or a
+// test-only helper listed in testOnly. Anything else is "".
 func kindOf(obj types.Object) string {
 	if obj == nil || obj.Pkg() == nil || obj.Pkg().Path() != modelPath {
 		return ""
@@ -489,11 +530,15 @@ func kindOf(obj types.Object) string {
 		}
 	case *types.Func:
 		sig := o.Signature()
+		name := "model." + o.Name()
+		if recv := sig.Recv(); recv != nil {
+			name = recvName(recv.Type()) + "." + o.Name()
+		}
+		if _, ok := testOnly[name]; ok {
+			return name
+		}
 		if carriesTarget(sig.Params()) || carriesTarget(sig.Results()) {
-			if recv := sig.Recv(); recv != nil {
-				return recvName(recv.Type()) + "." + o.Name()
-			}
-			return "model." + o.Name()
+			return name
 		}
 	}
 	return ""
@@ -615,7 +660,8 @@ type inventory struct {
 	mods      []module
 	seen      map[string]bool
 	uses      []use
-	packages  int // package variants type-checked
+	helpers   []use // uses of a test-only helper, which the allowlist never covers
+	packages  int   // package variants type-checked
 	configs   []configCount
 	unchecked []string
 	warnings  []string
@@ -649,8 +695,7 @@ func (inv *inventory) add(pos token.Position, kind string) {
 	if dir == exemptDir {
 		return
 	}
-	_, ok := allowed[dir]
-	inv.uses = append(inv.uses, use{
+	u := use{
 		File:    file,
 		Line:    pos.Line,
 		Col:     pos.Column,
@@ -658,8 +703,13 @@ func (inv *inventory) add(pos token.Position, kind string) {
 		Test:    strings.HasSuffix(file, "_test.go"),
 		Module:  moduleOf(inv.mods, dir).Path,
 		Package: dir,
-		Allowed: ok,
-	})
+	}
+	if _, ok := testOnly[kind]; ok {
+		inv.helpers = append(inv.helpers, u)
+		return
+	}
+	_, u.Allowed = allowed[dir]
+	inv.uses = append(inv.uses, u)
 }
 
 // remaining is the number of uses outside the allowed packages.
@@ -671,6 +721,31 @@ func (inv *inventory) remaining() int {
 		}
 	}
 	return n
+}
+
+// misused returns the uses of a test-only helper outside a test, in file
+// order.
+func (inv *inventory) misused() []use {
+	var out []use
+	for _, u := range sortUses(inv.helpers) {
+		if !u.Test {
+			out = append(out, u)
+		}
+	}
+	return out
+}
+
+// helperCounts counts the uses of each test-only helper, by its name, with
+// an entry for every helper in testOnly.
+func (inv *inventory) helperCounts() map[string]*count {
+	out := map[string]*count{}
+	for name := range testOnly {
+		out[name] = &count{}
+	}
+	for _, u := range inv.helpers {
+		out[u.Kind].add(u)
+	}
+	return out
 }
 
 // count is the uses of one package, or of a total, split into non-test and
@@ -809,8 +884,11 @@ func kinds(c count) []string {
 	return out
 }
 
-func (inv *inventory) sortedUses() []use {
-	out := slices.Clone(inv.uses)
+func (inv *inventory) sortedUses() []use { return sortUses(inv.uses) }
+
+// sortUses returns a copy of us in file, line and column order.
+func sortUses(us []use) []use {
+	out := slices.Clone(us)
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].File != out[j].File {
 			return out[i].File < out[j].File
@@ -828,6 +906,9 @@ func (inv *inventory) writeText(w io.Writer, verbose bool) {
 	width := len("package")
 	for _, pc := range s.Packages {
 		width = max(width, len(pc.Package)+2)
+	}
+	for name := range testOnly {
+		width = max(width, len(name)+2)
 	}
 	fmt.Fprintf(w, "fieldguard: type-checked %d package variants in %d modules under %s\n",
 		inv.packages, len(inv.mods), inv.configLine())
@@ -867,6 +948,12 @@ func (inv *inventory) writeText(w io.Writer, verbose bool) {
 	for _, k := range kinds(s.Total) {
 		fmt.Fprintf(w, "%-*s %9d %9d\n", width, "  "+k, s.Total.Kinds[k], s.Total.Kinds[k+" (test)"])
 	}
+	helpers := inv.helperCounts()
+	fmt.Fprintf(w, "test-only helpers:%*s %9s %9s\n", width-len("test-only helpers:"), "", "non-test", "test")
+	for _, name := range slices.Sorted(maps.Keys(helpers)) {
+		c := helpers[name]
+		fmt.Fprintf(w, "%-*s %9d %9d   %s\n", width, "  "+name, c.NonTest, c.Test, testOnly[name])
+	}
 	if len(inv.unchecked) > 0 {
 		fmt.Fprintf(w, "unchecked: %d files no configuration builds\n", len(inv.unchecked))
 		for _, f := range inv.unchecked {
@@ -875,10 +962,13 @@ func (inv *inventory) writeText(w io.Writer, verbose bool) {
 	}
 	if verbose {
 		fmt.Fprintln(w, "uses:")
-		for _, u := range inv.sortedUses() {
+		for _, u := range sortUses(slices.Concat(inv.uses, inv.helpers)) {
 			note := ""
 			if u.Allowed {
 				note = " (allowed)"
+			}
+			if _, ok := testOnly[u.Kind]; ok {
+				note = " (test-only helper)"
 			}
 			fmt.Fprintf(w, "  %s:%d:%d: %s%s\n", u.File, u.Line, u.Col, u.Kind, note)
 		}
@@ -938,6 +1028,18 @@ func (inv *inventory) writeMarkdown(w io.Writer, verbose bool) {
 			fmt.Fprintf(w, "| `%s` | %d | %d | %s |\n", pc.Package, pc.NonTest, pc.Test, pc.Allowed)
 		}
 	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "## Test-only helpers")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "A use outside a test fails the check, with `-report` or without.")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "| helper | non-test | test | what it does |")
+	fmt.Fprintln(w, "| --- | ---: | ---: | --- |")
+	helpers := inv.helperCounts()
+	for _, name := range slices.Sorted(maps.Keys(helpers)) {
+		c := helpers[name]
+		fmt.Fprintf(w, "| `%s` | %d | %d | %s |\n", name, c.NonTest, c.Test, testOnly[name])
+	}
 	if len(inv.unchecked) > 0 {
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "## Unchecked\n\n%d files no configuration builds:\n\n", len(inv.unchecked))
@@ -950,7 +1052,7 @@ func (inv *inventory) writeMarkdown(w io.Writer, verbose bool) {
 		fmt.Fprintln(w, "## Uses")
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "```")
-		for _, u := range inv.sortedUses() {
+		for _, u := range sortUses(slices.Concat(inv.uses, inv.helpers)) {
 			fmt.Fprintf(w, "%s:%d:%d: %s\n", u.File, u.Line, u.Col, u.Kind)
 		}
 		fmt.Fprintln(w, "```")
@@ -970,7 +1072,11 @@ func (inv *inventory) writeJSON(w io.Writer) error {
 		Unchecked       []string      `json:"unchecked"`
 		Warnings        []string      `json:"warnings"`
 		Uses            []use         `json:"uses"`
-	}{inv.mods, inv.configs, s.Packages, s.Total, s.NonTestPackages, s.TestPackages, s.Allowed, inv.unchecked, inv.warnings, inv.sortedUses()}
+		// Helpers counts the uses of each test-only helper; HelperUses lists them.
+		Helpers    map[string]*count `json:"helpers"`
+		HelperUses []use             `json:"helper_uses"`
+	}{inv.mods, inv.configs, s.Packages, s.Total, s.NonTestPackages, s.TestPackages, s.Allowed, inv.unchecked, inv.warnings, inv.sortedUses(),
+		inv.helperCounts(), sortUses(inv.helpers)}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetIndent("", "  ")

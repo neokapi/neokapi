@@ -34,16 +34,27 @@ func copyRuns(t *testing.T, runs []model.Run) []model.Run {
 // changing one copy leaves the other alone.
 func copyBlock(t *testing.T, b *model.Block) *model.Block {
 	t.Helper()
-	c := &model.Block{ID: b.ID, Name: b.Name, Unit: b.Unit, Type: b.Type, Translatable: b.Translatable,
-		SourceLocale: b.SourceLocale, SourceStatus: b.SourceStatus, Source: copyRuns(t, b.Source)}
-	for k, tg := range b.Targets {
-		if tg == nil {
-			continue
-		}
-		c.SetTargetVariant(k, &model.Target{Runs: copyRuns(t, tg.Runs), Status: tg.Status, Origin: tg.Origin, Score: tg.Score})
+	c := &model.Block{ID: b.ID, Name: b.Name, Unit: b.Unit, Type: b.Type, Translatable: b.Translatable, SourceLocale: b.SourceLocale}
+	c.SetSourceRuns(copyRuns(t, b.SourceRuns()))
+	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
+	c.SetEditionStatus(c.Authoritative(model.AuthorityPolicy{}), src.Status)
+	copied := func(e model.Edition) model.Edition {
+		e.Runs = copyRuns(t, e.Runs)
+		return e
+	}
+	for _, k := range translations(b) {
+		e, _ := b.Edition(k)
+		c.SetTargetEdition(k, copied(e))
+	}
+	if e, ok := b.TargetEdition(""); ok {
+		c.SetTargetEdition(model.EditionKey{}, copied(e))
 	}
 	return c
 }
+
+// translations lists the keys of the editions of b other than the one it was
+// read in.
+func translations(b *model.Block) []model.EditionKey { return b.Editions()[1:] }
 
 // editions renders every edition of a block as canonical JSON, by key.
 func editions(b *model.Block) map[string]string {
@@ -147,19 +158,20 @@ var variants = []struct {
 	keepsCodes bool
 	change     func(t *testing.T, b *model.Block)
 }{
-	{"the source's first word edited", true, func(t *testing.T, b *model.Block) { b.Source = firstWordEdited(b.Source) }},
-	{"the source as one plain text", false, func(t *testing.T, b *model.Block) { b.Source = []model.Run{model.TextR("All new.")} }},
-	{"a deletable span dropped from the source", true, func(t *testing.T, b *model.Block) { b.Source = withoutFirstDeletableSpan(b.Source) }},
-	{"a plural branch edited", true, func(t *testing.T, b *model.Block) { b.Source = branchEdited(b.Source) }},
+	{"the source's first word edited", true, func(t *testing.T, b *model.Block) { b.SetSourceRuns(firstWordEdited(b.SourceRuns())) }},
+	{"the source as one plain text", false, func(t *testing.T, b *model.Block) { b.SetSourceRuns([]model.Run{model.TextR("All new.")}) }},
+	{"a deletable span dropped from the source", true, func(t *testing.T, b *model.Block) { b.SetSourceRuns(withoutFirstDeletableSpan(b.SourceRuns())) }},
+	{"a plural branch edited", true, func(t *testing.T, b *model.Block) { b.SetSourceRuns(branchEdited(b.SourceRuns())) }},
 	{"a translation created from the source", true, func(t *testing.T, b *model.Block) {
-		b.SetTargetRuns("de", mapText(copyRuns(t, b.Source), upper))
+		b.SetTargetRuns("de", mapText(copyRuns(t, b.SourceRuns()), upper))
 	}},
 	{"a channel edition created", false, func(t *testing.T, b *model.Block) {
-		b.SetTargetVariant(model.EditionKey{Locale: "en", Channel: "short"}, &model.Target{Runs: []model.Run{model.TextR("Short.")}})
+		b.SetEdition(model.EditionKey{Locale: "en", Channel: "short"}, model.Edition{Runs: []model.Run{model.TextR("Short.")}})
 	}},
 	{"every translation edited", true, func(t *testing.T, b *model.Block) {
-		for _, tg := range b.Targets {
-			tg.Runs = mapText(tg.Runs, func(s string) string {
+		for _, k := range translations(b) {
+			e, _ := b.Edition(k)
+			e.Runs = mapText(e.Runs, func(s string) string {
 				return strings.Map(func(r rune) rune {
 					if unicode.IsLetter(r) {
 						return unicode.ToUpper(r)
@@ -167,11 +179,16 @@ var variants = []struct {
 					return r
 				}, s)
 			})
+			b.SetEdition(k, e)
 		}
 	}},
-	{"every translation removed", true, func(t *testing.T, b *model.Block) { b.Targets = nil }},
+	{"every translation removed", true, func(t *testing.T, b *model.Block) {
+		for _, k := range translations(b) {
+			require.True(t, b.RemoveEdition(k))
+		}
+	}},
 	{"a translation edited and the source edited", false, func(t *testing.T, b *model.Block) {
-		b.Source = firstWordEdited(b.Source)
+		b.SetSourceRuns(firstWordEdited(b.SourceRuns()))
 		b.SetTargetRuns("de", []model.Run{model.TextR("Neu.")})
 	}},
 }
@@ -291,11 +308,11 @@ func TestDiff_SameLanguageTarget(t *testing.T) {
 	sameLanguage := func() *model.Block {
 		b := model.NewBlock("b1", "colour source")
 		b.SourceLocale = "en-US"
-		b.SetTarget("en-US", &model.Target{Runs: []model.Run{model.TextR("colour target")}})
+		b.SetTargetEdition(model.Variant("en-US"), model.Edition{Runs: []model.Run{model.TextR("colour target")}})
 		return b
 	}
 	before, after := sameLanguage(), sameLanguage()
-	after.Target("en-US").Runs = []model.Run{model.TextR("color target")}
+	after.SetTargetRuns("en-US", []model.Run{model.TextR("color target")})
 	ops := change.Diff(before, after)
 	require.Len(t, ops, 1)
 	assert.Equal(t, model.Variant("en-US"), ops[0].At.Edition)
@@ -304,10 +321,11 @@ func TestDiff_SameLanguageTarget(t *testing.T) {
 	assert.Equal(t, "color target", before.TargetText("en-US"))
 
 	before, after = sameLanguage(), sameLanguage()
-	after.Targets = nil
+	require.True(t, after.RemoveEdition(model.Variant("en-US")))
 	requireApplied(t, change.ApplyBlock(before, change.Diff(before, after), tool))
 	assert.Equal(t, "colour source", before.SourceText())
-	assert.Nil(t, before.Target("en-US"))
+	_, held := before.TargetEdition("en-US")
+	assert.False(t, held)
 
 	before = model.NewBlock("b1", "colour source")
 	before.SourceLocale = "en-US"
@@ -353,14 +371,14 @@ func TestDiff_OperationsTravel(t *testing.T) {
 func TestDiff_PrefersATextEdit(t *testing.T) {
 	a := guideBlock()
 	b := copyBlock(t, a)
-	b.Source = mapText(b.Source, func(s string) string { return strings.ReplaceAll(s, "shop guide", "handbook") })
+	b.SetSourceRuns(mapText(b.SourceRuns(), func(s string) string { return strings.ReplaceAll(s, "shop guide", "handbook") }))
 	ops := change.Diff(a, b)
 	require.Len(t, ops, 1)
 	assert.Equal(t, change.KindReplaceText, ops[0].Kind)
 	assert.Equal(t, sourceRev(a), ops[0].IfMatch)
 
 	g := guideRuns()
-	b.Source = []model.Run{g[5], g[6], g[7], model.TextR(" first, then read "), g[1], g[2], g[3], model.TextR(".")}
+	b.SetSourceRuns([]model.Run{g[5], g[6], g[7], model.TextR(" first, then read "), g[1], g[2], g[3], model.TextR(".")})
 	ops = change.Diff(a, b)
 	require.Len(t, ops, 1)
 	assert.Equal(t, change.KindSetContent, ops[0].Kind, "the codes moved, which no text edit says")

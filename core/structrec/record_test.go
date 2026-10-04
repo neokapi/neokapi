@@ -13,17 +13,14 @@ import (
 // over the block's PLAIN source text (not the placeholder rendering), so it
 // matches the hash the sync engine and stores use.
 func TestFromBlock_RendersPlaceholders(t *testing.T) {
-	b := &model.Block{
-		ID:           "p1",
-		Translatable: true,
-		Source: []model.Run{
-			{Text: &model.TextRun{Text: "Click "}},
-			{PcOpen: &model.PcOpenRun{ID: "1"}},
-			{Text: &model.TextRun{Text: "here"}},
-			{PcClose: &model.PcCloseRun{ID: "1"}},
-			{Text: &model.TextRun{Text: " now"}},
-		},
-	}
+	b := &model.Block{ID: "p1", Translatable: true}
+	b.SetSourceRuns([]model.Run{
+		{Text: &model.TextRun{Text: "Click "}},
+		{PcOpen: &model.PcOpenRun{ID: "1"}},
+		{Text: &model.TextRun{Text: "here"}},
+		{PcClose: &model.PcCloseRun{ID: "1"}},
+		{Text: &model.TextRun{Text: " now"}},
+	})
 
 	rec := FromBlock(1, b, b.SourceRuns())
 

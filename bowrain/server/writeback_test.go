@@ -126,7 +126,7 @@ func TestSettleSource_KeepsATranslationRewrittenDuringSettlement(t *testing.T) {
 	assert.Equal(t, "Une phrase bien formée.", got.Block.TargetText("fr"), "the person's rewrite stays")
 	settled, err := cs.GetBlock(t.Context(), projectID, "main", untouched)
 	require.NoError(t, err)
-	assert.Equal(t, model.SourceStatusWritten, settled.Block.SourceStatus, "the untouched block is settled")
+	assert.Equal(t, model.SourceStatusWritten, sourceStatusOf(settled.Block), "the untouched block is settled")
 }
 
 // Pseudo-translation reads an item's blocks and commits the targets it drafts
@@ -173,9 +173,9 @@ func TestPseudoTranslate_CommitsDraftsAndKeepsAPersonsLaterEdit(t *testing.T) {
 
 	hello, err := cs.GetBlock(t.Context(), projectID, "main", ids["Hello"])
 	require.NoError(t, err)
-	require.NotNil(t, hello.Block.Target(model.LocaleFrench))
+	require.True(t, holdsTarget(hello.Block, model.LocaleFrench))
 	assert.NotEqual(t, "Hello", hello.Block.TargetText(model.LocaleFrench), "the pseudo-translation landed")
-	assert.Equal(t, model.TargetStatusDraft, hello.Block.Target(model.LocaleFrench).Status)
+	assert.Equal(t, model.TargetStatusDraft, targetStatusOf(t, hello.Block, model.LocaleFrench))
 	goodbye, err := cs.GetBlock(t.Context(), projectID, "main", ids["Goodbye"])
 	require.NoError(t, err)
 	assert.Equal(t, "Au revoir", goodbye.Block.TargetText(model.LocaleFrench), "the person's later wording stays")

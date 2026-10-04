@@ -130,7 +130,7 @@ func (a *App) settleSource(ctx context.Context, root, sourceLang string, level m
 				continue
 			}
 			if approvals.approves(scope, blockKey(b), b.SourceText()) {
-				b.SourceStatus = model.SourceStatusEstablished
+				establishSource(b)
 			}
 			check.SettleSourceStatus(ctx, b)
 			if feedsTarget {

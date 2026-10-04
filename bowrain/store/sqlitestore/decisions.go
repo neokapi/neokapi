@@ -3,7 +3,6 @@ package sqlitestore
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -166,8 +165,8 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		if err != nil {
 			return changed, fmt.Errorf("read target for decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
-		var tgt model.Target
-		if uerr := json.Unmarshal([]byte(targetJSON), &tgt); uerr != nil {
+		tgt, uerr := bstore.UnmarshalTargetJSON([]byte(targetJSON))
+		if uerr != nil {
 			continue
 		}
 		if d.TargetHash != "" && state.TargetHash(model.RunsText(tgt.Runs)) != d.TargetHash {

@@ -82,9 +82,9 @@ func carriesTranslation(b *model.Block) bool {
 }
 
 // recordTargetHistory checks each translation b carries (every edition other
-// than the one it was read in) against oldTargets and records history entries
-// for the ones that changed.
-func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream string, blockID string, oldTargets map[model.VariantKey]*model.Target, b *model.Block) error {
+// than the one it was read in) against the stored editions in oldTargets and
+// records history entries for the ones that changed.
+func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream string, blockID string, oldTargets map[model.EditionKey]model.Edition, b *model.Block) error {
 	src := b.EditionKeyOf(model.EditionKey{})
 	for key, newTarget := range b.EachEdition {
 		if key == src {
@@ -94,7 +94,7 @@ func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream stri
 		newCoded := targetRunsJSON(newTarget.Runs)
 
 		oldText := ""
-		if old := oldTargets[key]; old != nil {
+		if old, ok := oldTargets[key]; ok {
 			oldText = model.RunsText(old.Runs)
 		}
 
@@ -130,10 +130,11 @@ func targetRunsJSON(runs []model.Run) string {
 	return string(b)
 }
 
-// loadExistingTargets returns the current per-variant Targets for a block —
-// used by recordTargetHistory before a StoreBlocks upsert. Reads from the
-// translations table; the target_json column holds the model.Target JSON.
-func loadExistingTargets(ctx context.Context, tx *sql.Tx, projectID, _, blockID string) (map[model.VariantKey]*model.Target, error) {
+// loadExistingTargets returns the stored translations of a block, each under
+// the key its row is filed under, for recordTargetHistory before a StoreBlocks
+// upsert. Reads from the translations table, whose target_json column holds
+// the edition (bstore.UnmarshalTargetJSON).
+func loadExistingTargets(ctx context.Context, tx *sql.Tx, projectID, _, blockID string) (map[model.EditionKey]model.Edition, error) {
 	rows, err := tx.QueryContext(ctx,
 		`SELECT locale, target_json FROM translations
 		 WHERE project_id = ? AND stream = 'main' AND block_id = ?`,
@@ -142,7 +143,7 @@ func loadExistingTargets(ctx context.Context, tx *sql.Tx, projectID, _, blockID 
 		return nil, err
 	}
 	defer rows.Close()
-	targets := map[model.VariantKey]*model.Target{}
+	targets := map[model.EditionKey]model.Edition{}
 	for rows.Next() {
 		var keyText, targetJSON string
 		if err := rows.Scan(&keyText, &targetJSON); err != nil {
@@ -152,13 +153,15 @@ func loadExistingTargets(ctx context.Context, tx *sql.Tx, projectID, _, blockID 
 		if err := key.UnmarshalText([]byte(keyText)); err != nil {
 			continue // skip malformed keys silently
 		}
-		target := &model.Target{}
+		var e model.Edition
 		if targetJSON != "" && targetJSON != "null" {
-			if err := json.Unmarshal([]byte(targetJSON), target); err != nil {
-				continue // skip malformed rows silently — same behaviour as the prior impl
+			decoded, err := bstore.UnmarshalTargetJSON([]byte(targetJSON))
+			if err != nil {
+				continue // a malformed row is skipped
 			}
+			e = decoded
 		}
-		targets[key] = target
+		targets[key] = e
 	}
 	if rows.Err() != nil {
 		return nil, rows.Err()

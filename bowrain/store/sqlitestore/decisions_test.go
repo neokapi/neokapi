@@ -23,7 +23,7 @@ func TestUnitDecisions_SQLiteContract(t *testing.T) {
 	src := &model.Block{ID: "greeting", Translatable: true}
 	src.SetSourceText("Hello")
 	src.SetTargetText("nb", "Hei")
-	src.Target("nb").Status = model.TargetStatusTranslated
+	src.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusTranslated))
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{src}))
 
 	decision := venue.UnitDecision{
@@ -44,8 +44,8 @@ func TestUnitDecisions_SQLiteContract(t *testing.T) {
 		require.NoError(t, err)
 		for _, sb := range rows {
 			if sb.SourceID == "greeting" {
-				if tgt := sb.Block.Target("nb"); tgt != nil {
-					return tgt.Status
+				if tgt, ok := sb.Block.Edition(model.Variant("nb")); ok {
+					return model.TargetStatus(tgt.Status)
 				}
 			}
 		}
@@ -86,7 +86,7 @@ func TestUnitDecisions_RestoredSourceFindsItsApproval_SQLite(t *testing.T) {
 	src := &model.Block{ID: "greeting", Translatable: true}
 	src.SetSourceText("Hello")
 	src.SetTargetText("nb", "Hei")
-	src.Target("nb").Status = model.TargetStatusTranslated
+	src.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusTranslated))
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{src}))
 
 	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
@@ -104,7 +104,9 @@ func TestUnitDecisions_RestoredSourceFindsItsApproval_SQLite(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Len(t, rows, 1)
-		return rows[0].Block.Target("nb").Status
+		nb, ok := rows[0].Block.Edition(model.Variant("nb"))
+		require.True(t, ok)
+		return model.TargetStatus(nb.Status)
 	}
 	require.Equal(t, model.TargetStatusEstablished, status())
 
@@ -326,7 +328,7 @@ func TestUpsertUnitDecisions_StaleBasisDoesNotProject_SQLite(t *testing.T) {
 	src := &model.Block{ID: "greeting", Translatable: true}
 	src.SetSourceText("Hello there")
 	src.SetTargetText("nb", "Hei")
-	src.Target("nb").Status = model.TargetStatusTranslated
+	src.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusTranslated))
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{src}))
 
 	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
@@ -344,7 +346,9 @@ func TestUpsertUnitDecisions_StaleBasisDoesNotProject_SQLite(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
-	assert.Equal(t, model.TargetStatusTranslated, rows[0].Block.Target("nb").Status,
+	nb, ok := rows[0].Block.Edition(model.Variant("nb"))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusTranslated), nb.Status,
 		"a decision blessing source the store has rewritten must not project an approval")
 }
 

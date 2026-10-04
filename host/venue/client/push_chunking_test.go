@@ -34,12 +34,6 @@ func blockWithHeavyPayload(id string, payloadBytes int) *model.Block {
 		ID:           id,
 		Name:         id,
 		Translatable: true,
-		// Tiny source — defeats any SourceText-based size estimate.
-		Source: []model.Run{{Text: &model.TextRun{Text: "hi"}}},
-		// Heavy target runs.
-		Targets: map[model.VariantKey]*model.Target{
-			{Locale: "fr-FR"}: {Runs: []model.Run{{Text: &model.TextRun{Text: bulk}}}},
-		},
 		// Heavy skeleton carries the non-translatable structure.
 		Skeleton: &model.Skeleton{
 			Strategy: model.SkeletonFragmentBased,
@@ -48,6 +42,10 @@ func blockWithHeavyPayload(id string, payloadBytes int) *model.Block {
 		// Heavy non-translatable properties.
 		Properties: map[string]string{"bulk": half},
 	}
+	// Tiny source, which defeats any SourceText-based size estimate.
+	b.SetSourceText("hi")
+	// Heavy target runs.
+	b.SetEdition(model.EditionKey{Locale: "fr-FR"}, model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: bulk}}}})
 	return b
 }
 
@@ -177,11 +175,7 @@ func TestPushChunkRecordCountCap(t *testing.T) {
 
 	blocks := make([]*model.Block, blockCount)
 	for i := range blocks {
-		blocks[i] = &model.Block{
-			ID:           fmt.Sprintf("b%04d", i),
-			Translatable: true,
-			Source:       []model.Run{{Text: &model.TextRun{Text: "x"}}},
-		}
+		blocks[i] = model.NewBlock(fmt.Sprintf("b%04d", i), "x")
 	}
 	blocksByItem := map[string][]*model.Block{"locales/en.json": blocks}
 	items := []ItemMeta{{Name: "locales/en.json", Format: "json"}}
@@ -201,7 +195,7 @@ func TestPushChunkRecordCountCap(t *testing.T) {
 
 // TestPushDropsSkeletonFromWire is the finding-2b guard: skeleton is format
 // scaffolding that belongs at the connector edge, not durably in the content
-// store, so it must not ride the default push wire — otherwise its bytes land
+// store, so it must not ride the default push wire. Otherwise its bytes land
 // in the staging chunk blobs. Every uploaded SyncBlock's skeleton must be empty
 // even though the source block carries one.
 func TestPushDropsSkeletonFromWire(t *testing.T) {

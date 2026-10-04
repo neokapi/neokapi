@@ -26,8 +26,8 @@ import (
 // resulting part, so the collector is fed exactly what a real run feeds it.
 func checkedBlockPart(t *testing.T, id, source, target string, terms []string) *model.Part {
 	t.Helper()
-	b := &model.Block{ID: id, Translatable: true,
-		Source: []model.Run{{Text: &model.TextRun{Text: source}}}}
+	b := &model.Block{ID: id, Translatable: true}
+	b.SetSourceText(source)
 	reg := registry.NewToolRegistry()
 	coretools.RegisterAll(reg)
 	cfg := map[string]any{"terms": terms}

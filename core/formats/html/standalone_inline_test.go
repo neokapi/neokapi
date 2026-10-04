@@ -193,7 +193,7 @@ func TestStandaloneInline_InlineWithinTextStaysInline(t *testing.T) {
 			// Ph), proving the inline element stayed inline rather than being
 			// promoted to its own block.
 			hasInlineRun := false
-			for _, r := range combined.Source {
+			for _, r := range combined.SourceRuns() {
 				if r.Text == nil {
 					hasInlineRun = true
 				}

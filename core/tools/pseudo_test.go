@@ -223,11 +223,7 @@ func TestPseudoTranslateToolWrapsPlaceholderRunsOnce(t *testing.T) {
 	}
 	tl := tools.NewPseudoTranslateTool(cfg)
 
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       placeholderRuns(),
-	}
+	block := model.NewRunsBlock("tu1", placeholderRuns())
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
@@ -260,11 +256,7 @@ func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
 	}
 	tl := tools.NewPseudoTranslateTool(cfg)
 
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       linkRuns(),
-	}
+	block := model.NewRunsBlock("tu1", linkRuns())
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
@@ -308,11 +300,7 @@ func TestPseudoTranslateToolSpansWithExpansion(t *testing.T) {
 	}
 	tl := tools.NewPseudoTranslateTool(cfg)
 
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       linkRuns(),
-	}
+	block := model.NewRunsBlock("tu1", linkRuns())
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 

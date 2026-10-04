@@ -30,7 +30,7 @@ func TestCollectFileDiagnostics_ProbesOnlyForARecord(t *testing.T) {
 	t.Cleanup(func() { hygieneTool = real })
 
 	blocks := func() []*model.Block {
-		return []*model.Block{{ID: "p", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "We we ship."}}}}}
+		return []*model.Block{model.NewBlock("p", "We we ship.")}
 	}
 	a := &App{SourceLang: "en"}
 	diags, err := a.collectFileDiagnostics(t.Context(), blocks(), "draft.md", checkRunOptions{})

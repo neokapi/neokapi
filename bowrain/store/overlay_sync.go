@@ -45,7 +45,7 @@ func SyncBlockOverlays(
 		if key == src {
 			continue
 		}
-		if err := UpsertBlockTarget(ctx, ex, dialect, projectID, stream, blockID, key, TargetRow(e), nil, now); err != nil {
+		if err := UpsertBlockTarget(ctx, ex, dialect, projectID, stream, blockID, key, e, nil, now); err != nil {
 			return err
 		}
 	}
@@ -58,10 +58,49 @@ func SyncBlockOverlays(
 	return nil
 }
 
-// TargetRow returns edition e in the shape the translations table stores in
+// targetJSON is an edition in the shape the translations table stores in
+// target_json: its runs, status, origin and score under these keys, in this
+// order. Every stored row has this shape, and the status projections read
+// target_json's status key in SQL (sqlListTranslationStatesByBlocks, the
+// decision ledger's jsonb_set and json_set), so the keys and their tags stay as
+// they are.
+type targetJSON struct {
+	Runs   []model.Run  `json:"runs"`
+	Status model.Status `json:"status,omitempty"`
+	Origin model.Origin `json:"origin,omitzero"`
+	Score  float64      `json:"score,omitempty"`
+}
+
+// MarshalTargetJSON encodes edition e as the translations table stores it in
 // target_json.
-func TargetRow(e model.Edition) *model.Target {
-	return &model.Target{Runs: e.Runs, Status: model.TargetStatus(e.Status), Origin: e.Origin, Score: e.Score}
+func MarshalTargetJSON(e model.Edition) ([]byte, error) {
+	return json.Marshal(targetJSON{Runs: e.Runs, Status: e.Status, Origin: e.Origin, Score: e.Score})
+}
+
+// UnmarshalTargetJSON decodes a target_json value into the edition it stores.
+// It fails where json.Unmarshal fails, on empty input among others, and JSON
+// null decodes to the zero edition.
+func UnmarshalTargetJSON(data []byte) (model.Edition, error) {
+	var d targetDecoder
+	return d.decode(data)
+}
+
+// targetDecoder decodes target_json values through one row it keeps, so a
+// loader that decodes many rows allocates the row once rather than once per
+// value. Each decode starts from the zero row: json.Unmarshal decodes into
+// the slices and maps a row already holds, and a row left from the previous
+// value would hand that edition's runs to the next one.
+type targetDecoder struct {
+	row targetJSON
+}
+
+// decode decodes data as UnmarshalTargetJSON does.
+func (d *targetDecoder) decode(data []byte) (model.Edition, error) {
+	d.row = targetJSON{}
+	if err := json.Unmarshal(data, &d.row); err != nil {
+		return model.Edition{}, err
+	}
+	return model.Edition{Runs: d.row.Runs, Status: d.row.Status, Origin: d.row.Origin, Score: d.row.Score}, nil
 }
 
 // UpsertBlockAnnotation writes one (block, key) annotation row. It and
@@ -113,14 +152,16 @@ func DeleteBlockAnnotation(ctx context.Context, ex Execer, dialect string, proje
 	return nil
 }
 
-// UpsertBlockTarget writes a (block, variant) row through the shared translations
-// writer. All content representations must remain consistent:
+// UpsertBlockTarget writes edition e of a block as its (block, variant) row
+// through the shared translations writer. All content representations must
+// remain consistent:
 //   - locale is the VariantKey text form, including tone or channel qualifiers;
-//   - target_json is the full model.Target used by hydration, review and coverage;
+//   - target_json is the whole edition (MarshalTargetJSON), which hydration,
+//     review and coverage read;
 //   - text is model.RunsText output for history and search, without placeholders;
 //   - provider identifies the engine from Origin.
 //
-// extra holds producer metadata outside model.Target, such as a configuration
+// extra holds producer metadata outside the edition, such as a configuration
 // fingerprint. Each write replaces prior metadata; nil stores an empty object.
 func UpsertBlockTarget(
 	ctx context.Context,
@@ -128,18 +169,15 @@ func UpsertBlockTarget(
 	dialect string,
 	projectID, stream, blockID string,
 	key model.VariantKey,
-	target *model.Target,
+	e model.Edition,
 	extra []byte,
 	now time.Time,
 ) error {
-	if target == nil {
-		return fmt.Errorf("upsert translation block=%s: nil target", blockID)
-	}
 	keyText, err := key.MarshalText()
 	if err != nil {
 		return fmt.Errorf("encode variant key for block %s: %w", blockID, err)
 	}
-	targetJSON, err := json.Marshal(target)
+	targetJSON, err := MarshalTargetJSON(e)
 	if err != nil {
 		return fmt.Errorf("marshal target for block %s variant %s: %w", blockID, keyText, err)
 	}
@@ -148,7 +186,7 @@ func UpsertBlockTarget(
 	}
 	if _, err := ex.ExecContext(ctx, sqlUpsertTranslation(dialect),
 		projectID, stream, blockID, string(keyText),
-		model.RunsText(target.Runs), string(targetJSON), target.Origin.Engine, string(extra), now,
+		model.RunsText(e.Runs), string(targetJSON), e.Origin.Engine, string(extra), now,
 	); err != nil {
 		return fmt.Errorf("upsert translation block=%s variant=%s: %w", blockID, keyText, err)
 	}
@@ -168,109 +206,104 @@ func overlayChunk(dialect string) int {
 	return 5000
 }
 
-// LoadBlockOverlays hydrates a block's Targets + Annotations from the
-// kind-specific tables. Called by GetBlock(s) after the source row
-// is fetched.
+// LoadBlockOverlays reads the translations and annotations of a set of blocks
+// from the kind-specific tables and hands each row to its callback as it is
+// scanned: a translation as the edition it stores, under the key its row is
+// filed under, and an annotation under its key. A block's translations come
+// before its annotations. HydrateOverlays files each row onto the block
+// GetBlock(s) scanned for it. An error stops the read, and the rows handed
+// over before it stay handed over.
 func LoadBlockOverlays(
 	ctx context.Context,
 	db Querier,
 	dialect string,
 	projectID, stream string,
 	blockIDs []string,
-) (map[string]map[model.VariantKey]*model.Target, map[string]map[string]model.Payload, error) {
+	translation func(blockID string, key model.EditionKey, e model.Edition),
+	annotation func(blockID, kind string, ann model.Payload),
+) error {
 	if len(blockIDs) == 0 {
-		return nil, nil, nil
+		return nil
 	}
 	if size := overlayChunk(dialect); len(blockIDs) > size {
-		targets := map[string]map[model.VariantKey]*model.Target{}
-		annotations := map[string]map[string]model.Payload{}
 		for start := 0; start < len(blockIDs); start += size {
-			t, a, err := LoadBlockOverlays(ctx, db, dialect, projectID, stream, blockIDs[start:min(start+size, len(blockIDs))])
-			if err != nil {
-				return nil, nil, err
+			if err := LoadBlockOverlays(ctx, db, dialect, projectID, stream,
+				blockIDs[start:min(start+size, len(blockIDs))], translation, annotation); err != nil {
+				return err
 			}
-			maps.Copy(targets, t)
-			maps.Copy(annotations, a)
 		}
-		return targets, annotations, nil
+		return nil
 	}
 
-	targets := map[string]map[model.VariantKey]*model.Target{}
 	rows, err := db.QueryContext(ctx, sqlListTranslationsByBlocks(dialect, len(blockIDs)),
 		append([]any{projectID, stream}, anyStrings(blockIDs)...)...,
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("load translations: %w", err)
+		return fmt.Errorf("load translations: %w", err)
 	}
+	var dec targetDecoder
 	for rows.Next() {
 		var (
 			bid, keyText, targetJSON string
 		)
 		if err := rows.Scan(&bid, &keyText, &targetJSON); err != nil {
 			rows.Close()
-			return nil, nil, fmt.Errorf("scan translation: %w", err)
+			return fmt.Errorf("scan translation: %w", err)
 		}
 		var key model.VariantKey
 		if err := key.UnmarshalText([]byte(keyText)); err != nil {
 			rows.Close()
-			return nil, nil, fmt.Errorf("decode variant key block=%s key=%s: %w", bid, keyText, err)
+			return fmt.Errorf("decode variant key block=%s key=%s: %w", bid, keyText, err)
 		}
-		target := &model.Target{}
+		var e model.Edition
 		if targetJSON != "" && targetJSON != "null" {
-			if err := json.Unmarshal([]byte(targetJSON), target); err != nil {
+			if e, err = dec.decode([]byte(targetJSON)); err != nil {
 				rows.Close()
-				return nil, nil, fmt.Errorf("unmarshal target block=%s variant=%s: %w", bid, keyText, err)
+				return fmt.Errorf("unmarshal target block=%s variant=%s: %w", bid, keyText, err)
 			}
 		}
-		if targets[bid] == nil {
-			targets[bid] = map[model.VariantKey]*model.Target{}
-		}
-		targets[bid][key] = target
+		translation(bid, key, e)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return nil, nil, fmt.Errorf("translation rows: %w", err)
+		return fmt.Errorf("translation rows: %w", err)
 	}
 
-	annotations := map[string]map[string]model.Payload{}
 	rows, err = db.QueryContext(ctx, sqlListAnnotationsByBlocks(dialect, len(blockIDs)),
 		append([]any{projectID, stream}, anyStrings(blockIDs)...)...,
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("load annotations: %w", err)
+		return fmt.Errorf("load annotations: %w", err)
 	}
 	for rows.Next() {
 		var bid, kind, payload string
 		if err := rows.Scan(&bid, &kind, &payload); err != nil {
 			rows.Close()
-			return nil, nil, fmt.Errorf("scan annotation: %w", err)
+			return fmt.Errorf("scan annotation: %w", err)
 		}
 		ann, err := deserializeSingleAnnotation(kind, []byte(payload))
 		if err != nil {
 			rows.Close()
-			return nil, nil, fmt.Errorf("deserialize annotation block=%s kind=%s: %w", bid, kind, err)
+			return fmt.Errorf("deserialize annotation block=%s kind=%s: %w", bid, kind, err)
 		}
-		if annotations[bid] == nil {
-			annotations[bid] = map[string]model.Payload{}
-		}
-		annotations[bid][kind] = ann
+		annotation(bid, kind, ann)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return nil, nil, fmt.Errorf("annotation rows: %w", err)
+		return fmt.Errorf("annotation rows: %w", err)
 	}
-	return targets, annotations, nil
+	return nil
 }
 
 // StoredTarget is one translations row as the store holds it: the variant it is
-// filed under, the model.Target it carries, and the writer's residual payload.
+// filed under, the edition it carries, and the writer's residual payload.
 type StoredTarget struct {
 	// BlockID is the row's block key — the store's own `blocks.id`.
 	BlockID string
 	// Variant is the row's locale column, decoded.
 	Variant model.VariantKey
-	// Target is the row's target_json. Never nil on a loaded row.
-	Target *model.Target
+	// Edition is the row's target_json, decoded (UnmarshalTargetJSON).
+	Edition model.Edition
 	// Extra is the row's metadata column: the payload fields the writer kept
 	// alongside the target. An empty object when it kept none.
 	Extra []byte
@@ -339,14 +372,16 @@ func scanStoredTarget(rows *sql.Rows, blockID string) (*StoredTarget, error) {
 	if err := rows.Scan(&bid, &keyText, &targetJSON, &extra, &updatedAt); err != nil {
 		return nil, fmt.Errorf("scan target block=%s: %w", blockID, err)
 	}
-	st := &StoredTarget{BlockID: bid, Target: &model.Target{}, UpdatedAt: ParseOverlayTimestamp(updatedAt)}
+	st := &StoredTarget{BlockID: bid, UpdatedAt: ParseOverlayTimestamp(updatedAt)}
 	if err := st.Variant.UnmarshalText([]byte(keyText)); err != nil {
 		return nil, fmt.Errorf("decode variant key block=%s key=%s: %w", bid, keyText, err)
 	}
 	if targetJSON != "" && targetJSON != "null" {
-		if err := json.Unmarshal([]byte(targetJSON), st.Target); err != nil {
+		e, err := UnmarshalTargetJSON([]byte(targetJSON))
+		if err != nil {
 			return nil, fmt.Errorf("unmarshal target block=%s variant=%s: %w", bid, keyText, err)
 		}
+		st.Edition = e
 	}
 	st.Extra = []byte(extra)
 	return st, nil

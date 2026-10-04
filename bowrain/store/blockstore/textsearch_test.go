@@ -110,9 +110,9 @@ func seedSearchCorpus(t *testing.T, cs *bstore.PostgresStore, projectID string) 
 	// block reads it back under the bare locale.
 	toned := model.NewRunsBlock("toned", []model.Run{model.TextR("Please sign in")})
 	toned.Translatable = true
-	toned.SetTargetVariant(
-		model.VariantKey{Locale: "nb", Tone: "formal"},
-		model.NewTarget([]model.Run{model.TextR("Vennligst logg inn")}, model.TargetStatusTranslated),
+	toned.SetEdition(
+		model.EditionKey{Locale: "nb", Tone: "formal"},
+		model.Edition{Runs: []model.Run{model.TextR("Vennligst logg inn")}, Status: model.Status(model.TargetStatusTranslated)},
 	)
 
 	require.NoError(t, cs.StoreBlocksForItem(ctx, projectID, "main", docsCollection+".md",

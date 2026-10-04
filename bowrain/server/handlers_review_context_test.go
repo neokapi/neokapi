@@ -64,9 +64,9 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 		pendingFrBlock("c", "Close the app", "Fermer l'application"),
 	}
 	for _, b := range seeded {
-		b.Target("fr").Origin = model.Origin{
+		setTargetOrigin(t, b, "fr", model.Origin{
 			Kind: "ai", Engine: "claude", Tool: "translate", Timestamp: "2026-09-01T10:00:00Z",
-		}
+		})
 	}
 	projID, _ := seedGovernedProject(t, s, wsID, seeded)
 
@@ -324,9 +324,9 @@ func TestReviewContext_HandEditReadsAsHuman(t *testing.T) {
 	ctx := context.Background()
 
 	drafted := pendingFrBlock("h", "Open the app", "Ouvrir l'application")
-	drafted.Target("fr").Origin = model.Origin{
+	setTargetOrigin(t, drafted, "fr", model.Origin{
 		Kind: "ai", Engine: "claude", Tool: "translate", Timestamp: "2026-09-01T10:00:00Z",
-	}
+	})
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{drafted})
 	bid := ids["Open the app"]
 
@@ -346,7 +346,7 @@ func TestReviewContext_HandEditReadsAsHuman(t *testing.T) {
 	// Back to an AI draft, then rewritten through the run-native path.
 	sb, err := s.ContentStore.GetBlock(ctx, projID, "main", bid)
 	require.NoError(t, err)
-	sb.Block.Target("fr").Origin = model.Origin{Kind: "ai", Engine: "claude"}
+	setTargetOrigin(t, sb.Block, "fr", model.Origin{Kind: "ai", Engine: "claude"})
 	require.NoError(t, s.ContentStore.StoreBlocks(ctx, projID, "main", []*model.Block{sb.Block}))
 
 	editAsPerson(t, s, projID, bid, "fr", change.Content{Runs: []model.Run{{Text: &model.TextRun{Text: "Ouvrez l'application"}}}})
@@ -379,9 +379,9 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 		// The chain identity the version chain is keyed on, and the stamp the
 		// producer leaves on what it produced.
 		b.Unit = "auth." + b.ID
-		b.Target("fr").Origin = model.Origin{Kind: "ai", Engine: "claude", ContextFingerprint: "fp-1"}
+		setTargetOrigin(t, b, "fr", model.Origin{Kind: "ai", Engine: "claude", ContextFingerprint: "fp-1"})
 	}
-	authored[0].Target("fr").Status = model.TargetStatusEstablished
+	authored[0].SetEditionStatus(model.Variant("fr"), model.Status(model.TargetStatusEstablished))
 	keys := make([]string, 0, len(authored))
 	for _, b := range authored {
 		keys = append(keys, b.Unit)

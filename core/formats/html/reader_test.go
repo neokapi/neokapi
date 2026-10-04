@@ -338,14 +338,14 @@ func TestReadEntityInBareTextBlock(t *testing.T) {
 		}
 	}
 	require.NotNil(t, target, "block containing BUFO should exist")
-	require.NotEmpty(t, target.Source)
+	require.NotEmpty(t, target.SourceRuns())
 
 	var sawEntity bool
-	for _, r := range target.Source {
+	for _, r := range target.SourceRuns() {
 		if r.Ph != nil && r.Ph.Type == "code:entity" && r.Ph.Data == "&amp;" {
 			sawEntity = true
 			break
 		}
 	}
-	assert.True(t, sawEntity, "expected `&amp;` entity to be extracted as a code:entity placeholder run; got runs: %+v", target.Source)
+	assert.True(t, sawEntity, "expected `&amp;` entity to be extracted as a code:entity placeholder run; got runs: %+v", target.SourceRuns())
 }

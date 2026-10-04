@@ -601,17 +601,18 @@ func blockInfoToBlock(bi BlockInfo) *model.Block {
 	for locale, runs := range bi.TargetRuns {
 		b.SetTargetRuns(model.LocaleID(locale), runs)
 	}
-	// Carry the per-locale target text and review status (model.Target.Status)
-	// into the cache so an offline reload round-trips review state.
+	// Carry the per-locale target text and review status (the edition's
+	// status) into the cache so an offline reload round-trips review state.
 	for locale, ti := range bi.Targets {
 		loc := model.LocaleID(locale)
-		if b.Target(loc) == nil && ti.Text != "" {
+		if _, ok := b.TargetEdition(loc); !ok && ti.Text != "" {
 			// The targets map carries committed text the runs map didn't
 			// (plain-text blocks travel without targets_runs).
 			b.SetTargetText(loc, ti.Text)
 		}
-		if t := b.Target(loc); t != nil && ti.Status != "" {
-			t.Status = model.TargetStatus(ti.Status)
+		if t, ok := b.TargetEdition(loc); ok && ti.Status != "" {
+			t.Status = model.Status(ti.Status)
+			b.SetTargetEdition(model.Variant(loc), t)
 		}
 	}
 	return b
@@ -620,7 +621,7 @@ func blockInfoToBlock(bi BlockInfo) *model.Block {
 // storedBlockToBlockInfo converts a StoredBlock to a BlockInfo, in the shape
 // the server's blocks route serves (storedBlockToInfoResponse): targets
 // carries, per locale, the committed plain text and the per-locale review
-// status (model.Target.Status), so the shared editor reads the same shape
+// status (the edition's status), so the shared editor reads the same shape
 // online and offline. The source's and each target's runs ride along whole.
 func storedBlockToBlockInfo(sb *venue.StoredBlock, targetLocales []string) BlockInfo {
 	targetRuns := make(map[string][]model.Run, len(targetLocales))
@@ -634,7 +635,7 @@ func storedBlockToBlockInfo(sb *venue.StoredBlock, targetLocales []string) Block
 		}
 		text := sb.Block.TargetText(loc)
 		status := ""
-		if t := sb.Block.Target(loc); t != nil {
+		if t, ok := sb.Block.TargetEdition(loc); ok {
 			status = string(t.Status)
 		}
 		if text != "" || status != "" {

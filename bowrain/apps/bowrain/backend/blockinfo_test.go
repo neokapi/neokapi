@@ -41,7 +41,7 @@ func TestBlockInfo_ServesTheShapeTheSharedEditorReads(t *testing.T) {
 	b := model.NewRunsBlock("b1", source)
 	b.Translatable = true
 	b.SetTargetRuns("fr", target)
-	b.Target("fr").Status = model.TargetStatusTranslated
+	b.SetEditionStatus(model.Variant("fr"), model.Status(model.TargetStatusTranslated))
 
 	var got servedShape
 	require.NoError(t, json.Unmarshal([]byte(mustJSON(t, storedBlockToBlockInfo(&venue.StoredBlock{Block: b}, []string{"fr"}))), &got))
@@ -73,5 +73,7 @@ func TestBlockInfo_APlainServedBlockKeepsItsTextInTheCache(t *testing.T) {
 	cached := blockInfoToBlock(info)
 	assert.Equal(t, "Hello", cached.SourceText())
 	assert.Equal(t, "Bonjour", cached.TargetText("fr"))
-	assert.Equal(t, model.TargetStatusDraft, cached.Target("fr").Status)
+	fr, ok := cached.Edition(model.Variant("fr"))
+	require.True(t, ok)
+	assert.Equal(t, model.Status(model.TargetStatusDraft), fr.Status)
 }

@@ -20,25 +20,15 @@ func TestPO_WriteAndParseRoundTrip(t *testing.T) {
 	f, err := os.Create(out)
 	require.NoError(t, err)
 
+	block := func(id, source, target, match string) *model.Block {
+		b := model.NewBlock(id, source)
+		b.SetEdition(model.Variant("fr-FR"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: target}}}})
+		b.Properties["kapi-tm-match"] = match
+		return b
+	}
 	blocks := []*model.Block{
-		{
-			ID:           "tu1",
-			Translatable: true,
-			Source:       []model.Run{{Text: &model.TextRun{Text: "Hello"}}},
-			Targets: map[model.VariantKey]*model.Target{
-				model.Variant("fr-FR"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
-			},
-			Properties: map[string]string{"kapi-tm-match": "exact"},
-		},
-		{
-			ID:           "tu2",
-			Translatable: true,
-			Source:       []model.Run{{Text: &model.TextRun{Text: "Goodbye"}}},
-			Targets: map[model.VariantKey]*model.Target{
-				model.Variant("fr-FR"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Au revoir"}}}},
-			},
-			Properties: map[string]string{"kapi-tm-match": "fuzzy"},
-		},
+		block("tu1", "Hello", "Bonjour", "exact"),
+		block("tu2", "Goodbye", "Au revoir", "fuzzy"),
 	}
 
 	require.NoError(t, WritePOExtract(f, "fr-FR", "batch-xyz", "src/en/app.json", "sha256:abc", blocks))

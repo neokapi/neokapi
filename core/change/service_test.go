@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -84,7 +85,7 @@ func (d *memDoc) build() []*model.Block {
 			if k.IsZero() {
 				continue
 			}
-			b.SetTarget(k.Locale, &model.Target{Runs: slices.Clone(runs)})
+			b.SetTargetEdition(k, model.Edition{Runs: slices.Clone(runs)})
 		}
 		out = append(out, b)
 	}
@@ -1008,6 +1009,72 @@ func TestService_EachOperationReportsItsOwnOutcome(t *testing.T) {
 			assert.Equal(t, before, h.snapshot("a"))
 		})
 	}
+}
+
+// toneAndChannelBlock holds the document's own edition, a same-language
+// channel edition, and a French edition with and without a tone.
+func toneAndChannelBlock() memBlock {
+	return memBlock{key: "one", translatable: true, editions: map[model.EditionKey][]model.Run{
+		{}:                               {model.TextR("Read the guide")},
+		{Locale: "en", Channel: "short"}: {model.TextR("Read")},
+		{Locale: "fr", Tone: "formal"}:   {model.TextR("Veuillez lire le guide")},
+		{Locale: "fr"}:                   {model.TextR("Lis le guide")},
+	}}
+}
+
+// editionTexts is a memory block's editions as text, by key.
+func editionTexts(mb memBlock) map[string]string {
+	out := make(map[string]string, len(mb.editions))
+	for k, runs := range mb.editions {
+		key, _ := k.MarshalText()
+		out[string(key)] = model.RunsEditText(runs)
+	}
+	return out
+}
+
+// TestMemHome_KeepsEachEditionUnderItsOwnKey pins that the memory home files
+// a tone or a channel edition under its own key: the blocks it builds come
+// back from capture with the editions they were built from, and a channel
+// edition in the source language leaves the document's own edition where it
+// was.
+func TestMemHome_KeepsEachEditionUnderItsOwnKey(t *testing.T) {
+	in := toneAndChannelBlock()
+	d := &memDoc{blocks: []memBlock{in}}
+	blocks := d.build()
+	require.Len(t, blocks, 1)
+	assert.Equal(t, model.EditionKey{Locale: "en"}, blocks[0].Authoritative(model.AuthorityPolicy{}),
+		"a channel edition in the source language is not the source language's edition")
+	got := capture(blocks)
+	require.Len(t, got, 1)
+	assert.Equal(t, editionTexts(in), editionTexts(got[0]))
+}
+
+// TestService_ReadsAndEditsAToneOrChannelEdition pins that a read lists a
+// tone or a channel edition under its own key, and that an edit to one lands
+// on it and leaves every other edition as it was.
+func TestService_ReadsAndEditsAToneOrChannelEdition(t *testing.T) {
+	h := newMemHome(map[string][]memBlock{"a": {toneAndChannelBlock()}})
+	svc := newMemService(h)
+	b := readBlock(t, svc, "a", "one")
+	assert.Equal(t, "Read the guide", b.Text)
+	assert.Equal(t, []string{"en;channel=short", "fr", "fr;tone=formal"}, slices.Sorted(maps.Keys(b.Editions)))
+	assert.Equal(t, "Read", b.Editions["en;channel=short"].Text)
+	assert.Equal(t, "Veuillez lire le guide", b.Editions["fr;tone=formal"].Text)
+	assert.Equal(t, "Lis le guide", b.Editions["fr"].Text)
+
+	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{
+		edit(atEdition(b.Ref, "en;channel=short"), b.Editions["en;channel=short"].Rev, "Read it"),
+		edit(atEdition(b.Ref, "fr;tone=formal"), b.Editions["fr;tone=formal"].Rev, "Lisez le guide"),
+	}}, svcPerson)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+
+	got := readBlock(t, svc, "a", "one")
+	assert.Equal(t, "Read the guide", got.Text)
+	assert.Equal(t, []string{"en;channel=short", "fr", "fr;tone=formal"}, slices.Sorted(maps.Keys(got.Editions)))
+	assert.Equal(t, "Read it", got.Editions["en;channel=short"].Text)
+	assert.Equal(t, "Lisez le guide", got.Editions["fr;tone=formal"].Text)
+	assert.Equal(t, "Lis le guide", got.Editions["fr"].Text)
 }
 
 // TestService_OneBlockAddressedByTwoKeys pins that two operations naming one

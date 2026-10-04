@@ -177,8 +177,8 @@ func newNorskProject(t *testing.T) string {
 // norskBlock is a paragraph of the Norwegian project's guide, with an English
 // translation when en is set.
 func norskBlock(source, en string) *model.Block {
-	b := &model.Block{ID: "p1", Translatable: true, SourceLocale: "nb",
-		Source: []model.Run{{Text: &model.TextRun{Text: source}}}}
+	b := &model.Block{ID: "p1", Translatable: true, SourceLocale: "nb"}
+	b.SetSourceText(source)
 	if en != "" {
 		b.SetTargetRuns("en", []model.Run{{Text: &model.TextRun{Text: en}}})
 	}
@@ -194,7 +194,7 @@ func (f commitFixture) paragraph(t *testing.T, source, fr string) *model.Block {
 	require.NoError(t, err)
 	for _, b := range blocks {
 		if strings.Contains(b.SourceText(), "widget") {
-			b.Source = []model.Run{{Text: &model.TextRun{Text: source}}}
+			b.SetSourceText(source)
 			if fr != "" {
 				b.SetTargetRuns("fr", []model.Run{{Text: &model.TextRun{Text: fr}}})
 			}
@@ -489,8 +489,8 @@ func TestCommitCheck_OutsideAProjectHoldsHygieneAlone(t *testing.T) {
 	isolateCheckExecution(t)
 	dir := t.TempDir()
 	t.Chdir(dir)
-	b := &model.Block{ID: "p", Translatable: true, SourceLocale: "en",
-		Source: []model.Run{{Text: &model.TextRun{Text: "We utilize the widget."}}}}
+	b := &model.Block{ID: "p", Translatable: true, SourceLocale: "en"}
+	b.SetSourceText("We utilize the widget.")
 	ch := edit(t, b, "", " ")
 	app := &App{SourceLang: "en"}
 	defer app.Shutdown()
@@ -739,7 +739,8 @@ func TestCommitCheck_FingerprintsAnIgnoredFileAtTheDefaultPoint(t *testing.T) {
 	current.close()
 	require.NotEqual(t, atDefault.fingerprint, atCollection.fingerprint, "the collection's voice differs from the project's")
 
-	b := &model.Block{ID: "p1", Translatable: true, SourceLocale: "en", Source: []model.Run{{Text: &model.TextRun{Text: "We use the widget."}}}}
+	b := &model.Block{ID: "p1", Translatable: true, SourceLocale: "en"}
+	b.SetSourceText("We use the widget.")
 	ch := edit(t, b, "", "We simply use the widget.")
 	ch.Ref.Doc = "web/drafts.md"
 	outcomes, got, err := app.CommitCheck(cmd).Check(t.Context(), []change.EditionChange{ch})

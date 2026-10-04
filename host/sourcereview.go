@@ -43,6 +43,18 @@ func sourceVariant(sourceLang string) model.VariantKey {
 	return model.Variant(model.LocaleID(sourceLang))
 }
 
+// sourceStatusOf is the status of the edition the block was read in.
+func sourceStatusOf(b *model.Block) model.SourceStatus {
+	e, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
+	return model.SourceStatus(e.Status)
+}
+
+// establishSource stamps the edition the block was read in as established, a
+// person's approval of its wording, and changes nothing else about it.
+func establishSource(b *model.Block) {
+	b.SetEditionStatus(b.Authoritative(model.AuthorityPolicy{}), model.Status(model.SourceStatusEstablished))
+}
+
 // sourceApprovals maps a unit (document + block identity) to the source wording
 // a human approved, loaded from the project state store.
 //
@@ -161,7 +173,7 @@ func (a *App) sourceQueue(ctx context.Context, proj *project.KapiProject, root s
 			text := b.SourceText()
 			approved := approvals.approves(scope, blockKey(b), text)
 			if approved {
-				b.SourceStatus = model.SourceStatusEstablished
+				establishSource(b)
 			}
 			check.SettleSourceStatus(ctx, b)
 
@@ -175,10 +187,10 @@ func (a *App) sourceQueue(ctx context.Context, proj *project.KapiProject, root s
 				Collection:   u.Collection,
 				SourceLocale: sourceLang,
 				Source:       preview(text),
-				Status:       string(b.SourceStatus),
+				Status:       string(sourceStatusOf(b)),
 				Held:         true,
 				Failing:      b.SourceFailing(),
-				Established:  b.SourceStatus == model.SourceStatusEstablished,
+				Established:  sourceStatusOf(b) == model.SourceStatusEstablished,
 				Position:     i + 1,
 			})
 		}
@@ -222,7 +234,7 @@ func (a *App) SourceStateSeeder(ctx context.Context, root, sourceLang string) (f
 			return
 		}
 		if approvals.approves(docs.Scope(root, sourcePath), blockKey(b), b.SourceText()) {
-			b.SourceStatus = model.SourceStatusEstablished
+			establishSource(b)
 		}
 	}, nil
 }
@@ -287,7 +299,7 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 			}
 			text := b.SourceText()
 			if approvals.approves(scope, ref.Key, text) {
-				b.SourceStatus = model.SourceStatusEstablished
+				establishSource(b)
 			}
 			check.SettleSourceStatus(ctx, b)
 
@@ -299,7 +311,7 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 				Key:        ref.Key,
 				Collection: u.Collection,
 				Source:     text,
-				Status:     string(b.SourceStatus),
+				Status:     string(sourceStatusOf(b)),
 			}
 			st, serr := a.OpenProjectState(ctx, root)
 			if serr != nil {

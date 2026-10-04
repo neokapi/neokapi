@@ -266,8 +266,8 @@ func sourceBaseSegs(b *model.Block) []baseSeg {
 // both to source the pseudo base (bilingual fixtures) and to look up
 // verbatim ignorable targets. Returns nil when the locale has no target.
 func targetBaseSegs(b *model.Block, loc model.LocaleID) []baseSeg {
-	t := b.Target(loc)
-	if t == nil {
+	t, ok := b.TargetEdition(loc)
+	if !ok {
 		return nil
 	}
 	var ir map[string]*xliff2.Content
@@ -313,11 +313,11 @@ func targetBaseSegs(b *model.Block, loc model.LocaleID) []baseSeg {
 // empty pseudo result; instead we want the source so the round-trip
 // matches Okapi's TextModificationStep with applyToBlankEntries=true.
 func pickPseudoBase(b *model.Block, tgt model.LocaleID) model.LocaleID {
-	if t := b.Target(tgt); t != nil && runsHaveText(t.Runs) {
+	if t, ok := b.TargetEdition(tgt); ok && runsHaveText(t.Runs) {
 		return tgt
 	}
 	for _, loc := range b.TargetLocales() {
-		if t := b.Target(loc); t != nil && runsHaveText(t.Runs) {
+		if t, ok := b.TargetEdition(loc); ok && runsHaveText(t.Runs) {
 			return loc
 		}
 	}

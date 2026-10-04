@@ -177,13 +177,17 @@ func TestScriptWritesNoEditionItCannotRead(t *testing.T) {
 
 	block := model.NewBlock("tu1", "Hello")
 	block.SourceLocale = "en-US"
-	block.Targets[model.VariantKey{Locale: "nb_NO"}] = &model.Target{Runs: []model.Run{model.TextR("Hei")}}
+	block.FileTargetAsSpelled(model.EditionKey{Locale: "nb_NO"}, model.Edition{Runs: []model.Run{model.TextR("Hei")}})
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 
 	out := result.Resource.(*model.Block)
 	assert.Equal(t, "Hello", out.SourceText())
 	assert.Equal(t, []model.LocaleID{"nb_NO"}, out.TargetLocales(), "no edition is added beside the one the block holds")
-	assert.Equal(t, "Hei", model.RunsText(out.Targets[model.VariantKey{Locale: "nb_NO"}].Runs))
+	texts := map[model.EditionKey]string{}
+	for k, e := range out.EachEdition {
+		texts[k] = model.RunsText(e.Runs)
+	}
+	assert.Equal(t, "Hei", texts[model.EditionKey{Locale: "nb-NO"}], "the target keeps its text")
 }
 
 // A target filed under no language (the KBF reader files a bundle's "" target

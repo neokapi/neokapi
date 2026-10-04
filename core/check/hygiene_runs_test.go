@@ -40,7 +40,7 @@ func hygPcClose(id string) model.Run {
 // the categories it reported.
 func hygieneCategories(t *testing.T, runs []model.Run) []string {
 	t.Helper()
-	b := &model.Block{ID: "u1", Translatable: true, Source: runs, Properties: map[string]string{}}
+	b := model.NewRunsBlock("u1", runs)
 	out := processPart(t, check.NewContentLintTool(), &model.Part{Type: model.PartBlock, Resource: b})
 	blk, ok := out.Resource.(*model.Block)
 	require.True(t, ok)

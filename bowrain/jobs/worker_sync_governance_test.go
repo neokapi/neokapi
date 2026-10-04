@@ -116,9 +116,9 @@ func storedTarget(t *testing.T, deps *WorkerDeps, projectID, item, locale string
 	})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
-	target := rows[0].Block.Target(model.LocaleID(locale))
-	require.NotNil(t, target, "the content must land whatever the gate said about its rung")
-	return target.Status
+	target, ok := rows[0].Block.Edition(model.Variant(model.LocaleID(locale)))
+	require.True(t, ok, "the content must land whatever the gate said about its rung")
+	return model.TargetStatus(target.Status)
 }
 
 // heldDecision is the ledger row for one unit, or false when the venue holds
@@ -142,7 +142,7 @@ func reviewedBlock(id, source, locale, target string, status model.TargetStatus)
 	b := &model.Block{ID: id, Name: id, Translatable: true}
 	b.SetSourceText(source)
 	b.SetTargetText(model.LocaleID(locale), target)
-	b.Target(model.LocaleID(locale)).Status = status
+	b.SetEditionStatus(model.Variant(model.LocaleID(locale)), model.Status(status))
 	return b
 }
 

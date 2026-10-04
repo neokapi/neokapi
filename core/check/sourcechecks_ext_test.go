@@ -257,7 +257,8 @@ func TestSourceReadiness_KeepsEstablished(t *testing.T) {
 
 func TestSourceReadiness_NonTranslatableUntouched(t *testing.T) {
 	t.Parallel()
-	block := &model.Block{ID: "x", Translatable: false, Source: []model.Run{{Text: &model.TextRun{Text: "code"}}}}
+	block := &model.Block{ID: "x", Translatable: false}
+	block.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: "code"}}})
 	check.SettleSourceStatus(t.Context(), block)
 	assert.Empty(t, sourceStatus(block), "non-translatable source must not be stamped")
 }
@@ -345,14 +346,14 @@ func TestSourceReadiness_StampTouchesOnlyTheStatus(t *testing.T) {
 // written source that can clear the gate.
 func TestSourceReadiness_PlaceholderOnlySourceIsStamped(t *testing.T) {
 	t.Parallel()
-	block := &model.Block{ID: "price", Translatable: true, Source: []model.Run{
+	block := model.NewRunsBlock("price", []model.Run{
 		{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:var", Data: "{p.price}", Equiv: "p.price"}},
-	}}
+	})
 	check.SettleSourceStatus(t.Context(), block)
 	assert.Equal(t, model.SourceStatusWritten, sourceStatus(block))
 
 	// The boundary holds: a genuinely empty source is still not stamped.
-	empty := &model.Block{ID: "e", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "  "}}}}
+	empty := model.NewBlock("e", "  ")
 	check.SettleSourceStatus(t.Context(), empty)
 	assert.Empty(t, sourceStatus(empty))
 }

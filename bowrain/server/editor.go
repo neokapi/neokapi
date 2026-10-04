@@ -1528,7 +1528,7 @@ func storedBlockToInfoResponse(sb *venue.StoredBlock, targetLocales []string) Bl
 		loc := model.LocaleID(locale)
 		text := sb.Block.TargetText(loc)
 		status := ""
-		if t := sb.Block.Target(loc); t != nil {
+		if t, ok := sb.Block.TargetEdition(loc); ok {
 			status = string(t.Status)
 		}
 		if text != "" || status != "" {

@@ -93,8 +93,8 @@ func TestPushWritesChunksToObjectStorage(t *testing.T) {
 	c := NewClaimTokenClient(venue.URL, "proj1", "tok")
 	_, err := c.Push(context.Background(), map[string][]*model.Block{
 		"a.json": {
-			{ID: "b1", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "Hello"}}}},
-			{ID: "b2", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "World"}}}},
+			model.NewBlock("b1", "Hello"),
+			model.NewBlock("b2", "World"),
 		},
 	}, nil, nil, nil)
 	require.NoError(t, err)
@@ -155,7 +155,7 @@ func TestPushProxiesWhenTheVenueCannotPresign(t *testing.T) {
 
 	c := NewClaimTokenClient(venue.URL, "proj1", "tok")
 	_, err := c.Push(context.Background(), map[string][]*model.Block{
-		"a.json": {{ID: "b1", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "Hello"}}}}},
+		"a.json": {model.NewBlock("b1", "Hello")},
 	}, nil, nil, nil)
 	require.NoError(t, err)
 
@@ -202,7 +202,7 @@ func TestPushSkipsChunksTheVenueAlreadyHolds(t *testing.T) {
 
 	c := NewClaimTokenClient(venue.URL, "proj1", "tok")
 	_, err := c.Push(context.Background(), map[string][]*model.Block{
-		"a.json": {{ID: "b1", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "Hello"}}}}},
+		"a.json": {model.NewBlock("b1", "Hello")},
 	}, nil, nil, nil)
 	require.NoError(t, err)
 

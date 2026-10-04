@@ -30,7 +30,7 @@ func TestStoreBlocks_EditionsRoundTrip(t *testing.T) {
 	b.SetEdition(model.EditionKey{Locale: model.LocaleFrench, Channel: "short"}, model.Edition{Runs: text("Salut")})
 	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
 	require.NoError(t, bstore.UpsertBlockTarget(ctx, s.DB(), "sqlite", p.ID, "main", "b1",
-		model.EditionKey{}, &model.Target{Runs: text("Filed under no language")}, nil, time.Now().UTC()))
+		model.EditionKey{}, model.Edition{Runs: text("Filed under no language")}, nil, time.Now().UTC()))
 
 	got, err := s.GetBlock(ctx, p.ID, "", "b1")
 	require.NoError(t, err)
@@ -56,9 +56,11 @@ func TestStoreBlocks_EditionsRoundTrip(t *testing.T) {
 	assert.Equal(t, "Salut", model.RunsText(short.Runs))
 }
 
-// A target filed under a key that is not canonical is stored under its
-// canonical key, and one filed under the zero key, which names the edition the
-// block was read in, is not stored as a translation. Neither fails the write.
+// A target given to SetTargetEdition under another spelling of its locale is
+// filed under the canonical spelling, and the store writes one row for it and
+// reads it back there. One filed under the zero key, which names the edition
+// the block was read in, is not stored as a translation. Neither fails the
+// write.
 func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 	text := func(s string) []model.Run { return []model.Run{{Text: &model.TextRun{Text: s}}} }
 	tests := []struct {
@@ -67,7 +69,7 @@ func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 		want []model.EditionKey
 		rows int
 	}{
-		{"a key that is not canonical", model.VariantKey{Locale: "fr_FR"}, []model.EditionKey{{}, {Locale: "fr-FR"}}, 1},
+		{"a locale spelled another way", model.VariantKey{Locale: "fr_FR"}, []model.EditionKey{{}, {Locale: "fr-FR"}}, 1},
 		{"the zero key", model.VariantKey{}, []model.EditionKey{{}}, 0},
 	}
 	for _, tc := range tests {
@@ -77,12 +79,10 @@ func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 			p := createTestProject(t, s)
 
 			b := model.NewBlock("b1", "Hello")
-			// The field files the target under the key exactly as given, which
-			// is the only way a key that is not canonical gets stored. The state
-			// goes away with the field.
-			b.Targets = map[model.VariantKey]*model.Target{
-				tc.key: {Runs: text("Bonjour"), Status: model.TargetStatusTranslated},
-			}
+			// SetTargetEdition files the target under the canonical spelling of
+			// its key, and files one under the zero key as a target, where
+			// SetEdition would write the edition the block was read in.
+			b.SetTargetEdition(tc.key, model.Edition{Runs: text("Bonjour"), Status: model.Status(model.TargetStatusTranslated)})
 			require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
 
 			var rows int
@@ -103,4 +103,31 @@ func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A translations row filed under another spelling of its locale, as a writer
+// that did not canonicalize the key left it, hydrates under the canonical key,
+// the key every reader looks the edition up by.
+func TestGetBlock_ReadsARowUnderItsCanonicalKey(t *testing.T) {
+	text := func(s string) []model.Run { return []model.Run{{Text: &model.TextRun{Text: s}}} }
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{model.NewBlock("b1", "Hello")}))
+	require.NoError(t, bstore.UpsertBlockTarget(ctx, s.DB(), "sqlite", p.ID, "main", "b1",
+		model.VariantKey{Locale: "fr_FR"},
+		model.Edition{Runs: text("Bonjour"), Status: model.Status(model.TargetStatusTranslated)}, nil, time.Now().UTC()))
+	var locale string
+	require.NoError(t, s.DB().QueryRowContext(ctx,
+		`SELECT locale FROM translations WHERE project_id = ? AND block_id = ?`, p.ID, "b1").Scan(&locale))
+	require.Equal(t, "fr_FR", locale, "the row is filed under the spelling it was given")
+
+	got, err := s.GetBlock(ctx, p.ID, "", "b1")
+	require.NoError(t, err)
+	assert.Equal(t, []model.EditionKey{{}, {Locale: "fr-FR"}}, got.Block.Editions())
+	fr, ok := got.Block.Edition(model.EditionKey{Locale: "fr-FR"})
+	require.True(t, ok)
+	assert.Equal(t, "Bonjour", model.RunsText(fr.Runs))
+	assert.Equal(t, model.Status(model.TargetStatusTranslated), fr.Status)
 }

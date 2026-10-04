@@ -1421,7 +1421,7 @@ func governingFingerprintOf(b *model.Block, locale model.LocaleID, reviewed revi
 	if b == nil {
 		return ""
 	}
-	if t := b.Target(locale); t != nil && t.Origin.ContextFingerprint != "" {
+	if t, ok := b.TargetEdition(locale); ok && t.Origin.ContextFingerprint != "" {
 		return t.Origin.ContextFingerprint
 	}
 	return reviewed.governingFingerprint(scope, b, string(locale))

@@ -38,7 +38,8 @@ func textRuns(s string) []model.Run { return []model.Run{{Text: &model.TextRun{T
 // greetingEdit is the record of a change to the greeting's source and its
 // Norwegian translation in one document, as the service hands it over.
 func greetingEdit(doc string) []change.Transition {
-	b := &model.Block{ID: "greeting", Name: "greeting", Unit: "u-greeting", SourceLocale: "en", Source: textRuns("Hello there")}
+	b := &model.Block{ID: "greeting", Name: "greeting", Unit: "u-greeting", SourceLocale: "en"}
+	b.SetSourceRuns(textRuns("Hello there"))
 	b.SetTargetText("nb", "Hei der")
 	en, _ := model.ParseEditionKey("en")
 	nb, _ := model.ParseEditionKey("nb")
@@ -221,7 +222,8 @@ func redactingProject(t *testing.T, detectors ...string) (*App, string, change.R
 // falconEdit is an agent's change to the greeting that names the withheld
 // product before and after, and in its note.
 func falconEdit(doc string) change.Record {
-	b := &model.Block{ID: "greeting", Name: "greeting", SourceLocale: "en", Source: textRuns("Falcon ships today")}
+	b := &model.Block{ID: "greeting", Name: "greeting", SourceLocale: "en"}
+	b.SetSourceRuns(textRuns("Falcon ships today"))
 	en, _ := model.ParseEditionKey("en")
 	return change.Record{
 		Actor: change.Actor{Kind: change.ActorAgent, Name: "claude"}, Origin: "apply",

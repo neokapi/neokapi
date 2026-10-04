@@ -24,7 +24,7 @@ func writeStatefulBlock(t *testing.T, status model.TargetStatus) string {
 		ID: "file-f1", Name: "f1", Format: "xliff2", Locale: "en", IsMultilingual: true,
 		Properties: map[string]string{"target-language": "fr"},
 	}
-	block := &model.Block{ID: "u1", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "Hello"}}}}
+	block := model.NewBlock("u1", "Hello")
 	span := []model.Span{{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})}}
 	block.SetSegmentation(nil, span)
 	block.SetTargetRuns(model.LocaleFrench, []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}})
