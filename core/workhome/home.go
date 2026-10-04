@@ -321,7 +321,7 @@ func (h *Home) Commit(ctx context.Context, w filehome.KeptWrite) (string, error)
 			b.Ops, b.Tool = slices.Clone(t.Ops), t.Tool
 			if blk := t.Block; blk != nil {
 				if b.Key == "" {
-					b.Key = blk.Unit
+					b.Key = blk.Key
 				}
 				if b.ContentHash == "" || b.ContextHash == "" {
 					id := model.ComputeIdentity(blk)

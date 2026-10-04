@@ -47,7 +47,7 @@ func fiveBlockDoc() []*model.Block {
 func TestAssembleReviewContextComposesTheSharedLayers(t *testing.T) {
 	ctx := t.Context()
 	blocks := fiveBlockDoc()
-	blocks[2].Unit = "doc.three"
+	blocks[2].Key = "doc.three"
 	three, ok := blocks[2].TargetEdition("nb")
 	require.True(t, ok)
 	three.Origin = model.Origin{Kind: "ai", Engine: "claude", ContextFingerprint: "fp-now"}
@@ -105,7 +105,7 @@ func TestReviewHistoryThreadsTheGoverningFingerprint(t *testing.T) {
 	tm := memory.NewInMemoryStore()
 	at := time.Date(2026, 2, 1, 9, 0, 0, 0, time.UTC)
 	require.NoError(t, tm.Add(ctx, chainAnswer("v2", "settings.save", "Save the file", "Lagre filen", "fp-now", at)))
-	block := &model.Block{ID: "b1", Name: "settings.save", Unit: "settings.save", Translatable: true}
+	block := &model.Block{ID: "b1", Name: "settings.save", Key: "settings.save", Translatable: true}
 	block.SetSourceRuns([]model.Run{model.TextR("Save this file")})
 	a := &App{}
 

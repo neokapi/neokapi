@@ -378,13 +378,13 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	for _, b := range authored {
 		// The chain identity the version chain is keyed on, and the stamp the
 		// producer leaves on what it produced.
-		b.Unit = "auth." + b.ID
+		b.Key = "auth." + b.ID
 		setTargetOrigin(t, b, "fr", model.Origin{Kind: "ai", Engine: "claude", ContextFingerprint: "fp-1"})
 	}
 	authored[0].SetEditionStatus(model.Variant("fr"), model.Status(model.TargetStatusEstablished))
 	keys := make([]string, 0, len(authored))
 	for _, b := range authored {
-		keys = append(keys, b.Unit)
+		keys = append(keys, b.Key)
 	}
 	projID, _ := seedGovernedProject(t, s, wsID, authored)
 
@@ -411,7 +411,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	// middle unit, produced under the context still in force.
 	at := time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC)
 	entry := memory.Entry{
-		ID: "m-prior", Unit: unit.Unit, HintSrcLang: "en",
+		ID: "m-prior", Unit: unit.Key, HintSrcLang: "en",
 		Variants: map[model.LocaleID][]model.Run{
 			"en": {model.TextR(unit.SourceText())},
 			"fr": {model.TextR(unit.TargetText("fr"))},

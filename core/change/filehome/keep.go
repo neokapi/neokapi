@@ -92,7 +92,7 @@ func keptBlocks(k Kept) []*model.Block {
 	keys := slices.Sorted(maps.Keys(k.Blocks))
 	out := make([]*model.Block, 0, len(keys))
 	for _, key := range keys {
-		b := &model.Block{Unit: key, Translatable: true}
+		b := &model.Block{Key: key, Translatable: true}
 		b.SetEdition(model.EditionKey{}, k.Blocks[key])
 		out = append(out, b)
 	}

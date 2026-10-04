@@ -23,16 +23,16 @@ package model
 type Block struct {
 	ID   string
 	Name string
-	// Unit is the block's DURABLE identity: the key a decision, a translation
+	// Key is the block's DURABLE identity: the key a decision, a translation
 	// and a history entry are filed under, and the key a venue stores as a
 	// block's source id.
 	//
-	// It is not the same thing as Name. A name is what the format says — a
-	// structural address like `install/p#2`, or a message key — and it is the
+	// It is not the same thing as Name. A name is what the format says, a
+	// structural address like `install/p#2` or a message key, and it is the
 	// right thing for a reader to report and the wrong thing to record a
 	// decision against, because for a positional format it follows position:
 	// delete the first paragraph of a section and every name below it shifts.
-	// A unit is what survives that, because it is MATCHED rather than named
+	// A key is what survives that, because it is MATCHED rather than named
 	// (core/reconcile).
 	//
 	// Empty until something resolves it, and BlockKey falls back to Name, so a
@@ -40,9 +40,9 @@ type Block struct {
 	// key needs nothing more than the name it already has.
 	//
 	// It is a field rather than a property on purpose: properties are folded
-	// into the context hash that reconciliation MATCHES on, so a unit written
+	// into the context hash that reconciliation MATCHES on, so a key written
 	// there would change the very signal that produced it.
-	Unit     string
+	Key      string
 	Type     string
 	MimeType string
 	// Translatable marks the block as content eligible for modification or

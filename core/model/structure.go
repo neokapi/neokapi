@@ -393,8 +393,8 @@ func (b *Block) ChainUnit() string {
 	if b == nil {
 		return ""
 	}
-	if b.Unit != "" {
-		return b.Unit
+	if b.Key != "" {
+		return b.Key
 	}
 	if addr := b.StructuralAddress(); addr != "" {
 		return addr

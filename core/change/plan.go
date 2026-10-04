@@ -13,8 +13,8 @@ import (
 // reports, else the reader's id. It is the storage key ladder
 // (convergence.BlockKey) and is what a read reports.
 func BlockKey(b *model.Block) string {
-	if b.Unit != "" {
-		return b.Unit
+	if b.Key != "" {
+		return b.Key
 	}
 	if b.Name != "" {
 		return b.Name
@@ -116,7 +116,7 @@ func (p *docPlan) Begin() {
 // A block is addressed by its durable key, its name or its id, and two
 // operations may name it by different ones.
 func (p *docPlan) match(b *model.Block) (keys []string, ops []int) {
-	for _, k := range []string{b.Unit, b.Name, b.ID} {
+	for _, k := range []string{b.Key, b.Name, b.ID} {
 		if k == "" || slices.Contains(keys, k) {
 			continue
 		}

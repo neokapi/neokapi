@@ -358,8 +358,8 @@ func BlockKey(b *model.Block) string {
 	// rather than named — it survives a sibling being deleted, which is the
 	// case the other two cannot answer. Absent, the reader's name is the best
 	// available key, and the reader's id the last resort.
-	if b.Unit != "" {
-		return b.Unit
+	if b.Key != "" {
+		return b.Key
 	}
 	if b.Name != "" {
 		return b.Name

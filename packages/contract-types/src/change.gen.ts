@@ -941,7 +941,7 @@ export const CHANGE_ERROR_EXIT_CODE: Readonly<Record<ChangeErrorCode, number>> =
  *
  * Doc is a project-relative path, an archive member (container!entry), an item
  * path inside a server stream, or a workspace document key. Block is the block
- * key: the durable key reconciliation assigned (Block.Unit) where there is one,
+ * key: the durable key reconciliation assigned (Block.Key) where there is one,
  * else the structural name the format reports. Edition is the edition key,
  * canonical; the zero key is the document's own edition.
  *

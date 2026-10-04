@@ -885,7 +885,7 @@ type SyncBlock struct {
 	SourceLocale string `protobuf:"bytes,20,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
 	// Whether this block is referenced by a skeleton (Block.IsReferent).
 	IsReferent bool `protobuf:"varint,21,opt,name=is_referent,json=isReferent,proto3" json:"is_referent,omitempty"`
-	// The block's durable identity (Block.Unit) — the key a decision, a
+	// The block's durable identity (Block.Key) — the key a decision, a
 	// translation and a history entry are filed under, and what a venue stores as
 	// the block's source id. Distinct from `name`, which is the format's own
 	// structural address and shifts when a sibling is deleted. Empty when nothing

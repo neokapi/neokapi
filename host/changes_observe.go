@@ -106,7 +106,7 @@ func (r *observedRead) Saw(b *model.Block, editions []model.EditionKey) {
 		ch := change.EditionChange{
 			Ref:       change.Ref{Doc: r.doc.Doc, Block: block, Edition: k},
 			Role:      role,
-			Key:       b.Unit,
+			Key:       b.Key,
 			BeforeRev: row.After,
 			AfterRev:  rev,
 			Block:     b,

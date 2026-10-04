@@ -257,7 +257,7 @@ func unjoin(editions []*joinedEdition, b *model.Block) {
 // block keyed key holds the edition of.
 func (je *joinedEdition) documentKey(ix *blockIndex, key string) (string, bool) {
 	ti := slices.IndexFunc(je.blocks, func(b *model.Block) bool {
-		return b.Unit == key || b.Name == key || b.ID == key
+		return b.Key == key || b.Name == key || b.ID == key
 	})
 	if ti < 0 {
 		return "", false
