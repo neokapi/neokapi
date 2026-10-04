@@ -254,6 +254,20 @@ block was read in; there the source language reaches an edition only when the
 block holds one of its own, and `EachTargetEdition` visits each under the key it
 is filed under.
 
+A derived edition's derivation is read and graded from the content:
+`Derivation(k)` and `SetDerivation(k, d)` reach it, and `DerivationStanding(k)`
+reads it current while the edition it names still has the revision it records,
+stale once that edition moves (`BasisStanding(d)` grades a derivation held
+elsewhere, such as the basis of a recorded write). A revision covers the key its
+edition is filed under, and readers of one document file its source under
+different keys: none, the language the file declares, or a project's source
+language. `SourceRevisions(source)` lists the revision of the source under each,
+the property `PropReadSourceLocale` keeping a declared language on a block a
+project read files under the project's, so a basis any reader took is matched
+by content. `TranslateAfterLevel.AdmitsDerivation(b, from)` is the derivation
+gate: an edition is derived from `from` only once `from` reaches the level on
+the ladder of its role.
+
 Code outside `core/model` reads and writes editions through these accessors, so
 the storage can change inside `core/model` alone; `make fieldguard` fails on a
 use of `Editions` or `Native` anywhere else outside a test.

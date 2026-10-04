@@ -596,12 +596,15 @@ kapi apply <<<'{"ops":[{"op":"decide","at":{"doc":"src/en.json","block":"save.la
 ```
 
 An approval is about a **pairing**: this rendering, *of this source*. The
-record binds both halves by content hash: the
-translation it blesses, and the **basis**, the source wording it blessed that
+record binds both halves by revision, the same token `kapi inspect` shows: the
+translation it blesses, and the **basis**, the source it blessed that
 translation for. Editing either afterwards drops the block back below *established*,
-so an approval can't silently outlive the text it approved on either side. Once
-recorded, coverage reads the block as *established*, `established%` climbs, and a
-`{ established: … }` gate flips to shippable.
+a changed link or other inline code as much as a changed word, so an approval
+can't silently outlive the content it approved on either side. An approval
+recorded by an earlier release binds the two texts alone, and keeps answering
+that way until the block is decided again. Once recorded, coverage reads the
+block as *established*, `established%` climbs, and a `{ established: … }` gate
+flips to shippable.
 
 A block whose **source** moved reads as *stale*: it holds a target, so it sits at
 *draft* rather than below the ladder, but it is not a translation of the source
@@ -622,12 +625,12 @@ records a basis.
   nodes={[
     { label: "approve", sub: "kapi apply · decide", role: "annotate" },
     {
-      label: "decision + both hashes",
+      label: "decision + both revisions",
       sub: "the project's store",
       role: "io",
-      edge: "records hash(translation) + hash(source)",
+      edge: "records the translation and the source it was approved for",
     },
-    { label: "either side edited", role: "translate", edge: "a stored hash no longer matches" },
+    { label: "either side edited", role: "translate", edge: "a recorded revision no longer matches" },
     {
       label: "block reads below established",
       role: "qa",

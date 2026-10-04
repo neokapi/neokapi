@@ -171,9 +171,10 @@ Approving a translation records a **decision** in the store, and it counts from
 that moment (see [Review](/kapi/convergence#review-the-state-record)). Every
 checkout of the project reads it, and there is no second step.
 
-The decision is bound to the **content hash** of the translation and
-to the source text it was approved against. Editing either drops the block below
-*reviewed*. An approval can't silently outlive the text it approved.
+The decision is bound to the **revision** of the translation and
+to the revision of the source it was approved against. Editing either drops the
+block below *reviewed*, a changed link as much as a changed word. An approval
+can't silently outlive the content it approved.
 
 ```bash
 kapi status --review        # the worklist: blocks awaiting approval

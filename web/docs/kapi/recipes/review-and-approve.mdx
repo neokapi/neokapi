@@ -12,7 +12,7 @@ import { PendingMedia, GatedLoopDiagram } from "@neokapi/docs-shared";
 
 # Review & approve
 
-**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces: it brings every block to *translated* and parks the rest. A person establishes it; an assistant can pre-review first, leaving a score and its reasons for the person to read. Each review lands in the project's store, bound to the content hash of the exact translation it approves, so an approval can never silently outlive the text it approved. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
+**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces: it brings every block to *translated* and parks the rest. A person establishes it; an assistant can pre-review first, leaving a score and its reasons for the person to read. Each review lands in the project's store, bound to the revision of the exact translation it approves and of the source it approves it for, so an approval can never silently outlive the content it approved. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
 
 ## Settle the source first
 

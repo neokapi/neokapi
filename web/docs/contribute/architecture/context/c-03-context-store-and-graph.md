@@ -691,7 +691,7 @@ Edge labels:
 | `uses_term` | block → concept | the term used, its status, the locale, the document, a use count, and the term's own validity window |
 | `in_collection` | block → collection | membership |
 | `governed_by` | collection → coordinate | the governing profile's validity window |
-| `blesses` | unit state → block | the pairing the decision was written against: the target hash, and the source basis |
+| `blesses` | unit state → block | the pairing the decision was written against: the translation and the source basis, by revision where the decision carries them and by hash |
 
 `host.MaterializeContextGraphInDB` writes all four on the convergence path,
 after extraction commits its block-write transaction. The subgraph is a pure

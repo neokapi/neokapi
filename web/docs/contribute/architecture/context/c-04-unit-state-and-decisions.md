@@ -2,8 +2,8 @@
 id: c-04-unit-state-and-decisions
 sidebar_position: 4
 title: "C-04: Unit state and the decision record"
-description: "Architecture decision: a project's authored unit state (the review ladder, approvals, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies when its source and target hashes match the content, so one ledger serves every checkout of a project; the .kapi/state/ shards are what a snapshot writes and an import reads."
-keywords: [project state, decision ledger, core/state, review, approval, convergence, append-only, content-addressed, commit, targetHash, architecture decision, neokapi]
+description: "Architecture decision: a project's authored unit state (the review ladder, approvals, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the revisions of the translation and the source it blessed match the content (its hashes, for an entry recorded before revisions), so one ledger serves every checkout of a project; the .kapi/state/ shards are what a snapshot writes and an import reads."
+keywords: [project state, decision ledger, core/state, review, approval, convergence, append-only, content-addressed, commit, revision, basis, targetHash, architecture decision, neokapi]
 ---
 
 # C-04: Unit state and the decision record
@@ -95,7 +95,8 @@ and withdrawals append new entries. Each entry contains the decision record,
 actor, origin and a timestamp assigned by Go.
 
 The entry's key identifies the unit **and its source/target pairing**: `(document, unit
-identity, variant, source hash, target hash)`. That is what makes the ledger
+identity, variant, basis, revision)`, beside the source and target hashes, which
+an entry recorded before revisions carries alone. That is what makes the ledger
 answerable across checkouts, and it is the same fact the `blesses` edge carries
 ([C-03](c-03-context-store-and-graph.md)).
 
@@ -192,10 +193,19 @@ filed under each stay with it.
 
 ### Applicability is a lookup
 
-`WorkStore.Lookup` returns the decision for the source and target content hashes
-currently present in a checkout. Different translations of a unit have separate
-ledger entries. Checkouts with identical source and target text share the same
-decision, regardless of branch.
+`WorkStore.Lookup` returns the decision for the source and the translation a
+checkout holds (`state.Reading`): an entry recorded with revisions where they
+are the content's, and one recorded before revisions where its hashes are.
+Where both answer, the entry that names more of the content does, so a later
+withdrawal is never undone by an older entry for the same text. Different
+translations of a unit have separate ledger entries, two that differ in an
+inline code alone among them. Checkouts with identical source and translation
+share the same decision, regardless of branch.
+
+The ledger and each checkout's view carry the revisions beside the hashes (store
+migration 8). A store written before revisions gains the two columns empty, and
+nothing rewrites an entry to add them: it answers by its hashes until the next
+decision on its unit records the revisions.
 
 Each checkout maintains a derived **view** of its current unit pairings. Content
 changes, including branch switches, rebuild this view without modifying the
@@ -287,12 +297,33 @@ A decision is not about a translation; it is about a **pairing**: this rendering
 *of this source*. Each record therefore carries both halves, computed by the one
 definition every party uses:
 
-- `targetHash`: the content hash of the specific translation it blesses
-  (`state.TargetHash`).
-- `contentHash`: the **basis**, the content hash of the source wording it
-  blessed that translation *for* (`state.SourceHash`, which is
+- `revision`: the revision of the specific translation it blesses
+  (`model.EditionRevision`, the token an `if_match` names), which covers the
+  translation's inline codes and their attributes.
+- `basis`: the revision of the source wording it blessed that translation
+  *for*, the authoritative edition's revision: the token a change set's `basis`
+  carries and a derived edition's derivation names (`model.Derivation.Rev`).
+- `targetHash` and `contentHash`: the content hashes of the two halves
+  (`state.TargetHash`, and `state.SourceHash`, which is
   `model.ComputeContentHash`, the same normalization `core/reconcile` matches
-  identity on, so a unit's basis and its identity signal are one number).
+  identity on, so a unit's basis by hash and its identity signal are one
+  number).
+
+A record is graded by its revisions where it carries them, and by its hashes
+where it was recorded before revisions (`state.Reading`). The two answer alike
+except where an inline code alone moved: a changed link target, or a link
+removed, retires a decision recorded with revisions and leaves one recorded
+before them standing.
+
+A revision covers the key its edition is filed under, and the readers of one
+document do not file its source alike: the change service keeps a language the
+file declares, a project read files every block under the project's source
+language, and a reader that declares none leaves the block with none. The source
+half is therefore matched under every key a reader of the document gives it
+(`model.Block.SourceRevisions`), and a project read that files a block under the
+project's language keeps the language its reader declared on the block
+(`model.PropReadSourceLocale`). The content is the same under every key, so the
+match finds exactly the source as it stands.
 
 A record is **stale** when either half no longer matches what the project holds.
 Editing an approved translation drops the unit back below *established*; rewriting
@@ -361,8 +392,9 @@ produced the translation, so the unit's staleness remains unchanged. A
 translation the loop produced and nobody has decided has its basis in the
 block history, as the flow's write that left it
 ([C-03](c-03-context-store-and-graph.md#edits-are-recorded-as-content-edit)), and
-a decision on it starts from that write: its source hash and the producer's
-stamp. Withdrawing an approval has the same effect.
+a decision on it starts from that write: its basis, by revision and by hash, and
+the producer's stamp. Coverage grades the write's basis by revision. Withdrawing
+an approval has the same effect.
 On the server, rejection also clears the draft mark, scheduling a new draft.
 
 **A rejection is work whatever the basis says.** Comparing the two hashes
@@ -468,9 +500,13 @@ stays withheld until someone reviews the new pairing.
 
 The record absorber (`host/recordabsorb.go`) follows one rule for a pairing the
 project's own record contradicts. A committed target is absorbed against the
-source it *does* translate: the wording recovered by the decision's basis hash
-for a locale that holds a decision, or the wording the block store held when the
-pass last read the working tree for a source rewrite that affects every locale.
+source it *does* translate: the wording recovered by the decision's basis (its
+revision, or its hash for a decision recorded before revisions) for a locale
+that holds a decision, or the wording the block store held when the pass last
+read the working tree for a source rewrite that affects every locale. That
+wording is the text at the basis revision, so the content memory pairs the
+translation with it, and a later lookup classifies the source in hand against it
+(`edit.Classify`).
 When that wording is unrecoverable the pair is not written at all, so the corpus
 never learns a translation of a sentence the project no longer has. Once the
 target has moved as well, the record describes neither half of what is on disk
@@ -505,12 +541,14 @@ unrecorded basis, so the assumption is visible rather than silent. It clears
 itself: the next decision on the unit records a basis.
 
 A content-keyed index structurally cannot express any of this. Unit-keying plus
-the two hashes is what makes an approval unable to silently outlive the text it
+the pairing is what makes an approval unable to silently outlive the text it
 approved, and it is the same fact the graph's `blesses` edge carries
-([C-03](c-03-context-store-and-graph.md)), which carries both hashes for that
-reason, so *which decision covers this unit, at which basis* is answerable by
-traversal as well as by lookup. A connected venue applies the same basis rule
-from its side.
+([C-03](c-03-context-store-and-graph.md)), which carries both halves, by
+revision and by hash, for that reason, so *which decision covers this unit, at
+which basis* is answerable by traversal as well as by lookup. A connected venue
+applies the same basis rule from its side: it stores the revisions beside the
+hashes and returns them on a pull, records them on a verdict made there, and
+grades its own ledger by the hashes.
 
 ### What governed the decision
 
@@ -655,9 +693,10 @@ re-exports the core types through aliases so downstream code sees one import.
 
 ## Consequences
 
-- **`core/state`** holds `UnitState` (status, source status, origin, target hash,
-  basis, governing fingerprint, decision, updated), a `Key`, a `Pairing`, the
-  `Stale`/`Fresh`/`Established` ladder helpers, and `WorkStore`, the ledger and this
+- **`core/state`** holds `UnitState` (status, source status, origin, the
+  pairing by revision and by hash, governing fingerprint, decision, updated), a
+  `Key`, a `Pairing`, a `Reading` and the `Stale`/`SourceStale`/`Fresh`/
+  `Established` helpers that grade a record against it, and `WorkStore`, the ledger and this
   checkout's view of it (`Lookup`/`Get`/`Put`/`Record`/`RecordEntry`/`Delete`/
   `All`/`Priors`/`Entries`, `Ledger` for the whole of it, `Commit` and
   `RecordDiff` for writing the shards, `Import` and `CommittedDigest` for

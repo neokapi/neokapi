@@ -50,7 +50,11 @@ const (
 func (k Kind) SafeToFill() bool { return k == None || k == Cosmetic }
 
 // Classify compares the source an answer was approved for against the
-// source in hand.
+// source in hand. For an answer a decision blessed, that source is the text
+// of the authoritative edition at the basis revision the decision and the
+// translation's derivation name (model.Derivation.Rev): the record absorber
+// recovers that text by the revision and pairs the answer with it in the
+// content memory, so it is the prior a content-memory lookup hands here.
 func Classify(prior, current string) Kind {
 	if prior == current {
 		return None

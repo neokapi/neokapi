@@ -1091,7 +1091,10 @@ for an xcstrings entry. It lists the edition the block was read in first, under 
 the bilingual readers (XLIFF 1.2 and 2, PO, Qt TS, TMX, xcstrings, CSV, KBF) mark each target
 they read from the document. `NativeEditions()` returns the list as `EditionKeys()` spells the
 keys. `Derivation` is the pairing C-04 records per decision, moved onto the edition so staleness
-can be read from the content itself; the decision pairing on revisions sets it (WP14, open).
+can be read from the content itself: `set_content` on a derived edition records it, an edit that
+names no basis keeps it, `Block.DerivationStanding` grades it against the edition it names, and a
+read takes a derived edition's basis from it before asking the host. The decision ledger pairs the
+same revisions (section 6.3).
 
 A translation a reader files under no language (a KBF bundle's `unlabelled` edition, an xcstrings
 localization keyed by the empty string, the translation of a Qt TS file that names no language)
@@ -1174,9 +1177,14 @@ language for an edition with no tone and no channel, as the bridge reads it, and
 `en;channel=short` for a channel edition. okapi-bridge stays off the critical path. No request or
 response of `kapi.change/v1` changes.
 
-The decision ledger's pairing moves from text hashes (`core/state/state.go:27-46`) to revisions
-with the flip, in the same data reset as `decision.record`. Until the flip lands, `decide`'s
-`if_match` closes the time-of-check gap.
+The decision ledger pairs revisions since the flip: a record carries the revision of the edition
+it blesses and its basis beside the two text hashes, and readers grade a record by revision where
+it carries one and by hash where it was recorded before. No data is reset: the local ledger and
+each view gain the two columns empty (store migration 8), Bowrain's `unit_decisions` gains them the
+same way (PostgreSQL version 40, the SQLite store's 35), and every record written before answers by
+its hashes until the next decision on its unit. A source revision depends on the key it is taken
+under and readers disagree on that key, so the source half is matched under every key a reader of
+the document gives it (`Block.SourceRevisions`).
 
 ### 6.5 Names: Block, Key, Edition, and retiring "unit"
 
@@ -2058,9 +2066,9 @@ beside all of them in package-sized PRs.
   `Block.Key`, `tool.Unit` to `tool.Segment`, `reconcile.Unit` to `reconcile.Prior`,
   `VariantKey` to `EditionKey` and `Target` to `Edition` by a type-checked rename; KBF v2 with
   `@neokapi/i18n-react` and `@neokapi/contract-types` regenerated; the decision pairing on
-  revisions (data reset). The plugin wire keeps its field numbers; the plugin host maps `source`
-  to the first native edition and `targets` to the rest. Done: everything but the decision
-  pairing, which starts from the flip.
+  revisions, read beside the hashes of every record written before it. The plugin wire keeps its
+  field numbers; the plugin host maps `source` to the first native edition and `targets` to the
+  rest. Done; what is left is listed under **Open, for the release** and **Open after the flip**.
 - **Gate:** `make fieldguard` runs `scripts/fieldguard`, which type-checks every module in
   `go.work` and the plugin modules under `plugins/`, with their tests, under each build
   configuration that builds one of their files (the host with every test tag, js/wasm, windows,
@@ -2136,9 +2144,16 @@ beside all of them in package-sized PRs.
     from the 2.0.0 tag, would turn a silent empty compile into an error for users who do not
     upgrade.
 - **Open after the flip:**
-  - The decision pairing on revisions sets `Edition.Derived`. The sync wires and the stores do not
-    carry `Derived` yet, and `Native` stays process-local by design (the kitchen-sink guard lists
-    it as derived: a reader records it each time it reads the file).
+  - KBF v2 carries `Edition.Derived`; the sync wires and the stores do not: the change service
+    records it in process, and the block history holds the basis of each write. `Native` stays
+    process-local by design (the kitchen-sink guard lists it as derived: a reader records it each
+    time it reads the file).
+  - Bowrain stores and returns the revision pairing and records it on its own verdicts, and still
+    grades its ledger by the hashes: the source half against `blocks.content_hash`, the draft mark
+    and the status projections included. Grading there by revision needs the source revision on
+    each stored block.
+  - The content memory keeps its pairs by language. Pairing a `from` and a `to` edition waits for
+    a reader or a tool that produces a tone or channel edition.
   - The project authority policy (section 6.3). Every `Authoritative` call passes
     `AuthorityPolicy{}`, the engine's rule, and none passes the recipe's source language. The two
     agree while a block's `SourceLocale` is the recipe's source language. They differ for a

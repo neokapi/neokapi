@@ -113,6 +113,13 @@ against the content as it stood when the change set began, so a sender never
 computes an intermediate revision, and several operations on one block each
 send the revision their sender read.
 
+A `set_content` on a derived edition records its basis on the edition itself, as
+its derivation (`Edition.Derived`): the authoritative edition and the revision
+the operation names as `basis`, else the revision the operations before it left.
+An edit that names no basis keeps the derivation the edition has. A read takes a
+derived edition's basis, and whether the authoritative edition has moved since,
+from that derivation where the edition carries one, and from the host otherwise.
+
 A position names that content too. An edit's `start` and `end`, a run `range`,
 and the run index a `path` walks through all refer to the edition at the
 revision the sender read, and the applier moves each through the text the
@@ -513,10 +520,13 @@ edition it read as `absent`, and is refused as stale once the home holds the
 edition. The hooks each plug in at
 one function of the host: the commit check is `App.CommitCheck`, which holds a
 service outside a project to hygiene alone; the policy is `ChangePolicy`; the
-recorder is `App.EditRecorder`, inside a project; a read takes a derived
-edition's basis from the project's block history, where the most recent
-recorded change to the edition left the content it holds; and a history lists
-the edition's rows of that block history.
+recorder is `App.EditRecorder`, inside a project; a read takes the basis of a
+derived edition that carries no derivation from the project's block history,
+where the most recent recorded change to the edition left the content it holds;
+and a history lists the edition's rows of that block history. A decision binds
+to the revision of the edition it decides and of the authoritative edition
+beside it (`DecisionTarget.Rev` and `SourceRev`), which the decision ledger
+pairs ([C-04](../context/c-04-unit-state-and-decisions.md)).
 
 On the command line, `kapi apply` hands a decoded change set to the service,
 `kapi inspect` prints the service's read records, and `ksed` compiles its
