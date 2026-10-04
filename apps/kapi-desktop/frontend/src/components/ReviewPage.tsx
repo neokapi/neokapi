@@ -1005,7 +1005,9 @@ export function ReviewPage({
               </div>
             </div>
             <p className="text-xs text-muted-foreground" data-slot="review-prereview-policy">
-              {t("The model stores a score and findings on each block; every decision stays yours.")}
+              {t(
+                "The model stores a score and findings on each block; every decision stays yours.",
+              )}
             </p>
             {preReviewResult && (
               <div
