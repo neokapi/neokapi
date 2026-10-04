@@ -3,7 +3,7 @@ id: concepts
 title: Concepts
 sidebar_label: Concepts
 sidebar_position: 2
-description: "A one-line definition of every core neokapi term (Part, Layer, Block, Run, Target, Overlay, VariantKey, and the surrounding vocabulary), linked from first use across the framework docs."
+description: "A one-line definition of every core neokapi term (Part, Layer, Block, Run, Edition, Overlay, EditionKey, and the surrounding vocabulary), linked from first use across the framework docs."
 ---
 
 # Concepts
@@ -26,8 +26,8 @@ make up the [content model](/framework/content-model).
   embedded content. Layers nest: HTML inside a JSON string becomes a child
   Layer with its own format. *Analogy:* a node in the document tree.
 
-- **Block**: a unit of translatable content: a flat sequence of Runs (the
-  source), its Targets, and any stand-off Overlays. *Analogy:* a paragraph or a
+- **Block**: a piece of translatable content: its Editions, each a flat
+  sequence of Runs, and any stand-off Overlays. *Analogy:* a paragraph or a
   message. Segmentation is an **Overlay** (defined below) rather than a
   separate segment type or a structural split.
 
@@ -37,9 +37,11 @@ make up the [content model](/framework/content-model).
   *Analogy:* a text node or a tag in an HTML fragment. See
   [Inline Formatting](/framework/inline-formatting).
 
-- **Target**: the translated (or otherwise produced) counterpart of a Block's
-  source, keyed by **VariantKey** (defined below). A Block can carry many Targets at
-  once.
+- **Edition**: one rendition of a Block's content, keyed by **EditionKey**
+  (defined below): the edition the document is written in, and one per
+  translation, tone or channel. A Block can carry many Editions at once, as
+  peers; which one the others derive from is the project's source language, or
+  the document's own when no project names one.
 
 - **Overlay**: stand-off annotation anchored to a range of Run indices:
   segmentation, terms, entities, check findings, alignment. Overlays describe the
@@ -51,9 +53,9 @@ make up the [content model](/framework/content-model).
   to the text around it and can be re-resolved after the Runs change. See
   [Content Model](/framework/content-model).
 
-- **VariantKey**: the key that identifies a Target: a locale plus optional tone
+- **EditionKey**: the key that identifies an Edition: a locale plus optional tone
   or channel. *Analogy:* the address of one rendition of a Block (e.g. `fr`,
-  or `fr` + "formal").
+  `fr;tone=formal`, or `en;channel=short`).
 
 - **Resource**: the payload a Part carries (a Block, Data, or Media). The Part
   is the envelope; the Resource is the content.

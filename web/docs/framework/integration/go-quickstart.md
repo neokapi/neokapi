@@ -241,10 +241,11 @@ depth.
   structure.
 - **The content model** ([`core/model`](/framework/content-model)) is what flows
   on the channels. A `Part` carries a type discriminator and a `Resource`; a
-  `Block` is the translatable unit, with a flat `Source []Run`, a map of
-  variant-keyed `Target`s, and stand-off overlays. `block.SourceText()` projects
-  the source runs to plain text; `block.SetTargetText(locale, …)` and
-  `block.TargetText(locale)` read and write a target. Inline markup (HTML tags,
+  `Block` is the translatable content, held as peer editions, each a flat
+  `[]Run` under an `EditionKey`, with stand-off overlays. `block.SourceText()`
+  projects the runs of the edition the block was read in to plain text;
+  `block.SetTargetText(locale, …)` and `block.TargetText(locale)` read and write
+  the edition of a locale, and `block.Edition(key)` reads any edition by key. Inline markup (HTML tags,
   ICU placeholders) lives in `Run`s, not in the text, so a tool can edit words
   without disturbing the markup.
 - **The tool** ([`core/tools`](/framework/tools)) is a stage that satisfies the

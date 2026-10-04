@@ -85,22 +85,25 @@ func (l *Layer) IsEmbedded() bool { return l.ParentID != "" && l.Format != "" }
 ### Block (translatable content)
 
 ```go
-// Block is the primary modifiable content unit (Okapi: TextUnit). Source is a
-// single flat run sequence; translations are first-class Target records keyed by
-// VariantKey. Every interpretation of the runs is stand-off, in two carriers:
-// positional, run-anchored Overlays (segmentation, terms, entities, checks,
-// alignment) and block-scoped, typed Annotations (notes, alt-translations,
-// analysis results). There is no structural Segment type.
+// Block is the primary modifiable content (Okapi: TextUnit). Its content is a
+// set of peer editions, each a single flat run sequence under an EditionKey: the
+// edition the document is written in under the zero key, and every
+// translation, tone or channel under its own key. Every interpretation of the
+// runs is stand-off, in two carriers: positional, run-anchored Overlays
+// (segmentation, terms, entities, checks, alignment) and block-scoped, typed
+// Annotations (notes, alt-translations, analysis results). There is no
+// structural Segment type.
 type Block struct {
     ID                 string
     Name               string
+    Key                string // durable identity, resolved by reconciliation
     Type               string
     MimeType           string
     Translatable       bool
-    SourceLocale       LocaleID // locale of the source runs (set by reader)
+    SourceLocale       LocaleID // language of the edition the block was read in (set by reader)
     Skeleton           *Skeleton
-    Source             []Run
-    Targets            map[VariantKey]*Target
+    Editions           map[EditionKey]*Edition // read and write through the accessors below
+    Native             []EditionKey            // the editions the document's bytes hold
     Overlays           []Overlay      // positional, run-anchored stand-off layers
     Annotations        map[string]any // block-scoped typed metadata, keyed by type
     Properties         map[string]string
@@ -112,46 +115,58 @@ type Block struct {
 }
 
 func (b *Block) ResourceID() string { return b.ID }
-func (b *Block) SourceText() string { /* plain-text flattening of Source runs */ }
-func (b *Block) SourceRuns() []Run { /* the canonical source run sequence */ }
+// Every edition, by key. The zero key and the source language reach the edition
+// the block was read in.
+func (b *Block) Edition(k EditionKey) (Edition, bool) { /* the edition, and whether the block holds it */ }
+func (b *Block) SetEdition(k EditionKey, e Edition) { /* store an edition; on the source it is an edit */ }
+func (b *Block) SetEditionStatus(k EditionKey, s Status) bool { /* stamp a status alone */ }
+func (b *Block) RemoveEdition(k EditionKey) bool { /* the source cannot be removed */ }
+func (b *Block) EditionKeys() []EditionKey { /* the source first, then the rest in text order */ }
+func (b *Block) EachEdition(yield func(EditionKey, Edition) bool) { /* every edition once, the source first */ }
+func (b *Block) NativeEditions() []EditionKey { /* the editions the document holds, the source first */ }
+func (b *Block) Authoritative(p AuthorityPolicy) EditionKey { /* the first native edition, or the policy's */ }
+// The edition the block was read in, and the others by locale.
+func (b *Block) SourceText() string { /* plain-text flattening of the source runs */ }
+func (b *Block) SourceRuns() []Run { /* the source run sequence */ }
 func (b *Block) SetSourceRuns(runs []Run) { /* replace source runs */ }
 func (b *Block) SetSourceText(text string) { /* replace source with one TextRun */ }
-func (b *Block) HasTarget(locale LocaleID) bool { /* a locale-only variant exists */ }
-func (b *Block) TargetLocales() []LocaleID { /* sorted target locales */ }
-func (b *Block) Target(locale LocaleID) *Target { /* locale-only variant, or nil */ }
+func (b *Block) HasTarget(locale LocaleID) bool { /* an edition of the locale exists */ }
+func (b *Block) TargetLocales() []LocaleID { /* the languages of the other editions */ }
 func (b *Block) TargetRuns(locale LocaleID) []Run { /* target inline content */ }
 func (b *Block) TargetText(locale LocaleID) string { /* target plain text */ }
 func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) { /* set target runs */ }
 func (b *Block) SetTargetText(locale LocaleID, text string) { /* set target text */ }
-func (b *Block) SetTargetVariant(key VariantKey, t *Target) { /* tone/channel variant */ }
 // Segmentation is one overlay among others; absent it, the block is one segment.
 func (b *Block) SourceSegmentation() *Overlay { /* source segmentation overlay, or nil */ }
 func (b *Block) SourceSegmentCount() int { /* span count, or 1 for a non-empty block */ }
 func (b *Block) SourceSegmentRuns(i int) []Run { /* runs of the i-th segment span */ }
-func (b *Block) SetSegmentation(variant *VariantKey, spans []Span) { /* replace overlay */ }
+func (b *Block) SetSegmentation(k EditionKey, spans []Span) { /* replace an edition's overlay */ }
 
-// VariantKey identifies a translation: locale plus optional tone and channel.
-type VariantKey struct {
+// EditionKey names an edition: a language plus an optional tone and channel.
+// The zero key names the edition the block was read in.
+type EditionKey struct {
     Locale  LocaleID
     Tone    string // optional
     Channel string // optional
 }
 
-func Variant(locale LocaleID) VariantKey { return VariantKey{Locale: locale} }
+func Variant(locale LocaleID) EditionKey { return EditionKey{Locale: NormalizeLocale(locale)} }
 
-// Target is one translation: a flat run sequence with status and provenance.
-type Target struct {
-    Runs   []Run
-    Status TargetStatus // e.g. "", "translated", "established"
-    Origin Origin       // tool/provider that produced it
-    Score  float64
+// Edition is one edition: a flat run sequence with status, provenance and the
+// edition it was derived from.
+type Edition struct {
+    Runs    []Run
+    Status  Status      // its role's ladder: written/established, or draft/translated/established
+    Origin  Origin      // tool/provider that produced it
+    Score   float64
+    Derived *Derivation // the edition it was made from and that edition's revision
 }
 
-// Overlay is a typed stand-off layer over one side of a Block — the source
-// (Variant nil) or a target variant — anchoring Spans to run-index ranges.
+// Overlay is a typed stand-off layer over one edition of a Block, anchoring
+// Spans to run-index ranges.
 type Overlay struct {
     Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment"
-    Variant *VariantKey // nil = source side
+    Edition EditionKey  // the zero key for the edition the block was read in
     Layer   string      // segmentation granularity; LayerPrimary = primary sentence segmentation
     Spans   []Span
 }

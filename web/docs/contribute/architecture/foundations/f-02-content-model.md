@@ -27,8 +27,8 @@ segment is a span in a segmentation overlay. Where a Block is **anchored** in it
 source follows the medium: a run range in text, a box on a rendered page, a time
 span in timed media. Content that was *recognized* rather than parsed records the
 extracting engine and a confidence in the same `Origin` a translation carries.
-Targets are first-class records keyed by a **variant** (locale plus optional
-tone or channel).
+A block's content is a set of peer **editions**, each a first-class record keyed
+by a language plus an optional tone or channel.
 
 ## Context
 
@@ -94,7 +94,7 @@ integer values for wire compatibility: numbers are never renumbered, and retired
 slots stay reserved.
 
 <TypeDiagram
-  caption="A document is a stream of Parts. Layers nest; a Block holds a flat Run sequence per side plus stand-off overlays."
+  caption="A document is a stream of Parts. Layers nest; a Block holds a flat Run sequence per edition plus stand-off overlays."
   boxes={[
     {
       name: "Layer",
@@ -111,8 +111,8 @@ slots stay reserved.
       col: 1,
       role: "translate",
       fields: [
-        { name: "Source", type: "[]Run" },
-        { name: "Targets", type: "map[VariantKey]*Target" },
+        { name: "Editions", type: "map[EditionKey]*Edition" },
+        { name: "Native", type: "[]EditionKey" },
         { name: "Overlays", type: "[]Overlay" },
         { name: "Annotations", type: "map[string]Payload" },
       ],
@@ -122,7 +122,7 @@ slots stay reserved.
   ]}
   edges={[
     { from: 0, to: 1, label: "contains" },
-    { from: 1, to: 2, label: "flat sequence" },
+    { from: 1, to: 2, label: "one flat sequence per edition" },
     { from: 1, to: 3, label: "anchored to runs" },
   ]}
 />
@@ -133,8 +133,9 @@ Resource types:
   delimited by `PartLayerStart` / `PartLayerEnd`.
 - **Group**: a nested structural group within a layer, such as a table,
   delimited by `PartGroupStart` / `PartGroupEnd`.
-- **Block**: modifiable content: a source run sequence, per-variant target run
-  sequences, and optional stand-off overlays.
+- **Block**: modifiable content: one run sequence per edition (the edition the
+  document is written in, each translation, each tone or channel) and optional
+  stand-off overlays.
 - **Data**: non-content structure (skeleton, metadata).
 - **Media**: binary content. A `Media` is a binary **reference**, never inlined
   bytes: resolution precedence is `BlobKey` (a content-addressed key in a blob
@@ -155,25 +156,26 @@ channel.
 type Block struct {
     ID           string
     Name         string
-    Unit         string                 // durable identity, resolved by reconciliation (F-03)
+    Key          string                  // durable identity, resolved by reconciliation (F-03)
     Type         string
     MimeType     string
-    Translatable bool                   // eligible for modification or extraction
+    Translatable bool                    // eligible for modification or extraction
     SourceLocale LocaleID
-    SourceStatus SourceStatus           // authoring lifecycle: written → established
-    Source       []Run                  // whole source content
-    Targets      map[VariantKey]*Target // first-class targets, keyed by variant
-    Overlays     []Overlay              // positional, run-anchored stand-off layers
-    Annotations  map[string]Payload     // block-scoped typed metadata, keyed by type
-    Identity     *BlockIdentity         // content-addressable hashes
-    Properties   map[string]string      // opaque pass-through metadata only
+    Editions     map[EditionKey]*Edition // every edition, as peers
+    Native       []EditionKey            // the editions the document's bytes hold
+    Overlays     []Overlay               // positional stand-off layers, each on one edition
+    Annotations  map[string]Payload      // block-scoped typed metadata, keyed by type
+    Identity     *BlockIdentity          // content-addressable hashes
+    Properties   map[string]string       // opaque pass-through metadata only
     // …skeleton link, content ref, display hint, whitespace flag
 }
 ```
 
-A Block holds one source run sequence and one target run sequence per variant:
-the whole content, unsegmented. There is no `Segment` container: most blocks
-*are* a single string and its translations, and the model says exactly that. When
+A Block holds its content as peer **editions**: the edition the document is
+written in, and one more for every translation, tone or channel a reader or a
+tool attached. Each edition is one run sequence: the whole content,
+unsegmented. There is no `Segment` container: most blocks *are* a single string
+and its translations, and the model says exactly that. When
 a workflow needs sentence boundaries (a review surface, exact-match memory keys,
 XLIFF or TMX export), a tool computes them and attaches a segmentation overlay.
 The overlay layers over the runs; the runs are never repartitioned, so
@@ -183,77 +185,86 @@ segmentation is reversible by construction.
 Parts are authored content and which are surrounding structure. Blocks left
 unmarked stay in the skeleton, untouched by tools that edit, check, or translate.
 
-`SourceStatus` is the source-side counterpart of a target's status, on the
-ladder `written` → `established`. New (`""`) means no committed status yet; a
-source edit resets it, a clean source check stamps `written`, and a person's
-approval stamps `established`.
+#### Editions and their keys
 
-#### Targets and variants
-
-A target is a **first-class record** carrying status and provenance, keyed by a
-**variant** rather than by locale alone:
+An edition is a **first-class record** carrying status, provenance and the
+edition it was derived from, keyed by an **edition key** rather than by locale
+alone:
 
 ```go
 // Locale is the only required dimension; tone and channel are optional and
-// zero-valued by default, so the common case carries no extra ceremony.
-type VariantKey struct {
+// zero-valued by default, so the common case carries no extra ceremony. The
+// zero key names the edition the block was read in.
+type EditionKey struct {
     Locale  LocaleID
     Tone    string
     Channel string
 }
 
-// Target is the committed translation for one variant: content plus its
-// lifecycle and provenance. Candidate translations (memory hits, machine
-// output, model proposals) stay as alt-translation annotations.
-type Target struct {
-    Runs   []Run
-    Status TargetStatus // "" (new) | draft | translated | established
-    Origin Origin       // how the content was produced, and what governed it
-    Score  float64
+// Edition is one edition's content with its lifecycle, provenance and
+// derivation. Candidate translations (memory hits, machine output, model
+// proposals) stay as alt-translation annotations.
+type Edition struct {
+    Runs    []Run
+    Status  Status      // its role's ladder; "" (new) is no committed status
+    Origin  Origin      // how the content was produced, and what governed it
+    Score   float64
+    Derived *Derivation // the edition it was made from, and that edition's revision then
 }
 ```
 
-Ergonomic accessors keep the locale-only path a one-liner: `block.Target("fr")`
-resolves `VariantKey{Locale: "fr"}`, while `block.TargetVariant(key)` reaches the
-general case. Code that only knows about locales never has to mention tone or
-channel: richer variants are strictly opt-in. A `Target`'s runs carry their own
-overlays, scoped to that variant.
+Each edition climbs the ladder of its role. The authoritative edition goes from
+`written` to `established` (`SourceStatus`): a source edit resets it, a clean
+source check stamps `written`, and a person's approval stamps `established`. A
+derived edition goes from `draft` through `translated` to `established`
+(`TargetStatus`).
+
+The edition a block was read in is filed under the zero key, whatever language
+`SourceLocale` names, and every other edition under its canonical key, so
+`nb_NO` and `nb-NO` name one. `Native` lists the editions the document's bytes
+hold: the edition the block was read in first, under the zero key, then each
+edition a bilingual reader files from the document, such as the target of an
+XLIFF unit or each localization of an xcstrings entry. An empty list means the
+document holds the edition it was read in alone. A translation a reader files
+under no language (a KBF bundle's `""` target) sits apart from the editions:
+`TargetEdition("")` reads it and `EachTargetEdition` yields it under the zero
+key.
+
+One set of accessors reaches every edition by its key: `Edition(k)`,
+`SetEdition(k, e)`, `SetEditionStatus(k, s)`, `RemoveEdition(k)`,
+`EditionKeys()`, `EachEdition`, `NativeEditions()` and `Authoritative(policy)`,
+the edition every other one is derived from. With no policy that is the first
+native edition, the one the block was read in; a project's policy names the
+source language its recipe declares. The zero key and the source language name
+the edition the block was read in, and a same-language edition with a tone or a
+channel (`en;channel=short`) is an edition of its own. A bilingual file whose
+two languages are one (an XLIFF file from en-US to en-US) holds an edition under
+the source language; that key then reaches it, and the zero key alone reaches
+the source. `SetEdition` on the edition a block was read in is an edit, and the
+block keeps the source as read (`SourceAsRead`); a status stamp goes through
+`SetEditionStatus`, which changes the status alone. `EditionKeys()` lists the
+keys in a stable order, and `EachEdition` visits every edition once without
+sorting, the one the block was read in first, for loops over many blocks.
+`TargetEdition(locale)`, `SetTargetEdition(k, e)` and the locale accessors
+(`TargetText`, `SetTargetRuns`, …) address the editions other than the one the
+block was read in; there the source language reaches an edition only when the
+block holds one of its own, and `EachTargetEdition` visits each under the key it
+is filed under.
+
+Code outside `core/model` reads and writes editions through these accessors, so
+the storage can change inside `core/model` alone; `make fieldguard` fails on a
+use of `Editions` or `Native` anywhere else outside a test.
 
 This separates two things a bare `map[LocaleID][]Run` conflates: the **committed
-translation per variant**, with status and provenance, from **candidate
-proposals**, of which there may be many per variant, each scored. Accumulated
-history across runs and review trails are a persistence concern, outside the
-content model.
+edition**, with status and provenance, from **candidate proposals**, of which
+there may be many per edition, each scored. Accumulated history across runs and
+review trails are a persistence concern, outside the content model.
 
-The source and every target are **editions** of the block, and one set of
-accessors reaches each by its key (`EditionKey`, the same type as `VariantKey`):
-`Edition(k)`, `SetEdition(k, e)`, `SetEditionStatus(k, s)`, `RemoveEdition(k)`,
-`Editions()`, `EachEdition` and `Authoritative(policy)`, the edition every other
-one is derived from. The zero key and the source language name the edition
-`Source` holds, and a same-language edition with a tone or a channel is an
-edition of its own. A bilingual file whose two languages are one (an XLIFF file
-from en-US to en-US) holds a target under the source language; that key then
-reaches the target, and the zero key alone reaches the source. Keys are
-canonical wherever they address an edition, so `nb_NO` and `nb-NO` name one.
-`SetEdition` on the edition a block was read in is an edit, and the block keeps
-the source as read (`SourceAsRead`); a status stamp goes through
-`SetEditionStatus`, which changes the status alone. `Editions()` lists the keys
-in a stable order, and `EachEdition` visits every edition once without sorting,
-the one the block was read in first, for loops over many blocks. Code that
-changes content reads and writes through these accessors, so the storage behind
-them (`Source` and `Targets` today) can change without touching it.
-
-`TargetEdition(locale)` and `SetTargetEdition(k, e)` read and write a target as
-an edition under the key `Target` and `SetTargetVariant` address, and
-`EachTargetEdition` visits every target under the key it is filed under. There
-the source language reaches a target only when the block holds one, and the
-empty locale reaches a target a reader filed under no language, which
-`Editions()` and `EachEdition` leave out.
-
-`CopyEditionSet()` copies a block with a set of editions of its own and each
-derived edition shared, so adding or removing an edition on either block leaves
-the other's set as it was. `CopyEditions(copyRuns)` also copies the runs of
-every edition and the source as read.
+`CopyEditionSet()` copies a block with a set of editions of its own, its own
+entry for the edition it was read in, and each derived edition shared, so adding
+or removing an edition on either block leaves the other's set as it was.
+`CopyEditions(copyRuns)` also copies the runs of every edition and the source as
+read.
 
 `model.EditionRevision(block, k)` names an edition's content: `r:` and 16 hex
 digits of the SHA-256 of the edition key and its runs as canonical JSON. Status,
@@ -272,7 +283,7 @@ type BlockIdentity struct {
 
 The same content always produces the same identity, so only blocks whose identity
 has changed need reprocessing, and identical blocks across documents share a
-content hash. `Unit` is the durable key that grading the pair against the
+content hash. `Key` is the durable key that grading the pair against the
 previous read produces: a decision, a translation and a history entry are filed
 under it, and a venue stores it as the block's source id. A reader leaves it
 empty; reconciliation fills it, and `Name` stands in until it does. How the pair
@@ -329,7 +340,7 @@ because they differ in shape and lifecycle:
 ```go
 type Overlay struct {
     Type    OverlayType // segmentation | term | entity | qa | alignment | term-candidate | editor-anchor
-    Variant *VariantKey // nil = source side
+    Edition EditionKey  // the edition its spans anchor to; the zero key is the one the block was read in
     Layer   string      // segmentation granularity; LayerPrimary ("") = primary
     Spans   []Span      // each with a run Range, string Props, and a typed Value
 }
@@ -674,7 +685,7 @@ a memory index) is a projection computed on demand.
 
 | Projection | Surface | Consumer |
 | --- | --- | --- |
-| `[]Run` (no projection) | `Block.Source` / `Targets`, KBF wire | Pipeline tools, stores, readers and writers |
+| `[]Run` (no projection) | each edition's `Runs`, KBF wire | Pipeline tools, stores, readers and writers |
 | `RenderRunsWithData` | native source markup | Format writers; replays `Data` verbatim |
 | `RunsStructuralText` | `Click {1}here{/1} for info` | Memory matching, structural tier |
 | `RunsGeneralizedText` | structural + entity placeholders | Memory matching, generalized tier |
@@ -799,8 +810,9 @@ string into the parent format.
 - Bilingual interchange formats that carry sentence segments project to and from
   segmentation plus alignment overlays at the reader and writer boundary, without
   forcing segment structure into the content model.
-- Targets are first-class records keyed by a variant, so the variant axis extends
-  beyond locale without adding ceremony at locale-only call sites.
+- Editions are first-class records keyed by language, tone and channel, so a
+  block holds a same-language channel edition beside its source without adding
+  ceremony at locale-only call sites.
 
 ## See also
 

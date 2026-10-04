@@ -166,8 +166,8 @@ Field contracts, grounded in `core/model`:
 - **`group_start` / `group_end`**: `id`, optional `name`, `properties`.
 - **`block`** comes from `model.Block`: `id`, optional `name`, `type`,
   `translatable`, `source` (run list), optional `targets` (map keyed by the
-  `VariantKey` text form (bare locale, `;tone=`/`;channel=` suffixes, per
-  `VariantKey.MarshalText`) to a run list), optional `properties` (sorted
+  `EditionKey` text form (bare locale, `;tone=`/`;channel=` suffixes, per
+  `EditionKey.MarshalText`) to a run list), optional `properties` (sorted
   keys), optional `overlays`, optional `preserve_whitespace`.
 - **runs**: each run dumps as `{type, …}` where `type` is the Run
   discriminator (`text|ph|pcOpen|pcClose|sub|plural|select`,

@@ -73,11 +73,14 @@ has to populate before its round-trip test means anything. The sync wire's
 fixture is `core/venue/venuetest.KitchenSinkBlock`; a new projection writes
 its own against the same list.
 
-- **Scalars**: `ID`, `Name`, `Unit`, `Type`, `MimeType`, `Translatable`,
-  `PreserveWhitespace`, `IsReferent`, `SourceLocale`, `SourceStatus`.
-- **Source**: a `[]Run` with **every Run kind** (Text, Ph, PcOpen, PcClose,
-  Sub, Plural, Select), including `Run.Attrs` (href/src/alt/title) on Ph/PcOpen.
-- **Targets**: multiple `VariantKey`s (locale-only and locale+tone), each with
+- **Scalars**: `ID`, `Name`, `Key`, `Type`, `MimeType`, `Translatable`,
+  `PreserveWhitespace`, `IsReferent`, `SourceLocale`, and the status of the
+  edition the block was read in.
+- **The edition the block was read in**: a `[]Run` with **every Run kind**
+  (Text, Ph, PcOpen, PcClose, Sub, Plural, Select), including `Run.Attrs`
+  (href/src/alt/title) on Ph/PcOpen.
+- **The other editions**: multiple `EditionKey`s (locale-only, locale+tone, and
+  a same-language channel edition, `en;channel=short`), each with
   `Status`, `Score`, and a full `Origin`, both halves of it: how the target was
   made (kind, engine, tool, reference, timestamp, **confidence**) and what
   governed it (**profile**, **profile version**, **context fingerprint**).
@@ -134,7 +137,7 @@ Each projection then gates its own legs. For the sync wire:
 - **Provenance completeness guard** (`TestOriginFixtureIsComplete`): the same
   walk one level down, over `model.Origin`. The Block-level guard only sees
   Block's own fields, so a new `Origin` field sits zero inside a non-zero
-  `Targets` map and slips past it, and the round-trip then passes while
+  `Editions` map and slips past it, and the round-trip then passes while
   silently dropping it. Provenance is the one record that cannot be
   reconstructed later, so it gets its own guard.
 - **Kind tables** (`venuetest.AllRunKinds`, `venuetest.AllOverlayKinds`): iterated

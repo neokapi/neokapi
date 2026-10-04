@@ -60,7 +60,8 @@ tests must assert the error is surfaced.)
 **Content model** (`core/model/`):
 
 - `Layer`: structural grouping; nests for embedded content.
-- `Block`: `Source []Run`, `Targets map[VariantKey]*Target`, `Properties`,
+- `Block`: `Editions map[EditionKey]*Edition` (the edition it was read in under
+  the zero key, every other under its key), `Native`, `Properties`,
   `Annotations`, stand-off `Overlays`. There is **no structural `Segment`**;
   segmentation is an opt-in overlay (F-02).
 - `Run`: a union: `Text` / `Ph` / `PcOpen`+`PcClose` (paired by a shared string

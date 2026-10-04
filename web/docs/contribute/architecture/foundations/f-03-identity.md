@@ -267,7 +267,7 @@ actually says.
 `host.ResolveIdentity(byPath, priors)` runs the two gradings for a tree of
 documents: documents first, then each document's blocks against the whole prior
 set, in a deterministic path order so two runs over the same tree mint the same
-keys. The resolved key is written onto the block as `Block.Unit`
+keys. The resolved key is written onto the block as `Block.Key`
 ([F-02](f-02-content-model.md)), and `convergence.BlockKey` reads it before
 falling back to the name. The priors are the venue's own tree
 (`venue.Tree.Priors()`), fetched before a push declares what it carries, rather

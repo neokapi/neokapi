@@ -81,7 +81,7 @@ neokapi/
 │   ── Framework Module (repo root) ──
 ├── go.mod                           # module github.com/neokapi/neokapi (Apache-2.0)
 ├── core/
-│   ├── model/                       # Part, Block, Layer, Run, Target, Overlay, Data, Media
+│   ├── model/                       # Part, Block, Layer, Run, Edition, Overlay, Data, Media
 │   ├── format/                      # DataFormatReader/Writer interfaces, detection
 │   ├── tool/                        # Tool interface, BaseTool dispatch
 │   ├── flow/                        # Executor, Builder, pipeline orchestration
@@ -188,15 +188,16 @@ classDiagram
         +string ID
         +string Name
         +bool Translatable
-        +[]Run Source
-        +map~VariantKey,Target~ Targets
+        +map~EditionKey,Edition~ Editions
+        +[]EditionKey Native
         +[]Overlay Overlays
         +Skeleton Skeleton
     }
 
-    class Target {
+    class Edition {
         +[]Run Runs
-        +TargetStatus Status
+        +Status Status
+        +Derivation Derived
     }
 
     class Overlay {
@@ -233,9 +234,9 @@ classDiagram
     Layer --> Data : contains
     Layer --> Media : contains
     Block --> Run : flat Source sequence
-    Block --> Target : per variant
+    Block --> Edition : per edition key
     Block --> Overlay : stand-off annotations
-    Target --> Run : flat run sequence
+    Edition --> Run : flat run sequence
 ```
 
 Embedded content (HTML inside JSON, CDATA in XML) is modeled as nested
@@ -244,7 +245,7 @@ Layers, each with its own DataFormat. See
 
 ### Inline Content as Runs
 
-A block's `Source` (and each `Target`) is a flat `[]Run`, a discriminated
+Each edition of a block (the one it was read in, and every other) is a flat `[]Run`, a discriminated
 union of typed `Run` values. Plain text is a `TextRun`; paired
 inline markup becomes a `PcOpenRun` / `PcCloseRun` sharing an ID; standalone
 placeholders (variables, `<br/>`, icons) are a `PlaceholderRun`. Inline
@@ -255,7 +256,7 @@ it. There is no structural `Segment` type; segmentation is a stand-off
 ```
 Source HTML: Click <b>here</b> for info
 
-Block.Source: [
+Block source edition: [
     {Text:    {Text: "Click "}},
     {PcOpen:  {ID: "1", Type: "fmt:bold", Data: "<b>"}},
     {Text:    {Text: "here"}},

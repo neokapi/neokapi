@@ -788,7 +788,7 @@ type makes the wrong writes unrepresentable.
 - **Target-producing** tools (`translate`, `recycle`, `create-target`) set
   `Produce` and write targets; source stays read-only.
 - **Transformers** (redaction, normalization, case and encoding conversion) are
-  the only tools that rewrite `Block.Source`, and they never do so directly. A
+  the only tools that rewrite the edition a block was read in, and they never do so directly. A
   transformer is a read-only **edit producer**: it inspects the block and returns
   an *edit plan*: a set of structured `model.RunEdit`s (a span → replacement
   map), in-place text edits that keep the inline codes, structure and run flags
