@@ -76,33 +76,41 @@ func unitState(i int) state.UnitState {
 // been waiting longest, so a two-millisecond writer loses to a two-second one
 // indefinitely.
 //
-// The floor is deliberately generous — this asserts the shape (the drip runs,
-// and no write is ever refused for the lock), not a throughput number, which
-// belongs to the harness and to the machine it runs on.
+// The gate counts the queue in grants, and the test reads that count. Served in
+// arrival order, a writer that queues waits through at most one grant to each
+// other writer, however long each of them holds the permit, so with four fat
+// writers and the drip no wait spans more than four grants. A queue that passed
+// the drip over would show as a wait through many. How many writes the drip
+// completes in a second depends instead on how long each fat transaction holds
+// the file, which is the speed and the load of the machine, and in
+// one-connection mode the drip's reads also wait for the connection those
+// transactions hold.
+//
+// The run ends once the drip has recorded its decisions, so it lasts as long as
+// the machine needs. The backstop only keeps a broken queue from hanging the
+// suite.
 func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 	if testing.Short() {
 		t.Skip("contention regression: seconds of deliberate lock pressure")
 	}
 	if runtime.GOOS == "js" {
-		t.Skip("preemption: four writers run flat out until a deadline, and js/wasm has one thread and no preemption, so the deadline lands only when a writer blocks")
+		t.Skip("preemption: four writers run flat out until the drip is done, and js/wasm has one thread and no preemption, so the drip's ticker fires only when a writer blocks")
 	}
 	db := openStore(t, newLayout(t))
 	mem := db.Memory()
 	require.NotNil(t, mem)
 	work := db.Work()
+	raw := db.Raw()
+	require.NotNil(t, raw)
 
 	const (
 		fatWriters = 4
-		window     = 2 * time.Second
+		dripWrites = 25
 		dripEvery  = 20 * time.Millisecond
+		backstop   = time.Minute
 	)
-	// What the drip would manage with nothing in its way, give or take: one
-	// write per tick. The floor is a quarter of that, far below the ~90% the
-	// harness measures at scale, because a laptop under test load is noisy and
-	// this test is about zero busy errors and a drip that is not shut out.
-	dripFloor := int64(window/dripEvery) / 4
 
-	ctx, cancel := context.WithTimeout(t.Context(), window)
+	ctx, cancel := context.WithTimeout(t.Context(), backstop)
 	defer cancel()
 
 	var (
@@ -136,9 +144,12 @@ func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 	}
 
 	wg.Go(func() {
+		// The drip ends the run: the fat writers stop once it has recorded
+		// its decisions.
+		defer cancel()
 		tick := time.NewTicker(dripEvery)
 		defer tick.Stop()
-		for i := 0; ; i++ {
+		for i := 0; dripOK.Load() < dripWrites; i++ {
 			select {
 			case <-ctx.Done():
 				return
@@ -157,20 +168,26 @@ func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 		}
 	})
 	wg.Wait()
+	gate := raw.WriteGateStats()
+	t.Logf("the drip recorded %d decisions; the gate made %d grants, and the longest wait spanned %d of them",
+		dripOK.Load(), gate.Grants, gate.MostWaited)
 
 	assert.Zero(t, busy.Load(), "a write on the gated handle was refused for the lock")
-	assert.Zero(t, dripBusy.Load(), "the drip writer was refused for the lock — the starvation is back")
+	assert.Zero(t, dripBusy.Load(), "the drip writer was refused for the lock, so the starvation is back")
 	assert.Zerof(t, other.count(), "a write failed for a reason other than the lock: %s", other)
-	assert.GreaterOrEqualf(t, dripOK.Load(), dripFloor,
-		"the drip completed %d writes in %s, below the floor of %d — it is being starved",
-		dripOK.Load(), window, dripFloor)
+	assert.Equalf(t, int64(dripWrites), dripOK.Load(),
+		"the drip recorded %d of its %d decisions before the %s backstop", dripOK.Load(), dripWrites, backstop)
+	assert.LessOrEqualf(t, gate.MostWaited, uint64(fatWriters),
+		"a writer queued through %d of the %d grants; served in arrival order, it waits through each of the other %d writers at most once",
+		gate.MostWaited, gate.Grants, fatWriters)
 }
 
-// isCtxErr recognises the writes the window ended rather than the store
-// refused. errors.Is is enough because storage.CancelledBy makes it enough: a
-// write that fails while its context is done wraps the context's error, so the
-// database/sql lifecycle errors a cancellation used to surface instead
-// (ErrTxDone, "statement is closed") are no longer a separate spelling to match.
+// isCtxErr recognises the writes a cancelled context ended rather than the
+// store refused. errors.Is is enough because storage.CancelledBy makes it
+// enough: a write that fails while its context is done wraps the context's
+// error, so the database/sql lifecycle errors a cancellation used to surface
+// instead (ErrTxDone, "statement is closed") are no longer a separate spelling
+// to match.
 func isCtxErr(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
 }

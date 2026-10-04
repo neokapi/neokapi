@@ -53,6 +53,13 @@ type writeGate struct {
 	// A statement-scoped holder need not be recorded: the goroutine running one
 	// Exec cannot be the goroutine blocked on the next one.
 	holder atomic.Int64
+
+	// grants counts the permits granted. Each holder counts its own grant
+	// before it can release, so the count runs in the order the grants were
+	// made. mostWaited is the largest number of grants one acquisition saw go
+	// to other writers while it queued. See WriteGateStats.
+	grants     atomic.Uint64
+	mostWaited atomic.Uint64
 }
 
 func newWriteGate() *writeGate { return &writeGate{permits: make(chan struct{}, 1)} }
@@ -77,6 +84,7 @@ func (g *writeGate) acquire(ctx context.Context, held bool) error {
 	// already blocked on it has no free slot for a non-blocking send.
 	select {
 	case g.permits <- struct{}{}:
+		g.grants.Add(1)
 		g.claim(held)
 		return nil
 	default:
@@ -85,12 +93,31 @@ func (g *writeGate) acquire(ctx context.Context, held bool) error {
 		return fmt.Errorf("%w: goroutine %d already holds a write transaction on this database "+
 			"and would wait on itself forever", ErrWriteGateReentrant, owner)
 	}
+	// The arrival is read just before the send blocks, and a grant made
+	// between the two counts as waited through. It is still at most one grant
+	// per other writer: counting one writer twice would take this goroutine
+	// being held off the CPU, between the read and the send, for the whole of
+	// that writer's transaction.
+	arrived := g.grants.Load()
 	select {
 	case g.permits <- struct{}{}:
+		g.waited(g.grants.Add(1) - 1 - arrived)
 		g.claim(held)
 		return nil
 	case <-ctx.Done():
+		g.waited(g.grants.Load() - arrived)
 		return ctx.Err()
+	}
+}
+
+// waited records that one acquisition queued while n permits went to other
+// writers, whether it was then granted or gave up.
+func (g *writeGate) waited(n uint64) {
+	for {
+		most := g.mostWaited.Load()
+		if n <= most || g.mostWaited.CompareAndSwap(most, n) {
+			return
+		}
 	}
 }
 

@@ -94,6 +94,30 @@ func (db *DB) Begin() (*Tx, error) {
 	return db.BeginTx(context.Background(), nil)
 }
 
+// WriteGateStats reports how a handle's write permit has been shared.
+type WriteGateStats struct {
+	// Grants is the number of times the permit has been granted.
+	Grants uint64
+
+	// MostWaited is the largest number of grants made to other writers while
+	// one writer queued for the permit, counted to its own grant or to the
+	// moment it gave up. The gate serves writers in arrival order, so a
+	// writer waits through each writer queued ahead of it once and no writer
+	// twice: with n writers sharing the handle it is at most n-1, however
+	// long each of them holds the permit. A queue that let one writer pass
+	// another over would show here as a wait through many grants.
+	MostWaited uint64
+}
+
+// WriteGateStats returns the statistics of the handle's write gate, which are
+// zero for a handle opened without Options.SerializeWrites.
+func (db *DB) WriteGateStats() WriteGateStats {
+	if db.gate == nil {
+		return WriteGateStats{}
+	}
+	return WriteGateStats{Grants: db.gate.grants.Load(), MostWaited: db.gate.mostWaited.Load()}
+}
+
 // Tx is a transaction on a *DB. It embeds *sql.Tx, so it is used exactly like
 // one; it exists so the write permit taken at BeginTx is returned when the
 // transaction ends, and only then.
