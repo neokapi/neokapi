@@ -9,9 +9,10 @@ overview: |
   structured JSON envelope for translatable strings extracted from
   source code such as JSX / React components. A KBF document is a
   `kind: kapi-bundle` envelope holding one or more
-  documents, each carrying blocks. Every block has a structured run
-  sequence: text plus placeholders, paired inline codes, plurals, and
-  selects.
+  documents, each carrying blocks. Every block holds its source and
+  each of its editions (a translation, or a tone or channel edition)
+  as a structured run sequence: text plus placeholders, paired inline
+  codes, plurals, and selects.
 
   On read, each KBF block becomes one translatable block. Its source
   text is the flattened run sequence: placeholders contribute their
@@ -30,6 +31,8 @@ processingNotes:
   - One translatable block per KBF block; the block ID is preserved verbatim.
   - Source text is the flattened run sequence, where placeholders become brace-wrapped equivalents, paired codes elide their wrappers, and plurals collapse to the `other` branch.
   - Translator-facing context (file, component, element, JSX path, line, notes) and the structured runs travel in a block annotation for faithful round-tripping.
+  - Every edition a block holds is read and written under its own key, with its status, how it was produced, and the edition it was made from, so a tone or channel edition sits beside the plain translation in its language.
+  - A bundle in schema 1.0, which kept translations in a `targets` map keyed by language, reads the same way and is written back in the current schema.
   - A catalog extracted by `@neokapi/i18n-react` 1.2.3 carries the suffix `.klf` and that release's own root marker. It reads as any other bundle, and the current `kapi-bundle` envelope is written back.
 examples:
   - title: Round-trip a KBF document
