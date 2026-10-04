@@ -110,6 +110,12 @@ type Block struct {
 	// EachTargetEdition yields it under the zero key; EditionKeys and
 	// EachEdition leave it out.
 	unlabelled *Edition
+	// unlabelledOverlays are the overlays on the unlabelled translation, such
+	// as the numerus forms of a Qt TS message. An overlay in Overlays naming
+	// the zero key sits on the edition the block was read in, so these sit
+	// apart too, each naming the zero key. The target overlay accessors given
+	// the empty locale reach them (target_overlay.go).
+	unlabelledOverlays []Overlay
 
 	// readSource is the source the reader produced, kept by the first edit
 	// (EditSourceRuns, EditSourceText). A writer compares the two to tell
