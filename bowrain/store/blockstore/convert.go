@@ -54,9 +54,16 @@ func toKBF(sb *venue.StoredBlock) *kbf.Block {
 			continue
 		}
 		// A tone or channel variant shares its language's slot, which the
-		// language's own edition keeps whenever the block holds it.
+		// language's own edition keeps whenever the block holds it. In the
+		// source language that edition is the source, so a variant there has
+		// no slot: written as a target in the source language it would read
+		// back as a same-language edition with no tone or channel.
 		slot := string(key.Locale)
-		if _, taken := b.Targets[slot]; taken && (key.Tone != "" || key.Channel != "") {
+		variant := key.Tone != "" || key.Channel != ""
+		if variant && sb.IsSourceEdition(model.EditionKey{Locale: key.Locale}) {
+			continue
+		}
+		if _, taken := b.Targets[slot]; taken && variant {
 			continue
 		}
 		if b.Targets == nil {
