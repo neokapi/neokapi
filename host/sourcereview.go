@@ -321,7 +321,7 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 			k := state.Key{Scope: scope, Unit: ref.Key, Variant: sourceVariant(sourceLang)}
 			if us, found := st.Get(ctx, k); found {
 				record = &us
-				info.Stale = us.SourceStale(state.SourceHash(text))
+				info.Stale = us.SourceStale(state.ReadSource(b))
 				if !info.Stale {
 					info.ReviewState = us.Decision.ReviewState
 					info.Note = us.Decision.Note

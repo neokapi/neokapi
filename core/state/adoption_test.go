@@ -138,7 +138,7 @@ func TestADecisionAnswersInEveryCheckoutOfTheDocument(t *testing.T) {
 	fresh := p.checkout("fresh")
 	freshKeys, err := fresh.AdoptDocuments(ctx, []reconcile.DocUnit{{Path: "guides/intro.md", Content: []string{"h1"}}})
 	require.NoError(t, err)
-	got, found := fresh.Lookup(ctx, state.Key{Scope: freshKeys["guides/intro.md"], Unit: "p#1", Variant: model.Variant("fr")}, "h1", "t1")
+	got, found := fresh.Lookup(ctx, state.Key{Scope: freshKeys["guides/intro.md"], Unit: "p#1", Variant: model.Variant("fr")}, state.Reading{ContentHash: "h1", TargetHash: "t1"})
 	require.True(t, found, "the other checkout's approval answers here, under the one key")
 	assert.Equal(t, "reviewer", got.Decision.By)
 }

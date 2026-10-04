@@ -12,8 +12,9 @@ import (
 // A unit decision is an entry in an append-only ledger, addressed by what it
 // says rather than by where it sits.
 //
-// An entry is keyed by the unit AND by the pairing it blessed: the source hash
-// and the target hash together with (document, unit, variant). A decision
+// An entry is keyed by the unit AND by the pairing it blessed: the basis and
+// the revision (with the source and target hashes an entry recorded before
+// revisions carries alone) together with (document, unit, variant). A decision
 // therefore applies exactly where its pairing appears. Two branches holding
 // different translations of one unit hold two entries, each answering only for
 // the branch whose files carry its pairing, and a branch switch changes which
@@ -49,15 +50,23 @@ const (
 
 // Pairing is what an entry is about: the unit, the source it blessed and the
 // translation it blessed. It is the ledger's key.
+//
+// The source and the translation are named by revision (Basis, Revision) and
+// by content hash (ContentHash, TargetHash). An entry recorded with revisions
+// answers only where its revisions do, so two translations that differ in an
+// inline code alone hold two entries. An entry recorded before revisions
+// carries none, and answers where its hashes do.
 type Pairing struct {
 	Key         Key
 	ContentHash string
 	TargetHash  string
+	Basis       string
+	Revision    string
 }
 
 // Pairing returns the pairing a record describes.
 func (s UnitState) Pairing() Pairing {
-	return Pairing{Key: s.Key(), ContentHash: s.ContentHash, TargetHash: s.TargetHash}
+	return Pairing{Key: s.Key(), ContentHash: s.ContentHash, TargetHash: s.TargetHash, Basis: s.Basis, Revision: s.Revision}
 }
 
 // Entry is one immutable record in the decision ledger.

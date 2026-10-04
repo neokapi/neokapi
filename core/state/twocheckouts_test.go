@@ -131,7 +131,7 @@ func TestTwoCheckouts_EachReadsItsOwnPairing(t *testing.T) {
 	// And the lookup is explicit: a reader holding the file content asks for
 	// exactly the pairing in front of it.
 	got, ok = mainStore.Lookup(t.Context(), nbKey("d-intro", "u1"),
-		model.ComputeContentHash("Alpha"), "hash-feature")
+		state.Reading{ContentHash: model.ComputeContentHash("Alpha"), TargetHash: "hash-feature"})
 	require.True(t, ok, "one ledger holds both entries")
 	assert.Equal(t, "hash-feature", got.Decision.Note)
 }
@@ -177,7 +177,7 @@ func TestTwoCheckouts_TheSamePairingSharesTheAnswer(t *testing.T) {
 	mainStore := c.openMain()
 	defer func() { _ = mainStore.Close() }()
 	got, ok := mainStore.Lookup(t.Context(), nbKey("d-intro", "u-shared"),
-		shared.ContentHash, shared.TargetHash)
+		state.ReadingOf(shared))
 	require.True(t, ok, "the pairing is in the ledger, so it answers wherever it appears")
 	assert.Equal(t, "approved", got.Decision.ReviewState)
 

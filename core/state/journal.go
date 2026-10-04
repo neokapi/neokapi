@@ -91,8 +91,9 @@ func (w *WorkStore) answering(ctx context.Context, p Pairing) (string, error) {
 	err := w.db.QueryRowContext(ctx, `
 SELECT id FROM unit_decision
  WHERE scope = ? AND unit = ? AND variant = ? AND content_hash = ? AND target_hash = ?
+   AND basis = ? AND revision = ?
  ORDER BY recorded_at DESC, rowid DESC LIMIT 1`,
-		p.Key.Scope, p.Key.Unit, string(variant), p.ContentHash, p.TargetHash).Scan(&id)
+		p.Key.Scope, p.Key.Unit, string(variant), p.ContentHash, p.TargetHash, p.Basis, p.Revision).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}

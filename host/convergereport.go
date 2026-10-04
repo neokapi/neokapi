@@ -330,7 +330,7 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 		next.Origin = prev.Origin
 		next.SourceStatus = prev.SourceStatus
 		next.ContextHash = prev.ContextHash
-		if prev.AIReview.Fresh(th) {
+		if prev.AIReview.Fresh(state.Reading{TargetHash: th, Revision: content.targetRev}) {
 			next.AIReview = prev.AIReview
 		}
 	}
@@ -557,10 +557,9 @@ func (a *App) ReviewUnitWithOptions(ctx context.Context, projectPath, sourceLang
 			var record *state.UnitState
 			if us, found := st.Get(ctx, k); found {
 				record = &us
-				th := targetHash(info.Target)
-				ch := state.SourceHash(info.Source)
-				info.Stale = us.SourceStale(ch)
-				if us.Fresh(th, ch) {
+				read := state.ReadTarget(b, loc)
+				info.Stale = us.SourceStale(read)
+				if us.Fresh(read) {
 					if us.Status != "" {
 						info.Status = string(us.Status)
 					}
@@ -568,7 +567,7 @@ func (a *App) ReviewUnitWithOptions(ctx context.Context, projectPath, sourceLang
 					info.Note = us.Decision.Note
 					info.By = us.Decision.By
 				}
-				if us.AIReview.Fresh(th) {
+				if us.AIReview.Fresh(read) {
 					score := us.AIReview.Score
 					info.AIScore = &score
 					info.AIModel = us.AIReview.Model
