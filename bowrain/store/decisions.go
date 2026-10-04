@@ -86,8 +86,24 @@ func deciderRole(by string) string {
 // decisions component is folded from the same field list. Two lists would let a
 // record the store skips as unchanged still move the component, and every
 // subsequent push would then be refused for a change nobody made.
+//
+// A record that says what the stored row says, less the revision pairing, is
+// unchanged too. A client built before revisions drops the two fields from a
+// verdict it pulls, and its record then folds differently from the stored row,
+// so it sends the record back. Taking that as a change would empty the row's
+// pairing and file the verdict in block_history a second time. The row keeps
+// its pairing, and its fold, and a client that sends the pairing still writes
+// one it gains.
 func DecisionUnchanged(old, next venue.UnitDecision) bool {
-	return venue.SameDecision(old, next)
+	if venue.SameDecision(old, next) {
+		return true
+	}
+	if next.Revision != "" || next.Basis != "" || (old.Revision == "" && old.Basis == "") {
+		return false
+	}
+	unpaired := old
+	unpaired.Revision, unpaired.Basis = "", ""
+	return venue.SameDecision(unpaired, next)
 }
 
 // UpsertUnitDecisions implements platstore.DecisionStore: idempotent

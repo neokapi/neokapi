@@ -591,3 +591,60 @@ func TestMigrations_AWorkingCopyFromBeforeTheRebuildStillOpens(t *testing.T) {
 	require.NotNil(t, got)
 	assert.Equal(t, "r:1111111111111111", got.Revision)
 }
+
+// TestUnitDecisions_AnOlderClientKeepsThePairing_SQLite: a client built before
+// revisions drops the pairing from a verdict it pulls and sends the record
+// back. The store reads it as the record it holds: nothing is written, the row
+// keeps its pairing and the verdict is filed in block_history once. A verdict
+// that client makes itself is a change, recorded as it says it, with no
+// pairing. The PostgreSQL store pins the same contract.
+func TestUnitDecisions_AnOlderClientKeepsThePairing_SQLite(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	src := &model.Block{ID: "greeting", Translatable: true}
+	src.SetSourceText("Hello")
+	src.SetTargetText("nb", "Hei")
+	src.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusTranslated))
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{src}))
+	decisionEvents := func() int {
+		var n int
+		require.NoError(t, s.db.QueryRowContext(ctx,
+			`SELECT count(*) FROM block_history WHERE project_id = ? AND change_type = 'decision'`, p.ID).Scan(&n))
+		return n
+	}
+
+	platform := venue.UnitDecision{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status: string(model.TargetStatusEstablished), TargetHash: state.TargetHash("Hei"), ContentHash: state.SourceHash("Hello"),
+		Revision: "r:1111111111111111", Basis: "r:aaaaaaaaaaaaaaaa",
+		ReviewState: "approved", DecidedBy: "reviewer@example.com", Updated: "2026-10-04T10:00:00Z",
+	}
+	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{platform})
+	require.NoError(t, err)
+	require.Equal(t, 1, changed)
+	require.Equal(t, 1, decisionEvents())
+
+	older := platform
+	older.Revision, older.Basis = "", ""
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{older})
+	require.NoError(t, err)
+	assert.Zero(t, changed, "the same verdict, less two fields the sender cannot know, is no change")
+	got, err := s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
+	require.NoError(t, err)
+	assert.Equal(t, platform.Revision, got.Revision, "the row keeps its pairing")
+	assert.Equal(t, platform.Basis, got.Basis)
+	assert.Equal(t, 1, decisionEvents(), "the verdict is filed once")
+
+	noted := older
+	noted.Note = "keep the informal register"
+	noted.Updated = "2026-10-04T11:00:00Z"
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{noted})
+	require.NoError(t, err)
+	assert.Equal(t, 1, changed, "a verdict the older client made is a change")
+	got, err = s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
+	require.NoError(t, err)
+	assert.Equal(t, "keep the informal register", got.Note)
+	assert.Empty(t, got.Revision, "and names the content as its sender did, by hash")
+	assert.Empty(t, got.Basis)
+}
