@@ -40,3 +40,36 @@ func TestToKBF_ProjectsEditionsByLanguage(t *testing.T) {
 		}
 	}
 }
+
+// A same-language channel edition has no slot in the projection: the source
+// language's slot belongs to the source, and a target written there would
+// come back as a same-language edition with no channel.
+func TestToKBF_LeavesASameLanguageChannelEditionOut(t *testing.T) {
+	text := func(s string) []model.Run { return []model.Run{{Text: &model.TextRun{Text: s}}} }
+	b := model.NewBlock("row-1", "Save")
+	b.SourceLocale = "en"
+	b.SetEdition(model.EditionKey{Locale: "en", Channel: "short"}, model.Edition{Runs: text("Sv.")})
+	b.SetEdition(model.Variant("fr"), model.Edition{Runs: text("Enregistrer")})
+	sb := &venue.StoredBlock{Block: b, SourceID: "save", ItemName: "ui.json"}
+
+	for range 32 {
+		k := toKBF(sb)
+		require.NotNil(t, k)
+		assert.Equal(t, "Save", model.RunsText(k.Source))
+		assert.Equal(t, map[string]string{"fr": "Enregistrer"}, targetTexts(k.Targets))
+	}
+
+	back := fromKBF(toKBF(sb))
+	back.SourceLocale = "en"
+	assert.Equal(t, []model.EditionKey{{Locale: "en"}, {Locale: "fr"}}, back.EditionKeys(),
+		"no same-language edition comes back")
+}
+
+// targetTexts is a projection's targets as text, by locale.
+func targetTexts[K ~string](targets map[K][]model.Run) map[string]string {
+	out := map[string]string{}
+	for k, runs := range targets {
+		out[string(k)] = model.RunsText(runs)
+	}
+	return out
+}
