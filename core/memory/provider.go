@@ -161,7 +161,7 @@ type Match struct {
 // VersionRequest asks what a block said before.
 type VersionRequest struct {
 	// Unit is the block's identity across edits: what links its successive
-	// approved answers into one chain. See model.Block.ChainUnit — never the
+	// approved answers into one chain. See model.Block.ChainKey — never the
 	// block ID, which is assigned per read.
 	//
 	// Required. An empty unit would select every entry approved before the

@@ -72,7 +72,7 @@ func PriorVersionOf(
 	if vr == nil || b == nil {
 		return nil
 	}
-	chain := b.ChainUnit()
+	chain := b.ChainKey()
 	if chain == "" {
 		return nil
 	}

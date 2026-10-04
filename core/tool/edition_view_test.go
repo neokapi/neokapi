@@ -29,7 +29,7 @@ func TestView_ReadsTheAuthoritativeEdition(t *testing.T) {
 
 	assert.Equal(t, "colour source", model.RunsText(v.SourceRuns()))
 	var units []string
-	for u := range v.SourceUnits("") {
+	for u := range v.SourceSegments("") {
 		units = append(units, model.RunsText(u.SourceRuns()))
 	}
 	assert.Equal(t, []string{"colour source"}, units)

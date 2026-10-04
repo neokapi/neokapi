@@ -822,7 +822,7 @@ func (t *AITranslateTool) translatePlain(v tool.VariantView, sourceText string) 
 		DoNotTranslate: t.keptVerbatimFor(maskedSource),
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
-		BlockContext:   t.contextFor(ctx, v.ID(), v.Name(), v.ChainUnit()),
+		BlockContext:   t.contextFor(ctx, v.ID(), v.Name(), v.ChainKey()),
 	})
 	if err != nil {
 		return "", nil, fmt.Errorf("translate: %w", err)
@@ -1198,7 +1198,7 @@ func (t *AITranslateTool) blockContext(ctx context.Context, b *model.Block, neig
 
 	// The key travels with the block, so it is available on every path.
 	pc := prompt.Context{Key: blockKey(b)}
-	t.attachPrior(ctx, b.ChainUnit(), &pc)
+	t.attachPrior(ctx, b.ChainKey(), &pc)
 
 	if t.contextPolicy != ContextNeighbours || neighbours == nil {
 		return pc
@@ -1238,7 +1238,7 @@ func (t *AITranslateTool) cacheFingerprint(ctx context.Context, b *model.Block) 
 	if b == nil {
 		return t.configFP
 	}
-	if d := t.contextFor(ctx, b.ID, b.Name, b.ChainUnit()).Digest(); d != "" {
+	if d := t.contextFor(ctx, b.ID, b.Name, b.ChainKey()).Digest(); d != "" {
 		return t.configFP + ":" + d
 	}
 	return t.configFP
@@ -1437,7 +1437,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		if entry.block == nil {
 			continue
 		}
-		segments[i].Prior = t.priorFor(ctx, entry.block.ChainUnit())
+		segments[i].Prior = t.priorFor(ctx, entry.block.ChainKey())
 	}
 	batchCtx := t.batchContext(entries, t.docEntries)
 	p := prompt.Translate{

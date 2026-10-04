@@ -507,7 +507,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 					order:      order,
 					locale:     u.locale,
 					sourceRuns: srcRuns,
-					unit:       recordChainUnit(b),
+					unit:       recordChainKey(b),
 					answers:    map[string]*recordAnswer{},
 					origin: memory.Origin{
 						Source:    recordOriginSource,
@@ -1380,27 +1380,20 @@ func saveRecordDigests(ctx context.Context, db *projectdb.DB, stamps map[string]
 	return nil
 }
 
-// recordChainUnit returns the key for a block's version history, preferring its
-// resolved Unit, then structural address, then name. A Unit survives reconciled
-// edits; a structural address is translation-invariant; key paths and catalog
-// IDs are already suitable names.
+// recordChainKey returns the key for a block's version history:
+// model.Block.ChainKey, kept as a named call site because the reasoning about
+// WHY a chain is keyed this way belongs beside the write path that stamps it.
 //
-// Unlike convergence.BlockKey, it excludes the per-read block ID. Such an ID can
-// change across reads and associate unrelated versions. Empty means no stable
-// history key is available.
-
-// recordChainUnit is model.Block.ChainUnit, kept as a named call site because
-// the reasoning about WHY a chain is keyed this way belongs beside the write
-// path that stamps it.
-//
-// Unit, then structural address, then name. It deliberately stops there rather
-// than falling through to the block's ID, as convergence.BlockKey does. An id
-// is assigned per read, so keying a chain on one would braid unrelated answers
-// together and fragment a real chain, both silently. For a version chain an
-// unstable key is worse than no key: empty says "this block has no history",
-// which is merely unhelpful, while a wrong key says "this block said that
-// before", which is false.
-func recordChainUnit(b *model.Block) string { return b.ChainUnit() }
+// The block's resolved Key, then its structural address, then its name. A Key
+// survives reconciled edits; a structural address is translation-invariant;
+// key paths and catalog IDs are already suitable names. It deliberately stops
+// there rather than falling through to the block's ID, as convergence.BlockKey
+// does. An id is assigned per read, so keying a chain on one would braid
+// unrelated answers together and fragment a real chain, both silently. For a
+// version chain an unstable key is worse than no key: empty says "this block
+// has no history", which is merely unhelpful, while a wrong key says "this
+// block said that before", which is false.
+func recordChainKey(b *model.Block) string { return b.ChainKey() }
 
 // governingFingerprintOf reads the governing context a block's committed target
 // stands under, from the two places the statement can live.

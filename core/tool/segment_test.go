@@ -25,67 +25,67 @@ func twoSegBlock(s1, s2 string) *model.Block {
 	return b
 }
 
-func unitTexts(units []tool.Unit) []string {
-	out := make([]string, len(units))
-	for i, u := range units {
+func segmentTexts(segments []tool.Segment) []string {
+	out := make([]string, len(segments))
+	for i, u := range segments {
 		out[i] = model.RunsText(u.SourceRuns())
 	}
 	return out
 }
 
-func TestSourceUnitsWholeBlock(t *testing.T) {
+func TestSourceSegmentsWholeBlock(t *testing.T) {
 	t.Parallel()
 	b := model.NewRunsBlock("b1", []model.Run{{Text: &model.TextRun{Text: "Hello world."}}})
 	v := tool.NewBlockView(b)
 
-	var units []tool.Unit
-	for u := range v.SourceUnits(model.LayerPrimary) {
-		units = append(units, u)
+	var segments []tool.Segment
+	for u := range v.SourceSegments(model.LayerPrimary) {
+		segments = append(segments, u)
 	}
-	require.Len(t, units, 1)
-	assert.Equal(t, 0, units[0].Index())
-	assert.Nil(t, units[0].Range(), "whole-block unit has a nil range")
-	assert.False(t, units[0].Ignorable())
-	assert.Equal(t, "Hello world.", model.RunsText(units[0].SourceRuns()))
+	require.Len(t, segments, 1)
+	assert.Equal(t, 0, segments[0].Index())
+	assert.Nil(t, segments[0].Range(), "whole-block segment has a nil range")
+	assert.False(t, segments[0].Ignorable())
+	assert.Equal(t, "Hello world.", model.RunsText(segments[0].SourceRuns()))
 }
 
-func TestSourceUnitsEmptySourceYieldsNothing(t *testing.T) {
+func TestSourceSegmentsEmptySourceYieldsNothing(t *testing.T) {
 	t.Parallel()
 	b := model.NewRunsBlock("b1", nil)
 	v := tool.NewBlockView(b)
 
 	count := 0
-	for range v.SourceUnits(model.LayerPrimary) {
+	for range v.SourceSegments(model.LayerPrimary) {
 		count++
 	}
-	assert.Equal(t, 0, count, "an empty source yields no units")
+	assert.Equal(t, 0, count, "an empty source yields no segments")
 }
 
-func TestSourceUnitsSegmented(t *testing.T) {
+func TestSourceSegmentsSegmented(t *testing.T) {
 	t.Parallel()
 	b := twoSegBlock("Hello world. ", "Goodbye.")
 	v := tool.NewBlockView(b)
 
-	var units []tool.Unit
-	for u := range v.SourceUnits(model.LayerPrimary) {
-		units = append(units, u)
+	var segments []tool.Segment
+	for u := range v.SourceSegments(model.LayerPrimary) {
+		segments = append(segments, u)
 	}
-	require.Len(t, units, 2)
-	assert.Equal(t, []string{"Hello world. ", "Goodbye."}, unitTexts(units))
-	assert.Equal(t, 0, units[0].Index())
-	assert.Equal(t, 1, units[1].Index())
-	require.NotNil(t, units[0].Range())
-	assert.Equal(t, 0, units[0].Range().Start.Run)
-	assert.Equal(t, 1, units[1].Range().Start.Run)
+	require.Len(t, segments, 2)
+	assert.Equal(t, []string{"Hello world. ", "Goodbye."}, segmentTexts(segments))
+	assert.Equal(t, 0, segments[0].Index())
+	assert.Equal(t, 1, segments[1].Index())
+	require.NotNil(t, segments[0].Range())
+	assert.Equal(t, 0, segments[0].Range().Start.Run)
+	assert.Equal(t, 1, segments[1].Range().Start.Run)
 }
 
-func TestSourceUnitsRangeCopyIsIsolated(t *testing.T) {
+func TestSourceSegmentsRangeCopyIsIsolated(t *testing.T) {
 	t.Parallel()
 	b := twoSegBlock("Hello world. ", "Goodbye.")
 	v := tool.NewBlockView(b)
 
-	var first tool.Unit
-	for u := range v.SourceUnits(model.LayerPrimary) {
+	var first tool.Segment
+	for u := range v.SourceSegments(model.LayerPrimary) {
 		first = u
 		break
 	}
@@ -96,20 +96,20 @@ func TestSourceUnitsRangeCopyIsIsolated(t *testing.T) {
 	assert.Equal(t, 0, b.SourceSegmentation().Spans[0].Range.Start.Run)
 }
 
-func TestSourceUnitsEarlyStop(t *testing.T) {
+func TestSourceSegmentsEarlyStop(t *testing.T) {
 	t.Parallel()
 	b := twoSegBlock("Hello world. ", "Goodbye.")
 	v := tool.NewBlockView(b)
 
 	count := 0
-	for range v.SourceUnits(model.LayerPrimary) {
+	for range v.SourceSegments(model.LayerPrimary) {
 		count++
 		break
 	}
-	assert.Equal(t, 1, count, "break stops iteration after one unit")
+	assert.Equal(t, 1, count, "break stops iteration after one segment")
 }
 
-func TestSourceUnitsIgnorable(t *testing.T) {
+func TestSourceSegmentsIgnorable(t *testing.T) {
 	t.Parallel()
 	b := model.NewRunsBlock("b1", []model.Run{
 		{Text: &model.TextRun{Text: "Hello."}},
@@ -121,56 +121,56 @@ func TestSourceUnitsIgnorable(t *testing.T) {
 	})
 	v := tool.NewBlockView(b)
 
-	var units []tool.Unit
-	for u := range v.SourceUnits(model.LayerPrimary) {
-		units = append(units, u)
+	var segments []tool.Segment
+	for u := range v.SourceSegments(model.LayerPrimary) {
+		segments = append(segments, u)
 	}
-	require.Len(t, units, 2)
-	assert.False(t, units[0].Ignorable())
-	assert.True(t, units[1].Ignorable(), "the whitespace span is ignorable")
+	require.Len(t, segments, 2)
+	assert.False(t, segments[0].Ignorable())
+	assert.True(t, segments[1].Ignorable(), "the whitespace span is ignorable")
 }
 
-func TestTargetUnitsWholeBlockCommit(t *testing.T) {
+func TestTargetSegmentsWholeBlockCommit(t *testing.T) {
 	t.Parallel()
 	b := model.NewRunsBlock("b1", []model.Run{{Text: &model.TextRun{Text: "Hello."}}})
 	v := tool.NewVariantView(b)
 
-	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
+	for u := range v.TargetSegments(frFR, model.LayerPrimary) {
 		u.SetTargetRuns(frFR, []model.Run{{Text: &model.TextRun{Text: "Bonjour."}}})
 	}
 	assert.Equal(t, "Bonjour.", b.TargetText(frFR))
 }
 
-func TestTargetUnitsWholeBlockNoWriteNoCommit(t *testing.T) {
+func TestTargetSegmentsWholeBlockNoWriteNoCommit(t *testing.T) {
 	t.Parallel()
 	b := model.NewRunsBlock("b1", []model.Run{{Text: &model.TextRun{Text: "Hello."}}})
 	v := tool.NewVariantView(b)
 
-	for range v.TargetUnits(frFR, model.LayerPrimary) {
+	for range v.TargetSegments(frFR, model.LayerPrimary) {
 		// deliberately write nothing
 	}
-	assert.False(t, b.HasTarget(frFR), "an untouched whole-block unit commits nothing")
+	assert.False(t, b.HasTarget(frFR), "an untouched whole-block segment commits nothing")
 }
 
-func TestTargetUnitsSegmentedAssembly(t *testing.T) {
+func TestTargetSegmentsSegmentedAssembly(t *testing.T) {
 	t.Parallel()
 	b := twoSegBlock("Hello world. ", "Goodbye.")
 	v := tool.NewVariantView(b)
 
 	want := map[int]string{0: "Bonjour le monde. ", 1: "Au revoir."}
-	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
+	for u := range v.TargetSegments(frFR, model.LayerPrimary) {
 		u.SetTargetRuns(frFR, []model.Run{{Text: &model.TextRun{Text: want[u.Index()]}}})
 	}
 	assert.Equal(t, "Bonjour le monde. Au revoir.", b.TargetText(frFR),
 		"per-segment writes assemble into the block target in span order")
 }
 
-func TestTargetUnitsPartialWriteCommitsNothing(t *testing.T) {
+func TestTargetSegmentsPartialWriteCommitsNothing(t *testing.T) {
 	t.Parallel()
 	b := twoSegBlock("Hello world. ", "Goodbye.")
 	v := tool.NewVariantView(b)
 
-	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
+	for u := range v.TargetSegments(frFR, model.LayerPrimary) {
 		if u.Index() == 0 {
 			u.SetTargetRuns(frFR, []model.Run{{Text: &model.TextRun{Text: "Bonjour le monde. "}}})
 		}
@@ -180,7 +180,7 @@ func TestTargetUnitsPartialWriteCommitsNothing(t *testing.T) {
 		"a non-ignorable segment left unwritten means all-or-nothing: no commit")
 }
 
-func TestTargetUnitsIgnorablePreservedVerbatim(t *testing.T) {
+func TestTargetSegmentsIgnorablePreservedVerbatim(t *testing.T) {
 	t.Parallel()
 	b := model.NewRunsBlock("b1", []model.Run{
 		{Text: &model.TextRun{Text: "Hello."}},
@@ -192,7 +192,7 @@ func TestTargetUnitsIgnorablePreservedVerbatim(t *testing.T) {
 	})
 	v := tool.NewVariantView(b)
 
-	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
+	for u := range v.TargetSegments(frFR, model.LayerPrimary) {
 		if !u.Ignorable() {
 			u.SetTargetRuns(frFR, []model.Run{{Text: &model.TextRun{Text: "Bonjour."}}})
 		}
@@ -201,19 +201,19 @@ func TestTargetUnitsIgnorablePreservedVerbatim(t *testing.T) {
 		"ignorable span is preserved verbatim from source; writing the rest still commits")
 }
 
-func TestTargetUnitsEarlyStopCommitsNothing(t *testing.T) {
+func TestTargetSegmentsEarlyStopCommitsNothing(t *testing.T) {
 	t.Parallel()
 	b := twoSegBlock("Hello world. ", "Goodbye.")
 	v := tool.NewVariantView(b)
 
-	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
+	for u := range v.TargetSegments(frFR, model.LayerPrimary) {
 		u.SetTargetRuns(frFR, []model.Run{{Text: &model.TextRun{Text: "x"}}})
 		break // stop early
 	}
 	assert.False(t, b.HasTarget(frFR), "stopping early commits nothing")
 }
 
-func TestTargetUnitsReadsTargetSegment(t *testing.T) {
+func TestTargetSegmentsReadsTargetSegment(t *testing.T) {
 	t.Parallel()
 	b := twoSegBlock("Hello world. ", "Goodbye.")
 	b.SetTargetRuns(frFR, []model.Run{
@@ -229,7 +229,7 @@ func TestTargetUnitsReadsTargetSegment(t *testing.T) {
 	v := tool.NewBlockView(b)
 
 	got := map[int]string{}
-	for u := range v.SourceUnits(model.LayerPrimary) {
+	for u := range v.SourceSegments(model.LayerPrimary) {
 		got[u.Index()] = model.RunsText(u.TargetRuns(frFR))
 	}
 	assert.Equal(t, "Bonjour le monde. ", got[0])
