@@ -58,9 +58,11 @@ func (s Span) Ignorable() bool { return s.Props[SpanPropIgnorable] == "true" }
 
 // Overlay is a typed, positional (run-anchored) stand-off layer over one
 // edition of a Block, which Edition names: the zero key names the edition the
-// block was read in, and any other key the edition filed under it. Its spans
-// carry real ranges into the runs — segmentation, terminology, entities, check
-// findings, alignment. Block-scoped metadata that has no position (notes,
+// block was read in, and any other key the edition filed under it. The
+// overlays on a translation filed under no language, which has no key, sit
+// apart from Block.Overlays (target_overlay.go). An overlay's spans carry real
+// ranges into the runs — segmentation, terminology, entities, check findings,
+// alignment. Block-scoped metadata that has no position (notes,
 // alt-translations, analysis results, format round-trip state) is not an
 // overlay; it rides on Block.Annotations (see annotation.go). Spans are ordered
 // by position.
@@ -283,17 +285,23 @@ func (b *Block) SetSegmentation(k EditionKey, spans []Span) {
 // sentence segmentation) with one carrying the supplied spans, leaving other
 // layers untouched. Empty spans removes that layer.
 func (b *Block) SetSegmentationLayer(k EditionKey, layer string, spans []Span) {
-	out := b.Overlays[:0]
-	for _, o := range b.Overlays {
+	b.Overlays = replaceSegmentation(b.Overlays, k, layer, spans)
+}
+
+// replaceSegmentation returns overlays with the segmentation overlay naming k
+// and layer replaced by one carrying spans, or removed when spans is empty.
+func replaceSegmentation(overlays []Overlay, k EditionKey, layer string, spans []Span) []Overlay {
+	out := overlays[:0]
+	for _, o := range overlays {
 		if o.Type == OverlaySegmentation && o.Edition == k && o.Layer == layer {
 			continue
 		}
 		out = append(out, o)
 	}
-	b.Overlays = out
 	if len(spans) > 0 {
-		b.Overlays = append(b.Overlays, Overlay{Type: OverlaySegmentation, Edition: k, Layer: layer, Spans: spans})
+		out = append(out, Overlay{Type: OverlaySegmentation, Edition: k, Layer: layer, Spans: spans})
 	}
+	return out
 }
 
 // HasSourceOverlays reports whether the block carries any source-side overlay
