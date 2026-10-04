@@ -13,36 +13,35 @@ import (
 // closing layer. It exercises every event kind, run kind, target keying,
 // and overlay anchoring the dump must encode.
 func handBuiltStream() []*model.Part {
-	frFR := model.Variant("fr-FR")
+	b1 := &model.Block{
+		ID:           "b1",
+		Translatable: true,
+		Properties:   map[string]string{"resname": "intro"},
+	}
+	b1.SetSourceRuns([]model.Run{
+		{Text: &model.TextRun{Text: "Press "}},
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}},
+		{Text: &model.TextRun{Text: "Start"}},
+		{PcClose: &model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"}},
+	})
+	b2 := &model.Block{
+		ID:           "b2",
+		Translatable: true,
+		Overlays: []model.Overlay{
+			{Type: model.OverlaySegmentation, Spans: []model.Span{
+				{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 5})},
+			}},
+		},
+	}
+	b2.SetSourceText("Hello")
+	b2.SetTargetText("fr-FR", "Bonjour")
 	return []*model.Part{
 		{Type: model.PartLayerStart, Resource: &model.Layer{
 			ID: "doc", Format: "html", Locale: "en", MimeType: "text/html",
 		}},
 		{Type: model.PartData, Resource: &model.Data{ID: "d1"}},
-		{Type: model.PartBlock, Resource: &model.Block{
-			ID:           "b1",
-			Translatable: true,
-			Source: []model.Run{
-				{Text: &model.TextRun{Text: "Press "}},
-				{PcOpen: &model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}},
-				{Text: &model.TextRun{Text: "Start"}},
-				{PcClose: &model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"}},
-			},
-			Properties: map[string]string{"resname": "intro"},
-		}},
-		{Type: model.PartBlock, Resource: &model.Block{
-			ID:           "b2",
-			Translatable: true,
-			Source:       []model.Run{{Text: &model.TextRun{Text: "Hello"}}},
-			Targets: map[model.VariantKey]*model.Target{
-				frFR: {Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
-			},
-			Overlays: []model.Overlay{
-				{Type: model.OverlaySegmentation, Spans: []model.Span{
-					{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 5})},
-				}},
-			},
-		}},
+		{Type: model.PartBlock, Resource: b1},
+		{Type: model.PartBlock, Resource: b2},
 		{Type: model.PartLayerEnd, Resource: &model.Layer{ID: "doc"}},
 	}
 }
@@ -94,15 +93,11 @@ func TestDumpBlockEvents_Deterministic(t *testing.T) {
 // asserted exactly so an accidental json.Marshal (which HTML-escapes) is
 // caught.
 func TestDumpBlockEvents_NoHTMLEscape(t *testing.T) {
-	parts := []*model.Part{
-		{Type: model.PartBlock, Resource: &model.Block{
-			ID:           "b",
-			Translatable: true,
-			Source: []model.Run{
-				{PcOpen: &model.PcOpenRun{ID: "1", Type: "link:hyperlink", Data: `<a href="x?a=1&b=2">`}},
-			},
-		}},
-	}
+	b := &model.Block{ID: "b", Translatable: true}
+	b.SetSourceRuns([]model.Run{
+		{PcOpen: &model.PcOpenRun{ID: "1", Type: "link:hyperlink", Data: `<a href="x?a=1&b=2">`}},
+	})
+	parts := []*model.Part{{Type: model.PartBlock, Resource: b}}
 	got, err := DumpBlockEvents(parts)
 	if err != nil {
 		t.Fatalf("DumpBlockEvents: %v", err)
@@ -123,18 +118,11 @@ func TestDumpBlockEvents_NoHTMLEscape(t *testing.T) {
 // TestDumpBlockEvents_SortedMaps confirms map-valued fields (properties,
 // targets) emit with sorted keys regardless of insertion order.
 func TestDumpBlockEvents_SortedMaps(t *testing.T) {
-	parts := []*model.Part{
-		{Type: model.PartBlock, Resource: &model.Block{
-			ID:           "b",
-			Translatable: true,
-			Source:       []model.Run{{Text: &model.TextRun{Text: "x"}}},
-			Properties:   map[string]string{"zeta": "1", "alpha": "2", "mid": "3"},
-			Targets: map[model.VariantKey]*model.Target{
-				model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: "y"}}}},
-				model.Variant("de"): {Runs: []model.Run{{Text: &model.TextRun{Text: "z"}}}},
-			},
-		}},
-	}
+	b := model.NewBlock("b", "x")
+	b.Properties = map[string]string{"zeta": "1", "alpha": "2", "mid": "3"}
+	b.SetTargetText("fr", "y")
+	b.SetTargetText("de", "z")
+	parts := []*model.Part{{Type: model.PartBlock, Resource: b}}
 	got, err := DumpBlockEvents(parts)
 	if err != nil {
 		t.Fatalf("DumpBlockEvents: %v", err)
