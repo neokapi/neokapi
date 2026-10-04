@@ -81,4 +81,30 @@ func TestSyncOverlayFullChainRoundTrip(t *testing.T) {
 	assert.Equal(t, orig.Properties, pulled.Properties, "properties survive the chain")
 	assert.Equal(t, orig.TargetText(model.LocaleFrench), pulled.TargetText(model.LocaleFrench), "fr target survives")
 	assert.Equal(t, orig.TargetText(model.LocaleGerman), pulled.TargetText(model.LocaleGerman), "de target survives")
+
+	// Every edition survives under its own key with its status, the
+	// same-language channel edition among them, and none folds into the
+	// edition the block was read in.
+	type held struct {
+		text   string
+		status model.Status
+	}
+	// The item-less store path keeps no source locale, so the edition the
+	// block was read in is compared under the zero key, which names it on
+	// either side.
+	editions := func(b *model.Block) map[model.EditionKey]held {
+		out := map[model.EditionKey]held{}
+		for k, e := range b.EachEdition {
+			if b.IsSourceEdition(k) {
+				k = model.EditionKey{}
+			}
+			out[k] = held{model.RunsText(e.Runs), e.Status}
+		}
+		return out
+	}
+	assert.Equal(t, editions(orig), editions(pulled), "every edition survives the chain under its key")
+	short, ok := pulled.Edition(model.EditionKey{Locale: model.LocaleEnglish, Channel: "short"})
+	require.True(t, ok, "the same-language channel edition survives as an edition of its own")
+	assert.Equal(t, "Hi", model.RunsText(short.Runs))
+	assert.Equal(t, model.RunsText(origSrc.Runs), model.RunsText(pulledSrc.Runs), "the channel edition never replaces the source")
 }
