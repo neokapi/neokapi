@@ -16,6 +16,12 @@ package model
 // explicitly; the executor's EnforceImmutability backstop catches accidental
 // in-place edits from read-only tool tiers in dev/test.
 //
+// A struct copy (cp := *b) shares the edition storage with b, the edition the
+// block was read in included: a write to any edition of the copy, its source
+// and the source's status among them, is a write to b. A copy that will be
+// written takes CopyEditionSet (its own set of editions and its own source
+// entry) or CopyEditions (every edition's runs copied as well).
+//
 // Role boundary: the raw Block is the wire/storage DTO — exported fields,
 // direct serialization, no encapsulation. Tool-facing code goes through
 // tool.BlockView / tool.VariantView, the capability-scoped boundary; do not
