@@ -1,11 +1,22 @@
 package model
 
+import "slices"
+
 // A derived edition records what it was made from on the edition itself
 // (Edition.Derived): the edition it was made from and that edition's revision
 // at the time, its basis. Whether the derived edition still renders what it
 // was made from is then read from the content: it is current while the edition
 // it names still has the basis revision, and stale once that edition has
 // moved. Nothing about it is stored beside the block.
+
+// PropReadSourceLocale is the advisory block property a read sets when it
+// files a block under a language other than the one the block's reader
+// declared for it, as a project read files every block under the project's
+// source language: the language the reader declared. A revision of the
+// edition the block was read in depends on the key it is taken under, and a
+// revision taken by a read that kept the reader's language is taken under this
+// one.
+const PropReadSourceLocale = AdvisoryPropertyPrefix + "read-source-locale"
 
 // Standing says how a derived edition stands against the edition it was made
 // from.
@@ -80,6 +91,28 @@ func (b *Block) BasisStanding(d Derivation) Standing {
 		return StandingCurrent
 	}
 	return StandingStale
+}
+
+// SourceRevisions returns the revisions of the edition the block was read in
+// under every key a reader may have taken one under: the key the block files
+// it by first (EditionRevision), then the zero key, the language source names
+// (a project's source language, empty for none), and the language the block's
+// reader declared where a read filed the block under another
+// (PropReadSourceLocale). Readers of one document disagree on that key: a
+// reader that declares no language leaves the block with none, a project read
+// files every block under the project's language, and a reader that declares a
+// language keeps its own. The content is the same under each, so a revision of
+// the content as it stands now, taken by any of them, is among these, and a
+// revision of other content is none of them.
+func (b *Block) SourceRevisions(source LocaleID) []string {
+	runs := b.sourceRuns()
+	out := []string{EditionRevision(b, EditionKey{})}
+	for _, k := range []EditionKey{{}, Variant(source), Variant(LocaleID(b.Properties[PropReadSourceLocale]))} {
+		if rev := RunsRevision(k, runs); !slices.Contains(out, rev) {
+			out = append(out, rev)
+		}
+	}
+	return out
 }
 
 // DerivationStanding grades the derivation edition k records (BasisStanding),

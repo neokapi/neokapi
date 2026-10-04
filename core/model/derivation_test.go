@@ -81,6 +81,56 @@ func TestBasisStandingOfADerivationWithNoRevision(t *testing.T) {
 	assert.Equal(t, "stale", model.StandingStale.String())
 }
 
+// Readers of one document disagree on the key the edition a block was read in
+// is filed under, and a revision of it depends on that key. Every revision of
+// the same content, under any key a read of the same document gives it, is
+// among the block's source revisions; a revision of other content is none of
+// them.
+func TestSourceRevisionsCoverEveryKeyAReaderGives(t *testing.T) {
+	runs := []model.Run{model.TextR("Read the guide")}
+	readAs := func(locale, declared model.LocaleID) *model.Block {
+		b := model.NewRunsBlock("b1", runs)
+		b.SourceLocale = locale
+		if declared != "" {
+			b.Properties = map[string]string{model.PropReadSourceLocale: string(declared)}
+		}
+		return b
+	}
+	const project = "en-US"
+	documents := map[string][]*model.Block{
+		// A reader that declares no language: a plain read leaves the block
+		// with none, and a project read, or the change service, files it
+		// under the project's language.
+		"no language declared": {readAs("", ""), readAs(project, "")},
+		// A reader that declares its own: a plain read and the change
+		// service keep it, and a project read files the block under the
+		// project's language and records the reader's.
+		"a language declared": {readAs("en", ""), readAs(project, "en")},
+	}
+	for name, reads := range documents {
+		for _, writer := range reads {
+			rev := model.EditionRevision(writer, model.EditionKey{})
+			for _, reader := range reads {
+				assert.Contains(t, reader.SourceRevisions(project), rev,
+					"%s: taken under %q, read under %q", name, writer.SourceLocale, reader.SourceLocale)
+			}
+		}
+	}
+	under := readAs(project, "")
+	assert.Equal(t, model.EditionRevision(under, model.EditionKey{}), under.SourceRevisions(project)[0],
+		"the revision under the key the block files it by comes first")
+
+	moved := readAs(project, "")
+	moved.SetSourceRuns([]model.Run{model.TextR("Read the whole guide")})
+	for _, rev := range moved.SourceRevisions(project) {
+		for _, reads := range documents {
+			for _, reader := range reads {
+				assert.NotContains(t, reader.SourceRevisions(project), rev, "other content has other revisions under every key")
+			}
+		}
+	}
+}
+
 // A copy of a block holds the derivation as its own.
 func TestDerivationIsCopiedWithTheEditions(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
