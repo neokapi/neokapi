@@ -252,8 +252,8 @@ empty locale reaches a target a reader filed under no language, which
 
 `CopyEditionSet()` copies a block with a set of editions of its own and each
 derived edition shared, so adding or removing an edition on either block leaves
-the other's set as it was. `CopyEditions(copyRuns)` copies the runs of every
-edition as well.
+the other's set as it was. `CopyEditions(copyRuns)` also copies the runs of
+every edition and the source as read.
 
 `model.EditionRevision(block, k)` names an edition's content: `r:` and 16 hex
 digits of the SHA-256 of the edition key and its runs as canonical JSON. Status,
