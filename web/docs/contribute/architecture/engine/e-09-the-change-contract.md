@@ -119,6 +119,8 @@ the operation names as `basis`, else the revision the operations before it left.
 An edit that names no basis keeps the derivation the edition has. A read takes a
 derived edition's basis, and whether the authoritative edition has moved since,
 from that derivation where the edition carries one, and from the host otherwise.
+A KBF bundle carries each edition's derivation, so a bundle read back holds the
+basis it was written with.
 
 A position names that content too. An edit's `start` and `end`, a run `range`,
 and the run index a `path` walks through all refer to the edition at the

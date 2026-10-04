@@ -55,7 +55,11 @@ protocol serves `kapi push`, `kapi up`, and the server-side connectors, and
 [`kapi pull`](/cli/commands/pull) reads the same tree back.
 
 1. **Scan.** kapi reads the recipe's `collections:`, extracts every block, and
-   computes each item's content hash.
+   computes each item's content hash. When a file a collection covers cannot be
+   read (it fails to parse, or it is a catalog in a schema this kapi does not
+   read), the push stops before it sends anything and names the file and the
+   reason. A file that no format reads is left out of the tree, and the server
+   keeps what it holds at that path.
 2. **Declare the tree.** The client sends the server its whole tree: every
    tracked item, its path, its collection and the point it sits at, and its
    hash. The server diffs that against the tree it holds and answers with the
