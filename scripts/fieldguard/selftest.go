@@ -14,15 +14,14 @@ import (
 
 // fixtures are packages the check must report, or must pass, each sitting in
 // a directory of the repository. want is the number of uses outside a test it
-// expects to fail the check, inTest the number of uses in a test it expects to
-// count, and allowed the number it expects the allowlist to accept.
+// expects to fail the check, and inTest the number of uses in a test it
+// expects to count.
 var fixtures = []struct {
-	name    string
-	file    string
-	want    int
-	inTest  int
-	allowed int
-	src     string
+	name   string
+	file   string
+	want   int
+	inTest int
+	src    string
 }{
 	{name: "a planted read of Block.Editions", file: "core/fixture/f.go", want: 1, src: `package f
 import "github.com/neokapi/neokapi/core/model"
@@ -65,7 +64,7 @@ func read(d description, b *model.Block) {
 	b.MarkNative(model.Variant("fr"))
 	_ = b.TargetText("fr")
 }`},
-	{name: "a use in an allowed package", file: "core/plugin/protoconvert/f.go", allowed: 2, src: `package f
+	{name: "a use in the plugin-wire mapping", file: "core/plugin/protoconvert/f.go", want: 2, src: `package f
 import "github.com/neokapi/neokapi/core/model"
 func source(b *model.Block) (int, int) { return len(b.Editions), len(b.Native) }`},
 	{name: "a use in core/model itself", file: "core/model/f.go", src: `package f
@@ -112,15 +111,14 @@ func runSelfTest(root string) error {
 		inv := newInventory(root, []module{{Path: "fixture", Dir: ".", Work: true}})
 		scan(fset, info, inv.add)
 		found := len(inv.misused())
-		accepted := len(inv.uses) - inv.remaining()
-		inTest := inv.remaining() - found
-		if found != fx.want || accepted != fx.allowed || inTest != fx.inTest {
+		inTest := len(inv.uses) - found
+		if found != fx.want || inTest != fx.inTest {
 			var got []string
 			for _, u := range inv.sortedUses() {
 				got = append(got, fmt.Sprintf("%d:%d %s", u.Line, u.Col, u.Kind))
 			}
-			failures = append(failures, fmt.Sprintf("%s: want %d failing, %d in a test and %d allowed, got %d, %d and %d: %s",
-				fx.name, fx.want, fx.inTest, fx.allowed, found, inTest, accepted, strings.Join(got, "; ")))
+			failures = append(failures, fmt.Sprintf("%s: want %d failing and %d in a test, got %d and %d: %s",
+				fx.name, fx.want, fx.inTest, found, inTest, strings.Join(got, "; ")))
 		}
 	}
 	if len(failures) > 0 {

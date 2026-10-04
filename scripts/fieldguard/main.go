@@ -18,8 +18,9 @@
 //
 // Matching is by the object an identifier resolves to, so a field of another
 // type that shares a name (change.Description's Editions, a request's
-// Editions list) is not reported. core/model itself is exempt, and so is each
-// package listed in allowed, with the reason it keeps the fields.
+// Editions list) is not reported. core/model itself is exempt, and no other
+// package is: the plugin-wire mapping reaches the editions through the
+// accessors too.
 //
 // A test may write the storage directly to plant a state no accessor
 // produces, such as an edition filed under a key that is not canonical. Its
@@ -33,8 +34,8 @@
 //
 // The output counts the uses per package, non-test and test separately,
 // grouped by module, with the totals and a count per field. The check fails
-// while a use outside a test remains outside core/model and the allowed
-// packages; -report prints the same inventory and exits 0.
+// while a use outside a test remains outside core/model; -report prints the
+// same inventory and exits 0.
 //
 // Run from the repository root:
 //
@@ -77,12 +78,6 @@ const exemptDir = "core/model"
 
 // fields are the Block fields that store the editions.
 var fields = map[string]bool{"Editions": true, "Native": true}
-
-// allowed lists the packages, by directory, that may use the fields, each
-// with the reason.
-var allowed = map[string]string{
-	"core/plugin/protoconvert": "the plugin wire: BlockMessage keeps its source and targets field numbers, and the mapping carries the first native edition as source and the rest as targets (edit-model 6.4)",
-}
 
 // config is one build configuration packages load under.
 type config struct {
@@ -152,8 +147,7 @@ func main() {
 }
 
 // verdict returns why the check fails, or "" when it passes: a use outside a
-// test, outside core/model and the allowed packages, fails it unless report
-// is true.
+// test and outside core/model fails it unless report is true.
 func (inv *inventory) verdict(report bool) string {
 	if report {
 		return ""
@@ -163,7 +157,7 @@ func (inv *inventory) verdict(report bool) string {
 		return ""
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "fieldguard: %d uses of Block.Editions or Block.Native outside a test, core/model and the allowed packages:\n", len(bad))
+	fmt.Fprintf(&b, "fieldguard: %d uses of Block.Editions or Block.Native outside a test and core/model:\n", len(bad))
 	for _, u := range bad {
 		fmt.Fprintf(&b, "  %s:%d:%d: %s\n", u.File, u.Line, u.Col, u.Kind)
 	}
@@ -531,7 +525,6 @@ type use struct {
 	Test    bool   `json:"test"`
 	Module  string `json:"module"`
 	Package string `json:"package"` // the directory, relative to the root
-	Allowed bool   `json:"allowed,omitempty"`
 }
 
 // configCount is a build configuration and the number of repository files it
@@ -609,27 +602,15 @@ func (inv *inventory) add(pos token.Position, kind string) {
 		Module:  moduleOf(inv.mods, dir).Path,
 		Package: dir,
 	}
-	_, u.Allowed = allowed[dir]
 	inv.uses = append(inv.uses, u)
 }
 
-// remaining is the number of uses outside the allowed packages.
-func (inv *inventory) remaining() int {
-	n := 0
-	for _, u := range inv.uses {
-		if !u.Allowed {
-			n++
-		}
-	}
-	return n
-}
-
-// misused returns the uses outside a test, outside the allowed packages, in
-// file order: the ones that fail the check.
+// misused returns the uses outside a test, in file order: the ones that fail
+// the check.
 func (inv *inventory) misused() []use {
 	var out []use
 	for _, u := range inv.sortedUses() {
-		if !u.Test && !u.Allowed {
+		if !u.Test {
 			out = append(out, u)
 		}
 	}
@@ -674,7 +655,6 @@ func (c *count) add(u use) {
 type pkgCount struct {
 	Module  string `json:"module"`
 	Package string `json:"package"`
-	Allowed string `json:"allowed,omitempty"` // the reason, for an allowed package
 	count
 }
 
@@ -682,7 +662,6 @@ type pkgCount struct {
 type summary struct {
 	Packages []*pkgCount `json:"packages"`
 	Total    count       `json:"total"`
-	Allowed  count       `json:"allowed"`
 	// Non-test and test package counts in the total.
 	NonTestPackages int `json:"non_test_packages"`
 	TestPackages    int `json:"test_packages"`
@@ -693,15 +672,10 @@ func (inv *inventory) summarize() summary {
 	for _, u := range inv.uses {
 		pc := byPkg[u.Package]
 		if pc == nil {
-			pc = &pkgCount{Module: u.Module, Package: u.Package, Allowed: allowed[u.Package]}
+			pc = &pkgCount{Module: u.Module, Package: u.Package}
 			byPkg[u.Package] = pc
 		}
 		pc.add(u)
-	}
-	for dir, reason := range allowed {
-		if byPkg[dir] == nil {
-			byPkg[dir] = &pkgCount{Module: moduleOf(inv.mods, dir).Path, Package: dir, Allowed: reason}
-		}
 	}
 	var s summary
 	for _, pc := range byPkg {
@@ -719,16 +693,9 @@ func (inv *inventory) summarize() summary {
 		return a.Package < b.Package
 	})
 	for _, u := range inv.uses {
-		if u.Allowed {
-			s.Allowed.add(u)
-		} else {
-			s.Total.add(u)
-		}
+		s.Total.add(u)
 	}
 	for _, pc := range s.Packages {
-		if pc.Allowed != "" {
-			continue
-		}
 		if pc.NonTest > 0 {
 			s.NonTestPackages++
 		}
@@ -802,9 +769,6 @@ func (inv *inventory) writeText(w io.Writer, verbose bool) {
 		}
 	}
 	for _, pc := range s.Packages {
-		if pc.Allowed != "" {
-			continue
-		}
 		if pc.Module != module {
 			flush()
 			module, modTotal = pc.Module, count{}
@@ -815,13 +779,7 @@ func (inv *inventory) writeText(w io.Writer, verbose bool) {
 		fmt.Fprintf(w, "%-*s %9d %9d\n", width, "  "+pc.Package, pc.NonTest, pc.Test)
 	}
 	flush()
-	fmt.Fprintln(w, "allowed")
-	for _, pc := range s.Packages {
-		if pc.Allowed != "" {
-			fmt.Fprintf(w, "%-*s %9d %9d   %s\n", width, "  "+pc.Package, pc.NonTest, pc.Test, pc.Allowed)
-		}
-	}
-	fmt.Fprintln(w, "total outside core/model and the allowed packages:")
+	fmt.Fprintln(w, "total outside core/model:")
 	fmt.Fprintf(w, "  non-test: %d uses in %d files across %d packages\n", s.Total.NonTest, s.Total.NonTestFiles, s.NonTestPackages)
 	fmt.Fprintf(w, "  test:     %d uses in %d files across %d packages\n", s.Total.Test, s.Total.TestFiles, s.TestPackages)
 	fmt.Fprintf(w, "by kind:%*s %9s %9s\n", width-len("by kind:"), "", "non-test", "test")
@@ -837,11 +795,7 @@ func (inv *inventory) writeText(w io.Writer, verbose bool) {
 	if verbose {
 		fmt.Fprintln(w, "uses:")
 		for _, u := range inv.sortedUses() {
-			note := ""
-			if u.Allowed {
-				note = " (allowed)"
-			}
-			fmt.Fprintf(w, "  %s:%d:%d: %s%s\n", u.File, u.Line, u.Col, u.Kind, note)
+			fmt.Fprintf(w, "  %s:%d:%d: %s\n", u.File, u.Line, u.Col, u.Kind)
 		}
 	}
 }
@@ -873,9 +827,6 @@ func (inv *inventory) writeMarkdown(w io.Writer, verbose bool) {
 		}
 	}
 	for _, pc := range s.Packages {
-		if pc.Allowed != "" {
-			continue
-		}
 		if pc.Module != module {
 			flush()
 			module, modTotal = pc.Module, count{}
@@ -889,16 +840,6 @@ func (inv *inventory) writeMarkdown(w io.Writer, verbose bool) {
 		fmt.Fprintf(w, "| `%s` | %d | %d |\n", pc.Package, pc.NonTest, pc.Test)
 	}
 	flush()
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "## Allowed")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "| package | non-test | test | reason |")
-	fmt.Fprintln(w, "| --- | ---: | ---: | --- |")
-	for _, pc := range s.Packages {
-		if pc.Allowed != "" {
-			fmt.Fprintf(w, "| `%s` | %d | %d | %s |\n", pc.Package, pc.NonTest, pc.Test, pc.Allowed)
-		}
-	}
 	if len(inv.unchecked) > 0 {
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "## Unchecked\n\n%d files no configuration builds:\n\n", len(inv.unchecked))
@@ -927,11 +868,10 @@ func (inv *inventory) writeJSON(w io.Writer) error {
 		Total           count         `json:"total"`
 		NonTestPackages int           `json:"non_test_packages"`
 		TestPackages    int           `json:"test_packages"`
-		Allowed         count         `json:"allowed"`
 		Unchecked       []string      `json:"unchecked"`
 		Warnings        []string      `json:"warnings"`
 		Uses            []use         `json:"uses"`
-	}{inv.mods, inv.configs, s.Packages, s.Total, s.NonTestPackages, s.TestPackages, s.Allowed, inv.unchecked, inv.warnings, inv.sortedUses()}
+	}{inv.mods, inv.configs, s.Packages, s.Total, s.NonTestPackages, s.TestPackages, inv.unchecked, inv.warnings, inv.sortedUses()}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetIndent("", "  ")
