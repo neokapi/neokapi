@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -47,7 +48,7 @@ func newRecheckHarness(t *testing.T) (*Server, string, string) {
 	reg := platconn.NewRegistry()
 	formatReg := registry.NewFormatRegistry()
 	toolReg := registry.NewToolRegistry()
-	bus := event.NewChannelEventBus()
+	bus := &handledBus{ChannelEventBus: event.NewChannelEventBus()}
 	t.Cleanup(bus.Close)
 
 	s := &Server{
@@ -80,6 +81,57 @@ func newRecheckHarness(t *testing.T) (*Server, string, string) {
 	require.NoError(t, as.AddMember(ctx, ws.ID, owner.ID, platauth.RoleOwner))
 	require.NoError(t, as.SeedDefaultRoleTemplates(ctx, ws.ID))
 	return s, ws.ID, owner.ID
+}
+
+// handledBus is the channel bus the recheck harness runs on, with a record of
+// each event a consumer group has finished handling. A recheck that changes
+// nothing leaves nothing to watch for, so a test that asserts it changed nothing
+// waits for the handler to have returned, then looks.
+type handledBus struct {
+	*event.ChannelEventBus
+	mu      sync.Mutex
+	handled map[[2]string]chan error // group, event id
+}
+
+func (b *handledBus) done(group, eventID string) chan error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.handled == nil {
+		b.handled = map[[2]string]chan error{}
+	}
+	key := [2]string{group, eventID}
+	ch, ok := b.handled[key]
+	if !ok {
+		ch = make(chan error, 1)
+		b.handled[key] = ch
+	}
+	return ch
+}
+
+func (b *handledBus) SubscribeGroup(group string, handler platev.GroupHandler) *platev.Subscription {
+	return b.ChannelEventBus.SubscribeGroup(group, func(ev platev.Event) error {
+		err := handler(ev)
+		select {
+		case b.done(group, ev.ID) <- err:
+		default: // a second delivery of the same event; the first is what a test reads
+		}
+		return err
+	})
+}
+
+// awaitRecheck waits for the review recheck to finish handling an event and
+// returns the handler's error.
+func awaitRecheck(t *testing.T, s *Server, eventID string) error {
+	t.Helper()
+	bus, ok := s.EventBus.(*handledBus)
+	require.True(t, ok, "the recheck harness runs on a handledBus")
+	select {
+	case err := <-bus.done(reviewRecheckGroup, eventID):
+		return err
+	case <-time.After(20 * time.Second):
+		t.Fatalf("the review recheck never handled event %s", eventID)
+		return nil
+	}
 }
 
 // reviewedBlock builds a translatable block whose fr target is already reviewed —
@@ -230,15 +282,17 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 
 	// The governed term-status flip publishes concept.term.status_changed carrying
 	// the concept id and the workspace id.
-	publishConceptEvent := func() {
-		s.EventBus.Publish(platev.Event{
+	publishConceptEvent := func() string {
+		ev := platev.Event{
 			ID:          id.New(),
 			Type:        knowledge.EventConceptTermStatusChanged,
 			Source:      "knowledge",
 			WorkspaceID: wsID,
 			Data:        map[string]string{"concept_id": cid},
 			Timestamp:   time.Now().UTC(),
-		})
+		}
+		s.EventBus.Publish(ev)
+		return ev.ID
 	}
 	publishConceptEvent()
 
@@ -260,8 +314,7 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 	// Idempotency: replaying the event re-checks the (now draft) target, which no
 	// longer sits at reviewed, so nothing is demoted again and no duplicate task is
 	// created.
-	publishConceptEvent()
-	time.Sleep(500 * time.Millisecond)
+	require.NoError(t, awaitRecheck(t, s, publishConceptEvent()))
 	assert.Equal(t, model.TargetStatusDraft, frStatus(t, s, projID, ids["Use the app"]))
 	assert.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Hello"]))
 	assert.Equal(t, 1, frPendingCount(t, s, projID), "replay changes nothing")
@@ -296,18 +349,21 @@ func TestReviewRecheck_ConceptLeavesUngovernedLanguageAlone(t *testing.T) {
 		},
 	}))
 
-	s.EventBus.Publish(platev.Event{
+	ev := platev.Event{
 		ID:          id.New(),
 		Type:        knowledge.EventConceptTermStatusChanged,
 		Source:      "knowledge",
 		WorkspaceID: wsID,
 		Data:        map[string]string{"concept_id": cid},
 		Timestamp:   time.Now().UTC(),
-	})
+	}
+	s.EventBus.Publish(ev)
 
-	assert.Never(t, func() bool {
-		return frStatus(t, s, projID, ids["Use the app"]) == model.TargetStatusDraft
-	}, 2*time.Second, 50*time.Millisecond, "a language the terms do not govern keeps its approved target")
+	// The recheck has run over the concept when it returns, so what it left is
+	// what it decided.
+	require.NoError(t, awaitRecheck(t, s, ev.ID))
+	assert.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Use the app"]),
+		"a language the terms do not govern keeps its approved target")
 	assert.Equal(t, 0, frPendingCount(t, s, projID), "nothing re-enters review")
 }
 
@@ -346,15 +402,17 @@ func TestReviewRecheck_ConceptMandatedTermAbsenceDemotesAndRequeues(t *testing.T
 		},
 	}))
 
-	publishConceptEvent := func() {
-		s.EventBus.Publish(platev.Event{
+	publishConceptEvent := func() string {
+		ev := platev.Event{
 			ID:          id.New(),
 			Type:        knowledge.EventConceptTermStatusChanged,
 			Source:      "knowledge",
 			WorkspaceID: wsID,
 			Data:        map[string]string{"concept_id": cid},
 			Timestamp:   time.Now().UTC(),
-		})
+		}
+		s.EventBus.Publish(ev)
+		return ev.ID
 	}
 	publishConceptEvent()
 
@@ -374,8 +432,7 @@ func TestReviewRecheck_ConceptMandatedTermAbsenceDemotesAndRequeues(t *testing.T
 
 	// Idempotency: the demoted target is now draft (< reviewed), so a replay
 	// re-checks nothing new and creates no duplicate task.
-	publishConceptEvent()
-	time.Sleep(500 * time.Millisecond)
+	require.NoError(t, awaitRecheck(t, s, publishConceptEvent()))
 	assert.Equal(t, model.TargetStatusDraft, frStatus(t, s, projID, ids["Open the app"]))
 	assert.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Close the app"]))
 	assert.Equal(t, 1, frPendingCount(t, s, projID), "replay changes nothing")
