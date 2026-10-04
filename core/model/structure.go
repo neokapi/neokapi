@@ -373,11 +373,11 @@ func (b *Block) StructuralAddress() string {
 	return ""
 }
 
-// ChainUnit is the identity that links a block's successive approved
+// ChainKey is the identity that links a block's successive approved
 // translations into one chain, so a source that was rewritten can still find
 // what it said before.
 //
-// Unit first, since reconciliation resolves it and it survives edits and
+// Key first, since reconciliation resolves it and it survives edits and
 // reorders. Then the structural address, which is translation-invariant. Then
 // the name. Never the ID: an ID is assigned per read and would make every run
 // look like a new block, which is the failure this ladder exists to avoid.
@@ -389,7 +389,7 @@ func (b *Block) StructuralAddress() string {
 //
 // One of four block identities, which disagree on purpose. See
 // identity_ladders.go for which question each answers.
-func (b *Block) ChainUnit() string {
+func (b *Block) ChainKey() string {
 	if b == nil {
 		return ""
 	}

@@ -57,13 +57,13 @@ type BlockReader interface {
 	Translatable() bool
 	SourceLocale() model.LocaleID
 	Identity() *model.BlockIdentity
-	// ChainUnit is the block's durable identity across edits: what links its
-	// successive approved translations into one chain. See model.Block.ChainUnit.
+	// ChainKey is the block's durable identity across edits: what links its
+	// successive approved translations into one chain. See model.Block.ChainKey.
 	//
 	// A tool that needs to ask what this block said before needs this and not
 	// the ID, which is assigned per read. Exposed here rather than by handing
 	// out the block, so a view stays a view.
-	ChainUnit() string
+	ChainKey() string
 	PreserveWhitespace() bool
 
 	// Source (read-only).
@@ -74,12 +74,12 @@ type BlockReader interface {
 	SourceSegmentCount() int
 	SourceSegmentRuns(i int) []model.Run
 
-	// SourceUnits yields the source processing units of the given segmentation
-	// layer (model.LayerPrimary = primary): one per segment span, or a single
-	// whole-block unit when the layer has no segmentation overlay. It is the
-	// uniform replacement for hand-rolled SourceSegmentCount / SourceSegmentRuns
-	// loops.
-	SourceUnits(layer string) iter.Seq[Unit]
+	// SourceSegments yields the source processing segments of the given
+	// segmentation layer (model.LayerPrimary = primary): one per segment span,
+	// or a single whole-block segment when the layer has no segmentation
+	// overlay. It is the uniform replacement for hand-rolled
+	// SourceSegmentCount / SourceSegmentRuns loops.
+	SourceSegments(layer string) iter.Seq[Segment]
 
 	// Targets (read-only).
 	HasTarget(loc model.LocaleID) bool
@@ -194,12 +194,12 @@ type TargetWriter interface {
 	RemoveTarget(loc model.LocaleID)
 	ClearTargets()
 
-	// TargetUnits yields writable per-unit target production over the source
-	// segmentation of the given layer (model.LayerPrimary = primary), splicing
-	// each unit's runs back into the block target for loc when iteration
-	// completes. Commit is all-or-nothing across non-ignorable units; see
-	// WritableUnit.
-	TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit]
+	// TargetSegments yields writable per-segment target production over the
+	// source segmentation of the given layer (model.LayerPrimary = primary),
+	// splicing each segment's runs back into the block target for loc when
+	// iteration completes. Commit is all-or-nothing across non-ignorable
+	// segments; see WritableSegment.
+	TargetSegments(loc model.LocaleID, layer string) iter.Seq[WritableSegment]
 }
 
 // blockView is the single concrete view; the handler field's parameter type
@@ -353,7 +353,7 @@ func (v *blockView) MimeType() string               { return v.b.MimeType }
 func (v *blockView) Translatable() bool             { return v.b.Translatable }
 func (v *blockView) SourceLocale() model.LocaleID   { return v.b.SourceLocale }
 func (v *blockView) Identity() *model.BlockIdentity { return v.b.Identity }
-func (v *blockView) ChainUnit() string              { return v.b.ChainUnit() }
+func (v *blockView) ChainKey() string               { return v.b.ChainKey() }
 func (v *blockView) PreserveWhitespace() bool       { return v.b.PreserveWhitespace }
 
 func (v *blockView) SourceRuns() []model.Run             { return authoritative(v.b).Runs }
@@ -363,7 +363,7 @@ func (v *blockView) SourceSegmentation() *model.Overlay  { return v.b.SourceSegm
 func (v *blockView) SourceSegmentCount() int             { return v.b.SourceSegmentCount() }
 func (v *blockView) SourceSegmentRuns(i int) []model.Run { return v.b.SourceSegmentRuns(i) }
 
-func (v *blockView) SourceUnits(layer string) iter.Seq[Unit] { return sourceUnits(v.b, layer) }
+func (v *blockView) SourceSegments(layer string) iter.Seq[Segment] { return sourceSegments(v.b, layer) }
 
 func (v *blockView) HasTarget(loc model.LocaleID) bool         { return v.b.HasTarget(loc) }
 func (v *blockView) TargetLocales() []model.LocaleID           { return v.b.TargetLocales() }
@@ -489,8 +489,8 @@ func (v *blockView) StampTargetProvenance(loc model.LocaleID, status model.Targe
 	}
 	v.apply(v.provenance(key, model.Status(status), origin, nil))
 }
-func (v *blockView) TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit] {
-	return targetUnits(v, loc, layer)
+func (v *blockView) TargetSegments(loc model.LocaleID, layer string) iter.Seq[WritableSegment] {
+	return targetSegments(v, loc, layer)
 }
 func (v *blockView) RemoveTarget(loc model.LocaleID) { v.RemoveEdition(model.Variant(loc)) }
 func (v *blockView) ClearTargets() {
