@@ -185,7 +185,7 @@ func TestInMemoryMemory_LookupSegment_ExactMatchOnSpecificSegment(t *testing.T) 
 		{Text: &model.TextRun{Text: "Save the file."}},
 		{Text: &model.TextRun{Text: "It was successful."}},
 	})
-	block.SetSegmentation(nil, []model.Span{
+	block.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})

@@ -44,7 +44,7 @@ var (
 			// narrows to one place on either.
 			{Name: "point", SQLite: "TEXT NOT NULL DEFAULT ''", PG: "TEXT NOT NULL DEFAULT ''"},
 			// unit is added by a later migration (v5 SQLite, v7 Postgres): the durable block
-			// identity this answer was approved for (model.Block.Unit), and the
+			// identity this answer was approved for (model.Block.Key), and the
 			// only thing that links successive approvals of one block into a
 			// version chain. The corpus already holds every version — a changed
 			// source writes a new entry beside the old rather than replacing it

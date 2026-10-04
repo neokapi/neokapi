@@ -175,7 +175,7 @@ describe("ReviewSurface — approve/reject persist as decide operations", () => 
     const user = userEvent.setup();
     const { adapter } = renderSurface();
     await waitForDocument();
-    // b3 starts reviewed (per-locale Target.Status in the payload).
+    // b3 starts reviewed (per-locale Edition.Status in the payload).
     await openBlock(user, "b3");
 
     expect(screen.getByTestId("review-status-b3").textContent).toBe("Established");

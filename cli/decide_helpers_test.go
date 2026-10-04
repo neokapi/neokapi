@@ -42,7 +42,7 @@ func decideUnitAs(ctx context.Context, a *App, recipe string, ref ReviewUnitRef,
 		return false, err
 	}
 	if len(page.Blocks) == 0 {
-		return false, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
+		return false, fmt.Errorf("block %q (%s) under review not found in %s", ref.Key, ref.Locale, ref.File)
 	}
 	b := page.Blocks[0]
 	at, rev := b.Ref, b.Rev

@@ -28,7 +28,9 @@ type TranslateAfterConfig struct {
 //     derivation the server settle and `kapi check` use; and
 //  2. holds the block when its source has not reached the configured level
 //     (its checks fail, or an `established` level waits for a person), with
-//     model.Block.SetSourceHeld. The block stays in the stream, its source
+//     model.Block.SetSourceHeld. The level is the derivation gate on the
+//     edition the block was read in (model.TranslateAfterLevel.AdmitsDerivation):
+//     no edition is derived from a source below it. The block stays in the stream, its source
 //     passes through to output untouched and the target falls back to source
 //     (normal drift), but it carries the hold marker the downstream producers
 //     (recycle, translate) read to skip it. A block that reaches the level has

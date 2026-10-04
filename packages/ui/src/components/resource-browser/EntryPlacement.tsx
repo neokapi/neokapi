@@ -91,7 +91,9 @@ export function EntryPlacement({ entry, resolvePoint, onOpenUnit }: EntryPlaceme
         ))}
       {label && (
         <SimpleTooltip
-          content={stored ? t("This answer was approved at this point") : t("Where this unit sits")}
+          content={
+            stored ? t("This answer was approved at this point") : t("Where this block sits")
+          }
         >
           <span
             className="inline-flex shrink-0 items-center rounded bg-muted px-1.5 py-px font-mono text-[10px]"

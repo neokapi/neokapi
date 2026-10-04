@@ -186,7 +186,7 @@ CREATE TABLE document (key TEXT NOT NULL PRIMARY KEY, path TEXT NOT NULL);`)
 	require.NoError(t, err)
 	assert.Len(t, carried, 1, "an unwritten decision survives the upgrade, nothing else holding it")
 
-	got, ok := w.Get(t.Context(), state.Key{Scope: "d-intro", Unit: "p", Variant: model.VariantKey{Locale: "nb"}})
+	got, ok := w.Get(t.Context(), state.Key{Scope: "d-intro", Unit: "p", Variant: model.EditionKey{Locale: "nb"}})
 	require.True(t, ok, "and is addressable by the identity it always had")
 	assert.Equal(t, "intro", got.Decision.Note)
 

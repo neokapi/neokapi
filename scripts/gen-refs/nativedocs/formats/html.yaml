@@ -64,7 +64,7 @@ limitations:
   - The reader applies built-in element/attribute defaults; the `elements` and `attributes` maps adjust them rather than replacing the entire rule set.
 processingNotes:
   - Inline elements become inline codes within blocks; block-level elements form the surrounding structure.
-  - Translatable attributes (such as `alt` and `title`) are extracted as their own units.
+  - Translatable attributes (such as `alt` and `title`) are extracted as their own blocks.
 examples:
   - title: Preserve whitespace
     description: Keep significant whitespace in text nodes instead of collapsing it.

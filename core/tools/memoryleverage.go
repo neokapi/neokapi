@@ -540,7 +540,7 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 	minScore := 101
 	matched := 0
 	allExact := true
-	for seg := range v.SourceUnits(model.LayerPrimary) {
+	for seg := range v.SourceSegments(model.LayerPrimary) {
 		i := seg.Index()
 		segRuns := seg.SourceRuns()
 		segTexts[i] = model.RunsText(segRuns)

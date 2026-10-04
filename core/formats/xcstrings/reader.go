@@ -660,6 +660,7 @@ func (r *Reader) emitLeaf(ctx context.Context, ch chan<- model.PartResult,
 	} else {
 		// Target leaf — value lives under the target locale.
 		block.SetTargetRuns(lang, runsFromValue(su.Value))
+		block.MarkNative(model.Variant(lang))
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})

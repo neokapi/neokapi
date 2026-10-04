@@ -3,12 +3,12 @@ package sqlitestore
 import (
 	"context"
 	"encoding/json"
-	"maps"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/stretchr/testify/assert"
@@ -20,11 +20,10 @@ func textBlock(hash, text string, targets map[string][]model.Run) *blockstore.Bl
 		Hash:         hash,
 		ID:           hash,
 		Translatable: true,
-		Source:       []model.Run{model.TextR(text)},
+		Editions:     kbf.SourceEditions([]model.Run{model.TextR(text)}),
 	}
-	if targets != nil {
-		b.Targets = map[string][]model.Run{}
-		maps.Copy(b.Targets, targets)
+	for key, runs := range targets {
+		b.SetEdition(key, kbf.Edition{Runs: runs})
 	}
 	return b
 }
@@ -303,6 +302,52 @@ func TestWritingDoesNotBuildTheIndex(t *testing.T) {
 	require.NoError(t, k.db.QueryRowContext(t.Context(),
 		`SELECT COUNT(*) FROM blocks WHERE text_indexed = 0`).Scan(&stale))
 	assert.Zero(t, stale, "the search settled the debt")
+}
+
+// A tone or channel edition is filed under its full key, and a search by its
+// language finds it beside the plain edition; a search by the full key finds
+// it alone. The index and the scan answer the same way.
+func TestSearchBlockTextFindsAToneEditionUnderItsLanguage(t *testing.T) {
+	blocks := map[string][]*blockstore.Block{
+		"docs": {
+			textBlock("b1", "Please sign in", map[string][]model.Run{
+				"nb":             {model.TextR("Logg inn")},
+				"nb;tone=formal": {model.TextR("Vennligst logg inn")},
+				"de":             {model.TextR("Bitte anmelden")},
+			}),
+		},
+	}
+	indexed := seedStore(t, blocks)
+	scanned := blockstore.NewMemoryStore()
+	writeBlocks(t, scanned, blocks)
+
+	locales := func(hits []blockstore.TextHit) []string {
+		out := make([]string, 0, len(hits))
+		for _, h := range hits {
+			out = append(out, h.Locale)
+		}
+		return out
+	}
+	cases := []struct {
+		name    string
+		locales []string
+		want    []string
+	}{
+		{"a language takes its tone edition too", []string{"nb"}, []string{"nb", "nb;tone=formal"}},
+		{"a full key takes that edition alone", []string{"nb;tone=formal"}, []string{"nb;tone=formal"}},
+		{"another language takes neither", []string{"de"}, []string{}},
+		{"the source takes no edition", []string{blockstore.SourceLocale}, []string{}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := blockstore.TextSearchOptions{Locales: tc.locales}
+			for name, store := range map[string]blockstore.Store{"index": indexed, "scan": scanned} {
+				hits, err := blockstore.SearchText(t.Context(), store, "logg inn", opts)
+				require.NoError(t, err)
+				assert.ElementsMatch(t, tc.want, locales(verifyHits(hits, "logg inn")), name)
+			}
+		})
+	}
 }
 
 func TestEmptyNeedleMatchesNothing(t *testing.T) {

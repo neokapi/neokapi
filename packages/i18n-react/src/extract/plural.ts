@@ -1,6 +1,6 @@
 /**
  * Plural / Select component recognition shared by the extract
- * walker (emits `PluralRun` / `SelectRun` into `Block.source`) and
+ * walker (emits `PluralRun` / `SelectRun` into a block source edition) and
  * the plugin transform (emits the ICU template into `__tx()`).
  *
  * Children-based shape (Framework AD-002):

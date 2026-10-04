@@ -258,7 +258,7 @@ A target identical to its source fails the gate unless the project records that
 the unchanged wording is intentional. This evidence can be an approval bound to
 that exact source–target pair or a terms entry with identical source and target
 text. `kapi check --ship` and `kapi up` apply the same rule. Other checks still
-apply; an approved unit with a missing placeholder fails.
+apply; an approved block with a missing placeholder fails.
 
 The **staleness** gate is the one that reads provenance rather than content. Every producer stamps the governing context it was given onto what it writes, so a target can be compared against the context in force at the point that governs its file. Move the voice profile or the terminology and the targets written under the old one fail the gate, naming what moved; `kapi up` reproduces them under the context now in force. Content that carries no stamp (written before the stamp existed, or by hand) is reported and never failed.
 

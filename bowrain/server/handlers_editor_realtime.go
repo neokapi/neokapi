@@ -15,8 +15,8 @@ import (
 )
 
 // recordReviewDecision appends a server-made review to the decision ledger
-// with the decider's identity, the time, and the hash of the translation it
-// blesses, then promotes the wording into the workspace content memory. It
+// with the decider's identity, the time, and the revision of the translation
+// it blesses, then promotes the wording into the workspace content memory. It
 // writes through ledger, or opens one for the single decision it writes when
 // ledger is nil.
 //
@@ -61,7 +61,7 @@ type ReviewBlockRequest struct {
 
 // legacyTranslationStatusProperty is the pre-per-locale review flag: a
 // block-global property an earlier review route wrote. Review state lives on
-// the per-locale Target.Status, but blocks written before the change still
+// the per-locale Edition.Status, but blocks written before the change still
 // carry it, so a withdrawal clears it when there is no target to demote.
 const legacyTranslationStatusProperty = "translation-status"
 
@@ -211,7 +211,7 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 	}
 
 	// The review is a DECISION, and decisions live in the ledger — with the
-	// decider's identity, the time, and the hash of the translation it
+	// decider's identity, the time, and the revision of the translation it
 	// blesses — not only in the projected status the write above landed. The
 	// ledger is what travels to the client on pull, where the same record
 	// lands in the project's committed state.

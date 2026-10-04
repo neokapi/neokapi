@@ -59,7 +59,7 @@ flows:
   prepare:
     steps:
       - tool: redact # protect sensitive content
-      - tool: segmentation # per-sentence units, so reuse and checks land precisely
+      - tool: segmentation # per-sentence segments, so reuse and checks land precisely
       - tool: entity-extract # detect names so memory reuse generalizes over them
       - tool: recycle # reuse past translations
       - tool: translate # translate the remainder

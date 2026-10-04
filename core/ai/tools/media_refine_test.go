@@ -146,7 +146,7 @@ func TestMediaRefine_RewriteIsAnEditThatDropsStaleOverlays(t *testing.T) {
 	assert.True(t, edited)
 	assert.Equal(t, "corrupted txt from the scan", model.RunsText(read))
 	assert.Nil(t, low.OverlayOf(model.OverlayTerm), "the span into the old text is gone")
-	_, ok := low.OverlaysInBounds(nil, low.SourceRuns())
+	_, ok := low.OverlaysInBounds(model.EditionKey{}, low.SourceRuns())
 	assert.True(t, ok)
 }
 

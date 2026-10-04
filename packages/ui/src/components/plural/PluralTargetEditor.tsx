@@ -28,6 +28,7 @@ import {
   pluralPivotCandidates,
   pluralTargetPivot,
   setPluralForm,
+  sourceRuns,
   upgradeTargetToPlural,
 } from "@neokapi/kapi-format";
 
@@ -39,11 +40,11 @@ const DEFAULT_FORMS: readonly PluralForm[] = ["zero", "one", "two", "few", "many
 
 export interface PluralTargetEditorProps {
   /**
-   * The block whose target is being edited. Used for pivot-candidate
-   * resolution + placeholder metadata when parsing translator edits
-   * back into typed runs. Source target isn't mutated.
+   * The block whose target is being edited. Its source edition and
+   * placeholder table resolve pivot candidates and turn a translator's edit
+   * back into typed runs. The source is not mutated.
    */
-  block: Pick<Block, "source" | "placeholders">;
+  block: Pick<Block, "editions" | "placeholders">;
   /** Current translation for the active locale. */
   target: readonly Run[];
   /** Called with the new Run[] whenever the translator edits any form. */
@@ -89,14 +90,14 @@ function FlatTarget({
   fixedStructure,
   className,
 }: PluralTargetEditorProps & { forms: readonly PluralForm[] }) {
-  const candidates = useMemo(() => pluralPivotCandidates(block as Block), [block]);
+  const candidates = useMemo(() => pluralPivotCandidates(block), [block]);
   const text = useMemo(() => runsToText(target), [target]);
   const preselectedPivot = candidates[0]?.name ?? "";
 
   const [chosenPivot, setChosenPivot] = useState(preselectedPivot);
 
   const handleEdit = (next: string) => {
-    onChange(textToRuns(next, block.placeholders, block.source));
+    onChange(textToRuns(next, block.placeholders, sourceRuns(block)));
   };
 
   const upgrade = () => {
@@ -165,7 +166,7 @@ function PluralForms({
   const editRuns = (form: PluralForm, runs: Run[]) =>
     onChange(setPluralForm(latest.current, form, runs));
   const editForm = (form: PluralForm, text: string) =>
-    editRuns(form, textToRuns(text, block.placeholders, block.source));
+    editRuns(form, textToRuns(text, block.placeholders, sourceRuns(block)));
 
   const downgrade = () => onChange(downgradePluralTarget(target));
 

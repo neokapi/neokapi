@@ -266,10 +266,11 @@ export class Media {
 }
 
 /**
- * Origin records how content was produced, and under what context. On a Target
- * it records how the committed translation was made; on a Block's source it
- * records how a *recognized* source was extracted (ocr, asr) — source and target
- * provenance are the same record on two sides of the Block.
+ * Origin records how content was produced, and under what context. On a
+ * derived edition it records how the committed translation was made; on the
+ * edition a block was read in it records how a *recognized* source was
+ * extracted (ocr, asr). Source and target provenance are the same record on
+ * two editions of the Block.
  * 
  * The Kind/Engine/Tool/Reference/Timestamp/Confidence group answers *how* it was
  * made. The Profile group answers *what governed it*: which named context was in

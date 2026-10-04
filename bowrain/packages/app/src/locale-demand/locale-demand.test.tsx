@@ -94,9 +94,9 @@ describe("LanguageDemandTable", () => {
   it("shows the gap estimate for uncovered languages only", () => {
     render(<LanguageDemandTable languages={snapshot.languages} />);
     const ptBR = within(screen.getByTestId("language-row-pt-BR"));
-    expect(ptBR.getByText(/units ·/)).toBeInTheDocument();
+    expect(ptBR.getByText(/blocks ·/)).toBeInTheDocument();
     const en = within(screen.getByTestId("language-row-en"));
-    expect(en.queryByText(/units ·/)).not.toBeInTheDocument();
+    expect(en.queryByText(/blocks ·/)).not.toBeInTheDocument();
   });
 
   it("reports row clicks", () => {

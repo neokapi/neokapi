@@ -140,9 +140,12 @@ func (s *PostgresStore) UpdateProject(ctx context.Context, p *platstore.Project)
 	if p.DashboardVisibility == "" {
 		p.DashboardVisibility = "private"
 	}
+	// The source language stays while the project holds content: every
+	// source revision stamped on its blocks is taken under it
+	// (platstore.ErrSourceLanguageFixed).
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE projects SET name=$1, default_source_language=$2, target_languages=$3, target_language_mode=$4, default_stream=$5, dashboard_visibility=$6, properties=$7, workspace_id=$8, converge_policy=$9, updated_at=$10
-		 WHERE id=$11`,
+		 WHERE id=$11 AND (default_source_language=$2 OR NOT EXISTS (SELECT 1 FROM blocks WHERE project_id=$11))`,
 		p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, p.DashboardVisibility, string(propsJSON),
 		p.WorkspaceID, platstore.NormalizeConvergePolicy(p.ConvergePolicy), p.UpdatedAt, p.ID)
 	if err != nil {
@@ -150,6 +153,13 @@ func (s *PostgresStore) UpdateProject(ctx context.Context, p *platstore.Project)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
+		var exists bool
+		if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM projects WHERE id=$1)`, p.ID).Scan(&exists); err != nil {
+			return fmt.Errorf("update project: %w", err)
+		}
+		if exists {
+			return fmt.Errorf("update project %s: %w", p.ID, platstore.ErrSourceLanguageFixed)
+		}
 		return fmt.Errorf("project %s not found", p.ID)
 	}
 	return nil
@@ -879,15 +889,22 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 // storeBlocksTx is the work, on whatever executor the caller brings.
 //
 // A non-nil wb makes it a write-back of item-less blocks read from this store:
-// a block is written only to an existing row that still holds the content hash
-// the caller read, by an UPDATE that checks that hash itself, so a push that
-// commits between this call's own read and its write is caught too. Every
+// a block is written only to an existing row that still holds the source
+// revision the caller read, by an UPDATE that checks that revision itself, so a
+// push that commits between this call's own read and its write is caught too. Every
 // other block is recorded on wb as skipped, and nothing else is written for it.
 // A write-back keeps the row's stored context hash: the properties a server step
 // records are its own bookkeeping, and the producer's next push compares against
 // the context hash its own push stored.
 func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName string, blocks []*model.Block, wb *storeutil.WriteBack) error {
 	stream = storeutil.DefaultStream(stream)
+
+	// The language the project's source is written in, which every source
+	// revision the store stamps is taken under (venue.SourceRevision).
+	source, err := projectSourceLanguagePg(ctx, tx, projectID)
+	if err != nil {
+		return err
+	}
 
 	// When storing blocks for a specific item, map format-reader IDs (source_id)
 	// to internal project-unique IDs.
@@ -911,7 +928,6 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 	// only for an item-less write.
 	var itemID string
 	if itemName != "" {
-		var err error
 		if itemID, err = resolveItemIDPg(ctx, tx, projectID, stream, itemName); err != nil {
 			return err
 		}
@@ -975,8 +991,8 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO blocks (id, project_id, stream, item_name, item_id, source_id, name, type, mime_type, translatable,
-			content_hash, context_hash, source_json, properties, overlays, word_count, stored_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+			content_hash, context_hash, source_revision, source_json, properties, overlays, word_count, stored_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		 ON CONFLICT(project_id, stream, id) DO UPDATE SET
 			-- An item-less write (StoreBlocks, the editor saving one target)
 			-- carries no item, and must not be read as the block having lost the
@@ -986,8 +1002,8 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 			item_id=CASE WHEN EXCLUDED.item_id <> '' THEN EXCLUDED.item_id ELSE blocks.item_id END,
 			name=EXCLUDED.name, type=EXCLUDED.type, mime_type=EXCLUDED.mime_type,
 			translatable=EXCLUDED.translatable, content_hash=EXCLUDED.content_hash,
-			context_hash=EXCLUDED.context_hash, source_json=EXCLUDED.source_json,
-			word_count=EXCLUDED.word_count,
+			context_hash=EXCLUDED.context_hash, source_revision=EXCLUDED.source_revision,
+			source_json=EXCLUDED.source_json, word_count=EXCLUDED.word_count,
 			properties=EXCLUDED.properties, overlays=EXCLUDED.overlays, updated_at=EXCLUDED.updated_at`)
 	if err != nil {
 		return fmt.Errorf("prepare stmt: %w", err)
@@ -998,21 +1014,21 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 	if wb != nil {
 		guarded, err = tx.PrepareContext(ctx,
 			`UPDATE blocks SET name=$1, type=$2, mime_type=$3, translatable=$4, content_hash=$5,
-				source_json=$6, properties=$7, overlays=$8, word_count=$9, updated_at=$10
-			 WHERE project_id=$11 AND stream=$12 AND id=$13 AND content_hash=$14`)
+				source_revision=$6, source_json=$7, properties=$8, overlays=$9, word_count=$10, updated_at=$11
+			 WHERE project_id=$12 AND stream=$13 AND id=$14 AND source_revision=$15`)
 		if err != nil {
 			return fmt.Errorf("prepare write-back stmt: %w", err)
 		}
 		defer guarded.Close()
 	}
 
-	// Batch-load existing block source hashes + prior target locales
+	// Batch-load existing block source revisions + prior target locales
 	// for change-log diffing. Targets live in the translations table
 	// (#403/#405); we pull their locales here so logChange can
 	// distinguish target_added vs target_modified on upsert.
 	type existingBlock struct {
-		contentHash string
-		locales     map[string]struct{}
+		sourceRevision string
+		locales        map[string]struct{}
 	}
 	existingBlocks := map[string]existingBlock{}
 	oldTargetText := map[string]map[string]string{} // blockID → variant → prior text, for block_history
@@ -1042,7 +1058,7 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 
 			// The concatenated fragment is "$2,$3,…" from a count — never
 			// caller data; values travel as bind parameters below.
-			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=$1 AND stream=$2 AND id IN (` +
+			hashQuery := `SELECT id, source_revision FROM blocks WHERE project_id=$1 AND stream=$2 AND id IN (` +
 				placeholderList("pg", 3, len(chunk)) + `)`
 			hashRows, err := tx.QueryContext(ctx, hashQuery, append([]any{projectID, stream}, anyStrings(chunk)...)...)
 			if err != nil {
@@ -1050,12 +1066,12 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 			}
 			var present []string
 			for hashRows.Next() {
-				var bid, ch string
-				if err := hashRows.Scan(&bid, &ch); err != nil {
+				var bid, rev string
+				if err := hashRows.Scan(&bid, &rev); err != nil {
 					hashRows.Close()
-					return fmt.Errorf("scan hash: %w", err)
+					return fmt.Errorf("scan source revision: %w", err)
 				}
-				existingBlocks[bid] = existingBlock{contentHash: ch, locales: map[string]struct{}{}}
+				existingBlocks[bid] = existingBlock{sourceRevision: rev, locales: map[string]struct{}{}}
 				present = append(present, bid)
 			}
 			// A truncated read here silently drops existing blocks from the
@@ -1133,12 +1149,11 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 		}
 
 		identity := model.ComputeIdentity(b)
+		sourceRevision := venue.SourceRevision(b, source)
 
 		existing, isExisting := existingBlocks[internalID]
 		isNew := !isExisting
-		existingHash := existing.contentHash
-		_ = existingHash // used in change detection below
-		if wb != nil && !wb.Admits(internalID, isExisting, existingHash) {
+		if wb != nil && !wb.Admits(internalID, isExisting, existing.sourceRevision) {
 			continue
 		}
 
@@ -1166,7 +1181,7 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 		if wb != nil {
 			res, err := guarded.ExecContext(ctx,
 				b.Name, b.Type, b.MimeType, b.Translatable,
-				identity.ContentHash,
+				identity.ContentHash, sourceRevision,
 				string(sourceJSON), string(propsJSON), string(overlaysJSON),
 				model.CountWordsInRunsJSON(string(sourceJSON)), now,
 				projectID, stream, internalID, wb.Base(internalID))
@@ -1182,7 +1197,7 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 		} else {
 			_, err = stmt.ExecContext(ctx,
 				internalID, projectID, stream, itemName, itemID, sourceID, b.Name, b.Type, b.MimeType, b.Translatable,
-				identity.ContentHash, identity.ContextHash,
+				identity.ContentHash, identity.ContextHash, sourceRevision,
 				string(sourceJSON), string(propsJSON), string(overlaysJSON),
 				model.CountWordsInRunsJSON(string(sourceJSON)), now, now)
 			if err != nil {
@@ -1216,19 +1231,19 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 				}
 			}
 		} else {
-			if existingHash != identity.ContentHash {
+			if existing.sourceRevision != sourceRevision {
 				if err := logChange(ctx, tx, projectID, stream, internalID, "source_modified", "", identity.ContentHash); err != nil {
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
 				// The source half of every pairing this unit's decisions blessed
-				// has moved, so the projections are re-derived against the
-				// ledger on EVERY stream — the source row is stream-global. An
-				// approval made for the old wording drops to the presence
-				// baseline; a decision that blessed exactly the wording the
-				// source now carries applies again. The decisions themselves
-				// stay: they are facts about a text, and that history is what
-				// lets a restored text find its approval without a re-review.
-				if err := settleDecisionProjectionsPg(ctx, tx, projectID, stream, internalID, identity.ContentHash); err != nil {
+				// has moved, its wording or an inline code, so the projections
+				// are re-derived against the stream's ledger. An approval made
+				// for the old source drops to the presence baseline; a decision
+				// that blessed exactly the source the block now carries applies
+				// again. The decisions themselves stay: they are facts about a
+				// source, and that history is what lets a restored source find
+				// its approval without a re-review.
+				if err := settleDecisionProjectionsPg(ctx, tx, projectID, stream, internalID, sourceRevision); err != nil {
 					return err
 				}
 			}
@@ -1264,11 +1279,23 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 	return nil
 }
 
+// projectSourceLanguagePg is the language a project's source is written in,
+// the key every source revision the store stamps is taken under. A project
+// with no row, or none named, takes revisions under no language.
+func projectSourceLanguagePg(ctx context.Context, q Runner, projectID string) (model.LocaleID, error) {
+	var source string
+	err := q.QueryRowContext(ctx, `SELECT default_source_language FROM projects WHERE id=$1`, projectID).Scan(&source)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("read the source language of project %s: %w", projectID, err)
+	}
+	return model.LocaleID(source), nil
+}
+
 func (s *PostgresStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*venue.StoredBlock, error) {
 	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, overlays, stored_at, updated_at
+			source_revision, source_json, properties, overlays, stored_at, updated_at
 		 FROM blocks WHERE project_id=$1 AND stream=$2 AND id=$3`, projectID, stream, blockID)
 	sb, err := scanStoredBlockPg(row)
 	if err != nil {
@@ -1475,7 +1502,7 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 	// Constant skeleton + rendered fragments that carry $N placeholders only;
 	// every value binds through args. Limit and offset are ints, formatted.
 	const skeleton = `SELECT b.id, b.project_id, b.item_name, b.source_id, b.name, b.type, b.mime_type, b.translatable,
-			b.content_hash, b.context_hash, b.source_json, b.properties, b.overlays, b.stored_at, b.updated_at
+			b.content_hash, b.context_hash, b.source_revision, b.source_json, b.properties, b.overlays, b.stored_at, b.updated_at
 		 FROM blocks b %s WHERE %s ORDER BY %s%s`
 	// A keyset page is walked by id, so it stays ordered by id whatever the
 	// caller asked for. See BlockQuery.Order and OrderingOf.
@@ -1739,7 +1766,7 @@ func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, stream, bloc
 		if _, err := tx.ExecContext(ctx,
 			`DELETE FROM unit_decisions WHERE project_id=$1 AND stream=$2 AND item_id=$3 AND unit=$4`,
 			projectID, stream, itemID, sourceID); err != nil {
-			return fmt.Errorf("delete unit decisions for block %s: %w", blockID, err)
+			return fmt.Errorf("delete the decisions on block %s: %w", blockID, err)
 		}
 		if _, err := tx.ExecContext(ctx,
 			`DELETE FROM edition_writers WHERE project_id=$1 AND stream=$2 AND item_name=$3 AND unit=$4`,
@@ -1929,7 +1956,7 @@ func scanStoredBlockPg(row scanner) (*venue.StoredBlock, error) {
 
 	err := row.Scan(
 		&sb.Block.ID, &sb.ProjectID, &sb.ItemName, &sb.SourceID, &sb.Block.Name, &sb.Block.Type,
-		&sb.Block.MimeType, &sb.Block.Translatable, &sb.ContentHash, &sb.ContextHash,
+		&sb.Block.MimeType, &sb.Block.Translatable, &sb.ContentHash, &sb.ContextHash, &sb.SourceRevision,
 		&sourceJSON, &propsJSON, &overlaysJSON, &sb.StoredAt, &sb.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan block: %w", err)
@@ -1951,7 +1978,7 @@ func scanStoredBlockPg(row scanner) (*venue.StoredBlock, error) {
 	// a translation and a history entry are filed under here. Reading it back
 	// onto the block is what makes a pull round-trip the identity rather than
 	// hand back a block whose key would be re-derived from its name.
-	sb.Block.Unit = sb.SourceID
+	sb.Block.Key = sb.SourceID
 	return &sb, nil
 }
 

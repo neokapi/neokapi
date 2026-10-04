@@ -117,9 +117,13 @@ earlier in the file.
 
 ### The record hash: what a transfer compares
 
-A third value is derived from the pair rather than stored beside it.
-`BlockIdentity.RecordHash` folds both halves, and it is what decides **transfer**:
-whether a far side already holds what a block currently is.
+A third value is derived rather than stored beside the pair.
+`model.ComputeRecordHash` folds both halves and the revision of the block's
+source (`model.RunsRevision`, which covers the inline codes with their data and
+attributes), and it is what decides **transfer**: whether a far side already
+holds what a block currently is. A revision covers the key it is taken under, so
+both sides of a transfer take it under the project's source language
+(`venue.RecordHash`).
 
 Neither half can decide that alone. The content hash must not move for a reason
 other than the text moving: it is the identity a decision, a memory entry and a
@@ -133,7 +137,10 @@ Folding the context half in is what makes an ordinary transfer deliver it, per
 block, with nothing declared and no version bumped. The cost that would otherwise
 make this unaffordable (a locator shifting and re-sending a file's whole tail)
 is already paid for by the advisory prefix above, which keeps derived locators
-out of the context hash in the first place.
+out of the context hash in the first place. The source revision does the same
+for inline codes: a link whose target moved leaves the text, and so the content
+hash, as it was, and a far side that never received the new link would go on
+grading a decision against the old one.
 
 The consequence for readers: a field this hash cannot see is a field that never
 reaches content already stored elsewhere. Anything a block is persisted with
@@ -267,7 +274,7 @@ actually says.
 `host.ResolveIdentity(byPath, priors)` runs the two gradings for a tree of
 documents: documents first, then each document's blocks against the whole prior
 set, in a deterministic path order so two runs over the same tree mint the same
-keys. The resolved key is written onto the block as `Block.Unit`
+keys. The resolved key is written onto the block as `Block.Key`
 ([F-02](f-02-content-model.md)), and `convergence.BlockKey` reads it before
 falling back to the name. The priors are the venue's own tree
 (`venue.Tree.Priors()`), fetched before a push declares what it carries, rather

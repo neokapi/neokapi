@@ -95,19 +95,23 @@ func (l *Layer) IsEmbedded() bool { return l.ParentID != "" && l.Format != "" }
 ### Block (translatable content)
 
 ```go
-// Block is the primary modifiable content unit (Okapi: TextUnit). Source is
-// a single flat run sequence; translations are first-class Target records keyed
-// by VariantKey; every interpretation of the runs (segmentation, terms, entities,
-// checks, alignment) is a stand-off Overlay. There is no structural Segment type.
+// Block is the primary modifiable content (Okapi: TextUnit). Its content is a
+// set of peer editions, each a single flat run sequence under an EditionKey:
+// the edition the document is written in under the zero key, and every
+// translation, tone or channel under its own key. Every interpretation of the
+// runs (segmentation, terms, entities, checks, alignment) is a stand-off
+// Overlay. There is no structural Segment type.
 type Block struct {
     ID           string
     Name         string
+    Key          string // durable identity, resolved by reconciliation
     Type         string
     MimeType     string
     Translatable bool
+    SourceLocale LocaleID
     Skeleton     *Skeleton
-    Source       []Run
-    Targets      map[VariantKey]*Target
+    Editions     map[EditionKey]*Edition // read and write through the accessors
+    Native       []EditionKey            // the editions the document's bytes hold
     Overlays     []Overlay
     Properties   map[string]string
     Annotations  map[string]Annotation
@@ -115,45 +119,53 @@ type Block struct {
 
 func (b *Block) ResourceID() string { return b.ID }
 
-// SourceText returns the plain text of the source run sequence.
-func (b *Block) SourceText() string { /* flat-text projection of Source runs */ }
+// Edition returns edition k and whether the block holds it. The zero key and
+// the source language reach the edition the block was read in.
+func (b *Block) Edition(k EditionKey) (Edition, bool) { /* the edition filed under k */ }
 
-// SourceRuns returns the canonical source run sequence.
-func (b *Block) SourceRuns() []Run { return b.Source }
+// SetEdition stores e as edition k; on the edition the block was read in it is
+// an edit, and the block keeps the source as read.
+func (b *Block) SetEdition(k EditionKey, e Edition) { /* upserts Editions */ }
+
+// EditionKeys lists every edition the block holds, the source first.
+func (b *Block) EditionKeys() []EditionKey { /* from Editions */ }
+
+// NativeEditions lists the editions the document holds, the source first.
+func (b *Block) NativeEditions() []EditionKey { /* from Native */ }
+
+// SourceText returns the plain text of the source run sequence.
+func (b *Block) SourceText() string { /* flat-text projection of the source runs */ }
+
+// SourceRuns returns the source run sequence.
+func (b *Block) SourceRuns() []Run { /* Editions[EditionKey{}].Runs */ }
 
 // SetSourceRuns replaces the source run sequence.
-func (b *Block) SetSourceRuns(runs []Run) { b.Source = runs }
+func (b *Block) SetSourceRuns(runs []Run) { /* writes Editions[EditionKey{}] */ }
 
 // SetSourceText replaces the source with a single plain-text Run.
-func (b *Block) SetSourceText(text string) { /* b.Source = []Run{{Text: &TextRun{Text: text}}} */ }
+func (b *Block) SetSourceText(text string) { /* SetSourceRuns([]Run{{Text: &TextRun{Text: text}}}) */ }
 
-// HasTarget returns true if a locale-keyed variant exists.
-func (b *Block) HasTarget(locale LocaleID) bool { /* checks Targets[Variant(locale)] */ }
+// HasTarget returns true if an edition of the locale with content exists.
+func (b *Block) HasTarget(locale LocaleID) bool { /* checks Editions[Variant(locale)] */ }
 
-// TargetLocales returns the sorted list of locales that have a Target.
-func (b *Block) TargetLocales() []LocaleID { /* sorted slice from Targets keys */ }
-
-// Target returns the locale-only variant, or nil.
-func (b *Block) Target(locale LocaleID) *Target { return b.Targets[Variant(locale)] }
+// TargetLocales returns the languages of the editions other than the source.
+func (b *Block) TargetLocales() []LocaleID { /* from Editions keys */ }
 
 // TargetRuns returns the target run sequence for a locale.
-func (b *Block) TargetRuns(locale LocaleID) []Run { /* from Target(locale) */ }
+func (b *Block) TargetRuns(locale LocaleID) []Run { /* from Editions[Variant(locale)] */ }
 
 // TargetText returns the plain text of the target for a locale.
 func (b *Block) TargetText(locale LocaleID) string { /* flat-text projection */ }
 
 // SetTargetRuns sets the target run sequence for a locale.
-func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) { /* upserts Targets[Variant(locale)] */ }
+func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) { /* upserts Editions[Variant(locale)] */ }
 
 // SetTargetText sets the target as a single plain-text Run for a locale.
-func (b *Block) SetTargetText(locale LocaleID, text string) { /* upserts Targets[Variant(locale)] */ }
-
-// SetTargetVariant sets an arbitrary tone/channel variant Target.
-func (b *Block) SetTargetVariant(key VariantKey, t *Target) { b.Targets[key] = t }
+func (b *Block) SetTargetText(locale LocaleID, text string) { /* upserts Editions[Variant(locale)] */ }
 
 // SourceSegmentation returns the source segmentation Overlay, or nil if absent.
 // Without one, the block is treated as a single implicit segment.
-func (b *Block) SourceSegmentation() *Overlay { /* finds Overlay{Type: "segmentation", Variant: nil} */ }
+func (b *Block) SourceSegmentation() *Overlay { /* finds Overlay{Type: "segmentation", Edition: EditionKey{}} */ }
 
 // SourceSegmentCount returns the number of spans in the source segmentation
 // overlay, or 1 for a non-empty block with no segmentation overlay.
@@ -162,35 +174,38 @@ func (b *Block) SourceSegmentCount() int { /* span count from SourceSegmentation
 // SourceSegmentRuns returns the run slice for the i-th source segment span.
 func (b *Block) SourceSegmentRuns(i int) []Run { /* sub-slice from the span's Anchor */ }
 
-// SetSegmentation replaces the segmentation overlay for the given variant
-// (nil = source side). Segmentation is stored as a stand-off Overlay and
-// leaves the run sequence untouched.
-func (b *Block) SetSegmentation(variant *VariantKey, spans []Span) { /* upserts Overlays */ }
+// SetSegmentation replaces the segmentation overlay on edition k (the zero key
+// for the source). Segmentation is stored as a stand-off Overlay and leaves
+// the run sequence untouched.
+func (b *Block) SetSegmentation(k EditionKey, spans []Span) { /* upserts Overlays */ }
 
-// VariantKey identifies a translation: locale plus optional tone and channel.
-type VariantKey struct {
+// EditionKey names an edition: a language plus optional tone and channel. The
+// zero key names the edition the block was read in.
+type EditionKey struct {
     Locale  LocaleID
     Tone    string // optional
     Channel string // optional
 }
 
-// Variant returns a locale-only VariantKey (no tone or channel).
-func Variant(locale LocaleID) VariantKey { return VariantKey{Locale: locale} }
+// Variant returns a locale-only EditionKey (no tone or channel).
+func Variant(locale LocaleID) EditionKey { return EditionKey{Locale: NormalizeLocale(locale)} }
 
-// Target is one translation: a flat run sequence with status and provenance.
-type Target struct {
-    Runs   []Run
-    Status TargetStatus // e.g. "", "translated", "reviewed"
-    Origin Origin       // tool/provider that produced it
-    Score  float64
+// Edition is one edition: a flat run sequence with status, provenance and the
+// edition it was derived from.
+type Edition struct {
+    Runs    []Run
+    Status  Status      // e.g. "", "translated", "established"
+    Origin  Origin      // tool/provider that produced it
+    Score   float64
+    Derived *Derivation // the edition it was made from and that edition's revision
 }
 
-// Overlay is a typed stand-off layer over one side of a Block (the source,
-// Variant nil, or a target variant), anchoring Spans to run-index ranges.
+// Overlay is a typed stand-off layer over one edition of a Block, anchoring
+// Spans to run-index ranges.
 type Overlay struct {
     Type    OverlayType // "segmentation" | "term" | "entity" | "qa" | "alignment"
-    Variant *VariantKey // nil = source side
-    Layer   string      // set when the overlay belongs to a Layer rather than a Block
+    Edition EditionKey  // the zero key for the edition the block was read in
+    Layer   string      // segmentation granularity
     Spans   []Span
 }
 
@@ -694,7 +709,7 @@ t.Annotate = func(v tool.BlockView) error {
         return nil
     }
     spans := srxRules.Segment(v.SourceRuns())
-    v.SetSegmentation(nil, spans) // nil variant = source side
+    v.SetSegmentation(model.EditionKey{}, spans) // the zero key names the source
     return nil
 }
 ```
@@ -702,7 +717,7 @@ t.Annotate = func(v tool.BlockView) error {
 A translation tool (writes target):
 
 ```go
-// translate: sets Produce because it writes Block.Targets; source is read-only.
+// translate: sets Produce because it writes the block's other editions; the source is read-only.
 t := &tool.BaseTool{ToolName: "translate"}
 t.Produce = func(v tool.VariantView) error {
     translated, err := llm.Translate(ctx, v.SourceText(), targetLocale)
@@ -717,7 +732,7 @@ t.Produce = func(v tool.VariantView) error {
 A source-transform tool (rewrites source):
 
 ```go
-// redaction: sets Transform because it rewrites Block.Source.
+// redaction: sets Transform because it rewrites the edition the block was read in.
 // Source-transform tools run in a flow's leading source-transform stage,
 // before any stand-off overlays are attached.
 t := &tool.BaseTool{ToolName: "redaction"}

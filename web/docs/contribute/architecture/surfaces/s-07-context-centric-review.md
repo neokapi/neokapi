@@ -220,8 +220,8 @@ A decision records the source it was taken against, and coverage grades a
 decided unit stale once the source moves away from that basis. An undecided
 translation gets the same anchor from the loop itself: every document a run
 writes is recorded as the flow's `content.edit`, and the block history keeps,
-for each translation the run produced, the hash of the source it translated and
-the revision of the target it left ([E-09](../engine/e-09-the-change-contract.md#flows)).
+for each translation the run produced, the revision and the hash of the source
+it translated and the revision of the target it left ([E-09](../engine/e-09-the-change-contract.md#flows)).
 The record lives in the project's context log, so a checkout that reads the
 project's context reads it, and it is not a decision, so loop output is never
 counted as a person's pending decision. A fresh clone holds the translations
@@ -229,15 +229,19 @@ the repository carries and none of that record until it runs
 `kapi context pull`; `kapi up` and `kapi status` say so in one line while the
 translations exist on disk and the history records nothing.
 
-Coverage derives the basis for both classes alike. A source change under an
-undecided target grades the unit stale, the plan counts it, and the next pass
-re-drafts it with the old wording still on disk. Only a decision moves a unit on
+Coverage grades the basis of both classes alike, by the revision of the
+source, so a changed link counts as a source change as much as a changed word.
+A source change under an undecided target grades the unit stale, the plan counts
+it, and the next pass re-drafts it with the old wording still on disk. Only a decision moves a unit on
 its ladder. A target that no longer holds the revision the flow left was taken
 over by a person; the next read records that change as observed, with no
 author and no basis, and the unit grades as basis unknown and is left alone and
 reported. No host clears targets to force the loop's attention. A venue's own
 worker records the basis of the drafts it writes, and a push carries the basis
-a run on a checkout recorded (see below), so the venue grades both alike.
+a run on a checkout recorded (see below), so the venue grades both alike. The
+server venue grades by the revision of the source as well, taken under the
+project's source language, so a changed link reads stale there as it does in
+coverage on a checkout ([C-04](../context/c-04-unit-state-and-decisions.md#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed)).
 
 The server's translation worker reads the same ledger. A target whose recorded
 basis is stale is owed a draft, a target the ledger has no record of is left
@@ -249,11 +253,18 @@ work ([C-04](../context/c-04-unit-state-and-decisions.md)).
 ### A push carries decisions; the venue decides
 
 A working copy holds its own decision record, and `kapi push` sends it with the
-content it judges. Beside the decisions it sends how each translation of the
+content it judges. A decision names the translation and the source it blesses by
+revision, as the project's record does, and a block whose source changed in an
+inline code alone is sent as a changed block, so the venue grades the decision
+against the source the checkout holds. The checkout records a basis under the
+key its reader filed the source by, which for a file that declares its own
+language is that language, and the venue takes every revision under the
+project's source language, so the push sends each basis as the venue's revision
+of the same source (`venue.Basis`). Beside the decisions it sends how each translation of the
 documents it reads came to be (`venue.EditionWrite`): the write the block
 history records as having left the translation the checkout holds, with its
-revision, the source it was made from, the writer (person, agent, tool, or
-external) and the surface. A pulled translation's write names no source: the
+revision, the source it was made from (sent the same way), the writer (person,
+agent, tool, or external) and the surface. A pulled translation's write names no source: the
 venue's own record holds it. Each write goes until the venue has applied a
 push that carried it, and again when it changes. The venue records them after
 the decisions, reading each item's blocks, translations and ledger rows once:

@@ -1,9 +1,10 @@
 package model
 
 // Block is the primary modifiable content unit: the text a tool reads,
-// rewrites, checks, or translates. Its content is a flat []Run per variant —
-// Source for the canonical content and Targets for each committed variant (a
-// locale, optionally with tone or channel). Segmentation, terminology,
+// rewrites, checks, or translates. Its content is a set of peer editions, each
+// a flat []Run under an EditionKey (a language, optionally with a tone or a
+// channel): the edition the document is written in and every translation or
+// other edition a reader or a tool attached. Segmentation, terminology,
 // entities, and other interpretations ride as stand-off Overlays (see
 // overlay.go); there is no structural segment type.
 //
@@ -15,6 +16,12 @@ package model
 // explicitly; the executor's EnforceImmutability backstop catches accidental
 // in-place edits from read-only tool tiers in dev/test.
 //
+// A struct copy (cp := *b) shares the edition storage with b, the edition the
+// block was read in included: a write to any edition of the copy, its source
+// and the source's status among them, is a write to b. A copy that will be
+// written takes CopyEditionSet (its own set of editions and its own source
+// entry) or CopyEditions (every edition's runs copied as well).
+//
 // Role boundary: the raw Block is the wire/storage DTO — exported fields,
 // direct serialization, no encapsulation. Tool-facing code goes through
 // tool.BlockView / tool.VariantView, the capability-scoped boundary; do not
@@ -22,16 +29,16 @@ package model
 type Block struct {
 	ID   string
 	Name string
-	// Unit is the block's DURABLE identity: the key a decision, a translation
+	// Key is the block's DURABLE identity: the key a decision, a translation
 	// and a history entry are filed under, and the key a venue stores as a
 	// block's source id.
 	//
-	// It is not the same thing as Name. A name is what the format says — a
-	// structural address like `install/p#2`, or a message key — and it is the
+	// It is not the same thing as Name. A name is what the format says, a
+	// structural address like `install/p#2` or a message key, and it is the
 	// right thing for a reader to report and the wrong thing to record a
 	// decision against, because for a positional format it follows position:
 	// delete the first paragraph of a section and every name below it shifts.
-	// A unit is what survives that, because it is MATCHED rather than named
+	// A key is what survives that, because it is MATCHED rather than named
 	// (core/reconcile).
 	//
 	// Empty until something resolves it, and BlockKey falls back to Name, so a
@@ -39,9 +46,9 @@ type Block struct {
 	// key needs nothing more than the name it already has.
 	//
 	// It is a field rather than a property on purpose: properties are folded
-	// into the context hash that reconciliation MATCHES on, so a unit written
+	// into the context hash that reconciliation MATCHES on, so a key written
 	// there would change the very signal that produced it.
-	Unit     string
+	Key      string
 	Type     string
 	MimeType string
 	// Translatable marks the block as content eligible for modification or
@@ -51,17 +58,26 @@ type Block struct {
 	// translate.
 	Translatable bool
 	SourceLocale LocaleID // locale of the source runs (set by reader)
-	// SourceStatus is the authoring lifecycle state of the source content
-	// (written→established): the source-side counterpart of
-	// Target.Status. New ("") means "no committed status yet" and reads as the
-	// written baseline. A source edit resets it; a clean source check stamps
-	// `written`; a person's approval stamps `established`.
-	SourceStatus       SourceStatus
-	Skeleton           *Skeleton
-	Source             []Run                  // source content
-	Targets            map[VariantKey]*Target // committed translations, keyed by variant
-	Overlays           []Overlay              // positional, run-anchored stand-off layers (segmentation, term, entity, qa, alignment)
-	Annotations        map[string]Payload     // block-scoped typed metadata (notes, alt-translations, analysis results), keyed by type
+	Skeleton     *Skeleton
+	// Editions holds the block's content, one edition per key. The edition
+	// the block was read in, the first native edition, is filed under the zero
+	// key whatever language SourceLocale names; every other edition (a
+	// translation, a tone, a channel) is filed under its canonical key. The
+	// accessors in edition.go resolve a key in the source language to the
+	// edition the block was read in unless the block holds a same-language
+	// edition of its own, as a bilingual file from en to en does. Read and
+	// write editions through them; a test that must plant a state no accessor
+	// produces (a key that is not canonical) writes this map directly.
+	Editions map[EditionKey]*Edition
+	// Native lists the editions the document's bytes hold, by the keys they
+	// are filed under in Editions: the edition the block was read in first,
+	// under the zero key, then each other edition the format writes into the
+	// same document, such as the target of an XLIFF unit or each localization
+	// of an xcstrings entry. An empty list means the document holds the
+	// edition it was read in and no other.
+	Native             []EditionKey
+	Overlays           []Overlay          // positional, run-anchored stand-off layers (segmentation, term, entity, qa, alignment), each on the edition it names
+	Annotations        map[string]Payload // block-scoped typed metadata (notes, alt-translations, analysis results), keyed by type
 	Properties         map[string]string
 	Identity           *BlockIdentity // Content-addressable hash for deduplication
 	ContentRef         *ContentRef    // Link to external connector source
@@ -85,6 +101,22 @@ type Block struct {
 	structure *StructureAnnotation
 	geometry  *GeometryAnnotation
 
+	// unlabelled is a translation a reader filed under no language: a KBF
+	// bundle's unlabelled edition, an xcstrings localization keyed by the
+	// empty string, or the translation of a Qt TS file that names no language
+	// read with no source locale. The zero key names the edition the block was read in, so
+	// such a translation sits apart from Editions. TargetEdition("") and the
+	// other target accessors given the empty locale read and write it, and
+	// EachTargetEdition yields it under the zero key; EditionKeys and
+	// EachEdition leave it out.
+	unlabelled *Edition
+	// unlabelledOverlays are the overlays on the unlabelled translation, such
+	// as the numerus forms of a Qt TS message. An overlay in Overlays naming
+	// the zero key sits on the edition the block was read in, so these sit
+	// apart too, each naming the zero key. The target overlay accessors given
+	// the empty locale reach them (target_overlay.go).
+	unlabelledOverlays []Overlay
+
 	// readSource is the source the reader produced, kept by the first edit
 	// (EditSourceRuns, EditSourceText). A writer compares the two to tell
 	// the document's own spelling from wording an edit supplied. It belongs
@@ -99,23 +131,23 @@ func (b *Block) ResourceID() string { return b.ID }
 // SourceText returns the plain text of the source runs (TextRun content
 // only — inline-code runs contribute nothing).
 func (b *Block) SourceText() string {
-	return RunsText(b.Source)
+	return RunsText(b.sourceRuns())
 }
 
 // SetSourceText replaces the source content with a single TextRun.
 func (b *Block) SetSourceText(text string) {
-	b.Source = []Run{{Text: &TextRun{Text: text}}}
+	b.SetSourceRuns([]Run{{Text: &TextRun{Text: text}}})
 }
 
 // HasTarget returns true if a committed target exists for the given locale.
 func (b *Block) HasTarget(locale LocaleID) bool {
-	t, ok := b.Targets[Variant(locale)]
-	return ok && t != nil && len(t.Runs) > 0
+	t := b.target(Variant(locale))
+	return t != nil && len(t.Runs) > 0
 }
 
 // TargetText returns the plain text of the target runs for the given locale.
 func (b *Block) TargetText(locale LocaleID) string {
-	if t, ok := b.Targets[Variant(locale)]; ok && t != nil {
+	if t := b.target(Variant(locale)); t != nil {
 		return RunsText(t.Runs)
 	}
 	return ""
@@ -150,7 +182,7 @@ func (b *Block) SetText(locale LocaleID, text string) {
 // target).
 func (b *Block) HasLocale(locale LocaleID) bool {
 	if b.isSourceLocale(locale) {
-		return len(b.Source) > 0
+		return len(b.sourceRuns()) > 0
 	}
 	return b.HasTarget(locale)
 }
@@ -170,18 +202,20 @@ func (b *Block) WordCount() int {
 }
 
 // SourceRuns returns the Block's source content as a Run sequence.
-func (b *Block) SourceRuns() []Run { return b.Source }
+func (b *Block) SourceRuns() []Run { return b.sourceRuns() }
 
 // TargetRuns returns the Block's target content for a locale, or nil.
 func (b *Block) TargetRuns(locale LocaleID) []Run {
-	if t, ok := b.Targets[Variant(locale)]; ok && t != nil {
+	if t := b.target(Variant(locale)); t != nil {
 		return t.Runs
 	}
 	return nil
 }
 
 // SetSourceRuns replaces the Block's source content.
-func (b *Block) SetSourceRuns(runs []Run) { b.Source = runs }
+func (b *Block) SetSourceRuns(runs []Run) {
+	b.writeSource(func(e *Edition) { e.Runs = runs })
+}
 
 // EditSourceRuns replaces the source with an edit: wording a tool, an agent
 // or a person supplied for a block that was read from a document. The first
@@ -191,9 +225,9 @@ func (b *Block) SetSourceRuns(runs []Run) { b.Source = runs }
 // SetSourceRuns instead.
 func (b *Block) EditSourceRuns(runs []Run) {
 	if !b.sourceKept {
-		b.readSource, b.sourceKept = b.Source, true
+		b.readSource, b.sourceKept = b.sourceRuns(), true
 	}
-	b.Source = runs
+	b.SetSourceRuns(runs)
 }
 
 // EditSourceText is EditSourceRuns for an edit that is a single text run.
@@ -207,67 +241,60 @@ func (b *Block) EditSourceText(text string) {
 // touched returns its current source and false.
 func (b *Block) SourceAsRead() (runs []Run, edited bool) {
 	if !b.sourceKept {
-		return b.Source, false
+		return b.sourceRuns(), false
 	}
-	return b.readSource, RenderRunsWithData(b.readSource) != RenderRunsWithData(b.Source)
+	return b.readSource, RenderRunsWithData(b.readSource) != RenderRunsWithData(b.sourceRuns())
 }
 
 // SetTargetRuns sets the target runs for a locale, preserving any existing
-// status/provenance on that variant's Target.
+// status and provenance on that target. The source language files a target in
+// that language and leaves the edition the block was read in as it is. The
+// empty locale files a translation under no language, which never writes the
+// edition the block was read in either: TargetRuns("") reads it back and
+// EachTargetEdition yields it under the zero key.
 func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) {
 	key := Variant(locale)
-	if b.Targets == nil {
-		b.Targets = make(map[VariantKey]*Target)
-	}
-	if t, ok := b.Targets[key]; ok && t != nil {
+	if t := b.target(key); t != nil {
 		t.Runs = runs
 		return
 	}
-	b.Targets[key] = &Target{Runs: runs}
+	b.putTarget(key, &Edition{Runs: runs})
 }
 
-// Target returns the committed target for a locale variant, or nil.
-func (b *Block) Target(locale LocaleID) *Target { return b.Targets[Variant(locale)] }
-
-// TargetVariant returns the committed target for a full variant key, or nil.
-func (b *Block) TargetVariant(key VariantKey) *Target { return b.Targets[key.Canonical()] }
-
 // TargetEdition returns the target filed under locale as an edition (its runs,
-// status, origin and score) and whether the block holds one. It reads the
-// target Target, TargetRuns and TargetText read, so it never returns the
+// status, origin, score and derivation) and whether the block holds one. It
+// reads the target TargetRuns and TargetText read, so it never returns the
 // edition the block was read in. The source language names a target only when
 // the block holds one, as a bilingual file in one language does. The empty
-// locale names a target a reader filed under no language, as the KBF reader
-// files a bundle's "" target and the Qt TS reader files the translation of a
-// file with no language attribute read with no source locale. Edition,
-// Editions and EachEdition read the zero key as the edition the block was read
-// in, so a walk over every text a writer can emit reads such a target here.
+// locale names a translation a reader filed under no language, as the KBF
+// reader files a bundle's unlabelled edition and the Qt TS reader files the
+// translation of a file with no language attribute read with no source
+// locale. Edition,
+// EditionKeys and EachEdition read the zero key as the edition the block was
+// read in, so a walk over every text a writer can emit reads such a
+// translation here.
 func (b *Block) TargetEdition(locale LocaleID) (Edition, bool) {
-	t := b.Targets[Variant(locale)]
+	t := b.target(Variant(locale))
 	if t == nil {
 		return Edition{}, false
 	}
-	return Edition{Runs: t.Runs, Status: Status(t.Status), Origin: t.Origin, Score: t.Score}, true
+	return *t, true
 }
 
-// SetTargetEdition files e as the target under k (its runs, status, origin and
-// score), creating the target when the block holds none there. It writes where
-// SetTargetVariant writes, so the edition the block was read in stays as it is:
-// a key in the source language files a target in that language, and the zero
-// key files a target under no language. SetEdition writes the edition the block
-// was read in for the zero key, and for the source language while the block
-// holds no target in it. An existing target is updated in place, so a *Target
-// a caller holds sees the change.
+// SetTargetEdition files e as the target under k (its runs, status, origin,
+// score and derivation), creating the target when the block holds none there.
+// The edition the block was read in stays as it is: a key in the source
+// language files a target in that language, and the zero key files a
+// translation under no language. SetEdition writes the edition the block was
+// read in for the zero key, and for the source language while the block holds
+// no target in it. An existing target is updated in place.
 func (b *Block) SetTargetEdition(k EditionKey, e Edition) {
 	key := k.Canonical()
-	if b.Targets == nil {
-		b.Targets = make(map[VariantKey]*Target)
-	}
-	if t := b.Targets[key]; t != nil {
-		t.Runs, t.Status, t.Origin, t.Score = e.Runs, TargetStatus(e.Status), e.Origin, e.Score
+	if t := b.target(key); t != nil {
+		*t = e
 		return
 	}
-	b.Targets[key] = &Target{Runs: e.Runs, Status: TargetStatus(e.Status), Origin: e.Origin, Score: e.Score}
+	b.putTarget(key, &e)
 }
 
 // StampTargetProvenance records how a locale's committed target was produced —
@@ -276,55 +303,47 @@ func (b *Block) SetTargetEdition(k EditionKey, e Edition) {
 // provenance in two steps. A producer (AI/MT/recycle/…) calls this so coverage
 // and ship gates can see how far each unit has progressed.
 func (b *Block) StampTargetProvenance(locale LocaleID, status TargetStatus, origin Origin) {
-	if t := b.Target(locale); t != nil {
-		t.Status = status
+	if t := b.target(Variant(locale)); t != nil {
+		t.Status = Status(status)
 		t.Origin = origin
 	}
 }
 
-// SetTarget stores a committed target for a locale variant.
-func (b *Block) SetTarget(locale LocaleID, t *Target) { b.SetTargetVariant(Variant(locale), t) }
-
-// SetTargetVariant stores a committed target for a full variant key.
-func (b *Block) SetTargetVariant(key VariantKey, t *Target) {
-	if b.Targets == nil {
-		b.Targets = make(map[VariantKey]*Target)
-	}
-	b.Targets[key.Canonical()] = t
-}
-
-// TargetLocales returns the distinct locales that have a committed target.
+// TargetLocales returns the distinct locales that have a committed target:
+// the language of every edition other than the one the block was read in,
+// and the empty locale for a translation filed under no language.
 func (b *Block) TargetLocales() []LocaleID {
-	seen := make(map[LocaleID]bool, len(b.Targets))
-	out := make([]LocaleID, 0, len(b.Targets))
-	for k := range b.Targets {
+	seen := make(map[LocaleID]bool, len(b.Editions))
+	out := make([]LocaleID, 0, len(b.Editions))
+	for k := range b.Editions {
+		if k.IsZero() {
+			continue
+		}
 		if !seen[k.Locale] {
 			seen[k.Locale] = true
 			out = append(out, k.Locale)
 		}
+	}
+	if b.unlabelled != nil {
+		out = append(out, "")
 	}
 	return out
 }
 
 // NewBlock creates a translatable Block with plain source text.
 func NewBlock(id, text string) *Block {
-	return &Block{
-		ID:           id,
-		Translatable: true,
-		Source:       []Run{{Text: &TextRun{Text: text}}},
-		Targets:      make(map[VariantKey]*Target),
-		Properties:   make(map[string]string),
-	}
+	return NewRunsBlock(id, []Run{{Text: &TextRun{Text: text}}})
 }
 
 // NewRunsBlock creates a translatable Block whose source is the given Run
 // sequence.
 func NewRunsBlock(id string, runs []Run) *Block {
-	return &Block{
+	b := &Block{
 		ID:           id,
 		Translatable: true,
-		Source:       runs,
-		Targets:      make(map[VariantKey]*Target),
+		Editions:     make(map[EditionKey]*Edition),
 		Properties:   make(map[string]string),
 	}
+	b.SetSourceRuns(runs)
+	return b
 }

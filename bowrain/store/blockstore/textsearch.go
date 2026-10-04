@@ -53,10 +53,11 @@ func (s *pgStore) SearchBlockText(ctx context.Context, needle string, opts block
 	// Nil locales means every locale, so both sides are searched and neither
 	// carries a locale list. A non-nil empty set asks for no locale at all, and
 	// falls out of the three below as nothing to search.
-	wantSource := opts.Locales == nil || slices.Contains(opts.Locales, blockstore.SourceLocale)
-	anyTarget := opts.Locales == nil
+	locales := opts.CanonicalLocales()
+	wantSource := locales == nil || slices.Contains(locales, blockstore.SourceLocale)
+	anyTarget := locales == nil
 	var wantTargets []string
-	for _, l := range opts.Locales {
+	for _, l := range locales {
 		if l != blockstore.SourceLocale {
 			wantTargets = append(wantTargets, l)
 		}
@@ -65,7 +66,7 @@ func (s *pgStore) SearchBlockText(ctx context.Context, needle string, opts block
 		return nil, nil
 	}
 
-	ids, collections, err := s.textCandidates(ctx, needle, opts.Collection, wantSource, anyTarget, wantTargets)
+	ids, collections, err := s.textCandidates(ctx, needle, opts.Collection, wantSource, anyTarget, wantTargets, opts.Languages())
 	if err != nil {
 		return nil, err
 	}
@@ -89,16 +90,11 @@ func (s *pgStore) SearchBlockText(ctx context.Context, needle string, opts block
 		if kb == nil {
 			continue
 		}
-		texts := blockstore.BlockTexts(kb)
-		// BlockTexts walks a map for the targets, so the order it returns them
-		// in is not stable. Sorting by locale makes one corpus answer one query
-		// the same way twice; the source locale is the empty string and sorts
-		// to the front, where the scan puts it too.
-		slices.SortFunc(texts, func(a, b blockstore.BlockText) int {
-			return strings.Compare(a.Locale, b.Locale)
-		})
-		for _, bt := range texts {
-			if opts.Locales != nil && !slices.Contains(opts.Locales, bt.Locale) {
+		// BlockTexts returns the source first and every other edition in key
+		// order, the order the scan reports them in, so one corpus answers one
+		// query the same way twice.
+		for _, bt := range blockstore.BlockTexts(kb) {
+			if !opts.Wants(bt.Locale) {
 				continue
 			}
 			if !strings.Contains(strings.ToLower(bt.Text), lowerNeedle) {
@@ -128,7 +124,7 @@ func (s *pgStore) textCandidates(
 	ctx context.Context,
 	needle, collection string,
 	wantSource, anyTarget bool,
-	wantTargets []string,
+	wantTargets, languages []string,
 ) ([]string, map[string]string, error) {
 	var args []any
 	bind := func(v any) string {
@@ -157,10 +153,20 @@ func (s *pgStore) textCandidates(
 			for i, l := range wantTargets {
 				marks[i] = bind(l)
 			}
-			// The locale column holds the VariantKey text form, so a toned or
-			// channelled target is filed under "nb;tone=formal". toKBF keys the
-			// block's targets by the bare locale, and this must agree with it.
-			where = append(where, "split_part(t.locale, ';', 1) IN ("+strings.Join(marks, ",")+")")
+			// The locale column holds the EditionKey text form, so a toned or
+			// channelled target is filed under "nb;tone=formal", the key
+			// BlockTexts files its text under. A requested key matches its own
+			// row, and a requested language also matches the tone and channel
+			// editions in it (blockstore.TextSearchOptions.Wants).
+			clause := "t.locale IN (" + strings.Join(marks, ",") + ")"
+			if len(languages) > 0 {
+				lmarks := make([]string, len(languages))
+				for i, l := range languages {
+					lmarks[i] = bind(l)
+				}
+				clause = "(" + clause + " OR split_part(t.locale, ';', 1) IN (" + strings.Join(lmarks, ",") + "))"
+			}
+			where = append(where, clause)
 		}
 		where = append(where, pgTextMatch(tgt, pin))
 		match = append(match, "EXISTS (SELECT 1 FROM translations t WHERE "+strings.Join(where, " AND ")+")")

@@ -59,7 +59,7 @@ func TestAnnotationsAndOverlaysAreSeparate(t *testing.T) {
 	t.Parallel()
 	b := NewBlock("b1", "hello world")
 	// A positional overlay and a block annotation live in distinct carriers.
-	b.SetSegmentation(nil, []Span{{ID: "s1", Range: SpanAnchor(RunPos{Run: 0}, RunPos{Run: 1})}})
+	b.SetSegmentation(EditionKey{}, []Span{{ID: "s1", Range: SpanAnchor(RunPos{Run: 0}, RunPos{Run: 1})}})
 	b.SetAnno("note", &NoteAnnotation{Text: "hi"})
 
 	assert.Len(t, b.AnnoMap(), 1, "annotations carry the note only")
@@ -82,12 +82,12 @@ func TestOverlaySpanCRUD(t *testing.T) {
 
 	b.AddOverlaySpan(OverlayEntity, Span{
 		ID:    "entity:0",
-		Range: RangeAnchorForBytes(b.Source, 0, 10),
+		Range: RangeAnchorForBytes(b.SourceRuns(), 0, 10),
 		Value: &EntityAnnotation{Text: "John Smith", Type: EntityPerson},
 	})
 	b.AddOverlaySpan(OverlayEntity, Span{
 		ID:    "entity:1",
-		Range: RangeAnchorForBytes(b.Source, 19, 24),
+		Range: RangeAnchorForBytes(b.SourceRuns(), 19, 24),
 		Value: &EntityAnnotation{Text: "Paris", Type: EntityLocation},
 	})
 
@@ -101,7 +101,7 @@ func TestOverlaySpanCRUD(t *testing.T) {
 	require.NotNil(t, s)
 	ea := s.Value.(*EntityAnnotation)
 	assert.Equal(t, "Paris", ea.Text)
-	start, end := s.Range.ByteSpan(b.Source)
+	start, end := s.Range.ByteSpan(b.SourceRuns())
 	assert.Equal(t, 19, start)
 	assert.Equal(t, 24, end)
 

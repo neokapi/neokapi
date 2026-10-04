@@ -163,7 +163,7 @@ test.describe("Editor happy path", () => {
     await expect(page.getByTestId("view-switcher")).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId("visual-editor-card")).toBeVisible({ timeout: 30000 });
 
-    // Server returned per-locale Target.Status for fr: the progress breakdown
+    // Server returned per-locale Edition.Status for fr: the progress breakdown
     // counts it and the (still-selected-first) block's card shows the badge.
     await expect(page.getByTestId("progress-text")).toContainText("1 established");
     await expect(page.getByTestId("target-display")).toContainText(FRENCH_TEXT);

@@ -311,6 +311,7 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 			}
 			if target != "" && !targetLocale.IsEmpty() {
 				block.SetTargetText(targetLocale, target)
+				block.MarkNative(model.Variant(targetLocale))
 			}
 			if r.cfg.UseCodeFinder {
 				r.applyCodeFinder(block)
@@ -469,6 +470,7 @@ func (r *Reader) newPluralBlock(entry *poEntry, pf pluralForm, targetLocale mode
 	if entry.msgstrPlurals != nil {
 		if val, ok := entry.msgstrPlurals[pf.index]; ok && val != "" && !targetLocale.IsEmpty() {
 			block.SetTargetText(targetLocale, val)
+			block.MarkNative(model.Variant(targetLocale))
 		}
 	}
 	if r.cfg.UseCodeFinder {
@@ -975,6 +977,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			}
 			if target != "" && !targetLocale.IsEmpty() {
 				block.SetTargetText(targetLocale, target)
+				block.MarkNative(model.Variant(targetLocale))
 			}
 			if r.cfg.UseCodeFinder {
 				r.applyCodeFinder(block)

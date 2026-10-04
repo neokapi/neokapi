@@ -17,13 +17,17 @@ import (
 )
 
 // The decision ledger is the server counterpart of core/state. It records the
-// reviewer, time, lifecycle state and source/target hashes for each decision.
-// unit_decisions stores the latest decision per (item, unit, variant), while
-// block_history retains events. target_json.status projects the ledger for
-// status readers.
+// reviewer, time, lifecycle state and the pairing each decision blesses, by
+// revision: the translation (revision) and the source it was blessed for
+// (basis). unit_decisions stores the latest decision per (item, unit,
+// variant), while block_history retains events. target_json.status projects
+// the ledger for status readers.
 //
-// Freshness is derived when read. A target hash mismatch makes a decision stale;
-// source edits update the status projection through storeBlocks and decision.stale.
+// Freshness is derived when read. A decision is current while its basis is the
+// revision of the source the block holds (blocks.source_revision) and its
+// revision is the translation's; a change to either, an inline code included,
+// makes it stale. Source writes update the status projection through
+// storeBlocks and decision.stale.
 
 // resolveItemIDPg is the item a decision names, by identity rather than address.
 //
@@ -135,12 +139,12 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		var old venue.UnitDecision
 		var haveOld bool
 		row := tx.QueryRowContext(ctx,
-			`SELECT status, target_hash, content_hash, review_state, decided_by, decided_at, note, parked, assignee,
+			`SELECT status, revision, basis, review_state, decided_by, decided_at, note, parked, assignee,
 				governing_fingerprint, updated
 			 FROM unit_decisions
 			 WHERE project_id=$1 AND stream=$2 AND item_id=$3 AND unit=$4 AND variant=$5`,
 			projectID, stream, itemID, d.Unit, d.Variant)
-		switch err := row.Scan(&old.Status, &old.TargetHash, &old.ContentHash, &old.ReviewState, &old.DecidedBy,
+		switch err := row.Scan(&old.Status, &old.Revision, &old.Basis, &old.ReviewState, &old.DecidedBy,
 			&old.DecidedAt, &old.Note, &old.Parked, &old.Assignee, &old.GoverningFingerprint, &old.Updated); {
 		case err == nil:
 			haveOld = true
@@ -161,19 +165,18 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO unit_decisions
-				(project_id, stream, item_id, item_name, unit, variant, status, target_hash, content_hash, review_state,
-				 decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated, updated_at)
+				(project_id, stream, item_id, item_name, unit, variant, status, revision, basis,
+				 review_state, decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated, updated_at)
 			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
 			 ON CONFLICT (project_id, stream, item_id, unit, variant) DO UPDATE SET
 				item_name=EXCLUDED.item_name,
-				status=EXCLUDED.status, target_hash=EXCLUDED.target_hash,
-				content_hash=EXCLUDED.content_hash,
+				status=EXCLUDED.status, revision=EXCLUDED.revision, basis=EXCLUDED.basis,
 				review_state=EXCLUDED.review_state, decided_by=EXCLUDED.decided_by,
 				decided_at=EXCLUDED.decided_at, note=EXCLUDED.note, parked=EXCLUDED.parked,
 				assignee=EXCLUDED.assignee, governing_fingerprint=EXCLUDED.governing_fingerprint,
 				updated=EXCLUDED.updated, updated_at=EXCLUDED.updated_at`,
-			projectID, stream, itemID, d.ItemName, d.Unit, d.Variant, d.Status, d.TargetHash, d.ContentHash, d.ReviewState,
-			d.DecidedBy, d.DecidedAt, d.Note, d.Parked, d.Assignee, d.GoverningFingerprint, d.Updated, now); err != nil {
+			projectID, stream, itemID, d.ItemName, d.Unit, d.Variant, d.Status, d.Revision, d.Basis,
+			d.ReviewState, d.DecidedBy, d.DecidedAt, d.Note, d.Parked, d.Assignee, d.GoverningFingerprint, d.Updated, now); err != nil {
 			return changed, fmt.Errorf("upsert decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		changed++
@@ -181,11 +184,11 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		// Resolve the stored block the unit names. A decision for content this
 		// store has never held stays ledger-only and heals when the content
 		// arrives.
-		var blockID, blockHash string
+		var blockID, blockRevision string
 		if d.ItemName != "" {
 			err := tx.QueryRowContext(ctx,
-				`SELECT id, content_hash FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3 AND source_id=$4`,
-				projectID, stream, d.ItemName, d.Unit).Scan(&blockID, &blockHash)
+				`SELECT id, source_revision FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3 AND source_id=$4`,
+				projectID, stream, d.ItemName, d.Unit).Scan(&blockID, &blockRevision)
 			if err != nil && err != sql.ErrNoRows {
 				return changed, fmt.Errorf("resolve decision block %s/%s: %w", d.ItemName, d.Unit, err)
 			}
@@ -205,15 +208,17 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		}
 
 		// Project the status — only while BOTH halves of the pairing the
-		// decision blessed still hold: the translation the row currently
-		// carries, and the source it was blessed for. A decision arriving
-		// against source this store has since rewritten is recorded but moves
-		// nothing; projecting it would stamp an approval onto wording nobody
-		// approved. An empty basis is unknown, not stale, and projects as before.
+		// decision blessed still hold: the source it was blessed for
+		// (platstore.DecisionProjects), and the translation the row currently
+		// carries. A decision arriving against a source this store has since
+		// changed, its wording or an inline code, is recorded but moves
+		// nothing; projecting it would stamp an approval onto a source nobody
+		// approved a translation of. A rejection of a translation written
+		// outside kapi names no source and lowers it all the same.
 		if d.Status == "" {
 			continue
 		}
-		if d.ContentHash != "" && blockHash != "" && d.ContentHash != blockHash {
+		if !platstore.DecisionProjects(d.Status, d.Basis, blockRevision) {
 			continue
 		}
 		var targetJSON string
@@ -230,7 +235,7 @@ func upsertUnitDecisionsTx(ctx context.Context, tx Runner, projectID, stream str
 		if uerr != nil {
 			continue // an unreadable target is not this write's to repair
 		}
-		if d.TargetHash != "" && state.TargetHash(model.RunsText(tgt.Runs)) != d.TargetHash {
+		if d.Revision != platstore.VariantRevision(d.Variant, tgt.Runs) {
 			continue // decision blesses a different translation — stale on arrival
 		}
 		if _, err := tx.ExecContext(ctx,
@@ -255,7 +260,7 @@ func (s *PostgresStore) ListUnitDecisions(ctx context.Context, projectID, stream
 func listUnitDecisionsTx(ctx context.Context, tx Querier, projectID, stream string) ([]venue.UnitDecision, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := tx.QueryContext(ctx,
-		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
+		`SELECT item_name, unit, variant, status, revision, basis, review_state,
 			decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated
 		 FROM unit_decisions WHERE project_id=$1 AND stream=$2
 		 ORDER BY item_name, unit, variant`,
@@ -268,7 +273,7 @@ func listUnitDecisionsTx(ctx context.Context, tx Querier, projectID, stream stri
 	var out []venue.UnitDecision
 	for rows.Next() {
 		d := venue.UnitDecision{ProjectID: projectID, Stream: stream}
-		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash, &d.ContentHash,
+		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.Revision, &d.Basis,
 			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &d.Parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated); err != nil {
 			return nil, fmt.Errorf("scan decision: %w", err)
 		}
@@ -282,12 +287,12 @@ func (s *PostgresStore) GetUnitDecision(ctx context.Context, projectID, stream, 
 	stream = storeutil.DefaultStream(stream)
 	d := venue.UnitDecision{ProjectID: projectID, Stream: stream}
 	err := s.db.QueryRowContext(ctx,
-		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
+		`SELECT item_name, unit, variant, status, revision, basis, review_state,
 			decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated
 		 FROM unit_decisions
 		 WHERE project_id=$1 AND stream=$2 AND item_name=$3 AND unit=$4 AND variant=$5`,
 		projectID, stream, itemName, unit, variant).
-		Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash, &d.ContentHash,
+		Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.Revision, &d.Basis,
 			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &d.Parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -299,12 +304,17 @@ func (s *PostgresStore) GetUnitDecision(ctx context.Context, projectID, stream, 
 }
 
 // TallyDecisionBasis implements platstore.DecisionStore. The basis a decision
-// blessed and the block's current source hash are the same value, so grading is
-// a plain equality join on (project, item, unit → source_id); a decision whose
-// unit resolves to no stored block is not graded at all, because there is
-// nothing to grade it against. Only translatable blocks are counted: the
-// dashboard's denominators exclude the rest, and a stale count outside the
-// denominator would withhold a scope for content nobody ships.
+// blessed and the block's current source revision are taken the same way
+// (venue.SourceRevision), so grading is a plain equality join on (project,
+// item, unit → source_id); a decision whose unit resolves to no stored block
+// is not graded at all, because there is nothing to grade it against. Only
+// translatable blocks are counted: the dashboard's denominators exclude the
+// rest, and a stale count outside the denominator would withhold a scope for
+// content nobody ships.
+//
+// A decision is stale when its basis names a revision other than the block's
+// source revision (platstore.BasisStale, pgBasisStale), and unknown when it
+// names none: a translation written outside kapi, which nothing calls stale.
 //
 // Owed is the same grading with the draft basis read beside the decision: a
 // stale decision whose row records no draft against the current source, on a
@@ -312,27 +322,27 @@ func (s *PostgresStore) GetUnitDecision(ctx context.Context, projectID, stream, 
 // count inside the translated denominator it is subtracted from; a stale
 // decision on a unit with no target is pending as untranslated already.
 //
-// RejectedOwed reads the VERDICT beside the two hashes, for the units Stale
-// cannot hold: a rejection of a translation of the source the block still
-// carries. A reviewer turning that translation down owes the unit a fresh
-// draft, and the same draft mark says whether the loop has since made one.
-// Excluding the stale rejections keeps the two counts disjoint, so a caller
-// subtracting both from a produced count subtracts each unit once.
+// RejectedOwed reads the VERDICT beside the basis, for the units Stale cannot
+// hold: a rejection of a translation of the source the block still carries. A
+// reviewer turning that translation down owes the unit a fresh draft, and the
+// same draft mark says whether the loop has since made one. Excluding the
+// stale rejections keeps the two counts disjoint, so a caller subtracting both
+// from a produced count subtracts each unit once.
 func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]platstore.DecisionBasisTally, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT d.item_name, d.variant,
-			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN d.content_hash = '' THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash
-				AND d.draft_basis <> b.content_hash
+			COALESCE(SUM(CASE WHEN `+pgBasisStale+` THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN d.basis = '' THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN `+pgBasisStale+`
+				AND NOT `+pgDraftCurrent+`
 				AND EXISTS (SELECT 1 FROM translations t
 					WHERE t.project_id = b.project_id AND t.stream = b.stream
 					AND t.block_id = b.id AND t.locale = d.variant)
 				THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN d.review_state = $3
-				AND NOT (d.content_hash <> '' AND d.content_hash <> b.content_hash)
-				AND d.draft_basis <> b.content_hash
+				AND NOT `+pgBasisStale+`
+				AND NOT `+pgDraftCurrent+`
 				AND EXISTS (SELECT 1 FROM translations t
 					WHERE t.project_id = b.project_id AND t.stream = b.stream
 					AND t.block_id = b.id AND t.locale = d.variant)
@@ -399,7 +409,7 @@ func recordDraftBasesTx(ctx context.Context, tx Runner, projectID, stream string
 			`UPDATE unit_decisions SET draft_basis=$6, updated_at=$7
 			 WHERE project_id=$1 AND stream=$2 AND unit=$4 AND variant=$5
 			   AND item_id = (SELECT id FROM items WHERE project_id=$1 AND stream=$2 AND name=$3)`,
-			projectID, stream, d.ItemName, d.Unit, d.Variant, d.SourceHash, now); err != nil {
+			projectID, stream, d.ItemName, d.Unit, d.Variant, d.Basis, now); err != nil {
 			return fmt.Errorf("record draft basis %s/%s: %w", d.Unit, d.Variant, err)
 		}
 	}
@@ -422,13 +432,22 @@ func (s *PostgresStore) ListDraftBases(ctx context.Context, projectID, stream st
 	var out []platstore.DraftBasis
 	for rows.Next() {
 		var d platstore.DraftBasis
-		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.SourceHash); err != nil {
+		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Basis); err != nil {
 			return nil, fmt.Errorf("scan draft basis: %w", err)
 		}
 		out = append(out, d)
 	}
 	return out, rows.Err()
 }
+
+// pgBasisStale is the SQL twin of platstore.BasisStale over the decision row d
+// and its block b: the basis names a revision of the source other than the one
+// the block holds now.
+const pgBasisStale = `(d.basis <> '' AND d.basis <> b.source_revision)`
+
+// pgDraftCurrent says the row's draft mark names the source the block holds
+// now: the platform has drafted the unit against it.
+const pgDraftCurrent = `(d.draft_basis <> '' AND d.draft_basis = b.source_revision)`
 
 // The block_history change types a re-derived projection files. Both are
 // written by "system": nobody reviewed anything, the source moved under a
@@ -449,33 +468,35 @@ const (
 	decisionRestoredReason = "source content restored"
 )
 
-// DecisionProjection is one target row of a block whose SOURCE content just
-// changed, paired with the decision recorded for that unit and locale.
+// DecisionProjection is one target row of a block whose SOURCE just changed,
+// paired with the decision recorded for that unit and locale.
 type DecisionProjection struct {
 	Stream string
+	// Locale is the row's variant in EditionKey text form.
 	Locale string
 	// Status is the rung the row currently projects.
 	Status string
-	// TargetText is the translation the row holds now — the target half of the
-	// pairing a decision blessed.
-	TargetText string
-	// DecisionStatus, DecisionBasis and DecisionTargetHash are the recorded
+	// TargetRevision is the revision of the translation the row holds now
+	// (platstore.VariantRevision) — the target half of the pairing a decision
+	// blessed.
+	TargetRevision string
+	// DecisionStatus, DecisionBasis and DecisionRevision are the recorded
 	// decision for (unit, locale); all empty when the ledger holds none.
-	DecisionStatus     string
-	DecisionBasis      string
-	DecisionTargetHash string
+	DecisionStatus   string
+	DecisionBasis    string
+	DecisionRevision string
 }
 
 // SettleDecisionProjection derives target status and a history event after the
-// source changes to contentHash. Both backends use it.
+// source changes to sourceRevision. Both backends use it.
 //
-// Decisions retain the source/target pairing reviewed. A different source lowers
-// status to the presence baseline. If the original source returns and the target
-// is unchanged, the prior decision applies again. A decision without a recorded
-// basis cannot establish a match and leaves a non-approved target unchanged.
-func SettleDecisionProjection(p DecisionProjection, contentHash string) (status, event string, changed bool) {
-	if p.DecisionStatus != "" && p.DecisionBasis != "" && p.DecisionBasis == contentHash &&
-		(p.DecisionTargetHash == "" || state.TargetHash(p.TargetText) == p.DecisionTargetHash) {
+// Decisions retain the pairing reviewed, by revision. A different source, its
+// wording or an inline code, lowers status to the presence baseline. If the
+// original source returns and the translation is the one the decision blessed,
+// the prior decision applies again.
+func SettleDecisionProjection(p DecisionProjection, sourceRevision string) (status, event string, changed bool) {
+	if p.DecisionStatus != "" && platstore.BasisCurrent(p.DecisionBasis, sourceRevision) &&
+		p.DecisionRevision == p.TargetRevision {
 		if p.DecisionStatus == p.Status {
 			return p.Status, "", false
 		}
@@ -495,34 +516,34 @@ func DecisionEventReason(event string) string {
 	return decisionStaleReason
 }
 
-// TargetTextFromJSON reads the plain target text out of a stored target_json
-// payload. An unreadable payload yields "", which grades as a target that
-// cannot match any recorded hash.
-func TargetTextFromJSON(targetJSON string) string {
+// TargetRevisionFromJSON is the revision of the translation a stored
+// target_json payload holds for variant. An unreadable payload yields "",
+// which no decision's revision equals.
+func TargetRevisionFromJSON(variant, targetJSON string) string {
 	tgt, err := UnmarshalTargetJSON([]byte(targetJSON))
 	if err != nil {
 		return ""
 	}
-	return model.RunsText(tgt.Runs)
+	return platstore.VariantRevision(variant, tgt.Runs)
 }
 
 // settleDecisionProjectionsPg re-derives the projected statuses of every target
-// of a block whose SOURCE content just changed, against the decision ledger.
-// Runs inside the storeBlocks transaction, scoped to the stream whose source
-// moved, and only when the content hash actually moved. A branch holding the
-// same block id at its own content is judged by its own ledger.
-func settleDecisionProjectionsPg(ctx context.Context, tx Runner, projectID, stream, blockID, contentHash string) error {
+// of a block whose SOURCE just changed, against the decision ledger. Runs
+// inside the storeBlocks transaction, scoped to the stream whose source moved,
+// and only when the source revision actually moved. A branch holding the same
+// block id at its own content is judged by its own ledger.
+func settleDecisionProjectionsPg(ctx context.Context, tx Runner, projectID, stream, blockID, sourceRevision string) error {
 	// The ledger keys on the unit identity (item + source_id), not the block id.
 	var itemID, unit string
 	if err := tx.QueryRowContext(ctx,
 		`SELECT item_id, source_id FROM blocks WHERE project_id=$1 AND stream=$2 AND id=$3`,
 		projectID, stream, blockID).Scan(&itemID, &unit); err != nil {
-		return fmt.Errorf("look up unit for block %s: %w", blockID, err)
+		return fmt.Errorf("look up the key of block %s: %w", blockID, err)
 	}
 
 	rows, err := tx.QueryContext(ctx,
 		`SELECT t.stream, t.locale, COALESCE(t.target_json->>'status',''), t.target_json,
-			COALESCE(d.status,''), COALESCE(d.content_hash,''), COALESCE(d.target_hash,'')
+			COALESCE(d.status,''), COALESCE(d.basis,''), COALESCE(d.revision,'')
 		 FROM translations t
 		 LEFT JOIN unit_decisions d
 			ON d.project_id=t.project_id AND d.stream=t.stream
@@ -537,11 +558,11 @@ func settleDecisionProjectionsPg(ctx context.Context, tx Runner, projectID, stre
 		var p DecisionProjection
 		var targetJSON string
 		if err := rows.Scan(&p.Stream, &p.Locale, &p.Status, &targetJSON,
-			&p.DecisionStatus, &p.DecisionBasis, &p.DecisionTargetHash); err != nil {
+			&p.DecisionStatus, &p.DecisionBasis, &p.DecisionRevision); err != nil {
 			rows.Close()
 			return fmt.Errorf("scan projection for block %s: %w", blockID, err)
 		}
-		p.TargetText = TargetTextFromJSON(targetJSON)
+		p.TargetRevision = TargetRevisionFromJSON(p.Locale, targetJSON)
 		settled = append(settled, p)
 	}
 	rows.Close()
@@ -551,7 +572,7 @@ func settleDecisionProjectionsPg(ctx context.Context, tx Runner, projectID, stre
 
 	now := time.Now().UTC()
 	for _, p := range settled {
-		status, event, changed := SettleDecisionProjection(p, contentHash)
+		status, event, changed := SettleDecisionProjection(p, sourceRevision)
 		if !changed {
 			continue
 		}

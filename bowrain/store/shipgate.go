@@ -17,12 +17,14 @@ import (
 //
 // pgShipBasis is the token that decides whether a stored verdict still holds.
 // It names the two things a verdict was computed from and neither the caller
-// nor the store may forget: the block's source hash, and the exact revision of
+// nor the store may forget: the revision of the block's source, inline codes
+// included, so a check that compares a translation's codes with the source's
+// is judged again when a link in the source moves, and the exact revision of
 // the target row. The timestamp is rendered as microseconds since the epoch
 // rather than as text, so the token does not depend on the session's DateStyle
 // or TimeZone — a basis that compared equal on one connection and not on
 // another would silently recompute the whole corpus on every load.
-const pgShipBasis = `(b.content_hash || '|' || ((extract(epoch from t.updated_at) * 1000000)::bigint)::text)`
+const pgShipBasis = `(b.source_revision || '|' || ((extract(epoch from t.updated_at) * 1000000)::bigint)::text)`
 
 // ShipGateRollup implements platstore.ShipVerdictStore. It answers two
 // questions in two queries: what do the verdicts that still hold add up to, and

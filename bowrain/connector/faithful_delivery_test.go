@@ -238,9 +238,9 @@ func deliveryCopy(sb *model.Block, fr string) *model.Block {
 	if fr != "" {
 		sb.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}})
 	}
-	cp := *sb
+	cp := sb.CopyEditionSet()
 	if fr != "" {
 		cp.SetSourceRuns(sb.TargetRuns("fr"))
 	}
-	return &cp
+	return cp
 }

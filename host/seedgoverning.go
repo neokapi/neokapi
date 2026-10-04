@@ -80,7 +80,11 @@ func (a *App) restoreGoverningFingerprints(ctx context.Context, st *state.WorkSt
 				if !ok || row.GoverningFingerprint != "" || !row.Decides() {
 					continue
 				}
-				if row.TargetHash == "" || row.TargetHash != state.TargetHash(e.VariantText(locale)) {
+				answer := state.Reading{
+					Revision:   model.RunsRevision(model.Variant(locale), e.Variant(locale)),
+					TargetHash: state.TargetHash(e.VariantText(locale)),
+				}
+				if row.TargetHash == "" || row.Stale(answer) {
 					continue // the row is about a different answer
 				}
 				row.GoverningFingerprint = fingerprint

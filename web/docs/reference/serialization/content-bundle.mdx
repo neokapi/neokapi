@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: Content bundle
-description: The normative schema for the content bundle (.kbf.json) — the file envelope, the run discriminated union, per-locale targets, validation rules, the companion .overlays.jsonl annotation overlay, and worked examples of every run kind.
+description: The normative schema for the content bundle (.kbf.json), covering the file envelope, the run discriminated union, a block's peer editions, validation rules, the companion .overlays.jsonl annotation overlay, and worked examples of every run kind.
 keywords:
   [
     KBF,
@@ -23,9 +23,9 @@ import { KbfExplorer } from "@site/src/components/Lab/KbfExplorer";
 
 The **content bundle** is the JSON serialization of neokapi's
 [content model](/framework/content-model): a set of `Document`s, each holding
-`Block`s whose content is a flat sequence of `Run`s, with optional per-locale
-`targets`. Its marker segment and Go package are both `kbf`, for Kapi Bundle
-Format.
+`Block`s whose content is a set of peer **editions**, each a flat sequence of
+`Run`s: the source, and every translation or other edition of it. Its marker
+segment and Go package are both `kbf`, for Kapi Bundle Format.
 
 This page is the normative schema, followed by
 [worked examples](#worked-examples) of every run kind. For where the bundle
@@ -69,13 +69,13 @@ covers the convention, and the `filepath.Ext` caveat it creates.
 
 The serializer is deterministic: 2-space indent, no HTML escaping, a trailing
 newline, fields emitted in the struct-definition order pinned below, and **all
-map keys sorted** (target locales, plural forms, and select cases). Deterministic
+map keys sorted** (edition keys, plural forms, and select cases). Deterministic
 output is what keeps the content hash stable across runs, machines, and the two
 implementations.
 
 ## Versioning
 
-The current schema version is `1.0`, carried in the `schemaVersion` field of
+The current schema version is `2.0`, carried in the `schemaVersion` field of
 every file. Versions follow a `MAJOR.MINOR` contract:
 
 - **Major** means a breaking change. A consumer **must reject** a file whose
@@ -85,8 +85,25 @@ every file. Versions follow a `MAJOR.MINOR` contract:
   recognize.
 
 A reader validates the envelope on load: it rejects any document whose `kind` is
-not `kapi-bundle` and any `schemaVersion` whose major does not match
-the version the build speaks.
+not `kapi-bundle` and any `schemaVersion` whose major it does not read.
+
+Both implementations read schema `1.0` as well as `2.0`, and write `2.0`. In
+schema `1.0` a block carried its source runs under `source`, its translations
+in a `targets` map from locale to runs, and how each was produced in a
+`targetOrigins` map from locale to origin. A reader turns such a block into the
+editions it describes:
+
+- `source` becomes the source edition, under the empty key;
+- each `targets` entry becomes the edition under its locale, carrying the
+  `targetOrigins` entry for that locale as its `origin`;
+- a `targets` entry under the empty locale becomes the `unlabelled` edition;
+- a `targetOrigins` entry for a locale with no target describes nothing and is
+  dropped.
+
+The file then carries `schemaVersion` `2.0`, so writing it again writes the
+current schema. A block that carries both `editions` and `source` or `targets`
+is refused. A writer stamps `2.0` on any file whose version is not a minor of
+major 2, because the blocks it writes are in schema 2.
 
 ## File envelope
 
@@ -96,7 +113,7 @@ stable across the Go and TypeScript implementations.
 
 | Field           | Type          | Required | Description                                                                  |
 | --------------- | ------------- | -------- | ---------------------------------------------------------------------------- |
-| `schemaVersion` | string        | yes      | Wire format version, e.g. `"1.0"`. Subject to the versioning contract above. |
+| `schemaVersion` | string        | yes      | Wire format version, e.g. `"2.0"`. Subject to the versioning contract above. |
 | `kind`          | string        | yes      | Magic string; must be `"kapi-bundle"`.                                       |
 | `created`       | string        | no       | Creation timestamp (RFC 3339). Omitted when empty.                           |
 | `generator`     | GeneratorInfo | yes      | The extractor that produced the file.                                        |
@@ -118,10 +135,14 @@ Identifies the extractor that produced the file.
 
 Identifies the project the file belongs to.
 
-| Field          | Type   | Required | Description                         |
-| -------------- | ------ | -------- | ----------------------------------- |
-| `id`           | string | yes      | Project identifier.                 |
-| `sourceLocale` | string | yes      | BCP-47 locale of the `source` runs. |
+| Field          | Type   | Required | Description                                          |
+| -------------- | ------ | -------- | ---------------------------------------------------- |
+| `id`           | string | yes      | Project identifier.                                  |
+| `sourceLocale` | string | yes      | BCP-47 locale of every block's source edition. |
+
+kapi keeps the project of a bundle it rewrites, so `sourceLocale` goes on
+naming the language of the source editions. A bundle kapi writes from another
+format names the source language that format was read in.
 
 ### Vocabulary
 
@@ -143,7 +164,7 @@ A `Document` is one source file's worth of extracted content.
 | `path`         | string   | yes      | Path of the source file the content was extracted from.                   |
 | `sourceHash`   | string   | no       | Content hash of the original source file. Omitted when empty.             |
 | `skeleton`     | Skeleton | no       | Reference to the opaque skeleton used to reconstruct the source on merge. |
-| `blocks`       | Block[]  | yes      | The translatable units extracted from this document.                      |
+| `blocks`       | Block[]  | yes      | The translatable blocks extracted from this document.                      |
 
 ### Skeleton
 
@@ -158,21 +179,22 @@ the fields is present.
 
 ## Block
 
-A `Block` is the unit of translation tracking. Its `source` is a flat sequence of
-`Run`s in the project's source locale; committed translations live in the
-optional per-locale `targets` map (see [Targets](#targets)).
+A `Block` is what translation tracking follows. Its content is a map of peer
+editions (see [Editions](#editions)): the source, a flat sequence of `Run`s in
+the project's source locale, under the empty key, and every translation, tone
+or channel edition under its own edition key.
 
-| Field          | Type                     | Required | Description                                                                        |
-| -------------- | ------------------------ | -------- | ---------------------------------------------------------------------------------- |
-| `id`           | string                   | yes      | Stable identifier within the document.                                             |
-| `hash`         | string                   | yes      | Content hash of the block, used for deduplication and change detection.            |
-| `translatable` | bool                     | yes      | Whether the block should be offered for translation.                               |
-| `type`         | string                   | yes      | Coarse block classification: `"jsx:element"`, `"jsx:attribute"`, or `"js:t"`.      |
-| `source`       | Run[]                    | yes      | Source-locale content as a run sequence.                                           |
-| `targets`      | map&lt;locale, Run[]&gt; | no       | Committed translations, keyed by BCP-47 locale. Omitted when there are none.       |
-| `placeholders` | Placeholder[]            | yes      | Metadata for every placeholder, paired code, and ICU pivot referenced by the runs. |
-| `properties`   | BlockProperties          | yes      | Provenance metadata (source location, component, JSX path).                        |
-| `preview`      | BlockPreviewHints        | no       | Optional hints for rendering a preview of the block. Omitted when absent.          |
+| Field          | Type                          | Required | Description                                                                                          |
+| -------------- | ----------------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `id`           | string                        | yes      | Stable identifier within the document.                                                               |
+| `hash`         | string                        | yes      | Content hash of the block, used for deduplication and change detection.                              |
+| `translatable` | bool                          | yes      | Whether the block should be offered for translation.                                                 |
+| `type`         | string                        | yes      | Coarse block classification: `"jsx:element"`, `"jsx:attribute"`, or `"js:t"`.                        |
+| `editions`     | map&lt;key, Edition&gt;       | yes      | Every edition of the block, keyed by edition key. The source edition, under `""`, is always present. |
+| `unlabelled`   | Edition                       | no       | A translation filed under no language (see [Editions](#editions)). Omitted when there is none.      |
+| `placeholders` | Placeholder[]                 | yes      | Metadata for every placeholder, paired code, and ICU pivot referenced by the runs.                   |
+| `properties`   | BlockProperties               | yes      | Provenance metadata (source location, component, JSX path).                                          |
+| `preview`      | BlockPreviewHints             | no       | Optional hints for rendering a preview of the block. Omitted when absent.                            |
 
 ### BlockProperties
 
@@ -386,12 +408,71 @@ run overrides its vocabulary defaults.
 | `cloneable`   | bool | Whether the run may be duplicated in a target. |
 | `reorderable` | bool | Whether the run may be moved within a target.  |
 
-## Targets
+## Editions
 
-A block's committed translations live in `targets`, a map keyed by BCP-47 locale
-whose value is a `Run[]`, the translated content for that locale, using exactly
-the same run primitives as `source`. The field is omitted entirely when a block
-has no targets. Locale keys are sorted on the wire.
+A block's content is a set of peer editions in `editions`, a map from edition
+key to `Edition`. The **source edition**, under the empty key `""`, holds the
+content the block was extracted with, in the project's `sourceLocale`; it is
+always present, empty if the block has no content. Every other edition sits
+under its own key:
+
+- a translation under its BCP-47 locale (`"fr"`, `"nb-NO"`);
+- an edition with a tone or a channel under the locale followed by
+  `;tone=<value>` and `;channel=<value>` (`"fr;tone=formal"`,
+  `"en;channel=short"`), so a short English edition sits beside the English
+  source rather than replacing it.
+
+Keys are sorted on the wire. A block with no edition in a language is
+untranslated in that language, and a writer leaves out any edition other than
+the source that holds no runs, whatever status it records.
+
+A key carries a language, then at most one tone and one channel, each with a
+value. A key with a dimension a reader does not know, such as one a later minor
+version adds, or a key that names no language, names an edition that reader
+cannot hold. kapi reads every other edition of the block, never files that one
+under the shorter key its text would leave (`nb;audience=kids` is never `nb`),
+and writes it back unchanged when it rewrites the bundle.
+
+### Edition
+
+| Field     | Type       | Required | Description                                                                                                                |
+| --------- | ---------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `runs`    | Run[]      | yes      | The edition's content as a run sequence, using the same run primitives as every other edition. Written as `[]` when empty. |
+| `status`  | string     | no       | Lifecycle state: `written` or `established` for a source; `draft`, `translated` or `established` for a translation. Omitted when none is recorded. |
+| `origin`  | Origin     | no       | How the content was produced and what governed it. Omitted when it records nothing.                                       |
+| `score`   | number     | no       | The producer's quality score for a translation or other derived edition. Omitted when zero. The source carries none.      |
+| `derived` | Derivation | no       | The edition this one was made from. Omitted for an edition nothing derived it from.                                        |
+
+### Derivation
+
+| Field  | Type   | Required | Description                                                                                         |
+| ------ | ------ | -------- | --------------------------------------------------------------------------------------------------- |
+| `from` | string | yes      | Key of the edition this one was made from: `""` for the source, whatever its language. A key in the source language names a same-language edition beside the source. |
+| `rev`  | string | yes      | That edition's revision when this one was made, `r:` and 16 hex digits of a hash of its key and runs. |
+
+Comparing `rev` with the current revision of the edition named in `from` tells
+whether the derived edition is stale. A revision of the source is taken under
+the language a reader files it by, which may be the bundle's source language,
+the source language of the project that read it, or none. The runs are the
+same under each, so kapi reads a derivation from the source as current while
+the revision of the source runs under any of these keys equals `rev`.
+
+### Origin
+
+Every field is optional and omitted when empty. The last two keep the spelling
+the content model gives them.
+
+| Field                 | Type   | Description                                                                                       |
+| --------------------- | ------ | ------------------------------------------------------------------------------------------------- |
+| `kind`                | string | `human`, `agent`, `memory`, `mt`, `ai`, `ocr`, `asr`, or `llm-refined`.                            |
+| `engine`              | string | The engine that produced the content.                                                             |
+| `tool`                | string | The tool that produced it.                                                                        |
+| `reference`           | string | A batch id, content-memory entry, or session.                                                     |
+| `timestamp`           | string | When it was produced (RFC 3339).                                                                  |
+| `confidence`          | number | A recognizer's confidence in [0, 1], for recognized content.                                      |
+| `profile`             | string | The context profile that governed production.                                                     |
+| `profile_version`     | string | The revision of that profile in force.                                                            |
+| `context_fingerprint` | string | A hash of the governing context as it reached the producer, so a later change to it can be seen. |
 
 ```json
 {
@@ -399,10 +480,23 @@ has no targets. Locale keys are sorted on the wire.
   "hash": "2xykvb",
   "translatable": true,
   "type": "jsx:element",
-  "source": [{ "text": "Files matched" }],
-  "targets": {
-    "de": [{ "text": "Gefundene Dateien" }],
-    "fr": [{ "text": "Fichiers trouvés" }]
+  "editions": {
+    "": {
+      "runs": [{ "text": "Files matched" }]
+    },
+    "de": {
+      "runs": [{ "text": "Gefundene Dateien" }]
+    },
+    "en;channel=short": {
+      "runs": [{ "text": "Matches" }],
+      "derived": { "from": "", "rev": "r:3f9a1c0e7b2d4a55" }
+    },
+    "fr": {
+      "runs": [{ "text": "Fichiers trouvés" }],
+      "status": "translated",
+      "origin": { "kind": "ai", "engine": "claude", "tool": "translate" },
+      "derived": { "from": "", "rev": "r:3f9a1c0e7b2d4a55" }
+    }
   },
   "placeholders": [],
   "properties": {
@@ -415,16 +509,21 @@ has no targets. Locale keys are sorted on the wire.
 }
 ```
 
-A target may add content, restructure text, or re-wrap paired codes, but it must
-preserve every required placeholder from the source.
+A translation may add content, restructure text, or re-wrap paired codes, but it
+must preserve every required placeholder from the source.
+
+A translation that a reader filed under no language, such as an xcstrings
+entry keyed by the empty string, has no key of its own, because the
+empty key names the source. It travels in the block's `unlabelled` field, with
+the same shape as any other edition.
 
 ## Validation
 
 The validator reports problems as typed errors, each carrying a machine-readable
-`kind`. Two checks are exposed: a structural well-formedness check over a block's
-runs (`ValidateBlock`), and a placeholder-preservation check of a target against
-its source (`ValidateTargetAgainstSource`). Validation walks into nested plural
-forms and select cases as their own scopes.
+`kind`. Two checks are exposed: a structural well-formedness check over the runs
+of every edition of a block (`ValidateBlock`), and a placeholder-preservation
+check of a translation against its source (`ValidateTargetAgainstSource`).
+Validation walks into nested plural forms and select cases as their own scopes.
 
 | Kind                    | Meaning                                                                                                         |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -469,7 +568,7 @@ check finding. Its `kind` discriminates four shapes:
 The `path` is a list of steps into a block's nested run structure: a bare number
 indexes into a `Run[]`, an object `{"plural": "<form>"}` descends into a plural
 form, and `{"select": "<value>"}` descends into a select case. An empty path
-refers to the block's top-level source runs.
+refers to the top-level runs of the block's source edition.
 
 `start` and `end` are each a **run position**: `{"run": <index>, "offset":
 <runes>}`, where `offset` is a rune offset into that run's text and defaults to
@@ -509,9 +608,9 @@ are the golden fixtures shared between the Go and TypeScript implementations.
 
 ### A block is a flat run sequence
 
-The unit of translation is a `Block`. Its `source` is a flat `Run[]`: inline
-markup, variables, and ICU constructs all live _in the sequence_, not in the
-text. This is what lets a translation step rewrite the readable text while every
+Translation works on a `Block`. Each of its editions is a flat `Run[]`:
+inline markup, variables, and ICU constructs all live _in the sequence_, not in
+the text. This is what lets a translation step rewrite the readable text while every
 placeholder and tag stays first-class and accounted for.
 
 #### Paired code wrapping a variable
@@ -527,40 +626,44 @@ between them:
   "hash": "2xykvb",
   "translatable": true,
   "type": "jsx:element",
-  "source": [
-    { "text": "Files " },
-    {
-      "pcOpen": {
-        "id": "1",
-        "type": "jsx:element",
-        "subType": "span",
-        "data": "<span className=\"muted\">",
-        "equiv": "muted",
-        "disp": "span"
-      }
-    },
-    { "text": "(" },
-    {
-      "ph": {
-        "id": "2",
-        "type": "jsx:var",
-        "subType": "number",
-        "data": "{count}",
-        "equiv": "count",
-        "disp": "count"
-      }
-    },
-    { "text": " matched)" },
-    {
-      "pcClose": {
-        "id": "1",
-        "type": "jsx:element",
-        "subType": "span",
-        "data": "</span>",
-        "equiv": "muted"
-      }
+  "editions": {
+    "": {
+      "runs": [
+        { "text": "Files " },
+        {
+          "pcOpen": {
+            "id": "1",
+            "type": "jsx:element",
+            "subType": "span",
+            "data": "<span className=\"muted\">",
+            "equiv": "muted",
+            "disp": "span"
+          }
+        },
+        { "text": "(" },
+        {
+          "ph": {
+            "id": "2",
+            "type": "jsx:var",
+            "subType": "number",
+            "data": "{count}",
+            "equiv": "count",
+            "disp": "count"
+          }
+        },
+        { "text": " matched)" },
+        {
+          "pcClose": {
+            "id": "1",
+            "type": "jsx:element",
+            "subType": "span",
+            "data": "</span>",
+            "equiv": "muted"
+          }
+        }
+      ]
     }
-  ],
+  },
   "placeholders": [
     {
       "name": "muted",
@@ -585,42 +688,44 @@ between them:
 }
 ```
 
-A French target re-orders the readable text but keeps both the `muted` paired
+A French edition re-orders the readable text but keeps both the `muted` paired
 code and the `count` variable, so it validates clean:
 
 ```json
 {
-  "fr": [
-    {
-      "pcOpen": {
-        "id": "1",
-        "type": "jsx:element",
-        "subType": "span",
-        "data": "<span className=\"muted\">",
-        "equiv": "muted"
+  "fr": {
+    "runs": [
+      {
+        "pcOpen": {
+          "id": "1",
+          "type": "jsx:element",
+          "subType": "span",
+          "data": "<span className=\"muted\">",
+          "equiv": "muted"
+        }
+      },
+      { "text": "(" },
+      {
+        "ph": {
+          "id": "2",
+          "type": "jsx:var",
+          "subType": "number",
+          "data": "{count}",
+          "equiv": "count"
+        }
+      },
+      { "text": " trouvés)" },
+      {
+        "pcClose": {
+          "id": "1",
+          "type": "jsx:element",
+          "subType": "span",
+          "data": "</span>",
+          "equiv": "muted"
+        }
       }
-    },
-    { "text": "(" },
-    {
-      "ph": {
-        "id": "2",
-        "type": "jsx:var",
-        "subType": "number",
-        "data": "{count}",
-        "equiv": "count"
-      }
-    },
-    { "text": " trouvés)" },
-    {
-      "pcClose": {
-        "id": "1",
-        "type": "jsx:element",
-        "subType": "span",
-        "data": "</span>",
-        "equiv": "muted"
-      }
-    }
-  ]
+    ]
+  }
 }
 ```
 
@@ -633,40 +738,44 @@ them; it may not drop `label`:
 
 ```json
 {
-  "source": [
-    {
-      "ph": {
-        "id": "1",
-        "type": "jsx:node",
-        "subType": "logical-and",
-        "data": "index !== undefined && <span className=\"badge\">{index}</span>",
-        "equiv": "badge",
-        "disp": "⟨badge⟩"
-      }
-    },
-    { "text": " " },
-    {
-      "ph": {
-        "id": "2",
-        "type": "jsx:var",
-        "subType": "string",
-        "data": "{label}",
-        "equiv": "label",
-        "disp": "label"
-      }
-    },
-    { "text": " " },
-    {
-      "ph": {
-        "id": "3",
-        "type": "jsx:node",
-        "subType": "logical-and",
-        "data": "!deletable && <span className=\"required\">*</span>",
-        "equiv": "required",
-        "disp": "⟨required⟩"
-      }
+  "editions": {
+    "": {
+      "runs": [
+        {
+          "ph": {
+            "id": "1",
+            "type": "jsx:node",
+            "subType": "logical-and",
+            "data": "index !== undefined && <span className=\"badge\">{index}</span>",
+            "equiv": "badge",
+            "disp": "⟨badge⟩"
+          }
+        },
+        { "text": " " },
+        {
+          "ph": {
+            "id": "2",
+            "type": "jsx:var",
+            "subType": "string",
+            "data": "{label}",
+            "equiv": "label",
+            "disp": "label"
+          }
+        },
+        { "text": " " },
+        {
+          "ph": {
+            "id": "3",
+            "type": "jsx:node",
+            "subType": "logical-and",
+            "data": "!deletable && <span className=\"required\">*</span>",
+            "equiv": "required",
+            "disp": "⟨required⟩"
+          }
+        }
+      ]
     }
-  ],
+  },
   "placeholders": [
     {
       "name": "badge",
@@ -753,10 +862,14 @@ points at it with a **`sub`** run:
 ```json
 {
   "id": "email-body",
-  "source": [
-    { "text": "Thanks for signing up. " },
-    { "sub": { "id": "1", "ref": "email-cta", "equiv": "cta" } }
-  ],
+  "editions": {
+    "": {
+      "runs": [
+        { "text": "Thanks for signing up. " },
+        { "sub": { "id": "1", "ref": "email-cta", "equiv": "cta" } }
+      ]
+    }
+  },
   "placeholders": [
     {
       "name": "cta",

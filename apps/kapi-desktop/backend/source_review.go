@@ -49,7 +49,7 @@ func (a *App) GetSourceUnitContext(tabID, file, key string) (*host.ReviewContext
 		return nil, fmt.Errorf("file %q is not part of this project's content", file)
 	}
 	if rf.CommentsOnly() {
-		return nil, fmt.Errorf("file %q is declared for its comments alone, so it has no source unit", file)
+		return nil, fmt.Errorf("file %q is declared for its comments alone, so it has no source block", file)
 	}
 
 	blocks, err := a.readBlocksForChecks(ctx, rf.Path, rf.Format,

@@ -16,7 +16,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/review"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -41,7 +40,7 @@ import (
 //
 // The other direction is held to one question. A push that lowers a target the
 // venue holds at established, keeping the translation and the source the
-// decision blessed, is withdrawing an established unit: the web asks review permission
+// decision blessed, is withdrawing an established translation: the web asks review permission
 // for that language before it lets an un-review or a rejection do the same,
 // and so does the worker. A refused withdrawal keeps the venue's rung and its
 // ledger record, and the record travels back so the producer can hold the same.
@@ -54,6 +53,10 @@ type pushGovernor struct {
 	gate    *review.Gate
 	permits *review.LanguagePermits
 	actor   string
+	// source is the project's source language, which the revision of a
+	// pushed block's source is taken under, as the store takes the revision
+	// of the source it holds (venue.SourceRevision).
+	source model.LocaleID
 
 	// storedID maps a block as the payload names it (row id, or the durable
 	// source id) to the row the venue holds, which is what authorship is keyed
@@ -65,17 +68,18 @@ type pushGovernor struct {
 	// priorStatus is the rung each stored target sits on now, for the audit
 	// trail's before/after and for telling a withdrawal from a promotion.
 	priorStatus map[platstore.TargetRef]model.TargetStatus
-	// priorHash is the hash of the translation each stored target holds now,
-	// and priorSource the hash of each stored row's source: the pairing a
-	// standing decision blessed. A pushed target that keeps both and lowers the
-	// rung is a withdrawal; one that changes either is an edit.
-	priorHash   map[platstore.TargetRef]string
-	priorSource map[string]string
-	// pushedHash is the hash of each translation this push writes over a stored
-	// target. A decision in the same push is judged against it rather than
-	// against priorHash, because it is the translation the venue holds once the
-	// push lands.
-	pushedHash map[platstore.TargetRef]string
+	// priorRevision is the revision of the translation each stored target
+	// holds now (languageRevision), and priorSource the revision of each
+	// stored row's source: the pairing a standing decision blessed. A pushed
+	// target that keeps both and lowers the rung is a withdrawal; one that
+	// changes either, an inline code included, is an edit.
+	priorRevision map[platstore.TargetRef]string
+	priorSource   map[string]string
+	// pushedRevision is the revision of each translation this push writes over
+	// a stored target. A decision in the same push is judged against it rather
+	// than against priorRevision, because it is the translation the venue
+	// holds once the push lands.
+	pushedRevision map[platstore.TargetRef]string
 
 	counts   map[refusalRef]int
 	units    []venue.RefusedUnit
@@ -266,21 +270,24 @@ type acceptedKey struct{ ref, locale string }
 func newPushGovernor(
 	ctx context.Context,
 	deps *WorkerDeps,
-	projectID, stream, workspaceID, actor string,
+	projectID, stream, workspaceID string,
+	source model.LocaleID,
+	actor string,
 	staged []stagedGroup,
 	decisions []venue.UnitDecision,
 ) (*pushGovernor, error) {
 	g := &pushGovernor{
-		actor:       actor,
-		storedID:    map[string]string{},
-		unitID:      map[unitRef]string{},
-		priorStatus: map[platstore.TargetRef]model.TargetStatus{},
-		priorHash:   map[platstore.TargetRef]string{},
-		priorSource: map[string]string{},
-		pushedHash:  map[platstore.TargetRef]string{},
-		counts:      map[refusalRef]int{},
-		accepted:    map[acceptedKey]acceptedRung{},
-		withdrawals: map[unitVariantRef]int{},
+		actor:          actor,
+		source:         source,
+		storedID:       map[string]string{},
+		unitID:         map[unitRef]string{},
+		priorStatus:    map[platstore.TargetRef]model.TargetStatus{},
+		priorRevision:  map[platstore.TargetRef]string{},
+		priorSource:    map[string]string{},
+		pushedRevision: map[platstore.TargetRef]string{},
+		counts:         map[refusalRef]int{},
+		accepted:       map[acceptedKey]acceptedRung{},
+		withdrawals:    map[unitVariantRef]int{},
 	}
 	if len(staged) == 0 && len(decisions) == 0 {
 		return g, nil
@@ -294,7 +301,7 @@ func newPushGovernor(
 		return g, nil // nothing to judge; no permission lookups, no gate
 	}
 	if deps.ReviewAuthority == nil {
-		return nil, errors.New("this deployment cannot resolve review permissions, so a push carrying approvals or withdrawing an established unit is refused")
+		return nil, errors.New("this deployment cannot resolve review permissions, so a push carrying approvals or withdrawing an established translation is refused")
 	}
 
 	locales := verdictLocales(staged, decisions)
@@ -404,8 +411,8 @@ func (g *pushGovernor) loadPriorRows(
 
 // indexRows records one item's rows under every name the payload may use for
 // them, the rung each of their targets holds, and the pairing each holds: the
-// translation's hash and the source's. The maps are keyed by language, so a
-// language's own edition fills its entry and a tone or channel variant fills
+// translation's revision and the source's. The maps are keyed by language, so
+// a language's own edition fills its entry and a tone or channel variant fills
 // it only when the row holds no such edition.
 func (g *pushGovernor) indexRows(itemName string, rows []*venue.StoredBlock) {
 	for _, row := range rows {
@@ -420,18 +427,18 @@ func (g *pushGovernor) indexRows(itemName string, rows []*venue.StoredBlock) {
 		if row.Block == nil {
 			continue
 		}
-		g.priorSource[row.ID] = blockSourceHash(row)
+		g.priorSource[row.ID] = row.SourceRevision
 		auth := row.Block.Authoritative(model.AuthorityPolicy{})
 		for key, target := range row.Block.EachEdition {
 			if key == auth {
 				continue
 			}
 			ref := platstore.TargetRef{BlockID: row.ID, Locale: string(key.Locale)}
-			if _, filled := g.priorHash[ref]; filled && !isLanguageEdition(key) {
+			if _, filled := g.priorRevision[ref]; filled && !isLanguageEdition(key) {
 				continue
 			}
 			g.priorStatus[ref] = model.TargetStatus(target.Status)
-			g.priorHash[ref] = state.TargetHash(model.RunsText(target.Runs))
+			g.priorRevision[ref] = languageRevision(key.Locale, target.Runs)
 		}
 	}
 }
@@ -450,8 +457,16 @@ func (g *pushGovernor) withdrawsEstablished(blockID string, b *model.Block, loca
 	if g.priorStatus[ref] != model.TargetStatusEstablished || model.TargetStatus(target.Status).Rank() >= model.TargetStatusEstablished.Rank() {
 		return false
 	}
-	return g.priorHash[ref] == state.TargetHash(model.RunsText(target.Runs)) &&
-		g.priorSource[blockID] == model.ComputeContentHash(b.SourceText())
+	return g.priorRevision[ref] == languageRevision(model.LocaleID(locale), target.Runs) &&
+		g.priorSource[blockID] == venue.SourceRevision(b, g.source)
+}
+
+// languageRevision is the revision of a translation into locale with content
+// runs, as a decision on the language's own edition names it
+// (model.TargetRevision). The governor's maps hold one translation per
+// language, so every edition they hold is named this way.
+func languageRevision(locale model.LocaleID, runs []model.Run) string {
+	return model.RunsRevision(model.Variant(locale), runs)
 }
 
 // withdrawsInRecord reports whether a decision record takes back an established unit the
@@ -464,8 +479,8 @@ func withdrawsInRecord(held, d venue.UnitDecision) bool {
 	if model.TargetStatus(d.Status).Rank() >= model.TargetStatusEstablished.Rank() {
 		return false
 	}
-	return d.TargetHash != "" && d.TargetHash == held.TargetHash &&
-		d.ContentHash != "" && d.ContentHash == held.ContentHash
+	return d.Revision != "" && d.Revision == held.Revision &&
+		d.Basis != "" && d.Basis == held.Basis
 }
 
 // withdrawsAny reports whether anything in this push takes back an established unit, by
@@ -501,7 +516,7 @@ func (g *pushGovernor) withdrawsAny(staged []stagedGroup, decisions []venue.Unit
 		ref := platstore.TargetRef{BlockID: blockID, Locale: locale}
 		if g.priorStatus[ref] == model.TargetStatusEstablished &&
 			model.TargetStatus(d.Status).Rank() < model.TargetStatusEstablished.Rank() &&
-			d.TargetHash == g.priorHash[ref] && d.ContentHash == g.priorSource[blockID] {
+			d.Revision == g.priorRevision[ref] && d.Basis == g.priorSource[blockID] {
 			return true
 		}
 	}
@@ -808,15 +823,15 @@ type unitVariantRef struct{ item, unit, variant string }
 
 // sameVerdict reports whether the venue already holds this exact verdict for
 // this unit: the same rung, the same review state, and the same pairing of
-// translation and source. The decider and the time are not part of it: a
-// producer re-sending a record it pulled carries the platform's own
+// translation and source, by revision. The decider and the time are not part
+// of it: a producer re-sending a record it pulled carries the platform's own
 // attribution back and a producer that never pulled carries its own, and
 // neither is a new decision about a verdict the ledger already holds.
 func sameVerdict(a, b venue.UnitDecision) bool {
 	return a.Status == b.Status &&
 		a.ReviewState == b.ReviewState &&
-		a.TargetHash == b.TargetHash &&
-		a.ContentHash == b.ContentHash
+		a.Revision == b.Revision &&
+		a.Basis == b.Basis
 }
 
 // carriesRejection reports whether any decision record is a rejection.
@@ -844,7 +859,7 @@ func (g *pushGovernor) rejectionsToRedraft(held, written []venue.UnitDecision) [
 	}
 	var clears []platstore.DraftBasis
 	for _, d := range written {
-		if d.ReviewState != venue.ReviewStateRejected || d.TargetHash == "" {
+		if d.ReviewState != venue.ReviewStateRejected || d.Revision == "" {
 			continue
 		}
 		if prior, ok := ledger[unitVariantRef{item: d.ItemName, unit: d.Unit, variant: d.Variant}]; ok && sameVerdict(prior, d) {
@@ -855,7 +870,7 @@ func (g *pushGovernor) rejectionsToRedraft(held, written []venue.UnitDecision) [
 		if blockID == "" || locale == "" {
 			continue
 		}
-		if current, ok := g.currentTargetHash(blockID, locale); !ok || current != d.TargetHash {
+		if current, ok := g.currentTargetRevision(blockID, locale); !ok || current != d.Revision {
 			continue
 		}
 		clears = append(clears, platstore.DraftBasis{ItemName: d.ItemName, Unit: d.Unit, Variant: d.Variant})
@@ -863,9 +878,9 @@ func (g *pushGovernor) rejectionsToRedraft(held, written []venue.UnitDecision) [
 	return clears
 }
 
-// indexPushedTargets records the hash of each translation the push writes over a
-// target the venue already holds, a language's own edition before its tone and
-// channel variants, as indexRows does.
+// indexPushedTargets records the revision of each translation the push writes
+// over a target the venue already holds, a language's own edition before its
+// tone and channel variants, as indexRows does.
 func (g *pushGovernor) indexPushedTargets(staged []stagedGroup) {
 	for _, group := range staged {
 		for _, b := range group.Blocks {
@@ -879,25 +894,25 @@ func (g *pushGovernor) indexPushedTargets(staged []stagedGroup) {
 					continue
 				}
 				ref := platstore.TargetRef{BlockID: blockID, Locale: string(key.Locale)}
-				if _, filled := g.pushedHash[ref]; filled && !isLanguageEdition(key) {
+				if _, filled := g.pushedRevision[ref]; filled && !isLanguageEdition(key) {
 					continue
 				}
-				g.pushedHash[ref] = state.TargetHash(model.RunsText(target.Runs))
+				g.pushedRevision[ref] = languageRevision(key.Locale, target.Runs)
 			}
 		}
 	}
 }
 
-// currentTargetHash is the hash of the translation the venue holds for a target
-// once this push lands: the one the push writes, or else the one stored now. It
-// reports false when the venue holds no translation for it.
-func (g *pushGovernor) currentTargetHash(blockID, locale string) (string, bool) {
+// currentTargetRevision is the revision of the translation the venue holds for
+// a target once this push lands: the one the push writes, or else the one
+// stored now. It reports false when the venue holds no translation for it.
+func (g *pushGovernor) currentTargetRevision(blockID, locale string) (string, bool) {
 	ref := platstore.TargetRef{BlockID: blockID, Locale: locale}
-	if h, ok := g.pushedHash[ref]; ok {
-		return h, true
+	if r, ok := g.pushedRevision[ref]; ok {
+		return r, true
 	}
-	h, ok := g.priorHash[ref]
-	return h, ok
+	r, ok := g.priorRevision[ref]
+	return r, ok
 }
 
 // dropStaleRejections removes every rejection that names a translation other
@@ -917,14 +932,14 @@ func (g *pushGovernor) dropStaleRejections(held, decisions []venue.UnitDecision)
 	}
 	out := make([]venue.UnitDecision, 0, len(decisions))
 	for _, d := range decisions {
-		if d.ReviewState != venue.ReviewStateRejected || d.TargetHash == "" {
+		if d.ReviewState != venue.ReviewStateRejected || d.Revision == "" {
 			out = append(out, d)
 			continue
 		}
 		blockID := g.unitID[unitRef{item: d.ItemName, unit: d.Unit}]
 		locale := decisionLocale(d)
-		current, ok := g.currentTargetHash(blockID, locale)
-		if blockID == "" || locale == "" || !ok || current == d.TargetHash {
+		current, ok := g.currentTargetRevision(blockID, locale)
+		if blockID == "" || locale == "" || !ok || current == d.Revision {
 			out = append(out, d)
 			continue
 		}
@@ -939,7 +954,7 @@ func (g *pushGovernor) dropStaleRejections(held, decisions []venue.UnitDecision)
 
 // decisionLocale reads the language out of a decision's variant.
 func decisionLocale(d venue.UnitDecision) string {
-	var key model.VariantKey
+	var key model.EditionKey
 	if err := key.UnmarshalText([]byte(d.Variant)); err != nil {
 		return ""
 	}

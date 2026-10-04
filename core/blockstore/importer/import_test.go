@@ -24,7 +24,7 @@ func TestImportDirect_Basic(t *testing.T) {
 		ID:           "hello",
 		Hash:         "hash-hello",
 		Translatable: true,
-		Source:       []kbf.Run{{Text: &kbf.TextRun{Text: "Hello"}}},
+		Editions:     kbf.SourceEditions([]kbf.Run{{Text: &kbf.TextRun{Text: "Hello"}}}),
 	})
 	_ = sess.Commit()
 
@@ -85,7 +85,7 @@ func TestImportDirect_ConflictSkipExisting(t *testing.T) {
 	sess, _ := store.Begin(ctx)
 	_ = sess.PutBlock("default", &blockstore.Block{
 		ID: "x", Hash: "h-x", Translatable: true,
-		Source: []kbf.Run{{Text: &kbf.TextRun{Text: "x"}}},
+		Editions: kbf.SourceEditions([]kbf.Run{{Text: &kbf.TextRun{Text: "x"}}}),
 	})
 	// Pre-existing target.
 	_ = sess.PutOverlay(blockstore.Overlay{
@@ -150,9 +150,9 @@ func TestImportFromFormat_MatchesBySourceHash(t *testing.T) {
 	// Seed three blocks. Two will match incoming sources.
 	sess, _ := store.Begin(ctx)
 	for _, b := range []*blockstore.Block{
-		{ID: "a", Hash: "ha", Translatable: true, Source: []kbf.Run{{Text: &kbf.TextRun{Text: "Hello"}}}},
-		{ID: "b", Hash: "hb", Translatable: true, Source: []kbf.Run{{Text: &kbf.TextRun{Text: "Save"}}}},
-		{ID: "c", Hash: "hc", Translatable: true, Source: []kbf.Run{{Text: &kbf.TextRun{Text: "Unmatched"}}}},
+		{ID: "a", Hash: "ha", Translatable: true, Editions: kbf.SourceEditions([]kbf.Run{{Text: &kbf.TextRun{Text: "Hello"}}})},
+		{ID: "b", Hash: "hb", Translatable: true, Editions: kbf.SourceEditions([]kbf.Run{{Text: &kbf.TextRun{Text: "Save"}}})},
+		{ID: "c", Hash: "hc", Translatable: true, Editions: kbf.SourceEditions([]kbf.Run{{Text: &kbf.TextRun{Text: "Unmatched"}}})},
 	} {
 		_ = sess.PutBlock("", b)
 	}

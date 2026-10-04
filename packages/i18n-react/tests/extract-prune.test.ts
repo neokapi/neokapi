@@ -24,7 +24,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 
 import type { Block, File } from "@neokapi/kapi-format";
-import { marshalFile } from "@neokapi/kapi-format";
+import { marshalFile, sourceRuns } from "@neokapi/kapi-format";
 
 import { runCompile } from "../src/commands/compile.ts";
 import { runExtract } from "../src/commands/extract.ts";
@@ -94,7 +94,9 @@ function mirrorAsTargets(src: string, out: string, locale: string) {
   for (const rel of tree(src)) {
     const file = bundle(join(src, rel));
     for (const doc of file.documents) {
-      for (const block of doc.blocks as Block[]) block.targets = { [locale]: block.source };
+      for (const block of doc.blocks as Block[]) {
+        block.editions = { ...block.editions, [locale]: { runs: sourceRuns(block) } };
+      }
     }
     const path = join(out, rel);
     mkdirSync(join(path, ".."), { recursive: true });

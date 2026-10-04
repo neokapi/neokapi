@@ -79,6 +79,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
@@ -682,7 +683,7 @@ func makeBlock(i int) *blockstore.Block {
 		ID:           fmt.Sprintf("u%d", i),
 		Hash:         blockHash(i),
 		Translatable: true,
-		Source:       []model.Run{model.TextR(sourceText(i))},
+		Editions:     kbf.SourceEditions([]model.Run{model.TextR(sourceText(i))}),
 		Properties: model.BlockProperties{
 			File:      collectionOf(i) + ".md",
 			Line:      i % 400,

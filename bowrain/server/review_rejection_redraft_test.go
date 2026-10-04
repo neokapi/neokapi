@@ -12,7 +12,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -44,8 +43,8 @@ func seedRejectedUnit(t *testing.T, cs *sqlitestore.SQLiteStore, projectID strin
 	_, err := cs.UpsertUnitDecisions(ctx, projectID, "main", []venue.UnitDecision{{
 		ItemName: "app.json", Unit: "greeting", Variant: string(model.LocaleFrench),
 		Status: string(model.TargetStatusDraft), ReviewState: venue.ReviewStateRejected,
-		DecidedBy:  "reviewer-1",
-		TargetHash: state.TargetHash("Bonjour"), ContentHash: state.SourceHash("Hello"),
+		DecidedBy: "reviewer-1",
+		Revision:  textRevision(model.LocaleFrench, "Bonjour"), Basis: enSourceRevision("Hello"),
 		Updated: "2026-09-01T00:00:00Z",
 	}})
 	require.NoError(t, err)
@@ -125,7 +124,7 @@ func TestOrchestrator_RejectionRedraftsOnce(t *testing.T) {
 			return convergence.PassProduction{}, err
 		}
 		for _, d := range bases {
-			marks[unitKey{d.ItemName, d.Unit, d.Variant}] = d.SourceHash
+			marks[unitKey{d.ItemName, d.Unit, d.Variant}] = d.Basis
 		}
 		blocks, err := cs.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID, Stream: "main"})
 		if err != nil {
@@ -140,9 +139,9 @@ func TestOrchestrator_RejectionRedraftsOnce(t *testing.T) {
 			key := unitKey{sb.ItemName, sb.SourceID, locale}
 			rec, recorded := records[key]
 			owed := !sb.Block.HasTarget(model.LocaleID(locale))
-			if !owed && recorded && marks[key] != sb.ContentHash {
+			if !owed && recorded && marks[key] != sb.SourceRevision {
 				owed = rec.ReviewState == venue.ReviewStateRejected ||
-					(rec.ContentHash != "" && rec.ContentHash != sb.ContentHash)
+					platstore.BasisStale(rec.Basis, sb.SourceRevision)
 			}
 			if !owed {
 				continue
@@ -151,7 +150,7 @@ func TestOrchestrator_RejectionRedraftsOnce(t *testing.T) {
 			toStore = append(toStore, sb.Block)
 			drafted = append(drafted, sb.Block.SourceText())
 			stamps = append(stamps, platstore.DraftBasis{
-				ItemName: sb.ItemName, Unit: sb.SourceID, Variant: locale, SourceHash: sb.ContentHash,
+				ItemName: sb.ItemName, Unit: sb.SourceID, Variant: locale, Basis: sb.SourceRevision,
 			})
 		}
 		if len(toStore) == 0 {
@@ -187,7 +186,7 @@ func TestOrchestrator_RejectionRedraftsOnce(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, records, 1)
 	assert.Equal(t, venue.ReviewStateRejected, records[0].ReviewState, "the verdict is never written over")
-	assert.Equal(t, state.SourceHash("Hello"), records[0].ContentHash)
+	assert.Equal(t, enSourceRevision("Hello"), records[0].Basis)
 
 	basis, err := tallyDecisionBasis(ctx, cs, p.ID, "main", nil)
 	require.NoError(t, err)

@@ -217,7 +217,7 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 		defer obs.Done(ctx)
 	}
 	head, err := sess.Read(ctx, want, func(b *model.Block) error {
-		if len(blocks) > 0 && !slices.ContainsFunc([]string{b.Unit, b.Name, b.ID}, func(k string) bool {
+		if len(blocks) > 0 && !slices.ContainsFunc([]string{b.Key, b.Name, b.ID}, func(k string) bool {
 			return k != "" && slices.Contains(blocks, k)
 		}) {
 			return nil
@@ -307,7 +307,7 @@ func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.B
 	// holds: the edition it was opened on, or one it lists.
 	_, holdsPrimary := b.Edition(primary)
 	holdsTranslation := holdsPrimary && !b.IsSourceEdition(primary)
-	for _, k := range b.Editions() {
+	for _, k := range b.EditionKeys() {
 		if b.EditionKeyOf(k) == primaryKey {
 			continue
 		}
@@ -326,13 +326,22 @@ func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.B
 		ed, _ := b.Edition(k)
 		holdsTranslation = true
 		er := out.editionRead(model.EditionRevision(b, k), ed, desc)
+		derived := ed.Derived != nil && ed.Derived.Rev != ""
+		if derived {
+			// The edition records what it was made from, so its basis and its
+			// standing are read from the content.
+			er.Basis = ed.Derived.Rev
+			er.Stale = b.BasisStanding(*ed.Derived) == model.StandingStale
+		}
 		if states != nil {
 			if st, ok := states.EditionState(b, k); ok {
 				if st.Status != "" {
 					er.Status = string(st.Status)
 				}
-				er.Basis = st.Basis
-				er.Stale = st.Basis != "" && st.Basis != authRev
+				if !derived {
+					er.Basis = st.Basis
+					er.Stale = st.Basis != "" && st.Basis != authRev
+				}
 			}
 		}
 		if er.Status == "" {

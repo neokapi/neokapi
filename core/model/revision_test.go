@@ -51,21 +51,37 @@ func TestRunsRevision_CoversCodesAndKeyOnly(t *testing.T) {
 func TestEditionRevision_IgnoresStatusAndOtherEditions(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	b.SourceLocale = "en"
-	b.SetTarget("fr", &model.Target{Runs: []model.Run{model.TextR("Bonjour")}, Status: model.TargetStatusDraft})
+	b.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{model.TextR("Bonjour")}, Status: model.Status(model.TargetStatusDraft)})
 	src := model.EditionRevision(b, model.EditionKey{})
 	fr := model.EditionRevision(b, model.Variant("fr"))
 
 	assert.Equal(t, src, model.EditionRevision(b, model.Variant("en")), "every key that reaches an edition gives one revision")
 	assert.Equal(t, model.AbsentRevision, model.EditionRevision(b, model.Variant("de")))
 
-	b.Target("fr").Status = model.TargetStatusEstablished
-	b.SourceStatus = model.SourceStatusEstablished
+	b.SetEditionStatus(model.Variant("fr"), model.Status(model.TargetStatusEstablished))
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusEstablished))
 	assert.Equal(t, fr, model.EditionRevision(b, model.Variant("fr")), "a decision does not move a revision")
 	assert.Equal(t, src, model.EditionRevision(b, model.EditionKey{}))
 
 	b.SetSourceText("Hello there")
 	assert.Equal(t, fr, model.EditionRevision(b, model.Variant("fr")), "a source edit leaves a translation's revision alone")
 	assert.NotEqual(t, src, model.EditionRevision(b, model.EditionKey{}))
+}
+
+// A translation's revision is the one EditionRevision gives it, and the source
+// language names a translation only when the block holds one in it.
+func TestTargetRevision(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en"
+	b.SetTargetRuns("fr-FR", []model.Run{model.TextR("Bonjour")})
+	assert.Equal(t, model.EditionRevision(b, model.Variant("fr-FR")), model.TargetRevision(b, "fr-FR"))
+	assert.Equal(t, model.TargetRevision(b, "fr-FR"), model.TargetRevision(b, "fr_FR"), "every spelling of a locale names one translation")
+	assert.Equal(t, model.AbsentRevision, model.TargetRevision(b, "de"))
+	assert.Equal(t, model.AbsentRevision, model.TargetRevision(b, "en"), "the source language names no translation here")
+
+	b.SetTargetRuns("en", []model.Run{model.TextR("Hi")})
+	assert.Equal(t, model.RunsRevision(model.Variant("en"), []model.Run{model.TextR("Hi")}), model.TargetRevision(b, "en"),
+		"a same-language translation is the one it names")
 }
 
 func TestCanonicalRunsJSON(t *testing.T) {

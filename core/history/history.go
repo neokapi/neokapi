@@ -471,7 +471,7 @@ func (s *Store) DocumentHead(ctx context.Context, doc string) (string, error) {
 // names, as core/reconcile takes it: one unit per block, keyed by its durable
 // key (or its name, where it had none), with the content and context hashes
 // of its most recent change.
-func (s *Store) Priors(ctx context.Context, doc string) ([]reconcile.Unit, error) {
+func (s *Store) Priors(ctx context.Context, doc string) ([]reconcile.Prior, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT CASE WHEN key <> '' THEN key ELSE block END AS k, content_hash, context_hash, MAX(op)
   FROM block_history
@@ -482,9 +482,9 @@ SELECT CASE WHEN key <> '' THEN key ELSE block END AS k, content_hash, context_h
 		return nil, fmt.Errorf("history: read the priors of %s: %w", doc, err)
 	}
 	defer func() { _ = rows.Close() }()
-	var out []reconcile.Unit
+	var out []reconcile.Prior
 	for rows.Next() {
-		var u reconcile.Unit
+		var u reconcile.Prior
 		var op string
 		if err := rows.Scan(&u.Key, &u.ContentHash, &u.ContextHash, &op); err != nil {
 			return nil, fmt.Errorf("history: read the priors of %s: %w", doc, err)

@@ -789,6 +789,7 @@ func (r *Reader) newBilingualBlock(row []string, rowNum int, keyCols []int, bloc
 	format.RecordVerbatimSlotLocale(block, propExistingTarget, r.Doc.TargetLocale)
 	if tgt != "" && !r.Doc.TargetLocale.IsEmpty() {
 		block.SetTargetText(r.Doc.TargetLocale, tgt)
+		block.MarkNative(model.Variant(r.Doc.TargetLocale))
 	}
 
 	if len(r.cfg.CommentColumns) > 0 {

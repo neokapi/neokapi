@@ -78,9 +78,9 @@ func BenchmarkBlock_Clone(b *testing.B) {
 	block.Properties["domain"] = "general"
 
 	// Add more source content + a segmentation overlay to exercise cloning.
-	block.Source = append(block.Source,
-		model.Run{Text: &model.TextRun{Text: "A second segment with more content for realism."}})
-	block.SetSegmentation(nil, []model.Span{
+	block.SetSourceRuns(append(block.SourceRuns(),
+		model.Run{Text: &model.TextRun{Text: "A second segment with more content for realism."}}))
+	block.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})
@@ -95,18 +95,14 @@ func BenchmarkBlock_Clone(b *testing.B) {
 			Type:         block.Type,
 			MimeType:     block.MimeType,
 			Translatable: block.Translatable,
-			Source:       append([]model.Run(nil), block.Source...),
-			Targets:      make(map[model.VariantKey]*model.Target, len(block.Targets)),
+			Editions:     make(map[model.EditionKey]*model.Edition, len(block.Editions)),
 			Overlays:     append([]model.Overlay(nil), block.Overlays...),
 			Properties:   make(map[string]string, len(block.Properties)),
 		}
-		for key, t := range block.Targets {
-			clone.Targets[key] = &model.Target{
-				Runs:   append([]model.Run(nil), t.Runs...),
-				Status: t.Status,
-				Origin: t.Origin,
-				Score:  t.Score,
-			}
+		for key, e := range block.Editions {
+			ec := *e
+			ec.Runs = append([]model.Run(nil), e.Runs...)
+			clone.Editions[key] = &ec
 		}
 		maps.Copy(clone.Properties, block.Properties)
 		_ = clone

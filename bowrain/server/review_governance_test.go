@@ -356,7 +356,8 @@ func TestApprovePassingRecordsDecisionsAndAudits(t *testing.T) {
 		assert.Equal(t, "fr", d.Variant)
 		assert.Equal(t, "owner@rc.test", d.DecidedBy, "the ledger names the decider")
 		assert.NotEmpty(t, d.DecidedAt)
-		assert.NotEmpty(t, d.TargetHash, "a decision is bound to the wording it blesses")
+		assert.NotEmpty(t, d.Revision, "a decision is bound to the translation it blesses")
+		assert.NotEmpty(t, d.Basis, "and to the source it blesses it for")
 	}
 
 	require.Eventually(t, func() bool {

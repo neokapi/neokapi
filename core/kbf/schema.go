@@ -2,10 +2,6 @@ package kbf
 
 import "github.com/neokapi/neokapi/core/model"
 
-// SchemaVersion is the kbf wire format version this package emits.
-// Consumers MUST reject unknown major versions and SHOULD accept
-// unknown minor versions of their major (forward-compat contract in
-// RFC 0001 §Versioning).
 // Anchor constructors, re-exported with the vocabulary above.
 var (
 	BlockAnchor         = model.BlockAnchor
@@ -29,7 +25,17 @@ const (
 	StepSelect = model.StepSelect
 )
 
-const SchemaVersion = "1.0"
+// SchemaVersion is the kbf wire format version this package emits.
+// Consumers MUST reject unknown major versions and SHOULD accept
+// unknown minor versions of their major (forward-compat contract in
+// RFC 0001 §Versioning).
+const SchemaVersion = "2.0"
+
+// SchemaVersionV1 is the first schema, in which a block carried `source` runs
+// beside `targets` keyed by locale. [Unmarshal] and [Decode] read a file in it
+// as the editions it describes and stamp it [SchemaVersion], so a caller sees
+// one shape whichever schema a file was written in.
+const SchemaVersionV1 = "1.0"
 
 // Kind is the magic string on the root of a .kbf.json document, and the only
 // one [Marshal] writes.
@@ -73,10 +79,10 @@ type (
 	PluralRun      = model.PluralRun
 	SelectRun      = model.SelectRun
 	Run            = model.Run
-	// TargetOrigin is the model's own provenance record, re-exported so a
-	// bundle carries exactly what a producer stamped rather than a projection
-	// of it that could drift.
-	TargetOrigin = model.Origin
+	// Origin is the model's own provenance record, re-exported so a bundle
+	// carries exactly what a producer stamped rather than a projection of it
+	// that could drift.
+	Origin = model.Origin
 
 	Placeholder       = model.Placeholder
 	BlockProperties   = model.BlockProperties
@@ -114,25 +120,25 @@ const (
 // identical to what an extractor produces; the in-memory model.Block
 // is the fuller runtime type carrying skeleton, annotations, etc.
 type Block struct {
-	ID           string             `json:"id"`
-	Hash         string             `json:"hash"`
-	Translatable bool               `json:"translatable"`
-	Type         BlockType          `json:"type"`
-	Source       []Run              `json:"source"`
-	Targets      map[LocaleID][]Run `json:"targets,omitempty"`
-	// TargetOrigins is how each target was produced, keyed the same way as
-	// Targets. It is carried separately rather than folded into the target
-	// value so an older bundle, and an older reader, are both still valid: a
-	// bundle without it simply records no provenance.
-	//
-	// Without it a target's runs survive a write and its provenance does not,
-	// so an answer re-seeded from a bundle arrives with no governing context
-	// recorded — which reads identically to an answer produced under no
-	// governance at all, and cannot be judged.
-	TargetOrigins map[LocaleID]TargetOrigin `json:"targetOrigins,omitempty"`
-	Placeholders  []Placeholder             `json:"placeholders"`
-	Properties    BlockProperties           `json:"properties"`
-	Preview       *BlockPreviewHints        `json:"preview,omitempty"`
+	ID           string    `json:"id"`
+	Hash         string    `json:"hash"`
+	Translatable bool      `json:"translatable"`
+	Type         BlockType `json:"type"`
+	// Editions holds the block's content as peer editions, each under the
+	// text form of its edition key: the edition the block was read in under
+	// SourceEdition, every translation and other edition (a tone, a channel)
+	// under its own key (edition.go). Each edition carries its status, its
+	// provenance and the edition it was derived from beside its runs, so an
+	// answer re-seeded from a bundle arrives with the context that governed
+	// it, and a reader can judge it.
+	Editions map[string]Edition `json:"editions"`
+	// Unlabelled is a translation a reader filed under no language, such as an
+	// xcstrings localization keyed by the empty string. The empty key names
+	// the source, so a block carries it apart. Omitted when there is none.
+	Unlabelled   *Edition           `json:"unlabelled,omitempty"`
+	Placeholders []Placeholder      `json:"placeholders"`
+	Properties   BlockProperties    `json:"properties"`
+	Preview      *BlockPreviewHints `json:"preview,omitempty"`
 }
 
 // DocumentType discriminates the source format of a document.
@@ -174,7 +180,9 @@ type GeneratorInfo struct {
 
 // ProjectInfo identifies the project a .kbf.json belongs to.
 type ProjectInfo struct {
-	ID           string   `json:"id"`
+	ID string `json:"id"`
+	// SourceLocale is the language of the edition every block was read in,
+	// the one each holds under SourceEdition.
 	SourceLocale LocaleID `json:"sourceLocale"`
 }
 

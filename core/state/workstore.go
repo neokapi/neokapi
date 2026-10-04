@@ -205,6 +205,24 @@ CREATE TABLE IF NOT EXISTS document_adoption (
     at       TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS document_adoption_path ON document_adoption(path);`,
+}, {
+	Version:     8,
+	Description: "the ledger pairs revisions",
+	// A decision binds to the revision of the edition it blesses and to the
+	// basis, the revision of the authoritative edition beside it
+	// (model.EditionRevision), which count inline codes where the content
+	// hashes do not. They join the pairing in the ledger and in each view.
+	// Every row written before this migration holds the hashes alone and
+	// keeps answering by them: its basis and revision stay empty, and nothing
+	// is rewritten.
+	SQL: `
+ALTER TABLE unit_decision ADD COLUMN basis    TEXT NOT NULL DEFAULT '';
+ALTER TABLE unit_decision ADD COLUMN revision TEXT NOT NULL DEFAULT '';
+ALTER TABLE unit_view     ADD COLUMN basis    TEXT NOT NULL DEFAULT '';
+ALTER TABLE unit_view     ADD COLUMN revision TEXT NOT NULL DEFAULT '';
+DROP INDEX IF EXISTS unit_decision_pairing;
+CREATE INDEX IF NOT EXISTS unit_decision_pairing
+    ON unit_decision(scope, unit, variant, content_hash, target_hash, basis, revision, recorded_at);`,
 }}
 
 // metaCommittedDigest keys the digest of the shards a checkout's view was
@@ -515,7 +533,7 @@ func (w *WorkStore) arrivalStands(ctx context.Context, u UnitState) bool {
 // last export.
 func (w *WorkStore) unexportedRows(ctx context.Context) ([]Pairing, error) {
 	rows, err := w.db.QueryContext(ctx, `
-SELECT scope, unit, variant, content_hash, target_hash
+SELECT scope, unit, variant, content_hash, target_hash, basis, revision
   FROM unit_view WHERE checkout = ? AND exported = 0`, w.checkout)
 	if err != nil {
 		return nil, fmt.Errorf("state: read checkout view: %w", err)
@@ -529,7 +547,7 @@ func scanPairings(rows *sql.Rows) ([]Pairing, error) {
 	for rows.Next() {
 		var p Pairing
 		var variant string
-		if err := rows.Scan(&p.Key.Scope, &p.Key.Unit, &variant, &p.ContentHash, &p.TargetHash); err != nil {
+		if err := rows.Scan(&p.Key.Scope, &p.Key.Unit, &variant, &p.ContentHash, &p.TargetHash, &p.Basis, &p.Revision); err != nil {
 			return nil, fmt.Errorf("state: scan view row: %w", err)
 		}
 		if err := p.Key.Variant.UnmarshalText([]byte(variant)); err != nil {
@@ -569,7 +587,7 @@ func (w *WorkStore) Delete(ctx context.Context, k Key) error {
 	}
 	held, _ := w.applies(ctx, p)
 	held.Scope, held.Unit, held.Variant = k.Scope, k.Unit, k.Variant
-	held.ContentHash, held.TargetHash = p.ContentHash, p.TargetHash
+	held.ContentHash, held.TargetHash, held.Basis, held.Revision = p.ContentHash, p.TargetHash, p.Basis, p.Revision
 	if err := w.append(ctx, held, held.Decision.By, OriginLocal, true); err != nil {
 		return err
 	}
@@ -656,10 +674,10 @@ func insertEntry(ctx context.Context, tx *storage.Tx, u UnitState, actor string,
 	}
 	_, err = tx.ExecContext(ctx, `
 INSERT INTO unit_decision
-    (id, scope, unit, variant, content_hash, target_hash, actor, origin, recorded_at, revoked, payload)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (id, scope, unit, variant, content_hash, target_hash, basis, revision, actor, origin, recorded_at, revoked, payload)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `+conflict,
-		id, u.Scope, u.Unit, string(variant), u.ContentHash, u.TargetHash,
+		id, u.Scope, u.Unit, string(variant), u.ContentHash, u.TargetHash, u.Basis, u.Revision,
 		actor, string(origin), entryTimeText(stamp), flag, string(payload))
 	if err != nil {
 		return fmt.Errorf("state: record entry: %w", err)
@@ -675,13 +693,15 @@ func putView(ctx context.Context, tx *storage.Tx, checkout string, p Pairing, ex
 		flag = 1
 	}
 	_, err := tx.ExecContext(ctx, `
-INSERT INTO unit_view (checkout, scope, unit, variant, content_hash, target_hash, exported)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO unit_view (checkout, scope, unit, variant, content_hash, target_hash, basis, revision, exported)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(checkout, scope, unit, variant) DO UPDATE SET
     content_hash = excluded.content_hash,
     target_hash  = excluded.target_hash,
+    basis        = excluded.basis,
+    revision     = excluded.revision,
     exported     = excluded.exported`,
-		checkout, p.Key.Scope, p.Key.Unit, string(variant), p.ContentHash, p.TargetHash, flag)
+		checkout, p.Key.Scope, p.Key.Unit, string(variant), p.ContentHash, p.TargetHash, p.Basis, p.Revision, flag)
 	if err != nil {
 		return fmt.Errorf("state: point view at pairing: %w", err)
 	}
@@ -720,9 +740,9 @@ func (w *WorkStore) pairingOf(ctx context.Context, k Key) (Pairing, bool, error)
 	variant, _ := k.Variant.MarshalText()
 	p := Pairing{Key: k}
 	err := w.db.QueryRowContext(ctx, `
-SELECT content_hash, target_hash FROM unit_view
+SELECT content_hash, target_hash, basis, revision FROM unit_view
  WHERE checkout = ? AND scope = ? AND unit = ? AND variant = ?`,
-		w.checkout, k.Scope, k.Unit, string(variant)).Scan(&p.ContentHash, &p.TargetHash)
+		w.checkout, k.Scope, k.Unit, string(variant)).Scan(&p.ContentHash, &p.TargetHash, &p.Basis, &p.Revision)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Pairing{}, false, nil
 	}
@@ -741,8 +761,9 @@ func (w *WorkStore) applies(ctx context.Context, p Pairing) (UnitState, bool) {
 	err := w.db.QueryRowContext(ctx, `
 SELECT payload, revoked FROM unit_decision
  WHERE scope = ? AND unit = ? AND variant = ? AND content_hash = ? AND target_hash = ?
+   AND basis = ? AND revision = ?
  ORDER BY recorded_at DESC, rowid DESC LIMIT 1`,
-		p.Key.Scope, p.Key.Unit, string(variant), p.ContentHash, p.TargetHash).Scan(&payload, &revoked)
+		p.Key.Scope, p.Key.Unit, string(variant), p.ContentHash, p.TargetHash, p.Basis, p.Revision).Scan(&payload, &revoked)
 	if err != nil || revoked == 1 {
 		return UnitState{}, false
 	}
@@ -753,15 +774,54 @@ SELECT payload, revoked FROM unit_decision
 	return u, true
 }
 
-// Lookup answers what applies to a unit at a given pairing, which is the
+// Lookup answers what applies to a unit whose content reads r, which is the
 // question every reader of unit state is really asking: this unit, with this
 // source and this translation in front of me, what has been decided about it.
 //
-// A caller holding the file content passes its hashes and gets the entry that
-// blessed exactly that pairing, whatever any other checkout has decided about
-// the same unit.
-func (w *WorkStore) Lookup(ctx context.Context, k Key, contentHash, targetHash string) (UnitState, bool) {
-	return w.applies(ctx, Pairing{Key: k, ContentHash: contentHash, TargetHash: targetHash})
+// A caller holding the file content passes its reading (ReadTarget) and gets
+// the entry that blessed exactly that pairing, whatever any other checkout has
+// decided about the same unit. An entry recorded with revisions answers where
+// they are the content's, and one recorded before revisions where its hashes
+// are, until an entry naming a half it leaves empty is recorded for the same
+// hashes: that later entry speaks for the text from then on, whether or not
+// its revisions are the content's. Of the entries that answer, the latest
+// does. A decision recorded since revisions is therefore never shadowed by an
+// older entry for the same text, and its withdrawal is never undone by one,
+// even after an inline code moves under it.
+func (w *WorkStore) Lookup(ctx context.Context, k Key, r Reading) (UnitState, bool) {
+	variant, _ := k.Variant.MarshalText()
+	bases := []any{""}
+	if r.Basis != "" {
+		bases = append(bases, r.Basis)
+	}
+	for _, b := range r.Bases {
+		if b != r.Basis {
+			bases = append(bases, b)
+		}
+	}
+	args := append([]any{k.Scope, k.Unit, string(variant), r.ContentHash, r.TargetHash, r.Revision}, bases...)
+	var payload string
+	var revoked int
+	err := w.db.QueryRowContext(ctx, `
+SELECT d.payload, d.revoked FROM unit_decision d
+ WHERE d.scope = ? AND d.unit = ? AND d.variant = ? AND d.content_hash = ? AND d.target_hash = ?
+   AND d.revision IN (?, '') AND d.basis IN (?`+strings.Repeat(", ?", len(bases)-1)+`)
+   AND NOT EXISTS (
+       SELECT 1 FROM unit_decision n
+        WHERE n.scope = d.scope AND n.unit = d.unit AND n.variant = d.variant
+          AND n.content_hash = d.content_hash AND n.target_hash = d.target_hash
+          AND ((d.revision = '' AND n.revision <> '') OR (d.basis = '' AND n.basis <> ''))
+          AND (n.recorded_at > d.recorded_at OR (n.recorded_at = d.recorded_at AND n.rowid > d.rowid)))
+ ORDER BY d.recorded_at DESC, d.rowid DESC LIMIT 1`,
+		args...).Scan(&payload, &revoked)
+	if err != nil || revoked == 1 {
+		return UnitState{}, false
+	}
+	var u UnitState
+	if json.Unmarshal([]byte(payload), &u) != nil {
+		return UnitState{}, false
+	}
+	return u, true
 }
 
 // Get returns what applies to a unit in this checkout: the entry recorded for
@@ -796,7 +856,7 @@ func (w *WorkStore) Ledger(ctx context.Context) ([]UnitState, error) {
 WITH latest AS (
   SELECT scope, unit, variant, payload, revoked,
          ROW_NUMBER() OVER (
-             PARTITION BY scope, unit, variant, content_hash, target_hash
+             PARTITION BY scope, unit, variant, content_hash, target_hash, basis, revision
              ORDER BY recorded_at DESC, rowid DESC) AS nth
     FROM unit_decision
 )
@@ -834,9 +894,9 @@ func (w *WorkStore) resolveView(ctx context.Context, scope string) ([]UnitState,
 	// in the view.
 	const query = `
 WITH latest AS (
-  SELECT scope, unit, variant, content_hash, target_hash, payload, revoked,
+  SELECT scope, unit, variant, content_hash, target_hash, basis, revision, payload, revoked,
          ROW_NUMBER() OVER (
-             PARTITION BY scope, unit, variant, content_hash, target_hash
+             PARTITION BY scope, unit, variant, content_hash, target_hash, basis, revision
              ORDER BY recorded_at DESC, rowid DESC) AS nth
     FROM unit_decision
 )
@@ -845,6 +905,7 @@ SELECT l.payload
   JOIN latest l
     ON l.scope = v.scope AND l.unit = v.unit AND l.variant = v.variant
    AND l.content_hash = v.content_hash AND l.target_hash = v.target_hash
+   AND l.basis = v.basis AND l.revision = v.revision
  WHERE v.checkout = ? AND l.nth = 1 AND l.revoked = 0 AND (? = '' OR v.scope = ?)
  ORDER BY v.scope, v.unit, v.variant`
 	rows, err := w.db.QueryContext(ctx, query, w.checkout, scope, scope)
@@ -1412,7 +1473,7 @@ func sortUnits(units []UnitState) {
 }
 
 // unitLess is the one ordering over unit records: the identity key, field by
-// field, then the pairing's hashes.
+// field, then the pairing's hashes and revisions.
 //
 // The hashes settle an order the key alone leaves open. A checkout's view holds
 // one row per key, so they never decide anything there; the ledger holds an
@@ -1433,5 +1494,11 @@ func unitLess(a, b UnitState) bool {
 	if a.ContentHash != b.ContentHash {
 		return a.ContentHash < b.ContentHash
 	}
-	return a.TargetHash < b.TargetHash
+	if a.TargetHash != b.TargetHash {
+		return a.TargetHash < b.TargetHash
+	}
+	if a.Basis != b.Basis {
+		return a.Basis < b.Basis
+	}
+	return a.Revision < b.Revision
 }

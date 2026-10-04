@@ -40,7 +40,7 @@ type Threshold struct {
 // errApproverClass names the fix for a recipe still written in the retired
 // {pct, by} form.
 func errApproverClass(raw string) error {
-	return fmt.Errorf("gate threshold %s: the {pct, by} form is gone, because only a person establishes a unit; write the percent alone, e.g. `established: 100`", raw)
+	return fmt.Errorf("gate threshold %s: the {pct, by} form is gone, because only a person establishes a translation; write the percent alone, e.g. `established: 100`", raw)
 }
 
 // UnmarshalYAML accepts a bare percent (`established: 100`). The retired

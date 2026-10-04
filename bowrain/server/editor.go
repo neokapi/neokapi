@@ -231,7 +231,7 @@ type ProjectItemResponse struct {
 // the same content model the gRPC editor uses; there is no coded-text form.
 //
 // Targets carries, per locale, the committed target's plain text AND its
-// per-locale review status (model.Target.Status — the ladder the convergence /
+// per-locale review status (model.Edition.Status — the ladder the convergence /
 // coverage engine consumes), so the editor reads status as
 // block.targets[locale].status. Blocks written before per-locale status carry
 // only the legacy block-global Properties["translation-status"], which readers

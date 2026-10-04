@@ -1,6 +1,7 @@
 package model_test
 
 import (
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -48,7 +49,7 @@ func targetEditionBlocks() map[string]func() *model.Block {
 		"non-canonical key": func() *model.Block {
 			b := model.NewBlock("b1", "Hello")
 			b.SourceLocale = "en-US"
-			b.Targets[model.VariantKey{Locale: "nb_NO"}] = &model.Target{Runs: []model.Run{model.TextR("Hei")}}
+			b.Editions[model.EditionKey{Locale: "nb_NO"}] = &model.Edition{Runs: []model.Run{model.TextR("Hei")}}
 			return b
 		},
 	}
@@ -59,25 +60,30 @@ func targetEditionLocales() []model.LocaleID {
 	return []model.LocaleID{"", "fr", "en-US", "en_us", "en", "nb_NO", "nb-NO", twoStepLocale, once, model.NormalizeLocale(once)}
 }
 
-// TargetEdition reads the target Target reads, for every locale, on every kind
+// TargetEdition reads the target filed under the locale's canonical key, the
+// one EachTargetEdition yields under that key, for every locale, on every kind
 // of block: a target under the source language, under no language, under a
 // malformed locale x/text reads in two steps, under a key that is not
-// canonical, and none at all.
-func TestBlockTargetEdition_ReadsTheTargetTargetReads(t *testing.T) {
+// canonical, and none at all. It never reads the edition the block was read
+// in.
+func TestBlockTargetEdition_ReadsTheTargetFiledUnderTheLocale(t *testing.T) {
 	for name, mk := range targetEditionBlocks() {
 		for _, loc := range targetEditionLocales() {
 			b := mk()
-			want := b.Target(loc)
+			want, filed := maps.Collect(b.EachTargetEdition)[model.Variant(loc)]
 			got, ok := b.TargetEdition(loc)
-			if want == nil {
+			if !filed {
 				assert.False(t, ok, "%s: TargetEdition(%q)", name, loc)
 				assert.Equal(t, model.Edition{}, got, "%s: TargetEdition(%q)", name, loc)
+				assert.Empty(t, b.TargetRuns(loc), "%s: TargetRuns(%q)", name, loc)
 				continue
 			}
 			require.True(t, ok, "%s: TargetEdition(%q)", name, loc)
-			assert.Equal(t, model.Edition{Runs: want.Runs, Status: model.Status(want.Status), Origin: want.Origin, Score: want.Score},
-				got, "%s: TargetEdition(%q)", name, loc)
+			assert.Equal(t, want, got, "%s: TargetEdition(%q)", name, loc)
 			assert.Equal(t, b.TargetText(loc), model.RunsText(got.Runs), "%s: TargetText(%q)", name, loc)
+			if src, _ := b.Edition(model.EditionKey{}); len(src.Runs) > 0 && len(got.Runs) > 0 {
+				assert.NotSame(t, &src.Runs[0], &got.Runs[0], "%s: TargetEdition(%q) read the source", name, loc)
+			}
 		}
 	}
 }
@@ -100,7 +106,7 @@ func TestBlockTargetEdition_NoLanguage(t *testing.T) {
 	src, ok := b.Edition(model.EditionKey{})
 	require.True(t, ok)
 	assert.Equal(t, "Hello", model.RunsText(src.Runs))
-	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}, {Locale: "fr"}}, b.Editions())
+	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}, {Locale: "fr"}}, b.EditionKeys())
 	for k := range b.EachEdition {
 		assert.False(t, k.IsZero(), "the target under no language is not an edition EachEdition yields")
 	}
@@ -117,10 +123,11 @@ func TestBlockTargetEdition_NoLanguage(t *testing.T) {
 	})
 }
 
-// SetTargetEdition writes where SetTargetVariant writes, on every kind of
-// block and for every kind of key, and leaves the edition the block was read
-// in as it is.
-func TestBlockSetTargetEdition_WritesWhereSetTargetVariantWrites(t *testing.T) {
+// SetTargetEdition files the edition under the key's canonical form, on every
+// kind of block and for every kind of key, the zero key filing a translation
+// under no language. It leaves the edition the block was read in, and every
+// other target, as they were.
+func TestBlockSetTargetEdition_FilesUnderTheCanonicalKey(t *testing.T) {
 	e := model.Edition{
 		Runs:   []model.Run{model.TextR("written")},
 		Status: model.Status(model.TargetStatusEstablished),
@@ -134,20 +141,18 @@ func TestBlockSetTargetEdition_WritesWhereSetTargetVariantWrites(t *testing.T) {
 	}
 	for name, mk := range targetEditionBlocks() {
 		for _, k := range keys {
-			got, want := mk(), mk()
+			got, before := mk(), mk()
 			got.SetTargetEdition(k, e)
-			want.SetTargetVariant(k, &model.Target{Runs: e.Runs, Status: model.TargetStatus(e.Status), Origin: e.Origin, Score: e.Score})
 
-			assert.Equal(t, want.Source, got.Source, "%s %+v: source", name, k)
-			assert.Equal(t, want.SourceStatus, got.SourceStatus, "%s %+v: source status", name, k)
+			wantSrc, _ := before.Edition(model.EditionKey{})
+			gotSrc, _ := got.Edition(model.EditionKey{})
+			assert.Equal(t, wantSrc, gotSrc, "%s %+v: source", name, k)
 			_, edited := got.SourceAsRead()
 			assert.False(t, edited, "%s %+v: the source was edited", name, k)
-			require.Len(t, got.Targets, len(want.Targets), "%s %+v: targets", name, k)
-			for key, wt := range want.Targets {
-				gt, ok := got.Targets[key]
-				require.True(t, ok, "%s %+v: target %+v", name, k, key)
-				assert.Equal(t, *wt, *gt, "%s %+v: target %+v", name, k, key)
-			}
+
+			want := maps.Collect(before.EachTargetEdition)
+			want[k.Canonical()] = e
+			assert.Equal(t, want, maps.Collect(got.EachTargetEdition), "%s %+v: targets", name, k)
 		}
 	}
 }
@@ -155,7 +160,7 @@ func TestBlockSetTargetEdition_WritesWhereSetTargetVariantWrites(t *testing.T) {
 // An existing target is updated in place, as SetEdition updates one.
 func TestBlockSetTargetEdition_UpdatesInPlace(t *testing.T) {
 	b := targetEditionBlocks()["fr"]()
-	held := b.Target("fr")
+	held := b.Editions[model.Variant("fr")]
 	b.SetTargetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{model.TextR("Salut")}})
 	assert.Equal(t, "Salut", model.RunsText(held.Runs))
 	assert.Empty(t, held.Status, "the edition written carries no status")

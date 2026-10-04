@@ -359,7 +359,7 @@ func TestMarkdownNames_HeadingSurvivesBeingReworded(t *testing.T) {
 	const doc = "docs/guide.md"
 
 	v1 := readBlocksForReconcile(t, "# Guide\n\n## Install\n\nAlpha\n")
-	prior := make([]reconcile.Unit, 0, len(v1))
+	prior := make([]reconcile.Prior, 0, len(v1))
 	keys := map[string]string{}
 	for i, r := range reconcile.Blocks(doc, v1, nil) {
 		u := reconcile.Identify(doc, v1[i])

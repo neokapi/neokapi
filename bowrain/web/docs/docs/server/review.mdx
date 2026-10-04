@@ -42,7 +42,7 @@ For each block:
   permission for that language, which the built-in **Reviewer** template
   carries; a translator can edit and reject, but not approve. There is one
   such rung: a workspace that wants two reviewers states it as a policy on how
-  many person signals establish a unit.
+  many person signals establish a translation.
 - **Reject** sends it back to draft for another pass.
 - **Edit** fixes the draft in place. A fix is a correction made at a point, and
   corrections are what the context learns from (see
@@ -111,25 +111,28 @@ review permission and the same separation-of-duties policy as one made here, and
 the push reports the approvals the workspace did not accept. The
 content lands either way, as a translation awaiting review.
 
-Taking an established unit back is review-level work here, and it is by push
-as well. A push that lowers an established target without changing its
+Taking an established translation back is review-level work here, and it is by
+push as well. A push that lowers an established target without changing its
 translation lands only from someone who holds review permission for that
-language; otherwise the unit stays established and the push reports the
+language; otherwise the translation stays established and the push reports the
 demotion it did not apply. An edited translation drops to awaiting review on
 either route, because the decision judged the wording it was given.
 
 A rejection that arrives by push applies only to the translation it names. When
-that translation has since been replaced here, the unit keeps its rung and its
-record, and the push reports the rejection it did not apply.
+that translation has since been replaced here, the translation held here keeps
+its rung and its record, and the push reports the rejection it did not apply.
 
 ### What an approval leaves behind
 
 Two records, written for every approval whichever route made it:
 
-- **A decision**, in the project's ledger, naming who decided, when, and the
-  hash of the exact wording they blessed. That record travels to a working copy
-  on `kapi pull`, and it is what promotes the wording into the workspace
-  [content memory](/server/translation-memory).
+- **A decision**, in the project's ledger, naming who decided, when, the exact
+  translation they blessed and the source they blessed it for, inline codes
+  included. That record travels to a working copy on `kapi pull`, and it is
+  what promotes the wording into the workspace
+  [content memory](/server/translation-memory). When either changes afterwards,
+  a link or another inline code included, the approval stops applying, here and
+  on a working copy alike, until someone decides the block again.
 - **An audit entry**, in the workspace [audit log](/server/security-and-privacy#the-audit-log), naming
   the actor, the block, the locale, and the rungs the target moved between. A
   rejection and a withdrawn approval are recorded the same way, each

@@ -2,17 +2,19 @@
 // pair for the Kapi Bundle Format (.kbf.json single-document JSON).
 //
 // The reader routes an input document through core/kbf and emits
-// one model.Block per canonical Block. The flattened source text
-// lives on the model.Block; the full structured Run[] graph travels
-// along in a KBFAnnotation so writers and tools can reconstruct the
-// source without going back to disk.
+// one model.Block per canonical Block, with every edition the bundle
+// holds filed on it: the source as the edition the block was read in,
+// each other edition under its key, the unlabelled one as the block's
+// translation under no language. The source runs as read travel
+// along in a KBFAnnotation, with the wire-level metadata the model has
+// no field for, so a writer reproduces an untouched block verbatim.
 //
 // The writer reverses the process: it reads KBFAnnotation off each
 // incoming block, reassembles the kbf.File, and writes to the
 // configured output path. If a block arrives without a KBFAnnotation
 // (e.g. inserted by an intermediate tool) the writer synthesizes a
-// minimal text-only Run sequence from the block's plain text so the
-// file stays well-formed.
+// minimal text-only source from the block's plain text so the file
+// stays well-formed.
 package jsx
 
 import (
@@ -22,7 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"strings"
 
@@ -57,26 +58,19 @@ var MimeTypes = []string{
 	"application/vnd.neokapi.kbf+json",
 }
 
-// KBFAnnotation travels alongside a model.Block and carries the
-// structured Runs (source + per-locale targets), placeholders,
-// properties, preview hints, and enclosing-document metadata the
-// Phase-2 Run-first model will eventually absorb into the block
-// itself. In Phase 1 this annotation is the handoff between reader,
-// tools, and writer.
+// KBFAnnotation travels alongside a model.Block and carries what the
+// bundle says about the block that the model has no field for: the
+// source runs as read, placeholders, properties, preview hints, the
+// enclosing document and project, and any edition under a key the
+// model cannot hold. Every other edition lives on the model.Block
+// itself; this annotation is the handoff between reader, tools, and
+// writer for the rest.
 type KBFAnnotation struct {
-	// Source runs copied verbatim from the .kbf.json Block.
+	// Source is the runs of the edition the block was read in, copied
+	// verbatim from the .kbf.json Block. The writer emits them while they
+	// still carry the block's current source, so an untouched block keeps
+	// its structure byte for byte.
 	Source []kbf.Run
-	// Targets maps locale → target runs copied verbatim from the .kbf.json
-	// Block (nil-safe for blocks without targets). This is provenance —
-	// the targets *as read*. It is deliberately not what the writer
-	// emits: the model.Block's targets are, because only those carry
-	// what the pipeline produced. The one exception is a target under the
-	// empty locale, which no edition holds (see keepEmptyLocaleTarget).
-	Targets map[kbf.LocaleID][]kbf.Run
-	// TargetOrigins maps locale → how that target was produced, as read. Same
-	// standing as Targets: the record of what the file said, beside the runs
-	// it said it about.
-	TargetOrigins map[kbf.LocaleID]kbf.TargetOrigin
 	// Placeholders carries the Block.placeholders list.
 	Placeholders []kbf.Placeholder
 	// Properties carries translator-facing context (file,
@@ -92,6 +86,15 @@ type KBFAnnotation struct {
 	DocumentID string
 	// DocumentPath is the enclosing Document.Path in the .kbf.json file.
 	DocumentPath string
+	// Project is the bundle's project: its id and the language its source
+	// editions are in. A writer keeps it, so a bundle kapi rewrites still
+	// names the language of its source.
+	Project kbf.ProjectInfo `json:",omitzero"`
+	// Unread holds the editions the bundle files under a key the model
+	// cannot hold (kbf.Block.UnreadEditions), such as a dimension a later
+	// minor of the schema adds. They stay off the model.Block and the
+	// writer carries them through verbatim.
+	Unread map[string]kbf.Edition `json:",omitempty"`
 }
 
 // AnnotationType satisfies any.
@@ -284,7 +287,7 @@ func (r *Reader) streamKBF(ctx context.Context, ch chan<- model.PartResult, data
 	var ids model.IDBuilder
 	for _, doc := range file.Documents {
 		for i := range doc.Blocks {
-			block := toModelBlock(&doc, &doc.Blocks[i])
+			block := toModelBlock(file.Project, &doc, &doc.Blocks[i])
 			ids.Assign(block)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
@@ -293,13 +296,24 @@ func (r *Reader) streamKBF(ctx context.Context, ch chan<- model.PartResult, data
 	}
 }
 
-// toModelBlock lifts a kbf.Block into a model.Block with Runs as
-// first-class content. The KBFAnnotation overlay carries extra
+// toModelBlock lifts a kbf.Block into a model.Block with every edition
+// the bundle holds filed on it (kbf.Block.FileEditions): the source as
+// the edition the block was read in, each other edition under its key
+// and marked native, with the status, provenance and derivation the
+// bundle recorded for it. Without the provenance an answer re-seeded
+// from a bundle would arrive with a zero Origin and read as produced
+// under no governance. The KBFAnnotation overlay carries extra
 // wire-level metadata (Hash, DocumentID, DocumentPath, Placeholders,
-// Preview) that the legacy model.Block doesn't have first-class
+// Preview, the project) that the model.Block doesn't have first-class
 // fields for; writers read it back to reconstruct the archive.
-func toModelBlock(doc *kbf.Document, b *kbf.Block) *model.Block {
-	mb := model.NewRunsBlock(b.ID, cloneRuns(b.Source))
+//
+// An edition under a key the model cannot hold (a dimension a later
+// minor of the schema adds) is kept on the annotation instead, so it
+// neither lands on the edition its key would shorten to nor drops out
+// of a bundle kapi writes back.
+func toModelBlock(project kbf.ProjectInfo, doc *kbf.Document, b *kbf.Block) *model.Block {
+	source := b.SourceRuns()
+	mb := model.NewRunsBlock(b.ID, cloneRuns(source))
 	mb.Translatable = b.Translatable
 	mb.Type = string(b.Type)
 	if b.Properties.File != "" {
@@ -326,29 +340,20 @@ func toModelBlock(doc *kbf.Document, b *kbf.Block) *model.Block {
 	if b.Hash != "" {
 		mb.Properties["hash"] = b.Hash
 	}
-	for locale, runs := range b.Targets {
-		loc := model.LocaleID(locale)
-		mb.SetTargetRuns(loc, cloneRuns(runs))
-		// The bundle is the truth about how its answers were produced, so the
-		// provenance it carries is restored beside the runs. Without this the
-		// target arrives with a zero Origin and reads as produced under no
-		// governance.
-		if origin, ok := b.TargetOrigins[locale]; ok {
-			e, _ := mb.Edition(model.Variant(loc))
-			mb.StampTargetProvenance(loc, model.TargetStatus(e.Status), origin)
-		}
-	}
+	// The editions FileEditions leaves are exactly the ones Unread keeps
+	// below, so its report is already acted on.
+	_ = b.FileEditions(mb)
 	ann := &KBFAnnotation{
-		Source:        cloneRuns(b.Source),
-		Targets:       cloneTargets(b.Targets),
-		TargetOrigins: cloneTargetOrigins(b.TargetOrigins),
-		Placeholders:  append([]kbf.Placeholder(nil), b.Placeholders...),
-		Properties:    b.Properties,
-		Preview:       b.Preview,
-		Type:          b.Type,
-		Hash:          b.Hash,
-		DocumentID:    doc.ID,
-		DocumentPath:  doc.Path,
+		Source:       cloneRuns(source),
+		Placeholders: append([]kbf.Placeholder(nil), b.Placeholders...),
+		Properties:   b.Properties,
+		Preview:      b.Preview,
+		Type:         b.Type,
+		Hash:         b.Hash,
+		DocumentID:   doc.ID,
+		DocumentPath: doc.Path,
+		Project:      project,
+		Unread:       b.UnreadEditions(),
 	}
 	mb.SetAnno(AnnotationType, ann)
 	return mb
@@ -357,26 +362,6 @@ func toModelBlock(doc *kbf.Document, b *kbf.Block) *model.Block {
 func cloneRuns(runs []kbf.Run) []kbf.Run {
 	out := make([]kbf.Run, len(runs))
 	copy(out, runs)
-	return out
-}
-
-func cloneTargetOrigins(in map[kbf.LocaleID]kbf.TargetOrigin) map[kbf.LocaleID]kbf.TargetOrigin {
-	if in == nil {
-		return nil
-	}
-	out := make(map[kbf.LocaleID]kbf.TargetOrigin, len(in))
-	maps.Copy(out, in)
-	return out
-}
-
-func cloneTargets(in map[kbf.LocaleID][]kbf.Run) map[kbf.LocaleID][]kbf.Run {
-	if in == nil {
-		return nil
-	}
-	out := make(map[kbf.LocaleID][]kbf.Run, len(in))
-	for k, v := range in {
-		out[k] = append([]kbf.Run(nil), v...)
-	}
 	return out
 }
 
@@ -391,6 +376,14 @@ type Writer struct {
 	generator kbf.GeneratorInfo
 	project   kbf.ProjectInfo
 
+	// What the parts written say about the project, first seen first: the
+	// project of the bundle a block was read from, the source language a
+	// reader stamped on a block, and the language of the layer the blocks
+	// arrived in. buildKBF names the project from them (projectInfo).
+	readProject kbf.ProjectInfo
+	blockLocale model.LocaleID
+	layerLocale model.LocaleID
+
 	// Accumulated blocks grouped by document id/path.
 	pending map[string]*pendingDoc
 	order   []string
@@ -402,7 +395,10 @@ type pendingDoc struct {
 	blocks []kbf.Block
 }
 
-// NewWriter creates a new KBF writer.
+// NewWriter creates a new KBF writer. A bundle it writes names the project
+// the blocks were read from when they came from a bundle, and otherwise the
+// source language the blocks or their layer carry; the project
+// "neokapi-output" in English is what it names when the parts say nothing.
 func NewWriter() *Writer {
 	return &Writer{
 		generator: kbf.GeneratorInfo{ID: "neokapi", Version: "1.0"},
@@ -460,12 +456,24 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 }
 
 func (w *Writer) handlePart(part *model.Part) error {
-	if part == nil || part.Type != model.PartBlock {
+	if part == nil {
+		return nil
+	}
+	if part.Type == model.PartLayerStart {
+		if layer, ok := part.Resource.(*model.Layer); ok && layer != nil && w.layerLocale.IsEmpty() {
+			w.layerLocale = layer.Locale
+		}
+		return nil
+	}
+	if part.Type != model.PartBlock {
 		return nil
 	}
 	mblock, ok := part.Resource.(*model.Block)
 	if !ok || mblock == nil {
 		return nil
+	}
+	if w.blockLocale.IsEmpty() {
+		w.blockLocale = mblock.SourceLocale
 	}
 	block, docID, docPath := w.materializeBlock(mblock)
 	pd, ok := w.pending[docID]
@@ -478,31 +486,48 @@ func (w *Writer) handlePart(part *model.Part) error {
 	return nil
 }
 
-// materializeBlock reconstructs a kbf.Block from a model.Block. If
-// the source block carries a KBFAnnotation (the round-trip case) the
+// materializeBlock reconstructs a kbf.Block from a model.Block. The
+// editions come from the model.Block, every one it holds: the source,
+// each translation, every tone and channel edition, and a translation
+// filed under no language, with the status, provenance and derivation
+// the pipeline recorded (kbf.EditionsOf). Every edition is written, not
+// just the writer's own locale: a flow that produced an edition the
+// writer was not pointed at still produced content the file has to
+// carry, and the reader put every edition in the file on the block to
+// begin with.
+//
+// If the block carries a KBFAnnotation (the round-trip case) the
 // annotation supplies the wire-level metadata the model has no
-// first-class field for — hash, placeholders, properties, preview,
-// document identity — and the structured source Runs are preserved
-// verbatim. Targets come from the model.Block, apart from a target the
-// bundle carried under the empty locale, which comes from the annotation
-// (keepEmptyLocaleTarget). If there is no annotation (the synthesized case) the
-// writer emits a minimal text-only block so the archive is still
-// well-formed.
+// first-class field for (hash, placeholders, properties, preview,
+// document identity, project), the source runs as read are written
+// while they still carry the block's current source, and an edition
+// under a key the model cannot hold is written as it was read. If
+// there is no annotation (the synthesized case) the writer emits a
+// minimal text-only source so the archive is still well-formed.
 func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
+	editions, unlabelled := kbf.EditionsOf(mb)
+	source := editions[kbf.SourceEdition]
 	if annRaw, ok := mb.Anno(AnnotationType); ok {
 		if ann, ok := annRaw.(*KBFAnnotation); ok && ann != nil {
+			if w.readProject == (kbf.ProjectInfo{}) {
+				w.readProject = ann.Project
+			}
+			for key, e := range ann.Unread {
+				if _, held := editions[key]; !held {
+					editions[key] = e
+				}
+			}
 			// The annotation's source runs are the ones read from the input
 			// bundle, kept so a block nothing touched round-trips with its
 			// structure (placeholders, paired codes) verbatim. They are only
-			// usable while they still carry the block's current text: a SOURCE
+			// usable while they still carry the block's current text: a source
 			// edit (`kapi ksed -i`, `kapi apply`, the desktop's "apply fix")
-			// used to be written back as the pre-edit runs, exit 0 (#1473) —
-			// the source-side counterpart of the target-side discard #1471
-			// fixed just below.
-			source := cloneRuns(ann.Source)
-			if src, _ := mb.Edition(mb.Authoritative(model.AuthorityPolicy{})); !format.VerbatimRunsCurrent(ann.Source, src.Runs) {
-				source = runsFromModel(src.Runs)
+			// is written as the edited runs (#1473), as an edit to any other
+			// edition is (#1471).
+			if format.VerbatimRunsCurrent(ann.Source, source.Runs) {
+				source.Runs = cloneRuns(ann.Source)
 			}
+			editions[kbf.SourceEdition] = source
 			b := kbf.Block{
 				// The id is what the bundle says; a block's ID is an identity
 				// for the store, and the two are the same for every bundle whose
@@ -511,121 +536,30 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 				Hash:         ann.Hash,
 				Translatable: mb.Translatable,
 				Type:         ann.Type,
-				Source:       source,
-				// The pipeline owns the targets. The annotation carries
-				// the block *as read*, so seeding the output from it and
-				// only filling locales it lacked meant the writer could
-				// not express an edit at all: a tool ran, produced a
-				// corrected target, reported success, and the original
-				// was re-emitted byte for byte. Every edit — a whitespace
-				// correction, a re-translation, an unredact, a removal —
-				// now reaches the file.
-				Targets:       targetsFromModel(mb),
-				TargetOrigins: targetOriginsFromModel(mb),
-				Placeholders:  append([]kbf.Placeholder(nil), ann.Placeholders...),
-				Properties:    ann.Properties,
-				Preview:       ann.Preview,
+				Editions:     editions,
+				Unlabelled:   unlabelled,
+				Placeholders: append([]kbf.Placeholder(nil), ann.Placeholders...),
+				Properties:   ann.Properties,
+				Preview:      ann.Preview,
 			}
-			keepEmptyLocaleTarget(&b, ann)
 			return b, ann.DocumentID, ann.DocumentPath
 		}
 	}
-	// Synthesized fallback: minimal text-only block from whatever
-	// content the model.Block carries.
+	// Synthesized fallback: a minimal text-only source from whatever
+	// content the model.Block carries, so the source declares no
+	// placeholder the block has no record of.
+	source.Runs = []kbf.Run{{Text: &kbf.TextRun{Text: mb.SourceText()}}}
+	editions[kbf.SourceEdition] = source
 	b := kbf.Block{
-		ID:            model.DocumentID(mb),
-		Hash:          mb.Properties["hash"],
-		Translatable:  mb.Translatable,
-		Type:          kbf.BlockTypeJSXElement,
-		Source:        []kbf.Run{{Text: &kbf.TextRun{Text: mb.SourceText()}}},
-		Targets:       targetsFromModel(mb),
-		TargetOrigins: targetOriginsFromModel(mb),
-		Properties:    kbf.BlockProperties{File: mb.Properties["file"], Component: mb.Properties["component"], Element: mb.Properties["element"]},
+		ID:           model.DocumentID(mb),
+		Hash:         mb.Properties["hash"],
+		Translatable: mb.Translatable,
+		Type:         kbf.BlockTypeJSXElement,
+		Editions:     editions,
+		Unlabelled:   unlabelled,
+		Properties:   kbf.BlockProperties{File: mb.Properties["file"], Component: mb.Properties["component"], Element: mb.Properties["element"]},
 	}
 	return b, "synthesized", "synthesized"
-}
-
-// targetsFromModel projects every edition of a model.Block but the
-// authoritative one, which the bundle holds as the source, onto the
-// .kbf.json wire shape. Every locale the block carries is written, not just
-// the writer's own: a flow that produced a target for a locale the
-// writer was not pointed at is still a target the file has to carry,
-// and the reader put every locale in the file on the block to begin
-// with. Only locale-only variants are projected — the wire keys targets
-// by bare locale, so a tone- or channel-qualified variant has no slot
-// and must not silently overwrite the plain one.
-func targetsFromModel(mb *model.Block) map[kbf.LocaleID][]kbf.Run {
-	var out map[kbf.LocaleID][]kbf.Run
-	auth := mb.Authoritative(model.AuthorityPolicy{})
-	for key, e := range mb.EachEdition {
-		if key == auth || key.Tone != "" || key.Channel != "" || len(e.Runs) == 0 {
-			continue
-		}
-		if out == nil {
-			out = make(map[kbf.LocaleID][]kbf.Run)
-		}
-		out[kbf.LocaleID(key.Locale)] = runsFromModel(e.Runs)
-	}
-	return out
-}
-
-// targetOriginsFromModel projects the provenance of each locale-only target,
-// keyed the way targetsFromModel keys its runs so the two travel together.
-//
-// A zero Origin is omitted rather than written: an empty record and no record
-// are the same fact, and writing one would grow every bundle for nothing.
-func targetOriginsFromModel(mb *model.Block) map[kbf.LocaleID]kbf.TargetOrigin {
-	var out map[kbf.LocaleID]kbf.TargetOrigin
-	auth := mb.Authoritative(model.AuthorityPolicy{})
-	for key, e := range mb.EachEdition {
-		if key == auth || key.Tone != "" || key.Channel != "" || len(e.Runs) == 0 || e.Origin == (model.Origin{}) {
-			continue
-		}
-		if out == nil {
-			out = make(map[kbf.LocaleID]kbf.TargetOrigin)
-		}
-		out[kbf.LocaleID(key.Locale)] = e.Origin
-	}
-	return out
-}
-
-// keepEmptyLocaleTarget writes back a target the bundle carried under the
-// empty locale, with its origin, as the reader read it. The reader files such
-// a target under the zero edition key, which names the edition the block was
-// read in, so EachEdition never yields it and no edition accessor can change
-// or remove it: the annotation's copy is the target. As for every other
-// target, empty runs are not written, and neither is a zero origin.
-func keepEmptyLocaleTarget(b *kbf.Block, ann *KBFAnnotation) {
-	runs := ann.Targets[""]
-	if len(runs) == 0 {
-		return
-	}
-	if b.Targets == nil {
-		b.Targets = make(map[kbf.LocaleID][]kbf.Run)
-	}
-	b.Targets[""] = cloneRuns(runs)
-	if origin := ann.TargetOrigins[""]; origin != (kbf.TargetOrigin{}) {
-		if b.TargetOrigins == nil {
-			b.TargetOrigins = make(map[kbf.LocaleID]kbf.TargetOrigin)
-		}
-		b.TargetOrigins[""] = origin
-	}
-}
-
-// runsFromModel is the model.Run → kbf.Run adapter used when a
-// tool populated a block's editions with structured Runs. Runs are
-// preserved verbatim, including placeholders and paired codes.
-func runsFromModel(runs []model.Run) []kbf.Run {
-	if len(runs) == 0 {
-		return nil
-	}
-	// kbf.Run is a type alias for model.Run today; the cast is
-	// effectively a no-op but keeps the site explicit and lets us
-	// insert a deep clone or shape mapping here if the types ever
-	// diverge.
-	out := make([]kbf.Run, len(runs))
-	copy(out, runs)
-	return out
 }
 
 // Close flushes the accumulated blocks to the configured output.
@@ -649,12 +583,35 @@ func (w *Writer) Close() error {
 	return w.writeKBF(file)
 }
 
+// projectInfo names the project of the bundle being written. A block read
+// from a bundle names that bundle's project, which is kept whole. Otherwise
+// the source language is the one a reader stamped on the blocks, or the
+// language of the layer they arrived in, under the writer's own project id.
+// The source edition of every block is in project.sourceLocale, so a bundle
+// written with English there while its source is German would misname its
+// source.
+func (w *Writer) projectInfo() kbf.ProjectInfo {
+	project := w.project
+	if w.readProject.ID != "" {
+		project.ID = w.readProject.ID
+	}
+	switch {
+	case w.readProject.SourceLocale != "":
+		project.SourceLocale = w.readProject.SourceLocale
+	case !w.blockLocale.IsEmpty():
+		project.SourceLocale = kbf.LocaleID(w.blockLocale)
+	case !w.layerLocale.IsEmpty():
+		project.SourceLocale = kbf.LocaleID(w.layerLocale)
+	}
+	return project
+}
+
 func (w *Writer) buildKBF() *kbf.File {
 	file := &kbf.File{
 		SchemaVersion: kbf.SchemaVersion,
 		Kind:          kbf.Kind,
 		Generator:     w.generator,
-		Project:       w.project,
+		Project:       w.projectInfo(),
 	}
 	for _, id := range w.order {
 		pd := w.pending[id]
@@ -708,9 +665,9 @@ func (p *PreviewBuilder) BuildBlockPreview(mb *model.Block) string {
 			escaped, htmlEscape(mb.SourceText()))
 	}
 	b := &kbf.Block{
-		ID:     mb.ID,
-		Type:   ann.Type,
-		Source: ann.Source,
+		ID:       mb.ID,
+		Type:     ann.Type,
+		Editions: kbf.SourceEditions(ann.Source),
 	}
 	return kbf.RenderBlockHTML(b, p.vocab)
 }

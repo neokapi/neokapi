@@ -34,7 +34,7 @@ func TestSyncPush_ARecordedPropertyReachesContentAlreadyPushed(t *testing.T) {
 	bare.SetSourceText("Hello")
 	first, err := client.Push(ctx, map[string][]*model.Block{
 		"src/App.jsx": {bare},
-	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil)
+	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil, apiclient.TransferUnder("en"))
 	require.NoError(t, err)
 	require.Equal(t, 1, first.BlocksUploaded)
 	drainPushQueue(t, srv)
@@ -51,7 +51,7 @@ func TestSyncPush_ARecordedPropertyReachesContentAlreadyPushed(t *testing.T) {
 
 	second, err := client.Push(ctx, map[string][]*model.Block{
 		"src/App.jsx": {enriched},
-	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil)
+	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil, apiclient.TransferUnder("en"))
 	require.NoError(t, err)
 	assert.Equal(t, 1, second.BlocksUploaded, "the block is asked for, once")
 	drainPushQueue(t, srv)
@@ -71,7 +71,7 @@ func TestSyncPush_ARecordedPropertyReachesContentAlreadyPushed(t *testing.T) {
 	again.SetSourceText("Hello")
 	third, err := client.Push(ctx, map[string][]*model.Block{
 		"src/App.jsx": {again},
-	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil)
+	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil, apiclient.TransferUnder("en"))
 	require.NoError(t, err)
 	assert.Zero(t, third.BlocksUploaded)
 	assert.Equal(t, apiclient.PushUnchanged, third.PushID)
@@ -101,7 +101,7 @@ func TestSyncPush_AnOlderProducerDoesNotStripWhatItCannotRecord(t *testing.T) {
 	enriched.SetSourceText("Hello")
 	_, err := client.Push(ctx, map[string][]*model.Block{
 		"src/App.jsx": {enriched},
-	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil)
+	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil, apiclient.TransferUnder("en"))
 	require.NoError(t, err)
 	drainPushQueue(t, srv)
 
@@ -110,7 +110,7 @@ func TestSyncPush_AnOlderProducerDoesNotStripWhatItCannotRecord(t *testing.T) {
 	bare.SetSourceText("Hello")
 	_, err = client.Push(ctx, map[string][]*model.Block{
 		"src/App.jsx": {bare},
-	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil)
+	}, []apiclient.ItemMeta{{Name: "src/App.jsx", Format: "jsx"}}, nil, nil, apiclient.TransferUnder("en"))
 	require.NoError(t, err)
 	drainPushQueue(t, srv)
 

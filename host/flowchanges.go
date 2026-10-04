@@ -430,7 +430,7 @@ func (doc *flowDoc) tracked(b *model.Block) []model.EditionKey {
 		return []model.EditionKey{doc.edition}
 	}
 	keys := []model.EditionKey{{}}
-	for _, k := range b.Editions() {
+	for _, k := range b.EditionKeys() {
 		if !b.IsSourceEdition(k) {
 			keys = append(keys, k.Canonical())
 		}
@@ -539,7 +539,7 @@ func (doc *flowDoc) Leave(b *model.Block) {
 		return
 	}
 	if len(lb.editions) > 0 {
-		lb.unit, lb.contextHash = b.Unit, model.ComputeIdentity(b).ContextHash
+		lb.unit, lb.contextHash = b.Key, model.ComputeIdentity(b).ContextHash
 	}
 	if doc.entered != nil {
 		lb.block = snapshotBlock(b)

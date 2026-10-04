@@ -32,7 +32,7 @@ func StoredBlockToSyncBlock(sb *venue.StoredBlock) SyncBlock {
 		ID:                 b.ID,
 		ItemName:           sb.ItemName,
 		Name:               b.Name,
-		Unit:               b.Unit,
+		Unit:               b.Key,
 		Type:               b.Type,
 		MimeType:           b.MimeType,
 		Translatable:       b.Translatable,
@@ -72,10 +72,12 @@ func StoredBlockToSyncBlock(sb *venue.StoredBlock) SyncBlock {
 
 	// Overlays: the positional, run-anchored stand-off layers. Carried via the
 	// canonical overlay JSON codec so a term/entity/segmentation marked in kapi
-	// survives the pull. Only emitted when present (nil/empty encode to "[]",
-	// which we drop to keep the wire lean).
-	if len(b.Overlays) > 0 {
-		if data, err := venue.MarshalOverlays(b.Overlays); err == nil {
+	// survives the pull, the overlays on the translation filed under no
+	// language (carried under the empty target key above) included. Only
+	// emitted when present (nil/empty encode to "[]", which we drop to keep the
+	// wire lean).
+	if len(b.Overlays) > 0 || len(b.UnlabelledOverlays()) > 0 {
+		if data, err := venue.MarshalBlockOverlays(b); err == nil {
 			sync.Overlays = data
 		}
 	}
@@ -182,7 +184,7 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 	b := &model.Block{
 		ID:                 sb.ID,
 		Name:               sb.Name,
-		Unit:               sb.Unit,
+		Key:                sb.Unit,
 		Type:               sb.Type,
 		MimeType:           sb.MimeType,
 		Translatable:       sb.Translatable,
@@ -210,7 +212,7 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 	// segments, status/origin/score restored from the first segment's props.
 	// Each is filed as a target, so a target in the source language stays one.
 	for keyText, segs := range sb.Targets {
-		var key model.VariantKey
+		var key model.EditionKey
 		if err := key.UnmarshalText([]byte(keyText)); err != nil {
 			continue
 		}
@@ -245,11 +247,10 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 
 	// Overlays: rehydrate the positional stand-off layers via the canonical
 	// overlay JSON codec (typed span values through the payload registry;
-	// unknown kinds degrade to a GenericAnnotation).
+	// unknown kinds degrade to a GenericAnnotation), those on the translation
+	// filed under no language included.
 	if len(sb.Overlays) > 0 {
-		if overlays, err := venue.UnmarshalOverlays(sb.Overlays); err == nil {
-			b.Overlays = overlays
-		}
+		_ = venue.UnmarshalBlockOverlays(b, sb.Overlays)
 	}
 
 	// Skeleton (discriminated codec; see venue.MarshalSkeleton).

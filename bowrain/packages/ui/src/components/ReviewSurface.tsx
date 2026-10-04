@@ -304,7 +304,7 @@ export function ReviewSurface({
       });
   }, [api, selectedId, blockKey, project.id, fileName, targetLocale]);
 
-  // Persist a per-block review decision: optimistic per-locale Target.Status
+  // Persist a per-block review decision: optimistic per-locale Edition.Status
   // write (matches what a reload fetches), server call, rollback on failure.
   // The rollback snapshot is captured inside the setBlocks updater — from the
   // state the write actually replaced — and restores only the status field, so

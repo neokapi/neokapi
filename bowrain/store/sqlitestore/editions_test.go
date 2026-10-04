@@ -42,7 +42,7 @@ func TestStoreBlocks_EditionsRoundTrip(t *testing.T) {
 		{},
 		model.Variant(model.LocaleFrench),
 		{Locale: model.LocaleFrench, Channel: "short"},
-	}, got.Block.Editions())
+	}, got.Block.EditionKeys())
 
 	fr, ok := got.Block.Edition(model.Variant(model.LocaleFrench))
 	require.True(t, ok)
@@ -65,12 +65,12 @@ func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 	text := func(s string) []model.Run { return []model.Run{{Text: &model.TextRun{Text: s}}} }
 	tests := []struct {
 		name string
-		key  model.VariantKey
+		key  model.EditionKey
 		want []model.EditionKey
 		rows int
 	}{
-		{"a locale spelled another way", model.VariantKey{Locale: "fr_FR"}, []model.EditionKey{{}, {Locale: "fr-FR"}}, 1},
-		{"the zero key", model.VariantKey{}, []model.EditionKey{{}}, 0},
+		{"a locale spelled another way", model.EditionKey{Locale: "fr_FR"}, []model.EditionKey{{}, {Locale: "fr-FR"}}, 1},
+		{"the zero key", model.EditionKey{}, []model.EditionKey{{}}, 0},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -92,7 +92,7 @@ func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 
 			got, err := s.GetBlock(ctx, p.ID, "", "b1")
 			require.NoError(t, err)
-			assert.Equal(t, tc.want, got.Block.Editions())
+			assert.Equal(t, tc.want, got.Block.EditionKeys())
 			src, _ := got.Block.Edition(model.EditionKey{})
 			assert.Equal(t, "Hello", model.RunsText(src.Runs))
 			if tc.rows > 0 {
@@ -116,7 +116,7 @@ func TestGetBlock_ReadsARowUnderItsCanonicalKey(t *testing.T) {
 
 	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{model.NewBlock("b1", "Hello")}))
 	require.NoError(t, bstore.UpsertBlockTarget(ctx, s.DB(), "sqlite", p.ID, "main", "b1",
-		model.VariantKey{Locale: "fr_FR"},
+		model.EditionKey{Locale: "fr_FR"},
 		model.Edition{Runs: text("Bonjour"), Status: model.Status(model.TargetStatusTranslated)}, nil, time.Now().UTC()))
 	var locale string
 	require.NoError(t, s.DB().QueryRowContext(ctx,
@@ -125,9 +125,36 @@ func TestGetBlock_ReadsARowUnderItsCanonicalKey(t *testing.T) {
 
 	got, err := s.GetBlock(ctx, p.ID, "", "b1")
 	require.NoError(t, err)
-	assert.Equal(t, []model.EditionKey{{}, {Locale: "fr-FR"}}, got.Block.Editions())
+	assert.Equal(t, []model.EditionKey{{}, {Locale: "fr-FR"}}, got.Block.EditionKeys())
 	fr, ok := got.Block.Edition(model.EditionKey{Locale: "fr-FR"})
 	require.True(t, ok)
 	assert.Equal(t, "Bonjour", model.RunsText(fr.Runs))
 	assert.Equal(t, model.Status(model.TargetStatusTranslated), fr.Status)
+}
+
+// A same-language channel edition round-trips through the translations table
+// under its own key, beside the edition the block was read in, which keeps its
+// content and stays the source.
+func TestStoreBlocks_ASameLanguageChannelEditionRoundTrips(t *testing.T) {
+	text := func(s string) []model.Run { return []model.Run{{Text: &model.TextRun{Text: s}}} }
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	short := model.EditionKey{Locale: model.LocaleEnglish, Channel: "short"}
+	b := model.NewBlock("b1", "Read the guide")
+	b.SourceLocale = model.LocaleEnglish
+	b.SetEdition(short, model.Edition{Runs: text("Read"), Status: model.Status(model.TargetStatusTranslated)})
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
+
+	got, err := s.GetBlock(ctx, p.ID, "", "b1")
+	require.NoError(t, err)
+	got.Block.SourceLocale = model.LocaleEnglish
+	assert.Equal(t, []model.EditionKey{{Locale: model.LocaleEnglish}, short}, got.Block.EditionKeys())
+	assert.Equal(t, "Read the guide", got.Block.SourceText())
+	e, ok := got.Block.Edition(short)
+	require.True(t, ok)
+	assert.Equal(t, "Read", model.RunsText(e.Runs))
+	assert.Equal(t, model.Status(model.TargetStatusTranslated), e.Status)
+	assert.True(t, got.Block.IsSourceEdition(model.Variant(model.LocaleEnglish)), "no same-language edition without the channel is created")
 }

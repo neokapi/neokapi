@@ -102,8 +102,10 @@ func TestKBFTargetOriginSurvivesARoundTrip(t *testing.T) {
 	require.Len(t, file.Documents, 1)
 	require.Len(t, file.Documents[0].Blocks, 1)
 
-	origin, ok := file.Documents[0].Blocks[0].TargetOrigins["nb"]
-	require.True(t, ok, "the written bundle records how its target was produced")
+	nb, ok := file.Documents[0].Blocks[0].Edition("nb")
+	require.True(t, ok, "the written bundle holds the target")
+	origin := nb.Origin
+	require.NotEqual(t, kbf.Origin{}, origin, "the written bundle records how its target was produced")
 	assert.Equal(t, "cfp-abc123", origin.ContextFingerprint)
 	assert.Equal(t, "northsea", origin.Profile)
 	assert.Equal(t, "ai", origin.Kind)
@@ -128,7 +130,7 @@ func TestKBFWritesNoOriginWhenNoneWasStamped(t *testing.T) {
 
 	buf := writeBundle(t, blocks[0])
 
-	assert.NotContains(t, buf, "targetOrigins")
+	assert.NotContains(t, buf, `"origin"`)
 	// The translation itself is untouched by the absence of provenance.
 	assert.Contains(t, buf, "Logg inn")
 }

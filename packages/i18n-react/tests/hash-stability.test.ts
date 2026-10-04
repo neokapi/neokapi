@@ -12,6 +12,8 @@
 import { describe, expect, it } from "vitest";
 
 import { extractDocument } from "../src/extract/walker.ts";
+import type { Block } from "@neokapi/kapi-format";
+import { sourceRuns } from "@neokapi/kapi-format";
 
 function hashesOf(code: string, componentMap: Record<string, string> = {}): Map<string, string> {
   const doc = extractDocument(code, { filename: "Stable.tsx", componentMap });
@@ -22,8 +24,8 @@ function hashesOf(code: string, componentMap: Record<string, string> = {}): Map<
   return out;
 }
 
-function flat(b: { source: unknown[] }): string {
-  return JSON.stringify(b.source);
+function flat(b: Block): string {
+  return JSON.stringify(sourceRuns(b));
 }
 
 function singleHash(code: string, componentMap: Record<string, string> = {}): string {

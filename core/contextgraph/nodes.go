@@ -85,6 +85,11 @@ type UnitState struct {
 	// blessed that translation FOR. Empty on a record written before the basis
 	// was tracked.
 	ContentHash string
+	// Revision and Basis name the translation and its source by revision
+	// (model.EditionRevision), which a record recorded since revisions carries
+	// beside the two hashes and is read by. Empty on a record written before.
+	Revision string
+	Basis    string
 }
 
 // UnitStateNode builds the node for one unit-state record.
@@ -97,6 +102,8 @@ func UnitStateNode(s Scope, u UnitState) graph.Node {
 	putIf(props, PropReviewState, u.ReviewState)
 	putIf(props, PropTargetHash, u.TargetHash)
 	putIf(props, PropContentHash, u.ContentHash)
+	putIf(props, PropRevision, u.Revision)
+	putIf(props, PropBasis, u.Basis)
 	return graph.Node{ID: UnitStateNodeID(s, u.Document, u.Unit, u.Variant), Label: NodeUnitState, Properties: props}
 }
 
@@ -116,8 +123,8 @@ type UsesTerm struct {
 	// Validity is the term's own window, carried so the answer resolves at an
 	// instant: a term deprecated from a date is not discouraged before it.
 	Validity *graph.Validity
-	// Locale is the language of the text the term was found in — empty for the
-	// block's own source text.
+	// Locale is the edition the term was found in: empty for the block's own
+	// source text, otherwise the edition's key ("nb", "nb;tone=formal").
 	Locale     string
 	Collection string
 	Document   string
@@ -193,10 +200,10 @@ func GovernedByEdge(s Scope, collection, profile, channel string, validity *grap
 }
 
 // BlessesEdge builds the unit-state→block edge: which record blesses which
-// block, at which pairing — the translation hash and the source basis. Both are
-// edge data rather than identity, so a re-translation or a source edit moves the
-// same edge rather than accumulating one per revision, and comparing either
-// against the deliverable is how a stale blessing shows.
+// block, at which pairing: the translation and the source basis, by revision
+// and by hash. Both are edge data rather than identity, so a re-translation or
+// a source edit moves the same edge rather than accumulating one per revision,
+// and comparing either against the deliverable is how a stale blessing shows.
 func BlessesEdge(s Scope, u UnitState, contentKey string) graph.Edge {
 	props := s.Properties()
 	props[PropUnit] = u.Unit
@@ -204,6 +211,8 @@ func BlessesEdge(s Scope, u UnitState, contentKey string) graph.Edge {
 	putIf(props, PropVariant, u.Variant)
 	putIf(props, PropTargetHash, u.TargetHash)
 	putIf(props, PropContentHash, u.ContentHash)
+	putIf(props, PropRevision, u.Revision)
+	putIf(props, PropBasis, u.Basis)
 	putIf(props, PropStatus, u.Status)
 	putIf(props, PropReviewState, u.ReviewState)
 	source := UnitStateNodeID(s, u.Document, u.Unit, u.Variant)

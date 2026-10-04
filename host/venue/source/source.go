@@ -264,9 +264,8 @@ func (c *BowrainSourceConnector) ListFiles(ctx context.Context, paths []string) 
 
 		dirty := 0
 		for _, b := range blocks {
-			identity := model.ComputeIdentity(b)
 			cached, found := c.lookupCachedHashForItem(relPath, convergence.BlockKey(b))
-			if !found || cached != identity.RecordHash() {
+			if !found || cached != venue.RecordHash(b, c.sourceLanguage()) {
 				dirty++
 			}
 		}
@@ -376,7 +375,7 @@ type FileDelta struct {
 	Path    string       // path relative to project root
 	Format  string       // detected format name
 	Added   int          // blocks present locally but not in the sync cache
-	Changed int          // blocks whose content hash differs from the cache
+	Changed int          // blocks whose record hash differs from the cache
 	Removed int          // blocks in the cache but no longer present locally
 	Blocks  []BlockDelta // per-block detail, sorted by block ID
 }
@@ -402,7 +401,7 @@ func (d *Diff) HasChanges() bool {
 //
 // Local-vs-remote semantics, anchored on the sync cache:
 //   - "added"   — block present locally, absent from the cache.
-//   - "changed" — block present in both, content hash differs.
+//   - "changed" — block present in both, record hash differs (venue.RecordHash).
 //   - "removed" — block present in the cache, absent locally.
 //
 // It also queries the server for the count of pending remote changes, mirroring
@@ -633,15 +632,18 @@ func (c *BowrainSourceConnector) pushSettingsPending() bool {
 
 // Push sends source content from local files to Bowrain.
 func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.PushOptions) (*bowrainconn.PushResult, error) {
-	// Scan local files and extract blocks and media grouped by item.
-	hashMap, blockMap, mediaHashMap, mediaMap, err := c.scanLocalBlocksAndMedia(ctx, opts.Paths)
+	// Scan local files and extract blocks and media grouped by item. A file
+	// the scan cannot read stops the push before anything is sent (scanLocal).
+	scan, err := c.scanLocal(ctx, opts.Paths)
 	if err != nil {
 		return nil, fmt.Errorf("scan local files: %w", err)
 	}
-	_, _ = mediaHashMap, mediaMap // used below after block push
+	hashMap, blockMap := scan.hashes, scan.blocks
+	mediaHashMap, mediaMap := scan.mediaHashes, scan.media
 
-	// What this push is authoritative over.
-	scope := c.pushScope(opts.Paths)
+	// What this push is authoritative over: the recipe's patterns, less every
+	// file the scan matched and no format reads.
+	scope := excludePaths(c.pushScope(opts.Paths), scan.formatless)
 
 	// Fetch the venue's tree, once. It answers two different questions, and
 	// both used to be answered from local state instead.
@@ -713,7 +715,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 				// Content-addressed and global: a block that moved between
 				// files is content the venue already holds, and asking per item
 				// would upload it again under the new name.
-				if _, have := held[model.ComputeIdentity(b).RecordHash()]; !have {
+				if _, have := held[venue.RecordHash(b, c.sourceLanguage())]; !have {
 					changed = append(changed, itemBlock{itemName: itemName, block: b})
 				}
 			default:
@@ -750,6 +752,10 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	if derr != nil {
 		return nil, derr
 	}
+	// Each basis travels as the venue takes it, so the record the venue grades
+	// is the one this checkout reads as current.
+	sources := c.pushedSources(blockMap, localKeys)
+	sources.carryBases(ctx, decisions)
 	decisionsHash := venue.DecisionRecordsHash(decisions)
 	recordChangedHere := decisionsHash != c.cache.DecisionsSynced
 	// A record that decides nothing has nothing to tell a venue about, so what
@@ -826,6 +832,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// the server would preserve values the source had genuinely dropped.
 	pushOpts := []apiclient.PushOption{
 		apiclient.AssertRef(c.refs.Ref(c.stream)),
+		apiclient.TransferUnder(c.sourceLanguage()),
 		apiclient.DeclareBlockProperties(venue.BlockPropertyKeys(allScannedBlocks(blockMap))),
 		apiclient.DeclareTree(scope, localTree),
 		apiclient.CarryEditionWrites(writes),
@@ -1526,20 +1533,47 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 // and extracts blocks grouped by item (file path relative to project root).
 // Returns itemName→(blockID→hash) and itemName→blocks.
 func (c *BowrainSourceConnector) scanLocalBlocks(ctx context.Context, paths []string) (map[string]map[string]string, map[string][]*model.Block, error) {
-	hashMap, blockMap, _, _, err := c.scanLocalBlocksAndMedia(ctx, paths)
-	return hashMap, blockMap, err
+	scan, err := c.scanLocal(ctx, paths)
+	if err != nil {
+		return nil, nil, err
+	}
+	return scan.hashes, scan.blocks, nil
 }
 
-// scanLocalBlocksAndMedia extracts both blocks and media from local files.
-// Returns block hashes, blocks, media hashes (sourceID→blobKey), and media grouped by item.
-func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, paths []string) (
-	map[string]map[string]string, map[string][]*model.Block,
-	map[string]map[string]string, map[string][]*model.Media, error,
-) {
-	hashMap := map[string]map[string]string{}
-	blockMap := map[string][]*model.Block{}
-	mediaHashMap := map[string]map[string]string{}
-	mediaMap := map[string][]*model.Media{}
+// localScan is what a scan of the local files read, grouped by item (the file
+// path relative to the project root).
+type localScan struct {
+	// hashes maps item → block key → record hash, and blocks item → blocks.
+	hashes map[string]map[string]string
+	blocks map[string][]*model.Block
+	// mediaHashes maps item → media id → blob key, and media item → media.
+	mediaHashes map[string]map[string]string
+	media       map[string][]*model.Media
+	// formatless lists the files the scan matched and read nothing from
+	// because no format reads them, slash-separated and relative to the root.
+	// A push leaves them out of the scope it declares (excludePaths).
+	formatless []string
+}
+
+// scanLocal extracts both blocks and media from local files: block hashes,
+// blocks, media hashes (sourceID→blobKey) and media, grouped by item.
+//
+// A file the scan covers and cannot read fails the scan. A push declares the
+// tree it read against a scope of patterns, and the venue deletes whatever the
+// scope covers and the tree leaves out, so a file skipped here would reach the
+// venue as a deleted file: every block, translation and approval it holds
+// there would go. That is what a bundle written in a schema newer than the
+// reader, a format whose plugin is not installed, or a file that no longer
+// parses would otherwise cost.
+func (c *BowrainSourceConnector) scanLocal(ctx context.Context, paths []string) (*localScan, error) {
+	scan := &localScan{
+		hashes:      map[string]map[string]string{},
+		blocks:      map[string][]*model.Block{},
+		mediaHashes: map[string]map[string]string{},
+		media:       map[string][]*model.Media{},
+	}
+	hashMap, blockMap := scan.hashes, scan.blocks
+	mediaHashMap, mediaMap := scan.mediaHashes, scan.media
 
 	recipe := c.project.Recipe
 	assetsEnabled := recipe.AssetsEnabled()
@@ -1578,7 +1612,7 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 	}
 
 	if len(paths) == 0 {
-		return hashMap, blockMap, mediaHashMap, mediaMap, nil
+		return scan, nil
 	}
 
 	for _, p := range paths {
@@ -1590,29 +1624,35 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 			continue
 		}
 
+		relPath, _ := c.project.RelativePath(absPath)
+
 		// Determine format from config mappings or registry detection. A file
-		// declared for its comments alone holds no value to push.
+		// declared for its comments alone holds no value to push, and the
+		// scope leaves it out on its own (pushScope). A file no format reads
+		// holds none either; the push leaves it out of its scope, so whatever
+		// the venue holds under that path stays.
 		formatName := c.detectFormat(absPath)
-		if formatName == "" || (coreproj.ResolvedFile{Item: c.itemFor(absPath), Format: formatName}).CommentsOnly() {
+		if formatName == "" {
+			scan.formatless = append(scan.formatless, filepath.ToSlash(relPath))
 			continue
 		}
-
-		relPath, _ := c.project.RelativePath(absPath)
+		if (coreproj.ResolvedFile{Item: c.itemFor(absPath), Format: formatName}).CommentsOnly() {
+			continue
+		}
 
 		// Extract blocks and optionally media.
 		if assetsEnabled {
 			blocks, media, err := c.readBlocksAndMedia(ctx, absPath, formatName)
 			if err != nil {
-				continue
+				return nil, fmt.Errorf("read %s as %s: %w", relPath, formatName, err)
 			}
 			if err := host.RedactAtIngest(ctx, blocks, redactSpec, c.project.Root, vaultPath, srcLocale); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("redact %s: %w", relPath, err)
+				return nil, fmt.Errorf("redact %s: %w", relPath, err)
 			}
 
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
-				identity := model.ComputeIdentity(b)
-				fileHashes[convergence.BlockKey(b)] = identity.RecordHash()
+				fileHashes[convergence.BlockKey(b)] = venue.RecordHash(b, c.sourceLanguage())
 			}
 			hashMap[relPath] = fileHashes
 			blockMap[relPath] = blocks
@@ -1628,23 +1668,52 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 		} else {
 			blocks, err := c.readBlocks(ctx, absPath, formatName)
 			if err != nil {
-				continue
+				return nil, fmt.Errorf("read %s as %s: %w", relPath, formatName, err)
 			}
 			if err := host.RedactAtIngest(ctx, blocks, redactSpec, c.project.Root, vaultPath, srcLocale); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("redact %s: %w", relPath, err)
+				return nil, fmt.Errorf("redact %s: %w", relPath, err)
 			}
 
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
-				identity := model.ComputeIdentity(b)
-				fileHashes[convergence.BlockKey(b)] = identity.RecordHash()
+				fileHashes[convergence.BlockKey(b)] = venue.RecordHash(b, c.sourceLanguage())
 			}
 			hashMap[relPath] = fileHashes
 			blockMap[relPath] = blocks
 		}
 	}
 
-	return hashMap, blockMap, mediaHashMap, mediaMap, nil
+	return scan, nil
+}
+
+// excludePaths returns scope with each of paths excluded, so a push speaks for
+// none of them and the venue keeps what it holds there. A path is excluded by
+// itself alone: one that holds a glob metacharacter is escaped, so it names
+// that file rather than the files the glob would match. A nil scope stays nil,
+// because a push that declares no scope makes no claim about absence at all.
+func excludePaths(scope venue.Scope, paths []string) venue.Scope {
+	if len(scope) == 0 {
+		return scope
+	}
+	for _, p := range paths {
+		if strings.ContainsAny(p, "*?[") {
+			p = globEscaper.Replace(p)
+		}
+		scope = append(scope, "!"+p)
+	}
+	return scope
+}
+
+// globEscaper escapes the characters path.Match reads as a pattern.
+var globEscaper = strings.NewReplacer(`\`, `\\`, `*`, `\*`, `?`, `\?`, `[`, `\[`)
+
+// sourceLanguage is the project's source language as a project read resolves
+// it: the one the venue takes the revision of a block's source under
+// (venue.SourceRevision). A push sends every basis it carries under it
+// (venue.Basis), and the transfer hash folds that revision, so a push takes it
+// under the same language.
+func (c *BowrainSourceConnector) sourceLanguage() model.LocaleID {
+	return model.LocaleID(host.ResolveSourceLocale("", c.project.Recipe.Defaults.SourceLanguage))
 }
 
 // detectFormat determines the format for a file: the format the claiming
@@ -1837,11 +1906,20 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 		return nil, nil, fmt.Errorf("open document %s: %w", filePath, err)
 	}
 
+	// A reader reports a document it cannot read on the stream. The first such
+	// error is the answer, and the stream is drained so the reader can finish.
 	var blocks []*model.Block
 	var media []*model.Media
+	var readErr error
 	ch := reader.Read(ctx)
 	for pr := range ch {
 		if pr.Error != nil {
+			if readErr == nil {
+				readErr = pr.Error
+			}
+			continue
+		}
+		if readErr != nil || pr.Part == nil {
 			continue
 		}
 		switch pr.Part.Type {
@@ -1858,7 +1936,9 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 			}
 		}
 	}
-
+	if readErr != nil {
+		return nil, nil, readErr
+	}
 	return blocks, media, nil
 }
 

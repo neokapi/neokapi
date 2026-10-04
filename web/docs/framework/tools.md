@@ -137,7 +137,7 @@ func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
         var plan tool.EditPlan
         if conf.ApplySource {
             // The zero key is the source.
-            plan.AddTextEdits(model.VariantKey{}, caseEdits(v.SourceRuns(), convert))
+            plan.AddTextEdits(model.EditionKey{}, caseEdits(v.SourceRuns(), convert))
         }
         return plan, nil
     }

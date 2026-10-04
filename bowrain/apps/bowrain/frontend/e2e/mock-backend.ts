@@ -166,7 +166,7 @@ export async function injectMockBackend(page: Page) {
     const providerConfigs: Record<string, any> = {};
 
     // Per-locale target entries are either a bare string (legacy payloads) or
-    // a {text, status} object carrying the per-locale Target.Status (mirrors
+    // a {text, status} object carrying the per-locale Edition.Status (mirrors
     // the server's BlockTargetInfo). All mock reads go through this helper so
     // both shapes work — the same rule as the frontend's getTargetText.
     const targetText = (block: any, locale: string): string => {

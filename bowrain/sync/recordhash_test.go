@@ -9,13 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// recordHashOf is a block's transfer hash as a push of a project written in
+// English (seedProject) takes it.
+func recordHashOf(b *model.Block) string { return venue.RecordHash(b, "en") }
+
 // itemHashOf folds the blocks a client holds the way a push does — over record
 // hashes, so an item is reported changed when anything the far side stores
 // about one of its blocks has moved.
 func itemHashOf(blocks ...*model.Block) string {
 	hashes := make(map[string]string, len(blocks))
 	for _, b := range blocks {
-		hashes[b.ID] = model.ComputeIdentity(b).RecordHash()
+		hashes[b.ID] = recordHashOf(b)
 	}
 	return venue.ComputeItemHash(hashes)
 }
@@ -46,7 +50,46 @@ func TestDiffEngine_ANewBlockPropertyMakesAnUnchangedItemChange(t *testing.T) {
 	assert.Zero(t, itemDiff.UnchangedCount)
 
 	blockDiff, err := engine.CompareBlocks(ctx, "proj-rec", "main", "src/App.jsx", map[string]string{
-		"b1": model.ComputeIdentity(after).RecordHash(),
+		"b1": recordHashOf(after),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"b1"}, blockDiff.Needed)
+}
+
+// A source whose link moved and whose wording stayed is another source: the
+// item reads changed and the block is asked for, so the store holds the link
+// the checkout holds and grades the decisions on it against that source.
+func TestDiffEngine_AChangedInlineCodeMakesTheBlockNeeded(t *testing.T) {
+	engine, cs := newTestDiffEngine(t)
+	ctx := t.Context()
+	seedProject(t, cs, "proj-rec")
+
+	linked := func(href string) *model.Block {
+		b := &model.Block{ID: "b1", Translatable: true}
+		b.SetSourceRuns([]model.Run{
+			model.TextR("Read "),
+			model.PcOpenR(model.PcOpenRun{ID: "1", Type: "link", Data: `<a href="` + href + `">`}),
+			model.TextR("the guide"),
+			model.PcCloseR(model.PcCloseRun{ID: "1", Type: "link", Data: "</a>"}),
+		})
+		return b
+	}
+	seedBlocks(t, cs, "proj-rec", "docs/guide.md", []*model.Block{linked("/v1/guide")})
+
+	itemDiff, err := engine.CompareItems(ctx, "proj-rec", "main", map[string]string{
+		"docs/guide.md": itemHashOf(linked("/v1/guide")),
+	})
+	require.NoError(t, err)
+	assert.Empty(t, itemDiff.ChangedItems, "the store holds the source the checkout holds")
+
+	moved := linked("/v2/guide")
+	itemDiff, err = engine.CompareItems(ctx, "proj-rec", "main", map[string]string{
+		"docs/guide.md": itemHashOf(moved),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"docs/guide.md"}, itemDiff.ChangedItems)
+	blockDiff, err := engine.CompareBlocks(ctx, "proj-rec", "main", "docs/guide.md", map[string]string{
+		"b1": recordHashOf(moved),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"b1"}, blockDiff.Needed)

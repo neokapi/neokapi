@@ -102,7 +102,7 @@ type EditorTermEnforceResult struct {
 }
 
 // EditorBlockTarget mirrors BlockTargetInfo: one locale's committed target
-// text plus its per-locale review status (the model.Target.Status ladder,
+// text plus its per-locale review status (the model.Edition.Status ladder,
 // "" | draft | translated | established). The desktop reads review
 // state from here — the legacy block-global Properties["translation-status"]
 // is write-never on the server and only a read fallback for old blocks.

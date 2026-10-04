@@ -369,7 +369,9 @@ describe("JudgementCard", () => {
 
   it("says nothing was found, and carries the AI pre-review inside the card", () => {
     render(<JudgementCard findings={[]} aiScore={84} aiModel="claude" testId="checks" />);
-    expect(screen.getByTestId("findings-none").textContent).toContain("No findings for this unit.");
+    expect(screen.getByTestId("findings-none").textContent).toContain(
+      "No findings for this block.",
+    );
     expect(screen.getByTestId("checks-summary").textContent).toContain("AI 84");
     expect(slot("review-findings")?.contains(slot("review-ai-prereview"))).toBe(true);
     expect(slot("review-ai-score")?.textContent).toContain("84");

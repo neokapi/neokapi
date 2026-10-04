@@ -34,7 +34,7 @@ func copyRuns(t *testing.T, runs []model.Run) []model.Run {
 // changing one copy leaves the other alone.
 func copyBlock(t *testing.T, b *model.Block) *model.Block {
 	t.Helper()
-	c := &model.Block{ID: b.ID, Name: b.Name, Unit: b.Unit, Type: b.Type, Translatable: b.Translatable, SourceLocale: b.SourceLocale}
+	c := &model.Block{ID: b.ID, Name: b.Name, Key: b.Key, Type: b.Type, Translatable: b.Translatable, SourceLocale: b.SourceLocale}
 	c.SetSourceRuns(copyRuns(t, b.SourceRuns()))
 	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
 	c.SetEditionStatus(c.Authoritative(model.AuthorityPolicy{}), src.Status)
@@ -54,12 +54,12 @@ func copyBlock(t *testing.T, b *model.Block) *model.Block {
 
 // translations lists the keys of the editions of b other than the one it was
 // read in.
-func translations(b *model.Block) []model.EditionKey { return b.Editions()[1:] }
+func translations(b *model.Block) []model.EditionKey { return b.EditionKeys()[1:] }
 
 // editions renders every edition of a block as canonical JSON, by key.
 func editions(b *model.Block) map[string]string {
 	out := map[string]string{}
-	for _, k := range b.Editions() {
+	for _, k := range b.EditionKeys() {
 		e, _ := b.Edition(k)
 		key, _ := k.MarshalText()
 		out[string(key)] = string(model.CanonicalRunsJSON(e.Runs))

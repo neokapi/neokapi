@@ -217,7 +217,7 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		// labelled "check(s)" read as a contradiction between the commands.
 		checks := s.Dim("")
 		if lc.FailingChecks > 0 {
-			checks = s.Error.Render(fmt.Sprintf("%d unit(s) failing checks", lc.FailingChecks))
+			checks = s.Error.Render(fmt.Sprintf("%d block(s) failing checks", lc.FailingChecks))
 		}
 		t.Row(lc.Locale,
 			fmt.Sprintf("%d%%", lc.Pct["draft"]),
@@ -241,11 +241,11 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	// exist to make impossible; drift the loop declines to work on is what the
 	// re-draft line exists to make impossible.
 	if redrafted := o.RedraftedUnits(); redrafted > 0 {
-		fmt.Fprintf(w, "Re-drafted %d stale unit(s) against the current source. "+
+		fmt.Fprintf(w, "Re-drafted %d stale block(s) against the current source. "+
 			"They return to review un-approved (the earlier approval is not restored).\n", redrafted)
 	}
 	if stale := o.StaleUnits(); stale > 0 {
-		fmt.Fprintf(w, "%d unit(s) stale: their source changed since the translation was decided. "+
+		fmt.Fprintf(w, "%d block(s) stale: their source changed since the translation was decided. "+
 			"Re-review them (kapi status --review); they do not ship until you do.\n", stale)
 	}
 	// A refusal the run could not answer. The wording a reviewer turned down is
@@ -253,7 +253,7 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	// the reader is told which half of the loop is stuck: production reached the
 	// unit and produced the same words, or the flow has no step that would.
 	if rejected := o.RejectedUnits(); rejected > 0 {
-		fmt.Fprintf(w, "%d unit(s) still hold wording a reviewer turned down. "+
+		fmt.Fprintf(w, "%d block(s) still hold wording a reviewer turned down. "+
 			"They do not ship until a pass drafts something else for them.\n", rejected)
 	}
 	if o.Converged {

@@ -3,8 +3,8 @@ package model
 import "sort"
 
 // Overlay rebasing for content rewrites (AD-002 / AD-006). Overlays anchor to
-// the runs of one edition: the edition Source holds (Variant nil) or a derived
-// one (Variant set). A rewrite of that edition's runs normally invalidates
+// the runs of one edition, which Overlay.Edition names: the zero key for the
+// edition the block was read in, the edition's key for any other. A rewrite of that edition's runs normally invalidates
 // every overlay on it, segmentation, terms, entities, because their ranges no
 // longer line up. A rewrite with a known mapping (a redaction's span to
 // replacement edits, an edit's own ranges, or the changed region two texts
@@ -25,19 +25,16 @@ type RunEdit struct {
 	NewLen int
 }
 
-// onEdition reports whether o annotates the edition named by edition (nil for
-// the edition Source holds).
-func (o *Overlay) onEdition(edition *VariantKey) bool {
-	if edition == nil || o.Variant == nil {
-		return edition == nil && o.Variant == nil
-	}
-	return o.Variant.Canonical() == edition.Canonical()
+// onEdition reports whether o annotates edition k (the zero key for the
+// edition the block was read in), whichever way either spelled the language.
+func (o *Overlay) onEdition(k EditionKey) bool {
+	return o.Edition.Canonical() == k.Canonical()
 }
 
 // RemapOverlays rebases the overlay spans on one edition of b from oldRuns,
 // the runs they anchor to, onto newRuns, the edition's rewritten runs, given
-// the edits applied to the flattened text. edition nil is the edition Source
-// holds. It returns the number of spans dropped.
+// the edits applied to the flattened text. The zero key names the edition the
+// block was read in. It returns the number of spans dropped.
 //
 // A range span follows the text it covers (remapRangeSpan): an edit inside it
 // grows or shrinks it, an edit that replaces all of its text leaves it over the
@@ -67,7 +64,7 @@ func (o *Overlay) onEdition(edition *VariantKey) bool {
 // added, removed, or reclassified without changing the text flattening) shifts
 // run indices, so every range span is re-projected through its text range onto
 // the new runs.
-func RemapOverlays(b *Block, edition *VariantKey, oldRuns, newRuns []Run, edits []RunEdit) int {
+func RemapOverlays(b *Block, edition EditionKey, oldRuns, newRuns []Run, edits []RunEdit) int {
 	if b == nil || len(b.Overlays) == 0 {
 		return 0
 	}
@@ -452,12 +449,12 @@ func codeIdentity(r Run) string {
 	return string(CanonicalRunsJSON([]Run{r}))
 }
 
-// DropOverlays removes every overlay on one edition of b (edition nil is the
-// edition Source holds): the opaque rewrite path (AD-006), where a whole
+// DropOverlays removes every overlay on one edition of b (the zero key names
+// the edition the block was read in): the opaque rewrite path (AD-006), where a whole
 // replacement with no derivable mapping cannot rebase run-anchored spans.
 // Overlays on other editions are untouched. It returns the number of overlays
 // dropped.
-func DropOverlays(b *Block, edition *VariantKey) int {
+func DropOverlays(b *Block, edition EditionKey) int {
 	if b == nil || len(b.Overlays) == 0 {
 		return 0
 	}
@@ -475,12 +472,12 @@ func DropOverlays(b *Block, edition *VariantKey) int {
 }
 
 // OverlaysInBounds reports whether every span of every overlay on one edition
-// (edition nil is the edition Source holds) anchors to a valid position in
+// (the zero key names the edition the block was read in) anchors to a valid position in
 // runs, the edition's content. It is the backstop after a rewrite: the rewrite
 // must drop or rebase (RemapOverlays) the edition's overlays so no span
 // dangles. When a span is out of bounds it returns that overlay's type and
 // false.
-func (b *Block) OverlaysInBounds(edition *VariantKey, runs []Run) (OverlayType, bool) {
+func (b *Block) OverlaysInBounds(edition EditionKey, runs []Run) (OverlayType, bool) {
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
 		if !o.onEdition(edition) {

@@ -109,7 +109,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 		if h, ok := held[key]; ok {
 			delete(held, key)
 			if err := recordVenueAnswer(ctx, st, u, withHeld(u, h), h.DecidedBy); err != nil {
-				return retired, fmt.Errorf("restore unit state %s/%s: %w", u.Unit, variant, err)
+				return retired, fmt.Errorf("restore block state %s/%s: %w", u.Unit, variant, err)
 			}
 			retired++
 			continue
@@ -123,7 +123,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 		}
 		if staleRejections[key] && u.Decision.ReviewState == venue.ReviewStateRejected {
 			if err := recordVenueAnswer(ctx, st, u, withoutVerdict(u), ""); err != nil {
-				return retired, fmt.Errorf("retire unit state %s/%s: %w", u.Unit, variant, err)
+				return retired, fmt.Errorf("retire block state %s/%s: %w", u.Unit, variant, err)
 			}
 			retired++
 			continue
@@ -135,7 +135,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 			continue
 		}
 		if err := recordVenueAnswer(ctx, st, u, withoutVerdict(u), ""); err != nil {
-			return retired, fmt.Errorf("retire unit state %s/%s: %w", u.Unit, variant, err)
+			return retired, fmt.Errorf("retire block state %s/%s: %w", u.Unit, variant, err)
 		}
 		retired++
 	}
@@ -143,7 +143,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 	// decisions only, and a withdrawal leaves the unit with none), so the
 	// approval the venue kept is recorded back from what the venue sent.
 	for key, h := range held {
-		var variant model.VariantKey
+		var variant model.EditionKey
 		if err := variant.UnmarshalText([]byte(h.Variant)); err != nil || variant.Locale == "" {
 			continue
 		}
@@ -159,12 +159,12 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 			}
 		}
 		u := withHeld(state.UnitState{Scope: scope, Unit: h.Unit, Variant: variant,
-			TargetHash: h.TargetHash, ContentHash: h.ContentHash}, h)
+			Revision: h.Revision, Basis: h.Basis}, h)
 		if !u.Decides() {
 			continue
 		}
 		if err := st.RecordEntry(ctx, u, h.DecidedBy, state.OriginVenue); err != nil {
-			return retired, fmt.Errorf("restore unit state %s/%s: %w", h.Unit, h.Variant, err)
+			return retired, fmt.Errorf("restore block state %s/%s: %w", h.Unit, h.Variant, err)
 		}
 		retired++
 	}
@@ -216,9 +216,9 @@ func withoutVerdict(u state.UnitState) state.UnitState {
 
 // withHeld is the record the venue kept when it refused to take back an
 // approval: the local record with the venue's verdict on it again, and the
-// venue's record time, since the record is now the venue's. The hashes stay
+// venue's record time, since the record is now the venue's. The pairing stays
 // the local record's own; a withdrawal is refused only over the pairing the
-// approval blessed, so they already agree.
+// approval blessed, so the two already agree.
 func withHeld(u state.UnitState, h venue.UnitDecision) state.UnitState {
 	u.Status = model.TargetStatus(h.Status)
 	u.Decision.ReviewState = h.ReviewState
@@ -235,11 +235,12 @@ func withHeld(u state.UnitState, h venue.UnitDecision) state.UnitState {
 }
 
 // asVenueRecord is the record the venue kept when it refused a rejection of a
-// translation it has since replaced: the venue's record whole, hashes included,
-// because the local record names a translation the venue no longer holds.
+// translation it has since replaced: the venue's record whole, its pairing
+// included, because the local record names a translation the venue no longer
+// holds.
 func asVenueRecord(u state.UnitState, h venue.UnitDecision) state.UnitState {
 	u = withHeld(u, h)
-	u.TargetHash = h.TargetHash
-	u.ContentHash = h.ContentHash
+	u.Revision = h.Revision
+	u.Basis = h.Basis
 	return u
 }

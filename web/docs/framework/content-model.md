@@ -1,8 +1,8 @@
 ---
 sidebar_position: 3
 title: Content Model
-description: The neokapi content model — documents as a stream of Parts (Layer, Block, Data, Media); a Block carries a flat Run sequence, variant-keyed Targets, and stand-off Overlays, so tools and translations work independently of the source file format.
-keywords: [content model, Part, Block, Run, Overlay, variant target, Layer, multilingual content, format-independent]
+description: "The neokapi content model: documents as a stream of Parts (Layer, Block, Data, Media); a Block carries its content as peer editions, each a flat Run sequence, with stand-off Overlays, so tools and translations work independently of the source file format."
+keywords: [content model, Part, Block, Run, Overlay, edition, Layer, multilingual content, format-independent]
 ---
 
 import { BlockPreview } from "@site/src/components/curated";
@@ -17,13 +17,14 @@ turns it into the same handful of types, so [tools](/framework/tools),
 [flows](/framework/flows), [content memory](/framework/content-memory),
 and editors all work against one representation rather than against each format's
 quirks. It is a deliberate, format-independent abstraction over the content inside
-a document: the unit you read, check, edit, and write back.
+a document: the blocks you read, check, edit, and write back.
 
 **By analogy:** read it as a *streaming DOM* (Parts flow past instead of sitting
-in one tree), where each translatable node is a *record with variants* (one source,
-many keyed targets) and annotations are *margin notes* pinned to spans rather than
-edits to the text. Part, Layer, Block, Run, Target, Overlay and VariantKey are
-each defined once in [Concepts](/framework/concepts); this page develops them.
+in one tree), where each translatable node is a *record with editions* (the one
+the document is written in, and one per translation, tone or channel) and
+annotations are *margin notes* pinned to spans rather than edits to the text.
+Part, Layer, Block, Run, Edition, Overlay and EditionKey are each defined once in
+[Concepts](/framework/concepts); this page develops them.
 
 :::tip Try it: the content model, every way
 Pick a lesson and a sample (or drop in your own file) and watch the real `kapi`
@@ -31,7 +32,7 @@ reader decompose it in your browser via WebAssembly. **Anatomy** shows the Layer
 Groups, Blocks and **Runs**, so an HTML `<strong>` shows up as a paired inline
 code while a JSON `{name}` stays literal text. The other lessons reveal what rides
 on a Block without touching its text: **segmentation** boundaries, **terms &
-findings** overlays, a variant-keyed **source ↔ target**, the document **structure**, and a
+findings** overlays, the **source ↔ target** editions, the document **structure**, and a
 **round-trip** that proves only the text changed.
 :::
 
@@ -81,7 +82,7 @@ The payload a Part carries is one of a few resource types. Together they describ
 both the content you read, edit, or translate and the structure that surrounds it.
 
 <TypeDiagram
-  caption="A Block is the centre: its Source is a flat run sequence, its Targets are keyed by variant, and its Overlays sit beside the runs rather than in them."
+  caption="A Block is the centre: each of its editions is a flat run sequence under its key, and its Overlays sit beside the runs rather than in them."
   boxes={[
     {
       name: "Layer",
@@ -99,8 +100,8 @@ both the content you read, edit, or translate and the structure that surrounds i
       role: "translate",
       fields: [
         { name: "Translatable", type: "bool" },
-        { name: "Source", type: "[]Run" },
-        { name: "Targets", type: "map[VariantKey]*Target" },
+        { name: "Editions", type: "map[EditionKey]*Edition" },
+        { name: "Native", type: "[]EditionKey" },
         { name: "Overlays", type: "[]Overlay" },
         { name: "Annotations", type: "map[string]Payload" },
       ],
@@ -119,12 +120,12 @@ both the content you read, edit, or translate and the structure that surrounds i
       ],
     },
     {
-      name: "Target",
+      name: "Edition",
       col: 2,
       role: "translate",
       fields: [
         { name: "Runs", type: "[]Run" },
-        { name: "Status", type: "TargetStatus" },
+        { name: "Status", type: "Status" },
       ],
     },
     {
@@ -133,15 +134,15 @@ both the content you read, edit, or translate and the structure that surrounds i
       role: "annotate",
       fields: [
         { name: "Type", type: "OverlayType" },
-        { name: "Variant", type: "*VariantKey" },
+        { name: "Edition", type: "EditionKey" },
         { name: "Spans", type: "[]Span" },
       ],
     },
   ]}
   edges={[
     { from: 0, to: 1, label: "contains" },
-    { from: 1, to: 2, label: "flat Source sequence" },
-    { from: 1, to: 3, label: "per variant" },
+    { from: 1, to: 2, label: "each edition's flat sequence" },
+    { from: 1, to: 3, label: "one per edition key" },
     { from: 1, to: 4, label: "positional stand-off" },
   ]}
 />
@@ -150,19 +151,22 @@ both the content you read, edit, or translate and the structure that surrounds i
   content. Layers nest. Embedded content (HTML inside a JSON value, CDATA inside
   XML) becomes a **child layer** with its own format, so the right reader handles
   it and inline markup is preserved at every level rather than being flattened.
-- **Block** is the primary modifiable content unit. Its
-  `Source` is a single flat `[]Run`, the content you read, check, and edit. When
-  a workflow translates, the results are first-class `Target` records keyed by
-  a **VariantKey** (locale plus optional tone and channel); a monolingual pass
-  leaves `Targets` empty. It carries a `Translatable` flag (a parse-time
+- **Block** is the primary modifiable content. Its content is a set of peer
+  **editions**, each a single flat `[]Run`: the edition the document is written
+  in, the content you read, check, and edit, and one more for each translation,
+  tone or channel. Each edition is a first-class `Edition` record with its
+  status and provenance, keyed by an **EditionKey** (a language plus an optional
+  tone and channel); a monolingual pass leaves the block with the one edition it
+  was read in. `Native` lists the editions the document itself holds: one for a
+  Markdown paragraph, two for a bilingual XLIFF entry. It carries a `Translatable` flag (a parse-time
   classification marking content the reader extracted versus inert skeleton),
   opaque pass-through `Properties`, and the two stand-off
   carriers described in [Two ways to annotate a block](#two-ways-to-annotate-a-block):
   positional `Overlays` and block-scoped `Annotations`.
 - **Overlay** is a typed, run-anchored interpretation _of_ a block's runs:
   sentence segmentation, terminology, entities, check findings, source↔target
-  alignment. Each overlay is a **positional stand-off layer** over one side of the
-  block, layered over the runs rather than baked into the structure. There is no
+  alignment. Each overlay is a **positional stand-off layer** over one edition of
+  the block, layered over the runs rather than baked into the structure. There is no
   structural `Segment` type: a segment is just a span in the segmentation overlay,
   so segmentation is opt-in, multi-layer, and reversible (drop the overlay to get
   the unsegmented content back). The `segmentation` tool writes that overlay from
@@ -180,7 +184,7 @@ both the content you read, edit, or translate and the structure that surrounds i
 
 ## Two ways to annotate a block
 
-A block's content is just its `Source []Run` and its variant-keyed `Targets`.
+A block's content is just its editions, each a `[]Run` under its key.
 Every typed interpretation _of_ that content is **stand-off**, kept separate
 from the runs, so the same content can carry segmentation, terminology, check
 findings, notes, and analysis results at once without rewriting it. A block
@@ -188,8 +192,8 @@ holds stand-off interpretations in two carriers, chosen by whether the
 interpretation has a position:
 
 - **Overlays** (`Block.Overlays`) are **positional**: each overlay anchors to run
-  ranges. An overlay has a `Type`, an optional `Variant` (nil = the source side;
-  set = a target variant), an optional `Layer` (segmentation granularity; `""` =
+  ranges. An overlay has a `Type`, the `Edition` it sits on (the zero key for the
+  edition the block was read in), an optional `Layer` (segmentation granularity; `""` =
   the primary sentence segmentation), and a list of `Spans`. A `Span` carries a
   run `Range` (its position), an `ID`, optional `Props`, and a typed payload
   `Value`. Because spans anchor to runs, a source rewrite moves them. When a
@@ -245,7 +249,7 @@ canonical keys live in `core/model/structure.go`.
 
 The Run sequence is where neokapi solves a hard problem: how to let a tool, a
 translation engine, or content memory operate on the words while keeping inline markup like
-`<b>`, `**`, or `{count}` intact. A block's source (and each target) is a flat
+`<b>`, `**`, or `{count}` intact. Each edition of a block, source and target alike, is a flat
 `[]Run`, a discriminated union where each run is exactly one of:
 
 | Run kind        | Field      | Represents                                     |
@@ -314,18 +318,18 @@ back with only the changed text differing.
 ## A monolingual path: no targets at all
 
 Translation is the most visible thing the content model carries, but it is not a
-requirement. A block's `Targets` map can stay empty for the whole run, and the
-model works the same way when the only locale in play is the source. This is
+requirement. A block can hold the one edition it was read in for the whole run,
+and the model works the same way when the only locale in play is the source. This is
 the path a voice or terminology pass takes: read a file, check the source content, edit it in
 place, and write the original back with only the edited text changed.
 
-Take a Markdown file with one off-brand sentence. The reader produces blocks whose
-`Source` is populated and whose `Targets` is empty:
+Take a Markdown file with one off-brand sentence. The reader produces blocks that
+hold one edition, the one the document is written in:
 
 ```
 Block "intro"
-  Source:  "Our solution is a game-changing, world-class platform."
-  Targets: {}        // no translation — monolingual
+  Editions: {en: "Our solution is a game-changing, world-class platform."}
+                     // no translation, monolingual
 ```
 
 A [check](/framework/checks) reads each block's `SourceText()`, compares it
@@ -336,18 +340,18 @@ runs. A check annotates and leaves the text alone (see
 
 ```
 Block "intro"
-  Source:   "Our solution is a game-changing, world-class platform."
+  Editions: {en: "Our solution is a game-changing, world-class platform."}
   Overlays: [{Type: "qa", Range: runs[…], note: "off-voice: 'game-changing, world-class'"}]
 ```
 
 An edit then settles the source. A `Transform` tool (or `ksed`, or an AI rewrite)
-returns an edit plan; the framework applier rewrites the block's `Source` runs in
-place and rebases the surviving overlays onto the new runs:
+returns an edit plan; the framework applier rewrites the runs of the edition the
+block was read in, in place, and rebases the surviving overlays onto the new runs:
 
 ```
 Block "intro"
-  Source:  "Our product is a content engine."
-  Targets: {}        // still monolingual
+  Editions: {en: "Our product is a content engine."}
+                     // still monolingual
 ```
 
 Finally the writer reconstructs the file from the Part stream. Because every

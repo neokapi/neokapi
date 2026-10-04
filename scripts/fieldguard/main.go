@@ -1,37 +1,30 @@
-// Command fieldguard counts the uses of the block fields that the peer-edition
-// flip removes from the content model.
+// Command fieldguard gates the fields that store a block's editions.
 //
-// A block stores its content in three fields: Source holds the edition the
-// block was read in, SourceStatus holds that edition's status, and Targets
-// holds every other edition as a *model.Target. WP14 of the edit model
-// (docs/internals/edit-model.md, section 6.4) replaces them with peer editions.
-// Every other package reaches content through the accessors in
+// A block holds its content as peer editions (docs/internals/edit-model.md,
+// section 6.2): Block.Editions maps each edition key to its content, and
+// Block.Native lists the editions the document's bytes hold. Every package
+// outside core/model reaches them through the accessors in
 // core/model/edition.go (Edition, SetEdition, SetEditionStatus, RemoveEdition,
-// Editions, EachEdition, Authoritative), so the flip can change core/model
-// alone. This check finds what still reaches past them.
+// EditionKeys, EachEdition, Authoritative, NativeEditions and the target
+// accessors), so how the editions are stored can change inside core/model
+// alone. This check finds code that reaches past them.
 //
 // It type-checks every package, with its tests, of every module in go.work and
 // of every other module in the tree (the plugins under plugins/ build on their
-// own), and reports each identifier that resolves to:
-//
-//   - the field Block.Source, Block.Targets or Block.SourceStatus, whether in a
-//     selector (b.Source), a composite literal's key (model.Block{Source: r})
-//     or a selector that reaches the field through an embedded Block;
-//   - the type model.Target, which the flip replaces with model.Edition; or
-//   - a function or method of core/model whose parameters or results carry a
-//     model.Target (model.NewTarget, Block.Target, Block.SetTarget and the
-//     variant forms).
+// own), and reports each identifier that resolves to the field Block.Editions
+// or Block.Native, whether in a selector (b.Editions), a composite literal's
+// key (model.Block{Editions: m}) or a selector that reaches the field through
+// an embedded Block.
 //
 // Matching is by the object an identifier resolves to, so a field of another
-// type that shares a name (a proto message's Source, an AltTranslation's
-// Source) is not reported. core/model itself is exempt, and so is each package
-// listed in allowed, with the reason it keeps the fields.
+// type that shares a name (change.Description's Editions, a request's
+// Editions list) is not reported. core/model itself is exempt, and no other
+// package is: the plugin-wire mapping reaches the editions through the
+// accessors too.
 //
-// core/model also exports helpers that exist for tests, listed in testOnly
-// (Block.FileTargetAsSpelled, which files a target under a key that is not
-// canonical). Their uses outside core/model are counted on their own, test
-// and non-test. A use outside a _test.go file fails the check, with -report
-// or without, and the allowed packages get no exception.
+// A test may write the storage directly to plant a state no accessor
+// produces, such as an edition filed under a key that is not canonical. Its
+// uses are counted and do not fail the check; a use outside a test does.
 //
 // Packages load under each build configuration in configs in turn. The first
 // covers the host with every test tag; each later one (the model tags,
@@ -40,16 +33,13 @@
 // builds is listed as unchecked.
 //
 // The output counts the uses per package, non-test and test separately,
-// grouped by module, with the totals and a count per kind, then the uses of
-// each test-only helper. The check fails while a use of a field, the type or a
-// function remains outside core/model and the allowed packages, or while a
-// test-only helper is used outside core/model at all. -report prints the same
-// inventory and exits 0 unless a test-only helper is used outside a test,
-// which is how make fieldguard runs it until the flip turns the gate on.
+// grouped by module, with the totals and a count per field. The check fails
+// while a use outside a test remains outside core/model; -report prints the
+// same inventory and exits 0.
 //
 // Run from the repository root:
 //
-//	go run ./scripts/fieldguard            # fail while a use remains
+//	go run ./scripts/fieldguard            # fail on a use outside a test
 //	go run ./scripts/fieldguard -report    # print the inventory and exit 0
 //	go run ./scripts/fieldguard -v         # list every use as well
 //	go run ./scripts/fieldguard -format markdown
@@ -86,22 +76,8 @@ const modelPath = "github.com/neokapi/neokapi/core/model"
 // the fields live.
 const exemptDir = "core/model"
 
-// fields are the Block fields the flip removes.
-var fields = map[string]bool{"Source": true, "Targets": true, "SourceStatus": true}
-
-// allowed lists the packages, by directory, that keep using the fields, each
-// with the reason.
-var allowed = map[string]string{
-	"core/plugin/protoconvert": "the plugin wire: BlockMessage keeps its source and targets field numbers, and the mapping reads source as the first native edition and targets as the rest (edit-model 6.4)",
-}
-
-// testOnly lists the core/model functions and methods that exist for tests,
-// by the name kindOf gives them, each with what it does. A test outside
-// core/model may use one; any other file fails the check. The flip removes
-// them (edit-model WP14), so the gate fails while a use remains.
-var testOnly = map[string]string{
-	"Block.FileTargetAsSpelled": "files a target under a key that is not canonical, which no accessor or decoder does",
-}
+// fields are the Block fields that store the editions.
+var fields = map[string]bool{"Editions": true, "Native": true}
 
 // config is one build configuration packages load under.
 type config struct {
@@ -127,7 +103,7 @@ var configs = []config{
 
 func main() {
 	selfTest := flag.Bool("self-test", false, "prove the check on fixtures")
-	report := flag.Bool("report", false, "print the inventory and exit 0 while uses remain")
+	report := flag.Bool("report", false, "print the inventory and exit 0")
 	verbose := flag.Bool("v", false, "list every use")
 	format := flag.String("format", "text", "output format: text, markdown or json")
 	flag.Parse()
@@ -170,29 +146,22 @@ func main() {
 	}
 }
 
-// verdict returns why the check fails, or "" when it passes. A test-only
-// helper used outside a test fails it under report as well; every other use
-// fails it only when report is false.
+// verdict returns why the check fails, or "" when it passes: a use outside a
+// test and outside core/model fails it unless report is true.
 func (inv *inventory) verdict(report bool) string {
-	var b strings.Builder
-	if bad := inv.misused(); len(bad) > 0 {
-		fmt.Fprintf(&b, "fieldguard: %d uses outside a test of a core/model helper that exists for tests:\n", len(bad))
-		for _, u := range bad {
-			fmt.Fprintf(&b, "  %s:%d:%d: %s\n", u.File, u.Line, u.Col, u.Kind)
-		}
-		fmt.Fprintln(&b, "Write an edition through SetEdition or SetTargetEdition, which file it under its canonical key.")
-	}
 	if report {
-		return b.String()
+		return ""
 	}
-	if n := inv.remaining(); n > 0 {
-		fmt.Fprintf(&b, "fieldguard: %d uses of Block.Source, Block.Targets, Block.SourceStatus and model.Target remain outside core/model and the allowed packages.\n", n)
-		fmt.Fprintln(&b, "Read and write a block's editions through the accessors in core/model/edition.go, or list the package in scripts/fieldguard with the reason it keeps the fields.")
+	bad := inv.misused()
+	if len(bad) == 0 {
+		return ""
 	}
-	if n := len(inv.helpers); n > 0 {
-		fmt.Fprintf(&b, "fieldguard: %d uses of a test-only core/model helper remain outside core/model.\n", n)
-		fmt.Fprintln(&b, "The flip removes these helpers with the fields they write (docs/internals/edit-model.md, WP14).")
+	var b strings.Builder
+	fmt.Fprintf(&b, "fieldguard: %d uses of Block.Editions or Block.Native outside a test and core/model:\n", len(bad))
+	for _, u := range bad {
+		fmt.Fprintf(&b, "  %s:%d:%d: %s\n", u.File, u.Line, u.Col, u.Kind)
 	}
+	fmt.Fprintln(&b, "Read and write a block's editions through the accessors in core/model/edition.go.")
 	return b.String()
 }
 
@@ -502,8 +471,8 @@ func pending(root string, mods []module, m module, all []string, built map[strin
 	return out
 }
 
-// scan reports every identifier in info that resolves to one of the things
-// the flip removes, with its position and kind.
+// scan reports every identifier in info that resolves to a field that stores
+// the editions, with its position and kind.
 func scan(fset *token.FileSet, info *types.Info, add func(token.Position, string)) {
 	for id, obj := range info.Uses {
 		if k := kindOf(obj); k != "" {
@@ -512,34 +481,14 @@ func scan(fset *token.FileSet, info *types.Info, add func(token.Position, string
 	}
 }
 
-// kindOf names what obj is when it is a Block field the flip removes, the
-// type model.Target, a core/model function whose signature carries one, or a
-// test-only helper listed in testOnly. Anything else is "".
+// kindOf names what obj is when it is a Block field that stores the
+// editions. Anything else is "".
 func kindOf(obj types.Object) string {
 	if obj == nil || obj.Pkg() == nil || obj.Pkg().Path() != modelPath {
 		return ""
 	}
-	switch o := obj.(type) {
-	case *types.Var:
-		if o.IsField() && fields[o.Name()] && blockField(o.Pkg(), o.Name()) == o {
-			return "Block." + o.Name()
-		}
-	case *types.TypeName:
-		if o.Name() == "Target" && !o.IsAlias() {
-			return "model.Target"
-		}
-	case *types.Func:
-		sig := o.Signature()
-		name := "model." + o.Name()
-		if recv := sig.Recv(); recv != nil {
-			name = recvName(recv.Type()) + "." + o.Name()
-		}
-		if _, ok := testOnly[name]; ok {
-			return name
-		}
-		if carriesTarget(sig.Params()) || carriesTarget(sig.Results()) {
-			return name
-		}
+	if o, ok := obj.(*types.Var); ok && o.IsField() && fields[o.Name()] && blockField(o.Pkg(), o.Name()) == o {
+		return "Block." + o.Name()
 	}
 	return ""
 }
@@ -567,56 +516,7 @@ func blockField(pkg *types.Package, name string) *types.Var {
 	return byName[name]
 }
 
-// carriesTarget reports whether a parameter or result list carries a
-// model.Target.
-func carriesTarget(t *types.Tuple) bool {
-	for v := range t.Variables() {
-		if hasTarget(v.Type()) {
-			return true
-		}
-	}
-	return false
-}
-
-// hasTarget reports whether t is model.Target or is built from it: a pointer,
-// slice, array, map, channel or function over it. It does not look inside
-// another named type, so a *model.Block, whose Targets hold Target values,
-// does not count.
-func hasTarget(t types.Type) bool {
-	switch t := t.(type) {
-	case *types.Named:
-		o := t.Obj()
-		return o.Pkg() != nil && o.Pkg().Path() == modelPath && o.Name() == "Target"
-	case *types.Alias:
-		return hasTarget(types.Unalias(t))
-	case *types.Pointer:
-		return hasTarget(t.Elem())
-	case *types.Slice:
-		return hasTarget(t.Elem())
-	case *types.Array:
-		return hasTarget(t.Elem())
-	case *types.Map:
-		return hasTarget(t.Key()) || hasTarget(t.Elem())
-	case *types.Chan:
-		return hasTarget(t.Elem())
-	case *types.Signature:
-		return carriesTarget(t.Params()) || carriesTarget(t.Results())
-	}
-	return false
-}
-
-// recvName is a method receiver's type name without the pointer.
-func recvName(t types.Type) string {
-	if p, ok := t.(*types.Pointer); ok {
-		t = p.Elem()
-	}
-	if n, ok := t.(*types.Named); ok {
-		return n.Obj().Name()
-	}
-	return types.TypeString(t, nil)
-}
-
-// use is one identifier that resolves to something the flip removes.
+// use is one identifier that resolves to a field that stores the editions.
 type use struct {
 	File    string `json:"file"`
 	Line    int    `json:"line"`
@@ -625,7 +525,6 @@ type use struct {
 	Test    bool   `json:"test"`
 	Module  string `json:"module"`
 	Package string `json:"package"` // the directory, relative to the root
-	Allowed bool   `json:"allowed,omitempty"`
 }
 
 // configCount is a build configuration and the number of repository files it
@@ -660,8 +559,7 @@ type inventory struct {
 	mods      []module
 	seen      map[string]bool
 	uses      []use
-	helpers   []use // uses of a test-only helper, which the allowlist never covers
-	packages  int   // package variants type-checked
+	packages  int // package variants type-checked
 	configs   []configCount
 	unchecked []string
 	warnings  []string
@@ -704,46 +602,17 @@ func (inv *inventory) add(pos token.Position, kind string) {
 		Module:  moduleOf(inv.mods, dir).Path,
 		Package: dir,
 	}
-	if _, ok := testOnly[kind]; ok {
-		inv.helpers = append(inv.helpers, u)
-		return
-	}
-	_, u.Allowed = allowed[dir]
 	inv.uses = append(inv.uses, u)
 }
 
-// remaining is the number of uses outside the allowed packages.
-func (inv *inventory) remaining() int {
-	n := 0
-	for _, u := range inv.uses {
-		if !u.Allowed {
-			n++
-		}
-	}
-	return n
-}
-
-// misused returns the uses of a test-only helper outside a test, in file
-// order.
+// misused returns the uses outside a test, in file order: the ones that fail
+// the check.
 func (inv *inventory) misused() []use {
 	var out []use
-	for _, u := range sortUses(inv.helpers) {
+	for _, u := range inv.sortedUses() {
 		if !u.Test {
 			out = append(out, u)
 		}
-	}
-	return out
-}
-
-// helperCounts counts the uses of each test-only helper, by its name, with
-// an entry for every helper in testOnly.
-func (inv *inventory) helperCounts() map[string]*count {
-	out := map[string]*count{}
-	for name := range testOnly {
-		out[name] = &count{}
-	}
-	for _, u := range inv.helpers {
-		out[u.Kind].add(u)
 	}
 	return out
 }
@@ -755,7 +624,7 @@ type count struct {
 	Test         int            `json:"test"`
 	NonTestFiles int            `json:"non_test_files"`
 	TestFiles    int            `json:"test_files"`
-	Kinds        map[string]int `json:"kinds,omitempty"` // "Block.Source" and "Block.Source (test)"
+	Kinds        map[string]int `json:"kinds,omitempty"` // "Block.Editions" and "Block.Editions (test)"
 	files        map[string]bool
 }
 
@@ -786,7 +655,6 @@ func (c *count) add(u use) {
 type pkgCount struct {
 	Module  string `json:"module"`
 	Package string `json:"package"`
-	Allowed string `json:"allowed,omitempty"` // the reason, for an allowed package
 	count
 }
 
@@ -794,7 +662,6 @@ type pkgCount struct {
 type summary struct {
 	Packages []*pkgCount `json:"packages"`
 	Total    count       `json:"total"`
-	Allowed  count       `json:"allowed"`
 	// Non-test and test package counts in the total.
 	NonTestPackages int `json:"non_test_packages"`
 	TestPackages    int `json:"test_packages"`
@@ -805,15 +672,10 @@ func (inv *inventory) summarize() summary {
 	for _, u := range inv.uses {
 		pc := byPkg[u.Package]
 		if pc == nil {
-			pc = &pkgCount{Module: u.Module, Package: u.Package, Allowed: allowed[u.Package]}
+			pc = &pkgCount{Module: u.Module, Package: u.Package}
 			byPkg[u.Package] = pc
 		}
 		pc.add(u)
-	}
-	for dir, reason := range allowed {
-		if byPkg[dir] == nil {
-			byPkg[dir] = &pkgCount{Module: moduleOf(inv.mods, dir).Path, Package: dir, Allowed: reason}
-		}
 	}
 	var s summary
 	for _, pc := range byPkg {
@@ -831,16 +693,9 @@ func (inv *inventory) summarize() summary {
 		return a.Package < b.Package
 	})
 	for _, u := range inv.uses {
-		if u.Allowed {
-			s.Allowed.add(u)
-		} else {
-			s.Total.add(u)
-		}
+		s.Total.add(u)
 	}
 	for _, pc := range s.Packages {
-		if pc.Allowed != "" {
-			continue
-		}
 		if pc.NonTest > 0 {
 			s.NonTestPackages++
 		}
@@ -851,8 +706,7 @@ func (inv *inventory) summarize() summary {
 	return s
 }
 
-// kinds lists the kinds in c, in a stable order: the fields, the type, then
-// the functions.
+// kinds lists the kinds in c, in a stable order: Editions, then Native.
 func kinds(c count) []string {
 	set := map[string]bool{}
 	for k := range c.Kinds {
@@ -860,16 +714,12 @@ func kinds(c count) []string {
 	}
 	rank := func(k string) int {
 		switch k {
-		case "Block.Source":
+		case "Block.Editions":
 			return 0
-		case "Block.Targets":
+		case "Block.Native":
 			return 1
-		case "Block.SourceStatus":
-			return 2
-		case "model.Target":
-			return 3
 		}
-		return 4
+		return 2
 	}
 	out := make([]string, 0, len(set))
 	for k := range set {
@@ -907,12 +757,9 @@ func (inv *inventory) writeText(w io.Writer, verbose bool) {
 	for _, pc := range s.Packages {
 		width = max(width, len(pc.Package)+2)
 	}
-	for name := range testOnly {
-		width = max(width, len(name)+2)
-	}
 	fmt.Fprintf(w, "fieldguard: type-checked %d package variants in %d modules under %s\n",
 		inv.packages, len(inv.mods), inv.configLine())
-	fmt.Fprintln(w, "Uses of Block.Source, Block.Targets, Block.SourceStatus and model.Target outside core/model:")
+	fmt.Fprintln(w, "Uses of Block.Editions and Block.Native outside core/model:")
 	fmt.Fprintf(w, "%-*s %9s %9s\n", width, "", "non-test", "test")
 	module := ""
 	var modTotal count
@@ -922,9 +769,6 @@ func (inv *inventory) writeText(w io.Writer, verbose bool) {
 		}
 	}
 	for _, pc := range s.Packages {
-		if pc.Allowed != "" {
-			continue
-		}
 		if pc.Module != module {
 			flush()
 			module, modTotal = pc.Module, count{}
@@ -935,24 +779,12 @@ func (inv *inventory) writeText(w io.Writer, verbose bool) {
 		fmt.Fprintf(w, "%-*s %9d %9d\n", width, "  "+pc.Package, pc.NonTest, pc.Test)
 	}
 	flush()
-	fmt.Fprintln(w, "allowed")
-	for _, pc := range s.Packages {
-		if pc.Allowed != "" {
-			fmt.Fprintf(w, "%-*s %9d %9d   %s\n", width, "  "+pc.Package, pc.NonTest, pc.Test, pc.Allowed)
-		}
-	}
-	fmt.Fprintln(w, "total outside core/model and the allowed packages:")
+	fmt.Fprintln(w, "total outside core/model:")
 	fmt.Fprintf(w, "  non-test: %d uses in %d files across %d packages\n", s.Total.NonTest, s.Total.NonTestFiles, s.NonTestPackages)
 	fmt.Fprintf(w, "  test:     %d uses in %d files across %d packages\n", s.Total.Test, s.Total.TestFiles, s.TestPackages)
 	fmt.Fprintf(w, "by kind:%*s %9s %9s\n", width-len("by kind:"), "", "non-test", "test")
 	for _, k := range kinds(s.Total) {
 		fmt.Fprintf(w, "%-*s %9d %9d\n", width, "  "+k, s.Total.Kinds[k], s.Total.Kinds[k+" (test)"])
-	}
-	helpers := inv.helperCounts()
-	fmt.Fprintf(w, "test-only helpers:%*s %9s %9s\n", width-len("test-only helpers:"), "", "non-test", "test")
-	for _, name := range slices.Sorted(maps.Keys(helpers)) {
-		c := helpers[name]
-		fmt.Fprintf(w, "%-*s %9d %9d   %s\n", width, "  "+name, c.NonTest, c.Test, testOnly[name])
 	}
 	if len(inv.unchecked) > 0 {
 		fmt.Fprintf(w, "unchecked: %d files no configuration builds\n", len(inv.unchecked))
@@ -962,24 +794,17 @@ func (inv *inventory) writeText(w io.Writer, verbose bool) {
 	}
 	if verbose {
 		fmt.Fprintln(w, "uses:")
-		for _, u := range sortUses(slices.Concat(inv.uses, inv.helpers)) {
-			note := ""
-			if u.Allowed {
-				note = " (allowed)"
-			}
-			if _, ok := testOnly[u.Kind]; ok {
-				note = " (test-only helper)"
-			}
-			fmt.Fprintf(w, "  %s:%d:%d: %s%s\n", u.File, u.Line, u.Col, u.Kind, note)
+		for _, u := range inv.sortedUses() {
+			fmt.Fprintf(w, "  %s:%d:%d: %s\n", u.File, u.Line, u.Col, u.Kind)
 		}
 	}
 }
 
 func (inv *inventory) writeMarkdown(w io.Writer, verbose bool) {
 	s := inv.summarize()
-	fmt.Fprintln(w, "# Block field inventory")
+	fmt.Fprintln(w, "# Block edition storage inventory")
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "Uses of `Block.Source`, `Block.Targets`, `Block.SourceStatus` and `model.Target` outside `core/model`, from `scripts/fieldguard`: %d package variants type-checked in %d modules under %s.\n",
+	fmt.Fprintf(w, "Uses of `Block.Editions` and `Block.Native` outside `core/model`, from `scripts/fieldguard`: %d package variants type-checked in %d modules under %s.\n",
 		inv.packages, len(inv.mods), inv.configLine())
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "## Totals")
@@ -1002,9 +827,6 @@ func (inv *inventory) writeMarkdown(w io.Writer, verbose bool) {
 		}
 	}
 	for _, pc := range s.Packages {
-		if pc.Allowed != "" {
-			continue
-		}
 		if pc.Module != module {
 			flush()
 			module, modTotal = pc.Module, count{}
@@ -1018,28 +840,6 @@ func (inv *inventory) writeMarkdown(w io.Writer, verbose bool) {
 		fmt.Fprintf(w, "| `%s` | %d | %d |\n", pc.Package, pc.NonTest, pc.Test)
 	}
 	flush()
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "## Allowed")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "| package | non-test | test | reason |")
-	fmt.Fprintln(w, "| --- | ---: | ---: | --- |")
-	for _, pc := range s.Packages {
-		if pc.Allowed != "" {
-			fmt.Fprintf(w, "| `%s` | %d | %d | %s |\n", pc.Package, pc.NonTest, pc.Test, pc.Allowed)
-		}
-	}
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "## Test-only helpers")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "A use outside a test fails the check, with `-report` or without.")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "| helper | non-test | test | what it does |")
-	fmt.Fprintln(w, "| --- | ---: | ---: | --- |")
-	helpers := inv.helperCounts()
-	for _, name := range slices.Sorted(maps.Keys(helpers)) {
-		c := helpers[name]
-		fmt.Fprintf(w, "| `%s` | %d | %d | %s |\n", name, c.NonTest, c.Test, testOnly[name])
-	}
 	if len(inv.unchecked) > 0 {
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "## Unchecked\n\n%d files no configuration builds:\n\n", len(inv.unchecked))
@@ -1052,7 +852,7 @@ func (inv *inventory) writeMarkdown(w io.Writer, verbose bool) {
 		fmt.Fprintln(w, "## Uses")
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "```")
-		for _, u := range sortUses(slices.Concat(inv.uses, inv.helpers)) {
+		for _, u := range inv.sortedUses() {
 			fmt.Fprintf(w, "%s:%d:%d: %s\n", u.File, u.Line, u.Col, u.Kind)
 		}
 		fmt.Fprintln(w, "```")
@@ -1068,15 +868,10 @@ func (inv *inventory) writeJSON(w io.Writer) error {
 		Total           count         `json:"total"`
 		NonTestPackages int           `json:"non_test_packages"`
 		TestPackages    int           `json:"test_packages"`
-		Allowed         count         `json:"allowed"`
 		Unchecked       []string      `json:"unchecked"`
 		Warnings        []string      `json:"warnings"`
 		Uses            []use         `json:"uses"`
-		// Helpers counts the uses of each test-only helper; HelperUses lists them.
-		Helpers    map[string]*count `json:"helpers"`
-		HelperUses []use             `json:"helper_uses"`
-	}{inv.mods, inv.configs, s.Packages, s.Total, s.NonTestPackages, s.TestPackages, s.Allowed, inv.unchecked, inv.warnings, inv.sortedUses(),
-		inv.helperCounts(), sortUses(inv.helpers)}
+	}{inv.mods, inv.configs, s.Packages, s.Total, s.NonTestPackages, s.TestPackages, inv.unchecked, inv.warnings, inv.sortedUses()}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetIndent("", "  ")

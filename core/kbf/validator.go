@@ -36,27 +36,37 @@ func (e ValidationError) Error() string { return e.Message }
 //     `equiv`, or a plural / select `pivot`) is declared in the
 //     block's Placeholders list (unknown-placeholder).
 //
-// The structural checks (1–3) run over the source runs and over every
-// target run sequence (including nested plural forms and select
-// cases). The declaration check (4) runs over the source runs only —
-// targets are checked against the source by
-// ValidateTargetAgainstSource, which permits a target to re-wrap or
+// The structural checks (1–3) run over the source runs and over the runs
+// of every other edition, the unlabelled one included (with nested plural
+// forms and select cases). The declaration check (4) runs over the source
+// runs only. Other editions are checked against the source by
+// ValidateTargetAgainstSource, which permits a translation to re-wrap or
 // restructure markup so long as it preserves required placeholders.
+//
+// An error in an edition other than the source names the block as
+// "<id>:<edition key>", and one in the unlabelled edition as "<id>:".
 //
 // Returns an empty slice if the block is valid.
 func ValidateBlock(b *Block) []ValidationError {
 	var errs []ValidationError
-	errs = append(errs, validateRunShape(b.ID, b.Source)...)
-	errs = append(errs, validateRunScope(b.ID, b.Source)...)
+	source := b.SourceRuns()
+	errs = append(errs, validateRunShape(b.ID, source)...)
+	errs = append(errs, validateRunScope(b.ID, source)...)
 	// Scope-walk plural/select forms too.
-	walkFormScopes(b.ID, b.Source, &errs)
+	walkFormScopes(b.ID, source, &errs)
 	// Every reference a source run makes must be declared.
 	errs = append(errs, validateDeclaredPlaceholders(b)...)
-	// Target scopes get the same structural checks.
-	for loc, runs := range b.Targets {
-		errs = append(errs, validateRunShape(b.ID+":"+loc, runs)...)
-		errs = append(errs, validateRunScope(b.ID+":"+loc, runs)...)
-		walkFormScopes(b.ID+":"+loc, runs, &errs)
+	// Every other edition gets the same structural checks.
+	check := func(tag string, runs []Run) {
+		errs = append(errs, validateRunShape(tag, runs)...)
+		errs = append(errs, validateRunScope(tag, runs)...)
+		walkFormScopes(tag, runs, &errs)
+	}
+	for _, key := range b.TargetKeys() {
+		check(b.ID+":"+key, b.Editions[key].Runs)
+	}
+	if b.Unlabelled != nil {
+		check(b.ID+":", b.Unlabelled.Runs)
 	}
 	return errs
 }
@@ -183,7 +193,7 @@ func validateDeclaredPlaceholders(b *Block) []ValidationError {
 			}
 		}
 	}
-	visit(b.Source)
+	visit(b.SourceRuns())
 	return errs
 }
 
@@ -284,7 +294,7 @@ func ValidateTargetAgainstSource(src *Block, target []Run) []ValidationError {
 	for _, p := range src.Placeholders {
 		allowed[p.Name] = struct{}{}
 	}
-	for name := range collectRunEquivs(src.Source) {
+	for name := range collectRunEquivs(src.SourceRuns()) {
 		allowed[name] = struct{}{}
 	}
 	for name := range targetNames {

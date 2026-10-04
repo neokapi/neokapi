@@ -6,8 +6,8 @@ import (
 )
 
 // WriteBack is one write of blocks back to the rows they were read from. It
-// holds, per block id, the content hash the caller read, and records the blocks
-// that may not land.
+// holds, per block id, the revision of the source the caller read, and records
+// the blocks that may not land.
 type WriteBack struct {
 	base    map[string]string
 	skipped []string
@@ -28,7 +28,7 @@ func NewWriteBack(reads []*venue.StoredBlock) (*WriteBack, []*model.Block) {
 			order = append(order, id)
 		}
 		byID[id] = r.Block
-		wb.base[id] = r.ContentHash
+		wb.base[id] = r.SourceRevision
 	}
 	blocks := make([]*model.Block, 0, len(order))
 	for _, id := range order {
@@ -37,15 +37,17 @@ func NewWriteBack(reads []*venue.StoredBlock) (*WriteBack, []*model.Block) {
 	return wb, blocks
 }
 
-// Base is the content hash the caller read for a block.
+// Base is the source revision the caller read for a block.
 func (w *WriteBack) Base(id string) string {
 	return w.base[id]
 }
 
 // Admits reports whether a block may be written: its row exists and still holds
-// the content hash the caller read. A block that may not is recorded as skipped.
-func (w *WriteBack) Admits(id string, exists bool, storedHash string) bool {
-	if exists && storedHash == w.base[id] {
+// the source revision the caller read, so a change to the source since, an
+// inline code included, is not written over. A block that may not is recorded
+// as skipped.
+func (w *WriteBack) Admits(id string, exists bool, storedRevision string) bool {
+	if exists && storedRevision == w.base[id] {
 		return true
 	}
 	w.Skip(id)

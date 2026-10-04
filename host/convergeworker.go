@@ -247,7 +247,7 @@ const convergeTapName = "converge-progress"
 func newConvergeTap(locale string) *convergeTap {
 	t := &convergeTap{locale: model.LocaleID(locale)}
 	t.ToolName = convergeTapName
-	t.ToolDescription = "counts converged units for live run progress (internal)"
+	t.ToolDescription = "counts converged blocks for live run progress (internal)"
 	t.Annotate = func(v tool.BlockView) error {
 		if !v.Translatable() {
 			return nil

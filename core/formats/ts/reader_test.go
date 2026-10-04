@@ -1025,7 +1025,7 @@ func TestSnippet_NumerusForms(t *testing.T) {
 			// re-emitted by the writer.
 			assert.Equal(t, "yes", b.Properties["numerus"])
 			key := model.Variant("fr")
-			ov := b.SegmentationFor(&key)
+			ov := b.SegmentationFor(key)
 			require.NotNil(t, ov, "numerus target should carry a segmentation overlay")
 			require.Len(t, ov.Spans, 2, "expected one span per <numerusform>")
 			assert.Equal(t, "0", ov.Spans[0].Props["numerus-form"])

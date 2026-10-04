@@ -225,10 +225,82 @@ export interface RunConstraints {
 // ─── Block — the translatable unit and tracking primitive ─────────
 
 /**
+ * An edition key in its text form: a BCP-47 language, optionally with a tone
+ * and a channel (`"fr"`, `"fr;tone=formal"`, `"en;channel=short"`). The empty
+ * key, {@link SourceEdition}, names the edition a block was read in.
+ *
+ * Mirrors the text form of Go `core/model.EditionKey`.
+ */
+export type EditionKey = string;
+
+/**
+ * The key a block files the edition it was read in under: the empty edition
+ * key. Its language is the file's `project.sourceLocale`.
+ *
+ * Mirrors Go `core/kbf.SourceEdition`.
+ */
+export const SourceEdition = "" as const;
+
+/**
+ * One edition of a block: its runs, where it stands on its status ladder, how
+ * it was produced, and the edition it was made from.
+ *
+ * Mirrors Go `core/kbf.Edition`.
+ */
+export interface Edition {
+  /** The edition's content as a flat sequence of Runs. Plurals and select groups live inside the sequence as nested runs. */
+  runs: Run[];
+  /**
+   * Lifecycle state: `written` or `established` for a source, `draft`,
+   * `translated` or `established` for a translation. Absent while none is
+   * recorded.
+   */
+  status?: string;
+  /** How the content was produced and under what context. Absent while it records nothing. */
+  origin?: Origin;
+  /** The producer's quality score for a derived edition. Absent while zero; the source carries none. */
+  score?: number;
+  /** The edition this one was made from, and that edition's revision when it was. Absent for an authored edition. */
+  derived?: Derivation;
+}
+
+/**
+ * Where a derived edition came from: the key of the edition it was made from
+ * ({@link SourceEdition} for the source) and that edition's revision at the
+ * time.
+ *
+ * Mirrors Go `core/kbf.Derivation`.
+ */
+export interface Derivation {
+  from: EditionKey;
+  rev: string;
+}
+
+/**
+ * How an edition was produced, and what governed it. Every field is optional
+ * and absent while empty; the two last are spelled as Go's JSON tags spell them.
+ *
+ * Mirrors Go `core/model.Origin`.
+ */
+export interface Origin {
+  /** human | agent | memory | mt | ai | ocr | asr | llm-refined */
+  kind?: string;
+  engine?: string;
+  tool?: string;
+  reference?: string;
+  /** RFC 3339. */
+  timestamp?: string;
+  confidence?: number;
+  profile?: string;
+  profile_version?: string;
+  context_fingerprint?: string;
+}
+
+/**
  * A Block is the unit of translation tracking. Typically a JSX
  * element (<h2>, <button>, <p>), an HTML paragraph, a Markdown
  * heading, or one attribute value (alt, placeholder). Extractors
- * produce Blocks; content memory, status, targets, merge, and annotations are
+ * produce Blocks; content memory, status, editions, merge, and annotations are
  * all keyed on the Block.
  */
 export interface Block {
@@ -239,11 +311,20 @@ export interface Block {
   /** Coarse classification; drives preview layout decisions. */
   type: BlockType;
 
-  /** Source content as a flat sequence of Runs. Plurals and select groups live inside the sequence as nested runs. */
-  source: Run[];
+  /**
+   * The block's content as peer editions, each under its {@link EditionKey}:
+   * the edition the block was read in under {@link SourceEdition}, every
+   * translation and every tone or channel edition under its own key. Read
+   * them through {@link sourceRuns} and {@link editionRuns}.
+   */
+  editions: Record<EditionKey, Edition>;
 
-  /** Target content per locale. Each locale's target is its own Run sequence. */
-  targets?: Record<LocaleID, Run[]>;
+  /**
+   * A translation a reader filed under no language, such as an xcstrings
+   * localization keyed by the empty string. The empty key names the source,
+   * so it is carried apart. Absent when there is none.
+   */
+  unlabelled?: Edition;
 
   /**
    * Placeholders referenced anywhere in the Block's runs — including
@@ -259,6 +340,17 @@ export interface Block {
 
   /** Optional preview hints for Level-2 / Level-3 renders. */
   preview?: BlockPreviewHints;
+}
+
+/**
+ * A block as schema 1.0 wrote it: source runs beside targets keyed by
+ * locale and a provenance record per target. {@link parseFile} and
+ * {@link upgradeBlock} read it as the editions it describes.
+ */
+export interface BlockV1 extends Omit<Block, "editions" | "unlabelled"> {
+  source: Run[];
+  targets?: Record<LocaleID, Run[]>;
+  targetOrigins?: Record<LocaleID, Origin>;
 }
 
 export type BlockType = "jsx:element" | "jsx:attribute" | "js:t";
@@ -328,7 +420,16 @@ export type PlaceholderKind =
  * compatible schema changes. Consumers MUST reject unknown major
  * versions and SHOULD accept unknown minor versions of their major.
  */
-export const SchemaVersion = "1.0" as const;
+export const SchemaVersion = "2.0" as const;
+
+/**
+ * The first schema, whose blocks carried `source` runs beside `targets` keyed
+ * by locale. {@link parseFile} reads a file in it as the editions it describes
+ * and stamps it {@link SchemaVersion}.
+ *
+ * Mirrors Go `core/kbf.SchemaVersionV1`.
+ */
+export const SchemaVersionV1 = "1.0" as const;
 
 /**
  * The .kbf.json file kind discriminator. Lets a consumer confirm a JSON
@@ -483,6 +584,7 @@ export interface Generator {
 /** Identifies the project a .kbf.json belongs to. */
 export interface Project {
   id: string;
+  /** The language of the edition every block was read in, the one under {@link SourceEdition}. */
   sourceLocale: LocaleID;
 }
 
@@ -501,7 +603,13 @@ export interface Vocabulary {
  * makes the manifest SHA-256 stable across languages.
  */
 export interface File {
-  schemaVersion: typeof SchemaVersion;
+  /**
+   * `MAJOR.MINOR`. A file built in this package carries {@link SchemaVersion};
+   * one read by {@link parseFile} carries the version it was written in when
+   * that is a minor of the current major, and {@link SchemaVersion} when it was
+   * written in schema 1.0.
+   */
+  schemaVersion: string;
   /**
    * One of {@link ReadableKinds}: a file parsed off disk may carry the kind
    * {@link KindI18nReact} names, and the type says so rather than letting a

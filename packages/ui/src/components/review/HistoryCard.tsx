@@ -79,7 +79,7 @@ export function HistoryCard({
       summary={summary}
       dataSlot="review-history"
       testId={testId}
-      toggleLabel={t("What was approved for this unit before")}
+      toggleLabel={t("What was approved for this block before")}
       defaultOpen={defaultOpen}
       className={className}
     >
@@ -133,7 +133,7 @@ export function HistoryCard({
                 className="tabular-nums"
                 data-slot="review-memory-score"
                 data-testid="memory-match-score"
-                title={t("{score}% match against the source of this unit", {
+                title={t("{score}% match against the source of this block", {
                   score: match.score,
                 })}
               >

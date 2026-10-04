@@ -37,7 +37,7 @@ func TestBlockCreation(t *testing.T) {
 	assert.Equal(t, "tu1", block.ID)
 	assert.True(t, block.Translatable)
 	assert.Equal(t, "Hello world", block.SourceText())
-	assert.NotNil(t, block.Targets)
+	assert.NotNil(t, block.Editions)
 	assert.NotNil(t, block.Properties)
 	assert.Empty(t, block.AnnoMap())
 }
@@ -67,9 +67,9 @@ func TestBlockSetSourceText(t *testing.T) {
 	block := model.NewBlock("tu1", "Original")
 	block.SetSourceText("Updated")
 	assert.Equal(t, "Updated", block.SourceText())
-	require.Len(t, block.Source, 1)
-	require.NotNil(t, block.Source[0].Text)
-	assert.Equal(t, "Updated", block.Source[0].Text.Text)
+	require.Len(t, block.SourceRuns(), 1)
+	require.NotNil(t, block.SourceRuns()[0].Text)
+	assert.Equal(t, "Updated", block.SourceRuns()[0].Text.Text)
 }
 
 func TestBlockSourceRuns(t *testing.T) {
@@ -82,22 +82,17 @@ func TestBlockSourceRuns(t *testing.T) {
 }
 
 func TestBlockSegmentationOverlay(t *testing.T) {
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source: []model.Run{
-			{Text: &model.TextRun{Text: "Hello "}},
-			{Text: &model.TextRun{Text: "world"}},
-		},
-		Targets: make(map[model.VariantKey]*model.Target),
-	}
+	block := model.NewRunsBlock("tu1", []model.Run{
+		{Text: &model.TextRun{Text: "Hello "}},
+		{Text: &model.TextRun{Text: "world"}},
+	})
 
 	// Whole-block flatten, and no overlay means one implicit segment.
 	assert.Equal(t, "Hello world", block.SourceText())
 	assert.Equal(t, 1, block.SourceSegmentCount())
 
 	// A segmentation overlay splits at the run boundary, without touching runs.
-	block.SetSegmentation(nil, []model.Span{
+	block.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})

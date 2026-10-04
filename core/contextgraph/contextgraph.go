@@ -144,6 +144,11 @@ const (
 	// traversal — a blessing carries both halves of what it approved, so a reader
 	// can see that the source moved, not only that the translation did.
 	PropContentHash = "content_hash"
+	// PropRevision and PropBasis name the two halves of the pairing by
+	// revision: the translation a decision blessed and the source it blessed
+	// it for. A decision recorded before revisions carries neither.
+	PropRevision = "revision"
+	PropBasis    = "basis"
 )
 
 // Scope is the tuple an instance node is qualified by. It is the plan's "scope

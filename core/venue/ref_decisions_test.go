@@ -23,15 +23,15 @@ func TestDecisionsComponentCountsDecisionsNotProduction(t *testing.T) {
 	require.NotEmpty(t, component)
 
 	produced := []UnitDecision{
-		{ItemName: "docs/intro.md", Unit: "u2", Variant: "nb", TargetHash: "t2", ContentHash: "s2", Updated: "2026-09-15T00:00:00Z"},
-		{ItemName: "docs/intro.md", Unit: "u3", Variant: "nb", Status: "draft", TargetHash: "t3", ContentHash: "s3"},
-		{ItemName: "docs/intro.md", Unit: "u4", Variant: "nb", Status: "translated", TargetHash: "t4", ContentHash: "s4"},
+		{ItemName: "docs/intro.md", Unit: "u2", Variant: "nb", Revision: "r:t2", Basis: "r:s2", Updated: "2026-09-15T00:00:00Z"},
+		{ItemName: "docs/intro.md", Unit: "u3", Variant: "nb", Status: "draft", Revision: "r:t3", Basis: "r:s3"},
+		{ItemName: "docs/intro.md", Unit: "u4", Variant: "nb", Status: "translated", Revision: "r:t4", Basis: "r:s4"},
 	}
 	assert.Equal(t, component, DecisionsComponent(append(slices.Clone(decided), produced...)),
 		"records of what was produced leave the component where it is")
 
 	decisions := map[string]UnitDecision{
-		"a rejection":         {ItemName: "docs/intro.md", Unit: "u5", Variant: "nb", ReviewState: "rejected", TargetHash: "t5"},
+		"a rejection":         {ItemName: "docs/intro.md", Unit: "u5", Variant: "nb", ReviewState: "rejected", Revision: "r:t5"},
 		"a parked unit":       {ItemName: "docs/intro.md", Unit: "u6", Variant: "nb", Parked: true},
 		"an assignee":         {ItemName: "docs/intro.md", Unit: "u7", Variant: "nb", Assignee: "ben"},
 		"a note":              {ItemName: "docs/intro.md", Unit: "u8", Variant: "nb", Note: "check the term"},

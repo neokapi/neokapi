@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T20:03:40Z",
+  "generatedAt": "2026-10-04T06:55:54Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -505,7 +505,7 @@
           "name": "createOnNonTranslatable",
           "type": "boolean",
           "required": false,
-          "description": "Create a target even for non-translatable text units"
+          "description": "Create a target even for non-translatable blocks"
         },
         {
           "name": "overwrite",
@@ -776,7 +776,7 @@
           "name": "includeNonTranslatable",
           "type": "boolean",
           "required": false,
-          "description": "Apply the removal action even to text units marked as non-translatable"
+          "description": "Apply the removal action even to blocks marked as non-translatable"
         },
         {
           "name": "project",
@@ -1432,7 +1432,7 @@
           "name": "filterByIDs",
           "type": "boolean",
           "required": false,
-          "description": "When true filter text units by ID; when false filter by target locale"
+          "description": "When true filter blocks by ID; when false filter by target locale"
         },
         {
           "name": "project",
@@ -1444,7 +1444,7 @@
           "name": "removeBlockIfEmpty",
           "type": "boolean",
           "required": false,
-          "description": "Remove the text unit entirely if it has no remaining targets after removal"
+          "description": "Remove the block entirely if it has no remaining targets after removal"
         },
         {
           "name": "target",
@@ -1468,7 +1468,7 @@
           "name": "textUnitIDs",
           "type": "string",
           "required": false,
-          "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
+          "description": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets"
         }
       ]
     },
@@ -1523,7 +1523,7 @@
     },
     {
       "name": "review_block",
-      "description": "Read one block's review picture: ref and rev, the reference and revision of the edition under review, and the unit: source and target text, ladder status, the last recorded decision (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. Address it with the ref a review_queue row carries, or a ref read_blocks reports with the translation's edition. A block in the project's source language is read from its source file and returns its authoring rung with no target half. To record a pre-review, send apply_edits a decide operation with at set to ref, if_match set to rev, outcome advise, a score from 0 to 100 and your reasons: it is bound to the wording you read, a later edit drops it, and it never establishes the block.",
+      "description": "Read one block's review picture: ref and rev, the reference and revision of the edition under review, and the block itself, under unit: source and target text, ladder status, the last recorded decision (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. Address it with the ref a review_queue row carries, or a ref read_blocks reports with the translation's edition. A block in the project's source language is read from its source file and returns its authoring rung with no target half. To record a pre-review, send apply_edits a decide operation with at set to ref, if_match set to rev, outcome advise, a score from 0 to 100 and your reasons: it is bound to the wording you read, a later edit drops it, and it never establishes the block.",
       "surface": "review",
       "params": [
         {
@@ -1542,26 +1542,26 @@
     },
     {
       "name": "review_queue",
-      "description": "List the review queue: every unit awaiting a person, each with ref, the reference review_block reads it by ({doc, block, edition}: the source document, the block key and the translation's language; no edition for a source unit). One queue holds every language, the project's source language among them: a translated unit not yet approved is one row, and a source unit held below the project's translate_after level is another, marked `isSource`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_block for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
+      "description": "List the review queue: every block awaiting a person, each with ref, the reference review_block reads it by ({doc, block, edition}: the source document, the block key and the translation's language; no edition for a source block). One queue holds every language, the project's source language among them: a translated block not yet approved is one row, and a source block held below the project's translate_after level is another, marked `isSource`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; blocks annotated by an AI pre-review carry their score. Lean by design: call review_block for a block's context (the point governing it, its neighbourhood, its prior version, its findings).",
       "surface": "review",
       "params": [
         {
           "name": "collection",
           "type": "string",
           "required": false,
-          "description": "Only list units in this content collection"
+          "description": "Only list blocks in this content collection"
         },
         {
           "name": "language",
           "type": "string",
           "required": false,
-          "description": "Only list units in this language; the project's source language lists its source units"
+          "description": "Only list blocks in this language; the project's source language lists its source blocks"
         },
         {
           "name": "locale",
           "type": "string",
           "required": false,
-          "description": "Only list units for this target locale"
+          "description": "Only list blocks for this target locale"
         },
         {
           "name": "project",
@@ -2050,7 +2050,7 @@
     },
     {
       "name": "up",
-      "description": "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the default flow (content memory reuse then AI translate) over every target language, concurrently per language, loop until every gated scope is shippable or parks for a human, and run the project's bound checks each pass. In a project connected to a Bowrain server the run happens there (push, converge on the org's keys and shared content memory, pull the results); pass local to run the loop on this machine instead. Never fails on pending target work: parked units are reported, not thrown. Returns the structured result (per-locale standing, parked scopes, materialized files). Use up_plan first to see the pending work and token estimate.",
+      "description": "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the default flow (content memory reuse then AI translate) over every target language, concurrently per language, loop until every gated scope is shippable or parks for a human, and run the project's bound checks each pass. In a project connected to a Bowrain server the run happens there (push, converge on the org's keys and shared content memory, pull the results); pass local to run the loop on this machine instead. Never fails on pending target work: parked blocks are reported, not thrown. Returns the structured result (per-locale standing, parked scopes, materialized files). Use up_plan first to see the pending work and token estimate.",
       "surface": "translation",
       "params": [
         {
@@ -2075,7 +2075,7 @@
           "name": "no_checks",
           "type": "boolean",
           "required": false,
-          "description": "skip the project's bound checks inside the loop (failing units then count as translated)"
+          "description": "skip the project's bound checks inside the loop (failing blocks then count as translated)"
         },
         {
           "name": "passes",
@@ -2093,7 +2093,7 @@
     },
     {
       "name": "up_plan",
-      "description": "Dry-run the catch-up work for a kapi project: per (collection, locale), the units missing a target, exact-content-memory leverage, the remaining AI work, and a rough token estimate. No provider calls, nothing written. The pre-flight for the up tool.",
+      "description": "Dry-run the catch-up work for a kapi project: per (collection, locale), the blocks missing a target, exact-content-memory leverage, the remaining AI work, and a rough token estimate. No provider calls, nothing written. The pre-flight for the up tool.",
       "surface": "translation",
       "params": [
         {

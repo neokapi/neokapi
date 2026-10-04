@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
 )
@@ -35,7 +36,7 @@ func TestNewFromDB_MigratesAndRoundTrips(t *testing.T) {
 	sess, err := store.Begin(t.Context())
 	require.NoError(t, err)
 	require.NoError(t, sess.PutBlock("docs", &blockstore.Block{
-		ID: "b1", Hash: "h1", Source: []model.Run{model.TextR("Hello")},
+		ID: "b1", Hash: "h1", Editions: kbf.SourceEditions([]model.Run{model.TextR("Hello")}),
 	}))
 	require.NoError(t, sess.Commit())
 
@@ -60,7 +61,7 @@ func TestNewFromDB_AdoptTwiceShareOnePool(t *testing.T) {
 	sess, err := autocommit.Begin(t.Context())
 	require.NoError(t, err)
 	require.NoError(t, sess.PutBlock("docs", &blockstore.Block{
-		Hash: "h1", Source: []model.Run{model.TextR("Hello")},
+		Hash: "h1", Editions: kbf.SourceEditions([]model.Run{model.TextR("Hello")}),
 	}))
 	// No Commit: an autocommit write is durable when it returns.
 

@@ -120,7 +120,7 @@ func TestNeighbourOfSkipsUnreadableBlocks(t *testing.T) {
 
 func TestPromptKeyPrefersTheReadersName(t *testing.T) {
 	assert.Equal(t, "app.title", PromptKey(&model.Block{ID: "b1", Name: " app.title "}))
-	assert.Equal(t, "u-1", PromptKey(&model.Block{ID: "b1", Unit: "u-1"}), "the stable unit key when nothing is named")
+	assert.Equal(t, "u-1", PromptKey(&model.Block{ID: "b1", Key: "u-1"}), "the stable unit key when nothing is named")
 	assert.Equal(t, "b1", PromptKey(&model.Block{ID: "b1"}), "the reader's id as the last resort")
 	assert.Empty(t, PromptKey(nil))
 }

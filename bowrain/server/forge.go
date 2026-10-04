@@ -467,7 +467,11 @@ func (s *Server) materializeDelivery(ctx context.Context, proj *platstore.Projec
 				if governed && !targetApproved(sb.Block, locale) {
 					continue
 				}
-				cp := *sb.Block
+				// The copy holds its own set of editions, its source entry
+				// included, so promoting this locale's translation leaves the
+				// stored block and the copies made for the other locales as
+				// they were. A struct copy would share the source entry.
+				cp := sb.Block.CopyEditionSet()
 				cp.SetSourceRuns(sb.Block.TargetRuns(locale))
 				// Restore the source-reader block id (the store re-mints an internal
 				// id on ingest and keeps the reader's id in SourceID). Faithful
@@ -478,7 +482,7 @@ func (s *Server) materializeDelivery(ctx context.Context, proj *platstore.Projec
 				if sb.SourceID != "" {
 					cp.ID = sb.SourceID
 				}
-				promoted = append(promoted, &cp)
+				promoted = append(promoted, cp)
 			}
 			if len(promoted) == 0 {
 				continue

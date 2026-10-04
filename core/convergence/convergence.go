@@ -350,7 +350,7 @@ type Unit struct {
 // is the key the document cache, the overlays, and the state store all address a
 // unit by.
 //
-// Not the same ladder as model.Block.ChainUnit, which prefers the structural
+// Not the same ladder as model.Block.ChainKey, which prefers the structural
 // address over the name and refuses to fall through to the ID. Both are right
 // for their own question; see core/model/identity_ladders.go.
 func BlockKey(b *model.Block) string {
@@ -358,8 +358,8 @@ func BlockKey(b *model.Block) string {
 	// rather than named — it survives a sibling being deleted, which is the
 	// case the other two cannot answer. Absent, the reader's name is the best
 	// available key, and the reader's id the last resort.
-	if b.Unit != "" {
-		return b.Unit
+	if b.Key != "" {
+		return b.Key
 	}
 	if b.Name != "" {
 		return b.Name
@@ -380,7 +380,7 @@ func BlockKey(b *model.Block) string {
 func BlockAddress(b *model.Block) string { return b.StructuralAddress() }
 
 // TargetState derives a translatable block's target-lifecycle state for a locale.
-// A committed Target.Status is authoritative; otherwise a present, non-empty
+// A committed Edition.Status is authoritative; otherwise a present, non-empty
 // target counts as `translated` (the presence baseline) and an absent/empty
 // target is untranslated (below every rung).
 //

@@ -167,7 +167,7 @@ func TestStructuralName_RewordingAHeadingKeepsItsIdentity(t *testing.T) {
 
 const docxIdentityScope = "test.docx"
 
-func docxKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcile.Result {
+func docxKeys(blocks []*model.Block, prior []reconcile.Prior) map[string]reconcile.Result {
 	out := map[string]reconcile.Result{}
 	for _, r := range reconcile.Blocks(docxIdentityScope, blocks, prior) {
 		if r.Block.SourceText() != "" {
@@ -177,8 +177,8 @@ func docxKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcil
 	return out
 }
 
-func docxUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Unit {
-	var out []reconcile.Unit
+func docxUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Prior {
+	var out []reconcile.Prior
 	for _, b := range blocks {
 		u := reconcile.Identify(docxIdentityScope, b)
 		u.Key = res[b.SourceText()].Key

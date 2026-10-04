@@ -473,7 +473,7 @@ func (s *Server) precheckPushVerdicts(c echo.Context, raw json.RawMessage) venue
 // decisionLocale reads the language out of a decision's variant, or empty when
 // the variant is not one this venue can read.
 func decisionLocale(d venue.UnitDecision) string {
-	var key model.VariantKey
+	var key model.EditionKey
 	if err := key.UnmarshalText([]byte(d.Variant)); err != nil {
 		return ""
 	}

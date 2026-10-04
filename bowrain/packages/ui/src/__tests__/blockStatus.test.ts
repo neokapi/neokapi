@@ -1,5 +1,5 @@
 /**
- * Unit tests for the per-locale block-status reads (Target.Status ladder) and
+ * Unit tests for the per-locale block-status reads (Edition.Status ladder) and
  * the legacy block-global `properties["translation-status"]` read fallback.
  */
 import { describe, it, expect } from "vite-plus/test";
@@ -60,7 +60,7 @@ describe("getTargetStatus", () => {
   });
 });
 
-describe("getBlockStatus — per-locale Target.Status", () => {
+describe("getBlockStatus — per-locale Edition.Status", () => {
   it("scopes review status to the locale it was set for", () => {
     const block = makeBlock({
       fr: { text: "Bonjour", status: "established" },

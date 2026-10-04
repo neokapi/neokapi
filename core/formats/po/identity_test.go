@@ -205,7 +205,7 @@ func gradePO(t *testing.T, before, after string, cfg map[string]any) map[string]
 	}
 
 	const scope = "messages.po"
-	var prior []reconcile.Unit
+	var prior []reconcile.Prior
 	for _, b := range read(before) {
 		u := reconcile.Identify(scope, b)
 		u.Key = b.Name

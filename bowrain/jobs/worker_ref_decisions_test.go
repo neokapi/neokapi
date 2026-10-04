@@ -22,7 +22,7 @@ func TestAssertDecisionsHeld_DraftingIsNotAMove(t *testing.T) {
 
 	held := []venue.UnitDecision{
 		decided,
-		{ItemName: "en.json", Unit: "u2", Variant: "nb", TargetHash: "t2", ContentHash: "s2"},
+		{ItemName: "en.json", Unit: "u2", Variant: "nb", Revision: "r:t2", Basis: "r:s2"},
 	}
 	require.NoError(t, assertDecisionsHeld(expected, held),
 		"a basis drafted since the push read the ref is not a decision it missed")

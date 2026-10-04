@@ -49,9 +49,9 @@ Each pass re-derives coverage from the working tree, runs the flow only for
 the locales still short of their gate, and stops when everything ships, a pass
 makes no progress (the remainder parks, because it needs a human), or the pass cap is
 reached. After each pass the project's bound checks run over what was
-produced: a unit with failing findings (dropped placeholders, terminology
-violations) still counts as translated, which it is, and holds its locale out of
-shipping until the finding is fixed. 'kapi status' runs the same checks and
+produced: a translation with failing findings (dropped placeholders,
+terminology violations) still counts as translated, which it is, and holds its
+locale out of shipping until the finding is fixed. 'kapi status' runs the same checks and
 reports the same verdict. --no-checks opts out.
 
 The materialize policy decides whether the run owns delivery of the
@@ -72,7 +72,7 @@ back to a local run. The resolved venue is printed first whenever the recipe
 connects to a server. Without that block, up is purely local.
 
 --plan is a dry run in every venue: instead of running anything, up reports
-the pending work per (collection, locale): units missing a target, exact Memory
+the pending work per (collection, locale): blocks missing a target, exact Memory
 leverage, the remaining AI work, and a rough token estimate, computed locally
 against the working tree, with no provider calls and no writes. Combine with
 --json for agents.

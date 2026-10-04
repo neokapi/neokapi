@@ -158,13 +158,9 @@ func (w *loopWrites) latestLocked(doc, block, edition string) (history.Row, bool
 }
 
 // targetRevision is the revision of the block's translation in locale, as the
-// change service names it.
+// change service names it (model.TargetRevision).
 func targetRevision(b *model.Block, locale model.LocaleID) string {
-	k := model.EditionKey{Locale: locale}.Canonical()
-	if !b.HasTarget(locale) {
-		return model.AbsentRevision
-	}
-	return model.RunsRevision(k, b.TargetRuns(locale))
+	return model.TargetRevision(b, locale)
 }
 
 // loopRecord is the record a flow's write of a translation stands for, read
@@ -184,6 +180,8 @@ func (a *App) loopRecord(ctx context.Context, root, doc, unit string, locale mod
 		Unit: unit, Variant: model.Variant(locale), Scope: doc,
 		Status:               model.TargetStatusTranslated,
 		ContentHash:          row.ContentHash,
+		Basis:                row.Basis,
+		Revision:             row.After,
 		Origin:               row.Producer,
 		GoverningFingerprint: row.Producer.ContextFingerprint,
 	}, true

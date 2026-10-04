@@ -6,6 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { flattenRuns, sourceRuns } from "@neokapi/kapi-format";
 
 import { extractDocument } from "../src/extract/index.ts";
 import { hashKey } from "../src/plugin/hash.ts";
@@ -39,14 +40,14 @@ describe("head-hook extraction", () => {
     expect(title.type).toBe("js:t");
     expect(title.properties.element).toBe("head");
     expect(title.properties.jsxPath).toBe("head");
-    expect(title.source).toEqual([{ text: "Home Page" }]);
+    expect(sourceRuns(title)).toEqual([{ text: "Home Page" }]);
   });
 
   it("dedupes head kinds that share a source into one translation", () => {
     // useTranslatedTitle("Home Page") and useTranslatedMeta("Home Page", …)
     // share a source, so they collapse to a single catalog entry.
     const doc = extractDocument(SOURCE, { filename: "Head.tsx" });
-    const homePageBlocks = doc!.blocks.filter((b) => b.source[0]?.text === "Home Page");
+    const homePageBlocks = doc!.blocks.filter((b) => flattenRuns(sourceRuns(b)) === "Home Page");
     expect(homePageBlocks).toHaveLength(1);
   });
 

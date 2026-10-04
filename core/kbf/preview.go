@@ -125,15 +125,15 @@ func DefaultJSXVocabulary() VocabularyLookup {
 	return NewVocabularyLookup(JSXVocabulary)
 }
 
-// RenderBlockHTML wraps renderRuns in a <kat-block> marker — the
-// same interactive wrapper neokapi's existing preview builders emit
-// for every format. Matches renderBlockHtml in
+// RenderBlockHTML renders the runs of the edition the block was read in
+// inside a <kat-block> marker, the interactive wrapper neokapi's other
+// preview builders emit for every format. Matches renderBlockHtml in
 // packages/kapi-format/src/preview.ts.
 func RenderBlockHTML(b *Block, vocab VocabularyLookup) string {
 	if vocab == nil {
 		vocab = DefaultJSXVocabulary()
 	}
-	inner := RenderRuns(b.Source, vocab)
+	inner := RenderRuns(b.SourceRuns(), vocab)
 	return fmt.Sprintf(`<kat-block id=%q data-type=%q>%s</kat-block>`, b.ID, string(b.Type), inner)
 }
 

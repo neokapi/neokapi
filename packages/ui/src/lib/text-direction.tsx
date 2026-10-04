@@ -260,7 +260,7 @@ export function needsIsolation(
 /**
  * The locale part of a target variant key ("ar-EG", "ar-EG#formal",
  * "ar-EG|social" → "ar-EG"): a variant key is the locale plus an optional
- * `#tone` and/or `|channel` suffix (model.VariantKey), and only the locale
+ * `#tone` and/or `|channel` suffix (model.EditionKey), and only the locale
  * part decides writing direction.
  */
 export function localeOfVariant(variant: string): string {

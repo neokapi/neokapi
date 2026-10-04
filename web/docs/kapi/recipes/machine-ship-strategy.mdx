@@ -10,7 +10,7 @@ hide_table_of_contents: true
 # Tier gates per market
 
 **Goal:** not every market justifies the same review budget. A contractual
-locale may require a person to approve every unit; a mid-tier market wants the
+locale may require a person to approve every block; a mid-tier market wants the
 important strings reviewed and the long tail machine-translated; a long-tail
 locale ships as soon as the machine's own review is clean. Ship gates encode
 that policy per market in the recipe, and one command,
@@ -22,7 +22,7 @@ it. The gate model is [the kapi loop](/kapi/convergence); the schema is the
 
 | Tier        | Policy                                                        | Gate                                              |
 | ----------- | ------------------------------------------------------------- | ------------------------------------------------- |
-| Contractual | A person approves every unit                                   | `{ translated: 100, established: 100 }` |
+| Contractual | A person approves every block                                   | `{ translated: 100, established: 100 }` |
 | Mid-tier    | Everything translated, the important 80% human-reviewed        | `{ translated: 100, established: 80 }`               |
 | Long tail   | Everything translated, AI reviews count as reviewed   | `{ translated: 100, established: 100 }` |
 
@@ -59,8 +59,8 @@ is evaluated per (collection, locale) and the most specific rule wins.
 
 The `machine` tier ships what is translated and passes its checks. An agent
 can pre-review that tail with a score and its reasons, which the review queue
-shows, but only a person establishes a unit, so the `established` tiers always
-measure people. See [who establishes a unit](/kapi/convergence#approver-classes).
+shows, but only a person establishes a block, so the `established` tiers always
+measure people. See [who establishes a block](/kapi/convergence#approver-classes).
 
 ## Trade-offs
 
@@ -73,7 +73,7 @@ measure people. See [who establishes a unit](/kapi/convergence#approver-classes)
   (`kapi status --review`) in whatever order matters; the gate only measures
   the outcome.
 - **Source drift degrades tiers gracefully.** An edited source string re-opens
-  its units in every locale; the contractual tier then waits for a person while
+  its blocks in every locale; the contractual tier then waits for a person while
   the machine tier recovers on the next `kapi up` pass; see
   [drift, watched end to end](/kapi/convergence#drift-watched-end-to-end).
 

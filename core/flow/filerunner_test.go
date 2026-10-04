@@ -202,7 +202,7 @@ func TestFileRunner_EmitOnCloseWriterFlushes(t *testing.T) {
 			Blocks: []kbf.Block{{
 				ID:           "b1",
 				Translatable: true,
-				Source:       []kbf.Run{{Text: &kbf.TextRun{Text: "Hello World"}}},
+				Editions:     kbf.SourceEditions([]kbf.Run{{Text: &kbf.TextRun{Text: "Hello World"}}}),
 			}},
 		}},
 	}

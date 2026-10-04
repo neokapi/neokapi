@@ -240,7 +240,7 @@ count alone leaves nobody able to look at the disagreement.
 The corpus accumulates versions. A block whose source is rewritten writes a new
 entry beside the one that came before, because the key is the text and the text
 moved. `Entry.Unit` is what says the two are successive answers for one block:
-the framework's own durable block identity (`model.Block.Unit`), matched by
+the framework's own durable block identity (`model.Block.Key`), matched by
 reconciliation rather than named, so it survives an edit that rewrites the
 source and a reorder that moves it. It is the same key a decision is filed
 under. A version chain is therefore a query rather than a new store:

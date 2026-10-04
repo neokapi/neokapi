@@ -8,7 +8,6 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 )
@@ -27,7 +26,7 @@ import (
 // PromoteDecisionsToMemory applies the decisions' verdicts to the workspace
 // content memory: approved pairs are promoted, rejected pairs are
 // evicted. A decision is applied only when its unit resolves to a stored block
-// whose current translation the decision still blesses (TargetHash) — a stale
+// whose current translation the decision still blesses (Revision) — a stale
 // decision moves no wording, in either direction. Returns how many entries
 // were promoted and evicted.
 func PromoteDecisionsToMemory(
@@ -78,7 +77,7 @@ func PromoteDecisionsToMemory(
 			if sb == nil || sb.Block == nil || !sb.Block.Translatable {
 				continue
 			}
-			var variant model.VariantKey
+			var variant model.EditionKey
 			if err := variant.UnmarshalText([]byte(d.Variant)); err != nil || variant.Locale == "" {
 				continue
 			}
@@ -94,7 +93,7 @@ func PromoteDecisionsToMemory(
 			// stored target has moved on, the verdict is about text that is no
 			// longer there — promoting would admit unapproved wording, evicting
 			// would remove wording nobody rejected.
-			if d.TargetHash != "" && state.TargetHash(targetText) != d.TargetHash {
+			if d.Revision != store.VariantRevision(d.Variant, targetRuns) {
 				continue
 			}
 			// A memory pair runs from the edition every translation is made

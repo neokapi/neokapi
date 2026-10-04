@@ -155,7 +155,7 @@ func DeleteBlockAnnotation(ctx context.Context, ex Execer, dialect string, proje
 // UpsertBlockTarget writes edition e of a block as its (block, variant) row
 // through the shared translations writer. All content representations must
 // remain consistent:
-//   - locale is the VariantKey text form, including tone or channel qualifiers;
+//   - locale is the EditionKey text form, including tone or channel qualifiers;
 //   - target_json is the whole edition (MarshalTargetJSON), which hydration,
 //     review and coverage read;
 //   - text is model.RunsText output for history and search, without placeholders;
@@ -168,7 +168,7 @@ func UpsertBlockTarget(
 	ex Execer,
 	dialect string,
 	projectID, stream, blockID string,
-	key model.VariantKey,
+	key model.EditionKey,
 	e model.Edition,
 	extra []byte,
 	now time.Time,
@@ -250,7 +250,7 @@ func LoadBlockOverlays(
 			rows.Close()
 			return fmt.Errorf("scan translation: %w", err)
 		}
-		var key model.VariantKey
+		var key model.EditionKey
 		if err := key.UnmarshalText([]byte(keyText)); err != nil {
 			rows.Close()
 			return fmt.Errorf("decode variant key block=%s key=%s: %w", bid, keyText, err)
@@ -301,7 +301,7 @@ type StoredTarget struct {
 	// BlockID is the row's block key — the store's own `blocks.id`.
 	BlockID string
 	// Variant is the row's locale column, decoded.
-	Variant model.VariantKey
+	Variant model.EditionKey
 	// Edition is the row's target_json, decoded (UnmarshalTargetJSON).
 	Edition model.Edition
 	// Extra is the row's metadata column: the payload fields the writer kept
@@ -530,7 +530,7 @@ func LoadBlockTargetLocales(
 }
 
 // TargetLocaleState is one (locale, status) pair for a block's stored target,
-// as read from the translations overlay table. Locale is the raw VariantKey
+// as read from the translations overlay table. Locale is the raw EditionKey
 // text form ("fr-FR" or "fr-FR;tone=…"); Status is the stored
 // model.TargetStatus text ("" when the target has no committed status).
 type TargetLocaleState struct {
@@ -604,10 +604,10 @@ type Querier = storage.Querier
 // larger atomic transition.
 type Runner = storage.Runner
 
-// VariantKeyText renders a VariantKey to its canonical text form for use as a
+// VariantKeyText renders an EditionKey to its canonical text form for use as a
 // change-log identifier and the translations.locale column ("fr-FR" for the
 // locale-only common case).
-func VariantKeyText(key model.VariantKey) string {
+func VariantKeyText(key model.EditionKey) string {
 	b, err := key.MarshalText()
 	if err != nil {
 		return string(key.Locale)

@@ -163,9 +163,9 @@ func TestDecisions_CarryTheGoverningContextBothWays(t *testing.T) {
 }
 
 // TestDecisions_ARejectionCarriesTheApprovedBasis: only an approval re-stamps a
-// unit's basis, so a rejection travels with the source hash and the governing
-// fingerprint the last approval bound, and the venue's ledger grades the unit
-// exactly as the project's record does.
+// unit's basis, so a rejection travels with the basis revision and the
+// governing fingerprint the last approval bound, and the venue's ledger grades
+// the unit exactly as the project's record does.
 func TestDecisions_ARejectionCarriesTheApprovedBasis(t *testing.T) {
 	a := &host.App{}
 	defer a.Shutdown()
@@ -174,8 +174,8 @@ func TestDecisions_ARejectionCarriesTheApprovedBasis(t *testing.T) {
 	require.NoError(t, state.WriteCommitted(c.project.Layout.Export().UnitStateDir(), []state.UnitState{{
 		Scope: "locales/en.json", Unit: "greeting", Variant: model.Variant("fr"),
 		Status: model.TargetStatusDraft, Decision: state.Decision{ReviewState: "rejected"},
-		TargetHash:  "th-redraft",
-		ContentHash: "sh-approved-source", GoverningFingerprint: "fp-approved",
+		GoverningFingerprint: "fp-approved",
+		Revision:             "r:2222222222222222", Basis: "r:1111111111111111",
 		Updated: "2026-08-05T12:00:00Z",
 	}}))
 
@@ -183,10 +183,10 @@ func TestDecisions_ARejectionCarriesTheApprovedBasis(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, out, 1)
 	assert.Equal(t, "rejected", out[0].ReviewState)
-	assert.Equal(t, "sh-approved-source", out[0].ContentHash,
+	assert.Equal(t, "r:1111111111111111", out[0].Basis,
 		"the basis the last approval bound travels with the rejection")
 	assert.Equal(t, "fp-approved", out[0].GoverningFingerprint)
-	assert.Equal(t, "th-redraft", out[0].TargetHash,
+	assert.Equal(t, "r:2222222222222222", out[0].Revision,
 		"the translation it turned down is the rejection's own")
 
 	// And back down onto a checkout that recorded none of it.
@@ -198,8 +198,9 @@ func TestDecisions_ARejectionCarriesTheApprovedBasis(t *testing.T) {
 	require.NoError(t, err)
 	us, found := st.Get(t.Context(), state.Key{Scope: "locales/en.json", Unit: "greeting", Variant: model.Variant("fr")})
 	require.True(t, found)
-	assert.Equal(t, "sh-approved-source", us.ContentHash)
 	assert.Equal(t, "fp-approved", us.GoverningFingerprint)
+	assert.Equal(t, "r:2222222222222222", us.Revision, "a pulled decision keeps the pairing it was made on")
+	assert.Equal(t, "r:1111111111111111", us.Basis)
 }
 
 // A pull brings the venue's decisions, not its records of what it produced:
@@ -213,9 +214,9 @@ func TestPulledDecisions_LeaveOutRecordsOfWhatWasProduced(t *testing.T) {
 
 	recorded, skipped, err := c.recordPulledDecisions(t.Context(), []venue.UnitDecision{
 		{Unit: "greeting", Variant: "fr", Status: "established", ReviewState: "approved",
-			TargetHash: "t-1", ContentHash: "s-1", Updated: "2026-08-05T10:00:00Z"},
+			Revision: "r:t-1", Basis: "r:s-1", Updated: "2026-08-05T10:00:00Z"},
 		{Unit: "farewell", Variant: "fr", Status: "translated",
-			TargetHash: "t-2", ContentHash: "s-2", Updated: "2026-08-05T10:00:00Z"},
+			Revision: "r:t-2", Basis: "r:s-2", Updated: "2026-08-05T10:00:00Z"},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, recorded)

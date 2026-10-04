@@ -8,6 +8,7 @@
 // out the run model for the docs examples.
 
 import type { Block, File } from "@neokapi/kapi-format";
+import { SchemaVersion, SchemaVersionV1, sourceEditions, sourceRuns } from "@neokapi/kapi-format";
 
 // ─── Individual golden blocks ────────────────────────────────────────────
 
@@ -17,7 +18,7 @@ export const filesHeading: Block = {
   hash: "2xykvb",
   translatable: true,
   type: "jsx:element",
-  source: [
+  editions: sourceEditions([
     { text: "Files " },
     {
       pcOpen: {
@@ -42,7 +43,7 @@ export const filesHeading: Block = {
     },
     { text: " matched)" },
     { pcClose: { id: "1", type: "jsx:element", subType: "span", data: "</span>", equiv: "muted" } },
-  ],
+  ]),
   placeholders: [
     {
       name: "muted",
@@ -68,7 +69,7 @@ export const tagChip: Block = {
   hash: "2GcSuQ",
   translatable: true,
   type: "jsx:element",
-  source: [
+  editions: sourceEditions([
     {
       ph: {
         id: "1",
@@ -101,7 +102,7 @@ export const tagChip: Block = {
         disp: "⟨required⟩",
       },
     },
-  ],
+  ]),
   placeholders: [
     {
       name: "badge",
@@ -139,7 +140,7 @@ export const shoppingCart: Block = {
   hash: "9QpZ11",
   translatable: true,
   type: "jsx:element",
-  source: [
+  editions: sourceEditions([
     {
       plural: {
         pivot: "count",
@@ -162,7 +163,7 @@ export const shoppingCart: Block = {
         },
       },
     },
-  ],
+  ]),
   placeholders: [{ name: "count", kind: "icu-pivot", jsType: "number", sourceExpr: "items" }],
   properties: {
     file: "src/ShoppingCart.tsx",
@@ -180,7 +181,7 @@ export const likeNotification: Block = {
   hash: "7sVx0p",
   translatable: true,
   type: "jsx:element",
-  source: [
+  editions: sourceEditions([
     {
       select: {
         pivot: "gender",
@@ -191,7 +192,7 @@ export const likeNotification: Block = {
         },
       },
     },
-  ],
+  ]),
   placeholders: [
     { name: "gender", kind: "icu-pivot", jsType: "string", sourceExpr: "actor.gender" },
   ],
@@ -210,10 +211,10 @@ export const emailBody: Block = {
   hash: "Qm3a8t",
   translatable: true,
   type: "jsx:element",
-  source: [
+  editions: sourceEditions([
     { text: "Thanks for signing up. " },
     { sub: { id: "1", ref: "email-cta", equiv: "cta" } },
-  ],
+  ]),
   placeholders: [{ name: "cta", kind: "node", jsType: "ReactNode", sourceExpr: "<CallToAction/>" }],
   properties: {
     file: "src/WelcomeEmail.tsx",
@@ -229,7 +230,7 @@ export const emailCta: Block = {
   hash: "Lp9w2k",
   translatable: true,
   type: "jsx:element",
-  source: [{ text: "Confirm your email address" }],
+  editions: sourceEditions([{ text: "Confirm your email address" }]),
   placeholders: [],
   properties: {
     file: "src/WelcomeEmail.tsx",
@@ -240,11 +241,58 @@ export const emailCta: Block = {
   },
 };
 
+/**
+ * files-heading with its editions: a French translation that records how it
+ * was made and the source revision it was made from, and a short English
+ * channel edition derived from the source.
+ */
+export const filesHeadingEditions: Block = {
+  ...filesHeading,
+  editions: {
+    ...filesHeading.editions,
+    fr: {
+      runs: [
+        {
+          pcOpen: {
+            id: "1",
+            type: "jsx:element",
+            subType: "span",
+            data: '<span className="muted">',
+            equiv: "muted",
+          },
+        },
+        { text: "(" },
+        { ph: { id: "2", type: "jsx:var", subType: "number", data: "{count}", equiv: "count" } },
+        { text: " trouvés)" },
+        {
+          pcClose: {
+            id: "1",
+            type: "jsx:element",
+            subType: "span",
+            data: "</span>",
+            equiv: "muted",
+          },
+        },
+      ],
+      status: "translated",
+      origin: { kind: "ai", engine: "claude", tool: "translate" },
+      derived: { from: "", rev: "r:3f9a1c0e7b2d4a55" },
+    },
+    "en;channel=short": {
+      runs: [
+        { text: "Files " },
+        { ph: { id: "2", type: "jsx:var", subType: "number", data: "{count}", equiv: "count" } },
+      ],
+      derived: { from: "", rev: "r:3f9a1c0e7b2d4a55" },
+    },
+  },
+};
+
 // ─── Envelope helper ─────────────────────────────────────────────────────
 
 function fileWith(blocks: Block[]): File {
   return {
-    schemaVersion: "1.0",
+    schemaVersion: SchemaVersion,
     kind: "kapi-bundle",
     created: "2026-04-15T10:00:00Z",
     generator: {
@@ -303,7 +351,50 @@ export const KBF_SAMPLES: KbfSample[] = [
     blurb: "A sub run referencing a second block extracted from an embedded subfilter.",
     file: fileWith([emailBody, emailCta]),
   },
+  {
+    id: "editions",
+    label: "Editions",
+    blurb:
+      "The source beside a French translation and a short English channel edition, each with its status, origin and derivation.",
+    file: fileWith([filesHeadingEditions]),
+  },
 ];
+
+/**
+ * The files-heading catalog with its French translation as schema 1.0 wrote it:
+ * source runs beside `targets` and `targetOrigins` keyed by locale. Both engines
+ * read it as editions and write it in the current schema.
+ */
+export const SCHEMA1_KBF = `${JSON.stringify(
+  {
+    schemaVersion: SchemaVersionV1,
+    kind: "kapi-bundle",
+    generator: { id: "@neokapi/kapi-format-examples", version: "0.0.1" },
+    project: { id: "neokapi-kapi-format-examples", sourceLocale: "en" },
+    documents: [
+      {
+        id: "examples",
+        documentType: "jsx",
+        path: "examples/all.tsx",
+        blocks: [
+          {
+            id: filesHeading.id,
+            hash: filesHeading.hash,
+            translatable: true,
+            type: filesHeading.type,
+            source: sourceRuns(filesHeading),
+            targets: { fr: filesHeadingEditions.editions.fr.runs },
+            targetOrigins: { fr: filesHeadingEditions.editions.fr.origin },
+            placeholders: filesHeading.placeholders,
+            properties: filesHeading.properties,
+          },
+        ],
+      },
+    ],
+  },
+  null,
+  2,
+)}\n`;
 
 export function kbfSampleById(id: string): KbfSample {
   return KBF_SAMPLES.find((s) => s.id === id) ?? KBF_SAMPLES[0];

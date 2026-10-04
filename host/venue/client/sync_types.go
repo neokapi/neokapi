@@ -15,7 +15,7 @@ type SyncBlock struct {
 	ID       string `json:"id"`
 	ItemName string `json:"item_name"`
 	Name     string `json:"name"`
-	// Unit is the block's durable identity (model.Block.Unit) — what a decision
+	// Unit is the block's durable identity (model.Block.Key) — what a decision
 	// and a translation are filed under. Distinct from Name, which is the
 	// format's own structural address and shifts when a sibling is deleted.
 	Unit         string                   `json:"unit,omitempty"`
@@ -31,7 +31,7 @@ type SyncBlock struct {
 	Annotations  json.RawMessage          `json:"annotations,omitempty"`
 	// Overlays are the block's positional, run-anchored stand-off layers
 	// (segmentation, term, entity, term-candidate, qa, alignment, plugin-defined),
-	// carried as the canonical overlay JSON (core/venue.MarshalOverlays) so
+	// carried as the canonical overlay JSON (core/venue.MarshalBlockOverlays) so
 	// a term/entity/segmentation marked in kapi survives push→store→pull. A span's
 	// typed Value rides as a discriminated {"type","data"} envelope, matching the
 	// annotations blob above.
@@ -188,7 +188,7 @@ type RichPullResponse struct {
 
 	// Decisions is the project's decision ledger — the latest workflow
 	// decision per (item, unit, variant), with decider identity, time, and
-	// the hash of the translation each decision blesses. Like Contexts it is
+	// the pairing each decision blesses, by revision. Like Contexts it is
 	// not cursor-driven: the ledger is small and the client reconciles it
 	// last-writer-wins into its working store, where `kapi commit` remains
 	// the only door into the git-tracked record.

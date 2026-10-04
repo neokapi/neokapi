@@ -918,8 +918,12 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 							}
 						}
 						block.SetTargetRuns(targetLocale, targetRuns)
-						key := model.Variant(targetLocale)
-						block.SetSegmentation(&key, spans)
+						block.MarkNative(model.Variant(targetLocale))
+						// Through the target accessor: a file with no
+						// language read with no source locale files its
+						// translation under no language, and the spans go
+						// with it rather than onto the source.
+						block.SetTargetSegmentation(targetLocale, spans)
 						// Snapshot the original numerusforms verbatim so
 						// the writer can decide whether downstream steps
 						// modified any plural form (mirrors okapi's
@@ -980,6 +984,7 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 							} else {
 								block.SetTargetText(targetLocale, targetText)
 							}
+							block.MarkNative(model.Variant(targetLocale))
 						}
 						// Snapshot the original target text (even when
 						// empty) so the writer can detect downstream

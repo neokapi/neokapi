@@ -15,6 +15,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Block, Document, PcCloseRun, PcOpenRun, Run, TextRun } from "@neokapi/kapi-format";
+import { sourceRuns } from "@neokapi/kapi-format";
 
 import { extractDocument } from "../src/extract/index.ts";
 import { transform } from "../src/plugin/transform.ts";
@@ -57,23 +58,23 @@ function t(code: string, options: Partial<PluginOptions> = {}): string | null {
 
 /** The text a translator may edit, in order. */
 function editable(block: Block): string[] {
-  return block.source.flatMap((run) => ("text" in run && !run.noTranslate ? [run.text] : []));
+  return sourceRuns(block).flatMap((run) => ("text" in run && !run.noTranslate ? [run.text] : []));
 }
 
 /** The text carried through verbatim, in order. */
 function protectedText(block: Block): string[] {
-  return block.source.flatMap((run) => ("text" in run && run.noTranslate ? [run.text] : []));
+  return sourceRuns(block).flatMap((run) => ("text" in run && run.noTranslate ? [run.text] : []));
 }
 
 describe("a code span inside prose", () => {
   it("extracts the whole sentence as one block", () => {
     const block = onlyBlock("<p>Say <code>json</code> for the faithful readers.</p>");
-    expect(block.source).toHaveLength(5);
-    expect(textRun(block.source[0]).text).toBe("Say ");
-    expect(pcOpen(block.source[1]).subType).toBe("code");
-    expect(textRun(block.source[2]).text).toBe("json");
-    expect(pcClose(block.source[3]).subType).toBe("code");
-    expect(textRun(block.source[4]).text).toBe(" for the faithful readers.");
+    expect(sourceRuns(block)).toHaveLength(5);
+    expect(textRun(sourceRuns(block)[0]).text).toBe("Say ");
+    expect(pcOpen(sourceRuns(block)[1]).subType).toBe("code");
+    expect(textRun(sourceRuns(block)[2]).text).toBe("json");
+    expect(pcClose(sourceRuns(block)[3]).subType).toBe("code");
+    expect(textRun(sourceRuns(block)[4]).text).toBe(" for the faithful readers.");
     expect(block.hash).toBe(hashKey("Say {=m0}json{/=m0} for the faithful readers.", "p"));
   });
 
@@ -85,8 +86,8 @@ describe("a code span inside prose", () => {
 
   it("gives the span the same paired shape a <strong> gets", () => {
     const block = onlyBlock("<p>Say <code>json</code> now.</p>");
-    const open = pcOpen(block.source[1]);
-    const close = pcClose(block.source[3]);
+    const open = pcOpen(sourceRuns(block)[1]);
+    const close = pcClose(sourceRuns(block)[3]);
     expect(open.type).toBe("jsx:element");
     expect(open.data).toBe("<code>");
     expect(close.data).toBe("</code>");
@@ -119,15 +120,15 @@ describe("a code span inside prose", () => {
     expect(protectedText(block)).toEqual(["json", "xliff"]);
     expect(editable(block)).toEqual(["Use ", " or ", " here."]);
     expect(block.placeholders.map((p) => p.name)).toEqual(["=m0", "=m1"]);
-    expect(pcOpen(block.source[1]).id).not.toBe(pcOpen(block.source[5]).id);
+    expect(pcOpen(sourceRuns(block)[1]).id).not.toBe(pcOpen(sourceRuns(block)[5]).id);
   });
 
   it("protects a span nested inside a link", () => {
     const block = onlyBlock('<p>See <a href="/x">the <code>json</code> reader</a> now.</p>');
     expect(protectedText(block)).toEqual(["json"]);
     expect(editable(block)).toEqual(["See ", "the ", " reader", " now."]);
-    expect(pcOpen(block.source[1]).subType).toBe("a");
-    expect(pcOpen(block.source[3]).subType).toBe("code");
+    expect(pcOpen(sourceRuns(block)[1]).subType).toBe("a");
+    expect(pcOpen(sourceRuns(block)[3]).subType).toBe("code");
   });
 
   it("protects text nested under a span inside the code element", () => {
@@ -140,7 +141,7 @@ describe("a code span inside prose", () => {
     const block = onlyBlock("<p>Type <code>a</code><code>b</code> twice.</p>");
     expect(protectedText(block)).toEqual(["a", "b"]);
     expect(editable(block)).toEqual(["Type ", " twice."]);
-    expect(block.source.filter((r) => "pcOpen" in r)).toHaveLength(2);
+    expect(sourceRuns(block).filter((r) => "pcOpen" in r)).toHaveLength(2);
   });
 });
 
@@ -151,7 +152,7 @@ describe("kbd, samp and var", () => {
     ["var", "<p>Set <var>KAPI_HOME</var> first.</p>", "KAPI_HOME"],
   ])("protects the text inside <%s>", (tag, code, inner) => {
     const block = onlyBlock(code);
-    expect(pcOpen(block.source[1]).subType).toBe(tag);
+    expect(pcOpen(sourceRuns(block)[1]).subType).toBe(tag);
     expect(protectedText(block)).toEqual([inner]);
   });
 
@@ -217,7 +218,7 @@ describe('translate="yes" on a code span', () => {
 describe('translate="no" still wins', () => {
   it("keeps the whole element opaque rather than paired", () => {
     const block = onlyBlock('<p>Saved to <code translate="no">/etc/kapi</code> just now</p>');
-    expect(block.source.some((r) => "pcOpen" in r)).toBe(false);
+    expect(sourceRuns(block).some((r) => "pcOpen" in r)).toBe(false);
     expect(protectedText(block)).toEqual([]);
     expect(editable(block)).toEqual(["Saved to ", " just now"]);
     expect(block.hash).toBe(hashKey("Saved to {=m0} just now", "p"));

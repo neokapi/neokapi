@@ -3,6 +3,13 @@
 // when, parking, notes, and the pairing of source and translation each decision
 // blessed. None of it is derivable from the content, so all of it is kept.
 //
+// A decision pairs two revisions (model.EditionRevision): the revision of the
+// edition it blesses and the basis, the revision of the authoritative edition
+// that edition was made from. A record written before revisions were recorded
+// carries the two content hashes alone (TargetHash and SourceHash), and is read
+// by them; every reader takes a record by revision where it carries one and by
+// hash where it does not (Reading).
+//
 // Decisions live in an append-only, content-addressed ledger (WorkStore). A
 // decision is durable the moment it is recorded, and an entry answers for a
 // unit exactly where the pairing it blessed appears, which is how one ledger
@@ -19,17 +26,19 @@
 package state
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// TargetHash is the content hash a decision blesses: the hash of the trimmed
-// target text. One definition, used by every party that records or verifies a
-// decision — the host when it records, a server when it checks freshness at
-// ingest. A second implementation of this composition is how two ends of a
-// protocol drift.
+// TargetHash is the content hash of the translation a decision blesses: the
+// hash of the trimmed target text. One definition, used by every party that
+// records or verifies a decision: the host when it records, a server when it
+// checks freshness at ingest. A second implementation of this composition is
+// how two ends of a protocol drift. A record that carries a Revision is read by
+// it, and the hash is what a record written before revisions is read by.
 func TargetHash(targetText string) string {
 	return project.HashBytes([]byte(strings.TrimSpace(targetText)))
 }
@@ -43,9 +52,71 @@ func TargetHash(targetText string) string {
 // Target hash and basis are the two halves of one pairing: an approval is about
 // a specific translation OF a specific source. Editing the translation
 // invalidates the decision through TargetHash; editing the source invalidates it
-// through this one.
+// through this one. A record that carries a Basis revision is read by it
+// instead.
 func SourceHash(sourceText string) string {
 	return model.ComputeContentHash(sourceText)
+}
+
+// Reading is what a reader holds of one unit: the revision and the content
+// hash of the edition a record is about, and of the authoritative edition
+// beside it, the basis. A record is read by its revisions where it carries
+// them and by its hashes where it does not, so a decision recorded before
+// revisions keeps answering as it always did, and one recorded since binds to
+// the content, inline codes included.
+type Reading struct {
+	// Basis is the authoritative edition's revision, under the key the block
+	// files it by.
+	Basis string
+	// Bases are the revisions of the same content under every key a reader
+	// of the document may have taken one under (model.Block.SourceRevisions),
+	// Basis first. Readers of one document disagree on that key, so a record
+	// whose basis is any of them was made against this content (HoldsBasis).
+	Bases []string
+	// Revision is the revision of the edition the record is about; empty for
+	// a reading of the authoritative edition alone (ReadSource).
+	Revision string
+	// ContentHash is the authoritative edition's content hash (SourceHash).
+	ContentHash string
+	// TargetHash is the content hash of the edition the record is about
+	// (TargetHash); empty for a reading of the authoritative edition alone.
+	TargetHash string
+}
+
+// HoldsBasis reports whether rev is a revision of the authoritative edition as
+// the reader holds it, under any key a reader of the document may have taken
+// it under.
+func (r Reading) HoldsBasis(rev string) bool {
+	return rev == r.Basis || slices.Contains(r.Bases, rev)
+}
+
+// ReadTarget returns the reading of the translation of b filed under locale,
+// beside the edition b was read in. source is the language the project names
+// that edition by, empty outside a project (ReadSource).
+func ReadTarget(b *model.Block, locale, source model.LocaleID) Reading {
+	r := ReadSource(b, source)
+	r.Revision = model.TargetRevision(b, locale)
+	r.TargetHash = TargetHash(b.TargetText(locale))
+	return r
+}
+
+// ReadSource returns the reading of the edition b was read in, the one a
+// source approval is about: the basis halves only. source is the language the
+// project names that edition by, empty outside a project: a basis a project
+// read took is taken under it.
+func ReadSource(b *model.Block, source model.LocaleID) Reading {
+	bases := b.SourceRevisions(source)
+	return Reading{
+		Basis:       bases[0],
+		Bases:       bases,
+		ContentHash: SourceHash(b.SourceText()),
+	}
+}
+
+// ReadingOf returns the reading a record makes of the content it was recorded
+// against: its own pairing.
+func ReadingOf(s UnitState) Reading {
+	return Reading{Basis: s.Basis, Revision: s.Revision, ContentHash: s.ContentHash, TargetHash: s.TargetHash}
 }
 
 // UnitState is the workflow state of one translatable unit in one locale variant.
@@ -54,7 +125,7 @@ type UnitState struct {
 	// key the document cache and overlays address it by.
 	Unit string `json:"unit"`
 	// Variant is the locale (and optional tone/channel) this state applies to.
-	Variant model.VariantKey `json:"variant"`
+	Variant model.EditionKey `json:"variant"`
 	// Status is the target ladder position (draft→translated→established).
 	Status model.TargetStatus `json:"status,omitempty"`
 	// SourceStatus is the source ladder position (written→established).
@@ -65,6 +136,21 @@ type UnitState struct {
 	// edit to the translation invalidates a stale decision (e.g. an approval). It
 	// does NOT duplicate the translation text — that lives in the deliverable.
 	TargetHash string `json:"targetHash,omitempty"`
+	// Revision is the revision of the edition this state is about
+	// (model.EditionRevision): the translation a decision blesses. It binds the
+	// decision to the content, inline codes included, where TargetHash binds it
+	// to the trimmed text, and a record that carries it is read by it. Empty on
+	// a record written before revisions were recorded, and on a source
+	// approval, which is about the authoritative edition and carries its
+	// revision as Basis.
+	Revision string `json:"revision,omitempty"`
+	// Basis is the revision of the authoritative edition the record was made
+	// against: the source a decision blessed a translation for, or the source
+	// wording a source approval blessed. It is the revision a derived
+	// edition's derivation names (model.Derivation.Rev), and a record that
+	// carries it is read by it rather than by ContentHash. Empty on a record
+	// written before revisions were recorded.
+	Basis string `json:"basis,omitempty"`
 	// Decision is the person's workflow decision recorded for the unit.
 	Decision Decision `json:"decision,omitzero"`
 	// AIReview is the last pre-review an agent or model recorded for the unit:
@@ -84,10 +170,11 @@ type UnitState struct {
 	// what lets a block removed in one revision and restored in a later one come
 	// back to its own history instead of being re-translated.
 	//
-	// ContentHash is therefore also the decision's BASIS: the source wording the
-	// decision blessed (state.SourceHash). A record whose basis no longer matches
-	// the unit's current source is stale — see SourceStale — which is what stops
-	// an approval outliving the sentence it approved.
+	// ContentHash is therefore also the decision's BASIS by hash: the source
+	// wording the decision blessed (state.SourceHash), which Basis names by
+	// revision. A record whose basis no longer matches the unit's current
+	// source is stale (SourceStale), which is what stops an approval outliving
+	// the sentence it approved.
 	//
 	// Scope is the document's resolved key, never its path, so renaming a file
 	// does not disturb the units inside it. It is also half of the record's
@@ -175,7 +262,10 @@ type AIReview struct {
 	Findings []AIReviewFinding `json:"findings,omitempty"`
 	// TargetHash is the content hash of the translation this review judged.
 	TargetHash string `json:"targetHash,omitempty"`
-	At         string `json:"at,omitempty"` // RFC 3339
+	// Revision is the revision of the translation this review judged; empty on
+	// a review recorded before revisions, which is read by TargetHash.
+	Revision string `json:"revision,omitempty"`
+	At       string `json:"at,omitempty"` // RFC 3339
 }
 
 // AIReviewFinding is one issue an AI review reported (mirrors the review tool's
@@ -186,13 +276,17 @@ type AIReviewFinding struct {
 	Suggestion string `json:"suggestion,omitempty"`
 }
 
-// Fresh reports whether the review still judges the given translation content.
-// An unset hash on either side is treated as fresh (no content to compare).
-func (r *AIReview) Fresh(targetHash string) bool {
+// Fresh reports whether the review still judges the translation the reader
+// holds: by revision where the review carries one, by hash where it does not.
+// An unset half on either side is treated as fresh (no content to compare).
+func (r *AIReview) Fresh(in Reading) bool {
 	if r == nil {
 		return false
 	}
-	return r.TargetHash == "" || targetHash == "" || r.TargetHash == targetHash
+	if r.Revision != "" && in.Revision != "" {
+		return r.Revision == in.Revision
+	}
+	return r.TargetHash == "" || in.TargetHash == "" || r.TargetHash == in.TargetHash
 }
 
 // Key uniquely identifies a UnitState within a project.
@@ -206,7 +300,7 @@ func (r *AIReview) Fresh(targetHash string) bool {
 type Key struct {
 	Scope   string
 	Unit    string
-	Variant model.VariantKey
+	Variant model.EditionKey
 }
 
 // Key returns the unit's identity key.
@@ -228,38 +322,53 @@ func (s UnitState) Decides() bool {
 }
 
 // Stale reports whether this state was recorded against a different translation
-// than targetHash — i.e. the translation changed since the decision, so the
-// decision (an approval) no longer applies and the unit drops back down
-// the ladder. An unset TargetHash on either side is treated as "not stale" (no
-// content to compare).
-func (s UnitState) Stale(targetHash string) bool {
-	return s.TargetHash != "" && targetHash != "" && s.TargetHash != targetHash
+// than the one the reader holds: the translation changed since the decision, so
+// the decision (an approval) no longer applies and the unit drops back down
+// the ladder. A record that carries a Revision is compared by revision, so an
+// edit to an inline code alone moves it; one written before revisions is
+// compared by TargetHash. An unset half on either side is treated as "not
+// stale" (no content to compare).
+func (s UnitState) Stale(r Reading) bool {
+	if s.Revision != "" && r.Revision != "" {
+		return s.Revision != r.Revision
+	}
+	return s.TargetHash != "" && r.TargetHash != "" && s.TargetHash != r.TargetHash
 }
 
-// SourceStale reports whether this state was recorded against different SOURCE
-// wording than contentHash — the basis it blessed is gone, so the translation
-// under it renders a sentence the project no longer has and the decision no
-// longer applies.
+// SourceStale reports whether this state was recorded against a different
+// SOURCE than the one the reader holds: the basis it blessed is gone, so the
+// translation under it renders a sentence the project no longer has and the
+// decision no longer applies. A record that carries a Basis revision is
+// compared by it; one written before revisions is compared by ContentHash.
 //
 // An unset basis on either side is NOT stale but UNKNOWN: a record written
 // before the basis was tracked says nothing about the source it blessed, and
 // reading silence as drift would demote every decision a project already holds.
 // Such a record keeps its rung and is counted as unknown where that count is
 // reported, until the next decision on the unit supplies a basis.
-func (s UnitState) SourceStale(contentHash string) bool {
-	return s.ContentHash != "" && contentHash != "" && s.ContentHash != contentHash
+func (s UnitState) SourceStale(r Reading) bool {
+	if s.Basis != "" && r.Basis != "" {
+		return !r.HoldsBasis(s.Basis)
+	}
+	return s.ContentHash != "" && r.ContentHash != "" && s.ContentHash != r.ContentHash
 }
+
+// BasisKnown reports whether the record names the source it was made
+// against, by revision or by hash. A record that names none is graded
+// unknown, never stale.
+func (s UnitState) BasisKnown() bool { return s.Basis != "" || s.ContentHash != "" }
 
 // Fresh reports whether the decision still applies to the pairing in front of
 // the reader: the translation it blessed and the source it blessed it for.
-func (s UnitState) Fresh(targetHash, contentHash string) bool {
-	return !s.Stale(targetHash) && !s.SourceStale(contentHash)
+func (s UnitState) Fresh(r Reading) bool {
+	return !s.Stale(r) && !s.SourceStale(r)
 }
 
 // Established reports whether the unit is established for a fresh
-// translation (its decision blesses the given target content, not a stale one).
-func (s UnitState) Established(targetHash string) bool {
-	if s.Stale(targetHash) {
+// translation (its decision blesses the translation the reader holds, not a
+// stale one).
+func (s UnitState) Established(r Reading) bool {
+	if s.Stale(r) {
 		return false
 	}
 	return s.Status == model.TargetStatusEstablished

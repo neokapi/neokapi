@@ -14,7 +14,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/review"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 )
@@ -256,7 +255,7 @@ func (l *reviewLedger) clearDraftBasis(ctx context.Context, sb *venue.StoredBloc
 		ItemName: sb.ItemName, Unit: sb.SourceID, Variant: locale,
 	}})
 	if err != nil {
-		slog.WarnContext(ctx, "rejected unit's draft mark not cleared; the next pass may leave it waiting on a review already made",
+		slog.WarnContext(ctx, "rejected translation's draft mark not cleared; the next pass may leave it waiting on a review already made",
 			"project", l.projectID, "stream", l.stream, "unit", sb.SourceID, "locale", locale, "error", err)
 	}
 }
@@ -324,11 +323,16 @@ func (l *reviewLedger) resolveCorpus(ctx context.Context) bool {
 //
 // Only an approval re-stamps the row's BASIS, the source it
 // vouches for and the context it vouches for it under, which is what the
-// grading reads to answer whether a unit still translates the wording the
+// grading reads to answer whether a unit still translates the source the
 // project holds. A rejection or a withdrawn approval vouches for nothing, so
 // it carries prev's basis forward and the unit stays graded exactly as it was
 // before the verdict. prev is the row the ledger already holds for the unit,
 // nil where it holds none or the caller is approving.
+//
+// The row names its pairing by revision: the revision of the translation it
+// judges, and for an approval the revision of the source as the store stamped
+// it (StoredBlock.SourceRevision), which a checkout that pulls the decision
+// grades it by.
 func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool, decider, governing string, prev *venue.UnitDecision) venue.UnitDecision {
 	reviewState := ""
 	switch {
@@ -340,9 +344,9 @@ func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetSt
 	basis, basisGoverning := "", ""
 	switch {
 	case approved:
-		basis, basisGoverning = state.SourceHash(sb.Block.SourceText()), governing
+		basis, basisGoverning = sb.SourceRevision, governing
 	case prev != nil:
-		basis, basisGoverning = prev.ContentHash, prev.GoverningFingerprint
+		basis, basisGoverning = prev.Basis, prev.GoverningFingerprint
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	return venue.UnitDecision{
@@ -350,8 +354,8 @@ func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetSt
 		Unit:                 sb.SourceID,
 		Variant:              locale,
 		Status:               string(status),
-		TargetHash:           state.TargetHash(sb.Block.TargetText(model.LocaleID(locale))),
-		ContentHash:          basis,
+		Revision:             platstore.TargetRevision(sb, model.LocaleID(locale)),
+		Basis:                basis,
 		ReviewState:          reviewState,
 		GoverningFingerprint: basisGoverning,
 		DecidedBy:            decider,

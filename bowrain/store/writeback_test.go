@@ -74,6 +74,31 @@ func TestWriteBackBlocks_LandsOnlyOnTheRowItWasRead(t *testing.T) {
 		p.ID, read["moved"].Block.ID), "nothing is logged for a block that did not land")
 }
 
+// A row whose source changed in an inline code alone since the read holds
+// another source as surely as one whose wording changed: the write-back is
+// guarded by the source revision, so the newer link stands.
+func TestWriteBackBlocks_AChangedInlineCodeIsNotWrittenOver(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	seedWriteBackItem(t, s, p.ID, "en.json", linkedBlock("guide", "the guide", "/v1/guide"))
+	sb := readItemByKey(t, s, p.ID, "en.json")["guide"]
+	require.NotNil(t, sb)
+	assert.Equal(t, linkedSourceRevision("the guide", "/v1/guide"), sb.SourceRevision, "the store stamps the revision of the source")
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json",
+		[]*model.Block{linkedBlock("guide", "the guide", "/v2/guide")}))
+
+	sb.Block.SetTargetText("nb", "Les veiledningen")
+	res, err := s.WriteBackBlocks(ctx, p.ID, "main", []*venue.StoredBlock{sb})
+	require.NoError(t, err)
+	assert.Zero(t, res.Written)
+	assert.Equal(t, []string{sb.Block.ID}, res.Skipped)
+	after := readItemByKey(t, s, p.ID, "en.json")["guide"]
+	assert.Equal(t, linkedSourceRevision("the guide", "/v2/guide"), after.SourceRevision, "the newer link stands")
+	assert.Empty(t, after.Block.TargetText("nb"), "a translation of the old link does not land on the new one")
+}
+
 // A caller that changes the source it read, such as an accepted source
 // proposal, still writes it: the row holds the content the caller read.
 func TestWriteBackBlocks_ASourceEditOfTheReadContentLands(t *testing.T) {
@@ -171,14 +196,14 @@ func TestWriteBackBlocks_KeepsTheStoredContextHash(t *testing.T) {
 	if sb.Block.Properties == nil {
 		sb.Block.Properties = map[string]string{}
 	}
-	sb.Block.Properties["__source_settled_hash"] = sb.ContentHash
+	sb.Block.Properties["__source_settled_revision"] = sb.SourceRevision
 	res, err := s.WriteBackBlocks(ctx, p.ID, "main", []*venue.StoredBlock{sb})
 	require.NoError(t, err)
 	require.Equal(t, 1, res.Written)
 
 	after := readItemByKey(t, s, p.ID, "en.json")["k"]
 	require.NotNil(t, after)
-	assert.Equal(t, sb.ContentHash, after.Block.Properties["__source_settled_hash"], "the recorded property is stored")
+	assert.Equal(t, sb.SourceRevision, after.Block.Properties["__source_settled_revision"], "the recorded property is stored")
 	assert.Equal(t, pushed, after.ContextHash, "the stored context hash is the one the push stored")
 }
 
@@ -207,7 +232,7 @@ func TestWriteBackBlocks_AnUnchangedTargetIsNotLogged(t *testing.T) {
 	if sb.Block.Properties == nil {
 		sb.Block.Properties = map[string]string{}
 	}
-	sb.Block.Properties["__source_settled_hash"] = sb.ContentHash
+	sb.Block.Properties["__source_settled_revision"] = sb.SourceRevision
 	res, err := s.WriteBackBlocks(ctx, p.ID, "main", []*venue.StoredBlock{sb})
 	require.NoError(t, err)
 	require.Equal(t, 1, res.Written)

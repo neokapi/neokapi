@@ -17,12 +17,12 @@ import (
 // same rejection is not sent again on every push.
 func TestRetireRefusedVerdicts_StaleRejection(t *testing.T) {
 	rejected := state.UnitState{
-		Scope:       "locales/en.json",
-		Unit:        "greeting",
-		Variant:     model.Variant(model.LocaleID("fr")),
-		Status:      model.TargetStatusDraft,
-		TargetHash:  "target-older",
-		ContentHash: "source-greeting",
+		Scope:    "locales/en.json",
+		Unit:     "greeting",
+		Variant:  model.Variant(model.LocaleID("fr")),
+		Status:   model.TargetStatusDraft,
+		Revision: "r:target-older",
+		Basis:    "r:source-greeting",
 		Decision: state.Decision{
 			ReviewState: venue.ReviewStateRejected,
 			By:          "me@example.com",
@@ -34,7 +34,7 @@ func TestRetireRefusedVerdicts_StaleRejection(t *testing.T) {
 	held := venue.UnitDecision{
 		ItemName: "locales/en.json", Unit: "greeting", Variant: "fr",
 		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
-		TargetHash: "target-current", ContentHash: "source-greeting",
+		Revision: "r:target-current", Basis: "r:source-greeting",
 		DecidedBy: "reviewer@example.com", DecidedAt: "2026-09-10T10:00:00Z",
 		Updated: "2026-09-10T10:00:00Z",
 	}
@@ -83,6 +83,6 @@ func TestRetireRefusedVerdicts_StaleRejection(t *testing.T) {
 		require.Len(t, after, 1)
 		assert.Empty(t, after[0].ReviewState, "the rejection is retired")
 		assert.Equal(t, string(model.TargetStatusTranslated), after[0].Status)
-		assert.Equal(t, rejected.TargetHash, after[0].TargetHash, "the basis still names the translation it was written for")
+		assert.Equal(t, rejected.Revision, after[0].Revision, "the basis still names the translation it was written for")
 	})
 }

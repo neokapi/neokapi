@@ -6,8 +6,8 @@ import "context"
 // requires source and target runs, so recomputing dashboard totals on every
 // request would require a whole-project read.
 //
-// Each verdict records its basis: the source hash, target revision and governance
-// fingerprint. Aggregates exclude verdicts with a changed basis and report them
+// Each verdict records its basis: the source revision, target revision and
+// governance fingerprint. Aggregates exclude verdicts with a changed basis and report them
 // as stale for recomputation. Unchanged projects need only aggregate queries;
 // edited projects require reading the affected blocks.
 //
@@ -168,8 +168,8 @@ type ShipVerdictStore interface {
 	// pairs that need recomputing.
 	ShipGateRollup(ctx context.Context, q ShipGateQuery) (ShipGateRollup, error)
 	// PutShipGateVerdicts records verdicts under the gate fingerprint they were
-	// computed with, stamping each with the source hash and target revision it
-	// judged so a later rollup can tell whether it still holds.
+	// computed with, stamping each with the source revision and target revision
+	// it judged so a later rollup can tell whether it still holds.
 	PutShipGateVerdicts(ctx context.Context, projectID, stream, gate string, verdicts []ShipGateVerdict) error
 }
 

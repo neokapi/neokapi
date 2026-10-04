@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
@@ -189,7 +190,7 @@ func TestSubsystems_RoundTripThroughSharedPool(t *testing.T) {
 			ID:           "b1",
 			Hash:         "h-b1",
 			Translatable: true,
-			Source:       []model.Run{model.TextR("Save changes")},
+			Editions:     kbf.SourceEditions([]model.Run{model.TextR("Save changes")}),
 		}))
 		require.NoError(t, sess.Commit())
 
@@ -199,7 +200,7 @@ func TestSubsystems_RoundTripThroughSharedPool(t *testing.T) {
 		got, err := read.GetBlock("h-b1")
 		require.NoError(t, err)
 		assert.Equal(t, "b1", got.ID)
-		assert.Equal(t, "Save changes", model.FlattenRuns(got.Source))
+		assert.Equal(t, "Save changes", model.FlattenRuns(got.SourceRuns()))
 	})
 
 	t.Run("blocks autocommit", func(t *testing.T) {
@@ -281,7 +282,7 @@ func TestPresence_FalseOnFreshStoreTrueAfterWrites(t *testing.T) {
 			fill: func(t *testing.T) {
 				sess, err := db.Blocks().Begin(ctx)
 				require.NoError(t, err)
-				require.NoError(t, sess.PutBlock("docs", &blockstore.Block{Hash: "p-h1", Source: []model.Run{model.TextR("One")}}))
+				require.NoError(t, sess.PutBlock("docs", &blockstore.Block{Hash: "p-h1", Editions: kbf.SourceEditions([]model.Run{model.TextR("One")})}))
 				require.NoError(t, sess.Commit())
 			},
 		},

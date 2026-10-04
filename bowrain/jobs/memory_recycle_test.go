@@ -5,7 +5,6 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
@@ -128,8 +127,8 @@ func TestPromoteDecisionsToMemory(t *testing.T) {
 	approval := venue.UnitDecision{
 		ItemName: "en.json", Unit: "greeting", Variant: "fr",
 		ReviewState: "approved", Status: "established",
-		TargetHash: state.TargetHash("Bonjour"),
-		DecidedBy:  "reviewer@example.com",
+		Revision:  frRevision("Bonjour"),
+		DecidedBy: "reviewer@example.com",
 	}
 	promoted, evicted := PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []venue.UnitDecision{approval})
 	assert.Equal(t, 1, promoted)
@@ -147,7 +146,7 @@ func TestPromoteDecisionsToMemory(t *testing.T) {
 
 	// A stale decision (blesses a different translation) moves nothing.
 	stale := approval
-	stale.TargetHash = state.TargetHash("Salut")
+	stale.Revision = frRevision("Salut")
 	promoted, evicted = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []venue.UnitDecision{stale})
 	assert.Zero(t, promoted)
 	assert.Zero(t, evicted)

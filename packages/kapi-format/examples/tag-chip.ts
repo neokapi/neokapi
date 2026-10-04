@@ -23,6 +23,7 @@
  */
 
 import type { Block } from "../src/block.ts";
+import { sourceEditions } from "../src/editions.ts";
 
 export const tagChip: Block = {
   id: "tag-chip",
@@ -30,7 +31,7 @@ export const tagChip: Block = {
   translatable: true,
   type: "jsx:element",
 
-  source: [
+  editions: sourceEditions([
     {
       ph: {
         id: "1",
@@ -63,7 +64,7 @@ export const tagChip: Block = {
         disp: "⟨required⟩",
       },
     },
-  ],
+  ]),
 
   placeholders: [
     {

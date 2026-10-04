@@ -10,7 +10,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -102,9 +101,9 @@ type writeRecorder struct {
 }
 
 // basisRecord is a unit's ledger record of the source its translation was
-// made from, as an edition write gives it: a basis and nothing else.
+// made from, as an edition write gives it: the pairing and nothing else.
 type basisRecord struct {
-	unit, variant, targetHash, contentHash, governing string
+	unit, variant, revision, basis, governing string
 }
 
 // draftMark is the source a tool's write says it drafted a unit's translation
@@ -115,7 +114,7 @@ type draftMark struct {
 
 // unitRecord is the part of a unit's ledger row a write is judged against.
 type unitRecord struct {
-	reviewState, targetHash, contentHash, draftBasis string
+	reviewState, revision, basis, draftBasis string
 }
 
 // unitVariant names one translation of a unit within an item.
@@ -159,14 +158,18 @@ func (r *writeRecorder) item(ctx context.Context, item string, writes []venue.Ed
 		key, _ := model.ParseEditionKey(w.Variant)
 
 		// The translation the venue holds, when it holds one.
-		held, targetHash := false, ""
+		held := false
 		if targetJSON, ok := targets[[2]string{blockID, w.Variant}]; ok {
 			if tgt, uerr := UnmarshalTargetJSON([]byte(targetJSON)); uerr == nil {
 				if model.RunsRevision(key.Canonical(), tgt.Runs) != w.Revision {
 					continue // the write describes another translation
 				}
-				held, targetHash = true, state.TargetHash(model.RunsText(tgt.Runs))
+				held = true
 			}
+		}
+		revision := ""
+		if held {
+			revision = w.Revision
 		}
 
 		prev, haveRecord := records[unitVariant{w.Unit, w.Variant}]
@@ -176,9 +179,9 @@ func (r *writeRecorder) item(ctx context.Context, item string, writes []venue.Ed
 			basis = w.Basis
 		}
 		if !decided && (basis != "" || w.KnowsNoBasis()) &&
-			(!haveRecord || prev.contentHash != basis || prev.targetHash != targetHash) {
+			(!haveRecord || prev.basis != basis || prev.revision != revision) {
 			bases = append(bases, basisRecord{
-				unit: w.Unit, variant: w.Variant, targetHash: targetHash, contentHash: basis,
+				unit: w.Unit, variant: w.Variant, revision: revision, basis: basis,
 				governing: w.GoverningFingerprint,
 			})
 		}
@@ -233,8 +236,8 @@ const (
 )
 
 // recordBases writes the basis records of an item's units, a few hundred to a
-// statement. A record carries a basis and nothing else, so it never replaces
-// a decision: a unit decided since the push read its record keeps the
+// statement. A record carries the pairing and nothing else, so it never
+// replaces a decision: a unit decided since the push read its record keeps the
 // decision whole, and an undecided record keeps its rung, note and assignee.
 // A basis decides nothing, so it is not filed in the block history as a
 // decision.
@@ -253,15 +256,15 @@ func (r *writeRecorder) recordBases(ctx context.Context, item string, bases []ba
 		for i, b := range chunk {
 			n := len(args)
 			values[i] = fmt.Sprintf("($1,$2,$3,$4,$%d,$%d,$%d,$%d,$%d,$5,NOW())", n+1, n+2, n+3, n+4, n+5)
-			args = append(args, b.unit, b.variant, b.targetHash, b.contentHash, b.governing)
+			args = append(args, b.unit, b.variant, b.revision, b.basis, b.governing)
 		}
 		if _, err := r.tx.ExecContext(ctx,
 			`INSERT INTO unit_decisions
-				(project_id, stream, item_id, item_name, unit, variant, target_hash, content_hash,
+				(project_id, stream, item_id, item_name, unit, variant, revision, basis,
 				 governing_fingerprint, updated, updated_at)
 			 VALUES `+strings.Join(values, ",")+`
 			 ON CONFLICT (project_id, stream, item_id, unit, variant) DO UPDATE SET
-				target_hash=EXCLUDED.target_hash, content_hash=EXCLUDED.content_hash,
+				revision=EXCLUDED.revision, basis=EXCLUDED.basis,
 				governing_fingerprint=EXCLUDED.governing_fingerprint,
 				updated=EXCLUDED.updated, updated_at=EXCLUDED.updated_at
 			 WHERE unit_decisions.review_state = ''`,
@@ -437,7 +440,7 @@ func (r *writeRecorder) records(ctx context.Context, item string, units []string
 		args := []any{r.projectID, r.stream, item}
 		args = append(args, anyStrings(chunk)...)
 		rows, err := r.tx.QueryContext(ctx,
-			`SELECT unit, variant, review_state, target_hash, content_hash, draft_basis FROM unit_decisions
+			`SELECT unit, variant, review_state, revision, basis, draft_basis FROM unit_decisions
 			 WHERE project_id=$1 AND stream=$2
 			   AND item_id = (SELECT id FROM items WHERE project_id=$1 AND stream=$2 AND name=$3)
 			   AND unit IN (`+placeholderList("pg", 4, len(chunk))+`)`,
@@ -451,7 +454,7 @@ func (r *writeRecorder) records(ctx context.Context, item string, units []string
 		}
 		held, err := storage.ScanRows(rows, func(sc storage.Scanner) (keptRecord, error) {
 			var k keptRecord
-			err := sc.Scan(&k.at.unit, &k.at.variant, &k.rec.reviewState, &k.rec.targetHash, &k.rec.contentHash, &k.rec.draftBasis)
+			err := sc.Scan(&k.at.unit, &k.at.variant, &k.rec.reviewState, &k.rec.revision, &k.rec.basis, &k.rec.draftBasis)
 			return k, err
 		})
 		if err != nil {

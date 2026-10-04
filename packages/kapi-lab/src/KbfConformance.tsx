@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import {
   marshalFile,
+  parseFile,
   renderBlockHtml,
   resolveAnchor,
+  sourceEditions,
   validateAnchor,
   validateTargetAgainstSource,
 } from "@neokapi/kapi-format";
@@ -12,6 +14,7 @@ import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
 import type { LabRuntime, LabRuntimeAssets } from "./useLabRuntime";
 import {
+  SCHEMA1_KBF,
   emailBody,
   filesHeading,
   kbfText,
@@ -287,6 +290,15 @@ function goAccepts(rt: LabRuntime, kbf: string): string {
   return rt.kbf({ op: "roundtrip", kbf }).ok ? "accepted" : "rejected";
 }
 
+function tsAccepts(kbf: string): string {
+  try {
+    parseFile(kbf);
+    return "accepted";
+  } catch {
+    return "rejected";
+  }
+}
+
 function normKinds(kinds: string[]): string {
   return kinds.length === 0 ? "valid" : [...kinds].sort().join(",");
 }
@@ -297,6 +309,7 @@ const fullFile: File = kbfSampleById("full").file;
 const selectFile: File = kbfSampleById("select").file;
 const subFile: File = kbfSampleById("sub").file;
 const pluralFile: File = kbfSampleById("plural").file;
+const editionsFile: File = kbfSampleById("editions").file;
 
 // A valid files-heading target: preserves the `muted` paired code and the
 // `count` variable, only the literal text is translated.
@@ -379,7 +392,9 @@ const malformedBlock = {
   hash: "x",
   translatable: true,
   type: "jsx:element",
-  source: [{ text: "a", ph: { id: "1", type: "jsx:var", data: "{x}", equiv: "x" } }],
+  editions: {
+    "": { runs: [{ text: "a", ph: { id: "1", type: "jsx:var", data: "{x}", equiv: "x" } }] },
+  },
   placeholders: [],
   properties: {
     file: "x",
@@ -396,7 +411,7 @@ const unclosedBlock: Block = {
   hash: "x",
   translatable: true,
   type: "jsx:element",
-  source: [
+  editions: sourceEditions([
     {
       pcOpen: {
         id: "1",
@@ -407,7 +422,7 @@ const unclosedBlock: Block = {
       },
     },
     { text: "bold" },
-  ],
+  ]),
   placeholders: [{ name: "b", kind: "element", sourceExpr: "<b>" }],
   properties: {
     file: "x",
@@ -422,7 +437,9 @@ const unmatchedCloseBlock: Block = {
   hash: "x",
   translatable: true,
   type: "jsx:element",
-  source: [{ pcClose: { id: "1", type: "jsx:element", subType: "b", data: "</b>" } }],
+  editions: sourceEditions([
+    { pcClose: { id: "1", type: "jsx:element", subType: "b", data: "</b>" } },
+  ]),
   placeholders: [],
   properties: {
     file: "x",
@@ -437,7 +454,9 @@ const unknownPlaceholderBlock: Block = {
   hash: "x",
   translatable: true,
   type: "jsx:element",
-  source: [{ ph: { id: "1", type: "jsx:var", data: "{x}", equiv: "undeclared" } }],
+  editions: sourceEditions([
+    { ph: { id: "1", type: "jsx:var", data: "{x}", equiv: "undeclared" } },
+  ]),
   placeholders: [],
   properties: {
     file: "x",
@@ -487,6 +506,24 @@ const CASES: ConfCase[] = [
     category: "serialization",
     runGo: (rt) => rt.kbf({ op: "roundtrip", kbf: kbfText(subFile) }).sha256 as string,
     runTs: () => sha256Hex(marshalFile(subFile)),
+  },
+  {
+    id: "ser-editions",
+    name: "Round-trip a block's editions",
+    description:
+      "A translation and a channel edition, with status, origin and derivation, serialize identically in both engines.",
+    category: "serialization",
+    runGo: (rt) => rt.kbf({ op: "roundtrip", kbf: kbfText(editionsFile) }).sha256 as string,
+    runTs: () => sha256Hex(marshalFile(editionsFile)),
+  },
+  {
+    id: "ser-schema1",
+    name: "Read a schema 1.0 file as editions",
+    description:
+      "A file whose blocks carry source beside targets keyed by locale reads as editions and is written in the current schema, byte-identically in both engines.",
+    category: "serialization",
+    runGo: (rt) => rt.kbf({ op: "roundtrip", kbf: SCHEMA1_KBF }).sha256 as string,
+    runTs: () => sha256Hex(marshalFile(parseFile(SCHEMA1_KBF))),
   },
 
   // ── Preview (Level-1 HTML parity) ──
@@ -718,7 +755,18 @@ const CASES: ConfCase[] = [
     runGo: (rt) =>
       goAccepts(
         rt,
-        badEnvelope((f) => ((f as { schemaVersion: string }).schemaVersion = "2.0")),
+        badEnvelope((f) => ((f as { schemaVersion: string }).schemaVersion = "3.0")),
       ),
+    runTs: () =>
+      tsAccepts(badEnvelope((f) => ((f as { schemaVersion: string }).schemaVersion = "3.0"))),
+  },
+  {
+    id: "env-schema1",
+    name: "Accept a schema 1.0 file",
+    description: "A file in the first schema is read, not refused.",
+    category: "structure",
+    expected: "accepted",
+    runGo: (rt) => goAccepts(rt, SCHEMA1_KBF),
+    runTs: () => tsAccepts(SCHEMA1_KBF),
   },
 ];

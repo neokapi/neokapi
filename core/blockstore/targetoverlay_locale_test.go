@@ -87,23 +87,50 @@ func TestMemoryStore_OverlayKindIsCanonical(t *testing.T) {
 
 func TestBlockTexts_TargetLocalesAreCanonical(t *testing.T) {
 	b := &kbf.Block{
-		ID:     "tu1",
-		Source: []model.Run{{Text: &model.TextRun{Text: "Berth"}}},
-		Targets: map[string][]model.Run{
-			"nb_NO": {{Text: &model.TextRun{Text: "Kai"}}},
+		ID: "tu1",
+		Editions: map[string]kbf.Edition{
+			kbf.SourceEdition:     {Runs: []model.Run{{Text: &model.TextRun{Text: "Berth"}}}},
+			"nb_NO":               {Runs: []model.Run{{Text: &model.TextRun{Text: "Kai"}}}},
+			"nb_NO;channel=short": {Runs: []model.Run{{Text: &model.TextRun{Text: "Kai!"}}}},
+			"de":                  {},
 		},
+		Unlabelled: &kbf.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: "unlabelled"}}}},
 	}
 	texts := BlockTexts(b)
-	require.Len(t, texts, 2)
+	require.Len(t, texts, 3, "an empty edition and the unlabelled one carry no text to find")
 	assert.Equal(t, SourceLocale, texts[0].Locale)
 	assert.Equal(t, "nb-NO", texts[1].Locale)
+	assert.Equal(t, "nb-NO;channel=short", texts[2].Locale, "a channel edition is found under its canonical key")
 
 	opts := TextSearchOptions{Locales: []string{"nb_NO", SourceLocale}}
 	assert.Equal(t, []string{"nb-NO", ""}, opts.CanonicalLocales())
-	assert.True(t, opts.wants("nb-NO"))
-	assert.True(t, opts.wants(SourceLocale))
-	assert.False(t, opts.wants("de"))
+	assert.True(t, opts.Wants("nb-NO"))
+	assert.True(t, opts.Wants(SourceLocale))
+	assert.False(t, opts.Wants("de"))
 	assert.Nil(t, TextSearchOptions{}.CanonicalLocales(), "no filter stays no filter")
+}
+
+// An edition under a key kbf.ReadKey refuses is not found under the key its
+// text would shorten to: the plain edition of that language is the only text
+// filed there, and a filter naming the unreadable key matches nothing.
+func TestBlockTexts_LeavesAKeyItCannotRead(t *testing.T) {
+	b := &kbf.Block{
+		ID: "tu1",
+		Editions: map[string]kbf.Edition{
+			kbf.SourceEdition:  {Runs: []model.Run{{Text: &model.TextRun{Text: "Log in"}}}},
+			"nb":               {Runs: []model.Run{{Text: &model.TextRun{Text: "Logg inn"}}}},
+			"nb;audience=kids": {Runs: []model.Run{{Text: &model.TextRun{Text: "Hopp inn"}}}},
+			";x=y":             {Runs: []model.Run{{Text: &model.TextRun{Text: "junk"}}}},
+		},
+	}
+	assert.Equal(t, []BlockText{
+		{Locale: SourceLocale, Text: "Log in"},
+		{Locale: "nb", Text: "Logg inn"},
+	}, BlockTexts(b))
+
+	opts := TextSearchOptions{Locales: []string{"nb;audience=kids"}}
+	assert.Equal(t, []string{"nb;audience=kids"}, opts.CanonicalLocales(), "kept as given, not shortened to nb")
+	assert.False(t, opts.Wants("nb"))
 }
 
 func TestScanText_LocaleFilterIsCanonical(t *testing.T) {
@@ -112,11 +139,11 @@ func TestScanText_LocaleFilterIsCanonical(t *testing.T) {
 	sess, err := store.Begin(ctx)
 	require.NoError(t, err)
 	require.NoError(t, sess.PutBlock("app", &kbf.Block{
-		ID:     "tu1",
-		Hash:   "h1",
-		Source: []model.Run{{Text: &model.TextRun{Text: "Berth"}}},
-		Targets: map[string][]model.Run{
-			"nb_NO": {{Text: &model.TextRun{Text: "Kai"}}},
+		ID:   "tu1",
+		Hash: "h1",
+		Editions: map[string]kbf.Edition{
+			kbf.SourceEdition: {Runs: []model.Run{{Text: &model.TextRun{Text: "Berth"}}}},
+			"nb_NO":           {Runs: []model.Run{{Text: &model.TextRun{Text: "Kai"}}}},
 		},
 	}))
 	require.NoError(t, sess.Commit())

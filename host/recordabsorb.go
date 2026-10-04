@@ -406,7 +406,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 	if rerr != nil {
 		return res, rerr
 	}
-	prior := newPriorSourceIndex(ctx, a.projectBlocksAutocommit(db))
+	prior := newPriorSourceIndex(ctx, a.projectBlocksAutocommit(db), sourceLocale)
 	// What the corpus already answers, so a rewritten unit's committed target can
 	// be recognized as the loop's own last output for the wording that is gone.
 	corpus := &memoryAnswers{ctx: ctx, tm: tm, source: sourceLocale, cache: map[string][]memory.Entry{}}
@@ -507,7 +507,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 					order:      order,
 					locale:     u.locale,
 					sourceRuns: srcRuns,
-					unit:       recordChainUnit(b),
+					unit:       recordChainKey(b),
 					answers:    map[string]*recordAnswer{},
 					origin: memory.Origin{
 						Source:    recordOriginSource,
@@ -854,9 +854,13 @@ func supersededSource(
 ) (blessed []model.Run, superseded bool, err error) {
 	// The record's own basis contradicts the adjacency: it names source wording
 	// that is gone, and the translation it names is still on disk. Recovering
-	// that wording by the basis hash is verified by construction — a block whose
-	// hash IS the basis is the pairing the record was made against,
-	// reconstructed rather than guessed at.
+	// that wording by the basis is verified by construction — a block whose
+	// revision IS the basis is the pairing the record was made against,
+	// reconstructed rather than guessed at. A record written before revisions
+	// names the basis by hash, and is recovered by it. The recovered wording is
+	// the text at the basis revision, which is what the content memory then
+	// pairs the translation with, and what a later lookup classifies the
+	// source in hand against (edit.Classify).
 	//
 	// A decision and a basis the loop recorded for a target it wrote answer here
 	// alike, which is what lets a source rewrite under an undecided translation
@@ -871,7 +875,7 @@ func supersededSource(
 	// the next run learns the fresh draft and recycles it rather than paying to
 	// produce it again.
 	if basis == basisStale && e.blessesTarget(b, u.locale) {
-		runs, _ := prior.runsFor(e.contentHash)
+		runs, _ := prior.runsFor(e.basis, e.contentHash, b)
 		return runs, true, nil
 	}
 
@@ -899,12 +903,13 @@ func supersededSource(
 }
 
 // priorSourceIndex answers "what wording is this translation of?" from the
-// project block store, two ways: by the basis a decision recorded
-// (state.SourceHash of a block's source text) and by the unit the block store
-// keys the source under.
+// project block store, three ways: by the basis a decision recorded, its
+// revision (model.EditionRevision of the edition the block was read in) or,
+// for a decision recorded before revisions, its hash (state.SourceHash of a
+// block's source text), and by the unit the block store keys the source under.
 //
-// The store is the only carrier of that wording: a decision keeps the basis
-// hash, not the sentence, and an undecided unit keeps nothing at all. It holds
+// The store is the only carrier of that wording: a decision keeps the basis,
+// not the sentence, and an undecided unit keeps nothing at all. It holds
 // it because the absorber runs BEFORE the pass re-extracts the working tree, so
 // at this moment the store still describes the project as it was when the
 // committed targets were last produced.
@@ -917,25 +922,69 @@ func supersededSource(
 type priorSourceIndex struct {
 	ctx    context.Context
 	store  blockstore.Store
+	source model.LocaleID
 	loaded bool
-	byHash map[string][]model.Run
-	byUnit map[string][]model.Run
+	// sources is every stored source the scan read, which byRev indexes under
+	// each key a revision has been asked for under (indexed).
+	sources [][]model.Run
+	indexed map[model.EditionKey]bool
+	byRev   map[string][]model.Run
+	byHash  map[string][]model.Run
+	byUnit  map[string][]model.Run
 }
 
-func newPriorSourceIndex(ctx context.Context, store blockstore.Store) *priorSourceIndex {
-	return &priorSourceIndex{ctx: ctx, store: store}
+// newPriorSourceIndex indexes the sources the store holds. source is the
+// language they are written in, the key a project read files a source under.
+func newPriorSourceIndex(ctx context.Context, store blockstore.Store, source model.LocaleID) *priorSourceIndex {
+	return &priorSourceIndex{ctx: ctx, store: store, source: source}
 }
 
-// runsFor returns the source runs whose basis hash is the given one, and
-// ok=false when the store cannot supply them (nothing extracted yet, a build
-// with no block store, or a store already re-read past the edit).
-func (p *priorSourceIndex) runsFor(basis string) ([]model.Run, bool) {
-	if basis == "" {
+// runsFor returns the source runs at the basis a record names for b: by its
+// revision where it names one, and by its hash where it was recorded before
+// revisions. A revision covers the key it was taken under, and the readers of
+// one document file its source under different keys (model.Block.SourceRevisions),
+// so a revision is looked up under each: the project's source language, no
+// language, and the language b's reader declared. A revision found under none
+// of them names content the store no longer holds, and its text hash would
+// recover another source with the same words and other inline codes, so ok is
+// false. ok is also false when the store cannot supply the runs (nothing
+// extracted yet, a build with no block store, or a store already re-read past
+// the edit).
+func (p *priorSourceIndex) runsFor(rev, hash string, b *model.Block) ([]model.Run, bool) {
+	if rev == "" && hash == "" {
 		return nil, false
 	}
 	p.load()
-	runs, ok := p.byHash[basis]
+	if rev == "" {
+		runs, ok := p.byHash[hash]
+		return runs, ok
+	}
+	keys := []model.EditionKey{model.Variant(p.source), {}}
+	if b != nil {
+		keys = append(keys, model.Variant(b.SourceLocale))
+		if declared := b.Properties[model.PropReadSourceLocale]; declared != "" {
+			keys = append(keys, model.Variant(model.LocaleID(declared)))
+		}
+	}
+	for _, k := range keys {
+		p.indexUnder(k)
+	}
+	runs, ok := p.byRev[rev]
 	return runs, ok
+}
+
+// indexUnder indexes every stored source by its revision under k, once per key.
+func (p *priorSourceIndex) indexUnder(k model.EditionKey) {
+	k = k.Canonical()
+	if p.indexed[k] {
+		return
+	}
+	p.indexed[k] = true
+	for _, runs := range p.sources {
+		if r := model.RunsRevision(k, runs); p.byRev[r] == nil {
+			p.byRev[r] = runs
+		}
+	}
 }
 
 // runsForUnit returns the source runs the store holds for one unit of one source
@@ -960,44 +1009,48 @@ func (p *priorSourceIndex) load() {
 		return
 	}
 	p.loaded = true
-	p.byHash, p.byUnit = p.scan()
+	p.sources, p.byHash, p.byUnit = p.scan()
+	p.byRev, p.indexed = map[string][]model.Run{}, map[model.EditionKey]bool{}
 }
 
 // scan reads every translatable block the store holds and indexes its source
-// runs by basis and by unit. Autocommit, not the session-transactional store:
-// this is a read beside the run's own writes, and holding the write permit for
-// the length of a full scan would stall them. Any failure yields empty indexes —
-// the caller then absorbs no differently than it did before the store existed,
-// rather than acting on half a scan.
-func (p *priorSourceIndex) scan() (byHash, byUnit map[string][]model.Run) {
+// runs by hash and by unit, keeping each for the revision index. Autocommit,
+// not the session-transactional store: this is a read beside the run's own
+// writes, and holding the write permit for the length of a full scan would
+// stall them. Any failure yields empty indexes — the caller then absorbs no
+// differently than it did before the store existed, rather than acting on half
+// a scan.
+func (p *priorSourceIndex) scan() (sources [][]model.Run, byHash, byUnit map[string][]model.Run) {
 	byHash, byUnit = map[string][]model.Run{}, map[string][]model.Run{}
 	store := p.store
 	if store == nil {
-		return byHash, byUnit
+		return nil, byHash, byUnit
 	}
 	sess, err := store.Begin(p.ctx)
 	if err != nil {
-		return byHash, byUnit
+		return nil, byHash, byUnit
 	}
 	defer sess.Close()
 	translatable := true
 	for b, berr := range sess.Blocks(blockstore.BlockFilter{Translatable: &translatable}) {
 		if berr != nil {
-			return map[string][]model.Run{}, map[string][]model.Run{}
+			return nil, map[string][]model.Run{}, map[string][]model.Run{}
 		}
 		// model.RunsText, the same projection model.Block.SourceText makes, so a
 		// stored block hashes to the number a decision recorded for it.
-		text := model.RunsText(b.Source)
+		source := b.SourceRuns()
+		text := model.RunsText(source)
 		if text == "" {
 			continue
 		}
 		h := state.SourceHash(text)
 		if _, seen := byHash[h]; !seen {
-			byHash[h] = b.Source
+			byHash[h] = source
 		}
-		byUnit[priorUnitKey(b.Properties.File, b.ID)] = b.Source
+		sources = append(sources, source)
+		byUnit[priorUnitKey(b.Properties.File, b.ID)] = source
 	}
-	return byHash, byUnit
+	return sources, byHash, byUnit
 }
 
 // memoryAnswers asks the content memory the question `recycle` asks: for this
@@ -1025,7 +1078,7 @@ func (m *memoryAnswers) answers(src []model.Run, locale model.LocaleID, tgt []mo
 		var err error
 		entries, err = m.tm.FullScoreEntries(m.ctx, src, m.source)
 		if err != nil {
-			return false, fmt.Errorf("read content-memory entries for a rewritten unit: %w", err)
+			return false, fmt.Errorf("read content-memory entries for a rewritten block: %w", err)
 		}
 		m.cache[key] = entries
 	}
@@ -1107,9 +1160,7 @@ func (a *App) pairedRecordBlocks(ctx context.Context, u recordUnit, sourceLocale
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s: %w", errTargetUnreadable, u.targetRel, err)
 	}
-	for _, sb := range sourceBlocks {
-		sb.SourceLocale = sourceLocale
-	}
+	fileUnderSource(sourceBlocks, sourceLocale)
 	OverlayTargets(sourceBlocks, targetBlocks, u.locale)
 	return sourceBlocks, nil
 }
@@ -1380,27 +1431,20 @@ func saveRecordDigests(ctx context.Context, db *projectdb.DB, stamps map[string]
 	return nil
 }
 
-// recordChainUnit returns the key for a block's version history, preferring its
-// resolved Unit, then structural address, then name. A Unit survives reconciled
-// edits; a structural address is translation-invariant; key paths and catalog
-// IDs are already suitable names.
+// recordChainKey returns the key for a block's version history:
+// model.Block.ChainKey, kept as a named call site because the reasoning about
+// WHY a chain is keyed this way belongs beside the write path that stamps it.
 //
-// Unlike convergence.BlockKey, it excludes the per-read block ID. Such an ID can
-// change across reads and associate unrelated versions. Empty means no stable
-// history key is available.
-
-// recordChainUnit is model.Block.ChainUnit, kept as a named call site because
-// the reasoning about WHY a chain is keyed this way belongs beside the write
-// path that stamps it.
-//
-// Unit, then structural address, then name. It deliberately stops there rather
-// than falling through to the block's ID, as convergence.BlockKey does. An id
-// is assigned per read, so keying a chain on one would braid unrelated answers
-// together and fragment a real chain, both silently. For a version chain an
-// unstable key is worse than no key: empty says "this block has no history",
-// which is merely unhelpful, while a wrong key says "this block said that
-// before", which is false.
-func recordChainUnit(b *model.Block) string { return b.ChainUnit() }
+// The block's resolved Key, then its structural address, then its name. A Key
+// survives reconciled edits; a structural address is translation-invariant;
+// key paths and catalog IDs are already suitable names. It deliberately stops
+// there rather than falling through to the block's ID, as convergence.BlockKey
+// does. An id is assigned per read, so keying a chain on one would braid
+// unrelated answers together and fragment a real chain, both silently. For a
+// version chain an unstable key is worse than no key: empty says "this block
+// has no history", which is merely unhelpful, while a wrong key says "this
+// block said that before", which is false.
+func recordChainKey(b *model.Block) string { return b.ChainKey() }
 
 // governingFingerprintOf reads the governing context a block's committed target
 // stands under, from the two places the statement can live.

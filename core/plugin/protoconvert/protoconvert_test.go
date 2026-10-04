@@ -305,20 +305,16 @@ func TestBlockRoundTrip(t *testing.T) {
 					{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 					{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 				}
-				b.SetSegmentation(nil, spans)
+				b.SetSegmentation(model.EditionKey{}, spans)
 				return b
 			}(),
 		},
 		{
 			name: "BlockNonTranslatable",
 			b: func() *model.Block {
-				return &model.Block{
-					ID:           "id8",
-					Translatable: false,
-					Source:       []model.Run{{Text: &model.TextRun{Text: "non-translatable"}}},
-					Targets:      make(map[model.VariantKey]*model.Target),
-					Properties:   make(map[string]string),
-				}
+				b := model.NewBlock("id8", "non-translatable")
+				b.Translatable = false
+				return b
 			}(),
 		},
 		{
@@ -350,7 +346,7 @@ func TestBlockRoundTrip(t *testing.T) {
 			require.Equal(t, tc.b.Properties, got.Properties, "Properties")
 
 			// Source runs round-trip.
-			require.Equal(t, tc.b.Source, got.Source, "Source runs")
+			require.Equal(t, tc.b.SourceRuns(), got.SourceRuns(), "Source runs")
 
 			// Targets round-trip: same set of locales and run content.
 			require.Len(t, got.TargetLocales(), len(tc.b.TargetLocales()),

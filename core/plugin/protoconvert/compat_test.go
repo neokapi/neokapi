@@ -144,16 +144,16 @@ func TestCompatBlockCorpus(t *testing.T) {
 		{Text: &model.TextRun{Text: "Monde."}},
 	})
 	frKey := model.Variant(model.LocaleID("fr-FR"))
-	b.SetSegmentation(&frKey, []model.Span{
+	b.SetSegmentation(frKey, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})
 	b.SetTargetText(model.LocaleID("de-DE"), "Hallo Welt")
 
 	// Source segmentation (reconstructed from segment boundaries on the wire).
-	b.SetSegmentation(nil, []model.Span{
+	b.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 3})},
-		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 3}, model.RunPos{Run: len(b.Source)})},
+		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 3}, model.RunPos{Run: len(b.SourceRuns())})},
 	})
 
 	// Stand-off overlays: source-side term overlay with props + typed payload,
@@ -170,7 +170,7 @@ func TestCompatBlockCorpus(t *testing.T) {
 	frVariant := model.Variant(model.LocaleID("fr-FR"))
 	b.Overlays = append(b.Overlays, model.Overlay{
 		Type:    model.OverlayType("qa"),
-		Variant: &frVariant,
+		Edition: frVariant,
 		Layer:   "review",
 		Spans: []model.Span{{
 			ID:    "q1",
@@ -214,13 +214,13 @@ func TestCompatBlockCorpus(t *testing.T) {
 	require.Equal(t, b.PreserveWhitespace, got.PreserveWhitespace)
 	require.Equal(t, b.IsReferent, got.IsReferent)
 	require.Equal(t, b.Properties, got.Properties)
-	require.Equal(t, b.Source, got.Source, "source runs")
+	require.Equal(t, b.SourceRuns(), got.SourceRuns(), "source runs")
 	require.Equal(t, b.SourceSegmentation(), got.SourceSegmentation(), "source segmentation")
 	require.ElementsMatch(t, b.TargetLocales(), got.TargetLocales(), "target locales")
 	for _, loc := range b.TargetLocales() {
 		require.Equal(t, b.TargetRuns(loc), got.TargetRuns(loc), "target runs %s", loc)
 	}
-	require.Equal(t, b.SegmentationFor(&frKey), got.SegmentationFor(&frKey), "fr target segmentation")
+	require.Equal(t, b.SegmentationFor(frKey), got.SegmentationFor(frKey), "fr target segmentation")
 	require.Equal(t, b.Skeleton, got.Skeleton)
 	require.Equal(t, b.DisplayHint, got.DisplayHint)
 	require.Equal(t, b.AnnoMap(), got.AnnoMap(), "annotations")
@@ -281,7 +281,7 @@ func TestCompatPartKinds(t *testing.T) {
 			wb := p.Resource.(*model.Block)
 			gb := got[i].Resource.(*model.Block)
 			require.Equal(t, wb.ID, gb.ID)
-			require.Equal(t, wb.Source, gb.Source)
+			require.Equal(t, wb.SourceRuns(), gb.SourceRuns())
 			continue
 		}
 		require.Equal(t, p.Resource, got[i].Resource, "part %d resource", i)

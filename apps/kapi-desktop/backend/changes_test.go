@@ -385,14 +385,14 @@ func pluralCatalog(t *testing.T) []byte {
 			ID: "cart", DocumentType: kbf.DocumentTypeJSX, Path: "src/Cart.tsx",
 			Blocks: []kbf.Block{{
 				ID: "cart-count", Hash: "h1", Translatable: true, Type: kbf.BlockTypeJSXElement,
-				Source: []kbf.Run{{Plural: &kbf.PluralRun{Pivot: "count", Forms: map[kbf.PluralForm][]kbf.Run{
+				Editions: kbf.SourceEditions([]kbf.Run{{Plural: &kbf.PluralRun{Pivot: "count", Forms: map[kbf.PluralForm][]kbf.Run{
 					kbf.PluralZero: {{Text: &kbf.TextRun{Text: "Your cart is empty"}}},
 					kbf.PluralOne:  {{Text: &kbf.TextRun{Text: "1 item in your cart"}}},
 					kbf.PluralOther: {
 						{Ph: &kbf.PlaceholderRun{ID: "1", Type: "jsx:var", SubType: "number", Data: "{count}", Equiv: "count", Disp: "count"}},
 						{Text: &kbf.TextRun{Text: " items in your cart"}},
 					},
-				}}}},
+				}}}}),
 			}},
 		}},
 	}

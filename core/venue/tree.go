@@ -44,8 +44,9 @@ type TreeItem struct {
 	// same value the venue stores as a block's content hash, which is what lets
 	// a renamed file be recognised by what is inside it.
 	Content []string `json:"content"`
-	// Record folds content and context together: the transfer hash, and so the
-	// answer to "does the venue already hold this block". Omitted from a
+	// Record is each block's transfer hash (RecordHash), which folds the
+	// content hash, the context hash and the source revision together, and
+	// so answers "does the venue already hold this block". Omitted from a
 	// producer's declaration, which the venue reads for identity rather than
 	// for transfer.
 	Record []string `json:"record,omitempty"`
@@ -149,8 +150,8 @@ func (t Tree) Records() map[string]struct{} {
 //
 // The scope is the item's path, which is what qualifies a context match: a
 // block's name is only unique inside its own document.
-func (t Tree) Priors() []reconcile.Unit {
-	var out []reconcile.Unit
+func (t Tree) Priors() []reconcile.Prior {
+	var out []reconcile.Prior
 	for _, p := range t.paths() {
 		ti := t[p]
 		// The document's identity, not its address — see TreeItem.ID.
@@ -165,7 +166,7 @@ func (t Tree) Priors() []reconcile.Unit {
 				// producer reached before it could ask at all.
 				break
 			}
-			out = append(out, reconcile.Unit{
+			out = append(out, reconcile.Prior{
 				Key:         key,
 				Scope:       scope,
 				ContentHash: ti.Content[i],

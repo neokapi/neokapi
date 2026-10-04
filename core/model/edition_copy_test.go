@@ -29,7 +29,7 @@ func TestBlockCopyEditionSet(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, model.Status(model.TargetStatusEstablished), e.Status, "an edition both hold is shared")
 
-	assert.Equal(t, b.Editions()[0], c.Editions()[0])
+	assert.Equal(t, b.EditionKeys()[0], c.EditionKeys()[0])
 	src, _ := c.Edition(c.Authoritative(model.AuthorityPolicy{}))
 	assert.Equal(t, "Hello", model.RunsText(src.Runs))
 	assert.Equal(t, model.Status(model.SourceStatusEstablished), src.Status)
@@ -126,12 +126,12 @@ func TestBlockCopyEditions_HoldsItsOwnSourceAsRead(t *testing.T) {
 
 func TestBlockCopyEditions_KeepsANilTarget(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
-	b.Targets[model.Variant("fr")] = nil
+	b.Editions[model.Variant("fr")] = nil
 	c := b.CopyEditions(func(runs []model.Run) []model.Run { return runs })
-	held, ok := c.Targets[model.Variant("fr")]
+	held, ok := c.Editions[model.Variant("fr")]
 	assert.True(t, ok)
 	assert.Nil(t, held)
 
 	empty := &model.Block{ID: "b2"}
-	assert.Nil(t, empty.CopyEditions(func(runs []model.Run) []model.Run { return runs }).Targets, "a block with no target map gets none")
+	assert.Nil(t, empty.CopyEditions(func(runs []model.Run) []model.Run { return runs }).Editions, "a block with no editions map gets none")
 }

@@ -310,7 +310,7 @@ calls `check_file` to confirm the gate passes, looping until it does.
 > What translation work is outstanding, and how much would it cost?
 
 The assistant calls `up_plan`, a dry run reporting, per collection and locale,
-the units missing a target, the content-memory leverage, the remaining AI work
+the blocks missing a target, the content-memory leverage, the remaining AI work
 and a rough token estimate. Nothing is written and no provider is called. `up`
 then does the work: re-extract what drifted, reuse the content memory, translate
 the rest, run the project's checks, and loop until every gated scope is
@@ -318,7 +318,7 @@ shippable or parks for a human.
 
 ### "Review this translation"
 
-> Show me the French units waiting for review, and pre-review them for me
+> Show me the French blocks waiting for review, and pre-review them for me
 
 The assistant calls `review_queue`, reads each candidate with `review_block`
 using the `ref` its row carries, and records a pre-review through
@@ -326,14 +326,14 @@ using the `ref` its row carries, and records a pre-review through
 `rev` `review_block` returned, outcome `advise`, a score from 0 to 100 and its
 reasons. The pre-review is bound to the wording the assistant read and
 recorded under the identity `agent/<client>`, so a later edit drops it. It
-decides nothing: the unit stays in the queue until a person approves or
+decides nothing: the block stays in the queue until a person approves or
 rejects it, and an assistant's `establish` is refused.
 
 `review_queue` returns one queue across the project's languages. Each row
 carries `language` and, when that language is the project's source, `isSource:
 true` and a `status` on the authoring ladder; `languages` counts the pending
-units per language, so an assistant can narrow with the `language` argument to
-one that has work. `review_block` reads a source-language unit the same way it
+blocks per language, so an assistant can narrow with the `language` argument to
+one that has work. `review_block` reads a source-language block the same way it
 reads a translation, from the source file, and returns its point and
 neighbourhood with no target half.
 

@@ -291,7 +291,7 @@ func TestStatusReview_ListsSourceUnitsAndFiltersByLanguage(t *testing.T) {
 	// The table draws an em dash for an empty cell; the prose beside it carries
 	// none.
 	for line := range strings.SplitSeq(text, "\n") {
-		if strings.HasPrefix(line, "Approve ") || strings.HasPrefix(line, "Units marked ") {
+		if strings.HasPrefix(line, "Approve ") || strings.HasPrefix(line, "Blocks marked ") {
 			assert.NotContains(t, line, "—", "CLI prose carries no em dash")
 		}
 	}
@@ -334,13 +334,13 @@ func TestStatusReview_EmptyFilteredQueueNamesTheOtherLanguages(t *testing.T) {
 	recipe := filepath.Join(root, "kapi.yaml")
 
 	text := runReviewStatus(t, recipe, nil, []string{"fr"})
-	assert.Contains(t, text, "Review queue empty for fr: no unit in fr is waiting for a person.")
-	assert.NotContains(t, text, "no unit in any language", "units wait in en and nb, so the answer covers fr only")
+	assert.Contains(t, text, "Review queue empty for fr: no block in fr is waiting for a person.")
+	assert.NotContains(t, text, "no block in any language", "units wait in en and nb, so the answer covers fr only")
 	assert.Contains(t, text, "Waiting in other languages: en · source (2), nb (2).")
 
 	// A filtered listing that finds units still names the rest of the queue.
 	nb := runReviewStatus(t, recipe, nil, []string{"nb"})
-	assert.Contains(t, nb, "2 unit(s) awaiting review")
+	assert.Contains(t, nb, "2 block(s) awaiting review")
 	assert.Contains(t, nb, "Also waiting in other languages: en · source (2).")
 }
 
@@ -351,7 +351,7 @@ func TestReviewQueueOutput_UnfilteredEmptyQueueCoversEveryLanguage(t *testing.T)
 	require.NoError(t, reviewQueueOutput{
 		Languages: []ReviewLanguage{{Language: "en", Source: true}},
 	}.FormatText(&b))
-	assert.Equal(t, "Review queue empty: no unit in any language is waiting for a person.\n", b.String())
+	assert.Equal(t, "Review queue empty: no block in any language is waiting for a person.\n", b.String())
 
 	// A filter over an empty project names only what it asked for.
 	b.Reset()
@@ -359,5 +359,5 @@ func TestReviewQueueOutput_UnfilteredEmptyQueueCoversEveryLanguage(t *testing.T)
 		Languages: []ReviewLanguage{{Language: "en", Source: true}},
 		filter:    []string{"fr"},
 	}.FormatText(&b))
-	assert.Equal(t, "Review queue empty for fr: no unit in fr is waiting for a person.\n", b.String())
+	assert.Equal(t, "Review queue empty for fr: no block in fr is waiting for a person.\n", b.String())
 }

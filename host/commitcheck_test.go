@@ -428,7 +428,7 @@ func TestCommitCheck_ChecksEachEditionOfAChangeSet(t *testing.T) {
 	source := edit(t, b, "", "We utilize the widget every day.")
 	fr := edit(t, b, "fr", "Nous utilisons le truc chaque jour.")
 	other := f.paragraph(t, "We use the widget each day.", "")
-	other.ID, other.Name, other.Unit = "other", "other", ""
+	other.ID, other.Name, other.Key = "other", "other", ""
 	typo := edit(t, other, "", "We use the widget each dya.")
 
 	outcomes, _, err := f.app.CommitCheck(f.command(t)).Check(t.Context(), []change.EditionChange{source, fr, typo})

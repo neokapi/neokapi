@@ -55,7 +55,12 @@ protocol serves `kapi push`, `kapi up`, and the server-side connectors, and
 [`kapi pull`](/cli/commands/pull) reads the same tree back.
 
 1. **Scan.** kapi reads the recipe's `collections:`, extracts every block, and
-   computes each item's content hash.
+   computes a hash of each item's content, its inline codes included, so a
+   changed link is pushed as a changed block. When a file a collection covers cannot be
+   read (it fails to parse, or it is a catalog in a schema this kapi does not
+   read), the push stops before it sends anything and names the file and the
+   reason. A file that no format reads is left out of the tree, and the server
+   keeps what it holds at that path.
 2. **Declare the tree.** The client sends the server its whole tree: every
    tracked item, its path, its collection and the point it sits at, and its
    hash. The server diffs that against the tree it holds and answers with the
@@ -98,7 +103,10 @@ Beside the decisions, a push carries how each translation of the files it
 reads was written, from the project's record of its changes: the source a run
 made it from, and who wrote it. The server grades a translation that a run on
 your machine produced against that source, as it grades one it drafted itself,
-so a source changed since reads as stale on the dashboard. A translation you
+so a source that changed since, its wording or an inline code such as a link,
+reads as stale on the dashboard, as it does on your machine (see
+[What an approval leaves behind](/server/review#what-an-approval-leaves-behind)).
+A translation you
 wrote by hand (with `kapi apply`, in Kapi Desktop, or through an agent working
 for you) counts as yours for separation of duties, so your approval of it, in
 the same push or a later one, is not accepted when the workspace policy blocks
@@ -107,7 +115,7 @@ or `kapi merge` brought in, names no author. Each translation's record goes
 once, and again when it changes.
 
 The content lands either way. A verdict the server does not accept is reported
-per language, and the unit stays a translation awaiting review:
+per language, and the translation stays one awaiting review:
 
 ```
 Pushed 47 blocks (12 uploaded), 512 words (scanned 12 files)
@@ -119,22 +127,22 @@ Pushed 47 blocks (12 uploaded), 512 words (scanned 12 files)
 The last line is the project's record following the server's answer, so the same
 refused verdicts are not sent again on every push.
 
-Taking an established unit back is held to the same permission. A push that
-lowers a target the server holds at established, with the translation and the
-source it was established for unchanged, withdraws it, and the withdrawal lands
-only when you hold review permission for that language. Otherwise the unit
-stands, the push reports the demotion it did not apply, and the project's
-record is restored to what the server holds:
+Taking an established translation back is held to the same permission. A push
+that lowers a target the server holds at established, with the translation and
+the source it was established for unchanged, withdraws it, and the withdrawal
+lands only when you hold review permission for that language. Otherwise the
+translation stays established, the push reports the demotion it did not apply,
+and the project's record is restored to what the server holds:
 
 ```
-1 demotion not accepted for nb-NO: withdrawing an established unit needs review permission
+1 demotion not accepted for nb-NO: withdrawing an established translation needs review permission
 1 local record(s) now match the platform; they will not be sent again
 ```
 
 A rejection applies to the translation it names. When the server has replaced
 that translation since your working copy last pulled, the rejection changes
-nothing there. The unit keeps its rung and its record, the push reports the
-rejection it did not apply, and kapi replaces the project's record with the one
+nothing there. The server's translation keeps its rung and its record, the push
+reports the rejection it did not apply, and kapi replaces the project's record with the one
 the server holds. Pull before rejecting, so that the rejection names the
 translation on the server.
 

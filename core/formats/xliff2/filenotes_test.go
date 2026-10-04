@@ -62,7 +62,7 @@ func TestXLIFF2_FileNotesRoundTrip(t *testing.T) {
 	}
 	block := &model.Block{ID: "u1"}
 	block.SetSourceText("Hello, world.")
-	block.SetSegmentation(nil, []model.Span{
+	block.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 	})
 
@@ -159,7 +159,7 @@ func TestXLIFF2_FileNotes_ExplicitOverridesLayer(t *testing.T) {
 	}
 	block := &model.Block{ID: "u1"}
 	block.SetSourceText("x")
-	block.SetSegmentation(nil, []model.Span{
+	block.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 	})
 

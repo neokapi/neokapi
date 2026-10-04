@@ -53,6 +53,16 @@ func TestMain(m *testing.M) {
 	}
 	os.Setenv("BOWRAIN_CONFIG_DIR", authDir)
 
+	// Isolate the content store and the offline queue from the developer's
+	// real bowrain-desktop directory. An App built with no store path opens
+	// the store there, and opening a store applies the migrations it lacks,
+	// so a test that reached it would migrate a real working copy.
+	desktopDir, err := os.MkdirTemp("", "bowrain-test-desktop")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", desktopDir)
+
 	// Isolate tests from locally-installed plugins.
 	dir, err := os.MkdirTemp("", "bowrain-test-plugins")
 	if err != nil {
@@ -78,6 +88,7 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.RemoveAll(authDir)
+	os.RemoveAll(desktopDir)
 	os.RemoveAll(templateDir)
 	os.Exit(code)
 }

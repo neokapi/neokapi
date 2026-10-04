@@ -6,16 +6,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/neokapi/neokapi/core/schemaversion"
 )
 
 // Marshal encodes a File to deterministic UTF-8 JSON: 2-space indent,
 // no HTML escaping, trailing newline. Deterministic output is what
 // makes .kbf.json git-diffable and hashable.
+//
+// The blocks it writes are in the current schema, so a file whose version is
+// not a minor of the current major (empty, schema 1, or not a version) is
+// stamped [SchemaVersion].
 func Marshal(f *File) ([]byte, error) {
 	if f == nil {
 		return nil, errors.New("kbf: marshal nil file")
 	}
-	if f.SchemaVersion == "" {
+	if !isCurrentSchema(f.SchemaVersion) {
 		f.SchemaVersion = SchemaVersion
 	}
 	if f.Kind == "" {
@@ -29,6 +35,13 @@ func Marshal(f *File) ([]byte, error) {
 		return nil, fmt.Errorf("kbf: encode: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// isCurrentSchema reports whether version is a minor of the current major.
+func isCurrentSchema(version string) bool {
+	major, ok := schemaversion.Major(version)
+	current, _ := schemaversion.Major(SchemaVersion)
+	return ok && major == current
 }
 
 // MarshalBlock encodes a single Block as JSON. Used by tests, debug

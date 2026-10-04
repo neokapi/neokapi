@@ -118,7 +118,7 @@ writes one XLIFF 2.2 per source → target pair under `out/` and records a
 manifest of the batch in the project's gitignored cache, which a later extract
 uses to reuse the work for unchanged sources. Each file carries a
 `<note category="kapi">` with the batch id, source file and source hash, and
-each unit carries, as its `<mda:meta>` metadata of category `kapi`, the
+each block carries, as its `<mda:meta>` metadata of category `kapi`, the
 revision of its translation as the project held it (`if-match`, `absent` where
 there was none) and the revision of its source (`basis`):
 
@@ -155,14 +155,14 @@ kapi merge -i vendor-return/            # every .xliff in the directory; -i repe
 ```
 
 Merge reads the source file and the language each returned file names, and
-what each unit was extracted against travels in the file, so a renamed file
+what each block was extracted against travels in the file, so a renamed file
 merges, and so does one whose extraction batch is no longer in the cache. Each
 returned translation is written to the file the collection's `target` names,
 and the translated file follows its source's structure. A translation the file
-held for a unit the return does not carry stays where the file names its units
+held for a block the return does not carry stays where the file names its blocks
 by key, as JSON keys and PO messages do. A paragraph of a Markdown or HTML file
 is named by its position in its section, so after the source gains or loses a
-paragraph, return every unit of that file. A PO catalog that holds every
+paragraph, return every block of that file. A PO catalog that holds every
 message of its source keeps its own header and comments; once the source gains
 or loses a message, the catalog is written from the source, header included.
 A collection with no `target` is source-only, and merging into it fails.
@@ -170,22 +170,22 @@ Each input is applied independently: a failure on one (a parse error, a source
 with no translation file) doesn't abort the others; per-file outcomes are
 reported and the exit code reflects any failure.
 
-- **Stale units.** A unit whose source changed since the extraction (someone
+- **Stale blocks.** A block whose source changed since the extraction (someone
   edited the file while it was out), or whose source text was changed in the
   returned file, is reported **stale** and left out, neither applied nor
   absorbed into memory. Re-extract and re-translate the changed portion.
-- **Conflicts.** When the project's translation of a unit changed since the
+- **Conflicts.** When the project's translation of a block changed since the
   extraction (someone translated or edited it while the file was out),
   `merge.conflict_policy` decides: `translator-wins` (default) replaces it with
   the returned one, `existing-wins` keeps it and skips the returned one, and
   `newest-wins` takes the returned one when the returned file is newer than the
-  translation's file. A unit whose translation is the one it was extracted
+  translation's file. A block whose translation is the one it was extracted
   against takes the returned translation under every policy. Never interactive.
 - **Refusals.** A returned translation that drops an inline code its source
   protects, or that breaks a rule the project holds it to (a required term,
   say), is refused and reported on stderr; the rest of the file still lands.
   Fix the translation, or mark the rule advisory, and merge again.
-- **Plurals and selects.** kapi writes each XLIFF unit or PO entry as one
+- **Plurals and selects.** kapi writes each XLIFF `<unit>` or PO entry as one
   string, and a message with a plural or select, such as an ICU plural in an
   ARB catalog, has a branch per form. `kapi extract` leaves such a message out of the file
   and names it, and `kapi merge` refuses a returned translation that would
@@ -215,7 +215,7 @@ must emit XLIFF (the combination errors early).
 ## What stays in the project
 
 The bilingual file carries one chosen target per language, the source runs and
-inline codes, and the revisions each unit was extracted against. Merge rebuilds
+inline codes, and the revisions each block was extracted against. Merge rebuilds
 each translated file from the source in the project, byte-for-byte outside the
 translated text. Everything else stays in project state: the content memory, the
 terms store, and the stand-off overlays, variants, and per-target status the

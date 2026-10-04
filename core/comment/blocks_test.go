@@ -55,5 +55,5 @@ func TestBlockIdentityIgnoresPosition(t *testing.T) {
 		}}}
 		return f.Blocks()[0]
 	}
-	assert.Equal(t, at(10).Identity.RecordHash(), at(500).Identity.RecordHash())
+	assert.Equal(t, *at(10).Identity, *at(500).Identity)
 }

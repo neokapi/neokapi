@@ -96,8 +96,7 @@ func targetSegViews(block *model.Block, loc model.LocaleID) []segView {
 	if runs == nil {
 		return nil
 	}
-	key := model.Variant(loc)
-	seg := block.SegmentationFor(&key)
+	seg := block.TargetSegmentation(loc)
 	if seg == nil {
 		return []segView{{
 			ID:     "s1",

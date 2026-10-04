@@ -18,7 +18,6 @@ import (
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
@@ -70,7 +69,7 @@ var catalogItems = []apiclient.ItemMeta{{Name: "locales/en.json", Format: "json"
 func produced(unit, source string) venue.EditionWrite {
 	return venue.EditionWrite{
 		ItemName: "locales/en.json", Unit: unit, Variant: "nb", Revision: "r:" + unit + "-nb",
-		Basis: state.SourceHash(source), Writer: venue.WriterTool, Origin: "flow:pseudo",
+		Basis: enSourceRevision(source), Writer: venue.WriterTool, Origin: "flow:pseudo",
 	}
 }
 
@@ -160,7 +159,7 @@ func TestSyncPush_RefusesAnApprovalOfTheTranslationThePusherWrote(t *testing.T) 
 	blocks := catalog(map[string]string{"greeting": "Hello world", "farewell": "Goodbye now", "title": "Welcome"})
 	// The venue knows the title by a key of its own; the checkout's decisions
 	// name it by the key its reader gives it.
-	blocks["locales/en.json"][2].Unit = "u-title"
+	blocks["locales/en.json"][2].Key = "u-title"
 	_, err := client.Push(ctx, blocks, catalogItems, nil, nil)
 	require.NoError(t, err)
 	drainWithAuthority(t, srv)
@@ -169,7 +168,7 @@ func TestSyncPush_RefusesAnApprovalOfTheTranslationThePusherWrote(t *testing.T) 
 		return venue.UnitDecision{
 			ItemName: "locales/en.json", Unit: unit, Variant: "nb",
 			Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
-			TargetHash: state.TargetHash(target), ContentHash: state.SourceHash(source),
+			Revision: textRevision("nb", target), Basis: enSourceRevision(source),
 			Updated: time.Now().UTC().Format(time.RFC3339),
 		}
 	}
@@ -276,7 +275,7 @@ func TestSyncPush_TakesTheWriteOfABilingualTranslationItHolds(t *testing.T) {
 		require.NotEmpty(t, unitOf[b.Name], "the venue holds %s", b.Name)
 		writes = append(writes, venue.EditionWrite{
 			ItemName: "messages.xlf", Unit: unitOf[b.Name], Variant: "nb",
-			Revision: model.EditionRevision(b, nb), Basis: state.SourceHash(b.SourceText()),
+			Revision: model.EditionRevision(b, nb), Basis: venue.SourceRevision(b, "en"),
 			Writer: venue.WriterTool, Origin: "flow:up",
 		})
 	}
@@ -288,9 +287,9 @@ func TestSyncPush_TakesTheWriteOfABilingualTranslationItHolds(t *testing.T) {
 	for _, b := range blocks {
 		d, ok := records[unitOf[b.Name]]
 		require.True(t, ok, "%s: the venue took the write", b.Name)
-		assert.Equal(t, state.TargetHash(model.RunsText(b.TargetRuns("nb"))), d.TargetHash,
+		assert.Equal(t, model.EditionRevision(b, nb), d.Revision,
 			"%s: as the record of the translation it holds", b.Name)
-		assert.Equal(t, state.SourceHash(b.SourceText()), d.ContentHash)
+		assert.Equal(t, venue.SourceRevision(b, "en"), d.Basis)
 	}
 }
 
@@ -321,7 +320,7 @@ func TestSyncPush_RefusesAnApprovalOfAHandWrittenTranslationInALaterPush(t *test
 	resp, err := client.Push(ctx, map[string][]*model.Block{}, nil, nil, []venue.UnitDecision{{
 		ItemName: "locales/en.json", Unit: "greeting", Variant: "nb",
 		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
-		TargetHash: state.TargetHash("Hei, verden"), ContentHash: state.SourceHash("Hello world"),
+		Revision: textRevision("nb", "Hei, verden"), Basis: enSourceRevision("Hello world"),
 		Updated: time.Now().UTC().Add(time.Minute).Format(time.RFC3339),
 	}})
 	require.NoError(t, err)

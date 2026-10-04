@@ -13,7 +13,8 @@ import (
 //
 //   - ID (the durable structural key), Translatable
 //   - Hash (StoredBlock.ContentHash falling back to model.Block.Identity.Hash)
-//   - Source/Target runs (the flat run sequences from the model)
+//   - every edition with its runs, status, provenance and derivation
+//     (kbf.EditionsOf), a tone or channel edition under its own key
 //   - Type (string → kbf.BlockType)
 //   - Properties.File, from the item the block belongs to
 //
@@ -33,13 +34,14 @@ func toKBF(sb *venue.StoredBlock) *kbf.Block {
 	if sb == nil || sb.Block == nil {
 		return nil
 	}
-	src, _ := sb.Edition(model.EditionKey{})
+	editions, unlabelled := kbf.EditionsOf(sb.Block)
 	b := &kbf.Block{
 		ID:           sb.ID,
 		Hash:         sb.ContentHash,
 		Translatable: sb.Translatable,
 		Type:         kbf.BlockType(sb.Type),
-		Source:       append([]model.Run(nil), src.Runs...),
+		Editions:     editions,
+		Unlabelled:   unlabelled,
 	}
 	if sb.SourceID != "" {
 		b.ID = sb.SourceID
@@ -48,38 +50,27 @@ func toKBF(sb *venue.StoredBlock) *kbf.Block {
 	if b.Hash == "" && sb.Identity != nil {
 		b.Hash = sb.Identity.ContentHash
 	}
-	srcKey := sb.EditionKeyOf(model.EditionKey{})
-	for key, target := range sb.EachEdition {
-		if key == srcKey {
-			continue
-		}
-		// A tone or channel variant shares its language's slot, which the
-		// language's own edition keeps whenever the block holds it.
-		slot := string(key.Locale)
-		if _, taken := b.Targets[slot]; taken && (key.Tone != "" || key.Channel != "") {
-			continue
-		}
-		if b.Targets == nil {
-			b.Targets = make(map[kbf.LocaleID][]kbf.Run)
-		}
-		b.Targets[slot] = append([]model.Run(nil), target.Runs...)
-	}
 	return b
 }
 
 // fromKBF produces the minimal model.Block needed to round-trip a
-// kbf.Block through the ContentStore. The runs ride directly on the
-// model's flat Source/Target run sequences — sufficient for the
-// overlay-at-a-time read/write pattern the blockstore.Store API exposes.
-func fromKBF(b *kbf.Block) *model.Block {
+// kbf.Block through the ContentStore: the source runs as the edition
+// the block was read in and every other edition filed under its key
+// (kbf.Block.FileEditions), sufficient for the overlay-at-a-time
+// read/write pattern the blockstore.Store API exposes.
+//
+// A block holding an edition under a key the model cannot hold is
+// refused: the ContentStore keeps model editions only, so storing the
+// rest of the block would lose that edition without a word.
+func fromKBF(b *kbf.Block) (*model.Block, error) {
 	if b == nil {
-		return nil
+		return nil, nil
 	}
-	mb := model.NewRunsBlock(b.ID, append([]model.Run(nil), b.Source...))
+	mb := model.NewRunsBlock(b.ID, append([]model.Run(nil), b.SourceRuns()...))
 	mb.Translatable = b.Translatable
 	mb.Type = string(b.Type)
-	for locale, runs := range b.Targets {
-		mb.SetTargetRuns(model.LocaleID(locale), append([]model.Run(nil), runs...))
+	if err := b.FileEditions(mb); err != nil {
+		return nil, err
 	}
-	return mb
+	return mb, nil
 }

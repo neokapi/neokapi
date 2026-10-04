@@ -169,7 +169,7 @@ func storeBlockTexts(t *testing.T, root string) []string {
 	for b, berr := range sess.Blocks(blockstore.BlockFilter{Translatable: &tr}) {
 		require.NoError(t, berr)
 		var sb strings.Builder
-		for _, r := range b.Source {
+		for _, r := range b.SourceRuns() {
 			if r.Text != nil {
 				sb.WriteString(r.Text.Text)
 			}

@@ -326,7 +326,7 @@ func TestUpPlan_ParkedDraftsAreReuse(t *testing.T) {
 	assert.Zero(t, plan.Totals.TokenEstimate)
 	var text strings.Builder
 	require.NoError(t, plan.FormatText(&text))
-	assert.Contains(t, text.String(), "8 unit(s) served from stored drafts")
+	assert.Contains(t, text.String(), "8 block(s) served from stored drafts")
 	assert.NotContains(t, text.String(), "not priced")
 
 	// One rewritten string is provider work in every locale; the other three
@@ -372,4 +372,59 @@ func TestConverge_EditedSourceRedraftsOnlyThatUnit(t *testing.T) {
 	assert.Equal(t, 4, nl.Done)
 	assert.Equal(t, 1, nl.ViaAI, "only the rewritten string is drafted again")
 	assert.Equal(t, 3, nl.ViaDraft, "the untouched strings are served from the store")
+}
+
+// TestConverge_ParkedDraftsOfADeclaredSourceLanguageStayCurrent: the source
+// is an ARB file whose reader declares `@@locale: en` in a project whose source
+// language is en-US. The loop's write records its basis, and an approval made
+// through the change service records the source's revision, under the key the
+// change service files the source by, the declared en. The workspace home reads
+// the parked drafts under the project's en-US and must keep en beside it
+// (fileUnderSource), or every draft reads stale, the locale reads untranslated
+// and no approval counts toward its gate.
+func TestConverge_ParkedDraftsOfADeclaredSourceLanguageStayCurrent(t *testing.T) {
+	a, cmd, recipe, dir := parkedReviewProject(t)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "src", "app_en.arb"), []byte(`{
+  "@@locale": "en",
+  "title": "Tide window",
+  "subtitle": "When the forecast allows this movement",
+  "cta": "Plan a crossing",
+  "footer": "Readings update every six minutes"
+}
+`), 0o644))
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.SourceLanguage = "en-US"
+	proj.Defaults.TargetLanguages = []model.LocaleID{"nl"}
+	proj.Collections = []project.Collection{
+		{Name: "app", Path: "src/app_en.arb", Target: "l10n/app_{lang}.arb"},
+	}
+	require.NoError(t, project.Save(recipe, proj))
+	a.SourceLang = "en-US"
+
+	parkedReviewPass(t, a, cmd, recipe)
+	_, err = os.Stat(filepath.Join(dir, "l10n", "app_nl.arb"))
+	require.True(t, os.IsNotExist(err), "nl is parked")
+
+	cov := parkedCoverage(t, a, cmd, recipe, dir, "nl")
+	assert.Zero(t, cov.Stale, "the drafts were made from the source as it stands")
+	assert.Equal(t, 100, cov.Pct["translated"], "the workspace home holds a translation for every block")
+
+	keys := parkedQueueKeys(t, a, recipe, "nl")
+	require.Len(t, keys, 4)
+	for _, key := range keys[:2] {
+		changed, err := decideUnit(cmd.Context(), a, recipe,
+			ReviewUnitRef{File: filepath.Join("l10n", "app_nl.arb"), Key: key, Locale: "nl"},
+			ReviewDecisionApproved, "")
+		require.NoError(t, err)
+		assert.True(t, changed)
+	}
+	cov = parkedCoverage(t, a, cmd, recipe, dir, "nl")
+	assert.Zero(t, cov.Stale, "the approvals were made on the source as it stands")
+	assert.Equal(t, 50, cov.Pct["established"], "two of four approvals count toward the gate")
+	assert.True(t, cov.Shippable)
+
+	_, events := parkedReviewPass(t, a, cmd, recipe)
+	assert.Zero(t, parkedProviderCalls(events, "nl"), "nothing is drafted again")
+	require.FileExists(t, filepath.Join(dir, "l10n", "app_nl.arb"), "nl is at its gate and is delivered")
 }

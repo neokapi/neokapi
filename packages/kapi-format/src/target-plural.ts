@@ -31,7 +31,7 @@ export interface PluralPivotCandidate {
  * already-marked `icu-pivot`, then any remaining placeholder. Returns
  * an ordered list; callers can pre-select the first entry.
  */
-export function pluralPivotCandidates(block: Block): PluralPivotCandidate[] {
+export function pluralPivotCandidates(block: Pick<Block, "placeholders">): PluralPivotCandidate[] {
   const seen = new Set<string>();
   const out: PluralPivotCandidate[] = [];
   const byPriority = [...block.placeholders].sort((a, b) => rank(a) - rank(b));

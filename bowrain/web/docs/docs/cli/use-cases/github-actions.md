@@ -111,7 +111,7 @@ With `command: up` (the default), the action runs `kapi up` (the kapi loop on th
 | `has-changes`       | `true` when the run left changes in the working tree               |
 | `changed-files`     | Newline-separated paths the run changed                            |
 
-With `plan: true`, the `plan-*` outputs carry the pending units, the units content memory recovers, the units left for AI and the token estimate.
+With `plan: true`, the `plan-*` outputs carry the pending translations, the ones content memory recovers, the ones left for AI and the token estimate.
 
 ### kapi-action Inputs
 

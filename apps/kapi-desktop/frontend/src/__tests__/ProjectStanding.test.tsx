@@ -77,7 +77,7 @@ describe("ProjectStanding", () => {
     );
     const standing = screen.getByTestId("project-standing");
     expect(standing).toHaveTextContent("stream main");
-    expect(standing).toHaveTextContent("42 unit(s) extracted");
+    expect(standing).toHaveTextContent("42 block(s) extracted");
     expect(standing).toHaveTextContent("2 collection(s)");
     expect(screen.getByTestId("standing-voice")).toHaveTextContent("voice Northsea");
     expect(standing).toHaveTextContent("northsea-terms");

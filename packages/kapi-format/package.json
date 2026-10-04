@@ -1,6 +1,6 @@
 {
   "name": "@neokapi/kapi-format",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": false,
   "description": "Canonical TypeScript schema for the Kapi Bundle Format (KBF). Block/Run content model, reference Level-1 preview renderer, target validator, annotation overlay resolver. Mirrors core/kbf in Go byte-for-byte against shared golden fixtures.",
   "license": "Apache-2.0",
@@ -16,6 +16,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./block": "./src/block.ts",
+    "./editions": "./src/editions.ts",
     "./vocabulary": "./src/vocabulary.ts",
     "./preview": "./src/preview.ts",
     "./annotation": "./src/annotation.ts",
@@ -34,6 +35,10 @@
       "./block": {
         "types": "./dist/block.d.ts",
         "default": "./dist/block.js"
+      },
+      "./editions": {
+        "types": "./dist/editions.d.ts",
+        "default": "./dist/editions.js"
       },
       "./vocabulary": {
         "types": "./dist/vocabulary.d.ts",

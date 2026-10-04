@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/output"
@@ -59,7 +60,10 @@ func occurrencesApp(t *testing.T) *App {
 			map[string][]model.Run{"nb": {model.TextR("En dings her.")}}},
 	} {
 		blk := &blockstore.Block{Hash: b.hash, ID: b.id, Translatable: true,
-			Source: []model.Run{model.TextR(b.source)}, Targets: b.targets}
+			Editions: kbf.SourceEditions([]model.Run{model.TextR(b.source)})}
+		for locale, runs := range b.targets {
+			blk.SetEdition(locale, kbf.Edition{Runs: runs})
+		}
 		blk.Properties.File = b.file
 		require.NoError(t, sess.PutBlock("docs", blk))
 	}

@@ -45,10 +45,16 @@ func TestParseEditionKey(t *testing.T) {
 func editionBlock() *model.Block {
 	b := model.NewBlock("b1", "Hello")
 	b.SourceLocale = "en"
-	b.SourceStatus = model.SourceStatusEstablished
-	b.SetTarget("fr", &model.Target{Runs: []model.Run{model.TextR("Bonjour")}, Status: model.TargetStatusTranslated, Origin: model.Origin{Kind: model.OriginHuman}, Score: 0.8})
-	b.SetTargetVariant(model.EditionKey{Locale: "en", Channel: "short"}, &model.Target{Runs: []model.Run{model.TextR("Hi")}})
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusEstablished))
+	b.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{model.TextR("Bonjour")}, Status: model.Status(model.TargetStatusTranslated), Origin: model.Origin{Kind: model.OriginHuman}, Score: 0.8})
+	b.SetEdition(model.EditionKey{Locale: "en", Channel: "short"}, model.Edition{Runs: []model.Run{model.TextR("Hi")}})
 	return b
+}
+
+// sourceStatus is the status of the edition the block was read in.
+func sourceStatus(b *model.Block) model.SourceStatus {
+	e, _ := b.Edition(model.EditionKey{})
+	return model.SourceStatus(e.Status)
 }
 
 func TestBlockEdition_RoutesEveryKeyToOneEdition(t *testing.T) {
@@ -76,7 +82,7 @@ func TestBlockEdition_RoutesEveryKeyToOneEdition(t *testing.T) {
 	src, _ := b.Edition(model.EditionKey{})
 	assert.Equal(t, model.Status(model.SourceStatusEstablished), src.Status)
 	fr, _ := b.Edition(model.Variant("fr"))
-	assert.Equal(t, model.Edition{Runs: b.Targets[model.Variant("fr")].Runs, Status: "translated", Origin: model.Origin{Kind: model.OriginHuman}, Score: 0.8}, fr)
+	assert.Equal(t, model.Edition{Runs: b.Editions[model.Variant("fr")].Runs, Status: "translated", Origin: model.Origin{Kind: model.OriginHuman}, Score: 0.8}, fr)
 }
 
 func TestBlockSetEdition(t *testing.T) {
@@ -84,33 +90,33 @@ func TestBlockSetEdition(t *testing.T) {
 		b := editionBlock()
 		b.SetEdition(model.EditionKey{Locale: "en"}, model.Edition{Runs: []model.Run{model.TextR("Hi there")}, Status: "written"})
 		assert.Equal(t, "Hi there", b.SourceText())
-		assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
+		assert.Equal(t, model.SourceStatusWritten, sourceStatus(b))
 		read, edited := b.SourceAsRead()
 		assert.True(t, edited)
 		assert.Equal(t, "Hello", model.RunsText(read))
 	})
 	t.Run("an existing derived edition is updated in place", func(t *testing.T) {
 		b := editionBlock()
-		held := b.Target("fr")
+		held := b.Editions[model.Variant("fr")]
 		b.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{model.TextR("Salut")}, Status: "draft"})
-		assert.Same(t, held, b.Target("fr"))
+		assert.Same(t, held, b.Editions[model.Variant("fr")])
 		assert.Equal(t, "Salut", model.RunsText(held.Runs))
-		assert.Equal(t, model.TargetStatusDraft, held.Status)
+		assert.Equal(t, model.Status(model.TargetStatusDraft), held.Status)
 	})
 	t.Run("a new edition is filed under its canonical key", func(t *testing.T) {
 		b := editionBlock()
 		b.SetEdition(model.EditionKey{Locale: "nb_NO"}, model.Edition{Runs: []model.Run{model.TextR("Hei")}})
 		assert.Equal(t, "Hei", b.TargetText("nb-NO"))
-		_, raw := b.Targets[model.EditionKey{Locale: "nb_NO"}]
+		_, raw := b.Editions[model.EditionKey{Locale: "nb_NO"}]
 		assert.False(t, raw, "no target is filed under the spelling a caller used")
 	})
 	t.Run("the source origin follows the edition", func(t *testing.T) {
 		b := editionBlock()
-		b.SetEdition(model.EditionKey{}, model.Edition{Runs: b.Source, Origin: model.Origin{Kind: model.OriginOCR}})
+		b.SetEdition(model.EditionKey{}, model.Edition{Runs: b.SourceRuns(), Origin: model.Origin{Kind: model.OriginOCR}})
 		o, ok := b.SourceOrigin()
 		require.True(t, ok)
 		assert.Equal(t, model.OriginOCR, o.Kind)
-		b.SetEdition(model.EditionKey{}, model.Edition{Runs: b.Source})
+		b.SetEdition(model.EditionKey{}, model.Edition{Runs: b.SourceRuns()})
 		_, ok = b.SourceOrigin()
 		assert.False(t, ok)
 	})
@@ -137,12 +143,12 @@ func TestBlockSetEditionStatus(t *testing.T) {
 				if tc.anno != nil {
 					b.SetAnno(model.AnnoSourceOrigin, tc.anno)
 				}
-				runs := b.Source
+				runs := b.SourceRuns()
 
 				assert.True(t, b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusWritten)))
 
-				assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
-				assert.Same(t, &runs[0], &b.Source[0], "the runs are the ones the block held")
+				assert.Equal(t, model.SourceStatusWritten, sourceStatus(b))
+				assert.Same(t, &runs[0], &b.SourceRuns()[0], "the runs are the ones the block held")
 				got, ok := b.Anno(model.AnnoSourceOrigin)
 				if tc.anno == nil {
 					assert.False(t, ok)
@@ -164,29 +170,30 @@ func TestBlockSetEditionStatus(t *testing.T) {
 	})
 	t.Run("a derived edition", func(t *testing.T) {
 		b := editionBlock()
-		held := b.Target("fr")
+		held := b.Editions[model.Variant("fr")]
 		runs := held.Runs
 		assert.True(t, b.SetEditionStatus(model.EditionKey{Locale: "FR"}, "established"))
-		assert.Same(t, held, b.Target("fr"))
-		assert.Equal(t, model.TargetStatusEstablished, held.Status)
+		assert.Same(t, held, b.Editions[model.Variant("fr")])
+		assert.Equal(t, model.Status(model.TargetStatusEstablished), held.Status)
 		assert.Same(t, &runs[0], &held.Runs[0])
 		assert.Equal(t, model.Origin{Kind: model.OriginHuman}, held.Origin)
 		assert.InDelta(t, 0.8, held.Score, 0)
-		assert.Equal(t, model.SourceStatusEstablished, b.SourceStatus, "the source keeps its status")
+		assert.Equal(t, model.SourceStatusEstablished, sourceStatus(b), "the source keeps its status")
 	})
 	t.Run("a same-language target", func(t *testing.T) {
 		b := model.NewBlock("b1", "colour source")
 		b.SourceLocale = "en-US"
-		b.SetTarget("en-US", &model.Target{Runs: []model.Run{model.TextR("colour target")}})
+		b.SetTargetRuns("en-US", []model.Run{model.TextR("colour target")})
 		assert.True(t, b.SetEditionStatus(model.Variant("en-US"), "translated"))
-		assert.Equal(t, model.TargetStatusTranslated, b.Target("en-US").Status)
-		assert.Empty(t, b.SourceStatus)
+		tgt, _ := b.TargetEdition("en-US")
+		assert.Equal(t, model.Status(model.TargetStatusTranslated), tgt.Status)
+		assert.Empty(t, sourceStatus(b))
 	})
 	t.Run("an edition the block does not hold", func(t *testing.T) {
 		b := editionBlock()
-		before := b.Editions()
+		before := b.EditionKeys()
 		assert.False(t, b.SetEditionStatus(model.Variant("de"), "translated"))
-		assert.Equal(t, before, b.Editions(), "no edition is created")
+		assert.Equal(t, before, b.EditionKeys(), "no edition is created")
 	})
 }
 
@@ -223,7 +230,7 @@ func TestBlockEachEdition(t *testing.T) {
 			block: func() *model.Block {
 				b := model.NewBlock("b1", "colour source")
 				b.SourceLocale = "en-US"
-				b.SetTarget("en-US", &model.Target{Runs: []model.Run{model.TextR("colour target")}})
+				b.SetTargetRuns("en-US", []model.Run{model.TextR("colour target")})
 				return b
 			},
 			first: model.EditionKey{},
@@ -236,9 +243,7 @@ func TestBlockEachEdition(t *testing.T) {
 			name: "a target filed under a key that is not canonical",
 			block: func() *model.Block {
 				b := model.NewBlock("b1", "Hello")
-				b.Targets = map[model.VariantKey]*model.Target{
-					{Locale: "fr_FR"}: {Runs: []model.Run{model.TextR("Bonjour")}, Status: model.TargetStatusTranslated},
-				}
+				b.Editions[model.EditionKey{Locale: "fr_FR"}] = &model.Edition{Runs: []model.Run{model.TextR("Bonjour")}, Status: model.Status(model.TargetStatusTranslated)}
 				return b
 			},
 			first: model.EditionKey{},
@@ -251,10 +256,8 @@ func TestBlockEachEdition(t *testing.T) {
 			name: "a canonical key wins over another spelling of it",
 			block: func() *model.Block {
 				b := model.NewBlock("b1", "Hello")
-				b.Targets = map[model.VariantKey]*model.Target{
-					{Locale: "fr_FR"}: {Runs: []model.Run{model.TextR("Salut")}},
-					{Locale: "fr-FR"}: {Runs: []model.Run{model.TextR("Bonjour")}},
-				}
+				b.Editions[model.EditionKey{Locale: "fr_FR"}] = &model.Edition{Runs: []model.Run{model.TextR("Salut")}}
+				b.Editions[model.EditionKey{Locale: "fr-FR"}] = &model.Edition{Runs: []model.Run{model.TextR("Bonjour")}}
 				return b
 			},
 			first: model.EditionKey{},
@@ -264,16 +267,14 @@ func TestBlockEachEdition(t *testing.T) {
 			},
 		},
 		{
-			name: "the zero key, the source language and a nil target name no other edition",
+			name: "a translation under no language, the source language and a nil target name no other edition",
 			block: func() *model.Block {
 				b := model.NewBlock("b1", "Hello")
 				b.SourceLocale = "en"
-				b.Targets = map[model.VariantKey]*model.Target{
-					{}:             {Runs: []model.Run{model.TextR("filed under no language")}},
-					{Locale: "EN"}: {Runs: []model.Run{model.TextR("another spelling of the source")}},
-					{Locale: "de"}: nil,
-					{Locale: "nb"}: {Runs: []model.Run{model.TextR("Hei")}},
-				}
+				b.SetTargetRuns("", []model.Run{model.TextR("filed under no language")})
+				b.Editions[model.EditionKey{Locale: "EN"}] = &model.Edition{Runs: []model.Run{model.TextR("another spelling of the source")}}
+				b.Editions[model.EditionKey{Locale: "de"}] = nil
+				b.Editions[model.EditionKey{Locale: "nb"}] = &model.Edition{Runs: []model.Run{model.TextR("Hei")}}
 				return b
 			},
 			first: model.EditionKey{Locale: "en"},
@@ -292,7 +293,7 @@ func TestBlockEachEdition(t *testing.T) {
 			assert.Equal(t, b.EditionKeyOf(model.EditionKey{}), keys[0])
 			assert.Len(t, keys, len(tc.want), "each edition is yielded once")
 			assert.Equal(t, tc.want, text)
-			assert.ElementsMatch(t, b.Editions(), keys, "the keys Editions lists")
+			assert.ElementsMatch(t, b.EditionKeys(), keys, "the keys EditionKeys lists")
 		})
 	}
 
@@ -316,11 +317,11 @@ func TestBlockEachEdition(t *testing.T) {
 
 func TestBlockRemoveEditionAndEditions(t *testing.T) {
 	b := editionBlock()
-	assert.Equal(t, []model.EditionKey{{Locale: "en"}, {Locale: "en", Channel: "short"}, {Locale: "fr"}}, b.Editions())
+	assert.Equal(t, []model.EditionKey{{Locale: "en"}, {Locale: "en", Channel: "short"}, {Locale: "fr"}}, b.EditionKeys())
 	assert.False(t, b.RemoveEdition(model.EditionKey{Locale: "en"}), "the edition the block was read in stays")
 	assert.False(t, b.RemoveEdition(model.Variant("de")))
 	assert.True(t, b.RemoveEdition(model.EditionKey{Locale: "FR"}))
-	assert.Equal(t, []model.EditionKey{{Locale: "en"}, {Locale: "en", Channel: "short"}}, b.Editions())
+	assert.Equal(t, []model.EditionKey{{Locale: "en"}, {Locale: "en", Channel: "short"}}, b.EditionKeys())
 }
 
 // A bilingual file whose two languages are one (an XLIFF file from en-US to
@@ -331,10 +332,10 @@ func TestBlockRemoveEditionAndEditions(t *testing.T) {
 func TestBlockEdition_ASameLanguageTargetKeepsItsKey(t *testing.T) {
 	b := model.NewBlock("b1", "colour source")
 	b.SourceLocale = "en-US"
-	b.SourceStatus = model.SourceStatusWritten
-	b.SetTarget("en-US", &model.Target{Runs: []model.Run{model.TextR("colour target")}, Status: model.TargetStatusEstablished})
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusWritten))
+	b.SetTargetEdition(model.Variant("en-US"), model.Edition{Runs: []model.Run{model.TextR("colour target")}, Status: model.Status(model.TargetStatusEstablished)})
 
-	assert.Equal(t, []model.EditionKey{{}, {Locale: "en-US"}}, b.Editions())
+	assert.Equal(t, []model.EditionKey{{}, {Locale: "en-US"}}, b.EditionKeys())
 	tgt, ok := b.Edition(model.Variant("en-US"))
 	require.True(t, ok)
 	assert.Equal(t, "colour target", model.RunsText(tgt.Runs))
@@ -349,11 +350,11 @@ func TestBlockEdition_ASameLanguageTargetKeepsItsKey(t *testing.T) {
 	b.SetEdition(model.Variant("en-US"), model.Edition{Runs: []model.Run{model.TextR("color target")}, Status: "draft"})
 	assert.Equal(t, "color target", b.TargetText("en-US"))
 	assert.Equal(t, "colour source", b.SourceText())
-	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
+	assert.Equal(t, model.SourceStatusWritten, sourceStatus(b))
 
 	assert.True(t, b.RemoveEdition(model.Variant("en-US")))
 	assert.Equal(t, "colour source", b.SourceText())
-	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}}, b.Editions(), "with no such target the source language reaches the source again")
+	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}}, b.EditionKeys(), "with no such target the source language reaches the source again")
 }
 
 func TestBlockAuthoritative(t *testing.T) {
@@ -384,7 +385,7 @@ func assertAuthoritativeIsSource(t *testing.T, b *model.Block) {
 	assert.True(t, b.IsSourceEdition(k))
 	assert.Equal(t, k, b.EditionKeyOf(k))
 	assert.Equal(t, k, b.EditionKeyOf(model.EditionKey{}))
-	assert.Equal(t, k, b.Editions()[0])
+	assert.Equal(t, k, b.EditionKeys()[0])
 	for key, ed := range b.EachEdition {
 		assert.Equal(t, k, key, "the edition read in is yielded first")
 		assert.Same(t, &b.SourceRuns()[0], &ed.Runs[0])
@@ -405,8 +406,9 @@ func TestBlockEdition_AMalformedSourceLocaleStillReachesTheSource(t *testing.T) 
 			assert.Equal(t, model.EditionKey{Locale: once}, b.Authoritative(model.AuthorityPolicy{}))
 
 			require.True(t, b.SetEditionStatus(b.Authoritative(model.AuthorityPolicy{}), model.Status(model.SourceStatusEstablished)))
-			assert.Equal(t, model.SourceStatusEstablished, b.SourceStatus)
-			assert.Empty(t, b.Targets, "a status stamp on the source creates no target")
+			assert.Equal(t, model.SourceStatusEstablished, sourceStatus(b))
+			assert.Equal(t, []model.EditionKey{b.Authoritative(model.AuthorityPolicy{})}, b.EditionKeys(), "a status stamp on the source creates no target")
+			assert.Len(t, b.Editions, 1, "the source sits under the zero key alone")
 
 			b.SetTargetText(loc, "Hello target")
 			assertAuthoritativeIsSource(t, b)
@@ -416,8 +418,8 @@ func TestBlockEdition_AMalformedSourceLocaleStillReachesTheSource(t *testing.T) 
 }
 
 // FuzzBlockAuthoritativeEditionIsTheSource holds every writer's read of the
-// source, Edition(Authoritative(AuthorityPolicy{})), to the block's Source
-// for any source locale, with and without a same-language target.
+// source, Edition(Authoritative(AuthorityPolicy{})), to the edition the block
+// was read in for any source locale, with and without a same-language target.
 func FuzzBlockAuthoritativeEditionIsTheSource(f *testing.F) {
 	for _, loc := range sourceLocalesReadInSteps {
 		f.Add(string(loc), false)
@@ -437,19 +439,20 @@ func FuzzBlockAuthoritativeEditionIsTheSource(f *testing.F) {
 	})
 }
 
-// FileTargetAsSpelled files a target under the key as spelled. Edition and
-// TargetEdition find it by neither spelling, EachEdition and Editions list it
-// under the canonical key, and TargetLocales reports the language as filed.
-func TestBlockFileTargetAsSpelled(t *testing.T) {
+// A target filed directly under a key as spelled, the state a write past the
+// accessors leaves: Edition and TargetEdition find it by neither spelling,
+// EachEdition and EditionKeys list it under the canonical key, and
+// TargetLocales reports the language as filed.
+func TestBlockATargetFiledAsSpelled(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	b.SourceLocale = "en-US"
 	spelled := model.EditionKey{Locale: "nb_NO"}
-	b.FileTargetAsSpelled(spelled, model.Edition{
+	b.Editions[spelled] = &model.Edition{
 		Runs:   []model.Run{model.TextR("Hei")},
 		Status: model.Status(model.TargetStatusTranslated),
 		Origin: model.Origin{Kind: model.OriginHuman},
 		Score:  0.5,
-	})
+	}
 
 	assert.Equal(t, []model.LocaleID{"nb_NO"}, b.TargetLocales())
 	_, ok := b.Edition(model.EditionKey{Locale: "nb-NO"})
@@ -458,7 +461,7 @@ func TestBlockFileTargetAsSpelled(t *testing.T) {
 	assert.False(t, ok, "the accessors canonicalize the key they are given")
 	_, ok = b.TargetEdition("nb_NO")
 	assert.False(t, ok, "the accessors canonicalize the locale they are given")
-	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}, {Locale: "nb-NO"}}, b.Editions())
+	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}, {Locale: "nb-NO"}}, b.EditionKeys())
 	got := maps.Collect(b.EachEdition)
 	assert.Equal(t, model.Edition{
 		Runs:   []model.Run{model.TextR("Hei")},
@@ -467,12 +470,8 @@ func TestBlockFileTargetAsSpelled(t *testing.T) {
 		Score:  0.5,
 	}, got[model.EditionKey{Locale: "nb-NO"}])
 
-	b.FileTargetAsSpelled(spelled, model.Edition{Runs: []model.Run{model.TextR("Hallo")}})
+	b.Editions[spelled] = &model.Edition{Runs: []model.Run{model.TextR("Hallo")}}
 	_, text := collectEditions(b)
 	assert.Equal(t, "Hallo", text[model.EditionKey{Locale: "nb-NO"}], "a second write replaces the target")
 	assert.Equal(t, []model.LocaleID{"nb_NO"}, b.TargetLocales())
-
-	empty := &model.Block{ID: "b2"}
-	empty.FileTargetAsSpelled(model.EditionKey{Locale: "fr_FR"}, model.Edition{Runs: []model.Run{model.TextR("Bonjour")}})
-	assert.Equal(t, []model.LocaleID{"fr_FR"}, empty.TargetLocales(), "a block with no targets yet takes one")
 }

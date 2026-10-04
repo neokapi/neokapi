@@ -17,6 +17,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Block, Document, PcCloseRun, PcOpenRun, Run, TextRun } from "@neokapi/kapi-format";
+import { sourceRuns } from "@neokapi/kapi-format";
 
 import { extractDocument } from "../src/extract/index.ts";
 import { transform } from "../src/plugin/transform.ts";
@@ -59,7 +60,7 @@ function t(code: string, options: Partial<PluginOptions> = {}): string | null {
 
 /** The text a translator may edit, in order. */
 function editable(block: Block): string[] {
-  return block.source.flatMap((run) => ("text" in run && !run.noTranslate ? [run.text] : []));
+  return sourceRuns(block).flatMap((run) => ("text" in run && !run.noTranslate ? [run.text] : []));
 }
 
 /** The `/formats` case from #2460, with the live source's attributes. */
@@ -79,31 +80,31 @@ describe("a button inside prose", () => {
   it("extracts the sentence and the label as one block", () => {
     const block = onlyBlock("<p>Press <button>Go</button> to start.</p>");
     expect(block.properties?.element).toBe("p");
-    expect(textRun(block.source[0]).text).toBe("Press ");
-    expect(pcOpen(block.source[1]).subType).toBe("button");
-    expect(textRun(block.source[2]).text).toBe("Go");
-    expect(pcClose(block.source[3]).subType).toBe("button");
-    expect(textRun(block.source[4]).text).toBe(" to start.");
+    expect(textRun(sourceRuns(block)[0]).text).toBe("Press ");
+    expect(pcOpen(sourceRuns(block)[1]).subType).toBe("button");
+    expect(textRun(sourceRuns(block)[2]).text).toBe("Go");
+    expect(pcClose(sourceRuns(block)[3]).subType).toBe("button");
+    expect(textRun(sourceRuns(block)[4]).text).toBe(" to start.");
     expect(block.hash).toBe(hashKey("Press {=m0}Go{/=m0} to start.", "p"));
   });
 
   it("leaves the label editable, unlike a code span", () => {
     const block = onlyBlock("<p>Press <button>Go</button> to start.</p>");
     expect(editable(block)).toEqual(["Press ", "Go", " to start."]);
-    expect(block.source.some((r) => "text" in r && r.noTranslate)).toBe(false);
+    expect(sourceRuns(block).some((r) => "text" in r && r.noTranslate)).toBe(false);
   });
 
   it("keeps the button's handler and classes on the paired code", () => {
     const block = onlyBlock('<p>Press <button type="button" onClick={run}>Go</button> now.</p>');
-    expect(pcOpen(block.source[1]).data).toBe('<button type="button" onClick={run}>');
-    expect(pcClose(block.source[3]).data).toBe("</button>");
-    expect(pcOpen(block.source[1]).equiv).toBe(pcClose(block.source[3]).equiv);
+    expect(pcOpen(sourceRuns(block)[1]).data).toBe('<button type="button" onClick={run}>');
+    expect(pcClose(sourceRuns(block)[3]).data).toBe("</button>");
+    expect(pcOpen(sourceRuns(block)[1]).equiv).toBe(pcClose(sourceRuns(block)[3]).equiv);
   });
 
   it("resolves a component through componentMap", () => {
     const opts = { componentMap: { Button: "button" } };
     const block = onlyBlock("<div>Press <Button>Go</Button> to start.</div>", opts);
-    expect(pcOpen(block.source[1]).subType).toBe("button");
+    expect(pcOpen(sourceRuns(block)[1]).subType).toBe("button");
     expect(editable(block)).toEqual(["Press ", "Go", " to start."]);
   });
 
@@ -114,7 +115,7 @@ describe("a button inside prose", () => {
     expect(editable(block).join("")).toContain("Try it live");
     expect(editable(block).join("")).toContain("list the registered formats");
     expect(editable(block).join("")).toContain("in-browser terminal.");
-    const protectedRuns = block.source.filter((r) => "text" in r && r.noTranslate);
+    const protectedRuns = sourceRuns(block).filter((r) => "text" in r && r.noTranslate);
     expect(protectedRuns).toHaveLength(1);
     expect(textRun(protectedRuns[0]).text).toBe("kapi");
   });
@@ -147,7 +148,7 @@ describe("a button inside prose", () => {
   it("nests a code span inside the button's label", () => {
     const block = onlyBlock("<p>Run <button>the <code>up</code> loop</button> now.</p>");
     expect(editable(block)).toEqual(["Run ", "the ", " loop", " now."]);
-    expect(block.source.filter((r) => "text" in r && r.noTranslate)).toHaveLength(1);
+    expect(sourceRuns(block).filter((r) => "text" in r && r.noTranslate)).toHaveLength(1);
   });
 });
 
@@ -209,8 +210,8 @@ describe("the other phrasing-content controls", () => {
   it("folds a select and its options into the sentence", () => {
     const block = onlyBlock("<p>Pick <select><option>Draft</option></select> now.</p>");
     expect(editable(block)).toEqual(["Pick ", "Draft", " now."]);
-    expect(pcOpen(block.source[1]).subType).toBe("select");
-    expect(pcOpen(block.source[2]).subType).toBe("option");
+    expect(pcOpen(sourceRuns(block)[1]).subType).toBe("select");
+    expect(pcOpen(sourceRuns(block)[2]).subType).toBe("option");
   });
 
   it.each([
@@ -223,7 +224,7 @@ describe("the other phrasing-content controls", () => {
     ["video", '<p>Watch <video src="/v.mp4" /> first.</p>'],
   ])("keeps the sentence around a bare <%s>", (tag, code) => {
     const block = onlyBlock(code);
-    const ph = block.source.find((r) => "ph" in r);
+    const ph = sourceRuns(block).find((r) => "ph" in r);
     expect(ph && "ph" in ph ? ph.ph.subType : null).toBe(tag);
     expect(editable(block).join("").trim().length).toBeGreaterThan(0);
   });
@@ -281,7 +282,7 @@ describe('translate="no" around a control', () => {
   it("carries a marked button through as an opaque placeholder", () => {
     const block = onlyBlock('<p>Press <button translate="no">Go</button> now.</p>');
     expect(editable(block)).toEqual(["Press ", " now."]);
-    const ph = block.source.find((r) => "ph" in r);
+    const ph = sourceRuns(block).find((r) => "ph" in r);
     expect(ph && "ph" in ph ? ph.ph.subType : null).toBe("button");
   });
 });

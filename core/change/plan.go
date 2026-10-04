@@ -13,8 +13,8 @@ import (
 // reports, else the reader's id. It is the storage key ladder
 // (convergence.BlockKey) and is what a read reports.
 func BlockKey(b *model.Block) string {
-	if b.Unit != "" {
-		return b.Unit
+	if b.Key != "" {
+		return b.Key
 	}
 	if b.Name != "" {
 		return b.Name
@@ -116,7 +116,7 @@ func (p *docPlan) Begin() {
 // A block is addressed by its durable key, its name or its id, and two
 // operations may name it by different ones.
 func (p *docPlan) match(b *model.Block) (keys []string, ops []int) {
-	for _, k := range []string{b.Unit, b.Name, b.ID} {
+	for _, k := range []string{b.Key, b.Name, b.ID} {
 		if k == "" || slices.Contains(keys, k) {
 			continue
 		}
@@ -317,7 +317,8 @@ func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
 		rev := model.EditionRevision(b, op.At.Edition)
 		ed, _ := b.Edition(op.At.Edition)
 		p.decisions[i] = &DecisionTarget{Doc: p.info, Ref: *p.results[i].At, Place: p.sess.Place(op.At.Edition), Rev: rev,
-			Text: model.RunsText(ed.Runs), SourceText: b.SourceText(), Role: role}
+			SourceRev: model.EditionRevision(b, authKey),
+			Text:      model.RunsText(ed.Runs), SourceText: b.SourceText(), Role: role}
 		// The decision lands once the content has; until then it stands as
 		// one that would.
 		p.results[i].Status = OpApplied

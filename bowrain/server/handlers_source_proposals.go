@@ -27,7 +27,7 @@ import (
 //
 // The re-draft fan-out is the crux. On approve, applySourceProposal writes the
 // new source and KEEPS every locale's translation. The write itself demotes
-// them: a block whose source content hash moves re-derives each target's
+// them: a block whose source revision moves re-derives each target's
 // projection against the decision ledger inside storeBlocks
 // (store.settleDecisionProjectionsPg), so an approval made for the old wording
 // drops to the presence baseline and files a decision.stale event.
@@ -35,7 +35,7 @@ import (
 // The translation stays because it is worth something. It is what the content
 // memory recycles from and what a reviewer compares the new draft against, and
 // the producers can now tell it apart from a current one: the ledger records the
-// source each target was written for (unit_decisions.content_hash), and the
+// source each target was written for (unit_decisions.basis), and the
 // recycle pass and the estimate both partition on that basis
 // (jobs.decisionLedger.needsDraft) rather than on whether a target exists. The
 // tally grades the same field (store.TallyDecisionBasis).
@@ -234,7 +234,7 @@ func (s *Server) HandleDecideSourceProposal(c echo.Context) error {
 // (the nudge that makes the fan-out happen without a second user action).
 //
 // The targets stay where they are. Writing the new source moves the block's
-// content hash, and that write re-derives each target's projection against the
+// source revision, and that write re-derives each target's projection against the
 // decision ledger (store.settleDecisionProjectionsPg): an approval made for the
 // old wording drops to the presence baseline, and the recorded basis now names
 // wording the block no longer holds. The recycle pass reads exactly that and
@@ -265,7 +265,7 @@ func (s *Server) applySourceProposal(c echo.Context, p *bstore.ProposedSourceCha
 	// The approver's edit of the source, through the stream's change service:
 	// guarded by the revision read above, held to what the approver may do and
 	// to the checks in force where the item sits, and recorded as theirs. The
-	// new source keeps the translations; its content hash moves, which re-derives
+	// new source keeps the translations; its source revision moves, which re-derives
 	// every target's projection against the ledger in the same write, so each
 	// target's recorded basis names wording the block no longer holds. A plain
 	// text fix is a single text run; this lane carries no inline markup.

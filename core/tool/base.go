@@ -448,7 +448,7 @@ func blockSourceSig(b *model.Block) uint64 {
 
 // blockTargetsSig is a content signature of every edition other than the
 // authoritative one (content + status), used to detect target mutation.
-// Editions lists the keys in the order of their text form, so the signature
+// EditionKeys lists the keys in the order of their text form, so the signature
 // does not depend on map order. An edition Edition does not reach (a target
 // stored under a non-canonical key) hashes as its key alone: a tool that adds
 // or removes one is caught, and a change to its content goes unseen.
@@ -456,7 +456,7 @@ func blockTargetsSig(b *model.Block) uint64 {
 	auth := b.Authoritative(model.AuthorityPolicy{})
 	h := fnv.New64a()
 	derived := false
-	for _, k := range b.Editions() {
+	for _, k := range b.EditionKeys() {
 		if k == auth {
 			continue
 		}

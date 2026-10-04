@@ -29,6 +29,16 @@ func TestMigrations_DropTheRetiredBlockNotesTable(t *testing.T) {
 	// nothing a later version adds.
 	_, err = s.db.ExecContext(ctx, `DROP TABLE pre_reviews`)
 	require.NoError(t, err)
+	for _, stmt := range []string{
+		`ALTER TABLE unit_decisions DROP COLUMN revision`,
+		`ALTER TABLE unit_decisions DROP COLUMN basis`,
+		`ALTER TABLE unit_decisions ADD COLUMN target_hash TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE unit_decisions ADD COLUMN content_hash TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE blocks DROP COLUMN source_revision`,
+	} {
+		_, err = s.db.ExecContext(ctx, stmt)
+		require.NoError(t, err, stmt)
+	}
 	_, err = s.db.ExecContext(ctx, `CREATE TABLE block_notes (
 		id         TEXT PRIMARY KEY,
 		project_id TEXT NOT NULL,

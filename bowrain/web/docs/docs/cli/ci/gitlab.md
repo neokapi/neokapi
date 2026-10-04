@@ -95,7 +95,7 @@ default branch ungated, set the `rules` input to merge-request pipelines alone.
 
 ## Report the cost of a change on its merge request
 
-With `plan: true` the job dry-runs the loop (pending units, memory reuse, and
+With `plan: true` the job dry-runs the loop (pending translations, memory reuse, and
 a token estimate; no writes, no provider calls) and posts the result as one
 threaded MR note that re-runs update in place. Declare the `kapi` stage as in
 the catch-up example:

@@ -9,7 +9,6 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -47,7 +46,7 @@ func newRestampFixture(t *testing.T) *restampFixture {
 	// a reviewer rather than on another pass.
 	require.NoError(t, cs.RecordDraftBases(t.Context(), p.ID, "main", []platstore.DraftBasis{{
 		ItemName: "app.json", Unit: "greeting", Variant: variant,
-		SourceHash: state.SourceHash(rewritten),
+		Basis: enSourceRevision(rewritten),
 	}}))
 
 	blocks, err := cs.GetBlocks(t.Context(), platstore.BlockQuery{
@@ -105,9 +104,11 @@ func TestPlatformRejectionKeepsTheBasisAndOwesADraft(t *testing.T) {
 
 	after := f.row(t)
 	assert.Equal(t, "rejected", after.ReviewState)
-	assert.Equal(t, before.ContentHash, after.ContentHash,
+	assert.Equal(t, before.Basis, after.Basis,
 		"a rejection endorses nothing, so the basis stays where the approval left it")
 	assert.Equal(t, before.GoverningFingerprint, after.GoverningFingerprint)
+	assert.Equal(t, platstore.TargetRevision(f.block, model.LocaleFrench), after.Revision,
+		"the translation it turned down is named by revision")
 
 	c = f.counts(t)
 	assert.Equal(t, 1, c.Stale, "the rejection leaves the unit stale")
@@ -125,10 +126,13 @@ func TestPlatformApprovalRestampsTheBasis(t *testing.T) {
 
 	after := f.row(t)
 	assert.Equal(t, "approved", after.ReviewState)
-	assert.Equal(t, state.SourceHash(f.rewritten), after.ContentHash,
-		"the approval binds the source the reviewer read")
+	assert.Equal(t, enSourceRevision(f.rewritten), after.Basis,
+		"the approval binds the source the reviewer read, by the revision a checkout grades it by")
+	assert.Equal(t, f.block.SourceRevision, after.Basis, "the revision the store stamped on it")
 	assert.Equal(t, "fp-now", after.GoverningFingerprint,
 		"and the context they decided under")
+	assert.Equal(t, platstore.TargetRevision(f.block, model.LocaleFrench), after.Revision,
+		"and the translation it approves")
 
 	c := f.counts(t)
 	assert.Zero(t, c.Stale, "the re-approval clears the stale grading")
@@ -147,7 +151,7 @@ func TestPlatformUnReviewKeepsTheBasis(t *testing.T) {
 
 	after := f.row(t)
 	assert.Empty(t, after.ReviewState, "an un-review is no verdict")
-	assert.Equal(t, before.ContentHash, after.ContentHash)
+	assert.Equal(t, before.Basis, after.Basis)
 	assert.Equal(t, before.GoverningFingerprint, after.GoverningFingerprint)
 	assert.Equal(t, 1, f.counts(t).Stale)
 }
@@ -158,10 +162,10 @@ func TestPlatformUnReviewKeepsTheBasis(t *testing.T) {
 func TestPlatformVerdictOnAnUnrecordedUnitCarriesNoBasis(t *testing.T) {
 	f := newRestampFixture(t)
 	d := unitDecisionFor(f.block, f.variant, model.TargetStatusDraft, false, f.ledger.decider, "fp-now", nil)
-	assert.Empty(t, d.ContentHash)
+	assert.Empty(t, d.Basis)
 	assert.Empty(t, d.GoverningFingerprint)
 	assert.Equal(t, "rejected", d.ReviewState)
-	assert.Equal(t, state.TargetHash("Bonjour"), d.TargetHash,
+	assert.Equal(t, textRevision(model.LocaleFrench, "Bonjour"), d.Revision,
 		"the translation it turned down is the rejection's own")
 }
 
@@ -193,7 +197,7 @@ func TestDashboardStaleSplitSumsToTheStaleCount(t *testing.T) {
 	// pair stays stale and starts waiting on a person.
 	require.NoError(t, cs.RecordDraftBases(ctx, p.ID, "main", []platstore.DraftBasis{{
 		ItemName: "app.json", Unit: "greeting", Variant: string(model.LocaleFrench),
-		SourceHash: state.SourceHash(rewritten),
+		Basis: enSourceRevision(rewritten),
 	}}))
 
 	drafted := stats()

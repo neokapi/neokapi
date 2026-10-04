@@ -8,7 +8,6 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -33,17 +32,17 @@ func TestPushGovernor_IndexesALanguageByItsOwnEdition(t *testing.T) {
 
 	// Map order varies between runs, so an order-dependent choice shows.
 	for range 32 {
-		g, err := newPushGovernor(t.Context(), nil, "p1", "main", "ws1", "actor", nil, nil)
+		g, err := newPushGovernor(t.Context(), nil, "p1", "main", "ws1", "en", "actor", nil, nil)
 		require.NoError(t, err)
 
 		g.indexRows("ui.json", []*venue.StoredBlock{row})
 		assert.Equal(t, model.TargetStatusEstablished, g.priorStatus[fr])
-		assert.Equal(t, state.TargetHash("Enregistrer"), g.priorHash[fr])
+		assert.Equal(t, languageRevision("fr", text("Enregistrer")), g.priorRevision[fr])
 		assert.Equal(t, model.TargetStatusTranslated, g.priorStatus[de], "a language held only as a variant")
-		assert.Equal(t, state.TargetHash("Speichern Sie"), g.priorHash[de])
+		assert.Equal(t, languageRevision("de", text("Speichern Sie")), g.priorRevision[de])
 
 		g.indexPushedTargets([]stagedGroup{{ItemName: "ui.json", Blocks: []*model.Block{pushed}}})
-		assert.Equal(t, state.TargetHash("Enregistrer maintenant"), g.pushedHash[fr])
-		assert.Equal(t, state.TargetHash("Speichern Sie"), g.pushedHash[de])
+		assert.Equal(t, languageRevision("fr", text("Enregistrer maintenant")), g.pushedRevision[fr])
+		assert.Equal(t, languageRevision("de", text("Speichern Sie")), g.pushedRevision[de])
 	}
 }

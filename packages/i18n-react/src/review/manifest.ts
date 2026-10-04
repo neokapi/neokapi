@@ -13,14 +13,22 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-import type { File as KBFFile, Run } from "@neokapi/kapi-format";
-import { flattenRuns, isAnnotationPath, isKbfPath } from "@neokapi/kapi-format";
+import type { File as KBFFile } from "@neokapi/kapi-format";
+import {
+  editionRuns,
+  flattenRuns,
+  isAnnotationPath,
+  isKbfPath,
+  parseFile,
+  sourceRuns,
+  targetKeys,
+} from "@neokapi/kapi-format";
 
 /** One block's review data, flattened to display-ready strings. */
 export interface ReviewManifestEntry {
   /** Flattened source text. */
   source: string;
-  /** locale → flattened target text (only locales that have a target). */
+  /** edition key → flattened text of that edition (only editions with text). */
   targets: Record<string, string>;
   /** Translator-facing context. */
   properties: {
@@ -69,15 +77,15 @@ function entryFor(manifest: ReviewManifest, hash: string): ReviewManifestEntry {
 function indexBlocks(path: string, manifest: ReviewManifest): void {
   let file: KBFFile;
   try {
-    file = JSON.parse(readFileSync(path, "utf-8")) as KBFFile;
+    file = parseFile(readFileSync(path, "utf-8"));
   } catch {
-    return; // unparseable — extract will rewrite it
+    return; // unparseable, or a bundle this build does not read; extract will rewrite it
   }
   for (const doc of file.documents ?? []) {
     for (const block of doc.blocks ?? []) {
       if (!block.hash) continue;
       const e = entryFor(manifest, block.hash);
-      if (!e.source && block.source) e.source = flattenRuns(block.source);
+      if (!e.source) e.source = flattenRuns(sourceRuns(block));
       const p = block.properties;
       if (p && !e.properties.file) {
         e.properties = {
@@ -88,9 +96,9 @@ function indexBlocks(path: string, manifest: ReviewManifest): void {
           locNote: p.locNote,
         };
       }
-      for (const [locale, runs] of Object.entries(block.targets ?? {})) {
-        const r = runs as Run[] | undefined;
-        if (r && r.length > 0) e.targets[locale] = flattenRuns(r);
+      for (const key of targetKeys(block)) {
+        const runs = editionRuns(block, key);
+        if (runs && runs.length > 0) e.targets[key] = flattenRuns(runs);
       }
     }
   }

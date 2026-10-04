@@ -1885,15 +1885,15 @@
       "additionalProperties": false,
       "properties": {
         "collection": {
-          "description": "Only list units in this content collection",
+          "description": "Only list blocks in this content collection",
           "type": "string"
         },
         "language": {
-          "description": "Only list units in this language; the project's source language lists its source units",
+          "description": "Only list blocks in this language; the project's source language lists its source blocks",
           "type": "string"
         },
         "locale": {
-          "description": "Only list units for this target locale",
+          "description": "Only list blocks for this target locale",
           "type": "string"
         },
         "project": {
@@ -2284,7 +2284,7 @@
           "type": "boolean"
         },
         "no_checks": {
-          "description": "skip the project's bound checks inside the loop (failing units then count as translated)",
+          "description": "skip the project's bound checks inside the loop (failing blocks then count as translated)",
           "type": "boolean"
         },
         "passes": {

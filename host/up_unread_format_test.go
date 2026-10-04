@@ -190,7 +190,7 @@ func TestUpOverOnlyUnreadableContentConvergesNothing(t *testing.T) {
 	var text bytes.Buffer
 	require.NoError(t, plan.FormatText(&text))
 	assert.NotContains(t, text.String(), "Nothing to do")
-	assert.NotContains(t, formatPlanLine(plan), "every unit has a committed target")
+	assert.NotContains(t, formatPlanLine(plan), "every block has a committed target")
 }
 
 // Only a missing reader sets a collection aside. `--fail-on-unknown` asks for a

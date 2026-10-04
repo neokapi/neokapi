@@ -68,8 +68,8 @@ type ApprovePassingResponse struct {
 //
 // Every promotion is a decide operation the pass sends through the stream's
 // change service as the caller, bound to the translation the pass read: it
-// goes to the decision ledger with the decider and the hash of the translation
-// it blesses, and from there into the workspace content memory, exactly as
+// goes to the decision ledger with the decider and the revision of the
+// translation it blesses, and from there into the workspace content memory, exactly as
 // any other approval does. A translation that moved since the pass read it
 // stays pending. A translation the caller wrote themselves is left pending when
 // the workspace's separation-of-duties policy blocks self-approval.

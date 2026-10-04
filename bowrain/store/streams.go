@@ -75,13 +75,13 @@ var branchStreamCopies = []struct {
 }{
 	{table: "items", columns: "id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at", stamp: "updated_at"},
 	{table: "blocks", columns: "id, project_id, item_name, item_id, source_id, name, type, mime_type, translatable, " +
-		"content_hash, context_hash, source_json, overlays, word_count, properties, owner_id, access, stored_at", stamp: "updated_at"},
+		"content_hash, context_hash, source_revision, source_json, overlays, word_count, properties, owner_id, access, stored_at", stamp: "updated_at"},
 	{table: "translations", columns: "project_id, block_id, locale, text, target_json, provider, metadata", stamp: "updated_at"},
 	{table: "annotations", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
 	{table: "overlays_ext", columns: "project_id, block_id, kind, payload", stamp: "updated_at"},
 	{table: "pre_reviews", columns: "project_id, block_id, locale, score, reviewer, reasons, revision, created_at"},
-	{table: "unit_decisions", columns: "project_id, item_id, item_name, unit, variant, status, target_hash, content_hash, " +
-		"review_state, decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated", stamp: "updated_at"},
+	{table: "unit_decisions", columns: "project_id, item_id, item_name, unit, variant, status, " +
+		"revision, basis, review_state, decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated", stamp: "updated_at"},
 }
 
 // branchStreamContent copies one stream's content into another, ids intact.
@@ -325,17 +325,20 @@ func (s *PostgresStore) DiffStream(ctx context.Context, projectID, streamName st
 
 	// A full outer join over the two sides: present on one only is an add or a
 	// remove, present on both with differing content is a modification, and
-	// present on both alike contributes nothing.
+	// present on both alike contributes nothing. Content is the wording (the
+	// content hash) and the source revision, which also moves with an inline
+	// code, so a branch that changed only a link reports that block modified.
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT COALESCE(b.id, p.id),
 			CASE WHEN p.id IS NULL THEN 'added'
 			     WHEN b.id IS NULL THEN 'removed'
 			     ELSE 'modified' END
-		 FROM (SELECT id, content_hash FROM blocks WHERE project_id=$1 AND stream=$2) b
+		 FROM (SELECT id, content_hash, source_revision FROM blocks WHERE project_id=$1 AND stream=$2) b
 		 FULL OUTER JOIN
-		     (SELECT id, content_hash FROM blocks WHERE project_id=$1 AND stream=$3) p
+		     (SELECT id, content_hash, source_revision FROM blocks WHERE project_id=$1 AND stream=$3) p
 		 ON p.id = b.id
-		 WHERE p.id IS NULL OR b.id IS NULL OR p.content_hash <> b.content_hash
+		 WHERE p.id IS NULL OR b.id IS NULL
+		    OR p.content_hash <> b.content_hash OR p.source_revision <> b.source_revision
 		 ORDER BY 1`,
 		projectID, streamName, parentName)
 	if err != nil {

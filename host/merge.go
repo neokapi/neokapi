@@ -215,7 +215,7 @@ func (a *App) RunMerge(cmd Command) error {
 	// merge exits 3, as a refused change set does, so a command chained after
 	// it does not go on with a file half in the source language.
 	if totals.Refused > 0 {
-		return WithExitCode(ExitGate, fmt.Errorf("merge: %d unit(s) refused; fix each target the lines above name and merge again", totals.Refused))
+		return WithExitCode(ExitGate, fmt.Errorf("merge: %d block(s) refused; fix each target the lines above name and merge again", totals.Refused))
 	}
 	return nil
 }

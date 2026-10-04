@@ -307,6 +307,15 @@ jobs:
         run: go test -tags "fts5,e2e" -count=1 -v ./bowrain/e2e/server/
         timeout-minutes: 5
 
+      # A checkout against the same stack: the host module's connector, driven
+      # by the change service and a flow, pushing to and pulling from the
+      # server as kapi-bowrain does. Same tag rule as above.
+      - name: Run checkout E2E tests
+        if: ${{ !cancelled() && steps.stack.outcome == 'success' }}
+        working-directory: host
+        run: go test -tags "fts5,e2e" -count=1 -v -run 'TestRevisionE2E' ./venue/source/
+        timeout-minutes: 5
+
       - name: Cache Playwright browsers
         if: ${{ !cancelled() && steps.stack.outcome == 'success' }}
         uses: actions/cache@v6

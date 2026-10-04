@@ -221,7 +221,7 @@ func TestSettleSource_LeavesThePushedRecordHashesStanding(t *testing.T) {
 		for _, item := range items {
 			b := &model.Block{ID: item.ID, Translatable: true}
 			b.SetSourceText(item.Text)
-			if !held[model.ComputeIdentity(b).RecordHash()] {
+			if !held[venue.RecordHash(b, "en")] {
 				n++
 			}
 		}

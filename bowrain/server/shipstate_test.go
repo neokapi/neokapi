@@ -15,7 +15,6 @@ import (
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -330,8 +329,8 @@ func TestApplyShipStates_StaleBasisWithholdsLocale(t *testing.T) {
 	_, err = cs.UpsertUnitDecisions(ctx, proj.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:      string(model.TargetStatusEstablished),
-		TargetHash:  state.TargetHash("Hei"),
-		ContentHash: state.SourceHash("Hello"),
+		Revision:    textRevision("nb", "Hei"),
+		Basis:       enSourceRevision("Hello"),
 		ReviewState: "approved",
 		DecidedBy:   "reviewer@example.com",
 		Updated:     "2026-08-04T10:00:00Z",
@@ -407,11 +406,11 @@ func TestApplyShipStates_MissingBasisShipsAndIsCounted(t *testing.T) {
 	b.StampTargetProvenance("nb", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "en.json", []*model.Block{b}))
 
-	// The record predates the basis: no ContentHash at all.
+	// The record names no source it was made from.
 	_, err = cs.UpsertUnitDecisions(ctx, proj.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:      string(model.TargetStatusEstablished),
-		TargetHash:  state.TargetHash("Hei"),
+		Revision:    textRevision("nb", "Hei"),
 		ReviewState: "approved",
 		Updated:     "2026-08-04T10:00:00Z",
 	}})
@@ -465,8 +464,8 @@ func TestPublicShipManifestWithholdsStaleLocale(t *testing.T) {
 	_, err := ds.UpsertUnitDecisions(ctx, proj.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:      string(model.TargetStatusEstablished),
-		TargetHash:  state.TargetHash("Hei"),
-		ContentHash: state.SourceHash("Hello"),
+		Revision:    textRevision("nb", "Hei"),
+		Basis:       enSourceRevision("Hello"),
 		ReviewState: "approved",
 		Updated:     "2026-08-04T10:00:00Z",
 	}})

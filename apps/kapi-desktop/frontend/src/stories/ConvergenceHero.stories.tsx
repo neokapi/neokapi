@@ -12,7 +12,7 @@ export default meta;
 type Story = StoryObj<typeof ConvergenceHero>;
 
 const PLAN_NOTE =
-  "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls).";
+  "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining blocks (no tokenizer, no provider calls).";
 
 const DRIFTED_PLAN: ConvergePlan = {
   plan: {

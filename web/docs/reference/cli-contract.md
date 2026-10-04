@@ -86,7 +86,7 @@ One document per batch: identity (`batch_id`, `manifest`), the extraction inputs
 
 ### `kapi merge`
 
-Applying returned bilingual files (`merge -i`) reports one entry per input plus totals and the resolved conflict policy; a failed input carries an `error` instead of counts. Each unit counts once: `applied` (it landed, or already said that), `stale` (its source changed since the extraction, the source it carries is not its block's, or its block is gone), `skipped` (empty, or a translation the project changed meanwhile that the conflict policy kept), and `refused` (the change service refused it, such as a target that drops an inline code its source protects or one that breaks a rule governing it; the field is present when non-zero, and the reason goes to stderr). An input of which nothing lands because every unit was refused fails.
+Applying returned bilingual files (`merge -i`) reports one entry per input plus totals and the resolved conflict policy; a failed input carries an `error` instead of counts. Each block counts once: `applied` (it landed, or already said that), `stale` (its source changed since the extraction, the source it carries is not its block's, or its block is gone), `skipped` (empty, or a translation the project changed meanwhile that the conflict policy kept), and `refused` (the change service refused it, such as a target that drops an inline code its source protects or one that breaks a rule governing it; the field is present when non-zero, and the reason goes to stderr). An input of which nothing lands because every block was refused fails.
 
 ```json
 {
@@ -146,7 +146,7 @@ The toolbox utilities (`kgrep`) additionally use grep-parity semantics: exit 1 w
 | --- | --- | --- |
 | `state` | Run-state transition | `message` |
 | `progress` | About to process one file (or source→locale pair) | `file_index`, `file_count`, `file_path`, `locale` |
-| `file_done` | One unit completed | `file_path`, `output_path`, `locale` |
+| `file_done` | One file (or source→locale pair) completed | `file_path`, `output_path`, `locale` |
 | `pipeline_metrics` | Per-step throughput snapshot (multi-locale project runs) | `steps` |
 | `complete` | Run finished | `duration_ms`, `files_processed`, `message` |
 

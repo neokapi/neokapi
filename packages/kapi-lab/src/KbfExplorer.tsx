@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import type { Block, File, Run } from "@neokapi/kapi-format";
+import type { Block, BlockV1, File, Run } from "@neokapi/kapi-format";
+import { sourceRuns, targetKeys, upgradeBlock } from "@neokapi/kapi-format";
 import { CodeView } from "@neokapi/ui-primitives/preview";
 import { useLabRuntime } from "./useLabRuntime";
 import GateOverlay from "./GateOverlay";
@@ -81,8 +82,19 @@ export default function KbfExplorer({
     }
   }, [kbfValue]);
 
+  // Blocks in either schema, read as editions; a block the reader refuses
+  // (one carrying both shapes) is left out here and reported by the engine.
   const blocks: Block[] = useMemo(
-    () => (parsed.file?.documents ?? []).flatMap((d) => d.blocks ?? []),
+    () =>
+      (parsed.file?.documents ?? []).flatMap((d) =>
+        (d.blocks ?? []).flatMap((b) => {
+          try {
+            return [upgradeBlock(b as Block | BlockV1)];
+          } catch {
+            return [];
+          }
+        }),
+      ),
     [parsed.file],
   );
 
@@ -353,8 +365,15 @@ function BlockCard({
 
         <div className={styles.section}>
           <span className={styles.label}>Source runs</span>
-          <RunsStrip runs={block.source} highlight={highlight} />
+          <RunsStrip runs={sourceRuns(block)} highlight={highlight} />
         </div>
+
+        {targetKeys(block).map((key) => (
+          <div className={styles.section} key={key}>
+            <span className={styles.label}>Edition {key}</span>
+            <RunsStrip runs={block.editions[key]?.runs ?? []} highlight={null} />
+          </div>
+        ))}
 
         {block.placeholders.length > 0 && (
           <div className={styles.section}>

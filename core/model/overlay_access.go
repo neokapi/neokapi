@@ -6,11 +6,11 @@ package model
 // manage those spans on Block.Overlays. Block-scoped metadata uses the
 // annotation map instead (see annotation_access.go).
 
-// OverlayOf returns a pointer to the source-side overlay of type t (Variant
-// nil), or nil if the block has none.
+// OverlayOf returns a pointer to the source-side overlay of type t (the one
+// that names the zero key), or nil if the block has none.
 func (b *Block) OverlayOf(t OverlayType) *Overlay {
 	for i := range b.Overlays {
-		if b.Overlays[i].Type == t && b.Overlays[i].Variant == nil {
+		if b.Overlays[i].Type == t && b.Overlays[i].Edition.IsZero() {
 			return &b.Overlays[i]
 		}
 	}
@@ -51,7 +51,7 @@ func (b *Block) OverlaySpan(t OverlayType, id string) *Span {
 func (b *Block) RemoveOverlay(t OverlayType) {
 	out := b.Overlays[:0]
 	for _, o := range b.Overlays {
-		if o.Type == t && o.Variant == nil {
+		if o.Type == t && o.Edition.IsZero() {
 			continue
 		}
 		out = append(out, o)

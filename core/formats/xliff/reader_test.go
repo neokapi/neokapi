@@ -184,7 +184,7 @@ func targetSegTexts(b *model.Block, loc model.LocaleID) []string {
 		return nil
 	}
 	key := model.Variant(loc)
-	seg := b.SegmentationFor(&key)
+	seg := b.SegmentationFor(key)
 	if seg == nil {
 		return []string{model.RunsText(runs)}
 	}

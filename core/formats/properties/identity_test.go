@@ -108,7 +108,7 @@ func TestIdentity_RepeatedKeyIsDisambiguated(t *testing.T) {
 // editing a value keeps the entry.
 func TestIdentity_EditedValueKeepsIdentity(t *testing.T) {
 	const scope = "app.properties"
-	var prior []reconcile.Unit
+	var prior []reconcile.Prior
 	for _, b := range readIdentityBlocks(t, "a=Alpha\nb=Bravo\n") {
 		u := reconcile.Identify(scope, b)
 		u.Key = b.Name

@@ -47,6 +47,8 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 37  who wrote each translation a checkout holds by hand
 // 38  block notes moved onto their blocks as note annotations; the table retired
 // 39  an agent's pre-review of a translation
+// 40  a decision records the revisions of the pairing it blesses
+// 41  a block records its source revision; decisions drop their text hashes
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1586,6 +1588,55 @@ var Migrations = []storage.Migration{
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, stream, block_id, locale)
 			);
+		`,
+	},
+	{
+		Version:     40,
+		Description: "a decision records the revisions of the pairing it blesses",
+		SQL: `
+			-- The pairing a decision blesses, by revision
+			-- (model.EditionRevision): the translation it blesses (revision)
+			-- and the source it blessed it for (basis). A revision counts
+			-- inline codes, where target_hash and content_hash hash the text
+			-- alone, so a reader grades a record that carries them by them.
+			-- Empty on every row written before this version, which keeps
+			-- answering by its hashes. Additive, with no rewrite of existing
+			-- rows.
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS revision TEXT NOT NULL DEFAULT '';
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS basis    TEXT NOT NULL DEFAULT '';
+		`,
+	},
+	{
+		Version:     41,
+		Description: "decisions are graded by revision",
+		SQL: `
+			-- The revision of each block's source (core/venue.SourceRevision:
+			-- its runs under the project's source language), stamped whenever
+			-- the source is written. A decision is current while its basis is
+			-- this revision, and the transfer hash a push compares folds it,
+			-- so a change to an inline code alone reaches the store and
+			-- retires the decisions made on the old source. Empty on a row
+			-- written before this version until its source is written again:
+			-- no basis is current against it until then.
+			ALTER TABLE blocks ADD COLUMN IF NOT EXISTS source_revision TEXT NOT NULL DEFAULT '';
+
+			-- A decision names its pairing by revision alone (revision,
+			-- basis). The text hashes it was graded by before go.
+			ALTER TABLE unit_decisions DROP COLUMN IF EXISTS target_hash;
+			ALTER TABLE unit_decisions DROP COLUMN IF EXISTS content_hash;
+
+			-- A draft mark names the revision of the source the platform's
+			-- latest draft was made against. A mark written before this
+			-- version names a text hash, which no revision equals, so it is
+			-- cleared: the unit reads as not yet drafted against its source.
+			UPDATE unit_decisions SET draft_basis = '' WHERE draft_basis <> '';
+
+			-- The source settlement stamps the revision of the source a
+			-- block's status was settled against (__source_settled_revision).
+			-- The text hash it stamped before goes; the next settle pass
+			-- stamps the revision.
+			UPDATE blocks SET properties = (properties::jsonb - '__source_settled_hash')::text
+			 WHERE properties LIKE '%"__source_settled_hash"%';
 		`,
 	},
 }

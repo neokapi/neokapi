@@ -299,7 +299,7 @@ func (a *App) RunExtract(cmd Command) error {
 
 			revisions, err := interchangeRevisions(cmd.Context(), svc, filepath.ToSlash(src.Relative), tgt)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "extract: %s → %s: read the revisions its units carry: %v\n", src.Relative, tgt, err)
+				fmt.Fprintf(os.Stderr, "extract: %s → %s: read the revisions its blocks carry: %v\n", src.Relative, tgt, err)
 				failures++
 				continue
 			}
@@ -698,8 +698,7 @@ func applyMemoryPrefill(ctx context.Context, tm memory.ContentMemory, block *mod
 	}
 	block.SetTargetRuns(target, targetRuns)
 	if segCount > 1 {
-		key := model.Variant(target)
-		block.SetSegmentation(&key, targetSpans)
+		block.SetTargetSegmentation(target, targetSpans)
 	}
 	// Stash the match type on the block so downstream writers can surface
 	// it in format-appropriate ways (PO's `#, fuzzy` flag; XLIFF 2's
@@ -1081,7 +1080,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 			outPath := filepath.Join(absOut, outName)
 			revisions, err := interchangeRevisions(cmd.Context(), svc, filepath.ToSlash(src.Relative), tgt)
 			if err != nil {
-				return fmt.Errorf("extract: %s → %s: read the revisions its units carry: %w", src.Relative, tgt, err)
+				return fmt.Errorf("extract: %s → %s: read the revisions its blocks carry: %w", src.Relative, tgt, err)
 			}
 			if err := a.extractOneKpz(cmd.Context(), kpzInterchangeTask{
 				ctx: pctx, source: src, targetLocale: tgt, outputPath: outPath, tm: mem, tb: tb, revisions: revisions,

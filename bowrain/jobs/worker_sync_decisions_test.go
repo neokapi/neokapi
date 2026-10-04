@@ -24,7 +24,7 @@ func TestAPushCarryingNoDecisionAssertsNothingInTheWorker(t *testing.T) {
 
 	bases, err := json.Marshal([]map[string]any{{
 		"item": "en.json", "unit": "b1", "variant": "nb",
-		"targetHash": "sha256:t1", "contentHash": "sha256:s1", "updated": "2026-09-15T00:00:00Z",
+		"revision": "r:00000000000000t1", "basis": "r:00000000000000s1", "updated": "2026-09-15T00:00:00Z",
 	}})
 	require.NoError(t, err)
 

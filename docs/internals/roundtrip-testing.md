@@ -60,7 +60,7 @@ modified parts back into the output document at the configured
 `OutputRef.Path`.
 
 The transform hook is engine-agnostic: it receives a `*model.Block`
-and is free to mutate `Targets`. The bridge engine wires it to the
+and is free to write its target editions. The bridge engine wires it to the
 same `applyPseudoToBlock` helper the native engine uses (in
 `cli/parity/roundtrip/pseudo.go`).
 

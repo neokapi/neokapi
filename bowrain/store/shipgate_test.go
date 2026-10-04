@@ -229,6 +229,34 @@ func TestPutShipGateVerdictsRefusesAMovedBasis(t *testing.T) {
 		"the pair whose basis held is recorded as normal")
 }
 
+// A verdict is computed from the source as well as the translation, and a
+// check that compares their codes reads a link: a change to an inline code in
+// the source alone, the translation untouched, has the pair judged again.
+func TestShipGateRollup_ALinkMovedInTheSourceIsJudgedAgain(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := seedShipGateProject(t, s)
+	const gate = "gate-codes"
+	guide := linkedBlock("b5", "the guide", "/v1/guide")
+	guide.SetTargetText(model.LocaleFrench, "Lisez le guide")
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "b.json", []*model.Block{guide}))
+	names, _ := shipGateNames(t, s, p.ID)
+
+	rollup, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
+	require.NoError(t, err)
+	storeVerdicts(t, s, p.ID, gate, rollup.Stale, nil, nil)
+	got, err := s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
+	require.NoError(t, err)
+	require.Empty(t, got.Stale, "every pair holds a verdict")
+
+	// The source's link moves, as a push carries it: source only.
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "b.json",
+		[]*model.Block{linkedBlock("b5", "the guide", "/v2/guide")}))
+	got, err = s.ShipGateRollup(ctx, shipGateQuery(p.ID, gate))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"b5"}, staleNames(names, got.Stale), "the pair is judged again against the new link")
+}
+
 // TestShipGateRollupCountsUncheckedTerminology asserts the stored terminology
 // verdict reaches the counts: a clean pair in a governed locale with no
 // terminology verdict is not checked, and a pair no terms govern is not.

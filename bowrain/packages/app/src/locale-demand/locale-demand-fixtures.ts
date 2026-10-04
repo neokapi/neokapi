@@ -139,7 +139,7 @@ function coverageFor(code: string): Coverage {
   return COVERAGE[code] ?? { status: "not-covered" };
 }
 
-/** Mocked plan estimates per uncovered/partial language (units · content-memory leverage). */
+/** Mocked plan estimates per uncovered/partial language (blocks · content-memory leverage). */
 const PLAN_ESTIMATES: Record<string, PlanEstimate> = {
   ja: { units: 1566, tokens: 720_000, memoryCoveragePercent: 62 },
   "pt-BR": { units: 4120, tokens: 2_100_000, memoryCoveragePercent: 14 },
@@ -679,9 +679,9 @@ export function formatTokens(tokens: number): string {
   return `~${Math.round(tokens / 1000)}K tokens`;
 }
 
-/** One-line gap estimate, e.g. "~4,120 units · ~2.1M tokens". */
+/** One-line gap estimate, e.g. "~4,120 blocks · ~2.1M tokens". */
 export function formatGapEstimate(estimate: PlanEstimate): string {
-  return `~${estimate.units.toLocaleString("en-US")} units · ${formatTokens(estimate.tokens)}`;
+  return `~${estimate.units.toLocaleString("en-US")} blocks · ${formatTokens(estimate.tokens)}`;
 }
 
 /**

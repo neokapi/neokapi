@@ -19,7 +19,6 @@ import (
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host"
@@ -27,6 +26,17 @@ import (
 	"github.com/neokapi/neokapi/host/venue/config"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
 )
+
+// sourceRev is the revision of a plain-text source under the project's source
+// language, en: the basis a checkout records and the revision a venue holds.
+func sourceRev(text string) string {
+	return venue.SourceRevision(model.NewBlock("", text), "en")
+}
+
+// targetRev is the revision of a plain-text French translation.
+func targetRev(text string) string {
+	return model.RunsRevision(model.Variant("fr"), []model.Run{model.TextR(text)})
+}
 
 // applyFrench rewrites the French translation of the greeting through the
 // change service, as a person's kapi apply does.
@@ -110,7 +120,7 @@ func TestPush_SendsTheWriteOfTheTranslationTheCheckoutHolds(t *testing.T) {
 	}
 	require.NotNil(t, greeting)
 	assert.Equal(t, venue.WriterTool, greeting.Writer, "the pass on A wrote it")
-	assert.Equal(t, state.SourceHash("Hello world"), greeting.Basis, "from the source branch A holds")
+	assert.Equal(t, sourceRev("Hello world"), greeting.Basis, "from the source branch A holds")
 	b := &model.Block{}
 	var held map[string]string
 	require.NoError(t, json.Unmarshal(frA, &held))
@@ -122,6 +132,23 @@ func TestPush_SendsTheWriteOfTheTranslationTheCheckoutHolds(t *testing.T) {
 // pseudo-translation flow translates into French.
 func translatedCheckout(t *testing.T, srv *refServer) *BowrainSourceConnector {
 	t.Helper()
+	return checkoutOf(t, srv, "en",
+		map[string]string{"locales/en.json": `{"greeting": "Hello world", "farewell": "Goodbye now"}` + "\n"},
+		coreproj.Collection{Name: "app", Path: "locales/en.json", Target: "locales/{lang}.json"})
+}
+
+// checkoutOf is a checkout of proj1 on srv, written in source, holding files
+// and claiming them by collections, which a pseudo-translation flow
+// translates into French.
+func checkoutOf(t *testing.T, srv *refServer, source model.LocaleID, files map[string]string, collections ...coreproj.Collection) *BowrainSourceConnector {
+	t.Helper()
+	return checkoutAt(t, srv.URL, "/projects/proj1", "proj1", "test-token", source, files, collections...)
+}
+
+// checkoutAt is checkoutOf for the project at serverURL+projectPath, whose id
+// is projectID, reached with token.
+func checkoutAt(t *testing.T, serverURL, projectPath, projectID, token string, source model.LocaleID, files map[string]string, collections ...coreproj.Collection) *BowrainSourceConnector {
+	t.Helper()
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
@@ -129,31 +156,33 @@ func translatedCheckout(t *testing.T, srv *refServer) *BowrainSourceConnector {
 	t.Setenv("KAPI_PLUGINS_DIR", t.TempDir())
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	root := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en.json"),
-		[]byte(`{"greeting": "Hello world", "farewell": "Goodbye now"}`+"\n"), 0o644))
+	for name, body := range files {
+		abs := filepath.Join(root, filepath.FromSlash(name))
+		require.NoError(t, os.MkdirAll(filepath.Dir(abs), 0o755))
+		require.NoError(t, os.WriteFile(abs, []byte(body), 0o644))
+	}
 	recipe := &bproject.Recipe{
 		Defaults: coreproj.Defaults{
-			SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}, Flow: "pseudo",
+			SourceLanguage: source, TargetLanguages: []model.LocaleID{"fr"}, Flow: "pseudo",
 			TranslateAfter: string(model.TranslateAfterNone), Materialize: coreproj.MaterializeManual,
 		},
-		Collections: []coreproj.Collection{{Name: "app", Path: "locales/en.json", Target: "locales/{lang}.json"}},
+		Collections: collections,
 		Flows:       map[string]*flow.StepsSpec{"pseudo": {Steps: []flow.FlowStep{{Tool: "pseudo-translate"}}}},
-		Server:      &bproject.ServerSpec{URL: srv.URL + "/projects/proj1", Stream: "main"},
+		Server:      &bproject.ServerSpec{URL: serverURL + projectPath, Stream: "main"},
 	}
 	proj, err := bproject.InitProject(root, recipe)
 	require.NoError(t, err)
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
-	client := apiclient.NewProjectBearerClient(srv.URL, "proj1", "test-token")
+	client := apiclient.NewProjectBearerClient(serverURL, projectID, token)
 	client.SetStream("main")
 	a := testApp(t)
 	a.InitRegistries()
-	a.SourceLang = "en"
+	a.SourceLang = string(source)
 	return &BowrainSourceConnector{
 		app: a, project: proj, client: client, formatReg: reg,
 		cache:  bproject.LoadSyncCache(proj.Layout),
-		refs:   refcache.Load(proj.Layout, config.NormalizeServerURL(srv.URL), "proj1"),
+		refs:   refcache.Load(proj.Layout, config.NormalizeServerURL(serverURL), projectID),
 		stream: "main", maxBatch: 1000,
 	}
 }
@@ -201,9 +230,9 @@ func TestPull_RecordsTheBasisTheVenueGaveATranslation(t *testing.T) {
 				[]byte(`{"greeting": "Hello there", "farewell": "Goodbye now"}`+"\n"), 0o644))
 			match := targetMatchKey("greeting", "Hello there")
 			targets := map[string][]model.Run{match: {{Text: &model.TextRun{Text: "Bonjour le monde"}}}}
-			var bases map[string]string
+			var bases map[string]pulledBasis
 			if tc.venue != "" {
-				bases = map[string]string{match: state.SourceHash(tc.venue)}
+				bases = map[string]pulledBasis{match: pulledBasis(sourceRev(tc.venue))}
 			}
 			wrote, err := conn.pullEdition(ctx, pullServices{}, "locales/en.json", "fr", targets, bases, nil)
 			require.NoError(t, err)
@@ -260,7 +289,7 @@ func TestPulledBases_NameTheSourceTheVenueRecorded(t *testing.T) {
 	}
 	record := func(unit, source, target string) venue.UnitDecision {
 		return venue.UnitDecision{ItemName: "locales/en.json", Unit: unit, Variant: "fr",
-			ContentHash: state.SourceHash(source), TargetHash: state.TargetHash(target)}
+			Basis: sourceRev(source), Revision: targetRev(target)}
 	}
 	blocks := []apiclient.SyncBlock{
 		block("greeting", "Hello world", "Bonjour le monde"),
@@ -268,12 +297,41 @@ func TestPulledBases_NameTheSourceTheVenueRecorded(t *testing.T) {
 		block("thanks", "Thank you", "Merci"),
 		block("title", "Welcome", "Bienvenue"),
 	}
+	revisioned := record("title", "Welcome", "Bienvenue")
+	revisioned.Revision = "r:0000000000000000" // a record of another translation, by revision
 	got := pulledBases(blocks, "fr", []venue.UnitDecision{
 		record("greeting", "Hello", "Bonjour le monde"),
 		record("farewell", "Goodbye now", "Salut"), // a record of another translation
-		{ItemName: "locales/en.json", Unit: "thanks", Variant: "fr", TargetHash: state.TargetHash("Merci")},
+		{ItemName: "locales/en.json", Unit: "thanks", Variant: "fr", Revision: targetRev("Merci")},
+		revisioned,
 	})
-	assert.Equal(t, map[string]string{targetMatchKey("greeting", "Hello world"): state.SourceHash("Hello")}, got)
+	assert.Equal(t, map[string]pulledBasis{targetMatchKey("greeting", "Hello world"): pulledBasis(sourceRev("Hello"))}, got)
+}
+
+// A venue's record names the source by revision: the basis names the source
+// the checkout holds while the revision does, under any key a read of the
+// document gives it, and a link moved in the source means it names another.
+func TestPulledBasis_NamesTheSourceByRevision(t *testing.T) {
+	link := func(href string) []model.Run {
+		return []model.Run{
+			model.TextR("Read the "),
+			model.PcOpenR(model.PcOpenRun{ID: "1", Type: "link", Data: `<a href="` + href + `">`}),
+			model.TextR("guide"),
+			model.PcCloseR(model.PcCloseRun{ID: "1", Type: "link", Data: "</a>"}),
+		}
+	}
+	held := model.NewRunsBlock("tu1", link("https://a.example"))
+	held.SourceLocale = "en"
+	venueRead := model.NewRunsBlock("tu1", link("https://a.example"))
+	basis := pulledBasis(model.EditionRevision(venueRead, model.EditionKey{}))
+	assert.True(t, basis.names(held, "en"), "the venue read the source under no language; the content is the one held")
+
+	moved := model.NewRunsBlock("tu1", link("https://b.example"))
+	moved.SourceLocale = "en"
+	assert.False(t, basis.names(moved, "en"), "the link moved under the venue's translation")
+	assert.True(t, pulledBasis(venue.SourceRevision(moved, "en")).names(moved, "en"),
+		"the venue's revision of the source under the project's language names it")
+	assert.False(t, pulledBasis("").names(held, "en"), "a record that names no source names none")
 }
 
 // After kapi up, the push carries how each translation was written: the source
@@ -308,7 +366,7 @@ func TestPush_CarriesHowEachTranslationWasWritten(t *testing.T) {
 		assert.Equal(t, "fr", w.Variant)
 		assert.Equal(t, venue.WriterTool, w.Writer, "%s: a tool in the flow wrote it", local)
 		assert.Equal(t, "flow:pseudo", w.Origin)
-		assert.Equal(t, state.SourceHash(sources[local]), w.Basis, "%s: the source the run made it from", local)
+		assert.Equal(t, sourceRev(sources[local]), w.Basis, "%s: the source the run made it from", local)
 		assert.Equal(t, reads[local].Editions["fr"].Rev, w.Revision, "%s: the translation on disk", local)
 		assert.False(t, w.ByHand())
 	}
@@ -334,6 +392,6 @@ func TestPush_CarriesHowEachTranslationWasWritten(t *testing.T) {
 	require.NotNil(t, greeting, "the push carries the new write")
 	assert.Equal(t, venue.WriterPerson, greeting.Writer)
 	assert.Equal(t, "apply", greeting.Origin)
-	assert.Equal(t, state.SourceHash("Hello world"), greeting.Basis, "the source in front of the person who wrote it")
+	assert.Equal(t, sourceRev("Hello world"), greeting.Basis, "the source in front of the person who wrote it")
 	assert.True(t, greeting.ByHand(), "the pusher wrote it")
 }

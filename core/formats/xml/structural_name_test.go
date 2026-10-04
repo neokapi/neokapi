@@ -195,7 +195,7 @@ func xmlBlocks(t *testing.T, content string) []*model.Block {
 	return out
 }
 
-func xmlKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcile.Result {
+func xmlKeys(blocks []*model.Block, prior []reconcile.Prior) map[string]reconcile.Result {
 	out := map[string]reconcile.Result{}
 	for _, r := range reconcile.Blocks(xmlIdentityScope, blocks, prior) {
 		out[r.Block.SourceText()] = r
@@ -203,8 +203,8 @@ func xmlKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcile
 	return out
 }
 
-func xmlUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Unit {
-	var out []reconcile.Unit
+func xmlUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Prior {
+	var out []reconcile.Prior
 	for _, b := range blocks {
 		u := reconcile.Identify(xmlIdentityScope, b)
 		u.Key = res[b.SourceText()].Key

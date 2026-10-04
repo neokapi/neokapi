@@ -28,7 +28,7 @@ const driftedPlan: ConvergePlan = {
       },
     ],
     totals: { missingTarget: 21, memoryExact: 4, drafts: 5, aiRemaining: 12, tokenEstimate: 960 },
-    note: "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls).",
+    note: "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining blocks (no tokenizer, no provider calls).",
   },
   changedFiles: 3,
   removedFiles: 0,
@@ -58,7 +58,7 @@ const convergedPlan: ConvergePlan = {
     flow: "translate",
     scopes: null,
     totals: { missingTarget: 0, memoryExact: 0, aiRemaining: 0, tokenEstimate: 0 },
-    note: "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls).",
+    note: "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining blocks (no tokenizer, no provider calls).",
   },
   changedFiles: 0,
   removedFiles: 0,
@@ -97,7 +97,7 @@ describe("ConvergenceHero", () => {
     );
     // "N source files changed · M units missing targets · K parked for review"
     expect(screen.getByText(/3 source file\(s\) changed/)).toBeInTheDocument();
-    expect(screen.getByText(/21 unit\(s\) missing targets/)).toBeInTheDocument();
+    expect(screen.getByText(/21 block\(s\) missing targets/)).toBeInTheDocument();
     expect(screen.getByText(/2 parked for review/)).toBeInTheDocument();
 
     const btn = screen.getByRole("button", { name: "Bring the project up to date" });
@@ -210,7 +210,7 @@ describe("ConvergePlanDialog", () => {
       <ConvergePlanDialog open onOpenChange={vi.fn()} plan={convergedPlan} onConfirm={vi.fn()} />,
     );
     expect(
-      screen.getByText("Nothing to do: every unit has a committed target."),
+      screen.getByText("Nothing to do: every block has a committed target."),
     ).toBeInTheDocument();
   });
 

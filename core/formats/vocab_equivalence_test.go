@@ -180,7 +180,7 @@ func jsxKBFFixture(t *testing.T) *model.RawDocument {
 				Hash:         "eq0001",
 				Translatable: true,
 				Type:         kbf.BlockTypeJSXElement,
-				Source: []kbf.Run{
+				Editions: kbf.SourceEditions([]kbf.Run{
 					{Text: &kbf.TextRun{Text: "A "}},
 					{PcOpen: &kbf.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}},
 					{Text: &kbf.TextRun{Text: "bold"}},
@@ -194,7 +194,7 @@ func jsxKBFFixture(t *testing.T) *model.RawDocument {
 					{Text: &kbf.TextRun{Text: "link"}},
 					{PcClose: &kbf.PcCloseRun{ID: "3", Type: "link:hyperlink", Data: "</a>"}},
 					{Text: &kbf.TextRun{Text: " d"}},
-				},
+				}),
 			}},
 		}},
 	}

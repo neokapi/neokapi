@@ -25,10 +25,11 @@ func approved(unit, locale, targetHash string) state.UnitState {
 // approval no longer applies once the translation it blessed changes.
 func TestUnitState_StaleOnTranslationChange(t *testing.T) {
 	u := approved("h1", "fr-FR", "sha256:aaa")
-	assert.True(t, u.Established("sha256:aaa"), "established for the translation it blessed")
-	assert.False(t, u.Established("sha256:bbb"), "a changed translation invalidates the approval")
-	assert.True(t, u.Stale("sha256:bbb"))
-	assert.False(t, u.Stale("sha256:aaa"))
+	aaa, bbb := state.Reading{TargetHash: "sha256:aaa"}, state.Reading{TargetHash: "sha256:bbb"}
+	assert.True(t, u.Established(aaa), "established for the translation it blessed")
+	assert.False(t, u.Established(bbb), "a changed translation invalidates the approval")
+	assert.True(t, u.Stale(bbb))
+	assert.False(t, u.Stale(aaa))
 }
 
 // TestUnitState_SourceStale covers the basis: the other half of what a decision
@@ -52,7 +53,7 @@ func TestUnitState_SourceStale(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			u := approved("h1", "nb", "sha256:tgt")
 			u.ContentHash = tt.basis
-			assert.Equal(t, tt.want, u.SourceStale(tt.current))
+			assert.Equal(t, tt.want, u.SourceStale(state.Reading{ContentHash: tt.current}))
 		})
 	}
 }
@@ -63,9 +64,102 @@ func TestUnitState_FreshNeedsBothHalves(t *testing.T) {
 	u := approved("h1", "nb", "sha256:tgt")
 	u.ContentHash = "sha256:src"
 
-	assert.True(t, u.Fresh("sha256:tgt", "sha256:src"))
-	assert.False(t, u.Fresh("sha256:other", "sha256:src"), "the translation moved")
-	assert.False(t, u.Fresh("sha256:tgt", "sha256:other"), "the source moved")
+	assert.True(t, u.Fresh(state.Reading{TargetHash: "sha256:tgt", ContentHash: "sha256:src"}))
+	assert.False(t, u.Fresh(state.Reading{TargetHash: "sha256:other", ContentHash: "sha256:src"}), "the translation moved")
+	assert.False(t, u.Fresh(state.Reading{TargetHash: "sha256:tgt", ContentHash: "sha256:other"}), "the source moved")
+}
+
+// A record that carries revisions is read by them: a change to an inline code
+// alone moves the revision where the text, and so the hash, stays. A record
+// written before revisions is read by its hashes, as it always was.
+func TestUnitState_ReadsByRevisionWhereItCarriesOne(t *testing.T) {
+	link := func(href string) []model.Run {
+		return []model.Run{
+			model.TextR("Read the "),
+			model.PcOpenR(model.PcOpenRun{ID: "1", Type: "link", Data: `<a href="` + href + `">`}),
+			model.TextR("guide"),
+			model.PcCloseR(model.PcCloseRun{ID: "1", Type: "link", Data: "</a>"}),
+		}
+	}
+	b := model.NewRunsBlock("b1", link("https://a.example"))
+	b.SourceLocale = "en"
+	b.SetTargetRuns("fr", []model.Run{model.TextR("Lisez le guide")})
+	was := state.ReadTarget(b, "fr", "en")
+	require.NotEmpty(t, was.Basis)
+	require.NotEmpty(t, was.Revision)
+
+	decided := approved("b1", "fr", was.TargetHash)
+	decided.ContentHash, decided.Basis, decided.Revision = was.ContentHash, was.Basis, was.Revision
+	legacy := approved("b1", "fr", was.TargetHash)
+	legacy.ContentHash = was.ContentHash
+
+	assert.True(t, decided.Fresh(was))
+	assert.True(t, legacy.Fresh(was))
+
+	b.EditSourceRuns(link("https://b.example"))
+	now := state.ReadTarget(b, "fr", "en")
+	require.Equal(t, was.ContentHash, now.ContentHash, "the source text did not change")
+	assert.True(t, decided.SourceStale(now), "the source's link moved under the decision")
+	assert.False(t, legacy.SourceStale(now), "a record written before revisions is read by its hash")
+
+	b.EditSourceRuns(link("https://a.example"))
+	b.SetTargetRuns("fr", []model.Run{model.TextR("Lisez le "), model.PhR(model.PlaceholderRun{ID: "2", Type: "lb", Data: "<br/>"}), model.TextR("guide")})
+	moved := state.ReadTarget(b, "fr", "en")
+	assert.False(t, decided.SourceStale(moved), "the source is back at the basis")
+	assert.True(t, decided.Stale(moved), "the translation gained a code")
+	assert.False(t, decided.Established(moved))
+
+	// A reader with no revision in hand reads every record by hash.
+	byHash := state.Reading{TargetHash: moved.TargetHash, ContentHash: moved.ContentHash}
+	assert.Equal(t, decided.TargetHash != moved.TargetHash, decided.Stale(byHash))
+	assert.Equal(t, was.Basis, state.ReadingOf(decided).Basis, "a record's own reading is the pairing it was recorded against")
+	assert.Equal(t, was.Revision, state.ReadingOf(decided).Revision)
+
+	// A basis taken by a read that filed the source under no language is
+	// the same content, and reads current.
+	plain := model.NewRunsBlock("b1", link("https://a.example"))
+	plain.SetTargetRuns("fr", []model.Run{model.TextR("Lisez le "), model.PhR(model.PlaceholderRun{ID: "2", Type: "lb", Data: "<br/>"}), model.TextR("guide")})
+	fromPlain := approved("b1", "fr", "")
+	fromPlain.Basis = state.ReadTarget(plain, "fr", "").Basis
+	require.NotEqual(t, fromPlain.Basis, moved.Basis, "the keys differ")
+	assert.False(t, fromPlain.SourceStale(moved), "the content is the same under another key")
+	assert.True(t, decided.BasisKnown())
+	assert.False(t, state.UnitState{}.BasisKnown())
+}
+
+// A pre-review is bound to the translation it judged the same way: by
+// revision where it carries one.
+func TestAIReview_FreshByRevision(t *testing.T) {
+	r := &state.AIReview{Score: 80, TargetHash: "sha256:t", Revision: "r:1111111111111111"}
+	assert.True(t, r.Fresh(state.Reading{TargetHash: "sha256:t", Revision: "r:1111111111111111"}))
+	assert.False(t, r.Fresh(state.Reading{TargetHash: "sha256:t", Revision: "r:2222222222222222"}), "the codes moved")
+	assert.True(t, r.Fresh(state.Reading{TargetHash: "sha256:t"}), "a reader with no revision reads the hash")
+	old := &state.AIReview{Score: 80, TargetHash: "sha256:t"}
+	assert.True(t, old.Fresh(state.Reading{TargetHash: "sha256:t", Revision: "r:2222222222222222"}), "a review recorded before revisions reads the hash")
+	assert.False(t, old.Fresh(state.Reading{TargetHash: "sha256:u", Revision: "r:2222222222222222"}))
+	var none *state.AIReview
+	assert.False(t, none.Fresh(state.Reading{}))
+}
+
+// The pairing's revisions are omitted while empty, so a record written before
+// them serializes, and so is addressed, exactly as it was.
+func TestUnitState_RevisionsAreOmittedWhileEmpty(t *testing.T) {
+	legacy := approved("h1", "nb", "sha256:tgt")
+	legacy.ContentHash = "sha256:src"
+	data, err := json.Marshal(legacy)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), `"basis"`)
+	assert.NotContains(t, string(data), `"revision"`)
+
+	withRevs := legacy
+	withRevs.Basis, withRevs.Revision = "r:1111111111111111", "r:2222222222222222"
+	data, err = json.Marshal(withRevs)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"revision":"r:2222222222222222"`)
+	assert.Contains(t, string(data), `"basis":"r:1111111111111111"`)
+	var back state.UnitState
+	require.NoError(t, json.Unmarshal(data, &back))
+	assert.Equal(t, withRevs, back)
 }
 
 // TestSourceHash_IsTheIdentityHash: the basis and the identity signal

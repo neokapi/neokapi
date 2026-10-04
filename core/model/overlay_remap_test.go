@@ -14,7 +14,7 @@ func termSpanText(t *testing.T, b *model.Block, id string) string {
 	t.Helper()
 	sp := b.OverlaySpan(model.OverlayTerm, id)
 	require.NotNil(t, sp, "term span %q", id)
-	return model.RunsText(sp.Range.ExtractRuns(b.Source))
+	return model.RunsText(sp.Range.ExtractRuns(b.SourceRuns()))
 }
 
 func TestRemapOverlays(t *testing.T) {
@@ -24,13 +24,13 @@ func TestRemapOverlays(t *testing.T) {
 	const newText = "Alice met  in Paris" // "Bob" removed (double space remains)
 
 	b := model.NewBlock("b1", oldText)
-	old := b.Source
+	old := b.SourceRuns()
 	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "alice", Range: model.RangeAnchor(old, 0, 5)})
 	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "bob", Range: model.RangeAnchor(old, 10, 13)})
 	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "paris", Range: model.RangeAnchor(old, 17, 22)})
 
 	b.SetSourceText(newText)
-	dropped := model.RemapOverlays(b, nil, old, b.Source, []model.RunEdit{{Start: 10, End: 13, NewLen: 0}})
+	dropped := model.RemapOverlays(b, model.EditionKey{}, old, b.SourceRuns(), []model.RunEdit{{Start: 10, End: 13, NewLen: 0}})
 
 	assert.Equal(t, 1, dropped, "the Bob span overlaps the edit and is dropped")
 	// Alice is before the edit → unchanged; Paris is after → shifted by -3.
@@ -41,14 +41,14 @@ func TestRemapOverlays(t *testing.T) {
 
 func TestRemapOverlays_DropsEmptyOverlayAndKeepsOtherEditions(t *testing.T) {
 	b := model.NewBlock("b1", "secret only")
-	old := b.Source
+	old := b.SourceRuns()
 	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "s", Range: model.RangeAnchor(old, 0, 6)})
 	// An overlay on another edition is left untouched by a source remap.
 	tv := model.Variant("fr")
-	b.Overlays = append(b.Overlays, model.Overlay{Type: model.OverlayCheck, Variant: &tv, Spans: []model.Span{{ID: "q"}}})
+	b.Overlays = append(b.Overlays, model.Overlay{Type: model.OverlayCheck, Edition: tv, Spans: []model.Span{{ID: "q"}}})
 
 	b.SetSourceText("only")
-	dropped := model.RemapOverlays(b, nil, old, b.Source, []model.RunEdit{{Start: 0, End: 7, NewLen: 0}})
+	dropped := model.RemapOverlays(b, model.EditionKey{}, old, b.SourceRuns(), []model.RunEdit{{Start: 0, End: 7, NewLen: 0}})
 
 	assert.Equal(t, 1, dropped)
 	assert.Nil(t, b.OverlayOf(model.OverlayTerm), "now-empty source overlay is removed")
@@ -63,8 +63,8 @@ func TestRemapOverlays_DropsEmptyOverlayAndKeepsOtherEditions(t *testing.T) {
 
 func TestRemapOverlays_NoEditsIsNoop(t *testing.T) {
 	b := model.NewBlock("b1", "unchanged")
-	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "s", Range: model.RangeAnchor(b.Source, 0, 9)})
-	assert.Equal(t, 0, model.RemapOverlays(b, nil, b.Source, b.Source, nil))
+	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "s", Range: model.RangeAnchor(b.SourceRuns(), 0, 9)})
+	assert.Equal(t, 0, model.RemapOverlays(b, model.EditionKey{}, b.SourceRuns(), b.SourceRuns(), nil))
 	assert.Equal(t, "unchanged", termSpanText(t, b, "s"))
 }
 
@@ -75,16 +75,16 @@ func TestRemapOverlays_RebasesADerivedEdition(t *testing.T) {
 	fr := model.Variant("fr")
 	oldFr := []model.Run{model.TextR("Bonjour le monde entier")}
 	b.SetTargetRuns("fr", oldFr)
-	b.Overlays = append(b.Overlays, model.Overlay{Type: model.OverlayTerm, Variant: &fr, Spans: []model.Span{
+	b.Overlays = append(b.Overlays, model.Overlay{Type: model.OverlayTerm, Edition: fr, Spans: []model.Span{
 		{ID: "bonjour", Range: model.RangeAnchor(oldFr, 0, 7)},
 		{ID: "monde", Range: model.RangeAnchor(oldFr, 11, 16)},
 	}})
-	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "w", Range: model.RangeAnchor(b.Source, 6, 11)})
+	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "w", Range: model.RangeAnchor(b.SourceRuns(), 6, 11)})
 
 	// "Bonjour" becomes "Salut": [0,7) → 5 code points.
 	newFr := []model.Run{model.TextR("Salut le monde entier")}
 	b.SetTargetRuns("fr", newFr)
-	dropped := model.RemapOverlays(b, &fr, oldFr, newFr, []model.RunEdit{{Start: 0, End: 7, NewLen: 5}})
+	dropped := model.RemapOverlays(b, fr, oldFr, newFr, []model.RunEdit{{Start: 0, End: 7, NewLen: 5}})
 
 	assert.Equal(t, 0, dropped)
 	var frTerms *model.Overlay
@@ -98,7 +98,7 @@ func TestRemapOverlays_RebasesADerivedEdition(t *testing.T) {
 	assert.Equal(t, "Salut", model.RunsText(frTerms.Spans[0].Range.ExtractRuns(newFr)), "the term over the replaced word covers its replacement")
 	assert.Equal(t, "monde", model.RunsText(frTerms.Spans[1].Range.ExtractRuns(newFr)))
 	assert.Equal(t, "world", termSpanText(t, b, "w"), "the source overlay is untouched")
-	_, ok := b.OverlaysInBounds(&fr, newFr)
+	_, ok := b.OverlaysInBounds(fr, newFr)
 	assert.True(t, ok)
 }
 
@@ -158,17 +158,17 @@ func TestRemapOverlays_KeepsASegmentationLayerWhole(t *testing.T) {
 			fr := model.Variant("fr")
 			oldFr := []model.Run{model.TextR("Premier. Deuxieme.")}
 			b.SetTargetRuns("fr", oldFr)
-			b.SetSegmentation(&fr, []model.Span{
+			b.SetSegmentation(fr, []model.Span{
 				{ID: "s1", Range: model.RangeAnchor(oldFr, 0, 8)},
 				{ID: "s2", Range: model.RangeAnchor(oldFr, 9, 18)},
 			})
 			newFr := []model.Run{model.TextR(tt.newText)}
 			b.SetTargetRuns("fr", newFr)
 
-			dropped := model.RemapOverlays(b, &fr, oldFr, newFr, tt.edits)
+			dropped := model.RemapOverlays(b, fr, oldFr, newFr, tt.edits)
 
 			assert.Equal(t, tt.dropped, dropped)
-			seg := b.SegmentationFor(&fr)
+			seg := b.SegmentationFor(fr)
 			if tt.want == nil {
 				assert.Nil(t, seg, "the layer is dropped whole")
 				return
@@ -259,13 +259,13 @@ func TestRemapOverlays_KeepsEachCodeInItsSegment(t *testing.T) {
 			for i, s := range tt.spans {
 				spans = append(spans, model.Span{ID: "s" + strconv.Itoa(i+1), Range: model.SpanAnchor(s[0], s[1])})
 			}
-			b.SetSegmentation(&fr, spans)
+			b.SetSegmentation(fr, spans)
 			b.SetTargetRuns("fr", tt.next)
 
-			dropped := model.RemapOverlays(b, &fr, tt.old, tt.next, tt.edits)
+			dropped := model.RemapOverlays(b, fr, tt.old, tt.next, tt.edits)
 
 			assert.Equal(t, 0, dropped)
-			seg := b.SegmentationFor(&fr)
+			seg := b.SegmentationFor(fr)
 			require.NotNil(t, seg)
 			var got []string
 			for _, s := range seg.Spans {
@@ -286,7 +286,7 @@ func TestRemapOverlays_KeepsATermStartAfterACode(t *testing.T) {
 	next := []model.Run{model.TextR("Please use "), ph, model.TextR("kapi now")}
 	b.SetSourceRuns(next)
 
-	dropped := model.RemapOverlays(b, nil, old, next, []model.RunEdit{{Start: 0, End: 1, NewLen: 8}})
+	dropped := model.RemapOverlays(b, model.EditionKey{}, old, next, []model.RunEdit{{Start: 0, End: 1, NewLen: 8}})
 
 	assert.Equal(t, 0, dropped)
 	sp := b.OverlaySpan(model.OverlayTerm, "kapi")
@@ -312,10 +312,10 @@ func TestRemapOverlays_DropsASpanThatEndsInsideAPlural(t *testing.T) {
 	next := []model.Run{model.TextR("Now you have "), plural, model.TextR(" now")}
 	b.SetSourceRuns(next)
 
-	dropped := model.RemapOverlays(b, nil, old, next, []model.RunEdit{{Start: 0, End: 1, NewLen: 5}})
+	dropped := model.RemapOverlays(b, model.EditionKey{}, old, next, []model.RunEdit{{Start: 0, End: 1, NewLen: 5}})
 
 	assert.Equal(t, 1, dropped)
-	_, ok := b.OverlaysInBounds(nil, next)
+	_, ok := b.OverlaysInBounds(model.EditionKey{}, next)
 	assert.True(t, ok)
 	sp := b.OverlaySpan(model.OverlayEntity, "now")
 	require.NotNil(t, sp)
@@ -336,7 +336,7 @@ func TestRemapOverlays_KeepsEachAnchorKindByItsOwnRule(t *testing.T) {
 
 	next := []model.Run{model.TextR("Hello "), ph, model.TextR(" there")}
 	b.SetSourceRuns(next)
-	dropped := model.RemapOverlays(b, nil, old, next, []model.RunEdit{{Start: 0, End: 2, NewLen: 5}})
+	dropped := model.RemapOverlays(b, model.EditionKey{}, old, next, []model.RunEdit{{Start: 0, End: 2, NewLen: 5}})
 
 	assert.Equal(t, 1, dropped, "only the run anchor whose run is gone is dropped")
 	require.Len(t, b.Overlays, 1)
@@ -352,17 +352,17 @@ func TestDropOverlays_RemovesOneEditionOnly(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	fr, de := model.Variant("fr"), model.Variant("de")
 	b.Overlays = []model.Overlay{
-		{Type: model.OverlaySegmentation, Variant: &fr},
-		{Type: model.OverlaySegmentation, Variant: &de},
+		{Type: model.OverlaySegmentation, Edition: fr},
+		{Type: model.OverlaySegmentation, Edition: de},
 		{Type: model.OverlayTerm},
 	}
-	nbNO := model.VariantKey{Locale: "nb_NO"}
-	assert.Equal(t, 0, model.DropOverlays(b, &nbNO))
-	assert.Equal(t, 1, model.DropOverlays(b, &fr))
+	nbNO := model.EditionKey{Locale: "nb_NO"}
+	assert.Equal(t, 0, model.DropOverlays(b, nbNO))
+	assert.Equal(t, 1, model.DropOverlays(b, fr))
 	assert.Len(t, b.Overlays, 2)
-	assert.Equal(t, 1, model.DropOverlays(b, nil))
+	assert.Equal(t, 1, model.DropOverlays(b, model.EditionKey{}))
 	require.Len(t, b.Overlays, 1)
-	assert.Equal(t, &de, b.Overlays[0].Variant)
+	assert.Equal(t, de, b.Overlays[0].Edition)
 }
 
 func TestResolveRunPath(t *testing.T) {
@@ -398,7 +398,7 @@ func TestResolveRunPath(t *testing.T) {
 }
 
 func TestAnchor_InBounds(t *testing.T) {
-	runs := model.NewBlock("b", "hello").Source // single run, 5 runes
+	runs := model.NewBlock("b", "hello").SourceRuns() // single run, 5 runes
 	assert.True(t, model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 5}).InBounds(runs))
 	assert.True(t, model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1}).InBounds(runs), "end boundary just past the last run")
 	assert.False(t, model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 6}).InBounds(runs), "offset past the run text")
@@ -449,11 +449,11 @@ func TestRemapOverlays_ASpanFollowsAnEditToItsText(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := model.NewBlock("b1", old)
-			before := b.Source
+			before := b.SourceRuns()
 			b.Overlays = []model.Overlay{{Type: tt.typ, Spans: []model.Span{{ID: "x", Range: model.RangeAnchor(before, tt.span[0], tt.span[1])}}}}
 			b.SetSourceText(tt.next)
 
-			dropped := model.RemapOverlays(b, nil, before, b.Source, tt.edits)
+			dropped := model.RemapOverlays(b, model.EditionKey{}, before, b.SourceRuns(), tt.edits)
 
 			sp := b.OverlaySpan(tt.typ, "x")
 			if tt.want == "" {
@@ -463,7 +463,7 @@ func TestRemapOverlays_ASpanFollowsAnEditToItsText(t *testing.T) {
 			}
 			assert.Equal(t, 0, dropped)
 			require.NotNil(t, sp)
-			assert.Equal(t, tt.want, model.RunsText(sp.Range.ExtractRuns(b.Source)))
+			assert.Equal(t, tt.want, model.RunsText(sp.Range.ExtractRuns(b.SourceRuns())))
 		})
 	}
 }
@@ -473,7 +473,7 @@ func TestRemapOverlays_ASpanFollowsAnEditToItsText(t *testing.T) {
 func TestRemapOverlays_KeepsSpansAcrossManyEdits(t *testing.T) {
 	const old = "grind the coffee"
 	b := model.NewBlock("b1", old)
-	before := b.Source
+	before := b.SourceRuns()
 	b.Overlays = []model.Overlay{{Type: model.OverlayTerm, Spans: []model.Span{
 		{ID: "the", Range: model.RangeAnchor(before, 6, 9)},
 		{ID: "coffee", Range: model.RangeAnchor(before, 10, 16)},
@@ -486,7 +486,7 @@ func TestRemapOverlays_KeepsSpansAcrossManyEdits(t *testing.T) {
 	}
 	b.SetSourceText("GRIND THE COFFEE")
 
-	assert.Equal(t, 0, model.RemapOverlays(b, nil, before, b.Source, edits))
+	assert.Equal(t, 0, model.RemapOverlays(b, model.EditionKey{}, before, b.SourceRuns(), edits))
 	assert.Equal(t, "THE", termSpanText(t, b, "the"))
 	assert.Equal(t, "COFFEE", termSpanText(t, b, "coffee"))
 }

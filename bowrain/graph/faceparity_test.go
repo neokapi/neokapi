@@ -104,7 +104,7 @@ func (f *writerFixture) pushFixture(t *testing.T, ctx context.Context, p fixture
 				CollectionID: collID,
 			}))
 		}
-		blk := model.NewRunsBlock(eb.Block.ID, eb.Block.Source)
+		blk := model.NewRunsBlock(eb.Block.ID, eb.Block.SourceRuns())
 		blk.Translatable = eb.Block.Translatable
 		byDocument[eb.Document] = append(byDocument[eb.Document], blk)
 	}

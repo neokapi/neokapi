@@ -38,7 +38,7 @@ func carryForward(docs []ResolvedDocument) Priors {
 		for _, b := range d.Blocks {
 			id := reconcile.Identify(d.Scope, b.Block)
 			doc.Content = append(doc.Content, id.ContentHash)
-			p.Units = append(p.Units, reconcile.Unit{
+			p.Units = append(p.Units, reconcile.Prior{
 				Key:         b.Unit,
 				Scope:       d.Scope,
 				ContentHash: id.ContentHash,
@@ -81,8 +81,8 @@ func TestResolveIdentity_WritesTheUnitOntoTheBlock(t *testing.T) {
 
 	require.Len(t, docs, 1)
 	require.Len(t, docs[0].Blocks, 1)
-	assert.NotEmpty(t, blocks[0].Unit)
-	assert.Equal(t, docs[0].Blocks[0].Unit, blocks[0].Unit)
+	assert.NotEmpty(t, blocks[0].Key)
+	assert.Equal(t, docs[0].Blocks[0].Unit, blocks[0].Key)
 }
 
 // Renaming a file must not disturb anything inside it.
@@ -144,7 +144,7 @@ func TestResolveIdentity_KeepsTheKeysThePriorsCarry(t *testing.T) {
 		Documents: []reconcile.DocUnit{{
 			Key: "d-existing", Path: "docs/guide.md", Content: []string{id.ContentHash},
 		}},
-		Units: []reconcile.Unit{{
+		Units: []reconcile.Prior{{
 			Key: "the-venues-own-key", Scope: "d-existing",
 			ContentHash: id.ContentHash, ContextHash: id.ContextHash,
 		}},

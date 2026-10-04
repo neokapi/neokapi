@@ -33,8 +33,8 @@ type BlockWrite interface {
 	// Store writes blocks Hold read back to their rows, with the history and
 	// change-log rows of what changed, on the write's transaction. A
 	// translation or a block annotation a held row carried and its block no
-	// longer does is removed. Each block carries the content hash Hold read as
-	// ContentHash. It creates no row.
+	// longer does is removed. Each block carries the source revision Hold read
+	// as SourceRevision. It creates no row.
 	Store(ctx context.Context, blocks []*venue.StoredBlock) error
 	// Commit makes the write visible and releases the rows.
 	Commit() error

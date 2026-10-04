@@ -118,18 +118,18 @@ func TestEditPlan_TargetOverlaysFollowAndKeysAreCanonical(t *testing.T) {
 	b := model.NewBlock("b1", "Hello world")
 	fr := model.Variant("fr")
 	b.SetTargetRuns("fr", []model.Run{model.TextR("Bonjour le monde entier")})
-	b.SetSegmentation(&fr, []model.Span{{ID: "s1", Range: model.RangeAnchor(b.TargetRuns("fr"), 8, 23)}})
+	b.SetSegmentation(fr, []model.Span{{ID: "s1", Range: model.RangeAnchor(b.TargetRuns("fr"), 8, 23)}})
 	bt := &tool.BaseTool{ToolName: "probe"}
 	bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		var p tool.EditPlan
-		p.SetTargetVariant(model.VariantKey{Locale: "fr"}, []model.Run{model.TextR("Salut")})
-		p.SetTargetVariant(model.VariantKey{Locale: "nb_NO"}, []model.Run{model.TextR("Hei")})
+		p.SetTargetVariant(model.EditionKey{Locale: "fr"}, []model.Run{model.TextR("Salut")})
+		p.SetTargetVariant(model.EditionKey{Locale: "nb_NO"}, []model.Run{model.TextR("Hei")})
 		return p, nil
 	}
 	require.NoError(t, dispatch(t, bt, b))
 
 	assert.Equal(t, "Salut", b.TargetText("fr"))
-	if seg := b.SegmentationFor(&fr); seg != nil {
+	if seg := b.SegmentationFor(fr); seg != nil {
 		for _, s := range seg.Spans {
 			assert.True(t, s.Range.InBounds(b.TargetRuns("fr")), "no target span is left out of bounds")
 		}
@@ -163,7 +163,7 @@ func TestTargetWrites_SameLanguageTarget(t *testing.T) {
 	require.NoError(t, dispatch(t, bt, b))
 	assert.Equal(t, "colour source", b.SourceText())
 	assert.Equal(t, "color target", b.TargetText("en-US"))
-	assert.Equal(t, []model.EditionKey{{}, {Locale: "en-US"}}, b.Editions())
+	assert.Equal(t, []model.EditionKey{{}, {Locale: "en-US"}}, b.EditionKeys())
 
 	b = sameLanguage()
 	err := tool.WriteAs(context.Background(), b, "pseudo", func(v tool.VariantView) error {
@@ -216,7 +216,7 @@ func TestView_OverlayWritesKeepWholeSpans(t *testing.T) {
 	bt.Annotate = func(v tool.BlockView) error {
 		v.AddOverlaySpan(model.OverlayEntity, model.Span{ID: "e1", Range: model.RangeAnchor(v.SourceRuns(), 0, 5),
 			Props: map[string]string{"k": "v"}, Value: &model.EntityAnnotation{Text: "Alice", Type: "PERSON"}})
-		v.SetSegmentation(nil, []model.Span{{ID: "s1", Range: model.RangeAnchor(v.SourceRuns(), 0, 13)}})
+		v.SetSegmentation(model.EditionKey{}, []model.Span{{ID: "s1", Range: model.RangeAnchor(v.SourceRuns(), 0, 13)}})
 		return nil
 	}
 	require.NoError(t, dispatch(t, bt, b))
@@ -258,8 +258,8 @@ func TestEditPlan_TextEditsApplyAsReplaceText(t *testing.T) {
 	bt := &tool.BaseTool{ToolName: "probe"}
 	bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		var p tool.EditPlan
-		p.AddTextEdits(model.VariantKey{}, []change.TextEdit{edit(0, 5, "Press")})
-		p.AddTextEdits(model.VariantKey{}, []change.TextEdit{edit(11, 14, "later")})
+		p.AddTextEdits(model.EditionKey{}, []change.TextEdit{edit(0, 5, "Press")})
+		p.AddTextEdits(model.EditionKey{}, []change.TextEdit{edit(11, 14, "later")})
 		p.AddTextEdits(model.Variant("fr"), []change.TextEdit{edit(6, 10, "Keep")})
 		p.AddTextEdits(model.Variant("fr"), nil)
 		return p, nil
@@ -277,7 +277,7 @@ func TestEditPlan_TextEditsApplyAsReplaceText(t *testing.T) {
 	var source tool.EditPlan
 	text := "Salut"
 	source.ReplaceAll = &text
-	source.AddTextEdits(model.VariantKey{}, []change.TextEdit{edit(0, 1, "c")})
+	source.AddTextEdits(model.EditionKey{}, []change.TextEdit{edit(0, 1, "c")})
 	_, err = source.Ops(b)
 	require.Error(t, err)
 }
@@ -289,7 +289,7 @@ func TestEditPlan_TextEditsApplyAsReplaceText(t *testing.T) {
 func TestEditPlan_NonCanonicalKeysNameTheirEdition(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	b.SetTargetText("fr-FR", "Bonjour")
-	p := tool.EditPlan{Targets: map[model.VariantKey][]model.Run{{Locale: "fr-fr"}: {model.TextR("Salut")}}}
+	p := tool.EditPlan{Targets: map[model.EditionKey][]model.Run{{Locale: "fr-fr"}: {model.TextR("Salut")}}}
 
 	ops, err := p.Ops(b)
 	require.NoError(t, err)
@@ -302,7 +302,7 @@ func TestEditPlan_NonCanonicalKeysNameTheirEdition(t *testing.T) {
 	}
 	assert.Equal(t, "Salut", b.TargetText("fr-FR"))
 
-	two := tool.EditPlan{Targets: map[model.VariantKey][]model.Run{
+	two := tool.EditPlan{Targets: map[model.EditionKey][]model.Run{
 		{Locale: "fr-fr"}: {model.TextR("Salut")},
 		{Locale: "fr_FR"}: {model.TextR("Coucou")},
 	}}

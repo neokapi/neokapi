@@ -24,15 +24,30 @@ import (
 //   - kapi-*.kbf.json        written by kapi itself (`i18n-nb/**/*.kbf.json`), the
 //     target side the recipe recycles into and `neokapi-i18n compile` reads.
 //
+// Those four are in schema 1, which keyed a block's targets by locale beside
+// its source runs. The two *.schema2.kbf.json fixtures are what kapi writes
+// for the same catalogs in the current schema, where every edition sits under
+// its key.
+//
 // Two different producers matter: the extractor emits fields kapi normalizes
-// (`"placeholders": []` → `null`, its own generator stamp), so byte-identity is
-// only the contract for catalogs kapi wrote. For the extractor's output the
-// contract is that nothing is *lost* and that kapi's own output is then stable.
+// (its own generator stamp, the schema), so byte-identity is only the contract
+// for catalogs kapi wrote in the current schema. For every other fixture the
+// contract is that nothing is *lost* and that kapi's own output is then
+// stable.
 var roundTripFixtures = []string{
 	"extractor-plain.kbf.json",
 	"extractor-inline-codes.kbf.json",
 	"kapi-translated.kbf.json",
 	"kapi-translated-placeholders.kbf.json",
+	"kapi-translated.schema2.kbf.json",
+	"kapi-translated-placeholders.schema2.kbf.json",
+}
+
+// kapiWrittenSchema2 pairs each catalog kapi wrote in schema 1 with the one it
+// writes for it now.
+var kapiWrittenSchema2 = map[string]string{
+	"kapi-translated.kbf.json":              "kapi-translated.schema2.kbf.json",
+	"kapi-translated-placeholders.kbf.json": "kapi-translated-placeholders.schema2.kbf.json",
 }
 
 // readWriteKBF drives the real reader and writer over one .kbf.json payload and
@@ -66,13 +81,28 @@ func readWriteKBF(t *testing.T, name string, in []byte) []byte {
 // translated `i18n-<lang>/` tree must not rewrite the files, or every run
 // churns git and invalidates the block cache.
 func TestRoundTripKapiWrittenCatalogIsByteIdentical(t *testing.T) {
-	for _, name := range []string{"kapi-translated.kbf.json", "kapi-translated-placeholders.kbf.json"} {
+	for _, name := range []string{"kapi-translated.schema2.kbf.json", "kapi-translated-placeholders.schema2.kbf.json"} {
 		t.Run(name, func(t *testing.T) {
 			in, err := os.ReadFile(filepath.Join("testdata", name))
 			require.NoError(t, err)
 			out := readWriteKBF(t, name, in)
 			assert.Equal(t, string(in), string(out),
 				"a kapi-written .kbf.json must round-trip byte-for-byte")
+		})
+	}
+}
+
+// A tree kapi translated in schema 1 is rewritten once, into exactly the
+// catalog kapi writes for it now, and is stable from then on
+// (TestRoundTripIsIdempotent).
+func TestASchema1CatalogIsRewrittenAsTheSchema2One(t *testing.T) {
+	for v1, v2 := range kapiWrittenSchema2 {
+		t.Run(v1, func(t *testing.T) {
+			in, err := os.ReadFile(filepath.Join("testdata", v1))
+			require.NoError(t, err)
+			want, err := os.ReadFile(filepath.Join("testdata", v2))
+			require.NoError(t, err)
+			assert.Equal(t, string(want), string(readWriteKBF(t, v1, in)))
 		})
 	}
 }
@@ -116,8 +146,9 @@ func TestRoundTripPreservesEveryBlock(t *testing.T) {
 				assert.Equal(t, wb.Hash, gb.Hash, "%s: block hash is the catalog key — it must not move", wb.ID)
 				assert.Equal(t, wb.Type, gb.Type, "%s: block type", wb.ID)
 				assert.Equal(t, wb.Translatable, gb.Translatable, "%s: translatable", wb.ID)
-				assert.Equal(t, wb.Source, gb.Source, "%s: source runs (inline codes + placeholders included)", wb.ID)
-				assert.Equal(t, wb.Targets, gb.Targets, "%s: per-locale targets", wb.ID)
+				assert.Equal(t, wb.SourceRuns(), gb.SourceRuns(), "%s: source runs (inline codes + placeholders included)", wb.ID)
+				assert.Equal(t, wb.Editions, gb.Editions, "%s: every edition", wb.ID)
+				assert.Equal(t, wb.Unlabelled, gb.Unlabelled, "%s: the unlabelled edition", wb.ID)
 				assert.Equal(t, wb.Properties, gb.Properties, "%s: translator properties", wb.ID)
 			}
 		})
@@ -137,13 +168,13 @@ func TestFixturesCoverBothProducers(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "neokapi", translated.Generator.ID, "kapi-*.kbf.json must be kapi output")
 	require.NotEmpty(t, allBlocks(translated))
-	assert.NotEmpty(t, allBlocks(translated)[0].Targets, "kapi-*.kbf.json must carry targets")
+	assert.NotEmpty(t, allBlocks(translated)[0].TargetKeys(), "kapi-*.kbf.json must carry targets")
 
 	inline, err := kbf.Unmarshal(readFixture(t, "extractor-inline-codes.kbf.json"))
 	require.NoError(t, err)
 	var sawPaired bool
 	for _, b := range allBlocks(inline) {
-		for _, run := range b.Source {
+		for _, run := range b.SourceRuns() {
 			if run.PcOpen != nil || run.PcClose != nil {
 				sawPaired = true
 			}
@@ -155,7 +186,7 @@ func TestFixturesCoverBothProducers(t *testing.T) {
 	require.NoError(t, err)
 	var sawPh bool
 	for _, b := range allBlocks(placeholders) {
-		for _, run := range b.Source {
+		for _, run := range b.SourceRuns() {
 			if run.Ph != nil {
 				sawPh = true
 			}

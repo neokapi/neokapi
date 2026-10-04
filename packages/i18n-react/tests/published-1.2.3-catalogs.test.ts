@@ -2,11 +2,11 @@
  * The catalogs @neokapi/i18n-react 1.2.3 wrote, read by the current package.
  *
  * That build carries the install line the docs give a reader, and it extracts
- * to `.klf` under the root kind `kapi-localization-format`. Everything else
- * about the file is a current bundle. Whoever ran the walkthrough has a tree
- * of them, with the targets kapi produced beside the sources, so the current
- * package has to read one and the extractor has to converge the tree rather
- * than leave two catalogs per source behind (#2599).
+ * to `.klf` under the root kind `kapi-localization-format`, in schema 1.0: each
+ * block's `source` runs beside `targets` keyed by locale. Whoever ran the
+ * walkthrough has a tree of them, with the targets kapi produced beside the
+ * sources, so the current package has to read one and the extractor has to
+ * converge the tree rather than leave two catalogs per source behind (#2599).
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -21,8 +21,16 @@ import {
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 
-import type { Block, File } from "@neokapi/kapi-format";
-import { Ext, ExtI18nReact, Kind, KindI18nReact, marshalFile } from "@neokapi/kapi-format";
+import type { Block, BlockV1, File, Run } from "@neokapi/kapi-format";
+import {
+  Ext,
+  ExtI18nReact,
+  Kind,
+  KindI18nReact,
+  SchemaVersionV1,
+  parseFile,
+  sourceRuns,
+} from "@neokapi/kapi-format";
 
 import { runCompile } from "../src/commands/compile.ts";
 import { runExtract } from "../src/commands/extract.ts";
@@ -67,25 +75,47 @@ function tree(dir: string): string[] {
 }
 
 /**
- * Rewrite every catalog under `dir` the way 1.2.3 wrote it: the older suffix
- * and the older root kind, byte-identical otherwise. That equality is the
- * premise the whole fix rests on, and it is asserted directly below.
+ * A catalog as 1.2.3 wrote it: the older root kind and schema 1.0, each block's
+ * source runs under `source` and any targets under `targets` keyed by locale,
+ * with the fields in the order that release wrote them.
+ */
+function asPublished(file: File, targets: Record<string, Run[]> = {}): string {
+  const blocks = (b: Block): BlockV1 => ({
+    id: b.id,
+    hash: b.hash,
+    translatable: b.translatable,
+    type: b.type,
+    source: sourceRuns(b),
+    ...(Object.keys(targets).length > 0 ? { targets } : {}),
+    placeholders: b.placeholders,
+    properties: b.properties,
+  });
+  const published = {
+    schemaVersion: SchemaVersionV1,
+    kind: KindI18nReact,
+    generator: file.generator,
+    project: file.project,
+    documents: file.documents.map((doc) => ({ ...doc, blocks: doc.blocks.map(blocks) })),
+  };
+  return `${JSON.stringify(published, null, 2)}\n`;
+}
+
+/**
+ * Rewrite every catalog under `dir` the way 1.2.3 wrote it: the older suffix,
+ * the older root kind and schema 1.0, the same content otherwise. That the
+ * current package reads it as the same catalog is the premise the whole fix
+ * rests on, and it is asserted directly below.
  */
 function rewriteAsPublished(dir: string): void {
   for (const rel of tree(dir)) {
     if (!rel.endsWith(Ext)) continue;
     const path = join(dir, rel);
-    const raw = readFileSync(path, "utf8");
-    writeFileSync(
-      join(dir, rel.slice(0, -Ext.length) + ExtI18nReact),
-      raw.replace(`"kind": "${Kind}"`, `"kind": "${KindI18nReact}"`),
-    );
-    writeFileSync(path, raw);
+    writeFileSync(join(dir, rel.slice(0, -Ext.length) + ExtI18nReact), asPublished(bundle(path)));
   }
 }
 
 function bundle(path: string): File {
-  return JSON.parse(readFileSync(path, "utf8")) as File;
+  return parseFile(readFileSync(path, "utf8"));
 }
 
 async function compileDictionary(input: string, locale: string, out: string): Promise<string> {
@@ -101,7 +131,7 @@ async function compileDictionary(input: string, locale: string, out: string): Pr
 }
 
 describe("catalogs written by @neokapi/i18n-react 1.2.3", () => {
-  it("differ from a current catalog in the suffix and the root kind alone", async () => {
+  it("read as the current catalog, apart from the root kind", async () => {
     const root = workspace({ "src/Page.tsx": HEADING });
     await extractIn(root);
     const current = readFileSync(join(root, "i18n/src/Page.kbf.json"), "utf8");
@@ -110,27 +140,22 @@ describe("catalogs written by @neokapi/i18n-react 1.2.3", () => {
     const published = readFileSync(join(root, "i18n/src/Page.klf"), "utf8");
 
     expect(published).not.toEqual(current);
-    expect(published.replace(KindI18nReact, Kind)).toEqual(current);
+    expect(published).toContain('"source"');
+    expect({ ...parseFile(published), kind: Kind }).toEqual(parseFile(current));
   });
 
   it("compile reads their targets, so a tree translated before the upgrade still ships", async () => {
     const root = workspace({ "src/Page.tsx": HEADING });
     await extractIn(root);
 
-    // The target tree kapi writes beside the source, under the suffix it read.
+    // The target tree kapi wrote beside the source in schema 1.0, under the
+    // suffix it read.
     const targets = join(root, "i18n-nb");
     mkdirSync(join(targets, "src"), { recursive: true });
     const file = bundle(join(root, "i18n/src/Page.kbf.json"));
-    for (const doc of file.documents) {
-      for (const block of doc.blocks as Block[]) {
-        block.targets = { nb: [{ text: "Velkommen til butikken" }] };
-      }
-    }
     writeFileSync(
       join(targets, "src/Page.klf"),
-      new TextDecoder()
-        .decode(marshalFile(file))
-        .replace(`"kind": "${Kind}"`, `"kind": "${KindI18nReact}"`),
+      asPublished(file, { nb: [{ text: "Velkommen til butikken" }] }),
     );
 
     const dict = JSON.parse(await compileDictionary(targets, "nb", join(root, "out"))) as Record<
@@ -164,12 +189,7 @@ describe("catalogs written by @neokapi/i18n-react 1.2.3", () => {
     // upgrade must not sweep those away with the stale sources.
     const file = bundle(join(root, "i18n/src/Page.kbf.json"));
     mkdirSync(join(root, "i18n/nb"), { recursive: true });
-    writeFileSync(
-      join(root, "i18n/nb/Page.klf"),
-      new TextDecoder()
-        .decode(marshalFile(file))
-        .replace(`"kind": "${Kind}"`, `"kind": "${KindI18nReact}"`),
-    );
+    writeFileSync(join(root, "i18n/nb/Page.klf"), asPublished(file));
 
     await extractIn(root);
     expect(tree(join(root, "i18n"))).toEqual(["nb/Page.klf", "src/Page.kbf.json"]);

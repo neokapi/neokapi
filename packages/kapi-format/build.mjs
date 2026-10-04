@@ -12,6 +12,8 @@ rmSync("dist", { recursive: true, force: true });
 const entryPoints = [
   "src/index.ts",
   "src/block.ts",
+  "src/editions.ts",
+  "src/run-projection.ts",
   "src/vocabulary.ts",
   "src/preview.ts",
   "src/annotation.ts",

@@ -33,7 +33,7 @@ func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, "failing checks park the locale — never a build failure")
 	assert.Contains(t, out, "parked (needs human)", out)
-	assert.Contains(t, out, "1 unit(s) failing checks", out)
+	assert.Contains(t, out, "1 block(s) failing checks", out)
 	assert.Contains(t, out, "Not yet up to date", out)
 
 	// The pass DID produce the target file — the unit is produced and failing
@@ -46,7 +46,7 @@ func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
 	status, err := runCLI(t, NewStatusCmd(a), "--project", recipe)
 	require.NoError(t, err, status)
 	assert.Contains(t, status, "blocked: checks", status)
-	assert.Contains(t, status, "1 unit(s) fail the project's bound checks", status)
+	assert.Contains(t, status, "1 block(s) fail the project's bound checks", status)
 
 	// Fix the source (no placeholder): the guardrail passes and up converges.
 	require.NoError(t, os.WriteFile(src, []byte(`{"greeting":"Hello friend, welcome."}`), 0o644))

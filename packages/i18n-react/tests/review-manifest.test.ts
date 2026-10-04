@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
-import type { Block, File } from "@neokapi/kapi-format";
-import { newFile, marshalFile } from "@neokapi/kapi-format";
+import type { Block, File, Run } from "@neokapi/kapi-format";
+import { newFile, marshalFile, sourceEditions } from "@neokapi/kapi-format";
 
 import { buildReviewManifest, type ReviewManifest } from "../src/review/manifest.ts";
 import { runCompile } from "../src/commands/compile.ts";
@@ -13,18 +13,24 @@ function tempDir(prefix: string) {
   return mkdtempSync(join(tmpdir(), `${prefix}-`));
 }
 
-function block(overrides: Partial<Block> = {}): Block {
+// block builds a catalog block with translations by language, each filed as
+// an edition under its key.
+function block({
+  targets = {},
+  ...overrides
+}: Partial<Block> & { targets?: Record<string, Run[]> } = {}): Block {
+  const editions = sourceEditions([{ text: "Welcome" }]);
+  for (const [key, runs] of Object.entries(targets)) editions[key] = { runs };
   return {
     id: "welcome",
     hash: "h-welcome",
     translatable: true,
     type: "jsx:element",
-    source: [{ text: "Welcome" }],
-    targets: {},
+    editions,
     placeholders: [],
     properties: { file: "App.tsx", line: 3, component: "App", jsxPath: "h1", element: "h1" },
     ...overrides,
-  } as Block;
+  };
 }
 
 function fileWith(b: Block): File {

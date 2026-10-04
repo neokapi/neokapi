@@ -97,7 +97,7 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 	}
 	b, ok := byKey[key]
 	if !ok {
-		return nil, fmt.Errorf("unit %q not found in %s", key, file)
+		return nil, fmt.Errorf("block %q not found in %s", key, file)
 	}
 
 	loc := model.LocaleID(locale)
@@ -183,7 +183,7 @@ func (a *App) reviewAIExplain(ctx context.Context, op *openProject, unit host.Un
 	}
 	payload := b.Properties["review"]
 	if payload == "" {
-		return nil, errors.New("the model returned no review for this unit")
+		return nil, errors.New("the model returned no review for this block")
 	}
 	if res, perr := aitools.ParseReviewResult(payload); perr == nil {
 		return &ReviewAIActionResult{Explanation: renderReviewExplanation(res)}, nil
@@ -233,7 +233,7 @@ func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope st
 		}
 		lines = append(lines, line)
 	}
-	if rev := a.freshAIReview(ctx, op, scope, key, loc, b.TargetText(loc)); rev != nil {
+	if rev := a.freshAIReview(ctx, op, scope, key, loc, b); rev != nil {
 		for _, f := range rev.Findings {
 			line := fmt.Sprintf("[%s] %s", f.Severity, f.Message)
 			if f.Suggestion != "" {
@@ -267,8 +267,8 @@ func fixFindingsInstruction(currentTarget string, findings []string, extra strin
 }
 
 // freshAIReview returns the unit's AI pre-review annotation from the state
-// store when it still judges the given translation, else nil.
-func (a *App) freshAIReview(ctx context.Context, op *openProject, scope, key string, loc model.LocaleID, targetText string) *state.AIReview {
+// store when it still judges the translation of b in loc, else nil.
+func (a *App) freshAIReview(ctx context.Context, op *openProject, scope, key string, loc model.LocaleID, b *model.Block) *state.AIReview {
 	// One handle per project, memoized on the engine: this is called per unit
 	// while rendering a review, and under the four-file layout each call opened
 	// and closed a database of its own. Now there is nothing to close — the
@@ -283,8 +283,9 @@ func (a *App) freshAIReview(ctx context.Context, op *openProject, scope, key str
 	if !found {
 		return nil
 	}
-	th := project.HashBytes([]byte(strings.TrimSpace(targetText)))
-	if !us.AIReview.Fresh(th) {
+	// A pre-review judges a translation, so only the translation's half of
+	// the reading is asked.
+	if !us.AIReview.Fresh(state.ReadTarget(b, loc, "")) {
 		return nil
 	}
 	return us.AIReview

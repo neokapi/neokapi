@@ -19,16 +19,19 @@ type EditionWrite struct {
 	// decisions among them, where that differs from Unit: a checkout names a
 	// block by its reader's key, and a push resolves it to the venue's.
 	Block string `json:"block,omitempty"`
-	// Variant is the locale (and optional tone/channel) in VariantKey text form.
+	// Variant is the locale (and optional tone/channel) in EditionKey text form.
 	Variant string `json:"variant"`
 	// Revision is the edition's revision the write left (model.RunsRevision).
 	// A venue holding another translation of the unit takes nothing from the
 	// record; one holding none takes it as the record of a translation the
 	// project keeps.
 	Revision string `json:"rev"`
-	// Basis is the content hash of the source the translation was made from
-	// (state.SourceHash), empty when the write recorded none: an edit made
-	// outside kapi, or a translation a pull brought down from a venue.
+	// Basis is the revision of the source the translation was made from,
+	// taken under the project's source language as a venue takes it
+	// (SourceRevision). The block history records it under the key the run's
+	// reader filed the source by, and a push sends it as Basis gives it.
+	// Empty when the write recorded none: an edit made outside kapi, or a
+	// translation a pull brought down from a venue.
 	Basis string `json:"basis,omitempty"`
 	// Writer is the kind of actor that wrote the translation: person, agent,
 	// tool, or external for an edit made outside kapi that a read observed.

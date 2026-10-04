@@ -24,7 +24,7 @@ func openWork(t *testing.T) (*state.WorkStore, string) {
 func unit(id, scope, text string) state.UnitState {
 	return state.UnitState{
 		Unit:        id,
-		Variant:     model.VariantKey{Locale: "nb"},
+		Variant:     model.EditionKey{Locale: "nb"},
 		Scope:       scope,
 		ContentHash: model.ComputeContentHash(text),
 		ContextHash: "ctx-" + id,
@@ -33,7 +33,7 @@ func unit(id, scope, text string) state.UnitState {
 }
 
 func nbKey(scope, id string) state.Key {
-	return state.Key{Scope: scope, Unit: id, Variant: model.VariantKey{Locale: "nb"}}
+	return state.Key{Scope: scope, Unit: id, Variant: model.EditionKey{Locale: "nb"}}
 }
 
 // A decision is durable where it is recorded. Writing the committed record is a

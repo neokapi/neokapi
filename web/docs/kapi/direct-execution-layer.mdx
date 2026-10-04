@@ -29,7 +29,7 @@ checks, and `kapi up` loops a flow until the project's gates are met.
       sub: "kapi up · translate · check · status",
       role: "qa",
       steps: [
-        "loop the default flow over pending units",
+        "loop the default flow over pending blocks",
         "re-derive coverage before each pass",
         "run the bound checks, evaluate the gates",
         "park what needs a person",
@@ -128,7 +128,7 @@ project machinery around it*. Each pass:
    files changed),
 2. **runs the flow** for the locales still short of their gate: the same
    composition `run` would execute once,
-3. **runs the bound checks** over what was produced, so a unit with failing
+3. **runs the bound checks** over what was produced, so a block with failing
    findings cannot lift its locale over the gate,
 4. **evaluates the gates** and either loops, stops when the project is up to
    date, or **parks** what needs a person.

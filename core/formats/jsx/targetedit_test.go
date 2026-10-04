@@ -44,19 +44,19 @@ func translatedKBF() *kbf.File {
 			Blocks: []kbf.Block{{
 				ID: "src/Checkout.tsx:12:0", Hash: "k53pbACm9yC", Translatable: true,
 				Type: kbf.BlockTypeJSXElement,
-				Source: []kbf.Run{
-					{Text: &kbf.TextRun{Text: "Save "}},
-					{PcOpen: &kbf.PcOpenRun{ID: "1", Type: "jsx:element", SubType: "strong", Data: "<strong>", Equiv: "=m0"}},
-					{Text: &kbf.TextRun{Text: "now"}},
-					{PcClose: &kbf.PcCloseRun{ID: "1", Type: "jsx:element", SubType: "strong", Data: "</strong>", Equiv: "=m1"}},
-				},
-				Targets: map[kbf.LocaleID][]kbf.Run{
-					"nb": {
+				Editions: map[string]kbf.Edition{
+					kbf.SourceEdition: {Runs: []kbf.Run{
+						{Text: &kbf.TextRun{Text: "Save "}},
+						{PcOpen: &kbf.PcOpenRun{ID: "1", Type: "jsx:element", SubType: "strong", Data: "<strong>", Equiv: "=m0"}},
+						{Text: &kbf.TextRun{Text: "now"}},
+						{PcClose: &kbf.PcCloseRun{ID: "1", Type: "jsx:element", SubType: "strong", Data: "</strong>", Equiv: "=m1"}},
+					}},
+					"nb": {Runs: []kbf.Run{
 						{Text: &kbf.TextRun{Text: "Lagre  "}},
 						{PcOpen: &kbf.PcOpenRun{ID: "1", Type: "jsx:element", SubType: "strong", Data: "<strong>", Equiv: "=m0"}},
 						{Text: &kbf.TextRun{Text: "nå"}},
 						{PcClose: &kbf.PcCloseRun{ID: "1", Type: "jsx:element", SubType: "strong", Data: "</strong>", Equiv: "=m1"}},
-					},
+					}},
 				},
 				Properties: kbf.BlockProperties{File: "src/Checkout.tsx", Line: 12, Component: "Checkout", Element: "p"},
 			}},
@@ -137,7 +137,7 @@ func TestWriterEmitsToolEditToAnExistingTarget(t *testing.T) {
 	require.Len(t, blocks, 1)
 	assert.Equal(t,
 		[]string{"text:Lagre ", "pcOpen:1", "text:nå", "pcClose:1"},
-		kbfRunShapes(blocks[0].Targets["nb"]),
+		kbfRunShapes(blocks[0].Editions["nb"].Runs),
 		"the written target must be the one the pipeline produced, not the one the file arrived with")
 }
 
@@ -155,7 +155,7 @@ func TestWriterEmitsAReplacedTarget(t *testing.T) {
 	require.Len(t, blocks, 1)
 	assert.Equal(t,
 		[]string{"text:Kjøp ", "ph:price"},
-		kbfRunShapes(blocks[0].Targets["nb"]),
+		kbfRunShapes(blocks[0].Editions["nb"].Runs),
 		"a wholesale replacement is an edit too")
 }
 
@@ -168,8 +168,8 @@ func TestWriterEmitsTargetRemoval(t *testing.T) {
 
 	blocks := allBlocks(out)
 	require.Len(t, blocks, 1)
-	assert.NotContains(t, blocks[0].Targets, kbf.LocaleID("nb"),
-		"a target the pipeline removed must not be re-emitted from the annotation")
+	_, held := blocks[0].Edition("nb")
+	assert.False(t, held, "a target the pipeline removed must not be re-emitted from the annotation")
 }
 
 // The writer is not always pointed at the locale a tool edited — a flow can
@@ -188,7 +188,7 @@ func TestWriterEmitsEditsWhenNotPointedAtTheLocale(t *testing.T) {
 			blocks := allBlocks(out)
 			require.Len(t, blocks, 1)
 			assert.Equal(t, []string{"text:Lagre nå"},
-				kbfRunShapes(blocks[0].Targets["nb"]),
+				kbfRunShapes(blocks[0].Editions["nb"].Runs),
 				"an edit to a locale the writer was not pointed at is still an edit")
 		})
 	}
@@ -202,17 +202,16 @@ func TestWriterEmitsAnAddedLocaleAlongsideTheExistingOne(t *testing.T) {
 
 	blocks := allBlocks(out)
 	require.Len(t, blocks, 1)
-	assert.Equal(t, []string{"text:Jetzt sparen"}, kbfRunShapes(blocks[0].Targets["de"]))
+	assert.Equal(t, []string{"text:Jetzt sparen"}, kbfRunShapes(blocks[0].Editions["de"].Runs))
 	assert.Equal(t,
 		[]string{"text:Lagre  ", "pcOpen:1", "text:nå", "pcClose:1"},
-		kbfRunShapes(blocks[0].Targets["nb"]),
+		kbfRunShapes(blocks[0].Editions["nb"].Runs),
 		"the locale nothing touched is unchanged")
 }
 
-// A tone- or channel-qualified variant has no slot in the .kbf.json wire shape,
-// which keys targets by bare locale. It must not silently overwrite the plain
-// target for that locale.
-func TestWriterIgnoresToneQualifiedVariants(t *testing.T) {
+// A tone edition is written under its own key, beside the plain edition of its
+// language, and neither takes the other's place.
+func TestWriterWritesAToneEditionBesideThePlainOne(t *testing.T) {
 	out := editThroughKBF(t, translatedKBF(), nbTgt, func(blocks []*model.Block) {
 		blocks[0].SetEdition(model.EditionKey{Locale: nbTgt, Tone: "formal"}, model.Edition{
 			Runs: []model.Run{{Text: &model.TextRun{Text: "De lagrer nå"}}},
@@ -223,6 +222,8 @@ func TestWriterIgnoresToneQualifiedVariants(t *testing.T) {
 	require.Len(t, blocks, 1)
 	assert.Equal(t,
 		[]string{"text:Lagre  ", "pcOpen:1", "text:nå", "pcClose:1"},
-		kbfRunShapes(blocks[0].Targets["nb"]),
-		"the locale-only target keeps the slot; a toned variant does not claim it")
+		kbfRunShapes(blocks[0].Editions["nb"].Runs),
+		"the plain edition keeps its key")
+	assert.Equal(t, []string{"text:De lagrer nå"}, kbfRunShapes(blocks[0].Editions["nb;tone=formal"].Runs),
+		"the tone edition has a key of its own")
 }

@@ -479,6 +479,10 @@ type Blessing struct {
 	// whose basis differs from the block's current source is stale, whatever its
 	// status says.
 	ContentHash string `json:"content_hash,omitempty"`
+	// Revision and Basis name the translation and the source by revision, for
+	// a decision recorded since revisions; such a blessing is judged by them.
+	Revision string `json:"revision,omitempty"`
+	Basis    string `json:"basis,omitempty"`
 }
 
 // BlessingsOfBlock answers "which decision covers this unit, at which basis":
@@ -506,6 +510,8 @@ func BlessingsOfBlock(ctx context.Context, r EdgeReader, s Scope, contentKey str
 			Status:      e.Properties[PropStatus],
 			TargetHash:  e.Properties[PropTargetHash],
 			ContentHash: e.Properties[PropContentHash],
+			Revision:    e.Properties[PropRevision],
+			Basis:       e.Properties[PropBasis],
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {

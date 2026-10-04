@@ -252,7 +252,7 @@ func ExtractToBlockStore(
 				ID:           b.ID,
 				Hash:         BlockStoreHash(rf.Relative, b.ID, b.SourceText()),
 				Translatable: b.Translatable,
-				Source:       src.Runs,
+				Editions:     kbf.SourceEditions(src.Runs),
 			}
 			// The source file the block came from. It is what makes a stored
 			// block placeable — an occurrence names the document it was found

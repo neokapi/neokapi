@@ -143,12 +143,12 @@ they are on the paths that run without a translate step.
 ## Governed prior-version reuse
 
 Recycle answers by *source text*: the same sentence, or one close to it, gets
-the same translation. The translate step asks a second question by *unit*: what
+the same translation. The translate step asks a second question by *block*: what
 was the previously approved translation of this block, before its source was
 edited? The answer goes into the prompt as reference, so the model redrafts
 from wording a person already accepted rather than from nothing.
 
-The read is gated on governance. A `VersionRequest` names the unit (the block's
+The read is gated on governance. A `VersionRequest` names the block (the block's
 identity across edits), the point the content sits at, the source and target
 locales, and `GovernedBy`, the fingerprint of the voice guidance and term rules
 about to reach the model. An answer approved under any other context is
@@ -160,7 +160,7 @@ where a block's neighbours come free from the document in hand.
 
 ```go
 v, ok := corpus.PriorVersion(ctx, memory.VersionRequest{
-    Unit:       block.ChainUnit(),
+    Unit:       block.ChainKey(),
     Point:      "kapimart/web",
     Source:     "en",
     Target:     "nb",

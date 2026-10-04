@@ -35,7 +35,7 @@ func TestWriteBackBlocks_AnUnchangedTargetIsNotLogged(t *testing.T) {
 	if sb.Block.Properties == nil {
 		sb.Block.Properties = map[string]string{}
 	}
-	sb.Block.Properties["__source_settled_hash"] = sb.ContentHash
+	sb.Block.Properties["__source_settled_revision"] = sb.SourceRevision
 	res, err := s.WriteBackBlocks(ctx, p.ID, "main", []*venue.StoredBlock{sb})
 	require.NoError(t, err)
 	require.Equal(t, 1, res.Written)

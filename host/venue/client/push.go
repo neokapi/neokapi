@@ -184,6 +184,7 @@ type pushSettings struct {
 	tree           venue.Tree
 	allowDowngrade bool
 	writes         []venue.EditionWrite
+	source         model.LocaleID
 }
 
 // AssertRef makes the push a compare-and-swap over the governance it carries:
@@ -243,6 +244,17 @@ func DeclareTree(scope venue.Scope, tree venue.Tree) PushOption {
 // holds every block it sends.
 func CarryEditionWrites(writes []venue.EditionWrite) PushOption {
 	return func(s *pushSettings) { s.writes = writes }
+}
+
+// TransferUnder names the project's source language, the language a venue
+// takes the revision of each block's source under. The push folds that
+// revision into each block's transfer hash (venue.RecordHash) as the venue
+// folds the one it stored, so a block whose inline codes alone changed is
+// sent. A push that names none takes the revision under no language, and a
+// venue holding a project with a source language then reads every block it
+// sends as changed.
+func TransferUnder(source model.LocaleID) PushOption {
+	return func(s *pushSettings) { s.source = source }
 }
 
 // AllowModelDowngrade lets this push write content from an older model
@@ -430,7 +442,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 			// source_id. Keyed on the reader's id instead, deleting a paragraph
 			// renumbered every block below it and the push reported an untouched
 			// file as wholly changed.
-			blockHashes[convergence.BlockKey(b)] = model.ComputeIdentity(b).RecordHash()
+			blockHashes[convergence.BlockKey(b)] = venue.RecordHash(b, settings.source)
 		}
 		itemHashes[itemName] = venue.ComputeItemHash(blockHashes)
 	}

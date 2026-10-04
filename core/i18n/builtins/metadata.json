@@ -49,7 +49,7 @@
         },
         "createOnNonTranslatable": {
           "title": "Create on Non-Translatable",
-          "description": "Create a target even for non-translatable text units"
+          "description": "Create a target even for non-translatable blocks"
         },
         "overwrite": {
           "title": "Overwrite Existing",
@@ -226,7 +226,7 @@
         },
         "includeNonTranslatable": {
           "title": "Include Non-Translatable",
-          "description": "Apply the removal action even to text units marked as non-translatable"
+          "description": "Apply the removal action even to blocks marked as non-translatable"
         },
         "replaceWithSpace": {
           "title": "Replace With Space",
@@ -640,19 +640,19 @@
       "properties": {
         "filterByIDs": {
           "title": "Filter by IDs",
-          "description": "When true filter text units by ID; when false filter by target locale"
+          "description": "When true filter blocks by ID; when false filter by target locale"
         },
         "removeBlockIfEmpty": {
-          "title": "Remove Empty Text Units",
-          "description": "Remove the text unit entirely if it has no remaining targets after removal"
+          "title": "Remove Empty Blocks",
+          "description": "Remove the block entirely if it has no remaining targets after removal"
         },
         "targetLocale": {
           "title": "Target Locale",
           "description": "Target locale to remove (if empty all targets are removed)"
         },
         "textUnitIDs": {
-          "title": "Text Unit IDs for Removal",
-          "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
+          "title": "Block IDs for Removal",
+          "description": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets"
         }
       }
     },

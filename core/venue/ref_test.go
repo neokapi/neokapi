@@ -195,21 +195,46 @@ func TestConceptTermOrderIsNotIdentity(t *testing.T) {
 // while a record carrying none keeps the identity it had before the field
 // existed, so an upgrade moves no project's decisions component.
 func TestDecisionIdentity_GoverningFingerprint(t *testing.T) {
-	legacy := decision("u1", "nb", "established")
-	stamped := legacy
+	plain := decision("u1", "nb", "established")
+	stamped := plain
 	stamped.GoverningFingerprint = "fp-governing"
-	restamped := legacy
+	restamped := plain
 	restamped.GoverningFingerprint = "fp-moved"
 
-	assert.False(t, SameDecision(legacy, stamped), "gaining a fingerprint is a change")
-	assert.NotEqual(t, DecisionIdentity(legacy), DecisionIdentity(stamped))
+	assert.False(t, SameDecision(plain, stamped), "gaining a fingerprint is a change")
+	assert.NotEqual(t, DecisionIdentity(plain), DecisionIdentity(stamped))
 	assert.False(t, SameDecision(stamped, restamped), "a decision re-made under a moved context is a change")
 	assert.NotEqual(t, DecisionsComponent([]UnitDecision{stamped}), DecisionsComponent([]UnitDecision{restamped}))
 
 	// A record without a fingerprint folds over exactly the fields it always
 	// had: the new field leaves no trace on it.
-	assert.Equal(t, ref.Identity(legacy.Status, legacy.TargetHash, legacy.ContentHash, legacy.ReviewState,
-		legacy.DecidedBy, legacy.DecidedAt, legacy.Note, "false", legacy.Assignee), DecisionIdentity(legacy))
+	assert.Equal(t, ref.Identity(plain.Status, plain.Revision, plain.Basis, plain.ReviewState,
+		plain.DecidedBy, plain.DecidedAt, plain.Note, "false", plain.Assignee), DecisionIdentity(plain))
+}
+
+// TestDecisionIdentity_RevisionPairing: a decision is about the pairing it
+// names by revision, so a decision on a translation that differs from another
+// in an inline code alone, or on a source that does, is another decision.
+func TestDecisionIdentity_RevisionPairing(t *testing.T) {
+	paired := decision("u1", "nb", "established")
+	paired.Revision, paired.Basis = "r:1111111111111111", "r:aaaaaaaaaaaaaaaa"
+	recoded := paired
+	recoded.Revision = "r:2222222222222222"
+	rebased := paired
+	rebased.Basis = "r:bbbbbbbbbbbbbbbb"
+
+	assert.False(t, SameDecision(paired, recoded), "a decision on another translation is a change")
+	assert.False(t, SameDecision(paired, rebased), "a decision for another source is a change")
+	assert.NotEqual(t, DecisionsComponent([]UnitDecision{paired}), DecisionsComponent([]UnitDecision{recoded}))
+	assert.NotEqual(t, DecisionsComponent([]UnitDecision{paired}), DecisionsComponent([]UnitDecision{rebased}))
+
+	swapped := paired
+	swapped.Revision, swapped.Basis = paired.Basis, paired.Revision
+	assert.NotEqual(t, DecisionIdentity(paired), DecisionIdentity(swapped), "the two halves are told apart by position")
+
+	basis := paired.AsBasis(model.TargetStatusTranslated)
+	assert.Equal(t, paired.Revision, basis.Revision, "a refused verdict kept as a basis keeps the pairing it was about")
+	assert.Equal(t, paired.Basis, basis.Basis)
 }
 
 // TestAsBasis_DropsTheGoverningFingerprint: the fingerprint records the

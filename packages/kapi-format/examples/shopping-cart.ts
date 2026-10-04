@@ -20,7 +20,7 @@
  *     );
  *   }
  *
- * The extractor emits ONE Block with `source: [{ plural: … }]`.
+ * The extractor emits ONE Block whose source edition is `[{ plural: … }]`.
  * The plural's `forms` map carries a Run[] per plural form, each
  * with its own typed content (text runs + a ph run for {count} in
  * the 'other' form). The pivot variable is declared in the Block's
@@ -34,6 +34,7 @@
  */
 
 import type { Block } from "../src/block.ts";
+import { sourceEditions } from "../src/editions.ts";
 
 export const shoppingCart: Block = {
   id: "shopping-cart-plural",
@@ -41,7 +42,7 @@ export const shoppingCart: Block = {
   translatable: true,
   type: "jsx:element",
 
-  source: [
+  editions: sourceEditions([
     {
       plural: {
         pivot: "count",
@@ -64,7 +65,7 @@ export const shoppingCart: Block = {
         },
       },
     },
-  ],
+  ]),
 
   placeholders: [
     {

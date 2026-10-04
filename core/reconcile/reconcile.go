@@ -1,4 +1,4 @@
-// Package reconcile matches a freshly-read set of blocks against the units a
+// Package reconcile matches a freshly-read set of blocks against the blocks a
 // project already knows about, so identity survives ordinary editing.
 //
 // The problem it solves. Every reader has to name the blocks it emits, and the
@@ -37,13 +37,13 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// Unit is a content unit the project already knows about, as the persisting
-// layer remembers it. Callers supply the units carried forward from earlier
-// reads — including units whose blocks are not in the current read, since that
-// is what lets a removed block return to its own history later.
-type Unit struct {
+// Prior is a block the project already knows about, as the persisting layer
+// remembers it. Callers supply the priors carried forward from earlier reads,
+// including priors whose blocks are not in the current read, since that is
+// what lets a removed block return to its own history later.
+type Prior struct {
 	Key string
-	// Scope is the document the unit belongs to. It qualifies context matching
+	// Scope is the document the block belongs to. It qualifies context matching
 	// and nothing else — see Identify for why it is carried beside the hashes
 	// rather than folded into them.
 	Scope       string
@@ -110,9 +110,9 @@ type Result struct {
 // a prior set and left the difference waiting to be discovered. The scope now
 // appears in the pool's lookup keys, which is the only place it ever meant
 // anything.
-func Identify(scope string, b *model.Block) Unit {
+func Identify(scope string, b *model.Block) Prior {
 	id := model.ComputeIdentity(b)
-	return Unit{
+	return Prior{
 		Scope:       scope,
 		ContentHash: id.ContentHash,
 		ContextHash: id.ContextHash,
@@ -123,17 +123,17 @@ func Identify(scope string, b *model.Block) Unit {
 //
 // scope names the document these blocks were read from; see Identify. Callers
 // reconcile one document at a time, but may pass the whole project's prior
-// units, which is what lets content moved between files keep its identity.
+// priors, which is what lets content moved between files keep its identity.
 //
 // Matching runs strongest signal first: both hashes, then content within the
 // block's own document, then content anywhere, then context alone. Each pass
 // consumes the priors it claims, so a prior is claimed at most once and two
 // blocks can never resolve to the same key, which is what keeps one block's
 // approval from silently approving another.
-func Blocks(scope string, current []*model.Block, prior []Unit) []Result {
+func Blocks(scope string, current []*model.Block, prior []Prior) []Result {
 	pool := newPool(prior)
 	out := make([]Result, len(current))
-	ids := make([]Unit, len(current))
+	ids := make([]Prior, len(current))
 	for i, b := range current {
 		ids[i] = Identify(scope, b)
 		out[i] = Result{Block: b}
@@ -141,19 +141,19 @@ func Blocks(scope string, current []*model.Block, prior []Unit) []Result {
 
 	// Strongest signal first, so an exact match is never stolen by a weaker one.
 	// Both passes below run over the blocks left unresolved by the pass above.
-	resolve(out, ids, func(id Unit) (string, bool) {
+	resolve(out, ids, func(id Prior) (string, bool) {
 		return pool.take(bothKey(id.Scope, id.ContentHash, id.ContextHash))
 	}, Unchanged)
 
 	// Content within the block's own document before content anywhere. Short
 	// strings repeat across a project, and a context change fails the exact
 	// match for every one of them at once. A project-wide queue then hands each
-	// block the first unclaimed unit with its words, which is often another
-	// document's, and the translation and review attached to that unit move to a
+	// block the first unclaimed prior with its words, which is often another
+	// document's, and the translation and review attached to that prior move to a
 	// different file. Matched in its own document first, a block keeps its own
-	// unit, and repeated text inside one document keeps its units in document
+	// key, and repeated text inside one document keeps its keys in document
 	// order. Text moved from another document still matches in the next pass.
-	resolve(out, ids, func(id Unit) (string, bool) {
+	resolve(out, ids, func(id Prior) (string, bool) {
 		return pool.take(scopedContentKey(id.Scope, id.ContentHash))
 	}, Moved)
 
@@ -172,11 +172,11 @@ func Blocks(scope string, current []*model.Block, prior []Unit) []Result {
 	//
 	// An edit in place is not weakened by this: its words have changed, so it has
 	// no content match to lose, and the context pass below still claims it.
-	resolve(out, ids, func(id Unit) (string, bool) {
+	resolve(out, ids, func(id Prior) (string, bool) {
 		return pool.take(contentKey(id.ContentHash))
 	}, Moved)
 
-	resolve(out, ids, func(id Unit) (string, bool) {
+	resolve(out, ids, func(id Prior) (string, bool) {
 		return pool.take(ctxKey(id.Scope, id.ContextHash))
 	}, Edited)
 
@@ -185,7 +185,7 @@ func Blocks(scope string, current []*model.Block, prior []Unit) []Result {
 }
 
 // resolve fills in every still-unresolved block that lookup can claim.
-func resolve(out []Result, ids []Unit, lookup func(Unit) (string, bool), kind Kind) {
+func resolve(out []Result, ids []Prior, lookup func(Prior) (string, bool), kind Kind) {
 	for i := range out {
 		if out[i].Key != "" {
 			continue
@@ -199,14 +199,14 @@ func resolve(out []Result, ids []Unit, lookup func(Unit) (string, bool), kind Ki
 // mint assigns keys to the blocks nothing claimed. Derived from both hashes so
 // a project with no history reconciles to the same keys on a second run, with
 // an ordinal for blocks that are identical in both signals.
-func mint(out []Result, ids []Unit) {
+func mint(out []Result, ids []Prior) {
 	seen := map[string]int{}
 	for i := range out {
 		if out[i].Key != "" {
 			continue
 		}
 		// The scope is part of the mint for the reason it is part of the context
-		// lookup: two identical paragraphs in two documents are two units, and a
+		// lookup: two identical paragraphs in two documents are two blocks, and a
 		// key derived from content and context alone would give them one.
 		key := "u-" + model.ComputeContentHash(
 			ids[i].Scope + "|" + ids[i].ContentHash + "|" + ids[i].ContextHash)[:16]
@@ -218,13 +218,13 @@ func mint(out []Result, ids []Unit) {
 	}
 }
 
-// pool hands out each prior unit at most once, across all three passes.
+// pool hands out each prior at most once, across all three passes.
 type pool struct {
-	byKey map[string][]string // lookup key -> unclaimed unit keys, in order
+	byKey map[string][]string // lookup key -> unclaimed prior keys, in order
 	taken map[string]bool
 }
 
-func newPool(prior []Unit) *pool {
+func newPool(prior []Prior) *pool {
 	p := &pool{byKey: map[string][]string{}, taken: map[string]bool{}}
 	for _, u := range prior {
 		both := bothKey(u.Scope, u.ContentHash, u.ContextHash)
@@ -239,8 +239,8 @@ func newPool(prior []Unit) *pool {
 	return p
 }
 
-// take returns the first unit under lookup that no earlier pass has claimed.
-// A unit appears under four lookups, so entries already taken are skipped
+// take returns the first prior under lookup that no earlier pass has claimed.
+// A prior appears under four lookups, so entries already taken are skipped
 // rather than removed when claimed elsewhere.
 func (p *pool) take(lookup string) (string, bool) {
 	queue := p.byKey[lookup]

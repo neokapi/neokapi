@@ -25,7 +25,7 @@ import (
 // process is writing.
 func (c *BowrainSourceConnector) workingStore(ctx context.Context) (*state.WorkStore, error) {
 	if c.app == nil {
-		return nil, errors.New("connector has no host app, so unit state cannot reach the project store")
+		return nil, errors.New("connector has no host app, so block state cannot reach the project store")
 	}
 	return c.app.OpenProjectState(ctx, c.project.Root)
 }
@@ -52,8 +52,8 @@ func (c *BowrainSourceConnector) bindRefsToStore(ctx context.Context) {
 	c.refs.BindStore(id)
 }
 
-// variantText renders a VariantKey in its wire text form ("nb", "fr;tone=…").
-func variantText(k model.VariantKey) string {
+// variantText renders an EditionKey in its wire text form ("nb", "fr;tone=…").
+func variantText(k model.EditionKey) string {
 	b, err := k.MarshalText()
 	if err != nil {
 		return string(k.Locale)
@@ -105,12 +105,15 @@ func (c *BowrainSourceConnector) projectDecisions(ctx context.Context) ([]venue.
 			item = p
 		}
 		out = append(out, venue.UnitDecision{
-			ItemName:    item,
-			Unit:        u.Unit,
-			Variant:     variantText(u.Variant),
-			Status:      string(u.Status),
-			TargetHash:  u.TargetHash,
-			ContentHash: u.ContentHash,
+			ItemName: item,
+			Unit:     u.Unit,
+			Variant:  variantText(u.Variant),
+			Status:   string(u.Status),
+			// The pairing travels by revision, so the venue's ledger names the
+			// content the decision was made on as the project's record does,
+			// inline codes included.
+			Revision:    u.Revision,
+			Basis:       u.Basis,
 			ReviewState: u.Decision.ReviewState,
 			DecidedBy:   u.Decision.By,
 			DecidedAt:   u.Decision.At,
@@ -165,7 +168,7 @@ func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pull
 			// the pull records its write in the block history.
 			continue
 		}
-		var variant model.VariantKey
+		var variant model.EditionKey
 		if err := variant.UnmarshalText([]byte(d.Variant)); err != nil || variant.Locale == "" {
 			skipped++
 			continue
@@ -177,15 +180,15 @@ func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pull
 			}
 		}
 		next := state.UnitState{
-			Unit:       d.Unit,
-			Variant:    variant,
-			Status:     model.TargetStatus(d.Status),
-			TargetHash: d.TargetHash,
-			// The basis rides down with the decision. Without it a pulled
-			// approval would arrive with nothing to say which source it blessed,
-			// and every unit reviewed on the server would read as current here
-			// however far its source had moved since.
-			ContentHash: d.ContentHash,
+			Unit:    d.Unit,
+			Variant: variant,
+			Status:  model.TargetStatus(d.Status),
+			// The pairing rides down with the decision. Without the basis a
+			// pulled approval would arrive with nothing to say which source it
+			// blessed, and every unit reviewed on the server would read as
+			// current here however far its source had moved since.
+			Revision: d.Revision,
+			Basis:    d.Basis,
 			Decision: state.Decision{
 				ReviewState: d.ReviewState,
 				By:          d.DecidedBy,
@@ -199,7 +202,7 @@ func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pull
 			Scope:                d.ItemName,
 		}
 		if err := st.RecordEntry(ctx, next, d.DecidedBy, state.OriginVenue); err != nil {
-			return recorded, skipped, fmt.Errorf("record unit state %s/%s: %w", d.Unit, d.Variant, err)
+			return recorded, skipped, fmt.Errorf("record block state %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		recorded++
 	}

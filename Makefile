@@ -246,7 +246,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-comment-coverage check-edit-writes check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-docs-store-only check-em-dashes check-docs-palette check-eval-publishable check-local-actions check-deploy-paths check-vocabulary check-desktop-interchange check-vocab-packs check-comment-history check-reference-provenance check-run-projection check-comment-coverage check-edit-writes fieldguard check-walk-selectors check-locale-display check-sidebar-ids check-package-licenses check-archive-licenses check-plugin-licenses check-plugin-release-latest check-packages-publish-gate check-cask-heredocs check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) --no-print-directory kapi-desktop-lint
 	@$(MAKE) --no-print-directory harness-check
@@ -948,17 +948,17 @@ check-edit-writes: i18n-catalogs ## Guard: a document reaches a file only where 
 	@$(GO) run ./scripts/editguard -self-test
 	@$(GO) run ./scripts/editguard
 
-# WP14 of the edit model replaces Block.Source, Block.Targets and
-# Block.SourceStatus with peer editions, and model.Target with model.Edition.
-# The guard type-checks every module with its tests and counts, per package,
-# what still names them outside core/model and the plugin wire. It reports
-# and exits 0 until the flip, which drops -report and adds it to lint and CI
-# (docs/internals/edit-model.md, WP14). A call outside a test to a helper
-# core/model exports for tests (Block.FileTargetAsSpelled) fails it now. The
-# desktop placeholder bundle lets its main package type-check.
-fieldguard: kapi-desktop-lint-deps ## Inventory: uses of Block.Source, Block.Targets, Block.SourceStatus and model.Target outside core/model (WP14); fails on a test-only helper called outside a test
+# A block stores its content as peer editions in Block.Editions and lists the
+# editions its document holds in Block.Native (docs/internals/edit-model.md,
+# section 6.2). The guard type-checks every module with its tests and fails on
+# a use of either field outside core/model, a test and the plugin wire, so
+# every other package reaches the editions through the accessors and the
+# storage can change inside core/model alone. A test may write the storage to
+# plant a state no accessor produces; those uses are counted. The desktop
+# placeholder bundle lets its main package type-check.
+fieldguard: kapi-desktop-lint-deps ## Gate: no code outside core/model and its tests reaches Block.Editions or Block.Native past the edition accessors
 	@$(GO) run ./scripts/fieldguard -self-test
-	@$(GO) run ./scripts/fieldguard -report
+	@$(GO) run ./scripts/fieldguard
 
 check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + Apache modules link no AGPL
 	@bad=$$(cd apps/kapi-desktop && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \

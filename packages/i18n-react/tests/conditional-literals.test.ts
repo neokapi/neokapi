@@ -23,6 +23,7 @@ import { parseSync } from "@swc/core";
 import { describe, expect, it } from "vitest";
 
 import type { Block, Document, TextRun } from "@neokapi/kapi-format";
+import { sourceRuns } from "@neokapi/kapi-format";
 
 import { extractDocument } from "../src/extract/index.ts";
 import { hashKey } from "../src/plugin/hash.ts";
@@ -41,7 +42,7 @@ function blocks(code: string): Block[] {
 function branches(code: string): Array<[string, string]> {
   return blocks(code)
     .filter((b) => /::\d+$/.test(b.properties.jsxPath))
-    .map((b) => [b.properties.jsxPath, (b.source[0] as TextRun).text]);
+    .map((b) => [b.properties.jsxPath, (sourceRuns(b)[0] as TextRun).text]);
 }
 
 function t(code: string, options: Partial<PluginOptions> = {}): string {
@@ -118,7 +119,7 @@ describe("extraction of a conditional's literal branches", () => {
     expect(block).toMatchObject({
       type: "jsx:element",
       translatable: true,
-      source: [{ text: "Saving..." }],
+      editions: { "": { runs: [{ text: "Saving..." }] } },
       placeholders: [],
       properties: { file: "Test.tsx", element: "Button", jsxPath: "Button::0" },
     });

@@ -855,12 +855,11 @@ func numerusForms(block *model.Block, locale model.LocaleID) ([][]model.Run, err
 // the segmentation that divides them.
 func numerusTarget(block *model.Block, locale model.LocaleID) ([]model.Run, *model.Overlay) {
 	runs := block.TargetRuns(locale)
-	key := model.Variant(locale)
 	if len(runs) == 0 {
 		for _, loc := range block.TargetLocales() {
 			if r := block.TargetRuns(loc); len(r) > 0 {
 				runs = r
-				key = model.Variant(loc)
+				locale = loc
 				break
 			}
 		}
@@ -868,7 +867,7 @@ func numerusTarget(block *model.Block, locale model.LocaleID) ([]model.Run, *mod
 	if len(runs) == 0 {
 		return nil, nil
 	}
-	return runs, block.SegmentationFor(&key)
+	return runs, block.TargetSegmentation(locale)
 }
 
 // targetLocale returns the locale whose translation the writer writes: the

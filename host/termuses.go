@@ -40,8 +40,9 @@ type ContextUse struct {
 	BlockID    string `json:"block_id,omitempty"`
 	Document   string `json:"document,omitempty"`
 	Collection string `json:"collection,omitempty"`
-	// Locale is the language of the text the term was found in: empty for the
-	// block's own source text, otherwise the target locale.
+	// Locale is the edition the term was found in: empty for the block's own
+	// source text, otherwise the edition's key, a locale with a tone or a
+	// channel where the edition has one ("nb", "nb;tone=formal").
 	Locale string `json:"locale,omitempty"`
 	// Occurrences is how many times the term is used in that text.
 	Occurrences int `json:"occurrences"`

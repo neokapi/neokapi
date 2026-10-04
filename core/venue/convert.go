@@ -28,7 +28,7 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 		Id:                 b.ID,
 		ItemName:           itemName,
 		Name:               b.Name,
-		Unit:               b.Unit,
+		Unit:               b.Key,
 		Type:               b.Type,
 		MimeType:           b.MimeType,
 		Translatable:       b.Translatable,
@@ -65,7 +65,7 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 	// key that Edition does not reach (a target stored under a non-canonical
 	// key); that edition is left out, because an empty target would replace
 	// the translation the receiver holds.
-	for _, key := range b.Editions() {
+	for _, key := range b.EditionKeys() {
 		if key == auth {
 			continue
 		}
@@ -139,7 +139,7 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 	b := &model.Block{
 		ID:                 sb.Id,
 		Name:               sb.Name,
-		Unit:               sb.Unit,
+		Key:                sb.Unit,
 		Type:               sb.Type,
 		MimeType:           sb.MimeType,
 		Translatable:       sb.Translatable,
@@ -245,9 +245,7 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 	// Overlays — reconstruct every stand-off layer via the canonical protoconvert
 	// overlay codec. An unregistered/future overlay kind degrades to a
 	// GenericAnnotation span value rather than panicking or being dropped.
-	for _, om := range sb.Overlays {
-		b.Overlays = append(b.Overlays, protoconvert.ProtoToOverlay(om))
-	}
+	protoconvert.ApplyProtoOverlays(b, sb.Overlays)
 
 	return b, nil
 }
@@ -425,7 +423,7 @@ func unmarshalAnnotations(data []byte) (map[string]model.Payload, error) {
 // about.
 //
 // It scopes DELETION, not transfer — what to send is decided by the record hash
-// (model.BlockIdentity.RecordHash), per block, and needs no declaration.
+// (RecordHash), per block, and needs no declaration.
 //
 // The problem it solves is a fleet that is not one version. A CI runner pinned
 // to an older kapi reads the same files with a reader that records less, and

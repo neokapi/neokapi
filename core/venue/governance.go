@@ -31,9 +31,9 @@ const (
 	// RefusedEstablishedWithdrawal: the push lowers a target the venue holds
 	// at established, keeping the translation and the source the decision
 	// blessed, and the pusher does not hold review permission for that
-	// language. The venue keeps the unit established; withdrawing that is a
-	// review-level action.
-	RefusedEstablishedWithdrawal = "withdrawing an established unit needs review permission"
+	// language. The venue keeps the translation established; withdrawing that
+	// is a review-level action.
+	RefusedEstablishedWithdrawal = "withdrawing an established translation needs review permission"
 	// RefusedStaleRejection: the push carries a rejection of a translation the
 	// venue has since replaced. A rejection judges one translation, so it
 	// changes nothing about the one the venue holds now; the venue keeps its

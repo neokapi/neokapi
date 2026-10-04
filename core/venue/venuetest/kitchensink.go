@@ -49,20 +49,21 @@ var AllOverlayKinds = []model.OverlayType{
 // recomputed from source+context (its ContentHash rides in SyncBlock.content_hash).
 var BlockDerivedFields = map[string]string{
 	"Identity": "derived: recomputed by model.ComputeIdentity; ContentHash rides in SyncBlock.content_hash",
+	"Native":   "derived: a reader records which editions the document's bytes hold each time it reads the file, and a stream holds no file",
 }
 
 // KitchenSinkBlock returns a Block with EVERY exported field populated and EVERY
 // Run kind + Overlay kind present, so a round-trip through it proves the whole
 // content model survives a given sync wire path.
 func KitchenSinkBlock() *model.Block {
-	frVariant := model.VariantKey{Locale: model.LocaleFrench}
-	deFormal := model.VariantKey{Locale: model.LocaleGerman, Tone: "formal"}
-	esVariant := model.VariantKey{Locale: model.LocaleSpanish}
+	frVariant := model.EditionKey{Locale: model.LocaleFrench}
+	deFormal := model.EditionKey{Locale: model.LocaleGerman, Tone: "formal"}
+	esVariant := model.EditionKey{Locale: model.LocaleSpanish}
 
 	b := &model.Block{
 		ID:                 "ks-1",
 		Name:               "kitchen.sink",
-		Unit:               "u-0123456789abcdef",
+		Key:                "u-0123456789abcdef",
 		Type:               "text",
 		MimeType:           "text/plain",
 		Translatable:       true,
@@ -148,6 +149,15 @@ func KitchenSinkBlock() *model.Block {
 		},
 	})
 
+	// A same-language channel edition: a peer of the edition the block was read
+	// in, in its language, which every path must carry under its own key and
+	// never fold into the source.
+	b.SetEdition(model.EditionKey{Locale: model.LocaleEnglish, Channel: "short"}, model.Edition{
+		Runs:   []model.Run{{Text: &model.TextRun{Text: "Hi"}}},
+		Status: model.Status(model.TargetStatusTranslated),
+		Origin: model.Origin{Kind: model.OriginAgent, Engine: "claude"},
+	})
+
 	// Annotations: block-scoped note (rides on the annotations map, not overlays).
 	b.AddNote(&model.NoteAnnotation{Text: "hero copy", From: "dev", Priority: 1, Annotates: "source"})
 
@@ -162,7 +172,7 @@ func KitchenSinkBlock() *model.Block {
 // finding with props, and a target-side alignment) — the full OverlayType
 // vocabulary the sync wire must carry.
 func KitchenSinkOverlays() []model.Overlay {
-	frVariant := model.VariantKey{Locale: model.LocaleFrench}
+	frVariant := model.EditionKey{Locale: model.LocaleFrench}
 	return []model.Overlay{
 		{
 			Type:  model.OverlaySegmentation,
@@ -218,7 +228,7 @@ func KitchenSinkOverlays() []model.Overlay {
 		},
 		{
 			Type:    model.OverlayAlignment,
-			Variant: &frVariant,
+			Edition: frVariant,
 			Spans: []model.Span{{
 				ID:    "a0",
 				Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1}),

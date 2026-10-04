@@ -17,7 +17,8 @@ import {
   type Module,
 } from "@swc/core";
 
-import type { Block, Document, Run } from "@neokapi/kapi-format";
+import type { Block, Document } from "@neokapi/kapi-format";
+import { sourceEditions } from "@neokapi/kapi-format";
 
 import {
   ancestorTranslate,
@@ -361,7 +362,7 @@ class BlockCollector {
       hash,
       translatable: true,
       type: "jsx:element",
-      source: runs,
+      editions: sourceEditions(runs),
       placeholders,
       properties: {
         file: this.filename,
@@ -471,7 +472,7 @@ class BlockCollector {
       hash,
       translatable: true,
       type: "js:t",
-      source: runs,
+      editions: sourceEditions(runs),
       placeholders,
       properties,
     });
@@ -505,7 +506,7 @@ class BlockCollector {
       hash,
       translatable: true,
       type: "js:t",
-      source: [{ text }] as Run[],
+      editions: sourceEditions([{ text }]),
       placeholders: [],
       properties: {
         file: this.filename,
@@ -542,7 +543,7 @@ class BlockCollector {
       hash,
       translatable: true,
       type: "jsx:element",
-      source: runs,
+      editions: sourceEditions(runs),
       placeholders,
       properties: blockProperties(this.filename, el, this.code, jsxPath, component, locNote),
     });
@@ -668,7 +669,7 @@ class BlockCollector {
           hash,
           translatable: true,
           type: "jsx:element",
-          source: [{ text: branch.text }] as Run[],
+          editions: sourceEditions([{ text: branch.text }]),
           placeholders: [],
           properties,
         });
@@ -701,7 +702,7 @@ class BlockCollector {
       hash,
       translatable: true,
       type: "jsx:attribute",
-      source: [{ text }] as Run[],
+      editions: sourceEditions([{ text }]),
       placeholders: [],
       properties: blockProperties(this.filename, el, this.code, context, component, locNote),
     });

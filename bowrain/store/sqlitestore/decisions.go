@@ -11,8 +11,6 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/id"
-	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
@@ -83,12 +81,12 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		var haveOld bool
 		var parked int
 		row := tx.QueryRowContext(ctx,
-			`SELECT status, target_hash, content_hash, review_state, decided_by, decided_at, note, parked, assignee,
+			`SELECT status, revision, basis, review_state, decided_by, decided_at, note, parked, assignee,
 				governing_fingerprint, updated
 			 FROM unit_decisions
 			 WHERE project_id=? AND stream=? AND item_id=? AND unit=? AND variant=?`,
 			projectID, stream, itemID, d.Unit, d.Variant)
-		switch err := row.Scan(&old.Status, &old.TargetHash, &old.ContentHash, &old.ReviewState, &old.DecidedBy,
+		switch err := row.Scan(&old.Status, &old.Revision, &old.Basis, &old.ReviewState, &old.DecidedBy,
 			&old.DecidedAt, &old.Note, &parked, &old.Assignee, &old.GoverningFingerprint, &old.Updated); {
 		case err == nil:
 			old.Parked = parked != 0
@@ -108,28 +106,27 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO unit_decisions
-				(project_id, stream, item_id, item_name, unit, variant, status, target_hash, content_hash, review_state,
-				 decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated, updated_at)
+				(project_id, stream, item_id, item_name, unit, variant, status, revision, basis,
+				 review_state, decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated, updated_at)
 			 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 			 ON CONFLICT (project_id, stream, item_id, unit, variant) DO UPDATE SET
 				item_name=excluded.item_name,
-				status=excluded.status, target_hash=excluded.target_hash,
-				content_hash=excluded.content_hash,
+				status=excluded.status, revision=excluded.revision, basis=excluded.basis,
 				review_state=excluded.review_state, decided_by=excluded.decided_by,
 				decided_at=excluded.decided_at, note=excluded.note, parked=excluded.parked,
 				assignee=excluded.assignee, governing_fingerprint=excluded.governing_fingerprint,
 				updated=excluded.updated, updated_at=excluded.updated_at`,
-			projectID, stream, itemID, d.ItemName, d.Unit, d.Variant, d.Status, d.TargetHash, d.ContentHash, d.ReviewState,
-			d.DecidedBy, d.DecidedAt, d.Note, boolInt(d.Parked), d.Assignee, d.GoverningFingerprint, d.Updated, now); err != nil {
+			projectID, stream, itemID, d.ItemName, d.Unit, d.Variant, d.Status, d.Revision, d.Basis,
+			d.ReviewState, d.DecidedBy, d.DecidedAt, d.Note, boolInt(d.Parked), d.Assignee, d.GoverningFingerprint, d.Updated, now); err != nil {
 			return changed, fmt.Errorf("upsert decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		changed++
 
-		var blockID, blockHash string
+		var blockID, blockRevision string
 		if d.ItemName != "" {
 			err := tx.QueryRowContext(ctx,
-				`SELECT id, content_hash FROM blocks WHERE project_id=? AND stream=? AND item_name=? AND source_id=?`,
-				projectID, stream, d.ItemName, d.Unit).Scan(&blockID, &blockHash)
+				`SELECT id, source_revision FROM blocks WHERE project_id=? AND stream=? AND item_name=? AND source_id=?`,
+				projectID, stream, d.ItemName, d.Unit).Scan(&blockID, &blockRevision)
 			if err != nil && err != sql.ErrNoRows {
 				return changed, fmt.Errorf("resolve decision block %s/%s: %w", d.ItemName, d.Unit, err)
 			}
@@ -147,12 +144,12 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		}
 
 		// The projection holds only while both halves of the blessed pairing do:
-		// the translation the row carries, and the source it was blessed for.
-		// An empty basis is unknown, not stale, and projects as before.
+		// the source it was blessed for (platstore.DecisionProjects), and the
+		// translation the row carries.
 		if d.Status == "" {
 			continue
 		}
-		if d.ContentHash != "" && blockHash != "" && d.ContentHash != blockHash {
+		if !platstore.DecisionProjects(d.Status, d.Basis, blockRevision) {
 			continue
 		}
 		var targetJSON string
@@ -169,7 +166,7 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 		if uerr != nil {
 			continue
 		}
-		if d.TargetHash != "" && state.TargetHash(model.RunsText(tgt.Runs)) != d.TargetHash {
+		if d.Revision != platstore.VariantRevision(d.Variant, tgt.Runs) {
 			continue // decision blesses a different translation — stale on arrival
 		}
 		if _, err := tx.ExecContext(ctx,
@@ -190,7 +187,7 @@ func (s *SQLiteStore) UpsertUnitDecisions(ctx context.Context, projectID, stream
 func (s *SQLiteStore) ListUnitDecisions(ctx context.Context, projectID, stream string) ([]venue.UnitDecision, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
+		`SELECT item_name, unit, variant, status, revision, basis, review_state,
 			decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated
 		 FROM unit_decisions WHERE project_id=? AND stream=?
 		 ORDER BY item_name, unit, variant`,
@@ -204,7 +201,7 @@ func (s *SQLiteStore) ListUnitDecisions(ctx context.Context, projectID, stream s
 	for rows.Next() {
 		d := venue.UnitDecision{ProjectID: projectID, Stream: stream}
 		var parked int
-		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash, &d.ContentHash,
+		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.Revision, &d.Basis,
 			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated); err != nil {
 			return nil, fmt.Errorf("scan decision: %w", err)
 		}
@@ -220,12 +217,12 @@ func (s *SQLiteStore) GetUnitDecision(ctx context.Context, projectID, stream, it
 	d := venue.UnitDecision{ProjectID: projectID, Stream: stream}
 	var parked int
 	err := s.db.QueryRowContext(ctx,
-		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
+		`SELECT item_name, unit, variant, status, revision, basis, review_state,
 			decided_by, decided_at, note, parked, assignee, governing_fingerprint, updated
 		 FROM unit_decisions
 		 WHERE project_id=? AND stream=? AND item_name=? AND unit=? AND variant=?`,
 		projectID, stream, itemName, unit, variant).
-		Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash, &d.ContentHash,
+		Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.Revision, &d.Basis,
 			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &parked, &d.Assignee, &d.GoverningFingerprint, &d.Updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -238,25 +235,26 @@ func (s *SQLiteStore) GetUnitDecision(ctx context.Context, projectID, stream, it
 }
 
 // TallyDecisionBasis implements platstore.DecisionStore — the SQLite mirror of
-// the Postgres grading, joining each decision's recorded basis to the block's
-// current source hash, and its draft basis beside it for the two owed counts.
-// The rejected count reads the verdict as well, for the units a reviewer turned
-// down on a source nothing has rewritten, which the stale grading cannot see.
+// the Postgres grading, joining each decision's recorded basis to the revision
+// of the block's current source, and its draft basis beside it for the two
+// owed counts. The rejected count reads the verdict as well, for the units a
+// reviewer turned down on a source nothing has changed, which the stale
+// grading cannot see.
 func (s *SQLiteStore) TallyDecisionBasis(ctx context.Context, projectID, stream string) ([]platstore.DecisionBasisTally, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT d.item_name, d.variant,
-			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN d.content_hash = '' THEN 1 ELSE 0 END), 0),
-			COALESCE(SUM(CASE WHEN d.content_hash <> '' AND d.content_hash <> b.content_hash
-				AND d.draft_basis <> b.content_hash
+			COALESCE(SUM(CASE WHEN `+basisStale+` THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN d.basis = '' THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN `+basisStale+`
+				AND NOT `+draftCurrent+`
 				AND EXISTS (SELECT 1 FROM translations t
 					WHERE t.project_id = b.project_id AND t.stream = b.stream
 					AND t.block_id = b.id AND t.locale = d.variant)
 				THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN d.review_state = ?
-				AND NOT (d.content_hash <> '' AND d.content_hash <> b.content_hash)
-				AND d.draft_basis <> b.content_hash
+				AND NOT `+basisStale+`
+				AND NOT `+draftCurrent+`
 				AND EXISTS (SELECT 1 FROM translations t
 					WHERE t.project_id = b.project_id AND t.stream = b.stream
 					AND t.block_id = b.id AND t.locale = d.variant)
@@ -309,7 +307,7 @@ func (s *SQLiteStore) RecordDraftBases(ctx context.Context, projectID, stream st
 			`UPDATE unit_decisions SET draft_basis=?, updated_at=?
 			 WHERE project_id=? AND stream=? AND unit=? AND variant=?
 			   AND item_id = (SELECT id FROM items WHERE project_id=? AND stream=? AND name=?)`,
-			d.SourceHash, now, projectID, stream, d.Unit, d.Variant, projectID, stream, d.ItemName); err != nil {
+			d.Basis, now, projectID, stream, d.Unit, d.Variant, projectID, stream, d.ItemName); err != nil {
 			return fmt.Errorf("record draft basis %s/%s: %w", d.Unit, d.Variant, err)
 		}
 	}
@@ -335,7 +333,7 @@ func (s *SQLiteStore) ListDraftBases(ctx context.Context, projectID, stream stri
 	var out []platstore.DraftBasis
 	for rows.Next() {
 		var d platstore.DraftBasis
-		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.SourceHash); err != nil {
+		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Basis); err != nil {
 			return nil, fmt.Errorf("scan draft basis: %w", err)
 		}
 		out = append(out, d)
@@ -343,22 +341,29 @@ func (s *SQLiteStore) ListDraftBases(ctx context.Context, projectID, stream stri
 	return out, rows.Err()
 }
 
+// basisStale is the SQL twin of platstore.BasisStale over the decision row d
+// and its block b, as the Postgres store's pgBasisStale.
+const basisStale = `(d.basis <> '' AND d.basis <> b.source_revision)`
+
+// draftCurrent says the row's draft mark names the source the block holds now.
+const draftCurrent = `(d.draft_basis <> '' AND d.draft_basis = b.source_revision)`
+
 // settleDecisionProjections re-derives the projected statuses of every target
-// of a block whose SOURCE content just changed, against the decision ledger —
-// the SQLite mirror of settleDecisionProjectionsPg, grading through the same
+// of a block whose SOURCE just changed, against the decision ledger — the
+// SQLite mirror of settleDecisionProjectionsPg, grading through the same
 // shared bstore.SettleDecisionProjection.
-func settleDecisionProjections(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, contentHash string) error {
+func settleDecisionProjections(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, sourceRevision string) error {
 	// The ledger keys on the unit identity (item + source_id), not the block id.
 	var itemID, unit string
 	if err := tx.QueryRowContext(ctx,
 		`SELECT item_id, source_id FROM blocks WHERE project_id=? AND stream=? AND id=?`,
 		projectID, stream, blockID).Scan(&itemID, &unit); err != nil {
-		return fmt.Errorf("look up unit for block %s: %w", blockID, err)
+		return fmt.Errorf("look up the key of block %s: %w", blockID, err)
 	}
 
 	rows, err := tx.QueryContext(ctx,
 		`SELECT t.stream, t.locale, COALESCE(json_extract(t.target_json, '$.status'),''), t.target_json,
-			COALESCE(d.status,''), COALESCE(d.content_hash,''), COALESCE(d.target_hash,'')
+			COALESCE(d.status,''), COALESCE(d.basis,''), COALESCE(d.revision,'')
 		 FROM translations t
 		 LEFT JOIN unit_decisions d
 			ON d.project_id=t.project_id AND d.stream=t.stream
@@ -373,11 +378,11 @@ func settleDecisionProjections(ctx context.Context, tx *sql.Tx, projectID, strea
 		var p bstore.DecisionProjection
 		var targetJSON string
 		if err := rows.Scan(&p.Stream, &p.Locale, &p.Status, &targetJSON,
-			&p.DecisionStatus, &p.DecisionBasis, &p.DecisionTargetHash); err != nil {
+			&p.DecisionStatus, &p.DecisionBasis, &p.DecisionRevision); err != nil {
 			rows.Close()
 			return fmt.Errorf("scan projection for block %s: %w", blockID, err)
 		}
-		p.TargetText = bstore.TargetTextFromJSON(targetJSON)
+		p.TargetRevision = bstore.TargetRevisionFromJSON(p.Locale, targetJSON)
 		settled = append(settled, p)
 	}
 	rows.Close()
@@ -387,7 +392,7 @@ func settleDecisionProjections(ctx context.Context, tx *sql.Tx, projectID, strea
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	for _, p := range settled {
-		status, event, changed := bstore.SettleDecisionProjection(p, contentHash)
+		status, event, changed := bstore.SettleDecisionProjection(p, sourceRevision)
 		if !changed {
 			continue
 		}

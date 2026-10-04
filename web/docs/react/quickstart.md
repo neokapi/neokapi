@@ -28,6 +28,13 @@ On Windows, take a build from the
 [direct downloads](/kapi/get-started/installation#binary-downloads). The WinGet
 package is behind the current release.
 
+Use `@neokapi/i18n-react` 3 with kapi 1.3.0 or later. Both read and write the
+KBF schema 2 catalogs that carry each string's source and translations together.
+An older kapi cannot read the catalogs `@neokapi/i18n-react` 3 extracts, and an
+older `@neokapi/i18n-react` compiles none of the translations a current kapi
+writes. `kapi inspect` on a catalog exits with an error when the installed kapi
+cannot read it.
+
 ## 2. Add the plugin to `vite.config.ts`
 
 ```ts

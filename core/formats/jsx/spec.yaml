@@ -3,8 +3,9 @@
 # This is the neokapi reader/writer for the Kapi Bundle Format
 # (.kbf.json), a structured JSON envelope for source-code-extracted
 # translatable strings. Each KBF document carries Blocks; each Block
-# has a structured Run sequence (text + placeholders + paired-codes
-# + plurals + selects). The reader flattens runs into Block source
+# holds its editions, each a structured Run sequence (text +
+# placeholders + paired-codes + plurals + selects), under its edition
+# key. The reader flattens the source runs into Block source
 # text and stuffs the structured Run graph into a KBFAnnotation so
 # downstream tools and writers can rebuild the source.
 #
@@ -32,6 +33,8 @@ description: |
       paired-codes elide their wrappers, plurals collapse to the
       `other` branch),
     - ID = KBF block ID (verbatim),
+    - every other edition (translations, tone and channel editions)
+      is filed on the block under its edition key,
     - Annotations[KBFAnnotation] carries the structured Source []Run
       so the writer can reassemble the original document.
 
@@ -183,3 +186,48 @@ features:
         first_block_text: "Files ( matched)"
     native_refs:
       - jsx.TestFlattenRuns
+
+  - id: peer_editions
+    name: Every edition of a block reads under its own key
+    description: |
+      A block in schema 2.0 holds its content as editions keyed by edition
+      key: the source under the empty key, and every translation, tone and
+      channel edition under its own (`nb`, `en;channel=short`). The source
+      is the block's text, and every other edition is filed on the block
+      under its key with its status, provenance and derivation. A block in
+      schema 1.0, whose `source` sat beside a `targets` map keyed by
+      language, reads the same way.
+    spec_refs:
+      - "KBF wire schema (neokapi/core/kbf/README.md)"
+    examples:
+      - name: source_translation_and_channel_edition
+        origin: "authored: a source, a translation and a same-language channel edition"
+        input_xml: |
+          {
+            "schemaVersion": "2.0",
+            "kind": "kapi-bundle",
+            "generator": {"id": "spec-test", "version": "1.0"},
+            "project": {"id": "p1", "sourceLocale": "en"},
+            "documents": [{
+              "id": "doc1",
+              "documentType": "jsx",
+              "path": "test.tsx",
+              "blocks": [{
+                "id": "sign-in",
+                "translatable": true,
+                "type": "jsx:element",
+                "editions": {
+                  "": {"runs": [{"text": "Sign in"}]},
+                  "en;channel=short": {"runs": [{"text": "Sign"}], "derived": {"from": "", "rev": "r:0000000000000000"}},
+                  "nb": {"runs": [{"text": "Logg inn"}], "status": "translated", "origin": {"kind": "ai"}}
+                },
+                "placeholders": [],
+                "properties": {}
+              }]
+            }]
+          }
+        block_count: 1
+        first_block_text: "Sign in"
+    native_refs:
+      - jsx.TestKBFCarriesChannelAndToneEditions
+      - jsx.TestKBFRoundTripKeepsATargetUnderTheEmptyLocale

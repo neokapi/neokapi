@@ -106,6 +106,11 @@ run_check "Only the projector writes the context stores" make check-projection-w
 # guard, which type-checks them, notices a new place a document reaches disk.
 run_check "A document reaches a file only where the edit guard lists it" make check-edit-writes
 
+# Ungated: a read of a block's edition storage can be added in any module, and
+# only this guard, which type-checks them all, notices one that goes past the
+# edition accessors.
+run_check "Only core/model reaches the block's edition storage" make fieldguard
+
 # Ungated: a walk selector dies in the app, not in the recorder that names it,
 # so gating this on the recorder's own path would never fire. ~2s.
 run_check "Walk selectors still exist" ./scripts/check-walk-selectors.sh

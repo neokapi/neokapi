@@ -495,8 +495,8 @@ why D1 (XLIFF 2 code corruption) and D3 (HTML id mismatch) shipped (codex-design
 | Field | Value | Resolution |
 | --- | --- | --- |
 | `doc` | a project-relative path; `container!entry` for an archive member (`host/toolbox.go:239-246`); an item path inside a Bowrain stream; or a workspace document key `d:…` | inside a project the path resolves to the reconciled document key (`core/reconcile/document.go:69-155`), and the record names the key, so a rename keeps history |
-| `block` | the block key: the durable key where reconciliation assigned one (today `Block.Unit`), else the structural name (`core/convergence/convergence.go:356-368`) | matched against a fresh read |
-| `edition` | a `VariantKey` in text form (`core/model/target.go:44-53`), canonicalized on decode; empty means the document's own edition | the file's language for a monolingual file; the authoritative edition for a bilingual file |
+| `block` | the block key: the durable key where reconciliation assigned one (`Block.Key`), else the structural name (`core/convergence/convergence.go:356-368`) | matched against a fresh read |
+| `edition` | an `EditionKey` in text form (`core/model/target.go`), canonicalized on decode; empty means the document's own edition | the file's language for a monolingual file; the authoritative edition for a bilingual file |
 
 The reader-local id (`tu3`) never appears on a public surface. It differs between read paths:
 the HTML reader numbers attribute blocks in a different order when a skeleton store is wired, so
@@ -614,7 +614,7 @@ position (`core/model/block.go:24-44`). The design relies on four things.
    checkout sees and stored per checkout, unlogged (`core/state/workstore.go:1323-1340`; ws-store
    §2). A new `document.adopt` operation records each adoption (path, content digest, key), so
    every checkout and the server agree on one key per document (proposal).
-3. **Blocks are reconciled on read.** Today `Block.Unit` is resolved only on the venue push path
+3. **Blocks are reconciled on read.** Today `Block.Key` is resolved only on the venue push path
    (`host/identity.go:68`, whose sole caller is `host/venue/source/source.go:684`). The service
    runs `reconcile.Blocks` against priors from the history view, cached per document revision, so
    local keys survive a sibling insertion the way pushed keys do. The cost is measured before it
@@ -1039,8 +1039,8 @@ need (r1 §2.2). The changes the contract needs:
   whether it can write it.
 - Run flags survive edits and `TextEdit` moves to code points (sections 2.4, 3.3).
 
-The contract and every DTO are edition-shaped from the start, computed from `Source` and
-`Targets` until the flip in 6.4, so no consumer changes twice.
+The contract and every DTO are edition-shaped from the start, and the storage behind them is the
+peer editions of 6.2 since the flip in 6.4, so no consumer changed twice.
 
 ### 6.2 The end state: peer editions
 
@@ -1048,22 +1048,22 @@ The contract and every DTO are edition-shaped from the start, computed from `Sou
 type Block struct {
 	ID   string // reader-local; used inside a format adapter only
 	Name string // the structural address the format reports
-	Key  string // durable identity matched by core/reconcile (today: Unit)
+	Key  string // durable identity matched by core/reconcile
 
-	Editions map[EditionKey]*Edition // every edition, as peers; no Source, no Targets
+	Editions map[EditionKey]*Edition // every edition, as peers
 	Native   []EditionKey            // the editions this document's bytes hold
-	Overlays []Overlay               // each names its edition; "nil means source" is gone
-	// Type, Translatable, Annotations, Properties, Skeleton, Identity, structure
-	// and geometry stay as they are (core/model/block.go:56-86).
+	Overlays []Overlay               // each names its edition
+	// Type, Translatable, SourceLocale, Annotations, Properties, Skeleton,
+	// Identity, structure and geometry are unchanged (core/model/block.go).
 }
 
-type EditionKey struct { // today VariantKey (core/model/target.go:16-20)
+type EditionKey struct { // core/model/target.go
 	Locale  LocaleID
 	Tone    string
 	Channel string
 }
 
-type Edition struct { // today Target, plus what Source and SourceStatus held
+type Edition struct { // core/model/edition.go
 	Runs    []Run
 	Status  Status      // one type; the edition's role picks the ladder
 	Origin  Origin
@@ -1077,15 +1077,43 @@ type Derivation struct {
 }
 ```
 
-Everything here exists on main under another name except `Native` and `Derivation` (engine-first
-§4.1). `Native` says which editions a file holds: one for a Markdown file, two for an XLIFF unit,
-many for an xcstrings entry. That is how the service knows where an edit can be written.
-`Derivation` is the pairing C-04 records per decision, moved onto the edition so staleness can be
-read from the content itself.
+The edition the block was read in is filed under the zero key, whatever language `SourceLocale`
+names, and every other edition under its canonical key. The zero key is the contract's name for
+the document's own edition (section 3.1), and a reader often learns a block's language after it
+built the block, so filing that edition under its language would move it whenever
+`SourceLocale` changed. An overlay names the edition it sits on the same way: the zero key for the
+edition the block was read in. The zero key and the source language both reach that edition
+through the accessors, unless the block holds a same-language edition of its own, as an XLIFF
+file from en-US to en-US does.
 
-The field `Editions` takes the name of the accessor that lists a block's edition keys today,
-`Block.Editions() []EditionKey`. Go rejects a field and a method of one name on a type, so that
-accessor becomes `Block.EditionKeys()` in the PR that adds the field (section 6.4, step 3).
+`Native` says which editions a file holds: one for a Markdown file, two for an XLIFF unit, many
+for an xcstrings entry. It lists the edition the block was read in first, under the zero key, and
+the bilingual readers (XLIFF 1.2 and 2, PO, Qt TS, TMX, xcstrings, CSV, KBF) mark each target
+they read from the document. `NativeEditions()` returns the list as `EditionKeys()` spells the
+keys. `Derivation` is the pairing C-04 records per decision, moved onto the edition so staleness
+can be read from the content itself: `set_content` on a derived edition records it, an edit that
+names no basis keeps it, `Block.DerivationStanding` grades it against the edition it names, and a
+read takes a derived edition's basis from it before asking the host. The decision ledger pairs the
+same revisions (section 6.3).
+
+A translation a reader files under no language (a KBF bundle's `unlabelled` edition, an xcstrings
+localization keyed by the empty string, the translation of a Qt TS file that names no language)
+has no key of its own, because the zero key names the document's own edition. It sits apart from
+`Editions`: `TargetEdition("")` and the other target accessors given the empty locale read and
+write it, `EachTargetEdition` yields it under the zero key, and `EditionKeys` and `EachEdition`
+leave it out, so a write under the empty locale never reaches the document's own edition. Its
+overlays sit apart with it, for the same reason: `TargetSegmentation(locale)` and
+`SetTargetSegmentation(locale, spans)` reach a translation's segmentation by the locale the target
+accessors take, the empty locale included, and the wires that carry the translation carry them
+(an overlay with a present, empty variant).
+
+A struct copy of a block (`cp := *b`) shares the edition storage, the document's own edition
+included, so a write to the copy is a write to the original. A copy that will be written takes
+`CopyEditionSet` (its own set of editions and its own entry for the document's edition) or
+`CopyEditions` (every edition's runs copied too).
+
+The accessor that lists a block's edition keys is `Block.EditionKeys()`, so the field can take
+the name `Editions`.
 
 ### 6.3 Source as policy
 
@@ -1118,9 +1146,10 @@ The founder chose to ship this in 1.3.0 (D5). It runs as WP14 beside the other p
 accessors land with WP1, so every line of new code uses them; existing callers migrate package by
 package alongside WP2 to WP11; the storage flip and the renames land after WP11 and before WP13.
 
-The flip touches 1,248 type-checked non-test uses in 260 files across 84 packages, about 629 test
-files, the canonical proto, KBF, about 79 TypeScript files and the Bowrain DTOs (main-model §6.1,
-measured with a type-checked scanner). It runs in this order (engine-first phase 3):
+The flip touched 1,248 type-checked non-test uses in 260 files across 84 packages, about 629
+test files, the canonical proto, KBF, about 79 TypeScript files and the Bowrain DTOs (main-model
+§6.1, measured with a type-checked scanner). It runs in this order (engine-first phase 3), and
+steps 1 to 5 are done:
 
 1. Add accessors on `Block` (`Edition(k)`, `SetEdition`, `Editions()`, `Authoritative(policy)`)
    implemented over `Source` and `Targets`.
@@ -1128,20 +1157,58 @@ measured with a type-checked scanner). It runs in this order (engine-first phase
 3. Flip the storage to `Editions` and delete the old fields in one PR once no caller remains. The
    same PR renames the accessor `Editions()` to `EditionKeys()` with `gopls rename`, because the
    field cannot share its name (section 6.2).
-4. Rename `Block.Unit` to `Block.Key` and `tool.Unit` to `tool.Segment` with `gopls rename`. A
-   substring replace once produced `NotificaticompliantDrift` on main; this is a type-checked
-   rename.
-5. KBF moves to a v2 schema with editions (it is read by the npm `@neokapi/i18n-react`);
-   `@neokapi/contract-types` is regenerated.
+4. Rename `Block.Unit` to `Block.Key` and `tool.Unit` to `tool.Segment` with a type-checked
+   rename. A substring replace once produced `NotificaticompliantDrift` on main. The renames ran
+   through a tool that resolves every reference under every build configuration the repository
+   builds in, then counts the new name's references against the old one's, so a declaration that
+   captured part of a rename would fail it.
+5. KBF carries editions in schema 2.0 (it is read by the npm `@neokapi/i18n-react`): a block's
+   `editions` map holds the source under the empty key and every other edition, tone and channel
+   editions included, under its key text, each with `status`, `origin`, `score` and `derived`;
+   a translation filed under no language rides as `unlabelled`. Readers in Go (`core/kbf`) and
+   TypeScript (`@neokapi/kapi-format`) take schema 1.0 as well and read it as the editions it
+   describes, and writers write 2.0; a block row in the project block cache decodes from either
+   shape. `@neokapi/contract-types` is regenerated with no change, because it carries no KBF type.
 
 The plugin wire does not move. `BlockMessage.source/targets` has frozen field numbers and the Java
 okapi-bridge compiles it in 7 files (main-model §6.1). The plugin host maps `source` to the first
-native edition and `targets` to the rest, so okapi-bridge stays off the critical path. No request
-or response of `kapi.change/v1` changes.
+native edition and `targets` to the rest, each entry's locale the key's text form: the bare
+language for an edition with no tone and no channel, as the bridge reads it, and
+`en;channel=short` for a channel edition. okapi-bridge stays off the critical path. No request or
+response of `kapi.change/v1` changes.
 
-The decision ledger's pairing moves from text hashes (`core/state/state.go:27-46`) to revisions
-with the flip, in the same data reset as `decision.record`. Until the flip lands, `decide`'s
-`if_match` closes the time-of-check gap.
+The decision ledger pairs revisions since the flip: a record carries the revision of the edition
+it blesses and its basis. On a checkout they sit beside the two text hashes, and a reader grades a
+record by revision where it carries one and by hash where it was recorded before; no local data is
+reset (the local ledger and each view gain the two columns empty, store migration 8). Bowrain
+grades by revision alone, as if it had from the start (founder decision 2026-10-04: no reader for
+rows without revisions). A decision travels the sync wire as its two revisions and no hashes; every
+stored block carries `blocks.source_revision`, the revision of its source runs under the project's
+source language (`venue.SourceRevision`), stamped on every source write and independent of the
+translations a write carries; the status projection, the settle on a source write, the grouped
+tally in both stores, the draft mark, the review context's stale flag, push governance, edition
+writes, memory promotion, the ship verdict basis, the source settlement stamp, the write-back guard
+and a stream's diff against its parent all compare revisions; and a push's transfer hash folds the
+source revision (`venue.RecordHash`), so a change to an inline code alone is sent and retires a
+decision on the platform as it does on a checkout. A verdict that establishes a translation
+projects only on a current basis, and a rejection or withdrawal projects unless its basis is
+stale, so a rejection that names no basis (a translation written outside kapi) lowers the
+translation on both sides. PostgreSQL version 41 and the SQLite store's 36 add the column and drop
+`unit_decisions.target_hash` and `content_hash`; see the 1.3.0 checklist for what existing data
+loses.
+
+A source revision depends on the key it is taken under and readers disagree on that key: the
+change service and a flow take the source under the language a format declares (an ARB file's
+`@@locale`, an XLIFF file's source language), a project read under the project's source language,
+and a format that declares none under no language. On a checkout the source half is matched under
+every key a reader of the document gives it (`Block.SourceRevisions`). Bowrain takes every revision
+under the project's source language alone, and a push sends each basis it carries, of a decision or
+of an edition write, as that revision of the same source (`venue.Basis`, read off the block the
+push scans); a basis of other content travels as it is and reads stale on both sides. The record
+the platform grades is therefore the one the checkout reads as current, whichever key the
+checkout's reader took it under, and a record pulled from the platform names a revision every
+checkout reader accepts. A project's source language cannot change once its store holds content
+(`ErrSourceLanguageFixed` in both stores).
 
 ### 6.5 Names: Block, Key, Edition, and retiring "unit"
 
@@ -1152,9 +1219,9 @@ with the flip, in the same data reset as `decision.record`. Until the flip lands
 | MCP `extract_content` | `read_blocks` | 1.3.0 |
 | operation kind `unit.record` | `decision.record` | 1.3.0, with the data reset |
 | "content units" in prose and catalog strings (about 20 pages under `web/docs/kapi/`) | "blocks" | 1.3.0, before the walkthroughs are re-recorded |
-| `Block.Unit`, `tool.Unit`, `reconcile.Unit` | `Block.Key`, `tool.Segment`, `reconcile.Prior` | with the flip |
-| `VariantKey`, `Target` | `EditionKey`, `Edition` | with the flip |
-| the accessor `Block.Editions()` | `Block.EditionKeys()`, freeing the name for the field | with the flip, in the PR that adds the field |
+| `Block.Unit`, `tool.Unit`, `reconcile.Unit` | `Block.Key`, `tool.Segment`, `reconcile.Prior` | done with the flip, with `Block.ChainUnit` to `ChainKey` and the `tool.Unit` family (`WritableUnit`, `SourceUnits`, `TargetUnits`) to `Segment` |
+| `VariantKey`, `Target` | `EditionKey`, `Edition` | done with the flip |
+| the accessor `Block.Editions()` | `Block.EditionKeys()`, freeing the name for the field | done with the flip |
 | C-04 "Unit state and decisions" | "Block state and decisions", slug redirected in `web/docusaurus.config.ts` | with the 1.3.0 docs |
 
 The rule behind the split: names that people and agents see move once, inside the 1.3.0 break
@@ -2016,66 +2083,123 @@ beside all of them in package-sized PRs.
 - **Moves:** every consumer of `Block.Source`, `Block.Targets`, `Target` and `VariantKey`: 1,248
   type-checked non-test uses in 260 files across 84 packages, about 629 test files, the canonical
   proto, KBF, about 79 TypeScript files and the Bowrain DTOs (main-model §6.1).
-- **Contents:** the steps of section 6.4: accessors (`Edition`, `SetEdition`, `Editions`,
+- **Contents:** the steps of section 6.4: accessors (`Edition`, `SetEdition`, `EditionKeys`,
   `Authoritative`) with WP1; callers migrated package by package, each PR green; `Editions`,
-  `Native` and `Derivation` replace `Source` and `Targets` in one PR once no caller remains, and
-  that PR renames the accessor `Editions()` to `EditionKeys()` so the field can take its name;
-  `Block.Unit` to `Block.Key`, `tool.Unit` to `tool.Segment`, `reconcile.Unit` to `reconcile.Prior`,
-  `VariantKey` to `EditionKey`, `Target` to `Edition` by `gopls rename`; KBF v2 with
+  `Native` and `Derivation` replace `Source`, `Targets` and `SourceStatus`, and the accessor
+  `Editions()` became `EditionKeys()` so the field could take its name; `Block.Unit` to
+  `Block.Key`, `tool.Unit` to `tool.Segment`, `reconcile.Unit` to `reconcile.Prior`,
+  `VariantKey` to `EditionKey` and `Target` to `Edition` by a type-checked rename; KBF v2 with
   `@neokapi/i18n-react` and `@neokapi/contract-types` regenerated; the decision pairing on
-  revisions (data reset). The plugin wire keeps its field numbers; the plugin host maps `source` to
-  the first native edition and `targets` to the rest.
-- **Inventory:** `make fieldguard` runs `scripts/fieldguard`, which type-checks every module in
+  revisions, read beside the hashes of every record written before it. The plugin wire keeps its
+  field numbers; the plugin host maps `source` to the first native edition and `targets` to the
+  rest. Done; what is left is listed under **Open, for the release** and **Open after the flip**.
+- **Gate:** `make fieldguard` runs `scripts/fieldguard`, which type-checks every module in
   `go.work` and the plugin modules under `plugins/`, with their tests, under each build
   configuration that builds one of their files (the host with every test tag, js/wasm, windows,
-  linux without cgo). It counts each identifier outside `core/model` that resolves to
-  `Block.Source`, `Block.Targets`, `Block.SourceStatus`, the type `model.Target`, or a `core/model`
-  function whose signature carries a `Target` (`NewTarget`, `Block.Target`, `Block.SetTarget` and
-  the variant forms), per package and module, non-test and test separately. A field of another type
-  with the same name resolves to a different object and is not counted. `core/plugin/protoconvert`
-  is allowed as the plugin-wire mapping. The uses of the helpers `core/model` exports for tests
-  (`Block.FileTargetAsSpelled`) are counted on their own lines, and a use outside a `_test.go` file
-  fails the target in every mode, in the allowed package too. Otherwise the target prints the
-  inventory and exits 0; `-v` lists every use and `-format markdown` or `json` renders it for a
-  report. The flip PR drops `-report`, so a remaining use of a field, the type, a function or a
-  test-only helper fails, and adds the target to `make lint`, `make pre-push` and CI. On
-  2026-10-03 it counted 372 non-test uses in 113 files across 49 packages, and 759 test uses in 207
-  files across 54 packages. On 2026-10-04, with step 2 of section 6.4 done, it counts no use outside
-  `core/model` and the plugin-wire mapping, in code or in tests. The mapping keeps 14 test uses, and
-  three tests call `Block.FileTargetAsSpelled`.
-- **Acceptance:** no reference to `Block.Source` or `Block.Targets` remains outside the plugin-wire
-  mapping (`scripts/fieldguard` without `-report` passes); every suite of every module passes; the
-  content-parity round trip (model, proto, store) holds; okapi-bridge parity passes through the
-  mapping; a same-language channel edition (`en;channel=short`) round-trips; `make l10n` and the
-  KBF consumers in `packages/` pass.
-- **Open, for the flip:**
-  - The script tool's pass-through (`blockToJS` in `core/tools/script.go`) lists
-    `TargetLocales()`, which includes the locale of a tone or channel edition. On a block whose
-    only same-language edition is `en-US;channel=short`, `emit(part)` fails with
-    `set_content refused: stale`; on a block whose only `fr` edition is `fr;tone=formal`, it adds
-    an empty plain `fr` target. Both predate the caller migration. Listing only locale-only
-    targets in `blockToJS` fixes both.
-  - The KBF, xcstrings and Qt TS readers file a translation with no language under the zero key
-    (`SetTargetRuns("")`), `Block.TargetEdition("")` reads it, and `Block.EachTargetEdition`
-    yields it beside the other targets. The flip decides where such a translation lives, so that
-    the zero key never writes the native edition.
-  - `Block.CopyEditionSet`, which `core/change` uses to keep a block as a change left it, shares
-    each target with the original and holds the source status as a value of its own. Once the
-    source edition sits in the same map as the others, a cloned map shares it too. The flip either
-    copies the authoritative edition in `CopyEditionSet` or shows that no caller changes it on one
-    copy only.
-  - `Block.FileTargetAsSpelled` files a target under a key that is not canonical (`nb_NO`), the
-    state a direct write to the storage leaves, for the tests of consumers that must cope with it.
-    `make fieldguard` fails on a call to it outside a test. The flip removes it: a test then
-    writes `b.Editions[key]` directly.
-  - `gopls rename` changes identifiers, and comments that name the type in plain text, in Go and
-    in TypeScript, keep the old name. Under `bowrain/`, `apps/` and `packages/`,
-    `git grep -nP '\bmodel\.Target\b|\bTarget\.Status\b'` listed 24 such comments in 17 files on
-    2026-10-04, each describing the review status of a locale's translation. The one in
-    `bowrain/apps/bowrain/backend/project.go` is copied into the Bowrain desktop bindings, so
-    `make wails-bindings` follows the sweep. The model diagram story in
-    `packages/docs-shared/src/diagram/Diagrams.stories.tsx` draws `Source` and `Targets` as the
-    block's fields.
+  linux without cgo). It counts each identifier outside `core/model` that resolves to the storage
+  fields `Block.Editions` or `Block.Native`, per package and module, non-test and test
+  separately, and fails on a use outside a test; a test may write the storage to plant a state no
+  accessor produces, such as an edition filed under `nb_NO`. A field of another type with the same
+  name resolves to a different object and is not counted. No package is exempt: the plugin-wire
+  mapping in `core/plugin/protoconvert` reaches the editions through the accessors too. The target
+  is in `make lint`, `make pre-push` and the Repo guards job, which installs the GTK 4 and
+  WebKitGTK headers the desktop modules type-check against on Linux. On 2026-10-04, after the flip, it counts no use outside a test and three in
+  tests (`core/editor`, `core/tools`, `core/venue`).
+- **Acceptance:** no reference to `Block.Source` or `Block.Targets` remains (the fields are gone);
+  every suite of every module passes; the content-parity round trip (model, proto, store) holds,
+  the kitchen-sink block carrying `en;channel=short`; okapi-bridge parity passes through the
+  mapping; a same-language channel edition round-trips through the model, the plugin wire, both
+  sync wires, the PostgreSQL and SQLite stores, the document cache, the change service and a KBF
+  bundle, which carries it under its own key beside the source and writes no plain target in the
+  source language for it; a bundle in schema 1.0 reads as the editions it describes; `make l10n`
+  and the KBF consumers in `packages/` pass.
+- **Settled by the flip:**
+  - The script tool's `blockToJS` lists only the editions with no tone and no channel that the
+    target accessors reach, so a pass-through script keeps `en-US;channel=short` and
+    `fr;tone=formal` as they were.
+  - A translation a reader files under no language sits apart from `Editions`, where
+    `SetTargetRuns("")` writes it and `TargetEdition("")` reads it, so the zero key never writes
+    the native edition (section 6.2). Its overlays sit apart with it: the Qt TS reader files the
+    numerus spans of such a translation through `SetTargetSegmentation("")`, and the TS writer,
+    the XLIFF segment views, XLIFF 2 marks and the per-segment tool view read a translation's
+    segmentation through `TargetSegmentation(locale)`, never the source's.
+  - Forge delivery copies each stored block with `CopyEditionSet` before it promotes a locale's
+    translation into the source position, so every delivered locale carries its own translation.
+  - `Block.CopyEditionSet` gives the copy its own entry for the edition the block was read in, so
+    the copy holds that edition's status as a value of its own.
+  - `Block.FileTargetAsSpelled` is gone; a test writes `b.Editions[key]` directly.
+  - The comments that named `model.Target` name `model.Edition`, the Bowrain desktop bindings
+    follow, and the model diagram story draws `Editions` and `Native`.
+- **Settled by KBF v2:**
+  - The KBF format reader files every edition a bundle holds on the block, marked native, with its
+    status, origin, score and derivation, and the writer writes every edition the block holds; the
+    v1 boundary mapping (locale-only targets, the annotation's copy of a `""` target) is gone, and
+    a block from another format keeps its translation filed under no language.
+  - The Bowrain block-store projection (`toKBF`, `fromKBF`) carries every edition under its key,
+    so a tone or channel edition keeps a key of its own beside its language's plain edition.
+  - `neokapi-i18n compile` infers the languages to emit from language-only edition keys; a tone
+    or channel edition compiles only when `--locale` names it. The review store writes an edited
+    catalog back in schema 2.0.
+  - The Go and TypeScript serializers write the same bytes for every edition shape and for a
+    schema 1.0 file (`packages/kapi-format/tests/editions.test.ts` over the format fixtures,
+    `make kbf-smoke`, the `/kbf-tests` conformance page).
+  - An edition key Go cannot hold (a dimension other than tone and channel, a dimension twice or
+    empty, no language) is read by `kbf.ReadKey` as an error, never as the shorter key its text
+    would leave. The KBF reader keeps such an edition on its annotation and the writer writes it
+    back unchanged, the Bowrain projection refuses a block that holds one, and block text search
+    leaves it out.
+  - A derivation from the source is written `"from": ""` whatever key the model knows the
+    source by, so a same-language edition keeps its language as its key.
+  - The KBF writer names the project of the bundle the blocks were read from, and otherwise the
+    source language the blocks or their layer carry.
+  - A push stops before sending anything when a file its scope covers cannot be read, and leaves
+    a file no format reads out of the scope it declares, since the venue takes a file the scope
+    covers and the declared tree omits as deleted.
+  - The review store records a reviewer's edit as a person's: `translated`, a human origin, the
+    producer's score, no derivation (`core/change.Consequences`).
+  - `@neokapi/kapi-format` and `@neokapi/i18n-react` are 3.0.0, the major that reads and writes
+    schema 2, documented as the pair for kapi 1.3.0.
+- **Open, for the release:**
+  - The kapi and plugin releases cut before this change cannot read a schema 2 catalog, and
+    their push declares such a catalog empty. `dogfood-sync.yml` stops after extraction when the
+    pinned kapi cannot read the catalogs, so the pin moves to the first release that carries
+    this change, cut together with the npm 3.0.0 pair; the workflow stays disabled until then.
+  - A 2.0.x of `@neokapi/i18n-react` that refuses a catalog of an unknown schema major, built
+    from the 2.0.0 tag, would turn a silent empty compile into an error for users who do not
+    upgrade.
+- **Open after the flip:**
+  - KBF v2 carries `Edition.Derived`; the sync wires and the stores do not: the change service
+    records it in process, and the block history holds the basis of each write. `Native` stays
+    process-local by design (the kitchen-sink guard lists it as derived: a reader records it each
+    time it reads the file).
+  - A push sends each basis under the recipe's source language and Bowrain stamps every source
+    revision under the project's (`projects.default_source_language`, fixed once the project
+    holds content). The two are one language by contract; a project whose recipe names another
+    language than the server's reads every platform decision stale and re-sends every block on
+    each push, and nothing checks that the two agree.
+  - The content memory keeps its pairs by language. Pairing a `from` and a `to` edition waits for
+    a reader or a tool that produces a tone or channel edition.
+  - `edit.Classify` is unchanged: it compares the source a content-memory pair holds with the
+    source in hand. The record absorber writes that pair from the source at the basis revision,
+    which it recovers from the block store by revision under every key a reader gives the source,
+    and it writes no pair whose basis revision the store no longer holds. Classifying against the
+    text at `Derived.Rev` directly waits for a store that keeps `Derived`.
+  - The staleness gate reads a translation's latest write rather than the write that left the
+    revision on disk (the list after 1.3.0 from WP7 and WP8), so it does not pair either.
+  - The project authority policy (section 6.3). Every `Authoritative` call passes
+    `AuthorityPolicy{}`, the engine's rule, and none passes the recipe's source language. The two
+    agree while a block's `SourceLocale` is the recipe's source language. They differ for a
+    bilingual file whose own source language is not the recipe's, where section 6.3 makes the
+    project's language authoritative.
+  - No change-contract address names the translation filed under no language, so a transform
+    tool's edit plan that rewrites every locale `TargetLocales` lists (span-classify among them)
+    is refused on a block that holds one ("a target in , the block's source language"). Either
+    the tool views leave that translation out, as the script tool's view does for tone and
+    channel editions, or the contract gains an address for it.
+  - A plugin peer that reads `TargetEntry.locale` as a language tag maps a tone or channel key
+    to a tag of its own (the Okapi bridge gives `und` for `fr;tone=formal`). The writer path
+    matches the locale it writes, so only a step that returns the block, today the parity
+    harness alone, would bring such an edition back under another key.
 
 ### WP13. Close-out
 
@@ -2114,7 +2238,28 @@ All of these hold before the 1.3.0 tag:
 11. User and agent surfaces say block and edition; "unit" is gone from them.
 12. ADs describe the result, and the affected walkthroughs are re-recorded.
 13. `model.Block` holds peer editions (`Editions`, `Native`, `Derivation`), `Block.Key` replaces
-    `Block.Unit`, KBF is v2, and the decision pairing uses revisions (WP14).
+    `Block.Unit`, KBF is v2, and the decision pairing uses revisions (WP14). Done on the engine, the
+    checkouts and Bowrain, which grades its ledger by revision alone (section 6.4). Bowrain's
+    PostgreSQL version 41 drops the hash pairing of every stored decision, clears every draft mark
+    and leaves every stored block without a source revision until its source is written again.
+    Until then a decision that names a basis reads stale and one that names none reads as basis
+    unknown, a convergence run in that window drafts the stale units again, and a push that lowers
+    an established translation reads as an edit and is not held to review permission. Every
+    checkout's recorded ref names a decisions fold the server no longer computes, so a checkout's
+    first push after the deploy is refused until it pulls, and after a reset each checkout deletes
+    `.kapi/work/cache/refs.json`. The first push that lands re-sends every block, which stamps
+    each source revision, logs a source change for every block and demotes every approval whose
+    basis is not that revision. A checkout's approval since version 40 of a translation the
+    platform holds comes back on the same push, which re-sends the checkout's decisions with each
+    basis as the platform's revision; the platform's own approvals at version 40, taken under no
+    key, stay demoted. The dogfood project is reset when the server that carries it is deployed.
+    The server and the `kapi-bowrain` that pushes to it move together: a client and a server on
+    either side of the change fold the transfer hash differently and send every block on every
+    push, a client built before revisions sends decisions that name no basis, and one built before
+    this change sends a basis under its reader's key, which the platform reads stale for a file
+    that declares its own language. KBF v2 ships with the `@neokapi/kapi-format` and
+    `@neokapi/i18n-react` 3.0.0 pair and a kapi release that reads schema 2 (WP14, "Open, for the
+    release").
 
 **Cut lines**, in the order they would be cut if 1.3.0 runs late: WP12 (key-value structure), then
 `mark` (keep `set_attribute`), then local reconciliation on read (ship identity evidence only). None of

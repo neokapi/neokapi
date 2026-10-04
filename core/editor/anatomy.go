@@ -438,7 +438,7 @@ func blockNode(b *model.Block) *ContentNode {
 	// a key that Edition does not reach (a target stored under a non-canonical
 	// key); the view leaves that edition out rather than show it empty.
 	auth := b.Authoritative(model.AuthorityPolicy{})
-	for _, key := range b.Editions() {
+	for _, key := range b.EditionKeys() {
 		if key == auth {
 			continue
 		}
@@ -457,9 +457,9 @@ func blockNode(b *model.Block) *ContentNode {
 	return n
 }
 
-// variantLabel renders a VariantKey as its wire/text form (locale, or
+// variantLabel renders an EditionKey as its wire/text form (locale, or
 // "locale;tone=…;channel=…"), matching the key used for Targets/TargetMeta.
-func variantLabel(k model.VariantKey) string {
+func variantLabel(k model.EditionKey) string {
 	b, err := k.MarshalText()
 	if err != nil {
 		return string(k.Locale)
@@ -498,9 +498,9 @@ func overlayViews(b *model.Block) []OverlayView {
 		// rendered separately by annotationViews via AnnoMap.
 		side := "source"
 		runs := src.Runs
-		if o.Variant != nil {
-			side = variantLabel(*o.Variant)
-			if e, ok := b.Edition(*o.Variant); ok {
+		if !o.Edition.IsZero() {
+			side = variantLabel(o.Edition)
+			if e, ok := b.Edition(o.Edition); ok {
 				runs = e.Runs
 			}
 		}

@@ -318,9 +318,9 @@ func (a *App) keptTargetBlocks(ctx context.Context, u VerifyUnit) ([]*model.Bloc
 	if err != nil {
 		return nil, false, fmt.Errorf("read source %s: %w", u.SourcePath, err)
 	}
+	fileUnderSource(blocks, model.LocaleID(a.SourceLocale()))
 	found := false
 	for _, b := range blocks {
-		b.SourceLocale = model.LocaleID(a.SourceLocale())
 		ed, ok := kept[change.BlockKey(b)]
 		if !ok || !model.RunsHaveContent(ed.Runs) {
 			continue

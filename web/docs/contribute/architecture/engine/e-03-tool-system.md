@@ -318,36 +318,40 @@ A bilingual tool comparing `[fr, de]` calls `block.Text("fr")` and
 `SourceText()` and `TargetText(locale)` remain available when a tool specifically
 needs the source-anchored skeleton.
 
-#### Units: one iterator over segmented and unsegmented blocks
+#### Segments: one iterator over segmented and unsegmented blocks
 
 A segment is a span in the segmentation overlay rather than a structural type
 ([F-02](../foundations/f-02-content-model.md)), so a tool that works per segment
 would otherwise repeat the same branch: iterate the spans when a segmentation
-overlay exists, treat the whole block as one unit when none does, and map each
-per-unit write back into the right run range. The tool views (`core/tool/view.go`)
-carry that branch once:
+overlay exists, treat the whole block as one segment when none does, and map
+each per-segment write back into the right run range. The tool views
+(`core/tool/view.go`) carry that branch once:
 
 ```go
 type BlockView interface {
-    // SourceUnits yields the source units of the given segmentation layer
-    // (LayerPrimary = primary), or one whole-block unit when none is present.
-    SourceUnits(layer string) iter.Seq[Unit]
+    // SourceSegments yields the source segments of the given segmentation
+    // layer (LayerPrimary = primary), or one whole-block segment when none is
+    // present.
+    SourceSegments(layer string) iter.Seq[Segment]
 }
 
 type VariantView interface {
     BlockView
-    // TargetUnits yields writable per-unit target production over the source
-    // segmentation of the given layer, splicing each unit's runs back into the
-    // block at the unit's range and preserving ignorable spans verbatim.
-    TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit]
+    // TargetSegments yields writable per-segment target production over the
+    // source segmentation of the given layer, splicing each segment's runs back
+    // into the block at the segment's range and preserving ignorable spans
+    // verbatim.
+    TargetSegments(loc model.LocaleID, layer string) iter.Seq[WritableSegment]
 }
 ```
 
 Reads reuse `Anchor.ExtractRuns`; writes use the inverse splice, which respects
-half-open ranges and `Span.Ignorable()`. A tool that wants the whole block keeps
-using `SourceRuns()`; a tool that wants units opts into `SourceUnits("")`, on any
-side and any named layer, and pairs naturally with the `alignment` overlay for
-source-to-target unit correspondence.
+half-open ranges and `Span.Ignorable()`. A segment reads a translation's text
+through that translation's own segmentation (`Block.TargetSegmentation`), never
+the source's. A tool that wants the whole block keeps using `SourceRuns()`; a
+tool that wants segments opts into `SourceSegments("")`, on any side and any
+named layer, and pairs naturally with the `alignment` overlay for
+source-to-target segment correspondence.
 
 #### Stand-off types and the payload registry
 
@@ -788,7 +792,7 @@ type makes the wrong writes unrepresentable.
 - **Target-producing** tools (`translate`, `recycle`, `create-target`) set
   `Produce` and write targets; source stays read-only.
 - **Transformers** (redaction, normalization, case and encoding conversion) are
-  the only tools that rewrite `Block.Source`, and they never do so directly. A
+  the only tools that rewrite the edition a block was read in, and they never do so directly. A
   transformer is a read-only **edit producer**: it inspects the block and returns
   an *edit plan*: a set of structured `model.RunEdit`s (a span → replacement
   map), in-place text edits that keep the inline codes, structure and run flags

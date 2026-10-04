@@ -8,7 +8,6 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	fwmemory "github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
@@ -62,25 +61,36 @@ func newBasisFixture(t *testing.T) basisFixture {
 	// unrecorded unit gets no record at all.
 	_, err = cs.UpsertUnitDecisions(ctx, projectID, "main", []venue.UnitDecision{
 		{
-			ItemName:    "ui.json",
-			Unit:        "stale",
-			Variant:     "fr",
-			TargetHash:  state.TargetHash("Sélecteur de couleur"),
-			ContentHash: state.SourceHash("Colour picker (the wording before the fix)"),
-			Updated:     "2026-01-01T00:00:00Z",
+			ItemName: "ui.json",
+			Unit:     "stale",
+			Variant:  "fr",
+			Revision: frRevision("Sélecteur de couleur"),
+			Basis:    srcRevision("Colour picker (the wording before the fix)"),
+			Updated:  "2026-01-01T00:00:00Z",
 		},
 		{
-			ItemName:    "ui.json",
-			Unit:        "fresh",
-			Variant:     "fr",
-			TargetHash:  state.TargetHash("Supprimer le compte"),
-			ContentHash: state.SourceHash(basisFreshSource),
-			Updated:     "2026-01-01T00:00:00Z",
+			ItemName: "ui.json",
+			Unit:     "fresh",
+			Variant:  "fr",
+			Revision: frRevision("Supprimer le compte"),
+			Basis:    srcRevision(basisFreshSource),
+			Updated:  "2026-01-01T00:00:00Z",
 		},
 	})
 	require.NoError(t, err)
 
 	return basisFixture{db: db, cs: cs, projectID: projectID, item: "ui.json"}
+}
+
+// srcRevision is the revision of a plain-text source as the store stamps it
+// for the fixture's project, written in English.
+func srcRevision(source string) string {
+	return venue.SourceRevision(model.NewBlock("", source), "en")
+}
+
+// frRevision is the revision of a plain-text French translation.
+func frRevision(target string) string {
+	return model.RunsRevision(model.Variant("fr"), []model.Run{model.TextR(target)})
 }
 
 func basisBlock(id, source, target string) *model.Block {
@@ -231,8 +241,8 @@ func TestRecordProducedBasis(t *testing.T) {
 		Unit:        "fresh",
 		Variant:     "fr",
 		Status:      string(model.TargetStatusEstablished),
-		TargetHash:  state.TargetHash("Supprimer le compte"),
-		ContentHash: state.SourceHash(basisFreshSource),
+		Revision:    frRevision("Supprimer le compte"),
+		Basis:       srcRevision(basisFreshSource),
 		ReviewState: "approved",
 		DecidedBy:   "reviewer-1",
 		Updated:     "2026-02-01T00:00:00Z",
@@ -256,9 +266,9 @@ func TestRecordProducedBasis(t *testing.T) {
 	}
 
 	require.Contains(t, records, "unrecorded")
-	assert.Equal(t, state.SourceHash(basisUnrecordedSource), records["unrecorded"].ContentHash,
+	assert.Equal(t, srcRevision(basisUnrecordedSource), records["unrecorded"].Basis,
 		"the pass records the source it translated from")
-	assert.Equal(t, state.TargetHash("Enregistrer"), records["unrecorded"].TargetHash)
+	assert.Equal(t, frRevision("Enregistrer"), records["unrecorded"].Revision)
 	assert.Empty(t, records["unrecorded"].Status, "a basis claims no rung")
 	assert.Empty(t, records["unrecorded"].ReviewState, "a basis is not a decision")
 
@@ -322,7 +332,7 @@ func TestWorkerRecordsTheBasisOfWhatItDrafts(t *testing.T) {
 		records[d.Unit] = d
 	}
 	require.Contains(t, records, "stale")
-	assert.Equal(t, state.SourceHash(basisStaleSource), records["stale"].ContentHash,
+	assert.Equal(t, srcRevision(basisStaleSource), records["stale"].Basis,
 		"the re-draft's basis is the source it was made from")
 	assert.NotContains(t, records, "unrecorded",
 		"the pass wrote nothing for that unit, so it claims nothing about it")
@@ -345,8 +355,8 @@ func (f basisFixture) decideStaleUnit(t *testing.T) {
 		Unit:        "stale",
 		Variant:     "fr",
 		Status:      string(model.TargetStatusEstablished),
-		TargetHash:  state.TargetHash("Sélecteur de couleur"),
-		ContentHash: state.SourceHash("Colour picker (the wording before the fix)"),
+		Revision:    frRevision("Sélecteur de couleur"),
+		Basis:       srcRevision("Colour picker (the wording before the fix)"),
 		ReviewState: "approved",
 		DecidedBy:   "reviewer-1",
 		Updated:     "2026-02-01T00:00:00Z",
@@ -376,7 +386,7 @@ func TestDecisionLedger_NeedsDraft_DraftedStaleUnitWaitsOnReview(t *testing.T) {
 	assert.Equal(t, 1, est.Totals.Pending, "the quote prices the re-draft")
 
 	require.NoError(t, f.cs.RecordDraftBases(ctx, f.projectID, "main", []store.DraftBasis{{
-		ItemName: f.item, Unit: "stale", Variant: "fr", SourceHash: state.SourceHash(basisStaleSource),
+		ItemName: f.item, Unit: "stale", Variant: "fr", Basis: srcRevision(basisStaleSource),
 	}}))
 	ledger = loadDecisionLedger(ctx, f.cs, f.projectID, "main")
 	assert.False(t, ledger.needsDraft(stored[basisStaleSource], "fr"),
@@ -384,8 +394,8 @@ func TestDecisionLedger_NeedsDraft_DraftedStaleUnitWaitsOnReview(t *testing.T) {
 	rec, ok := ledger[decisionUnitKey{item: f.item, unit: "stale", variant: "fr"}]
 	require.True(t, ok)
 	assert.Equal(t, "approved", rec.ReviewState, "the decision is still the reviewer's")
-	assert.Equal(t, state.SourceHash("Colour picker (the wording before the fix)"), rec.ContentHash)
-	assert.Equal(t, state.SourceHash(basisStaleSource), rec.draftBasis)
+	assert.Equal(t, srcRevision("Colour picker (the wording before the fix)"), rec.Basis)
+	assert.Equal(t, srcRevision(basisStaleSource), rec.draftBasis)
 
 	est, err = EstimateConvergence(ctx, f.cs, nil, nil, proj)
 	require.NoError(t, err)
@@ -455,7 +465,7 @@ func TestWorker_DraftsAStaleDecidedUnitOncePerSourceChange(t *testing.T) {
 		mark := ""
 		for _, d := range drafts {
 			if d.Unit == "stale" {
-				mark = d.SourceHash
+				mark = d.Basis
 			}
 		}
 		return rec, mark
@@ -469,9 +479,9 @@ func TestWorker_DraftsAStaleDecidedUnitOncePerSourceChange(t *testing.T) {
 	rec, mark := ledgerRow()
 	assert.Equal(t, "approved", rec.ReviewState, "the reviewer's decision stays on the row")
 	assert.Equal(t, "reviewer-1", rec.DecidedBy)
-	assert.Equal(t, state.SourceHash("Colour picker (the wording before the fix)"), rec.ContentHash,
+	assert.Equal(t, srcRevision("Colour picker (the wording before the fix)"), rec.Basis,
 		"the decision's basis is never written over")
-	assert.Equal(t, state.SourceHash(basisStaleSource), mark, "the draft is marked with the source it was made from")
+	assert.Equal(t, srcRevision(basisStaleSource), mark, "the draft is marked with the source it was made from")
 
 	second := runJob("job-redraft-2")
 	assert.Zero(t, second.TotalBlocks, "nothing is owed: the unit waits on a reviewer")
@@ -486,7 +496,7 @@ func TestWorker_DraftsAStaleDecidedUnitOncePerSourceChange(t *testing.T) {
 	third := runJob("job-redraft-3")
 	assert.Equal(t, 1, third.TotalBlocks, "a second rewrite is owed a second draft")
 	_, mark = ledgerRow()
-	assert.Equal(t, state.SourceHash("Colour picker, revised"), mark)
+	assert.Equal(t, srcRevision("Colour picker, revised"), mark)
 	fourth := runJob("job-redraft-4")
 	assert.Zero(t, fourth.TotalBlocks)
 }
@@ -503,8 +513,8 @@ func (f basisFixture) reject(t *testing.T, unit, source, target string) {
 		Unit:        unit,
 		Variant:     "fr",
 		Status:      string(model.TargetStatusDraft),
-		TargetHash:  state.TargetHash(target),
-		ContentHash: state.SourceHash(source),
+		Revision:    frRevision(target),
+		Basis:       srcRevision(source),
 		ReviewState: venue.ReviewStateRejected,
 		DecidedBy:   "reviewer-1",
 		Updated:     "2026-02-01T00:00:00Z",
@@ -517,7 +527,8 @@ func (f basisFixture) reject(t *testing.T, unit, source, target string) {
 
 // TestDecisionLedger_NeedsDraft_RejectedUnitOwesADraft pins the predicate on a
 // unit nothing has rewritten: the reviewer turned the translation down, so both
-// hashes still name what the row recorded and the basis alone reads as settled.
+// revisions still name what the row recorded and the basis alone reads as
+// settled.
 // The unit is owed a draft until the platform has made one since the rejection,
 // then it waits on the next verdict, and a second rejection owes one more.
 func TestDecisionLedger_NeedsDraft_RejectedUnitOwesADraft(t *testing.T) {
@@ -529,8 +540,8 @@ func TestDecisionLedger_NeedsDraft_RejectedUnitOwesADraft(t *testing.T) {
 	ledger := loadDecisionLedger(ctx, f.cs, f.projectID, "main")
 	rec, ok := ledger[decisionUnitKey{item: f.item, unit: "fresh", variant: "fr"}]
 	require.True(t, ok)
-	require.Equal(t, state.SourceHash(basisFreshSource), rec.ContentHash,
-		"the rejection moved neither hash: the row names the source the block holds")
+	require.Equal(t, srcRevision(basisFreshSource), rec.Basis,
+		"the rejection moved neither revision: the row names the source the block holds")
 	assert.True(t, ledger.needsDraft(stored[basisFreshSource], "fr"),
 		"a reviewer said the wording will not do, so the unit is work")
 
@@ -541,7 +552,7 @@ func TestDecisionLedger_NeedsDraft_RejectedUnitOwesADraft(t *testing.T) {
 	assert.Equal(t, 2, est.Totals.Pending, "the quote prices the stale unit and the refused one")
 
 	require.NoError(t, f.cs.RecordDraftBases(ctx, f.projectID, "main", []store.DraftBasis{{
-		ItemName: f.item, Unit: "fresh", Variant: "fr", SourceHash: state.SourceHash(basisFreshSource),
+		ItemName: f.item, Unit: "fresh", Variant: "fr", Basis: srcRevision(basisFreshSource),
 	}}))
 	ledger = loadDecisionLedger(ctx, f.cs, f.projectID, "main")
 	assert.False(t, ledger.needsDraft(stored[basisFreshSource], "fr"),
@@ -614,7 +625,7 @@ func TestWorker_DraftsARejectedUnitOncePerVerdict(t *testing.T) {
 		mark := ""
 		for _, d := range drafts {
 			if d.Unit == "fresh" {
-				mark = d.SourceHash
+				mark = d.Basis
 			}
 		}
 		return rec, mark
@@ -631,8 +642,8 @@ func TestWorker_DraftsARejectedUnitOncePerVerdict(t *testing.T) {
 	rec, mark := freshRow()
 	assert.Equal(t, venue.ReviewStateRejected, rec.ReviewState, "the verdict stays on the row")
 	assert.Equal(t, "reviewer-1", rec.DecidedBy)
-	assert.Equal(t, state.SourceHash(basisFreshSource), rec.ContentHash, "and its basis is never written over")
-	assert.Equal(t, state.SourceHash(basisFreshSource), mark, "the draft is marked with the source it was made from")
+	assert.Equal(t, srcRevision(basisFreshSource), rec.Basis, "and its basis is never written over")
+	assert.Equal(t, srcRevision(basisFreshSource), mark, "the draft is marked with the source it was made from")
 
 	second := runJob("job-rejected-2")
 	assert.Zero(t, second.TotalBlocks, "nothing is owed: the unit waits on the next verdict")

@@ -8,7 +8,13 @@ import {
   runsToCoded,
 } from "@neokapi/ui-primitives";
 import type { CodeRead, PathStep, RunPath, StructureRead } from "@neokapi/contract-types";
-import { isPlural, type PluralForm, type PluralRunWrapper, type Run } from "@neokapi/kapi-format";
+import {
+  isPlural,
+  sourceEditions,
+  type PluralForm,
+  type PluralRunWrapper,
+  type Run,
+} from "@neokapi/kapi-format";
 import { t } from "@neokapi/i18n-react/runtime";
 
 import type { EditionContent, EditionEdit } from "../../lib/changes";
@@ -272,7 +278,7 @@ function PluralBranches({
   // Every code a branch holds, so a token typed in any form resolves to it.
   const block = useMemo(
     () => ({
-      source: forms.flatMap((f) => branchRuns(structure.branches[f], codes)),
+      editions: sourceEditions(forms.flatMap((f) => branchRuns(structure.branches[f], codes))),
       placeholders: [],
     }),
     [forms, structure.branches, codes],

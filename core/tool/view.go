@@ -57,13 +57,13 @@ type BlockReader interface {
 	Translatable() bool
 	SourceLocale() model.LocaleID
 	Identity() *model.BlockIdentity
-	// ChainUnit is the block's durable identity across edits: what links its
-	// successive approved translations into one chain. See model.Block.ChainUnit.
+	// ChainKey is the block's durable identity across edits: what links its
+	// successive approved translations into one chain. See model.Block.ChainKey.
 	//
 	// A tool that needs to ask what this block said before needs this and not
 	// the ID, which is assigned per read. Exposed here rather than by handing
 	// out the block, so a view stays a view.
-	ChainUnit() string
+	ChainKey() string
 	PreserveWhitespace() bool
 
 	// Source (read-only).
@@ -74,12 +74,12 @@ type BlockReader interface {
 	SourceSegmentCount() int
 	SourceSegmentRuns(i int) []model.Run
 
-	// SourceUnits yields the source processing units of the given segmentation
-	// layer (model.LayerPrimary = primary): one per segment span, or a single
-	// whole-block unit when the layer has no segmentation overlay. It is the
-	// uniform replacement for hand-rolled SourceSegmentCount / SourceSegmentRuns
-	// loops.
-	SourceUnits(layer string) iter.Seq[Unit]
+	// SourceSegments yields the source processing segments of the given
+	// segmentation layer (model.LayerPrimary = primary): one per segment span,
+	// or a single whole-block segment when the layer has no segmentation
+	// overlay. It is the uniform replacement for hand-rolled
+	// SourceSegmentCount / SourceSegmentRuns loops.
+	SourceSegments(layer string) iter.Seq[Segment]
 
 	// Targets (read-only).
 	HasTarget(loc model.LocaleID) bool
@@ -97,8 +97,10 @@ type BlockReader interface {
 
 	// Overlays / annotations / properties (read side).
 	Overlays() []model.Overlay
-	SegmentationFor(variant *model.VariantKey) *model.Overlay
-	SegmentationLayerFor(variant *model.VariantKey, layer string) *model.Overlay
+	// SegmentationFor and SegmentationLayerFor read the segmentation on one
+	// edition, the zero key naming the edition the block was read in.
+	SegmentationFor(k model.EditionKey) *model.Overlay
+	SegmentationLayerFor(k model.EditionKey, layer string) *model.Overlay
 	// OverlaySpans returns the spans of the source-side overlay of the
 	// given type (term, entity, term-candidate, …), or nil. Read-only.
 	OverlaySpans(t model.OverlayType) []model.Span
@@ -119,8 +121,10 @@ type BlockReader interface {
 // OverlayWriter is the overlay-writing facet of a block view: positional,
 // run-anchored stand-off layers (segmentation, term, entity, qa, alignment).
 type OverlayWriter interface {
-	SetSegmentation(variant *model.VariantKey, spans []model.Span)
-	SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span)
+	// SetSegmentation and SetSegmentationLayer write the segmentation on one
+	// edition, the zero key naming the edition the block was read in.
+	SetSegmentation(k model.EditionKey, spans []model.Span)
+	SetSegmentationLayer(k model.EditionKey, layer string, spans []model.Span)
 	AddOverlay(o model.Overlay)
 	// AddOverlaySpan appends an overlay span (term, entity, …) to the
 	// source-side overlay of the given type, merging into the existing overlay. The
@@ -190,12 +194,12 @@ type TargetWriter interface {
 	RemoveTarget(loc model.LocaleID)
 	ClearTargets()
 
-	// TargetUnits yields writable per-unit target production over the source
-	// segmentation of the given layer (model.LayerPrimary = primary), splicing
-	// each unit's runs back into the block target for loc when iteration
-	// completes. Commit is all-or-nothing across non-ignorable units; see
-	// WritableUnit.
-	TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit]
+	// TargetSegments yields writable per-segment target production over the
+	// source segmentation of the given layer (model.LayerPrimary = primary),
+	// splicing each segment's runs back into the block target for loc when
+	// iteration completes. Commit is all-or-nothing across non-ignorable
+	// segments; see WritableSegment.
+	TargetSegments(loc model.LocaleID, layer string) iter.Seq[WritableSegment]
 }
 
 // blockView is the single concrete view; the handler field's parameter type
@@ -281,15 +285,6 @@ func (v *blockView) ref(key model.EditionKey) change.Ref {
 	return change.Ref{Block: v.b.ID, Edition: key}
 }
 
-// variantRef addresses the edition an overlay's variant names: the source when
-// nil.
-func (v *blockView) variantRef(variant *model.VariantKey) change.Ref {
-	if variant == nil {
-		return v.ref(model.EditionKey{})
-	}
-	return v.ref(*variant)
-}
-
 // setRuns replaces a target's runs, creating the target when absent.
 func (v *blockView) setRuns(key model.EditionKey, runs []model.Run, more ...change.Op) {
 	if v.err != nil {
@@ -358,7 +353,7 @@ func (v *blockView) MimeType() string               { return v.b.MimeType }
 func (v *blockView) Translatable() bool             { return v.b.Translatable }
 func (v *blockView) SourceLocale() model.LocaleID   { return v.b.SourceLocale }
 func (v *blockView) Identity() *model.BlockIdentity { return v.b.Identity }
-func (v *blockView) ChainUnit() string              { return v.b.ChainUnit() }
+func (v *blockView) ChainKey() string               { return v.b.ChainKey() }
 func (v *blockView) PreserveWhitespace() bool       { return v.b.PreserveWhitespace }
 
 func (v *blockView) SourceRuns() []model.Run             { return authoritative(v.b).Runs }
@@ -368,7 +363,7 @@ func (v *blockView) SourceSegmentation() *model.Overlay  { return v.b.SourceSegm
 func (v *blockView) SourceSegmentCount() int             { return v.b.SourceSegmentCount() }
 func (v *blockView) SourceSegmentRuns(i int) []model.Run { return v.b.SourceSegmentRuns(i) }
 
-func (v *blockView) SourceUnits(layer string) iter.Seq[Unit] { return sourceUnits(v.b, layer) }
+func (v *blockView) SourceSegments(layer string) iter.Seq[Segment] { return sourceSegments(v.b, layer) }
 
 func (v *blockView) HasTarget(loc model.LocaleID) bool         { return v.b.HasTarget(loc) }
 func (v *blockView) TargetLocales() []model.LocaleID           { return v.b.TargetLocales() }
@@ -384,17 +379,17 @@ func (v *blockView) Target(loc model.LocaleID) *model.Edition {
 
 // Overlays / annotations / properties (writable output surface).
 func (v *blockView) Overlays() []model.Overlay { return v.b.Overlays }
-func (v *blockView) SegmentationFor(variant *model.VariantKey) *model.Overlay {
-	return v.b.SegmentationFor(variant)
+func (v *blockView) SegmentationFor(k model.EditionKey) *model.Overlay {
+	return v.b.SegmentationFor(k)
 }
-func (v *blockView) SegmentationLayerFor(variant *model.VariantKey, layer string) *model.Overlay {
-	return v.b.SegmentationLayerFor(variant, layer)
+func (v *blockView) SegmentationLayerFor(k model.EditionKey, layer string) *model.Overlay {
+	return v.b.SegmentationLayerFor(k, layer)
 }
-func (v *blockView) SetSegmentation(variant *model.VariantKey, spans []model.Span) {
-	v.SetSegmentationLayer(variant, model.LayerPrimary, spans)
+func (v *blockView) SetSegmentation(k model.EditionKey, spans []model.Span) {
+	v.SetSegmentationLayer(k, model.LayerPrimary, spans)
 }
-func (v *blockView) SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span) {
-	v.apply(change.Op{Kind: change.KindAnnotate, At: v.variantRef(variant),
+func (v *blockView) SetSegmentationLayer(k model.EditionKey, layer string, spans []model.Span) {
+	v.apply(change.Op{Kind: change.KindAnnotate, At: v.ref(k),
 		Body: &change.Annotate{Type: string(model.OverlaySegmentation), Layer: layer, Spans: spans, Replace: true}})
 }
 func (v *blockView) AddOverlay(o model.Overlay) {
@@ -402,7 +397,7 @@ func (v *blockView) AddOverlay(o model.Overlay) {
 	if spans == nil {
 		spans = []model.Span{}
 	}
-	v.apply(change.Op{Kind: change.KindAnnotate, At: v.variantRef(o.Variant),
+	v.apply(change.Op{Kind: change.KindAnnotate, At: v.ref(o.Edition),
 		Body: &change.Annotate{Type: string(o.Type), Layer: o.Layer, Spans: spans}})
 }
 func (v *blockView) AddOverlaySpan(t model.OverlayType, s model.Span) {
@@ -494,13 +489,13 @@ func (v *blockView) StampTargetProvenance(loc model.LocaleID, status model.Targe
 	}
 	v.apply(v.provenance(key, model.Status(status), origin, nil))
 }
-func (v *blockView) TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit] {
-	return targetUnits(v, loc, layer)
+func (v *blockView) TargetSegments(loc model.LocaleID, layer string) iter.Seq[WritableSegment] {
+	return targetSegments(v, loc, layer)
 }
 func (v *blockView) RemoveTarget(loc model.LocaleID) { v.RemoveEdition(model.Variant(loc)) }
 func (v *blockView) ClearTargets() {
 	var ops []change.Op
-	for _, key := range v.b.Editions() {
+	for _, key := range v.b.EditionKeys() {
 		if v.b.IsSourceEdition(key) {
 			continue
 		}

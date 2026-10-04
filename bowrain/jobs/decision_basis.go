@@ -8,19 +8,19 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The basis of a target the platform holds, and the one question the producers
 // ask of it.
 //
-// A record in the decision ledger carries the SOURCE it was made against
-// (unit_decisions.content_hash). That is true of a reviewer's approval and of
-// the plain basis a producer writes when it puts a translation somewhere, so one
-// comparison answers for both: the recorded basis against the source hash the
-// block carries now. Equal means the translation renders the sentence the
-// project holds; different means the sentence has been rewritten under it.
+// A record in the decision ledger carries the SOURCE it was made against, by
+// revision (unit_decisions.basis). That is true of a reviewer's approval and of
+// the plain basis a producer writes when it puts a translation somewhere, so
+// one comparison answers for both: the recorded basis against the revision of
+// the source the block carries now (store.BasisStale). Equal means the
+// translation renders the source the project holds; different means the
+// source has changed under it, its wording or an inline code.
 //
 // Two boundaries hold the answer to the units the platform is entitled to speak
 // for, and they are the same two the local loop applies (host/basisrecord.go):
@@ -38,16 +38,16 @@ import (
 // the decision, the source the platform's latest draft was made against
 // (store.DraftBasis), and the producers read the two together: a stale unit is
 // owed a draft until that mark names the source the block holds now, and from
-// then on it waits on a reviewer. A source rewritten again moves the block's
-// hash away from the mark, and the unit is owed once more. The local loop gets
+// then on it waits on a reviewer. A source changed again moves the block's
+// revision away from the mark, and the unit is owed once more. The local loop gets
 // the same guarantee from its content memory, which absorbs the re-drafted
 // pairing and answers the next pass from it (host/recordabsorb.go).
 //
 // The mark carries the second question a producer has to ask as well. Comparing
-// the hashes answers "does this translation render the sentence the project
+// the revisions answers "does this translation render the source the project
 // holds", and it cannot answer "does the project stand behind it": a reviewer
-// rejecting a translation of the CURRENT source moves neither hash, so the row
-// reads exactly like a settled one. The verdict is therefore read beside the
+// rejecting a translation of the CURRENT source moves neither revision, so the
+// row reads exactly like a settled one. The verdict is therefore read beside the
 // basis, and a rejection clears the mark (server.reviewLedger.clearDraftBasis),
 // which is what buys such a unit exactly one more draft. Once the pass stamps
 // the mark again the unit waits on the next verdict, and a second rejection
@@ -103,7 +103,7 @@ func loadDecisionLedger(ctx context.Context, cs store.ContentStore, projectID, s
 	// work it cannot prove was done.
 	drafts, err := ds.ListDraftBases(ctx, projectID, stream)
 	if err != nil {
-		slog.WarnContext(ctx, "read the draft bases; this pass treats every stale unit as one it has not drafted",
+		slog.WarnContext(ctx, "read the draft bases; this pass treats every stale translation as one it has not drafted",
 			"project", projectID, "stream", stream, "error", err)
 		return index
 	}
@@ -113,14 +113,14 @@ func loadDecisionLedger(ctx context.Context, cs store.ContentStore, projectID, s
 		if !ok {
 			continue
 		}
-		rec.draftBasis = d.SourceHash
+		rec.draftBasis = d.Basis
 		index[key] = rec
 	}
 	return index
 }
 
 // record returns the ledger's record for a block's variant.
-func (l decisionLedger) record(sb *venue.StoredBlock, key model.VariantKey) (ledgerRecord, bool) {
+func (l decisionLedger) record(sb *venue.StoredBlock, key model.EditionKey) (ledgerRecord, bool) {
 	if len(l) == 0 || sb == nil || sb.SourceID == "" || sb.ItemName == "" {
 		return ledgerRecord{}, false
 	}
@@ -130,16 +130,16 @@ func (l decisionLedger) record(sb *venue.StoredBlock, key model.VariantKey) (led
 
 // needsDraft reports whether a locale still has work on this block. Three ways
 // a unit is owed one: it carries no target for the locale; it carries one whose
-// recorded basis names source wording the block no longer holds; or a reviewer
-// turned the translation down. The draft mark answers all three the same way,
-// because a unit the platform has already drafted against the source the block
-// holds now is waiting on a person whatever the row's verdict says.
+// recorded basis names a revision of the source other than the one the block
+// holds; or a reviewer turned the translation down. The draft mark answers all three the
+// same way, because a unit the platform has already drafted against the source
+// the block holds now is waiting on a person whatever the row's verdict says.
 //
 // The verdict is read beside the basis because a rejection of a translation of
-// the CURRENT source moves neither hash: the row records the source the block
-// still carries, and grading it alone reported the unit as settled while it sat
-// at `draft` with a reviewer's refusal on it, waiting for somebody to edit the
-// source before the loop would look at it again (#2564).
+// the CURRENT source moves neither revision: the row records the source the
+// block still carries, and grading it alone reported the unit as settled while
+// it sat at `draft` with a reviewer's refusal on it, waiting for somebody to
+// edit the source before the loop would look at it again (#2564).
 //
 // This is the predicate the recycle pass partitions on and the estimate prices
 // from, so a quote and the run it precedes describe the same set of units. The
@@ -153,10 +153,7 @@ func (l decisionLedger) needsDraft(sb *venue.StoredBlock, locale model.LocaleID)
 	if !hasLocaleTarget(sb.Block, locale) {
 		return true
 	}
-	current := blockSourceHash(sb)
-	if current == "" {
-		return false
-	}
+	current := sb.SourceRevision
 	auth := sb.Block.Authoritative(model.AuthorityPolicy{})
 	for key, t := range sb.Block.EachEdition {
 		if key.Locale != locale || key == auth {
@@ -171,7 +168,7 @@ func (l decisionLedger) needsDraft(sb *venue.StoredBlock, locale model.LocaleID)
 			// on a silence would discard somebody's work on a guess.
 			continue
 		}
-		if d.draftBasis == current {
+		if store.BasisCurrent(d.draftBasis, current) {
 			// Already drafted against the source the block holds now. Whatever
 			// the row carries, the unit is a reviewer's to move; another pass
 			// would change nothing but the bill. A rejection clears this mark,
@@ -181,9 +178,9 @@ func (l decisionLedger) needsDraft(sb *venue.StoredBlock, locale model.LocaleID)
 		if d.ReviewState == venue.ReviewStateRejected {
 			return true
 		}
-		if d.ContentHash == "" || d.ContentHash == current {
-			// No basis (a record made before one was tracked), or one naming
-			// the source the block still holds. Unknown is not stale, and
+		if !store.BasisStale(d.Basis, current) {
+			// A basis naming the source the block still holds, or none (a
+			// translation written outside kapi). Unknown is not stale, and
 			// reading it as stale would re-draft a translation on a silence.
 			continue
 		}
@@ -192,26 +189,9 @@ func (l decisionLedger) needsDraft(sb *venue.StoredBlock, locale model.LocaleID)
 	return false
 }
 
-// blockSourceHash is the source hash to grade a record against: the one the
-// store holds, falling back to the block's own source when a caller's store did
-// not stamp it. Both are model.ComputeContentHash of the source text, which is
-// the value a basis records (core/state.SourceHash).
-func blockSourceHash(sb *venue.StoredBlock) string {
-	if sb == nil {
-		return ""
-	}
-	if sb.ContentHash != "" {
-		return sb.ContentHash
-	}
-	if sb.Block == nil {
-		return ""
-	}
-	return model.ComputeContentHash(sb.Block.SourceText())
-}
-
-// variantText renders a VariantKey the way the ledger stores it ("fr",
+// variantText renders an EditionKey the way the ledger stores it ("fr",
 // "fr;tone=…").
-func variantText(k model.VariantKey) string {
+func variantText(k model.EditionKey) string {
 	b, err := k.MarshalText()
 	if err != nil {
 		return string(k.Locale)
@@ -269,8 +249,8 @@ func recordProducedBasis(
 		}
 		key := decisionUnitKey{item: sb.ItemName, unit: sb.SourceID, variant: variant}
 		prev, had := ledger[key]
-		basis := blockSourceHash(sb)
-		target := state.TargetHash(text)
+		basis := sb.SourceRevision
+		revision := model.RunsRevision(model.Variant(locale), localeTargetRuns(b, locale))
 		next := prev
 		if !had {
 			next.ItemName, next.Unit, next.Variant = sb.ItemName, sb.SourceID, variant
@@ -278,22 +258,22 @@ func recordProducedBasis(
 		switch {
 		case had && prev.ReviewState != "":
 			// Decided: the basis is the decision's. Only the draft mark moves.
-		case had && prev.ContentHash == basis && prev.TargetHash == target:
+		case had && prev.Basis == basis && prev.Revision == revision:
 			// Already recorded for this exact pairing.
 		default:
 			records = append(records, venue.UnitDecision{
-				ItemName:    sb.ItemName,
-				Unit:        sb.SourceID,
-				Variant:     variant,
-				TargetHash:  target,
-				ContentHash: basis,
-				Updated:     now,
+				ItemName: sb.ItemName,
+				Unit:     sb.SourceID,
+				Variant:  variant,
+				Revision: revision,
+				Basis:    basis,
+				Updated:  now,
 			})
-			next.ContentHash, next.TargetHash, next.Updated = basis, target, now
+			next.Revision, next.Basis, next.Updated = revision, basis, now
 		}
 		if !had || prev.draftBasis != basis {
 			drafts = append(drafts, store.DraftBasis{
-				ItemName: sb.ItemName, Unit: sb.SourceID, Variant: variant, SourceHash: basis,
+				ItemName: sb.ItemName, Unit: sb.SourceID, Variant: variant, Basis: basis,
 			})
 			next.draftBasis = basis
 		}
@@ -313,7 +293,7 @@ func recordProducedBasis(
 	}
 	if len(drafts) > 0 {
 		if err := ds.RecordDraftBases(ctx, projectID, stream, drafts); err != nil {
-			slog.WarnContext(ctx, "record the source this pass drafted against; the next pass may draft the same units again",
+			slog.WarnContext(ctx, "record the source this pass drafted against; the next pass may draft the same translations again",
 				"project", projectID, "stream", stream, "locale", string(locale), "records", len(drafts), "error", err)
 		}
 	}

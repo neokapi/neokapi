@@ -194,7 +194,7 @@ func translateUnit(text string) func(*model.Block) {
 	return func(b *model.Block) {
 		b.SetTargetText("fr", text)
 		key := model.Variant("fr")
-		b.SetSegmentation(&key, nil)
+		b.SetSegmentation(key, nil)
 	}
 }
 
@@ -246,7 +246,7 @@ func TestSkeletonPathWritesEachSegment(t *testing.T) {
 			edit: func(b *model.Block) {
 				old := b.SourceRuns()
 				b.EditSourceRuns(replaceInEditText(b.SourceRuns(), "utilize", "use"))
-				model.RemapOverlays(b, nil, old, b.SourceRuns(), []model.RunEdit{{
+				model.RemapOverlays(b, model.EditionKey{}, old, b.SourceRuns(), []model.RunEdit{{
 					Start: 0, End: len([]rune(model.RunsText(old))), NewLen: len([]rune(model.RunsText(b.SourceRuns()))),
 				}})
 			},

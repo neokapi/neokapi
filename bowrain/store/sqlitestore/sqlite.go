@@ -115,16 +115,27 @@ func (s *SQLiteStore) UpdateProject(ctx context.Context, p *platstore.Project) e
 	if p.DashboardVisibility == "" {
 		p.DashboardVisibility = "private"
 	}
+	// The source language stays while the project holds content: every
+	// source revision stamped on its blocks is taken under it
+	// (platstore.ErrSourceLanguageFixed).
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE projects SET name=?, default_source_language=?, target_languages=?, target_language_mode=?, default_stream=?, dashboard_visibility=?, properties=?, workspace_id=?, converge_policy=?, updated_at=?
-		 WHERE id=?`,
+		 WHERE id=? AND (default_source_language=? OR NOT EXISTS (SELECT 1 FROM blocks WHERE project_id=?))`,
 		p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, p.DashboardVisibility, string(propsJSON),
-		p.WorkspaceID, platstore.NormalizeConvergePolicy(p.ConvergePolicy), p.UpdatedAt.Format(time.RFC3339), p.ID)
+		p.WorkspaceID, platstore.NormalizeConvergePolicy(p.ConvergePolicy), p.UpdatedAt.Format(time.RFC3339), p.ID,
+		string(p.DefaultSourceLanguage), p.ID)
 	if err != nil {
 		return fmt.Errorf("update project: %w", err)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
+		var exists bool
+		if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM projects WHERE id=?)`, p.ID).Scan(&exists); err != nil {
+			return fmt.Errorf("update project: %w", err)
+		}
+		if exists {
+			return fmt.Errorf("update project %s: %w", p.ID, platstore.ErrSourceLanguageFixed)
+		}
 		return fmt.Errorf("project %s not found", p.ID)
 	}
 	return nil
@@ -703,7 +714,7 @@ func (s *SQLiteStore) SetBlockOrder(ctx context.Context, projectID, stream, item
 
 // storeBlocks writes blocks in one transaction. A non-nil wb makes it a
 // write-back of item-less blocks read from this store: a block is written only
-// to an existing row that still holds the content hash the caller read, and
+// to an existing row that still holds the source revision the caller read, and
 // every other block is recorded on wb as skipped with nothing written for it.
 // A write-back keeps the row's stored context hash, which is the producer's.
 func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block, wb *storeutil.WriteBack) error {
@@ -722,6 +733,15 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, stream, itemName string, blocks []*model.Block, wb *storeutil.WriteBack) error {
 	stream = storeutil.DefaultStream(stream)
 	var err error
+
+	// The language the project's source is written in, which every source
+	// revision the store stamps is taken under (venue.SourceRevision).
+	var sourceLanguage string
+	if err := tx.QueryRowContext(ctx, `SELECT default_source_language FROM projects WHERE id=?`, projectID).
+		Scan(&sourceLanguage); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("read the source language of project %s: %w", projectID, err)
+	}
+	source := model.LocaleID(sourceLanguage)
 
 	// When storing blocks for a specific item, map format-reader IDs (source_id)
 	// to internal project-unique IDs. Blocks stored without an item keep their
@@ -809,8 +829,8 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO blocks (id, project_id, stream, item_name, item_id, source_id, name, type, mime_type, translatable,
-			content_hash, context_hash, source_json, properties, overlays, word_count, stored_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			content_hash, context_hash, source_revision, source_json, properties, overlays, word_count, stored_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(project_id, stream, id) DO UPDATE SET
 			-- An item-less write (StoreBlocks, the editor saving one target)
 			-- carries no item, and must not be read as the block having lost the
@@ -820,8 +840,8 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 			item_id=CASE WHEN excluded.item_id <> '' THEN excluded.item_id ELSE blocks.item_id END,
 			name=excluded.name, type=excluded.type, mime_type=excluded.mime_type,
 			translatable=excluded.translatable, content_hash=excluded.content_hash,
-			context_hash=excluded.context_hash, source_json=excluded.source_json,
-			properties=excluded.properties, overlays=excluded.overlays,
+			context_hash=excluded.context_hash, source_revision=excluded.source_revision,
+			source_json=excluded.source_json, properties=excluded.properties, overlays=excluded.overlays,
 			word_count=excluded.word_count, updated_at=excluded.updated_at`)
 	if err != nil {
 		return fmt.Errorf("prepare stmt: %w", err)
@@ -832,19 +852,19 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 	if wb != nil {
 		guarded, err = tx.PrepareContext(ctx,
 			`UPDATE blocks SET name=?, type=?, mime_type=?, translatable=?, content_hash=?,
-				source_json=?, properties=?, overlays=?, word_count=?, updated_at=?
-			 WHERE project_id=? AND stream=? AND id=? AND content_hash=?`)
+				source_revision=?, source_json=?, properties=?, overlays=?, word_count=?, updated_at=?
+			 WHERE project_id=? AND stream=? AND id=? AND source_revision=?`)
 		if err != nil {
 			return fmt.Errorf("prepare write-back stmt: %w", err)
 		}
 		defer guarded.Close()
 	}
 
-	// Batch-load existing block hashes + existing target locales so
+	// Batch-load existing source revisions + existing target locales so
 	// we can diff against the new write for change-log purposes.
 	// Targets now live in the translations table (#403/#405); we
 	// query it directly here rather than parsing inline JSON.
-	existingHashes := map[string]string{}
+	existingRevisions := map[string]string{}
 	existingLocales := map[string]map[string]struct{}{}
 	{
 		// Bounded to the rows this call touches, mirroring the Postgres store:
@@ -876,7 +896,7 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 
 			// The concatenated fragment is ",?,?,…" from a count — never
 			// caller data; values travel as bind parameters below.
-			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=? AND stream=? AND id IN (?` + //nolint:gosec // placeholder list, not data
+			hashQuery := `SELECT id, source_revision FROM blocks WHERE project_id=? AND stream=? AND id IN (?` + //nolint:gosec // placeholder list, not data
 				strings.Repeat(",?", len(chunk)-1) + `)`
 			args := make([]any, 0, len(chunk)+2)
 			args = append(args, projectID, stream)
@@ -889,12 +909,12 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 			}
 			var present []string
 			for hashRows.Next() {
-				var bid, ch string
-				if err := hashRows.Scan(&bid, &ch); err != nil {
+				var bid, rev string
+				if err := hashRows.Scan(&bid, &rev); err != nil {
 					hashRows.Close()
-					return fmt.Errorf("scan hash: %w", err)
+					return fmt.Errorf("scan source revision: %w", err)
 				}
-				existingHashes[bid] = ch
+				existingRevisions[bid] = rev
 				present = append(present, bid)
 			}
 			hashRows.Close()
@@ -955,11 +975,11 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 		}
 
 		identity := model.ComputeIdentity(b)
+		sourceRevision := venue.SourceRevision(b, source)
 
-		existingHash, isExisting := existingHashes[internalID]
+		existingRevision, isExisting := existingRevisions[internalID]
 		isNew := !isExisting
-		_ = existingHash // used in change detection below
-		if wb != nil && !wb.Admits(internalID, isExisting, existingHash) {
+		if wb != nil && !wb.Admits(internalID, isExisting, existingRevision) {
 			continue
 		}
 
@@ -1005,7 +1025,7 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 		if wb != nil {
 			res, err := guarded.ExecContext(ctx,
 				b.Name, b.Type, b.MimeType, translatable,
-				identity.ContentHash,
+				identity.ContentHash, sourceRevision,
 				string(sourceJSON), string(propsJSON), string(overlaysJSON),
 				model.CountWordsInRunsJSON(string(sourceJSON)), now,
 				projectID, stream, internalID, wb.Base(internalID))
@@ -1019,7 +1039,7 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 		} else {
 			_, err = stmt.ExecContext(ctx,
 				internalID, projectID, stream, itemName, itemID, sourceID, b.Name, b.Type, b.MimeType, translatable,
-				identity.ContentHash, identity.ContextHash,
+				identity.ContentHash, identity.ContextHash, sourceRevision,
 				string(sourceJSON), string(propsJSON), string(overlaysJSON),
 				model.CountWordsInRunsJSON(string(sourceJSON)), now, now)
 			if err != nil {
@@ -1050,14 +1070,15 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 				}
 			}
 		} else {
-			if existingHash != identity.ContentHash {
+			if existingRevision != sourceRevision {
 				if err := logChange(ctx, tx, projectID, stream, internalID, "source_modified", "", identity.ContentHash); err != nil {
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
 				// The source half of every pairing this unit's decisions blessed
-				// has moved, so the projections are re-derived against the
-				// ledger — mirrors settleDecisionProjectionsPg exactly.
-				if err := settleDecisionProjections(ctx, tx, projectID, stream, internalID, identity.ContentHash); err != nil {
+				// has moved, its wording or an inline code, so the projections
+				// are re-derived against the ledger — mirrors
+				// settleDecisionProjectionsPg exactly.
+				if err := settleDecisionProjections(ctx, tx, projectID, stream, internalID, sourceRevision); err != nil {
 					return err
 				}
 			}
@@ -1105,7 +1126,7 @@ func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, stream, blockID s
 	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, overlays, stored_at, updated_at
+			source_revision, source_json, properties, overlays, stored_at, updated_at
 		 FROM blocks WHERE project_id=? AND stream=? AND id=?`, projectID, stream, blockID)
 	sb, err := scanStoredBlock(row)
 	if err != nil {
@@ -1259,7 +1280,7 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 	// Constant skeleton + rendered fragments carrying placeholders only; every
 	// value binds through args. Limit and offset are ints, formatted.
 	const skeleton = `SELECT b.id, b.project_id, b.item_name, b.source_id, b.name, b.type, b.mime_type, b.translatable,
-			b.content_hash, b.context_hash, b.source_json, b.properties, b.overlays, b.stored_at, b.updated_at
+			b.content_hash, b.context_hash, b.source_revision, b.source_json, b.properties, b.overlays, b.stored_at, b.updated_at
 		 FROM blocks b %s WHERE %s ORDER BY %s%s`
 	// A keyset page is walked by id, so it stays ordered by id whatever the
 	// caller asked for. The order and the reversal are the Postgres store's, so
@@ -1506,7 +1527,7 @@ func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, stream, blockI
 		if _, err := tx.ExecContext(ctx,
 			`DELETE FROM unit_decisions WHERE project_id=? AND stream=? AND item_id=? AND unit=?`,
 			projectID, stream, itemID, sourceID); err != nil {
-			return fmt.Errorf("delete unit decisions for block %s: %w", blockID, err)
+			return fmt.Errorf("delete the decisions on block %s: %w", blockID, err)
 		}
 	}
 
@@ -1726,7 +1747,7 @@ func scanStoredBlock(row scanner) (*venue.StoredBlock, error) {
 
 	err := row.Scan(
 		&sb.Block.ID, &sb.ProjectID, &sb.ItemName, &sb.SourceID, &sb.Block.Name, &sb.Block.Type,
-		&sb.Block.MimeType, &translatable, &sb.ContentHash, &sb.ContextHash,
+		&sb.Block.MimeType, &translatable, &sb.ContentHash, &sb.ContextHash, &sb.SourceRevision,
 		&sourceJSON, &propsJSON, &overlaysJSON, &storedStr, &updatedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan block: %w", err)

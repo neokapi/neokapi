@@ -31,7 +31,7 @@ limitations:
   - The subprocess must implement the NUL-separated-paths-in, NDJSON-blocks-out protocol; no other transport is supported.
   - There is no built-in writer; exec covers extraction only.
 processingNotes:
-  - The subprocess receives matched file paths on stdin as a NUL-separated list and emits one `block` record per translatable unit on stdout.
+  - The subprocess receives matched file paths on stdin as a NUL-separated list and emits one `block` record per piece of translatable content on stdout.
   - The launch command, working directory, and an optional timeout are taken from the collection's format configuration in the `.kapi` project.
   - Output lines that are not JSON objects are skipped, so the subprocess may interleave progress text on stdout.
 examples:

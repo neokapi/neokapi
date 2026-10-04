@@ -140,7 +140,7 @@ type Entry struct {
 	// a lookup measures nearness against.
 	Point string
 	// Unit is the durable block identity this answer was approved for
-	// (model.Block.Unit) — matched by reconciliation rather than named, so it
+	// (model.Block.Key) — matched by reconciliation rather than named, so it
 	// survives an edit that rewrites the source and a reorder that moves it.
 	//
 	// It is what turns the corpus into a version chain. Entries accumulate: a

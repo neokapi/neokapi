@@ -167,7 +167,7 @@ func doclangBlocks(t *testing.T, doc string) []*model.Block {
 	return out
 }
 
-func doclangKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcile.Result {
+func doclangKeys(blocks []*model.Block, prior []reconcile.Prior) map[string]reconcile.Result {
 	out := map[string]reconcile.Result{}
 	for _, r := range reconcile.Blocks(doclangIdentityScope, blocks, prior) {
 		out[r.Block.SourceText()] = r
@@ -175,8 +175,8 @@ func doclangKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]recon
 	return out
 }
 
-func doclangUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Unit {
-	var out []reconcile.Unit
+func doclangUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Prior {
+	var out []reconcile.Prior
 	for _, b := range blocks {
 		u := reconcile.Identify(doclangIdentityScope, b)
 		u.Key = res[b.SourceText()].Key

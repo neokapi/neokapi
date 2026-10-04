@@ -184,6 +184,33 @@ func TestDiffComparesContentRatherThanHistory(t *testing.T) {
 	assert.Equal(t, platstore.ChangeModified, diff.Changes[0].ChangeType)
 }
 
+// A branch that changes only a link in a source holds the same wording as its
+// parent and another source, and the diff reports the block modified.
+func TestDiffReportsAChangeToAnInlineCodeAlone(t *testing.T) {
+	s := newTestStore(t)
+	p := createTestProject(t, s)
+	ctx := t.Context()
+	require.NoError(t, s.StoreItem(ctx, p.ID, "main", &platstore.Item{Name: "en.json", Format: "json"}))
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json",
+		[]*model.Block{linkedBlock("guide", "the guide", "/v1/guide")}))
+	require.NoError(t, s.CreateStream(ctx, &platstore.Stream{
+		ProjectID: p.ID, Name: "feature", Parent: "main",
+	}))
+
+	diff, err := s.DiffStream(ctx, p.ID, "feature")
+	require.NoError(t, err)
+	assert.Empty(t, diff.Changes)
+
+	moved := linkedBlock("guide", "the guide", "/v2/guide")
+	require.Equal(t, linkedBlock("guide", "the guide", "/v1/guide").SourceText(), moved.SourceText())
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "feature", "en.json", []*model.Block{moved}))
+
+	diff, err = s.DiffStream(ctx, p.ID, "feature")
+	require.NoError(t, err)
+	require.Len(t, diff.Changes, 1, "the link moved on the branch")
+	assert.Equal(t, platstore.ChangeModified, diff.Changes[0].ChangeType)
+}
+
 func TestMergeFastForwardsTheParentOntoTheBranch(t *testing.T) {
 	s := newTestStore(t)
 	p := createTestProject(t, s)

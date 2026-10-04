@@ -66,7 +66,7 @@ func TestRoundTripBlocks(t *testing.T) {
 }
 
 func TestRejectsUnknownMajorVersion(t *testing.T) {
-	data := []byte(`{"schemaVersion":"2.0","kind":"kapi-bundle","generator":{"id":"x","version":"1"},"project":{"id":"p","sourceLocale":"en"},"documents":[]}`)
+	data := []byte(`{"schemaVersion":"3.0","kind":"kapi-bundle","generator":{"id":"x","version":"1"},"project":{"id":"p","sourceLocale":"en"},"documents":[]}`)
 	_, err := Unmarshal(data)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported major")
@@ -120,7 +120,8 @@ func TestValidateBlock_FilesHeading(t *testing.T) {
 func TestValidateBlock_UnclosedPairedCode(t *testing.T) {
 	b := filesHeading()
 	// Drop the final pcClose run.
-	b.Source = b.Source[:len(b.Source)-1]
+	src := b.SourceRuns()
+	b.SetSourceRuns(src[:len(src)-1])
 	errs := ValidateBlock(b)
 	require.Len(t, errs, 1)
 	assert.Equal(t, ErrUnclosedPairedCode, errs[0].Kind)
@@ -129,7 +130,8 @@ func TestValidateBlock_UnclosedPairedCode(t *testing.T) {
 func TestValidateBlock_UnmatchedCloseCode(t *testing.T) {
 	b := filesHeading()
 	// Remove the pcOpen but keep the pcClose.
-	b.Source = append([]Run{b.Source[0]}, b.Source[2:]...)
+	src := b.SourceRuns()
+	b.SetSourceRuns(append([]Run{src[0]}, src[2:]...))
 	errs := ValidateBlock(b)
 	require.NotEmpty(t, errs)
 	found := false
@@ -224,7 +226,7 @@ func TestResolveAnchor_PathOutOfBounds(t *testing.T) {
 
 func TestResolveAnchor_RangeOK(t *testing.T) {
 	b := filesHeading()
-	res := ResolveAnchor(b, RangeAnchor(b.Source, 0, 5))
+	res := ResolveAnchor(b, RangeAnchor(b.SourceRuns(), 0, 5))
 	require.True(t, res.OK)
 	assert.Equal(t, "Files", res.RangeText)
 }
@@ -395,7 +397,7 @@ func TestSkeletonRoundTrip(t *testing.T) {
 					DocumentType: DocumentTypeJSX,
 					Path:         "src/App.tsx",
 					Skeleton:     tc.skel,
-					Blocks:       []Block{{ID: "b1", Translatable: true, Type: BlockTypeJSXElement, Source: []Run{{Text: &TextRun{Text: "Hello"}}}}},
+					Blocks:       []Block{{ID: "b1", Translatable: true, Type: BlockTypeJSXElement, Editions: SourceEditions([]Run{{Text: &TextRun{Text: "Hello"}}})}},
 				}},
 			}
 

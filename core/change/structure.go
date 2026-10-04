@@ -345,7 +345,7 @@ func (p *docPlan) structureDelete(i int, op Op, body *DeleteBlock) (StructuralEd
 		p.removed[k] = i
 	}
 	authKey := b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{}))
-	for _, k := range b.Editions() {
+	for _, k := range b.EditionKeys() {
 		ed, _ := b.Edition(k)
 		role := RoleDerived
 		if k == authKey {
@@ -523,7 +523,7 @@ func (p *docPlan) verifyInsert(i int, b *model.Block) []model.EditionKey {
 // its id.
 func blockKeys(b *model.Block) []string {
 	var out []string
-	for _, k := range []string{b.Unit, b.Name, b.ID} {
+	for _, k := range []string{b.Key, b.Name, b.ID} {
 		if k != "" && !slices.Contains(out, k) {
 			out = append(out, k)
 		}
@@ -536,7 +536,7 @@ func blockKeys(b *model.Block) []string {
 // neither.
 func structureKeys(b *model.Block) []string {
 	var out []string
-	for _, k := range []string{b.Unit, b.Name} {
+	for _, k := range []string{b.Key, b.Name} {
 		if k != "" && !slices.Contains(out, k) {
 			out = append(out, k)
 		}

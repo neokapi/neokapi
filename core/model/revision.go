@@ -52,6 +52,19 @@ func EditionRevision(b *Block, k EditionKey) string {
 	return RunsRevision(b.EditionKeyOf(k), e.Runs)
 }
 
+// TargetRevision returns the revision of the translation of b filed under
+// locale, the target TargetEdition reads, or AbsentRevision when b holds none.
+// It never names the edition the block was read in: the source language names
+// a translation only when the block holds one in that language. It is the
+// revision a decision on that translation binds to.
+func TargetRevision(b *Block, locale LocaleID) string {
+	t, ok := b.TargetEdition(locale)
+	if !ok {
+		return AbsentRevision
+	}
+	return RunsRevision(Variant(locale), t.Runs)
+}
+
 // CanonicalRunsJSON is the JSON array of runs, each written by Run.MarshalJSON
 // with no HTML escaping, the form the TypeScript mirror writes. Maps (plural
 // forms, select cases, attributes) are written in key order, so equal content

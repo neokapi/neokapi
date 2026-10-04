@@ -244,7 +244,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	}
 	b, ok := byKey[key]
 	if !ok {
-		return nil, fmt.Errorf("unit %q not found in %s", key, file)
+		return nil, fmt.Errorf("block %q not found in %s", key, file)
 	}
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
@@ -282,8 +282,8 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 		scope := a.hostEngine().DocumentScope(ctx, root, rf.Path)
 		if us, found := st.Get(ctx, state.Key{Scope: scope, Unit: key, Variant: model.Variant(loc)}); found {
 			record = &us
-			th := project.HashBytes([]byte(strings.TrimSpace(targetText)))
-			if !us.Stale(th) {
+			read := state.ReadTarget(b, loc, model.LocaleID(sourceLang))
+			if !us.Stale(read) {
 				if us.Status != "" {
 					detail.Status = string(us.Status)
 				}
@@ -295,7 +295,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 				detail.Origin = &o
 			}
 			// Fresh AI pre-review annotation → CONTEXT row ("AI review: 92 (model)").
-			if us.AIReview.Fresh(th) {
+			if us.AIReview.Fresh(read) {
 				score := us.AIReview.Score
 				detail.AIReviewScore = &score
 				detail.AIReviewModel = us.AIReview.Model

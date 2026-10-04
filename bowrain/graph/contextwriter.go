@@ -278,8 +278,8 @@ func blessingSubgraph(ctx context.Context, scope contextgraph.Scope, in ProjectS
 			Variant:     r.Variant,
 			Status:      r.Status,
 			ReviewState: r.ReviewState,
-			TargetHash:  r.TargetHash,
-			ContentHash: r.ContentHash,
+			Revision:    r.Revision,
+			Basis:       r.Basis,
 		}
 		d.Nodes = append(d.Nodes, contextgraph.UnitStateNode(scope, u))
 
