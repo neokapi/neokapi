@@ -1,6 +1,7 @@
 package sqlitestore
 
 import (
+	"path/filepath"
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -469,4 +470,86 @@ func TestTallyDecisionBasis_RejectionOwesADraft_SQLite(t *testing.T) {
 		{ItemName: "en.json", Unit: "refused", Variant: "nb"},
 	}))
 	assert.Equal(t, 1, tally().RejectedOwed, "a second rejection owes a second draft")
+}
+
+// TestUnitDecisions_RevisionPairingRoundTrips_SQLite: the revision pairing a
+// decision carries is stored beside the hashes and read back, a row written
+// before it reads back with none, and a record that gains it is a change.
+func TestUnitDecisions_RevisionPairingRoundTrips_SQLite(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	legacy := venue.UnitDecision{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status: string(model.TargetStatusEstablished), TargetHash: state.TargetHash("Hei"), ContentHash: state.SourceHash("Hello"),
+		ReviewState: "approved", DecidedBy: "reviewer@example.com", Updated: "2026-08-04T10:00:00Z",
+	}
+	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{legacy})
+	require.NoError(t, err)
+	require.Equal(t, 1, changed)
+	got, err := s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Empty(t, got.Revision, "a record made before revisions names none")
+
+	paired := legacy
+	paired.Revision, paired.Basis = "r:1111111111111111", "r:aaaaaaaaaaaaaaaa"
+	paired.Updated = "2026-08-04T10:30:00Z"
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{paired})
+	require.NoError(t, err)
+	assert.Equal(t, 1, changed, "a record that gains the revision pairing is a change")
+	got, err = s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
+	require.NoError(t, err)
+	assert.Equal(t, "r:1111111111111111", got.Revision)
+	assert.Equal(t, "r:aaaaaaaaaaaaaaaa", got.Basis)
+	list, err := s.ListUnitDecisions(ctx, p.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.Equal(t, "r:1111111111111111", list[0].Revision)
+	assert.Equal(t, "r:aaaaaaaaaaaaaaaa", list[0].Basis)
+
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{paired})
+	require.NoError(t, err)
+	assert.Zero(t, changed, "an identical record is a no-op")
+}
+
+// TestMigrations_ADecisionRecordedBeforeRevisionsReadsBack: a working copy
+// whose ledger was written before version 35 opens under it, gains the two
+// columns empty and reads every decision back as it was, by its hashes.
+func TestMigrations_ADecisionRecordedBeforeRevisionsReadsBack(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "store.db")
+	s, err := NewSQLiteStore(dbPath)
+	require.NoError(t, err)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	before := venue.UnitDecision{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status: string(model.TargetStatusEstablished), TargetHash: state.TargetHash("Hei"), ContentHash: state.SourceHash("Hello"),
+		ReviewState: "approved", DecidedBy: "reviewer@example.com", Updated: "2026-08-04T10:00:00Z",
+	}
+	_, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{before})
+	require.NoError(t, err)
+
+	// The schema a working copy at version 27 carries: the ledger without
+	// the revision columns.
+	for _, col := range []string{"revision", "basis"} {
+		_, err = s.db.ExecContext(ctx, `ALTER TABLE unit_decisions DROP COLUMN `+col)
+		require.NoError(t, err)
+	}
+	_, err = s.db.ExecContext(ctx, `DELETE FROM schema_migrations WHERE version >= 35`)
+	require.NoError(t, err)
+	require.NoError(t, s.Close())
+
+	reopened, err := NewSQLiteStore(dbPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = reopened.Close() })
+	got, err := reopened.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, before.TargetHash, got.TargetHash)
+	assert.Equal(t, before.ContentHash, got.ContentHash)
+	assert.Equal(t, "approved", got.ReviewState)
+	assert.Empty(t, got.Revision, "nothing is rewritten: the decision names no revision")
+	assert.Empty(t, got.Basis)
 }

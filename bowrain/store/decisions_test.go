@@ -570,3 +570,58 @@ func TestTallyDecisionBasis_RejectionOwesADraft(t *testing.T) {
 	}))
 	assert.Equal(t, 1, tally().RejectedOwed, "a second rejection owes a second draft")
 }
+
+// TestUnitDecisions_RevisionPairingRoundTrips: a decision made since
+// revisions carries the revision of the translation it blesses and of the
+// source it blessed it for. The ledger stores both beside the hashes and reads
+// them back; a row written before them reads back with neither and is read by
+// its hashes; a record that gains them is a change the store writes, and a
+// verdict on a translation that differs in an inline code alone replaces it.
+// The SQLite store pins the same contract.
+func TestUnitDecisions_RevisionPairingRoundTrips(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	legacy := venue.UnitDecision{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status: string(model.TargetStatusEstablished), TargetHash: state.TargetHash("Hei"), ContentHash: state.SourceHash("Hello"),
+		ReviewState: "approved", DecidedBy: "reviewer@example.com", Updated: "2026-08-04T10:00:00Z",
+	}
+	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{legacy})
+	require.NoError(t, err)
+	require.Equal(t, 1, changed)
+	got, err := s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Empty(t, got.Revision, "a record made before revisions names none")
+	assert.Empty(t, got.Basis)
+
+	paired := legacy
+	paired.Revision, paired.Basis = "r:1111111111111111", "r:aaaaaaaaaaaaaaaa"
+	paired.Updated = "2026-08-04T10:30:00Z"
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{paired})
+	require.NoError(t, err)
+	assert.Equal(t, 1, changed, "a record that gains the revision pairing is a change")
+	got, err = s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
+	require.NoError(t, err)
+	assert.Equal(t, "r:1111111111111111", got.Revision)
+	assert.Equal(t, "r:aaaaaaaaaaaaaaaa", got.Basis)
+	listed := listDecisions(t, s, p.ID)["en.json|greeting|nb"]
+	assert.Equal(t, "r:1111111111111111", listed.Revision)
+	assert.Equal(t, "r:aaaaaaaaaaaaaaaa", listed.Basis)
+
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{paired})
+	require.NoError(t, err)
+	assert.Zero(t, changed, "an identical record is a no-op")
+
+	recoded := paired
+	recoded.Revision = "r:2222222222222222"
+	recoded.Updated = "2026-08-04T11:00:00Z"
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{recoded})
+	require.NoError(t, err)
+	assert.Equal(t, 1, changed, "a verdict on other content is a change, though the hashes are one")
+	got, err = s.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
+	require.NoError(t, err)
+	assert.Equal(t, "r:2222222222222222", got.Revision)
+}

@@ -289,7 +289,9 @@ func recordProducedBasis(
 				ContentHash: basis,
 				Updated:     now,
 			})
+			// A basis record names its pairing by hash alone.
 			next.ContentHash, next.TargetHash, next.Updated = basis, target, now
+			next.Revision, next.Basis = "", ""
 		}
 		if !had || prev.draftBasis != basis {
 			drafts = append(drafts, store.DraftBasis{

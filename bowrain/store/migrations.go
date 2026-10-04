@@ -47,6 +47,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 37  who wrote each translation a checkout holds by hand
 // 38  block notes moved onto their blocks as note annotations; the table retired
 // 39  an agent's pre-review of a translation
+// 40  a decision records the revisions of the pairing it blesses
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1586,6 +1587,22 @@ var Migrations = []storage.Migration{
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, stream, block_id, locale)
 			);
+		`,
+	},
+	{
+		Version:     40,
+		Description: "a decision records the revisions of the pairing it blesses",
+		SQL: `
+			-- The pairing a decision blesses, by revision
+			-- (model.EditionRevision): the translation it blesses (revision)
+			-- and the source it blessed it for (basis). A revision counts
+			-- inline codes, where target_hash and content_hash hash the text
+			-- alone, so a reader grades a record that carries them by them.
+			-- Empty on every row written before this version, which keeps
+			-- answering by its hashes. Additive, with no rewrite of existing
+			-- rows.
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS revision TEXT NOT NULL DEFAULT '';
+			ALTER TABLE unit_decisions ADD COLUMN IF NOT EXISTS basis    TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

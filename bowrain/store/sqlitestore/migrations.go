@@ -11,7 +11,9 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // RETIRED VERSION NUMBERS — never reuse: 2 ("Live Preview", AD-023/AD-036)
 // and 3 ("block occurrences", AD-036) ran on live databases before being
-// folded into the v1 baseline. New migrations start at 4.
+// folded into the v1 baseline. New migrations start at 4. Versions 28 to 34
+// were issued by this store before it was rebuilt from a new baseline, so the
+// list continues at 35.
 var storeMigrations = []storage.Migration{
 	{
 		Version:     1,
@@ -1036,6 +1038,17 @@ var storeMigrations = []storage.Migration{
 				created_at TEXT NOT NULL DEFAULT (datetime('now')),
 				PRIMARY KEY (project_id, stream, block_id, locale)
 			);
+		`,
+	},
+	{
+		Version:     35,
+		Description: "a decision records the revisions of the pairing it blesses",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 40: the translation a
+			-- decision blesses and the source it blessed it for, by revision.
+			-- Empty on every row written before, which answers by its hashes.
+			ALTER TABLE unit_decisions ADD COLUMN revision TEXT NOT NULL DEFAULT '';
+			ALTER TABLE unit_decisions ADD COLUMN basis    TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

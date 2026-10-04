@@ -237,7 +237,8 @@ const (
 // a decision: a unit decided since the push read its record keeps the
 // decision whole, and an undecided record keeps its rung, note and assignee.
 // A basis decides nothing, so it is not filed in the block history as a
-// decision.
+// decision. It names its pairing by hash alone, so a record it rewrites drops
+// the revisions it named another pairing by.
 func (r *writeRecorder) recordBases(ctx context.Context, item string, bases []basisRecord) error {
 	if len(bases) == 0 {
 		return nil
@@ -262,6 +263,7 @@ func (r *writeRecorder) recordBases(ctx context.Context, item string, bases []ba
 			 VALUES `+strings.Join(values, ",")+`
 			 ON CONFLICT (project_id, stream, item_id, unit, variant) DO UPDATE SET
 				target_hash=EXCLUDED.target_hash, content_hash=EXCLUDED.content_hash,
+				revision='', basis='',
 				governing_fingerprint=EXCLUDED.governing_fingerprint,
 				updated=EXCLUDED.updated, updated_at=EXCLUDED.updated_at
 			 WHERE unit_decisions.review_state = ''`,

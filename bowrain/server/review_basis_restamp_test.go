@@ -107,7 +107,10 @@ func TestPlatformRejectionKeepsTheBasisAndOwesADraft(t *testing.T) {
 	assert.Equal(t, "rejected", after.ReviewState)
 	assert.Equal(t, before.ContentHash, after.ContentHash,
 		"a rejection endorses nothing, so the basis stays where the approval left it")
+	assert.Equal(t, before.Basis, after.Basis, "by revision too")
 	assert.Equal(t, before.GoverningFingerprint, after.GoverningFingerprint)
+	assert.Equal(t, platstore.TargetRevision(f.block, model.LocaleFrench), after.Revision,
+		"the translation it turned down is named by revision")
 
 	c = f.counts(t)
 	assert.Equal(t, 1, c.Stale, "the rejection leaves the unit stale")
@@ -129,6 +132,10 @@ func TestPlatformApprovalRestampsTheBasis(t *testing.T) {
 		"the approval binds the source the reviewer read")
 	assert.Equal(t, "fp-now", after.GoverningFingerprint,
 		"and the context they decided under")
+	assert.Equal(t, model.EditionRevision(f.block.Block, model.EditionKey{}), after.Basis,
+		"and names that source by revision, which a checkout grades it by")
+	assert.Equal(t, platstore.TargetRevision(f.block, model.LocaleFrench), after.Revision,
+		"and the translation it approves")
 
 	c := f.counts(t)
 	assert.Zero(t, c.Stale, "the re-approval clears the stale grading")
@@ -159,6 +166,7 @@ func TestPlatformVerdictOnAnUnrecordedUnitCarriesNoBasis(t *testing.T) {
 	f := newRestampFixture(t)
 	d := unitDecisionFor(f.block, f.variant, model.TargetStatusDraft, false, f.ledger.decider, "fp-now", nil)
 	assert.Empty(t, d.ContentHash)
+	assert.Empty(t, d.Basis)
 	assert.Empty(t, d.GoverningFingerprint)
 	assert.Equal(t, "rejected", d.ReviewState)
 	assert.Equal(t, state.TargetHash("Bonjour"), d.TargetHash,

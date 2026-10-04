@@ -329,6 +329,10 @@ func (l *reviewLedger) resolveCorpus(ctx context.Context) bool {
 // it carries prev's basis forward and the unit stays graded exactly as it was
 // before the verdict. prev is the row the ledger already holds for the unit,
 // nil where it holds none or the caller is approving.
+//
+// The row names its pairing by revision as well as by hash: the revision of
+// the translation it judges, and for an approval the revision of the source
+// it approves it for, which a checkout that pulls the decision grades it by.
 func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool, decider, governing string, prev *venue.UnitDecision) venue.UnitDecision {
 	reviewState := ""
 	switch {
@@ -337,12 +341,12 @@ func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetSt
 	case status == model.TargetStatusDraft:
 		reviewState = "rejected"
 	}
-	basis, basisGoverning := "", ""
+	basis, basisRev, basisGoverning := "", "", ""
 	switch {
 	case approved:
-		basis, basisGoverning = state.SourceHash(sb.Block.SourceText()), governing
+		basis, basisRev, basisGoverning = state.SourceHash(sb.Block.SourceText()), model.EditionRevision(sb.Block, model.EditionKey{}), governing
 	case prev != nil:
-		basis, basisGoverning = prev.ContentHash, prev.GoverningFingerprint
+		basis, basisRev, basisGoverning = prev.ContentHash, prev.Basis, prev.GoverningFingerprint
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	return venue.UnitDecision{
@@ -352,6 +356,8 @@ func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetSt
 		Status:               string(status),
 		TargetHash:           state.TargetHash(sb.Block.TargetText(model.LocaleID(locale))),
 		ContentHash:          basis,
+		Revision:             platstore.TargetRevision(sb, model.LocaleID(locale)),
+		Basis:                basisRev,
 		ReviewState:          reviewState,
 		GoverningFingerprint: basisGoverning,
 		DecidedBy:            decider,
