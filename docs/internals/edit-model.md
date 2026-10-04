@@ -1098,7 +1098,16 @@ localization keyed by the empty string, the translation of a Qt TS file that nam
 has no key of its own, because the zero key names the document's own edition. It sits apart from
 `Editions`: `TargetEdition("")` and the other target accessors given the empty locale read and
 write it, `EachTargetEdition` yields it under the zero key, and `EditionKeys` and `EachEdition`
-leave it out, so a write under the empty locale never reaches the document's own edition.
+leave it out, so a write under the empty locale never reaches the document's own edition. Its
+overlays sit apart with it, for the same reason: `TargetSegmentation(locale)` and
+`SetTargetSegmentation(locale, spans)` reach a translation's segmentation by the locale the target
+accessors take, the empty locale included, and the wires that carry the translation carry them
+(an overlay with a present, empty variant).
+
+A struct copy of a block (`cp := *b`) shares the edition storage, the document's own edition
+included, so a write to the copy is a write to the original. A copy that will be written takes
+`CopyEditionSet` (its own set of editions and its own entry for the document's edition) or
+`CopyEditions` (every edition's runs copied too).
 
 The accessor that lists a block's edition keys is `Block.EditionKeys()`, so the field can take
 the name `Editions`.
@@ -2073,7 +2082,12 @@ beside all of them in package-sized PRs.
     `fr;tone=formal` as they were.
   - A translation a reader files under no language sits apart from `Editions`, where
     `SetTargetRuns("")` writes it and `TargetEdition("")` reads it, so the zero key never writes
-    the native edition (section 6.2).
+    the native edition (section 6.2). Its overlays sit apart with it: the Qt TS reader files the
+    numerus spans of such a translation through `SetTargetSegmentation("")`, and the TS writer,
+    the XLIFF segment views, XLIFF 2 marks and the per-segment tool view read a translation's
+    segmentation through `TargetSegmentation(locale)`, never the source's.
+  - Forge delivery copies each stored block with `CopyEditionSet` before it promotes a locale's
+    translation into the source position, so every delivered locale carries its own translation.
   - `Block.CopyEditionSet` gives the copy its own entry for the edition the block was read in, so
     the copy holds that edition's status as a value of its own.
   - `Block.FileTargetAsSpelled` is gone; a test writes `b.Editions[key]` directly.
@@ -2085,6 +2099,15 @@ beside all of them in package-sized PRs.
   - The decision pairing on revisions sets `Edition.Derived`. The sync wires and the stores do not
     carry `Derived` yet, and `Native` stays process-local by design (the kitchen-sink guard lists
     it as derived: a reader records it each time it reads the file).
+  - The project authority policy (section 6.3). Every `Authoritative` call passes
+    `AuthorityPolicy{}`, the engine's rule, and none passes the recipe's source language. The two
+    agree while a block's `SourceLocale` is the recipe's source language. They differ for a
+    bilingual file whose own source language is not the recipe's, where section 6.3 makes the
+    project's language authoritative.
+  - A plugin peer that reads `TargetEntry.locale` as a language tag maps a tone or channel key
+    to a tag of its own (the Okapi bridge gives `und` for `fr;tone=formal`). The writer path
+    matches the locale it writes, so only a step that returns the block, today the parity
+    harness alone, would bring such an edition back under another key.
 
 ### WP13. Close-out
 
