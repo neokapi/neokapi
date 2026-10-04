@@ -12,23 +12,26 @@ func TestDisplayRuns(t *testing.T) {
 	serial := []model.Run{{Text: &model.TextRun{Text: "44197"}}}
 
 	t.Run("a stamped display replaces the runs", func(t *testing.T) {
-		b := &model.Block{ID: "c", Source: serial, Properties: map[string]string{
+		b := &model.Block{ID: "c", Properties: map[string]string{
 			model.PropCellDisplay: "01-01-21",
 			model.PropCellFormat:  "mm-dd-yy",
 		}}
+		b.SetSourceRuns(serial)
 		got := DisplayRuns(b, b.SourceRuns())
 		assert.Equal(t, "01-01-21", model.RunsText(got))
 		assert.Equal(t, "44197", model.RunsText(b.SourceRuns()), "the stored value stays in the block")
 	})
 
 	t.Run("no display leaves the runs alone", func(t *testing.T) {
-		b := &model.Block{ID: "c", Source: serial, Properties: map[string]string{"cell": "A2"}}
+		b := &model.Block{ID: "c", Properties: map[string]string{"cell": "A2"}}
+		b.SetSourceRuns(serial)
 		got := DisplayRuns(b, b.SourceRuns())
 		assert.Equal(t, serial, got)
 	})
 
 	t.Run("an empty display renders as empty", func(t *testing.T) {
-		b := &model.Block{ID: "c", Source: serial, Properties: map[string]string{model.PropCellDisplay: ""}}
+		b := &model.Block{ID: "c", Properties: map[string]string{model.PropCellDisplay: ""}}
+		b.SetSourceRuns(serial)
 		got := DisplayRuns(b, b.SourceRuns())
 		require.Len(t, got, 1)
 		assert.Empty(t, model.RunsText(got))
@@ -52,7 +55,8 @@ func TestDisplayRuns_CharacterReferencesAreText(t *testing.T) {
 		ref("2", "&lt;"), {Text: &model.TextRun{Text: "3"}}, br,
 		{Plural: &model.PluralRun{Forms: map[model.PluralForm][]model.Run{model.PluralOther: {ref("4", "&rsquo;")}}}},
 	}
-	b := &model.Block{ID: "p", Source: src}
+	b := &model.Block{ID: "p"}
+	b.SetSourceRuns(src)
 
 	got := DisplayRuns(b, b.SourceRuns())
 
@@ -63,15 +67,15 @@ func TestDisplayRuns_CharacterReferencesAreText(t *testing.T) {
 
 func TestProjectBlockRendersTheDisplay(t *testing.T) {
 	b := &model.Block{
-		ID:     "cell-sheet1-B2",
-		Type:   "cell",
-		Source: []model.Run{{Text: &model.TextRun{Text: "0.125"}}},
+		ID:   "cell-sheet1-B2",
+		Type: "cell",
 		Properties: map[string]string{
 			"cell":                "B2",
 			model.PropCellDisplay: "12.5%",
 			model.PropCellFormat:  "0.0%",
 		},
 	}
+	b.SetSourceText("0.125")
 	b.SetSemanticRole(model.RoleTableCell, 0)
 	n := ProjectBlock(b)
 	assert.Equal(t, "12.5%", n.Text())
