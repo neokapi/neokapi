@@ -1708,10 +1708,10 @@ func excludePaths(scope venue.Scope, paths []string) venue.Scope {
 var globEscaper = strings.NewReplacer(`\`, `\\`, `*`, `\*`, `?`, `\?`, `[`, `\[`)
 
 // sourceLanguage is the project's source language as a project read resolves
-// it: the language every decision's basis is taken under, and the one the
-// venue takes the revision of a block's source under (venue.SourceRevision).
-// The transfer hash folds that revision, so a push takes it under the same
-// language.
+// it: the one the venue takes the revision of a block's source under
+// (venue.SourceRevision). A push sends every basis it carries under it
+// (venue.Basis), and the transfer hash folds that revision, so a push takes it
+// under the same language.
 func (c *BowrainSourceConnector) sourceLanguage() model.LocaleID {
 	return model.LocaleID(host.ResolveSourceLocale("", c.project.Recipe.Defaults.SourceLanguage))
 }
