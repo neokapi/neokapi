@@ -131,7 +131,7 @@ func TestUnmarshalTakesAMinorOfAKnownMajorAndRefusesAnUnknownOne(t *testing.T) {
 	}
 	for _, v := range []string{"1.0", "1.4", "2.0", "2.7"} {
 		_, err := Unmarshal(envelope(v))
-		assert.NoError(t, err, v)
+		require.NoError(t, err, v)
 	}
 	_, err := Unmarshal(envelope("3.0"))
 	require.Error(t, err)
@@ -206,7 +206,9 @@ func TestEditionsRoundTripByteForByte(t *testing.T) {
 	// Keys in byte order, the source first; fields in declaration order.
 	assert.Less(t, strings.Index(text, `"": {`), strings.Index(text, `"en;channel=short": {`))
 	assert.Less(t, strings.Index(text, `"en;channel=short": {`), strings.Index(text, `"fr;tone=formal": {`))
-	nb := text[strings.Index(text, `"nb": {`):]
+	at := strings.Index(text, `"nb": {`)
+	require.GreaterOrEqual(t, at, 0)
+	nb := text[at:]
 	assert.Less(t, strings.Index(nb, `"runs"`), strings.Index(nb, `"status"`))
 	assert.Less(t, strings.Index(nb, `"status"`), strings.Index(nb, `"origin"`))
 	assert.Less(t, strings.Index(nb, `"origin"`), strings.Index(nb, `"score"`))
