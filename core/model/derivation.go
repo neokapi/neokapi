@@ -83,6 +83,14 @@ func (b *Block) SetDerivation(k EditionKey, d *Derivation) bool {
 // moved or is gone, and unknown for a derivation that records no revision. A
 // reader holding a derivation from elsewhere (the record of the write that
 // made an edition) grades it here, so every reader reads staleness one way.
+//
+// A derivation from the edition the block was read in is matched under every
+// key a reader gives that edition (SourceRevisions), since readers of one
+// document file it under different keys and a revision covers its key. d.From
+// names that edition when it reaches it on this block, or when it is a language
+// with no tone and no channel that the block holds no edition in, as `en`
+// names the source of a block a project read filed under `en-US`. The runs are
+// hashed with the key, so a match is the content d.Rev was taken of.
 func (b *Block) BasisStanding(d Derivation) Standing {
 	if d.Rev == "" {
 		return StandingUnknown
@@ -90,7 +98,24 @@ func (b *Block) BasisStanding(d Derivation) Standing {
 	if EditionRevision(b, d.From) == d.Rev {
 		return StandingCurrent
 	}
+	if b.namesSourceEdition(d.From) && slices.Contains(b.SourceRevisions(d.From.Locale), d.Rev) {
+		return StandingCurrent
+	}
 	return StandingStale
+}
+
+// namesSourceEdition reports whether k, the edition a derivation was made
+// from, names the edition the block was read in: k reaches it, or k is a
+// language with no tone and no channel that the block holds no edition in.
+func (b *Block) namesSourceEdition(k EditionKey) bool {
+	if b.holdsSource(k) {
+		return true
+	}
+	if k.Tone != "" || k.Channel != "" {
+		return false
+	}
+	_, held := b.Edition(k)
+	return !held
 }
 
 // SourceRevisions returns the revisions of the edition the block was read in

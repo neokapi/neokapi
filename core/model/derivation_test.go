@@ -178,3 +178,52 @@ func TestTranslateAfterAdmitsDerivation(t *testing.T) {
 	assert.Equal(t, written.AdmitsDerivation(b, model.EditionKey{}), written.AdmitsBlock(b),
 		"AdmitsBlock is the gate on the edition the block was read in")
 }
+
+// A derivation made where the edition the block was read in is filed under
+// the language its reader declared stands on the same content filed under
+// another key, as a project read files it under the project's language, and
+// reads stale once that content moves. A derivation from an edition the block
+// holds of its own is graded against that edition alone.
+func TestBasisStandingMatchesTheSourceUnderEveryKey(t *testing.T) {
+	read := func(locale model.LocaleID) *model.Block {
+		b := model.NewBlock("b1", "Read the guide")
+		b.SourceLocale = locale
+		b.SetTargetRuns("fr", []model.Run{model.TextR("Lisez le guide")})
+		return b
+	}
+	declared := read("en")
+	from := declared.Authoritative(model.AuthorityPolicy{})
+	d := model.Derivation{From: from, Rev: model.EditionRevision(declared, from)}
+	require.Equal(t, model.Variant("en"), from)
+
+	project := read("en-US")
+	assert.Equal(t, model.StandingCurrent, project.BasisStanding(d), "the same content under the project's language")
+	project.Properties = map[string]string{model.PropReadSourceLocale: "en"}
+	assert.Equal(t, model.StandingCurrent, project.BasisStanding(d), "and with the reader's language recorded")
+	assert.Equal(t, model.StandingCurrent, read("").BasisStanding(d), "and under no language")
+
+	project.EditSourceText("Read the whole guide")
+	assert.Equal(t, model.StandingStale, project.BasisStanding(d), "the content moved")
+
+	// Taken under the project's language and read where the reader's own is
+	// kept, and taken under no language and read under one.
+	underProject := read("en-US")
+	fromProject := underProject.Authoritative(model.AuthorityPolicy{})
+	assert.Equal(t, model.StandingCurrent, read("en").BasisStanding(
+		model.Derivation{From: fromProject, Rev: model.EditionRevision(underProject, fromProject)}))
+	unfiled := read("")
+	assert.Equal(t, model.StandingCurrent, read("en-US").BasisStanding(
+		model.Derivation{From: model.EditionKey{}, Rev: model.EditionRevision(unfiled, model.EditionKey{})}))
+
+	// A block that holds an en edition of its own grades a derivation from en
+	// against that edition, whatever its source holds.
+	held := read("en-US")
+	held.SetTargetRuns("en", []model.Run{model.TextR("Read the manual")})
+	assert.Equal(t, model.StandingStale, held.BasisStanding(d))
+	held.SetTargetRuns("en", []model.Run{model.TextR("Read the guide")})
+	assert.Equal(t, model.StandingCurrent, held.BasisStanding(d), "the en edition holds the content")
+
+	// A derivation from a tone or channel edition the block does not hold is stale.
+	short := model.EditionKey{Locale: "en", Channel: "short"}
+	assert.Equal(t, model.StandingStale, project.BasisStanding(model.Derivation{From: short, Rev: d.Rev}))
+}
