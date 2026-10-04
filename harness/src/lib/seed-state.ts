@@ -58,7 +58,7 @@ export function describeReadiness(est: ConvergenceEstimate): string {
   const { gate, total, ready, held } = est.source;
   if (held > 0) return `${held} of ${total} source block(s) held by the "${gate}" gate`;
   if (est.totals.pending === 0) return `all ${total} source block(s) ready, and every locale already covered`;
-  return `all ${total} source block(s) ready, ${est.totals.pending} unit(s) pending`;
+  return `all ${total} source block(s) ready, ${est.totals.pending} block(s) pending`;
 }
 
 /**

@@ -87,7 +87,7 @@ kapi voice guide                     # the voice to follow (no flag inside a pro
 kapi terms lookup "<term>" -t fr  # the approved wording
 ```
 
-Fill each unit's `<target>` following the voice guide and the approved terminology,
+Fill each entry's `<target>` following the voice guide and the approved terminology,
 preserving placeholders; reuse any targets prefilled from content memory. Then merge
 it back, and treat the task as unfinished until kapi confirms the result:
 
@@ -97,18 +97,18 @@ kapi check --ship --json                   # in a project: voice + terminology +
 kapi check ./locales/en.json --target ./locales/fr.json --target-lang fr --termstore <store>   # one-off, no project: name the terms store
 ```
 
-Each unit of the extract carries the revision of its translation and of its source
-(`<mda:meta type="if-match">` and `type="basis"` in XLIFF, `#. kapi-if-match:` and
-`#. kapi-basis:` in PO). Leave them as they are: merge checks the file against them.
-Leave each unit's `<source>` (or `msgid`) as it is too: a unit whose source is not
-its block's is stale. `kapi merge --json` counts each unit as `applied`, `stale` (its
+Each entry of the extract (an XLIFF `<unit>` or `<trans-unit>`, a PO message) carries the revision of its
+translation and of its source (`<mda:meta type="if-match">` and `type="basis"` in XLIFF,
+`#. kapi-if-match:` and `#. kapi-basis:` in PO). Leave them as they are: merge checks the
+file against them. Leave each entry's `<source>` (or `msgid`) as it is too: an entry whose
+source is not its block's is stale. `kapi merge --json` counts each entry as `applied`, `stale` (its
 source changed since the extract; run `kapi extract` again for it), `skipped` (empty,
 or a translation that changed in the project meanwhile and
 `defaults.merge.conflict_policy` kept), or `refused` (the target dropped a placeholder
 or tag the source protects, or broke a term rule; stderr names the rule. Fix the target
 and merge again). A non-zero `stale` or `refused` is work left. For a Markdown or HTML
 source that gained or lost a paragraph since its translation was written, translate
-every unit of the file before merging: a unit you leave out keeps the translation
+every entry of the file before merging: an entry you leave out keeps the translation
 paired with it by position.
 
 `kapi check --ship` is the gate inside a project: read its findings, fix them, and re-run
@@ -220,7 +220,7 @@ Review promotes a translation past `translated` to `established`. The queue and 
 approval are two commands:
 
 ```bash
-kapi status --review              # units awaiting a person, in every language
+kapi status --review              # blocks awaiting a person, in every language
 kapi status --review --lang nb    # one language (repeat or comma-separate for several)
 kapi inspect src/en.json --jsonl  # each block's editions, with the revision a decision names
 # approve one: a decide operation on the edition, bound to the revision read
@@ -230,7 +230,7 @@ kapi apply <<<'{"ops":[{"op":"decide","at":{"doc":"src/en.json","block":"save.la
 One queue holds every language. A row carries `language` and, when the language
 is the project's source, `isSource: true` with a `status` on the authoring
 ladder (`written`/`established`); `languages` in the JSON counts the
-pending units per language. A row's `relative` is the source document and its
+pending blocks per language. A row's `relative` is the source document and its
 `key` the block a decision names. `kapi apply` records a person's decision on a
 translation (`establish` or `reject`) and on source wording (`establish` with
 no edition); a decision binds to the revision it names, and one whose
@@ -240,10 +240,10 @@ Over MCP, each `review_queue` row carries the `ref` a decision names, and
 `review_block` reads it with the `rev` of the edition under review. An
 assistant pre-reviews with `apply_edits`: a `decide` operation at that `ref`,
 `if_match` the `rev`, outcome `advise`, a `score` from 0 to 100 and its
-`reasons`. The person working the queue reads it beside the unit; an
+`reasons`. The person working the queue reads it beside the block; an
 assistant's `establish` or `reject` is refused as `not_permitted`.
 
-The unit state lands in the project store and counts the unit as `established`,
+The decision lands in the project store and counts the edition as `established`,
 so the next `kapi up` sees it shipped. `kapi check --ship` is the opt-in release
 bar: it runs the project's voice, terminology and rule-based gates plus the
 `ship_gate` / `source_gate` coverage gates and exits non-zero only when you ask
