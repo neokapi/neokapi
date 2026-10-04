@@ -172,8 +172,8 @@ func (s BlockState) Meta(after *model.Block) BlockMeta {
 
 func keyOfOverlay(o model.Overlay) overlayKey {
 	k := overlayKey{typ: o.Type, layer: o.Layer}
-	if o.Variant != nil {
-		text, _ := o.Variant.Canonical().MarshalText()
+	if !o.Edition.IsZero() {
+		text, _ := o.Edition.Canonical().MarshalText()
 		k.edition = string(text)
 	}
 	return k

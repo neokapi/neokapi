@@ -144,14 +144,14 @@ func TestCompatBlockCorpus(t *testing.T) {
 		{Text: &model.TextRun{Text: "Monde."}},
 	})
 	frKey := model.Variant(model.LocaleID("fr-FR"))
-	b.SetSegmentation(&frKey, []model.Span{
+	b.SetSegmentation(frKey, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})
 	b.SetTargetText(model.LocaleID("de-DE"), "Hallo Welt")
 
 	// Source segmentation (reconstructed from segment boundaries on the wire).
-	b.SetSegmentation(nil, []model.Span{
+	b.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 3})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 3}, model.RunPos{Run: len(b.Source)})},
 	})
@@ -170,7 +170,7 @@ func TestCompatBlockCorpus(t *testing.T) {
 	frVariant := model.Variant(model.LocaleID("fr-FR"))
 	b.Overlays = append(b.Overlays, model.Overlay{
 		Type:    model.OverlayType("qa"),
-		Variant: &frVariant,
+		Edition: frVariant,
 		Layer:   "review",
 		Spans: []model.Span{{
 			ID:    "q1",
@@ -220,7 +220,7 @@ func TestCompatBlockCorpus(t *testing.T) {
 	for _, loc := range b.TargetLocales() {
 		require.Equal(t, b.TargetRuns(loc), got.TargetRuns(loc), "target runs %s", loc)
 	}
-	require.Equal(t, b.SegmentationFor(&frKey), got.SegmentationFor(&frKey), "fr target segmentation")
+	require.Equal(t, b.SegmentationFor(frKey), got.SegmentationFor(frKey), "fr target segmentation")
 	require.Equal(t, b.Skeleton, got.Skeleton)
 	require.Equal(t, b.DisplayHint, got.DisplayHint)
 	require.Equal(t, b.AnnoMap(), got.AnnoMap(), "annotations")

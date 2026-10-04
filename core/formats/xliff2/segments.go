@@ -131,8 +131,8 @@ func applySegmentsToBlock(block *model.Block, srcSegs []seg, tgtSegs []seg, trgL
 	}
 
 	block.SetSourceRuns(layOutSegments(srcSegs, ann.Source))
-	block.SetSegmentation(nil, buildSegmentSpans(srcSegs))
-	applyMarkOverlays(block, nil, srcSegs)
+	block.SetSegmentation(model.EditionKey{}, buildSegmentSpans(srcSegs))
+	applyMarkOverlays(block, model.EditionKey{}, srcSegs)
 
 	if len(tgtSegs) > 0 && !trgLang.IsEmpty() {
 		irByID := map[string]*Content{}
@@ -140,8 +140,8 @@ func applySegmentsToBlock(block *model.Block, srcSegs []seg, tgtSegs []seg, trgL
 		ann.Target[trgLang] = irByID
 		block.SetTargetRuns(trgLang, runs)
 		key := model.Variant(trgLang)
-		block.SetSegmentation(&key, buildSegmentSpans(tgtSegs))
-		applyMarkOverlays(block, &key, tgtSegs)
+		block.SetSegmentation(key, buildSegmentSpans(tgtSegs))
+		applyMarkOverlays(block, key, tgtSegs)
 		// Map the XLIFF 2 segment state (captured as a block property by both
 		// reader paths) onto the target's lifecycle status, so coverage and ship
 		// gates see review progress that came in over the interchange. This is
@@ -179,7 +179,7 @@ const OverlayMrk model.OverlayType = "xliff2:mrk"
 //
 // Positions are rebased from segment-local runs onto the block's, the same
 // cursor walk buildSegmentSpans does over the same segments.
-func applyMarkOverlays(block *model.Block, variant *model.VariantKey, segs []seg) {
+func applyMarkOverlays(block *model.Block, edition model.EditionKey, segs []seg) {
 	var term, other []model.Span
 	add := func(m markSpan, span model.Span) {
 		if m.Attrs.Type == termMarkType {
@@ -228,11 +228,11 @@ func applyMarkOverlays(block *model.Block, variant *model.VariantKey, segs []seg
 	}
 	if len(term) > 0 {
 		block.Overlays = append(block.Overlays,
-			model.Overlay{Type: model.OverlayTerm, Variant: variant, Spans: term})
+			model.Overlay{Type: model.OverlayTerm, Edition: edition, Spans: term})
 	}
 	if len(other) > 0 {
 		block.Overlays = append(block.Overlays,
-			model.Overlay{Type: OverlayMrk, Variant: variant, Spans: other})
+			model.Overlay{Type: OverlayMrk, Edition: edition, Spans: other})
 	}
 }
 
@@ -313,16 +313,16 @@ func sourceSegsFromBlock(block *model.Block) []seg {
 	}
 	source := format.AuthoritativeRuns(block)
 	segs := segsFromOverlay(source, overlay, srcIR)
-	return withMarks(segs, source, block, nil)
+	return withMarks(segs, source, block, model.EditionKey{})
 }
 
-// withMarks hands each segment the marker spans of an edition (variant names
-// it, nil for the source) that fall inside it, so the writer can draw them
+// withMarks hands each segment the marker spans of an edition (edition names
+// it, the zero key for the source) that fall inside it, so the writer can draw them
 // without needing the block in scope: the term spans as Marks, and the other
 // markers the file carried as OtherMarks. runs is the sequence the spans
 // anchor to, which segs divide.
-func withMarks(segs []seg, runs []model.Run, block *model.Block, variant *model.VariantKey) []seg {
-	if overlay := overlayOn(block, model.OverlayTerm, variant); overlay != nil && len(overlay.Spans) > 0 {
+func withMarks(segs []seg, runs []model.Run, block *model.Block, edition model.EditionKey) []seg {
+	if overlay := overlayOn(block, model.OverlayTerm, edition); overlay != nil && len(overlay.Spans) > 0 {
 		placed, unplaced := marksForSegments(segs, runs, overlay.Spans, termAttrs)
 		for i := range segs {
 			segs[i].Marks = placed[i]
@@ -331,7 +331,7 @@ func withMarks(segs []seg, runs []model.Run, block *model.Block, variant *model.
 			segs[0].UnplacedMarks = unplaced
 		}
 	}
-	if overlay := overlayOn(block, OverlayMrk, variant); overlay != nil && len(overlay.Spans) > 0 {
+	if overlay := overlayOn(block, OverlayMrk, edition); overlay != nil && len(overlay.Spans) > 0 {
 		placed, _ := marksForSegments(segs, runs, overlay.Spans, markerAttrs)
 		for i := range segs {
 			segs[i].OtherMarks = placed[i]
@@ -390,24 +390,21 @@ func targetSegsFromBlock(block *model.Block, loc model.LocaleID) []seg {
 		return nil
 	}
 	key := model.Variant(loc)
-	overlay := block.SegmentationFor(&key)
+	overlay := block.SegmentationFor(key)
 	ir := unitSegmentsIR(block)
 	var tgtIR map[string]*Content
 	if ir != nil {
 		tgtIR = ir.Target[loc]
 	}
-	return withMarks(segsFromOverlay(runs, overlay, tgtIR), runs, block, &key)
+	return withMarks(segsFromOverlay(runs, overlay, tgtIR), runs, block, key)
 }
 
-// overlayOn returns the overlay of type t on the edition variant names, the
-// source for nil, or nil when the block has none.
-func overlayOn(block *model.Block, t model.OverlayType, variant *model.VariantKey) *model.Overlay {
+// overlayOn returns the overlay of type t on the edition k names (the zero key
+// for the source), or nil when the block has none.
+func overlayOn(block *model.Block, t model.OverlayType, k model.EditionKey) *model.Overlay {
 	for i := range block.Overlays {
 		o := &block.Overlays[i]
-		if o.Type != t || (o.Variant == nil) != (variant == nil) {
-			continue
-		}
-		if variant == nil || o.Variant.Canonical() == variant.Canonical() {
+		if o.Type == t && o.Edition.Canonical() == k.Canonical() {
 			return o
 		}
 	}

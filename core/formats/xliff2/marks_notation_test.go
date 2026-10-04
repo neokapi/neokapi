@@ -259,7 +259,7 @@ func TestTheWritePathsAgreeWhenOnlyTheOverlaysChange(t *testing.T) {
 	}
 	added := func(b *model.Block) {
 		fr := model.Variant(model.LocaleFrench)
-		b.Overlays = append(b.Overlays, model.Overlay{Type: model.OverlayTerm, Variant: &fr, Spans: []model.Span{{ID: "t1",
+		b.Overlays = append(b.Overlays, model.Overlay{Type: model.OverlayTerm, Edition: fr, Spans: []model.Span{{ID: "t1",
 			Range: model.SpanAnchor(model.RunPos{Run: 0, Offset: 10}, model.RunPos{Run: 0, Offset: 14})}}})
 	}
 	for path, out := range writePaths(t, in, added) {

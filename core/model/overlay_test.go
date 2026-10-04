@@ -299,7 +299,7 @@ func TestSegmentationOverlays(t *testing.T) {
 
 	// No segmentation yet.
 	assert.Nil(t, b.SourceSegmentation())
-	assert.Nil(t, b.SegmentationFor(nil))
+	assert.Nil(t, b.SegmentationFor(EditionKey{}))
 	assert.False(t, b.HasSourceOverlays())
 	assert.Equal(t, 1, b.SourceSegmentCount())
 
@@ -307,13 +307,13 @@ func TestSegmentationOverlays(t *testing.T) {
 		{ID: "s1", Range: SpanAnchor(RunPos{Run: 0}, RunPos{Run: 1})},
 		{ID: "s2", Range: SpanAnchor(RunPos{Run: 1}, RunPos{Run: 2})},
 	}
-	b.SetSegmentation(nil, spans)
+	b.SetSegmentation(EditionKey{}, spans)
 
 	require.NotNil(t, b.SourceSegmentation())
-	require.NotNil(t, b.SegmentationFor(nil))
+	require.NotNil(t, b.SegmentationFor(EditionKey{}))
 	assert.True(t, b.HasSourceOverlays())
 	assert.Equal(t, 2, b.SourceSegmentCount())
-	assert.Equal(t, []string{""}, b.SegmentationLayers(nil))
+	assert.Equal(t, []string{""}, b.SegmentationLayers(EditionKey{}))
 
 	// First segment runs.
 	seg0 := b.SourceSegmentRuns(0)
@@ -329,15 +329,15 @@ func TestSegmentationOverlays(t *testing.T) {
 	assert.Nil(t, b.SourceSegmentRuns(5))
 
 	// Named layer coexists with primary.
-	b.SetSegmentationLayer(nil, "clause", spans[:1])
-	assert.ElementsMatch(t, []string{"", "clause"}, b.SegmentationLayers(nil))
-	require.NotNil(t, b.SegmentationLayerFor(nil, "clause"))
-	assert.Equal(t, spans[:1], b.SegmentationLayerFor(nil, "clause").Spans)
+	b.SetSegmentationLayer(EditionKey{}, "clause", spans[:1])
+	assert.ElementsMatch(t, []string{"", "clause"}, b.SegmentationLayers(EditionKey{}))
+	require.NotNil(t, b.SegmentationLayerFor(EditionKey{}, "clause"))
+	assert.Equal(t, spans[:1], b.SegmentationLayerFor(EditionKey{}, "clause").Spans)
 
 	// Removing the primary layer leaves the named one.
-	b.SetSegmentation(nil, nil)
+	b.SetSegmentation(EditionKey{}, nil)
 	assert.Nil(t, b.SourceSegmentation())
-	assert.NotNil(t, b.SegmentationLayerFor(nil, "clause"))
+	assert.NotNil(t, b.SegmentationLayerFor(EditionKey{}, "clause"))
 }
 
 func TestSourceSegmentRunsNoOverlay(t *testing.T) {
@@ -414,18 +414,18 @@ func TestOverlayOnSource(t *testing.T) {
 	var nilOverlay *Overlay
 	assert.True(t, nilOverlay.OnSource())
 	assert.True(t, (&Overlay{}).OnSource())
-	vk := VariantKey{}
-	assert.False(t, (&Overlay{Variant: &vk}).OnSource())
+	assert.True(t, (&Overlay{Edition: EditionKey{}}).OnSource(), "the zero key names the edition the block was read in")
+	assert.False(t, (&Overlay{Edition: Variant("fr")}).OnSource())
 }
 
 func TestSameVariantViaSegmentation(t *testing.T) {
-	vk := VariantKey{}
+	vk := Variant("fr")
 	b := &Block{Source: []Run{tx("x")}}
-	b.SetSegmentation(&vk, []Span{{Range: SpanAnchor(RunPos{Run: 0}, RunPos{Run: 1})}})
+	b.SetSegmentation(vk, []Span{{Range: SpanAnchor(RunPos{Run: 0}, RunPos{Run: 1})}})
 
 	// Target-side segmentation must not be returned for the source side.
-	assert.Nil(t, b.SegmentationFor(nil))
-	assert.NotNil(t, b.SegmentationFor(&vk))
+	assert.Nil(t, b.SegmentationFor(EditionKey{}))
+	assert.NotNil(t, b.SegmentationFor(vk))
 	assert.False(t, b.HasSourceOverlays())
 }
 

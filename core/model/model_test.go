@@ -97,7 +97,7 @@ func TestBlockSegmentationOverlay(t *testing.T) {
 	assert.Equal(t, 1, block.SourceSegmentCount())
 
 	// A segmentation overlay splits at the run boundary, without touching runs.
-	block.SetSegmentation(nil, []model.Span{
+	block.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})

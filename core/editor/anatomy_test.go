@@ -47,7 +47,7 @@ func richBlock() *model.Block {
 		}},
 	})
 	b.SetTargetRuns("fr", []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}})
-	b.SetSegmentation(nil, []model.Span{
+	b.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 2})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 2}, model.RunPos{Run: 3})},
 	})
@@ -172,8 +172,8 @@ func TestBuildContentTree_SameLanguageTarget(t *testing.T) {
 	enUS := model.Variant("en-US")
 	missing := model.Variant("de")
 	b.Overlays = append(b.Overlays,
-		model.Overlay{Type: model.OverlayTerm, Variant: &enUS, Spans: []model.Span{{ID: "t1", Range: model.SpanAnchor(model.RunPos{Run: 0, Offset: 7}, model.RunPos{Run: 0, Offset: 13})}}},
-		model.Overlay{Type: model.OverlayEntity, Variant: &missing, Spans: []model.Span{{ID: "e1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 6})}}},
+		model.Overlay{Type: model.OverlayTerm, Edition: enUS, Spans: []model.Span{{ID: "t1", Range: model.SpanAnchor(model.RunPos{Run: 0, Offset: 7}, model.RunPos{Run: 0, Offset: 13})}}},
+		model.Overlay{Type: model.OverlayEntity, Edition: missing, Spans: []model.Span{{ID: "e1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 6})}}},
 	)
 
 	tree := BuildContentTree([]*model.Part{blockPart(b)}, "xliff")

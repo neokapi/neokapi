@@ -116,13 +116,13 @@ func blockFixture(t *testing.T) *contentv1.BlockMessage {
 		{Text: &model.TextRun{Text: "Bienvenue."}},
 	})
 	frKey := model.Variant(model.LocaleID("fr-FR"))
-	b.SetSegmentation(&frKey, []model.Span{
+	b.SetSegmentation(frKey, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
 	})
 	b.SetTargetText(model.LocaleID("de-DE"), "Hallo. Willkommen.")
 
-	b.SetSegmentation(nil, []model.Span{
+	b.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 3})},
 	})
 

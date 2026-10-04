@@ -311,7 +311,7 @@ func TestPostgresMemory_EntitiesPairInTextOrderAndBySegment(t *testing.T) {
 	seg := &model.Block{ID: "two", Translatable: true}
 	seg.SetSourceRuns([]model.Run{txt("Contact "), org("e1", "Acme"), txt(" today. "), txt("Tell "), org("e2", "Globex"), txt(" now.")})
 	locate(seg)
-	seg.SetSegmentation(nil, []model.Span{
+	seg.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 3})},
 		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 3}, model.RunPos{Run: 6})},
 	})

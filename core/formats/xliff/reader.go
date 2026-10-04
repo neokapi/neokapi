@@ -1411,7 +1411,7 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			block.SetAnno(segNativeKey(seg.mid), &SegmentNativeAnnotation{Content: nc})
 		}
 		block.SetSourceRuns(srcRuns)
-		block.SetSegmentation(nil, spans)
+		block.SetSegmentation(model.EditionKey{}, spans)
 		// Attach body-level native IR for <source>: parsed from the
 		// raw <source> body (which is unsegmented but mirrors the
 		// inline-code structure). Falls back to building it from the
@@ -1480,7 +1480,7 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			}
 			block.SetTargetRuns(effectiveTargetLang, tgtRuns)
 			key := model.Variant(effectiveTargetLang)
-			block.SetSegmentation(&key, spans)
+			block.SetSegmentation(key, spans)
 		} else {
 			block.SetTargetRuns(effectiveTargetLang, nativeToRuns(targetNative))
 			block.SetAnno(targetSegNativeKey(effectiveTargetLang, "s1"), &SegmentNativeAnnotation{Content: targetNative})

@@ -118,7 +118,7 @@ func TestEditPlan_TargetOverlaysFollowAndKeysAreCanonical(t *testing.T) {
 	b := model.NewBlock("b1", "Hello world")
 	fr := model.Variant("fr")
 	b.SetTargetRuns("fr", []model.Run{model.TextR("Bonjour le monde entier")})
-	b.SetSegmentation(&fr, []model.Span{{ID: "s1", Range: model.RangeAnchor(b.TargetRuns("fr"), 8, 23)}})
+	b.SetSegmentation(fr, []model.Span{{ID: "s1", Range: model.RangeAnchor(b.TargetRuns("fr"), 8, 23)}})
 	bt := &tool.BaseTool{ToolName: "probe"}
 	bt.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		var p tool.EditPlan
@@ -129,7 +129,7 @@ func TestEditPlan_TargetOverlaysFollowAndKeysAreCanonical(t *testing.T) {
 	require.NoError(t, dispatch(t, bt, b))
 
 	assert.Equal(t, "Salut", b.TargetText("fr"))
-	if seg := b.SegmentationFor(&fr); seg != nil {
+	if seg := b.SegmentationFor(fr); seg != nil {
 		for _, s := range seg.Spans {
 			assert.True(t, s.Range.InBounds(b.TargetRuns("fr")), "no target span is left out of bounds")
 		}
@@ -216,7 +216,7 @@ func TestView_OverlayWritesKeepWholeSpans(t *testing.T) {
 	bt.Annotate = func(v tool.BlockView) error {
 		v.AddOverlaySpan(model.OverlayEntity, model.Span{ID: "e1", Range: model.RangeAnchor(v.SourceRuns(), 0, 5),
 			Props: map[string]string{"k": "v"}, Value: &model.EntityAnnotation{Text: "Alice", Type: "PERSON"}})
-		v.SetSegmentation(nil, []model.Span{{ID: "s1", Range: model.RangeAnchor(v.SourceRuns(), 0, 13)}})
+		v.SetSegmentation(model.EditionKey{}, []model.Span{{ID: "s1", Range: model.RangeAnchor(v.SourceRuns(), 0, 13)}})
 		return nil
 	}
 	require.NoError(t, dispatch(t, bt, b))

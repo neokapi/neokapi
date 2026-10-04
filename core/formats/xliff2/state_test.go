@@ -26,10 +26,10 @@ func writeStatefulBlock(t *testing.T, status model.TargetStatus) string {
 	}
 	block := model.NewBlock("u1", "Hello")
 	span := []model.Span{{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})}}
-	block.SetSegmentation(nil, span)
+	block.SetSegmentation(model.EditionKey{}, span)
 	block.SetTargetRuns(model.LocaleFrench, []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}})
 	tgtKey := model.Variant(model.LocaleFrench)
-	block.SetSegmentation(&tgtKey, span)
+	block.SetSegmentation(tgtKey, span)
 	block.StampTargetProvenance(model.LocaleFrench, status, model.Origin{Kind: model.OriginHuman})
 
 	parts := make(chan *model.Part, 2)
