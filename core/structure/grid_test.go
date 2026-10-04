@@ -13,9 +13,9 @@ func gridBlock(id, text, cell, si string, col, row int) *model.Block {
 	b := &model.Block{
 		ID:         id,
 		Type:       "cell",
-		Source:     []model.Run{{Text: &model.TextRun{Text: text}}},
 		Properties: map[string]string{"cell": cell},
 	}
+	b.SetSourceText(text)
 	if si != "" {
 		b.Properties["siIndex"] = si
 	}
@@ -28,12 +28,9 @@ func gridBlock(id, text, cell, si string, col, row int) *model.Block {
 }
 
 func block(id, text, typ string, props map[string]string) *model.Block {
-	return &model.Block{
-		ID:         id,
-		Type:       typ,
-		Source:     []model.Run{{Text: &model.TextRun{Text: text}}},
-		Properties: props,
-	}
+	b := &model.Block{ID: id, Type: typ, Properties: props}
+	b.SetSourceText(text)
+	return b
 }
 
 func layerStart(name string) *model.Part {
@@ -181,9 +178,9 @@ func gridBlockSpan(id, text, cell string, col, row, cols, rows int) *model.Block
 	b := &model.Block{
 		ID:         id,
 		Type:       "cell",
-		Source:     []model.Run{{Text: &model.TextRun{Text: text}}},
 		Properties: map[string]string{"cell": cell},
 	}
+	b.SetSourceText(text)
 	b.SetGeometry(&model.GeometryAnnotation{
 		Page:   1,
 		BBox:   model.Rect{X: float64(col), Y: float64(row), W: float64(cols), H: float64(rows)},
