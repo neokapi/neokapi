@@ -22,7 +22,7 @@ func (b *Block) TargetSegmentation(locale LocaleID) *Overlay {
 func (b *Block) TargetSegmentationLayer(locale LocaleID, layer string) *Overlay {
 	key := Variant(locale)
 	if key.IsZero() {
-		return findOverlay(b.unlabelledOverlays, OverlaySegmentation, layer, func(*Overlay) bool { return true })
+		return findOverlay(b.unlabelledOverlays, OverlaySegmentation, layer)
 	}
 	return b.SegmentationLayerFor(key, layer)
 }
@@ -65,12 +65,12 @@ func (b *Block) SetUnlabelledOverlays(overlays []Overlay) {
 	b.unlabelledOverlays = overlays
 }
 
-// findOverlay returns the first overlay in overlays of type t and layer that
-// on accepts, or nil.
-func findOverlay(overlays []Overlay, t OverlayType, layer string, on func(*Overlay) bool) *Overlay {
+// findOverlay returns the first overlay in overlays of type t and layer, or
+// nil.
+func findOverlay(overlays []Overlay, t OverlayType, layer string) *Overlay {
 	for i := range overlays {
 		o := &overlays[i]
-		if o.Type == t && o.Layer == layer && on(o) {
+		if o.Type == t && o.Layer == layer {
 			return o
 		}
 	}
