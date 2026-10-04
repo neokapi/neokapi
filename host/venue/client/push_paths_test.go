@@ -53,12 +53,8 @@ func TestPushUsesCorrectSyncPathsAndChunkHash(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClaimTokenClient(srv.URL, "proj1", "tok")
-	blk := &model.Block{
-		ID:           "b1",
-		Name:         "greeting",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: "Hello"}}},
-	}
+	blk := model.NewBlock("b1", "Hello")
+	blk.Name = "greeting"
 	_, err := c.Push(context.Background(),
 		map[string][]*model.Block{"locales/en.json": {blk}},
 		[]ItemMeta{{Name: "locales/en.json", Format: "json"}}, nil, nil)

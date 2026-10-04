@@ -23,11 +23,11 @@ import (
 func TestPushItemHashesCoverSentSubset(t *testing.T) {
 	blocksByItem := map[string][]*model.Block{
 		"locales/en.json": {
-			{ID: "b1", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "Hello"}}}},
-			{ID: "b2", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "World"}}}},
+			model.NewBlock("b1", "Hello"),
+			model.NewBlock("b2", "World"),
 		},
 		"locales/de.json": {
-			{ID: "b3", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "Hallo"}}}},
+			model.NewBlock("b3", "Hallo"),
 		},
 	}
 
@@ -77,7 +77,7 @@ func TestPushItemHashesCoverSentSubset(t *testing.T) {
 func TestPushIgnoresServerReportedDeletions(t *testing.T) {
 	blocksByItem := map[string][]*model.Block{
 		"locales/en.json": {
-			{ID: "b1", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "Hello"}}}},
+			model.NewBlock("b1", "Hello"),
 		},
 	}
 

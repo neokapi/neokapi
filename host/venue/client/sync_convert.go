@@ -27,6 +27,7 @@ const (
 // StoredBlockToSyncBlock converts a StoredBlock to the JSON wire type.
 func StoredBlockToSyncBlock(sb *venue.StoredBlock) SyncBlock {
 	b := sb.Block
+	src, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
 	sync := SyncBlock{
 		ID:                 b.ID,
 		ItemName:           sb.ItemName,
@@ -36,7 +37,7 @@ func StoredBlockToSyncBlock(sb *venue.StoredBlock) SyncBlock {
 		MimeType:           b.MimeType,
 		Translatable:       b.Translatable,
 		SourceLocale:       string(b.SourceLocale),
-		SourceStatus:       string(b.SourceStatus),
+		SourceStatus:       string(src.Status),
 		SourceText:         b.SourceText(),
 		PreserveWhitespace: b.PreserveWhitespace,
 		IsReferent:         b.IsReferent,
@@ -45,25 +46,22 @@ func StoredBlockToSyncBlock(sb *venue.StoredBlock) SyncBlock {
 	}
 
 	// Source content — the flat run sequence rides as a single wire segment.
-	if len(b.Source) > 0 {
-		sync.Source = []SyncSegment{runsToWireSegment(b.Source)}
+	if len(src.Runs) > 0 {
+		sync.Source = []SyncSegment{runsToWireSegment(src.Runs)}
 	}
 
 	// Targets per variant. The variant key serializes to its text form
 	// ("fr-FR" or "fr-FR;tone=…"); the run sequence rides as a single wire
 	// segment whose properties carry any target status/origin/score.
-	if len(b.Targets) > 0 {
-		sync.Targets = make(map[string][]SyncSegment, len(b.Targets))
-		for key, target := range b.Targets {
-			if target == nil {
-				continue
-			}
-			keyText, err := key.MarshalText()
-			if err != nil {
-				continue
-			}
-			sync.Targets[string(keyText)] = []SyncSegment{targetToWireSegment(target)}
+	for key, target := range b.EachTargetEdition {
+		keyText, err := key.MarshalText()
+		if err != nil {
+			continue
 		}
+		if sync.Targets == nil {
+			sync.Targets = map[string][]SyncSegment{}
+		}
+		sync.Targets[string(keyText)] = []SyncSegment{targetToWireSegment(target)}
 	}
 
 	// Annotations.
@@ -135,10 +133,10 @@ func runsToWireSegment(runs []model.Run) SyncSegment {
 	return SyncSegment{Runs: modelRunsToSync(runs)}
 }
 
-// targetToWireSegment encodes a committed Target as a single wire segment,
+// targetToWireSegment encodes a committed target as a single wire segment,
 // stashing status/origin/score in segment properties so the protocol shape is
 // unchanged while the round-trip remains lossless.
-func targetToWireSegment(t *model.Target) SyncSegment {
+func targetToWireSegment(t model.Edition) SyncSegment {
 	props := map[string]string{}
 	if t.Status != "" {
 		props[propTargetStatus] = string(t.Status)
@@ -191,41 +189,42 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 		PreserveWhitespace: sb.PreserveWhitespace,
 		IsReferent:         sb.IsReferent,
 		SourceLocale:       model.LocaleID(sb.SourceLocale),
-		SourceStatus:       model.SourceStatus(sb.SourceStatus),
 		Properties:         sb.Properties,
 	}
 
 	// Source content — concatenate the runs of every wire segment back into the
 	// block's flat run sequence.
+	var source []model.Run
 	for _, seg := range sb.Source {
-		b.Source = append(b.Source, syncRunsToModel(seg.Runs)...)
+		source = append(source, syncRunsToModel(seg.Runs)...)
 	}
 
 	// If no structured source but source_text is set, create a simple run.
-	if len(b.Source) == 0 && sb.SourceText != "" {
+	if len(source) == 0 && sb.SourceText != "" {
 		b.SetSourceText(sb.SourceText)
+	} else {
+		b.SetSourceRuns(source)
 	}
 
-	// Targets — one Target per variant, runs concatenated from the wire
+	// Targets — one target per variant, runs concatenated from the wire
 	// segments, status/origin/score restored from the first segment's props.
-	if len(sb.Targets) > 0 {
-		b.Targets = make(map[model.VariantKey]*model.Target, len(sb.Targets))
-		for keyText, segs := range sb.Targets {
-			var key model.VariantKey
-			if err := key.UnmarshalText([]byte(keyText)); err != nil {
-				continue
-			}
-			var runs []model.Run
-			var first *SyncSegment
-			for i := range segs {
-				if first == nil {
-					first = &segs[i]
-				}
-				runs = append(runs, syncRunsToModel(segs[i].Runs)...)
-			}
-			b.Targets[key] = wireSegmentToTarget(runs, first)
+	// Each is filed as a target, so a target in the source language stays one.
+	for keyText, segs := range sb.Targets {
+		var key model.VariantKey
+		if err := key.UnmarshalText([]byte(keyText)); err != nil {
+			continue
 		}
+		var runs []model.Run
+		var first *SyncSegment
+		for i := range segs {
+			if first == nil {
+				first = &segs[i]
+			}
+			runs = append(runs, syncRunsToModel(segs[i].Runs)...)
+		}
+		b.SetTargetEdition(key, wireSegmentToTarget(runs, first))
 	}
+	b.SetEditionStatus(b.Authoritative(model.AuthorityPolicy{}), model.Status(sb.SourceStatus))
 
 	// Annotations: rehydrate each typed payload by its key (the annotation type
 	// name), falling back to a GenericAnnotation for unregistered types.
@@ -275,15 +274,15 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 	return b
 }
 
-// wireSegmentToTarget rebuilds a Target from concatenated runs plus the first
+// wireSegmentToTarget rebuilds a target from concatenated runs plus the first
 // wire segment's metadata properties.
-func wireSegmentToTarget(runs []model.Run, first *SyncSegment) *model.Target {
-	t := &model.Target{Runs: runs}
+func wireSegmentToTarget(runs []model.Run, first *SyncSegment) model.Edition {
+	t := model.Edition{Runs: runs}
 	if first == nil || first.Properties == nil {
 		return t
 	}
 	props := first.Properties
-	t.Status = model.TargetStatus(props[propTargetStatus])
+	t.Status = model.Status(props[propTargetStatus])
 	if s := props[propTargetScore]; s != "" {
 		if v, err := strconv.ParseFloat(s, 64); err == nil {
 			t.Score = v
