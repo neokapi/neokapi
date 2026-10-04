@@ -14,9 +14,14 @@ import { installSQLiteBridge, loadSQLite } from "../../packages/engine/src/sqlit
 // Relative source imports (not the bare specifier) so --experimental-strip-types
 // doesn't have to process the package under node_modules.
 import {
+  SchemaVersion,
+  SchemaVersionV1,
   marshalFile,
+  parseFile,
   renderBlockHtml,
   resolveAnchor,
+  sourceEditions,
+  sourceRuns,
   validateTargetAgainstSource,
 } from "../../packages/kapi-format/src/index.ts";
 import type { Block, File, Run } from "../../packages/kapi-format/src/block.ts";
@@ -63,14 +68,14 @@ const filesHeading: Block = {
   hash: "2xykvb",
   translatable: true,
   type: "jsx:element",
-  source: [
+  editions: sourceEditions([
     { text: "Files " },
     { pcOpen: { id: "1", type: "jsx:element", subType: "span", data: '<span className="muted">', equiv: "muted", disp: "span" } },
     { text: "(" },
     { ph: { id: "2", type: "jsx:var", subType: "number", data: "{count}", equiv: "count", disp: "count" } },
     { text: " matched)" },
     { pcClose: { id: "1", type: "jsx:element", subType: "span", data: "</span>", equiv: "muted" } },
-  ],
+  ]),
   placeholders: [
     { name: "muted", kind: "element", jsType: "ReactNode", sourceExpr: '<span className="muted">...</span>' },
     { name: "count", kind: "variable", jsType: "number", sourceExpr: "count" },
@@ -82,7 +87,7 @@ const shoppingCart: Block = {
   hash: "9QpZ11",
   translatable: true,
   type: "jsx:element",
-  source: [
+  editions: sourceEditions([
     {
       plural: {
         pivot: "count",
@@ -96,12 +101,12 @@ const shoppingCart: Block = {
         },
       },
     },
-  ],
+  ]),
   placeholders: [{ name: "count", kind: "icu-pivot", jsType: "number", sourceExpr: "items" }],
   properties: { file: "src/ShoppingCart.tsx", line: 4, component: "ShoppingCart", jsxPath: "ShoppingCart > p > Plural", element: "Plural" },
 };
 const file: File = {
-  schemaVersion: "1.0",
+  schemaVersion: SchemaVersion,
   kind: "kapi-bundle",
   created: "2026-04-15T10:00:00Z",
   generator: { id: "@neokapi/kapi-format-examples", version: "0.0.1", capabilities: ["extract", "preview"] },
@@ -120,7 +125,7 @@ ok("Go canonical sha == TS canonical sha", goRound.sha256 === tsSha, `go=${Strin
 // multi-key preview.sampleValues (keys must sort to match Go map ordering),
 // plus a sub run.
 const edge: File = {
-  schemaVersion: "1.0",
+  schemaVersion: SchemaVersion,
   kind: "kapi-bundle",
   generator: { id: "edge", version: "1" },
   project: { id: "edge", sourceLocale: "en" },
@@ -135,7 +140,7 @@ const edge: File = {
           hash: "h",
           translatable: true,
           type: "jsx:element",
-          source: [{ text: "Hi " }, { sub: { id: "1", ref: "inner", equiv: "cta" } }],
+          editions: sourceEditions([{ text: "Hi " }, { sub: { id: "1", ref: "inner", equiv: "cta" } }]),
           placeholders: [{ name: "cta", kind: "node", sourceExpr: "<X/>" }],
           properties: { file: "edge.tsx", line: 1, component: "E", jsxPath: "p", element: "p" },
           preview: { storyId: "e--default", sampleValues: { label: "react", index: 3, deletable: true } },
@@ -145,7 +150,7 @@ const edge: File = {
           hash: "h2",
           translatable: true,
           type: "jsx:element",
-          source: [{ text: "Confirm" }],
+          editions: sourceEditions([{ text: "Confirm" }]),
           placeholders: [],
           properties: { file: "edge.tsx", line: 2, component: "E", jsxPath: "a", element: "a" },
         },
@@ -157,6 +162,79 @@ const goEdge = kbf({ op: "roundtrip", kbf: `${JSON.stringify(edge, null, 2)}\n` 
 ok("edge roundtrip ok", goEdge.ok === true, goEdge.error ?? "");
 const tsEdge = sha(marshalFile(edge));
 ok("Go sha == TS sha (empty placeholders + sampleValues order + sub)", goEdge.sha256 === tsEdge, `go=${String(goEdge.sha256).slice(0, 12)} ts=${tsEdge.slice(0, 12)}`);
+
+// Every edition kind with what it records: a translation with status, origin,
+// score and derivation, a channel edition, and a translation filed under no
+// language.
+const editions: File = {
+  ...file,
+  documents: [
+    {
+      id: "examples",
+      documentType: "jsx",
+      path: "examples/all.tsx",
+      blocks: [
+        {
+          ...filesHeading,
+          editions: {
+            ...filesHeading.editions,
+            fr: {
+              runs: [{ text: "Fichiers trouvés" }],
+              status: "translated",
+              origin: { kind: "ai", engine: "claude", context_fingerprint: "cfp-1" },
+              score: 0.75,
+              derived: { from: "", rev: "r:0123456789abcdef" },
+            },
+            "en;channel=short": { runs: [{ text: "Files" }], derived: { from: "", rev: "r:0123456789abcdef" } },
+          },
+          unlabelled: { runs: [{ text: "EMPTYLOC" }], origin: { kind: "human" } },
+        },
+      ],
+    },
+  ],
+};
+const goEditions = kbf({ op: "roundtrip", kbf: `${JSON.stringify(editions, null, 2)}\n` });
+ok("editions roundtrip ok", goEditions.ok === true, goEditions.error ?? "");
+const tsEditions = sha(marshalFile(editions));
+ok("Go sha == TS sha (editions with status, origin, score, derived; unlabelled)", goEditions.sha256 === tsEditions, `go=${String(goEditions.sha256).slice(0, 12)} ts=${tsEditions.slice(0, 12)}`);
+
+// A file in schema 1.0: both engines read it as editions and write the same
+// current-schema bytes.
+const schema1 = `${JSON.stringify(
+  {
+    schemaVersion: SchemaVersionV1,
+    kind: "kapi-bundle",
+    generator: file.generator,
+    project: file.project,
+    documents: [
+      {
+        id: "examples",
+        documentType: "jsx",
+        path: "examples/all.tsx",
+        blocks: [
+          {
+            id: filesHeading.id,
+            hash: filesHeading.hash,
+            translatable: true,
+            type: filesHeading.type,
+            source: sourceRuns(filesHeading),
+            targets: { fr: [{ text: "Fichiers trouvés" }], "": [{ text: "EMPTYLOC" }] },
+            targetOrigins: { fr: { kind: "ai" }, de: { kind: "mt" } },
+            placeholders: filesHeading.placeholders,
+            properties: filesHeading.properties,
+          },
+        ],
+      },
+    ],
+  },
+  null,
+  2,
+)}\n`;
+const goSchema1 = kbf({ op: "roundtrip", kbf: schema1 });
+ok("schema 1.0 roundtrip ok", goSchema1.ok === true, goSchema1.error ?? "");
+const tsSchema1 = marshalFile(parseFile(schema1));
+ok("Go sha == TS sha (schema 1.0 read as editions)", goSchema1.sha256 === sha(tsSchema1), `go=${String(goSchema1.sha256).slice(0, 12)} ts=${sha(tsSchema1).slice(0, 12)}`);
+ok("schema 1.0 is written as schema 2.0", dec.decode(tsSchema1).includes(`"schemaVersion": "${SchemaVersion}"`) && !dec.decode(tsSchema1).includes('"targets"'));
 
 // ── 2. HTML preview parity ─────────────────────────────────────────────────
 for (const b of [filesHeading, shoppingCart]) {
@@ -212,7 +290,7 @@ const unclosed: Block = {
   hash: "x",
   translatable: true,
   type: "jsx:element",
-  source: [{ pcOpen: { id: "1", type: "jsx:element", subType: "b", data: "<b>", equiv: "b" } }, { text: "bold" }],
+  editions: sourceEditions([{ pcOpen: { id: "1", type: "jsx:element", subType: "b", data: "<b>", equiv: "b" } }, { text: "bold" }]),
   placeholders: [{ name: "b", kind: "element", sourceExpr: "<b>" }],
   properties: { file: "x", line: 1, component: "X", jsxPath: "X", element: "p" },
 };

@@ -1,99 +1,108 @@
 // The worked example behind the KBF anatomy page (/kbf-lab): one realistic
 // extracted source file, serialized field-by-field so every line of the
 // resulting `.kbf.json` text is tagged with the anatomical part it belongs to
-// (envelope, generator, project, document, block, run, targets, placeholders,
+// (envelope, generator, project, document, block, editions, run, placeholders,
 // provenance). The page renders the lines as a highlighted source pane and
 // uses the region tags to drive the explanation pane.
 //
 // The document is authored as typed @neokapi/kapi-format objects so it
 // type-checks against the wire schema, and the emitter follows the normative
-// field order of the spec (/reference/serialization/content-bundle): envelope fields in struct
-// order, block fields id → hash → translatable → type → source → targets →
-// placeholders → properties, and target locales sorted.
+// field order of the spec (/reference/serialization/content-bundle): envelope
+// fields in struct order, block fields id → hash → translatable → type →
+// editions → placeholders → properties, edition keys sorted, and each
+// edition's fields runs → status → origin → score → derived.
 
-import type { Block, File, Run } from "@neokapi/kapi-format";
+import type { Block, Edition, File, Run } from "@neokapi/kapi-format";
+import { SchemaVersion, SourceEdition, sourceEditions } from "@neokapi/kapi-format";
 import { t } from "@neokapi/i18n-react/runtime";
 
 // ─── The example document ────────────────────────────────────────────────
 //
-// A checkout banner: one JSX component contributing two blocks — a heading
-// with inline markup and a variable (translated into Norwegian Bokmål), and
-// an untranslated plural.
+// A checkout banner: one JSX component contributing two blocks: a heading
+// with inline markup and a variable, translated into Norwegian Bokmål, and an
+// untranslated plural.
 
 const bannerHeading: Block = {
   id: "banner-heading",
   hash: "8kQzTf",
   translatable: true,
   type: "jsx:element",
-  source: [
-    { text: "Your order " },
-    {
-      pcOpen: {
-        id: "1",
-        type: "jsx:element",
-        subType: "strong",
-        data: "<strong>",
-        equiv: "emph",
-        disp: "strong",
-      },
-    },
-    { text: "#" },
-    {
-      ph: {
-        id: "2",
-        type: "jsx:var",
-        subType: "string",
-        data: "{orderId}",
-        equiv: "orderId",
-        disp: "orderId",
-      },
-    },
-    {
-      pcClose: {
-        id: "1",
-        type: "jsx:element",
-        subType: "strong",
-        data: "</strong>",
-        equiv: "emph",
-      },
-    },
-    { text: " has shipped." },
-  ],
-  targets: {
-    nb: [
-      { text: "Bestillingen din " },
-      {
-        pcOpen: {
-          id: "1",
-          type: "jsx:element",
-          subType: "strong",
-          data: "<strong>",
-          equiv: "emph",
-          disp: "strong",
+  editions: {
+    [SourceEdition]: {
+      runs: [
+        { text: "Your order " },
+        {
+          pcOpen: {
+            id: "1",
+            type: "jsx:element",
+            subType: "strong",
+            data: "<strong>",
+            equiv: "emph",
+            disp: "strong",
+          },
         },
-      },
-      { text: "#" },
-      {
-        ph: {
-          id: "2",
-          type: "jsx:var",
-          subType: "string",
-          data: "{orderId}",
-          equiv: "orderId",
-          disp: "orderId",
+        { text: "#" },
+        {
+          ph: {
+            id: "2",
+            type: "jsx:var",
+            subType: "string",
+            data: "{orderId}",
+            equiv: "orderId",
+            disp: "orderId",
+          },
         },
-      },
-      {
-        pcClose: {
-          id: "1",
-          type: "jsx:element",
-          subType: "strong",
-          data: "</strong>",
-          equiv: "emph",
+        {
+          pcClose: {
+            id: "1",
+            type: "jsx:element",
+            subType: "strong",
+            data: "</strong>",
+            equiv: "emph",
+          },
         },
-      },
-      { text: " er sendt." },
-    ],
+        { text: " has shipped." },
+      ],
+    },
+    nb: {
+      runs: [
+        { text: "Bestillingen din " },
+        {
+          pcOpen: {
+            id: "1",
+            type: "jsx:element",
+            subType: "strong",
+            data: "<strong>",
+            equiv: "emph",
+            disp: "strong",
+          },
+        },
+        { text: "#" },
+        {
+          ph: {
+            id: "2",
+            type: "jsx:var",
+            subType: "string",
+            data: "{orderId}",
+            equiv: "orderId",
+            disp: "orderId",
+          },
+        },
+        {
+          pcClose: {
+            id: "1",
+            type: "jsx:element",
+            subType: "strong",
+            data: "</strong>",
+            equiv: "emph",
+          },
+        },
+        { text: " er sendt." },
+      ],
+      status: "translated",
+      origin: { kind: "ai", engine: "claude", tool: "translate" },
+      derived: { from: SourceEdition, rev: "r:5b1d7e0c93a24f68" },
+    },
   },
   placeholders: [
     {
@@ -123,7 +132,7 @@ const bannerItems: Block = {
   hash: "3mVd9c",
   translatable: true,
   type: "jsx:element",
-  source: [
+  editions: sourceEditions([
     {
       plural: {
         pivot: "count",
@@ -146,7 +155,7 @@ const bannerItems: Block = {
         },
       },
     },
-  ],
+  ]),
   placeholders: [
     {
       name: "count",
@@ -165,7 +174,7 @@ const bannerItems: Block = {
 };
 
 export const ANATOMY_FILE: File = {
-  schemaVersion: "1.0",
+  schemaVersion: SchemaVersion,
   kind: "kapi-bundle",
   created: "2026-05-02T09:30:00Z",
   generator: {
@@ -194,12 +203,12 @@ export type TermId =
   | "vocabulary"
   | "document"
   | "block"
-  | "source"
+  | "editions"
+  | "edition-meta"
   | "run-text"
   | "run-ph"
   | "run-pc"
   | "run-plural"
-  | "targets"
   | "placeholders"
   | "provenance";
 
@@ -247,7 +256,7 @@ export const TERMS: AnatomyTerm[] = [
     spec: "/reference/serialization/content-bundle#projectinfo",
     body: [
       t(
-        "The project this file belongs to, and the BCP-47 locale of every source run sequence in it. Target locales are not declared here — they appear per block, as keys of the targets map.",
+        "The project this file belongs to, and the BCP-47 locale of every block's source edition. Other languages are not declared here. They appear per block, as keys of the editions map.",
         "KBF anatomy explanation",
       ),
     ],
@@ -280,7 +289,7 @@ export const TERMS: AnatomyTerm[] = [
     spec: "/reference/serialization/content-bundle#block",
     body: [
       t(
-        "The unit of translation tracking — typically one JSX element, one HTML paragraph, one Markdown heading, or one attribute value. Content memory, targets, review status, and annotations are all keyed on the block.",
+        "The unit of translation tracking: typically one JSX element, one HTML paragraph, one Markdown heading, or one attribute value. Content memory, editions, review status, and annotations are all keyed on the block.",
         "KBF anatomy explanation",
       ),
       t(
@@ -290,12 +299,31 @@ export const TERMS: AnatomyTerm[] = [
     ],
   },
   {
-    id: "source",
-    title: t("Source runs", "KBF anatomy term"),
-    spec: "/reference/serialization/content-bundle#the-run-model",
+    id: "editions",
+    title: t("Editions", "KBF anatomy term"),
+    spec: "/reference/serialization/content-bundle#editions",
     body: [
       t(
-        "The source content as a flat sequence of runs. Inline markup lives in runs, not in the text — there is no marked-up string for a consumer to re-parse, and a translator's tool can present each run as an atomic token.",
+        "The block's content as peer editions, each under its edition key. The empty key holds the source, in the project's source locale; every translation sits under its BCP-47 locale, and an edition with a tone or a channel under a key such as en;channel=short. Keys are sorted in canonical output.",
+        "KBF anatomy explanation",
+      ),
+      t(
+        "Each edition holds its content as a flat sequence of runs. Inline markup lives in runs rather than in the text, so a consumer has no marked-up string to re-parse, and a translator's tool can present each run as an atomic token. A translation is validated against the source: every required placeholder must be preserved.",
+        "KBF anatomy explanation",
+      ),
+      t(
+        "A block with no edition in a language is untranslated in that language. The second block in this example has only its source.",
+        "KBF anatomy explanation",
+      ),
+    ],
+  },
+  {
+    id: "edition-meta",
+    title: t("Edition status and provenance", "KBF anatomy term"),
+    spec: "/reference/serialization/content-bundle#edition",
+    body: [
+      t(
+        "Beside its runs an edition records where it stands (status), how it was produced and under what governance (origin), and, for a derived edition, the edition it was made from and that edition's revision at the time (derived). Comparing that revision with the source's current one tells whether the translation is stale.",
         "KBF anatomy explanation",
       ),
     ],
@@ -345,21 +373,6 @@ export const TERMS: AnatomyTerm[] = [
     ],
   },
   {
-    id: "targets",
-    title: t("Targets", "KBF anatomy term"),
-    spec: "/reference/serialization/content-bundle#targets",
-    body: [
-      t(
-        "Per-locale translations. Each key is a BCP-47 locale (sorted in canonical output) and each value is that locale's own run sequence, validated against the source: every required placeholder must be preserved.",
-        "KBF anatomy explanation",
-      ),
-      t(
-        "A block with no entry for a locale is untranslated in that locale. The second block in this example has no targets yet.",
-        "KBF anatomy explanation",
-      ),
-    ],
-  },
-  {
     id: "placeholders",
     title: t("Placeholders", "KBF anatomy term"),
     spec: "/reference/serialization/content-bundle#placeholder",
@@ -402,7 +415,7 @@ function runTerm(run: Run): TermId {
   if ("ph" in run) return "run-ph";
   if ("pcOpen" in run || "pcClose" in run) return "run-pc";
   if ("plural" in run) return "run-plural";
-  return "source";
+  return "editions";
 }
 
 /** Serialize the example File to lines, each tagged with its anatomy term. */
@@ -431,6 +444,26 @@ function buildLines(f: File): AnatomyLine[] {
     });
   };
 
+  // One edition: its runs, each tagged with its run kind, then whatever it
+  // records about itself, in the order the serializer writes the fields.
+  const emitEdition = (key: string, e: Edition, level: number, comma: boolean): void => {
+    push(`${pad(level)}${JSON.stringify(key)}: {`, "editions");
+    const meta: Array<[string, unknown]> = [];
+    if (e.status) meta.push(["status", e.status]);
+    if (e.origin) meta.push(["origin", e.origin]);
+    if (e.score) meta.push(["score", e.score]);
+    if (e.derived) meta.push(["derived", e.derived]);
+    push(`${pad(level + 1)}"runs": [`, "editions");
+    e.runs.forEach((run, i) => {
+      emit(null, run, level + 2, runTerm(run), i < e.runs.length - 1);
+    });
+    push(pad(level + 1) + (meta.length > 0 ? "]," : "]"), "editions");
+    meta.forEach(([field, value], i) => {
+      emit(field, value, level + 1, "edition-meta", i < meta.length - 1);
+    });
+    push(pad(level) + (comma ? "}," : "}"), "editions");
+  };
+
   const emitBlock = (b: Block, last: boolean): void => {
     const L = 4; // indent level of a block object inside documents[0].blocks
     push(pad(L) + "{", "block");
@@ -438,19 +471,10 @@ function buildLines(f: File): AnatomyLine[] {
     emit("hash", b.hash, L + 1, "block", true);
     emit("translatable", b.translatable, L + 1, "block", true);
     emit("type", b.type, L + 1, "block", true);
-    push(pad(L + 1) + '"source": [', "source");
-    b.source.forEach((run, i) => {
-      emit(null, run, L + 2, runTerm(run), i < b.source.length - 1);
-    });
-    push(pad(L + 1) + "],", "source");
-    if (b.targets) {
-      push(pad(L + 1) + '"targets": {', "targets");
-      const locales = Object.keys(b.targets).sort();
-      locales.forEach((loc, i) => {
-        emit(loc, b.targets?.[loc], L + 2, "targets", i < locales.length - 1);
-      });
-      push(pad(L + 1) + "},", "targets");
-    }
+    push(pad(L + 1) + '"editions": {', "editions");
+    const keys = Object.keys(b.editions).sort();
+    keys.forEach((key, i) => emitEdition(key, b.editions[key], L + 2, i < keys.length - 1));
+    push(pad(L + 1) + "},", "editions");
     emit("placeholders", b.placeholders, L + 1, "placeholders", true);
     emit("properties", b.properties, L + 1, "provenance", false);
     push(pad(L) + (last ? "}" : "},"), "block");
