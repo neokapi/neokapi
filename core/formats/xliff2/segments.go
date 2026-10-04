@@ -140,6 +140,7 @@ func applySegmentsToBlock(block *model.Block, srcSegs []seg, tgtSegs []seg, trgL
 		ann.Target[trgLang] = irByID
 		block.SetTargetRuns(trgLang, runs)
 		key := model.Variant(trgLang)
+		block.MarkNative(key)
 		block.SetSegmentation(key, buildSegmentSpans(tgtSegs))
 		applyMarkOverlays(block, key, tgtSegs)
 		// Map the XLIFF 2 segment state (captured as a block property by both

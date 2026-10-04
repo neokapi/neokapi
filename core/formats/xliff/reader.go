@@ -1480,9 +1480,11 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			}
 			block.SetTargetRuns(effectiveTargetLang, tgtRuns)
 			key := model.Variant(effectiveTargetLang)
+			block.MarkNative(key)
 			block.SetSegmentation(key, spans)
 		} else {
 			block.SetTargetRuns(effectiveTargetLang, nativeToRuns(targetNative))
+			block.MarkNative(model.Variant(effectiveTargetLang))
 			block.SetAnno(targetSegNativeKey(effectiveTargetLang, "s1"), &SegmentNativeAnnotation{Content: targetNative})
 		}
 		// Attach body-level native IR for <target>. Walking this lets
