@@ -650,7 +650,7 @@ export interface SpanInfo {
 
 /**
  * Per-locale lifecycle status of a committed translation — the framework's
- * `model.Target.Status` ladder ("" = no committed status yet).
+ * `model.Edition.Status` ladder ("" = no committed status yet).
  */
 export type TargetStatus = "" | "draft" | "translated" | "established";
 
@@ -781,7 +781,7 @@ export interface DecideSourceProposalResult {
 
 /**
  * A per-locale committed target in the blocks payload: the plain text plus its
- * lifecycle status (mirrors the server's per-locale `model.Target`). Targets
+ * lifecycle status (mirrors the server's per-locale `model.Edition`). Targets
  * maps are keyed by `VariantKey.MarshalText` — for tone/channel-free variants
  * that is the plain locale string (e.g. "fr").
  */

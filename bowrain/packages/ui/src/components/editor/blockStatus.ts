@@ -13,7 +13,7 @@ import type { BlockInfo, BlockStatusBucket, TargetEntry, TargetStatus } from "..
  * dot and margin rule a dense row paints from the resulting rung.
  *
  * A block's `targets` entry is either a bare string (legacy payloads) or a
- * `TargetInfo` object carrying the per-locale `Target.Status` ladder value.
+ * `TargetInfo` object carrying the per-locale `Edition.Status` ladder value.
  * All reads must go through `getTargetText` / `getTargetStatus` /
  * `getBlockStatus` so both shapes work.
  */
@@ -30,7 +30,7 @@ export function getTargetText(block: BlockInfo, locale: string): string {
 }
 
 /**
- * Per-locale `Target.Status` for the given locale ("" when the payload carries
+ * Per-locale `Edition.Status` for the given locale ("" when the payload carries
  * none). This is the canonical review-ladder read; the legacy block-global
  * `properties["translation-status"]` is only consulted by `getBlockStatus` as
  * a read fallback for blocks written before per-locale status existed.
@@ -155,7 +155,7 @@ export function withTargetRevision(
 
 /** Derive a block's translation status for a given target locale. */
 export function getBlockStatus(block: BlockInfo, locale: string): BlockStatus {
-  // Canonical: per-locale Target.Status on the block's target for this locale.
+  // Canonical: per-locale Edition.Status on the block's target for this locale.
   // Established is trusted as-is: the server refuses to approve an empty
   // translation, so an established entry always carries text.
   const status = getTargetStatus(block, locale);

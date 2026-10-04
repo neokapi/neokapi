@@ -24,7 +24,7 @@ import (
 
 // These tests cover a review decision on the server: decide, sent to a
 // stream's changes route, stores the decision as the per-locale
-// model.Target.Status on the block's translation for the decided locale — the
+// model.Edition.Status on the block's translation for the decided locale — the
 // framework target ladder that convergence, coverage and the ship gates
 // consume. They run against the real PostgreSQL ContentStore
 // (testcontainers), so every assertion covers the full route → change
@@ -109,7 +109,7 @@ func draftMarks(t *testing.T, cs *bstore.PostgresStore, pid string) []platstore.
 	return marks
 }
 
-// Establishing fr sets fr's Target.Status to established without touching de,
+// Establishing fr sets fr's Edition.Status to established without touching de,
 // and never writes the legacy block-global property.
 func TestDecide_EstablishSetsOneLocale(t *testing.T) {
 	srv, cs := newReviewTestServer(t)
@@ -412,7 +412,7 @@ func TestHandleGetFileBlocksCarriesPerLocaleStatus(t *testing.T) {
 
 // A block established through the changes route counts toward that locale only
 // in the convergence and coverage established numbers: the route stores the
-// per-locale Target.Status, Postgres round-trips it, and convergence.TargetState
+// per-locale Edition.Status, Postgres round-trips it, and convergence.TargetState
 // and CoverageTally read exactly that field.
 func TestDecide_FeedsConvergenceCoverage(t *testing.T) {
 	srv, cs := newReviewTestServer(t)

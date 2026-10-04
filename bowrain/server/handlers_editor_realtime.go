@@ -61,7 +61,7 @@ type ReviewBlockRequest struct {
 
 // legacyTranslationStatusProperty is the pre-per-locale review flag: a
 // block-global property an earlier review route wrote. Review state lives on
-// the per-locale Target.Status, but blocks written before the change still
+// the per-locale Edition.Status, but blocks written before the change still
 // carry it, so a withdrawal clears it when there is no target to demote.
 const legacyTranslationStatusProperty = "translation-status"
 

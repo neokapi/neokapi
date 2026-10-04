@@ -664,7 +664,7 @@ func storedBlockToBlockInfo(sb *venue.StoredBlock, targetLocales []string) Block
 
 // legacyTranslationStatusProperty is the block-wide review flag of cached
 // blocks written before review status lived on each translation
-// (model.Target.Status). It is never written; a decision that moves a block
+// (model.Edition.Status). It is never written; a decision that moves a block
 // with no translation clears it.
 const legacyTranslationStatusProperty = "translation-status"
 
