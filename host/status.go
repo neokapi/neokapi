@@ -214,7 +214,7 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 // columns, and the pipeline bar carries distance-to-the-bar at a glance.
 func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 	headers := make([]string, 0, len(statusLadder)+4)
-	headers = append(headers, "scope", "units")
+	headers = append(headers, "scope", "blocks")
 	headers = append(headers, statusLadder...)
 	headers = append(headers, "pipeline", "ship")
 
@@ -274,7 +274,7 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 		}
 	}
 	if stale > 0 {
-		fmt.Fprintf(w, "\n%d unit(s) stale: the source changed since the translation was decided. "+
+		fmt.Fprintf(w, "\n%d block(s) stale: the source changed since the translation was decided. "+
 			"They do not ship.\n", stale)
 		// Which of the two things a stale unit waits on, so the reader is sent
 		// to the command that moves it. Silent for a producer that reports only
@@ -291,18 +291,18 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 	// holds, so the grading reads the unit as settled, and what stands between
 	// it and the gate is a reviewer's refusal.
 	if rejected > 0 {
-		fmt.Fprintf(w, "\n%d unit(s) were turned down in review and hold the wording that was refused. "+
+		fmt.Fprintf(w, "\n%d block(s) were turned down in review and hold the wording that was refused. "+
 			"They do not ship. `kapi up` drafts them again.\n", rejected)
 	}
 	// Named as units, because `kapi check` counts findings over the same tree and
 	// one unit can carry several. The percentages above are unaffected: these
 	// units are translated, and some are reviewed.
 	if failing > 0 {
-		fmt.Fprintf(w, "\n%d unit(s) fail the project's bound checks. They do not ship until the "+
+		fmt.Fprintf(w, "\n%d block(s) fail the project's bound checks. They do not ship until the "+
 			"findings are fixed. `kapi check --ship` lists them.\n", failing)
 	}
 	if termsNotChecked > 0 {
-		fmt.Fprintf(w, "\n%d unit(s) have no terminology result: the project's terms govern their language, "+
+		fmt.Fprintf(w, "\n%d block(s) have no terminology result: the project's terms govern their language, "+
 			"but their targets could not be read to check. They do not ship.\n", termsNotChecked)
 	}
 	if len(ungoverned) > 0 {
@@ -310,8 +310,8 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 			"term_rules have a rule for it, so terminology is not a bar to shipping there.\n", strings.Join(ungoverned, ", "))
 	}
 	if unknown > 0 {
-		fmt.Fprintf(w, "\n%d unit(s) hold a decision recorded before its source basis; they count as current "+
-			"until the unit is decided again.\n", unknown)
+		fmt.Fprintf(w, "\n%d block(s) hold a decision recorded before its source basis; they count as current "+
+			"until the block is decided again.\n", unknown)
 	}
 }
 
@@ -554,7 +554,7 @@ func writeSourceLine(w io.Writer, sc SourceCoverage) {
 		standing = " · blocked: " + sc.Pending[0].State
 	}
 	statusLabel(w, "source")
-	fmt.Fprintf(w, "%d units · %s%s\n\n", sc.Total, strings.Join(cells, " · "), standing)
+	fmt.Fprintf(w, "%d blocks · %s%s\n\n", sc.Total, strings.Join(cells, " · "), standing)
 }
 
 // scopeLabel renders a coverage row's scope: the locale, or "locale/collection"
@@ -809,7 +809,7 @@ func (a *App) statusVenue(proj *project.KapiProject) *StatusVenue {
 func AddStatusFlags(cmd Command) {
 	cmd.Flags().String("locale", "", "limit to a single target locale")
 	cmd.Flags().String("source-lang", "", "source language (overrides the project's source_language)")
-	cmd.Flags().Bool("review", false, "list the units awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated unit with `kapi apply` (kind:\"review\")")
+	cmd.Flags().Bool("review", false, "list the blocks awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated block with `kapi apply` (kind:\"review\")")
 	cmd.Flags().StringSlice("lang", nil, "with --review, list only these languages (repeatable, or comma-separated); the source language is one of them")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established, translated, withheld or not_gated, and a language picker offers only shippable locales and badges the ones not established as AI-translated")

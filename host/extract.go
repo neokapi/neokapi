@@ -299,7 +299,7 @@ func (a *App) RunExtract(cmd Command) error {
 
 			revisions, err := interchangeRevisions(cmd.Context(), svc, filepath.ToSlash(src.Relative), tgt)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "extract: %s → %s: read the revisions its units carry: %v\n", src.Relative, tgt, err)
+				fmt.Fprintf(os.Stderr, "extract: %s → %s: read the revisions its blocks carry: %v\n", src.Relative, tgt, err)
 				failures++
 				continue
 			}
@@ -1081,7 +1081,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 			outPath := filepath.Join(absOut, outName)
 			revisions, err := interchangeRevisions(cmd.Context(), svc, filepath.ToSlash(src.Relative), tgt)
 			if err != nil {
-				return fmt.Errorf("extract: %s → %s: read the revisions its units carry: %w", src.Relative, tgt, err)
+				return fmt.Errorf("extract: %s → %s: read the revisions its blocks carry: %w", src.Relative, tgt, err)
 			}
 			if err := a.extractOneKpz(cmd.Context(), kpzInterchangeTask{
 				ctx: pctx, source: src, targetLocale: tgt, outputPath: outPath, tm: mem, tb: tb, revisions: revisions,

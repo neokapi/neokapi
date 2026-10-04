@@ -147,7 +147,7 @@ func (r *convergeRenderer) releaseInOrder(all bool) {
 
 // printDoneLine writes one finished locale's line on a plain stream.
 func printDoneLine(w io.Writer, locale string, row *convergeRow) {
-	fmt.Fprintf(w, "  %-10s %d/%d units%s\n", locale, row.done, row.units, producedSuffix(row.viaMemory, row.viaDraft, row.viaAI))
+	fmt.Fprintf(w, "  %-10s %d/%d blocks%s\n", locale, row.done, row.units, producedSuffix(row.viaMemory, row.viaDraft, row.viaAI))
 }
 
 // producedSuffix renders where a locale's units came from. `drafts` counts the

@@ -355,7 +355,7 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 			return info, nil
 		}
 	}
-	return nil, fmt.Errorf("source unit %q (%s) not found in %s", ref.Key, sourceLang, ref.File)
+	return nil, fmt.Errorf("source block %q (%s) not found in %s", ref.Key, sourceLang, ref.File)
 }
 
 // approveSourceUnit records a person's approval of one source unit, bound to
@@ -407,13 +407,13 @@ func (a *App) approveSourceUnit(ctx context.Context, projectPath, sourceLang str
 				text, empty = *wording, strings.TrimSpace(*wording) == ""
 			}
 			if empty {
-				return false, fmt.Errorf("source unit %s is empty, so there is nothing to approve", ref.Key)
+				return false, fmt.Errorf("source block %s is empty, so there is nothing to approve", ref.Key)
 			}
 			scope := a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath)
 			return a.recordSourceApproval(ctx, root, scope, blockKey(b), text, a.SourceLang)
 		}
 	}
-	return false, fmt.Errorf("source unit %q not found in %s", ref.Key, ref.File)
+	return false, fmt.Errorf("source block %q not found in %s", ref.Key, ref.File)
 }
 
 // recordSourceApproval writes the approval to the project state store, keyed by

@@ -78,21 +78,21 @@ func (o reviewQueueOutput) FormatText(w io.Writer) error {
 		case o.readNothing && len(o.Warnings) > 0:
 			fmt.Fprintln(w, "Nothing could be listed for review: no installed reader opens this project's content.")
 		case len(o.Warnings) > 0 && filtered != "":
-			fmt.Fprintf(w, "Review queue empty for %s in the content kapi could read: no unit there is waiting for a person.\n", filtered)
+			fmt.Fprintf(w, "Review queue empty for %s in the content kapi could read: no block there is waiting for a person.\n", filtered)
 		case len(o.Warnings) > 0:
-			fmt.Fprintln(w, "Review queue empty for the content kapi could read: no unit there is waiting for a person.")
+			fmt.Fprintln(w, "Review queue empty for the content kapi could read: no block there is waiting for a person.")
 		case filtered != "":
-			fmt.Fprintf(w, "Review queue empty for %s: no unit in %s is waiting for a person.\n", filtered, filtered)
+			fmt.Fprintf(w, "Review queue empty for %s: no block in %s is waiting for a person.\n", filtered, filtered)
 		default:
-			fmt.Fprintln(w, "Review queue empty: no unit in any language is waiting for a person.")
+			fmt.Fprintln(w, "Review queue empty: no block in any language is waiting for a person.")
 		}
 		if elsewhere != "" {
 			fmt.Fprintf(w, "Waiting in other languages: %s. Run `kapi status --review` without --lang to list them.\n", elsewhere)
 		}
 		return nil
 	}
-	fmt.Fprintf(w, "%d unit(s) awaiting review:\n\n", len(o.Pending))
-	t := output.NewTable(w).Accent(1).Headers("locale", "unit", "source", "ai")
+	fmt.Fprintf(w, "%d block(s) awaiting review:\n\n", len(o.Pending))
+	t := output.NewTable(w).Accent(1).Headers("locale", "block", "source", "ai")
 	s := t.Styles()
 	sources, held := 0, 0
 	for _, it := range o.Pending {
@@ -117,12 +117,12 @@ func (o reviewQueueOutput) FormatText(w io.Writer) error {
 	}
 	t.Render()
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Approve a translated unit with `kapi apply` (a `review` change-set, addressed by its file/id/locale). The state record lands in the project store and the unit becomes `established`.")
+	fmt.Fprintln(w, "Approve a translated block with `kapi apply` (a `review` change-set, addressed by its file/id/locale). The state record lands in the project store and the block becomes `established`.")
 	if sources > 0 {
-		fmt.Fprintln(w, "Units marked `source` are the project's own source language. `kapi apply` records target-language decisions only; approve source wording in the Review page of Kapi Desktop.")
+		fmt.Fprintln(w, "Blocks marked `source` are the project's own source language. `kapi apply` records target-language decisions only; approve source wording in the Review page of Kapi Desktop.")
 	}
 	if held > 0 {
-		fmt.Fprintf(w, "%d source unit(s) are held below the project's translate_after level, so the loop holds their translations.\n", held)
+		fmt.Fprintf(w, "%d source block(s) are held below the project's translate_after level, so the loop holds their translations.\n", held)
 	}
 	if elsewhere != "" {
 		fmt.Fprintf(w, "Also waiting in other languages: %s.\n", elsewhere)

@@ -25,7 +25,7 @@ import (
 // process is writing.
 func (c *BowrainSourceConnector) workingStore(ctx context.Context) (*state.WorkStore, error) {
 	if c.app == nil {
-		return nil, errors.New("connector has no host app, so unit state cannot reach the project store")
+		return nil, errors.New("connector has no host app, so block state cannot reach the project store")
 	}
 	return c.app.OpenProjectState(ctx, c.project.Root)
 }
@@ -199,7 +199,7 @@ func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pull
 			Scope:                d.ItemName,
 		}
 		if err := st.RecordEntry(ctx, next, d.DecidedBy, state.OriginVenue); err != nil {
-			return recorded, skipped, fmt.Errorf("record unit state %s/%s: %w", d.Unit, d.Variant, err)
+			return recorded, skipped, fmt.Errorf("record block state %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		recorded++
 	}

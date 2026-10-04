@@ -31,16 +31,16 @@ func formatPlanLine(plan UpPlanOutput) string {
 	}
 	if t.MissingTarget == 0 && t.Stale == 0 && t.Unanswered == 0 {
 		if t.UnreadTargets > 0 {
-			return fmt.Sprintf("plan: %d produced unit(s) not priced: the store has not read their committed "+
+			return fmt.Sprintf("plan: %d produced block(s) not priced: the store has not read their committed "+
 				"translations yet, so this run drafts what the record declines", t.UnreadTargets) + aside
 		}
 		if plan.upToDate {
 			return "plan: every language is up to date, so this run drafts nothing and verifies gates" + aside
 		}
 		if aside != "" {
-			return "plan: every unit it could read has a committed target the content memory answers, so this run verifies gates" + aside
+			return "plan: every block it could read has a committed target the content memory answers, so this run verifies gates" + aside
 		}
-		return "plan: every unit has a committed target the content memory answers, so this run verifies gates"
+		return "plan: every block has a committed target the content memory answers, so this run verifies gates"
 	}
 	// The kinds of work the run will do, then what it costs. Each is named
 	// separately because the reader is being told something different about it —
@@ -51,13 +51,13 @@ func formatPlanLine(plan UpPlanOutput) string {
 	// does not treat them differently.
 	var work []string
 	if t.MissingTarget > 0 {
-		work = append(work, fmt.Sprintf("%d unit(s) missing", t.MissingTarget))
+		work = append(work, fmt.Sprintf("%d block(s) missing", t.MissingTarget))
 	}
 	if t.Stale > 0 {
-		work = append(work, fmt.Sprintf("re-drafting %d stale unit(s): their source changed since the translation was decided", t.Stale))
+		work = append(work, fmt.Sprintf("re-drafting %d stale block(s): their source changed since the translation was decided", t.Stale))
 	}
 	if t.Unanswered > 0 {
-		work = append(work, fmt.Sprintf("drafting %d unit(s) the content memory does not answer", t.Unanswered))
+		work = append(work, fmt.Sprintf("drafting %d block(s) the content memory does not answer", t.Unanswered))
 	}
 	// Stored drafts are named the way the run's own per-locale line names them,
 	// and only when there are any: a run that serves nothing from the store
@@ -97,7 +97,7 @@ func AddUpFlags(cmd Command) {
 	cmd.Flags().Int("passes", 0, "maximum reconciliation passes (0 = loop until up to date or parked, capped at 5; 1 = single pass)")
 	cmd.Flags().Int("jobs", 0, "how many languages to catch up concurrently per pass (0 = the recipe's defaults.jobs, else 4)")
 	cmd.Flags().Bool("no-extract", false, "skip the pre-pass source-drift check and block-store re-extraction")
-	cmd.Flags().Bool("no-checks", false, "skip the bound checks in the loop (produced units count as translated even when failing guardrails)")
+	cmd.Flags().Bool("no-checks", false, "skip the bound checks in the loop (produced blocks count as translated even when failing guardrails)")
 	cmd.Flags().Bool("materialize", false, "after the loop, write target-language files from the project store for every shippable locale (forces defaults.materialize: on-converge)")
 	cmd.Flags().Bool("plan", false, "dry run: report pending work, content-memory leverage, and a token estimate per (collection, locale), with no provider calls and no writes")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")

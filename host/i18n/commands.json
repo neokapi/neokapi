@@ -3605,7 +3605,7 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             },
             "review": {
-              "usage": "list the units awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated unit with `kapi apply` (kind:\"review\")"
+              "usage": "list the blocks awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated block with `kapi apply` (kind:\"review\")"
             },
             "ship": {
               "usage": "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established, translated, withheld or not_gated, and a language picker offers only shippable locales and badges the ones not established as AI-translated"
@@ -4090,7 +4090,7 @@
               "usage": "AI model name"
             },
             "no-checks": {
-              "usage": "skip the bound checks in the loop (produced units count as translated even when failing guardrails)"
+              "usage": "skip the bound checks in the loop (produced blocks count as translated even when failing guardrails)"
             },
             "no-extract": {
               "usage": "skip the pre-pass source-drift check and block-store re-extraction"

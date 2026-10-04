@@ -1025,7 +1025,7 @@ func (m *memoryAnswers) answers(src []model.Run, locale model.LocaleID, tgt []mo
 		var err error
 		entries, err = m.tm.FullScoreEntries(m.ctx, src, m.source)
 		if err != nil {
-			return false, fmt.Errorf("read content-memory entries for a rewritten unit: %w", err)
+			return false, fmt.Errorf("read content-memory entries for a rewritten block: %w", err)
 		}
 		m.cache[key] = entries
 	}

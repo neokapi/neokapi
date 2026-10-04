@@ -288,7 +288,7 @@ func blessingDelta(ctx context.Context, scope contextgraph.Scope, blocks blockst
 	}
 	units, err := work.All(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("read unit state: %w", err)
+		return nil, fmt.Errorf("read block state: %w", err)
 	}
 	if len(units) == 0 {
 		return d, nil
@@ -312,7 +312,7 @@ func blessingDelta(ctx context.Context, scope contextgraph.Scope, blocks blockst
 	for _, u := range units {
 		variant, err := u.Variant.MarshalText()
 		if err != nil {
-			return nil, fmt.Errorf("render variant of unit %q: %w", u.Unit, err)
+			return nil, fmt.Errorf("render variant of block %q: %w", u.Unit, err)
 		}
 		gu := contextgraph.UnitState{
 			Document:    u.Scope,
