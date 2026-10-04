@@ -32,11 +32,11 @@ func TestConvergeRenderer_PlainStream(t *testing.T) {
 	assert.NotContains(t, got, "\x1b[", "plain stream must carry no ANSI control sequences")
 	assert.Contains(t, got, "Extracted 4 block(s).")
 	assert.Contains(t, got, "pass 1/5 · catching up nb-NO, de-DE")
-	assert.Contains(t, got, "nb-NO      2/2 units  (content memory 1 · AI 1)")
+	assert.Contains(t, got, "nb-NO      2/2 blocks  (content memory 1 · AI 1)")
 	assert.Contains(t, got, "pass 1 done · produced 4 (+4) · 1 failing check(s)")
 	assert.Contains(t, got, "materialized 3 target file(s)")
 	// unit_progress is TTY-only detail; a plain stream stays line-per-outcome.
-	assert.NotContains(t, got, "1/2 units")
+	assert.NotContains(t, got, "1/2 blocks")
 }
 
 // TestConvergeRenderer_PlainStreamPrintsLocalesInPassOrder: the locales of a
@@ -54,9 +54,9 @@ func TestConvergeRenderer_PlainStreamPrintsLocalesInPassOrder(t *testing.T) {
 		return out.String()
 	}
 	want := "pass 1/2 · catching up de, fr, nb\n" +
-		"  de         2/2 units\n" +
-		"  fr         2/2 units\n" +
-		"  nb         2/2 units\n" +
+		"  de         2/2 blocks\n" +
+		"  fr         2/2 blocks\n" +
+		"  nb         2/2 blocks\n" +
 		"pass 1 done · produced 6 (+0)\n"
 	assert.Equal(t, want, run("nb", "de", "fr"))
 	assert.Equal(t, want, run("fr", "nb", "de"))
@@ -64,8 +64,8 @@ func TestConvergeRenderer_PlainStreamPrintsLocalesInPassOrder(t *testing.T) {
 	// A locale that never finishes does not hold back the ones after it: the
 	// pass summary releases them, in order.
 	assert.Equal(t, "pass 1/2 · catching up de, fr, nb\n"+
-		"  de         2/2 units\n"+
-		"  nb         2/2 units\n"+
+		"  de         2/2 blocks\n"+
+		"  nb         2/2 blocks\n"+
 		"pass 1 done · produced 6 (+0)\n", run("nb", "de"))
 }
 

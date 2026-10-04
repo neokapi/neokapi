@@ -46,5 +46,5 @@ func writeHeldWarning(w io.Writer, source string, labels []string) {
 		return
 	}
 	fmt.Fprintf(w, "Warning: extract: %s: left out %d message(s) holding a plural or select (%s): "+
-		"an XLIFF or PO unit carries one branch of each; %s\n", source, len(labels), strings.Join(labels, ", "), warnStructures)
+		"an XLIFF or PO entry carries one branch of each; %s\n", source, len(labels), strings.Join(labels, ", "), warnStructures)
 }

@@ -130,7 +130,7 @@ func TestStatusOutput_NamesTheRefusedUnits(t *testing.T) {
 	}}}
 	var buf bytes.Buffer
 	require.NoError(t, out.FormatText(&buf))
-	assert.Contains(t, buf.String(), "3 unit(s) were turned down in review")
+	assert.Contains(t, buf.String(), "3 block(s) were turned down in review")
 	assert.Contains(t, buf.String(), "blocked: rejected")
 
 	clean := StatusOutput{Locales: []LocaleCoverage{{
@@ -153,6 +153,6 @@ func TestConvergeOutput_NamesTheRefusedUnits(t *testing.T) {
 	}
 	var buf bytes.Buffer
 	require.NoError(t, out.FormatText(&buf))
-	assert.Contains(t, buf.String(), "2 unit(s) still hold wording a reviewer turned down")
+	assert.Contains(t, buf.String(), "2 block(s) still hold wording a reviewer turned down")
 	assert.Equal(t, 2, out.RejectedUnits())
 }

@@ -97,7 +97,7 @@ func (a *App) ReviewAIAction(tabID, locale, file, key, action, instruction strin
 	}
 	b, ok := byKey[key]
 	if !ok {
-		return nil, fmt.Errorf("unit %q not found in %s", key, file)
+		return nil, fmt.Errorf("block %q not found in %s", key, file)
 	}
 
 	loc := model.LocaleID(locale)
@@ -183,7 +183,7 @@ func (a *App) reviewAIExplain(ctx context.Context, op *openProject, unit host.Un
 	}
 	payload := b.Properties["review"]
 	if payload == "" {
-		return nil, errors.New("the model returned no review for this unit")
+		return nil, errors.New("the model returned no review for this block")
 	}
 	if res, perr := aitools.ParseReviewResult(payload); perr == nil {
 		return &ReviewAIActionResult{Explanation: renderReviewExplanation(res)}, nil

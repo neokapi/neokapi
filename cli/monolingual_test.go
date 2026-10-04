@@ -155,7 +155,7 @@ func TestUp_MonolingualNeedsNoAIProvider(t *testing.T) {
 
 // TestUpPlan_MonolingualWritesNothing: the plan is a dry run on every project
 // shape. It must neither error on a monolingual recipe nor leave a store behind,
-// and it must say what the run would do rather than "every unit has a committed
+// and it must say what the run would do rather than "every block has a committed
 // target" — a sentence about units that do not exist.
 func TestUpPlan_MonolingualWritesNothing(t *testing.T) {
 	a := processOnlyApp(t)
@@ -165,7 +165,7 @@ func TestUpPlan_MonolingualWritesNothing(t *testing.T) {
 	require.NoError(t, err, out)
 
 	assert.Contains(t, out, "No target languages configured")
-	assert.NotContains(t, out, "every unit has a committed target")
+	assert.NotContains(t, out, "every block has a committed target")
 	assert.NoFileExists(t, project.LayoutAt(root).StorePath(), "a dry run created a project store")
 }
 

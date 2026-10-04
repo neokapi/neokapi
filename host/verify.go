@@ -552,7 +552,7 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 				Gate:   gateShip,
 				Locale: lc.Locale,
 				Fails:  true,
-				Message: fmt.Sprintf("%s: %d unit(s) fail the project's bound checks",
+				Message: fmt.Sprintf("%s: %d block(s) fail the project's bound checks",
 					scope, lc.FailingChecks),
 				Suggestion: "fix the findings the checks gate lists for this locale, then re-run",
 			})
@@ -567,9 +567,9 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 				Gate:   gateShip,
 				Locale: lc.Locale,
 				Fails:  true,
-				Message: fmt.Sprintf("%s: %d unit(s) stale, so the source changed since the translation was decided",
+				Message: fmt.Sprintf("%s: %d block(s) stale, so the source changed since the translation was decided",
 					scope, lc.Stale),
-				Suggestion: "re-review the stale units (kapi status --review) or retranslate them",
+				Suggestion: "re-review the stale blocks (kapi status --review) or retranslate them",
 			})
 		}
 		// A unit the terms govern with no terminology result fails the gate on
@@ -580,7 +580,7 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 				Gate:   gateShip,
 				Locale: lc.Locale,
 				Fails:  true,
-				Message: fmt.Sprintf("%s: %d unit(s) have no terminology result, because terms govern them and their targets could not be read to check",
+				Message: fmt.Sprintf("%s: %d block(s) have no terminology result, because terms govern them and their targets could not be read to check",
 					scope, lc.TermsNotChecked),
 				Suggestion: "write these targets in a format kapi can read back, so their terminology can be checked",
 			})

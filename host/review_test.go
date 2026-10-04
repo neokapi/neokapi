@@ -324,6 +324,6 @@ func TestReviewQueueText_NamesTheEstablishedRung(t *testing.T) {
 	out := reviewQueueOutput{Pending: []ReviewQueueItem{{Locale: "nb", File: "nb.json", Key: "a", Source: "Apple"}}}
 	var b strings.Builder
 	require.NoError(t, out.FormatText(&b))
-	assert.Contains(t, b.String(), "the unit becomes `established`")
+	assert.Contains(t, b.String(), "the block becomes `established`")
 	assert.NotContains(t, b.String(), "reviewed")
 }

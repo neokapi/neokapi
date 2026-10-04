@@ -206,7 +206,7 @@ func (a *App) workingTreeCoverage(ctx context.Context, op *openProject) (*conver
 	engine := a.hostEngine()
 	units, err := engine.UnitsFromProject(op.Project, root, "")
 	if err != nil {
-		return nil, fmt.Errorf("resolve verify units: %w", err)
+		return nil, fmt.Errorf("resolve verify blocks: %w", err)
 	}
 	tally, err := engine.ProjectCoverageTally(ctx, op.Project, root, units, nil)
 	if err != nil {

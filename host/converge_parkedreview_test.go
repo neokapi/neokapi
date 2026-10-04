@@ -326,7 +326,7 @@ func TestUpPlan_ParkedDraftsAreReuse(t *testing.T) {
 	assert.Zero(t, plan.Totals.TokenEstimate)
 	var text strings.Builder
 	require.NoError(t, plan.FormatText(&text))
-	assert.Contains(t, text.String(), "8 unit(s) served from stored drafts")
+	assert.Contains(t, text.String(), "8 block(s) served from stored drafts")
 	assert.NotContains(t, text.String(), "not priced")
 
 	// One rewritten string is provider work in every locale; the other three

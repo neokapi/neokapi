@@ -155,7 +155,7 @@ type UpPlanOutput struct {
 }
 
 // upPlanNote is the estimation-method disclosure carried in the output.
-const upPlanNote = "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls)."
+const upPlanNote = "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining blocks (no tokenizer, no provider calls)."
 
 // upPlanSubscriptionNote replaces the metered-cost framing when the resolved
 // provider bills a personal subscription instead of per-token API usage.
@@ -176,14 +176,14 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 		if o.Totals.UnreadTargets > 0 {
 			fmt.Fprintf(w, "Not priced yet: this project's store has not read its committed translations, so "+
 				"what a run would recycle, and what it would draft, is not known. `kapi up` reads them "+
-				"before the pass; %d produced unit(s) wait on that.\n", o.Totals.UnreadTargets)
+				"before the pass; %d produced block(s) wait on that.\n", o.Totals.UnreadTargets)
 			return nil
 		}
 		if o.upToDate {
 			fmt.Fprintln(w, "Nothing to do: every language is up to date, so a run drafts nothing.")
 			return nil
 		}
-		fmt.Fprintln(w, "Nothing to do: every unit has a committed target the project's content memory answers.")
+		fmt.Fprintln(w, "Nothing to do: every block has a committed target the project's content memory answers.")
 		return nil
 	}
 	fmt.Fprintf(w, "Plan for flow %q (dry run: nothing written, no provider calls):\n\n", o.Flow)
@@ -202,26 +202,26 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 		o.Totals.MemoryExact, o.Totals.Drafts, o.Totals.AIRemaining, o.Totals.OutOfReach, o.Totals.TokenEstimate)
 	t.Render()
 	if o.Totals.Stale > 0 {
-		fmt.Fprintf(w, "\n  %d unit(s) stale: their source changed since the translation was decided. "+
+		fmt.Fprintf(w, "\n  %d block(s) stale: their source changed since the translation was decided. "+
 			"They are re-drafted against the current source (priced above) and return to review "+
 			"un-approved. See `kapi status --review`.\n", o.Totals.Stale)
 	}
 	if o.Totals.Unanswered > 0 {
-		fmt.Fprintf(w, "\n  %d unit(s) unanswered: they hold a target the project's content memory does not "+
+		fmt.Fprintf(w, "\n  %d block(s) unanswered: they hold a target the project's content memory does not "+
 			"account for, so the pass drafts them (priced above) and the draft replaces what is on disk.\n",
 			o.Totals.Unanswered)
 	}
 	if o.Totals.Drafts > 0 {
-		fmt.Fprintf(w, "\n  %d unit(s) served from stored drafts: the project store already holds a translation "+
+		fmt.Fprintf(w, "\n  %d block(s) served from stored drafts: the project store already holds a translation "+
 			"of their current source, made under the configuration and governing context this run would use, "+
 			"so the pass reuses it and calls no provider for them.\n", o.Totals.Drafts)
 	}
 	if o.Totals.UnreadTargets > 0 {
-		fmt.Fprintf(w, "\n  %d produced unit(s) are not priced: the project store has not read their committed "+
+		fmt.Fprintf(w, "\n  %d produced block(s) are not priced: the project store has not read their committed "+
 			"translations yet, and a run reads them before it drafts anything.\n", o.Totals.UnreadTargets)
 	}
 	if o.Totals.OutOfReach > 0 {
-		fmt.Fprintf(w, "\n  %d unit(s) out of reach of flow %q: it has no step that would produce them, "+
+		fmt.Fprintf(w, "\n  %d block(s) out of reach of flow %q: it has no step that would produce them, "+
 			"so this run leaves them as they are. They are not priced. Add a drafting step, or "+
 			"converge them at a venue whose flow has one.\n", o.Totals.OutOfReach, o.Flow)
 	}

@@ -249,9 +249,9 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 		var why string
 		switch {
 		case carried && !sameSource(u, cur.block, rf.plainSource, rev.Basis != ""):
-			why = fmt.Sprintf("block %s no longer holds the source the unit carries", cur.ref)
+			why = fmt.Sprintf("block %s no longer holds the source the extracted entry carries", cur.ref)
 		case rev.Basis == "" && !carried && !unchangedFile:
-			why = fmt.Sprintf("the source of block %s changed since the unit was extracted", cur.ref)
+			why = fmt.Sprintf("the source of block %s changed since the entry was extracted", cur.ref)
 		}
 		if why != "" {
 			note(mergeOutcome{Block: u.ID, Status: mergeStale, Error: &change.Error{Code: change.CodeStale, Field: "basis", Message: why}})

@@ -24,7 +24,7 @@ import (
 // and the run's own per-locale counts — described different runs.
 
 // runSourceLines totals the counts the run reports per locale, from the
-// renderer's plain-stream lines: "  nb  2/2 units  (content memory 1 · AI 1)",
+// renderer's plain-stream lines: "  nb  2/2 blocks  (content memory 1 · AI 1)",
 // with the "drafts N" segment the renderer adds for the units a pass served
 // from the block store rather than a provider.
 var runSourceLines = regexp.MustCompile(`content memory (\d+) · (?:drafts (\d+) · )?AI (\d+)`)
@@ -69,7 +69,7 @@ func TestUpPlan_PricesWhatTheRunDrafts(t *testing.T) {
 	require.NoError(t, err, out)
 	_, _, ai := runCounts(t, out)
 	assert.Equal(t, 3, ai, "one draft per locale for the unit the record declines: %s", out)
-	assert.Contains(t, out, "6 produced unit(s) not priced",
+	assert.Contains(t, out, "6 produced block(s) not priced",
 		"the header says what it cannot price yet: %s", out)
 	assert.Contains(t, out, "this run drafts what the record declines")
 
@@ -88,7 +88,7 @@ func TestUpPlan_PricesWhatTheRunDrafts(t *testing.T) {
 	_, _, ai2 := runCounts(t, out2)
 	assert.Equal(t, 3, ai2, "the rewritten unit is drafted in every locale: %s", out2)
 	assert.Contains(t, out2, "3 AI", "and the header says so before the tokens burn: %s", out2)
-	assert.Contains(t, out2, "re-drafting 3 stale unit(s)",
+	assert.Contains(t, out2, "re-drafting 3 stale block(s)",
 		"every locale recorded what it translated, so the rewrite is drift in all three")
 	assert.NotContains(t, out2, "does not answer",
 		"drift is named as drift, not as a pairing the corpus happens not to hold")

@@ -67,7 +67,7 @@ func TestFormatPlanLine_PricesTheRedraft(t *testing.T) {
 			name: "stale work alone is still priced",
 			plan: UpPlanOutput{Totals: UpPlanScope{Stale: 1, AIRemaining: 1, TokenEstimate: 7}},
 			contains: []string{
-				"re-drafting 1 stale unit(s)",
+				"re-drafting 1 stale block(s)",
 				"their source changed since the translation was decided",
 				"1 AI", "≈7 tokens",
 			},
@@ -77,7 +77,7 @@ func TestFormatPlanLine_PricesTheRedraft(t *testing.T) {
 			plan: UpPlanOutput{Totals: UpPlanScope{
 				MissingTarget: 3, Stale: 1, MemoryExact: 2, AIRemaining: 2, TokenEstimate: 40,
 			}},
-			contains: []string{"3 unit(s) missing", "re-drafting 1 stale unit(s)", "2 exact-content memory", "2 AI"},
+			contains: []string{"3 block(s) missing", "re-drafting 1 stale block(s)", "2 exact-content memory", "2 AI"},
 		},
 		{
 			// The pass drafts what the corpus does not answer, so a produced unit
@@ -86,7 +86,7 @@ func TestFormatPlanLine_PricesTheRedraft(t *testing.T) {
 			name: "produced units the content memory does not answer are named and priced",
 			plan: UpPlanOutput{Totals: UpPlanScope{Unanswered: 3, AIRemaining: 3, TokenEstimate: 12}},
 			contains: []string{
-				"drafting 3 unit(s) the content memory does not answer",
+				"drafting 3 block(s) the content memory does not answer",
 				"3 AI", "≈12 tokens",
 			},
 			absent: []string{"missing", "stale"},
@@ -94,7 +94,7 @@ func TestFormatPlanLine_PricesTheRedraft(t *testing.T) {
 		{
 			name:     "nothing to do says so",
 			plan:     UpPlanOutput{},
-			contains: []string{"every unit has a committed target the content memory answers"},
+			contains: []string{"every block has a committed target the content memory answers"},
 			absent:   []string{"stale", "does not answer"},
 		},
 	}
@@ -122,14 +122,14 @@ func TestConvergeOutput_ReportsRedraftsBesideStale(t *testing.T) {
 	require.NoError(t, out.FormatText(&buf))
 	text := buf.String()
 
-	assert.Contains(t, text, "Re-drafted 2 stale unit(s) against the current source")
+	assert.Contains(t, text, "Re-drafted 2 stale block(s) against the current source")
 	assert.Contains(t, text, "the earlier approval is not restored")
-	assert.Contains(t, text, "2 unit(s) stale")
+	assert.Contains(t, text, "2 block(s) stale")
 	assert.Equal(t, 2, out.RedraftedUnits())
 
 	// The two lines are not interchangeable: the loop's half is done, the
 	// person's is not, and a summary that printed only one of them would claim
 	// either that nothing happened or that everything did.
 	assert.Less(t, bytes.Index([]byte(text), []byte("Re-drafted")),
-		bytes.Index([]byte(text), []byte("unit(s) stale:")))
+		bytes.Index([]byte(text), []byte("block(s) stale:")))
 }

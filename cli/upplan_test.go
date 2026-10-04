@@ -262,11 +262,11 @@ func TestUpPlan_ProducedUnitsTheCorpusCannotFillAreWorkWhenAPassRuns(t *testing.
 	require.NoError(t, os.WriteFile(filepath.Join(root, "src/locales/en/c.json"), []byte(`{"thanks":"Thank you."}`), 0o644))
 	plan, err = runUp(t, processOnlyApp(t), recipe, "--plan")
 	require.NoError(t, err, plan)
-	assert.Contains(t, plan, "2 unit(s) unanswered")
+	assert.Contains(t, plan, "2 block(s) unanswered")
 	assert.Contains(t, plan, "the pass drafts them")
 	run, err := runUp(t, processOnlyApp(t), recipe)
 	require.NoError(t, err, run)
-	assert.Contains(t, run, "plan: 1 unit(s) missing · drafting 2 unit(s) the content memory does not answer")
+	assert.Contains(t, run, "plan: 1 block(s) missing · drafting 2 block(s) the content memory does not answer")
 	_, _, ai := runCounts(t, run)
 	assert.Equal(t, 3, ai, "the pass drafted the new unit and the two the corpus cannot fill: %s", run)
 }

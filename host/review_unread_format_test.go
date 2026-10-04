@@ -107,7 +107,7 @@ func TestStatusReviewOverOnlyUnreadableContentSaysSo(t *testing.T) {
 
 	out, _, err := reviewStatus(t, root, false)
 	require.NoError(t, err)
-	assert.NotContains(t, out, "Review queue empty: no unit in any language is waiting")
+	assert.NotContains(t, out, "Review queue empty: no block in any language is waiting")
 	assert.Contains(t, out, `no reader for format "okf_idml"`)
 	assert.Contains(t, out, "no installed reader")
 }

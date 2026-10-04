@@ -109,7 +109,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 		if h, ok := held[key]; ok {
 			delete(held, key)
 			if err := recordVenueAnswer(ctx, st, u, withHeld(u, h), h.DecidedBy); err != nil {
-				return retired, fmt.Errorf("restore unit state %s/%s: %w", u.Unit, variant, err)
+				return retired, fmt.Errorf("restore block state %s/%s: %w", u.Unit, variant, err)
 			}
 			retired++
 			continue
@@ -123,7 +123,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 		}
 		if staleRejections[key] && u.Decision.ReviewState == venue.ReviewStateRejected {
 			if err := recordVenueAnswer(ctx, st, u, withoutVerdict(u), ""); err != nil {
-				return retired, fmt.Errorf("retire unit state %s/%s: %w", u.Unit, variant, err)
+				return retired, fmt.Errorf("retire block state %s/%s: %w", u.Unit, variant, err)
 			}
 			retired++
 			continue
@@ -135,7 +135,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 			continue
 		}
 		if err := recordVenueAnswer(ctx, st, u, withoutVerdict(u), ""); err != nil {
-			return retired, fmt.Errorf("retire unit state %s/%s: %w", u.Unit, variant, err)
+			return retired, fmt.Errorf("retire block state %s/%s: %w", u.Unit, variant, err)
 		}
 		retired++
 	}
@@ -164,7 +164,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 			continue
 		}
 		if err := st.RecordEntry(ctx, u, h.DecidedBy, state.OriginVenue); err != nil {
-			return retired, fmt.Errorf("restore unit state %s/%s: %w", h.Unit, h.Variant, err)
+			return retired, fmt.Errorf("restore block state %s/%s: %w", h.Unit, h.Variant, err)
 		}
 		retired++
 	}

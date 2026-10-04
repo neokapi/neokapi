@@ -244,7 +244,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	}
 	b, ok := byKey[key]
 	if !ok {
-		return nil, fmt.Errorf("unit %q not found in %s", key, file)
+		return nil, fmt.Errorf("block %q not found in %s", key, file)
 	}
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)

@@ -187,7 +187,7 @@ func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang s
 				content = *decided
 			}
 			if status != model.TargetStatusDraft && strings.TrimSpace(content.target) == "" {
-				return false, fmt.Errorf("unit %s has no %s translation to approve", ref.Key, ref.Locale)
+				return false, fmt.Errorf("block %s has no %s translation to approve", ref.Key, ref.Locale)
 			}
 			// What governs the unit where the decider is deciding it: the voice
 			// guidance and term rules in force at the file's governance point
@@ -209,7 +209,7 @@ func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang s
 				content, governing, status, decision, note)
 		}
 	}
-	return false, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
+	return false, fmt.Errorf("block %q (%s) under review not found in %s", ref.Key, ref.Locale, ref.File)
 }
 
 // governingFingerprintFor resolves the governing context in force at a unit's
@@ -605,7 +605,7 @@ func (a *App) ReviewUnitWithOptions(ctx context.Context, projectPath, sourceLang
 			return info, nil
 		}
 	}
-	return nil, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
+	return nil, fmt.Errorf("block %q (%s) under review not found in %s", ref.Key, ref.Locale, ref.File)
 }
 
 // DecisionScope is a document's ADDRESS: its SOURCE file, relative to the

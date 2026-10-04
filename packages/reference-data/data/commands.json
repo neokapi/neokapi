@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T00:55:45Z",
+  "generatedAt": "2026-10-04T06:46:14Z",
   "commands": [
     {
       "id": "add",
@@ -7623,7 +7623,7 @@
         },
         {
           "name": "review",
-          "usage": "list the units awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated unit with `kapi apply` (kind:\"review\")",
+          "usage": "list the blocks awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated block with `kapi apply` (kind:\"review\")",
           "default": "false",
           "type": "bool"
         },
@@ -8671,7 +8671,7 @@
         },
         {
           "name": "no-checks",
-          "usage": "skip the bound checks in the loop (produced units count as translated even when failing guardrails)",
+          "usage": "skip the bound checks in the loop (produced blocks count as translated even when failing guardrails)",
           "default": "false",
           "type": "bool"
         },
