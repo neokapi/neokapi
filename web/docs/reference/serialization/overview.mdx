@@ -48,7 +48,7 @@ file carrying the same content losslessly: a
 [content-memory bundle](/reference/serialization/content-memory), a
 [terms bundle](/reference/serialization/terms), a
 [voice profile](/reference/serialization/voice-profile), a
-[project unit-state record](/reference/serialization/project-state), or a whole
+[project block-state record](/reference/serialization/project-state), or a whole
 [project archive](/reference/serialization/project-archive). Bundles move: they
 are what you hand over, ship, or put in a pull request.
 
@@ -81,7 +81,7 @@ Not sure which you want? [Choosing a format](/reference/serialization/choosing).
 
 Every one of these files except the project archive and the voice profile is
 JSON or JSON Lines, and each portable one keeps a **marker segment ahead of the
-serialization suffix**: `.kbf.json`, `.terms.json`, `.overlays.jsonl`. The unit
+serialization suffix**: `.kbf.json`, `.terms.json`, `.overlays.jsonl`. The state
 shards are the exception, and the exception proves the rule: they never travel
 alone, their names are derived from document keys, and the directory holding
 them (`.kapi/state/`) already says what they are.
@@ -134,7 +134,7 @@ reader before opening anything.
 
 `kapi memory import` and `kapi terms import` resolve `--format auto` from the
 extension, and they refuse to guess, because a wrong guess is silent. The
-TMX reader handed a file with no translation units returns zero entries, and
+TMX reader handed a file with no `<tu>` element returns zero entries, and
 the CSV reader skips every row it cannot turn into a concept, so a file the
 importer never actually read reports `Imported 0 entries` and exits 0, which is
 indistinguishable from an empty content memory.

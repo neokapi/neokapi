@@ -704,7 +704,7 @@
                 "usage": "Copy the source runs into the new target"
               },
               "create-on-non-translatable": {
-                "usage": "Create a target even for non-translatable text units"
+                "usage": "Create a target even for non-translatable blocks"
               },
               "encoding": {
                 "usage": "input file encoding"
@@ -1094,7 +1094,7 @@
                 "usage": "override input format detection"
               },
               "include-non-translatable": {
-                "usage": "Apply the removal action even to text units marked as non-translatable"
+                "usage": "Apply the removal action even to blocks marked as non-translatable"
               },
               "json": {
                 "usage": "output results as JSON"
@@ -1673,7 +1673,7 @@
                 "usage": "exit with error if any file cannot be processed (default: skip with warning)"
               },
               "filter-by-i-ds": {
-                "usage": "When true filter text units by ID; when false filter by target locale"
+                "usage": "When true filter blocks by ID; when false filter by target locale"
               },
               "format": {
                 "usage": "override input format detection"
@@ -1706,7 +1706,7 @@
                 "usage": "show progress bar"
               },
               "remove-block-if-empty": {
-                "usage": "Remove the text unit entirely if it has no remaining targets after removal"
+                "usage": "Remove the block entirely if it has no remaining targets after removal"
               },
               "source-lang": {
                 "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
@@ -1721,7 +1721,7 @@
                 "usage": "Target locale to remove (if empty all targets are removed)"
               },
               "text-unit-i-ds": {
-                "usage": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
+                "usage": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets"
               },
               "trace": {
                 "usage": "write flow trace JSON to file (for flow visualization)"

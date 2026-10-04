@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T06:46:14Z",
+  "generatedAt": "2026-10-04T06:55:54Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -505,7 +505,7 @@
           "name": "createOnNonTranslatable",
           "type": "boolean",
           "required": false,
-          "description": "Create a target even for non-translatable text units"
+          "description": "Create a target even for non-translatable blocks"
         },
         {
           "name": "overwrite",
@@ -776,7 +776,7 @@
           "name": "includeNonTranslatable",
           "type": "boolean",
           "required": false,
-          "description": "Apply the removal action even to text units marked as non-translatable"
+          "description": "Apply the removal action even to blocks marked as non-translatable"
         },
         {
           "name": "project",
@@ -1432,7 +1432,7 @@
           "name": "filterByIDs",
           "type": "boolean",
           "required": false,
-          "description": "When true filter text units by ID; when false filter by target locale"
+          "description": "When true filter blocks by ID; when false filter by target locale"
         },
         {
           "name": "project",
@@ -1444,7 +1444,7 @@
           "name": "removeBlockIfEmpty",
           "type": "boolean",
           "required": false,
-          "description": "Remove the text unit entirely if it has no remaining targets after removal"
+          "description": "Remove the block entirely if it has no remaining targets after removal"
         },
         {
           "name": "target",
@@ -1468,7 +1468,7 @@
           "name": "textUnitIDs",
           "type": "string",
           "required": false,
-          "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
+          "description": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets"
         }
       ]
     },

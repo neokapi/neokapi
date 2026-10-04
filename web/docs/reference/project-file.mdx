@@ -529,7 +529,7 @@ source.
 
 | Field             | Type   | Description                                                                                              |
 | ----------------- | ------ | ------------------------------------------------------------------------------------------------------- |
-| `conflict_policy` | string | What `kapi merge` does with a unit whose translation changed in the project since the extraction: `translator-wins` (default) replaces it, `existing-wins` keeps it, `newest-wins` takes the returned file when it is newer than the translation's file |
+| `conflict_policy` | string | What `kapi merge` does with a block whose translation changed in the project since the extraction: `translator-wins` (default) replaces it, `existing-wins` keeps it, `newest-wins` takes the returned file when it is newer than the translation's file |
 
 #### memory
 
@@ -748,10 +748,10 @@ a gate matches it. Each scope reads as one of three
 ### Gate and thresholds
 
 A gate maps a lifecycle state to a threshold. A scope clears the gate when, for
-every threshold, at least that percent of its units are at that state or higher
+every threshold, at least that percent of its blocks are at that state or higher
 on the ladder. A threshold is a percent, 0–100; a threshold of 0 means "not
 required". `established: 80` reads *at least 80% established*. Only a person
-establishes a unit, so an `established` threshold always counts people.
+establishes a block, so an `established` threshold always counts people.
 
 **Simple form**, one bar for the whole project:
 
@@ -759,7 +759,7 @@ establishes a unit, so an `established` threshold always counts people.
 ship_gate: { translated: 100, established: 80 }
 ```
 
-Every unit translated, the important 80% reviewed by a person; the long tail
+Every block translated, the important 80% reviewed by a person; the long tail
 ships machine-translated.
 
 **Extended thresholds**, the same shape with explicit `pct`/`by`:
@@ -782,7 +782,7 @@ Fully reviewed, but autonomous AI reviews count toward the bar.
 | `gate` | Gate or string  | An inline threshold map, or the name of an entry in the `gates` registry                       |
 
 An empty selector axis matches everything, so a rule with no `when:` is the
-default. When several rules match a (collection, locale) unit, the rule
+default. When several rules match a (collection, locale) block, the rule
 constraining the **most axes** wins wholesale; among equal specificity, the
 earliest-listed wins.
 
@@ -823,7 +823,7 @@ translations.
 source_gate: { written: 100 }
 ```
 
-Every source unit clears its bound voice and terminology checks before
+Every source block clears its bound voice and terminology checks before
 `kapi check --ship` passes. Like `ship_gate`, the top-level `source_gate` is a
 **coverage bar** evaluated by `kapi check --ship`; source drift never blocks an
 ordinary build.

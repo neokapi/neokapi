@@ -143,7 +143,7 @@ A `Document` is one source file's worth of extracted content.
 | `path`         | string   | yes      | Path of the source file the content was extracted from.                   |
 | `sourceHash`   | string   | no       | Content hash of the original source file. Omitted when empty.             |
 | `skeleton`     | Skeleton | no       | Reference to the opaque skeleton used to reconstruct the source on merge. |
-| `blocks`       | Block[]  | yes      | The translatable units extracted from this document.                      |
+| `blocks`       | Block[]  | yes      | The translatable blocks extracted from this document.                      |
 
 ### Skeleton
 
@@ -158,7 +158,7 @@ the fields is present.
 
 ## Block
 
-A `Block` is the unit of translation tracking. Its `source` is a flat sequence of
+A `Block` is what translation tracking follows. Its `source` is a flat sequence of
 `Run`s in the project's source locale; committed translations live in the
 optional per-locale `targets` map (see [Targets](#targets)).
 
@@ -509,7 +509,7 @@ are the golden fixtures shared between the Go and TypeScript implementations.
 
 ### A block is a flat run sequence
 
-The unit of translation is a `Block`. Its `source` is a flat `Run[]`: inline
+Translation works on a `Block`. Its `source` is a flat `Run[]`: inline
 markup, variables, and ICU constructs all live _in the sequence_, not in the
 text. This is what lets a translation step rewrite the readable text while every
 placeholder and tag stays first-class and accounted for.

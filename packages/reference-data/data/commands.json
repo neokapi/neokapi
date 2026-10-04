@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T06:46:14Z",
+  "generatedAt": "2026-10-04T06:55:54Z",
   "commands": [
     {
       "id": "add",
@@ -1568,7 +1568,7 @@
         },
         {
           "name": "create-on-non-translatable",
-          "usage": "Create a target even for non-translatable text units",
+          "usage": "Create a target even for non-translatable blocks",
           "default": "true",
           "type": "bool"
         },
@@ -2366,7 +2366,7 @@
         },
         {
           "name": "include-non-translatable",
-          "usage": "Apply the removal action even to text units marked as non-translatable",
+          "usage": "Apply the removal action even to blocks marked as non-translatable",
           "default": "true",
           "type": "bool"
         },
@@ -3542,7 +3542,7 @@
         },
         {
           "name": "filter-by-i-ds",
-          "usage": "When true filter text units by ID; when false filter by target locale",
+          "usage": "When true filter blocks by ID; when false filter by target locale",
           "default": "true",
           "type": "bool"
         },
@@ -3609,7 +3609,7 @@
         },
         {
           "name": "remove-block-if-empty",
-          "usage": "Remove the text unit entirely if it has no remaining targets after removal",
+          "usage": "Remove the block entirely if it has no remaining targets after removal",
           "default": "false",
           "type": "bool"
         },
@@ -3636,7 +3636,7 @@
         },
         {
           "name": "text-unit-i-ds",
-          "usage": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets",
+          "usage": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets",
           "type": "string"
         },
         {
