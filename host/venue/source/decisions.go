@@ -52,7 +52,7 @@ func (c *BowrainSourceConnector) bindRefsToStore(ctx context.Context) {
 	c.refs.BindStore(id)
 }
 
-// variantText renders a EditionKey in its wire text form ("nb", "fr;tone=…").
+// variantText renders an EditionKey in its wire text form ("nb", "fr;tone=…").
 func variantText(k model.EditionKey) string {
 	b, err := k.MarshalText()
 	if err != nil {

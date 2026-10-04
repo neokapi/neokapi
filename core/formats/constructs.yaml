@@ -896,7 +896,7 @@ constructs:
     xliff_module: core
     notes: >-
       ITS Language Information; xml:lang / srcLang / trgLang; OOXML w:lang;
-      PDF /Lang. Realized as Layer.Locale (and per-target VariantKey
+      PDF /Lang. Realized as Layer.Locale (and per-target EditionKey
       locales). Baseline false for rich-markup/catalog/subtitle families
       where in-file language marking is the minority (html, po, arb,
       xcstrings, ts, ttml override true).
