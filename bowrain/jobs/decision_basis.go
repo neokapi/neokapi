@@ -103,7 +103,7 @@ func loadDecisionLedger(ctx context.Context, cs store.ContentStore, projectID, s
 	// work it cannot prove was done.
 	drafts, err := ds.ListDraftBases(ctx, projectID, stream)
 	if err != nil {
-		slog.WarnContext(ctx, "read the draft bases; this pass treats every stale unit as one it has not drafted",
+		slog.WarnContext(ctx, "read the draft bases; this pass treats every stale translation as one it has not drafted",
 			"project", projectID, "stream", stream, "error", err)
 		return index
 	}
@@ -209,7 +209,7 @@ func blockSourceHash(sb *venue.StoredBlock) string {
 	return model.ComputeContentHash(sb.Block.SourceText())
 }
 
-// variantText renders a EditionKey the way the ledger stores it ("fr",
+// variantText renders an EditionKey the way the ledger stores it ("fr",
 // "fr;tone=…").
 func variantText(k model.EditionKey) string {
 	b, err := k.MarshalText()
@@ -313,7 +313,7 @@ func recordProducedBasis(
 	}
 	if len(drafts) > 0 {
 		if err := ds.RecordDraftBases(ctx, projectID, stream, drafts); err != nil {
-			slog.WarnContext(ctx, "record the source this pass drafted against; the next pass may draft the same units again",
+			slog.WarnContext(ctx, "record the source this pass drafted against; the next pass may draft the same translations again",
 				"project", projectID, "stream", stream, "locale", string(locale), "records", len(drafts), "error", err)
 		}
 	}

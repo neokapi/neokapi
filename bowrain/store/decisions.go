@@ -517,7 +517,7 @@ func settleDecisionProjectionsPg(ctx context.Context, tx Runner, projectID, stre
 	if err := tx.QueryRowContext(ctx,
 		`SELECT item_id, source_id FROM blocks WHERE project_id=$1 AND stream=$2 AND id=$3`,
 		projectID, stream, blockID).Scan(&itemID, &unit); err != nil {
-		return fmt.Errorf("look up unit for block %s: %w", blockID, err)
+		return fmt.Errorf("look up the key of block %s: %w", blockID, err)
 	}
 
 	rows, err := tx.QueryContext(ctx,

@@ -48,7 +48,7 @@ In a server-connected project (a recipe with a bowrain: block) the loop runs on
 the Bowrain server by default, on the org's keys, against the org's Memory and
 terminology, and this command pushes local changes, streams the server run's
 live progress, and pulls the produced targets when the run finishes. Parked
-units land in the team's review queue on the server.
+translations land in the team's review queue on the server.
 
 The push phase carries the same payload as kapi push: content blocks, governed
 terminology edits, and the recipe-bound voice profile (upserted into the
@@ -564,7 +564,7 @@ func printEstimate(w io.Writer, est *apiclient.ConvergenceEstimate) {
 		if c.CoversAllAI {
 			fmt.Fprintln(w, ", covering all AI work.")
 		} else {
-			fmt.Fprintf(w, ", covering ~%d of %d AI units. Add credits to translate the rest.\n", c.CoversAIUnits, est.Totals.ViaAI)
+			fmt.Fprintf(w, ", covering ~%d of %d AI translations. Add credits to translate the rest.\n", c.CoversAIUnits, est.Totals.ViaAI)
 		}
 	}
 }

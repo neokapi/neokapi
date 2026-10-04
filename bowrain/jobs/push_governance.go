@@ -41,7 +41,7 @@ import (
 //
 // The other direction is held to one question. A push that lowers a target the
 // venue holds at established, keeping the translation and the source the
-// decision blessed, is withdrawing an established unit: the web asks review permission
+// decision blessed, is withdrawing an established translation: the web asks review permission
 // for that language before it lets an un-review or a rejection do the same,
 // and so does the worker. A refused withdrawal keeps the venue's rung and its
 // ledger record, and the record travels back so the producer can hold the same.
@@ -294,7 +294,7 @@ func newPushGovernor(
 		return g, nil // nothing to judge; no permission lookups, no gate
 	}
 	if deps.ReviewAuthority == nil {
-		return nil, errors.New("this deployment cannot resolve review permissions, so a push carrying approvals or withdrawing an established unit is refused")
+		return nil, errors.New("this deployment cannot resolve review permissions, so a push carrying approvals or withdrawing an established translation is refused")
 	}
 
 	locales := verdictLocales(staged, decisions)
