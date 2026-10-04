@@ -48,9 +48,9 @@ export function NeighbourhoodCard({
   const summary = !neighbourhood
     ? loading
       ? t("Reading the document…")
-      : t("The blocks around this unit could not be read.")
+      : t("The blocks around this one could not be read.")
     : around === 0
-      ? t("This unit stands alone in its document.")
+      ? t("This block stands alone in its document.")
       : t("{before} before, {after} after", { before: before.length, after: after.length });
 
   return (
@@ -60,7 +60,7 @@ export function NeighbourhoodCard({
       summary={summary}
       dataSlot="review-neighbourhood"
       testId={testId}
-      toggleLabel={t("The blocks around this unit")}
+      toggleLabel={t("The blocks around this one")}
       defaultOpen={defaultOpen}
       className={className}
     >
@@ -73,7 +73,7 @@ export function NeighbourhoodCard({
             </div>
           ) : (
             <p className="text-muted-foreground">
-              {t("The blocks around this unit could not be read.")}
+              {t("The blocks around this one could not be read.")}
             </p>
           )
         ) : (

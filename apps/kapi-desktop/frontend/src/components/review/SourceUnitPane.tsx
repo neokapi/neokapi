@@ -149,7 +149,7 @@ export function SourceUnitPane({
           {awaiting !== null && (
             <p className="text-[11px] text-muted-foreground" data-slot="source-unit-awaiting">
               {awaiting.length === 0
-                ? t("Source saved. No language has a translation of this unit yet.")
+                ? t("Source saved. No language has a translation of this block yet.")
                 : t("Source saved. {langs} will be re-drafted on the next run.", {
                     langs: awaiting.map((l) => localeLabel(l)).join(", "),
                   })}

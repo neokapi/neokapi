@@ -152,7 +152,7 @@ export function ProjectStanding({
           <Axis label={t("content")} icon={<FileText size={12} />}>
             {status?.hasData ? (
               <>
-                <Fact>{t("{count} unit(s) extracted", { count: blocks })}</Fact>
+                <Fact>{t("{count} block(s) extracted", { count: blocks })}</Fact>
                 <Fact muted>·</Fact>
                 <Fact muted>{t("{count} collection(s)", { count: collections })}</Fact>
                 {status.stale && (

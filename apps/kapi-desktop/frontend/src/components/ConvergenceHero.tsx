@@ -223,7 +223,7 @@ export function ConvergenceHero({
   if (storeMissing) pieces.push(t("content not extracted yet"));
   else if (versionStale) pieces.push(t("store written by another kapi version"));
   if (changed > 0) pieces.push(t("{count} source file(s) changed", { count: changed }));
-  if (missing > 0) pieces.push(t("{count} unit(s) missing targets", { count: missing }));
+  if (missing > 0) pieces.push(t("{count} block(s) missing targets", { count: missing }));
   if (parked > 0) pieces.push(t("{count} parked for review", { count: parked }));
   if (withheldUngated > 0) {
     pieces.push(t("{count} scope(s) withheld", { count: withheldUngated }));
@@ -296,8 +296,8 @@ export function ConvergenceHero({
             <p className="text-xs text-muted-foreground">
               {upToDate
                 ? hasGates
-                  ? t("Every unit has a committed target and every gated scope ships.")
-                  : t("Every unit has a committed target. This recipe declares no ship gates.")
+                  ? t("Every block has a committed target and every gated scope ships.")
+                  : t("Every block has a committed target. This recipe declares no ship gates.")
                 : t(
                     "Bring up to date extracts changed sources, runs the default flow to the ship gates, and parks what needs a human.",
                   )}
@@ -536,7 +536,7 @@ export function ConvergePlanDialog({
 
         {scopes.length === 0 ? (
           <p className="py-2 text-sm text-muted-foreground" data-slot="plan-empty">
-            {t("Nothing to do: every unit has a committed target.")}
+            {t("Nothing to do: every block has a committed target.")}
           </p>
         ) : (
           <Table className="text-xs" data-slot="plan-table">

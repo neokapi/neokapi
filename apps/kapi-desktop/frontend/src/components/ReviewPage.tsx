@@ -405,7 +405,7 @@ export function ReviewPage({
         setUnit(d ?? null);
       })
       .catch((err) => {
-        if (!cancelled) showError("Failed to load the review unit", err);
+        if (!cancelled) showError("Failed to load the block under review", err);
       })
       .finally(() => {
         if (!cancelled) setUnitLoading(false);
@@ -599,7 +599,7 @@ export function ReviewPage({
     setAskText({
       kind: "reject",
       title: t("Send back to draft"),
-      label: t("Why? The note travels with the unit."),
+      label: t("Why? The note travels with the block."),
       placeholder: t("e.g. the tone is too formal for this surface"),
       confirm: t("Send back"),
       allowEmpty: true,
@@ -798,8 +798,8 @@ export function ReviewPage({
             t("Batch approval stopped at {key}", { key: item.key }),
             new Error(
               trips
-                ? t("The unit now trips a check. Review it before approving it.")
-                : t("The unit changed since the queue listed it. Review the text as it stands."),
+                ? t("The block now trips a check. Review it before approving it.")
+                : t("The block changed since the queue listed it. Review the text as it stands."),
             ),
           );
           break;
@@ -1001,18 +1001,18 @@ export function ReviewPage({
                   {language ? localeLabel(language) : t("all languages")}
                   {collectionFilter ? ` · ${collectionFilter}` : ""}
                 </span>{" "}
-                · {t("{count} pending units", { count: preReviewPending.length })}
+                · {t("{count} pending blocks", { count: preReviewPending.length })}
               </div>
             </div>
             <p className="text-xs text-muted-foreground" data-slot="review-prereview-policy">
-              {t("The model stores a score and findings on each unit; every decision stays yours.")}
+              {t("The model stores a score and findings on each block; every decision stays yours.")}
             </p>
             {preReviewResult && (
               <div
                 className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs"
                 data-slot="review-prereview-result"
               >
-                {t("{count} units scored", { count: preReviewResult.reviewed })}
+                {t("{count} blocks scored", { count: preReviewResult.reviewed })}
                 {preReviewResult.skipped ? (
                   <span className="text-muted-foreground">
                     {" "}
@@ -1106,7 +1106,7 @@ export function ReviewPage({
           <CheckCheck size={13} className="shrink-0 text-muted-foreground" />
           <span className="text-muted-foreground">
             {t(
-              "{count, plural, one {# clean unit (no findings) in this view} other {# clean units (no findings) in this view}}",
+              "{count, plural, one {# clean block (no findings) in this view} other {# clean blocks (no findings) in this view}}",
               {
                 count: cleanVisible.length,
               },
@@ -1127,7 +1127,7 @@ export function ReviewPage({
             ) : (
               <>
                 <Check size={12} />
-                {t("{count, plural, one {Approve # clean unit} other {Approve # clean units}}", {
+                {t("{count, plural, one {Approve # clean block} other {Approve # clean blocks}}", {
                   count: cleanVisible.length,
                 })}
               </>
@@ -1161,7 +1161,7 @@ export function ReviewPage({
               {(queue ?? []).length === 0
                 ? queueWarnings.length > 0
                   ? t("Nothing to review in the content this project could read.")
-                  : t("Review queue empty. Every translated unit is established.")
+                  : t("Review queue empty. Every translated block is established.")
                 : t("Nothing matches this filter.")}
             </p>
           </CardContent>
@@ -1565,12 +1565,12 @@ export function ReviewPage({
                       loading={unitLoading}
                     />
 
-                    {/* What was approved for this unit before, and the wording the
+                    {/* What was approved for this block before, and the wording the
                     content memory already holds for it. */}
                     <HistoryCard
                       history={model?.history}
                       emptyText={t(
-                        "Nothing has been approved for this unit yet, and the content memory holds no close match.",
+                        "Nothing has been approved for this block yet, and the content memory holds no close match.",
                       )}
                       sourceLocale={unit?.source_locale ?? selected?.sourceLocale}
                       locale={unit?.locale ?? selected?.locale}

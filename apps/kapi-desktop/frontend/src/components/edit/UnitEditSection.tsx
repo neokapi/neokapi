@@ -121,7 +121,7 @@ export function UnitEditSection({
         </p>
       ) : read && !content ? (
         <p className="text-xs text-muted-foreground" data-slot="unit-edit-no-edition">
-          {t("This unit has no translation in this language yet.")}
+          {t("This block has no translation in this language yet.")}
         </p>
       ) : (
         <EditionEditPanel

@@ -110,7 +110,7 @@ export function JudgementCard({
           data-testid="findings-none"
         >
           <CheckCircle2 size={12} className="text-success" />
-          {t("No findings for this unit.")}
+          {t("No findings for this block.")}
         </div>
       ) : (
         <ul className="space-y-1.5" data-testid="findings">

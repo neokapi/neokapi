@@ -303,7 +303,7 @@ describe("ReviewPage", () => {
 
   it("batch-approves every clean unit in the current view", async () => {
     const { changes } = renderPage();
-    const batchBtn = await screen.findByRole("button", { name: /Approve 2 clean units/ });
+    const batchBtn = await screen.findByRole("button", { name: /Approve 2 clean blocks/ });
     await userEvent.click(batchBtn);
     await waitFor(() => expect(decisionsSent(changes)).toHaveLength(2));
     expect(decisionsSent(changes).every((d) => d.outcome === "establish")).toBe(true);
@@ -333,7 +333,7 @@ describe("ReviewPage", () => {
       item.key === "greeting" && item.locale === "fr-FR" ? now(item) : unitFor(item),
     );
     const { changes } = renderPage({ loadUnit });
-    const batchBtn = await screen.findByRole("button", { name: /Approve 2 clean units/ });
+    const batchBtn = await screen.findByRole("button", { name: /Approve 2 clean blocks/ });
     await userEvent.click(batchBtn);
     await screen.findByText(/Batch approval stopped at greeting/);
     // farewell, listed first, is approved; greeting is not.
@@ -350,7 +350,7 @@ describe("ReviewPage", () => {
     const items: ReviewItem[] = [{ ...ITEMS[2], target: `${long.slice(0, 71)}…` }];
     const loadUnit = vi.fn(async (item: ReviewItem) => ({ ...unitFor(item), target: long }));
     const { changes } = renderPage({ items, loadUnit }, queueChanges(items));
-    await userEvent.click(await screen.findByRole("button", { name: /Approve 1 clean unit/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /Approve 1 clean block/ }));
     await waitFor(() => expect(decisionsSent(changes)).toHaveLength(1));
   });
 
@@ -709,7 +709,7 @@ describe("ReviewPage", () => {
       expect(document.querySelector("[data-slot='review-prereview-result']")).not.toBeNull(),
     );
     expect(document.querySelector("[data-slot='review-prereview-result']")?.textContent).toContain(
-      "3 units scored",
+      "3 blocks scored",
     );
     await userEvent.click(screen.getByRole("button", { name: /Close/ }));
     expect(document.querySelector("[data-slot='review-prereview-modal']")).toBeNull();
@@ -1083,7 +1083,7 @@ describe("ReviewPage language selector", () => {
   // was in view, which took the whole All view with it.
   it("keeps the batch bar in the All view with source rows present", async () => {
     renderUnified();
-    await screen.findByRole("button", { name: /Approve 2 clean units/ });
+    await screen.findByRole("button", { name: /Approve 2 clean blocks/ });
     expect(document.querySelector("[data-slot='review-batch']")).not.toBeNull();
   });
 });
