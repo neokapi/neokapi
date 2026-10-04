@@ -2040,7 +2040,9 @@ beside all of them in package-sized PRs.
   report. The flip PR drops `-report`, so a remaining use of a field, the type, a function or a
   test-only helper fails, and adds the target to `make lint`, `make pre-push` and CI. On
   2026-10-03 it counted 372 non-test uses in 113 files across 49 packages, and 759 test uses in 207
-  files across 54 packages.
+  files across 54 packages. On 2026-10-04, with step 2 of section 6.4 done, it counts no use outside
+  `core/model` and the plugin-wire mapping, in code or in tests. The mapping keeps 14 test uses, and
+  three tests call `Block.FileTargetAsSpelled`.
 - **Acceptance:** no reference to `Block.Source` or `Block.Targets` remains outside the plugin-wire
   mapping (`scripts/fieldguard` without `-report` passes); every suite of every module passes; the
   content-parity round trip (model, proto, store) holds; okapi-bridge parity passes through the
@@ -2054,8 +2056,14 @@ beside all of them in package-sized PRs.
     an empty plain `fr` target. Both predate the caller migration. Listing only locale-only
     targets in `blockToJS` fixes both.
   - The KBF, xcstrings and Qt TS readers file a translation with no language under the zero key
-    (`SetTargetRuns("")`), and `Block.TargetEdition("")` reads it. The flip decides where such a
-    translation lives, so that the zero key never writes the native edition.
+    (`SetTargetRuns("")`), `Block.TargetEdition("")` reads it, and `Block.EachTargetEdition`
+    yields it beside the other targets. The flip decides where such a translation lives, so that
+    the zero key never writes the native edition.
+  - `Block.CopyEditionSet`, which `core/change` uses to keep a block as a change left it, shares
+    each target with the original and holds the source status as a value of its own. Once the
+    source edition sits in the same map as the others, a cloned map shares it too. The flip either
+    copies the authoritative edition in `CopyEditionSet` or shows that no caller changes it on one
+    copy only.
   - `Block.FileTargetAsSpelled` files a target under a key that is not canonical (`nb_NO`), the
     state a direct write to the storage leaves, for the tests of consumers that must cope with it.
     `make fieldguard` fails on a call to it outside a test. The flip removes it: a test then
