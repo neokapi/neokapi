@@ -1189,9 +1189,10 @@ jobs:
   docs-guard:
     name: Repo guards
     runs-on: ubuntu-latest
-    # No path gate: these guards are ~seconds, so running them on every PR is
-    # cheap belt-and-suspenders — a stray bowrain reference, absolute home path,
+    # No path gate: these guards are cheap, so running them on every PR is
+    # belt-and-suspenders — a stray bowrain reference, absolute home path,
     # or gofmt drift (or a stale guard) can't merge and surface only post-merge.
+    # Most take seconds; fieldguard type-checks every module and takes minutes.
     steps:
       - uses: actions/checkout@v7
       - name: Guard — neokapi docs must stay bowrain-clean
@@ -1238,10 +1239,17 @@ jobs:
         run: ./scripts/check-cask-heredocs.sh
 
       # The one guard here that type-checks Go: every module, with its tests,
-      # under every build configuration that builds a file of it.
+      # under every build configuration that builds a file of it. The two Wails
+      # desktop modules type-check with cgo on, and on Linux Wails reaches GTK 4
+      # and WebKitGTK through pkg-config, so their headers come first; a package
+      # that does not type-check fails the guard.
       - uses: ./.github/actions/setup-go-modules
         with:
           cache-flavor: plain
+      - name: Install the GTK and WebKit headers the desktop modules type-check against
+        uses: ./.github/actions/apt-install
+        with:
+          packages: libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
       - name: "Guard: only core/model reaches a block's edition storage"
         run: make fieldguard
 

@@ -2054,9 +2054,10 @@ beside all of them in package-sized PRs.
   fields `Block.Editions` or `Block.Native`, per package and module, non-test and test
   separately, and fails on a use outside a test; a test may write the storage to plant a state no
   accessor produces, such as an edition filed under `nb_NO`. A field of another type with the same
-  name resolves to a different object and is not counted. `core/plugin/protoconvert` is allowed as
-  the plugin-wire mapping and uses none. The target is in `make lint`, `make pre-push` and the
-  Repo guards job. On 2026-10-04, after the flip, it counts no use outside a test and three in
+  name resolves to a different object and is not counted. No package is exempt: the plugin-wire
+  mapping in `core/plugin/protoconvert` reaches the editions through the accessors too. The target
+  is in `make lint`, `make pre-push` and the Repo guards job, which installs the GTK 4 and
+  WebKitGTK headers the desktop modules type-check against on Linux. On 2026-10-04, after the flip, it counts no use outside a test and three in
   tests (`core/editor`, `core/tools`, `core/venue`).
 - **Acceptance:** no reference to `Block.Source` or `Block.Targets` remains (the fields are gone);
   every suite of every module passes; the content-parity round trip (model, proto, store) holds,
