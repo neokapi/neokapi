@@ -43,10 +43,13 @@ type cachedAnno struct {
 }
 
 // cachedBlock shadows Block.Annotations with the typed envelope (the embedded
-// field is suppressed by the outer one under encoding/json's depth rule).
+// field is suppressed by the outer one under encoding/json's depth rule), and
+// carries the translation a reader filed under no language, which the block
+// holds apart from its editions and no exported field reaches.
 type cachedBlock struct {
 	*model.Block
 	Annotations map[string]cachedAnno `json:"Annotations,omitempty"`
+	Unlabelled  *model.Edition        `json:"Unlabelled,omitempty"`
 }
 
 // cachedLayer is the Layer counterpart of cachedBlock.
@@ -129,6 +132,9 @@ func toCachedParts(parts []*model.Part) []cachedPart {
 		switch r := p.Resource.(type) {
 		case *model.Block:
 			cp.Block = &cachedBlock{Block: r, Annotations: toCachedAnnotations(r.AnnoMap())}
+			if e, ok := r.TargetEdition(""); ok {
+				cp.Block.Unlabelled = &e
+			}
 		case *model.Layer:
 			cp.Layer = &cachedLayer{Layer: r, Annotations: toCachedAnnotations(r.Annotations)}
 		case *model.Data:
@@ -163,6 +169,9 @@ func fromCachedParts(cps []cachedPart) []*model.Part {
 				cp.Block.Block.Annotations = nil
 				for k, v := range fromCachedAnnotations(cp.Block.Annotations) {
 					cp.Block.Block.SetAnno(k, v)
+				}
+				if cp.Block.Unlabelled != nil {
+					cp.Block.Block.SetTargetEdition(model.EditionKey{}, *cp.Block.Unlabelled)
 				}
 				res = cp.Block.Block
 			}

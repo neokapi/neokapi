@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"testing"
@@ -216,6 +217,69 @@ func TestDocCache_EntryFromAnotherBuildIsAMiss(t *testing.T) {
 	version.Version = recorded + "+next"
 	assert.Nil(t, c.OpenDocument(src, "k"),
 		"another build must re-parse rather than replay a stream it did not produce")
+}
+
+// TestDocCache_KeepsEveryEdition pins that a block replays from the cache with
+// every edition it was recorded with: the edition it was read in, a target, a
+// same-language channel edition, a translation filed under no language, the
+// editions its document holds natively, and a derivation.
+func TestDocCache_KeepsEveryEdition(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "m.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"a":"Apple"}`), 0o644))
+
+	c, err := OpenDocCache(filepath.Join(dir, "cache"))
+	require.NoError(t, err)
+	defer c.Close()
+
+	b := mkBlock("a", "Apple")
+	b.SourceLocale = "en"
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusEstablished))
+	fr := model.Variant("fr")
+	b.SetEdition(fr, model.Edition{
+		Runs:    []model.Run{model.TextR("Pomme")},
+		Status:  model.Status(model.TargetStatusTranslated),
+		Origin:  model.Origin{Kind: model.OriginAI, Engine: "e"},
+		Score:   0.5,
+		Derived: &model.Derivation{From: model.Variant("en"), Rev: "r1"},
+	})
+	b.MarkNative(fr)
+	short := model.EditionKey{Locale: "en", Channel: "short"}
+	b.SetEdition(short, model.Edition{Runs: []model.Run{model.TextR("App")}})
+	b.SetTargetRuns("", []model.Run{model.TextR("under no language")})
+
+	rec := c.RecordDocument(src, "k", "json")
+	require.NotNil(t, rec)
+	require.NoError(t, rec.Add(&model.Part{Type: model.PartBlock, Resource: b}))
+	require.NoError(t, rec.Commit())
+
+	doc := c.OpenDocument(src, "k")
+	require.NotNil(t, doc)
+	defer doc.Close()
+	ch := make(chan *model.Part, 1)
+	go func() { _ = doc.Feed(context.Background(), ch) }()
+	var got *model.Block
+	for p := range ch {
+		if gb, ok := p.Resource.(*model.Block); ok {
+			got = gb
+		}
+	}
+	require.NotNil(t, got)
+
+	want := maps.Collect(b.EachEdition)
+	assert.Equal(t, want, maps.Collect(got.EachEdition), "every edition replays as recorded")
+	assert.Equal(t, b.EditionKeys(), got.EditionKeys())
+	assert.Equal(t, []model.EditionKey{{Locale: "en"}, fr}, got.NativeEditions())
+	unlabelled, ok := got.TargetEdition("")
+	require.True(t, ok, "the translation filed under no language replays")
+	assert.Equal(t, "under no language", model.RunsText(unlabelled.Runs))
+}
+
+// TestDocCache_KeyNamesTheRecordShape pins that the key carries the shape of
+// the records, so a development build, whose version never moves, reads an
+// entry of another shape as a miss.
+func TestDocCache_KeyNamesTheRecordShape(t *testing.T) {
+	assert.Contains(t, buildKey("k"), "\x00"+partsFormat+"\x00")
 }
 
 func mkBlock(id, text string) *model.Block {
