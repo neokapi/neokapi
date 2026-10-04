@@ -106,9 +106,12 @@ func ProtoToAnnotations(entries map[string]*pb.AnnotationEntry) map[string]model
 // recognise round-trips by type name + JSON (its span values degrade to a
 // GenericAnnotation map) rather than being silently dropped.
 
-// positionalOverlaysToProto converts a block's // overlays to OverlayMessages. Segmentation is excluded (reconstructed from the
-// segment boundaries) and block annotations are excluded (carried as
-// annotations), so nothing is double-encoded.
+// positionalOverlaysToProto converts a block's overlays to OverlayMessages.
+// Segmentation is excluded (reconstructed from the segment boundaries) and
+// block annotations are excluded (carried as annotations), so nothing is
+// double-encoded. The overlays on a translation filed under no language follow,
+// each with a variant message that is present and empty, which ApplyProtoOverlays
+// files back on that translation (the zero key leaves the message out).
 func positionalOverlaysToProto(b *model.Block) []*pb.OverlayMessage {
 	var out []*pb.OverlayMessage
 	for i := range b.Overlays {
@@ -118,7 +121,36 @@ func positionalOverlaysToProto(b *model.Block) []*pb.OverlayMessage {
 		}
 		out = append(out, OverlayToProto(*o))
 	}
+	unlabelled := b.UnlabelledOverlays()
+	for i := range unlabelled {
+		o := &unlabelled[i]
+		if o.Type == model.OverlaySegmentation {
+			continue
+		}
+		msg := OverlayToProto(*o)
+		msg.Variant = &pb.VariantMessage{}
+		out = append(out, msg)
+	}
 	return out
+}
+
+// ApplyProtoOverlays files each overlay message on b: a message whose variant
+// is present and empty on the translation filed under no language, as
+// positionalOverlaysToProto sends it, and every other on the edition its
+// variant names (the edition the block was read in when it names none).
+func ApplyProtoOverlays(b *model.Block, msgs []*pb.OverlayMessage) {
+	var unlabelled []model.Overlay
+	for _, om := range msgs {
+		o := ProtoToOverlay(om)
+		if v := om.GetVariant(); v != nil && v.GetLocale() == "" && v.GetTone() == "" && v.GetChannel() == "" {
+			unlabelled = append(unlabelled, o)
+			continue
+		}
+		b.Overlays = append(b.Overlays, o)
+	}
+	if len(unlabelled) > 0 {
+		b.SetUnlabelledOverlays(append(slices.Clone(b.UnlabelledOverlays()), unlabelled...))
+	}
 }
 
 // OverlayToProto converts a model.Overlay to a proto OverlayMessage.
@@ -647,10 +679,9 @@ func sourceSegProtos(b *model.Block) []*pb.SegmentMessage {
 	return out
 }
 
-// targetSegProtos emits one SegmentMessage per segment span of the target
-// filed under key (one "s1" segment when the target is unsegmented).
-func targetSegProtos(b *model.Block, key model.EditionKey, runs []model.Run) []*pb.SegmentMessage {
-	seg := b.SegmentationFor(key)
+// targetSegProtos emits one SegmentMessage per span of seg, a target's
+// segmentation over runs (one "s1" segment when the target is unsegmented).
+func targetSegProtos(seg *model.Overlay, runs []model.Run) []*pb.SegmentMessage {
 	if seg == nil || len(seg.Spans) == 0 {
 		return []*pb.SegmentMessage{runsToSegmentProto("s1", runs)}
 	}
@@ -697,14 +728,11 @@ func targetEntries(b *model.Block) []*pb.TargetEntry {
 		if err != nil {
 			continue
 		}
-		out = append(out, &pb.TargetEntry{Locale: string(text), Segments: targetSegProtos(b, k, e.Runs)})
+		out = append(out, &pb.TargetEntry{Locale: string(text), Segments: targetSegProtos(b.SegmentationFor(k), e.Runs)})
 	}
 	slices.SortFunc(out, func(a, c *pb.TargetEntry) int { return strings.Compare(a.Locale, c.Locale) })
-	// The zero key names the first native edition, so the overlays of a
-	// translation under no language cannot be told from that edition's: it
-	// travels as one segment.
 	if e, ok := b.TargetEdition(""); ok {
-		out = append(out, &pb.TargetEntry{Locale: "", Segments: []*pb.SegmentMessage{runsToSegmentProto("s1", e.Runs)}})
+		out = append(out, &pb.TargetEntry{Locale: "", Segments: targetSegProtos(b.TargetSegmentation(""), e.Runs)})
 	}
 	return out
 }
@@ -726,9 +754,16 @@ func applyTargetSegProtos(b *model.Block, locale string, msgs []*pb.SegmentMessa
 		e.Runs = runs
 		b.SetTargetEdition(key, e)
 	}
-	if len(spans) > 0 && !key.IsZero() {
-		b.SetSegmentation(key, spans)
+	if len(spans) == 0 {
+		return
 	}
+	if key.IsZero() {
+		// The translation filed under no language: its segmentation sits
+		// with it, apart from the source's.
+		b.SetTargetSegmentation("", spans)
+		return
+	}
+	b.SetSegmentation(key, spans)
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -789,9 +824,7 @@ func ProtoToBlock(msg *pb.BlockMessage) *model.Block {
 	for _, te := range msg.Targets {
 		applyTargetSegProtos(b, te.Locale, te.Segments)
 	}
-	for _, om := range msg.Overlays {
-		b.Overlays = append(b.Overlays, ProtoToOverlay(om))
-	}
+	ApplyProtoOverlays(b, msg.Overlays)
 	return b
 }
 
@@ -1102,9 +1135,7 @@ func ContentBlockToPart(cb *pb.ContentBlock) *model.Part {
 	}
 
 	// overlays (term, entity, qa, …).
-	for _, om := range cb.Overlays {
-		block.Overlays = append(block.Overlays, ProtoToOverlay(om))
-	}
+	ApplyProtoOverlays(block, cb.Overlays)
 
 	return &model.Part{
 		Type:     model.PartBlock,

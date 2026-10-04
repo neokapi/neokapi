@@ -60,3 +60,27 @@ func TestSyncBlockJSONOverlaysRoundTrip(t *testing.T) {
 	_, ok := ent.Spans[0].Value.(*model.EntityAnnotation)
 	assert.True(t, ok, "entity span value must rehydrate to *EntityAnnotation on pull")
 }
+
+// A translation filed under no language rides the JSON wire under the empty
+// target key, and its segmentation rides with it: the decoded block holds the
+// spans on that translation and none on the source.
+func TestSyncBlockJSONCarriesTheOverlaysOfATranslationUnderNoLanguage(t *testing.T) {
+	orig := model.NewBlock("b1", "Some files")
+	orig.SetTargetRuns("", []model.Run{model.TextR("Eine Datei"), model.TextR("Viele Dateien")})
+	spans := []model.Span{
+		{ID: "n0", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
+		{ID: "n1", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
+	}
+	orig.SetTargetSegmentation("", spans)
+
+	wire := BlockToSyncBlock(orig, "app.ts")
+	require.Contains(t, wire.Targets, "")
+	got := SyncBlockToBlock(wire)
+
+	assert.Equal(t, "Eine DateiViele Dateien", got.TargetText(""))
+	assert.Nil(t, got.SourceSegmentation(), "the spans are the translation's, never the source's")
+	assert.Empty(t, got.Overlays)
+	seg := got.TargetSegmentation("")
+	require.NotNil(t, seg)
+	assert.Equal(t, spans, seg.Spans)
+}
