@@ -216,9 +216,11 @@ export class ReviewStore {
     // Written back under the current root kind and schema, the way kapi's own
     // writer stamps a catalog it rewrites. A catalog an older release of this
     // package or of kapi wrote becomes a current one the first time a target is
-    // saved into it.
+    // saved into it. A minor of the current schema keeps its version.
     file.kind = Kind;
-    file.schemaVersion = SchemaVersion;
+    if (file.schemaVersion?.split(".")[0] !== SchemaVersion.split(".")[0]) {
+      file.schemaVersion = SchemaVersion;
+    }
     let serialized: Uint8Array | string;
     try {
       serialized = marshalFile(file);
