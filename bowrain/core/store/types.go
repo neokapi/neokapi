@@ -931,7 +931,7 @@ type DecisionBasisTally struct {
 	// collection the item belongs to.
 	ItemName string
 	// Variant is the decision's locale (and optional tone/channel) in
-	// VariantKey text form, as the ledger stores it.
+	// EditionKey text form, as the ledger stores it.
 	Variant string
 	// Stale counts decisions whose basis names source wording the block no
 	// longer carries: the translation renders a sentence the project has since
@@ -973,7 +973,7 @@ type DecisionBasisTally struct {
 type DraftBasis struct {
 	ItemName string
 	Unit     string
-	// Variant is the locale (and optional tone/channel) in VariantKey text
+	// Variant is the locale (and optional tone/channel) in EditionKey text
 	// form, as the ledger stores it.
 	Variant string
 	// SourceHash is the block's content hash at the time of the draft

@@ -457,9 +457,9 @@ func blockNode(b *model.Block) *ContentNode {
 	return n
 }
 
-// variantLabel renders a VariantKey as its wire/text form (locale, or
+// variantLabel renders a EditionKey as its wire/text form (locale, or
 // "locale;tone=…;channel=…"), matching the key used for Targets/TargetMeta.
-func variantLabel(k model.VariantKey) string {
+func variantLabel(k model.EditionKey) string {
 	b, err := k.MarshalText()
 	if err != nil {
 		return string(k.Locale)

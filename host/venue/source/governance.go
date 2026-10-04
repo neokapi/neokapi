@@ -143,7 +143,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 	// decisions only, and a withdrawal leaves the unit with none), so the
 	// approval the venue kept is recorded back from what the venue sent.
 	for key, h := range held {
-		var variant model.VariantKey
+		var variant model.EditionKey
 		if err := variant.UnmarshalText([]byte(h.Variant)); err != nil || variant.Locale == "" {
 			continue
 		}

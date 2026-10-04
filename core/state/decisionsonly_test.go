@@ -16,7 +16,7 @@ import (
 func basis(id string) state.UnitState {
 	return state.UnitState{
 		Unit:        id,
-		Variant:     model.VariantKey{Locale: "nb"},
+		Variant:     model.EditionKey{Locale: "nb"},
 		Scope:       "d-intro",
 		Status:      model.TargetStatusTranslated,
 		TargetHash:  "t-" + id,

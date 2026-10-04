@@ -54,7 +54,7 @@ type UnitState struct {
 	// key the document cache and overlays address it by.
 	Unit string `json:"unit"`
 	// Variant is the locale (and optional tone/channel) this state applies to.
-	Variant model.VariantKey `json:"variant"`
+	Variant model.EditionKey `json:"variant"`
 	// Status is the target ladder position (draft→translated→established).
 	Status model.TargetStatus `json:"status,omitempty"`
 	// SourceStatus is the source ladder position (written→established).
@@ -206,7 +206,7 @@ func (r *AIReview) Fresh(targetHash string) bool {
 type Key struct {
 	Scope   string
 	Unit    string
-	Variant model.VariantKey
+	Variant model.EditionKey
 }
 
 // Key returns the unit's identity key.

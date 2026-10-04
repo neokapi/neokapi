@@ -39,7 +39,7 @@ type SourceUnitRef struct {
 // about the source locale, so the two cannot collide in the store unless a
 // recipe lists its own source language among its targets — which is a recipe
 // error, not a case to design for.
-func sourceVariant(sourceLang string) model.VariantKey {
+func sourceVariant(sourceLang string) model.EditionKey {
 	return model.Variant(model.LocaleID(sourceLang))
 }
 

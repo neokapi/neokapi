@@ -56,9 +56,9 @@ var BlockDerivedFields = map[string]string{
 // Run kind + Overlay kind present, so a round-trip through it proves the whole
 // content model survives a given sync wire path.
 func KitchenSinkBlock() *model.Block {
-	frVariant := model.VariantKey{Locale: model.LocaleFrench}
-	deFormal := model.VariantKey{Locale: model.LocaleGerman, Tone: "formal"}
-	esVariant := model.VariantKey{Locale: model.LocaleSpanish}
+	frVariant := model.EditionKey{Locale: model.LocaleFrench}
+	deFormal := model.EditionKey{Locale: model.LocaleGerman, Tone: "formal"}
+	esVariant := model.EditionKey{Locale: model.LocaleSpanish}
 
 	b := &model.Block{
 		ID:                 "ks-1",
@@ -163,7 +163,7 @@ func KitchenSinkBlock() *model.Block {
 // finding with props, and a target-side alignment) — the full OverlayType
 // vocabulary the sync wire must carry.
 func KitchenSinkOverlays() []model.Overlay {
-	frVariant := model.VariantKey{Locale: model.LocaleFrench}
+	frVariant := model.EditionKey{Locale: model.LocaleFrench}
 	return []model.Overlay{
 		{
 			Type:  model.OverlaySegmentation,

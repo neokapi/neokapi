@@ -434,7 +434,7 @@ func (s *session) putTranslation(kind, blockHash string, payload []byte, updated
 	if err != nil {
 		return fmt.Errorf("bowrain/blockstore: put translation: %w", err)
 	}
-	var variant model.VariantKey
+	var variant model.EditionKey
 	if err := variant.UnmarshalText([]byte(locale)); err != nil {
 		return fmt.Errorf("bowrain/blockstore: put translation: decode variant %q: %w", locale, err)
 	}

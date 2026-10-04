@@ -8,38 +8,39 @@ import "strings"
 // carries no extra ceremony. Candidate/alternative translations stay as
 // stand-off alt-translation annotations; an edition is the chosen one.
 
-// VariantKey identifies an edition. Locale is required; Tone and Channel are
-// optional (empty = unspecified). The zero-extension form is a valid Go map
-// key, so an editions map keyed by a locale-only key is the common case.
-type VariantKey struct {
+// EditionKey names one edition of a block: its language, and optionally a tone
+// and a channel (empty = unspecified). The zero key names the edition the
+// block was read in. A locale-only key is the common case, and every form is a
+// valid Go map key.
+type EditionKey struct {
 	Locale  LocaleID `json:"locale"`
 	Tone    string   `json:"tone,omitempty"`
 	Channel string   `json:"channel,omitempty"`
 }
 
-// Variant returns a locale-only VariantKey, the common case.
+// Variant returns a locale-only EditionKey, the common case.
 //
 // The locale is normalized (NormalizeLocale), so a target set under "nb_NO" is
 // the target read under "nb-NO": the key is where a locale spelling becomes an
 // identity, and two spellings of one locale must not become two variants.
-func Variant(locale LocaleID) VariantKey { return VariantKey{Locale: NormalizeLocale(locale)} }
+func Variant(locale LocaleID) EditionKey { return EditionKey{Locale: NormalizeLocale(locale)} }
 
 // Canonical returns the key with its locale normalized, the form every
-// Editions map is keyed by. A key built as a struct literal, or decoded from a wire
-// shape that spelled the locale another way, passes through here before it
-// addresses an edition.
-func (k VariantKey) Canonical() VariantKey {
+// Editions map is keyed by. A key built as a struct literal, or decoded from a
+// wire shape that spelled the locale another way, passes through here before
+// it addresses an edition.
+func (k EditionKey) Canonical() EditionKey {
 	k.Locale = NormalizeLocale(k.Locale)
 	return k
 }
 
 // IsZero reports whether the key is the zero value.
-func (k VariantKey) IsZero() bool { return k == VariantKey{} }
+func (k EditionKey) IsZero() bool { return k == EditionKey{} }
 
-// MarshalText encodes a VariantKey as text so it can serve as a JSON/YAML map
+// MarshalText encodes an EditionKey as text so it can serve as a JSON/YAML map
 // key. A locale-only key encodes as the bare locale ("fr"); optional
 // dimensions append as ";tone=…" / ";channel=…".
-func (k VariantKey) MarshalText() ([]byte, error) {
+func (k EditionKey) MarshalText() ([]byte, error) {
 	s := string(k.Locale)
 	if k.Tone != "" {
 		s += ";tone=" + k.Tone
@@ -50,12 +51,12 @@ func (k VariantKey) MarshalText() ([]byte, error) {
 	return []byte(s), nil
 }
 
-// UnmarshalText decodes a VariantKey produced by MarshalText. The locale is
+// UnmarshalText decodes an EditionKey produced by MarshalText. The locale is
 // normalized on the way in, so a document that spelled it another way still
 // keys the variant every reader looks up.
-func (k *VariantKey) UnmarshalText(b []byte) error {
+func (k *EditionKey) UnmarshalText(b []byte) error {
 	parts := strings.Split(string(b), ";")
-	*k = VariantKey{Locale: NormalizeLocale(LocaleID(parts[0]))}
+	*k = EditionKey{Locale: NormalizeLocale(LocaleID(parts[0]))}
 	for _, p := range parts[1:] {
 		name, val, ok := strings.Cut(p, "=")
 		if !ok {

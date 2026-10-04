@@ -48,7 +48,7 @@ func handBuiltStream() []*model.Part {
 
 // TestDumpBlockEvents_Shape asserts the documented §4.1 event shape on a
 // hand-built stream: one event per part, the §4.1 keys, typed-code runs with
-// `semantic`, VariantKey-keyed targets, Anchor-anchored overlays, and no
+// `semantic`, EditionKey-keyed targets, Anchor-anchored overlays, and no
 // HTML escaping of run data.
 func TestDumpBlockEvents_Shape(t *testing.T) {
 	got, err := DumpBlockEvents(handBuiltStream())

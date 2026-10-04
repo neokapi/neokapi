@@ -38,14 +38,14 @@ const emptyOverlaysJSON = "[]"
 // discriminated envelope (see payloadEnvelope).
 type overlayWire struct {
 	Type    model.OverlayType `json:"type"`
-	Variant *model.VariantKey `json:"variant,omitempty"`
+	Variant *model.EditionKey `json:"variant,omitempty"`
 	Layer   string            `json:"layer,omitempty"`
 	Spans   []spanWire        `json:"spans,omitempty"`
 }
 
 // editionWire is the wire form of the edition an overlay names: absent for the
 // zero key, the edition the block was read in.
-func editionWire(k model.EditionKey) *model.VariantKey {
+func editionWire(k model.EditionKey) *model.EditionKey {
 	if k.IsZero() {
 		return nil
 	}

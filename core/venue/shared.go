@@ -77,7 +77,7 @@ type UnitDecision struct {
 	// Unit is the durable unit identity (convergence.BlockKey — the source_id
 	// a stored row carries).
 	Unit string `json:"unit"`
-	// Variant is the locale (and optional tone/channel) in VariantKey text form.
+	// Variant is the locale (and optional tone/channel) in EditionKey text form.
 	Variant string `json:"variant"`
 	// Status is the target-ladder rung the decision lands the unit on.
 	Status string `json:"status,omitempty"`

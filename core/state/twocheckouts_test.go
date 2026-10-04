@@ -100,7 +100,7 @@ func newTwoCheckouts(t *testing.T) *twoCheckouts {
 func paired(id, scope, source, targetHash, at string) state.UnitState {
 	return state.UnitState{
 		Unit:        id,
-		Variant:     model.VariantKey{Locale: "nb"},
+		Variant:     model.EditionKey{Locale: "nb"},
 		Scope:       scope,
 		ContentHash: model.ComputeContentHash(source),
 		TargetHash:  targetHash,

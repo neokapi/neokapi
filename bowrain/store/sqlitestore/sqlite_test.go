@@ -202,7 +202,7 @@ func TestGetBlockStats_ApprovedLocales(t *testing.T) {
 // check-findings overlay (model.OverlayCheck), and a target-side alignment
 // overlay. Anchors use real run ranges.
 func overlaysFixture() []model.Overlay {
-	frVariant := model.VariantKey{Locale: model.LocaleFrench}
+	frVariant := model.EditionKey{Locale: model.LocaleFrench}
 	return []model.Overlay{
 		{
 			Type:  model.OverlaySegmentation,
