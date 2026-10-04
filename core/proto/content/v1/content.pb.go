@@ -1394,7 +1394,15 @@ func (x *SegmentMessage) GetProperties() map[string]string {
 	return nil
 }
 
-// TargetEntry maps a locale to its target segments.
+// TargetEntry carries one edition of a block other than the one in the
+// block's source segments. locale is the edition key's text form: the bare
+// language for an edition with no tone and no channel ("fr-FR"),
+// "fr;tone=formal" or "en;channel=short" for an edition of a tone or a
+// channel, and "" for a translation filed under no language. A peer that reads
+// locale as a language tag maps a key with a tone or a channel to a tag of its
+// own, so it answers for such an edition under another key. segments hold the
+// edition's runs, one segment per span of its segmentation (one when it has
+// none).
 type TargetEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Locale        string                 `protobuf:"bytes,1,opt,name=locale,proto3" json:"locale,omitempty"`
