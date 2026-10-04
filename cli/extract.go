@@ -20,7 +20,7 @@ declared in a kapi project, pre-filled from the project's content memory.
 
 Each invocation writes one batch of outputs under .kapi/work/cache/extractions/<batch-id>/
 plus one bilingual file per source → target pair in --out-dir (default "out/").
-Every unit carries the revision of its translation and of its source, which
+Every block carries the revision of its translation and of its source, which
 kapi merge checks the returned file against.`,
 		Example: `  kapi extract -p kapi.yaml --no-memory
   kapi extract -p kapi.yaml --target-lang fr
