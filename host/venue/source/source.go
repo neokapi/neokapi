@@ -752,6 +752,10 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	if derr != nil {
 		return nil, derr
 	}
+	// Each basis travels as the venue takes it, so the record the venue grades
+	// is the one this checkout reads as current.
+	sources := c.pushedSources(blockMap, localKeys)
+	sources.carryBases(ctx, decisions)
 	decisionsHash := venue.DecisionRecordsHash(decisions)
 	recordChangedHere := decisionsHash != c.cache.DecisionsSynced
 	// A record that decides nothing has nothing to tell a venue about, so what

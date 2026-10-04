@@ -1,33 +1,46 @@
 package venue
 
-import "github.com/neokapi/neokapi/core/model"
+import (
+	"slices"
+
+	"github.com/neokapi/neokapi/core/model"
+)
 
 // SourceRevision is the revision of b's source as a venue holds it and grades
 // a decision's basis against: the source's runs under the project's source
-// language, source. It is the revision a project read takes of the same
-// content (model.Block.SourceRevisions lists it first, since a project read
-// files every block under the project's language), so a basis a checkout
-// records and the revision a venue stamps on the block it stores are one
+// language, source. It depends on those runs and that language alone. The
+// language the block's reader declared plays no part, and neither do the
+// translations the block holds, so two writes of one source give one revision
+// whichever of its translations each carries.
+//
+// A checkout takes the revision of the same content under whichever key its
+// reader filed the source by: the project's language for a project read, the
+// language a format declares for the change service, or no language. It
+// accepts any of them as current (model.Block.SourceRevisions), and the
+// venue's revision is always among them. A push sends a basis as the venue
+// takes it (Basis), so a checkout's record and the venue's revision are one
 // value for one content, inline codes included.
-//
-// A block that holds a translation filed under the source language itself (a
-// bilingual file whose two languages are one) knows its source by the zero
-// key, as model.Block does, and the revision is taken under that key.
-//
-// The block's own SourceLocale plays no part: a format reader names a
-// language of its own or none, and a venue keeps no language per block, so
-// both ends take the revision under the project's language.
 func SourceRevision(b *model.Block, source model.LocaleID) string {
 	if b == nil {
 		return ""
 	}
-	k := model.Variant(source)
-	if !k.IsZero() {
-		if _, held := b.Edition(k); held && !b.IsSourceEdition(k) {
-			k = model.EditionKey{}
-		}
+	return model.RunsRevision(model.Variant(source), b.SourceRuns())
+}
+
+// Basis is a basis a checkout recorded, as a venue holding b grades it: when
+// basis is a revision of b's source under any key a reader of the document
+// takes one under (model.Block.SourceRevisions), it is the venue's revision
+// of that source (SourceRevision). Any other basis names another source, and
+// is returned as it is: it reads stale on the venue as it does on the
+// checkout. An empty basis stays empty.
+func Basis(b *model.Block, source model.LocaleID, basis string) string {
+	if b == nil || basis == "" {
+		return basis
 	}
-	return model.RunsRevision(k, b.SourceRuns())
+	if slices.Contains(b.SourceRevisions(source), basis) {
+		return SourceRevision(b, source)
+	}
+	return basis
 }
 
 // RecordHash is the transfer hash of b: its content and context hashes and

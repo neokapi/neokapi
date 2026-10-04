@@ -40,8 +40,10 @@ type refServer struct {
 	// writesSent the edition writes.
 	decisionsSent int
 	writesSent    int
-	// writes are the edition writes the last commit carried.
-	writes []venue.EditionWrite
+	// writes are the edition writes the last commit carried, and decisions
+	// its decision records.
+	writes    []venue.EditionWrite
+	decisions []venue.UnitDecision
 	// statusUnavailable makes the push-status route fail, so the ingest is
 	// unconfirmable — a server with no worker, or one too old for the endpoint.
 	statusUnavailable bool
@@ -153,6 +155,7 @@ func newRefServer(t *testing.T, projectID string, published ref.Ref) *refServer 
 			rs.decisionsSent += len(manifest.Decisions)
 			rs.writesSent += len(manifest.Writes)
 			rs.writes = manifest.Writes
+			rs.decisions = manifest.Decisions
 			w.WriteHeader(http.StatusAccepted)
 			_ = json.NewEncoder(w).Encode(map[string]any{"push_id": "p1", "status": "queued"})
 		})

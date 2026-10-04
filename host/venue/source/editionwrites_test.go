@@ -132,6 +132,23 @@ func TestPush_SendsTheWriteOfTheTranslationTheCheckoutHolds(t *testing.T) {
 // pseudo-translation flow translates into French.
 func translatedCheckout(t *testing.T, srv *refServer) *BowrainSourceConnector {
 	t.Helper()
+	return checkoutOf(t, srv, "en",
+		map[string]string{"locales/en.json": `{"greeting": "Hello world", "farewell": "Goodbye now"}` + "\n"},
+		coreproj.Collection{Name: "app", Path: "locales/en.json", Target: "locales/{lang}.json"})
+}
+
+// checkoutOf is a checkout of proj1 on srv, written in source, holding files
+// and claiming them by collections, which a pseudo-translation flow
+// translates into French.
+func checkoutOf(t *testing.T, srv *refServer, source model.LocaleID, files map[string]string, collections ...coreproj.Collection) *BowrainSourceConnector {
+	t.Helper()
+	return checkoutAt(t, srv.URL, "/projects/proj1", "proj1", "test-token", source, files, collections...)
+}
+
+// checkoutAt is checkoutOf for the project at serverURL+projectPath, whose id
+// is projectID, reached with token.
+func checkoutAt(t *testing.T, serverURL, projectPath, projectID, token string, source model.LocaleID, files map[string]string, collections ...coreproj.Collection) *BowrainSourceConnector {
+	t.Helper()
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
@@ -139,31 +156,33 @@ func translatedCheckout(t *testing.T, srv *refServer) *BowrainSourceConnector {
 	t.Setenv("KAPI_PLUGINS_DIR", t.TempDir())
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	root := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en.json"),
-		[]byte(`{"greeting": "Hello world", "farewell": "Goodbye now"}`+"\n"), 0o644))
+	for name, body := range files {
+		abs := filepath.Join(root, filepath.FromSlash(name))
+		require.NoError(t, os.MkdirAll(filepath.Dir(abs), 0o755))
+		require.NoError(t, os.WriteFile(abs, []byte(body), 0o644))
+	}
 	recipe := &bproject.Recipe{
 		Defaults: coreproj.Defaults{
-			SourceLanguage: "en", TargetLanguages: []model.LocaleID{"fr"}, Flow: "pseudo",
+			SourceLanguage: source, TargetLanguages: []model.LocaleID{"fr"}, Flow: "pseudo",
 			TranslateAfter: string(model.TranslateAfterNone), Materialize: coreproj.MaterializeManual,
 		},
-		Collections: []coreproj.Collection{{Name: "app", Path: "locales/en.json", Target: "locales/{lang}.json"}},
+		Collections: collections,
 		Flows:       map[string]*flow.StepsSpec{"pseudo": {Steps: []flow.FlowStep{{Tool: "pseudo-translate"}}}},
-		Server:      &bproject.ServerSpec{URL: srv.URL + "/projects/proj1", Stream: "main"},
+		Server:      &bproject.ServerSpec{URL: serverURL + projectPath, Stream: "main"},
 	}
 	proj, err := bproject.InitProject(root, recipe)
 	require.NoError(t, err)
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
-	client := apiclient.NewProjectBearerClient(srv.URL, "proj1", "test-token")
+	client := apiclient.NewProjectBearerClient(serverURL, projectID, token)
 	client.SetStream("main")
 	a := testApp(t)
 	a.InitRegistries()
-	a.SourceLang = "en"
+	a.SourceLang = string(source)
 	return &BowrainSourceConnector{
 		app: a, project: proj, client: client, formatReg: reg,
 		cache:  bproject.LoadSyncCache(proj.Layout),
-		refs:   refcache.Load(proj.Layout, config.NormalizeServerURL(srv.URL), "proj1"),
+		refs:   refcache.Load(proj.Layout, config.NormalizeServerURL(serverURL), projectID),
 		stream: "main", maxBatch: 1000,
 	}
 }

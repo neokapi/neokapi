@@ -131,10 +131,11 @@ func (c *BowrainSourceConnector) projectEditionWrites(ctx context.Context, block
 				w.Block = r.Block
 			}
 			if r.Origin != history.OriginPull {
-				// The revision of the source the write was made from, taken
-				// under the project's source language as the venue takes the
-				// revision of the source it holds.
-				w.Basis = r.Basis
+				// The revision of the source the write was made from. The
+				// history holds it under the key the run's reader filed the
+				// source by, and it travels as the venue takes the revision
+				// of the source it holds (venue.Basis).
+				w.Basis = venue.Basis(b, c.sourceLanguage(), r.Basis)
 			}
 			out = append(out, w)
 		}
