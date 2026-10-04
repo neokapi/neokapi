@@ -74,6 +74,12 @@ jobs:
           # those routes existed posts to `/push/diff` and receives a 404 for
           # every file it sends. Bump both lines together whenever the push
           # protocol changes.
+          #
+          # The pair also has to read the catalogs `make l10n-extract` writes
+          # from this checkout. A pair cut before the catalog schema the
+          # extractor writes cannot read them, and the step after extraction
+          # stops the run on that rather than push past it; bump both lines to
+          # a release that reads them.
           version: 1.3.0-rc2
           plugins: bowrain@1.3.0-rc2
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
@@ -102,6 +108,35 @@ jobs:
 
       - name: Extract the source catalogs the loop carries
         run: make l10n-extract
+
+      # The push below declares every catalog the recipe's patterns cover, and
+      # the venue deletes whatever it holds that the declaration leaves out. A
+      # released kapi that cannot read a catalog pushes it as if it held
+      # nothing: the releases before KBF schema 2 do so with a schema 2
+      # catalog, and the venue would drop every string in it with its
+      # translations and approvals. `kapi inspect` exits non-zero on a catalog
+      # it cannot read, so the run stops here, before anything reaches the
+      # venue, until the pin above names a release that reads what this
+      # checkout's extractor writes. The directories are the extract surfaces
+      # stage 1 ran over.
+      - name: Refuse a kapi that cannot read the extracted catalogs
+        run: |
+          set -euo pipefail
+          catalogs=()
+          while IFS= read -r dir; do
+            while IFS= read -r -d '' file; do
+              catalogs+=("$file")
+            done < <(find "$dir/i18n" -name '*.kbf.json' -print0)
+          done < <(make -s l10n-extract-globs | cut -f1)
+          if [ "${#catalogs[@]}" -eq 0 ]; then
+            echo "::error title=No catalogs::make l10n-extract wrote no source catalog"
+            exit 1
+          fi
+          if ! kapi inspect "${catalogs[@]}" > /dev/null; then
+            echo "::error title=Catalogs unreadable::the installed kapi cannot read the catalogs this checkout extracts; bump the setup-kapi pin to a release that reads them"
+            exit 1
+          fi
+          echo "The installed kapi reads all ${#catalogs[@]} extracted catalog(s)."
 
       # The context this repository governs its content by lives in the
       # workspace store, and a runner's store starts empty. The recipe keeps it
