@@ -303,7 +303,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 		}
 	}
 	// Block-side provenance wins when the format carries it.
-	if t := b.Target(loc); t != nil && t.Origin.Kind != "" {
+	if t, ok := b.TargetEdition(loc); ok && t.Origin.Kind != "" {
 		o := t.Origin
 		detail.Origin = &o
 	}
