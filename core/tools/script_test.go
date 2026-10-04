@@ -177,7 +177,7 @@ func TestScriptWritesNoEditionItCannotRead(t *testing.T) {
 
 	block := model.NewBlock("tu1", "Hello")
 	block.SourceLocale = "en-US"
-	block.FileTargetAsSpelled(model.EditionKey{Locale: "nb_NO"}, model.Edition{Runs: []model.Run{model.TextR("Hei")}})
+	block.Editions[model.EditionKey{Locale: "nb_NO"}] = &model.Edition{Runs: []model.Run{model.TextR("Hei")}}
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 
 	out := result.Resource.(*model.Block)

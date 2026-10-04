@@ -328,14 +328,14 @@ func (b *Block) SourceSegmentRuns(idx int) []Run {
 	seg := b.SourceSegmentation()
 	if seg == nil {
 		if idx == 0 {
-			return b.Source
+			return b.sourceRuns()
 		}
 		return nil
 	}
 	if idx < 0 || idx >= len(seg.Spans) {
 		return nil
 	}
-	return seg.Spans[idx].Range.ExtractRuns(b.Source)
+	return seg.Spans[idx].Range.ExtractRuns(b.sourceRuns())
 }
 
 // SourceSegmentCount returns the number of source segment spans — len(spans)
@@ -345,7 +345,7 @@ func (b *Block) SourceSegmentCount() int {
 	if seg := b.SourceSegmentation(); seg != nil {
 		return len(seg.Spans)
 	}
-	if len(b.Source) > 0 {
+	if len(b.sourceRuns()) > 0 {
 		return 1
 	}
 	return 0

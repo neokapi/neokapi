@@ -174,9 +174,9 @@ func TestEditorAnchor_SurvivesBlockCopy(t *testing.T) {
 
 	clone := &model.Block{
 		ID:       src.ID,
-		Source:   append([]model.Run(nil), src.Source...),
 		Overlays: append([]model.Overlay(nil), src.Overlays...),
 	}
+	clone.SetSourceRuns(append([]model.Run(nil), src.SourceRuns()...))
 
 	got := clone.EditorAnchorByID("a1")
 	require.NotNil(t, got, "anchor must survive the copy")
@@ -213,7 +213,7 @@ type spanJSONEnv struct {
 
 func encodeBlock(t *testing.T, b *model.Block) []byte {
 	t.Helper()
-	env := blockJSONEnvelope{ID: b.ID, Source: b.Source}
+	env := blockJSONEnvelope{ID: b.ID, Source: b.SourceRuns()}
 	for i := range b.Overlays {
 		o := &b.Overlays[i]
 		oe := overlayJSONEnv{Type: o.Type}
@@ -238,7 +238,8 @@ func decodeBlock(t *testing.T, data []byte) *model.Block {
 	t.Helper()
 	var env blockJSONEnvelope
 	require.NoError(t, json.Unmarshal(data, &env))
-	b := &model.Block{ID: env.ID, Source: env.Source}
+	b := &model.Block{ID: env.ID}
+	b.SetSourceRuns(env.Source)
 	for _, oe := range env.Overlays {
 		o := model.Overlay{Type: oe.Type}
 		for _, se := range oe.Spans {
