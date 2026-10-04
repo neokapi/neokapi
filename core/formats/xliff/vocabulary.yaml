@@ -77,7 +77,7 @@ constructs:
       evidence: [xliff.TestReadXLIFFTargets]
       notes: >-
         The defining bilingual-interchange construct: <target> populates the
-        Block.Targets map keyed by trgLang (model_mapping block:target).
+        block's edition keyed by trgLang (model_mapping block:target).
     write:
       status: unknown
       notes: >-
