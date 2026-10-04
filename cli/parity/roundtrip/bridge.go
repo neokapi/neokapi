@@ -77,7 +77,7 @@ func (e *BridgeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 			tgt := model.LocaleID(spec.TgtLocale())
 			forceSrc := e.ForcePseudoSourceBase
 			if forceSrc {
-				if existing := b.Target(tgt); existing != nil && runsHaveText(existing.Runs) {
+				if existing, ok := b.TargetEdition(tgt); ok && runsHaveText(existing.Runs) {
 					forceSrc = false
 				}
 			}
@@ -96,7 +96,7 @@ func (e *BridgeEngine) RoundTrip(t *testing.T, in Input, spec PseudoSpec) []byte
 			// daemon's applier fires and its own COPY_ALL materializes the
 			// ignorable — i.e. drive okapi's COPY_ALL the way okapi does,
 			// rather than trying to reconstruct ignorables Go can't see.
-			if forceSrc && b.Target(tgt) == nil && (len(b.SourceRuns()) > 0 || len(b.TargetLocales()) > 0) {
+			if _, held := b.TargetEdition(tgt); forceSrc && !held && (len(b.SourceRuns()) > 0 || len(b.TargetLocales()) > 0) {
 				b.SetTargetRuns(tgt, nil)
 			}
 		},

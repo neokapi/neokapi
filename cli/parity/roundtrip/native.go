@@ -357,8 +357,8 @@ func seedIgnorableTargetsFromSource(b *model.Block, tgt model.LocaleID) {
 	if b == nil || len(b.SourceRuns()) == 0 {
 		return
 	}
-	target := b.Target(tgt)
-	if target == nil || len(target.Runs) == 0 {
+	target, ok := b.TargetEdition(tgt)
+	if !ok || len(target.Runs) == 0 {
 		return
 	}
 
