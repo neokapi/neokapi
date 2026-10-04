@@ -875,7 +875,7 @@ func supersededSource(
 	// the next run learns the fresh draft and recycles it rather than paying to
 	// produce it again.
 	if basis == basisStale && e.blessesTarget(b, u.locale) {
-		runs, _ := prior.runsFor(e.basis, e.contentHash)
+		runs, _ := prior.runsFor(e.basis, e.contentHash, b)
 		return runs, true, nil
 	}
 
@@ -924,36 +924,67 @@ type priorSourceIndex struct {
 	store  blockstore.Store
 	source model.LocaleID
 	loaded bool
-	byRev  map[string][]model.Run
-	byHash map[string][]model.Run
-	byUnit map[string][]model.Run
+	// sources is every stored source the scan read, which byRev indexes under
+	// each key a revision has been asked for under (indexed).
+	sources [][]model.Run
+	indexed map[model.EditionKey]bool
+	byRev   map[string][]model.Run
+	byHash  map[string][]model.Run
+	byUnit  map[string][]model.Run
 }
 
 // newPriorSourceIndex indexes the sources the store holds. source is the
-// language they are written in, the key a source revision is taken under.
+// language they are written in, the key a project read files a source under.
 func newPriorSourceIndex(ctx context.Context, store blockstore.Store, source model.LocaleID) *priorSourceIndex {
 	return &priorSourceIndex{ctx: ctx, store: store, source: source}
 }
 
-// runsFor returns the source runs at the basis a record names: by its
-// revision where it names one, else by its hash. ok is false when the store
-// cannot supply them (nothing extracted yet, a build with no block store, or
-// a store already re-read past the edit).
-func (p *priorSourceIndex) runsFor(rev, hash string) ([]model.Run, bool) {
+// runsFor returns the source runs at the basis a record names for b: by its
+// revision where it names one, and by its hash where it was recorded before
+// revisions. A revision covers the key it was taken under, and the readers of
+// one document file its source under different keys (model.Block.SourceRevisions),
+// so a revision is looked up under each: the project's source language, no
+// language, and the language b's reader declared. A revision found under none
+// of them names content the store no longer holds, and its text hash would
+// recover another source with the same words and other inline codes, so ok is
+// false. ok is also false when the store cannot supply the runs (nothing
+// extracted yet, a build with no block store, or a store already re-read past
+// the edit).
+func (p *priorSourceIndex) runsFor(rev, hash string, b *model.Block) ([]model.Run, bool) {
 	if rev == "" && hash == "" {
 		return nil, false
 	}
 	p.load()
-	if rev != "" {
-		if runs, ok := p.byRev[rev]; ok {
-			return runs, true
+	if rev == "" {
+		runs, ok := p.byHash[hash]
+		return runs, ok
+	}
+	keys := []model.EditionKey{model.Variant(p.source), {}}
+	if b != nil {
+		keys = append(keys, model.Variant(b.SourceLocale))
+		if declared := b.Properties[model.PropReadSourceLocale]; declared != "" {
+			keys = append(keys, model.Variant(model.LocaleID(declared)))
 		}
 	}
-	if hash == "" {
-		return nil, false
+	for _, k := range keys {
+		p.indexUnder(k)
 	}
-	runs, ok := p.byHash[hash]
+	runs, ok := p.byRev[rev]
 	return runs, ok
+}
+
+// indexUnder indexes every stored source by its revision under k, once per key.
+func (p *priorSourceIndex) indexUnder(k model.EditionKey) {
+	k = k.Canonical()
+	if p.indexed[k] {
+		return
+	}
+	p.indexed[k] = true
+	for _, runs := range p.sources {
+		if r := model.RunsRevision(k, runs); p.byRev[r] == nil {
+			p.byRev[r] = runs
+		}
+	}
 }
 
 // runsForUnit returns the source runs the store holds for one unit of one source
@@ -978,30 +1009,32 @@ func (p *priorSourceIndex) load() {
 		return
 	}
 	p.loaded = true
-	p.byRev, p.byHash, p.byUnit = p.scan()
+	p.sources, p.byHash, p.byUnit = p.scan()
+	p.byRev, p.indexed = map[string][]model.Run{}, map[model.EditionKey]bool{}
 }
 
 // scan reads every translatable block the store holds and indexes its source
-// runs by basis and by unit. Autocommit, not the session-transactional store:
-// this is a read beside the run's own writes, and holding the write permit for
-// the length of a full scan would stall them. Any failure yields empty indexes —
-// the caller then absorbs no differently than it did before the store existed,
-// rather than acting on half a scan.
-func (p *priorSourceIndex) scan() (byRev, byHash, byUnit map[string][]model.Run) {
-	byRev, byHash, byUnit = map[string][]model.Run{}, map[string][]model.Run{}, map[string][]model.Run{}
+// runs by hash and by unit, keeping each for the revision index. Autocommit,
+// not the session-transactional store: this is a read beside the run's own
+// writes, and holding the write permit for the length of a full scan would
+// stall them. Any failure yields empty indexes — the caller then absorbs no
+// differently than it did before the store existed, rather than acting on half
+// a scan.
+func (p *priorSourceIndex) scan() (sources [][]model.Run, byHash, byUnit map[string][]model.Run) {
+	byHash, byUnit = map[string][]model.Run{}, map[string][]model.Run{}
 	store := p.store
 	if store == nil {
-		return byRev, byHash, byUnit
+		return nil, byHash, byUnit
 	}
 	sess, err := store.Begin(p.ctx)
 	if err != nil {
-		return byRev, byHash, byUnit
+		return nil, byHash, byUnit
 	}
 	defer sess.Close()
 	translatable := true
 	for b, berr := range sess.Blocks(blockstore.BlockFilter{Translatable: &translatable}) {
 		if berr != nil {
-			return map[string][]model.Run{}, map[string][]model.Run{}, map[string][]model.Run{}
+			return nil, map[string][]model.Run{}, map[string][]model.Run{}
 		}
 		// model.RunsText, the same projection model.Block.SourceText makes, so a
 		// stored block hashes to the number a decision recorded for it.
@@ -1014,18 +1047,10 @@ func (p *priorSourceIndex) scan() (byRev, byHash, byUnit map[string][]model.Run)
 		if _, seen := byHash[h]; !seen {
 			byHash[h] = source
 		}
-		// A revision of the edition a block was read in is taken under the
-		// key a read gave it: the project's source language, or none. A
-		// record taken under a language the reader declared is found by its
-		// hash instead.
-		for _, k := range []model.EditionKey{model.Variant(p.source), {}} {
-			if r := model.RunsRevision(k, source); byRev[r] == nil {
-				byRev[r] = source
-			}
-		}
+		sources = append(sources, source)
 		byUnit[priorUnitKey(b.Properties.File, b.ID)] = source
 	}
-	return byRev, byHash, byUnit
+	return sources, byHash, byUnit
 }
 
 // memoryAnswers asks the content memory the question `recycle` asks: for this
