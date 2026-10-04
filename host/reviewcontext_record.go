@@ -27,7 +27,7 @@ import (
 //     the decision in force, and its origin describes text that is gone.
 func (a *App) recordedProvenance(ctx context.Context, req ReviewContextRequest, block *model.Block, loc model.LocaleID, p review.Provenance) review.Provenance {
 	source := isReviewSource(req, loc)
-	if !source && req.Unit != nil && req.Unit.Stale(state.ReadTarget(block, loc)) {
+	if !source && req.Unit != nil && req.Unit.Stale(state.ReadTarget(block, loc, model.LocaleID(a.SourceLocale()))) {
 		p.ReviewState, p.By, p.At, p.Note, p.Status = "", "", "", "", ""
 		if t, ok := block.TargetEdition(loc); !ok || t.Origin.Kind == "" {
 			p.Origin = nil

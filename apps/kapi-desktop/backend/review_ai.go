@@ -283,7 +283,9 @@ func (a *App) freshAIReview(ctx context.Context, op *openProject, scope, key str
 	if !found {
 		return nil
 	}
-	if !us.AIReview.Fresh(state.ReadTarget(b, loc)) {
+	// A pre-review judges a translation, so only the translation's half of
+	// the reading is asked.
+	if !us.AIReview.Fresh(state.ReadTarget(b, loc, "")) {
 		return nil
 	}
 	return us.AIReview

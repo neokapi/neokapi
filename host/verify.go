@@ -1878,11 +1878,28 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 		}
 	}
 
-	for _, sb := range sourceBlocks {
-		sb.SourceLocale = model.LocaleID(a.SourceLocale())
-	}
+	fileUnderSource(sourceBlocks, model.LocaleID(a.SourceLocale()))
 	OverlayTargets(sourceBlocks, targetBlocks, model.LocaleID(u.Locale))
 	return sourceBlocks, false, nil
+}
+
+// fileUnderSource files each block under the project's source language, as a
+// project read does whatever language the block's reader declared. A block
+// whose reader declared another language keeps it as the advisory property
+// model.PropReadSourceLocale: a read that kept the reader's language (the
+// change service's, which a flow's record and a decision made through it are
+// taken by) took a revision of the block's source under that key, and a
+// reader of this block matches it there (model.Block.SourceRevisions).
+func fileUnderSource(blocks []*model.Block, source model.LocaleID) {
+	for _, b := range blocks {
+		if b.SourceLocale != "" && model.NormalizeLocale(b.SourceLocale) != model.NormalizeLocale(source) {
+			if b.Properties == nil {
+				b.Properties = map[string]string{}
+			}
+			b.Properties[model.PropReadSourceLocale] = string(b.SourceLocale)
+		}
+		b.SourceLocale = source
+	}
 }
 
 // readBlocks reads a file through its detected format reader and returns the

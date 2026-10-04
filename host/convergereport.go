@@ -182,7 +182,10 @@ func (a *App) applyReviewDecision(ctx context.Context, projectPath, sourceLang s
 			if !b.Translatable || blockKey(b) != ref.Key {
 				continue
 			}
-			content := decidedContent{source: b.SourceText(), target: b.TargetText(loc), targetRev: targetRevision(b, loc)}
+			content := decidedContent{
+				source: b.SourceText(), sourceRev: model.EditionRevision(b, model.EditionKey{}),
+				target: b.TargetText(loc), targetRev: targetRevision(b, loc),
+			}
 			if decided != nil {
 				content = *decided
 			}
@@ -242,23 +245,36 @@ func (a *App) governingFingerprintFor(ctx context.Context, projectPath string, p
 }
 
 // decidedContent is the pairing a decision is about: the source wording in front
-// of the decider and the translation of it they judged. Both are hashed into the
-// record, because an approval that bound only the translation survived its source
-// being rewritten — the reviewer's blessing outliving the sentence it blessed.
+// of the decider and the translation of it they judged. Both halves are bound
+// into the record, by revision and by hash, because an approval that bound only
+// the translation survived its source being rewritten: the reviewer's blessing
+// outliving the sentence it blessed.
 type decidedContent struct {
 	source string
-	target string
+	// sourceRev is the revision of the source (model.EditionRevision of the
+	// authoritative edition), the basis a decision records.
+	sourceRev string
+	target    string
 	// targetRev is the revision of the translation (model.EditionRevision),
 	// which names the flow's write the translation is, when one is.
 	targetRev string
 }
 
+// reading is the content the decision is made on, as state.Reading spells it.
+func (c decidedContent) reading() state.Reading {
+	return state.Reading{
+		Basis: c.sourceRev, Revision: c.targetRev,
+		ContentHash: state.SourceHash(c.source), TargetHash: targetHash(c.target),
+	}
+}
+
 // recordDecisionState records a unit's review decision in the project state store
 // — the authoritative carrier of workflow state — keyed by (document, unit,
-// locale), and bound to BOTH halves of what it blessed: the content hash of the translation
-// it judges (targetHash) and the basis, the content hash of the source it judged it
-// against (contentHash). A later edit to either drops the decision (stale), derived
-// on read. The decision is transient until Export persists it to the committed state
+// locale), and bound to BOTH halves of what it blessed: the revision of the
+// translation it judges and the basis, the revision of the source it judged it
+// against, each beside its content hash (targetHash, contentHash) for a reader
+// that holds no revision. A later edit to either drops the decision (stale),
+// derived on read. The decision is transient until Export persists it to the committed state
 // artifact (the export sink). The content memory (.memory.json) is no longer
 // touched here: it is the recycle corpus, not the state carrier. Advisory fields
 // already on the unit's record (origin, source status, a fresh AI pre-review
@@ -283,9 +299,10 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 		return false, err
 	}
 	k := state.Key{Scope: file, Unit: unit, Variant: model.Variant(locale)}
-	th := targetHash(content.target)
+	read := content.reading()
+	th, rev := read.TargetHash, read.Revision
 	prev, hadPrev := st.Get(ctx, k)
-	if !hadPrev || (undecidedRecord(prev) && prev.TargetHash != th) {
+	if !hadPrev || (undecidedRecord(prev) && !describesTranslation(prev, read)) {
 		// An undecided translation a flow wrote: the source it was made from
 		// and the stamp of the tool that made it are in the block history,
 		// and a decision on it starts from them as it would from a record. An
@@ -298,11 +315,12 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 			prev, hadPrev = loop, true
 		}
 	}
-	ch, gov := prev.ContentHash, prev.GoverningFingerprint
+	ch, basis, gov := prev.ContentHash, prev.Basis, prev.GoverningFingerprint
 	if status == model.TargetStatusEstablished {
-		ch, gov = state.SourceHash(content.source), governing
+		ch, basis, gov = read.ContentHash, read.Basis, governing
 	}
-	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.ContentHash == ch &&
+	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.Revision == rev &&
+		prev.ContentHash == ch && prev.Basis == basis &&
 		prev.Decision.Note == note && prev.Decision.By == "" && prev.GoverningFingerprint == gov {
 		return false, nil // already at this decision for this exact pairing, under this context
 	}
@@ -312,7 +330,9 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 		Variant:              model.Variant(locale),
 		Status:               status,
 		TargetHash:           th,
+		Revision:             rev,
 		ContentHash:          ch,
+		Basis:                basis,
 		GoverningFingerprint: gov,
 		Decision:             state.Decision{ReviewState: decision, At: now, Note: note},
 		Updated:              now,
@@ -330,7 +350,7 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 		next.Origin = prev.Origin
 		next.SourceStatus = prev.SourceStatus
 		next.ContextHash = prev.ContextHash
-		if prev.AIReview.Fresh(state.Reading{TargetHash: th, Revision: content.targetRev}) {
+		if prev.AIReview.Fresh(read) {
 			next.AIReview = prev.AIReview
 		}
 	}
@@ -342,11 +362,21 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 	return true, nil
 }
 
+// describesTranslation reports whether a record is about the translation a
+// reader holds: by revision where both name one, and by hash otherwise, as a
+// record written before revisions is read.
+func describesTranslation(u state.UnitState, r state.Reading) bool {
+	if u.Revision != "" && r.Revision != "" {
+		return u.Revision == r.Revision
+	}
+	return u.TargetHash == r.TargetHash
+}
+
 // RecordAIReviews stores advisory AI pre-review annotations for units of one
 // (file, locale) review scope in the project state store: for each unit key in
-// reviews, the annotation is bound to the content hash of the unit's CURRENT
-// translation (re-read from the target file), or to the TargetHash the review
-// already carries, so a later edit invalidates it.
+// reviews, the annotation is bound to the revision and the content hash of the
+// unit's CURRENT translation (re-read from the target file), or to the
+// translation the review already names, so a later edit invalidates it.
 // Annotations never move a unit on the ladder — any existing decision, origin,
 // and status ride along untouched. It returns the number of units annotated;
 // unit keys that no longer resolve are skipped (content moved on), not errors.
@@ -400,9 +430,11 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 				continue
 			}
 			// A caller that holds the translation it judged binds the
-			// annotation to it; otherwise it binds to the file's.
-			if rev.TargetHash == "" {
-				rev.TargetHash = targetHash(b.TargetText(loc))
+			// annotation to it; otherwise it binds to the file's, by revision
+			// and by hash.
+			if rev.TargetHash == "" && rev.Revision == "" {
+				read := state.ReadTarget(b, loc, model.LocaleID(a.SourceLocale()))
+				rev.TargetHash, rev.Revision = read.TargetHash, read.Revision
 			}
 			if rev.At == "" {
 				rev.At = nowRFC3339()
@@ -557,7 +589,7 @@ func (a *App) ReviewUnitWithOptions(ctx context.Context, projectPath, sourceLang
 			var record *state.UnitState
 			if us, found := st.Get(ctx, k); found {
 				record = &us
-				read := state.ReadTarget(b, loc)
+				read := state.ReadTarget(b, loc, model.LocaleID(a.SourceLocale()))
 				info.Stale = us.SourceStale(read)
 				if us.Fresh(read) {
 					if us.Status != "" {

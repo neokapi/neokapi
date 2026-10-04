@@ -129,7 +129,7 @@ func (a *App) settleSource(ctx context.Context, root, sourceLang string, level m
 			if !b.Translatable {
 				continue
 			}
-			if approvals.approves(scope, blockKey(b), b.SourceText()) {
+			if approvals.approves(scope, blockKey(b), b) {
 				establishSource(b)
 			}
 			check.SettleSourceStatus(ctx, b)
@@ -192,16 +192,22 @@ type reviewedIndex struct {
 	// flow wrote (host/loopbasis.go). A unit with no record in byUnit is
 	// graded by the flow's last write to it.
 	loop *loopWrites
+	// source is the project's source language, the key a project read files
+	// a block's source under, which a recorded basis may have been taken under
+	// (state.ReadSource).
+	source model.LocaleID
 }
 
 type reviewedEntry struct {
 	status     model.TargetStatus
 	targetHash string
-	// contentHash is the record's BASIS: the source wording it was recorded
-	// against (state.SourceHash) — what a decider blessed, or what the loop
-	// translated. Empty on a record written before the basis was tracked —
-	// unknown, not stale.
+	// contentHash is the record's BASIS by hash: the source wording it was
+	// recorded against (state.SourceHash), what a decider blessed or what the
+	// loop translated. basis names the same source by revision, and a record
+	// that carries it is graded by it. Both empty on a record written before
+	// the basis was tracked: unknown, not stale.
 	contentHash string
+	basis       string
 	// by is the recorded decider identity ("" for a plain human decision,
 	// "ai/<model>" for an autonomous AI approval, "agent/<client>" for an MCP
 	// agent). Gate evaluation distinguishes only the "ai/" prefix.
@@ -218,9 +224,11 @@ type reviewedEntry struct {
 	// (state.UnitState.GoverningContext): what the decider approved it under,
 	// or what the producer stamped. Empty for an ungoverned answer.
 	governing string
-	// afterRev, set for a flow's write read from the block history, is the
-	// revision of the translation the flow left. It stands in for targetHash.
-	afterRev string
+	// revision is the revision of the translation the record is about: the
+	// one a decision blessed, or the one a flow's write left (read from the
+	// block history). A record that carries it is graded by it rather than by
+	// targetHash.
+	revision string
 }
 
 // governingFingerprint reports what the record says governed the translation a
@@ -247,8 +255,8 @@ func (r reviewedIndex) governingFingerprint(scope string, b *model.Block, locale
 // judged, while one whose target has moved too says nothing at all about what is
 // on disk.
 func (e reviewedEntry) blessesTarget(b *model.Block, locale model.LocaleID) bool {
-	if e.afterRev != "" {
-		return targetRevision(b, locale) == e.afterRev
+	if e.revision != "" {
+		return targetRevision(b, locale) == e.revision
 	}
 	return e.targetHash == "" || targetHash(b.TargetText(locale)) == e.targetHash
 }
@@ -289,8 +297,8 @@ func (r reviewedIndex) loopWrite(scope string, b *model.Block, locale string) (r
 		return reviewedEntry{}, false
 	}
 	return reviewedEntry{
-		status: model.TargetStatusTranslated, contentHash: row.ContentHash,
-		afterRev: row.After, governing: row.Producer.ContextFingerprint,
+		status: model.TargetStatusTranslated, contentHash: row.ContentHash, basis: row.Basis,
+		revision: row.After, governing: row.Producer.ContextFingerprint,
 	}, true
 }
 
@@ -317,9 +325,11 @@ const (
 )
 
 type aiReviewEntry struct {
-	score      int
-	model      string
-	targetHash string
+	score int
+	model string
+	// review is the pre-review as recorded, which says which translation it
+	// judged (state.AIReview.Fresh).
+	review *state.AIReview
 }
 
 // reviewUnitKey is the index's identity: the document a decision was made in,
@@ -360,18 +370,33 @@ func (r reviewedIndex) grade(scope string, b *model.Block, locale string) (e rev
 	if !e.decided && !blesses {
 		return reviewedEntry{}, basisUnknown, false
 	}
-	switch {
-	case e.contentHash == "":
-		basis = basisUnknown
-	case e.contentHash != state.SourceHash(b.SourceText()):
-		basis = basisStale
-	default:
-		basis = basisCurrent
-	}
+	basis = e.gradeBasis(b, r.source)
 	if !blesses {
 		return e, basis, false // the translation changed since the decision
 	}
 	return e, basis, e.decided && basis != basisStale
+}
+
+// gradeBasis grades the source the record was made against with the block's
+// source as it stands: by revision where the record names one, the revision a
+// translation's derivation names, under any key a read of the document gives
+// the source (state.Reading.HoldsBasis), and by hash where the record was made
+// before revisions. source is the project's source language.
+func (e reviewedEntry) gradeBasis(b *model.Block, source model.LocaleID) basisVerdict {
+	if e.basis != "" {
+		if state.ReadSource(b, source).HoldsBasis(e.basis) {
+			return basisCurrent
+		}
+		return basisStale
+	}
+	switch {
+	case e.contentHash == "":
+		return basisUnknown
+	case e.contentHash != state.SourceHash(b.SourceText()):
+		return basisStale
+	default:
+		return basisCurrent
+	}
 }
 
 // entryFor returns a block's applicable review DECISION for the locale, or
@@ -482,7 +507,7 @@ func (r reviewedIndex) aiReviewFor(scope string, b *model.Block, locale string) 
 	if !ok {
 		return aiReviewEntry{}, false
 	}
-	if e.targetHash != "" && targetHash(b.TargetText(model.LocaleID(locale))) != e.targetHash {
+	if !e.review.Fresh(state.ReadTarget(b, model.LocaleID(locale), r.source)) {
 		return aiReviewEntry{}, false
 	}
 	return e, true
@@ -492,7 +517,7 @@ func (r reviewedIndex) aiReviewFor(scope string, b *model.Block, locale string) 
 // An absent store yields an empty index (nothing decided yet) — never an error,
 // so status stays informational.
 func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiProject, root string) (reviewedIndex, error) {
-	idx := reviewedIndex{byUnit: map[string]reviewedEntry{}, aiReviews: map[string]aiReviewEntry{}}
+	idx := reviewedIndex{byUnit: map[string]reviewedEntry{}, aiReviews: map[string]aiReviewEntry{}, source: model.LocaleID(a.SourceLocale())}
 	if root == "" {
 		return idx, nil
 	}
@@ -515,13 +540,13 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 		switch u.Status {
 		case model.TargetStatusEstablished, model.TargetStatusDraft:
 			idx.putUnit(u.Scope, u.Unit, locale, reviewedEntry{
-				status: u.Status, targetHash: u.TargetHash,
-				contentHash: u.ContentHash, by: u.Decision.By, decided: true,
+				status: u.Status, targetHash: u.TargetHash, revision: u.Revision,
+				contentHash: u.ContentHash, basis: u.Basis, by: u.Decision.By, decided: true,
 				governing: u.GoverningContext(),
 			})
 		}
 		if u.AIReview != nil {
-			e := aiReviewEntry{score: u.AIReview.Score, model: u.AIReview.Model, targetHash: u.AIReview.TargetHash}
+			e := aiReviewEntry{score: u.AIReview.Score, model: u.AIReview.Model, review: u.AIReview}
 			idx.aiReviews[reviewUnitKey(u.Scope, u.Unit, locale)] = e
 			for _, alias := range scopeAliases(u.Scope) {
 				idx.aiReviews[reviewUnitKey(alias, u.Unit, locale)] = e

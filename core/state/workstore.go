@@ -787,14 +787,24 @@ SELECT payload, revoked FROM unit_decision
 // for the same text, and its withdrawal is never undone by one.
 func (w *WorkStore) Lookup(ctx context.Context, k Key, r Reading) (UnitState, bool) {
 	variant, _ := k.Variant.MarshalText()
+	bases := []any{""}
+	if r.Basis != "" {
+		bases = append(bases, r.Basis)
+	}
+	for _, b := range r.Bases {
+		if b != r.Basis {
+			bases = append(bases, b)
+		}
+	}
+	args := append([]any{k.Scope, k.Unit, string(variant), r.ContentHash, r.TargetHash, r.Revision}, bases...)
 	var payload string
 	var revoked int
 	err := w.db.QueryRowContext(ctx, `
 SELECT payload, revoked FROM unit_decision
  WHERE scope = ? AND unit = ? AND variant = ? AND content_hash = ? AND target_hash = ?
-   AND basis IN (?, '') AND revision IN (?, '')
+   AND revision IN (?, '') AND basis IN (?`+strings.Repeat(", ?", len(bases)-1)+`)
  ORDER BY (basis <> '') + (revision <> '') DESC, recorded_at DESC, rowid DESC LIMIT 1`,
-		k.Scope, k.Unit, string(variant), r.ContentHash, r.TargetHash, r.Basis, r.Revision).Scan(&payload, &revoked)
+		args...).Scan(&payload, &revoked)
 	if err != nil || revoked == 1 {
 		return UnitState{}, false
 	}

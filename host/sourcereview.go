@@ -58,21 +58,29 @@ func establishSource(b *model.Block) {
 // sourceApprovals maps a unit (document + block identity) to the source wording
 // a human approved, loaded from the project state store.
 //
-// Only the basis is carried. The approval applies while the source still hashes
-// to it, and a source edit is exactly what should drop it: an approval of a
-// sentence is not an approval of the sentence that replaced it.
-type sourceApprovals map[string]string
+// Only the basis is carried. The approval applies while the source is still
+// the one it names, and a source edit is exactly what should drop it: an
+// approval of a sentence is not an approval of the sentence that replaced it.
+type sourceApprovals struct {
+	// source is the project's source language, the key a project read files
+	// the source under (state.ReadSource).
+	source model.LocaleID
+	byUnit map[string]state.UnitState
+}
 
-func (s sourceApprovals) approves(scope, unit, sourceText string) bool {
-	basis, ok := s[sourceUnitKey(scope, unit)]
-	return ok && basis != "" && basis == state.SourceHash(sourceText)
+// approves reports whether the unit's source approval still names the source
+// of b: by revision where the approval records one, so a changed link
+// withdraws it, and by hash where it was recorded before revisions.
+func (s sourceApprovals) approves(scope, unit string, b *model.Block) bool {
+	u, ok := s.byUnit[sourceUnitKey(scope, unit)]
+	return ok && u.BasisKnown() && !u.SourceStale(state.ReadSource(b, s.source))
 }
 
 func sourceUnitKey(scope, unit string) string { return scope + "\x00" + unit }
 
 // loadSourceApprovals reads the committed source approvals for a project.
 func (a *App) loadSourceApprovals(ctx context.Context, root, sourceLang string) (sourceApprovals, error) {
-	out := sourceApprovals{}
+	out := sourceApprovals{source: model.LocaleID(sourceLang), byUnit: map[string]state.UnitState{}}
 	if root == "" {
 		return out, nil
 	}
@@ -89,7 +97,7 @@ func (a *App) loadSourceApprovals(ctx context.Context, root, sourceLang string) 
 		if u.SourceStatus != model.SourceStatusEstablished || u.Variant != want {
 			continue
 		}
-		out[sourceUnitKey(u.Scope, u.Unit)] = u.ContentHash
+		out.byUnit[sourceUnitKey(u.Scope, u.Unit)] = state.UnitState{ContentHash: u.ContentHash, Basis: u.Basis}
 	}
 	return out, nil
 }
@@ -171,7 +179,7 @@ func (a *App) sourceQueue(ctx context.Context, proj *project.KapiProject, root s
 				continue
 			}
 			text := b.SourceText()
-			approved := approvals.approves(scope, blockKey(b), text)
+			approved := approvals.approves(scope, blockKey(b), b)
 			if approved {
 				establishSource(b)
 			}
@@ -225,7 +233,7 @@ func (a *App) SourceStateSeeder(ctx context.Context, root, sourceLang string) (f
 	if err != nil {
 		return nil, err
 	}
-	if len(approvals) == 0 {
+	if len(approvals.byUnit) == 0 {
 		return nil, nil
 	}
 	docs := a.documentIndexOrEmpty(ctx, root)
@@ -233,7 +241,7 @@ func (a *App) SourceStateSeeder(ctx context.Context, root, sourceLang string) (f
 		if b == nil || !b.Translatable {
 			return
 		}
-		if approvals.approves(docs.Scope(root, sourcePath), blockKey(b), b.SourceText()) {
+		if approvals.approves(docs.Scope(root, sourcePath), blockKey(b), b) {
 			establishSource(b)
 		}
 	}, nil
@@ -298,7 +306,7 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 				continue
 			}
 			text := b.SourceText()
-			if approvals.approves(scope, ref.Key, text) {
+			if approvals.approves(scope, ref.Key, b) {
 				establishSource(b)
 			}
 			check.SettleSourceStatus(ctx, b)
@@ -321,7 +329,7 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 			k := state.Key{Scope: scope, Unit: ref.Key, Variant: sourceVariant(sourceLang)}
 			if us, found := st.Get(ctx, k); found {
 				record = &us
-				info.Stale = us.SourceStale(state.ReadSource(b))
+				info.Stale = us.SourceStale(state.ReadSource(b, model.LocaleID(sourceLang)))
 				if !info.Stale {
 					info.ReviewState = us.Decision.ReviewState
 					info.Note = us.Decision.Note
@@ -364,13 +372,13 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 // outlive the sentence it blessed. It is how the change service applies a
 // decide establish on a document's own edition (changeAssets.applyDecision).
 // wording, when set, is the source wording the approval is about as its
-// caller holds it, such as the content a change set landed under the commit
-// lock; the approval binds to it rather than to what the file says when it is
-// read here. Nil reads it from the file.
+// caller holds it, its text and its revision, such as the content a change set
+// landed under the commit lock; the approval binds to it rather than to what
+// the file says when it is read here. Nil reads it from the file.
 //
 // It returns whether anything changed: an approval already recorded for this
 // exact wording is not rewritten.
-func (a *App) approveSourceUnit(ctx context.Context, projectPath, sourceLang string, ref SourceUnitRef, wording *string) (bool, error) {
+func (a *App) approveSourceUnit(ctx context.Context, projectPath, sourceLang string, ref SourceUnitRef, wording *sourceWording) (bool, error) {
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
 
@@ -401,33 +409,40 @@ func (a *App) approveSourceUnit(ctx context.Context, projectPath, sourceLang str
 			if !b.Translatable || blockKey(b) != ref.Key {
 				continue
 			}
-			text := b.SourceText()
+			w := sourceWording{text: b.SourceText(), rev: model.EditionRevision(b, model.EditionKey{})}
 			empty := !model.RunsHaveContent(b.SourceRuns())
 			if wording != nil {
-				text, empty = *wording, strings.TrimSpace(*wording) == ""
+				w, empty = *wording, strings.TrimSpace(wording.text) == ""
 			}
 			if empty {
 				return false, fmt.Errorf("source block %s is empty, so there is nothing to approve", ref.Key)
 			}
 			scope := a.documentIndexOrEmpty(ctx, root).Scope(root, u.SourcePath)
-			return a.recordSourceApproval(ctx, root, scope, blockKey(b), text, a.SourceLang)
+			return a.recordSourceApproval(ctx, root, scope, blockKey(b), w, a.SourceLang)
 		}
 	}
 	return false, fmt.Errorf("source block %q not found in %s", ref.Key, ref.File)
 }
 
+// sourceWording is the source an approval is about: its text and its
+// revision (model.EditionRevision of the edition the block was read in).
+type sourceWording struct {
+	text, rev string
+}
+
 // recordSourceApproval writes the approval to the project state store, keyed by
-// (document, unit, source locale) and bound to the source wording's hash.
-func (a *App) recordSourceApproval(ctx context.Context, root, scope, unit, sourceText, sourceLang string) (bool, error) {
+// (document, unit, source locale) and bound to the source wording's revision
+// and its hash.
+func (a *App) recordSourceApproval(ctx context.Context, root, scope, unit string, wording sourceWording, sourceLang string) (bool, error) {
 	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return false, err
 	}
 	k := state.Key{Scope: scope, Unit: unit, Variant: sourceVariant(sourceLang)}
-	basis := state.SourceHash(sourceText)
+	basis := state.SourceHash(wording.text)
 
 	prev, hadPrev := st.Get(ctx, k)
-	if hadPrev && prev.SourceStatus == model.SourceStatusEstablished && prev.ContentHash == basis {
+	if hadPrev && prev.SourceStatus == model.SourceStatusEstablished && prev.ContentHash == basis && prev.Basis == wording.rev {
 		return false, nil // already approved, for this exact wording
 	}
 	now := nowRFC3339()
@@ -436,6 +451,7 @@ func (a *App) recordSourceApproval(ctx context.Context, root, scope, unit, sourc
 		Variant:      sourceVariant(sourceLang),
 		SourceStatus: model.SourceStatusEstablished,
 		ContentHash:  basis,
+		Basis:        wording.rev,
 		Decision:     state.Decision{ReviewState: "approved", At: now},
 		Updated:      now,
 		Scope:        scope,

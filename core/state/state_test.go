@@ -84,7 +84,7 @@ func TestUnitState_ReadsByRevisionWhereItCarriesOne(t *testing.T) {
 	b := model.NewRunsBlock("b1", link("https://a.example"))
 	b.SourceLocale = "en"
 	b.SetTargetRuns("fr", []model.Run{model.TextR("Lisez le guide")})
-	was := state.ReadTarget(b, "fr")
+	was := state.ReadTarget(b, "fr", "en")
 	require.NotEmpty(t, was.Basis)
 	require.NotEmpty(t, was.Revision)
 
@@ -97,14 +97,14 @@ func TestUnitState_ReadsByRevisionWhereItCarriesOne(t *testing.T) {
 	assert.True(t, legacy.Fresh(was))
 
 	b.EditSourceRuns(link("https://b.example"))
-	now := state.ReadTarget(b, "fr")
+	now := state.ReadTarget(b, "fr", "en")
 	require.Equal(t, was.ContentHash, now.ContentHash, "the source text did not change")
 	assert.True(t, decided.SourceStale(now), "the source's link moved under the decision")
 	assert.False(t, legacy.SourceStale(now), "a record written before revisions is read by its hash")
 
 	b.EditSourceRuns(link("https://a.example"))
 	b.SetTargetRuns("fr", []model.Run{model.TextR("Lisez le "), model.PhR(model.PlaceholderRun{ID: "2", Type: "lb", Data: "<br/>"}), model.TextR("guide")})
-	moved := state.ReadTarget(b, "fr")
+	moved := state.ReadTarget(b, "fr", "en")
 	assert.False(t, decided.SourceStale(moved), "the source is back at the basis")
 	assert.True(t, decided.Stale(moved), "the translation gained a code")
 	assert.False(t, decided.Established(moved))
@@ -112,7 +112,17 @@ func TestUnitState_ReadsByRevisionWhereItCarriesOne(t *testing.T) {
 	// A reader with no revision in hand reads every record by hash.
 	byHash := state.Reading{TargetHash: moved.TargetHash, ContentHash: moved.ContentHash}
 	assert.Equal(t, decided.TargetHash != moved.TargetHash, decided.Stale(byHash))
-	assert.True(t, state.ReadingOf(decided) == was, "a record's own reading is the pairing it was recorded against")
+	assert.Equal(t, was.Basis, state.ReadingOf(decided).Basis, "a record's own reading is the pairing it was recorded against")
+	assert.Equal(t, was.Revision, state.ReadingOf(decided).Revision)
+
+	// A basis taken by a read that filed the source under no language is
+	// the same content, and reads current.
+	plain := model.NewRunsBlock("b1", link("https://a.example"))
+	plain.SetTargetRuns("fr", []model.Run{model.TextR("Lisez le "), model.PhR(model.PlaceholderRun{ID: "2", Type: "lb", Data: "<br/>"}), model.TextR("guide")})
+	fromPlain := approved("b1", "fr", "")
+	fromPlain.Basis = state.ReadTarget(plain, "fr", "").Basis
+	require.NotEqual(t, fromPlain.Basis, moved.Basis, "the keys differ")
+	assert.False(t, fromPlain.SourceStale(moved), "the content is the same under another key")
 	assert.True(t, decided.BasisKnown())
 	assert.False(t, state.UnitState{}.BasisKnown())
 }

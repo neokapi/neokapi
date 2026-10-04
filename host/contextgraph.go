@@ -322,6 +322,8 @@ func blessingDelta(ctx context.Context, scope contextgraph.Scope, blocks blockst
 			ReviewState: u.Decision.ReviewState,
 			TargetHash:  u.TargetHash,
 			ContentHash: u.ContentHash,
+			Revision:    u.Revision,
+			Basis:       u.Basis,
 		}
 		d.Nodes = append(d.Nodes, contextgraph.UnitStateNode(scope, gu))
 

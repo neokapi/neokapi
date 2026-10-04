@@ -282,7 +282,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 		scope := a.hostEngine().DocumentScope(ctx, root, rf.Path)
 		if us, found := st.Get(ctx, state.Key{Scope: scope, Unit: key, Variant: model.Variant(loc)}); found {
 			record = &us
-			read := state.ReadTarget(b, loc)
+			read := state.ReadTarget(b, loc, model.LocaleID(sourceLang))
 			if !us.Stale(read) {
 				if us.Status != "" {
 					detail.Status = string(us.Status)

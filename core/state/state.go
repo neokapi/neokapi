@@ -26,6 +26,7 @@
 package state
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -64,8 +65,14 @@ func SourceHash(sourceText string) string {
 // revisions keeps answering as it always did, and one recorded since binds to
 // the content, inline codes included.
 type Reading struct {
-	// Basis is the authoritative edition's revision.
+	// Basis is the authoritative edition's revision, under the key the block
+	// files it by.
 	Basis string
+	// Bases are the revisions of the same content under every key a reader
+	// of the document may have taken one under (model.Block.SourceRevisions),
+	// Basis first. Readers of one document disagree on that key, so a record
+	// whose basis is any of them was made against this content (HoldsBasis).
+	Bases []string
 	// Revision is the revision of the edition the record is about; empty for
 	// a reading of the authoritative edition alone (ReadSource).
 	Revision string
@@ -76,20 +83,32 @@ type Reading struct {
 	TargetHash string
 }
 
+// HoldsBasis reports whether rev is a revision of the authoritative edition as
+// the reader holds it, under any key a reader of the document may have taken
+// it under.
+func (r Reading) HoldsBasis(rev string) bool {
+	return rev == r.Basis || slices.Contains(r.Bases, rev)
+}
+
 // ReadTarget returns the reading of the translation of b filed under locale,
-// beside the edition b was read in.
-func ReadTarget(b *model.Block, locale model.LocaleID) Reading {
-	r := ReadSource(b)
+// beside the edition b was read in. source is the language the project names
+// that edition by, empty outside a project (ReadSource).
+func ReadTarget(b *model.Block, locale, source model.LocaleID) Reading {
+	r := ReadSource(b, source)
 	r.Revision = model.TargetRevision(b, locale)
 	r.TargetHash = TargetHash(b.TargetText(locale))
 	return r
 }
 
 // ReadSource returns the reading of the edition b was read in, the one a
-// source approval is about: the basis halves only.
-func ReadSource(b *model.Block) Reading {
+// source approval is about: the basis halves only. source is the language the
+// project names that edition by, empty outside a project: a basis a project
+// read took is taken under it.
+func ReadSource(b *model.Block, source model.LocaleID) Reading {
+	bases := b.SourceRevisions(source)
 	return Reading{
-		Basis:       model.EditionRevision(b, model.EditionKey{}),
+		Basis:       bases[0],
+		Bases:       bases,
 		ContentHash: SourceHash(b.SourceText()),
 	}
 }
@@ -329,7 +348,7 @@ func (s UnitState) Stale(r Reading) bool {
 // reported, until the next decision on the unit supplies a basis.
 func (s UnitState) SourceStale(r Reading) bool {
 	if s.Basis != "" && r.Basis != "" {
-		return s.Basis != r.Basis
+		return !r.HoldsBasis(s.Basis)
 	}
 	return s.ContentHash != "" && r.ContentHash != "" && s.ContentHash != r.ContentHash
 }

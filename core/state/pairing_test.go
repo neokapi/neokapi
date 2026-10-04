@@ -39,7 +39,7 @@ func frKey() state.Key {
 // its revisions when revs is true and against its hashes alone otherwise, as a
 // build before revisions recorded it.
 func approvalOf(b *model.Block, note string, revs bool) state.UnitState {
-	r := state.ReadTarget(b, "fr")
+	r := state.ReadTarget(b, "fr", "en")
 	u := state.UnitState{
 		Scope: "d-guide", Unit: "u1", Variant: model.Variant("fr"),
 		Status:      model.TargetStatusEstablished,
@@ -96,7 +96,7 @@ VALUES (?, 'd-guide', 'u1', 'fr', ?, ?, 1)`, state.CheckoutID(committed), legacy
 	got, ok := w.Get(ctx, frKey())
 	require.True(t, ok, "the view still points at the entry")
 	assert.Equal(t, legacy, got, "the entry reads back exactly as it was written")
-	r := state.ReadTarget(b, "fr")
+	r := state.ReadTarget(b, "fr", "en")
 	assert.True(t, got.Fresh(r))
 	found, ok := w.Lookup(ctx, frKey(), r)
 	require.True(t, ok, "a reader holding revisions finds the entry by its hashes")
@@ -104,7 +104,7 @@ VALUES (?, 'd-guide', 'u1', 'fr', ?, ?, 1)`, state.CheckoutID(committed), legacy
 
 	// A link change moves no hash, so the entry reads as it always did.
 	moved := linkBlock("https://b.example", "https://a.example")
-	assert.True(t, got.Fresh(state.ReadTarget(moved, "fr")), "a record written before revisions is read by its hashes")
+	assert.True(t, got.Fresh(state.ReadTarget(moved, "fr", "en")), "a record written before revisions is read by its hashes")
 
 	// A decision recorded now carries revisions beside the hashes.
 	next := approvalOf(b, "re-reviewed", true)
@@ -112,7 +112,7 @@ VALUES (?, 'd-guide', 'u1', 'fr', ?, ?, 1)`, state.CheckoutID(committed), legacy
 	got, ok = w.Get(ctx, frKey())
 	require.True(t, ok)
 	assert.Equal(t, next, got)
-	assert.True(t, got.SourceStale(state.ReadTarget(moved, "fr")), "and is read by them: the link moved under it")
+	assert.True(t, got.SourceStale(state.ReadTarget(moved, "fr", "en")), "and is read by them: the link moved under it")
 	found, ok = w.Lookup(ctx, frKey(), r)
 	require.True(t, ok)
 	assert.Equal(t, "re-reviewed", found.Decision.Note, "the entry that names more of the content answers")
@@ -134,15 +134,15 @@ func TestWorkStore_PairsByRevision(t *testing.T) {
 	w, _ := openWork(t)
 	first := linkBlock("https://a.example", "https://a.example")
 	second := linkBlock("https://a.example", "https://b.example")
-	require.Equal(t, state.ReadTarget(first, "fr").TargetHash, state.ReadTarget(second, "fr").TargetHash)
+	require.Equal(t, state.ReadTarget(first, "fr", "en").TargetHash, state.ReadTarget(second, "fr", "en").TargetHash)
 
 	require.NoError(t, w.Put(ctx, approvalOf(first, "first link", true)))
 	require.NoError(t, w.Put(ctx, approvalOf(second, "second link", true)))
 
-	got, ok := w.Lookup(ctx, frKey(), state.ReadTarget(first, "fr"))
+	got, ok := w.Lookup(ctx, frKey(), state.ReadTarget(first, "fr", "en"))
 	require.True(t, ok)
 	assert.Equal(t, "first link", got.Decision.Note)
-	got, ok = w.Lookup(ctx, frKey(), state.ReadTarget(second, "fr"))
+	got, ok = w.Lookup(ctx, frKey(), state.ReadTarget(second, "fr", "en"))
 	require.True(t, ok)
 	assert.Equal(t, "second link", got.Decision.Note)
 
@@ -153,8 +153,8 @@ func TestWorkStore_PairsByRevision(t *testing.T) {
 	current, ok := w.Get(ctx, frKey())
 	require.True(t, ok)
 	assert.Equal(t, "second link", current.Decision.Note, "the view points at the pairing recorded last")
-	assert.True(t, current.Stale(state.ReadTarget(first, "fr")))
-	assert.False(t, current.Stale(state.ReadTarget(second, "fr")))
+	assert.True(t, current.Stale(state.ReadTarget(first, "fr", "en")))
+	assert.False(t, current.Stale(state.ReadTarget(second, "fr", "en")))
 }
 
 // The committed shards carry the revisions, and an import reads them back into
@@ -177,7 +177,7 @@ func TestWorkStore_ShardsCarryTheRevisions(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = other.Close() })
 	require.NoError(t, other.Import(ctx))
-	got, ok := other.Lookup(ctx, frKey(), state.ReadTarget(b, "fr"))
+	got, ok := other.Lookup(ctx, frKey(), state.ReadTarget(b, "fr", "en"))
 	require.True(t, ok)
 	assert.Equal(t, u, got)
 }

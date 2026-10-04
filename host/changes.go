@@ -1133,13 +1133,13 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 	body := op.Body.(*change.Decide)
 	a := c.app
 	if target.Role == change.RoleAuthoritative {
-		wording := target.Text
+		wording := sourceWording{text: target.Text, rev: target.Rev}
 		changed, err := a.approveSourceUnit(ctx, c.recipe, "", SourceUnitRef{File: filepath.FromSlash(target.Doc.Doc), Key: target.Ref.Block}, &wording)
 		return decisionOutcome(changed, err)
 	}
 	// The decision binds to the edition as its home holds it: its file, or
 	// the workspace home for a parked draft no file carries yet.
-	decided := &decidedContent{source: target.SourceText, target: target.Text, targetRev: target.Rev}
+	decided := &decidedContent{source: target.SourceText, sourceRev: target.SourceRev, target: target.Text, targetRev: target.Rev}
 	file := target.Place.File
 	if file == "" {
 		file = target.Doc.Doc
@@ -1148,7 +1148,7 @@ func (c *changeAssets) applyDecision(ctx context.Context, actor change.Actor, se
 	ref := ReviewUnitRef{File: filepath.FromSlash(file), Key: target.Ref.Block, Locale: locale}
 	switch body.Outcome {
 	case change.OutcomeAdvise:
-		review := state.AIReview{Model: reviewerName(actor), At: nowRFC3339(), TargetHash: targetHash(decided.target)}
+		review := state.AIReview{Model: reviewerName(actor), At: nowRFC3339(), TargetHash: targetHash(decided.target), Revision: decided.targetRev}
 		if body.Score != nil {
 			review.Score = *body.Score
 		}
