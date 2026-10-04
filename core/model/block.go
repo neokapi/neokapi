@@ -102,9 +102,9 @@ type Block struct {
 	geometry  *GeometryAnnotation
 
 	// unlabelled is a translation a reader filed under no language: a KBF
-	// bundle's "" target, an xcstrings localization keyed by the empty string,
-	// or the translation of a Qt TS file that names no language read with no
-	// source locale. The zero key names the edition the block was read in, so
+	// bundle's unlabelled edition, an xcstrings localization keyed by the
+	// empty string, or the translation of a Qt TS file that names no language
+	// read with no source locale. The zero key names the edition the block was read in, so
 	// such a translation sits apart from Editions. TargetEdition("") and the
 	// other target accessors given the empty locale read and write it, and
 	// EachTargetEdition yields it under the zero key; EditionKeys and
@@ -267,8 +267,9 @@ func (b *Block) SetTargetRuns(locale LocaleID, runs []Run) {
 // edition the block was read in. The source language names a target only when
 // the block holds one, as a bilingual file in one language does. The empty
 // locale names a translation a reader filed under no language, as the KBF
-// reader files a bundle's "" target and the Qt TS reader files the translation
-// of a file with no language attribute read with no source locale. Edition,
+// reader files a bundle's unlabelled edition and the Qt TS reader files the
+// translation of a file with no language attribute read with no source
+// locale. Edition,
 // EditionKeys and EachEdition read the zero key as the edition the block was
 // read in, so a walk over every text a writer can emit reads such a
 // translation here.

@@ -190,7 +190,7 @@ func TestScriptWritesNoEditionItCannotRead(t *testing.T) {
 	assert.Equal(t, "Hei", texts[model.EditionKey{Locale: "nb-NO"}], "the target keeps its text")
 }
 
-// A target filed under no language (the KBF reader files a bundle's "" target
+// A target filed under no language (the KBF reader files a bundle's unlabelled edition
 // there) reaches the script under the empty locale. change.Diff pairs no
 // edition under that key, so a script that rewrites it leaves the block as it
 // was and fails nothing.

@@ -11,7 +11,7 @@ import (
 
 // The neighbourhood, the governing fingerprint and the provenance read the
 // target TargetRuns reads, whatever key it is filed under: no language (the
-// KBF reader files a bundle's "" target there, and a review in a project with
+// KBF reader files a bundle's unlabelled edition there, and a review in a project with
 // no source language reads under the empty locale), a malformed locale x/text
 // reads in two steps, and the source language.
 func TestReview_ReadsTheTargetTargetRunsReads(t *testing.T) {

@@ -2111,6 +2111,30 @@ beside all of them in package-sized PRs.
   - The Go and TypeScript serializers write the same bytes for every edition shape and for a
     schema 1.0 file (`packages/kapi-format/tests/editions.test.ts` over the format fixtures,
     `make kbf-smoke`, the `/kbf-tests` conformance page).
+  - An edition key Go cannot hold (a dimension other than tone and channel, a dimension twice or
+    empty, no language) is read by `kbf.ReadKey` as an error, never as the shorter key its text
+    would leave. The KBF reader keeps such an edition on its annotation and the writer writes it
+    back unchanged, the Bowrain projection refuses a block that holds one, and block text search
+    leaves it out.
+  - A derivation from the source is written `"from": ""` whatever key the model knows the
+    source by, so a same-language edition keeps its language as its key.
+  - The KBF writer names the project of the bundle the blocks were read from, and otherwise the
+    source language the blocks or their layer carry.
+  - A push stops before sending anything when a file its scope covers cannot be read, and leaves
+    a file no format reads out of the scope it declares, since the venue takes a file the scope
+    covers and the declared tree omits as deleted.
+  - The review store records a reviewer's edit as a person's: `translated`, a human origin, the
+    producer's score, no derivation (`core/change.Consequences`).
+  - `@neokapi/kapi-format` and `@neokapi/i18n-react` are 3.0.0, the major that reads and writes
+    schema 2, documented as the pair for kapi 1.3.0.
+- **Open, for the release:**
+  - The kapi and plugin releases cut before this change cannot read a schema 2 catalog, and
+    their push declares such a catalog empty. `dogfood-sync.yml` stops after extraction when the
+    pinned kapi cannot read the catalogs, so the pin moves to the first release that carries
+    this change, cut together with the npm 3.0.0 pair; the workflow stays disabled until then.
+  - A 2.0.x of `@neokapi/i18n-react` that refuses a catalog of an unknown schema major, built
+    from the 2.0.0 tag, would turn a silent empty compile into an error for users who do not
+    upgrade.
 - **Open after the flip:**
   - The decision pairing on revisions sets `Edition.Derived`. The sync wires and the stores do not
     carry `Derived` yet, and `Native` stays process-local by design (the kitchen-sink guard lists

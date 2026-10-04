@@ -258,7 +258,7 @@ export interface Edition {
   status?: string;
   /** How the content was produced and under what context. Absent while it records nothing. */
   origin?: Origin;
-  /** The producer's quality score. Absent while zero. */
+  /** The producer's quality score for a derived edition. Absent while zero; the source carries none. */
   score?: number;
   /** The edition this one was made from, and that edition's revision when it was. Absent for an authored edition. */
   derived?: Derivation;
