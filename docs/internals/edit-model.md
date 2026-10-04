@@ -2045,6 +2045,9 @@ beside all of them in package-sized PRs.
   - The KBF, xcstrings and Qt TS readers file a translation with no language under the zero key
     (`SetTargetRuns("")`), and `Block.TargetEdition("")` reads it. The flip decides where such a
     translation lives, so that the zero key never writes the native edition.
+  - `Block.FileTargetAsSpelled` files a target under a key that is not canonical (`nb_NO`), the
+    state a direct write to the storage leaves, for the tests of consumers that must cope with it.
+    The flip removes it: a test then writes `b.Editions[key]` directly.
 
 ### WP13. Close-out
 

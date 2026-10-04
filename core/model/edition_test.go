@@ -1,6 +1,7 @@
 package model_test
 
 import (
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -434,4 +435,44 @@ func FuzzBlockAuthoritativeEditionIsTheSource(f *testing.F) {
 		}
 		assertAuthoritativeIsSource(t, b)
 	})
+}
+
+// FileTargetAsSpelled files a target under the key as spelled. Edition and
+// TargetEdition find it by neither spelling, EachEdition and Editions list it
+// under the canonical key, and TargetLocales reports the language as filed.
+func TestBlockFileTargetAsSpelled(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en-US"
+	spelled := model.EditionKey{Locale: "nb_NO"}
+	b.FileTargetAsSpelled(spelled, model.Edition{
+		Runs:   []model.Run{model.TextR("Hei")},
+		Status: model.Status(model.TargetStatusTranslated),
+		Origin: model.Origin{Kind: model.OriginHuman},
+		Score:  0.5,
+	})
+
+	assert.Equal(t, []model.LocaleID{"nb_NO"}, b.TargetLocales())
+	_, ok := b.Edition(model.EditionKey{Locale: "nb-NO"})
+	assert.False(t, ok, "the accessors look the target up by its canonical key")
+	_, ok = b.Edition(spelled)
+	assert.False(t, ok, "the accessors canonicalize the key they are given")
+	_, ok = b.TargetEdition("nb_NO")
+	assert.False(t, ok, "the accessors canonicalize the locale they are given")
+	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}, {Locale: "nb-NO"}}, b.Editions())
+	got := maps.Collect(b.EachEdition)
+	assert.Equal(t, model.Edition{
+		Runs:   []model.Run{model.TextR("Hei")},
+		Status: model.Status(model.TargetStatusTranslated),
+		Origin: model.Origin{Kind: model.OriginHuman},
+		Score:  0.5,
+	}, got[model.EditionKey{Locale: "nb-NO"}])
+
+	b.FileTargetAsSpelled(spelled, model.Edition{Runs: []model.Run{model.TextR("Hallo")}})
+	_, text := collectEditions(b)
+	assert.Equal(t, "Hallo", text[model.EditionKey{Locale: "nb-NO"}], "a second write replaces the target")
+	assert.Equal(t, []model.LocaleID{"nb_NO"}, b.TargetLocales())
+
+	empty := &model.Block{ID: "b2"}
+	empty.FileTargetAsSpelled(model.EditionKey{Locale: "fr_FR"}, model.Edition{Runs: []model.Run{model.TextR("Bonjour")}})
+	assert.Equal(t, []model.LocaleID{"fr_FR"}, empty.TargetLocales(), "a block with no targets yet takes one")
 }
