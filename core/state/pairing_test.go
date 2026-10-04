@@ -181,3 +181,47 @@ func TestWorkStore_ShardsCarryTheRevisions(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, u, got)
 }
+
+// An entry recorded with revisions speaks for its text from the moment it is
+// recorded. An entry recorded before revisions for the same hashes stops
+// answering then, even once an inline code moves and the later entry's
+// revisions are no longer the content's: the text's latest verdict is the later
+// one, and an older approval must not come back from under it. An entry
+// recorded before revisions after one recorded with them, as a build before
+// revisions records into a shared log, is the latest and answers.
+func TestWorkStore_ALaterDecisionSupersedesOneRecordedBeforeRevisions(t *testing.T) {
+	ctx := t.Context()
+	w, _ := openWork(t)
+	b := linkBlock("https://a.example", "https://a.example")
+	legacy := approvalOf(b, "approved before revisions", false)
+	legacy.Updated = "2026-09-01T00:00:00Z"
+	require.NoError(t, w.Put(ctx, legacy))
+
+	moved := linkBlock("https://a.example", "https://b.example")
+	got, ok := w.Lookup(ctx, frKey(), state.ReadTarget(moved, "fr", "en"))
+	require.True(t, ok, "alone, the entry recorded before revisions answers by its hashes")
+	assert.Equal(t, "approved before revisions", got.Decision.Note)
+
+	rejected := approvalOf(b, "rejected since", true)
+	rejected.Status = model.TargetStatusDraft
+	rejected.Decision.ReviewState = "rejected"
+	rejected.Updated = "2026-10-02T00:00:00Z"
+	require.NoError(t, w.Put(ctx, rejected))
+
+	got, ok = w.Lookup(ctx, frKey(), state.ReadTarget(b, "fr", "en"))
+	require.True(t, ok)
+	assert.Equal(t, "rejected since", got.Decision.Note, "the later entry answers for its own revisions")
+
+	_, ok = w.Lookup(ctx, frKey(), state.ReadTarget(moved, "fr", "en"))
+	assert.False(t, ok, "the link moved off the rejected revision, and the older approval stays superseded")
+
+	again := approvalOf(b, "approved by a build before revisions", false)
+	again.Updated = "2026-10-03T00:00:00Z"
+	require.NoError(t, w.Put(ctx, again))
+	got, ok = w.Lookup(ctx, frKey(), state.ReadTarget(moved, "fr", "en"))
+	require.True(t, ok, "an entry recorded before revisions after the later one is the latest")
+	assert.Equal(t, "approved by a build before revisions", got.Decision.Note)
+	got, ok = w.Lookup(ctx, frKey(), state.ReadTarget(b, "fr", "en"))
+	require.True(t, ok)
+	assert.Equal(t, "approved by a build before revisions", got.Decision.Note, "and answers over the older one with revisions")
+}

@@ -782,9 +782,12 @@ SELECT payload, revoked FROM unit_decision
 // the entry that blessed exactly that pairing, whatever any other checkout has
 // decided about the same unit. An entry recorded with revisions answers where
 // they are the content's, and one recorded before revisions where its hashes
-// are. Where both kinds answer, the one that names more of the content does,
-// so a decision recorded since revisions is never shadowed by an older one
-// for the same text, and its withdrawal is never undone by one.
+// are, until an entry naming a half it leaves empty is recorded for the same
+// hashes: that later entry speaks for the text from then on, whether or not
+// its revisions are the content's. Of the entries that answer, the latest
+// does. A decision recorded since revisions is therefore never shadowed by an
+// older entry for the same text, and its withdrawal is never undone by one,
+// even after an inline code moves under it.
 func (w *WorkStore) Lookup(ctx context.Context, k Key, r Reading) (UnitState, bool) {
 	variant, _ := k.Variant.MarshalText()
 	bases := []any{""}
@@ -800,10 +803,16 @@ func (w *WorkStore) Lookup(ctx context.Context, k Key, r Reading) (UnitState, bo
 	var payload string
 	var revoked int
 	err := w.db.QueryRowContext(ctx, `
-SELECT payload, revoked FROM unit_decision
- WHERE scope = ? AND unit = ? AND variant = ? AND content_hash = ? AND target_hash = ?
-   AND revision IN (?, '') AND basis IN (?`+strings.Repeat(", ?", len(bases)-1)+`)
- ORDER BY (basis <> '') + (revision <> '') DESC, recorded_at DESC, rowid DESC LIMIT 1`,
+SELECT d.payload, d.revoked FROM unit_decision d
+ WHERE d.scope = ? AND d.unit = ? AND d.variant = ? AND d.content_hash = ? AND d.target_hash = ?
+   AND d.revision IN (?, '') AND d.basis IN (?`+strings.Repeat(", ?", len(bases)-1)+`)
+   AND NOT EXISTS (
+       SELECT 1 FROM unit_decision n
+        WHERE n.scope = d.scope AND n.unit = d.unit AND n.variant = d.variant
+          AND n.content_hash = d.content_hash AND n.target_hash = d.target_hash
+          AND ((d.revision = '' AND n.revision <> '') OR (d.basis = '' AND n.basis <> ''))
+          AND (n.recorded_at > d.recorded_at OR (n.recorded_at = d.recorded_at AND n.rowid > d.rowid)))
+ ORDER BY d.recorded_at DESC, d.rowid DESC LIMIT 1`,
 		args...).Scan(&payload, &revoked)
 	if err != nil || revoked == 1 {
 		return UnitState{}, false
