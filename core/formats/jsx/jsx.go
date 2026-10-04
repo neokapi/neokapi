@@ -329,6 +329,7 @@ func toModelBlock(doc *kbf.Document, b *kbf.Block) *model.Block {
 	for locale, runs := range b.Targets {
 		loc := model.LocaleID(locale)
 		mb.SetTargetRuns(loc, cloneRuns(runs))
+		mb.MarkNative(model.Variant(loc))
 		// The bundle is the truth about how its answers were produced, so the
 		// provenance it carries is restored beside the runs. Without this the
 		// target arrives with a zero Origin and reads as produced under no

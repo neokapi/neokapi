@@ -919,6 +919,7 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 						}
 						block.SetTargetRuns(targetLocale, targetRuns)
 						key := model.Variant(targetLocale)
+						block.MarkNative(key)
 						block.SetSegmentation(key, spans)
 						// Snapshot the original numerusforms verbatim so
 						// the writer can decide whether downstream steps
@@ -980,6 +981,7 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 							} else {
 								block.SetTargetText(targetLocale, targetText)
 							}
+							block.MarkNative(model.Variant(targetLocale))
 						}
 						// Snapshot the original target text (even when
 						// empty) so the writer can detect downstream
