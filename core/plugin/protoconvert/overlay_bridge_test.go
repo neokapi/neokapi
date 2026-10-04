@@ -24,12 +24,12 @@ func buildOverlayBlock() *model.Block {
 	// Positional, built-in overlays with typed values.
 	b.AddOverlaySpan(model.OverlayEntity, model.Span{
 		ID:    "entity:0",
-		Range: model.RangeAnchorForBytes(b.Source, 0, 10),
+		Range: model.RangeAnchorForBytes(b.SourceRuns(), 0, 10),
 		Value: &model.EntityAnnotation{Text: "John Smith", Type: model.EntityPerson, DNT: true},
 	})
 	b.AddOverlaySpan(model.OverlayTerm, model.Span{
 		ID:    "term:0",
-		Range: model.RangeAnchorForBytes(b.Source, 19, 24),
+		Range: model.RangeAnchorForBytes(b.SourceRuns(), 19, 24),
 		Props: map[string]string{"strength": "preferred"},
 		Value: &model.TermAnnotation{SourceTerm: "Paris", ConceptID: "c-1"},
 	})
@@ -38,7 +38,7 @@ func buildOverlayBlock() *model.Block {
 	// payload — it must still survive by type name + JSON.
 	b.AddOverlaySpan(pluginOverlay, model.Span{
 		ID:    "m0",
-		Range: model.RangeAnchorForBytes(b.Source, 0, 4),
+		Range: model.RangeAnchorForBytes(b.SourceRuns(), 0, 4),
 		Value: &model.GenericAnnotation{Kind: "x-mark", Fields: map[string]any{"weight": "high"}},
 	})
 
@@ -65,7 +65,7 @@ func assertRoundTripped(t *testing.T, got *model.Block) {
 	assert.Equal(t, "John Smith", ea.Text)
 	assert.Equal(t, model.EntityPerson, ea.Type)
 	assert.True(t, ea.DNT)
-	start, end := es.Range.ByteSpan(got.Source)
+	start, end := es.Range.ByteSpan(got.SourceRuns())
 	assert.Equal(t, 0, start)
 	assert.Equal(t, 10, end)
 

@@ -136,7 +136,8 @@ func TestParseRunsEditText_NoReferencesIsPlaceholderParse(t *testing.T) {
 
 func TestEditSourceKeepsTheSourceAsRead(t *testing.T) {
 	read := []Run{txt("Hello "), entityRun("1", "&amp;"), txt(" bye")}
-	b := &Block{ID: "b1", Source: read}
+	b := &Block{ID: "b1"}
+	b.SetSourceRuns(read)
 
 	runs, edited := b.SourceAsRead()
 	assert.False(t, edited, "a block no edit touched")

@@ -7,7 +7,7 @@ package model
 type Side int
 
 const (
-	// SideSource: pertains to Block.Source.
+	// SideSource: pertains to the edition the block was read in.
 	SideSource Side = iota
 	// SideTarget: pertains to a target variant.
 	SideTarget

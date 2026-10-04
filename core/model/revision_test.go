@@ -51,15 +51,15 @@ func TestRunsRevision_CoversCodesAndKeyOnly(t *testing.T) {
 func TestEditionRevision_IgnoresStatusAndOtherEditions(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	b.SourceLocale = "en"
-	b.SetTarget("fr", &model.Target{Runs: []model.Run{model.TextR("Bonjour")}, Status: model.TargetStatusDraft})
+	b.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{model.TextR("Bonjour")}, Status: model.Status(model.TargetStatusDraft)})
 	src := model.EditionRevision(b, model.EditionKey{})
 	fr := model.EditionRevision(b, model.Variant("fr"))
 
 	assert.Equal(t, src, model.EditionRevision(b, model.Variant("en")), "every key that reaches an edition gives one revision")
 	assert.Equal(t, model.AbsentRevision, model.EditionRevision(b, model.Variant("de")))
 
-	b.Target("fr").Status = model.TargetStatusEstablished
-	b.SourceStatus = model.SourceStatusEstablished
+	b.SetEditionStatus(model.Variant("fr"), model.Status(model.TargetStatusEstablished))
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusEstablished))
 	assert.Equal(t, fr, model.EditionRevision(b, model.Variant("fr")), "a decision does not move a revision")
 	assert.Equal(t, src, model.EditionRevision(b, model.EditionKey{}))
 

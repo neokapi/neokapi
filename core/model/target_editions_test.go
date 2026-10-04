@@ -12,7 +12,7 @@ func TestBlockEachTargetEdition(t *testing.T) {
 	b := editionBlock()
 	b.SetTargetEdition(model.Variant("en"), model.Edition{Runs: []model.Run{model.TextR("Hello, same language")}})
 	b.SetTargetEdition(model.EditionKey{}, model.Edition{Runs: []model.Run{model.TextR("No language")}, Status: model.Status(model.TargetStatusDraft)})
-	b.Targets[model.Variant("de")] = nil
+	b.Editions[model.Variant("de")] = nil
 
 	got := map[string]model.Edition{}
 	for k, e := range b.EachTargetEdition {

@@ -294,8 +294,16 @@ func TestAnchorZeroAndEmptyAreDifferent(t *testing.T) {
 	assert.False(t, covering.IsEmpty())
 }
 
+// sourceBlock returns a block that holds runs as the edition it was read in
+// and nothing else.
+func sourceBlock(runs ...Run) *Block {
+	b := &Block{}
+	b.SetSourceRuns(runs)
+	return b
+}
+
 func TestSegmentationOverlays(t *testing.T) {
-	b := &Block{Source: []Run{tx("One. "), tx("Two.")}}
+	b := sourceBlock(tx("One. "), tx("Two."))
 
 	// No segmentation yet.
 	assert.Nil(t, b.SourceSegmentation())
@@ -341,8 +349,8 @@ func TestSegmentationOverlays(t *testing.T) {
 }
 
 func TestSourceSegmentRunsNoOverlay(t *testing.T) {
-	b := &Block{Source: []Run{tx("Whole")}}
-	assert.Equal(t, b.Source, b.SourceSegmentRuns(0))
+	b := sourceBlock(tx("Whole"))
+	assert.Equal(t, b.SourceRuns(), b.SourceSegmentRuns(0))
 	assert.Nil(t, b.SourceSegmentRuns(1))
 
 	empty := &Block{}
@@ -420,7 +428,7 @@ func TestOverlayOnSource(t *testing.T) {
 
 func TestSameVariantViaSegmentation(t *testing.T) {
 	vk := Variant("fr")
-	b := &Block{Source: []Run{tx("x")}}
+	b := sourceBlock(tx("x"))
 	b.SetSegmentation(vk, []Span{{Range: SpanAnchor(RunPos{Run: 0}, RunPos{Run: 1})}})
 
 	// Target-side segmentation must not be returned for the source side.

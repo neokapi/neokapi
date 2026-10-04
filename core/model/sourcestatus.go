@@ -158,5 +158,5 @@ func (b *Block) SourceFailing() bool {
 
 // AdmitsBlock reports whether a settled block has reached this level.
 func (g TranslateAfterLevel) AdmitsBlock(b *Block) bool {
-	return g.Admits(b.SourceStatus, b.SourceFailing())
+	return g.Admits(SourceStatus(b.sourceStatus()), b.SourceFailing())
 }

@@ -199,7 +199,7 @@ func TestBuildContentTree_SameLanguageTarget(t *testing.T) {
 func TestBuildContentTree_UnreachableEditionIsNotShownEmpty(t *testing.T) {
 	b := model.NewBlock("b1", "Hello")
 	b.SourceLocale = "en-US"
-	b.FileTargetAsSpelled(model.EditionKey{Locale: "nb_NO"}, model.Edition{Runs: []model.Run{model.TextR("Hei")}})
+	b.Editions[model.EditionKey{Locale: "nb_NO"}] = &model.Edition{Runs: []model.Run{model.TextR("Hei")}}
 
 	tree := BuildContentTree([]*model.Part{blockPart(b)}, "json")
 	require.Len(t, tree.Root, 1)

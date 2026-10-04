@@ -2,17 +2,15 @@ package model
 
 import "strings"
 
-// This file defines the variant-keyed target model (AD-002). A Block's
-// committed translations are first-class Target records keyed by a VariantKey
-// rather than bare locale→runs slots. Locale is the only required variant
-// dimension; tone and channel are optional, so locale-only code carries no
-// extra ceremony. Candidate/alternative translations stay as stand-off
-// alt-translation overlays; a Target is the chosen one.
+// This file defines the key every edition of a block is filed under (AD-002),
+// the target lifecycle ladder and the provenance record. Locale is the only
+// required key dimension; tone and channel are optional, so locale-only code
+// carries no extra ceremony. Candidate/alternative translations stay as
+// stand-off alt-translation annotations; an edition is the chosen one.
 
-// VariantKey identifies a target variant. Locale is required; Tone and
-// Channel are optional (empty = unspecified). The zero-extension form is a
-// valid Go map key, so map[VariantKey]*Target keyed by a locale-only key is
-// the common case.
+// VariantKey identifies an edition. Locale is required; Tone and Channel are
+// optional (empty = unspecified). The zero-extension form is a valid Go map
+// key, so an editions map keyed by a locale-only key is the common case.
 type VariantKey struct {
 	Locale  LocaleID `json:"locale"`
 	Tone    string   `json:"tone,omitempty"`
@@ -26,10 +24,10 @@ type VariantKey struct {
 // identity, and two spellings of one locale must not become two variants.
 func Variant(locale LocaleID) VariantKey { return VariantKey{Locale: NormalizeLocale(locale)} }
 
-// Canonical returns the key with its locale normalized, the form every Targets
-// map is keyed by. A key built as a struct literal, or decoded from a wire
+// Canonical returns the key with its locale normalized, the form every
+// Editions map is keyed by. A key built as a struct literal, or decoded from a wire
 // shape that spelled the locale another way, passes through here before it
-// addresses a target.
+// addresses an edition.
 func (k VariantKey) Canonical() VariantKey {
 	k.Locale = NormalizeLocale(k.Locale)
 	return k
@@ -107,10 +105,11 @@ func (s TargetStatus) Rank() int {
 	return -1
 }
 
-// Origin records how content was produced, and under what context. On a Target
-// it records how the committed translation was made; on a Block's source it
-// records how a *recognized* source was extracted (ocr, asr) — source and target
-// provenance are the same record on two sides of the Block.
+// Origin records how content was produced, and under what context. On a
+// derived edition it records how the committed translation was made; on the
+// edition a block was read in it records how a *recognized* source was
+// extracted (ocr, asr). Source and target provenance are the same record on
+// two editions of the Block.
 //
 // The Kind/Engine/Tool/Reference/Timestamp/Confidence group answers *how* it was
 // made. The Profile group answers *what governed it*: which named context was in
@@ -155,7 +154,7 @@ type Origin struct {
 }
 
 // Origin Kind values. The translation kinds (human, tm, mt, ai) describe how a
-// Target was produced; the extraction kinds (ocr, asr) describe how a recognized
+// derived edition was produced; the extraction kinds (ocr, asr) describe how a recognized
 // source was produced. OriginLLMRefined is a derived extraction kind: a recognized
 // source (ocr/asr) that a multimodal LLM re-read and rewrote (media-refine), the
 // least-verified recognition tier — distinguished so refined units are queryable
@@ -189,8 +188,8 @@ func IsRecognized(kind string) bool {
 
 // AnnoSourceOrigin is the block-scoped annotation key carrying a Block's source
 // *Origin — how its source content was produced when it was extracted rather
-// than parsed (the source-side counterpart of Target.Origin). Absent for content
-// read losslessly from a text format.
+// than parsed (the source-side counterpart of a derived edition's Origin).
+// Absent for content read losslessly from a text format.
 const AnnoSourceOrigin = "source-origin"
 
 // TypeName implements Payload, so an *Origin can ride the block annotation map as
@@ -205,17 +204,3 @@ func (b *Block) SourceOrigin() (*Origin, bool) {
 
 // SetSourceOrigin stores the block's source Origin.
 func (b *Block) SetSourceOrigin(o *Origin) { b.SetAnno(AnnoSourceOrigin, o) }
-
-// Target is the committed translation for one variant: the content plus its
-// lifecycle and provenance.
-type Target struct {
-	Runs   []Run        `json:"runs"`
-	Status TargetStatus `json:"status,omitempty"`
-	Origin Origin       `json:"origin,omitzero"`
-	Score  float64      `json:"score,omitempty"`
-}
-
-// NewTarget builds a Target from a Run sequence with the given status.
-func NewTarget(runs []Run, status TargetStatus) *Target {
-	return &Target{Runs: runs, Status: status}
-}

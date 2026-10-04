@@ -8,12 +8,13 @@ import (
 )
 
 func blockWith(text string, props map[string]string) *Block {
-	return &Block{
+	b := &Block{
 		Name:       "greeting",
 		Type:       "unit",
-		Source:     []Run{{Text: &TextRun{Text: text}}},
 		Properties: props,
 	}
+	b.SetSourceRuns([]Run{{Text: &TextRun{Text: text}}})
+	return b
 }
 
 func recordHashOf(b *Block) string { return ComputeIdentity(b).RecordHash() }

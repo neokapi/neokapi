@@ -45,7 +45,7 @@ func TestTranslateAfterAdmits(t *testing.T) {
 
 func TestTranslateAfterAdmitsBlock(t *testing.T) {
 	b := model.NewBlock("b", "Hello")
-	b.SourceStatus = model.SourceStatusWritten
+	b.SetEditionStatus(model.EditionKey{}, model.Status(model.SourceStatusWritten))
 	assert.True(t, model.TranslateAfterWritten.AdmitsBlock(b))
 	b.SetSourceFailing(true)
 	assert.False(t, model.TranslateAfterWritten.AdmitsBlock(b))

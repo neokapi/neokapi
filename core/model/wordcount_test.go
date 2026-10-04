@@ -52,7 +52,8 @@ func TestWordCountAgreesAcrossPaths(t *testing.T) {
 			},
 		}),
 	}
-	block := &Block{ID: "b1", Translatable: true, Source: source}
+	block := &Block{ID: "b1", Translatable: true}
+	block.SetSourceRuns(source)
 
 	// Editor API path: Block.WordCount over rehydrated runs.
 	// "You have  new messages waiting" -> 5 words (inline code dropped, plural

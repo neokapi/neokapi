@@ -49,6 +49,7 @@ var AllOverlayKinds = []model.OverlayType{
 // recomputed from source+context (its ContentHash rides in SyncBlock.content_hash).
 var BlockDerivedFields = map[string]string{
 	"Identity": "derived: recomputed by model.ComputeIdentity; ContentHash rides in SyncBlock.content_hash",
+	"Native":   "derived: a reader records which editions the document's bytes hold each time it reads the file, and a stream holds no file",
 }
 
 // KitchenSinkBlock returns a Block with EVERY exported field populated and EVERY

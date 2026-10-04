@@ -153,7 +153,7 @@ func TestCompatBlockCorpus(t *testing.T) {
 	// Source segmentation (reconstructed from segment boundaries on the wire).
 	b.SetSegmentation(model.EditionKey{}, []model.Span{
 		{ID: "s1", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 3})},
-		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 3}, model.RunPos{Run: len(b.Source)})},
+		{ID: "s2", Range: model.SpanAnchor(model.RunPos{Run: 3}, model.RunPos{Run: len(b.SourceRuns())})},
 	})
 
 	// Stand-off overlays: source-side term overlay with props + typed payload,
@@ -214,7 +214,7 @@ func TestCompatBlockCorpus(t *testing.T) {
 	require.Equal(t, b.PreserveWhitespace, got.PreserveWhitespace)
 	require.Equal(t, b.IsReferent, got.IsReferent)
 	require.Equal(t, b.Properties, got.Properties)
-	require.Equal(t, b.Source, got.Source, "source runs")
+	require.Equal(t, b.SourceRuns(), got.SourceRuns(), "source runs")
 	require.Equal(t, b.SourceSegmentation(), got.SourceSegmentation(), "source segmentation")
 	require.ElementsMatch(t, b.TargetLocales(), got.TargetLocales(), "target locales")
 	for _, loc := range b.TargetLocales() {
@@ -281,7 +281,7 @@ func TestCompatPartKinds(t *testing.T) {
 			wb := p.Resource.(*model.Block)
 			gb := got[i].Resource.(*model.Block)
 			require.Equal(t, wb.ID, gb.ID)
-			require.Equal(t, wb.Source, gb.Source)
+			require.Equal(t, wb.SourceRuns(), gb.SourceRuns())
 			continue
 		}
 		require.Equal(t, p.Resource, got[i].Resource, "part %d resource", i)

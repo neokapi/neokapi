@@ -19,16 +19,17 @@ func TestStampTargetProvenance(t *testing.T) {
 	b := NewBlock("tu1", "Hello")
 	// No-op when no target exists yet.
 	b.StampTargetProvenance(LocaleFrench, TargetStatusDraft, Origin{Kind: OriginAI})
-	assert.Nil(t, b.Target(LocaleFrench))
+	_, held := b.TargetEdition(LocaleFrench)
+	assert.False(t, held)
 
 	// Stamps status + origin on an existing target without touching its runs.
 	b.SetTargetText(LocaleFrench, "Bonjour")
 	b.StampTargetProvenance(LocaleFrench, TargetStatusDraft, Origin{Kind: OriginAI, Engine: "anthropic"})
 
-	tgt := b.Target(LocaleFrench)
-	if assert.NotNil(t, tgt) {
+	tgt, held := b.TargetEdition(LocaleFrench)
+	if assert.True(t, held) {
 		assert.Equal(t, "Bonjour", b.TargetText(LocaleFrench), "runs untouched")
-		assert.Equal(t, TargetStatusDraft, tgt.Status)
+		assert.Equal(t, Status(TargetStatusDraft), tgt.Status)
 		assert.Equal(t, OriginAI, tgt.Origin.Kind)
 		assert.Equal(t, "anthropic", tgt.Origin.Engine)
 	}
