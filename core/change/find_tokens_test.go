@@ -22,26 +22,26 @@ func TestApplyBlock_FindNamesCodesByToken(t *testing.T) {
 		res := apply(t, b, person, replace("", sourceRev(b),
 			find(`<x id="1"/>shop guide<x id="/1"/>`, `<x id="1"/>handbook<x id="/1"/>`)))
 		requireApplied(t, res)
-		assert.Equal(t, "Read the <1>handbook</1> before you <2>order</2>.", shape(b.Source))
+		assert.Equal(t, "Read the <1>handbook</1> before you <2>order</2>.", shape(b.SourceRuns()))
 		// The span opens at the link's opening code and ends after its
 		// closing one.
 		assert.Equal(t, []change.Resolved{{Start: change.Position{Run: 1}, End: change.Position{Run: 4}}}, res[0].Resolved)
 		// The link keeps its native form and attributes.
-		require.NotNil(t, b.Source[1].PcOpen)
-		assert.Equal(t, `<a href="https://old.example/guide">`, b.Source[1].PcOpen.Data)
+		require.NotNil(t, b.SourceRuns()[1].PcOpen)
+		assert.Equal(t, `<a href="https://old.example/guide">`, b.SourceRuns()[1].PcOpen.Data)
 	})
 
 	t.Run("text and a token across a run boundary", func(t *testing.T) {
 		b := guideBlock()
 		requireApplied(t, apply(t, b, person, replace("", sourceRev(b),
 			find(`the <x id="1"/>shop`, `the <x id="1"/>store`))))
-		assert.Equal(t, "Read the <1>store guide</1> before you <2>order</2>.", shape(b.Source))
+		assert.Equal(t, "Read the <1>store guide</1> before you <2>order</2>.", shape(b.SourceRuns()))
 	})
 
 	t.Run("a find of text alone behaves as before", func(t *testing.T) {
 		b := guideBlock()
 		requireApplied(t, apply(t, b, person, replace("", sourceRev(b), find("guide before", "manual, before"))))
-		assert.Equal(t, "Read the <1>shop </1>manual, before you <2>order</2>.", shape(b.Source),
+		assert.Equal(t, "Read the <1>shop </1>manual, before you <2>order</2>.", shape(b.SourceRuns()),
 			"codes have zero width and stay where model.ApplyTextEdits places them")
 	})
 
@@ -64,7 +64,7 @@ func TestApplyBlock_FindNamesCodesByToken(t *testing.T) {
 		b := guideBlock()
 		requireApplied(t, apply(t, b, person, replace("", sourceRev(b),
 			find(`<x id="2"/>order<x id="/2"/>`, "order"))))
-		assert.Equal(t, "Read the <1>shop guide</1> before you order.", shape(b.Source), "bold may be deleted")
+		assert.Equal(t, "Read the <1>shop guide</1> before you order.", shape(b.SourceRuns()), "bold may be deleted")
 	})
 
 	t.Run("dropping a code that may not be deleted is refused", func(t *testing.T) {
@@ -75,7 +75,7 @@ func TestApplyBlock_FindNamesCodesByToken(t *testing.T) {
 		err := requireRefused(t, apply(t, b, person, replace("", sourceRev(b), edit))[0], change.CodeGuard)
 		assert.Equal(t, change.SubcodeCodesChanged, err.Subcode)
 		assert.Contains(t, err.Message, `drops <x id="n/"/>`)
-		assert.Equal(t, "You have {count: one={n} item other={n} items} in your basket.", shape(b.Source))
+		assert.Equal(t, "You have {count: one={n} item other={n} items} in your basket.", shape(b.SourceRuns()))
 	})
 
 	t.Run("a token in a branch with the branch's path", func(t *testing.T) {
@@ -83,7 +83,7 @@ func TestApplyBlock_FindNamesCodesByToken(t *testing.T) {
 		edit := find(`<x id="n/"/> item`, `<x id="n/"/> thing`)
 		edit.Path = model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOne}}
 		requireApplied(t, apply(t, b, person, replace("", sourceRev(b), edit)))
-		assert.Equal(t, "You have {count: one={n} thing other={n} items} in your basket.", shape(b.Source))
+		assert.Equal(t, "You have {count: one={n} thing other={n} items} in your basket.", shape(b.SourceRuns()))
 	})
 
 	t.Run("a half of a pair the find passes over and the replacement drops is named", func(t *testing.T) {
@@ -93,21 +93,21 @@ func TestApplyBlock_FindNamesCodesByToken(t *testing.T) {
 		assert.Equal(t, change.SubcodeCodesChanged, err.Subcode)
 		assert.Contains(t, err.Message, `the find passes over <x id="/1"/> without naming it`)
 		assert.Equal(t, `<x id="/1"/>`, err.Expected)
-		assert.Equal(t, "Read the <1>shop guide</1> before you <2>order</2>.", shape(b.Source))
+		assert.Equal(t, "Read the <1>shop guide</1> before you <2>order</2>.", shape(b.SourceRuns()))
 	})
 
 	t.Run("named in the find and the replacement, the half keeps its place", func(t *testing.T) {
 		b := guideBlock()
 		requireApplied(t, apply(t, b, person, replace("", sourceRev(b),
 			find(`shop guide<x id="/1"/> before you <x id="2"/>order`, `shop handbook<x id="/1"/> before you <x id="2"/>order`))))
-		assert.Equal(t, "Read the <1>shop handbook</1> before you <2>order</2>.", shape(b.Source))
+		assert.Equal(t, "Read the <1>shop handbook</1> before you <2>order</2>.", shape(b.SourceRuns()))
 	})
 
 	t.Run("a pair the find passes over whole may go whole", func(t *testing.T) {
 		b := guideBlock()
 		requireApplied(t, apply(t, b, person, replace("", sourceRev(b),
 			find(`Read the shop guide before you <x id="2"/>order`, `Read the manual before you <x id="2"/>order`))))
-		assert.Equal(t, "Read the manual before you <2>order</2>.", shape(b.Source), "the link may be deleted")
+		assert.Equal(t, "Read the manual before you <2>order</2>.", shape(b.SourceRuns()), "the link may be deleted")
 	})
 
 	t.Run("without the path a token find names the branch that holds it", func(t *testing.T) {
@@ -147,8 +147,8 @@ func TestApplyBlock_FindNamesAnICUArgumentByItsSource(t *testing.T) {
 			edit.Path = one
 			res := apply(t, b, agent, replace("", sourceRev(b), edit))
 			requireApplied(t, res)
-			assert.Equal(t, "{count: one={p1} unread message other={p1} new messages}", shape(b.Source))
-			assert.Equal(t, "{count}", b.Source[0].Plural.Forms[model.PluralOne][0].Ph.Data, "the argument keeps its native form")
+			assert.Equal(t, "{count: one={p1} unread message other={p1} new messages}", shape(b.SourceRuns()))
+			assert.Equal(t, "{count}", b.SourceRuns()[0].Plural.Forms[model.PluralOne][0].Ph.Data, "the argument keeps its native form")
 			assert.Equal(t, []change.Resolved{{Path: one, Start: change.Position{}, End: change.Position{Run: 2}}}, res[0].Resolved)
 		})
 	}
@@ -219,13 +219,13 @@ func TestApplyBlock_FindOverManyNamedCodes(t *testing.T) {
 				res = change.ApplyBlock(b, []change.Op{replace("", sourceRev(b), find(hit, with))}, person)
 			})
 			requireApplied(t, res)
-			require.Len(t, b.Source, n+2)
-			assert.Equal(t, "Total:", b.Source[0].Text.Text)
+			require.Len(t, b.SourceRuns(), n+2)
+			assert.Equal(t, "Total:", b.SourceRuns()[0].Text.Text)
 			for i := 1; i <= n; i++ {
-				require.NotNil(t, b.Source[i].Ph, "run %d", i)
-				assert.Equal(t, data, b.Source[i].Ph.Data, "every code keeps its spelling")
+				require.NotNil(t, b.SourceRuns()[i].Ph, "run %d", i)
+				assert.Equal(t, data, b.SourceRuns()[i].Ph.Data, "every code keeps its spelling")
 			}
-			assert.Equal(t, " 43 items", b.Source[n+1].Text.Text)
+			assert.Equal(t, " 43 items", b.SourceRuns()[n+1].Text.Text)
 		})
 	}
 }

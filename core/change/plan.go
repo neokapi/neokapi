@@ -2,7 +2,6 @@ package change
 
 import (
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 
@@ -529,7 +528,5 @@ func nearness(want, got string) int {
 // such an edition. The editions are the block's own; only the set of them is
 // copied.
 func changedBlock(b *model.Block) *model.Block {
-	c := *b
-	c.Targets = maps.Clone(b.Targets)
-	return &c
+	return b.CopyEditionSet()
 }

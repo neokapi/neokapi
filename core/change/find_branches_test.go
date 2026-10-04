@@ -39,8 +39,8 @@ func TestApplyBlock_FindInABranchNamesItsPath(t *testing.T) {
 	edit := find("item", "thing")
 	edit.Path = err.Candidates[0].At.Path
 	requireApplied(t, apply(t, b, agent, replace("", sourceRev(b), edit)))
-	assert.Equal(t, " things", b.Source[1].Plural.Forms[model.PluralOther][1].Text.Text)
-	assert.Equal(t, " item", b.Source[1].Plural.Forms[model.PluralOne][1].Text.Text)
+	assert.Equal(t, " things", b.SourceRuns()[1].Plural.Forms[model.PluralOther][1].Text.Text)
+	assert.Equal(t, " item", b.SourceRuns()[1].Plural.Forms[model.PluralOne][1].Text.Text)
 
 	// Text in no branch either is refused naming the text it searched.
 	err = requireRefused(t, apply(t, b, agent, replace("", sourceRev(b), find("cart", "bag")))[0], change.CodeNotFound)
@@ -62,7 +62,7 @@ func TestApplyBlock_ReplaceTextPathOnTheOperation(t *testing.T) {
 	op.Body.(*change.ReplaceText).Path = one
 	res := apply(t, b, agent, op)
 	requireApplied(t, res)
-	assert.Equal(t, "You have {count: one={n} thing other={n} items} in your basket.", shape(b.Source))
+	assert.Equal(t, "You have {count: one={n} thing other={n} items} in your basket.", shape(b.SourceRuns()))
 	assert.Equal(t, one, res[0].Resolved[0].Path)
 
 	b = model.NewRunsBlock("p", pluralRuns())
@@ -71,7 +71,7 @@ func TestApplyBlock_ReplaceTextPathOnTheOperation(t *testing.T) {
 	op = replace("", sourceRev(b), find("item", "thing"), own)
 	op.Body.(*change.ReplaceText).Path = one
 	requireApplied(t, apply(t, b, agent, op))
-	assert.Equal(t, "You have {count: one={n} thing other={n} things} in your basket.", shape(b.Source),
+	assert.Equal(t, "You have {count: one={n} thing other={n} things} in your basket.", shape(b.SourceRuns()),
 		"the second edit's own path overrides the operation's")
 
 	b = model.NewRunsBlock("p", pluralRuns())

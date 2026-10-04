@@ -91,7 +91,7 @@ func TestApplyBlock_PositionsNameTheEditionTheSetFound(t *testing.T) {
 			b.Name = "p"
 			rev := sourceRev(b)
 			requireApplied(t, apply(t, b, person, tc.ops(rev)...))
-			assert.Equal(t, tc.want, shape(b.Source))
+			assert.Equal(t, tc.want, shape(b.SourceRuns()))
 		})
 	}
 }
@@ -189,7 +189,7 @@ func TestApplyBlock_AMarkAfterAReplacementWrapsTheWordsItNamed(t *testing.T) {
 	requireApplied(t, apply(t, b, env,
 		replace("", rev, span(3, 10, "use")),
 		change.Op{Kind: change.KindMark, At: ref(""), IfMatch: rev, Body: &change.Mark{Range: change.Selection{Start: &start, End: &end}, Type: "fmt:bold"}}))
-	assert.Equal(t, "We use it and <1>utilize</1> them.", shape(b.Source))
+	assert.Equal(t, "We use it and <1>utilize</1> them.", shape(b.SourceRuns()))
 }
 
 // A path names a plural by its place in the edition as the set found it: an
@@ -205,7 +205,7 @@ func TestApplyBlock_APathFollowsItsPluralThroughAnEarlierEdit(t *testing.T) {
 		replace("", rev, change.TextEdit{Path: one, Find: new("item"), Text: "article"}),
 		replace("", rev, change.TextEdit{Path: other, Start: new(0), End: new(6), Text: " articles"}))
 	requireApplied(t, res)
-	assert.Equal(t, "{count: one={n} article other={n} articles} in your basket.", shape(b.Source))
+	assert.Equal(t, "{count: one={n} article other={n} articles} in your basket.", shape(b.SourceRuns()))
 	require.Len(t, res[1].Resolved, 1)
 	assert.Equal(t, 0, res[1].Resolved[0].Path[0].Index, "the result echoes the path as the edit applied")
 }
@@ -267,14 +267,14 @@ func TestApplyBlock_APathIntoContentReplacedWholeIsRefused(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			b := model.NewRunsBlock("b", tc.start)
-			before := shape(b.Source)
+			before := shape(b.SourceRuns())
 			res := apply(t, b, person, tc.ops(sourceRev(b))...)
 			err := requireRefused(t, res[1], change.CodeGuard)
 			assert.Equal(t, change.SubcodeOverlap, err.Subcode)
 			assert.Equal(t, tc.field, err.Field)
 			assert.Contains(t, err.Message, "operation 1 names a path into content operation 0 replaced whole")
 			assert.Equal(t, change.OpNotApplied, res[0].Status)
-			assert.Equal(t, before, shape(b.Source), "nothing lands")
+			assert.Equal(t, before, shape(b.SourceRuns()), "nothing lands")
 		})
 	}
 
@@ -282,7 +282,7 @@ func TestApplyBlock_APathIntoContentReplacedWholeIsRefused(t *testing.T) {
 		b := model.NewRunsBlock("b", pluralRuns())
 		rev := sourceRev(b)
 		requireApplied(t, apply(t, b, person, form(rev, one, `<x id="n/"/> article`), form(rev, other, `<x id="n/"/> articles`)))
-		assert.Equal(t, "You have {count: one={n} article other={n} articles} in your basket.", shape(b.Source))
+		assert.Equal(t, "You have {count: one={n} article other={n} articles} in your basket.", shape(b.SourceRuns()))
 	})
 }
 
@@ -335,7 +335,7 @@ func TestApplyBlock_EditsComposeAsIfAppliedOneAtATime(t *testing.T) {
 			for i, e := range edits {
 				te := span(e.start, e.end, e.text)
 				if rng.IntN(2) == 0 {
-					te = rangeEdit(runPos(set.Source, e.start, true), runPos(set.Source, e.end, e.start == e.end), e.text)
+					te = rangeEdit(runPos(set.SourceRuns(), e.start, true), runPos(set.SourceRuns(), e.end, e.start == e.end), e.text)
 				}
 				ops[i] = replace("", rev, te)
 			}
@@ -354,9 +354,9 @@ func TestApplyBlock_EditsComposeAsIfAppliedOneAtATime(t *testing.T) {
 				requireApplied(t, apply(t, one, person, replace("", sourceRev(one), span(e.start, e.end, e.text))))
 			}
 
-			assert.Equal(t, shape(one.Source), shape(set.Source))
-			assert.Equal(t, string(model.CanonicalRunsJSON(one.Source)), string(model.CanonicalRunsJSON(set.Source)))
-			assert.Equal(t, applyPlain(model.SequenceText(runs()), edits), model.SequenceText(set.Source))
+			assert.Equal(t, shape(one.SourceRuns()), shape(set.SourceRuns()))
+			assert.Equal(t, string(model.CanonicalRunsJSON(one.SourceRuns())), string(model.CanonicalRunsJSON(set.SourceRuns())))
+			assert.Equal(t, applyPlain(model.SequenceText(runs()), edits), model.SequenceText(set.SourceRuns()))
 		})
 	}
 }

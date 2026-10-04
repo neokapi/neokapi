@@ -52,8 +52,8 @@ func TestApplyBlock_SetContentText(t *testing.T) {
 	res := apply(t, b, person, setText("", sourceRev(b),
 		`Read the <x id="1"/>handbook<x id="/1"/> before you <x id="2"/>order<x id="/2"/>.`))
 	requireApplied(t, res)
-	assert.Equal(t, "Read the <1>handbook</1> before you <2>order</2>.", shape(b.Source))
-	assert.Equal(t, `<a href="https://old.example/guide">`, b.Source[1].PcOpen.Data, "the code keeps its native form")
+	assert.Equal(t, "Read the <1>handbook</1> before you <2>order</2>.", shape(b.SourceRuns()))
+	assert.Equal(t, `<a href="https://old.example/guide">`, b.SourceRuns()[1].PcOpen.Data, "the code keeps its native form")
 	assert.Equal(t, res[0].After, sourceRev(b))
 	assert.NotEqual(t, res[0].Before, res[0].After)
 }
@@ -107,16 +107,16 @@ func TestApplyBlock_InlineCodeGuards(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			b := model.NewRunsBlock("b", tc.runs)
-			before := shape(b.Source)
+			before := shape(b.SourceRuns())
 			res := apply(t, b, person, setText("", sourceRev(b), tc.text))
 			if tc.code == "" {
 				requireApplied(t, res)
-				assert.Equal(t, tc.shape, shape(b.Source))
+				assert.Equal(t, tc.shape, shape(b.SourceRuns()))
 				return
 			}
 			err := requireRefused(t, res[0], tc.code)
 			assert.Equal(t, tc.sub, err.Subcode)
-			assert.Equal(t, before, shape(b.Source), "nothing is written")
+			assert.Equal(t, before, shape(b.SourceRuns()), "nothing is written")
 		})
 	}
 }
@@ -151,15 +151,15 @@ func TestApplyBlock_PluralStructure(t *testing.T) {
 		op := setText("", sourceRev(b), `<x id="n/"/> article`)
 		op.Body.(*change.SetContent).Path = onePath
 		requireApplied(t, apply(t, b, person, op))
-		assert.Equal(t, "You have {count: one={n} article other={n} items} in your basket.", shape(b.Source))
-		assert.Equal(t, "#", b.Source[1].Plural.Forms[model.PluralOne][0].Ph.Data, "the placeholder keeps its native form")
+		assert.Equal(t, "You have {count: one={n} article other={n} items} in your basket.", shape(b.SourceRuns()))
+		assert.Equal(t, "#", b.SourceRuns()[1].Plural.Forms[model.PluralOne][0].Ph.Data, "the placeholder keeps its native form")
 	})
 	t.Run("a path to a missing form adds it", func(t *testing.T) {
 		b := model.NewRunsBlock("b", pluralRuns())
 		op := setText("", sourceRev(b), `<x id="n/"/> items (few)`)
 		op.Body.(*change.SetContent).Path = fewPath
 		requireApplied(t, apply(t, b, person, op))
-		assert.Equal(t, "You have {count: one={n} item few={n} items (few) other={n} items} in your basket.", shape(b.Source))
+		assert.Equal(t, "You have {count: one={n} item few={n} items (few) other={n} items} in your basket.", shape(b.SourceRuns()))
 	})
 	t.Run("a path that reaches nothing", func(t *testing.T) {
 		b := model.NewRunsBlock("b", pluralRuns())
@@ -171,8 +171,8 @@ func TestApplyBlock_PluralStructure(t *testing.T) {
 		b := model.NewRunsBlock("b", pluralRuns())
 		n := model.PhR(model.PlaceholderRun{ID: "n", Type: "code:variable"})
 		requireApplied(t, apply(t, b, person, setRuns("", sourceRev(b), []model.Run{model.TextR("Items in your basket: "), n})))
-		assert.Equal(t, "Items in your basket: {n}", shape(b.Source))
-		assert.Equal(t, "#", b.Source[1].Ph.Data)
+		assert.Equal(t, "Items in your basket: {n}", shape(b.SourceRuns()))
+		assert.Equal(t, "#", b.SourceRuns()[1].Ph.Data)
 	})
 	t.Run("runs that drop a variable the structure held", func(t *testing.T) {
 		b := model.NewRunsBlock("b", pluralRuns())
@@ -185,7 +185,7 @@ func TestApplyBlock_PluralStructure(t *testing.T) {
 		e.Path = onePath
 		res := apply(t, b, person, replace("", sourceRev(b), e))
 		requireApplied(t, res)
-		assert.Equal(t, "You have {count: one={n} article other={n} items} in your basket.", shape(b.Source))
+		assert.Equal(t, "You have {count: one={n} article other={n} items} in your basket.", shape(b.SourceRuns()))
 		assert.Equal(t, []change.Resolved{{Path: onePath, Start: change.Position{Run: 1, Offset: 1}, End: change.Position{Run: 2}}}, res[0].Resolved)
 	})
 	t.Run("a find that spans the plural", func(t *testing.T) {
@@ -196,7 +196,7 @@ func TestApplyBlock_PluralStructure(t *testing.T) {
 	t.Run("text around the plural is edited in place", func(t *testing.T) {
 		b := model.NewRunsBlock("b", pluralRuns())
 		requireApplied(t, apply(t, b, person, replace("", sourceRev(b), find("basket", "cart"))))
-		assert.Equal(t, "You have {count: one={n} item other={n} items} in your cart.", shape(b.Source))
+		assert.Equal(t, "You have {count: one={n} item other={n} items} in your cart.", shape(b.SourceRuns()))
 	})
 }
 
@@ -215,15 +215,15 @@ func TestApplyBlock_SetContentRuns(t *testing.T) {
 	t.Run("a held code takes its native form", func(t *testing.T) {
 		b := guideBlock()
 		requireApplied(t, apply(t, b, person, setRuns("", sourceRev(b), wire("https://old.example/guide"))))
-		assert.Equal(t, "Read the <1>handbook</1>.", shape(b.Source))
-		assert.Equal(t, `<a href="https://old.example/guide">`, b.Source[1].PcOpen.Data)
-		assert.Equal(t, "</a>", b.Source[3].PcClose.Data)
+		assert.Equal(t, "Read the <1>handbook</1>.", shape(b.SourceRuns()))
+		assert.Equal(t, `<a href="https://old.example/guide">`, b.SourceRuns()[1].PcOpen.Data)
+		assert.Equal(t, "</a>", b.SourceRuns()[3].PcClose.Data)
 	})
 	t.Run("a changed attribute with no native form is refused", func(t *testing.T) {
 		b := guideBlock()
 		err := requireRefused(t, apply(t, b, person, setRuns("", sourceRev(b), wire("https://new.example")))[0], change.CodeUnsupported)
 		assert.Equal(t, "set_attribute", err.Capability)
-		assert.Equal(t, "Read the <1>shop guide</1> before you <2>order</2>.", shape(b.Source))
+		assert.Equal(t, "Read the <1>shop guide</1> before you <2>order</2>.", shape(b.SourceRuns()))
 	})
 	t.Run("a new code with no native form is refused", func(t *testing.T) {
 		b := guideBlock()
@@ -235,13 +235,13 @@ func TestApplyBlock_SetContentRuns(t *testing.T) {
 		b := guideBlock()
 		runs := append(wire("https://old.example/guide"), model.PhR(model.PlaceholderRun{ID: "9", Type: "x-redacted", Data: "{{EMAIL}}"}))
 		requireApplied(t, apply(t, b, tool, setRuns("", sourceRev(b), runs)))
-		assert.Equal(t, "{{EMAIL}}", b.Source[5].Ph.Data)
+		assert.Equal(t, "{{EMAIL}}", b.SourceRuns()[5].Ph.Data)
 	})
 	t.Run("a translation takes back a code the source holds", func(t *testing.T) {
 		b := guideBlock()
 		res := apply(t, b, person, setText("nb", editionRev(b, "nb"), `Les <x id="1"/>håndboka<x id="/1"/> før du <x id="2"/>bestiller<x id="/2"/>.`))
 		requireApplied(t, res)
-		b.Target("nb").Runs = []model.Run{model.TextR("Les håndboka.")}
+		b.SetTargetRuns("nb", []model.Run{model.TextR("Les håndboka.")})
 		res = apply(t, b, person, setText("nb", editionRev(b, "nb"), `Les <x id="1"/>håndboka<x id="/1"/>.`))
 		requireApplied(t, res)
 		assert.Equal(t, "Les <1>håndboka</1>.", shape(b.TargetRuns("nb")))
@@ -270,7 +270,7 @@ func TestApplyBlock_ReplaceTextPositions(t *testing.T) {
 			b := guideBlock()
 			res := apply(t, b, person, replace("", sourceRev(b), edit))
 			requireApplied(t, res)
-			assert.Equal(t, "Read the <1>handbook</1> before you <2>order</2>.", shape(b.Source))
+			assert.Equal(t, "Read the <1>handbook</1> before you <2>order</2>.", shape(b.SourceRuns()))
 			assert.Equal(t, want, res[0].Resolved)
 		})
 	}
@@ -318,18 +318,18 @@ func TestApplyBlock_KeepsNoTranslate(t *testing.T) {
 	t.Run("replace_text", func(t *testing.T) {
 		b := model.NewRunsBlock("b", codeSpanRuns())
 		requireApplied(t, apply(t, b, person, replace("", sourceRev(b), find("Run", "Execute"))))
-		assert.Equal(t, "Execute <1>[kapi check]</1> in CI.", shape(b.Source))
+		assert.Equal(t, "Execute <1>[kapi check]</1> in CI.", shape(b.SourceRuns()))
 	})
 	t.Run("set_content text", func(t *testing.T) {
 		b := model.NewRunsBlock("b", codeSpanRuns())
 		requireApplied(t, apply(t, b, person, setText("", sourceRev(b), `Execute <x id="1"/>kapi check<x id="/1"/> in CI.`)))
-		assert.Equal(t, "Execute <1>[kapi check]</1> in CI.", shape(b.Source))
+		assert.Equal(t, "Execute <1>[kapi check]</1> in CI.", shape(b.SourceRuns()))
 	})
 	t.Run("offsets count code points", func(t *testing.T) {
 		b := model.NewRunsBlock("b", []model.Run{model.TextR("Blåbær og "), {Text: &model.TextRun{Text: "øl", NoTranslate: true}}})
 		res := apply(t, b, person, replace("", sourceRev(b), span(7, 9, "eller")))
 		requireApplied(t, res)
-		assert.Equal(t, "Blåbær eller [øl]", shape(b.Source))
+		assert.Equal(t, "Blåbær eller [øl]", shape(b.SourceRuns()))
 	})
 }
 
@@ -338,7 +338,7 @@ func TestApplyBlock_KeepsNoTranslate(t *testing.T) {
 func TestApplyBlock_PreconditionsAndAtomicity(t *testing.T) {
 	t.Run("a refusal leaves the block as it was", func(t *testing.T) {
 		b := guideBlock()
-		before := shape(b.Source)
+		before := shape(b.SourceRuns())
 		res := apply(t, b, person,
 			replace("", sourceRev(b), find("shop guide", "handbook")),
 			replace("nb", "r:0000000000000000", find("Les", "Lees")),
@@ -352,7 +352,7 @@ func TestApplyBlock_PreconditionsAndAtomicity(t *testing.T) {
 		assert.Equal(t, change.OpNotApplied, res[2].Status)
 		require.NotNil(t, res[2].BlockedBy)
 		assert.Equal(t, 1, *res[2].BlockedBy)
-		assert.Equal(t, before, shape(b.Source))
+		assert.Equal(t, before, shape(b.SourceRuns()))
 		assert.True(t, b.HasTarget("nb"))
 	})
 	t.Run("operations see the ones before them", func(t *testing.T) {
@@ -362,7 +362,7 @@ func TestApplyBlock_PreconditionsAndAtomicity(t *testing.T) {
 			replace("", rev, find("shop guide", "handbook")),
 			replace("", rev, find("handbook", "manual")))
 		requireApplied(t, res)
-		assert.Equal(t, "Read the <1>manual</1> before you <2>order</2>.", shape(b.Source))
+		assert.Equal(t, "Read the <1>manual</1> before you <2>order</2>.", shape(b.SourceRuns()))
 		assert.Equal(t, rev, res[1].Before, "every operation is checked against the start")
 		assert.Equal(t, sourceRev(b), res[1].After)
 	})
@@ -377,10 +377,10 @@ func TestApplyBlock_PreconditionsAndAtomicity(t *testing.T) {
 	})
 	t.Run("the same content is unchanged", func(t *testing.T) {
 		b := guideBlock()
-		b.Target("nb").Status = model.TargetStatusEstablished
+		require.True(t, b.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusEstablished)))
 		res := apply(t, b, person, setRuns("nb", editionRev(b, "nb"), b.TargetRuns("nb")))
 		assert.Equal(t, change.OpUnchanged, res[0].Status)
-		assert.Equal(t, model.TargetStatusEstablished, b.Target("nb").Status, "an unchanged edition keeps its decision")
+		assert.Equal(t, model.TargetStatusEstablished, model.TargetStatus(translation(t, b, "nb").Status), "an unchanged edition keeps its decision")
 	})
 	t.Run("preview changes nothing", func(t *testing.T) {
 		b := guideBlock()
@@ -389,7 +389,7 @@ func TestApplyBlock_PreconditionsAndAtomicity(t *testing.T) {
 		res := apply(t, b, env, replace("", sourceRev(b), find("shop guide", "handbook")))
 		assert.Equal(t, change.OpPreviewed, res[0].Status)
 		assert.NotEqual(t, res[0].Before, res[0].After)
-		assert.Equal(t, "Read the <1>shop guide</1> before you <2>order</2>.", shape(b.Source))
+		assert.Equal(t, "Read the <1>shop guide</1> before you <2>order</2>.", shape(b.SourceRuns()))
 	})
 	t.Run("a blind write applies", func(t *testing.T) {
 		b := guideBlock()
@@ -422,9 +422,11 @@ func TestApplyBlock_TheOriginAnOperationStatesIsNotRecorded(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			b := guideBlock()
-			b.Target("nb").Origin = recorded
+			nb := translation(t, b, "nb")
+			nb.Origin = recorded
+			b.SetEdition(model.Variant("nb"), nb)
 			requireApplied(t, apply(t, b, tc.env, stated("nb")))
-			assert.Equal(t, tc.want, b.Target("nb").Origin)
+			assert.Equal(t, tc.want, translation(t, b, "nb").Origin)
 		})
 	}
 }
@@ -492,7 +494,7 @@ func TestApplyBlock_CanonicalEditionKeys(t *testing.T) {
 	op.At.Edition = model.EditionKey{Locale: "nb_NO"}
 	requireApplied(t, apply(t, b, person, op))
 	assert.Equal(t, "Hei.", b.TargetText("nb-NO"))
-	assert.Nil(t, b.Targets[model.EditionKey{Locale: "nb_NO"}], "no edition under the spelling the sender used")
+	assert.NotContains(t, b.TargetLocales(), model.LocaleID("nb_NO"), "no edition under the spelling the sender used")
 
 	op = setText("", model.AbsentRevision, "Hei igjen.")
 	op.At.Edition = model.EditionKey{Locale: "NB-no"}
@@ -506,7 +508,7 @@ func TestApplyBlock_RebasesOverlaysOnTheEditedEdition(t *testing.T) {
 	nb := model.Variant("nb")
 	nbRuns := b.TargetRuns("nb")
 	b.SetSegmentation(&nb, []model.Span{{ID: "s1", Range: model.RangeAnchor(nbRuns, 0, 3)}, {ID: "s2", Range: model.RangeAnchor(nbRuns, 4, 16)}})
-	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "order", Range: model.RangeAnchor(b.Source, 31, 36)})
+	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "order", Range: model.RangeAnchor(b.SourceRuns(), 31, 36)})
 
 	requireApplied(t, apply(t, b, person, replace("nb", editionRev(b, "nb"), find("butikkguiden", "håndboka"))))
 	seg := b.SegmentationFor(&nb)
@@ -523,7 +525,7 @@ func TestApplyBlock_RebasesOverlaysOnTheEditedEdition(t *testing.T) {
 	requireApplied(t, apply(t, b, person, replace("", sourceRev(b), find("shop guide", "handbook"))))
 	sp := b.OverlaySpan(model.OverlayTerm, "order")
 	require.NotNil(t, sp, "a source span outside the edit follows it")
-	assert.Equal(t, "order", model.RunsText(sp.Range.ExtractRuns(b.Source)))
+	assert.Equal(t, "order", model.RunsText(sp.Range.ExtractRuns(b.SourceRuns())))
 }
 
 func remove(edition, ifMatch string) change.Op {
@@ -676,11 +678,11 @@ func TestApplyBlock_SubblockReferences(t *testing.T) {
 
 	retarget := []model.Run{model.TextR("See "), {Sub: &model.SubRun{ID: "s1", Ref: "secret-block"}}}
 	requireRefused(t, apply(t, b, strict, setRuns("", sourceRev(b), retarget))[0], change.CodeUnsupported)
-	assert.Equal(t, "tu-alt", b.Source[1].Sub.Ref)
+	assert.Equal(t, "tu-alt", b.SourceRuns()[1].Sub.Ref)
 
 	byID := []model.Run{model.TextR("Read "), {Sub: &model.SubRun{ID: "s1"}}}
 	requireApplied(t, apply(t, b, strict, setRuns("", sourceRev(b), byID)))
-	assert.Equal(t, "tu-alt", b.Source[1].Sub.Ref, "the reference gives the sub its ref")
+	assert.Equal(t, "tu-alt", b.SourceRuns()[1].Sub.Ref, "the reference gives the sub its ref")
 }
 
 func TestApplyBlock_OperationsAppliedElsewhere(t *testing.T) {
@@ -703,8 +705,8 @@ func TestApplyBlock_ProvenanceIsAToolsOwn(t *testing.T) {
 	stamp := change.Op{Kind: change.KindProvenance, At: ref("nb"), Body: &change.Provenance{Status: "draft", Origin: model.Origin{Tool: "pseudo-translate"}}}
 	requireRefused(t, apply(t, b, agent, stamp)[0], change.CodeNotPermitted)
 	requireApplied(t, apply(t, b, tool, stamp))
-	assert.Equal(t, model.TargetStatusDraft, b.Target("nb").Status)
-	assert.Equal(t, "pseudo-translate", b.Target("nb").Origin.Tool)
+	assert.Equal(t, model.TargetStatusDraft, model.TargetStatus(translation(t, b, "nb").Status))
+	assert.Equal(t, "pseudo-translate", translation(t, b, "nb").Origin.Tool)
 	missing := stamp
 	missing.At = ref("de")
 	assert.Equal(t, change.OpUnchanged, apply(t, b, tool, missing)[0].Status, "an edition that does not exist has nothing to stamp")
@@ -714,7 +716,7 @@ func TestApplyBlock_ProvenanceIsAToolsOwn(t *testing.T) {
 		onSource.At = ref(at)
 		requireRefused(t, apply(t, b, tool, onSource)[0], change.CodeInvalid)
 	}
-	assert.Equal(t, model.SourceStatus(""), b.SourceStatus, "no target status reaches the source")
+	assert.Equal(t, model.SourceStatus(""), sourceStatus(b), "no target status reaches the source")
 }
 
 // A stale refusal says the edition moved after the sender read it, names the

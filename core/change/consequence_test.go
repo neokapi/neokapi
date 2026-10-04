@@ -52,25 +52,25 @@ func TestConsequences(t *testing.T) {
 // unchanged edition keeps its decision.
 func TestApplyBlock_RecordsConsequences(t *testing.T) {
 	b := guideBlock()
-	b.SourceStatus = model.SourceStatusEstablished
-	b.Target("nb").Status = model.TargetStatusEstablished
+	require.True(t, b.SetEditionStatus(b.Authoritative(model.AuthorityPolicy{}), model.Status(model.SourceStatusEstablished)))
+	require.True(t, b.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusEstablished)))
 
 	requireApplied(t, apply(t, b, person, replace("nb", editionRev(b, "nb"), find("Les", "Lees"))))
-	assert.Equal(t, model.TargetStatusTranslated, b.Target("nb").Status)
-	assert.Equal(t, model.OriginHuman, b.Target("nb").Origin.Kind)
-	assert.Equal(t, model.SourceStatusEstablished, b.SourceStatus, "a translation's edit leaves the source alone")
+	assert.Equal(t, model.TargetStatusTranslated, model.TargetStatus(translation(t, b, "nb").Status))
+	assert.Equal(t, model.OriginHuman, translation(t, b, "nb").Origin.Kind)
+	assert.Equal(t, model.SourceStatusEstablished, sourceStatus(b), "a translation's edit leaves the source alone")
 
 	requireApplied(t, apply(t, b, agent, replace("", sourceRev(b), find("shop guide", "handbook"))))
-	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus, "the source approval bound the old wording")
-	require.Equal(t, model.TargetStatusTranslated, b.Target("nb").Status, "a source edit stales a translation through its basis, not its status")
+	assert.Equal(t, model.SourceStatusWritten, sourceStatus(b), "the source approval bound the old wording")
+	require.Equal(t, model.TargetStatusTranslated, model.TargetStatus(translation(t, b, "nb").Status), "a source edit stales a translation through its basis, not its status")
 
 	// A tool that rewrites an approved translation leaves wording nobody has
 	// read, so the approval does not carry over; one whose write changes
 	// nothing leaves the approval alone.
-	b.Target("nb").Status = model.TargetStatusEstablished
+	require.True(t, b.SetEditionStatus(model.Variant("nb"), model.Status(model.TargetStatusEstablished)))
 	requireApplied(t, apply(t, b, tool, setRuns("nb", "*", b.TargetRuns("nb"))))
-	assert.Equal(t, model.TargetStatusEstablished, b.Target("nb").Status)
+	assert.Equal(t, model.TargetStatusEstablished, model.TargetStatus(translation(t, b, "nb").Status))
 	requireApplied(t, apply(t, b, tool, replace("nb", "*", find("Lees", "LEES"))))
-	assert.Equal(t, model.TargetStatusDraft, b.Target("nb").Status)
-	assert.Equal(t, model.OriginHuman, b.Target("nb").Origin.Kind, "the translation still names who translated it")
+	assert.Equal(t, model.TargetStatusDraft, model.TargetStatus(translation(t, b, "nb").Status))
+	assert.Equal(t, model.OriginHuman, translation(t, b, "nb").Origin.Kind, "the translation still names who translated it")
 }

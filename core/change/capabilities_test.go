@@ -60,10 +60,10 @@ func TestApplyBlock_SetAttribute(t *testing.T) {
 		res := apply(t, b, env, setAttr("", before, "1", "href", "https://new.example/handbook?a=1&b=\"2\""))
 		requireApplied(t, res)
 		assert.Equal(t, change.OpApplied, res[0].Status)
-		open := b.Source[1].PcOpen
+		open := b.SourceRuns()[1].PcOpen
 		assert.Equal(t, `<a href="https://new.example/handbook?a=1&amp;b=&#34;2&#34;">`, open.Data)
 		assert.Equal(t, "https://new.example/handbook?a=1&b=\"2\"", open.Attrs["href"])
-		assert.Equal(t, "Read the <1>shop guide</1> before you <2>order</2>.", shape(b.Source), "text and codes stay")
+		assert.Equal(t, "Read the <1>shop guide</1> before you <2>order</2>.", shape(b.SourceRuns()), "text and codes stay")
 		assert.Equal(t, before, res[0].Before)
 		assert.Equal(t, sourceRev(b), res[0].After)
 		assert.NotEqual(t, before, res[0].After, "the revision covers attributes")
@@ -82,8 +82,8 @@ func TestApplyBlock_SetAttribute(t *testing.T) {
 		res := apply(t, b, env, setAttr("nb", editionRev(b, "nb"), "1", "href", "https://example.no/handbok"))
 		requireApplied(t, res)
 		assert.Equal(t, `<a href="https://example.no/handbok">`, b.TargetRuns("nb")[1].PcOpen.Data)
-		assert.Equal(t, `<a href="https://old.example/guide">`, b.Source[1].PcOpen.Data)
-		assert.Equal(t, model.TargetStatusTranslated, b.Target("nb").Status, "a person's edit to a translation")
+		assert.Equal(t, `<a href="https://old.example/guide">`, b.SourceRuns()[1].PcOpen.Data)
+		assert.Equal(t, model.TargetStatusTranslated, model.TargetStatus(translation(t, b, "nb").Status), "a person's edit to a translation")
 	})
 
 	refusals := []struct {
@@ -107,21 +107,21 @@ func TestApplyBlock_SetAttribute(t *testing.T) {
 	for _, tc := range refusals {
 		t.Run(tc.name, func(t *testing.T) {
 			b := guideBlock()
-			was := model.RunsEditText(b.Source)
+			was := model.RunsEditText(b.SourceRuns())
 			err := requireRefused(t, apply(t, b, tc.env, tc.op(b))[0], tc.code)
 			assert.Contains(t, err.Message, tc.want)
-			assert.Equal(t, was, model.RunsEditText(b.Source), "nothing is written")
+			assert.Equal(t, was, model.RunsEditText(b.SourceRuns()), "nothing is written")
 		})
 	}
 
 	t.Run("a writer that changes the number of runs", func(t *testing.T) {
 		b := guideBlock()
-		was := model.RunsEditText(b.Source)
+		was := model.RunsEditText(b.SourceRuns())
 		caps := change.Capabilities{Format: "grows", Attrs: growingAttrWriter{},
 			Declared: format.EditCapabilities{WritableAttrs: map[string][]string{"link:hyperlink": {"href"}}}}
 		err := requireRefused(t, apply(t, b, withFormat(person, caps), setAttr("", sourceRev(b), "1", "href", "x"))[0], change.CodeUnsupported)
 		assert.Contains(t, err.Message, "number of runs")
-		assert.Equal(t, was, model.RunsEditText(b.Source), "nothing is written")
+		assert.Equal(t, was, model.RunsEditText(b.SourceRuns()), "nothing is written")
 	})
 
 	t.Run("a writer outside the process spells it when it writes", func(t *testing.T) {
@@ -130,8 +130,8 @@ func TestApplyBlock_SetAttribute(t *testing.T) {
 			WritableAttrs: map[string][]string{"link:hyperlink": {"href"}},
 		}))
 		requireApplied(t, apply(t, b, plugin, setAttr("", sourceRev(b), "1", "href", "https://new.example/")))
-		assert.Equal(t, "https://new.example/", b.Source[1].PcOpen.Attrs["href"])
-		assert.Equal(t, `<a href="https://old.example/guide">`, b.Source[1].PcOpen.Data, "the native data is the plugin writer's to spell")
+		assert.Equal(t, "https://new.example/", b.SourceRuns()[1].PcOpen.Attrs["href"])
+		assert.Equal(t, `<a href="https://old.example/guide">`, b.SourceRuns()[1].PcOpen.Data, "the native data is the plugin writer's to spell")
 	})
 }
 
@@ -160,11 +160,11 @@ func TestApplyBlock_SetAttributeRefusesScript(t *testing.T) {
 	} {
 		t.Run(tc.name+"="+tc.value, func(t *testing.T) {
 			b := guideBlock()
-			was := model.RunsEditText(b.Source)
+			was := model.RunsEditText(b.SourceRuns())
 			err := requireRefused(t, apply(t, b, plugin, setAttr("", sourceRev(b), "1", tc.name, tc.value))[0], change.CodeInvalid)
 			assert.Equal(t, tc.field, err.Field)
 			assert.Contains(t, err.Message, tc.want)
-			assert.Equal(t, was, model.RunsEditText(b.Source), "nothing is written")
+			assert.Equal(t, was, model.RunsEditText(b.SourceRuns()), "nothing is written")
 		})
 	}
 	for _, tc := range []struct{ name, value string }{
@@ -175,7 +175,7 @@ func TestApplyBlock_SetAttributeRefusesScript(t *testing.T) {
 		t.Run(tc.name+"="+tc.value, func(t *testing.T) {
 			b := guideBlock()
 			requireApplied(t, apply(t, b, plugin, setAttr("", sourceRev(b), "1", tc.name, tc.value)))
-			assert.Equal(t, tc.value, b.Source[1].PcOpen.Attrs[tc.name])
+			assert.Equal(t, tc.value, b.SourceRuns()[1].PcOpen.Attrs[tc.name])
 		})
 	}
 	t.Run("a new link", func(t *testing.T) {
@@ -225,7 +225,7 @@ func TestApplyBlock_Mark(t *testing.T) {
 			b := guideBlock()
 			res := apply(t, b, env, mark(tc.edition, editionRev(b, tc.edition), tc.sel, tc.typ, tc.attrs))
 			requireApplied(t, res)
-			runs := b.Source
+			runs := b.SourceRuns()
 			if tc.edition != "" {
 				runs = b.TargetRuns(model.LocaleID(tc.edition))
 			}
@@ -271,10 +271,10 @@ func TestApplyBlock_Mark(t *testing.T) {
 			if tc.typ == "link:hyperlink" {
 				attrs = map[string]string{"href": "https://x.example/"}
 			}
-			was := model.RunsEditText(b.Source)
+			was := model.RunsEditText(b.SourceRuns())
 			err := requireRefused(t, apply(t, b, tc.env, mark("", sourceRev(b), tc.sel, tc.typ, attrs))[0], tc.code)
 			assert.Contains(t, err.Message, tc.want)
-			assert.Equal(t, was, model.RunsEditText(b.Source))
+			assert.Equal(t, was, model.RunsEditText(b.SourceRuns()))
 		})
 	}
 
@@ -287,20 +287,20 @@ func TestApplyBlock_Mark(t *testing.T) {
 
 	t.Run("overlays keep their text", func(t *testing.T) {
 		b := guideBlock()
-		b.Overlays = []model.Overlay{{Type: model.OverlayTerm, Spans: []model.Span{{ID: "t1", Range: model.RangeAnchor(b.Source, 9, 19)}}}}
+		b.Overlays = []model.Overlay{{Type: model.OverlayTerm, Spans: []model.Span{{ID: "t1", Range: model.RangeAnchor(b.SourceRuns(), 9, 19)}}}}
 		requireApplied(t, apply(t, b, env, mark("", sourceRev(b), findSel("Read the"), "fmt:bold", nil)))
 		require.Len(t, b.Overlays, 1)
-		s, e := b.Overlays[0].Spans[0].Range.TextSpan(b.Source)
-		assert.Equal(t, "shop guide", string([]rune(model.RunsText(b.Source))[s:e]))
+		s, e := b.Overlays[0].Spans[0].Range.TextSpan(b.SourceRuns())
+		assert.Equal(t, "shop guide", string([]rune(model.RunsText(b.SourceRuns()))[s:e]))
 	})
 
 	t.Run("a writer outside the process spells it when it writes", func(t *testing.T) {
 		b := guideBlock()
 		plugin := withFormat(person, change.DeclaredCapabilities("okf_html", format.EditCapabilities{Synthesizes: []string{"fmt:bold"}}))
 		requireApplied(t, apply(t, b, plugin, mark("", sourceRev(b), findSel("Read"), "fmt:bold", nil)))
-		assert.Equal(t, "<3>Read</3> the <1>shop guide</1> before you <2>order</2>.", shape(b.Source))
-		assert.Empty(t, b.Source[0].PcOpen.Data)
-		assert.Equal(t, "[B]", b.Source[0].PcOpen.Disp, "the vocabulary gives the code its display")
+		assert.Equal(t, "<3>Read</3> the <1>shop guide</1> before you <2>order</2>.", shape(b.SourceRuns()))
+		assert.Empty(t, b.SourceRuns()[0].PcOpen.Data)
+		assert.Equal(t, "[B]", b.SourceRuns()[0].PcOpen.Disp, "the vocabulary gives the code its display")
 	})
 }
 
@@ -318,10 +318,10 @@ func TestApplyBlock_NewCodesInRuns(t *testing.T) {
 
 	b := guideBlock()
 	requireApplied(t, apply(t, b, env, setRuns("", sourceRev(b), payload(model.PcOpenRun{ID: "7", Type: "fmt:bold"}))))
-	assert.Equal(t, "Read the <1>shop guide</1> before you <2>order</2><7>.</7>", shape(b.Source))
-	assert.Equal(t, "<strong>", b.Source[8].PcOpen.Data)
-	assert.Equal(t, "</strong>", b.Source[10].PcClose.Data)
-	assert.Equal(t, `<a href="https://old.example/guide">`, b.Source[1].PcOpen.Data, "held codes keep their native form")
+	assert.Equal(t, "Read the <1>shop guide</1> before you <2>order</2><7>.</7>", shape(b.SourceRuns()))
+	assert.Equal(t, "<strong>", b.SourceRuns()[8].PcOpen.Data)
+	assert.Equal(t, "</strong>", b.SourceRuns()[10].PcClose.Data)
+	assert.Equal(t, `<a href="https://old.example/guide">`, b.SourceRuns()[1].PcOpen.Data, "held codes keep their native form")
 
 	b = guideBlock()
 	err := requireRefused(t, apply(t, b, env, setRuns("", sourceRev(b), payload(model.PcOpenRun{ID: "7", Type: "fmt:underline"})))[0], change.CodeUnsupported)
@@ -347,7 +347,7 @@ func TestApplyBlock_NewCodesInRuns(t *testing.T) {
 	b = model.NewBlock("b", "You have items.")
 	requireApplied(t, apply(t, b, env, setRuns("", sourceRev(b), plural)))
 	for _, form := range []model.PluralForm{model.PluralOne, model.PluralOther} {
-		runs := b.Source[1].Plural.Forms[form]
+		runs := b.SourceRuns()[1].Plural.Forms[form]
 		assert.Equal(t, "<strong>", runs[0].PcOpen.Data, "the %s form holds the new code", form)
 		assert.Equal(t, "</strong>", runs[2].PcClose.Data)
 	}

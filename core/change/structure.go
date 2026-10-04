@@ -550,10 +550,9 @@ func structureKeys(b *model.Block) []string {
 // copyBlock copies b so that what a home later does to it (removing the
 // editions it joined) leaves the copy as it was read.
 func copyBlock(b *model.Block) *model.Block {
-	c := *b
-	c.Targets = maps.Clone(b.Targets)
+	c := b.CopyEditionSet()
 	c.Properties = maps.Clone(b.Properties)
-	return &c
+	return c
 }
 
 // keyTextOf names edition k of b as an if_match map names it.

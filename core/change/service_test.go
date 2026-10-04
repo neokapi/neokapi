@@ -84,7 +84,7 @@ func (d *memDoc) build() []*model.Block {
 			if k.IsZero() {
 				continue
 			}
-			b.SetTarget(k.Locale, &model.Target{Runs: slices.Clone(runs)})
+			b.SetTargetEdition(model.Variant(k.Locale), model.Edition{Runs: slices.Clone(runs)})
 		}
 		out = append(out, b)
 	}
