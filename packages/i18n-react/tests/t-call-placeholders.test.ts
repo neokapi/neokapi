@@ -13,7 +13,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Block, PlaceholderRun, TextRun } from "@neokapi/kapi-format";
-import { flattenRuns } from "@neokapi/kapi-format";
+import { flattenRuns, sourceRuns } from "@neokapi/kapi-format";
 
 import { extractDocument } from "../src/extract/index.ts";
 import { hashKey } from "../src/plugin/hash.ts";
@@ -32,7 +32,7 @@ function tBlock(call: string): Block {
 
 /** Each run as it reads: text verbatim, a placeholder as its equiv token. */
 function shape(block: Block): string[] {
-  return block.source.map((run) =>
+  return sourceRuns(block).map((run) =>
     "text" in run ? (run as TextRun).text : `{${(run as PlaceholderRun).ph.equiv}}`,
   );
 }
@@ -40,10 +40,10 @@ function shape(block: Block): string[] {
 describe("t() arguments become placeholder runs", () => {
   it("lifts an argument out of the text as a jsx:var run", () => {
     const block = tBlock('t("use {replacement}", { replacement })');
-    expect(block.source).toHaveLength(2);
-    expect((block.source[0] as TextRun).text).toBe("use ");
+    expect(sourceRuns(block)).toHaveLength(2);
+    expect((sourceRuns(block)[0] as TextRun).text).toBe("use ");
 
-    const { ph } = block.source[1] as PlaceholderRun;
+    const { ph } = sourceRuns(block)[1] as PlaceholderRun;
     // jsx:var, not a new key: the vocabulary entry is the *variable* rendering,
     // and where the extractor found the token is not something a chip says.
     expect(ph.type).toBe("jsx:var");
@@ -67,7 +67,7 @@ describe("t() arguments become placeholder runs", () => {
   it("dedupes the metadata table but not the runs", () => {
     const block = tBlock('t("{name} met {name}", { name })');
     expect(block.placeholders).toHaveLength(1);
-    expect(block.source.filter((run) => "ph" in run)).toHaveLength(2);
+    expect(sourceRuns(block).filter((run) => "ph" in run)).toHaveLength(2);
   });
 
   it("lifts a dotted member path", () => {
@@ -102,7 +102,7 @@ describe("t() placeholder lifting disturbs nothing downstream", () => {
       "Save",
     ]) {
       const block = tBlock(`t(${JSON.stringify(text)})`);
-      expect(flattenRuns(block.source), text).toBe(text);
+      expect(flattenRuns(sourceRuns(block)), text).toBe(text);
     }
   });
 });
@@ -114,15 +114,15 @@ describe("t() strings that are not argument tokens stay text", () => {
   it("leaves an ICU picker message whole", () => {
     const text = "{count, plural, one {# file} other {# files}}";
     const block = tBlock(`t(${JSON.stringify(text)}, { count })`);
-    expect(block.source).toHaveLength(1);
-    expect((block.source[0] as TextRun).text).toBe(text);
+    expect(sourceRuns(block)).toHaveLength(1);
+    expect((sourceRuns(block)[0] as TextRun).text).toBe(text);
     expect(block.placeholders).toEqual([]);
   });
 
   it("leaves a string with no arguments as one text run", () => {
     const block = tBlock('t("Save")');
-    expect(block.source).toHaveLength(1);
-    expect((block.source[0] as TextRun).text).toBe("Save");
+    expect(sourceRuns(block)).toHaveLength(1);
+    expect((sourceRuns(block)[0] as TextRun).text).toBe("Save");
     expect(block.placeholders).toEqual([]);
   });
 
@@ -133,8 +133,8 @@ describe("t() strings that are not argument tokens stay text", () => {
   it("leaves a brace the runtime would not substitute as text", () => {
     for (const text of ["use { replacement }", "a {} b", "{ 1 + 2 }", "{a-b}"]) {
       const block = tBlock(`t(${JSON.stringify(text)})`);
-      expect(block.source, text).toHaveLength(1);
-      expect((block.source[0] as TextRun).text, text).toBe(text);
+      expect(sourceRuns(block), text).toHaveLength(1);
+      expect((sourceRuns(block)[0] as TextRun).text, text).toBe(text);
       expect(block.placeholders, text).toEqual([]);
     }
   });

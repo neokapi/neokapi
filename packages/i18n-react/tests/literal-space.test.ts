@@ -14,6 +14,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Block, Run, TextRun } from "@neokapi/kapi-format";
+import { sourceRuns } from "@neokapi/kapi-format";
 
 import { extractDocument } from "../src/extract/index.ts";
 import { transform } from "../src/plugin/transform.ts";
@@ -57,8 +58,8 @@ describe("a whitespace-only expression", () => {
 
   it("joins the text run beside it", () => {
     const block = onlyBlock(DOCS);
-    expect(block.source).toHaveLength(5);
-    expect(textRun(block.source[4]).text).toBe(" for more.");
+    expect(sourceRuns(block)).toHaveLength(5);
+    expect(textRun(sourceRuns(block)[4]).text).toBe(" for more.");
   });
 
   it.each([
@@ -97,7 +98,7 @@ describe("a whitespace-only expression", () => {
   it("stays a space inside a code span, where the text is protected", () => {
     const block = onlyBlock('<p>Run <code>kapi{" "}up</code> first.</p>');
     expect(block.hash).toBe(hashKey("Run {=m0}kapi up{/=m0} first.", "p"));
-    const protectedText = block.source.flatMap((r) =>
+    const protectedText = sourceRuns(block).flatMap((r) =>
       "text" in r && r.noTranslate ? [r.text] : [],
     );
     expect(protectedText).toEqual(["kapi up"]);
@@ -109,7 +110,7 @@ describe("a whitespace-only expression", () => {
         "<Other>{n} <b>files</b>{\' \'}left</Other></Plural></p>",
     );
     expect(found).toHaveLength(1);
-    const wrapper = found[0].source[0];
+    const wrapper = sourceRuns(found[0])[0];
     if (!("plural" in wrapper)) throw new Error("expected a plural run");
     for (const form of ["one", "other"] as const) {
       const runs = wrapper.plural.forms[form] ?? [];

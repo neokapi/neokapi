@@ -23,8 +23,17 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import type { Block, File } from "@neokapi/kapi-format";
-import { flattenRuns, isKbfPath } from "@neokapi/kapi-format";
+import type { Block, BlockV1 } from "@neokapi/kapi-format";
+import {
+  editionRuns,
+  flattenRuns,
+  isKbfPath,
+  isLanguageKey,
+  parseFile,
+  sourceRuns,
+  targetKeys,
+  upgradeBlock,
+} from "@neokapi/kapi-format";
 
 import { buildReviewManifest } from "../review/manifest.ts";
 import { hasICUSyntax } from "../runtime/icu.ts";
@@ -154,12 +163,14 @@ export async function runCompile(args: string[]) {
   }
   const declaredTargets = Array.from(declaredSet);
 
-  // Infer the set of target locales when --locale wasn't passed.
+  // Infer the set of target locales when --locale wasn't passed: every
+  // language a block holds an edition in. A tone or channel edition is not a
+  // language a runtime looks a catalog up by, so only --locale names one.
   const targetLocales = new Set<string>(locales);
   if (targetLocales.size === 0) {
     for (const l of declaredTargets) targetLocales.add(l);
     for (const { block } of blocks) {
-      for (const l of Object.keys(block.targets ?? {})) targetLocales.add(l);
+      for (const key of targetKeys(block)) if (isLanguageKey(key)) targetLocales.add(key);
     }
   }
 
@@ -175,10 +186,10 @@ export async function runCompile(args: string[]) {
     const dict: Record<string, string> = {};
     const holes: string[] = [];
     for (const { block } of blocks) {
-      const runs = block.targets?.[locale];
+      const runs = editionRuns(block, locale);
       if (!runs || runs.length === 0) continue;
       const text = flattenRuns(runs);
-      if (!carriesItsPlaceholders(flattenRuns(block.source), text)) {
+      if (!carriesItsPlaceholders(flattenRuns(sourceRuns(block)), text)) {
         holes.push(block.hash);
         continue;
       }
@@ -229,14 +240,15 @@ function loadBlocksFromKBF(path: string): {
   blocks: BlockRecord[];
   declaredTargets: string[];
 } {
-  const raw = readFileSync(path, "utf-8");
-  const file = JSON.parse(raw) as File;
+  // parseFile reads a catalog in either schema, so one an earlier kapi wrote
+  // in schema 1.0 compiles the same as one written today.
+  const file = parseFile(readFileSync(path, "utf-8"));
   const blocks: BlockRecord[] = [];
   for (const doc of file.documents ?? []) {
     for (const block of doc.blocks ?? []) blocks.push({ block });
   }
   // KBF's Project doesn't declare target locales explicitly — infer
-  // from block.targets below.
+  // from the editions each block holds below.
   return { blocks, declaredTargets: [] };
 }
 
@@ -283,8 +295,8 @@ async function loadBlocksFromStdin(): Promise<{
   for (const line of text.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed.startsWith("{")) continue;
-    const rec = JSON.parse(trimmed) as { type: string; block?: Block };
-    if (rec.type === "block" && rec.block) blocks.push({ block: rec.block });
+    const rec = JSON.parse(trimmed) as { type: string; block?: Block | BlockV1 };
+    if (rec.type === "block" && rec.block) blocks.push({ block: upgradeBlock(rec.block) });
   }
   return { blocks, declaredTargets: [] };
 }
@@ -302,8 +314,8 @@ Usage:
 
 Options:
   --locale <lang>   Emit a dictionary for this locale (repeat for multiple).
-                    If omitted, every locale present in block.targets is
-                    emitted.
+                    If omitted, every language a block holds an edition in
+                    is emitted.
   --out <dir>       Output directory (default: public/translations)
   --review          Also emit review.json — a read-only in-context review
                     manifest (source + all targets + annotations, merged by

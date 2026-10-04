@@ -21,6 +21,7 @@ import { parseSync } from "@swc/core";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { Block, Run, TextRun } from "@neokapi/kapi-format";
+import { sourceRuns } from "@neokapi/kapi-format";
 
 import { extractDocument } from "../src/extract/index.ts";
 import { hashKey } from "../src/plugin/hash.ts";
@@ -50,7 +51,7 @@ function runtime(code: string, opts: Partial<PluginOptions> = {}) {
 
 /** The text a translator may edit in one block, in order. */
 function editable(block: Block): string[] {
-  return block.source
+  return sourceRuns(block)
     .filter((r: Run): r is TextRun => "text" in r && !(r as TextRun).noTranslate)
     .map((r) => r.text);
 }

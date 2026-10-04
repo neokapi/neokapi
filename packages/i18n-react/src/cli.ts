@@ -10,7 +10,7 @@
  *                        for kapi's per-locale targets.
  *
  *   neokapi-i18n compile   Consume a translated .kbf.json directory (kapi or
- *                        another tool filled in block.targets[locale]),
+ *                        another tool filled in block.editions[locale]),
  *                        flatten each block's target runs into the
  *                        {hash: text} shape the runtime loader reads
  *                        via fetch() + setTranslations().

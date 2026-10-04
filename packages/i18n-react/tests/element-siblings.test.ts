@@ -21,6 +21,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Block, Document, PlaceholderRun, Run, TextRun } from "@neokapi/kapi-format";
+import { sourceRuns } from "@neokapi/kapi-format";
 
 import { extractDocument } from "../src/extract/index.ts";
 import { transform } from "../src/plugin/transform.ts";
@@ -65,8 +66,12 @@ const PROGRESS = "<div>{segments}<span>{progress}% done</span></div>";
 describe("extraction of a sibling expression", () => {
   it("keeps a named placeholder run for the expression", () => {
     const block = onlyBlock(ICON);
-    expect(ph(block.source[0])).toMatchObject({ type: "jsx:var", equiv: "icon", data: "{icon}" });
-    expect(text(block.source[1]).text).toBe(" Save changes");
+    expect(ph(sourceRuns(block)[0])).toMatchObject({
+      type: "jsx:var",
+      equiv: "icon",
+      data: "{icon}",
+    });
+    expect(text(sourceRuns(block)[1]).text).toBe(" Save changes");
   });
 
   it("names the placeholder in the block metadata", () => {
@@ -76,8 +81,8 @@ describe("extraction of a sibling expression", () => {
 
   it("puts the expression and the inline child in one block", () => {
     const block = onlyBlock(PROGRESS);
-    expect(ph(block.source[0]).equiv).toBe("segments");
-    expect(block.source.map((run) => Object.keys(run)[0])).toEqual([
+    expect(ph(sourceRuns(block)[0]).equiv).toBe("segments");
+    expect(sourceRuns(block).map((run) => Object.keys(run)[0])).toEqual([
       "ph",
       "pcOpen",
       "ph",
@@ -88,13 +93,13 @@ describe("extraction of a sibling expression", () => {
 
   it("keeps a JSX literal an element marker rather than a named parameter", () => {
     const block = onlyBlock("<div>{<Badge />} Save changes</div>");
-    expect(ph(block.source[0])).toMatchObject({ type: "jsx:node", equiv: "=m0" });
+    expect(ph(sourceRuns(block)[0])).toMatchObject({ type: "jsx:node", equiv: "=m0" });
   });
 
   it("carries a member expression and a call under their own names", () => {
     const block = onlyBlock("<div>{a.b} and {f(x)} here</div>");
-    expect(ph(block.source[0]).equiv).toBe("a.b");
-    expect(ph(block.source[2]).equiv).toBe("f");
+    expect(ph(sourceRuns(block)[0]).equiv).toBe("a.b");
+    expect(ph(sourceRuns(block)[2]).equiv).toBe("f");
   });
 });
 

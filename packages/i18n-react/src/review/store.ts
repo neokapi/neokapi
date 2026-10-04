@@ -23,8 +23,18 @@ import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from "
 import { join } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import type { Block, File as KBFFile, Run } from "@neokapi/kapi-format";
-import { Kind, flattenRuns, isAnnotationPath, isKbfPath, marshalFile } from "@neokapi/kapi-format";
+import type { Block, BlockV1, File as KBFFile, Run } from "@neokapi/kapi-format";
+import {
+  Kind,
+  SchemaVersion,
+  flattenRuns,
+  isAnnotationPath,
+  isKbfPath,
+  marshalFile,
+  sourceRuns,
+  targetKeys,
+  upgradeBlock,
+} from "@neokapi/kapi-format";
 
 interface BlockLocation {
   path: string;
@@ -112,7 +122,7 @@ export class ReviewStore {
 
   private indexKBF(path: string): void {
     try {
-      const file = JSON.parse(readFileSync(path, "utf-8")) as KBFFile;
+      const file = readKBF(path);
       (file.documents ?? []).forEach((doc, docIndex) => {
         (doc.blocks ?? []).forEach((block, blockIndex) => {
           if (block.hash && !this.index.has(block.hash)) {
@@ -159,17 +169,19 @@ export class ReviewStore {
     this.refresh();
     const loc = this.index.get(hash);
     if (!loc) return null;
-    const file = JSON.parse(readFileSync(loc.path, "utf-8")) as KBFFile;
+    const file = readKBF(loc.path);
     const block = file.documents?.[loc.docIndex]?.blocks?.[loc.blockIndex];
     if (!block) return null;
     const targets: ReviewPayload["targets"] = {};
-    for (const [locale, runs] of Object.entries(block.targets ?? {})) {
-      targets[locale] = { text: flattenRuns(runs), runs };
+    for (const key of targetKeys(block)) {
+      const runs = block.editions[key]?.runs ?? [];
+      targets[key] = { text: flattenRuns(runs), runs };
     }
+    const source = sourceRuns(block);
     return {
       hash,
-      sourceText: flattenRuns(block.source),
-      source: block.source,
+      sourceText: flattenRuns(source),
+      source,
       targets,
       properties: block.properties,
       placeholders: block.placeholders,
@@ -192,14 +204,21 @@ export class ReviewStore {
     this.refresh();
     const loc = this.index.get(hash);
     if (!loc) return null;
-    const file = JSON.parse(readFileSync(loc.path, "utf-8")) as KBFFile;
+    const file = readKBF(loc.path);
     const block = file.documents?.[loc.docIndex]?.blocks?.[loc.blockIndex];
     if (!block) return null;
-    block.targets = { ...block.targets, [locale]: [{ text }] as Run[] };
-    // Written back under the current root kind, the way kapi's own writer
-    // stamps a catalog it rewrites. A catalog an older release of this package
-    // extracted becomes a current one the first time a target is saved into it.
+    // The edit replaces the edition's runs and keeps what else the catalog
+    // recorded about it.
+    block.editions = {
+      ...block.editions,
+      [locale]: { ...block.editions[locale], runs: [{ text }] as Run[] },
+    };
+    // Written back under the current root kind and schema, the way kapi's own
+    // writer stamps a catalog it rewrites. A catalog an older release of this
+    // package or of kapi wrote becomes a current one the first time a target is
+    // saved into it.
     file.kind = Kind;
+    file.schemaVersion = SchemaVersion;
     let serialized: Uint8Array | string;
     try {
       serialized = marshalFile(file);
@@ -213,6 +232,20 @@ export class ReviewStore {
     this.broadcast({ hash, locale, text });
     return this.get(hash);
   }
+}
+
+/**
+ * Read a catalog for review, in either schema. A hand-made catalog may lack the
+ * envelope a strict read wants (kind, version), and review still serves and
+ * edits its blocks, so this reads the blocks leniently: each in the shape it was
+ * written, upgraded to editions (upgradeBlock).
+ */
+function readKBF(path: string): KBFFile {
+  const file = JSON.parse(readFileSync(path, "utf-8")) as KBFFile;
+  for (const doc of file.documents ?? []) {
+    doc.blocks = (doc.blocks ?? []).map((block) => upgradeBlock(block as Block | BlockV1));
+  }
+  return file;
 }
 
 function walkFiles(dir: string, out: string[]): void {

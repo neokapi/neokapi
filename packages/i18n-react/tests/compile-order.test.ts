@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { Block } from "@neokapi/kapi-format";
-import { marshalFile, newFile } from "@neokapi/kapi-format";
+import { marshalFile, newFile, sourceEditions } from "@neokapi/kapi-format";
 
 import { runCompile } from "../src/commands/compile.ts";
 
@@ -20,11 +20,10 @@ function block(hash: string, text: string): Block {
     hash,
     translatable: true,
     type: "jsx:element",
-    source: [{ text }],
-    targets: { nb: [{ text: `${text} (nb)` }] },
+    editions: { ...sourceEditions([{ text }]), nb: { runs: [{ text: `${text} (nb)` }] } },
     placeholders: [],
     properties: { file: "X.tsx", line: 1, component: "X", jsxPath: "p", element: "p" },
-  } as Block;
+  };
 }
 
 function catalog(dir: string, rel: string, blocks: Block[]) {

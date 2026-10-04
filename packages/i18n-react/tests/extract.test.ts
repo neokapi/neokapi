@@ -17,6 +17,7 @@ import type {
   SelectRunWrapper,
   TextRun,
 } from "@neokapi/kapi-format";
+import { sourceRuns } from "@neokapi/kapi-format";
 
 import { createWarningCollector, extractDocument } from "../src/extract/index.ts";
 import { hashKey } from "../src/plugin/hash.ts";
@@ -64,8 +65,8 @@ describe("extractDocument — element blocks", () => {
   it("emits one block with a single TextRun for `<h1>Hello World</h1>`", () => {
     const block = onlyBlock(extract("<h1>Hello World</h1>"));
     expect(block.type).toBe("jsx:element");
-    expect(block.source).toHaveLength(1);
-    expect(textRun(block.source[0]).text).toBe("Hello World");
+    expect(sourceRuns(block)).toHaveLength(1);
+    expect(textRun(sourceRuns(block)[0]).text).toBe("Hello World");
     expect(block.properties.jsxPath).toBe("h1");
     expect(block.properties.element).toBe("h1");
     expect(block.hash).toBe(hashKey("Hello World", "h1"));
@@ -73,12 +74,12 @@ describe("extractDocument — element blocks", () => {
 
   it("routes expression containers to jsx:var placeholders", () => {
     const block = onlyBlock(extract("<h1>Hello, {name}!</h1>"));
-    expect(block.source).toHaveLength(3);
-    expect(textRun(block.source[0]).text).toBe("Hello, ");
-    const ph = phRun(block.source[1]).ph;
+    expect(sourceRuns(block)).toHaveLength(3);
+    expect(textRun(sourceRuns(block)[0]).text).toBe("Hello, ");
+    const ph = phRun(sourceRuns(block)[1]).ph;
     expect(ph.type).toBe("jsx:var");
     expect(ph.equiv).toBe("name");
-    expect(textRun(block.source[2]).text).toBe("!");
+    expect(textRun(sourceRuns(block)[2]).text).toBe("!");
     expect(block.placeholders.find((p) => p.name === "name")?.kind).toBe("variable");
     expect(block.hash).toBe(hashKey("Hello, {name}!", "h1"));
   });
@@ -93,17 +94,17 @@ describe("extractDocument — element blocks", () => {
     expect(doc.blocks).toHaveLength(1);
     const parent = doc.blocks[0];
     expect(parent.properties.jsxPath).toBe("h2");
-    expect(parent.source).toHaveLength(5);
-    expect(textRun(parent.source[0]).text).toBe("Files ");
-    const open = pcOpenRun(parent.source[1]).pcOpen;
+    expect(sourceRuns(parent)).toHaveLength(5);
+    expect(textRun(sourceRuns(parent)[0]).text).toBe("Files ");
+    const open = pcOpenRun(sourceRuns(parent)[1]).pcOpen;
     expect(open.type).toBe("jsx:element");
     expect(open.subType).toBe("span");
     expect(open.equiv).toBe("=m0");
-    const innerVar = phRun(parent.source[2]).ph;
+    const innerVar = phRun(sourceRuns(parent)[2]).ph;
     expect(innerVar.type).toBe("jsx:var");
     expect(innerVar.equiv).toBe("count");
-    expect(textRun(parent.source[3]).text).toBe(" matched");
-    const close = pcCloseRun(parent.source[4]).pcClose;
+    expect(textRun(sourceRuns(parent)[3]).text).toBe(" matched");
+    const close = pcCloseRun(sourceRuns(parent)[4]).pcClose;
     expect(close.type).toBe("jsx:element");
     expect(close.subType).toBe("span");
     expect(close.equiv).toBe("=m0");
@@ -117,7 +118,7 @@ describe("extractDocument — element blocks", () => {
         componentMap: { Icon: "span" },
       }),
     );
-    const [text, ph] = block.source;
+    const [text, ph] = sourceRuns(block);
     expect(textRun(text).text).toBe("Save ");
     const icon = phRun(ph).ph;
     expect(icon.type).toBe("jsx:element");
@@ -137,12 +138,12 @@ describe("extractDocument — element blocks", () => {
       (b) => b.properties.jsxPath === "span" && b.properties.element === "span",
     );
     expect(inner).toBeTruthy();
-    expect(textRun(inner?.source[0]).text).toBe("Save");
+    expect(textRun(sourceRuns(inner!)[0]).text).toBe("Save");
   });
 
   it("deduplicates placeholder equivs across a single block", () => {
     const block = onlyBlock(extract("<p>{x} and {x}</p>"));
-    const equivs = block.source
+    const equivs = sourceRuns(block)
       .filter((r): r is PlaceholderRun => "ph" in r)
       .map((r) => r.ph.equiv);
     expect(equivs).toEqual(["x", "x_2"]);
@@ -152,7 +153,7 @@ describe("extractDocument — element blocks", () => {
     const block = onlyBlock(
       extract("<Button>Click</Button>", "Test.tsx", { componentMap: { Button: "button" } }),
     );
-    expect(textRun(block.source[0]).text).toBe("Click");
+    expect(textRun(sourceRuns(block)[0]).text).toBe("Click");
     expect(block.properties.element).toBe("Button");
   });
 
@@ -194,7 +195,7 @@ describe("extractDocument — skip rules", () => {
     // text + all-inline children.
     const doc = extractDocument("<div>text</div>", { filename: "Test.tsx" });
     expect(doc?.blocks).toHaveLength(1);
-    expect(doc?.blocks[0].source).toEqual([{ text: "text" }]);
+    expect(sourceRuns(doc!.blocks[0])).toEqual([{ text: "text" }]);
   });
 
   it("does NOT promote a container whose children include a nested block", () => {
@@ -219,7 +220,7 @@ describe("extractDocument — skip rules", () => {
     const attrBlocks = doc?.blocks.filter((b) => b.type === "jsx:attribute") ?? [];
     // Sorted, so the assertion does not depend on attribute order — which means
     // the expectation has to be in sorted order too.
-    const texts = attrBlocks.map((b) => (b.source[0] as { text: string }).text).sort();
+    const texts = attrBlocks.map((b) => (sourceRuns(b)[0] as { text: string }).text).sort();
     expect(texts).toEqual(["Content Memories", "Terms"]);
   });
 
@@ -242,7 +243,7 @@ describe("extractDocument — skip rules", () => {
       { filename: "Test.tsx" },
     );
     expect(doc).not.toBeNull();
-    const texts = doc!.blocks.map((b) => (b.source[0] as { text: string }).text).sort();
+    const texts = doc!.blocks.map((b) => (sourceRuns(b)[0] as { text: string }).text).sort();
     expect(texts).toEqual(["Keep me"]);
   });
 
@@ -256,7 +257,7 @@ describe("extractDocument — skip rules", () => {
       { filename: "Test.tsx" },
     );
     expect(doc).not.toBeNull();
-    const texts = doc!.blocks.map((b) => (b.source[0] as { text: string }).text).sort();
+    const texts = doc!.blocks.map((b) => (sourceRuns(b)[0] as { text: string }).text).sort();
     expect(texts).toEqual(["Translate this"]);
   });
 
@@ -269,7 +270,7 @@ describe("extractDocument — attribute blocks", () => {
   it("emits a jsx:attribute block for `placeholder=`", () => {
     const block = onlyBlock(extract('<input placeholder="Search..." />'));
     expect(block.type).toBe("jsx:attribute");
-    expect(textRun(block.source[0]).text).toBe("Search...");
+    expect(textRun(sourceRuns(block)[0]).text).toBe("Search...");
     expect(block.properties.jsxPath).toBe("input[placeholder]");
   });
 
@@ -316,7 +317,7 @@ describe("extractDocument — multiple blocks", () => {
 describe("extractDocument — <Plural>", () => {
   function extractPlural(code: string) {
     const block = onlyBlock(extract(code));
-    const run = block.source[0];
+    const run = sourceRuns(block)[0];
     if (!run || !("plural" in run)) {
       throw new Error(`expected PluralRun, got ${JSON.stringify(run)}`);
     }
@@ -389,7 +390,7 @@ describe("extractDocument — <Plural>", () => {
 describe("extractDocument — <Select>", () => {
   function extractSelect(code: string) {
     const block = onlyBlock(extract(code));
-    const run = block.source[0];
+    const run = sourceRuns(block)[0];
     if (!run || !("select" in run)) {
       throw new Error(`expected SelectRun, got ${JSON.stringify(run)}`);
     }
@@ -440,9 +441,11 @@ describe("extractDocument — <Select>", () => {
       </div>`,
     );
     for (const block of doc.blocks) {
-      expect(block.source.some((run) => typeof run === "object" && "select" in run)).toBe(false);
+      expect(sourceRuns(block).some((run) => typeof run === "object" && "select" in run)).toBe(
+        false,
+      );
     }
-    const texts = doc.blocks.map((b) => (b.source[0] as TextRun).text);
+    const texts = doc.blocks.map((b) => (sourceRuns(b)[0] as TextRun).text);
     expect(texts).toContain("Workspace");
   });
 
@@ -453,7 +456,9 @@ describe("extractDocument — <Select>", () => {
       filename: "T.tsx",
     });
     for (const block of doc?.blocks ?? []) {
-      expect(block.source.some((run) => typeof run === "object" && "select" in run)).toBe(false);
+      expect(sourceRuns(block).some((run) => typeof run === "object" && "select" in run)).toBe(
+        false,
+      );
     }
   });
 });
@@ -464,7 +469,7 @@ describe("extractDocument — ternary attribute values", () => {
       '<PageHeader title={isProjectMode ? "Project Flows" : "Flows"} />',
       { filename: "T.tsx" },
     );
-    const texts = (doc?.blocks ?? []).map((b) => (b.source[0] as TextRun).text).sort();
+    const texts = (doc?.blocks ?? []).map((b) => (sourceRuns(b)[0] as TextRun).text).sort();
     expect(texts).toEqual(["Flows", "Project Flows"]);
   });
 
@@ -508,7 +513,7 @@ describe("extractDocument — icon-tolerant inline content", () => {
     expect(doc?.blocks).toHaveLength(1);
     const block = doc!.blocks[0];
     // Flat source has the icon as an opaque placeholder followed by text.
-    const textRuns = block.source.filter((r): r is TextRun => "text" in r);
+    const textRuns = sourceRuns(block).filter((r): r is TextRun => "text" in r);
     expect(textRuns.map((r) => r.text).join("")).toContain("Open File...");
   });
 
@@ -519,7 +524,7 @@ describe("extractDocument — icon-tolerant inline content", () => {
     });
     const block = doc!.blocks[0];
     expect(block.properties.element).toBe("Button");
-    const textRuns = block.source.filter((r): r is TextRun => "text" in r);
+    const textRuns = sourceRuns(block).filter((r): r is TextRun => "text" in r);
     expect(textRuns.map((r) => r.text).join("")).toContain("Open File...");
   });
 
@@ -530,7 +535,7 @@ describe("extractDocument — icon-tolerant inline content", () => {
       filename: "T.tsx",
     });
     // Button is skipped; Panel's heading extracts as its own block.
-    const texts = (doc?.blocks ?? []).map((b) => (b.source[0] as TextRun).text);
+    const texts = (doc?.blocks ?? []).map((b) => (sourceRuns(b)[0] as TextRun).text);
     expect(texts).not.toContain("Open File...");
   });
 });

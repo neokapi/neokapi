@@ -13,23 +13,30 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
-import type { Block, File } from "@neokapi/kapi-format";
-import { newFile, marshalFile } from "@neokapi/kapi-format";
+import type { Block, File, Run } from "@neokapi/kapi-format";
+import { newFile, marshalFile, sourceEditions } from "@neokapi/kapi-format";
 
 import { runCompile } from "../src/commands/compile.ts";
 
-function block(overrides: Partial<Block> = {}): Block {
+// block builds a catalog block from its source runs and its translations by
+// language, each filed as an edition under its key.
+function block({
+  source = [{ text: "Welcome" }],
+  targets = {},
+  ...overrides
+}: Partial<Block> & { source?: Run[]; targets?: Record<string, Run[]> } = {}): Block {
+  const editions = sourceEditions(source);
+  for (const [key, runs] of Object.entries(targets)) editions[key] = { runs };
   return {
     id: "b",
     hash: "h",
     translatable: true,
     type: "jsx:element",
-    source: [{ text: "Welcome" }],
-    targets: {},
+    editions,
     placeholders: [],
     properties: { file: "App.tsx", line: 3, component: "App", jsxPath: "h1", element: "h1" },
     ...overrides,
-  } as Block;
+  };
 }
 
 function fileWith(blocks: Block[]): File {

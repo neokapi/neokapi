@@ -22,6 +22,7 @@ import { createElement, Fragment, isValidElement } from "react";
 import { describe, expect, it } from "vitest";
 
 import type { Block, PlaceholderRun } from "@neokapi/kapi-format";
+import { sourceRuns } from "@neokapi/kapi-format";
 
 import { extractDocument, type ExplainDecision } from "../src/extract/walker.ts";
 import { transform } from "../src/plugin/transform.ts";
@@ -85,16 +86,16 @@ describe('a translate="no" child inside a translated parent', () => {
   it("becomes a standalone placeholder, never a paired range", () => {
     const [block] = blocks(code);
     expect(block).toBeTruthy();
-    expect(block.source).toHaveLength(3);
-    expect(block.source[0]).toEqual({ text: "Saved to " });
-    const ph = block.source[1] as PlaceholderRun;
+    expect(sourceRuns(block)).toHaveLength(3);
+    expect(sourceRuns(block)[0]).toEqual({ text: "Saved to " });
+    const ph = sourceRuns(block)[1] as PlaceholderRun;
     expect(ph.ph.type).toBe("jsx:element");
     expect(ph.ph.subType).toBe("span");
     expect(ph.ph.equiv).toBe("=m0");
     expect(ph.ph.data).toBe('<span translate="no">{path}</span>');
-    expect(block.source[2]).toEqual({ text: " just now" });
+    expect(sourceRuns(block)[2]).toEqual({ text: " just now" });
     // No pcOpen/pcClose anywhere: the island's content stays out.
-    for (const run of block.source) {
+    for (const run of sourceRuns(block)) {
       expect(run).not.toHaveProperty("pcOpen");
       expect(run).not.toHaveProperty("pcClose");
     }
@@ -109,13 +110,15 @@ describe('a translate="no" child inside a translated parent', () => {
 
   it("keeps the message free of the island's own text", () => {
     const [block] = blocks(code);
-    const flat = block.source.map((r) => ("text" in r ? r.text : "")).join("");
+    const flat = sourceRuns(block)
+      .map((r) => ("text" in r ? r.text : ""))
+      .join("");
     expect(flat).toBe("Saved to  just now");
   });
 
   it("leaves a plain inline child paired", () => {
     const [block] = blocks("<div>Saved to <span>{path}</span> just now</div>");
-    expect(block.source.some((r) => "pcOpen" in r)).toBe(true);
+    expect(sourceRuns(block).some((r) => "pcOpen" in r)).toBe(true);
   });
 });
 

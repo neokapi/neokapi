@@ -15,7 +15,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PluralRunWrapper } from "@neokapi/kapi-format";
-import { newFile, marshalFile } from "@neokapi/kapi-format";
+import { newFile, marshalFile, sourceRuns } from "@neokapi/kapi-format";
 
 import { runCompile } from "../src/commands/compile.ts";
 import { extractDocument } from "../src/extract/index.ts";
@@ -55,15 +55,15 @@ describe("plural round-trip", () => {
     // The block's source is a single PluralRun carrying three typed
     // forms — zero and one are plain text, other has a jsx:element
     // placeholder for <strong>{items.length}</strong>.
-    expect(block.source).toHaveLength(1);
-    const wrapper = block.source[0] as PluralRunWrapper;
+    expect(sourceRuns(block)).toHaveLength(1);
+    const wrapper = sourceRuns(block)[0] as PluralRunWrapper;
     expect(wrapper.plural).toBeTruthy();
     expect(wrapper.plural.pivot).toBe("items.length");
     expect(Object.keys(wrapper.plural.forms).sort()).toEqual(["one", "other", "zero"]);
 
-    // 2. Stamp a target on the block simulating a pseudo-translate /
-    // TMS that populated block.targets[qps]. Here we populate the
-    // target with a duplicated PluralRun (wrap for a pseudo locale).
+    // 2. Stamp a qps edition on the block, as a pseudo-translate or a
+    // TMS would. Here we populate it with a duplicated PluralRun (wrap
+    // for a pseudo locale).
     const targetPlural: PluralRunWrapper = {
       plural: {
         pivot: "items.length",
@@ -74,7 +74,7 @@ describe("plural round-trip", () => {
         },
       },
     };
-    block.targets = { qps: [targetPlural] };
+    block.editions = { ...block.editions, qps: { runs: [targetPlural] } };
 
     // 3. Write to a .kbf.json file.
     const dir = tempDir("plural-roundtrip");

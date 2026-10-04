@@ -9,6 +9,8 @@ import { join } from "node:path";
 import { parseSync } from "@swc/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { SchemaVersion, SchemaVersionV1, sourceRuns } from "@neokapi/kapi-format";
+
 import { extractDocument } from "../src/extract/walker.ts";
 import { transform } from "../src/plugin/transform.ts";
 import { hashKey } from "../src/plugin/hash.ts";
@@ -72,19 +74,29 @@ describe("review-mode stamping", () => {
 
 const SOURCE = "<h1>Welcome back</h1>";
 
-function seedKbfTree(dir: string): string {
+// seedKbfTree writes a catalog with a de translation, in the current schema or,
+// given schema1, in the schema 1.0 shape an earlier kapi wrote.
+function seedKbfTree(dir: string, schema1 = false): string {
   const doc = extractDocument(SOURCE, { filename: "src/Page.tsx" })!;
-  const hash = doc.blocks[0].hash;
-  doc.blocks[0].targets = { de: [{ text: "Willkommen zurück" }] } as never;
+  const block = doc.blocks[0];
+  const hash = block.hash;
+  const de = [{ text: "Willkommen zurück" }];
+  const written = schema1
+    ? (({ editions: _editions, ...rest }) => ({
+        ...rest,
+        source: sourceRuns(block),
+        targets: { de },
+      }))(block)
+    : { ...block, editions: { ...block.editions, de: { runs: de } } };
   mkdirSync(join(dir, "i18n", "src"), { recursive: true });
   writeFileSync(
     join(dir, "i18n", "src", "Page.kbf.json"),
     JSON.stringify({
-      schemaVersion: "1.0",
+      schemaVersion: schema1 ? SchemaVersionV1 : SchemaVersion,
       kind: "kapi-bundle",
       generator: { id: "@neokapi/i18n-react", version: "0.0.0" },
       project: { id: "test", sourceLocale: "en" },
-      documents: [doc],
+      documents: [{ ...doc, blocks: [written] }],
     }),
   );
   // A stand-off term annotation, as kapi term-check would produce.
@@ -137,7 +149,26 @@ describe("ReviewStore", () => {
     expect(events).toEqual([{ hash, locale: "de", text: "Willkommen zurück!" }]);
 
     const onDisk = JSON.parse(readFileSync(join(dir, "i18n", "src", "Page.kbf.json"), "utf-8"));
-    expect(onDisk.documents[0].blocks[0].targets.de[0].text).toBe("Willkommen zurück!");
+    expect(onDisk.documents[0].blocks[0].editions.de.runs[0].text).toBe("Willkommen zurück!");
+  });
+
+  it("serves and edits a catalog an earlier kapi wrote in schema 1.0, writing it back in the current one", () => {
+    const dir = scratch();
+    const hash = seedKbfTree(dir, true);
+    const store = new ReviewStore(join(dir, "i18n"));
+
+    const payload = store.get(hash)!;
+    expect(payload.sourceText).toBe("Welcome back");
+    expect(payload.targets.de.text).toBe("Willkommen zurück");
+
+    expect(store.put(hash, "de", "Velkommen tilbake")!.targets.de.text).toBe("Velkommen tilbake");
+    const onDisk = JSON.parse(readFileSync(join(dir, "i18n", "src", "Page.kbf.json"), "utf-8"));
+    expect(onDisk.schemaVersion).toBe(SchemaVersion);
+    const written = onDisk.documents[0].blocks[0];
+    expect(written.editions[""].runs).toEqual([{ text: "Welcome back" }]);
+    expect(written.editions.de.runs).toEqual([{ text: "Velkommen tilbake" }]);
+    expect(written.source).toBeUndefined();
+    expect(written.targets).toBeUndefined();
   });
 
   it("returns null for unknown hashes", () => {
@@ -157,7 +188,7 @@ describe("ReviewStore", () => {
     // Simulate `kapi translate` rewriting the file.
     const path = join(dir, "i18n", "src", "Page.kbf.json");
     const raw = JSON.parse(readFileSync(path, "utf-8"));
-    raw.documents[0].blocks[0].targets.de = [{ text: "extern" }];
+    raw.documents[0].blocks[0].editions.de = { runs: [{ text: "extern" }] };
     await new Promise((r) => setTimeout(r, 5)); // ensure mtime moves
     writeFileSync(path, JSON.stringify(raw));
 

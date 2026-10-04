@@ -171,8 +171,9 @@ kapi pseudo-translate i18n/ --target-lang qps
 kapi translate i18n/ --target-lang fr
 kapi translate i18n/ --target-lang de
 
-# Or hand off to your TMS / translators → they update block.targets
-# in each .kbf.json. Commit the directory and you're done.
+# Or hand off to your TMS / translators → they add each language as an
+# edition of every block (block.editions["fr"]) in each .kbf.json.
+# Commit the directory and you're done.
 ```
 
 The KBF tree in `i18n/` carries source + every target through the
@@ -1027,8 +1028,8 @@ npx neokapi-i18n compile <input> [options]
 
 Options:
   --locale <bcp>          Compile only this locale (repeat for multiple).
-                          Defaults to every locale found on block.targets
-                          and in manifest.project.targetLocales.
+                          Defaults to every language a block holds an
+                          edition in, and manifest.project.targetLocales.
   --out <dir>             Output directory (default: "public/translations")
 
 npx neokapi-i18n explain <file-or-glob>... [--extracted]
