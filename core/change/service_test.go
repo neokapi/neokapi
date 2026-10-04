@@ -54,6 +54,9 @@ type memBlock struct {
 	key          string
 	translatable bool
 	editions     map[model.EditionKey][]model.Run
+	// derived holds what an edition records it was made from, for a home
+	// that carries derivations.
+	derived map[model.EditionKey]model.Derivation
 }
 
 func newMemHome(docs map[string][]memBlock) *memHome {
@@ -86,6 +89,9 @@ func (d *memDoc) build() []*model.Block {
 				continue
 			}
 			b.SetTargetEdition(k, model.Edition{Runs: slices.Clone(runs)})
+		}
+		for k, d := range mb.derived {
+			b.SetDerivation(k, &d)
 		}
 		out = append(out, b)
 	}
@@ -678,7 +684,10 @@ func TestService_RecordsWhatLanded(t *testing.T) {
 // memAssets applies decisions and terms in memory.
 type memAssets struct {
 	prepared, applied []string
-	refuse            string
+	// bases are the authoritative revisions each decision was recorded
+	// against, in the order applied.
+	bases  []string
+	refuse string
 	// during, when set, is called as each operation is applied.
 	during func()
 }
@@ -698,6 +707,7 @@ func (a *memAssets) Apply(_ context.Context, _ change.Actor, _ *change.Set, op c
 	switch body := op.Body.(type) {
 	case *change.Decide:
 		a.applied = append(a.applied, fmt.Sprintf("decide %s %s@%s %s %q on %q", body.Outcome, target.Ref.Block, target.Ref.EditionText(), target.Rev, target.Text, target.SourceText))
+		a.bases = append(a.bases, target.SourceRev)
 	case *change.Term:
 		a.applied = append(a.applied, "term "+body.Term)
 	}
@@ -721,6 +731,7 @@ func TestService_DecisionsAndAssetsFollowTheContent(t *testing.T) {
 	after := res.Ops[1].After
 	assert.Equal(t, []string{"term handbook", `decide establish one@nb ` + after + ` "Innledende" on "First"`}, assets.applied,
 		"assets apply in the order of the change set, after the content, and a decision binds to the content that landed")
+	assert.Equal(t, []string{b.Rev}, assets.bases, "a decision names the authoritative revision beside it, its basis")
 	assert.Equal(t, change.OpApplied, res.Ops[2].Status)
 	assert.Equal(t, after, res.Ops[2].After)
 
@@ -873,6 +884,35 @@ func TestService_ReadsShowEditionsAndStaleness(t *testing.T) {
 	assert.True(t, b.Editions["de"].Stale, "made from an older authoritative edition")
 	assert.Equal(t, "Erste", b.Editions["de"].Text)
 	assert.Equal(t, []change.Kind{change.KindSetContent, change.KindReplaceText, change.KindRemoveEdition}, b.Ops)
+}
+
+// An edition that records what it was made from is read by its own record: its
+// basis and its staleness come from the content, and the host's answer gives
+// only its status. An edition that records nothing is read by the host's.
+func TestService_ReadsTheDerivationAnEditionRecords(t *testing.T) {
+	mb := textBlock("one", "First", "nb", "Første", "de", "Erste", "sv", "Första")
+	probe := model.NewBlock("probe", "First")
+	probe.SourceLocale = "en"
+	current := model.EditionRevision(probe, model.EditionKey{})
+	old := "r:0000000000000000"
+	mb.derived = map[model.EditionKey]model.Derivation{
+		{Locale: "nb"}: {From: model.Variant("en"), Rev: current},
+		{Locale: "de"}: {From: model.Variant("en"), Rev: old},
+	}
+	h := newMemHome(map[string][]memBlock{"a": {mb}})
+	states := editionStates(func(b *model.Block, k model.EditionKey) (change.EditionState, bool) {
+		return change.EditionState{Status: "translated", Basis: "r:1111111111111111"}, true
+	})
+	b := readBlock(t, newMemService(h, change.WithEditionStates(states)), "a", "one")
+	require.Equal(t, current, b.Rev)
+
+	assert.Equal(t, current, b.Editions["nb"].Basis)
+	assert.False(t, b.Editions["nb"].Stale, "made from the authoritative edition as it stands")
+	assert.Equal(t, "translated", b.Editions["nb"].Status, "the host still gives the status")
+	assert.Equal(t, old, b.Editions["de"].Basis)
+	assert.True(t, b.Editions["de"].Stale, "made from an older authoritative edition")
+	assert.Equal(t, "r:1111111111111111", b.Editions["sv"].Basis, "an edition with no derivation of its own is read by the host's record")
+	assert.True(t, b.Editions["sv"].Stale)
 }
 
 // A read lists every plural and select with the path that reaches it and the

@@ -566,7 +566,10 @@ func (w *workset) rewrite(st *edState, newRuns []model.Run, rebase OverlayRebase
 	}
 	role := w.role(st)
 	c := Consequences(w.env.Actor, role, st.ed, !st.present, w.now())
-	st.ed = model.Edition{Runs: newRuns, Status: c.Status, Origin: c.Origin, Score: st.ed.Score}
+	// The derivation stays what it was: an edit to a derived edition leaves
+	// it made from the basis it was made from, and set_content, which records
+	// a basis, records it afresh.
+	st.ed = model.Edition{Runs: newRuns, Status: c.Status, Origin: c.Origin, Score: st.ed.Score, Derived: st.ed.Derived}
 	st.present, st.content, st.removed, st.rebuilt = true, true, false, true
 	res.Before = st.startRevision()
 	res.After = st.revision()
@@ -684,6 +687,11 @@ func (w *workset) setContent(op Op, body *SetContent, res *OpResult) *Error {
 	}
 	if err := w.rewrite(st, newRuns, body.Overlays, res); err != nil {
 		return err
+	}
+	if role == RoleDerived {
+		// The edition records what it was made from, so a reader of the block
+		// grades its standing from the content (model.Block.DerivationStanding).
+		st.ed.Derived = &model.Derivation{From: w.auth, Rev: res.Basis}
 	}
 	w.noteChange(st, path, cur, true, nil)
 	return nil

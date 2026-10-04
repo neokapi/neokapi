@@ -317,7 +317,8 @@ func (p *docPlan) Edit(b *model.Block) ([]model.EditionKey, error) {
 		rev := model.EditionRevision(b, op.At.Edition)
 		ed, _ := b.Edition(op.At.Edition)
 		p.decisions[i] = &DecisionTarget{Doc: p.info, Ref: *p.results[i].At, Place: p.sess.Place(op.At.Edition), Rev: rev,
-			Text: model.RunsText(ed.Runs), SourceText: b.SourceText(), Role: role}
+			SourceRev: model.EditionRevision(b, authKey),
+			Text:      model.RunsText(ed.Runs), SourceText: b.SourceText(), Role: role}
 		// The decision lands once the content has; until then it stands as
 		// one that would.
 		p.results[i].Status = OpApplied

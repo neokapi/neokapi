@@ -326,13 +326,22 @@ func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.B
 		ed, _ := b.Edition(k)
 		holdsTranslation = true
 		er := out.editionRead(model.EditionRevision(b, k), ed, desc)
+		derived := ed.Derived != nil && ed.Derived.Rev != ""
+		if derived {
+			// The edition records what it was made from, so its basis and its
+			// standing are read from the content.
+			er.Basis = ed.Derived.Rev
+			er.Stale = b.BasisStanding(*ed.Derived) == model.StandingStale
+		}
 		if states != nil {
 			if st, ok := states.EditionState(b, k); ok {
 				if st.Status != "" {
 					er.Status = string(st.Status)
 				}
-				er.Basis = st.Basis
-				er.Stale = st.Basis != "" && st.Basis != authRev
+				if !derived {
+					er.Basis = st.Basis
+					er.Stale = st.Basis != "" && st.Basis != authRev
+				}
 			}
 		}
 		if er.Status == "" {

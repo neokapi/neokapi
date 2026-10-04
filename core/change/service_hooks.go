@@ -29,8 +29,12 @@ type DecisionTarget struct {
 	// Place is where the edition lives.
 	Place Place
 	// Rev is the edition's revision once the change set's content landed:
-	// the content the decision is about.
-	Rev string
+	// the content the decision is about. SourceRev is the authoritative
+	// edition's revision beside it, the basis a decision on a derived edition
+	// is recorded against; for a decision on the authoritative edition the two
+	// are the same.
+	Rev       string
+	SourceRev string
 	// Text is the edition's plain text at Rev, and SourceText the plain text
 	// of the document's own edition beside it: the pairing a decision is
 	// recorded against. A host binds the decision to these, which the

@@ -474,6 +474,45 @@ func TestApplyBlock_Basis(t *testing.T) {
 	assert.Equal(t, sourceRev(b), res[1].Basis)
 }
 
+// A derived-edition write records its basis on the edition, so its standing
+// is read from the block: current while the authoritative edition holds the
+// basis, stale once it moves. An edit that records no basis keeps the one the
+// edition has.
+func TestApplyBlock_RecordsTheDerivationOnTheEdition(t *testing.T) {
+	b := guideBlock()
+	src := sourceRev(b)
+	nb := model.Variant("nb")
+	res := apply(t, b, person, setText("nb", editionRev(b, "nb"), "Les."))
+	requireApplied(t, res)
+	d, ok := b.Derivation(nb)
+	require.True(t, ok, "the write records what the edition was made from")
+	assert.Equal(t, model.Derivation{From: b.Authoritative(model.AuthorityPolicy{}), Rev: src}, d)
+	assert.Equal(t, model.StandingCurrent, b.DerivationStanding(nb))
+
+	res = apply(t, b, person, replace("nb", editionRev(b, "nb"), find("Les", "Lees")))
+	requireApplied(t, res)
+	d, ok = b.Derivation(nb)
+	require.True(t, ok, "an edit that records no basis keeps the edition's")
+	assert.Equal(t, src, d.Rev)
+
+	res = apply(t, b, person, replace("", sourceRev(b), find("shop guide", "handbook")))
+	requireApplied(t, res)
+	assert.Equal(t, model.StandingStale, b.DerivationStanding(nb), "the authoritative edition moved under the translation")
+
+	op := setText("nb", editionRev(b, "nb"), "Les håndboka.")
+	op.Basis = "r:0123456789abcdef"
+	res = apply(t, b, person, op)
+	requireApplied(t, res)
+	d, _ = b.Derivation(nb)
+	assert.Equal(t, "r:0123456789abcdef", d.Rev, "the basis the write names is the one recorded")
+	assert.Equal(t, model.StandingStale, b.DerivationStanding(nb))
+
+	res = apply(t, b, person, replace("", sourceRev(b), find("handbook", "guide")))
+	requireApplied(t, res)
+	_, ok = b.Derivation(model.EditionKey{})
+	assert.False(t, ok, "the authoritative edition is made from nothing")
+}
+
 // An edit to the authoritative edition names the derived editions it leaves
 // on an older basis.
 func TestApplyBlock_InvalidatesDerivedEditions(t *testing.T) {
