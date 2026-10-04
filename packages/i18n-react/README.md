@@ -21,6 +21,19 @@ The plugin applies [W3C HTML5 translatability rules](https://www.w3.org/TR/its20
 npm install @neokapi/i18n-react
 ```
 
+### Upgrading from 2.x
+
+3.0.0 writes and compiles catalogs in KBF schema 2, which carries each string's
+source and translations as peer editions. Pair it with kapi 1.3.0 or later,
+which reads and writes the same schema. An older kapi cannot read the catalogs
+3.0.0 extracts, and 2.x compiles none of the translations a current kapi
+writes. `kapi inspect <catalog>` exits with an error when the installed kapi
+cannot read a catalog.
+
+Run `neokapi-i18n extract` once after upgrading. Catalogs and translations in
+schema 1 still read: 3.0.0 and kapi both take them, and write them back in
+schema 2 the next time they write them.
+
 ### Upgrading from 1.2.x
 
 1.2.3 extracted to `.klf` under a different root marker. 2.0.0 writes
