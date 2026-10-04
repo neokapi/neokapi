@@ -318,18 +318,6 @@ except where an inline code alone moved: a changed link target, or a link
 removed, retires a decision recorded with revisions and leaves one recorded
 before them standing.
 
-A connected venue names the pairing by revision alone: a decision travels the
-sync protocol as its two revisions, without the hashes, and the venue grades its
-ledger by them. It stamps every block it stores with the revision of its source
-taken under the project's source language (`venue.SourceRevision`), which is
-the basis a project read records for the same content, and a decision is
-current there while its basis is that revision and its revision is the
-translation's. The status projection, the grouped tally, the draft mark, the
-review context's stale flag and the governance a push is put to all read the
-pairing that way. A push decides what to send by a transfer hash that folds the
-same source revision (`venue.RecordHash`), so a change to an inline code alone
-reaches the venue, and it retires a decision there as it does on the checkout.
-
 A revision covers the key its edition is filed under, and the readers of one
 document do not file its source alike: the change service keeps a language the
 file declares, a project read files every block under the project's source
@@ -342,6 +330,34 @@ locale's drafts included. The content is the same under every key, so the
 match finds exactly the source as it stands. A derivation's standing
 (`model.Block.BasisStanding`) and the record absorber's recovery of the source
 at a basis match the same keys.
+
+A connected venue names the pairing by revision alone: a decision travels the
+sync protocol as its two revisions, without the hashes, and the venue grades its
+ledger by them. It stamps every block it stores with the revision of its source
+under the project's source language (`venue.SourceRevision`), a function of the
+source's runs and that language alone, so a write that carries some of a
+block's translations and not others stamps the same revision. A decision is
+current there while its basis is that revision and its revision is the
+translation's. The status projection, the grouped tally, the draft mark, the
+review context's stale flag and the governance a push is put to all read the
+pairing that way. A decision that raises a translation to *established* needs a
+current basis to project; a rejection or a withdrawal projects unless its basis
+is stale, so a rejection of a translation written outside kapi, which names no
+basis, lowers the translation on the venue as it does on the checkout. A push
+decides what to send by a transfer hash that folds the same source revision
+(`venue.RecordHash`), so a change to an inline code alone reaches the venue, and
+it retires a decision there as it does on the checkout.
+
+The venue takes every revision under the one key, and a checkout records a basis
+under whichever key its reader filed the source by. A push therefore sends each
+basis it carries, of a decision or of an edition write, as the venue's revision
+of the same source (`venue.Basis`): where the basis is among the block's source
+revisions, it travels as `venue.SourceRevision` of the block the push reads, and
+any other basis travels as it is and reads stale on both sides. The venue's
+revision is among the source revisions a checkout accepts, so a record pulled
+from the venue reads current on a checkout holding the same source. A project's
+source language cannot change once its venue holds content, since every stamped
+revision and every basis is taken under it.
 
 A record is **stale** when either half no longer matches what the project holds.
 Editing an approved translation drops the unit back below *established*; rewriting

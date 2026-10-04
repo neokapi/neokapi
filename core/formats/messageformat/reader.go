@@ -20,7 +20,7 @@ import (
 //
 // Advisory (model.AdvisoryPropertyPrefix), so it is carried but never hashed
 // into the block's identity — and so it never reaches the transfer hash either
-// (model.BlockIdentity.RecordHash). A file here is one pattern per line, so a
+// (model.ComputeRecordHash). A file here is one pattern per line, so a
 // line inserted at the top moves every locator below it; letting one identify a
 // block would report a file's whole tail as changed on an edit that touched one
 // message.

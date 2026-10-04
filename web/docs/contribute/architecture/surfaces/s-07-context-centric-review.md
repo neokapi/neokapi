@@ -256,11 +256,15 @@ A working copy holds its own decision record, and `kapi push` sends it with the
 content it judges. A decision names the translation and the source it blesses by
 revision, as the project's record does, and a block whose source changed in an
 inline code alone is sent as a changed block, so the venue grades the decision
-against the source the checkout holds. Beside the decisions it sends how each translation of the
+against the source the checkout holds. The checkout records a basis under the
+key its reader filed the source by, which for a file that declares its own
+language is that language, and the venue takes every revision under the
+project's source language, so the push sends each basis as the venue's revision
+of the same source (`venue.Basis`). Beside the decisions it sends how each translation of the
 documents it reads came to be (`venue.EditionWrite`): the write the block
 history records as having left the translation the checkout holds, with its
-revision, the source it was made from, the writer (person, agent, tool, or
-external) and the surface. A pulled translation's write names no source: the
+revision, the source it was made from (sent the same way), the writer (person,
+agent, tool, or external) and the surface. A pulled translation's write names no source: the
 venue's own record holds it. Each write goes until the venue has applied a
 push that carried it, and again when it changes. The venue records them after
 the decisions, reading each item's blocks, translations and ledger rows once:

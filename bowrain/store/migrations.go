@@ -48,9 +48,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 38  block notes moved onto their blocks as note annotations; the table retired
 // 39  an agent's pre-review of a translation
 // 40  a decision records the revisions of the pairing it blesses
-// 41  decisions are graded by revision: a block's source revision; the text
-//
-//	hashes of the pairing dropped
+// 41  a block records its source revision; decisions drop their text hashes
 var Migrations = []storage.Migration{
 	{
 		Version:     24,

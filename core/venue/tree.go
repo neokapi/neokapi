@@ -44,8 +44,9 @@ type TreeItem struct {
 	// same value the venue stores as a block's content hash, which is what lets
 	// a renamed file be recognised by what is inside it.
 	Content []string `json:"content"`
-	// Record folds content and context together: the transfer hash, and so the
-	// answer to "does the venue already hold this block". Omitted from a
+	// Record is each block's transfer hash (RecordHash), which folds the
+	// content hash, the context hash and the source revision together, and
+	// so answers "does the venue already hold this block". Omitted from a
 	// producer's declaration, which the venue reads for identity rather than
 	// for transfer.
 	Record []string `json:"record,omitempty"`
