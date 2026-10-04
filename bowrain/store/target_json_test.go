@@ -61,3 +61,34 @@ func TestUnmarshalTargetJSON(t *testing.T) {
 		assert.Error(t, err, "%q", bad)
 	}
 }
+
+// A loader decodes every row of a read through one targetDecoder. Each edition
+// it returns keeps its own content: a later row leaves an earlier edition's
+// runs as they were and takes no field it does not carry from the row before
+// it, whether the earlier decode succeeded or failed.
+func TestTargetDecoder_EachRowStartsEmpty(t *testing.T) {
+	var d targetDecoder
+	first, err := d.decode([]byte(`{"runs":[{"text":"Bonjour"},{"text":" le monde"}],"status":"translated","origin":{"kind":"mt","engine":"deepl"},"score":0.9}`))
+	require.NoError(t, err)
+	want := model.Edition{
+		Runs:   []model.Run{model.TextR("Bonjour"), model.TextR(" le monde")},
+		Status: model.Status(model.TargetStatusTranslated),
+		Origin: model.Origin{Kind: model.OriginMT, Engine: "deepl"},
+		Score:  0.9,
+	}
+	require.Equal(t, want, first)
+
+	second, err := d.decode([]byte(`{"runs":[{"text":"Hallo"}]}`))
+	require.NoError(t, err)
+	assert.Equal(t, model.Edition{Runs: []model.Run{model.TextR("Hallo")}}, second)
+	assert.Equal(t, want, first, "the second row changed the first edition")
+
+	_, err = d.decode([]byte(`{"runs":[{"text":"Hei"}],"status":1}`))
+	require.Error(t, err)
+	third, err := d.decode([]byte(`null`))
+	require.NoError(t, err)
+	assert.Equal(t, model.Edition{}, third)
+
+	assert.Equal(t, want, first)
+	assert.Equal(t, model.Edition{Runs: []model.Run{model.TextR("Hallo")}}, second)
+}
