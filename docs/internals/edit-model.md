@@ -1083,6 +1083,10 @@ many for an xcstrings entry. That is how the service knows where an edit can be 
 `Derivation` is the pairing C-04 records per decision, moved onto the edition so staleness can be
 read from the content itself.
 
+The field `Editions` takes the name of the accessor that lists a block's edition keys today,
+`Block.Editions() []EditionKey`. Go rejects a field and a method of one name on a type, so that
+accessor becomes `Block.EditionKeys()` in the PR that adds the field (section 6.4, step 3).
+
 ### 6.3 Source as policy
 
 | Main's source-first mechanism | In the end state |
@@ -1121,7 +1125,9 @@ measured with a type-checked scanner). It runs in this order (engine-first phase
 1. Add accessors on `Block` (`Edition(k)`, `SetEdition`, `Editions()`, `Authoritative(policy)`)
    implemented over `Source` and `Targets`.
 2. Migrate callers package by package, each PR green.
-3. Flip the storage to `Editions` and delete the old fields in one PR once no caller remains.
+3. Flip the storage to `Editions` and delete the old fields in one PR once no caller remains. The
+   same PR renames the accessor `Editions()` to `EditionKeys()` with `gopls rename`, because the
+   field cannot share its name (section 6.2).
 4. Rename `Block.Unit` to `Block.Key` and `tool.Unit` to `tool.Segment` with `gopls rename`. A
    substring replace once produced `NotificaticompliantDrift` on main; this is a type-checked
    rename.
@@ -1148,6 +1154,7 @@ with the flip, in the same data reset as `decision.record`. Until the flip lands
 | "content units" in prose and catalog strings (about 20 pages under `web/docs/kapi/`) | "blocks" | 1.3.0, before the walkthroughs are re-recorded |
 | `Block.Unit`, `tool.Unit`, `reconcile.Unit` | `Block.Key`, `tool.Segment`, `reconcile.Prior` | with the flip |
 | `VariantKey`, `Target` | `EditionKey`, `Edition` | with the flip |
+| the accessor `Block.Editions()` | `Block.EditionKeys()`, freeing the name for the field | with the flip, in the PR that adds the field |
 | C-04 "Unit state and decisions" | "Block state and decisions", slug redirected in `web/docusaurus.config.ts` | with the 1.3.0 docs |
 
 The rule behind the split: names that people and agents see move once, inside the 1.3.0 break
@@ -2011,7 +2018,8 @@ beside all of them in package-sized PRs.
   proto, KBF, about 79 TypeScript files and the Bowrain DTOs (main-model §6.1).
 - **Contents:** the steps of section 6.4: accessors (`Edition`, `SetEdition`, `Editions`,
   `Authoritative`) with WP1; callers migrated package by package, each PR green; `Editions`,
-  `Native` and `Derivation` replace `Source` and `Targets` in one PR once no caller remains;
+  `Native` and `Derivation` replace `Source` and `Targets` in one PR once no caller remains, and
+  that PR renames the accessor `Editions()` to `EditionKeys()` so the field can take its name;
   `Block.Unit` to `Block.Key`, `tool.Unit` to `tool.Segment`, `reconcile.Unit` to `reconcile.Prior`,
   `VariantKey` to `EditionKey`, `Target` to `Edition` by `gopls rename`; KBF v2 with
   `@neokapi/i18n-react` and `@neokapi/contract-types` regenerated; the decision pairing on
