@@ -233,11 +233,8 @@ func TestIdentity_ForeignBlockKeepsItsKeyAsUnitName(t *testing.T) {
 		ID: "doc1", Name: "app.properties", Format: "properties", Locale: "en",
 		Properties: map[string]string{"target-language": "fr"},
 	}
-	block := &model.Block{
-		ID: "tu1", Name: "app.title", Translatable: true,
-		Source:     []model.Run{{Text: &model.TextRun{Text: "Alpha"}}},
-		Properties: map[string]string{},
-	}
+	block := model.NewBlock("tu1", "Alpha")
+	block.Name = "app.title"
 	parts := make(chan *model.Part, 2)
 	parts <- &model.Part{Type: model.PartLayerStart, Resource: layer}
 	parts <- &model.Part{Type: model.PartBlock, Resource: block}

@@ -86,12 +86,12 @@ func TestUnitMetadata_ReadIntoBlockProperties(t *testing.T) {
 
 func TestUnitMetadata_WrittenFromBlockProperties(t *testing.T) {
 	ctx := t.Context()
-	block := &model.Block{ID: "u1", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "Hello"}}},
-		Properties: map[string]string{
-			xliff2.UnitMetaKey(xliff2.FileNoteCategoryKapi, xliff2.UnitMetaBasis):   "r:0123456789abcdef",
-			xliff2.UnitMetaKey(xliff2.FileNoteCategoryKapi, xliff2.UnitMetaIfMatch): "absent",
-			"context": "not metadata",
-		}}
+	block := model.NewBlock("u1", "Hello")
+	block.Properties = map[string]string{
+		xliff2.UnitMetaKey(xliff2.FileNoteCategoryKapi, xliff2.UnitMetaBasis):   "r:0123456789abcdef",
+		xliff2.UnitMetaKey(xliff2.FileNoteCategoryKapi, xliff2.UnitMetaIfMatch): "absent",
+		"context": "not metadata",
+	}
 	writer := xliff2.NewWriter()
 	writer.SetLocale("fr")
 	var buf bytes.Buffer

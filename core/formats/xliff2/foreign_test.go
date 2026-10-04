@@ -34,7 +34,7 @@ func markdownBlock() *model.Block {
 // translation of the block for the codes it lost.
 func TestForeignCodesAreWrittenAsXLIFFCodes(t *testing.T) {
 	b := markdownBlock()
-	b.SetTarget("nb", &model.Target{Runs: []model.Run{
+	b.SetTargetEdition(model.Variant("nb"), model.Edition{Runs: []model.Run{
 		model.TextR("Koble til med "),
 		model.PcOpenR(model.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "**"}),
 		model.TextR("videotime"),
@@ -51,9 +51,9 @@ func TestForeignCodesAreWrittenAsXLIFFCodes(t *testing.T) {
 	assert.NotContains(t, out, "**video", "the markup is not text")
 
 	back := readOneBlock(t, out)
-	assert.Equal(t, model.RunsPlaceholderText(b.Source), model.RunsPlaceholderText(back.Source),
+	assert.Equal(t, model.RunsPlaceholderText(b.SourceRuns()), model.RunsPlaceholderText(back.SourceRuns()),
 		"the codes read back as the codes they were")
-	tgt := back.Target("nb")
-	require.NotNil(t, tgt)
+	tgt, ok := back.TargetEdition("nb")
+	require.True(t, ok)
 	assert.Equal(t, `Koble til med <x id="1"/>videotime<x id="/1"/> i <x id="2"/>Harbor-appen<x id="/2"/>.`, model.RunsPlaceholderText(tgt.Runs))
 }
