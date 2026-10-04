@@ -79,7 +79,7 @@ function indexBlocks(path: string, manifest: ReviewManifest): void {
   try {
     file = parseFile(readFileSync(path, "utf-8"));
   } catch {
-    return; // unparseable, or a bundle this build does not read — extract will rewrite it
+    return; // unparseable, or a bundle this build does not read; extract will rewrite it
   }
   for (const doc of file.documents ?? []) {
     for (const block of doc.blocks ?? []) {

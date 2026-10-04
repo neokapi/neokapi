@@ -1,5 +1,5 @@
 /**
- * @neokapi/kapi-format — reading a block's editions, and reading a file in
+ * @neokapi/kapi-format: reading a block's editions, and reading a file in
  * either schema.
  *
  * A block carries its content as peer editions under their edition keys. The
