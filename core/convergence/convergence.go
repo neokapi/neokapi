@@ -350,7 +350,7 @@ type Unit struct {
 // is the key the document cache, the overlays, and the state store all address a
 // unit by.
 //
-// Not the same ladder as model.Block.ChainUnit, which prefers the structural
+// Not the same ladder as model.Block.ChainKey, which prefers the structural
 // address over the name and refuses to fall through to the ID. Both are right
 // for their own question; see core/model/identity_ladders.go.
 func BlockKey(b *model.Block) string {
