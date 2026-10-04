@@ -68,6 +68,22 @@ func TestEditionRevision_IgnoresStatusAndOtherEditions(t *testing.T) {
 	assert.NotEqual(t, src, model.EditionRevision(b, model.EditionKey{}))
 }
 
+// A translation's revision is the one EditionRevision gives it, and the source
+// language names a translation only when the block holds one in it.
+func TestTargetRevision(t *testing.T) {
+	b := model.NewBlock("b1", "Hello")
+	b.SourceLocale = "en"
+	b.SetTargetRuns("fr-FR", []model.Run{model.TextR("Bonjour")})
+	assert.Equal(t, model.EditionRevision(b, model.Variant("fr-FR")), model.TargetRevision(b, "fr-FR"))
+	assert.Equal(t, model.TargetRevision(b, "fr-FR"), model.TargetRevision(b, "fr_FR"), "every spelling of a locale names one translation")
+	assert.Equal(t, model.AbsentRevision, model.TargetRevision(b, "de"))
+	assert.Equal(t, model.AbsentRevision, model.TargetRevision(b, "en"), "the source language names no translation here")
+
+	b.SetTargetRuns("en", []model.Run{model.TextR("Hi")})
+	assert.Equal(t, model.RunsRevision(model.Variant("en"), []model.Run{model.TextR("Hi")}), model.TargetRevision(b, "en"),
+		"a same-language translation is the one it names")
+}
+
 func TestCanonicalRunsJSON(t *testing.T) {
 	assert.Equal(t, "[]", string(model.CanonicalRunsJSON(nil)))
 	assert.Equal(t, "[]", string(model.CanonicalRunsJSON([]model.Run{})))
