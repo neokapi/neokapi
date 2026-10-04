@@ -953,9 +953,10 @@ check-edit-writes: i18n-catalogs ## Guard: a document reaches a file only where 
 # The guard type-checks every module with its tests and counts, per package,
 # what still names them outside core/model and the plugin wire. It reports
 # and exits 0 until the flip, which drops -report and adds it to lint and CI
-# (docs/internals/edit-model.md, WP14). The desktop placeholder bundle lets
-# its main package type-check.
-fieldguard: kapi-desktop-lint-deps ## Inventory: uses of Block.Source, Block.Targets, Block.SourceStatus and model.Target outside core/model (WP14)
+# (docs/internals/edit-model.md, WP14). A call outside a test to a helper
+# core/model exports for tests (Block.FileTargetAsSpelled) fails it now. The
+# desktop placeholder bundle lets its main package type-check.
+fieldguard: kapi-desktop-lint-deps ## Inventory: uses of Block.Source, Block.Targets, Block.SourceStatus and model.Target outside core/model (WP14); fails on a test-only helper called outside a test
 	@$(GO) run ./scripts/fieldguard -self-test
 	@$(GO) run ./scripts/fieldguard -report
 

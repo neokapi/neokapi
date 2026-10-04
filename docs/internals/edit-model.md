@@ -2025,9 +2025,12 @@ beside all of them in package-sized PRs.
   function whose signature carries a `Target` (`NewTarget`, `Block.Target`, `Block.SetTarget` and
   the variant forms), per package and module, non-test and test separately. A field of another type
   with the same name resolves to a different object and is not counted. `core/plugin/protoconvert`
-  is allowed as the plugin-wire mapping. The target prints the inventory and exits 0; `-v` lists
-  every use and `-format markdown` or `json` renders it for a report. The flip PR drops `-report`,
-  so a remaining use fails, and adds the target to `make lint`, `make pre-push` and CI. On
+  is allowed as the plugin-wire mapping. The uses of the helpers `core/model` exports for tests
+  (`Block.FileTargetAsSpelled`) are counted on their own lines, and a use outside a `_test.go` file
+  fails the target in every mode, in the allowed package too. Otherwise the target prints the
+  inventory and exits 0; `-v` lists every use and `-format markdown` or `json` renders it for a
+  report. The flip PR drops `-report`, so a remaining use of a field, the type, a function or a
+  test-only helper fails, and adds the target to `make lint`, `make pre-push` and CI. On
   2026-10-03 it counted 372 non-test uses in 113 files across 49 packages, and 759 test uses in 207
   files across 54 packages.
 - **Acceptance:** no reference to `Block.Source` or `Block.Targets` remains outside the plugin-wire
@@ -2047,7 +2050,8 @@ beside all of them in package-sized PRs.
     translation lives, so that the zero key never writes the native edition.
   - `Block.FileTargetAsSpelled` files a target under a key that is not canonical (`nb_NO`), the
     state a direct write to the storage leaves, for the tests of consumers that must cope with it.
-    The flip removes it: a test then writes `b.Editions[key]` directly.
+    `make fieldguard` fails on a call to it outside a test. The flip removes it: a test then
+    writes `b.Editions[key]` directly.
 
 ### WP13. Close-out
 
