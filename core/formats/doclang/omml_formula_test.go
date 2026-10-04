@@ -16,13 +16,13 @@ func TestFormulaBlockFromForeignMath(t *testing.T) {
 	blk.Translatable = false
 	blk.Type = "math"
 	blk.SetSemanticRole(model.RoleFormula, 0)
-	blk.Source = []model.Run{{Ph: &model.PlaceholderRun{
+	blk.SetSourceRuns([]model.Run{{Ph: &model.PlaceholderRun{
 		ID:    "c1",
 		Type:  "opaque-para-child",
 		Data:  "<m:oMath><m:r><m:t>x</m:t></m:r></m:oMath>",
 		Equiv: `$$\int_a^b x\,dx$$`, // markdown form — must NOT leak into DocLang
 		Disp:  `\int_a^b x\,dx`,     // bare LaTeX — the DocLang form
-	}}}
+	}}})
 
 	out := string(renderParts(t, []*model.Part{{Type: model.PartBlock, Resource: blk}}))
 	assert.Contains(t, out, `<formula>\int_a^b x\,dx</formula>`, "formula carries bare LaTeX")
