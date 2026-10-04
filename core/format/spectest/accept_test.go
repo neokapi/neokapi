@@ -69,10 +69,7 @@ func loadAcceptSpec(t *testing.T) (*spec.Spec, spec.Example, spec.Example) {
 func sampleParts() []*model.Part {
 	return []*model.Part{
 		{Type: model.PartLayerStart, Resource: &model.Layer{ID: "doc", Format: "plaintext"}},
-		{Type: model.PartBlock, Resource: &model.Block{
-			ID: "b1", Translatable: true,
-			Source: []model.Run{{Text: &model.TextRun{Text: "hello"}}},
-		}},
+		{Type: model.PartBlock, Resource: model.NewBlock("b1", "hello")},
 		{Type: model.PartLayerEnd, Resource: &model.Layer{ID: "doc"}},
 	}
 }
