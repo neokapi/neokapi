@@ -38,8 +38,8 @@ func pulledTargets(blocks []apiclient.SyncBlock, locale string) map[string][]mod
 		if _, ok := sb.Targets[locale]; !ok {
 			continue
 		}
-		t := apiclient.SyncBlockToBlock(sb).Target(model.LocaleID(locale))
-		if t == nil || !hasText(t.Runs) {
+		t, ok := apiclient.SyncBlockToBlock(sb).TargetEdition(model.LocaleID(locale))
+		if !ok || !hasText(t.Runs) {
 			continue
 		}
 		out[targetMatchKey(sb.Name, sb.SourceText)] = t.Runs
@@ -72,8 +72,8 @@ func pulledBases(blocks []apiclient.SyncBlock, locale string, records []venue.Un
 		if !ok || d.ContentHash == "" {
 			continue
 		}
-		t := apiclient.SyncBlockToBlock(sb).Target(model.LocaleID(locale))
-		if t == nil || d.TargetHash != state.TargetHash(model.RunsText(t.Runs)) {
+		t, ok := apiclient.SyncBlockToBlock(sb).TargetEdition(model.LocaleID(locale))
+		if !ok || d.TargetHash != state.TargetHash(model.RunsText(t.Runs)) {
 			continue
 		}
 		out[targetMatchKey(sb.Name, sb.SourceText)] = d.ContentHash

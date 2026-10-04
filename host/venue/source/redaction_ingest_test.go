@@ -78,7 +78,7 @@ func TestScanLocalBlocks_RedactsAtIngest(t *testing.T) {
 	// from every block the scan would push.
 	var sawPlaceholderRun bool
 	for _, b := range blocks {
-		for _, r := range b.Source {
+		for _, r := range b.SourceRuns() {
 			if r.Ph != nil && strings.HasPrefix(r.Ph.Type, redaction.CategoryPrefix) {
 				sawPlaceholderRun = true
 			}
