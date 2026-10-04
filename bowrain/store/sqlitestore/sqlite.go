@@ -849,11 +849,10 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 		defer guarded.Close()
 	}
 
-	// Batch-load existing block hashes + existing target locales so
+	// Batch-load existing source revisions + existing target locales so
 	// we can diff against the new write for change-log purposes.
 	// Targets now live in the translations table (#403/#405); we
 	// query it directly here rather than parsing inline JSON.
-	existingHashes := map[string]string{}
 	existingRevisions := map[string]string{}
 	existingLocales := map[string]map[string]struct{}{}
 	{
@@ -886,7 +885,7 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 
 			// The concatenated fragment is ",?,?,…" from a count — never
 			// caller data; values travel as bind parameters below.
-			hashQuery := `SELECT id, content_hash, source_revision FROM blocks WHERE project_id=? AND stream=? AND id IN (?` + //nolint:gosec // placeholder list, not data
+			hashQuery := `SELECT id, source_revision FROM blocks WHERE project_id=? AND stream=? AND id IN (?` + //nolint:gosec // placeholder list, not data
 				strings.Repeat(",?", len(chunk)-1) + `)`
 			args := make([]any, 0, len(chunk)+2)
 			args = append(args, projectID, stream)
@@ -899,12 +898,11 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 			}
 			var present []string
 			for hashRows.Next() {
-				var bid, ch, rev string
-				if err := hashRows.Scan(&bid, &ch, &rev); err != nil {
+				var bid, rev string
+				if err := hashRows.Scan(&bid, &rev); err != nil {
 					hashRows.Close()
-					return fmt.Errorf("scan hash: %w", err)
+					return fmt.Errorf("scan source revision: %w", err)
 				}
-				existingHashes[bid] = ch
 				existingRevisions[bid] = rev
 				present = append(present, bid)
 			}
@@ -968,9 +966,8 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 		identity := model.ComputeIdentity(b)
 		sourceRevision := venue.SourceRevision(b, source)
 
-		_, isExisting := existingHashes[internalID]
+		existingRevision, isExisting := existingRevisions[internalID]
 		isNew := !isExisting
-		existingRevision := existingRevisions[internalID]
 		if wb != nil && !wb.Admits(internalID, isExisting, existingRevision) {
 			continue
 		}

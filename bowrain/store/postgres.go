@@ -1012,12 +1012,11 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 		defer guarded.Close()
 	}
 
-	// Batch-load existing block source hashes + prior target locales
+	// Batch-load existing block source revisions + prior target locales
 	// for change-log diffing. Targets live in the translations table
 	// (#403/#405); we pull their locales here so logChange can
 	// distinguish target_added vs target_modified on upsert.
 	type existingBlock struct {
-		contentHash    string
 		sourceRevision string
 		locales        map[string]struct{}
 	}
@@ -1049,7 +1048,7 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 
 			// The concatenated fragment is "$2,$3,…" from a count — never
 			// caller data; values travel as bind parameters below.
-			hashQuery := `SELECT id, content_hash, source_revision FROM blocks WHERE project_id=$1 AND stream=$2 AND id IN (` +
+			hashQuery := `SELECT id, source_revision FROM blocks WHERE project_id=$1 AND stream=$2 AND id IN (` +
 				placeholderList("pg", 3, len(chunk)) + `)`
 			hashRows, err := tx.QueryContext(ctx, hashQuery, append([]any{projectID, stream}, anyStrings(chunk)...)...)
 			if err != nil {
@@ -1057,12 +1056,12 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 			}
 			var present []string
 			for hashRows.Next() {
-				var bid, ch, rev string
-				if err := hashRows.Scan(&bid, &ch, &rev); err != nil {
+				var bid, rev string
+				if err := hashRows.Scan(&bid, &rev); err != nil {
 					hashRows.Close()
-					return fmt.Errorf("scan hash: %w", err)
+					return fmt.Errorf("scan source revision: %w", err)
 				}
-				existingBlocks[bid] = existingBlock{contentHash: ch, sourceRevision: rev, locales: map[string]struct{}{}}
+				existingBlocks[bid] = existingBlock{sourceRevision: rev, locales: map[string]struct{}{}}
 				present = append(present, bid)
 			}
 			// A truncated read here silently drops existing blocks from the

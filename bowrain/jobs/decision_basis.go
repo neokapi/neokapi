@@ -18,7 +18,7 @@ import (
 // revision (unit_decisions.basis). That is true of a reviewer's approval and of
 // the plain basis a producer writes when it puts a translation somewhere, so
 // one comparison answers for both: the recorded basis against the revision of
-// the source the block carries now (store.BasisCurrent). Equal means the
+// the source the block carries now (store.BasisStale). Equal means the
 // translation renders the source the project holds; different means the
 // source has changed under it, its wording or an inline code.
 //
@@ -130,8 +130,8 @@ func (l decisionLedger) record(sb *venue.StoredBlock, key model.EditionKey) (led
 
 // needsDraft reports whether a locale still has work on this block. Three ways
 // a unit is owed one: it carries no target for the locale; it carries one whose
-// recorded basis is not the revision of the source the block holds; or a
-// reviewer turned the translation down. The draft mark answers all three the
+// recorded basis names a revision of the source other than the one the block
+// holds; or a reviewer turned the translation down. The draft mark answers all three the
 // same way, because a unit the platform has already drafted against the source
 // the block holds now is waiting on a person whatever the row's verdict says.
 //
