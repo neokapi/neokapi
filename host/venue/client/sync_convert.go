@@ -45,7 +45,7 @@ func StoredBlockToSyncBlock(sb *venue.StoredBlock) SyncBlock {
 		ContentHash:        sb.ContentHash,
 	}
 
-	// Source content — the flat run sequence rides as a single wire segment.
+	// Source content: the flat run sequence rides as a single wire segment.
 	if len(src.Runs) > 0 {
 		sync.Source = []SyncSegment{runsToWireSegment(src.Runs)}
 	}
@@ -70,7 +70,7 @@ func StoredBlockToSyncBlock(sb *venue.StoredBlock) SyncBlock {
 		sync.Annotations = data
 	}
 
-	// Overlays — the positional, run-anchored stand-off layers. Carried via the
+	// Overlays: the positional, run-anchored stand-off layers. Carried via the
 	// canonical overlay JSON codec so a term/entity/segmentation marked in kapi
 	// survives the pull. Only emitted when present (nil/empty encode to "[]",
 	// which we drop to keep the wire lean).
@@ -192,7 +192,7 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 		Properties:         sb.Properties,
 	}
 
-	// Source content — concatenate the runs of every wire segment back into the
+	// Source content: concatenate the runs of every wire segment back into the
 	// block's flat run sequence.
 	var source []model.Run
 	for _, seg := range sb.Source {
@@ -206,7 +206,7 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 		b.SetSourceRuns(source)
 	}
 
-	// Targets — one target per variant, runs concatenated from the wire
+	// Targets: one target per variant, runs concatenated from the wire
 	// segments, status/origin/score restored from the first segment's props.
 	// Each is filed as a target, so a target in the source language stays one.
 	for keyText, segs := range sb.Targets {
@@ -243,7 +243,7 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 		}
 	}
 
-	// Overlays — rehydrate the positional stand-off layers via the canonical
+	// Overlays: rehydrate the positional stand-off layers via the canonical
 	// overlay JSON codec (typed span values through the payload registry;
 	// unknown kinds degrade to a GenericAnnotation).
 	if len(sb.Overlays) > 0 {
@@ -252,7 +252,7 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 		}
 	}
 
-	// Skeleton (discriminated codec — see venue.MarshalSkeleton).
+	// Skeleton (discriminated codec; see venue.MarshalSkeleton).
 	if len(sb.Skeleton) > 0 {
 		if skel, err := venue.UnmarshalSkeleton(sb.Skeleton); err == nil {
 			b.Skeleton = skel

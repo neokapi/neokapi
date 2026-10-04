@@ -42,7 +42,7 @@ func blockWithHeavyPayload(id string, payloadBytes int) *model.Block {
 		// Heavy non-translatable properties.
 		Properties: map[string]string{"bulk": half},
 	}
-	// Tiny source — defeats any SourceText-based size estimate.
+	// Tiny source, which defeats any SourceText-based size estimate.
 	b.SetSourceText("hi")
 	// Heavy target runs.
 	b.SetEdition(model.EditionKey{Locale: "fr-FR"}, model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: bulk}}}})
@@ -195,7 +195,7 @@ func TestPushChunkRecordCountCap(t *testing.T) {
 
 // TestPushDropsSkeletonFromWire is the finding-2b guard: skeleton is format
 // scaffolding that belongs at the connector edge, not durably in the content
-// store, so it must not ride the default push wire — otherwise its bytes land
+// store, so it must not ride the default push wire. Otherwise its bytes land
 // in the staging chunk blobs. Every uploaded SyncBlock's skeleton must be empty
 // even though the source block carries one.
 func TestPushDropsSkeletonFromWire(t *testing.T) {
