@@ -135,8 +135,7 @@ func TestEditPlan_TargetOverlaysFollowAndKeysAreCanonical(t *testing.T) {
 		}
 	}
 	assert.Equal(t, "Hei", b.TargetText("nb-NO"))
-	_, raw := b.Targets[model.VariantKey{Locale: "nb_NO"}]
-	assert.False(t, raw, "no target is filed under the spelling the plan used")
+	assert.NotContains(t, b.TargetLocales(), model.LocaleID("nb_NO"), "no target is filed under the spelling the plan used")
 }
 
 // A bilingual file whose two languages are one holds a target in the source
