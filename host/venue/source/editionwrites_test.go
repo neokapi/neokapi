@@ -201,9 +201,9 @@ func TestPull_RecordsTheBasisTheVenueGaveATranslation(t *testing.T) {
 				[]byte(`{"greeting": "Hello there", "farewell": "Goodbye now"}`+"\n"), 0o644))
 			match := targetMatchKey("greeting", "Hello there")
 			targets := map[string][]model.Run{match: {{Text: &model.TextRun{Text: "Bonjour le monde"}}}}
-			var bases map[string]string
+			var bases map[string]pulledBasis
 			if tc.venue != "" {
-				bases = map[string]string{match: state.SourceHash(tc.venue)}
+				bases = map[string]pulledBasis{match: {hash: state.SourceHash(tc.venue)}}
 			}
 			wrote, err := conn.pullEdition(ctx, pullServices{}, "locales/en.json", "fr", targets, bases, nil)
 			require.NoError(t, err)
@@ -268,12 +268,41 @@ func TestPulledBases_NameTheSourceTheVenueRecorded(t *testing.T) {
 		block("thanks", "Thank you", "Merci"),
 		block("title", "Welcome", "Bienvenue"),
 	}
+	revisioned := record("title", "Welcome", "Bienvenue")
+	revisioned.Revision = "r:0000000000000000" // a record of another translation, by revision
 	got := pulledBases(blocks, "fr", []venue.UnitDecision{
 		record("greeting", "Hello", "Bonjour le monde"),
 		record("farewell", "Goodbye now", "Salut"), // a record of another translation
 		{ItemName: "locales/en.json", Unit: "thanks", Variant: "fr", TargetHash: state.TargetHash("Merci")},
+		revisioned,
 	})
-	assert.Equal(t, map[string]string{targetMatchKey("greeting", "Hello world"): state.SourceHash("Hello")}, got)
+	assert.Equal(t, map[string]pulledBasis{targetMatchKey("greeting", "Hello world"): {hash: state.SourceHash("Hello")}}, got)
+}
+
+// A venue's record that names the source by revision is read by it: the basis
+// names the source the checkout holds while the revision does, under any key a
+// read of the document gives it, and a link moved in the source, which no hash
+// sees, means it names another.
+func TestPulledBasis_NamesTheSourceByRevision(t *testing.T) {
+	link := func(href string) []model.Run {
+		return []model.Run{
+			model.TextR("Read the "),
+			model.PcOpenR(model.PcOpenRun{ID: "1", Type: "link", Data: `<a href="` + href + `">`}),
+			model.TextR("guide"),
+			model.PcCloseR(model.PcCloseRun{ID: "1", Type: "link", Data: "</a>"}),
+		}
+	}
+	held := model.NewRunsBlock("tu1", link("https://a.example"))
+	held.SourceLocale = "en"
+	venueRead := model.NewRunsBlock("tu1", link("https://a.example"))
+	basis := pulledBasis{rev: model.EditionRevision(venueRead, model.EditionKey{}), hash: state.SourceHash(venueRead.SourceText())}
+	assert.True(t, basis.names(held, "en"), "the venue read the source under no language; the content is the one held")
+
+	moved := model.NewRunsBlock("tu1", link("https://b.example"))
+	moved.SourceLocale = "en"
+	assert.False(t, basis.names(moved, "en"), "the link moved under the venue's translation")
+	assert.True(t, pulledBasis{hash: basis.hash}.names(moved, "en"), "a record made before revisions is read by its hash")
+	assert.False(t, pulledBasis{}.names(held, "en"), "a record that names no source names none")
 }
 
 // After kapi up, the push carries how each translation was written: the source

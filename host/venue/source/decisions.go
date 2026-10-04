@@ -111,6 +111,11 @@ func (c *BowrainSourceConnector) projectDecisions(ctx context.Context) ([]venue.
 			Status:      string(u.Status),
 			TargetHash:  u.TargetHash,
 			ContentHash: u.ContentHash,
+			// The revision pairing travels beside the hashes, so the venue's
+			// ledger names the content the decision was made on as the
+			// project's record does.
+			Revision:    u.Revision,
+			Basis:       u.Basis,
 			ReviewState: u.Decision.ReviewState,
 			DecidedBy:   u.Decision.By,
 			DecidedAt:   u.Decision.At,
@@ -186,6 +191,8 @@ func (c *BowrainSourceConnector) recordPulledDecisions(ctx context.Context, pull
 			// and every unit reviewed on the server would read as current here
 			// however far its source had moved since.
 			ContentHash: d.ContentHash,
+			Revision:    d.Revision,
+			Basis:       d.Basis,
 			Decision: state.Decision{
 				ReviewState: d.ReviewState,
 				By:          d.DecidedBy,

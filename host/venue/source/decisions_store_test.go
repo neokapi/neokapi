@@ -176,6 +176,7 @@ func TestDecisions_ARejectionCarriesTheApprovedBasis(t *testing.T) {
 		Status: model.TargetStatusDraft, Decision: state.Decision{ReviewState: "rejected"},
 		TargetHash:  "th-redraft",
 		ContentHash: "sh-approved-source", GoverningFingerprint: "fp-approved",
+		Revision: "r:2222222222222222", Basis: "r:1111111111111111",
 		Updated: "2026-08-05T12:00:00Z",
 	}}))
 
@@ -188,6 +189,8 @@ func TestDecisions_ARejectionCarriesTheApprovedBasis(t *testing.T) {
 	assert.Equal(t, "fp-approved", out[0].GoverningFingerprint)
 	assert.Equal(t, "th-redraft", out[0].TargetHash,
 		"the translation it turned down is the rejection's own")
+	assert.Equal(t, "r:2222222222222222", out[0].Revision, "the pairing travels by revision too")
+	assert.Equal(t, "r:1111111111111111", out[0].Basis)
 
 	// And back down onto a checkout that recorded none of it.
 	out[0].Updated = "2026-08-05T13:00:00Z"
@@ -200,6 +203,8 @@ func TestDecisions_ARejectionCarriesTheApprovedBasis(t *testing.T) {
 	require.True(t, found)
 	assert.Equal(t, "sh-approved-source", us.ContentHash)
 	assert.Equal(t, "fp-approved", us.GoverningFingerprint)
+	assert.Equal(t, "r:2222222222222222", us.Revision, "a pulled decision keeps the pairing it was made on")
+	assert.Equal(t, "r:1111111111111111", us.Basis)
 }
 
 // A pull brings the venue's decisions, not its records of what it produced:

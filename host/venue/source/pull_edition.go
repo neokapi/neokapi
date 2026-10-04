@@ -47,13 +47,29 @@ func pulledTargets(blocks []apiclient.SyncBlock, locale string) map[string][]mod
 	return out
 }
 
+// pulledBasis is the source a pulled translation was made from, as the
+// venue's record of it names it: by revision where the record carries one,
+// and by content hash.
+type pulledBasis struct {
+	rev, hash string
+}
+
+// names reports whether the basis is the source of b as this checkout holds
+// it: by revision where the record carries one, under any key a read of the
+// document gives the source, and by hash where it was recorded before
+// revisions.
+func (p pulledBasis) names(b *model.Block, source model.LocaleID) bool {
+	r := state.UnitState{Basis: p.rev, ContentHash: p.hash}
+	return r.BasisKnown() && !r.SourceStale(state.ReadSource(b, source))
+}
+
 // pulledBases maps each pulled block's match key (targetMatchKey) to the
 // source its translation into locale was made from, as the venue's record of
 // that translation says: the basis of a decision on it, or of a draft the
 // venue made. records is the venue's ledger as the pull carries it. A
 // translation the venue's record does not describe, and one whose source the
 // venue does not know (a person wrote it there), are left out.
-func pulledBases(blocks []apiclient.SyncBlock, locale string, records []venue.UnitDecision) map[string]string {
+func pulledBases(blocks []apiclient.SyncBlock, locale string, records []venue.UnitDecision) map[string]pulledBasis {
 	if len(records) == 0 {
 		return nil
 	}
@@ -62,21 +78,29 @@ func pulledBases(blocks []apiclient.SyncBlock, locale string, records []venue.Un
 	for _, d := range records {
 		byUnit[unitAt{d.ItemName, d.Unit, d.Variant}] = d
 	}
-	out := map[string]string{}
+	out := map[string]pulledBasis{}
 	for _, sb := range blocks {
 		unit := sb.Unit
 		if unit == "" {
 			unit = sb.Name
 		}
 		d, ok := byUnit[unitAt{sb.ItemName, unit, locale}]
-		if !ok || d.ContentHash == "" {
+		if !ok || (d.ContentHash == "" && d.Basis == "") {
 			continue
 		}
 		t, ok := apiclient.SyncBlockToBlock(sb).TargetEdition(model.LocaleID(locale))
-		if !ok || d.TargetHash != state.TargetHash(model.RunsText(t.Runs)) {
+		if !ok {
 			continue
 		}
-		out[targetMatchKey(sb.Name, sb.SourceText)] = d.ContentHash
+		record := state.UnitState{TargetHash: d.TargetHash, Revision: d.Revision}
+		if record.TargetHash == "" && record.Revision == "" ||
+			record.Stale(state.Reading{
+				Revision:   model.RunsRevision(model.Variant(model.LocaleID(locale)), t.Runs),
+				TargetHash: state.TargetHash(model.RunsText(t.Runs)),
+			}) {
+			continue // the record is about another translation
+		}
+		out[targetMatchKey(sb.Name, sb.SourceText)] = pulledBasis{rev: d.Basis, hash: d.ContentHash}
 	}
 	return out
 }
@@ -122,7 +146,7 @@ type pullServices map[string]*change.Service
 // moves. Any other is recorded with none (host.WithStatedBases): the venue
 // made it from wording this checkout does not hold, and the source the
 // checkout holds would claim it current.
-func (c *BowrainSourceConnector) pullEdition(ctx context.Context, services pullServices, itemName, locale string, targets map[string][]model.Run, bases map[string]string, media []MediaReplacement) (bool, error) {
+func (c *BowrainSourceConnector) pullEdition(ctx context.Context, services pullServices, itemName, locale string, targets map[string][]model.Run, bases map[string]pulledBasis, media []MediaReplacement) (bool, error) {
 	svc := services[locale]
 	if svc == nil || len(media) > 0 {
 		opts := host.ChangeServiceOptions{
@@ -158,7 +182,7 @@ func (c *BowrainSourceConnector) pullEdition(ctx context.Context, services pullS
 			IfMatch: model.EditionRevision(b, key),
 			Body:    &change.SetContent{Runs: runs},
 		}
-		if basis, known := bases[match]; known && basis == state.SourceHash(b.SourceText()) {
+		if basis, known := bases[match]; known && basis.names(b, c.project.Recipe.Defaults.SourceLanguage) {
 			op.Basis = r.Rev
 		}
 		ops = append(ops, op)
