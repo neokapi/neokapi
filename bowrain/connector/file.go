@@ -387,7 +387,7 @@ func isRegularFile(path string) bool {
 // delivery materializer promotes the reviewed target into the source position,
 // so a promoted block's source already holds the reviewed text).
 func deliveredRuns(b *model.Block, locale model.LocaleID) []model.Run {
-	if t := b.Target(locale); t != nil && len(t.Runs) > 0 {
+	if t, ok := b.TargetEdition(locale); ok && len(t.Runs) > 0 {
 		return t.Runs
 	}
 	return b.SourceRuns()
