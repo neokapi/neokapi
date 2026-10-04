@@ -48,10 +48,11 @@ func (s SourceStatus) EffectiveRank() int {
 	return s.Rank()
 }
 
-// TranslateAfterLevel is what a block's source must reach before its
-// translations may be produced: the runtime counterpart of the recipe's
-// `defaults.translate_after` string. The fan-out is held for any block whose
-// source has not reached it.
+// TranslateAfterLevel is the derivation gate: what an edition must reach
+// before an edition is derived from it, so a block's translations are produced
+// only once its source has reached the level. It is the runtime counterpart of
+// the recipe's `defaults.translate_after` string, and the fan-out is held for
+// any block whose source has not reached it (AdmitsDerivation).
 type TranslateAfterLevel string
 
 const (
@@ -156,7 +157,32 @@ func (b *Block) SourceFailing() bool {
 	return b.Properties[PropSourceFailing] == "1"
 }
 
-// AdmitsBlock reports whether a settled block has reached this level.
+// AdmitsDerivation reports whether an edition may be derived from edition
+// from of b at this level. The edition it would be made from climbs the ladder
+// of its role: the edition the block was read in goes from written to
+// established, and its failing checks (SourceFailing) hold it at any level but
+// none; any other edition is written once translated and established once a
+// person established it. Level none admits every derivation.
+func (g TranslateAfterLevel) AdmitsDerivation(b *Block, from EditionKey) bool {
+	if g == TranslateAfterNone {
+		return true
+	}
+	e, ok := b.Edition(from)
+	if !ok {
+		return false
+	}
+	if b.holdsSource(from) {
+		return g.Admits(SourceStatus(e.Status), b.SourceFailing())
+	}
+	s := TargetStatus(e.Status)
+	if g == TranslateAfterEstablished {
+		return s == TargetStatusEstablished
+	}
+	return s.Rank() >= TargetStatusTranslated.Rank()
+}
+
+// AdmitsBlock reports whether a settled block's translations may be produced:
+// the derivation gate on the edition the block was read in (AdmitsDerivation).
 func (g TranslateAfterLevel) AdmitsBlock(b *Block) bool {
-	return g.Admits(SourceStatus(b.sourceStatus()), b.SourceFailing())
+	return g.AdmitsDerivation(b, EditionKey{})
 }
