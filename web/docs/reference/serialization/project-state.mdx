@@ -1,15 +1,15 @@
 ---
 sidebar_position: 7
 title: Project state
-description: "The decision record kapi context import reads from .kapi/state/ (JSON Lines, one shard per document, one line per unit), the ledger it is written from, and the unit state fields."
+description: "The decision record kapi context import reads from .kapi/state/ (JSON Lines, one shard per document, one line per block), the ledger it is written from, and the block state fields."
 keywords:
   [
     project state,
-    kapi/units,
+    kapi/blocks,
     jsonl,
     kapi-state,
     review,
-    unit state,
+    block state,
     approval,
     workflow,
   ]
@@ -17,9 +17,9 @@ keywords:
 
 # Project state (`.kapi/state/*.jsonl`)
 
-Project state records **where each unit stands**: what has been
+Project state records **where each block stands**: what has been
 reviewed, what was approved and by whom, what status a target has reached. It is
-the portable representation of the project's unit decisions.
+the portable representation of the project's block decisions.
 
 Implemented in Go at
 [`core/state`](https://github.com/neokapi/neokapi/tree/main/core/state).
@@ -31,7 +31,7 @@ A decision is appended to the project's **decision ledger**, which lives in the
 recorded. Every local checkout reads the ledger and applies decisions whose
 source and target hashes match its current content.
 
-The shards are the ledger in a form git can track: for each unit, what was
+The shards are the ledger in a form git can track: for each block, what was
 decided about the source and the translation. `kapi context import` reads that
 shape in, and the ledger moves between machines as operations, through a
 context backend or a transfer file.
@@ -50,7 +50,7 @@ The consequences follow from that:
 ## One shard per document
 
 The record is a directory of JSON Lines files, one per document
-scope, each line a single unit:
+scope, each line a single block:
 
 ```
 .kapi/state/
@@ -63,14 +63,14 @@ scope, each line a single unit:
 ```
 
 **JSON Lines rather than one document**, because the record is appended to and
-diffed far more often than it is read whole: a line per unit makes recording an
+diffed far more often than it is read whole: a line per block makes recording an
 approval a one-line diff instead of a rewrite of every byte. **Sharded per
 document** for the same reason at a larger grain: editing the documentation
 does not rewrite the shard holding the interface strings, and two branches
 touching unrelated documents do not conflict on sight.
 
 Lines are sorted within a shard, so a file's bytes depend only on its contents.
-A shard whose last unit is gone is pruned rather than left behind claiming units
+A shard whose last block is gone is pruned rather than left behind claiming blocks
 that no longer exist. A malformed line is an error: state is authoritative and
 must never be silently discarded.
 
@@ -93,23 +93,23 @@ The [overview](/reference/serialization/overview) states the general rule, and
 [Moving context](/kapi/context-portability) covers the four verbs that carry
 context between the store and files.
 
-## Unit state
+## Block state
 
-Each line carries one unit's state. The record's schema identity is
+Each line carries one block's state. The record's schema identity is
 `kapi-state` at `schemaVersion` `1.0`; a shard is bare JSON Lines, so
 the version rides the single-document serialization of the same records.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `scope` | string | The document the unit belongs to, and the shard it is written into. Part of the record's identity: a unit id is unique inside its document and nowhere wider. |
-| `unit` | string | Unit identity: the block's content hash, the same key the block tables and overlays address it by. |
+| `scope` | string | The document the block belongs to, and the shard it is written into. Part of the record's identity: a block id is unique inside its document and nowhere wider. |
+| `unit` | string | Block identity: the block's content hash, the same key the block tables and overlays address it by. |
 | `variant` | object | The locale, and optional tone/channel, this state applies to. |
 | `status` | string | Target ladder position: draft → translated → established. |
 | `sourceStatus` | string | Source ladder position: written → established. |
 | `origin` | object | Provenance of the current target (engine/tool/reference). |
 | `targetHash` | string | Content hash of the translation this state blesses. |
-| `contentHash` | string | The decision's **basis**: the hash of the source wording the decision was made against. A record whose basis no longer matches the unit's current source reads as *stale*. |
-| `contextHash` | string | The fingerprint of the governing context (voice, terms, point) in force when the unit was produced; the staleness gate compares it against the context in force now. |
+| `contentHash` | string | The decision's **basis**: the hash of the source wording the decision was made against. A record whose basis no longer matches the block's current source reads as *stale*. |
+| `contextHash` | string | The fingerprint of the governing context (voice, terms, point) in force when the block was produced; the staleness gate compares it against the context in force now. |
 | `decision` | object | The recorded workflow decision: `reviewState` (`approved`, `rejected`, …), `by` (empty for a person, `ai/<model>` for an autonomous AI approval, `agent/<client>` for an agent acting for a person), `at`, `note`, `parked`, `assignee`. |
 | `aiReview` | object | Last AI pre-review annotation. Optional. |
 | `updated` | string | RFC 3339. |
@@ -123,7 +123,7 @@ deliverable; this record only blesses it.
 
 **`contentHash` binds the decision to its source.** An approval is about a
 pairing, this rendering *of this source*, so the record keeps the hash of the
-source wording as the decision's basis. Edit the source and the unit reads as
+source wording as the decision's basis. Edit the source and the block reads as
 stale until someone decides the new pairing; restore the source and the
 decision applies again. It is also what lets a block removed in one revision
 and restored in a later one come back to its own history rather than being
@@ -147,7 +147,7 @@ approval remain distinguishable in the record.
 - **Anything derivable.** Coverage percentages and review queues are computed
   from these shards plus the content rather than stored alongside.
 - **A decision this checkout does not hold.** The shards are what this checkout
-  holds now; the ledger keeps the rest, including the history of a unit that has
+  holds now; the ledger keeps the rest, including the history of a block that has
   been decided more than once.
 
 ## See also

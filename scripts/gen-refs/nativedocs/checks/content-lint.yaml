@@ -26,7 +26,7 @@ overview: |
   Every one of these is a judgement about *shape*, and shape is judged over the
   block's runs rather than its plain text. A placeholder is content: it holds a
   position, so the space beside it separates it from a word rather than trailing
-  off the content's edge. An inline code span stands as one unit, so what an
+  off the content's edge. An inline code span stands whole, so what an
   author wrote inside backticks is quoted rather than graded, so two spaces in a
   code span are the example rather than a defect. And a single terminating line break is
   the content's line ending, which formats such as a YAML block scalar require, so

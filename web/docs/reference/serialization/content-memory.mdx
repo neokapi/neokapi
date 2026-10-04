@@ -129,7 +129,7 @@ no line-delimited form.
 every write (entries sorted by id, timestamps normalized, deterministic
 formatting) so the bytes are stable for hashing and diff cleanly under git.
 There is no append path to optimize for, and an append-only file would defeat
-exactly the byte-stability that makes the bundle hashable as a unit.
+exactly the byte-stability that makes the bundle hashable as a whole.
 
 The shape is also more than a flat record stream. A bundle is an envelope plus
 two correlated arrays (`entries` and the `importSessions` they reference by id)

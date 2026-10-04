@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T07:58:14Z",
+  "generatedAt": "2026-10-04T06:55:54Z",
   "kind": "tool",
   "entries": [
     {
@@ -1001,7 +1001,7 @@
           "createOnNonTranslatable": {
             "type": "boolean",
             "title": "Create on Non-Translatable",
-            "description": "Create a target even for non-translatable text units",
+            "description": "Create a target even for non-translatable blocks",
             "default": true
           },
           "overwrite": {
@@ -1484,7 +1484,7 @@
           "includeNonTranslatable": {
             "type": "boolean",
             "title": "Include Non-Translatable",
-            "description": "Apply the removal action even to text units marked as non-translatable",
+            "description": "Apply the removal action even to blocks marked as non-translatable",
             "default": true
           },
           "replaceWithSpace": {
@@ -3050,7 +3050,7 @@
       "source": "built-in",
       "kind": "tool",
       "displayName": "Remove Target",
-      "description": "Remove target segments from blocks, by locale or by selected text-unit IDs.",
+      "description": "Remove target segments from blocks, by locale or by selected block IDs.",
       "category": "text-processing",
       "tags": [
         "languages"
@@ -3080,13 +3080,13 @@
           "filterByIDs": {
             "type": "boolean",
             "title": "Filter by IDs",
-            "description": "When true filter text units by ID; when false filter by target locale",
+            "description": "When true filter blocks by ID; when false filter by target locale",
             "default": true
           },
           "removeBlockIfEmpty": {
             "type": "boolean",
-            "title": "Remove Empty Text Units",
-            "description": "Remove the text unit entirely if it has no remaining targets after removal",
+            "title": "Remove Empty Blocks",
+            "description": "Remove the block entirely if it has no remaining targets after removal",
             "default": false
           },
           "targetLocale": {
@@ -3096,16 +3096,16 @@
           },
           "textUnitIDs": {
             "type": "string",
-            "title": "Text Unit IDs for Removal",
-            "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
+            "title": "Block IDs for Removal",
+            "description": "Comma-delimited list of block IDs whose targets should be removed; empty removes all targets"
           }
         }
       },
       "doc": {
-        "overview": "The **Remove Target** tool deletes target segments from blocks. With a target\nlocale set, it removes only that locale's targets; with no locale, it removes\nall targets. It is useful for resetting translations before a fresh run, or\nfor clearing targets in a specific locale.\n\nRemoval can be scoped to specific text units by ID, which restricts the\noperation to a comma-separated list of block IDs. Optionally, a block whose\ntargets are all removed can itself be dropped from the stream.\n",
+        "overview": "The **Remove Target** tool deletes target segments from blocks. With a target\nlocale set, it removes only that locale's targets; with no locale, it removes\nall targets. It is useful for resetting translations before a fresh run, or\nfor clearing targets in a specific locale.\n\nRemoval can be scoped to specific blocks by ID, which restricts the\noperation to a comma-separated list of block IDs. Optionally, a block whose\ntargets are all removed can itself be dropped from the stream.\n",
         "parameters": {
           "filterByIDs": {
-            "description": "Filter text units by ID rather than by locale alone.",
+            "description": "Filter blocks by ID rather than by locale alone.",
             "help": "When enabled, removal is restricted to the blocks listed in\n`textUnitIDs`. When disabled, removal is driven by the target locale\nacross all blocks.\n",
             "values": "`true` / `false` (default `true`)"
           },
@@ -3120,8 +3120,8 @@
             "values": "BCP-47 locale (empty = remove all targets)"
           },
           "textUnitIDs": {
-            "description": "Comma-separated text-unit IDs to restrict removal to.",
-            "help": "A comma-delimited list of block (text-unit) IDs. When set and ID\nfiltering is enabled, only blocks whose ID appears in the list have their\ntargets removed. Leave empty to remove targets from all blocks.\n",
+            "description": "Comma-separated block IDs to restrict removal to.",
+            "help": "A comma-delimited list of block IDs. When set and ID\nfiltering is enabled, only blocks whose ID appears in the list have their\ntargets removed. Leave empty to remove targets from all blocks.\n",
             "values": "comma-separated string",
             "dependsOn": [
               {
@@ -3141,7 +3141,7 @@
             "config": "targetLocale: fr\n"
           },
           {
-            "title": "Remove targets for selected text units",
+            "title": "Remove targets for selected blocks",
             "description": "Restrict removal to specific block IDs.",
             "config": "filterByIDs: true\ntextUnitIDs: \"intro.title, intro.body\"\n"
           }
@@ -3794,7 +3794,7 @@
         }
       },
       "doc": {
-        "overview": "The **Segmentation** tool splits a block's text into sentence-level segments.\nSegmentation determines the unit of translation and of content-memory\nmatching, so consistent segmentation is important for leverage and review.\nBy default the tool segments source text using built-in SRX-style rules that\nhandle common sentence boundaries and abbreviations; rules can also be loaded\nfrom an SRX file.\n\nThe number of segments produced is recorded on each block. Already-segmented\ntext is left alone unless re-segmentation is requested. Target text can be\nsegmented independently, with its own rules file.\n",
+        "overview": "The **Segmentation** tool splits a block's text into sentence-level segments.\nSegmentation determines the span that is translated and matched against\nthe content memory, so consistent segmentation is important for leverage and\nreview.\nBy default the tool segments source text using built-in SRX-style rules that\nhandle common sentence boundaries and abbreviations; rules can also be loaded\nfrom an SRX file.\n\nThe number of segments produced is recorded on each block. Already-segmented\ntext is left alone unless re-segmentation is requested. Target text can be\nsegmented independently, with its own rules file.\n",
         "parameters": {
           "overwriteSegmentation": {
             "description": "Re-segment already-segmented text.",

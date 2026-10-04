@@ -86,7 +86,7 @@ it serializes.
 `Marshal` produces byte-stable output: concepts and relations sorted by id,
 terms within a concept sorted, timestamps normalized to UTC, HTML escaping off,
 two-space indent, trailing newline. Two exports of the same store are the same
-bytes, so a bundle diffs cleanly and can be hashed as a unit, which is what
+bytes, so a bundle diffs cleanly and can be hashed as a whole, which is what
 lets it sit inside a [`.kpz`](/reference/serialization/project-archive) under
 the package's Merkle root.
 
