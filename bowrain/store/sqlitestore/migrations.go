@@ -1047,6 +1047,37 @@ var storeMigrations = []storage.Migration{
 			-- Mirrors bowrain/store/migrations.go version 40: the translation a
 			-- decision blesses and the source it blessed it for, by revision.
 			-- Empty on every row written before, which answers by its hashes.
+			--
+			-- A working copy made before the store was rebuilt records
+			-- versions up to 34, so it skipped every version below this one
+			-- and holds no ledger. The ledger is created for it here, in the
+			-- shape the versions before this one give every other working
+			-- copy, so the columns have a table to land on and the store
+			-- opens. A working copy that holds the ledger is left as it was.
+			CREATE TABLE IF NOT EXISTS unit_decisions (
+				project_id            TEXT NOT NULL,
+				stream                TEXT NOT NULL DEFAULT 'main',
+				item_id               TEXT NOT NULL DEFAULT '',
+				item_name             TEXT NOT NULL DEFAULT '',
+				unit                  TEXT NOT NULL,
+				variant               TEXT NOT NULL,
+				status                TEXT NOT NULL DEFAULT '',
+				target_hash           TEXT NOT NULL DEFAULT '',
+				content_hash          TEXT NOT NULL DEFAULT '',
+				review_state          TEXT NOT NULL DEFAULT '',
+				decided_by            TEXT NOT NULL DEFAULT '',
+				decided_at            TEXT NOT NULL DEFAULT '',
+				note                  TEXT NOT NULL DEFAULT '',
+				parked                INTEGER NOT NULL DEFAULT 0,
+				assignee              TEXT NOT NULL DEFAULT '',
+				updated               TEXT NOT NULL DEFAULT '',
+				updated_at            TEXT NOT NULL DEFAULT (datetime('now')),
+				draft_basis           TEXT NOT NULL DEFAULT '',
+				governing_fingerprint TEXT NOT NULL DEFAULT '',
+				PRIMARY KEY (project_id, stream, item_id, unit, variant)
+			);
+			CREATE INDEX IF NOT EXISTS idx_unit_decisions_project ON unit_decisions(project_id, stream);
+			CREATE INDEX IF NOT EXISTS idx_unit_decisions_item ON unit_decisions(project_id, stream, item_id);
 			ALTER TABLE unit_decisions ADD COLUMN revision TEXT NOT NULL DEFAULT '';
 			ALTER TABLE unit_decisions ADD COLUMN basis    TEXT NOT NULL DEFAULT '';
 		`,

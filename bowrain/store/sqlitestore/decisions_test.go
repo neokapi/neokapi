@@ -553,3 +553,41 @@ func TestMigrations_ADecisionRecordedBeforeRevisionsReadsBack(t *testing.T) {
 	assert.Empty(t, got.Revision, "nothing is rewritten: the decision names no revision")
 	assert.Empty(t, got.Basis)
 }
+
+// TestMigrations_AWorkingCopyFromBeforeTheRebuildStillOpens: a working copy
+// made before the store was rebuilt from its baseline records versions up to
+// 34 and holds no ledger, so it skips every version below 35. Version 35 gives
+// it the ledger before adding the revision columns, and the store opens and
+// records decisions as any other does.
+func TestMigrations_AWorkingCopyFromBeforeTheRebuildStillOpens(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "store.db")
+	s, err := NewSQLiteStore(dbPath)
+	require.NoError(t, err)
+	ctx := t.Context()
+	_, err = s.db.ExecContext(ctx, `DROP TABLE unit_decisions`)
+	require.NoError(t, err)
+	_, err = s.db.ExecContext(ctx, `DELETE FROM schema_migrations WHERE version >= 28`)
+	require.NoError(t, err)
+	for v := 28; v <= 34; v++ {
+		_, err = s.db.ExecContext(ctx, `INSERT INTO schema_migrations (version, description) VALUES (?, 'issued before the rebuild')`, v)
+		require.NoError(t, err)
+	}
+	require.NoError(t, s.Close())
+
+	reopened, err := NewSQLiteStore(dbPath)
+	require.NoError(t, err, "the working copy opens")
+	t.Cleanup(func() { _ = reopened.Close() })
+	p := createTestProject(t, reopened)
+	d := venue.UnitDecision{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status: string(model.TargetStatusEstablished), TargetHash: state.TargetHash("Hei"),
+		Revision: "r:1111111111111111", Basis: "r:aaaaaaaaaaaaaaaa",
+		ReviewState: "approved", Updated: "2026-08-04T10:00:00Z",
+	}
+	_, err = reopened.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{d})
+	require.NoError(t, err)
+	got, err := reopened.GetUnitDecision(ctx, p.ID, "main", "en.json", "greeting", "nb")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, "r:1111111111111111", got.Revision)
+}
