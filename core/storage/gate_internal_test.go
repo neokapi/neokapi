@@ -80,6 +80,54 @@ func TestWriteGate_CancelWhileQueued(t *testing.T) {
 	g.release()
 }
 
+// TestWriteGate_CountsTheGrantsAWriterWaitsThrough pins the statistic the
+// contention test reads. A writer's wait is counted in the grants made to other
+// writers between its arrival and its own grant, or the moment it gives up, and
+// a writer that arrives while the permit is held waits through none of the
+// holder's.
+func TestWriteGate_CountsTheGrantsAWriterWaitsThrough(t *testing.T) {
+	db := &DB{gate: newWriteGate()}
+	g := db.gate
+	require.NoError(t, g.acquire(t.Context(), true)) // grant 1: the holder
+
+	// a and c queue behind the holder, then b, whose wait is cancelled
+	// while c holds the permit.
+	var wg sync.WaitGroup
+	cHolds, cRelease := make(chan struct{}), make(chan struct{})
+	queue := func(fn func()) {
+		queued := make(chan struct{})
+		wg.Go(func() { close(queued); fn() })
+		<-queued
+		time.Sleep(20 * time.Millisecond) // let it reach the queue before the next
+	}
+	queue(func() {
+		if g.acquire(context.Background(), false) == nil {
+			g.release()
+		}
+	})
+	queue(func() {
+		if g.acquire(context.Background(), false) == nil {
+			close(cHolds)
+			<-cRelease
+			g.release()
+		}
+	})
+	bCtx, cancelB := context.WithCancel(context.Background())
+	bDone := make(chan error, 1)
+	queue(func() { bDone <- g.acquire(bCtx, false) })
+
+	g.release()
+	<-cHolds // a has been granted and released, c holds: b has waited through both
+	cancelB()
+	require.ErrorIs(t, <-bDone, context.Canceled)
+	close(cRelease)
+	wg.Wait()
+
+	assert.Equal(t, WriteGateStats{Grants: 3, MostWaited: 2}, db.WriteGateStats(),
+		"a waited through no grant, c through a's, and b through a's and c's before it gave up")
+	assert.Equal(t, WriteGateStats{}, (&DB{}).WriteGateStats(), "an ungated handle has nothing to report")
+}
+
 // TestWriteGate_ReentrantAcquisitionIsReported: a goroutine holding a
 // transaction that asks for the permit again is asking to wait for itself. The
 // gate says so instead of hanging.
