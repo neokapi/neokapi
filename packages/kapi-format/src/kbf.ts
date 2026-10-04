@@ -11,16 +11,20 @@
 import type {
   Block,
   BlockPreviewHints,
+  BlockV1,
   Document,
+  Edition,
   File,
   Generator,
+  Origin,
   Placeholder,
   Project,
   Run,
   Skeleton,
   Vocabulary,
 } from "./block.ts";
-import { Kind, SchemaVersion } from "./block.ts";
+import { Kind, SchemaVersion, SourceEdition } from "./block.ts";
+import { upgradeBlock } from "./editions.ts";
 
 /**
  * Serialize a .kbf.json File to UTF-8 bytes. Deterministic: identical
@@ -66,9 +70,12 @@ export function newFile(opts: {
 
 // ─── Canonical ordering helpers ──────────────────────────────────
 
+// canonicalFile writes the blocks in the current schema, so a file whose version
+// is not a minor of the current major (absent, schema 1.0, or not a version) is
+// stamped SchemaVersion, as Go core/kbf.Marshal stamps it.
 function canonicalFile(f: File): unknown {
   return omitUndefined({
-    schemaVersion: f.schemaVersion ?? SchemaVersion,
+    schemaVersion: isCurrentSchema(f.schemaVersion) ? f.schemaVersion : SchemaVersion,
     kind: f.kind ?? Kind,
     created: f.created,
     generator: canonicalGenerator(f.generator),
@@ -110,20 +117,67 @@ function canonicalSkeleton(s: Skeleton): unknown {
   return omitUndefined({ ref: s.ref, inline: s.inline });
 }
 
-function canonicalBlock(b: Block): unknown {
+// canonicalBlock writes a block in the current schema. A block still in the
+// schema 1.0 shape is read as its editions first (upgradeBlock), so a caller
+// holding one writes what Go core/kbf writes after reading it.
+function canonicalBlock(input: Block | BlockV1): unknown {
+  const b = upgradeBlock(input);
   return omitUndefined({
     id: b.id,
     hash: b.hash,
     translatable: b.translatable,
     type: b.type,
-    source: b.source.map(canonicalRun),
-    targets: canonicalTargets(b.targets),
+    editions: canonicalEditions(b.editions),
+    unlabelled: b.unlabelled ? canonicalEdition(b.unlabelled) : undefined,
     // placeholders is a required field: emitted always, even as `[]`, to match
-    // Go (core/kbf.Block.Placeholders has no omitempty).
+    // Go (core/kbf.Block.MarshalJSON writes an empty list for none).
     placeholders: (b.placeholders ?? []).map(canonicalPlaceholder),
     properties: b.properties,
     preview: b.preview ? canonicalPreview(b.preview) : undefined,
   });
+}
+
+// canonicalEditions writes every edition under its key in sorted order, with
+// the source present (empty) even when the block holds none, as Go
+// core/kbf.Block.MarshalJSON does.
+function canonicalEditions(editions: Block["editions"] | undefined): Record<string, unknown> {
+  const all: Record<string, Edition> = { [SourceEdition]: { runs: [] }, ...editions };
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(all).sort()) {
+    out[key] = canonicalEdition(all[key] ?? { runs: [] });
+  }
+  return out;
+}
+
+// canonicalEdition emits an edition in Go struct-field order (runs, status,
+// origin, score, derived), leaving out what Go's omitempty and omitzero leave
+// out: an empty status, a zero score, an origin that records nothing.
+function canonicalEdition(e: Edition): unknown {
+  return omitUndefined({
+    runs: (e.runs ?? []).map(canonicalRun),
+    status: e.status ? e.status : undefined,
+    origin: canonicalOrigin(e.origin),
+    score: e.score ? e.score : undefined,
+    derived: e.derived ? { from: e.derived.from ?? "", rev: e.derived.rev ?? "" } : undefined,
+  });
+}
+
+// canonicalOrigin emits an origin in Go struct-field order (core/model.Origin),
+// each empty field left out, and no origin at all when every field is empty.
+function canonicalOrigin(o: Origin | undefined): unknown {
+  if (!o) return undefined;
+  const out = omitUndefined({
+    kind: o.kind || undefined,
+    engine: o.engine || undefined,
+    tool: o.tool || undefined,
+    reference: o.reference || undefined,
+    timestamp: o.timestamp || undefined,
+    confidence: o.confidence ? o.confidence : undefined,
+    profile: o.profile || undefined,
+    profile_version: o.profile_version || undefined,
+    context_fingerprint: o.context_fingerprint || undefined,
+  });
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 // canonicalPreview emits the preview hints in Go struct-field order and
@@ -150,17 +204,6 @@ function sortKeysDeep(v: unknown): unknown {
     return out;
   }
   return v;
-}
-
-function canonicalTargets(t: Block["targets"] | undefined): Record<string, unknown> | undefined {
-  if (!t) return undefined;
-  const keys = Object.keys(t).sort();
-  if (keys.length === 0) return undefined;
-  const out: Record<string, unknown> = {};
-  for (const k of keys) {
-    out[k] = t[k]?.map(canonicalRun);
-  }
-  return out;
 }
 
 function canonicalRun(r: Run): unknown {
@@ -206,6 +249,12 @@ function canonicalPlaceholder(p: Placeholder): unknown {
     sourceExpr: p.sourceExpr,
     optional: p.optional,
   });
+}
+
+// isCurrentSchema reports whether version is a minor of the current major.
+function isCurrentSchema(version: string | undefined): version is string {
+  const major = /^(\d+)\.(\d+)$/.exec(version ?? "")?.[1];
+  return major !== undefined && major === SchemaVersion.split(".")[0];
 }
 
 // ─── Marshal plumbing ────────────────────────────────────────────

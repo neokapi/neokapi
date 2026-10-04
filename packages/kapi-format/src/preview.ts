@@ -17,6 +17,7 @@
  */
 
 import type { Block, Run } from "./block.ts";
+import { sourceRuns } from "./editions.ts";
 import { projectRuns, projectRunsText, type ModelRunSpec } from "./run-projection.ts";
 import type { VocabularyEntry } from "./vocabulary.ts";
 import { JSX_VOCABULARY, expandTemplate } from "./vocabulary.ts";
@@ -167,16 +168,16 @@ function renderEntry(
 // ─── Block rendering ──────────────────────────────────────────────
 
 /**
- * Render a whole Block wrapped in a `<kat-block>` marker — the
- * same interactive wrapper neokapi's existing preview builders
- * emit for every format. Block.source is a flat Run[]; plurals
- * and select constructs inside that sequence recurse naturally.
+ * Render the source of a Block wrapped in a `<kat-block>` marker, the
+ * interactive wrapper neokapi's other preview builders emit for every
+ * format. The source is a flat Run[]; plurals and select constructs
+ * inside that sequence recurse naturally.
  */
 export function renderBlockHtml(
   block: Block,
   vocab: VocabularyLookup = createVocabulary(JSX_VOCABULARY),
 ): string {
-  const inner = renderRuns(block.source, vocab);
+  const inner = renderRuns(sourceRuns(block), vocab);
   return `<kat-block id="${block.id}" data-type="${block.type}">${inner}</kat-block>`;
 }
 
@@ -199,7 +200,7 @@ function escapeHtml(s: string): string {
  * Returns a list of errors; empty array means valid.
  */
 export function validateTargetAgainstSource(
-  sourceBlock: Block,
+  sourceBlock: Pick<Block, "id" | "placeholders">,
   targetRuns: Run[],
 ): ValidationError[] {
   const errors: ValidationError[] = [];

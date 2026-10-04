@@ -28,6 +28,7 @@
  */
 
 import type { Block } from "../src/block.ts";
+import { sourceEditions } from "../src/editions.ts";
 
 export const filesHeading: Block = {
   id: "files-heading",
@@ -35,7 +36,7 @@ export const filesHeading: Block = {
   translatable: true,
   type: "jsx:element",
 
-  source: [
+  editions: sourceEditions([
     { text: "Files " },
     {
       pcOpen: {
@@ -68,7 +69,7 @@ export const filesHeading: Block = {
         equiv: "muted",
       },
     },
-  ],
+  ]),
 
   placeholders: [
     {

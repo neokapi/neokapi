@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Block, File } from "../src/index.ts";
-import { marshalFile, newFile } from "../src/index.ts";
+import { marshalFile, newFile, sourceEditions } from "../src/index.ts";
 
 // Regression guards for the canonical-serialization parity bugs the KBF
 // conformance suite (/kbf-tests) surfaced: the TypeScript mirror must match the
@@ -20,7 +20,7 @@ const baseBlock: Omit<Block, "placeholders" | "preview"> = {
   hash: "h",
   translatable: true,
   type: "jsx:element",
-  source: [{ text: "hi" }],
+  editions: sourceEditions([{ text: "hi" }]),
   properties: {
     file: "a.tsx",
     line: 1,

@@ -49,15 +49,13 @@ export const exampleAnnotations: AnnotationFile = {
 
     // Run-level: TagChip's `label` placeholder (ph run id "2") is
     // tagged as a protected term that should not be translated.
-    // The path [1] steps to the 2nd run of block.source — which is
-    // the text run " " (a space between the badge and label
-    // chips). Wait, that's wrong. Let me recount:
+    // The path indexes the block's source runs:
     //   index 0: ph "1" (badge)
     //   index 1: text " "
     //   index 2: ph "2" (label)  ← target
     //   index 3: text " "
     //   index 4: ph "3" (required)
-    // So the correct path is [2].
+    // so the path is [2].
     {
       type: "annotation",
       id: "term-1",
@@ -78,7 +76,7 @@ export const exampleAnnotations: AnnotationFile = {
 
     // Form-level: the 'other' plural form of ShoppingCart was
     // machine-translated with a confidence score. Path [0] points
-    // at the single top-level run of block.source (the plural
+    // at the single top-level run of the block's source (the plural
     // run itself); the key "other" selects the 'other' form.
     {
       type: "annotation",

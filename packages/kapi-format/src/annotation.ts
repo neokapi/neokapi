@@ -40,6 +40,7 @@
  */
 
 import type { Block, PluralForm, Run } from "./block.ts";
+import { sourceRuns } from "./editions.ts";
 
 // ─── Annotation file shape ────────────────────────────────────────
 
@@ -173,8 +174,8 @@ export interface RunPos {
 }
 
 /**
- * A path through a block's nested runs structure. Empty path refers to
- * `Block.source` itself.
+ * A path through the nested runs of a block's source edition. Empty path
+ * refers to the source runs themselves.
  */
 export type RunPath = RunPathStep[];
 
@@ -217,7 +218,7 @@ export function resolveAnchor(block: Block, anchor: AnnotationAnchor): AnchorRes
     return { ok: true, kind: "block", block };
   }
 
-  const walked = walkPath(block.source, anchor.path);
+  const walked = walkPath(sourceRuns(block), anchor.path);
   if (walked === null) return { ok: false, reason: "path-out-of-bounds" };
   const { runs: seq, run: landed } = walked;
 
