@@ -9,9 +9,9 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// The translations table holds every stored row's target_json in one shape,
-// and the status projections address its status key in SQL. An edition encodes
-// to exactly those bytes, so rows written before and after read alike.
+// The translations table holds every row's target_json in one shape, and the
+// status projections address its status key in SQL. An edition encodes to
+// exactly the bytes of that shape and decodes back to itself.
 func TestTargetJSON_Shape(t *testing.T) {
 	tests := []struct {
 		name string

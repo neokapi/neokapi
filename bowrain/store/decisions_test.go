@@ -16,7 +16,7 @@ import (
 func blockWithTarget(id, source, target string, status model.TargetStatus) *model.Block {
 	b := blockWithText(id, source)
 	b.SetTargetText("nb", target)
-	b.Target("nb").Status = status
+	b.SetEditionStatus(model.Variant("nb"), model.Status(status))
 	return b
 }
 
@@ -39,8 +39,8 @@ func targetStatus(t *testing.T, s *PostgresStore, projectID, itemName, unit stri
 	require.NoError(t, err)
 	for _, sb := range rows {
 		if sb.SourceID == unit {
-			if tgt := sb.Block.Target("nb"); tgt != nil {
-				return tgt.Status
+			if tgt, ok := sb.Block.Edition(model.Variant("nb")); ok {
+				return model.TargetStatus(tgt.Status)
 			}
 			return ""
 		}

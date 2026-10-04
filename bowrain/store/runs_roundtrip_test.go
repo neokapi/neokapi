@@ -61,8 +61,9 @@ func TestRoundTrip_MixedRunKinds(t *testing.T) {
 	assertRunsEqual(t, srcRuns, rsrc.Runs)
 
 	// Target runs survive byte-for-byte.
-	require.NotNil(t, r.Target(model.LocaleFrench))
-	assertRunsEqual(t, tgtRuns, r.TargetRuns(model.LocaleFrench))
+	rtgt, ok := r.Edition(model.Variant(model.LocaleFrench))
+	require.True(t, ok)
+	assertRunsEqual(t, tgtRuns, rtgt.Runs)
 }
 
 // TestRoundTrip_RunsKeysComputedFromRuns verifies that the structural
