@@ -270,7 +270,7 @@ func TestPostgresMemory_EntitiesPairInTextOrderAndBySegment(t *testing.T) {
 			Values: map[model.LocaleID]memory.EntityValue{"en": {Text: v}, "fr": {Text: v}}}
 	}
 	locate := func(b *model.Block) {
-		for i, r := range b.Source {
+		for i, r := range b.SourceRuns() {
 			if r.Ph != nil {
 				b.AddOverlaySpan(model.OverlayEntity, model.Span{ID: "entity:" + r.Ph.ID,
 					Range: model.SpanAnchor(model.RunPos{Run: i}, model.RunPos{Run: i + 1}),
