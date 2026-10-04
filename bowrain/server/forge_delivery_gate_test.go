@@ -83,3 +83,45 @@ func TestMaterializeDelivery_GovernedFullyDraftDeliversNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, items, "governed project with zero approved targets delivers nothing")
 }
+
+// TestMaterializeDelivery_EachLocaleShipsItsOwnTranslation: every delivered
+// locale carries its own translation in the source position, and the stored
+// block keeps its source. A delivery copy that shared the stored block's
+// source edition would ship the translation of the locale processed last in
+// every locale's file.
+func TestMaterializeDelivery_EachLocaleShipsItsOwnTranslation(t *testing.T) {
+	s, _ := newForgeTestServer(t, "conn1", "proj1", "s3cret")
+	ctx := context.Background()
+
+	b := model.NewBlock("a", "Hello")
+	b.SetTargetText("fr", "Bonjour")
+	b.SetTargetText("de", "Hallo")
+	b.SetTargetText("nb", "Hei")
+	seedDeliveryBlocks(t, s, []*model.Block{b})
+
+	proj, err := s.ContentStore.GetProject(ctx, "proj1")
+	require.NoError(t, err)
+	proj.TargetLanguages = []model.LocaleID{"fr", "de", "nb"}
+	proj.Properties = map[string]string{"workflow_enabled": "false"}
+
+	want := map[model.LocaleID]string{"fr": "Bonjour", "de": "Hallo", "nb": "Hei"}
+	for range 2 {
+		items, err := s.materializeDelivery(ctx, proj)
+		require.NoError(t, err)
+		require.Len(t, items, len(want))
+		for _, it := range items {
+			require.Len(t, it.Blocks, 1, "locale %s", it.Locale)
+			assert.Equal(t, want[it.Locale], it.Blocks[0].SourceText(), "locale %s delivers its own translation", it.Locale)
+			for loc, text := range want {
+				assert.Equal(t, text, it.Blocks[0].TargetText(loc), "locale %s keeps the %s translation", it.Locale, loc)
+			}
+		}
+	}
+
+	stored, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{
+		ProjectID: "proj1", Stream: "main", ItemName: "locales/en/app.json",
+	})
+	require.NoError(t, err)
+	require.Len(t, stored, 1)
+	assert.Equal(t, "Hello", stored[0].Block.SourceText(), "delivery leaves the stored source alone")
+}
