@@ -41,7 +41,7 @@ free, and an edited source carries its previously approved translation into the
 prompt as reference; **translate**, where the configured AI provider fills what
 remains, with the project's terminology and voice context; **check**, where
 deterministic checks run over what was produced (placeholder integrity, inline
-tags, do-not-translate terms). A unit with a failing finding still counts as
+tags, do-not-translate terms). A block with a failing finding still counts as
 *translated*, and the finding holds its locale out of shipping until it is
 fixed, so bad output can never lift a language over its gate. What a machine cannot
 decide **parks** for [review](/kapi/recipes/review-and-approve); an approval is
@@ -252,7 +252,7 @@ jobs:
 
 ## Report the cost of a change on its pull request
 
-`kapi up --plan` dry-runs the loop: pending units, content-memory leverage, and a
+`kapi up --plan` dry-runs the loop: pending blocks, content-memory leverage, and a
 token estimate, with no writes, no provider calls, no keys. Posted on the pull request
 that created the work, it answers "what does this change cost in translation?"
 before anyone merges:
@@ -286,7 +286,7 @@ stage.
 </TabItem>
 </Tabs>
 
-> This change leaves **42 unit(s)** of pending translation work: 30
+> This change leaves **42 block(s)** of pending translation work: 30
 > recoverable from content memory, 12 for AI (~450 tokens estimated).
 
 ## Credentials and state on a runner

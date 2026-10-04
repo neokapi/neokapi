@@ -268,7 +268,7 @@ kapi voice guide                     # the voice to follow (project-bound)
 kapi terms lookup "<term>" -t fr  # the approved wording
 ```
 
-Fill the `<target>` of each unit in the bilingual file, following the voice guide
+Fill the `<target>` of each entry in the bilingual file, following the voice guide
 and the approved terminology, and preserving placeholders; reuse any targets kapi
 pre-filled from content memory. Then:
 

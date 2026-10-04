@@ -149,10 +149,10 @@ kapi up
 ```
 seeded: 5 concept(s) and 5 content-memory entry(ies) from 3 committed source(s)
 absorbed: 86 pair(s) from 3 committed target document(s) — 30 learned, 0 reconciled
-plan: 26 unit(s) missing · drafting 2 unit(s) the content memory does not answer · 5 exact-content memory · 23 AI · ≈241 tokens
-  nb         38/38 units  (content memory 37 · AI 1)
-  de         38/38 units  (content memory 35 · AI 3)
-  nl         38/38 units  (content memory 19 · AI 19)
+plan: 26 block(s) missing · drafting 2 block(s) the content memory does not answer · 5 exact-content memory · 23 AI · ≈241 tokens
+  nb         38/38 blocks  (content memory 37 · AI 1)
+  de         38/38 blocks  (content memory 35 · AI 3)
+  nl         38/38 blocks  (content memory 19 · AI 19)
 ```
 
 Norwegian and German now clear the ship gate on drafted work; Dutch does not,
@@ -203,7 +203,7 @@ The seven points the shaped samples are held to, as this sample meets them.
 | --- | --- | --- |
 | 1 | Onboarded through the discovery path, so the graph arrives as reviewable files | **MET**: `kapi.yaml`, `context/voice.yaml` and `context/terms.json` are the drafted-then-corrected artifacts the monolingual sample established, carried forward rather than re-authored |
 | 2 | Governance bound at the point from day one; review workflow on | **MET**: `profiles.northsea` binds voice and channel; `context/state/` carries 54 decisions the import reads in before the loop is ever run |
-| 3 | First converge shows recycle numbers and an estimate before it spends | **MET**: `plan: 26 unit(s) missing · drafting 2 unit(s) the content memory does not answer · 5 exact-content memory · 23 AI · ≈241 tokens`, then per-locale `(content memory N · AI M)` summing to the same 23. No credential is spent: the AI leg is the `demo` provider |
+| 3 | First converge shows recycle numbers and an estimate before it spends | **MET**: `plan: 26 block(s) missing · drafting 2 block(s) the content memory does not answer · 5 exact-content memory · 23 AI · ≈241 tokens`, then per-locale `(content memory N · AI M)` summing to the same 23. No credential is spent: the AI leg is the `demo` provider |
 | 4 | Governed review exercised, with a decision that changes an outcome | **MET**: the Dutch review moves `nl` from withheld to offered, and the Norwegian review removes its AI marker. Both are `kapi apply` round-trips landing in the project's record |
 | 5 | Delivery proven | **MET**: `kapi up` materializes into `site/locales/`, `kapi status --ship --emit` writes `site/ship.json`, and the deployed page reads both. No copy step, no second pipeline |
 | 6 | Recorded as a harness walkthrough | **PARTIAL**: `harness/demos/s1-compass-converge/` and `harness/demos/s1-compass-ship-gate/` are authored and neither has been recorded since the split; nothing has been rendered or published for English, and the Norwegian render is held by [#2032](https://github.com/neokapi/neokapi/issues/2032) |
