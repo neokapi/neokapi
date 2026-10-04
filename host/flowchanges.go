@@ -430,7 +430,7 @@ func (doc *flowDoc) tracked(b *model.Block) []model.EditionKey {
 		return []model.EditionKey{doc.edition}
 	}
 	keys := []model.EditionKey{{}}
-	for _, k := range b.Editions() {
+	for _, k := range b.EditionKeys() {
 		if !b.IsSourceEdition(k) {
 			keys = append(keys, k.Canonical())
 		}

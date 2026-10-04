@@ -438,7 +438,7 @@ func blockNode(b *model.Block) *ContentNode {
 	// a key that Edition does not reach (a target stored under a non-canonical
 	// key); the view leaves that edition out rather than show it empty.
 	auth := b.Authoritative(model.AuthorityPolicy{})
-	for _, key := range b.Editions() {
+	for _, key := range b.EditionKeys() {
 		if key == auth {
 			continue
 		}

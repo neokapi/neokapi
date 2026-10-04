@@ -152,7 +152,7 @@ func TestSpreadsheetGridToTables_GapIsAnEmptyCell(t *testing.T) {
 	}
 	require.NotNil(t, gap, "the missing B2 cell is emitted as a placeholder")
 	assert.Equal(t, model.RoleTableCell, gap.SemanticRole())
-	assert.Equal(t, []model.EditionKey{{}}, gap.Editions())
+	assert.Equal(t, []model.EditionKey{{}}, gap.EditionKeys())
 	src, ok := gap.Edition(model.EditionKey{})
 	require.True(t, ok)
 	assert.Empty(t, src.Runs)

@@ -67,7 +67,7 @@ func (s *Service) observe(ctx context.Context, doc DocInfo) Observation {
 // coveredEditions lists the editions a read covers in b: the ones it holds and
 // the ones the read asked for.
 func coveredEditions(b *model.Block, asked []model.EditionKey) []model.EditionKey {
-	out := b.Editions()
+	out := b.EditionKeys()
 	for _, k := range asked {
 		if k = b.EditionKeyOf(k); !slices.Contains(out, k) {
 			out = append(out, k)

@@ -163,7 +163,7 @@ func TestTargetWrites_SameLanguageTarget(t *testing.T) {
 	require.NoError(t, dispatch(t, bt, b))
 	assert.Equal(t, "colour source", b.SourceText())
 	assert.Equal(t, "color target", b.TargetText("en-US"))
-	assert.Equal(t, []model.EditionKey{{}, {Locale: "en-US"}}, b.Editions())
+	assert.Equal(t, []model.EditionKey{{}, {Locale: "en-US"}}, b.EditionKeys())
 
 	b = sameLanguage()
 	err := tool.WriteAs(context.Background(), b, "pseudo", func(v tool.VariantView) error {

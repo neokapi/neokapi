@@ -39,7 +39,7 @@ func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 
 			got, err := s.GetBlock(ctx, p.ID, "", "b1")
 			require.NoError(t, err)
-			assert.Equal(t, tc.want, got.Block.Editions())
+			assert.Equal(t, tc.want, got.Block.EditionKeys())
 			src, _ := got.Block.Edition(model.EditionKey{})
 			assert.Equal(t, "Hello", model.RunsText(src.Runs))
 			if len(tc.want) > 1 {
@@ -72,7 +72,7 @@ func TestGetBlock_ReadsARowUnderItsCanonicalKey(t *testing.T) {
 
 	got, err := s.GetBlock(ctx, p.ID, "", "b1")
 	require.NoError(t, err)
-	assert.Equal(t, []model.EditionKey{{}, {Locale: "fr-FR"}}, got.Block.Editions())
+	assert.Equal(t, []model.EditionKey{{}, {Locale: "fr-FR"}}, got.Block.EditionKeys())
 	fr, ok := got.Block.Edition(model.EditionKey{Locale: "fr-FR"})
 	require.True(t, ok)
 	assert.Equal(t, "Bonjour", model.RunsText(fr.Runs))

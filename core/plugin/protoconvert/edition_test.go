@@ -55,9 +55,9 @@ func TestEmptyEditionsCrossThePluginWire(t *testing.T) {
 	assert.Empty(t, msg.Targets)
 
 	got := protoconvert.ProtoToBlock(msg)
-	assert.Equal(t, []model.EditionKey{{}}, got.Editions())
+	assert.Equal(t, []model.EditionKey{{}}, got.EditionKeys())
 	assert.NotNil(t, got.Properties)
 
 	part := protoconvert.ContentBlockToPart(protoconvert.PartToContentBlock(&model.Part{Type: model.PartBlock, Resource: &model.Block{ID: "b2"}}))
-	assert.Equal(t, []model.EditionKey{{}}, part.Resource.(*model.Block).Editions())
+	assert.Equal(t, []model.EditionKey{{}}, part.Resource.(*model.Block).EditionKeys())
 }

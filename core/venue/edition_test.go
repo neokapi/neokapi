@@ -97,7 +97,7 @@ func TestProtoToBlock_KeyWithNoLanguageIsATarget(t *testing.T) {
 	assert.Equal(t, "Hello", model.RunsText(src.Runs))
 	_, edited := got.SourceAsRead()
 	assert.False(t, edited, "a decoded block holds its source as read")
-	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}}, got.Editions())
+	assert.Equal(t, []model.EditionKey{{Locale: "en-US"}}, got.EditionKeys())
 
 	assert.NotContains(t, BlockToProto(got, "item").Targets, "")
 }

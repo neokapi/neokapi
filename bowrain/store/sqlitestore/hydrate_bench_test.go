@@ -68,7 +68,7 @@ func BenchmarkHydrateOverlays(b *testing.B) {
 		b.Fatal(err)
 	}
 	for _, sb := range check {
-		if got := len(sb.Block.Editions()); got != len(locales)+1 {
+		if got := len(sb.Block.EditionKeys()); got != len(locales)+1 {
 			b.Fatalf("block %s holds %d editions after hydration, want %d", sb.Block.ID, got, len(locales)+1)
 		}
 	}

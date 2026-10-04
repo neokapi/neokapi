@@ -367,7 +367,7 @@ func jsToPartUpdate(vm *goja.Runtime, obj *goja.Object, original *model.Part, al
 	// an empty copy would read as a new edition to write.
 	after := &model.Block{ID: block.ID, Name: block.Name, Unit: block.Unit, SourceLocale: block.SourceLocale}
 	authKey := block.Authoritative(model.AuthorityPolicy{})
-	for _, k := range block.Editions() {
+	for _, k := range block.EditionKeys() {
 		e, ok := block.Edition(k)
 		if !ok {
 			continue

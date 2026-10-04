@@ -31,7 +31,7 @@ func Diff(before, after *model.Block) []Op {
 	// the other pairs the target with nothing.
 	keys := []model.EditionKey{{}}
 	for _, b := range []*model.Block{before, after} {
-		for _, k := range b.Editions() {
+		for _, k := range b.EditionKeys() {
 			if !b.IsSourceEdition(k) && !slices.Contains(keys, k) {
 				keys = append(keys, k)
 			}

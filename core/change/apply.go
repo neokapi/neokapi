@@ -581,7 +581,7 @@ func (w *workset) rewrite(st *edState, newRuns []model.Run, rebase OverlayRebase
 // edition leaves on an older basis.
 func (w *workset) invalidated() []Invalidation {
 	var out []Invalidation
-	for _, k := range w.b.Editions() {
+	for _, k := range w.b.EditionKeys() {
 		st := w.state(k)
 		if st.key == w.auth || !st.present {
 			continue

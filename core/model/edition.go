@@ -219,11 +219,11 @@ func (b *Block) RemoveEdition(k EditionKey) bool {
 	return true
 }
 
-// Editions returns the keys of every edition the block holds: the edition it
+// EditionKeys returns the keys of every edition the block holds: the edition it
 // was read in first, then the others in the order of their text form. When a
 // same-language target holds the key of the source language, the edition the
 // block was read in is listed by the zero key.
-func (b *Block) Editions() []EditionKey {
+func (b *Block) EditionKeys() []EditionKey {
 	src := b.sourceKey()
 	out := make([]EditionKey, 0, 1+len(b.Targets))
 	out = append(out, src)
@@ -294,7 +294,7 @@ func (b *Block) Authoritative(p AuthorityPolicy) EditionKey {
 // with its language left as given rather than canonicalized. Every other write
 // canonicalizes its key, so this is the one way a block comes to hold a target
 // under a key such as nb_NO: the state a direct write to the storage leaves.
-// Editions and EachEdition list such a target under its canonical key, and
+// EditionKeys and EachEdition list such a target under its canonical key, and
 // Edition and TargetEdition reach it by neither spelling. It exists for the
 // tests of consumers that must cope with such a block; everything else writes
 // through SetEdition or SetTargetEdition. A target already filed under k is

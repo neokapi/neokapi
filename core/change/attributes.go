@@ -266,7 +266,7 @@ func (w *workset) newCodeID() string {
 			}
 		}
 	}
-	for _, k := range w.b.Editions() {
+	for _, k := range w.b.EditionKeys() {
 		if e, ok := w.b.Edition(k); ok {
 			collect(e.Runs)
 		}
