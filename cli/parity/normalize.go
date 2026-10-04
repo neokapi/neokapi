@@ -140,8 +140,7 @@ func renderBlockTargets(b *model.Block) string {
 		buf.WriteString(string(locale))
 		buf.WriteByte('=')
 		runs := b.TargetRuns(locale)
-		key := model.Variant(locale)
-		if ov := b.SegmentationFor(key); ov != nil && len(ov.Spans) > 0 {
+		if ov := b.TargetSegmentation(locale); ov != nil && len(ov.Spans) > 0 {
 			for i, sp := range ov.Spans {
 				if i > 0 {
 					buf.WriteByte(' ')

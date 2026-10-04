@@ -86,8 +86,7 @@ func (u *segment) TargetRuns(loc model.LocaleID) []model.Run {
 	if u.rng == nil {
 		return u.b.TargetRuns(loc)
 	}
-	key := model.Variant(loc)
-	if tseg := u.b.SegmentationLayerFor(key, u.layer); tseg != nil && u.idx < len(tseg.Spans) {
+	if tseg := u.b.TargetSegmentationLayer(loc, u.layer); tseg != nil && u.idx < len(tseg.Spans) {
 		return tseg.Spans[u.idx].Range.ExtractRuns(u.b.TargetRuns(loc))
 	}
 	return u.b.TargetRuns(loc)

@@ -1479,9 +1479,8 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 				block.SetAnno(targetSegNativeKey(effectiveTargetLang, seg.mid), &SegmentNativeAnnotation{Content: nc})
 			}
 			block.SetTargetRuns(effectiveTargetLang, tgtRuns)
-			key := model.Variant(effectiveTargetLang)
-			block.MarkNative(key)
-			block.SetSegmentation(key, spans)
+			block.MarkNative(model.Variant(effectiveTargetLang))
+			block.SetTargetSegmentation(effectiveTargetLang, spans)
 		} else {
 			block.SetTargetRuns(effectiveTargetLang, nativeToRuns(targetNative))
 			block.MarkNative(model.Variant(effectiveTargetLang))

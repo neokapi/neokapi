@@ -365,8 +365,7 @@ func seedIgnorableTargetsFromSource(b *model.Block, tgt model.LocaleID) {
 	srcSeg := b.SourceSegmentation()
 	srcCount := b.SourceSegmentCount()
 
-	key := model.Variant(tgt)
-	tgtSeg := b.SegmentationFor(key)
+	tgtSeg := b.TargetSegmentation(tgt)
 
 	// Existing target span ids and the target run slice. With no target
 	// overlay the whole target is one anonymous segment; treat its id as
@@ -431,7 +430,7 @@ func seedIgnorableTargetsFromSource(b *model.Block, tgt model.LocaleID) {
 		return
 	}
 	b.SetTargetRuns(tgt, tgtRuns)
-	b.SetSegmentation(key, tgtSpans)
+	b.SetTargetSegmentation(tgt, tgtSpans)
 }
 
 // cloneRuns returns a deep copy of the given run slice.
