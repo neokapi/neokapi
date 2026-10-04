@@ -2228,10 +2228,13 @@ All of these hold before the 1.3.0 tag:
     `Block.Unit`, KBF is v2, and the decision pairing uses revisions (WP14). Done on the engine, the
     checkouts and Bowrain, which grades its ledger by revision alone (section 6.4). Bowrain's
     PostgreSQL version 41 drops the hash pairing of every stored decision, clears every draft mark
-    and leaves every stored block without a source revision until its source is written again, so
-    a decision recorded before it grades as basis unknown and every existing approval stops
-    projecting once its source is next written: the dogfood project is reset when the server that
-    carries it is deployed. The server and the `kapi-bowrain` that pushes to it move together: a
+    and leaves every stored block without a source revision until its source is written again.
+    Until then a decision that names a basis reads stale and one that names none reads as basis
+    unknown, and a convergence run in that window drafts the stale units again. Once the source is
+    written, an approval stays established only when its basis is the source revision under the
+    project's source language: a checkout's approval since version 40 qualifies, and the
+    platform's own approvals at version 40, taken under no key, do not. The dogfood project is
+    reset when the server that carries it is deployed. The server and the `kapi-bowrain` that pushes to it move together: a
     client and a server on either side of the change fold the transfer hash differently and send
     every block on every push, and a client built before revisions sends decisions that name no
     basis. KBF v2 ships with the
