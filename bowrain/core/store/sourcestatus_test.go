@@ -42,11 +42,15 @@ func TestPropsForStore_RoundTrip(t *testing.T) {
 	// Delivery copies a stored block and puts a translation where the source
 	// was read (bowrain/server/forge.go); a writer must read that copy as
 	// unedited, as it does for a block that carries no status.
-	delivered := *scanned
+	delivered := scanned.CopyEditionSet()
 	delivered.SetSourceRuns([]model.Run{model.TextR("Bonjour")})
 	runs, edited = delivered.SourceAsRead()
 	assert.False(t, edited, "the lifted status kept no earlier source as read")
 	assert.Equal(t, "Bonjour", model.RunsText(runs))
+	assert.Equal(t, "Hello", scanned.SourceText(), "the delivery copy holds a source of its own")
+	stored, _ := scanned.Edition(model.EditionKey{})
+	assert.Equal(t, model.Status(model.SourceStatusEstablished), stored.Status,
+		"the stored block keeps its source status")
 }
 
 func TestPropsForStore_NoStatus(t *testing.T) {
