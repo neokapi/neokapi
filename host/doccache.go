@@ -115,11 +115,12 @@ type docRow struct {
 
 // partsFormat names the shape of the part records the cache writes: the JSON
 // form of a block, whose content is its peer editions (Block.Editions and
-// Block.Native). Every development build shares the version "dev", so the
-// format is part of the key too: an entry a build with another record shape
-// wrote reads as a miss under any version, rather than decoding into a block
-// that holds none of its content.
-const partsFormat = "editions/1"
+// Block.Native), with the translation filed under no language and its overlays
+// beside it. Every development build shares the version "dev", so the format
+// is part of the key too: an entry a build with another record shape wrote
+// reads as a miss under any version, rather than decoding into a block that
+// holds none of its content or files an overlay on the wrong edition.
+const partsFormat = "editions/2"
 
 // buildKey namespaces a caller's config key by the build that recorded the
 // entry and the shape of its records, so an entry another build produced reads

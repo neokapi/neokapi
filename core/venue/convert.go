@@ -245,9 +245,7 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 	// Overlays — reconstruct every stand-off layer via the canonical protoconvert
 	// overlay codec. An unregistered/future overlay kind degrades to a
 	// GenericAnnotation span value rather than panicking or being dropped.
-	for _, om := range sb.Overlays {
-		b.Overlays = append(b.Overlays, protoconvert.ProtoToOverlay(om))
-	}
+	protoconvert.ApplyProtoOverlays(b, sb.Overlays)
 
 	return b, nil
 }

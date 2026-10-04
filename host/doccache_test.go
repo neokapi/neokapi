@@ -246,7 +246,12 @@ func TestDocCache_KeepsEveryEdition(t *testing.T) {
 	b.MarkNative(fr)
 	short := model.EditionKey{Locale: "en", Channel: "short"}
 	b.SetEdition(short, model.Edition{Runs: []model.Run{model.TextR("App")}})
-	b.SetTargetRuns("", []model.Run{model.TextR("under no language")})
+	b.SetTargetRuns("", []model.Run{model.TextR("under no "), model.TextR("language")})
+	noLanguageSpans := []model.Span{
+		{ID: "n0", Range: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 1})},
+		{ID: "n1", Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2})},
+	}
+	b.SetTargetSegmentation("", noLanguageSpans)
 
 	rec := c.RecordDocument(src, "k", "json")
 	require.NotNil(t, rec)
@@ -273,6 +278,10 @@ func TestDocCache_KeepsEveryEdition(t *testing.T) {
 	unlabelled, ok := got.TargetEdition("")
 	require.True(t, ok, "the translation filed under no language replays")
 	assert.Equal(t, "under no language", model.RunsText(unlabelled.Runs))
+	seg := got.TargetSegmentation("")
+	require.NotNil(t, seg, "the overlays on the translation filed under no language replay")
+	assert.Equal(t, noLanguageSpans, seg.Spans)
+	assert.Nil(t, got.SourceSegmentation())
 }
 
 // TestDocCache_KeyNamesTheRecordShape pins that the key carries the shape of

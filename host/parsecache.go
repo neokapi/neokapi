@@ -44,12 +44,14 @@ type cachedAnno struct {
 
 // cachedBlock shadows Block.Annotations with the typed envelope (the embedded
 // field is suppressed by the outer one under encoding/json's depth rule), and
-// carries the translation a reader filed under no language, which the block
-// holds apart from its editions and no exported field reaches.
+// carries the translation a reader filed under no language and the overlays on
+// it, which the block holds apart from its editions and its other overlays and
+// no exported field reaches.
 type cachedBlock struct {
 	*model.Block
-	Annotations map[string]cachedAnno `json:"Annotations,omitempty"`
-	Unlabelled  *model.Edition        `json:"Unlabelled,omitempty"`
+	Annotations        map[string]cachedAnno `json:"Annotations,omitempty"`
+	Unlabelled         *model.Edition        `json:"Unlabelled,omitempty"`
+	UnlabelledOverlays []model.Overlay       `json:"UnlabelledOverlays,omitempty"`
 }
 
 // cachedLayer is the Layer counterpart of cachedBlock.
@@ -135,6 +137,7 @@ func toCachedParts(parts []*model.Part) []cachedPart {
 			if e, ok := r.TargetEdition(""); ok {
 				cp.Block.Unlabelled = &e
 			}
+			cp.Block.UnlabelledOverlays = r.UnlabelledOverlays()
 		case *model.Layer:
 			cp.Layer = &cachedLayer{Layer: r, Annotations: toCachedAnnotations(r.Annotations)}
 		case *model.Data:
@@ -173,6 +176,7 @@ func fromCachedParts(cps []cachedPart) []*model.Part {
 				if cp.Block.Unlabelled != nil {
 					cp.Block.Block.SetTargetEdition(model.EditionKey{}, *cp.Block.Unlabelled)
 				}
+				cp.Block.Block.SetUnlabelledOverlays(cp.Block.UnlabelledOverlays)
 				res = cp.Block.Block
 			}
 		case model.PartLayerStart, model.PartLayerEnd:

@@ -31,7 +31,7 @@ type SyncBlock struct {
 	Annotations  json.RawMessage          `json:"annotations,omitempty"`
 	// Overlays are the block's positional, run-anchored stand-off layers
 	// (segmentation, term, entity, term-candidate, qa, alignment, plugin-defined),
-	// carried as the canonical overlay JSON (core/venue.MarshalOverlays) so
+	// carried as the canonical overlay JSON (core/venue.MarshalBlockOverlays) so
 	// a term/entity/segmentation marked in kapi survives push→store→pull. A span's
 	// typed Value rides as a discriminated {"type","data"} envelope, matching the
 	// annotations blob above.
