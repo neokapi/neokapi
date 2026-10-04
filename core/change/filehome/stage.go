@@ -179,6 +179,16 @@ func (st *staged) run(ctx context.Context) error {
 		return err
 	}
 	if err := st.e.End(); err != nil {
+		if errors.Is(err, change.ErrRefused) {
+			// The refusal names the files the pass read, the editions' own
+			// files with the document's.
+			for _, je := range editions {
+				if je.kept == nil {
+					digest := before[je.file.Path]
+					st.files = append(st.files, &stagedFile{ref: je.file.Ref, edition: &je.key, path: je.file.Path, before: digest, after: digest})
+				}
+			}
+		}
 		return err
 	}
 	if !ownChanged && own.tmp != nil {

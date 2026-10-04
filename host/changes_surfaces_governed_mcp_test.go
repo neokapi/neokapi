@@ -33,7 +33,7 @@ func TestMCPApplyEdits_RunsTheCommitCheckAndRecordsTheEdit(t *testing.T) {
 	require.Equal(t, change.SetRefused, res.Status, body)
 	require.NotNil(t, res.Ops[0].Error)
 	assert.Equal(t, change.CodeGateFailed, res.Ops[0].Error.Code)
-	assert.Contains(t, findingRules(res.Ops[0].Findings), "terms.vocabulary")
+	assert.Contains(t, findingRules(docFindings(&res)), "terms.vocabulary")
 	assert.Nil(t, res.Record)
 	assert.Equal(t, original, readFile(t, f.recipe, doc), "a refused edit writes nothing")
 	assert.Empty(t, editOps(t, f.app, f.root), "a refused edit records nothing")

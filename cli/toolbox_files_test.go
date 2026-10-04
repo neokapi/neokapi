@@ -32,6 +32,33 @@ func TestBusyboxRootFilesAlias(t *testing.T) {
 	}
 }
 
+// Under the alias, apply's help names the alias and the project-free model:
+// no recipe, terms, review decisions or gate, and --out for a translation.
+func TestFilesAliasApplyHelp(t *testing.T) {
+	root := BusyboxRoot(newToolboxApp(t), FilesAliasName)
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&bytes.Buffer{})
+	root.SetArgs([]string{"apply", "--help"})
+	require.NoError(t, root.Execute())
+	help := out.String()
+	assert.Contains(t, help, "kapi-files apply change.json")
+	assert.Contains(t, help, "--out FILE")
+	assert.Contains(t, help, "--out string")
+	for _, kapiOnly := range []string{"recipe", "project-relative", "decide records", "--gate", "kapi apply", "kapi inspect"} {
+		assert.NotContains(t, help, kapiOnly)
+	}
+
+	out.Reset()
+	root = BusyboxRoot(newToolboxApp(t), FilesAliasName)
+	root.SetOut(&out)
+	root.SetErr(&bytes.Buffer{})
+	root.SetArgs([]string{"--help"})
+	require.NoError(t, root.Execute())
+	assert.NotContains(t, out.String(), "explain-prompts")
+	assert.Contains(t, out.String(), "Apply a change set to the files it names")
+}
+
 // kapi's own command tree never carries the alias, so neither its help nor the
 // command reference generated from KapiCommandSet lists it.
 func TestFilesAliasIsNotAKapiCommand(t *testing.T) {

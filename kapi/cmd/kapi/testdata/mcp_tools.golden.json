@@ -413,16 +413,16 @@
           "items": {
             "additionalProperties": false,
             "properties": {
+              "block": {
+                "description": "the block key a read reports as ref.block",
+                "type": "string"
+              },
               "path": {
                 "description": "a project-relative file",
                 "type": "string"
               },
               "quote": {
                 "description": "the text the wording was seen in",
-                "type": "string"
-              },
-              "unit": {
-                "description": "the block key inside the file",
                 "type": "string"
               },
               "url": {
@@ -455,7 +455,7 @@
           "type": "string"
         },
         "ops": {
-          "description": "the operations, applied in order; a position names the content as read, and an empty list changes nothing",
+          "description": "the operations, applied in order; a position names the content as read, and an empty list changes nothing. Several operations may name one block, each sending the rev you read, since every if_match is checked against the content the change set began with",
           "items": {
             "oneOf": [
               {
@@ -483,7 +483,7 @@
                     "type": "string"
                   },
                   "if_match": {
-                    "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                    "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                     "pattern": "^(absent|\\*|r:[0-9a-f]{16})$",
                     "type": "string"
                   },
@@ -571,7 +571,7 @@
                           "type": "integer"
                         },
                         "find": {
-                          "description": "literal text to match",
+                          "description": "the text to match, in placeholder form: inline codes have zero width unless a \u003cx id=\"…\"/\u003e token names one",
                           "type": "string"
                         },
                         "occurrence": {
@@ -628,7 +628,7 @@
                           "type": "integer"
                         },
                         "text": {
-                          "description": "the replacement text",
+                          "description": "the replacement text; after a find that names a code by its token, placeholder text naming the codes it keeps",
                           "type": "string"
                         }
                       },
@@ -641,7 +641,7 @@
                     "type": "array"
                   },
                   "if_match": {
-                    "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                    "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                     "pattern": "^(absent|\\*|r:[0-9a-f]{16})$",
                     "type": "string"
                   },
@@ -670,6 +670,10 @@
                       "tool"
                     ],
                     "type": "object"
+                  },
+                  "path": {
+                    "$ref": "#/$defs/path",
+                    "description": "a plural form or select case every edit is in, for example [1, {\"plural\": \"one\"}]; an edit's own path overrides it"
                   }
                 },
                 "required": [
@@ -692,7 +696,7 @@
                     "type": "string"
                   },
                   "if_match": {
-                    "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                    "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                     "pattern": "^(absent|\\*|r:[0-9a-f]{16})$",
                     "type": "string"
                   },
@@ -734,7 +738,7 @@
                     "type": "object"
                   },
                   "if_match": {
-                    "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                    "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                     "pattern": "^(absent|\\*|r:[0-9a-f]{16})$",
                     "type": "string"
                   },
@@ -769,7 +773,7 @@
                         "type": "integer"
                       },
                       "find": {
-                        "description": "literal text to match",
+                        "description": "the text to match, in placeholder form: inline codes have zero width unless a \u003cx id=\"…\"/\u003e token names one",
                         "type": "string"
                       },
                       "occurrence": {
@@ -850,7 +854,7 @@
                     "$ref": "#/$defs/ref"
                   },
                   "if_match": {
-                    "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                    "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                     "pattern": "^(absent|\\*|r:[0-9a-f]{16})$",
                     "type": "string"
                   },
@@ -1121,7 +1125,7 @@
                     "$ref": "#/$defs/ref"
                   },
                   "if_match": {
-                    "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                    "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                     "pattern": "^(absent|\\*|r:[0-9a-f]{16})$",
                     "type": "string"
                   },
@@ -1487,6 +1491,10 @@
           "description": "true when that rule should only report once a person keeps it; unset, a kept rule fails a check",
           "type": "boolean"
         },
+        "block": {
+          "description": "the ref.block that read_blocks or kapi inspect reports",
+          "type": "string"
+        },
         "from": {
           "description": "the wording that was there",
           "type": "string"
@@ -1514,10 +1522,6 @@
         "to": {
           "description": "the wording that replaced it",
           "type": "string"
-        },
-        "unit": {
-          "description": "the block or unit id inside that file, when you have one",
-          "type": "string"
         }
       },
       "required": [
@@ -1533,6 +1537,10 @@
     "input_schema": {
       "additionalProperties": false,
       "properties": {
+        "block": {
+          "description": "the ref.block that read_blocks or kapi inspect reports",
+          "type": "string"
+        },
         "instead_of": {
           "description": "forms the project avoids for term, e.g. Quick cast; spacing, hyphen and case variants are added for you",
           "items": {
@@ -1561,10 +1569,6 @@
         },
         "text": {
           "description": "the fact, in one sentence, in your own words",
-          "type": "string"
-        },
-        "unit": {
-          "description": "the block or unit id inside that file, when you have one",
           "type": "string"
         }
       },

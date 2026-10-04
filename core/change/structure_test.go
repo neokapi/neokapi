@@ -66,6 +66,7 @@ func TestService_DescribesStructureWhereTheFormatWritesIt(t *testing.T) {
 	assert.NotNil(t, d.Ops.InsertBlock)
 	assert.NotNil(t, d.Ops.DeleteBlock)
 	assert.Contains(t, readBlock(t, svc, "c", "a").Ops, change.KindDeleteBlock, "a block of the catalog accepts delete_block")
+	assert.Contains(t, readBlock(t, svc, "c", "a").Ops, change.KindInsertBlock, "a block of the catalog anchors insert_block")
 
 	d, err = svc.Describe(ctx, change.DescribeRequest{Format: "memory"})
 	require.NoError(t, err)

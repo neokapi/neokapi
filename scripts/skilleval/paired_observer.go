@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path"
 	"path/filepath"
@@ -23,24 +24,40 @@ type pairedObserver struct {
 	tools        map[string]string
 	interference *pairedInterferer
 	boundary     pairedBoundary
+	// taskFiles are the files the task may change or add, which a native
+	// write names.
+	taskFiles []string
+	// lateContext lands the task's late context, and contextReads are the
+	// calls that read the project's context, by id, whose results land it.
+	lateContext  *pairedLateContextRun
+	contextReads map[string]bool
 }
 
 func newPairedObserver(launch PairedLaunch, result *PairedAgentResult) *pairedObserver {
 	arm, _ := pairedArmFor(launch.Condition)
 	o := &pairedObserver{
 		launch: launch, arm: arm, result: result, started: time.Now(), tools: map[string]string{},
-		boundary: newPairedBoundary(launch),
+		boundary: newPairedBoundary(launch), taskFiles: pairedWritableFiles(launch.Task),
 	}
 	if launch.Interference != nil && launch.Workspace != "" {
 		o.interference = newPairedInterferer(launch.Workspace, *launch.Interference)
 		result.Interference = &PairedInterferenceRecord{}
+	}
+	if launch.LateContext != nil && launch.Workspace != "" {
+		kapiBin := launch.CellKapi
+		if kapiBin == "" {
+			kapiBin = launch.KapiBin
+		}
+		o.lateContext = &pairedLateContextRun{spec: *launch.LateContext, workspace: launch.Workspace, kapiBin: kapiBin}
+		o.contextReads = map[string]bool{}
+		result.LateContext = &PairedInterferenceRecord{}
 	}
 	return o
 }
 
 // toolUse audits one proposed tool call. It returns a violation for a route
 // the condition forbids, which ends the attempt.
-func (o *pairedObserver) toolUse(id, tool string, input map[string]any) string {
+func (o *pairedObserver) toolUse(ctx context.Context, id, tool string, input map[string]any) string {
 	if id != "" {
 		o.result.ToolCalls++
 		o.tools[id] = tool
@@ -64,6 +81,16 @@ func (o *pairedObserver) toolUse(id, tool string, input map[string]any) string {
 	}
 	o.scanInput(tool, input)
 	o.auditPaths(tool, input)
+	o.noteRoute(ctx, tool, input)
+	if o.lateContext != nil && pairedReadsContext(tool, input) {
+		if id == "" {
+			// A host that reports a call once it finished: the agent has
+			// read the context.
+			o.landLateContext(ctx, "read:"+tool)
+		} else {
+			o.contextReads[id] = true
+		}
+	}
 	return ""
 }
 
@@ -113,10 +140,13 @@ func (o *pairedObserver) auditPaths(tool string, input map[string]any) {
 }
 
 // toolResult reads a Claude tool result.
-func (o *pairedObserver) toolResult(id string, texts []string) {
+func (o *pairedObserver) toolResult(ctx context.Context, id string, texts []string) {
 	o.countRefusals(texts)
 	tool := o.tools[id]
 	delete(o.tools, id)
+	if o.contextReads[id] {
+		o.landLateContext(ctx, "read:"+tool)
+	}
 	if o.interference != nil && o.interference.shown(texts) {
 		o.interfere(tool)
 	}
@@ -160,6 +190,9 @@ var (
 	// message (an ARB branch holding ICU syntax) as a write error, which
 	// carries no contract code.
 	pairedWriteRefusal = regexp.MustCompile(`would not read back as written`)
+	// kapi merge reports each unit it refused on a "not merged:" line,
+	// naming the contract code first when there is one.
+	pairedMergeRefusal = regexp.MustCompile(`\bnot merged: (?:(stale|gate_failed|guard|not_found|ambiguous|unsupported|not_permitted|invalid)\b)?`)
 )
 
 func (o *pairedObserver) countRefusals(texts []string) {
@@ -183,6 +216,13 @@ func (o *pairedObserver) countRefusals(texts []string) {
 		}
 		if pairedWriteRefusal.MatchString(text) {
 			codes["write:not_read_back"] = true
+		}
+		for _, match := range pairedMergeRefusal.FindAllStringSubmatch(text, -1) {
+			code := match[1]
+			if code == "" {
+				code = "refused"
+			}
+			codes["merge:"+code] = true
 		}
 	}
 	for code := range codes {

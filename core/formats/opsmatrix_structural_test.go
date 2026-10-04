@@ -214,7 +214,7 @@ func structuralMatrix() []structuralRow {
 				ops: func(func(string) map[string]string) []change.Op {
 					return []change.Op{ins(json, "title", "nav.checkout", "Checkout")}
 				},
-				refused: change.CodeUnsupported,
+				refused: change.CodeInvalid,
 			},
 			{
 				name:    "delete_block refuses a revision that moved",
@@ -378,7 +378,7 @@ func structuralMatrix() []structuralRow {
 				ops: func(func(string) map[string]string) []change.Op {
 					return []change.Op{ins(yml, "footer", "nav.checkout", "Checkout")}
 				},
-				refused: change.CodeUnsupported,
+				refused: change.CodeInvalid,
 			},
 			{
 				name:    "delete_block refuses a revision that moved",

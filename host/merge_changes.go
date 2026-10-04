@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -218,6 +219,10 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 
 	var outcomes []mergeOutcome
 	note := func(o mergeOutcome) { outcomes = append(outcomes, o) }
+	// labels names each unit in a report by the block it translates, its key
+	// and the edition, as a read names it, rather than by the id the reader
+	// gave it.
+	labels := map[string]string{}
 	var ops []change.Op
 	var units []*model.Block
 	for _, u := range rf.blocks {
@@ -227,6 +232,9 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 			continue
 		}
 		cur, ok := current[u.ID]
+		if ok {
+			labels[u.ID] = cur.ref + "@" + string(rf.locale)
+		}
 		if !ok {
 			note(mergeOutcome{Block: u.ID, Status: mergeStale, Error: &change.Error{Code: change.CodeNotFound, Field: "at/block",
 				Message: fmt.Sprintf("%s holds no block %s", rf.doc, u.ID)}})
@@ -240,7 +248,7 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 		carried := len(u.Source) > 0
 		var why string
 		switch {
-		case carried && !sameSource(u, cur.block, rf.plainSource):
+		case carried && !sameSource(u, cur.block, rf.plainSource, rev.Basis != ""):
 			why = fmt.Sprintf("block %s no longer holds the source the unit carries", cur.ref)
 		case rev.Basis == "" && !carried && !unchangedFile:
 			why = fmt.Sprintf("the source of block %s changed since the unit was extracted", cur.ref)
@@ -252,6 +260,10 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 		if flattensStructure(cur.block.SourceRuns(), target.Runs) {
 			note(mergeOutcome{Block: u.ID, Status: mergeRefused, Error: &change.Error{Code: change.CodeGuard, Subcode: change.SubcodeStructureLost,
 				Message: "the message holds a plural or select, and the file carries one branch of it, so its translation would flatten the message; " + warnStructures}})
+			continue
+		}
+		if e := codesChanged(cur.block.SourceRuns(), target.Runs); e != nil {
+			note(mergeOutcome{Block: u.ID, Status: mergeRefused, Error: e})
 			continue
 		}
 		if rev.Basis == "" {
@@ -291,7 +303,7 @@ func (a *App) mergeReturned(ctx context.Context, task mergeTask, rf *returnedFil
 			if _, seen := byReason[why]; !seen {
 				reasons = append(reasons, why)
 			}
-			byReason[why] = append(byReason[why], o.Block)
+			byReason[why] = append(byReason[why], cmp.Or(labels[o.Block], o.Block))
 		}
 	}
 	for _, why := range reasons {
@@ -377,6 +389,8 @@ func (a *App) applyReturned(ctx context.Context, svc *change.Service, task merge
 				note(mergeOutcome{Block: units[i].ID, Status: mergeSkipped, Error: e})
 			case e != nil && (e.Code == change.CodeStale || e.Code == change.CodeNotFound):
 				note(mergeOutcome{Block: units[i].ID, Status: mergeStale, Error: e})
+			case e != nil && e.Code == change.CodeGateFailed:
+				note(mergeOutcome{Block: units[i].ID, Status: mergeRefused, Error: everyFinding(e, res.Docs, ops[i].At)})
 			default:
 				note(mergeOutcome{Block: units[i].ID, Status: mergeRefused, Error: e})
 			}
@@ -387,6 +401,97 @@ func (a *App) applyReturned(ctx context.Context, svc *change.Service, task merge
 		ops, units = keepOps, keepUnits
 	}
 	return nil, nil
+}
+
+// codesChanged refuses a translation that drops an inline code its source
+// holds as guard/codes_changed, with the codes as a read shows them: what the
+// source holds and the translation lacks as expected, and what the
+// translation adds besides as found. The commit check would refuse it too,
+// naming one code at a time. A code the translation adds, such as a
+// redaction placeholder a merge keeps with --no-restore, is the change
+// service's to judge.
+func codesChanged(source, target []model.Run) *change.Error {
+	d := model.DiffRunCodes(source, target)
+	if len(d.MissingCodes()) == 0 {
+		return nil
+	}
+	tokens, order := codeTokens(source, target)
+	render := func(sigs []string) string {
+		if len(sigs) == 0 {
+			return "none"
+		}
+		// In the order the codes stand in the source, then the translation.
+		slices.SortStableFunc(sigs, func(a, b string) int { return order[a] - order[b] })
+		out := make([]string, 0, len(sigs))
+		for _, sig := range sigs {
+			out = append(out, cmp.Or(tokens[sig], sig))
+		}
+		return strings.Join(out, " ")
+	}
+	expected, found := render(d.MissingCodes()), render(d.ExtraCodes())
+	e := &change.Error{Code: change.CodeGuard, Subcode: change.SubcodeCodesChanged,
+		Message: fmt.Sprintf("expected %s, found %s: keep every <x id=\"…\"/> code of the source in the translation", expected, found)}
+	if expected != "none" {
+		e.Expected = expected
+	}
+	if found != "none" {
+		e.Found = found
+	}
+	return e
+}
+
+// codeTokens maps each code signature (model.RunCodeSignature) of runs to the
+// <x id="…"/> token a read shows the code as, and to the place it first
+// stands in them.
+func codeTokens(runs ...[]model.Run) (map[string]string, map[string]int) {
+	out, order := map[string]string{}, map[string]int{}
+	var walk func([]model.Run)
+	walk = func(rs []model.Run) {
+		for _, r := range rs {
+			if sig, ok := model.RunCodeSignature(r); ok {
+				if _, seen := out[sig]; !seen {
+					out[sig] = model.RunsPlaceholderText([]model.Run{r})
+					order[sig] = len(order)
+				}
+				continue
+			}
+			switch {
+			case r.Plural != nil:
+				for _, f := range r.Plural.Forms {
+					walk(f)
+				}
+			case r.Select != nil:
+				for _, c := range r.Select.Cases {
+					walk(c)
+				}
+			}
+		}
+	}
+	for _, rs := range runs {
+		walk(rs)
+	}
+	return out, order
+}
+
+// everyFinding is a gate refusal's error with every failing finding the
+// commit check reported for the edition at, not only the first the
+// operation's message names.
+func everyFinding(e *change.Error, docs []change.DocResult, at change.Ref) *change.Error {
+	var msgs []string
+	for _, d := range docs {
+		for _, f := range d.Findings {
+			if !f.Fails || f.At == nil || f.At.Block != at.Block || f.At.Edition.Canonical() != at.Edition.Canonical() {
+				continue
+			}
+			msgs = append(msgs, f.Message)
+		}
+	}
+	if len(msgs) < 2 {
+		return e
+	}
+	out := *e
+	out.Message = fmt.Sprintf("%d failing findings: %s", len(msgs), strings.Join(msgs, "; "))
+	return &out
 }
 
 // translatorWins says whether the conflict policy gives a unit whose
@@ -554,11 +659,20 @@ func blockList(ids []string) string {
 
 // sameSource reports whether the source a unit carries is the source block
 // cur holds: compared as plain text for a carrier that holds plain text, and
-// otherwise with inline codes rendered as their original data, which is how a
-// returned XLIFF carries them.
-func sameSource(unit, cur *model.Block, plain bool) bool {
+// otherwise as its original data, codes included, the way a returned file
+// carries the markup. A unit that names its basis (based) may also carry each
+// code as the code it is, the way an XLIFF extract does (a <pc> or <ph> with
+// its native form in originalData): the basis then answers for the codes'
+// data, and the change service refuses the unit as stale when the source
+// moved. A unit with no basis has nothing else to answer for that data, so a
+// source whose only change is a code's data, such as a link's address, is not
+// the source it carries.
+func sameSource(unit, cur *model.Block, plain, based bool) bool {
 	if plain {
 		return unit.SourceText() == cur.SourceText()
+	}
+	if based && model.RunsPlaceholderText(unit.Source) == model.RunsPlaceholderText(cur.Source) {
+		return true
 	}
 	return model.RenderRunsWithData(unit.Source) == model.RenderRunsWithData(cur.Source)
 }

@@ -96,10 +96,12 @@ var (
 		{"OpResult", reflect.TypeFor[change.OpResult](), ""},
 		{"ChangeFinding", reflect.TypeFor[change.Finding](), ""},
 		{"ResolvedSpan", reflect.TypeFor[change.Resolved](), ""},
+		{"ResultPosition", reflect.TypeFor[change.Position](), ""},
 		{"Invalidation", reflect.TypeFor[change.Invalidation](), ""},
 		{"CurrentEdition", reflect.TypeFor[change.Current](), ""},
 		{"ChangeError", reflect.TypeFor[change.Error](), ""},
 		{"ErrorCandidate", reflect.TypeFor[change.Candidate](), ""},
+		{"FindSearched", reflect.TypeFor[change.Searched](), ""},
 	}
 	changeReadTypes = []emitType{
 		{"ReadRequest", reflect.TypeFor[change.ReadRequest](), ""},

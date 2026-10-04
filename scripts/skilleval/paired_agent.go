@@ -41,6 +41,7 @@ type PairedLaunch struct {
 	MaxTurns       int                 `json:"max_turns"`
 	NoTools        bool                `json:"no_tools,omitempty"`
 	Interference   *PairedInterference `json:"interference,omitempty"`
+	LateContext    *PairedLateContext  `json:"late_context,omitempty"`
 }
 
 // PairedPrepared is an offline launch description. Blockers prohibit inference.
@@ -85,6 +86,10 @@ type PairedAgentResult struct {
 	Turns *int64 `json:"turns,omitempty"`
 	// ToolCalls counts the tool calls the host completed.
 	ToolCalls int `json:"tool_calls"`
+	// ToolCallsSource says where a Codex session's count came from: the
+	// exec stream, or the session's rollout where it recorded more (the
+	// rejected patches and apply_patch calls the stream leaves out).
+	ToolCallsSource string `json:"tool_calls_source,omitempty"`
 	// Refusals counts the refusal codes tool results carried: kapi's own
 	// (stale, gate_failed, guard, …) and, prefixed host:, a host tool's
 	// refusal of a stale write.
@@ -92,6 +97,26 @@ type PairedAgentResult struct {
 	// OverrideAttempts lists each attempt to land an edit over a check: a gate
 	// report, a person's actor claimed from the agent's shell, a blind write.
 	OverrideAttempts []string `json:"override_attempts,omitempty"`
+	// MCPExposure says what the session shows of the kapi tools the host gave
+	// the model, in an mcp arm: declared (the host's tool list held them),
+	// called (the host lists no tools, as Codex does, and the model called
+	// one), absent (the host's tool list held none, and the cell failed), or
+	// unverified (no list and no call).
+	MCPExposure string `json:"mcp_exposure,omitempty"`
+	// MCPGiven lists the kapi tools the host declared to the model.
+	MCPGiven []string `json:"mcp_given,omitempty"`
+	// RootWrites lists the files the agent's tool calls wrote directly in the
+	// workspace root, kept or deleted later.
+	RootWrites []string `json:"root_writes,omitempty"`
+	// ContextWrites lists the writes to the project's context store the
+	// agent's tool calls made: kapi context, terms and memory verbs and the
+	// context MCP tools that record.
+	ContextWrites []string `json:"context_writes,omitempty"`
+	// WriteRoutes lists the routes the agent's tool calls took to write the
+	// task's files, in the order it first took each: contract (kapi apply,
+	// ksed -i, apply_edits), merge (kapi merge) and native (the host's own
+	// edit, write or patch tools, or a shell command rewriting a task file).
+	WriteRoutes []string `json:"write_routes,omitempty"`
 	// RouteAttempts lists kapi names the agent tried that its cell's PATH does
 	// not hold. The cell cannot run them; they are recorded, not refused.
 	RouteAttempts []string `json:"route_attempts,omitempty"`
@@ -102,6 +127,9 @@ type PairedAgentResult struct {
 	OutsideCell []string `json:"outside_cell,omitempty"`
 	// Interference records the other editor's change, for a task that has one.
 	Interference *PairedInterferenceRecord `json:"interference,omitempty"`
+	// LateContext records when the task's late context landed, for a task
+	// that has one.
+	LateContext *PairedInterferenceRecord `json:"late_context,omitempty"`
 }
 
 // PairedInterferenceRecord says whether and when the other editor's change

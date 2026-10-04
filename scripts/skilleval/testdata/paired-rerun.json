@@ -1,0 +1,42 @@
+{
+  "schema": 2,
+  "study": "kapi-wp5-rerun",
+  "seed": 20261003,
+  "agents": [
+    {
+      "host": "codex",
+      "model": "gpt-5.6-terra",
+      "effort": "medium"
+    },
+    {
+      "host": "claude",
+      "model": "claude-sonnet-5",
+      "effort": "high"
+    }
+  ],
+  "conditions": [
+    "baseline",
+    "skill-cli",
+    "mcp",
+    "project-free",
+    "kapi-no-project"
+  ],
+  "tasks": [
+    "edit-link-html-md",
+    "edit-plural-branch",
+    "add-edition-markup",
+    "edit-po-context",
+    "add-json-key",
+    "recover-stale-read",
+    "recover-gate-refusal",
+    "edit-plural-equal-branches",
+    "edit-nested-select",
+    "edit-po-wrapped",
+    "add-key-every-language"
+  ],
+  "smoke_task": "recover-stale-read",
+  "repetitions": 3,
+  "attempt_timeout_seconds": 600,
+  "max_turns": 40,
+  "billing": "subscription-only"
+}

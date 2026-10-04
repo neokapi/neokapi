@@ -32,6 +32,10 @@ type pairedScoreRow struct {
 	Refusals          map[string]int            `json:"refusals,omitempty"`
 	OverrideAttempts  []string                  `json:"override_attempts,omitempty"`
 	RouteAttempts     []string                  `json:"route_attempts,omitempty"`
+	WriteRoute        string                    `json:"write_route,omitempty"`
+	RootWrites        []string                  `json:"root_writes,omitempty"`
+	ContextWrites     []string                  `json:"context_writes,omitempty"`
+	MCPExposure       string                    `json:"mcp_exposure,omitempty"`
 	OutsideCell       []string                  `json:"outside_cell,omitempty"`
 	Interference      *PairedInterferenceRecord `json:"interference,omitempty"`
 	HumanReview       string                    `json:"human_review"`
@@ -127,9 +131,15 @@ func scorePaired(dir string) error {
 
 // pairedSummaryCell is one task, host and condition of the summary.
 type pairedSummaryCell struct {
-	n, passed, completed, overrides, outside, changed int
-	seconds, input, output, tools                     []float64
-	refusals, invalid                                 map[string]int
+	n, passed, completed, overrides, outside, changed, asked int
+	// rootWrites and contextWrites count the attempts that wrote a file in
+	// the workspace root, and that wrote the project's context store.
+	rootWrites, contextWrites int
+	// unmeasured counts the attempts whose host reported no token use,
+	// which every median leaves out alike.
+	unmeasured                    int
+	seconds, input, output, tools []float64
+	refusals, invalid             map[string]int
 	// The stale-recovery columns, for a task with another editor.
 	interfered                                                   bool
 	exercised, afterWrite, neverLanded, conflict                 int
@@ -146,7 +156,9 @@ var pairedConflictSignals = []string{"stale", "host:stale", "host:patch_failed"}
 // chance, and is left out until PAIRED_EVAL_RETRY=1 runs it again.
 func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 	cells := map[[3]string]*pairedSummaryCell{}
-	held := 0
+	routes := map[[4]string]*pairedSummaryCell{}
+	held, absent := 0, 0
+	exposure := map[string]int{}
 	for _, row := range rows {
 		if row.Superseded || row.Phase == "diagnostic" {
 			continue
@@ -155,6 +167,13 @@ func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 			held++
 			continue
 		}
+		if row.Status == "mcp_absent" {
+			absent++
+			continue
+		}
+		if row.MCPExposure != "" {
+			exposure[row.MCPExposure]++
+		}
 		key := [3]string{row.Session.Task, row.Session.Agent.Host, row.Session.Condition}
 		c := cells[key]
 		if c == nil {
@@ -162,6 +181,17 @@ func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 			cells[key] = c
 		}
 		c.add(row)
+		route := row.WriteRoute
+		if route == "" {
+			route = "unrecorded"
+		}
+		rkey := [4]string{key[0], key[1], key[2], route}
+		r := routes[rkey]
+		if r == nil {
+			r = &pairedSummaryCell{refusals: map[string]int{}, invalid: map[string]int{}}
+			routes[rkey] = r
+		}
+		r.add(row)
 	}
 	if len(cells) == 0 {
 		return
@@ -182,22 +212,102 @@ func writePairedSummary(markdown *strings.Builder, rows []pairedScoreRow) {
 	markdown.WriteString("## Summary\n\nMedians over each cell's current attempts. Outside cell counts the attempts " +
 		"whose tool calls named a path outside their cell (another attempt, the checkout, the home directory or a " +
 		"shared temporary directory): read their transcripts before counting them. Changed counts the attempts whose " +
-		"graded files no longer match what was graded; their recorded verdict stands.\n\n")
+		"graded files no longer match what was graded; their recorded verdict stands. Asked counts the attempts " +
+		"that changed no task file and ended on a question to the person, which did not pass and did not write " +
+		"anything wrong either.\n\n")
 	if held > 0 {
 		fmt.Fprintf(markdown, "%d attempts are left out: a rate limit, an interruption, a failed launch or an "+
 			"infrastructure failure cut them short. PAIRED_EVAL_RETRY=1 runs them again.\n\n", held)
 	}
-	markdown.WriteString("| Task | Host | Condition | n | Objective passed | Completed | Seconds | Input tokens | Output tokens | Tool calls | Refusals | Override attempts | Outside cell | Changed |\n" +
-		"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+	if absent > 0 {
+		fmt.Fprintf(markdown, "%d mcp attempts are left out: the host gave the model no kapi tools, so they did not "+
+			"run the arm.\n\n", absent)
+	}
+	if len(exposure) > 0 {
+		fmt.Fprintf(markdown, "What the mcp attempts show of the kapi tools the model was given: declared by the "+
+			"host %d, called without a declared list %d, unverified %d.\n\n",
+			exposure["declared"], exposure["called"], exposure["unverified"])
+	}
+	markdown.WriteString("| Task | Host | Condition | n | Objective passed | Completed | Seconds | Input tokens | Output tokens | Tool calls | Refusals | Override attempts | Outside cell | Changed | Asked |\n" +
+		"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
 	for _, key := range keys {
 		c := cells[key]
-		fmt.Fprintf(markdown, "| %s | %s | %s | %d | %d | %d | %.0f | %.0f | %.0f | %.0f | %s | %d | %d | %d |\n",
+		fmt.Fprintf(markdown, "| %s | %s | %s | %d | %d | %d | %.0f | %.0f | %.0f | %.0f | %s | %d | %d | %d | %d |\n",
 			key[0], key[1], key[2], c.n, c.passed, c.completed,
 			pairedMedian(c.seconds), pairedMedian(c.input), pairedMedian(c.output), pairedMedian(c.tools),
-			pairedRefusalText(c.refusals), c.overrides, c.outside, c.changed)
+			pairedRefusalText(c.refusals), c.overrides, c.outside, c.changed, c.asked)
 	}
+	var unmeasured []string
+	for _, key := range keys {
+		if n := cells[key].unmeasured; n > 0 {
+			unmeasured = append(unmeasured, fmt.Sprintf("%s %s %s (%d)", key[0], key[1], key[2], n))
+		}
+	}
+	if len(unmeasured) > 0 {
+		fmt.Fprintf(markdown, "\nThe medians leave out the attempts whose host reported no token use, in seconds and "+
+			"tool calls as in tokens: %s.\n", strings.Join(unmeasured, ", "))
+	}
+	writePairedWritesSummary(markdown, keys, cells)
+	writePairedRouteSummary(markdown, routes)
 	writePairedStaleSummary(markdown, keys, cells)
 	writePairedInvalidSummary(markdown, keys, cells)
+}
+
+// writePairedWritesSummary counts, per cell, the attempts that wrote a file in
+// the workspace root (whether or not it was left there) and the attempts that
+// wrote the project's context store, which the task never asks for.
+func writePairedWritesSummary(markdown *strings.Builder, keys [][3]string, cells map[[3]string]*pairedSummaryCell) {
+	header := false
+	for _, key := range keys {
+		c := cells[key]
+		if c.rootWrites == 0 && c.contextWrites == 0 {
+			continue
+		}
+		if !header {
+			markdown.WriteString("\n## Writes beside the task\n\nAttempts that wrote a file in the workspace root, kept " +
+				"or deleted later, and attempts that wrote the project's context store (kapi context, terms or memory " +
+				"verbs, or a recording context tool).\n\n| Task | Host | Condition | n | Root writes | Context-store writes |\n" +
+				"|---|---|---|---|---|---|\n")
+			header = true
+		}
+		fmt.Fprintf(markdown, "| %s | %s | %s | %d | %d | %d |\n", key[0], key[1], key[2], c.n, c.rootWrites, c.contextWrites)
+	}
+}
+
+// writePairedRouteSummary splits each cell's attempts by the route they wrote
+// the task's files through, with the medians of each: what an attempt costs
+// depends on the route it took as much as on its condition.
+func writePairedRouteSummary(markdown *strings.Builder, routes map[[4]string]*pairedSummaryCell) {
+	if len(routes) == 0 {
+		return
+	}
+	keys := make([][4]string, 0, len(routes))
+	for key := range routes {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		for k := range 4 {
+			if keys[i][k] != keys[j][k] {
+				if k == 2 {
+					return slices.Index(pairedConditions, keys[i][k]) < slices.Index(pairedConditions, keys[j][k])
+				}
+				return keys[i][k] < keys[j][k]
+			}
+		}
+		return false
+	})
+	markdown.WriteString("\n## Write routes\n\nEach cell's attempts by the route their tool calls took to write the " +
+		"task's files: contract (kapi apply, ksed -i or apply_edits), merge (kapi merge), native (the host's own " +
+		"edit, write or patch tools, or a shell command rewriting a task file), several joined with +, or none. " +
+		"Medians as in the summary.\n\n" +
+		"| Task | Host | Condition | Route | n | Objective passed | Seconds | Input tokens | Tool calls |\n" +
+		"|---|---|---|---|---|---|---|---|---|\n")
+	for _, key := range keys {
+		c := routes[key]
+		fmt.Fprintf(markdown, "| %s | %s | %s | %s | %d | %d | %.0f | %.0f | %.0f |\n",
+			key[0], key[1], key[2], key[3], c.n, c.passed,
+			pairedMedian(c.seconds), pairedMedian(c.input), pairedMedian(c.tools))
+	}
 }
 
 func (c *pairedSummaryCell) add(row pairedScoreRow) {
@@ -211,17 +321,31 @@ func (c *pairedSummaryCell) add(row pairedScoreRow) {
 	if len(row.OverrideAttempts) > 0 {
 		c.overrides++
 	}
+	if row.Validation != nil && row.Validation.Outcome == "asked" {
+		c.asked++
+	}
+	if len(row.RootWrites) > 0 {
+		c.rootWrites++
+	}
+	if len(row.ContextWrites) > 0 {
+		c.contextWrites++
+	}
 	if len(row.OutsideCell) > 0 {
 		c.outside++
 	}
 	if row.ArtifactIntegrity == "changed" {
 		c.changed++
 	}
-	c.seconds = append(c.seconds, float64(row.DurationMS)/1000)
-	c.tools = append(c.tools, float64(row.ToolCalls))
+	// An attempt whose host reported no token use ended before the host
+	// could account for it. It is left out of every median, so the seconds,
+	// tokens and tool calls of a cell describe the same attempts.
 	if row.InputTokens != nil && row.OutputTokens != nil {
+		c.seconds = append(c.seconds, float64(row.DurationMS)/1000)
+		c.tools = append(c.tools, float64(row.ToolCalls))
 		c.input = append(c.input, float64(*row.InputTokens))
 		c.output = append(c.output, float64(*row.OutputTokens))
+	} else {
+		c.unmeasured++
 	}
 	for code, count := range row.Refusals {
 		if pointer, ok := strings.CutPrefix(code, "invalid:"); ok {
@@ -373,6 +497,10 @@ func scorePairedAttempt(path, fingerprint string) (pairedScoreRow, error) {
 	row.Refusals = result.Agent.Refusals
 	row.OverrideAttempts = result.Agent.OverrideAttempts
 	row.RouteAttempts = result.Agent.RouteAttempts
+	row.WriteRoute = pairedWriteRoute(result.Agent.WriteRoutes)
+	row.RootWrites = result.Agent.RootWrites
+	row.ContextWrites = result.Agent.ContextWrites
+	row.MCPExposure = result.Agent.MCPExposure
 	row.OutsideCell = result.Agent.OutsideCell
 	row.Interference = result.Agent.Interference
 	row.Validation = result.Validation

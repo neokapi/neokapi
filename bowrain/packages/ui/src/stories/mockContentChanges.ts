@@ -98,6 +98,11 @@ export function applyMockChanges(store: MockChangeStore, set: ContentChangeSet):
   }));
 
   let refused = -1;
+  // What the checks found, by document: the result lists it on the document,
+  // as the change service does.
+  const found = new Map<string, ChangeFinding[]>();
+  const docs = (written: boolean) =>
+    [...found].map(([doc, findings]) => ({ doc, written, after: null, findings }));
   const refuse = (i: number, result: Partial<OpResult>) => {
     Object.assign(results[i], { status: "refused" }, result);
     if (refused < 0) refused = i;
@@ -138,12 +143,9 @@ export function applyMockChanges(store: MockChangeStore, set: ContentChangeSet):
       }
       const findings = store.failingCheck;
       if (op.op === "set_content" && findings?.length) {
-        if (set.gate === "report") {
-          results[i].findings = findings;
-          return;
-        }
+        found.set(op.at.doc, [...(found.get(op.at.doc) ?? []), ...findings]);
+        if (set.gate === "report") return;
         refuse(i, {
-          findings,
           error: {
             code: "gate_failed",
             message: `the edit introduces ${findings.length} failing finding(s) in ${op.at.doc}: ${findings[0].message}`,
@@ -158,7 +160,7 @@ export function applyMockChanges(store: MockChangeStore, set: ContentChangeSet):
       schema: CHANGE_RESULT_SCHEMA_ID,
       status: "refused",
       record: null,
-      docs: [],
+      docs: docs(false),
       ops: results.map((r) =>
         r.status === "refused" ? r : { ...r, status: "not_applied", blocked_by: refused },
       ),
@@ -268,7 +270,7 @@ export function applyMockChanges(store: MockChangeStore, set: ContentChangeSet):
     schema: CHANGE_RESULT_SCHEMA_ID,
     status: "applied",
     record: "mock",
-    docs: [],
+    docs: docs(true),
     ops: results,
   };
 }

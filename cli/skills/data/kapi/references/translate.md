@@ -23,9 +23,11 @@ kapi preserves structure, tags, and placeholders (round-trip). Add `--credential
 
 **Ongoing work (a whole app, the same locales repeatedly), or translating it
 yourself under voice + terminology guardrails**: bind a project first
-(`kapi init`), then `kapi extract → fill the targets → kapi merge →
-kapi check --ship` (below). Inside a project, `kapi extract` and `kapi merge`
-operate on the project's content; run them inside one (or with `-p <recipe>`).
+(`kapi init`). When you write the translation yourself, write each block as an
+edition of its source with `kapi apply` (below); `kapi extract → fill the
+targets → kapi merge` is the route for a bilingual file a translator or a CAT
+tool fills. Inside a project, `kapi extract` and `kapi merge` operate on the
+project's content; run them inside one (or with `-p <recipe>`).
 
 ## Commands at a glance (use these exact forms)
 
@@ -54,7 +56,30 @@ things kapi exists to enforce, and the things a human reviewer will later hold y
 Instead, let kapi pull out the text and the rules, do the translating, and let kapi
 write it back. (Inside a project, the kapi Claude Code plugin enforces this with a
 PreToolUse hook that blocks direct edits to generated target files; route the
-change through the round-trip below, or edit the source.)
+change through kapi, or edit the source.)
+
+### Write each block as an edition of its source
+
+Inside a project, the file of a translation the recipe keeps is an edition of
+its source document. Read the source's blocks, write the translation of each one,
+and send them to `kapi apply` (MCP: `apply_edits`) at the source document with
+the language as the edition: one `set_content` per block, with `if_match:
+"absent"` for a block the translation does not hold yet and the source block's
+`<x id="…"/>` tokens kept. The change set creates the translation's file, and
+each block is checked against the voice and terms as it is written. See
+[edit.md](edit.md), "Write a translation", for the operation.
+
+```bash
+kapi inspect docs/guide.md --jsonl     # the source blocks, each with its ref and rev
+kapi voice guide                       # the voice to follow (no flag inside a project)
+kapi terms lookup "<term>" -t fr       # the approved wording
+printf '%s' '<change set>' | kapi apply -   # one set_content per block, "edition": "fr"
+```
+
+### Or fill a bilingual file and merge it
+
+For a translator or a CAT tool that fills a bilingual file, extract one, fill it,
+and merge it back:
 
 ```bash
 kapi extract --target-lang fr        # bilingual file with source + empty targets (out/*.xliff)

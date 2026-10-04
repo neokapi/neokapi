@@ -1,0 +1,29 @@
+{
+  "id": "edit-po-wrapped",
+  "family": "bilingual-po",
+  "prompt": "In locales/nb/booking.po, the Norwegian translation of the cancellation message says \"kontakte rådgiveren din\" where the English says to call the adviser. Change \"du kontakte rådgiveren din\" to \"du ringe rådgiveren din\". Leave every other entry, and the English, as they are.",
+  "editable": [
+    "locales/nb/booking.po"
+  ],
+  "scope": [
+    "locales"
+  ],
+  "criteria": [
+    {
+      "id": "po-entries",
+      "kind": "po_entries",
+      "path": "locales/nb/booking.po",
+      "description": "The cancellation entry's translation reads \"... Etter det må du ringe rådgiveren din.\", and every other entry, its source and the header are as they were"
+    },
+    {
+      "id": "wrapping-kept",
+      "kind": "bytes_equal",
+      "path": "locales/nb/booking.po",
+      "informational": true,
+      "description": "The file keeps its line wrapping (reported only: a catalog wrapped another way reads the same)"
+    }
+  ],
+  "humanReviewRubric": [
+    "Did the agent change the words across the msgstr's line break, rather than only one line of it?"
+  ]
+}

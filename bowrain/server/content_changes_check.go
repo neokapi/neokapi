@@ -198,7 +198,8 @@ func commitFindings(found []check.Finding, at change.Ref) []change.Finding {
 		if f.Check != "" {
 			rule = f.Check + "." + f.Category
 		}
-		out = append(out, change.Finding{Rule: rule, Message: f.Message, Fails: f.Fails && !f.Suggested, Suggested: f.Suggested, At: &ref})
+		out = append(out, change.Finding{Rule: rule, Message: f.Message, Fails: f.Fails && !f.Suggested, Suggested: f.Suggested, At: &ref,
+			Range: change.FindingRange(&f.Position), Replacement: f.Metadata["replacement"]})
 	}
 	return out
 }

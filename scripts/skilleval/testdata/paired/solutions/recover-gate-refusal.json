@@ -1,4 +1,5 @@
 {"steps": [
+  {"note": "A person adds the term rule against portal once the agent has read the context", "late_context": true},
   {"note": "The first attempt names the portal, which the project's terms forbid",
    "exit": 3, "code": "gate_failed",
    "changeset": {"ops": [

@@ -55,7 +55,7 @@ A change set has an envelope and operations.
 | `mode` | `apply` (the default) or `preview`, which computes and checks everything, writes nothing, and returns a diff per document |
 | `gate` | `enforce` (the default) or `report`: what a failing governance finding the change introduces does |
 | `require_basis` | refuse a write to a derived edition whose authoritative edition moved since the sender read it |
-| `note`, `evidence` | what a person reads in history, and where the wording behind the change was seen |
+| `note`, `evidence` | what a person reads in history, and where the wording behind the change was seen: a file's `path`, the `block` key a read reports, a `quote` or a `url` |
 | `ops` | the operations, applied in order; a change set with none changes nothing |
 
 The content operations are `set_content`, `replace_text`, `set_attribute`,
@@ -79,6 +79,22 @@ structs the service marshals; a drift gate regenerates them on every change. The
 note [The change applier](../../implementation/engine/change-applier.md) covers
 the types, the decoder, the schema and the TypeScript types.
 
+`kapi.change/v1` is frozen, and from then on is only extended. A frozen file
+beside each golden holds the contract as it was published: the change set's
+schema, the result's (`kapi.change-result/v1`, `changeschema.ResultSchema`) and
+the read's (`changeschema.ReadSchema`), and the MCP tool surface. A test walks
+each frozen schema beside the one the Go types generate and refuses a change that
+breaks the side that depends on it: for a request, a property, `$defs` entry or
+operation removed or renamed, a type, `const`, `$ref`, pattern, format or bound
+changed, a property newly required, an enum value removed, or
+`additionalProperties` changed; for a result or a read, the same, with a property
+dropped from `required` in place of a newly required one. An optional property,
+an operation, an enum value, a `$defs` entry and any description extend a
+schema. A breaking change needs `kapi.change/v2` and a new frozen file. Decoding
+stays strict, so an older binary refuses a field a newer sender adds as
+`invalid`, which the rule accepts: a sender learns the field is not understood
+rather than having it ignored.
+
 ### Addressing and revisions
 
 An operation addresses `{doc, block, edition}`. `doc` is a project-relative
@@ -92,8 +108,10 @@ An operation that changes existing content carries `if_match`, the revision of
 the edition its sender read. `model.EditionRevision` hashes the edition key and
 its runs, codes and their attributes included, and nothing else, so the same
 token holds in every home. `absent` creates an edition, and `*` writes whatever
-is there. Every `if_match` is checked against the content as it stood when the
-change set began, so a sender never computes an intermediate revision.
+is there, a blind write only a person may send. Every `if_match` is checked
+against the content as it stood when the change set began, so a sender never
+computes an intermediate revision, and several operations on one block each
+send the revision their sender read.
 
 A position names that content too. An edit's `start` and `end`, a run `range`,
 and the run index a `path` walks through all refer to the edition at the
@@ -105,7 +123,12 @@ inside text an earlier operation replaced, or after a `set_content` of the
 sequence it lies in, has no place in the edition as it stands, and the
 operation is refused as `guard` (`overlap`) with a message naming both
 operations by their place in the change set. A `find` matches the text as the
-earlier operations left it, and an annotation's anchor marks that text. An
+earlier operations left it, and an annotation's anchor marks that text. A
+`find` is placeholder text, so the text a read shows can be sent back as it
+reads: an inline code has zero width unless a `<x id="…"/>` token names it, and
+a token matches only the code it names. A `replace_text` takes a `path` to the
+plural form or select case its edits are in, on the operation for every edit or
+on an edit, whose own `path` overrides it. An
 in-process caller that builds each operation on the result of the one before
 it, as a transform's passes do, applies them with `BlockEnv.Chained`, under
 which every position reads the edition as the operations before it left it.
@@ -594,7 +617,16 @@ entry per file written or read with its digests before and after and whether it
 was written, and one result per operation with its revisions, the positions it
 resolved, the derived editions it left on an older basis (`invalidates`), and
 on a refusal an error from a closed set of codes, each mapped once to an exit
-code and an HTTP status. In a `partial` result the operations on the files that
+code and an HTTP status. A refused operation reports no revision or position,
+since nothing was written; a change set refused after its documents were read
+lists each with `written: false`. A resolved position prints its run and its
+offset, a zero offset included. Each document carries the findings the commit
+check made on the edit, failing or not, each with the range it found and, for a
+term rule, the wording it asks for: an empty list when the check ran and found
+nothing, and none where no check applies. A `gate_failed` refusal counts the
+failing findings and leaves them on the document. A `find` that matches nothing
+is refused `not_found` with the path and the text it searched and up to three
+candidates. In a `partial` result the operations on the files that
 were not written are `not_applied`, and so are the decisions and asset
 operations, which wait for content that all landed; the record holds what did.
 A `stale` refusal carries the edition as it stands, so the sender can rebase

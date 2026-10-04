@@ -1,0 +1,2370 @@
+{
+  "$comment": "The kapi MCP tool surface, frozen for release 1.3.0 on 2026-10-03 with kapi.change/v1; extend only. TestMCPToolSurfaceExtendsFrozen holds the served tools to it: names may only grow, and each input schema must extend its frozen one. Nothing regenerates this file.",
+  "tools": [
+    {
+      "name": "apply_edits",
+      "input_schema": {
+        "$defs": {
+          "block": {
+            "additionalProperties": false,
+            "description": "a block of a document",
+            "properties": {
+              "block": {
+                "description": "the block key a read reports",
+                "type": "string"
+              },
+              "doc": {
+                "description": "the document: a project-relative path, container!entry for an archive member, or a workspace document key",
+                "type": "string"
+              }
+            },
+            "required": [
+              "doc",
+              "block"
+            ],
+            "type": "object"
+          },
+          "path": {
+            "description": "a walk into a plural or select: a run index, then the form or case, repeated",
+            "items": {
+              "description": "a run index, {\"plural\": form} or {\"select\": case}",
+              "oneOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "plural": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "zero",
+                            "one",
+                            "two",
+                            "few",
+                            "many",
+                            "other"
+                          ]
+                        },
+                        {
+                          "pattern": "^=[0-9]+(\\.[0-9]+)?$"
+                        }
+                      ],
+                      "description": "a plural form: zero, one, two, few, many, other, or =N",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "plural"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "select": {
+                      "description": "a select case",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "select"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "ref": {
+            "additionalProperties": false,
+            "description": "an edition of a block in a document",
+            "properties": {
+              "block": {
+                "description": "the block key a read reports",
+                "type": "string"
+              },
+              "doc": {
+                "description": "the document: a project-relative path, container!entry for an archive member, or a workspace document key",
+                "type": "string"
+              },
+              "edition": {
+                "description": "the edition: a language tag with optional ;tone= and ;channel=, for example fr or en;channel=short; omitted is the document's own edition",
+                "type": "string"
+              }
+            },
+            "required": [
+              "doc",
+              "block"
+            ],
+            "type": "object"
+          },
+          "run": {
+            "description": "one run of content: text, or an inline code named by its id, type and attributes (never its native data), or a plural or select whose branches are runs",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "noTranslate": {
+                    "description": "the text is not for translation, such as a command in a code span",
+                    "type": "boolean"
+                  },
+                  "text": {
+                    "description": "text",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "ph": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "attrs": {
+                        "additionalProperties": {
+                          "type": "string"
+                        },
+                        "description": "the code's attributes, such as href",
+                        "type": "object"
+                      },
+                      "constraints": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "cloneable": {
+                            "type": "boolean"
+                          },
+                          "deletable": {
+                            "type": "boolean"
+                          },
+                          "reorderable": {
+                            "type": "boolean"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "data": {
+                        "const": "",
+                        "description": "always empty: a code's native form stays with the format, which spells a new code from its type",
+                        "type": "string"
+                      },
+                      "disp": {
+                        "description": "what an editor shows for the code",
+                        "type": "string"
+                      },
+                      "equiv": {
+                        "description": "the code's text equivalent",
+                        "type": "string"
+                      },
+                      "id": {
+                        "description": "the code's id, as the placeholder <x id=\"…\"/> shows it",
+                        "type": "string"
+                      },
+                      "subType": {
+                        "description": "the format's own type",
+                        "type": "string"
+                      },
+                      "type": {
+                        "description": "the vocabulary type, such as fmt:bold or link:hyperlink",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "ph"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "pcOpen": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "attrs": {
+                        "additionalProperties": {
+                          "type": "string"
+                        },
+                        "description": "the code's attributes, such as href",
+                        "type": "object"
+                      },
+                      "constraints": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "cloneable": {
+                            "type": "boolean"
+                          },
+                          "deletable": {
+                            "type": "boolean"
+                          },
+                          "reorderable": {
+                            "type": "boolean"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "data": {
+                        "const": "",
+                        "description": "always empty: a code's native form stays with the format, which spells a new code from its type",
+                        "type": "string"
+                      },
+                      "disp": {
+                        "description": "what an editor shows for the code",
+                        "type": "string"
+                      },
+                      "equiv": {
+                        "description": "the code's text equivalent",
+                        "type": "string"
+                      },
+                      "id": {
+                        "description": "the code's id, as the placeholder <x id=\"…\"/> shows it",
+                        "type": "string"
+                      },
+                      "subType": {
+                        "description": "the format's own type",
+                        "type": "string"
+                      },
+                      "type": {
+                        "description": "the vocabulary type, such as fmt:bold or link:hyperlink",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "pcOpen"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "pcClose": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "data": {
+                        "const": "",
+                        "description": "always empty: a code's native form stays with the format, which spells a new code from its type",
+                        "type": "string"
+                      },
+                      "equiv": {
+                        "description": "the code's text equivalent",
+                        "type": "string"
+                      },
+                      "id": {
+                        "description": "the code's id, as the placeholder <x id=\"…\"/> shows it",
+                        "type": "string"
+                      },
+                      "subType": {
+                        "description": "the format's own type",
+                        "type": "string"
+                      },
+                      "type": {
+                        "description": "the vocabulary type, such as fmt:bold or link:hyperlink",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "pcClose"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "sub": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "equiv": {
+                        "description": "the code's text equivalent",
+                        "type": "string"
+                      },
+                      "id": {
+                        "description": "the code's id, as the placeholder <x id=\"…\"/> shows it",
+                        "type": "string"
+                      },
+                      "ref": {
+                        "description": "the subblock the reference points at",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "sub"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "plural": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "forms": {
+                        "additionalProperties": {
+                          "items": {
+                            "$ref": "#/$defs/run"
+                          },
+                          "type": "array"
+                        },
+                        "propertyNames": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "zero",
+                                "one",
+                                "two",
+                                "few",
+                                "many",
+                                "other"
+                              ]
+                            },
+                            {
+                              "pattern": "^=[0-9]+(\\.[0-9]+)?$"
+                            }
+                          ],
+                          "description": "a plural form: zero, one, two, few, many, other, or =N",
+                          "type": "string"
+                        },
+                        "type": "object"
+                      },
+                      "pivot": {
+                        "description": "the variable the branches choose by",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "pivot",
+                      "forms"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "plural"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "select": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "cases": {
+                        "additionalProperties": {
+                          "items": {
+                            "$ref": "#/$defs/run"
+                          },
+                          "type": "array"
+                        },
+                        "type": "object"
+                      },
+                      "pivot": {
+                        "description": "the variable the branches choose by",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "pivot",
+                      "cases"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "select"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "description": "A change set: ordered operations that change content, review decisions and context assets, each guarded by the revision its sender read.",
+        "properties": {
+          "evidence": {
+            "description": "where the wording behind the change was seen",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "block": {
+                  "description": "the block key a read reports as ref.block",
+                  "type": "string"
+                },
+                "path": {
+                  "description": "a project-relative file",
+                  "type": "string"
+                },
+                "quote": {
+                  "description": "the text the wording was seen in",
+                  "type": "string"
+                },
+                "url": {
+                  "description": "a web page the wording was seen on",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "gate": {
+            "description": "enforce (the default): a failing finding the change introduces refuses it; report: the change lands with its findings",
+            "enum": [
+              "enforce",
+              "report"
+            ],
+            "type": "string"
+          },
+          "mode": {
+            "description": "apply (the default), or preview: compute and check, write nothing",
+            "enum": [
+              "apply",
+              "preview"
+            ],
+            "type": "string"
+          },
+          "note": {
+            "description": "one line a person reads in history and review",
+            "type": "string"
+          },
+          "ops": {
+            "description": "the operations, applied in order; a position names the content as read, and an empty list changes nothing. Several operations may name one block, each sending the rev you read, since every if_match is checked against the content the change set began with",
+            "items": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "description": "Replace an edition's content with text (placeholder form) or runs. With if_match \"absent\" it creates the edition.",
+                  "oneOf": [
+                    {
+                      "required": [
+                        "text"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "runs"
+                      ]
+                    }
+                  ],
+                  "properties": {
+                    "at": {
+                      "$ref": "#/$defs/ref"
+                    },
+                    "basis": {
+                      "description": "for a derived edition: the revision of the authoritative edition the content was made from",
+                      "pattern": "^r:[0-9a-f]{16}$",
+                      "type": "string"
+                    },
+                    "if_match": {
+                      "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
+                      "pattern": "^(absent|\\*|r:[0-9a-f]{16})$",
+                      "type": "string"
+                    },
+                    "op": {
+                      "const": "set_content",
+                      "type": "string"
+                    },
+                    "origin": {
+                      "additionalProperties": false,
+                      "description": "how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept",
+                      "properties": {
+                        "engine": {
+                          "description": "the engine or model the tool used",
+                          "type": "string"
+                        },
+                        "kind": {
+                          "description": "what the tool drew on, such as mt, ai or memory",
+                          "type": "string"
+                        },
+                        "tool": {
+                          "description": "the tool that produced the content",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "tool"
+                      ],
+                      "type": "object"
+                    },
+                    "path": {
+                      "$ref": "#/$defs/path",
+                      "description": "a plural form or select case to replace instead of the whole edition, for example [1, {\"plural\": \"one\"}]"
+                    },
+                    "runs": {
+                      "description": "the content as runs; a code carries type and attributes and never data",
+                      "items": {
+                        "$ref": "#/$defs/run"
+                      },
+                      "type": "array"
+                    },
+                    "text": {
+                      "description": "the content with inline codes as the <x id=\"…\"/> placeholders a read shows",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "at",
+                    "if_match"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Change text inside an edition by find, by code-point offsets or by run positions, keeping inline codes and structure.",
+                  "properties": {
+                    "at": {
+                      "$ref": "#/$defs/ref"
+                    },
+                    "edits": {
+                      "description": "the replacements, each naming its text by find, by start and end, or by range",
+                      "items": {
+                        "additionalProperties": false,
+                        "oneOf": [
+                          {
+                            "required": [
+                              "find"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "start",
+                              "end"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "range"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "end": {
+                            "description": "end offset, exclusive",
+                            "type": "integer"
+                          },
+                          "find": {
+                            "description": "the text to match, in placeholder form: inline codes have zero width unless a <x id=\"…\"/> token names one",
+                            "type": "string"
+                          },
+                          "occurrence": {
+                            "description": "which match of find, counting from 1; omitted requires exactly one match",
+                            "type": "integer"
+                          },
+                          "path": {
+                            "$ref": "#/$defs/path",
+                            "description": "a plural form or select case the text is in, for example [1, {\"plural\": \"one\"}]"
+                          },
+                          "range": {
+                            "additionalProperties": false,
+                            "description": "a span between run positions",
+                            "properties": {
+                              "end": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "offset": {
+                                    "type": "integer"
+                                  },
+                                  "run": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "run"
+                                ],
+                                "type": "object"
+                              },
+                              "start": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "offset": {
+                                    "type": "integer"
+                                  },
+                                  "run": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "run"
+                                ],
+                                "type": "object"
+                              }
+                            },
+                            "required": [
+                              "start",
+                              "end"
+                            ],
+                            "type": "object"
+                          },
+                          "start": {
+                            "description": "start offset in Unicode code points of the text; inline codes have zero width",
+                            "type": "integer"
+                          },
+                          "text": {
+                            "description": "the replacement text; after a find that names a code by its token, placeholder text naming the codes it keeps",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "text"
+                        ],
+                        "type": "object"
+                      },
+                      "minItems": 1,
+                      "type": "array"
+                    },
+                    "if_match": {
+                      "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
+                      "pattern": "^(absent|\\*|r:[0-9a-f]{16})$",
+                      "type": "string"
+                    },
+                    "op": {
+                      "const": "replace_text",
+                      "type": "string"
+                    },
+                    "origin": {
+                      "additionalProperties": false,
+                      "description": "how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept",
+                      "properties": {
+                        "engine": {
+                          "description": "the engine or model the tool used",
+                          "type": "string"
+                        },
+                        "kind": {
+                          "description": "what the tool drew on, such as mt, ai or memory",
+                          "type": "string"
+                        },
+                        "tool": {
+                          "description": "the tool that produced the content",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "tool"
+                      ],
+                      "type": "object"
+                    },
+                    "path": {
+                      "$ref": "#/$defs/path",
+                      "description": "a plural form or select case every edit is in, for example [1, {\"plural\": \"one\"}]; an edit's own path overrides it"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "at",
+                    "if_match",
+                    "edits"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Change a writable attribute of an inline code, such as a link's href.",
+                  "properties": {
+                    "at": {
+                      "$ref": "#/$defs/ref"
+                    },
+                    "code": {
+                      "description": "the code's id, as the placeholder <x id=\"1\"/> shows it",
+                      "type": "string"
+                    },
+                    "if_match": {
+                      "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
+                      "pattern": "^(absent|\\*|r:[0-9a-f]{16})$",
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "the attribute, such as href, src, alt or title, where the format declares it writable",
+                      "type": "string"
+                    },
+                    "op": {
+                      "const": "set_attribute",
+                      "type": "string"
+                    },
+                    "value": {
+                      "description": "the new value",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "at",
+                    "if_match",
+                    "code",
+                    "name",
+                    "value"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Wrap text in a new paired code of a vocabulary type, such as fmt:bold.",
+                  "properties": {
+                    "at": {
+                      "$ref": "#/$defs/ref"
+                    },
+                    "attrs": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "the new code's attributes, such as href",
+                      "type": "object"
+                    },
+                    "if_match": {
+                      "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
+                      "pattern": "^(absent|\\*|r:[0-9a-f]{16})$",
+                      "type": "string"
+                    },
+                    "op": {
+                      "const": "mark",
+                      "type": "string"
+                    },
+                    "range": {
+                      "additionalProperties": false,
+                      "description": "the text to mark",
+                      "oneOf": [
+                        {
+                          "required": [
+                            "find"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "start",
+                            "end"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "range"
+                          ]
+                        }
+                      ],
+                      "properties": {
+                        "end": {
+                          "description": "end offset, exclusive",
+                          "type": "integer"
+                        },
+                        "find": {
+                          "description": "the text to match, in placeholder form: inline codes have zero width unless a <x id=\"…\"/> token names one",
+                          "type": "string"
+                        },
+                        "occurrence": {
+                          "description": "which match of find, counting from 1; omitted requires exactly one match",
+                          "type": "integer"
+                        },
+                        "path": {
+                          "$ref": "#/$defs/path",
+                          "description": "a plural form or select case the text is in, for example [1, {\"plural\": \"one\"}]"
+                        },
+                        "range": {
+                          "additionalProperties": false,
+                          "description": "a span between run positions",
+                          "properties": {
+                            "end": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "offset": {
+                                  "type": "integer"
+                                },
+                                "run": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "run"
+                              ],
+                              "type": "object"
+                            },
+                            "start": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "offset": {
+                                  "type": "integer"
+                                },
+                                "run": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "run"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "start",
+                            "end"
+                          ],
+                          "type": "object"
+                        },
+                        "start": {
+                          "description": "start offset in Unicode code points of the text; inline codes have zero width",
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "type": {
+                      "description": "a vocabulary type such as fmt:bold or link:hyperlink",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "at",
+                    "if_match",
+                    "range",
+                    "type"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Remove one edition of a block.",
+                  "properties": {
+                    "at": {
+                      "$ref": "#/$defs/ref"
+                    },
+                    "if_match": {
+                      "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
+                      "pattern": "^(absent|\\*|r:[0-9a-f]{16})$",
+                      "type": "string"
+                    },
+                    "op": {
+                      "const": "remove_edition",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "at",
+                    "if_match"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Add a stand-off annotation to an edition, or replace the one with the same type and id.",
+                  "properties": {
+                    "anchor": {
+                      "additionalProperties": false,
+                      "description": "where in the edition it applies; omitted is the whole block",
+                      "properties": {
+                        "end": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "offset": {
+                              "type": "integer"
+                            },
+                            "run": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "run"
+                          ],
+                          "type": "object"
+                        },
+                        "key": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": [
+                            "block",
+                            "run",
+                            "range",
+                            "form"
+                          ],
+                          "type": "string"
+                        },
+                        "path": {
+                          "$ref": "#/$defs/path"
+                        },
+                        "runId": {
+                          "type": "string"
+                        },
+                        "start": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "offset": {
+                              "type": "integer"
+                            },
+                            "run": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "run"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ],
+                      "type": "object"
+                    },
+                    "at": {
+                      "$ref": "#/$defs/ref"
+                    },
+                    "id": {
+                      "description": "the annotation's id; omitted mints one and the result names it",
+                      "type": "string"
+                    },
+                    "if_match": {
+                      "description": "the revision of the edition you read the anchor against",
+                      "pattern": "^r:[0-9a-f]{16}$",
+                      "type": "string"
+                    },
+                    "op": {
+                      "const": "annotate",
+                      "type": "string"
+                    },
+                    "type": {
+                      "description": "the annotation type, such as note, entity or term",
+                      "type": "string"
+                    },
+                    "value": {
+                      "description": "the annotation's payload"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "at",
+                    "type"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Remove an annotation by type and id.",
+                  "properties": {
+                    "at": {
+                      "$ref": "#/$defs/ref"
+                    },
+                    "id": {
+                      "description": "the annotation's id",
+                      "type": "string"
+                    },
+                    "op": {
+                      "const": "unannotate",
+                      "type": "string"
+                    },
+                    "type": {
+                      "description": "the annotation type",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "at",
+                    "type",
+                    "id"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Add a block to a document, after or before a block key.",
+                  "properties": {
+                    "after": {
+                      "description": "the key of the block the new one follows",
+                      "type": "string"
+                    },
+                    "before": {
+                      "description": "the key of the block the new one precedes",
+                      "type": "string"
+                    },
+                    "doc": {
+                      "description": "the document",
+                      "type": "string"
+                    },
+                    "editions": {
+                      "additionalProperties": {
+                        "additionalProperties": false,
+                        "oneOf": [
+                          {
+                            "required": [
+                              "text"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "runs"
+                            ]
+                          }
+                        ],
+                        "properties": {
+                          "runs": {
+                            "description": "the content as runs; a code carries type and attributes and never data",
+                            "items": {
+                              "$ref": "#/$defs/run"
+                            },
+                            "type": "array"
+                          },
+                          "text": {
+                            "description": "the content with inline codes as the <x id=\"…\"/> placeholders a read shows",
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "description": "the new block's content per edition key",
+                      "type": "object"
+                    },
+                    "name": {
+                      "description": "the new block's key, where the format names blocks by key",
+                      "type": "string"
+                    },
+                    "op": {
+                      "const": "insert_block",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "doc",
+                    "editions"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Remove a block from a document.",
+                  "properties": {
+                    "at": {
+                      "$ref": "#/$defs/block"
+                    },
+                    "if_match": {
+                      "additionalProperties": {
+                        "pattern": "^r:[0-9a-f]{16}$",
+                        "type": "string"
+                      },
+                      "description": "the revision read of each edition of the block, by edition key",
+                      "type": "object"
+                    },
+                    "op": {
+                      "const": "delete_block",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "at",
+                    "if_match"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "A format-specific operation, guarded by the document digest.",
+                  "properties": {
+                    "args": {
+                      "description": "the arguments, as the format's schema for the operation describes them"
+                    },
+                    "doc": {
+                      "description": "the document",
+                      "type": "string"
+                    },
+                    "if_match": {
+                      "description": "the digest of the document you read",
+                      "pattern": "^sha256:[0-9a-f]{64}$",
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "the operation, such as docx.append_paragraph",
+                      "type": "string"
+                    },
+                    "op": {
+                      "const": "native",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "doc",
+                    "if_match",
+                    "name",
+                    "args"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Record a review decision on the edition revision read. An agent sends only advise.",
+                  "properties": {
+                    "at": {
+                      "$ref": "#/$defs/ref"
+                    },
+                    "if_match": {
+                      "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
+                      "pattern": "^(absent|\\*|r:[0-9a-f]{16})$",
+                      "type": "string"
+                    },
+                    "op": {
+                      "const": "decide",
+                      "type": "string"
+                    },
+                    "outcome": {
+                      "description": "establish, reject, withdraw, or advise (an agent's pre-review)",
+                      "enum": [
+                        "establish",
+                        "reject",
+                        "withdraw",
+                        "advise"
+                      ],
+                      "type": "string"
+                    },
+                    "reasons": {
+                      "description": "why",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "score": {
+                      "description": "a score from 0 to 100",
+                      "maximum": 100,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "at",
+                    "if_match",
+                    "outcome"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Write or delete a term in the terms store.",
+                  "properties": {
+                    "action": {
+                      "description": "upsert or delete",
+                      "enum": [
+                        "upsert",
+                        "delete"
+                      ],
+                      "type": "string"
+                    },
+                    "advisory": {
+                      "description": "a use of a discouraged term reports without failing a check",
+                      "type": "boolean"
+                    },
+                    "competitor": {
+                      "description": "the term is a competitor's name",
+                      "type": "boolean"
+                    },
+                    "do_not_translate": {
+                      "description": "true keeps the term verbatim in every language, false clears that",
+                      "type": "boolean"
+                    },
+                    "locale": {
+                      "description": "the term's language; omitted is the project's source language",
+                      "type": "string"
+                    },
+                    "op": {
+                      "const": "term",
+                      "type": "string"
+                    },
+                    "replacement": {
+                      "description": "the wording to use instead of a discouraged term",
+                      "type": "string"
+                    },
+                    "replaces": {
+                      "description": "a term this one replaces",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "preferred, admitted, deprecated or forbidden",
+                      "type": "string"
+                    },
+                    "term": {
+                      "description": "the term",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "action",
+                    "term"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Add or delete a content-memory pair.",
+                  "properties": {
+                    "action": {
+                      "description": "add or delete",
+                      "enum": [
+                        "add",
+                        "delete"
+                      ],
+                      "type": "string"
+                    },
+                    "from": {
+                      "additionalProperties": false,
+                      "description": "the side the pair translates from",
+                      "properties": {
+                        "edition": {
+                          "description": "the edition key of this side",
+                          "type": "string"
+                        },
+                        "text": {
+                          "description": "the text",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "edition",
+                        "text"
+                      ],
+                      "type": "object"
+                    },
+                    "op": {
+                      "const": "memory",
+                      "type": "string"
+                    },
+                    "to": {
+                      "additionalProperties": false,
+                      "description": "the side the pair translates to",
+                      "properties": {
+                        "edition": {
+                          "description": "the edition key of this side",
+                          "type": "string"
+                        },
+                        "text": {
+                          "description": "the text",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "edition",
+                        "text"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "action",
+                    "from",
+                    "to"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "description": "Set one recipe field through its allowlist.",
+                  "properties": {
+                    "op": {
+                      "const": "recipe",
+                      "type": "string"
+                    },
+                    "path": {
+                      "description": "the recipe field, as a dotted path",
+                      "type": "string"
+                    },
+                    "value": {
+                      "description": "the new value"
+                    }
+                  },
+                  "required": [
+                    "op",
+                    "path",
+                    "value"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          },
+          "require_basis": {
+            "description": "refuse a derived-edition write whose authoritative edition moved since it was read",
+            "type": "boolean"
+          },
+          "schema": {
+            "const": "kapi.change/v1",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ops"
+        ],
+        "title": "kapi.change/v1",
+        "type": "object"
+      }
+    },
+    {
+      "name": "check_file",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "diff": {
+            "description": "unified diff text (git diff output); only the content blocks it touches are checked",
+            "type": "string"
+          },
+          "diff_against": {
+            "description": "git revision to diff the working tree against, read-only, with untracked files as added; only the content blocks changed are checked",
+            "type": "string"
+          },
+          "diff_range": {
+            "description": "two commits as A..B, or A...B for the change B made since its merge base with A; each file is read from B and nothing from the working tree; only the content blocks changed are checked",
+            "type": "string"
+          },
+          "dnt": {
+            "description": "do-not-translate terms that must survive verbatim into the target",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "file": {
+            "description": "path to the file whose content should be checked; with diff, diff_against, staged or diff_range it narrows the scope to this file, and may be omitted",
+            "type": "string"
+          },
+          "forbid": {
+            "description": "regex that must NOT appear in the content",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "max_chars": {
+            "description": "flag content longer than this many characters (0 = off)",
+            "type": "integer"
+          },
+          "max_words": {
+            "description": "flag content with more than this many words (0 = off)",
+            "type": "integer"
+          },
+          "profile_file": {
+            "description": "explicit voice override loaded from YAML; bypasses the file-scoped project voice and channel; omit to use project guidance",
+            "type": "string"
+          },
+          "profile_pack": {
+            "description": "explicit voice override; omitting profile_pack and profile_file preserves the file-scoped project voice and channel",
+            "type": "string"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          },
+          "require": {
+            "description": "regex that MUST appear in the content",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "staged": {
+            "description": "check the changes staged for commit: the index diffed against HEAD, with each file read from the index, leaving out unstaged edits and untracked files; only the content blocks changed are checked",
+            "type": "boolean"
+          },
+          "target": {
+            "description": "translated target file to check against the source (enables the bilingual source-against-target checks)",
+            "type": "string"
+          },
+          "target_lang": {
+            "description": "locale of the target file (e.g. de)",
+            "type": "string"
+          },
+          "validate": {
+            "description": "reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the report; strict also fails on a Major+ structure/encoding problem). Default off.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "check_text",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "context_path": {
+            "description": "project-relative destination whose voice and terms govern this draft; may not exist yet; requires a project; cannot combine with profile_pack or profile_file",
+            "type": "string"
+          },
+          "forbid": {
+            "description": "regex that must NOT appear in the content",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "max_chars": {
+            "description": "flag content longer than this many characters (0 = off)",
+            "type": "integer"
+          },
+          "max_words": {
+            "description": "flag content with more than this many words (0 = off)",
+            "type": "integer"
+          },
+          "profile_file": {
+            "description": "path to a voice profile YAML",
+            "type": "string"
+          },
+          "profile_pack": {
+            "description": "built-in profile pack to check vocabulary against (e.g. marketing-blog)",
+            "type": "string"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          },
+          "require": {
+            "description": "regex that MUST appear in the content",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "text": {
+            "description": "the text to verify",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "context_correct",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "advisory": {
+            "description": "true when that rule should only report once a person keeps it; unset, a kept rule fails a check",
+            "type": "boolean"
+          },
+          "block": {
+            "description": "the ref.block that read_blocks or kapi inspect reports",
+            "type": "string"
+          },
+          "from": {
+            "description": "the wording that was there",
+            "type": "string"
+          },
+          "note": {
+            "description": "what they said about the change",
+            "type": "string"
+          },
+          "path": {
+            "description": "the project-relative file they changed it in",
+            "type": "string"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          },
+          "quote": {
+            "description": "the sentence the change was made in",
+            "type": "string"
+          },
+          "suggest": {
+            "description": "also record the rule the change implies, so the next use of the old wording is reported",
+            "type": "boolean"
+          },
+          "to": {
+            "description": "the wording that replaced it",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "context_observe",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "block": {
+            "description": "the ref.block that read_blocks or kapi inspect reports",
+            "type": "string"
+          },
+          "instead_of": {
+            "description": "forms the project avoids for term, e.g. Quick cast; spacing, hyphen and case variants are added for you",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "path": {
+            "description": "the project-relative file you saw it in",
+            "type": "string"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          },
+          "quote": {
+            "description": "the wording you saw, quoted from the file",
+            "type": "string"
+          },
+          "term": {
+            "description": "the form this project uses for a name or word, e.g. Quickcast",
+            "type": "string"
+          },
+          "text": {
+            "description": "the fact, in one sentence, in your own words",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "context_read",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "description": "markdown (default) or json",
+            "type": "string"
+          },
+          "path": {
+            "description": "the project-relative file you are about to write, or profile/<name>",
+            "type": "string"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "context_search",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "description": "max results per group (default 10)",
+            "type": "integer"
+          },
+          "locale": {
+            "description": "narrow results to one language (e.g. en, fr)",
+            "type": "string"
+          },
+          "memory": {
+            "description": "path to a standalone content memory (default: the project's own store)",
+            "type": "string"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          },
+          "query": {
+            "description": "the word or phrase to ask about",
+            "type": "string"
+          },
+          "terms": {
+            "description": "path to a standalone terms store (default: the project's own store)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "context_session_summary",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          },
+          "session": {
+            "description": "the session to summarize (default: this MCP server's own)",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "context_withdraw",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "description": "what was wrong with it",
+            "type": "string"
+          },
+          "operation": {
+            "description": "the operation id the recording call returned",
+            "type": "string"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "describe_format",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "doc": {
+            "description": "a document, to describe the format kapi reads it in; give this or format",
+            "type": "string"
+          },
+          "format": {
+            "description": "a format name, such as html, markdown or po",
+            "type": "string"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "detect_format",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "description": "File path to detect format from",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "read_blocks",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "blocks": {
+            "description": "only these blocks, by the block key a read reports; empty reads every block",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "cursor": {
+            "description": "continue a read: the next value of the page before",
+            "type": "string"
+          },
+          "doc": {
+            "description": "the document: a path inside the project, relative to its root or absolute, or outside a project a path under the server's working directory; container!entry names an archive member; the file of a translation reads that edition of its source",
+            "type": "string"
+          },
+          "editions": {
+            "description": "translations kept in files of their own to show beside each block, such as fr or de; the editions the document holds itself are always shown",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "limit": {
+            "description": "the most blocks a page holds (default 100, at most 1000)",
+            "type": "integer"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "redact",
+      "input_schema": {
+        "$id": "redact",
+        "description": "Replace sensitive spans with protected placeholders before processing",
+        "properties": {
+          "detectors": {
+            "description": "Detection backends to run: rules and/or entities",
+            "items": {
+              "type": "string"
+            },
+            "title": "Detectors",
+            "type": "array"
+          },
+          "entityTypes": {
+            "description": "Entity categories to redact: person",
+            "items": {
+              "type": "string"
+            },
+            "title": "Entity Categories",
+            "type": "array"
+          },
+          "placeholder": {
+            "description": "Visible stand-in template; supports {category} and {n}",
+            "title": "Placeholder Template",
+            "type": "string"
+          },
+          "project": {
+            "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins.",
+            "type": "string"
+          },
+          "rulesPath": {
+            "description": "Path to a redaction rules YAML file",
+            "title": "Rules File",
+            "type": "string"
+          },
+          "target_lang": {
+            "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+            "type": "string"
+          },
+          "text": {
+            "description": "The content (text) to run the tool over.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Redact",
+        "toolMeta": {
+          "cardinality": "monolingual",
+          "category": "text-processing",
+          "consumes": [
+            {
+              "optional": true,
+              "type": "entity"
+            }
+          ],
+          "description": "Replace sensitive spans with protected placeholders before processing",
+          "displayName": "Redact",
+          "id": "redact",
+          "produces": [
+            {
+              "type": "source"
+            },
+            {
+              "type": "redaction.secret"
+            }
+          ],
+          "recoverable": true,
+          "tags": [
+            "security",
+            "redaction"
+          ],
+          "writesOutput": true
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "review_block",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "additionalProperties": false,
+            "description": "the edition to review, as a review_queue row's ref names it",
+            "properties": {
+              "block": {
+                "description": "the block key, as review_queue and read_blocks report it",
+                "type": "string"
+              },
+              "doc": {
+                "description": "the source document, project-relative, or the file of a translation",
+                "type": "string"
+              },
+              "edition": {
+                "description": "the translation's language, such as fr; omitted, or the project's source language, reviews the source",
+                "type": "string"
+              }
+            },
+            "required": [
+              "doc",
+              "block"
+            ],
+            "type": "object"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "review_queue",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "collection": {
+            "description": "Only list units in this content collection",
+            "type": "string"
+          },
+          "language": {
+            "description": "Only list units in this language; the project's source language lists its source units",
+            "type": "string"
+          },
+          "locale": {
+            "description": "Only list units for this target locale",
+            "type": "string"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "stats",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "files": {
+            "description": "paths of the files to summarize",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "format": {
+            "description": "input format override applied to every file (default: auto-detect by extension/content)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "term-check",
+      "input_schema": {
+        "$id": "term-check",
+        "properties": {
+          "caseSensitive": {
+            "default": false,
+            "description": "Whether term matching is case-sensitive",
+            "title": "Case Sensitive",
+            "type": "boolean"
+          },
+          "project": {
+            "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins.",
+            "type": "string"
+          },
+          "target": {
+            "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check.",
+            "type": "string"
+          },
+          "target_lang": {
+            "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+            "type": "string"
+          },
+          "text": {
+            "description": "The content (text) to run the tool over.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "target"
+        ],
+        "title": "Terminology Check",
+        "toolMeta": {
+          "cardinality": "bilingual",
+          "category": "quality",
+          "consumes": [
+            {
+              "side": "target",
+              "type": "target"
+            }
+          ],
+          "displayName": "Terminology Check",
+          "id": "term-check",
+          "produces": [
+            {
+              "type": "term"
+            }
+          ],
+          "requires": [
+            "target-language",
+            "terms"
+          ],
+          "sideEffects": [
+            "termbase-read"
+          ],
+          "tags": [
+            "quality",
+            "languages"
+          ]
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "translate",
+      "input_schema": {
+        "$id": "translate",
+        "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
+        "properties": {
+          "apiKey": {
+            "description": "API key for the AI provider",
+            "title": "API Key",
+            "type": "string"
+          },
+          "batchConcurrency": {
+            "default": 1,
+            "description": "Number of concurrent batch calls (0 or 1 = sequential)",
+            "minimum": 1,
+            "title": "Batch Concurrency",
+            "type": "integer"
+          },
+          "batching": {
+            "default": "auto",
+            "description": "How many blocks share one LLM call",
+            "options": [
+              {
+                "label": "auto",
+                "value": "auto"
+              },
+              {
+                "label": "single",
+                "value": "single"
+              }
+            ],
+            "title": "Batching",
+            "type": "string"
+          },
+          "context": {
+            "default": "key",
+            "description": "What the model is told about a block besides the block itself",
+            "options": [
+              {
+                "label": "none",
+                "value": "none"
+              },
+              {
+                "label": "key",
+                "value": "key"
+              },
+              {
+                "label": "neighbours",
+                "value": "neighbours"
+              }
+            ],
+            "title": "Context",
+            "type": "string"
+          },
+          "contextWindow": {
+            "default": 2,
+            "description": "Blocks either side to send as reference (with context: neighbours)",
+            "maximum": 10,
+            "minimum": 1,
+            "title": "Context Window",
+            "type": "integer"
+          },
+          "engine": {
+            "default": "llm",
+            "description": "Translation engine: an AI model or a machine-translation provider",
+            "options": [
+              {
+                "label": "AI (LLM)",
+                "value": "llm"
+              },
+              {
+                "label": "Machine translation",
+                "value": "mt"
+              }
+            ],
+            "title": "Engine",
+            "type": "string",
+            "ui:enum-descriptions": {
+              "llm": "Translate with a large language model.",
+              "mt": "Translate with a plugin-provided machine-translation engine."
+            },
+            "ui:order": 0,
+            "ui:widget": "select"
+          },
+          "instruction": {
+            "description": "Extra guidance for the model while translating (e.g. 'informal register; keep product names in English')",
+            "title": "Instruction",
+            "type": "string",
+            "ui:widget": "textarea"
+          },
+          "model": {
+            "description": "AI model name",
+            "title": "Model",
+            "type": "string"
+          },
+          "project": {
+            "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins.",
+            "type": "string"
+          },
+          "provider": {
+            "default": "anthropic",
+            "description": "AI provider",
+            "options": [
+              {
+                "label": "Anthropic",
+                "value": "anthropic"
+              },
+              {
+                "label": "OpenAI",
+                "value": "openai"
+              },
+              {
+                "label": "Gemini",
+                "value": "gemini"
+              },
+              {
+                "label": "Azure OpenAI",
+                "value": "azureopenai"
+              },
+              {
+                "label": "Claude Code",
+                "value": "claude-code"
+              },
+              {
+                "label": "Ollama",
+                "value": "ollama"
+              },
+              {
+                "label": "Demo (illustrative)",
+                "value": "demo"
+              }
+            ],
+            "title": "AI Provider",
+            "type": "string",
+            "ui:option-sets": [
+              {
+                "options": [
+                  {
+                    "label": "Anthropic",
+                    "value": "anthropic"
+                  },
+                  {
+                    "label": "OpenAI",
+                    "value": "openai"
+                  },
+                  {
+                    "label": "Gemini",
+                    "value": "gemini"
+                  },
+                  {
+                    "label": "Azure OpenAI",
+                    "value": "azureopenai"
+                  },
+                  {
+                    "label": "Claude Code",
+                    "value": "claude-code"
+                  },
+                  {
+                    "label": "Ollama",
+                    "value": "ollama"
+                  },
+                  {
+                    "label": "Demo (illustrative)",
+                    "value": "demo"
+                  }
+                ],
+                "when": {
+                  "eq": "llm",
+                  "field": "engine"
+                }
+              },
+              {
+                "options": [],
+                "when": {
+                  "eq": "mt",
+                  "field": "engine"
+                }
+              }
+            ],
+            "ui:widget": "select"
+          },
+          "reuse": {
+            "default": "prior",
+            "description": "Offer a block's previously approved translation to the model as reference",
+            "options": [
+              {
+                "label": "prior",
+                "value": "prior"
+              },
+              {
+                "label": "none",
+                "value": "none"
+              }
+            ],
+            "title": "Reuse Prior Translation",
+            "type": "string"
+          },
+          "skipMatched": {
+            "default": false,
+            "description": "Skip blocks that already have a target translation",
+            "title": "Skip Matched",
+            "type": "boolean"
+          },
+          "target_lang": {
+            "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+            "type": "string"
+          },
+          "text": {
+            "description": "The content (text) to run the tool over.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Translate",
+        "toolMeta": {
+          "accepts": [
+            "memory"
+          ],
+          "cardinality": "bilingual",
+          "category": "translation",
+          "defaultParallelBlocks": 5,
+          "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
+          "displayName": "Translate",
+          "id": "translate",
+          "produces": [
+            {
+              "side": "target",
+              "type": "target"
+            }
+          ],
+          "requires": [
+            "target-language",
+            "credentials"
+          ],
+          "sideEffects": [
+            "api-call",
+            "remote-source-egress"
+          ],
+          "tags": [
+            "translation",
+            "languages"
+          ],
+          "writesOutput": true
+        },
+        "type": "object",
+        "ui:groups": [
+          {
+            "fields": [
+              "engine",
+              "provider",
+              "apiKey",
+              "model",
+              "batching"
+            ],
+            "id": "provider",
+            "label": "Provider"
+          },
+          {
+            "fields": [
+              "instruction",
+              "reuse",
+              "context",
+              "contextWindow"
+            ],
+            "id": "prompt",
+            "label": "Prompt"
+          }
+        ]
+      }
+    },
+    {
+      "name": "up",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "jobs": {
+            "description": "how many languages to catch up concurrently per pass (0 = project default, else 4)",
+            "type": "integer"
+          },
+          "local": {
+            "description": "in a server-connected project, run the loop on this machine and push the results, instead of running it on the server",
+            "type": "boolean"
+          },
+          "materialize": {
+            "description": "after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy)",
+            "type": "boolean"
+          },
+          "no_checks": {
+            "description": "skip the project's bound checks inside the loop (failing units then count as translated)",
+            "type": "boolean"
+          },
+          "passes": {
+            "description": "maximum reconciliation passes (0 = loop until up to date or parked; 1 = single pass)",
+            "type": "integer"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "up_plan",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "no_checks": {
+            "description": "plan the run up makes with no_checks: a language that only fails the project's bound checks gets no pass, so the plan prices none for it",
+            "type": "boolean"
+          },
+          "project": {
+            "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "voice_check",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "profile_file": {
+            "description": "path to a profile YAML",
+            "type": "string"
+          },
+          "profile_pack": {
+            "description": "built-in profile pack name",
+            "type": "string"
+          },
+          "text": {
+            "description": "the text to check or rewrite",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "voice_rewrite",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "profile_file": {
+            "description": "path to a profile YAML",
+            "type": "string"
+          },
+          "profile_pack": {
+            "description": "built-in profile pack name",
+            "type": "string"
+          },
+          "text": {
+            "description": "the text to check or rewrite",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      }
+    }
+  ]
+}

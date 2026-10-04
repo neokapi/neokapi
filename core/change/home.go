@@ -67,6 +67,10 @@ type DocInfo struct {
 	// own and exist, so a change to the document's own edition can name them
 	// among the editions it leaves on an older basis.
 	Derived []model.EditionKey
+	// LanguageNamed says SourceLocale is the language the document's path
+	// names, outside a project, rather than a default: a read names the
+	// document's own edition by it in each block's ref, as OwnEdition asks.
+	LanguageNamed bool
 	// Capabilities is what the document's writer can write beyond what its
 	// reader read (WriterCapabilities, or DeclaredCapabilities for a writer
 	// outside the process). The service applies every operation on the
@@ -133,6 +137,21 @@ var ErrStop = errors.New("change: stop reading")
 // ErrRefused is what an Editor's End returns when an operation of the pass
 // was refused. The results say which and why.
 var ErrRefused = errors.New("change: an operation was refused")
+
+// StageRefusal is what a home's Stage may return in place of ErrRefused: the
+// refusal, with the files the stage read and the digest it read each at, so
+// a refused result lists the documents it read as not written. errors.Is
+// reports it as ErrRefused.
+type StageRefusal struct {
+	// Files are the files the stage read; After equals Before, and none is
+	// written.
+	Files []StagedFile
+}
+
+func (e *StageRefusal) Error() string { return ErrRefused.Error() }
+
+// Unwrap makes a StageRefusal ErrRefused to errors.Is.
+func (e *StageRefusal) Unwrap() error { return ErrRefused }
 
 // Want says what a read or a stage needs from a document.
 type Want struct {

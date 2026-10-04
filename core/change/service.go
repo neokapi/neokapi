@@ -149,6 +149,11 @@ type applyRun struct {
 	findings     map[*docPlan][]Finding
 	overridden   map[*docPlan][]Finding
 	fingerprints map[*docPlan]string
+	// checked marks the documents the commit check ran on.
+	checked map[*docPlan]bool
+	// read holds, for a document whose stage was refused, the files the
+	// stage read, which a refused result lists as not written.
+	read map[*docPlan][]StagedFile
 }
 
 func (r *applyRun) refuse(i int, err *Error) {
@@ -184,6 +189,7 @@ func (s *Service) Apply(ctx context.Context, set Set, actor Actor) (*Result, err
 	work.Ops = slices.Clone(set.Ops)
 	r := &applyRun{s: s, sent: &set, set: &work, actor: actor, byDoc: map[string]*docPlan{}, staged: map[*docPlan]Staged{}, refused: -1, viaFile: map[int]bool{},
 		findings: map[*docPlan][]Finding{}, overridden: map[*docPlan][]Finding{}, fingerprints: map[*docPlan]string{},
+		checked: map[*docPlan]bool{}, read: map[*docPlan][]StagedFile{},
 		res: &Result{Schema: ResultSchemaID, Ops: make([]OpResult, len(set.Ops)), Docs: []DocResult{}}}
 	for i, op := range set.Ops {
 		r.res.Ops[i] = OpResult{I: i, Op: op.Kind, At: refOf(op)}
@@ -394,7 +400,8 @@ func (r *applyRun) plan(ctx context.Context, p *docPlan) {
 				why = "the document holds one edition, and outside a project there is no file for another"
 			}
 			r.refuse(i, &Error{Code: CodeUnsupported, Capability: "edition",
-				Message: fmt.Sprintf("edition %s of %s has nowhere to live: %s", keyText(op.At.Edition), p.info.Doc, why)})
+				Message: fmt.Sprintf("edition %s of %s has nowhere to live: %s. To write it, copy %s to the file the translation goes in and edit the copy, "+
+					"or work in a project whose recipe names a target file for it", keyText(op.At.Edition), p.info.Doc, why, p.info.Doc)})
 			continue
 		case PlaceOwnFile:
 			if !slices.ContainsFunc(p.want.Editions, func(k model.EditionKey) bool { return k.Canonical() == op.At.Edition.Canonical() }) {
@@ -437,6 +444,9 @@ func (r *applyRun) stage(ctx context.Context) error {
 		staged, err := p.sess.Stage(ctx, p.want, p)
 		if err != nil {
 			if errors.Is(err, ErrRefused) {
+				if sr, ok := errors.AsType[*StageRefusal](err); ok {
+					r.read[p] = sr.Files
+				}
 				r.noteRefusals(p)
 				continue
 			}
@@ -562,6 +572,19 @@ func (r *applyRun) reachesFile(p *docPlan, st Staged) {
 		if f != nil && f.After != f.Before {
 			continue
 		}
+		if ch.Before != nil && ch.After != nil && sameContent(ch.Before, ch.After) {
+			// The edition says what it said, codes and all: the runs differ
+			// only in what the writer takes from the file, such as a code's
+			// native form, so the file the change leaves as it was already
+			// holds it. The operation is unchanged, not dropped.
+			for _, i := range p.changeOps[ci] {
+				if res := &r.res.Ops[i]; res.Status == OpApplied {
+					res.Status, res.After = OpUnchanged, res.Before
+					res.Invalidates = nil
+				}
+			}
+			continue
+		}
 		file := p.info.Doc
 		if f != nil && f.File != "" {
 			file = f.File
@@ -611,6 +634,7 @@ func (r *applyRun) checkCommit(ctx context.Context, p *docPlan) error {
 	delete(r.findings, p)
 	delete(r.overridden, p)
 	delete(r.fingerprints, p)
+	delete(r.checked, p)
 	if r.s.check == nil || len(p.changes) == 0 {
 		return nil
 	}
@@ -619,35 +643,47 @@ func (r *applyRun) checkCommit(ctx context.Context, p *docPlan) error {
 		return fmt.Errorf("check %s: %w", p.info.Doc, err)
 	}
 	r.fingerprints[p] = fp
+	r.checked[p] = true
 	for ci, o := range outcomes {
 		if ci >= len(p.changes) {
 			break
 		}
-		intro := Introduced(o)
-		if len(intro) == 0 {
+		found := NewFindings(o)
+		if len(found) == 0 {
 			continue
 		}
 		at := p.changes[ci].Ref
-		for fi := range intro {
-			intro[fi].At = &at
+		for fi := range found {
+			found[fi].At = &at
 		}
-		r.findings[p] = append(r.findings[p], intro...)
+		// The document lists every finding the edit introduced; the gate
+		// weighs the failing ones.
+		r.findings[p] = append(r.findings[p], found...)
+		intro := slices.DeleteFunc(slices.Clone(found), func(f Finding) bool { return !f.Fails })
+		if len(intro) == 0 {
+			continue
+		}
 		if r.set.Gate == GateReport {
 			if r.actor.Kind == ActorPerson {
 				r.overridden[p] = append(r.overridden[p], intro...)
 			}
-			for _, i := range p.changeOps[ci] {
-				r.res.Ops[i].Findings = append(r.res.Ops[i].Findings, intro...)
-			}
 			continue
 		}
 		for _, i := range p.changeOps[ci] {
-			r.res.Ops[i].Findings = append(r.res.Ops[i].Findings, intro...)
 			r.refuse(i, &Error{Code: CodeGateFailed,
-				Message: fmt.Sprintf("the edit introduces %d failing finding(s) in %s: %s", len(intro), at.String(), intro[0].Message)})
+				Message: fmt.Sprintf("the edit introduces %d failing %s in %s, listed with the document's findings: %s",
+					len(intro), plural(len(intro), "finding", "findings"), at.String(), intro[0].Message)})
 		}
 	}
 	return nil
+}
+
+// plural is one or many, by n.
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 // preview fills the result of a preview: every operation that would apply is
@@ -664,13 +700,23 @@ func (r *applyRun) preview() {
 		if staged == nil {
 			continue
 		}
-		docs := r.docResults(p, staged)
+		docs := r.withFindings(p, r.docResults(p, staged))
 		if len(docs) > 0 {
 			docs[0].Diff = staged.Diff()
-			docs[0].Findings = r.findings[p]
 		}
 		r.res.Docs = append(r.res.Docs, docs...)
 	}
+}
+
+// withFindings gives the first of a document's results what the commit check
+// found on the edit: every finding it introduced, an empty list when the
+// check ran and found none, and nothing when no check ran.
+func (r *applyRun) withFindings(p *docPlan, docs []DocResult) []DocResult {
+	if len(docs) == 0 || !r.checked[p] {
+		return docs
+	}
+	docs[0].Findings = append([]Finding{}, r.findings[p]...)
+	return docs
 }
 
 // settle takes the commit locks of every staged document, all of them in the
@@ -775,10 +821,7 @@ func (r *applyRun) commit(ctx context.Context) (bool, error) {
 			r.unland(p, st.Files())
 		}
 		wroteAny = wroteAny || wrote
-		if len(docs) > 0 {
-			docs[0].Findings = r.findings[p]
-		}
-		r.res.Docs = append(r.res.Docs, docs...)
+		r.res.Docs = append(r.res.Docs, r.withFindings(p, docs)...)
 		r.invalidate(p)
 	}
 	return all, nil
@@ -853,8 +896,13 @@ func (r *applyRun) authoritative(p *docPlan, i int) bool {
 
 // docResults reports a staged document's files.
 func (r *applyRun) docResults(p *docPlan, st Staged) []DocResult {
+	return r.fileResults(p, st.Files())
+}
+
+// fileResults reports the files of a document.
+func (r *applyRun) fileResults(p *docPlan, files []StagedFile) []DocResult {
 	var out []DocResult
-	for _, f := range st.Files() {
+	for _, f := range files {
 		home := p.home.Name()
 		if f.Home != "" {
 			home = f.Home
@@ -1021,17 +1069,25 @@ func (r *applyRun) finish() *Result {
 	first := r.refused
 	for i := range r.res.Ops {
 		if r.res.Ops[i].Status == OpRefused {
+			r.res.Ops[i].unwritten()
 			continue
 		}
 		r.res.Ops[i] = OpResult{I: i, Op: r.res.Ops[i].Op, At: r.res.Ops[i].At, Status: OpNotApplied, BlockedBy: &first}
 	}
+	// Every document the change set read is listed as not written, with
+	// the digest it was read at.
 	for _, p := range r.plans {
-		if st := r.staged[p]; st != nil {
-			for _, d := range r.docResults(p, st) {
-				d.After = nil
-				r.res.Docs = append(r.res.Docs, d)
-			}
+		var docs []DocResult
+		switch {
+		case r.staged[p] != nil:
+			docs = r.docResults(p, r.staged[p])
+		case r.read[p] != nil:
+			docs = r.fileResults(p, r.read[p])
 		}
+		for i := range docs {
+			docs[i].After, docs[i].Written = nil, false
+		}
+		r.res.Docs = append(r.res.Docs, r.withFindings(p, docs)...)
 	}
 	return r.res
 }

@@ -59,6 +59,9 @@ type Doc struct {
 	NoEditionFile string
 	// Derived lists the editions whose own files exist.
 	Derived []model.EditionKey
+	// LanguageNamed says SourceLocale is the language the document's path
+	// names (locales/nb.json), which a read names its own edition by.
+	LanguageNamed bool
 }
 
 // EditionFile is the file of one edition of a document.

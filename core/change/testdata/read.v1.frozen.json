@@ -1,0 +1,331 @@
+{
+  "$comment": "the kapi.change/v1 read, frozen for release 1.3.0 on 2026-10-03; extend only. TestSchemaExtendsFrozenV1 and its siblings in core/change hold the generated schema to it, and nothing regenerates this file.",
+  "type": "object",
+  "properties": {
+    "doc": {
+      "type": "string"
+    },
+    "home": {
+      "type": "string"
+    },
+    "format": {
+      "type": "string"
+    },
+    "head": {
+      "type": "string"
+    },
+    "blocks": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "object",
+            "properties": {
+              "doc": {
+                "type": "string",
+                "description": "the document, as references name it"
+              },
+              "block": {
+                "type": "string",
+                "description": "the block key"
+              },
+              "edition": {
+                "type": "string",
+                "description": "the edition; absent for the document's own edition where a reply leaves it out"
+              }
+            },
+            "description": "an edition of a block in a document",
+            "required": [
+              "doc"
+            ],
+            "additionalProperties": false
+          },
+          "rev": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "codes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "attrs": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "equiv": {
+                  "type": "string"
+                },
+                "disp": {
+                  "type": "string"
+                },
+                "writable": {
+                  "type": [
+                    "null",
+                    "array"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "structures": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "$ref": "#/$defs/path"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "pivot": {
+                  "type": "string"
+                },
+                "branches": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "path",
+                "kind",
+                "branches"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "editions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "rev": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "codes": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "attrs": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "equiv": {
+                        "type": "string"
+                      },
+                      "disp": {
+                        "type": "string"
+                      },
+                      "writable": {
+                        "type": [
+                          "null",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "structures": {
+                  "type": [
+                    "null",
+                    "array"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "$ref": "#/$defs/path"
+                      },
+                      "kind": {
+                        "type": "string"
+                      },
+                      "pivot": {
+                        "type": "string"
+                      },
+                      "branches": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "path",
+                      "kind",
+                      "branches"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "status": {
+                  "type": "string"
+                },
+                "basis": {
+                  "type": "string"
+                },
+                "stale": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "rev",
+                "text",
+                "status",
+                "stale"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "ops": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "set_content",
+                "replace_text",
+                "set_attribute",
+                "mark",
+                "remove_edition",
+                "annotate",
+                "unannotate",
+                "insert_block",
+                "delete_block",
+                "native",
+                "decide",
+                "term",
+                "memory",
+                "recipe"
+              ]
+            }
+          }
+        },
+        "required": [
+          "ref",
+          "rev",
+          "text",
+          "ops"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "next": {
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "path": {
+      "type": "array",
+      "items": {
+        "description": "a run index, {\"plural\": form} or {\"select\": case}",
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 0
+          },
+          {
+            "type": "object",
+            "properties": {
+              "plural": {
+                "type": "string",
+                "description": "a plural form: zero, one, two, few, many, other, or =N",
+                "anyOf": [
+                  {
+                    "enum": [
+                      "zero",
+                      "one",
+                      "two",
+                      "few",
+                      "many",
+                      "other"
+                    ]
+                  },
+                  {
+                    "pattern": "^=[0-9]+(\\.[0-9]+)?$"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "plural"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "select": {
+                "type": "string",
+                "description": "a select case"
+              }
+            },
+            "required": [
+              "select"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "description": "a walk into a plural or select: a run index, then the form or case, repeated"
+    }
+  },
+  "title": "kapi.change/v1 read",
+  "description": "A page of a document's blocks: each block's reference, revision and content, its codes, structures and other editions, and the operations it accepts.",
+  "required": [
+    "doc",
+    "home",
+    "format",
+    "head",
+    "blocks"
+  ],
+  "additionalProperties": false
+}

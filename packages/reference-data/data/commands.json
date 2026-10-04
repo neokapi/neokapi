@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T12:38:46Z",
+  "generatedAt": "2026-10-03T23:40:11Z",
   "commands": [
     {
       "id": "add",
@@ -78,7 +78,7 @@
       ],
       "use": "apply [flags] [CHANGESET]",
       "short": "Apply a change set: content edits, review decisions, terms and recipe fields",
-      "long": "Apply a change set, the write sibling of 'kapi inspect'. A change set is\nkapi.change/v1: one JSON object with its operations under \"ops\", JSONL with the\nenvelope fields on the first line and one operation per line, or a JSON array of\noperations. It is read from CHANGESET or, with no argument or \"-\", from standard\ninput. 'kapi apply --schema' prints its JSON Schema.\n\nEach content operation names what it changes in \"at\" ({\"doc\", \"block\",\n\"edition\"}, the \"ref\" kapi inspect prints for a block) and the revision it read\nin \"if_match\" (the block's \"rev\"). set_content gives an edition new content, in\nthe placeholder text a read shows or as runs, and with \"if_match\": \"absent\"\ncreates an edition. replace_text changes text inside an edition by find, by\ncode-point offsets or by run positions, and keeps the inline codes and plurals\naround it. Offsets and run positions name the edition as it was read, even\nafter an earlier operation of the change set changed it; a find matches the\ntext as the earlier operations left it. A change set with no operation changes\nnothing. An operation whose edition moved since it was read is refused as\nstale with the current content. An edit that would drop, invent or unbalance an\ninline code, or flatten a plural or select, is refused as guard. When any\noperation is refused, nothing in the change set is written. An operation on the\ntranslation a bilingual file (XLIFF, PO) holds names its language as the\nedition, and a PO catalog is read in the one language the change set names.\n\ndecide records a review decision on the revision a person read. term, memory\nand recipe write a term, a content-memory pair or a recipe field into the\nproject, after the content they refer to. kapi apply records every change as\nthe person or agent the environment names (see 'kapi help growing-context').\nThat holds for a change set a run printed with --print-ops too: the \"origin\"\nits operations state (the tool that produced a translation) is not kept, and\nkapi apply says so in one line.\nA decision other than advise, a term, a content-memory pair and a recipe field\nare a person's: run from an agent's shell they are refused.\n\nA code comment is a block of its source file, keyed as 'kapi check' and 'kapi\ninspect' report it (func/Parse), in Go and in the languages a comment plugin\nreads. set_content rewrites it with its new prose in \"text\", without comment\nmarkers, and \"if_match\" is the comment's \"rev\" from kapi inspect. Every byte\noutside the comment stays as it is, the result must parse, and the language's\nformatter must agree; what was written is checked again and its findings are\nreported, and a failing one exits 3 unless --gate report is given. Running that\nformatter runs code the project controls, so kapi asks once per project, in a\nterminal, and records the answer. A change set edits code comments or\ndocuments, never both.\n\nInside a project a document is named by its project-relative path. A file\noutside the project is named by its absolute path, as kapi inspect names it, and\na change set that edits one edits nothing in the project.\n\n--dry-run computes and checks the change set, writes nothing, and prints a diff\nper document. --gate report lands a change whose findings would otherwise\nrefuse it, for a person who has read them. --json prints the result\n(kapi.change-result/v1), also for a change set that does not decode, whose\nresult carries the error. --print-ops prints the change set as decoded, with\nits defaults filled in, and applies nothing.\n\nExit status: 0 when the change set applied or previewed; 2 when it does not\ndecode or contradicts itself; 3 when an operation was refused, and nothing was\nwritten, when the change landed in part, or when the check of a written code\ncomment failed; 5 when a backend did not answer.",
+      "long": "Apply a change set, the write sibling of 'kapi inspect'. A change set is\nkapi.change/v1: one JSON object with its operations under \"ops\", JSONL with the\nenvelope fields on the first line and one operation per line, or a JSON array of\noperations. It is read from CHANGESET or, with no argument or \"-\", from standard\ninput. 'kapi apply --schema' prints its JSON Schema, and 'kapi apply --schema\nOP' the schema of operation OP alone (set_content, replace_text, set_attribute,\nand so on).\n\nEach content operation names what it changes in \"at\" ({\"doc\", \"block\",\n\"edition\"}, the \"ref\" kapi inspect prints for a block) and the revision it read\nin \"if_match\" (the block's \"rev\"). set_content gives an edition new content, in\nthe placeholder text a read shows or as runs, and with \"if_match\": \"absent\"\ncreates an edition. replace_text changes text inside an edition by find, by\ncode-point offsets or by run positions, and keeps the inline codes and plurals\naround it. Offsets and run positions name the edition as it was read, even\nafter an earlier operation of the change set changed it; a find matches the\ntext as the earlier operations left it. A change set with no operation changes\nnothing. An operation whose edition moved since it was read is refused as\nstale with the current content. An edit that would drop, invent or unbalance an\ninline code, or flatten a plural or select, is refused as guard. When any\noperation is refused, nothing in the change set is written. An operation on the\ntranslation a bilingual file (XLIFF, PO) holds names its language as the\nedition, and a PO catalog is read in the one language the change set names.\n\ndecide records a review decision on the revision a person read. term, memory\nand recipe write a term, a content-memory pair or a recipe field into the\nproject, after the content they refer to. kapi apply records every change as\nthe person or agent the environment names (see 'kapi help growing-context').\nThat holds for a change set a run printed with --print-ops too: the \"origin\"\nits operations state (the tool that produced a translation) is not kept, and\nkapi apply says so in one line.\nA decision other than advise, a term, a content-memory pair and a recipe field\nare a person's: run from an agent's shell they are refused.\n\nA code comment is a block of its source file, keyed as 'kapi check' and 'kapi\ninspect' report it (func/Parse), in Go and in the languages a comment plugin\nreads. set_content rewrites it with its new prose in \"text\", without comment\nmarkers, and \"if_match\" is the comment's \"rev\" from kapi inspect. Every byte\noutside the comment stays as it is, the result must parse, and the language's\nformatter must agree; what was written is checked again and its findings are\nreported, and a failing one exits 3 unless --gate report is given. Running that\nformatter runs code the project controls, so kapi asks once per project, in a\nterminal, and records the answer. A change set edits code comments or\ndocuments, never both.\n\nInside a project a document is named by its project-relative path. A file\noutside the project is named by its absolute path, as kapi inspect names it, and\na change set that edits one edits nothing in the project. Outside a project a\ndocument holds one edition, in the language --source-lang names or else the one\nits file or directory names (locales/nb.json, or docs/de/guide.md beside\ndocs/en/guide.md), which a read prints in each ref; --out FILE writes the one\nedition a change set adds to it, a translation, to FILE.\n\n--dry-run computes and checks the change set, writes nothing, and prints a diff\nper document. --gate report lands a change whose findings would otherwise\nrefuse it, for a person who has read them. --json prints the result\n(kapi.change-result/v1), also for a change set that does not decode, whose\nresult carries the error. --print-ops prints the change set as decoded, with\nits defaults filled in, and applies nothing.\n\nExit status: 0 when the change set applied or previewed; 2 when it does not\ndecode or contradicts itself; 3 when an operation was refused, and nothing was\nwritten, when the change landed in part, or when the check of a written code\ncomment failed; 5 when a backend did not answer.",
       "groupID": "work",
       "flags": [
         {
@@ -116,6 +116,11 @@
           "type": "bool"
         },
         {
+          "name": "out",
+          "usage": "outside a project, the file to write the one edition the change set adds to a document (a translation of it); inside one, the recipe's target names it",
+          "type": "string"
+        },
+        {
           "name": "print-ops",
           "usage": "print the change set as decoded, with its defaults filled in, and apply nothing",
           "default": "false",
@@ -129,7 +134,7 @@
         },
         {
           "name": "schema",
-          "usage": "print the JSON Schema of a change set and exit",
+          "usage": "print the JSON Schema of a change set, or of the one operation named (kapi apply --schema set_attribute), and exit",
           "default": "false",
           "type": "bool"
         }
@@ -141,7 +146,8 @@
         "kapi apply change.json --json",
         "echo '{\"ops\":[{\"op\":\"replace_text\",\"at\":{\"doc\":\"docs/guide.md\",\"block\":\"install/p\"},\"if_match\":\"\u003crev from kapi inspect\u003e\",\"edits\":[{\"find\":\"colour\",\"text\":\"color\"}]}]}' | kapi apply",
         "ksed 's/colour/color/g' docs/guide.md --print-ops | kapi apply",
-        "kapi apply --schema"
+        "kapi apply --schema",
+        "kapi apply --schema set_attribute"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -5615,9 +5621,9 @@
       "path": [
         "formats"
       ],
-      "use": "formats",
+      "use": "formats [--ops [FORMAT]]",
       "short": "List supported file formats",
-      "long": "List all file formats that can be read and written.\n\nUse --mime or --ext to filter by MIME type or file extension.",
+      "long": "List all file formats that can be read and written.\n\nUse --mime or --ext to filter by MIME type or file extension.\n\n--ops says what a format takes of a change set (kapi apply): each content\noperation it supports, with the forms, code types and attributes it writes,\nand whether it keeps a document's translations in one file. Name a format to\ndescribe it alone, as MCP describe_format does; with no name every format kapi\ncan edit is listed.",
       "groupID": "advanced",
       "flags": [
         {
@@ -5629,12 +5635,20 @@
           "name": "mime",
           "usage": "filter by MIME type (e.g., text/html)",
           "type": "string"
+        },
+        {
+          "name": "ops",
+          "usage": "say what each format, or the one named, takes of a change set",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
         "kapi formats",
         "kapi formats --ext .json",
-        "kapi formats --mime text/html"
+        "kapi formats --mime text/html",
+        "kapi formats --ops html --json",
+        "kapi formats --ops"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

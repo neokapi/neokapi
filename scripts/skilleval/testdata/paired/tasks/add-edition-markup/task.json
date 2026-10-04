@@ -9,7 +9,7 @@
     {"id": "markup-kept", "kind": "md_skeleton", "path": "docs/nb/welcome.md", "source": "docs/en/welcome.md",
      "description": "The translation has the source's headings and levels, list items, bold spans, inline code and link addresses, in order"},
     {"id": "translated", "kind": "md_translated", "path": "docs/nb/welcome.md", "source": "docs/en/welcome.md",
-     "description": "Every prose block differs from the English and no English sentence of four or more words remains"},
+     "description": "Every prose block differs from the English and no four words of the English in a row remain, a link's text included"},
     {"id": "bokmal", "kind": "language", "path": "docs/nb/welcome.md", "value": "nb",
      "description": "The prose reads as Norwegian Bokmål by its function words"},
     {"id": "reference-bytes", "kind": "bytes_equal", "path": "docs/nb/welcome.md", "informational": true,

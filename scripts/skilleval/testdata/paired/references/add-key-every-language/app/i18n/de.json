@@ -1,0 +1,8 @@
+{
+  "settings": {
+    "title": "Einstellungen",
+    "importData": "Daten importieren",
+    "exportData": "Daten exportieren",
+    "deleteAccount": "Konto löschen"
+  }
+}

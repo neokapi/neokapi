@@ -21,7 +21,7 @@ func TestPairedManifestAndSchedule(t *testing.T) {
 	require.NoError(t, err)
 	// The WP5 grid: two hosts, four arms, seven task families, three
 	// repetitions.
-	assert.Equal(t, pairedConditions, m.Conditions)
+	assert.Equal(t, pairedConditions[:4], m.Conditions, "the WP5 grid ran the first four arms")
 	assert.Len(t, m.Tasks, 7)
 	assert.Equal(t, 3, m.Repetitions)
 	pilot := pairedSchedule(m, "pilot")
@@ -627,9 +627,31 @@ func TestPairedSummaryShowsStaleRecoveryAndDecodeErrors(t *testing.T) {
 	text := markdown.String()
 	assert.Contains(t, text, "1 attempts are left out")
 	assert.Contains(t, text, "| recover-stale-read | claude | mcp | 3 | 2 | 3 |")
-	assert.Contains(t, text, "| 1 | 1 |\n", "outside cell and changed columns")
+	assert.Contains(t, text, "| 0 | 1 | 0 | 0 |\n", "override, outside cell, changed and asked columns")
 	assert.Contains(t, text, "## Stale recovery")
 	assert.Contains(t, text, "| recover-stale-read | claude | mcp | 3 | 1 | 1 | 1 | 1 | 1 | 0 | 1 | 1 |")
 	assert.Contains(t, text, "## Change sets that did not decode")
 	assert.Contains(t, text, "| recover-stale-read | claude | mcp | /type 2 |")
+}
+
+// A disk that fills during a session fails the agent's tools, so the attempt
+// is an infrastructure failure, run again rather than scored, however the
+// session ended.
+func TestPairedAFullDiskIsAnInfrastructureFailure(t *testing.T) {
+	opts := pairedTestOptions(t)
+	manifest, err := readPairedManifest(opts.ManifestPath)
+	require.NoError(t, err)
+	session := pairedSchedule(manifest, "smoke")[0]
+	launch, err := materializePairedLaunch(opts, manifest, session, t.TempDir())
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Dir(launch.TranscriptPath), 0o755))
+	require.NoError(t, os.WriteFile(launch.TranscriptPath,
+		[]byte(`{"type":"user","message":{"content":[{"type":"tool_result","content":"write out/nb.xliff: no space left on device"}]}}`+"\n"), 0o644))
+	deps := pairedDependencies{run: func(context.Context, PairedPrepared) (PairedAgentResult, error) {
+		return PairedAgentResult{Status: "completed", ActualModel: session.Agent.Model}, nil
+	}}
+	result := executePairedAttempt(context.Background(), PairedPrepared{Launch: launch}, session, deps)
+	assert.Equal(t, "infra_failed", result.Agent.Status)
+	assert.Equal(t, "disk", result.Agent.InfraFailure)
+	assert.Contains(t, pairedRetryStatuses, result.Agent.Status, "run again on retry")
 }

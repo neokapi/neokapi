@@ -229,9 +229,33 @@ func TestApply_PrintOpsAndSchema(t *testing.T) {
 	assert.JSONEq(t, `{"a":"Hello"}`, string(got))
 
 	var schema bytes.Buffer
-	require.NoError(t, RunApplySchema(&schema))
+	require.NoError(t, RunApplySchema(&schema, ""))
 	assert.True(t, json.Valid(schema.Bytes()))
 	assert.Contains(t, schema.String(), `"replace_text"`)
+
+	// One operation's schema is that operation alone, small enough to read
+	// whole.
+	var one bytes.Buffer
+	require.NoError(t, RunApplySchema(&one, "set_attribute"))
+	var op struct {
+		Title      string                     `json:"title"`
+		Properties map[string]json.RawMessage `json:"properties"`
+		Required   []string                   `json:"required"`
+		Defs       map[string]json.RawMessage `json:"$defs"`
+	}
+	require.NoError(t, json.Unmarshal(one.Bytes(), &op))
+	assert.Equal(t, "kapi.change/v1 set_attribute", op.Title)
+	assert.Contains(t, op.Properties, "name")
+	assert.Contains(t, op.Properties, "value")
+	assert.Contains(t, op.Required, "code")
+	assert.Contains(t, op.Defs, "ref", "the definitions it refers to come with it")
+	assert.NotContains(t, op.Defs, "run", "and nothing it does not refer to")
+	assert.Less(t, one.Len(), schema.Len()/10)
+
+	err = RunApplySchema(&one, "set_attr")
+	require.Error(t, err)
+	assert.Equal(t, ExitUsage, ExitCode(nil, err))
+	assert.Contains(t, err.Error(), "set_attribute", "the refusal lists the operations")
 }
 
 // A refused operation sets the exit code: stale and not_found are 3, and

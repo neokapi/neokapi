@@ -96,10 +96,18 @@ func TestPairedGradersRejectFaults(t *testing.T) {
 			find: "{count} appointment this week", replace: "{count} appointment", failing: "plural-bytes"},
 		{task: "edit-po-context", name: "library entry also changed", path: "locales/nb/messages.po",
 			find: "msgctxt \"library\"\nmsgid \"Book\"\nmsgstr \"Bok\"", replace: "msgctxt \"library\"\nmsgid \"Book\"\nmsgstr \"Bestill\"", failing: "po-bytes"},
-		{task: "add-json-key", name: "key appended at the end of the object", path: "locales/en.json",
-			find: "    \"exportData\": \"Export your data\",\n", replace: "", failing: "keys-in-order"},
+		{task: "add-json-key", name: "key appended at the end of the object", path: "i18n/de/messages.json",
+			find: "    \"exportData\": \"Daten exportieren\",\n", replace: "", failing: "keys-in-order"},
+		{task: "add-key-every-language", name: "a translation left without the key", path: "app/i18n/nb.json",
+			find: "    \"exportData\": \"Eksporter dataene dine\",\n", replace: "", failing: "keys-in-order-nb"},
+		{task: "edit-plural-equal-branches", name: "both branches changed", path: "messages/reminders_en.arb",
+			find: "one{Reminder sent to your adviser}", replace: "one{Reminders sent to your adviser}", failing: "other-branches"},
+		{task: "edit-nested-select", name: "the reader's own case changed too", path: "messages/invites_en.arb",
+			find: "one{You have one invitation}", replace: "one{You have a new invitation}", failing: "nested-bytes"},
+		{task: "edit-po-wrapped", name: "only the first line of the msgstr changed", path: "locales/nb/booking.po",
+			find: "\"ringe rådgiveren din.\"", replace: "\"kontakte rådgiveren din.\"", failing: "po-entries"},
 		{task: "recover-stale-read", name: "the other editor's change was overwritten", path: "docs/en/upgrade.md",
-			find: "about ten minutes", replace: "about five minutes", failing: "both-changes"},
+			find: "keeps all your appointments", replace: "keeps your appointments", failing: "both-changes"},
 		{task: "recover-gate-refusal", name: "the forbidden term", path: "docs/en/reports.md",
 			find: "from the overview page.", replace: "from the portal.", failing: "sentence-added"},
 		{task: "recover-gate-refusal", name: "no CSV", path: "docs/en/reports.md",
@@ -149,8 +157,8 @@ func TestPairedStaleGradeFollowsTheInterference(t *testing.T) {
 	require.NoError(t, err)
 	original := string(files["docs/en/upgrade.md"])
 	agent := strings.Replace(original, "Back up your data before", "Back up your data and settings before", 1)
-	both := strings.Replace(agent, "about five minutes", "about ten minutes", 1)
-	other := strings.Replace(original, "about five minutes", "about ten minutes", 1)
+	both := strings.Replace(agent, "keeps your appointments", "keeps all your appointments", 1)
+	other := strings.Replace(original, "keeps your appointments", "keeps all your appointments", 1)
 	never := &PairedAgentResult{Interference: &PairedInterferenceRecord{}}
 	landed := pairedLanded()
 	afterWrite := &PairedAgentResult{Interference: &PairedInterferenceRecord{Triggered: true, Applied: true, AgentWroteFirst: true}}
@@ -293,15 +301,15 @@ func TestPairedScopeRejectsStrayFilesAndLinks(t *testing.T) {
 	task := pairedTaskByID(t, "add-json-key")
 	for name, damage := range map[string]func(dir string){
 		"backup beside the catalog": func(dir string) {
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "locales", "en.json.bak"), []byte("{}"), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "i18n", "de", "messages.json.bak"), []byte("{}"), 0o600))
 		},
 		"catalog replaced by a link": func(dir string) {
-			target := filepath.Join(t.TempDir(), "en.json")
-			body, err := os.ReadFile(filepath.Join(dir, "locales", "en.json"))
+			target := filepath.Join(t.TempDir(), "messages.json")
+			body, err := os.ReadFile(filepath.Join(dir, "i18n", "de", "messages.json"))
 			require.NoError(t, err)
 			require.NoError(t, os.WriteFile(target, body, 0o600))
-			require.NoError(t, os.Remove(filepath.Join(dir, "locales", "en.json")))
-			require.NoError(t, os.Symlink(target, filepath.Join(dir, "locales", "en.json")))
+			require.NoError(t, os.Remove(filepath.Join(dir, "i18n", "de", "messages.json")))
+			require.NoError(t, os.Symlink(target, filepath.Join(dir, "i18n", "de", "messages.json")))
 		},
 		"style guide edited": func(dir string) {
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "STYLE.md"), []byte("# rewritten\n"), 0o600))
@@ -351,7 +359,15 @@ func TestPairedMarkdownBlocks(t *testing.T) {
 func TestPairedJSONLeavesRejectDuplicates(t *testing.T) {
 	leaves, err := pairedJSONLeaves([]byte(`{"a": {"b": "x", "c": [1, true]}, "d": null}`))
 	require.NoError(t, err)
-	assert.Equal(t, []pairedJSONLeaf{{"a.b", `"x"`}, {"a.c.0", "1"}, {"a.c.1", "true"}, {"d", "null"}}, leaves)
+	assert.Equal(t, []pairedJSONLeaf{{"/a/b", `"x"`}, {"/a/c/0", "1"}, {"/a/c/1", "true"}, {"/d", "null"}}, leaves)
+	// A key that holds a dot is told from a nested key.
+	dotted, err := pairedJSONLeaves([]byte(`{"a.b": "x"}`))
+	require.NoError(t, err)
+	assert.NotEqual(t, leaves[:1], dotted)
+	assert.Equal(t, "/a.b", dotted[0].Path)
+	escaped, err := pairedJSONLeaves([]byte(`{"a/b~c": 1}`))
+	require.NoError(t, err)
+	assert.Equal(t, "/a~1b~0c", escaped[0].Path)
 	_, err = pairedJSONLeaves([]byte(`{"a": "x", "a": "y"}`))
 	require.ErrorContains(t, err, "duplicate key")
 	_, err = pairedJSONLeaves([]byte(`{"a": "x"} {}`))

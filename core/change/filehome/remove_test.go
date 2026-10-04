@@ -364,3 +364,42 @@ func TestFileHome_ACreationTheWriterCannotMakeIsRefused(t *testing.T) {
 	assert.Contains(t, res.Ops[0].Error.Message, "give that entry of de/g.yaml a text value")
 	assert.Equal(t, german, f.read(t, "de/g.yaml"), "nothing is written")
 }
+
+// A block lists remove_edition only where it holds a translation to remove,
+// whichever file keeps the translation: a JSON key the German file lacks, or
+// one whose German was just removed, offers none, and neither does a read
+// that joins no translation.
+func TestFileHome_OnlyABlockHoldingATranslationOffersItsRemoval(t *testing.T) {
+	f := newTargetFixture(t, map[string]string{
+		"guide.json":    `{"title": "Welcome", "body": "Read this first"}` + "\n",
+		"de/guide.json": `{"title": "Willkommen"}` + "\n",
+	})
+	ctx := context.Background()
+	de := mustEdition(t, "de")
+	opsOf := func(req change.ReadRequest) map[string][]change.Kind {
+		t.Helper()
+		page, err := f.svc.Read(ctx, req)
+		require.NoError(t, err)
+		out := map[string][]change.Kind{}
+		for _, b := range page.Blocks {
+			out[b.Ref.Block] = b.Ops
+		}
+		return out
+	}
+
+	ops := opsOf(change.ReadRequest{Doc: "guide.json", Editions: []model.EditionKey{de}})
+	assert.Contains(t, ops["title"], change.KindRemoveEdition, "title holds a German translation")
+	assert.NotContains(t, ops["body"], change.KindRemoveEdition, "the German file holds no body")
+
+	ops = opsOf(change.ReadRequest{Doc: "guide.json"})
+	assert.NotContains(t, ops["title"], change.KindRemoveEdition, "a read that joins no translation lists none to remove")
+
+	ed, ok := editionOf(t, f.svc, "guide.json", "title", de)
+	require.True(t, ok)
+	res, err := f.svc.Apply(ctx, change.Set{Ops: []change.Op{removeOp("guide.json", "title", de, ed.Rev)}}, person)
+	require.NoError(t, err)
+	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
+	ops = opsOf(change.ReadRequest{Doc: "guide.json", Editions: []model.EditionKey{de}})
+	assert.NotContains(t, ops["title"], change.KindRemoveEdition, "the removed translation has nothing left to remove")
+	assert.Contains(t, ops["title"], change.KindSetContent, "set_content creates it again")
+}

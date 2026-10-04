@@ -17,18 +17,38 @@ import (
 // formats, with `info` and `schema` subcommands for one of them.
 func NewFormatsCmd(a *App) *cobra.Command {
 	var fmtMime, fmtExt string
+	var ops bool
 
 	formatsCmd := &cobra.Command{
-		Use:     "formats",
+		Use:     "formats [--ops [FORMAT]]",
 		Short:   "List supported file formats",
 		GroupID: "advanced",
 		Long: `List all file formats that can be read and written.
 
-Use --mime or --ext to filter by MIME type or file extension.`,
+Use --mime or --ext to filter by MIME type or file extension.
+
+--ops says what a format takes of a change set (kapi apply): each content
+operation it supports, with the forms, code types and attributes it writes,
+and whether it keeps a document's translations in one file. Name a format to
+describe it alone, as MCP describe_format does; with no name every format kapi
+can edit is listed.`,
 		Example: `  kapi formats
   kapi formats --ext .json
-  kapi formats --mime text/html`,
+  kapi formats --mime text/html
+  kapi formats --ops html --json
+  kapi formats --ops`,
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if ops {
+				out, err := a.DescribeFormatOps(cmd.Context(), args)
+				if err != nil {
+					return WithExitCode(ExitUsage, err)
+				}
+				return output.Print(cmd, out)
+			}
+			if len(args) > 0 {
+				return WithExitCode(ExitUsage, fmt.Errorf("kapi formats takes a format name only with --ops; to describe one format, run kapi formats info %s", args[0]))
+			}
 			infos := a.FormatReg.FormatInfos()
 
 			if fmtMime != "" || fmtExt != "" {
@@ -74,6 +94,7 @@ Use --mime or --ext to filter by MIME type or file extension.`,
 
 	formatsCmd.Flags().StringVar(&fmtMime, "mime", "", "filter by MIME type (e.g., text/html)")
 	formatsCmd.Flags().StringVar(&fmtExt, "ext", "", "filter by file extension (e.g., .docx)")
+	formatsCmd.Flags().BoolVar(&ops, "ops", false, "say what each format, or the one named, takes of a change set")
 
 	formatsCmd.AddCommand(newFormatsInfoCmd(a))
 	formatsCmd.AddCommand(newFormatsSchemaCmd(a))

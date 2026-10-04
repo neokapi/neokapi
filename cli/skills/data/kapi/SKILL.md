@@ -40,15 +40,17 @@ One thing per call. Withdraw a mistake with `kapi context withdraw <id>`
 
 ## 4. Check what you changed, then report the session
 
+`kapi apply` and `apply_edits` check what they write. Check the rest:
+
 - CLI: `kapi check --diff-against HEAD --json`, then
   `kapi context log --session this`
 - MCP: `check_file` on each changed file, then `context_session_summary`
 
-Fix what it reports and run it again; exit 4 means it did not run. End with
-the session summary.
+Fix what it reports; exit 4 means it did not run. End with the session
+summary.
 
 Before you change content inside a file, read `references/edit.md`
 (`kapi help edit`).
 
-`kapi help` lists the other topics (formats, voice, terms, translation,
-i18n); `kapi help <topic>` prints one.
+`kapi help <topic>` prints another topic: toolbox, voice, translate, project
+or i18n.

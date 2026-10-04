@@ -168,17 +168,20 @@ export function staleRefusal(res: ChangeResult): { op: OpResult; current: Curren
 }
 
 /**
- * The findings of a change set a rule in force refused (gate_failed), or null
- * when nothing refused it so. A person may save such a change anyway, sending
- * it again with gate report; the change service refuses that to an agent.
+ * The failing findings of a change set a rule in force refused (gate_failed),
+ * or null when nothing refused it so. The findings are the documents': what
+ * the commit check found on the edit. A person may save such a change anyway,
+ * sending it again with gate report; the change service refuses that to an
+ * agent.
  */
 export function gateFindings(res: ChangeResult): ChangeFinding[] | null {
-  const gated = res.ops.filter((o) => o.status === "refused" && o.error?.code === "gate_failed");
-  if (gated.length === 0) return null;
+  const gated = res.ops.some((o) => o.status === "refused" && o.error?.code === "gate_failed");
+  if (!gated) return null;
   const out: ChangeFinding[] = [];
   const seen = new Set<string>();
-  for (const o of gated) {
-    for (const f of o.findings ?? []) {
+  for (const d of res.docs) {
+    for (const f of d.findings ?? []) {
+      if (!f.fails) continue;
       const key = `${f.rule}\u0000${f.message}`;
       if (seen.has(key)) continue;
       seen.add(key);

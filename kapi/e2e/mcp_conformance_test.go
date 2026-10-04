@@ -120,7 +120,9 @@ vocabulary:
 }
 `)
 	write("docs/violating.md", "# Violating\n\nWe rely on the "+forbidden+" here.\n")
-	write("docs/clean.md", "# Clean\n\nWe rely on the "+replacement+" here.\n")
+	// The second paragraph holds the wording the context tools' tests observe,
+	// since an observation's evidence must be in the file it names.
+	write("docs/clean.md", "# Clean\n\nWe rely on the "+replacement+" here.\n\nQuick cast forecasts the next hour. Utilise the editor.\n")
 
 	p := conformanceProject{
 		Name:        name,
@@ -923,7 +925,7 @@ collections:
       - path: "docs/**/*.md"
 `), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "guide.md"),
-		[]byte("# Guide\n\nPlace a gadget on the dashboard.\n"), 0o644))
+		[]byte("# Guide\n\nPlace a gadget on the dashboard, and use the editor to arrange it.\n"), 0o644))
 	return root, recipe
 }
 
@@ -1496,7 +1498,7 @@ func TestMCPConformanceEditLoop(t *testing.T) {
 	assert.Equal(t, "applied", applied["status"])
 	body, err := os.ReadFile(proj.Clean)
 	require.NoError(t, err)
-	assert.Equal(t, "# Clean\n\nWe keep the content memory here.\n", string(body))
+	assert.Equal(t, "# Clean\n\nWe keep the content memory here.\n\nQuick cast forecasts the next hour. Utilise the editor.\n", string(body))
 
 	replay := rawCallTool(t, ctx, session, "apply_edits", set)
 	require.True(t, replay.IsError, "must fail: a change set sent against a revision that moved landed")

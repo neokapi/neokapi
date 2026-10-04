@@ -1,0 +1,822 @@
+{
+  "$comment": "kapi.change-result/v1, frozen for release 1.3.0 on 2026-10-03; extend only. TestSchemaExtendsFrozenV1 and its siblings in core/change hold the generated schema to it, and nothing regenerates this file.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "kapi.change-result/v1"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "refused",
+        "previewed",
+        "partial"
+      ]
+    },
+    "record": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "docs": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "doc": {
+            "type": "string"
+          },
+          "home": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "edition": {
+            "type": "string"
+          },
+          "written": {
+            "type": "boolean"
+          },
+          "before": {
+            "type": "string"
+          },
+          "after": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "findings": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "rule": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "fails": {
+                  "type": "boolean"
+                },
+                "suggested": {
+                  "type": "boolean"
+                },
+                "at": {
+                  "type": [
+                    "null",
+                    "object"
+                  ],
+                  "properties": {
+                    "doc": {
+                      "type": "string",
+                      "description": "the document, as references name it"
+                    },
+                    "block": {
+                      "type": "string",
+                      "description": "the block key"
+                    },
+                    "edition": {
+                      "type": "string",
+                      "description": "the edition; absent for the document's own edition where a reply leaves it out"
+                    }
+                  },
+                  "description": "an edition of a block in a document",
+                  "required": [
+                    "doc"
+                  ],
+                  "additionalProperties": false
+                },
+                "range": {
+                  "type": [
+                    "null",
+                    "object"
+                  ],
+                  "properties": {
+                    "path": {
+                      "$ref": "#/$defs/path"
+                    },
+                    "start": {
+                      "type": "object",
+                      "properties": {
+                        "run": {
+                          "type": "integer"
+                        },
+                        "offset": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "run",
+                        "offset"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "end": {
+                      "type": "object",
+                      "properties": {
+                        "run": {
+                          "type": "integer"
+                        },
+                        "offset": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "run",
+                        "offset"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "end"
+                  ],
+                  "additionalProperties": false
+                },
+                "replacement": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "rule",
+                "message",
+                "fails"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "diff": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc",
+          "written",
+          "after"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "ops": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "i": {
+            "type": "integer"
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "set_content",
+              "replace_text",
+              "set_attribute",
+              "mark",
+              "remove_edition",
+              "annotate",
+              "unannotate",
+              "insert_block",
+              "delete_block",
+              "native",
+              "decide",
+              "term",
+              "memory",
+              "recipe",
+              "provenance"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "unchanged",
+              "refused",
+              "not_applied",
+              "previewed"
+            ]
+          },
+          "at": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "properties": {
+              "doc": {
+                "type": "string",
+                "description": "the document, as references name it"
+              },
+              "block": {
+                "type": "string",
+                "description": "the block key"
+              },
+              "edition": {
+                "type": "string",
+                "description": "the edition; absent for the document's own edition where a reply leaves it out"
+              }
+            },
+            "description": "an edition of a block in a document",
+            "required": [
+              "doc"
+            ],
+            "additionalProperties": false
+          },
+          "before": {
+            "type": "string"
+          },
+          "after": {
+            "type": "string"
+          },
+          "basis": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "resolved": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "$ref": "#/$defs/path"
+                },
+                "start": {
+                  "type": "object",
+                  "properties": {
+                    "run": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "run",
+                    "offset"
+                  ],
+                  "additionalProperties": false
+                },
+                "end": {
+                  "type": "object",
+                  "properties": {
+                    "run": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "run",
+                    "offset"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "start",
+                "end"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "invalidates": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "edition": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "edition",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "findings": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "rule": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "fails": {
+                  "type": "boolean"
+                },
+                "suggested": {
+                  "type": "boolean"
+                },
+                "at": {
+                  "type": [
+                    "null",
+                    "object"
+                  ],
+                  "properties": {
+                    "doc": {
+                      "type": "string",
+                      "description": "the document, as references name it"
+                    },
+                    "block": {
+                      "type": "string",
+                      "description": "the block key"
+                    },
+                    "edition": {
+                      "type": "string",
+                      "description": "the edition; absent for the document's own edition where a reply leaves it out"
+                    }
+                  },
+                  "description": "an edition of a block in a document",
+                  "required": [
+                    "doc"
+                  ],
+                  "additionalProperties": false
+                },
+                "range": {
+                  "type": [
+                    "null",
+                    "object"
+                  ],
+                  "properties": {
+                    "path": {
+                      "$ref": "#/$defs/path"
+                    },
+                    "start": {
+                      "type": "object",
+                      "properties": {
+                        "run": {
+                          "type": "integer"
+                        },
+                        "offset": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "run",
+                        "offset"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "end": {
+                      "type": "object",
+                      "properties": {
+                        "run": {
+                          "type": "integer"
+                        },
+                        "offset": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "run",
+                        "offset"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "start",
+                    "end"
+                  ],
+                  "additionalProperties": false
+                },
+                "replacement": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "rule",
+                "message",
+                "fails"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "error": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "invalid",
+                  "not_found",
+                  "ambiguous",
+                  "stale",
+                  "doc_changed",
+                  "guard",
+                  "gate_failed",
+                  "unsupported",
+                  "not_permitted",
+                  "budget_exceeded",
+                  "unreachable"
+                ]
+              },
+              "subcode": {
+                "type": "string",
+                "enum": [
+                  "codes_changed",
+                  "structure_lost",
+                  "bad_position",
+                  "overlap"
+                ]
+              },
+              "field": {
+                "type": "string"
+              },
+              "pointer": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "candidates": {
+                "type": [
+                  "null",
+                  "array"
+                ],
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "rev": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "occurrence": {
+                      "type": "integer"
+                    },
+                    "at": {
+                      "type": [
+                        "null",
+                        "object"
+                      ],
+                      "properties": {
+                        "path": {
+                          "$ref": "#/$defs/path"
+                        },
+                        "start": {
+                          "type": "object",
+                          "properties": {
+                            "run": {
+                              "type": "integer"
+                            },
+                            "offset": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "run",
+                            "offset"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "end": {
+                          "type": "object",
+                          "properties": {
+                            "run": {
+                              "type": "integer"
+                            },
+                            "offset": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "run",
+                            "offset"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "start",
+                        "end"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "searched": {
+                "type": [
+                  "null",
+                  "object"
+                ],
+                "properties": {
+                  "path": {
+                    "$ref": "#/$defs/path"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "additionalProperties": false
+              },
+              "expected": {
+                "type": "string"
+              },
+              "found": {
+                "type": "string"
+              },
+              "capability": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          },
+          "current": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "properties": {
+              "rev": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "rev"
+            ],
+            "additionalProperties": false
+          },
+          "blocked_by": {
+            "type": [
+              "null",
+              "integer"
+            ]
+          }
+        },
+        "required": [
+          "i",
+          "op",
+          "status"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "error": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "invalid",
+            "not_found",
+            "ambiguous",
+            "stale",
+            "doc_changed",
+            "guard",
+            "gate_failed",
+            "unsupported",
+            "not_permitted",
+            "budget_exceeded",
+            "unreachable"
+          ]
+        },
+        "subcode": {
+          "type": "string",
+          "enum": [
+            "codes_changed",
+            "structure_lost",
+            "bad_position",
+            "overlap"
+          ]
+        },
+        "field": {
+          "type": "string"
+        },
+        "pointer": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "candidates": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "rev": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "occurrence": {
+                "type": "integer"
+              },
+              "at": {
+                "type": [
+                  "null",
+                  "object"
+                ],
+                "properties": {
+                  "path": {
+                    "$ref": "#/$defs/path"
+                  },
+                  "start": {
+                    "type": "object",
+                    "properties": {
+                      "run": {
+                        "type": "integer"
+                      },
+                      "offset": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "run",
+                      "offset"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "end": {
+                    "type": "object",
+                    "properties": {
+                      "run": {
+                        "type": "integer"
+                      },
+                      "offset": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "run",
+                      "offset"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "start",
+                  "end"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "searched": {
+          "type": [
+            "null",
+            "object"
+          ],
+          "properties": {
+            "path": {
+              "$ref": "#/$defs/path"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "expected": {
+          "type": "string"
+        },
+        "found": {
+          "type": "string"
+        },
+        "capability": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "path": {
+      "type": "array",
+      "items": {
+        "description": "a run index, {\"plural\": form} or {\"select\": case}",
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 0
+          },
+          {
+            "type": "object",
+            "properties": {
+              "plural": {
+                "type": "string",
+                "description": "a plural form: zero, one, two, few, many, other, or =N",
+                "anyOf": [
+                  {
+                    "enum": [
+                      "zero",
+                      "one",
+                      "two",
+                      "few",
+                      "many",
+                      "other"
+                    ]
+                  },
+                  {
+                    "pattern": "^=[0-9]+(\\.[0-9]+)?$"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "plural"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "select": {
+                "type": "string",
+                "description": "a select case"
+              }
+            },
+            "required": [
+              "select"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "description": "a walk into a plural or select: a run index, then the form or case, repeated"
+    }
+  },
+  "title": "kapi.change-result/v1",
+  "description": "The outcome of a change set: its status, each document written or read, and each operation's outcome.",
+  "required": [
+    "schema",
+    "status",
+    "record",
+    "docs",
+    "ops"
+  ],
+  "additionalProperties": false
+}

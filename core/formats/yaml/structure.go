@@ -490,7 +490,7 @@ func (d *yamlDoc) place(i int, path string, anchor *yamlEntry) (*yamlMapping, []
 		where = m.path
 	}
 	if anchor != nil && anchor.mapping != m {
-		return nil, nil, format.StructureErrorf(i, format.StructureUnsupported,
+		return nil, nil, format.StructureErrorf(i, format.StructureAnchor,
 			"%s goes in the mapping at %s and %s is outside it; name a key of that mapping to put it beside, or no key to put it last there", path, where, anchor.path)
 	}
 	if m != nil {

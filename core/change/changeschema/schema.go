@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/google/jsonschema-go/jsonschema"
@@ -27,6 +29,67 @@ func Schema() []byte {
 		panic(fmt.Sprintf("changeschema: build the change-set schema: %v", err))
 	}
 	return slices.Clone(b)
+}
+
+// OperationSchema returns the JSON Schema of one operation of a change set,
+// indented: the operation's member of the schema's oneOf, with the $defs it
+// refers to, so a sender reads one operation's fields without the whole
+// schema. An operation the contract does not name is an error naming the
+// ones it does.
+func OperationSchema(kind change.Kind) ([]byte, error) {
+	root, err := buildSchema()
+	if err != nil {
+		return nil, err
+	}
+	var member *jsonschema.Schema
+	for _, m := range root.Properties["ops"].Items.OneOf {
+		if c := m.Properties["op"].Const; c != nil && *c == string(kind) {
+			member = m
+		}
+	}
+	if member == nil {
+		names := make([]string, 0, len(change.Kinds()))
+		for _, k := range change.Kinds() {
+			names = append(names, string(k))
+		}
+		return nil, fmt.Errorf("no operation %q; one of %s", kind, strings.Join(names, ", "))
+	}
+	s := member.CloneSchemas()
+	s.Schema = root.Schema
+	s.Title = change.SchemaID + " " + string(kind)
+	s.Description = member.Description + " One operation of a change set's ops; kapi apply --schema prints the whole change set."
+	s.Defs = map[string]*jsonschema.Schema{}
+	pending := referencedDefs(s)
+	for len(pending) > 0 {
+		name := pending[0]
+		pending = pending[1:]
+		if _, done := s.Defs[name]; done {
+			continue
+		}
+		def, ok := root.Defs[name]
+		if !ok {
+			continue
+		}
+		s.Defs[name] = def
+		pending = append(pending, referencedDefs(def)...)
+	}
+	return json.MarshalIndent(s, "", "  ")
+}
+
+// defRefRe matches a reference to a $defs entry.
+var defRefRe = regexp.MustCompile(`"\$ref":\s*"#/\$defs/([^"]+)"`)
+
+// referencedDefs lists the $defs entries s refers to.
+func referencedDefs(s *jsonschema.Schema) []string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, m := range defRefRe.FindAllSubmatch(b, -1) {
+		out = append(out, string(m[1]))
+	}
+	return out
 }
 
 // refWire is the JSON shape of a change.Ref, as change.Ref decodes it.
@@ -207,7 +270,7 @@ func buildSchema() (*jsonschema.Schema, error) {
 		}
 		switch spec.IfMatch {
 		case change.IfMatchRequired:
-			s := str(`the revision of the edition you read, "absent" for an edition that must not exist yet, or "*" for whatever is there`)
+			s := str(`the revision of the edition you read, "absent" for an edition that must not exist yet, or "*" for a blind write, which only a person may send`)
 			s.Pattern = patternIfMatch
 			add("if_match", s, true)
 		case change.IfMatchOptional:
@@ -242,7 +305,7 @@ func buildSchema() (*jsonschema.Schema, error) {
 		"require_basis": {Type: "boolean", Description: "refuse a derived-edition write whose authoritative edition moved since it was read"},
 		"note":          str("one line a person reads in history and review"),
 		"evidence":      {Type: "array", Items: evidence, Description: "where the wording behind the change was seen"},
-		"ops":           {Type: "array", Items: &jsonschema.Schema{OneOf: members}, Description: "the operations, applied in order; a position names the content as read, and an empty list changes nothing"},
+		"ops":           {Type: "array", Items: &jsonschema.Schema{OneOf: members}, Description: "the operations, applied in order; a position names the content as read, and an empty list changes nothing. Several operations may name one block, each sending the rev you read, since every if_match is checked against the content the change set began with"},
 	}, []string{"schema", "mode", "gate", "require_basis", "note", "evidence", "ops"}, "ops")
 	root.Schema = "https://json-schema.org/draft/2020-12/schema"
 	root.Title = change.SchemaID

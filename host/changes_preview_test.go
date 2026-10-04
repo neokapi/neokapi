@@ -106,7 +106,7 @@ func TestApply_ADryRunReadsTheProjectsStore(t *testing.T) {
 	require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
 	require.NotNil(t, res.Ops[0].Error)
 	assert.Equal(t, change.CodeGateFailed, res.Ops[0].Error.Code)
-	assert.Contains(t, findingRules(res.Ops[0].Findings), "terms.vocabulary", "the terms the store holds govern a preview")
+	assert.Contains(t, findingRules(docFindings(&res)), "terms.vocabulary", "the terms the store holds govern a preview")
 	assert.Equal(t, original, readFile(t, f.recipe, "docs/guide.md"))
 	assert.NoDirExists(t, locks, "a preview takes no lock")
 	assert.Empty(t, editOps(t, f.app, f.root), "a preview records nothing")

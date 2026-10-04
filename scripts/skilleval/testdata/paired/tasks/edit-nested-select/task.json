@@ -1,0 +1,29 @@
+{
+  "id": "edit-nested-select",
+  "family": "plural-branch",
+  "prompt": "In messages/invites_en.arb, the inviteStatus message chooses by role and then by count. Change the adviser's one-invitation case (the \"one\" branch of the plural under \"adviser\") so it reads \"Your adviser has a new invitation\". Keep every other case, the metadata and the rest of the file exactly as they are.",
+  "editable": [
+    "messages/invites_en.arb"
+  ],
+  "scope": [
+    "messages"
+  ],
+  "criteria": [
+    {
+      "id": "nested-bytes",
+      "kind": "bytes_equal",
+      "path": "messages/invites_en.arb",
+      "description": "Only the one branch under adviser changes; every other byte of the catalog is as it was"
+    },
+    {
+      "id": "metadata",
+      "kind": "json_member_unchanged",
+      "path": "messages/invites_en.arb",
+      "key": "@inviteStatus",
+      "description": "The @inviteStatus metadata is as it was"
+    }
+  ],
+  "humanReviewRubric": [
+    "Did the agent leave the reader's own one-invitation case, under other, as it was?"
+  ]
+}

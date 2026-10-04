@@ -38,9 +38,9 @@
             "type": "string",
             "description": "a project-relative file"
           },
-          "unit": {
+          "block": {
             "type": "string",
-            "description": "the block key inside the file"
+            "description": "the block key a read reports as ref.block"
           },
           "quote": {
             "type": "string",
@@ -71,7 +71,7 @@
               },
               "if_match": {
                 "type": "string",
-                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                 "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
               },
               "basis": {
@@ -149,8 +149,12 @@
               },
               "if_match": {
                 "type": "string",
-                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                 "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
+              },
+              "path": {
+                "$ref": "#/$defs/path",
+                "description": "a plural form or select case every edit is in, for example [1, {\"plural\": \"one\"}]; an edit's own path overrides it"
               },
               "edits": {
                 "type": "array",
@@ -163,7 +167,7 @@
                     },
                     "find": {
                       "type": "string",
-                      "description": "literal text to match"
+                      "description": "the text to match, in placeholder form: inline codes have zero width unless a \u003cx id=\"…\"/\u003e token names one"
                     },
                     "occurrence": {
                       "type": "integer",
@@ -220,7 +224,7 @@
                     },
                     "text": {
                       "type": "string",
-                      "description": "the replacement text"
+                      "description": "the replacement text; after a find that names a code by its token, placeholder text naming the codes it keeps"
                     }
                   },
                   "required": [
@@ -293,7 +297,7 @@
               },
               "if_match": {
                 "type": "string",
-                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                 "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
               },
               "code": {
@@ -332,7 +336,7 @@
               },
               "if_match": {
                 "type": "string",
-                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                 "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
               },
               "range": {
@@ -344,7 +348,7 @@
                   },
                   "find": {
                     "type": "string",
-                    "description": "literal text to match"
+                    "description": "the text to match, in placeholder form: inline codes have zero width unless a \u003cx id=\"…\"/\u003e token names one"
                   },
                   "occurrence": {
                     "type": "integer",
@@ -455,7 +459,7 @@
               },
               "if_match": {
                 "type": "string",
-                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                 "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
               }
             },
@@ -726,7 +730,7 @@
               },
               "if_match": {
                 "type": "string",
-                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for whatever is there",
+                "description": "the revision of the edition you read, \"absent\" for an edition that must not exist yet, or \"*\" for a blind write, which only a person may send",
                 "pattern": "^(absent|\\*|r:[0-9a-f]{16})$"
               },
               "outcome": {
@@ -906,7 +910,7 @@
           }
         ]
       },
-      "description": "the operations, applied in order; a position names the content as read, and an empty list changes nothing"
+      "description": "the operations, applied in order; a position names the content as read, and an empty list changes nothing. Several operations may name one block, each sending the rev you read, since every if_match is checked against the content the change set began with"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",

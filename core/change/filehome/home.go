@@ -162,13 +162,14 @@ type session struct {
 
 func (s *session) Info() change.DocInfo {
 	return change.DocInfo{
-		Doc:          s.doc.Ref,
-		Format:       s.doc.Format.Name,
-		SourceLocale: s.doc.SourceLocale,
-		Editions:     s.doc.Editions,
-		Edition:      s.doc.Edition,
-		Derived:      s.doc.Derived,
-		Capabilities: s.caps,
+		Doc:           s.doc.Ref,
+		Format:        s.doc.Format.Name,
+		SourceLocale:  s.doc.SourceLocale,
+		Editions:      s.doc.Editions,
+		Edition:       s.doc.Edition,
+		Derived:       s.doc.Derived,
+		LanguageNamed: s.doc.LanguageNamed,
+		Capabilities:  s.caps,
 	}
 }
 
@@ -346,6 +347,14 @@ type keyJoin struct {
 func (s *session) Stage(ctx context.Context, want change.Want, e change.Editor) (change.Staged, error) {
 	st := &staged{s: s, want: want, e: e}
 	if err := st.run(ctx); err != nil {
+		if errors.Is(err, change.ErrRefused) {
+			// A refusal reports the files the stage read, each as it was.
+			files := st.Files()
+			for i := range files {
+				files[i].After, files[i].Written = files[i].Before, false
+			}
+			err = &change.StageRefusal{Files: files}
+		}
 		_ = st.Release()
 		return nil, err
 	}
