@@ -230,12 +230,7 @@ func TestRuleCheckToolNonDeletableSpanMissing(t *testing.T) {
 		}},
 		{Text: &model.TextRun{Text: "world"}},
 	}
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       sourceRuns,
-		Properties:   make(map[string]string),
-	}
+	block := model.NewRunsBlock("tu1", sourceRuns)
 	// Target is missing the break placeholder.
 	block.SetTargetText(model.LocaleFrench, "Hello world")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -266,12 +261,7 @@ func TestRuleCheckToolNonCloneableSpanDuplicated(t *testing.T) {
 		{Ph: nonCloneable()},
 		{Text: &model.TextRun{Text: " world"}},
 	}
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       sourceRuns,
-		Properties:   make(map[string]string),
-	}
+	block := model.NewRunsBlock("tu1", sourceRuns)
 	// Target duplicates the variable placeholder.
 	targetRuns := []model.Run{
 		{Text: &model.TextRun{Text: "Bonjour "}},
@@ -332,12 +322,7 @@ func TestRuleCheckToolPluralFormsCountACodeOnce(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			tl := tools.NewRuleCheckTool(tools.NewRuleCheckConfig(model.LocaleFrench))
-			block := &model.Block{
-				ID:           "tu1",
-				Translatable: true,
-				Source:       []model.Run{variable(), text(" files")},
-				Properties:   make(map[string]string),
-			}
+			block := model.NewRunsBlock("tu1", []model.Run{variable(), text(" files")})
 			block.SetTargetRuns(model.LocaleFrench, tt.target)
 			result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 
@@ -362,12 +347,7 @@ func TestRuleCheckToolDeletableSpanMissingNoConstraintError(t *testing.T) {
 		{Text: &model.TextRun{Text: "Hello"}},
 		{PcClose: &model.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"}},
 	}
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       sourceRuns,
-		Properties:   make(map[string]string),
-	}
+	block := model.NewRunsBlock("tu1", sourceRuns)
 	// Target is missing the bold pair (which are deletable).
 	block.SetTargetText(model.LocaleFrench, "Bonjour")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
@@ -393,12 +373,7 @@ func TestRuleCheckToolSpanConstraintsDisabled(t *testing.T) {
 		}},
 		{Text: &model.TextRun{Text: "world"}},
 	}
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       sourceRuns,
-		Properties:   make(map[string]string),
-	}
+	block := model.NewRunsBlock("tu1", sourceRuns)
 	// Target is missing the break placeholder, but check is disabled.
 	block.SetTargetText(model.LocaleFrench, "Hello world")
 	part := &model.Part{Type: model.PartBlock, Resource: block}

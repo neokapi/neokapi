@@ -14,7 +14,7 @@ import (
 
 func runVoiceVocab(t *testing.T, tl *VoiceVocabCheckTool, text string) []check.Finding {
 	t.Helper()
-	b := &model.Block{ID: "b", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}
+	b := model.NewBlock("b", text)
 	require.NoError(t, tl.Annotate(tool.NewBlockView(b)))
 	if ann, ok := model.AnnoAs[*profile.VoiceAnnotation](b, "voice"); ok {
 		return ann.Findings

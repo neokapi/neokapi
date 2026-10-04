@@ -14,7 +14,7 @@ import (
 func runPlaceholder(t *testing.T, src, tgt string, flagExtra bool) []check.Finding {
 	t.Helper()
 	loc := model.LocaleID("de")
-	b := &model.Block{ID: "b", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: src}}}}
+	b := model.NewBlock("b", src)
 	tool.NewVariantView(b).SetTargetText(loc, tgt)
 	cfg := NewPlaceholderCheckConfig(loc)
 	cfg.FlagExtra = flagExtra
@@ -87,7 +87,7 @@ func TestPlaceholderCheck_DoubleBraceTokenization(t *testing.T) {
 func runPlaceholderRuns(t *testing.T, src, tgt []model.Run, flagExtra bool) []check.Finding {
 	t.Helper()
 	loc := model.LocaleID("de")
-	b := &model.Block{ID: "b", Translatable: true, Source: src}
+	b := model.NewRunsBlock("b", src)
 	tool.NewVariantView(b).SetTargetRuns(loc, tgt)
 	cfg := NewPlaceholderCheckConfig(loc)
 	cfg.FlagExtra = flagExtra

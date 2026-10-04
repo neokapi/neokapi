@@ -36,7 +36,7 @@ func stepTool(t *testing.T, name registry.ToolID, config map[string]any, targetL
 
 // stepBlock is a bilingual block: an `nb` target for an `en` source.
 func stepBlock(source, target string) *model.Block {
-	b := &model.Block{ID: "u1", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: source}}}}
+	b := model.NewBlock("u1", source)
 	tool.NewVariantView(b).SetTargetText(model.LocaleID("nb"), target)
 	return b
 }
@@ -174,8 +174,7 @@ func TestXMLValidation_StepConfigChecksTheTarget(t *testing.T) {
 // The zero-arg factory left TargetLocale empty, so create-target wrote its
 // container under the empty locale — a target for no language.
 func TestCreateTarget_StepConfigCopySourceIntoTheRunLocale(t *testing.T) {
-	b := &model.Block{ID: "u1", Translatable: true,
-		Source: []model.Run{{Text: &model.TextRun{Text: "Save now"}}}}
+	b := model.NewBlock("u1", "Save now")
 	out := runStep(t, "create-target", map[string]any{"copySource": true}, "nb", b)
 
 	assert.Equal(t, "Save now", out.TargetText(model.LocaleID("nb")),
@@ -184,8 +183,7 @@ func TestCreateTarget_StepConfigCopySourceIntoTheRunLocale(t *testing.T) {
 		"nothing may be written under the empty locale")
 
 	// copySource defaults to false: an empty container, not a copy.
-	empty := runStep(t, "create-target", nil, "nb", &model.Block{ID: "u1", Translatable: true,
-		Source: []model.Run{{Text: &model.TextRun{Text: "Save now"}}}})
+	empty := runStep(t, "create-target", nil, "nb", model.NewBlock("u1", "Save now"))
 	require.True(t, empty.HasTarget(model.LocaleID("nb")))
 	assert.Empty(t, empty.TargetText(model.LocaleID("nb")))
 }
@@ -241,8 +239,7 @@ func TestRemoveTarget_RunLocalePinsWhatIsRemoved(t *testing.T) {
 // lineBreakBlock is a bilingual block whose target carries a line-break inline
 // code between two words — the shape replaceWithSpace exists for.
 func lineBreakBlock() *model.Block {
-	b := &model.Block{ID: "u1", Translatable: true,
-		Source: []model.Run{{Text: &model.TextRun{Text: "Save"}}}}
+	b := model.NewBlock("u1", "Save")
 	b.SetTargetRuns(model.LocaleID("nb"), []model.Run{
 		{Text: &model.TextRun{Text: "Lagre"}},
 		{Ph: &model.PlaceholderRun{ID: "1", Type: "html:br"}},
@@ -272,11 +269,11 @@ func TestInlineCodesRemove_StepConfigReplaceWithSpace(t *testing.T) {
 // applySource is off by default, so a step that asked for the source was ignored.
 func TestInlineCodesRemove_StepConfigApplySource(t *testing.T) {
 	withCodedSource := func() *model.Block {
-		b := &model.Block{ID: "u1", Translatable: true, Source: []model.Run{
+		b := model.NewRunsBlock("u1", []model.Run{
 			{Text: &model.TextRun{Text: "Save"}},
 			{Ph: &model.PlaceholderRun{ID: "1", Type: "html:br"}},
 			{Text: &model.TextRun{Text: "now"}},
-		}}
+		})
 		tool.NewVariantView(b).SetTargetText(model.LocaleID("nb"), "Lagre nå")
 		return b
 	}

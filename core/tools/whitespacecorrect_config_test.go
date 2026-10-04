@@ -39,7 +39,7 @@ func wsToolFromStep(t *testing.T, config map[string]any, targetLang string) tool
 // and returns the target runs it emitted.
 func wsRunStep(t *testing.T, config map[string]any, targetLang string, source, target []model.Run) []model.Run {
 	t.Helper()
-	b := &model.Block{ID: "u1", Translatable: true, Source: source}
+	b := model.NewRunsBlock("u1", source)
 	b.SetTargetRuns(model.LocaleID("nb"), target)
 
 	tl := wsToolFromStep(t, config, targetLang)

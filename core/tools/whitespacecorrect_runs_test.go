@@ -30,7 +30,7 @@ func wsPh(id, equiv string) model.Run {
 // resulting target runs.
 func wsCorrect(t *testing.T, cfg *tools.WhitespaceCorrectConfig, sourceRuns, targetRuns []model.Run) []model.Run {
 	t.Helper()
-	b := &model.Block{ID: "u1", Translatable: true, Source: sourceRuns}
+	b := model.NewRunsBlock("u1", sourceRuns)
 	b.SetTargetRuns(model.LocaleFrench, targetRuns)
 
 	tl := tools.NewWhitespaceCorrectTool(cfg)

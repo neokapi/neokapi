@@ -29,12 +29,7 @@ func TestInlineCodesRemoveToolTarget(t *testing.T) {
 
 	assert.Equal(t, "inline-codes-remove", tl.Name())
 
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: "Click here"}}},
-		Properties:   make(map[string]string),
-	}
+	block := model.NewBlock("tu1", "Click here")
 	block.SetTargetRuns(model.LocaleFrench, linkRunsFr())
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
@@ -55,12 +50,7 @@ func TestInlineCodesRemoveToolSource(t *testing.T) {
 	}
 	tl := tools.NewInlineCodesRemoveTool(cfg)
 
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       linkRuns(),
-		Properties:   make(map[string]string),
-	}
+	block := model.NewRunsBlock("tu1", linkRuns())
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
@@ -89,12 +79,7 @@ func TestInlineCodesRemoveToolMixedRunsBecomesPlainText(t *testing.T) {
 	}
 	require.True(t, hasAnyInlineCode(runs))
 
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       runs,
-		Properties:   make(map[string]string),
-	}
+	block := model.NewRunsBlock("tu1", runs)
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
@@ -112,12 +97,8 @@ func TestInlineCodesRemoveToolSkipsNonTranslatable(t *testing.T) {
 	}
 	tl := tools.NewInlineCodesRemoveTool(cfg)
 
-	block := &model.Block{
-		ID:           "tu1",
-		Translatable: false,
-		Source:       linkRuns(),
-		Properties:   make(map[string]string),
-	}
+	block := model.NewRunsBlock("tu1", linkRuns())
+	block.Translatable = false
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 
