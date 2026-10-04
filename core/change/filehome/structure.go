@@ -130,8 +130,17 @@ func refuseEdit(r change.Restructurer, edits []change.StructuralEdit, from []int
 	}
 	e := edits[i]
 	cerr := &change.Error{Code: change.CodeUnsupported, Capability: string(e.Kind), Message: file + ": " + se.Message}
-	if se.Reason == format.StructureExists {
+	switch se.Reason {
+	case format.StructureExists:
 		cerr = &change.Error{Code: change.CodeInvalid, Field: "name", Message: file + ": " + se.Message}
+	case format.StructureAnchor:
+		// The change set names a block the new one cannot go beside: the
+		// sender's to fix, as a field of the operation.
+		field := "after"
+		if e.Before {
+			field = "before"
+		}
+		cerr = &change.Error{Code: change.CodeInvalid, Field: field, Message: file + ": " + se.Message}
 	}
 	r.Refuse(e, cerr)
 	return change.ErrRefused

@@ -150,7 +150,11 @@ type OverlayRebase struct {
 // ReplaceText changes text inside an edition and keeps everything else:
 // inline codes, structure and run flags.
 type ReplaceText struct {
-	Edits []TextEdit `json:"edits" jsonschema:"the replacements, each naming its text by find, by start and end, or by range"`
+	// Path names the plural form or select case every edit is in, as
+	// set_content's path does; an edit's own path takes its place for that
+	// edit.
+	Path  model.RunPath `json:"path,omitempty" jsonschema:"a plural form or select case every edit is in, for example [1, {\"plural\": \"one\"}]; an edit's own path overrides it"`
+	Edits []TextEdit    `json:"edits" jsonschema:"the replacements, each naming its text by find, by start and end, or by range"`
 	// Origin says how a tool produced the edited content, as SetContent's
 	// does.
 	Origin *ToolOrigin `json:"origin,omitempty" jsonschema:"how a tool produced the content; an edit a person or an agent sends is recorded as theirs, and this is not kept"`
@@ -162,8 +166,12 @@ type Selection struct {
 	// Path walks into a plural form or select case; empty is the edition's own
 	// runs.
 	Path model.RunPath `json:"path,omitempty" jsonschema:"a plural form or select case the text is in, for example [1, {\"plural\": \"one\"}]"`
-	// Find is literal text to match.
-	Find *string `json:"find,omitempty" jsonschema:"literal text to match"`
+	// Find is the text to match, in placeholder form, read as set_content's
+	// text is: inline codes have zero width, except one a <x id="…"/> token
+	// names, which matches only that code at that point. A find that names a
+	// code replaces the runs it matched, codes included, with Text read as
+	// placeholder text too.
+	Find *string `json:"find,omitempty" jsonschema:"the text to match, in placeholder form: inline codes have zero width unless a <x id=\"…\"/> token names one"`
 	// Occurrence chooses one match of Find, counting from 1; 0 requires
 	// exactly one match.
 	Occurrence int `json:"occurrence,omitempty" jsonschema:"which match of find, counting from 1; omitted requires exactly one match"`
@@ -180,7 +188,7 @@ type Selection struct {
 // TextEdit replaces the text a Selection names.
 type TextEdit struct {
 	Selection
-	Text string `json:"text" jsonschema:"the replacement text"`
+	Text string `json:"text" jsonschema:"the replacement text; after a find that names a code by its token, placeholder text naming the codes it keeps"`
 }
 
 // Span is a half-open range between two run positions: a run index and a

@@ -119,17 +119,30 @@ func (d Description) supports(op Op) *Error {
 }
 
 // blockOps lists the operations a block of a format with description d
-// accepts.
+// accepts. insert_block is listed on a block of a document that can take a
+// new block, since a block can anchor one (its after or before).
 func (d Description) blockOps(editable bool) []Kind {
 	out := []Kind{}
 	if !editable {
 		return out
 	}
 	for _, k := range contentKinds {
-		if _, ok := d.Ops.supports(k); k == KindInsertBlock || !ok {
+		if _, ok := d.Ops.supports(k); !ok {
 			continue
 		}
 		out = append(out, k)
+	}
+	return out
+}
+
+// Supported lists the content operations the description supports, in the
+// order the contract lists them.
+func (d Description) Supported() []Kind {
+	var out []Kind
+	for _, k := range contentKinds {
+		if _, ok := d.Ops.supports(k); ok {
+			out = append(out, k)
+		}
 	}
 	return out
 }

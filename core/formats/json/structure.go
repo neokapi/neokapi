@@ -116,7 +116,7 @@ func (w *Writer) insert(d *jsonobject.Doc, i int, e format.StructuralEdit) ([]by
 		return nil, err
 	}
 	if anchor.Object != o {
-		return nil, format.StructureErrorf(i, format.StructureUnsupported,
+		return nil, format.StructureErrorf(i, format.StructureAnchor,
 			"%s goes in the object at %s and %s is outside it; name a key of that object to put it beside, or no key to put it last there", path, objectName(o), anchor.Path)
 	}
 	if e.Before {

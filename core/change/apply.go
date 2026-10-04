@@ -153,6 +153,7 @@ func ApplyBlock(b *model.Block, ops []Op, env BlockEnv) []OpResult {
 	if refused >= 0 {
 		for i := range results {
 			if results[i].Status == OpRefused {
+				results[i].unwritten()
 				continue
 			}
 			results[i] = OpResult{I: i, Op: results[i].Op, At: results[i].At, Status: OpNotApplied, BlockedBy: &refused}
@@ -210,7 +211,7 @@ func (w *workset) admit(op Op) *Error {
 	}
 	if spec.ifMatch == ifMatchRequired && op.IfMatch == "" {
 		return &Error{Code: CodeInvalid, Field: "if_match",
-			Message: `if_match is required: send the revision you read, "absent" to create, or "*" to write whatever is there`}
+			Message: `if_match is required: send the revision you read, "absent" to create, or "*" for a blind write, which only a person may send`}
 	}
 	if op.IfMatch != "" {
 		if err := checkIfMatch(spec.ifMatch, op.IfMatch, ""); err != nil {
@@ -246,8 +247,7 @@ func (w *workset) precondition(op Op) (*Error, *Current) {
 		}
 	default:
 		if rev := st.startRevision(); rev != op.IfMatch {
-			return &Error{Code: CodeStale, Field: "if_match",
-				Message: fmt.Sprintf("edition %s is at %s, not %s", w.label(st), rev, op.IfMatch)}, st.startCurrent()
+			return &Error{Code: CodeStale, Field: "if_match", Message: staleMessage(w.label(st), op.IfMatch, rev)}, st.startCurrent()
 		}
 	}
 	if op.Kind != KindSetContent {
@@ -272,6 +272,17 @@ func (w *workset) precondition(op Op) (*Error, *Current) {
 			Message: fmt.Sprintf("the authoritative edition %s is at %s, not %s", w.label(auth), rev, op.Basis)}, auth.startCurrent()
 	}
 	return nil, nil
+}
+
+// staleMessage is the refusal of an if_match that no longer holds: the
+// edition moved after its sender read it, and the text it holds now carries
+// another writer's change, which a resend keeps.
+func staleMessage(label, read, now string) string {
+	if now == model.AbsentRevision {
+		return fmt.Sprintf("edition %s was removed after you read it at %s", label, read)
+	}
+	return fmt.Sprintf("edition %s changed after you read it at %s; it is now %s. Its current text holds a change you have not seen: keep it, and resend against %s",
+		label, read, now, now)
 }
 
 // apply applies one admitted operation to the workset.
@@ -690,18 +701,19 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 	}
 	cur := st.ed.Runs
 
-	type pathEdit struct {
-		i          int
-		start, end int
-		text       string
-	}
 	groups := map[string][]pathEdit{}
 	paths := map[string]model.RunPath{}
 	index := map[string]*seqIndex{}
 	res.Resolved = make([]Resolved, len(body.Edits))
 	for i, e := range body.Edits {
 		field := "edits/" + strconv.Itoa(i)
-		path, perr := w.currentPath(st, e.Path, field+"/path")
+		// An edit with no path of its own is in the branch the operation's
+		// path names.
+		sel, pathField := e.Selection, field+"/path"
+		if len(sel.Path) == 0 && len(body.Path) > 0 {
+			sel.Path, pathField = body.Path, "path"
+		}
+		path, perr := w.currentPath(st, sel.Path, pathField)
 		if perr != nil {
 			return perr
 		}
@@ -710,25 +722,30 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 		if !ok {
 			seq, found := model.ResolveRunPath(cur, path)
 			if !found {
-				return &Error{Code: CodeNotFound, Field: field + "/path", Message: fmt.Sprintf("path %s reaches no plural form or select case", pathText(e.Path))}
+				return &Error{Code: CodeNotFound, Field: pathField, Message: fmt.Sprintf("path %s reaches no plural form or select case", pathText(sel.Path))}
 			}
 			ix = indexSequence(seq)
 			index[key] = ix
 		}
 		var start, end int
+		var span *findSpan
 		var err *Error
-		if w.moved(st) && e.Find == nil {
+		if w.moved(st) && sel.Find == nil {
 			// A position names the edition as the change set found it.
-			start, end, err = w.movedSelection(st, e.Selection, field)
+			start, end, err = w.movedSelection(st, sel, field)
 		} else {
-			start, end, err = ix.resolve(e.Selection, path, field)
+			start, end, span, err = ix.resolveSpan(sel, path, field)
 		}
 		if err != nil {
 			return err
 		}
-		res.Resolved[i] = Resolved{Path: path, Start: ix.posAt(start), End: ix.posAt(end)}
+		res.Resolved[i] = resolvedSpan(path, ix.posAt(start), ix.posAt(end))
+		if span != nil {
+			s, e := ix.spanPositions(span)
+			res.Resolved[i] = resolvedSpan(path, s, e)
+		}
 		paths[key] = path
-		groups[key] = append(groups[key], pathEdit{i: i, start: start, end: end, text: e.Text})
+		groups[key] = append(groups[key], pathEdit{i: i, start: start, end: end, text: e.Text, span: span})
 	}
 
 	// Edit the deepest sequences first: an edit at one level can renumber the
@@ -746,33 +763,39 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 	for _, key := range keys {
 		edits := groups[key]
 		slices.SortStableFunc(edits, func(a, b pathEdit) int { return a.start - b.start })
-		for j := 1; j < len(edits); j++ {
-			if edits[j].start < edits[j-1].end {
-				return &Error{Code: CodeGuard, Subcode: SubcodeOverlap, Field: "edits/" + strconv.Itoa(edits[j].i),
-					Message: fmt.Sprintf("edit %d overlaps edit %d", edits[j].i, edits[j-1].i)}
-			}
+		if err := editsOverlap(edits); err != nil {
+			return err
 		}
 		path := paths[key]
 		seq, _ := model.ResolveRunPath(next, path)
-		textEdits := make([]model.TextEdit, len(edits))
-		for j, e := range edits {
-			textEdits[j] = model.TextEdit{Start: e.start, End: e.end, Replacement: e.text}
-			changed[key] = append(changed[key], seqEdit{start: e.start, end: e.end, newLen: utf8.RuneCountInString(e.text)})
+		edited, findings, err := applyPathEdits(seq, edits, cur, w.env.Guards == Report)
+		if err != nil {
+			return err
 		}
-		edited := model.ApplyTextEdits(seq, textEdits)
+		res.Findings = append(res.Findings, findings...)
+		if slices.ContainsFunc(edits, func(e pathEdit) bool { return e.span != nil }) {
+			// A find that named codes replaced runs, codes included: the
+			// sequence keeps its codes' constraints (section 2.4, rule 2),
+			// which a check of the whole edition cannot see in one branch.
+			if err := w.checkCodes(seq, edited, nil, res); err != nil {
+				return err
+			}
+		}
+		for _, e := range edits {
+			changed[key] = append(changed[key], seqEdit{start: e.start, end: e.end, newLen: e.newLen})
+		}
 		if len(path) == 0 {
 			ix := index[key]
 			for _, e := range edits {
-				n := utf8.RuneCountInString(e.text)
-				if e.start == e.end {
+				if e.start == e.end && e.span == nil {
 					// Text inserted where a plural or select sits goes before it.
 					at := ix.flatAt(e.start, false)
-					flatEdits = append(flatEdits, model.RunEdit{Start: at, End: at, NewLen: n})
+					flatEdits = append(flatEdits, model.RunEdit{Start: at, End: at, NewLen: e.newLen})
 					continue
 				}
 				// A replacement keeps a structure at its start before it and one
 				// at its end after it, as model.ApplyTextEdits places them.
-				flatEdits = append(flatEdits, model.RunEdit{Start: ix.flatAt(e.start, true), End: ix.flatAt(e.end, false), NewLen: n})
+				flatEdits = append(flatEdits, model.RunEdit{Start: ix.flatAt(e.start, true), End: ix.flatAt(e.end, false), NewLen: e.newLen})
 			}
 			next = edited
 			continue
@@ -820,6 +843,77 @@ func (w *workset) replaceText(op Op, body *ReplaceText, res *OpResult) *Error {
 		w.noteChange(st, paths[key], cur, false, changed[key])
 	}
 	return nil
+}
+
+// pathEdit is one edit of a replace_text in the sequence its path reaches:
+// offsets into the sequence's own text, the replacement, and, for a find that
+// named inline codes, the span of runs it matched.
+type pathEdit struct {
+	i          int
+	start, end int
+	text       string
+	span       *findSpan
+	// newLen is the length of the replacement's own text, in code points.
+	newLen int
+}
+
+// editsOverlap refuses two edits of one sequence, sorted by start, that
+// overlap: their text, or, for two finds that named codes, the runs they
+// matched.
+func editsOverlap(edits []pathEdit) *Error {
+	for j := 1; j < len(edits); j++ {
+		a, b := edits[j-1], edits[j]
+		overlap := b.start < a.end
+		if !overlap && a.span != nil && b.span != nil && b.start == a.end {
+			overlap = b.span.from < a.span.to
+		}
+		if overlap {
+			return &Error{Code: CodeGuard, Subcode: SubcodeOverlap, Field: "edits/" + strconv.Itoa(b.i),
+				Message: fmt.Sprintf("edit %d overlaps edit %d", b.i, a.i)}
+		}
+	}
+	return nil
+}
+
+// applyPathEdits applies the edits of one sequence, sorted by start, and sets
+// each edit's newLen. An edit of text alone replaces text and keeps every code
+// as model.ApplyTextEdits places it. An edit whose find named codes replaces
+// the runs it matched with its replacement read as placeholder text against
+// the edition's codes; those edits are made first, right to left, so the runs
+// left of each are as the find saw them, and the edits of text alone then
+// apply together at their offsets moved past them.
+func applyPathEdits(seq []model.Run, edits []pathEdit, edition []model.Run, report bool) ([]model.Run, []Finding, *Error) {
+	var findings []Finding
+	shift := make([]int, len(edits))
+	for j := len(edits) - 1; j >= 0; j-- {
+		e := &edits[j]
+		if e.span == nil {
+			e.newLen = utf8.RuneCountInString(e.text)
+			continue
+		}
+		ix := indexSequence(seq)
+		repl, found, err := resolveTextCodes(spanReplacement(ix, e.span, e.text, edition), edition, nil, report)
+		if err == nil && !report {
+			err = halvesPassedOver(ix, e.span, repl)
+		}
+		if err != nil {
+			err.Field = "edits/" + strconv.Itoa(e.i) + "/text"
+			return nil, nil, err
+		}
+		findings = append(findings, found...)
+		e.newLen = utf8.RuneCountInString(model.SequenceText(repl))
+		seq = spliceSpan(ix, e.span.from, e.span.to, repl)
+		for k := j + 1; k < len(edits); k++ {
+			shift[k] += e.newLen - (e.end - e.start)
+		}
+	}
+	var textEdits []model.TextEdit
+	for j, e := range edits {
+		if e.span == nil {
+			textEdits = append(textEdits, model.TextEdit{Start: e.start + shift[j], End: e.end + shift[j], Replacement: e.text})
+		}
+	}
+	return model.ApplyTextEdits(seq, textEdits), findings, nil
 }
 
 // removeEdition applies remove_edition.
@@ -1099,6 +1193,57 @@ func sameJSON(a, b []byte) bool {
 // sameRuns reports whether two run sequences are the same content.
 func sameRuns(a, b []model.Run) bool {
 	return bytes.Equal(model.CanonicalRunsJSON(a), model.CanonicalRunsJSON(b))
+}
+
+// sameContent reports whether two run sequences say the same as a file holds
+// it: the same text and the same codes with the same types and attributes,
+// whatever each code's native form, its labels and the do-not-translate marks
+// on text, which a writer takes from the file or does not write.
+func sameContent(a, b []model.Run) bool {
+	return bytes.Equal(model.CanonicalRunsJSON(contentOnly(a)), model.CanonicalRunsJSON(contentOnly(b)))
+}
+
+// contentOnly is runs with every code's native form and labels and every
+// text's do-not-translate mark left out, branches included.
+func contentOnly(runs []model.Run) []model.Run {
+	out := make([]model.Run, len(runs))
+	for i, r := range runs {
+		switch {
+		case r.Text != nil:
+			t := *r.Text
+			t.NoTranslate = false
+			out[i] = model.Run{Text: &t}
+		case r.Ph != nil:
+			p := *r.Ph
+			p.Data, p.Disp, p.Equiv = "", "", ""
+			out[i] = model.Run{Ph: &p}
+		case r.PcOpen != nil:
+			p := *r.PcOpen
+			p.Data, p.Disp, p.Equiv = "", "", ""
+			out[i] = model.Run{PcOpen: &p}
+		case r.PcClose != nil:
+			p := *r.PcClose
+			p.Data, p.Equiv = "", ""
+			out[i] = model.Run{PcClose: &p}
+		case r.Plural != nil:
+			p := *r.Plural
+			p.Forms = make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
+			for k, f := range r.Plural.Forms {
+				p.Forms[k] = contentOnly(f)
+			}
+			out[i] = model.Run{Plural: &p}
+		case r.Select != nil:
+			s := *r.Select
+			s.Cases = make(map[string][]model.Run, len(r.Select.Cases))
+			for k, c := range r.Select.Cases {
+				s.Cases[k] = contentOnly(c)
+			}
+			out[i] = model.Run{Select: &s}
+		default:
+			out[i] = r
+		}
+	}
+	return out
 }
 
 // pathText renders a run path as JSON, for messages and grouping.

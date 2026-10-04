@@ -1,0 +1,38 @@
+{
+  "id": "edit-plural-equal-branches",
+  "family": "plural-branch",
+  "prompt": "In messages/reminders_en.arb, the reminderSent plural says \"Reminder sent to your adviser\" in both of its cases. Change its other case (the \"other\" branch) to \"Reminders sent to your adviser\". Keep its one case, its metadata and every other message exactly as they are.",
+  "editable": [
+    "messages/reminders_en.arb"
+  ],
+  "scope": [
+    "messages"
+  ],
+  "criteria": [
+    {
+      "id": "plural-bytes",
+      "kind": "bytes_equal",
+      "path": "messages/reminders_en.arb",
+      "description": "Only the other branch of reminderSent changes; every other byte of the catalog is as it was"
+    },
+    {
+      "id": "edited-branch",
+      "kind": "icu_branch",
+      "path": "messages/reminders_en.arb",
+      "key": "reminderSent",
+      "branch": "other",
+      "description": "The other branch of reminderSent reads as the reference's, byte for byte"
+    },
+    {
+      "id": "other-branches",
+      "kind": "icu_branches_unchanged",
+      "path": "messages/reminders_en.arb",
+      "key": "reminderSent",
+      "branch": "other",
+      "description": "The one branch of reminderSent, which holds the same text, and the plural's syntax are as they were"
+    }
+  ],
+  "humanReviewRubric": [
+    "Did the agent change only the other branch, though both branches hold the same text on one line?"
+  ]
+}

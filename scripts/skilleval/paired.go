@@ -442,8 +442,13 @@ func materializePairedLaunch(opts PairedOptions, m PairedManifest, s PairedSessi
 	if err := os.MkdirAll(workspace, 0o700); err != nil {
 		return PairedLaunch{}, err
 	}
-	if err := materializePairedTask(workspace, task); err != nil {
+	if err := materializePairedCell(workspace, task, s.Condition); err != nil {
 		return PairedLaunch{}, err
+	}
+	// A cell with no project has no context for a late rule to join.
+	late := task.spec.LateContext
+	if arm, err := pairedArmFor(s.Condition); err == nil && arm.noProject() {
+		late = nil
 	}
 	prompt := task.Prompt
 	if opts.Phase == "diagnostic" {
@@ -458,6 +463,7 @@ func materializePairedLaunch(opts PairedOptions, m PairedManifest, s PairedSessi
 		SkillSource: opts.skillSource, StudyDir: opts.Dir,
 		Prompt: prompt, TranscriptPath: filepath.Join(dir, "transcript.jsonl"),
 		Timeout: m.attemptTimeout(), MaxTurns: m.MaxTurns, Interference: task.spec.Interference,
+		LateContext: late,
 	}, nil
 }
 

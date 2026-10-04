@@ -132,7 +132,7 @@ func TestService_ReadListsNoTextRebuildForTextThatIsNotUTF8(t *testing.T) {
 	assert.Contains(t, plain.Ops, change.KindReplaceText)
 	assert.NotContains(t, latin1.Ops, change.KindReplaceText)
 	assert.Contains(t, latin1.Ops, change.KindSetContent)
-	assert.Contains(t, latin1.Ops, change.KindRemoveEdition)
+	assert.NotContains(t, latin1.Ops, change.KindRemoveEdition, "a block of a bilingual file that holds no translation has none to remove")
 
 	// The text as a JSON answer carries it: U+FFFD for the byte.
 	res, err := svc.Apply(context.Background(), change.Set{Ops: []change.Op{edit(latin1.Ref, latin1.Rev, "Caf"+replacementChar+" au lait")}}, svcPerson)

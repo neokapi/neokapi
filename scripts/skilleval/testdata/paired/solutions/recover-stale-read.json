@@ -8,6 +8,6 @@
   {"note": "Sent again against the revision the refusal reports, it keeps the other editor's change",
    "exit": 0,
    "changeset": {"ops": [
-     {"op": "replace_text", "at": {"doc": "docs/en/upgrade.md", "block": "upgrading-harbor-help/before-you-upgrade/p"}, "if_match": "r:4247d44c3e210651",
+     {"op": "replace_text", "at": {"doc": "docs/en/upgrade.md", "block": "upgrading-harbor-help/before-you-upgrade/p"}, "if_match": "r:bfca00231f36494b",
       "edits": [{"find": "Back up your data before you upgrade.", "text": "Back up your data and settings before you upgrade."}]}]}}
 ]}

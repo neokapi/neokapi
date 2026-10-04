@@ -72,9 +72,13 @@ type DocResult struct {
 	// Before and After are the file digests around the change. Before is
 	// empty for a file the change creates; After is null when nothing was
 	// written.
-	Before   string    `json:"before,omitempty"`
-	After    *string   `json:"after"`
-	Findings []Finding `json:"findings,omitempty"`
+	Before string  `json:"before,omitempty"`
+	After  *string `json:"after"`
+	// Findings are what the commit check found on the edit: every finding
+	// it introduced, failing or not, on the document's first entry. It is
+	// an empty list when the check ran and found nothing, and absent when no
+	// check ran, as outside a project.
+	Findings []Finding `json:"findings,omitzero"`
 	// Diff, in a preview, is what the change would write, as a unified diff.
 	Diff string `json:"diff,omitempty"`
 }
@@ -89,6 +93,21 @@ type Finding struct {
 	Fails     bool `json:"fails"`
 	Suggested bool `json:"suggested,omitempty"`
 	At        *Ref `json:"at,omitempty"`
+	// Range is the span of the edition the rule found, where it locates one.
+	Range *Resolved `json:"range,omitempty"`
+	// Replacement is the wording a term rule asks for in place of what it
+	// found.
+	Replacement string `json:"replacement,omitempty"`
+}
+
+// FindingRange is the range a finding anchored at a reports, or nil for an
+// anchor that names no span of characters.
+func FindingRange(a *model.Anchor) *Resolved {
+	if a == nil || a.Kind != model.AnchorRange {
+		return nil
+	}
+	r := resolvedSpan(a.Path, a.Start, a.End)
+	return &r
 }
 
 // OpResult is the outcome of one operation.
@@ -112,7 +131,8 @@ type OpResult struct {
 	// Invalidates lists the derived editions whose basis this operation moved.
 	Invalidates []Invalidation `json:"invalidates,omitempty"`
 	// Findings are guard findings the operation landed with, under a report
-	// disposition.
+	// disposition, which a tool in a flow applies with. What the commit check
+	// found is the document's (DocResult.Findings).
 	Findings []Finding `json:"findings,omitempty"`
 	Error    *Error    `json:"error,omitempty"`
 	// Current is the edition as it stands, on a stale refusal.
@@ -122,12 +142,42 @@ type OpResult struct {
 	BlockedBy *int `json:"blocked_by,omitempty"`
 }
 
+// unwritten drops from a refused operation's result what it would have
+// written: a result reports revisions, positions, a basis, an annotation id
+// and invalidations only for an operation that applied, was unchanged or was
+// previewed. Its findings, if the commit check refused it, are the
+// document's (DocResult.Findings).
+func (r *OpResult) unwritten() {
+	r.Before, r.After, r.Basis, r.ID = "", "", "", ""
+	r.Resolved, r.Invalidates, r.Findings = nil, nil, nil
+}
+
 // Resolved is a span the service resolved, with the path of the run sequence
-// it lies in.
+// it lies in. Its ends follow model.RangeAnchor's attribution: a boundary at
+// the end of a text run is the start of the run after it.
 type Resolved struct {
 	Path  model.RunPath `json:"path,omitempty"`
-	Start model.RunPos  `json:"start"`
-	End   model.RunPos  `json:"end"`
+	Start Position      `json:"start"`
+	End   Position      `json:"end"`
+}
+
+// Position is a run position as a result reports it: a run index and a
+// code-point offset into that run's text. Both are always printed, a zero
+// offset included, so a caller reads one shape.
+type Position struct {
+	Run    int `json:"run"`
+	Offset int `json:"offset"`
+}
+
+// PositionOf is p as a result reports it.
+func PositionOf(p model.RunPos) Position { return Position{Run: p.Run, Offset: p.Offset} }
+
+// RunPos is the position as the content model and an anchor write it.
+func (p Position) RunPos() model.RunPos { return model.RunPos{Run: p.Run, Offset: p.Offset} }
+
+// resolvedSpan is the span [start, end) of the sequence at path.
+func resolvedSpan(path model.RunPath, start, end model.RunPos) Resolved {
+	return Resolved{Path: path, Start: PositionOf(start), End: PositionOf(end)}
 }
 
 // Invalidation names a derived edition an edit made stale.

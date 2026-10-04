@@ -1,7 +1,7 @@
 version: v1
 name: harbor-help-web
 defaults:
-  source_language: en
+  source_language: de
   voice:
     profile: harbor-help
   exclude:
@@ -9,6 +9,6 @@ defaults:
 collections:
   - name: web
     content:
-      - path: locales/en.json
+      - path: i18n/de/messages.json
         format:
           name: json

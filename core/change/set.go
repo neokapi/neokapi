@@ -54,8 +54,9 @@ type Set struct {
 type Evidence struct {
 	// Path is a project-relative, slash-separated file.
 	Path string `json:"path,omitempty" jsonschema:"a project-relative file"`
-	// Unit is the block key inside the file.
-	Unit string `json:"unit,omitempty" jsonschema:"the block key inside the file"`
+	// Block is the key of the block inside the file, as a read reports it in
+	// ref.block.
+	Block string `json:"block,omitempty" jsonschema:"the block key a read reports as ref.block"`
 	// Quote is the text the wording was seen in.
 	Quote string `json:"quote,omitempty" jsonschema:"the text the wording was seen in"`
 	// URL is a web page the wording was seen on.

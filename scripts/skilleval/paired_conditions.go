@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strings"
 )
 
 // pairedFilesAlias is the multi-call name the project-free condition runs the
@@ -31,8 +32,10 @@ type pairedArm struct {
 }
 
 // pairedConditions lists the conditions a study may name, in the order the
-// reports print them.
-var pairedConditions = []string{"baseline", "skill-cli", "mcp", "project-free"}
+// reports print them. kapi-no-project is kapi and its skill with discovery
+// off, beside the alias, for a study that measures the project-free question
+// again.
+var pairedConditions = []string{"baseline", "skill-cli", "mcp", "project-free", "kapi-no-project"}
 
 func pairedArmFor(condition string) (pairedArm, error) {
 	switch condition {
@@ -44,8 +47,43 @@ func pairedArmFor(condition string) (pairedArm, error) {
 		return pairedArm{MCP: true, Executables: []string{"kapi"}, Project: true}, nil
 	case "project-free":
 		return pairedArm{Skill: pairedFilesAlias, Executables: []string{pairedFilesAlias}}, nil
+	case "kapi-no-project":
+		return pairedArm{Skill: "kapi", Executables: []string{"kapi"}}, nil
 	}
 	return pairedArm{}, fmt.Errorf("unknown condition %q", condition)
+}
+
+// noProject reports an arm that runs kapi with no project: its cells hold
+// no recipe and none of the project's context files.
+func (a pairedArm) noProject() bool { return !a.Project && len(a.Executables) > 0 }
+
+// pairedProjectFile reports whether a fixture file is the project's: its
+// recipe, and the context the shared fixture carries (the style guide and
+// .kapi), which a cell with no project leaves out.
+func pairedProjectFile(name string) bool {
+	return name == "kapi.yaml" || name == "STYLE.md" || strings.HasPrefix(name, ".kapi/")
+}
+
+// pairedCellFiles are the fixture files a cell of condition holds: every one,
+// or none of the project's in a cell that runs kapi with no project. An empty
+// condition holds every one.
+func pairedCellFiles(task PairedTask, condition string) (map[string][]byte, error) {
+	files, err := pairedTaskFiles(task)
+	if err != nil || condition == "" {
+		return files, err
+	}
+	arm, err := pairedArmFor(condition)
+	if err != nil {
+		return nil, err
+	}
+	if arm.noProject() {
+		for name := range files {
+			if pairedProjectFile(name) {
+				delete(files, name)
+			}
+		}
+	}
+	return files, nil
 }
 
 // pairedSkillDir returns where a host discovers a skill installed in the

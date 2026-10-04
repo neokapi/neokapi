@@ -42,8 +42,88 @@ func TestApplyBlock_FindInABranchNamesItsPath(t *testing.T) {
 	assert.Equal(t, " things", b.Source[1].Plural.Forms[model.PluralOther][1].Text.Text)
 	assert.Equal(t, " item", b.Source[1].Plural.Forms[model.PluralOne][1].Text.Text)
 
-	// Text in no branch either is refused as before.
+	// Text in no branch either is refused naming the text it searched.
 	err = requireRefused(t, apply(t, b, agent, replace("", sourceRev(b), find("cart", "bag")))[0], change.CodeNotFound)
-	assert.Equal(t, `"cart" is not in the text`, err.Message)
+	assert.Equal(t, `"cart" is not in the text, which is "You have <x id=\"n/\"/> things in your basket."`, err.Message)
+	require.NotNil(t, err.Searched)
+	assert.Empty(t, err.Searched.Path)
+	assert.Equal(t, `You have <x id="n/"/> things in your basket.`, err.Searched.Text)
 	assert.Empty(t, err.Candidates)
+}
+
+// replace_text takes the branch on the operation, as set_content does, and an
+// edit's own path overrides it.
+func TestApplyBlock_ReplaceTextPathOnTheOperation(t *testing.T) {
+	one := model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOne}}
+	other := model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOther}}
+
+	b := model.NewRunsBlock("p", pluralRuns())
+	op := replace("", sourceRev(b), find("item", "thing"))
+	op.Body.(*change.ReplaceText).Path = one
+	res := apply(t, b, agent, op)
+	requireApplied(t, res)
+	assert.Equal(t, "You have {count: one={n} thing other={n} items} in your basket.", shape(b.Source))
+	assert.Equal(t, one, res[0].Resolved[0].Path)
+
+	b = model.NewRunsBlock("p", pluralRuns())
+	own := find("items", "things")
+	own.Path = other
+	op = replace("", sourceRev(b), find("item", "thing"), own)
+	op.Body.(*change.ReplaceText).Path = one
+	requireApplied(t, apply(t, b, agent, op))
+	assert.Equal(t, "You have {count: one={n} thing other={n} things} in your basket.", shape(b.Source),
+		"the second edit's own path overrides the operation's")
+
+	b = model.NewRunsBlock("p", pluralRuns())
+	op = replace("", sourceRev(b), find("item", "thing"))
+	op.Body.(*change.ReplaceText).Path = model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralFew}}
+	err := requireRefused(t, apply(t, b, agent, op)[0], change.CodeNotFound)
+	assert.Equal(t, "path", err.Field, "a path on the operation is named as the operation's")
+}
+
+// A find that matches nothing in a branch says which branch it searched and
+// what its text is, and offers up to three matches that differ only in case.
+func TestApplyBlock_NotFoundNamesWhatItSearched(t *testing.T) {
+	b := model.NewRunsBlock("p", pluralRuns())
+	one := model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOne}}
+	edit := find("article", "thing")
+	edit.Path = one
+	err := requireRefused(t, apply(t, b, agent, replace("", sourceRev(b), edit))[0], change.CodeNotFound)
+	assert.Equal(t, `"article" is not in [1,{"plural":"one"}], whose text is "<x id=\"n/\"/> item"`, err.Message)
+	require.NotNil(t, err.Searched)
+	assert.Equal(t, one, err.Searched.Path)
+
+	c := model.NewRunsBlock("c", []model.Run{model.TextR("Book a Book now. BOOK it. Book")})
+	err = requireRefused(t, apply(t, c, agent, replace("", sourceRev(c), find("book", "order")))[0], change.CodeNotFound)
+	require.Len(t, err.Candidates, 3, "the matches that differ only in case, at most three")
+	assert.Equal(t, change.Position{Run: 0, Offset: 7}, err.Candidates[1].At.Start)
+}
+
+// A find off by white space, punctuation or a typographic apostrophe, as one
+// retyped from a read is, offers the text it nearly matches.
+func TestApplyBlock_NotFoundOffersNearMatches(t *testing.T) {
+	text := "Don’t wait: the shop\nguide, and “order” today."
+	for _, tc := range []struct{ find, want string }{
+		{"Don't wait", "Don’t wait"},
+		{"the shop guide and", "the shop\nguide, and"},
+		{"shop  guide", "shop\nguide"},
+		{`"order" today`, "“order” today"},
+		{"wait the", "wait: the"},
+	} {
+		t.Run(tc.find, func(t *testing.T) {
+			b := model.NewRunsBlock("p", []model.Run{model.TextR(text)})
+			err := requireRefused(t, apply(t, b, agent, replace("", sourceRev(b), find(tc.find, "x")))[0], change.CodeNotFound)
+			require.Len(t, err.Candidates, 1, "%+v", err.Candidates)
+			at := err.Candidates[0].At
+			require.NotNil(t, at)
+			runes := []rune(text)
+			assert.Equal(t, tc.want, string(runes[at.Start.Offset:at.End.Offset]))
+			assert.Contains(t, err.Candidates[0].Text, tc.want)
+		})
+	}
+	t.Run("a find of punctuation alone offers nothing", func(t *testing.T) {
+		b := model.NewRunsBlock("p", []model.Run{model.TextR(text)})
+		err := requireRefused(t, apply(t, b, agent, replace("", sourceRev(b), find("!?", "x")))[0], change.CodeNotFound)
+		assert.Empty(t, err.Candidates)
+	})
 }

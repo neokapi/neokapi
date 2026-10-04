@@ -191,7 +191,8 @@ func TestApplyChanges_ARefusalIsAnsweredByItsCode(t *testing.T) {
 			setText(at("greetings.txt", bid, "fr"), fr, "Ouvrir l'application")}})
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 		assert.Equal(t, change.SetApplied, res.Status)
-		assert.NotEmpty(t, res.Ops[0].Findings, "the findings the person overrode are reported")
+		require.NotEmpty(t, res.Docs)
+		assert.NotEmpty(t, res.Docs[0].Findings, "the findings the person overrode are reported")
 		assert.Equal(t, "Ouvrir l'application", getStoredBlock(t, cs, pid, bid).TargetText("fr"))
 	})
 }

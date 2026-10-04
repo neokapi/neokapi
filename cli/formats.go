@@ -13,72 +13,128 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewFormatsCmd creates the formats command group: the bare command lists the
-// formats, with `info` and `schema` subcommands for one of them.
+// NewFormatsCmd creates the formats command group: the bare command and `list`
+// list the formats, with `info` and `schema` subcommands for one of them.
 func NewFormatsCmd(a *App) *cobra.Command {
 	var fmtMime, fmtExt string
+	var ops bool
 
 	formatsCmd := &cobra.Command{
-		Use:     "formats",
+		Use:     "formats [--ops [FORMAT]]",
 		Short:   "List supported file formats",
 		GroupID: "advanced",
 		Long: `List all file formats that can be read and written.
 
-Use --mime or --ext to filter by MIME type or file extension.`,
+Use --mime or --ext to filter by MIME type or file extension.
+
+--ops says what a format takes of a change set (kapi apply): each content
+operation it supports, with the forms, code types and attributes it writes,
+and whether it keeps a document's translations in one file. Name a format to
+describe it alone, as MCP describe_format does; with no name every format kapi
+can edit is listed.`,
 		Example: `  kapi formats
   kapi formats --ext .json
-  kapi formats --mime text/html`,
+  kapi formats --mime text/html
+  kapi formats --ops html --json
+  kapi formats --ops`,
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			infos := a.FormatReg.FormatInfos()
-
-			if fmtMime != "" || fmtExt != "" {
-				infos = FilterFormats(infos, fmtMime, fmtExt)
-				if len(infos) == 0 {
-					if output.ResolveFormat(cmd) == output.FormatJSON {
-						return output.Print(cmd, output.FormatsListOutput{})
-					}
-					fmt.Println("No formats found matching the given criteria.")
-					return nil
+			if ops {
+				out, err := a.DescribeFormatOps(cmd.Context(), args)
+				if err != nil {
+					return WithExitCode(ExitUsage, err)
 				}
+				return output.Print(cmd, out)
 			}
-
-			// Hide versioned entries (e.g., "okf_html@2.8.0") when a
-			// bare-name alias exists (e.g., "okf_html"). This keeps the
-			// list clean — users see "okf_html" rather than duplicates.
-			infos = DeduplicateVersionedFormats(infos)
-
-			t := a.T()
-			out := output.FormatsListOutput{
-				Formats: make([]output.FormatInfo, 0, len(infos)),
-				Total:   len(infos),
+			if len(args) > 0 {
+				return refuseFormatName(args[0])
 			}
-			for _, info := range infos {
-				name := string(info.Name)
-				out.Formats = append(out.Formats, output.FormatInfo{
-					Name:        name,
-					DisplayName: t.T(i18n.Scope("formats."+name+".DisplayName"), info.DisplayName),
-					HasReader:   info.HasReader,
-					HasWriter:   info.HasWriter,
-					Generative:  info.Generative,
-					Interchange: info.Interchange,
-					Editable:    info.Editable,
-					RoundTrip:   info.RoundTrip,
-					Source:      info.Source,
-					Extensions:  info.Extensions,
-					MimeTypes:   info.MimeTypes,
-				})
-			}
-			return output.Print(cmd, out)
+			return listFormats(a, cmd, fmtMime, fmtExt)
 		},
 	}
 
 	formatsCmd.Flags().StringVar(&fmtMime, "mime", "", "filter by MIME type (e.g., text/html)")
 	formatsCmd.Flags().StringVar(&fmtExt, "ext", "", "filter by file extension (e.g., .docx)")
+	formatsCmd.Flags().BoolVar(&ops, "ops", false, "say what each format, or the one named, takes of a change set")
 
+	formatsCmd.AddCommand(newFormatsListCmd(a))
 	formatsCmd.AddCommand(newFormatsInfoCmd(a))
 	formatsCmd.AddCommand(newFormatsSchemaCmd(a))
 
 	return formatsCmd
+}
+
+// newFormatsListCmd is `kapi formats list`, the spelling the other command
+// families use (`kapi plugin list`, `kapi models list`). It prints what bare
+// `kapi formats` prints and takes the same filters.
+func newFormatsListCmd(a *App) *cobra.Command {
+	var fmtMime, fmtExt string
+	listCmd := &cobra.Command{
+		Use:     "list",
+		Short:   "List supported file formats",
+		Example: "  kapi formats list\n  kapi formats list --ext .json --json",
+		Args:    cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return refuseFormatName(args[0])
+			}
+			return listFormats(a, cmd, fmtMime, fmtExt)
+		},
+	}
+	listCmd.Flags().StringVar(&fmtMime, "mime", "", "filter by MIME type (e.g., text/html)")
+	listCmd.Flags().StringVar(&fmtExt, "ext", "", "filter by file extension (e.g., .docx)")
+	return listCmd
+}
+
+// refuseFormatName answers a format named where a listing takes none, pointing
+// at the command that describes one format.
+func refuseFormatName(name string) error {
+	return WithExitCode(ExitUsage, fmt.Errorf("kapi formats takes a format name only with --ops; to describe one format, run kapi formats info %s", name))
+}
+
+// listFormats prints the registered formats, narrowed by MIME type and file
+// extension when either is given. Bare `kapi formats` and `kapi formats list`
+// both print through it.
+func listFormats(a *App, cmd *cobra.Command, fmtMime, fmtExt string) error {
+	infos := a.FormatReg.FormatInfos()
+
+	if fmtMime != "" || fmtExt != "" {
+		infos = FilterFormats(infos, fmtMime, fmtExt)
+		if len(infos) == 0 {
+			if output.ResolveFormat(cmd) == output.FormatJSON {
+				return output.Print(cmd, output.FormatsListOutput{})
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), "No formats found matching the given criteria.")
+			return nil
+		}
+	}
+
+	// Hide versioned entries (e.g., "okf_html@2.8.0") when a bare-name alias
+	// exists (e.g., "okf_html"), so each format is listed once.
+	infos = DeduplicateVersionedFormats(infos)
+
+	t := a.T()
+	out := output.FormatsListOutput{
+		Formats: make([]output.FormatInfo, 0, len(infos)),
+		Total:   len(infos),
+	}
+	for _, info := range infos {
+		name := string(info.Name)
+		out.Formats = append(out.Formats, output.FormatInfo{
+			Name:        name,
+			DisplayName: t.T(i18n.Scope("formats."+name+".DisplayName"), info.DisplayName),
+			HasReader:   info.HasReader,
+			HasWriter:   info.HasWriter,
+			Generative:  info.Generative,
+			Interchange: info.Interchange,
+			Editable:    info.Editable,
+			RoundTrip:   info.RoundTrip,
+			Source:      info.Source,
+			Extensions:  info.Extensions,
+			MimeTypes:   info.MimeTypes,
+		})
+	}
+	return output.Print(cmd, out)
 }
 
 func newFormatsInfoCmd(a *App) *cobra.Command {

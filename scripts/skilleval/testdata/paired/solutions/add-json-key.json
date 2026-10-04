@@ -1,18 +1,18 @@
 {
  "steps": [
   {
-   "note": "Add the export message",
+   "note": "Add the export message in the catalog's own language",
    "exit": 0,
    "changeset": {
     "ops": [
      {
       "op": "insert_block",
-      "doc": "locales/en.json",
+      "doc": "i18n/de/messages.json",
       "after": "settings.importData",
       "name": "settings.exportData",
       "editions": {
-       "en": {
-        "text": "Export your data"
+       "de": {
+        "text": "Daten exportieren"
        }
       }
      }

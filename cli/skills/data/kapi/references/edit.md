@@ -69,9 +69,10 @@ and `apply_edits` takes them back as the `at` and `if_match` of a
 
 ## 2. Write the edits
 
-Write a change set (kapi.change/v1) with one operation per block you changed.
-`set_content` gives the block new text; `replace_text` changes text inside it
-and keeps everything around it:
+Write a change set (kapi.change/v1). `set_content` gives the block new text;
+`replace_text` changes text inside it and keeps everything around it. Several
+operations may name one block; each sends the `rev` you read, because every
+`if_match` is checked against the content the change set began with:
 
 ```json
 {"note": "Tighten the summary",
@@ -85,28 +86,71 @@ and keeps everything around it:
 
 A `replace_text` edit names its text by `find` (with `occurrence` when it
 matches more than once), by code-point `start` and `end`, or by run positions in
-`range`. Positions name the block as you read it, even when an earlier
+`range`. `find` reads as `text` does: a `<x id="…"/>` token in it matches that
+code, and the replacement then keeps each token you write back. To add a
+sentence at the end of a block, send `replace_text` with `find` set to its last
+words and `text` set to them with the sentence after, rather than the whole
+text again. Positions name the block as you read it, even when an earlier
 operation of the same change set changed that block: kapi moves them past that
 change, so several fixes of one block, each computed from the one read, apply
 together. A position inside text an earlier operation changed is refused as
 `guard` (`overlap`); a `find` matches the text as the earlier operations left
-it. To edit one branch of a plural, give the edit the branch's `path` from
-`structures`, such as `[1, {"plural": "one"}]`. A change set can also be JSONL
-(the envelope fields on the first line, one operation per line) or a JSON array
-of operations. `kapi apply --schema` prints the whole contract.
+it.
 
-Then apply it. Over MCP, send the change set to `apply_edits`, which returns
-the same result `kapi apply --json` prints and reports a refused set as an
-error. `kapi apply` reads the change set from a file or from stdin:
+To edit one branch of a plural or select, give the operation the branch's
+`path` from `structures`, such as `[0, {"plural": "one"}]`: `set_content`
+replaces the branch's text, and `replace_text` edits inside it (an edit's own
+`path` overrides the operation's). The branch is never part of `at`:
+
+```json
+{"ops": [
+  {"op": "set_content", "at": {"doc": "lib/intl_en.arb", "block": "cartCount"}, "if_match": "r:77c0a1d2e3f40516",
+   "path": [0, {"plural": "one"}], "text": "<x id=\"p1/\"/> item in your cart"},
+  {"op": "replace_text", "at": {"doc": "lib/intl_en.arb", "block": "cartCount"}, "if_match": "r:77c0a1d2e3f40516",
+   "path": [0, {"plural": "other"}], "edits": [{"find": "items", "text": "articles"}]}
+]}
+```
+
+`set_attribute` changes one attribute of an inline code, such as a link's
+`href`: the code's id in `code` (`1`, as its `<x id="1"/>` token shows), the
+attribute in `name` and its new value in `value`. `mark` wraps the text
+`range` names, as a `replace_text` edit names it, in a new code of a `type`
+the format writes, such as `fmt:bold`. A code lists the attributes
+`set_attribute` can change under `writable`, and a block's `ops` list both
+where they apply:
+
+```json
+{"ops": [
+  {"op": "set_attribute", "at": {"doc": "docs/guide.html", "block": "p"}, "if_match": "r:3f9a1c0e7b2d4a55",
+   "code": "1", "name": "href", "value": "https://example.com/handbook"},
+  {"op": "mark", "at": {"doc": "docs/guide.html", "block": "p"}, "if_match": "r:3f9a1c0e7b2d4a55",
+   "range": {"find": "before you"}, "type": "fmt:bold"}
+]}
+```
+
+A change set can also be JSONL (the envelope fields on the first line, one
+operation per line) or a JSON array of operations. `kapi apply --schema` prints
+the whole contract, and `kapi apply --schema set_attribute` one operation's
+fields.
+
+Then apply it. Over MCP, send the change set's fields to `apply_edits` as the
+tool's arguments; it returns the same result `kapi apply --json` prints and
+reports a refused set as an error. `kapi apply` reads the change set from
+stdin, so pipe it in; you write it from the blocks you read, and there is no
+command that writes it for you:
 
 ```bash
-kapi inspect report.docx --jsonl > blocks.jsonl
-# You write the change set from the blocks you rewrite; there is no command
-# for it, you are the writer. Then:
-kapi apply edits.json --dry-run          # check it and print a diff per document, write nothing
-kapi apply edits.json                    # apply it
-kapi apply edits.json --in-place=.bak    # apply, keeping a .bak of each file it replaces
-kapi apply edits.json --json             # print the result (kapi.change-result/v1)
+printf '%s' '<change set>' | kapi apply - --dry-run   # check it and print a diff per document, write nothing
+printf '%s' '<change set>' | kapi apply -             # apply it
+printf '%s' '<change set>' | kapi apply - --json      # print the result (kapi.change-result/v1)
+```
+
+For a change set in a file, write the file under `$TMPDIR`, never in the
+repository you are editing:
+
+```bash
+kapi apply "$TMPDIR/edits.json" --dry-run          # check it, write nothing
+kapi apply "$TMPDIR/edits.json" --in-place=.bak    # apply, keeping a .bak of each file it replaces
 ```
 
 kapi never sends content to a model to rewrite it; you write the new text and
@@ -118,14 +162,16 @@ kapi never sends content to a model to rewrite it; you write the new text and
 refused, nothing in the change set is written, the refused operation carries an
 `error` with a `code`, and every other operation reports `not_applied`:
 
-- **`stale`**: the block's revision is no longer the `if_match` you sent; the
-  file changed since you read it. The result carries the block's `current`
-  revision and text, so rebase your edit on it and resend.
+- **`stale`**: the block changed after you read it, so the `if_match` you sent
+  no longer holds. The result's `current` is the re-read: resend against its
+  `rev`. The difference is another editor's change; keep it, and tell the
+  user.
 - **`guard`**: your edited `text` drops, invents, duplicates or unbalances an
   `<x id="…"/>` token (`codes_changed`), or replaces a block holding a plural or
   select with flat text (`structure_lost`). Edit a branch with `path` instead.
 - **`not_found`**: the `ref` names no document or block, or a `find` matches
-  nothing. Re-read the file.
+  nothing; the refusal quotes the text it searched, and a `find` that lies in
+  a plural's branch names the branch's `path`. Re-read the file.
 - **`ambiguous`**: a `find` matches more than once. Add `occurrence`.
 - **`unsupported`**: the block or format takes no such operation, such as a
   Markdown code block, which `inspect` lists with no `ops`. A block of a file
@@ -135,8 +181,8 @@ refused, nothing in the change set is written, the refused operation carries an
   with capability `encoding`. Send the block's whole text with `set_content`,
   every character stated, or ask the user to convert the file to UTF-8.
 
-A refusal exits **3**, distinct from an operational error: re-read the affected
-blocks and resend with fresh revisions, the same loop a failing check drives. A
+A refusal exits **3**, distinct from an operational error: fix the operation
+and resend, against the `current` of a `stale` one. A
 change set that does not decode, or mixes what one change set cannot hold
 (code comments with documents), exits **2**; over MCP, and from `kapi apply
 --json`, it is answered with a refused result whose own `error` is `invalid`,
@@ -150,12 +196,14 @@ already says what it sends.
 ### Refused for its wording or its sender
 
 Before an edit is written, kapi holds the edited text to the voice and terms in
-force where the file sits, with the deterministic rules `kapi check` runs. An
-edit is refused as `gate_failed`, with the findings, only for a failing finding
-it introduces. A finding the block already had is reported and does not block
-the edit, and an advisory or suggested rule only reports. Rewrite the wording a
-finding names and send the edit again. Only a person can land an edit over its
-findings, so do not try to override one.
+force where the file sits, with the deterministic rules `kapi check` runs. Each
+document of the result lists what that check found on the edit under
+`findings`, an empty list when it found nothing. An edit is refused as
+`gate_failed` only for a failing finding it introduces; a term finding names
+the wording to use in `replacement`. A finding the block already had is
+reported and does not block the edit, and an advisory or suggested rule only
+reports. Rewrite the wording a finding names and send the edit again. Only a
+person can land an edit over its findings, so do not try to override one.
 
 An agent's change is refused as `not_permitted` when it writes a term, a
 content-memory pair or the recipe (record a suggestion instead), records a
@@ -165,8 +213,11 @@ on the gate code (3).
 
 ## 4. Verify
 
-Check the file you edited. In a project, its applicable voice and terms resolve
-from the file's path:
+An edit `kapi apply` landed has been checked: each document's `findings` say
+what the rules `kapi check` runs found in the text you changed. Run `kapi
+check` on a file you changed another way, or for what that check leaves out:
+the rest of the file, and the release gates. In a project, its applicable voice
+and terms resolve from the file's path:
 
 ```bash
 kapi check report.docx --json
@@ -249,7 +300,8 @@ they apply:
 ```
 
 - `insert_block` takes the new key in `name` and its text per language in
-  `editions`: the catalog's own language, and each translation the project
+  `editions`: the catalog's own language, which each `ref` a read prints in
+  a project names as its `edition`, and each translation the project
   keeps in a file of its own, which gains the key too (a translation file not
   written yet is created). The key goes in the object its key path names
   (`nav.checkout` goes in `nav`), after the key `after` names or before the
@@ -264,6 +316,27 @@ they apply:
   or removes. Put a new key's text in `editions`.
 - A new key's text is held to the voice and terms like any edit, and the
   change is recorded like any other.
+
+## Write a translation
+
+In a project, the file of a translation the recipe keeps (`de/guide.md` for
+`docs/guide.md`) is an edition of its source: write it through the source
+document, with the language as the edition. A block the translation does not
+hold yet takes `if_match: "absent"`, and the change set creates the file. Keep
+every `<x id="…"/>` token of the source block, and record what it was made
+from in `basis`, the source block's `rev`:
+
+```json
+{"ops": [
+  {"op": "set_content", "at": {"doc": "docs/guide.md", "block": "install/p", "edition": "de"}, "if_match": "absent",
+   "basis": "r:3f9a1c0e7b2d4a55", "text": "Lies das <x id=\"1\"/>Handbuch<x id=\"/1\"/>, bevor du bestellst."}
+]}
+```
+
+`kapi inspect docs/guide.md` lists the block's translation with its own `rev`
+once it exists, and `kapi context` (`context_read`) on the translation's file
+says which document it is an edition of. Translate a whole page this way, one
+`set_content` per block, rather than through an extract and merge.
 
 ## Which formats can I edit?
 

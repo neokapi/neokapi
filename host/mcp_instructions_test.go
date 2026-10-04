@@ -22,7 +22,7 @@ import (
 func TestMCPInstructionsNameOnlyTheWritingSet(t *testing.T) {
 	text := MCPInstructions()
 	writing := MCPToolSetTools(MCPSetWriting)
-	for _, name := range regexp.MustCompile(`\b(?:context|check)_[a-z_]+\b`).FindAllString(text, -1) {
+	for _, name := range regexp.MustCompile(`\b(?:context|check)_[a-z_]+\b|\b(?:read_blocks|apply_edits|describe_format)\b`).FindAllString(text, -1) {
 		assert.Containsf(t, writing, name, "the instructions name %s, which the writing set does not serve", name)
 	}
 	for _, absent := range []string{"voice_guide", "term_lookup", "external-command", "kapi up"} {
@@ -42,6 +42,9 @@ func TestMCPInstructionsCarryTheHabits(t *testing.T) {
 		"take back what was recorded wrongly":       "context_withdraw",
 		"check what you changed before saying done": "check_file",
 		"report what the session recorded":          "context_session_summary",
+		"read a file's blocks before editing it":    "read_blocks",
+		"send an edit through the contract":         "apply_edits",
+		"learn what a format accepts":               "describe_format",
 	} {
 		assert.Containsf(t, text, name, "the instructions carry the habit: %s", habit)
 	}
@@ -55,7 +58,8 @@ func TestMCPInstructionsCarryTheHabits(t *testing.T) {
 func TestMCPInstructionsReadAsInstructions(t *testing.T) {
 	text := MCPInstructions()
 	assert.NotContains(t, text, "—", "no em dash in agent-facing prose")
-	assert.LessOrEqual(t, len(strings.Fields(text)), 110, "about a hundred words; a longer text is a decision rather than a drift")
+	assert.LessOrEqual(t, len(strings.Fields(text)), 135, "about a hundred and thirty words; a longer text is a decision rather than a drift")
+	assert.NotContains(t, text, "portal", "the paired study's gate task turns on that word, so no agent-facing text uses it")
 }
 
 // TestMCPInstructionsFollowTheSets: a server that does not serve the writing

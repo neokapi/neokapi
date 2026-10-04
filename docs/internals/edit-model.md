@@ -124,7 +124,7 @@ recommendation.
   "gate": "enforce",
   "require_basis": false,
   "note": "Point the guide link at the handbook and add the Norwegian edition",
-  "evidence": [{"kind": "url", "ref": "https://example.com/issue/42"}],
+  "evidence": [{"url": "https://example.com/issue/42"}],
   "ops": []
 }
 ```
@@ -136,7 +136,7 @@ recommendation.
 | `gate` | `enforce` (default) or `report`. Section 8 says who may choose `report`. | no |
 | `require_basis` | Refuse a derived-edition write whose authoritative edition has moved since the caller read it. `kapi merge` sets it (section 4.2). | no |
 | `note` | One line a person reads in history and review. | no |
-| `evidence` | Where the wording behind the change was seen, as `kapi apply` asset entries carry today (`host/apply.go:112-117`). | no |
+| `evidence` | Where the wording behind the change was seen: each entry names a `path`, the `block` key a read reports inside it, a `quote` of the text, or a `url`. | no |
 | `ops` | Ordered operations. | yes |
 
 **There is no actor field.** The transport sets the actor: the CLI stamps a person (or the
@@ -166,7 +166,7 @@ existing content, `if_match` (section 4).
 | Op | Body | Replaces on main | Needs the capability |
 | --- | --- | --- | --- |
 | `set_content` | exactly one of `text` (placeholder form) or `runs`; optional `path` to a plural form or select case; `basis` on a derived edition; with `if_match: "absent"` it creates the edition | `kapi apply` content entries; desktop `UpdateSourceText` and `UpdateReviewTarget`; Bowrain `PUT …/:bid` and `PUT …/:bid/runs`; server MCP `update_block`; merge and pull output; every tool's target write; Bowrain rollback | every editable format; new codes only of types the writer can synthesize |
-| `replace_text` | `edits[]`, each one of `{find, occurrence?}`, `{start, end}` (flat code points) or `{range}` (run positions), with `text`; optional `path` | `ksed`, `kapi exec search-replace`, `case-transform`, desktop `ApplyCheckFix`, voice-rewrite substitutions, `context_correct` from and to | every editable format |
+| `replace_text` | `edits[]`, each one of `{find, occurrence?}` (in placeholder form: an inline code has zero width unless a `<x id="…"/>` token names it), `{start, end}` (flat code points) or `{range}` (run positions), with `text`; optional `path` on the operation, or on an edit, whose own `path` overrides it | `ksed`, `kapi exec search-replace`, `case-transform`, desktop `ApplyCheckFix`, voice-rewrite substitutions, `context_correct` from and to | every editable format |
 | `set_attribute` | `code` (the run id placeholder text shows), `name`, `value` | nothing on main can do this (main-model §2, P3 observed) | per format, code type and attribute |
 | `mark` | a range in any of the three forms above, `type` (a vocabulary type such as `fmt:bold` or `link:hyperlink`), `attrs` | nothing on main can do this (edit-paths §4.7) | per format and type |
 | `remove_edition` | none | `kapi exec remove-target`, Bowrain revert-clear | formats that hold editions |
@@ -230,7 +230,8 @@ pcOpen 2, text `order`, pcClose 2, text `.`. Placeholder text shows them as
 {"op": "replace_text", "at": {"doc": "docs/guide.html", "block": "p"}, "if_match": "r:3f9a1c0e7b2d4a55",
  "edits": [{"find": "shop guide", "text": "handbook"}]}
 
-// 3. The same edit by flat code points (codes have zero width) and by run position.
+// 3. The same edit by flat code points and by run position. A flat offset never counts a code;
+//    a find may name one by its token ("<x id=\"1\"/>shop guide<x id=\"/1\"/>").
 {"op": "replace_text", "at": {"doc": "docs/guide.html", "block": "p"}, "if_match": "r:3f9a1c0e7b2d4a55",
  "edits": [{"start": 9, "end": 19, "text": "handbook"}]}
 {"op": "replace_text", "at": {"doc": "docs/guide.html", "block": "p"}, "if_match": "r:3f9a1c0e7b2d4a55",
@@ -249,9 +250,10 @@ pcOpen 2, text `order`, pcClose 2, text `.`. Placeholder text shows them as
  "basis": "r:3f9a1c0e7b2d4a55",
  "text": "Les <x id=\"1\"/>håndboka<x id=\"/1\"/> før du <x id=\"2\"/>bestiller<x id=\"/2\"/>."}
 
-// 7. Edit one branch of an ICU plural. The path walks run 1, then its "one" form.
+// 7. Edit one branch of an ICU plural. The path walks run 1, then its "one" form; an edit may
+//    carry its own path instead, which overrides the operation's.
 {"op": "replace_text", "at": {"doc": "locales/en.json", "block": "cart.items"}, "if_match": "r:77c0a1d2e3f40516",
- "edits": [{"path": [1, {"plural": "one"}], "find": "item", "text": "article"}]}
+ "path": [1, {"plural": "one"}], "edits": [{"find": "item", "text": "article"}]}
 
 // 8. Remove a translation.
 {"op": "remove_edition", "at": {"doc": "docs/guide.html", "block": "p", "edition": "de"}, "if_match": "r:0c55e1f2a3b4c5d6"}
@@ -285,6 +287,10 @@ Example 6 is the case codex got wrong: its `create_variant` took plain text and 
 collapsed paired markup (r1 §5.3, critic C7). Example 7 is the case main gets wrong today:
 `kapi apply` flattens a plural block to plain text, deletes its variable and reports
 `applied` (main-model P1, observed; `core/tools/applyedits.go:101-109`).
+
+Examples 1 and 4 may go in one change set: several operations may name one block, each sending
+the revision the caller read, since every `if_match` is checked against the content the change
+set began with.
 
 Example 10 names the revision of the catalog's own edition only. `if_match` for `delete_block`
 must name the own edition (a map without it is `invalid`, as an omitted precondition is, section
@@ -328,23 +334,39 @@ Each rule fixes a defect the research reproduced.
 ```json
 {
   "schema": "kapi.change-result/v1",
-  "status": "refused",
-  "record": null,
+  "status": "applied",
+  "record": "0p5tkjdkbfe5jfkns1fhzyyp",
   "docs": [
-    {"doc": "docs/guide.html", "home": "file", "written": false,
-     "before": "sha256:5e1c…", "after": null, "findings": []}
+    {"doc": "docs/guide.html", "home": "file", "written": true,
+     "before": "sha256:5e1c…", "after": "sha256:a07d…", "findings": []}
   ],
   "ops": [
     {"i": 0, "op": "replace_text", "status": "applied", "at": {"doc": "docs/guide.html", "block": "p"},
      "before": "r:3f9a1c0e7b2d4a55", "after": "r:c41e92d07a8b1f30",
-     "resolved": [{"start": {"run": 2, "offset": 0}, "end": {"run": 2, "offset": 10}}],
-     "invalidates": [{"edition": "nb", "reason": "basis_moved"}]},
-    {"i": 1, "op": "set_attribute", "status": "refused",
+     "resolved": [{"start": {"run": 2, "offset": 0}, "end": {"run": 3, "offset": 0}}],
+     "invalidates": [{"edition": "nb", "reason": "basis_moved"}]}
+  ]
+}
+```
+
+A refused change set writes nothing, and reports so:
+
+```json
+{
+  "schema": "kapi.change-result/v1",
+  "status": "refused",
+  "record": null,
+  "docs": [
+    {"doc": "docs/guide.html", "home": "file", "written": false, "before": "sha256:5e1c…", "after": null}
+  ],
+  "ops": [
+    {"i": 0, "op": "replace_text", "status": "not_applied", "blocked_by": 1,
+     "at": {"doc": "docs/guide.html", "block": "p"}},
+    {"i": 1, "op": "set_attribute", "status": "refused", "at": {"doc": "docs/guide.html", "block": "p"},
      "error": {"code": "stale", "field": "if_match",
-               "message": "edition en of block p is at r:0d71f30c75e4a087, not r:3f9a1c0e7b2d4a55"},
+               "message": "edition en changed after you read it at r:3f9a1c0e7b2d4a55; it is now r:0d71f30c75e4a087. Its current text holds a change you have not seen: keep it, and resend against r:0d71f30c75e4a087"},
      "current": {"rev": "r:0d71f30c75e4a087",
-                 "text": "Read the <x id=\"1\"/>store guide<x id=\"/1\"/> before you <x id=\"2\"/>order<x id=\"/2\"/>."}},
-    {"i": 2, "op": "mark", "status": "not_applied", "blocked_by": 1}
+                 "text": "Read the <x id=\"1\"/>store guide<x id=\"/1\"/> before you <x id=\"2\"/>order<x id=\"/2\"/>."}}
   ]
 }
 ```
@@ -356,7 +378,19 @@ Each rule fixes a defect the research reproduced.
   `refused` (with `error`), `not_applied` (a sibling was refused; `blocked_by` names it),
   `previewed`.
 - `record` is the id of the `content.edit` operation when something was written.
+- `before` and `after` on an operation, and `resolved`, appear only on `applied`, `unchanged`
+  and `previewed` operations: nothing is reported that was not written. A change set refused
+  after its documents were read lists each with `written: false` and its `before` digest; one
+  that did not decode lists none.
 - `resolved` echoes every position the service resolved, so a caller learns the canonical form.
+  Each position prints its `run` and `offset`, a zero offset included, and follows section 3.3's
+  attribution: the end of a match at the end of a text run is the start of the run after it.
+- `findings` on each document are what the commit check found on the edit, failing or not: an
+  empty list when the check ran and found nothing, absent when no check applies (a document
+  outside a project). Each finding names its `rule`, says whether it `fails`, and carries the
+  `range` it found and, for a term rule, the `replacement` it asks for. A `gate_failed`
+  operation's `error` names how many failing findings the edit introduced; the findings
+  themselves sit on the document.
 - `invalidates` lists derived editions whose basis this edit moved (engine-first §1.5), so an
   agent sees which translations its source edit made stale.
 - `current` carries the edition's revision and content on `stale`, as Bowrain's 409 does today
@@ -368,8 +402,8 @@ A closed set, mapped once per transport.
 
 | Code | Meaning | Carries | Caller's next step | CLI exit | HTTP |
 | --- | --- | --- | --- | --- | --- |
-| `invalid` | the change set does not decode, fails its schema, or contradicts itself | JSON pointer | fix the change set | 2 | 400 |
-| `not_found` | the reference resolves to no document, block or edition | up to three candidates (key, revision, first 80 characters) | retarget or re-read | 3 | 404 |
+| `invalid` | the change set does not decode, fails its schema, or contradicts itself; an `insert_block` anchor outside the object the new key's path names | JSON pointer, or the field (`after`, `before`) | fix the change set | 2 | 400 |
+| `not_found` | the reference resolves to no document, block or edition, or a `find` matches nothing | up to three candidates (key, revision, first 80 characters); for a `find`, the `path` and text it searched and up to three near matches, which differ from it only in case, white space or punctuation (each with where it lies and the text around it) | retarget or re-read | 3 | 404 |
 | `ambiguous` | a key or a `find` matches more than one thing | the candidates | narrow it | 3 | 409 |
 | `stale` | `if_match` no longer holds, or `require_basis` and the basis moved; `field` says which | current revision and content | re-read, rebase, resend | 3 | 409 |
 | `doc_changed` | the document changed under the commit and one retry could not settle it (section 4.3) | new digest | resend | 3 | 409 |
@@ -384,7 +418,9 @@ Exit codes keep main's meanings (`host/exitcode.go:11-21`): 2 is a malformed inv
 "did not land; re-read and retry or change approach", which is what `kapi apply` already means
 by it, and 5 is an unreachable backend. Contract-first mapped `not_found`, `ambiguous` and
 `unsupported` to exit 2; both judges asked for 3 because the caller's next step is a re-read
-(judge-arch §7, judge-product §3.3). MCP returns `isError` with the same
+(judge-arch §7, judge-product §3.3). Every transport returns the same refused result:
+`kapi apply --json` prints it on stdout for a change set that does not decode too, with `ops: []`
+and `error.code: "invalid"` with its pointer, and exits 2, and MCP returns `isError` with the same
 structured result.
 
 This table follows the rule main's own evaluation found: refusal recovery is what an agent
@@ -399,7 +435,9 @@ is a `oneOf` member with a `const` discriminator and `additionalProperties: fals
 schema is the MCP input schema of `apply_edits`, the output of `kapi apply --schema`, the
 request schema of the Bowrain route, the source of `@neokapi/contract-types` (through
 `scripts/gen-contract-types`, already drift-gated) and a generated reference page. It is
-golden-tested. Contract-first's prototype schema for eight kinds is 7,785 bytes compact
+golden-tested. `kapi apply --schema OP` prints the schema of operation `OP` alone, with the
+definitions it refers to (about 1 KB for `set_attribute`), and `describe_format` names it.
+Contract-first's prototype schema for eight kinds is 7,785 bytes compact
 (observed), against today's `apply_edits` input schema of 3,287 bytes plus about 2.3 KB of
 prose explaining which of 26 fields applies to which kind, plus a 9.1 KB output schema
 (r5 §8). Structure replaces the prose at about the same size.
@@ -470,7 +508,7 @@ Every read surface (`kapi inspect`, MCP `read_blocks`, the desktop and browser `
 references so callers copy them instead of constructing them:
 
 ```json
-{"ref": {"doc": "docs/guide.html", "block": "p"}, "rev": "r:3f9a1c0e7b2d4a55",
+{"ref": {"doc": "docs/guide.html", "block": "p", "edition": "en"}, "rev": "r:3f9a1c0e7b2d4a55",
  "text": "Read the <x id=\"1\"/>shop guide<x id=\"/1\"/> before you <x id=\"2\"/>order<x id=\"/2\"/>.",
  "codes": {"1": {"type": "link:hyperlink", "attrs": {"href": "https://old.example/guide"}, "writable": ["href", "title"]},
            "2": {"type": "fmt:bold"}},
@@ -478,9 +516,16 @@ references so callers copy them instead of constructing them:
  "ops": ["set_content", "replace_text", "set_attribute", "mark", "annotate", "unannotate"]}
 ```
 
-Today `kapi inspect` emits `id` (`core/structrec/record.go:77-88`) and never shows an `href`
-(r5 §4.3). Reads are paged with a cursor, so a large document is never read whole into one
-response.
+A read in a project, or given `--source-lang`, names the document's own edition in `ref.edition`,
+which `insert_block`'s `editions` map takes; the service treats it as the empty edition. Outside a
+project a read names it too where the document's path names its language (section 3.2). Every
+edition a read lists carries its `status`. An edition with no recorded status is `untranslated`
+when its text is the source's, as a file the source filled holds it, and `new` otherwise. A
+bilingual file that keeps its translation in it (a PO catalog) lists the edition it holds, in the
+language its header declares (a PO catalog's `Language`), else the one the recipe's targets and
+the file's name or directory give. A block offers `remove_edition` only where the read shows a
+translation it holds, whether its file keeps translations in it or each in a file of its own.
+Reads are paged with a cursor, so a large document is never read whole into one response.
 
 ### 3.2 Editions that live in other files
 
@@ -498,9 +543,16 @@ so a person who opens `de/guide.md` in Kapi Desktop and an agent working from th
 reach the same edition. This retires the desktop's habit of editing a target file's "source
 runs" under the wrong locale (`review.go:575-576`; main-model §1.2).
 
-Outside a project, a monolingual document holds one edition. An operation on another edition
-of it has no home and is refused `unsupported` unless the caller names an output (the CLI's
-`--out`, or a library caller passing its own writer).
+Outside a project, a monolingual document holds one edition, in the language `--source-lang`
+names or else the one its file or directory names (`locales/nb.json`, `docs/de/guide.md`), and
+a read names that edition in each block's `ref`. A bare two-letter name counts only where the
+files around it are sorted by language: in a directory named for languages (`locales`, `i18n`,
+`lang`, `translations` and the like) or beside a file or directory named for another language
+(`docs/en/guide.md` beside `docs/de/guide.md`). A name with a region or script (`nb-NO`, `pt_BR`)
+counts as it stands, and a code directory such as `src/io/` names no language. An
+operation on another edition of it has no home and is refused `unsupported`, naming the way out,
+unless the caller names an output: `kapi apply --out FILE` writes the one edition a change set
+adds to FILE, built from the document, and a library caller passes its own writer.
 
 ### 3.3 Positions
 
@@ -511,7 +563,10 @@ accepted and resolved through `RangeAnchor`'s single attribution rule
 (`core/model/anchor.go:160-166`), and the result echoes the run positions:
 
 - flat code-point `start`/`end` over the edition's flattened text (codes have zero width);
-- `find` with an optional `occurrence`; an ambiguous `find` without one is refused `ambiguous`.
+- `find` with an optional `occurrence`, in placeholder form: an inline code has zero width
+  unless a `<x id="…"/>` token names it, and a token matches only the code it names, so the
+  text a read shows can be sent back as it reads. An ambiguous `find` without an occurrence is
+  refused `ambiguous`.
 
 Edits inside one operation are expressed against its base, sorted and non-overlapping, as
 `ApplyTextEdits` already requires (`core/model/text_edit.go:8-10`). `model.TextEdit` moves from
@@ -539,8 +594,8 @@ P5; `core/formats/arb/icu.go`), with `#` and any argument inside a branch as pla
 
 The writer writes the plural's keyword, branch keys and layout as it read them, and each branch
 an edit left alone byte for byte. A `find` that lies in branches and not in the text around the
-plural is refused `not_found`, naming the path of each branch that holds it, with a candidate per
-match. An ARB branch's text is written as ICU source, as an ARB message without a plural is: an
+plural is refused `not_found`, naming the path of each branch that holds it and quoting the text
+it searched, with a candidate per match. An ARB branch's text is written as ICU source, as an ARB message without a plural is: an
 argument typed as `{count}` reads back as the argument, and text that would end the branch early
 or swallow the next one is refused by the writer. An apostrophe before an argument, as French
 elides an article, is written as given, as Flutter's tools read it.
@@ -637,7 +692,7 @@ workspace home) guards native operations, which address a whole document.
 | --- | --- |
 | a revision | apply only if the edition is exactly what was read |
 | `"absent"` | the edition must not exist yet (create) |
-| `"*"` | apply whatever is there; a blind write that porcelain never sends and policy refuses from an agent |
+| `"*"` | a blind write, which only a person may send: porcelain never sends it, and policy refuses it from an agent |
 | omitted | refused `invalid`, except from porcelain, which fills it from its own read |
 
 `"absent"` is a word for a reason: Go's `omitempty` drops an empty string, so a create spelled
@@ -669,8 +724,9 @@ forced rounds both reported `ok` and one edit was gone (judge-arch F1, observed;
 already names as normal: an agent's MCP server, a CLI run and the desktop as separate processes
 on one file (`core/storage/filelock.go` header). The lock is main's advisory file lock
 (`core/storage/filelock.go:37-102`, today unexported as `newFileLock`), given a small exported
-API. The lock file sits under `.kapi/work/locks/` inside a project and under the temp directory
-outside one. An external editor saving between the re-hash and the rename remains a real
+API. The lock file sits under `.kapi/work/locks/` inside a project and under the kapi data
+directory's `locks/` outside one (`$KAPI_DATA_DIR/locks/<hash>.lock`), so every kapi process of
+the user finds the same lock whatever its temporary directory. An external editor saving between the re-hash and the rename remains a real
 conflict, narrowed to one `rename(2)`.
 
 **The workspace home across machines.** The conditional record serializes processes on one
@@ -1444,12 +1500,13 @@ needed a Python helper to chain commands (r8 §3.6). So people get verbs and the
 | Tool | End state |
 | --- | --- |
 | `read_blocks` (replaces `extract_content`) | `{doc, query, cursor}` → a page of read records as in section 3.1 |
-| `apply_edits` | `{changeset}` → the result; the actor is fixed to the session's agent |
+| `apply_edits` | the change set's envelope fields as the tool's arguments (`ops`, `mode`, `gate`, `note`, `evidence`, …) → the result; the actor is fixed to the session's agent |
 | `describe_format` (new) | capabilities and schemas for a format or a file |
 | `review_block` (replaces `review_unit`) | the review picture of one block; a read |
 | `pre_review_unit` | removed; an agent sends `decide` with `outcome: advise` |
 
-`read_blocks`, `apply_edits` and `describe_format` join the default `writing` set. Today `kapi
+`read_blocks`, `apply_edits` and `describe_format` join the default `writing` set, and the
+server's instructions name them as the way to change text inside a file. Today `kapi
 init` wires `--tools writing,translation` (`host/agentwiring_test.go:367`) while `apply_edits` and
 `extract_content` sit in the `content` set (`host/mcp_sets.go:39-48`), so an agent in a fresh
 project cannot reach the structured edit path at all (critic G13). The input-schema golden
@@ -1746,8 +1803,11 @@ beside all of them in package-sized PRs.
   and Markdown wording edit with a link change, a plural branch, a new edition with markup, a
   bilingual PO edit, a key added to `en.json` (if WP12 has landed; otherwise measured as a refusal), a
   stale recovery and a gate refusal recovery. Adjust names and shapes. Freeze.
-- **Acceptance:** the report is written to `docs/internals/evals.md`; the schema golden is marked
-  frozen and the extend-only rule resumes.
+- **Acceptance:** met. The report is in `docs/internals/evals.md` (WP5). The contract froze for
+  release 1.3.0 on 2026-10-03: `core/change/testdata/schema.v1.frozen.json` holds the change set,
+  `result.v1.frozen.json` and `read.v1.frozen.json` beside it the result and the read, and
+  `kapi/cmd/kapi/testdata/mcp_tools.frozen.json` the MCP tool surface. `TestSchemaExtendsFrozenV1`
+  and its siblings hold the generated schemas to them, so the extend-only rule is in force.
 - **Why here:** contract-first runs the evaluation before later steps build on the shape; evolve-main
   ran it last, after every surface migrated, and engine-first listed it only as a mitigation. kapi's
   agent surface once "shipped and was never exercised" (judge-product §2.1).
@@ -2005,7 +2065,8 @@ All of these hold before the 1.3.0 tag:
 1. No first-party surface changes content except through `core/change`: CLI, MCP, Kapi Desktop, flows,
    merge, pull, `up`, the browser, and Bowrain's REST, MCP and desktop. `editguard` is in CI.
 2. `kapi.change/v1` is frozen after the paired evaluation, its schema generated, its TypeScript types
-   generated and drift-gated, its golden marked frozen.
+   generated and drift-gated, its golden marked frozen. Done with WP5: the change set, the result,
+   the read and the MCP surface each have a frozen file and an extend-only test.
 3. The conformance suite passes on the file home (natively and under `GOOS=js`), the workspace home
    and the stream home on PostgreSQL.
 4. The race test passes on the file home with zero lost edits.
@@ -2075,9 +2136,25 @@ edit operations are one service, so the reading has two parts.
 
 ### 15.3 Recommendation
 
-No split for 1.3.0. Run the three measurements with WP5. If a project-free name proves useful, make it
-a busybox alias of the same binary; a separately built artifact pays off only for a no-cgo native
-audience. Decision D14.
+No split, and no second name, in 1.3.0. The three measurements ran with WP5
+(`docs/internals/evals.md`, WP5). The project-free arm passed no task that
+kapi with a project failed; its losses on the gate task follow from having no
+gate. It cost less than kapi's skill-cli arm on Codex (0.68 of the median
+input over seven tasks, 0.71 outside the translation and gate tasks) and on
+Claude only in those two tasks (0.98 outside them), and in each case the
+saving came from the skill text it ran rather than from the binary: the
+governance steps it leaves out, and the shipped skill's translation detour.
+Agents reached the contract through it as often as through kapi (35 of 42
+attempts against 36 of 41). The edit engine builds as a Go module without cgo
+or ICU (18.6 MB), and the WASM build serves the web, so no audience in the
+measurements needs a separate native artifact, whose release, signing and
+packaging costs are listed in `evals.md`. The `kapi-files` multi-call case
+stays as the evaluation's surface, installed by no channel and documented
+nowhere. The arm ran beside a project, so the question reopens if an audience
+asks for a native binary without the host, or if a rerun whose project-free
+cells hold no project, with kapi under discovery off as an arm, shows agents
+without a project succeeding where kapi's fail or spending materially less
+for the same work. Decision D14.
 
 ---
 
@@ -2101,8 +2178,13 @@ moves into 1.3.0 as WP14. The guided lab learning path from the codex study is n
 | D11 | Delete `kapi engine serve`, its reference page and CI job | Delete in WP6, documenting the application channels in the same PR | Its `Merge` RPC is a write path outside the contract; nothing first-party uses it | Re-point it at `Read`, `Apply`, `Describe` and keep a polyglot RPC to maintain |
 | D12 | Browser storage | sqlite-wasm: memory in 1.3.0, OPFS in a Worker after | No browser ships SQLite; the official build is measured, small and passes main's store suites | ncruces (+3.8 MB gzip, slower) behind the same driver contract |
 | D13 | Bowrain log remote and decisions keyed by pairing | After 1.3.0 | 1.3.0 already moves every Bowrain write route; the sync wire keeps working | In 1.3.0 the server's decision key and the sidecar retire at once |
-| D14 | neo/kapi | No split for 1.3.0; run the section 15 measurements with WP5 | One contract either way; a split removes no write path | A second name or artifact now, before the evaluation |
+| D14 | neo/kapi | No split and no second name in 1.3.0, after the WP5 measurements; **decided as recommended** | The project-free arm passed nothing kapi failed; its lower cost (Codex 0.68, Claude 0.80 of skill-cli's median input; Claude 0.98 outside the translation and gate tasks) came from its skill text; the Go module builds the engine without cgo or ICU; a second artifact costs five builds, signing and a product name each release | A second name ships a help surface that already drifts and a Windows answer, for an audience no measurement found |
 | D15 | Vocabulary | "Edition" and "change set" enter `brand-communication.md`; "home" stays contributor vocabulary; "venue" keeps its meaning | "Venue" already means where the loop runs (`web/docs/kapi/convergence.mdx:471-484`, the recipe's venue binding), and "store" is overloaded | Using "venue" for the text's home teaches it two meanings inside the explanation the founder asked for |
+
+D14's row records what the WP5 measurements found. The founder decided it as recommended: no
+split and no second name in 1.3.0, which settles what section 15.3 left open (an alias if a
+project-free name proved useful). The `kapi-files` multi-call name stays the evaluation's surface,
+installed by no channel.
 
 ---
 

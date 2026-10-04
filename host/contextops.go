@@ -33,12 +33,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/contextop"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/workspace"
@@ -318,6 +322,14 @@ func (a *App) RecordContextObservation(ctx context.Context, req ContextObserveRe
 	if err != nil {
 		return ContextOperation{}, err
 	}
+	if err := s.observedInFiles(ctx, subject, req.Evidence); err != nil {
+		return ContextOperation{}, err
+	}
+	if subject.Term != nil {
+		if err := s.entriesContradict(ctx, *subject.Term, req.Evidence, "observation"); err != nil {
+			return ContextOperation{}, err
+		}
+	}
 	actor, note, err := s.actorFor(ctx, req.Actor, "")
 	if err != nil {
 		return ContextOperation{}, err
@@ -353,16 +365,211 @@ func observedSubject(req ContextObserveRequest) (contextop.Subject, error) {
 		}
 		return contextop.Subject{Kind: contextop.SubjectNote, Text: text}, nil
 	}
+	for _, form := range req.InsteadOf {
+		if describesTerm(term, form) {
+			return contextop.Subject{}, fmt.Errorf("%q holds the term %q with more words: give the form writers write in its place, "+
+				"such as a split, hyphenated or differently spelled form, or say what you saw in text", form, term)
+		}
+	}
 	rule := contextop.ObservedRule(term, req.InsteadOf)
 	if rule.Replacement == "" {
 		// The term is the form the project uses. With nothing to avoid, the
 		// rule would hold that form alone, which reads as a word to avoid and
-		// would flag the project's own spelling of it.
+		// would flag the project's own spelling of it. What the observation
+		// says in text is recorded as a note instead.
+		if text != "" {
+			return contextop.Subject{Kind: contextop.SubjectNote, Text: text}, nil
+		}
 		return contextop.Subject{}, fmt.Errorf("%q is the form the project uses, and nothing names the forms to avoid: "+
 			"give the spellings writers get wrong in instead_of (--instead-of), such as a split, hyphenated "+
-			"or differently cased form, or record the fact as a note in text", term)
+			"or differently cased form, or say what you saw in text, which is recorded as a note", term)
 	}
 	return contextop.Subject{Kind: contextop.SubjectTerm, Term: &rule, Text: text}, nil
+}
+
+// describesTerm reports whether an avoided form is a description of the term
+// rather than a form of it: the term with two or more words added, as
+// "Harbor Help product name variant" is of "Harbor Help".
+func describesTerm(term, form string) bool {
+	t, f := strings.ToLower(strings.TrimSpace(term)), strings.ToLower(strings.TrimSpace(form))
+	return t != "" && strings.Contains(f, t) && len(strings.Fields(f))-len(strings.Fields(t)) >= 2
+}
+
+// maxObservedFile bounds the size of a file whose bytes an observation's
+// evidence is looked for in.
+const maxObservedFile = 8 << 20
+
+// observedInFiles refuses a term observation whose evidence names a file of
+// the project in which neither the term nor a form it avoids can be seen:
+// what the observation says was seen there is not there.
+//
+// A file holds a form when its bytes do, or when the text of its blocks does
+// as a read shows it, so a term in a compressed format, spelled with a
+// character reference or an escape, or split by an inline code counts. Case
+// and runs of white space are ignored, so a term a writer wrapped across two
+// lines counts too. A file no reader opens, or that lies outside the project,
+// is passed over.
+func (s *contextOpsSession) observedInFiles(ctx context.Context, subject contextop.Subject, evidence []contextop.Evidence) error {
+	if subject.Kind != contextop.SubjectTerm || subject.Term == nil || s.root == "" {
+		return nil
+	}
+	var forms []string
+	for _, f := range append([]string{subject.Term.Replacement, subject.Term.Term}, subject.Term.Forms...) {
+		if f = foldedText(f); f != "" {
+			forms = append(forms, f)
+		}
+	}
+	if len(forms) == 0 {
+		return nil
+	}
+	for _, e := range evidence {
+		if e.Path == "" || filepath.IsAbs(e.Path) {
+			continue
+		}
+		path := filepath.Join(s.root, filepath.FromSlash(e.Path))
+		rel, err := filepath.Rel(s.root, path)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			continue
+		}
+		info, err := os.Stat(path)
+		if err != nil || info.IsDir() {
+			continue
+		}
+		if info.Size() <= maxObservedFile {
+			if data, err := os.ReadFile(path); err == nil && holdsAnyForm(string(data), forms) {
+				continue
+			}
+		}
+		seen, read := s.blocksHoldForm(ctx, filepath.ToSlash(rel), forms)
+		if !read || seen {
+			continue
+		}
+		return fmt.Errorf("%s holds neither %q nor a form it avoids, so the observation was not seen there: "+
+			"name the file you saw it in, or record what you know in text", e.Path, subject.Term.Replacement)
+	}
+	return nil
+}
+
+// blocksHoldForm reports whether the text of a block of the project's file at
+// rel, an edition the file holds or a branch of a plural or select, holds one
+// of forms, which are folded (foldedText). read is false when no reader opens
+// the file.
+func (s *contextOpsSession) blocksHoldForm(ctx context.Context, rel string, forms []string) (seen, read bool) {
+	svc, err := s.app.ChangeService(ctx, ChangeServiceOptions{Project: s.recipe, Origin: "context"})
+	if err != nil {
+		return false, false
+	}
+	holds := func(text string) bool {
+		// An inline code has no width in a find, and a writer may also have
+		// put one between two words, as a line break.
+		return holdsAnyForm(placeholderTokenRe.ReplaceAllString(text, ""), forms) ||
+			holdsAnyForm(placeholderTokenRe.ReplaceAllString(text, " "), forms)
+	}
+	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: rel, OwnEdition: true}, func(_ *model.Block, b change.BlockRead) error {
+		texts := []string{b.Text}
+		for _, ed := range b.Editions {
+			texts = append(texts, ed.Text)
+		}
+		for _, st := range b.Structures {
+			for _, branch := range st.Branches {
+				texts = append(texts, branch)
+			}
+		}
+		if slices.ContainsFunc(texts, holds) {
+			seen = true
+			return change.ErrStop
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, change.ErrStop) {
+		return false, false
+	}
+	return seen, true
+}
+
+// placeholderTokenRe matches an inline code's token in placeholder text.
+var placeholderTokenRe = regexp.MustCompile(`<x id="[^"]*"/>`)
+
+// foldedText is text with its case folded and each run of white space a
+// single space, for a comparison that ignores both.
+func foldedText(text string) string {
+	return strings.Join(strings.Fields(strings.ToLower(text)), " ")
+}
+
+// holdsAnyForm reports whether text, folded, holds one of forms, which are
+// folded already.
+func holdsAnyForm(text string, forms []string) bool {
+	body := foldedText(text)
+	return slices.ContainsFunc(forms, func(f string) bool { return strings.Contains(body, f) })
+}
+
+// maxContradictionPages bounds how much of a file entriesContradict reads.
+const maxContradictionPages = 10
+
+// entriesContradict refuses a term rule recorded from one entry of a file
+// when another entry of the same file holds the form the rule avoids: a rule
+// for the whole file would report that entry, which the change left as it
+// was. Book is "Bestill" on a button and "Bok" in a library, and a rule made
+// at the button would call the library wrong. Only evidence that names a
+// block is weighed, against the file's blocks and the editions it holds.
+func (s *contextOpsSession) entriesContradict(ctx context.Context, rule profile.TermRule, evidence []contextop.Evidence, what string) error {
+	re := formMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase())
+	if re == nil {
+		return nil
+	}
+	for _, e := range evidence {
+		if e.Path == "" || e.Unit == "" {
+			continue
+		}
+		others := s.entriesHolding(ctx, e.Path, e.Unit, re)
+		if len(others) == 0 {
+			continue
+		}
+		const named = 3
+		list := strings.Join(others[:min(len(others), named)], ", ")
+		if len(others) > named {
+			list += fmt.Sprintf(" and %d more", len(others)-named)
+		}
+		return fmt.Errorf("%s holds %q at %s as well as at %s, so a rule against it would report %s, which the change left as it was: "+
+			"record the %s without the rule (it keeps the entry it was made at), and say in a note which entries the wording belongs to",
+			e.Path, rule.Term, list, e.Unit, list, what)
+	}
+	return nil
+}
+
+// entriesHolding lists the blocks of the project's file at rel, other than
+// except, whose text or an edition the file holds matches re. A file the
+// project cannot read lists none.
+func (s *contextOpsSession) entriesHolding(ctx context.Context, rel, except string, re *regexp.Regexp) []string {
+	svc, err := s.app.ChangeService(ctx, ChangeServiceOptions{Project: s.recipe, Origin: "context"})
+	if err != nil {
+		return nil
+	}
+	var out []string
+	req := change.ReadRequest{Doc: rel, Limit: change.MaxReadLimit, OwnEdition: true}
+	for range maxContradictionPages {
+		page, err := svc.Read(ctx, req)
+		if err != nil {
+			return out
+		}
+		for _, b := range page.Blocks {
+			if b.Ref.Block == except {
+				continue
+			}
+			hit := re.MatchString(b.Text)
+			for _, ed := range b.Editions {
+				hit = hit || re.MatchString(ed.Text)
+			}
+			if hit {
+				out = append(out, b.Ref.Block)
+			}
+		}
+		if page.Next == "" {
+			return out
+		}
+		req.Cursor = page.Next
+	}
+	return out
 }
 
 // RecordContextCorrection records wording somebody changed, and, when asked,
@@ -392,12 +599,16 @@ func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectReq
 		Note:       note,
 	}
 	if req.Suggest {
-		record.Subject = contextop.Subject{Kind: contextop.SubjectTerm, Term: &profile.TermRule{
+		rule := &profile.TermRule{
 			Term:        req.From,
 			Replacement: req.To,
 			Advisory:    req.Advisory,
 			Note:        req.Note,
-		}}
+		}
+		if err := s.entriesContradict(ctx, *rule, req.Evidence, "correction"); err != nil {
+			return ContextOperation{}, err
+		}
+		record.Subject = contextop.Subject{Kind: contextop.SubjectTerm, Term: rule}
 	}
 	before, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
 	if err != nil {

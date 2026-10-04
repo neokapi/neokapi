@@ -71,10 +71,9 @@ func TestPairedCLIWrapperWithBuiltKapi(t *testing.T) {
 		require.NoError(t, err, string(output))
 		return output
 	}
-	guide := run("context", "locales/en.json")
+	guide := run("context", "i18n/de/messages.json")
 	assert.Contains(t, string(guide), "Harbor Help")
-	assert.Contains(t, string(guide), "overview page")
-	blocks := run("inspect", "locales/en.json", "--jsonl")
+	blocks := run("inspect", "i18n/de/messages.json", "--jsonl")
 	lines := strings.Split(strings.TrimSpace(string(blocks)), "\n")
 	require.Len(t, lines, 9)
 	var changes strings.Builder
@@ -96,11 +95,11 @@ func TestPairedCLIWrapperWithBuiltKapi(t *testing.T) {
 	require.NoError(t, os.WriteFile(edits, []byte(changes.String()), 0o600))
 	run("apply", edits)
 	run("version")
-	page, err := os.ReadFile(filepath.Join(launch.Workspace, "locales/en.json"))
+	page, err := os.ReadFile(filepath.Join(launch.Workspace, "i18n/de/messages.json"))
 	require.NoError(t, err)
 	files, err := pairedTaskFiles(task)
 	require.NoError(t, err)
-	assert.Equal(t, string(files["locales/en.json"]), string(page))
+	assert.Equal(t, string(files["i18n/de/messages.json"]), string(page))
 }
 
 func TestPairedClaudeConfiguration(t *testing.T) {
@@ -252,6 +251,12 @@ func TestPairedToolPathHasOnlyAssignedCLI(t *testing.T) {
 				target, err := os.Readlink(filepath.Join(state, "bin", pairedFilesAlias))
 				require.NoError(t, err)
 				assert.Equal(t, "/test/kapi", target)
+			}
+			if condition == "kapi-no-project" {
+				// kapi itself, with discovery off and no recipe bound.
+				wrapper, err := os.ReadFile(filepath.Join(state, "bin", "kapi"))
+				require.NoError(t, err)
+				assert.Contains(t, string(wrapper), "export KAPI_NO_PROJECT=1\nunset KAPI_PROJECT\n")
 			}
 			_, err = os.Lstat(filepath.Join(state, "bin", "cat"))
 			require.NoError(t, err)

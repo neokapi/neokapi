@@ -36,8 +36,10 @@ func pairedToolResult(id, text string) map[string]any {
 }
 
 // The other editor's change lands once a tool result has shown the agent the
-// text it changes, and only once. Naming the file, or a search that printed
-// another line of it, shows the agent nothing to be stale about.
+// text it changes, and only once. The change sits on the line of the sentence
+// the agent edits, so a search that prints that line shows it. Naming the
+// file, or a search that printed nothing, shows the agent nothing to be stale
+// about.
 func TestPairedInterferenceLandsWhenTheAgentSeesTheText(t *testing.T) {
 	task := pairedTaskByID(t, "recover-stale-read")
 	workspace := t.TempDir()
@@ -52,27 +54,27 @@ func TestPairedInterferenceLandsWhenTheAgentSeesTheText(t *testing.T) {
 		pairedToolResult("1", "docs/en/upgrade.md"),
 		pairedToolUse("4", "Skill", map[string]any{"skill": "kapi", "args": "edit docs/en/upgrade.md"}),
 		pairedToolResult("4", "Launching skill: kapi"),
-		// A search that prints only the sentence the agent edits.
+		// A search whose pattern holds the text but that printed nothing.
+		pairedToolUse("6", "Bash", map[string]any{"command": "grep -c 'The upgrade keeps your appointments' docs/en/upgrade.md"}),
+		pairedToolResult("6", "1"),
+		// A search that prints only the line of the sentence the agent edits.
 		pairedToolUse("5", "Grep", map[string]any{"pattern": "Back up your data", "path": "docs"}),
 		pairedToolResult("5", "docs/en/upgrade.md:8:Back up your data before you upgrade. The upgrade keeps your appointments and"),
-		// A search whose pattern holds the text but that printed nothing.
-		pairedToolUse("6", "Bash", map[string]any{"command": "grep -c 'it takes about five minutes' docs/en/upgrade.md"}),
-		pairedToolResult("6", "1"),
 		pairedToolUse("2", "Read", map[string]any{"file_path": file}),
-		pairedToolResult("2", "9\tmessages, and it takes about five minutes."),
+		pairedToolResult("2", "8\tBack up your data before you upgrade. The upgrade keeps your appointments and"),
 		pairedToolUse("3", "Read", map[string]any{"file_path": file}),
-		pairedToolResult("3", "9\tmessages, and it takes about five minutes."),
+		pairedToolResult("3", "8\tBack up your data before you upgrade. The upgrade keeps your appointments and"),
 	)
-	result, err := parsePairedAgentStream(strings.NewReader(stream), launch)
+	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), launch)
 	require.NoError(t, err)
 	require.NotNil(t, result.Interference)
 	assert.True(t, result.Interference.Triggered)
 	assert.True(t, result.Interference.Applied)
 	assert.False(t, result.Interference.AgentWroteFirst)
-	assert.Equal(t, "Read", result.Interference.Trigger)
+	assert.Equal(t, "Grep", result.Interference.Trigger)
 	body, err := os.ReadFile(file)
 	require.NoError(t, err)
-	assert.Equal(t, 1, strings.Count(string(body), "about ten minutes"))
+	assert.Equal(t, 1, strings.Count(string(body), "keeps all your appointments"))
 	assert.Equal(t, 6, result.ToolCalls)
 	require.NotNil(t, result.Turns)
 	assert.Equal(t, int64(3), *result.Turns)
@@ -92,7 +94,7 @@ func TestPairedInterferenceFromCodexOutput(t *testing.T) {
 	}
 	observer := newPairedObserver(launch, &PairedAgentResult{})
 	observer.codexCompleted("command_execution", map[string]any{
-		"command": "/bin/zsh -c \"rg -n 'it takes about five minutes' docs\"", "aggregated_output": ""})
+		"command": "/bin/zsh -c \"rg -n 'The upgrade keeps your appointments' docs\"", "aggregated_output": ""})
 	assert.False(t, observer.result.Interference.Triggered, "a command naming the text has not shown it")
 	// The agent writes without reading, as kapi-files ksed allows.
 	body, err := os.ReadFile(file)
@@ -102,7 +104,7 @@ func TestPairedInterferenceFromCodexOutput(t *testing.T) {
 		"command": "/bin/zsh -c 'kapi-files ksed -i s/x/y/ docs/en/upgrade.md'", "aggregated_output": "wrote docs/en/upgrade.md"})
 	assert.False(t, observer.result.Interference.Triggered)
 	observer.codexCompleted("command_execution", map[string]any{
-		"command": "/bin/zsh -c 'cat docs/en/upgrade.md'", "aggregated_output": "messages, and it takes about five minutes."})
+		"command": "/bin/zsh -c 'cat docs/en/upgrade.md'", "aggregated_output": "Back up your data and settings before you upgrade. The upgrade keeps your appointments and"})
 	record := observer.result.Interference
 	require.NotNil(t, record)
 	assert.True(t, record.Applied)
@@ -118,7 +120,7 @@ func TestPairedOverrideAttemptsAreRecorded(t *testing.T) {
 		pairedToolUse("4", "Bash", map[string]any{"command": `echo '{"op":"set_content","if_match": "*"}' | kapi apply`}),
 		pairedToolUse("5", "Bash", map[string]any{"command": "kapi apply --gate enforce edits.json"}),
 	)
-	result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{
+	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), PairedLaunch{
 		Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "skill-cli",
 	})
 	require.NoError(t, err)
@@ -150,7 +152,7 @@ func TestPairedRefusalsAreCounted(t *testing.T) {
 		pairedToolUse("9", "mcp__kapi__apply_edits", map[string]any{"ops": []any{}}),
 		pairedToolResult("9", "prepare lib/l10n/app_en.arb: arb writer: the message would not read back as written: message inboxCount: the text of a branch holds ICU syntax"),
 	)
-	result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{
+	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), PairedLaunch{
 		Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "mcp",
 	})
 	require.NoError(t, err)
@@ -207,7 +209,7 @@ func TestPairedRouteAudit(t *testing.T) {
 			}
 			result := &PairedAgentResult{}
 			observer := newPairedObserver(PairedLaunch{Condition: tc.condition, StateDir: state, Workspace: workspace}, result)
-			violation := observer.toolUse("1", tc.tool, input)
+			violation := observer.toolUse(t.Context(), "1", tc.tool, input)
 			assert.Equal(t, tc.violation, violation != "", violation)
 			assert.Equal(t, tc.attempts, result.RouteAttempts)
 		})
@@ -265,6 +267,8 @@ func TestPairedInfraFailures(t *testing.T) {
 		"stream disconnected before completion: error sending request":                       "network",
 		"Error: fetch failed (ECONNRESET)":                                                   "network",
 		"API Error: Request timed out.":                                                      "network",
+		"Selected model is at capacity. Please try a different model.":                       "overload",
+		"write out/nb.xliff: no space left on device":                                        "disk",
 		"Reached maximum number of turns (40)":                                               "",
 		"The agent could not finish the edit":                                                "",
 	} {
@@ -272,12 +276,12 @@ func TestPairedInfraFailures(t *testing.T) {
 	}
 	stream := `{"type":"system","subtype":"init","model":"test","session_id":"s"}` + "\n" +
 		`{"type":"result","subtype":"error_during_execution","is_error":true,"result":"API Error: 529 Overloaded"}`
-	result, err := parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "baseline"})
+	result, err := parsePairedAgentStream(t.Context(), strings.NewReader(stream), PairedLaunch{Agent: PairedAgentSpec{Host: "claude", Model: "test"}, Condition: "baseline"})
 	require.Error(t, err)
 	assert.Equal(t, "infra_failed", result.Status)
 	assert.Equal(t, "overload", result.InfraFailure)
 	stream = `{"type":"thread.started","thread_id":"t"}` + "\n" + `{"type":"error","message":"stream disconnected before completion: error sending request for url"}`
-	result, err = parsePairedAgentStream(strings.NewReader(stream), PairedLaunch{Agent: PairedAgentSpec{Host: "codex", Model: "test"}, Condition: "baseline"})
+	result, err = parsePairedAgentStream(t.Context(), strings.NewReader(stream), PairedLaunch{Agent: PairedAgentSpec{Host: "codex", Model: "test"}, Condition: "baseline"})
 	require.Error(t, err)
 	assert.Equal(t, "infra_failed", result.Status)
 	assert.Equal(t, "network", result.InfraFailure)

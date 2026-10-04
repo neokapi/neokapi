@@ -1,0 +1,14 @@
+version: v1
+name: harbor-help-app
+defaults:
+  source_language: en
+  voice:
+    profile: harbor-help
+  exclude:
+    - "**/.git/**"
+collections:
+  - name: app
+    content:
+      - path: messages/invites_en.arb
+        format:
+          name: arb

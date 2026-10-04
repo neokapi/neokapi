@@ -19,7 +19,3 @@ constraints:
     statement: Do not describe the service as guaranteed, always safe or risk-free.
     kind: prohibited_pattern
     regex: '(?i)\b(guarantee(?:d|s)?|always safe|risk-free)\b'
-terms:
-  - term: portal
-    replacement: overview page
-    note: Harbor Help has no portal. The page that lists a reader's reports is the overview page.

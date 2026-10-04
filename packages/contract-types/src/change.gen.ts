@@ -48,7 +48,9 @@ export interface ChangeSet {
   evidence?: ChangeEvidence[];
   /**
    * the operations, applied in order; a position names the content as read, and
-   * an empty list changes nothing
+   * an empty list changes nothing. Several operations may name one block, each
+   * sending the rev you read, since every if_match is checked against the
+   * content the change set began with
    */
   ops: ChangeOp[];
 }
@@ -82,8 +84,8 @@ export type ChangeGate = "enforce" | "report";
 export interface ChangeEvidence {
   /** a project-relative file */
   path?: string;
-  /** the block key inside the file */
-  unit?: string;
+  /** the block key a read reports as ref.block */
+  block?: string;
   /** the text the wording was seen in */
   quote?: string;
   /** a web page the wording was seen on */
@@ -121,7 +123,7 @@ export type SetContentOp = {
   at: ChangeRef;
   /**
    * the revision of the edition you read, "absent" for an edition that must not
-   * exist yet, or "*" for whatever is there
+   * exist yet, or "*" for a blind write, which only a person may send
    *
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
@@ -170,11 +172,16 @@ export interface ReplaceTextOp {
   at: ChangeRef;
   /**
    * the revision of the edition you read, "absent" for an edition that must not
-   * exist yet, or "*" for whatever is there
+   * exist yet, or "*" for a blind write, which only a person may send
    *
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
   if_match: string;
+  /**
+   * a plural form or select case every edit is in, for example [1, {"plural":
+   * "one"}]; an edit's own path overrides it
+   */
+  path?: RunPath;
   /**
    * the replacements, each naming its text by find, by start and end, or by
    * range
@@ -202,7 +209,7 @@ export interface SetAttributeOp {
   at: ChangeRef;
   /**
    * the revision of the edition you read, "absent" for an edition that must not
-   * exist yet, or "*" for whatever is there
+   * exist yet, or "*" for a blind write, which only a person may send
    *
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
@@ -224,7 +231,7 @@ export interface MarkOp {
   at: ChangeRef;
   /**
    * the revision of the edition you read, "absent" for an edition that must not
-   * exist yet, or "*" for whatever is there
+   * exist yet, or "*" for a blind write, which only a person may send
    *
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
@@ -243,7 +250,7 @@ export interface RemoveEditionOp {
   at: ChangeRef;
   /**
    * the revision of the edition you read, "absent" for an edition that must not
-   * exist yet, or "*" for whatever is there
+   * exist yet, or "*" for a blind write, which only a person may send
    *
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
@@ -332,7 +339,7 @@ export interface DecideOp {
   at: ChangeRef;
   /**
    * the revision of the edition you read, "absent" for an edition that must not
-   * exist yet, or "*" for whatever is there
+   * exist yet, or "*" for a blind write, which only a person may send
    *
    * @pattern ^(absent|\*|r:[0-9a-f]{16})$
    */
@@ -503,7 +510,10 @@ export type TextEdit = {
    * "one"}]
    */
   path?: RunPath;
-  /** literal text to match */
+  /**
+   * the text to match, in placeholder form: inline codes have zero width unless
+   * a <x id="…"/> token names one
+   */
   find?: string;
   /**
    * which match of find, counting from 1; omitted requires exactly one match
@@ -518,7 +528,10 @@ export type TextEdit = {
   end?: number;
   /** a span between run positions */
   range?: RunRange;
-  /** the replacement text */
+  /**
+   * the replacement text; after a find that names a code by its token,
+   * placeholder text naming the codes it keeps
+   */
   text: string;
 } & (
   | { find: string; start?: never; end?: never; range?: never }
@@ -538,7 +551,10 @@ export type TextSelection = {
    * "one"}]
    */
   path?: RunPath;
-  /** literal text to match */
+  /**
+   * the text to match, in placeholder form: inline codes have zero width unless
+   * a <x id="…"/> token names one
+   */
   find?: string;
   /**
    * which match of find, counting from 1; omitted requires exactly one match
@@ -987,6 +1003,12 @@ export interface DocResult {
    */
   before?: string;
   after: string | null;
+  /**
+   * Findings are what the commit check found on the edit: every finding it
+   * introduced, failing or not, on the document's first entry. It is an empty
+   * list when the check ran and found nothing, and absent when no check ran, as
+   * outside a project.
+   */
   findings?: ChangeFinding[];
   /** Diff, in a preview, is what the change would write, as a unified diff. */
   diff?: string;
@@ -1024,7 +1046,8 @@ export interface OpResult {
   invalidates?: Invalidation[];
   /**
    * Findings are guard findings the operation landed with, under a report
-   * disposition.
+   * disposition, which a tool in a flow applies with. What the commit check
+   * found is the document's (DocResult.Findings).
    */
   findings?: ChangeFinding[];
   error?: ChangeError;
@@ -1053,18 +1076,37 @@ export interface ChangeFinding {
   fails: boolean;
   suggested?: boolean;
   at?: ResultRef;
+  /** Range is the span of the edition the rule found, where it locates one. */
+  range?: ResolvedSpan;
+  /**
+   * Replacement is the wording a term rule asks for in place of what it found.
+   */
+  replacement?: string;
 }
 
 /**
  * Resolved is a span the service resolved, with the path of the run sequence it
- * lies in.
+ * lies in. Its ends follow model.RangeAnchor's attribution: a boundary at the
+ * end of a text run is the start of the run after it.
  *
  * Mirrors core/change.Resolved.
  */
 export interface ResolvedSpan {
   path?: RunPath;
-  start: RunPos;
-  end: RunPos;
+  start: ResultPosition;
+  end: ResultPosition;
+}
+
+/**
+ * Position is a run position as a result reports it: a run index and a
+ * code-point offset into that run's text. Both are always printed, a zero
+ * offset included, so a caller reads one shape.
+ *
+ * Mirrors core/change.Position.
+ */
+export interface ResultPosition {
+  run: number;
+  offset: number;
 }
 
 /**
@@ -1117,6 +1159,11 @@ export interface ChangeError {
    * reference that resolved to nothing might have meant.
    */
   candidates?: ErrorCandidate[];
+  /**
+   * Searched is, for a find that matches nothing, the run sequence it searched:
+   * the path that reaches it and its text in placeholder form.
+   */
+  searched?: FindSearched;
   /** Expected and Found describe a guard refusal. */
   expected?: string;
   found?: string;
@@ -1148,6 +1195,17 @@ export interface ErrorCandidate {
   at?: ResolvedSpan;
 }
 
+/**
+ * Searched is the run sequence a find searched: the path that reaches it, empty
+ * for the edition's own text, and that text in placeholder form.
+ *
+ * Mirrors core/change.Searched.
+ */
+export interface FindSearched {
+  path?: RunPath;
+  text: string;
+}
+
 // ── A read page (Service.Read) ──────────────────────────────────────────────
 
 /**
@@ -1169,6 +1227,14 @@ export interface ReadRequest {
   cursor?: string;
   /** Limit is the most blocks a page holds; zero is DefaultReadLimit. */
   limit?: number;
+  /**
+   * OwnEdition names the document's own edition in each block's ref, by the
+   * language the document is written in, where a ref would otherwise leave the
+   * edition out. A sender copies it into insert_block's editions, and the
+   * service takes it as the document's own edition. A surface sets it when it
+   * knows the document's language, as a project's recipe gives it.
+   */
+  own_edition?: boolean;
 }
 
 /**
@@ -1266,7 +1332,14 @@ export interface EditionRead {
    * an operation on the edition names to reach one of its branches.
    */
   structures?: StructureRead[];
-  status?: string;
+  /**
+   * Status is where the edition stands: draft, translated or established for a
+   * translation, written or established for the document's own edition, new for
+   * an edition with no recorded status, and untranslated for one with no
+   * recorded status whose text is the authoritative edition's, as a file the
+   * source filled holds it.
+   */
+  status: string;
   /**
    * Basis is the authoritative edition's revision the edition was made from,
    * where the host keeps it.

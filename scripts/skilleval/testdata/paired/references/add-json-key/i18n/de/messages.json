@@ -1,0 +1,18 @@
+{
+  "nav": {
+    "home": "Startseite",
+    "appointments": "Termine",
+    "help": "Hilfe"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "importData": "Daten importieren",
+    "exportData": "Daten exportieren",
+    "deleteAccount": "Konto löschen",
+    "deleteWarning": "Dadurch werden Ihre Termine und Nachrichten entfernt."
+  },
+  "footer": {
+    "privacy": "Datenschutz",
+    "contact": "Support kontaktieren"
+  }
+}

@@ -68,6 +68,16 @@ func restoreRedactedBlocks(layout project.Layout, batchID string, blocks []*mode
 			if tr, n := restore(b.TargetRuns(targetLocale)); n > 0 {
 				b.SetTargetRuns(targetLocale, tr)
 			}
+			continue
+		}
+		// Kept unrestored, a placeholder stays as the visible stand-in the
+		// vault records for it: text the file holds, as an XLIFF that carried
+		// the placeholder as a code returns it with no native form of its own.
+		if tr, n := redaction.Restore(b.TargetRuns(targetLocale), func(token string) (string, bool) {
+			v, ok := vault.Get(b.ID, token)
+			return v.Disp, ok && v.Disp != ""
+		}); n > 0 {
+			b.SetTargetRuns(targetLocale, tr)
 		}
 	}
 	return nil
@@ -197,9 +207,17 @@ func (a *App) RunMerge(cmd Command) error {
 	if failures > 0 {
 		return fmt.Errorf("merge: %d input file(s) failed. See errors above", failures)
 	}
-	// A truncated progress feed is reported after the result, so the deliverable
-	// still lands and the consumer still learns its feed was incomplete.
-	return progressReport()
+	if err := progressReport(); err != nil {
+		return err
+	}
+	// A refused unit is work left: its target file holds the source, or the
+	// translation it held, where the returned translation was meant to be. The
+	// merge exits 3, as a refused change set does, so a command chained after
+	// it does not go on with a file half in the source language.
+	if totals.Refused > 0 {
+		return WithExitCode(ExitGate, fmt.Errorf("merge: %d unit(s) refused; fix each target the lines above name and merge again", totals.Refused))
+	}
+	return nil
 }
 
 // MergeFromProjectStore materializes localized files from the project block

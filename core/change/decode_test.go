@@ -65,6 +65,13 @@ func decodeCases() []decodeCase {
 				e := s.Ops[0].Body.(*change.ReplaceText).Edits[0]
 				assert.Equal(t, model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOne}}, e.Path)
 			}},
+		{name: "replace_text with the branch's path on the operation", object: true, in: envelope(`{"op":"replace_text","at":{"doc":"locales/en.json","block":"cart.items"},"if_match":"r:77c0a1d2e3f40516","path":[1,{"plural":"one"}],"edits":[{"find":"item","text":"article"}]}`),
+			check: func(t *testing.T, s change.Set) {
+				body := s.Ops[0].Body.(*change.ReplaceText)
+				assert.Equal(t, model.RunPath{{Kind: model.StepIndex, Index: 1}, {Kind: model.StepPlural, PluralForm: model.PluralOne}}, body.Path)
+				assert.Empty(t, body.Edits[0].Path)
+			}},
+		{name: "a replace_text path that is not a path", object: true, in: envelope(`{"op":"replace_text",` + at + `,"if_match":"` + rev + `","path":[1,{"plural":"several"}],"edits":[{"find":"item","text":"article"}]}`), pointer: "/ops/0/path/1/plural"},
 		{name: "remove_edition", object: true, in: envelope(`{"op":"remove_edition","at":{"doc":"docs/guide.html","block":"p","edition":"de"},"if_match":"r:0c55e1f2a3b4c5d6"}`)},
 		{name: "annotate and unannotate", object: true, in: envelope(
 			`{"op":"annotate",`+at+`,"type":"note","id":"n1","anchor":{"kind":"range","start":{"run":2,"offset":0},"end":{"run":2,"offset":10}},"value":{"text":"Is it a handbook or a guide?"}}`,
@@ -112,6 +119,11 @@ func decodeCases() []decodeCase {
 				assert.True(t, s.RequireBasis)
 				assert.Len(t, s.Evidence, 2)
 			}},
+		{name: "evidence names a block as a read reports it", object: true, in: `{"evidence":[{"path":"docs/a.md","block":"install/p","quote":"Read the guide"}],"ops":[]}`,
+			check: func(t *testing.T, s change.Set) {
+				assert.Equal(t, []change.Evidence{{Path: "docs/a.md", Block: "install/p", Quote: "Read the guide"}}, s.Evidence)
+			}},
+		{name: "evidence that names a unit", object: true, in: `{"evidence":[{"path":"docs/a.md","unit":"install/p"}],"ops":[]}`, pointer: "/evidence/0/unit"},
 
 		// The other two input forms.
 		{name: "an array of operations", in: `[{"op":"unannotate",` + at + `,"type":"note","id":"n1"}]`,
@@ -230,4 +242,48 @@ func TestOpMarshal_ShapeOnTheWire(t *testing.T) {
 
 	_, err = json.Marshal(change.Op{Kind: change.KindSetContent, Body: &change.ReplaceText{}})
 	assert.Error(t, err, "a body of another kind")
+}
+
+// A refusal of a change set that does not decode says what to send instead,
+// for the guesses agents make most: a branch's path in the reference, a key
+// set_attribute does not take, and the operations sent as a string.
+func TestDecode_RefusalsSayWhatToSend(t *testing.T) {
+	at := `"at":{"doc":"lib/app_en.arb","block":"inbox"}`
+	for name, tc := range map[string]struct {
+		in, pointer string
+		says        []string
+	}{
+		"a path in the reference": {
+			in:      envelope(`{"op":"set_content","at":{"doc":"lib/app_en.arb","block":"inbox","path":[0,{"plural":"one"}]},"if_match":"` + rev + `","text":"x"}`),
+			pointer: "/ops/0/at/path",
+			says:    []string{"not part of the reference", "set_content takes it as the operation's path", "replace_text as the operation's path or each edit's"},
+		},
+		"a key set_attribute does not take": {
+			in:      envelope(`{"op":"set_attribute",` + at + `,"if_match":"` + rev + `","code":"1","attr":"href","value":"https://x.example"}`),
+			pointer: "/ops/0/attr",
+			says:    []string{"set_attribute takes at, code, if_match, name, op, value", "the attribute's name goes in name and its new value in value", "kapi apply --schema set_attribute"},
+		},
+		"an unknown field elsewhere": {
+			in:      envelope(`{"op":"replace_text",` + at + `,"if_match":"` + rev + `","edits":[{"find":"a","text":"b"}],"note":"x"}`),
+			pointer: "/ops/0/note",
+			says:    []string{"kapi apply --schema replace_text"},
+		},
+		"the operations as a string": {
+			in:      `{"ops":"[{\"op\":\"set_content\"}]"}`,
+			pointer: "/ops",
+			says:    []string{"is a string", "not as text that holds JSON"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := change.Decode(strings.NewReader(tc.in))
+			require.Error(t, err)
+			var ce *change.Error
+			require.ErrorAs(t, err, &ce)
+			assert.Equal(t, change.CodeInvalid, ce.Code)
+			assert.Equal(t, tc.pointer, ce.Pointer)
+			for _, s := range tc.says {
+				assert.Contains(t, ce.Message, s)
+			}
+		})
+	}
 }

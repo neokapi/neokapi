@@ -4,6 +4,13 @@
   "prompt": "Add one sentence to the end of the first paragraph of docs/en/reports.md telling readers that they can download every report as a CSV file from the portal. Change nothing else.",
   "editable": ["docs/en/reports.md"],
   "scope": ["docs"],
+  "late_context": {
+    "append": [
+      {"path": ".kapi/voice.yaml", "text": "terms:\n  - term: portal\n    replacement: overview page\n    note: Harbor Help has no portal. The page that lists a reader's reports is the overview page.\n"},
+      {"path": "STYLE.md", "text": "- Harbor Help has no portal. The page that lists a reader's reports is the\n  overview page: write \"overview page\", never \"portal\".\n"}
+    ],
+    "description": "Once the agent has read the project's context, or first writes the page, a person adds the term rule against portal, so the write meets the commit check rather than a rule the agent already followed"
+  },
   "criteria": [
     {"id": "sentence-added", "kind": "md_block_extends", "path": "docs/en/reports.md", "block": 1,
      "require": ["CSV"], "forbid": ["portal"],

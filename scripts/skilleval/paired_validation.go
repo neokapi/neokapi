@@ -15,7 +15,12 @@ import (
 // PairedValidation deliberately has no overall accepted/pass field: objective
 // checks cannot establish meaning, audience suitability or reviewer effort.
 type PairedValidation struct {
-	ObjectivePassed     bool                    `json:"objectivePassed"`
+	ObjectivePassed bool `json:"objectivePassed"`
+	// Outcome classes the attempt: passed; asked (it changed no task file
+	// and ended on a question to the person); unchanged (it changed no task
+	// file and asked nothing); failed (it changed a task file and did not
+	// pass).
+	Outcome             string                  `json:"outcome,omitempty"`
 	Criteria            []PairedCriterionResult `json:"criteria"`
 	HumanReviewRequired bool                    `json:"humanReviewRequired"`
 	HumanReviewStatus   string                  `json:"humanReviewStatus"`
@@ -39,14 +44,27 @@ type PairedCriterionResult struct {
 // byte-identical, and no file may appear in a scoped directory unless the task
 // creates it. The task's own criteria then assert the edit.
 func validatePairedTask(dir string, task PairedTask, observed *PairedAgentResult) (PairedValidation, error) {
+	return validatePairedCell(dir, task, "", observed)
+}
+
+// validatePairedCell is validatePairedTask for a cell of condition, whose
+// fixture files are the ones pairedCellFiles says it holds.
+func validatePairedCell(dir string, task PairedTask, condition string, observed *PairedAgentResult) (PairedValidation, error) {
 	result := PairedValidation{
 		ObjectivePassed: true, Criteria: []PairedCriterionResult{},
 		HumanReviewRequired: true, HumanReviewStatus: "pending",
 		HumanReviewRubric: slices.Clone(task.spec.HumanReviewRubric),
 	}
-	files, err := pairedTaskFiles(task)
+	files, err := pairedCellFiles(task, condition)
 	if err != nil {
 		return result, err
+	}
+	// A late context that landed changed its files as the person did; they
+	// are held to the fixture with its text added.
+	if late := task.spec.LateContext; late != nil && observed != nil && observed.LateContext != nil && observed.LateContext.Applied {
+		for _, a := range late.Append {
+			files[a.Path] = append(slices.Clone(files[a.Path]), a.Text...)
+		}
 	}
 	root, err := openPairedRoot(dir)
 	if err != nil {
@@ -75,6 +93,11 @@ func validatePairedTask(dir string, task PairedTask, observed *PairedAgentResult
 			Passed: scopeErr == nil, Detail: pairedErrorDetail(scopeErr),
 		})
 	}
+	rootErr := checkPairedRoot(root, files, task.spec.Creates)
+	result.add(PairedCriterionResult{
+		ID: "scope:/", Description: "No unexpected files in the workspace root", Path: ".",
+		Passed: rootErr == nil, Detail: pairedErrorDetail(rootErr),
+	})
 	for _, criterion := range task.spec.Criteria {
 		passed, detail, err := validatePairedCriterion(root, task, files, criterion, observed)
 		if err != nil {
@@ -85,7 +108,52 @@ func validatePairedTask(dir string, task PairedTask, observed *PairedAgentResult
 			Passed: passed, Informational: criterion.Informational, Detail: detail,
 		})
 	}
+	result.Outcome = pairedOutcome(result.ObjectivePassed, pairedTaskFilesUnchanged(root, task, files), observed)
 	return result, nil
+}
+
+// pairedTaskFilesUnchanged reports whether every file the task may change
+// is as the fixture left it and none it may add exists.
+func pairedTaskFilesUnchanged(root *os.Root, task PairedTask, files map[string][]byte) bool {
+	for _, name := range task.spec.Editable {
+		body, err := readPairedFile(root, name)
+		if err != nil || !bytes.Equal(body, files[name]) {
+			return false
+		}
+	}
+	for _, name := range task.spec.Creates {
+		if _, err := root.Stat(name); err == nil {
+			return false
+		}
+	}
+	return true
+}
+
+// pairedOutcome classes an attempt. One that changed nothing and ended on a
+// question asked the person rather than doing the task, which is its own
+// outcome: a gate task's agent that asks before writing a forbidden word has
+// not written it.
+func pairedOutcome(passed, unchanged bool, observed *PairedAgentResult) string {
+	switch {
+	case passed:
+		return "passed"
+	case !unchanged:
+		return "failed"
+	case observed != nil && pairedAsks(observed.FinalText):
+		return "asked"
+	}
+	return "unchanged"
+}
+
+// pairedAsks reports whether an agent's last message ends its turn on a
+// question to the person.
+func pairedAsks(text string) bool {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return false
+	}
+	paragraphs := strings.Split(text, "\n\n")
+	return strings.Contains(paragraphs[len(paragraphs)-1], "?")
 }
 
 // validatePairedCriterion evaluates one criterion. It returns an error only
@@ -95,12 +163,15 @@ func validatePairedTask(dir string, task PairedTask, observed *PairedAgentResult
 //	json_ordered         the file's JSON leaves, in document order, equal the reference's
 //	md_skeleton          the Markdown file has the source's block structure, link
 //	                     addresses, inline code and bold spans, in order
-//	md_translated        every prose block differs from the source's and no source
-//	                     sentence of four or more words remains
+//	md_translated        every prose block differs from the source's and no four
+//	                     words of the source's prose in a row remain
 //	language             the prose reads as the language Value names
 //	md_block_extends     block Block keeps the original's text and adds text that
 //	                     contains every Require and no Forbid
 //	md_blocks_unchanged  every block but those in Except keeps the original's text
+//	po_entries           the PO catalog's entries (context, source, plural source,
+//	                     translations and comments) equal the reference's, however
+//	                     each string is wrapped across lines
 //	forbids              the file contains none of Forbid
 //	icu_branch           branch Branch of the ICU message at Key equals the
 //	                     reference's, byte for byte
@@ -191,6 +262,20 @@ func validatePairedCriterion(root *os.Root, task PairedTask, files map[string][]
 		}
 		passed, detail := pairedBlocksUnchanged(string(original), string(output), c.Except)
 		return passed, detail, nil
+	case "po_entries":
+		want, err := pairedReference(task, c.Path)
+		if err != nil {
+			return false, "", err
+		}
+		wantEntries, err := pairedPOEntries(want)
+		if err != nil {
+			return false, "", fmt.Errorf("reference: %w", err)
+		}
+		gotEntries, err := pairedPOEntries(output)
+		if err != nil {
+			return false, err.Error(), nil
+		}
+		return pairedPOEntriesMatch(wantEntries, gotEntries)
 	case "forbids":
 		for _, word := range c.Forbid {
 			if pairedContainsWord(string(output), word) {
@@ -316,6 +401,28 @@ func checkPairedScope(root *os.Root, dir string, files map[string][]byte, create
 		}
 		return fmt.Errorf("unexpected file %q", name)
 	})
+}
+
+// checkPairedRoot refuses a file left directly in the workspace root that is
+// neither a fixture file nor one the task adds, such as a change set an agent
+// wrote beside the project. Directories are the scopes' and the runtime's,
+// and a dotfile is a host's or a tool's.
+func checkPairedRoot(root *os.Root, files map[string][]byte, creates []string) error {
+	entries, err := fs.ReadDir(root.FS(), ".")
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || strings.HasPrefix(name, ".") {
+			continue
+		}
+		if _, known := files[name]; known || slices.Contains(creates, name) {
+			continue
+		}
+		return fmt.Errorf("unexpected file %q", name)
+	}
+	return nil
 }
 
 func pairedErrorDetail(err error) string {

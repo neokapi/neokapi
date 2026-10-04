@@ -231,7 +231,7 @@ test.describe("Content changes", () => {
     });
     expect(refused.status).toBe(422);
     expect(refused.result.ops[0].error?.code).toBe("gate_failed");
-    expect(refused.result.ops[0].findings?.some((f) => f.fails)).toBe(true);
+    expect(refused.result.docs.some((d) => d.findings?.some((f) => f.fails))).toBe(true);
 
     // In the editor the person sees the findings and saves anyway.
     await page.goto(`/${wsSlug}/p/${projectId}/s/main/source`);

@@ -1475,8 +1475,37 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		}
 	}
 
-	// <originalData> emission, only when the unit declares one.
+	// Build segments. Per-segment inline IR drives full-fidelity emission
+	// of source/target bodies; segments without an IR fall back to plain
+	// Run text. The source/target seg lists are reconstructed from the
+	// block's flat runs + segmentation overlays.
+	srcSegs := sourceSegsFromBlock(block)
+	tgtSegs := targetSegsFromBlock(block, targetLang)
+
+	// <originalData> emission: the unit's own when it declares one, else
+	// the native forms of the codes of a block read from another format
+	// (foreign.go).
 	odAnnRaw, _ := block.Anno("xliff2:original-data")
+	var foreign *codeIndex
+	if odAnn, ok := odAnnRaw.(*OriginalDataAnnotation); (!ok || odAnn == nil || len(odAnn.Entries) == 0) && unitSegmentsIR(block) == nil {
+		if ix, data, ok := foreignCodes(srcSegs, tgtSegs); ok {
+			foreign = &ix
+			if len(data) > 0 {
+				odEl := unitEl.CreateElement("originalData")
+				for _, d := range data {
+					dataEl := odEl.CreateElement("data")
+					dataEl.CreateAttr("id", d.id)
+					dataEl.SetText(d.text)
+				}
+			}
+		}
+	}
+	codesOf := func(s *seg) codeIndex {
+		if foreign != nil {
+			return *foreign
+		}
+		return blockCodes(block, s)
+	}
 	if odAnn, ok := odAnnRaw.(*OriginalDataAnnotation); ok && odAnn != nil && len(odAnn.Entries) > 0 {
 		odEl := unitEl.CreateElement("originalData")
 		// Emit data entries in id-sorted order for deterministic output.
@@ -1492,12 +1521,6 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		}
 	}
 
-	// Build segments. Per-segment inline IR drives full-fidelity emission
-	// of source/target bodies; segments without an IR fall back to plain
-	// Run text. The source/target seg lists are reconstructed from the
-	// block's flat runs + segmentation overlays.
-	srcSegs := sourceSegsFromBlock(block)
-	tgtSegs := targetSegsFromBlock(block, targetLang)
 	for i := range srcSegs {
 		srcSeg := &srcSegs[i]
 		// XLIFF 2 distinguishes <segment> (translatable) from <ignorable>
@@ -1512,7 +1535,7 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		}
 
 		srcEl := segEl.CreateElement("source")
-		w.writeSegmentInline(srcEl, srcSeg, blockCodes(block, srcSeg))
+		w.writeSegmentInline(srcEl, srcSeg, codesOf(srcSeg))
 
 		// Pair the target segment: by id when ids are present (the
 		// segmented case carries overlay span ids), else positionally
@@ -1541,7 +1564,7 @@ func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLan
 		// unmatched prefill segments don't produce empty <target>s.
 		if tgt != nil && (byID || len(tgt.Runs) > 0 || tgt.Content != nil) {
 			tgtEl := segEl.CreateElement("target")
-			w.writeSegmentInline(tgtEl, tgt, blockCodes(block, tgt))
+			w.writeSegmentInline(tgtEl, tgt, codesOf(tgt))
 			// Surface the target's lifecycle status as the segment state, so a
 			// produced XLIFF reports where each unit stands. Scratch-build path
 			// only (this function is never called on the byte-exact round-trip

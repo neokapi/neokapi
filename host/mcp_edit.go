@@ -74,16 +74,6 @@ var readBlocksOutputSchema = json.RawMessage(`{"type":"object","properties":{` +
 	`"ops":{"type":"array","items":{"type":"string"},"description":"the operations the block accepts"}}}},` +
 	`"next":{"type":"string","description":"the cursor of the next page; absent on the last"}}}`)
 
-// applyEditsOutputSchema declares apply_edits' result, a
-// kapi.change-result/v1 document.
-var applyEditsOutputSchema = json.RawMessage(`{"type":"object","properties":{` +
-	`"schema":{"type":"string","const":"kapi.change-result/v1"},` +
-	`"status":{"type":"string","enum":["applied","refused","previewed","partial"],"description":"refused writes nothing; partial names the documents that landed"},` +
-	`"record":{"description":"the id of the recorded edit, when one was recorded"},` +
-	`"docs":{"type":"array","items":{"type":"object"},"description":"each document: written, the digests before and after, the findings, and in a preview the diff"},` +
-	`"ops":{"type":"array","items":{"type":"object"},"description":"each operation by index: status, the revisions before and after, the positions it resolved, the translations it made stale (invalidates), and on a refusal the error and, when stale, the current revision and text"},` +
-	`"error":{"type":"object","description":"why the change set could not be read, with the JSON pointer of what is wrong"}}}`)
-
 // describeFormatOutputSchema declares describe_format's result.
 var describeFormatOutputSchema = json.RawMessage(`{"type":"object","properties":{` +
 	`"format":{"type":"string"},` +
@@ -132,28 +122,33 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 	server.AddTool(&mcp.Tool{
 		Name:         "apply_edits",
 		InputSchema:  applyEditsInputSchema(),
-		OutputSchema: applyEditsOutputSchema,
+		OutputSchema: json.RawMessage(changeschema.ResultSchema()), // generated, and frozen with the request's
 		Description: "Apply a kapi.change/v1 change set: the one write verb. Each content operation addresses one edition " +
-			"of one block with at, the ref read_blocks reports, and carries if_match, the rev you read. set_content replaces " +
-			"the text (keep the <x id=\"…\"/> placeholders; with if_match \"absent\" and an edition it creates that translation), " +
-			"replace_text changes part of it by find, by start and end, or by range, and remove_edition drops a translation. " +
+			"of one block with at, the ref read_blocks reports, and carries if_match, the rev you read. Several operations " +
+			"may name one block, each with the rev you read. set_content replaces the text (keep the <x id=\"…\"/> " +
+			"placeholders; with if_match \"absent\" and an edition it creates that translation, which is how a translation's " +
+			"file is written), replace_text changes part of it by find (placeholder text, as read_blocks shows it), by start " +
+			"and end, or by range, set_attribute changes an inline code's attribute such as a link's href (code, name, value), " +
+			"mark wraps text in a new code such as fmt:bold, and remove_edition drops a translation. A plural or select " +
+			"branch is the operation's path. " +
 			"In a JSON, YAML or ARB catalog, insert_block adds a key (doc, name, after or before, and its text per language " +
 			"in editions) and delete_block removes one with its translations (at, and if_match mapping the catalog's own " +
 			"language to the rev you read). " +
 			"describe_format says which operations a format supports. A refused change set writes nothing: an edition " +
 			"that moved since you read it is refused as stale with its current revision and text, an edit that drops, " +
-			"invents or unbalances an inline code or flattens a plural is refused as guard, and every other operation reports " +
-			"not_applied. Each refusal carries a code and the field at fault: re-read, fix the operation and resend. Status " +
-			"partial means some of it landed: a write interrupted after some documents were written (docs says which), or " +
-			"a decision or store operation refused after the content was written, which carries its error. Re-read the " +
-			"documents before you send more. mode preview computes and checks the change set and returns a diff per " +
-			"document without writing. " +
+			"invents or unbalances an inline code or flattens a plural is refused as guard, an edit that introduces a " +
+			"failing term or voice finding is refused as gate_failed with the findings (rewrite the wording they name and " +
+			"resend; only a person can override), and every other operation reports not_applied. Each refusal carries a " +
+			"code and the field at fault: re-read, fix the operation and resend. Status partial means some of it landed: a " +
+			"write interrupted after some documents were written (docs says which), or a store operation refused after the " +
+			"content was written, which carries its error. Re-read the documents before you send more. mode preview computes " +
+			"and checks the change set and returns a diff per document without writing. " +
 			"A source edit lists the translations it made stale under invalidates. Every operation is recorded as yours, " +
 			"the calling agent's, in this server's session. Writing a term, a content-memory pair or a recipe field and " +
 			"deciding a review are a person's: those operations are refused as not_permitted. Record a term rule as a " +
-			"suggestion with context_observe, or context_correct for wording you changed, and record a pre-review as decide " +
-			"with outcome advise, a score from 0 to 100 and your reasons, at the ref and rev review_block reports. " +
-			"Run check_file on each changed file afterwards.",
+			"suggestion with context_observe, or context_correct for wording you changed. " +
+			"Each document's findings say what the commit check found on the edit; run check_file after a native write, " +
+			"or for what the commit check does not run.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		res, err := a.applyEditsMCP(ctx, mcpChangeActor(req), req.Params.Arguments)
 		if err != nil {
@@ -178,7 +173,8 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"file or one per file, and for each content operation what it accepts (the content forms of set_content, the " +
 			"code types a writer can create, the attributes set_attribute can change per code type), or null where the " +
 			"format refuses the operation as unsupported. Name a format, or a document to describe the format kapi reads " +
-			"it in.",
+			"it in. apply_edits' input schema gives each operation's fields; on the command line, kapi apply --schema OP " +
+			"prints one operation's schema.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in describeFormatInput) (*mcp.CallToolResult, any, error) {
 		res, err := a.describeFormatMCP(ctx, in)
 		return res, nil, err
@@ -207,11 +203,14 @@ func (a *App) readBlocksMCP(ctx context.Context, in readBlocksInput) (*mcp.CallT
 	if cerr != nil {
 		return changeRefusal(cerr)
 	}
-	svc, _, err := a.mcpChangeService(ctx, in.Project, editions)
+	svc, recipe, err := a.mcpChangeService(ctx, in.Project, editions)
 	if err != nil {
 		return nil, err
 	}
-	page, err := svc.Read(ctx, change.ReadRequest{Doc: in.Doc, Blocks: in.Blocks, Editions: editions, Cursor: in.Cursor, Limit: in.Limit})
+	// In a project a ref names the document's own edition by the language
+	// the recipe gives it.
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: in.Doc, Blocks: in.Blocks, Editions: editions, Cursor: in.Cursor, Limit: in.Limit,
+		OwnEdition: recipe != ""})
 	if err != nil {
 		return changeError(err)
 	}

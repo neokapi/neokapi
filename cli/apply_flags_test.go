@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -34,4 +36,23 @@ func TestInspectFlags(t *testing.T) {
 	r := cmd.Flags().Lookup("render")
 	require.NotNil(t, r)
 	assert.True(t, strings.Contains(r.Usage, "html"))
+}
+
+// --out names the file of an edition outside a project; inside one the
+// recipe's target names it, and --out is a usage error that says so.
+func TestApplyOutIsRefusedInsideAProject(t *testing.T) {
+	dir := t.TempDir()
+	recipe := filepath.Join(dir, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\ndefaults:\n  source_language: en\ncollections:\n  - path: a.md\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.md"), []byte("Hello\n"), 0o644))
+	change := filepath.Join(dir, "change.json")
+	require.NoError(t, os.WriteFile(change, []byte(`{"ops":[]}`), 0o644))
+	cmd := NewApplyCmd(newAppForTest(t))
+	cmd.SetArgs([]string{"-p", recipe, "--out", "nb.md", change})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Equal(t, ExitUsage, ExitCode(cmd, err))
+	assert.Contains(t, err.Error(), "--out: inside a project the recipe's target names the file of each edition")
 }

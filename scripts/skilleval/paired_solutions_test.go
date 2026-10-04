@@ -21,11 +21,14 @@ import (
 // change.
 type pairedSolution struct {
 	Steps []struct {
-		Note      string          `json:"note"`
-		Interfere bool            `json:"interfere,omitempty"`
-		Exit      int             `json:"exit"`
-		Code      string          `json:"code,omitempty"`
-		Changeset json.RawMessage `json:"changeset,omitempty"`
+		Note      string `json:"note"`
+		Interfere bool   `json:"interfere,omitempty"`
+		// LateContext lands the task's late context, as a person adding a
+		// rule while the agent works.
+		LateContext bool            `json:"late_context,omitempty"`
+		Exit        int             `json:"exit"`
+		Code        string          `json:"code,omitempty"`
+		Changeset   json.RawMessage `json:"changeset,omitempty"`
 	} `json:"steps"`
 }
 
@@ -79,6 +82,13 @@ func TestPairedSolutionsThroughKapi(t *testing.T) {
 					observed.Interference = &record
 					continue
 				}
+				if step.LateContext {
+					late := &pairedLateContextRun{spec: *task.spec.LateContext, workspace: dir, kapiBin: binary}
+					record := late.apply(t.Context())
+					require.True(t, record.Applied, record.Error)
+					observed.LateContext = &record
+					continue
+				}
 				changes := filepath.Join(t.TempDir(), "changes.json")
 				require.NoError(t, os.WriteFile(changes, step.Changeset, 0o600))
 				code, output := runPairedKapi(t, dir, binary, []string{"KAPI_ACTOR=agent"},
@@ -125,7 +135,31 @@ func TestPairedPluralRouteOnEverySurface(t *testing.T) {
 		"text": "{count} unread message",
 	}}})
 	require.NoError(t, err)
-	routes := map[string]json.RawMessage{"replace_text": solution.Steps[0].Changeset, "set_content typed": typed}
+	// replace_text whose find names the argument as a read shows it, by its
+	// token, and as the prompt spells it: a find reads as text does.
+	findWith := func(find, text string) json.RawMessage {
+		b, err := json.Marshal(map[string]any{"ops": []any{map[string]any{
+			"op": "replace_text", "at": map[string]any{"doc": "lib/l10n/app_en.arb", "block": "inboxCount"},
+			"if_match": reference.Ops[0].IfMatch,
+			"edits":    []any{map[string]any{"path": []any{0, map[string]any{"plural": "one"}}, "find": find, "text": text}},
+		}}})
+		require.NoError(t, err)
+		return b
+	}
+	// replace_text with the branch on the operation, where set_content takes
+	// it too.
+	onOperation, err := json.Marshal(map[string]any{"ops": []any{map[string]any{
+		"op": "replace_text", "at": map[string]any{"doc": "lib/l10n/app_en.arb", "block": "inboxCount"},
+		"if_match": reference.Ops[0].IfMatch, "path": []any{0, map[string]any{"plural": "one"}},
+		"edits": []any{map[string]any{"find": "new message", "text": "unread message"}},
+	}}})
+	require.NoError(t, err)
+	routes := map[string]json.RawMessage{
+		"replace_text": solution.Steps[0].Changeset, "set_content typed": typed,
+		"replace_text path on the operation": onOperation,
+		"replace_text token":                 findWith(`<x id="p1/"/> new message`, `<x id="p1/"/> unread message`),
+		"replace_text argument":              findWith("{count} new message", "{count} unread message"),
+	}
 
 	surfaces := []struct {
 		name  string
@@ -207,11 +241,15 @@ func TestPairedProjectFreeAliasHasNoGate(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, materializePairedTask(dir, task))
 	require.NoError(t, readPairedContext(t.Context(), dir, binary))
+	late := &pairedLateContextRun{spec: *task.spec.LateContext, workspace: dir, kapiBin: binary}
+	record := late.apply(t.Context())
+	require.True(t, record.Applied, record.Error)
 	bin := t.TempDir()
 	alias := filepath.Join(bin, pairedFilesAlias)
 	require.NoError(t, os.Symlink(binary, alias))
 	changes := filepath.Join(t.TempDir(), "changes.json")
-	require.NoError(t, os.WriteFile(changes, solution.Steps[0].Changeset, 0o600))
+	require.True(t, solution.Steps[0].LateContext, "the rule lands before the first write")
+	require.NoError(t, os.WriteFile(changes, solution.Steps[1].Changeset, 0o600))
 	code, output := runPairedKapi(t, dir, alias, []string{"KAPI_ACTOR=agent"}, "apply", "--json", changes)
 	require.Equal(t, 0, code, string(output))
 	body, err := os.ReadFile(filepath.Join(dir, "docs", "en", "reports.md"))

@@ -83,7 +83,8 @@ func TestExtractAndMergeKeepAPlural(t *testing.T) {
   </file>`, 1)
 	require.NoError(t, os.WriteFile(xliffPath, []byte(xliff), 0o644))
 	out, err = runCLI(t, NewMergeCmd(a, MergeCmdOptions{}), "--project", recipe, "-i", xliffPath)
-	require.NoError(t, err, out)
+	require.Error(t, err, out)
+	assert.Equal(t, ExitGate, ExitCode(nil, err), "a merge that refused a unit exits 3: %s", out)
 
 	merged, err := os.ReadFile(filepath.Join(root, "lib", "l10n", "app_fr.arb"))
 	require.NoError(t, err)

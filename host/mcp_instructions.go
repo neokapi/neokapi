@@ -17,6 +17,9 @@ package host
 // MCPInstructions is the server's introduction when it serves the writing
 // set, delivered to every client on initialize.
 //
+// It names the edit tools: a host that defers tool schemas loads a tool by
+// the name it has read, and the instructions are what it reads first.
+//
 // It points at context_read rather than the resource. The server offers the
 // resource only as a template, and a client lists no resources from a
 // template, so a model working from its tool list reaches the answer through
@@ -24,6 +27,8 @@ package host
 func MCPInstructions() string {
 	return "This project's writing rules are kept by kapi. Before you change a file, call context_read " +
 		"with its project-relative path; it says what applies, or that nothing is recorded yet.\n\n" +
+		"To change text inside a file, read it with read_blocks and send the change to apply_edits; " +
+		"describe_format says what a format accepts.\n\n" +
 		"As you read, record with context_observe what the files do every time, even where your text " +
 		"does not need it: product, feature and plan names, the spelling variety, a word chosen over a " +
 		"common alternative. Leave alone a word the files write two ways. Record the person's edits with " +

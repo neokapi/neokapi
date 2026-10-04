@@ -141,6 +141,15 @@ export class ContextAnswer {
              */
             this["constraints"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * EditionOf names, for the file of a translation the recipe keeps, the
+             * source document it is an edition of and the edition.
+             * @member
+             * @type {ContextEditionOf | null | undefined}
+             */
+            this["edition_of"] = undefined;
+        }
         if (!("point" in $$source)) {
             /**
              * Point is the coordinate the request resolved to.
@@ -302,49 +311,53 @@ export class ContextAnswer {
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType1;
-        const $$createField1_0 = $$createType2;
-        const $$createField4_0 = $$createType4;
+        const $$createField1_0 = $$createType3;
+        const $$createField2_0 = $$createType4;
         const $$createField5_0 = $$createType6;
         const $$createField6_0 = $$createType8;
-        const $$createField8_0 = $$createType10;
+        const $$createField7_0 = $$createType10;
         const $$createField9_0 = $$createType12;
         const $$createField10_0 = $$createType14;
-        const $$createField13_0 = $$createType15;
-        const $$createField14_0 = $$createType15;
+        const $$createField11_0 = $$createType16;
+        const $$createField14_0 = $$createType17;
         const $$createField15_0 = $$createType17;
+        const $$createField16_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
         }
+        if ("edition_of" in $$parsedSource) {
+            $$parsedSource["edition_of"] = $$createField1_0($$parsedSource["edition_of"]);
+        }
         if ("point" in $$parsedSource) {
-            $$parsedSource["point"] = $$createField1_0($$parsedSource["point"]);
+            $$parsedSource["point"] = $$createField2_0($$parsedSource["point"]);
         }
         if ("provenance" in $$parsedSource) {
-            $$parsedSource["provenance"] = $$createField4_0($$parsedSource["provenance"]);
+            $$parsedSource["provenance"] = $$createField5_0($$parsedSource["provenance"]);
         }
         if ("voice" in $$parsedSource) {
-            $$parsedSource["voice"] = $$createField5_0($$parsedSource["voice"]);
+            $$parsedSource["voice"] = $$createField6_0($$parsedSource["voice"]);
         }
         if ("terms" in $$parsedSource) {
-            $$parsedSource["terms"] = $$createField6_0($$parsedSource["terms"]);
+            $$parsedSource["terms"] = $$createField7_0($$parsedSource["terms"]);
         }
         if ("suggestions" in $$parsedSource) {
-            $$parsedSource["suggestions"] = $$createField8_0($$parsedSource["suggestions"]);
+            $$parsedSource["suggestions"] = $$createField9_0($$parsedSource["suggestions"]);
         }
         if ("profiles" in $$parsedSource) {
-            $$parsedSource["profiles"] = $$createField9_0($$parsedSource["profiles"]);
+            $$parsedSource["profiles"] = $$createField10_0($$parsedSource["profiles"]);
         }
         if ("rules" in $$parsedSource) {
-            $$parsedSource["rules"] = $$createField10_0($$parsedSource["rules"]);
+            $$parsedSource["rules"] = $$createField11_0($$parsedSource["rules"]);
         }
         if ("attention" in $$parsedSource) {
-            $$parsedSource["attention"] = $$createField13_0($$parsedSource["attention"]);
+            $$parsedSource["attention"] = $$createField14_0($$parsedSource["attention"]);
         }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField14_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField15_0($$parsedSource["notes"]);
         }
         if ("notice" in $$parsedSource) {
-            $$parsedSource["notice"] = $$createField15_0($$parsedSource["notice"]);
+            $$parsedSource["notice"] = $$createField16_0($$parsedSource["notice"]);
         }
         return new ContextAnswer(/** @type {Partial<ContextAnswer>} */($$parsedSource));
     }
@@ -465,11 +478,11 @@ export class ContextDigest {
      * @returns {ContextDigest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType19;
-        const $$createField4_0 = $$createType21;
-        const $$createField5_0 = $$createType23;
-        const $$createField6_0 = $$createType25;
-        const $$createField7_0 = $$createType26;
+        const $$createField3_0 = $$createType21;
+        const $$createField4_0 = $$createType23;
+        const $$createField5_0 = $$createType25;
+        const $$createField6_0 = $$createType27;
+        const $$createField7_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("conflicts" in $$parsedSource) {
             $$parsedSource["conflicts"] = $$createField3_0($$parsedSource["conflicts"]);
@@ -487,6 +500,45 @@ export class ContextDigest {
             $$parsedSource["numbers"] = $$createField7_0($$parsedSource["numbers"]);
         }
         return new ContextDigest(/** @type {Partial<ContextDigest>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextEditionOf names the source document a translation's file holds an
+ * edition of, and the edition.
+ */
+export class ContextEditionOf {
+    /**
+     * Creates a new ContextEditionOf instance.
+     * @param {Partial<ContextEditionOf>} [$$source = {}] - The source object to create the ContextEditionOf.
+     */
+    constructor($$source = {}) {
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (!("edition" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["edition"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextEditionOf instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextEditionOf}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ContextEditionOf(/** @type {Partial<ContextEditionOf>} */($$parsedSource));
     }
 }
 
@@ -527,7 +579,7 @@ export class ContextFilesNotice {
      * @returns {ContextFilesNotice}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType15;
+        const $$createField0_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -680,7 +732,7 @@ export class ContextPoint {
      * @returns {ContextPoint}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType27;
+        const $$createField5_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coordinates" in $$parsedSource) {
             $$parsedSource["coordinates"] = $$createField5_0($$parsedSource["coordinates"]);
@@ -748,7 +800,7 @@ export class ContextPrecedentHit {
      * @returns {ContextPrecedentHit}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType15;
+        const $$createField4_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("discouraged" in $$parsedSource) {
             $$parsedSource["discouraged"] = $$createField4_0($$parsedSource["discouraged"]);
@@ -864,9 +916,9 @@ export class ContextRule {
      * @returns {ContextRule}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType15;
-        const $$createField2_0 = $$createType15;
-        const $$createField5_0 = $$createType15;
+        const $$createField1_0 = $$createType17;
+        const $$createField2_0 = $$createType17;
+        const $$createField5_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("also" in $$parsedSource) {
             $$parsedSource["also"] = $$createField1_0($$parsedSource["also"]);
@@ -1053,14 +1105,14 @@ export class ContextSearchResult {
      * @returns {ContextSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType4;
-        const $$createField4_0 = $$createType17;
-        const $$createField5_0 = $$createType8;
-        const $$createField6_0 = $$createType29;
-        const $$createField7_0 = $$createType12;
-        const $$createField8_0 = $$createType10;
-        const $$createField9_0 = $$createType15;
-        const $$createField10_0 = $$createType15;
+        const $$createField3_0 = $$createType6;
+        const $$createField4_0 = $$createType19;
+        const $$createField5_0 = $$createType10;
+        const $$createField6_0 = $$createType31;
+        const $$createField7_0 = $$createType14;
+        const $$createField8_0 = $$createType12;
+        const $$createField9_0 = $$createType17;
+        const $$createField10_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("provenance" in $$parsedSource) {
             $$parsedSource["provenance"] = $$createField3_0($$parsedSource["provenance"]);
@@ -1242,10 +1294,10 @@ export class ContextSuggestion {
      * @returns {ContextSuggestion}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType15;
-        const $$createField5_0 = $$createType15;
-        const $$createField13_0 = $$createType31;
-        const $$createField14_0 = $$createType33;
+        const $$createField3_0 = $$createType17;
+        const $$createField5_0 = $$createType17;
+        const $$createField13_0 = $$createType33;
+        const $$createField14_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("contested_by" in $$parsedSource) {
             $$parsedSource["contested_by"] = $$createField3_0($$parsedSource["contested_by"]);
@@ -1399,7 +1451,7 @@ export class ContextTermHit {
      * @returns {ContextTermHit}
      */
     static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType35;
+        const $$createField12_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("top_uses" in $$parsedSource) {
             $$parsedSource["top_uses"] = $$createField12_0($$parsedSource["top_uses"]);
@@ -1733,7 +1785,7 @@ export class ConvergeLocaleResult {
      * @returns {ConvergeLocaleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType36;
+        const $$createField3_0 = $$createType38;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
@@ -1915,9 +1967,9 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType38;
-        const $$createField4_0 = $$createType40;
-        const $$createField15_0 = $$createType42;
+        const $$createField3_0 = $$createType40;
+        const $$createField4_0 = $$createType42;
+        const $$createField15_0 = $$createType44;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -2007,7 +2059,7 @@ export class DigestConflict {
      * @returns {DigestConflict}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType21;
+        const $$createField0_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sides" in $$parsedSource) {
             $$parsedSource["sides"] = $$createField0_0($$parsedSource["sides"]);
@@ -2067,7 +2119,7 @@ export class DigestDrift {
      * @returns {DigestDrift}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType20;
+        const $$createField0_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rule" in $$parsedSource) {
             $$parsedSource["rule"] = $$createField0_0($$parsedSource["rule"]);
@@ -2112,7 +2164,7 @@ export class DigestGroup {
      * @returns {DigestGroup}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType21;
+        const $$createField1_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("items" in $$parsedSource) {
             $$parsedSource["items"] = $$createField1_0($$parsedSource["items"]);
@@ -2299,11 +2351,11 @@ export class DigestItem {
      * @returns {DigestItem}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType43;
-        const $$createField6_0 = $$createType44;
-        const $$createField9_0 = $$createType46;
-        const $$createField10_0 = $$createType47;
-        const $$createField18_0 = $$createType15;
+        const $$createField5_0 = $$createType45;
+        const $$createField6_0 = $$createType46;
+        const $$createField9_0 = $$createType48;
+        const $$createField10_0 = $$createType49;
+        const $$createField18_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("subject" in $$parsedSource) {
             $$parsedSource["subject"] = $$createField5_0($$parsedSource["subject"]);
@@ -2432,7 +2484,7 @@ export class DigestTheme {
      * @returns {DigestTheme}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType49;
+        const $$createField2_0 = $$createType51;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("groups" in $$parsedSource) {
             $$parsedSource["groups"] = $$createField2_0($$parsedSource["groups"]);
@@ -2510,7 +2562,7 @@ export class DigestUsage {
      * @returns {DigestUsage}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType15;
+        const $$createField2_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rejected" in $$parsedSource) {
             $$parsedSource["rejected"] = $$createField2_0($$parsedSource["rejected"]);
@@ -2725,9 +2777,9 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType51;
-        const $$createField4_0 = $$createType50;
-        const $$createField8_0 = $$createType42;
+        const $$createField3_0 = $$createType53;
+        const $$createField4_0 = $$createType52;
+        const $$createField8_0 = $$createType44;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -2916,53 +2968,55 @@ export class UpPlanScope {
 // Private type creation functions
 const $$createType0 = profile$0.ConstraintResolution.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = ContextPoint.createFrom;
-const $$createType3 = check$0.ContextProvenance.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = review$0.Voice.createFrom;
+const $$createType2 = ContextEditionOf.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = ContextPoint.createFrom;
+const $$createType5 = check$0.ContextProvenance.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = ContextTermHit.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = ContextSuggestion.createFrom;
+const $$createType7 = review$0.Voice.createFrom;
+const $$createType8 = $Create.Nullable($$createType7);
+const $$createType9 = ContextTermHit.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = review$0.ProfileValidity.createFrom;
+const $$createType11 = ContextSuggestion.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = ContextRule.createFrom;
+const $$createType13 = review$0.ProfileValidity.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = $Create.Array($Create.Any);
-const $$createType16 = ContextFilesNotice.createFrom;
-const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = DigestConflict.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = DigestItem.createFrom;
+const $$createType15 = ContextRule.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = $Create.Array($Create.Any);
+const $$createType18 = ContextFilesNotice.createFrom;
+const $$createType19 = $Create.Nullable($$createType18);
+const $$createType20 = DigestConflict.createFrom;
 const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = DigestTheme.createFrom;
+const $$createType22 = DigestItem.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = DigestDrift.createFrom;
+const $$createType24 = DigestTheme.createFrom;
 const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = DigestNumbers.createFrom;
-const $$createType27 = $Create.Map($Create.Any, $Create.Any);
-const $$createType28 = ContextPrecedentHit.createFrom;
-const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = contextop$0.Evidence.createFrom;
+const $$createType26 = DigestDrift.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = DigestNumbers.createFrom;
+const $$createType29 = $Create.Map($Create.Any, $Create.Any);
+const $$createType30 = ContextPrecedentHit.createFrom;
 const $$createType31 = $Create.Array($$createType30);
-const $$createType32 = contextop$0.Standing.createFrom;
-const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = ContextTermUse.createFrom;
-const $$createType35 = $Create.Array($$createType34);
-const $$createType36 = $Create.Map($Create.Any, $Create.Any);
-const $$createType37 = ConvergeLocaleResult.createFrom;
-const $$createType38 = $Create.Array($$createType37);
-const $$createType39 = ParkedScope.createFrom;
+const $$createType32 = contextop$0.Evidence.createFrom;
+const $$createType33 = $Create.Array($$createType32);
+const $$createType34 = contextop$0.Standing.createFrom;
+const $$createType35 = $Create.Nullable($$createType34);
+const $$createType36 = ContextTermUse.createFrom;
+const $$createType37 = $Create.Array($$createType36);
+const $$createType38 = $Create.Map($Create.Any, $Create.Any);
+const $$createType39 = ConvergeLocaleResult.createFrom;
 const $$createType40 = $Create.Array($$createType39);
-const $$createType41 = check$0.Warning.createFrom;
+const $$createType41 = ParkedScope.createFrom;
 const $$createType42 = $Create.Array($$createType41);
-const $$createType43 = contextop$0.Subject.createFrom;
-const $$createType44 = $Create.Nullable($$createType30);
-const $$createType45 = DigestUsage.createFrom;
-const $$createType46 = $Create.Nullable($$createType45);
-const $$createType47 = contextop$0.Actor.createFrom;
-const $$createType48 = DigestGroup.createFrom;
-const $$createType49 = $Create.Array($$createType48);
-const $$createType50 = UpPlanScope.createFrom;
+const $$createType43 = check$0.Warning.createFrom;
+const $$createType44 = $Create.Array($$createType43);
+const $$createType45 = contextop$0.Subject.createFrom;
+const $$createType46 = $Create.Nullable($$createType32);
+const $$createType47 = DigestUsage.createFrom;
+const $$createType48 = $Create.Nullable($$createType47);
+const $$createType49 = contextop$0.Actor.createFrom;
+const $$createType50 = DigestGroup.createFrom;
 const $$createType51 = $Create.Array($$createType50);
+const $$createType52 = UpPlanScope.createFrom;
+const $$createType53 = $Create.Array($$createType52);

@@ -814,12 +814,13 @@ func TestMCPApplyEdits_APreReviewCarriesItsScore(t *testing.T) {
 // appliedWording counts the wording an agent wrote into a document's own
 // edition, under the document as the result names it, so a document sent as
 // ./x and as x counts once, and a translation's wording counts against no
-// rule of the source.
+// rule of the source. Each edit carries the wording it replaced: a
+// replace_text's find, and the text a set_content's block held before.
 func TestAppliedWording_KeysByTheCanonicalDocument(t *testing.T) {
 	text := func(s string) *string { return &s }
 	set := change.Set{Ops: []change.Op{
 		{Kind: change.KindSetContent, At: change.Ref{Doc: "./docs/a.md", Block: "p1"}, Body: &change.SetContent{Text: text("Use the app")}},
-		{Kind: change.KindReplaceText, At: change.Ref{Doc: "docs/a.md", Block: "p2"}, Body: &change.ReplaceText{Edits: []change.TextEdit{{Text: "use"}}}},
+		{Kind: change.KindReplaceText, At: change.Ref{Doc: "docs/a.md", Block: "p2"}, Body: &change.ReplaceText{Edits: []change.TextEdit{{Find: text("utilise"), Text: "use"}}}},
 		{Kind: change.KindSetContent, At: change.Ref{Doc: "docs/fr/a.md", Block: "p1"}, Body: &change.SetContent{Text: text("Utilisez l'app")}},
 		{Kind: change.KindSetContent, At: change.Ref{Doc: "docs/a.md", Block: "p3"}, Body: &change.SetContent{Text: text("refused")}},
 	}}
@@ -829,5 +830,25 @@ func TestAppliedWording_KeysByTheCanonicalDocument(t *testing.T) {
 		{Status: change.OpApplied, At: &change.Ref{Doc: "docs/a.md", Block: "p1", Edition: editionKey(t, "fr")}},
 		{Status: change.OpRefused, At: &change.Ref{Doc: "docs/a.md", Block: "p3"}},
 	}}
-	assert.Equal(t, map[string][]string{"docs/a.md": {"Use the app", "use"}}, appliedWording(set, res))
+	assert.Equal(t, map[string][]editWording{"docs/a.md": {
+		{Before: "Utilise the app", After: "Use the app"},
+		{Before: "utilise", After: "use"},
+	}}, appliedWording(set, res, map[int]string{0: "Utilise the app"}))
+}
+
+// An agent's set_content through apply_edits is weighed against the text the
+// block held: the read before the apply supplies it, by operation.
+func TestWordingBefore_ReadsTheBlocksASetContentReplaces(t *testing.T) {
+	app := &App{Encoding: "UTF-8"}
+	app.InitRegistries()
+	recipe := languageProject(t, "en", []string{"fr"}, map[string]string{"en": `{"a":"We use it","b":"Other"}`, "fr": `{"a":"Nous"}`})
+	svc, err := app.ChangeService(t.Context(), ChangeServiceOptions{Project: recipe, Origin: "mcp"})
+	require.NoError(t, err)
+	text := func(s string) *string { return &s }
+	set := change.Set{Ops: []change.Op{
+		{Kind: change.KindReplaceText, At: change.Ref{Doc: "en.json", Block: "b"}, Body: &change.ReplaceText{}},
+		{Kind: change.KindSetContent, At: change.Ref{Doc: "en.json", Block: "a"}, Body: &change.SetContent{Text: text("We use it daily")}},
+		{Kind: change.KindSetContent, At: change.Ref{Doc: "en.json", Block: "missing"}, Body: &change.SetContent{Text: text("x")}},
+	}}
+	assert.Equal(t, map[int]string{1: "We use it"}, wordingBefore(t.Context(), svc, set))
 }

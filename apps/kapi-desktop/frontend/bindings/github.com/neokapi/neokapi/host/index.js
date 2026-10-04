@@ -8,6 +8,7 @@ export {
     ContextAnswer,
     ContextCoverage,
     ContextDigest,
+    ContextEditionOf,
     ContextFilesNotice,
     ContextNews,
     ContextPoint,

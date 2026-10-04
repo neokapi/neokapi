@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/change"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/diffscope"
@@ -214,6 +215,10 @@ type diffCheckRun struct {
 	// unread collects the changed files the recipe declares in a format no
 	// installed reader opens. It is nil when the check names its files.
 	unread *UnreadSet
+	// held is the language each declared bilingual file holds its
+	// translation in, by scope key, so a block it holds is named with its
+	// edition.
+	held map[string]model.LocaleID
 }
 
 // runDiffCheck checks the content blocks a diff touches, each block whole, and
@@ -229,6 +234,8 @@ func (a *App) runDiffCheck(ctx context.Context, run diffCheckRun) (check.Report,
 	if err != nil {
 		return check.Report{}, err
 	}
+	editions, held := a.declaredEditions(run)
+	run.held = held
 	var named map[string]bool
 	if len(run.named) > 0 {
 		named = map[string]bool{}
@@ -255,6 +262,12 @@ func (a *App) runDiffCheck(ctx context.Context, run diffCheckRun) (check.Report,
 			entry.Status = check.ScopeDeleted
 		case declared != nil && declared[key] == "":
 			entry.Status, entry.Reason = check.ScopeOutOfScope, "not content "+recipe+" declares"
+			if u, ok := editions[key]; ok {
+				src := displayRelative(u.SourcePath)
+				entry.Reason = fmt.Sprintf("the %s edition of %s, and a check of a diff covers source content: "+
+					"to check the translation, run `kapi check %s --target %s --target-lang %s`",
+					u.Locale, src, src, entry.Path, u.Locale)
+			}
 		default:
 			// The recipe binds a format under the path as it resolved it.
 			path := abs
@@ -370,14 +383,18 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 	if err != nil {
 		return nil, 0, err
 	}
+	// A file whose touched blocks cannot be told apart is still checked
+	// whole, so the reason ends with the command that does it.
+	whole := fmt.Sprintf("; to check the whole file, run `kapi check %s`", entry.Path)
 	notRun := func(reason string) ([]check.Diagnostic, int, error) {
-		entry.Status, entry.Reason = check.ScopeDidNotRun, reason
+		entry.Status, entry.Reason = check.ScopeDidNotRun, reason+whole
 		return nil, 0, nil
 	}
 	// Content that could not be read into blocks at all leaves the file's
 	// blocks unknown, so finding none says nothing.
 	if read.unread != nil {
-		return notRun(read.unread.Error())
+		entry.Status, entry.Reason = check.ScopeDidNotRun, read.unread.Error()
+		return nil, 0, nil
 	}
 	if len(read.blocks) == 0 {
 		entry.Status = check.ScopeNoContent
@@ -412,7 +429,7 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 	// A block confined to a region may sit on any line the region covers, so a
 	// change on those lines may touch it, and its content is not checked. The
 	// blocks the file places exactly are checked either way.
-	unplaced := touchedConfined(read, f.Changes)
+	unplaced := touchedConfined(read, f.Changes, run.held[scopeKey(abs)])
 	lines := map[string]format.LineRange{}
 	for _, x := range touchedExtents {
 		if _, seen := lines[x.Block]; !seen {
@@ -430,7 +447,7 @@ func (a *App) checkDiffFile(ctx context.Context, run diffCheckRun, f diffscope.F
 	}
 	switch {
 	case unplaced != "":
-		entry.Status, entry.Reason = check.ScopeDidNotRun, unplaced
+		entry.Status, entry.Reason = check.ScopeDidNotRun, unplaced+whole
 	case len(touched) == 0:
 		entry.Status = check.ScopeUntouched
 	default:
@@ -498,10 +515,15 @@ func settleBordered(ctx context.Context, locate blockLocator, f diffscope.File, 
 // touchedConfined names the confined content blocks whose region a change's
 // lines reach, each with the lines it could sit on, as the reason the file did
 // not run. It returns "" when no change reaches one.
-func touchedConfined(read scopedRead, changes []diffscope.Change) string {
+func touchedConfined(read scopedRead, changes []diffscope.Change, held model.LocaleID) string {
 	keys := map[string]string{}
 	for _, b := range read.blocks {
 		keys[b.ID] = blockKey(b)
+		// A bilingual file's block is named with the edition it holds:
+		// key@locale.
+		if held != "" {
+			keys[b.ID] += "@" + string(held)
+		}
 	}
 	var regions []format.Extent
 	reasons := map[string]string{}
@@ -631,6 +653,41 @@ func verifyPostImage(f diffscope.File, content []byte, where string) error {
 		}
 	}
 	return nil
+}
+
+// declaredEditions maps each translation file the recipe declares for its
+// content, by scope key, to the source and language it is the edition of, and
+// each declared bilingual file that keeps its translation in it to the
+// language it holds. Both are empty outside a project, and for a diff read
+// from git's objects.
+func (a *App) declaredEditions(run diffCheckRun) (map[string]VerifyUnit, map[string]model.LocaleID) {
+	projectPath, err := ResolveProjectPath(run.cmd)
+	if err != nil || projectPath == "" || run.src.objects != nil {
+		return nil, nil
+	}
+	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return nil, nil
+	}
+	root := filepath.Dir(projectPath)
+	resolved, err := project.NewProjectContext(proj, projectPath).ResolveContent(a.FormatReg)
+	if err != nil {
+		return nil, nil
+	}
+	editions := map[string]VerifyUnit{}
+	held := map[string]model.LocaleID{}
+	for _, rf := range resolved {
+		for _, u := range a.unitsOfFile(proj, root, rf, "") {
+			editions[scopeKey(u.TargetPath)] = u
+		}
+		if rf.Item != nil && rf.Item.Target == "" && a.editionsOf(rf.Format) == change.EditionsInFile {
+			declared := declaredLanguage(rf.Format, rf.Path, model.LocaleID(ResolveSourceLocale("", proj.Defaults.SourceLanguage)))
+			if loc := heldLocale(rf.Relative, declared, rf.Item.ResolvedTargetLanguages(nil, proj.Defaults)); loc != "" {
+				held[scopeKey(rf.Path)] = loc
+			}
+		}
+	}
+	return editions, held
 }
 
 // declaredContent maps each file of the project's declared content from its

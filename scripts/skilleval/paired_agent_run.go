@@ -67,7 +67,7 @@ func runPairedAgent(ctx context.Context, prepared PairedPrepared) (PairedAgentRe
 	defer func() { _ = pairedStopProcess(command) }()
 	transcriptFilter := newPairedRedactor(transcript, prepared.Env)
 	defer transcriptFilter.Flush()
-	result, parseErr := parsePairedAgentStream(io.TeeReader(pipe, transcriptFilter), prepared.Launch)
+	result, parseErr := parsePairedAgentStream(ctx, io.TeeReader(pipe, transcriptFilter), prepared.Launch)
 	if parseErr != nil && result.Status != "identity_unverified" {
 		_ = pairedStopProcess(command)
 		_ = pipe.Close()
@@ -86,6 +86,9 @@ func runPairedAgent(ctx context.Context, prepared PairedPrepared) (PairedAgentRe
 				parseErr = nil
 			}
 		}
+	}
+	if prepared.Launch.Agent.Host == "codex" && result.SessionID != "" {
+		mergePairedCodexRollout(&result, prepared.Launch)
 	}
 	result.DurationMS = time.Since(started).Milliseconds()
 	switch {
@@ -143,14 +146,46 @@ func pairedRateLimited(message string) bool {
 
 // pairedInfraPatterns recognise a failure of the service or the machine
 // rather than of the agent: a refused or expired login, an overloaded or
-// failing API, a dropped network.
+// failing API, a dropped network, a full disk.
 var pairedInfraPatterns = []struct {
 	reason  string
 	pattern *regexp.Regexp
 }{
 	{"auth", regexp.MustCompile(`(?i)oauth token (?:has )?expired|token (?:has |is )?(?:expired|revoked)|invalid (?:api key|bearer token|x-api-key)|authentication[_ ](?:error|failed)|\b401\b|unauthori[sz]ed|please run /login|not logged in|login (?:is )?required|refresh token|failed to refresh|re-?authenticate`)},
-	{"overload", regexp.MustCompile(`(?i)\b529\b|overloaded|api error: 5\d\d|\b50[0234]\b (?:internal server error|bad gateway|service unavailable|gateway timeout)|internal server error|service unavailable|bad gateway|gateway timeout|server is busy`)},
+	{"disk", pairedDiskFullPattern},
+	{"overload", regexp.MustCompile(`(?i)\b529\b|overloaded|at capacity|api error: 5\d\d|\b50[0234]\b (?:internal server error|bad gateway|service unavailable|gateway timeout)|internal server error|service unavailable|bad gateway|gateway timeout|server is busy`)},
 	{"network", regexp.MustCompile(`(?i)ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ENETUNREACH|network (?:error|is unreachable)|connection (?:reset|refused|closed|error|timed out)|request timed out|socket hang up|fetch failed|stream (?:disconnected|error)|error sending request|could not resolve host|tls handshake|unable to connect`)},
+}
+
+// pairedDiskFullPattern is a machine out of disk space, as a host, a tool or
+// the system reports it.
+var pairedDiskFullPattern = regexp.MustCompile(`(?i)no space left on device|\bENOSPC\b|disk quota exceeded|not enough space on the disk`)
+
+// pairedDiskFull reports whether a session's transcript or standard error
+// says the machine ran out of disk space during it. A full disk fails the
+// tools the agent runs, so the attempt says nothing about the agent, however
+// it ended.
+func pairedDiskFull(paths ...string) bool {
+	for _, path := range paths {
+		file, err := os.Open(path)
+		if err != nil {
+			continue
+		}
+		scanner := bufio.NewScanner(file)
+		scanner.Buffer(make([]byte, 0, 64<<10), 16<<20)
+		found := false
+		for scanner.Scan() {
+			if pairedDiskFullPattern.Match(scanner.Bytes()) {
+				found = true
+				break
+			}
+		}
+		_ = file.Close()
+		if found {
+			return true
+		}
+	}
+	return false
 }
 
 // pairedInfraFailure returns the kind of infrastructure failure text

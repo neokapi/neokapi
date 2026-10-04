@@ -59,7 +59,17 @@ func TestChangeService_GovernsAndRecordsAnEdit(t *testing.T) {
 		require.Equal(t, change.SetRefused, res.Status, "%+v", res.Ops)
 		require.NotNil(t, res.Ops[0].Error)
 		assert.Equal(t, change.CodeGateFailed, res.Ops[0].Error.Code)
-		assert.Contains(t, findingRules(res.Ops[0].Findings), "terms.vocabulary")
+		assert.Contains(t, findingRules(docFindings(res)), "terms.vocabulary")
+		assert.Empty(t, res.Ops[0].Findings, "the findings are the document's")
+		for _, f := range docFindings(res) {
+			if f.Rule != "terms.vocabulary" {
+				continue
+			}
+			assert.Equal(t, "use", f.Replacement, "a term finding names the wording to use")
+			require.NotNil(t, f.Range, "a term finding names the span it found")
+			assert.Equal(t, change.Position{Run: 0, Offset: 3}, f.Range.Start)
+			assert.Equal(t, change.Position{Run: 0, Offset: 10}, f.Range.End)
+		}
 		assert.Nil(t, res.Record)
 		assert.Equal(t, original, readFile(t, f.recipe, doc), "a refused edit writes nothing")
 		assert.Empty(t, editOps(t, f.app, f.root), "a refused edit records nothing")
@@ -235,6 +245,16 @@ func TestChangeService_DescribesAndWritesWhatAFormatDeclares(t *testing.T) {
 	got, err := os.ReadFile(filepath.Join(dir, "page.html"))
 	require.NoError(t, err)
 	assert.Equal(t, "<html><body><p>Read the <strong>guide</strong> before you start.</p><p>See <a href=\"https://b.example/?a=1&amp;b=2\">the docs</a>.</p></body></html>\n", string(got))
+}
+
+// docFindings lists what the commit check found on every document of a
+// result.
+func docFindings(res *change.Result) []change.Finding {
+	var out []change.Finding
+	for _, d := range res.Docs {
+		out = append(out, d.Findings...)
+	}
+	return out
 }
 
 func findingRules(fs []change.Finding) []string {

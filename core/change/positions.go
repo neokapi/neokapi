@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -17,8 +18,8 @@ import (
 //   - start and end, code-point offsets into the sequence's own text
 //     (model.SequenceText), in which every inline code, and every plural or
 //     select, has zero width;
-//   - find, literal text matched in that text, with occurrence choosing one
-//     of several matches;
+//   - find, placeholder text matched in that text (find.go), with occurrence
+//     choosing one of several matches;
 //   - range, two run positions.
 //
 // All three resolve to offsets in the sequence's own text, and the result
@@ -31,6 +32,13 @@ func resolveSelection(seq []model.Run, sel Selection, path model.RunPath, field 
 	return indexSequence(seq).resolve(sel, path, field)
 }
 
+// resolve resolves a selection to code-point offsets of the sequence's own
+// text.
+func (ix *seqIndex) resolve(sel Selection, path model.RunPath, field string) (start, end int, err *Error) {
+	start, end, _, err = ix.resolveSpan(sel, path, field)
+	return start, end, err
+}
+
 // seqIndex answers position questions about one run sequence in logarithmic
 // time, so an operation with many edits in one sequence reads the sequence
 // once rather than once per edit.
@@ -41,6 +49,10 @@ type seqIndex struct {
 	// offset in the flattened text (model.RunsText), in which a plural or
 	// select has the width of its other branch. Both end with the total.
 	own, flat []int
+	// elems are the sequence's elements as a find matches them, listed on
+	// first use; aliases says a code among them may be named by text.
+	elems   []findElem
+	aliases bool
 }
 
 func indexSequence(seq []model.Run) *seqIndex {
@@ -112,102 +124,113 @@ func (ix *seqIndex) flatAt(own int, after bool) int {
 	return ix.flat[i]
 }
 
-// resolve resolves a selection to code-point offsets of the sequence's own
-// text.
-func (ix *seqIndex) resolve(sel Selection, path model.RunPath, field string) (start, end int, err *Error) {
+// resolveSpan resolves a selection to code-point offsets of the sequence's
+// own text and, for a find that names inline codes, the span of runs it
+// matched.
+func (ix *seqIndex) resolveSpan(sel Selection, path model.RunPath, field string) (start, end int, span *findSpan, err *Error) {
 	seq, text := ix.seq, ix.text
 	switch {
 	case sel.Find != nil:
-		start, end, err = ix.resolveFind(*sel.Find, sel.Occurrence, path, field)
+		start, end, span, err = ix.resolveFind(*sel.Find, sel.Occurrence, path, field)
 	case sel.Start != nil:
 		start, end = *sel.Start, *sel.End
 		if start < 0 || end < start || end > len(text) {
-			return 0, 0, &Error{Code: CodeGuard, Subcode: SubcodeBadPosition, Field: field,
+			return 0, 0, nil, &Error{Code: CodeGuard, Subcode: SubcodeBadPosition, Field: field,
 				Message: fmt.Sprintf("[%d, %d) is outside the text, which has %d code points", start, end, len(text))}
 		}
 	case sel.Range != nil:
 		a := model.SpanAnchor(sel.Range.Start, sel.Range.End)
 		if !a.InBounds(seq) {
-			return 0, 0, &Error{Code: CodeGuard, Subcode: SubcodeBadPosition, Field: field + "/range",
+			return 0, 0, nil, &Error{Code: CodeGuard, Subcode: SubcodeBadPosition, Field: field + "/range",
 				Message: fmt.Sprintf("range %d:%d to %d:%d is outside the %d runs it addresses", sel.Range.Start.Run, sel.Range.Start.Offset, sel.Range.End.Run, sel.Range.End.Offset, len(seq))}
 		}
 		for i := sel.Range.Start.Run; i < sel.Range.End.Run && i < len(seq); i++ {
 			if seq[i].Plural != nil || seq[i].Select != nil {
-				return 0, 0, &Error{Code: CodeGuard, Subcode: SubcodeStructureLost, Field: field + "/range",
+				return 0, 0, nil, &Error{Code: CodeGuard, Subcode: SubcodeStructureLost, Field: field + "/range",
 					Message: fmt.Sprintf("the range covers the %s at run %d; edit one of its branches with path", seq[i].Kind(), i)}
 			}
 		}
 		start, end = ix.ownOffset(sel.Range.Start), ix.ownOffset(sel.Range.End)
 	default:
-		return 0, 0, &Error{Code: CodeInvalid, Field: field, Message: "names its text by exactly one of find, start and end, or range"}
+		return 0, 0, nil, &Error{Code: CodeInvalid, Field: field, Message: "names its text by exactly one of find, start and end, or range"}
 	}
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, nil, err
 	}
 	if j, ok := ix.structureInside(start, end); ok {
-		return 0, 0, &Error{Code: CodeGuard, Subcode: SubcodeStructureLost, Field: field,
+		return 0, 0, nil, &Error{Code: CodeGuard, Subcode: SubcodeStructureLost, Field: field,
 			Message: fmt.Sprintf("the text spans the %s at run %d; edit one of its branches with path", seq[j].Kind(), j)}
 	}
-	return start, end, nil
+	if span != nil {
+		for _, e := range ix.elements()[span.from:span.to] {
+			if e.code && e.key == (codeKey{}) {
+				return 0, 0, nil, &Error{Code: CodeGuard, Subcode: SubcodeStructureLost, Field: field,
+					Message: fmt.Sprintf("the text spans the %s at run %d; edit one of its branches with path", seq[e.run].Kind(), e.run)}
+			}
+		}
+	}
+	return start, end, span, nil
 }
 
 // resolveFind finds the occurrence-th match of find in the sequence's text.
-func (ix *seqIndex) resolveFind(find string, occurrence int, path model.RunPath, field string) (int, int, *Error) {
-	text := ix.text
-	needle := []rune(find)
-	var matches []int
-	for i := 0; i+len(needle) <= len(text); {
-		if runesAt(text, i, needle) {
-			matches = append(matches, i)
-			i += len(needle)
-			continue
-		}
-		i++
-	}
+func (ix *seqIndex) resolveFind(find string, occurrence int, path model.RunPath, field string) (int, int, *findSpan, *Error) {
+	p := parseFind(find, ix.seq)
+	matches := ix.findAll(p)
 	switch {
 	case len(matches) == 0:
-		return 0, 0, notInText(ix.seq, find, path, field)
+		return 0, 0, nil, notInText(ix.seq, find, p, path, field)
 	case occurrence == 0 && len(matches) > 1:
 		e := &Error{Code: CodeAmbiguous, Field: field + "/find",
 			Message: fmt.Sprintf("%q matches %d times; send occurrence to choose one", find, len(matches))}
-		for n, at := range matches {
-			r := Resolved{Path: path, Start: ix.posAt(at), End: ix.posAt(at + len(needle))}
-			e.Candidates = append(e.Candidates, Candidate{Occurrence: n + 1, At: &r, Text: around(text, at, at+len(needle))})
+		for n, m := range matches {
+			r := ix.resolvedOf(m, path)
+			e.Candidates = append(e.Candidates, Candidate{Occurrence: n + 1, At: &r, Text: around(ix.text, m.start, m.end)})
 		}
-		return 0, 0, e
+		return 0, 0, nil, e
 	case occurrence > len(matches):
-		return 0, 0, &Error{Code: CodeNotFound, Field: field + "/occurrence",
+		return 0, 0, nil, &Error{Code: CodeNotFound, Field: field + "/occurrence",
 			Message: fmt.Sprintf("%q matches %d times; there is no occurrence %d", find, len(matches), occurrence)}
 	}
-	at := matches[0]
+	m := matches[0]
 	if occurrence > 0 {
-		at = matches[occurrence-1]
+		m = matches[occurrence-1]
 	}
-	return at, at + len(needle), nil
+	return m.start, m.end, m.span, nil
+}
+
+// resolvedOf is a match as a result echoes it.
+func (ix *seqIndex) resolvedOf(m findMatch, path model.RunPath) Resolved {
+	if m.span != nil {
+		start, end := ix.spanPositions(m.span)
+		return resolvedSpan(path, start, end)
+	}
+	return resolvedSpan(path, ix.posAt(m.start), ix.posAt(m.end))
 }
 
 // notInText refuses a find that seq's own text does not hold. A read shows a
 // plural or select by one of its branches, and the text of each branch under
 // structures, so a find taken from either can lie in a branch: the refusal
 // then names each branch that holds it by the path that reaches it, with a
-// candidate per match, and says to send the edit with one of those paths.
-func notInText(seq []model.Run, find string, path model.RunPath, field string) *Error {
-	e := &Error{Code: CodeNotFound, Field: field + "/find", Message: fmt.Sprintf("%q is not in the text", find)}
-	needle := []rune(find)
+// candidate per match, and says to send the edit with one of those paths. A
+// find that holds in no branch either is refused naming the path searched and
+// the text there, with up to three near matches (nearCandidates) as
+// candidates; one that names by token a code the text does not hold is
+// refused naming the token.
+func notInText(seq []model.Run, find string, p parsedFind, path model.RunPath, field string) *Error {
+	e := &Error{Code: CodeNotFound, Field: field + "/find", Message: notInSequence(find, path, seq),
+		Searched: &Searched{Path: path, Text: model.RunsEditText(seq)}}
+	if k, ok := unknownToken(p, seq); ok {
+		e.Message = fmt.Sprintf("%q names %s, a code %s does not hold", find, k, searchedName(path))
+		return e
+	}
 	var branches []string
 	var walk func(seq []model.Run, path model.RunPath)
 	visit := func(branch []model.Run, at model.RunPath) {
 		ix := indexSequence(branch)
-		var matches []int
-		for i := 0; len(needle) > 0 && i+len(needle) <= len(ix.text); i++ {
-			if runesAt(ix.text, i, needle) {
-				matches = append(matches, i)
-				i += len(needle) - 1
-			}
-		}
+		matches := ix.findAll(parseFind(find, branch))
 		for n, m := range matches {
-			r := Resolved{Path: at, Start: ix.posAt(m), End: ix.posAt(m + len(needle))}
-			c := Candidate{At: &r, Text: around(ix.text, m, m+len(needle))}
+			r := ix.resolvedOf(m, at)
+			c := Candidate{At: &r, Text: around(ix.text, m.start, m.end)}
 			if len(matches) > 1 {
 				c.Occurrence = n + 1
 			}
@@ -237,6 +260,7 @@ func notInText(seq []model.Run, find string, path model.RunPath, field string) *
 	walk(seq, path)
 	switch len(branches) {
 	case 0:
+		e.Candidates = nearCandidates(seq, find, p, path)
 	case 1:
 		e.Message = fmt.Sprintf("%q is not in the text around the plural or select; it is in the branch at path %s: send the edit with that path",
 			find, branches[0])
@@ -245,6 +269,85 @@ func notInText(seq []model.Run, find string, path model.RunPath, field string) *
 			find, strings.Join(branches, ", "))
 	}
 	return e
+}
+
+// searchedName names the sequence a path reaches, in a message.
+func searchedName(path model.RunPath) string {
+	if len(path) == 0 {
+		return "the text"
+	}
+	return pathText(path)
+}
+
+// maxCandidates bounds the candidates a not_found refusal of a find carries.
+const maxCandidates = 3
+
+// nearCandidates lists up to three near matches of a find of text alone:
+// text that differs from it only in case, in white space or in punctuation,
+// a typographic apostrophe or quote included, as a find copied by hand or
+// retyped from a read tends to.
+func nearCandidates(seq []model.Run, find string, p parsedFind, path model.RunPath) []Candidate {
+	if len(p.tokens) > 0 {
+		return nil
+	}
+	ix := indexSequence(seq)
+	needle, _ := foldNear([]rune(find))
+	needle = []rune(strings.TrimSpace(string(needle)))
+	if len(needle) == 0 {
+		return nil
+	}
+	hay, spans := foldNear(ix.text)
+	// The punctuation a find opens or closes with is left out of the fold,
+	// and a candidate takes as much as lies at the same edge of its match.
+	edges := []rune(strings.TrimSpace(find))
+	lead, trail := 0, 0
+	for lead < len(edges) && unicode.IsPunct(edges[lead]) {
+		lead++
+	}
+	for trail < len(edges)-lead && unicode.IsPunct(edges[len(edges)-1-trail]) {
+		trail++
+	}
+	var out []Candidate
+	for i := 0; i+len(needle) <= len(hay) && len(out) < maxCandidates; {
+		if !runesAt(hay, i, needle) {
+			i++
+			continue
+		}
+		start, end := spans[i][0], spans[i+len(needle)-1][1]
+		for n := 0; n < lead && start > 0 && unicode.IsPunct(ix.text[start-1]); n++ {
+			start--
+		}
+		for n := 0; n < trail && end < len(ix.text) && unicode.IsPunct(ix.text[end]); n++ {
+			end++
+		}
+		r := resolvedSpan(path, ix.posAt(start), ix.posAt(end))
+		out = append(out, Candidate{At: &r, Text: around(ix.text, start, end)})
+		i += len(needle)
+	}
+	return out
+}
+
+// foldNear is text as a near match compares it: each code point in lower
+// case, punctuation left out, and each run of white space one space. spans
+// holds, for each code point of the folded text, the code points [start, end)
+// of text it stands for.
+func foldNear(text []rune) (folded []rune, spans [][2]int) {
+	for i, r := range text {
+		switch {
+		case unicode.IsPunct(r):
+		case unicode.IsSpace(r):
+			if n := len(folded); n > 0 && folded[n-1] == ' ' {
+				spans[n-1][1] = i + 1
+				continue
+			}
+			folded = append(folded, ' ')
+			spans = append(spans, [2]int{i, i + 1})
+		default:
+			folded = append(folded, unicode.ToLower(r))
+			spans = append(spans, [2]int{i, i + 1})
+		}
+	}
+	return folded, spans
 }
 
 func runesAt(text []rune, i int, needle []rune) bool {

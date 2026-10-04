@@ -1,13 +1,17 @@
 package host
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	pathpkg "path"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -16,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
@@ -79,6 +84,11 @@ type ChangeServiceOptions struct {
 	// because the App's own source language belongs to whichever project
 	// resolved one last.
 	SourceLocale model.LocaleID
+	// EditionOut, outside a project, is the file the one edition a change
+	// set adds to a monolingual document is written to: the translation of
+	// a file that holds another language (kapi apply --out). The first
+	// edition named takes it, and an operation on any other is refused.
+	EditionOut string
 
 	// revisionsOnly builds a service whose reads name no edition's basis from
 	// the block history: a flow's follower reads revisions alone, and a read
@@ -175,9 +185,17 @@ func (a *App) changeHome(opts ChangeServiceOptions) (changeHome, error) {
 		}
 		dir = wd
 	}
+	out := opts.EditionOut
+	if out != "" && !filepath.IsAbs(out) {
+		wd, err := os.Getwd()
+		if err != nil {
+			return changeHome{}, err
+		}
+		out = filepath.Join(wd, out)
+	}
 	return changeHome{
 		layout: &dirChangeLayout{app: a, root: dir, format: opts.Format, target: opts.TargetLocale, anywhere: opts.AnyPath, plainText: opts.PlainText,
-			source: model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), ""))},
+			source: model.LocaleID(ResolveSourceLocale(string(opts.SourceLocale), "")), sourceNamed: opts.SourceLocale != "", out: out},
 		// Every kapi process of this user finds the same lock files for a
 		// document outside a project, whatever its temporary directory.
 		lockDir: filepath.Join(DataDir(), "locks"),
@@ -357,6 +375,16 @@ type dirChangeLayout struct {
 	// plainText reads a file no format claims as plain text
 	// (ChangeServiceOptions.PlainText).
 	plainText bool
+	// sourceNamed says the caller named the documents' language. Unnamed, a
+	// monolingual document whose file or directory names a language
+	// (pathLanguage) is written in that one.
+	sourceNamed bool
+	// out is the file of the one edition a change set adds
+	// (ChangeServiceOptions.EditionOut), and claimed the document and
+	// edition that took it.
+	out     string
+	outMu   sync.Mutex
+	claimed string
 }
 
 func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, error) {
@@ -374,14 +402,122 @@ func (l *dirChangeLayout) Locate(_ context.Context, doc string) (filehome.Doc, e
 		}
 	}
 	enc := l.app.InputEncoding()
-	return filehome.Doc{
+	d := filehome.Doc{
 		Ref: ref, Path: path, Entry: entry,
 		Format:       l.app.formatBinding(name, nil, enc),
 		SourceLocale: l.source,
 		Encoding:     enc,
 		Editions:     l.app.editionsOf(name),
 		TargetLocale: l.app.targetOf(name, l.target),
-	}, nil
+	}
+	if d.Editions == change.EditionsPerFile && entry == "" {
+		if lang := pathLanguage(ref, path); lang != "" && !l.sourceNamed {
+			d.SourceLocale, d.LanguageNamed = lang, true
+		}
+		d.NoEditionFile = fmt.Sprintf("outside a project %s holds one edition, its own (%s); "+
+			"to write a translation of it, name the file with kapi apply --out, or work in a project whose recipe names a target for it", ref, d.SourceLocale)
+		if l.out != "" {
+			d.EditionFile = l.editionOut(ref)
+		}
+	}
+	return d, nil
+}
+
+// editionOut is the EditionFile of document ref when --out names the file
+// of the one edition the change set adds: the first document and edition to
+// ask take it.
+func (l *dirChangeLayout) editionOut(ref string) func(model.EditionKey) (filehome.EditionFile, bool) {
+	return func(k model.EditionKey) (filehome.EditionFile, bool) {
+		text, _ := k.Canonical().MarshalText()
+		claim := ref + "@" + string(text)
+		l.outMu.Lock()
+		defer l.outMu.Unlock()
+		if l.claimed != "" && l.claimed != claim {
+			return filehome.EditionFile{}, false
+		}
+		l.claimed = claim
+		return filehome.EditionFile{Ref: filepath.ToSlash(l.out), Path: l.out}, true
+	}
+}
+
+// pathLanguageRe is a file or directory name that is a language tag with a
+// two-letter language: nb, de-DE, pt_BR, zh-Hans.
+var pathLanguageRe = regexp.MustCompile(`^[a-z]{2}(?:[-_][A-Za-z0-9]{2,8})*$`)
+
+// languageDirs are the names of a directory that sorts files by language.
+var languageDirs = []string{"i18n", "intl", "l10n", "lang", "langs", "language", "languages", "locale", "locales", "messages", "translation", "translations"}
+
+// pathLanguage is the language a document's path names: its file name
+// without the extension (locales/nb.json), else the directory holding it
+// (docs/de/guide.md). ref is the document's reference and path its file on
+// disk.
+//
+// Most two-letter names are language codes, and so are many names of code
+// directories (io, my, to, is, id), so a bare two-letter name counts only
+// where the files around it are sorted by language: in a directory named for
+// that (locales/nb.json, i18n/de/app.json), or beside another name of the same
+// kind that is a language (locales/en.json and locales/nb.json, docs/en/guide.md
+// and docs/de/guide.md). A name with a region or script (nb-NO, pt_BR,
+// zh-Hans) counts as it stands. Empty when the path names no language.
+func pathLanguage(ref, path string) model.LocaleID {
+	slashed := filepath.ToSlash(ref)
+	base := pathpkg.Base(slashed)
+	ext := pathpkg.Ext(base)
+	stem := strings.TrimSuffix(base, ext)
+	dir := filepath.Dir(path)
+	if id, ok := languageName(stem); ok && (strings.ContainsAny(stem, "-_") ||
+		slices.Contains(languageDirs, strings.ToLower(filepath.Base(dir))) ||
+		hasSibling(dir, stem, func(e os.DirEntry) bool {
+			return !e.IsDir() && pathpkg.Ext(e.Name()) == ext && isLanguageName(strings.TrimSuffix(e.Name(), ext))
+		})) {
+		return id
+	}
+	if d := pathpkg.Dir(slashed); d == "." || d == "/" {
+		return ""
+	}
+	name := filepath.Base(dir)
+	id, ok := languageName(name)
+	if !ok {
+		return ""
+	}
+	parent := filepath.Dir(dir)
+	if strings.ContainsAny(name, "-_") || slices.Contains(languageDirs, strings.ToLower(filepath.Base(parent))) ||
+		hasSibling(parent, name, func(e os.DirEntry) bool {
+			if !e.IsDir() || !isLanguageName(e.Name()) {
+				return false
+			}
+			_, err := os.Stat(filepath.Join(parent, e.Name(), base))
+			return err == nil
+		}) {
+		return id
+	}
+	return ""
+}
+
+// languageName is the language a file or directory name is a tag of.
+func languageName(name string) (model.LocaleID, bool) {
+	if !pathLanguageRe.MatchString(name) {
+		return "", false
+	}
+	id, err := locale.Canonical(name)
+	return id, err == nil
+}
+
+func isLanguageName(name string) bool {
+	_, ok := languageName(name)
+	return ok
+}
+
+// hasSibling reports whether dir holds an entry other than the one named
+// name that sibling accepts.
+func hasSibling(dir, name string, sibling func(os.DirEntry) bool) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	return slices.ContainsFunc(entries, func(e os.DirEntry) bool {
+		return e.Name() != name && !strings.HasPrefix(e.Name(), name+".") && sibling(e)
+	})
 }
 
 // detectChangeFormat detects the format of a file, or of an archive member,
@@ -593,6 +729,128 @@ func (l *projectChangeLayout) Locate(ctx context.Context, doc string) (filehome.
 		SourceLocale: l.source, Encoding: l.enc, Editions: l.app.editionsOf(name), TargetLocale: l.app.targetOf(name, l.target)}, nil
 }
 
+// heldLocale is the target language a bilingual file at rel holds: the one
+// the file declares (declaredLanguage), else the project's only target
+// language, else the one a directory or the name of the file names
+// (locales/nb/messages.po, po/nb.po). A declared language that is a target
+// language in another spelling (nb_NO for nb-NO) is that target. Empty when
+// none says.
+func heldLocale(rel string, declared model.LocaleID, langs []model.LocaleID) model.LocaleID {
+	if declared != "" {
+		norm := model.NormalizeLocale(declared)
+		for _, loc := range langs {
+			if model.NormalizeLocale(loc) == norm {
+				return model.NormalizeLocale(loc)
+			}
+		}
+		return norm
+	}
+	if len(langs) == 1 {
+		return model.NormalizeLocale(langs[0])
+	}
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	if n := len(parts); n > 0 {
+		parts[n-1] = strings.TrimSuffix(parts[n-1], filepath.Ext(parts[n-1]))
+	}
+	var held model.LocaleID
+	for _, loc := range langs {
+		norm := model.NormalizeLocale(loc)
+		for _, p := range parts {
+			if model.NormalizeLocale(model.LocaleID(p)) != norm {
+				continue
+			}
+			if held != "" && held != norm {
+				return ""
+			}
+			held = norm
+		}
+	}
+	return held
+}
+
+// maxHeaderScan bounds how much of a catalog declaredLanguage reads.
+const maxHeaderScan = 64 << 10
+
+// declaredLanguage is the language of the translation a bilingual file of
+// format name at path declares, for a format whose reader is told the
+// language rather than reading it: a PO catalog's Language header. Empty when
+// the file declares none or declares the source language, and for any other
+// format, whose reader reads what the file declares (an XLIFF trgLang).
+func declaredLanguage(name, path string, source model.LocaleID) model.LocaleID {
+	if path == "" || preset.ParseFormatRef(name).RegistryName() != "po" {
+		return ""
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	value := poHeaderField(io.LimitReader(f, maxHeaderScan), "Language")
+	if value == "" {
+		return ""
+	}
+	id, err := locale.Canonical(value)
+	if err != nil || (source != "" && model.NormalizeLocale(id) == model.NormalizeLocale(source)) {
+		return ""
+	}
+	return id
+}
+
+// poHeaderField is the value of a field of a PO catalog's header, the entry
+// with an empty msgid that opens it. Empty when the catalog has no header or
+// the header no such field.
+func poHeaderField(r io.Reader, field string) string {
+	const (
+		before = iota // before the header's msgid
+		msgid         // in its msgid
+		msgstr        // in its msgstr
+	)
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 0, 4096), maxHeaderScan)
+	var header strings.Builder
+	state := before
+scan:
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		switch {
+		case state == before && (line == "" || strings.HasPrefix(line, "#")):
+		case state == before && line == `msgid ""`:
+			state = msgid
+		case state == before:
+			return ""
+		case strings.HasPrefix(line, `"`):
+			v, err := strconv.Unquote(line)
+			if err != nil || (state == msgid && v != "") {
+				// A msgid continued on the lines after an empty first line
+				// opens an entry, not a header.
+				return ""
+			}
+			header.WriteString(v)
+		case state == msgid && strings.HasPrefix(line, "msgstr "):
+			v, err := strconv.Unquote(strings.TrimSpace(strings.TrimPrefix(line, "msgstr ")))
+			if err != nil {
+				return ""
+			}
+			header.WriteString(v)
+			state = msgstr
+		case state == msgstr:
+			break scan
+		default:
+			return ""
+		}
+	}
+	if state != msgstr {
+		return ""
+	}
+	for l := range strings.SplitSeq(header.String(), "\n") {
+		name, value, ok := strings.Cut(l, ":")
+		if ok && strings.EqualFold(strings.TrimSpace(name), field) {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
 // formatConfig is the configuration a reader and writer of format name take
 // in the project: the project's defaults for the format, and the content
 // item's own configuration when the item binds that format (bound). A format
@@ -639,7 +897,8 @@ func (l *projectChangeLayout) sourceDoc(ctx context.Context, ref string, rf proj
 	if rf.Item != nil && rf.Item.Target == "" {
 		d.NoEditionFile = "the collection that holds it names no target, so its translations have no file"
 	}
-	if len(targets) > 0 && d.Editions == change.EditionsInFile {
+	switch {
+	case len(targets) > 0 && d.Editions == change.EditionsInFile:
 		// A bilingual source (a PO catalog or template, an XLIFF file, a
 		// Qt Linguist or string catalog) whose translations the recipe
 		// writes to files of their own keeps them there: the French of
@@ -647,6 +906,12 @@ func (l *projectChangeLayout) sourceDoc(ctx context.Context, ref string, rf proj
 		// source catalog's own msgstr holds no edition. Every surface
 		// reads it the same way, whatever target language it was told.
 		d.Editions, d.TargetLocale = change.EditionsPerFile, ""
+	case d.Editions == change.EditionsInFile && d.TargetLocale == "" && rf.Item != nil:
+		// A bilingual file that keeps its translation in it holds the
+		// language it declares or one of the project's target languages,
+		// which a read lists without being told it.
+		d.TargetLocale = heldLocale(rf.Relative, declaredLanguage(name, rf.Path, l.source),
+			rf.Item.ResolvedTargetLanguages(nil, l.proj.Defaults))
 	}
 	d.EditionFile = func(k model.EditionKey) (filehome.EditionFile, bool) {
 		if k.Tone != "" || k.Channel != "" {
@@ -741,7 +1006,7 @@ func assetEntry(set *change.Set, op change.Op) (changeEntry, *change.Error) {
 	var evidence []contextop.Evidence
 	if set != nil {
 		for _, e := range set.Evidence {
-			evidence = append(evidence, contextop.Evidence{Path: e.Path, Unit: e.Unit, Quote: e.Quote, URL: e.URL})
+			evidence = append(evidence, contextop.Evidence{Path: e.Path, Unit: e.Block, Quote: e.Quote, URL: e.URL})
 		}
 	}
 	switch body := op.Body.(type) {

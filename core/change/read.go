@@ -26,6 +26,13 @@ type ReadRequest struct {
 	Cursor string `json:"cursor,omitempty"`
 	// Limit is the most blocks a page holds; zero is DefaultReadLimit.
 	Limit int `json:"limit,omitempty"`
+	// OwnEdition names the document's own edition in each block's ref, by
+	// the language the document is written in, where a ref would otherwise
+	// leave the edition out. A sender copies it into insert_block's
+	// editions, and the service takes it as the document's own edition. A
+	// surface sets it when it knows the document's language, as a project's
+	// recipe gives it.
+	OwnEdition bool `json:"own_edition,omitempty"`
 }
 
 // DefaultReadLimit and MaxReadLimit bound a page.
@@ -99,7 +106,12 @@ type EditionRead struct {
 	// Structures lists the edition's own plurals and selects, each with the
 	// path an operation on the edition names to reach one of its branches.
 	Structures []StructureRead `json:"structures,omitempty"`
-	Status     string          `json:"status,omitempty"`
+	// Status is where the edition stands: draft, translated or established
+	// for a translation, written or established for the document's own
+	// edition, new for an edition with no recorded status, and untranslated
+	// for one with no recorded status whose text is the authoritative
+	// edition's, as a file the source filled holds it.
+	Status string `json:"status"`
 	// Basis is the authoritative edition's revision the edition was made
 	// from, where the host keeps it.
 	Basis string `json:"basis,omitempty"`
@@ -214,7 +226,7 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 			obs.Saw(b, coveredEditions(b, editions))
 		}
 		if each != nil {
-			return each(b, readBlock(info, states, desc, b, editions))
+			return each(b, readBlock(info, states, desc, b, editions, q.OwnEdition))
 		}
 		i := index
 		index++
@@ -225,7 +237,7 @@ func (s *Service) read(ctx context.Context, q ReadRequest, each func(b *model.Bl
 			more = true
 			return ErrStop
 		}
-		page.Blocks = append(page.Blocks, readBlock(info, states, desc, b, editions))
+		page.Blocks = append(page.Blocks, readBlock(info, states, desc, b, editions, q.OwnEdition))
 		return nil
 	})
 	if err != nil && !errors.Is(err, ErrStop) {
@@ -259,15 +271,19 @@ func (s *Service) homeFor(doc string) (Home, error) {
 // opened the German file and copies a reference edits the German. Every other
 // edition the block holds is listed among its editions, the document's own
 // included, with the status and basis states gives it (nil gives none).
-func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.Block, editions []model.EditionKey) BlockRead {
+func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.Block, editions []model.EditionKey, ownEdition bool) BlockRead {
 	var primary model.EditionKey
 	if info.Edition != nil {
 		primary = info.Edition.Canonical()
 	}
 	ed, _ := b.Edition(primary)
 	ref := Ref{Doc: info.Doc, Block: BlockKey(b)}
-	if !b.IsSourceEdition(primary) {
+	switch {
+	case !b.IsSourceEdition(primary):
 		ref.Edition = primary
+	case ownEdition || info.LanguageNamed:
+		// The document's own edition, by its language.
+		ref.Edition = b.EditionKeyOf(primary)
 	}
 	out := BlockRead{
 		Ref:  ref,
@@ -282,8 +298,15 @@ func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.B
 	}
 	out.Codes = codesOf(ed.Runs, desc)
 	out.Structures = structuresOf(ed.Runs)
-	authRev := model.EditionRevision(b, b.Authoritative(model.AuthorityPolicy{}))
+	authKey := b.Authoritative(model.AuthorityPolicy{})
+	authRev := model.EditionRevision(b, authKey)
+	authEd, _ := b.Edition(authKey)
+	authText := model.RunsEditText(authEd.Runs)
 	primaryKey := b.EditionKeyOf(primary)
+	// holdsTranslation is whether the read shows a translation the block
+	// holds: the edition it was opened on, or one it lists.
+	_, holdsPrimary := b.Edition(primary)
+	holdsTranslation := holdsPrimary && !b.IsSourceEdition(primary)
 	for _, k := range b.Editions() {
 		if b.EditionKeyOf(k) == primaryKey {
 			continue
@@ -293,10 +316,15 @@ func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.B
 			if out.Editions == nil {
 				out.Editions = map[string]EditionRead{}
 			}
-			out.Editions[keyText(b.EditionKeyOf(k))] = out.editionRead(model.EditionRevision(b, k), own, desc)
+			er := out.editionRead(model.EditionRevision(b, k), own, desc)
+			if er.Status == "" {
+				er.Status = StatusNew
+			}
+			out.Editions[keyText(b.EditionKeyOf(k))] = er
 			continue
 		}
 		ed, _ := b.Edition(k)
+		holdsTranslation = true
 		er := out.editionRead(model.EditionRevision(b, k), ed, desc)
 		if states != nil {
 			if st, ok := states.EditionState(b, k); ok {
@@ -307,13 +335,36 @@ func readBlock(info DocInfo, states DocumentStates, desc Description, b *model.B
 				er.Stale = st.Basis != "" && st.Basis != authRev
 			}
 		}
+		if er.Status == "" {
+			// No status is recorded: the edition is new, or holds the
+			// authoritative edition's text, as a file the source filled
+			// holds it until someone translates it.
+			er.Status = StatusNew
+			if er.Text == authText {
+				er.Status = StatusUntranslated
+			}
+		}
 		if out.Editions == nil {
 			out.Editions = map[string]EditionRead{}
 		}
 		out.Editions[keyText(k)] = er
 	}
+	if !holdsTranslation {
+		// A block that holds no translation has none to remove, whether its
+		// file keeps the translations in it or each in a file of its own.
+		out.Ops = slices.DeleteFunc(out.Ops, func(k Kind) bool { return k == KindRemoveEdition })
+	}
 	return out
 }
+
+// The statuses a read gives an edition that has none recorded.
+const (
+	// StatusNew is an edition with no recorded status.
+	StatusNew = "new"
+	// StatusUntranslated is an edition with no recorded status that holds
+	// the authoritative edition's text.
+	StatusUntranslated = "untranslated"
+)
 
 // editionRead is ed, another edition of the block out reads, at revision rev:
 // its text and status, its plurals and selects, and its codes where they

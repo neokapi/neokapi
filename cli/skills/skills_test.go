@@ -41,6 +41,29 @@ func TestSkillIsShort(t *testing.T) {
 	}
 }
 
+// Every help topic SKILL.md names is one kapi help prints: an agent that asks
+// for a topic the skill named and gets "no help topic" has spent a call on
+// nothing.
+func TestSkillNamesTopicsThatExist(t *testing.T) {
+	body, err := fs.ReadFile(Tree(), "kapi/SKILL.md")
+	require.NoError(t, err)
+	text := strings.Join(strings.Fields(string(body)), " ")
+	_, list, ok := strings.Cut(text, "`kapi help <topic>` prints another topic: ")
+	require.True(t, ok, "SKILL.md lists the other help topics")
+	list, _, _ = strings.Cut(list, ".")
+	names := map[string]bool{}
+	for _, tp := range Topics() {
+		names[tp.Name] = true
+	}
+	for _, name := range strings.FieldsFunc(list, func(r rune) bool { return r == ',' || r == ' ' }) {
+		if name == "or" {
+			continue
+		}
+		assert.Truef(t, names[name], "SKILL.md names the help topic %q, which kapi help does not print", name)
+	}
+	assert.Contains(t, text, "`kapi help edit`")
+}
+
 // kapi init writes SKILL.md and nothing else.
 func TestWiringIsOneFile(t *testing.T) {
 	var files []string

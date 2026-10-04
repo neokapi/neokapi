@@ -34,11 +34,24 @@ type ApplyOptions struct {
 	// BackupSuffix keeps a copy of each file the change replaces, beside it
 	// with the suffix appended.
 	BackupSuffix string
+	// Out, outside a project, is the file the one edition the change set
+	// adds to a document is written to (ChangeServiceOptions.EditionOut).
+	Out string
 }
 
-// RunApplySchema prints the JSON Schema of a kapi.change/v1 change set.
-func RunApplySchema(w io.Writer) error {
-	_, err := w.Write(append(changeschema.Schema(), '\n'))
+// RunApplySchema prints the JSON Schema of a kapi.change/v1 change set, or,
+// with op naming an operation, that operation's schema alone with the
+// definitions it refers to. An operation the contract does not name is a
+// usage error that lists the ones it does.
+func RunApplySchema(w io.Writer, op string) error {
+	out := changeschema.Schema()
+	if op != "" {
+		var err error
+		if out, err = changeschema.OperationSchema(change.Kind(op)); err != nil {
+			return WithExitCode(ExitUsage, fmt.Errorf("--schema: %w", err))
+		}
+	}
+	_, err := w.Write(append(out, '\n'))
 	return err
 }
 
@@ -93,6 +106,10 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 	if err != nil {
 		return err
 	}
+	if opts.Out != "" && recipe != "" {
+		return WithExitCode(ExitUsage, errors.New("--out: inside a project the recipe's target names the file of each edition; "+
+			"send the edition at its document ({\"doc\": SOURCE, \"edition\": LANG}) and kapi writes it there"))
+	}
 
 	comments, err := a.commentSet(set, root, a.newCommentDocs(recipe))
 	if err != nil {
@@ -105,12 +122,13 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		return a.refuseChangeSet(cmd, opts, err)
 	}
 	var res *change.Result
+	var before map[int]string
 	if comments {
 		res, _, err = a.applyCommentChange(cmd, set, root, opts.BackupSuffix, path == "" || path == StdinName)
 	} else {
 		svcOpts := ChangeServiceOptions{
 			Project: recipe, Origin: "apply", Format: a.FormatFlag, SourceLocale: model.LocaleID(a.SourceLang),
-			AnyPath: recipe == "", BackupSuffix: opts.BackupSuffix,
+			AnyPath: recipe == "", BackupSuffix: opts.BackupSuffix, EditionOut: opts.Out,
 			TargetLocale: targetLocaleOf(set, a.changeSourceLocale(recipe)),
 		}
 		if outside {
@@ -123,13 +141,16 @@ func (a *App) RunApply(cmd Command, path string, opts ApplyOptions) error {
 		if err != nil {
 			return err
 		}
+		if actor.Kind == change.ActorAgent {
+			before = wordingBefore(ctx, svc, set)
+		}
 		res, err = svc.Apply(ctx, set, actor)
 	}
 	if err != nil {
 		return err
 	}
 	if res.Status == change.SetApplied || res.Status == change.SetPartial {
-		a.noteAgentEdits(ctx, recipe, resolved.Actor, appliedWordings(set, res))
+		a.noteAgentEdits(ctx, recipe, resolved.Actor, appliedWording(set, res, before))
 	}
 	if line := toolOriginNote(set, res, actor); line != "" {
 		fmt.Fprintln(cmd.ErrOrStderr(), line)
@@ -379,7 +400,9 @@ func printChangeResult(w io.Writer, res *change.Result) {
 			}
 			fmt.Fprintf(w, "op %d %s%s: refused%s\n", op.I, op.Op, at, msg)
 			if op.Current != nil {
-				fmt.Fprintf(w, "  current %s: %s\n", op.Current.Rev, op.Current.Text)
+				// Every line of the current text is indented under the
+				// operation, so a text of several lines reads as one value.
+				fmt.Fprintf(w, "  current %s: %s\n", op.Current.Rev, strings.ReplaceAll(op.Current.Text, "\n", "\n    "))
 			}
 			for _, c := range opCandidates(op) {
 				fmt.Fprintf(w, "  candidate %s\n", c)
@@ -461,30 +484,6 @@ func refLabel(r change.Ref) string {
 		s += " (" + string(k) + ")"
 	}
 	return s
-}
-
-// appliedWordings are the words each applied operation wrote, by document:
-// the content a set_content gave and the replacement text of each
-// replace_text edit. They are what an agent's edit is held to when it follows
-// a suggestion (noteAgentEdits).
-func appliedWordings(set change.Set, res *change.Result) map[string][]string {
-	out := map[string][]string{}
-	for _, op := range res.Ops {
-		if op.Status != change.OpApplied || op.I >= len(set.Ops) || op.At == nil {
-			continue
-		}
-		switch body := set.Ops[op.I].Body.(type) {
-		case *change.SetContent:
-			if body.Text != nil {
-				out[op.At.Doc] = append(out[op.At.Doc], *body.Text)
-			}
-		case *change.ReplaceText:
-			for _, e := range body.Edits {
-				out[op.At.Doc] = append(out[op.At.Doc], e.Text)
-			}
-		}
-	}
-	return out
 }
 
 // retiredChangeShape refuses a change set written in the entry shape kapi

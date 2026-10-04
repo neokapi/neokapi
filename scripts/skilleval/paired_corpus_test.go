@@ -23,7 +23,7 @@ var pairedWP5Families = []string{
 
 func TestPairedCorpusMaterialization(t *testing.T) {
 	tasks := pairedTasks()
-	require.Len(t, tasks, 7)
+	require.Len(t, tasks, 11)
 	families := []string{}
 	seen := map[string]bool{}
 	for _, task := range tasks {
@@ -82,7 +82,7 @@ func TestPairedCorpusMaterialization(t *testing.T) {
 		})
 	}
 	slices.Sort(families)
-	assert.Equal(t, pairedWP5Families, families)
+	assert.Equal(t, pairedWP5Families, slices.Compact(families), "the variants add tasks to the WP5 families, and no family")
 	hash, err := pairedCorpusHash()
 	require.NoError(t, err)
 	assert.Len(t, hash, 64)
@@ -147,11 +147,21 @@ func TestPairedFixtureGovernanceMatchesItsStyleGuide(t *testing.T) {
 		assert.True(t, pattern.MatchString(statement), statement)
 	}
 	assert.False(t, pattern.MatchString("Harbor Help offers scheduled video appointments."))
-	assert.Contains(t, string(body), "term: portal")
-	assert.Contains(t, string(body), "replacement: overview page")
-	style, err := pairedFixtures.ReadFile("testdata/paired/common/STYLE.md")
+	// The rule against portal is the gate task's late context: the voice
+	// file and the style guide gain it together, once the agent has read
+	// the context without it.
+	assert.NotContains(t, string(body), "portal")
+	late := map[string]string{}
+	for _, a := range pairedTaskByID(t, "recover-gate-refusal").spec.LateContext.Append {
+		late[a.Path] = a.Text
+	}
+	withRule, err := profile.LoadProfileYAML(strings.NewReader(string(body) + late[".kapi/voice.yaml"]))
 	require.NoError(t, err)
-	assert.Contains(t, string(style), `write "overview page", never "portal"`)
+	rules := withRule.CarriedTerms().Rules
+	require.Len(t, rules, 1)
+	assert.Equal(t, "portal", rules[0].Term)
+	assert.Equal(t, "overview page", rules[0].Replacement)
+	assert.Contains(t, late["STYLE.md"], `write "overview page", never "portal"`)
 }
 
 // The gate task's forbidden word appears in no skill an arm installs and in

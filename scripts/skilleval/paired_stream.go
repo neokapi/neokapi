@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +12,7 @@ import (
 
 // Only host protocol fields establish identity and completion. Text in a model's
 // answer cannot self-certify a requested model or successful process outcome.
-func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentResult, error) {
+func parsePairedAgentStream(ctx context.Context, reader io.Reader, launch PairedLaunch) (PairedAgentResult, error) {
 	result := PairedAgentResult{RequestedModel: launch.Agent.Model, Status: "incomplete", Tools: []string{}, QuotaStatus: "unknown"}
 	observer := newPairedObserver(launch, &result)
 	scanner := bufio.NewScanner(reader)
@@ -36,6 +37,11 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 		case "claude":
 			if eventType == "system" && pairedString(event, "subtype") == "init" {
 				result.SessionID = pairedString(event, "session_id")
+				if launch.Condition == "mcp" {
+					if tools, ok := event["tools"].([]any); ok {
+						pairedNoteDeclaredTools(&result, tools)
+					}
+				}
 				if model := pairedString(event, "model"); model != "" {
 					models[model] = true
 				}
@@ -53,11 +59,12 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 						}
 						tool := pairedString(part, "name")
 						result.Tools = pairedUnique(result.Tools, tool)
+						pairedNoteCalledTool(&result, launch, tool)
 						if launch.NoTools {
 							result.Status = "tool_use_violation"
 							return result, errors.New("tool use violates fixed-input review protocol")
 						}
-						if violation := observer.toolUse(pairedString(part, "id"), tool, pairedObject(part, "input")); violation != "" {
+						if violation := observer.toolUse(ctx, pairedString(part, "id"), tool, pairedObject(part, "input")); violation != "" {
 							result.Status = "route_violation"
 							return result, errors.New(violation)
 						}
@@ -70,7 +77,7 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 					for _, raw := range content {
 						part, ok := raw.(map[string]any)
 						if ok && pairedString(part, "type") == "tool_result" {
-							observer.toolResult(pairedString(part, "tool_use_id"), pairedStrings(part["content"]))
+							observer.toolResult(ctx, pairedString(part, "tool_use_id"), pairedStrings(part["content"]))
 						}
 					}
 				}
@@ -128,7 +135,7 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 				}
 				if kind == "command_execution" {
 					result.Tools = pairedUnique(result.Tools, "shell")
-					if violation := observer.toolUse("", "shell", map[string]any{"command": pairedString(item, "command")}); violation != "" {
+					if violation := observer.toolUse(ctx, "", "shell", map[string]any{"command": pairedString(item, "command")}); violation != "" {
 						result.Status = "route_violation"
 						return result, errors.New(violation)
 					}
@@ -136,17 +143,20 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 				if kind == "mcp_tool_call" {
 					tool := "mcp__" + pairedString(item, "server") + "__" + pairedString(item, "tool")
 					result.Tools = pairedUnique(result.Tools, tool)
+					pairedNoteCalledTool(&result, launch, tool)
 					if violation := pairedCodexMCPRouteViolation(launch.Condition, item); violation != "" {
 						result.Status = "route_violation"
 						return result, errors.New(violation)
 					}
 					observer.scanInput(tool, pairedObject(item, "arguments"))
 					observer.auditPaths(tool, pairedObject(item, "arguments"))
+					observer.noteRoute(ctx, tool, pairedObject(item, "arguments"))
 				}
 				if kind == "file_change" {
 					result.Tools = pairedUnique(result.Tools, "file_change")
 					observer.scanInput("file_change", item)
 					observer.auditPaths("file_change", item)
+					observer.noteRoute(ctx, "file_change", item)
 				}
 				if kind == "agent_message" {
 					result.FinalText = pairedString(item, "text")
@@ -217,6 +227,41 @@ func parsePairedAgentStream(reader io.Reader, launch PairedLaunch) (PairedAgentR
 		result.Status = "rate_limited"
 		return result, errors.New("subscription rate limit reached")
 	}
+	if launch.Condition == "mcp" {
+		switch result.MCPExposure {
+		case "":
+			result.MCPExposure = "unverified"
+		case "absent":
+			result.Status = "mcp_absent"
+			return result, errors.New("the host gave the model no kapi tools, so the attempt did not run the mcp arm")
+		}
+	}
 	result.Status = "completed"
 	return result, nil
+}
+
+// pairedNoteDeclaredTools records the kapi tools a host's tool list gave the
+// model, and whether it gave any.
+func pairedNoteDeclaredTools(result *PairedAgentResult, tools []any) {
+	result.MCPGiven = nil
+	for _, raw := range tools {
+		if name, ok := raw.(string); ok && strings.HasPrefix(name, "mcp__kapi__") {
+			result.MCPGiven = append(result.MCPGiven, name)
+		}
+	}
+	result.MCPExposure = "absent"
+	if len(result.MCPGiven) > 0 {
+		result.MCPExposure = "declared"
+	}
+}
+
+// pairedNoteCalledTool records that the model called a kapi tool, which
+// shows it was given one where the host declares no tool list.
+func pairedNoteCalledTool(result *PairedAgentResult, launch PairedLaunch, tool string) {
+	if launch.Condition != "mcp" || !strings.HasPrefix(tool, "mcp__kapi__") {
+		return
+	}
+	if result.MCPExposure == "" || result.MCPExposure == "unverified" {
+		result.MCPExposure = "called"
+	}
 }

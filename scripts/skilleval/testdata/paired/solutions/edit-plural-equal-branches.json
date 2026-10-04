@@ -1,0 +1,32 @@
+{
+ "steps": [
+  {
+   "note": "The two branches hold the same text, so the edit names the other branch by its path",
+   "exit": 0,
+   "changeset": {
+    "ops": [
+     {
+      "op": "replace_text",
+      "at": {
+       "doc": "messages/reminders_en.arb",
+       "block": "reminderSent"
+      },
+      "if_match": "r:a4d601e253ca4080",
+      "path": [
+       0,
+       {
+        "plural": "other"
+       }
+      ],
+      "edits": [
+       {
+        "find": "Reminder sent",
+        "text": "Reminders sent"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

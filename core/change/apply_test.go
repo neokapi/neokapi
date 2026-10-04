@@ -186,7 +186,7 @@ func TestApplyBlock_PluralStructure(t *testing.T) {
 		res := apply(t, b, person, replace("", sourceRev(b), e))
 		requireApplied(t, res)
 		assert.Equal(t, "You have {count: one={n} article other={n} items} in your basket.", shape(b.Source))
-		assert.Equal(t, []change.Resolved{{Path: onePath, Start: model.RunPos{Run: 1, Offset: 1}, End: model.RunPos{Run: 2}}}, res[0].Resolved)
+		assert.Equal(t, []change.Resolved{{Path: onePath, Start: change.Position{Run: 1, Offset: 1}, End: change.Position{Run: 2}}}, res[0].Resolved)
 	})
 	t.Run("a find that spans the plural", func(t *testing.T) {
 		b := model.NewRunsBlock("b", pluralRuns())
@@ -256,7 +256,7 @@ func TestApplyBlock_ReplaceTextPositions(t *testing.T) {
 	// is the start of the run after it, so the span opens before the link's
 	// opening code and closes before its closing one, as RangeAnchor puts it.
 	a := model.RangeAnchor(guideRuns(), 9, 19)
-	want := []change.Resolved{{Start: a.Start, End: a.End}}
+	want := []change.Resolved{{Start: change.PositionOf(a.Start), End: change.PositionOf(a.End)}}
 	require.Equal(t, model.RunPos{Run: 1}, a.Start)
 	require.Equal(t, model.RunPos{Run: 3}, a.End)
 	rng := change.TextEdit{Range: &change.Span{Start: model.RunPos{Run: 2}, End: model.RunPos{Run: 2, Offset: 10}}, Text: "handbook"}
@@ -289,7 +289,7 @@ func TestApplyBlock_ReplaceTextRefusals(t *testing.T) {
 			check: func(t *testing.T, err change.Error) {
 				require.Len(t, err.Candidates, 3)
 				assert.Equal(t, 2, err.Candidates[1].Occurrence)
-				assert.Equal(t, model.RunPos{Run: 0, Offset: 8}, err.Candidates[1].At.Start)
+				assert.Equal(t, change.Position{Run: 0, Offset: 8}, err.Candidates[1].At.Start)
 			}},
 		{name: "a find with no match", edits: []change.TextEdit{find("three", "3")}, code: change.CodeNotFound},
 		{name: "an occurrence past the matches", edits: []change.TextEdit{{Find: new("two"), Occurrence: 3, Text: "2"}}, code: change.CodeNotFound},
@@ -715,4 +715,17 @@ func TestApplyBlock_ProvenanceIsAToolsOwn(t *testing.T) {
 		requireRefused(t, apply(t, b, tool, onSource)[0], change.CodeInvalid)
 	}
 	assert.Equal(t, model.SourceStatus(""), b.SourceStatus, "no target status reaches the source")
+}
+
+// A stale refusal says the edition moved after the sender read it, names the
+// revision to resend against, and says the change it holds is another
+// writer's to keep.
+func TestApplyBlock_AStaleRefusalSaysTheChangeIsAnothersToKeep(t *testing.T) {
+	b := guideBlock()
+	read := sourceRev(b)
+	requireApplied(t, apply(t, b, person, replace("", read, find("shop guide", "store guide"))))
+	now := sourceRev(b)
+	err := requireRefused(t, apply(t, b, agent, replace("", read, find("order", "buy")))[0], change.CodeStale)
+	assert.Equal(t, "edition en changed after you read it at "+read+"; it is now "+now+
+		". Its current text holds a change you have not seen: keep it, and resend against "+now, err.Message)
 }
