@@ -124,14 +124,6 @@ func (b *Block) sourceRuns() []Run {
 	return nil
 }
 
-// sourceStatus returns the status of the edition the block was read in.
-func (b *Block) sourceStatus() Status {
-	if s := b.source(); s != nil {
-		return s.Status
-	}
-	return ""
-}
-
 // writeSource applies f to the entry of the edition the block was read in,
 // creating it when the block holds none. An entry f leaves with no runs, no
 // status and no derivation is removed again, so a block whose source was never
