@@ -8,9 +8,9 @@ import (
 )
 
 // TestSelfTest runs the fixtures go run ./scripts/fieldguard -self-test runs:
-// a planted use is reported, a same-named field of another type is not, a use
-// in a test is counted apart, and a use in an allowed package or in core/model
-// is accepted.
+// a planted use is reported, in the plugin-wire mapping as anywhere else, a
+// same-named field of another type is not, a use in a test is counted apart,
+// and a use in core/model is accepted.
 func TestSelfTest(t *testing.T) {
 	root, err := filepath.Abs("../..")
 	if err != nil {
@@ -21,9 +21,8 @@ func TestSelfTest(t *testing.T) {
 	}
 }
 
-// TestVerdict checks when the check fails: a use outside a test, core/model
-// and the allowed packages fails it without -report, and nothing fails it
-// with -report.
+// TestVerdict checks when the check fails: a use outside a test and core/model
+// fails it without -report, and nothing fails it with -report.
 func TestVerdict(t *testing.T) {
 	root := filepath.FromSlash("/repo")
 	mods := []module{{Path: "root", Dir: "."}}
@@ -46,8 +45,9 @@ func TestVerdict(t *testing.T) {
 			uses: map[string]string{"core/tools/a_test.go": "Block.Editions"},
 		},
 		{
-			name: "a use in an allowed package",
-			uses: map[string]string{"core/plugin/protoconvert/a.go": "Block.Native"},
+			name:     "a use in the plugin-wire mapping",
+			uses:     map[string]string{"core/plugin/protoconvert/a.go": "Block.Native"},
+			noReport: "core/plugin/protoconvert/a.go:3:2: Block.Native",
 		},
 		{
 			name: "a use in core/model",
