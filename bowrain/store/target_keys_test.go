@@ -9,9 +9,9 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// A target filed under a key that is not canonical is stored under its
-// canonical key, and one filed under the zero key, which names the edition the
-// block was read in, is not stored as a translation. Neither fails the write.
+// A target filed under a key spelled another way is stored under its canonical
+// key, and one filed under the zero key, which names the edition the block was
+// read in, is not stored as a translation. Neither fails the write.
 func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 	text := func(s string) []model.Run { return []model.Run{{Text: &model.TextRun{Text: s}}} }
 	tests := []struct {
@@ -19,7 +19,7 @@ func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 		key  model.VariantKey
 		want []model.EditionKey
 	}{
-		{"a key that is not canonical", model.VariantKey{Locale: "fr_FR"}, []model.EditionKey{{}, {Locale: "fr-FR"}}},
+		{"a key spelled another way", model.VariantKey{Locale: "fr_FR"}, []model.EditionKey{{}, {Locale: "fr-FR"}}},
 		{"the zero key", model.VariantKey{}, []model.EditionKey{{}}},
 	}
 	for _, tc := range tests {
@@ -29,12 +29,9 @@ func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 			p := createTestProject(t, s)
 
 			b := model.NewBlock("b1", "Hello")
-			// The field files the target under the key exactly as given, which
-			// is the only way a key that is not canonical gets stored. The state
-			// goes away with the field.
-			b.Targets = map[model.VariantKey]*model.Target{
-				tc.key: {Runs: text("Bonjour"), Status: model.TargetStatusTranslated},
-			}
+			// SetTargetEdition files a target under the zero key as a target,
+			// where SetEdition would write the edition the block was read in.
+			b.SetTargetEdition(tc.key, model.Edition{Runs: text("Bonjour"), Status: model.Status(model.TargetStatusTranslated)})
 			require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
 
 			got, err := s.GetBlock(ctx, p.ID, "", "b1")

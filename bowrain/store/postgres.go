@@ -2003,16 +2003,16 @@ func HydrateOverlays(
 			if sb == nil {
 				continue
 			}
-			for key, t := range locs {
+			for key, e := range locs {
 				// A row filed under no language names no translation: that
 				// key reaches the edition the block was read in, which the
 				// block row holds.
-				if t == nil || sb.Block.IsSourceEdition(key) {
+				if sb.Block.IsSourceEdition(key) {
 					continue
 				}
-				// The decoded row is filed as it was read, the way a reader
-				// files a target, so a large hydrate copies nothing.
-				sb.Block.SetTargetVariant(key, t)
+				// The decoded runs are filed as they were read, the way a
+				// reader files a target, so a large hydrate copies no content.
+				sb.Block.SetTargetEdition(key, e)
 			}
 		}
 		for id, anns := range annotations {

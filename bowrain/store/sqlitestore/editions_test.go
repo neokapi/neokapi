@@ -30,7 +30,7 @@ func TestStoreBlocks_EditionsRoundTrip(t *testing.T) {
 	b.SetEdition(model.EditionKey{Locale: model.LocaleFrench, Channel: "short"}, model.Edition{Runs: text("Salut")})
 	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
 	require.NoError(t, bstore.UpsertBlockTarget(ctx, s.DB(), "sqlite", p.ID, "main", "b1",
-		model.EditionKey{}, &model.Target{Runs: text("Filed under no language")}, nil, time.Now().UTC()))
+		model.EditionKey{}, model.Edition{Runs: text("Filed under no language")}, nil, time.Now().UTC()))
 
 	got, err := s.GetBlock(ctx, p.ID, "", "b1")
 	require.NoError(t, err)
@@ -56,9 +56,9 @@ func TestStoreBlocks_EditionsRoundTrip(t *testing.T) {
 	assert.Equal(t, "Salut", model.RunsText(short.Runs))
 }
 
-// A target filed under a key that is not canonical is stored under its
-// canonical key, and one filed under the zero key, which names the edition the
-// block was read in, is not stored as a translation. Neither fails the write.
+// A target filed under a key spelled another way is stored under its canonical
+// key, and one filed under the zero key, which names the edition the block was
+// read in, is not stored as a translation. Neither fails the write.
 func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 	text := func(s string) []model.Run { return []model.Run{{Text: &model.TextRun{Text: s}}} }
 	tests := []struct {
@@ -67,7 +67,7 @@ func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 		want []model.EditionKey
 		rows int
 	}{
-		{"a key that is not canonical", model.VariantKey{Locale: "fr_FR"}, []model.EditionKey{{}, {Locale: "fr-FR"}}, 1},
+		{"a key spelled another way", model.VariantKey{Locale: "fr_FR"}, []model.EditionKey{{}, {Locale: "fr-FR"}}, 1},
 		{"the zero key", model.VariantKey{}, []model.EditionKey{{}}, 0},
 	}
 	for _, tc := range tests {
@@ -77,12 +77,9 @@ func TestStoreBlocks_TargetKeysAsFiled(t *testing.T) {
 			p := createTestProject(t, s)
 
 			b := model.NewBlock("b1", "Hello")
-			// The field files the target under the key exactly as given, which
-			// is the only way a key that is not canonical gets stored. The state
-			// goes away with the field.
-			b.Targets = map[model.VariantKey]*model.Target{
-				tc.key: {Runs: text("Bonjour"), Status: model.TargetStatusTranslated},
-			}
+			// SetTargetEdition files a target under the zero key as a target,
+			// where SetEdition would write the edition the block was read in.
+			b.SetTargetEdition(tc.key, model.Edition{Runs: text("Bonjour"), Status: model.Status(model.TargetStatusTranslated)})
 			require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
 
 			var rows int

@@ -409,7 +409,7 @@ func (s *session) getTranslation(kind, blockHash string) (blockstore.Overlay, er
 	if stored == nil {
 		return blockstore.Overlay{}, blockstore.ErrNotFound
 	}
-	payload, err := encodeTargetPayload(stored.Target, stored.Extra)
+	payload, err := encodeTargetPayload(stored.Edition, stored.Extra)
 	if err != nil {
 		return blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: encode translation payload: %w", err)
 	}
@@ -430,7 +430,7 @@ func (s *session) putTranslation(kind, blockHash string, payload []byte, updated
 	if err != nil {
 		return err
 	}
-	target, extra, err := decodeTargetPayload(payload)
+	edition, extra, err := decodeTargetPayload(payload)
 	if err != nil {
 		return fmt.Errorf("bowrain/blockstore: put translation: %w", err)
 	}
@@ -439,7 +439,7 @@ func (s *session) putTranslation(kind, blockHash string, payload []byte, updated
 		return fmt.Errorf("bowrain/blockstore: put translation: decode variant %q: %w", locale, err)
 	}
 	if err := corestore.UpsertBlockTarget(s.ctx, s.opts.DB, s.dialect(),
-		s.opts.ProjectID, s.opts.Stream, rowID, variant, target, extra, updatedAt); err != nil {
+		s.opts.ProjectID, s.opts.Stream, rowID, variant, edition, extra, updatedAt); err != nil {
 		return fmt.Errorf("bowrain/blockstore: put translation: %w", err)
 	}
 	return nil
@@ -466,7 +466,7 @@ func (s *session) listTranslations(kind string, yield func(blockstore.Overlay, e
 		return
 	}
 	for _, st := range stored {
-		payload, err := encodeTargetPayload(st.Target, st.Extra)
+		payload, err := encodeTargetPayload(st.Edition, st.Extra)
 		if err != nil {
 			yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: encode translation payload: %w", err))
 			return

@@ -77,12 +77,13 @@ func encodeAnnotationPayload(ann model.Payload) ([]byte, error) {
 }
 
 // A `targets/<locale>` overlay payload is not opaque: it is a projection of
-// model.Target, and the store reads it as one. The translate-family tools spell
-// the content three ways — `runs` (structure preserved), `text`, or `target` —
-// and carry the lifecycle status alongside it; the codec below is the one place
-// that knows which fields mean the target and which belong to the writer.
+// the edition the translations row stores, and the store reads it as one. The
+// translate-family tools spell the content three ways, as `runs` (structure
+// preserved), `text` or `target`, and carry the lifecycle status alongside it;
+// the codec below is the one place that knows which fields mean the edition
+// and which belong to the writer.
 //
-// Anything the Target model has no room for (a tool's config fingerprint, the
+// Anything an edition has no room for (a tool's config fingerprint, the
 // provider label an MT cache checks) is residue: it survives verbatim in the
 // row's metadata column and comes back on the same read, so a tool's own
 // round-trip is unaffected while every platform reader sees the target itself.
@@ -95,49 +96,49 @@ const (
 	fieldScore  = "score"
 )
 
-// decodeTargetPayload reads an overlay payload as the target it describes,
-// returning the target and the writer's residual fields.
+// decodeTargetPayload reads an overlay payload as the edition it describes,
+// returning the edition and the writer's residual fields.
 //
-// A payload that is not JSON at all is the target's plain text — the shape a
-// caller writing a bare string produces. JSON null is an empty target, not the
+// A payload that is not JSON at all is the edition's plain text, the shape a
+// caller writing a bare string produces. JSON null is an empty edition, not the
 // four letters.
-func decodeTargetPayload(payload []byte) (*model.Target, []byte, error) {
+func decodeTargetPayload(payload []byte) (model.Edition, []byte, error) {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(payload, &fields); err != nil {
-		return &model.Target{Runs: []model.Run{model.TextR(string(payload))}}, nil, nil
+		return model.Edition{Runs: []model.Run{model.TextR(string(payload))}}, nil, nil
 	}
 	if fields == nil {
-		return &model.Target{}, nil, nil
+		return model.Edition{}, nil, nil
 	}
 
-	target := &model.Target{}
+	var e model.Edition
 	if raw, ok := fields[fieldRuns]; ok {
-		if err := json.Unmarshal(raw, &target.Runs); err != nil {
-			return nil, nil, fmt.Errorf("decode target runs: %w", err)
+		if err := json.Unmarshal(raw, &e.Runs); err != nil {
+			return model.Edition{}, nil, fmt.Errorf("decode target runs: %w", err)
 		}
 	}
-	if len(target.Runs) == 0 {
+	if len(e.Runs) == 0 {
 		for _, key := range []string{fieldText, fieldTarget} {
 			var text string
 			if raw, ok := fields[key]; ok && json.Unmarshal(raw, &text) == nil && text != "" {
-				target.Runs = []model.Run{model.TextR(text)}
+				e.Runs = []model.Run{model.TextR(text)}
 				break
 			}
 		}
 	}
 	if raw, ok := fields[fieldStatus]; ok {
-		if err := json.Unmarshal(raw, &target.Status); err != nil {
-			return nil, nil, fmt.Errorf("decode target status: %w", err)
+		if err := json.Unmarshal(raw, &e.Status); err != nil {
+			return model.Edition{}, nil, fmt.Errorf("decode target status: %w", err)
 		}
 	}
 	if raw, ok := fields[fieldOrigin]; ok {
-		if err := json.Unmarshal(raw, &target.Origin); err != nil {
-			return nil, nil, fmt.Errorf("decode target origin: %w", err)
+		if err := json.Unmarshal(raw, &e.Origin); err != nil {
+			return model.Edition{}, nil, fmt.Errorf("decode target origin: %w", err)
 		}
 	}
 	if raw, ok := fields[fieldScore]; ok {
-		if err := json.Unmarshal(raw, &target.Score); err != nil {
-			return nil, nil, fmt.Errorf("decode target score: %w", err)
+		if err := json.Unmarshal(raw, &e.Score); err != nil {
+			return model.Edition{}, nil, fmt.Errorf("decode target score: %w", err)
 		}
 	}
 
@@ -150,20 +151,20 @@ func decodeTargetPayload(payload []byte) (*model.Target, []byte, error) {
 		residue[k] = v
 	}
 	if len(residue) == 0 {
-		return target, nil, nil
+		return e, nil, nil
 	}
 	extra, err := json.Marshal(residue)
 	if err != nil {
-		return nil, nil, fmt.Errorf("encode target payload residue: %w", err)
+		return model.Edition{}, nil, fmt.Errorf("encode target payload residue: %w", err)
 	}
-	return target, extra, nil
+	return e, extra, nil
 }
 
-// encodeTargetPayload renders a stored target back as an overlay payload,
+// encodeTargetPayload renders a stored edition back as an overlay payload,
 // carrying both the runs and their flattened text so a reader of either shape
 // finds what it asks for. The residue rides alongside, under the keys its
 // writer used.
-func encodeTargetPayload(target *model.Target, extra []byte) ([]byte, error) {
+func encodeTargetPayload(e model.Edition, extra []byte) ([]byte, error) {
 	fields := map[string]json.RawMessage{}
 	if len(extra) > 0 {
 		if err := json.Unmarshal(extra, &fields); err != nil {
@@ -173,9 +174,6 @@ func encodeTargetPayload(target *model.Target, extra []byte) ([]byte, error) {
 			fields = map[string]json.RawMessage{}
 		}
 	}
-	if target == nil {
-		return json.Marshal(fields)
-	}
 	set := func(key string, v any) error {
 		raw, err := json.Marshal(v)
 		if err != nil {
@@ -184,26 +182,26 @@ func encodeTargetPayload(target *model.Target, extra []byte) ([]byte, error) {
 		fields[key] = raw
 		return nil
 	}
-	if len(target.Runs) > 0 {
-		if err := set(fieldRuns, target.Runs); err != nil {
+	if len(e.Runs) > 0 {
+		if err := set(fieldRuns, e.Runs); err != nil {
 			return nil, err
 		}
-		if err := set(fieldText, model.RunsText(target.Runs)); err != nil {
-			return nil, err
-		}
-	}
-	if target.Status != "" {
-		if err := set(fieldStatus, target.Status); err != nil {
+		if err := set(fieldText, model.RunsText(e.Runs)); err != nil {
 			return nil, err
 		}
 	}
-	if target.Origin != (model.Origin{}) {
-		if err := set(fieldOrigin, target.Origin); err != nil {
+	if e.Status != "" {
+		if err := set(fieldStatus, e.Status); err != nil {
 			return nil, err
 		}
 	}
-	if target.Score != 0 {
-		if err := set(fieldScore, target.Score); err != nil {
+	if e.Origin != (model.Origin{}) {
+		if err := set(fieldOrigin, e.Origin); err != nil {
+			return nil, err
+		}
+	}
+	if e.Score != 0 {
+		if err := set(fieldScore, e.Score); err != nil {
 			return nil, err
 		}
 	}
