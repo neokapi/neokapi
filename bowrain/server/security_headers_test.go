@@ -23,6 +23,7 @@ func serveWithSecurityHeaders(t *testing.T, method, target string, tls bool, h e
 	e.Add(method, "/*", h)
 
 	req := httptest.NewRequest(method, target, nil)
+	req.RemoteAddr = loadBalancerAddr
 	if tls {
 		req.Header.Set("X-Forwarded-Proto", "https")
 	}
