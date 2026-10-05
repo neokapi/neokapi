@@ -11,25 +11,25 @@
   },
   "devDependencies": {
     "@neokapi/i18n-react": "*",
-    "@storybook/addon-themes": "^10.6.0",
-    "@storybook/react-vite": "^10.6.0",
+    "@storybook/addon-themes": "^10.6.1",
+    "@storybook/react-vite": "^10.6.1",
     "@tailwindcss/vite": "^4.3.3",
-    "@tanstack/react-query": "^5.103.2",
-    "@tanstack/react-router": "^1.170.38",
+    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-router": "^1.170.41",
     "@types/react": "^19.3.0",
     "react": "^19.3.0",
-    "storybook": "^10.6.0",
+    "storybook": "^10.6.1",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {
     "@neokapi/i18n-react": "*",
-    "@storybook/addon-themes": "^10.6.0",
-    "@storybook/react-vite": "^10.6.0",
+    "@storybook/addon-themes": "^10.6.1",
+    "@storybook/react-vite": "^10.6.1",
     "@tailwindcss/vite": "^4.0.0",
     "@tanstack/react-query": "^5.0.0",
     "@tanstack/react-router": "^1.170.16",
     "react": "^19.0.0",
-    "storybook": "^10.6.0"
+    "storybook": "^10.6.1"
   },
   "peerDependenciesMeta": {
     "@neokapi/i18n-react": {
