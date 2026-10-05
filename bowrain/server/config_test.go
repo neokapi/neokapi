@@ -17,9 +17,25 @@ import (
 // something the task does not control. ForceSecureCookies is the override that
 // removes that dependency, and it is now defaulted on for production
 // configurations — which is what this pins.
+// loadBalancerAddr is the peer a forwarded request arrives from in these
+// tests: a private address, as the load balancer's is inside the VPC. Echo
+// honours X-Forwarded-Proto only from a private, loopback or link-local peer.
+const loadBalancerAddr = "10.0.1.5:44321"
+
+// TestForwardedProtoFromAPublicClientIsIgnored pins that a client reaching
+// the server directly cannot claim https with a forwarded header.
+func TestForwardedProtoFromAPublicClientIsIgnored(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.RemoteAddr = "203.0.113.7:51234"
+	r.Header.Set("X-Forwarded-Proto", "https")
+	c := echo.New().NewContext(r, httptest.NewRecorder())
+	assert.Equal(t, "http", c.Scheme())
+}
+
 func TestCookieSecureDoesNotDependOnAForwardedHeaderAlone(t *testing.T) {
 	req := func(proto string) echo.Context {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.RemoteAddr = loadBalancerAddr
 		if proto != "" {
 			r.Header.Set("X-Forwarded-Proto", proto)
 		}
