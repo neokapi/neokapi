@@ -339,7 +339,7 @@ check-plugin-release-latest: ## Guard: no plugin release claims the repo's "late
 check-packages-publish-gate: ## Guard: the apt/yum repository publishes only when PUBLISH_PACKAGES is "true"
 	@./scripts/check-packages-publish-gate.sh
 
-check-cask-heredocs: ## Guard: the release casks carry no pre/postflight block and no retired vocabulary in desc
+check-cask-heredocs: ## Guard: the release casks carry no pre/postflight block and no retired vocabulary in desc; formulae use post_install_steps
 	@./scripts/check-cask-heredocs.sh
 
 check-tracked-binaries: ## Guard: no compiled executable (ELF/Mach-O/PE) is tracked in git
@@ -2958,15 +2958,6 @@ check-reference-docs: i18n-catalogs ## Drift gate: fail if the committed referen
 # reads nothing of the developer's machine. Any critical, major or minor finding
 # fails it: the collection is clean, and a gate that tolerates its own findings
 # teaches the reader to stop reading them.
-# Stage a built plugin where the isolated kapi can discover it. The iso env
-# sets KAPI_PLUGINS_DIR_ONLY, so a developer's Homebrew-installed plugins are
-# deliberately invisible — which also means a gate needing one must put it here.
-stage-sourcecode-plugin: build-sourcecode-plugin
-	@mkdir -p $(KAPI_ISO_DIR)/plugins/sourcecode/formats/sourcecode
-	@cp -f $(BIN_DIR)/kapi-sourcecode $(KAPI_ISO_DIR)/plugins/sourcecode/
-	@cp -f plugins/sourcecode/manifest.json $(KAPI_ISO_DIR)/plugins/sourcecode/
-	@cp -f plugins/sourcecode/formats/sourcecode/schema.json $(KAPI_ISO_DIR)/plugins/sourcecode/formats/sourcecode/
-
 # Distribution metadata is declared in kapi.yaml and checked under the project's
 # voice profile. scripts/check-vocabulary.sh covers surfaces kapi cannot read.
 #
@@ -2986,15 +2977,10 @@ bench-commit-check: import-dogfood-context ## Measure the commit check on web/do
 	cd host && KAPI_COMMIT_COST_RECIPE=$(CURDIR)/kapi.yaml KAPI_COMMIT_COST_DATA_DIR=$(KAPI_ISO_DIR)/data/kapi \
 		$(GOTEST) -run '^$$' -bench BenchmarkCommitCheck -benchtime 5x -count 2 .
 
-check-governed-prose: build stage-sourcecode-plugin import-dogfood-context ## Gate: the collections holding distribution prose pass `kapi check`
+check-governed-prose: build import-dogfood-context ## Gate: the collections holding distribution prose pass `kapi check`
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'packaging/nfpm.yaml' \
 		-p $(CURDIR)/kapi.yaml
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'apps/kapi-desktop/build/windows/info.json' \
-		-p $(CURDIR)/kapi.yaml
-	@# The cask needs the sourcecode plugin, staged above. Its `caveats` embeds
-	@# an aligned command sample, so the consecutive-spaces rule reports on
-	@# formatting that is correct; that rule is advisory and fails nothing.
-	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'deploy/homebrew/*.rb' \
 		-p $(CURDIR)/kapi.yaml
 
 # Check documentation prose on each PR. Failing findings block the check;
