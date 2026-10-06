@@ -135,7 +135,7 @@ containing only placeholders and writes the originals to a local vault sidecar;
 `kapi merge` restores them after the translator returns the file.
 
 ```bash
-# Emit redacted XLIFF — originals stay in .kapi/work/vault/redaction/<batch>.json
+# Emit redacted XLIFF: originals stay in .kapi/vault/batches/<batch>.json
 kapi extract --redact
 
 # ... translator fills in targets, preserving the placeholders ...
@@ -175,16 +175,15 @@ collections:
 | Workflow | Vault |
 | --- | --- |
 | In-process (`secure-translate`, custom flows) | In memory on the block; removed after restore, and never written to output |
-| External (`extract --redact` → `merge`) | `.kapi/work/vault/redaction/<batch-id>.json`, inside the project's one gitignored path, written private (`0600`) |
+| External (`extract --redact` → `merge`) | `.kapi/vault/batches/<batch-id>.json`, in a directory kept out of version control and written private (`0700`, files `0600`) |
 
-The vault sits beside the project store under `.kapi/work/`, and deliberately
-*not* under `.kapi/work/cache/`. Everything in the cache is free to delete
-because it rebuilds; a withheld original rebuilds from nothing. It is never
-committed and never synced to a server, so the only copy is the one on your
-machine. `rm -rf .kapi/work/cache` stays safe at any
-time; clearing `.kapi/work` wholesale strands any batch you have out with a
-translator, because the merge that would restore the originals has nothing left
-to read.
+The vault sits in `.kapi/vault/`, beside `.kapi/work/` and deliberately *not*
+inside it. Everything under `work/` is free to delete because it rebuilds; a
+withheld original rebuilds from nothing. It is never committed and never synced
+to a server, so the only copy is the one on your machine. `rm -rf .kapi/work`
+stays safe at any time; deleting `.kapi/` wholesale strands any batch you have
+out with a translator, because the merge that would restore the originals has
+nothing left to read.
 
 Restoration matches placeholders back to originals by token where the format
 preserves inline structure (in-process pipelines and XLIFF), and by the unique

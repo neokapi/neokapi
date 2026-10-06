@@ -281,7 +281,32 @@ func (s *SQLiteStore) TallyDecisionBasis(ctx context.Context, projectID, stream 
 		}
 		out = append(out, t)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	derived, err := s.db.QueryContext(ctx, `SELECT i.name, t.locale, COUNT(*)
+		 FROM translations t
+		 JOIN blocks b ON b.project_id = t.project_id AND b.stream = t.stream AND b.id = t.block_id
+		 JOIN items i ON i.project_id = b.project_id AND i.stream = b.stream AND i.id = b.item_id
+		 WHERE t.project_id=? AND t.stream=? AND b.translatable
+		   AND `+derivedStale+`
+		   AND NOT EXISTS (SELECT 1 FROM unit_decisions d
+			WHERE d.project_id = b.project_id AND d.stream = b.stream
+			AND d.item_id = b.item_id AND d.unit = b.source_id AND d.variant = t.locale)
+		 GROUP BY i.name, t.locale`, projectID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("tally derived basis: %w", err)
+	}
+	defer derived.Close()
+	for derived.Next() {
+		var item, variant string
+		var n int
+		if err := derived.Scan(&item, &variant, &n); err != nil {
+			return nil, fmt.Errorf("scan derived basis tally: %w", err)
+		}
+		out = platstore.AddDerivedStale(out, item, variant, n)
+	}
+	return out, derived.Err()
 }
 
 // RecordDraftBases implements platstore.DecisionStore, mirroring the Postgres
@@ -346,6 +371,12 @@ func (s *SQLiteStore) ListDraftBases(ctx context.Context, projectID, stream stri
 const basisStale = `(d.basis <> '' AND d.basis <> b.source_revision)`
 
 // draftCurrent says the row's draft mark names the source the block holds now.
+// derivedStale mirrors the Postgres grading of a translation's recorded
+// derivation against the source the block holds now.
+const derivedStale = `(COALESCE(json_extract(t.target_json, '$.derived.rev'), '') <> ''
+	AND json_extract(t.target_json, '$.derived.rev') <> b.source_revision
+	AND instr(COALESCE(json_extract(t.target_json, '$.derived.from'), ''), ';') = 0)`
+
 const draftCurrent = `(d.draft_basis <> '' AND d.draft_basis = b.source_revision)`
 
 // settleDecisionProjections re-derives the projected statuses of every target

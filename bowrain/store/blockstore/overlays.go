@@ -94,7 +94,15 @@ const (
 	fieldStatus = "status"
 	fieldOrigin = "origin"
 	fieldScore  = "score"
+	// fieldDerived holds the derivation the edition records: {"from": the
+	// edition key's text form, "rev": that edition's revision}.
+	fieldDerived = "derived"
 )
+
+type derivedField struct {
+	From string `json:"from"`
+	Rev  string `json:"rev"`
+}
 
 // decodeTargetPayload reads an overlay payload as the edition it describes,
 // returning the edition and the writer's residual fields.
@@ -142,10 +150,22 @@ func decodeTargetPayload(payload []byte) (model.Edition, []byte, error) {
 		}
 	}
 
+	if raw, ok := fields[fieldDerived]; ok {
+		var d derivedField
+		if err := json.Unmarshal(raw, &d); err != nil {
+			return model.Edition{}, nil, fmt.Errorf("decode target derivation: %w", err)
+		}
+		var from model.EditionKey
+		if err := from.UnmarshalText([]byte(d.From)); err != nil {
+			return model.Edition{}, nil, fmt.Errorf("decode target derivation: %w", err)
+		}
+		e.Derived = &model.Derivation{From: from, Rev: d.Rev}
+	}
+
 	residue := map[string]json.RawMessage{}
 	for k, v := range fields {
 		switch k {
-		case fieldRuns, fieldText, fieldTarget, fieldStatus, fieldOrigin, fieldScore:
+		case fieldRuns, fieldText, fieldTarget, fieldStatus, fieldOrigin, fieldScore, fieldDerived:
 			continue
 		}
 		residue[k] = v
@@ -202,6 +222,15 @@ func encodeTargetPayload(e model.Edition, extra []byte) ([]byte, error) {
 	}
 	if e.Score != 0 {
 		if err := set(fieldScore, e.Score); err != nil {
+			return nil, err
+		}
+	}
+	if e.Derived != nil {
+		from, err := e.Derived.From.MarshalText()
+		if err != nil {
+			return nil, fmt.Errorf("encode target derivation: %w", err)
+		}
+		if err := set(fieldDerived, derivedField{From: string(from), Rev: e.Derived.Rev}); err != nil {
 			return nil, err
 		}
 	}

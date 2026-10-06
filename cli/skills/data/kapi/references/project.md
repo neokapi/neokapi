@@ -107,10 +107,12 @@ Deleting:
 
 - `rm -rf .kapi/work/cache` is **always** safe; everything under it rebuilds on
   the next run.
-- `rm -rf .kapi/work` costs a re-extraction. If the project uses redaction,
-  `.kapi/work/vault/` holds the withheld originals, which are local-only by
-  design and rebuild from nothing: merge any batch that is out with a translator
-  before clearing it. Decisions are in the workspace and survive it.
+- `rm -rf .kapi/work` costs a re-extraction and nothing else. Decisions are in
+  the workspace and survive it.
+- `rm -rf .kapi` also removes `.kapi/vault/`, which in a project that uses
+  redaction holds the withheld originals, local-only by design and rebuilt from
+  nothing (merge any batch that is out with a translator first), and
+  `.kapi/sync/`, a venue's sync state.
 - Deleting the workspace costs every project's terms, voice profiles, content
   memory and decisions. Tell the user to push each project to its context
   backend (`kapi context push`) or take a copy first with

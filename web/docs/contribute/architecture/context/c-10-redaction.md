@@ -59,20 +59,20 @@ per lifetime:
 | Backing | Where | For |
 | --- | --- | --- |
 | An in-process secret annotation on the block | memory | single-run flows |
-| A per-batch JSON sidecar | `.kapi/work/cache/redaction/<batch-id>.json` | the extract → external tool → merge round trip |
-| The project vault | `.kapi/work/vault/redaction.json` | continuous ingest, which has no batch id to look under |
+| A per-batch JSON sidecar | `.kapi/vault/batches/<batch-id>.json` | the extract → external tool → merge round trip |
+| The project vault | `.kapi/vault/redaction.json` | continuous ingest, which has no batch id to look under |
 
 The in-process annotation is keyed under a name no format writer serializes, and
 `unredact` deletes it after restoring, so it cannot reach an output file. The
 sidecars and the vault are written with restrictive permissions.
 
-`vault/` is separate from `cache/`. **The cache is defined by being disposable**:
-losing it costs CPU. **The vault is defined by an exclusion**: a named
-destination must never read it, and losing it means redacted content can never
-be restored. Filing it under `cache/` would make it look regenerable, which it
-is not, and put it one deletion away from unrecoverable placeholders. So `rm -rf
-.kapi/work/cache` stays free, and `vault/` is the one thing under `work/` that
-kapi never deletes on its own initiative.
+`vault/` sits beside `work/`, outside it. **`work/` is defined by being
+disposable**: losing it costs CPU. **The vault is defined by an exclusion**: a
+named destination must never read it, and losing it means redacted content can
+never be restored. So `rm -rf .kapi/work` stays free, and kapi never deletes the
+vault on its own initiative. `core/project.Layout.PrepareVault` writes the
+directory owner-only and adds it to `.kapi/.gitignore` when that file ignores
+less than the whole of `.kapi/`, before anything is withheld into it.
 
 For model calls the guarantee is *structural*, not advisory: a block with inline
 codes is rendered through the placeholder protocol, which presents each

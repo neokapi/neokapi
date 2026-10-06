@@ -84,8 +84,13 @@ its own against the same list.
   `Status`, `Score`, and a full `Origin`, both halves of it: how the target was
   made (kind, engine, tool, reference, timestamp, **confidence**) and what
   governed it (**profile**, **profile version**, **context fingerprint**).
-  Tone/channel ride the target map key's text form; status/origin/score ride the
-  wire segment's properties.
+  The French translation also records its derivation (`Edition.Derived`): the
+  edition it was made from and that edition's revision, the basis its
+  staleness is graded against after a pull. Tone/channel ride the target map
+  key's text form; status/origin/score ride the wire segment's properties. The
+  derivation rides `SyncSegmentList.derived` on the protobuf push, the
+  `__derived_from` and `__derived_rev` segment properties on the JSON pull, and
+  `target_json.derived` in the platform store.
 - **Overlays**: **every OverlayType**: segmentation (incl. an ignorable span),
   term, entity, qa, alignment (on a translation's edition) and term-candidate,
   each with anchors, props, the edition it sits on, and typed span `Value`. Typed values (`*EntityAnnotation`,
@@ -143,6 +148,9 @@ Each projection then gates its own legs. For the sync wire:
   `Editions` map and slips past it, and the round-trip then passes while
   silently dropping it. Provenance is the one record that cannot be
   reconstructed later, so it gets its own guard.
+- **Edition completeness guard** (`TestEditionFixtureIsComplete`): every
+  exported field of `model.Edition` is set on at least one kitchen-sink
+  translation, so a new edition field fails until it is populated and carried.
 - **Kind tables** (`venuetest.AllRunKinds`, `venuetest.AllOverlayKinds`): iterated
   by the round-trip tests; a **new Run/Overlay kind** trips them until it is
   added to the table, the fixture, and the converter.

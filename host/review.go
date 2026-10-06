@@ -117,9 +117,9 @@ func (o reviewQueueOutput) FormatText(w io.Writer) error {
 	}
 	t.Render()
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Approve a translated block with `kapi apply` (a `review` change-set, addressed by its file/id/locale). The state record lands in the project store and the block becomes `established`.")
+	fmt.Fprintln(w, "Approve a block with `kapi apply`: a decide operation with outcome establish, at the block's document, key and edition, and if_match set to the revision `kapi inspect` reports. The decision lands in the project store and the block becomes `established`.")
 	if sources > 0 {
-		fmt.Fprintln(w, "Blocks marked `source` are the project's own source language. `kapi apply` records target-language decisions only; approve source wording in the Review page of Kapi Desktop.")
+		fmt.Fprintln(w, "Blocks marked `source` are the project's own source language. Approve source wording the same way, with no edition.")
 	}
 	if held > 0 {
 		fmt.Fprintf(w, "%d source block(s) are held below the project's translate_after level, so the loop holds their translations.\n", held)

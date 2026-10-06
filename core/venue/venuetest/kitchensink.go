@@ -125,6 +125,9 @@ func KitchenSinkBlock() *model.Block {
 			ProfileVersion:     "7",
 			ContextFingerprint: "9f2b7c1d4e6a8035",
 		},
+		// The basis the translation was made from: the edition the block was
+		// read in, at a revision. Staleness is graded against it after a pull.
+		Derived: &model.Derivation{Rev: "r:3f9a1c0e7b2d4a55"},
 	})
 	b.SetEdition(deFormal, model.Edition{
 		Runs:   []model.Run{{Text: &model.TextRun{Text: "Guten Tag"}}},

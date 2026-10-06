@@ -34,7 +34,7 @@ func registerReviewTools(server *mcp.Server, a *cli.App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:         "review_block",
-		Description:  "Read one block's review picture: ref and rev, the reference and revision of the edition under review, and the block itself, under unit: source and target text, ladder status, the last recorded decision (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. Address it with the ref a review_queue row carries, or a ref read_blocks reports with the translation's edition. A block in the project's source language is read from its source file and returns its authoring rung with no target half. To record a pre-review, send apply_edits a decide operation with at set to ref, if_match set to rev, outcome advise, a score from 0 to 100 and your reasons: it is bound to the wording you read, a later edit drops it, and it never establishes the block.",
+		Description:  "Read one block's review picture: ref and rev, the reference and revision of the edition under review, and the block itself, under block: source and target text, ladder status, the last recorded decision (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. Address it with the ref a review_queue row carries, or a ref read_blocks reports with the translation's edition. A block in the project's source language is read from its source file and returns its authoring rung with no target half. To record a pre-review, send apply_edits a decide operation with at set to ref, if_match set to rev, outcome advise, a score from 0 to 100 and your reasons: it is bound to the wording you read, a later edit drops it, and it never establishes the block.",
 		OutputSchema: reviewBlockOutputSchema,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ReviewBlockInput) (*mcp.CallToolResult, ReviewBlockOutput, error) {
 		return handleReviewBlock(ctx, a, input)
@@ -89,9 +89,9 @@ type BlockRef struct {
 
 // ReviewBlockOutput is one edition's review picture.
 type ReviewBlockOutput struct {
-	Ref  BlockRef            `json:"ref"`
-	Rev  string              `json:"rev"`
-	Unit *cli.ReviewUnitInfo `json:"unit"`
+	Ref   BlockRef            `json:"ref"`
+	Rev   string              `json:"rev"`
+	Block *cli.ReviewUnitInfo `json:"block"`
 }
 
 // reviewBlockOutputSchema declares review_block's result instead of letting
@@ -99,14 +99,14 @@ type ReviewBlockOutput struct {
 //
 // A block's runs nest: a plural run holds a run sequence per form, so model.Run
 // refers to itself. The SDK's inference walks the type graph rather than
-// emitting a $ref, and refuses a cycle, so a unit carrying its neighbourhood
+// emitting a $ref, and refuses a cycle, so a block carrying its neighbourhood
 // as runs cannot have a schema inferred at all. Declaring the envelope keeps
-// the tool registrable and leaves the unit an object the client reads by name;
+// the tool registrable and leaves the block an object the client reads by name;
 // the field documentation lives on host.ReviewUnitInfo and host.ReviewContext.
 var reviewBlockOutputSchema = json.RawMessage(`{"type":"object","properties":{` +
 	`"ref":{"type":"object","description":"the edition under review: doc, block and edition"},` +
 	`"rev":{"type":"string","description":"the edition's revision, the if_match of a decide operation about it"},` +
-	`"unit":{"type":"object"}}}`)
+	`"block":{"type":"object","description":"the block under review: its source and target text, ladder status, last recorded decision and the context the decision is made in"}}}`)
 
 // --- Handlers ---
 
@@ -149,7 +149,7 @@ func handleReviewBlock(ctx context.Context, a *cli.App, input ReviewBlockInput) 
 	if err != nil {
 		return nil, ReviewBlockOutput{}, err
 	}
-	return nil, ReviewBlockOutput{Ref: blockRef(rb.Ref), Rev: rb.Rev, Unit: rb.Unit}, nil
+	return nil, ReviewBlockOutput{Ref: blockRef(rb.Ref), Rev: rb.Rev, Block: rb.Block}, nil
 }
 
 // blockRef is r in the form a review tool reports it.

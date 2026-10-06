@@ -15,10 +15,12 @@ import (
 )
 
 // basisFixture is the three-way shape every test in this file needs, seeded in a
-// real PostgreSQL store: one unit whose recorded basis names wording the source
-// no longer carries (stale), one the ledger has no record of (unrecorded), and
-// one whose basis is the source the project holds now (fresh). All three carry a
-// French target.
+// real PostgreSQL store: one unit whose translation records a basis naming
+// wording the source no longer carries (stale), one whose translation records
+// none and that no decision names (unrecorded), and one whose translation was
+// made from the source the project holds now (fresh). All three carry a
+// French target. The basis lives on the edition (model.Edition.Derived), where
+// the stream home records it when a change set writes the translation.
 type basisFixture struct {
 	db        *storage.PgDB
 	cs        *bstore.PostgresStore
@@ -50,36 +52,21 @@ func newBasisFixture(t *testing.T) basisFixture {
 	}))
 
 	blocks := []*model.Block{
-		basisBlock("stale", basisStaleSource, "Sélecteur de couleur"),
+		derivedBlock("stale", basisStaleSource, "Sélecteur de couleur", srcRevision("Colour picker (the wording before the fix)")),
 		basisBlock("unrecorded", basisUnrecordedSource, "Enregistrer"),
-		basisBlock("fresh", basisFreshSource, "Supprimer le compte"),
+		derivedBlock("fresh", basisFreshSource, "Supprimer le compte", srcRevision(basisFreshSource)),
 	}
 	require.NoError(t, cs.StoreBlocksForItem(ctx, projectID, "main", "ui.json", blocks))
 
-	// The stale unit's record names a source wording the project has since
-	// rewritten; the fresh unit's names the wording it still holds. The
-	// unrecorded unit gets no record at all.
-	_, err = cs.UpsertUnitDecisions(ctx, projectID, "main", []venue.UnitDecision{
-		{
-			ItemName: "ui.json",
-			Unit:     "stale",
-			Variant:  "fr",
-			Revision: frRevision("Sélecteur de couleur"),
-			Basis:    srcRevision("Colour picker (the wording before the fix)"),
-			Updated:  "2026-01-01T00:00:00Z",
-		},
-		{
-			ItemName: "ui.json",
-			Unit:     "fresh",
-			Variant:  "fr",
-			Revision: frRevision("Supprimer le compte"),
-			Basis:    srcRevision(basisFreshSource),
-			Updated:  "2026-01-01T00:00:00Z",
-		},
-	})
-	require.NoError(t, err)
-
 	return basisFixture{db: db, cs: cs, projectID: projectID, item: "ui.json"}
+}
+
+// derivedBlock is basisBlock with the French translation recording the source
+// revision it was made from.
+func derivedBlock(id, source, target, basis string) *model.Block {
+	b := basisBlock(id, source, target)
+	b.SetDerivation(model.EditionKey{Locale: "fr"}, &model.Derivation{Rev: basis})
+	return b
 }
 
 // srcRevision is the revision of a plain-text source as the store stamps it
@@ -124,9 +111,12 @@ func TestDecisionLedger_NeedsDraft(t *testing.T) {
 	f := newBasisFixture(t)
 	ctx := t.Context()
 	ledger := loadDecisionLedger(ctx, f.cs, f.projectID, "main")
-	require.NotNil(t, ledger, "the fixture recorded two decisions")
+	assert.Nil(t, ledger, "the fixture records no decision")
 
 	stored := f.storedFor(t)
+	require.NotNil(t, stored[basisStaleSource].Block.Editions, "the stored block keeps its editions")
+	fr, _ := stored[basisStaleSource].Block.Edition(model.EditionKey{Locale: "fr"})
+	require.NotNil(t, fr.Derived, "the store keeps the derivation the translation records")
 
 	assert.True(t, ledger.needsDraft(stored[basisStaleSource], "fr"),
 		"the recorded basis names wording the source no longer carries")
@@ -140,9 +130,16 @@ func TestDecisionLedger_NeedsDraft(t *testing.T) {
 	assert.True(t, ledger.needsDraft(stored[basisStaleSource], "de"),
 		"no target for the locale is work")
 
-	// Without a ledger, targets have no recorded decision and remain unchanged.
-	assert.False(t, decisionLedger(nil).needsDraft(stored[basisStaleSource], "fr"))
-	assert.True(t, decisionLedger(nil).needsDraft(stored[basisStaleSource], "de"))
+	// A decision names the basis it blessed, whatever the translation records.
+	_, err := f.cs.UpsertUnitDecisions(ctx, f.projectID, "main", []venue.UnitDecision{{
+		ItemName: f.item, Unit: "stale", Variant: "fr", Status: string(model.TargetStatusEstablished),
+		Revision: frRevision("Sélecteur de couleur"), Basis: srcRevision(basisStaleSource),
+		ReviewState: "approved", DecidedBy: "reviewer-1", Updated: "2026-02-01T00:00:00Z",
+	}})
+	require.NoError(t, err)
+	ledger = loadDecisionLedger(ctx, f.cs, f.projectID, "main")
+	assert.False(t, ledger.needsDraft(stored[basisStaleSource], "fr"),
+		"an approval of the current source settles the unit")
 }
 
 // TestRecycleBlocks_PartitionsOnTheRecordedBasis proves the recycle pass acts on
@@ -226,16 +223,15 @@ func TestEstimateConvergence_PricesTheRunsOwnPredicate(t *testing.T) {
 	assert.Equal(t, est.Locales[0].Pending, pending)
 }
 
-// TestRecordProducedBasis pins what the convergence worker writes for the
-// targets it produced: a basis for a unit it wrote, nothing over a decision, and
-// nothing for a pairing already recorded.
-func TestRecordProducedBasis(t *testing.T) {
+// TestRecordDraftMarks pins what the convergence worker writes into the ledger
+// for the targets it produced: a draft mark on the row of a decided unit, and
+// nothing for a unit no decision names. The basis of the draft itself is on the
+// edition the stream home wrote.
+func TestRecordDraftMarks(t *testing.T) {
 	f := newBasisFixture(t)
 	ctx := t.Context()
 	stored := f.storedFor(t)
 
-	// The unrecorded unit's translation is now the platform's own output, and the
-	// fresh unit carries a decision.
 	_, err := f.cs.UpsertUnitDecisions(ctx, f.projectID, "main", []venue.UnitDecision{{
 		ItemName:    f.item,
 		Unit:        "fresh",
@@ -256,37 +252,24 @@ func TestRecordProducedBasis(t *testing.T) {
 		byBlockID[sb.Block.ID] = sb
 		written = append(written, sb.Block)
 	}
-	recordProducedBasis(ctx, f.cs, f.projectID, "main", ledger, byBlockID, written, "fr")
+	recordDraftMarks(ctx, f.cs, f.projectID, "main", ledger, byBlockID, written, "fr")
 
 	after, err := f.cs.ListUnitDecisions(ctx, f.projectID, "main")
 	require.NoError(t, err)
-	records := map[string]venue.UnitDecision{}
-	for _, d := range after {
-		records[d.Unit] = d
-	}
+	require.Len(t, after, 1, "the pass writes no record for a unit no decision names")
+	assert.Equal(t, "fresh", after[0].Unit)
+	assert.Equal(t, "approved", after[0].ReviewState, "a decided unit keeps the reviewer's record")
 
-	require.Contains(t, records, "unrecorded")
-	assert.Equal(t, srcRevision(basisUnrecordedSource), records["unrecorded"].Basis,
-		"the pass records the source it translated from")
-	assert.Equal(t, frRevision("Enregistrer"), records["unrecorded"].Revision)
-	assert.Empty(t, records["unrecorded"].Status, "a basis claims no rung")
-	assert.Empty(t, records["unrecorded"].ReviewState, "a basis is not a decision")
-
-	assert.Equal(t, "approved", records["fresh"].ReviewState,
-		"a decided unit keeps the reviewer's record")
-	assert.Equal(t, "reviewer-1", records["fresh"].DecidedBy)
-
-	// The target the pass wrote keeps the rung its producer put it on: a
-	// status-less record projects nothing.
-	sb, err := f.cs.GetBlock(ctx, f.projectID, "main", stored[basisUnrecordedSource].Block.ID)
+	drafts, err := f.cs.ListDraftBases(ctx, f.projectID, "main")
 	require.NoError(t, err)
-	assert.Equal(t, "Enregistrer", sb.Block.TargetText("fr"))
+	require.Len(t, drafts, 1)
+	assert.Equal(t, srcRevision(basisFreshSource), drafts[0].Basis, "the decided unit's row is marked with the source it was drafted against")
 }
 
 // TestWorkerRecordsTheBasisOfWhatItDrafts drives the real translation worker over
 // the fixture: the stale unit is re-drafted, the unrecorded and fresh ones are
-// left alone, and the run records the source its draft was made from, so the
-// next pass reads the unit as current rather than re-drafting it forever.
+// left alone, and the draft's edition records the source it was made from, so
+// the next pass reads the unit as current rather than re-drafting it forever.
 func TestWorkerRecordsTheBasisOfWhatItDrafts(t *testing.T) {
 	f := newBasisFixture(t)
 	ctx := t.Context()
@@ -327,15 +310,12 @@ func TestWorkerRecordsTheBasisOfWhatItDrafts(t *testing.T) {
 
 	after, err := f.cs.ListUnitDecisions(ctx, f.projectID, "main")
 	require.NoError(t, err)
-	records := map[string]venue.UnitDecision{}
-	for _, d := range after {
-		records[d.Unit] = d
-	}
-	require.Contains(t, records, "stale")
-	assert.Equal(t, srcRevision(basisStaleSource), records["stale"].Basis,
+	assert.Empty(t, after, "the worker writes no basis record into the decision ledger")
+	fr, ok := stored[basisStaleSource].Block.Edition(model.EditionKey{Locale: "fr"})
+	require.True(t, ok)
+	require.NotNil(t, fr.Derived, "the re-draft records what it was made from on the edition")
+	assert.Equal(t, srcRevision(basisStaleSource), fr.Derived.Rev,
 		"the re-draft's basis is the source it was made from")
-	assert.NotContains(t, records, "unrecorded",
-		"the pass wrote nothing for that unit, so it claims nothing about it")
 
 	// The second pass has nothing to do: the unit it re-drafted now reads current.
 	ledger := loadDecisionLedger(ctx, f.cs, f.projectID, "main")

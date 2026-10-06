@@ -31,9 +31,10 @@ type Layout struct {
 // (its terms, voice profiles, content memory and recorded decisions) lives in
 // the user's workspace, one store per project, shared by every checkout. What
 // kapi writes under `.kapi/` is derived from the working tree beside it or
-// belongs to this machine: the block store, the caches, the redaction vault and
-// the personal saved filters. Deleting the directory costs a re-extraction, except for
-// the vault (see VaultDirName).
+// belongs to this checkout. The derived half is `work/` (WorkDirName), a cache
+// that deleting costs a re-extraction. The rest sits beside it and is never
+// rebuilt: the redaction vault (VaultDirName), the sync state a venue keeps
+// (SyncDirName) and the personal saved filters (LocalFiltersFilename).
 //
 // A person may still keep context files here, such as a terms bundle or a voice
 // profile they author: `kapi context import` reads them, through ExportLayout.
@@ -41,8 +42,9 @@ type Layout struct {
 // EnsureLayout never overwrites.
 const StateDirName = ".kapi"
 
-// WorkDirName is the machine-state subdirectory of StateDir: the local store,
-// the caches, and the redaction vault.
+// WorkDirName is the derived subdirectory of StateDir: the local store and the
+// caches. Everything in it is rebuilt from the working tree and the workspace,
+// so deleting it loses nothing; what cannot be rebuilt sits beside it.
 const WorkDirName = "work"
 
 // StateGitignore is the ignore rule EnsureLayout writes into a new `.kapi/`. It
@@ -67,7 +69,7 @@ func GitignoreCovers(content, name string) bool {
 	return false
 }
 
-// WorkDir returns the absolute path of the machine-state directory.
+// WorkDir returns the absolute path of the derived directory.
 func (l Layout) WorkDir() string {
 	return filepath.Join(l.StateDir, WorkDirName)
 }
@@ -133,8 +135,7 @@ func (l Layout) StorePath() string {
 const RecipeFileName = "kapi.yaml"
 
 // CacheDirName is the subdirectory of WorkDir that holds all regenerable
-// caches: the parse cache, extraction intermediates, overlay layers, and any
-// platform-specific caches (e.g. sync caches added by extensions). The store
+// caches: the parse cache, extraction intermediates and overlay layers. The store
 // sits above the cache inside work/, so deleting the cache costs only the next
 // parse.
 const CacheDirName = "cache"
@@ -165,27 +166,83 @@ func (l Layout) CollectionsDir() string {
 	return filepath.Join(l.CacheDir(), CollectionsDirName)
 }
 
-// RedactionDirName is the cache subdirectory holding per-batch redaction
-// vault sidecars. These contain original sensitive values and must never
-// be committed — they live under the gitignored cache root.
+// RedactionDirName is the cache subdirectory that held per-batch redaction
+// sidecars before they moved into the vault (VaultBatchesDirName). Only the
+// predecessor sweep names it.
 const RedactionDirName = "redaction"
 
-// VaultDirName is the work subdirectory holding withheld originals.
+// VaultDirName is the StateDir subdirectory holding withheld originals.
 //
-// Separate from cache/ on purpose. The cache is defined by being disposable —
-// losing it costs CPU. The vault is defined by an EXCLUSION: a named
-// destination must never read it, and losing it means redacted content can
-// never be restored. Filing it under cache/ made it look regenerable, which it
-// is not, and put it one `rm -rf` away from unrecoverable placeholders.
+// Outside work/ on purpose. work/ is defined by being disposable: losing it
+// costs CPU. The vault is defined by an EXCLUSION: a named destination must
+// never read it, and losing it means redacted content can never be restored.
+// Filing it under work/ made it look regenerable, which it is not, and put it
+// one `rm -rf .kapi/work` away from unrecoverable placeholders.
 //
-// It is local-only for the same reason it is not cache: the originals never
-// leave the machine, so it sits under work/ (never committed, never synced) and
-// is the one thing under work/ that is never deleted on kapi's own initiative.
+// The originals never leave the machine: the directory is written owner-only
+// and kept out of version control (EnsureLocalDir), and nothing syncs it.
 const VaultDirName = "vault"
+
+// VaultBatchesDirName holds the vault's per-batch sidecars, one per
+// extraction batch that withheld values.
+const VaultBatchesDirName = "batches"
 
 // VaultDir returns the absolute path of the withheld-originals root.
 func (l Layout) VaultDir() string {
-	return filepath.Join(l.WorkDir(), VaultDirName)
+	return filepath.Join(l.StateDir, VaultDirName)
+}
+
+// PrepareVault creates the vault directory owner-only and keeps it out of
+// version control. Every writer of withheld originals calls it first.
+func (l Layout) PrepareVault() error {
+	_, err := EnsureLocalDir(l, VaultDirName)
+	return err
+}
+
+// SyncDirName is the StateDir subdirectory holding what a venue's push and
+// pull keep between runs: the refs a checkout consumed (core/ref/refcache)
+// and the sync cache with the confirmed block hashes, the decisions and
+// writes last sent and an anonymous project's claim token. The claim token
+// exists nowhere else, so the directory sits outside work/.
+const SyncDirName = "sync"
+
+// SyncDir returns the absolute path of the venue sync state.
+func (l Layout) SyncDir() string {
+	return filepath.Join(l.StateDir, SyncDirName)
+}
+
+// EnsureLocalDir creates the StateDir subdirectory name, owner-only, and
+// makes sure version control ignores it. A fresh `.kapi/` is ignored as a
+// whole by the rule EnsureLayout writes; a `.kapi/` that carries an ignore
+// file of its own, or none because it holds committed files, gains one line
+// naming the directory, so no `git add -A` stages withheld originals or a
+// claim token.
+func EnsureLocalDir(layout Layout, name string) (string, error) {
+	dir := filepath.Join(layout.StateDir, name)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", fmt.Errorf("project: create %s: %w", name, err)
+	}
+	// A directory an earlier layout created keeps its own mode; tighten it.
+	if err := os.Chmod(dir, 0o700); err != nil {
+		return "", fmt.Errorf("project: protect %s: %w", name, err)
+	}
+	ignorePath := filepath.Join(layout.StateDir, StateGitignoreFilename)
+	existing, err := os.ReadFile(ignorePath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("project: read %s: %w", StateGitignoreFilename, err)
+	}
+	content := string(existing)
+	if GitignoreCovers(content, name) || GitignoreCovers(content, name+"/") {
+		return dir, nil
+	}
+	if content != "" && !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	content += name + "/\n"
+	if err := os.WriteFile(ignorePath, []byte(content), 0o644); err != nil {
+		return "", fmt.Errorf("project: write %s: %w", StateGitignoreFilename, err)
+	}
+	return dir, nil
 }
 
 // RedactionVaultPath returns the project-scoped redaction vault.
@@ -201,7 +258,7 @@ func (l Layout) RedactionVaultPath() string {
 // RedactionSidecarPath returns the absolute path of the redaction vault
 // sidecar for an extraction batch.
 func (l Layout) RedactionSidecarPath(batchID string) string {
-	return filepath.Join(l.CacheDir(), RedactionDirName, batchID+".json")
+	return filepath.Join(l.VaultDir(), VaultBatchesDirName, batchID+".json")
 }
 
 // ResolveLayout walks up from `start` looking for a kapi project.
@@ -333,7 +390,7 @@ func cacheOnly(dir string) bool {
 	}
 	for _, e := range entries {
 		switch e.Name() {
-		case WorkDirName, LocalFiltersFilename, StateGitignoreFilename:
+		case WorkDirName, LocalFiltersFilename, StateGitignoreFilename, VaultDirName, SyncDirName:
 		default:
 			return false
 		}

@@ -237,7 +237,8 @@ no edition); a decision binds to the revision it names, and one whose
 translation changed since it was read is refused as `stale`.
 
 Over MCP, each `review_queue` row carries the `ref` a decision names, and
-`review_block` reads it with the `rev` of the edition under review. An
+`review_block` reads it with the `rev` of the edition under review, and the
+block's text, status and review context under `block`. An
 assistant pre-reviews with `apply_edits`: a `decide` operation at that `ref`,
 `if_match` the `rev`, outcome `advise`, a `score` from 0 to 100 and its
 `reasons`. The person working the queue reads it beside the block; an

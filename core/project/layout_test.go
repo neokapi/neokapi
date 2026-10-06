@@ -132,22 +132,31 @@ func TestLayout_StorePathIsNotUnderCache(t *testing.T) {
 }
 
 // Every path kapi derives from the working tree sits under work/, so deleting
-// work/ is always a re-extraction and nothing more. The context files an
+// work/ is always a re-extraction and nothing more, and nothing else does. The context files an
 // import reads and a snapshot writes sit one segment inside `.kapi/`.
 func TestLayout_WorkHoldsEveryDerivedPath(t *testing.T) {
 	layout := testLayout(t)
 	work := layout.WorkDir() + string(filepath.Separator)
 
 	for name, path := range map[string]string{
-		"store":             layout.StorePath(),
-		"cache":             layout.CacheDir(),
-		"extractions":       layout.ExtractionsDir(),
-		"collections":       layout.CollectionsDir(),
+		"store":       layout.StorePath(),
+		"cache":       layout.CacheDir(),
+		"extractions": layout.ExtractionsDir(),
+		"collections": layout.CollectionsDir(),
+	} {
+		assert.True(t, strings.HasPrefix(path, work), "%s must live under work/: %s", name, path)
+	}
+
+	// What no source reproduces sits beside work/, so deleting work/ loses none
+	// of it: the vault and its sidecars, and the venue sync state.
+	for name, path := range map[string]string{
 		"vault":             layout.VaultDir(),
 		"redaction vault":   layout.RedactionVaultPath(),
 		"redaction sidecar": layout.RedactionSidecarPath("b-1"),
+		"sync state":        layout.SyncDir(),
 	} {
-		assert.True(t, strings.HasPrefix(path, work), "%s must live under work/: %s", name, path)
+		assert.False(t, strings.HasPrefix(path, work), "%s must live outside work/: %s", name, path)
+		assert.True(t, strings.HasPrefix(path, layout.StateDir+string(filepath.Separator)), "%s lives in .kapi/: %s", name, path)
 	}
 
 	assert.Equal(t, filepath.Join(layout.StateDir, "state"), layout.Export().UnitStateDir())
@@ -232,4 +241,28 @@ func TestEnsureLayout_createsTheStateAndWorkDirs(t *testing.T) {
 	// workspace, and an export creates what it writes.
 	assert.NoDirExists(t, layout.Export().MemoryDir())
 	assert.NoDirExists(t, layout.Export().UnitStateDir())
+}
+
+// EnsureLocalDir creates a directory owner-only and keeps it out of version
+// control in a `.kapi/` whose ignore file names other things.
+func TestEnsureLocalDir_ProtectsTheDirectory(t *testing.T) {
+	layout := testLayout(t)
+	require.NoError(t, os.MkdirAll(layout.StateDir, 0o755))
+	ignore := filepath.Join(layout.StateDir, project.StateGitignoreFilename)
+	require.NoError(t, os.WriteFile(ignore, []byte("work/\n"), 0o644))
+
+	dir, err := project.EnsureLocalDir(layout, project.VaultDirName)
+	require.NoError(t, err)
+	info, err := os.Stat(dir)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o700), info.Mode().Perm())
+	rule, err := os.ReadFile(ignore)
+	require.NoError(t, err)
+	assert.Equal(t, "work/\nvault/\n", string(rule), "the existing rule is kept and the vault added")
+
+	_, err = project.EnsureLocalDir(layout, project.VaultDirName)
+	require.NoError(t, err)
+	rule, err = os.ReadFile(ignore)
+	require.NoError(t, err)
+	assert.Equal(t, "work/\nvault/\n", string(rule), "a second call adds nothing")
 }

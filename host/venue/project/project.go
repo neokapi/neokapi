@@ -138,13 +138,6 @@ func (p *Project) FlowsDirPath() string {
 	return p.Recipe.FlowsDirIn(p.Root)
 }
 
-// SyncCachePath is the path to the bowrain sync cache. Bowrain owns this
-// path; the framework's Layout exposes only generic CacheDir / BlockStore
-// / Extractions / Collections paths.
-func (p *Project) SyncCachePath() string {
-	return filepath.Join(p.Layout.CacheDir(), SyncCacheFilename)
-}
-
 // ResolvePath resolves a local path relative to the project root.
 func (p *Project) ResolvePath(localPath string) string {
 	if filepath.IsAbs(localPath) {

@@ -144,6 +144,9 @@ func (a *App) keptRedactionAt(root string) (*keptRedaction, error) {
 	}
 	read = keptRedactionRead{size: info.Size(), mod: info.ModTime()}
 	if spec := ProjectRedaction(proj); spec != nil {
+		if err := layout.PrepareVault(); err != nil {
+			return nil, fmt.Errorf("the workspace home: %w", err)
+		}
 		read.policy = &keptRedaction{policy: &recordRedaction{spec: spec, root: layout.Root, vault: layout.RedactionVaultPath()}}
 	}
 	s.mu.Lock()

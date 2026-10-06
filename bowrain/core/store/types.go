@@ -939,7 +939,9 @@ type DecisionBasisTally struct {
 	Variant string
 	// Stale counts decisions whose basis names a revision of the source other
 	// than the one the block carries: the translation renders a source the
-	// project has since changed, its wording or an inline code.
+	// project has since changed, its wording or an inline code. It also counts
+	// the translations no decision records whose own derivation
+	// (model.Edition.Derived) names such a source (AddDerivedStale).
 	Stale int
 	// BasisUnknown counts records that name no basis: a translation written
 	// outside kapi, made from no recorded source. Unknown is never stale —
@@ -965,6 +967,22 @@ type DecisionBasisTally struct {
 	// the produced count and the number the worker's own predicate
 	// (jobs.decisionLedger.needsDraft) partitions out.
 	RejectedOwed int
+}
+
+// AddDerivedStale adds n translations of (item, variant) that no decision
+// records and whose recorded derivation names a source the block no longer
+// holds. Each is stale, and owed a draft: the write that left it was the
+// platform's latest word on the unit, made from the old source. It returns
+// tallies with the scope's counts raised, adding the scope when it is new.
+func AddDerivedStale(tallies []DecisionBasisTally, item, variant string, n int) []DecisionBasisTally {
+	for i := range tallies {
+		if tallies[i].ItemName == item && tallies[i].Variant == variant {
+			tallies[i].Stale += n
+			tallies[i].Owed += n
+			return tallies
+		}
+	}
+	return append(tallies, DecisionBasisTally{ItemName: item, Variant: variant, Stale: n, Owed: n})
 }
 
 // DraftBasis is the platform's own record of the latest draft it produced for

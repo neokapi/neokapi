@@ -79,7 +79,7 @@ Deletion has different consequences for each location:
 - **`rm -rf .kapi/work/cache` is always safe.** Everything under it is rebuilt on
   the next run.
 - **Deleting `.kapi/` removes derived data, personal filters and any redaction
-  vault.** The [redaction](/framework/redaction) vault at `.kapi/work/vault/`
+  vault.** The [redaction](/framework/redaction) vault at `.kapi/vault/`
   contains withheld originals that are neither committed nor synced. Merge
   in-flight batches before deleting it. Workspace context is unaffected, and so
   are a parked language's drafts and the edits made to them: the next `kapi up`

@@ -3605,7 +3605,7 @@
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
             },
             "review": {
-              "usage": "list the blocks awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated block with `kapi apply` (kind:\"review\")"
+              "usage": "list the blocks awaiting review in every language, the source language among them, instead of the coverage grid; approve one with a decide operation sent to `kapi apply`"
             },
             "ship": {
               "usage": "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established, translated, withheld or not_gated, and a language picker offers only shippable locales and badges the ones not established as AI-translated"

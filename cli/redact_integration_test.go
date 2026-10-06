@@ -48,7 +48,7 @@ func TestExtractRedact_MergeRestores(t *testing.T) {
 	assert.Contains(t, xliff, "REDACTED", "placeholder missing from XLIFF")
 
 	// The original lives only in the local vault sidecar.
-	redactionDir := filepath.Join(project.LayoutAt(real).CacheDir(), "redaction")
+	redactionDir := filepath.Join(project.LayoutAt(real).VaultDir(), project.VaultBatchesDirName)
 	vaultEntries, err := os.ReadDir(redactionDir)
 	require.NoError(t, err, "vault sidecar dir missing")
 	require.Len(t, vaultEntries, 1)

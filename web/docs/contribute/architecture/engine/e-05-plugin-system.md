@@ -12,7 +12,7 @@ keywords: [neokapi, architecture decision, plugin system, manifest, gRPC, protoc
 
 Plugins are manifest-driven, signed, out-of-process executables. Every plugin
 ships a `manifest.json` declaring everything it provides: commands, MCP tools,
-format readers and writers, flow tools, segmenters, comment languages, source connectors, recipe
+format readers and writers, segmenters, comment languages, source connectors, recipe
 schema extensions, config namespaces, command contributions, and whether it
 answers the standard self-check. kapi reads all
 manifests at startup and builds dispatch tables from them; there is no name
@@ -22,8 +22,15 @@ is never consulted. Each capability picks its transport:
 
 - **Mode A**: one-shot subprocess (commands)
 - **Mode B**: long-lived stdio subprocess (MCP tools)
-- **Mode C**: long-lived daemon over a Unix socket + gRPC (formats, tools,
+- **Mode C**: long-lived daemon over a Unix socket + gRPC (formats,
   segmenters, comment languages, source connectors)
+
+The manifest schema also has a `tools` list for flow tools. kapi validates it
+and the conformance suite counts it, and the host registers no flow tool from
+it: a plugin adds content processing through a format, a segmenter or a comment
+language. A flow tool a plugin served would write content through the change
+contract ([E-09](e-09-the-change-contract.md)), with the host turning the
+blocks it returns into operations.
 
 Plugin tarballs are cosign-signed via Sigstore keyless OIDC; `kapi plugin
 install` verifies SHA-256 plus the Sigstore JSON bundle against a
@@ -107,7 +114,7 @@ Every plugin's directory contains a `manifest.json` declaring its identity
 ```
 
 `manifest_version`, `plugin`, `version`, and `binary` are the required fields;
-the `daemon` block is present only for plugins that declare any formats, tools,
+the `daemon` block is present only for plugins that declare any formats,
 segmenters, comment languages, or source connectors (Mode C). `manifest.SupportedVersions` names the
 manifest-document revisions a kapi binary accepts. The full schema is embedded at
 `core/plugin/manifest/schema.json`; canonical Go types live in
@@ -202,7 +209,7 @@ proxies tool calls over MCP-over-stdio:
 
 #### Mode C: daemon over a Unix socket
 
-Used for `formats`, `tools`, `segmenters`, `comments`, and `source_connectors`. kapi spawns a
+Used for `formats`, `segmenters`, `comments`, and `source_connectors`. kapi spawns a
 long-lived plugin process; the plugin binds a Unix-domain socket, prints one JSON
 line on stdout (the canonical handshake), then serves gRPC on the socket:
 
@@ -616,7 +623,7 @@ install channels move on one tag.
 ## Related
 
 - [E-02: The format system](e-02-format-system.md): how plugin and bridge formats register into the one registry
-- [E-03: The tool system](e-03-tool-system.md): plugin tools and plugin-contributed tool-group members
+- [E-03: The tool system](e-03-tool-system.md): plugin-contributed tool-group members, such as segmentation engines
 - [E-04: Flows and I/O binding](e-04-flows-and-io-binding.md): the `source_connectors` capability as a provider binding
 - [E-08: Document structure tiers](e-08-document-structure-tiers.md): the first-party PDF plugin in detail
 - [C-01: The project model](../context/c-01-project-model.md): `requires:` and the recipe schema extensions plugins own

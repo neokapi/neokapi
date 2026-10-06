@@ -45,9 +45,22 @@ import (
 // upgraded project would come up with an empty working set.
 func foldLayoutForward(layout project.Layout) {
 	moveDirContents(flatDecisionsDir(layout), layout.Export().UnitStateDir())
-	moveDirContents(flatVaultDir(layout), layout.VaultDir())
+	// What work/ held and no source reproduces moves out of it: the vault,
+	// the per-batch sidecars and the venue sync state.
+	moveDirContents(workVaultDir(layout), layout.VaultDir())
+	moveDirContents(filepath.Join(layout.CacheDir(), project.RedactionDirName), currentRedactionDir(layout))
+	for _, name := range workSyncFiles {
+		moveFile(filepath.Join(layout.CacheDir(), name), filepath.Join(layout.SyncDir(), name))
+	}
 	// Before the cache root is deleted, and that ordering is the whole point.
 	moveDirContents(flatRedactionDir(layout), currentRedactionDir(layout))
+	// A moved vault or sync directory keeps its protection: owner-only, and
+	// out of version control.
+	for _, name := range []string{project.VaultDirName, project.SyncDirName} {
+		if _, err := os.Stat(filepath.Join(layout.StateDir, name)); err == nil {
+			_, _ = project.EnsureLocalDir(layout, name)
+		}
+	}
 	retireFlatProjections(layout)
 	foldContextUmbrella(layout)
 	foldGovernanceFiles(layout, layout.StateDir)
@@ -160,9 +173,15 @@ func flatDecisionsDir(layout project.Layout) string {
 	return filepath.Join(layout.StateDir, "units")
 }
 
-func flatVaultDir(layout project.Layout) string {
-	return filepath.Join(layout.StateDir, project.VaultDirName)
+// workVaultDir is where the vault sat while it lived under work/. The flat
+// layout's `.kapi/vault/` is the vault's place again, so it needs no move.
+func workVaultDir(layout project.Layout) string {
+	return filepath.Join(layout.WorkDir(), project.VaultDirName)
 }
+
+// workSyncFiles are the venue sync files work/cache/ held before they moved
+// to the sync directory: the refs (core/ref/refcache) and the sync cache.
+var workSyncFiles = []string{"refs.json", "sync-cache.json"}
 
 // flatRedactionDir is the per-batch redaction sidecar directory under the flat
 // cache root, and currentRedactionDir is where it lands.
@@ -177,7 +196,7 @@ func flatRedactionDir(layout project.Layout) string {
 }
 
 func currentRedactionDir(layout project.Layout) string {
-	return filepath.Join(layout.CacheDir(), project.RedactionDirName)
+	return filepath.Join(layout.VaultDir(), project.VaultBatchesDirName)
 }
 
 // retireFlatProjections deletes the flat layout's derived state: the store and

@@ -75,21 +75,23 @@ func TestPushedRejectionOfAnOlderTranslation(t *testing.T) {
 		assert.Equal(t, venue.ReviewStateApproved, report.Units[0].Held.ReviewState)
 	})
 
-	t.Run("an unreviewed translation keeps its record, rung and mark", func(t *testing.T) {
+	t.Run("an unreviewed translation keeps its rung and basis", func(t *testing.T) {
 		r := newRejectionRedraft(t)
 		require.Equal(t, 1, r.draft("job-draft-1"))
 		rung := storedTarget(t, r.deps, r.pid, r.item, redraftLocale)
-		before, mark := r.ledgerRow(), r.mark()
-		require.Empty(t, before.ReviewState)
+		_, held := heldDecision(t, r.deps, r.pid, redraftUnit, redraftLocale)
+		require.False(t, held, "a draft writes no record into the decision ledger")
+		basis := r.basis()
+		require.NotEmpty(t, basis, "its edition records the source it was made from")
 
 		r.decisionPush("job-reject-older", "u-translator", olderTranslation,
 			venue.ReviewStateRejected, model.TargetStatusDraft, time.Hour, "Renders check as sjekk")
 
 		assert.Equal(t, rung, storedTarget(t, r.deps, r.pid, r.item, redraftLocale))
-		after := r.ledgerRow()
-		assert.Empty(t, after.ReviewState, "no rejection is recorded against the translation the platform holds")
-		assert.Equal(t, before.Revision, after.Revision)
-		assert.Equal(t, mark, r.mark())
+		_, held = heldDecision(t, r.deps, r.pid, redraftUnit, redraftLocale)
+		assert.False(t, held, "no rejection is recorded against the translation the platform holds")
+		assert.Equal(t, basis, r.basis())
+		assert.Empty(t, r.mark())
 		assert.Zero(t, r.draft("job-draft-2"))
 	})
 

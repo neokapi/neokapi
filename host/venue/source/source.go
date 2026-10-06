@@ -1620,6 +1620,11 @@ func (c *BowrainSourceConnector) scanLocal(ctx context.Context, paths []string) 
 	// stays local, and the server never holds a value it could restore.
 	redactSpec := host.ProjectRedaction(&recipe.KapiProject)
 	vaultPath := c.project.Layout.RedactionVaultPath()
+	if redactSpec != nil {
+		if err := c.project.Layout.PrepareVault(); err != nil {
+			return nil, err
+		}
+	}
 	srcLocale := recipe.Defaults.SourceLanguage
 
 	// If no specific paths, use content entries to discover files.

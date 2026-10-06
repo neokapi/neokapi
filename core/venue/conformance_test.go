@@ -162,7 +162,7 @@ func TestBlockFixtureIsComplete(t *testing.T) {
 
 // TestOriginFixtureIsComplete is the same drift guard one level down, on
 // model.Origin. TestBlockFixtureIsComplete only walks Block's own fields, so a
-// new Origin field would be zero inside a non-zero Targets map and slip past it
+// new Origin field would be zero inside a non-zero editions map and slip past it
 // — and the round-trip above would then "pass" while silently dropping it.
 // Provenance is the one record that cannot be reconstructed after the fact, so
 // a field added to it must be populated in the fixture (and therefore carried by
@@ -192,6 +192,36 @@ func TestOriginFixtureIsComplete(t *testing.T) {
 		}
 		assert.Falsef(t, v.Field(i).IsZero(),
 			"model.Origin.%s is zero on every kitchen-sink target — a new Origin field must be populated in venuetest.KitchenSinkBlock() AND carried by both sync converters (core/venue and host/venue/client). See content-parity.md.",
+			field.Name)
+	}
+}
+
+// TestEditionFixtureIsComplete is the drift guard on model.Edition: every
+// exported field is set on at least one kitchen-sink translation, so a field
+// added to the edition is either carried by both converters or trips here.
+// TestBlockFixtureIsComplete stops at the editions map and would let a new
+// Edition field, such as the derivation a translation records, ride along
+// as zero while every round trip passed.
+func TestEditionFixtureIsComplete(t *testing.T) {
+	b := venuetest.KitchenSinkBlock()
+	typ := reflect.TypeFor[model.Edition]()
+	for i := range typ.NumField() {
+		field := typ.Field(i)
+		if !field.IsExported() {
+			continue
+		}
+		set := false
+		for k, e := range b.EachEdition {
+			if b.IsSourceEdition(k) {
+				continue
+			}
+			if !reflect.ValueOf(e).Field(i).IsZero() {
+				set = true
+				break
+			}
+		}
+		assert.Truef(t, set,
+			"model.Edition.%s is zero on every kitchen-sink translation: populate it in venuetest.KitchenSinkBlock() AND carry it through both sync converters (core/venue and host/venue/client) and the platform store. See content-parity.md.",
 			field.Name)
 	}
 }

@@ -473,9 +473,13 @@ venue keeps its own record of what it last drafted. Locally, the content memory
 absorbs the re-drafted pairing and the next pass recycles it rather than paying
 for it again. On the server, the ledger row carries the source the platform
 last drafted the block against beside the decision (`unit_decisions.draft_basis`),
-written by the worker for every target it produces and never over the decision
-itself. A stale block whose mark names the current source is owed nothing by the
-loop: it counts as produced again, the run converges, and the block waits on a
+written by the worker for every decided block it drafts and never over the
+decision itself. A translation no decision names carries its basis on the
+edition: the stream home records the derivation (`Edition.Derived`) when a
+change set writes it, the worker writes no ledger row for it, and the grouped
+tally grades that derivation beside the decisions. A stale block whose mark
+names the current source is owed nothing by the loop: it counts as produced
+again, the run converges, and the block waits on a
 reviewer with its ship state withheld. A source rewritten again moves away from
 the mark, and the block is owed once more.
 

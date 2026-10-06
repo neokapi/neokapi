@@ -58,15 +58,14 @@ func (p pulledBasis) names(b *model.Block, source model.LocaleID) bool {
 }
 
 // pulledBases maps each pulled block's match key (targetMatchKey) to the
-// source its translation into locale was made from, as the venue's record of
-// that translation says: the basis of a decision on it, or of a draft the
-// venue made. records is the venue's ledger as the pull carries it. A
-// translation the venue's record does not describe, and one whose source the
-// venue does not know (a person wrote it there), are left out.
+// source its translation into locale was made from: the basis of the venue's
+// decision on it, or of a draft the venue made, as the venue's record of that
+// translation says; failing that, the derivation the translation itself
+// carries across the wire (model.Edition.Derived) when it was made from the
+// edition the block is written in. records is the venue's ledger as the pull
+// carries it. A translation neither describes, and one whose source the venue
+// does not know (a person wrote it there), are left out.
 func pulledBases(blocks []apiclient.SyncBlock, locale string, records []venue.UnitDecision) map[string]pulledBasis {
-	if len(records) == 0 {
-		return nil
-	}
 	type unitAt struct{ item, unit, variant string }
 	byUnit := make(map[unitAt]venue.UnitDecision, len(records))
 	for _, d := range records {
@@ -74,24 +73,42 @@ func pulledBases(blocks []apiclient.SyncBlock, locale string, records []venue.Un
 	}
 	out := map[string]pulledBasis{}
 	for _, sb := range blocks {
+		if _, ok := sb.Targets[locale]; !ok {
+			continue
+		}
 		unit := sb.Unit
 		if unit == "" {
 			unit = sb.Name
 		}
-		d, ok := byUnit[unitAt{sb.ItemName, unit, locale}]
-		if !ok || d.Basis == "" {
-			continue
-		}
-		t, ok := apiclient.SyncBlockToBlock(sb).TargetEdition(model.LocaleID(locale))
+		b := apiclient.SyncBlockToBlock(sb)
+		t, ok := b.TargetEdition(model.LocaleID(locale))
 		if !ok {
 			continue
 		}
-		if d.Revision != model.RunsRevision(model.Variant(model.LocaleID(locale)), t.Runs) {
-			continue // the record is about another translation
+		if d, ok := byUnit[unitAt{sb.ItemName, unit, locale}]; ok && d.Basis != "" &&
+			d.Revision == model.RunsRevision(model.Variant(model.LocaleID(locale)), t.Runs) {
+			out[targetMatchKey(sb.Name, sb.SourceText)] = pulledBasis(d.Basis)
+			continue
 		}
-		out[targetMatchKey(sb.Name, sb.SourceText)] = pulledBasis(d.Basis)
+		if t.Derived != nil && t.Derived.Rev != "" && derivedFromSource(b, t.Derived.From) {
+			out[targetMatchKey(sb.Name, sb.SourceText)] = pulledBasis(t.Derived.Rev)
+		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
+}
+
+// derivedFromSource reports whether from names the edition b is written in:
+// the zero key, or a key in the block's source language with no tone and no
+// channel.
+func derivedFromSource(b *model.Block, from model.EditionKey) bool {
+	if from.IsZero() {
+		return true
+	}
+	return from.Tone == "" && from.Channel == "" && b.SourceLocale != "" &&
+		model.NormalizeLocale(from.Locale) == model.NormalizeLocale(b.SourceLocale)
 }
 
 // hasText reports whether runs hold any content: text, or an inline code or

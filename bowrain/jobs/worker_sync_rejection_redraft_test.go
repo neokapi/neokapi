@@ -101,6 +101,22 @@ func (r *rejectionRedraft) mark() string {
 	return ""
 }
 
+// basis is the source revision the unit's translation records it was made
+// from (model.Edition.Derived), or "" when it records none.
+func (r *rejectionRedraft) basis() string {
+	r.t.Helper()
+	rows, err := r.deps.ContentStore.GetBlocks(r.t.Context(), store.BlockQuery{
+		ProjectID: r.pid, Stream: "main", ItemName: r.item, Limit: 10,
+	})
+	require.NoError(r.t, err)
+	require.Len(r.t, rows, 1)
+	e, ok := rows[0].Block.Edition(model.EditionKey{Locale: redraftLocale})
+	if !ok || e.Derived == nil {
+		return ""
+	}
+	return e.Derived.Rev
+}
+
 // verdictPush sends the unit's translation at one rung with a record carrying
 // the given review state, from actor, under the given review permissions.
 func (r *rejectionRedraft) verdictPush(jobID, actor string, permits map[string]bool, text, recorded string, rung model.TargetStatus, reviewState string, updated time.Duration) {
@@ -128,7 +144,8 @@ func TestPushedRejectionRedrafts(t *testing.T) {
 		require.Equal(t, 1, r.draft("job-draft-1"), "the first run drafts the unit")
 		drafted := r.target()
 		require.NotEmpty(t, drafted)
-		require.Equal(t, sourceRev, r.mark(), "and marks the source it drafted against")
+		require.Equal(t, sourceRev, r.basis(), "and its edition records the source it drafted against")
+		require.Empty(t, r.mark(), "no decision names the unit, so the ledger holds no row to mark")
 		require.Zero(t, r.draft("job-draft-2"), "nothing is owed before the rejection")
 
 		r.verdictPush("job-reject", "u-translator", map[string]bool{}, drafted, drafted,
@@ -159,7 +176,7 @@ func TestPushedRejectionRedrafts(t *testing.T) {
 		r.verdictPush("job-approve", "u-reviewer", map[string]bool{redraftLocale: true}, drafted, drafted,
 			model.TargetStatusEstablished, venue.ReviewStateApproved, time.Hour)
 		require.Equal(t, model.TargetStatusEstablished, storedTarget(t, r.deps, r.pid, r.item, redraftLocale))
-		require.Equal(t, sourceRev, r.mark(), "an approval leaves the mark as it was")
+		require.Empty(t, r.mark(), "an approval leaves the mark as it was")
 
 		r.verdictPush("job-reject-refused", "u-translator", map[string]bool{}, drafted, drafted,
 			model.TargetStatusDraft, venue.ReviewStateRejected, 2*time.Hour)
@@ -169,7 +186,7 @@ func TestPushedRejectionRedrafts(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, venue.ReviewStateApproved, d.ReviewState)
 		assert.Len(t, jobGovernance(t, r.deps, "push-job-reject-refused").Refusals, 1, "the refusal is reported")
-		assert.Equal(t, sourceRev, r.mark(), "a refused rejection leaves the mark")
+		assert.Empty(t, r.mark(), "a refused rejection leaves the mark")
 		assert.Zero(t, r.draft("job-draft-2"), "and buys no draft")
 	})
 
@@ -180,7 +197,8 @@ func TestPushedRejectionRedrafts(t *testing.T) {
 
 		r.verdictPush("job-reject-stale", "u-translator", map[string]bool{}, drafted, "Effacer le compte",
 			model.TargetStatusDraft, venue.ReviewStateRejected, time.Hour)
-		assert.Equal(t, sourceRev, r.mark(), "the rejection judges a translation the venue has replaced")
+		_, held := heldDecision(t, r.deps, r.pid, redraftUnit, redraftLocale)
+		assert.False(t, held, "the rejection judges a translation the venue has replaced, and is not recorded")
 		assert.Zero(t, r.draft("job-draft-2"), "so it buys no draft")
 	})
 }

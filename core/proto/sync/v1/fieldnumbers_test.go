@@ -38,7 +38,9 @@ func TestFieldNumbersAreAdditiveOnly(t *testing.T) {
 			1: "cursor", 2: "has_more", 10: "blocks", 11: "terms", 12: "memory_entries",
 			13: "media", 14: "contexts", 15: "ref",
 		},
-		"SyncRef": {1: "content", 2: "context", 3: "terms", 4: "decisions"},
+		"SyncRef":         {1: "content", 2: "context", 3: "terms", 4: "decisions"},
+		"SyncSegmentList": {1: "segments", 2: "derived"},
+		"SyncDerivation":  {1: "from", 2: "rev"},
 	}
 
 	messages := map[string]proto.Message{
@@ -47,6 +49,8 @@ func TestFieldNumbersAreAdditiveOnly(t *testing.T) {
 		"SyncManifest":         &SyncManifest{},
 		"SyncPullResponse":     &SyncPullResponse{},
 		"SyncRef":              &SyncRef{},
+		"SyncSegmentList":      &SyncSegmentList{},
+		"SyncDerivation":       &SyncDerivation{},
 	}
 
 	for name, expected := range want {

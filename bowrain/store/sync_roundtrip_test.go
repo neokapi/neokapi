@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/core/venue/venuetest"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -86,8 +87,9 @@ func TestSyncOverlayFullChainRoundTrip(t *testing.T) {
 	// same-language channel edition among them, and none folds into the
 	// edition the block was read in.
 	type held struct {
-		text   string
-		status model.Status
+		text    string
+		status  model.Status
+		derived *model.Derivation
 	}
 	// The item-less store path keeps no source locale, so the edition the
 	// block was read in is compared under the zero key, which names it on
@@ -98,11 +100,20 @@ func TestSyncOverlayFullChainRoundTrip(t *testing.T) {
 			if b.IsSourceEdition(k) {
 				k = model.EditionKey{}
 			}
-			out[k] = held{model.RunsText(e.Runs), e.Status}
+			out[k] = held{model.RunsText(e.Runs), e.Status, e.Derived}
 		}
 		return out
 	}
-	assert.Equal(t, editions(orig), editions(pulled), "every edition survives the chain under its key")
+	assert.Equal(t, editions(orig), editions(pulled), "every edition survives the chain under its key, with the derivation it records")
+
+	// The pull the client runs reads the JSON wire: the derivation a
+	// translation records survives that leg too, so a pulled translation keeps
+	// the basis its staleness is graded against.
+	fr, ok := apiclient.SyncBlockToBlock(apiclient.StoredBlockToSyncBlock(stored)).Edition(model.EditionKey{Locale: model.LocaleFrench})
+	require.True(t, ok)
+	origFr, _ := orig.Edition(model.EditionKey{Locale: model.LocaleFrench})
+	require.NotNil(t, origFr.Derived)
+	assert.Equal(t, origFr.Derived, fr.Derived, "the fr derivation survives store and the JSON pull")
 	short, ok := pulled.Edition(model.EditionKey{Locale: model.LocaleEnglish, Channel: "short"})
 	require.True(t, ok, "the same-language channel edition survives as an edition of its own")
 	assert.Equal(t, "Hi", model.RunsText(short.Runs))

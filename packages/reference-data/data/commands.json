@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-06T07:26:26Z",
+  "generatedAt": "2026-10-06T19:49:01Z",
   "commands": [
     {
       "id": "add",
@@ -7623,7 +7623,7 @@
         },
         {
           "name": "review",
-          "usage": "list the blocks awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated block with `kapi apply` (kind:\"review\")",
+          "usage": "list the blocks awaiting review in every language, the source language among them, instead of the coverage grid; approve one with a decide operation sent to `kapi apply`",
           "default": "false",
           "type": "bool"
         },

@@ -1695,7 +1695,7 @@ The browser build runs the same service and the same stores.
 | Plugin kind | How it meets the contract |
 | --- | --- |
 | Format plugins (okapi-bridge filters, pdfium, sourcecode) | wrapped through the Part protocol; the host maps `source` to the first native edition and `targets` to the rest, so okapi-bridge does not change; capabilities conservative until declared and proven |
-| Tool plugins | blocks in and out over gRPC as today; the host turns the result into operations with `Diff` |
+| Tool plugins | none exist: the manifest's `tools` list is validated and the host registers no flow tool from it (E-05). One that is added returns blocks over gRPC, and the host turns the result into operations with `Diff` |
 | Comment plugins | behind the comment writing path of the file home, as `kind: "comment"` reaches them today |
 | MCP tool proxy (`host/mcp_plugin_proxy.go`) | unchanged |
 
@@ -2295,7 +2295,7 @@ All of these hold before the 1.3.0 tag:
     an established translation reads as an edit and is not held to review permission. Every
     checkout's recorded ref names a decisions fold the server no longer computes, so a checkout's
     first push after the deploy is refused until it pulls, and after a reset each checkout deletes
-    `.kapi/work/cache/refs.json`. The first push that lands re-sends every block, which stamps
+    `.kapi/sync/refs.json`. The first push that lands re-sends every block, which stamps
     each source revision, logs a source change for every block and demotes every approval whose
     basis is not that revision. A checkout's approval since version 40 of a translation the
     platform holds comes back on the same push, which re-sends the checkout's decisions with each

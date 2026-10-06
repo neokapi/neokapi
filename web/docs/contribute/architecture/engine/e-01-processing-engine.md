@@ -426,4 +426,4 @@ as follows:
 - [E-02: The format system](e-02-format-system.md): readers that emit Parts, writers that consume them
 - [E-03: The tool system](e-03-tool-system.md): the tools that make up a flow
 - [E-04: Flows and I/O binding](e-04-flows-and-io-binding.md): reader/writer become source/sink bindings; a flow is composition only
-- [E-05: The plugin system](e-05-plugin-system.md): plugin tools use the same executor contract
+- [E-05: The plugin system](e-05-plugin-system.md): what a plugin adds to the engine: formats, segmenters, comment languages and connectors
