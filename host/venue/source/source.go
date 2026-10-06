@@ -1563,6 +1563,30 @@ type localScan struct {
 	formatless []string
 }
 
+// contentPaths lists the project-relative source files the recipe's content
+// items match, in the recipe's order. A file two items match is listed once,
+// for the first of them.
+func (c *BowrainSourceConnector) contentPaths() []string {
+	recipe := c.project.Recipe
+	seen := map[string]bool{}
+	var out []string
+	for _, it := range recipe.IterateContent() {
+		lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
+		pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
+		relPaths, err := coreproj.ExpandGlob(c.project.Root, pattern, recipe.Defaults.Exclude...)
+		if err != nil {
+			continue
+		}
+		for _, rp := range relPaths {
+			if !seen[rp] {
+				seen[rp] = true
+				out = append(out, rp)
+			}
+		}
+	}
+	return out
+}
+
 // scanLocal extracts both blocks and media from local files: block hashes,
 // blocks, media hashes (sourceID→blobKey) and media, grouped by item.
 //
@@ -1598,24 +1622,10 @@ func (c *BowrainSourceConnector) scanLocal(ctx context.Context, paths []string) 
 	vaultPath := c.project.Layout.RedactionVaultPath()
 	srcLocale := recipe.Defaults.SourceLanguage
 
-	// If no specific paths, use content entries to discover files. A file two
-	// items match is read once, for the first of them.
+	// If no specific paths, use content entries to discover files.
 	if len(paths) == 0 {
-		seen := map[string]bool{}
-		for _, it := range recipe.IterateContent() {
-			lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
-			pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
-			relPaths, err := coreproj.ExpandGlob(c.project.Root, pattern, recipe.Defaults.Exclude...)
-			if err != nil {
-				continue
-			}
-			for _, rp := range relPaths {
-				if seen[rp] {
-					continue
-				}
-				seen[rp] = true
-				paths = append(paths, filepath.Join(c.project.Root, rp))
-			}
+		for _, rp := range c.contentPaths() {
+			paths = append(paths, filepath.Join(c.project.Root, rp))
 		}
 	}
 
