@@ -1311,6 +1311,13 @@ export interface BlockHistoryEntry {
   actorRole?: string;
   editReason?: string;
   correlationId?: string;
+  /**
+   * Revision of the edition the translation was made from, as the edition
+   * recorded it when this entry was written. Absent when it recorded none.
+   */
+  basis?: string;
+  /** Key of that edition in text form; absent for the edition the document is written in. */
+  basisFrom?: string;
   timestamp: string;
 }
 

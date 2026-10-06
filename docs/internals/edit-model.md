@@ -2048,8 +2048,7 @@ beside all of them in package-sized PRs.
   whose round trip is not byte-stable would show as an observed edit.
 - Local records name no person, so a venue names the first pusher of a revision as its author, and
   its own review surfaces learn a checkout's author only from the push that wrote the translation. A
-  removed translation sends no write; a basis record a push writes is stamped at the push and can win
-  over an older local decision pushed after it; local decisions do not join a venue's minted unit
+  removed translation sends no write; local decisions do not join a venue's minted unit
   keys; the staleness gate takes a translation's latest row, which after a branch switch can be
   another branch's.
 - Two checkouts that mint different keys for one document before their logs meet keep both.

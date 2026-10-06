@@ -24,7 +24,7 @@ func (s *SQLiteStore) GetBlockHistory(ctx context.Context, projectID, stream, bl
 	}
 
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, change_type, text, coded_text, origin, author, created_at
+		`SELECT id, change_type, text, coded_text, origin, author, basis, basis_from, created_at
 		 FROM block_history
 		 WHERE project_id = ? AND stream = ? AND block_id = ? AND locale = ?
 		 ORDER BY id DESC
@@ -39,7 +39,7 @@ func (s *SQLiteStore) GetBlockHistory(ctx context.Context, projectID, stream, bl
 	for rows.Next() {
 		var e platstore.BlockHistoryEntry
 		var createdStr string
-		if err := rows.Scan(&e.Seq, &e.ChangeType, &e.Text, &e.Coded, &e.Origin, &e.Author, &createdStr); err != nil {
+		if err := rows.Scan(&e.Seq, &e.ChangeType, &e.Text, &e.Coded, &e.Origin, &e.Author, &e.Basis, &e.BasisFrom, &createdStr); err != nil {
 			return nil, fmt.Errorf("scan block history entry: %w", err)
 		}
 		e.Timestamp, _ = time.Parse(time.RFC3339, createdStr)
@@ -59,13 +59,22 @@ func (s *SQLiteStore) GetBlockHistory(ctx context.Context, projectID, stream, bl
 	return entries, nil
 }
 
-// recordBlockHistory inserts a history entry within a transaction.
-func recordBlockHistory(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, locale, changeType, text, coded, origin, author string) error {
+// recordBlockHistory inserts a history entry within a transaction. derived is
+// the derivation the edition carried (model.Edition.Derived), nil for none.
+func recordBlockHistory(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, locale, changeType, text, coded, origin, author string, derived *model.Derivation) error {
 	now := time.Now().UTC().Format(time.RFC3339)
+	basis, basisFrom := "", ""
+	if derived != nil {
+		from, err := derived.From.MarshalText()
+		if err != nil {
+			return fmt.Errorf("encode the basis of %s/%s: %w", blockID, locale, err)
+		}
+		basis, basisFrom = derived.Rev, string(from)
+	}
 	_, err := tx.ExecContext(ctx,
-		`INSERT INTO block_history (project_id, stream, block_id, locale, change_type, text, coded_text, origin, author, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		projectID, stream, blockID, locale, changeType, text, coded, origin, author, now)
+		`INSERT INTO block_history (project_id, stream, block_id, locale, change_type, text, coded_text, origin, author, basis, basis_from, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		projectID, stream, blockID, locale, changeType, text, coded, origin, author, basis, basisFrom, now)
 	return err
 }
 
@@ -108,7 +117,7 @@ func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream stri
 		}
 
 		variant := bstore.VariantKeyText(key)
-		if err := recordBlockHistory(ctx, tx, projectID, stream, blockID, variant, changeType, newText, newCoded, "", ""); err != nil {
+		if err := recordBlockHistory(ctx, tx, projectID, stream, blockID, variant, changeType, newText, newCoded, "", "", newTarget.Derived); err != nil {
 			return fmt.Errorf("record history for block %s variant %s: %w", blockID, variant, err)
 		}
 	}

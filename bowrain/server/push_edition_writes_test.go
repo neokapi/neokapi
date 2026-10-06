@@ -104,9 +104,27 @@ func nbLedger(t *testing.T, srv *Server, pid string) map[string]venue.UnitDecisi
 	return out
 }
 
+// nbDerivations maps each unit of item to the derivation its Norwegian
+// translation records, nil for a translation that records none. A unit with
+// no Norwegian translation is absent.
+func nbDerivations(t *testing.T, srv *Server, pid, item string) map[string]*model.Derivation {
+	t.Helper()
+	stored, err := srv.ContentStore.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: pid, Stream: "main", ItemName: item})
+	require.NoError(t, err)
+	out := map[string]*model.Derivation{}
+	for _, row := range stored {
+		e, ok := row.Block.Edition(model.EditionKey{Locale: "nb"})
+		if !ok {
+			continue
+		}
+		out[row.SourceID] = e.Derived
+	}
+	return out
+}
+
 // A translation a run on a checkout produced reaches the server through the
-// push as the basis the run recorded, and the server grades it stale once its
-// source moves, as it grades a draft of its own.
+// push with the basis the run recorded on its edition, and the server grades
+// it stale once its source moves, as it grades a draft of its own.
 func TestSyncPush_GradesALocalRunsTranslationsAgainstTheirSource(t *testing.T) {
 	srv, token := newTestServer(t)
 	pid := createProject(t, srv, token)
@@ -115,23 +133,28 @@ func TestSyncPush_GradesALocalRunsTranslationsAgainstTheirSource(t *testing.T) {
 	client := apiclient.NewProjectBearerClient(ts.URL, pid, token)
 	ctx := context.Background()
 
-	_, err := client.Push(ctx, catalog(map[string]string{"greeting": "Hello world", "farewell": "Goodbye now"}), catalogItems, nil, nil)
-	require.NoError(t, err)
-	drainWithAuthority(t, srv)
-
-	// kapi up wrote both translations on the checkout, and changed no source
-	// block: the push carries only how they were written.
-	_, err = client.Push(ctx, map[string][]*model.Block{}, nil, nil, nil, apiclient.CarryEditionWrites([]venue.EditionWrite{
-		produced("greeting", "Hello world"), produced("farewell", "Goodbye now"),
-	}))
-	require.NoError(t, err)
-	drainWithAuthority(t, srv)
-
-	records := nbLedger(t, srv, pid)
-	require.Len(t, records, 2, "a record of each translation the run produced")
-	for unit, d := range records {
-		assert.False(t, d.IsDecision(), "%s: the run decided nothing", unit)
+	// kapi up wrote both translations on the checkout; the push carries them
+	// and how they were written.
+	blocks := catalog(map[string]string{"greeting": "Hello world", "farewell": "Goodbye now"})
+	nb := model.EditionKey{Locale: "nb"}
+	var writes []venue.EditionWrite
+	for _, b := range blocks["locales/en.json"] {
+		b.SetTargetText("nb", "nb:"+b.ID)
+		w := produced(b.ID, b.SourceText())
+		w.Revision = model.EditionRevision(b, nb)
+		writes = append(writes, w)
 	}
+	_, err := client.Push(ctx, blocks, catalogItems, nil, nil, apiclient.CarryEditionWrites(writes))
+	require.NoError(t, err)
+	drainWithAuthority(t, srv)
+
+	derived := nbDerivations(t, srv, pid, "locales/en.json")
+	require.Len(t, derived, 2, "the venue holds each translation the run produced")
+	for unit, d := range derived {
+		require.NotNil(t, d, "%s: the translation records the source it was made from", unit)
+	}
+	assert.Equal(t, enSourceRevision("Hello world"), derived["greeting"].Rev)
+	assert.Empty(t, nbLedger(t, srv, pid), "the run decided nothing, and the ledger holds decisions")
 	assert.Zero(t, nbTallyOf(t, srv, pid).Stale)
 
 	// The source of one moves on the server.
@@ -280,13 +303,11 @@ func TestSyncPush_TakesTheWriteOfABilingualTranslationItHolds(t *testing.T) {
 	require.NoError(t, err)
 	drainWithAuthority(t, srv)
 
-	records := nbLedger(t, srv, pid)
+	derived := nbDerivations(t, srv, pid, "messages.xlf")
 	for _, b := range blocks {
-		d, ok := records[unitOf[b.Name]]
-		require.True(t, ok, "%s: the venue took the write", b.Name)
-		assert.Equal(t, model.EditionRevision(b, nb), d.Revision,
-			"%s: as the record of the translation it holds", b.Name)
-		assert.Equal(t, venue.SourceRevision(b, "en"), d.Basis)
+		d := derived[unitOf[b.Name]]
+		require.NotNil(t, d, "%s: the venue took the write as the record of the translation it holds", b.Name)
+		assert.Equal(t, venue.SourceRevision(b, "en"), d.Rev)
 	}
 }
 
