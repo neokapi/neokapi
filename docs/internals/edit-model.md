@@ -1602,7 +1602,10 @@ editable. The review pane, source review, check fixes and the visual editor (S-0
 `stale` result shows "changed since you opened it" with the current text and asks before
 re-applying. A check fix is the `fix` operation its finding carries. Approve and Reject send
 `decide`. A block's history comes from the log. The desktop links `core/change` and `host` and never
-cobra (`make audit-modules`).
+cobra (`make audit-modules`). The project's home lists the workspace home's conflicts with both wordings
+(`GetKeptConflicts`); a person keeps either side or writes another as a `set_content` through
+`Apply`, and `ReleaseKeptWording` drops the workspace's copy beside a translation's file once the
+file holds the chosen wording.
 
 ### 11.5 Browser
 
@@ -1971,13 +1974,29 @@ beside all of them in package-sized PRs.
   the one the writer read (`ErrHeadMoved` otherwise). `core/workhome` folds the writes into two
   projections: `edition_head`, one row per block of each kept edition (revision, runs inline up to
   16 KiB and in a blob above, status, origin, basis, stamp), and `edition_subject_head`, one row per
-  edition (the operation the head is at, the latest folded, the divergent writes). The design's
-  whole-document `document_head` is not built. The fold reads each subject in id order: a write
+  edition (the operation the head is at, the latest folded, the divergent writes). The
+  whole-document `document_head(key, rev, format, blob, op)` (WP8b) keeps a document opened for
+  editing that has no file, with its writes as `content.edit` operations whose subject is the
+  document; it is in the projection guard's write list, a rebuild replays it, and a checkpoint
+  carries it. The fold reads each subject in id order: a write
   staged on the head advances it, any other is divergent, and a write that arrives out of order makes
   the projector fold the subject again. After a pull, `Projector.RebaseWorkspace` carries a divergent
   write over when every block it changed still holds the revision it started from; the rest are
-  conflicts, which `kapi status` lists. A person's or an agent's write settles the blocks it writes,
-  and a delivery's release of the whole edition settles every conflict on it.
+  conflicts, which `kapi status` lists and Kapi Desktop shows on the project's home with both
+  wordings (`GetKeptConflicts`). A person's or an agent's write settles the blocks it writes,
+  keeping the held wording included: a `set_content` that leaves a contested block as it stands is
+  recorded as the decision (`change.ContestedSession`). A delivery's release of the whole edition
+  settles every conflict on it. Wording the workspace keeps beside a translation's file that does
+  not hold it is decided in the file through the change service, and the workspace's copy then
+  released (`host.ReleaseKeptWording`).
+- **KPZ opened for editing (WP8b):** `workhome.Documents` is a home over whole documents: a session
+  reads the head's blob into a private working copy, the file home stages against it, `Settle`
+  puts a moved head in the copy for the file home to apply the change again, and `Commit` records
+  the copy's bytes with the conditional record. The kapi host routes `work.kpz!<name>` to the
+  KPZ's own log in its working cache, seeded from the cache's copy of the source on first open;
+  `kapi apply`, `kapi inspect` and the MCP edit tools reach it, and a transform, `kapi merge` and
+  `kapi pack` read the edited head (`syncKpzEdits`). A source the KPZ carries as a skeleton alone
+  holds no text and is refused `unsupported`.
 - **Routing:** the file home reaches the workspace home through a keeper (`filehome.Keeper`). Under
   `on-converge` a translation whose file does not exist lives in the workspace home; under `manual`
   it is written to its file unless the workspace still keeps a draft of it. Once the file exists it is
@@ -1994,6 +2013,12 @@ beside all of them in package-sized PRs.
   edition's head is still the one they read; the delivered wording reaches the content memory. Every
   write names the kinds of its operations and its tool in the block history, as a write to a file
   does, and a removal drops a kept draft for the formats whose description lists `remove_edition`.
+- **Acceptance (WP8b):** the conformance suite passes on `workhome.Documents`
+  (`TestDocuments_Conformance`), two machines converge on one document head, a rebuild reaches the
+  head it had, and `TestKpzEdit_*` edits a KPZ through `kapi apply`'s service and MCP, refuses a
+  replay as stale, merges and packs the edit. `TestWorkspaceHome_KeepingTheContestedWordingSettlesTheConflict`,
+  `TestKeptConflicts_*` and the desktop's `TestKeptConflicts_TheDesktopDecidesWordingTheFileDoesNotHold`
+  decide each kind of conflict through the change service.
 - **Acceptance:** `TestWorkspaceHome_ConcurrentWritesMergeInEitherOrder` and
   `TestWorkspaceHome_RandomWritesConvergeInAnyMergeOrder` (three machines, nine writes, six seeds)
   reach one head in every merge order. The conformance suite passes on the workspace home in
@@ -2028,8 +2053,9 @@ beside all of them in package-sized PRs.
   keys; the staleness gate takes a translation's latest row, which after a branch switch can be
   another branch's.
 - Two checkouts that mint different keys for one document before their logs meet keep both.
-- KPZ opened for editing on the workspace home, with the whole-document `document_head` (WP8b), and
-  kept-draft conflicts in Kapi Desktop.
+- Two machines that edit one whole KPZ document from one head keep one write as the head and list
+  the other as divergent in `document_head`; no surface shows or rebases those yet, and the KPZ's
+  log travels with neither the pack nor a context backend, so they arise only from a merged log.
 - Under a policy that detects entities, parked drafts stay in the producer's cache; a kept edition
   read on another machine carries placeholders and another revision, so a producer there never
   replaces it.
