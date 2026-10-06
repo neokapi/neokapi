@@ -1,8 +1,8 @@
 ---
 sidebar_position: 3
 title: "WASM Engine ABI"
-description: "The stable JS contract between the browser wasm build of kapi and the @neokapi/engine npm package: the global function set, the change contract's entry points, the kapiEngineABI feature-detection descriptor, and the optional host-provided reverse bridges."
-keywords: [wasm, WebAssembly, engine ABI, kapiEngineABI, kapiApply, kapiRead, "@neokapi/engine", browser engine, change contract, reverse bridge, implementation note]
+description: "The stable JS contract between the browser wasm build of kapi and the @neokapi/engine npm package: the global function set, the change contract's entry points, the kapiEngineABI feature-detection descriptor, the engine's Worker and the workspace it keeps, and the optional host-provided reverse bridges."
+keywords: [wasm, WebAssembly, engine ABI, kapiEngineABI, kapiApply, kapiRead, "@neokapi/engine", browser engine, change contract, reverse bridge, Worker, OPFS, opfs-sahpool, implementation note]
 ---
 
 # WASM Engine ABI
@@ -30,13 +30,52 @@ typed `KapiRuntime` facade.
   `wasm_exec.js` environment) and the SQLite bridge (`__kapiSQL`, see
   [Storage](#storage)) before instantiation; after registering the globals,
   the engine invokes the host's `__kapiCliReady()` callback and then blocks
-  forever so the globals stay callable.
+  forever so the globals stay callable. In a browser the host is the
+  engine's Worker ([The Worker](#the-worker)), so the globals live there and
+  the facade reaches them by message.
 - **Reverse bridges.** Some features call back into optional host-provided
   globals: `__kapiPdfium` (PDF text + geometry), `kapiLocalGenerate`
   (on-device LLM), `kapiLocalNER` (on-device NER), and `kapiBrowserTranslate`
   (with the platform `Translator` API). Each degrades with an actionable
   error when its bridge is absent. The typed interfaces live in
-  `packages/engine/src/capabilities.ts`.
+  `packages/engine/src/capabilities.ts`. A page installs them on its own
+  `globalThis` whether the engine runs there or in a Worker.
+
+## The Worker
+
+`bootKapiRuntime` starts the engine in a dedicated Worker
+(`packages/engine/src/worker.ts`) wherever `Worker` exists: Go, SQLite and the
+engine's file system run there, off the page's thread. `{ worker: false }`, or
+an environment without `Worker` (Node, a test), runs it on the calling thread
+as before, with the workspace in memory.
+
+- **Calls by message.** The facade sends each call as a message naming the
+  engine global and its arguments (`packages/engine/src/protocol.ts`), and the
+  Worker answers with the value. Calls that are not engine globals
+  (`removeDatabase`, `reset`, and reading back a trace) run beside them in the
+  Worker (`packages/engine/src/local.ts`). `kbf`, `segment`,
+  `segmentEngines` and `removeDatabase` answer Promises on the facade, in both
+  modes.
+- **The file system has a mirror on the page.** `runtime.vol` stays
+  synchronous: the page holds a copy of the engine's file system, a write on
+  the page reaches the Worker before the next call (messages keep their
+  order), and the Worker sends the changes a call made before the call's
+  answer, so a page that reads `vol` after a call sees them. `memfs` reports
+  each changed path (`onChange`) for this.
+- **The ABI descriptor.** The Worker sends `kapiEngineABI()` with its ready
+  message, and the facade installs it on the page, so `engineABI()` and
+  `hasEngineFunction()` answer there.
+- **Reverse bridges stay on the page.** With each call the facade sends which
+  bridges the page has, and the Worker installs a stand-in for each that asks
+  the page and waits for its answer. A stand-in answers with a Promise, so the
+  engine waits for it on a goroutine: `labSegmentAsync` is `labSegment`
+  answered as a Promise for that reason, and the ICU4X engine
+  (`core/segment/icu4xjs`) accepts a Promise from its bridge. The Worker
+  answers `kapiIntlSentenceBreaks` itself, since `Intl.Segmenter` exists
+  there, and mirrors the presence of the platform `Translator` API.
+- **Loading `wasm_exec.js`.** The Worker imports it as a module, falling back
+  to `importScripts` in a classic Worker. A host on another origin serves it
+  with CORS, as it already does for the engine binary.
 
 ## Storage
 
@@ -46,6 +85,49 @@ store, the decision ledger, the context graph and the block cache. They are SQL
 behind `core/storage`, and the browser build's driver runs that SQL on the
 official SQLite WebAssembly build, `@sqlite.org/sqlite-wasm`.
 
+- **Where the workspace is kept.** In the Worker, the engine keeps its
+  databases in SQLite's `opfs-sahpool` VFS, in the origin private file system,
+  and the files of its file system in a database of its own in the same pool
+  (`/.kapi-engine/volume.db`, outside the driver's namespace), written after
+  each call. Both survive a reload and a browser restart, and need no COOP or
+  COEP headers, which GitHub Pages cannot set. `runtime.storage` says which
+  applies: `{ kind: "opfs" }`, or `{ kind: "memory", reason }` with `reason`
+  one of `disabled`, `main-thread`, `unsupported`, `another-tab` or `failed`,
+  and `describeStorage()` turns it into a sentence for a page. The pool is
+  named by a key (`BootOptions.persist`, default `"kapi"`); the docs key it by
+  their base URL, since the stable docs, the preview channel and each pull
+  request preview share an origin and serve different engines.
+- **One tab owns the pool.** The pool holds a synchronous handle on every file,
+  which only one context may hold, so the Worker first takes a Web Lock named
+  for the pool and holds it for its life. A tab that cannot take it within a
+  short wait (a reload releases it as the old page closes) runs in memory, with
+  `reason: "another-tab"`. Before installing the pool the Worker checks that no
+  other context still holds its files and waits for one that is closing: a
+  failed install in this release of `sqlite-wasm` removes the pool's
+  directory. The pool grows between calls, since growing it waits on the file
+  system, keeping spare slots for the databases and journals a call creates.
+- **Locks between connections.** The pool's own locks only remember the level
+  asked for. The engine opens several connections to one database, so the
+  bridge installs a lock table over the pool's methods
+  (`packages/engine/src/locks.ts`) that keeps SQLite's lock levels per
+  database, as `memdb` and `os_unix.c` do within one process: a write beside
+  another connection's transaction reports `database is locked` at once, as it
+  does in memory.
+- **The workspace is a cache.** The browser may evict what a site keeps
+  (Safari removes data a script wrote after seven days without interaction),
+  so the workspace in a browser is a cache of a log that should also live
+  elsewhere. `kapiExportWorkspace()` packs the engine's files and the context
+  of every project among them into a workspace package (`kpz.KindWorkspace`,
+  `kapi-workspace`): the files under `files/`, and per project a context
+  package under `contexts/`, the operation log `kapi context export` writes.
+  `kapiImportWorkspace(bytes)` writes the files and merges each log, as
+  `kapi context import` does, which rebuilds the project's stores. A store
+  outside every project is a projection of nothing and does not travel; the
+  data root, `/tmp` and the lab's own directory (`/.lab`) are left out. The
+  facade's `exportWorkspace()` and `importWorkspace()` wrap them, and the
+  playground's files panel offers both. The next step, syncing through a
+  `workspace.Remote`, is not built.
+
 - **The bridge.** `packages/engine/src/sqlite.ts` loads the module and installs
   one object on `globalThis`, `__kapiSQL`, before Go starts. The Go driver
   (`core/storage/driver_js.go`, `core/storage/sqlitejs_js.go`) registers with
@@ -53,14 +135,16 @@ official SQLite WebAssembly build, `@sqlite.org/sqlite-wasm`.
   and SQLite share the page's main thread. Arguments and result rows cross in
   one packed byte buffer per call. A failure comes back as SQLite's own message
   and extended result code.
-- **Where the databases live.** In SQLite's `memdb` VFS, named by absolute path.
-  Every connection to one name shares the database, and `ATTACH` by path reaches
-  it. The bridge holds a connection of its own on each name, so a database
-  outlives the pools that open and close it between commands. The engine names
-  its data root `/.kapi-data` (`KAPI_DATA_DIR`), where the workspace lives.
-  Nothing outlives the tab.
+- **Where the databases live.** Named by absolute path, in the pool or, in
+  memory, in SQLite's `memdb` VFS. Every connection to one name shares the
+  database, and `ATTACH` by path reaches it, since the bridge makes its VFS the
+  default. In memory the bridge holds a connection of its own on each name, so
+  a database outlives the pools that open and close it between commands. The
+  engine names its data root `/.kapi-data` (`KAPI_DATA_DIR`), where the
+  workspace lives.
 - **The driver's profile.** `storage.DriverProfile()` reports one connection per
-  file, no WAL, no cross-process lock and no durability. The busy timeout is
+  file, no WAL and no cross-process lock, and durability when the bridge says
+  its databases outlive the page (`__kapiSQL.durable`). The busy timeout is
   zero: a second connection's wait would spin the only thread, so a lock
   conflict reports `database is locked` at once. Code on these pools never holds
   a transaction or open rows and then waits for a second session on the same
@@ -166,8 +250,8 @@ and returns a Promise of a JSON string.
   workspace's log under `/.kapi-data` as one `content.edit` operation per
   document, the record `kapi apply` writes natively, and the projector writes
   it into the block history. A later read shows a translation's basis from
-  there. Outside a project nothing is recorded. Every edit lives as long as
-  the tab, with the rest of the workspace.
+  there. Outside a project nothing is recorded. Every edit is kept with the
+  rest of the workspace ([Storage](#storage)).
 - **One at a time.** The calls, the commands `kapiRun` runs (a completion
   included) and `kapiReset` share the engine's App, so the engine runs them in
   turn: a command started while a call runs waits for it, and the other way
@@ -252,6 +336,11 @@ the Command Reference cannot claim a verb runs in the lab when it does not.
 | Wire shapes + `engineABI()` helper | `packages/engine/src/abi.ts` |
 | `KapiRuntime` facade + boot | `packages/engine/src/runtime.ts` |
 | SQLite bridge (`__kapiSQL`) | `packages/engine/src/sqlite.ts` |
+| The engine's Worker and its messages | `packages/engine/src/worker.ts`, `packages/engine/src/protocol.ts` |
+| Where the workspace is kept (pool, Web Lock, file store) | `packages/engine/src/storage.ts` |
+| Locks between connections on the pool | `packages/engine/src/locks.ts` |
+| Workspace export and import (`kapiExportWorkspace`, `kapiImportWorkspace`) | `kapi/cmd/kapi-wasm-cli/workspace.go`, `kpz/workspacepkg.go` |
+| Persistence smoke (reload, restart, a second tab, an export) | `scripts/wasm-persist/`, `make wasm-persist-smoke` |
 | Browser database driver + profile + namespace | `core/storage/driver_js.go`, `core/storage/sqlitejs_js.go` |
 | Store suites under `GOOS=js` | `scripts/wasm-stores/`, `make test-wasm-stores` |
 | Lab project for the annotators | `kapi/cmd/kapi-wasm-cli/labproject.go` |

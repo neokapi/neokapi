@@ -151,6 +151,7 @@ const LazyExplorer = lazyWithRetry(async () => {
             ref={embedRef}
             wasmExecUrl={cfg.wasmExecUrl}
             wasmUrl={cfg.wasmUrl}
+            storageKey={cfg.storageKey}
             // Boot seeded with the first loose sample at the prompt.
             files={[LOOSE_SAMPLES[0].file]}
             cmd={LOOSE_SAMPLES[0].suggested}

@@ -41,6 +41,8 @@ const stripAnsi = (s: string): string => s.replace(ANSI_ESCAPE, "");
 export interface LabRuntimeAssets {
   wasmExecUrl: string;
   wasmUrl: string;
+  /** The key the engine keeps its workspace under (KapiPlaygroundConfig.storageKey). */
+  storageKey?: string;
 }
 
 export interface InspectOutcome {
@@ -176,13 +178,14 @@ export function useLabRuntime(
   // pegs the tab ("Maximum update depth"). The strings are stable.
   const wasmExecUrl = assets?.wasmExecUrl;
   const wasmUrl = assets?.wasmUrl;
+  const storageKey = assets?.storageKey;
 
   // Configure the shared plugin manager with the asset URLs as soon as we have
   // them (idempotent). This does NOT boot — it just lets the navbar widget and
   // any plugin ensure() reach the same engine. Boot stays gated behind boot().
   useEffect(() => {
-    if (wasmExecUrl && wasmUrl) configurePlugins({ wasmExecUrl, wasmUrl });
-  }, [wasmExecUrl, wasmUrl]);
+    if (wasmExecUrl && wasmUrl) configurePlugins({ wasmExecUrl, wasmUrl, storageKey });
+  }, [wasmExecUrl, wasmUrl, storageKey]);
 
   const boot = useCallback(() => {
     if (!wasmExecUrl || !wasmUrl || bootStartedRef.current) return;
@@ -191,7 +194,7 @@ export function useLabRuntime(
     const offProgress = onBootProgress((p) => {
       if (mountedRef.current) setBootProgress(p.done ? null : p);
     });
-    configurePlugins({ wasmExecUrl, wasmUrl });
+    configurePlugins({ wasmExecUrl, wasmUrl, storageKey });
     bootEngine()
       .then((rt: unknown) => {
         runtimeRef.current = rt as KapiRuntime;

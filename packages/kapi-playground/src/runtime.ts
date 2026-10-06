@@ -9,7 +9,7 @@
 export * from "@neokapi/engine/runtime";
 
 import { bootKapiRuntime as bootEngineRuntime } from "@neokapi/engine/runtime";
-import type { KapiRuntime } from "@neokapi/engine/runtime";
+import type { BootOptions, KapiRuntime } from "@neokapi/engine/runtime";
 import { installPdfiumBridge } from "./pdfiumBridge";
 
 let booting: Promise<KapiRuntime> | null = null;
@@ -22,8 +22,12 @@ let booting: Promise<KapiRuntime> | null = null;
  * first time a PDF is inspected. A failure here must never break boot —
  * non-PDF use is unaffected.
  */
-export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<KapiRuntime> {
-  booting ??= bootEngineRuntime(wasmExecUrl, wasmUrl)
+export function bootKapiRuntime(
+  wasmExecUrl: string,
+  wasmUrl: string,
+  opts?: BootOptions,
+): Promise<KapiRuntime> {
+  booting ??= bootEngineRuntime(wasmExecUrl, wasmUrl, opts)
     .then((rt) => {
       try {
         installPdfiumBridge(wasmUrl.replace(/[^/]*$/, "pdfium.wasm"));

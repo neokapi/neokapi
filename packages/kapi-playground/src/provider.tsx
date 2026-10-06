@@ -8,6 +8,13 @@ export interface KapiPlaygroundConfig {
   wasmExecUrl: string;
   /** Resolved URL of the kapi-cli wasm (the runtime also probes `${url}.gz`). */
   wasmUrl: string;
+  /**
+   * The key the engine keeps its workspace under in this browser (see
+   * `BootOptions.persist`). Pages that serve different engines on one origin,
+   * such as a stable and a preview build of a site, give each its own key.
+   * Omitted is the engine's default.
+   */
+  storageKey?: string;
 }
 
 const ConfigContext = createContext<KapiPlaygroundConfig | null>(null);

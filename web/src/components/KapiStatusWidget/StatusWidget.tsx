@@ -251,9 +251,10 @@ export default function StatusWidget(): React.ReactElement {
     mgr.configure({
       wasmExecUrl: config.wasmExecUrl,
       wasmUrl: config.wasmUrl,
+      storageKey: config.storageKey,
       visionModelBase,
     });
-  }, [mgr, config.wasmExecUrl, config.wasmUrl, visionModelBase]);
+  }, [mgr, config.wasmExecUrl, config.wasmUrl, config.storageKey, visionModelBase]);
 
   // Reflect models already in the browser cache from a previous session as
   // "downloaded" (rather than offering a fresh download). Runs once.

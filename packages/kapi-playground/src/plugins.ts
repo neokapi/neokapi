@@ -346,6 +346,13 @@ export interface PluginAssets {
    * redirects to a no-CORS host), so the widget's vision download would fail.
    */
   visionModelBase?: string;
+  /**
+   * The key the engine keeps its workspace under in this browser (see
+   * `BootOptions.persist`). Pages that serve different engines on one origin,
+   * such as a stable and a preview build of a site, give each its own key.
+   * Omitted is the engine's default.
+   */
+  storageKey?: string;
 }
 
 let assets: PluginAssets | null = null;
@@ -357,7 +364,9 @@ let assets: PluginAssets | null = null;
  * model base can fill it in even if the widget configured the wasm URLs first).
  */
 export function configurePlugins(a: PluginAssets): void {
-  assets = { ...assets, ...a };
+  // A field a caller leaves out (or undefined) keeps what another set.
+  const given = Object.fromEntries(Object.entries(a).filter(([, v]) => v !== undefined));
+  assets = { ...assets, ...given } as PluginAssets;
 }
 
 // ---------------------------------------------------------------------------
@@ -385,7 +394,9 @@ export function bootEngine(): Promise<unknown> {
       setEngine({ progress: { loaded: p.loaded, total: p.total ?? undefined } });
     });
     try {
-      const rt = await bootKapiRuntime(wasmExecUrl, wasmUrl);
+      const rt = await bootKapiRuntime(wasmExecUrl, wasmUrl, {
+        persist: assets?.storageKey ?? true,
+      });
       setEngine({ phase: "ready", progress: undefined });
       return rt;
     } catch (e) {

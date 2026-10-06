@@ -61,6 +61,8 @@ export interface KapiEmbedProps extends KapiRunRequest {
    * inflates it via DecompressionStream when available.
    */
   wasmUrl: string;
+  /** The key the engine keeps its workspace under (KapiPlaygroundConfig.storageKey). */
+  storageKey?: string;
   /** Show the maximize toggle (the modal supplies its own chrome). */
   showToolbar?: boolean;
   /** Render to fill its container (used inside the modal). */
@@ -189,6 +191,7 @@ function ensureBinaryFiles(runtime: KapiRuntime, files: BinaryKapiFile[] | undef
 export default function KapiEmbed({
   wasmExecUrl,
   wasmUrl,
+  storageKey,
   seed,
   files,
   binaryFiles,
@@ -290,7 +293,7 @@ export default function KapiEmbed({
     const unsubscribe = onBootProgress((p) => {
       if (!cancelled) setBootProgress(p);
     });
-    configurePlugins({ wasmExecUrl, wasmUrl });
+    configurePlugins({ wasmExecUrl, wasmUrl, storageKey });
     bootEngine()
       .then((rt) => {
         if (cancelled) return;
@@ -309,7 +312,7 @@ export default function KapiEmbed({
     };
     // Boot once started; the initial seed is applied above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [started, wasmExecUrl, wasmUrl, bootAttempt]);
+  }, [started, wasmExecUrl, wasmUrl, storageKey, bootAttempt]);
 
   // Once the terminal is mounted and the runtime is ready, drive the initial
   // command (the one supplied at mount time).
