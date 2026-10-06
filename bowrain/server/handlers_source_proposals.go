@@ -34,15 +34,17 @@ import (
 //
 // The translation stays because it is worth something. It is what the content
 // memory recycles from and what a reviewer compares the new draft against, and
-// the producers can now tell it apart from a current one: the ledger records the
-// source each target was written for (unit_decisions.basis), and the
-// recycle pass and the estimate both partition on that basis
-// (jobs.decisionLedger.needsDraft) rather than on whether a target exists. The
-// tally grades the same field (store.TallyDecisionBasis).
+// the producers can now tell it apart from a current one: each translation
+// records the source it was made from on its edition (model.Edition.Derived,
+// stamped by the stream home when it is written), a decision records the
+// source it blessed (unit_decisions.basis), and the recycle pass and the
+// estimate both partition on that basis (jobs.decisionLedger.needsDraft)
+// rather than on whether a target exists. The tally grades the same fields
+// (store.TallyDecisionBasis).
 //
-// This is the local loop's shape, arrived at by the same route: it records the
-// source each target was translated from (host/basisrecord.go), reads the
-// rewrite as drift against that basis, and re-drafts the unit with the old
+// This is the local loop's shape, arrived at by the same route: the write that
+// left a translation records the source it was translated from, a rewrite
+// reads as drift against that basis, and the unit is re-drafted with the old
 // wording still on disk.
 
 // CreateSourceProposalRequest proposes a change to a block's source. Sent from

@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"strings"
-	"time"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -14,34 +13,35 @@ import (
 // The basis of a target the platform holds, and the one question the producers
 // ask of it.
 //
-// A record in the decision ledger carries the SOURCE it was made against, by
-// revision (unit_decisions.basis). That is true of a reviewer's approval and of
-// the plain basis a producer writes when it puts a translation somewhere, so
-// one comparison answers for both: the recorded basis against the revision of
-// the source the block carries now (store.BasisStale). Equal means the
-// translation renders the source the project holds; different means the
-// source has changed under it, its wording or an inline code.
+// A translation records the source it was made from on the edition itself
+// (model.Edition.Derived). The stream home stamps it whenever a change set
+// writes the translation (a draft the job produced, a person's edit, a pushed
+// write), so the record of the write that left a translation's current
+// revision is where its basis lives, as it is locally (design 5.3, WP7). A
+// decision in the ledger carries the source it blessed, by revision
+// (unit_decisions.basis). One comparison answers for both: the recorded basis
+// against the revision of the source the block carries now (store.BasisStale).
+// Equal means the translation renders the source the project holds; different
+// means the source has changed under it, its wording or an inline code.
 //
 // Two boundaries hold the answer to the units the platform is entitled to speak
-// for, and they are the same two the local loop applies (host/basisrecord.go):
+// for:
 //
-//   - A target the ledger has no record of is left alone. The platform did not
-//     write it and cannot say what it translates, so re-drafting it would
-//     discard somebody's work on a guess.
-//   - A basis is never written over a decision. The decision's basis is the
-//     decision's, and replacing it would erase an approval a source edit is
-//     supposed to withdraw rather than delete.
+//   - A target with neither a decision nor a recorded derivation is left
+//     alone. Nothing says what it translates, so re-drafting it would discard
+//     somebody's work on a guess.
+//   - A decision's basis is the decision's. A draft never replaces it, because
+//     that would erase an approval a source edit is supposed to withdraw
+//     rather than delete.
 //
 // The second boundary leaves a decided unit stale for as long as its re-review
 // takes, and a producer that read only the decision would draft it again on
 // every pass and pay for it each time. So the row carries a second mark beside
 // the decision, the source the platform's latest draft was made against
-// (store.DraftBasis), and the producers read the two together: a stale unit is
-// owed a draft until that mark names the source the block holds now, and from
-// then on it waits on a reviewer. A source changed again moves the block's
-// revision away from the mark, and the unit is owed once more. The local loop gets
-// the same guarantee from its content memory, which absorbs the re-drafted
-// pairing and answers the next pass from it (host/recordabsorb.go).
+// (store.DraftBasis), and the producers read the two together: a stale decided
+// unit is owed a draft until that mark names the source the block holds now,
+// and from then on it waits on a reviewer. A source changed again moves the
+// block's revision away from the mark, and the unit is owed once more.
 //
 // The mark carries the second question a producer has to ask as well. Comparing
 // the revisions answers "does this translation render the source the project
@@ -71,7 +71,8 @@ type ledgerRecord struct {
 }
 
 // decisionLedger indexes stream decisions by unit and variant. A nil ledger
-// indicates unavailable decision data; targets retain their current state.
+// indicates unavailable decision data: a target is then graded by the
+// derivation its edition records alone.
 type decisionLedger map[decisionUnitKey]ledgerRecord
 
 // loadDecisionLedger reads the stream's recorded decisions into the index the
@@ -164,8 +165,13 @@ func (l decisionLedger) needsDraft(sb *venue.StoredBlock, locale model.LocaleID)
 		}
 		d, ok := l.record(sb, key)
 		if !ok {
-			// A target the platform has no record of writing. Re-drafting it
-			// on a silence would discard somebody's work on a guess.
+			// No decision: the basis is the one the write that left the
+			// translation recorded on it. A target with none is one nothing
+			// says the source of, and re-drafting it on a silence would
+			// discard somebody's work on a guess.
+			if b, ok := derivedBasis(t, auth); ok && store.BasisStale(b, current) {
+				return true
+			}
 			continue
 		}
 		if store.BasisCurrent(d.draftBasis, current) {
@@ -199,23 +205,31 @@ func variantText(k model.EditionKey) string {
 	return string(b)
 }
 
-// recordProducedBasis records, for every target this pass wrote, the source it
-// was translated from. It is what lets the NEXT pass tell a translation of the
-// current wording from one left over from wording that has since been rewritten,
-// and it is the venue's half of what host/basisrecord.go does for the local
-// loop.
-//
-// Two marks per unit. An undecided unit gets a basis record: a basis and
-// nothing else, no rung, no review state, no decider, so the store projects no
-// status and the target keeps the rung its producer put it on. Every unit,
-// decided or not, gets its draft basis stamped beside whatever the row holds,
-// which for a decided unit is the only mark this pass may leave: the decision
-// stays, stale, until a reviewer replaces it, and the stamp is what keeps the
-// next pass from drafting the unit again.
+// derivedBasis returns the revision of the source a translation records it
+// was made from, when its derivation names the edition the block is written
+// in (auth) or the bare language of one.
+func derivedBasis(t model.Edition, auth model.EditionKey) (string, bool) {
+	d := t.Derived
+	if d == nil || d.Rev == "" {
+		return "", false
+	}
+	if d.From != auth && !d.From.IsZero() && (d.From.Tone != "" || d.From.Channel != "" || d.From.Locale != auth.Locale) {
+		return "", false
+	}
+	return d.Rev, true
+}
+
+// recordDraftMarks stamps, for every unit the ledger holds a row for and
+// this pass wrote a target of, the source the draft was made against
+// (store.DraftBasis). The basis of the draft itself needs no record here: the
+// stream home stamped it on the edition the change set wrote. The mark is
+// what keeps the next pass from drafting a stale decided unit again while
+// the decision waits on a reviewer. A unit with no row gets none: a row
+// carrying only a mark would read as a decision with an unknown basis.
 //
 // Best-effort. A failure here costs the next pass its view of this one's output,
 // never this pass's output, so it is logged and the run continues.
-func recordProducedBasis(
+func recordDraftMarks(
 	ctx context.Context,
 	cs store.ContentStore,
 	projectID, stream string,
@@ -225,13 +239,11 @@ func recordProducedBasis(
 	locale model.LocaleID,
 ) {
 	ds, ok := cs.(store.DecisionStore)
-	if !ok || len(blocks) == 0 {
+	if !ok || len(blocks) == 0 || len(ledger) == 0 {
 		return
 	}
 	variant := variantText(model.Variant(locale))
-	now := time.Now().UTC().Format(time.RFC3339)
 
-	var records []venue.UnitDecision
 	var drafts []store.DraftBasis
 	for _, b := range blocks {
 		if b == nil {
@@ -239,57 +251,24 @@ func recordProducedBasis(
 		}
 		sb := byBlockID[b.ID]
 		if sb == nil || sb.SourceID == "" || sb.ItemName == "" {
-			// A block stored without an item has no unit identity for the
-			// ledger to key on.
 			continue
 		}
-		text := model.RunsText(localeTargetRuns(b, locale))
-		if strings.TrimSpace(text) == "" {
-			continue // nothing was produced; a record would claim a translation
+		if strings.TrimSpace(model.RunsText(localeTargetRuns(b, locale))) == "" {
+			continue // nothing was produced
 		}
 		key := decisionUnitKey{item: sb.ItemName, unit: sb.SourceID, variant: variant}
 		prev, had := ledger[key]
 		basis := sb.SourceRevision
-		revision := model.RunsRevision(model.Variant(locale), localeTargetRuns(b, locale))
-		next := prev
-		if !had {
-			next.ItemName, next.Unit, next.Variant = sb.ItemName, sb.SourceID, variant
+		if !had || prev.draftBasis == basis {
+			continue
 		}
-		switch {
-		case had && prev.ReviewState != "":
-			// Decided: the basis is the decision's. Only the draft mark moves.
-		case had && prev.Basis == basis && prev.Revision == revision:
-			// Already recorded for this exact pairing.
-		default:
-			records = append(records, venue.UnitDecision{
-				ItemName: sb.ItemName,
-				Unit:     sb.SourceID,
-				Variant:  variant,
-				Revision: revision,
-				Basis:    basis,
-				Updated:  now,
-			})
-			next.Revision, next.Basis, next.Updated = revision, basis, now
-		}
-		if !had || prev.draftBasis != basis {
-			drafts = append(drafts, store.DraftBasis{
-				ItemName: sb.ItemName, Unit: sb.SourceID, Variant: variant, Basis: basis,
-			})
-			next.draftBasis = basis
-		}
-		if ledger != nil {
-			// The chunks that follow in this job read the ledger they were
-			// handed, so it has to say what the store now says.
-			ledger[key] = next
-		}
-	}
-	// The basis records first: a unit the ledger did not hold gets its row
-	// here, and the stamp below lands on rows and creates none.
-	if len(records) > 0 {
-		if _, err := ds.UpsertUnitDecisions(ctx, projectID, stream, records); err != nil {
-			slog.WarnContext(ctx, "record the basis for the targets this pass wrote; the next pass reads them as targets it has no record of",
-				"project", projectID, "stream", stream, "locale", string(locale), "records", len(records), "error", err)
-		}
+		drafts = append(drafts, store.DraftBasis{
+			ItemName: sb.ItemName, Unit: sb.SourceID, Variant: variant, Basis: basis,
+		})
+		// The chunks that follow in this job read the ledger they were
+		// handed, so it has to say what the store now says.
+		prev.draftBasis = basis
+		ledger[key] = prev
 	}
 	if len(drafts) > 0 {
 		if err := ds.RecordDraftBases(ctx, projectID, stream, drafts); err != nil {

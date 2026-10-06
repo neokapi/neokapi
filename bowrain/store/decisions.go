@@ -369,7 +369,32 @@ func (s *PostgresStore) TallyDecisionBasis(ctx context.Context, projectID, strea
 		}
 		out = append(out, t)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	derived, err := s.db.QueryContext(ctx, `SELECT i.name, t.locale, COUNT(*)
+		 FROM translations t
+		 JOIN blocks b ON b.project_id = t.project_id AND b.stream = t.stream AND b.id = t.block_id
+		 JOIN items i ON i.project_id = b.project_id AND i.stream = b.stream AND i.id = b.item_id
+		 WHERE t.project_id=$1 AND t.stream=$2 AND b.translatable
+		   AND `+pgDerivedStale+`
+		   AND NOT EXISTS (SELECT 1 FROM unit_decisions d
+			WHERE d.project_id = b.project_id AND d.stream = b.stream
+			AND d.item_id = b.item_id AND d.unit = b.source_id AND d.variant = t.locale)
+		 GROUP BY i.name, t.locale`, projectID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("tally derived basis: %w", err)
+	}
+	defer derived.Close()
+	for derived.Next() {
+		var item, variant string
+		var n int
+		if err := derived.Scan(&item, &variant, &n); err != nil {
+			return nil, fmt.Errorf("scan derived basis tally: %w", err)
+		}
+		out = platstore.AddDerivedStale(out, item, variant, n)
+	}
+	return out, derived.Err()
 }
 
 // RecordDraftBases implements platstore.DecisionStore. One UPDATE per unit,
@@ -444,6 +469,15 @@ func (s *PostgresStore) ListDraftBases(ctx context.Context, projectID, stream st
 // and its block b: the basis names a revision of the source other than the one
 // the block holds now.
 const pgBasisStale = `(d.basis <> '' AND d.basis <> b.source_revision)`
+
+// pgDerivedStale says a translation's recorded derivation (target_json.derived)
+// names a revision of the edition the block is written in other than the one
+// it holds now: the write that left the translation made it from a source the
+// project has since changed. A derivation from a tone or a channel edition is
+// not graded here.
+const pgDerivedStale = `(COALESCE(t.target_json->'derived'->>'rev', '') <> ''
+	AND t.target_json->'derived'->>'rev' <> b.source_revision
+	AND position(';' in COALESCE(t.target_json->'derived'->>'from', '')) = 0)`
 
 // pgDraftCurrent says the row's draft mark names the source the block holds
 // now: the platform has drafted the unit against it.

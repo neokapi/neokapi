@@ -818,3 +818,47 @@ func TestMigrations_AWorkingCopyFromBeforeTheRebuildStillOpens(t *testing.T) {
 	require.NotNil(t, got)
 	assert.Equal(t, "r:1111111111111111", got.Revision)
 }
+
+// TestTallyDecisionBasis_SQLiteGradesARecordedDerivation pins the grading of a translation no decision records: the
+// derivation its edition records (model.Edition.Derived) is its basis, so a
+// source rewritten under it is stale and owed a draft, and a decision on the
+// unit takes over from it.
+func TestTallyDecisionBasis_SQLiteGradesARecordedDerivation(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	src := &model.Block{ID: "greeting", Translatable: true}
+	src.SetSourceText("Hello")
+	src.SetTargetText("nb", "Hei")
+	src.SetDerivation(model.EditionKey{Locale: "nb"}, &model.Derivation{Rev: sourceRevision("Hello")})
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{src}))
+
+	tallies, err := s.TallyDecisionBasis(ctx, p.ID, "main")
+	require.NoError(t, err)
+	assert.Empty(t, tallies, "a translation made from the current source is not stale")
+
+	edited := blockWithText("greeting", "Hello there")
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{edited}))
+	tallies, err = s.TallyDecisionBasis(ctx, p.ID, "main")
+	require.NoError(t, err)
+	require.Len(t, tallies, 1)
+	assert.Equal(t, "en.json", tallies[0].ItemName)
+	assert.Equal(t, "nb", tallies[0].Variant)
+	assert.Equal(t, 1, tallies[0].Stale, "the source moved under the translation's recorded basis")
+	assert.Equal(t, 1, tallies[0].Owed, "and the loop owes it a draft")
+
+	_, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
+		ItemName: "en.json", Unit: "greeting", Variant: "nb",
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
+		Revision: nbTextRevision("Hei"), Basis: sourceRevision("Hello there"),
+		DecidedBy: "reviewer@example.com", Updated: "2026-10-06T10:00:00Z",
+	}})
+	require.NoError(t, err)
+	tallies, err = s.TallyDecisionBasis(ctx, p.ID, "main")
+	require.NoError(t, err)
+	for _, got := range tallies {
+		assert.Zero(t, got.Stale, "a decision's basis takes over from the derivation")
+		assert.Zero(t, got.Owed)
+	}
+}

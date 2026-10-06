@@ -629,9 +629,10 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	srcLocale := proj.DefaultSourceLanguage
 	tgtLocale := model.LocaleID(job.TargetLocale)
 
-	// The stream's recorded bases, read once for the job. They decide which blocks
-	// this locale still owes a draft (decisionLedger.needsDraft) and which units
-	// this job may record a basis for once it has written one.
+	// The stream's decisions and draft marks, read once for the job. With the
+	// derivation each translation records, they decide which blocks this locale
+	// still owes a draft (decisionLedger.needsDraft) and which units this job
+	// stamps a draft mark on once it has written one.
 	//
 	// The filter sits here rather than inside the recycle pass because it holds
 	// whether or not the project has a content memory: a job with no corpus to
@@ -695,7 +696,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 				if err != nil {
 					return fmt.Errorf("store recycled blocks: %w", err)
 				}
-				recordProducedBasis(ctx, deps.ContentStore, job.ProjectID, jobStream, ledger, unitByBlockID, filled, tgtLocale)
+				recordDraftMarks(ctx, deps.ContentStore, job.ProjectID, jobStream, ledger, unitByBlockID, filled, tgtLocale)
 				emitLog(deps, job.StepID, "info",
 					fmt.Sprintf("Recycled %d block(s) from content memory (skipping AI)", memoryFilled),
 					map[string]string{"via_tm": strconv.Itoa(memoryFilled)})
@@ -867,10 +868,11 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 			if err != nil {
 				return fmt.Errorf("store blocks: %w", err)
 			}
-			// The source each draft was translated from, so the next pass can
-			// tell a translation of the current wording from one left over from
-			// wording that has since been rewritten.
-			recordProducedBasis(ctx, deps.ContentStore, job.ProjectID, jobStream, ledger, unitByBlockID, blocks, tgtLocale)
+			// The stream home stamped each draft's basis on its edition; a
+			// decided unit's row also gets the mark of the source it was
+			// drafted against, so it waits on a reviewer rather than being
+			// drafted again.
+			recordDraftMarks(ctx, deps.ContentStore, job.ProjectID, jobStream, ledger, unitByBlockID, blocks, tgtLocale)
 			// Score the AI drafts against the standing voice profile (deterministic
 			// vocabulary check, zero AI) so the dashboard's compliance rate is
 			// voice-informed for every drafted block.
