@@ -269,12 +269,20 @@ func (s *Sync) localKindsClause() (string, []any) {
 	return " AND o.kind NOT IN (" + strings.TrimSuffix(strings.Repeat("?,", len(args)), ",") + ")", args
 }
 
+// The operations to push are the project's that travel, recorded since its
+// latest removal from the workspace (the ones before it built a context the
+// removal deleted), that the remote is not known to hold.
+
 func (s *Sync) countToPush(ctx context.Context, db *storage.DB) (int, error) {
+	removed, err := removalAt(ctx, db, s.key)
+	if err != nil {
+		return 0, err
+	}
 	clause, kindArgs := s.localKindsClause()
-	args := append([]any{string(s.key)}, kindArgs...)
+	args := append([]any{string(s.key), removed}, kindArgs...)
 	args = append(args, s.rid)
 	var n int
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM workspace_ops o WHERE o.project = ?`+clause+`
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM workspace_ops o WHERE o.project = ? AND o.seq > ?`+clause+`
 AND NOT EXISTS (SELECT 1 FROM workspace_sync_known k WHERE k.remote = ? AND k.id = o.id)`, args...).Scan(&n); err != nil {
 		return 0, fmt.Errorf("workspace: count operations to push: %w", err)
 	}
@@ -282,10 +290,14 @@ AND NOT EXISTS (SELECT 1 FROM workspace_sync_known k WHERE k.remote = ? AND k.id
 }
 
 func (s *Sync) opsToPush(ctx context.Context, db *storage.DB) ([]Op, error) {
+	removed, err := removalAt(ctx, db, s.key)
+	if err != nil {
+		return nil, err
+	}
 	clause, kindArgs := s.localKindsClause()
-	args := append([]any{string(s.key)}, kindArgs...)
+	args := append([]any{string(s.key), removed}, kindArgs...)
 	args = append(args, s.rid)
-	rows, err := db.QueryContext(ctx, `SELECT `+opColumns+` FROM workspace_ops o WHERE o.project = ?`+clause+`
+	rows, err := db.QueryContext(ctx, `SELECT `+opColumns+` FROM workspace_ops o WHERE o.project = ? AND o.seq > ?`+clause+`
 AND NOT EXISTS (SELECT 1 FROM workspace_sync_known k WHERE k.remote = ? AND k.id = o.id) ORDER BY o.id`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("workspace: read operations to push: %w", err)
@@ -477,13 +489,19 @@ func boolInt(b bool) int {
 }
 
 // notHeld counts the operations the log does not hold, by id or content
-// address.
+// address. One held only before the project's latest removal from the
+// workspace counts as not held, as Record counts it.
 func (s *Sync) notHeld(ctx context.Context, db *storage.DB, ops []Op) (int, error) {
+	removed, err := removalAt(ctx, db, s.key)
+	if err != nil {
+		return 0, err
+	}
 	n := 0
 	for _, op := range ops {
 		var one int
-		err := db.QueryRowContext(ctx, `SELECT 1 FROM workspace_ops WHERE id = ? OR (? <> '' AND address = ?) LIMIT 1`,
-			op.ID, op.Address, op.Address).Scan(&one)
+		err := db.QueryRowContext(ctx, `SELECT 1 FROM workspace_ops
+WHERE (id = ? OR (? <> '' AND address = ?)) AND (project <> ? OR seq > ? OR kind = ?) LIMIT 1`,
+			op.ID, op.Address, op.Address, string(s.key), removed, OpForgetProject).Scan(&one)
 		if errors.Is(err, sql.ErrNoRows) {
 			n++
 			continue
@@ -584,13 +602,17 @@ func (s *Sync) Pull(ctx context.Context) (PullReport, error) {
 }
 
 // isFirstPull reports whether the log holds none of the project's operations
-// that travel, which is when a remote checkpoint can stand in for replaying
-// the whole log.
+// that travel since its latest removal from the workspace, which is when a
+// remote checkpoint can stand in for replaying the whole log.
 func (s *Sync) isFirstPull(ctx context.Context, db *storage.DB) (bool, error) {
+	removed, err := removalAt(ctx, db, s.key)
+	if err != nil {
+		return false, err
+	}
 	clause, kindArgs := s.localKindsClause()
 	var one int
-	err := db.QueryRowContext(ctx, `SELECT 1 FROM workspace_ops o WHERE o.project = ?`+clause+` LIMIT 1`,
-		append([]any{string(s.key)}, kindArgs...)...).Scan(&one)
+	err = db.QueryRowContext(ctx, `SELECT 1 FROM workspace_ops o WHERE o.project = ? AND o.seq > ?`+clause+` LIMIT 1`,
+		append([]any{string(s.key), removed}, kindArgs...)...).Scan(&one)
 	if errors.Is(err, sql.ErrNoRows) {
 		return true, nil
 	}
@@ -600,10 +622,14 @@ func (s *Sync) isFirstPull(ctx context.Context, db *storage.DB) (bool, error) {
 // merge records the segments' operations and applies them, rebuilding the
 // stores when one sorts before an operation already applied.
 func (s *Sync) merge(ctx context.Context, db *storage.DB, segs []fetched, report *PullReport) error {
+	removed, err := removalAt(ctx, db, s.key)
+	if err != nil {
+		return err
+	}
 	var newest string
 	clause, kindArgs := s.localKindsClause()
-	if err := db.QueryRowContext(ctx, `SELECT COALESCE(MAX(o.id), '') FROM workspace_ops o WHERE o.project = ?`+clause,
-		append([]any{string(s.key)}, kindArgs...)...).Scan(&newest); err != nil {
+	if err := db.QueryRowContext(ctx, `SELECT COALESCE(MAX(o.id), '') FROM workspace_ops o WHERE o.project = ? AND o.seq > ?`+clause,
+		append([]any{string(s.key), removed}, kindArgs...)...).Scan(&newest); err != nil {
 		return fmt.Errorf("workspace: read the newest operation: %w", err)
 	}
 	var ops []Op

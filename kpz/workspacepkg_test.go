@@ -21,7 +21,39 @@ func workspacePackage(t *testing.T) *Package {
 			{Path: FilePath("project/app.json"), Content: BytesContent([]byte(`{"a":"Hello"}`))},
 		},
 		Contexts: []ContextDoc{{Path: ContextsDir + "1.kpz", Project: "project", Data: inner}},
+		TermStores: []TermStoreDoc{{
+			Path:  TermStoresDir + "1.terms.json",
+			Store: "shared/terms.db",
+			Data:  []byte(`{"schemaVersion":"1.0","kind":"kapi-terms","concepts":[]}` + "\n"),
+		}},
 	}
+}
+
+// TestWorkspacePackage_RoundTripsTermStores: a terms store outside every
+// project comes back with the path it sat at and its bundle's bytes.
+func TestWorkspacePackage_RoundTripsTermStores(t *testing.T) {
+	pkg := workspacePackage(t)
+	pkg.Files, pkg.Contexts = nil, nil
+	require.True(t, pkg.HasContent(), "a package of terms stores alone has content")
+
+	data, err := pkg.Marshal()
+	require.NoError(t, err)
+	got, err := Unmarshal(data)
+	require.NoError(t, err)
+	require.Len(t, got.TermStores, 1)
+	assert.Equal(t, "shared/terms.db", got.TermStores[0].Store)
+	assert.Equal(t, pkg.TermStores[0].Data, got.TermStores[0].Data)
+
+	for _, bad := range []string{"../terms.db", "/terms.db", "", "."} {
+		pkg := workspacePackage(t)
+		pkg.TermStores[0].Store = bad
+		_, err := pkg.Marshal()
+		require.Error(t, err, bad)
+	}
+	pkg = workspacePackage(t)
+	pkg.TermStores[0].Path = "contexts/1.terms.json"
+	_, err = pkg.Marshal()
+	require.Error(t, err, "a bundle outside termstores/ is refused")
 }
 
 // TestWorkspacePackage_RoundTripsFilesAndContexts: every file comes back at

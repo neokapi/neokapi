@@ -24,7 +24,8 @@
 // file system and outlive the page; elsewhere they live in memory
 // (packages/engine/src/storage.ts). kapiExportWorkspace and
 // kapiImportWorkspace carry the workspace out of the browser and back
-// (workspace.go).
+// (workspace.go), and kapiSyncContext shares a project's context through a
+// folder the page holds (contextremote.go).
 package main
 
 import (
@@ -117,6 +118,7 @@ var engineExports = []struct {
 	{"labSegmentAsync", labSegmentAsync},
 	{"kapiExportWorkspace", kapiExportWorkspace},
 	{"kapiImportWorkspace", kapiImportWorkspace},
+	{"kapiSyncContext", kapiSyncContext},
 }
 
 // registerEngineABI installs every engine entry point plus the additive

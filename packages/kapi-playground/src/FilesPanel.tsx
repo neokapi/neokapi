@@ -1,20 +1,31 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ArrowRightLeft,
   Download,
   Trash2,
   Upload,
   FolderOpen,
+  FolderSync,
   FileText,
   CornerLeftUp,
   PackageOpen,
   Package,
 } from "lucide-react";
 import { describeStorage } from "./runtime";
-import type { KapiRuntime } from "./runtime";
+import type { FolderHandle, KapiRuntime } from "./runtime";
 import FilePreview from "./FilePreview";
 
 function joinPath(dir: string, name: string): string {
   return dir.replace(/\/$/, "") + "/" + name;
+}
+
+// The root of the project at or above dir: the nearest directory with a
+// kapi.yaml, or null outside every project.
+function projectAt(runtime: KapiRuntime, dir: string): string | null {
+  for (let d = dir; ; d = parentDir(d)) {
+    if (runtime.vol.exists(joinPath(d, "kapi.yaml"))) return d;
+    if (d === "/") return null;
+  }
 }
 
 // Resolve ".." against an absolute path string (no chdir needed).
@@ -63,6 +74,10 @@ export default function FilesPanel({
       return vd;
     });
   });
+
+  // Another tab may take the workspace over, and this tab may take it back:
+  // either changes where the files live, so the panel draws again.
+  useEffect(() => runtime.onStorageChange?.(() => onChange()), [runtime, onChange]);
 
   // refreshKey is a dependency only to force re-render when the fs changes.
   void refreshKey;
@@ -136,8 +151,11 @@ export default function FilesPanel({
       const out = await runtime.exportWorkspace();
       save("workspace.kpz", out.data);
       const skipped = out.skipped.map((s) => `${s.root}: ${s.reason}`).join(" ");
+      const stores = out.termStores.length
+        ? `, and ${out.termStores.length} terms stores outside a project`
+        : "";
       setUploadStatus(
-        `Exported ${out.files} files and the context of ${out.projects.length} projects to workspace.kpz.`,
+        `Exported ${out.files} files and the context of ${out.projects.length} projects${stores} to workspace.kpz.`,
       );
       if (skipped) setUploadError(`Left out the context of ${skipped}`);
     } catch (error) {
@@ -157,8 +175,11 @@ export default function FilesPanel({
     try {
       const res = await runtime.importWorkspace(new Uint8Array(await file.arrayBuffer()));
       const merged = res.projects.reduce((n, p) => n + p.merged, 0);
+      const stores = res.termStores.length
+        ? `, and wrote ${res.termStores.length} terms stores`
+        : "";
       setUploadStatus(
-        `Imported ${res.files} files and ${merged} context operations into ${res.projects.length} projects.`,
+        `Imported ${res.files} files and ${merged} context operations into ${res.projects.length} projects${stores}.`,
       );
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : String(error));
@@ -167,6 +188,68 @@ export default function FilesPanel({
       onChange();
     }
   }
+
+  // A tab that another tab holds the workspace for can take it over; the
+  // other tab carries on in memory and says so.
+  async function takeOver() {
+    setWorkspaceBusy(true);
+    setUploadError("");
+    setUploadStatus("");
+    try {
+      await runtime.takeOver();
+      setUploadStatus("This tab now holds the workspace kept in this browser.");
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setWorkspaceBusy(false);
+      onChange();
+    }
+  }
+
+  // A project's context can be shared through a folder on this computer: the
+  // folder keeps the layout a `file` context backend keeps, so kapi on the
+  // same machine, or a sync client, shares it. The folder chosen is kept for
+  // the next sync in this page.
+  const folderRef = useRef<FolderHandle | null>(null);
+  const projectRoot = projectAt(runtime, viewDir);
+  const canPickFolder =
+    typeof window !== "undefined" &&
+    typeof (window as { showDirectoryPicker?: unknown }).showDirectoryPicker === "function";
+
+  async function syncContext() {
+    if (!projectRoot) return;
+    setWorkspaceBusy(true);
+    setUploadError("");
+    setUploadStatus("");
+    try {
+      if (!folderRef.current) {
+        const host = window as unknown as {
+          showDirectoryPicker(o: object): Promise<FolderHandle>;
+        };
+        folderRef.current = await host.showDirectoryPicker({
+          id: "kapi-context",
+          mode: "readwrite",
+        });
+      }
+      const res = await runtime.syncContext(folderRef.current, { project: projectRoot });
+      const merged = res.pull?.merged ?? 0;
+      const pushed = res.push?.pushed ?? 0;
+      setUploadStatus(
+        `Synced the context of ${projectRoot} with ${folderRef.current.name}: pulled ${merged} and pushed ${pushed} operations.`,
+      );
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      folderRef.current = null;
+      setUploadError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setWorkspaceBusy(false);
+      onChange();
+    }
+  }
+
+  const heldElsewhere =
+    runtime.storage?.kind === "memory" &&
+    (runtime.storage.reason === "another-tab" || runtime.storage.reason === "taken");
 
   function remove(name: string) {
     runtime.vol.remove(joinPath(viewDir, name));
@@ -238,6 +321,38 @@ export default function FilesPanel({
         <p className="kapi-pg-files-help" data-storage={runtime.storage.kind}>
           {describeStorage(runtime.storage)}
         </p>
+      )}
+      {canPickFolder && (
+        <div className="kapi-pg-files-header">
+          <button
+            type="button"
+            className="kapi-pg-btn kapi-pg-btn--sm"
+            disabled={workspaceBusy || !projectRoot}
+            onClick={() => void syncContext()}
+            title={
+              projectRoot
+                ? "Pull and push this project's context through a folder on this computer"
+                : "Open a folder with a kapi.yaml to sync its project's context"
+            }
+          >
+            <FolderSync size={16} aria-hidden="true" />
+            <span>Sync context with a folder</span>
+          </button>
+        </div>
+      )}
+      {heldElsewhere && (
+        <div className="kapi-pg-files-header">
+          <button
+            type="button"
+            className="kapi-pg-btn kapi-pg-btn--sm"
+            disabled={workspaceBusy}
+            onClick={() => void takeOver()}
+            title="Open the workspace kept in this browser here; the other tab carries on in memory"
+          >
+            <ArrowRightLeft size={16} aria-hidden="true" />
+            <span>Use the workspace here</span>
+          </button>
+        </div>
       )}
       <div className="kapi-pg-files-cwd" title={viewDir}>
         {viewDir}

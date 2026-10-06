@@ -201,11 +201,16 @@ only the parts that hold something. Only populated subsystems contribute context
 The same model runs in the browser. The playground and the labs keep their
 files, the workspace and its operation log in the browser's storage for the
 site, so a project is still there after a reload or a browser restart. One tab
-holds the workspace at a time; a second tab keeps its own work in memory and
-says so beside its files. The browser may clear what a site keeps (Safari
-does after seven days without a visit), so treat the browser copy as a cache:
-**Export workspace** in the files panel saves the files and each project's
-context as a `.kpz`, and **Import workspace** reads one back into any browser.
+holds the workspace at a time. A second tab keeps its own work in memory and
+says so beside its files, and **Use the workspace here** moves the workspace to
+it; the first tab then keeps its files in memory and says so. The browser may
+clear what a site keeps (Safari does after seven days without a visit), so
+treat the browser copy as a cache: **Export workspace** in the files panel
+saves the files, each project's context and every terms store outside a
+project as a `.kpz`, and **Import workspace** reads one back into any browser,
+including the same one after a reset. A project's context can also be shared
+through a folder on your computer; see
+[Moving context](/kapi/context-portability#from-the-browser).
 
 ## What the store is *not*
 

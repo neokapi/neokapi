@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createMemFS } from "./memfs.ts";
-import { applyChanges, changesOf, describeStorage, storageName } from "./storage.ts";
+import { applyChanges, changesOf, describeStorage, storageName, takeLock } from "./storage.ts";
+import type { OwnerLocks } from "./storage.ts";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -56,5 +57,48 @@ describe("storage", () => {
   it("says where the workspace is", () => {
     expect(describeStorage({ kind: "opfs" })).toMatch(/kept in this browser/);
     expect(describeStorage({ kind: "memory", reason: "another-tab" })).toMatch(/Another tab/);
+    expect(describeStorage({ kind: "memory", reason: "taken" })).toMatch(/took over/);
+  });
+});
+
+// Node carries the Web Locks API, so these run against the real thing.
+describe("the owner's lock", () => {
+  const locks = (globalThis as unknown as { navigator: { locks: OwnerLocks } }).navigator.locks;
+  let n = 0;
+  const unique = () => `kapi-test-${process.pid}-${++n}`;
+  const never = () => {};
+
+  it("is granted to the first tab, and a tab that runs in memory does not get it", async () => {
+    const name = unique();
+    await expect(takeLock(locks, name, "memory", never, 50)).resolves.toBe(true);
+    await expect(takeLock(locks, name, "memory", never, 50)).resolves.toBe(false);
+  });
+
+  it("is taken over by a tab that asks to, and the owner is told it lost it", async () => {
+    const name = unique();
+    let lost = 0;
+    await expect(takeLock(locks, name, "memory", () => lost++, 50)).resolves.toBe(true);
+    await expect(takeLock(locks, name, "take", never, 50)).resolves.toBe(true);
+    await vi.waitFor(() => expect(lost).toBe(1));
+    // The tab that took it holds it now.
+    await expect(takeLock(locks, name, "memory", never, 50)).resolves.toBe(false);
+  });
+
+  it("waits, when asked to, until the owner lets go", async () => {
+    const name = unique();
+    let release = () => {};
+    await new Promise<void>((held) => {
+      void locks.request(name, {}, () => {
+        held();
+        return new Promise<void>((r) => (release = r));
+      });
+    });
+    let granted = false;
+    const waiting = takeLock(locks, name, "wait", never).then((ok) => (granted = ok));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(granted).toBe(false);
+    release();
+    await waiting;
+    expect(granted).toBe(true);
   });
 });

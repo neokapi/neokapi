@@ -130,6 +130,15 @@ Error: workspace: the context backend could not be reached: git fetch origin ref
 Nothing changed here. 1 operation waits to be pushed; run `kapi context push` again when the backend is reachable
 ```
 
+### From the browser
+
+The playground and the labs share a project's context through a folder on your
+computer. In a browser that can open one (Chrome and Edge),
+**Sync context with a folder** in the files panel pulls from the folder you
+choose and pushes what the page recorded. The folder holds what a `file`
+backend holds, so kapi on the same computer shares the context with the page
+when the project's `context:` names that folder as its `path`.
+
 ### Using another backend on one machine
 
 `kapi context backend` shows which backend is in force and where that was

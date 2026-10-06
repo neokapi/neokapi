@@ -17,6 +17,7 @@ import type {
   RawSegmentResponse,
   RawWorkspaceExport,
 } from "./abi.ts";
+import type { ContextRemote } from "./folderremote.ts";
 import type {
   KapiBrowserTranslate,
   KapiLocalGenerate,
@@ -105,6 +106,15 @@ declare global {
    */
   // eslint-disable-next-line no-var
   var kapiImportWorkspace: ((data: Uint8Array) => Promise<string>) | undefined;
+  /**
+   * Pull a project's context from a remote the page holds and push what the
+   * engine recorded to it. The options are JSON, `{project, pull, push}`.
+   * Resolves to the report as a JSON string, `{pull, push}`.
+   */
+  // eslint-disable-next-line no-var
+  var kapiSyncContext:
+    | ((remote: ContextRemote, optionsJSON: string) => Promise<string>)
+    | undefined;
   /** ABI descriptor for feature detection; absent on pre-ABI builds. */
   // eslint-disable-next-line no-var
   var kapiEngineABI: (() => EngineABI) | undefined;

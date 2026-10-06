@@ -81,18 +81,12 @@ func recordTargetHistoryPg(ctx context.Context, tx Runner, projectID, stream, bl
 				coded = string(b)
 			}
 		}
-		// The derivation the edition carries, so the history keeps the source
-		// each revision of the translation was made from.
-		basisFrom, basis, err := derivationColumns(nt.Derived)
-		if err != nil {
-			return fmt.Errorf("encode the basis of %s/%s: %w", blockID, variant, err)
-		}
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO block_history
-				(project_id, stream, block_id, locale, change_type, text, coded_text, origin, author, actor_role, edit_reason, correlation_id, basis, basis_from, created_at)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+				(project_id, stream, block_id, locale, change_type, text, coded_text, origin, author, actor_role, edit_reason, correlation_id, created_at)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 			projectID, stream, blockID, variant, changeType, newText, coded, originText(nt.Origin),
-			cc.Actor, cc.ActorRole, cc.Reason, cc.CorrelationID, basis, basisFrom, now); err != nil {
+			cc.Actor, cc.ActorRole, cc.Reason, cc.CorrelationID, now); err != nil {
 			return fmt.Errorf("record block history for %s/%s: %w", blockID, variant, err)
 		}
 	}
@@ -107,7 +101,7 @@ func (s *PostgresStore) GetBlockHistory(ctx context.Context, projectID, stream, 
 	}
 
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, change_type, text, coded_text, origin, author, actor_role, edit_reason, correlation_id, basis, basis_from, created_at
+		`SELECT id, change_type, text, coded_text, origin, author, actor_role, edit_reason, correlation_id, created_at
 		 FROM block_history
 		 WHERE project_id = $1 AND stream = $2 AND block_id = $3 AND locale = $4
 		 ORDER BY id DESC
@@ -122,7 +116,7 @@ func (s *PostgresStore) GetBlockHistory(ctx context.Context, projectID, stream, 
 	for rows.Next() {
 		var e platstore.BlockHistoryEntry
 		if err := rows.Scan(&e.Seq, &e.ChangeType, &e.Text, &e.Coded, &e.Origin, &e.Author,
-			&e.ActorRole, &e.EditReason, &e.CorrelationID, &e.Basis, &e.BasisFrom, &e.Timestamp); err != nil {
+			&e.ActorRole, &e.EditReason, &e.CorrelationID, &e.Timestamp); err != nil {
 			return nil, fmt.Errorf("scan block history entry: %w", err)
 		}
 		entries = append(entries, e)

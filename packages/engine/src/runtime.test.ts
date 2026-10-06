@@ -366,7 +366,12 @@ describe("the change contract", () => {
     installCoreGlobals();
     const data = new Uint8Array([80, 75, 3, 4]);
     globalThis.kapiExportWorkspace = vi.fn(() =>
-      Promise.resolve({ data, files: 2, projects: [{ root: "/project", operations: 3 }] }),
+      Promise.resolve({
+        data,
+        files: 2,
+        projects: [{ root: "/project", operations: 3 }],
+        termStores: [{ store: "/terms.db", concepts: 4 }],
+      }),
     );
     globalThis.kapiImportWorkspace = vi.fn(() =>
       Promise.resolve(JSON.stringify({ files: 2, projects: [{ root: "/project", merged: 3 }] })),
@@ -376,11 +381,13 @@ describe("the change contract", () => {
       data,
       files: 2,
       projects: [{ root: "/project", operations: 3 }],
+      termStores: [{ store: "/terms.db", concepts: 4 }],
       skipped: [],
     });
     await expect(rt.importWorkspace(data)).resolves.toEqual({
       files: 2,
       projects: [{ root: "/project", merged: 3 }],
+      termStores: [],
     });
     expect(globalThis.kapiImportWorkspace).toHaveBeenCalledWith(data);
   });

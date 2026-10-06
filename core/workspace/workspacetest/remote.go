@@ -41,6 +41,7 @@ func RunRemoteConformance(t *testing.T, newRemote RemoteFactory) {
 		{"an interrupted push is not written twice", interruptedPushIsNotRepeated},
 		{"an operation older than the applied ones asks for a rebuild", olderOperationRebuilds},
 		{"a first pull starts from the newest checkpoint", firstPullUsesCheckpoint},
+		{"a forgotten project pulls its context again", forgottenProjectPullsAgain},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -164,6 +165,44 @@ func twoHandlesWriteAtOnce(t *testing.T, open func(t *testing.T) workspace.Remot
 	names, err := openRemote(t, open).List(ctx, workspace.RemoteLogDir)
 	require.NoError(t, err)
 	assert.Len(t, names, 6, "no write is lost to the other")
+}
+
+// forgottenProjectPullsAgain covers a project removed from the workspace (a
+// reset) and registered again: the operations of its earlier context are
+// not pushed, a pull reads the remote afresh and brings that context back,
+// and what the project records afterwards is pushed as usual.
+func forgottenProjectPullsAgain(t *testing.T, open func(t *testing.T) workspace.Remote) {
+	ctx := t.Context()
+	w := newTestWorkspace(t)
+	_, err := w.Record(ctx, workspace.Op{Project: "prj", Kind: "terms.write", Payload: []byte(`{"a":1}`)})
+	require.NoError(t, err)
+	first := w.NewSync(openRemote(t, open), "prj", &testApplier{}, workspace.SyncOptions{LocalKinds: testLocalKinds})
+	pushed, err := first.Push(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, pushed.Pushed)
+
+	require.NoError(t, w.Forget(ctx, "prj"))
+	_, err = w.Register(ctx, "prj", "Project", "/fakehome/src/prj")
+	require.NoError(t, err)
+
+	app := &testApplier{}
+	again := w.NewSync(openRemote(t, open), "prj", app, workspace.SyncOptions{LocalKinds: testLocalKinds})
+	st, err := again.Status(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, st.ToPush, "the operations of the forgotten context are not pushed")
+	assert.True(t, st.Contacted.IsZero(), "what the workspace knew about the remote went with the project")
+
+	pulled, err := again.Pull(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, pulled.Merged, "the remote's operations are merged again")
+	assert.Positive(t, app.applied)
+	assert.Zero(t, pulled.ToPush, "what was pulled is not pushed back")
+
+	_, err = w.Record(ctx, workspace.Op{Project: "prj", Kind: "terms.write", Payload: []byte(`{"b":1}`)})
+	require.NoError(t, err)
+	after, err := again.Push(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, after.Pushed, "what the project records afterwards is pushed")
 }
 
 // testApplier records what the sync engine asked of it. A checkpoint is the

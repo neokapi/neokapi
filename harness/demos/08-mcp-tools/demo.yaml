@@ -44,7 +44,7 @@ artifacts:
     command: kapi status --review -p . --json
     report: json
     reportTitle: "review_queue"
-    reportSub: "every unit awaiting a person, addressed by document, block and language"
+    reportSub: "every unit awaiting a person, addressed by file, key and locale"
     width: 1100
     height: 760
 
@@ -96,8 +96,8 @@ narration:
     caption: The same queue, with the score on the unit.
     text: >-
       And the queue afterwards. The unit is still there, now carrying the
-      assistant's score. Every row addresses a unit by its document, block and
-      language, which is what a person opening Kapi Desktop sees next.
+      assistant's score. Every row addresses a unit by file, key and locale,
+      which is what a person opening Kapi Desktop sees next.
 
   - id: outro
     kind: outro

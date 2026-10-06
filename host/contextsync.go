@@ -413,6 +413,50 @@ func (a *App) PushProjectContext(ctx context.Context, projectPath string) (Conte
 	return res, syncError(err, "push", res.ToPush)
 }
 
+// ContextSync reports a pull and a push through one remote; each is nil when
+// it was not asked for.
+type ContextSync struct {
+	Pull *ContextPull `json:"pull,omitempty"`
+	Push *ContextPush `json:"push,omitempty"`
+}
+
+// SyncProjectContextWith pulls the project's context from a remote the
+// caller holds, then pushes what this machine recorded to it, whatever
+// backend the recipe declares. It is how the browser engine shares a
+// project's context through a folder the page was given access to, which no
+// recipe can name. What the workspace knows about the remote is kept, keyed
+// by the remote's descriptor, so the next sync with it moves only what is
+// new.
+func (a *App) SyncProjectContextWith(ctx context.Context, projectPath string, remote workspace.Remote, pull, push bool) (ContextSync, error) {
+	var res ContextSync
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		return res, err
+	}
+	w, ws, err := a.projectLog(ctx, layout)
+	if err != nil {
+		return res, err
+	}
+	s := ws.NewSync(remote, w.Key(), w.Syncer(), workspace.SyncOptions{LocalKinds: projector.LocalKinds})
+	if pull {
+		start := time.Now()
+		report, err := s.Pull(ctx)
+		res.Pull = &ContextPull{PullReport: report, Seconds: time.Since(start).Seconds()}
+		if err != nil {
+			return res, syncError(err, "pull", res.Pull.ToPush)
+		}
+	}
+	if push {
+		start := time.Now()
+		report, err := s.Push(ctx)
+		res.Push = &ContextPush{PushReport: report, Seconds: time.Since(start).Seconds()}
+		if err != nil {
+			return res, syncError(err, "push", res.Push.ToPush)
+		}
+	}
+	return res, nil
+}
+
 // syncError explains a failed pull or push and gives it its exit code.
 func syncError(err error, verb string, queued int) error {
 	switch {

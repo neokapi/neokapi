@@ -52,7 +52,7 @@ as before, with the workspace in memory.
 - **Calls by message.** The facade sends each call as a message naming the
   engine global and its arguments (`packages/engine/src/protocol.ts`), and the
   Worker answers with the value. Calls that are not engine globals
-  (`removeDatabase`, `reset`, and reading back a trace) run beside them in the
+  (`removeDatabase`, `reset`, `syncContext`, and reading back a trace) run beside them in the
   Worker (`packages/engine/src/local.ts`). `kbf`, `segment`,
   `segmentEngines` and `removeDatabase` answer Promises on the facade, in both
   modes.
@@ -92,20 +92,39 @@ official SQLite WebAssembly build, `@sqlite.org/sqlite-wasm`.
   each call. Both survive a reload and a browser restart, and need no COOP or
   COEP headers, which GitHub Pages cannot set. `runtime.storage` says which
   applies: `{ kind: "opfs" }`, or `{ kind: "memory", reason }` with `reason`
-  one of `disabled`, `main-thread`, `unsupported`, `another-tab` or `failed`,
-  and `describeStorage()` turns it into a sentence for a page. The pool is
+  one of `disabled`, `main-thread`, `unsupported`, `another-tab`, `taken` or
+  `failed`, and `describeStorage()` turns it into a sentence for a page.
+  `runtime.onStorageChange()` reports each change. The pool is
   named by a key (`BootOptions.persist`, default `"kapi"`); the docs key it by
   their base URL, since the stable docs, the preview channel and each pull
   request preview share an origin and serve different engines.
 - **One tab owns the pool.** The pool holds a synchronous handle on every file,
   which only one context may hold, so the Worker first takes a Web Lock named
-  for the pool and holds it for its life. A tab that cannot take it within a
-  short wait (a reload releases it as the old page closes) runs in memory, with
-  `reason: "another-tab"`. Before installing the pool the Worker checks that no
-  other context still holds its files and waits for one that is closing: a
-  failed install in this release of `sqlite-wasm` removes the pool's
-  directory. The pool grows between calls, since growing it waits on the file
-  system, keeping spare slots for the databases and journals a call creates.
+  for the pool and holds it for its life. Every tab waits a moment for the lock
+  (a reload releases it as the old page closes). `BootOptions.whenHeld` says
+  what a tab does when another tab still holds it: `"memory"` (the default)
+  runs in memory with `reason: "another-tab"`, `"wait"` waits until the owner
+  lets go, and `"take"` takes the workspace over. Before installing the pool
+  the Worker checks that no other context still holds its files and waits for
+  one that is closing: a failed install in this release of `sqlite-wasm`
+  removes the pool's directory. The pool grows between calls, since growing it
+  waits on the file system, keeping spare slots for the databases and journals
+  a call creates.
+- **Handing the workspace over.** `runtime.takeOver()` moves the workspace to
+  the tab that calls it. The calls in flight finish first; then the facade
+  starts a second Worker that requests the lock with `steal: true`. Stealing
+  rejects the owner's held lock request, which is how the owner learns it lost
+  the workspace: its Worker keeps the file changes not yet kept, stops using
+  the pool and sends `lost`, and its page fails the calls in flight, stops that
+  Worker (which releases the pool's file handles) and starts another in memory
+  with the page's files, so `storage` becomes `{ kind: "memory", reason:
+  "taken" }`. The new owner waits for the handles to be free (up to 15
+  seconds), installs the pool and replaces the tab's files with the kept ones;
+  the facade moves onto that Worker and stops the old one. When the pool
+  cannot be opened, `takeOver()` rejects and the tab stays as it was. A
+  Worker that loses the lock before it is ready is replaced by one in memory.
+  The playground's files panel offers **Use the workspace here** while
+  another tab holds the workspace.
 - **Locks between connections.** The pool's own locks only remember the level
   asked for. The engine opens several connections to one database, so the
   bridge installs a lock table over the pool's methods
@@ -121,12 +140,39 @@ official SQLite WebAssembly build, `@sqlite.org/sqlite-wasm`.
   `kapi-workspace`): the files under `files/`, and per project a context
   package under `contexts/`, the operation log `kapi context export` writes.
   `kapiImportWorkspace(bytes)` writes the files and merges each log, as
-  `kapi context import` does, which rebuilds the project's stores. A store
-  outside every project is a projection of nothing and does not travel; the
-  data root, `/tmp` and the lab's own directory (`/.lab`) are left out. The
-  facade's `exportWorkspace()` and `importWorkspace()` wrap them, and the
-  playground's files panel offers both. The next step, syncing through a
-  `workspace.Remote`, is not built.
+  `kapi context import` does, which rebuilds the project's stores. A terms
+  store outside every project (one `kapi terms import --file` wrote, say) has
+  no log, so it travels as a terms bundle under `termstores/`, which the
+  manifest maps to the store's path, and an import adds its concepts and
+  relations to a store at that path. The stores in a project's `.kapi/` are
+  projections of its log and stay out; so do the data root, `/tmp` and the
+  lab's own directory (`/.lab`). The facade's `exportWorkspace()` and
+  `importWorkspace()` wrap them, and the playground's files panel offers both.
+- **A reset, then an import.** A reset forgets each project in the workspace
+  (`workspace.Forget`), which records `project.forget` in the log and keeps
+  the operations before it for history; a store starts after the latest
+  removal. The workspace treats an operation held only before its project's
+  removal as not held: `Record` writes it again after the removal, a pull
+  counts it as new, a push leaves out every operation before the removal, and
+  the removal clears what the workspace knew about the project's remotes. So
+  importing the package exported before a reset, in the same browser, merges
+  the project's log again and rebuilds its stores.
+- **Sync through a folder.** `kapiSyncContext(remote, options)` pulls a
+  project's context from a remote the page holds and pushes what the engine
+  recorded (`App.SyncProjectContextWith`, the same sync `kapi context pull`
+  and `push` run), and resolves to `{pull, push}`. The remote is an object
+  with `list`, `get` and `put` (`kapi/cmd/kapi-wasm-cli/contextremote.go`);
+  `folderRemote(handle)` (`packages/engine/src/folderremote.ts`) builds one
+  over a `FileSystemDirectoryHandle`, from `showDirectoryPicker()` or the
+  origin private file system. The folder keeps the layout `FileRemote` keeps
+  on disk, one file per object, each written under a dot-name and moved into
+  place, so a recipe with `context: {backend: file, path: <folder>}` on the
+  same computer shares the context. The facade's `syncContext(folder, opts)`
+  sends the handle to the Worker, where the remote is built, and the files
+  panel offers **Sync context with a folder** where `showDirectoryPicker`
+  exists (Chromium). The other backends stay native: a `git` backend runs the
+  `git` executable, which a page cannot start, and the `s3` backend reads the
+  AWS credential chain, which a page has no safe place to hold.
 
 - **The bridge.** `packages/engine/src/sqlite.ts` loads the module and installs
   one object on `globalThis`, `__kapiSQL`, before Go starts. The Go driver
@@ -338,9 +384,12 @@ the Command Reference cannot claim a verb runs in the lab when it does not.
 | SQLite bridge (`__kapiSQL`) | `packages/engine/src/sqlite.ts` |
 | The engine's Worker and its messages | `packages/engine/src/worker.ts`, `packages/engine/src/protocol.ts` |
 | Where the workspace is kept (pool, Web Lock, file store) | `packages/engine/src/storage.ts` |
+| Handing the workspace between tabs (`takeOver`, `lost`) | `packages/engine/src/runtime.ts`, `packages/engine/src/worker.ts` |
 | Locks between connections on the pool | `packages/engine/src/locks.ts` |
 | Workspace export and import (`kapiExportWorkspace`, `kapiImportWorkspace`) | `kapi/cmd/kapi-wasm-cli/workspace.go`, `kpz/workspacepkg.go` |
-| Persistence smoke (reload, restart, a second tab, an export) | `scripts/wasm-persist/`, `make wasm-persist-smoke` |
+| An operation held before its project's removal | `core/workspace/local.go` (`Record`), `core/workspace/sync.go` |
+| Sync through a folder (`kapiSyncContext`) | `kapi/cmd/kapi-wasm-cli/contextremote.go`, `packages/engine/src/folderremote.ts`, `host/contextsync.go` |
+| Persistence smoke (reload, restart, a takeover, a waiting tab, a reset and re-import, a folder sync, an export) | `scripts/wasm-persist/`, `make wasm-persist-smoke` |
 | Browser database driver + profile + namespace | `core/storage/driver_js.go`, `core/storage/sqlitejs_js.go` |
 | Store suites under `GOOS=js` | `scripts/wasm-stores/`, `make test-wasm-stores` |
 | Lab project for the annotators | `kapi/cmd/kapi-wasm-cli/labproject.go` |

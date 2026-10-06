@@ -248,9 +248,9 @@ server venue grades by the revision of the source as well, taken under the
 project's source language, so a changed link reads stale there as it does in
 coverage on a checkout ([C-04](../context/c-04-block-state-and-decisions.md#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed)).
 
-The server's translation worker reads the same ledger beside each edition's
-derivation. A target whose recorded basis is stale is owed a draft, a target
-with neither a decision nor a derivation is left alone, and a decided block is drafted once per source change: the worker marks
+The server's translation worker reads the same ledger. A target whose recorded
+basis is stale is owed a draft, a target the ledger has no record of is left
+alone, and a decided block is drafted once per source change: the worker marks
 the row with the source it drafted against, beside the decision it may not
 replace, and the next pass counts the block as awaiting review rather than as
 work ([C-04](../context/c-04-block-state-and-decisions.md)).
@@ -273,14 +273,12 @@ agent, tool, or external) and the surface. A pulled translation's write names no
 venue's own record holds it. Each write goes until the venue has applied a
 push that carried it, and again when it changes. The venue records them after
 the decisions, reading each item's blocks, translations and ledger rows once:
-the basis lands on the translation's edition (`Edition.Derived`) and on the
-block history row the push wrote for it, as the basis of one of its own drafts
-does, so a translation a run on the checkout produced is graded stale once its
-source moves; a write by hand, or one made outside kapi, clears the basis the
-edition held; a tool's write from a recorded source marks a block the ledger
-holds a row for as drafted against it; a write about another translation than
-the one the venue holds leaves the basis and the draft mark alone; and a write
-by hand records its author.
+on a block nobody has decided, the basis becomes the block's ledger record, as
+the basis of one of its own drafts does, so a translation a run on the
+checkout produced is graded stale once its source moves; a tool's write from a
+recorded source marks the block drafted against it; a write about another
+translation than the one the venue holds leaves the basis and the draft mark
+alone; and a write by hand records its author.
 
 The venue is authoritative for what has been approved in it, so it holds every
 rung above translated and every approval a push

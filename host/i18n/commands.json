@@ -4618,16 +4618,6 @@
           "name": "NAME",
           "path": "PATH",
           "size": "SIZE"
-        },
-        "memory": {
-          "none": "No named content memories found.",
-          "title": "Named content memories:",
-          "total": "Total: %d content memory(ies)"
-        },
-        "terms": {
-          "none": "No named terms stores found.",
-          "title": "Named terms stores:",
-          "total": "Total: %d terms store(s)"
         }
       },
       "terms": {

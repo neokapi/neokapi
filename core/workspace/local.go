@@ -242,7 +242,10 @@ func (b *LocalBackend) open(_ context.Context, dir, path string) (*storage.DB, e
 
 // Record appends operations to the log. An operation that arrives without an
 // id is given one; one whose id or content address the log already holds is
-// answered with the operation held.
+// answered with the operation held. An operation held only before its
+// project's latest removal (OpForgetProject) built a context that no longer
+// exists, so it counts as not held: it is recorded again after the removal,
+// which is how a project imported again after a reset gets its context back.
 func (b *LocalBackend) Record(ctx context.Context, ops ...Op) ([]Op, error) {
 	return b.record(ctx, nil, ops)
 }
@@ -299,6 +302,8 @@ func (b *LocalBackend) record(ctx context.Context, expect []Expect, ops []Op) ([
 		`SELECT COALESCE(MAX(id), '') FROM workspace_ops`).Scan(&newest); err != nil {
 		return nil, fmt.Errorf("workspace: read the newest operation id: %w", err)
 	}
+	// The position of each project's latest removal, read once per project.
+	removals := map[ProjectKey]int64{}
 	for _, op := range ops {
 		at := op.At
 		if at.IsZero() {
@@ -310,14 +315,21 @@ func (b *LocalBackend) record(ctx context.Context, expect []Expect, ops []Op) ([
 		if err != nil {
 			return nil, err
 		}
-		if ok && !(held.ID != op.ID && op.ID != "" && op.ID < held.ID) {
+		forgotten := false
+		if ok {
+			if forgotten, err = heldBeforeRemoval(ctx, tx, held, removals); err != nil {
+				return nil, err
+			}
+		}
+		if ok && !forgotten && !(held.ID != op.ID && op.ID != "" && op.ID < held.ID) {
 			out = append(out, held)
 			continue
 		}
 		if ok {
-			// Two logs recorded one content address under different ids. The
-			// older id stands in every log, so a merge reaches the same
-			// operation whichever side it started from.
+			// Two logs recorded one content address under different ids, and
+			// the older id stands in every log, so a merge reaches the same
+			// operation whichever side it started from. Or the operation held
+			// sits before its project's removal, and is recorded again after it.
 			if _, err := tx.ExecContext(ctx, `DELETE FROM workspace_ops WHERE id = ?`, held.ID); err != nil {
 				return nil, fmt.Errorf("workspace: replace %s: %w", held.ID, err)
 			}
@@ -396,6 +408,42 @@ WHERE (? <> '' AND id = ?) OR (? <> '' AND address = ?) LIMIT 1`,
 		return Op{}, false, err
 	}
 	return held[0], true, nil
+}
+
+// heldBeforeRemoval reports whether a held operation sits before its
+// project's latest removal from the workspace. removals caches each project's
+// position.
+func heldBeforeRemoval(ctx context.Context, tx *storage.Tx, held Op, removals map[ProjectKey]int64) (bool, error) {
+	if held.Project == "" || held.Kind == OpForgetProject {
+		return false, nil
+	}
+	at, ok := removals[held.Project]
+	if !ok {
+		var err error
+		if at, err = removalAt(ctx, tx, held.Project); err != nil {
+			return false, err
+		}
+		removals[held.Project] = at
+	}
+	return held.Seq < at, nil
+}
+
+// rowQuerier is what removalAt reads through: a database or a transaction.
+type rowQuerier interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+// removalAt returns the local position of the project's latest removal from
+// the workspace, 0 when it was never removed. The operations before it built
+// a context the removal deleted.
+func removalAt(ctx context.Context, q rowQuerier, project ProjectKey) (int64, error) {
+	var at int64
+	if err := q.QueryRowContext(ctx,
+		`SELECT COALESCE(MAX(seq), 0) FROM workspace_ops WHERE project = ? AND kind = ?`,
+		string(project), OpForgetProject).Scan(&at); err != nil {
+		return 0, fmt.Errorf("workspace: read the removal of %s: %w", project, err)
+	}
+	return at, nil
 }
 
 // opColumns is what a read of the log selects, in the order scanOps reads.

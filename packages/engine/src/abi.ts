@@ -71,8 +71,18 @@ export interface RawWorkspaceExport {
   /** Files it carries. */
   files: number;
   projects: WorkspaceProjectExport[];
+  /** Terms stores outside every project it carries. Absent from older engines. */
+  termStores?: WorkspaceTermStore[];
   /** Projects whose context could not be read, with the reason. */
   skipped?: { root: string; reason: string }[];
+}
+
+/** A terms store outside every project, as a workspace export or import reports it. */
+export interface WorkspaceTermStore {
+  /** The store's database path in the engine's file system. */
+  store: string;
+  /** The concepts it holds (export) or the concepts written to it (import). */
+  concepts: number;
 }
 
 /**
