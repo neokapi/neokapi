@@ -325,6 +325,20 @@ func (a *App) ensureKpzCache(ctx context.Context, kpzPath string) (*kpzCache, er
 			return nil, derr
 		}
 		if dirty {
+			// A document opened for editing that the new file carries with
+			// other bytes is recorded as a write from the version the cache
+			// opened, to rebase onto the edits or discard.
+			n, err := a.recordKpzRewrites(ctx, c, kpzPath)
+			if err != nil {
+				return nil, err
+			}
+			if n > 0 {
+				if err := a.syncKpzEdits(ctx, c); err != nil {
+					return nil, err
+				}
+				fmt.Fprintf(os.Stderr, "Warning: %s changed on disk but the workspace cache has unpacked work. Keeping the cache; %d edited document(s) the file carries another version of are listed as conflicts to rebase or discard (run `kapi unpack %s` to discard the cache)\n", filepath.Base(kpzPath), n, filepath.Base(kpzPath))
+				return c, nil
+			}
 			fmt.Fprintf(os.Stderr, "Warning: %s changed on disk but the workspace cache has unpacked work. Keeping the cache (run `kapi unpack %s` to discard it)\n", filepath.Base(kpzPath), filepath.Base(kpzPath))
 			return c, nil
 		}

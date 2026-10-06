@@ -258,6 +258,64 @@
     },
     "next": {
       "type": "string"
+    },
+    "divergent": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "op": {
+            "type": "string",
+            "description": "the recorded write that did not land"
+          },
+          "before": {
+            "type": "string",
+            "description": "the revision of the document the write was made from"
+          },
+          "after": {
+            "type": "string",
+            "description": "the revision of the document the write left"
+          },
+          "contested": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "doc": {
+                  "type": "string",
+                  "description": "the document, as references name it"
+                },
+                "block": {
+                  "type": "string",
+                  "description": "the block key"
+                },
+                "edition": {
+                  "type": "string",
+                  "description": "the edition; absent for the document's own edition where a reply leaves it out"
+                }
+              },
+              "description": "an edition of a block in a document",
+              "required": [
+                "doc"
+              ],
+              "additionalProperties": false
+            },
+            "description": "the blocks a rebase left for a person to decide; empty until the write is rebased"
+          }
+        },
+        "required": [
+          "op",
+          "before",
+          "after"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",

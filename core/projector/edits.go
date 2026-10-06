@@ -78,6 +78,14 @@ type EditDocument struct {
 	Format string `json:"format,omitempty"`
 	// Blob is the address of the blob holding the document's bytes.
 	Blob string `json:"blob"`
+	// Decided names the blocks a person's or an agent's write wrote or kept,
+	// which settles them in every rebased divergent write.
+	Decided []workhome.DocBlock `json:"decided,omitempty"`
+	// Contested, on a write whose Cause names a divergent write, lists the
+	// blocks the rebase of that write left for a person to decide; none
+	// settles the write whole (a discard, or a rebase that carried every
+	// block over).
+	Contested []workhome.DocBlock `json:"contested,omitempty"`
 }
 
 // EditDoc names the document an edit changed.
@@ -424,6 +432,14 @@ func editAddress(key workspace.ProjectKey, e Edit, reached map[history.Reach]str
 		// A write to a whole document is the head it was staged on and the
 		// bytes it leaves.
 		parts = append(parts, workhome.Name, "document", e.Base, e.DocBefore, e.DocAfter, e.Document.Format, e.Document.Blob)
+		if e.Cause != "" {
+			// A rebase or a discard is also the write it settles and what it
+			// left contested.
+			parts = append(parts, "cause", e.Cause)
+			for _, b := range e.Document.Contested {
+				parts = append(parts, b.Block, b.Edition)
+			}
+		}
 	}
 	for _, t := range e.Transitions {
 		parts = append(parts, t.Block, t.Key, t.Edition, t.Before, t.After, t.Basis,

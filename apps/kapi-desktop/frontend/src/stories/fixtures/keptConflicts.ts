@@ -37,3 +37,33 @@ export const fileConflict: KeptConflict = {
     },
   ],
 };
+
+/** A version of a KPZ's document written from an older one, before a rebase. */
+export const documentConflict: KeptConflict = {
+  kind: "document",
+  doc: "work.kpz!messages.json",
+  locale: "",
+  edit: "0pcn2v7k9wq1d4e8h3s5t6u0",
+  blocks: [],
+};
+
+/** The same version after a rebase: the blocks both versions changed are left. */
+export const rebasedDocumentConflict: KeptConflict = {
+  ...documentConflict,
+  rebased: true,
+  blocks: [
+    {
+      block: "greeting",
+      source: "",
+      held: { text: "Hello, edited on the desktop", rev: "r:3c5e7a9b1d2f4c6e" },
+      other: { text: "Hello from the team", rev: "" },
+    },
+    {
+      block: "greeting",
+      edition: "fr",
+      source: "Hello, edited on the desktop",
+      held: { text: "Bonjour", rev: "r:8a6b4c2d0e1f3a5b" },
+      other: { text: "Salut l'équipe", rev: "" },
+    },
+  ],
+};

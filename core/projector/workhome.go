@@ -334,7 +334,8 @@ func (p *Projector) CommitDocument(ctx context.Context, c workhome.DocCommit) (s
 	}
 	e := Edit{
 		Doc: EditDoc{Key: c.Key, Path: c.Path}, Home: workhome.Name, Base: c.Base,
-		Document: &EditDocument{Format: c.Format, Blob: address}, Blobs: []string{address},
+		Document: &EditDocument{Format: c.Format, Blob: address, Decided: c.Decided, Contested: c.Contested}, Blobs: []string{address},
+		Cause: c.Cause,
 		Actor: c.Actor, Origin: Origin{By: c.Origin}, Fingerprint: c.Fingerprint, Note: c.Note,
 		DocBefore: c.Before, DocAfter: c.After, Overridden: c.Overridden,
 	}
@@ -378,7 +379,8 @@ func (p *Projector) DocumentSubjectHead(ctx context.Context, key string) (int64,
 func docWrite(op workspace.Op, e Edit) workhome.DocWrite {
 	return workhome.DocWrite{Op: op.ID, Key: e.Doc.Key, Path: e.Doc.Path, Base: e.Base,
 		Before: e.DocBefore, After: e.DocAfter, Format: e.Document.Format, Blob: e.Document.Blob,
-		Writer: e.Actor.Kind == change.ActorPerson || e.Actor.Kind == change.ActorAgent}
+		Writer:  e.Actor.Kind == change.ActorPerson || e.Actor.Kind == change.ActorAgent,
+		Decided: e.Document.Decided, Cause: e.Cause, Contested: e.Document.Contested}
 }
 
 // applyDocWrites folds writes to whole documents into the projection, folding

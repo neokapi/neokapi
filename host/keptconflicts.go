@@ -39,25 +39,38 @@ const (
 	ConflictFile = "file"
 )
 
+// A third kind, ConflictDocument, is a write to a whole document a KPZ in the
+// project carries that did not land (kpzdivergence.go). Until a person
+// rebases it, it lists no blocks: Rebased is false, and the choice is to
+// rebase the write onto the document's head or to discard it. A rebase lists
+// the blocks the head changed too, each decided as an edit is.
+
 // KeptConflict is one conflict of a project, with both wordings of each
 // block concerned.
 type KeptConflict struct {
-	// Kind is ConflictEdit or ConflictFile.
+	// Kind is ConflictEdit, ConflictFile or ConflictDocument.
 	Kind string `json:"kind"`
 	// Doc is the source document and Locale the translation's language.
 	Doc    string `json:"doc"`
 	Locale string `json:"locale"`
-	// Edit is the recorded edit that did not land, for ConflictEdit; File the
-	// translation's file, for ConflictFile.
-	Edit   string              `json:"edit,omitempty"`
-	File   string              `json:"file,omitempty"`
-	Blocks []KeptConflictBlock `json:"blocks"`
+	// Edit is the recorded edit that did not land, for ConflictEdit and
+	// ConflictDocument; File the translation's file, for ConflictFile.
+	Edit string `json:"edit,omitempty"`
+	File string `json:"file,omitempty"`
+	// Rebased says a rebase has carried a ConflictDocument write over onto
+	// the document's head, leaving Blocks for a person to decide.
+	Rebased bool                `json:"rebased,omitempty"`
+	Blocks  []KeptConflictBlock `json:"blocks"`
 }
 
 // KeptConflictBlock is one block of a conflict.
 type KeptConflictBlock struct {
 	// Block is the block's key; an operation names it with Doc and Locale.
 	Block string `json:"block"`
+	// Edition, for a ConflictDocument block, is the edition of the block
+	// that is contested, empty for the document's own; an operation names it
+	// in place of Locale.
+	Edition string `json:"edition,omitempty"`
 	// Source is the block's own text, for context.
 	Source string `json:"source"`
 	// Held is the wording the edition's home holds now, with the revision an
@@ -81,11 +94,15 @@ type KeptWording struct {
 // where a person decides them.
 func (a *App) KeptConflicts(ctx context.Context, recipe string) ([]KeptConflict, error) {
 	root := filepath.Dir(recipe)
+	documents, err := a.kpzDocumentConflicts(ctx, recipe)
+	if err != nil {
+		return nil, err
+	}
 	h, err := a.keptEditions(root).open(ctx, false)
 	if err != nil || h == nil {
-		return []KeptConflict{}, err
+		return documents, err
 	}
-	out := []KeptConflict{}
+	out := documents
 	conflicts, err := h.Conflicts(ctx)
 	if err != nil {
 		return nil, err

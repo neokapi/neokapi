@@ -22,7 +22,8 @@ import (
 // into document_head, one row per document: its revision (the digest of its
 // bytes), its format, the blob, and the operation the head is at. The fold
 // follows the rule of the edition heads: a write staged on the head advances
-// it, and any other is divergent and changes nothing.
+// it, and any other is divergent and changes nothing until a rebase or a
+// discard settles it (docdiverge.go).
 
 // DocumentSubject spells the subject a write to the whole document keyed key
 // names in the log.
@@ -58,12 +59,27 @@ type DocHead struct {
 
 // DocDivergence is a write to a whole document that did not advance its head:
 // two machines wrote the document from one head, and the write that sorts
-// later is listed here until a person's or an agent's write decides the
-// document.
+// later is listed here until a person or an agent rebases or discards it
+// (Documents.Rebase, Documents.Discard).
 type DocDivergence struct {
 	Op     string `json:"op"`
 	Before string `json:"before"`
 	After  string `json:"after"`
+	// Contested are the blocks a rebase of the write could not carry over,
+	// because the head changed them too. Empty until the write is rebased;
+	// a rebase that carries every block over settles the write.
+	Contested []DocBlock `json:"contested,omitempty"`
+}
+
+// Rebased reports whether a rebase has carried the write over and left the
+// blocks it lists for a person to decide.
+func (d DocDivergence) Rebased() bool { return len(d.Contested) > 0 }
+
+// DocBlock names one edition of one block of a document the workspace home
+// keeps whole. Edition is empty for the document's own edition.
+type DocBlock struct {
+	Block   string `json:"block"`
+	Edition string `json:"edition,omitempty"`
 }
 
 // DocWrite is one operation on a whole document, as the fold reads it.
@@ -78,9 +94,17 @@ type DocWrite struct {
 	After  string
 	Format string
 	Blob   string
-	// Writer says a person or an agent made the write: when it advances the
-	// head, it settles every divergent write on the document.
-	Writer bool
+	// Writer says a person or an agent made the write, and Decided names the
+	// blocks it wrote or kept: when it advances the head, it settles those
+	// blocks of every rebased divergent write.
+	Writer  bool
+	Decided []DocBlock
+	// Cause, for a write that settles a divergent write (a rebase or a
+	// discard), names that write, and Contested lists the blocks the rebase
+	// left for a person to decide, none when it settles the write whole.
+	// Such a write leaves the head where it is.
+	Cause     string
+	Contested []DocBlock
 }
 
 var docMigrations = []storage.Migration{{
@@ -117,14 +141,60 @@ func FoldDocument(writes []DocWrite) DocHead {
 }
 
 // foldDocument applies one write that sorts after every write h has folded.
+// A write that settles a divergent write changes that write's entry alone.
+// Any other write advances the head when it was staged on it and is divergent
+// otherwise. A person's or an agent's write that advances the head settles the
+// blocks it decided of every rebased divergent write.
 func foldDocument(h *DocHead, w DocWrite) {
 	h.Last = w.Op
+	if w.Cause != "" {
+		settleDivergence(h, w.Cause, w.Contested)
+		return
+	}
 	if w.Base != h.Op {
 		h.Divergent = append(h.Divergent, DocDivergence{Op: w.Op, Before: w.Before, After: w.After})
 		return
 	}
 	h.Op, h.Path, h.Rev, h.Format, h.Blob = w.Op, w.Path, w.After, w.Format, w.Blob
-	if w.Writer {
+	if w.Writer && len(w.Decided) > 0 {
+		decideBlocks(h, w.Decided)
+	}
+}
+
+// settleDivergence records a rebase or a discard of the divergent write op:
+// the write is dropped when contested is empty, and otherwise left with the
+// blocks contested names for a person to decide.
+func settleDivergence(h *DocHead, op string, contested []DocBlock) {
+	i := slices.IndexFunc(h.Divergent, func(d DocDivergence) bool { return d.Op == op })
+	if i < 0 {
+		return
+	}
+	if len(contested) == 0 {
+		h.Divergent = slices.Delete(h.Divergent, i, i+1)
+	} else {
+		h.Divergent[i].Contested = slices.Clone(contested)
+	}
+	if len(h.Divergent) == 0 {
+		h.Divergent = nil
+	}
+}
+
+// decideBlocks removes the blocks a person's or an agent's write decided from
+// every rebased divergent write, and drops a write left with none. A write
+// not yet rebased waits for its rebase or its discard.
+func decideBlocks(h *DocHead, decided []DocBlock) {
+	out := h.Divergent[:0]
+	for _, d := range h.Divergent {
+		if d.Rebased() {
+			d.Contested = slices.DeleteFunc(slices.Clone(d.Contested), func(b DocBlock) bool { return slices.Contains(decided, b) })
+			if len(d.Contested) == 0 {
+				continue
+			}
+		}
+		out = append(out, d)
+	}
+	h.Divergent = out
+	if len(h.Divergent) == 0 {
 		h.Divergent = nil
 	}
 }

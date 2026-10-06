@@ -1997,6 +1997,18 @@ beside all of them in package-sized PRs.
   `kapi apply`, `kapi inspect` and the MCP edit tools reach it, and a transform, `kapi merge` and
   `kapi pack` read the edited head (`syncKpzEdits`). A source the KPZ carries as a skeleton alone
   holds no text and is refused `unsupported`.
+- **Whole-document divergence (WP8b):** a write to a whole document made from a version that is no
+  longer its head is listed beside the head, and a read reports it (`change.Page.Divergent`,
+  `change.DivergentSession`). It arises from a merged log, and from a `.kpz` replaced on disk while
+  its cache holds unpacked edits (`host.recordKpzRewrites` records each edited document the new
+  file carries with other bytes as a write made from the version the cache opened).
+  `Documents.Rebase` carries the write's changes over onto the head through the change service,
+  block by block, each guarded by the revision the block had where the write began, and lists the
+  blocks the head changed too as contested; `Documents.Discard` keeps the head. Each is a write that
+  names the divergent write as its `cause`. A contested block is decided by a change set guarded by
+  the head's revision, keeping the held wording included. Kapi Desktop lists the write on the
+  project's conflicts card (kind `document`) with both choices (`RebaseKeptDocument`,
+  `DiscardKeptDocument`).
 - **Routing:** the file home reaches the workspace home through a keeper (`filehome.Keeper`). Under
   `on-converge` a translation whose file does not exist lives in the workspace home; under `manual`
   it is written to its file unless the workspace still keeps a draft of it. Once the file exists it is
@@ -2018,7 +2030,10 @@ beside all of them in package-sized PRs.
   head it had, and `TestKpzEdit_*` edits a KPZ through `kapi apply`'s service and MCP, refuses a
   replay as stale, merges and packs the edit. `TestWorkspaceHome_KeepingTheContestedWordingSettlesTheConflict`,
   `TestKeptConflicts_*` and the desktop's `TestKeptConflicts_TheDesktopDecidesWordingTheFileDoesNotHold`
-  decide each kind of conflict through the change service.
+  decide each kind of conflict through the change service. `TestDocuments_RebaseCarriesADivergentWriteOver`,
+  `TestKpzDivergence_*` and the desktop's `TestKeptConflicts_TheDesktopRebasesOrDiscardsADivergentDocument`
+  rebase and discard a whole document's divergent write, decide what a rebase left contested, and
+  reach one head on both machines and after a rebuild.
 - **Acceptance:** `TestWorkspaceHome_ConcurrentWritesMergeInEitherOrder` and
   `TestWorkspaceHome_RandomWritesConvergeInAnyMergeOrder` (three machines, nine writes, six seeds)
   reach one head in every merge order. The conformance suite passes on the workspace home in
@@ -2052,9 +2067,11 @@ beside all of them in package-sized PRs.
   keys; the staleness gate takes a translation's latest row, which after a branch switch can be
   another branch's.
 - Two checkouts that mint different keys for one document before their logs meet keep both.
-- Two machines that edit one whole KPZ document from one head keep one write as the head and list
-  the other as divergent in `document_head`; no surface shows or rebases those yet, and the KPZ's
-  log travels with neither the pack nor a context backend, so they arise only from a merged log.
+- The KPZ's log travels with neither the pack nor a context backend, so two machines' edits to one
+  whole KPZ document meet only through a merged log; a replaced `.kpz` is how a divergent write
+  reaches a person in practice. A rebase carries edits to blocks the head still holds; a block the
+  divergent write added or removed is listed as contested rather than written structurally, and
+  `kapi status` does not list whole-document divergence yet.
 - Under a policy that detects entities, parked drafts stay in the producer's cache; a kept edition
   read on another machine carries placeholders and another revision, so a producer there never
   replaces it.

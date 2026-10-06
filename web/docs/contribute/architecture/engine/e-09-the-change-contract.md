@@ -169,9 +169,12 @@ note describes each rule.
   German file of an English page, shows that edition as each block's own, with
   the document's own edition among the others, so a reference copied from it
   edits the German. A page ends with a cursor; a cursor into a document that
-  changed since is refused as `stale`. `ReadEach` reads every block of a
-  document in one pass and hands each to a callback beside the block it was
-  read from, for a command line that streams a whole document.
+  changed since is refused as `stale`. A page of a document a home keeps whole
+  also lists the writes to it that did not land (`Page.Divergent`, from a
+  `change.DivergentSession`), each with the blocks a rebase left contested.
+  `ReadEach` reads every block of a document in one pass and hands each to a
+  callback beside the block it was read from, for a command line that streams
+  a whole document.
 - **`Apply`** applies a change set in two phases. It checks each operation's
   body as `Decode` does, since a sender in the process never passed the
   decoder, asks the policy about every operation, groups the operations by
@@ -411,6 +414,28 @@ the copy's bytes with the head the settle found as its expected head. Edits to
 different blocks of one document commute, and a document a KPZ carries as a
 skeleton alone holds no text to edit and is refused `unsupported`. The
 conformance suite runs on it with two JSON documents and a bilingual catalog.
+
+A whole document **diverges** when a write to it was made from a version that
+is no longer its head. Two machines that each edited one document from one
+head leave one write as the head and the other beside it once their logs meet.
+The kapi host records a third case the same way: a `.kpz` replaced on disk
+while its cache holds edits nobody packed. Each edited document the new file
+carries with other bytes becomes a write made from the version the cache
+opened. A read reports each such write in `Page.Divergent`. A person or an
+agent then settles it in one of two ways. `Documents.Rebase` reads the
+document at its head and sends the write's changes through the change service,
+block by block and edition by edition (`change.Diff` between the version the
+write began from and the one it left). Each operation is guarded by the
+revision its block had where the write began, so it lands only on a block the
+head left alone. A block the head changed too, or one the write added or
+removed, stays **contested**. A write naming the divergent write as its cause
+then records the contested blocks, or settles the write when none is left.
+`Documents.Discard` records that cause with nothing contested and keeps the
+head. Each contested block is decided as an edition's conflict is: a change
+set guarded by the head's revision, where keeping the head's wording is
+recorded as the decision (`change.ContestedSession`). Kapi Desktop offers both
+choices on the project's conflicts card
+([S-02](../surfaces/s-02-kapi-desktop.md)).
 
 ### Flows
 
