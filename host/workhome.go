@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -836,7 +837,8 @@ func (a *App) statusConflicts(ctx context.Context, recipe string) []StatusConfli
 			if doc == "" {
 				doc = c.Doc
 			}
-			out = append(out, StatusConflict{Doc: doc, Locale: locale, Edit: c.Op, Blocks: c.Blocks})
+			out = append(out, StatusConflict{Kind: ConflictEdit, Doc: doc, Locale: locale, Edit: c.Op, Blocks: c.Blocks,
+				Next: "kapi apply a set_content to each block, or decide it in Kapi Desktop"})
 		}
 	}
 	if beside, err := a.keptBesideFiles(ctx, recipe); err == nil {
@@ -844,8 +846,46 @@ func (a *App) statusConflicts(ctx context.Context, recipe string) []StatusConfli
 			if len(bf.kept) == 0 {
 				continue
 			}
-			out = append(out, StatusConflict{Doc: bf.path, Locale: string(bf.edition.Locale), File: bf.file, Blocks: bf.kept})
+			out = append(out, StatusConflict{Kind: ConflictFile, Doc: bf.path, Locale: string(bf.edition.Locale), File: bf.file, Blocks: bf.kept,
+				Next: "kapi merge"})
+		}
+	}
+	if divs, err := a.kpzDivergences(ctx, root); err == nil {
+		for _, dv := range divs {
+			out = append(out, documentStatusConflict(dv.Doc, dv.div))
 		}
 	}
 	return out
+}
+
+// documentStatusConflict is a version of a KPZ's document that did not land,
+// as kapi status lists it, with the command line that settles it.
+func documentStatusConflict(doc string, dv workhome.DocDivergence) StatusConflict {
+	c := StatusConflict{Kind: ConflictDocument, Doc: doc, Edit: dv.Op, Blocks: []string{}, Rebased: dv.Rebased()}
+	quoted := shellQuote(doc)
+	if !dv.Rebased() {
+		c.Next = fmt.Sprintf("kapi resolve %s --rebase %s (or --discard %s to keep the document as it stands)", quoted, dv.Op, dv.Op)
+		return c
+	}
+	for _, b := range dv.Contested {
+		name := b.Block
+		if b.Edition != "" {
+			name += " (" + b.Edition + ")"
+		}
+		c.Blocks = append(c.Blocks, name)
+	}
+	c.Next = fmt.Sprintf("kapi apply a set_content to each block, or kapi resolve %s --discard %s to keep the document's wording", quoted, dv.Op)
+	return c
+}
+
+// shellQuote quotes s for a POSIX shell when it holds anything but letters,
+// digits and . / _ - : a KPZ's document reference holds "!", which an
+// interactive shell expands.
+func shellQuote(s string) string {
+	if strings.IndexFunc(s, func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("./_-", r))
+	}) < 0 {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

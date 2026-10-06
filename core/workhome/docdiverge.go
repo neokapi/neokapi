@@ -25,7 +25,9 @@ import (
 //   - Rebase reads the document at the head again and applies the divergent
 //     write's changes to it through the change service, block by block, each
 //     guarded by the revision the block had where the write began. A block
-//     the head changed too stays contested and is listed on the divergent
+//     the write added or removed is inserted or removed the same way. A block
+//     the head changed too, or whose surrounding structure the head changed,
+//     stays contested and is listed on the divergent
 //     write, for a person to decide with an ordinary change set guarded by
 //     the head's revision; keeping the head's wording decides it too
 //     (change.ContestedSession).
@@ -103,8 +105,14 @@ type DocRebase struct {
 // Rebase carries the divergent write op to document key over onto the head:
 // the head is read again, and each change the write made, block by block and
 // edition by edition, is sent through svc as an operation guarded by the
-// revision the block had where the write began, as actor. A block the head
-// changed too is left contested. Once the operations land, a write that
+// revision the block had where the write began, as actor. A block the write
+// added is inserted (insert_block), anchored on a neighbour the write's base
+// and the head both hold, and a block it removed is removed (delete_block),
+// guarded by the revisions it had at the base. A block the head changed too
+// is left contested, and so is a block whose structure conflicts: the format
+// adds or removes no block, the head holds neither neighbour of an added
+// block, holds a block of the same key with other content, or changed a
+// removed block. Once the operations land, a write that
 // names op as its cause records the blocks left contested, or settles the
 // write when none is. A change set the service refuses (a stale block, a
 // failing gate) is returned in the result and settles nothing.
@@ -143,6 +151,10 @@ func (d *Documents) Rebase(ctx context.Context, svc *change.Service, key, op str
 	if err != nil {
 		return DocRebase{}, err
 	}
+	structural, err := d.structuralKinds(ctx, key, head.Format, headData)
+	if err != nil {
+		return DocRebase{}, err
+	}
 
 	ref := d.Prefix + key
 	var ops []change.Op
@@ -152,15 +164,28 @@ func (d *Documents) Rebase(ctx context.Context, svc *change.Service, key, op str
 			contested = append(contested, db)
 		}
 	}
-	for _, k := range afterOrder {
+	// The blocks the write added are inserted after the content operations,
+	// each anchored on a block the write's base and the head both hold.
+	var inserts []change.Op
+	known := len(baseOrder) > 0
+	for i, k := range afterOrder {
 		a, b, h := after[k], base[k], held[k]
 		if b == nil {
-			// A block the write added, or a write whose base the log does not
-			// hold: each edition the head does not hold as the write left it
-			// is contested.
-			for _, ek := range a.EditionKeys() {
-				if h == nil || model.EditionRevision(h, ek) != model.EditionRevision(a, ek) {
-					contest(DocBlock{Block: k, Edition: d.editionName(ek)})
+			switch {
+			case known && h == nil:
+				if o, ok := d.insertOp(ref, k, a, afterOrder, i, base, held, structural); ok {
+					inserts = append(inserts, o)
+					continue
+				}
+				contest(DocBlock{Block: k})
+			default:
+				// A block the head holds too, or a write whose base the log
+				// does not hold: each edition the head does not hold as the
+				// write left it is contested.
+				for _, ek := range a.EditionKeys() {
+					if h == nil || model.EditionRevision(h, ek) != model.EditionRevision(a, ek) {
+						contest(DocBlock{Block: k, Edition: d.editionName(ek)})
+					}
 				}
 			}
 			continue
@@ -183,11 +208,18 @@ func (d *Documents) Rebase(ctx context.Context, svc *change.Service, key, op str
 		}
 	}
 	for _, k := range baseOrder {
-		if after[k] == nil && held[k] != nil {
-			// A block the write removed and the head still holds.
-			contest(DocBlock{Block: k})
+		if after[k] != nil || held[k] == nil {
+			continue
 		}
+		// A block the write removed and the head still holds: removed as it
+		// stood at the base, and contested when the head changed it since.
+		if o, ok := d.deleteOp(ref, k, base[k], held[k], structural); ok {
+			ops = append(ops, o)
+			continue
+		}
+		contest(DocBlock{Block: k})
 	}
+	ops = append(ops, afterInOrder(inserts)...)
 
 	out := DocRebase{Contested: contested}
 	if len(ops) > 0 {
@@ -359,6 +391,121 @@ func (d *Documents) editionName(k model.EditionKey) string {
 		return ""
 	}
 	return editionText(k)
+}
+
+// insertOp is the insert_block that adds block k, which the divergent write
+// added at position i of its document, to the head: anchored before the
+// next block the write's base held, or after the previous one, whichever the
+// head still holds. ok is false when the format adds no block, the block
+// holds an edition an insert does not write, or the head holds neither
+// neighbour: the structure around the block conflicts.
+func (d *Documents) insertOp(ref, k string, a *model.Block, order []string, i int, base, held map[string]*model.Block, structural []change.Kind) (change.Op, bool) {
+	if !slices.Contains(structural, change.KindInsertBlock) {
+		return change.Op{}, false
+	}
+	keys := a.EditionKeys()
+	if len(keys) != 1 {
+		// A translation the document holds beside the block's own text is
+		// one insert_block does not write.
+		return change.Op{}, false
+	}
+	own, ok := a.Edition(keys[0])
+	if !ok {
+		return change.Op{}, false
+	}
+	body := &change.InsertBlock{Name: k, Editions: map[string]change.Content{d.ownEditionName(): {Runs: own.Runs}}}
+	next := neighbour(order, i, 1, base)
+	prev := neighbour(order, i, -1, base)
+	switch {
+	case next != "" && held[next] != nil:
+		body.Before = next
+	case prev != "" && held[prev] != nil:
+		body.After = prev
+	default:
+		return change.Op{}, false
+	}
+	return change.Op{Kind: change.KindInsertBlock, At: change.Ref{Doc: ref}, Body: body}, true
+}
+
+// afterInOrder orders the inserts of one rebase so the blocks land in the
+// write's order: each insert after the same anchor puts its block directly
+// after that anchor, so a run of them is sent last block first. An insert
+// before an anchor lands in the order it is sent.
+func afterInOrder(inserts []change.Op) []change.Op {
+	out := slices.Clone(inserts)
+	anchor := func(o change.Op) string { return o.Body.(*change.InsertBlock).After }
+	for i := 0; i < len(out); {
+		j := i + 1
+		if a := anchor(out[i]); a != "" {
+			for j < len(out) && anchor(out[j]) == a {
+				j++
+			}
+		}
+		slices.Reverse(out[i:j])
+		i = j
+	}
+	return out
+}
+
+// neighbour is the nearest block to position i of order, in direction step,
+// that the write's base held; empty for none.
+func neighbour(order []string, i, step int, base map[string]*model.Block) string {
+	for j := i + step; j >= 0 && j < len(order); j += step {
+		if base[order[j]] != nil {
+			return order[j]
+		}
+	}
+	return ""
+}
+
+// deleteOp is the delete_block that removes block k, which the divergent
+// write removed, from the head, guarded by the revisions every edition of it
+// had at the write's base. ok is false when the format removes no block or
+// the head changed the block since the base.
+func (d *Documents) deleteOp(ref, k string, b, h *model.Block, structural []change.Kind) (change.Op, bool) {
+	if !slices.Contains(structural, change.KindDeleteBlock) {
+		return change.Op{}, false
+	}
+	keys := b.EditionKeys()
+	if len(h.EditionKeys()) != len(keys) {
+		return change.Op{}, false
+	}
+	revs := make(map[string]string, len(keys))
+	for _, ek := range keys {
+		rev := model.EditionRevision(b, ek)
+		if model.EditionRevision(h, ek) != rev {
+			return change.Op{}, false
+		}
+		name := d.editionName(ek)
+		if name == "" {
+			name = d.ownEditionName()
+		}
+		revs[name] = rev
+	}
+	return change.Op{Kind: change.KindDeleteBlock, At: change.Ref{Doc: ref, Block: k}, Body: &change.DeleteBlock{IfMatch: revs}}, true
+}
+
+// ownEditionName is how a structural operation names the document's own
+// edition: its language.
+func (d *Documents) ownEditionName() string {
+	return editionText(model.Variant(d.SourceLocale))
+}
+
+// structuralKinds lists the structural operations the format of document
+// key writes, read from a working copy of data.
+func (d *Documents) structuralKinds(ctx context.Context, key, format string, data []byte) ([]change.Kind, error) {
+	sess, dir, err := d.workingCopy(ctx, key, format, data)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = sess.Close()
+		_ = os.RemoveAll(dir)
+	}()
+	if ss, ok := sess.(change.StructuralSession); ok {
+		return ss.Structural(), nil
+	}
+	return nil, nil
 }
 
 // appendBlock appends b to blocks unless it is listed already.

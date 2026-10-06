@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { AppHome } from "../components/AppHome";
 import { CONTEXT_FEED } from "./fixtures/contextFeed";
+import { documentConflict } from "./fixtures/keptConflicts";
 import type { WorkspaceHome } from "../types/api";
 
 const LOCATION = "/fakehome/.local/share/kapi/workspaces/default";
@@ -62,6 +63,22 @@ export const WithProjects: Story = {
         ],
       },
     ]),
+  },
+};
+
+/**
+ * A .kpz outside every project was replaced on disk while it held an edit:
+ * its other version waits on the home to be rebased or discarded.
+ */
+export const WithDocumentConflict: Story = {
+  args: {
+    ...WithProjects.args,
+    documentConflicts: [
+      {
+        ...documentConflict,
+        doc: "/fakehome/handoff/loose.kpz!messages.json",
+      },
+    ],
   },
 };
 

@@ -155,6 +155,12 @@ export const api = {
     call<DocumentRebase>("RebaseKeptDocument", tabID, doc, edit),
   discardKeptDocument: (tabID: string, doc: string, edit: string) =>
     call<void>("DiscardKeptDocument", tabID, doc, edit),
+  getWorkspaceDocumentConflicts: () => call<KeptConflict[]>("GetWorkspaceDocumentConflicts"),
+  rebaseWorkspaceDocument: (doc: string, edit: string) =>
+    call<DocumentRebase>("RebaseWorkspaceDocument", doc, edit),
+  discardWorkspaceDocument: (doc: string, edit: string) =>
+    call<void>("DiscardWorkspaceDocument", doc, edit),
+  applyWorkspaceDocument: (changeSet: string) => call<string>("ApplyWorkspaceDocument", changeSet),
 
   // Review surface — queue with findings enrichment and per-unit detail.
   /** The unified review queue: every unit awaiting a person across the

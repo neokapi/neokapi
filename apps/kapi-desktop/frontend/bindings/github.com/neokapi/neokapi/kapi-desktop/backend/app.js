@@ -218,6 +218,18 @@ export function ApplyTemplate(tabID, template) {
 }
 
 /**
+ * ApplyWorkspaceDocument applies a change set to one .kpz's document named
+ * by the .kpz's absolute path, as the person using the desktop, and returns
+ * the result (kapi.change-result/v1): how the workspace home decides a block a
+ * rebase left. Every content operation names that one document.
+ * @param {string} changeSet
+ * @returns {$CancellablePromise<string>}
+ */
+export function ApplyWorkspaceDocument(changeSet) {
+    return $Call.ByID(2233404976, changeSet);
+}
+
+/**
  * BringUpToDate reconciles the project toward its ship gates through the same
  * dispatch as the CLI's `kapi up` and the MCP `up` tool (host.App.RunUpDispatch
  * → host.App.ResolveUpVenue): a project whose recipe binds a convergence venue
@@ -771,6 +783,17 @@ export function DetectProjectFormat(tabID, path) {
  */
 export function DiscardKeptDocument(tabID, doc, edit) {
     return $Call.ByID(2080622963, tabID, doc, edit);
+}
+
+/**
+ * DiscardWorkspaceDocument drops the write edit to doc, a .kpz's document
+ * named by the .kpz's absolute path, and keeps the document as it stands.
+ * @param {string} doc
+ * @param {string} edit
+ * @returns {$CancellablePromise<void>}
+ */
+export function DiscardWorkspaceDocument(doc, edit) {
+    return $Call.ByID(546161014, doc, edit);
 }
 
 /**
@@ -1473,6 +1496,17 @@ export function GetVersion() {
 }
 
 /**
+ * GetWorkspaceDocumentConflicts lists the versions of a .kpz's document that
+ * did not land, for every .kpz on this machine.
+ * @returns {$CancellablePromise<$models.KeptConflict[]>}
+ */
+export function GetWorkspaceDocumentConflicts() {
+    return $Call.ByID(1949354187).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType56($result);
+    }));
+}
+
+/**
  * History lists the recorded changes to one edition of a block, most recent
  * first: request is a change.HistoryRequest and the answer a change.History,
  * read from the project's block history (who changed the edition, through
@@ -2141,6 +2175,19 @@ export function Read(tabID, request) {
  */
 export function RebaseKeptDocument(tabID, doc, edit) {
     return $Call.ByID(2536287501, tabID, doc, edit).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType147($result);
+    }));
+}
+
+/**
+ * RebaseWorkspaceDocument rebases the write edit to doc, a .kpz's document
+ * named by the .kpz's absolute path, onto the document's head.
+ * @param {string} doc
+ * @param {string} edit
+ * @returns {$CancellablePromise<$models.DocumentRebase>}
+ */
+export function RebaseWorkspaceDocument(doc, edit) {
+    return $Call.ByID(80284288, doc, edit).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType147($result);
     }));
 }

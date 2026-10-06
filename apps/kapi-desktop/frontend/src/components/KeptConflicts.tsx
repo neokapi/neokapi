@@ -49,6 +49,18 @@ export interface KeptConflictsProps {
   rebase?: (doc: string, edit: string) => Promise<DocumentRebase | null>;
   /** Discards a document's divergent write; the binding when absent. */
   discard?: (doc: string, edit: string) => Promise<void>;
+  /**
+   * Where the conflicts are read from: the project the tab has open when
+   * absent. The workspace home reads the .kpz documents of every project and
+   * of none.
+   */
+  source?: ConflictSource;
+}
+
+/** A list of conflicts and the query key it is cached under. */
+export interface ConflictSource {
+  key: readonly unknown[];
+  load: () => Promise<KeptConflict[] | null>;
 }
 
 /** The key a block of a conflict is known by on screen. */
@@ -87,12 +99,14 @@ export function KeptConflicts({
   release: propRelease,
   rebase: propRebase,
   discard: propDiscard,
+  source,
 }: KeptConflictsProps) {
   const queryClient = useQueryClient();
+  const conflictsKey = source?.key ?? qk.keptConflicts(tabID);
   const query = useQuery({
-    queryKey: qk.keptConflicts(tabID),
-    queryFn: () => call<KeptConflict[]>("GetKeptConflicts", tabID),
-    enabled: !propConflicts && !!tabID,
+    queryKey: conflictsKey,
+    queryFn: source?.load ?? (() => call<KeptConflict[]>("GetKeptConflicts", tabID)),
+    enabled: !propConflicts && (!!source || !!tabID),
   });
   const [decided, setDecided] = useState<Set<string>>(new Set());
   const [settled, setSettled] = useState<Set<string>>(new Set());
@@ -141,7 +155,7 @@ export function KeptConflicts({
         await discard(c.doc, c.edit ?? "");
         setSettled((s) => new Set(s).add(key));
       }
-      await queryClient.invalidateQueries({ queryKey: qk.keptConflicts(tabID) });
+      await queryClient.invalidateQueries({ queryKey: conflictsKey });
       await queryClient.invalidateQueries({ queryKey: qk.projectStatus(tabID) });
     } catch (err) {
       setErrors((e) => ({ ...e, [key]: err instanceof Error ? err.message : String(err) }));
@@ -175,7 +189,7 @@ export function KeptConflicts({
         if (!res) return;
         if (res.status !== "applied") {
           setErrors((e) => ({ ...e, [key]: refusalOf(res) }));
-          await queryClient.invalidateQueries({ queryKey: qk.keptConflicts(tabID) });
+          await queryClient.invalidateQueries({ queryKey: conflictsKey });
           return;
         }
       }

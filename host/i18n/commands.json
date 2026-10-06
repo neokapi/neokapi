@@ -3461,6 +3461,22 @@
           "long": "Run the built-in pseudo-translate flow: expand every string with\nlocale-shaped accents and length padding so truncation, concatenation, and\nhardcoded-string bugs surface before any real translation is bought. Runs\nentirely offline, with no AI provider or keys required.\n\nUse it as the pre-flight check; when the UI holds up, 'kapi translate' (ad\nhoc) or 'kapi up' (project) produce the real translations.",
           "short": "Pseudo-translate files to test locale readiness, with no AI keys needed"
         },
+        "resolve": {
+          "example": "  kapi status\n  kapi resolve 'work.kpz!guide.md' --rebase \u003cwrite from kapi status\u003e\n  kapi resolve 'work.kpz!guide.md' --discard \u003cwrite from kapi status\u003e\n  kapi resolve 'work.kpz!guide.md' --rebase \u003cwrite\u003e --json",
+          "flags": {
+            "discard": {
+              "usage": "drop the version WRITE names and keep the document as it stands"
+            },
+            "project": {
+              "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+            },
+            "rebase": {
+              "usage": "carry the version WRITE names over onto the document as it stands"
+            }
+          },
+          "long": "Settle a version of a document a .kpz carries that was written from an older\nversion than the one the document holds now, and so did not land. It happens\nwhen the .kpz on disk is replaced while its working cache holds edits nobody\npacked, and when two machines' edits to one document meet. kapi status lists\neach such version as a conflict with its write and the command that settles it.\n\n--rebase WRITE carries the version's changes over onto the document as it\nstands, block by block, through the same checks kapi apply runs: a block the\nversion added is added, one it removed is removed, and one whose text it\nchanged takes the change. A block the document changed too is left for you,\nand kapi status lists it; a set_content to it through kapi apply decides it,\nkeeping the current wording included. --discard WRITE drops the version and\nkeeps the document as it stands, and after a rebase it keeps the current\nwording of every block left.\n\nDOC names the document as kapi status prints it (work.kpz!guide.md). Quote it\nin a shell that expands \"!\".\n\nExit status: 0 when the version was settled or rebased; 2 when DOC names no\ndocument of a .kpz or WRITE is not a version that did not land; 3 when the\nrebase's changes were refused, and nothing was settled.",
+          "short": "Rebase or discard a version of a .kpz document that did not land"
+        },
         "rm": {
           "flags": {
             "color": {

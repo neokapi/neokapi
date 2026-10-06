@@ -427,15 +427,23 @@ document at its head and sends the write's changes through the change service,
 block by block and edition by edition (`change.Diff` between the version the
 write began from and the one it left). Each operation is guarded by the
 revision its block had where the write began, so it lands only on a block the
-head left alone. A block the head changed too, or one the write added or
-removed, stays **contested**. A write naming the divergent write as its cause
-then records the contested blocks, or settles the write when none is left.
-`Documents.Discard` records that cause with nothing contested and keeps the
-head. Each contested block is decided as an edition's conflict is: a change
-set guarded by the head's revision, where keeping the head's wording is
-recorded as the decision (`change.ContestedSession`). Kapi Desktop offers both
-choices on the project's conflicts card
-([S-02](../surfaces/s-02-kapi-desktop.md)).
+head left alone. A block the write added is an `insert_block` anchored before
+the next block, or after the previous one, that the write's base and the head
+both hold, so blocks added in a run keep their order. A block the write
+removed is a `delete_block` guarded by the revision of every edition it had at
+the base. A block stays **contested** when the head changed it too, or when the
+structure around it conflicts: the format adds or removes no block, the head
+holds neither neighbour of an added block or a block of the same key with other
+content, or the block holds a translation an insert does not write. A write
+naming the divergent write as its cause then records the contested blocks, or
+settles the write when none is left. `Documents.Discard` records that cause
+with nothing contested and keeps the head. Each contested block is decided as
+an edition's conflict is: a change set guarded by the head's revision, where
+keeping the head's wording is recorded as the decision
+(`change.ContestedSession`). `kapi status` lists each divergent write with the
+`kapi resolve` command line that settles it, and Kapi Desktop offers both
+choices on the project's conflicts card and, for every `.kpz` on the machine,
+on the workspace home ([S-02](../surfaces/s-02-kapi-desktop.md)).
 
 ### Flows
 

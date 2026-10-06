@@ -48,6 +48,8 @@ func KapiCommandSet(a *App) []*cobra.Command {
 	// .kpz project snapshot hand-off (AD-025 §5): pack the working state
 	// into a portable .kpz and rehydrate it elsewhere.
 	cmds = append(cmds, NewPackCmd(a), NewUnpackCmd(a), NewInfoCmd(a))
+	// resolve settles a version of a .kpz document that did not land.
+	cmds = append(cmds, NewResolveCmd(a))
 
 	// Toolbox: format-aware cat / grep / sed, registered as hidden proxies
 	// for the kcat / kgrep / ksed multi-call binaries.
