@@ -3,57 +3,38 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/core/change"
-	"github.com/neokapi/neokapi/core/flow"
-	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
-	coreproj "github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/reconcile"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
-	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
-	"github.com/neokapi/neokapi/host"
-	bproject "github.com/neokapi/neokapi/host/venue/project"
-	bconn "github.com/neokapi/neokapi/host/venue/source"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
 
 // A checkout's records name a block by the key its reader gives it, and the
-// venue files the block under the key a push resolves it to. These tests drive
-// a real checkout (the change service, a flow and BowrainSourceConnector's push
-// and pull) against the real server, each push landing in PostgreSQL, so the
-// two meet only where a push and a pull carry them.
+// venue files the block under the key a push resolves it to (Block.Key). The
+// checkout's half, that a push sends each decision under Block.Key and a pull
+// files the venue's decisions back under the reader's key, is tested in
+// host/venue/source. These tests send what such a push sends through the real
+// client to the real server, each push landing in PostgreSQL, and read the
+// join where the server's projections, tallies and review read it.
 
 const keyedItem = "locales/en.json"
 
-// keyedCheckout is a checkout of a project the server holds nothing of yet,
-// written in en-US and translated into French by a pseudo-translation flow.
-type keyedCheckout struct {
-	srv  *Server
-	pid  string
-	app  *host.App
-	proj *bproject.Project
-	conn *bconn.BowrainSourceConnector
-}
+var keyedItems = []apiclient.ItemMeta{{Name: keyedItem, Format: "json"}}
 
-func newKeyedCheckout(t *testing.T) *keyedCheckout {
-	t.Helper()
-	return newKeyedCheckoutIn(t, "en-US")
-}
-
-// newKeyedCheckoutIn is newKeyedCheckout for a project the server holds as
-// written in projectLanguage.
-func newKeyedCheckoutIn(t *testing.T, projectLanguage string) *keyedCheckout {
+// keyedProject is a project the server holds nothing of yet, written in
+// projectLanguage and translated into French.
+func keyedProject(t *testing.T, projectLanguage string) (*Server, string, *apiclient.BowrainClient) {
 	t.Helper()
 	srv, token := newTestServer(t)
 	rec := httptest.NewRecorder()
@@ -69,104 +50,64 @@ func newKeyedCheckoutIn(t *testing.T, projectLanguage string) *keyedCheckout {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
 	ts := httptest.NewServer(srv.GetEcho())
 	t.Cleanup(ts.Close)
-
-	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
-	t.Setenv("XDG_DATA_HOME", t.TempDir())
-	t.Setenv("XDG_CACHE_HOME", t.TempDir())
-	t.Setenv("KAPI_DATA_DIR", t.TempDir())
-	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
-	t.Setenv("KAPI_PLUGINS_DIR", t.TempDir())
-	t.Setenv("KAPI_NO_PROJECT", "1")
-	t.Setenv("BOWRAIN_PROJECT_URL", "")
-	t.Setenv("BOWRAIN_AUTH_TOKEN", token)
-
-	root := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(root, filepath.FromSlash(keyedItem)),
-		[]byte(`{"greeting": "Hello there", "farewell": "Goodbye now"}`+"\n"), 0o644))
-	recipe := &bproject.Recipe{
-		Defaults: coreproj.Defaults{
-			SourceLanguage: "en-US", TargetLanguages: []model.LocaleID{"fr"}, Flow: "pseudo",
-			TranslateAfter: string(model.TranslateAfterNone), Materialize: coreproj.MaterializeManual,
-		},
-		Collections: []coreproj.Collection{{Name: "site", Path: keyedItem, Target: "locales/{lang}.json"}},
-		Flows:       map[string]*flow.StepsSpec{"pseudo": {Steps: []flow.FlowStep{{Tool: "pseudo-translate"}}}},
-		Server:      &bproject.ServerSpec{URL: ts.URL + "/test/" + created.ID, Stream: "main"},
-	}
-	proj, err := bproject.InitProject(root, recipe)
-	require.NoError(t, err)
-
-	app := &host.App{}
-	t.Cleanup(app.Shutdown)
-	app.InitRegistries()
-	app.SourceLang = "en-US"
-	reg := registry.NewFormatRegistry()
-	formats.RegisterAll(reg)
-	conn, err := bconn.NewSourceConnector(app, proj, reg)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = conn.Close() })
-	return &keyedCheckout{srv: srv, pid: created.ID, app: app, proj: proj, conn: conn}
+	return srv, created.ID, apiclient.NewProjectBearerClient(ts.URL, created.ID, token)
 }
 
-// up runs one convergence pass on the checkout, as kapi up does.
-func (k *keyedCheckout) up(t *testing.T) {
+// keyedCatalog is the checkout's catalog as a push reads it, with a French
+// translation of every entry, each block keyed as a push to a venue holding
+// nothing resolves it: the venue offers no priors, so every block is minted a
+// key of its own (reconcile, as host.ResolveIdentity runs it).
+func keyedCatalog(t *testing.T) []*model.Block {
 	t.Helper()
-	cmd := host.NewEnvCommand(context.Background(), "up")
-	cmd.SetOut(io.Discard)
-	cmd.SetErr(io.Discard)
-	k.app.AddFlowRunFlags(cmd)
-	host.AddUpFlags(cmd)
-	host.AddProjectFlag(cmd)
-	require.NoError(t, cmd.Flags().Set("project", k.proj.RecipePath()))
-	proj, err := coreproj.Load(k.proj.RecipePath())
-	require.NoError(t, err)
-	require.NoError(t, k.app.RunDefaultFlowConverge(cmd, proj, k.proj.RecipePath(), host.ConvergeOptions{MaxPasses: 1}))
-}
-
-// approve approves the French translation of key through the change service,
-// as a person's review on the checkout does, and returns the revision it
-// approved.
-func (k *keyedCheckout) approve(t *testing.T, key string) string {
-	t.Helper()
-	ctx := context.Background()
-	svc, err := k.app.ChangeService(ctx, host.ChangeServiceOptions{Project: k.proj.RecipePath(), SourceLocale: "en-US"})
-	require.NoError(t, err)
-	fr := model.EditionKey{Locale: "fr"}
-	var read change.BlockRead
-	_, err = svc.ReadEach(ctx, change.ReadRequest{Doc: keyedItem, Editions: []model.EditionKey{fr}},
-		func(_ *model.Block, r change.BlockRead) error {
-			if r.Ref.Block == key {
-				read = r
-			}
-			return nil
+	var blocks []*model.Block
+	for _, e := range []struct{ name, en, fr string }{
+		{"greeting", "Hello there", "Bonjour"},
+		{"farewell", "Goodbye now", "Au revoir"},
+	} {
+		b := &model.Block{ID: e.name, Name: e.name, Translatable: true, SourceLocale: "en-US"}
+		b.SetSourceRuns([]model.Run{model.TextR(e.en)})
+		b.SetEdition(model.Variant("fr"), model.Edition{
+			Runs: []model.Run{model.TextR(e.fr)}, Status: model.Status(model.TargetStatusTranslated),
 		})
-	require.NoError(t, err)
-	require.NotEmpty(t, read.Editions["fr"].Rev, "the flow translated %s", key)
-	at := read.Ref
-	at.Edition = fr
-	res, err := svc.Apply(ctx, change.Set{Ops: []change.Op{{
-		Kind: change.KindDecide, At: at, IfMatch: read.Editions["fr"].Rev,
-		Body: &change.Decide{Outcome: change.OutcomeEstablish},
-	}}}, change.Actor{Kind: change.ActorPerson})
-	require.NoError(t, err)
-	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)
-	return read.Editions["fr"].Rev
+		blocks = append(blocks, b)
+	}
+	docs := reconcile.Documents([]reconcile.Document{{Path: keyedItem, Blocks: blocks}}, nil)
+	for _, r := range reconcile.Blocks(docs[0].Key, blocks, nil) {
+		r.Block.Key = r.Key
+	}
+	for _, b := range blocks {
+		require.NotEqual(t, b.Name, b.Key, "a venue holding nothing files %s under a key of its own", b.Name)
+	}
+	return blocks
 }
 
-// push pushes the checkout and lands the push as a deployed worker does.
-func (k *keyedCheckout) push(t *testing.T) {
-	t.Helper()
-	res, err := k.conn.Push(context.Background(), bowrainconn.PushOptions{})
-	require.NoError(t, err)
-	drainWithAuthority(t, k.srv)
-	require.Nil(t, res.Governance, "the server accepted every verdict the push carried")
+// approvalOf is the record a push carries for a person's approval of b's
+// French translation, under the key the push filed b by.
+func approvalOf(b *model.Block) venue.UnitDecision {
+	read := state.ReadTarget(b, "fr", "en-US")
+	stamp := time.Now().UTC().Format(time.RFC3339)
+	return venue.UnitDecision{
+		ItemName: keyedItem, Unit: b.Key, Variant: "fr", Status: string(model.TargetStatusEstablished),
+		Revision: read.Revision, Basis: read.Basis, ReviewState: venue.ReviewStateApproved,
+		DecidedAt: stamp, Updated: stamp,
+	}
 }
 
-// stored is the row the server holds for the block the checkout's reader
-// names name.
-func (k *keyedCheckout) stored(t *testing.T, name string) *venue.StoredBlock {
+// pushKeyed pushes the catalog and the records given, as a checkout's push
+// does, and lands the push as a deployed worker does.
+func pushKeyed(t *testing.T, srv *Server, client *apiclient.BowrainClient, blocks []*model.Block, decisions []venue.UnitDecision) {
 	t.Helper()
-	rows, err := k.srv.ContentStore.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: k.pid, Stream: "main", ItemName: keyedItem})
+	resp, err := client.Push(context.Background(), map[string][]*model.Block{keyedItem: blocks}, keyedItems, nil,
+		decisions, apiclient.TransferUnder("en-US"))
+	require.NoError(t, err)
+	drainWithAuthority(t, srv)
+	require.Nil(t, resp.Governance, "the server accepted every verdict the push carried")
+}
+
+// stored is the row the server holds for the block named name.
+func stored(t *testing.T, srv *Server, pid, name string) *venue.StoredBlock {
+	t.Helper()
+	rows, err := srv.ContentStore.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: pid, Stream: "main", ItemName: keyedItem})
 	require.NoError(t, err)
 	for _, sb := range rows {
 		if sb.Block.Name == name {
@@ -178,22 +119,23 @@ func (k *keyedCheckout) stored(t *testing.T, name string) *venue.StoredBlock {
 }
 
 // A checkout translates its catalog and approves one translation before the
-// project's first push. The server holds nothing to resolve the push against,
-// so it files each block under a key the push mints for it; the approval the
-// same push carries lands on that unit, and the review reads it there.
+// project's first push. The push files each block under a key it minted, and
+// sends the approval under the same key; the approval lands on that unit, the
+// review reads it there, and the tallies read it current.
 func TestCheckoutDecisionJoinsTheBlockItsFirstPushFiled(t *testing.T) {
-	k := newKeyedCheckout(t)
-	k.up(t)
-	approved := k.approve(t, "greeting")
+	srv, pid, client := keyedProject(t, "en-US")
+	blocks := keyedCatalog(t)
+	greeting := blocks[0]
+	approval := approvalOf(greeting)
 
-	k.push(t)
+	pushKeyed(t, srv, client, blocks, []venue.UnitDecision{approval})
 
-	sb := k.stored(t, "greeting")
-	require.NotEqual(t, "greeting", sb.Key, "the push minted the unit a key of its own")
+	sb := stored(t, srv, pid, "greeting")
+	require.Equal(t, greeting.Key, sb.Key, "the server files the block under the key the push resolved")
 
-	ds, ok := k.srv.ContentStore.(platstore.DecisionStore)
+	ds, ok := srv.ContentStore.(platstore.DecisionStore)
 	require.True(t, ok)
-	records, err := ds.ListUnitDecisions(t.Context(), k.pid, "main")
+	records, err := ds.ListUnitDecisions(t.Context(), pid, "main")
 	require.NoError(t, err)
 	var units []string
 	for _, d := range records {
@@ -204,80 +146,70 @@ func TestCheckoutDecisionJoinsTheBlockItsFirstPushFiled(t *testing.T) {
 	assert.Equal(t, []string{keyedItem + "|" + sb.Key}, units,
 		"the approval is filed under the unit the server holds, and under no other key")
 
-	d := k.srv.unitDecisionFor(t.Context(), k.pid, "main", sb, "fr")
+	d := srv.unitDecisionFor(t.Context(), pid, "main", sb, "fr")
 	require.NotNil(t, d, "the review reads the approval on the block it judges")
 	assert.Equal(t, venue.ReviewStateApproved, d.ReviewState)
-	assert.Equal(t, approved, d.Revision)
+	assert.Equal(t, approval.Revision, d.Revision)
 	assert.False(t, reviewProvenanceOf(d, sb, "fr").Stale, "the approval's source is the one the server holds")
 
-	tallies, err := ds.TallyDecisionBasis(t.Context(), k.pid, "main")
+	fr, ok := sb.Block.Edition(model.Variant("fr"))
+	require.True(t, ok)
+	assert.Equal(t, model.TargetStatusEstablished, model.TargetStatus(fr.Status),
+		"the translation projects the rung the approval establishes")
+
+	tallies, err := ds.TallyDecisionBasis(t.Context(), pid, "main")
 	require.NoError(t, err)
+	var counted bool
 	for _, tl := range tallies {
 		if tl.Variant == "fr" {
+			counted = true
 			assert.Zero(t, tl.Stale, "nothing reads stale")
 			assert.Zero(t, tl.BasisUnknown, "the approval names its source")
 		}
 	}
+	assert.True(t, counted, "the tallies count the approval")
 }
 
-// A decision the server holds comes back to the checkout under the key the
-// checkout's records name its block by, so the change service reads it on the
-// block it judges, and the next push sends it under the server's key again.
-func TestPulledDecisionLandsOnTheCheckoutsBlock(t *testing.T) {
-	k := newKeyedCheckout(t)
-	k.up(t)
-	k.approve(t, "greeting")
-	k.push(t)
+// A pull hands the checkout each decision under the key the server files its
+// unit by, the key the checkout resolves its block to, and the checkout files
+// it back under its reader's key.
+func TestPullCarriesTheDecisionUnderTheServersKey(t *testing.T) {
+	srv, pid, client := keyedProject(t, "en-US")
+	blocks := keyedCatalog(t)
+	pushKeyed(t, srv, client, blocks, []venue.UnitDecision{approvalOf(blocks[0])})
+	sb := stored(t, srv, pid, "greeting")
 
-	_, err := k.conn.Pull(context.Background(), bowrainconn.PullOptions{})
+	resp, err := client.Pull(context.Background(), 0, nil, 0)
 	require.NoError(t, err)
-
-	st, err := k.app.OpenProjectState(context.Background(), k.proj.Root)
-	require.NoError(t, err)
-	units, err := st.All(context.Background())
-	require.NoError(t, err)
-	var keys []string
-	for _, u := range units {
-		if u.Variant.Locale == "fr" && u.Decision.ReviewState != "" {
-			keys = append(keys, u.Unit)
+	var units []string
+	for _, d := range resp.Decisions {
+		if d.Variant == "fr" && d.ReviewState != "" {
+			units = append(units, d.ItemName+"|"+d.Unit)
 		}
 	}
-	assert.ElementsMatch(t, []string{"greeting"}, unique(keys),
-		"the checkout holds the approval under its reader's key alone")
+	assert.Equal(t, []string{keyedItem + "|" + sb.Key}, units)
 }
 
-func unique(in []string) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, s := range in {
-		if !seen[s] {
-			seen[s] = true
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-// A recipe written in en-US pushed to a project the server holds as written
-// in en-GB is refused before anything is sent, with both languages named and
-// the fix. The server holds no content afterwards.
+// A push taken under en-US to a project the server holds as written in en-GB
+// is refused before anything is stored, with both languages named and the fix.
 func TestPushIsRefusedWhenTheRecipesSourceLanguageIsNotTheProjects(t *testing.T) {
-	k := newKeyedCheckoutIn(t, "en-GB")
-	_, err := k.conn.Push(context.Background(), bowrainconn.PushOptions{})
+	srv, pid, client := keyedProject(t, "en-GB")
+	_, err := client.Push(context.Background(), map[string][]*model.Block{keyedItem: keyedCatalog(t)}, keyedItems, nil,
+		nil, apiclient.TransferUnder("en-US"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "HTTP 409")
 	assert.Contains(t, err.Error(), "the recipe's source language is en-US")
 	assert.Contains(t, err.Error(), "written in en-GB")
 	assert.Contains(t, err.Error(), "set defaults.source_language to en-GB in kapi.yaml")
-	drainWithAuthority(t, k.srv)
-	rows, err := k.srv.ContentStore.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: k.pid, Stream: "main", ItemName: keyedItem})
+	drainWithAuthority(t, srv)
+	rows, err := srv.ContentStore.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: pid, Stream: "main", ItemName: keyedItem})
 	require.NoError(t, err)
 	assert.Empty(t, rows, "the refused push stored nothing")
 }
 
 // The comparison is of languages, not of spellings.
 func TestPushLandsWhenTheRecipeSpellsTheProjectsLanguageAnotherWay(t *testing.T) {
-	k := newKeyedCheckoutIn(t, "en_us")
-	k.push(t)
-	k.stored(t, "greeting")
+	srv, pid, client := keyedProject(t, "en_us")
+	pushKeyed(t, srv, client, keyedCatalog(t), nil)
+	stored(t, srv, pid, "greeting")
 }
