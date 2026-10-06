@@ -237,9 +237,15 @@ func termStoresOutsideProjects(ctx context.Context, root string, projects []stri
 	if err != nil {
 		return nil, err
 	}
-	skip := []string{filepath.Clean(host.DataDir())}
-	for _, dir := range exportSkip {
-		skip = append(skip, filepath.Clean(dir))
+	// The directories an export leaves out apply below the root it packs, as
+	// the file walk applies them: a root inside one of them (a temporary
+	// directory under /tmp) is packed whole.
+	var skip []string
+	for _, dir := range append([]string{host.DataDir()}, exportSkip...) {
+		dir = filepath.Clean(dir)
+		if !within(filepath.Clean(root), dir) {
+			skip = append(skip, dir)
+		}
 	}
 	for _, dir := range projects {
 		layout, err := project.LayoutFor(dir)
