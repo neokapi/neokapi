@@ -337,24 +337,6 @@ jobs:
       # (#1073) — a third-party plugin documents its own formats in its own
       # repository.
 
-      # The React extractor in this tree writes KBF schema 2, which no released
-      # kapi reads until 1.3.0-rc4. Until the pseudo-locale action pins that
-      # release, the locale is generated with the kapi this commit builds:
-      # scripts/pseudo-docs-i18n.sh prefers bin/kapi over the kapi on PATH.
-      # Remove these three steps when the action's kapi-version moves to rc4.
-      - uses: actions/setup-go@v7
-        with:
-          go-version: "1.27.0"
-          cache: true
-
-      - name: Install ICU for the kapi build
-        uses: ./.github/actions/apt-install
-        with:
-          packages: libicu-dev pkg-config
-
-      - name: Build kapi from this commit
-        run: make build
-
       # The qps pseudo-locale is generated here, not committed — see
       # .github/actions/pseudo-locale for why. It must run BEFORE the build that
       # reads i18n/qps/.
