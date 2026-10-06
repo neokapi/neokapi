@@ -50,8 +50,15 @@ export function initSentry() {
     // Modest tracing by default; tune via the Sentry project if needed.
     integrations: [Sentry.browserTracingIntegration()],
     tracesSampleRate: 0.1,
-    // Never ship request bodies / headers that could carry tokens.
-    sendDefaultPii: false,
+    // Never ship the user's IP, cookies, request or response headers or
+    // bodies, which could carry tokens. The SDK collects all of them unless
+    // told otherwise.
+    dataCollection: {
+      userInfo: false,
+      cookies: false,
+      httpHeaders: false,
+      httpBodies: [],
+    },
     // Link each error to the PostHog session replay (error → watch the session).
     beforeSend: posthogSessionTags,
   });
